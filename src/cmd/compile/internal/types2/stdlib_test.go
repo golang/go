@@ -192,6 +192,8 @@ func TestStdFixed(t *testing.T) {
 		"issue20780.go",  // types2 does not have constraints on stack size
 		"issue42058a.go", // types2 does not have constraints on channel element size
 		"issue42058b.go", // types2 does not have constraints on channel element size
+		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
 	)
 }
 
@@ -215,7 +217,7 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	var files []*syntax.File
 	for _, filename := range filenames {
 		errh := func(err error) { t.Error(err) }
-		file, err := syntax.ParseFile(filename, errh, nil, 0)
+		file, err := syntax.ParseFile(filename, errh, nil, syntax.AllowGenerics)
 		if err != nil {
 			return
 		}

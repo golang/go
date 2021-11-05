@@ -32,6 +32,10 @@ import (
 	"unicode"
 )
 
+// CompilerDefaultGLevel is the -G level used by default when not overridden by a
+// command-line flag
+const CompilerDefaultGLevel = 3
+
 var (
 	verbose        = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
 	keep           = flag.Bool("k", false, "keep. keep temporary directory.")
@@ -81,12 +85,12 @@ var unifiedEnabled, defaultGLevels = func() (bool, string) {
 	// won't need to disable tests for it anymore anyway.
 	enabled := strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
 
-	// Normal test runs should test with both -G=0 and -G=3 for types2
-	// coverage. But the unified experiment always uses types2, so
-	// testing with -G=3 is redundant.
-	glevels := "0,3"
-	if enabled {
-		glevels = "0"
+	// Test both -G=0 and -G=3 on the longtest builders, to make sure we
+	// don't accidentally break -G=0 mode until we're ready to remove it
+	// completely. But elsewhere, testing -G=3 alone should be enough.
+	glevels := "3"
+	if strings.Contains(os.Getenv("GO_BUILDER_NAME"), "longtest") {
+		glevels = "0,3"
 	}
 
 	return enabled, glevels
@@ -340,10 +344,15 @@ type test struct {
 }
 
 // initExpectFail initializes t.expectFail based on the build+test
-// configuration. It should only be called for tests known to use
-// types2.
-func (t *test) initExpectFail() {
+// configuration.
+func (t *test) initExpectFail(hasGFlag bool) {
 	if *force {
+		return
+	}
+
+	if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
+		// tests should always pass when run w/o types2 (i.e., using the
+		// legacy typechecker, option -G=0).
 		return
 	}
 
@@ -526,9 +535,9 @@ func (ctxt *context) match(name string) bool {
 	if name == "" {
 		return false
 	}
-	if i := strings.Index(name, ","); i >= 0 {
+	if first, rest, ok := strings.Cut(name, ","); ok {
 		// comma-separated list
-		return ctxt.match(name[:i]) && ctxt.match(name[i+1:])
+		return ctxt.match(first) && ctxt.match(rest)
 	}
 	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
 		return false
@@ -581,14 +590,14 @@ func init() { checkShouldTest() }
 // over and over.
 func (t *test) goGcflags() string {
 	flags := os.Getenv("GO_GCFLAGS")
-	if t.glevel != 0 {
+	if t.glevel != CompilerDefaultGLevel {
 		flags = fmt.Sprintf("%s -G=%v", flags, t.glevel)
 	}
 	return "-gcflags=all=" + flags
 }
 
 func (t *test) goGcflagsIsEmpty() bool {
-	return "" == os.Getenv("GO_GCFLAGS") && t.glevel == 0
+	return "" == os.Getenv("GO_GCFLAGS") && t.glevel == CompilerDefaultGLevel
 }
 
 var errTimeout = errors.New("command exceeded time limit")
@@ -613,24 +622,23 @@ func (t *test) run() {
 	}
 
 	// Execution recipe stops at first blank line.
-	pos := strings.Index(t.src, "\n\n")
-	if pos == -1 {
+	action, _, ok := strings.Cut(t.src, "\n\n")
+	if !ok {
 		t.err = fmt.Errorf("double newline ending execution recipe not found in %s", t.goFileName())
 		return
 	}
-	action := t.src[:pos]
-	if nl := strings.Index(action, "\n"); nl >= 0 && strings.Contains(action[:nl], "+build") {
+	if firstLine, rest, ok := strings.Cut(action, "\n"); ok && strings.Contains(firstLine, "+build") {
 		// skip first line
-		action = action[nl+1:]
+		action = rest
 	}
 	action = strings.TrimPrefix(action, "//")
 
 	// Check for build constraints only up to the actual code.
-	pkgPos := strings.Index(t.src, "\npackage")
-	if pkgPos == -1 {
-		pkgPos = pos // some files are intentionally malformed
+	header, _, ok := strings.Cut(t.src, "\npackage")
+	if !ok {
+		header = action // some files are intentionally malformed
 	}
-	if ok, why := shouldTest(t.src[:pkgPos], goos, goarch); !ok {
+	if ok, why := shouldTest(header, goos, goarch); !ok {
 		if *showSkips {
 			fmt.Printf("%-20s %-20s: %s\n", "skip", t.goFileName(), why)
 		}
@@ -750,7 +758,8 @@ func (t *test) run() {
 			}
 		}
 
-		if hasGFlag && t.glevel != 0 {
+		// In unified IR mode, run the test regardless of explicit -G flag.
+		if !unifiedEnabled && hasGFlag && t.glevel != CompilerDefaultGLevel {
 			// test provides explicit -G flag already; don't run again
 			if *verbose {
 				fmt.Printf("excl\t%s\n", t.goFileName())
@@ -758,13 +767,7 @@ func (t *test) run() {
 			return false
 		}
 
-		if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
-			// tests should always pass when run w/o types2 (i.e., using the
-			// legacy typechecker).
-			return true
-		}
-
-		t.initExpectFail()
+		t.initExpectFail(hasGFlag)
 
 		switch tool {
 		case Build, Run:
@@ -776,11 +779,13 @@ func (t *test) run() {
 			}
 
 		default:
-			// we don't know how to add -G for this test yet
-			if *verbose {
-				fmt.Printf("excl\t%s\n", t.goFileName())
+			if t.glevel != CompilerDefaultGLevel {
+				// we don't know how to add -G for this test yet
+				if *verbose {
+					fmt.Printf("excl\t%s\n", t.goFileName())
+				}
+				return false
 			}
-			return false
 		}
 
 		return true
@@ -1510,8 +1515,8 @@ func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (er
 			// Assume errmsg says "file:line: foo".
 			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
 			text := errmsg
-			if i := strings.Index(text, " "); i >= 0 {
-				text = text[i+1:]
+			if _, suffix, ok := strings.Cut(text, " "); ok {
+				text = suffix
 			}
 			if we.re.MatchString(text) {
 				matched = true
@@ -1556,31 +1561,26 @@ func (t *test) updateErrors(out, file string) {
 	}
 	lines := strings.Split(string(src), "\n")
 	// Remove old errors.
-	for i, ln := range lines {
-		pos := strings.Index(ln, " // ERROR ")
-		if pos >= 0 {
-			lines[i] = ln[:pos]
-		}
+	for i := range lines {
+		lines[i], _, _ = strings.Cut(lines[i], " // ERROR ")
 	}
 	// Parse new errors.
 	errors := make(map[int]map[string]bool)
 	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
 	for _, errStr := range splitOutput(out, false) {
-		colon1 := strings.Index(errStr, ":")
-		if colon1 < 0 || errStr[:colon1] != file {
+		errFile, rest, ok := strings.Cut(errStr, ":")
+		if !ok || errFile != file {
 			continue
 		}
-		colon2 := strings.Index(errStr[colon1+1:], ":")
-		if colon2 < 0 {
+		lineStr, msg, ok := strings.Cut(rest, ":")
+		if !ok {
 			continue
 		}
-		colon2 += colon1 + 1
-		line, err := strconv.Atoi(errStr[colon1+1 : colon2])
+		line, err := strconv.Atoi(lineStr)
 		line--
 		if err != nil || line < 0 || line >= len(lines) {
 			continue
 		}
-		msg := errStr[colon2+2:]
 		msg = strings.Replace(msg, file, base, -1) // normalize file mentions in error itself
 		msg = strings.TrimLeft(msg, " \t")
 		for _, r := range []string{`\`, `*`, `+`, `?`, `[`, `]`, `(`, `)`} {
@@ -1747,7 +1747,7 @@ var (
 	// are the supported variants.
 	archVariants = map[string][]string{
 		"386":     {"GO386", "sse2", "softfloat"},
-		"amd64":   {},
+		"amd64":   {"GOAMD64", "v1", "v2", "v3", "v4"},
 		"arm":     {"GOARM", "5", "6", "7"},
 		"arm64":   {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
@@ -1756,6 +1756,7 @@ var (
 		"ppc64le": {"GOPPC64", "power8", "power9"},
 		"s390x":   {},
 		"wasm":    {},
+		"riscv64": {},
 	}
 )
 
@@ -2177,14 +2178,7 @@ var types2Failures32Bit = setOf(
 )
 
 var g3Failures = setOf(
-	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
-
-	"fixedbugs/issue30862.go", // -G=3 doesn't handle //go:nointerface
-
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
-
-	"typeparam/mdempsky/4.go",  // -G=3 can't export functions with labeled breaks in loops
-	"typeparam/mdempsky/15.go", // ICE in (*irgen).buildClosure
 )
 
 var unifiedFailures = setOf(
@@ -2194,6 +2188,7 @@ var unifiedFailures = setOf(
 
 	"fixedbugs/issue42284.go", // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
 	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+	"typeparam/issue48538.go", // assertion failure, interprets struct key as closure variable
 )
 
 func setOf(keys ...string) map[string]bool {

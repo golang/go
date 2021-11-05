@@ -395,10 +395,11 @@ func tcSelect(sel *ir.SelectStmt) {
 			n := Stmt(ncase.Comm)
 			ncase.Comm = n
 			oselrecv2 := func(dst, recv ir.Node, def bool) {
-				n := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, []ir.Node{dst, ir.BlankNode}, []ir.Node{recv})
-				n.Def = def
-				n.SetTypecheck(1)
-				ncase.Comm = n
+				selrecv := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, []ir.Node{dst, ir.BlankNode}, []ir.Node{recv})
+				selrecv.Def = def
+				selrecv.SetTypecheck(1)
+				selrecv.SetInit(n.Init())
+				ncase.Comm = selrecv
 			}
 			switch n.Op() {
 			default:

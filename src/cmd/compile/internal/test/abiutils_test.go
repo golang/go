@@ -247,7 +247,7 @@ func TestABIUtilsSliceString(t *testing.T) {
 	//      p6 int64, p6 []intr32) (r1 string, r2 int64, r3 string, r4 []int32)
 	i32 := types.Types[types.TINT32]
 	sli32 := types.NewSlice(i32)
-	str := types.New(types.TSTRING)
+	str := types.Types[types.TSTRING]
 	i8 := types.Types[types.TINT8]
 	i64 := types.Types[types.TINT64]
 	ft := mkFuncType(nil, []*types.Type{sli32, i8, sli32, i8, str, i8, i64, sli32},
@@ -313,7 +313,7 @@ func TestABIUtilsInterfaces(t *testing.T) {
 	fldt := mkFuncType(types.FakeRecvType(), []*types.Type{},
 		[]*types.Type{types.Types[types.TSTRING]})
 	field := types.NewField(src.NoXPos, typecheck.Lookup("F"), fldt)
-	nei := types.NewInterface(types.LocalPkg, []*types.Field{field})
+	nei := types.NewInterface(types.LocalPkg, []*types.Field{field}, false)
 	i16 := types.Types[types.TINT16]
 	tb := types.Types[types.TBOOL]
 	s1 := mkstruct([]*types.Type{i16, i16, tb})

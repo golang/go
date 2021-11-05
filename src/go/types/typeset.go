@@ -18,32 +18,30 @@ import (
 type _TypeSet struct {
 	comparable bool // if set, the interface is or embeds comparable
 	// TODO(gri) consider using a set for the methods for faster lookup
-	methods []*Func // all methods of the interface; sorted by unique ID
-	types   Type    // typically a *Union; nil means no type restrictions
+	methods []*Func  // all methods of the interface; sorted by unique ID
+	terms   termlist // type terms of the type set
 }
 
-// IsTop reports whether type set s is the top type set (corresponding to the empty interface).
-func (s *_TypeSet) IsTop() bool { return !s.comparable && len(s.methods) == 0 && s.types == nil }
+// IsEmpty reports whether type set s is the empty set.
+func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
 
-// IsMethodSet reports whether the type set s is described by a single set of methods.
-func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.types == nil }
+// IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
+func (s *_TypeSet) IsAll() bool { return !s.comparable && len(s.methods) == 0 && s.terms.isAll() }
+
+// IsMethodSet reports whether the interface t is fully described by its method set.
+func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
-// TODO(gri) this is not correct - there may be s.types values containing non-comparable types
 func (s *_TypeSet) IsComparable() bool {
-	if s.types == nil {
+	if s.terms.isAll() {
 		return s.comparable
 	}
-	tcomparable := s.underIs(func(u Type) bool {
-		return Comparable(u)
+	return s.is(func(t *term) bool {
+		return t != nil && Comparable(t.typ)
 	})
-	if !s.comparable {
-		return tcomparable
-	}
-	return s.comparable && tcomparable
 }
 
-// TODO(gri) IsTypeSet is not a great name. Find a better one.
+// TODO(gri) IsTypeSet is not a great name for this predicate. Find a better one.
 
 // IsTypeSet reports whether the type set s is represented by a finite set of underlying types.
 func (s *_TypeSet) IsTypeSet() bool {
@@ -64,60 +62,102 @@ func (s *_TypeSet) LookupMethod(pkg *Package, name string) (int, *Func) {
 }
 
 func (s *_TypeSet) String() string {
-	if s.IsTop() {
-		return "⊤"
+	switch {
+	case s.IsEmpty():
+		return "∅"
+	case s.IsAll():
+		return "𝓤"
 	}
+
+	hasMethods := len(s.methods) > 0
+	hasTerms := s.hasTerms()
 
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 	if s.comparable {
-		buf.WriteString(" comparable")
-		if len(s.methods) > 0 || s.types != nil {
-			buf.WriteByte(';')
+		buf.WriteString("comparable")
+		if hasMethods || hasTerms {
+			buf.WriteString("; ")
 		}
 	}
 	for i, m := range s.methods {
 		if i > 0 {
-			buf.WriteByte(';')
+			buf.WriteString("; ")
 		}
-		buf.WriteByte(' ')
 		buf.WriteString(m.String())
 	}
-	if len(s.methods) > 0 && s.types != nil {
-		buf.WriteByte(';')
+	if hasMethods && hasTerms {
+		buf.WriteString("; ")
 	}
-	if s.types != nil {
-		buf.WriteByte(' ')
-		writeType(&buf, s.types, nil, nil)
+	if hasTerms {
+		buf.WriteString(s.terms.String())
 	}
-
-	buf.WriteString(" }") // there was a least one method or type
+	buf.WriteString("}")
 	return buf.String()
 }
 
 // ----------------------------------------------------------------------------
 // Implementation
 
-// underIs reports whether f returned true for the underlying types of the
-// enumerable types in the type set s. If the type set comprises all types
-// f is called once with the top type; if the type set is empty, the result
-// is false.
-func (s *_TypeSet) underIs(f func(Type) bool) bool {
-	switch t := s.types.(type) {
-	case nil:
-		return f(theTop)
-	default:
-		return f(t)
-	case *Union:
-		return t.underIs(f)
+// hasTerms reports whether the type set has specific type terms.
+func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
+
+// singleType returns the single type in s if there is exactly one; otherwise the result is nil.
+func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
+
+// includes reports whether t ∈ s.
+func (s *_TypeSet) includes(t Type) bool { return s.terms.includes(t) }
+
+// subsetOf reports whether s1 ⊆ s2.
+func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
+
+// TODO(gri) TypeSet.is and TypeSet.underIs should probably also go into termlist.go
+
+// is calls f with the specific type terms of s and reports whether
+// all calls to f returned true. If there are no specific terms, is
+// returns the result of f(nil).
+func (s *_TypeSet) is(f func(*term) bool) bool {
+	if !s.hasTerms() {
+		return f(nil)
 	}
+	for _, t := range s.terms {
+		assert(t.typ != nil)
+		if !f(t) {
+			return false
+		}
+	}
+	return true
+}
+
+// underIs calls f with the underlying types of the specific type terms
+// of s and reports whether all calls to f returned true. If there are
+// no specific terms, is returns the result of f(nil).
+func (s *_TypeSet) underIs(f func(Type) bool) bool {
+	if !s.hasTerms() {
+		return f(nil)
+	}
+	for _, t := range s.terms {
+		assert(t.typ != nil)
+		// x == under(x) for ~x terms
+		u := t.typ
+		if !t.tilde {
+			u = under(u)
+		}
+		if debug {
+			assert(Identical(u, under(u)))
+		}
+		if !f(u) {
+			return false
+		}
+	}
+	return true
 }
 
 // topTypeSet may be used as type set for the empty interface.
-var topTypeSet _TypeSet
+var topTypeSet = _TypeSet{terms: allTermlist}
 
-// computeTypeSet may be called with check == nil.
-func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
+// computeInterfaceTypeSet may be called with check == nil.
+func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
 	if ityp.tset != nil {
 		return ityp.tset
 	}
@@ -157,7 +197,7 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
 	// have valid interfaces. Mark the interface as complete to avoid
 	// infinite recursion if the validType check occurs later for some
 	// reason.
-	ityp.tset = new(_TypeSet) // TODO(gri) is this sufficient?
+	ityp.tset = &_TypeSet{terms: allTermlist} // TODO(gri) is this sufficient?
 
 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
 	// of a method I.m's Func Object of an interface I is the same as that of
@@ -214,7 +254,7 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
 	}
 
 	// collect embedded elements
-	var allTypes Type
+	var allTerms = allTermlist
 	for i, typ := range ityp.embeddeds {
 		// The embedding position is nil for imported interfaces
 		// and also for interface copies after substitution (but
@@ -223,39 +263,51 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
 		if ityp.embedPos != nil {
 			pos = (*ityp.embedPos)[i]
 		}
-		var types Type
-		switch t := under(typ).(type) {
+		var terms termlist
+		switch u := under(typ).(type) {
 		case *Interface:
-			tset := computeTypeSet(check, pos, t)
+			tset := computeInterfaceTypeSet(check, pos, u)
+			// If typ is local, an error was already reported where typ is specified/defined.
+			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, 1, 18) {
+				check.errorf(atPos(pos), _Todo, "embedding constraint interface %s requires go1.18 or later", typ)
+				continue
+			}
 			if tset.comparable {
 				ityp.tset.comparable = true
 			}
 			for _, m := range tset.methods {
 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
-
 			}
-			types = tset.types
+			terms = tset.terms
 		case *Union:
-			// TODO(gri) combine with default case once we have
-			//           converted all tests to new notation and we
-			//           can report an error when we don't have an
-			//           interface before go1.18.
-			types = typ
+			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+				check.errorf(atPos(pos), _Todo, "embedding interface element %s requires go1.18 or later", u)
+				continue
+			}
+			tset := computeUnionTypeSet(check, pos, u)
+			if tset == &invalidTypeSet {
+				continue // ignore invalid unions
+			}
+			terms = tset.terms
 		case *TypeParam:
-			// Embedding stand-alone type parameters is not permitted for now.
-			// This case is handled during union parsing.
-			unreachable()
+			// Embedding stand-alone type parameters is not permitted.
+			// Union parsing reports a (delayed) error, so we can ignore this entry.
+			continue
 		default:
-			if typ == Typ[Invalid] {
+			if u == Typ[Invalid] {
 				continue
 			}
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is not an interface", typ)
+				check.errorf(atPos(pos), _InvalidIfaceEmbed, "embedding non-interface type %s requires go1.18 or later", typ)
 				continue
 			}
-			types = typ
+			terms = termlist{{false, typ}}
 		}
-		allTypes = intersect(allTypes, types)
+		// The type set of an interface is the intersection
+		// of the type sets of all its elements.
+		// Intersection cannot produce longer termlists and
+		// thus cannot overflow.
+		allTerms = allTerms.intersect(terms)
 	}
 	ityp.embedPos = nil // not needed anymore (errors have been reported)
 
@@ -272,7 +324,7 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
 		sort.Sort(byUniqueMethodName(methods))
 		ityp.tset.methods = methods
 	}
-	ityp.tset.types = allTypes
+	ityp.tset.terms = allTerms
 
 	return ityp.tset
 }
@@ -283,10 +335,10 @@ func sortMethods(list []*Func) {
 
 func assertSortedMethods(list []*Func) {
 	if !debug {
-		panic("internal error: assertSortedMethods called outside debug mode")
+		panic("assertSortedMethods called outside debug mode")
 	}
 	if !sort.IsSorted(byUniqueMethodName(list)) {
-		panic("internal error: methods not sorted")
+		panic("methods not sorted")
 	}
 }
 
@@ -296,3 +348,50 @@ type byUniqueMethodName []*Func
 func (a byUniqueMethodName) Len() int           { return len(a) }
 func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
 func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+// invalidTypeSet is a singleton type set to signal an invalid type set
+// due to an error. It's also a valid empty type set, so consumers of
+// type sets may choose to ignore it.
+var invalidTypeSet _TypeSet
+
+// computeUnionTypeSet may be called with check == nil.
+// The result is &invalidTypeSet if the union overflows.
+func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
+	if utyp.tset != nil {
+		return utyp.tset
+	}
+
+	// avoid infinite recursion (see also computeInterfaceTypeSet)
+	utyp.tset = new(_TypeSet)
+
+	var allTerms termlist
+	for _, t := range utyp.terms {
+		var terms termlist
+		switch u := under(t.typ).(type) {
+		case *Interface:
+			terms = computeInterfaceTypeSet(check, pos, u).terms
+		case *TypeParam:
+			// A stand-alone type parameters is not permitted as union term.
+			// Union parsing reports a (delayed) error, so we can ignore this entry.
+			continue
+		default:
+			if t.typ == Typ[Invalid] {
+				continue
+			}
+			terms = termlist{(*term)(t)}
+		}
+		// The type set of a union expression is the union
+		// of the type sets of each term.
+		allTerms = allTerms.union(terms)
+		if len(allTerms) > maxTermCount {
+			if check != nil {
+				check.errorf(atPos(pos), _Todo, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+			}
+			utyp.tset = &invalidTypeSet
+			return utyp.tset
+		}
+	}
+	utyp.tset.terms = allTerms
+
+	return utyp.tset
+}

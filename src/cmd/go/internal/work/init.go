@@ -11,8 +11,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
+	"cmd/internal/quoted"
 	"cmd/internal/sys"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,27 +32,63 @@ func BuildInit() {
 	if cfg.BuildPkgdir != "" && !filepath.IsAbs(cfg.BuildPkgdir) {
 		p, err := filepath.Abs(cfg.BuildPkgdir)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "go %s: evaluating -pkgdir: %v\n", flag.Args()[0], err)
+			fmt.Fprintf(os.Stderr, "go: evaluating -pkgdir: %v\n", err)
 			base.SetExitStatus(2)
 			base.Exit()
 		}
 		cfg.BuildPkgdir = p
 	}
 
-	// Make sure CC and CXX are absolute paths
-	for _, key := range []string{"CC", "CXX"} {
-		if path := cfg.Getenv(key); !filepath.IsAbs(path) && path != "" && path != filepath.Base(path) {
-			base.Fatalf("go %s: %s environment variable is relative; must be absolute path: %s\n", flag.Args()[0], key, path)
+	if cfg.BuildP <= 0 {
+		base.Fatalf("go: -p must be a positive integer: %v\n", cfg.BuildP)
+	}
+
+	// Make sure CC, CXX, and FC are absolute paths.
+	for _, key := range []string{"CC", "CXX", "FC"} {
+		value := cfg.Getenv(key)
+		args, err := quoted.Split(value)
+		if err != nil {
+			base.Fatalf("go: %s environment variable could not be parsed: %v", key, err)
+		}
+		if len(args) == 0 {
+			continue
+		}
+		path := args[0]
+		if !filepath.IsAbs(path) && path != filepath.Base(path) {
+			base.Fatalf("go: %s environment variable is relative; must be absolute path: %s\n", key, path)
 		}
 	}
 }
 
+// fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
+// on supported platforms.
+//
+// On unsupported platforms, fuzzInstrumentFlags returns nil, meaning no
+// instrumentation is added. 'go test -fuzz' still works without coverage,
+// but it generates random inputs without guidance, so it's much less effective.
+func fuzzInstrumentFlags() []string {
+	if !sys.FuzzInstrumented(cfg.Goos, cfg.Goarch) {
+		return nil
+	}
+	return []string{"-d=libfuzzer"}
+}
+
 func instrumentInit() {
-	if !cfg.BuildRace && !cfg.BuildMSan {
+	if !cfg.BuildRace && !cfg.BuildMSan && !cfg.BuildASan {
 		return
 	}
 	if cfg.BuildRace && cfg.BuildMSan {
-		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
+		fmt.Fprintf(os.Stderr, "go: may not use -race and -msan simultaneously\n")
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildRace && cfg.BuildASan {
+		fmt.Fprintf(os.Stderr, "go: may not use -race and -asan simultaneously\n")
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildMSan && cfg.BuildASan {
+		fmt.Fprintf(os.Stderr, "go: may not use -msan and -asan simultaneously\n")
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -61,12 +97,15 @@ func instrumentInit() {
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	if cfg.BuildRace {
-		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
-			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, darwin/arm64, and windows/amd64\n", flag.Args()[0])
-			base.SetExitStatus(2)
-			base.Exit()
-		}
+	if cfg.BuildRace && !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+		fmt.Fprintf(os.Stderr, "-race is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildASan && !sys.ASanSupported(cfg.Goos, cfg.Goarch) {
+		fmt.Fprintf(os.Stderr, "-asan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
 	mode := "race"
 	if cfg.BuildMSan {
@@ -77,13 +116,16 @@ func instrumentInit() {
 			cfg.BuildBuildmode = "pie"
 		}
 	}
+	if cfg.BuildASan {
+		mode = "asan"
+	}
 	modeFlag := "-" + mode
 
 	if !cfg.BuildContext.CgoEnabled {
 		if runtime.GOOS != cfg.Goos || runtime.GOARCH != cfg.Goarch {
-			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo\n", flag.Args()[0], modeFlag)
+			fmt.Fprintf(os.Stderr, "go: %s requires cgo\n", modeFlag)
 		} else {
-			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+			fmt.Fprintf(os.Stderr, "go: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", modeFlag)
 		}
 
 		base.SetExitStatus(2)

@@ -9,7 +9,7 @@
 # * go fix
 # * go fmt
 # * go generate
-# * go get -d
+# * go get
 # * go list (without -export or -compiled)
 
 env GOCACHE=off

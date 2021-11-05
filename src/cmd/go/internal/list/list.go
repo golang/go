@@ -24,7 +24,7 @@ import (
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 )
 
 var CmdList = &base.Command{
@@ -316,6 +316,7 @@ For more about modules, see https://golang.org/ref/mod.
 func init() {
 	CmdList.Run = runList // break init cycle
 	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
+	base.AddWorkfileFlag(&CmdList.Flag)
 }
 
 var (
@@ -336,6 +337,8 @@ var (
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if *listFmt != "" && *listJson == true {
 		base.Fatalf("go list -f cannot be used with -json")
 	}
@@ -424,12 +427,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		if modload.Init(); !modload.Enabled() {
-			base.Fatalf("go list -m: not using modules")
+			base.Fatalf("go: list -m cannot be used with GO111MODULE=off")
 		}
 
 		modload.LoadModFile(ctx) // Sets cfg.BuildMod as a side-effect.
 		if cfg.BuildMod == "vendor" {
-			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
+			const actionDisabledFormat = "go: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
 			if *listVersions {
 				base.Fatalf(actionDisabledFormat, "determine available versions")
@@ -468,11 +471,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
-					base.Errorf("go list -m: %v", m.Error.Err)
+					base.Errorf("go: %v", m.Error.Err)
 				}
 			}
 			if err != nil {
-				base.Errorf("go list -m: %v", err)
+				base.Errorf("go: %v", err)
 			}
 			base.ExitIfErrors()
 		}
@@ -708,7 +711,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			}
 			rmods, err := modload.ListModules(ctx, args, mode)
 			if err != nil && !*listE {
-				base.Errorf("go list -retracted: %v", err)
+				base.Errorf("go: %v", err)
 			}
 			for i, arg := range args {
 				rmod := rmods[i]

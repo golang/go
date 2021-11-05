@@ -6,8 +6,6 @@
 
 package p
 
-import "unsafe"
-
 // Parameterized types may have methods.
 type T1[A any] struct{ a A }
 
@@ -97,17 +95,18 @@ type T0 struct{}
 func (T0) _() {}
 func (T1[A]) _() {}
 
-// A generic receiver type may constrain its type parameter such
-// that it must be a pointer type. Such receiver types are not
-// permitted.
-type T3a[P interface{ ~int | ~string | ~float64 }] P
-
-func (T3a[_]) m() {} // this is ok
-
-type T3b[P interface{ ~unsafe.Pointer }] P
-
-func (T3b /* ERROR invalid receiver */ [_]) m() {}
-
-type T3c[P interface{ *int | *string }] P
-
-func (T3c /* ERROR invalid receiver */ [_]) m() {}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// // A generic receiver type may constrain its type parameter such
+// // that it must be a pointer type. Such receiver types are not
+// // permitted.
+// type T3a[P interface{ ~int | ~string | ~float64 }] P
+// 
+// func (T3a[_]) m() {} // this is ok
+// 
+// type T3b[P interface{ ~unsafe.Pointer }] P
+// 
+// func (T3b /* ERROR invalid receiver */ [_]) m() {}
+// 
+// type T3c[P interface{ *int | *string }] P
+// 
+// func (T3c /* ERROR invalid receiver */ [_]) m() {}

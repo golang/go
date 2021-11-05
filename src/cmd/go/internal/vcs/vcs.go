@@ -5,6 +5,7 @@
 package vcs
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,23 +18,26 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/search"
 	"cmd/go/internal/web"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
 )
 
-// A vcsCmd describes how to use a version control system
+// A Cmd describes how to use a version control system
 // like Mercurial, Git, or Subversion.
 type Cmd struct {
-	Name string
-	Cmd  string // name of binary to invoke command
+	Name      string
+	Cmd       string   // name of binary to invoke command
+	RootNames []string // filename indicating the root of a checkout directory
 
 	CreateCmd   []string // commands to download a fresh copy of a repository
 	DownloadCmd []string // commands to download updates into an existing repository
@@ -48,6 +52,14 @@ type Cmd struct {
 
 	RemoteRepo  func(v *Cmd, rootDir string) (remoteRepo string, err error)
 	ResolveRepo func(v *Cmd, rootDir, remoteRepo string) (realRepo string, err error)
+	Status      func(v *Cmd, rootDir string) (Status, error)
+}
+
+// Status is the current state of a local repository.
+type Status struct {
+	Revision    string    // Optional.
+	CommitTime  time.Time // Optional.
+	Uncommitted bool      // Required.
 }
 
 var defaultSecureScheme = map[string]bool{
@@ -118,8 +130,9 @@ func vcsByCmd(cmd string) *Cmd {
 
 // vcsHg describes how to use Mercurial.
 var vcsHg = &Cmd{
-	Name: "Mercurial",
-	Cmd:  "hg",
+	Name:      "Mercurial",
+	Cmd:       "hg",
+	RootNames: []string{".hg"},
 
 	CreateCmd:   []string{"clone -U -- {repo} {dir}"},
 	DownloadCmd: []string{"pull"},
@@ -139,6 +152,7 @@ var vcsHg = &Cmd{
 	Scheme:     []string{"https", "http", "ssh"},
 	PingCmd:    "identify -- {scheme}://{repo}",
 	RemoteRepo: hgRemoteRepo,
+	Status:     hgStatus,
 }
 
 func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
@@ -149,10 +163,60 @@ func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
+	// Output changeset ID and seconds since epoch.
+	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -l1 -T {node}:{date(date,"%s")}`)
+	if err != nil {
+		return Status{}, err
+	}
+
+	// Successful execution without output indicates an empty repo (no commits).
+	var rev string
+	var commitTime time.Time
+	if len(out) > 0 {
+		rev, commitTime, err = parseRevTime(out)
+		if err != nil {
+			return Status{}, err
+		}
+	}
+
+	// Also look for untracked files.
+	out, err = vcsHg.runOutputVerboseOnly(rootDir, "status")
+	if err != nil {
+		return Status{}, err
+	}
+	uncommitted := len(out) > 0
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
+}
+
+// parseRevTime parses commit details in "revision:seconds" format.
+func parseRevTime(out []byte) (string, time.Time, error) {
+	buf := string(bytes.TrimSpace(out))
+
+	i := strings.IndexByte(buf, ':')
+	if i < 1 {
+		return "", time.Time{}, errors.New("unrecognized VCS tool output")
+	}
+	rev := buf[:i]
+
+	secs, err := strconv.ParseInt(string(buf[i+1:]), 10, 64)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("unrecognized VCS tool output: %v", err)
+	}
+
+	return rev, time.Unix(secs, 0), nil
+}
+
 // vcsGit describes how to use Git.
 var vcsGit = &Cmd{
-	Name: "Git",
-	Cmd:  "git",
+	Name:      "Git",
+	Cmd:       "git",
+	RootNames: []string{".git"},
 
 	CreateCmd:   []string{"clone -- {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
 	DownloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
@@ -182,6 +246,7 @@ var vcsGit = &Cmd{
 	PingCmd: "ls-remote {scheme}://{repo}",
 
 	RemoteRepo: gitRemoteRepo,
+	Status:     gitStatus,
 }
 
 // scpSyntaxRe matches the SCP-like addresses used by Git to access
@@ -232,10 +297,40 @@ func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
 	return "", errParse
 }
 
+func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
+	out, err := vcsGit.runOutputVerboseOnly(rootDir, "status --porcelain")
+	if err != nil {
+		return Status{}, err
+	}
+	uncommitted := len(out) > 0
+
+	// "git status" works for empty repositories, but "git show" does not.
+	// Assume there are no commits in the repo when "git show" fails with
+	// uncommitted files and skip tagging revision / committime.
+	var rev string
+	var commitTime time.Time
+	out, err = vcsGit.runOutputVerboseOnly(rootDir, "show -s --format=%H:%ct")
+	if err != nil && !uncommitted {
+		return Status{}, err
+	} else if err == nil {
+		rev, commitTime, err = parseRevTime(out)
+		if err != nil {
+			return Status{}, err
+		}
+	}
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
+}
+
 // vcsBzr describes how to use Bazaar.
 var vcsBzr = &Cmd{
-	Name: "Bazaar",
-	Cmd:  "bzr",
+	Name:      "Bazaar",
+	Cmd:       "bzr",
+	RootNames: []string{".bzr"},
 
 	CreateCmd: []string{"branch -- {repo} {dir}"},
 
@@ -251,6 +346,7 @@ var vcsBzr = &Cmd{
 	PingCmd:     "info -- {scheme}://{repo}",
 	RemoteRepo:  bzrRemoteRepo,
 	ResolveRepo: bzrResolveRepo,
+	Status:      bzrStatus,
 }
 
 func bzrRemoteRepo(vcsBzr *Cmd, rootDir string) (remoteRepo string, err error) {
@@ -294,10 +390,68 @@ func bzrResolveRepo(vcsBzr *Cmd, rootDir, remoteRepo string) (realRepo string, e
 	return strings.TrimSpace(out), nil
 }
 
+func bzrStatus(vcsBzr *Cmd, rootDir string) (Status, error) {
+	outb, err := vcsBzr.runOutputVerboseOnly(rootDir, "version-info")
+	if err != nil {
+		return Status{}, err
+	}
+	out := string(outb)
+
+	// Expect (non-empty repositories only):
+	//
+	// revision-id: gopher@gopher.net-20211021072330-qshok76wfypw9lpm
+	// date: 2021-09-21 12:00:00 +1000
+	// ...
+	var rev string
+	var commitTime time.Time
+
+	for _, line := range strings.Split(out, "\n") {
+		i := strings.IndexByte(line, ':')
+		if i < 0 {
+			continue
+		}
+		key := line[:i]
+		value := strings.TrimSpace(line[i+1:])
+
+		switch key {
+		case "revision-id":
+			rev = value
+		case "date":
+			var err error
+			commitTime, err = time.Parse("2006-01-02 15:04:05 -0700", value)
+			if err != nil {
+				return Status{}, errors.New("unable to parse output of bzr version-info")
+			}
+		}
+	}
+
+	outb, err = vcsBzr.runOutputVerboseOnly(rootDir, "status")
+	if err != nil {
+		return Status{}, err
+	}
+
+	// Skip warning when working directory is set to an older revision.
+	if bytes.HasPrefix(outb, []byte("working tree is out of date")) {
+		i := bytes.IndexByte(outb, '\n')
+		if i < 0 {
+			i = len(outb)
+		}
+		outb = outb[:i]
+	}
+	uncommitted := len(outb) > 0
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
+}
+
 // vcsSvn describes how to use Subversion.
 var vcsSvn = &Cmd{
-	Name: "Subversion",
-	Cmd:  "svn",
+	Name:      "Subversion",
+	Cmd:       "svn",
+	RootNames: []string{".svn"},
 
 	CreateCmd:   []string{"checkout -- {repo} {dir}"},
 	DownloadCmd: []string{"update"},
@@ -346,8 +500,9 @@ const fossilRepoName = ".fossil"
 
 // vcsFossil describes how to use Fossil (fossil-scm.org)
 var vcsFossil = &Cmd{
-	Name: "Fossil",
-	Cmd:  "fossil",
+	Name:      "Fossil",
+	Cmd:       "fossil",
+	RootNames: []string{".fslckout", "_FOSSIL_"},
 
 	CreateCmd:   []string{"-go-internal-mkdir {dir} clone -- {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
 	DownloadCmd: []string{"up"},
@@ -358,6 +513,7 @@ var vcsFossil = &Cmd{
 
 	Scheme:     []string{"https", "http"},
 	RemoteRepo: fossilRemoteRepo,
+	Status:     fossilStatus,
 }
 
 func fossilRemoteRepo(vcsFossil *Cmd, rootDir string) (remoteRepo string, err error) {
@@ -366,6 +522,60 @@ func fossilRemoteRepo(vcsFossil *Cmd, rootDir string) (remoteRepo string, err er
 		return "", err
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+var errFossilInfo = errors.New("unable to parse output of fossil info")
+
+func fossilStatus(vcsFossil *Cmd, rootDir string) (Status, error) {
+	outb, err := vcsFossil.runOutputVerboseOnly(rootDir, "info")
+	if err != nil {
+		return Status{}, err
+	}
+	out := string(outb)
+
+	// Expect:
+	// ...
+	// checkout:     91ed71f22c77be0c3e250920f47bfd4e1f9024d2 2021-09-21 12:00:00 UTC
+	// ...
+
+	// Extract revision and commit time.
+	// Ensure line ends with UTC (known timezone offset).
+	const prefix = "\ncheckout:"
+	const suffix = " UTC"
+	i := strings.Index(out, prefix)
+	if i < 0 {
+		return Status{}, errFossilInfo
+	}
+	checkout := out[i+len(prefix):]
+	i = strings.Index(checkout, suffix)
+	if i < 0 {
+		return Status{}, errFossilInfo
+	}
+	checkout = strings.TrimSpace(checkout[:i])
+
+	i = strings.IndexByte(checkout, ' ')
+	if i < 0 {
+		return Status{}, errFossilInfo
+	}
+	rev := checkout[:i]
+
+	commitTime, err := time.ParseInLocation("2006-01-02 15:04:05", checkout[i+1:], time.UTC)
+	if err != nil {
+		return Status{}, fmt.Errorf("%v: %v", errFossilInfo, err)
+	}
+
+	// Also look for untracked changes.
+	outb, err = vcsFossil.runOutputVerboseOnly(rootDir, "changes --differ")
+	if err != nil {
+		return Status{}, err
+	}
+	uncommitted := len(outb) > 0
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
 }
 
 func (v *Cmd) String() string {
@@ -393,6 +603,12 @@ func (v *Cmd) runVerboseOnly(dir string, cmd string, keyval ...string) error {
 // runOutput is like run but returns the output of the command.
 func (v *Cmd) runOutput(dir string, cmd string, keyval ...string) ([]byte, error) {
 	return v.run1(dir, cmd, keyval, true)
+}
+
+// runOutputVerboseOnly is like runOutput but only generates error output to
+// standard error in verbose mode.
+func (v *Cmd) runOutputVerboseOnly(dir string, cmd string, keyval ...string) ([]byte, error) {
+	return v.run1(dir, cmd, keyval, false)
 }
 
 // run1 is the generalized implementation of run and runOutput.
@@ -550,58 +766,86 @@ type vcsPath struct {
 
 // FromDir inspects dir and its parents to determine the
 // version control system and code repository to use.
-// On return, root is the import path
-// corresponding to the root of the repository.
-func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
+// If no repository is found, FromDir returns an error
+// equivalent to os.ErrNotExist.
+func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cmd, err error) {
 	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
 	dir = filepath.Clean(dir)
-	srcRoot = filepath.Clean(srcRoot)
-	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
-		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
+	if srcRoot != "" {
+		srcRoot = filepath.Clean(srcRoot)
+		if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
+			return "", nil, fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
+		}
 	}
-
-	var vcsRet *Cmd
-	var rootRet string
 
 	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
-			if _, err := os.Stat(filepath.Join(dir, "."+vcs.Cmd)); err == nil {
-				root := filepath.ToSlash(dir[len(srcRoot)+1:])
-				// Record first VCS we find, but keep looking,
-				// to detect mistakes like one kind of VCS inside another.
-				if vcsRet == nil {
-					vcsRet = vcs
-					rootRet = root
+			if _, err := statAny(dir, vcs.RootNames); err == nil {
+				// Record first VCS we find.
+				// If allowNesting is false (as it is in GOPATH), keep looking for
+				// repositories in parent directories and report an error if one is
+				// found to mitigate VCS injection attacks.
+				if vcsCmd == nil {
+					vcsCmd = vcs
+					repoDir = dir
+					if allowNesting {
+						return repoDir, vcsCmd, nil
+					}
 					continue
 				}
 				// Allow .git inside .git, which can arise due to submodules.
-				if vcsRet == vcs && vcs.Cmd == "git" {
+				if vcsCmd == vcs && vcs.Cmd == "git" {
 					continue
 				}
 				// Otherwise, we have one VCS inside a different VCS.
-				return nil, "", fmt.Errorf("directory %q uses %s, but parent %q uses %s",
-					filepath.Join(srcRoot, rootRet), vcsRet.Cmd, filepath.Join(srcRoot, root), vcs.Cmd)
+				return "", nil, fmt.Errorf("directory %q uses %s, but parent %q uses %s",
+					repoDir, vcsCmd.Cmd, dir, vcs.Cmd)
 			}
 		}
 
 		// Move to parent.
 		ndir := filepath.Dir(dir)
 		if len(ndir) >= len(dir) {
-			// Shouldn't happen, but just in case, stop.
 			break
 		}
 		dir = ndir
 	}
+	if vcsCmd == nil {
+		return "", nil, &vcsNotFoundError{dir: origDir}
+	}
+	return repoDir, vcsCmd, nil
+}
 
-	if vcsRet != nil {
-		if err := checkGOVCS(vcsRet, rootRet); err != nil {
-			return nil, "", err
-		}
-		return vcsRet, rootRet, nil
+// statAny provides FileInfo for the first filename found in the directory.
+// Otherwise, it returns the last error seen.
+func statAny(dir string, filenames []string) (os.FileInfo, error) {
+	if len(filenames) == 0 {
+		return nil, errors.New("invalid argument: no filenames provided")
 	}
 
-	return nil, "", fmt.Errorf("directory %q is not using a known version control system", origDir)
+	var err error
+	var fi os.FileInfo
+	for _, name := range filenames {
+		fi, err = os.Stat(filepath.Join(dir, name))
+		if err == nil {
+			return fi, nil
+		}
+	}
+
+	return nil, err
+}
+
+type vcsNotFoundError struct {
+	dir string
+}
+
+func (e *vcsNotFoundError) Error() string {
+	return fmt.Sprintf("directory %q is not using a known version control system", e.dir)
+}
+
+func (e *vcsNotFoundError) Is(err error) bool {
+	return err == os.ErrNotExist
 }
 
 // A govcsRule is a single GOVCS rule like private:hg|svn.
@@ -707,7 +951,11 @@ var defaultGOVCS = govcsConfig{
 	{"public", []string{"git", "hg"}},
 }
 
-func checkGOVCS(vcs *Cmd, root string) error {
+// CheckGOVCS checks whether the policy defined by the environment variable
+// GOVCS allows the given vcs command to be used with the given repository
+// root path. Note that root may not be a real package or module path; it's
+// the same as the root path in the go-import meta tag.
+func CheckGOVCS(vcs *Cmd, root string) error {
 	if vcs == vcsMod {
 		// Direct module (proxy protocol) fetches don't
 		// involve an external version control system
@@ -745,7 +993,7 @@ func CheckNested(vcs *Cmd, dir, srcRoot string) error {
 	otherDir := dir
 	for len(otherDir) > len(srcRoot) {
 		for _, otherVCS := range vcsList {
-			if _, err := os.Stat(filepath.Join(otherDir, "."+otherVCS.Cmd)); err == nil {
+			if _, err := statAny(otherDir, otherVCS.RootNames); err == nil {
 				// Allow expected vcs in original dir.
 				if otherDir == dir && otherVCS == vcs {
 					continue
@@ -885,7 +1133,7 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 		if vcs == nil {
 			return nil, fmt.Errorf("unknown version control system %q", match["vcs"])
 		}
-		if err := checkGOVCS(vcs, match["root"]); err != nil {
+		if err := CheckGOVCS(vcs, match["root"]); err != nil {
 			return nil, err
 		}
 		var repoURL string
@@ -1012,7 +1260,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		}
 	}
 
-	if err := checkGOVCS(vcs, mmi.Prefix); err != nil {
+	if err := CheckGOVCS(vcs, mmi.Prefix); err != nil {
 		return nil, err
 	}
 

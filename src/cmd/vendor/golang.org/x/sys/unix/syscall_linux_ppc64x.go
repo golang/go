@@ -8,8 +8,6 @@
 
 package unix
 
-//sys	dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
 //sys	Fchown(fd int, uid int, gid int) (err error)
@@ -22,7 +20,6 @@ package unix
 //sysnb	Getgid() (gid int)
 //sysnb	Getrlimit(resource int, rlim *Rlimit) (err error) = SYS_UGETRLIMIT
 //sysnb	Getuid() (uid int)
-//sysnb	InotifyInit() (fd int, err error)
 //sys	Ioperm(from int, num int, on int) (err error)
 //sys	Iopl(level int) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error)
@@ -100,39 +97,8 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
 }
 
-//sysnb	pipe(p *[2]_C_int) (err error)
-
-func Pipe(p []int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	var pp [2]_C_int
-	err = pipe(&pp)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-}
-
-//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
-
-func Pipe2(p []int, flags int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	var pp [2]_C_int
-	err = pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-}
-
-//sys	poll(fds *PollFd, nfds int, timeout int) (n int, err error)
-
-func Poll(fds []PollFd, timeout int) (n int, err error) {
-	if len(fds) == 0 {
-		return poll(nil, 0, timeout)
-	}
-	return poll(&fds[0], len(fds), timeout)
+func (rsa *RawSockaddrNFCLLCP) SetServiceNameLen(length int) {
+	rsa.Service_name_len = uint64(length)
 }
 
 //sys	syncFileRange2(fd int, flags int, off int64, n int64) (err error) = SYS_SYNC_FILE_RANGE2

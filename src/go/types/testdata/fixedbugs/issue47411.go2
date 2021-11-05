@@ -4,8 +4,8 @@
 
 package p
 
-func f[_ comparable]()
-func g[_ interface{interface{comparable; ~int|~string}}]()
+func f[_ comparable]() {}
+func g[_ interface{interface{comparable; ~int|~string}}]() {}
 
 func _[P comparable,
         Q interface{ comparable; ~int|~string },
@@ -19,7 +19,7 @@ func _[P comparable,
         _ = f[R /* ERROR R has no constraints */ ]
 
         _ = g[int]
-        _ = g[P /* ERROR P has no type constraints */ ]
+	_ = g[P /* ERROR P does not satisfy interface{interface{comparable; ~int\|~string} */ ]
         _ = g[Q]
         _ = g[func /* ERROR does not satisfy comparable */()]
         _ = g[R /* ERROR R has no constraints */ ]

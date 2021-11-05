@@ -133,7 +133,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 		if ir.IsZero(r) {
 			return true
 		}
-		staticdata.InitConst(l, loff, r, int(typ.Width))
+		staticdata.InitConst(l, loff, r, int(typ.Size()))
 		return true
 
 	case ir.OADDR:
@@ -165,7 +165,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 			e := &p.E[i]
 			typ := e.Expr.Type()
 			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
-				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(typ.Width))
+				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(typ.Size()))
 				continue
 			}
 			x := e.Expr
@@ -229,7 +229,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		if ir.IsZero(r) {
 			return true
 		}
-		staticdata.InitConst(l, loff, r, int(typ.Width))
+		staticdata.InitConst(l, loff, r, int(typ.Size()))
 		return true
 
 	case ir.OADDR:
@@ -286,7 +286,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		for i := range p.E {
 			e := &p.E[i]
 			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
-				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Width))
+				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Size()))
 				continue
 			}
 			ir.SetPos(e.Expr)
@@ -392,7 +392,7 @@ func (s *Schedule) initplan(n ir.Node) {
 				}
 				a = kv.Value
 			}
-			s.addvalue(p, k*n.Type().Elem().Width, a)
+			s.addvalue(p, k*n.Type().Elem().Size(), a)
 			k++
 		}
 
@@ -499,10 +499,10 @@ func StaticLoc(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 		}
 
 		// Check for overflow.
-		if n.Type().Width != 0 && types.MaxWidth/n.Type().Width <= int64(l) {
+		if n.Type().Size() != 0 && types.MaxWidth/n.Type().Size() <= int64(l) {
 			break
 		}
-		offset += int64(l) * n.Type().Width
+		offset += int64(l) * n.Type().Size()
 		return name, offset, true
 	}
 

@@ -66,7 +66,7 @@ var _ float64 = foo(42, []float64{1.0}, &s)
 
 // Type inference works in a straight-forward manner even
 // for variadic functions.
-func variadic[A, B any](A, B, ...B) int
+func variadic[A, B any](A, B, ...B) int { panic(0) }
 
 // var _ = variadic(1) // ERROR not enough arguments
 var _ = variadic(1, 2.3)
@@ -118,9 +118,9 @@ func max[T interface{ ~int }](x ...T) T {
 // Thus even if a type can be inferred successfully, the function
 // call may not be valid.
 
-func fboth[T any](chan T)
-func frecv[T any](<-chan T)
-func fsend[T any](chan<- T)
+func fboth[T any](chan T) {}
+func frecv[T any](<-chan T) {}
+func fsend[T any](chan<- T) {}
 
 func _() {
 	var both chan int
@@ -140,9 +140,9 @@ func _() {
 	fsend(send)
 }
 
-func ffboth[T any](func(chan T))
-func ffrecv[T any](func(<-chan T))
-func ffsend[T any](func(chan<- T))
+func ffboth[T any](func(chan T)) {}
+func ffrecv[T any](func(<-chan T)) {}
+func ffsend[T any](func(chan<- T)) {}
 
 func _() {
 	var both func(chan int)
@@ -169,9 +169,9 @@ func _() {
 // assignment is permitted, parameter passing is permitted as well,
 // so type inference should be able to handle these cases well.
 
-func g1[T any]([]T)
-func g2[T any]([]T, T)
-func g3[T any](*T, ...T)
+func g1[T any]([]T) {}
+func g2[T any]([]T, T) {}
+func g3[T any](*T, ...T) {}
 
 func _() {
 	type intSlize []int
@@ -194,7 +194,7 @@ func _() {
 
 // Here's a realistic example.
 
-func append[T any](s []T, t ...T) []T
+func append[T any](s []T, t ...T) []T { panic(0) }
 
 func _() {
 	var f func()
@@ -207,8 +207,12 @@ func _() {
 // (that would indicate a slice type). Thus, generic functions cannot
 // have empty type parameter lists, either. This is a syntax error.
 
-func h[] /* ERROR empty type parameter list */ ()
+func h[] /* ERROR empty type parameter list */ () {}
 
 func _() {
 	h /* ERROR cannot index */ [] /* ERROR operand */ ()
 }
+
+// Parameterized functions must have a function body.
+
+func _ /* ERROR missing function body */ [P any]()

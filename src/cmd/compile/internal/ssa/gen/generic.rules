@@ -500,6 +500,9 @@
 (Leq32 (Const32 [0]) (Rsh32Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 (Leq64 (Const64 [0]) (Rsh64Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 
+(Less(64|32|16|8) (Const(64|32|16|8) <t> [0]) x) && isNonNegative(x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Less(64|32|16|8) x (Const(64|32|16|8) <t> [1])) && isNonNegative(x) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+
 // constant floating point comparisons
 (Eq32F   (Const32F [c]) (Const32F [d])) => (ConstBool [c == d])
 (Eq64F   (Const64F [c]) (Const64F [d])) => (ConstBool [c == d])
@@ -590,6 +593,10 @@
 // simplifications often used for lengths.  e.g. len(s[i:i+5])==5
 (Sub(64|32|16|8) (Add(64|32|16|8) x y) x) => y
 (Sub(64|32|16|8) (Add(64|32|16|8) x y) y) => x
+(Sub(64|32|16|8) (Sub(64|32|16|8) x y) x) => (Neg(64|32|16|8) y)
+(Sub(64|32|16|8) x (Add(64|32|16|8) x y)) => (Neg(64|32|16|8) y)
+(Add(64|32|16|8) x (Sub(64|32|16|8) y x)) => y
+(Add(64|32|16|8) x (Add(64|32|16|8) y (Sub(64|32|16|8) z x))) => (Add(64|32|16|8) y z)
 
 // basic phi simplifications
 (Phi (Const8  [c]) (Const8  [c])) => (Const8  [c])
@@ -2004,11 +2011,29 @@
 	=> (Invalid)
 
 // for late-expanded calls, recognize memequal applied to a single constant byte
-// TODO figure out breakeven number of bytes for this optimization.
+// Support is limited by 1, 2, 4, 8 byte sizes
 (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
   && isSameCall(callAux, "runtime.memequal")
   && symIsRO(scon)
   => (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
+
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [2]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config)
+  => (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(read16(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [4]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config)
+  => (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [8]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) && config.PtrSize == 8
+  => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
 
 // Evaluate constant address comparisons.
 (EqPtr  x x) => (ConstBool [true])

@@ -76,6 +76,9 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
 	if msanenabled {
 		msanread(from, copymem)
 	}
+	if asanenabled {
+		asanread(from, copymem)
+	}
 
 	memmove(to, from, copymem)
 
@@ -115,16 +118,15 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 }
 
 func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
-	if len == 0 {
-		return
-	}
-
-	if ptr == nil {
-		panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+	if len < 0 {
+		panicunsafeslicelen()
 	}
 
 	mem, overflow := math.MulUintptr(et.size, uintptr(len))
-	if overflow || mem > maxAlloc || len < 0 {
+	if overflow || mem > -uintptr(ptr) {
+		if ptr == nil {
+			panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+		}
 		panicunsafeslicelen()
 	}
 }
@@ -169,6 +171,9 @@ func growslice(et *_type, old slice, cap int) slice {
 	if msanenabled {
 		msanread(old.array, uintptr(old.len*int(et.size)))
 	}
+	if asanenabled {
+		asanread(old.array, uintptr(old.len*int(et.size)))
+	}
 
 	if cap < old.cap {
 		panic(errorString("growslice: cap out of range"))
@@ -185,13 +190,17 @@ func growslice(et *_type, old slice, cap int) slice {
 	if cap > doublecap {
 		newcap = cap
 	} else {
-		if old.cap < 1024 {
+		const threshold = 256
+		if old.cap < threshold {
 			newcap = doublecap
 		} else {
 			// Check 0 < newcap to detect overflow
 			// and prevent an infinite loop.
 			for 0 < newcap && newcap < cap {
-				newcap += newcap / 4
+				// Transition from growing 2x for small slices
+				// to growing 1.25x for large slices. This formula
+				// gives a smooth-ish transition between the two.
+				newcap += (newcap + 3*threshold) / 4
 			}
 			// Set newcap to the requested cap when
 			// the newcap calculation overflowed.
@@ -307,6 +316,10 @@ func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen 
 	if msanenabled {
 		msanread(fromPtr, size)
 		msanwrite(toPtr, size)
+	}
+	if asanenabled {
+		asanread(fromPtr, size)
+		asanwrite(toPtr, size)
 	}
 
 	if size == 1 { // common case worth about 2x to do here

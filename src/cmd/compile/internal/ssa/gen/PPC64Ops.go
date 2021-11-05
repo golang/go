@@ -149,6 +149,7 @@ func init() {
 		crgp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
 		gploadidx   = regInfo{inputs: []regMask{gp | sp | sb, gp}, outputs: []regMask{gp}}
+		prefreg     = regInfo{inputs: []regMask{gp | sp | sb}}
 		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
 		gpstoreidx  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}}
 		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}} // ppc64.REGZERO is reserved zero value
@@ -336,6 +337,10 @@ func init() {
 		{name: "FMOVDloadidx", argLength: 3, reg: fploadidx, asm: "FMOVD", typ: "Float64"},
 		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", typ: "Float32"},
 
+		// Prefetch instruction
+		// Do prefetch of address generated with arg0 and arg1 with option aux. arg0=addr,arg1=memory, aux=option.
+		{name: "DCBT", argLength: 2, aux: "Int64", reg: prefreg, asm: "DCBT", hasSideEffects: true},
+
 		// Store bytes in the reverse endian order of the arch into arg0.
 		// These are indexed stores with no offset field in the instruction so the auxint fields are not used.
 		{name: "MOVDBRstore", argLength: 3, reg: gpstore, asm: "MOVDBR", aux: "Sym", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes reverse order
@@ -391,7 +396,7 @@ func init() {
 		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
 
 		// ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
-		// ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
+		// ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
 		// ISELB special case where arg0, arg1 values are 0, 1 for boolean result
 		{name: "ISEL", argLength: 3, reg: crgp21, asm: "ISEL", aux: "Int32", typ: "Int32"},  // see above
 		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"}, // see above
@@ -428,9 +433,10 @@ func init() {
 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                       // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                       // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                         // tail call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// large or unaligned zeroing
 		// arg0 = address of memory to zero (in R3, changed as side effect)
@@ -704,15 +710,17 @@ func init() {
 	}
 
 	archs = append(archs, arch{
-		name:            "PPC64",
-		pkg:             "cmd/internal/obj/ppc64",
-		genfile:         "../../ppc64/ssa.go",
-		ops:             ops,
-		blocks:          blocks,
-		regnames:        regNamesPPC64,
-		gpregmask:       gp,
-		fpregmask:       fp,
-		framepointerreg: int8(num["SP"]),
-		linkreg:         -1, // not used
+		name:               "PPC64",
+		pkg:                "cmd/internal/obj/ppc64",
+		genfile:            "../../ppc64/ssa.go",
+		ops:                ops,
+		blocks:             blocks,
+		regnames:           regNamesPPC64,
+		ParamIntRegNames:   "R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17",
+		ParamFloatRegNames: "F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12",
+		gpregmask:          gp,
+		fpregmask:          fp,
+		framepointerreg:    -1,
+		linkreg:            -1, // not used
 	})
 }

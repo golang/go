@@ -551,8 +551,15 @@ func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev by
 		bufp.set(buf)
 	}
 
+	// NOTE: ticks might be same after tick division, although the real cputicks is
+	// linear growth.
 	ticks := uint64(cputicks()) / traceTickDiv
 	tickDiff := ticks - buf.lastTicks
+	if tickDiff == 0 {
+		ticks = buf.lastTicks + 1
+		tickDiff = 1
+	}
+
 	buf.lastTicks = ticks
 	narg := byte(len(args))
 	if skip >= 0 {
@@ -653,6 +660,9 @@ func traceFlush(buf traceBufPtr, pid int32) traceBufPtr {
 
 	// initialize the buffer for a new batch
 	ticks := uint64(cputicks()) / traceTickDiv
+	if ticks == bufp.lastTicks {
+		ticks = bufp.lastTicks + 1
+	}
 	bufp.lastTicks = ticks
 	bufp.byte(traceEvBatch | 1<<traceArgCountShift)
 	bufp.varint(uint64(pid))

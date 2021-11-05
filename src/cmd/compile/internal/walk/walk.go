@@ -205,7 +205,7 @@ var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
 	// Check runtime/map.go:maxElemSize before changing.
-	if t.Elem().Width > 128 {
+	if t.Elem().Size() > 128 {
 		return mapslow
 	}
 	switch reflectdata.AlgType(t.Key()) {
@@ -312,7 +312,7 @@ func mayCall(n ir.Node) bool {
 			return true
 
 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
-			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD, ir.OSLICE2ARRPTR:
+			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.ODIV, ir.OMOD, ir.OSLICE2ARRPTR:
 			// These ops might panic, make sure they are done
 			// before we start marshaling args for a call. See issue 16760.
 			return true

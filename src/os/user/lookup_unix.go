@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (aix || darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && (!cgo || osusergo)
-// +build aix darwin dragonfly freebsd js,wasm !android,linux netbsd openbsd solaris
-// +build !cgo osusergo
 
 package user
 
@@ -18,14 +16,7 @@ import (
 	"strings"
 )
 
-const groupFile = "/etc/group"
 const userFile = "/etc/passwd"
-
-var colon = []byte{':'}
-
-func init() {
-	groupImplemented = false
-}
 
 // lineFunc returns a value, an error, or (nil, nil) to skip the row.
 type lineFunc func(line []byte) (v interface{}, err error)
@@ -181,9 +172,7 @@ func matchUserIndexValue(value string, idx int) lineFunc {
 		// say: "It is expected to be a comma separated list of
 		// personal data where the first item is the full name of the
 		// user."
-		if i := strings.Index(u.Name, ","); i >= 0 {
-			u.Name = u.Name[:i]
-		}
+		u.Name, _, _ = strings.Cut(u.Name, ",")
 		return u, nil
 	}
 }

@@ -1258,19 +1258,14 @@ func findImportComment(data []byte) (s string, line int) {
 	var comment []byte
 	switch {
 	case bytes.HasPrefix(data, slashSlash):
-		i := bytes.Index(data, newline)
-		if i < 0 {
-			i = len(data)
-		}
-		comment = data[2:i]
+		comment, _, _ = bytes.Cut(data[2:], newline)
 	case bytes.HasPrefix(data, slashStar):
-		data = data[2:]
-		i := bytes.Index(data, starSlash)
-		if i < 0 {
+		var ok bool
+		comment, _, ok = bytes.Cut(data[2:], starSlash)
+		if !ok {
 			// malformed comment
 			return "", 0
 		}
-		comment = data[:i]
 		if bytes.Contains(comment, newline) {
 			return "", 0
 		}
@@ -1654,12 +1649,10 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		}
 
 		// Split at colon.
-		line = strings.TrimSpace(line[4:])
-		i := strings.Index(line, ":")
-		if i < 0 {
+		line, argstr, ok := strings.Cut(strings.TrimSpace(line[4:]), ":")
+		if !ok {
 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
 		}
-		line, argstr := line[:i], line[i+1:]
 
 		// Parse GOOS/GOARCH stuff.
 		f := strings.Fields(line)
@@ -1685,7 +1678,6 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		if err != nil {
 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
 		}
-		var ok bool
 		for i, arg := range args {
 			if arg, ok = expandSrcDir(arg, di.Dir); !ok {
 				return fmt.Errorf("%s: malformed #cgo argument: %s", filename, arg)
@@ -1949,9 +1941,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 // if GOOS=illumos, then files with GOOS=solaris are also matched.
 // if GOOS=ios, then files with GOOS=darwin are also matched.
 func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
-	if dot := strings.Index(name, "."); dot != -1 {
-		name = name[:dot]
-	}
+	name, _, _ = strings.Cut(name, ".")
 
 	// Before Go 1.4, a file called "linux.go" would be equivalent to having a
 	// build tag "linux" in that file. For Go 1.4 and beyond, we require this

@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Software IEEE754 64-bit floating point.
-// Only referred to (and thus linked in) by arm port
+// Only referred to (and thus linked in) by softfloat targets
 // and by tests in this directory.
 
 package runtime
@@ -414,6 +414,25 @@ func fintto64(val int64) (f uint64) {
 	}
 	return fpack64(fs, mant, int(mantbits64), 0)
 }
+func fintto32(val int64) (f uint32) {
+	fs := uint64(val) & (1 << 63)
+	mant := uint64(val)
+	if fs != 0 {
+		mant = -mant
+	}
+	// Reduce mantissa size until it fits into a uint32.
+	// Keep track of the bits we throw away, and if any are
+	// nonzero or them into the lowest bit.
+	exp := int(mantbits32)
+	var trunc uint32
+	for mant >= 1<<32 {
+		trunc |= uint32(mant) & 1
+		mant >>= 1
+		exp++
+	}
+
+	return fpack32(uint32(fs>>32), uint32(mant), exp, trunc)
+}
 
 // 64x64 -> 128 multiply.
 // adapted from hacker's delight.
@@ -493,6 +512,7 @@ func fmul32(x, y uint32) uint32 {
 }
 
 func fdiv32(x, y uint32) uint32 {
+	// TODO: are there double-rounding problems here? See issue 48807.
 	return f64to32(fdiv64(f32to64(x), f32to64(y)))
 }
 
@@ -527,7 +547,7 @@ func fge64(x, y uint64) bool {
 }
 
 func fint32to32(x int32) uint32 {
-	return f64to32(fintto64(int64(x)))
+	return fintto32(int64(x))
 }
 
 func fint32to64(x int32) uint64 {
@@ -535,7 +555,7 @@ func fint32to64(x int32) uint64 {
 }
 
 func fint64to32(x int64) uint32 {
-	return f64to32(fintto64(x))
+	return fintto32(x)
 }
 
 func fint64to64(x int64) uint64 {
@@ -595,5 +615,13 @@ func fuint64to64(x uint64) uint64 {
 }
 
 func fuint64to32(x uint64) uint32 {
-	return f64to32(fuint64to64(x))
+	if int64(x) >= 0 {
+		return fint64to32(int64(x))
+	}
+	// See ../cmd/compile/internal/ssagen/ssa.go:uint64Tofloat
+	y := x & 1
+	z := x >> 1
+	z = z | y
+	r := fint64to32(int64(z))
+	return fadd32(r, r)
 }

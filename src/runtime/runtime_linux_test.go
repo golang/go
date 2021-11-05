@@ -61,3 +61,14 @@ func TestEpollctlErrorSign(t *testing.T) {
 		t.Errorf("epollctl = %v, want %v", v, -EBADF)
 	}
 }
+
+func TestKernelStructSize(t *testing.T) {
+	// Check that the Go definitions of structures exchanged with the kernel are
+	// the same size as what the kernel defines.
+	if have, want := unsafe.Sizeof(Siginfo{}), uintptr(SiginfoMaxSize); have != want {
+		t.Errorf("Go's siginfo struct is %d bytes long; kernel expects %d", have, want)
+	}
+	if have, want := unsafe.Sizeof(Sigevent{}), uintptr(SigeventMaxSize); have != want {
+		t.Errorf("Go's sigevent struct is %d bytes long; kernel expects %d", have, want)
+	}
+}

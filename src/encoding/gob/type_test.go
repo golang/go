@@ -184,7 +184,7 @@ func TestRegistrationNaming(t *testing.T) {
 			t.Errorf("nameToConcreteType[%q] = %v, want %v", tc.name, ct, tct)
 		}
 		// concreteTypeToName is keyed off the base type.
-		if tct.Kind() == reflect.Ptr {
+		if tct.Kind() == reflect.Pointer {
 			tct = tct.Elem()
 		}
 		if n, _ := concreteTypeToName.Load(tct); n != tc.name {

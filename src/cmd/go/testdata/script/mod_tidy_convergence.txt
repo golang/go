@@ -79,7 +79,7 @@ cmp go.mod go.mod.tidye
 # succeed and remain stable. y.1 does not upgrade x, and can therefore be used
 # with it.
 
-go get -d example.net/x@v0.1.0 example.net/y@v0.1.0
+go get example.net/x@v0.1.0 example.net/y@v0.1.0
 go mod tidy
 cmp go.mod go.mod.postget
 
@@ -96,7 +96,7 @@ cmp go.mod go.mod.tidye
 stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
 stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
 
-go get -d example.net/x@v0.1.0 example.net/y@v0.1.0
+go get example.net/x@v0.1.0 example.net/y@v0.1.0
 go mod tidy
 cmp go.mod go.mod.postget-117
 

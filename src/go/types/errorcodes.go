@@ -875,7 +875,7 @@ const (
 	// context in which it is used.
 	//
 	// Example:
-	//  var _ = 1 + nil
+	//  var _ = 1 + new(int)
 	_InvalidUntypedConversion
 
 	// _BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument
@@ -1300,6 +1300,13 @@ const (
 	//  var x int
 	//  var _ = unsafe.Slice(&x, uint64(1) << 63)
 	_InvalidUnsafeSlice
+
+	// _InvalidInstanceCycle occurs when an invalid cycle is detected
+	// within the instantiation graph.
+	//
+	// Example:
+	//  func f[T any]() { f[*T]() }
+	_InvalidInstanceCycle
 
 	// _Todo is a placeholder for error codes that have not been decided.
 	// TODO(rFindley) remove this error code after deciding on errors for generics code.

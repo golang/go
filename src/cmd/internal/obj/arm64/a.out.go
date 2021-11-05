@@ -1060,9 +1060,10 @@ const (
 
 const (
 	// shift types
-	SHIFT_LL = 0 << 22
-	SHIFT_LR = 1 << 22
-	SHIFT_AR = 2 << 22
+	SHIFT_LL  = 0 << 22
+	SHIFT_LR  = 1 << 22
+	SHIFT_AR  = 2 << 22
+	SHIFT_ROR = 3 << 22
 )
 
 // Arrangement for ARM64 SIMD instructions

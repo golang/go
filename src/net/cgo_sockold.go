@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build cgo && !netgo && (aix || darwin || dragonfly || freebsd || netbsd || openbsd)
-// +build cgo
-// +build !netgo
-// +build aix darwin dragonfly freebsd netbsd openbsd
 
 package net
 

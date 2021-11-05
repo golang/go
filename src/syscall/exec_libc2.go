@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin || (openbsd && !mips64)
-// +build darwin openbsd,!mips64
 
 package syscall
 
@@ -117,14 +116,15 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	if sys.Foreground {
-		pgrp := sys.Pgid
+		// This should really be pid_t, however _C_int (aka int32) is
+		// generally equivalent.
+		pgrp := _C_int(sys.Pgid)
 		if pgrp == 0 {
 			r1, _, err1 = rawSyscall(abi.FuncPCABI0(libc_getpid_trampoline), 0, 0, 0)
 			if err1 != 0 {
 				goto childerror
 			}
-
-			pgrp = int(r1)
+			pgrp = _C_int(r1)
 		}
 
 		// Place process group in foreground.

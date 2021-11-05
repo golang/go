@@ -74,9 +74,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	typ, isPtr := deref(T)
 
 	// *typ where typ is an interface or type parameter has no methods.
-	switch under(typ).(type) {
-	case *Interface, *TypeParam:
-		if isPtr {
+	if isPtr {
+		// don't look at under(typ) here - was bug (issue #47747)
+		if _, ok := typ.(*TypeParam); ok {
+			return
+		}
+		if _, ok := under(typ).(*Interface); ok {
 			return
 		}
 	}
@@ -119,7 +122,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				seen[named] = true
 
 				// look for a matching attached method
-				named.load()
+				named.resolve(nil)
 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet
@@ -213,7 +216,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 			//        is shorthand for (&x).m()".
 			if f, _ := obj.(*Func); f != nil {
 				// determine if method has a pointer receiver
-				hasPtrRecv := tpar == nil && ptrRecv(f)
+				hasPtrRecv := tpar == nil && f.hasPtrRecv()
 				if hasPtrRecv && !indirect && !addressable {
 					return nil, nil, true // pointer/addressable receiver required
 				}
@@ -318,10 +321,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// both methods must have the same number of type parameters
 			ftyp := f.typ.(*Signature)
 			mtyp := m.typ.(*Signature)
-			if ftyp.TParams().Len() != mtyp.TParams().Len() {
+			if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
 				return m, f
 			}
-			if !acceptMethodTypeParams && ftyp.TParams().Len() > 0 {
+			if !acceptMethodTypeParams && ftyp.TypeParams().Len() > 0 {
 				panic("method with type parameters")
 			}
 
@@ -331,7 +334,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// TODO(gri) is this always correct? what about type bounds?
 			// (Alternative is to rename/subst type parameters and compare.)
 			u := newUnifier(true)
-			u.x.init(ftyp.TParams().list())
+			u.x.init(ftyp.TypeParams().list())
 			if !u.unify(ftyp, mtyp) {
 				return m, f
 			}
@@ -341,8 +344,6 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 	}
 
 	// A concrete type implements T if it implements all methods of T.
-	Vd, _ := deref(V)
-	Vn := asNamed(Vd)
 	for _, m := range T.typeSet().methods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
 		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name)
@@ -370,31 +371,11 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// both methods must have the same number of type parameters
 		ftyp := f.typ.(*Signature)
 		mtyp := m.typ.(*Signature)
-		if ftyp.TParams().Len() != mtyp.TParams().Len() {
+		if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
 			return m, f
 		}
-		if !acceptMethodTypeParams && ftyp.TParams().Len() > 0 {
+		if !acceptMethodTypeParams && ftyp.TypeParams().Len() > 0 {
 			panic("method with type parameters")
-		}
-
-		// If V is a (instantiated) generic type, its methods are still
-		// parameterized using the original (declaration) receiver type
-		// parameters (subst simply copies the existing method list, it
-		// does not instantiate the methods).
-		// In order to compare the signatures, substitute the receiver
-		// type parameters of ftyp with V's instantiation type arguments.
-		// This lazily instantiates the signature of method f.
-		if Vn != nil && Vn.TParams().Len() > 0 {
-			// Be careful: The number of type arguments may not match
-			// the number of receiver parameters. If so, an error was
-			// reported earlier but the length discrepancy is still
-			// here. Exit early in this case to prevent an assertion
-			// failure in makeSubstMap.
-			// TODO(gri) Can we avoid this check by fixing the lengths?
-			if len(ftyp.RParams().list()) != len(Vn.targs) {
-				return
-			}
-			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs), nil).(*Signature)
 		}
 
 		// If the methods have type parameters we don't care whether they
@@ -403,7 +384,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		u := newUnifier(true)
-		if ftyp.TParams().Len() > 0 {
+		if ftyp.TypeParams().Len() > 0 {
 			// We reach here only if we accept method type parameters.
 			// In this case, unification must consider any receiver
 			// and method type parameters as "free" type parameters.
@@ -413,9 +394,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// unimplemented call so that we test this code if we
 			// enable method type parameters.
 			unimplemented()
-			u.x.init(append(ftyp.RParams().list(), ftyp.TParams().list()...))
+			u.x.init(append(ftyp.RecvTypeParams().list(), ftyp.TypeParams().list()...))
 		} else {
-			u.x.init(ftyp.RParams().list())
+			u.x.init(ftyp.RecvTypeParams().list())
 		}
 		if !u.unify(ftyp, mtyp) {
 			return m, f
@@ -492,23 +473,4 @@ func lookupMethod(methods []*Func, pkg *Package, name string) (int, *Func) {
 		}
 	}
 	return -1, nil
-}
-
-// ptrRecv reports whether the receiver is of the form *T.
-func ptrRecv(f *Func) bool {
-	// If a method's receiver type is set, use that as the source of truth for the receiver.
-	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
-	// signature. We may reach here before the signature is fully set up: we must explicitly
-	// check if the receiver is set (we cannot just look for non-nil f.typ).
-	if sig, _ := f.typ.(*Signature); sig != nil && sig.recv != nil {
-		_, isPtr := deref(sig.recv.typ)
-		return isPtr
-	}
-
-	// If a method's type is not set it may be a method/function that is:
-	// 1) client-supplied (via NewFunc with no signature), or
-	// 2) internally created but not yet type-checked.
-	// For case 1) we can't do anything; the client must know what they are doing.
-	// For case 2) we can use the information gathered by the resolver.
-	return f.hasPtrRecv
 }

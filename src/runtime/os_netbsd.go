@@ -101,6 +101,9 @@ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)
 
 // From NetBSD's <sys/sysctl.h>
 const (
+	_CTL_KERN   = 1
+	_KERN_OSREV = 3
+
 	_CTL_HW        = 6
 	_HW_NCPU       = 3
 	_HW_PAGESIZE   = 7
@@ -134,6 +137,13 @@ func getPageSize() uintptr {
 	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
 	if ret >= 0 {
 		return uintptr(out)
+	}
+	return 0
+}
+
+func getOSRev() int {
+	if osrev, ok := sysctlInt([]uint32{_CTL_KERN, _KERN_OSREV}); ok {
+		return int(osrev)
 	}
 	return 0
 }
@@ -252,6 +262,7 @@ func osinit() {
 	if physPageSize == 0 {
 		physPageSize = getPageSize()
 	}
+	needSysmonWorkaround = getOSRev() < 902000000 // NetBSD 9.2
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -358,6 +369,19 @@ func sigdelset(mask *sigset, i int) {
 
 //go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }
 
 func sysargs(argc int32, argv **byte) {

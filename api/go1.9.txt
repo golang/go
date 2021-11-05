@@ -50,7 +50,34 @@ pkg image/png, type EncoderBufferPool interface, Put(*EncoderBuffer)
 pkg math/big, method (*Int) IsInt64() bool
 pkg math/big, method (*Int) IsUint64() bool
 pkg math/big, type Word uint
-pkg math/bits, const UintSize = 64
+pkg math/bits (darwin-amd64), const UintSize = 64
+pkg math/bits (darwin-amd64-cgo), const UintSize = 64
+pkg math/bits (freebsd-386), const UintSize = 32
+pkg math/bits (freebsd-386-cgo), const UintSize = 32
+pkg math/bits (freebsd-amd64), const UintSize = 64
+pkg math/bits (freebsd-amd64-cgo), const UintSize = 64
+pkg math/bits (freebsd-arm), const UintSize = 32
+pkg math/bits (freebsd-arm-cgo), const UintSize = 32
+pkg math/bits (linux-386), const UintSize = 32
+pkg math/bits (linux-386-cgo), const UintSize = 32
+pkg math/bits (linux-amd64), const UintSize = 64
+pkg math/bits (linux-amd64-cgo), const UintSize = 64
+pkg math/bits (linux-arm), const UintSize = 32
+pkg math/bits (linux-arm-cgo), const UintSize = 32
+pkg math/bits (netbsd-386), const UintSize = 32
+pkg math/bits (netbsd-386-cgo), const UintSize = 32
+pkg math/bits (netbsd-amd64), const UintSize = 64
+pkg math/bits (netbsd-amd64-cgo), const UintSize = 64
+pkg math/bits (netbsd-arm), const UintSize = 32
+pkg math/bits (netbsd-arm-cgo), const UintSize = 32
+pkg math/bits (netbsd-arm64), const UintSize = 64
+pkg math/bits (netbsd-arm64-cgo), const UintSize = 64
+pkg math/bits (openbsd-386), const UintSize = 32
+pkg math/bits (openbsd-386-cgo), const UintSize = 32
+pkg math/bits (openbsd-amd64), const UintSize = 64
+pkg math/bits (openbsd-amd64-cgo), const UintSize = 64
+pkg math/bits (windows-386), const UintSize = 32
+pkg math/bits (windows-amd64), const UintSize = 64
 pkg math/bits, const UintSize ideal-int
 pkg math/bits, func LeadingZeros(uint) int
 pkg math/bits, func LeadingZeros16(uint16) int

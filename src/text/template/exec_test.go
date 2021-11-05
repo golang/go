@@ -481,8 +481,19 @@ var execTests = []execTest{
 	{"not", "{{not true}} {{not false}}", "false true", nil, true},
 	{"and", "{{and false 0}} {{and 1 0}} {{and 0 true}} {{and 1 1}}", "false 0 0 1", nil, true},
 	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 true}} {{or 1 1}}", "0 1 true 1", nil, true},
+	{"or short-circuit", "{{or 0 1 (die)}}", "1", nil, true},
+	{"and short-circuit", "{{and 1 0 (die)}}", "0", nil, true},
+	{"or short-circuit2", "{{or 0 0 (die)}}", "", nil, false},
+	{"and short-circuit2", "{{and 1 1 (die)}}", "", nil, false},
+	{"and pipe-true", "{{1 | and 1}}", "1", nil, true},
+	{"and pipe-false", "{{0 | and 1}}", "0", nil, true},
+	{"or pipe-true", "{{1 | or 0}}", "1", nil, true},
+	{"or pipe-false", "{{0 | or 0}}", "0", nil, true},
+	{"and undef", "{{and 1 .Unknown}}", "<no value>", nil, true},
+	{"or undef", "{{or 0 .Unknown}}", "<no value>", nil, true},
 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
+	{"boolean if pipe", "{{if true | not | and 1}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
 
 	// Indexing.
 	{"slice[0]", "{{index .SI 0}}", "3", tVal, true},
@@ -564,6 +575,8 @@ var execTests = []execTest{
 	{"range empty no else", "{{range .SIEmpty}}-{{.}}-{{end}}", "", tVal, true},
 	{"range []int else", "{{range .SI}}-{{.}}-{{else}}EMPTY{{end}}", "-3--4--5-", tVal, true},
 	{"range empty else", "{{range .SIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"range []int break else", "{{range .SI}}-{{.}}-{{break}}NOTREACHED{{else}}EMPTY{{end}}", "-3-", tVal, true},
+	{"range []int continue else", "{{range .SI}}-{{.}}-{{continue}}NOTREACHED{{else}}EMPTY{{end}}", "-3--4--5-", tVal, true},
 	{"range []bool", "{{range .SB}}-{{.}}-{{end}}", "-true--false-", tVal, true},
 	{"range []int method", "{{range .SI | .MAdd .I}}-{{.}}-{{end}}", "-20--21--22-", tVal, true},
 	{"range map", "{{range .MSI}}-{{.}}-{{end}}", "-1--3--2-", tVal, true},
@@ -764,6 +777,7 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
 		"add":         add,
 		"count":       count,
 		"dddArg":      dddArg,
+		"die":         func() bool { panic("die") },
 		"echo":        echo,
 		"makemap":     makemap,
 		"mapOfThree":  mapOfThree,
@@ -1772,4 +1786,27 @@ func TestIssue39807(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// Issue 48215: embedded nil pointer causes panic.
+// Fixed by adding FieldByIndexErr to the reflect package.
+func TestIssue48215(t *testing.T) {
+	type A struct {
+		S string
+	}
+	type B struct {
+		*A
+	}
+	tmpl, err := New("").Parse(`{{ .S }}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tmpl.Execute(io.Discard, B{})
+	// We expect an error, not a panic.
+	if err == nil {
+		t.Fatal("did not get error for nil embedded struct")
+	}
+	if !strings.Contains(err.Error(), "reflect: indirection through nil pointer to embedded struct field A") {
+		t.Fatal(err)
+	}
 }

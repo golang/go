@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build cgo && !netgo && (aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris)
-// +build cgo
-// +build !netgo
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
@@ -323,7 +320,7 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
 			break
 		}
 	}
-	return []string{absDomainName(b)}, nil
+	return []string{absDomainName(string(b))}, nil
 }
 
 func cgoReverseLookup(result chan<- reverseLookupResult, addr string, sa *C.struct_sockaddr, salen C.socklen_t) {

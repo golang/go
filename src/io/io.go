@@ -47,7 +47,7 @@ var EOF = errors.New("EOF")
 // middle of reading a fixed-size block or data structure.
 var ErrUnexpectedEOF = errors.New("unexpected EOF")
 
-// ErrNoProgress is returned by some clients of an Reader when
+// ErrNoProgress is returned by some clients of a Reader when
 // many calls to Read have failed to return any data or error,
 // usually the sign of a broken Reader implementation.
 var ErrNoProgress = errors.New("multiple Read calls return no data or error")
@@ -113,11 +113,12 @@ type Closer interface {
 // SeekCurrent means relative to the current offset, and
 // SeekEnd means relative to the end.
 // Seek returns the new offset relative to the start of the
-// file and an error, if any.
+// file or an error, if any.
 //
 // Seeking to an offset before the start of the file is an error.
-// Seeking to any positive offset is legal, but the behavior of subsequent
-// I/O operations on the underlying object is implementation-dependent.
+// Seeking to any positive offset may be allowed, but if the new offset exceeds
+// the size of the underlying object the behavior of subsequent I/O operations
+// is implementation-dependent.
 type Seeker interface {
 	Seek(offset int64, whence int) (int64, error)
 }
@@ -261,10 +262,11 @@ type ByteReader interface {
 // ByteScanner is the interface that adds the UnreadByte method to the
 // basic ReadByte method.
 //
-// UnreadByte causes the next call to ReadByte to return the same byte
-// as the previous call to ReadByte.
-// It may be an error to call UnreadByte twice without an intervening
-// call to ReadByte.
+// UnreadByte causes the next call to ReadByte to return the last byte read.
+// If the last operation was not a successful call to ReadByte, UnreadByte may
+// return an error, unread the last byte read (or the byte prior to the
+// last-unread byte), or (in implementations that support the Seeker interface)
+// seek to one byte before the current offset.
 type ByteScanner interface {
 	ByteReader
 	UnreadByte() error
@@ -277,7 +279,7 @@ type ByteWriter interface {
 
 // RuneReader is the interface that wraps the ReadRune method.
 //
-// ReadRune reads a single UTF-8 encoded Unicode character
+// ReadRune reads a single encoded Unicode character
 // and returns the rune and its size in bytes. If no character is
 // available, err will be set.
 type RuneReader interface {
@@ -287,10 +289,11 @@ type RuneReader interface {
 // RuneScanner is the interface that adds the UnreadRune method to the
 // basic ReadRune method.
 //
-// UnreadRune causes the next call to ReadRune to return the same rune
-// as the previous call to ReadRune.
-// It may be an error to call UnreadRune twice without an intervening
-// call to ReadRune.
+// UnreadRune causes the next call to ReadRune to return the last rune read.
+// If the last operation was not a successful call to ReadRune, UnreadRune may
+// return an error, unread the last rune read (or the rune prior to the
+// last-unread rune), or (in implementations that support the Seeker interface)
+// seek to the start of the rune before the current offset.
 type RuneScanner interface {
 	RuneReader
 	UnreadRune() error
@@ -478,7 +481,16 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
 // NewSectionReader returns a SectionReader that reads from r
 // starting at offset off and stops with EOF after n bytes.
 func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
-	return &SectionReader{r, off, off, off + n}
+	var remaining int64
+	const maxint64 = 1<<63 - 1
+	if off <= maxint64-n {
+		remaining = n + off
+	} else {
+		// Overflow, with no way to return error.
+		// Assume we can read up to an offset of 1<<63 - 1.
+		remaining = maxint64
+	}
+	return &SectionReader{r, off, off, remaining}
 }
 
 // SectionReader implements Read, Seek, and ReadAt on a section

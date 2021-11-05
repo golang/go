@@ -160,8 +160,8 @@ type bmap struct {
 }
 
 // A hash iteration structure.
-// If you modify hiter, also change cmd/compile/internal/reflectdata/reflect.go to indicate
-// the layout of this structure.
+// If you modify hiter, also change cmd/compile/internal/reflectdata/reflect.go
+// and reflect/value.go to match the layout of this structure.
 type hiter struct {
 	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/compile/internal/walk/range.go).
 	elem        unsafe.Pointer // Must be in second position (see cmd/compile/internal/walk/range.go).
@@ -402,6 +402,9 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if msanenabled && h != nil {
 		msanread(key, t.key.size)
 	}
+	if asanenabled && h != nil {
+		asanread(key, t.key.size)
+	}
 	if h == nil || h.count == 0 {
 		if t.hashMightPanic() {
 			t.hasher(key, 0) // see issue 23734
@@ -459,6 +462,9 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	}
 	if msanenabled && h != nil {
 		msanread(key, t.key.size)
+	}
+	if asanenabled && h != nil {
+		asanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
 		if t.hashMightPanic() {
@@ -582,6 +588,9 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if msanenabled {
 		msanread(key, t.key.size)
 	}
+	if asanenabled {
+		asanread(key, t.key.size)
+	}
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map writes")
 	}
@@ -692,6 +701,9 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	}
 	if msanenabled && h != nil {
 		msanread(key, t.key.size)
+	}
+	if asanenabled && h != nil {
+		asanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
 		if t.hashMightPanic() {
@@ -806,6 +818,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiterinit))
 	}
 
+	it.t = t
 	if h == nil || h.count == 0 {
 		return
 	}
@@ -813,7 +826,6 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	if unsafe.Sizeof(hiter{})/goarch.PtrSize != 12 {
 		throw("hash_iter size incorrect") // see cmd/compile/internal/reflectdata/reflect.go
 	}
-	it.t = t
 	it.h = h
 
 	// grab snapshot of bucket state
@@ -1324,9 +1336,25 @@ func reflect_mapaccess(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	return elem
 }
 
+//go:linkname reflect_mapaccess_faststr reflect.mapaccess_faststr
+func reflect_mapaccess_faststr(t *maptype, h *hmap, key string) unsafe.Pointer {
+	elem, ok := mapaccess2_faststr(t, h, key)
+	if !ok {
+		// reflect wants nil for a missing element
+		elem = nil
+	}
+	return elem
+}
+
 //go:linkname reflect_mapassign reflect.mapassign
 func reflect_mapassign(t *maptype, h *hmap, key unsafe.Pointer, elem unsafe.Pointer) {
 	p := mapassign(t, h, key)
+	typedmemmove(t.elem, p, elem)
+}
+
+//go:linkname reflect_mapassign_faststr reflect.mapassign_faststr
+func reflect_mapassign_faststr(t *maptype, h *hmap, key string, elem unsafe.Pointer) {
+	p := mapassign_faststr(t, h, key)
 	typedmemmove(t.elem, p, elem)
 }
 
@@ -1335,11 +1363,14 @@ func reflect_mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	mapdelete(t, h, key)
 }
 
+//go:linkname reflect_mapdelete_faststr reflect.mapdelete_faststr
+func reflect_mapdelete_faststr(t *maptype, h *hmap, key string) {
+	mapdelete_faststr(t, h, key)
+}
+
 //go:linkname reflect_mapiterinit reflect.mapiterinit
-func reflect_mapiterinit(t *maptype, h *hmap) *hiter {
-	it := new(hiter)
+func reflect_mapiterinit(t *maptype, h *hmap, it *hiter) {
 	mapiterinit(t, h, it)
-	return it
 }
 
 //go:linkname reflect_mapiternext reflect.mapiternext

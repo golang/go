@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (darwin || freebsd || netbsd || openbsd) && gc
-// +build darwin freebsd netbsd openbsd
+//go:build (freebsd || netbsd || openbsd) && gc
+// +build freebsd netbsd openbsd
 // +build gc
 
 #include "textflag.h"

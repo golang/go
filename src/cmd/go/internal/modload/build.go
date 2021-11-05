@@ -5,7 +5,6 @@
 package modload
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -80,7 +79,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		v  string
 		ok bool
 	)
-	if rs.depth == lazy {
+	if rs.pruning == pruned {
 		v, ok = rs.rootSelected(path)
 	}
 	if !ok {
@@ -212,20 +211,20 @@ func addDeprecation(ctx context.Context, m *modinfo.ModulePublic) {
 // in rs (which may be nil to indicate that m was not loaded from a requirement
 // graph).
 func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode ListMode) *modinfo.ModulePublic {
-	if m == Target {
+	if m.Version == "" && MainModules.Contains(m.Path) {
 		info := &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: m.Version,
 			Main:    true,
 		}
-		if v, ok := rawGoVersion.Load(Target); ok {
+		if v, ok := rawGoVersion.Load(m); ok {
 			info.GoVersion = v.(string)
 		} else {
 			panic("internal error: GoVersion not set for main module")
 		}
-		if HasModRoot() {
-			info.Dir = ModRoot()
-			info.GoMod = ModFilePath()
+		if modRoot := MainModules.ModRoot(m); modRoot != "" {
+			info.Dir = modRoot
+			info.GoMod = modFilePath(modRoot)
 		}
 		return info
 	}
@@ -322,7 +321,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 		if filepath.IsAbs(r.Path) {
 			info.Replace.Dir = r.Path
 		} else {
-			info.Replace.Dir = filepath.Join(ModRoot(), r.Path)
+			info.Replace.Dir = filepath.Join(replaceRelativeTo(), r.Path)
 		}
 		info.Replace.GoMod = filepath.Join(info.Replace.Dir, "go.mod")
 	}
@@ -336,83 +335,12 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 	return info
 }
 
-// PackageBuildInfo returns a string containing module version information
-// for modules providing packages named by path and deps. path and deps must
-// name packages that were resolved successfully with LoadPackages.
-func PackageBuildInfo(path string, deps []string) string {
-	if isStandardImportPath(path) || !Enabled() {
-		return ""
-	}
-
-	target := mustFindModule(loaded, path, path)
-	mdeps := make(map[module.Version]bool)
-	for _, dep := range deps {
-		if !isStandardImportPath(dep) {
-			mdeps[mustFindModule(loaded, path, dep)] = true
-		}
-	}
-	var mods []module.Version
-	delete(mdeps, target)
-	for mod := range mdeps {
-		mods = append(mods, mod)
-	}
-	module.Sort(mods)
-
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "path\t%s\n", path)
-
-	writeEntry := func(token string, m module.Version) {
-		mv := m.Version
-		if mv == "" {
-			mv = "(devel)"
-		}
-		fmt.Fprintf(&buf, "%s\t%s\t%s", token, m.Path, mv)
-		if r := Replacement(m); r.Path == "" {
-			fmt.Fprintf(&buf, "\t%s\n", modfetch.Sum(m))
-		} else {
-			fmt.Fprintf(&buf, "\n=>\t%s\t%s\t%s\n", r.Path, r.Version, modfetch.Sum(r))
-		}
-	}
-
-	writeEntry("mod", target)
-	for _, mod := range mods {
-		writeEntry("dep", mod)
-	}
-
-	return buf.String()
-}
-
-// mustFindModule is like findModule, but it calls base.Fatalf if the
-// module can't be found.
-//
-// TODO(jayconrod): remove this. Callers should use findModule and return
-// errors instead of relying on base.Fatalf.
-func mustFindModule(ld *loader, target, path string) module.Version {
-	pkg, ok := ld.pkgCache.Get(path).(*loadPkg)
-	if ok {
-		if pkg.err != nil {
-			base.Fatalf("build %v: cannot load %v: %v", target, path, pkg.err)
-		}
-		return pkg.mod
-	}
-
-	if path == "command-line-arguments" {
-		return Target
-	}
-
-	base.Fatalf("build %v: cannot find module for path %v", target, path)
-	panic("unreachable")
-}
-
 // findModule searches for the module that contains the package at path.
 // If the package was loaded, its containing module and true are returned.
-// Otherwise, module.Version{} and false are returend.
+// Otherwise, module.Version{} and false are returned.
 func findModule(ld *loader, path string) (module.Version, bool) {
 	if pkg, ok := ld.pkgCache.Get(path).(*loadPkg); ok {
 		return pkg.mod, pkg.mod != module.Version{}
-	}
-	if path == "command-line-arguments" {
-		return Target, true
 	}
 	return module.Version{}, false
 }

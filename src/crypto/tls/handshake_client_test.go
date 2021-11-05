@@ -97,18 +97,18 @@ func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
 	o.all = append(o.all, data...)
 
 	for {
-		i := bytes.IndexByte(o.line, '\n')
-		if i < 0 {
+		line, next, ok := bytes.Cut(o.line, []byte("\n"))
+		if !ok {
 			break
 		}
 
-		if bytes.Equal([]byte(opensslEndOfHandshake), o.line[:i]) {
+		if bytes.Equal([]byte(opensslEndOfHandshake), line) {
 			o.handshakeComplete <- struct{}{}
 		}
-		if bytes.Equal([]byte(opensslReadKeyUpdate), o.line[:i]) {
+		if bytes.Equal([]byte(opensslReadKeyUpdate), line) {
 			o.readKeyUpdate <- struct{}{}
 		}
-		o.line = o.line[i+1:]
+		o.line = next
 	}
 
 	return len(data), nil

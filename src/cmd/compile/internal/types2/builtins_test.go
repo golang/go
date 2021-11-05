@@ -112,15 +112,15 @@ var builtinCalls = []struct {
 
 	{"Alignof", `_ = unsafe.Alignof(0)`, `invalid type`},                 // constant
 	{"Alignof", `var x struct{}; _ = unsafe.Alignof(x)`, `invalid type`}, // constant
-	{"Alignof", `var x P; _ = unsafe.Alignof(x)`, `func(p.P₁) uintptr`},
+	{"Alignof", `var x P; _ = unsafe.Alignof(x)`, `func(P) uintptr`},
 
 	{"Offsetof", `var x struct{f bool}; _ = unsafe.Offsetof(x.f)`, `invalid type`},           // constant
 	{"Offsetof", `var x struct{_ int; f bool}; _ = unsafe.Offsetof((&x).f)`, `invalid type`}, // constant
-	{"Offsetof", `var x struct{_ int; f P}; _ = unsafe.Offsetof((&x).f)`, `func(p.P₁) uintptr`},
+	{"Offsetof", `var x struct{_ int; f P}; _ = unsafe.Offsetof((&x).f)`, `func(P) uintptr`},
 
 	{"Sizeof", `_ = unsafe.Sizeof(0)`, `invalid type`},                 // constant
 	{"Sizeof", `var x struct{}; _ = unsafe.Sizeof(x)`, `invalid type`}, // constant
-	{"Sizeof", `var x P; _ = unsafe.Sizeof(x)`, `func(p.P₁) uintptr`},
+	{"Sizeof", `var x P; _ = unsafe.Sizeof(x)`, `func(P) uintptr`},
 
 	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
 	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},

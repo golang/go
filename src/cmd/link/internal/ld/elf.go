@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -478,10 +479,6 @@ func Elfwritedynent(arch *sys.Arch, s *loader.SymbolBuilder, tag elf.DynTag, val
 		s.AddUint32(arch, uint32(tag))
 		s.AddUint32(arch, uint32(val))
 	}
-}
-
-func elfwritedynentsym(ctxt *Link, s *loader.SymbolBuilder, tag elf.DynTag, t loader.Sym) {
-	Elfwritedynentsymplus(ctxt, s, tag, t, 0)
 }
 
 func Elfwritedynentsymplus(ctxt *Link, s *loader.SymbolBuilder, tag elf.DynTag, t loader.Sym, add int64) {
@@ -1472,24 +1469,24 @@ func (ctxt *Link) doelf() {
 		/*
 		 * .dynamic table
 		 */
-		elfwritedynentsym(ctxt, dynamic, elf.DT_HASH, hash.Sym())
+		elfWriteDynEntSym(ctxt, dynamic, elf.DT_HASH, hash.Sym())
 
-		elfwritedynentsym(ctxt, dynamic, elf.DT_SYMTAB, dynsym.Sym())
+		elfWriteDynEntSym(ctxt, dynamic, elf.DT_SYMTAB, dynsym.Sym())
 		if elf64 {
 			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_SYMENT, ELF64SYMSIZE)
 		} else {
 			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_SYMENT, ELF32SYMSIZE)
 		}
-		elfwritedynentsym(ctxt, dynamic, elf.DT_STRTAB, dynstr.Sym())
+		elfWriteDynEntSym(ctxt, dynamic, elf.DT_STRTAB, dynstr.Sym())
 		elfwritedynentsymsize(ctxt, dynamic, elf.DT_STRSZ, dynstr.Sym())
 		if elfRelType == ".rela" {
 			rela := ldr.LookupOrCreateSym(".rela", 0)
-			elfwritedynentsym(ctxt, dynamic, elf.DT_RELA, rela)
+			elfWriteDynEntSym(ctxt, dynamic, elf.DT_RELA, rela)
 			elfwritedynentsymsize(ctxt, dynamic, elf.DT_RELASZ, rela)
 			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_RELAENT, ELF64RELASIZE)
 		} else {
 			rel := ldr.LookupOrCreateSym(".rel", 0)
-			elfwritedynentsym(ctxt, dynamic, elf.DT_REL, rel)
+			elfWriteDynEntSym(ctxt, dynamic, elf.DT_REL, rel)
 			elfwritedynentsymsize(ctxt, dynamic, elf.DT_RELSZ, rel)
 			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_RELENT, ELF32RELSIZE)
 		}
@@ -1499,9 +1496,9 @@ func (ctxt *Link) doelf() {
 		}
 
 		if ctxt.IsPPC64() {
-			elfwritedynentsym(ctxt, dynamic, elf.DT_PLTGOT, plt.Sym())
+			elfWriteDynEntSym(ctxt, dynamic, elf.DT_PLTGOT, plt.Sym())
 		} else {
-			elfwritedynentsym(ctxt, dynamic, elf.DT_PLTGOT, gotplt.Sym())
+			elfWriteDynEntSym(ctxt, dynamic, elf.DT_PLTGOT, gotplt.Sym())
 		}
 
 		if ctxt.IsPPC64() {
@@ -1749,7 +1746,7 @@ func asmbElf(ctxt *Link) {
 		sh.Flags = uint64(elf.SHF_ALLOC)
 		sh.Addralign = 1
 
-		if interpreter == "" && buildcfg.GO_LDSO != "" {
+		if interpreter == "" && buildcfg.GOOS == runtime.GOOS && buildcfg.GOARCH == runtime.GOARCH && buildcfg.GO_LDSO != "" {
 			interpreter = buildcfg.GO_LDSO
 		}
 
@@ -2028,6 +2025,11 @@ func asmbElf(ctxt *Link) {
 		ph := newElfPhdr()
 		ph.Type = elf.PT_SUNWSTACK
 		ph.Flags = elf.PF_W + elf.PF_R
+	} else if ctxt.HeadType == objabi.Hfreebsd {
+		ph := newElfPhdr()
+		ph.Type = elf.PT_GNU_STACK
+		ph.Flags = elf.PF_W + elf.PF_R
+		ph.Align = uint64(ctxt.Arch.RegSize)
 	}
 
 elfobj:

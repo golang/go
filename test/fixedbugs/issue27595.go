@@ -6,7 +6,7 @@
 
 package main
 
-var a = twoResults()       // ERROR "assignment mismatch: 1 variable but twoResults returns 2 values|2\-valued"
+var a = twoResults()       // ERROR "assignment mismatch: 1 variable but twoResults returns 2 values|multiple-value twoResults\(\) .*in single-value context"
 var b, c, d = twoResults() // ERROR "assignment mismatch: 3 variables but twoResults returns 2 values|cannot initialize"
 var e, f = oneResult()     // ERROR "assignment mismatch: 2 variables but oneResult returns 1 value|cannot initialize"
 

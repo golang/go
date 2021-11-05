@@ -112,7 +112,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		}
 
 		// for v1, v2 := range ha { body }
-		if cheapComputableIndex(t.Elem().Width) {
+		if cheapComputableIndex(t.Elem().Size()) {
 			// v1, v2 = hv1, ha[hv1]
 			tmp := ir.NewIndexExpr(base.Pos, ha, hv1)
 			tmp.SetBounded(true)
@@ -154,7 +154,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// This runs *after* the condition check, so we know
 		// advancing the pointer is safe and won't go past the
 		// end of the allocation.
-		as := ir.NewAssignStmt(base.Pos, hp, addptr(hp, t.Elem().Width))
+		as := ir.NewAssignStmt(base.Pos, hp, addptr(hp, t.Elem().Size()))
 		nfor.Late = []ir.Node{typecheck.Stmt(as)}
 
 	case types.TMAP:
@@ -408,7 +408,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 		return nil
 	}
 
-	elemsize := typecheck.RangeExprType(loop.X.Type()).Elem().Width
+	elemsize := typecheck.RangeExprType(loop.X.Type()).Elem().Size()
 	if elemsize <= 0 || !ir.IsZero(stmt.Y) {
 		return nil
 	}

@@ -261,7 +261,7 @@ func TestP224IsZero(t *testing.T) {
 	if got := p224IsZero(&p224FieldElement{}); got != 1 {
 		t.Errorf("p224IsZero(0) = %d, expected 1", got)
 	}
-	if got := p224IsZero((*p224FieldElement)(&p224P)); got != 1 {
+	if got := p224IsZero(&p224P); got != 1 {
 		t.Errorf("p224IsZero(p) = %d, expected 1", got)
 	}
 	if got := p224IsZero(&p224FieldElement{1}); got != 0 {
@@ -294,7 +294,7 @@ func TestP224Invert(t *testing.T) {
 		t.Errorf("p224Invert(0) = %x, expected 0", out)
 	}
 
-	p224Invert(&out, (*p224FieldElement)(&p224P))
+	p224Invert(&out, &p224P)
 	if got := p224IsZero(&out); got != 1 {
 		t.Errorf("p224Invert(p) = %x, expected 0", out)
 	}

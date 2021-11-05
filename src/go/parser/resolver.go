@@ -7,7 +7,6 @@ package parser
 import (
 	"fmt"
 	"go/ast"
-	"go/internal/typeparams"
 	"go/token"
 )
 
@@ -118,12 +117,6 @@ func (r *resolver) closeLabelScope() {
 
 func (r *resolver) declare(decl, data interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
 	for _, ident := range idents {
-		// "type" is used for type lists in interfaces, and is otherwise an invalid
-		// identifier. The 'type' identifier is also artificially duplicated in the
-		// type list, so could cause panics below if we were to proceed.
-		if ident.Name == "type" {
-			continue
-		}
 		assert(ident.Obj == nil, "identifier already declared or resolved")
 		obj := ast.NewObj(kind, ident.Name)
 		// remember the corresponding declaration for redeclaration
@@ -189,10 +182,9 @@ func (r *resolver) resolve(ident *ast.Ident, collectUnresolved bool) {
 	if ident.Obj != nil {
 		panic(fmt.Sprintf("%s: identifier %s already declared or resolved", r.handle.Position(ident.Pos()), ident.Name))
 	}
-	// '_' and 'type' should never refer to existing declarations: '_' because it
-	// has special handling in the spec, and 'type' because it is a keyword, and
-	// only valid in an interface type list.
-	if ident.Name == "_" || ident.Name == "type" {
+	// '_' should never refer to existing declarations, because it has special
+	// handling in the spec.
+	if ident.Name == "_" {
 		return
 	}
 	for s := r.topScope; s != nil; s = s.Outer {
@@ -455,10 +447,10 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 				// at the identifier in the TypeSpec and ends at the end of the innermost
 				// containing block.
 				r.declare(spec, nil, r.topScope, ast.Typ, spec.Name)
-				if tparams := typeparams.Get(spec); tparams != nil {
+				if spec.TypeParams != nil {
 					r.openScope(spec.Pos())
 					defer r.closeScope()
-					r.walkTParams(tparams)
+					r.walkTParams(spec.TypeParams)
 				}
 				ast.Walk(r, spec.Type)
 			}
@@ -474,8 +466,8 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 
 		// Type parameters are walked normally: they can reference each other, and
 		// can be referenced by normal parameters.
-		if tparams := typeparams.Get(n.Type); tparams != nil {
-			r.walkTParams(tparams)
+		if n.Type.TypeParams != nil {
+			r.walkTParams(n.Type.TypeParams)
 			// TODO(rFindley): need to address receiver type parameters.
 		}
 
@@ -500,7 +492,7 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 }
 
 func (r *resolver) walkFuncType(typ *ast.FuncType) {
-	// typ.TParams must be walked separately for FuncDecls.
+	// typ.TypeParams must be walked separately for FuncDecls.
 	r.resolveList(typ.Params)
 	r.resolveList(typ.Results)
 	r.declareList(typ.Params, ast.Var)
@@ -539,9 +531,6 @@ func (r *resolver) walkFieldList(list *ast.FieldList, kind ast.ObjKind) {
 // that they may be resolved in the constraint expressions held in the field
 // Type.
 func (r *resolver) walkTParams(list *ast.FieldList) {
-	if list == nil {
-		return
-	}
 	r.declareList(list, ast.Typ)
 	r.resolveList(list)
 }

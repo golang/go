@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ((darwin && arm64) || (darwin && amd64 && ios)) && x509omitbundledroots
-// +build darwin,arm64 darwin,amd64,ios
-// +build x509omitbundledroots
 
 // This file provides the loadSystemRoots func when the
 // "x509omitbundledroots" build tag has disabled bundling a copy,

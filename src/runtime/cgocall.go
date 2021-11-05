@@ -291,6 +291,13 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 		<-main_init_done
 	}
 
+	// Check whether the profiler needs to be turned on or off; this route to
+	// run Go code does not use runtime.execute, so bypasses the check there.
+	hz := sched.profilehz
+	if gp.m.profilehz != hz {
+		setThreadCPUProfiler(hz)
+	}
+
 	// Add entry to defer stack in case of panic.
 	restore := true
 	defer unwindm(&restore)

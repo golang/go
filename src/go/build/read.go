@@ -516,12 +516,12 @@ func parseGoEmbed(args string, pos token.Position) ([]fileEmbed, error) {
 			trimBytes(i)
 
 		case '`':
-			i := strings.Index(args[1:], "`")
-			if i < 0 {
+			var ok bool
+			path, _, ok = strings.Cut(args[1:], "`")
+			if !ok {
 				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
 			}
-			path = args[1 : 1+i]
-			trimBytes(1 + i + 1)
+			trimBytes(1 + len(path) + 1)
 
 		case '"':
 			i := 1

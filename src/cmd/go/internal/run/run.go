@@ -19,7 +19,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 )
 
 var CmdRun = &base.Command{
@@ -65,6 +65,7 @@ func init() {
 	CmdRun.Run = runRun // break init loop
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
+	base.AddWorkfileFlag(&CmdRun.Flag)
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
@@ -73,6 +74,8 @@ func printStderr(args ...interface{}) (int, error) {
 }
 
 func runRun(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if shouldUseOutsideModuleMode(args) {
 		// Set global module flags for 'go run cmd@version'.
 		// This must be done before modload.Init, but we need to call work.BuildInit
@@ -100,7 +103,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 			if strings.HasSuffix(file, "_test.go") {
 				// GoFilesPackage is going to assign this to TestGoFiles.
 				// Reject since it won't be part of the build.
-				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
+				base.Fatalf("go: cannot run *_test.go files (%s)", file)
 			}
 		}
 		p = load.GoFilesPackage(ctx, pkgOpts, files)
@@ -111,26 +114,26 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 			var err error
 			pkgs, err = load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args[:1])
 			if err != nil {
-				base.Fatalf("go run: %v", err)
+				base.Fatalf("go: %v", err)
 			}
 		} else {
 			pkgs = load.PackagesAndErrors(ctx, pkgOpts, args[:1])
 		}
 
 		if len(pkgs) == 0 {
-			base.Fatalf("go run: no packages loaded from %s", arg)
+			base.Fatalf("go: no packages loaded from %s", arg)
 		}
 		if len(pkgs) > 1 {
 			var names []string
 			for _, p := range pkgs {
 				names = append(names, p.ImportPath)
 			}
-			base.Fatalf("go run: pattern %s matches multiple packages:\n\t%s", arg, strings.Join(names, "\n\t"))
+			base.Fatalf("go: pattern %s matches multiple packages:\n\t%s", arg, strings.Join(names, "\n\t"))
 		}
 		p = pkgs[0]
 		i++
 	} else {
-		base.Fatalf("go run: no go files listed")
+		base.Fatalf("go: no go files listed")
 	}
 	cmdArgs := args[i:]
 	load.CheckPackageErrors([]*load.Package{p})
@@ -151,7 +154,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 			if !cfg.BuildContext.CgoEnabled {
 				hint = " (cgo is disabled)"
 			}
-			base.Fatalf("go run: no suitable source files%s", hint)
+			base.Fatalf("go: no suitable source files%s", hint)
 		}
 		p.Internal.ExeName = src[:len(src)-len(".go")]
 	} else {

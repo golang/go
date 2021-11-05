@@ -124,6 +124,7 @@ func init() {
 
 	var WasmOps = []opData{
 		{name: "LoweredStaticCall", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", call: true},                                // call static function aux.(*obj.LSym). arg0=mem, auxint=argsize, returns mem
+		{name: "LoweredTailCall", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", call: true, tailCall: true},                  // tail call static function aux.(*obj.LSym). arg0=mem, auxint=argsize, returns mem
 		{name: "LoweredClosureCall", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp, 0}, clobbers: callerSave}, aux: "CallOff", call: true}, // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
 		{name: "LoweredInterCall", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", call: true},          // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 

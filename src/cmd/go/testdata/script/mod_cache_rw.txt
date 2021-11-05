@@ -5,7 +5,7 @@ env GO111MODULE=on
 # golang.org/issue/31481: an explicit flag should make directories in the module
 # cache writable in order to work around the historical inability of 'rm -rf' to
 # forcibly remove files in unwritable directories.
-go get -modcacherw -d rsc.io/quote@v1.5.2
+go get -modcacherw rsc.io/quote@v1.5.2
 cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
 
 # After adding an extraneous file, 'go mod verify' should fail.
@@ -28,7 +28,7 @@ cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
 # Windows does not respect FILE_ATTRIBUTE_READONLY on directories, according
 # to MSDN, so there we disable testing whether the directory itself is
 # unwritable.
-go get -d rsc.io/quote@latest
+go get rsc.io/quote@latest
 [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
 [!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
 ! exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go

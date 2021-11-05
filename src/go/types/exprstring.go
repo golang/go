@@ -67,7 +67,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		buf.WriteByte('.')
 		buf.WriteString(x.Sel.Name)
 
-	case *ast.IndexExpr, *ast.MultiIndexExpr:
+	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(x)
 		WriteExpr(buf, ix.X)
 		buf.WriteByte('[')
@@ -145,29 +145,8 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		writeSigExpr(buf, x)
 
 	case *ast.InterfaceType:
-		// separate type list types from method list
-		// TODO(gri) we can get rid of this extra code if writeExprList does the separation
-		var types []ast.Expr
-		var methods []*ast.Field
-		for _, f := range x.Methods.List {
-			if len(f.Names) > 1 && f.Names[0].Name == "type" {
-				// type list type
-				types = append(types, f.Type)
-			} else {
-				// method or embedded interface
-				methods = append(methods, f)
-			}
-		}
-
 		buf.WriteString("interface{")
-		writeFieldList(buf, methods, "; ", true)
-		if len(types) > 0 {
-			if len(methods) > 0 {
-				buf.WriteString("; ")
-			}
-			buf.WriteString("type ")
-			writeExprList(buf, types)
-		}
+		writeFieldList(buf, x.Methods.List, "; ", true)
 		buf.WriteByte('}')
 
 	case *ast.MapType:

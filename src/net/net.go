@@ -396,8 +396,12 @@ type Listener interface {
 // An Error represents a network error.
 type Error interface {
 	error
-	Timeout() bool   // Is the error a timeout?
-	Temporary() bool // Is the error temporary?
+	Timeout() bool // Is the error a timeout?
+
+	// Deprecated: Temporary errors are not well-defined.
+	// Most "temporary" errors are timeouts, and the few exceptions are surprising.
+	// Do not use this method.
+	Temporary() bool
 }
 
 // Various errors contained in OpError.

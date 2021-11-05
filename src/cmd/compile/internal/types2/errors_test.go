@@ -19,7 +19,7 @@ func TestError(t *testing.T) {
 		t.Errorf("simple error: got %q, want %q", got, want)
 	}
 
-	want = "<unknown position>: foo 42\n\t<unknown position>: bar 43"
+	want = "<unknown position>: foo 42\n\tbar 43"
 	err.errorf(nopos, "bar %d", 43)
 	if got := err.String(); got != want {
 		t.Errorf("simple error: got %q, want %q", got, want)
@@ -35,7 +35,6 @@ func TestStripAnnotations(t *testing.T) {
 		{"foo", "foo"},
 		{"foo₀", "foo"},
 		{"foo(T₀)", "foo(T)"},
-		{"#foo(T₀)", "foo(T)"},
 	} {
 		got := stripAnnotations(test.in)
 		if got != test.want {

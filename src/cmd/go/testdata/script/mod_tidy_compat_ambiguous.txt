@@ -62,7 +62,7 @@ cmp stdout all-m.txt
 
 go mod edit -go=1.16
 ! go list -m all
-stderr '^go list -m: example\.net/indirect@v0\.1\.0 requires\n\texample\.net/ambiguous@v0\.1\.0: missing go\.sum entry; to add it:\n\tgo mod download example\.net/ambiguous\n'
+stderr '^go: example\.net/indirect@v0\.1\.0 requires\n\texample\.net/ambiguous@v0\.1\.0: missing go\.sum entry; to add it:\n\tgo mod download example\.net/ambiguous\n'
 
 
 -- go.mod --
@@ -72,10 +72,9 @@ go 1.17
 
 replace example.net/indirect v0.1.0 => ./indirect
 
-require (
-	example.net/ambiguous/nested v0.1.0 // indirect
-	example.net/indirect v0.1.0
-)
+require example.net/indirect v0.1.0
+
+require example.net/ambiguous/nested v0.1.0 // indirect
 -- all-m.txt --
 example.com/m
 example.net/ambiguous v0.1.0

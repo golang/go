@@ -1251,7 +1251,9 @@ var trimTests = []TrimTest{
 	{"TrimLeft", "abba", "ab", ""},
 	{"TrimRight", "abba", "ab", ""},
 	{"TrimLeft", "abba", "a", "bba"},
+	{"TrimLeft", "abba", "b", "abba"},
 	{"TrimRight", "abba", "a", "abb"},
+	{"TrimRight", "abba", "b", "abba"},
 	{"Trim", "<tag>", "<>", "tag"},
 	{"Trim", "* listitem", " *", "listitem"},
 	{"Trim", `"quote"`, `"`, "quote"},
@@ -1561,6 +1563,29 @@ func TestEqualFold(t *testing.T) {
 		}
 		if out := EqualFold([]byte(tt.t), []byte(tt.s)); out != tt.out {
 			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.t, tt.s, out, tt.out)
+		}
+	}
+}
+
+var cutTests = []struct {
+	s, sep        string
+	before, after string
+	found         bool
+}{
+	{"abc", "b", "a", "c", true},
+	{"abc", "a", "", "bc", true},
+	{"abc", "c", "ab", "", true},
+	{"abc", "abc", "", "", true},
+	{"abc", "", "", "abc", true},
+	{"abc", "d", "abc", "", false},
+	{"", "d", "", "", false},
+	{"", "", "", "", true},
+}
+
+func TestCut(t *testing.T) {
+	for _, tt := range cutTests {
+		if before, after, found := Cut([]byte(tt.s), []byte(tt.sep)); string(before) != tt.before || string(after) != tt.after || found != tt.found {
+			t.Errorf("Cut(%q, %q) = %q, %q, %v, want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
 		}
 	}
 }
@@ -1960,6 +1985,13 @@ func BenchmarkTrimASCII(b *testing.B) {
 				}
 			})
 		}
+	}
+}
+
+func BenchmarkTrimByte(b *testing.B) {
+	x := []byte("  the quick brown fox   ")
+	for i := 0; i < b.N; i++ {
+		Trim(x, " ")
 	}
 }
 

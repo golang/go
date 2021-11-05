@@ -87,10 +87,10 @@ func defPredeclaredTypes() {
 		obj := NewTypeName(token.NoPos, nil, "error", nil)
 		obj.setColor(black)
 		res := NewVar(token.NoPos, nil, "", Typ[String])
-		sig := NewSignature(nil, nil, NewTuple(res), false)
+		sig := NewSignatureType(nil, nil, nil, nil, NewTuple(res), false)
 		err := NewFunc(token.NoPos, nil, "Error", sig)
-		ityp := &Interface{obj, []*Func{err}, nil, nil, true, nil}
-		computeTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
+		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, false, true, nil}
+		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
 		typ := NewNamed(obj, ityp, nil)
 		sig.recv = NewVar(token.NoPos, nil, "", typ)
 		def(obj)
@@ -100,7 +100,7 @@ func defPredeclaredTypes() {
 	{
 		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
 		obj.setColor(black)
-		ityp := &Interface{obj, nil, nil, nil, true, &_TypeSet{true, nil, nil}}
+		ityp := &Interface{nil, obj, nil, nil, nil, false, true, &_TypeSet{true, nil, allTermlist}}
 		NewNamed(obj, ityp, nil)
 		def(obj)
 	}
@@ -259,6 +259,6 @@ func def(obj Object) {
 		}
 	}
 	if scope.Insert(obj) != nil {
-		panic("internal error: double declaration")
+		panic("double declaration of predeclared identifier")
 	}
 }

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !js && !plan9
-// +build !js,!plan9
 
 package net
 
@@ -535,8 +534,6 @@ func TestIPv4MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "solaris", "illumos":
-		t.Skipf("not supported on solaris or illumos, see golang.org/issue/7399")
 	}
 	if !supportsIPv4() {
 		t.Skip("IPv4 is not supported")
@@ -610,8 +607,6 @@ func TestIPv6MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "solaris", "illumos":
-		t.Skipf("not supported on solaris or illumos, see issue 7399")
 	}
 	if !supportsIPv6() {
 		t.Skip("IPv6 is not supported")

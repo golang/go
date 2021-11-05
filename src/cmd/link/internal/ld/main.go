@@ -34,6 +34,7 @@ import (
 	"bufio"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
+	"cmd/internal/quoted"
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
 	"flag"
@@ -53,6 +54,8 @@ var (
 
 func init() {
 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
+	flag.Var(&flagExtld, "extld", "use `linker` when linking in external mode")
+	flag.Var(&flagExtldflags, "extldflags", "pass `flags` to external linker")
 }
 
 // Flags used by the linker. The exported flags are used by the architecture-specific packages.
@@ -66,14 +69,15 @@ var (
 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
 	flagRace          = flag.Bool("race", false, "enable race detector")
 	flagMsan          = flag.Bool("msan", false, "enable MSan interface")
+	flagAsan          = flag.Bool("asan", false, "enable ASan interface")
 	flagAslr          = flag.Bool("aslr", true, "enable ASLR for buildmode=c-shared on windows")
 
 	flagFieldTrack = flag.String("k", "", "set field tracking `symbol`")
 	flagLibGCC     = flag.String("libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
 	flagTmpdir     = flag.String("tmpdir", "", "use `directory` for temporary files")
 
-	flagExtld      = flag.String("extld", "", "use `linker` when linking in external mode")
-	flagExtldflags = flag.String("extldflags", "", "pass `flags` to external linker")
+	flagExtld      quoted.Flag
+	flagExtldflags quoted.Flag
 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
 
 	flagA             = flag.Bool("a", false, "no-op (deprecated)")
@@ -169,6 +173,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 
 	checkStrictDups = *FlagStrictDups
+
+	if !buildcfg.Experiment.RegabiWrappers {
+		abiInternalVer = 0
+	}
 
 	startProfile()
 	if ctxt.BuildMode == BuildModeUnset {

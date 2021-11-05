@@ -12,33 +12,20 @@
 TEXT time·now(SB),NOSPLIT,$0-24
 	CMPB	runtime·useQPCTime(SB), $0
 	JNE	useQPC
+
 	MOVQ	$_INTERRUPT_TIME, DI
-loop:
-	MOVL	time_hi1(DI), AX
-	MOVL	time_lo(DI), BX
-	MOVL	time_hi2(DI), CX
-	CMPL	AX, CX
-	JNE	loop
-	SHLQ	$32, AX
-	ORQ	BX, AX
+	MOVQ	time_lo(DI), AX
 	IMULQ	$100, AX
 	MOVQ	AX, mono+16(FP)
 
 	MOVQ	$_SYSTEM_TIME, DI
-wall:
-	MOVL	time_hi1(DI), AX
-	MOVL	time_lo(DI), BX
-	MOVL	time_hi2(DI), CX
-	CMPL	AX, CX
-	JNE	wall
-	SHLQ	$32, AX
-	ORQ	BX, AX
+	MOVQ	time_lo(DI), AX
 	MOVQ	$116444736000000000, DI
 	SUBQ	DI, AX
 	IMULQ	$100, AX
 
 	// generated code for
-	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%1000000000 }
 	// adapted to reduce duplication
 	MOVQ	AX, CX
 	MOVQ	$1360296554856532783, AX

@@ -77,10 +77,6 @@ func Nil(pos src.XPos, typ *types.Type) ir.Node {
 
 func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
 	n := typecheck.NodAddrAt(pos, x)
-	switch x.Op() {
-	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
-		n.SetOp(ir.OPTRLIT)
-	}
 	typed(types.NewPtr(x.Type()), n)
 	return n
 }
@@ -89,24 +85,16 @@ func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
 	return typed(typ, ir.NewTypeAssertExpr(pos, x, nil))
 }
 
-func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) ir.Node {
+func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) *ir.BinaryExpr {
 	switch op {
-	case ir.OANDAND, ir.OOROR:
-		return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
 	case ir.OADD:
 		n := ir.NewBinaryExpr(pos, op, x, y)
-		if x.Type().HasTParam() || y.Type().HasTParam() {
-			// Delay transformAdd() if either arg has a type param,
-			// since it needs to know the exact types to decide whether
-			// to transform OADD to OADDSTR.
-			n.SetType(typ)
-			n.SetTypecheck(3)
-			return n
-		}
 		typed(typ, n)
-		return transformAdd(n)
+		return n
 	default:
-		return typed(x.Type(), ir.NewBinaryExpr(pos, op, x, y))
+		n := ir.NewBinaryExpr(pos, op, x, y)
+		typed(x.Type(), n)
+		return n
 	}
 }
 
@@ -138,10 +126,18 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		//    until arg type known
 		// OAPPEND: transformAppend requires that the arg is a slice
 		// ODELETE: transformDelete requires that the arg is a map
+		// OALIGNOF, OSIZEOF: can be eval'ed to a constant until types known.
 		switch fun.BuiltinOp {
-		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE:
+		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
 			hasTParam := false
 			for _, arg := range args {
+				if fun.BuiltinOp == ir.OOFFSETOF {
+					// It's the type of left operand of the
+					// selection that matters, not the type of
+					// the field itself (which is irrelevant for
+					// offsetof).
+					arg = arg.(*ir.SelectorExpr).X
+				}
 				if arg.Type().HasTParam() {
 					hasTParam = true
 					break
@@ -181,17 +177,6 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		// A function instantiation (even if fully concrete) shouldn't be
 		// transformed yet, because we need to add the dictionary during the
 		// transformation.
-		//
-		// However, if we have a function type (even though it is
-		// parameterized), then we can add in any needed CONVIFACE nodes via
-		// typecheckaste(). We need to call transformArgs() to deal first
-		// with the f(g(()) case where g returns multiple return values. We
-		// can't do anything if fun is a type param (which is probably
-		// described by a structural constraint)
-		if fun.Type().Kind() == types.TFUNC {
-			transformArgs(n)
-			typecheckaste(ir.OCALL, fun, n.IsDDD, fun.Type().Params(), n.Args, true)
-		}
 		return typed(typ, n)
 	}
 
@@ -202,24 +187,9 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	return n
 }
 
-func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
+func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) *ir.BinaryExpr {
 	n := ir.NewBinaryExpr(pos, op, x, y)
-	if x.Type().HasTParam() || y.Type().HasTParam() {
-		xIsInt := x.Type().IsInterface()
-		yIsInt := y.Type().IsInterface()
-		if !(xIsInt && !yIsInt || !xIsInt && yIsInt) {
-			// If either arg is a type param, then we can still do the
-			// transformCompare() if we know that one arg is an interface
-			// and the other is not. Otherwise, we delay
-			// transformCompare(), since it needs to know the exact types
-			// to decide on any needed conversions.
-			n.SetType(typ)
-			n.SetTypecheck(3)
-			return n
-		}
-	}
 	typed(typ, n)
-	transformCompare(n)
 	return n
 }
 
@@ -289,34 +259,19 @@ func method(typ *types.Type, index int) *types.Field {
 	return types.ReceiverBaseType(typ).Methods().Index(index)
 }
 
-func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
+func Index(pos src.XPos, typ *types.Type, x, index ir.Node) *ir.IndexExpr {
 	n := ir.NewIndexExpr(pos, x, index)
-	if x.Type().HasTParam() {
-		// transformIndex needs to know exact type
-		n.SetType(typ)
-		n.SetTypecheck(3)
-		return n
-	}
 	typed(typ, n)
-	// transformIndex will modify n.Type() for OINDEXMAP.
-	transformIndex(n)
 	return n
 }
 
-func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) ir.Node {
+func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) *ir.SliceExpr {
 	op := ir.OSLICE
 	if max != nil {
 		op = ir.OSLICE3
 	}
 	n := ir.NewSliceExpr(pos, op, x, low, high, max)
-	if x.Type().HasTParam() {
-		// transformSlice needs to know if x.Type() is a string or an array or a slice.
-		n.SetType(typ)
-		n.SetTypecheck(3)
-		return n
-	}
 	typed(typ, n)
-	transformSlice(n)
 	return n
 }
 

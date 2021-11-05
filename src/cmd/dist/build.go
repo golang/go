@@ -32,6 +32,7 @@ var (
 	goos             string
 	goarm            string
 	go386            string
+	goamd64          string
 	gomips           string
 	gomips64         string
 	goppc64          string
@@ -48,8 +49,6 @@ var (
 	exe              string
 	defaultcc        map[string]string
 	defaultcxx       map[string]string
-	defaultcflags    string
-	defaultldflags   string
 	defaultpkgconfig string
 	defaultldso      string
 
@@ -147,6 +146,12 @@ func xinit() {
 	}
 	go386 = b
 
+	b = os.Getenv("GOAMD64")
+	if b == "" {
+		b = "v1"
+	}
+	goamd64 = b
+
 	b = os.Getenv("GOMIPS")
 	if b == "" {
 		b = "hardfloat"
@@ -209,9 +214,6 @@ func xinit() {
 	defaultcc = compilerEnv("CC", cc)
 	defaultcxx = compilerEnv("CXX", cxx)
 
-	defaultcflags = os.Getenv("CFLAGS")
-	defaultldflags = os.Getenv("LDFLAGS")
-
 	b = os.Getenv("PKG_CONFIG")
 	if b == "" {
 		b = "pkg-config"
@@ -222,6 +224,7 @@ func xinit() {
 
 	// For tools being invoked but also for os.ExpandEnv.
 	os.Setenv("GO386", go386)
+	os.Setenv("GOAMD64", goamd64)
 	os.Setenv("GOARCH", goarch)
 	os.Setenv("GOARM", goarm)
 	os.Setenv("GOHOSTARCH", gohostarch)
@@ -809,6 +812,9 @@ func runInstall(pkg string, ch chan struct{}) {
 	importMap := make(map[string]string)
 	for _, p := range gofiles {
 		for _, imp := range readimports(p) {
+			if imp == "C" {
+				fatalf("%s imports C", p)
+			}
 			importMap[imp] = resolveVendor(imp, dir)
 		}
 	}
@@ -819,6 +825,9 @@ func runInstall(pkg string, ch chan struct{}) {
 	sort.Strings(sortedImports)
 
 	for _, dep := range importMap {
+		if dep == "C" {
+			fatalf("%s imports C", pkg)
+		}
 		startInstall(dep)
 	}
 	for _, dep := range importMap {
@@ -967,28 +976,8 @@ func packagefile(pkg string) string {
 	return pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, pkg)
 }
 
-// matchfield reports whether the field (x,y,z) matches this build.
-// all the elements in the field must be satisfied.
-func matchfield(f string) bool {
-	for _, tag := range strings.Split(f, ",") {
-		if !matchtag(tag) {
-			return false
-		}
-	}
-	return true
-}
-
-// matchtag reports whether the tag (x or !x) matches this build.
+// matchtag reports whether the tag matches this build.
 func matchtag(tag string) bool {
-	if tag == "" {
-		return false
-	}
-	if tag[0] == '!' {
-		if len(tag) == 1 || tag[1] == '!' {
-			return false
-		}
-		return !matchtag(tag[1:])
-	}
 	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
 		(goos == "android" && tag == "linux") ||
 		(goos == "illumos" && tag == "solaris") ||
@@ -1029,7 +1018,7 @@ func shouldbuild(file, pkg string) bool {
 		return false
 	}
 
-	// Check file contents for // +build lines.
+	// Check file contents for //go:build lines.
 	for _, p := range strings.Split(readfile(file), "\n") {
 		p = strings.TrimSpace(p)
 		if p == "" {
@@ -1049,20 +1038,13 @@ func shouldbuild(file, pkg string) bool {
 		if !strings.HasPrefix(p, "//") {
 			break
 		}
-		if !strings.Contains(p, "+build") {
-			continue
-		}
-		fields := strings.Fields(p[2:])
-		if len(fields) < 1 || fields[0] != "+build" {
-			continue
-		}
-		for _, p := range fields[1:] {
-			if matchfield(p) {
-				goto fieldmatch
+		if strings.HasPrefix(p, "//go:build ") {
+			matched, err := matchexpr(p[len("//go:build "):])
+			if err != nil {
+				errprintf("%s: %v", file, err)
 			}
+			return matched
 		}
-		return false
-	fieldmatch:
 	}
 
 	return true
@@ -1185,6 +1167,9 @@ func cmdenv() {
 	}
 	if goarch == "386" {
 		xprintf(format, "GO386", go386)
+	}
+	if goarch == "amd64" {
+		xprintf(format, "GOAMD64", goamd64)
 	}
 	if goarch == "mips" || goarch == "mipsle" {
 		xprintf(format, "GOMIPS", gomips)

@@ -131,6 +131,17 @@ const (
 	FADV_NOREUSE  = 0x5
 )
 
+type RawSockaddrNFCLLCP struct {
+	Sa_family        uint16
+	Dev_idx          uint32
+	Target_idx       uint32
+	Nfc_protocol     uint32
+	Dsap             uint8
+	Ssap             uint8
+	Service_name     [63]uint8
+	Service_name_len uint64
+}
+
 type RawSockaddr struct {
 	Family uint16
 	Data   [14]int8
@@ -163,10 +174,16 @@ type Cmsghdr struct {
 	Type  int32
 }
 
+type ifreq struct {
+	Ifrn [16]byte
+	Ifru [24]byte
+}
+
 const (
-	SizeofIovec   = 0x10
-	SizeofMsghdr  = 0x38
-	SizeofCmsghdr = 0x10
+	SizeofSockaddrNFCLLCP = 0x60
+	SizeofIovec           = 0x10
+	SizeofMsghdr          = 0x38
+	SizeofCmsghdr         = 0x10
 )
 
 const (
@@ -615,3 +632,33 @@ const (
 	PPS_GETCAP    = 0x800870a3
 	PPS_FETCH     = 0xc00870a4
 )
+
+const (
+	PIDFD_NONBLOCK = 0x800
+)
+
+type SysvIpcPerm struct {
+	Key  int32
+	Uid  uint32
+	Gid  uint32
+	Cuid uint32
+	Cgid uint32
+	Mode uint32
+	_    [0]uint8
+	Seq  uint16
+	_    uint16
+	_    uint64
+	_    uint64
+}
+type SysvShmDesc struct {
+	Perm   SysvIpcPerm
+	Segsz  uint64
+	Atime  int64
+	Dtime  int64
+	Ctime  int64
+	Cpid   int32
+	Lpid   int32
+	Nattch uint64
+	_      uint64
+	_      uint64
+}

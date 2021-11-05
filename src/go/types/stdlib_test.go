@@ -194,6 +194,8 @@ func TestStdFixed(t *testing.T) {
 		"bug251.go",      // issue #34333 which was exposed with fix for #34151
 		"issue42058a.go", // go/types does not have constraints on channel element size
 		"issue42058b.go", // go/types does not have constraints on channel element size
+		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
 	)
 }
 

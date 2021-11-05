@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/cpu"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -13,7 +14,8 @@ import (
 const (
 	// gcGoalUtilization is the goal CPU utilization for
 	// marking as a fraction of GOMAXPROCS.
-	gcGoalUtilization = 0.30
+	gcGoalUtilization = goexperiment.PacerRedesignInt*gcBackgroundUtilization +
+		(1-goexperiment.PacerRedesignInt)*(gcBackgroundUtilization+0.05)
 
 	// gcBackgroundUtilization is the fixed CPU utilization for background
 	// marking. It must be <= gcGoalUtilization. The difference between
@@ -26,10 +28,15 @@ const (
 	// better control CPU and heap growth. However, the larger the gap,
 	// the more mutator assists are expected to happen, which impact
 	// mutator latency.
+	//
+	// If goexperiment.PacerRedesign, the trigger feedback controller
+	// is replaced with an estimate of the mark/cons ratio that doesn't
+	// have the same saturation issues, so this is set equal to
+	// gcGoalUtilization.
 	gcBackgroundUtilization = 0.25
 
 	// gcCreditSlack is the amount of scan work credit that can
-	// accumulate locally before updating gcController.scanWork and,
+	// accumulate locally before updating gcController.heapScanWork and,
 	// optionally, gcController.bgScanCredit. Lower values give a more
 	// accurate assist ratio and make it more likely that assists will
 	// successfully steal background credit. Higher values reduce memory
@@ -46,7 +53,12 @@ const (
 	gcOverAssistWork = 64 << 10
 
 	// defaultHeapMinimum is the value of heapMinimum for GOGC==100.
-	defaultHeapMinimum = 4 << 20
+	defaultHeapMinimum = goexperiment.PacerRedesignInt*(512<<10) +
+		(1-goexperiment.PacerRedesignInt)*(4<<20)
+
+	// scannableStackSizeSlack is the bytes of stack space allocated or freed
+	// that can accumulate on a P before updating gcController.stackSize.
+	scannableStackSizeSlack = 8 << 10
 )
 
 func init() {
@@ -73,6 +85,10 @@ var gcController gcControllerState
 
 type gcControllerState struct {
 	// Initialized from $GOGC. GOGC=off means no GC.
+	//
+	// Updated atomically with mheap_.lock held or during a STW.
+	// Safe to read atomically at any time, or non-atomically with
+	// mheap_.lock or STW.
 	gcPercent int32
 
 	_ uint32 // padding so following 64-bit values are 8-byte aligned
@@ -100,6 +116,8 @@ type gcControllerState struct {
 	// during mark termination for the next cycle's trigger.
 	//
 	// Protected by mheap_.lock or a STW.
+	//
+	// Used if !goexperiment.PacerRedesign.
 	triggerRatio float64
 
 	// trigger is the heap size that triggers marking.
@@ -113,6 +131,31 @@ type gcControllerState struct {
 	//
 	// Protected by mheap_.lock or a STW.
 	trigger uint64
+
+	// consMark is the estimated per-CPU consMark ratio for the application.
+	//
+	// It represents the ratio between the application's allocation
+	// rate, as bytes allocated per CPU-time, and the GC's scan rate,
+	// as bytes scanned per CPU-time.
+	// The units of this ratio are (B / cpu-ns) / (B / cpu-ns).
+	//
+	// At a high level, this value is computed as the bytes of memory
+	// allocated (cons) per unit of scan work completed (mark) in a GC
+	// cycle, divided by the CPU time spent on each activity.
+	//
+	// Updated at the end of each GC cycle, in endCycle.
+	//
+	// For goexperiment.PacerRedesign.
+	consMark float64
+
+	// consMarkController holds the state for the mark-cons ratio
+	// estimation over time.
+	//
+	// Its purpose is to smooth out noisiness in the computation of
+	// consMark; see consMark for details.
+	//
+	// For goexperiment.PacerRedesign.
+	consMarkController piController
 
 	// heapGoal is the goal heapLive for when next GC ends.
 	// Set to ^uint64(0) if disabled.
@@ -156,11 +199,46 @@ type gcControllerState struct {
 	// is the live heap (as counted by heapLive), but omitting
 	// no-scan objects and no-scan tails of objects.
 	//
-	// Whenever this is updated, call this gcControllerState's
-	// revise() method.
+	// For !goexperiment.PacerRedesign: Whenever this is updated,
+	// call this gcControllerState's revise() method. It is read
+	// and written atomically or with the world stopped.
 	//
-	// Read and written atomically or with the world stopped.
+	// For goexperiment.PacerRedesign: This value is fixed at the
+	// start of a GC cycle, so during a GC cycle it is safe to
+	// read without atomics, and it represents the maximum scannable
+	// heap.
 	heapScan uint64
+
+	// lastHeapScan is the number of bytes of heap that were scanned
+	// last GC cycle. It is the same as heapMarked, but only
+	// includes the "scannable" parts of objects.
+	//
+	// Updated when the world is stopped.
+	lastHeapScan uint64
+
+	// stackScan is a snapshot of scannableStackSize taken at each GC
+	// STW pause and is used in pacing decisions.
+	//
+	// Updated only while the world is stopped.
+	stackScan uint64
+
+	// scannableStackSize is the amount of allocated goroutine stack space in
+	// use by goroutines.
+	//
+	// This number tracks allocated goroutine stack space rather than used
+	// goroutine stack space (i.e. what is actually scanned) because used
+	// goroutine stack space is much harder to measure cheaply. By using
+	// allocated space, we make an overestimate; this is OK, it's better
+	// to conservatively overcount than undercount.
+	//
+	// Read and updated atomically.
+	scannableStackSize uint64
+
+	// globalsScan is the total amount of global variable space
+	// that is scannable.
+	//
+	// Read and updated atomically.
+	globalsScan uint64
 
 	// heapMarked is the number of bytes marked by the previous
 	// GC. After mark termination, heapLive == heapMarked, but
@@ -168,16 +246,26 @@ type gcControllerState struct {
 	// next mark termination.
 	heapMarked uint64
 
-	// scanWork is the total scan work performed this cycle. This
-	// is updated atomically during the cycle. Updates occur in
-	// bounded batches, since it is both written and read
-	// throughout the cycle. At the end of the cycle, this is how
+	// heapScanWork is the total heap scan work performed this cycle.
+	// stackScanWork is the total stack scan work performed this cycle.
+	// globalsScanWork is the total globals scan work performed this cycle.
+	//
+	// These are updated atomically during the cycle. Updates occur in
+	// bounded batches, since they are both written and read
+	// throughout the cycle. At the end of the cycle, heapScanWork is how
 	// much of the retained heap is scannable.
 	//
-	// Currently this is the bytes of heap scanned. For most uses,
-	// this is an opaque unit of work, but for estimation the
-	// definition is important.
-	scanWork int64
+	// Currently these are measured in bytes. For most uses, this is an
+	// opaque unit of work, but for estimation the definition is important.
+	//
+	// Note that stackScanWork includes all allocated space, not just the
+	// size of the stack itself, mirroring stackSize.
+	//
+	// For !goexperiment.PacerRedesign, stackScanWork and globalsScanWork
+	// are always zero.
+	heapScanWork    atomic.Int64
+	stackScanWork   atomic.Int64
+	globalsScanWork atomic.Int64
 
 	// bgScanCredit is the scan work credit accumulated by the
 	// concurrent background scan. This credit is accumulated by
@@ -222,24 +310,14 @@ type gcControllerState struct {
 	// bytes that should be performed by mutator assists. This is
 	// computed at the beginning of each cycle and updated every
 	// time heapScan is updated.
-	//
-	// Stored as a uint64, but it's actually a float64. Use
-	// float64frombits to get the value.
-	//
-	// Read and written atomically.
-	assistWorkPerByte uint64
+	assistWorkPerByte atomic.Float64
 
 	// assistBytesPerWork is 1/assistWorkPerByte.
-	//
-	// Stored as a uint64, but it's actually a float64. Use
-	// float64frombits to get the value.
-	//
-	// Read and written atomically.
 	//
 	// Note that because this is read and written independently
 	// from assistWorkPerByte users may notice a skew between
 	// the two values, and such a state should be safe.
-	assistBytesPerWork uint64
+	assistBytesPerWork atomic.Float64
 
 	// fractionalUtilizationGoal is the fraction of wall clock
 	// time that should be spent in the fractional mark worker on
@@ -253,19 +331,48 @@ type gcControllerState struct {
 	// If this is zero, no fractional workers are needed.
 	fractionalUtilizationGoal float64
 
+	// test indicates that this is a test-only copy of gcControllerState.
+	test bool
+
 	_ cpu.CacheLinePad
 }
 
 func (c *gcControllerState) init(gcPercent int32) {
 	c.heapMinimum = defaultHeapMinimum
 
-	// Set a reasonable initial GC trigger.
-	c.triggerRatio = 7 / 8.0
+	if goexperiment.PacerRedesign {
+		c.consMarkController = piController{
+			// Tuned first via the Ziegler-Nichols process in simulation,
+			// then the integral time was manually tuned against real-world
+			// applications to deal with noisiness in the measured cons/mark
+			// ratio.
+			kp: 0.9,
+			ti: 4.0,
 
-	// Fake a heapMarked value so it looks like a trigger at
-	// heapMinimum is the appropriate growth from heapMarked.
-	// This will go into computing the initial GC goal.
-	c.heapMarked = uint64(float64(c.heapMinimum) / (1 + c.triggerRatio))
+			// An update is done once per GC cycle.
+			period: 1,
+
+			// Set a high reset time in GC cycles.
+			// This is inversely proportional to the rate at which we
+			// accumulate error from clipping. By making this very high
+			// we make the accumulation slow. In general, clipping is
+			// OK in our situation, hence the choice.
+			//
+			// Tune this if we get unintended effects from clipping for
+			// a long time.
+			tt:  1000,
+			min: -1000,
+			max: 1000,
+		}
+	} else {
+		// Set a reasonable initial GC trigger.
+		c.triggerRatio = 7 / 8.0
+
+		// Fake a heapMarked value so it looks like a trigger at
+		// heapMinimum is the appropriate growth from heapMarked.
+		// This will go into computing the initial GC goal.
+		c.heapMarked = uint64(float64(c.heapMinimum) / (1 + c.triggerRatio))
+	}
 
 	// This will also compute and set the GC trigger and goal.
 	c.setGCPercent(gcPercent)
@@ -274,13 +381,17 @@ func (c *gcControllerState) init(gcPercent int32) {
 // startCycle resets the GC controller's state and computes estimates
 // for a new GC cycle. The caller must hold worldsema and the world
 // must be stopped.
-func (c *gcControllerState) startCycle() {
-	c.scanWork = 0
+func (c *gcControllerState) startCycle(markStartTime int64, procs int) {
+	c.heapScanWork.Store(0)
+	c.stackScanWork.Store(0)
+	c.globalsScanWork.Store(0)
 	c.bgScanCredit = 0
 	c.assistTime = 0
 	c.dedicatedMarkTime = 0
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
+	c.markStartTime = markStartTime
+	c.stackScan = atomic.Load64(&c.scannableStackSize)
 
 	// Ensure that the heap goal is at least a little larger than
 	// the current live heap size. This may not be the case if GC
@@ -289,8 +400,14 @@ func (c *gcControllerState) startCycle() {
 	// GOGC. Assist is proportional to this distance, so enforce a
 	// minimum distance, even if it means going over the GOGC goal
 	// by a tiny bit.
-	if c.heapGoal < c.heapLive+1024*1024 {
-		c.heapGoal = c.heapLive + 1024*1024
+	if goexperiment.PacerRedesign {
+		if c.heapGoal < c.heapLive+64<<10 {
+			c.heapGoal = c.heapLive + 64<<10
+		}
+	} else {
+		if c.heapGoal < c.heapLive+1<<20 {
+			c.heapGoal = c.heapLive + 1<<20
+		}
 	}
 
 	// Compute the background mark utilization goal. In general,
@@ -298,7 +415,7 @@ func (c *gcControllerState) startCycle() {
 	// dedicated workers so that the utilization is closest to
 	// 25%. For small GOMAXPROCS, this would introduce too much
 	// error, so we add fractional workers in that case.
-	totalUtilizationGoal := float64(gomaxprocs) * gcBackgroundUtilization
+	totalUtilizationGoal := float64(procs) * gcBackgroundUtilization
 	c.dedicatedMarkWorkersNeeded = int64(totalUtilizationGoal + 0.5)
 	utilError := float64(c.dedicatedMarkWorkersNeeded)/totalUtilizationGoal - 1
 	const maxUtilError = 0.3
@@ -311,14 +428,14 @@ func (c *gcControllerState) startCycle() {
 			// Too many dedicated workers.
 			c.dedicatedMarkWorkersNeeded--
 		}
-		c.fractionalUtilizationGoal = (totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)) / float64(gomaxprocs)
+		c.fractionalUtilizationGoal = (totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)) / float64(procs)
 	} else {
 		c.fractionalUtilizationGoal = 0
 	}
 
 	// In STW mode, we just want dedicated workers.
 	if debug.gcstoptheworld > 0 {
-		c.dedicatedMarkWorkersNeeded = int64(gomaxprocs)
+		c.dedicatedMarkWorkersNeeded = int64(procs)
 		c.fractionalUtilizationGoal = 0
 	}
 
@@ -333,7 +450,7 @@ func (c *gcControllerState) startCycle() {
 	c.revise()
 
 	if debug.gcpacertrace > 0 {
-		assistRatio := float64frombits(atomic.Load64(&c.assistWorkPerByte))
+		assistRatio := c.assistWorkPerByte.Load()
 		print("pacer: assist ratio=", assistRatio,
 			" (scan ", gcController.heapScan>>20, " MB in ",
 			work.initialHeapLive>>20, "->",
@@ -365,7 +482,7 @@ func (c *gcControllerState) startCycle() {
 // is when assists are enabled and the necessary statistics are
 // available).
 func (c *gcControllerState) revise() {
-	gcPercent := c.gcPercent
+	gcPercent := atomic.Loadint32(&c.gcPercent)
 	if gcPercent < 0 {
 		// If GC is disabled but we're running a forced GC,
 		// act like GOGC is huge for the below calculations.
@@ -373,32 +490,80 @@ func (c *gcControllerState) revise() {
 	}
 	live := atomic.Load64(&c.heapLive)
 	scan := atomic.Load64(&c.heapScan)
-	work := atomic.Loadint64(&c.scanWork)
+	work := c.heapScanWork.Load() + c.stackScanWork.Load() + c.globalsScanWork.Load()
 
 	// Assume we're under the soft goal. Pace GC to complete at
 	// heapGoal assuming the heap is in steady-state.
 	heapGoal := int64(atomic.Load64(&c.heapGoal))
 
-	// Compute the expected scan work remaining.
-	//
-	// This is estimated based on the expected
-	// steady-state scannable heap. For example, with
-	// GOGC=100, only half of the scannable heap is
-	// expected to be live, so that's what we target.
-	//
-	// (This is a float calculation to avoid overflowing on
-	// 100*heapScan.)
-	scanWorkExpected := int64(float64(scan) * 100 / float64(100+gcPercent))
+	var scanWorkExpected int64
+	if goexperiment.PacerRedesign {
+		// The expected scan work is computed as the amount of bytes scanned last
+		// GC cycle, plus our estimate of stacks and globals work for this cycle.
+		scanWorkExpected = int64(c.lastHeapScan + c.stackScan + c.globalsScan)
 
-	if int64(live) > heapGoal || work > scanWorkExpected {
-		// We're past the soft goal, or we've already done more scan
-		// work than we expected. Pace GC so that in the worst case it
-		// will complete by the hard goal.
-		const maxOvershoot = 1.1
-		heapGoal = int64(float64(heapGoal) * maxOvershoot)
+		// maxScanWork is a worst-case estimate of the amount of scan work that
+		// needs to be performed in this GC cycle. Specifically, it represents
+		// the case where *all* scannable memory turns out to be live.
+		maxScanWork := int64(scan + c.stackScan + c.globalsScan)
+		if work > scanWorkExpected {
+			// We've already done more scan work than expected. Because our expectation
+			// is based on a steady-state scannable heap size, we assume this means our
+			// heap is growing. Compute a new heap goal that takes our existing runway
+			// computed for scanWorkExpected and extrapolates it to maxScanWork, the worst-case
+			// scan work. This keeps our assist ratio stable if the heap continues to grow.
+			//
+			// The effect of this mechanism is that assists stay flat in the face of heap
+			// growths. It's OK to use more memory this cycle to scan all the live heap,
+			// because the next GC cycle is inevitably going to use *at least* that much
+			// memory anyway.
+			extHeapGoal := int64(float64(heapGoal-int64(c.trigger))/float64(scanWorkExpected)*float64(maxScanWork)) + int64(c.trigger)
+			scanWorkExpected = maxScanWork
 
-		// Compute the upper bound on the scan work remaining.
-		scanWorkExpected = int64(scan)
+			// hardGoal is a hard limit on the amount that we're willing to push back the
+			// heap goal, and that's twice the heap goal (i.e. if GOGC=100 and the heap and/or
+			// stacks and/or globals grow to twice their size, this limits the current GC cycle's
+			// growth to 4x the original live heap's size).
+			//
+			// This maintains the invariant that we use no more memory than the next GC cycle
+			// will anyway.
+			hardGoal := int64((1.0 + float64(gcPercent)/100.0) * float64(heapGoal))
+			if extHeapGoal > hardGoal {
+				extHeapGoal = hardGoal
+			}
+			heapGoal = extHeapGoal
+		}
+		if int64(live) > heapGoal {
+			// We're already past our heap goal, even the extrapolated one.
+			// Leave ourselves some extra runway, so in the worst case we
+			// finish by that point.
+			const maxOvershoot = 1.1
+			heapGoal = int64(float64(heapGoal) * maxOvershoot)
+
+			// Compute the upper bound on the scan work remaining.
+			scanWorkExpected = maxScanWork
+		}
+	} else {
+		// Compute the expected scan work remaining.
+		//
+		// This is estimated based on the expected
+		// steady-state scannable heap. For example, with
+		// GOGC=100, only half of the scannable heap is
+		// expected to be live, so that's what we target.
+		//
+		// (This is a float calculation to avoid overflowing on
+		// 100*heapScan.)
+		scanWorkExpected = int64(float64(scan) * 100 / float64(100+gcPercent))
+		if int64(live) > heapGoal || work > scanWorkExpected {
+			// We're past the soft goal, or we've already done more scan
+			// work than we expected. Pace GC so that in the worst case it
+			// will complete by the hard goal.
+			const maxOvershoot = 1.1
+			heapGoal = int64(float64(heapGoal) * maxOvershoot)
+
+			// Compute the upper bound on the scan work remaining.
+			scanWorkExpected = int64(scan)
+		}
 	}
 
 	// Compute the remaining scan work estimate.
@@ -439,14 +604,95 @@ func (c *gcControllerState) revise() {
 	// cycle.
 	assistWorkPerByte := float64(scanWorkRemaining) / float64(heapRemaining)
 	assistBytesPerWork := float64(heapRemaining) / float64(scanWorkRemaining)
-	atomic.Store64(&c.assistWorkPerByte, float64bits(assistWorkPerByte))
-	atomic.Store64(&c.assistBytesPerWork, float64bits(assistBytesPerWork))
+	c.assistWorkPerByte.Store(assistWorkPerByte)
+	c.assistBytesPerWork.Store(assistBytesPerWork)
 }
 
-// endCycle computes the trigger ratio for the next cycle.
+// endCycle computes the trigger ratio (!goexperiment.PacerRedesign)
+// or the consMark estimate (goexperiment.PacerRedesign) for the next cycle.
+// Returns the trigger ratio if application, or 0 (goexperiment.PacerRedesign).
 // userForced indicates whether the current GC cycle was forced
 // by the application.
-func (c *gcControllerState) endCycle(userForced bool) float64 {
+func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) float64 {
+	// Record last heap goal for the scavenger.
+	// We'll be updating the heap goal soon.
+	gcController.lastHeapGoal = gcController.heapGoal
+
+	// Compute the duration of time for which assists were turned on.
+	assistDuration := now - c.markStartTime
+
+	// Assume background mark hit its utilization goal.
+	utilization := gcBackgroundUtilization
+	// Add assist utilization; avoid divide by zero.
+	if assistDuration > 0 {
+		utilization += float64(c.assistTime) / float64(assistDuration*int64(procs))
+	}
+
+	if goexperiment.PacerRedesign {
+		if c.heapLive <= c.trigger {
+			// Shouldn't happen, but let's be very safe about this in case the
+			// GC is somehow extremely short.
+			//
+			// In this case though, the only reasonable value for c.heapLive-c.trigger
+			// would be 0, which isn't really all that useful, i.e. the GC was so short
+			// that it didn't matter.
+			//
+			// Ignore this case and don't update anything.
+			return 0
+		}
+		idleUtilization := 0.0
+		if assistDuration > 0 {
+			idleUtilization = float64(c.idleMarkTime) / float64(assistDuration*int64(procs))
+		}
+		// Determine the cons/mark ratio.
+		//
+		// The units we want for the numerator and denominator are both B / cpu-ns.
+		// We get this by taking the bytes allocated or scanned, and divide by the amount of
+		// CPU time it took for those operations. For allocations, that CPU time is
+		//
+		//    assistDuration * procs * (1 - utilization)
+		//
+		// Where utilization includes just background GC workers and assists. It does *not*
+		// include idle GC work time, because in theory the mutator is free to take that at
+		// any point.
+		//
+		// For scanning, that CPU time is
+		//
+		//    assistDuration * procs * (utilization + idleUtilization)
+		//
+		// In this case, we *include* idle utilization, because that is additional CPU time that the
+		// the GC had available to it.
+		//
+		// In effect, idle GC time is sort of double-counted here, but it's very weird compared
+		// to other kinds of GC work, because of how fluid it is. Namely, because the mutator is
+		// *always* free to take it.
+		//
+		// So this calculation is really:
+		//     (heapLive-trigger) / (assistDuration * procs * (1-utilization)) /
+		//         (scanWork) / (assistDuration * procs * (utilization+idleUtilization)
+		//
+		// Note that because we only care about the ratio, assistDuration and procs cancel out.
+		scanWork := c.heapScanWork.Load() + c.stackScanWork.Load() + c.globalsScanWork.Load()
+		currentConsMark := (float64(c.heapLive-c.trigger) * (utilization + idleUtilization)) /
+			(float64(scanWork) * (1 - utilization))
+
+		// Update cons/mark controller.
+		oldConsMark := c.consMark
+		c.consMark = c.consMarkController.next(c.consMark, currentConsMark)
+
+		if debug.gcpacertrace > 0 {
+			printlock()
+			print("pacer: ", int(utilization*100), "% CPU (", int(gcGoalUtilization*100), " exp.) for ")
+			print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.stackScan+c.globalsScan, " B exp.) ")
+			print("in ", c.trigger, " B -> ", c.heapLive, " B (∆goal ", int64(c.heapLive)-int64(c.heapGoal), ", cons/mark ", oldConsMark, ")")
+			println()
+			printunlock()
+		}
+		return 0
+	}
+
+	// !goexperiment.PacerRedesign below.
+
 	if userForced {
 		// Forced GC means this cycle didn't start at the
 		// trigger, so where it finished isn't good
@@ -473,15 +719,6 @@ func (c *gcControllerState) endCycle(userForced bool) float64 {
 	// heap growth is the error.
 	goalGrowthRatio := c.effectiveGrowthRatio()
 	actualGrowthRatio := float64(c.heapLive)/float64(c.heapMarked) - 1
-	assistDuration := nanotime() - c.markStartTime
-
-	// Assume background mark hit its utilization goal.
-	utilization := gcBackgroundUtilization
-	// Add assist utilization; avoid divide by zero.
-	if assistDuration > 0 {
-		utilization += float64(c.assistTime) / float64(assistDuration*int64(gomaxprocs))
-	}
-
 	triggerError := goalGrowthRatio - c.triggerRatio - utilization/gcGoalUtilization*(actualGrowthRatio-c.triggerRatio)
 
 	// Finally, we adjust the trigger for next time by this error,
@@ -500,7 +737,7 @@ func (c *gcControllerState) endCycle(userForced bool) float64 {
 		H_g := int64(float64(H_m_prev) * (1 + h_g))
 		u_a := utilization
 		u_g := gcGoalUtilization
-		W_a := c.scanWork
+		W_a := c.heapScanWork.Load()
 		print("pacer: H_m_prev=", H_m_prev,
 			" h_t=", h_t, " H_T=", H_T,
 			" h_a=", h_a, " H_a=", H_a,
@@ -636,9 +873,82 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 	return gp
 }
 
-// commit sets the trigger ratio and updates everything
-// derived from it: the absolute trigger, the heap goal, mark pacing,
-// and sweep pacing.
+// resetLive sets up the controller state for the next mark phase after the end
+// of the previous one. Must be called after endCycle and before commit, before
+// the world is started.
+//
+// The world must be stopped.
+func (c *gcControllerState) resetLive(bytesMarked uint64) {
+	c.heapMarked = bytesMarked
+	c.heapLive = bytesMarked
+	c.heapScan = uint64(c.heapScanWork.Load())
+	c.lastHeapScan = uint64(c.heapScanWork.Load())
+
+	// heapLive was updated, so emit a trace event.
+	if trace.enabled {
+		traceHeapAlloc()
+	}
+}
+
+// logWorkTime updates mark work accounting in the controller by a duration of
+// work in nanoseconds.
+//
+// Safe to execute at any time.
+func (c *gcControllerState) logWorkTime(mode gcMarkWorkerMode, duration int64) {
+	switch mode {
+	case gcMarkWorkerDedicatedMode:
+		atomic.Xaddint64(&c.dedicatedMarkTime, duration)
+		atomic.Xaddint64(&c.dedicatedMarkWorkersNeeded, 1)
+	case gcMarkWorkerFractionalMode:
+		atomic.Xaddint64(&c.fractionalMarkTime, duration)
+	case gcMarkWorkerIdleMode:
+		atomic.Xaddint64(&c.idleMarkTime, duration)
+	default:
+		throw("logWorkTime: unknown mark worker mode")
+	}
+}
+
+func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
+	if dHeapLive != 0 {
+		atomic.Xadd64(&gcController.heapLive, dHeapLive)
+		if trace.enabled {
+			// gcController.heapLive changed.
+			traceHeapAlloc()
+		}
+	}
+	// Only update heapScan in the new pacer redesign if we're not
+	// currently in a GC.
+	if !goexperiment.PacerRedesign || gcBlackenEnabled == 0 {
+		if dHeapScan != 0 {
+			atomic.Xadd64(&gcController.heapScan, dHeapScan)
+		}
+	}
+	if gcBlackenEnabled != 0 {
+		// gcController.heapLive and heapScan changed.
+		c.revise()
+	}
+}
+
+func (c *gcControllerState) addScannableStack(pp *p, amount int64) {
+	if pp == nil {
+		atomic.Xadd64(&c.scannableStackSize, amount)
+		return
+	}
+	pp.scannableStackSizeDelta += amount
+	if pp.scannableStackSizeDelta >= scannableStackSizeSlack || pp.scannableStackSizeDelta <= -scannableStackSizeSlack {
+		atomic.Xadd64(&c.scannableStackSize, pp.scannableStackSizeDelta)
+		pp.scannableStackSizeDelta = 0
+	}
+}
+
+func (c *gcControllerState) addGlobals(amount int64) {
+	atomic.Xadd64(&c.globalsScan, amount)
+}
+
+// commit recomputes all pacing parameters from scratch, namely
+// absolute trigger, the heap goal, mark pacing, and sweep pacing.
+//
+// If goexperiment.PacerRedesign is true, triggerRatio is ignored.
 //
 // This can be called any time. If GC is the in the middle of a
 // concurrent phase, it will adjust the pacing of that phase.
@@ -648,8 +958,134 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 //
 // mheap_.lock must be held or the world must be stopped.
 func (c *gcControllerState) commit(triggerRatio float64) {
-	assertWorldStoppedOrLockHeld(&mheap_.lock)
+	if !c.test {
+		assertWorldStoppedOrLockHeld(&mheap_.lock)
+	}
 
+	if !goexperiment.PacerRedesign {
+		c.oldCommit(triggerRatio)
+		return
+	}
+
+	// Compute the next GC goal, which is when the allocated heap
+	// has grown by GOGC/100 over where it started the last cycle,
+	// plus additional runway for non-heap sources of GC work.
+	goal := ^uint64(0)
+	if c.gcPercent >= 0 {
+		goal = c.heapMarked + (c.heapMarked+atomic.Load64(&c.stackScan)+atomic.Load64(&c.globalsScan))*uint64(c.gcPercent)/100
+	}
+
+	// Don't trigger below the minimum heap size.
+	minTrigger := c.heapMinimum
+	if !isSweepDone() {
+		// Concurrent sweep happens in the heap growth
+		// from gcController.heapLive to trigger, so ensure
+		// that concurrent sweep has some heap growth
+		// in which to perform sweeping before we
+		// start the next GC cycle.
+		sweepMin := atomic.Load64(&c.heapLive) + sweepMinHeapDistance
+		if sweepMin > minTrigger {
+			minTrigger = sweepMin
+		}
+	}
+
+	// If we let the trigger go too low, then if the application
+	// is allocating very rapidly we might end up in a situation
+	// where we're allocating black during a nearly always-on GC.
+	// The result of this is a growing heap and ultimately an
+	// increase in RSS. By capping us at a point >0, we're essentially
+	// saying that we're OK using more CPU during the GC to prevent
+	// this growth in RSS.
+	//
+	// The current constant was chosen empirically: given a sufficiently
+	// fast/scalable allocator with 48 Ps that could drive the trigger ratio
+	// to <0.05, this constant causes applications to retain the same peak
+	// RSS compared to not having this allocator.
+	if triggerBound := uint64(0.7*float64(goal-c.heapMarked)) + c.heapMarked; minTrigger < triggerBound {
+		minTrigger = triggerBound
+	}
+
+	// For small heaps, set the max trigger point at 95% of the heap goal.
+	// This ensures we always have *some* headroom when the GC actually starts.
+	// For larger heaps, set the max trigger point at the goal, minus the
+	// minimum heap size.
+	// This choice follows from the fact that the minimum heap size is chosen
+	// to reflect the costs of a GC with no work to do. With a large heap but
+	// very little scan work to perform, this gives us exactly as much runway
+	// as we would need, in the worst case.
+	maxRunway := uint64(0.95 * float64(goal-c.heapMarked))
+	if largeHeapMaxRunway := goal - c.heapMinimum; goal > c.heapMinimum && maxRunway < largeHeapMaxRunway {
+		maxRunway = largeHeapMaxRunway
+	}
+	maxTrigger := maxRunway + c.heapMarked
+	if maxTrigger < minTrigger {
+		maxTrigger = minTrigger
+	}
+
+	// Compute the trigger by using our estimate of the cons/mark ratio.
+	//
+	// The idea is to take our expected scan work, and multiply it by
+	// the cons/mark ratio to determine how long it'll take to complete
+	// that scan work in terms of bytes allocated. This gives us our GC's
+	// runway.
+	//
+	// However, the cons/mark ratio is a ratio of rates per CPU-second, but
+	// here we care about the relative rates for some division of CPU
+	// resources among the mutator and the GC.
+	//
+	// To summarize, we have B / cpu-ns, and we want B / ns. We get that
+	// by multiplying by our desired division of CPU resources. We choose
+	// to express CPU resources as GOMAPROCS*fraction. Note that because
+	// we're working with a ratio here, we can omit the number of CPU cores,
+	// because they'll appear in the numerator and denominator and cancel out.
+	// As a result, this is basically just "weighing" the cons/mark ratio by
+	// our desired division of resources.
+	//
+	// Furthermore, by setting the trigger so that CPU resources are divided
+	// this way, assuming that the cons/mark ratio is correct, we make that
+	// division a reality.
+	var trigger uint64
+	runway := uint64((c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) * float64(c.lastHeapScan+c.stackScan+c.globalsScan))
+	if runway > goal {
+		trigger = minTrigger
+	} else {
+		trigger = goal - runway
+	}
+	if trigger < minTrigger {
+		trigger = minTrigger
+	}
+	if trigger > maxTrigger {
+		trigger = maxTrigger
+	}
+	if trigger > goal {
+		goal = trigger
+	}
+
+	// Commit to the trigger and goal.
+	c.trigger = trigger
+	atomic.Store64(&c.heapGoal, goal)
+	if trace.enabled {
+		traceHeapGoal()
+	}
+
+	// Update mark pacing.
+	if gcphase != _GCoff {
+		c.revise()
+	}
+}
+
+// oldCommit sets the trigger ratio and updates everything
+// derived from it: the absolute trigger, the heap goal, mark pacing,
+// and sweep pacing.
+//
+// This can be called any time. If GC is the in the middle of a
+// concurrent phase, it will adjust the pacing of that phase.
+//
+// This depends on gcPercent, gcController.heapMarked, and
+// gcController.heapLive. These must be up to date.
+//
+// For !goexperiment.PacerRedesign.
+func (c *gcControllerState) oldCommit(triggerRatio float64) {
 	// Compute the next GC goal, which is when the allocated heap
 	// has grown by GOGC/100 over the heap marked by the last
 	// cycle.
@@ -741,42 +1177,6 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 	if gcphase != _GCoff {
 		c.revise()
 	}
-
-	// Update sweep pacing.
-	if isSweepDone() {
-		mheap_.sweepPagesPerByte = 0
-	} else {
-		// Concurrent sweep needs to sweep all of the in-use
-		// pages by the time the allocated heap reaches the GC
-		// trigger. Compute the ratio of in-use pages to sweep
-		// per byte allocated, accounting for the fact that
-		// some might already be swept.
-		heapLiveBasis := atomic.Load64(&c.heapLive)
-		heapDistance := int64(trigger) - int64(heapLiveBasis)
-		// Add a little margin so rounding errors and
-		// concurrent sweep are less likely to leave pages
-		// unswept when GC starts.
-		heapDistance -= 1024 * 1024
-		if heapDistance < _PageSize {
-			// Avoid setting the sweep ratio extremely high
-			heapDistance = _PageSize
-		}
-		pagesSwept := atomic.Load64(&mheap_.pagesSwept)
-		pagesInUse := atomic.Load64(&mheap_.pagesInUse)
-		sweepDistancePages := int64(pagesInUse) - int64(pagesSwept)
-		if sweepDistancePages <= 0 {
-			mheap_.sweepPagesPerByte = 0
-		} else {
-			mheap_.sweepPagesPerByte = float64(sweepDistancePages) / float64(heapDistance)
-			mheap_.sweepHeapLiveBasis = heapLiveBasis
-			// Write pagesSweptBasis last, since this
-			// signals concurrent sweeps to recompute
-			// their debt.
-			atomic.Store64(&mheap_.pagesSweptBasis, pagesSwept)
-		}
-	}
-
-	gcPaceScavenger()
 }
 
 // effectiveGrowthRatio returns the current effective heap growth
@@ -789,7 +1189,9 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 //
 // mheap_.lock must be held or the world must be stopped.
 func (c *gcControllerState) effectiveGrowthRatio() float64 {
-	assertWorldStoppedOrLockHeld(&mheap_.lock)
+	if !c.test {
+		assertWorldStoppedOrLockHeld(&mheap_.lock)
+	}
 
 	egogc := float64(atomic.Load64(&c.heapGoal)-c.heapMarked) / float64(c.heapMarked)
 	if egogc < 0 {
@@ -802,15 +1204,20 @@ func (c *gcControllerState) effectiveGrowthRatio() float64 {
 // setGCPercent updates gcPercent and all related pacer state.
 // Returns the old value of gcPercent.
 //
+// Calls gcControllerState.commit.
+//
 // The world must be stopped, or mheap_.lock must be held.
 func (c *gcControllerState) setGCPercent(in int32) int32 {
-	assertWorldStoppedOrLockHeld(&mheap_.lock)
+	if !c.test {
+		assertWorldStoppedOrLockHeld(&mheap_.lock)
+	}
 
 	out := c.gcPercent
 	if in < 0 {
 		in = -1
 	}
-	c.gcPercent = in
+	// Write it atomically so readers like revise() can read it safely.
+	atomic.Storeint32(&c.gcPercent, in)
 	c.heapMinimum = defaultHeapMinimum * uint64(c.gcPercent) / 100
 	// Update pacing in response to gcPercent change.
 	c.commit(c.triggerRatio)
@@ -824,6 +1231,8 @@ func setGCPercent(in int32) (out int32) {
 	systemstack(func() {
 		lock(&mheap_.lock)
 		out = gcController.setGCPercent(in)
+		gcPaceSweeper(gcController.trigger)
+		gcPaceScavenger(gcController.heapGoal, gcController.lastHeapGoal)
 		unlock(&mheap_.lock)
 	})
 
@@ -845,4 +1254,39 @@ func readGOGC() int32 {
 		return n
 	}
 	return 100
+}
+
+type piController struct {
+	kp float64 // Proportional constant.
+	ti float64 // Integral time constant.
+	tt float64 // Reset time in GC cyles.
+
+	// Period in GC cycles between updates.
+	period float64
+
+	min, max float64 // Output boundaries.
+
+	// PI controller state.
+
+	errIntegral float64 // Integral of the error from t=0 to now.
+}
+
+func (c *piController) next(input, setpoint float64) float64 {
+	// Compute the raw output value.
+	prop := c.kp * (setpoint - input)
+	rawOutput := prop + c.errIntegral
+
+	// Clamp rawOutput into output.
+	output := rawOutput
+	if output < c.min {
+		output = c.min
+	} else if output > c.max {
+		output = c.max
+	}
+
+	// Update the controller's state.
+	if c.ti != 0 && c.tt != 0 {
+		c.errIntegral += (c.kp*c.period/c.ti)*(setpoint-input) + (c.period/c.tt)*(output-rawOutput)
+	}
+	return output
 }

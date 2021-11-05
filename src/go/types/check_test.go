@@ -20,9 +20,6 @@
 //		_ = x /* ERROR "not declared" */ + 1
 //	}
 
-// TODO(gri) Also collect strict mode errors of the form /* STRICT ... */
-//           and test against strict mode.
-
 package types_test
 
 import (
@@ -213,7 +210,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	}
 
 	mode := parser.AllErrors
-	if !strings.HasSuffix(filenames[0], ".go2") {
+	if !strings.HasSuffix(filenames[0], ".go2") && !manual {
 		mode |= typeparams.DisallowParsing
 	}
 
@@ -362,6 +359,7 @@ func TestIssue47243_TypedRHS(t *testing.T) {
 }
 
 func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
+func TestSpec(t *testing.T)      { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", false) }
 func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
 func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
 

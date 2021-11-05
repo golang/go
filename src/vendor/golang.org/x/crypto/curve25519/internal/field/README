@@ -1,0 +1,7 @@
+This package is kept in sync with crypto/ed25519/internal/edwards25519/field in
+the standard library.
+
+If there are any changes in the standard library that need to be synced to this
+package, run sync.sh. It will not overwrite any local changes made since the
+previous sync, so it's ok to land changes in this package first, and then sync
+to the standard library later.

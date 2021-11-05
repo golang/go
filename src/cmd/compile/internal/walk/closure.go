@@ -107,7 +107,16 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	// The closure is not trivial or directly called, so it's going to stay a closure.
 	ir.ClosureDebugRuntimeCheck(clo)
 	clofn.SetNeedctxt(true)
-	ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
+
+	// The closure expression may be walked more than once if it appeared in composite
+	// literal initialization (e.g, see issue #49029).
+	//
+	// Don't add the closure function to compilation queue more than once, since when
+	// compiling a function twice would lead to an ICE.
+	if !clofn.Walked() {
+		clofn.SetWalked(true)
+		ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
+	}
 
 	typ := typecheck.ClosureType(clo)
 
@@ -217,6 +226,10 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
 		return sym.Def.(*ir.Name)
 	}
 	sym.SetUniq(true)
+
+	if base.Debug.Unified != 0 && base.Debug.UnifiedQuirks == 0 {
+		base.FatalfAt(dot.Pos(), "missing wrapper for %v", meth)
+	}
 
 	savecurfn := ir.CurFunc
 	saveLineNo := base.Pos

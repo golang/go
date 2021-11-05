@@ -155,7 +155,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
 					}
 				}
-			})
+			}).describef(embeddedPos, "check embedded type %s", embeddedTyp)
 		}
 	}
 
@@ -175,6 +175,8 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 	case *ast.SelectorExpr:
 		return e.Sel
 	case *ast.IndexExpr:
+		return embeddedFieldIdent(e.X)
+	case *ast.IndexListExpr:
 		return embeddedFieldIdent(e.X)
 	}
 	return nil // invalid embedded field

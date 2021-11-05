@@ -3,6 +3,8 @@
 
 package runtime
 
+import "unsafe"
+
 const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
@@ -26,6 +28,9 @@ const (
 	_SA_RESTART = 0x10000000
 	_SA_ONSTACK = 0x8000000
 	_SA_SIGINFO = 0x4
+
+	_SI_KERNEL = 0x80
+	_SI_TIMER  = -0x2
 
 	_SIGHUP    = 0x1
 	_SIGINT    = 0x2
@@ -78,6 +83,10 @@ const (
 	_ITIMER_VIRTUAL = 0x1
 	_ITIMER_PROF    = 0x2
 
+	_CLOCK_THREAD_CPUTIME_ID = 0x3
+
+	_SIGEV_THREAD_ID = 0x4
+
 	_EPOLLIN       = 0x1
 	_EPOLLOUT      = 0x4
 	_EPOLLERR      = 0x8
@@ -122,7 +131,7 @@ type sigactiont struct {
 	sa_mask     uint64
 }
 
-type siginfo struct {
+type siginfoFields struct {
 	si_signo int32
 	si_errno int32
 	si_code  int32
@@ -130,9 +139,36 @@ type siginfo struct {
 	si_addr uint64
 }
 
+type siginfo struct {
+	siginfoFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_si_max_size - unsafe.Sizeof(siginfoFields{})]byte
+}
+
+type itimerspec struct {
+	it_interval timespec
+	it_value    timespec
+}
+
 type itimerval struct {
 	it_interval timeval
 	it_value    timeval
+}
+
+type sigeventFields struct {
+	value  uintptr
+	signo  int32
+	notify int32
+	// below here is a union; sigev_notify_thread_id is the only field we use
+	sigev_notify_thread_id int32
+}
+
+type sigevent struct {
+	sigeventFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
 }
 
 type epollevent struct {

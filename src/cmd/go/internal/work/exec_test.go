@@ -7,6 +7,7 @@ package work
 import (
 	"bytes"
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -56,7 +57,7 @@ func TestEncodeDecodeFuzz(t *testing.T) {
 	}
 	t.Parallel()
 
-	nRunes := ArgLengthForResponseFile + 100
+	nRunes := sys.ExecArgLengthLimit + 100
 	rBuffer := make([]rune, nRunes)
 	buf := bytes.NewBuffer([]byte(string(rBuffer)))
 
@@ -67,7 +68,7 @@ func TestEncodeDecodeFuzz(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		// Generate a random string of runes.
 		buf.Reset()
-		for buf.Len() < ArgLengthForResponseFile+1 {
+		for buf.Len() < sys.ExecArgLengthLimit+1 {
 			var r rune
 			for {
 				r = rune(rng.Intn(utf8.MaxRune + 1))

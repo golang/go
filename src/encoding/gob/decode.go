@@ -228,7 +228,7 @@ func ignoreTwoUints(i *decInstr, state *decoderState, v reflect.Value) {
 // The callers to the individual decoders are expected to have used decAlloc.
 // The individual decoders don't need to it.
 func decAlloc(v reflect.Value) reflect.Value {
-	for v.Kind() == reflect.Ptr {
+	for v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
@@ -376,7 +376,7 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 	if value.Cap() < n {
 		value.Set(reflect.MakeSlice(value.Type(), n, n))
 	} else {
-		value.Set(value.Slice(0, n))
+		value.SetLen(n)
 	}
 	if _, err := state.b.Read(value.Bytes()); err != nil {
 		errorf("error decoding []byte: %s", err)
@@ -464,7 +464,7 @@ func (dec *Decoder) decodeStruct(engine *decEngine, value reflect.Value) {
 		if instr.index != nil {
 			// Otherwise the field is unknown to us and instr.op is an ignore op.
 			field = value.FieldByIndex(instr.index)
-			if field.Kind() == reflect.Ptr {
+			if field.Kind() == reflect.Pointer {
 				field = decAlloc(field)
 			}
 		}
@@ -518,7 +518,7 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, 
 		return
 	}
 	instr := &decInstr{elemOp, 0, nil, ovfl}
-	isPtr := value.Type().Elem().Kind() == reflect.Ptr
+	isPtr := value.Type().Elem().Kind() == reflect.Pointer
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
@@ -561,8 +561,8 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value refl
 	if value.IsNil() {
 		value.Set(reflect.MakeMapWithSize(mtyp, n))
 	}
-	keyIsPtr := mtyp.Key().Kind() == reflect.Ptr
-	elemIsPtr := mtyp.Elem().Kind() == reflect.Ptr
+	keyIsPtr := mtyp.Key().Kind() == reflect.Pointer
+	elemIsPtr := mtyp.Elem().Kind() == reflect.Pointer
 	keyInstr := &decInstr{keyOp, 0, nil, ovfl}
 	elemInstr := &decInstr{elemOp, 0, nil, ovfl}
 	keyP := reflect.New(mtyp.Key())
@@ -625,7 +625,7 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
 	if value.Cap() < n {
 		value.Set(reflect.MakeSlice(typ, n, n))
 	} else {
-		value.Set(value.Slice(0, n))
+		value.SetLen(n)
 	}
 	dec.decodeArrayHelper(state, value, elemOp, n, ovfl, helper)
 }
@@ -945,7 +945,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp) 
 func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) *decOp {
 	rcvrType := ut.user
 	if ut.decIndir == -1 {
-		rcvrType = reflect.PtrTo(rcvrType)
+		rcvrType = reflect.PointerTo(rcvrType)
 	} else if ut.decIndir > 0 {
 		for i := int8(0); i < ut.decIndir; i++ {
 			rcvrType = rcvrType.Elem()
@@ -954,7 +954,7 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) *decOp {
 	var op decOp
 	op = func(i *decInstr, state *decoderState, value reflect.Value) {
 		// We now have the base type. We need its address if the receiver is a pointer.
-		if value.Kind() != reflect.Ptr && rcvrType.Kind() == reflect.Ptr {
+		if value.Kind() != reflect.Pointer && rcvrType.Kind() == reflect.Pointer {
 			value = value.Addr()
 		}
 		state.dec.decodeGobDecoder(ut, state, value)

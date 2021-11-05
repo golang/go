@@ -544,7 +544,7 @@ func IsStackAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP, OpLocalAddr, OpSelectNAddr:
+	case OpSP, OpLocalAddr, OpSelectNAddr, OpGetCallerSP:
 		return true
 	}
 	return false
@@ -552,6 +552,9 @@ func IsStackAddr(v *Value) bool {
 
 // IsGlobalAddr reports whether v is known to be an address of a global (or nil).
 func IsGlobalAddr(v *Value) bool {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+		v = v.Args[0]
+	}
 	if v.Op == OpAddr && v.Args[0].Op == OpSB {
 		return true // address of a global
 	}
@@ -647,7 +650,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		// read-only once initialized.
 		return true
 	case OpAddr:
-		return v.Aux.(*obj.LSym).Type == objabi.SRODATA
+		return v.Aux.(*obj.LSym).Type == objabi.SRODATA || v.Aux.(*obj.LSym).Type == objabi.SLIBFUZZER_EXTRA_COUNTER
 	}
 	return false
 }

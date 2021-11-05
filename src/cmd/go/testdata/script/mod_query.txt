@@ -25,7 +25,7 @@ go list -m rsc.io/quote@<v1.5.4
 stdout 'rsc.io/quote v1.5.2$'
 
 ! go list -m rsc.io/quote@>v1.5.3
-stderr 'go list -m: module rsc.io/quote: no matching versions for query ">v1.5.3"'
+stderr 'go: module rsc.io/quote: no matching versions for query ">v1.5.3"'
 
 go list -m -e -f '{{.Error.Err}}' rsc.io/quote@>v1.5.3
 stdout 'no matching versions for query ">v1.5.3"'

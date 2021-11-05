@@ -386,7 +386,7 @@ func stmtFmt(n Node, s fmt.State) {
 
 	case OTAILCALL:
 		n := n.(*TailCallStmt)
-		fmt.Fprintf(s, "tailcall %v", n.Target)
+		fmt.Fprintf(s, "tailcall %v", n.Call)
 
 	case OINLMARK:
 		n := n.(*InlineMarkStmt)
@@ -559,7 +559,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	}
 
 	nprec := OpPrec[n.Op()]
-	if n.Op() == OTYPE && n.Type().IsPtr() {
+	if n.Op() == OTYPE && n.Type() != nil && n.Type().IsPtr() {
 		nprec = OpPrec[ODEREF]
 	}
 
@@ -1061,8 +1061,8 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		}
 	}
 
-	if n.Typecheck() != 0 {
-		fmt.Fprintf(w, " tc(%d)", n.Typecheck())
+	if n.Sym() != nil && n.Op() != ONAME && n.Op() != ONONAME && n.Op() != OTYPE {
+		fmt.Fprintf(w, " %+v", n.Sym())
 	}
 
 	// Print Node-specific fields of basic type in header line.
@@ -1132,6 +1132,9 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		}
 		fmt.Fprintf(w, " %+v", n.Type())
 	}
+	if n.Typecheck() != 0 {
+		fmt.Fprintf(w, " tc(%d)", n.Typecheck())
+	}
 
 	if n.Pos().IsKnown() {
 		fmt.Fprint(w, " # ")
@@ -1147,6 +1150,7 @@ func dumpNodeHeader(w io.Writer, n Node) {
 			}
 			// TODO(mdempsky): Print line pragma details too.
 			file := filepath.Base(pos.Filename())
+			// Note: this output will be parsed by ssa/html.go:(*HTMLWriter).WriteAST. Keep in sync.
 			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
 		}
 	}
@@ -1245,13 +1249,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			dumpNodes(w, fn.Body, depth+1)
 		}
 		return
-	}
-
-	if n.Sym() != nil {
-		fmt.Fprintf(w, " %+v", n.Sym())
-	}
-	if n.Type() != nil {
-		fmt.Fprintf(w, " %+v", n.Type())
 	}
 
 	v := reflect.ValueOf(n).Elem()

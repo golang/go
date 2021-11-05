@@ -34,6 +34,7 @@ type opInfo struct {
 	resultNotInArgs   bool      // outputs must not be allocated to the same registers as inputs
 	clobberFlags      bool      // this op clobbers flags register
 	call              bool      // is a function call
+	tailCall          bool      // is a tail call
 	nilCheck          bool      // this op is a nil check on arg0
 	faultOnNilArg0    bool      // this op will fault if arg0 is nil (and aux encodes a small offset)
 	faultOnNilArg1    bool      // this op will fault if arg1 is nil (and aux encodes a small offset)
@@ -100,6 +101,10 @@ type AuxNameOffset struct {
 func (a *AuxNameOffset) CanBeAnSSAAux() {}
 func (a *AuxNameOffset) String() string {
 	return fmt.Sprintf("%s+%d", a.Name.Sym().Name, a.Offset)
+}
+
+func (a *AuxNameOffset) FrameOffset() int64 {
+	return a.Name.FrameOffset() + a.Offset
 }
 
 type AuxCall struct {
@@ -254,13 +259,13 @@ func (a *AuxCall) TypeOfArg(which int64) *types.Type {
 
 // SizeOfResult returns the size of result which (indexed 0, 1, etc).
 func (a *AuxCall) SizeOfResult(which int64) int64 {
-	return a.TypeOfResult(which).Width
+	return a.TypeOfResult(which).Size()
 }
 
 // SizeOfArg returns the size of argument which (indexed 0, 1, etc).
 // If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) SizeOfArg(which int64) int64 {
-	return a.TypeOfArg(which).Width
+	return a.TypeOfArg(which).Size()
 }
 
 // NResults returns the number of results

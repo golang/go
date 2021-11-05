@@ -3,7 +3,7 @@
 # go list with path to directory should work
 
 # populate go.sum
-go get -d
+go get
 
 env GO111MODULE=off
 go list -f '{{.ImportPath}}' $GOROOT/src/math
@@ -20,7 +20,7 @@ go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
 stdout '^rsc.io/quote$'
 go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.0
 stdout '^rsc.io/sampler$'
-go get -d rsc.io/sampler@v1.3.1
+go get rsc.io/sampler@v1.3.1
 go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.1
 stdout '^rsc.io/sampler$'
 ! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.0

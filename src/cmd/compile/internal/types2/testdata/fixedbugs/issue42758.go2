@@ -28,6 +28,6 @@ func _[T constraint](x interface{}){
 }
 
 func _(x constraint /* ERROR contains type constraints */ ) {
-	switch x /* ERROR contains type constraints */ .(type) {
+	switch x.(type) { // no need to report another error
 	}
 }

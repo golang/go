@@ -76,7 +76,7 @@ func newLLVMSymbolizer(cmd, file string, base uint64, isData bool) (*llvmSymboli
 	}
 
 	j := &llvmSymbolizerJob{
-		cmd:     exec.Command(cmd, "-inlining", "-demangle=false"),
+		cmd:     exec.Command(cmd, "--inlining", "-demangle=false"),
 		symType: "CODE",
 	}
 	if isData {

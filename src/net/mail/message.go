@@ -100,7 +100,7 @@ func ParseDate(date string) (time.Time, error) {
 	dateLayoutsBuildOnce.Do(buildDateLayouts)
 	// CR and LF must match and are tolerated anywhere in the date field.
 	date = strings.ReplaceAll(date, "\r\n", "")
-	if strings.Index(date, "\r") != -1 {
+	if strings.Contains(date, "\r") {
 		return time.Time{}, errors.New("mail: header has a CR without LF")
 	}
 	// Re-using some addrParser methods which support obsolete text, i.e. non-printable ASCII

@@ -42,7 +42,7 @@ type mvsReqs struct {
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
-	if mod == Target {
+	if MainModules.Contains(mod.Path) {
 		// Use the build list as it existed when r was constructed, not the current
 		// global build list.
 		return r.roots, nil
@@ -113,7 +113,7 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 func previousVersion(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
 
-	if m == Target {
+	if MainModules.Contains(m.Path) {
 		return module.Version{Path: m.Path, Version: "none"}, nil
 	}
 

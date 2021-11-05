@@ -3,14 +3,9 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux
-// +build linux
 
 package runtime
 
-// Called from assembly only; declared for go vet.
-func load_g()
-func save_g()
-func reginit()
-
+// This is needed for vet
 //go:noescape
 func callCgoSigaction(sig uintptr, new, old *sigactiont) int32

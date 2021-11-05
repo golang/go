@@ -144,7 +144,7 @@ func (pa *ABIParamAssignment) RegisterTypesAndOffsets() ([]*types.Type, []int64)
 }
 
 func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
-	w := t.Width
+	w := t.Size()
 	if w == 0 {
 		return rts
 	}
@@ -193,12 +193,12 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
 // to input offsets, and returns the longer slice and the next unused offset.
 func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int64) {
 	at = align(at, t)
-	w := t.Width
+	w := t.Size()
 	if w == 0 {
 		return offsets, at
 	}
 	if t.IsScalar() || t.IsPtrShaped() {
-		if t.IsComplex() || int(t.Width) > types.RegSize { // complex and *int64 on 32-bit
+		if t.IsComplex() || int(t.Size()) > types.RegSize { // complex and *int64 on 32-bit
 			s := w / 2
 			return append(offsets, at, at+s), at + w
 		} else {
@@ -214,7 +214,7 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
 		case types.TSTRUCT:
 			for i, f := range t.FieldSlice() {
 				offsets, at = appendParamOffsets(offsets, at, f.Type)
-				if f.Type.Width == 0 && i == t.NumFields()-1 {
+				if f.Type.Size() == 0 && i == t.NumFields()-1 {
 					at++ // last field has zero width
 				}
 			}
@@ -531,7 +531,7 @@ type assignState struct {
 
 // align returns a rounded up to t's alignment
 func align(a int64, t *types.Type) int64 {
-	return alignTo(a, int(t.Align))
+	return alignTo(a, int(uint8(t.Alignment())))
 }
 
 // alignTo returns a rounded up to t, where t must be 0 or a power of 2.
@@ -546,7 +546,7 @@ func alignTo(a int64, t int) int64 {
 // specified type.
 func (state *assignState) stackSlot(t *types.Type) int64 {
 	rv := align(state.stackOffset, t)
-	state.stackOffset = rv + t.Width
+	state.stackOffset = rv + t.Size()
 	return rv
 }
 
@@ -554,7 +554,7 @@ func (state *assignState) stackSlot(t *types.Type) int64 {
 // that we've just determined to be register-assignable. The number of registers
 // needed is assumed to be stored in state.pUsed.
 func (state *assignState) allocateRegs(regs []RegIndex, t *types.Type) []RegIndex {
-	if t.Width == 0 {
+	if t.Size() == 0 {
 		return regs
 	}
 	ri := state.rUsed.intRegs
@@ -647,7 +647,7 @@ func (state *assignState) floatUsed() int {
 // can register allocate, FALSE otherwise (and updates state
 // accordingly).
 func (state *assignState) regassignIntegral(t *types.Type) bool {
-	regsNeeded := int(types.Rnd(t.Width, int64(types.PtrSize)) / int64(types.PtrSize))
+	regsNeeded := int(types.Rnd(t.Size(), int64(types.PtrSize)) / int64(types.PtrSize))
 	if t.IsComplex() {
 		regsNeeded = 2
 	}
@@ -722,14 +722,17 @@ func setup() {
 			types.NewField(nxp, fname("len"), ui),
 			types.NewField(nxp, fname("cap"), ui),
 		})
+		types.CalcStructSize(synthSlice)
 		synthString = types.NewStruct(types.NoPkg, []*types.Field{
 			types.NewField(nxp, fname("data"), unsp),
 			types.NewField(nxp, fname("len"), ui),
 		})
+		types.CalcStructSize(synthString)
 		synthIface = types.NewStruct(types.NoPkg, []*types.Field{
 			types.NewField(nxp, fname("f1"), unsp),
 			types.NewField(nxp, fname("f2"), unsp),
 		})
+		types.CalcStructSize(synthIface)
 	})
 }
 
@@ -764,10 +767,10 @@ func (state *assignState) regassign(pt *types.Type) bool {
 // ABIParamResultInfo held in 'state'.
 func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, isReturn bool) ABIParamAssignment {
 	state.pUsed = RegAmounts{}
-	if pt.Width == types.BADWIDTH {
+	if pt.Size() == types.BADWIDTH {
 		base.Fatalf("should never happen")
 		panic("unreachable")
-	} else if pt.Width == 0 {
+	} else if pt.Size() == 0 {
 		return state.stackAllocate(pt, n)
 	} else if state.regassign(pt) {
 		return state.regAllocate(pt, n, isReturn)
@@ -777,11 +780,11 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
 }
 
 // ComputePadding returns a list of "post element" padding values in
-// the case where we have a structure being passed in registers. Give
-// a param assignment corresponding to a struct, it returns a list of
-// contaning padding values for each field, e.g. the Kth element in
+// the case where we have a structure being passed in registers. Given
+// a param assignment corresponding to a struct, it returns a list
+// containing padding values for each field, e.g. the Kth element in
 // the list is the amount of padding between field K and the following
-// field. For things that are not struct (or structs without padding)
+// field. For things that are not structs (or structs without padding)
 // it returns a list of zeros. Example:
 //
 // type small struct {
@@ -793,8 +796,8 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
 //
 // For this struct we would return a list [0, 1, 0, 0], meaning that
 // we have one byte of padding after the second field, and no bytes of
-// padding after any of the other fields. Input parameter "storage"
-// is with enough capacity to accommodate padding elements for
+// padding after any of the other fields. Input parameter "storage" is
+// a slice with enough capacity to accommodate padding elements for
 // the architected register set in question.
 func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
 	nr := len(pa.Registers)

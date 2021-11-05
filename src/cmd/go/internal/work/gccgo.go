@@ -17,7 +17,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/internal/pkgpath"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 )
 
 // The Gccgo toolchain.

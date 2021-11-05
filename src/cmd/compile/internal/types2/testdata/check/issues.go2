@@ -145,8 +145,8 @@ type List3[TElem any] struct {
 }
 
 // Infinite generic type declarations must lead to an error.
-type inf1[T any] struct{ _ inf1 /* ERROR illegal cycle */ [T] }
-type inf2[T any] struct{ inf2 /* ERROR illegal cycle */ [T] }
+type inf1 /* ERROR illegal cycle */ [T any] struct{ _ inf1[T] }
+type inf2 /* ERROR illegal cycle */ [T any] struct{ inf2[T] }
 
 // The implementation of conversions T(x) between integers and floating-point
 // numbers checks that both T and x have either integer or floating-point
@@ -219,6 +219,13 @@ func _[T interface{ ~chan int }](ch T) int {
 
 // Calling of a generic variable.
 func _[T interface{ ~func() }](f T) {
+	f()
+	go f()
+}
+
+type F1 func()
+type F2 func()
+func _[T interface{ func()|F1|F2 }](f T) {
 	f()
 	go f()
 }

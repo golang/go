@@ -2399,16 +2399,24 @@ func TestConnMaxLifetime(t *testing.T) {
 	tx.Commit()
 	tx2.Commit()
 
-	driver.mu.Lock()
-	opens = driver.openCount - opens0
-	closes = driver.closeCount - closes0
-	driver.mu.Unlock()
+	// Give connectionCleaner chance to run.
+	for i := 0; i < 100 && closes != 1; i++ {
+		time.Sleep(time.Millisecond)
+		driver.mu.Lock()
+		opens = driver.openCount - opens0
+		closes = driver.closeCount - closes0
+		driver.mu.Unlock()
+	}
 
 	if opens != 3 {
 		t.Errorf("opens = %d; want 3", opens)
 	}
 	if closes != 1 {
 		t.Errorf("closes = %d; want 1", closes)
+	}
+
+	if s := db.Stats(); s.MaxLifetimeClosed != 1 {
+		t.Errorf("MaxLifetimeClosed = %d; want 1 %#v", s.MaxLifetimeClosed, s)
 	}
 }
 
@@ -3151,7 +3159,7 @@ func TestTxEndBadConn(t *testing.T) {
 			return broken
 		}
 
-		if err := op(); err != driver.ErrBadConn {
+		if err := op(); !errors.Is(err, driver.ErrBadConn) {
 			t.Errorf(name+": %v", err)
 			return
 		}
@@ -3896,14 +3904,48 @@ func TestStatsMaxIdleClosedTen(t *testing.T) {
 	}
 }
 
+// testUseConns uses count concurrent connections with 1 nanosecond apart.
+// Returns the returnedAt time of the final connection.
+func testUseConns(t *testing.T, count int, tm time.Time, db *DB) time.Time {
+	conns := make([]*Conn, count)
+	ctx := context.Background()
+	for i := range conns {
+		c, err := db.Conn(ctx)
+		if err != nil {
+			t.Error(err)
+		}
+		conns[i] = c
+	}
+
+	for _, c := range conns {
+		tm = tm.Add(time.Nanosecond)
+		nowFunc = func() time.Time {
+			return tm
+		}
+		if err := c.Close(); err != nil {
+			t.Error(err)
+		}
+	}
+
+	return tm
+}
+
 func TestMaxIdleTime(t *testing.T) {
+	usedConns := 5
+	reusedConns := 2
 	list := []struct {
 		wantMaxIdleTime time.Duration
+		wantNextCheck   time.Duration
 		wantIdleClosed  int64
 		timeOffset      time.Duration
 	}{
-		{time.Nanosecond, 1, 10 * time.Millisecond},
-		{time.Hour, 0, 10 * time.Millisecond},
+		{
+			time.Millisecond,
+			time.Millisecond - time.Nanosecond,
+			int64(usedConns - reusedConns),
+			10 * time.Millisecond,
+		},
+		{time.Hour, time.Second, 0, 10 * time.Millisecond},
 	}
 	baseTime := time.Unix(0, 0)
 	defer func() {
@@ -3917,23 +3959,38 @@ func TestMaxIdleTime(t *testing.T) {
 			db := newTestDB(t, "people")
 			defer closeDB(t, db)
 
-			db.SetMaxOpenConns(1)
-			db.SetMaxIdleConns(1)
+			db.SetMaxOpenConns(usedConns)
+			db.SetMaxIdleConns(usedConns)
 			db.SetConnMaxIdleTime(item.wantMaxIdleTime)
 			db.SetConnMaxLifetime(0)
 
 			preMaxIdleClosed := db.Stats().MaxIdleTimeClosed
 
-			if err := db.Ping(); err != nil {
-				t.Fatal(err)
-			}
+			// Busy usedConns.
+			tm := testUseConns(t, usedConns, baseTime, db)
 
-			nowFunc = func() time.Time {
-				return baseTime.Add(item.timeOffset)
-			}
+			tm = baseTime.Add(item.timeOffset)
+
+			// Reuse connections which should never be considered idle
+			// and exercises the sorting for issue 39471.
+			testUseConns(t, reusedConns, tm, db)
 
 			db.mu.Lock()
-			closing := db.connectionCleanerRunLocked()
+			nc, closing := db.connectionCleanerRunLocked(time.Second)
+			if nc != item.wantNextCheck {
+				t.Errorf("got %v; want %v next check duration", nc, item.wantNextCheck)
+			}
+
+			// Validate freeConn order.
+			var last time.Time
+			for _, c := range db.freeConn {
+				if last.After(c.returnedAt) {
+					t.Error("freeConn is not ordered by returnedAt")
+					break
+				}
+				last = c.returnedAt
+			}
+
 			db.mu.Unlock()
 			for _, c := range closing {
 				c.Close()
@@ -3945,7 +4002,7 @@ func TestMaxIdleTime(t *testing.T) {
 			st := db.Stats()
 			maxIdleClosed := st.MaxIdleTimeClosed - preMaxIdleClosed
 			if g, w := maxIdleClosed, item.wantIdleClosed; g != w {
-				t.Errorf(" got: %d; want %d max idle closed conns", g, w)
+				t.Errorf("got: %d; want %d max idle closed conns", g, w)
 			}
 		})
 	}

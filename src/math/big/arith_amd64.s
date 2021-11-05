@@ -379,7 +379,7 @@ E5:	CMPQ BX, R11		// i < n
 
 // func addMulVVW(z, x []Word, y Word) (c Word)
 TEXT ·addMulVVW(SB),NOSPLIT,$0
-	CMPB    ·support_adx(SB), $1
+	CMPB ·support_adx(SB), $1
 	JEQ adx
 	MOVQ z+0(FP), R10
 	MOVQ x+24(FP), R8

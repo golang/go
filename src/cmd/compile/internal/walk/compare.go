@@ -5,7 +5,6 @@
 package walk
 
 import (
-	"encoding/binary"
 	"go/constant"
 
 	"cmd/compile/internal/base"
@@ -14,7 +13,6 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/sys"
 )
 
 // The result of walkCompare MUST be assigned back to n, e.g.
@@ -81,7 +79,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	var inline bool
 
 	maxcmpsize := int64(4)
-	unalignedLoad := canMergeLoads()
+	unalignedLoad := ssagen.Arch.LinkArch.CanMergeLoads
 	if unalignedLoad {
 		// Keep this low enough to generate less code than a function call.
 		maxcmpsize = 2 * int64(ssagen.Arch.LinkArch.RegSize)
@@ -138,7 +136,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		return n
 	case types.TARRAY:
 		// We can compare several elements at once with 2/4/8 byte integer compares
-		inline = t.NumElem() <= 1 || (types.IsSimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
+		inline = t.NumElem() <= 1 || (types.IsSimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Size()*t.NumElem() <= maxcmpsize))
 	case types.TSTRUCT:
 		inline = t.NumComponents(types.IgnoreBlankFields) <= 4
 	}
@@ -164,7 +162,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		call.Args.Append(typecheck.NodAddr(cmpl))
 		call.Args.Append(typecheck.NodAddr(cmpr))
 		if needsize {
-			call.Args.Append(ir.NewInt(t.Width))
+			call.Args.Append(ir.NewInt(t.Size()))
 		}
 		res := ir.Node(call)
 		if n.Op() != ir.OEQ {
@@ -202,22 +200,22 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		}
 	} else {
 		step := int64(1)
-		remains := t.NumElem() * t.Elem().Width
-		combine64bit := unalignedLoad && types.RegSize == 8 && t.Elem().Width <= 4 && t.Elem().IsInteger()
-		combine32bit := unalignedLoad && t.Elem().Width <= 2 && t.Elem().IsInteger()
-		combine16bit := unalignedLoad && t.Elem().Width == 1 && t.Elem().IsInteger()
+		remains := t.NumElem() * t.Elem().Size()
+		combine64bit := unalignedLoad && types.RegSize == 8 && t.Elem().Size() <= 4 && t.Elem().IsInteger()
+		combine32bit := unalignedLoad && t.Elem().Size() <= 2 && t.Elem().IsInteger()
+		combine16bit := unalignedLoad && t.Elem().Size() == 1 && t.Elem().IsInteger()
 		for i := int64(0); remains > 0; {
 			var convType *types.Type
 			switch {
 			case remains >= 8 && combine64bit:
 				convType = types.Types[types.TINT64]
-				step = 8 / t.Elem().Width
+				step = 8 / t.Elem().Size()
 			case remains >= 4 && combine32bit:
 				convType = types.Types[types.TUINT32]
-				step = 4 / t.Elem().Width
+				step = 4 / t.Elem().Size()
 			case remains >= 2 && combine16bit:
 				convType = types.Types[types.TUINT16]
-				step = 2 / t.Elem().Width
+				step = 2 / t.Elem().Size()
 			default:
 				step = 1
 			}
@@ -227,7 +225,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 					ir.NewIndexExpr(base.Pos, cmpr, ir.NewInt(i)),
 				)
 				i++
-				remains -= t.Elem().Width
+				remains -= t.Elem().Size()
 			} else {
 				elemType := t.Elem().ToUnsigned()
 				cmplw := ir.Node(ir.NewIndexExpr(base.Pos, cmpl, ir.NewInt(i)))
@@ -242,17 +240,17 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 					lb := ir.Node(ir.NewIndexExpr(base.Pos, cmpl, ir.NewInt(i+offset)))
 					lb = typecheck.Conv(lb, elemType)
 					lb = typecheck.Conv(lb, convType)
-					lb = ir.NewBinaryExpr(base.Pos, ir.OLSH, lb, ir.NewInt(8*t.Elem().Width*offset))
+					lb = ir.NewBinaryExpr(base.Pos, ir.OLSH, lb, ir.NewInt(8*t.Elem().Size()*offset))
 					cmplw = ir.NewBinaryExpr(base.Pos, ir.OOR, cmplw, lb)
 					rb := ir.Node(ir.NewIndexExpr(base.Pos, cmpr, ir.NewInt(i+offset)))
 					rb = typecheck.Conv(rb, elemType)
 					rb = typecheck.Conv(rb, convType)
-					rb = ir.NewBinaryExpr(base.Pos, ir.OLSH, rb, ir.NewInt(8*t.Elem().Width*offset))
+					rb = ir.NewBinaryExpr(base.Pos, ir.OLSH, rb, ir.NewInt(8*t.Elem().Size()*offset))
 					cmprw = ir.NewBinaryExpr(base.Pos, ir.OOR, cmprw, rb)
 				}
 				compare(cmplw, cmprw)
 				i += step
-				remains -= step * t.Elem().Width
+				remains -= step * t.Elem().Size()
 			}
 		}
 	}
@@ -311,7 +309,7 @@ func walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		maxRewriteLen := 6
 		// Some architectures can load unaligned byte sequence as 1 word.
 		// So we can cover longer strings with the same amount of code.
-		canCombineLoads := canMergeLoads()
+		canCombineLoads := ssagen.Arch.LinkArch.CanMergeLoads
 		combine64bit := false
 		if canCombineLoads {
 			// Keep this low enough to generate less code than a function call.
@@ -490,19 +488,4 @@ func tracecmpArg(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 	}
 
 	return typecheck.Conv(n, t)
-}
-
-// canMergeLoads reports whether the backend optimization passes for
-// the current architecture can combine adjacent loads into a single
-// larger, possibly unaligned, load. Note that currently the
-// optimizations must be able to handle little endian byte order.
-func canMergeLoads() bool {
-	switch ssagen.Arch.LinkArch.Family {
-	case sys.ARM64, sys.AMD64, sys.I386, sys.S390X:
-		return true
-	case sys.PPC64:
-		// Load combining only supported on ppc64le.
-		return ssagen.Arch.LinkArch.ByteOrder == binary.LittleEndian
-	}
-	return false
 }

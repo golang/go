@@ -84,7 +84,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
-	ir.Pkgs.Unsafe = types.NewPkg("unsafe", "unsafe")
+	types.UnsafePkg = types.NewPkg("unsafe", "unsafe")
 
 	// Pseudo-package that contains the compiler's builtin
 	// declarations for package runtime. These are declared in a
@@ -107,7 +107,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
+	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "asan", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if !base.EnableTrace && base.Flag.LowerT {
 		log.Fatalf("compiler not built with support for -t")
@@ -149,11 +149,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	if base.Compiling(base.NoInstrumentPkgs) {
 		base.Flag.Race = false
 		base.Flag.MSan = false
+		base.Flag.ASan = false
 	}
 
 	ssagen.Arch.LinkArch.Init(base.Ctxt)
 	startProfile()
-	if base.Flag.Race || base.Flag.MSan {
+	if base.Flag.Race || base.Flag.MSan || base.Flag.ASan {
 		base.Flag.Cfg.Instrumenting = true
 	}
 	if base.Flag.Dwarf {
@@ -195,18 +196,19 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// because it generates itabs for initializing global variables.
 	ssagen.InitConfig()
 
-	// Build init task.
-	if initTask := pkginit.Task(); initTask != nil {
-		typecheck.Export(initTask)
-	}
+	// Create "init" function for package-scope variable initialization
+	// statements, if any.
+	//
+	// Note: This needs to happen early, before any optimizations. The
+	// Go spec defines a precise order than initialization should be
+	// carried out in, and even mundane optimizations like dead code
+	// removal can skew the results (e.g., #43444).
+	pkginit.MakeInit()
 
 	// Stability quirk: sort top-level declarations, so we're not
 	// sensitive to the order that functions are added. In particular,
 	// the order that noder+typecheck add function closures is very
 	// subtle, and not important to reproduce.
-	//
-	// Note: This needs to happen after pkginit.Task, otherwise it risks
-	// changing the order in which top-level variables are initialized.
 	if base.Debug.UnifiedQuirks != 0 {
 		s := typecheck.Target.Decls
 		sort.SliceStable(s, func(i, j int) bool {
@@ -243,7 +245,13 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
 		inline.InlinePackage()
+		// If any new fully-instantiated types were referenced during
+		// inlining, we need to create needed instantiations.
+		if len(typecheck.GetInstTypeList()) > 0 {
+			noder.BuildInstantiations(false)
+		}
 	}
+	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 
 	// Devirtualize.
 	for _, n := range typecheck.Target.Decls {
@@ -252,6 +260,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 	}
 	ir.CurFunc = nil
+
+	// Build init task, if needed.
+	if initTask := pkginit.Task(); initTask != nil {
+		typecheck.Export(initTask)
+	}
 
 	// Generate ABI wrappers. Must happen before escape analysis
 	// and doesn't benefit from dead-coding or inlining.
@@ -289,6 +302,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	fcount := int64(0)
 	for i := 0; i < len(typecheck.Target.Decls); i++ {
 		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
+			// Don't try compiling dead hidden closure.
+			if fn.IsDeadcodeClosure() {
+				continue
+			}
 			enqueueFunc(fn)
 			fcount++
 		}

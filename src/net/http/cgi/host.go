@@ -273,12 +273,11 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			break
 		}
 		headerLines++
-		parts := strings.SplitN(string(line), ":", 2)
-		if len(parts) < 2 {
+		header, val, ok := strings.Cut(string(line), ":")
+		if !ok {
 			h.printf("cgi: bogus header line: %s", string(line))
 			continue
 		}
-		header, val := parts[0], parts[1]
 		if !httpguts.ValidHeaderFieldName(header) {
 			h.printf("cgi: invalid header name: %q", header)
 			continue

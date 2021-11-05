@@ -1164,11 +1164,11 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	}
 	if strings.Count(s, ":") > 1 {
 		name.Local = s
-	} else if i := strings.Index(s, ":"); i < 1 || i > len(s)-2 {
+	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
 		name.Local = s
 	} else {
-		name.Space = s[0:i]
-		name.Local = s[i+1:]
+		name.Space = space
+		name.Local = local
 	}
 	return name, true
 }
@@ -2012,25 +2012,26 @@ func emitCDATA(w io.Writer, s []byte) error {
 	if _, err := w.Write(cdataStart); err != nil {
 		return err
 	}
+
 	for {
-		i := bytes.Index(s, cdataEnd)
-		if i >= 0 && i+len(cdataEnd) <= len(s) {
-			// Found a nested CDATA directive end.
-			if _, err := w.Write(s[:i]); err != nil {
-				return err
-			}
-			if _, err := w.Write(cdataEscape); err != nil {
-				return err
-			}
-			i += len(cdataEnd)
-		} else {
-			if _, err := w.Write(s); err != nil {
-				return err
-			}
+		before, after, ok := bytes.Cut(s, cdataEnd)
+		if !ok {
 			break
 		}
-		s = s[i:]
+		// Found a nested CDATA directive end.
+		if _, err := w.Write(before); err != nil {
+			return err
+		}
+		if _, err := w.Write(cdataEscape); err != nil {
+			return err
+		}
+		s = after
 	}
+
+	if _, err := w.Write(s); err != nil {
+		return err
+	}
+
 	_, err := w.Write(cdataEnd)
 	return err
 }
@@ -2041,20 +2042,16 @@ func procInst(param, s string) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
 	param = param + "="
-	idx := strings.Index(s, param)
-	if idx == -1 {
-		return ""
-	}
-	v := s[idx+len(param):]
+	_, v, _ := strings.Cut(s, param)
 	if v == "" {
 		return ""
 	}
 	if v[0] != '\'' && v[0] != '"' {
 		return ""
 	}
-	idx = strings.IndexRune(v[1:], rune(v[0]))
-	if idx == -1 {
+	unquote, _, ok := strings.Cut(v[1:], v[:1])
+	if !ok {
 		return ""
 	}
-	return v[1 : idx+1]
+	return unquote
 }

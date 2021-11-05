@@ -10,7 +10,7 @@ type Ordered interface {
 	~int|~float64|~string
 }
 
-func min[T Ordered](x, y T) T
+func min[T Ordered](x, y T) T { panic(0) }
 
 func _() {
 	// min can be called with explicit instantiation.
@@ -37,7 +37,7 @@ func _() {
 	_ = min("foo", "bar")
 }
 
-func mixed[T1, T2, T3 any](T1, T2, T3)
+func mixed[T1, T2, T3 any](T1, T2, T3) {}
 
 func _() {
 	// mixed can be called with explicit instantiation.
@@ -54,7 +54,7 @@ func _() {
 	mixed[int, string](1.1 /* ERROR cannot use 1.1 */ , "", false)
 }
 
-func related1[Slice interface{~[]Elem}, Elem any](s Slice, e Elem)
+func related1[Slice interface{~[]Elem}, Elem any](s Slice, e Elem) {}
 
 func _() {
 	// related1 can be called with explicit instantiation.
@@ -78,7 +78,7 @@ func _() {
 	related1(si, "foo" /* ERROR cannot use "foo" */ )
 }
 
-func related2[Elem any, Slice interface{~[]Elem}](e Elem, s Slice)
+func related2[Elem any, Slice interface{~[]Elem}](e Elem, s Slice) {}
 
 func _() {
 	// related2 can be called with explicit instantiation.
@@ -98,4 +98,27 @@ func _() {
 	related2(1.2, []float64{})
 	related2(1.0, []int{})
 	related2 /* ERROR does not satisfy */ (float64(1.0), []int{})
+}
+
+type List[P any] []P
+
+func related3[Elem any, Slice []Elem | List[Elem]]() Slice { return nil }
+
+func _() {
+	// related3 can be instantiated explicitly
+	related3[int, []int]()
+	related3[byte, List[byte]]()
+
+	// Alternatively, the 2nd type argument can be inferred
+	// from the first one through constraint type inference.
+	related3[int]()
+
+	// The inferred type is the structural type of the Slice
+	// type parameter.
+	var _ []int = related3[int]()
+
+	// It is not the defined parameterized type List.
+	type anotherList []float32
+	var _ anotherList = related3[float32]() // valid
+	var _ anotherList = related3 /* ERROR cannot use .* \(value of type List\[float32\]\) as anotherList */ [float32, List[float32]]()
 }

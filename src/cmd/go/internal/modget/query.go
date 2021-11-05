@@ -14,7 +14,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
 )
@@ -192,9 +192,9 @@ func (q *query) validate() error {
 			// TODO(bcmills): "all@none" seems like a totally reasonable way to
 			// request that we remove all module requirements, leaving only the main
 			// module and standard library. Perhaps we should implement that someday.
-			return &modload.QueryMatchesMainModuleError{
-				Pattern: q.pattern,
-				Query:   q.version,
+			return &modload.QueryUpgradesAllError{
+				MainModules: modload.MainModules.Versions(),
+				Query:       q.version,
 			}
 		}
 	}
@@ -284,21 +284,21 @@ func reportError(q *query, err error) {
 	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:;)\"`]|$)")
 	if patternRE.MatchString(errStr) {
 		if q.rawVersion == "" {
-			base.Errorf("go get: %s", errStr)
+			base.Errorf("go: %s", errStr)
 			return
 		}
 
 		versionRE := regexp.MustCompile("(?m)(?:[ @(\"`]|^)" + regexp.QuoteMeta(q.version) + "(?:[ :;)\"`]|$)")
 		if versionRE.MatchString(errStr) {
-			base.Errorf("go get: %s", errStr)
+			base.Errorf("go: %s", errStr)
 			return
 		}
 	}
 
 	if qs := q.String(); qs != "" {
-		base.Errorf("go get %s: %s", qs, errStr)
+		base.Errorf("go: %s: %s", qs, errStr)
 	} else {
-		base.Errorf("go get: %s", errStr)
+		base.Errorf("go: %s", errStr)
 	}
 }
 

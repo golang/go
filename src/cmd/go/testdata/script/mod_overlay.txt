@@ -20,7 +20,7 @@ go list -deps -overlay overlay.json .
 # Overlaid go.mod is not rewritten by 'go get'.
 cd $WORK/gopath/src/get-doesnt-add-dep
 cp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
-! go get -d -overlay overlay.json .
+! go get -overlay overlay.json .
 stderr '^go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay$'
 cmp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
 
@@ -30,17 +30,17 @@ cmp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
 # the correct go.sum is used with the overlay, 'go get .' should
 # not report a security error.
 cd $WORK/gopath/src/overlay-sum-used
-! go get -d .
+! go get .
 stderr 'SECURITY ERROR'
 ! go mod verify
 stderr 'SECURITY ERROR'
-go get -d -overlay overlay.json .
+go get -overlay overlay.json .
 go mod verify -overlay overlay.json
 # Overlaid go.sum is not rewritten.
 # Copy an incomplete file to the overlay file, and expect an error
 # attempting to update the file
 cp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
-! go get -d -overlay overlay.json .
+! go get -overlay overlay.json .
 stderr '^go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay$'
 cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
 ! go mod tidy -overlay overlay.json
@@ -55,7 +55,7 @@ cd $WORK/gopath/src/overlay-and-dash-modfile
 go list -modfile=alternate.mod -overlay overlay.json .
 stdout 'found.the/module'
 # Even with -modfile, overlaid files can't be opened for write.
-! go get -modfile=alternate.mod -overlay overlay.json -d rsc.io/quote
+! go get -modfile=alternate.mod -overlay overlay.json rsc.io/quote
 stderr '^go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay$'
 
 # Carving out a module by adding an overlaid go.mod file
@@ -77,11 +77,11 @@ go list -overlay overlay.json all
 ! stdout ^carve2$
 stdout ^carve2/nomod$
 # Editing go.mod file fails because overlay is read only
-! go get -overlay overlay.json -d rsc.io/quote
+! go get -overlay overlay.json rsc.io/quote
 stderr '^go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay$'
 ! grep rsc.io/quote $WORK/overlay/carve2-nomod-go.mod
 # Editing go.mod file succeeds because we use -modfile to redirect to same file
-go get -overlay overlay.json -modfile $WORK/overlay/carve2-nomod-go.mod -d rsc.io/quote
+go get -overlay overlay.json -modfile $WORK/overlay/carve2-nomod-go.mod rsc.io/quote
 grep rsc.io/quote $WORK/overlay/carve2-nomod-go.mod
 
 -- no-go-mod/file.go --

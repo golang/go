@@ -5,7 +5,6 @@
 // cgo -godefs -- -m64 _const.go
 
 //go:build arm64 && netbsd
-// +build arm64,netbsd
 
 package syscall
 

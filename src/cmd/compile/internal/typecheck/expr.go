@@ -77,10 +77,6 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	return l, r, t
 }
 
-func IsCmp(op ir.Op) bool {
-	return iscmp[op]
-}
-
 // tcArith typechecks operands of a binary arithmetic expression.
 // The result of tcArith MUST be assigned back to original operands,
 // t is the type of the expression, and should be set by the caller. e.g:
@@ -96,7 +92,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		t = r.Type()
 	}
 	aop := ir.OXXX
-	if iscmp[n.Op()] && t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
+	if n.Op().IsCmp() && t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
 		// comparison is okay as long as one side is
 		// assignable to the other.  convert so they have
 		// the same type.
@@ -114,7 +110,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 				}
 
 				types.CalcSize(l.Type())
-				if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Width >= 1<<16 {
+				if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Size() >= 1<<16 {
 					l = ir.NewConvExpr(base.Pos, aop, r.Type(), l)
 					l.SetTypecheck(1)
 				}
@@ -133,7 +129,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 				}
 
 				types.CalcSize(r.Type())
-				if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Width >= 1<<16 {
+				if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Size() >= 1<<16 {
 					r = ir.NewConvExpr(base.Pos, aop, l.Type(), r)
 					r.SetTypecheck(1)
 				}

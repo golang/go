@@ -20,7 +20,7 @@ import (
 	"cmd/go/internal/vcs"
 	"cmd/go/internal/web"
 	"cmd/go/internal/work"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
 )
@@ -114,16 +114,16 @@ func init() {
 func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	if cfg.ModulesEnabled {
 		// Should not happen: main.go should install the separate module-enabled get code.
-		base.Fatalf("go get: modules not implemented")
+		base.Fatalf("go: modules not implemented")
 	}
 
 	work.BuildInit()
 
 	if *getF && !*getU {
-		base.Fatalf("go get: cannot use -f flag without -u")
+		base.Fatalf("go: cannot use -f flag without -u")
 	}
 	if *getInsecure {
-		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
+		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 
 	// Disable any prompting for passwords by Git itself.
@@ -214,18 +214,19 @@ func downloadPaths(patterns []string) []string {
 		// if the argument has no slash or refers to an existing file.
 		if strings.HasSuffix(arg, ".go") {
 			if !strings.Contains(arg, "/") {
-				base.Errorf("go get %s: arguments must be package or module paths", arg)
+				base.Errorf("go: %s: arguments must be package or module paths", arg)
 				continue
 			}
 			if fi, err := os.Stat(arg); err == nil && !fi.IsDir() {
-				base.Errorf("go get: %s exists as a file, but 'go get' requires package arguments", arg)
+				base.Errorf("go: %s exists as a file, but 'go get' requires package arguments", arg)
 			}
 		}
 	}
 	base.ExitIfErrors()
 
 	var pkgs []string
-	for _, m := range search.ImportPathsQuiet(patterns) {
+	noModRoots := []string{}
+	for _, m := range search.ImportPathsQuiet(patterns, noModRoots) {
 		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern(), "...") {
 			pkgs = append(pkgs, m.Pattern())
 		} else {
@@ -315,7 +316,8 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		if wildcardOkay && strings.Contains(arg, "...") {
 			match := search.NewMatch(arg)
 			if match.IsLocal() {
-				match.MatchDirs()
+				noModRoots := []string{} // We're in gopath mode, so there are no modroots.
+				match.MatchDirs(noModRoots)
 				args = match.Dirs
 			} else {
 				match.MatchPackages()
@@ -415,10 +417,10 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 // to make the first copy of or update a copy of the given package.
 func downloadPackage(p *load.Package) error {
 	var (
-		vcsCmd         *vcs.Cmd
-		repo, rootPath string
-		err            error
-		blindRepo      bool // set if the repo has unusual configuration
+		vcsCmd                  *vcs.Cmd
+		repo, rootPath, repoDir string
+		err                     error
+		blindRepo               bool // set if the repo has unusual configuration
 	)
 
 	// p can be either a real package, or a pseudo-package whose “import path” is
@@ -444,10 +446,19 @@ func downloadPackage(p *load.Package) error {
 
 	if p.Internal.Build.SrcRoot != "" {
 		// Directory exists. Look for checkout along path to src.
-		vcsCmd, rootPath, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot)
+		const allowNesting = false
+		repoDir, vcsCmd, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot, allowNesting)
 		if err != nil {
 			return err
 		}
+		if !str.HasFilePathPrefix(repoDir, p.Internal.Build.SrcRoot) {
+			panic(fmt.Sprintf("repository %q not in source root %q", repo, p.Internal.Build.SrcRoot))
+		}
+		rootPath = str.TrimFilePathPrefix(repoDir, p.Internal.Build.SrcRoot)
+		if err := vcs.CheckGOVCS(vcsCmd, rootPath); err != nil {
+			return err
+		}
+
 		repo = "<local>" // should be unused; make distinctive
 
 		// Double-check where it came from.

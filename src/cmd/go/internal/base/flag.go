@@ -9,7 +9,7 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 )
 
 // A StringsFlag is a command-line flag that interprets its argument
@@ -18,7 +18,7 @@ type StringsFlag []string
 
 func (v *StringsFlag) Set(s string) error {
 	var err error
-	*v, err = str.SplitQuotedFields(s)
+	*v, err = quoted.Split(s)
 	if *v == nil {
 		*v = []string{}
 	}
@@ -60,6 +60,13 @@ func AddBuildFlagsNX(flags *flag.FlagSet) {
 // AddModFlag adds the -mod build flag to the flag set.
 func AddModFlag(flags *flag.FlagSet) {
 	flags.Var(explicitStringFlag{value: &cfg.BuildMod, explicit: &cfg.BuildModExplicit}, "mod", "")
+}
+
+// AddWorkfileFlag adds the workfile flag to the flag set. It enables workspace
+// mode for commands that support it by resetting the cfg.WorkFile variable
+// to "" (equivalent to auto) rather than off.
+func AddWorkfileFlag(flags *flag.FlagSet) {
+	flags.Var(explicitStringFlag{value: &cfg.WorkFile, explicit: &cfg.WorkFileExplicit}, "workfile", "")
 }
 
 // AddModCommonFlags adds the module-related flags common to build commands

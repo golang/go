@@ -126,7 +126,7 @@ type Type interface {
 	//	Chan: ChanDir, Elem
 	//	Func: In, NumIn, Out, NumOut, IsVariadic.
 	//	Map: Key, Elem
-	//	Ptr: Elem
+	//	Pointer: Elem
 	//	Slice: Elem
 	//	Struct: Field, FieldByIndex, FieldByName, FieldByNameFunc, NumField
 
@@ -154,7 +154,7 @@ type Type interface {
 	IsVariadic() bool
 
 	// Elem returns a type's element type.
-	// It panics if the type's Kind is not Array, Chan, Map, Ptr, or Slice.
+	// It panics if the type's Kind is not Array, Chan, Map, Pointer, or Slice.
 	Elem() Type
 
 	// Field returns a struct type's i'th field.
@@ -261,12 +261,15 @@ const (
 	Func
 	Interface
 	Map
-	Ptr
+	Pointer
 	Slice
 	String
 	Struct
 	UnsafePointer
 )
+
+// Ptr is the old name for the Pointer kind.
+const Ptr = Pointer
 
 // tflag is used by an rtype to signal what extra type information is
 // available in the memory directly following the rtype value.
@@ -658,7 +661,7 @@ var kindNames = []string{
 	Func:          "func",
 	Interface:     "interface",
 	Map:           "map",
-	Ptr:           "ptr",
+	Pointer:       "ptr",
 	Slice:         "slice",
 	String:        "string",
 	Struct:        "struct",
@@ -741,7 +744,7 @@ func (t *rtype) uncommon() *uncommonType {
 	switch t.Kind() {
 	case Struct:
 		return &(*structTypeUncommon)(unsafe.Pointer(t)).u
-	case Ptr:
+	case Pointer:
 		type u struct {
 			ptrType
 			u uncommonType
@@ -945,7 +948,7 @@ func (t *rtype) Elem() Type {
 	case Map:
 		tt := (*mapType)(unsafe.Pointer(t))
 		return toType(tt.elem)
-	case Ptr:
+	case Pointer:
 		tt := (*ptrType)(unsafe.Pointer(t))
 		return toType(tt.elem)
 	case Slice:
@@ -1265,7 +1268,7 @@ func (t *structType) FieldByIndex(index []int) (f StructField) {
 	for i, x := range index {
 		if i > 0 {
 			ft := f.Type
-			if ft.Kind() == Ptr && ft.Elem().Kind() == Struct {
+			if ft.Kind() == Pointer && ft.Elem().Kind() == Struct {
 				ft = ft.Elem()
 			}
 			f.Type = ft
@@ -1336,7 +1339,7 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (result StructFiel
 				if f.embedded() {
 					// Embedded field of type T or *T.
 					ntyp = f.typ
-					if ntyp.Kind() == Ptr {
+					if ntyp.Kind() == Pointer {
 						ntyp = ntyp.Elem().common()
 					}
 				}
@@ -1416,12 +1419,19 @@ func TypeOf(i interface{}) Type {
 	return toType(eface.typ)
 }
 
-// ptrMap is the cache for PtrTo.
+// ptrMap is the cache for PointerTo.
 var ptrMap sync.Map // map[*rtype]*ptrType
 
 // PtrTo returns the pointer type with element t.
 // For example, if t represents type Foo, PtrTo(t) represents *Foo.
-func PtrTo(t Type) Type {
+//
+// PtrTo is the old spelling of PointerTo.
+// The two functions behave identically.
+func PtrTo(t Type) Type { return PointerTo(t) }
+
+// PointerTo returns the pointer type with element t.
+// For example, if t represents type Foo, PointerTo(t) represents *Foo.
+func PointerTo(t Type) Type {
 	return t.(*rtype).ptrTo()
 }
 
@@ -1695,7 +1705,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 	case Map:
 		return haveIdenticalType(T.Key(), V.Key(), cmpTags) && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
-	case Ptr, Slice:
+	case Pointer, Slice:
 		return haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
 	case Struct:
@@ -2136,7 +2146,7 @@ func funcStr(ft *funcType) string {
 // That is, x == x for all values x of type t.
 func isReflexive(t *rtype) bool {
 	switch t.Kind() {
-	case Bool, Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr, Chan, Ptr, String, UnsafePointer:
+	case Bool, Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr, Chan, Pointer, String, UnsafePointer:
 		return true
 	case Float32, Float64, Complex64, Complex128, Interface:
 		return false
@@ -2160,7 +2170,7 @@ func isReflexive(t *rtype) bool {
 // needKeyUpdate reports whether map overwrites require the key to be copied.
 func needKeyUpdate(t *rtype) bool {
 	switch t.Kind() {
-	case Bool, Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr, Chan, Ptr, UnsafePointer:
+	case Bool, Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr, Chan, Pointer, UnsafePointer:
 		return false
 	case Float32, Float64, Complex64, Complex128, Interface, String:
 		// Float keys can be updated from +0 to -0.
@@ -2217,10 +2227,10 @@ const (
 
 func bucketOf(ktyp, etyp *rtype) *rtype {
 	if ktyp.size > maxKeySize {
-		ktyp = PtrTo(ktyp).(*rtype)
+		ktyp = PointerTo(ktyp).(*rtype)
 	}
 	if etyp.size > maxValSize {
-		etyp = PtrTo(etyp).(*rtype)
+		etyp = PointerTo(etyp).(*rtype)
 	}
 
 	// Prepare GC data if any.
@@ -2458,10 +2468,10 @@ func StructOf(fields []StructField) Type {
 		repr = append(repr, (" " + name)...)
 		if f.embedded() {
 			// Embedded field
-			if f.typ.Kind() == Ptr {
+			if f.typ.Kind() == Pointer {
 				// Embedded ** and *interface{} are illegal
 				elem := ft.Elem()
-				if k := elem.Kind(); k == Ptr || k == Interface {
+				if k := elem.Kind(); k == Pointer || k == Interface {
 					panic("reflect.StructOf: illegal embedded field type " + ft.String())
 				}
 			}
@@ -2526,7 +2536,7 @@ func StructOf(fields []StructField) Type {
 						tfn:  resolveReflectText(unsafe.Pointer(&tfn)),
 					})
 				}
-			case Ptr:
+			case Pointer:
 				ptr := (*ptrType)(unsafe.Pointer(ft))
 				if unt := ptr.uncommon(); unt != nil {
 					if i > 0 && unt.mcount > 0 {
@@ -2594,7 +2604,7 @@ func StructOf(fields []StructField) Type {
 				}
 			}
 		}
-		if _, dup := fset[name]; dup {
+		if _, dup := fset[name]; dup && name != "_" {
 			panic("reflect.StructOf: duplicate field " + name)
 		}
 		fset[name] = struct{}{}
@@ -2654,8 +2664,8 @@ func StructOf(fields []StructField) Type {
 			{Name: "M", Type: ArrayOf(len(methods), TypeOf(methods[0]))},
 		}))
 
-		typ = (*structType)(unsafe.Pointer(tt.Elem().Field(0).UnsafeAddr()))
-		ut = (*uncommonType)(unsafe.Pointer(tt.Elem().Field(1).UnsafeAddr()))
+		typ = (*structType)(tt.Elem().Field(0).Addr().UnsafePointer())
+		ut = (*uncommonType)(tt.Elem().Field(1).Addr().UnsafePointer())
 
 		copy(tt.Elem().Field(2).Slice(0, len(methods)).Interface().([]method), methods)
 	}
@@ -3123,7 +3133,7 @@ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
 	}
 
 	switch Kind(t.kind & kindMask) {
-	case Chan, Func, Map, Ptr, Slice, String, UnsafePointer:
+	case Chan, Func, Map, Pointer, Slice, String, UnsafePointer:
 		// 1 pointer at start of representation
 		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
 			bv.append(0)

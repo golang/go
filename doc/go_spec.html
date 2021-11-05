@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Jul 26, 2021",
+	"Subtitle": "Version of Oct 15, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -3000,6 +3000,18 @@ method value; the saved copy is then used as the receiver in any calls,
 which may be executed later.
 </p>
 
+<pre>
+type S struct { *T }
+type T int
+func (t T) M() { print(t) }
+
+t := new(T)
+s := S{T: t}
+f := t.M                    // receiver *t is evaluated and stored in f
+g := s.M                    // receiver *(s.T) is evaluated and stored in g
+*t = 42                     // does not affect stored receivers in f and g
+</pre>
+
 <p>
 The type <code>T</code> may be an interface or non-interface type.
 </p>
@@ -3602,7 +3614,7 @@ var i = 1&lt;&lt;s                   // 1 has type int
 var j int32 = 1&lt;&lt;s             // 1 has type int32; j == 0
 var k = uint64(1&lt;&lt;s)           // 1 has type uint64; k == 1&lt;&lt;33
 var m int = 1.0&lt;&lt;s             // 1.0 has type int; m == 1&lt;&lt;33
-var n = 1.0&lt;&lt;s == j            // 1.0 has type int; n == true
+var n = 1.0&lt;&lt;s == j            // 1.0 has type int32; n == true
 var o = 1&lt;&lt;s == 2&lt;&lt;s           // 1 and 2 have type int; o == false
 var p = 1&lt;&lt;s == 1&lt;&lt;33          // 1 has type int; p == true
 var u = 1.0&lt;&lt;s                 // illegal: 1.0 has type float64, cannot shift
@@ -4338,7 +4350,7 @@ t0 := (*[0]string)(t)    // t0 == nil
 t1 := (*[1]string)(t)    // panics: len([1]string) > len(t)
 
 u := make([]byte, 0)
-u0 = (*[0]byte)(u)       // u0 != nil
+u0 := (*[0]byte)(u)      // u0 != nil
 </pre>
 
 <h3 id="Constant_expressions">Constant expressions</h3>
@@ -4549,9 +4561,8 @@ SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | S
 <h3 id="Terminating_statements">Terminating statements</h3>
 
 <p>
-A <i>terminating statement</i> prevents execution of all statements that lexically
-appear after it in the same <a href="#Blocks">block</a>. The following statements
-are terminating:
+A <i>terminating statement</i> interrupts the regular flow of control in
+a <a href="#Blocks">block</a>. The following statements are terminating:
 </p>
 
 <ol>
@@ -4587,7 +4598,8 @@ are terminating:
 	A <a href="#For_statements">"for" statement</a> in which:
 	<ul>
 	<li>there are no "break" statements referring to the "for" statement, and</li>
-	<li>the loop condition is absent.</li>
+	<li>the loop condition is absent, and</li>
+	<li>the "for" statement does not use a range clause.</li>
 	</ul>
 </li>
 

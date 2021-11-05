@@ -29,37 +29,6 @@ var (
 	okforarith [types.NTYPE]bool
 )
 
-var basicTypes = [...]struct {
-	name  string
-	etype types.Kind
-}{
-	{"int8", types.TINT8},
-	{"int16", types.TINT16},
-	{"int32", types.TINT32},
-	{"int64", types.TINT64},
-	{"uint8", types.TUINT8},
-	{"uint16", types.TUINT16},
-	{"uint32", types.TUINT32},
-	{"uint64", types.TUINT64},
-	{"float32", types.TFLOAT32},
-	{"float64", types.TFLOAT64},
-	{"complex64", types.TCOMPLEX64},
-	{"complex128", types.TCOMPLEX128},
-	{"bool", types.TBOOL},
-	{"string", types.TSTRING},
-}
-
-var typedefs = [...]struct {
-	name     string
-	etype    types.Kind
-	sameas32 types.Kind
-	sameas64 types.Kind
-}{
-	{"int", types.TINT, types.TINT32, types.TINT64},
-	{"uint", types.TUINT, types.TUINT32, types.TUINT64},
-	{"uintptr", types.TUINTPTR, types.TUINT32, types.TUINT64},
-}
-
 var builtinFuncs = [...]struct {
 	name string
 	op   ir.Op
@@ -94,86 +63,12 @@ var unsafeFuncs = [...]struct {
 
 // InitUniverse initializes the universe block.
 func InitUniverse() {
-	if types.PtrSize == 0 {
-		base.Fatalf("typeinit before betypeinit")
-	}
-
-	types.SlicePtrOffset = 0
-	types.SliceLenOffset = types.Rnd(types.SlicePtrOffset+int64(types.PtrSize), int64(types.PtrSize))
-	types.SliceCapOffset = types.Rnd(types.SliceLenOffset+int64(types.PtrSize), int64(types.PtrSize))
-	types.SliceSize = types.Rnd(types.SliceCapOffset+int64(types.PtrSize), int64(types.PtrSize))
-
-	// string is same as slice wo the cap
-	types.StringSize = types.Rnd(types.SliceLenOffset+int64(types.PtrSize), int64(types.PtrSize))
-
-	for et := types.Kind(0); et < types.NTYPE; et++ {
-		types.SimType[et] = et
-	}
-
-	types.Types[types.TANY] = types.New(types.TANY)
-	types.Types[types.TINTER] = types.NewInterface(types.LocalPkg, nil)
-
-	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
-		sym := pkg.Lookup(name)
+	types.InitTypes(func(sym *types.Sym, typ *types.Type) types.Object {
 		n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
-		t := types.NewBasic(kind, n)
-		n.SetType(t)
+		n.SetType(typ)
 		sym.Def = n
-		if kind != types.TANY {
-			types.CalcSize(t)
-		}
-		return t
-	}
-
-	for _, s := range &basicTypes {
-		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
-	}
-
-	for _, s := range &typedefs {
-		sameas := s.sameas32
-		if types.PtrSize == 8 {
-			sameas = s.sameas64
-		}
-		types.SimType[s.etype] = sameas
-
-		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
-	}
-
-	// We create separate byte and rune types for better error messages
-	// rather than just creating type alias *types.Sym's for the uint8 and
-	// int32 types. Hence, (bytetype|runtype).Sym.isAlias() is false.
-	// TODO(gri) Should we get rid of this special case (at the cost
-	// of less informative error messages involving bytes and runes)?
-	// (Alternatively, we could introduce an OTALIAS node representing
-	// type aliases, albeit at the cost of having to deal with it everywhere).
-	types.ByteType = defBasic(types.TUINT8, types.BuiltinPkg, "byte")
-	types.RuneType = defBasic(types.TINT32, types.BuiltinPkg, "rune")
-
-	// error type
-	s := types.BuiltinPkg.Lookup("error")
-	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, s)
-	types.ErrorType = types.NewNamed(n)
-	types.ErrorType.SetUnderlying(makeErrorInterface())
-	n.SetType(types.ErrorType)
-	s.Def = n
-	types.CalcSize(types.ErrorType)
-
-	// comparable type (interface)
-	s = types.BuiltinPkg.Lookup("comparable")
-	n = ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, s)
-	types.ComparableType = types.NewNamed(n)
-	types.ComparableType.SetUnderlying(makeComparableInterface())
-	n.SetType(types.ComparableType)
-	s.Def = n
-	types.CalcSize(types.ComparableType)
-
-	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, ir.Pkgs.Unsafe, "Pointer")
-
-	// simple aliases
-	types.SimType[types.TMAP] = types.TPTR
-	types.SimType[types.TCHAN] = types.TPTR
-	types.SimType[types.TFUNC] = types.TPTR
-	types.SimType[types.TUNSAFEPTR] = types.TPTR
+		return n
+	})
 
 	for _, s := range &builtinFuncs {
 		s2 := types.BuiltinPkg.Lookup(s.name)
@@ -183,13 +78,13 @@ func InitUniverse() {
 	}
 
 	for _, s := range &unsafeFuncs {
-		s2 := ir.Pkgs.Unsafe.Lookup(s.name)
+		s2 := types.UnsafePkg.Lookup(s.name)
 		def := NewName(s2)
 		def.BuiltinOp = s.op
 		s2.Def = def
 	}
 
-	s = types.BuiltinPkg.Lookup("true")
+	s := types.BuiltinPkg.Lookup("true")
 	s.Def = ir.NewConstAt(src.NoXPos, s, types.UntypedBool, constant.MakeBool(true))
 
 	s = types.BuiltinPkg.Lookup("false")
@@ -199,7 +94,6 @@ func InitUniverse() {
 	types.BlankSym = s
 	s.Block = -100
 	s.Def = NewName(s)
-	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 	ir.BlankNode = ir.AsNode(s.Def)
 	ir.BlankNode.SetTypecheck(1)
@@ -207,10 +101,8 @@ func InitUniverse() {
 	s = types.BuiltinPkg.Lookup("_")
 	s.Block = -100
 	s.Def = NewName(s)
-	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 
-	types.Types[types.TNIL] = types.New(types.TNIL)
 	s = types.BuiltinPkg.Lookup("nil")
 	nnil := NodNil()
 	nnil.(*ir.NilExpr).SetSym(s)
@@ -218,19 +110,6 @@ func InitUniverse() {
 
 	s = types.BuiltinPkg.Lookup("iota")
 	s.Def = ir.NewIota(base.Pos, s)
-
-	for et := types.TINT8; et <= types.TUINT64; et++ {
-		types.IsInt[et] = true
-	}
-	types.IsInt[types.TINT] = true
-	types.IsInt[types.TUINT] = true
-	types.IsInt[types.TUINTPTR] = true
-
-	types.IsFloat[types.TFLOAT32] = true
-	types.IsFloat[types.TFLOAT64] = true
-
-	types.IsComplex[types.TCOMPLEX64] = true
-	types.IsComplex[types.TCOMPLEX128] = true
 
 	// initialize okfor
 	for et := types.Kind(0); et < types.NTYPE; et++ {
@@ -329,28 +208,6 @@ func InitUniverse() {
 	// special
 	okfor[ir.OCAP] = okforcap[:]
 	okfor[ir.OLEN] = okforlen[:]
-
-	// comparison
-	iscmp[ir.OLT] = true
-	iscmp[ir.OGT] = true
-	iscmp[ir.OGE] = true
-	iscmp[ir.OLE] = true
-	iscmp[ir.OEQ] = true
-	iscmp[ir.ONE] = true
-}
-
-func makeErrorInterface() *types.Type {
-	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, nil, []*types.Field{
-		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
-	})
-	method := types.NewField(src.NoXPos, Lookup("Error"), sig)
-	return types.NewInterface(types.NoPkg, []*types.Field{method})
-}
-
-func makeComparableInterface() *types.Type {
-	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, nil, nil)
-	method := types.NewField(src.NoXPos, Lookup("=="), sig)
-	return types.NewInterface(types.NoPkg, []*types.Field{method})
 }
 
 // DeclareUniverse makes the universe block visible within the current package.

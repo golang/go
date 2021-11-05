@@ -51,7 +51,98 @@ var complements = []obj.As{
 	ACMNW: ACMPW,
 }
 
+// noZRreplace is the set of instructions for which $0 in the To operand
+// should NOT be replaced with REGZERO.
+var noZRreplace = map[obj.As]bool{
+	APRFM: true,
+}
+
 func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+	if c.ctxt.Flag_maymorestack != "" {
+		p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
+
+		// Save LR and make room for FP, REGCTXT. Leave room
+		// for caller's saved FP.
+		const frameSize = 32
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGLINK
+		p.To.Type = obj.TYPE_MEM
+		p.Scond = C_XPRE
+		p.To.Offset = -frameSize
+		p.To.Reg = REGSP
+		p.Spadj = frameSize
+
+		// Save FP.
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGFP
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = REGSP
+		p.To.Offset = -8
+
+		p = obj.Appendp(p, c.newprog)
+		p.As = ASUB
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 8
+		p.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGFP
+
+		// Save REGCTXT (for simplicity we do this whether or
+		// not we need it.)
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGCTXT
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = REGSP
+		p.To.Offset = 8
+
+		// BL maymorestack
+		p = obj.Appendp(p, c.newprog)
+		p.As = ABL
+		p.To.Type = obj.TYPE_BRANCH
+		// See ../x86/obj6.go
+		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
+
+		// Restore REGCTXT.
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REGSP
+		p.From.Offset = 8
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGCTXT
+
+		// Restore FP.
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REGSP
+		p.From.Offset = -8
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGFP
+
+		// Restore LR and SP.
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_MEM
+		p.Scond = C_XPOST
+		p.From.Offset = frameSize
+		p.From.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGLINK
+		p.Spadj = -frameSize
+
+		p = c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
+	}
+
+	// Jump back to here after morestack returns.
+	startPred := p
+
 	// MOV	g_stackguard(g), RT1
 	p = obj.Appendp(p, c.newprog)
 
@@ -206,7 +297,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	jmp := obj.Appendp(pcdata, c.newprog)
 	jmp.As = AB
 	jmp.To.Type = obj.TYPE_BRANCH
-	jmp.To.SetTarget(c.cursym.Func().Text.Link)
+	jmp.To.SetTarget(startPred.Link)
 	jmp.Spadj = +framesize
 
 	return end
@@ -226,7 +317,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGZERO
 	}
-	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 {
+	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 && !noZRreplace[p.As] {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGZERO
 	}
@@ -305,7 +396,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// for both 32-bit and 64-bit. 32-bit ops will
 	// zero the high 32-bit of the destination register
 	// anyway.
-	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW) && p.From.Type == obj.TYPE_CONST {
+	// For MOVW, the destination register can't be ZR,
+	// so don't bother rewriting it in this situation.
+	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW && p.To.Reg != REGZERO) && p.From.Type == obj.TYPE_CONST {
 		v := p.From.Offset & 0xffffffff
 		p.From.Offset = v | v<<32
 	}

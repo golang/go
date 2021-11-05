@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !js
-// +build !js
 
 package net
 
@@ -93,53 +92,38 @@ func TestDialTimeout(t *testing.T) {
 	}
 }
 
-var dialTimeoutMaxDurationTests = []struct {
-	timeout time.Duration
-	delta   time.Duration // for deadline
-}{
-	// Large timeouts that will overflow an int64 unix nanos.
-	{1<<63 - 1, 0},
-	{0, 1<<63 - 1},
-}
-
 func TestDialTimeoutMaxDuration(t *testing.T) {
-	if runtime.GOOS == "openbsd" {
-		testenv.SkipFlaky(t, 15157)
-	}
-
 	ln, err := newLocalListener("tcp")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	defer func() {
+		if err := ln.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 
-	for i, tt := range dialTimeoutMaxDurationTests {
-		ch := make(chan error)
-		max := time.NewTimer(250 * time.Millisecond)
-		defer max.Stop()
-		go func() {
+	for _, tt := range []struct {
+		timeout time.Duration
+		delta   time.Duration // for deadline
+	}{
+		// Large timeouts that will overflow an int64 unix nanos.
+		{1<<63 - 1, 0},
+		{0, 1<<63 - 1},
+	} {
+		t.Run(fmt.Sprintf("timeout=%s/delta=%s", tt.timeout, tt.delta), func(t *testing.T) {
 			d := Dialer{Timeout: tt.timeout}
 			if tt.delta != 0 {
 				d.Deadline = time.Now().Add(tt.delta)
 			}
 			c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
-			if err == nil {
-				c.Close()
-			}
-			ch <- err
-		}()
-
-		select {
-		case <-max.C:
-			t.Fatalf("#%d: Dial didn't return in an expected time", i)
-		case err := <-ch:
-			if perr := parseDialError(err); perr != nil {
-				t.Error(perr)
-			}
 			if err != nil {
-				t.Errorf("#%d: %v", i, err)
+				t.Fatal(err)
 			}
-		}
+			if err := c.Close(); err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
 

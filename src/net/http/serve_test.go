@@ -23,6 +23,7 @@ import (
 	"net"
 	. "net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"net/http/internal"
 	"net/http/internal/testcert"
@@ -5689,22 +5690,37 @@ func testServerKeepAlivesEnabled(t *testing.T, h2 bool) {
 	}
 	// Not parallel: messes with global variable. (http2goAwayTimeout)
 	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "%v", r.RemoteAddr)
-	}))
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {}))
 	defer cst.close()
 	srv := cst.ts.Config
 	srv.SetKeepAlivesEnabled(false)
-	a := cst.getURL(cst.ts.URL)
-	if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
-		t.Fatalf("test server has active conns")
-	}
-	b := cst.getURL(cst.ts.URL)
-	if a == b {
-		t.Errorf("got same connection between first and second requests")
-	}
-	if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
-		t.Fatalf("test server has active conns")
+	for try := 0; try < 2; try++ {
+		if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
+			t.Fatalf("request %v: test server has active conns", try)
+		}
+		conns := 0
+		var info httptrace.GotConnInfo
+		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			GotConn: func(v httptrace.GotConnInfo) {
+				conns++
+				info = v
+			},
+		})
+		req, err := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := cst.c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if conns != 1 {
+			t.Fatalf("request %v: got %v conns, want 1", try, conns)
+		}
+		if info.Reused || info.WasIdle {
+			t.Fatalf("request %v: Reused=%v (want false), WasIdle=%v (want false)", try, info.Reused, info.WasIdle)
+		}
 	}
 }
 

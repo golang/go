@@ -282,8 +282,8 @@ func TestBuildForTvOS(t *testing.T) {
 		"-isysroot", strings.TrimSpace(string(sdkPath)),
 		"-mtvos-version-min=12.0",
 		"-fembed-bitcode",
-		"-framework", "CoreFoundation",
 	}
+	CGO_LDFLAGS := []string{"-framework", "CoreFoundation"}
 	lib := filepath.Join("testdata", "testBuildFortvOS", "lib.go")
 	tmpDir := t.TempDir()
 
@@ -295,12 +295,14 @@ func TestBuildForTvOS(t *testing.T) {
 		"GOARCH=arm64",
 		"CC="+strings.Join(CC, " "),
 		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
+		"CGO_LDFLAGS="+strings.Join(CGO_LDFLAGS, " "),
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 	}
 
 	link := exec.Command(CC[0], CC[1:]...)
+	link.Args = append(link.Args, CGO_LDFLAGS...)
 	link.Args = append(link.Args, "-o", filepath.Join(tmpDir, "a.out")) // Avoid writing to package directory.
 	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
 	if out, err := link.CombinedOutput(); err != nil {
@@ -995,13 +997,31 @@ package main
 
 var x = [1<<25]byte{1<<23: 23, 1<<24: 24}
 
+var addr = [...]*byte{
+	&x[1<<23-1],
+	&x[1<<23],
+	&x[1<<23+1],
+	&x[1<<24-1],
+	&x[1<<24],
+	&x[1<<24+1],
+}
+
 func main() {
+	// check relocations in instructions
 	check(x[1<<23-1], 0)
 	check(x[1<<23], 23)
 	check(x[1<<23+1], 0)
 	check(x[1<<24-1], 0)
 	check(x[1<<24], 24)
 	check(x[1<<24+1], 0)
+
+	// check absolute address relocations in data
+	check(*addr[0], 0)
+	check(*addr[1], 23)
+	check(*addr[2], 0)
+	check(*addr[3], 0)
+	check(*addr[4], 24)
+	check(*addr[5], 0)
 }
 
 func check(x, y byte) {

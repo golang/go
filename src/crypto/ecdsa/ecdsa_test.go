@@ -219,9 +219,9 @@ func TestVectors(t *testing.T) {
 
 		if line[0] == '[' {
 			line = line[1 : len(line)-1]
-			parts := strings.SplitN(line, ",", 2)
+			curve, hash, _ := strings.Cut(line, ",")
 
-			switch parts[0] {
+			switch curve {
 			case "P-224":
 				pub.Curve = elliptic.P224()
 			case "P-256":
@@ -234,7 +234,7 @@ func TestVectors(t *testing.T) {
 				pub.Curve = nil
 			}
 
-			switch parts[1] {
+			switch hash {
 			case "SHA-1":
 				h = sha1.New()
 			case "SHA-224":

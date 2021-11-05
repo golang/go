@@ -67,6 +67,7 @@ var NoInstrumentPkgs = []string{
 	"runtime",
 	"runtime/race",
 	"runtime/msan",
+	"runtime/asan",
 	"internal/cpu",
 }
 

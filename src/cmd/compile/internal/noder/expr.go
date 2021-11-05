@@ -50,6 +50,8 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 		base.FatalfAt(g.pos(expr), "unrecognized type-checker result")
 	}
 
+	base.Assert(g.exprStmtOK)
+
 	// The gc backend expects all expressions to have a concrete type, and
 	// types2 mostly satisfies this expectation already. But there are a few
 	// cases where the Go spec doesn't require converting to concrete type,
@@ -112,79 +114,27 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.CallExpr:
 		fun := g.expr(expr.Fun)
-
-		// The key for the Inferred map is the CallExpr (if inferring
-		// types required the function arguments) or the IndexExpr below
-		// (if types could be inferred without the function arguments).
-		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.TArgs) > 0 {
-			// This is the case where inferring types required the
-			// types of the function arguments.
-			targs := make([]ir.Node, len(inferred.TArgs))
-			for i, targ := range inferred.TArgs {
-				targs[i] = ir.TypeNode(g.typ(targ))
-			}
-			if fun.Op() == ir.OFUNCINST {
-				// Replace explicit type args with the full list that
-				// includes the additional inferred type args.
-				// Substitute the type args for the type params in
-				// the generic function's type.
-				fun.(*ir.InstExpr).Targs = targs
-				newt := g.substType(fun.Type(), fun.Type().TParams(), targs)
-				typed(newt, fun)
-			} else {
-				// Create a function instantiation here, given there
-				// are only inferred type args (e.g. min(5,6), where
-				// min is a generic function). Substitute the type
-				// args for the type params in the generic function's
-				// type.
-				inst := ir.NewInstExpr(pos, ir.OFUNCINST, fun, targs)
-				newt := g.substType(fun.Type(), fun.Type().TParams(), targs)
-				typed(newt, inst)
-				fun = inst
-			}
-
-		}
 		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
 
 	case *syntax.IndexExpr:
-		var targs []ir.Node
-
-		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.TArgs) > 0 {
-			// This is the partial type inference case where the types
-			// can be inferred from other type arguments without using
-			// the types of the function arguments.
-			targs = make([]ir.Node, len(inferred.TArgs))
-			for i, targ := range inferred.TArgs {
-				targs[i] = ir.TypeNode(g.typ(targ))
-			}
-		} else if _, ok := expr.Index.(*syntax.ListExpr); ok {
-			targs = g.exprList(expr.Index)
-		} else {
-			index := g.expr(expr.Index)
-			if index.Op() != ir.OTYPE {
+		args := unpackListExpr(expr.Index)
+		if len(args) == 1 {
+			tv, ok := g.info.Types[args[0]]
+			assert(ok)
+			if tv.IsValue() {
 				// This is just a normal index expression
-				return Index(pos, g.typ(typ), g.expr(expr.X), index)
+				n := Index(pos, g.typ(typ), g.expr(expr.X), g.expr(args[0]))
+				if !g.delayTransform() {
+					// transformIndex will modify n.Type() for OINDEXMAP.
+					transformIndex(n)
+				}
+				return n
 			}
-			// This is generic function instantiation with a single type
-			targs = []ir.Node{index}
 		}
-		// This is a generic function instantiation (e.g. min[int]).
-		// Generic type instantiation is handled in the type
-		// section of expr() above (using g.typ).
-		x := g.expr(expr.X)
-		if x.Op() != ir.ONAME || x.Type().Kind() != types.TFUNC {
-			panic("Incorrect argument for generic func instantiation")
-		}
-		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
-		newt := g.typ(typ)
-		// Substitute the type args for the type params in the uninstantiated
-		// function's type. If there aren't enough type args, then the rest
-		// will be inferred at the call node, so don't try the substitution yet.
-		if x.Type().TParams().NumFields() == len(targs) {
-			newt = g.substType(g.typ(typ), x.Type().TParams(), targs)
-		}
-		typed(newt, n)
-		return n
+
+		// expr.Index is a list of type args, so we ignore it, since types2 has
+		// already provided this info with the Info.Instances map.
+		return g.expr(expr.X)
 
 	case *syntax.SelectorExpr:
 		// Qualified identifier.
@@ -196,17 +146,37 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		return g.selectorExpr(pos, typ, expr)
 
 	case *syntax.SliceExpr:
-		return Slice(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
+		n := Slice(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
+		if !g.delayTransform() {
+			transformSlice(n)
+		}
+		return n
 
 	case *syntax.Operation:
 		if expr.Y == nil {
-			return Unary(pos, g.typ(typ), g.op(expr.Op, unOps[:]), g.expr(expr.X))
+			n := Unary(pos, g.typ(typ), g.op(expr.Op, unOps[:]), g.expr(expr.X))
+			if n.Op() == ir.OADDR && !g.delayTransform() {
+				transformAddr(n.(*ir.AddrExpr))
+			}
+			return n
 		}
 		switch op := g.op(expr.Op, binOps[:]); op {
 		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
-			return Compare(pos, g.typ(typ), op, g.expr(expr.X), g.expr(expr.Y))
+			n := Compare(pos, g.typ(typ), op, g.expr(expr.X), g.expr(expr.Y))
+			if !g.delayTransform() {
+				transformCompare(n)
+			}
+			return n
+		case ir.OANDAND, ir.OOROR:
+			x := g.expr(expr.X)
+			y := g.expr(expr.Y)
+			return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
 		default:
-			return Binary(pos, op, g.typ(typ), g.expr(expr.X), g.expr(expr.Y))
+			n := Binary(pos, op, g.typ(typ), g.expr(expr.X), g.expr(expr.Y))
+			if op == ir.OADD && !g.delayTransform() {
+				return transformAdd(n)
+			}
+			return n
 		}
 
 	default:
@@ -233,7 +203,6 @@ func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node)
 		Targs:   targs1,
 	}
 	newt := ts.Typ(typ)
-	g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
 	return newt
 }
 
@@ -247,44 +216,6 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 		// only be fully transformed once it has an instantiated type.
 		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))
 		typed(g.typ(typ), n)
-
-		// Fill in n.Selection for a generic method reference or a bound
-		// interface method, even though we won't use it directly, since it
-		// is useful for analysis. Specifically do not fill in for fields or
-		// other interfaces methods (method call on an interface value), so
-		// n.Selection being non-nil means a method reference for a generic
-		// type or a method reference due to a bound.
-		obj2 := g.info.Selections[expr].Obj()
-		sig := types2.AsSignature(obj2.Type())
-		if sig == nil || sig.Recv() == nil {
-			return n
-		}
-		index := g.info.Selections[expr].Index()
-		last := index[len(index)-1]
-		// recvType is the receiver of the method being called.  Because of the
-		// way methods are imported, g.obj(obj2) doesn't work across
-		// packages, so we have to lookup the method via the receiver type.
-		recvType := deref2(sig.Recv().Type())
-		if types2.AsInterface(recvType.Underlying()) != nil {
-			fieldType := n.X.Type()
-			for _, ix := range index[:len(index)-1] {
-				fieldType = fieldType.Field(ix).Type
-			}
-			if fieldType.Kind() == types.TTYPEPARAM {
-				n.Selection = fieldType.Bound().AllMethods().Index(last)
-				//fmt.Printf(">>>>> %v: Bound call %v\n", base.FmtPos(pos), n.Sel)
-			} else {
-				assert(fieldType.Kind() == types.TINTER)
-				//fmt.Printf(">>>>> %v: Interface call %v\n", base.FmtPos(pos), n.Sel)
-			}
-			return n
-		}
-
-		recvObj := types2.AsNamed(recvType).Obj()
-		recv := g.pkg(recvObj.Pkg()).Lookup(recvObj.Name()).Def
-		n.Selection = recv.Type().Methods().Index(last)
-		//fmt.Printf(">>>>> %v: Method call %v\n", base.FmtPos(pos), n.Sel)
-
 		return n
 	}
 
@@ -303,12 +234,6 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 	if kind == types2.FieldVal {
 		return DotField(pos, x, last)
 	}
-
-	// TODO(danscales,mdempsky): Interface method sets are not sorted the
-	// same between types and types2. In particular, using "last" here
-	// without conversion will likely fail if an interface contains
-	// unexported methods from two different packages (due to cross-package
-	// interface embedding).
 
 	var n ir.Node
 	method2 := selinfo.Obj().(*types2.Func)
@@ -341,7 +266,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 			if wantPtr {
 				recvType2Base = types2.AsPointer(recvType2).Elem()
 			}
-			if types2.AsNamed(recvType2Base).TParams().Len() > 0 {
+			if types2.AsNamed(recvType2Base).TypeParams().Len() > 0 {
 				// recvType2 is the original generic type that is
 				// instantiated for this method call.
 				// selinfo.Recv() is the instantiated type
@@ -357,12 +282,10 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 				n.(*ir.SelectorExpr).Selection.Nname = method
 				typed(method.Type(), n)
 
-				// selinfo.Targs() are the types used to
-				// instantiate the type of receiver
-				targs2 := getTargs(selinfo)
-				targs := make([]ir.Node, len(targs2))
-				for i, targ2 := range targs2 {
-					targs[i] = ir.TypeNode(g.typ(targ2))
+				xt := deref(x.Type())
+				targs := make([]ir.Node, len(xt.RParams()))
+				for i := range targs {
+					targs[i] = ir.TypeNode(xt.RParams()[i])
 				}
 
 				// Create function instantiation with the type
@@ -383,16 +306,6 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 		base.FatalfAt(pos, "bad Sym: have %v, want %v", have, want)
 	}
 	return n
-}
-
-// getTargs gets the targs associated with the receiver of a selected method
-func getTargs(selinfo *types2.Selection) []types2.Type {
-	r := deref2(selinfo.Recv())
-	n := types2.AsNamed(r)
-	if n == nil {
-		base.Fatalf("Incorrect type for selinfo %v", selinfo)
-	}
-	return n.TArgs()
 }
 
 func (g *irgen) exprList(expr syntax.Expr) []ir.Node {
@@ -425,7 +338,7 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 		return typed(g.typ(typ), n)
 	}
 
-	_, isStruct := typ.Underlying().(*types2.Struct)
+	_, isStruct := types2.Structure(typ).(*types2.Struct)
 
 	exprs := make([]ir.Node, len(lit.ElemList))
 	for i, elem := range lit.ElemList {
@@ -437,15 +350,28 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 			} else {
 				key = g.expr(elem.Key)
 			}
-			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, g.expr(elem.Value))
+			value := wrapname(g.pos(elem.Value), g.expr(elem.Value))
+			if value.Op() == ir.OPAREN {
+				// Make sure any PAREN node added by wrapper has a type
+				typed(value.(*ir.ParenExpr).X.Type(), value)
+			}
+			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, value)
 		default:
-			exprs[i] = g.expr(elem)
+			exprs[i] = wrapname(g.pos(elem), g.expr(elem))
+			if exprs[i].Op() == ir.OPAREN {
+				// Make sure any PAREN node added by wrapper has a type
+				typed(exprs[i].(*ir.ParenExpr).X.Type(), exprs[i])
+			}
 		}
 	}
 
 	n := ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, nil, exprs)
 	typed(g.typ(typ), n)
-	return transformCompLit(n)
+	var r ir.Node = n
+	if !g.delayTransform() {
+		r = transformCompLit(n)
+	}
+	return r
 }
 
 func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {

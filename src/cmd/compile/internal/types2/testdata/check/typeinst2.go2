@@ -87,25 +87,27 @@ type NumericAbs[T any] interface {
 
 func AbsDifference[T NumericAbs[T]](x T) { panic(0) }
 
-type OrderedAbs[T any] T
-
-func (a OrderedAbs[T]) Abs() OrderedAbs[T]
-
-func OrderedAbsDifference[T any](x T) {
-	AbsDifference(OrderedAbs[T](x))
-}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// type OrderedAbs[T any] T
+// 
+// func (a OrderedAbs[T]) Abs() OrderedAbs[T]
+// 
+// func OrderedAbsDifference[T any](x T) {
+// 	AbsDifference(OrderedAbs[T](x))
+// }
 
 // same code, reduced to essence
 
 func g[P interface{ m() P }](x P) { panic(0) }
 
-type T4[P any] P
-
-func (_ T4[P]) m() T4[P]
-
-func _[Q any](x Q) {
-	g(T4[Q](x))
-}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// type T4[P any] P
+// 
+// func (_ T4[P]) m() T4[P]
+// 
+// func _[Q any](x Q) {
+// 	g(T4[Q](x))
+// }
 
 // Another test case that caused  problems in the past
 
@@ -159,10 +161,7 @@ type _ interface {
 	~rune
 }
 
-// Interface type lists may contain each type at most once.
-// (If there are multiple lists, we assume the author intended
-// for them to be all in a single list, and we report the error
-// as well.)
+// Type sets may contain each type at most once.
 type _ interface {
 	~int|~int /* ERROR overlapping terms ~int */
 	~int|int /* ERROR overlapping terms int */
@@ -173,7 +172,7 @@ type _ interface {
 	~struct{f int} | ~struct{g int} | ~struct /* ERROR overlapping terms */ {f int}
 }
 
-// Interface type lists can contain any type, incl. *Named types.
+// Interface term lists can contain any type, incl. *Named types.
 // Verify that we use the underlying type to compute the operational type.
 type MyInt int
 func add1[T interface{MyInt}](x T) T {
@@ -185,9 +184,9 @@ func double[T interface{MyInt|MyString}](x T) T {
 	return x + x
 }
 
-// Embedding of interfaces with type lists leads to interfaces
-// with type lists that are the intersection of the embedded
-// type lists.
+// Embedding of interfaces with term lists leads to interfaces
+// with term lists that are the intersection of the embedded
+// term lists.
 
 type E0 interface {
 	~int | ~bool | ~string
@@ -229,10 +228,10 @@ type I012 interface {
 }
 
 func f012[T I012]() {}
-var _ = f012[int /* ERROR does not satisfy I012 */ ]
-var _ = f012[bool /* ERROR does not satisfy I012 */ ]
-var _ = f012[string /* ERROR does not satisfy I012 */ ]
-var _ = f012[float64 /* ERROR does not satisfy I012 */ ]
+var _ = f012[int /* ERROR does not satisfy I012.*type set is empty */ ]
+var _ = f012[bool /* ERROR does not satisfy I012.*type set is empty */ ]
+var _ = f012[string /* ERROR does not satisfy I012.*type set is empty */ ]
+var _ = f012[float64 /* ERROR does not satisfy I012.*type set is empty */ ]
 
 type I12 interface {
 	E1
@@ -255,3 +254,27 @@ var _ = f0_[int]
 var _ = f0_[bool /* ERROR does not satisfy I0_ */ ]
 var _ = f0_[string /* ERROR does not satisfy I0_ */ ]
 var _ = f0_[float64 /* ERROR does not satisfy I0_ */ ]
+
+// Using a function instance as a type is an error.
+var _ f0 // ERROR not a type
+var _ f0 /* ERROR not a type */ [int]
+
+// Empty type sets can only be satisfied by empty type sets.
+type none interface {
+	// force an empty type set
+        int
+        string
+}
+
+func ff[T none]() {}
+func gg[T any]() {}
+func hh[T ~int]() {}
+
+func _[T none]() {
+        _ = ff[int /* ERROR int does not satisfy none \(constraint type set is empty\) */ ]
+        _ = ff[T]  // pathological but ok because T's type set is empty, too
+        _ = gg[int]
+        _ = gg[T]
+	_ = hh[int]
+	_ = hh[T]
+}

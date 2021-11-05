@@ -17,6 +17,8 @@ import (
 	"unsafe"
 )
 
+const _SYS_DUP3 = 0
+
 // See version list in https://github.com/DragonFlyBSD/DragonFlyBSD/blob/master/sys/sys/param.h
 var (
 	osreldateOnce sync.Once
@@ -154,11 +156,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		err = e1
 	}
 	return
-}
-
-func setattrlistTimes(path string, times []Timespec) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
 }
 
 /*

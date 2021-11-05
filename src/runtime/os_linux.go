@@ -7,10 +7,21 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
-type mOS struct{}
+type mOS struct {
+	// profileTimer holds the ID of the POSIX interval timer for profiling CPU
+	// usage on this thread.
+	//
+	// It is valid when the profileTimerValid field is non-zero. A thread
+	// creates and manages its own timer, and these fields are read and written
+	// only by this thread. But because some of the reads on profileTimerValid
+	// are in signal handling code, access to that field uses atomic operations.
+	profileTimer      int32
+	profileTimerValid uint32
+}
 
 //go:noescape
 func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
@@ -396,6 +407,15 @@ func sigaltstack(new, old *stackt)
 func setitimer(mode int32, new, old *itimerval)
 
 //go:noescape
+func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
+
+//go:noescape
+func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
+
+//go:noescape
+func timer_delete(timerid int32) int32
+
+//go:noescape
 func rtsigprocmask(how int32, new, old *sigset, size int32)
 
 //go:nosplit
@@ -419,6 +439,11 @@ func osyield_no_g() {
 func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)
 func setNonblock(fd int32)
+
+const (
+	_si_max_size    = 128
+	_sigev_max_size = 64
+)
 
 //go:nosplit
 //go:nowritebarrierrec
@@ -507,4 +532,135 @@ func tgkill(tgid, tid, sig int)
 // signalM sends a signal to mp.
 func signalM(mp *m, sig int) {
 	tgkill(getpid(), int(mp.procid), sig)
+}
+
+// go118UseTimerCreateProfiler enables the per-thread CPU profiler.
+const go118UseTimerCreateProfiler = true
+
+// validSIGPROF compares this signal delivery's code against the signal sources
+// that the profiler uses, returning whether the delivery should be processed.
+// To be processed, a signal delivery from a known profiling mechanism should
+// correspond to the best profiling mechanism available to this thread. Signals
+// from other sources are always considered valid.
+//
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	code := int32(c.sigcode())
+	setitimer := code == _SI_KERNEL
+	timer_create := code == _SI_TIMER
+
+	if !(setitimer || timer_create) {
+		// The signal doesn't correspond to a profiling mechanism that the
+		// runtime enables itself. There's no reason to process it, but there's
+		// no reason to ignore it either.
+		return true
+	}
+
+	if mp == nil {
+		// Since we don't have an M, we can't check if there's an active
+		// per-thread timer for this thread. We don't know how long this thread
+		// has been around, and if it happened to interact with the Go scheduler
+		// at a time when profiling was active (causing it to have a per-thread
+		// timer). But it may have never interacted with the Go scheduler, or
+		// never while profiling was active. To avoid double-counting, process
+		// only signals from setitimer.
+		//
+		// When a custom cgo traceback function has been registered (on
+		// platforms that support runtime.SetCgoTraceback), SIGPROF signals
+		// delivered to a thread that cannot find a matching M do this check in
+		// the assembly implementations of runtime.cgoSigtramp.
+		return setitimer
+	}
+
+	// Having an M means the thread interacts with the Go scheduler, and we can
+	// check whether there's an active per-thread timer for this thread.
+	if atomic.Load(&mp.profileTimerValid) != 0 {
+		// If this M has its own per-thread CPU profiling interval timer, we
+		// should track the SIGPROF signals that come from that timer (for
+		// accurate reporting of its CPU usage; see issue 35057) and ignore any
+		// that it gets from the process-wide setitimer (to not over-count its
+		// CPU consumption).
+		return timer_create
+	}
+
+	// No active per-thread timer means the only valid profiler is setitimer.
+	return setitimer
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	mp := getg().m
+	mp.profilehz = hz
+
+	if !go118UseTimerCreateProfiler {
+		return
+	}
+
+	// destroy any active timer
+	if atomic.Load(&mp.profileTimerValid) != 0 {
+		timerid := mp.profileTimer
+		atomic.Store(&mp.profileTimerValid, 0)
+		mp.profileTimer = 0
+
+		ret := timer_delete(timerid)
+		if ret != 0 {
+			print("runtime: failed to disable profiling timer; timer_delete(", timerid, ") errno=", -ret, "\n")
+			throw("timer_delete")
+		}
+	}
+
+	if hz == 0 {
+		// If the goal was to disable profiling for this thread, then the job's done.
+		return
+	}
+
+	// The period of the timer should be 1/Hz. For every "1/Hz" of additional
+	// work, the user should expect one additional sample in the profile.
+	//
+	// But to scale down to very small amounts of application work, to observe
+	// even CPU usage of "one tenth" of the requested period, set the initial
+	// timing delay in a different way: So that "one tenth" of a period of CPU
+	// spend shows up as a 10% chance of one sample (for an expected value of
+	// 0.1 samples), and so that "two and six tenths" periods of CPU spend show
+	// up as a 60% chance of 3 samples and a 40% chance of 2 samples (for an
+	// expected value of 2.6). Set the initial delay to a value in the unifom
+	// random distribution between 0 and the desired period. And because "0"
+	// means "disable timer", add 1 so the half-open interval [0,period) turns
+	// into (0,period].
+	//
+	// Otherwise, this would show up as a bias away from short-lived threads and
+	// from threads that are only occasionally active: for example, when the
+	// garbage collector runs on a mostly-idle system, the additional threads it
+	// activates may do a couple milliseconds of GC-related work and nothing
+	// else in the few seconds that the profiler observes.
+	spec := new(itimerspec)
+	spec.it_value.setNsec(1 + int64(fastrandn(uint32(1e9/hz))))
+	spec.it_interval.setNsec(1e9 / int64(hz))
+
+	var timerid int32
+	var sevp sigevent
+	sevp.notify = _SIGEV_THREAD_ID
+	sevp.signo = _SIGPROF
+	sevp.sigev_notify_thread_id = int32(mp.procid)
+	ret := timer_create(_CLOCK_THREAD_CPUTIME_ID, &sevp, &timerid)
+	if ret != 0 {
+		// If we cannot create a timer for this M, leave profileTimerValid false
+		// to fall back to the process-wide setitimer profiler.
+		return
+	}
+
+	ret = timer_settime(timerid, 0, spec, nil)
+	if ret != 0 {
+		print("runtime: failed to configure profiling timer; timer_settime(", timerid,
+			", 0, {interval: {",
+			spec.it_interval.tv_sec, "s + ", spec.it_interval.tv_nsec, "ns} value: {",
+			spec.it_value.tv_sec, "s + ", spec.it_value.tv_nsec, "ns}}, nil) errno=", -ret, "\n")
+		throw("timer_settime")
+	}
+
+	mp.profileTimer = timerid
+	atomic.Store(&mp.profileTimerValid, 1)
 }

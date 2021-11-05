@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
+	"cmd/internal/quoted"
 )
 
 var CmdEnv = &base.Command{
@@ -104,13 +105,13 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: key, Value: val})
 	}
 
-	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
-	if env := strings.Fields(cfg.Getenv("CC")); len(env) > 0 {
-		cc = env[0]
+	cc := cfg.Getenv("CC")
+	if cc == "" {
+		cc = cfg.DefaultCC(cfg.Goos, cfg.Goarch)
 	}
-	cxx := cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
-	if env := strings.Fields(cfg.Getenv("CXX")); len(env) > 0 {
-		cxx = env[0]
+	cxx := cfg.Getenv("CXX")
+	if cxx == "" {
+		cxx = cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
 	}
 	env = append(env, cfg.EnvVar{Name: "AR", Value: envOr("AR", "ar")})
 	env = append(env, cfg.EnvVar{Name: "CC", Value: cc})
@@ -145,13 +146,17 @@ func findEnv(env []cfg.EnvVar, name string) string {
 // ExtraEnvVars returns environment variables that should not leak into child processes.
 func ExtraEnvVars() []cfg.EnvVar {
 	gomod := ""
+	modload.Init()
 	if modload.HasModRoot() {
-		gomod = filepath.Join(modload.ModRoot(), "go.mod")
+		gomod = modload.ModFilePath()
 	} else if modload.Enabled() {
 		gomod = os.DevNull
 	}
+	modload.InitWorkfile()
+	gowork := modload.WorkFilePath()
 	return []cfg.EnvVar{
 		{Name: "GOMOD", Value: gomod},
+		{Name: "GOWORK", Value: gowork},
 	}
 }
 
@@ -191,13 +196,13 @@ func argKey(arg string) string {
 
 func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	if *envJson && *envU {
-		base.Fatalf("go env: cannot use -json with -u")
+		base.Fatalf("go: cannot use -json with -u")
 	}
 	if *envJson && *envW {
-		base.Fatalf("go env: cannot use -json with -w")
+		base.Fatalf("go: cannot use -json with -w")
 	}
 	if *envU && *envW {
-		base.Fatalf("go env: cannot use -u with -w")
+		base.Fatalf("go: cannot use -u with -w")
 	}
 
 	// Handle 'go env -w' and 'go env -u' before calling buildcfg.Check,
@@ -275,7 +280,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 func runEnvW(args []string) {
 	// Process and sanity-check command line.
 	if len(args) == 0 {
-		base.Fatalf("go env -w: no KEY=VALUE arguments given")
+		base.Fatalf("go: no KEY=VALUE arguments given")
 	}
 	osEnv := make(map[string]string)
 	for _, e := range cfg.OrigEnv {
@@ -287,14 +292,14 @@ func runEnvW(args []string) {
 	for _, arg := range args {
 		i := strings.Index(arg, "=")
 		if i < 0 {
-			base.Fatalf("go env -w: arguments must be KEY=VALUE: invalid argument: %s", arg)
+			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
 		}
 		key, val := arg[:i], arg[i+1:]
 		if err := checkEnvWrite(key, val); err != nil {
-			base.Fatalf("go env -w: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		if _, ok := add[key]; ok {
-			base.Fatalf("go env -w: multiple values for key: %s", key)
+			base.Fatalf("go: multiple values for key: %s", key)
 		}
 		add[key] = val
 		if osVal := osEnv[key]; osVal != "" && osVal != val {
@@ -303,13 +308,13 @@ func runEnvW(args []string) {
 	}
 
 	if err := checkBuildConfig(add, nil); err != nil {
-		base.Fatalf("go env -w: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 
 	gotmp, okGOTMP := add["GOTMPDIR"]
 	if okGOTMP {
 		if !filepath.IsAbs(gotmp) && gotmp != "" {
-			base.Fatalf("go env -w: GOTMPDIR must be an absolute path")
+			base.Fatalf("go: GOTMPDIR must be an absolute path")
 		}
 	}
 
@@ -319,18 +324,18 @@ func runEnvW(args []string) {
 func runEnvU(args []string) {
 	// Process and sanity-check command line.
 	if len(args) == 0 {
-		base.Fatalf("go env -u: no arguments given")
+		base.Fatalf("go: 'go env -u' requires an argument")
 	}
 	del := make(map[string]bool)
 	for _, arg := range args {
 		if err := checkEnvWrite(arg, ""); err != nil {
-			base.Fatalf("go env -u: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		del[arg] = true
 	}
 
 	if err := checkBuildConfig(nil, del); err != nil {
-		base.Fatalf("go env -u: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 
 	updateEnvFile(nil, del)
@@ -414,7 +419,7 @@ func printEnvAsJSON(env []cfg.EnvVar) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "\t")
 	if err := enc.Encode(m); err != nil {
-		base.Fatalf("go env -json: %s", err)
+		base.Fatalf("go: %s", err)
 	}
 }
 
@@ -429,7 +434,7 @@ func getOrigEnv(key string) string {
 
 func checkEnvWrite(key, val string) error {
 	switch key {
-	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR", "GOVERSION":
+	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOWORK", "GOTOOLDIR", "GOVERSION":
 		return fmt.Errorf("%s cannot be modified", key)
 	case "GOENV":
 		return fmt.Errorf("%s can only be set using the OS environment", key)
@@ -457,10 +462,23 @@ func checkEnvWrite(key, val string) error {
 		if !filepath.IsAbs(val) && val != "" {
 			return fmt.Errorf("GOPATH entry is relative; must be absolute path: %q", val)
 		}
-	// Make sure CC and CXX are absolute paths
-	case "CC", "CXX", "GOMODCACHE":
-		if !filepath.IsAbs(val) && val != "" && val != filepath.Base(val) {
-			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, val)
+	case "GOMODCACHE":
+		if !filepath.IsAbs(val) && val != "" {
+			return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q", val)
+		}
+	case "CC", "CXX":
+		if val == "" {
+			break
+		}
+		args, err := quoted.Split(val)
+		if err != nil {
+			return fmt.Errorf("invalid %s: %v", key, err)
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("%s entry cannot contain only space", key)
+		}
+		if !filepath.IsAbs(args[0]) && args[0] != filepath.Base(args[0]) {
+			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, args[0])
 		}
 	}
 
@@ -479,11 +497,11 @@ func checkEnvWrite(key, val string) error {
 func updateEnvFile(add map[string]string, del map[string]bool) {
 	file, err := cfg.EnvFile()
 	if file == "" {
-		base.Fatalf("go env: cannot find go env config: %v", err)
+		base.Fatalf("go: cannot find go env config: %v", err)
 	}
 	data, err := os.ReadFile(file)
 	if err != nil && (!os.IsNotExist(err) || len(add) == 0) {
-		base.Fatalf("go env: reading go env config: %v", err)
+		base.Fatalf("go: reading go env config: %v", err)
 	}
 
 	lines := strings.SplitAfter(string(data), "\n")
@@ -541,7 +559,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 		os.MkdirAll(filepath.Dir(file), 0777)
 		err = os.WriteFile(file, data, 0666)
 		if err != nil {
-			base.Fatalf("go env: writing go env config: %v", err)
+			base.Fatalf("go: writing go env config: %v", err)
 		}
 	}
 }

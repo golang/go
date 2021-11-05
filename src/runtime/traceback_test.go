@@ -6,13 +6,29 @@ package runtime_test
 
 import (
 	"bytes"
+	"internal/goexperiment"
+	"internal/testenv"
 	"runtime"
+	"strings"
 	"testing"
 )
 
 var testTracebackArgsBuf [1000]byte
 
 func TestTracebackArgs(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+	optimized := !strings.HasSuffix(testenv.Builder(), "-noopt")
+	abiSel := func(x, y string) string {
+		// select expected output based on ABI
+		// In noopt build we always spill arguments so the output is the same as stack ABI.
+		if optimized && goexperiment.RegabiArgs {
+			return x
+		}
+		return y
+	}
+
 	tests := []struct {
 		fn     func() int
 		expect string
@@ -104,6 +120,52 @@ func TestTracebackArgs(t *testing.T) {
 		{
 			func() int { return testTracebackArgs8d(testArgsType8d{1, 2, 3, 4, 5, 6, 7, 8, [3]int{9, 10, 11}, 12}) },
 			"testTracebackArgs8d({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, {0x9, 0xa, ...}, ...})",
+		},
+
+		// Register argument liveness.
+		// 1, 3 are used and live, 2, 4 are dead (in register ABI).
+		// Address-taken (7) and stack ({5, 6}) args are always live.
+		{
+			func() int {
+				poisonStack() // poison arg area to make output deterministic
+				return testTracebackArgs9(1, 2, 3, 4, [2]int{5, 6}, 7)
+			},
+			abiSel(
+				"testTracebackArgs9(0x1, 0xffffffff?, 0x3, 0xff?, {0x5, 0x6}, 0x7)",
+				"testTracebackArgs9(0x1, 0x2, 0x3, 0x4, {0x5, 0x6}, 0x7)"),
+		},
+		// No live.
+		// (Note: this assume at least 5 int registers if register ABI is used.)
+		{
+			func() int {
+				poisonStack() // poison arg area to make output deterministic
+				return testTracebackArgs10(1, 2, 3, 4, 5)
+			},
+			abiSel(
+				"testTracebackArgs10(0xffffffff?, 0xffffffff?, 0xffffffff?, 0xffffffff?, 0xffffffff?)",
+				"testTracebackArgs10(0x1, 0x2, 0x3, 0x4, 0x5)"),
+		},
+		// Conditional spills.
+		// Spill in conditional, not executed.
+		{
+			func() int {
+				poisonStack() // poison arg area to make output deterministic
+				return testTracebackArgs11a(1, 2, 3)
+			},
+			abiSel(
+				"testTracebackArgs11a(0xffffffff?, 0xffffffff?, 0xffffffff?)",
+				"testTracebackArgs11a(0x1, 0x2, 0x3)"),
+		},
+		// 2 spills in conditional, not executed; 3 spills in conditional, executed, but not statically known.
+		// So print 0x3?.
+		{
+			func() int {
+				poisonStack() // poison arg area to make output deterministic
+				return testTracebackArgs11b(1, 2, 3, 4)
+			},
+			abiSel(
+				"testTracebackArgs11b(0xffffffff?, 0xffffffff?, 0x3?, 0x4)",
+				"testTracebackArgs11b(0x1, 0x2, 0x3, 0x4)"),
 		},
 	}
 	for _, test := range tests {
@@ -289,4 +351,63 @@ func testTracebackArgs8d(a testArgsType8d) int {
 		return a.b + a.c + a.d + a.e + a.f + a.g + a.h + a.i[0] + a.i[1] + a.i[2] + a.j
 	}
 	return n
+}
+
+//go:noinline
+func testTracebackArgs9(a int64, b int32, c int16, d int8, x [2]int, y int) int {
+	if a < 0 {
+		println(&y) // take address, make y live, even if no longer used at traceback
+	}
+	n := runtime.Stack(testTracebackArgsBuf[:], false)
+	if a < 0 {
+		// use half of in-reg args to keep them alive, the other half are dead
+		return int(a) + int(c)
+	}
+	return n
+}
+
+//go:noinline
+func testTracebackArgs10(a, b, c, d, e int32) int {
+	// no use of any args
+	return runtime.Stack(testTracebackArgsBuf[:], false)
+}
+
+// norace to avoid race instrumentation changing spill locations.
+//
+//go:norace
+//go:noinline
+func testTracebackArgs11a(a, b, c int32) int {
+	if a < 0 {
+		println(a, b, c) // spill in a conditional, may not execute
+	}
+	if b < 0 {
+		return int(a + b + c)
+	}
+	return runtime.Stack(testTracebackArgsBuf[:], false)
+}
+
+// norace to avoid race instrumentation changing spill locations.
+//
+//go:norace
+//go:noinline
+func testTracebackArgs11b(a, b, c, d int32) int {
+	var x int32
+	if a < 0 {
+		print() // spill b in a conditional
+		x = b
+	} else {
+		print() // spill c in a conditional
+		x = c
+	}
+	if d < 0 { // d is always needed
+		return int(x + d)
+	}
+	return runtime.Stack(testTracebackArgsBuf[:], false)
+}
+
+// Poison the arg area with deterministic values.
+//
+//go:noinline
+func poisonStack() [20]int {
+	return [20]int{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
 }

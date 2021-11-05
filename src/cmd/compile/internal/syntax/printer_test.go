@@ -18,11 +18,7 @@ func TestPrint(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	// provide a no-op error handler so parsing doesn't stop after first error
-	ast, err := ParseFile(*src_, func(error) {}, nil, 0)
-	if err != nil {
-		t.Error(err)
-	}
+	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
 
 	if ast != nil {
 		Fprint(testOut(), ast, LineForm)
@@ -64,17 +60,21 @@ var stringTests = []string{
 	// generic type declarations
 	"package p; type _[T any] struct{}",
 	"package p; type _[A, B, C interface{m()}] struct{}",
-	"package p; type _[T any, A, B, C interface{m()}, X, Y, Z interface{type int}] struct{}",
+	"package p; type _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}] struct{}",
 
 	// generic function declarations
 	"package p; func _[T any]()",
 	"package p; func _[A, B, C interface{m()}]()",
-	"package p; func _[T any, A, B, C interface{m()}, X, Y, Z interface{type int}]()",
+	"package p; func _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}]()",
 
 	// methods with generic receiver types
 	"package p; func (R[T]) _()",
 	"package p; func (*R[A, B, C]) _()",
 	"package p; func (_ *R[A, B, C]) _()",
+
+	// type constraint literals with elided interfaces
+	"package p; func _[P ~int, Q int | string]() {}",
+	"package p; func _[P struct{f int}, Q *P]() {}",
 
 	// channels
 	"package p; type _ chan chan int",
@@ -140,10 +140,10 @@ var exprTests = [][2]string{
 	dup("func(int, float32) string"),
 	dup("interface{m()}"),
 	dup("interface{m() string; n(x int)}"),
-	dup("interface{type int}"),
-	dup("interface{type int, float64, string}"),
-	dup("interface{type int; m()}"),
-	dup("interface{type int, float64, string; m() string; n(x int)}"),
+	dup("interface{~int}"),
+	dup("interface{~int | ~float64 | ~string}"),
+	dup("interface{~int; m()}"),
+	dup("interface{~int | ~float64 | ~string; m() string; n(x int)}"),
 	dup("map[string]int"),
 	dup("chan E"),
 	dup("<-chan E"),
@@ -155,7 +155,7 @@ var exprTests = [][2]string{
 	dup("interface{~int}"),
 	dup("interface{int | string}"),
 	dup("interface{~int | ~string; float64; m()}"),
-	dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
+	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
 	dup("interface{~T[int, string] | string}"),
 
 	// non-type expressions

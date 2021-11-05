@@ -6,18 +6,16 @@ package p
 
 // import "io" // for type assertion tests
 
-// The predeclared identifier "any" can only be used as a constraint
-// in a type parameter list.
-var _ any // ERROR cannot use any outside constraint position
-func _[_ any /* ok here */ , _ interface{any /* ERROR constraint */ }](any /* ERROR constraint */ ) {
-        var _ any /* ERROR constraint */
+var _ any // ok to use any anywhere
+func _[_ any, _ interface{any}](any) {
+        var _ any
 }
 
 func identity[T any](x T) T { return x }
 
-func _[_ any](x int) int
-func _[T any](T /* ERROR redeclared */ T)()
-func _[T, T /* ERROR redeclared */ any]()
+func _[_ any](x int) int { panic(0) }
+func _[T any](T /* ERROR redeclared */ T)() {}
+func _[T, T /* ERROR redeclared */ any]() {}
 
 // Constraints (incl. any) may be parenthesized.
 func _[_ (any)]() {}
@@ -77,18 +75,18 @@ func new[T any]() *T {
 var _ = new /* ERROR cannot use generic function new */
 var _ *int = new[int]()
 
-func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
+func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) {} // w/o constraint we don't know if T is comparable
 
-func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int
+func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int { panic(0) }
 var _ = f1[int](struct{T1}{})
 type T1 = int
 
-func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int
+func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int { panic(0) }
 var _ = f2[t1](struct{t1; x float32}{})
 type t1 = int
 
 
-func f3[A, B, C any](A, struct{x B}, func(A, struct{x B}, *C)) int
+func f3[A, B, C any](A, struct{x B}, func(A, struct{x B}, *C)) int { panic(0) }
 
 var _ = f3[int, rune, bool](1, struct{x rune}{}, nil)
 
@@ -116,10 +114,27 @@ func _[T interface{ [10]int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERR
 func _[T interface{ [10]byte | string }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
 func _[T interface{ [10]int | *[20]int | []int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
 
-// slicing
-// TODO(gri) implement this
+// indexing with strings and non-variable arrays (assignment not permitted)
+func _[T string](x T) { _ = x[0]; x /* ERROR cannot assign */ [0] = 0 }
+func _[T []byte | string](x T) { x /* ERROR cannot assign */ [0] = 0 }
+func _[T [10]byte]() { f := func() (x T) { return }; f /* ERROR cannot assign */ ()[0] = 0 }
+func _[T [10]byte]() { f := func() (x *T) { return }; f /* ERROR cannot index */ ()[0] = 0 }
+func _[T [10]byte]() { f := func() (x *T) { return }; (*f())[0] = 0 }
+func _[T *[10]byte]() { f := func() (x T) { return }; f()[0] = 0 }
 
-func _[T interface{ ~string }] (x T, i, j, k int) { _ = x /* ERROR generic slice expressions not yet implemented */ [i:j:k] }
+// slicing
+
+func _[T interface{ ~[10]E }, E any] (x T, i, j, k int) { var _ []E = x[i:j] }
+func _[T interface{ ~[10]E }, E any] (x T, i, j, k int) { var _ []E = x[i:j:k] }
+func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j] }
+func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j] }
+func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x /* ERROR 3-index slice of string */ [i:j:k] }
+
+type myByte1 []byte
+type myByte2 []byte
+func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no single underlying type */ [i:j:k] }
 
 // len/cap built-ins
 
@@ -149,64 +164,136 @@ func _[T interface{}](x T) {
         for range x /* ERROR cannot range */ {}
 }
 
-func _[T interface{ ~string | ~[]string }](x T) {
-        for range x {}
-        for i := range x { _ = i }
-        for i, _ := range x { _ = i }
-        for i, e := range x /* ERROR must have the same element type */ { _ = i }
-        for _, e := range x /* ERROR must have the same element type */ {}
-        var e rune
-        _ = e
-        for _, (e) = range x /* ERROR must have the same element type */ {}
-}
+type myString string
 
+func _[
+        B1 interface{ string },
+        B2 interface{ string | myString },
 
-func _[T interface{ ~string | ~[]rune | ~map[int]rune }](x T) {
-        for _, e := range x { _ = e }
-        for i, e := range x { _ = i; _ = e }
-}
+        C1 interface{ chan int },
+        C2 interface{ chan int | <-chan int },
+        C3 interface{ chan<- int },
 
-func _[T interface{ ~string | ~[]rune | ~map[string]rune }](x T) {
-        for _, e := range x { _ = e }
-        for i, e := range x /* ERROR must have the same key type */ { _ = e }
-}
+        S1 interface{ []int },
+        S2 interface{ []int | [10]int },
 
-func _[T interface{ ~string | ~chan int }](x T) {
-        for range x {}
-        for i := range x { _ = i }
-        for i, _ := range x { _ = i } // TODO(gri) should get an error here: channels only return one value
-}
+        A1 interface{ [10]int },
+        A2 interface{ [10]int | []int },
 
-func _[T interface{ ~string | ~chan<-int }](x T) {
-        for i := range x /* ERROR send-only channel */ { _ = i }
+        P1 interface{ *[10]int },
+        P2 interface{ *[10]int | *[]int },
+
+        M1 interface{ map[string]int },
+        M2 interface{ map[string]int | map[string]string },
+]() {
+        var b0 string
+        for range b0 {}
+        for _ = range b0 {}
+        for _, _ = range b0 {}
+
+        var b1 B1
+        for range b1 {}
+        for _ = range b1 {}
+        for _, _ = range b1 {}
+
+        var b2 B2
+        for range b2 {}
+
+        var c0 chan int
+        for range c0 {}
+        for _ = range c0 {}
+        for _, _ /* ERROR permits only one iteration variable */ = range c0 {}
+
+        var c1 C1
+        for range c1 {}
+        for _ = range c1 {}
+        for _, _ /* ERROR permits only one iteration variable */ = range c1 {}
+
+        var c2 C2
+        for range c2 /* ERROR cannot range over c2.*no single underlying type */ {}
+
+        var c3 C3
+        for range c3 /* ERROR receive from send-only channel */ {}
+
+        var s0 []int
+        for range s0 {}
+        for _ = range s0 {}
+        for _, _ = range s0 {}
+
+        var s1 S1
+        for range s1 {}
+        for _ = range s1 {}
+        for _, _ = range s1 {}
+
+        var s2 S2
+        for range s2 /* ERROR cannot range over s2.*no single underlying type */ {}
+
+        var a0 []int
+        for range a0 {}
+        for _ = range a0 {}
+        for _, _ = range a0 {}
+
+        var a1 A1
+        for range a1 {}
+        for _ = range a1 {}
+        for _, _ = range a1 {}
+
+        var a2 A2
+        for range a2 /* ERROR cannot range over a2.*no single underlying type */ {}
+
+        var p0 *[10]int
+        for range p0 {}
+        for _ = range p0 {}
+        for _, _ = range p0 {}
+
+        var p1 P1
+        for range p1 {}
+        for _ = range p1 {}
+        for _, _ = range p1 {}
+
+        var p2 P2
+        for range p2 /* ERROR cannot range over p2.*no single underlying type */ {}
+
+        var m0 map[string]int
+        for range m0 {}
+        for _ = range m0 {}
+        for _, _ = range m0 {}
+
+        var m1 M1
+        for range m1 {}
+        for _ = range m1 {}
+        for _, _ = range m1 {}
+
+        var m2 M2
+        for range m2 /* ERROR cannot range over m2.*no single underlying type */ {}
 }
 
 // type inference checks
 
 var _ = new /* ERROR cannot infer T */ ()
 
-func f4[A, B, C any](A, B) C
+func f4[A, B, C any](A, B) C { panic(0) }
 
 var _ = f4 /* ERROR cannot infer C */ (1, 2)
 var _ = f4[int, float32, complex128](1, 2)
 
-func f5[A, B, C any](A, []*B, struct{f []C}) int
+func f5[A, B, C any](A, []*B, struct{f []C}) int { panic(0) }
 
 var _ = f5[int, float32, complex128](0, nil, struct{f []complex128}{})
 var _ = f5 /* ERROR cannot infer */ (0, nil, struct{f []complex128}{})
 var _ = f5(0, []*float32{new[float32]()}, struct{f []complex128}{})
 
-func f6[A any](A, []A) int
+func f6[A any](A, []A) int { panic(0) }
 
 var _ = f6(0, nil)
 
-func f6nil[A any](A) int
+func f6nil[A any](A) int { panic(0) }
 
 var _ = f6nil /* ERROR cannot infer */ (nil)
 
 // type inference with variadic functions
 
-func f7[T any](...T) T
+func f7[T any](...T) T { panic(0) }
 
 var _ int = f7 /* ERROR cannot infer T */ ()
 var _ int = f7(1)
@@ -219,7 +306,7 @@ var _ = f7(float64(1), 2.3)
 var _ = f7(1, 2.3 /* ERROR does not match */ )
 var _ = f7(1.2, 3 /* ERROR does not match */ )
 
-func f8[A, B any](A, B, ...B) int
+func f8[A, B any](A, B, ...B) int { panic(0) }
 
 var _ = f8(1) /* ERROR not enough arguments */
 var _ = f8(1, 2.3)
@@ -232,8 +319,8 @@ var _ = f8[int, float64](0, 0, nil...) // test case for #18268
 // init functions cannot have type parameters
 
 func init() {}
-func init[/* ERROR func init must have no type parameters */ _ any]() {}
-func init[/* ERROR func init must have no type parameters */ P any]() {}
+func init[_ /* ERROR func init must have no type parameters */ any]() {}
+func init[P /* ERROR func init must have no type parameters */ any]() {}
 
 type T struct {}
 
@@ -245,7 +332,7 @@ func (T) m3[ /* ERROR methods cannot have type parameters */ P any]() {}
 
 type S1[P any] struct { f P }
 
-func f9[P any](x S1[P])
+func f9[P any](x S1[P]) {}
 
 func _() {
         f9[int](S1[int]{42})
@@ -254,7 +341,7 @@ func _() {
 
 type S2[A, B, C any] struct{}
 
-func f10[X, Y, Z any](a S2[X, int, Z], b S2[X, Y, bool])
+func f10[X, Y, Z any](a S2[X, int, Z], b S2[X, Y, bool]) {}
 
 func _[P any]() {
         f10[int, float32, string](S2[int, int, string]{}, S2[int, float32, bool]{})
@@ -265,7 +352,7 @@ func _[P any]() {
 // corner case for type inference
 // (was bug: after instanting f11, the type-checker didn't mark f11 as non-generic)
 
-func f11[T any]()
+func f11[T any]() {}
 
 func _() {
 	f11[int]()
@@ -273,15 +360,16 @@ func _() {
 
 // the previous example was extracted from
 
-func f12[T interface{m() T}]()
-
-type A[T any] T
-
-func (a A[T]) m() A[T]
-
-func _[T any]() {
-	f12[A[T]]()
-}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// func f12[T interface{m() T}]() {}
+// 
+// type A[T any] T
+// 
+// func (a A[T]) m() A[T]
+// 
+// func _[T any]() {
+// 	f12[A[T]]()
+// }
 
 // method expressions
 
@@ -301,15 +389,15 @@ func _[T any] (x T) {
 
 type R0 struct{}
 
-func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T)
-func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() // scope of type parameters starts at "func"
+func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T) {}
+func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() {} // scope of type parameters starts at "func"
 
 type R1[A, B any] struct{}
 
 func (_ R1[A, B]) m0(A, B)
-func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T
+func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T  { panic(0) }
 func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
-func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B)
+func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B) {}
 
 func _() {
         var r R1[int, string]

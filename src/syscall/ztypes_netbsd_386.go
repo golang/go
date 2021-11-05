@@ -2,7 +2,6 @@
 // cgo -godefs types_netbsd.go
 
 //go:build 386 && netbsd
-// +build 386,netbsd
 
 package syscall
 

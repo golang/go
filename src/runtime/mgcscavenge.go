@@ -105,7 +105,8 @@ func heapRetained() uint64 {
 }
 
 // gcPaceScavenger updates the scavenger's pacing, particularly
-// its rate and RSS goal.
+// its rate and RSS goal. For this, it requires the current heapGoal,
+// and the heapGoal for the previous GC cycle.
 //
 // The RSS goal is based on the current heap goal with a small overhead
 // to accommodate non-determinism in the allocator.
@@ -113,18 +114,22 @@ func heapRetained() uint64 {
 // The pacing is based on scavengePageRate, which applies to both regular and
 // huge pages. See that constant for more information.
 //
+// Must be called whenever GC pacing is updated.
+//
 // mheap_.lock must be held or the world must be stopped.
-func gcPaceScavenger() {
+func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
+	assertWorldStoppedOrLockHeld(&mheap_.lock)
+
 	// If we're called before the first GC completed, disable scavenging.
 	// We never scavenge before the 2nd GC cycle anyway (we don't have enough
 	// information about the heap yet) so this is fine, and avoids a fault
 	// or garbage data later.
-	if gcController.lastHeapGoal == 0 {
-		mheap_.scavengeGoal = ^uint64(0)
+	if lastHeapGoal == 0 {
+		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
 		return
 	}
 	// Compute our scavenging goal.
-	goalRatio := float64(atomic.Load64(&gcController.heapGoal)) / float64(gcController.lastHeapGoal)
+	goalRatio := float64(heapGoal) / float64(lastHeapGoal)
 	retainedGoal := uint64(float64(memstats.last_heap_inuse) * goalRatio)
 	// Add retainExtraPercent overhead to retainedGoal. This calculation
 	// looks strange but the purpose is to arrive at an integer division
@@ -152,10 +157,10 @@ func gcPaceScavenger() {
 	// the background scavenger. We disable the background scavenger if there's
 	// less than one physical page of work to do because it's not worth it.
 	if retainedNow <= retainedGoal || retainedNow-retainedGoal < uint64(physPageSize) {
-		mheap_.scavengeGoal = ^uint64(0)
+		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
 		return
 	}
-	mheap_.scavengeGoal = retainedGoal
+	atomic.Store64(&mheap_.scavengeGoal, retainedGoal)
 }
 
 // Sleep/wait state of the background scavenger.
@@ -294,7 +299,7 @@ func bgscavenge(c chan int) {
 			lock(&mheap_.lock)
 
 			// If background scavenging is disabled or if there's no work to do just park.
-			retained, goal := heapRetained(), mheap_.scavengeGoal
+			retained, goal := heapRetained(), atomic.Load64(&mheap_.scavengeGoal)
 			if retained <= goal {
 				unlock(&mheap_.lock)
 				return

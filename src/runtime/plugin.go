@@ -96,7 +96,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr s
 func pluginftabverify(md *moduledata) {
 	badtable := false
 	for i := 0; i < len(md.ftab); i++ {
-		entry := md.ftab[i].entry
+		entry := md.textAddr(md.ftab[i].entryoff)
 		if md.minpc <= entry && entry <= md.maxpc {
 			continue
 		}
@@ -112,7 +112,7 @@ func pluginftabverify(md *moduledata) {
 		f2 := findfunc(entry)
 		if f2.valid() {
 			name2 = funcname(f2)
-			entry2 = f2.entry
+			entry2 = f2.entry()
 		}
 		badtable = true
 		println("ftab entry", hex(entry), "/", hex(entry2), ": ",

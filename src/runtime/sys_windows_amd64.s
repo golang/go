@@ -8,10 +8,6 @@
 #include "time_windows.h"
 #include "cgo/abi_amd64.h"
 
-// maxargs should be divisible by 2, as Windows stack
-// must be kept 16-byte aligned on syscall entry.
-#define maxargs 18
-
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
 	// asmcgocall will put first argument into CX.
@@ -24,14 +20,14 @@ TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	0x30(GS), DI
 	MOVL	$0, 0x68(DI)
 
-	SUBQ	$(maxargs*8), SP	// room for args
+	SUBQ	$(const_maxArgs*8), SP	// room for args
 
 	// Fast version, do not store args on the stack.
 	CMPL	CX, $4
 	JLE	loadregs
 
 	// Check we have enough room for args.
-	CMPL	CX, $maxargs
+	CMPL	CX, $const_maxArgs
 	JLE	2(PC)
 	INT	$3			// not enough room -> crash
 
@@ -59,7 +55,7 @@ loadregs:
 	// Call stdcall function.
 	CALL	AX
 
-	ADDQ	$(maxargs*8), SP
+	ADDQ	$(const_maxArgs*8), SP
 
 	// Return result.
 	POPQ	CX
@@ -348,16 +344,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	CMPB	runtime·useQPCTime(SB), $0
 	JNE	useQPC
 	MOVQ	$_INTERRUPT_TIME, DI
-loop:
-	MOVL	time_hi1(DI), AX
-	MOVL	time_lo(DI), BX
-	MOVL	time_hi2(DI), CX
-	CMPL	AX, CX
-	JNE	loop
-	SHLQ	$32, CX
-	ORQ	BX, CX
-	IMULQ	$100, CX
-	MOVQ	CX, ret+0(FP)
+	MOVQ	time_lo(DI), AX
+	IMULQ	$100, AX
+	MOVQ	AX, ret+0(FP)
 	RET
 useQPC:
 	JMP	runtime·nanotimeQPC(SB)

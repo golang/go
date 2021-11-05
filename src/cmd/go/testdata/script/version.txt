@@ -20,13 +20,20 @@ env GO111MODULE=on
 [short] skip
 
 # Check that 'go version' and 'go version -m' work on a binary built in module mode.
-go get -d rsc.io/fortune
+go get rsc.io/fortune
 go build -o fortune.exe rsc.io/fortune
 go version fortune.exe
 stdout '^fortune.exe: .+'
 go version -m fortune.exe
 stdout '^\tpath\trsc.io/fortune'
 stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+# Check the build info of a binary built from $GOROOT/src/cmd
+go build -o test2json.exe cmd/test2json
+go version -m test2json.exe
+stdout '^test2json.exe: .+'
+stdout '^\tpath\tcmd/test2json$'
+! stdout 'mod'
 
 # Repeat the test with -buildmode=pie.
 [!buildmode:pie] stop

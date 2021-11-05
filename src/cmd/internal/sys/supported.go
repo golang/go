@@ -34,6 +34,41 @@ func MSanSupported(goos, goarch string) bool {
 	}
 }
 
+// ASanSupported reports whether goos/goarch supports the address
+// sanitizer option.
+// There is a copy of this function in misc/cgo/testsanitizers/cc_test.go.
+func ASanSupported(goos, goarch string) bool {
+	switch goos {
+	case "linux":
+		return goarch == "arm64" || goarch == "amd64"
+	default:
+		return false
+	}
+}
+
+// FuzzSupported reports whether goos/goarch supports fuzzing
+// ('go test -fuzz=.').
+func FuzzSupported(goos, goarch string) bool {
+	switch goos {
+	case "darwin", "linux", "windows":
+		return true
+	default:
+		return false
+	}
+}
+
+// FuzzInstrumented reports whether fuzzing on goos/goarch uses coverage
+// instrumentation. (FuzzInstrumented implies FuzzSupported.)
+func FuzzInstrumented(goos, goarch string) bool {
+	switch goarch {
+	case "amd64", "arm64":
+		// TODO(#14565): support more architectures.
+		return FuzzSupported(goos, goarch)
+	default:
+		return false
+	}
+}
+
 // MustLinkExternal reports whether goos/goarch requires external linking.
 // (This is the opposite of internal/testenv.CanInternalLink. Keep them in sync.)
 func MustLinkExternal(goos, goarch string) bool {
@@ -70,7 +105,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 	case "c-shared":
 		switch platform {
-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
+		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/riscv64", "linux/s390x",
 			"android/amd64", "android/arm", "android/arm64", "android/386",
 			"freebsd/amd64",
 			"darwin/amd64", "darwin/arm64",

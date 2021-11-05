@@ -1,0 +1,102 @@
+[!fuzz] skip
+
+# Check that if a worker does not call F.Fuzz or calls F.Fail first,
+# 'go test' exits non-zero and no crasher is recorded.
+
+[short] skip
+
+! go test -fuzz=FuzzReturn
+! exists testdata
+
+! go test -fuzz=FuzzSkip
+! exists testdata
+
+! go test -fuzz=FuzzFail
+! exists testdata
+
+! go test -fuzz=FuzzPanic
+! exists testdata
+
+! go test -fuzz=FuzzNilPanic
+! exists testdata
+
+! go test -fuzz=FuzzGoexit
+! exists testdata
+
+! go test -fuzz=FuzzExit
+! exists testdata
+
+-- go.mod --
+module m
+
+go 1.17
+-- fuzz_fail_test.go --
+package fuzz_fail
+
+import (
+	"flag"
+	"os"
+	"runtime"
+	"testing"
+)
+
+func isWorker() bool {
+	f := flag.Lookup("test.fuzzworker")
+	if f == nil {
+		return false
+	}
+	get, ok := f.Value.(flag.Getter)
+	if !ok {
+		return false
+	}
+	return get.Get() == interface{}(true)
+}
+
+func FuzzReturn(f *testing.F) {
+	if isWorker() {
+		return
+	}
+	f.Fuzz(func(*testing.T, []byte) {})
+}
+
+func FuzzSkip(f *testing.F) {
+	if isWorker() {
+		f.Skip()
+	}
+	f.Fuzz(func(*testing.T, []byte) {})
+}
+
+func FuzzFail(f *testing.F) {
+	if isWorker() {
+		f.Fail()
+	}
+	f.Fuzz(func(*testing.T, []byte) {})
+}
+
+func FuzzPanic(f *testing.F) {
+	if isWorker() {
+		panic("nope")
+	}
+	f.Fuzz(func(*testing.T, []byte) {})
+}
+
+func FuzzNilPanic(f *testing.F) {
+	if isWorker() {
+		panic(nil)
+	}
+	f.Fuzz(func(*testing.T, []byte) {})
+}
+
+func FuzzGoexit(f *testing.F) {
+	if isWorker() {
+		runtime.Goexit()
+	}
+	f.Fuzz(func(*testing.T, []byte) {})
+}
+
+func FuzzExit(f *testing.F) {
+	if isWorker() {
+		os.Exit(99)
+	}
+	f.Fuzz(func(*testing.T, []byte) {})
+}

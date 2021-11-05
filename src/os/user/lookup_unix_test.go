@@ -3,35 +3,14 @@
 // license that can be found in the LICENSE file.
 
 //go:build (aix || darwin || dragonfly || freebsd || (!android && linux) || netbsd || openbsd || solaris) && !cgo
-// +build aix darwin dragonfly freebsd !android,linux netbsd openbsd solaris
-// +build !cgo
 
 package user
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 )
-
-var testGroupFile = `# See the opendirectoryd(8) man page for additional 
-# information about Open Directory.
-##
-nobody:*:-2:
-nogroup:*:-1:
-wheel:*:0:root
-emptyid:*::root
-invalidgid:*:notanumber:root
-+plussign:*:20:root
--minussign:*:21:root
-      
-daemon:*:1:root
-    indented:*:7:
-# comment:*:4:found
-     # comment:*:4:found
-kmem:*:2:root
-` + largeGroup()
 
 var groupTests = []struct {
 	in   string
@@ -51,17 +30,8 @@ var groupTests = []struct {
 	{testGroupFile, "indented", "7"},
 	{testGroupFile, "# comment", ""},
 	{testGroupFile, "largegroup", "1000"},
+	{testGroupFile, "manymembers", "777"},
 	{"", "emptyfile", ""},
-}
-
-// Generate a proper "largegroup" entry for testGroupFile string
-func largeGroup() (res string) {
-	var b strings.Builder
-	b.WriteString("largegroup:x:1000:user1")
-	for i := 2; i <= 7500; i++ {
-		fmt.Fprintf(&b, ",user%d", i)
-	}
-	return b.String()
 }
 
 func TestFindGroupName(t *testing.T) {
