@@ -6,6 +6,17 @@ package typeparams
 
 import "sync"
 
+// The copylock analyzer runs despite errors. The following invalid type should
+// not cause an infinite recursion.
+type R struct{ r R }
+
+func TestNoRecursion(r R) {}
+
+// The following recursive type parameter definitions should not cause an
+// infinite recursion.
+func TestNoTypeParamRecursion[T1 ~[]T2, T2 ~[]T1 | string, T3 ~struct{ F T3 }](t1 T1, t2 T2, t3 T3) {
+}
+
 func OkFunc1[Struct ~*struct{ mu sync.Mutex }](s Struct) {
 }
 
