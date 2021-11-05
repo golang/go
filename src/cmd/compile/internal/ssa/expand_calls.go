@@ -952,6 +952,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 			return x.storeArgOrLoad(pos, b, source, mem, t, storeOffset, loadRegOffset, storeRc)
 		}
 		eltRO := x.regWidth(elt)
+		source.Type = t
 		for i := int64(0); i < t.NumElem(); i++ {
 			sel := source.Block.NewValue1I(pos, OpArraySelect, elt, i, source)
 			mem = x.storeArgOrLoad(pos, b, sel, mem, elt, storeOffset+i*elt.Width, loadRegOffset, storeRc.at(t, 0))
@@ -985,6 +986,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 			return x.storeArgOrLoad(pos, b, source, mem, t, storeOffset, loadRegOffset, storeRc)
 		}
 
+		source.Type = t
 		for i := 0; i < t.NumFields(); i++ {
 			fld := t.Field(i)
 			sel := source.Block.NewValue1I(pos, OpStructSelect, fld.Type, int64(i), source)
