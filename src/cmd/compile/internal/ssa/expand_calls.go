@@ -527,6 +527,7 @@ func expandCalls(f *Func) {
 				// it could be a leaf type, but the "leaf" could be complex64 (for example)
 				return storeArgOrLoad(pos, b, base, source, mem, t, offset)
 			}
+			source.Type = t
 			for i := int64(0); i < t.NumElem(); i++ {
 				sel := source.Block.NewValue1I(pos, OpArraySelect, elt, i, source)
 				mem = storeArgOrLoad(pos, b, base, sel, mem, elt, offset+i*elt.Width)
@@ -559,6 +560,7 @@ func expandCalls(f *Func) {
 				return storeArgOrLoad(pos, b, base, source, mem, t, offset)
 			}
 
+			source.Type = t
 			for i := 0; i < t.NumFields(); i++ {
 				fld := t.Field(i)
 				sel := source.Block.NewValue1I(pos, OpStructSelect, fld.Type, int64(i), source)
