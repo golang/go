@@ -1889,6 +1889,24 @@ func TestInvalidAddrPortString(t *testing.T) {
 	}
 }
 
+func TestAsSlice(t *testing.T) {
+	tests := []struct {
+		in   Addr
+		want []byte
+	}{
+		{in: Addr{}, want: nil},
+		{in: mustIP("1.2.3.4"), want: []byte{1, 2, 3, 4}},
+		{in: mustIP("ffff::1"), want: []byte{0xff, 0xff, 15: 1}},
+	}
+
+	for _, test := range tests {
+		got := test.in.AsSlice()
+		if !bytes.Equal(got, test.want) {
+			t.Errorf("%v.AsSlice() = %v want %v", test.in, got, test.want)
+		}
+	}
+}
+
 var sink16 [16]byte
 
 func BenchmarkAs16(b *testing.B) {
