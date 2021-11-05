@@ -31,18 +31,29 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
-<p id="freebsd">
+<h3 id="freebsd">FreeBSD</h3>
+
+<p>
   Go 1.18 is the last release that is supported on FreeBSD 11.x, which has
   already reached end-of-life. Go 1.19 will require FreeBSD 12.2+ or FreeBSD
   13.0+.
   FreeBSD 13.0+ will require a kernel with the COMPAT_FREEBSD12 option set (this is the default).
 </p>
 
-<h2 id="tools">Tools</h2>
+<h3 id="ppc64">PPC64</h3>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- CL 353969 -->
+  TODO: <a href="https://golang.org/cl/353969">https://golang.org/cl/353969</a>: internal/buildcfg: enable register ABI for PPC64
 </p>
+
+<h3 id="riscv">RISC-V</h3>
+
+<p><!-- golang.org/issue/47100, CL 334872 -->
+  The 64-bit RISC-V architecture on Linux (the <code>linux/riscv64</code> port)
+  now supports the <code>c-archive</code> and <code>c-shared</code> build modes.
+</p>
+
+<h2 id="tools">Tools</h2>
 
 <h3 id="go-command">Go command</h3>
 
@@ -103,8 +114,8 @@ Do not send CLs removing the interior tags from such phrases.
   <code>go</code> <code>mod</code> <code>download</code> <code>all</code>.
 </p>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- CL 349595 -->
+  TODO: <a href="https://golang.org/cl/349595">https://golang.org/cl/349595</a>: https://golang.org/cl/349595: cmd/go: add GOAMD64 environment variable
 </p>
 
 <h3 id="gofmt"><code>gofmt</code></h3>
@@ -115,7 +126,6 @@ Do not send CLs removing the interior tags from such phrases.
   multiple CPUs, <code>gofmt</code> should now be significantly faster.
 </p>
 
-
 <h2 id="runtime">Runtime</h2>
 
 <p>
@@ -124,24 +134,30 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="compiler">Compiler</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- CL 298611 -->
+  TODO: <a href="https://golang.org/cl/298611">https://golang.org/cl/298611</a>: https://golang.org/cl/298611: cmd/compile: add -asan option
+</p>
+
+<p><!-- CL 352057 -->
+  TODO: <a href="https://golang.org/cl/352057">https://golang.org/cl/352057</a>: https://golang.org/cl/352057: cmd/compile, runtime: track argument stack slot liveness
 </p>
 
 <h2 id="linker">Linker</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- CL 298610 -->
+  TODO: <a href="https://golang.org/cl/298610">https://golang.org/cl/298610</a>: https://golang.org/cl/298610: cmd/link: add -asan option
 </p>
 
 <h2 id="library">Core library</h2>
 
-<h3>TODO</h3>
-<p>
-  TODO: complete this section
+<h3 id="constraints">New <code>constraints</code> package</h3>
+
+<p><!-- CL 349709 -->
+  TODO: <a href="https://golang.org/cl/349709">https://golang.org/cl/349709</a>: constraints: new package
 </p>
 
 <h3 id="netip">New <code>net/netip</code> package</h3>
+
 <p>
   The new <a href="/pkg/net/netip/"><code>net/netip</code></a>
   package defines a new IP address type, <a href="/pkg/net/netip/#Addr"><code>Addr</code></a>.
@@ -163,6 +179,12 @@ Do not send CLs removing the interior tags from such phrases.
   <code>*net.UDPAddr</code> values.
 </p>
 
+<h3>TODO</h3>
+
+<p>
+  TODO: complete this section
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -174,6 +196,26 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section
 </p>
+
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+  <dd>
+    <p><!-- CL 345569 -->
+      TODO: <a href="https://golang.org/cl/345569">https://golang.org/cl/345569</a>: add Writer.AvailableBuffer
+    </p>
+
+    <p><!-- CL 345570 -->
+      TODO: <a href="https://golang.org/cl/345570">https://golang.org/cl/345570</a>: make Reader.Reset and Writer.Reset work on the zero value
+    </p>
+  </dd>
+</dl><!-- bufio -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 325250 -->
+      TODO: <a href="https://golang.org/cl/325250">https://golang.org/cl/325250</a>: add Conn.NetConn method
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
 
 <dl id="debug/buildinfo"><dt><a href="/pkg/debug/buildinfo">debug/buildinfo</a></dt>
   <dd>
@@ -201,9 +243,33 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- image/draw -->
 
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 340261 -->
+      TODO: <a href="https://golang.org/cl/340261">https://golang.org/cl/340261</a>: deprecate (net.Error).Temporary
+    </p>
+  </dd>
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 338590 -->
+      TODO: <a href="https://golang.org/cl/338590">https://golang.org/cl/338590</a>: add Cookie.Valid method
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
+<dl id="os/user"><dt><a href="/pkg/os/user/">os/user</a></dt>
+  <dd>
+    <p><!-- CL 330753 -->
+      TODO: <a href="https://golang.org/cl/330753">https://golang.org/cl/330753</a>: implement go native GroupIds
+    </p>
+  </dd>
+</dl><!-- os/user -->
+
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
-    <p><!-- CL 356049, 320929 -->
+    <p><!-- CL 356049, CL 320929 -->
       The new
       <a href="/pkg/reflect/#Value.SetIterKey"><code>Value.SetIterKey</code></a>
       and <a href="/pkg/reflect/#Value.SetIterValue"><code>Value.SetIterValue</code></a>
@@ -211,8 +277,7 @@ Do not send CLs removing the interior tags from such phrases.
       <code>Value.Set(iter.Key())</code> and <code>Value.Set(iter.Value())</code> but
       do fewer allocations.
     </p>
-  </dd>
-  <dd>
+
     <p><!-- CL 350691 -->
       The new
       <a href="/pkg/reflect/#Value.UnsafePointer"><code>Value.UnsafePointer</code></a>
@@ -221,8 +286,68 @@ Do not send CLs removing the interior tags from such phrases.
       and <a href="/pkg/reflect/#Value.Pointer"><code>Value.Pointer</code></a>
       to eliminate the need to perform uintptr to unsafe.Pointer conversions at the callsite (as unsafe.Pointer rules require).
     </p>
+
+    <p><!-- CL 321889 -->
+      TODO: <a href="https://golang.org/cl/321889">https://golang.org/cl/321889</a>: allocate hiter as part of MapIter
+    </p>
+
+    <p><!-- CL 321891 -->
+      TODO: <a href="https://golang.org/cl/321891">https://golang.org/cl/321891</a>: add MapIter.Reset
+    </p>
+
+    <p><!-- CL 345486 -->
+      TODO: <a href="https://golang.org/cl/345486">https://golang.org/cl/345486</a>: optimize for maps with string keys
+    </p>
+
+    <p><!-- CL 352131 -->
+      TODO: <a href="https://golang.org/cl/352131">https://golang.org/cl/352131</a>: add Value.{CanInt, CanUint, CanFloat, CanComplex}
+    </p>
+
+    <p><!-- CL 357962 -->
+      TODO: <a href="https://golang.org/cl/357962">https://golang.org/cl/357962</a>: add FieldByIndexErr
+    </p>
   </dd>
 </dl><!-- reflect -->
+
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- CL 354569 -->
+      TODO: <a href="https://golang.org/cl/354569">https://golang.org/cl/354569</a>: document and implement that invalid UTF-8 bytes are the same as U+FFFD
+    </p>
+  </dd>
+</dl><!-- regexp -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 343877 -->
+      TODO: <a href="https://golang.org/cl/343877">https://golang.org/cl/343877</a>: reject surrogate halves in Unquote
+    </p>
+  </dd>
+</dl><!-- strconv -->
+
+<dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
+  <dd>
+    <p><!-- CL 345849 -->
+      TODO: <a href="https://golang.org/cl/345849">https://golang.org/cl/345849</a>: add Clone function
+    </p>
+  </dd>
+</dl><!-- strings -->
+
+<dl id="strings,bytes"><dt><a href="/pkg/strings,bytes/">strings,bytes</a></dt>
+  <dd>
+    <p><!-- CL 332771 -->
+      TODO: <a href="https://golang.org/cl/332771">https://golang.org/cl/332771</a>: avoid allocations in Trim/TrimLeft/TrimRight
+    </p>
+  </dd>
+</dl><!-- strings,bytes -->
+
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- CL 319769 -->
+      TODO: <a href="https://golang.org/cl/319769">https://golang.org/cl/319769</a>: add Mutex.TryLock, RWMutex.TryLock, RWMutex.TryRLock
+    </p>
+  </dd>
+</dl><!-- sync -->
 
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
@@ -238,5 +363,45 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/syscall/?GOOS=windows#Syscall18"><code>Syscall18</code></a> are
       deprecated in favor of <a href="/pkg/syscall/?GOOS=windows#SyscallN"><code>SyscallN</code></a>.
     </p>
+
+    <p><!-- CL 355570 -->
+      TODO: <a href="https://golang.org/cl/355570">https://golang.org/cl/355570</a>: add support for SysProcAttr.Pdeathsig on FreeBSD
+    </p>
   </dd>
 </dl><!-- syscall -->
+
+<dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
+  <dd>
+    <p><!-- CL 356430 -->
+      TODO: <a href="https://golang.org/cl/356430">https://golang.org/cl/356430</a>: remove Wrapper interface
+    </p>
+  </dd>
+</dl><!-- syscall/js -->
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 343883 -->
+      TODO: <a href="https://golang.org/cl/343883">https://golang.org/cl/343883</a>: increase alternation precedence
+    </p>
+
+    <p><!-- CL 356669 -->
+      TODO: <a href="https://golang.org/cl/356669">https://golang.org/cl/356669</a>: skip extra -count iterations if there are no tests
+    </p>
+  </dd>
+</dl><!-- testing -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 321490 -->
+      TODO: <a href="https://golang.org/cl/321490">https://golang.org/cl/321490</a>: implement short-circuit and, or
+    </p>
+  </dd>
+</dl><!-- text/template -->
+
+<dl id="unicode/utf8"><dt><a href="/pkg/unicode/utf8/">unicode/utf8</a></dt>
+  <dd>
+    <p><!-- CL 345571 -->
+      TODO: <a href="https://golang.org/cl/345571">https://golang.org/cl/345571</a>: add AppendRune
+    </p>
+  </dd>
+</dl><!-- unicode/utf8 -->
