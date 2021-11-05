@@ -42,8 +42,8 @@ Finally, to generate modified source code with coverage annotations
 `
 
 func usage() {
-	fmt.Fprintln(os.Stderr, usageMessage)
-	fmt.Fprintln(os.Stderr, "Flags:")
+	fmt.Fprint(os.Stderr, usageMessage)
+	fmt.Fprintln(os.Stderr, "\nFlags:")
 	flag.PrintDefaults()
 	fmt.Fprintln(os.Stderr, "\n  Only one of -html, -func, or -mode may be set.")
 	os.Exit(2)

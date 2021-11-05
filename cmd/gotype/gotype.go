@@ -167,7 +167,8 @@ files to include for such packages.
 `
 
 func usage() {
-	fmt.Fprintln(os.Stderr, usageString)
+	fmt.Fprint(os.Stderr, usageString)
+	fmt.Fprintln(os.Stderr)
 	flag.PrintDefaults()
 	os.Exit(2)
 }

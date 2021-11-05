@@ -83,7 +83,7 @@ func main() {
 	}
 
 	if *helpFlag || *fromFlag == "" || *toFlag == "" {
-		fmt.Println(Usage)
+		fmt.Print(Usage)
 		return
 	}
 

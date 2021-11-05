@@ -105,8 +105,8 @@ Example: describe syntax at offset 530 in this file (an import spec):
 `
 
 func printHelp() {
-	fmt.Fprintln(os.Stderr, helpMessage)
-	fmt.Fprintln(os.Stderr, "Flags:")
+	fmt.Fprint(os.Stderr, helpMessage)
+	fmt.Fprintln(os.Stderr, "\nFlags:")
 	flag.PrintDefaults()
 }
 

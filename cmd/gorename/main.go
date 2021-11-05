@@ -46,7 +46,7 @@ func main() {
 	}
 
 	if *helpFlag || (*offsetFlag == "" && *fromFlag == "" && *toFlag == "") {
-		fmt.Println(rename.Usage)
+		fmt.Print(rename.Usage)
 		return
 	}
 

@@ -59,7 +59,8 @@ func doMain() error {
 	args := flag.Args()
 
 	if *helpFlag {
-		fmt.Fprint(os.Stderr, eg.Help)
+		help := eg.Help // hide %s from vet
+		fmt.Fprint(os.Stderr, help)
 		os.Exit(2)
 	}
 

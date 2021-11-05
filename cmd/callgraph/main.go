@@ -166,7 +166,7 @@ var stdout io.Writer = os.Stdout
 
 func doCallgraph(dir, gopath, algo, format string, tests bool, args []string) error {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, Usage)
+		fmt.Fprint(os.Stderr, Usage)
 		return nil
 	}
 
