@@ -672,6 +672,9 @@ func arrayLength(array *ast.CompositeLit) (int, bool) {
 
 // fixAST inspects the AST and potentially modifies any *ast.BadStmts so that it can be
 // type-checked more effectively.
+//
+// If fixAST returns true, the resulting AST is considered "fixed", meaning
+// positions have been mangled, and type checker errors may not make sense.
 func fixAST(ctx context.Context, n ast.Node, tok *token.File, src []byte) (fixed bool) {
 	var err error
 	walkASTWithParent(n, func(n, parent ast.Node) bool {
@@ -958,6 +961,8 @@ func fixDanglingSelector(s *ast.SelectorExpr, tok *token.File, src []byte) []byt
 // foo.var
 //
 // yields a "_" selector instead of "var" since "var" is a keyword.
+//
+// TODO(rfindley): should this constitute an ast 'fix'?
 func fixPhantomSelector(sel *ast.SelectorExpr, tok *token.File, src []byte) {
 	if !isPhantomUnderscore(sel.Sel, tok, src) {
 		return
@@ -1006,6 +1011,8 @@ func isPhantomUnderscore(id *ast.Ident, tok *token.File, src []byte) bool {
 // like "if i := 0" the user hasn't typed the semicolon yet so the
 // parser is looking for the conditional expression. However, "i := 0"
 // are not valid expressions, so we get a BadExpr.
+//
+// fixInitStmt returns valid AST for the original source.
 func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte) {
 	if !bad.Pos().IsValid() || !bad.End().IsValid() {
 		return
@@ -1388,6 +1395,11 @@ func offsetPositions(n ast.Node, offset token.Pos) {
 				}
 
 				if !f.CanSet() {
+					continue
+				}
+
+				// Don't offset invalid positions: they should stay invalid.
+				if !token.Pos(f.Int()).IsValid() {
 					continue
 				}
 

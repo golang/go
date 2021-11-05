@@ -29,7 +29,7 @@ type pkg struct {
 	types           *types.Package
 	typesInfo       *types.Info
 	typesSizes      types.Sizes
-	hasFixedFiles   bool
+	hasFixedFiles   bool // if true, AST was sufficiently mangled that we should hide type errors
 }
 
 // Declare explicit types for files and directories to distinguish between the two.
