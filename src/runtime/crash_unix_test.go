@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -211,6 +212,11 @@ func TestPanicSystemstack(t *testing.T) {
 
 func init() {
 	if len(os.Args) >= 2 && os.Args[1] == "testPanicSystemstackInternal" {
+		// Complete any in-flight GCs and disable future ones. We're going to
+		// block goroutines on runtime locks, which aren't ever preemptible for the
+		// GC to scan them.
+		runtime.GC()
+		debug.SetGCPercent(-1)
 		// Get two threads running on the system stack with
 		// something recognizable in the stack trace.
 		runtime.GOMAXPROCS(2)
