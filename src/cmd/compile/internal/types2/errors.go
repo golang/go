@@ -230,6 +230,16 @@ func (check *Checker) softErrorf(at poser, format string, args ...interface{}) {
 	check.err(at, check.sprintf(format, args...), true)
 }
 
+func (check *Checker) versionErrorf(at poser, goVersion string, format string, args ...interface{}) {
+	msg := check.sprintf(format, args...)
+	if check.conf.CompilerErrorMessages {
+		msg = fmt.Sprintf("%s requires %s or later (-lang was set to %s; check go.mod)", msg, goVersion, check.conf.GoVersion)
+	} else {
+		msg = fmt.Sprintf("%s requires %s or later", msg, goVersion)
+	}
+	check.err(at, msg, true)
+}
+
 // posFor reports the left (= start) position of at.
 func posFor(at poser) syntax.Pos {
 	switch x := at.(type) {

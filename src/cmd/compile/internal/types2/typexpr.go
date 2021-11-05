@@ -264,7 +264,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 
 	case *syntax.IndexExpr:
 		if !check.allowVersion(check.pkg, 1, 18) {
-			check.softErrorf(e.Pos(), "type instantiation requires go1.18 or later")
+			check.versionErrorf(e.Pos(), "go1.18", "type instantiation")
 		}
 		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
 
