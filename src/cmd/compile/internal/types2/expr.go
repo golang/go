@@ -1260,6 +1260,12 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 
 		switch utyp := structure(base).(type) {
 		case *Struct:
+			// Prevent crash if the struct referred to is not yet set up.
+			// See analogous comment for *Array.
+			if utyp.fields == nil {
+				check.error(e, "illegal cycle in type declaration")
+				goto Error
+			}
 			if len(e.ElemList) == 0 {
 				break
 			}

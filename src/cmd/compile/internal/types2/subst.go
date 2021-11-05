@@ -91,7 +91,9 @@ func (subst *subster) typ(typ Type) Type {
 
 	case *Struct:
 		if fields, copied := subst.varList(t.fields); copied {
-			return &Struct{fields: fields, tags: t.tags}
+			s := &Struct{fields: fields, tags: t.tags}
+			s.markComplete()
+			return s
 		}
 
 	case *Pointer:
