@@ -155,9 +155,14 @@ func (err parseAddrError) Error() string {
 func parseIPv4(s string) (ip Addr, err error) {
 	var fields [4]uint8
 	var val, pos int
+	var digLen int // number of digits in current octet
 	for i := 0; i < len(s); i++ {
 		if s[i] >= '0' && s[i] <= '9' {
+			if digLen == 1 && val == 0 {
+				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has octet with leading zero"}
+			}
 			val = val*10 + int(s[i]) - '0'
+			digLen++
 			if val > 255 {
 				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has value >255"}
 			}
@@ -175,6 +180,7 @@ func parseIPv4(s string) (ip Addr, err error) {
 			fields[pos] = uint8(val)
 			pos++
 			val = 0
+			digLen = 0
 		} else {
 			return Addr{}, parseAddrError{in: s, msg: "unexpected character", at: s[i:]}
 		}
