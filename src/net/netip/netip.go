@@ -32,6 +32,9 @@ import (
 //
 // Unlike net.IP or net.IPAddr, Addr is a comparable value
 // type (it supports == and can be a map key) and is immutable.
+//
+// The zero Addr is not a valid IP address.
+// Addr{} is distinct from both 0.0.0.0 and ::.
 type Addr struct {
 	// addr is the hi and lo bits of an IPv6 address. If z==z4,
 	// hi and lo contain the IPv4-mapped IPv6 address.
