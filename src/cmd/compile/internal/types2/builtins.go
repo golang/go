@@ -574,7 +574,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	case _Add:
 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
 		if !check.allowVersion(check.pkg, 1, 17) {
-			check.error(call.Fun, "unsafe.Add requires go1.17 or later")
+			check.versionErrorf(call.Fun, "go1.17", "unsafe.Add")
 			return
 		}
 
@@ -700,7 +700,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	case _Slice:
 		// unsafe.Slice(ptr *T, len IntegerType) []T
 		if !check.allowVersion(check.pkg, 1, 17) {
-			check.error(call.Fun, "unsafe.Slice requires go1.17 or later")
+			check.versionErrorf(call.Fun, "go1.17", "unsafe.Slice")
 			return
 		}
 

@@ -869,7 +869,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 		x.mode = invalid
 		return
 	} else if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
-		check.errorf(y, invalidOp+"signed shift count %s requires go1.13 or later", y)
+		check.versionErrorf(y, "go1.13", invalidOp+"signed shift count %s", y)
 		x.mode = invalid
 		return
 	}
