@@ -1149,7 +1149,7 @@ formatLoop:
 func (p *pp) doPrint(a []interface{}) {
 	prevString := false
 	for argNum, arg := range a {
-		isString := arg != nil && reflect.TypeOf(arg).Kind() == reflect.String
+		_, isString := arg.(string)
 		// Add a space between two non-string arguments.
 		if argNum > 0 && !isString && !prevString {
 			p.buf.writeByte(' ')
