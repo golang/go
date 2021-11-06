@@ -918,14 +918,15 @@ func (db *DB) SetConnMaxLifetime(d time.Duration) {
 		d = 0
 	}
 	db.mu.Lock()
+	maxLifetime = db.maxLifetime
+	db.maxLifetime = d
 	// wake cleaner up when lifetime is shortened.
-	if d > 0 && d < db.maxLifetime && db.cleanerCh != nil {
+	if d > 0 && d < maxLifetime && db.cleanerCh != nil {
 		select {
 		case db.cleanerCh <- struct{}{}:
 		default:
 		}
 	}
-	db.maxLifetime = d
 	db.startCleanerLocked()
 	db.mu.Unlock()
 }
