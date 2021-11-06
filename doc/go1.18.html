@@ -214,6 +214,12 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 332771 -->
       TODO: <a href="https://golang.org/cl/332771">https://golang.org/cl/332771</a>: avoid allocations in Trim/TrimLeft/TrimRight
     </p>
+
+    <p><!-- CL 359485 -->
+      The <a href="/pkg/bytes/#Title"><code>Title</code></a> function is now deprecated. It doesn't
+      handle Unicode punctuation and language-specific capitalization rules, and is superseded by the
+      <a href="https://golang.org/x/text/cases">golang.org/x/text/cases</a> package.
+    </p>
   </dd>
 </dl><!-- bytes -->
 
@@ -341,6 +347,12 @@ Do not send CLs removing the interior tags from such phrases.
 
     <p><!-- CL 332771 -->
       TODO: <a href="https://golang.org/cl/332771">https://golang.org/cl/332771</a>: avoid allocations in Trim/TrimLeft/TrimRight
+    </p>
+
+    <p><!-- CL 359485 -->
+      The <a href="/pkg/strings/#Title"><code>Title</code></a> function is now deprecated. It doesn't
+      handle Unicode punctuation and language-specific capitalization rules, and is superseded by the
+      <a href="https://golang.org/x/text/cases">golang.org/x/text/cases</a> package.
     </p>
   </dd>
 </dl><!-- strings -->
