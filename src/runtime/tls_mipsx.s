@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build mips || mipsle
-// +build mips mipsle
 
 #include "go_asm.h"
 #include "go_tls.h"

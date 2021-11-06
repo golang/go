@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build asan
-// +build asan
 
 #include "go_asm.h"
 #include "textflag.h"

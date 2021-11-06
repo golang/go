@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build netbsd
-// +build netbsd
-
 #include "textflag.h"
 #include "funcdata.h"
 
