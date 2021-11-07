@@ -1115,7 +1115,7 @@ func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*dri
 			c := db.freeConn[i]
 			if c.returnedAt.Before(idleSince) {
 				i++
-				closing = db.freeConn[:i]
+				closing = db.freeConn[:i:i]
 				db.freeConn = db.freeConn[i:]
 				idleClosing = int64(len(closing))
 				db.maxIdleTimeClosed += idleClosing
