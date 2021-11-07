@@ -1037,15 +1037,16 @@ func (db *DB) SetConnMaxIdleTime(d time.Duration) {
 	}
 	db.mu.Lock()
 	defer db.mu.Unlock()
-
+	
 	// Wake cleaner up when idle time is shortened.
-	if d > 0 && d < db.maxIdleTime && db.cleanerCh != nil {
+	maxIdleTime = db.maxIdleTime
+	db.maxIdleTime = d
+	if d > 0 && d < maxIdleTime && db.cleanerCh != nil {
 		select {
 		case db.cleanerCh <- struct{}{}:
 		default:
 		}
 	}
-	db.maxIdleTime = d
 	db.startCleanerLocked()
 }
 
