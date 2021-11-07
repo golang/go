@@ -584,7 +584,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	ruri := r.URL.RequestURI()
 	if usingProxy && r.URL.Scheme != "" && r.URL.Opaque == "" {
 		ruri = r.URL.Scheme + "://" + host + ruri
-	} else if r.Method == "CONNECT" && r.URL.Path == "" {
+	} else if r.Method == MethodConnect && r.URL.Path == "" {
 		// CONNECT requests normally give just the host and port, not a full URL.
 		ruri = host
 		if r.URL.Opaque != "" {
@@ -608,7 +608,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 		w = bw
 	}
 
-	_, err = fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(r.Method, "GET"), ruri)
+	_, err = fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(r.Method, MethodGet), ruri)
 	if err != nil {
 		return err
 	}
@@ -858,7 +858,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 		// We document that "" means "GET" for Request.Method, and people have
 		// relied on that from NewRequest, so keep that working.
 		// We still enforce validMethod for non-empty methods.
-		method = "GET"
+		method = MethodGet
 	}
 	if !validMethod(method) {
 		return nil, fmt.Errorf("net/http: invalid method %q", method)
@@ -1058,7 +1058,7 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
 	// that starts with a slash. It can be parsed with the regular URL parser,
 	// and the path will end up in req.URL.Path, where it needs to be in order for
 	// RPC to work.
-	justAuthority := req.Method == "CONNECT" && !strings.HasPrefix(rawurl, "/")
+	justAuthority := req.Method == MethodConnect && !strings.HasPrefix(rawurl, "/")
 	if justAuthority {
 		rawurl = "http://" + rawurl
 	}
@@ -1256,7 +1256,7 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 func (r *Request) ParseForm() error {
 	var err error
 	if r.PostForm == nil {
-		if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
+		if r.Method == MethodPost || r.Method == MethodPut || r.Method == MethodPatch {
 			r.PostForm, err = parsePostForm(r)
 		}
 		if r.PostForm == nil {
@@ -1414,8 +1414,8 @@ func (r *Request) closeBody() error {
 
 func (r *Request) isReplayable() bool {
 	if r.Body == nil || r.Body == NoBody || r.GetBody != nil {
-		switch valueOrDefault(r.Method, "GET") {
-		case "GET", "HEAD", "OPTIONS", "TRACE":
+		switch valueOrDefault(r.Method, MethodGet) {
+		case MethodGet, MethodHead, MethodOptions, MethodTrace:
 			return true
 		}
 		// The Idempotency-Key, while non-standard, is widely used to
@@ -1449,7 +1449,7 @@ func (r *Request) outgoingLength() int64 {
 // shouldSendChunkedRequestBody.
 func requestMethodUsuallyLacksBody(method string) bool {
 	switch method {
-	case "GET", "HEAD", "DELETE", "OPTIONS", "PROPFIND", "SEARCH":
+	case MethodGet, MethodHead, MethodDelete, MethodOptions, "PROPFIND", "SEARCH":
 		return true
 	}
 	return false

@@ -240,7 +240,7 @@ func DumpRequest(req *http.Request, body bool) ([]byte, error) {
 		reqURI = req.URL.RequestURI()
 	}
 
-	fmt.Fprintf(&b, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"),
+	fmt.Fprintf(&b, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, http.MethodGet),
 		reqURI, req.ProtoMajor, req.ProtoMinor)
 
 	absRequestURI := strings.HasPrefix(req.RequestURI, "http://") || strings.HasPrefix(req.RequestURI, "https://")

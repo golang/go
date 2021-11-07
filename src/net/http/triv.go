@@ -46,9 +46,9 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctr.mu.Lock()
 	defer ctr.mu.Unlock()
 	switch req.Method {
-	case "GET":
+	case MethodGet:
 		ctr.n++
-	case "POST":
+	case MethodPost:
 		buf := new(bytes.Buffer)
 		io.Copy(buf, req.Body)
 		body := buf.String()

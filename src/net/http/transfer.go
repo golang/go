@@ -83,7 +83,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		if rr.ContentLength != 0 && rr.Body == nil {
 			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
 		}
-		t.Method = valueOrDefault(rr.Method, "GET")
+		t.Method = valueOrDefault(rr.Method, MethodGet)
 		t.Close = rr.Close
 		t.TransferEncoding = rr.TransferEncoding
 		t.Header = rr.Header
@@ -171,7 +171,7 @@ func (t *transferWriter) shouldSendChunkedRequestBody() bool {
 	if t.ContentLength >= 0 || t.Body == nil { // redundant checks; caller did them
 		return false
 	}
-	if t.Method == "CONNECT" {
+	if t.Method == MethodConnect {
 		return false
 	}
 	if requestMethodUsuallyLacksBody(t.Method) {
@@ -245,7 +245,7 @@ func (t *transferWriter) probeRequestBody() {
 }
 
 func noResponseBodyExpected(requestMethod string) bool {
-	return requestMethod == "HEAD"
+	return requestMethod == MethodHead
 }
 
 func (t *transferWriter) shouldSendContentLength() bool {
@@ -259,11 +259,11 @@ func (t *transferWriter) shouldSendContentLength() bool {
 		return false
 	}
 	// Many servers expect a Content-Length for these methods
-	if t.Method == "POST" || t.Method == "PUT" || t.Method == "PATCH" {
+	if t.Method == MethodPost || t.Method == MethodPut || t.Method == MethodPatch {
 		return true
 	}
 	if t.ContentLength == 0 && isIdentity(t.TransferEncoding) {
-		if t.Method == "GET" || t.Method == "HEAD" {
+		if t.Method == MethodGet || t.Method == MethodHead {
 			return false
 		}
 		return true
@@ -361,7 +361,7 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
 			}
 		} else if t.ContentLength == -1 {
 			dst := w
-			if t.Method == "CONNECT" {
+			if t.Method == MethodConnect {
 				dst = bufioFlushWriter{dst}
 			}
 			ncopy, err = t.doBodyCopy(dst, body)
@@ -482,7 +482,7 @@ func suppressedHeaders(status int) []string {
 
 // msg is *Request or *Response.
 func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
-	t := &transferReader{RequestMethod: "GET"}
+	t := &transferReader{RequestMethod: MethodGet}
 
 	// Unify input
 	isResponse := false
@@ -524,7 +524,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	if err != nil {
 		return err
 	}
-	if isResponse && t.RequestMethod == "HEAD" {
+	if isResponse && t.RequestMethod == MethodHead {
 		if n, err := parseContentLength(t.Header.get("Content-Length")); err != nil {
 			return err
 		} else {

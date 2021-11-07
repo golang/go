@@ -1667,7 +1667,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			hdr.Set("Proxy-Authorization", pa)
 		}
 		connectReq := &Request{
-			Method: "CONNECT",
+			Method: MethodConnect,
 			URL:    &url.URL{Opaque: cm.targetAddr},
 			Host:   cm.targetAddr,
 			Header: hdr,
@@ -2124,7 +2124,7 @@ func (pc *persistConn) readLoop() {
 		pc.mu.Unlock()
 
 		bodyWritable := resp.bodyIsWritable()
-		hasBody := rc.req.Method != "HEAD" && resp.ContentLength != 0
+		hasBody := rc.req.Method != MethodHead && resp.ContentLength != 0
 
 		if resp.Close || rc.req.Close || resp.StatusCode <= 199 || bodyWritable {
 			// Don't do keep-alive on error if either party requested a close
@@ -2548,7 +2548,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	if !pc.t.DisableCompression &&
 		req.Header.Get("Accept-Encoding") == "" &&
 		req.Header.Get("Range") == "" &&
-		req.Method != "HEAD" {
+		req.Method != MethodHead {
 		// Request gzip only, not deflate. Deflate is ambiguous and
 		// not as universally supported anyway.
 		// See: https://zlib.net/zlib_faq.html#faq39

@@ -189,7 +189,7 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(&buf, "num_symbols: 1\n")
 
 	var b *bufio.Reader
-	if r.Method == "POST" {
+	if r.Method == http.MethodPost {
 		b = bufio.NewReader(r.Body)
 	} else {
 		b = bufio.NewReader(strings.NewReader(r.URL.RawQuery))

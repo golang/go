@@ -5725,7 +5725,7 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 		path:      f.PseudoValue("path"),
 	}
 
-	isConnect := rp.method == "CONNECT"
+	isConnect := rp.method == MethodConnect
 	if isConnect {
 		if rp.path != "" || rp.scheme != "" || rp.authority == "" {
 			return nil, nil, sc.countError("bad_connect", http2streamError(f.StreamID, http2ErrCodeProtocol))
@@ -5745,7 +5745,7 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 	}
 
 	bodyOpen := !f.StreamEnded()
-	if rp.method == "HEAD" && bodyOpen {
+	if rp.method == MethodHead && bodyOpen {
 		// HEAD requests can't have bodies
 		return nil, nil, sc.countError("head_body", http2streamError(f.StreamID, http2ErrCodeProtocol))
 	}
@@ -5823,7 +5823,7 @@ func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp http2re
 
 	var url_ *url.URL
 	var requestURI string
-	if rp.method == "CONNECT" {
+	if rp.method == MethodConnect {
 		url_ = &url.URL{Host: rp.authority}
 		requestURI = rp.authority // mimic HTTP/1 server behavior
 	} else {
@@ -6145,7 +6145,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		rws.writeHeader(200)
 	}
 
-	isHeadResp := rws.req.Method == "HEAD"
+	isHeadResp := rws.req.Method == MethodHead
 	if !rws.sentHeader {
 		rws.sentHeader = true
 		var ctype, clen string
@@ -6479,7 +6479,7 @@ func (w *http2responseWriter) Push(target string, opts *PushOptions) error {
 
 	// Default options.
 	if opts.Method == "" {
-		opts.Method = "GET"
+		opts.Method = MethodGet
 	}
 	if opts.Header == nil {
 		opts.Header = Header{}
@@ -6532,7 +6532,7 @@ func (w *http2responseWriter) Push(target string, opts *PushOptions) error {
 	// The RFC effectively limits promised requests to GET and HEAD:
 	// "Promised requests MUST be cacheable [GET, HEAD, or POST], and MUST be safe [GET or HEAD]"
 	// http://tools.ietf.org/html/rfc7540#section-8.2
-	if opts.Method != "GET" && opts.Method != "HEAD" {
+	if opts.Method != MethodGet && opts.Method != MethodHead {
 		return fmt.Errorf("method %q must be GET or HEAD", opts.Method)
 	}
 
@@ -7831,7 +7831,7 @@ func (cs *http2clientStream) writeRequest() (err error) {
 	if !cc.t.disableCompression() &&
 		req.Header.Get("Accept-Encoding") == "" &&
 		req.Header.Get("Range") == "" &&
-		req.Method != "HEAD" {
+		req.Method != MethodHead {
 		// Request gzip only, not deflate. Deflate is ambiguous and
 		// not as universally supported anyway.
 		// See: https://zlib.net/zlib_faq.html#faq39
@@ -8302,7 +8302,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 	}
 
 	var path string
-	if req.Method != "CONNECT" {
+	if req.Method != MethodConnect {
 		path = req.URL.RequestURI()
 		if !http2validPseudoPath(path) {
 			orig := path
@@ -8343,7 +8343,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 			m = MethodGet
 		}
 		f(":method", m)
-		if req.Method != "CONNECT" {
+		if req.Method != MethodConnect {
 			f(":path", path)
 			f(":scheme", req.URL.Scheme)
 		}
@@ -8469,7 +8469,7 @@ func http2shouldSendReqContentLength(method string, contentLength int64) bool {
 	// For zero bodies, whether we send a content-length depends on the method.
 	// It also kinda doesn't matter for http2 either way, with END_STREAM.
 	switch method {
-	case "POST", "PUT", "PATCH":
+	case MethodPost, MethodPut, MethodPatch:
 		return true
 	default:
 		return false
@@ -8870,7 +8870,7 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 	}
 
 	streamEnded := f.StreamEnded()
-	isHead := cs.req.Method == "HEAD"
+	isHead := cs.req.Method == MethodHead
 	if !streamEnded || isHead {
 		res.ContentLength = -1
 		if clens := res.Header["Content-Length"]; len(clens) == 1 {
@@ -9088,7 +9088,7 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 		return nil
 	}
 	if f.Length > 0 {
-		if cs.req.Method == "HEAD" && len(data) > 0 {
+		if cs.req.Method == MethodHead && len(data) > 0 {
 			cc.logf("protocol error: received DATA on a HEAD request")
 			rl.endStreamError(cs, http2StreamError{
 				StreamID: f.StreamID,

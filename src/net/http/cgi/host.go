@@ -375,7 +375,7 @@ func (h *Handler) handleInternalRedirect(rw http.ResponseWriter, req *http.Reque
 	// (e.g. Cookies) Which headers, if any, are copied into the
 	// second request?
 	newReq := &http.Request{
-		Method:     "GET",
+		Method:     http.MethodGet,
 		URL:        url,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,

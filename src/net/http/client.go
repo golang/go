@@ -279,7 +279,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		//
 		// If the ContentLength allows the Body to be empty, fill in an empty one
 		// here to ensure that it is non-nil.
-		if resp.ContentLength > 0 && req.Method != "HEAD" {
+		if resp.ContentLength > 0 && req.Method != MethodHead {
 			return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a *Response with content length %d but a nil Body", rt, resp.ContentLength)
 		}
 		resp.Body = io.NopCloser(strings.NewReader(""))
@@ -473,7 +473,7 @@ func Get(url string) (resp *Response, err error) {
 // To make a request with a specified context.Context, use NewRequestWithContext
 // and Client.Do.
 func (c *Client) Get(url string) (resp *Response, err error) {
-	req, err := NewRequest("GET", url, nil)
+	req, err := NewRequest(MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -511,8 +511,8 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 		// HEAD requests. RFC 7231 lifts this restriction, but we still
 		// restrict other methods to GET to maintain compatibility.
 		// See Issue 18570.
-		if reqMethod != "GET" && reqMethod != "HEAD" {
-			redirectMethod = "GET"
+		if reqMethod != MethodGet && reqMethod != MethodHead {
+			redirectMethod = MethodGet
 		}
 	case 307, 308:
 		redirectMethod = reqMethod
@@ -850,7 +850,7 @@ func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 // See the Client.Do method documentation for details on how redirects
 // are handled.
 func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, err error) {
-	req, err := NewRequest("POST", url, body)
+	req, err := NewRequest(MethodPost, url, body)
 	if err != nil {
 		return nil, err
 	}
@@ -927,7 +927,7 @@ func Head(url string) (resp *Response, err error) {
 // To make a request with a specified context.Context, use NewRequestWithContext
 // and Client.Do.
 func (c *Client) Head(url string) (resp *Response, err error) {
-	req, err := NewRequest("HEAD", url, nil)
+	req, err := NewRequest(MethodHead, url, nil)
 	if err != nil {
 		return nil, err
 	}
