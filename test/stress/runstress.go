@@ -66,7 +66,7 @@ func stressNet() {
 		if err != nil {
 			log.Fatalf("stressNet: http Get error: %v", err)
 		}
-		if res.StatusCode != 200 {
+		if res.StatusCode != http.StatusOK {
 			log.Fatalf("stressNet: Status code = %d", res.StatusCode)
 		}
 		n, err := io.Copy(io.Discard, res.Body)

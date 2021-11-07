@@ -71,7 +71,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		res := &Response{
 			URL:        url.Redacted(),
 			Status:     "404 testing",
-			StatusCode: 404,
+			StatusCode: http.StatusNotFound,
 			Header:     make(map[string][]string),
 			Body:       http.NoBody,
 		}

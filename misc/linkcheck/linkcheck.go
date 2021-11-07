@@ -139,7 +139,7 @@ func doCrawl(url string) error {
 		crawl(newURL.String(), url)
 		return nil
 	}
-	if res.StatusCode != 200 {
+	if res.StatusCode != http.StatusOK {
 		return errors.New(res.Status)
 	}
 	slurp, err := io.ReadAll(res.Body)

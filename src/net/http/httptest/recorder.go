@@ -194,7 +194,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	}
 	rw.result = res
 	if res.StatusCode == 0 {
-		res.StatusCode = 200
+		res.StatusCode = http.StatusOK
 	}
 	res.Status = fmt.Sprintf("%03d %s", res.StatusCode, http.StatusText(res.StatusCode))
 	if rw.Body != nil {

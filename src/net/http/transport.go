@@ -1714,7 +1714,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			conn.Close()
 			return nil, err
 		}
-		if resp.StatusCode != 200 {
+		if resp.StatusCode != StatusOK {
 			_, text, ok := strings.Cut(resp.Status, " ")
 			conn.Close()
 			if !ok {
