@@ -1004,11 +1004,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	}
 
 	var err error
-	desiredPruning := pruningForGoVersion(ld.GoVersion)
-	if ld.requirements.pruning == workspace {
-		desiredPruning = workspace
-	}
-	ld.requirements, err = convertPruning(ctx, ld.requirements, desiredPruning)
+	ld.requirements, err = convertPruning(ctx, ld.requirements, pruningForGoVersion(ld.GoVersion))
 	if err != nil {
 		ld.errorf("go: %v\n", err)
 	}
@@ -1247,24 +1243,6 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 		}
 		for _, dep := range pkg.imports {
 			if !dep.fromExternalModule() {
-				continue
-			}
-
-			if inWorkspaceMode() {
-				// In workspace mode / workspace pruning mode, the roots are the main modules
-				// rather than the main module's direct dependencies. The check below on the selected
-				// roots does not apply.
-				if mg, err := rs.Graph(ctx); err != nil {
-					return false, err
-				} else if _, ok := mg.RequiredBy(dep.mod); !ok {
-					// dep.mod is not an explicit dependency, but needs to be.
-					// See comment on error returned below.
-					pkg.err = &DirectImportFromImplicitDependencyError{
-						ImporterPath: pkg.path,
-						ImportedPath: dep.path,
-						Module:       dep.mod,
-					}
-				}
 				continue
 			}
 
