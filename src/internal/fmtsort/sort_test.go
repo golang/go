@@ -9,6 +9,7 @@ import (
 	"internal/fmtsort"
 	"math"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"unsafe"
@@ -188,8 +189,18 @@ func sprintKey(key reflect.Value) string {
 
 var (
 	ints  [3]int
-	chans = [3]chan int{make(chan int), make(chan int), make(chan int)}
+	chans = makeChans()
 )
+
+func makeChans() []chan int {
+	cs := []chan int{make(chan int), make(chan int), make(chan int)}
+	// Order channels by address. See issue #49431.
+	// TODO: pin these pointers once pinning is available (#46787).
+	sort.Slice(cs, func(i, j int) bool {
+		return uintptr(reflect.ValueOf(cs[i]).UnsafePointer()) < uintptr(reflect.ValueOf(cs[j]).UnsafePointer())
+	})
+	return cs
+}
 
 func pointerMap() map[*int]string {
 	m := make(map[*int]string)
