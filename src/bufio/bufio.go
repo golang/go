@@ -593,6 +593,8 @@ func NewWriterSize(w io.Writer, size int) *Writer {
 }
 
 // NewWriter returns a new Writer whose buffer has the default size.
+// If the argument io.Writer is already a Writer with large enough buffer size,
+// it returns the underlying Writer.
 func NewWriter(w io.Writer) *Writer {
 	return NewWriterSize(w, defaultBufSize)
 }
