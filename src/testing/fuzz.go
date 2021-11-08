@@ -356,7 +356,7 @@ func (f *F) Fuzz(ff interface{}) {
 				crashPath := crashErr.CrashPath()
 				fmt.Fprintf(f.w, "Crash written to %s\n", crashPath)
 				testName := filepath.Base(crashPath)
-				fmt.Fprintf(f.w, "To re-run:\ngo test %s -run=%s/%s\n", f.fuzzContext.deps.ImportPath(), f.name, testName)
+				fmt.Fprintf(f.w, "To re-run:\ngo test -run=%s/%s\n", f.name, testName)
 			}
 		}
 		// TODO(jayconrod,katiehockman): Aggregate statistics across workers
