@@ -3910,6 +3910,10 @@ func testUseConns(t *testing.T, count int, tm time.Time, db *DB) time.Time {
 	conns := make([]*Conn, count)
 	ctx := context.Background()
 	for i := range conns {
+		tm = tm.Add(time.Nanosecond)
+		nowFunc = func() time.Time {
+			return tm
+		}
 		c, err := db.Conn(ctx)
 		if err != nil {
 			t.Error(err)
@@ -3917,12 +3921,12 @@ func testUseConns(t *testing.T, count int, tm time.Time, db *DB) time.Time {
 		conns[i] = c
 	}
 
-	for _, c := range conns {
+	for i := len(conns) - 1; i >= 0; i-- {
 		tm = tm.Add(time.Nanosecond)
 		nowFunc = func() time.Time {
 			return tm
 		}
-		if err := c.Close(); err != nil {
+		if err := conns[i].Close(); err != nil {
 			t.Error(err)
 		}
 	}
@@ -3934,18 +3938,46 @@ func TestMaxIdleTime(t *testing.T) {
 	usedConns := 5
 	reusedConns := 2
 	list := []struct {
-		wantMaxIdleTime time.Duration
-		wantNextCheck   time.Duration
-		wantIdleClosed  int64
-		timeOffset      time.Duration
+		wantMaxIdleTime   time.Duration
+		wantMaxLifetime   time.Duration
+		wantNextCheck     time.Duration
+		wantIdleClosed    int64
+		wantMaxIdleClosed int64
+		timeOffset        time.Duration
+		secondTimeOffset  time.Duration
 	}{
 		{
 			time.Millisecond,
+			0,
 			time.Millisecond - time.Nanosecond,
 			int64(usedConns - reusedConns),
+			int64(usedConns - reusedConns),
 			10 * time.Millisecond,
+			0,
 		},
-		{time.Hour, time.Second, 0, 10 * time.Millisecond},
+		{
+			// Want to close some connections via max idle time and one by max lifetime.
+			time.Millisecond,
+			// nowFunc() - MaxLifetime should be 1 * time.Nanosecond in connectionCleanerRunLocked.
+			// This guarantees that first opened connection is to be closed.
+			// Thus it is timeOffset + secondTimeOffset + 3 (+2 for Close while reusing conns and +1 for Conn).
+			10*time.Millisecond + 100*time.Nanosecond + 3*time.Nanosecond,
+			time.Nanosecond,
+			// Closed all not reused connections and extra one by max lifetime.
+			int64(usedConns - reusedConns + 1),
+			int64(usedConns - reusedConns),
+			10 * time.Millisecond,
+			// Add second offset because otherwise connections are expired via max lifetime in Close.
+			100 * time.Nanosecond,
+		},
+		{
+			time.Hour,
+			0,
+			time.Second,
+			0,
+			0,
+			10 * time.Millisecond,
+			0},
 	}
 	baseTime := time.Unix(0, 0)
 	defer func() {
@@ -3962,18 +3994,23 @@ func TestMaxIdleTime(t *testing.T) {
 			db.SetMaxOpenConns(usedConns)
 			db.SetMaxIdleConns(usedConns)
 			db.SetConnMaxIdleTime(item.wantMaxIdleTime)
-			db.SetConnMaxLifetime(0)
+			db.SetConnMaxLifetime(item.wantMaxLifetime)
 
 			preMaxIdleClosed := db.Stats().MaxIdleTimeClosed
 
 			// Busy usedConns.
-			tm := testUseConns(t, usedConns, baseTime, db)
+			testUseConns(t, usedConns, baseTime, db)
 
-			tm = baseTime.Add(item.timeOffset)
+			tm := baseTime.Add(item.timeOffset)
 
 			// Reuse connections which should never be considered idle
 			// and exercises the sorting for issue 39471.
-			testUseConns(t, reusedConns, tm, db)
+			tm = testUseConns(t, reusedConns, tm, db)
+
+			tm = tm.Add(item.secondTimeOffset)
+			nowFunc = func() time.Time {
+				return tm
+			}
 
 			db.mu.Lock()
 			nc, closing := db.connectionCleanerRunLocked(time.Second)
@@ -4001,7 +4038,7 @@ func TestMaxIdleTime(t *testing.T) {
 
 			st := db.Stats()
 			maxIdleClosed := st.MaxIdleTimeClosed - preMaxIdleClosed
-			if g, w := maxIdleClosed, item.wantIdleClosed; g != w {
+			if g, w := maxIdleClosed, item.wantMaxIdleClosed; g != w {
 				t.Errorf("got: %d; want %d max idle closed conns", g, w)
 			}
 		})
