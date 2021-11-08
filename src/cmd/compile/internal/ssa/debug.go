@@ -1120,54 +1120,93 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 				v.Op == OpArgIntReg || v.Op == OpArgFloatReg
 		}
 
+		blockPrologComplete := func(v *Value) bool {
+			if b.ID != state.f.Entry.ID {
+				return !opcodeTable[v.Op].zeroWidth
+			} else {
+				return v.Op == OpInitMem
+			}
+		}
+
+		// Examine the prolog portion of the block to process special
+		// zero-width ops such as Arg, Phi, LoweredGetClosurePtr (etc)
+		// whose lifetimes begin at the block starting point. In an
+		// entry block, allow for the possibility that we may see Arg
+		// ops that appear _after_ other non-zero-width operations.
+		// Example:
+		//
+		//   v33 = ArgIntReg <uintptr> {foo+0} [0] : AX (foo)
+		//   v34 = ArgIntReg <uintptr> {bar+0} [0] : BX (bar)
+		//   ...
+		//   v77 = StoreReg <unsafe.Pointer> v67 : ctx+8[unsafe.Pointer]
+		//   v78 = StoreReg <unsafe.Pointer> v68 : ctx[unsafe.Pointer]
+		//   v79 = Arg <*uint8> {args} : args[*uint8] (args[*uint8])
+		//   v80 = Arg <int> {args} [8] : args+8[int] (args+8[int])
+		//   ...
+		//   v1 = InitMem <mem>
+		//
+		// We can stop scanning the initial portion of the block when
+		// we either see the InitMem op (for entry blocks) or the
+		// first non-zero-width op (for other blocks).
+		for idx := 0; idx < len(b.Values); idx++ {
+			v := b.Values[idx]
+			if blockPrologComplete(v) {
+				break
+			}
+			// Consider only "lifetime begins at block start" ops.
+			if !mustBeFirst(v) && v.Op != OpArg {
+				continue
+			}
+			slots := state.valueNames[v.ID]
+			reg, _ := state.f.getHome(v.ID).(*Register)
+			changed := state.processValue(v, slots, reg) // changed == added to state.changedVars
+			if changed {
+				for _, varID := range state.changedVars.contents() {
+					state.updateVar(VarID(varID), v.Block, BlockStart)
+				}
+				state.changedVars.clear()
+			}
+		}
+
+		// Now examine the block again, handling things other than the
+		// "begins at block start" lifetimes.
 		zeroWidthPending := false
-		blockPrologComplete := false // set to true at first non-zero-width op
-		apcChangedSize := 0          // size of changedVars for leading Args, Phi, ClosurePtr
+		prologComplete := false
 		// expect to see values in pattern (apc)* (zerowidth|real)*
 		for _, v := range b.Values {
+			if blockPrologComplete(v) {
+				prologComplete = true
+			}
 			slots := state.valueNames[v.ID]
 			reg, _ := state.f.getHome(v.ID).(*Register)
 			changed := state.processValue(v, slots, reg) // changed == added to state.changedVars
 
 			if opcodeTable[v.Op].zeroWidth {
+				if prologComplete && mustBeFirst(v) {
+					panic(fmt.Errorf("Unexpected placement of op '%s' appearing after non-pseudo-op at beginning of block %s in %s\n%s", v.LongString(), b, b.Func.Name, b.Func))
+				}
 				if changed {
 					if mustBeFirst(v) || v.Op == OpArg {
-						// These ranges begin at true beginning of block, not after first instruction
-						if blockPrologComplete && mustBeFirst(v) {
-							panic(fmt.Errorf("Unexpected placement of op '%s' appearing after non-pseudo-op at beginning of block %s in %s\n%s", v.LongString(), b, b.Func.Name, b.Func))
-						}
-						apcChangedSize = len(state.changedVars.contents())
-						// Other zero-width ops must wait on a "real" op.
-						zeroWidthPending = true
+						// already taken care of above
 						continue
 					}
+					zeroWidthPending = true
 				}
 				continue
 			}
-
 			if !changed && !zeroWidthPending {
 				continue
 			}
-			// Not zero-width; i.e., a "real" instruction.
 
+			// Not zero-width; i.e., a "real" instruction.
 			zeroWidthPending = false
-			blockPrologComplete = true
-			for i, varID := range state.changedVars.contents() {
-				if i < apcChangedSize { // buffered true start-of-block changes
-					state.updateVar(VarID(varID), v.Block, BlockStart)
-				} else {
-					state.updateVar(VarID(varID), v.Block, v)
-				}
+			for _, varID := range state.changedVars.contents() {
+				state.updateVar(VarID(varID), v.Block, v)
 			}
 			state.changedVars.clear()
-			apcChangedSize = 0
 		}
-		for i, varID := range state.changedVars.contents() {
-			if i < apcChangedSize { // buffered true start-of-block changes
-				state.updateVar(VarID(varID), b, BlockStart)
-			} else {
-				state.updateVar(VarID(varID), b, BlockEnd)
-			}
+		for _, varID := range state.changedVars.contents() {
+			state.updateVar(VarID(varID), b, BlockEnd)
 		}
 
 		prevBlock = b
