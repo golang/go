@@ -148,8 +148,8 @@ func makeErrorInterface() *Type {
 	return NewInterface(NoPkg, []*Field{method}, false)
 }
 
+// makeComparableInterface makes the the predefined "comparable" interface in the
+// built-in package. It has a unique name, but no methods.
 func makeComparableInterface() *Type {
-	sig := NewSignature(NoPkg, FakeRecv(), nil, nil, nil)
-	method := NewField(src.NoXPos, LocalPkg.Lookup("=="), sig)
-	return NewInterface(NoPkg, []*Field{method}, false)
+	return NewInterface(NoPkg, nil, false)
 }

@@ -1304,12 +1304,6 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
 				break
 			}
 		}
-		if sigs[0].Sym.Name == "==" {
-			sigs = sigs[1:]
-			if len(sigs) == 0 {
-				break
-			}
-		}
 	}
 	if len(sigs) != 0 {
 		base.Fatalf("incomplete itab")
