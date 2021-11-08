@@ -85,7 +85,7 @@ func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve, p224, p521); ok {
+	if specific, ok := matchesSpecificCurve(curve, p224, p384, p521); ok {
 		return specific.IsOnCurve(x, y)
 	}
 
@@ -128,7 +128,7 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
 func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve, p224, p521); ok {
+	if specific, ok := matchesSpecificCurve(curve, p224, p384, p521); ok {
 		return specific.Add(x1, y1, x2, y2)
 	}
 
@@ -218,7 +218,7 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
 func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve, p224, p521); ok {
+	if specific, ok := matchesSpecificCurve(curve, p224, p384, p521); ok {
 		return specific.Double(x1, y1)
 	}
 
@@ -290,7 +290,7 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve, p224, p256, p521); ok {
+	if specific, ok := matchesSpecificCurve(curve, p224, p256, p384, p521); ok {
 		return specific.ScalarMult(Bx, By, k)
 	}
 
@@ -313,7 +313,7 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
 func (curve *CurveParams) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve, p224, p256, p521); ok {
+	if specific, ok := matchesSpecificCurve(curve, p224, p256, p384, p521); ok {
 		return specific.ScalarBaseMult(k)
 	}
 
@@ -431,7 +431,6 @@ func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
 }
 
 var initonce sync.Once
-var p384 *CurveParams
 
 func initAll() {
 	initP224()
@@ -440,15 +439,16 @@ func initAll() {
 	initP521()
 }
 
-func initP384() {
-	// See FIPS 186-3, section D.2.4
-	p384 = &CurveParams{Name: "P-384"}
-	p384.P, _ = new(big.Int).SetString("39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319", 10)
-	p384.N, _ = new(big.Int).SetString("39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643", 10)
-	p384.B, _ = new(big.Int).SetString("b3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aef", 16)
-	p384.Gx, _ = new(big.Int).SetString("aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7", 16)
-	p384.Gy, _ = new(big.Int).SetString("3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f", 16)
-	p384.BitSize = 384
+// P224 returns a Curve which implements NIST P-224 (FIPS 186-3, section D.2.2),
+// also known as secp224r1. The CurveParams.Name of this Curve is "P-224".
+//
+// Multiple invocations of this function will return the same value, so it can
+// be used for equality checks and switch statements.
+//
+// The cryptographic operations are implemented using constant-time algorithms.
+func P224() Curve {
+	initonce.Do(initAll)
+	return p224
 }
 
 // P256 returns a Curve which implements NIST P-256 (FIPS 186-3, section D.2.3),
@@ -470,7 +470,7 @@ func P256() Curve {
 // Multiple invocations of this function will return the same value, so it can
 // be used for equality checks and switch statements.
 //
-// The cryptographic operations do not use constant-time algorithms.
+// The cryptographic operations are implemented using constant-time algorithms.
 func P384() Curve {
 	initonce.Do(initAll)
 	return p384

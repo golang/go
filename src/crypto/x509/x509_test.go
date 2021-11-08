@@ -585,10 +585,10 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		checkSig  bool
 		sigAlgo   SignatureAlgorithm
 	}{
-		{"RSA/RSA", &testPrivateKey.PublicKey, testPrivateKey, true, SHA1WithRSA},
+		{"RSA/RSA", &testPrivateKey.PublicKey, testPrivateKey, true, SHA384WithRSA},
 		{"RSA/ECDSA", &testPrivateKey.PublicKey, ecdsaPriv, false, ECDSAWithSHA384},
 		{"ECDSA/RSA", &ecdsaPriv.PublicKey, testPrivateKey, false, SHA256WithRSA},
-		{"ECDSA/ECDSA", &ecdsaPriv.PublicKey, ecdsaPriv, true, ECDSAWithSHA1},
+		{"ECDSA/ECDSA", &ecdsaPriv.PublicKey, ecdsaPriv, true, ECDSAWithSHA256},
 		{"RSAPSS/RSAPSS", &testPrivateKey.PublicKey, testPrivateKey, true, SHA256WithRSAPSS},
 		{"ECDSA/RSAPSS", &ecdsaPriv.PublicKey, testPrivateKey, false, SHA256WithRSAPSS},
 		{"RSAPSS/ECDSA", &testPrivateKey.PublicKey, ecdsaPriv, false, ECDSAWithSHA384},
@@ -886,7 +886,6 @@ var ecdsaTests = []struct {
 	sigAlgo SignatureAlgorithm
 	pemCert string
 }{
-	{ECDSAWithSHA1, ecdsaSHA1CertPem},
 	{ECDSAWithSHA256, ecdsaSHA256p256CertPem},
 	{ECDSAWithSHA256, ecdsaSHA256p384CertPem},
 	{ECDSAWithSHA384, ecdsaSHA384p521CertPem},
@@ -1389,10 +1388,10 @@ func TestCreateCertificateRequest(t *testing.T) {
 		priv    interface{}
 		sigAlgo SignatureAlgorithm
 	}{
-		{"RSA", testPrivateKey, SHA1WithRSA},
-		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA1},
-		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA1},
-		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA1},
+		{"RSA", testPrivateKey, SHA256WithRSA},
+		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA256},
+		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA256},
+		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA256},
 		{"Ed25519", ed25519Priv, PureEd25519},
 	}
 
@@ -1783,6 +1782,9 @@ func TestInsecureAlgorithmErrorString(t *testing.T) {
 		sa   SignatureAlgorithm
 		want string
 	}{
+		{MD5WithRSA, "x509: cannot verify signature: insecure algorithm MD5-RSA"},
+		{SHA1WithRSA, "x509: cannot verify signature: insecure algorithm SHA1-RSA (temporarily override with GODEBUG=x509sha1=1)"},
+		{ECDSAWithSHA1, "x509: cannot verify signature: insecure algorithm ECDSA-SHA1 (temporarily override with GODEBUG=x509sha1=1)"},
 		{MD2WithRSA, "x509: cannot verify signature: insecure algorithm MD2-RSA"},
 		{-1, "x509: cannot verify signature: insecure algorithm -1"},
 		{0, "x509: cannot verify signature: insecure algorithm 0"},
@@ -1843,6 +1845,30 @@ func TestMD5(t *testing.T) {
 	}
 	if _, ok := err.(InsecureAlgorithmError); !ok {
 		t.Fatalf("certificate verification returned %v (%T), wanted InsecureAlgorithmError", err, err)
+	}
+}
+
+func TestSHA1(t *testing.T) {
+	pemBlock, _ := pem.Decode([]byte(ecdsaSHA1CertPem))
+	cert, err := ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %s", err)
+	}
+	if sa := cert.SignatureAlgorithm; sa != ECDSAWithSHA1 {
+		t.Errorf("signature algorithm is %v, want %v", sa, ECDSAWithSHA1)
+	}
+	if err = cert.CheckSignatureFrom(cert); err == nil {
+		t.Fatalf("certificate verification succeeded incorrectly")
+	}
+	if _, ok := err.(InsecureAlgorithmError); !ok {
+		t.Fatalf("certificate verification returned %v (%T), wanted InsecureAlgorithmError", err, err)
+	}
+
+	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
+	debugAllowSHA1 = true
+
+	if err = cert.CheckSignatureFrom(cert); err != nil {
+		t.Fatalf("SHA-1 certificate did not verify with GODEBUG=x509sha1=1: %v", err)
 	}
 }
 
@@ -2897,19 +2923,31 @@ func TestCreateCertificateBrokenSigner(t *testing.T) {
 	}
 }
 
-func TestCreateCertificateMD5(t *testing.T) {
-	template := &Certificate{
-		SerialNumber:       big.NewInt(10),
-		DNSNames:           []string{"example.com"},
-		SignatureAlgorithm: MD5WithRSA,
-	}
-	k, err := rsa.GenerateKey(rand.Reader, 1024)
+func TestCreateCertificateLegacy(t *testing.T) {
+	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		t.Fatalf("failed to generate test key: %s", err)
+		t.Fatalf("Failed to generate ECDSA key: %s", err)
 	}
-	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
-	if err != nil {
-		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = MD5WithRSA: %s", err)
+
+	for _, sigAlg := range []SignatureAlgorithm{
+		MD5WithRSA, SHA1WithRSA, ECDSAWithSHA1,
+	} {
+		template := &Certificate{
+			SerialNumber:       big.NewInt(10),
+			DNSNames:           []string{"example.com"},
+			SignatureAlgorithm: sigAlg,
+		}
+		var k crypto.Signer
+		switch sigAlg {
+		case MD5WithRSA, SHA1WithRSA:
+			k = testPrivateKey
+		case ECDSAWithSHA1:
+			k = ecdsaPriv
+		}
+		_, err := CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+		if err != nil {
+			t.Fatalf("CreateCertificate failed when SignatureAlgorithm = %v: %s", sigAlg, err)
+		}
 	}
 }
 
@@ -3131,7 +3169,6 @@ func TestParseCertificateRawEquals(t *testing.T) {
 	if !bytes.Equal(p.Bytes, cert.Raw) {
 		t.Fatalf("unexpected Certificate.Raw\ngot: %x\nwant: %x\n", cert.Raw, p.Bytes)
 	}
-	fmt.Printf("in:  %x\nout: %x\n", p.Bytes, cert.Raw)
 }
 
 // mismatchingSigAlgIDPEM contains a certificate where the Certificate

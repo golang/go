@@ -225,7 +225,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "buildmode=c-shared"
 	case BuildModePIE:
 		switch buildcfg.GOOS + "/" + buildcfg.GOARCH {
-		case "linux/amd64", "linux/arm64", "android/arm64":
+		case "android/arm64":
+		case "linux/amd64", "linux/arm64", "linux/ppc64le":
 		case "windows/386", "windows/amd64", "windows/arm", "windows/arm64":
 		case "darwin/amd64", "darwin/arm64":
 		default:

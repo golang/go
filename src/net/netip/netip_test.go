@@ -29,9 +29,10 @@ var (
 
 func TestParseAddr(t *testing.T) {
 	var validIPs = []struct {
-		in  string
-		ip  Addr   // output of ParseAddr()
-		str string // output of String(). If "", use in.
+		in      string
+		ip      Addr   // output of ParseAddr()
+		str     string // output of String(). If "", use in.
+		wantErr string
 	}{
 		// Basic zero IPv4 address.
 		{
@@ -45,15 +46,18 @@ func TestParseAddr(t *testing.T) {
 		},
 		// IPv4 address in windows-style "print all the digits" form.
 		{
-			in:  "010.000.015.001",
-			ip:  MkAddr(Mk128(0, 0xffff0a000f01), Z4),
-			str: "10.0.15.1",
+			in:      "010.000.015.001",
+			wantErr: `ParseAddr("010.000.015.001"): IPv4 field has octet with leading zero`,
 		},
 		// IPv4 address with a silly amount of leading zeros.
 		{
-			in:  "000001.00000002.00000003.000000004",
-			ip:  MkAddr(Mk128(0, 0xffff01020304), Z4),
-			str: "1.2.3.4",
+			in:      "000001.00000002.00000003.000000004",
+			wantErr: `ParseAddr("000001.00000002.00000003.000000004"): IPv4 field has octet with leading zero`,
+		},
+		// 4-in-6 with octet with leading zero
+		{
+			in:      "::ffff:1.2.03.4",
+			wantErr: `ParseAddr("::ffff:1.2.03.4"): ParseAddr("1.2.03.4"): IPv4 field has octet with leading zero (at "1.2.03.4")`,
 		},
 		// Basic zero IPv6 address.
 		{
@@ -121,10 +125,16 @@ func TestParseAddr(t *testing.T) {
 		t.Run(test.in, func(t *testing.T) {
 			got, err := ParseAddr(test.in)
 			if err != nil {
+				if err.Error() == test.wantErr {
+					return
+				}
 				t.Fatal(err)
 			}
+			if test.wantErr != "" {
+				t.Fatalf("wanted error %q; got none", test.wantErr)
+			}
 			if got != test.ip {
-				t.Errorf("ParseAddr(%q) got %#v, want %#v", test.in, got, test.ip)
+				t.Errorf("got %#v, want %#v", got, test.ip)
 			}
 
 			// Check that ParseAddr is a pure function.
@@ -963,7 +973,7 @@ func TestIs4In6(t *testing.T) {
 		{mustIP("::ffff:192.0.2.128"), true, mustIP("192.0.2.128")},
 		{mustIP("::ffff:192.0.2.128%eth0"), true, mustIP("192.0.2.128")},
 		{mustIP("::fffe:c000:0280"), false, mustIP("::fffe:c000:0280")},
-		{mustIP("::ffff:127.001.002.003"), true, mustIP("127.1.2.3")},
+		{mustIP("::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("::ffff:7f01:0203"), true, mustIP("127.1.2.3")},
 		{mustIP("0:0:0:0:0000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("0:0:0:0:000000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
@@ -1794,5 +1804,14 @@ func TestInvalidAddrPortString(t *testing.T) {
 		if got := tt.ipp.String(); got != tt.want {
 			t.Errorf("(%#v).String() = %q want %q", tt.ipp, got, tt.want)
 		}
+	}
+}
+
+var sink16 [16]byte
+
+func BenchmarkAs16(b *testing.B) {
+	addr := MustParseAddr("1::10")
+	for i := 0; i < b.N; i++ {
+		sink16 = addr.As16()
 	}
 }

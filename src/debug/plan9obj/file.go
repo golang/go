@@ -301,11 +301,15 @@ func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
 	return syms, nil
 }
 
+// ErrNoSymbols is returned by File.Symbols if there is no such section
+// in the File.
+var ErrNoSymbols = errors.New("no symbol section")
+
 // Symbols returns the symbol table for f.
 func (f *File) Symbols() ([]Sym, error) {
 	symtabSection := f.Section("syms")
 	if symtabSection == nil {
-		return nil, errors.New("no symbol section")
+		return nil, ErrNoSymbols
 	}
 
 	symtab, err := symtabSection.Data()

@@ -58,7 +58,11 @@ func NewP521Point() *P521Point {
 
 // NewP521Generator returns a new P521Point set to the canonical generator.
 func NewP521Generator() *P521Point {
-	return NewP521Point().Set(p521G)
+	return (&P521Point{
+		x: new(fiat.P521Element),
+		y: new(fiat.P521Element),
+		z: new(fiat.P521Element),
+	}).Set(p521G)
 }
 
 // Set sets p = q and returns p.

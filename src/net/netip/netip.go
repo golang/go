@@ -155,9 +155,14 @@ func (err parseAddrError) Error() string {
 func parseIPv4(s string) (ip Addr, err error) {
 	var fields [4]uint8
 	var val, pos int
+	var digLen int // number of digits in current octet
 	for i := 0; i < len(s); i++ {
 		if s[i] >= '0' && s[i] <= '9' {
+			if digLen == 1 && val == 0 {
+				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has octet with leading zero"}
+			}
 			val = val*10 + int(s[i]) - '0'
+			digLen++
 			if val > 255 {
 				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has value >255"}
 			}
@@ -175,6 +180,7 @@ func parseIPv4(s string) (ip Addr, err error) {
 			fields[pos] = uint8(val)
 			pos++
 			val = 0
+			digLen = 0
 		} else {
 			return Addr{}, parseAddrError{in: s, msg: "unexpected character", at: s[i:]}
 		}
@@ -692,21 +698,19 @@ const (
 // IPv6 addresses with zones are returned without their zone (use the
 // Zone method to get it).
 // The ip zero value returns all zeroes.
-func (ip Addr) As16() [16]byte {
-	var ret [16]byte
-	bePutUint64(ret[:8], ip.addr.hi)
-	bePutUint64(ret[8:], ip.addr.lo)
-	return ret
+func (ip Addr) As16() (a16 [16]byte) {
+	bePutUint64(a16[:8], ip.addr.hi)
+	bePutUint64(a16[8:], ip.addr.lo)
+	return a16
 }
 
 // As4 returns an IPv4 or IPv4-in-IPv6 address in its 4-byte representation.
 // If ip is the zero Addr or an IPv6 address, As4 panics.
 // Note that 0.0.0.0 is not the zero Addr.
-func (ip Addr) As4() [4]byte {
+func (ip Addr) As4() (a4 [4]byte) {
 	if ip.z == z4 || ip.Is4In6() {
-		var ret [4]byte
-		bePutUint32(ret[:], uint32(ip.addr.lo))
-		return ret
+		bePutUint32(a4[:], uint32(ip.addr.lo))
+		return a4
 	}
 	if ip.z == z0 {
 		panic("As4 called on IP zero value")

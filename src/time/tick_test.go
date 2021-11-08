@@ -134,6 +134,17 @@ func TestNewTickerLtZeroDuration(t *testing.T) {
 	NewTicker(-1)
 }
 
+// Test that Ticker.Reset panics when given a duration less than zero.
+func TestTickerResetLtZeroDuration(t *testing.T) {
+	defer func() {
+		if err := recover(); err == nil {
+			t.Errorf("Ticker.Reset(0) should have panicked")
+		}
+	}()
+	tk := NewTicker(Second)
+	tk.Reset(0)
+}
+
 func BenchmarkTicker(b *testing.B) {
 	benchmark(b, func(n int) {
 		ticker := NewTicker(Nanosecond)
