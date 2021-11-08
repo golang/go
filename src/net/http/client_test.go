@@ -1368,6 +1368,33 @@ func TestClientTimeoutCancel(t *testing.T) {
 	}
 }
 
+func TestClientTimeoutDoesNotExpire_h1(t *testing.T) { testClientTimeoutDoesNotExpire(t, h1Mode) }
+func TestClientTimeoutDoesNotExpire_h2(t *testing.T) { testClientTimeoutDoesNotExpire(t, h2Mode) }
+
+// Issue 49366: if Client.Timeout is set but not hit, no error should be returned.
+func testClientTimeoutDoesNotExpire(t *testing.T, h2 bool) {
+	setParallel(t)
+	defer afterTest(t)
+
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("body"))
+	}))
+	defer cst.close()
+
+	cst.c.Timeout = 1 * time.Hour
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = io.Copy(io.Discard, res.Body); err != nil {
+		t.Fatalf("io.Copy(io.Discard, res.Body) = %v, want nil", err)
+	}
+	if err = res.Body.Close(); err != nil {
+		t.Fatalf("res.Body.Close() = %v, want nil", err)
+	}
+}
+
 func TestClientRedirectEatsBody_h1(t *testing.T) { testClientRedirectEatsBody(t, h1Mode) }
 func TestClientRedirectEatsBody_h2(t *testing.T) { testClientRedirectEatsBody(t, h2Mode) }
 func testClientRedirectEatsBody(t *testing.T, h2 bool) {
