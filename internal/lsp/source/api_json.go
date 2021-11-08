@@ -45,6 +45,32 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy:  "build",
 			},
 			{
+				Name: "templateSupport",
+				Type: "bool",
+				Doc:  "templateSupport can be used to turn off support for template files.\n",
+				EnumKeys: EnumKeys{
+					ValueType: "",
+					Keys:      nil,
+				},
+				EnumValues: nil,
+				Default:    "true",
+				Status:     "",
+				Hierarchy:  "build",
+			},
+			{
+				Name: "templateExtensions",
+				Type: "[]string",
+				Doc:  "templateExtensions gives the extensions of file names that are treateed\nas template files. (The extension\nis the part of the file name after the final dot.)\n",
+				EnumKeys: EnumKeys{
+					ValueType: "",
+					Keys:      nil,
+				},
+				EnumValues: nil,
+				Default:    "[\"tmpl\",\"gotmpl\"]",
+				Status:     "",
+				Hierarchy:  "build",
+			},
+			{
 				Name: "memoryMode",
 				Type: "enum",
 				Doc:  "memoryMode controls the tradeoff `gopls` makes between memory usage and\ncorrectness.\n\nValues other than `Normal` are untested and may break in surprising ways.\n",
@@ -83,19 +109,6 @@ var GeneratedAPIJSON = &APIJSON{
 				Name: "experimentalWorkspaceModule",
 				Type: "bool",
 				Doc:  "experimentalWorkspaceModule opts a user into the experimental support\nfor multi-module workspaces.\n",
-				EnumKeys: EnumKeys{
-					ValueType: "",
-					Keys:      nil,
-				},
-				EnumValues: nil,
-				Default:    "false",
-				Status:     "experimental",
-				Hierarchy:  "build",
-			},
-			{
-				Name: "experimentalTemplateSupport",
-				Type: "bool",
-				Doc:  "experimentalTemplateSupport opts into the experimental support\nfor template files.\n",
 				EnumKeys: EnumKeys{
 					ValueType: "",
 					Keys:      nil,

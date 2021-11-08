@@ -332,10 +332,25 @@ func (s *snapshot) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Optio
 	return s.view.importsState.runProcessEnvFunc(ctx, s, fn)
 }
 
+// separated out from its sole use in locateTemplatFiles for testability
+func fileHasExtension(path string, suffixes []string) bool {
+	ext := filepath.Ext(path)
+	if ext != "" && ext[0] == '.' {
+		ext = ext[1:]
+	}
+	for _, s := range suffixes {
+		if s != "" && ext == s {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *snapshot) locateTemplateFiles(ctx context.Context) {
-	if !s.view.Options().ExperimentalTemplateSupport {
+	if !s.view.Options().TemplateSupport {
 		return
 	}
+	suffixes := s.view.Options().TemplateExtensions
 	dir := s.workspace.root.Filename()
 	searched := 0
 	// Change to WalkDir when we move up to 1.16
@@ -343,7 +358,7 @@ func (s *snapshot) locateTemplateFiles(ctx context.Context) {
 		if err != nil {
 			return err
 		}
-		if strings.HasSuffix(filepath.Ext(path), "tmpl") && !pathExcludedByFilter(path, dir, s.view.gomodcache, s.view.options) &&
+		if fileHasExtension(path, suffixes) && !pathExcludedByFilter(path, dir, s.view.gomodcache, s.view.options) &&
 			!fi.IsDir() {
 			k := span.URIFromPath(path)
 			fh, err := s.GetVersionedFile(ctx, k)

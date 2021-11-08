@@ -72,6 +72,20 @@ Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-pro
 
 Default: `["-node_modules"]`.
 
+#### **templateSupport** *bool*
+
+templateSupport can be used to turn off support for template files.
+
+Default: `true`.
+
+#### **templateExtensions** *[]string*
+
+templateExtensions gives the extensions of file names that are treateed
+as template files. (The extension
+is the part of the file name after the final dot.)
+
+Default: `["tmpl","gotmpl"]`.
+
 #### **memoryMode** *enum*
 
 **This setting is experimental and may be deleted.**
@@ -109,15 +123,6 @@ Default: `true`.
 
 experimentalWorkspaceModule opts a user into the experimental support
 for multi-module workspaces.
-
-Default: `false`.
-
-#### **experimentalTemplateSupport** *bool*
-
-**This setting is experimental and may be deleted.**
-
-experimentalTemplateSupport opts into the experimental support
-for template files.
 
 Default: `false`.
 

@@ -114,6 +114,8 @@ func DefaultOptions() *Options {
 					ExperimentalPackageCacheKey: true,
 					MemoryMode:                  ModeNormal,
 					DirectoryFilters:            []string{"-node_modules"},
+					TemplateSupport:             true,
+					TemplateExtensions:          []string{"tmpl", "gotmpl"},
 				},
 				UIOptions: UIOptions{
 					DiagnosticOptions: DiagnosticOptions{
@@ -231,6 +233,14 @@ type BuildOptions struct {
 	// Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
 	DirectoryFilters []string
 
+	// TemplateSupport can be used to turn off support for template files.
+	TemplateSupport bool
+
+	// TemplateExtensions gives the extensions of file names that are treateed
+	// as template files. (The extension
+	// is the part of the file name after the final dot.)
+	TemplateExtensions []string
+
 	// MemoryMode controls the tradeoff `gopls` makes between memory usage and
 	// correctness.
 	//
@@ -248,10 +258,6 @@ type BuildOptions struct {
 	// ExperimentalWorkspaceModule opts a user into the experimental support
 	// for multi-module workspaces.
 	ExperimentalWorkspaceModule bool `status:"experimental"`
-
-	// ExperimentalTemplateSupport opts into the experimental support
-	// for template files.
-	ExperimentalTemplateSupport bool `status:"experimental"`
 
 	// ExperimentalPackageCacheKey controls whether to use a coarser cache key
 	// for package type information to increase cache hits. This setting removes
@@ -747,7 +753,6 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer, enabled bool, sev
 func (o *Options) EnableAllExperiments() {
 	o.SemanticTokens = true
 	o.ExperimentalPostfixCompletions = true
-	o.ExperimentalTemplateSupport = true
 	o.ExperimentalUseInvalidMetadata = true
 	o.ExperimentalWatchedFileDelay = 50 * time.Millisecond
 }
@@ -935,8 +940,21 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "experimentalWorkspaceModule":
 		result.setBool(&o.ExperimentalWorkspaceModule)
 
-	case "experimentalTemplateSupport":
-		result.setBool(&o.ExperimentalTemplateSupport)
+	case "experimentalTemplateSupport", // remove after June 2022
+		"templateSupport":
+		if name == "experimentalTemplateSupport" {
+			result.State = OptionDeprecated
+			result.Replacement = "templateSupport"
+		}
+		result.setBool(&o.TemplateSupport)
+
+	case "templateExtensions":
+		iexts, ok := value.([]string)
+		if !ok {
+			result.errorf("invalid type %T, expect []string", value)
+			break
+		}
+		o.TemplateExtensions = iexts
 
 	case "experimentalDiagnosticsDelay", "diagnosticsDelay":
 		if name == "experimentalDiagnosticsDelay" {

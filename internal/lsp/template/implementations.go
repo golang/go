@@ -66,7 +66,7 @@ func Diagnose(f source.VersionedFileHandle) []*source.Diagnostic {
 }
 
 func skipTemplates(s source.Snapshot) bool {
-	return !s.View().Options().ExperimentalTemplateSupport
+	return !s.View().Options().TemplateSupport
 }
 
 // Definition finds the definitions of the symbol at loc. It

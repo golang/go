@@ -172,3 +172,44 @@ func TestFilters(t *testing.T) {
 		}
 	}
 }
+
+func TestSuffixes(t *testing.T) {
+	type file struct {
+		path string
+		want bool
+	}
+	type cases struct {
+		option []string
+		files  []file
+	}
+	tests := []cases{
+		{[]string{"tmpl", "gotmpl"}, []file{ // default
+			{"foo", false},
+			{"foo.tmpl", true},
+			{"foo.gotmpl", true},
+			{"tmpl", false},
+			{"tmpl.go", false}},
+		},
+		{[]string{"tmpl", "gotmpl", "html", "gohtml"}, []file{
+			{"foo.gotmpl", true},
+			{"foo.html", true},
+			{"foo.gohtml", true},
+			{"html", false}},
+		},
+		{[]string{"tmpl", "gotmpl", ""}, []file{ // possible user mistake
+			{"foo.gotmpl", true},
+			{"foo.go", false},
+			{"foo", false}},
+		},
+	}
+	for _, a := range tests {
+		suffixes := a.option
+		for _, b := range a.files {
+			got := fileHasExtension(b.path, suffixes)
+			if got != b.want {
+				t.Errorf("got %v, want %v, option %q, file %q (%+v)",
+					got, b.want, a.option, b.path, b)
+			}
+		}
+	}
+}
