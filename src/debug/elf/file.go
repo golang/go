@@ -102,9 +102,7 @@ type Section struct {
 // Even if the section is stored compressed in the ELF file,
 // Data returns uncompressed data.
 func (s *Section) Data() ([]byte, error) {
-	dat := make([]byte, s.Size)
-	n, err := io.ReadFull(s.Open(), dat)
-	return dat[0:n], err
+	return io.ReadAll(s.Open())
 }
 
 // stringTable reads and returns the string table given by the
