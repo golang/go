@@ -3958,11 +3958,16 @@ func TestMaxIdleTime(t *testing.T) {
 		{
 			// Want to close some connections via max idle time and one by max lifetime.
 			time.Millisecond,
+			// nowFunc() - MaxLifetime should be 1 * time.Nanosecond in connectionCleanerRunLocked.
+			// This guarantees that first opened connection is to be closed.
+			// Thus it is timeOffset + secondTimeOffset + 3 (+2 for Close while reusing conns and +1 for Conn).
 			10*time.Millisecond + 100*time.Nanosecond + 3*time.Nanosecond,
 			time.Nanosecond,
+			// Closed all not reused connections and extra one by max lifetime.
 			int64(usedConns - reusedConns + 1),
 			int64(usedConns - reusedConns),
 			10 * time.Millisecond,
+			// Add second offset because otherwise connections are expired via max lifetime in Close.
 			100 * time.Nanosecond,
 		},
 		{
@@ -3994,9 +3999,9 @@ func TestMaxIdleTime(t *testing.T) {
 			preMaxIdleClosed := db.Stats().MaxIdleTimeClosed
 
 			// Busy usedConns.
-			tm := testUseConns(t, usedConns, baseTime, db)
+			testUseConns(t, usedConns, baseTime, db)
 
-			tm = baseTime.Add(item.timeOffset)
+			tm := baseTime.Add(item.timeOffset)
 
 			// Reuse connections which should never be considered idle
 			// and exercises the sorting for issue 39471.
