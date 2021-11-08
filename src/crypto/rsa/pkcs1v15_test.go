@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"io"
@@ -274,8 +275,8 @@ func TestShortSessionKey(t *testing.T) {
 	}
 }
 
-// In order to generate new test vectors you'll need the PEM form of this key:
-// -----BEGIN RSA PRIVATE KEY-----
+// In order to generate new test vectors you'll need the PEM form of this key (and s/TESTING/PRIVATE/):
+// -----BEGIN RSA TESTING KEY-----
 // MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
 // fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
 // /ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
@@ -283,7 +284,7 @@ func TestShortSessionKey(t *testing.T) {
 // EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
 // IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
 // tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
-// -----END RSA PRIVATE KEY-----
+// -----END RSA TESTING KEY-----
 
 var rsaPrivateKey = &PrivateKey{
 	PublicKey: PublicKey{
@@ -295,4 +296,21 @@ var rsaPrivateKey = &PrivateKey{
 		fromBase10("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
 		fromBase10("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
 	},
+}
+
+func TestShortPKCS1v15Signature(t *testing.T) {
+	pub := &PublicKey{
+		E: 65537,
+		N: fromBase10("8272693557323587081220342447407965471608219912416565371060697606400726784709760494166080686904546560026343451112103559482851304715739629410219358933351333"),
+	}
+	sig, err := hex.DecodeString("193a310d0dcf64094c6e3a00c8219b80ded70535473acff72c08e1222974bb24a93a535b1dc4c59fc0e65775df7ba2007dd20e9193f4c4025a18a7070aee93")
+	if err != nil {
+		t.Fatalf("failed to decode signature: %s", err)
+	}
+
+	h := sha256.Sum256([]byte("hello"))
+	err = VerifyPKCS1v15(pub, crypto.SHA256, h[:], sig)
+	if err == nil {
+		t.Fatal("VerifyPKCS1v15 accepted a truncated signature")
+	}
 }

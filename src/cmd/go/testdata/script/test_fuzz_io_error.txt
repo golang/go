@@ -1,0 +1,101 @@
+# Test that when the coordinator experiences an I/O error communicating
+# with a worker, the coordinator stops the worker and reports the error.
+# The coordinator should not record a crasher.
+#
+# We simulate an I/O error in the test by writing garbage to fuzz_out.
+# This is unlikely, but possible. It's difficult to simulate interruptions
+# due to ^C and EOF errors which are more common. We don't report those.
+[short] skip
+[!fuzz] skip
+
+# If the I/O error occurs before F.Fuzz is called, the coordinator should
+# stop the worker and say that.
+! go test -fuzz=FuzzClosePipeBefore -parallel=1
+stdout '\s*fuzzing process terminated without fuzzing:'
+! stdout 'communicating with fuzzing process'
+! exists testdata
+
+# If the I/O error occurs after F.Fuzz is called (unlikely), just exit.
+# It's hard to distinguish this case from the worker being interrupted by ^C
+# or exiting with status 0 (which it should do when interrupted by ^C).
+! go test -fuzz=FuzzClosePipeAfter -parallel=1
+stdout '^\s*communicating with fuzzing process: invalid character ''!'' looking for beginning of value$'
+! exists testdata
+
+-- go.mod --
+module test
+
+go 1.17
+-- io_error_test.go --
+package io_error
+
+import (
+	"flag"
+	"testing"
+	"time"
+)
+
+func isWorker() bool {
+	f := flag.Lookup("test.fuzzworker")
+	if f == nil {
+		return false
+	}
+	get, ok := f.Value.(flag.Getter)
+	if !ok {
+		return false
+	}
+	return get.Get() == interface{}(true)
+}
+
+func FuzzClosePipeBefore(f *testing.F) {
+	if isWorker() {
+		sendGarbageToCoordinator(f)
+		time.Sleep(3600 * time.Second) // pause until coordinator terminates the process
+	}
+	f.Fuzz(func(*testing.T, []byte) {})
+}
+
+func FuzzClosePipeAfter(f *testing.F) {
+	f.Fuzz(func(t *testing.T, _ []byte) {
+		if isWorker() {
+			sendGarbageToCoordinator(t)
+			time.Sleep(3600 * time.Second) // pause until coordinator terminates the process
+		}
+	})
+}
+-- io_error_windows_test.go --
+package io_error
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+func sendGarbageToCoordinator(tb testing.TB) {
+	v := os.Getenv("GO_TEST_FUZZ_WORKER_HANDLES")
+	var fuzzInFD, fuzzOutFD uintptr
+	if _, err := fmt.Sscanf(v, "%x,%x", &fuzzInFD, &fuzzOutFD); err != nil {
+		tb.Fatalf("parsing GO_TEST_FUZZ_WORKER_HANDLES: %v", err)
+	}
+	f := os.NewFile(fuzzOutFD, "fuzz_out")
+	if _, err := f.Write([]byte("!!")); err != nil {
+		tb.Fatalf("writing fuzz_out: %v", err)
+	}
+}
+-- io_error_notwindows_test.go --
+// +build !windows
+
+package io_error
+
+import (
+	"os"
+	"testing"
+)
+
+func sendGarbageToCoordinator(tb testing.TB) {
+	f := os.NewFile(4, "fuzz_out")
+	if _, err := f.Write([]byte("!!")); err != nil {
+		tb.Fatalf("writing fuzz_out: %v", err)
+	}
+}

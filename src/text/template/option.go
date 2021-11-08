@@ -51,13 +51,11 @@ func (t *Template) setOption(opt string) {
 	if opt == "" {
 		panic("empty option string")
 	}
-	elems := strings.Split(opt, "=")
-	switch len(elems) {
-	case 2:
-		// key=value
-		switch elems[0] {
+	// key=value
+	if key, value, ok := strings.Cut(opt, "="); ok {
+		switch key {
 		case "missingkey":
-			switch elems[1] {
+			switch value {
 			case "invalid", "default":
 				t.option.missingKey = mapInvalid
 				return

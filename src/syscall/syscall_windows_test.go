@@ -5,19 +5,18 @@
 package syscall_test
 
 import (
-	"io/ioutil"
+	"fmt"
+	"internal/testenv"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 )
 
 func TestWin32finddata(t *testing.T) {
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	path := filepath.Join(dir, "long_name.and_extension")
 	f, err := os.Create(path)
@@ -74,5 +73,77 @@ func ExampleLoadLibrary() {
 func TestTOKEN_ALL_ACCESS(t *testing.T) {
 	if syscall.TOKEN_ALL_ACCESS != 0xF01FF {
 		t.Errorf("TOKEN_ALL_ACCESS = %x, want 0xF01FF", syscall.TOKEN_ALL_ACCESS)
+	}
+}
+
+func TestStdioAreInheritable(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveExecPath(t, "gcc")
+
+	tmpdir := t.TempDir()
+
+	// build go dll
+	const dlltext = `
+package main
+
+import "C"
+import (
+	"fmt"
+)
+
+//export HelloWorld
+func HelloWorld() {
+	fmt.Println("Hello World")
+}
+
+func main() {}
+`
+	dllsrc := filepath.Join(tmpdir, "helloworld.go")
+	err := os.WriteFile(dllsrc, []byte(dlltext), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dll := filepath.Join(tmpdir, "helloworld.dll")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dll, "-buildmode", "c-shared", dllsrc)
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build go library: %s\n%s", err, out)
+	}
+
+	// build c exe
+	const exetext = `
+#include <stdlib.h>
+#include <windows.h>
+int main(int argc, char *argv[])
+{
+	system("hostname");
+	((void(*)(void))GetProcAddress(LoadLibraryA(%q), "HelloWorld"))();
+	system("hostname");
+	return 0;
+}
+`
+	exe := filepath.Join(tmpdir, "helloworld.exe")
+	cmd = exec.Command("gcc", "-o", exe, "-xc", "-")
+	cmd.Stdin = strings.NewReader(fmt.Sprintf(exetext, dll))
+	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build c executable: %s\n%s", err, out)
+	}
+	out, err = exec.Command(exe).CombinedOutput()
+	if err != nil {
+		t.Fatalf("c program execution failed: %v: %v", err, string(out))
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	have := strings.ReplaceAll(string(out), "\n", "")
+	have = strings.ReplaceAll(have, "\r", "")
+	want := fmt.Sprintf("%sHello World%s", hostname, hostname)
+	if have != want {
+		t.Fatalf("c program output is wrong: got %q, want %q", have, want)
 	}
 }

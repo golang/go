@@ -40,16 +40,17 @@ More intricate examples appear below.
 Text and spaces
 
 By default, all text between actions is copied verbatim when the template is
-executed. For example, the string " items are made of " in the example above appears
-on standard output when the program is run.
+executed. For example, the string " items are made of " in the example above
+appears on standard output when the program is run.
 
-However, to aid in formatting template source code, if an action's left delimiter
-(by default "{{") is followed immediately by a minus sign and ASCII space character
-("{{- "), all trailing white space is trimmed from the immediately preceding text.
-Similarly, if the right delimiter ("}}") is preceded by a space and minus sign
-(" -}}"), all leading white space is trimmed from the immediately following text.
-In these trim markers, the ASCII space must be present; "{{-3}}" parses as an
-action containing the number -3.
+However, to aid in formatting template source code, if an action's left
+delimiter (by default "{{") is followed immediately by a minus sign and white
+space, all trailing white space is trimmed from the immediately preceding text.
+Similarly, if the right delimiter ("}}") is preceded by white space and a minus
+sign, all leading white space is trimmed from the immediately following text.
+In these trim markers, the white space must be present:
+"{{- 3}}" is like "{{3}}" but trims the immediately preceding text, while
+"{{-3}}" parses as an action containing the number -3.
 
 For instance, when executing the template whose source is
 
@@ -102,14 +103,22 @@ data, defined in detail in the corresponding sections that follow.
 		If the value of the pipeline has length zero, nothing is output;
 		otherwise, dot is set to the successive elements of the array,
 		slice, or map and T1 is executed. If the value is a map and the
-		keys are of basic type with a defined order ("comparable"), the
-		elements will be visited in sorted key order.
+		keys are of basic type with a defined order, the elements will be
+		visited in sorted key order.
 
 	{{range pipeline}} T1 {{else}} T0 {{end}}
 		The value of the pipeline must be an array, slice, map, or channel.
 		If the value of the pipeline has length zero, dot is unaffected and
 		T0 is executed; otherwise, dot is set to the successive elements
 		of the array, slice, or map and T1 is executed.
+
+	{{break}}
+		The innermost {{range pipeline}} loop is ended early, stopping the
+		current iteration and bypassing all remaining iterations.
+
+	{{continue}}
+		The current iteration of the innermost {{range pipeline}} loop is
+		stopped, and the loop starts the next iteration.
 
 	{{template "name"}}
 		The template with the specified name is executed with nil data.
@@ -142,7 +151,9 @@ An argument is a simple value, denoted by one of the following.
 
 	- A boolean, string, character, integer, floating-point, imaginary
 	  or complex constant in Go syntax. These behave like Go's untyped
-	  constants.
+	  constants. Note that, as in Go, whether a large integer constant
+	  overflows when assigned or passed to a function can depend on whether
+	  the host machine's ints are 32 or 64 bits.
 	- The keyword nil, representing an untyped Go nil.
 	- The character '.' (period):
 		.
@@ -304,9 +315,10 @@ Predefined global functions are named as follows.
 
 	and
 		Returns the boolean AND of its arguments by returning the
-		first empty argument or the last argument, that is,
-		"and x y" behaves as "if x then y else x". All the
-		arguments are evaluated.
+		first empty argument or the last argument. That is,
+		"and x y" behaves as "if x then y else x."
+		Evaluation proceeds through the arguments left to right
+		and returns when the result is determined.
 	call
 		Returns the result of calling the first argument, which
 		must be a function, with the remaining arguments as parameters.
@@ -326,6 +338,11 @@ Predefined global functions are named as follows.
 		Returns the result of indexing its first argument by the
 		following arguments. Thus "index x 1 2 3" is, in Go syntax,
 		x[1][2][3]. Each indexed item must be a map, slice, or array.
+	slice
+		slice returns the result of slicing its first argument by the
+		remaining arguments. Thus "slice x 1 2" is, in Go syntax, x[1:2],
+		while "slice x" is x[:], "slice x 1" is x[1:], and "slice x 1 2 3"
+		is x[1:2:3]. The first argument must be a string, slice, or array.
 	js
 		Returns the escaped JavaScript equivalent of the textual
 		representation of its arguments.
@@ -336,8 +353,9 @@ Predefined global functions are named as follows.
 	or
 		Returns the boolean OR of its arguments by returning the
 		first non-empty argument or the last argument, that is,
-		"or x y" behaves as "if x then x else y". All the
-		arguments are evaluated.
+		"or x y" behaves as "if x then x else y".
+		Evaluation proceeds through the arguments left to right
+		and returns when the result is determined.
 	print
 		An alias for fmt.Sprint
 	printf
@@ -378,14 +396,12 @@ returning in effect
 (Unlike with || in Go, however, eq is a function call and all the
 arguments will be evaluated.)
 
-The comparison functions work on basic types only (or named basic
-types, such as "type Celsius float32"). They implement the Go rules
-for comparison of values, except that size and exact type are
-ignored, so any integer value, signed or unsigned, may be compared
-with any other integer value. (The arithmetic value is compared,
-not the bit pattern, so all negative integers are less than all
-unsigned integers.) However, as usual, one may not compare an int
-with a float32 and so on.
+The comparison functions work on any values whose type Go defines as
+comparable. For basic types such as integers, the rules are relaxed:
+size and exact type are ignored, so any integer value, signed or unsigned,
+may be compared with any other integer value. (The arithmetic value is compared,
+not the bit pattern, so all negative integers are less than all unsigned integers.)
+However, as usual, one may not compare an int with a float32 and so on.
 
 Associated templates
 

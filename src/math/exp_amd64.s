@@ -8,7 +8,7 @@
 // methods of elementary functions suitable for SIMD computation", Proc.
 // of International Supercomputing Conference 2010 (ISC'10), pp. 25 -- 32
 // (May 2010). The paper is available at
-// https://www.springerlink.com/content/340228x165742104/
+// https://link.springer.com/article/10.1007/s00450-010-0108-2
 //
 // The original code and the constants below are from the author's
 // implementation available at http://freshmeat.net/projects/sleef.
@@ -37,7 +37,7 @@ DATA exprodata<>+64(SB)/8, $2.4801587301587301587e-5
 GLOBL exprodata<>+0(SB), RODATA, $72
 
 // func Exp(x float64) float64
-TEXT ·Exp(SB),NOSPLIT,$0
+TEXT ·archExp(SB),NOSPLIT,$0
 	// test bits for not-finite
 	MOVQ    x+0(FP), BX
 	MOVQ    $~(1<<63), AX // sign bit mask

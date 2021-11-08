@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux
 // +build linux
 
 // This test is run by src/cmd/dist/test.go (cmd_go_test_terminal),
-// and not by cmd/go's tests. This is because this test requires that
+// and not by cmd/go's tests. This is because this test requires
 // that it be called with its stdout and stderr being a terminal.
 // dist doesn't run `cmd/go test` against this test directory if
 // dist's stdout/stderr aren't terminals.

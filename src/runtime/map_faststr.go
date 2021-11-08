@@ -5,14 +5,15 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
 func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc()
-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_faststr))
+		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_faststr))
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(&zeroVal[0])
@@ -26,26 +27,32 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		b := (*bmap)(h.buckets)
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
-			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
 				k := (*stringStruct)(kptr)
-				if k.len != key.len || b.tophash[i] == empty {
+				if k.len != key.len || isEmpty(b.tophash[i]) {
+					if b.tophash[i] == emptyRest {
+						break
+					}
 					continue
 				}
 				if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
-					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
 				}
 			}
 			return unsafe.Pointer(&zeroVal[0])
 		}
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
 			k := (*stringStruct)(kptr)
-			if k.len != key.len || b.tophash[i] == empty {
+			if k.len != key.len || isEmpty(b.tophash[i]) {
+				if b.tophash[i] == emptyRest {
+					break
+				}
 				continue
 			}
 			if k.str == key.str {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
 			}
 			// check first 4 bytes
 			if *((*[4]byte)(key.str)) != *((*[4]byte)(k.str)) {
@@ -62,15 +69,15 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 			keymaybe = i
 		}
 		if keymaybe != bucketCnt {
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*sys.PtrSize))
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*goarch.PtrSize))
 			if memequal(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+keymaybe*uintptr(t.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+keymaybe*uintptr(t.elemsize))
 			}
 		}
 		return unsafe.Pointer(&zeroVal[0])
 	}
 dohash:
-	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+	hash := t.hasher(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
 	m := bucketMask(h.B)
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -85,13 +92,13 @@ dohash:
 	}
 	top := tophash(hash)
 	for ; b != nil; b = b.overflow(t) {
-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
 			k := (*stringStruct)(kptr)
 			if k.len != key.len || b.tophash[i] != top {
 				continue
 			}
 			if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
 			}
 		}
 	}
@@ -101,7 +108,7 @@ dohash:
 func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc()
-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_faststr))
+		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_faststr))
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(&zeroVal[0]), false
@@ -115,26 +122,32 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		b := (*bmap)(h.buckets)
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
-			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
 				k := (*stringStruct)(kptr)
-				if k.len != key.len || b.tophash[i] == empty {
+				if k.len != key.len || isEmpty(b.tophash[i]) {
+					if b.tophash[i] == emptyRest {
+						break
+					}
 					continue
 				}
 				if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
-					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize)), true
+					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize)), true
 				}
 			}
 			return unsafe.Pointer(&zeroVal[0]), false
 		}
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
 			k := (*stringStruct)(kptr)
-			if k.len != key.len || b.tophash[i] == empty {
+			if k.len != key.len || isEmpty(b.tophash[i]) {
+				if b.tophash[i] == emptyRest {
+					break
+				}
 				continue
 			}
 			if k.str == key.str {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize)), true
 			}
 			// check first 4 bytes
 			if *((*[4]byte)(key.str)) != *((*[4]byte)(k.str)) {
@@ -151,15 +164,15 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 			keymaybe = i
 		}
 		if keymaybe != bucketCnt {
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*sys.PtrSize))
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*goarch.PtrSize))
 			if memequal(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+keymaybe*uintptr(t.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+keymaybe*uintptr(t.elemsize)), true
 			}
 		}
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
 dohash:
-	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+	hash := t.hasher(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
 	m := bucketMask(h.B)
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -174,13 +187,13 @@ dohash:
 	}
 	top := tophash(hash)
 	for ; b != nil; b = b.overflow(t) {
-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
 			k := (*stringStruct)(kptr)
 			if k.len != key.len || b.tophash[i] != top {
 				continue
 			}
 			if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize)), true
 			}
 		}
 	}
@@ -193,16 +206,16 @@ func mapassign_faststr(t *maptype, h *hmap, s string) unsafe.Pointer {
 	}
 	if raceenabled {
 		callerpc := getcallerpc()
-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_faststr))
+		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_faststr))
 	}
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map writes")
 	}
 	key := stringStructOf(&s)
-	hash := t.key.alg.hash(noescape(unsafe.Pointer(&s)), uintptr(h.hash0))
+	hash := t.hasher(noescape(unsafe.Pointer(&s)), uintptr(h.hash0))
 
-	// Set hashWriting after calling alg.hash for consistency with mapassign.
-	h.flags |= hashWriting
+	// Set hashWriting after calling t.hasher for consistency with mapassign.
+	h.flags ^= hashWriting
 
 	if h.buckets == nil {
 		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
@@ -213,23 +226,27 @@ again:
 	if h.growing() {
 		growWork_faststr(t, h, bucket)
 	}
-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
 
 	var insertb *bmap
 	var inserti uintptr
 	var insertk unsafe.Pointer
 
+bucketloop:
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
-				if b.tophash[i] == empty && insertb == nil {
+				if isEmpty(b.tophash[i]) && insertb == nil {
 					insertb = b
 					inserti = i
 				}
+				if b.tophash[i] == emptyRest {
+					break bucketloop
+				}
 				continue
 			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*goarch.PtrSize))
 			if k.len != key.len {
 				continue
 			}
@@ -239,6 +256,9 @@ again:
 			// already have a mapping for key. Update it.
 			inserti = i
 			insertb = b
+			// Overwrite existing key, so it can be garbage collected.
+			// The size is already guaranteed to be set correctly.
+			k.str = key.str
 			goto done
 		}
 		ovf := b.overflow(t)
@@ -258,30 +278,30 @@ again:
 	}
 
 	if insertb == nil {
-		// all current buckets are full, allocate a new one.
+		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
 		insertb = h.newoverflow(t, b)
 		inserti = 0 // not necessary, but avoids needlessly spilling inserti
 	}
 	insertb.tophash[inserti&(bucketCnt-1)] = top // mask inserti to avoid bounds checks
 
-	insertk = add(unsafe.Pointer(insertb), dataOffset+inserti*2*sys.PtrSize)
+	insertk = add(unsafe.Pointer(insertb), dataOffset+inserti*2*goarch.PtrSize)
 	// store new key at insert position
 	*((*stringStruct)(insertk)) = *key
 	h.count++
 
 done:
-	val := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*2*sys.PtrSize+inserti*uintptr(t.valuesize))
+	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*2*goarch.PtrSize+inserti*uintptr(t.elemsize))
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
 	h.flags &^= hashWriting
-	return val
+	return elem
 }
 
 func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc()
-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_faststr))
+		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapdelete_faststr))
 	}
 	if h == nil || h.count == 0 {
 		return
@@ -291,20 +311,21 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 	}
 
 	key := stringStructOf(&ky)
-	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+	hash := t.hasher(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
 
-	// Set hashWriting after calling alg.hash for consistency with mapdelete
-	h.flags |= hashWriting
+	// Set hashWriting after calling t.hasher for consistency with mapdelete
+	h.flags ^= hashWriting
 
 	bucket := hash & bucketMask(h.B)
 	if h.growing() {
 		growWork_faststr(t, h, bucket)
 	}
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+	bOrig := b
 	top := tophash(hash)
 search:
 	for ; b != nil; b = b.overflow(t) {
-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
+		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
 			k := (*stringStruct)(kptr)
 			if k.len != key.len || b.tophash[i] != top {
 				continue
@@ -314,14 +335,49 @@ search:
 			}
 			// Clear key's pointer.
 			k.str = nil
-			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
-			if t.elem.kind&kindNoPointers == 0 {
-				memclrHasPointers(v, t.elem.size)
+			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
+			if t.elem.ptrdata != 0 {
+				memclrHasPointers(e, t.elem.size)
 			} else {
-				memclrNoHeapPointers(v, t.elem.size)
+				memclrNoHeapPointers(e, t.elem.size)
 			}
-			b.tophash[i] = empty
+			b.tophash[i] = emptyOne
+			// If the bucket now ends in a bunch of emptyOne states,
+			// change those to emptyRest states.
+			if i == bucketCnt-1 {
+				if b.overflow(t) != nil && b.overflow(t).tophash[0] != emptyRest {
+					goto notLast
+				}
+			} else {
+				if b.tophash[i+1] != emptyRest {
+					goto notLast
+				}
+			}
+			for {
+				b.tophash[i] = emptyRest
+				if i == 0 {
+					if b == bOrig {
+						break // beginning of initial bucket, we're done.
+					}
+					// Find previous bucket, continue at its last entry.
+					c := b
+					for b = bOrig; b.overflow(t) != c; b = b.overflow(t) {
+					}
+					i = bucketCnt - 1
+				} else {
+					i--
+				}
+				if b.tophash[i] != emptyOne {
+					break
+				}
+			}
+		notLast:
 			h.count--
+			// Reset the hash seed to make it more difficult for attackers to
+			// repeatedly trigger hash collisions. See issue 25237.
+			if h.count == 0 {
+				h.hash0 = fastrand()
+			}
 			break search
 		}
 	}
@@ -355,7 +411,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 		x := &xy[0]
 		x.b = (*bmap)(add(h.buckets, oldbucket*uintptr(t.bucketsize)))
 		x.k = add(unsafe.Pointer(x.b), dataOffset)
-		x.v = add(x.k, bucketCnt*2*sys.PtrSize)
+		x.e = add(x.k, bucketCnt*2*goarch.PtrSize)
 
 		if !h.sameSizeGrow() {
 			// Only calculate y pointers if we're growing bigger.
@@ -363,15 +419,15 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 			y := &xy[1]
 			y.b = (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(t.bucketsize)))
 			y.k = add(unsafe.Pointer(y.b), dataOffset)
-			y.v = add(y.k, bucketCnt*2*sys.PtrSize)
+			y.e = add(y.k, bucketCnt*2*goarch.PtrSize)
 		}
 
 		for ; b != nil; b = b.overflow(t) {
 			k := add(unsafe.Pointer(b), dataOffset)
-			v := add(k, bucketCnt*2*sys.PtrSize)
-			for i := 0; i < bucketCnt; i, k, v = i+1, add(k, 2*sys.PtrSize), add(v, uintptr(t.valuesize)) {
+			e := add(k, bucketCnt*2*goarch.PtrSize)
+			for i := 0; i < bucketCnt; i, k, e = i+1, add(k, 2*goarch.PtrSize), add(e, uintptr(t.elemsize)) {
 				top := b.tophash[i]
-				if top == empty {
+				if isEmpty(top) {
 					b.tophash[i] = evacuatedEmpty
 					continue
 				}
@@ -381,8 +437,8 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 				var useY uint8
 				if !h.sameSizeGrow() {
 					// Compute hash to make our evacuation decision (whether we need
-					// to send this key/value to bucket x or bucket y).
-					hash := t.key.alg.hash(k, uintptr(h.hash0))
+					// to send this key/elem to bucket x or bucket y).
+					hash := t.hasher(k, uintptr(h.hash0))
 					if hash&newbit != 0 {
 						useY = 1
 					}
@@ -395,26 +451,25 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 					dst.b = h.newoverflow(t, dst.b)
 					dst.i = 0
 					dst.k = add(unsafe.Pointer(dst.b), dataOffset)
-					dst.v = add(dst.k, bucketCnt*2*sys.PtrSize)
+					dst.e = add(dst.k, bucketCnt*2*goarch.PtrSize)
 				}
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
 
 				// Copy key.
 				*(*string)(dst.k) = *(*string)(k)
 
-				typedmemmove(t.elem, dst.v, v)
+				typedmemmove(t.elem, dst.e, e)
 				dst.i++
 				// These updates might push these pointers past the end of the
-				// key or value arrays.  That's ok, as we have the overflow pointer
+				// key or elem arrays.  That's ok, as we have the overflow pointer
 				// at the end of the bucket to protect against pointing past the
 				// end of the bucket.
-				dst.k = add(dst.k, 2*sys.PtrSize)
-				dst.v = add(dst.v, uintptr(t.valuesize))
+				dst.k = add(dst.k, 2*goarch.PtrSize)
+				dst.e = add(dst.e, uintptr(t.elemsize))
 			}
 		}
-		// Unlink the overflow buckets & clear key/value to help GC.
-		// Unlink the overflow buckets & clear key/value to help GC.
-		if h.flags&oldIterator == 0 && t.bucket.kind&kindNoPointers == 0 {
+		// Unlink the overflow buckets & clear key/elem to help GC.
+		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.

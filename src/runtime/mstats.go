@@ -7,14 +7,12 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
 // Statistics.
-// If you edit this structure, also edit type MemStats below.
-// Their layouts must match exactly.
 //
 // For detailed descriptions see the documentation for MemStats.
 // Fields that differ from MemStats are further documented here.
@@ -31,46 +29,41 @@ type mstats struct {
 	nfree       uint64 // number of frees
 
 	// Statistics about malloc heap.
-	// Protected by mheap.lock
+	// Updated atomically, or with the world stopped.
 	//
 	// Like MemStats, heap_sys and heap_inuse do not count memory
 	// in manually-managed spans.
-	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
-	heap_sys      uint64 // virtual address space obtained from system for GC'd heap
-	heap_idle     uint64 // bytes in idle spans
-	heap_inuse    uint64 // bytes in _MSpanInUse spans
-	heap_released uint64 // bytes released to the os
-	heap_objects  uint64 // total number of allocated objects
+	heap_sys      sysMemStat // virtual address space obtained from system for GC'd heap
+	heap_inuse    uint64     // bytes in mSpanInUse spans
+	heap_released uint64     // bytes released to the os
 
-	// TODO(austin): heap_released is both useless and inaccurate
-	// in its current form. It's useless because, from the user's
-	// and OS's perspectives, there's no difference between a page
-	// that has not yet been faulted in and a page that has been
-	// released back to the OS. We could fix this by considering
-	// newly mapped spans to be "released". It's inaccurate
-	// because when we split a large span for allocation, we
-	// "unrelease" all pages in the large span and not just the
-	// ones we split off for use. This is trickier to fix because
-	// we currently don't know which pages of a span we've
-	// released. We could fix it by separating "free" and
-	// "released" spans, but then we have to allocate from runs of
-	// free and released spans.
+	// heap_objects is not used by the runtime directly and instead
+	// computed on the fly by updatememstats.
+	heap_objects uint64 // total number of allocated objects
+
+	// Statistics about stacks.
+	stacks_inuse uint64     // bytes in manually-managed stack spans; computed by updatememstats
+	stacks_sys   sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
-	stacks_inuse uint64 // bytes in manually-managed stack spans
-	stacks_sys   uint64 // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
 	mspan_inuse  uint64 // mspan structures
-	mspan_sys    uint64
+	mspan_sys    sysMemStat
 	mcache_inuse uint64 // mcache structures
-	mcache_sys   uint64
-	buckhash_sys uint64 // profiling bucket hash table
-	gc_sys       uint64
-	other_sys    uint64
+	mcache_sys   sysMemStat
+	buckhash_sys sysMemStat // profiling bucket hash table
 
-	// Statistics about garbage collector.
+	// Statistics about GC overhead.
+	gcWorkBufInUse           uint64     // computed by updatememstats
+	gcProgPtrScalarBitsInUse uint64     // computed by updatememstats
+	gcMiscSys                sysMemStat // updated atomically or during STW
+
+	// Miscellaneous statistics.
+	other_sys sysMemStat // updated atomically or during STW
+
+	// Statistics about the garbage collector.
+
 	// Protected by mheap or stopping the world during GC.
-	next_gc         uint64 // goal heap_live for when next GC ends; ^0 if disabled
 	last_gc_unix    uint64 // last gc (in unix time)
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
@@ -89,68 +82,23 @@ type mstats struct {
 		nfree   uint64
 	}
 
-	// Statistics below here are not exported to MemStats directly.
+	// Add an uint32 for even number of size classes to align below fields
+	// to 64 bits for atomic operations on 32 bit platforms.
+	_ [1 - _NumSizeClasses%2]uint32
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
-	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
 
-	// triggerRatio is the heap growth ratio that triggers marking.
-	//
-	// E.g., if this is 0.6, then GC should start when the live
-	// heap has reached 1.6 times the heap size marked by the
-	// previous cycle. This should be ≤ GOGC/100 so the trigger
-	// heap size is less than the goal heap size. This is set
-	// during mark termination for the next cycle's trigger.
-	triggerRatio float64
+	// heapStats is a set of statistics
+	heapStats consistentHeapStats
 
-	// gc_trigger is the heap size that triggers marking.
-	//
-	// When heap_live ≥ gc_trigger, the mark phase will start.
-	// This is also the heap size by which proportional sweeping
-	// must be complete.
-	//
-	// This is computed from triggerRatio during mark termination
-	// for the next cycle's trigger.
-	gc_trigger uint64
+	// _ uint32 // ensure gcPauseDist is aligned
 
-	// heap_live is the number of bytes considered live by the GC.
-	// That is: retained by the most recent GC plus allocated
-	// since then. heap_live <= heap_alloc, since heap_alloc
-	// includes unmarked objects that have not yet been swept (and
-	// hence goes up as we allocate and down as we sweep) while
-	// heap_live excludes these objects (and hence only goes up
-	// between GCs).
+	// gcPauseDist represents the distribution of all GC-related
+	// application pauses in the runtime.
 	//
-	// This is updated atomically without locking. To reduce
-	// contention, this is updated only when obtaining a span from
-	// an mcentral and at this point it counts all of the
-	// unallocated slots in that span (which will be allocated
-	// before that mcache obtains another span from that
-	// mcentral). Hence, it slightly overestimates the "true" live
-	// heap size. It's better to overestimate than to
-	// underestimate because 1) this triggers the GC earlier than
-	// necessary rather than potentially too late and 2) this
-	// leads to a conservative GC rate rather than a GC rate that
-	// is potentially too low.
-	//
-	// Reads should likewise be atomic (or during STW).
-	//
-	// Whenever this is updated, call traceHeapAlloc() and
-	// gcController.revise().
-	heap_live uint64
-
-	// heap_scan is the number of bytes of "scannable" heap. This
-	// is the live heap (as counted by heap_live), but omitting
-	// no-scan objects and no-scan tails of objects.
-	//
-	// Whenever this is updated, call gcController.revise().
-	heap_scan uint64
-
-	// heap_marked is the number of bytes marked by the previous
-	// GC. After mark termination, heap_live == heap_marked, but
-	// unlike heap_live, heap_marked does not change until the
-	// next mark termination.
-	heap_marked uint64
+	// Each individual pause is counted separately, unlike pause_ns.
+	gcPauseDist timeHistogram
 }
 
 var memstats mstats
@@ -428,23 +376,20 @@ type MemStats struct {
 	}
 }
 
-// Size of the trailing by_size array differs between mstats and MemStats,
-// and all data after by_size is local to runtime, not exported.
-// NumSizeClasses was changed, but we cannot change MemStats because of backward compatibility.
-// sizeof_C_MStats is the size of the prefix of mstats that
-// corresponds to MemStats. It should match Sizeof(MemStats{}).
-var sizeof_C_MStats = unsafe.Offsetof(memstats.by_size) + 61*unsafe.Sizeof(memstats.by_size[0])
-
 func init() {
-	var memStats MemStats
-	if sizeof_C_MStats != unsafe.Sizeof(memStats) {
-		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
-		throw("MStats vs MemStatsType size mismatch")
+	if offset := unsafe.Offsetof(memstats.heapStats); offset%8 != 0 {
+		println(offset)
+		throw("memstats.heapStats not aligned to 8 bytes")
 	}
-
-	if unsafe.Offsetof(memstats.heap_live)%8 != 0 {
-		println(unsafe.Offsetof(memstats.heap_live))
-		throw("memstats.heap_live not aligned to 8 bytes")
+	if offset := unsafe.Offsetof(memstats.gcPauseDist); offset%8 != 0 {
+		println(offset)
+		throw("memstats.gcPauseDist not aligned to 8 bytes")
+	}
+	// Ensure the size of heapStatsDelta causes adjacent fields/slots (e.g.
+	// [3]heapStatsDelta) to be 8-byte aligned.
+	if size := unsafe.Sizeof(heapStatsDelta{}); size%8 != 0 {
+		println(size)
+		throw("heapStatsDelta not a multiple of 8 bytes in size")
 	}
 }
 
@@ -467,14 +412,74 @@ func ReadMemStats(m *MemStats) {
 func readmemstats_m(stats *MemStats) {
 	updatememstats()
 
-	// The size of the trailing by_size array differs between
-	// mstats and MemStats. NumSizeClasses was changed, but we
-	// cannot change MemStats because of backward compatibility.
-	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
-
+	stats.Alloc = memstats.alloc
+	stats.TotalAlloc = memstats.total_alloc
+	stats.Sys = memstats.sys
+	stats.Mallocs = memstats.nmalloc
+	stats.Frees = memstats.nfree
+	stats.HeapAlloc = memstats.alloc
+	stats.HeapSys = memstats.heap_sys.load()
+	// By definition, HeapIdle is memory that was mapped
+	// for the heap but is not currently used to hold heap
+	// objects. It also specifically is memory that can be
+	// used for other purposes, like stacks, but this memory
+	// is subtracted out of HeapSys before it makes that
+	// transition. Put another way:
+	//
+	// heap_sys = bytes allocated from the OS for the heap - bytes ultimately used for non-heap purposes
+	// heap_idle = bytes allocated from the OS for the heap - bytes ultimately used for any purpose
+	//
+	// or
+	//
+	// heap_sys = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse
+	// heap_idle = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse - heap_inuse
+	//
+	// => heap_idle = heap_sys - heap_inuse
+	stats.HeapIdle = memstats.heap_sys.load() - memstats.heap_inuse
+	stats.HeapInuse = memstats.heap_inuse
+	stats.HeapReleased = memstats.heap_released
+	stats.HeapObjects = memstats.heap_objects
+	stats.StackInuse = memstats.stacks_inuse
 	// memstats.stacks_sys is only memory mapped directly for OS stacks.
 	// Add in heap-allocated stack memory for user consumption.
-	stats.StackSys += stats.StackInuse
+	stats.StackSys = memstats.stacks_inuse + memstats.stacks_sys.load()
+	stats.MSpanInuse = memstats.mspan_inuse
+	stats.MSpanSys = memstats.mspan_sys.load()
+	stats.MCacheInuse = memstats.mcache_inuse
+	stats.MCacheSys = memstats.mcache_sys.load()
+	stats.BuckHashSys = memstats.buckhash_sys.load()
+	// MemStats defines GCSys as an aggregate of all memory related
+	// to the memory management system, but we track this memory
+	// at a more granular level in the runtime.
+	stats.GCSys = memstats.gcMiscSys.load() + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
+	stats.OtherSys = memstats.other_sys.load()
+	stats.NextGC = gcController.heapGoal
+	stats.LastGC = memstats.last_gc_unix
+	stats.PauseTotalNs = memstats.pause_total_ns
+	stats.PauseNs = memstats.pause_ns
+	stats.PauseEnd = memstats.pause_end
+	stats.NumGC = memstats.numgc
+	stats.NumForcedGC = memstats.numforcedgc
+	stats.GCCPUFraction = memstats.gc_cpu_fraction
+	stats.EnableGC = true
+
+	// Handle BySize. Copy N values, where N is
+	// the minimum of the lengths of the two arrays.
+	// Unfortunately copy() won't work here because
+	// the arrays have different structs.
+	//
+	// TODO(mknyszek): Consider renaming the fields
+	// of by_size's elements to align so we can use
+	// the copy built-in.
+	bySizeLen := len(stats.BySize)
+	if l := len(memstats.by_size); l < bySizeLen {
+		bySizeLen = l
+	}
+	for i := 0; i < bySizeLen; i++ {
+		stats.BySize[i].Size = memstats.by_size[i].size
+		stats.BySize[i].Mallocs = memstats.by_size[i].nmalloc
+		stats.BySize[i].Frees = memstats.by_size[i].nfree
+	}
 }
 
 //go:linkname readGCStats runtime/debug.readGCStats
@@ -484,6 +489,9 @@ func readGCStats(pauses *[]uint64) {
 	})
 }
 
+// readGCStats_m must be called on the system stack because it acquires the heap
+// lock. See mheap for details.
+//go:systemstack
 func readGCStats_m(pauses *[]uint64) {
 	p := *pauses
 	// Calling code in runtime/debug should make the slice large enough.
@@ -517,19 +525,29 @@ func readGCStats_m(pauses *[]uint64) {
 	*pauses = p[:n+n+3]
 }
 
+// Updates the memstats structure.
+//
+// The world must be stopped.
+//
 //go:nowritebarrier
 func updatememstats() {
+	assertWorldStopped()
+
+	// Flush mcaches to mcentral before doing anything else.
+	//
+	// Flushing to the mcentral may in general cause stats to
+	// change as mcentral data structures are manipulated.
+	systemstack(flushallmcaches)
+
 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
-	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
-		memstats.mcache_sys + memstats.buckhash_sys + memstats.gc_sys + memstats.other_sys
-
-	// We also count stacks_inuse as sys memory.
-	memstats.sys += memstats.stacks_inuse
+	memstats.sys = memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
+		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
+		memstats.other_sys.load()
 
 	// Calculate memory allocator stats.
 	// During program execution we only count number of frees and amount of freed memory.
-	// Current number of alive object in the heap and amount of alive heap memory
+	// Current number of alive objects in the heap and amount of alive heap memory
 	// are calculated by scanning all spans.
 	// Total number of mallocs is calculated as number of frees plus number of alive objects.
 	// Similarly, total amount of allocated memory is calculated as amount of freed memory
@@ -542,65 +560,75 @@ func updatememstats() {
 		memstats.by_size[i].nmalloc = 0
 		memstats.by_size[i].nfree = 0
 	}
+	// Collect consistent stats, which are the source-of-truth in the some cases.
+	var consStats heapStatsDelta
+	memstats.heapStats.unsafeRead(&consStats)
 
-	// Flush MCache's to MCentral.
-	systemstack(flushallmcaches)
+	// Collect large allocation stats.
+	totalAlloc := uint64(consStats.largeAlloc)
+	memstats.nmalloc += uint64(consStats.largeAllocCount)
+	totalFree := uint64(consStats.largeFree)
+	memstats.nfree += uint64(consStats.largeFreeCount)
 
-	// Aggregate local stats.
-	cachestats()
-
-	// Collect allocation stats. This is safe and consistent
-	// because the world is stopped.
-	var smallFree, totalAlloc, totalFree uint64
-	// Collect per-spanclass stats.
-	for spc := range mheap_.central {
-		// The mcaches are now empty, so mcentral stats are
-		// up-to-date.
-		c := &mheap_.central[spc].mcentral
-		memstats.nmalloc += c.nmalloc
-		i := spanClass(spc).sizeclass()
-		memstats.by_size[i].nmalloc += c.nmalloc
-		totalAlloc += c.nmalloc * uint64(class_to_size[i])
-	}
 	// Collect per-sizeclass stats.
 	for i := 0; i < _NumSizeClasses; i++ {
-		if i == 0 {
-			memstats.nmalloc += mheap_.nlargealloc
-			totalAlloc += mheap_.largealloc
-			totalFree += mheap_.largefree
-			memstats.nfree += mheap_.nlargefree
-			continue
-		}
+		// Malloc stats.
+		a := uint64(consStats.smallAllocCount[i])
+		totalAlloc += a * uint64(class_to_size[i])
+		memstats.nmalloc += a
+		memstats.by_size[i].nmalloc = a
 
-		// The mcache stats have been flushed to mheap_.
-		memstats.nfree += mheap_.nsmallfree[i]
-		memstats.by_size[i].nfree = mheap_.nsmallfree[i]
-		smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
+		// Free stats.
+		f := uint64(consStats.smallFreeCount[i])
+		totalFree += f * uint64(class_to_size[i])
+		memstats.nfree += f
+		memstats.by_size[i].nfree = f
 	}
-	totalFree += smallFree
 
-	memstats.nfree += memstats.tinyallocs
-	memstats.nmalloc += memstats.tinyallocs
+	// Account for tiny allocations.
+	memstats.nfree += uint64(consStats.tinyAllocCount)
+	memstats.nmalloc += uint64(consStats.tinyAllocCount)
 
 	// Calculate derived stats.
 	memstats.total_alloc = totalAlloc
 	memstats.alloc = totalAlloc - totalFree
-	memstats.heap_alloc = memstats.alloc
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
-}
 
-// cachestats flushes all mcache stats.
-//
-// The world must be stopped.
-//
-//go:nowritebarrier
-func cachestats() {
-	for _, p := range allp {
-		c := p.mcache
-		if c == nil {
-			continue
-		}
-		purgecachedstats(c)
+	memstats.stacks_inuse = uint64(consStats.inStacks)
+	memstats.gcWorkBufInUse = uint64(consStats.inWorkBufs)
+	memstats.gcProgPtrScalarBitsInUse = uint64(consStats.inPtrScalarBits)
+
+	// We also count stacks_inuse, gcWorkBufInUse, and gcProgPtrScalarBitsInUse as sys memory.
+	memstats.sys += memstats.stacks_inuse + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
+
+	// The world is stopped, so the consistent stats (after aggregation)
+	// should be identical to some combination of memstats. In particular:
+	//
+	// * heap_inuse == inHeap
+	// * heap_released == released
+	// * heap_sys - heap_released == committed - inStacks - inWorkBufs - inPtrScalarBits
+	//
+	// Check if that's actually true.
+	//
+	// TODO(mknyszek): Maybe don't throw here. It would be bad if a
+	// bug in otherwise benign accounting caused the whole application
+	// to crash.
+	if memstats.heap_inuse != uint64(consStats.inHeap) {
+		print("runtime: heap_inuse=", memstats.heap_inuse, "\n")
+		print("runtime: consistent value=", consStats.inHeap, "\n")
+		throw("heap_inuse and consistent stats are not equal")
+	}
+	if memstats.heap_released != uint64(consStats.released) {
+		print("runtime: heap_released=", memstats.heap_released, "\n")
+		print("runtime: consistent value=", consStats.released, "\n")
+		throw("heap_released and consistent stats are not equal")
+	}
+	globalRetained := memstats.heap_sys.load() - memstats.heap_released
+	consRetained := uint64(consStats.committed - consStats.inStacks - consStats.inWorkBufs - consStats.inPtrScalarBits)
+	if globalRetained != consRetained {
+		print("runtime: global value=", globalRetained, "\n")
+		print("runtime: consistent value=", consRetained, "\n")
+		throw("measures of the retained heap are not equal")
 	}
 }
 
@@ -610,6 +638,8 @@ func cachestats() {
 //
 //go:nowritebarrier
 func flushmcache(i int) {
+	assertWorldStopped()
+
 	p := allp[i]
 	c := p.mcache
 	if c == nil {
@@ -625,69 +655,272 @@ func flushmcache(i int) {
 //
 //go:nowritebarrier
 func flushallmcaches() {
+	assertWorldStopped()
+
 	for i := 0; i < int(gomaxprocs); i++ {
 		flushmcache(i)
 	}
 }
 
+// sysMemStat represents a global system statistic that is managed atomically.
+//
+// This type must structurally be a uint64 so that mstats aligns with MemStats.
+type sysMemStat uint64
+
+// load atomically reads the value of the stat.
+//
+// Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
 //go:nosplit
-func purgecachedstats(c *mcache) {
-	// Protected by either heap or GC lock.
-	h := &mheap_
-	memstats.heap_scan += uint64(c.local_scan)
-	c.local_scan = 0
-	memstats.tinyallocs += uint64(c.local_tinyallocs)
-	c.local_tinyallocs = 0
-	h.largefree += uint64(c.local_largefree)
-	c.local_largefree = 0
-	h.nlargefree += uint64(c.local_nlargefree)
-	c.local_nlargefree = 0
-	for i := 0; i < len(c.local_nsmallfree); i++ {
-		h.nsmallfree[i] += uint64(c.local_nsmallfree[i])
-		c.local_nsmallfree[i] = 0
+func (s *sysMemStat) load() uint64 {
+	return atomic.Load64((*uint64)(s))
+}
+
+// add atomically adds the sysMemStat by n.
+//
+// Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
+//go:nosplit
+func (s *sysMemStat) add(n int64) {
+	if s == nil {
+		return
+	}
+	val := atomic.Xadd64((*uint64)(s), n)
+	if (n > 0 && int64(val) < n) || (n < 0 && int64(val)+n < n) {
+		print("runtime: val=", val, " n=", n, "\n")
+		throw("sysMemStat overflow")
 	}
 }
 
-// Atomically increases a given *system* memory stat. We are counting on this
-// stat never overflowing a uintptr, so this function must only be used for
-// system memory stats.
-//
-// The current implementation for little endian architectures is based on
-// xadduintptr(), which is less than ideal: xadd64() should really be used.
-// Using xadduintptr() is a stop-gap solution until arm supports xadd64() that
-// doesn't use locks.  (Locks are a problem as they require a valid G, which
-// restricts their useability.)
-//
-// A side-effect of using xadduintptr() is that we need to check for
-// overflow errors.
-//go:nosplit
-func mSysStatInc(sysStat *uint64, n uintptr) {
-	if sysStat == nil {
-		return
+// heapStatsDelta contains deltas of various runtime memory statistics
+// that need to be updated together in order for them to be kept
+// consistent with one another.
+type heapStatsDelta struct {
+	// Memory stats.
+	committed       int64 // byte delta of memory committed
+	released        int64 // byte delta of released memory generated
+	inHeap          int64 // byte delta of memory placed in the heap
+	inStacks        int64 // byte delta of memory reserved for stacks
+	inWorkBufs      int64 // byte delta of memory reserved for work bufs
+	inPtrScalarBits int64 // byte delta of memory reserved for unrolled GC prog bits
+
+	// Allocator stats.
+	tinyAllocCount  uintptr                  // number of tiny allocations
+	largeAlloc      uintptr                  // bytes allocated for large objects
+	largeAllocCount uintptr                  // number of large object allocations
+	smallAllocCount [_NumSizeClasses]uintptr // number of allocs for small objects
+	largeFree       uintptr                  // bytes freed for large objects (>maxSmallSize)
+	largeFreeCount  uintptr                  // number of frees for large objects (>maxSmallSize)
+	smallFreeCount  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxSmallSize)
+
+	// Add a uint32 to ensure this struct is a multiple of 8 bytes in size.
+	// Only necessary on 32-bit platforms.
+	_ [(goarch.PtrSize / 4) % 2]uint32
+}
+
+// merge adds in the deltas from b into a.
+func (a *heapStatsDelta) merge(b *heapStatsDelta) {
+	a.committed += b.committed
+	a.released += b.released
+	a.inHeap += b.inHeap
+	a.inStacks += b.inStacks
+	a.inWorkBufs += b.inWorkBufs
+	a.inPtrScalarBits += b.inPtrScalarBits
+
+	a.tinyAllocCount += b.tinyAllocCount
+	a.largeAlloc += b.largeAlloc
+	a.largeAllocCount += b.largeAllocCount
+	for i := range b.smallAllocCount {
+		a.smallAllocCount[i] += b.smallAllocCount[i]
 	}
-	if sys.BigEndian {
-		atomic.Xadd64(sysStat, int64(n))
-		return
-	}
-	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
-		print("runtime: stat overflow: val ", val, ", n ", n, "\n")
-		exit(2)
+	a.largeFree += b.largeFree
+	a.largeFreeCount += b.largeFreeCount
+	for i := range b.smallFreeCount {
+		a.smallFreeCount[i] += b.smallFreeCount[i]
 	}
 }
 
-// Atomically decreases a given *system* memory stat. Same comments as
-// mSysStatInc apply.
+// consistentHeapStats represents a set of various memory statistics
+// whose updates must be viewed completely to get a consistent
+// state of the world.
+//
+// To write updates to memory stats use the acquire and release
+// methods. To obtain a consistent global snapshot of these statistics,
+// use read.
+type consistentHeapStats struct {
+	// stats is a ring buffer of heapStatsDelta values.
+	// Writers always atomically update the delta at index gen.
+	//
+	// Readers operate by rotating gen (0 -> 1 -> 2 -> 0 -> ...)
+	// and synchronizing with writers by observing each P's
+	// statsSeq field. If the reader observes a P not writing,
+	// it can be sure that it will pick up the new gen value the
+	// next time it writes.
+	//
+	// The reader then takes responsibility by clearing space
+	// in the ring buffer for the next reader to rotate gen to
+	// that space (i.e. it merges in values from index (gen-2) mod 3
+	// to index (gen-1) mod 3, then clears the former).
+	//
+	// Note that this means only one reader can be reading at a time.
+	// There is no way for readers to synchronize.
+	//
+	// This process is why we need a ring buffer of size 3 instead
+	// of 2: one is for the writers, one contains the most recent
+	// data, and the last one is clear so writers can begin writing
+	// to it the moment gen is updated.
+	stats [3]heapStatsDelta
+
+	// gen represents the current index into which writers
+	// are writing, and can take on the value of 0, 1, or 2.
+	// This value is updated atomically.
+	gen uint32
+
+	// noPLock is intended to provide mutual exclusion for updating
+	// stats when no P is available. It does not block other writers
+	// with a P, only other writers without a P and the reader. Because
+	// stats are usually updated when a P is available, contention on
+	// this lock should be minimal.
+	noPLock mutex
+}
+
+// acquire returns a heapStatsDelta to be updated. In effect,
+// it acquires the shard for writing. release must be called
+// as soon as the relevant deltas are updated.
+//
+// The returned heapStatsDelta must be updated atomically.
+//
+// The caller's P must not change between acquire and
+// release. This also means that the caller should not
+// acquire a P or release its P in between. A P also must
+// not acquire a given consistentHeapStats if it hasn't
+// yet released it.
+//
+// nosplit because a stack growth in this function could
+// lead to a stack allocation that could reenter the
+// function.
+//
 //go:nosplit
-func mSysStatDec(sysStat *uint64, n uintptr) {
-	if sysStat == nil {
-		return
+func (m *consistentHeapStats) acquire() *heapStatsDelta {
+	if pp := getg().m.p.ptr(); pp != nil {
+		seq := atomic.Xadd(&pp.statsSeq, 1)
+		if seq%2 == 0 {
+			// Should have been incremented to odd.
+			print("runtime: seq=", seq, "\n")
+			throw("bad sequence number")
+		}
+	} else {
+		lock(&m.noPLock)
 	}
-	if sys.BigEndian {
-		atomic.Xadd64(sysStat, -int64(n))
-		return
+	gen := atomic.Load(&m.gen) % 3
+	return &m.stats[gen]
+}
+
+// release indicates that the writer is done modifying
+// the delta. The value returned by the corresponding
+// acquire must no longer be accessed or modified after
+// release is called.
+//
+// The caller's P must not change between acquire and
+// release. This also means that the caller should not
+// acquire a P or release its P in between.
+//
+// nosplit because a stack growth in this function could
+// lead to a stack allocation that causes another acquire
+// before this operation has completed.
+//
+//go:nosplit
+func (m *consistentHeapStats) release() {
+	if pp := getg().m.p.ptr(); pp != nil {
+		seq := atomic.Xadd(&pp.statsSeq, 1)
+		if seq%2 != 0 {
+			// Should have been incremented to even.
+			print("runtime: seq=", seq, "\n")
+			throw("bad sequence number")
+		}
+	} else {
+		unlock(&m.noPLock)
 	}
-	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
-		print("runtime: stat underflow: val ", val, ", n ", n, "\n")
-		exit(2)
+}
+
+// unsafeRead aggregates the delta for this shard into out.
+//
+// Unsafe because it does so without any synchronization. The
+// world must be stopped.
+func (m *consistentHeapStats) unsafeRead(out *heapStatsDelta) {
+	assertWorldStopped()
+
+	for i := range m.stats {
+		out.merge(&m.stats[i])
 	}
+}
+
+// unsafeClear clears the shard.
+//
+// Unsafe because the world must be stopped and values should
+// be donated elsewhere before clearing.
+func (m *consistentHeapStats) unsafeClear() {
+	assertWorldStopped()
+
+	for i := range m.stats {
+		m.stats[i] = heapStatsDelta{}
+	}
+}
+
+// read takes a globally consistent snapshot of m
+// and puts the aggregated value in out. Even though out is a
+// heapStatsDelta, the resulting values should be complete and
+// valid statistic values.
+//
+// Not safe to call concurrently. The world must be stopped
+// or metricsSema must be held.
+func (m *consistentHeapStats) read(out *heapStatsDelta) {
+	// Getting preempted after this point is not safe because
+	// we read allp. We need to make sure a STW can't happen
+	// so it doesn't change out from under us.
+	mp := acquirem()
+
+	// Get the current generation. We can be confident that this
+	// will not change since read is serialized and is the only
+	// one that modifies currGen.
+	currGen := atomic.Load(&m.gen)
+	prevGen := currGen - 1
+	if currGen == 0 {
+		prevGen = 2
+	}
+
+	// Prevent writers without a P from writing while we update gen.
+	lock(&m.noPLock)
+
+	// Rotate gen, effectively taking a snapshot of the state of
+	// these statistics at the point of the exchange by moving
+	// writers to the next set of deltas.
+	//
+	// This exchange is safe to do because we won't race
+	// with anyone else trying to update this value.
+	atomic.Xchg(&m.gen, (currGen+1)%3)
+
+	// Allow P-less writers to continue. They'll be writing to the
+	// next generation now.
+	unlock(&m.noPLock)
+
+	for _, p := range allp {
+		// Spin until there are no more writers.
+		for atomic.Load(&p.statsSeq)%2 != 0 {
+		}
+	}
+
+	// At this point we've observed that each sequence
+	// number is even, so any future writers will observe
+	// the new gen value. That means it's safe to read from
+	// the other deltas in the stats buffer.
+
+	// Perform our responsibilities and free up
+	// stats[prevGen] for the next time we want to take
+	// a snapshot.
+	m.stats[currGen].merge(&m.stats[prevGen])
+	m.stats[prevGen] = heapStatsDelta{}
+
+	// Finally, copy out the complete delta.
+	*out = m.stats[currGen]
+
+	releasem(mp)
 }

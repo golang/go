@@ -177,16 +177,16 @@ func (p *parser) maybeConcat(r rune, flags Flags) bool {
 	return false // did not push r
 }
 
-// newLiteral returns a new OpLiteral Regexp with the given flags
-func (p *parser) newLiteral(r rune, flags Flags) *Regexp {
+// literal pushes a literal regexp for the rune r on the stack.
+func (p *parser) literal(r rune) {
 	re := p.newRegexp(OpLiteral)
-	re.Flags = flags
-	if flags&FoldCase != 0 {
+	re.Flags = p.flags
+	if p.flags&FoldCase != 0 {
 		r = minFoldRune(r)
 	}
 	re.Rune0[0] = r
 	re.Rune = re.Rune0[:1]
-	return re
+	p.push(re)
 }
 
 // minFoldRune returns the minimum rune fold-equivalent to r.
@@ -202,12 +202,6 @@ func minFoldRune(r rune) rune {
 		}
 	}
 	return min
-}
-
-// literal pushes a literal regexp for the rune r on the stack
-// and returns that regexp.
-func (p *parser) literal(r rune) {
-	p.push(p.newLiteral(r, p.flags))
 }
 
 // op pushes a regexp with the given op onto the stack
@@ -830,13 +824,7 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 				case 'Q':
 					// \Q ... \E: the ... is always literals
 					var lit string
-					if i := strings.Index(t, `\E`); i < 0 {
-						lit = t[2:]
-						t = ""
-					} else {
-						lit = t[2:i]
-						t = t[i+2:]
-					}
+					lit, t, _ = strings.Cut(t[2:], `\E`)
 					for lit != "" {
 						c, rest, err := nextRune(lit)
 						if err != nil {

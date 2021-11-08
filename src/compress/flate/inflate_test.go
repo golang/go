@@ -7,7 +7,6 @@ package flate
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 )
@@ -57,7 +56,7 @@ func TestReaderTruncated(t *testing.T) {
 	for i, v := range vectors {
 		r := strings.NewReader(v.input)
 		zr := NewReader(r)
-		b, err := ioutil.ReadAll(zr)
+		b, err := io.ReadAll(zr)
 		if err != io.ErrUnexpectedEOF {
 			t.Errorf("test %d, error mismatch: got %v, want io.ErrUnexpectedEOF", i, err)
 		}

@@ -35,9 +35,10 @@ import (
 type nat []Word
 
 var (
-	natOne = nat{1}
-	natTwo = nat{2}
-	natTen = nat{10}
+	natOne  = nat{1}
+	natTwo  = nat{2}
+	natFive = nat{5}
+	natTen  = nat{10}
 )
 
 func (z nat) clear() {
@@ -57,6 +58,10 @@ func (z nat) norm() nat {
 func (z nat) make(n int) nat {
 	if n <= cap(z) {
 		return z[:n] // reuse z
+	}
+	if n == 1 {
+		// Most nats start small and stay that way; don't over-allocate.
+		return make(nat, 1)
 	}
 	// Choosing a good value for e has significant performance impact
 	// because it increases the chance that a value can be reused.
@@ -458,7 +463,8 @@ func (z nat) mul(x, y nat) nat {
 	// be a larger valid threshold contradicting the assumption about k.
 	//
 	if k < n || m != n {
-		var t nat
+		tp := getNat(3 * k)
+		t := *tp
 
 		// add x0*y1*b
 		x0 := x0.norm()
@@ -479,6 +485,8 @@ func (z nat) mul(x, y nat) nat {
 			t = t.mul(xi, y1)
 			addAt(z, t, i+k)
 		}
+
+		putNat(tp)
 	}
 
 	return z.norm()
@@ -490,7 +498,9 @@ func (z nat) mul(x, y nat) nat {
 // The (non-normalized) result is placed in z.
 func basicSqr(z, x nat) {
 	n := len(x)
-	t := make(nat, 2*n)            // temporary variable to hold the products
+	tp := getNat(2 * n)
+	t := *tp // temporary variable to hold the products
+	t.clear()
 	z[1], z[0] = mulWW(x[0], x[0]) // the initial square
 	for i := 1; i < n; i++ {
 		d := x[i]
@@ -501,6 +511,7 @@ func basicSqr(z, x nat) {
 	}
 	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
 	addVV(z, z, t)                              // combine the result
+	putNat(tp)
 }
 
 // karatsubaSqr squares x and leaves the result in z.
@@ -587,7 +598,8 @@ func (z nat) sqr(x nat) nat {
 	z[2*k:].clear()
 
 	if k < n {
-		var t nat
+		tp := getNat(2 * k)
+		t := *tp
 		x0 := x0.norm()
 		x1 := x[k:]
 		t = t.mul(x0, x1)
@@ -595,6 +607,7 @@ func (z nat) sqr(x nat) nat {
 		addAt(z, t, k) // z = 2*x1*x0*b + x0^2
 		t = t.sqr(x1)
 		addAt(z, t, 2*k) // z = x1^2*b^2 + 2*x1*x0*b + x0^2
+		putNat(tp)
 	}
 
 	return z.norm()
@@ -618,48 +631,6 @@ func (z nat) mulRange(a, b uint64) nat {
 	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
 }
 
-// q = (x-r)/y, with 0 <= r < y
-func (z nat) divW(x nat, y Word) (q nat, r Word) {
-	m := len(x)
-	switch {
-	case y == 0:
-		panic("division by zero")
-	case y == 1:
-		q = z.set(x) // result is x
-		return
-	case m == 0:
-		q = z[:0] // result is 0
-		return
-	}
-	// m > 0
-	z = z.make(m)
-	r = divWVW(z, 0, x, y)
-	q = z.norm()
-	return
-}
-
-func (z nat) div(z2, u, v nat) (q, r nat) {
-	if len(v) == 0 {
-		panic("division by zero")
-	}
-
-	if u.cmp(v) < 0 {
-		q = z[:0]
-		r = z2.set(u)
-		return
-	}
-
-	if len(v) == 1 {
-		var r2 Word
-		q, r2 = z.divW(u, v[0])
-		r = z2.setWord(r2)
-		return
-	}
-
-	q, r = z.divLarge(z2, u, v)
-	return
-}
-
 // getNat returns a *nat of len n. The contents may not be zero.
 // The pool holds *nat to avoid allocation when converting to interface{}.
 func getNat(n int) *nat {
@@ -679,94 +650,6 @@ func putNat(x *nat) {
 }
 
 var natPool sync.Pool
-
-// q = (uIn-r)/v, with 0 <= r < y
-// Uses z as storage for q, and u as storage for r if possible.
-// See Knuth, Volume 2, section 4.3.1, Algorithm D.
-// Preconditions:
-//    len(v) >= 2
-//    len(uIn) >= len(v)
-func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
-	n := len(v)
-	m := len(uIn) - n
-
-	// determine if z can be reused
-	// TODO(gri) should find a better solution - this if statement
-	//           is very costly (see e.g. time pidigits -s -n 10000)
-	if alias(z, u) || alias(z, uIn) || alias(z, v) {
-		z = nil // z is an alias for u or uIn or v - cannot reuse
-	}
-	q = z.make(m + 1)
-
-	qhatvp := getNat(n + 1)
-	qhatv := *qhatvp
-	if alias(u, uIn) || alias(u, v) {
-		u = nil // u is an alias for uIn or v - cannot reuse
-	}
-	u = u.make(len(uIn) + 1)
-	u.clear() // TODO(gri) no need to clear if we allocated a new u
-
-	// D1.
-	var v1p *nat
-	shift := nlz(v[n-1])
-	if shift > 0 {
-		// do not modify v, it may be used by another goroutine simultaneously
-		v1p = getNat(n)
-		v1 := *v1p
-		shlVU(v1, v, shift)
-		v = v1
-	}
-	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
-
-	// D2.
-	vn1 := v[n-1]
-	for j := m; j >= 0; j-- {
-		// D3.
-		qhat := Word(_M)
-		if ujn := u[j+n]; ujn != vn1 {
-			var rhat Word
-			qhat, rhat = divWW(ujn, u[j+n-1], vn1)
-
-			// x1 | x2 = q̂v_{n-2}
-			vn2 := v[n-2]
-			x1, x2 := mulWW(qhat, vn2)
-			// test if q̂v_{n-2} > br̂ + u_{j+n-2}
-			ujn2 := u[j+n-2]
-			for greaterThan(x1, x2, rhat, ujn2) {
-				qhat--
-				prevRhat := rhat
-				rhat += vn1
-				// v[n-1] >= 0, so this tests for overflow.
-				if rhat < prevRhat {
-					break
-				}
-				x1, x2 = mulWW(qhat, vn2)
-			}
-		}
-
-		// D4.
-		qhatv[n] = mulAddVWW(qhatv[0:n], v, qhat, 0)
-
-		c := subVV(u[j:j+len(qhatv)], u[j:], qhatv)
-		if c != 0 {
-			c := addVV(u[j:j+n], u[j:], v)
-			u[j+n] += c
-			qhat--
-		}
-
-		q[j] = qhat
-	}
-	if v1p != nil {
-		putNat(v1p)
-	}
-	putNat(qhatvp)
-
-	q = q.norm()
-	shrVU(u, u, shift)
-	r = u.norm()
-
-	return q, r
-}
 
 // Length of x in bits. x must be normalized.
 func (x nat) bitLen() int {
@@ -973,19 +856,6 @@ func (z nat) xor(x, y nat) nat {
 	copy(z[n:m], s[n:m])
 
 	return z.norm()
-}
-
-// greaterThan reports whether (x1<<_W + x2) > (y1<<_W + y2)
-func greaterThan(x1, x2, y1, y2 Word) bool {
-	return x1 > y1 || x1 == y1 && x2 > y2
-}
-
-// modW returns x % d.
-func (x nat) modW(d Word) (r Word) {
-	// TODO(agl): we don't actually need to store the q value.
-	var q nat
-	q = q.make(len(x))
-	return divWVW(q, 0, x, d)
 }
 
 // random creates a random integer in [0..limit), using the space in z if
@@ -1282,19 +1152,26 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 }
 
 // bytes writes the value of z into buf using big-endian encoding.
-// len(buf) must be >= len(z)*_S. The value of z is encoded in the
-// slice buf[i:]. The number i of unused bytes at the beginning of
-// buf is returned as result.
+// The value of z is encoded in the slice buf[i:]. If the value of z
+// cannot be represented in buf, bytes panics. The number i of unused
+// bytes at the beginning of buf is returned as result.
 func (z nat) bytes(buf []byte) (i int) {
 	i = len(buf)
 	for _, d := range z {
 		for j := 0; j < _S; j++ {
 			i--
-			buf[i] = byte(d)
+			if i >= 0 {
+				buf[i] = byte(d)
+			} else if byte(d) != 0 {
+				panic("math/big: buffer too small to fit value")
+			}
 			d >>= 8
 		}
 	}
 
+	if i < 0 {
+		i = 0
+	}
 	for i < len(buf) && buf[i] == 0 {
 		i++
 	}
@@ -1349,7 +1226,7 @@ func (z nat) sqrt(x nat) nat {
 	var z1, z2 nat
 	z1 = z
 	z1 = z1.setUint64(1)
-	z1 = z1.shl(z1, uint(x.bitLen()/2+1)) // must be ≥ √x
+	z1 = z1.shl(z1, uint(x.bitLen()+1)/2) // must be ≥ √x
 	for n := 0; ; n++ {
 		z2, _ = z2.div(nil, x, z1)
 		z2 = z2.add(z2, z1)

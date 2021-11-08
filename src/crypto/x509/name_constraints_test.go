@@ -14,7 +14,6 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/url"
@@ -46,6 +45,7 @@ type nameConstraintsTest struct {
 	requestedEKUs []ExtKeyUsage
 	expectedError string
 	noOpenSSL     bool
+	ignoreCN      bool
 }
 
 type constraintsSpec struct {
@@ -57,14 +57,13 @@ type constraintsSpec struct {
 type leafSpec struct {
 	sans []string
 	ekus []string
+	cn   string
 }
 
 var nameConstraintsTests = []nameConstraintsTest{
 	// #0: dummy test for the certificate generation process itself.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		leaf: leafSpec{
 			sans: []string{"dns:example.com"},
 		},
@@ -72,13 +71,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #1: dummy test for the certificate generation process itself: single
 	// level of intermediate.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -88,16 +85,14 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #2: dummy test for the certificate generation process itself: two
 	// levels of intermediates.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -106,15 +101,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #3: matching DNS constraint in root
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -123,13 +118,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #4: matching DNS constraint in intermediate.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ok: []string{"dns:example.com"},
 				},
 			},
@@ -140,15 +133,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #5: .example.com only matches subdomains.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -158,13 +151,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #6: .example.com matches subdomains.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ok: []string{"dns:.example.com"},
 				},
 			},
@@ -175,15 +166,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #7: .example.com matches multiple levels of subdomains
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -193,15 +184,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #8: specifying a permitted list of names does not exclude other name
 	// types
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -211,15 +202,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #9: specifying a permitted list of names does not exclude other name
 	// types
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"ip:10.0.0.0/8"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -230,15 +221,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	// #10: intermediates can try to permit other names, which isn't
 	// forbidden if the leaf doesn't mention them. I.e. name constraints
 	// apply to names, not constraints themselves.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ok: []string{"dns:example.com", "dns:foo.com"},
 				},
 			},
@@ -250,15 +241,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #11: intermediates cannot add permitted names that the root doesn't
 	// grant them.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ok: []string{"dns:example.com", "dns:foo.com"},
 				},
 			},
@@ -270,15 +261,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #12: intermediates can further limit their scope if they wish.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ok: []string{"dns:.bar.example.com"},
 				},
 			},
@@ -290,15 +281,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #13: intermediates can further limit their scope and that limitation
 	// is effective
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ok: []string{"dns:.bar.example.com"},
 				},
 			},
@@ -310,15 +301,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #14: roots can exclude subtrees and that doesn't affect other names.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"dns:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -327,15 +318,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #15: roots exclusions are effective.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"dns:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -346,13 +337,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #16: intermediates can also exclude names and that doesn't affect
 	// other names.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					bad: []string{"dns:.example.com"},
 				},
 			},
@@ -363,13 +352,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #17: intermediate exclusions are effective.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					bad: []string{"dns:.example.com"},
 				},
 			},
@@ -381,15 +368,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #18: having an exclusion doesn't prohibit other types of names.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"dns:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -399,15 +386,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #19: IP-based exclusions are permitted and don't affect unrelated IP
 	// addresses.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"ip:10.0.0.0/8"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -416,15 +403,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #20: IP-based exclusions are effective
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"ip:10.0.0.0/8"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -434,15 +421,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #21: intermediates can further constrain IP ranges.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"ip:0.0.0.0/1"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					bad: []string{"ip:11.0.0.0/8"},
 				},
 			},
@@ -455,16 +442,14 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #22: when multiple intermediates are present, chain building can
 	// avoid intermediates with incompatible constraints.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ok: []string{"dns:.foo.com"},
 				},
-				constraintsSpec{
+				{
 					ok: []string{"dns:.example.com"},
 				},
 			},
@@ -477,16 +462,14 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #23: (same as the previous test, but in the other order in ensure
 	// that we don't pass it by luck.)
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ok: []string{"dns:.example.com"},
 				},
-				constraintsSpec{
+				{
 					ok: []string{"dns:.foo.com"},
 				},
 			},
@@ -499,16 +482,16 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #24: when multiple roots are valid, chain building can avoid roots
 	// with incompatible constraints.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{},
-			constraintsSpec{
+			{},
+			{
 				ok: []string{"dns:foo.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -519,16 +502,16 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #25: (same as the previous test, but in the other order in ensure
 	// that we don't pass it by luck.)
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:foo.com"},
 			},
-			constraintsSpec{},
+			{},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -539,26 +522,26 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #26: chain building can find a valid path even with multiple levels
 	// of alternative intermediates and alternative roots.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:foo.com"},
 			},
-			constraintsSpec{
+			{
 				ok: []string{"dns:example.com"},
 			},
-			constraintsSpec{},
+			{},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
-				constraintsSpec{
+			{
+				{},
+				{
 					ok: []string{"dns:foo.com"},
 				},
 			},
-			[]constraintsSpec{
-				constraintsSpec{},
-				constraintsSpec{
+			{
+				{},
+				{
 					ok: []string{"dns:foo.com"},
 				},
 			},
@@ -570,27 +553,27 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #27: chain building doesn't get stuck when there is no valid path.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:foo.com"},
 			},
-			constraintsSpec{
+			{
 				ok: []string{"dns:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
-				constraintsSpec{
+			{
+				{},
+				{
 					ok: []string{"dns:foo.com"},
 				},
 			},
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ok: []string{"dns:bar.com"},
 				},
-				constraintsSpec{
+				{
 					ok: []string{"dns:foo.com"},
 				},
 			},
@@ -602,13 +585,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #28: unknown name types don't cause a problem without constraints.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -617,15 +598,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #29: unknown name types are allowed even in constrained chains.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:foo.com", "dns:.foo.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -633,36 +614,36 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #30: without SANs, a certificate is rejected in a constrained chain.
-	nameConstraintsTest{
+	// #30: without SANs, a certificate with a CN is still accepted in a
+	// constrained chain, since we ignore the CN in VerifyHostname.
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:foo.com", "dns:.foo.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
 			sans: []string{},
+			cn:   "foo.com",
 		},
-		expectedError: "leaf doesn't have a SAN extension",
-		noOpenSSL:     true, // OpenSSL doesn't require SANs in this case.
 	},
 
 	// #31: IPv6 addresses work in constraints: roots can permit them as
 	// expected.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"ip:2000:abcd::/32"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -672,15 +653,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #32: IPv6 addresses work in constraints: root restrictions are
 	// effective.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"ip:2000:abcd::/32"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -690,15 +671,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #33: An IPv6 permitted subtree doesn't affect DNS names.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"ip:2000:abcd::/32"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -707,15 +688,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #34: IPv6 exclusions don't affect unrelated addresses.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"ip:2000:abcd::/32"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -724,15 +705,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #35: IPv6 exclusions are effective.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"ip:2000:abcd::/32"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -742,15 +723,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #36: IPv6 constraints do not permit IPv4 addresses.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"ip:2000:abcd::/32"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -760,15 +741,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #37: IPv4 constraints do not permit IPv6 addresses.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"ip:10.0.0.0/8"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -778,15 +759,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #38: an exclusion of an unknown type doesn't affect other names.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"unknown:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -796,15 +777,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #39: a permitted subtree of an unknown type doesn't affect other
 	// name types.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"unknown:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -813,15 +794,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #40: exact email constraints work
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:foo@example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -830,15 +811,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #41: exact email constraints are effective
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:foo@example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -848,15 +829,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #42: email canonicalisation works.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:foo@example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -866,15 +847,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #43: limiting email addresses to a host works.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -883,15 +864,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #44: a leading dot matches hosts one level deep
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -900,15 +881,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #45: a leading dot does not match the host itself
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -918,15 +899,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #46: a leading dot also matches two (or more) levels deep.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:.example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -935,15 +916,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #47: the local part of an email is case-sensitive
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:foo@example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -953,15 +934,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #48: the domain part of an email is not case-sensitive
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:foo@EXAMPLE.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -970,15 +951,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #49: the domain part of a DNS constraint is also not case-sensitive.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:EXAMPLE.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -987,15 +968,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #50: URI constraints only cover the host part of the URI
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"uri:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1008,15 +989,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #51: URIs with IPs are rejected
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"uri:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1026,15 +1007,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #52: URIs with IPs and ports are rejected
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"uri:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1044,15 +1025,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #53: URIs with IPv6 addresses are also rejected
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"uri:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1062,15 +1043,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #54: URIs with IPv6 addresses with ports are also rejected
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"uri:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1080,15 +1061,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #55: URI constraints are effective
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"uri:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1098,15 +1079,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #56: URI constraints are effective
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"uri:foo.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1116,15 +1097,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #57: URI constraints can allow subdomains
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"uri:.foo.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1134,15 +1115,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #58: excluding an IPv4-mapped-IPv6 address doesn't affect the IPv4
 	// version of that address.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"ip:::ffff:1.2.3.4/128"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1151,15 +1132,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #59: a URI constraint isn't matched by a URN.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"uri:example.com"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1170,16 +1151,16 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #60: excluding all IPv6 addresses doesn't exclude all IPv4 addresses
 	// too, even though IPv4 is mapped into the IPv6 range.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok:  []string{"ip:1.2.3.0/24"},
 				bad: []string{"ip:::0/0"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1189,13 +1170,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #61: omitting extended key usage in a CA certificate implies that
 	// any usage is ok.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1205,13 +1184,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #62: The “any” EKU also means that any usage is ok.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ekus: []string{"any"},
 				},
 			},
@@ -1225,13 +1202,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 	// #63: An intermediate with enumerated EKUs causes a failure if we
 	// test for an EKU not in that set. (ServerAuth is required by
 	// default.)
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ekus: []string{"email"},
 				},
 			},
@@ -1245,13 +1220,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #64: an unknown EKU in the leaf doesn't break anything, even if it's not
 	// correctly nested.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ekus: []string{"email"},
 				},
 			},
@@ -1266,15 +1239,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	// #65: trying to add extra permitted key usages in an intermediate
 	// (after a limitation in the root) is acceptable so long as the leaf
 	// certificate doesn't use them.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ekus: []string{"serverAuth"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ekus: []string{"serverAuth", "email"},
 				},
 			},
@@ -1286,15 +1259,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #66: EKUs in roots are not ignored.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ekus: []string{"email"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ekus: []string{"serverAuth"},
 				},
 			},
@@ -1306,15 +1279,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 		expectedError: "incompatible key usage",
 	},
 
-	// #67: in order to support COMODO chains, SGC key usages permit
-	// serverAuth and clientAuth.
-	nameConstraintsTest{
+	// #67: SGC key usages used to permit serverAuth and clientAuth,
+	// but don't anymore.
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{},
+			{},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ekus: []string{"netscapeSGC"},
 				},
 			},
@@ -1323,17 +1296,16 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:example.com"},
 			ekus: []string{"serverAuth", "clientAuth"},
 		},
+		expectedError: "incompatible key usage",
 	},
 
-	// #68: in order to support COMODO chains, SGC key usages permit
-	// serverAuth and clientAuth.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	// #68: SGC key usages used to permit serverAuth and clientAuth,
+	// but don't anymore.
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ekus: []string{"msSGC"},
 				},
 			},
@@ -1342,18 +1314,19 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:example.com"},
 			ekus: []string{"serverAuth", "clientAuth"},
 		},
+		expectedError: "incompatible key usage",
 	},
 
 	// #69: an empty DNS constraint should allow anything.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"dns:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1362,15 +1335,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #70: an empty DNS constraint should also reject everything.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"dns:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1380,15 +1353,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #71: an empty email constraint should allow anything
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"email:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1397,15 +1370,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #72: an empty email constraint should also reject everything.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"email:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1415,15 +1388,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #73: an empty URI constraint should allow anything
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				ok: []string{"uri:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1432,15 +1405,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #74: an empty URI constraint should also reject everything.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"uri:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1451,13 +1424,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #75: serverAuth in a leaf shouldn't permit clientAuth when requested in
 	// VerifyOptions.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1468,14 +1439,13 @@ var nameConstraintsTests = []nameConstraintsTest{
 		expectedError: "incompatible key usage",
 	},
 
-	// #76: However, MSSGC in a leaf should match a request for serverAuth.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	// #76: MSSGC in a leaf used to match a request for serverAuth, but doesn't
+	// anymore.
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1483,21 +1453,20 @@ var nameConstraintsTests = []nameConstraintsTest{
 			ekus: []string{"msSGC"},
 		},
 		requestedEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+		expectedError: "incompatible key usage",
 	},
 
 	// An invalid DNS SAN should be detected only at validation time so
 	// that we can process CA certificates in the wild that have invalid SANs.
 	// See https://github.com/golang/go/issues/23995
 
-	// #77: an invalid DNS or mail SAN will not be detected if name constaint
+	// #77: an invalid DNS or mail SAN will not be detected if name constraint
 	// checking is not triggered.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1507,15 +1476,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #78: an invalid DNS SAN will be detected if any name constraint checking
 	// is triggered.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"uri:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1526,15 +1495,15 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #79: an invalid email SAN will be detected if any name constraint
 	// checking is triggered.
-	nameConstraintsTest{
+	{
 		roots: []constraintsSpec{
-			constraintsSpec{
+			{
 				bad: []string{"uri:"},
 			},
 		},
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1544,13 +1513,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 	},
 
 	// #80: if several EKUs are requested, satisfying any of them is sufficient.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{},
+			{
+				{},
 			},
 		},
 		leaf: leafSpec{
@@ -1562,13 +1529,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 
 	// #81: EKUs that are not asserted in VerifyOpts are not required to be
 	// nested.
-	nameConstraintsTest{
-		roots: []constraintsSpec{
-			constraintsSpec{},
-		},
+	{
+		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
-			[]constraintsSpec{
-				constraintsSpec{
+			{
+				{
 					ekus: []string{"serverAuth"},
 				},
 			},
@@ -1578,6 +1543,60 @@ var nameConstraintsTests = []nameConstraintsTest{
 			// There's no email EKU in the intermediate. This would be rejected if
 			// full nesting was required.
 			ekus: []string{"email", "serverAuth"},
+		},
+	},
+
+	// #82: a certificate without SANs and CN is accepted in a constrained chain.
+	{
+		roots: []constraintsSpec{
+			{
+				ok: []string{"dns:foo.com", "dns:.foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{},
+		},
+	},
+
+	// #83: a certificate without SANs and with a CN that does not parse as a
+	// hostname is accepted in a constrained chain.
+	{
+		roots: []constraintsSpec{
+			{
+				ok: []string{"dns:foo.com", "dns:.foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{},
+			cn:   "foo,bar",
+		},
+	},
+
+	// #84: a certificate with SANs and CN is accepted in a constrained chain.
+	{
+		roots: []constraintsSpec{
+			{
+				ok: []string{"dns:foo.com", "dns:.foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:foo.com"},
+			cn:   "foo.bar",
 		},
 	},
 }
@@ -1625,9 +1644,8 @@ func makeConstraintsLeafCert(leaf leafSpec, key *ecdsa.PrivateKey, parent *Certi
 	template := &Certificate{
 		SerialNumber: new(big.Int).SetBytes(serialBytes[:]),
 		Subject: pkix.Name{
-			// Don't set a CommonName because OpenSSL (at least) will try to
-			// match it against name constraints.
 			OrganizationalUnit: []string{"Leaf"},
+			CommonName:         leaf.cn,
 		},
 		NotBefore:             time.Unix(1000, 0),
 		NotAfter:              time.Unix(2000, 0),
@@ -1899,8 +1917,10 @@ func TestConstraintCases(t *testing.T) {
 			t.Fatalf("#%d: cannot create leaf: %s", i, err)
 		}
 
-		if !test.noOpenSSL && testNameConstraintsAgainstOpenSSL {
-			output, err := testChainAgainstOpenSSL(leafCert, intermediatePool, rootPool)
+		// Skip tests with CommonName set because OpenSSL will try to match it
+		// against name constraints, while we ignore it when it's not hostname-looking.
+		if !test.noOpenSSL && testNameConstraintsAgainstOpenSSL && test.leaf.cn == "" {
+			output, err := testChainAgainstOpenSSL(t, leafCert, intermediatePool, rootPool)
 			if err == nil && len(test.expectedError) > 0 {
 				t.Errorf("#%d: unexpectedly succeeded against OpenSSL", i)
 				if debugOpenSSLFailure {
@@ -1912,7 +1932,7 @@ func TestConstraintCases(t *testing.T) {
 				if _, ok := err.(*exec.ExitError); !ok {
 					t.Errorf("#%d: OpenSSL failed to run: %s", i, err)
 				} else if len(test.expectedError) == 0 {
-					t.Errorf("#%d: OpenSSL unexpectedly failed: %q", i, output)
+					t.Errorf("#%d: OpenSSL unexpectedly failed: %v", i, output)
 					if debugOpenSSLFailure {
 						return
 					}
@@ -1949,21 +1969,20 @@ func TestConstraintCases(t *testing.T) {
 			certAsPEM := func(cert *Certificate) string {
 				var buf bytes.Buffer
 				pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
-				return string(buf.Bytes())
+				return buf.String()
 			}
-			t.Errorf("#%d: root:\n%s", i, certAsPEM(rootPool.certs[0]))
+			t.Errorf("#%d: root:\n%s", i, certAsPEM(rootPool.mustCert(t, 0)))
 			t.Errorf("#%d: leaf:\n%s", i, certAsPEM(leafCert))
 		}
 
 		for _, key := range keys {
 			privateKeys.Put(key)
 		}
-		keys = keys[:0]
 	}
 }
 
 func writePEMsToTempFile(certs []*Certificate) *os.File {
-	file, err := ioutil.TempFile("", "name_constraints_test")
+	file, err := os.CreateTemp("", "name_constraints_test")
 	if err != nil {
 		panic("cannot create tempfile")
 	}
@@ -1977,10 +1996,10 @@ func writePEMsToTempFile(certs []*Certificate) *os.File {
 	return file
 }
 
-func testChainAgainstOpenSSL(leaf *Certificate, intermediates, roots *CertPool) (string, error) {
+func testChainAgainstOpenSSL(t *testing.T, leaf *Certificate, intermediates, roots *CertPool) (string, error) {
 	args := []string{"verify", "-no_check_time"}
 
-	rootsFile := writePEMsToTempFile(roots.certs)
+	rootsFile := writePEMsToTempFile(allCerts(t, roots))
 	if debugOpenSSLFailure {
 		println("roots file:", rootsFile.Name())
 	} else {
@@ -1988,8 +2007,8 @@ func testChainAgainstOpenSSL(leaf *Certificate, intermediates, roots *CertPool) 
 	}
 	args = append(args, "-CAfile", rootsFile.Name())
 
-	if len(intermediates.certs) > 0 {
-		intermediatesFile := writePEMsToTempFile(intermediates.certs)
+	if intermediates.len() > 0 {
+		intermediatesFile := writePEMsToTempFile(allCerts(t, intermediates))
 		if debugOpenSSLFailure {
 			println("intermediates file:", intermediatesFile.Name())
 		} else {
@@ -2012,7 +2031,7 @@ func testChainAgainstOpenSSL(leaf *Certificate, intermediates, roots *CertPool) 
 	cmd.Stderr = &output
 
 	err := cmd.Run()
-	return string(output.Bytes()), err
+	return output.String(), err
 }
 
 var rfc2821Tests = []struct {
@@ -2138,10 +2157,8 @@ func TestBadNamesInSANs(t *testing.T) {
 			continue
 		}
 
-		if err != nil {
-			if str := err.Error(); !strings.Contains(str, "cannot parse ") {
-				t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
-			}
+		if str := err.Error(); !strings.Contains(str, "cannot parse ") {
+			t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
 		}
 	}
 }

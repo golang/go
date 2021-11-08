@@ -299,3 +299,27 @@ func TestNoRaceAtomicCrash(t *testing.T) {
 	}()
 	atomic.AddInt32(nilptr, 1)
 }
+
+func TestNoRaceDeferAtomicStore(t *testing.T) {
+	// Test that when an atomic function is deferred directly, the
+	// GC scans it correctly. See issue 42599.
+	type foo struct {
+		bar int64
+	}
+
+	var doFork func(f *foo, depth int)
+	doFork = func(f *foo, depth int) {
+		atomic.StoreInt64(&f.bar, 1)
+		defer atomic.StoreInt64(&f.bar, 0)
+		if depth > 0 {
+			for i := 0; i < 2; i++ {
+				f2 := &foo{}
+				go doFork(f2, depth-1)
+			}
+		}
+		runtime.GC()
+	}
+
+	f := &foo{}
+	doFork(f, 11)
+}

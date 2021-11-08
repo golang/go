@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"path"
@@ -773,7 +772,7 @@ func TestReadTruncation(t *testing.T) {
 		"testdata/pax-path-hdr.tar",
 		"testdata/sparse-formats.tar",
 	} {
-		buf, err := ioutil.ReadFile(p)
+		buf, err := os.ReadFile(p)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -865,7 +864,7 @@ func TestReadTruncation(t *testing.T) {
 				}
 				cnt++
 				if s2 == "manual" {
-					if _, err = tr.writeTo(ioutil.Discard); err != nil {
+					if _, err = tr.writeTo(io.Discard); err != nil {
 						break
 					}
 				}
@@ -1022,12 +1021,12 @@ func TestParsePAX(t *testing.T) {
 
 func TestReadOldGNUSparseMap(t *testing.T) {
 	populateSparseMap := func(sa sparseArray, sps []string) []string {
-		for i := 0; len(sps) > 0 && i < sa.MaxEntries(); i++ {
-			copy(sa.Entry(i), sps[0])
+		for i := 0; len(sps) > 0 && i < sa.maxEntries(); i++ {
+			copy(sa.entry(i), sps[0])
 			sps = sps[1:]
 		}
 		if len(sps) > 0 {
-			copy(sa.IsExtended(), "\x80")
+			copy(sa.isExtended(), "\x80")
 		}
 		return sps
 	}
@@ -1035,19 +1034,19 @@ func TestReadOldGNUSparseMap(t *testing.T) {
 	makeInput := func(format Format, size string, sps ...string) (out []byte) {
 		// Write the initial GNU header.
 		var blk block
-		gnu := blk.GNU()
-		sparse := gnu.Sparse()
-		copy(gnu.RealSize(), size)
+		gnu := blk.toGNU()
+		sparse := gnu.sparse()
+		copy(gnu.realSize(), size)
 		sps = populateSparseMap(sparse, sps)
 		if format != FormatUnknown {
-			blk.SetFormat(format)
+			blk.setFormat(format)
 		}
 		out = append(out, blk[:]...)
 
 		// Write extended sparse blocks.
 		for len(sps) > 0 {
 			var blk block
-			sps = populateSparseMap(blk.Sparse(), sps)
+			sps = populateSparseMap(blk.toSparse(), sps)
 			out = append(out, blk[:]...)
 		}
 		return out
@@ -1360,7 +1359,7 @@ func TestFileReader(t *testing.T) {
 			wantCnt int64
 			wantErr error
 		}
-		testRemaining struct { // LogicalRemaining() == wantLCnt, PhysicalRemaining() == wantPCnt
+		testRemaining struct { // logicalRemaining() == wantLCnt, physicalRemaining() == wantPCnt
 			wantLCnt int64
 			wantPCnt int64
 		}
@@ -1597,11 +1596,11 @@ func TestFileReader(t *testing.T) {
 					t.Errorf("test %d.%d, expected %d more operations", i, j, len(f.ops))
 				}
 			case testRemaining:
-				if got := fr.LogicalRemaining(); got != tf.wantLCnt {
-					t.Errorf("test %d.%d, LogicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
+				if got := fr.logicalRemaining(); got != tf.wantLCnt {
+					t.Errorf("test %d.%d, logicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
 				}
-				if got := fr.PhysicalRemaining(); got != tf.wantPCnt {
-					t.Errorf("test %d.%d, PhysicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
+				if got := fr.physicalRemaining(); got != tf.wantPCnt {
+					t.Errorf("test %d.%d, physicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
 				}
 			default:
 				t.Fatalf("test %d.%d, unknown test operation: %T", i, j, tf)

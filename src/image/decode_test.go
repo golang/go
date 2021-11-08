@@ -123,6 +123,10 @@ loop:
 			continue
 		}
 		c, _, err := decodeConfig(it.filename)
+		if err != nil {
+			t.Errorf("%s: %v", it.filename, err)
+			continue loop
+		}
 		if m.ColorModel() != c.ColorModel {
 			t.Errorf("%s: color models differ", it.filename)
 			continue loop

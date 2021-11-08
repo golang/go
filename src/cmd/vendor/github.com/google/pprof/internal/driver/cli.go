@@ -32,21 +32,22 @@ type source struct {
 	DiffBase  bool
 	Normalize bool
 
-	Seconds      int
-	Timeout      int
-	Symbolize    string
-	HTTPHostport string
-	Comment      string
+	Seconds            int
+	Timeout            int
+	Symbolize          string
+	HTTPHostport       string
+	HTTPDisableBrowser bool
+	Comment            string
 }
 
-// Parse parses the command lines through the specified flags package
+// parseFlags parses the command lines through the specified flags package
 // and returns the source of the profile and optionally the command
 // for the kind of report to generate (nil for interactive use).
 func parseFlags(o *plugin.Options) (*source, []string, error) {
 	flag := o.Flagset
 	// Comparisons.
-	flagBase := flag.StringList("base", "", "Source for base profile for profile subtraction")
-	flagDiffBase := flag.StringList("diff_base", "", "Source for diff base profile for comparison")
+	flagDiffBase := flag.StringList("diff_base", "", "Source of base profile for comparison")
+	flagBase := flag.StringList("base", "", "Source of base profile for profile subtraction")
 	// Source options.
 	flagSymbolize := flag.String("symbolize", "", "Options for profile symbolization")
 	flagBuildID := flag.String("buildid", "", "Override build id for first mapping")
@@ -65,10 +66,12 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	flagMeanDelay := flag.Bool("mean_delay", false, "Display mean delay at each region")
 	flagTools := flag.String("tools", os.Getenv("PPROF_TOOLS"), "Path for object tool pathnames")
 
-	flagHTTP := flag.String("http", "", "Present interactive web based UI at the specified http host:port")
+	flagHTTP := flag.String("http", "", "Present interactive web UI at the specified http host:port")
+	flagNoBrowser := flag.Bool("no_browser", false, "Skip opening a browswer for the interactive web UI")
 
-	// Flags used during command processing
-	installedFlags := installFlags(flag)
+	// Flags that set configuration properties.
+	cfg := currentConfig()
+	configFlagSetter := installConfigFlags(flag, &cfg)
 
 	flagCommands := make(map[string]*bool)
 	flagParamCommands := make(map[string]*string)
@@ -105,8 +108,8 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 		}
 	}
 
-	// Report conflicting options
-	if err := updateFlags(installedFlags); err != nil {
+	// Apply any specified flags to cfg.
+	if err := configFlagSetter(); err != nil {
 		return nil, nil, err
 	}
 
@@ -118,7 +121,11 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 		return nil, nil, errors.New("-http is not compatible with an output format on the command line")
 	}
 
-	si := pprofVariables["sample_index"].value
+	if *flagNoBrowser && *flagHTTP == "" {
+		return nil, nil, errors.New("-no_browser only makes sense with -http")
+	}
+
+	si := cfg.SampleIndex
 	si = sampleIndex(flagTotalDelay, si, "delay", "-total_delay", o.UI)
 	si = sampleIndex(flagMeanDelay, si, "delay", "-mean_delay", o.UI)
 	si = sampleIndex(flagContentions, si, "contentions", "-contentions", o.UI)
@@ -126,28 +133,29 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	si = sampleIndex(flagInUseObjects, si, "inuse_objects", "-inuse_objects", o.UI)
 	si = sampleIndex(flagAllocSpace, si, "alloc_space", "-alloc_space", o.UI)
 	si = sampleIndex(flagAllocObjects, si, "alloc_objects", "-alloc_objects", o.UI)
-	pprofVariables.set("sample_index", si)
+	cfg.SampleIndex = si
 
 	if *flagMeanDelay {
-		pprofVariables.set("mean", "true")
+		cfg.Mean = true
 	}
 
 	source := &source{
-		Sources:      args,
-		ExecName:     execName,
-		BuildID:      *flagBuildID,
-		Seconds:      *flagSeconds,
-		Timeout:      *flagTimeout,
-		Symbolize:    *flagSymbolize,
-		HTTPHostport: *flagHTTP,
-		Comment:      *flagAddComment,
+		Sources:            args,
+		ExecName:           execName,
+		BuildID:            *flagBuildID,
+		Seconds:            *flagSeconds,
+		Timeout:            *flagTimeout,
+		Symbolize:          *flagSymbolize,
+		HTTPHostport:       *flagHTTP,
+		HTTPDisableBrowser: *flagNoBrowser,
+		Comment:            *flagAddComment,
 	}
 
 	if err := source.addBaseProfiles(*flagBase, *flagDiffBase); err != nil {
 		return nil, nil, err
 	}
 
-	normalize := pprofVariables["normalize"].boolValue()
+	normalize := cfg.Normalize
 	if normalize && len(source.Base) == 0 {
 		return nil, nil, errors.New("must have base profile to normalize by")
 	}
@@ -156,6 +164,8 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	if bu, ok := o.Obj.(*binutils.Binutils); ok {
 		bu.SetTools(*flagTools)
 	}
+
+	setCurrentConfig(cfg)
 	return source, cmd, nil
 }
 
@@ -187,66 +197,72 @@ func dropEmpty(list []*string) []string {
 	return l
 }
 
-// installFlags creates command line flags for pprof variables.
-func installFlags(flag plugin.FlagSet) flagsInstalled {
-	f := flagsInstalled{
-		ints:    make(map[string]*int),
-		bools:   make(map[string]*bool),
-		floats:  make(map[string]*float64),
-		strings: make(map[string]*string),
-	}
-	for n, v := range pprofVariables {
-		switch v.kind {
-		case boolKind:
-			if v.group != "" {
-				// Set all radio variables to false to identify conflicts.
-				f.bools[n] = flag.Bool(n, false, v.help)
+// installConfigFlags creates command line flags for configuration
+// fields and returns a function which can be called after flags have
+// been parsed to copy any flags specified on the command line to
+// *cfg.
+func installConfigFlags(flag plugin.FlagSet, cfg *config) func() error {
+	// List of functions for setting the different parts of a config.
+	var setters []func()
+	var err error // Holds any errors encountered while running setters.
+
+	for _, field := range configFields {
+		n := field.name
+		help := configHelp[n]
+		var setter func()
+		switch ptr := cfg.fieldPtr(field).(type) {
+		case *bool:
+			f := flag.Bool(n, *ptr, help)
+			setter = func() { *ptr = *f }
+		case *int:
+			f := flag.Int(n, *ptr, help)
+			setter = func() { *ptr = *f }
+		case *float64:
+			f := flag.Float64(n, *ptr, help)
+			setter = func() { *ptr = *f }
+		case *string:
+			if len(field.choices) == 0 {
+				f := flag.String(n, *ptr, help)
+				setter = func() { *ptr = *f }
 			} else {
-				f.bools[n] = flag.Bool(n, v.boolValue(), v.help)
+				// Make a separate flag per possible choice.
+				// Set all flags to initially false so we can
+				// identify conflicts.
+				bools := make(map[string]*bool)
+				for _, choice := range field.choices {
+					bools[choice] = flag.Bool(choice, false, configHelp[choice])
+				}
+				setter = func() {
+					var set []string
+					for k, v := range bools {
+						if *v {
+							set = append(set, k)
+						}
+					}
+					switch len(set) {
+					case 0:
+						// Leave as default value.
+					case 1:
+						*ptr = set[0]
+					default:
+						err = fmt.Errorf("conflicting options set: %v", set)
+					}
+				}
 			}
-		case intKind:
-			f.ints[n] = flag.Int(n, v.intValue(), v.help)
-		case floatKind:
-			f.floats[n] = flag.Float64(n, v.floatValue(), v.help)
-		case stringKind:
-			f.strings[n] = flag.String(n, v.value, v.help)
 		}
+		setters = append(setters, setter)
 	}
-	return f
-}
 
-// updateFlags updates the pprof variables according to the flags
-// parsed in the command line.
-func updateFlags(f flagsInstalled) error {
-	vars := pprofVariables
-	groups := map[string]string{}
-	for n, v := range f.bools {
-		vars.set(n, fmt.Sprint(*v))
-		if *v {
-			g := vars[n].group
-			if g != "" && groups[g] != "" {
-				return fmt.Errorf("conflicting options %q and %q set", n, groups[g])
+	return func() error {
+		// Apply the setter for every flag.
+		for _, setter := range setters {
+			setter()
+			if err != nil {
+				return err
 			}
-			groups[g] = n
 		}
+		return nil
 	}
-	for n, v := range f.ints {
-		vars.set(n, fmt.Sprint(*v))
-	}
-	for n, v := range f.floats {
-		vars.set(n, fmt.Sprint(*v))
-	}
-	for n, v := range f.strings {
-		vars.set(n, *v)
-	}
-	return nil
-}
-
-type flagsInstalled struct {
-	ints    map[string]*int
-	bools   map[string]*bool
-	floats  map[string]*float64
-	strings map[string]*string
 }
 
 // isBuildID determines if the profile may contain a build ID, by
@@ -312,7 +328,8 @@ var usageMsgSrc = "\n\n" +
 	"    -buildid              Override build id for main binary\n" +
 	"    -add_comment          Free-form annotation to add to the profile\n" +
 	"                          Displayed on some reports or with pprof -comments\n" +
-	"    -base source          Source of profile to use as baseline\n" +
+	"    -diff_base source     Source of base profile for comparison\n" +
+	"    -base source          Source of base profile for profile subtraction\n" +
 	"    profile.pb.gz         Profile in compressed protobuf format\n" +
 	"    legacy_profile        Profile in legacy pprof format\n" +
 	"    http://host/profile   URL for profile handler to retrieve\n" +
@@ -326,9 +343,10 @@ var usageMsgSrc = "\n\n" +
 
 var usageMsgVars = "\n\n" +
 	"  Misc options:\n" +
-	"   -http              Provide web based interface at host:port.\n" +
+	"   -http              Provide web interface at host:port.\n" +
 	"                      Host is optional and 'localhost' by default.\n" +
 	"                      Port is optional and a randomly available port by default.\n" +
+	"   -no_browser        Skip opening a browser for the interactive web UI.\n" +
 	"   -tools             Search path for object tools\n" +
 	"\n" +
 	"  Legacy convenience options:\n" +

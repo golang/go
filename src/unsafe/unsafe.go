@@ -14,6 +14,10 @@ package unsafe
 // part of the unsafe package. It represents the type of an arbitrary Go expression.
 type ArbitraryType int
 
+// IntegerType is here for the purposes of documentation only and is not actually
+// part of the unsafe package. It represents any arbitrary integer type.
+type IntegerType int
+
 // Pointer represents a pointer to an arbitrary type. There are four special operations
 // available for type Pointer that are not available for other types:
 //	- A pointer value of any type can be converted to a Pointer.
@@ -99,6 +103,12 @@ type ArbitraryType int
 //	u := uintptr(p)
 //	p = unsafe.Pointer(u + offset)
 //
+// Note that the pointer must point into an allocated object, so it may not be nil.
+//
+//	// INVALID: conversion of nil pointer
+//	u := unsafe.Pointer(nil)
+//	p := unsafe.Pointer(uintptr(u) + offset)
+//
 // (4) Conversion of a Pointer to a uintptr when calling syscall.Syscall.
 //
 // The Syscall functions in package syscall pass their uintptr arguments directly
@@ -178,11 +188,13 @@ type Pointer *ArbitraryType
 // The size does not include any memory possibly referenced by x.
 // For instance, if x is a slice, Sizeof returns the size of the slice
 // descriptor, not the size of the memory referenced by the slice.
+// The return value of Sizeof is a Go constant.
 func Sizeof(x ArbitraryType) uintptr
 
 // Offsetof returns the offset within the struct of the field represented by x,
 // which must be of the form structValue.field. In other words, it returns the
 // number of bytes between the start of the struct and the start of the field.
+// The return value of Offsetof is a Go constant.
 func Offsetof(x ArbitraryType) uintptr
 
 // Alignof takes an expression x of any type and returns the required alignment
@@ -193,4 +205,29 @@ func Offsetof(x ArbitraryType) uintptr
 // within that struct, then Alignof(s.f) will return the required alignment
 // of a field of that type within a struct. This case is the same as the
 // value returned by reflect.TypeOf(s.f).FieldAlign().
+// The return value of Alignof is a Go constant.
 func Alignof(x ArbitraryType) uintptr
+
+// The function Add adds len to ptr and returns the updated pointer
+// Pointer(uintptr(ptr) + uintptr(len)).
+// The len argument must be of integer type or an untyped constant.
+// A constant len argument must be representable by a value of type int;
+// if it is an untyped constant it is given type int.
+// The rules for valid uses of Pointer still apply.
+func Add(ptr Pointer, len IntegerType) Pointer
+
+// The function Slice returns a slice whose underlying array starts at ptr
+// and whose length and capacity are len.
+// Slice(ptr, len) is equivalent to
+//
+//	(*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
+//
+// except that, as a special case, if ptr is nil and len is zero,
+// Slice returns nil.
+//
+// The len argument must be of integer type or an untyped constant.
+// A constant len argument must be non-negative and representable by a value of type int;
+// if it is an untyped constant it is given type int.
+// At run time, if len is negative, or if ptr is nil and len is not zero,
+// a run-time panic occurs.
+func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType

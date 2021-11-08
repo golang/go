@@ -1,6 +1,8 @@
+<!---
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+-->
 
 ## Introduction to the Go compiler
 
@@ -19,7 +21,7 @@ the `go/*` packages were developed to enable writing tools working with Go code,
 such as `gofmt` and `vet`.
 
 It should be clarified that the name "gc" stands for "Go compiler", and has
-little to do with uppercase GC, which stands for garbage collection.
+little to do with uppercase "GC", which stands for garbage collection.
 
 ### 1. Parsing
 
@@ -113,4 +115,4 @@ and debugging information.
 ### Further reading
 
 To dig deeper into how the SSA package works, including its passes and rules,
-head to `cmd/compile/internal/ssa/README.md`.
+head to [cmd/compile/internal/ssa/README.md](internal/ssa/README.md).

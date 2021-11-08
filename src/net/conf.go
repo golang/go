@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package net
 
 import (
+	"internal/bytealg"
+	"internal/godebug"
 	"os"
 	"runtime"
 	"sync"
@@ -68,7 +70,7 @@ func initConfVal() {
 	// Darwin pops up annoying dialog boxes if programs try to do
 	// their own DNS requests. So always use cgo instead, which
 	// avoids that.
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		confVal.forceCgoLookupHost = true
 		return
 	}
@@ -132,7 +134,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
 		return fallbackOrder
 	}
-	if byteIndex(hostname, '\\') != -1 || byteIndex(hostname, '%') != -1 {
+	if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
 		// Don't deal with special form hostnames with backslashes
 		// or '%'.
 		return fallbackOrder
@@ -200,11 +202,6 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		if c.goos == "solaris" {
 			// illumos defaults to "nis [NOTFOUND=return] files"
 			return fallbackOrder
-		}
-		if c.goos == "linux" {
-			// glibc says the default is "dns [!UNAVAIL=return] files"
-			// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
-			return hostLookupDNSFiles
 		}
 		return hostLookupFilesDNS
 	}
@@ -290,7 +287,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 //    cgo+2   // same, but debug level 2
 // etc.
 func goDebugNetDNS() (dnsMode string, debugLevel int) {
-	goDebug := goDebugString("netdns")
+	goDebug := godebug.Get("netdns")
 	parsePart := func(s string) {
 		if s == "" {
 			return
@@ -301,7 +298,7 @@ func goDebugNetDNS() (dnsMode string, debugLevel int) {
 			dnsMode = s
 		}
 	}
-	if i := byteIndex(goDebug, '+'); i != -1 {
+	if i := bytealg.IndexByteString(goDebug, '+'); i != -1 {
 		parsePart(goDebug[:i])
 		parsePart(goDebug[i+1:])
 		return

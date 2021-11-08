@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains an driver.UI implementation
+// This file contains a driver.UI implementation
 // that provides the readline functionality if possible.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
-// +build !appengine
-// +build !android
+//go:build (darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || windows) && !appengine && !android
 
 package main
 
@@ -18,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/google/pprof/driver"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 func init() {
@@ -26,27 +24,31 @@ func init() {
 }
 
 // readlineUI implements driver.UI interface using the
-// golang.org/x/crypto/ssh/terminal package.
+// golang.org/x/term package.
 // The upstream pprof command implements the same functionality
 // using the github.com/chzyer/readline package.
 type readlineUI struct {
-	term *terminal.Terminal
+	term *term.Terminal
 }
 
 func newReadlineUI() driver.UI {
-	// test if we can use terminal.ReadLine
+	// disable readline UI in dumb terminal. (golang.org/issue/26254)
+	if v := strings.ToLower(os.Getenv("TERM")); v == "" || v == "dumb" {
+		return nil
+	}
+	// test if we can use term.ReadLine
 	// that assumes operation in the raw mode.
-	oldState, err := terminal.MakeRaw(0)
+	oldState, err := term.MakeRaw(0)
 	if err != nil {
 		return nil
 	}
-	terminal.Restore(0, oldState)
+	term.Restore(0, oldState)
 
 	rw := struct {
 		io.Reader
 		io.Writer
 	}{os.Stdin, os.Stderr}
-	return &readlineUI{term: terminal.NewTerminal(rw, "")}
+	return &readlineUI{term: term.NewTerminal(rw, "")}
 }
 
 // Read returns a line of text (a command) read from the user.
@@ -56,8 +58,8 @@ func (r *readlineUI) ReadLine(prompt string) (string, error) {
 
 	// skip error checking because we tested it
 	// when creating this readlineUI initially.
-	oldState, _ := terminal.MakeRaw(0)
-	defer terminal.Restore(0, oldState)
+	oldState, _ := term.MakeRaw(0)
+	defer term.Restore(0, oldState)
 
 	s, err := r.term.ReadLine()
 	return s, err
@@ -97,11 +99,11 @@ func colorize(msg string) string {
 	return colorEscape + msg + colorResetEscape
 }
 
-// IsTerminal returns whether the UI is known to be tied to an
+// IsTerminal reports whether the UI is known to be tied to an
 // interactive terminal (as opposed to being redirected to a file).
 func (r *readlineUI) IsTerminal() bool {
 	const stdout = 1
-	return terminal.IsTerminal(stdout)
+	return term.IsTerminal(stdout)
 }
 
 // WantBrowser indicates whether browser should be opened with the -http option.

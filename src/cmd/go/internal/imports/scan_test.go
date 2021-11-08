@@ -5,10 +5,13 @@
 package imports
 
 import (
+	"bytes"
 	"internal/testenv"
+	"os"
+	"path"
 	"path/filepath"
-	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -30,7 +33,7 @@ func TestScan(t *testing.T) {
 		}
 		if p == "net/http" {
 			// A test import but not an import
-			t.Errorf("json reported as importing encoding/binary but does not")
+			t.Errorf("json reported as importing net/http but does not")
 		}
 	}
 	if !foundBase64 {
@@ -51,17 +54,41 @@ func TestScan(t *testing.T) {
 		t.Errorf("json missing test import net/http (%q)", testImports)
 	}
 }
-
-func TestScanStar(t *testing.T) {
+func TestScanDir(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	imports, _, err := ScanDir("testdata/import1", map[string]bool{"*": true})
+	dirs, err := os.ReadDir("testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, dir := range dirs {
+		if !dir.IsDir() || strings.HasPrefix(dir.Name(), ".") {
+			continue
+		}
+		t.Run(dir.Name(), func(t *testing.T) {
+			tagsData, err := os.ReadFile(filepath.Join("testdata", dir.Name(), "tags.txt"))
+			if err != nil {
+				t.Fatalf("error reading tags: %v", err)
+			}
+			tags := make(map[string]bool)
+			for _, t := range strings.Fields(string(tagsData)) {
+				tags[t] = true
+			}
 
-	want := []string{"import1", "import2", "import3", "import4"}
-	if !reflect.DeepEqual(imports, want) {
-		t.Errorf("ScanDir testdata/import1:\nhave %v\nwant %v", imports, want)
+			wantData, err := os.ReadFile(filepath.Join("testdata", dir.Name(), "want.txt"))
+			if err != nil {
+				t.Fatalf("error reading want: %v", err)
+			}
+			want := string(bytes.TrimSpace(wantData))
+
+			imports, _, err := ScanDir(path.Join("testdata", dir.Name()), tags)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := strings.Join(imports, "\n")
+			if got != want {
+				t.Errorf("ScanDir: got imports:\n%s\n\nwant:\n%s", got, want)
+			}
+		})
 	}
 }

@@ -294,12 +294,9 @@ func parseResult(t *testing.T, file string, lineno int, res string) []int {
 				out[n] = -1
 				out[n+1] = -1
 			} else {
-				k := strings.Index(pair, "-")
-				if k < 0 {
-					t.Fatalf("%s:%d: invalid pair %s", file, lineno, pair)
-				}
-				lo, err1 := strconv.Atoi(pair[:k])
-				hi, err2 := strconv.Atoi(pair[k+1:])
+				loStr, hiStr, _ := strings.Cut(pair, "-")
+				lo, err1 := strconv.Atoi(loStr)
+				hi, err2 := strconv.Atoi(hiStr)
 				if err1 != nil || err2 != nil || lo > hi {
 					t.Fatalf("%s:%d: invalid pair %s", file, lineno, pair)
 				}
@@ -457,12 +454,11 @@ Reading:
 				continue Reading
 			}
 		case ':':
-			i := strings.Index(flag[1:], ":")
-			if i < 0 {
+			var ok bool
+			if _, flag, ok = strings.Cut(flag[1:], ":"); !ok {
 				t.Logf("skip: %s", line)
 				continue Reading
 			}
-			flag = flag[1+i+1:]
 		case 'C', 'N', 'T', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 			t.Logf("skip: %s", line)
 			continue Reading
@@ -665,7 +661,7 @@ func BenchmarkMatch(b *testing.B) {
 	for _, data := range benchData {
 		r := MustCompile(data.re)
 		for _, size := range benchSizes {
-			if isRaceBuilder && size.n > 1<<10 {
+			if (isRaceBuilder || testing.Short()) && size.n > 1<<10 {
 				continue
 			}
 			t := makeText(size.n)
@@ -684,26 +680,20 @@ func BenchmarkMatch(b *testing.B) {
 func BenchmarkMatch_onepass_regex(b *testing.B) {
 	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
 	r := MustCompile(`(?s)\A.*\z`)
-	if r.get().op == notOnePass {
+	if r.onepass == nil {
 		b.Fatalf("want onepass regex, but %q is not onepass", r)
 	}
 	for _, size := range benchSizes {
-		if isRaceBuilder && size.n > 1<<10 {
+		if (isRaceBuilder || testing.Short()) && size.n > 1<<10 {
 			continue
 		}
 		t := makeText(size.n)
-		bs := make([][]byte, len(t))
-		for i, s := range t {
-			bs[i] = []byte{s}
-		}
 		b.Run(size.name, func(b *testing.B) {
 			b.SetBytes(int64(size.n))
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				for _, byts := range bs {
-					if !r.Match(byts) {
-						b.Fatal("not match!")
-					}
+				if !r.Match(t) {
+					b.Fatal("not match!")
 				}
 			}
 		})
@@ -723,6 +713,7 @@ var benchSizes = []struct {
 	name string
 	n    int
 }{
+	{"16", 16},
 	{"32", 32},
 	{"1K", 1 << 10},
 	{"32K", 32 << 10},

@@ -13,7 +13,7 @@ import (
 	"crypto/tls"
 	"debug/dwarf"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -94,7 +94,7 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error) 
 func statusCodeError(resp *http.Response) error {
 	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
 		// error is from pprof endpoint
-		if body, err := ioutil.ReadAll(resp.Body); err == nil {
+		if body, err := io.ReadAll(resp.Body); err == nil {
 			return fmt.Errorf("server response: %s - %s", resp.Status, body)
 		}
 	}
@@ -171,13 +171,16 @@ func (*objTool) Demangle(names []string) (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
-func (t *objTool) Disasm(file string, start, end uint64) ([]driver.Inst, error) {
+func (t *objTool) Disasm(file string, start, end uint64, intelSyntax bool) ([]driver.Inst, error) {
+	if intelSyntax {
+		return nil, fmt.Errorf("printing assembly in Intel syntax is not supported")
+	}
 	d, err := t.cachedDisasm(file)
 	if err != nil {
 		return nil, err
 	}
 	var asm []driver.Inst
-	d.Decode(start, end, nil, func(pc, size uint64, file string, line int, text string) {
+	d.Decode(start, end, nil, false, func(pc, size uint64, file string, line int, text string) {
 		asm = append(asm, driver.Inst{Addr: pc, File: file, Line: line, Text: text})
 	})
 	return asm, nil
@@ -229,9 +232,9 @@ func (f *file) Name() string {
 	return f.name
 }
 
-func (f *file) Base() uint64 {
-	// No support for shared libraries.
-	return 0
+func (f *file) ObjAddr(addr uint64) (uint64, error) {
+	// No support for shared libraries, so translation is a no-op.
+	return addr, nil
 }
 
 func (f *file) BuildID() string {

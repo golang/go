@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux && arm64 && gc
 // +build linux
 // +build arm64
-// +build !gccgo
+// +build gc
 
 #include "textflag.h"
 

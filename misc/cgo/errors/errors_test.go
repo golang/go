@@ -7,7 +7,6 @@ package errorstest
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,14 +17,14 @@ import (
 )
 
 func path(file string) string {
-	return filepath.Join("src", file)
+	return filepath.Join("testdata", file)
 }
 
 func check(t *testing.T, file string) {
 	t.Run(file, func(t *testing.T) {
 		t.Parallel()
 
-		contents, err := ioutil.ReadFile(path(file))
+		contents, err := os.ReadFile(path(file))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -37,13 +36,13 @@ func check(t *testing.T, file string) {
 				continue
 			}
 
-			frags := bytes.SplitAfterN(line, []byte("ERROR HERE: "), 2)
-			if len(frags) == 1 {
+			_, frag, ok := bytes.Cut(line, []byte("ERROR HERE: "))
+			if !ok {
 				continue
 			}
-			re, err := regexp.Compile(string(frags[1]))
+			re, err := regexp.Compile(fmt.Sprintf(":%d:.*%s", i+1, frag))
 			if err != nil {
-				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frags[1])
+				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frag)
 				continue
 			}
 			errors = append(errors, re)
@@ -56,14 +55,14 @@ func check(t *testing.T, file string) {
 }
 
 func expect(t *testing.T, file string, errors []*regexp.Regexp) {
-	dir, err := ioutil.TempDir("", filepath.Base(t.Name()))
+	dir, err := os.MkdirTemp("", filepath.Base(t.Name()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
 
 	dst := filepath.Join(dir, strings.TrimSuffix(file, ".go"))
-	cmd := exec.Command("go", "build", "-gcflags=-L", "-o="+dst, path(file)) // TODO(gri) no need for -gcflags=-L if go tool is adjusted
+	cmd := exec.Command("go", "build", "-gcflags=-L -e", "-o="+dst, path(file)) // TODO(gri) no need for -gcflags=-L if go tool is adjusted
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Errorf("expected cgo to fail but it succeeded")
@@ -107,26 +106,23 @@ func TestReportsTypeErrors(t *testing.T) {
 	for _, file := range []string{
 		"err1.go",
 		"err2.go",
-		"err3.go",
-		"issue7757.go",
-		"issue8442.go",
 		"issue11097a.go",
 		"issue11097b.go",
-		"issue13129.go",
-		"issue13423.go",
-		"issue13467.go",
-		"issue13635.go",
-		"issue13830.go",
-		"issue16116.go",
-		"issue16591.go",
 		"issue18452.go",
 		"issue18889.go",
+		"issue28721.go",
+		"issue33061.go",
 	} {
 		check(t, file)
 	}
 
 	if sizeofLongDouble(t) > 8 {
-		check(t, "err4.go")
+		for _, file := range []string{
+			"err4.go",
+			"issue28069.go",
+		} {
+			check(t, file)
+		}
 	}
 }
 

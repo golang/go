@@ -11,6 +11,18 @@ import (
 	"unsafe"
 )
 
+// We need to use LoadLibrary and GetProcAddress from the Go runtime, because
+// the these symbols are loaded by the system linker and are required to
+// dynamically load additional symbols. Note that in the Go runtime, these
+// return syscall.Handle and syscall.Errno, but these are the same, in fact,
+// as windows.Handle and windows.Errno, and we intend to keep these the same.
+
+//go:linkname syscall_loadlibrary syscall.loadlibrary
+func syscall_loadlibrary(filename *uint16) (handle Handle, err Errno)
+
+//go:linkname syscall_getprocaddress syscall.getprocaddress
+func syscall_getprocaddress(handle Handle, procname *uint8) (proc uintptr, err Errno)
+
 // DLLError describes reasons for DLL load failures.
 type DLLError struct {
 	Err     error
@@ -20,9 +32,7 @@ type DLLError struct {
 
 func (e *DLLError) Error() string { return e.Msg }
 
-// Implemented in runtime/syscall_windows.goc; we provide jumps to them in our assembly file.
-func loadlibrary(filename *uint16) (handle uintptr, err syscall.Errno)
-func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err syscall.Errno)
+func (e *DLLError) Unwrap() error { return e.Err }
 
 // A DLL implements access to a single DLL.
 type DLL struct {
@@ -40,7 +50,7 @@ func LoadDLL(name string) (dll *DLL, err error) {
 	if err != nil {
 		return nil, err
 	}
-	h, e := loadlibrary(namep)
+	h, e := syscall_loadlibrary(namep)
 	if e != 0 {
 		return nil, &DLLError{
 			Err:     e,
@@ -50,7 +60,7 @@ func LoadDLL(name string) (dll *DLL, err error) {
 	}
 	d := &DLL{
 		Name:   name,
-		Handle: Handle(h),
+		Handle: h,
 	}
 	return d, nil
 }
@@ -71,7 +81,7 @@ func (d *DLL) FindProc(name string) (proc *Proc, err error) {
 	if err != nil {
 		return nil, err
 	}
-	a, e := getprocaddress(uintptr(d.Handle), namep)
+	a, e := syscall_getprocaddress(d.Handle, namep)
 	if e != 0 {
 		return nil, &DLLError{
 			Err:     e,
@@ -90,6 +100,35 @@ func (d *DLL) FindProc(name string) (proc *Proc, err error) {
 // MustFindProc is like FindProc but panics if search fails.
 func (d *DLL) MustFindProc(name string) *Proc {
 	p, e := d.FindProc(name)
+	if e != nil {
+		panic(e)
+	}
+	return p
+}
+
+// FindProcByOrdinal searches DLL d for procedure by ordinal and returns *Proc
+// if found. It returns an error if search fails.
+func (d *DLL) FindProcByOrdinal(ordinal uintptr) (proc *Proc, err error) {
+	a, e := GetProcAddressByOrdinal(d.Handle, ordinal)
+	name := "#" + itoa(int(ordinal))
+	if e != nil {
+		return nil, &DLLError{
+			Err:     e,
+			ObjName: name,
+			Msg:     "Failed to find " + name + " procedure in " + d.Name + ": " + e.Error(),
+		}
+	}
+	p := &Proc{
+		Dll:  d,
+		Name: name,
+		addr: a,
+	}
+	return p, nil
+}
+
+// MustFindProcByOrdinal is like FindProcByOrdinal but panics if search fails.
+func (d *DLL) MustFindProcByOrdinal(ordinal uintptr) *Proc {
+	p, e := d.FindProcByOrdinal(ordinal)
 	if e != nil {
 		panic(e)
 	}
@@ -352,18 +391,17 @@ func loadLibraryEx(name string, system bool) (*DLL, error) {
 	var flags uintptr
 	if system {
 		if canDoSearchSystem32() {
-			const LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 			flags = LOAD_LIBRARY_SEARCH_SYSTEM32
 		} else if isBaseName(name) {
 			// WindowsXP or unpatched Windows machine
 			// trying to load "foo.dll" out of the system
 			// folder, but LoadLibraryEx doesn't support
 			// that yet on their system, so emulate it.
-			windir, _ := Getenv("WINDIR") // old var; apparently works on XP
-			if windir == "" {
-				return nil, errString("%WINDIR% not defined")
+			systemdir, err := GetSystemDirectory()
+			if err != nil {
+				return nil, err
 			}
-			loadDLL = windir + "\\System32\\" + name
+			loadDLL = systemdir + "\\" + name
 		}
 	}
 	h, err := LoadLibraryEx(loadDLL, 0, flags)

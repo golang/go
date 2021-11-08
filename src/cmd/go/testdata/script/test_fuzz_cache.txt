@@ -1,0 +1,97 @@
+[!fuzz-instrumented] skip
+
+[short] skip
+env GOCACHE=$WORK/cache
+
+# Fuzz cache should not exist after a regular test run.
+go test .
+exists $GOCACHE
+! exists $GOCACHE/fuzz
+
+# Fuzzing should write interesting values to the cache.
+go test -fuzz=FuzzY -fuzztime=100x .
+go run ./contains_files $GOCACHE/fuzz/example.com/y/FuzzY
+
+# 'go clean -cache' should not delete the fuzz cache.
+go clean -cache
+exists $GOCACHE/fuzz
+
+# 'go clean -fuzzcache' should delete the fuzz cache but not the build cache.
+go list -f {{.Stale}} ./empty
+stdout true
+go install ./empty
+go list -f {{.Stale}} ./empty
+stdout false
+go clean -fuzzcache
+! exists $GOCACHE/fuzz
+go list -f {{.Stale}} ./empty
+stdout false
+
+# Fuzzing indicates that one new interesting value was found with an empty
+# corpus, and the total size of the cache is now 1.
+go clean -fuzzcache
+go test -fuzz=FuzzEmpty -fuzztime=10000x .
+stdout 'new interesting: 1'
+stdout 'total: 1'
+
+# Fuzzing again with a small fuzztime does not find any other interesting
+# values but still indicates that the cache size is 1.
+go test -fuzz=FuzzEmpty -fuzztime=2x .
+stdout 'new interesting: 0'
+stdout 'total: 1'
+
+-- go.mod --
+module example.com/y
+
+go 1.16
+-- y_test.go --
+package y
+
+import (
+	"io"
+	"testing"
+)
+
+func FuzzEmpty(f *testing.F) {
+    f.Fuzz(func (*testing.T, []byte) {})
+}
+
+func FuzzY(f *testing.F) {
+	f.Add([]byte("y"))
+	f.Fuzz(func(t *testing.T, b []byte) { Y(io.Discard, b) })
+}
+-- y.go --
+package y
+
+import (
+	"bytes"
+	"io"
+)
+
+func Y(w io.Writer, b []byte) {
+	if !bytes.Equal(b, []byte("y")) {
+		w.Write([]byte("not equal"))
+	}
+}
+-- empty/empty.go --
+package empty
+-- contains_files/contains_files.go --
+package main
+
+import (
+	"fmt"
+	"path/filepath"
+	"io/ioutil"
+	"os"
+)
+
+func main() {
+	infos, err := ioutil.ReadDir(filepath.Clean(os.Args[1]))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if len(infos) == 0 {
+		os.Exit(1)
+	}
+}

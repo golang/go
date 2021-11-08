@@ -24,8 +24,12 @@ func Expand(s string, mapping func(string) string) string {
 			}
 			buf = append(buf, s[i:j]...)
 			name, w := getShellName(s[j+1:])
-			// If the name is empty, keep the $.
-			if name == "" {
+			if name == "" && w > 0 {
+				// Encountered invalid syntax; eat the
+				// characters.
+			} else if name == "" {
+				// Valid syntax, but $ was not followed by a
+				// name. Leave the dollar character untouched.
 				buf = append(buf, s[j])
 			} else {
 				buf = append(buf, mapping(name)...)
@@ -74,10 +78,13 @@ func getShellName(s string) (string, int) {
 		// Scan to closing brace
 		for i := 1; i < len(s); i++ {
 			if s[i] == '}' {
+				if i == 1 {
+					return "", 2 // Bad syntax; eat "${}"
+				}
 				return s[1:i], i + 1
 			}
 		}
-		return "", 1 // Bad syntax; just eat the brace.
+		return "", 1 // Bad syntax; eat "${"
 	case isShellSpecialVar(s[0]):
 		return s[0:1], 1
 	}

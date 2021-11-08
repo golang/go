@@ -63,7 +63,7 @@ func typefix(f *ast.File, badType func(string) bool) bool {
 				return
 			}
 			v := reflect.ValueOf(n)
-			if v.Type().Kind() != reflect.Ptr {
+			if v.Type().Kind() != reflect.Pointer {
 				return
 			}
 			if v.IsNil() {

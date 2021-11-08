@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
@@ -122,6 +122,12 @@ type Log2phys_t C.struct_log2phys
 type Fsid C.struct_fsid
 
 type Dirent C.struct_dirent
+
+// File system limits
+
+const (
+	pathMax = C.PATH_MAX
+)
 
 // Sockets
 

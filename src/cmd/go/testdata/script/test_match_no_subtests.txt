@@ -1,0 +1,12 @@
+# The subtests don't match
+go test -run Test/ThisWillNotMatch standalone_sub_test.go
+stdout '^ok.*\[no tests to run\]'
+
+-- standalone_sub_test.go --
+package standalone_sub_test
+
+import "testing"
+
+func Test(t *testing.T) {
+	t.Run("Sub", func(t *testing.T) {})
+}

@@ -176,8 +176,11 @@ const (
 	FILE_MAP_READ    = 0x04
 	FILE_MAP_EXECUTE = 0x20
 
-	CTRL_C_EVENT     = 0
-	CTRL_BREAK_EVENT = 1
+	CTRL_C_EVENT        = 0
+	CTRL_BREAK_EVENT    = 1
+	CTRL_CLOSE_EVENT    = 2
+	CTRL_LOGOFF_EVENT   = 5
+	CTRL_SHUTDOWN_EVENT = 6
 )
 
 const (
@@ -395,6 +398,14 @@ type win32finddata1 struct {
 	Reserved1         uint32
 	FileName          [MAX_PATH]uint16
 	AlternateFileName [14]uint16
+
+	// The Microsoft documentation for this struct¹ describes three additional
+	// fields: dwFileType, dwCreatorType, and wFinderFlags. However, those fields
+	// are empirically only present in the macOS port of the Win32 API,² and thus
+	// not needed for binaries built for Windows.
+	//
+	// ¹ https://docs.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataw
+	// ² https://golang.org/issue/42637#issuecomment-760715755
 }
 
 func copyFindData(dst *Win32finddata, src *win32finddata1) {
@@ -478,6 +489,22 @@ type StartupInfo struct {
 	StdOutput     Handle
 	StdErr        Handle
 }
+
+type _PROC_THREAD_ATTRIBUTE_LIST struct {
+	_ [1]byte
+}
+
+const (
+	_PROC_THREAD_ATTRIBUTE_PARENT_PROCESS = 0x00020000
+	_PROC_THREAD_ATTRIBUTE_HANDLE_LIST    = 0x00020002
+)
+
+type _STARTUPINFOEXW struct {
+	StartupInfo
+	ProcThreadAttributeList *_PROC_THREAD_ATTRIBUTE_LIST
+}
+
+const _EXTENDED_STARTUPINFO_PRESENT = 0x00080000
 
 type ProcessInformation struct {
 	Process   Handle
@@ -1009,7 +1036,7 @@ type AddrinfoW struct {
 	Protocol  int32
 	Addrlen   uintptr
 	Canonname *uint16
-	Addr      uintptr
+	Addr      Pointer
 	Next      *AddrinfoW
 }
 
@@ -1139,3 +1166,5 @@ const (
 	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
 	_SYMLINK_FLAG_RELATIVE           = 1
 )
+
+const UNIX_PATH_MAX = 108 // defined in afunix.h

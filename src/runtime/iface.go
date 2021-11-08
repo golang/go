@@ -5,8 +5,9 @@
 package runtime
 
 import (
+	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -41,7 +42,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 			return nil
 		}
 		name := inter.typ.nameOff(inter.mhdr[0].name)
-		panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), name.name()})
+		panic(&TypeAssertionError{nil, typ, &inter.typ, name.name()})
 	}
 
 	var m *itab
@@ -63,9 +64,15 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	}
 
 	// Entry doesn't exist yet. Make a new entry & add it.
-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
+	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*goarch.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
+	// The hash is used in type switches. However, compiler statically generates itab's
+	// for all interface/type pairs used in switches (which are added to itabTable
+	// in itabsinit). The dynamically-generated itab's never participate in type switches,
+	// and thus the hash is irrelevant.
+	// Note: m.hash is _not_ the hash used for the runtime itabTable hash table.
+	m.hash = 0
 	m.init()
 	itabAdd(m)
 	unlock(&itabLock)
@@ -82,7 +89,7 @@ finish:
 	// The cached result doesn't record which
 	// interface function was missing, so initialize
 	// the itab again to get the missing function name.
-	panic(&TypeAssertionError{concreteString: typ.string(), assertedString: inter.typ.string(), missingMethod: m.init()})
+	panic(&TypeAssertionError{concrete: typ, asserted: &inter.typ, missingMethod: m.init()})
 }
 
 // find finds the given interface/type pair in t.
@@ -94,7 +101,7 @@ func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
 	mask := t.size - 1
 	h := itabHashFunc(inter, typ) & mask
 	for i := uintptr(1); ; i++ {
-		p := (**itab)(add(unsafe.Pointer(&t.entries), h*sys.PtrSize))
+		p := (**itab)(add(unsafe.Pointer(&t.entries), h*goarch.PtrSize))
 		// Use atomic read here so if we see m != nil, we also see
 		// the initializations of the fields of m.
 		// m := *p
@@ -127,7 +134,7 @@ func itabAdd(m *itab) {
 		// t2 = new(itabTableType) + some additional entries
 		// We lie and tell malloc we want pointer-free memory because
 		// all the pointed-to values are not in the heap.
-		t2 := (*itabTableType)(mallocgc((2+2*t.size)*sys.PtrSize, nil, true))
+		t2 := (*itabTableType)(mallocgc((2+2*t.size)*goarch.PtrSize, nil, true))
 		t2.size = t.size * 2
 
 		// Copy over entries.
@@ -155,7 +162,7 @@ func (t *itabTableType) add(m *itab) {
 	mask := t.size - 1
 	h := itabHashFunc(m.inter, m._type) & mask
 	for i := uintptr(1); ; i++ {
-		p := (**itab)(add(unsafe.Pointer(&t.entries), h*sys.PtrSize))
+		p := (**itab)(add(unsafe.Pointer(&t.entries), h*goarch.PtrSize))
 		m2 := *p
 		if m2 == m {
 			// A given itab may be used in more than one module
@@ -195,6 +202,8 @@ func (m *itab) init() string {
 	nt := int(x.mcount)
 	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
 	j := 0
+	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.fun[0]))[:ni:ni]
+	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
 		i := &inter.mhdr[k]
@@ -216,7 +225,11 @@ imethods:
 				if tname.isExported() || pkgPath == ipkg {
 					if m != nil {
 						ifn := typ.textOff(t.ifn)
-						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = ifn
+						if k == 0 {
+							fun0 = ifn // we'll set m.fun[0] at the end
+						} else {
+							methods[k] = ifn
+						}
 					}
 					continue imethods
 				}
@@ -226,11 +239,12 @@ imethods:
 		m.fun[0] = 0
 		return iname
 	}
-	m.hash = typ.hash
+	m.fun[0] = uintptr(fun0)
 	return ""
 }
 
 func itabsinit() {
+	lockInit(&itabLock, lockRankItab)
 	lock(&itabLock)
 	for _, md := range activeModules() {
 		for _, i := range md.itablinks {
@@ -245,11 +259,7 @@ func itabsinit() {
 // want = the static type we're trying to convert to.
 // iface = the static type we're converting from.
 func panicdottypeE(have, want, iface *_type) {
-	haveString := ""
-	if have != nil {
-		haveString = have.string()
-	}
-	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
+	panic(&TypeAssertionError{iface, have, want, ""})
 }
 
 // panicdottypeI is called when doing an i.(T) conversion and the conversion fails.
@@ -265,11 +275,39 @@ func panicdottypeI(have *itab, want, iface *_type) {
 // panicnildottype is called when doing a i.(T) conversion and the interface i is nil.
 // want = the static type we're trying to convert to.
 func panicnildottype(want *_type) {
-	panic(&TypeAssertionError{"", "", want.string(), ""})
+	panic(&TypeAssertionError{nil, nil, want, ""})
 	// TODO: Add the static type we're converting from as well.
 	// It might generate a better error message.
 	// Just to match other nil conversion errors, we don't for now.
 }
+
+// The specialized convTx routines need a type descriptor to use when calling mallocgc.
+// We don't need the type to be exact, just to have the correct size, alignment, and pointer-ness.
+// However, when debugging, it'd be nice to have some indication in mallocgc where the types came from,
+// so we use named types here.
+// We then construct interface values of these types,
+// and then extract the type word to use as needed.
+type (
+	uint16InterfacePtr uint16
+	uint32InterfacePtr uint32
+	uint64InterfacePtr uint64
+	stringInterfacePtr string
+	sliceInterfacePtr  []byte
+)
+
+var (
+	uint16Eface interface{} = uint16InterfacePtr(0)
+	uint32Eface interface{} = uint32InterfacePtr(0)
+	uint64Eface interface{} = uint64InterfacePtr(0)
+	stringEface interface{} = stringInterfacePtr("")
+	sliceEface  interface{} = sliceInterfacePtr(nil)
+
+	uint16Type *_type = efaceOf(&uint16Eface)._type
+	uint32Type *_type = efaceOf(&uint32Eface)._type
+	uint64Type *_type = efaceOf(&uint64Eface)._type
+	stringType *_type = efaceOf(&stringEface)._type
+	sliceType  *_type = efaceOf(&sliceEface)._type
+)
 
 // The conv and assert functions below do very similar things.
 // The convXXX functions are guaranteed by the compiler to succeed.
@@ -278,257 +316,120 @@ func panicnildottype(want *_type) {
 // The convXXX functions succeed on a nil input, whereas the assertXXX
 // functions fail on a nil input.
 
-func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+// convT converts a value of type t, which is pointed to by v, to a pointer that can
+// be used as the second word of an interface value.
+func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E))
+		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convT))
 	}
 	if msanenabled {
-		msanread(elem, t.size)
+		msanread(v, t.size)
+	}
+	if asanenabled {
+		asanread(v, t.size)
 	}
 	x := mallocgc(t.size, t, true)
-	// TODO: We allocate a zeroed object only to overwrite it with actual data.
-	// Figure out how to avoid zeroing. Also below in convT2Eslice, convT2I, convT2Islice.
-	typedmemmove(t, x, elem)
-	e._type = t
-	e.data = x
-	return
+	typedmemmove(t, x, v)
+	return x
+}
+func convTnoptr(t *_type, v unsafe.Pointer) unsafe.Pointer {
+	// TODO: maybe take size instead of type?
+	if raceenabled {
+		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convTnoptr))
+	}
+	if msanenabled {
+		msanread(v, t.size)
+	}
+	if asanenabled {
+		asanread(v, t.size)
+	}
+
+	x := mallocgc(t.size, t, false)
+	memmove(x, v, t.size)
+	return x
 }
 
-func convT2E16(t *_type, val uint16) (e eface) {
-	var x unsafe.Pointer
-	if val == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
+func convT16(val uint16) (x unsafe.Pointer) {
+	if val < uint16(len(staticuint64s)) {
+		x = unsafe.Pointer(&staticuint64s[val])
+		if goarch.BigEndian {
+			x = add(x, 6)
+		}
 	} else {
-		x = mallocgc(2, t, false)
+		x = mallocgc(2, uint16Type, false)
 		*(*uint16)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
-func convT2E32(t *_type, val uint32) (e eface) {
-	var x unsafe.Pointer
-	if val == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
+func convT32(val uint32) (x unsafe.Pointer) {
+	if val < uint32(len(staticuint64s)) {
+		x = unsafe.Pointer(&staticuint64s[val])
+		if goarch.BigEndian {
+			x = add(x, 4)
+		}
 	} else {
-		x = mallocgc(4, t, false)
+		x = mallocgc(4, uint32Type, false)
 		*(*uint32)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
-func convT2E64(t *_type, val uint64) (e eface) {
-	var x unsafe.Pointer
-	if val == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
+func convT64(val uint64) (x unsafe.Pointer) {
+	if val < uint64(len(staticuint64s)) {
+		x = unsafe.Pointer(&staticuint64s[val])
 	} else {
-		x = mallocgc(8, t, false)
+		x = mallocgc(8, uint64Type, false)
 		*(*uint64)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
-func convT2Estring(t *_type, elem unsafe.Pointer) (e eface) {
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Estring))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	var x unsafe.Pointer
-	if *(*string)(elem) == "" {
+func convTstring(val string) (x unsafe.Pointer) {
+	if val == "" {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(t.size, t, true)
-		*(*string)(x) = *(*string)(elem)
+		x = mallocgc(unsafe.Sizeof(val), stringType, true)
+		*(*string)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
-func convT2Eslice(t *_type, elem unsafe.Pointer) (e eface) {
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Eslice))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	var x unsafe.Pointer
-	if v := *(*slice)(elem); uintptr(v.array) == 0 {
+func convTslice(val []byte) (x unsafe.Pointer) {
+	// Note: this must work for any element type, not just byte.
+	if (*slice)(unsafe.Pointer(&val)).array == nil {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(t.size, t, true)
-		*(*slice)(x) = *(*slice)(elem)
+		x = mallocgc(unsafe.Sizeof(val), sliceType, true)
+		*(*[]byte)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
-func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Enoptr))
+// convI2I returns the new itab to be used for the destination value
+// when converting a value with itab src to the dst interface.
+func convI2I(dst *interfacetype, src *itab) *itab {
+	if src == nil {
+		return nil
 	}
-	if msanenabled {
-		msanread(elem, t.size)
+	if src.inter == dst {
+		return src
 	}
-	x := mallocgc(t.size, t, false)
-	memmove(x, elem, t.size)
-	e._type = t
-	e.data = x
-	return
+	return getitab(dst, src._type, false)
 }
 
-func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
-	t := tab._type
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	x := mallocgc(t.size, t, true)
-	typedmemmove(t, x, elem)
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2I16(tab *itab, val uint16) (i iface) {
-	t := tab._type
-	var x unsafe.Pointer
-	if val == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(2, t, false)
-		*(*uint16)(x) = val
-	}
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2I32(tab *itab, val uint32) (i iface) {
-	t := tab._type
-	var x unsafe.Pointer
-	if val == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(4, t, false)
-		*(*uint32)(x) = val
-	}
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2I64(tab *itab, val uint64) (i iface) {
-	t := tab._type
-	var x unsafe.Pointer
-	if val == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(8, t, false)
-		*(*uint64)(x) = val
-	}
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2Istring(tab *itab, elem unsafe.Pointer) (i iface) {
-	t := tab._type
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Istring))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	var x unsafe.Pointer
-	if *(*string)(elem) == "" {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(t.size, t, true)
-		*(*string)(x) = *(*string)(elem)
-	}
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2Islice(tab *itab, elem unsafe.Pointer) (i iface) {
-	t := tab._type
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Islice))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	var x unsafe.Pointer
-	if v := *(*slice)(elem); uintptr(v.array) == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(t.size, t, true)
-		*(*slice)(x) = *(*slice)(elem)
-	}
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2Inoptr(tab *itab, elem unsafe.Pointer) (i iface) {
-	t := tab._type
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Inoptr))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	x := mallocgc(t.size, t, false)
-	memmove(x, elem, t.size)
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convI2I(inter *interfacetype, i iface) (r iface) {
-	tab := i.tab
-	if tab == nil {
-		return
-	}
-	if tab.inter == inter {
-		r.tab = tab
-		r.data = i.data
-		return
-	}
-	r.tab = getitab(inter, tab._type, false)
-	r.data = i.data
-	return
-}
-
-func assertI2I(inter *interfacetype, i iface) (r iface) {
-	tab := i.tab
+func assertI2I(inter *interfacetype, tab *itab) *itab {
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
+		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
 	}
 	if tab.inter == inter {
-		r.tab = tab
-		r.data = i.data
-		return
+		return tab
 	}
-	r.tab = getitab(inter, tab._type, false)
-	r.data = i.data
-	return
+	return getitab(inter, tab._type, false)
 }
 
-func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
+func assertI2I2(inter *interfacetype, i iface) (r iface) {
 	tab := i.tab
 	if tab == nil {
 		return
@@ -541,22 +442,18 @@ func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
 	}
 	r.tab = tab
 	r.data = i.data
-	b = true
 	return
 }
 
-func assertE2I(inter *interfacetype, e eface) (r iface) {
-	t := e._type
+func assertE2I(inter *interfacetype, t *_type) *itab {
 	if t == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
+		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
 	}
-	r.tab = getitab(inter, t, false)
-	r.data = e.data
-	return
+	return getitab(inter, t, false)
 }
 
-func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
+func assertE2I2(inter *interfacetype, e eface) (r iface) {
 	t := e._type
 	if t == nil {
 		return
@@ -567,13 +464,17 @@ func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
 	}
 	r.tab = tab
 	r.data = e.data
-	b = true
 	return
 }
 
 //go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
-	*dst = assertE2I(inter, e)
+	*dst = iface{assertE2I(inter, e._type), e.data}
+}
+
+//go:linkname reflectlite_ifaceE2I internal/reflectlite.ifaceE2I
+func reflectlite_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
+	*dst = iface{assertE2I(inter, e._type), e.data}
 }
 
 func iterate_itabs(fn func(*itab)) {
@@ -581,15 +482,15 @@ func iterate_itabs(fn func(*itab)) {
 	// so no other locks/atomics needed.
 	t := itabTable
 	for i := uintptr(0); i < t.size; i++ {
-		m := *(**itab)(add(unsafe.Pointer(&t.entries), i*sys.PtrSize))
+		m := *(**itab)(add(unsafe.Pointer(&t.entries), i*goarch.PtrSize))
 		if m != nil {
 			fn(m)
 		}
 	}
 }
 
-// staticbytes is used to avoid convT2E for byte-sized values.
-var staticbytes = [...]byte{
+// staticuint64s is used to avoid allocating in convTx for small integer values.
+var staticuint64s = [...]uint64{
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -622,4 +523,11 @@ var staticbytes = [...]byte{
 	0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
 	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
+}
+
+// The linker redirects a reference of a method that it determined
+// unreachable to a reference to this function, so it will throw if
+// ever called.
+func unreachableMethod() {
+	throw("unreachable method called. linker bug?")
 }

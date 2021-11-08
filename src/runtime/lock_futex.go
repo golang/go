@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build dragonfly freebsd linux
+//go:build dragonfly || freebsd || linux
 
 package runtime
 
@@ -44,6 +44,10 @@ func key32(p *uintptr) *uint32 {
 }
 
 func lock(l *mutex) {
+	lockWithRank(l, getLockRank(l))
+}
+
+func lock2(l *mutex) {
 	gp := getg()
 
 	if gp.m.locks < 0 {
@@ -104,6 +108,10 @@ func lock(l *mutex) {
 }
 
 func unlock(l *mutex) {
+	unlockWithRank(l)
+}
+
+func unlock2(l *mutex) {
 	v := atomic.Xchg(key32(&l.key), mutex_unlocked)
 	if v == mutex_unlocked {
 		throw("unlock of unlocked lock")
@@ -230,8 +238,8 @@ func notetsleepg(n *note, ns int64) bool {
 	return ok
 }
 
-func pauseSchedulerUntilCallback() bool {
-	return false
+func beforeIdle(int64, int64) (*g, bool) {
+	return nil, false
 }
 
 func checkTimeouts() {}

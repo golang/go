@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"flag"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,7 +49,6 @@ func gofmtFlags(filename string, maxLines int) string {
 		case scanner.EOF:
 			return ""
 		}
-
 	}
 
 	return ""
@@ -60,7 +58,11 @@ func runTest(t *testing.T, in, out string) {
 	// process flags
 	*simplifyAST = false
 	*rewriteRule = ""
-	stdin := false
+	info, err := os.Lstat(in)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	for _, flag := range strings.Split(gofmtFlags(in, 20), " ") {
 		elts := strings.SplitN(flag, "=", 2)
 		name := elts[0]
@@ -77,7 +79,7 @@ func runTest(t *testing.T, in, out string) {
 			*simplifyAST = true
 		case "-stdin":
 			// fake flag - pretend input is from stdin
-			stdin = true
+			info = nil
 		default:
 			t.Errorf("unrecognized flag name: %s", name)
 		}
@@ -86,14 +88,20 @@ func runTest(t *testing.T, in, out string) {
 	initParserMode()
 	initRewrite()
 
-	var buf bytes.Buffer
-	err := processFile(in, nil, &buf, stdin)
-	if err != nil {
-		t.Error(err)
-		return
+	const maxWeight = 2 << 20
+	var buf, errBuf bytes.Buffer
+	s := newSequencer(maxWeight, &buf, &errBuf)
+	s.Add(fileWeight(in, info), func(r *reporter) error {
+		return processFile(in, info, nil, r)
+	})
+	if errBuf.Len() > 0 {
+		t.Logf("%q", errBuf.Bytes())
+	}
+	if s.GetExitCode() != 0 {
+		t.Fail()
 	}
 
-	expected, err := ioutil.ReadFile(out)
+	expected, err := os.ReadFile(out)
 	if err != nil {
 		t.Error(err)
 		return
@@ -102,7 +110,7 @@ func runTest(t *testing.T, in, out string) {
 	if got := buf.Bytes(); !bytes.Equal(got, expected) {
 		if *update {
 			if in != out {
-				if err := ioutil.WriteFile(out, got, 0666); err != nil {
+				if err := os.WriteFile(out, got, 0666); err != nil {
 					t.Error(err)
 				}
 				return
@@ -112,11 +120,11 @@ func runTest(t *testing.T, in, out string) {
 		}
 
 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
-		d, err := diff(expected, got, in)
+		d, err := diffWithReplaceTempFile(expected, got, in)
 		if err == nil {
 			t.Errorf("%s", d)
 		}
-		if err := ioutil.WriteFile(in+".gofmt", got, 0666); err != nil {
+		if err := os.WriteFile(in+".gofmt", got, 0666); err != nil {
 			t.Error(err)
 		}
 	}
@@ -157,7 +165,7 @@ func TestCRLF(t *testing.T) {
 	const input = "testdata/crlf.input"   // must contain CR/LF's
 	const golden = "testdata/crlf.golden" // must not contain any CR's
 
-	data, err := ioutil.ReadFile(input)
+	data, err := os.ReadFile(input)
 	if err != nil {
 		t.Error(err)
 	}
@@ -165,7 +173,7 @@ func TestCRLF(t *testing.T) {
 		t.Errorf("%s contains no CR/LF's", input)
 	}
 
-	data, err = ioutil.ReadFile(golden)
+	data, err = os.ReadFile(golden)
 	if err != nil {
 		t.Error(err)
 	}
@@ -175,7 +183,7 @@ func TestCRLF(t *testing.T) {
 }
 
 func TestBackupFile(t *testing.T) {
-	dir, err := ioutil.TempDir("", "gofmt_test")
+	dir, err := os.MkdirTemp("", "gofmt_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,13 +202,13 @@ func TestDiff(t *testing.T) {
 	in := []byte("first\nsecond\n")
 	out := []byte("first\nthird\n")
 	filename := "difftest.txt"
-	b, err := diff(in, out, filename)
+	b, err := diffWithReplaceTempFile(in, out, filename)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if runtime.GOOS == "windows" {
-		b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\n'}, -1)
+		b = bytes.ReplaceAll(b, []byte{'\r', '\n'}, []byte{'\n'})
 	}
 
 	bs := bytes.SplitN(b, []byte{'\n'}, 3)

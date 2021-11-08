@@ -45,7 +45,7 @@ func (c *sigctxt) oldmask() uint32 { return 0 }
 
 func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
 func (c *sigctxt) sigaddr() uint32 {
-	return *(*uint32)(add(unsafe.Pointer(c.info), 12))
+	return *(*uint32)(add(unsafe.Pointer(c.info), 16))
 }
 
 func (c *sigctxt) set_pc(x uint32)  { c.regs().sc_pc = x }
@@ -55,5 +55,5 @@ func (c *sigctxt) set_r10(x uint32) { c.regs().sc_r10 = x }
 
 func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint32) {
-	*(*uint32)(add(unsafe.Pointer(c.info), 12)) = x
+	*(*uint32)(add(unsafe.Pointer(c.info), 16)) = x
 }

@@ -27,16 +27,16 @@ func (t T) M(x int) {
 func g() func(int)
 
 func main() {
-	Fooer.Foo(5, 6) // ERROR "not enough arguments in call to method expression Fooer.Foo"
+	Fooer.Foo(5, 6) // ERROR "not enough arguments in call to method expression Fooer.Foo|incompatible type|not enough arguments"
 
 	var i I
 	var t *T
 
-	g()()    // ERROR "not enough arguments in call to g\(\)"
-	f()      // ERROR "not enough arguments in call to f"
-	i.M()    // ERROR "not enough arguments in call to i\.M"
-	I.M()    // ERROR "not enough arguments in call to method expression I\.M"
-	t.M()    // ERROR "not enough arguments in call to t\.M"
-	T.M()    // ERROR "not enough arguments in call to method expression T\.M"
-	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M"
+	g()()    // ERROR "not enough arguments in call to g\(\)|not enough arguments"
+	f()      // ERROR "not enough arguments in call to f|not enough arguments"
+	i.M()    // ERROR "not enough arguments in call to i\.M|not enough arguments"
+	I.M()    // ERROR "not enough arguments in call to method expression I\.M|not enough arguments"
+	t.M()    // ERROR "not enough arguments in call to t\.M|not enough arguments"
+	T.M()    // ERROR "not enough arguments in call to method expression T\.M|not enough arguments"
+	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M|not enough arguments"
 }

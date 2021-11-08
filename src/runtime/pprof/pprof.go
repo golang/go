@@ -28,6 +28,7 @@
 //            if err != nil {
 //                log.Fatal("could not create CPU profile: ", err)
 //            }
+//            defer f.Close() // error handling omitted for example
 //            if err := pprof.StartCPUProfile(f); err != nil {
 //                log.Fatal("could not start CPU profile: ", err)
 //            }
@@ -41,11 +42,11 @@
 //            if err != nil {
 //                log.Fatal("could not create memory profile: ", err)
 //            }
+//            defer f.Close() // error handling omitted for example
 //            runtime.GC() // get up-to-date statistics
 //            if err := pprof.WriteHeapProfile(f); err != nil {
 //                log.Fatal("could not write memory profile: ", err)
 //            }
-//            f.Close()
 //        }
 //    }
 //
@@ -75,6 +76,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/abi"
 	"io"
 	"runtime"
 	"sort"
@@ -288,7 +290,7 @@ func (p *Profile) Add(value interface{}, skip int) {
 	stk = stk[:n]
 	if len(stk) == 0 {
 		// The value for skip is too large, and there's no stack trace to record.
-		stk = []uintptr{funcPC(lostProfileEvent)}
+		stk = []uintptr{abi.FuncPCABIInternal(lostProfileEvent)}
 	}
 
 	p.mu.Lock()
@@ -312,9 +314,11 @@ func (p *Profile) Remove(value interface{}) {
 // Otherwise, WriteTo returns nil.
 //
 // The debug parameter enables additional output.
-// Passing debug=0 prints only the hexadecimal addresses that pprof needs.
-// Passing debug=1 adds comments translating addresses to function names
-// and line numbers, so that a programmer can read the profile without tools.
+// Passing debug=0 writes the gzip-compressed protocol buffer described
+// in https://github.com/google/pprof/tree/master/proto#overview.
+// Passing debug=1 writes the legacy text format with comments
+// translating addresses to function names and line numbers, so that a
+// programmer can read the profile without tools.
 //
 // The predefined profiles may assign meaning to other debug values;
 // for example, when printing the "goroutine" profile, debug=2 means to
@@ -354,6 +358,7 @@ type stackProfile [][]uintptr
 
 func (x stackProfile) Len() int              { return len(x) }
 func (x stackProfile) Stack(i int) []uintptr { return x[i] }
+func (x stackProfile) Label(i int) *labelMap { return nil }
 
 // A countProfile is a set of stack traces to be printed as counts
 // grouped by stack trace. There are multiple implementations:
@@ -362,6 +367,7 @@ func (x stackProfile) Stack(i int) []uintptr { return x[i] }
 type countProfile interface {
 	Len() int
 	Stack(i int) []uintptr
+	Label(i int) *labelMap
 }
 
 // printCountCycleProfile outputs block profile records (for block or mutex profiles)
@@ -385,16 +391,9 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
 		count, nanosec := scaler(r.Count, float64(r.Cycles)/cpuGHz)
 		values[0] = count
 		values[1] = int64(nanosec)
-		locs = locs[:0]
-		for _, addr := range r.Stack() {
-			// For count profiles, all stack addresses are
-			// return PCs, which is what locForPC expects.
-			l := b.locForPC(addr)
-			if l == 0 { // runtime.goexit
-				continue
-			}
-			locs = append(locs, l)
-		}
+		// For count profiles, all stack addresses are
+		// return PCs, which is what appendLocsForStack expects.
+		locs = b.appendLocsForStack(locs[:0], r.Stack())
 		b.pbSample(values, locs, nil)
 	}
 	b.build()
@@ -406,11 +405,15 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
 func printCountProfile(w io.Writer, debug int, name string, p countProfile) error {
 	// Build count of each stack.
 	var buf bytes.Buffer
-	key := func(stk []uintptr) string {
+	key := func(stk []uintptr, lbls *labelMap) string {
 		buf.Reset()
 		fmt.Fprintf(&buf, "@")
 		for _, pc := range stk {
 			fmt.Fprintf(&buf, " %#x", pc)
+		}
+		if lbls != nil {
+			buf.WriteString("\n# labels: ")
+			buf.WriteString(lbls.String())
 		}
 		return buf.String()
 	}
@@ -419,7 +422,7 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 	var keys []string
 	n := p.Len()
 	for i := 0; i < n; i++ {
-		k := key(p.Stack(i))
+		k := key(p.Stack(i), p.Label(i))
 		if count[k] == 0 {
 			index[k] = i
 			keys = append(keys, k)
@@ -450,17 +453,19 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 	var locs []uint64
 	for _, k := range keys {
 		values[0] = int64(count[k])
-		locs = locs[:0]
-		for _, addr := range p.Stack(index[k]) {
-			// For count profiles, all stack addresses are
-			// return PCs, which is what locForPC expects.
-			l := b.locForPC(addr)
-			if l == 0 { // runtime.goexit
-				continue
+		// For count profiles, all stack addresses are
+		// return PCs, which is what appendLocsForStack expects.
+		locs = b.appendLocsForStack(locs[:0], p.Stack(index[k]))
+		idx := index[k]
+		var labels func()
+		if p.Label(idx) != nil {
+			labels = func() {
+				for k, v := range *p.Label(idx) {
+					b.pbLabel(tagSample_Label, k, v, 0)
+				}
 			}
-			locs = append(locs, l)
 		}
-		b.pbSample(values, locs, nil)
+		b.pbSample(values, locs, labels)
 	}
 	b.build()
 	return nil
@@ -641,6 +646,9 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 	fmt.Fprintf(w, "# GCCPUFraction = %v\n", s.GCCPUFraction)
 	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
 
+	// Also flush out MaxRSS on supported platforms.
+	addMaxRSS(w)
+
 	tw.Flush()
 	return b.Flush()
 }
@@ -653,7 +661,12 @@ func countThreadCreate() int {
 
 // writeThreadCreate writes the current runtime ThreadCreateProfile to w.
 func writeThreadCreate(w io.Writer, debug int) error {
-	return writeRuntimeProfile(w, debug, "threadcreate", runtime.ThreadCreateProfile)
+	// Until https://golang.org/issues/6104 is addressed, wrap
+	// ThreadCreateProfile because there's no point in tracking labels when we
+	// don't get any stack-traces.
+	return writeRuntimeProfile(w, debug, "threadcreate", func(p []runtime.StackRecord, _ []unsafe.Pointer) (n int, ok bool) {
+		return runtime.ThreadCreateProfile(p)
+	})
 }
 
 // countGoroutine returns the number of goroutines.
@@ -661,12 +674,15 @@ func countGoroutine() int {
 	return runtime.NumGoroutine()
 }
 
+// runtime_goroutineProfileWithLabels is defined in runtime/mprof.go
+func runtime_goroutineProfileWithLabels(p []runtime.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
+
 // writeGoroutine writes the current runtime GoroutineProfile to w.
 func writeGoroutine(w io.Writer, debug int) error {
 	if debug >= 2 {
 		return writeGoroutineStacks(w)
 	}
-	return writeRuntimeProfile(w, debug, "goroutine", runtime.GoroutineProfile)
+	return writeRuntimeProfile(w, debug, "goroutine", runtime_goroutineProfileWithLabels)
 }
 
 func writeGoroutineStacks(w io.Writer) error {
@@ -690,7 +706,7 @@ func writeGoroutineStacks(w io.Writer) error {
 	return err
 }
 
-func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runtime.StackRecord) (int, bool)) error {
+func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runtime.StackRecord, []unsafe.Pointer) (int, bool)) error {
 	// Find out how many records there are (fetch(nil)),
 	// allocate that many records, and get the data.
 	// There's a race—more records might be added between
@@ -698,13 +714,15 @@ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runti
 	// and also try again if we're very unlucky.
 	// The loop should only execute one iteration in the common case.
 	var p []runtime.StackRecord
-	n, ok := fetch(nil)
+	var labels []unsafe.Pointer
+	n, ok := fetch(nil, nil)
 	for {
 		// Allocate room for a slightly bigger profile,
 		// in case a few more entries have been added
 		// since the call to ThreadProfile.
 		p = make([]runtime.StackRecord, n+10)
-		n, ok = fetch(p)
+		labels = make([]unsafe.Pointer, n+10)
+		n, ok = fetch(p, labels)
 		if ok {
 			p = p[0:n]
 			break
@@ -712,13 +730,17 @@ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runti
 		// Profile grew; try again.
 	}
 
-	return printCountProfile(w, debug, name, runtimeProfile(p))
+	return printCountProfile(w, debug, name, &runtimeProfile{p, labels})
 }
 
-type runtimeProfile []runtime.StackRecord
+type runtimeProfile struct {
+	stk    []runtime.StackRecord
+	labels []unsafe.Pointer
+}
 
-func (p runtimeProfile) Len() int              { return len(p) }
-func (p runtimeProfile) Stack(i int) []uintptr { return p[i].Stack() }
+func (p *runtimeProfile) Len() int              { return len(p.stk) }
+func (p *runtimeProfile) Stack(i int) []uintptr { return p.stk[i].Stack() }
+func (p *runtimeProfile) Label(i int) *labelMap { return (*labelMap)(p.labels[i]) }
 
 var cpu struct {
 	sync.Mutex
@@ -822,45 +844,7 @@ func countMutex() int {
 
 // writeBlock writes the current blocking profile to w.
 func writeBlock(w io.Writer, debug int) error {
-	var p []runtime.BlockProfileRecord
-	n, ok := runtime.BlockProfile(nil)
-	for {
-		p = make([]runtime.BlockProfileRecord, n+50)
-		n, ok = runtime.BlockProfile(p)
-		if ok {
-			p = p[:n]
-			break
-		}
-	}
-
-	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
-
-	if debug <= 0 {
-		return printCountCycleProfile(w, "contentions", "delay", scaleBlockProfile, p)
-	}
-
-	b := bufio.NewWriter(w)
-	tw := tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
-	w = tw
-
-	fmt.Fprintf(w, "--- contention:\n")
-	fmt.Fprintf(w, "cycles/second=%v\n", runtime_cyclesPerSecond())
-	for i := range p {
-		r := &p[i]
-		fmt.Fprintf(w, "%v %v @", r.Cycles, r.Count)
-		for _, pc := range r.Stack() {
-			fmt.Fprintf(w, " %#x", pc)
-		}
-		fmt.Fprint(w, "\n")
-		if debug > 0 {
-			printStackRecord(w, r.Stack(), true)
-		}
-	}
-
-	if tw != nil {
-		tw.Flush()
-	}
-	return b.Flush()
+	return writeProfileInternal(w, debug, "contention", runtime.BlockProfile, scaleBlockProfile)
 }
 
 func scaleBlockProfile(cnt int64, ns float64) (int64, float64) {
@@ -873,12 +857,16 @@ func scaleBlockProfile(cnt int64, ns float64) (int64, float64) {
 
 // writeMutex writes the current mutex profile to w.
 func writeMutex(w io.Writer, debug int) error {
-	// TODO(pjw): too much common code with writeBlock. FIX!
+	return writeProfileInternal(w, debug, "mutex", runtime.MutexProfile, scaleMutexProfile)
+}
+
+// writeProfileInternal writes the current blocking or mutex profile depending on the passed parameters
+func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile func([]runtime.BlockProfileRecord) (int, bool), scaleProfile func(int64, float64) (int64, float64)) error {
 	var p []runtime.BlockProfileRecord
-	n, ok := runtime.MutexProfile(nil)
+	n, ok := runtimeProfile(nil)
 	for {
 		p = make([]runtime.BlockProfileRecord, n+50)
-		n, ok = runtime.MutexProfile(p)
+		n, ok = runtimeProfile(p)
 		if ok {
 			p = p[:n]
 			break
@@ -888,16 +876,18 @@ func writeMutex(w io.Writer, debug int) error {
 	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
 
 	if debug <= 0 {
-		return printCountCycleProfile(w, "contentions", "delay", scaleMutexProfile, p)
+		return printCountCycleProfile(w, "contentions", "delay", scaleProfile, p)
 	}
 
 	b := bufio.NewWriter(w)
 	tw := tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
 	w = tw
 
-	fmt.Fprintf(w, "--- mutex:\n")
+	fmt.Fprintf(w, "--- %v:\n", name)
 	fmt.Fprintf(w, "cycles/second=%v\n", runtime_cyclesPerSecond())
-	fmt.Fprintf(w, "sampling period=%d\n", runtime.SetMutexProfileFraction(-1))
+	if name == "mutex" {
+		fmt.Fprintf(w, "sampling period=%d\n", runtime.SetMutexProfileFraction(-1))
+	}
 	for i := range p {
 		r := &p[i]
 		fmt.Fprintf(w, "%v %v @", r.Cycles, r.Count)

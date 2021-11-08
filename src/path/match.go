@@ -6,7 +6,7 @@ package path
 
 import (
 	"errors"
-	"strings"
+	"internal/bytealg"
 	"unicode/utf8"
 )
 
@@ -43,7 +43,7 @@ Pattern:
 		star, chunk, pattern = scanChunk(pattern)
 		if star && chunk == "" {
 			// Trailing * matches rest of string unless it has a /.
-			return !strings.Contains(name, "/"), nil
+			return bytealg.IndexByteString(name, '/') < 0, nil
 		}
 		// Look for match at current position.
 		t, ok, err := matchChunk(chunk, name)
@@ -73,6 +73,14 @@ Pattern:
 				if err != nil {
 					return false, err
 				}
+			}
+		}
+		// Before returning false with no error,
+		// check that the remainder of the pattern is syntactically valid.
+		for len(pattern) > 0 {
+			_, chunk, pattern = scanChunk(pattern)
+			if _, _, err := matchChunk(chunk, ""); err != nil {
+				return false, err
 			}
 		}
 		return false, nil
@@ -114,20 +122,28 @@ Scan:
 // If so, it returns the remainder of s (after the match).
 // Chunk is all single-character operators: literals, char classes, and ?.
 func matchChunk(chunk, s string) (rest string, ok bool, err error) {
+	// failed records whether the match has failed.
+	// After the match fails, the loop continues on processing chunk,
+	// checking that the pattern is well-formed but no longer reading s.
+	failed := false
 	for len(chunk) > 0 {
-		if len(s) == 0 {
-			return
+		if !failed && len(s) == 0 {
+			failed = true
 		}
 		switch chunk[0] {
 		case '[':
 			// character class
-			r, n := utf8.DecodeRuneInString(s)
-			s = s[n:]
+			var r rune
+			if !failed {
+				var n int
+				r, n = utf8.DecodeRuneInString(s)
+				s = s[n:]
+			}
 			chunk = chunk[1:]
 			// possibly negated
-			notNegated := true
+			negated := false
 			if len(chunk) > 0 && chunk[0] == '^' {
-				notNegated = false
+				negated = true
 				chunk = chunk[1:]
 			}
 			// parse all ranges
@@ -140,12 +156,12 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 				}
 				var lo, hi rune
 				if lo, chunk, err = getEsc(chunk); err != nil {
-					return
+					return "", false, err
 				}
 				hi = lo
 				if chunk[0] == '-' {
 					if hi, chunk, err = getEsc(chunk[1:]); err != nil {
-						return
+						return "", false, err
 					}
 				}
 				if lo <= r && r <= hi {
@@ -153,33 +169,39 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 				}
 				nrange++
 			}
-			if match != notNegated {
-				return
+			if match == negated {
+				failed = true
 			}
 
 		case '?':
-			if s[0] == '/' {
-				return
+			if !failed {
+				if s[0] == '/' {
+					failed = true
+				}
+				_, n := utf8.DecodeRuneInString(s)
+				s = s[n:]
 			}
-			_, n := utf8.DecodeRuneInString(s)
-			s = s[n:]
 			chunk = chunk[1:]
 
 		case '\\':
 			chunk = chunk[1:]
 			if len(chunk) == 0 {
-				err = ErrBadPattern
-				return
+				return "", false, ErrBadPattern
 			}
 			fallthrough
 
 		default:
-			if chunk[0] != s[0] {
-				return
+			if !failed {
+				if chunk[0] != s[0] {
+					failed = true
+				}
+				s = s[1:]
 			}
-			s = s[1:]
 			chunk = chunk[1:]
 		}
+	}
+	if failed {
+		return "", false, nil
 	}
 	return s, true, nil
 }

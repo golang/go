@@ -23,6 +23,16 @@ type Image interface {
 	Set(x, y int, c color.Color)
 }
 
+// RGBA64Image extends both the Image and image.RGBA64Image interfaces with a
+// SetRGBA64 method to change a single pixel. SetRGBA64 is equivalent to
+// calling Set, but it can avoid allocations from converting concrete color
+// types to the color.Color interface type.
+type RGBA64Image interface {
+	image.RGBA64Image
+	Set(x, y int, c color.Color)
+	SetRGBA64(x, y int, c color.RGBA64)
+}
+
 // Quantizer produces a palette for an image.
 type Quantizer interface {
 	// Quantize appends up to cap(p) - len(p) colors to p and returns the
@@ -90,8 +100,8 @@ func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask 
 	}
 }
 
-func processBackward(dst Image, r image.Rectangle, src image.Image, sp image.Point) bool {
-	return image.Image(dst) == src &&
+func processBackward(dst image.Image, r image.Rectangle, src image.Image, sp image.Point) bool {
+	return dst == src &&
 		r.Overlaps(r.Add(sp.Sub(r.Min))) &&
 		(sp.Y < r.Min.Y || (sp.Y == r.Min.Y && sp.X < r.Min.X))
 }
@@ -109,7 +119,8 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 		return
 	}
 
-	// Fast paths for special cases. If none of them apply, then we fall back to a general but slow implementation.
+	// Fast paths for special cases. If none of them apply, then we fall back
+	// to general but slower implementations.
 	switch dst0 := dst.(type) {
 	case *image.RGBA:
 		if op == Over {
@@ -149,6 +160,17 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 				case *image.Uniform:
 					drawGlyphOver(dst0, r, src0, mask0, mp)
 					return
+				case *image.RGBA:
+					drawRGBAMaskOver(dst0, r, src0, sp, mask0, mp)
+					return
+				case *image.Gray:
+					drawGrayMaskOver(dst0, r, src0, sp, mask0, mp)
+					return
+				// Case order matters. The next case (image.RGBA64Image) is an
+				// interface type that the concrete types above also implement.
+				case image.RGBA64Image:
+					drawRGBA64ImageMaskOver(dst0, r, src0, sp, mask0, mp)
+					return
 				}
 			}
 		} else {
@@ -180,9 +202,25 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 		drawRGBA(dst0, r, src, sp, mask, mp, op)
 		return
 	case *image.Paletted:
-		if op == Src && mask == nil && !processBackward(dst, r, src, sp) {
-			drawPaletted(dst0, r, src, sp, false)
-			return
+		if op == Src && mask == nil {
+			if src0, ok := src.(*image.Uniform); ok {
+				colorIndex := uint8(dst0.Palette.Index(src0.C))
+				i0 := dst0.PixOffset(r.Min.X, r.Min.Y)
+				i1 := i0 + r.Dx()
+				for i := i0; i < i1; i++ {
+					dst0.Pix[i] = colorIndex
+				}
+				firstRow := dst0.Pix[i0:i1]
+				for y := r.Min.Y + 1; y < r.Max.Y; y++ {
+					i0 += dst0.Stride
+					i1 += dst0.Stride
+					copy(dst0.Pix[i0:i1], firstRow)
+				}
+				return
+			} else if !processBackward(dst, r, src, sp) {
+				drawPaletted(dst0, r, src, sp, false)
+				return
+			}
 		}
 	}
 
@@ -192,6 +230,88 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 		x0, x1, dx = x1-1, x0-1, -1
 		y0, y1, dy = y1-1, y0-1, -1
 	}
+
+	// FALLBACK1.17
+	//
+	// Try the draw.RGBA64Image and image.RGBA64Image interfaces, part of the
+	// standard library since Go 1.17. These are like the draw.Image and
+	// image.Image interfaces but they can avoid allocations from converting
+	// concrete color types to the color.Color interface type.
+
+	if dst0, _ := dst.(RGBA64Image); dst0 != nil {
+		if src0, _ := src.(image.RGBA64Image); src0 != nil {
+			if mask == nil {
+				sy := sp.Y + y0 - r.Min.Y
+				my := mp.Y + y0 - r.Min.Y
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					sx := sp.X + x0 - r.Min.X
+					mx := mp.X + x0 - r.Min.X
+					for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
+						if op == Src {
+							dst0.SetRGBA64(x, y, src0.RGBA64At(sx, sy))
+						} else {
+							srgba := src0.RGBA64At(sx, sy)
+							a := m - uint32(srgba.A)
+							drgba := dst0.RGBA64At(x, y)
+							dst0.SetRGBA64(x, y, color.RGBA64{
+								R: uint16((uint32(drgba.R)*a)/m) + srgba.R,
+								G: uint16((uint32(drgba.G)*a)/m) + srgba.G,
+								B: uint16((uint32(drgba.B)*a)/m) + srgba.B,
+								A: uint16((uint32(drgba.A)*a)/m) + srgba.A,
+							})
+						}
+					}
+				}
+				return
+
+			} else if mask0, _ := mask.(image.RGBA64Image); mask0 != nil {
+				sy := sp.Y + y0 - r.Min.Y
+				my := mp.Y + y0 - r.Min.Y
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					sx := sp.X + x0 - r.Min.X
+					mx := mp.X + x0 - r.Min.X
+					for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
+						ma := uint32(mask0.RGBA64At(mx, my).A)
+						switch {
+						case ma == 0:
+							if op == Over {
+								// No-op.
+							} else {
+								dst0.SetRGBA64(x, y, color.RGBA64{})
+							}
+						case ma == m && op == Src:
+							dst0.SetRGBA64(x, y, src0.RGBA64At(sx, sy))
+						default:
+							srgba := src0.RGBA64At(sx, sy)
+							if op == Over {
+								drgba := dst0.RGBA64At(x, y)
+								a := m - (uint32(srgba.A) * ma / m)
+								dst0.SetRGBA64(x, y, color.RGBA64{
+									R: uint16((uint32(drgba.R)*a + uint32(srgba.R)*ma) / m),
+									G: uint16((uint32(drgba.G)*a + uint32(srgba.G)*ma) / m),
+									B: uint16((uint32(drgba.B)*a + uint32(srgba.B)*ma) / m),
+									A: uint16((uint32(drgba.A)*a + uint32(srgba.A)*ma) / m),
+								})
+							} else {
+								dst0.SetRGBA64(x, y, color.RGBA64{
+									R: uint16(uint32(srgba.R) * ma / m),
+									G: uint16(uint32(srgba.G) * ma / m),
+									B: uint16(uint32(srgba.B) * ma / m),
+									A: uint16(uint32(srgba.A) * ma / m),
+								})
+							}
+						}
+					}
+				}
+				return
+			}
+		}
+	}
+
+	// FALLBACK1.0
+	//
+	// If none of the faster code paths above apply, use the draw.Image and
+	// image.Image interfaces, part of the standard library since Go 1.0.
 
 	var out color.RGBA64
 	sy := sp.Y + y0 - r.Min.Y
@@ -309,23 +429,20 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 		dpix := dst.Pix[d0:]
 		spix := src.Pix[s0:]
 		for i := i0; i != i1; i += idelta {
-			sr := uint32(spix[i+0]) * 0x101
-			sg := uint32(spix[i+1]) * 0x101
-			sb := uint32(spix[i+2]) * 0x101
-			sa := uint32(spix[i+3]) * 0x101
-
-			dr := &dpix[i+0]
-			dg := &dpix[i+1]
-			db := &dpix[i+2]
-			da := &dpix[i+3]
+			s := spix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			sr := uint32(s[0]) * 0x101
+			sg := uint32(s[1]) * 0x101
+			sb := uint32(s[2]) * 0x101
+			sa := uint32(s[3]) * 0x101
 
 			// The 0x101 is here for the same reason as in drawRGBA.
 			a := (m - sa) * 0x101
 
-			*dr = uint8((uint32(*dr)*a/m + sr) >> 8)
-			*dg = uint8((uint32(*dg)*a/m + sg) >> 8)
-			*db = uint8((uint32(*db)*a/m + sb) >> 8)
-			*da = uint8((uint32(*da)*a/m + sa) >> 8)
+			d := dpix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d[0] = uint8((uint32(d[0])*a/m + sr) >> 8)
+			d[1] = uint8((uint32(d[1])*a/m + sg) >> 8)
+			d[2] = uint8((uint32(d[2])*a/m + sb) >> 8)
+			d[3] = uint8((uint32(d[3])*a/m + sa) >> 8)
 		}
 		d0 += ddelta
 		s0 += sdelta
@@ -372,23 +489,25 @@ func drawNRGBAOver(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp imag
 
 		for i, si := i0, si0; i < i1; i, si = i+4, si+4 {
 			// Convert from non-premultiplied color to pre-multiplied color.
-			sa := uint32(spix[si+3]) * 0x101
-			sr := uint32(spix[si+0]) * sa / 0xff
-			sg := uint32(spix[si+1]) * sa / 0xff
-			sb := uint32(spix[si+2]) * sa / 0xff
+			s := spix[si : si+4 : si+4] // Small cap improves performance, see https://golang.org/issue/27857
+			sa := uint32(s[3]) * 0x101
+			sr := uint32(s[0]) * sa / 0xff
+			sg := uint32(s[1]) * sa / 0xff
+			sb := uint32(s[2]) * sa / 0xff
 
-			dr := uint32(dpix[i+0])
-			dg := uint32(dpix[i+1])
-			db := uint32(dpix[i+2])
-			da := uint32(dpix[i+3])
+			d := dpix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			dr := uint32(d[0])
+			dg := uint32(d[1])
+			db := uint32(d[2])
+			da := uint32(d[3])
 
 			// The 0x101 is here for the same reason as in drawRGBA.
 			a := (m - sa) * 0x101
 
-			dpix[i+0] = uint8((dr*a/m + sr) >> 8)
-			dpix[i+1] = uint8((dg*a/m + sg) >> 8)
-			dpix[i+2] = uint8((db*a/m + sb) >> 8)
-			dpix[i+3] = uint8((da*a/m + sa) >> 8)
+			d[0] = uint8((dr*a/m + sr) >> 8)
+			d[1] = uint8((dg*a/m + sg) >> 8)
+			d[2] = uint8((db*a/m + sb) >> 8)
+			d[3] = uint8((da*a/m + sa) >> 8)
 		}
 	}
 }
@@ -407,15 +526,17 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
 
 		for i, si := i0, si0; i < i1; i, si = i+4, si+4 {
 			// Convert from non-premultiplied color to pre-multiplied color.
-			sa := uint32(spix[si+3]) * 0x101
-			sr := uint32(spix[si+0]) * sa / 0xff
-			sg := uint32(spix[si+1]) * sa / 0xff
-			sb := uint32(spix[si+2]) * sa / 0xff
+			s := spix[si : si+4 : si+4] // Small cap improves performance, see https://golang.org/issue/27857
+			sa := uint32(s[3]) * 0x101
+			sr := uint32(s[0]) * sa / 0xff
+			sg := uint32(s[1]) * sa / 0xff
+			sb := uint32(s[2]) * sa / 0xff
 
-			dpix[i+0] = uint8(sr >> 8)
-			dpix[i+1] = uint8(sg >> 8)
-			dpix[i+2] = uint8(sb >> 8)
-			dpix[i+3] = uint8(sa >> 8)
+			d := dpix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d[0] = uint8(sr >> 8)
+			d[1] = uint8(sg >> 8)
+			d[2] = uint8(sb >> 8)
+			d[3] = uint8(sa >> 8)
 		}
 	}
 }
@@ -434,10 +555,11 @@ func drawGray(dst *image.RGBA, r image.Rectangle, src *image.Gray, sp image.Poin
 
 		for i, si := i0, si0; i < i1; i, si = i+4, si+1 {
 			p := spix[si]
-			dpix[i+0] = p
-			dpix[i+1] = p
-			dpix[i+2] = p
-			dpix[i+3] = 255
+			d := dpix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d[0] = p
+			d[1] = p
+			d[2] = p
+			d[3] = 255
 		}
 	}
 }
@@ -455,9 +577,10 @@ func drawCMYK(dst *image.RGBA, r image.Rectangle, src *image.CMYK, sp image.Poin
 		spix := src.Pix[sy*src.Stride:]
 
 		for i, si := i0, si0; i < i1; i, si = i+4, si+4 {
-			dpix[i+0], dpix[i+1], dpix[i+2] =
-				color.CMYKToRGB(spix[si+0], spix[si+1], spix[si+2], spix[si+3])
-			dpix[i+3] = 255
+			s := spix[si : si+4 : si+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d := dpix[i : i+4 : i+4]
+			d[0], d[1], d[2] = color.CMYKToRGB(s[0], s[1], s[2], s[3])
+			d[3] = 255
 		}
 	}
 }
@@ -475,22 +598,168 @@ func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform, mask 
 			}
 			ma |= ma << 8
 
-			dr := &dst.Pix[i+0]
-			dg := &dst.Pix[i+1]
-			db := &dst.Pix[i+2]
-			da := &dst.Pix[i+3]
-
 			// The 0x101 is here for the same reason as in drawRGBA.
 			a := (m - (sa * ma / m)) * 0x101
 
-			*dr = uint8((uint32(*dr)*a + sr*ma) / m >> 8)
-			*dg = uint8((uint32(*dg)*a + sg*ma) / m >> 8)
-			*db = uint8((uint32(*db)*a + sb*ma) / m >> 8)
-			*da = uint8((uint32(*da)*a + sa*ma) / m >> 8)
+			d := dst.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d[0] = uint8((uint32(d[0])*a + sr*ma) / m >> 8)
+			d[1] = uint8((uint32(d[1])*a + sg*ma) / m >> 8)
+			d[2] = uint8((uint32(d[2])*a + sb*ma) / m >> 8)
+			d[3] = uint8((uint32(d[3])*a + sa*ma) / m >> 8)
 		}
 		i0 += dst.Stride
 		i1 += dst.Stride
 		mi0 += mask.Stride
+	}
+}
+
+func drawGrayMaskOver(dst *image.RGBA, r image.Rectangle, src *image.Gray, sp image.Point, mask *image.Alpha, mp image.Point) {
+	x0, x1, dx := r.Min.X, r.Max.X, 1
+	y0, y1, dy := r.Min.Y, r.Max.Y, 1
+	if r.Overlaps(r.Add(sp.Sub(r.Min))) {
+		if sp.Y < r.Min.Y || sp.Y == r.Min.Y && sp.X < r.Min.X {
+			x0, x1, dx = x1-1, x0-1, -1
+			y0, y1, dy = y1-1, y0-1, -1
+		}
+	}
+
+	sy := sp.Y + y0 - r.Min.Y
+	my := mp.Y + y0 - r.Min.Y
+	sx0 := sp.X + x0 - r.Min.X
+	mx0 := mp.X + x0 - r.Min.X
+	sx1 := sx0 + (x1 - x0)
+	i0 := dst.PixOffset(x0, y0)
+	di := dx * 4
+	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+		for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+			mi := mask.PixOffset(mx, my)
+			ma := uint32(mask.Pix[mi])
+			ma |= ma << 8
+			si := src.PixOffset(sx, sy)
+			sy := uint32(src.Pix[si])
+			sy |= sy << 8
+			sa := uint32(0xffff)
+
+			d := dst.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			dr := uint32(d[0])
+			dg := uint32(d[1])
+			db := uint32(d[2])
+			da := uint32(d[3])
+
+			// dr, dg, db and da are all 8-bit color at the moment, ranging in [0,255].
+			// We work in 16-bit color, and so would normally do:
+			// dr |= dr << 8
+			// and similarly for dg, db and da, but instead we multiply a
+			// (which is a 16-bit color, ranging in [0,65535]) by 0x101.
+			// This yields the same result, but is fewer arithmetic operations.
+			a := (m - (sa * ma / m)) * 0x101
+
+			d[0] = uint8((dr*a + sy*ma) / m >> 8)
+			d[1] = uint8((dg*a + sy*ma) / m >> 8)
+			d[2] = uint8((db*a + sy*ma) / m >> 8)
+			d[3] = uint8((da*a + sa*ma) / m >> 8)
+		}
+		i0 += dy * dst.Stride
+	}
+}
+
+func drawRGBAMaskOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point, mask *image.Alpha, mp image.Point) {
+	x0, x1, dx := r.Min.X, r.Max.X, 1
+	y0, y1, dy := r.Min.Y, r.Max.Y, 1
+	if dst == src && r.Overlaps(r.Add(sp.Sub(r.Min))) {
+		if sp.Y < r.Min.Y || sp.Y == r.Min.Y && sp.X < r.Min.X {
+			x0, x1, dx = x1-1, x0-1, -1
+			y0, y1, dy = y1-1, y0-1, -1
+		}
+	}
+
+	sy := sp.Y + y0 - r.Min.Y
+	my := mp.Y + y0 - r.Min.Y
+	sx0 := sp.X + x0 - r.Min.X
+	mx0 := mp.X + x0 - r.Min.X
+	sx1 := sx0 + (x1 - x0)
+	i0 := dst.PixOffset(x0, y0)
+	di := dx * 4
+	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+		for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+			mi := mask.PixOffset(mx, my)
+			ma := uint32(mask.Pix[mi])
+			ma |= ma << 8
+			si := src.PixOffset(sx, sy)
+			sr := uint32(src.Pix[si+0])
+			sg := uint32(src.Pix[si+1])
+			sb := uint32(src.Pix[si+2])
+			sa := uint32(src.Pix[si+3])
+			sr |= sr << 8
+			sg |= sg << 8
+			sb |= sb << 8
+			sa |= sa << 8
+			d := dst.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			dr := uint32(d[0])
+			dg := uint32(d[1])
+			db := uint32(d[2])
+			da := uint32(d[3])
+
+			// dr, dg, db and da are all 8-bit color at the moment, ranging in [0,255].
+			// We work in 16-bit color, and so would normally do:
+			// dr |= dr << 8
+			// and similarly for dg, db and da, but instead we multiply a
+			// (which is a 16-bit color, ranging in [0,65535]) by 0x101.
+			// This yields the same result, but is fewer arithmetic operations.
+			a := (m - (sa * ma / m)) * 0x101
+
+			d[0] = uint8((dr*a + sr*ma) / m >> 8)
+			d[1] = uint8((dg*a + sg*ma) / m >> 8)
+			d[2] = uint8((db*a + sb*ma) / m >> 8)
+			d[3] = uint8((da*a + sa*ma) / m >> 8)
+		}
+		i0 += dy * dst.Stride
+	}
+}
+
+func drawRGBA64ImageMaskOver(dst *image.RGBA, r image.Rectangle, src image.RGBA64Image, sp image.Point, mask *image.Alpha, mp image.Point) {
+	x0, x1, dx := r.Min.X, r.Max.X, 1
+	y0, y1, dy := r.Min.Y, r.Max.Y, 1
+	if image.Image(dst) == src && r.Overlaps(r.Add(sp.Sub(r.Min))) {
+		if sp.Y < r.Min.Y || sp.Y == r.Min.Y && sp.X < r.Min.X {
+			x0, x1, dx = x1-1, x0-1, -1
+			y0, y1, dy = y1-1, y0-1, -1
+		}
+	}
+
+	sy := sp.Y + y0 - r.Min.Y
+	my := mp.Y + y0 - r.Min.Y
+	sx0 := sp.X + x0 - r.Min.X
+	mx0 := mp.X + x0 - r.Min.X
+	sx1 := sx0 + (x1 - x0)
+	i0 := dst.PixOffset(x0, y0)
+	di := dx * 4
+	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+		for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+			mi := mask.PixOffset(mx, my)
+			ma := uint32(mask.Pix[mi])
+			ma |= ma << 8
+			srgba := src.RGBA64At(sx, sy)
+			d := dst.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			dr := uint32(d[0])
+			dg := uint32(d[1])
+			db := uint32(d[2])
+			da := uint32(d[3])
+
+			// dr, dg, db and da are all 8-bit color at the moment, ranging in [0,255].
+			// We work in 16-bit color, and so would normally do:
+			// dr |= dr << 8
+			// and similarly for dg, db and da, but instead we multiply a
+			// (which is a 16-bit color, ranging in [0,65535]) by 0x101.
+			// This yields the same result, but is fewer arithmetic operations.
+			a := (m - (uint32(srgba.A) * ma / m)) * 0x101
+
+			d[0] = uint8((dr*a + uint32(srgba.R)*ma) / m >> 8)
+			d[1] = uint8((dg*a + uint32(srgba.G)*ma) / m >> 8)
+			d[2] = uint8((db*a + uint32(srgba.B)*ma) / m >> 8)
+			d[3] = uint8((da*a + uint32(srgba.A)*ma) / m >> 8)
+		}
+		i0 += dy * dst.Stride
 	}
 }
 
@@ -511,6 +780,89 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 	sx1 := sx0 + (x1 - x0)
 	i0 := dst.PixOffset(x0, y0)
 	di := dx * 4
+
+	// Try the image.RGBA64Image interface, part of the standard library since
+	// Go 1.17.
+	//
+	// This optimization is similar to how FALLBACK1.17 optimizes FALLBACK1.0
+	// in DrawMask, except here the concrete type of dst is known to be
+	// *image.RGBA.
+	if src0, _ := src.(image.RGBA64Image); src0 != nil {
+		if mask == nil {
+			if op == Over {
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+						srgba := src0.RGBA64At(sx, sy)
+						d := dst.Pix[i : i+4 : i+4]
+						dr := uint32(d[0])
+						dg := uint32(d[1])
+						db := uint32(d[2])
+						da := uint32(d[3])
+						a := (m - uint32(srgba.A)) * 0x101
+						d[0] = uint8((dr*a/m + uint32(srgba.R)) >> 8)
+						d[1] = uint8((dg*a/m + uint32(srgba.G)) >> 8)
+						d[2] = uint8((db*a/m + uint32(srgba.B)) >> 8)
+						d[3] = uint8((da*a/m + uint32(srgba.A)) >> 8)
+					}
+					i0 += dy * dst.Stride
+				}
+			} else {
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+						srgba := src0.RGBA64At(sx, sy)
+						d := dst.Pix[i : i+4 : i+4]
+						d[0] = uint8(srgba.R >> 8)
+						d[1] = uint8(srgba.G >> 8)
+						d[2] = uint8(srgba.B >> 8)
+						d[3] = uint8(srgba.A >> 8)
+					}
+					i0 += dy * dst.Stride
+				}
+			}
+			return
+
+		} else if mask0, _ := mask.(image.RGBA64Image); mask0 != nil {
+			if op == Over {
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+						ma := uint32(mask0.RGBA64At(mx, my).A)
+						srgba := src0.RGBA64At(sx, sy)
+						d := dst.Pix[i : i+4 : i+4]
+						dr := uint32(d[0])
+						dg := uint32(d[1])
+						db := uint32(d[2])
+						da := uint32(d[3])
+						a := (m - (uint32(srgba.A) * ma / m)) * 0x101
+						d[0] = uint8((dr*a + uint32(srgba.R)*ma) / m >> 8)
+						d[1] = uint8((dg*a + uint32(srgba.G)*ma) / m >> 8)
+						d[2] = uint8((db*a + uint32(srgba.B)*ma) / m >> 8)
+						d[3] = uint8((da*a + uint32(srgba.A)*ma) / m >> 8)
+					}
+					i0 += dy * dst.Stride
+				}
+			} else {
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+						ma := uint32(mask0.RGBA64At(mx, my).A)
+						srgba := src0.RGBA64At(sx, sy)
+						d := dst.Pix[i : i+4 : i+4]
+						d[0] = uint8(uint32(srgba.R) * ma / m >> 8)
+						d[1] = uint8(uint32(srgba.G) * ma / m >> 8)
+						d[2] = uint8(uint32(srgba.B) * ma / m >> 8)
+						d[3] = uint8(uint32(srgba.A) * ma / m >> 8)
+					}
+					i0 += dy * dst.Stride
+				}
+			}
+			return
+		}
+	}
+
+	// Use the image.Image interface, part of the standard library since Go
+	// 1.0.
+	//
+	// This is similar to FALLBACK1.0 in DrawMask, except here the concrete
+	// type of dst is known to be *image.RGBA.
 	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
 		for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
 			ma := uint32(m)
@@ -518,11 +870,12 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 				_, _, _, ma = mask.At(mx, my).RGBA()
 			}
 			sr, sg, sb, sa := src.At(sx, sy).RGBA()
+			d := dst.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
 			if op == Over {
-				dr := uint32(dst.Pix[i+0])
-				dg := uint32(dst.Pix[i+1])
-				db := uint32(dst.Pix[i+2])
-				da := uint32(dst.Pix[i+3])
+				dr := uint32(d[0])
+				dg := uint32(d[1])
+				db := uint32(d[2])
+				da := uint32(d[3])
 
 				// dr, dg, db and da are all 8-bit color at the moment, ranging in [0,255].
 				// We work in 16-bit color, and so would normally do:
@@ -532,16 +885,16 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 				// This yields the same result, but is fewer arithmetic operations.
 				a := (m - (sa * ma / m)) * 0x101
 
-				dst.Pix[i+0] = uint8((dr*a + sr*ma) / m >> 8)
-				dst.Pix[i+1] = uint8((dg*a + sg*ma) / m >> 8)
-				dst.Pix[i+2] = uint8((db*a + sb*ma) / m >> 8)
-				dst.Pix[i+3] = uint8((da*a + sa*ma) / m >> 8)
+				d[0] = uint8((dr*a + sr*ma) / m >> 8)
+				d[1] = uint8((dg*a + sg*ma) / m >> 8)
+				d[2] = uint8((db*a + sb*ma) / m >> 8)
+				d[3] = uint8((da*a + sa*ma) / m >> 8)
 
 			} else {
-				dst.Pix[i+0] = uint8(sr * ma / m >> 8)
-				dst.Pix[i+1] = uint8(sg * ma / m >> 8)
-				dst.Pix[i+2] = uint8(sb * ma / m >> 8)
-				dst.Pix[i+3] = uint8(sa * ma / m >> 8)
+				d[0] = uint8(sr * ma / m >> 8)
+				d[1] = uint8(sg * ma / m >> 8)
+				d[2] = uint8(sb * ma / m >> 8)
+				d[3] = uint8(sa * ma / m >> 8)
 			}
 		}
 		i0 += dy * dst.Stride

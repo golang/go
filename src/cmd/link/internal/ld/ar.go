@@ -1,5 +1,5 @@
 // Inferno utils/include/ar.h
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/include/ar.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/include/ar.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -32,10 +32,10 @@ package ld
 
 import (
 	"cmd/internal/bio"
-	"cmd/internal/objabi"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"os"
 )
@@ -104,14 +104,13 @@ func hostArchive(ctxt *Link, name string) {
 	any := true
 	for any {
 		var load []uint64
-		for _, s := range ctxt.Syms.Allsym {
-			for _, r := range s.R {
-				if r.Sym != nil && r.Sym.Type == sym.SXREF {
-					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
-						load = append(load, off)
-						loaded[off] = true
-					}
-				}
+		returnAllUndefs := -1
+		undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+		for _, symIdx := range undefs {
+			name := ctxt.loader.SymName(symIdx)
+			if off := armap[name]; off != 0 && !loaded[off] {
+				load = append(load, off)
+				loaded[off] = true
 			}
 		}
 
@@ -125,7 +124,11 @@ func hostArchive(ctxt *Link, name string) {
 
 			libgcc := sym.Library{Pkg: "libgcc"}
 			h := ldobj(ctxt, f, &libgcc, l, pname, name)
-			f.Seek(h.off, 0)
+			if h.ld == nil {
+				Errorf(nil, "%s unrecognized object file at offset %d", name, off)
+				continue
+			}
+			f.MustSeek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
 		}
 
@@ -171,7 +174,7 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
 
 		// For Mach-O and PE/386 files we strip a leading
 		// underscore from the symbol name.
-		if objabi.GOOS == "darwin" || (objabi.GOOS == "windows" && objabi.GOARCH == "386") {
+		if buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" || (buildcfg.GOOS == "windows" && buildcfg.GOARCH == "386") {
 			if name[0] == '_' && len(name) > 1 {
 				name = name[1:]
 			}

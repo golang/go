@@ -12,26 +12,10 @@ func layout(f *Func) {
 }
 
 // Register allocation may use a different order which has constraints
-// imposed by the linear-scan algorithm. Note that that f.pass here is
-// regalloc, so the switch is conditional on -d=ssa/regalloc/test=N
+// imposed by the linear-scan algorithm.
 func layoutRegallocOrder(f *Func) []*Block {
-
-	switch f.pass.test {
-	case 0: // layout order
-		return layoutOrder(f)
-	case 1: // existing block order
-		return f.Blocks
-	case 2: // reverse of postorder; legal, but usually not good.
-		po := f.postorder()
-		visitOrder := make([]*Block, len(po))
-		for i, b := range po {
-			j := len(po) - i - 1
-			visitOrder[j] = b
-		}
-		return visitOrder
-	}
-
-	return nil
+	// remnant of an experiment; perhaps there will be another.
+	return layoutOrder(f)
 }
 
 func layoutOrder(f *Func) []*Block {
@@ -41,23 +25,60 @@ func layoutOrder(f *Func) []*Block {
 	indegree := make([]int, f.NumBlocks())
 	posdegree := f.newSparseSet(f.NumBlocks()) // blocks with positive remaining degree
 	defer f.retSparseSet(posdegree)
-	zerodegree := f.newSparseSet(f.NumBlocks()) // blocks with zero remaining degree
-	defer f.retSparseSet(zerodegree)
+	// blocks with zero remaining degree. Use slice to simulate a LIFO queue to implement
+	// the depth-first topology sorting algorithm.
+	var zerodegree []ID
+	// LIFO queue. Track the successor blocks of the scheduled block so that when we
+	// encounter loops, we choose to schedule the successor block of the most recently
+	// scheduled block.
+	var succs []ID
 	exit := f.newSparseSet(f.NumBlocks()) // exit blocks
 	defer f.retSparseSet(exit)
 
-	// Initialize indegree of each block
+	// Populate idToBlock and find exit blocks.
 	for _, b := range f.Blocks {
 		idToBlock[b.ID] = b
 		if b.Kind == BlockExit {
-			// exit blocks are always scheduled last
-			// TODO: also add blocks post-dominated by exit blocks
 			exit.add(b.ID)
+		}
+	}
+
+	// Expand exit to include blocks post-dominated by exit blocks.
+	for {
+		changed := false
+		for _, id := range exit.contents() {
+			b := idToBlock[id]
+		NextPred:
+			for _, pe := range b.Preds {
+				p := pe.b
+				if exit.contains(p.ID) {
+					continue
+				}
+				for _, s := range p.Succs {
+					if !exit.contains(s.b.ID) {
+						continue NextPred
+					}
+				}
+				// All Succs are in exit; add p.
+				exit.add(p.ID)
+				changed = true
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+
+	// Initialize indegree of each block
+	for _, b := range f.Blocks {
+		if exit.contains(b.ID) {
+			// exit blocks are always scheduled last
 			continue
 		}
 		indegree[b.ID] = len(b.Preds)
 		if len(b.Preds) == 0 {
-			zerodegree.add(b.ID)
+			// Push an element to the tail of the queue.
+			zerodegree = append(zerodegree, b.ID)
 		} else {
 			posdegree.add(b.ID)
 		}
@@ -74,12 +95,24 @@ blockloop:
 			break
 		}
 
-		for _, e := range b.Succs {
-			c := e.b
+		// Here, the order of traversing the b.Succs affects the direction in which the topological
+		// sort advances in depth. Take the following cfg as an example, regardless of other factors.
+		//           b1
+		//         0/ \1
+		//        b2   b3
+		// Traverse b.Succs in order, the right child node b3 will be scheduled immediately after
+		// b1, traverse b.Succs in reverse order, the left child node b2 will be scheduled
+		// immediately after b1. The test results show that reverse traversal performs a little
+		// better.
+		// Note: You need to consider both layout and register allocation when testing performance.
+		for i := len(b.Succs) - 1; i >= 0; i-- {
+			c := b.Succs[i].b
 			indegree[c.ID]--
 			if indegree[c.ID] == 0 {
 				posdegree.remove(c.ID)
-				zerodegree.add(c.ID)
+				zerodegree = append(zerodegree, c.ID)
+			} else {
+				succs = append(succs, c.ID)
 			}
 		}
 
@@ -101,30 +134,30 @@ blockloop:
 
 		// Use degree for now.
 		bid = 0
-		mindegree := f.NumBlocks()
-		for _, e := range order[len(order)-1].Succs {
-			c := e.b
-			if scheduled[c.ID] || c.Kind == BlockExit {
-				continue
-			}
-			if indegree[c.ID] < mindegree {
-				mindegree = indegree[c.ID]
-				bid = c.ID
-			}
-		}
-		if bid != 0 {
-			continue
-		}
 		// TODO: improve this part
 		// No successor of the previously scheduled block works.
 		// Pick a zero-degree block if we can.
-		for zerodegree.size() > 0 {
-			cid := zerodegree.pop()
+		for len(zerodegree) > 0 {
+			// Pop an element from the tail of the queue.
+			cid := zerodegree[len(zerodegree)-1]
+			zerodegree = zerodegree[:len(zerodegree)-1]
 			if !scheduled[cid] {
 				bid = cid
 				continue blockloop
 			}
 		}
+
+		// Still nothing, pick the unscheduled successor block encountered most recently.
+		for len(succs) > 0 {
+			// Pop an element from the tail of the queue.
+			cid := succs[len(succs)-1]
+			succs = succs[:len(succs)-1]
+			if !scheduled[cid] {
+				bid = cid
+				continue blockloop
+			}
+		}
+
 		// Still nothing, pick any non-exit block.
 		for posdegree.size() > 0 {
 			cid := posdegree.pop()
@@ -143,5 +176,7 @@ blockloop:
 			}
 		}
 	}
+	f.laidout = true
 	return order
+	//f.Blocks = order
 }

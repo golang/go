@@ -10,6 +10,19 @@ import (
 )
 
 func TestMSAN(t *testing.T) {
+	goos, err := goEnv("GOOS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	goarch, err := goEnv("GOARCH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The msan tests require support for the -msan option.
+	if !mSanSupported(goos, goarch) {
+		t.Skipf("skipping on %s/%s; -msan option is not supported.", goos, goarch)
+	}
+
 	t.Parallel()
 	requireOvercommit(t)
 	config := configure("memory")
@@ -27,6 +40,9 @@ func TestMSAN(t *testing.T) {
 		{src: "msan3.go"},
 		{src: "msan4.go"},
 		{src: "msan5.go"},
+		{src: "msan6.go"},
+		{src: "msan7.go"},
+		{src: "msan8.go"},
 		{src: "msan_fail.go", wantErr: true},
 	}
 	for _, tc := range cases {

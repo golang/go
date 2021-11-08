@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build mips mipsle
+//go:build linux && (mips || mipsle)
 
 #include "textflag.h"
 
@@ -23,6 +22,6 @@ TEXT _main<>(SB),NOSPLIT|NOFRAME,$0
 	JMP	main(SB)
 
 TEXT main(SB),NOSPLIT|NOFRAME,$0
-        // In external linking, libc jumps to main with argc in R4, argv in R5
+	// In external linking, libc jumps to main with argc in R4, argv in R5
 	MOVW	$runtime·rt0_go(SB), R1
 	JMP	(R1)

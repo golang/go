@@ -116,12 +116,12 @@ func indirect(a interface{}) interface{} {
 	if a == nil {
 		return nil
 	}
-	if t := reflect.TypeOf(a); t.Kind() != reflect.Ptr {
+	if t := reflect.TypeOf(a); t.Kind() != reflect.Pointer {
 		// Avoid creating a reflect.Value if it's not a pointer.
 		return a
 	}
 	v := reflect.ValueOf(a)
-	for v.Kind() == reflect.Ptr && !v.IsNil() {
+	for v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}
 	return v.Interface()
@@ -140,7 +140,7 @@ func indirectToStringerOrError(a interface{}) interface{} {
 		return nil
 	}
 	v := reflect.ValueOf(a)
-	for !v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && v.Kind() == reflect.Ptr && !v.IsNil() {
+	for !v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}
 	return v.Interface()
@@ -169,8 +169,17 @@ func stringify(args ...interface{}) (string, contentType) {
 			return string(s), contentTypeSrcset
 		}
 	}
-	for i, arg := range args {
+	i := 0
+	for _, arg := range args {
+		// We skip untyped nil arguments for backward compatibility.
+		// Without this they would be output as <nil>, escaped.
+		// See issue 25875.
+		if arg == nil {
+			continue
+		}
+
 		args[i] = indirectToStringerOrError(arg)
+		i++
 	}
-	return fmt.Sprint(args...), contentTypePlain
+	return fmt.Sprint(args[:i]...), contentTypePlain
 }

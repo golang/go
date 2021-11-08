@@ -1,0 +1,49 @@
+# Check that when -trimpath and -mod=vendor are used together,
+# paths in vendored packages are properly trimmed.
+# Verifies golang.org/issue/36566.
+
+[short] skip
+
+# Only the main module has a root directory in vendor mode.
+go mod vendor
+go list -f {{.Module.Dir}} example.com/main
+stdout $PWD
+go list -f {{.Module.Dir}} example.com/stack
+! stdout .
+
+# The program prints a file name from a vendored package.
+# Without -trimpath, the name should include the vendor directory.
+go run main.go
+stdout vendor
+
+# With -trimpath, everything before the package path should be trimmed.
+# As with -mod=mod, the version should appear as part of the module path.
+go run -mod=vendor -trimpath main.go
+stdout '^example.com/stack@v1.0.0/stack.go$'
+
+# With pristinely vendored source code, a trimmed binary built from vendored
+# code should have the same behavior as one build from the module cache.
+go run -mod=mod -trimpath main.go
+stdout '^example.com/stack@v1.0.0/stack.go$'
+
+-- go.mod --
+module example.com/main
+
+go 1.17
+
+require example.com/stack v1.0.0
+-- go.sum --
+example.com/stack v1.0.0 h1:IEDLeew5NytZ8vrgCF/QVem3H3SR3QMttdu9HfJvk9I=
+example.com/stack v1.0.0/go.mod h1:7wFEbaV5e5O7wJ8aBdqQOR//UXppm/pwnwziMKViuI4=
+-- main.go --
+package main
+
+import (
+  "fmt"
+
+  "example.com/stack"
+)
+
+func main() {
+  fmt.Println(stack.TopFile())
+}

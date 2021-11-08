@@ -5,6 +5,7 @@
 package race_test
 
 import (
+	"sync"
 	"testing"
 )
 
@@ -589,4 +590,19 @@ func TestRaceSlice3(t *testing.T) {
 	}()
 	_ = x[:1:i]
 	<-done
+}
+
+var saved string
+
+func TestRaceSlice4(t *testing.T) {
+	// See issue 36794.
+	data := []byte("hello there")
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		_ = string(data)
+		wg.Done()
+	}()
+	copy(data, data[2:])
+	wg.Wait()
 }

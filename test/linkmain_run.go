@@ -11,21 +11,21 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
+var tmpDir string
+
 func cleanup() {
-	os.Remove("linkmain.o")
-	os.Remove("linkmain.a")
-	os.Remove("linkmain1.o")
-	os.Remove("linkmain1.a")
-	os.Remove("linkmain.exe")
+	os.RemoveAll(tmpDir)
 }
 
-func run(cmdline string) {
-	args := strings.Fields(cmdline)
+func run(cmdline ...string) {
+	args := strings.Fields(strings.Join(cmdline, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -37,8 +37,8 @@ func run(cmdline string) {
 	}
 }
 
-func runFail(cmdline string) {
-	args := strings.Fields(cmdline)
+func runFail(cmdline ...string) {
+	args := strings.Fields(strings.Join(cmdline, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -51,16 +51,26 @@ func runFail(cmdline string) {
 }
 
 func main() {
+	var err error
+	tmpDir, err = ioutil.TempDir("", "")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	tmp := func(name string) string {
+		return filepath.Join(tmpDir, name)
+	}
+
 	// helloworld.go is package main
-	run("go tool compile -o linkmain.o helloworld.go")
-	run("go tool compile -pack -o linkmain.a helloworld.go")
-	run("go tool link -o linkmain.exe linkmain.o")
-	run("go tool link -o linkmain.exe linkmain.a")
+	run("go tool compile -o", tmp("linkmain.o"), "helloworld.go")
+	run("go tool compile -pack -o", tmp("linkmain.a"), "helloworld.go")
+	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.o"))
+	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.a"))
 
 	// linkmain.go is not
-	run("go tool compile -o linkmain1.o linkmain.go")
-	run("go tool compile -pack -o linkmain1.a linkmain.go")
-	runFail("go tool link -o linkmain.exe linkmain1.o")
-	runFail("go tool link -o linkmain.exe linkmain1.a")
+	run("go tool compile -o", tmp("linkmain1.o"), "linkmain.go")
+	run("go tool compile -pack -o", tmp("linkmain1.a"), "linkmain.go")
+	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.o"))
+	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.a"))
 	cleanup()
 }

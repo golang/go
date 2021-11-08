@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 type mOS struct {
 	initialized bool
@@ -34,6 +37,10 @@ func semacreate(mp *m) {
 
 //go:nosplit
 func semasleep(ns int64) int32 {
+	var start int64
+	if ns >= 0 {
+		start = nanotime()
+	}
 	mp := getg().m
 	pthread_mutex_lock(&mp.mutex)
 	for {
@@ -43,8 +50,13 @@ func semasleep(ns int64) int32 {
 			return 0
 		}
 		if ns >= 0 {
+			spent := nanotime() - start
+			if spent >= ns {
+				pthread_mutex_unlock(&mp.mutex)
+				return -1
+			}
 			var t timespec
-			t.set_nsec(ns)
+			t.setNsec(ns - spent)
 			err := pthread_cond_timedwait_relative_np(&mp.cond, &mp.mutex, &t)
 			if err == _ETIMEDOUT {
 				pthread_mutex_unlock(&mp.mutex)
@@ -66,6 +78,57 @@ func semawakeup(mp *m) {
 	pthread_mutex_unlock(&mp.mutex)
 }
 
+// The read and write file descriptors used by the sigNote functions.
+var sigNoteRead, sigNoteWrite int32
+
+// sigNoteSetup initializes an async-signal-safe note.
+//
+// The current implementation of notes on Darwin is not async-signal-safe,
+// because the functions pthread_mutex_lock, pthread_cond_signal, and
+// pthread_mutex_unlock, called by semawakeup, are not async-signal-safe.
+// There is only one case where we need to wake up a note from a signal
+// handler: the sigsend function. The signal handler code does not require
+// all the features of notes: it does not need to do a timed wait.
+// This is a separate implementation of notes, based on a pipe, that does
+// not support timed waits but is async-signal-safe.
+func sigNoteSetup(*note) {
+	if sigNoteRead != 0 || sigNoteWrite != 0 {
+		throw("duplicate sigNoteSetup")
+	}
+	var errno int32
+	sigNoteRead, sigNoteWrite, errno = pipe()
+	if errno != 0 {
+		throw("pipe failed")
+	}
+	closeonexec(sigNoteRead)
+	closeonexec(sigNoteWrite)
+
+	// Make the write end of the pipe non-blocking, so that if the pipe
+	// buffer is somehow full we will not block in the signal handler.
+	// Leave the read end of the pipe blocking so that we will block
+	// in sigNoteSleep.
+	setNonblock(sigNoteWrite)
+}
+
+// sigNoteWakeup wakes up a thread sleeping on a note created by sigNoteSetup.
+func sigNoteWakeup(*note) {
+	var b byte
+	write(uintptr(sigNoteWrite), unsafe.Pointer(&b), 1)
+}
+
+// sigNoteSleep waits for a note created by sigNoteSetup to be woken.
+func sigNoteSleep(*note) {
+	for {
+		var b byte
+		entersyscallblock()
+		n := read(sigNoteRead, unsafe.Pointer(&b), 1)
+		exitsyscall()
+		if n != -_EINTR {
+			return
+		}
+	}
+}
+
 // BSD interface for threading.
 func osinit() {
 	// pthread_create delayed until end of goenvs so that we
@@ -73,6 +136,18 @@ func osinit() {
 
 	ncpu = getncpu()
 	physPageSize = getPageSize()
+}
+
+func sysctlbynameInt32(name []byte) (int32, int32) {
+	out := int32(0)
+	nout := unsafe.Sizeof(out)
+	ret := sysctlbyname(&name[0], (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	return ret, out
+}
+
+//go:linkname internal_cpu_getsysctlbyname internal/cpu.getsysctlbyname
+func internal_cpu_getsysctlbyname(name []byte) (int32, int32) {
+	return sysctlbynameInt32(name)
 }
 
 const (
@@ -136,14 +211,13 @@ func newosproc(mp *m) {
 		exit(1)
 	}
 
-	// Set the stack size we want to use.  64KB for now.
-	// TODO: just use OS default size?
-	const stackSize = 1 << 16
-	if pthread_attr_setstacksize(&attr, stackSize) != 0 {
+	// Find out OS stack size for our own stack guard.
+	var stacksize uintptr
+	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
-	//mSysStatInc(&memstats.stacks_sys, stackSize) //TODO: do this?
+	mp.g0.stack.hi = stacksize // for mstart
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -155,7 +229,7 @@ func newosproc(mp *m) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
+	err = pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
@@ -182,12 +256,17 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 		exit(1)
 	}
 
-	// Set the stack we want to use.
-	if pthread_attr_setstacksize(&attr, stacksize) != 0 {
+	// The caller passes in a suggested stack size,
+	// from when we allocated the stack and thread ourselves,
+	// without libpthread. Now that we're using libpthread,
+	// we use the OS default stack size instead of the suggestion.
+	// Find out that stack size for our own stack guard.
+	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
 		exit(1)
 	}
-	mSysStatInc(&memstats.stacks_sys, stacksize)
+	g0.stack.hi = stacksize // for mstart
+	memstats.stacks_sys.add(int64(stacksize))
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -224,27 +303,44 @@ func libpreinit() {
 func mpreinit(mp *m) {
 	mp.gsignal = malg(32 * 1024) // OS X wants >= 8K
 	mp.gsignal.m = mp
+	if GOOS == "darwin" && GOARCH == "arm64" {
+		// mlock the signal stack to work around a kernel bug where it may
+		// SIGILL when the signal stack is not faulted in while a signal
+		// arrives. See issue 42774.
+		mlock(unsafe.Pointer(mp.gsignal.stack.hi-physPageSize), physPageSize)
+	}
 }
 
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// The alternate signal stack is buggy on arm and arm64.
+	// iOS does not support alternate signal stack.
 	// The signal handler handles it directly.
-	if GOARCH != "arm" && GOARCH != "arm64" {
+	if !(GOOS == "ios" && GOARCH == "arm64") {
 		minitSignalStack()
 	}
 	minitSignalMask()
+	getg().m.procid = uint64(pthread_self())
 }
 
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	// The alternate signal stack is buggy on arm and arm64.
+	// iOS does not support alternate signal stack.
 	// See minit.
-	if GOARCH != "arm" && GOARCH != "arm64" {
+	if !(GOOS == "ios" && GOARCH == "arm64") {
 		unminitSignals()
 	}
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
+}
+
+//go:nosplit
+func osyield_no_g() {
+	usleep_no_g(1)
 }
 
 //go:nosplit
@@ -273,8 +369,12 @@ func setsig(i uint32, fn uintptr) {
 	var sa usigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = ^uint32(0)
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		if iscgo {
+			fn = abi.FuncPCABI0(cgoSigtramp)
+		} else {
+			fn = abi.FuncPCABI0(sigtramp)
+		}
 	}
 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
 	sigaction(i, &sa, nil)
@@ -283,6 +383,7 @@ func setsig(i uint32, fn uintptr) {
 // sigtramp is the callback from libc when a signal is received.
 // It is called with the C calling convention.
 func sigtramp()
+func cgoSigtramp()
 
 //go:nosplit
 //go:nowritebarrierrec
@@ -324,6 +425,19 @@ func sigdelset(mask *sigset, i int) {
 	*mask &^= 1 << (uint32(i) - 1)
 }
 
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
+}
+
 //go:linkname executablePath os.executablePath
 var executablePath string
 
@@ -340,4 +454,8 @@ func sysargs(argc int32, argv **byte) {
 	if len(executablePath) > len(prefix) && executablePath[:len(prefix)] == prefix {
 		executablePath = executablePath[len(prefix):]
 	}
+}
+
+func signalM(mp *m, sig int) {
+	pthread_kill(pthread(mp.procid), uint32(sig))
 }

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +37,7 @@ func TestBlockHuff(t *testing.T) {
 }
 
 func testBlockHuff(t *testing.T, in, out string) {
-	all, err := ioutil.ReadFile(in)
+	all, err := os.ReadFile(in)
 	if err != nil {
 		t.Error(err)
 		return
@@ -49,7 +48,7 @@ func testBlockHuff(t *testing.T, in, out string) {
 	bw.flush()
 	got := buf.Bytes()
 
-	want, err := ioutil.ReadFile(out)
+	want, err := os.ReadFile(out)
 	if err != nil && !*update {
 		t.Error(err)
 		return
@@ -60,7 +59,7 @@ func testBlockHuff(t *testing.T, in, out string) {
 		if *update {
 			if in != out {
 				t.Logf("Updating %q", out)
-				if err := ioutil.WriteFile(out, got, 0666); err != nil {
+				if err := os.WriteFile(out, got, 0666); err != nil {
 					t.Error(err)
 				}
 				return
@@ -70,7 +69,7 @@ func testBlockHuff(t *testing.T, in, out string) {
 		}
 
 		t.Errorf("%q != %q (see %q)", in, out, in+".got")
-		if err := ioutil.WriteFile(in+".got", got, 0666); err != nil {
+		if err := os.WriteFile(in+".got", got, 0666); err != nil {
 			t.Error(err)
 		}
 		return
@@ -85,7 +84,7 @@ func testBlockHuff(t *testing.T, in, out string) {
 	got = buf.Bytes()
 	if !bytes.Equal(got, want) {
 		t.Errorf("after reset %q != %q (see %q)", in, out, in+".reset.got")
-		if err := ioutil.WriteFile(in+".reset.got", got, 0666); err != nil {
+		if err := os.WriteFile(in+".reset.got", got, 0666); err != nil {
 			t.Error(err)
 		}
 		return
@@ -186,7 +185,7 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 	if *update {
 		if test.input != "" {
 			t.Logf("Updating %q", test.want)
-			input, err := ioutil.ReadFile(test.input)
+			input, err := os.ReadFile(test.input)
 			if err != nil {
 				t.Error(err)
 				return
@@ -216,12 +215,12 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 
 	if test.input != "" {
 		t.Logf("Testing %q", test.want)
-		input, err := ioutil.ReadFile(test.input)
+		input, err := os.ReadFile(test.input)
 		if err != nil {
 			t.Error(err)
 			return
 		}
-		want, err := ioutil.ReadFile(test.want)
+		want, err := os.ReadFile(test.want)
 		if err != nil {
 			t.Error(err)
 			return
@@ -233,7 +232,7 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 		got := buf.Bytes()
 		if !bytes.Equal(got, want) {
 			t.Errorf("writeBlock did not yield expected result for file %q with input. See %q", test.want, test.want+".got")
-			if err := ioutil.WriteFile(test.want+".got", got, 0666); err != nil {
+			if err := os.WriteFile(test.want+".got", got, 0666); err != nil {
 				t.Error(err)
 			}
 		}
@@ -247,7 +246,7 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 		got = buf.Bytes()
 		if !bytes.Equal(got, want) {
 			t.Errorf("reset: writeBlock did not yield expected result for file %q with input. See %q", test.want, test.want+".reset.got")
-			if err := ioutil.WriteFile(test.want+".reset.got", got, 0666); err != nil {
+			if err := os.WriteFile(test.want+".reset.got", got, 0666); err != nil {
 				t.Error(err)
 			}
 			return
@@ -256,7 +255,7 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 		testWriterEOF(t, "wb", test, true)
 	}
 	t.Logf("Testing %q", test.wantNoInput)
-	wantNI, err := ioutil.ReadFile(test.wantNoInput)
+	wantNI, err := os.ReadFile(test.wantNoInput)
 	if err != nil {
 		t.Error(err)
 		return
@@ -268,7 +267,7 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 	got := buf.Bytes()
 	if !bytes.Equal(got, wantNI) {
 		t.Errorf("writeBlock did not yield expected result for file %q with input. See %q", test.wantNoInput, test.wantNoInput+".got")
-		if err := ioutil.WriteFile(test.want+".got", got, 0666); err != nil {
+		if err := os.WriteFile(test.want+".got", got, 0666); err != nil {
 			t.Error(err)
 		}
 	} else if got[0]&1 == 1 {
@@ -286,7 +285,7 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 	got = buf.Bytes()
 	if !bytes.Equal(got, wantNI) {
 		t.Errorf("reset: writeBlock did not yield expected result for file %q without input. See %q", test.want, test.want+".reset.got")
-		if err := ioutil.WriteFile(test.want+".reset.got", got, 0666); err != nil {
+		if err := os.WriteFile(test.want+".reset.got", got, 0666); err != nil {
 			t.Error(err)
 		}
 		return
@@ -325,7 +324,7 @@ func testWriterEOF(t *testing.T, ttype string, test huffTest, useInput bool) {
 	var input []byte
 	if useInput {
 		var err error
-		input, err = ioutil.ReadFile(test.input)
+		input, err = os.ReadFile(test.input)
 		if err != nil {
 			t.Error(err)
 			return

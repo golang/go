@@ -2,83 +2,44 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ppc64 ppc64le
+//go:build ppc64 || ppc64le
 
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·Equal(SB),NOSPLIT,$0-49
-	MOVD	a_len+8(FP), R4
-	MOVD	b_len+32(FP), R5
-	CMP	R5, R4		// unequal lengths are not equal
-	BNE	noteq
-	MOVD	a_base+0(FP), R3
-	MOVD	b_base+24(FP), R4
-	BL	memeqbody<>(SB)
-
-	MOVBZ	R9,ret+48(FP)
-	RET
-
-noteq:
-	MOVBZ	$0,ret+48(FP)
-	RET
-
-equal:
-	MOVD	$1,R3
-	MOVBZ	R3,ret+48(FP)
-	RET
-
-TEXT bytes·Equal(SB),NOSPLIT,$0-49
-	MOVD	a_len+8(FP), R4
-	MOVD	b_len+32(FP), R5
-	CMP	R5, R4		// unequal lengths are not equal
-	BNE	noteq
-	MOVD	a_base+0(FP), R3
-	MOVD	b_base+24(FP), R4
-	BL	memeqbody<>(SB)
-
-	MOVBZ	R9,ret+48(FP)
-	RET
-
-noteq:
-	MOVBZ	$0,ret+48(FP)
-	RET
-
-equal:
-	MOVD	$1,R3
-	MOVBZ	R3,ret+48(FP)
-	RET
-
 // memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT,$0-25
+TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD    a+0(FP), R3
 	MOVD    b+8(FP), R4
 	MOVD    size+16(FP), R5
-
-	BL	memeqbody<>(SB)
-	MOVB    R9, ret+24(FP)
-	RET
+	MOVD    $ret+24(FP), R10
+#endif
+	BR	memeqbody<>(SB)
 
 // memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
+TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	a+0(FP), R3
 	MOVD	b+8(FP), R4
+	MOVD    $ret+16(FP), R10
+#endif
 	CMP	R3, R4
 	BEQ	eq
 	MOVD	8(R11), R5    // compiler stores size at offset 8 in the closure
-	BL	memeqbody<>(SB)
-	MOVB	R9, ret+16(FP)
-	RET
+	BR	memeqbody<>(SB)
 eq:
 	MOVD	$1, R3
+#ifndef GOEXPERIMENT_regabiargs
 	MOVB	R3, ret+16(FP)
+#endif
 	RET
 
 // Do an efficient memequal for ppc64
 // R3 = s1
 // R4 = s2
 // R5 = len
-// R9 = return value
+// R10 = addr of return value (byte) when not regabi
 TEXT memeqbody<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD    R5,CTR
 	CMP     R5,$8		// only optimize >=8
@@ -91,26 +52,19 @@ TEXT memeqbody<>(SB),NOSPLIT|NOFRAME,$0-0
 setup32a:                       // 8 byte aligned, >= 32 bytes
 	SRADCC  $5,R5,R6        // number of 32 byte chunks to compare
 	MOVD	R6,CTR
+	MOVD	$16,R14		// index for VSX loads and stores
 loop32a:
-	MOVD    0(R3),R6        // doublewords to compare
-	MOVD    0(R4),R7
-	MOVD	8(R3),R8	//
-	MOVD	8(R4),R9
-	CMP     R6,R7           // bytes batch?
-	BNE     noteq
-	MOVD	16(R3),R6
-	MOVD	16(R4),R7
-	CMP     R8,R9		// bytes match?
-	MOVD	24(R3),R8
-	MOVD	24(R4),R9
-	BNE     noteq
-	CMP     R6,R7           // bytes match?
-	BNE	noteq
+	LXVD2X  (R3+R0), VS32	// VS32 = V0
+	LXVD2X  (R4+R0), VS33	// VS33 = V1
+	VCMPEQUBCC V0, V1, V2	// compare, setting CR6
+	BGE     CR6, noteq
+	LXVD2X  (R3+R14), VS32
+	LXVD2X  (R4+R14), VS33
+	VCMPEQUBCC V0, V1, V2
+	BGE     CR6, noteq
 	ADD     $32,R3		// bump up to next 32
 	ADD     $32,R4
-	CMP     R8,R9           // bytes match?
-	BC      8,2,loop32a	// br ctr and cr
-	BNE	noteq
+	BC      16, 0, loop32a  // br ctr and cr
 	ANDCC	$24,R5,R6       // Any 8 byte chunks?
 	BEQ	leftover	// and result is 0
 setup8a:
@@ -144,9 +98,16 @@ simple:
 	BNE	noteq
 	BR	equal
 noteq:
-	MOVD    $0, R9
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	$0, R3
+#else
+	MOVB    $0, (R10)
+#endif
 	RET
 equal:
-	MOVD    $1, R9
+	MOVD	$1, R3
+#ifndef GOEXPERIMENT_regabiargs
+	MOVB	R3, (R10)
+#endif
 	RET
 

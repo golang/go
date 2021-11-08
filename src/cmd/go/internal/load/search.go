@@ -6,7 +6,6 @@ package load
 
 import (
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"cmd/go/internal/search"
@@ -15,7 +14,7 @@ import (
 // MatchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
 func MatchPackage(pattern, cwd string) func(*Package) bool {
 	switch {
-	case strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../") || pattern == "." || pattern == "..":
+	case search.IsRelativePath(pattern):
 		// Split pattern into leading pattern-free directory path
 		// (including all . and .. elements) and the final pattern.
 		var dir string
@@ -28,13 +27,7 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
 		}
 		dir = filepath.Join(cwd, dir)
 		if pattern == "" {
-			return func(p *Package) bool {
-				// TODO(rsc): This is wrong. See golang.org/issue/25878.
-				if runtime.GOOS != "windows" {
-					return p.Dir == dir
-				}
-				return strings.EqualFold(p.Dir, dir)
-			}
+			return func(p *Package) bool { return p.Dir == dir }
 		}
 		matchPath := search.MatchPattern(pattern)
 		return func(p *Package) bool {

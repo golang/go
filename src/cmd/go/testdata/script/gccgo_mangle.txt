@@ -1,0 +1,15 @@
+# Issue 33871.
+
+cd m/a.0
+go build
+
+-- m/go.mod --
+module m
+-- m/a.0/a.go --
+package a
+
+type T int
+
+func (t T) M() int {
+	return int(t)
+}

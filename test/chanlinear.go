@@ -5,7 +5,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test that dequeueing from a pending channel doesn't
+// Test that dequeuing from a pending channel doesn't
 // take linear time.
 
 package main

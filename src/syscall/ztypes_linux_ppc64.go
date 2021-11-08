@@ -1,7 +1,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_linux.go
 
-// +build ppc64,linux
+//go:build ppc64 && linux
 
 package syscall
 
@@ -585,6 +585,12 @@ const (
 	_AT_SYMLINK_NOFOLLOW = 0x100
 	_AT_EACCESS          = 0x200
 )
+
+type pollFd struct {
+	Fd      int32
+	Events  int16
+	Revents int16
+}
 
 type Termios struct {
 	Iflag     uint32

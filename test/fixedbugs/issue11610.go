@@ -9,9 +9,9 @@
 
 package a
 import""  // ERROR "import path is empty"
-var?      // ERROR "invalid character U\+003F '\?'"
+var?      // ERROR "invalid character U\+003F '\?'|invalid character 0x3f in input file"
 
-var x int // ERROR "unexpected var"
+var x int // ERROR "unexpected var|expected identifier|expected type"
 
 func main() {
 }

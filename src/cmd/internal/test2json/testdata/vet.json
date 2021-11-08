@@ -116,13 +116,13 @@
 {"Action":"output","Test":"TestVet/2","Output":"=== CONT  TestVet/2\n"}
 {"Action":"output","Test":"TestTags","Output":"--- PASS: TestTags (0.00s)\n"}
 {"Action":"output","Test":"TestTags/x_testtag_y","Output":"    --- PASS: TestTags/x_testtag_y (0.04s)\n"}
-{"Action":"output","Test":"TestTags/x_testtag_y","Output":"    \tvet_test.go:187: -tags=x testtag y\n"}
+{"Action":"output","Test":"TestTags/x_testtag_y","Output":"        vet_test.go:187: -tags=x testtag y\n"}
 {"Action":"pass","Test":"TestTags/x_testtag_y"}
 {"Action":"output","Test":"TestTags/x,testtag,y","Output":"    --- PASS: TestTags/x,testtag,y (0.04s)\n"}
-{"Action":"output","Test":"TestTags/x,testtag,y","Output":"    \tvet_test.go:187: -tags=x,testtag,y\n"}
+{"Action":"output","Test":"TestTags/x,testtag,y","Output":"        vet_test.go:187: -tags=x,testtag,y\n"}
 {"Action":"pass","Test":"TestTags/x,testtag,y"}
 {"Action":"output","Test":"TestTags/testtag","Output":"    --- PASS: TestTags/testtag (0.04s)\n"}
-{"Action":"output","Test":"TestTags/testtag","Output":"    \tvet_test.go:187: -tags=testtag\n"}
+{"Action":"output","Test":"TestTags/testtag","Output":"        vet_test.go:187: -tags=testtag\n"}
 {"Action":"pass","Test":"TestTags/testtag"}
 {"Action":"pass","Test":"TestTags"}
 {"Action":"cont","Test":"TestVet/1"}
@@ -139,28 +139,28 @@
 {"Action":"output","Test":"TestVetDirs/cgo","Output":"=== CONT  TestVetDirs/cgo\n"}
 {"Action":"output","Test":"TestVet","Output":"--- PASS: TestVet (0.39s)\n"}
 {"Action":"output","Test":"TestVet/5","Output":"    --- PASS: TestVet/5 (0.07s)\n"}
-{"Action":"output","Test":"TestVet/5","Output":"    \tvet_test.go:114: files: [\"testdata/copylock_func.go\" \"testdata/rangeloop.go\"]\n"}
+{"Action":"output","Test":"TestVet/5","Output":"        vet_test.go:114: files: [\"testdata/copylock_func.go\" \"testdata/rangeloop.go\"]\n"}
 {"Action":"pass","Test":"TestVet/5"}
 {"Action":"output","Test":"TestVet/3","Output":"    --- PASS: TestVet/3 (0.07s)\n"}
-{"Action":"output","Test":"TestVet/3","Output":"    \tvet_test.go:114: files: [\"testdata/composite.go\" \"testdata/nilfunc.go\"]\n"}
+{"Action":"output","Test":"TestVet/3","Output":"        vet_test.go:114: files: [\"testdata/composite.go\" \"testdata/nilfunc.go\"]\n"}
 {"Action":"pass","Test":"TestVet/3"}
 {"Action":"output","Test":"TestVet/6","Output":"    --- PASS: TestVet/6 (0.07s)\n"}
-{"Action":"output","Test":"TestVet/6","Output":"    \tvet_test.go:114: files: [\"testdata/copylock_range.go\" \"testdata/shadow.go\"]\n"}
+{"Action":"output","Test":"TestVet/6","Output":"        vet_test.go:114: files: [\"testdata/copylock_range.go\" \"testdata/shadow.go\"]\n"}
 {"Action":"pass","Test":"TestVet/6"}
 {"Action":"output","Test":"TestVet/2","Output":"    --- PASS: TestVet/2 (0.07s)\n"}
-{"Action":"output","Test":"TestVet/2","Output":"    \tvet_test.go:114: files: [\"testdata/bool.go\" \"testdata/method.go\" \"testdata/unused.go\"]\n"}
+{"Action":"output","Test":"TestVet/2","Output":"        vet_test.go:114: files: [\"testdata/bool.go\" \"testdata/method.go\" \"testdata/unused.go\"]\n"}
 {"Action":"pass","Test":"TestVet/2"}
 {"Action":"output","Test":"TestVet/0","Output":"    --- PASS: TestVet/0 (0.13s)\n"}
-{"Action":"output","Test":"TestVet/0","Output":"    \tvet_test.go:114: files: [\"testdata/assign.go\" \"testdata/httpresponse.go\" \"testdata/structtag.go\"]\n"}
+{"Action":"output","Test":"TestVet/0","Output":"        vet_test.go:114: files: [\"testdata/assign.go\" \"testdata/httpresponse.go\" \"testdata/structtag.go\"]\n"}
 {"Action":"pass","Test":"TestVet/0"}
 {"Action":"output","Test":"TestVet/4","Output":"    --- PASS: TestVet/4 (0.16s)\n"}
-{"Action":"output","Test":"TestVet/4","Output":"    \tvet_test.go:114: files: [\"testdata/copylock.go\" \"testdata/print.go\"]\n"}
+{"Action":"output","Test":"TestVet/4","Output":"        vet_test.go:114: files: [\"testdata/copylock.go\" \"testdata/print.go\"]\n"}
 {"Action":"pass","Test":"TestVet/4"}
 {"Action":"output","Test":"TestVet/1","Output":"    --- PASS: TestVet/1 (0.07s)\n"}
-{"Action":"output","Test":"TestVet/1","Output":"    \tvet_test.go:114: files: [\"testdata/atomic.go\" \"testdata/lostcancel.go\" \"testdata/unsafeptr.go\"]\n"}
+{"Action":"output","Test":"TestVet/1","Output":"        vet_test.go:114: files: [\"testdata/atomic.go\" \"testdata/lostcancel.go\" \"testdata/unsafeptr.go\"]\n"}
 {"Action":"pass","Test":"TestVet/1"}
 {"Action":"output","Test":"TestVet/7","Output":"    --- PASS: TestVet/7 (0.19s)\n"}
-{"Action":"output","Test":"TestVet/7","Output":"    \tvet_test.go:114: files: [\"testdata/deadcode.go\" \"testdata/shift.go\"]\n"}
+{"Action":"output","Test":"TestVet/7","Output":"        vet_test.go:114: files: [\"testdata/deadcode.go\" \"testdata/shift.go\"]\n"}
 {"Action":"pass","Test":"TestVet/7"}
 {"Action":"pass","Test":"TestVet"}
 {"Action":"output","Test":"TestVetDirs","Output":"--- PASS: TestVetDirs (0.01s)\n"}

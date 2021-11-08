@@ -48,7 +48,8 @@ type Scanner struct {
 // and the next token to return to the user, if any, plus an error, if any.
 //
 // Scanning stops if the function returns an error, in which case some of
-// the input may be discarded.
+// the input may be discarded. If that error is ErrFinalToken, scanning
+// stops with no error.
 //
 // Otherwise, the Scanner advances the input. If the token is not nil,
 // the Scanner returns it to the user. If the token is nil, the
@@ -69,11 +70,12 @@ var (
 	ErrTooLong         = errors.New("bufio.Scanner: token too long")
 	ErrNegativeAdvance = errors.New("bufio.Scanner: SplitFunc returns negative advance count")
 	ErrAdvanceTooFar   = errors.New("bufio.Scanner: SplitFunc returns advance count beyond input")
+	ErrBadReadCount    = errors.New("bufio.Scanner: Read returned impossible count")
 )
 
 const (
 	// MaxScanTokenSize is the maximum size used to buffer a token
-	// unless the user provides an explicit buffer with Scan.Buffer.
+	// unless the user provides an explicit buffer with Scanner.Buffer.
 	// The actual maximum token size may be smaller as the buffer
 	// may need to include, for instance, a newline.
 	MaxScanTokenSize = 64 * 1024
@@ -211,6 +213,10 @@ func (s *Scanner) Scan() bool {
 		// be extra careful: Scanner is for safe, simple jobs.
 		for loop := 0; ; {
 			n, err := s.r.Read(s.buf[s.end:len(s.buf)])
+			if n < 0 || len(s.buf)-s.end < n {
+				s.setErr(ErrBadReadCount)
+				break
+			}
 			s.end += n
 			if err != nil {
 				s.setErr(err)

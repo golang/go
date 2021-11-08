@@ -4,4 +4,3 @@
 {"Action":"output","Output":"# but to avoid questions of timing, we just use a file with no \\n at all.\n"}
 {"Action":"output","Output":"BenchmarkFoo   \t"}
 {"Action":"output","Output":"10000 early EOF"}
-{"Action":"fail"}

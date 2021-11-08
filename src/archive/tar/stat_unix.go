@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux darwin dragonfly freebsd openbsd netbsd solaris
+//go:build aix || linux || darwin || dragonfly || freebsd || openbsd || netbsd || solaris
 
 package tar
 
 import (
-	"os"
+	"io/fs"
 	"os/user"
 	"runtime"
 	"strconv"
@@ -23,7 +23,7 @@ func init() {
 // The downside is that renaming uname or gname by the OS never takes effect.
 var userMap, groupMap sync.Map // map[int]string
 
-func statUnix(fi os.FileInfo, h *Header) error {
+func statUnix(fi fs.FileInfo, h *Header) error {
 	sys, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
 		return nil
@@ -54,6 +54,11 @@ func statUnix(fi os.FileInfo, h *Header) error {
 	if h.Typeflag == TypeChar || h.Typeflag == TypeBlock {
 		dev := uint64(sys.Rdev) // May be int32 or uint32
 		switch runtime.GOOS {
+		case "aix":
+			var major, minor uint32
+			major = uint32((dev & 0x3fffffff00000000) >> 32)
+			minor = uint32((dev & 0x00000000ffffffff) >> 0)
+			h.Devmajor, h.Devminor = int64(major), int64(minor)
 		case "linux":
 			// Copied from golang.org/x/sys/unix/dev_linux.go.
 			major := uint32((dev & 0x00000000000fff00) >> 8)
@@ -61,7 +66,7 @@ func statUnix(fi os.FileInfo, h *Header) error {
 			minor := uint32((dev & 0x00000000000000ff) >> 0)
 			minor |= uint32((dev & 0x00000ffffff00000) >> 12)
 			h.Devmajor, h.Devminor = int64(major), int64(minor)
-		case "darwin":
+		case "darwin", "ios":
 			// Copied from golang.org/x/sys/unix/dev_darwin.go.
 			major := uint32((dev >> 24) & 0xff)
 			minor := uint32(dev & 0xffffff)

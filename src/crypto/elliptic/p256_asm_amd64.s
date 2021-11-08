@@ -668,10 +668,10 @@ loop_select:
 	RET
 /* ---------------------------------------*/
 // Constant time point access to base point table.
-// func p256SelectBase(point, table []uint64, idx int)
+// func p256SelectBase(point *[12]uint64, table string, idx int)
 TEXT ·p256SelectBase(SB),NOSPLIT,$0
-	MOVQ idx+48(FP),AX
-	MOVQ table+24(FP),DI
+	MOVQ idx+24(FP),AX
+	MOVQ table+8(FP),DI
 	MOVQ point+0(FP),DX
 
 	PXOR X15, X15	// X15 = 0
@@ -1336,7 +1336,7 @@ TEXT p256SubInternal(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-TEXT p256MulInternal(SB),NOSPLIT,$0
+TEXT p256MulInternal(SB),NOSPLIT,$8
 	MOVQ acc4, mul0
 	MULQ t0
 	MOVQ mul0, acc0
@@ -1519,7 +1519,7 @@ TEXT p256MulInternal(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-TEXT p256SqrInternal(SB),NOSPLIT,$0
+TEXT p256SqrInternal(SB),NOSPLIT,$8
 
 	MOVQ acc4, mul0
 	MULQ acc5
@@ -2300,10 +2300,10 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$256-48
 	CMOVQEQ t3, acc7
 	ANDQ t0, mul0
 
-	SHRQ $1, acc4:acc5
-	SHRQ $1, acc5:acc6
-	SHRQ $1, acc6:acc7
-	SHRQ $1, acc7:mul0
+	SHRQ $1, acc5, acc4
+	SHRQ $1, acc6, acc5
+	SHRQ $1, acc7, acc6
+	SHRQ $1, mul0, acc7
 	ST (y)
 	/////////////////////////
 	LDacc (x)
@@ -2345,4 +2345,3 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$256-48
 
 	RET
 /* ---------------------------------------*/
-

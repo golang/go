@@ -5,7 +5,9 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/bytealg"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -54,56 +56,66 @@ func concatstrings(buf *tmpBuf, a []string) string {
 	return s
 }
 
-func concatstring2(buf *tmpBuf, a [2]string) string {
-	return concatstrings(buf, a[:])
+func concatstring2(buf *tmpBuf, a0, a1 string) string {
+	return concatstrings(buf, []string{a0, a1})
 }
 
-func concatstring3(buf *tmpBuf, a [3]string) string {
-	return concatstrings(buf, a[:])
+func concatstring3(buf *tmpBuf, a0, a1, a2 string) string {
+	return concatstrings(buf, []string{a0, a1, a2})
 }
 
-func concatstring4(buf *tmpBuf, a [4]string) string {
-	return concatstrings(buf, a[:])
+func concatstring4(buf *tmpBuf, a0, a1, a2, a3 string) string {
+	return concatstrings(buf, []string{a0, a1, a2, a3})
 }
 
-func concatstring5(buf *tmpBuf, a [5]string) string {
-	return concatstrings(buf, a[:])
+func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
+	return concatstrings(buf, []string{a0, a1, a2, a3, a4})
 }
 
+// slicebytetostring converts a byte slice to a string.
+// It is inserted by the compiler into generated code.
+// ptr is a pointer to the first element of the slice;
+// n is the length of the slice.
 // Buf is a fixed-size buffer for the result,
 // it is not nil if the result does not escape.
-func slicebytetostring(buf *tmpBuf, b []byte) (str string) {
-	l := len(b)
-	if l == 0 {
+func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
+	if n == 0 {
 		// Turns out to be a relatively common case.
 		// Consider that you want to parse out data between parens in "foo()bar",
 		// you find the indices and convert the subslice to string.
 		return ""
 	}
 	if raceenabled {
-		racereadrangepc(unsafe.Pointer(&b[0]),
-			uintptr(l),
+		racereadrangepc(unsafe.Pointer(ptr),
+			uintptr(n),
 			getcallerpc(),
-			funcPC(slicebytetostring))
+			abi.FuncPCABIInternal(slicebytetostring))
 	}
 	if msanenabled {
-		msanread(unsafe.Pointer(&b[0]), uintptr(l))
+		msanread(unsafe.Pointer(ptr), uintptr(n))
 	}
-	if l == 1 {
-		stringStructOf(&str).str = unsafe.Pointer(&staticbytes[b[0]])
+	if asanenabled {
+		asanread(unsafe.Pointer(ptr), uintptr(n))
+	}
+	if n == 1 {
+		p := unsafe.Pointer(&staticuint64s[*ptr])
+		if goarch.BigEndian {
+			p = add(p, 7)
+		}
+		stringStructOf(&str).str = p
 		stringStructOf(&str).len = 1
 		return
 	}
 
 	var p unsafe.Pointer
-	if buf != nil && len(b) <= len(buf) {
+	if buf != nil && n <= len(buf) {
 		p = unsafe.Pointer(buf)
 	} else {
-		p = mallocgc(uintptr(len(b)), nil, false)
+		p = mallocgc(uintptr(n), nil, false)
 	}
 	stringStructOf(&str).str = p
-	stringStructOf(&str).len = len(b)
-	memmove(p, (*(*slice)(unsafe.Pointer(&b))).array, uintptr(len(b)))
+	stringStructOf(&str).len = n
+	memmove(p, unsafe.Pointer(ptr), uintptr(n))
 	return
 }
 
@@ -118,7 +130,7 @@ func stringDataOnStack(s string) bool {
 func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 	if buf != nil && l <= len(buf) {
 		b = buf[:l]
-		s = slicebytetostringtmp(b)
+		s = slicebytetostringtmp(&b[0], len(b))
 	} else {
 		s, b = rawstring(l)
 	}
@@ -135,20 +147,26 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 // and otherwise intrinsified by the compiler.
 //
 // Some internal compiler optimizations use this function.
-// - Used for m[string(k)] lookup where m is a string-keyed map and k is a []byte.
+// - Used for m[T1{... Tn{..., string(k), ...} ...}] and m[string(k)]
+//   where k is []byte, T1 to Tn is a nesting of struct and array literals.
 // - Used for "<"+string(b)+">" concatenation where b is []byte.
 // - Used for string(b)=="foo" comparison where b is []byte.
-func slicebytetostringtmp(b []byte) string {
-	if raceenabled && len(b) > 0 {
-		racereadrangepc(unsafe.Pointer(&b[0]),
-			uintptr(len(b)),
+func slicebytetostringtmp(ptr *byte, n int) (str string) {
+	if raceenabled && n > 0 {
+		racereadrangepc(unsafe.Pointer(ptr),
+			uintptr(n),
 			getcallerpc(),
-			funcPC(slicebytetostringtmp))
+			abi.FuncPCABIInternal(slicebytetostringtmp))
 	}
-	if msanenabled && len(b) > 0 {
-		msanread(unsafe.Pointer(&b[0]), uintptr(len(b)))
+	if msanenabled && n > 0 {
+		msanread(unsafe.Pointer(ptr), uintptr(n))
 	}
-	return *(*string)(unsafe.Pointer(&b))
+	if asanenabled && n > 0 {
+		asanread(unsafe.Pointer(ptr), uintptr(n))
+	}
+	stringStructOf(&str).str = unsafe.Pointer(ptr)
+	stringStructOf(&str).len = n
+	return
 }
 
 func stringtoslicebyte(buf *tmpBuf, s string) []byte {
@@ -192,10 +210,13 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 		racereadrangepc(unsafe.Pointer(&a[0]),
 			uintptr(len(a))*unsafe.Sizeof(a[0]),
 			getcallerpc(),
-			funcPC(slicerunetostring))
+			abi.FuncPCABIInternal(slicerunetostring))
 	}
 	if msanenabled && len(a) > 0 {
 		msanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
+	}
+	if asanenabled && len(a) > 0 {
+		asanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
 	}
 	var dum [4]byte
 	size1 := 0
@@ -230,16 +251,10 @@ func stringStructOf(sp *string) *stringStruct {
 }
 
 func intstring(buf *[4]byte, v int64) (s string) {
-	if v >= 0 && v < runeSelf {
-		stringStructOf(&s).str = unsafe.Pointer(&staticbytes[v])
-		stringStructOf(&s).len = 1
-		return
-	}
-
 	var b []byte
 	if buf != nil {
 		b = buf[:]
-		s = slicebytetostringtmp(b)
+		s = slicebytetostringtmp(&b[0], len(b))
 	} else {
 		s, b = rawstring(4)
 	}
@@ -309,6 +324,8 @@ func gobytes(p *byte, n int) (b []byte) {
 	return
 }
 
+// This is exported via linkname to assembly in syscall (for Plan9).
+//go:linkname gostring
 func gostring(p *byte) string {
 	l := findnull(p)
 	if l == 0 {
@@ -328,24 +345,8 @@ func gostringn(p *byte, l int) string {
 	return s
 }
 
-func index(s, t string) int {
-	if len(t) == 0 {
-		return 0
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] == t[0] && hasprefix(s[i:], t) {
-			return i
-		}
-	}
-	return -1
-}
-
-func contains(s, t string) bool {
-	return index(s, t) >= 0
-}
-
-func hasprefix(s, t string) bool {
-	return len(s) >= len(t) && s[:len(t)] == t
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 const (

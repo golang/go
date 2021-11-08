@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"math"
 	"os"
 	"path"
@@ -262,16 +262,11 @@ func TestFileInfoHeaderDir(t *testing.T) {
 func TestFileInfoHeaderSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestFileInfoHeaderSymlink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	link := filepath.Join(tmpdir, "link")
 	target := tmpdir
-	err = os.Symlink(target, link)
-	if err != nil {
+	if err := os.Symlink(target, link); err != nil {
 		t.Fatal(err)
 	}
 	fi, err := os.Lstat(link)
@@ -327,7 +322,7 @@ func TestRoundTrip(t *testing.T) {
 	if !reflect.DeepEqual(rHdr, hdr) {
 		t.Errorf("Header mismatch.\n got %+v\nwant %+v", rHdr, hdr)
 	}
-	rData, err := ioutil.ReadAll(tr)
+	rData, err := io.ReadAll(tr)
 	if err != nil {
 		t.Fatalf("Read: %v", err)
 	}
@@ -338,7 +333,7 @@ func TestRoundTrip(t *testing.T) {
 
 type headerRoundTripTest struct {
 	h  *Header
-	fm os.FileMode
+	fm fs.FileMode
 }
 
 func TestHeaderRoundTrip(t *testing.T) {
@@ -361,7 +356,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360600852, 0),
 			Typeflag: TypeSymlink,
 		},
-		fm: 0777 | os.ModeSymlink,
+		fm: 0777 | fs.ModeSymlink,
 	}, {
 		// character device node.
 		h: &Header{
@@ -371,7 +366,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360578951, 0),
 			Typeflag: TypeChar,
 		},
-		fm: 0666 | os.ModeDevice | os.ModeCharDevice,
+		fm: 0666 | fs.ModeDevice | fs.ModeCharDevice,
 	}, {
 		// block device node.
 		h: &Header{
@@ -381,7 +376,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360578954, 0),
 			Typeflag: TypeBlock,
 		},
-		fm: 0660 | os.ModeDevice,
+		fm: 0660 | fs.ModeDevice,
 	}, {
 		// directory.
 		h: &Header{
@@ -391,7 +386,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360601116, 0),
 			Typeflag: TypeDir,
 		},
-		fm: 0755 | os.ModeDir,
+		fm: 0755 | fs.ModeDir,
 	}, {
 		// fifo node.
 		h: &Header{
@@ -401,7 +396,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360578949, 0),
 			Typeflag: TypeFifo,
 		},
-		fm: 0600 | os.ModeNamedPipe,
+		fm: 0600 | fs.ModeNamedPipe,
 	}, {
 		// setuid.
 		h: &Header{
@@ -411,7 +406,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1355405093, 0),
 			Typeflag: TypeReg,
 		},
-		fm: 0755 | os.ModeSetuid,
+		fm: 0755 | fs.ModeSetuid,
 	}, {
 		// setguid.
 		h: &Header{
@@ -421,7 +416,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360602346, 0),
 			Typeflag: TypeReg,
 		},
-		fm: 0750 | os.ModeSetgid,
+		fm: 0750 | fs.ModeSetgid,
 	}, {
 		// sticky.
 		h: &Header{
@@ -431,7 +426,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360602540, 0),
 			Typeflag: TypeReg,
 		},
-		fm: 0600 | os.ModeSticky,
+		fm: 0600 | fs.ModeSticky,
 	}, {
 		// hard link.
 		h: &Header{
@@ -804,9 +799,9 @@ func Benchmark(b *testing.B) {
 			b.Run(v.label, func(b *testing.B) {
 				b.ReportAllocs()
 				for i := 0; i < b.N; i++ {
-					// Writing to ioutil.Discard because we want to
+					// Writing to io.Discard because we want to
 					// test purely the writer code and not bring in disk performance into this.
-					tw := NewWriter(ioutil.Discard)
+					tw := NewWriter(io.Discard)
 					for _, file := range v.files {
 						if err := tw.WriteHeader(file.hdr); err != nil {
 							b.Errorf("unexpected WriteHeader error: %v", err)
@@ -844,7 +839,7 @@ func Benchmark(b *testing.B) {
 					if _, err := tr.Next(); err != nil {
 						b.Errorf("unexpected Next error: %v", err)
 					}
-					if _, err := io.Copy(ioutil.Discard, tr); err != nil {
+					if _, err := io.Copy(io.Discard, tr); err != nil {
 						b.Errorf("unexpected Copy error : %v", err)
 					}
 				}

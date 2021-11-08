@@ -10,8 +10,6 @@ package ast
 import (
 	"go/token"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 // ----------------------------------------------------------------------------
@@ -59,6 +57,11 @@ type Decl interface {
 // Comments
 
 // A Comment node represents a single //-style or /*-style comment.
+//
+// The Text field contains the comment text without carriage returns (\r) that
+// may have been present in the source. Because a comment's end position is
+// computed using len(Text), the position reported by End() does not match the
+// true source end position for comments containing carriage returns.
 type Comment struct {
 	Slash token.Pos // position of "/" starting the comment
 	Text  string    // comment text (excluding '\n' for //-style comments)
@@ -89,10 +92,10 @@ func stripTrailingWhitespace(s string) string {
 
 // Text returns the text of the comment.
 // Comment markers (//, /*, and */), the first space of a line comment, and
-// leading and trailing empty lines are removed. Multiple empty lines are
-// reduced to one, and trailing space on lines is trimmed. Unless the result
-// is empty, it is newline-terminated.
-//
+// leading and trailing empty lines are removed.
+// Comment directives like "//line" and "//go:noinline" are also removed.
+// Multiple empty lines are reduced to one, and trailing space on lines is trimmed.
+// Unless the result is empty, it is newline-terminated.
 func (g *CommentGroup) Text() string {
 	if g == nil {
 		return ""
@@ -110,9 +113,18 @@ func (g *CommentGroup) Text() string {
 		case '/':
 			//-style comment (no newline at the end)
 			c = c[2:]
-			// strip first space - required for Example tests
-			if len(c) > 0 && c[0] == ' ' {
+			if len(c) == 0 {
+				// empty line
+				break
+			}
+			if c[0] == ' ' {
+				// strip first space - required for Example tests
 				c = c[1:]
+				break
+			}
+			if isDirective(c) {
+				// Ignore //go:noinline, //line, and so on.
+				continue
 			}
 		case '*':
 			/*-style comment */
@@ -147,17 +159,44 @@ func (g *CommentGroup) Text() string {
 	return strings.Join(lines, "\n")
 }
 
+// isDirective reports whether c is a comment directive.
+func isDirective(c string) bool {
+	// "//line " is a line directive.
+	// (The // has been removed.)
+	if strings.HasPrefix(c, "line ") {
+		return true
+	}
+
+	// "//[a-z0-9]+:[a-z0-9]"
+	// (The // has been removed.)
+	colon := strings.Index(c, ":")
+	if colon <= 0 || colon+1 >= len(c) {
+		return false
+	}
+	for i := 0; i <= colon+1; i++ {
+		if i == colon {
+			continue
+		}
+		b := c[i]
+		if !('a' <= b && b <= 'z' || '0' <= b && b <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
 // ----------------------------------------------------------------------------
 // Expressions and types
 
 // A Field represents a Field declaration list in a struct type,
 // a method list in an interface type, or a parameter/result declaration
 // in a signature.
-//
+// Field.Names is nil for unnamed parameters (parameter lists which only contain types)
+// and embedded struct fields. In the latter case, the field name is the type name.
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
-	Names   []*Ident      // field/method/parameter names; or nil if anonymous field
-	Type    Expr          // field/method/parameter type
+	Names   []*Ident      // field/method/(type) parameter names; or nil
+	Type    Expr          // field/method/parameter type; or nil
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
 }
@@ -166,14 +205,23 @@ func (f *Field) Pos() token.Pos {
 	if len(f.Names) > 0 {
 		return f.Names[0].Pos()
 	}
-	return f.Type.Pos()
+	if f.Type != nil {
+		return f.Type.Pos()
+	}
+	return token.NoPos
 }
 
 func (f *Field) End() token.Pos {
 	if f.Tag != nil {
 		return f.Tag.End()
 	}
-	return f.Type.End()
+	if f.Type != nil {
+		return f.Type.End()
+	}
+	if len(f.Names) > 0 {
+		return f.Names[len(f.Names)-1].End()
+	}
+	return token.NoPos
 }
 
 // A FieldList represents a list of Fields, enclosed by parentheses or braces.
@@ -207,14 +255,14 @@ func (f *FieldList) End() token.Pos {
 	return token.NoPos
 }
 
-// NumFields returns the number of (named and anonymous fields) in a FieldList.
+// NumFields returns the number of parameters or struct fields represented by a FieldList.
 func (f *FieldList) NumFields() int {
 	n := 0
 	if f != nil {
 		for _, g := range f.List {
 			m := len(g.Names)
 			if m == 0 {
-				m = 1 // anonymous field
+				m = 1
 			}
 			n += m
 		}
@@ -226,8 +274,8 @@ func (f *FieldList) NumFields() int {
 // or more of the following concrete expression nodes.
 //
 type (
-	// A BadExpr node is a placeholder for expressions containing
-	// syntax errors for which no correct expression nodes can be
+	// A BadExpr node is a placeholder for an expression containing
+	// syntax errors for which a correct expression node cannot be
 	// created.
 	//
 	BadExpr struct {
@@ -292,7 +340,16 @@ type (
 		Rbrack token.Pos // position of "]"
 	}
 
-	// An SliceExpr node represents an expression followed by slice indices.
+	// An IndexListExpr node represents an expression followed by multiple
+	// indices.
+	IndexListExpr struct {
+		X       Expr      // expression
+		Lbrack  token.Pos // position of "["
+		Indices []Expr    // index expressions
+		Rbrack  token.Pos // position of "]"
+	}
+
+	// A SliceExpr node represents an expression followed by slice indices.
 	SliceExpr struct {
 		X      Expr      // expression
 		Lbrack token.Pos // position of "["
@@ -390,16 +447,17 @@ type (
 
 	// A FuncType node represents a function type.
 	FuncType struct {
-		Func    token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
-		Params  *FieldList // (incoming) parameters; non-nil
-		Results *FieldList // (outgoing) results; or nil
+		Func       token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
+		TypeParams *FieldList // type parameters; or nil
+		Params     *FieldList // (incoming) parameters; non-nil
+		Results    *FieldList // (outgoing) results; or nil
 	}
 
 	// An InterfaceType node represents an interface type.
 	InterfaceType struct {
 		Interface  token.Pos  // position of "interface" keyword
-		Methods    *FieldList // list of methods
-		Incomplete bool       // true if (source) methods are missing in the Methods list
+		Methods    *FieldList // list of embedded interfaces, methods, or types
+		Incomplete bool       // true if (source) methods or types are missing in the Methods list
 	}
 
 	// A MapType node represents a map type.
@@ -434,6 +492,7 @@ func (x *CompositeLit) Pos() token.Pos {
 func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
 func (x *SelectorExpr) Pos() token.Pos   { return x.X.Pos() }
 func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
+func (x *IndexListExpr) Pos() token.Pos  { return x.X.Pos() }
 func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
 func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
 func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
@@ -467,6 +526,7 @@ func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
 func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
 func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
 func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
+func (x *IndexListExpr) End() token.Pos  { return x.Rbrack + 1 }
 func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
 func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
 func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
@@ -498,6 +558,7 @@ func (*CompositeLit) exprNode()   {}
 func (*ParenExpr) exprNode()      {}
 func (*SelectorExpr) exprNode()   {}
 func (*IndexExpr) exprNode()      {}
+func (*IndexListExpr) exprNode()  {}
 func (*SliceExpr) exprNode()      {}
 func (*TypeAssertExpr) exprNode() {}
 func (*CallExpr) exprNode()       {}
@@ -521,18 +582,13 @@ func (*ChanType) exprNode()      {}
 //
 func NewIdent(name string) *Ident { return &Ident{token.NoPos, name, nil} }
 
-// IsExported reports whether name is an exported Go symbol
-// (that is, whether it begins with an upper-case letter).
+// IsExported reports whether name starts with an upper-case letter.
 //
-func IsExported(name string) bool {
-	ch, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(ch)
-}
+func IsExported(name string) bool { return token.IsExported(name) }
 
-// IsExported reports whether id is an exported Go symbol
-// (that is, whether it begins with an uppercase letter).
+// IsExported reports whether id starts with an upper-case letter.
 //
-func (id *Ident) IsExported() bool { return IsExported(id.Name) }
+func (id *Ident) IsExported() bool { return token.IsExported(id.Name) }
 
 func (id *Ident) String() string {
 	if id != nil {
@@ -639,7 +695,7 @@ type (
 	BlockStmt struct {
 		Lbrace token.Pos // position of "{"
 		List   []Stmt
-		Rbrace token.Pos // position of "}"
+		Rbrace token.Pos // position of "}", if any (may be absent due to syntax error)
 	}
 
 	// An IfStmt node represents an if statement.
@@ -667,7 +723,7 @@ type (
 		Body   *BlockStmt // CaseClauses only
 	}
 
-	// An TypeSwitchStmt node represents a type switch statement.
+	// A TypeSwitchStmt node represents a type switch statement.
 	TypeSwitchStmt struct {
 		Switch token.Pos  // position of "switch" keyword
 		Init   Stmt       // initialization statement; or nil
@@ -683,7 +739,7 @@ type (
 		Body  []Stmt    // statement list; or nil
 	}
 
-	// An SelectStmt node represents a select statement.
+	// A SelectStmt node represents a select statement.
 	SelectStmt struct {
 		Select token.Pos  // position of "select" keyword
 		Body   *BlockStmt // CommClauses only
@@ -762,7 +818,15 @@ func (s *BranchStmt) End() token.Pos {
 	}
 	return token.Pos(int(s.TokPos) + len(s.Tok.String()))
 }
-func (s *BlockStmt) End() token.Pos { return s.Rbrace + 1 }
+func (s *BlockStmt) End() token.Pos {
+	if s.Rbrace.IsValid() {
+		return s.Rbrace + 1
+	}
+	if n := len(s.List); n > 0 {
+		return s.List[n-1].End()
+	}
+	return s.Lbrace + 1
+}
 func (s *IfStmt) End() token.Pos {
 	if s.Else != nil {
 		return s.Else.End()
@@ -847,11 +911,12 @@ type (
 
 	// A TypeSpec node represents a type declaration (TypeSpec production).
 	TypeSpec struct {
-		Doc     *CommentGroup // associated documentation; or nil
-		Name    *Ident        // type name
-		Assign  token.Pos     // position of '=', if any
-		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
-		Comment *CommentGroup // line comments; or nil
+		Doc        *CommentGroup // associated documentation; or nil
+		Name       *Ident        // type name
+		TypeParams *FieldList    // type parameters; or nil
+		Assign     token.Pos     // position of '=', if any
+		Type       Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+		Comment    *CommentGroup // line comments; or nil
 	}
 )
 
@@ -894,8 +959,8 @@ func (*TypeSpec) specNode()   {}
 // A declaration is represented by one of the following declaration nodes.
 //
 type (
-	// A BadDecl node is a placeholder for declarations containing
-	// syntax errors for which no correct declaration nodes can be
+	// A BadDecl node is a placeholder for a declaration containing
+	// syntax errors for which a correct declaration node cannot be
 	// created.
 	//
 	BadDecl struct {
@@ -916,7 +981,7 @@ type (
 	GenDecl struct {
 		Doc    *CommentGroup // associated documentation; or nil
 		TokPos token.Pos     // position of Tok
-		Tok    token.Token   // IMPORT, CONST, TYPE, VAR
+		Tok    token.Token   // IMPORT, CONST, TYPE, or VAR
 		Lparen token.Pos     // position of '(', if any
 		Specs  []Spec
 		Rparen token.Pos // position of ')', if any
@@ -927,7 +992,7 @@ type (
 		Doc  *CommentGroup // associated documentation; or nil
 		Recv *FieldList    // receiver (methods); or nil (functions)
 		Name *Ident        // function/method name
-		Type *FuncType     // function signature: parameters, results, and position of "func" keyword
+		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil for external (non-Go) function
 	}
 )

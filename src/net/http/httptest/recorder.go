@@ -7,12 +7,13 @@ package httptest
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"net/textproto"
 	"strconv"
 	"strings"
 
-	"golang_org/x/net/http/httpguts"
+	"golang.org/x/net/http/httpguts"
 )
 
 // ResponseRecorder is an implementation of http.ResponseWriter that
@@ -59,7 +60,10 @@ func NewRecorder() *ResponseRecorder {
 // an explicit DefaultRemoteAddr isn't set on ResponseRecorder.
 const DefaultRemoteAddr = "1.2.3.4"
 
-// Header returns the response headers.
+// Header implements http.ResponseWriter. It returns the response
+// headers to mutate within a handler. To test the headers that were
+// written after a handler completes, use the Result method and see
+// the returned Response value's Header.
 func (rw *ResponseRecorder) Header() http.Header {
 	m := rw.HeaderMap
 	if m == nil {
@@ -98,7 +102,8 @@ func (rw *ResponseRecorder) writeHeader(b []byte, str string) {
 	rw.WriteHeader(200)
 }
 
-// Write always succeeds and writes to rw.Body, if not nil.
+// Write implements http.ResponseWriter. The data in buf is written to
+// rw.Body, if not nil.
 func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
 	rw.writeHeader(buf, "")
 	if rw.Body != nil {
@@ -107,7 +112,8 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
-// WriteString always succeeds and writes to rw.Body, if not nil.
+// WriteString implements io.StringWriter. The data in str is written
+// to rw.Body, if not nil.
 func (rw *ResponseRecorder) WriteString(str string) (int, error) {
 	rw.writeHeader(nil, str)
 	if rw.Body != nil {
@@ -116,31 +122,40 @@ func (rw *ResponseRecorder) WriteString(str string) (int, error) {
 	return len(str), nil
 }
 
-// WriteHeader sets rw.Code. After it is called, changing rw.Header
-// will not affect rw.HeaderMap.
+func checkWriteHeaderCode(code int) {
+	// Issue 22880: require valid WriteHeader status codes.
+	// For now we only enforce that it's three digits.
+	// In the future we might block things over 599 (600 and above aren't defined
+	// at https://httpwg.org/specs/rfc7231.html#status.codes)
+	// and we might block under 200 (once we have more mature 1xx support).
+	// But for now any three digits.
+	//
+	// We used to send "HTTP/1.1 000 0" on the wire in responses but there's
+	// no equivalent bogus thing we can realistically send in HTTP/2,
+	// so we'll consistently panic instead and help people find their bugs
+	// early. (We can't return an error from WriteHeader even if we wanted to.)
+	if code < 100 || code > 999 {
+		panic(fmt.Sprintf("invalid WriteHeader code %v", code))
+	}
+}
+
+// WriteHeader implements http.ResponseWriter.
 func (rw *ResponseRecorder) WriteHeader(code int) {
 	if rw.wroteHeader {
 		return
 	}
+
+	checkWriteHeaderCode(code)
 	rw.Code = code
 	rw.wroteHeader = true
 	if rw.HeaderMap == nil {
 		rw.HeaderMap = make(http.Header)
 	}
-	rw.snapHeader = cloneHeader(rw.HeaderMap)
+	rw.snapHeader = rw.HeaderMap.Clone()
 }
 
-func cloneHeader(h http.Header) http.Header {
-	h2 := make(http.Header, len(h))
-	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
-	}
-	return h2
-}
-
-// Flush sets rw.Flushed to true.
+// Flush implements http.Flusher. To test whether Flush was
+// called, see rw.Flushed.
 func (rw *ResponseRecorder) Flush() {
 	if !rw.wroteHeader {
 		rw.WriteHeader(200)
@@ -168,7 +183,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
 		return rw.result
 	}
 	if rw.snapHeader == nil {
-		rw.snapHeader = cloneHeader(rw.HeaderMap)
+		rw.snapHeader = rw.HeaderMap.Clone()
 	}
 	res := &http.Response{
 		Proto:      "HTTP/1.1",
@@ -183,7 +198,9 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	}
 	res.Status = fmt.Sprintf("%03d %s", res.StatusCode, http.StatusText(res.StatusCode))
 	if rw.Body != nil {
-		res.Body = ioutil.NopCloser(bytes.NewReader(rw.Body.Bytes()))
+		res.Body = io.NopCloser(bytes.NewReader(rw.Body.Bytes()))
+	} else {
+		res.Body = http.NoBody
 	}
 	res.ContentLength = parseContentLength(res.Header.Get("Content-Length"))
 
@@ -224,13 +241,13 @@ func (rw *ResponseRecorder) Result() *http.Response {
 // This a modified version of same function found in net/http/transfer.go. This
 // one just ignores an invalid header.
 func parseContentLength(cl string) int64 {
-	cl = strings.TrimSpace(cl)
+	cl = textproto.TrimString(cl)
 	if cl == "" {
 		return -1
 	}
-	n, err := strconv.ParseInt(cl, 10, 64)
+	n, err := strconv.ParseUint(cl, 10, 63)
 	if err != nil {
 		return -1
 	}
-	return n
+	return int64(n)
 }

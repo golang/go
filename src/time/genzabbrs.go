@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 //
 // usage:
@@ -17,9 +17,10 @@ import (
 	"encoding/xml"
 	"flag"
 	"go/format"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"text/template"
 	"time"
@@ -52,7 +53,7 @@ type zone struct {
 	DSTime   string
 }
 
-const wzURL = "http://unicode.org/cldr/data/common/supplemental/windowsZones.xml"
+const wzURL = "https://raw.githubusercontent.com/unicode-org/cldr/master/common/supplemental/windowsZones.xml"
 
 type MapZone struct {
 	Other     string `xml:"other,attr"`
@@ -71,7 +72,7 @@ func readWindowsZones() ([]*zone, error) {
 	}
 	defer r.Body.Close()
 
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(*filename, data, 0644)
+	err = os.WriteFile(*filename, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

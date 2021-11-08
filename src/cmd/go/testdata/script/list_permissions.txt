@@ -1,0 +1,84 @@
+env GO111MODULE=on
+
+# Establish baseline behavior, before mucking with file permissions.
+
+go list ./noread/...
+stdout '^example.com/noread$'
+
+go list example.com/noread/...
+stdout '^example.com/noread$'
+
+go list ./empty/...
+stderr 'matched no packages'
+
+[root] stop # Root typically ignores file permissions.
+
+# Make the directory ./noread unreadable, and verify that 'go list' reports an
+# explicit error for a pattern that should match it (rather than treating it as
+# equivalent to an empty directory).
+
+[windows] skip # Does not have Unix-style directory permissions.
+[plan9] skip   # Might not have Unix-style directory permissions.
+
+chmod 000 noread
+
+# Check explicit paths.
+
+! go list ./noread
+! stdout '^example.com/noread$'
+! stderr 'matched no packages'
+
+! go list example.com/noread
+! stdout '^example.com/noread$'
+! stderr 'matched no packages'
+
+# Check filesystem-relative patterns.
+
+! go list ./...
+! stdout '^example.com/noread$'
+! stderr 'matched no packages'
+stderr '^pattern ./...: '
+
+! go list ./noread/...
+! stdout '^example.com/noread$'
+! stderr 'matched no packages'
+stderr '^pattern ./noread/...: '
+
+
+# Check module-prefix patterns.
+
+! go list example.com/...
+! stdout '^example.com/noread$'
+! stderr 'matched no packages'
+stderr '^pattern example.com/...: '
+
+! go list example.com/noread/...
+! stdout '^example.com/noread$'
+! stderr 'matched no packages'
+stderr '^pattern example.com/noread/...: '
+
+
+[short] stop
+
+# Check global patterns, which should still
+# fail due to errors in the local module.
+
+! go list all
+! stdout '^example.com/noread$'
+! stderr 'matched no packages'
+stderr '^pattern all: '
+
+! go list ...
+! stdout '^example.com/noread$'
+! stderr 'matched no packages'
+stderr '^pattern ...: '
+
+
+-- go.mod --
+module example.com
+go 1.15
+-- noread/noread.go --
+// Package noread exists, but will be made unreadable.
+package noread
+-- empty/README.txt --
+This directory intentionally left empty.

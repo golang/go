@@ -16,7 +16,12 @@ package math
 //	Hypot(p, ±Inf) = +Inf
 //	Hypot(NaN, q) = NaN
 //	Hypot(p, NaN) = NaN
-func Hypot(p, q float64) float64
+func Hypot(p, q float64) float64 {
+	if haveArchHypot {
+		return archHypot(p, q)
+	}
+	return hypot(p, q)
+}
 
 func hypot(p, q float64) float64 {
 	// special cases

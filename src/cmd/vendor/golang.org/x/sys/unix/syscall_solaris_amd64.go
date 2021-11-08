@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build amd64 && solaris
 // +build amd64,solaris
 
 package unix
@@ -16,6 +17,10 @@ func setTimeval(sec, usec int64) Timeval {
 
 func (iov *Iovec) SetLen(length int) {
 	iov.Len = uint64(length)
+}
+
+func (msghdr *Msghdr) SetIovlen(length int) {
+	msghdr.Iovlen = int32(length)
 }
 
 func (cmsg *Cmsghdr) SetLen(length int) {

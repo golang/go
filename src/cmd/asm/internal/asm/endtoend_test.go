@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -19,7 +20,6 @@ import (
 
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 )
 
 // An end-to-end test for the assembler: Do we print what we parse?
@@ -31,11 +31,12 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	architecture, ctxt := setArch(goarch)
 	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer)
+	parser := NewParser(ctxt, architecture, lexer, false)
 	pList := new(obj.Plist)
 	var ok bool
 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
 	failed := false
 	ctxt.DiagFunc = func(format string, args ...interface{}) {
@@ -257,11 +258,11 @@ func isHexes(s string) bool {
 	return true
 }
 
-// It would be nice if the error messages began with
+// It would be nice if the error messages always began with
 // the standard file:line: prefix,
 // but that's not where we are today.
 // It might be at the beginning but it might be in the middle of the printed instruction.
-var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\))`)
+var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\)|:)`)
 
 // Same as in test/run.go
 var (
@@ -269,18 +270,20 @@ var (
 	errQuotesRE = regexp.MustCompile(`"([^"]*)"`)
 )
 
-func testErrors(t *testing.T, goarch, file string) {
+func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	input := filepath.Join("testdata", file+".s")
 	architecture, ctxt := setArch(goarch)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer)
+	parser := NewParser(ctxt, architecture, lexer, false)
 	pList := new(obj.Plist)
 	var ok bool
 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
 	failed := false
 	var errBuf bytes.Buffer
+	parser.errorWriter = &errBuf
 	ctxt.DiagFunc = func(format string, args ...interface{}) {
 		failed = true
 		s := fmt.Sprintf(format, args...)
@@ -289,10 +292,18 @@ func testErrors(t *testing.T, goarch, file string) {
 		}
 		errBuf.WriteString(s)
 	}
+	for _, flag := range flags {
+		switch flag {
+		case "dynlink":
+			ctxt.Flag_dynlink = true
+		default:
+			t.Errorf("unknown flag %s", flag)
+		}
+	}
 	pList.Firstpc, ok = parser.Parse()
 	obj.Flushplist(ctxt, pList, nil, "")
 	if ok && !failed {
-		t.Errorf("asm: %s had no errors", goarch)
+		t.Errorf("asm: %s had no errors", file)
 	}
 
 	errors := map[string]string{}
@@ -353,24 +364,23 @@ func testErrors(t *testing.T, goarch, file string) {
 }
 
 func Test386EndToEnd(t *testing.T) {
-	defer func(old string) { objabi.GO386 = old }(objabi.GO386)
-	for _, go386 := range []string{"387", "sse2"} {
-		t.Logf("GO386=%v", go386)
-		objabi.GO386 = go386
-		testEndToEnd(t, "386", "386")
-	}
+	testEndToEnd(t, "386", "386")
 }
 
 func TestARMEndToEnd(t *testing.T) {
-	defer func(old int) { objabi.GOARM = old }(objabi.GOARM)
+	defer func(old int) { buildcfg.GOARM = old }(buildcfg.GOARM)
 	for _, goarm := range []int{5, 6, 7} {
 		t.Logf("GOARM=%d", goarm)
-		objabi.GOARM = goarm
+		buildcfg.GOARM = goarm
 		testEndToEnd(t, "arm", "arm")
 		if goarm == 6 {
 			testEndToEnd(t, "arm", "armv6")
 		}
 	}
+}
+
+func TestGoBuildErrors(t *testing.T) {
+	testErrors(t, "amd64", "buildtagerror")
 }
 
 func TestARMErrors(t *testing.T) {
@@ -428,6 +438,10 @@ func TestAMD64Errors(t *testing.T) {
 	testErrors(t, "amd64", "amd64error")
 }
 
+func TestAMD64DynLinkErrors(t *testing.T) {
+	testErrors(t, "amd64", "amd64dynlinkerror", "dynlink")
+}
+
 func TestMIPSEndToEnd(t *testing.T) {
 	testEndToEnd(t, "mips", "mips")
 	testEndToEnd(t, "mips64", "mips64")
@@ -437,8 +451,12 @@ func TestPPC64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "ppc64", "ppc64")
 }
 
-func TestPPC64Encoder(t *testing.T) {
-	testEndToEnd(t, "ppc64", "ppc64enc")
+func TestRISCVEndToEnd(t *testing.T) {
+	testEndToEnd(t, "riscv64", "riscv64")
+}
+
+func TestRISCVErrors(t *testing.T) {
+	testErrors(t, "riscv64", "riscv64error")
 }
 
 func TestS390XEndToEnd(t *testing.T) {

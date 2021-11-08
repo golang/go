@@ -5,7 +5,6 @@
 package syntax
 
 import (
-	"os"
 	"testing"
 )
 
@@ -14,13 +13,9 @@ func TestDump(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	// provide a dummy error handler so parsing doesn't stop after first error
-	ast, err := ParseFile(*src_, func(error) {}, nil, CheckBranches)
-	if err != nil {
-		t.Error(err)
-	}
+	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, CheckBranches|AllowGenerics)
 
 	if ast != nil {
-		Fdump(os.Stdout, ast)
+		Fdump(testOut(), ast)
 	}
 }

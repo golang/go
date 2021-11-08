@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -55,6 +56,9 @@ var genericOps = []opData{
 	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)", commutative: true}, // arg0 * arg1, returns (hi, lo)
 	{name: "Mul64uhilo", argLength: 2, typ: "(UInt64,UInt64)", commutative: true}, // arg0 * arg1, returns (hi, lo)
 
+	{name: "Mul32uover", argLength: 2, typ: "(UInt32,Bool)", commutative: true}, // Let x = arg0*arg1 (full 32x32-> 64 unsigned multiply), returns (uint32(x), (uint32(x) != x))
+	{name: "Mul64uover", argLength: 2, typ: "(UInt64,Bool)", commutative: true}, // Let x = arg0*arg1 (full 64x64->128 unsigned multiply), returns (uint64(x), (uint64(x) != x))
+
 	// Weird special instructions for use in the strength reduction of divides.
 	// These ops compute unsigned (arg0 + arg1) / 2, correct to all
 	// 32/64 bits, even when the intermediate result of the add has 33/65 bits.
@@ -63,23 +67,26 @@ var genericOps = []opData{
 	{name: "Avg32u", argLength: 2, typ: "UInt32"}, // 32-bit platforms only
 	{name: "Avg64u", argLength: 2, typ: "UInt64"}, // 64-bit platforms only
 
+	// For Div16, Div32 and Div64, AuxInt non-zero means that the divisor has been proved to be not -1
+	// or that the dividend is not the most negative value.
 	{name: "Div8", argLength: 2},  // arg0 / arg1, signed
 	{name: "Div8u", argLength: 2}, // arg0 / arg1, unsigned
-	{name: "Div16", argLength: 2},
+	{name: "Div16", argLength: 2, aux: "Bool"},
 	{name: "Div16u", argLength: 2},
-	{name: "Div32", argLength: 2},
+	{name: "Div32", argLength: 2, aux: "Bool"},
 	{name: "Div32u", argLength: 2},
-	{name: "Div64", argLength: 2},
+	{name: "Div64", argLength: 2, aux: "Bool"},
 	{name: "Div64u", argLength: 2},
 	{name: "Div128u", argLength: 3}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
 
+	// For Mod16, Mod32 and Mod64, AuxInt non-zero means that the divisor has been proved to be not -1.
 	{name: "Mod8", argLength: 2},  // arg0 % arg1, signed
 	{name: "Mod8u", argLength: 2}, // arg0 % arg1, unsigned
-	{name: "Mod16", argLength: 2},
+	{name: "Mod16", argLength: 2, aux: "Bool"},
 	{name: "Mod16u", argLength: 2},
-	{name: "Mod32", argLength: 2},
+	{name: "Mod32", argLength: 2, aux: "Bool"},
 	{name: "Mod32u", argLength: 2},
-	{name: "Mod64", argLength: 2},
+	{name: "Mod64", argLength: 2, aux: "Bool"},
 	{name: "Mod64u", argLength: 2},
 
 	{name: "And8", argLength: 2, commutative: true}, // arg0 & arg1
@@ -99,7 +106,7 @@ var genericOps = []opData{
 
 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
 	// Shift amounts are considered unsigned.
-	// If arg1 is known to be less than the number of bits in arg0,
+	// If arg1 is known to be nonnegative and less than the number of bits in arg0,
 	// then auxInt may be set to 1.
 	// This enables better code generation on some platforms.
 	{name: "Lsh8x8", argLength: 2, aux: "Bool"}, // arg0 << arg1
@@ -196,28 +203,6 @@ var genericOps = []opData{
 	{name: "Leq32F", argLength: 2, typ: "Bool"},
 	{name: "Leq64F", argLength: 2, typ: "Bool"},
 
-	{name: "Greater8", argLength: 2, typ: "Bool"},  // arg0 > arg1, signed
-	{name: "Greater8U", argLength: 2, typ: "Bool"}, // arg0 > arg1, unsigned
-	{name: "Greater16", argLength: 2, typ: "Bool"},
-	{name: "Greater16U", argLength: 2, typ: "Bool"},
-	{name: "Greater32", argLength: 2, typ: "Bool"},
-	{name: "Greater32U", argLength: 2, typ: "Bool"},
-	{name: "Greater64", argLength: 2, typ: "Bool"},
-	{name: "Greater64U", argLength: 2, typ: "Bool"},
-	{name: "Greater32F", argLength: 2, typ: "Bool"},
-	{name: "Greater64F", argLength: 2, typ: "Bool"},
-
-	{name: "Geq8", argLength: 2, typ: "Bool"},  // arg0 <= arg1, signed
-	{name: "Geq8U", argLength: 2, typ: "Bool"}, // arg0 <= arg1, unsigned
-	{name: "Geq16", argLength: 2, typ: "Bool"},
-	{name: "Geq16U", argLength: 2, typ: "Bool"},
-	{name: "Geq32", argLength: 2, typ: "Bool"},
-	{name: "Geq32U", argLength: 2, typ: "Bool"},
-	{name: "Geq64", argLength: 2, typ: "Bool"},
-	{name: "Geq64U", argLength: 2, typ: "Bool"},
-	{name: "Geq32F", argLength: 2, typ: "Bool"},
-	{name: "Geq64F", argLength: 2, typ: "Bool"},
-
 	// the type of a CondSelect is the same as the type of its first
 	// two arguments, which should be register-width scalars; the third
 	// argument should be a boolean
@@ -264,18 +249,23 @@ var genericOps = []opData{
 	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
 	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
 
-	{name: "PopCount8", argLength: 1},  // Count bits in arg[0]
-	{name: "PopCount16", argLength: 1}, // Count bits in arg[0]
-	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
-	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
+	{name: "PopCount8", argLength: 1},    // Count bits in arg[0]
+	{name: "PopCount16", argLength: 1},   // Count bits in arg[0]
+	{name: "PopCount32", argLength: 1},   // Count bits in arg[0]
+	{name: "PopCount64", argLength: 1},   // Count bits in arg[0]
+	{name: "RotateLeft8", argLength: 2},  // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft16", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
 
-	// Square root, float64 only.
+	// Square root.
 	// Special cases:
 	//   +∞  → +∞
 	//   ±0  → ±0 (sign preserved)
 	//   x<0 → NaN
 	//   NaN → NaN
-	{name: "Sqrt", argLength: 1}, // √arg0
+	{name: "Sqrt", argLength: 1},   // √arg0 (floating point, double precision)
+	{name: "Sqrt32", argLength: 1}, // √arg0 (floating point, single precision)
 
 	// Round to integer, float64 only.
 	// Special cases:
@@ -292,8 +282,21 @@ var genericOps = []opData{
 	{name: "Abs", argLength: 1},      // absolute value arg0
 	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
 
-	// Data movement, max argument length for Phi is indefinite so just pick
-	// a really large number
+	// 3-input opcode.
+	// Fused-multiply-add, float64 only.
+	// When a*b+c is exactly zero (before rounding), then the result is +0 or -0.
+	// The 0's sign is determined according to the standard rules for the
+	// addition (-0 if both a*b and c are -0, +0 otherwise).
+	//
+	// Otherwise, when a*b+c rounds to zero, then the resulting 0's sign is
+	// determined by the sign of the exact result a*b+c.
+	// See section 6.3 in ieee754.
+	//
+	// When the multiply is an infinity times a zero, the result is NaN.
+	// See section 7.2 in ieee754.
+	{name: "FMA", argLength: 3}, // compute (a*b)+c without intermediate rounding
+
+	// Data movement. Max argument length for Phi is indefinite.
 	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from
 	{name: "Copy", argLength: 1},                  // output = arg0
 	// Convert converts between pointers and integers.
@@ -316,8 +319,13 @@ var genericOps = []opData{
 	{name: "Const32", aux: "Int32"},      // auxint is sign-extended 32 bits
 	// Note: ConstX are sign-extended even when the type of the value is unsigned.
 	// For instance, uint8(0xaa) is stored as auxint=0xffffffffffffffaa.
-	{name: "Const64", aux: "Int64"},    // value is auxint
-	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly prepresentable as float 32
+	{name: "Const64", aux: "Int64"}, // value is auxint
+	// Note: for both Const32F and Const64F, we disallow encoding NaNs.
+	// Signaling NaNs are tricky because if you do anything with them, they become quiet.
+	// Particularly, converting a 32 bit sNaN to 64 bit and back converts it to a qNaN.
+	// See issue 36399 and 36400.
+	// Encodings of +inf, -inf, and -0 are fine.
+	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly representable as float 32
 	{name: "Const64F", aux: "Float64"}, // value is math.Float64frombits(uint64(auxint))
 	{name: "ConstInterface"},           // nil interface
 	{name: "ConstSlice"},               // nil slice
@@ -326,12 +334,18 @@ var genericOps = []opData{
 	{name: "InitMem", zeroWidth: true},                               // memory input to the function.
 	{name: "Arg", aux: "SymOff", symEffect: "Read", zeroWidth: true}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
+	// Like Arg, these are generic ops that survive lowering. AuxInt is a register index, and the actual output register for each index is defined by the architecture.
+	// AuxInt = integer argument index (not a register number). ABI-specified spill loc obtained from function
+	{name: "ArgIntReg", aux: "NameOffsetInt8", zeroWidth: true},   // argument to the function in an int reg.
+	{name: "ArgFloatReg", aux: "NameOffsetInt8", zeroWidth: true}, // argument to the function in a float reg.
+
 	// The address of a variable.  arg0 is the base pointer.
 	// If the variable is a global, the base pointer will be SB and
 	// the Aux field will be a *obj.LSym.
 	// If the variable is a local, the base pointer will be SP and
 	// the Aux field will be a *gc.Node.
-	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
+	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"},      // Address of a variable.  Arg0=SB.  Aux identifies the variable.
+	{name: "LocalAddr", argLength: 2, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP. Arg1=mem. Aux identifies the variable.
 
 	{name: "SP", zeroWidth: true},                 // stack pointer
 	{name: "SB", typ: "Uintptr", zeroWidth: true}, // static base pointer (a.k.a. globals pointer)
@@ -339,10 +353,18 @@ var genericOps = []opData{
 
 	// Memory operations
 	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
+	{name: "Dereference", argLength: 2},                   // Load from arg0.  arg1=memory.  Helper op for arg/result passing, result is an otherwise not-SSA-able "value".
 	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
 	// The source and destination of Move may overlap in some cases. See e.g.
 	// memmove inlining in generic.rules. When inlineablememmovesize (in ../rewrite.go)
 	// returns true, we must do all loads before all stores, when lowering Move.
+	// The type of Move is used for the write barrier pass to insert write barriers
+	// and for alignment on some architectures.
+	// For pointerless types, it is possible for the type to be inaccurate.
+	// For type alignment and pointer information, use the type in Aux;
+	// for type size, use the size in AuxInt.
+	// The "inline runtime.memmove" rewrite rule generates Moves with inaccurate types,
+	// such as type byte instead of the more accurate type [8]byte.
 	{name: "Move", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
 	{name: "Zero", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 
@@ -358,12 +380,49 @@ var genericOps = []opData{
 	// arch-dependent), and is not a safe-point.
 	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 
+	{name: "HasCPUFeature", argLength: 0, typ: "bool", aux: "Sym", symEffect: "None"}, // aux=place that this feature flag can be loaded from
+
+	// PanicBounds and PanicExtend generate a runtime panic.
+	// Their arguments provide index values to use in panic messages.
+	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../op.go).
+	// PanicBounds' index is int sized.
+	// PanicExtend's index is int64 sized. (PanicExtend is only used on 32-bit archs.)
+	{name: "PanicBounds", argLength: 3, aux: "Int64", typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory.
+	{name: "PanicExtend", argLength: 4, aux: "Int64", typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory.
+
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated
 	// as a phantom first argument.
-	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true},                    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
-	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true, symEffect: "None"}, // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
-	{name: "InterCall", argLength: 2, aux: "Int64", call: true},                      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+	// TODO(josharian): ClosureCall and InterCall should have Int32 aux
+	// to match StaticCall's 32 bit arg size limit.
+	// TODO(drchase,josharian): could the arg size limit be bundled into the rules for CallOff?
+
+	// Before lowering, LECalls receive their fixed inputs (first), memory (last),
+	// and a variable number of input values in the middle.
+	// They produce a variable number of result values.
+	// These values are not necessarily "SSA-able"; they can be too large,
+	// but in that case inputs are loaded immediately before with OpDereference,
+	// and outputs are stored immediately with OpStore.
+	//
+	// After call expansion, Calls have the same fixed-middle-memory arrangement of inputs,
+	// with the difference that the "middle" is only the register-resident inputs,
+	// and the non-register inputs are instead stored at ABI-defined offsets from SP
+	// (and the stores thread through the memory that is ultimately an input to the call).
+	// Outputs follow a similar pattern; register-resident outputs are the leading elements
+	// of a Result-typed output, with memory last, and any memory-resident outputs have been
+	// stored to ABI-defined locations.  Each non-memory input or output fits in a register.
+	//
+	// Subsequent architecture-specific lowering only changes the opcode.
+
+	{name: "ClosureCall", argLength: -1, aux: "CallOff", call: true}, // arg0=code pointer, arg1=context ptr, arg2..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},  // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "InterCall", argLength: -1, aux: "CallOff", call: true},   // interface call.  arg0=code pointer, arg1..argN-1 are register inputs, argN=memory, auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "TailCall", argLength: -1, aux: "CallOff", call: true},    // tail call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+
+	{name: "ClosureLECall", argLength: -1, aux: "CallOff", call: true}, // late-expanded closure call. arg0=code pointer, arg1=context ptr,  arg2..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "StaticLECall", argLength: -1, aux: "CallOff", call: true},  // late-expanded static call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "InterLECall", argLength: -1, aux: "CallOff", call: true},   // late-expanded interface call. arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "TailLECall", argLength: -1, aux: "CallOff", call: true},    // late-expanded static tail call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
 
 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
 	{name: "SignExt8to16", argLength: 1, typ: "Int16"},
@@ -395,6 +454,7 @@ var genericOps = []opData{
 	{name: "Cvt64Fto64", argLength: 1},
 	{name: "Cvt32Fto64F", argLength: 1},
 	{name: "Cvt64Fto32F", argLength: 1},
+	{name: "CvtBoolToUint8", argLength: 1},
 
 	// Force rounding to precision of type.
 	{name: "Round32F", argLength: 1},
@@ -421,6 +481,10 @@ var genericOps = []opData{
 	{name: "SlicePtr", argLength: 1, typ: "BytePtr"}, // ptr(arg0)
 	{name: "SliceLen", argLength: 1},                 // len(arg0)
 	{name: "SliceCap", argLength: 1},                 // cap(arg0)
+	// SlicePtrUnchecked, like SlicePtr, extracts the pointer from a slice.
+	// SlicePtr values are assumed non-nil, because they are guarded by bounds checks.
+	// SlicePtrUnchecked values can be nil.
+	{name: "SlicePtrUnchecked", argLength: 1},
 
 	// Complex (part/whole)
 	{name: "ComplexMake", argLength: 2}, // arg0=real, arg1=imag
@@ -465,8 +529,13 @@ var genericOps = []opData{
 
 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
 	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},                             // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
-	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+	// TODO: what's the difference between VarLive and KeepAlive?
+	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+
+	// InlMark marks the start of an inlined function body. Its AuxInt field
+	// distinguishes which entry in the local inline tree it is marking.
+	{name: "InlMark", argLength: 1, aux: "Int32", typ: "Void"}, // arg[0]=mem, returns void.
 
 	// Ops for breaking 64-bit operations on 32-bit architectures
 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo
@@ -479,9 +548,15 @@ var genericOps = []opData{
 	{name: "Sub32carry", argLength: 2, typ: "(UInt32,Flags)"}, // arg0 - arg1, returns (value, carry)
 	{name: "Sub32withcarry", argLength: 3},                    // arg0 - arg1 - arg2, arg2=carry (0 or 1)
 
+	{name: "Add64carry", argLength: 3, commutative: true, typ: "(UInt64,UInt64)"}, // arg0 + arg1 + arg2, arg2 must be 0 or 1. returns (value, value>>64)
+	{name: "Sub64borrow", argLength: 3, typ: "(UInt64,UInt64)"},                   // arg0 - (arg1 + arg2), arg2 must be 0 or 1. returns (value, value>>64&1)
+
 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
 	{name: "Slicemask", argLength: 1},               // 0 if arg0 == 0, -1 if arg0 > 0, undef if arg0<0. Type is native int size.
+
+	{name: "SpectreIndex", argLength: 2},      // arg0 if 0 <= arg0 < arg1, 0 otherwise. Type is native int size.
+	{name: "SpectreSliceIndex", argLength: 2}, // arg0 if 0 <= arg0 <= arg1, 0 otherwise. Type is native int size.
 
 	{name: "Cvt32Uto32F", argLength: 1}, // uint32 -> float32, only used on 32-bit arch
 	{name: "Cvt32Uto64F", argLength: 1}, // uint32 -> float64, only used on 32-bit arch
@@ -493,57 +568,83 @@ var genericOps = []opData{
 	{name: "Cvt64Fto64U", argLength: 1}, // float64 -> uint64, only used on archs that has the instruction
 
 	// pseudo-ops for breaking Tuple
-	{name: "Select0", argLength: 1, zeroWidth: true}, // the first component of a tuple
-	{name: "Select1", argLength: 1, zeroWidth: true}, // the second component of a tuple
+	{name: "Select0", argLength: 1, zeroWidth: true},  // the first component of a tuple
+	{name: "Select1", argLength: 1, zeroWidth: true},  // the second component of a tuple
+	{name: "SelectN", argLength: 1, aux: "Int64"},     // arg0=result, auxint=field index.  Returns the auxint'th member.
+	{name: "SelectNAddr", argLength: 1, aux: "Int64"}, // arg0=result, auxint=field index.  Returns the address of auxint'th member. Used for un-SSA-able result types.
+	{name: "MakeResult", argLength: -1},               // arg0 .. are components of a "Result" (like the result from a Call). The last arg should be memory (like the result from a call).
 
-	// Atomic operations used for semantically inlining runtime/internal/atomic.
-	// Atomic loads return a new memory so that the loads are properly ordered
-	// with respect to other loads and stores.
-	// TODO: use for sync/atomic at some point.
-	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                               // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                             // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},            // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
-	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
-	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	// Atomic operations used for semantically inlining sync/atomic and
+	// runtime/internal/atomic. Atomic loads return a new memory so that
+	// the loads are properly ordered with respect to other loads and
+	// stores.
+	{name: "AtomicLoad8", argLength: 2, typ: "(UInt8,Mem)"},                                    // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoadAcq32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
+	{name: "AtomicLoadAcq64", argLength: 2, typ: "(UInt64,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
+	{name: "AtomicStore8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStoreRel32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
+	{name: "AtomicStoreRel64", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
+	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, reports whether store happens and new memory.
+	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicAnd32", argLength: 3, typ: "Mem", hasSideEffects: true},                      // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                        // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr32", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 |= arg1.  arg2=memory.  Returns memory.
 
 	// Atomic operation variants
 	// These variants have the same semantics as above atomic operations.
 	// But they are used for generating more efficient code on certain modern machines, with run-time CPU feature detection.
 	// Currently, they are used on ARM64 only.
-	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicAdd64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicExchange32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicExchange64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicCompareAndSwap32Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwap64Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicAnd8Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicAnd32Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                   // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr8Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr32Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 |= arg1.  arg2=memory.  Returns memory.
+
+	// Publication barrier
+	{name: "PubBarrier", argLength: 1, hasSideEffects: true}, // Do data barrier. arg0=memory.
 
 	// Clobber experiment op
 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
+	{name: "ClobberReg", argLength: 0, typ: "Void"},                                // clobber a register
+
+	// Prefetch instruction
+	{name: "PrefetchCache", argLength: 2, hasSideEffects: true},         // Do prefetch arg0 to cache. arg0=addr, arg1=memory.
+	{name: "PrefetchCacheStreamed", argLength: 2, hasSideEffects: true}, // Do non-temporal or streamed prefetch arg0 to cache. arg0=addr, arg1=memory.
 }
 
-//     kind           control    successors       implicit exit
+//     kind          controls        successors   implicit exit
 //   ----------------------------------------------------------
-//     Exit        return mem                []             yes
-//      Ret        return mem                []             yes
-//   RetJmp        return mem                []             yes
-//    Plain               nil            [next]
-//       If   a boolean Value      [then, else]
-//     Call               mem            [next]             yes  (control opcode should be OpCall or OpStaticCall)
-//    Check              void            [next]             yes  (control opcode should be Op{Lowered}NilCheck)
-//    First               nil    [always,never]
+//     Exit      [return mem]                []             yes
+//      Ret      [return mem]                []             yes
+//   RetJmp      [return mem]                []             yes
+//    Plain                []            [next]
+//       If   [boolean Value]      [then, else]
+//    First                []   [always, never]
 
 var genericBlocks = []blockData{
-	{name: "Plain"},  // a single successor
-	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
-	{name: "Defer"},  // 2 successors, Succs[0]=defer queued, Succs[1]=defer recovered. control is call op (of memory type)
-	{name: "Ret"},    // no successors, control value is memory result
-	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
-	{name: "Exit"},   // no successors, control value generates a panic
+	{name: "Plain"},               // a single successor
+	{name: "If", controls: 1},     // if Controls[0] goto Succs[0] else goto Succs[1]
+	{name: "Defer", controls: 1},  // Succs[0]=defer queued, Succs[1]=defer recovered. Controls[0] is call op (of memory type)
+	{name: "Ret", controls: 1},    // no successors, Controls[0] value is memory result
+	{name: "RetJmp", controls: 1}, // no successors, Controls[0] value is a tail call
+	{name: "Exit", controls: 1},   // no successors, Controls[0] value generates a panic
 
 	// transient block state used for dead code removal
 	{name: "First"}, // 2 successors, always takes the first one (second is dead)

@@ -1,3 +1,4 @@
+// +build !js,gc
 // run
 
 // Copyright 2018 The Go Authors. All rights reserved.
@@ -13,12 +14,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 
 // Each of these tests is expected to fail (missing package clause)
-// at the position determined by the preceeding line directive.
+// at the position determined by the preceding line directive.
 var tests = []struct {
 	src, pos string
 }{
@@ -36,10 +36,6 @@ var tests = []struct {
 }
 
 func main() {
-	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
-		return // can not exec go tool
-	}
-
 	f, err := ioutil.TempFile("", "issue22662b.go")
 	if err != nil {
 		log.Fatal(err)

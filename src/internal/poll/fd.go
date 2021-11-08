@@ -9,13 +9,26 @@
 // runtime scheduler.
 package poll
 
-import "errors"
+import (
+	"errors"
+)
+
+// errNetClosing is the type of the variable ErrNetClosing.
+// This is used to implement the net.Error interface.
+type errNetClosing struct{}
+
+// Error returns the error message for ErrNetClosing.
+// Keep this string consistent because of issue #4373:
+// since historically programs have not been able to detect
+// this error, they look for the string.
+func (e errNetClosing) Error() string { return "use of closed network connection" }
+
+func (e errNetClosing) Timeout() bool   { return false }
+func (e errNetClosing) Temporary() bool { return false }
 
 // ErrNetClosing is returned when a network descriptor is used after
-// it has been closed. Keep this string consistent because of issue
-// #4373: since historically programs have not been able to detect
-// this error, they look for the string.
-var ErrNetClosing = errors.New("use of closed network connection")
+// it has been closed.
+var ErrNetClosing = errNetClosing{}
 
 // ErrFileClosing is returned when a file descriptor is used after it
 // has been closed.
@@ -33,16 +46,24 @@ func errClosing(isFile bool) error {
 	return ErrNetClosing
 }
 
-// ErrTimeout is returned for an expired deadline.
-var ErrTimeout error = &TimeoutError{}
+// ErrDeadlineExceeded is returned for an expired deadline.
+// This is exported by the os package as os.ErrDeadlineExceeded.
+var ErrDeadlineExceeded error = &DeadlineExceededError{}
 
-// TimeoutError is returned for an expired deadline.
-type TimeoutError struct{}
+// DeadlineExceededError is returned for an expired deadline.
+type DeadlineExceededError struct{}
 
 // Implement the net.Error interface.
-func (e *TimeoutError) Error() string   { return "i/o timeout" }
-func (e *TimeoutError) Timeout() bool   { return true }
-func (e *TimeoutError) Temporary() bool { return true }
+// The string is "i/o timeout" because that is what was returned
+// by earlier Go versions. Changing it may break programs that
+// match on error strings.
+func (e *DeadlineExceededError) Error() string   { return "i/o timeout" }
+func (e *DeadlineExceededError) Timeout() bool   { return true }
+func (e *DeadlineExceededError) Temporary() bool { return true }
+
+// ErrNotPollable is returned when the file or socket is not suitable
+// for event notification.
+var ErrNotPollable = errors.New("not pollable")
 
 // consume removes data from a slice of byte slices, for writev.
 func consume(v *[][]byte, n int64) {

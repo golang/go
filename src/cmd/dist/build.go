@@ -9,10 +9,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -30,13 +32,16 @@ var (
 	goos             string
 	goarm            string
 	go386            string
+	goamd64          string
 	gomips           string
 	gomips64         string
+	goppc64          string
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
 	gogcflags        string // For running built compiler
 	goldflags        string
+	goexperiment     string
 	workdir          string
 	tooldir          string
 	oldgoos          string
@@ -44,9 +49,8 @@ var (
 	exe              string
 	defaultcc        map[string]string
 	defaultcxx       map[string]string
-	defaultcflags    string
-	defaultldflags   string
 	defaultpkgconfig string
+	defaultldso      string
 
 	rebuildall   bool
 	defaultclang bool
@@ -58,7 +62,6 @@ var (
 var okgoarch = []string{
 	"386",
 	"amd64",
-	"amd64p32",
 	"arm",
 	"arm64",
 	"mips",
@@ -69,6 +72,7 @@ var okgoarch = []string{
 	"ppc64le",
 	"riscv64",
 	"s390x",
+	"sparc64",
 	"wasm",
 }
 
@@ -76,16 +80,19 @@ var okgoarch = []string{
 var okgoos = []string{
 	"darwin",
 	"dragonfly",
+	"illumos",
+	"ios",
 	"js",
 	"linux",
 	"android",
 	"solaris",
 	"freebsd",
-	"nacl",
+	"nacl", // keep;
 	"netbsd",
 	"openbsd",
 	"plan9",
 	"windows",
+	"aix",
 }
 
 // find reports the first index of p in l[0:n], or else -1.
@@ -135,13 +142,15 @@ func xinit() {
 
 	b = os.Getenv("GO386")
 	if b == "" {
-		if cansse2() {
-			b = "sse2"
-		} else {
-			b = "387"
-		}
+		b = "sse2"
 	}
 	go386 = b
+
+	b = os.Getenv("GOAMD64")
+	if b == "" {
+		b = "v1"
+	}
+	goamd64 = b
 
 	b = os.Getenv("GOMIPS")
 	if b == "" {
@@ -154,6 +163,12 @@ func xinit() {
 		b = "hardfloat"
 	}
 	gomips64 = b
+
+	b = os.Getenv("GOPPC64")
+	if b == "" {
+		b = "power8"
+	}
+	goppc64 = b
 
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
@@ -186,7 +201,11 @@ func xinit() {
 		goextlinkenabled = b
 	}
 
+	goexperiment = os.Getenv("GOEXPERIMENT")
+	// TODO(mdempsky): Validate known experiments?
+
 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
+	goldflags = os.Getenv("BOOT_GO_LDFLAGS")
 
 	cc, cxx := "gcc", "g++"
 	if defaultclang {
@@ -195,17 +214,17 @@ func xinit() {
 	defaultcc = compilerEnv("CC", cc)
 	defaultcxx = compilerEnv("CXX", cxx)
 
-	defaultcflags = os.Getenv("CFLAGS")
-	defaultldflags = os.Getenv("LDFLAGS")
-
 	b = os.Getenv("PKG_CONFIG")
 	if b == "" {
 		b = "pkg-config"
 	}
 	defaultpkgconfig = b
 
+	defaultldso = os.Getenv("GO_LDSO")
+
 	// For tools being invoked but also for os.ExpandEnv.
 	os.Setenv("GO386", go386)
+	os.Setenv("GOAMD64", goamd64)
 	os.Setenv("GOARCH", goarch)
 	os.Setenv("GOARM", goarm)
 	os.Setenv("GOHOSTARCH", gohostarch)
@@ -213,22 +232,23 @@ func xinit() {
 	os.Setenv("GOOS", goos)
 	os.Setenv("GOMIPS", gomips)
 	os.Setenv("GOMIPS64", gomips64)
+	os.Setenv("GOPPC64", goppc64)
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
 	// Use a build cache separate from the default user one.
 	// Also one that will be wiped out during startup, so that
 	// make.bash really does start from a clean slate.
-	// But if the user has specified no caching, don't cache.
-	if os.Getenv("GOCACHE") != "off" {
-		os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
-	}
+	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
 
 	// Make the environment more predictable.
 	os.Setenv("LANG", "C")
 	os.Setenv("LANGUAGE", "en_US.UTF8")
 
 	workdir = xworkdir()
+	if err := ioutil.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
+		fatalf("cannot write stub go.mod: %s", err)
+	}
 	xatexit(rmworkdir)
 
 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
@@ -389,8 +409,22 @@ func findgoversion() string {
 	}
 
 	if !precise {
-		// Tag does not point at HEAD; add hash and date to version.
-		tag += chomp(run(goroot, CheckExit, "git", "log", "-n", "1", "--format=format: +%h %cd", "HEAD"))
+		// Tag does not point at HEAD; add 1.x base version, hash, and date to version.
+		//
+		// Note that we lightly parse internal/goversion/goversion.go to
+		// obtain the base version. We can't just import the package,
+		// because cmd/dist is built with a bootstrap GOROOT which could
+		// be an entirely different version of Go, like 1.4. We assume
+		// that the file contains "const Version = <Integer>".
+
+		goversionSource := readfile(pathf("%s/src/internal/goversion/goversion.go", goroot))
+		m := regexp.MustCompile(`(?m)^const Version = (\d+)`).FindStringSubmatch(goversionSource)
+		if m == nil {
+			fatalf("internal/goversion/goversion.go does not contain 'const Version = ...'")
+		}
+		tag += fmt.Sprintf(" go1.%s-", m[1])
+
+		tag += chomp(run(goroot, CheckExit, "git", "log", "-n", "1", "--format=format:%h %cd", "HEAD"))
 	}
 
 	// Cache version.
@@ -483,6 +517,7 @@ func setup() {
 		xremoveall(p)
 	}
 	xmkdirall(p)
+	xatexit(func() { xremoveall(p) })
 
 	// Create tool directory.
 	// We keep it in pkg/, just like the object directory above.
@@ -592,26 +627,26 @@ func startInstall(dir string) chan struct{} {
 
 // runInstall installs the library, package, or binary associated with dir,
 // which is relative to $GOROOT/src.
-func runInstall(dir string, ch chan struct{}) {
-	if dir == "net" || dir == "os/user" || dir == "crypto/x509" {
-		fatalf("go_bootstrap cannot depend on cgo package %s", dir)
+func runInstall(pkg string, ch chan struct{}) {
+	if pkg == "net" || pkg == "os/user" || pkg == "crypto/x509" {
+		fatalf("go_bootstrap cannot depend on cgo package %s", pkg)
 	}
 
 	defer close(ch)
 
-	if dir == "unsafe" {
+	if pkg == "unsafe" {
 		return
 	}
 
 	if vflag > 0 {
 		if goos != gohostos || goarch != gohostarch {
-			errprintf("%s (%s/%s)\n", dir, goos, goarch)
+			errprintf("%s (%s/%s)\n", pkg, goos, goarch)
 		} else {
-			errprintf("%s\n", dir)
+			errprintf("%s\n", pkg)
 		}
 	}
 
-	workdir := pathf("%s/%s", workdir, dir)
+	workdir := pathf("%s/%s", workdir, pkg)
 	xmkdirall(workdir)
 
 	var clean []string
@@ -621,11 +656,14 @@ func runInstall(dir string, ch chan struct{}) {
 		}
 	}()
 
-	// path = full path to dir.
-	path := pathf("%s/src/%s", goroot, dir)
+	// dir = full path to pkg.
+	dir := pathf("%s/src/%s", goroot, pkg)
 	name := filepath.Base(dir)
 
-	ispkg := !strings.HasPrefix(dir, "cmd/") || strings.Contains(dir, "/internal/")
+	// ispkg predicts whether the package should be linked as a binary, based
+	// on the name. There should be no "main" packages in vendor, since
+	// 'go mod vendor' will only copy imported packages there.
+	ispkg := !strings.HasPrefix(pkg, "cmd/") || strings.Contains(pkg, "/internal/") || strings.Contains(pkg, "/vendor/")
 
 	// Start final link command line.
 	// Note: code below knows that link.p[targ] is the target.
@@ -637,7 +675,7 @@ func runInstall(dir string, ch chan struct{}) {
 	if ispkg {
 		// Go library (package).
 		ispackcmd = true
-		link = []string{"pack", pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, dir)}
+		link = []string{"pack", packagefile(pkg)}
 		targ = len(link) - 1
 		xmkdirall(filepath.Dir(link[targ]))
 	} else {
@@ -646,7 +684,15 @@ func runInstall(dir string, ch chan struct{}) {
 		if elem == "go" {
 			elem = "go_bootstrap"
 		}
-		link = []string{pathf("%s/link", tooldir), "-o", pathf("%s/%s%s", tooldir, elem, exe)}
+		link = []string{pathf("%s/link", tooldir)}
+		if goos == "android" {
+			link = append(link, "-buildmode=pie")
+		}
+		if goldflags != "" {
+			link = append(link, goldflags)
+		}
+		link = append(link, "-extld="+compilerEnvLookup(defaultcc, goos, goarch))
+		link = append(link, "-o", pathf("%s/%s%s", tooldir, elem, exe))
 		targ = len(link) - 1
 	}
 	ttarg := mtime(link[targ])
@@ -654,7 +700,7 @@ func runInstall(dir string, ch chan struct{}) {
 	// Gather files that are sources for this target.
 	// Everything in that directory, and any target-specific
 	// additions.
-	files := xreaddir(path)
+	files := xreaddir(dir)
 
 	// Remove files beginning with . or _,
 	// which are likely to be editor temporary files.
@@ -666,7 +712,7 @@ func runInstall(dir string, ch chan struct{}) {
 	})
 
 	for _, dt := range deptab {
-		if dir == dt.prefix || strings.HasSuffix(dt.prefix, "/") && strings.HasPrefix(dir, dt.prefix) {
+		if pkg == dt.prefix || strings.HasSuffix(dt.prefix, "/") && strings.HasPrefix(pkg, dt.prefix) {
 			for _, p := range dt.dep {
 				p = os.ExpandEnv(p)
 				files = append(files, p)
@@ -678,12 +724,12 @@ func runInstall(dir string, ch chan struct{}) {
 	// Convert to absolute paths.
 	for i, p := range files {
 		if !filepath.IsAbs(p) {
-			files[i] = pathf("%s/%s", path, p)
+			files[i] = pathf("%s/%s", dir, p)
 		}
 	}
 
 	// Is the target up-to-date?
-	var gofiles, missing []string
+	var gofiles, sfiles, missing []string
 	stale := rebuildall
 	files = filter(files, func(p string) bool {
 		for _, suf := range depsuffix {
@@ -694,11 +740,13 @@ func runInstall(dir string, ch chan struct{}) {
 		return false
 	ok:
 		t := mtime(p)
-		if !t.IsZero() && !strings.HasSuffix(p, ".a") && !shouldbuild(p, dir) {
+		if !t.IsZero() && !strings.HasSuffix(p, ".a") && !shouldbuild(p, pkg) {
 			return false
 		}
 		if strings.HasSuffix(p, ".go") {
 			gofiles = append(gofiles, p)
+		} else if strings.HasSuffix(p, ".s") {
+			sfiles = append(sfiles, p)
 		}
 		if t.After(ttarg) {
 			stale = true
@@ -719,7 +767,7 @@ func runInstall(dir string, ch chan struct{}) {
 	}
 
 	// For package runtime, copy some files into the work space.
-	if dir == "runtime" {
+	if pkg == "runtime" {
 		xmkdirall(pathf("%s/pkg/include", goroot))
 		// For use by assembly and C files.
 		copyfile(pathf("%s/pkg/include/textflag.h", goroot),
@@ -741,7 +789,7 @@ func runInstall(dir string, ch chan struct{}) {
 				if vflag > 1 {
 					errprintf("generate %s\n", p)
 				}
-				gt.gen(path, p)
+				gt.gen(dir, p)
 				// Do not add generated file to clean list.
 				// In runtime, we want to be able to
 				// build the package with the go tool,
@@ -759,34 +807,102 @@ func runInstall(dir string, ch chan struct{}) {
 	built:
 	}
 
-	// Make sure dependencies are installed.
-	var deps []string
+	// Resolve imported packages to actual package paths.
+	// Make sure they're installed.
+	importMap := make(map[string]string)
 	for _, p := range gofiles {
-		deps = append(deps, readimports(p)...)
+		for _, imp := range readimports(p) {
+			if imp == "C" {
+				fatalf("%s imports C", p)
+			}
+			importMap[imp] = resolveVendor(imp, dir)
+		}
 	}
-	for _, dir1 := range deps {
-		startInstall(dir1)
+	sortedImports := make([]string, 0, len(importMap))
+	for imp := range importMap {
+		sortedImports = append(sortedImports, imp)
 	}
-	for _, dir1 := range deps {
-		install(dir1)
+	sort.Strings(sortedImports)
+
+	for _, dep := range importMap {
+		if dep == "C" {
+			fatalf("%s imports C", pkg)
+		}
+		startInstall(dep)
+	}
+	for _, dep := range importMap {
+		install(dep)
 	}
 
 	if goos != gohostos || goarch != gohostarch {
 		// We've generated the right files; the go command can do the build.
 		if vflag > 1 {
-			errprintf("skip build for cross-compile %s\n", dir)
+			errprintf("skip build for cross-compile %s\n", pkg)
 		}
 		return
+	}
+
+	asmArgs := []string{
+		pathf("%s/asm", tooldir),
+		"-I", workdir,
+		"-I", pathf("%s/pkg/include", goroot),
+		"-D", "GOOS_" + goos,
+		"-D", "GOARCH_" + goarch,
+		"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
+		"-p", pkg,
+	}
+	if goarch == "mips" || goarch == "mipsle" {
+		// Define GOMIPS_value from gomips.
+		asmArgs = append(asmArgs, "-D", "GOMIPS_"+gomips)
+	}
+	if goarch == "mips64" || goarch == "mips64le" {
+		// Define GOMIPS64_value from gomips64.
+		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
+	}
+	goasmh := pathf("%s/go_asm.h", workdir)
+	if IsRuntimePackagePath(pkg) {
+		asmArgs = append(asmArgs, "-compiling-runtime")
+	}
+
+	// Collect symabis from assembly code.
+	var symabis string
+	if len(sfiles) > 0 {
+		symabis = pathf("%s/symabis", workdir)
+		var wg sync.WaitGroup
+		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-gensymabis", "-o", symabis)
+		asmabis = append(asmabis, sfiles...)
+		if err := ioutil.WriteFile(goasmh, nil, 0666); err != nil {
+			fatalf("cannot write empty go_asm.h: %s", err)
+		}
+		bgrun(&wg, dir, asmabis...)
+		bgwait(&wg)
+	}
+
+	// Build an importcfg file for the compiler.
+	buf := &bytes.Buffer{}
+	for _, imp := range sortedImports {
+		if imp == "unsafe" {
+			continue
+		}
+		dep := importMap[imp]
+		if imp != dep {
+			fmt.Fprintf(buf, "importmap %s=%s\n", imp, dep)
+		}
+		fmt.Fprintf(buf, "packagefile %s=%s\n", dep, packagefile(dep))
+	}
+	importcfg := pathf("%s/importcfg", workdir)
+	if err := ioutil.WriteFile(importcfg, buf.Bytes(), 0666); err != nil {
+		fatalf("cannot write importcfg file: %v", err)
 	}
 
 	var archive string
 	// The next loop will compile individual non-Go files.
 	// Hand the Go files to the compiler en masse.
-	// For package runtime, this writes go_asm.h, which
+	// For packages containing assembly, this writes go_asm.h, which
 	// the assembly files will need.
-	pkg := dir
-	if strings.HasPrefix(dir, "cmd/") && strings.Count(dir, "/") == 1 {
-		pkg = "main"
+	pkgName := pkg
+	if strings.HasPrefix(pkg, "cmd/") && strings.Count(pkg, "/") == 1 {
+		pkgName = "main"
 	}
 	b := pathf("%s/_go_.a", workdir)
 	clean = append(clean, b)
@@ -795,48 +911,37 @@ func runInstall(dir string, ch chan struct{}) {
 	} else {
 		archive = b
 	}
-	compile := []string{pathf("%s/compile", tooldir), "-std", "-pack", "-o", b, "-p", pkg}
+
+	// Compile Go code.
+	compile := []string{pathf("%s/compile", tooldir), "-std", "-pack", "-o", b, "-p", pkgName, "-importcfg", importcfg}
 	if gogcflags != "" {
 		compile = append(compile, strings.Fields(gogcflags)...)
 	}
-	if dir == "runtime" {
-		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
+	if pkg == "runtime" {
+		compile = append(compile, "-+")
 	}
-	if dir == "internal/bytealg" {
-		// TODO: why don't we generate go_asm.h for all packages
-		// that have any assembly?
-		compile = append(compile, "-asmhdr", pathf("%s/go_asm.h", workdir))
+	if len(sfiles) > 0 {
+		compile = append(compile, "-asmhdr", goasmh)
 	}
+	if symabis != "" {
+		compile = append(compile, "-symabis", symabis)
+	}
+	if goos == "android" {
+		compile = append(compile, "-shared")
+	}
+
 	compile = append(compile, gofiles...)
-	run(path, CheckExit|ShowOutput, compile...)
+	var wg sync.WaitGroup
+	// We use bgrun and immediately wait for it instead of calling run() synchronously.
+	// This executes all jobs through the bgwork channel and allows the process
+	// to exit cleanly in case an error occurs.
+	bgrun(&wg, dir, compile...)
+	bgwait(&wg)
 
 	// Compile the files.
-	var wg sync.WaitGroup
-	for _, p := range files {
-		if !strings.HasSuffix(p, ".s") {
-			continue
-		}
-
-		var compile []string
+	for _, p := range sfiles {
 		// Assembly file for a Go package.
-		compile = []string{
-			pathf("%s/asm", tooldir),
-			"-I", workdir,
-			"-I", pathf("%s/pkg/include", goroot),
-			"-D", "GOOS_" + goos,
-			"-D", "GOARCH_" + goarch,
-			"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
-		}
-
-		if goarch == "mips" || goarch == "mipsle" {
-			// Define GOMIPS_value from gomips.
-			compile = append(compile, "-D", "GOMIPS_"+gomips)
-		}
-
-		if goarch == "mips64" || goarch == "mipsle64" {
-			// Define GOMIPS64_value from gomips64.
-			compile = append(compile, "-D", "GOMIPS64_"+gomips64)
-		}
+		compile := asmArgs[:len(asmArgs):len(asmArgs)]
 
 		doclean := true
 		b := pathf("%s/%s", workdir, filepath.Base(p))
@@ -844,7 +949,7 @@ func runInstall(dir string, ch chan struct{}) {
 		// Change the last character of the output file (which was c or s).
 		b = b[:len(b)-1] + "o"
 		compile = append(compile, "-o", b, p)
-		bgrun(&wg, path, compile...)
+		bgrun(&wg, dir, compile...)
 
 		link = append(link, b)
 		if doclean {
@@ -861,32 +966,22 @@ func runInstall(dir string, ch chan struct{}) {
 
 	// Remove target before writing it.
 	xremove(link[targ])
-	run("", CheckExit|ShowOutput, link...)
+	bgrun(&wg, "", link...)
+	bgwait(&wg)
 }
 
-// matchfield reports whether the field (x,y,z) matches this build.
-// all the elements in the field must be satisfied.
-func matchfield(f string) bool {
-	for _, tag := range strings.Split(f, ",") {
-		if !matchtag(tag) {
-			return false
-		}
-	}
-	return true
+// packagefile returns the path to a compiled .a file for the given package
+// path. Paths may need to be resolved with resolveVendor first.
+func packagefile(pkg string) string {
+	return pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, pkg)
 }
 
-// matchtag reports whether the tag (x or !x) matches this build.
+// matchtag reports whether the tag matches this build.
 func matchtag(tag string) bool {
-	if tag == "" {
-		return false
-	}
-	if tag[0] == '!' {
-		if len(tag) == 1 || tag[1] == '!' {
-			return false
-		}
-		return !matchtag(tag[1:])
-	}
-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
+	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
+		(goos == "android" && tag == "linux") ||
+		(goos == "illumos" && tag == "solaris") ||
+		(goos == "ios" && tag == "darwin")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -895,12 +990,12 @@ func matchtag(tag string) bool {
 // of GOOS and GOARCH.
 // We also allow the special tag cmd_go_bootstrap.
 // See ../go/bootstrap.go and package go/build.
-func shouldbuild(file, dir string) bool {
+func shouldbuild(file, pkg string) bool {
 	// Check file name for GOOS or GOARCH.
 	name := filepath.Base(file)
 	excluded := func(list []string, ok string) bool {
 		for _, x := range list {
-			if x == ok || ok == "android" && x == "linux" {
+			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") || (ok == "ios" && x == "darwin") {
 				continue
 			}
 			i := strings.Index(name, x)
@@ -923,7 +1018,7 @@ func shouldbuild(file, dir string) bool {
 		return false
 	}
 
-	// Check file contents for // +build lines.
+	// Check file contents for //go:build lines.
 	for _, p := range strings.Split(readfile(file), "\n") {
 		p = strings.TrimSpace(p)
 		if p == "" {
@@ -937,26 +1032,19 @@ func shouldbuild(file, dir string) bool {
 		if code == "package documentation" {
 			return false
 		}
-		if code == "package main" && dir != "cmd/go" && dir != "cmd/cgo" {
+		if code == "package main" && pkg != "cmd/go" && pkg != "cmd/cgo" {
 			return false
 		}
 		if !strings.HasPrefix(p, "//") {
 			break
 		}
-		if !strings.Contains(p, "+build") {
-			continue
-		}
-		fields := strings.Fields(p[2:])
-		if len(fields) < 1 || fields[0] != "+build" {
-			continue
-		}
-		for _, p := range fields[1:] {
-			if matchfield(p) {
-				goto fieldmatch
+		if strings.HasPrefix(p, "//go:build ") {
+			matched, err := matchexpr(p[len("//go:build "):])
+			if err != nil {
+				errprintf("%s: %v", file, err)
 			}
+			return matched
 		}
-		return false
-	fieldmatch:
 	}
 
 	return true
@@ -1063,12 +1151,16 @@ func cmdenv() {
 		format = "set %s=%s\r\n"
 	}
 
-	xprintf(format, "GOROOT", goroot)
-	xprintf(format, "GOBIN", gobin)
 	xprintf(format, "GOARCH", goarch)
-	xprintf(format, "GOOS", goos)
+	xprintf(format, "GOBIN", gobin)
+	xprintf(format, "GOCACHE", os.Getenv("GOCACHE"))
+	xprintf(format, "GODEBUG", os.Getenv("GODEBUG"))
 	xprintf(format, "GOHOSTARCH", gohostarch)
 	xprintf(format, "GOHOSTOS", gohostos)
+	xprintf(format, "GOOS", goos)
+	xprintf(format, "GOPROXY", os.Getenv("GOPROXY"))
+	xprintf(format, "GOROOT", goroot)
+	xprintf(format, "GOTMPDIR", os.Getenv("GOTMPDIR"))
 	xprintf(format, "GOTOOLDIR", tooldir)
 	if goarch == "arm" {
 		xprintf(format, "GOARM", goarm)
@@ -1076,11 +1168,17 @@ func cmdenv() {
 	if goarch == "386" {
 		xprintf(format, "GO386", go386)
 	}
+	if goarch == "amd64" {
+		xprintf(format, "GOAMD64", goamd64)
+	}
 	if goarch == "mips" || goarch == "mipsle" {
 		xprintf(format, "GOMIPS", gomips)
 	}
 	if goarch == "mips64" || goarch == "mips64le" {
 		xprintf(format, "GOMIPS64", gomips64)
+	}
+	if goarch == "ppc64" || goarch == "ppc64le" {
+		xprintf(format, "GOPPC64", goppc64)
 	}
 
 	if *path {
@@ -1118,7 +1216,7 @@ func timelog(op, name string) {
 		}
 		i := strings.Index(s, " start")
 		if i < 0 {
-			log.Fatalf("time log %s does not begin with start line", os.Getenv("GOBULDTIMELOGFILE"))
+			log.Fatalf("time log %s does not begin with start line", os.Getenv("GOBUILDTIMELOGFILE"))
 		}
 		t, err := time.Parse(time.UnixDate, s[:i])
 		if err != nil {
@@ -1150,13 +1248,39 @@ func cmdbootstrap() {
 	timelog("start", "dist bootstrap")
 	defer timelog("end", "dist bootstrap")
 
-	var noBanner bool
+	var noBanner, noClean bool
 	var debug bool
 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
 	flag.BoolVar(&debug, "d", debug, "enable debugging of bootstrap process")
 	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
+	flag.BoolVar(&noClean, "no-clean", noClean, "print deprecation warning")
 
 	xflagparse(0)
+
+	if noClean {
+		xprintf("warning: --no-clean is deprecated and has no effect; use 'go install std cmd' instead\n")
+	}
+
+	// Set GOPATH to an internal directory. We shouldn't actually
+	// need to store files here, since the toolchain won't
+	// depend on modules outside of vendor directories, but if
+	// GOPATH points somewhere else (e.g., to GOROOT), the
+	// go tool may complain.
+	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
+
+	// Disable GOEXPERIMENT when building toolchain1 and
+	// go_bootstrap. We don't need any experiments for the
+	// bootstrap toolchain, and this lets us avoid duplicating the
+	// GOEXPERIMENT-related build logic from cmd/go here. If the
+	// bootstrap toolchain is < Go 1.17, it will ignore this
+	// anyway since GOEXPERIMENT is baked in; otherwise it will
+	// pick it up from the environment we set here. Once we're
+	// using toolchain1 with dist as the build system, we need to
+	// override this to keep the experiments assumed by the
+	// toolchain and by dist consistent. Once go_bootstrap takes
+	// over the build process, we'll set this back to the original
+	// GOEXPERIMENT.
+	os.Setenv("GOEXPERIMENT", "none")
 
 	if debug {
 		// cmd/buildid is used in debug mode.
@@ -1205,7 +1329,7 @@ func cmdbootstrap() {
 	}
 
 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
-	goldflags = os.Getenv("GO_LDFLAGS")
+	goldflags = os.Getenv("GO_LDFLAGS") // we were using $BOOT_GO_LDFLAGS until now
 	goBootstrap := pathf("%s/go_bootstrap", tooldir)
 	cmdGo := pathf("%s/go", gobin)
 	if debug {
@@ -1235,6 +1359,8 @@ func cmdbootstrap() {
 	}
 	xprintf("Building Go toolchain2 using go_bootstrap and Go toolchain1.\n")
 	os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
+	// Now that cmd/go is in charge of the build process, enable GOEXPERIMENT.
+	os.Setenv("GOEXPERIMENT", goexperiment)
 	goInstall(goBootstrap, append([]string{"-i"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
@@ -1302,9 +1428,14 @@ func cmdbootstrap() {
 		os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 	}
-	goInstall(goBootstrap, "std", "cmd")
-	checkNotStale(goBootstrap, "std", "cmd")
-	checkNotStale(cmdGo, "std", "cmd")
+	targets := []string{"std", "cmd"}
+	if goos == "js" && goarch == "wasm" {
+		// Skip the cmd tools for js/wasm. They're not usable.
+		targets = targets[:1]
+	}
+	goInstall(goBootstrap, targets...)
+	checkNotStale(goBootstrap, targets...)
+	checkNotStale(cmdGo, targets...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
@@ -1329,28 +1460,64 @@ func cmdbootstrap() {
 	// Remove go_bootstrap now that we're done.
 	xremove(pathf("%s/go_bootstrap", tooldir))
 
+	if goos == "android" {
+		// Make sure the exec wrapper will sync a fresh $GOROOT to the device.
+		xremove(pathf("%s/go_android_exec-adb-sync-status", os.TempDir()))
+	}
+
+	if wrapperPath := wrapperPathFor(goos, goarch); wrapperPath != "" {
+		oldcc := os.Getenv("CC")
+		os.Setenv("GOOS", gohostos)
+		os.Setenv("GOARCH", gohostarch)
+		os.Setenv("CC", compilerEnvLookup(defaultcc, gohostos, gohostarch))
+		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gobin, goos, goarch, exe), wrapperPath)
+		// Restore environment.
+		// TODO(elias.naur): support environment variables in goCmd?
+		os.Setenv("GOOS", goos)
+		os.Setenv("GOARCH", goarch)
+		os.Setenv("CC", oldcc)
+	}
+
 	// Print trailing banner unless instructed otherwise.
 	if !noBanner {
 		banner()
 	}
 }
 
+func wrapperPathFor(goos, goarch string) string {
+	switch {
+	case goos == "android":
+		if gohostos != "android" {
+			return pathf("%s/misc/android/go_android_exec.go", goroot)
+		}
+	case goos == "ios":
+		if gohostos != "ios" {
+			return pathf("%s/misc/ios/go_ios_exec.go", goroot)
+		}
+	}
+	return ""
+}
+
 func goInstall(goBinary string, args ...string) {
-	installCmd := []string{goBinary, "install", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
+	goCmd(goBinary, "install", args...)
+}
+
+func goCmd(goBinary string, cmd string, args ...string) {
+	goCmd := []string{goBinary, cmd, "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
 	if vflag > 0 {
-		installCmd = append(installCmd, "-v")
+		goCmd = append(goCmd, "-v")
 	}
 
 	// Force only one process at a time on vx32 emulation.
 	if gohostos == "plan9" && os.Getenv("sysname") == "vx32" {
-		installCmd = append(installCmd, "-p=1")
+		goCmd = append(goCmd, "-p=1")
 	}
 
-	run(goroot, ShowOutput|CheckExit, append(installCmd, args...)...)
+	run(workdir, ShowOutput|CheckExit, append(goCmd, args...)...)
 }
 
 func checkNotStale(goBinary string, targets ...string) {
-	out := run(goroot, CheckExit,
+	out := run(workdir, CheckExit,
 		append([]string{
 			goBinary,
 			"list", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags,
@@ -1360,11 +1527,11 @@ func checkNotStale(goBinary string, targets ...string) {
 		os.Setenv("GODEBUG", "gocachehash=1")
 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
 			if strings.Contains(out, "STALE "+target) {
-				run(goroot, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
+				run(workdir, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
 				break
 			}
 		}
-		fatalf("unexpected stale targets reported by %s list -gcflags=\"%s\" -ldflags=\"%s\" for %v:\n%s", goBinary, gogcflags, goldflags, targets, out)
+		fatalf("unexpected stale targets reported by %s list -gcflags=\"%s\" -ldflags=\"%s\" for %v (consider rerunning with GOMAXPROCS=1 GODEBUG=gocachehash=1):\n%s", goBinary, gogcflags, goldflags, targets, out)
 	}
 }
 
@@ -1376,14 +1543,15 @@ func checkNotStale(goBinary string, targets ...string) {
 // single point of truth for supported platforms. This list is used
 // by 'go tool dist list'.
 var cgoEnabled = map[string]bool{
-	"darwin/386":      true,
+	"aix/ppc64":       true,
 	"darwin/amd64":    true,
-	"darwin/arm":      true,
 	"darwin/arm64":    true,
 	"dragonfly/amd64": true,
 	"freebsd/386":     true,
 	"freebsd/amd64":   true,
-	"freebsd/arm":     false,
+	"freebsd/arm":     true,
+	"freebsd/arm64":   true,
+	"illumos/amd64":   true,
 	"linux/386":       true,
 	"linux/amd64":     true,
 	"linux/arm":       true,
@@ -1396,26 +1564,49 @@ var cgoEnabled = map[string]bool{
 	"linux/mips64le":  true,
 	"linux/riscv64":   true,
 	"linux/s390x":     true,
+	"linux/sparc64":   true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,
 	"android/arm64":   true,
+	"ios/arm64":       true,
+	"ios/amd64":       true,
 	"js/wasm":         false,
-	"nacl/386":        false,
-	"nacl/amd64p32":   false,
-	"nacl/arm":        false,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,
 	"netbsd/arm":      true,
+	"netbsd/arm64":    true,
 	"openbsd/386":     true,
 	"openbsd/amd64":   true,
-	"openbsd/arm":     false,
+	"openbsd/arm":     true,
+	"openbsd/arm64":   true,
+	"openbsd/mips64":  true,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
 	"solaris/amd64":   true,
 	"windows/386":     true,
 	"windows/amd64":   true,
+	"windows/arm":     false,
+	"windows/arm64":   true,
+}
+
+// List of platforms which are supported but not complete yet. These get
+// filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
+var incomplete = map[string]bool{
+	"linux/sparc64": true,
+}
+
+// List of platforms which are first class ports. See golang.org/issue/38874.
+var firstClass = map[string]bool{
+	"darwin/amd64":  true,
+	"darwin/arm64":  true,
+	"linux/386":     true,
+	"linux/amd64":   true,
+	"linux/arm":     true,
+	"linux/arm64":   true,
+	"windows/386":   true,
+	"windows/amd64": true,
 }
 
 func needCC() bool {
@@ -1536,6 +1727,9 @@ func cmdlist() {
 
 	var plats []string
 	for p := range cgoEnabled {
+		if incomplete[p] {
+			continue
+		}
 		plats = append(plats, p)
 	}
 	sort.Strings(plats)
@@ -1551,6 +1745,7 @@ func cmdlist() {
 		GOOS         string
 		GOARCH       string
 		CgoSupported bool
+		FirstClass   bool
 	}
 	var results []jsonResult
 	for _, p := range plats {
@@ -1558,7 +1753,8 @@ func cmdlist() {
 		results = append(results, jsonResult{
 			GOOS:         fields[0],
 			GOARCH:       fields[1],
-			CgoSupported: cgoEnabled[p]})
+			CgoSupported: cgoEnabled[p],
+			FirstClass:   firstClass[p]})
 	}
 	out, err := json.MarshalIndent(results, "", "\t")
 	if err != nil {
@@ -1567,4 +1763,27 @@ func cmdlist() {
 	if _, err := os.Stdout.Write(out); err != nil {
 		fatalf("write failed: %v", err)
 	}
+}
+
+// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
+// belongs to the collection of "runtime-related" packages, including
+// "runtime" itself, "reflect", "syscall", and the
+// "runtime/internal/*" packages.
+//
+// Keep in sync with cmd/internal/objabi/path.go:IsRuntimePackagePath.
+func IsRuntimePackagePath(pkgpath string) bool {
+	rval := false
+	switch pkgpath {
+	case "runtime":
+		rval = true
+	case "reflect":
+		rval = true
+	case "syscall":
+		rval = true
+	case "internal/bytealg":
+		rval = true
+	default:
+		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+	}
+	return rval
 }

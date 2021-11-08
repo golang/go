@@ -19,7 +19,7 @@ func h() (_ int, _ error) {
 }
 
 func i() (int, error) {
-	return // ERROR "not enough arguments to return"
+	return // ERROR "not enough arguments to return|wrong number of return values"
 }
 
 func f1() (_ int, err error) {

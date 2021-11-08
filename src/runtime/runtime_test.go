@@ -70,6 +70,18 @@ func BenchmarkEfaceCmpDiff(b *testing.B) {
 	}
 }
 
+func BenchmarkEfaceCmpDiffIndirect(b *testing.B) {
+	efaceCmp1 = [2]int{1, 2}
+	efaceCmp2 = [2]int{1, 2}
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 100; j++ {
+			if efaceCmp1 != efaceCmp2 {
+				b.Fatal("bad comparison")
+			}
+		}
+	}
+}
+
 func BenchmarkDefer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		defer1()
@@ -108,6 +120,21 @@ func BenchmarkDeferMany(b *testing.B) {
 			}
 		}(1, 2, 3)
 	}
+}
+
+func BenchmarkPanicRecover(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		defer3()
+	}
+}
+
+func defer3() {
+	defer func(x, y, z int) {
+		if recover() == nil {
+			panic("failed recover")
+		}
+	}(1, 2, 3)
+	panic("hi")
 }
 
 // golang.org/issue/7063
@@ -165,10 +192,11 @@ func TestSetPanicOnFault(t *testing.T) {
 	}
 }
 
+// testSetPanicOnFault tests one potentially faulting address.
+// It deliberately constructs and uses an invalid pointer,
+// so mark it as nocheckptr.
+//go:nocheckptr
 func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
-	if GOOS == "nacl" {
-		t.Skip("nacl doesn't seem to fault on high addresses")
-	}
 	if GOOS == "js" {
 		t.Skip("js does not support catching faults")
 	}
@@ -238,8 +266,8 @@ func TestTrailingZero(t *testing.T) {
 		n int64
 		z struct{}
 	}
-	if unsafe.Sizeof(T2{}) != 8+unsafe.Sizeof(Uintreg(0)) {
-		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), 8+unsafe.Sizeof(Uintreg(0)))
+	if unsafe.Sizeof(T2{}) != 8+unsafe.Sizeof(uintptr(0)) {
+		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), 8+unsafe.Sizeof(uintptr(0)))
 	}
 	type T3 struct {
 		n byte
@@ -263,32 +291,6 @@ func TestTrailingZero(t *testing.T) {
 	}
 	if unsafe.Sizeof(T5{}) != 0 {
 		t.Errorf("sizeof(%#v)==%d, want 0", T5{}, unsafe.Sizeof(T5{}))
-	}
-}
-
-func TestBadOpen(t *testing.T) {
-	if GOOS == "windows" || GOOS == "nacl" || GOOS == "js" {
-		t.Skip("skipping OS that doesn't have open/read/write/close")
-	}
-	// make sure we get the correct error code if open fails. Same for
-	// read/write/close on the resulting -1 fd. See issue 10052.
-	nonfile := []byte("/notreallyafile")
-	fd := Open(&nonfile[0], 0, 0)
-	if fd != -1 {
-		t.Errorf("open(\"%s\")=%d, want -1", string(nonfile), fd)
-	}
-	var buf [32]byte
-	r := Read(-1, unsafe.Pointer(&buf[0]), int32(len(buf)))
-	if r != -1 {
-		t.Errorf("read()=%d, want -1", r)
-	}
-	w := Write(^uintptr(0), unsafe.Pointer(&buf[0]), int32(len(buf)))
-	if w != -1 {
-		t.Errorf("write()=%d, want -1", w)
-	}
-	c := Close(-1)
-	if c != -1 {
-		t.Errorf("close()=%d, want -1", c)
 	}
 }
 

@@ -5,98 +5,71 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·Equal(SB),NOSPLIT,$0-49
-	MOVD	a_len+8(FP), R1
-	MOVD	b_len+32(FP), R3
-	CMP	R1, R3
-	// unequal lengths are not equal
-	BNE	not_equal
-	// short path to handle 0-byte case
-	CBZ	R1, equal
-	MOVD	a_base+0(FP), R0
-	MOVD	b_base+24(FP), R2
-	MOVD	$ret+48(FP), R8
-	B	memeqbody<>(SB)
-equal:
-	MOVD	$1, R0
-	MOVB	R0, ret+48(FP)
-	RET
-not_equal:
-	MOVB	ZR, ret+48(FP)
-	RET
-
-TEXT bytes·Equal(SB),NOSPLIT,$0-49
-	MOVD	a_len+8(FP), R1
-	MOVD	b_len+32(FP), R3
-	CMP	R1, R3
-	// unequal lengths are not equal
-	BNE	not_equal
-	// short path to handle 0-byte case
-	CBZ	R1, equal
-	MOVD	a_base+0(FP), R0
-	MOVD	b_base+24(FP), R2
-	MOVD	$ret+48(FP), R8
-	B	memeqbody<>(SB)
-equal:
-	MOVD	$1, R0
-	MOVB	R0, ret+48(FP)
-	RET
-not_equal:
-	MOVB	ZR, ret+48(FP)
-	RET
-
 // memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
-	MOVD	size+16(FP), R1
+TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+#ifndef GOEXPERIMENT_regabiargs
+	MOVD	size+16(FP), R2
+#endif
 	// short path to handle 0-byte case
-	CBZ	R1, equal
+	CBZ	R2, equal
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	a+0(FP), R0
-	MOVD	b+8(FP), R2
+	MOVD	b+8(FP), R1
 	MOVD	$ret+24(FP), R8
+#endif
 	B	memeqbody<>(SB)
 equal:
 	MOVD	$1, R0
+#ifndef GOEXPERIMENT_regabiargs
 	MOVB	R0, ret+24(FP)
+#endif
 	RET
 
 // memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
-	MOVD	a+0(FP), R3
-	MOVD	b+8(FP), R4
-	CMP	R3, R4
+TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT,$0-17
+#ifndef GOEXPERIMENT_regabiargs
+	MOVD	a+0(FP), R0
+	MOVD	b+8(FP), R1
+#endif
+	CMP	R0, R1
 	BEQ	eq
-	MOVD	8(R26), R5    // compiler stores size at offset 8 in the closure
-	MOVD	R3, 8(RSP)
-	MOVD	R4, 16(RSP)
-	MOVD	R5, 24(RSP)
-	BL	runtime·memequal(SB)
-	MOVBU	32(RSP), R3
-	MOVB	R3, ret+16(FP)
-	RET
+	MOVD	8(R26), R2    // compiler stores size at offset 8 in the closure
+	CBZ	R2, eq
+#ifndef GOEXPERIMENT_regabiargs
+	MOVD	$ret+16(FP), R8
+#endif
+	B	memeqbody<>(SB)
 eq:
-	MOVD	$1, R3
-	MOVB	R3, ret+16(FP)
+	MOVD	$1, R0
+#ifndef GOEXPERIMENT_regabiargs
+	MOVB	R0, ret+16(FP)
+#endif
 	RET
 
 // input:
 // R0: pointer a
-// R1: data len
-// R2: pointer b
+// R1: pointer b
+// R2: data len
+#ifdef GOEXPERIMENT_regabiargs
+// at return: result in R0
+#else
 // R8: address to put result
+#endif
+
 TEXT memeqbody<>(SB),NOSPLIT,$0
-	CMP	$1, R1
+	CMP	$1, R2
 	// handle 1-byte special case for better performance
 	BEQ	one
-	CMP	$16, R1
+	CMP	$16, R2
 	// handle specially if length < 16
 	BLO	tail
-	BIC	$0x3f, R1, R3
+	BIC	$0x3f, R2, R3
 	CBZ	R3, chunk16
 	// work with 64-byte chunks
 	ADD	R3, R0, R6	// end of chunks
 chunk64_loop:
 	VLD1.P	(R0), [V0.D2, V1.D2, V2.D2, V3.D2]
-	VLD1.P	(R2), [V4.D2, V5.D2, V6.D2, V7.D2]
+	VLD1.P	(R1), [V4.D2, V5.D2, V6.D2, V7.D2]
 	VCMEQ	V0.D2, V4.D2, V8.D2
 	VCMEQ	V1.D2, V5.D2, V9.D2
 	VCMEQ	V2.D2, V6.D2, V10.D2
@@ -110,55 +83,72 @@ chunk64_loop:
 	CBZ	R4, not_equal
 	CBZ	R5, not_equal
 	BNE	chunk64_loop
-	AND	$0x3f, R1, R1
-	CBZ	R1, equal
+	AND	$0x3f, R2, R2
+	CBZ	R2, equal
 chunk16:
 	// work with 16-byte chunks
-	BIC	$0xf, R1, R3
+	BIC	$0xf, R2, R3
 	CBZ	R3, tail
 	ADD	R3, R0, R6	// end of chunks
 chunk16_loop:
-	VLD1.P	(R0), [V0.D2]
-	VLD1.P	(R2), [V1.D2]
-	VCMEQ	V0.D2, V1.D2, V2.D2
+	LDP.P	16(R0), (R4, R5)
+	LDP.P	16(R1), (R7, R9)
+	EOR	R4, R7
+	CBNZ	R7, not_equal
+	EOR	R5, R9
+	CBNZ	R9, not_equal
 	CMP	R0, R6
-	VMOV	V2.D[0], R4
-	VMOV	V2.D[1], R5
-	CBZ	R4, not_equal
-	CBZ	R5, not_equal
 	BNE	chunk16_loop
-	AND	$0xf, R1, R1
-	CBZ	R1, equal
+	AND	$0xf, R2, R2
+	CBZ	R2, equal
 tail:
 	// special compare of tail with length < 16
-	TBZ	$3, R1, lt_8
-	MOVD.P	8(R0), R4
-	MOVD.P	8(R2), R5
-	CMP	R4, R5
-	BNE	not_equal
+	TBZ	$3, R2, lt_8
+	MOVD	(R0), R4
+	MOVD	(R1), R5
+	EOR	R4, R5
+	CBNZ	R5, not_equal
+	SUB	$8, R2, R6	// offset of the last 8 bytes
+	MOVD	(R0)(R6), R4
+	MOVD	(R1)(R6), R5
+	EOR	R4, R5
+	CBNZ	R5, not_equal
+	B	equal
 lt_8:
-	TBZ	$2, R1, lt_4
-	MOVWU.P	4(R0), R4
-	MOVWU.P	4(R2), R5
-	CMP	R4, R5
-	BNE	not_equal
+	TBZ	$2, R2, lt_4
+	MOVWU	(R0), R4
+	MOVWU	(R1), R5
+	EOR	R4, R5
+	CBNZ	R5, not_equal
+	SUB	$4, R2, R6	// offset of the last 4 bytes
+	MOVWU	(R0)(R6), R4
+	MOVWU	(R1)(R6), R5
+	EOR	R4, R5
+	CBNZ	R5, not_equal
+	B	equal
 lt_4:
-	TBZ	$1, R1, lt_2
+	TBZ	$1, R2, lt_2
 	MOVHU.P	2(R0), R4
-	MOVHU.P	2(R2), R5
+	MOVHU.P	2(R1), R5
 	CMP	R4, R5
 	BNE	not_equal
 lt_2:
-	TBZ     $0, R1, equal
+	TBZ	$0, R2, equal
 one:
 	MOVBU	(R0), R4
-	MOVBU	(R2), R5
+	MOVBU	(R1), R5
 	CMP	R4, R5
 	BNE	not_equal
 equal:
 	MOVD	$1, R0
+#ifndef GOEXPERIMENT_regabiargs
 	MOVB	R0, (R8)
+#endif
 	RET
 not_equal:
+#ifdef GOEXPERIMENT_regabiargs
+	MOVB	ZR, R0
+#else
 	MOVB	ZR, (R8)
+#endif
 	RET

@@ -31,7 +31,7 @@ type Call struct {
 	Args          interface{} // The argument to the function (*struct).
 	Reply         interface{} // The reply from the function (*struct).
 	Error         error       // After completion, the error status.
-	Done          chan *Call  // Strobes when call is complete.
+	Done          chan *Call  // Receives *Call when Go is complete.
 }
 
 // Client represents an RPC Client.
@@ -59,8 +59,8 @@ type Client struct {
 // connection. ReadResponseBody may be called with a nil
 // argument to force the body of the response to be read and then
 // discarded.
+// See NewClient's comment for information about concurrent access.
 type ClientCodec interface {
-	// WriteRequest must be safe for concurrent use by multiple goroutines.
 	WriteRequest(*Request, interface{}) error
 	ReadResponseHeader(*Response) error
 	ReadResponseBody(interface{}) error
@@ -185,6 +185,11 @@ func (call *Call) done() {
 // set of services at the other end of the connection.
 // It adds a buffer to the write side of the connection so
 // the header and payload are sent as a unit.
+//
+// The read and write halves of the connection are serialized independently,
+// so no interlocking is required. However each half may be accessed
+// concurrently so the implementation of conn should protect against
+// concurrent reads or concurrent writes.
 func NewClient(conn io.ReadWriteCloser) *Client {
 	encBuf := bufio.NewWriter(conn)
 	client := &gobClientCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(encBuf), encBuf}
@@ -240,7 +245,6 @@ func DialHTTP(network, address string) (*Client, error) {
 // DialHTTPPath connects to an HTTP RPC server
 // at the specified network address and path.
 func DialHTTPPath(network, address, path string) (*Client, error) {
-	var err error
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err

@@ -577,18 +577,32 @@ func TestRaceChanItselfCap(t *testing.T) {
 	<-compl
 }
 
-func TestRaceChanCloseLen(t *testing.T) {
-	v := 0
-	_ = v
+func TestNoRaceChanCloseLen(t *testing.T) {
 	c := make(chan int, 10)
-	c <- 0
+	r := make(chan int, 10)
 	go func() {
-		v = 1
-		close(c)
+		r <- len(c)
 	}()
-	time.Sleep(1e7)
-	_ = len(c)
-	v = 2
+	go func() {
+		close(c)
+		r <- 0
+	}()
+	<-r
+	<-r
+}
+
+func TestNoRaceChanCloseCap(t *testing.T) {
+	c := make(chan int, 10)
+	r := make(chan int, 10)
+	go func() {
+		r <- cap(c)
+	}()
+	go func() {
+		close(c)
+		r <- 0
+	}()
+	<-r
+	<-r
 }
 
 func TestRaceChanCloseSend(t *testing.T) {
@@ -722,4 +736,52 @@ func TestNoRaceBlockedSelectSendSync(t *testing.T) {
 		}
 	case <-make(chan int):
 	}
+}
+
+// Test that close synchronizes with a read from the empty closed channel.
+// See https://golang.org/issue/36714.
+func TestNoRaceCloseHappensBeforeRead(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		var loc int
+		var write = make(chan struct{})
+		var read = make(chan struct{})
+
+		go func() {
+			select {
+			case <-write:
+				_ = loc
+			default:
+			}
+			close(read)
+		}()
+
+		go func() {
+			loc = 1
+			close(write)
+		}()
+
+		<-read
+	}
+}
+
+// Test that we call the proper race detector function when c.elemsize==0.
+// See https://github.com/golang/go/issues/42598
+func TestNoRaceElemetSize0(t *testing.T) {
+	var x, y int
+	var c = make(chan struct{}, 2)
+	c <- struct{}{}
+	c <- struct{}{}
+	go func() {
+		x += 1
+		<-c
+	}()
+	go func() {
+		y += 1
+		<-c
+	}()
+	time.Sleep(10 * time.Millisecond)
+	c <- struct{}{}
+	c <- struct{}{}
+	x += 1
+	y += 1
 }

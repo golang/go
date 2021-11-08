@@ -10,6 +10,6 @@
 package main
 
 func main() {
-	true = false // ERROR "cannot assign to true"
-	byte = 0     // ERROR "not an expression"
+	true = false // ERROR "cannot assign to true|invalid left hand side"
+	byte = 0     // ERROR "not an expression|invalid left hand side|invalid use of type"
 }

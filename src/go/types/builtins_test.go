@@ -71,6 +71,25 @@ var builtinCalls = []struct {
 	{"make", `_ = make([]int, 10)`, `func([]int, int) []int`},
 	{"make", `type T []byte; _ = make(T, 10, 20)`, `func(p.T, int, int) p.T`},
 
+	// issue #37349
+	{"make", `              _ = make([]int, 0   )`, `func([]int, int) []int`},
+	{"make", `var l    int; _ = make([]int, l   )`, `func([]int, int) []int`},
+	{"make", `              _ = make([]int, 0, 0)`, `func([]int, int, int) []int`},
+	{"make", `var l    int; _ = make([]int, l, 0)`, `func([]int, int, int) []int`},
+	{"make", `var    c int; _ = make([]int, 0, c)`, `func([]int, int, int) []int`},
+	{"make", `var l, c int; _ = make([]int, l, c)`, `func([]int, int, int) []int`},
+
+	// issue #37393
+	{"make", `                _ = make([]int       , 0   )`, `func([]int, int) []int`},
+	{"make", `var l    byte ; _ = make([]int8      , l   )`, `func([]int8, byte) []int8`},
+	{"make", `                _ = make([]int16     , 0, 0)`, `func([]int16, int, int) []int16`},
+	{"make", `var l    int16; _ = make([]string    , l, 0)`, `func([]string, int16, int) []string`},
+	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
+	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
+
+	// issue #45667
+	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
+
 	{"new", `_ = new(int)`, `func(int) *int`},
 	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
 
@@ -88,14 +107,24 @@ var builtinCalls = []struct {
 	{"recover", `recover()`, `func() interface{}`},
 	{"recover", `_ = recover()`, `func() interface{}`},
 
+	{"Add", `var p unsafe.Pointer; _ = unsafe.Add(p, -1.0)`, `func(unsafe.Pointer, int) unsafe.Pointer`},
+	{"Add", `var p unsafe.Pointer; var n uintptr; _ = unsafe.Add(p, n)`, `func(unsafe.Pointer, uintptr) unsafe.Pointer`},
+	{"Add", `_ = unsafe.Add(nil, 0)`, `func(unsafe.Pointer, int) unsafe.Pointer`},
+
 	{"Alignof", `_ = unsafe.Alignof(0)`, `invalid type`},                 // constant
 	{"Alignof", `var x struct{}; _ = unsafe.Alignof(x)`, `invalid type`}, // constant
+	{"Alignof", `var x P; _ = unsafe.Alignof(x)`, `func(P) uintptr`},
 
 	{"Offsetof", `var x struct{f bool}; _ = unsafe.Offsetof(x.f)`, `invalid type`},           // constant
 	{"Offsetof", `var x struct{_ int; f bool}; _ = unsafe.Offsetof((&x).f)`, `invalid type`}, // constant
+	{"Offsetof", `var x struct{_ int; f P}; _ = unsafe.Offsetof((&x).f)`, `func(P) uintptr`},
 
 	{"Sizeof", `_ = unsafe.Sizeof(0)`, `invalid type`},                 // constant
 	{"Sizeof", `var x struct{}; _ = unsafe.Sizeof(x)`, `invalid type`}, // constant
+	{"Sizeof", `var x P; _ = unsafe.Sizeof(x)`, `func(P) uintptr`},
+
+	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
+	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
 
 	{"assert", `assert(true)`, `invalid type`},                                    // constant
 	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant
@@ -125,8 +154,10 @@ func TestBuiltinSignatures(t *testing.T) {
 	}
 }
 
+// parseGenericSrc in types2 is not necessary. We can just parse in testBuiltinSignature below.
+
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
-	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _() { %s }`, src0)
+	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P any]() { %s }`, src0)
 	f, err := parser.ParseFile(fset, "", src, 0)
 	if err != nil {
 		t.Errorf("%s: %s", src0, err)

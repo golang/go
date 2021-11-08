@@ -6,7 +6,12 @@
 
 package p
 
-func f() {
-	if true || 0 = 1 /* ERROR assignment .* used as value */ {
+func _() {
+	if true || 0 /* ERROR cannot use assignment .* as value */ = 1 {
+	}
+}
+
+func _(a, b string) {
+	if a == "a" && b /* ERROR cannot use assignment .* as value */ = "b" {
 	}
 }

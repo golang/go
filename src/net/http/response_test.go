@@ -10,9 +10,8 @@ import (
 	"compress/gzip"
 	"crypto/rand"
 	"fmt"
-	"go/ast"
+	"go/token"
 	"io"
-	"io/ioutil"
 	"net/http/internal"
 	"net/url"
 	"reflect"
@@ -155,6 +154,34 @@ var respTests = []respTest{
 		},
 
 		"Body here\ncontinued",
+	},
+
+	// Trailer header but no TransferEncoding
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Trailer: Content-MD5, Content-Sources\r\n" +
+			"Content-Length: 10\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Connection":     {"close"},
+				"Content-Length": {"10"},
+				"Trailer":        []string{"Content-MD5, Content-Sources"},
+			},
+			Close:         true,
+			ContentLength: 10,
+		},
+
+		"Body here\n",
 	},
 
 	// Chunked response with Content-Length.
@@ -592,7 +619,7 @@ func TestWriteResponse(t *testing.T) {
 			t.Errorf("#%d: %v", i, err)
 			continue
 		}
-		err = resp.Write(ioutil.Discard)
+		err = resp.Write(io.Discard)
 		if err != nil {
 			t.Errorf("#%d: %v", i, err)
 			continue
@@ -606,6 +633,11 @@ var readResponseCloseInMiddleTests = []struct {
 	{false, false},
 	{true, false},
 	{true, true},
+}
+
+type readerAndCloser struct {
+	io.Reader
+	io.Closer
 }
 
 // TestReadResponseCloseInMiddle tests that closing a body after
@@ -689,7 +721,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		}
 		resp.Body.Close()
 
-		rest, err := ioutil.ReadAll(bufr)
+		rest, err := io.ReadAll(bufr)
 		checkErr(err, "ReadAll on remainder")
 		if e, g := "Next Request Here", string(rest); e != g {
 			g = regexp.MustCompile(`(xx+)`).ReplaceAllStringFunc(g, func(match string) string {
@@ -701,6 +733,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 }
 
 func diff(t *testing.T, prefix string, have, want interface{}) {
+	t.Helper()
 	hv := reflect.ValueOf(have).Elem()
 	wv := reflect.ValueOf(want).Elem()
 	if hv.Type() != wv.Type() {
@@ -708,7 +741,7 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
 	}
 	for i := 0; i < hv.NumField(); i++ {
 		name := hv.Type().Field(i).Name
-		if !ast.IsExported(name) {
+		if !token.IsExported(name) {
 			continue
 		}
 		hf := hv.Field(i).Interface()

@@ -72,7 +72,7 @@ func run(dir string, mode int, cmd ...string) string {
 	}
 
 	xcmd := exec.Command(cmd[0], cmd[1:]...)
-	xcmd.Dir = dir
+	setDir(xcmd, dir)
 	var data []byte
 	var err error
 
@@ -249,6 +249,7 @@ func writefile(text, file string, flag int) {
 	if flag&writeExec != 0 {
 		mode = 0777
 	}
+	xremove(file) // in case of symlink tricks by misc/reboot test
 	err := ioutil.WriteFile(file, new, mode)
 	if err != nil {
 		fatalf("%v", err)
@@ -383,23 +384,18 @@ func xsamefile(f1, f2 string) bool {
 }
 
 func xgetgoarm() string {
-	if goos == "nacl" {
-		// NaCl guarantees VFPv3 and is always cross-compiled.
-		return "7"
-	}
-	if goos == "darwin" || goos == "android" {
-		// Assume all darwin/arm and android devices have VFPv3.
+	if goos == "android" {
+		// Assume all android devices have VFPv3.
 		// These ports are also mostly cross-compiled, so it makes little
 		// sense to auto-detect the setting.
 		return "7"
 	}
+	if goos == "windows" {
+		// windows/arm only works with ARMv7 executables.
+		return "7"
+	}
 	if gohostarch != "arm" || goos != gohostos {
 		// Conservative default for cross-compilation.
-		return "5"
-	}
-	if goos == "freebsd" || goos == "openbsd" {
-		// FreeBSD has broken VFP support.
-		// OpenBSD currently only supports softfloat.
 		return "5"
 	}
 

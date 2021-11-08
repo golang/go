@@ -51,6 +51,10 @@ var expandTests = []struct {
 	{"A$$$#$1$H$home_1*B", "APIDNARGSARGUMENT1(Value of H)/usr/foo*B"},
 	{"start$+middle$^end$", "start$+middle$^end$"},
 	{"mixed$|bag$$$", "mixed$|bagPID$"},
+	{"$", "$"},
+	{"$}", "$}"},
+	{"${", ""},  // invalid syntax; eat up the characters
+	{"${}", ""}, // invalid syntax; eat up the characters
 }
 
 func TestExpand(t *testing.T) {

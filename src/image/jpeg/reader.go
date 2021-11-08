@@ -14,9 +14,6 @@ import (
 	"io"
 )
 
-// TODO(nigeltao): fix up the doc comment style so that sentences start with
-// the name of the type or function that they annotate.
-
 // A FormatError reports that the input is not a valid JPEG.
 type FormatError string
 
@@ -89,7 +86,8 @@ var unzig = [blockSize]int{
 	53, 60, 61, 54, 47, 55, 62, 63,
 }
 
-// Deprecated: Reader is deprecated.
+// Deprecated: Reader is not used by the image/jpeg package and should
+// not be used by others. It is kept for compatibility.
 type Reader interface {
 	io.ByteReader
 	io.Reader

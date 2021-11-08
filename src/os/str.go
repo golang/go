@@ -6,28 +6,34 @@
 
 package os
 
-// Convert integer to decimal string
-func itoa(val int) string {
+// itox converts val (an int) to a hexdecimal string.
+func itox(val int) string {
 	if val < 0 {
-		return "-" + uitoa(uint(-val))
+		return "-" + uitox(uint(-val))
 	}
-	return uitoa(uint(val))
+	return uitox(uint(val))
 }
 
-// Convert unsigned integer to decimal string
-func uitoa(val uint) string {
+const hex = "0123456789abcdef"
+
+// uitox converts val (a uint) to a hexdecimal string.
+func uitox(val uint) string {
 	if val == 0 { // avoid string allocation
-		return "0"
+		return "0x0"
 	}
-	var buf [20]byte // big enough for 64bit value base 10
+	var buf [20]byte // big enough for 64bit value base 16 + 0x
 	i := len(buf) - 1
-	for val >= 10 {
-		q := val / 10
-		buf[i] = byte('0' + val - q*10)
+	for val >= 16 {
+		q := val / 16
+		buf[i] = hex[val%16]
 		i--
 		val = q
 	}
-	// val < 10
-	buf[i] = byte('0' + val)
+	// val < 16
+	buf[i] = hex[val%16]
+	i--
+	buf[i] = 'x'
+	i--
+	buf[i] = '0'
 	return string(buf[i:])
 }

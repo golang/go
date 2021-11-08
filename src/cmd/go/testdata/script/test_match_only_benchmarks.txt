@@ -1,0 +1,13 @@
+# Matches only benchmarks
+go test -run '^$' -bench . standalone_benchmark_test.go
+! stdout '^ok.*\[no tests to run\]'
+! stderr '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+-- standalone_benchmark_test.go --
+package standalone_benchmark
+
+import "testing"
+
+func Benchmark(b *testing.B) {
+}

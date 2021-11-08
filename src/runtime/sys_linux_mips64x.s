@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build mips64 mips64le
+//go:build linux && (mips64 || mips64le)
 
 //
 // System calls and other sys.stuff for mips64, Linux
@@ -21,7 +20,7 @@
 #define SYS_close		5003
 #define SYS_getpid		5038
 #define SYS_kill		5060
-#define SYS_fcntl		5080
+#define SYS_fcntl		5070
 #define SYS_mmap		5009
 #define SYS_munmap		5011
 #define SYS_setitimer		5036
@@ -35,17 +34,21 @@
 #define SYS_madvise		5027
 #define SYS_mincore		5026
 #define SYS_gettid		5178
-#define SYS_tkill		5192
 #define SYS_futex		5194
 #define SYS_sched_getaffinity	5196
 #define SYS_exit_group		5205
 #define SYS_epoll_create	5207
 #define SYS_epoll_ctl		5208
+#define SYS_timer_create	5216
+#define SYS_timer_settime	5217
+#define SYS_timer_delete	5220
+#define SYS_tgkill		5225
 #define SYS_openat		5247
 #define SYS_epoll_pwait		5272
 #define SYS_clock_gettime	5222
 #define SYS_epoll_create1	5285
 #define SYS_brk			5012
+#define SYS_pipe2		5287
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R4
@@ -88,14 +91,14 @@ TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
 	MOVW	R2, ret+8(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0-28
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
 	MOVV	fd+0(FP), R4
 	MOVV	p+8(FP), R5
 	MOVW	n+16(FP), R6
 	MOVV	$SYS_write, R2
 	SYSCALL
 	BEQ	R7, 2(PC)
-	MOVW	$-1, R2
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 
@@ -106,8 +109,30 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVV	$SYS_read, R2
 	SYSCALL
 	BEQ	R7, 2(PC)
-	MOVW	$-1, R2
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
+	RET
+
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+	MOVV	$r+0(FP), R4
+	MOVV	R0, R5
+	MOVV	$SYS_pipe2, R2
+	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
+	MOVW	R2, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+	MOVV	$r+8(FP), R4
+	MOVW	flags+0(FP), R5
+	MOVV	$SYS_pipe2, R2
+	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
+	MOVW	R2, errno+16(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$16-4
@@ -137,11 +162,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	MOVV	$SYS_getpid, R2
+	SYSCALL
+	MOVW	R2, R16
 	MOVV	$SYS_gettid, R2
 	SYSCALL
-	MOVW	R2, R4	// arg 1 tid
-	MOVW	sig+0(FP), R5	// arg 2
-	MOVV	$SYS_tkill, R2
+	MOVW	R2, R5	// arg 2 tid
+	MOVW	R16, R4	// arg 1 pid
+	MOVW	sig+0(FP), R6	// arg 3
+	MOVV	$SYS_tgkill, R2
 	SYSCALL
 	RET
 
@@ -154,12 +183,52 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	SYSCALL
 	RET
 
+TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
+	MOVV	$SYS_getpid, R2
+	SYSCALL
+	MOVV	R2, ret+0(FP)
+	RET
+
+TEXT ·tgkill(SB),NOSPLIT|NOFRAME,$0-24
+	MOVV	tgid+0(FP), R4
+	MOVV	tid+8(FP), R5
+	MOVV	sig+16(FP), R6
+	MOVV	$SYS_tgkill, R2
+	SYSCALL
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	MOVW	mode+0(FP), R4
 	MOVV	new+8(FP), R5
 	MOVV	old+16(FP), R6
 	MOVV	$SYS_setitimer, R2
 	SYSCALL
+	RET
+
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVW	clockid+0(FP), R4
+	MOVV	sevp+8(FP), R5
+	MOVV	timerid+16(FP), R6
+	MOVV	$SYS_timer_create, R2
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVW	timerid+0(FP), R4
+	MOVW	flags+4(FP), R5
+	MOVV	new+8(FP), R6
+	MOVV	old+16(FP), R7
+	MOVV	$SYS_timer_settime, R2
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVW	timerid+0(FP), R4
+	MOVV	$SYS_timer_delete, R2
+	SYSCALL
+	MOVW	R2, ret+8(FP)
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
@@ -173,24 +242,135 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	RET
 
 // func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$16
+TEXT runtime·walltime(SB),NOSPLIT,$16-12
+	MOVV	R29, R16	// R16 is unchanged by C code
+	MOVV	R29, R1
+
+	MOVV	g_m(g), R17	// R17 = m
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVV	m_vdsoPC(R17), R2
+	MOVV	m_vdsoSP(R17), R3
+	MOVV	R2, 8(R29)
+	MOVV	R3, 16(R29)
+
+	MOVV	$ret-8(FP), R2 // caller's SP
+	MOVV	R31, m_vdsoPC(R17)
+	MOVV	R2, m_vdsoSP(R17)
+
+	MOVV	m_curg(R17), R4
+	MOVV	g, R5
+	BNE	R4, R5, noswitch
+
+	MOVV	m_g0(R17), R4
+	MOVV	(g_sched+gobuf_sp)(R4), R1	// Set SP to g0 stack
+
+noswitch:
+	SUBV	$16, R1
+	AND	$~15, R1	// Align for C code
+	MOVV	R1, R29
+
 	MOVW	$0, R4 // CLOCK_REALTIME
 	MOVV	$0(R29), R5
-	MOVV	$SYS_clock_gettime, R2
-	SYSCALL
+
+	MOVV	runtime·vdsoClockgettimeSym(SB), R25
+	BEQ	R25, fallback
+
+	JAL	(R25)
+	// check on vdso call return for kernel compatibility
+	// see https://golang.org/issues/39046
+	// if we get any error make fallback permanent.
+	BEQ	R2, R0, finish
+	MOVV	R0, runtime·vdsoClockgettimeSym(SB)
+	MOVW	$0, R4 // CLOCK_REALTIME
+	MOVV	$0(R29), R5
+	JMP	fallback
+
+finish:
 	MOVV	0(R29), R3	// sec
 	MOVV	8(R29), R5	// nsec
+
+	MOVV	R16, R29	// restore SP
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVV	16(R29), R1
+	MOVV	R1, m_vdsoSP(R17)
+	MOVV	8(R29), R1
+	MOVV	R1, m_vdsoPC(R17)
+
 	MOVV	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$16
-	MOVW	$1, R4 // CLOCK_MONOTONIC
-	MOVV	$0(R29), R5
+fallback:
 	MOVV	$SYS_clock_gettime, R2
 	SYSCALL
+	JMP finish
+
+TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+	MOVV	R29, R16	// R16 is unchanged by C code
+	MOVV	R29, R1
+
+	MOVV	g_m(g), R17	// R17 = m
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVV	m_vdsoPC(R17), R2
+	MOVV	m_vdsoSP(R17), R3
+	MOVV	R2, 8(R29)
+	MOVV	R3, 16(R29)
+
+	MOVV	$ret-8(FP), R2 // caller's SP
+	MOVV	R31, m_vdsoPC(R17)
+	MOVV	R2, m_vdsoSP(R17)
+
+	MOVV	m_curg(R17), R4
+	MOVV	g, R5
+	BNE	R4, R5, noswitch
+
+	MOVV	m_g0(R17), R4
+	MOVV	(g_sched+gobuf_sp)(R4), R1	// Set SP to g0 stack
+
+noswitch:
+	SUBV	$16, R1
+	AND	$~15, R1	// Align for C code
+	MOVV	R1, R29
+
+	MOVW	$1, R4 // CLOCK_MONOTONIC
+	MOVV	$0(R29), R5
+
+	MOVV	runtime·vdsoClockgettimeSym(SB), R25
+	BEQ	R25, fallback
+
+	JAL	(R25)
+	// see walltime for detail
+	BEQ	R2, R0, finish
+	MOVV	R0, runtime·vdsoClockgettimeSym(SB)
+	MOVW	$1, R4 // CLOCK_MONOTONIC
+	MOVV	$0(R29), R5
+	JMP	fallback
+
+finish:
 	MOVV	0(R29), R3	// sec
 	MOVV	8(R29), R5	// nsec
+
+	MOVV	R16, R29	// restore SP
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVV	16(R29), R1
+	MOVV	R1, m_vdsoSP(R17)
+	MOVV	8(R29), R1
+	MOVV	R1, m_vdsoPC(R17)
+
 	// sec is in R3, nsec in R5
 	// return nsec in R3
 	MOVV	$1000000000, R4
@@ -199,6 +379,11 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	ADDVU	R5, R3
 	MOVV	R3, ret+0(FP)
 	RET
+
+fallback:
+	MOVV	$SYS_clock_gettime, R2
+	SYSCALL
+	JMP	finish
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), R4
@@ -218,6 +403,8 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
 	MOVV	size+24(FP), R7
 	MOVV	$SYS_rt_sigaction, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+32(FP)
 	RET
 
@@ -285,7 +472,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+16(FP), R6
 	MOVV	$SYS_madvise, R2
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVW	R2, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
@@ -299,6 +486,8 @@ TEXT runtime·futex(SB),NOSPLIT|NOFRAME,$0
 	MOVW	val3+32(FP), R9
 	MOVV	$SYS_futex, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+40(FP)
 	RET
 
@@ -321,6 +510,8 @@ TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
 
 	MOVV	$SYS_clone, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 
 	// In parent, return.
 	BEQ	R2, 3(PC)
@@ -383,6 +574,8 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVV	buf+16(FP), R6
 	MOVV	$SYS_sched_getaffinity, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 
@@ -391,6 +584,8 @@ TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
 	MOVW    size+0(FP), R4
 	MOVV	$SYS_epoll_create, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+8(FP)
 	RET
 
@@ -399,6 +594,8 @@ TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+0(FP), R4
 	MOVV	$SYS_epoll_create1, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+8(FP)
 	RET
 
@@ -424,6 +621,8 @@ TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
 	MOVV	$0, R8
 	MOVV	$SYS_epoll_pwait, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 
@@ -436,6 +635,21 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	SYSCALL
 	RET
 
+// func runtime·setNonblock(int32 fd)
+TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+	MOVW	fd+0(FP), R4 // fd
+	MOVV	$3, R5	// F_GETFL
+	MOVV	$0, R6
+	MOVV	$SYS_fcntl, R2
+	SYSCALL
+	MOVW	$0x80, R6 // O_NONBLOCK
+	OR	R2, R6
+	MOVW	fd+0(FP), R4 // fd
+	MOVV	$4, R5	// F_SETFL
+	MOVV	$SYS_fcntl, R2
+	SYSCALL
+	RET
+
 // func sbrk0() uintptr
 TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
 	// Implemented as brk(NULL).
@@ -443,4 +657,19 @@ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
 	MOVV	$SYS_brk, R2
 	SYSCALL
 	MOVV	R2, ret+0(FP)
+	RET
+
+TEXT runtime·access(SB),$0-20
+	MOVV	R0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+16(FP) // for vet
+	RET
+
+TEXT runtime·connect(SB),$0-28
+	MOVV	R0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+24(FP) // for vet
+	RET
+
+TEXT runtime·socket(SB),$0-20
+	MOVV	R0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+16(FP) // for vet
 	RET

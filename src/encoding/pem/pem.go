@@ -50,14 +50,22 @@ func getLine(data []byte) (line, rest []byte) {
 	return bytes.TrimRight(data[0:i], " \t"), data[j:]
 }
 
-// removeWhitespace returns a copy of its input with all spaces, tab and
-// newline characters removed.
-func removeWhitespace(data []byte) []byte {
+// removeSpacesAndTabs returns a copy of its input with all spaces and tabs
+// removed, if there were any. Otherwise, the input is returned unchanged.
+//
+// The base64 decoder already skips newline characters, so we don't need to
+// filter them out here.
+func removeSpacesAndTabs(data []byte) []byte {
+	if !bytes.ContainsAny(data, " \t") {
+		// Fast path; most base64 data within PEM contains newlines, but
+		// no spaces nor tabs. Skip the extra alloc and work.
+		return data
+	}
 	result := make([]byte, len(data))
 	n := 0
 
 	for _, b := range data {
-		if b == ' ' || b == '\t' || b == '\r' || b == '\n' {
+		if b == ' ' || b == '\t' {
 			continue
 		}
 		result[n] = b
@@ -70,6 +78,7 @@ func removeWhitespace(data []byte) []byte {
 var pemStart = []byte("\n-----BEGIN ")
 var pemEnd = []byte("\n-----END ")
 var pemEndOfLine = []byte("-----")
+var colon = []byte(":")
 
 // Decode will find the next PEM formatted block (certificate, private key
 // etc) in the input. It returns that block and the remainder of the input. If
@@ -81,8 +90,8 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	rest = data
 	if bytes.HasPrefix(data, pemStart[1:]) {
 		rest = rest[len(pemStart)-1 : len(data)]
-	} else if i := bytes.Index(data, pemStart); i >= 0 {
-		rest = rest[i+len(pemStart) : len(data)]
+	} else if _, after, ok := bytes.Cut(data, pemStart); ok {
+		rest = after
 	} else {
 		return nil, data
 	}
@@ -106,13 +115,12 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		}
 		line, next := getLine(rest)
 
-		i := bytes.IndexByte(line, ':')
-		if i == -1 {
+		key, val, ok := bytes.Cut(line, colon)
+		if !ok {
 			break
 		}
 
 		// TODO(agl): need to cope with values that spread across lines.
-		key, val := line[:i], line[i+1:]
 		key = bytes.TrimSpace(key)
 		val = bytes.TrimSpace(val)
 		p.Headers[string(key)] = string(val)
@@ -155,7 +163,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		return decodeError(data, rest)
 	}
 
-	base64Data := removeWhitespace(rest[:endIndex])
+	base64Data := removeSpacesAndTabs(rest[:endIndex])
 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
 	if err != nil {

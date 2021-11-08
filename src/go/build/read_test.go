@@ -5,6 +5,8 @@
 package build
 
 import (
+	"fmt"
+	"go/token"
 	"io"
 	"strings"
 	"testing"
@@ -13,12 +15,12 @@ import (
 const quote = "`"
 
 type readTest struct {
-	// Test input contains ℙ where readImports should stop.
+	// Test input contains ℙ where readGoInfo should stop.
 	in  string
 	err string
 }
 
-var readImportsTests = []readTest{
+var readGoInfoTests = []readTest{
 	{
 		`package p`,
 		"",
@@ -37,15 +39,15 @@ var readImportsTests = []readTest{
 	},
 	{
 		`package p
-		
+
 		// comment
-		
+
 		import "x"
 		import _ "x"
 		import a "x"
-		
+
 		/* comment */
-		
+
 		import (
 			"x" /* comment */
 			_ "x"
@@ -59,9 +61,13 @@ var readImportsTests = []readTest{
 		import ()
 		import()import()import()
 		import();import();import()
-		
+
 		ℙvar x = 1
 		`,
+		"",
+	},
+	{
+		"\ufeff𝔻" + `package p; import "x";ℙvar x = 1`,
 		"",
 	},
 }
@@ -80,12 +86,29 @@ var readCommentsTests = []readTest{
 		"",
 	},
 	{
+		"\ufeff𝔻" + `ℙpackage p; import . "x"`,
+		"",
+	},
+	{
 		`// foo
 
 		/* bar */
 
 		/* quux */ // baz
-		
+
+		/*/ zot */
+
+		// asdf
+		ℙHello, world`,
+		"",
+	},
+	{
+		"\ufeff𝔻" + `// foo
+
+		/* bar */
+
+		/* quux */ // baz
+
 		/*/ zot */
 
 		// asdf
@@ -96,29 +119,26 @@ var readCommentsTests = []readTest{
 
 func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, error)) {
 	for i, tt := range tests {
-		var in, testOut string
-		j := strings.Index(tt.in, "ℙ")
-		if j < 0 {
-			in = tt.in
-			testOut = tt.in
-		} else {
-			in = tt.in[:j] + tt.in[j+len("ℙ"):]
-			testOut = tt.in[:j]
+		beforeP, afterP, _ := strings.Cut(tt.in, "ℙ")
+		in := beforeP + afterP
+		testOut := beforeP
+
+		if beforeD, afterD, ok := strings.Cut(beforeP, "𝔻"); ok {
+			in = beforeD + afterD + afterP
+			testOut = afterD
 		}
+
 		r := strings.NewReader(in)
 		buf, err := read(r)
 		if err != nil {
 			if tt.err == "" {
 				t.Errorf("#%d: err=%q, expected success (%q)", i, err, string(buf))
-				continue
-			}
-			if !strings.Contains(err.Error(), tt.err) {
+			} else if !strings.Contains(err.Error(), tt.err) {
 				t.Errorf("#%d: err=%q, expected %q", i, err, tt.err)
-				continue
 			}
 			continue
 		}
-		if err == nil && tt.err != "" {
+		if tt.err != "" {
 			t.Errorf("#%d: success, expected %q", i, tt.err)
 			continue
 		}
@@ -130,8 +150,12 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
 	}
 }
 
-func TestReadImports(t *testing.T) {
-	testRead(t, readImportsTests, func(r io.Reader) ([]byte, error) { return readImports(r, true, nil) })
+func TestReadGoInfo(t *testing.T) {
+	testRead(t, readGoInfoTests, func(r io.Reader) ([]byte, error) {
+		var info fileInfo
+		err := readGoInfo(r, &info)
+		return info.header, err
+	})
 }
 
 func TestReadComments(t *testing.T) {
@@ -205,11 +229,6 @@ var readFailuresTests = []readTest{
 	},
 }
 
-func TestReadFailures(t *testing.T) {
-	// Errors should be reported (true arg to readImports).
-	testRead(t, readFailuresTests, func(r io.Reader) ([]byte, error) { return readImports(r, true, nil) })
-}
-
 func TestReadFailuresIgnored(t *testing.T) {
 	// Syntax errors should not be reported (false arg to readImports).
 	// Instead, entire file should be the output and no error.
@@ -222,5 +241,112 @@ func TestReadFailuresIgnored(t *testing.T) {
 			tt.err = ""
 		}
 	}
-	testRead(t, tests, func(r io.Reader) ([]byte, error) { return readImports(r, false, nil) })
+	testRead(t, tests, func(r io.Reader) ([]byte, error) {
+		var info fileInfo
+		err := readGoInfo(r, &info)
+		return info.header, err
+	})
+}
+
+var readEmbedTests = []struct {
+	in, out string
+}{
+	{
+		"package p\n",
+		"",
+	},
+	{
+		"package p\nimport \"embed\"\nvar i int\n//go:embed x y z\nvar files embed.FS",
+		`test:4:12:x
+		 test:4:14:y
+		 test:4:16:z`,
+	},
+	{
+		"package p\nimport \"embed\"\nvar i int\n//go:embed x \"\\x79\" `z`\nvar files embed.FS",
+		`test:4:12:x
+		 test:4:14:y
+		 test:4:21:z`,
+	},
+	{
+		"package p\nimport \"embed\"\nvar i int\n//go:embed x y\n//go:embed z\nvar files embed.FS",
+		`test:4:12:x
+		 test:4:14:y
+		 test:5:12:z`,
+	},
+	{
+		"package p\nimport \"embed\"\nvar i int\n\t //go:embed x y\n\t //go:embed z\n\t var files embed.FS",
+		`test:4:14:x
+		 test:4:16:y
+		 test:5:14:z`,
+	},
+	{
+		"package p\nimport \"embed\"\n//go:embed x y z\nvar files embed.FS",
+		`test:3:12:x
+		 test:3:14:y
+		 test:3:16:z`,
+	},
+	{
+		"\ufeffpackage p\nimport \"embed\"\n//go:embed x y z\nvar files embed.FS",
+		`test:3:12:x
+		 test:3:14:y
+		 test:3:16:z`,
+	},
+	{
+		"package p\nimport \"embed\"\nvar s = \"/*\"\n//go:embed x\nvar files embed.FS",
+		`test:4:12:x`,
+	},
+	{
+		`package p
+		 import "embed"
+		 var s = "\"\\\\"
+		 //go:embed x
+		 var files embed.FS`,
+		`test:4:15:x`,
+	},
+	{
+		"package p\nimport \"embed\"\nvar s = `/*`\n//go:embed x\nvar files embed.FS",
+		`test:4:12:x`,
+	},
+	{
+		"package p\nimport \"embed\"\nvar s = z/ *y\n//go:embed pointer\nvar pointer embed.FS",
+		"test:4:12:pointer",
+	},
+	{
+		"package p\n//go:embed x y z\n", // no import, no scan
+		"",
+	},
+	{
+		"package p\n//go:embed x y z\nvar files embed.FS", // no import, no scan
+		"",
+	},
+	{
+		"\ufeffpackage p\n//go:embed x y z\nvar files embed.FS", // no import, no scan
+		"",
+	},
+}
+
+func TestReadEmbed(t *testing.T) {
+	fset := token.NewFileSet()
+	for i, tt := range readEmbedTests {
+		info := fileInfo{
+			name: "test",
+			fset: fset,
+		}
+		err := readGoInfo(strings.NewReader(tt.in), &info)
+		if err != nil {
+			t.Errorf("#%d: %v", i, err)
+			continue
+		}
+		b := &strings.Builder{}
+		sep := ""
+		for _, emb := range info.embeds {
+			fmt.Fprintf(b, "%s%v:%s", sep, emb.pos, emb.pattern)
+			sep = "\n"
+		}
+		got := b.String()
+		want := strings.Join(strings.Fields(tt.out), "\n")
+		if got != want {
+			t.Errorf("#%d: embeds:\n%s\nwant:\n%s", i, got, want)
+		}
+	}
 }

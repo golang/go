@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-// An version of bytes.Buffer without ReadFrom and WriteTo
+// A version of bytes.Buffer without ReadFrom and WriteTo
 type Buffer struct {
 	bytes.Buffer
 	ReaderFrom // conflicts with and hides bytes.Buffer's ReaderFrom.
@@ -285,6 +285,9 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
 	if err != nil {
 		t.Error(err)
 	}
+	if n != 2 {
+		t.Errorf("expected to have read 2 bytes, got %v", n)
+	}
 	n, err = ReadAtLeast(rb, buf, 4)
 	if err != ErrShortBuffer {
 		t.Errorf("expected ErrShortBuffer got %v", err)
@@ -424,5 +427,47 @@ func TestSectionReader_Size(t *testing.T) {
 		if got := sr.Size(); got != tt.want {
 			t.Errorf("Size = %v; want %v", got, tt.want)
 		}
+	}
+}
+
+func TestSectionReader_Max(t *testing.T) {
+	r := strings.NewReader("abcdef")
+	const maxint64 = 1<<63 - 1
+	sr := NewSectionReader(r, 3, maxint64)
+	n, err := sr.Read(make([]byte, 3))
+	if n != 3 || err != nil {
+		t.Errorf("Read = %v %v, want 3, nil", n, err)
+	}
+	n, err = sr.Read(make([]byte, 3))
+	if n != 0 || err != EOF {
+		t.Errorf("Read = %v, %v, want 0, EOF", n, err)
+	}
+}
+
+// largeWriter returns an invalid count that is larger than the number
+// of bytes provided (issue 39978).
+type largeWriter struct {
+	err error
+}
+
+func (w largeWriter) Write(p []byte) (int, error) {
+	return len(p) + 1, w.err
+}
+
+func TestCopyLargeWriter(t *testing.T) {
+	want := ErrInvalidWrite
+	rb := new(Buffer)
+	wb := largeWriter{}
+	rb.WriteString("hello, world.")
+	if _, err := Copy(wb, rb); err != want {
+		t.Errorf("Copy error: got %v, want %v", err, want)
+	}
+
+	want = errors.New("largeWriterError")
+	rb = new(Buffer)
+	wb = largeWriter{err: want}
+	rb.WriteString("hello, world.")
+	if _, err := Copy(wb, rb); err != want {
+		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 }

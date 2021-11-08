@@ -12,7 +12,7 @@ import (
 	"go/ast"
 	"go/token"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,11 +35,11 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 				return s.Bytes(), nil
 			}
 		case io.Reader:
-			return ioutil.ReadAll(s)
+			return io.ReadAll(s)
 		}
 		return nil, errors.New("invalid source")
 	}
-	return ioutil.ReadFile(filename)
+	return os.ReadFile(filename)
 }
 
 // A Mode value is a set of flags (or 0).
@@ -49,13 +49,14 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 type Mode uint
 
 const (
-	PackageClauseOnly Mode             = 1 << iota // stop parsing after package clause
-	ImportsOnly                                    // stop parsing after import declarations
-	ParseComments                                  // parse comments and add them to AST
-	Trace                                          // print a trace of parsed productions
-	DeclarationErrors                              // report declaration errors
-	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
-	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
+	PackageClauseOnly    Mode             = 1 << iota // stop parsing after package clause
+	ImportsOnly                                       // stop parsing after import declarations
+	ParseComments                                     // parse comments and add them to AST
+	Trace                                             // print a trace of parsed productions
+	DeclarationErrors                                 // report declaration errors
+	SpuriousErrors                                    // same as AllErrors, for backward-compatibility
+	SkipObjectResolution                              // don't resolve identifiers to objects - see ParseFile
+	AllErrors            = SpuriousErrors             // report all errors (not just the first 10 on different lines)
 )
 
 // ParseFile parses the source code of a single Go source file and returns
@@ -68,14 +69,18 @@ const (
 // If src == nil, ParseFile parses the file specified by filename.
 //
 // The mode parameter controls the amount of source text parsed and other
-// optional parser functionality. Position information is recorded in the
-// file set fset, which must not be nil.
+// optional parser functionality. If the SkipObjectResolution mode bit is set,
+// the object resolution phase of parsing will be skipped, causing File.Scope,
+// File.Unresolved, and all Ident.Obj fields to be nil.
+//
+// Position information is recorded in the file set fset, which must not be
+// nil.
 //
 // If the source couldn't be read, the returned AST is nil and the error
 // indicates the specific failure. If the source was read but syntax
 // errors were found, the result is a partial AST (with ast.Bad* nodes
 // representing the fragments of erroneous source code). Multiple errors
-// are returned via a scanner.ErrorList which is sorted by file position.
+// are returned via a scanner.ErrorList which is sorted by source position.
 //
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode) (f *ast.File, err error) {
 	if fset == nil {
@@ -123,7 +128,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 // directory specified by path and returns a map of package name -> package
 // AST with all the packages found.
 //
-// If filter != nil, only the files with os.FileInfo entries passing through
+// If filter != nil, only the files with fs.FileInfo entries passing through
 // the filter (and ending in ".go") are considered. The mode bits are passed
 // to ParseFile unchanged. Position information is recorded in fset, which
 // must not be nil.
@@ -132,36 +137,40 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 // returned. If a parse error occurred, a non-nil but incomplete map and the
 // first error encountered are returned.
 //
-func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
-	fd, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer fd.Close()
-
-	list, err := fd.Readdir(-1)
+func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
+	list, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
 	pkgs = make(map[string]*ast.Package)
 	for _, d := range list {
-		if strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
-			filename := filepath.Join(path, d.Name())
-			if src, err := ParseFile(fset, filename, nil, mode); err == nil {
-				name := src.Name.Name
-				pkg, found := pkgs[name]
-				if !found {
-					pkg = &ast.Package{
-						Name:  name,
-						Files: make(map[string]*ast.File),
-					}
-					pkgs[name] = pkg
-				}
-				pkg.Files[filename] = src
-			} else if first == nil {
-				first = err
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
+			continue
+		}
+		if filter != nil {
+			info, err := d.Info()
+			if err != nil {
+				return nil, err
 			}
+			if !filter(info) {
+				continue
+			}
+		}
+		filename := filepath.Join(path, d.Name())
+		if src, err := ParseFile(fset, filename, nil, mode); err == nil {
+			name := src.Name.Name
+			pkg, found := pkgs[name]
+			if !found {
+				pkg = &ast.Package{
+					Name:  name,
+					Files: make(map[string]*ast.File),
+				}
+				pkgs[name] = pkg
+			}
+			pkg.Files[filename] = src
+		} else if first == nil {
+			first = err
 		}
 	}
 
@@ -173,7 +182,13 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 // be a valid Go (type or value) expression. Specifically, fset must not
 // be nil.
 //
-func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode Mode) (ast.Expr, error) {
+// If the source couldn't be read, the returned AST is nil and the error
+// indicates the specific failure. If the source was read but syntax
+// errors were found, the result is a partial AST (with ast.Bad* nodes
+// representing the fragments of erroneous source code). Multiple errors
+// are returned via a scanner.ErrorList which is sorted by source position.
+//
+func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode Mode) (expr ast.Expr, err error) {
 	if fset == nil {
 		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
 	}
@@ -198,15 +213,7 @@ func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode M
 
 	// parse expr
 	p.init(fset, filename, text, mode)
-	// Set up pkg-level scopes to avoid nil-pointer errors.
-	// This is not needed for a correct expression x as the
-	// parser will be ok with a nil topScope, but be cautious
-	// in case of an erroneous x.
-	p.openScope()
-	p.pkgScope = p.topScope
-	e := p.parseRhsOrType()
-	p.closeScope()
-	assert(p.topScope == nil, "unbalanced scopes")
+	expr = p.parseRhsOrType()
 
 	// If a semicolon was inserted, consume it;
 	// report an error if there's more tokens.
@@ -215,17 +222,16 @@ func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode M
 	}
 	p.expect(token.EOF)
 
-	if p.errors.Len() > 0 {
-		p.errors.Sort()
-		return nil, p.errors.Err()
-	}
-
-	return e, nil
+	return
 }
 
 // ParseExpr is a convenience function for obtaining the AST of an expression x.
 // The position information recorded in the AST is undefined. The filename used
 // in error messages is the empty string.
+//
+// If syntax errors were found, the result is a partial AST (with ast.Bad* nodes
+// representing the fragments of erroneous source code). Multiple errors are
+// returned via a scanner.ErrorList which is sorted by source position.
 //
 func ParseExpr(x string) (ast.Expr, error) {
 	return ParseExprFrom(token.NewFileSet(), "", []byte(x), 0)

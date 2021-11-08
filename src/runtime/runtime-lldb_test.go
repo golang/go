@@ -6,11 +6,9 @@ package runtime_test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -83,12 +81,8 @@ target = debugger.CreateTargetWithFileAndArch("a.exe", None)
 if target:
   print "Created target"
   main_bp = target.BreakpointCreateByLocation("main.go", 10)
-  if main_bp.GetNumLocations() != 0:
+  if main_bp:
     print "Created breakpoint"
-  else:
-    # This happens if lldb can't read the program's DWARF. See https://golang.org/issue/25925.
-    print "SKIP: no matching locations for breakpoint"
-    exit(1)
   process = target.LaunchSimple(None, None, os.getcwd())
   if process:
     print "Process launched"
@@ -103,7 +97,7 @@ if target:
         if state in [lldb.eStateUnloaded, lldb.eStateLaunching, lldb.eStateRunning]:
           continue
       else:
-        print "SKIP: Timeout launching"
+        print "Timeout launching"
       break
     if state == lldb.eStateStopped:
       for t in process.threads:
@@ -144,30 +138,36 @@ func TestLldbPython(t *testing.T) {
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
 	}
+	testenv.SkipFlaky(t, 31188)
 
 	checkLldbPython(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(lldbHelloSource), 0644)
+	err := os.WriteFile(src, []byte(lldbHelloSource), 0644)
 	if err != nil {
-		t.Fatalf("failed to create file: %v", err)
+		t.Fatalf("failed to create src file: %v", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
+	mod := filepath.Join(dir, "go.mod")
+	err = os.WriteFile(mod, []byte("module lldbtest"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create mod file: %v", err)
+	}
+
+	// As of 2018-07-17, lldb doesn't support compressed DWARF, so
+	// disable it for this test.
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-ldflags=-compressdwarf=false", "-o", "a.exe")
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOPATH=") // issue 31100
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("building source %v\n%s", err, out)
 	}
 
 	src = filepath.Join(dir, "script.py")
-	err = ioutil.WriteFile(src, []byte(lldbScriptSource), 0755)
+	err = os.WriteFile(src, []byte(lldbScriptSource), 0755)
 	if err != nil {
 		t.Fatalf("failed to create script: %v", err)
 	}
@@ -177,9 +177,8 @@ func TestLldbPython(t *testing.T) {
 	got, _ := cmd.CombinedOutput()
 
 	if string(got) != expectedLldbOutput {
-		skipReason := regexp.MustCompile("SKIP: .*\n").Find(got)
-		if skipReason != nil {
-			t.Skip(string(skipReason))
+		if strings.Contains(string(got), "Timeout launching") {
+			t.Skip("Timeout launching")
 		}
 		t.Fatalf("Unexpected lldb output:\n%s", got)
 	}

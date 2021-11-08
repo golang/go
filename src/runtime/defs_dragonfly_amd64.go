@@ -10,6 +10,10 @@ const (
 	_EFAULT = 0xe
 	_EBUSY  = 0x10
 	_EAGAIN = 0x23
+	_ENOSYS = 0x4e
+
+	_O_NONBLOCK = 0x4
+	_O_CLOEXEC  = 0x20000
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -174,8 +178,10 @@ type timespec struct {
 	tv_nsec int64
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = x
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = ns / 1e9
+	ts.tv_nsec = ns % 1e9
 }
 
 type timeval struct {

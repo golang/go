@@ -9,12 +9,11 @@ package main
 import (
 	"bufio"
 	"fmt"
+	exec "internal/execabs"
 	"internal/trace"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -294,7 +293,7 @@ func serveSVGProfile(prof func(w io.Writer, r *http.Request) error) http.Handler
 			return
 		}
 
-		blockf, err := ioutil.TempFile("", "block")
+		blockf, err := os.CreateTemp("", "block")
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to create temp file: %v", err), http.StatusInternalServerError)
 			return
@@ -358,7 +357,7 @@ func buildProfile(prof map[uint64]Record) *profile.Profile {
 					ID:      uint64(len(p.Location) + 1),
 					Address: frame.PC,
 					Line: []profile.Line{
-						profile.Line{
+						{
 							Function: fn,
 							Line:     int64(frame.Line),
 						},

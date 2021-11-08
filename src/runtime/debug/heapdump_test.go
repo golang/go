@@ -5,7 +5,6 @@
 package debug_test
 
 import (
-	"io/ioutil"
 	"os"
 	"runtime"
 	. "runtime/debug"
@@ -13,10 +12,10 @@ import (
 )
 
 func TestWriteHeapDumpNonempty(t *testing.T) {
-	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+	if runtime.GOOS == "js" {
 		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
 	}
-	f, err := ioutil.TempFile("", "heapdumptest")
+	f, err := os.CreateTemp("", "heapdumptest")
 	if err != nil {
 		t.Fatalf("TempFile failed: %v", err)
 	}
@@ -42,10 +41,10 @@ func objfin(x *Obj) {
 }
 
 func TestWriteHeapDumpFinalizers(t *testing.T) {
-	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+	if runtime.GOOS == "js" {
 		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
 	}
-	f, err := ioutil.TempFile("", "heapdumptest")
+	f, err := os.CreateTemp("", "heapdumptest")
 	if err != nil {
 		t.Fatalf("TempFile failed: %v", err)
 	}

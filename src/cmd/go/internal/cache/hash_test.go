@@ -6,7 +6,6 @@ package cache
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -28,7 +27,7 @@ func TestHash(t *testing.T) {
 }
 
 func TestHashFile(t *testing.T) {
-	f, err := ioutil.TempFile("", "cmd-go-test-")
+	f, err := os.CreateTemp("", "cmd-go-test-")
 	if err != nil {
 		t.Fatal(err)
 	}

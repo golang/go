@@ -8,9 +8,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"math"
 	"reflect"
-	"runtime"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -939,7 +940,7 @@ func encodeAndRecover(value interface{}) (encodeErr, panicErr error) {
 		}
 	}()
 
-	encodeErr = NewEncoder(ioutil.Discard).Encode(value)
+	encodeErr = NewEncoder(io.Discard).Encode(value)
 	return
 }
 
@@ -1129,23 +1130,138 @@ func TestBadData(t *testing.T) {
 	}
 }
 
-// TestHugeWriteFails tests that enormous messages trigger an error.
-func TestHugeWriteFails(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		t.Skip("out of memory on wasm")
+func TestDecodeErrorMultipleTypes(t *testing.T) {
+	type Test struct {
+		A string
+		B int
 	}
-	if testing.Short() {
-		// Requires allocating a monster, so don't do this from all.bash.
-		t.Skip("skipping huge allocation in short mode")
+	var b bytes.Buffer
+	NewEncoder(&b).Encode(Test{"one", 1})
+
+	var result, result2 Test
+	dec := NewDecoder(&b)
+	err := dec.Decode(&result)
+	if err != nil {
+		t.Errorf("decode: unexpected error %v", err)
 	}
-	huge := make([]byte, tooBig)
-	huge[0] = 7 // Make sure it's not all zeros.
-	buf := new(bytes.Buffer)
-	err := NewEncoder(buf).Encode(huge)
+
+	b.Reset()
+	NewEncoder(&b).Encode(Test{"two", 2})
+	err = dec.Decode(&result2)
 	if err == nil {
-		t.Fatalf("expected error for huge slice")
+		t.Errorf("decode: expected duplicate type error, got nil")
+	} else if !strings.Contains(err.Error(), "duplicate type") {
+		t.Errorf("decode: expected duplicate type error, got %s", err.Error())
 	}
-	if !strings.Contains(err.Error(), "message too big") {
-		t.Fatalf("expected 'too big' error; got %s\n", err.Error())
+}
+
+// Issue 24075
+func TestMarshalFloatMap(t *testing.T) {
+	nan1 := math.NaN()
+	nan2 := math.Float64frombits(math.Float64bits(nan1) ^ 1) // A different NaN in the same class.
+
+	in := map[float64]string{
+		nan1: "a",
+		nan1: "b",
+		nan2: "c",
+	}
+
+	var b bytes.Buffer
+	enc := NewEncoder(&b)
+	if err := enc.Encode(in); err != nil {
+		t.Errorf("Encode : %v", err)
+	}
+
+	out := map[float64]string{}
+	dec := NewDecoder(&b)
+	if err := dec.Decode(&out); err != nil {
+		t.Fatalf("Decode : %v", err)
+	}
+
+	type mapEntry struct {
+		keyBits uint64
+		value   string
+	}
+	readMap := func(m map[float64]string) (entries []mapEntry) {
+		for k, v := range m {
+			entries = append(entries, mapEntry{math.Float64bits(k), v})
+		}
+		sort.Slice(entries, func(i, j int) bool {
+			ei, ej := entries[i], entries[j]
+			if ei.keyBits != ej.keyBits {
+				return ei.keyBits < ej.keyBits
+			}
+			return ei.value < ej.value
+		})
+		return entries
+	}
+
+	got := readMap(out)
+	want := readMap(in)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("\nEncode: %v\nDecode: %v", want, got)
+	}
+}
+
+func TestDecodePartial(t *testing.T) {
+	type T struct {
+		X []int
+		Y string
+	}
+
+	var buf bytes.Buffer
+	t1 := T{X: []int{1, 2, 3}, Y: "foo"}
+	t2 := T{X: []int{4, 5, 6}, Y: "bar"}
+	enc := NewEncoder(&buf)
+
+	t1start := 0
+	if err := enc.Encode(&t1); err != nil {
+		t.Fatal(err)
+	}
+
+	t2start := buf.Len()
+	if err := enc.Encode(&t2); err != nil {
+		t.Fatal(err)
+	}
+
+	data := buf.Bytes()
+	for i := 0; i <= len(data); i++ {
+		bufr := bytes.NewReader(data[:i])
+
+		// Decode both values, stopping at the first error.
+		var t1b, t2b T
+		dec := NewDecoder(bufr)
+		var err error
+		err = dec.Decode(&t1b)
+		if err == nil {
+			err = dec.Decode(&t2b)
+		}
+
+		switch i {
+		case t1start, t2start:
+			// Either the first or the second Decode calls had zero input.
+			if err != io.EOF {
+				t.Errorf("%d/%d: expected io.EOF: %v", i, len(data), err)
+			}
+		case len(data):
+			// We reached the end of the entire input.
+			if err != nil {
+				t.Errorf("%d/%d: unexpected error: %v", i, len(data), err)
+			}
+			if !reflect.DeepEqual(t1b, t1) {
+				t.Fatalf("t1 value mismatch: got %v, want %v", t1b, t1)
+			}
+			if !reflect.DeepEqual(t2b, t2) {
+				t.Fatalf("t2 value mismatch: got %v, want %v", t2b, t2)
+			}
+		default:
+			// In between, we must see io.ErrUnexpectedEOF.
+			// The decoder used to erroneously return io.EOF in some cases here,
+			// such as if the input was cut off right after some type specs,
+			// but before any value was actually transmitted.
+			if err != io.ErrUnexpectedEOF {
+				t.Errorf("%d/%d: expected io.ErrUnexpectedEOF: %v", i, len(data), err)
+			}
+		}
 	}
 }

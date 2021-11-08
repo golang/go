@@ -22,7 +22,12 @@ package math
 //	Cbrt(±0) = ±0
 //	Cbrt(±Inf) = ±Inf
 //	Cbrt(NaN) = NaN
-func Cbrt(x float64) float64
+func Cbrt(x float64) float64 {
+	if haveArchCbrt {
+		return archCbrt(x)
+	}
+	return cbrt(x)
+}
 
 func cbrt(x float64) float64 {
 	const (

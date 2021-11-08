@@ -185,6 +185,7 @@ var parseTests = []parseTest{
 	{`(?-s).`, `dnl{}`},
 	{`(?:(?:^).)`, `cat{bol{}dot{}}`},
 	{`(?-s)(?:(?:^).)`, `cat{bol{}dnl{}}`},
+	{`[\s\S]a`, `cat{cc{0x0-0x10ffff}lit{a}}`},
 
 	// RE2 prefix_tests
 	{`abc|abd`, `cat{str{ab}cc{0x63-0x64}}`},

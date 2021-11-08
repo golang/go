@@ -24,9 +24,11 @@ import (
 // newTempFile returns a new output file in dir with the provided prefix and suffix.
 func newTempFile(dir, prefix, suffix string) (*os.File, error) {
 	for index := 1; index < 10000; index++ {
-		path := filepath.Join(dir, fmt.Sprintf("%s%03d%s", prefix, index, suffix))
-		if _, err := os.Stat(path); err != nil {
-			return os.Create(path)
+		switch f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("%s%03d%s", prefix, index, suffix)), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666); {
+		case err == nil:
+			return f, nil
+		case !os.IsExist(err):
+			return nil, err
 		}
 	}
 	// Give up
@@ -44,11 +46,15 @@ func deferDeleteTempFile(path string) {
 }
 
 // cleanupTempFiles removes any temporary files selected for deferred cleaning.
-func cleanupTempFiles() {
+func cleanupTempFiles() error {
 	tempFilesMu.Lock()
+	defer tempFilesMu.Unlock()
+	var lastErr error
 	for _, f := range tempFiles {
-		os.Remove(f)
+		if err := os.Remove(f); err != nil {
+			lastErr = err
+		}
 	}
 	tempFiles = nil
-	tempFilesMu.Unlock()
+	return lastErr
 }

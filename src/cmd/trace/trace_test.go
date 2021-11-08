@@ -2,17 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
+//go:build !js
 
 package main
 
 import (
+	"cmd/internal/traceviewer"
 	"context"
 	"internal/trace"
-	"io/ioutil"
+	"io"
 	rtrace "runtime/trace"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // stacks is a fake stack map populated for test.
@@ -75,8 +78,8 @@ func TestGoroutineCount(t *testing.T) {
 
 	// Use the default viewerDataTraceConsumer but replace
 	// consumeViewerEvent to intercept the ViewerEvents for testing.
-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
+	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
+	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
 		if ev.Name == "Goroutines" {
 			cnt := ev.Arg.(*goroutineCountersArg)
 			if cnt.Runnable+cnt.Running > 2 {
@@ -128,7 +131,7 @@ func TestGoroutineFilter(t *testing.T) {
 		gs:      map[uint64]bool{10: true},
 	}
 
-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
 	if err := generateTrace(params, c); err != nil {
 		t.Fatalf("generateTrace failed: %v", err)
 	}
@@ -160,10 +163,10 @@ func TestPreemptedMarkAssist(t *testing.T) {
 		endTime: int64(1<<63 - 1),
 	}
 
-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
 
 	marks := 0
-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
+	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
 		if strings.Contains(ev.Name, "MARK ASSIST") {
 			marks++
 		}
@@ -211,10 +214,10 @@ func TestFoo(t *testing.T) {
 		tasks:     []*taskDesc{task},
 	}
 
-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
 
 	var logBeforeTaskEnd, logAfterTaskEnd bool
-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
+	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
 		if ev.Name == "log before task ends" {
 			logBeforeTaskEnd = true
 		}
@@ -232,4 +235,35 @@ func TestFoo(t *testing.T) {
 		t.Error("failed to find 'log after task ends'")
 	}
 
+}
+
+func TestDirectSemaphoreHandoff(t *testing.T) {
+	prog0 := func() {
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+		mu.Lock()
+		// This is modeled after src/sync/mutex_test.go to trigger Mutex
+		// starvation mode, in which the goroutine that calls Unlock hands off
+		// both the semaphore and its remaining time slice. See issue 36186.
+		for i := 0; i < 2; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := 0; i < 100; i++ {
+					mu.Lock()
+					time.Sleep(100 * time.Microsecond)
+					mu.Unlock()
+				}
+			}()
+		}
+		mu.Unlock()
+		wg.Wait()
+	}
+	if err := traceProgram(t, prog0, "TestDirectSemaphoreHandoff"); err != nil {
+		t.Fatalf("failed to trace the program: %v", err)
+	}
+	_, err := parseTrace()
+	if err != nil {
+		t.Fatalf("failed to parse the trace: %v", err)
+	}
 }

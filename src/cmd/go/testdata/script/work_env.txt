@@ -1,0 +1,24 @@
+go env GOWORK
+stdout '^'$GOPATH'[\\/]src[\\/]go.work$'
+go env
+stdout '^(set )?GOWORK="?'$GOPATH'[\\/]src[\\/]go.work"?$'
+
+cd ..
+go env GOWORK
+! stdout .
+go env
+stdout 'GOWORK=("")?'
+
+cd src
+go env GOWORK
+stdout 'go.work'
+
+! go env -w GOWORK=off
+stderr '^go: GOWORK cannot be modified$'
+
+-- go.work --
+go 1.18
+
+directory a
+-- a/go.mod --
+module example.com/a

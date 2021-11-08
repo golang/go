@@ -61,6 +61,10 @@ const (
 //       string of length zero.
 //     - an anonymous struct field is handled as if the fields of its
 //       value were part of the outer struct.
+//     - a field implementing Marshaler is written by calling its MarshalXML
+//       method.
+//     - a field implementing encoding.TextMarshaler is written by encoding the
+//       result of its MarshalText method as text.
 //
 // If a field uses a tag "a>b>c", then the element c will be nested inside
 // parent elements a and b. Fields that appear next to each other that name
@@ -341,8 +345,11 @@ func (p *printer) createAttrPrefix(url string) string {
 	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
 		prefix = "_"
 	}
-	if strings.HasPrefix(prefix, "xml") {
-		// xmlanything is reserved.
+	// xmlanything is reserved and any variant of it regardless of
+	// case should be matched, so:
+	//    (('X'|'x') ('M'|'m') ('L'|'l'))
+	// See Section 2.3 of https://www.w3.org/TR/REC-xml/
+	if len(prefix) >= 3 && strings.EqualFold(prefix[:3], "xml") {
 		prefix = "_" + prefix
 	}
 	if p.attrNS[prefix] != "" {
@@ -413,7 +420,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	// Drill into interfaces and pointers.
 	// This can turn into an infinite loop given a cyclic chain,
 	// but it matches the Go 1 behavior.
-	for val.Kind() == reflect.Interface || val.Kind() == reflect.Ptr {
+	for val.Kind() == reflect.Interface || val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil
 		}
@@ -475,8 +482,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		xmlname := tinfo.xmlname
 		if xmlname.name != "" {
 			start.Name.Space, start.Name.Local = xmlname.xmlns, xmlname.name
-		} else if v, ok := xmlname.value(val).Interface().(Name); ok && v.Local != "" {
-			start.Name = v
+		} else {
+			fv := xmlname.value(val, dontInitNilPointers)
+			if v, ok := fv.Interface().(Name); ok && v.Local != "" {
+				start.Name = v
+			}
 		}
 	}
 	if start.Name.Local == "" && finfo != nil {
@@ -484,6 +494,10 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	}
 	if start.Name.Local == "" {
 		name := typ.Name()
+		if i := strings.IndexByte(name, '['); i >= 0 {
+			// Truncate generic instantiation name. See issue 48318.
+			name = name[:i]
+		}
 		if name == "" {
 			return &UnsupportedTypeError{typ}
 		}
@@ -496,7 +510,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		if finfo.flags&fAttr == 0 {
 			continue
 		}
-		fv := finfo.value(val)
+		fv := finfo.value(val, dontInitNilPointers)
 
 		if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
 			continue
@@ -589,7 +603,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 
 	// Dereference or skip nil pointer, interface values.
 	switch val.Kind() {
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Pointer, reflect.Interface:
 		if val.IsNil() {
 			return nil
 		}
@@ -783,7 +797,7 @@ var ddBytes = []byte("--")
 // This can turn into an infinite loop given a cyclic chain,
 // but it matches the Go 1 behavior.
 func indirect(vf reflect.Value) reflect.Value {
-	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Ptr {
+	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Pointer {
 		if vf.IsNil() {
 			return vf
 		}
@@ -799,7 +813,12 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		if finfo.flags&fAttr != 0 {
 			continue
 		}
-		vf := finfo.value(val)
+		vf := finfo.value(val, dontInitNilPointers)
+		if !vf.IsValid() {
+			// The field is behind an anonymous struct field that's
+			// nil. Skip it.
+			continue
+		}
 
 		switch finfo.flags & fMode {
 		case fCDATA, fCharData:
@@ -910,7 +929,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			p.WriteString("-->")
 			continue
 
-		case fInnerXml:
+		case fInnerXML:
 			vf = indirect(vf)
 			iface := vf.Interface()
 			switch raw := iface.(type) {
@@ -927,7 +946,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				return err
 			}
 			if len(finfo.parents) > len(s.stack) {
-				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
+				if vf.Kind() != reflect.Pointer && vf.Kind() != reflect.Interface || !vf.IsNil() {
 					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
 						return err
 					}
@@ -1036,7 +1055,7 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return v.IsNil()
 	}
 	return false

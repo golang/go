@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd !android,linux netbsd openbsd solaris
-// +build cgo,!osusergo
+//go:build (aix || darwin || dragonfly || freebsd || (!android && linux) || netbsd || openbsd || solaris) && cgo && !osusergo
 
 package user
 
@@ -94,9 +93,8 @@ func lookupUnixUid(uid int) (*User, error) {
 	defer buf.free()
 
 	err := retryWithBuffer(buf, func() syscall.Errno {
-		// mygetpwuid_r is a wrapper around getpwuid_r to
-		// to avoid using uid_t because C.uid_t(uid) for
-		// unknown reasons doesn't work on linux.
+		// mygetpwuid_r is a wrapper around getpwuid_r to avoid using uid_t
+		// because C.uid_t(uid) for unknown reasons doesn't work on linux.
 		return syscall.Errno(C.mygetpwuid_r(C.int(uid),
 			&pwd,
 			(*C.char)(buf.ptr),
@@ -124,14 +122,8 @@ func buildUser(pwd *C.struct_passwd) *User {
 	// say: "It is expected to be a comma separated list of
 	// personal data where the first item is the full name of the
 	// user."
-	if i := strings.Index(u.Name, ","); i >= 0 {
-		u.Name = u.Name[:i]
-	}
+	u.Name, _, _ = strings.Cut(u.Name, ",")
 	return u
-}
-
-func currentGroup() (*Group, error) {
-	return lookupUnixGid(syscall.Getgid())
 }
 
 func lookupGroup(groupname string) (*Group, error) {
@@ -175,9 +167,8 @@ func lookupUnixGid(gid int) (*Group, error) {
 	defer buf.free()
 
 	err := retryWithBuffer(buf, func() syscall.Errno {
-		// mygetgrgid_r is a wrapper around getgrgid_r to
-		// to avoid using gid_t because C.gid_t(gid) for
-		// unknown reasons doesn't work on linux.
+		// mygetgrgid_r is a wrapper around getgrgid_r to avoid using gid_t
+		// because C.gid_t(gid) for unknown reasons doesn't work on linux.
 		return syscall.Errno(C.mygetgrgid_r(C.int(gid),
 			&grp,
 			(*C.char)(buf.ptr),

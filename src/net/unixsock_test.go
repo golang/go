@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js,!nacl,!plan9,!windows
+//go:build !js && !plan9 && !windows
 
 package net
 
 import (
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime"
@@ -113,7 +112,7 @@ func TestUnixgramZeroBytePayload(t *testing.T) {
 				t.Fatalf("unexpected peer address: %v", peer)
 			}
 		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+			if !isDeadlineExceeded(err) {
 				t.Fatal(err)
 			}
 		}
@@ -163,7 +162,7 @@ func TestUnixgramZeroByteBuffer(t *testing.T) {
 				t.Fatalf("unexpected peer address: %v", peer)
 			}
 		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+			if !isDeadlineExceeded(err) {
 				t.Fatal(err)
 			}
 		}
@@ -417,7 +416,7 @@ func TestUnixUnlink(t *testing.T) {
 		checkExists(t, "after Listen")
 		l.Close()
 		checkNotExists(t, "after Listener close")
-		if err := ioutil.WriteFile(name, []byte("hello world"), 0666); err != nil {
+		if err := os.WriteFile(name, []byte("hello world"), 0666); err != nil {
 			t.Fatalf("cannot recreate socket file: %v", err)
 		}
 		checkExists(t, "after writing temp file")

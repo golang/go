@@ -1,0 +1,96 @@
+# build with no newer version to satisfy exclude
+env GO111MODULE=on
+cp go.mod go.mod.orig
+
+# With the selected version excluded, commands that query that version without
+# updating go.mod should fail.
+
+! go list -mod=readonly -m all
+stderr '^go: ignoring requirement on excluded version rsc.io/sampler v1\.99\.99$'
+stderr '^go: updates to go.mod needed, disabled by -mod=readonly; to update it:\n\tgo mod tidy$'
+! stdout '^rsc.io/sampler v1.99.99'
+cmp go.mod go.mod.orig
+
+! go list -mod=vendor -m rsc.io/sampler
+stderr '^go: ignoring requirement on excluded version rsc.io/sampler v1\.99\.99$'
+stderr '^go: updates to go.mod needed, disabled by -mod=vendor; to update it:\n\tgo mod tidy$'
+! stdout '^rsc.io/sampler v1.99.99'
+cmp go.mod go.mod.orig
+
+# The failure message should be clear when -mod=vendor is implicit.
+
+go mod edit -go=1.14
+! go list -m rsc.io/sampler
+stderr '^go: ignoring requirement on excluded version rsc.io/sampler v1\.99\.99$'
+stderr '^go: updates to go.mod needed, disabled by -mod=vendor\n\t\(Go version in go.mod is at least 1.14 and vendor directory exists\.\)\n\tto update it:\n\tgo mod tidy$'
+! stdout '^rsc.io/sampler v1.99.99'
+go mod edit -go=1.13
+cmp go.mod go.mod.orig
+
+
+# With the selected version excluded, commands that load only modules should
+# drop the excluded module.
+
+go list -m -mod=mod all
+stderr '^go: dropping requirement on excluded version rsc.io/sampler v1\.99\.99$'
+stdout '^x$'
+! stdout '^rsc.io/sampler'
+cmp go.mod go.moddrop
+
+# With the latest version excluded, 'go list' should resolve needed packages
+# from the next-highest version.
+
+cp go.mod.orig go.mod
+go list -mod=mod -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
+stderr '^go: dropping requirement on excluded version rsc.io/sampler v1\.99\.99$'
+stdout '^x $'
+! stdout '^rsc.io/sampler v1.99.99'
+stdout '^rsc.io/sampler v1.3.0'
+
+# build with newer version available
+cp go.mod2 go.mod
+go list -mod=mod -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
+stderr '^go: dropping requirement on excluded version rsc.io/quote v1\.5\.1$'
+stdout 'rsc.io/quote v1.5.2'
+
+# build with excluded newer version
+cp go.mod3 go.mod
+go list -mod=mod -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
+! stderr '^go: dropping requirement'
+stdout 'rsc.io/quote v1.5.1'
+
+-- x.go --
+package x
+import _ "rsc.io/quote"
+
+-- go.mod --
+module x
+
+go 1.13
+
+exclude rsc.io/sampler v1.99.99
+
+require rsc.io/sampler v1.99.99
+-- vendor/modules.txt --
+# rsc.io/sampler v1.99.99
+## explicit
+-- go.moddrop --
+module x
+
+go 1.13
+
+exclude rsc.io/sampler v1.99.99
+-- go.mod2 --
+module x
+
+go 1.13
+
+exclude rsc.io/quote v1.5.1
+require rsc.io/quote v1.5.1
+-- go.mod3 --
+module x
+
+go 1.13
+
+exclude rsc.io/quote v1.5.2
+require rsc.io/quote v1.5.1

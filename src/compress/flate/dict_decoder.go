@@ -160,10 +160,8 @@ func (dd *dictDecoder) tryWriteCopy(dist, length int) int {
 	srcPos := dstPos - dist
 
 	// Copy possibly overlapping section before destination position.
-loop:
-	dstPos += copy(dd.hist[dstPos:endPos], dd.hist[srcPos:dstPos])
-	if dstPos < endPos {
-		goto loop // Avoid for-loop so that this function can be inlined
+	for dstPos < endPos {
+		dstPos += copy(dd.hist[dstPos:endPos], dd.hist[srcPos:dstPos])
 	}
 
 	dd.wrPos = dstPos

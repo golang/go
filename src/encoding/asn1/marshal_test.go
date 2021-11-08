@@ -306,7 +306,7 @@ func TestIssue11130(t *testing.T) {
 		return
 	}
 	if !reflect.DeepEqual(v, v1) {
-		t.Errorf("got: %#v data=%q , want : %#v data=%q\n ", v1, data1, v, data)
+		t.Errorf("got: %#v data=%q, want : %#v data=%q\n ", v1, data1, v, data)
 	}
 }
 
@@ -316,6 +316,91 @@ func BenchmarkMarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, test := range marshalTests {
 			Marshal(test.in)
+		}
+	}
+}
+
+func TestSetEncoder(t *testing.T) {
+	testStruct := struct {
+		Strings []string `asn1:"set"`
+	}{
+		Strings: []string{"a", "aa", "b", "bb", "c", "cc"},
+	}
+
+	// Expected ordering of the SET should be:
+	// a, b, c, aa, bb, cc
+
+	output, err := Marshal(testStruct)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	expectedOrder := []string{"a", "b", "c", "aa", "bb", "cc"}
+	var resultStruct struct {
+		Strings []string `asn1:"set"`
+	}
+	rest, err := Unmarshal(output, &resultStruct)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	if len(rest) != 0 {
+		t.Error("Unmarshal returned extra garbage")
+	}
+	if !reflect.DeepEqual(expectedOrder, resultStruct.Strings) {
+		t.Errorf("Unexpected SET content. got: %s, want: %s", resultStruct.Strings, expectedOrder)
+	}
+}
+
+func TestSetEncoderSETSliceSuffix(t *testing.T) {
+	type testSetSET []string
+	testSet := testSetSET{"a", "aa", "b", "bb", "c", "cc"}
+
+	// Expected ordering of the SET should be:
+	// a, b, c, aa, bb, cc
+
+	output, err := Marshal(testSet)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	expectedOrder := testSetSET{"a", "b", "c", "aa", "bb", "cc"}
+	var resultSet testSetSET
+	rest, err := Unmarshal(output, &resultSet)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	if len(rest) != 0 {
+		t.Error("Unmarshal returned extra garbage")
+	}
+	if !reflect.DeepEqual(expectedOrder, resultSet) {
+		t.Errorf("Unexpected SET content. got: %s, want: %s", resultSet, expectedOrder)
+	}
+}
+
+func BenchmarkUnmarshal(b *testing.B) {
+	b.ReportAllocs()
+
+	type testCase struct {
+		in  []byte
+		out interface{}
+	}
+	var testData []testCase
+	for _, test := range unmarshalTestData {
+		pv := reflect.New(reflect.TypeOf(test.out).Elem())
+		inCopy := make([]byte, len(test.in))
+		copy(inCopy, test.in)
+		outCopy := pv.Interface()
+
+		testData = append(testData, testCase{
+			in:  inCopy,
+			out: outCopy,
+		})
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, testCase := range testData {
+			_, _ = Unmarshal(testCase.in, testCase.out)
 		}
 	}
 }

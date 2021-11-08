@@ -62,11 +62,19 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
 // Shared empty method set.
 var emptyMethodSet MethodSet
 
+// Note: NewMethodSet is intended for external use only as it
+//       requires interfaces to be complete. It may be used
+//       internally if LookupFieldOrMethod completed the same
+//       interfaces beforehand.
+
 // NewMethodSet returns the method set for the given type T.
 // It always returns a non-nil method set, even if it is empty.
 func NewMethodSet(T Type) *MethodSet {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 	//          This function and lookupFieldOrMethod should be kept in sync.
+
+	// TODO(rfindley) confirm that this code is in sync with lookupFieldOrMethod
+	//                with respect to type params.
 
 	// method set up to the current depth, allocated lazily
 	var base methodSet
@@ -94,8 +102,8 @@ func NewMethodSet(T Type) *MethodSet {
 	for len(current) > 0 {
 		var next []embeddedType // embedded types found at current depth
 
-		// field and method sets at current depth, allocated lazily
-		var fset fieldSet
+		// field and method sets at current depth, indexed by names (Id's), and allocated lazily
+		var fset map[string]bool // we only care about the field names
 		var mset methodSet
 
 		for _, e := range current {
@@ -103,7 +111,7 @@ func NewMethodSet(T Type) *MethodSet {
 
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
-			if named, _ := typ.(*Named); named != nil {
+			if named := asNamed(typ); named != nil {
 				if seen[named] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
@@ -119,14 +127,21 @@ func NewMethodSet(T Type) *MethodSet {
 
 				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
 
-				// continue with underlying type
+				// continue with underlying type, but only if it's not a type parameter
+				// TODO(rFindley): should this use named.under()? Can there be a difference?
 				typ = named.underlying
+				if _, ok := typ.(*TypeParam); ok {
+					continue
+				}
 			}
 
 			switch t := typ.(type) {
 			case *Struct:
 				for i, f := range t.fields {
-					fset = fset.add(f, e.multiples)
+					if fset == nil {
+						fset = make(map[string]bool)
+					}
+					fset[f.Id()] = true
 
 					// Embedded fields are always of the form T or *T where
 					// T is a type name. If typ appeared multiple times at
@@ -142,7 +157,10 @@ func NewMethodSet(T Type) *MethodSet {
 				}
 
 			case *Interface:
-				mset = mset.add(t.allMethods, e.index, true, e.multiples)
+				mset = mset.add(t.typeSet().methods, e.index, true, e.multiples)
+
+			case *TypeParam:
+				mset = mset.add(t.iface().typeSet().methods, e.index, true, e.multiples)
 			}
 		}
 
@@ -151,7 +169,7 @@ func NewMethodSet(T Type) *MethodSet {
 		for k, m := range mset {
 			if _, found := base[k]; !found {
 				// Fields collide with methods of the same name at this depth.
-				if _, found := fset[k]; found {
+				if fset[k] {
 					m = nil // collision
 				}
 				if base == nil {
@@ -161,17 +179,14 @@ func NewMethodSet(T Type) *MethodSet {
 			}
 		}
 
-		// Multiple fields with matching names collide at this depth and shadow all
-		// entries further down; add them as collisions to base if no entries with
-		// matching names exist already.
-		for k, f := range fset {
-			if f == nil {
-				if _, found := base[k]; !found {
-					if base == nil {
-						base = make(methodSet)
-					}
-					base[k] = nil // collision
+		// Add all (remaining) fields at this depth as collisions (since they will
+		// hide any method further down) if no entries with matching names exist already.
+		for k := range fset {
+			if _, found := base[k]; !found {
+				if base == nil {
+					base = make(methodSet)
 				}
+				base[k] = nil // collision
 			}
 		}
 
@@ -197,33 +212,9 @@ func NewMethodSet(T Type) *MethodSet {
 	return &MethodSet{list}
 }
 
-// A fieldSet is a set of fields and name collisions.
-// A collision indicates that multiple fields with the
-// same unique id appeared.
-type fieldSet map[string]*Var // a nil entry indicates a name collision
-
-// Add adds field f to the field set s.
-// If multiples is set, f appears multiple times
-// and is treated as a collision.
-func (s fieldSet) add(f *Var, multiples bool) fieldSet {
-	if s == nil {
-		s = make(fieldSet)
-	}
-	key := f.Id()
-	// if f is not in the set, add it
-	if !multiples {
-		if _, found := s[key]; !found {
-			s[key] = f
-			return s
-		}
-	}
-	s[key] = nil // collision
-	return s
-}
-
 // A methodSet is a set of methods and name collisions.
 // A collision indicates that multiple methods with the
-// same unique id appeared.
+// same unique id, or a field with that id appeared.
 type methodSet map[string]*Selection // a nil entry indicates a name collision
 
 // Add adds all functions in list to the method set s.
@@ -241,10 +232,10 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 		// if f is not in the set, add it
 		if !multiples {
 			// TODO(gri) A found method may not be added because it's not in the method set
-			// (!indirect && ptrRecv(f)). A 2nd method on the same level may be in the method
+			// (!indirect && f.hasPtrRecv()). A 2nd method on the same level may be in the method
 			// set and may not collide with the first one, thus leading to a false positive.
 			// Is that possible? Investigate.
-			if _, found := s[key]; !found && (indirect || !ptrRecv(f)) {
+			if _, found := s[key]; !found && (indirect || !f.hasPtrRecv()) {
 				s[key] = &Selection{MethodVal, nil, f, concat(index, i), indirect}
 				continue
 			}
@@ -252,11 +243,4 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 		s[key] = nil // collision
 	}
 	return s
-}
-
-// ptrRecv reports whether the receiver is of the form *T.
-// The receiver must exist.
-func ptrRecv(f *Func) bool {
-	_, isPtr := deref(f.typ.(*Signature).recv.typ)
-	return isPtr
 }

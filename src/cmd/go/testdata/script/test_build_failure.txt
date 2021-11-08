@@ -1,0 +1,31 @@
+[short] skip
+
+! go test -x coverbad
+! stderr '[\\/]coverbad\.test( |$)' # 'go test' should not claim to have run the test.
+stderr 'undefined: g'
+stderr 'undefined: j'
+
+-- go.mod --
+module coverbad
+
+go 1.16
+-- p.go --
+package p
+
+func f() {
+	g()
+}
+-- p1.go --
+package p
+
+import "C"
+
+func h() {
+	j()
+}
+-- p_test.go --
+package p
+
+import "testing"
+
+func Test(t *testing.T) {}

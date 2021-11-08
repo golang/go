@@ -324,3 +324,18 @@ done
 		checkPos(t, "3. Position", got3, want)
 	}
 }
+
+func TestLineStart(t *testing.T) {
+	const src = "one\ntwo\nthree\n"
+	fset := NewFileSet()
+	f := fset.AddFile("input", -1, len(src))
+	f.SetLinesForContent([]byte(src))
+
+	for line := 1; line <= 3; line++ {
+		pos := f.LineStart(line)
+		position := fset.Position(pos)
+		if position.Line != line || position.Column != 1 {
+			t.Errorf("LineStart(%d) returned wrong pos %d: %s", line, pos, position)
+		}
+	}
+}

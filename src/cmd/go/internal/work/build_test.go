@@ -7,7 +7,7 @@ package work
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -169,14 +169,15 @@ func TestSharedLibName(t *testing.T) {
 	for _, data := range testData {
 		func() {
 			if data.rootedAt != "" {
-				tmpGopath, err := ioutil.TempDir("", "gopath")
+				tmpGopath, err := os.MkdirTemp("", "gopath")
 				if err != nil {
 					t.Fatal(err)
 				}
+				cwd := base.Cwd()
 				oldGopath := cfg.BuildContext.GOPATH
 				defer func() {
 					cfg.BuildContext.GOPATH = oldGopath
-					os.Chdir(base.Cwd)
+					os.Chdir(cwd)
 					err := os.RemoveAll(tmpGopath)
 					if err != nil {
 						t.Error(err)
@@ -221,12 +222,10 @@ func pkgImportPath(pkgpath string) *load.Package {
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl":
-		t.Skip("can't set SetGID bit with chmod on nacl")
-	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			t.Skip("can't set SetGID bit with chmod on iOS")
-		}
+	case "ios":
+		t.Skip("can't set SetGID bit with chmod on iOS")
+	case "windows", "plan9":
+		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
 	}
 
 	var b Builder
@@ -239,27 +238,29 @@ func TestRespectSetgidDir(t *testing.T) {
 		return cmdBuf.WriteString(fmt.Sprint(a...))
 	}
 
-	setgiddir, err := ioutil.TempDir("", "SetGroupID")
+	setgiddir, err := os.MkdirTemp("", "SetGroupID")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(setgiddir)
 
-	if runtime.GOOS == "freebsd" {
-		err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	// Change setgiddir's permissions to include the SetGID bit.
-	if err := os.Chmod(setgiddir, 0755|os.ModeSetgid); err != nil {
+	// BSD mkdir(2) inherits the parent directory group, and other platforms
+	// can inherit the parent directory group via setgid. The test setup (chmod
+	// setgid) will fail if the process does not have the group permission to
+	// the new temporary directory.
+	err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkgfile, err := ioutil.TempFile("", "pkgfile")
+	// Change setgiddir's permissions to include the SetGID bit.
+	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
+		t.Fatal(err)
+	}
+
+	pkgfile, err := os.CreateTemp("", "pkgfile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile(\"\", \"pkgfile\"): %v", err)
+		t.Fatalf("os.CreateTemp(\"\", \"pkgfile\"): %v", err)
 	}
 	defer os.Remove(pkgfile.Name())
 	defer pkgfile.Close()

@@ -5,33 +5,17 @@
 package user
 
 import (
-	"internal/testenv"
-	"os"
-	"runtime"
 	"testing"
 )
 
 func checkUser(t *testing.T) {
+	t.Helper()
 	if !userImplemented {
 		t.Skip("user: not implemented; skipping tests")
 	}
 }
 
 func TestCurrent(t *testing.T) {
-	// The Go builders (in particular the ones using containers)
-	// often have minimal environments without $HOME or $USER set,
-	// which breaks Current which relies on those working as a
-	// fallback.
-	// TODO: we should fix that (Issue 24884) and remove these
-	// workarounds.
-	if testenv.Builder() != "" && runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
-		if os.Getenv("HOME") == "" {
-			os.Setenv("HOME", "/tmp")
-		}
-		if os.Getenv("USER") == "" {
-			os.Setenv("USER", "gobuilder")
-		}
-	}
 	u, err := Current()
 	if err != nil {
 		t.Fatalf("Current: %v (got %#v)", err, u)
@@ -71,10 +55,6 @@ func compare(t *testing.T, want, got *User) {
 func TestLookup(t *testing.T) {
 	checkUser(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skipf("Lookup not implemented on %q", runtime.GOOS)
-	}
-
 	want, err := Current()
 	if err != nil {
 		t.Fatalf("Current: %v", err)
@@ -92,10 +72,6 @@ func TestLookup(t *testing.T) {
 func TestLookupId(t *testing.T) {
 	checkUser(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skipf("LookupId not implemented on %q", runtime.GOOS)
-	}
-
 	want, err := Current()
 	if err != nil {
 		t.Fatalf("Current: %v", err)
@@ -108,6 +84,7 @@ func TestLookupId(t *testing.T) {
 }
 
 func checkGroup(t *testing.T) {
+	t.Helper()
 	if !groupImplemented {
 		t.Skip("user: group not implemented; skipping test")
 	}
@@ -141,11 +118,15 @@ func TestLookupGroup(t *testing.T) {
 	}
 }
 
-func TestGroupIds(t *testing.T) {
-	checkGroup(t)
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping GroupIds, see golang.org/issue/14709")
+func checkGroupList(t *testing.T) {
+	t.Helper()
+	if !groupListImplemented {
+		t.Skip("user: group list not implemented; skipping test")
 	}
+}
+
+func TestGroupIds(t *testing.T) {
+	checkGroupList(t)
 	user, err := Current()
 	if err != nil {
 		t.Fatalf("Current(): %v", err)

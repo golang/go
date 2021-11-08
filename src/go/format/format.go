@@ -3,6 +3,15 @@
 // license that can be found in the LICENSE file.
 
 // Package format implements standard formatting of Go source.
+//
+// Note that formatting of Go source code changes over time, so tools relying on
+// consistent formatting should execute a specific version of the gofmt binary
+// instead of using this package. That way, the formatting will be stable, and
+// the tools won't need to be recompiled each time gofmt changes.
+//
+// For example, pre-submit checks that use this package directly would behave
+// differently depending on what Go version each developer uses, causing the
+// check to be inherently fragile.
 package format
 
 import (
@@ -15,7 +24,19 @@ import (
 	"io"
 )
 
-var config = printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
+// Keep these in sync with cmd/gofmt/gofmt.go.
+const (
+	tabWidth    = 8
+	printerMode = printer.UseSpaces | printer.TabIndent | printerNormalizeNumbers
+
+	// printerNormalizeNumbers means to canonicalize number literal prefixes
+	// and exponents while printing. See https://golang.org/doc/go1.13#gofmt.
+	//
+	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
+	printerNormalizeNumbers = 1 << 30
+)
+
+var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
 
 const parserMode = parser.ParseComments
 
@@ -78,10 +99,6 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
 // is applied to the result (such that it has the same leading and trailing
 // space as src), and the result is indented by the same amount as the first
 // line of src containing code. Imports are not sorted for partial source files.
-//
-// Caution: Tools relying on consistent formatting based on the installed
-// version of gofmt (for instance, such as for presubmit checks) should
-// execute that gofmt binary instead of calling Source.
 //
 func Source(src []byte) ([]byte, error) {
 	fset := token.NewFileSet()

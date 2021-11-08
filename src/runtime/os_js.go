@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package runtime
 
@@ -12,7 +12,7 @@ import (
 
 func exit(code int32)
 
-func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	if fd > 2 {
 		throw("runtime.write to fd > 2 is unsupported")
 	}
@@ -30,11 +30,21 @@ func wasmWrite(fd uintptr, p unsafe.Pointer, n int32)
 
 func usleep(usec uint32)
 
+//go:nosplit
+func usleep_no_g(usec uint32) {
+	usleep(usec)
+}
+
 func exitThread(wait *uint32)
 
 type mOS struct{}
 
 func osyield()
+
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
 
 const _SIGSEGV = 0xb
 
@@ -59,7 +69,7 @@ func mpreinit(mp *m) {
 }
 
 //go:nosplit
-func msigsave(mp *m) {
+func sigsave(p *sigset) {
 }
 
 //go:nosplit
@@ -72,7 +82,7 @@ func clearSignalHandlers() {
 }
 
 //go:nosplit
-func sigblock() {
+func sigblock(exiting bool) {
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -82,6 +92,11 @@ func minit() {
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 func osinit() {
@@ -131,7 +146,6 @@ func os_sigpipe() {
 func cputicks() int64 {
 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
-	// TODO: need more entropy to better seed fastrand.
 	return nanotime()
 }
 
@@ -143,3 +157,9 @@ func syscall_now() (sec int64, nsec int32) {
 
 // gsignalStack is unused on js.
 type gsignalStack struct{}
+
+const preemptMSupported = false
+
+func preemptM(mp *m) {
+	// No threads, so nothing to do.
+}

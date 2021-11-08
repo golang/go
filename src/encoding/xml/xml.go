@@ -167,9 +167,9 @@ type Decoder struct {
 	//
 	// Setting:
 	//
-	//	d.Strict = false;
-	//	d.AutoClose = HTMLAutoClose;
-	//	d.Entity = HTMLEntity
+	//	d.Strict = false
+	//	d.AutoClose = xml.HTMLAutoClose
+	//	d.Entity = xml.HTMLEntity
 	//
 	// creates a parser that can handle typical HTML.
 	//
@@ -261,7 +261,7 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 // call to Token. To acquire a copy of the bytes, call CopyToken
 // or the token's Copy method.
 //
-// Token expands self-closing elements such as <br/>
+// Token expands self-closing elements such as <br>
 // into separate start and end elements returned by successive calls.
 //
 // Token guarantees that the StartElement and EndElement
@@ -271,7 +271,7 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 // it will return an error.
 //
 // Token implements XML name spaces as described by
-// https://www.w3.org/TR/REC-xml-names/.  Each of the
+// https://www.w3.org/TR/REC-xml-names/. Each of the
 // Name structures contained in the Token has the Space
 // set to the URL identifying its name space when known.
 // If Token encounters an unrecognized name space prefix,
@@ -285,13 +285,17 @@ func (d *Decoder) Token() (Token, error) {
 	if d.nextToken != nil {
 		t = d.nextToken
 		d.nextToken = nil
-	} else if t, err = d.rawToken(); err != nil {
-		if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
-			err = d.syntaxError("unexpected EOF")
+	} else {
+		if t, err = d.rawToken(); t == nil && err != nil {
+			if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
+				err = d.syntaxError("unexpected EOF")
+			}
+			return nil, err
 		}
-		return t, err
+		// We still have a token to process, so clear any
+		// errors (e.g. EOF) and proceed.
+		err = nil
 	}
-
 	if !d.Strict {
 		if t1, ok := d.autoClose(t); ok {
 			d.nextToken = t
@@ -764,6 +768,12 @@ func (d *Decoder) rawToken() (Token, error) {
 					}
 					b0, b1 = b1, b
 				}
+
+				// Replace the comment with a space in the returned Directive
+				// body, so that markup parts that were separated by the comment
+				// (like a "<" and a "!") don't get joined when re-encoding the
+				// Directive, taking new semantic meaning.
+				d.buf.WriteByte(' ')
 			}
 		}
 		return Directive(d.buf.Bytes()), nil
@@ -957,7 +967,7 @@ func (d *Decoder) ungetc(b byte) {
 	d.offset--
 }
 
-var entity = map[string]int{
+var entity = map[string]rune{
 	"lt":   '<',
 	"gt":   '>',
 	"amp":  '&',
@@ -1052,7 +1062,7 @@ Input:
 					d.buf.WriteByte(';')
 					n, err := strconv.ParseUint(s, base, 64)
 					if err == nil && n <= unicode.MaxRune {
-						text = string(n)
+						text = string(rune(n))
 						haveText = true
 					}
 				}
@@ -1152,12 +1162,13 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	if !ok {
 		return
 	}
-	i := strings.Index(s, ":")
-	if i < 0 {
+	if strings.Count(s, ":") > 1 {
+		name.Local = s
+	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
 		name.Local = s
 	} else {
-		name.Space = s[0:i]
-		name.Local = s[i+1:]
+		name.Space = space
+		name.Local = local
 	}
 	return name, true
 }
@@ -1581,7 +1592,9 @@ var second = &unicode.RangeTable{
 
 // HTMLEntity is an entity map containing translations for the
 // standard HTML entity characters.
-var HTMLEntity = htmlEntity
+//
+// See the Decoder.Strict and Decoder.Entity fields' documentation.
+var HTMLEntity map[string]string = htmlEntity
 
 var htmlEntity = map[string]string{
 	/*
@@ -1848,7 +1861,9 @@ var htmlEntity = map[string]string{
 
 // HTMLAutoClose is the set of HTML elements that
 // should be considered to close automatically.
-var HTMLAutoClose = htmlAutoClose
+//
+// See the Decoder.Strict and Decoder.Entity fields' documentation.
+var HTMLAutoClose []string = htmlAutoClose
 
 var htmlAutoClose = []string{
 	/*
@@ -1997,25 +2012,26 @@ func emitCDATA(w io.Writer, s []byte) error {
 	if _, err := w.Write(cdataStart); err != nil {
 		return err
 	}
+
 	for {
-		i := bytes.Index(s, cdataEnd)
-		if i >= 0 && i+len(cdataEnd) <= len(s) {
-			// Found a nested CDATA directive end.
-			if _, err := w.Write(s[:i]); err != nil {
-				return err
-			}
-			if _, err := w.Write(cdataEscape); err != nil {
-				return err
-			}
-			i += len(cdataEnd)
-		} else {
-			if _, err := w.Write(s); err != nil {
-				return err
-			}
+		before, after, ok := bytes.Cut(s, cdataEnd)
+		if !ok {
 			break
 		}
-		s = s[i:]
+		// Found a nested CDATA directive end.
+		if _, err := w.Write(before); err != nil {
+			return err
+		}
+		if _, err := w.Write(cdataEscape); err != nil {
+			return err
+		}
+		s = after
 	}
+
+	if _, err := w.Write(s); err != nil {
+		return err
+	}
+
 	_, err := w.Write(cdataEnd)
 	return err
 }
@@ -2026,20 +2042,16 @@ func procInst(param, s string) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
 	param = param + "="
-	idx := strings.Index(s, param)
-	if idx == -1 {
-		return ""
-	}
-	v := s[idx+len(param):]
+	_, v, _ := strings.Cut(s, param)
 	if v == "" {
 		return ""
 	}
 	if v[0] != '\'' && v[0] != '"' {
 		return ""
 	}
-	idx = strings.IndexRune(v[1:], rune(v[0]))
-	if idx == -1 {
+	unquote, _, ok := strings.Cut(v[1:], v[:1])
+	if !ok {
 		return ""
 	}
-	return v[1 : idx+1]
+	return unquote
 }

@@ -1,0 +1,24 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type Optional[T any] struct {}
+
+func (_ Optional[T]) Val() (T, bool)
+
+type Box[T any] interface {
+	Val() (T, bool)
+}
+
+func f[V interface{}, A, B Box[V]]() {}
+
+func _() {
+	f[int, Optional[int], Optional[int]]()
+	_ = f[int, Optional[int], Optional /* ERROR does not satisfy Box */ [string]]
+	// TODO(gri) Provide better position information here.
+	//           See TODO in call.go, Checker.arguments.
+	// TODO(rFindley) Reconcile this error position with types2.
+	f /* ERROR does not satisfy Box */ [int, Optional[int], Optional[string]]()
+}

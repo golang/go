@@ -273,9 +273,7 @@ func f() {
 	a = "hello, world"
 	&lt;-c
 }
-</pre>
 
-<pre>
 func main() {
 	go f()
 	c &lt;- 0
@@ -418,8 +416,12 @@ func twoprint() {
 </pre>
 
 <p>
-calling <code>twoprint</code> causes <code>"hello, world"</code> to be printed twice.
-The first call to <code>doprint</code> runs <code>setup</code> once.
+calling <code>twoprint</code> will call <code>setup</code> exactly
+once.
+The <code>setup</code> function will complete before either call
+of <code>print</code>.
+The result will be that <code>"hello, world"</code> will be printed
+twice.
 </p>
 
 <h2>Incorrect synchronization</h2>

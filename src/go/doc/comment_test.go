@@ -7,6 +7,7 @@ package doc
 import (
 	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -125,6 +126,45 @@ $	pre
 $	pre2
 `,
 	},
+	{
+		in: "Para.\n\tshould not be ``escaped''",
+		out: []block{
+			{opPara, []string{"Para.\n"}},
+			{opPre, []string{"should not be ``escaped''"}},
+		},
+		text: ".   Para.\n\n$	should not be ``escaped''",
+	},
+	{
+		in: "// A very long line of 46 char for line wrapping.",
+		out: []block{
+			{opPara, []string{"// A very long line of 46 char for line wrapping."}},
+		},
+		text: `.   // A very long line of 46 char for line
+.   // wrapping.
+`,
+	},
+	{
+		in: `/* A very long line of 46 char for line wrapping.
+A very long line of 46 char for line wrapping. */`,
+		out: []block{
+			{opPara, []string{"/* A very long line of 46 char for line wrapping.\n", "A very long line of 46 char for line wrapping. */"}},
+		},
+		text: `.   /* A very long line of 46 char for line
+.   wrapping. A very long line of 46 char
+.   for line wrapping. */
+`,
+	},
+	{
+		in: `A line of 36 char for line wrapping.
+//Another line starting with //`,
+		out: []block{
+			{opPara, []string{"A line of 36 char for line wrapping.\n",
+				"//Another line starting with //"}},
+		},
+		text: `.   A line of 36 char for line wrapping.
+.   //Another line starting with //
+`,
+	},
 }
 
 func TestBlocks(t *testing.T) {
@@ -150,6 +190,7 @@ func TestToText(t *testing.T) {
 var emphasizeTests = []struct {
 	in, out string
 }{
+	{"", ""},
 	{"http://[::1]:8080/foo.txt", `<a href="http://[::1]:8080/foo.txt">http://[::1]:8080/foo.txt</a>`},
 	{"before (https://www.google.com) after", `before (<a href="https://www.google.com">https://www.google.com</a>) after`},
 	{"before https://www.google.com:30/x/y/z:b::c. After", `before <a href="https://www.google.com:30/x/y/z:b::c">https://www.google.com:30/x/y/z:b::c</a>. After`},
@@ -168,7 +209,13 @@ var emphasizeTests = []struct {
 	{"Hello http://example.com/%2f/ /world.", `Hello <a href="http://example.com/%2f/">http://example.com/%2f/</a> /world.`},
 	{"Lorem http: ipsum //host/path", "Lorem http: ipsum //host/path"},
 	{"javascript://is/not/linked", "javascript://is/not/linked"},
+	{"http://foo", `<a href="http://foo">http://foo</a>`},
+	{"art by [[https://www.example.com/person/][Person Name]]", `art by [[<a href="https://www.example.com/person/">https://www.example.com/person/</a>][Person Name]]`},
+	{"please visit (http://golang.org/)", `please visit (<a href="http://golang.org/">http://golang.org/</a>)`},
+	{"please visit http://golang.org/hello())", `please visit <a href="http://golang.org/hello()">http://golang.org/hello()</a>)`},
 	{"http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD", `<a href="http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD">http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD</a>`},
+	{"https://foo.bar/bal/x(])", `<a href="https://foo.bar/bal/x(">https://foo.bar/bal/x(</a>])`}, // inner ] causes (]) to be cut off from URL
+	{"foo [ http://bar(])", `foo [ <a href="http://bar(">http://bar(</a>])`},                      // outer [ causes ]) to be cut off from URL
 }
 
 func TestEmphasize(t *testing.T) {
@@ -182,32 +229,18 @@ func TestEmphasize(t *testing.T) {
 	}
 }
 
-var pairedParensPrefixLenTests = []struct {
-	in, out string
-}{
-	{"", ""},
-	{"foo", "foo"},
-	{"()", "()"},
-	{"foo()", "foo()"},
-	{"foo()()()", "foo()()()"},
-	{"foo()((()()))", "foo()((()()))"},
-	{"foo()((()()))bar", "foo()((()()))bar"},
-	{"foo)", "foo"},
-	{"foo))", "foo"},
-	{"foo)))))", "foo"},
-	{"(foo", ""},
-	{"((foo", ""},
-	{"(((((foo", ""},
-	{"(foo)", "(foo)"},
-	{"((((foo))))", "((((foo))))"},
-	{"foo()())", "foo()()"},
-	{"foo((()())", "foo"},
-	{"foo((()())) (() foo ", "foo((()())) "},
-}
-
-func TestPairedParensPrefixLen(t *testing.T) {
-	for i, tt := range pairedParensPrefixLenTests {
-		if out := tt.in[:pairedParensPrefixLen(tt.in)]; out != tt.out {
+func TestCommentEscape(t *testing.T) {
+	commentTests := []struct {
+		in, out string
+	}{
+		{"typically invoked as ``go tool asm'',", "typically invoked as " + ldquo + "go tool asm" + rdquo + ","},
+		{"For more detail, run ``go help test'' and ``go help testflag''", "For more detail, run " + ldquo + "go help test" + rdquo + " and " + ldquo + "go help testflag" + rdquo},
+	}
+	for i, tt := range commentTests {
+		var buf strings.Builder
+		commentEscape(&buf, tt.in, true)
+		out := buf.String()
+		if out != tt.out {
 			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
 		}
 	}

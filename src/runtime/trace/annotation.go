@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package trace
 
 import (
@@ -24,13 +28,13 @@ type traceContextKey struct{}
 // If the end function is called multiple times, only the first
 // call is used in the latency measurement.
 //
-//   ctx, task := trace.NewTask(ctx, "awesome task")
-//   trace.WithRegion(ctx, prepWork)
+//   ctx, task := trace.NewTask(ctx, "awesomeTask")
+//   trace.WithRegion(ctx, "preparation", prepWork)
 //   // preparation of the task
 //   go func() {  // continue processing the task in a separate goroutine.
 //       defer task.End()
-//       trace.WithRegion(ctx, remainingWork)
-//   }
+//       trace.WithRegion(ctx, "remainingWork", remainingWork)
+//   }()
 func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *Task) {
 	pid := fromContext(pctx).id
 	id := newID()
@@ -171,7 +175,7 @@ func (r *Region) End() {
 	userRegion(r.id, regionEndCode, r.regionType)
 }
 
-// IsEnabled returns whether tracing is enabled.
+// IsEnabled reports whether tracing is enabled.
 // The information is advisory only. The tracing status
 // may have changed by the time this function returns.
 func IsEnabled() bool {

@@ -55,7 +55,7 @@ For example:
 
 The default pkg-config tool may be changed by setting the PKG_CONFIG environment variable.
 
-For security reasons, only a limited set of flags are allowed, notably -D, -I, and -l.
+For security reasons, only a limited set of flags are allowed, notably -D, -U, -I, and -l.
 To allow additional flags, set CGO_CFLAGS_ALLOW to a regular expression
 matching the new flags. To disallow flags that would otherwise be allowed,
 set CGO_CFLAGS_DISALLOW to a regular expression matching arguments
@@ -63,6 +63,11 @@ that must be disallowed. In both cases the regular expression must match
 a full argument: to allow -mfoo=bar, use CGO_CFLAGS_ALLOW='-mfoo.*',
 not just CGO_CFLAGS_ALLOW='-mfoo'. Similarly named variables control
 the allowed CPPFLAGS, CXXFLAGS, FFLAGS, and LDFLAGS.
+
+Also for security reasons, only a limited set of characters are
+permitted, notably alphanumeric characters and a few symbols, such as
+'.', that will not be interpreted in unexpected ways. Attempts to use
+forbidden characters will get a "malformed #cgo argument" error.
 
 When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
 CGO_LDFLAGS environment variables are added to the flags derived from
@@ -94,15 +99,25 @@ Will be expanded to:
 
 When the Go tool sees that one or more Go files use the special import
 "C", it will look for other non-Go files in the directory and compile
-them as part of the Go package. Any .c, .s, or .S files will be
+them as part of the Go package. Any .c, .s, .S or .sx files will be
 compiled with the C compiler. Any .cc, .cpp, or .cxx files will be
 compiled with the C++ compiler. Any .f, .F, .for or .f90 files will be
 compiled with the fortran compiler. Any .h, .hh, .hpp, or .hxx files will
 not be compiled separately, but, if these header files are changed,
-the C and C++ files will be recompiled. The default C and C++
-compilers may be changed by the CC and CXX environment variables,
-respectively; those environment variables may include command line
-options.
+the package (including its non-Go source files) will be recompiled.
+Note that changes to files in other directories do not cause the package
+to be recompiled, so all non-Go source code for the package should be
+stored in the package directory, not in subdirectories.
+The default C and C++ compilers may be changed by the CC and CXX
+environment variables, respectively; those environment variables
+may include command line options.
+
+The cgo tool will always invoke the C compiler with the source file's
+directory in the include path; i.e. -I${SRCDIR} is always implied. This
+means that if a header file foo/bar.h exists both in the source
+directory and also in the system include directory (or some other place
+specified by a -I flag), then "#include <foo/bar.h>" will always find the
+local version in preference to any other version.
 
 The cgo tool is enabled by default for native builds on systems where
 it is expected to work. It is disabled by default when
@@ -288,7 +303,7 @@ Go functions can be exported for use by C code in the following way:
 
 They will be available in the C code as:
 
-	extern int64 MyFunction(int arg1, int arg2, GoString arg3);
+	extern GoInt64 MyFunction(int arg1, int arg2, GoString arg3);
 	extern struct MyFunction2_return MyFunction2(int arg1, int arg2, GoString arg3);
 
 found in the _cgo_export.h generated header, after any preambles
@@ -372,6 +387,17 @@ and of course there is nothing stopping the C code from doing anything
 it likes. However, programs that break these rules are likely to fail
 in unexpected and unpredictable ways.
 
+The runtime/cgo.Handle type can be used to safely pass Go values
+between Go and C. See the runtime/cgo package documentation for details.
+
+Note: the current implementation has a bug. While Go code is permitted
+to write nil or a C pointer (but not a Go pointer) to C memory, the
+current implementation may sometimes cause a runtime error if the
+contents of the C memory appear to be a Go pointer. Therefore, avoid
+passing uninitialized C memory to Go code if the Go code is going to
+store pointer values in it. Zero out the memory in C before passing it
+to Go.
+
 Special cases
 
 A few special C types which would normally be represented by a pointer
@@ -397,6 +423,8 @@ type in Go are instead represented by a uintptr. Those include:
 	jobjectArray
 	jweak
 
+3. The EGLDisplay and EGLConfig types from the EGL API.
+
 These types are uintptr on the Go side because they would otherwise
 confuse the Go garbage collector; they are sometimes not really
 pointers but data structures encoded in a pointer type. All operations
@@ -410,6 +438,16 @@ from Go 1.9 and earlier, use the cftype or jni rewrites in the Go fix tool:
 	go tool fix -r jni <pkg>
 
 It will replace nil with 0 in the appropriate places.
+
+The EGLDisplay case was introduced in Go 1.12. Use the egl rewrite
+to auto-update code from Go 1.11 and earlier:
+
+	go tool fix -r egl <pkg>
+
+The EGLConfig case was introduced in Go 1.15. Use the eglconf rewrite
+to auto-update code from Go 1.14 and earlier:
+
+	go tool fix -r eglconf <pkg>
 
 Using cgo directly
 
@@ -686,8 +724,8 @@ linkage to the desired libraries. The main function is provided by
 _cgo_main.c:
 
 	int main() { return 0; }
-	void crosscall2(void(*fn)(void*, int, uintptr_t), void *a, int c, uintptr_t ctxt) { }
-	uintptr_t _cgo_wait_runtime_init_done() { return 0; }
+	void crosscall2(void(*fn)(void*), void *a, int c, uintptr_t ctxt) { }
+	uintptr_t _cgo_wait_runtime_init_done(void) { return 0; }
 	void _cgo_release_context(uintptr_t ctxt) { }
 	char* _cgo_topofstack(void) { return (char*)0; }
 	void _cgo_allocate(void *a, int c) { }
@@ -810,6 +848,10 @@ The directives are:
 	symbol. The optional <remote> specifies the symbol's name and
 	possibly version in the dynamic library, and the optional "<library>"
 	names the specific library where the symbol should be found.
+
+	On AIX, the library pattern is slightly different. It must be
+	"lib.a/obj.o" with obj.o the member of this library exporting
+	this symbol.
 
 	In the <remote>, # or @ can be used to introduce a symbol version.
 
@@ -958,7 +1000,7 @@ produces a file named a.out, even if cmd/link does so by invoking the host
 linker in external linking mode.
 
 By default, cmd/link will decide the linking mode as follows: if the only
-packages using cgo are those on a whitelist of standard library
+packages using cgo are those on a list of known standard library
 packages (net, os/user, runtime/cgo), cmd/link will use internal linking
 mode. Otherwise, there are non-standard cgo packages involved, and cmd/link
 will use external linking mode. The first rule means that a build of

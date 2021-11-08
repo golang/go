@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux,!android netbsd openbsd
-// +build cgo
+//go:build (aix || darwin || dragonfly || freebsd || (linux && !android) || netbsd || openbsd) && cgo
 
 // Package pty is a simple pseudo-terminal package for Unix systems,
 // implemented by calling C functions via cgo.
@@ -38,8 +37,10 @@ func (e *PtyError) Error() string {
 	return fmt.Sprintf("%s: %s", e.FuncName, e.ErrorString)
 }
 
-// Open returns a master pty and the name of the linked slave tty.
-func Open() (master *os.File, slave string, err error) {
+func (e *PtyError) Unwrap() error { return e.Errno }
+
+// Open returns a control pty and the name of the linked process tty.
+func Open() (pty *os.File, processTTY string, err error) {
 	m, err := C.posix_openpt(C.O_RDWR)
 	if err != nil {
 		return nil, "", ptyError("posix_openpt", err)
@@ -52,6 +53,6 @@ func Open() (master *os.File, slave string, err error) {
 		C.close(m)
 		return nil, "", ptyError("unlockpt", err)
 	}
-	slave = C.GoString(C.ptsname(m))
-	return os.NewFile(uintptr(m), "pty-master"), slave, nil
+	processTTY = C.GoString(C.ptsname(m))
+	return os.NewFile(uintptr(m), "pty"), processTTY, nil
 }

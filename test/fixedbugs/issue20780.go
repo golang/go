@@ -6,15 +6,20 @@
 
 // We have a limit of 1GB for stack frames.
 // Make sure we include the callee args section.
-// (The dispatch wrapper which implements (*S).f
-// copies the return value from f to a stack temp, then
-// from that stack temp to the return value of (*S).f.
-// It uses ~800MB for each section.)
 
 package main
 
-type S struct {
-	i interface {
-		f() [800e6]byte
-	}
+type Big = [400e6]byte
+
+func f() { // GC_ERROR "stack frame too large"
+	// Note: This test relies on the fact that we currently always
+	// spill function-results to the stack, even if they're so
+	// large that we would normally heap allocate them. If we ever
+	// improve the backend to spill temporaries to the heap, this
+	// test will probably need updating to find some new way to
+	// construct an overly large stack frame.
+	g(h(), h())
 }
+
+func g(Big, Big)
+func h() Big

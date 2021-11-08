@@ -5,6 +5,8 @@
 // Package comment.
 package pkg
 
+import "io"
+
 // Constants
 
 // Comment about exported constant.
@@ -33,6 +35,8 @@ const (
 // Comment about exported variable.
 var ExportedVariable = 1
 
+var ExportedVarOfUnExported unexportedType
+
 // Comment about internal variable.
 var internalVariable = 2
 
@@ -52,7 +56,9 @@ var (
 )
 
 // Comment about exported function.
-func ExportedFunc(a int) bool
+func ExportedFunc(a int) bool {
+	return true != false
+}
 
 // Comment about internal function.
 func internalFunc(a int) bool
@@ -73,7 +79,11 @@ type ExportedType struct {
 
 // Comment about exported method.
 func (ExportedType) ExportedMethod(a int) bool {
-	return true
+	return true != true
+}
+
+func (ExportedType) Uncommented(a int) bool {
+	return true != true
 }
 
 // Comment about unexported method.
@@ -101,6 +111,13 @@ const unexportedTypedConstant ExportedType = 1 // In a separate section to test 
 // Comment about exported interface.
 type ExportedInterface interface {
 	// Comment before exported method.
+	//
+	//	// Code block showing how to use ExportedMethod
+	//	func DoSomething() error {
+	//		ExportedMethod()
+	//		return nil
+	//	}
+	//
 	ExportedMethod()   // Comment on line with exported method.
 	unexportedMethod() // Comment on line with unexported method.
 	io.Reader          // Comment on line with embedded Reader.
@@ -199,3 +216,25 @@ const (
 	Duplicate = iota
 	duplicate
 )
+
+// Comment about exported function with formatting.
+//
+// Example
+//
+//	fmt.Println(FormattedDoc())
+//
+// Text after pre-formatted block.
+func ExportedFormattedDoc(a int) bool {
+	return true
+}
+
+type ExportedFormattedType struct {
+	// Comment before exported field with formatting.
+	//
+	// Example
+	//
+	//	a.ExportedField = 123
+	//
+	// Text after pre-formatted block.
+	ExportedField int
+}

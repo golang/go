@@ -9,14 +9,17 @@
 // spends all of its time in the race runtime, which isn't a safe
 // point.
 
-// +build amd64
-// +build linux
-// +build !race
+//go:build amd64 && linux && !race
 
 package runtime_test
 
 import (
 	"fmt"
+	"internal/abi"
+	"internal/goexperiment"
+	"math"
+	"os"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"sync/atomic"
@@ -25,12 +28,23 @@ import (
 )
 
 func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
+	// This can deadlock if run under a debugger because it
+	// depends on catching SIGTRAP, which is usually swallowed by
+	// a debugger.
+	skipUnderDebugger(t)
+
 	// This can deadlock if there aren't enough threads or if a GC
-	// tries to interrupt an atomic loop (see issue #10958).
-	ogomaxprocs := runtime.GOMAXPROCS(2)
+	// tries to interrupt an atomic loop (see issue #10958). We
+	// use 8 Ps so there's room for the debug call worker,
+	// something that's trying to preempt the call worker, and the
+	// goroutine that's trying to stop the call worker.
+	ogomaxprocs := runtime.GOMAXPROCS(8)
 	ogcpercent := debug.SetGCPercent(-1)
 
-	ready := make(chan *runtime.G)
+	// ready is a buffered channel so debugCallWorker won't block
+	// on sending to it. This makes it less likely we'll catch
+	// debugCallWorker while it's in the runtime.
+	ready := make(chan *runtime.G, 1)
 	var stop uint32
 	done := make(chan error)
 	go debugCallWorker(ready, &stop, done)
@@ -60,6 +74,10 @@ func debugCallWorker(ready chan<- *runtime.G, stop *uint32, done chan<- error) {
 	close(done)
 }
 
+// Don't inline this function, since we want to test adjusting
+// pointers in the arguments.
+//
+//go:noinline
 func debugCallWorker2(stop *uint32, x *int) {
 	for atomic.LoadUint32(stop) == 0 {
 		// Strongly encourage x to live in a register so we
@@ -69,33 +87,98 @@ func debugCallWorker2(stop *uint32, x *int) {
 	*x = 1
 }
 
-func debugCallTKill(tid int) {
-	syscall.Tgkill(syscall.Getpid(), tid, syscall.SIGTRAP)
+func debugCallTKill(tid int) error {
+	return syscall.Tgkill(syscall.Getpid(), tid, syscall.SIGTRAP)
+}
+
+// skipUnderDebugger skips the current test when running under a
+// debugger (specifically if this process has a tracer). This is
+// Linux-specific.
+func skipUnderDebugger(t *testing.T) {
+	pid := syscall.Getpid()
+	status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	if err != nil {
+		t.Logf("couldn't get proc tracer: %s", err)
+		return
+	}
+	re := regexp.MustCompile(`TracerPid:\s+([0-9]+)`)
+	sub := re.FindSubmatch(status)
+	if sub == nil {
+		t.Logf("couldn't find proc tracer PID")
+		return
+	}
+	if string(sub[1]) == "0" {
+		return
+	}
+	t.Skip("test will deadlock under a debugger")
 }
 
 func TestDebugCall(t *testing.T) {
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	g, after := startDebugCallWorker(t)
 	defer after()
 
+	type stackArgs struct {
+		x0    int
+		x1    float64
+		y0Ret int
+		y1Ret float64
+	}
+
 	// Inject a call into the debugCallWorker goroutine and test
 	// basic argument and result passing.
-	var args struct {
-		x    int
-		yRet int
+	fn := func(x int, y float64) (y0Ret int, y1Ret float64) {
+		return x + 1, y + 1.0
 	}
-	fn := func(x int) (yRet int) {
-		return x + 1
+	var args *stackArgs
+	var regs abi.RegArgs
+	intRegs := regs.Ints[:]
+	floatRegs := regs.Floats[:]
+	fval := float64(42.0)
+	if goexperiment.RegabiArgs {
+		intRegs[0] = 42
+		floatRegs[0] = math.Float64bits(fval)
+	} else {
+		args = &stackArgs{
+			x0: 42,
+			x1: 42.0,
+		}
 	}
-	args.x = 42
-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill); err != nil {
+
+	if _, err := runtime.InjectDebugCall(g, fn, &regs, args, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
-	if args.yRet != 43 {
-		t.Fatalf("want 43, got %d", args.yRet)
+	var result0 int
+	var result1 float64
+	if goexperiment.RegabiArgs {
+		result0 = int(intRegs[0])
+		result1 = math.Float64frombits(floatRegs[0])
+	} else {
+		result0 = args.y0Ret
+		result1 = args.y1Ret
+	}
+	if result0 != 43 {
+		t.Errorf("want 43, got %d", result0)
+	}
+	if result1 != fval+1 {
+		t.Errorf("want 43, got %f", result1)
 	}
 }
 
 func TestDebugCallLarge(t *testing.T) {
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	g, after := startDebugCallWorker(t)
 	defer after()
 
@@ -116,7 +199,7 @@ func TestDebugCallLarge(t *testing.T) {
 		args.in[i] = i
 		want[i] = i + 1
 	}
-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill); err != nil {
+	if _, err := runtime.InjectDebugCall(g, fn, nil, &args, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 	if want != args.out {
@@ -125,22 +208,36 @@ func TestDebugCallLarge(t *testing.T) {
 }
 
 func TestDebugCallGC(t *testing.T) {
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	g, after := startDebugCallWorker(t)
 	defer after()
 
 	// Inject a call that performs a GC.
-	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, debugCallTKill); err != nil {
+	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, nil, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestDebugCallGrowStack(t *testing.T) {
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	g, after := startDebugCallWorker(t)
 	defer after()
 
 	// Inject a call that grows the stack. debugCallWorker checks
 	// for stack pointer breakage.
-	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, debugCallTKill); err != nil {
+	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, nil, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -160,9 +257,17 @@ func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *uint32) {
 }
 
 func TestDebugCallUnsafePoint(t *testing.T) {
+	skipUnderDebugger(t)
+
 	// This can deadlock if there aren't enough threads or if a GC
 	// tries to interrupt an atomic loop (see issue #10958).
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 
 	// Test that the runtime refuses call injection at unsafe points.
@@ -174,15 +279,24 @@ func TestDebugCallUnsafePoint(t *testing.T) {
 		runtime.Gosched()
 	}
 
-	_, err := runtime.InjectDebugCall(g, func() {}, nil, debugCallTKill)
+	_, err := runtime.InjectDebugCall(g, func() {}, nil, nil, debugCallTKill, true)
 	if msg := "call not at safe point"; err == nil || err.Error() != msg {
 		t.Fatalf("want %q, got %s", msg, err)
 	}
 }
 
 func TestDebugCallPanic(t *testing.T) {
+	skipUnderDebugger(t)
+
 	// This can deadlock if there aren't enough threads.
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 
 	ready := make(chan *runtime.G)
 	var stop uint32
@@ -196,7 +310,7 @@ func TestDebugCallPanic(t *testing.T) {
 	}()
 	g := <-ready
 
-	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, debugCallTKill)
+	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, nil, debugCallTKill, false)
 	if err != nil {
 		t.Fatal(err)
 	}

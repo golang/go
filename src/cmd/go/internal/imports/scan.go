@@ -6,23 +6,34 @@ package imports
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
+	"io/fs"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+
+	"cmd/go/internal/fsys"
 )
 
 func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
-	infos, err := ioutil.ReadDir(dir)
+	infos, err := fsys.ReadDir(dir)
 	if err != nil {
 		return nil, nil, err
 	}
 	var files []string
 	for _, info := range infos {
 		name := info.Name()
-		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
+
+		// If the directory entry is a symlink, stat it to obtain the info for the
+		// link target instead of the link itself.
+		if info.Mode()&fs.ModeSymlink != 0 {
+			info, err = fsys.Stat(filepath.Join(dir, name))
+			if err != nil {
+				continue // Ignore broken symlinks.
+			}
+		}
+
+		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
 			files = append(files, filepath.Join(dir, name))
 		}
 	}
@@ -37,8 +48,9 @@ func scanFiles(files []string, tags map[string]bool, explicitFiles bool) ([]stri
 	imports := make(map[string]bool)
 	testImports := make(map[string]bool)
 	numFiles := 0
+Files:
 	for _, name := range files {
-		r, err := os.Open(name)
+		r, err := fsys.Open(name)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -48,6 +60,19 @@ func scanFiles(files []string, tags map[string]bool, explicitFiles bool) ([]stri
 		if err != nil {
 			return nil, nil, fmt.Errorf("reading %s: %v", name, err)
 		}
+
+		// import "C" is implicit requirement of cgo tag.
+		// When listing files on the command line (explicitFiles=true)
+		// we do not apply build tag filtering but we still do apply
+		// cgo filtering, so no explicitFiles check here.
+		// Why? Because we always have, and it's not worth breaking
+		// that behavior now.
+		for _, path := range list {
+			if path == `"C"` && !tags["cgo"] && !tags["*"] {
+				continue Files
+			}
+		}
+
 		if !explicitFiles && !ShouldBuild(data, tags) {
 			continue
 		}

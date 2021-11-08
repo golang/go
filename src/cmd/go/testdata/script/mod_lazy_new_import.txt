@@ -1,0 +1,155 @@
+# This test illustrates the use of a deepening scan to resolve transitive
+# imports of imports of new packages from within existing dependencies.
+
+# The package import graph used in this test looks like:
+#
+# lazy ---- a/x ---- b
+#     \
+#      ---- a/y (new) ---- c
+#
+# Where a/x and x/y are disjoint packages, but both contained in module a.
+#
+# The module dependency graph initially looks like:
+#
+# lazy ---- a.1 ---- b.1
+#              \
+#               c.1
+
+
+cp go.mod go.mod.old
+cp lazy.go lazy.go.old
+go mod tidy
+cmp go.mod go.mod.old
+
+# Before adding a new import, the go.mod file should
+# enumerate modules for all packages already imported.
+go list all
+cmp go.mod go.mod.old
+
+# When we add a new import of a package in an existing dependency,
+# and that dependency is already tidy, its transitive dependencies
+# should already be present.
+cp lazy.go.new lazy.go
+go list all
+go list -m all
+stdout '^example.com/c v0.1.0' # not v0.2.0 as would be resolved by 'latest'
+cmp go.mod go.mod.old
+
+# Now, we repeat the test with a lazy main module.
+cp lazy.go.old lazy.go
+cp go.mod.117 go.mod
+
+# Before adding a new import, the go.mod file should
+# enumerate modules for all packages already imported.
+go list all
+cmp go.mod go.mod.117
+
+# When a new import is found, we should perform a deepening scan of the existing
+# dependencies and add a requirement on the version required by those
+# dependencies — not re-resolve 'latest'.
+cp lazy.go.new lazy.go
+
+! go list all
+stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy$'
+
+go mod tidy
+go list all
+go list -m all
+stdout '^example.com/c v0.1.0' # not v0.2.0 as would be resolved by 'latest'
+
+cmp go.mod go.mod.new
+
+
+-- go.mod --
+module example.com/lazy
+
+go 1.15
+
+require example.com/a v0.1.0
+
+replace (
+	example.com/a v0.1.0 => ./a
+	example.com/b v0.1.0 => ./b
+	example.com/c v0.1.0 => ./c1
+	example.com/c v0.2.0 => ./c2
+)
+-- go.mod.117 --
+module example.com/lazy
+
+go 1.17
+
+require example.com/a v0.1.0
+
+require example.com/b v0.1.0 // indirect
+
+replace (
+	example.com/a v0.1.0 => ./a
+	example.com/b v0.1.0 => ./b
+	example.com/c v0.1.0 => ./c1
+	example.com/c v0.2.0 => ./c2
+)
+-- go.mod.new --
+module example.com/lazy
+
+go 1.17
+
+require example.com/a v0.1.0
+
+require (
+	example.com/b v0.1.0 // indirect
+	example.com/c v0.1.0 // indirect
+)
+
+replace (
+	example.com/a v0.1.0 => ./a
+	example.com/b v0.1.0 => ./b
+	example.com/c v0.1.0 => ./c1
+	example.com/c v0.2.0 => ./c2
+)
+-- lazy.go --
+package lazy
+
+import (
+	_ "example.com/a/x"
+)
+-- lazy.go.new --
+package lazy
+
+import (
+	_ "example.com/a/x"
+	_ "example.com/a/y"
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.15
+
+require (
+	example.com/b v0.1.0
+	example.com/c v0.1.0
+)
+-- a/x/x.go --
+package x
+import _ "example.com/b"
+-- a/y/y.go --
+package y
+import _ "example.com/c"
+-- b/go.mod --
+module example.com/b
+
+go 1.15
+-- b/b.go --
+package b
+-- c1/go.mod --
+module example.com/c
+
+go 1.15
+-- c1/c.go --
+package c
+-- c2/go.mod --
+module example.com/c
+
+go 1.15
+-- c2/c.go --
+package c
+This file should not be used, so this syntax error should be ignored.

@@ -16,12 +16,12 @@ package codegen
 // Direct use of constants in fast map access calls (Issue #19015).
 
 func AccessInt1(m map[int]int) int {
-	// amd64:"MOVQ\t[$]5"
+	// amd64:"MOV[LQ]\t[$]5"
 	return m[5]
 }
 
 func AccessInt2(m map[int]int) bool {
-	// amd64:"MOVQ\t[$]5"
+	// amd64:"MOV[LQ]\t[$]5"
 	_, ok := m[5]
 	return ok
 }
@@ -35,6 +35,35 @@ func AccessString2(m map[string]int) bool {
 	// amd64:`.*"abc"`
 	_, ok := m["abc"]
 	return ok
+}
+
+// ------------------- //
+//  String Conversion  //
+// ------------------- //
+
+func LookupStringConversionSimple(m map[string]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[string(bytes)]
+}
+
+func LookupStringConversionStructLit(m map[struct{ string }]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[struct{ string }{string(bytes)}]
+}
+
+func LookupStringConversionArrayLit(m map[[2]string]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[[2]string{string(bytes), string(bytes)}]
+}
+
+func LookupStringConversionNestedLit(m map[[1]struct{ s [1]string }]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[[1]struct{ s [1]string }{struct{ s [1]string }{s: [1]string{string(bytes)}}}]
+}
+
+func LookupStringConversionKeyedArrayLit(m map[[2]string]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[[2]string{0: string(bytes)}]
 }
 
 // ------------------- //

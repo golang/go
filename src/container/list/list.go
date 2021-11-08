@@ -90,11 +90,10 @@ func (l *List) lazyInit() {
 
 // insert inserts e after at, increments l.len, and returns e.
 func (l *List) insert(e, at *Element) *Element {
-	n := at.next
-	at.next = e
 	e.prev = at
-	e.next = n
-	n.prev = e
+	e.next = at.next
+	e.prev.next = e
+	e.next.prev = e
 	e.list = l
 	l.len++
 	return e
@@ -105,15 +104,28 @@ func (l *List) insertValue(v interface{}, at *Element) *Element {
 	return l.insert(&Element{Value: v}, at)
 }
 
-// remove removes e from its list, decrements l.len, and returns e.
-func (l *List) remove(e *Element) *Element {
+// remove removes e from its list, decrements l.len
+func (l *List) remove(e *Element) {
 	e.prev.next = e.next
 	e.next.prev = e.prev
 	e.next = nil // avoid memory leaks
 	e.prev = nil // avoid memory leaks
 	e.list = nil
 	l.len--
-	return e
+}
+
+// move moves e to next to at.
+func (l *List) move(e, at *Element) {
+	if e == at {
+		return
+	}
+	e.prev.next = e.next
+	e.next.prev = e.prev
+
+	e.prev = at
+	e.next = at.next
+	e.prev.next = e
+	e.next.prev = e
 }
 
 // Remove removes e from l if e is an element of list l.
@@ -170,7 +182,7 @@ func (l *List) MoveToFront(e *Element) {
 		return
 	}
 	// see comment in List.Remove about initialization of l
-	l.insert(l.remove(e), &l.root)
+	l.move(e, &l.root)
 }
 
 // MoveToBack moves element e to the back of list l.
@@ -181,7 +193,7 @@ func (l *List) MoveToBack(e *Element) {
 		return
 	}
 	// see comment in List.Remove about initialization of l
-	l.insert(l.remove(e), l.root.prev)
+	l.move(e, l.root.prev)
 }
 
 // MoveBefore moves element e to its new position before mark.
@@ -191,7 +203,7 @@ func (l *List) MoveBefore(e, mark *Element) {
 	if e.list != l || e == mark || mark.list != l {
 		return
 	}
-	l.insert(l.remove(e), mark.prev)
+	l.move(e, mark.prev)
 }
 
 // MoveAfter moves element e to its new position after mark.
@@ -201,10 +213,10 @@ func (l *List) MoveAfter(e, mark *Element) {
 	if e.list != l || e == mark || mark.list != l {
 		return
 	}
-	l.insert(l.remove(e), mark)
+	l.move(e, mark)
 }
 
-// PushBackList inserts a copy of an other list at the back of list l.
+// PushBackList inserts a copy of another list at the back of list l.
 // The lists l and other may be the same. They must not be nil.
 func (l *List) PushBackList(other *List) {
 	l.lazyInit()
@@ -213,7 +225,7 @@ func (l *List) PushBackList(other *List) {
 	}
 }
 
-// PushFrontList inserts a copy of an other list at the front of list l.
+// PushFrontList inserts a copy of another list at the front of list l.
 // The lists l and other may be the same. They must not be nil.
 func (l *List) PushFrontList(other *List) {
 	l.lazyInit()

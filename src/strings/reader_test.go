@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"sync"
 	"testing"
@@ -162,7 +161,7 @@ func TestWriteTo(t *testing.T) {
 // tests that Len is affected by reads, but Size is not.
 func TestReaderLenSize(t *testing.T) {
 	r := strings.NewReader("abc")
-	io.CopyN(ioutil.Discard, r, 1)
+	io.CopyN(io.Discard, r, 1)
 	if r.Len() != 2 {
 		t.Errorf("Len = %d; want 2", r.Len())
 	}
@@ -182,11 +181,53 @@ func TestReaderReset(t *testing.T) {
 	if err := r.UnreadRune(); err == nil {
 		t.Errorf("UnreadRune: expected error, got nil")
 	}
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		t.Errorf("ReadAll: unexpected error: %v", err)
 	}
 	if got := string(buf); got != want {
 		t.Errorf("ReadAll: got %q, want %q", got, want)
+	}
+}
+
+func TestReaderZero(t *testing.T) {
+	if l := (&strings.Reader{}).Len(); l != 0 {
+		t.Errorf("Len: got %d, want 0", l)
+	}
+
+	if n, err := (&strings.Reader{}).Read(nil); n != 0 || err != io.EOF {
+		t.Errorf("Read: got %d, %v; want 0, io.EOF", n, err)
+	}
+
+	if n, err := (&strings.Reader{}).ReadAt(nil, 11); n != 0 || err != io.EOF {
+		t.Errorf("ReadAt: got %d, %v; want 0, io.EOF", n, err)
+	}
+
+	if b, err := (&strings.Reader{}).ReadByte(); b != 0 || err != io.EOF {
+		t.Errorf("ReadByte: got %d, %v; want 0, io.EOF", b, err)
+	}
+
+	if ch, size, err := (&strings.Reader{}).ReadRune(); ch != 0 || size != 0 || err != io.EOF {
+		t.Errorf("ReadRune: got %d, %d, %v; want 0, 0, io.EOF", ch, size, err)
+	}
+
+	if offset, err := (&strings.Reader{}).Seek(11, io.SeekStart); offset != 11 || err != nil {
+		t.Errorf("Seek: got %d, %v; want 11, nil", offset, err)
+	}
+
+	if s := (&strings.Reader{}).Size(); s != 0 {
+		t.Errorf("Size: got %d, want 0", s)
+	}
+
+	if (&strings.Reader{}).UnreadByte() == nil {
+		t.Errorf("UnreadByte: got nil, want error")
+	}
+
+	if (&strings.Reader{}).UnreadRune() == nil {
+		t.Errorf("UnreadRune: got nil, want error")
+	}
+
+	if n, err := (&strings.Reader{}).WriteTo(io.Discard); n != 0 || err != nil {
+		t.Errorf("WriteTo: got %d, %v; want 0, nil", n, err)
 	}
 }

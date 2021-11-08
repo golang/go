@@ -1,0 +1,43 @@
+env GO111MODULE=on
+
+# TODO(golang.org/issue/41297): we shouldn't need go.sum. None of the commands
+# below depend on the build list.
+
+go list -m -versions rsc.io/quote
+stdout '^rsc.io/quote v1.0.0 v1.1.0 v1.2.0 v1.2.1 v1.3.0 v1.4.0 v1.5.0 v1.5.1 v1.5.2 v1.5.3-pre1$'
+
+# Latest rsc.io/quote should be v1.5.2, not v1.5.3-pre1.
+go list -m rsc.io/quote@latest
+stdout 'rsc.io/quote v1.5.2$'
+
+# Same for rsc.io/quote@v1 and rsc.io/quote@v1.5 (with no patch version).
+go list -m rsc.io/quote@v1
+stdout 'rsc.io/quote v1.5.2$'
+go list -m rsc.io/quote@v1.5
+stdout 'rsc.io/quote v1.5.2$'
+
+# We should fall back to prereleases if no release tags match...
+go list -m rsc.io/quote@>v1.5.2
+stdout 'rsc.io/quote v1.5.3-pre1$'
+
+# ...but prefer release versions when given the option.
+go list -m rsc.io/quote@<v1.5.4
+stdout 'rsc.io/quote v1.5.2$'
+
+! go list -m rsc.io/quote@>v1.5.3
+stderr 'go: module rsc.io/quote: no matching versions for query ">v1.5.3"'
+
+go list -m -e -f '{{.Error.Err}}' rsc.io/quote@>v1.5.3
+stdout 'no matching versions for query ">v1.5.3"'
+
+-- go.mod --
+module x
+require rsc.io/quote v1.0.0
+
+-- go.sum --
+rsc.io/quote v1.0.0 h1:kQ3IZQzPTiDJxSZI98YaWgxFEhlNdYASHvh+MplbViw=
+rsc.io/quote v1.0.0/go.mod h1:v83Ri/njykPcgJltBc/gEkJTmjTsNgtO1Y7vyIK1CQA=
+-- use.go --
+package use
+
+import _ "rsc.io/quote"

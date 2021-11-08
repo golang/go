@@ -6,6 +6,11 @@
 
 package types
 
+// Internal use of LookupFieldOrMethod: If the obj result is a method
+// associated with a concrete (non-interface) type, the method's signature
+// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+// the method's type.
+
 // LookupFieldOrMethod looks up a field or method with given package and name
 // in T and returns the corresponding *Var or *Func, an index sequence, and a
 // bool indicating if there were any pointer indirections on the path to the
@@ -40,8 +45,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// Thus, if we have a named pointer type, proceed with the underlying
 	// pointer type but discard the result if it is a method since we would
 	// not have found it for T (see also issue 8590).
-	if t, _ := T.(*Named); t != nil {
-		if p, _ := t.underlying.(*Pointer); p != nil {
+	if t := asNamed(T); t != nil {
+		if p, _ := safeUnderlying(t).(*Pointer); p != nil {
 			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
@@ -58,9 +63,9 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 //           types always have only one representation (even when imported
 //           indirectly via different packages.)
 
+// lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
 func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
-	//          This function and NewMethodSet should be kept in sync.
 
 	if name == "_" {
 		return // blank fields/methods are never found
@@ -68,9 +73,15 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 
 	typ, isPtr := deref(T)
 
-	// *typ where typ is an interface has no methods.
-	if isPtr && IsInterface(typ) {
-		return
+	// *typ where typ is an interface or type parameter has no methods.
+	if isPtr {
+		// don't look at under(typ) here - was bug (issue #47747)
+		if _, ok := typ.(*TypeParam); ok {
+			return
+		}
+		if _, ok := under(typ).(*Interface); ok {
+			return
+		}
 	}
 
 	// Start with typ as single entry at shallowest depth.
@@ -90,12 +101,13 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 		var next []embeddedType // embedded types found at current depth
 
 		// look for (pkg, name) in all types at current depth
+		var tpar *TypeParam // set if obj receiver is a type parameter
 		for _, e := range current {
 			typ := e.typ
 
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
-			if named, _ := typ.(*Named); named != nil {
+			if named := asNamed(typ); named != nil {
 				if seen[named] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
@@ -110,9 +122,10 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				seen[named] = true
 
 				// look for a matching attached method
+				named.resolve(nil)
 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
 					// potential match
-					assert(m.typ != nil)
+					// caution: method may not have a proper signature yet
 					index = concat(e.index, i)
 					if obj != nil || e.multiples {
 						return nil, index, false // collision
@@ -122,10 +135,17 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 					continue // we can't have a matching field or interface method
 				}
 
-				// continue with underlying type
-				typ = named.underlying
+				// continue with underlying type, but only if it's not a type parameter
+				// TODO(gri) is this what we want to do for type parameters? (spec question)
+				// TODO(#45639) the error message produced as a result of skipping an
+				//              underlying type parameter should be improved.
+				typ = named.under()
+				if asTypeParam(typ) != nil {
+					continue
+				}
 			}
 
+			tpar = nil
 			switch t := typ.(type) {
 			case *Struct:
 				// look for a matching field and collect embedded types
@@ -160,13 +180,24 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 
 			case *Interface:
 				// look for a matching method
-				// TODO(gri) t.allMethods is sorted - use binary search
-				if i, m := lookupMethod(t.allMethods, pkg, name); m != nil {
+				if i, m := t.typeSet().LookupMethod(pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
 					if obj != nil || e.multiples {
 						return nil, index, false // collision
 					}
+					obj = m
+					indirect = e.indirect
+				}
+
+			case *TypeParam:
+				if i, m := t.iface().typeSet().LookupMethod(pkg, name); m != nil {
+					assert(m.typ != nil)
+					index = concat(e.index, i)
+					if obj != nil || e.multiples {
+						return nil, index, false // collision
+					}
+					tpar = t
 					obj = m
 					indirect = e.indirect
 				}
@@ -179,8 +210,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 			//        contains m and the argument list can be assigned to the parameter
 			//        list of m. If x is addressable and &x's method set contains m, x.m()
 			//        is shorthand for (&x).m()".
-			if f, _ := obj.(*Func); f != nil && ptrRecv(f) && !indirect && !addressable {
-				return nil, nil, true // pointer/addressable receiver required
+			if f, _ := obj.(*Func); f != nil {
+				// determine if method has a pointer receiver
+				hasPtrRecv := tpar == nil && f.hasPtrRecv()
+				if hasPtrRecv && !indirect && !addressable {
+					return nil, nil, true // pointer/addressable receiver required
+				}
 			}
 			return
 		}
@@ -248,40 +283,106 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
 // x is of interface type V).
 //
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
+	m, typ := (*Checker)(nil).missingMethod(V, T, static)
+	return m, typ != nil
+}
+
+// missingMethod is like MissingMethod but accepts a *Checker as
+// receiver and an addressable flag.
+// The receiver may be nil if missingMethod is invoked through
+// an exported API call (such as MissingMethod), i.e., when all
+// methods have been type-checked.
+// If the type has the correctly named method, but with the wrong
+// signature, the existing method is returned as well.
+// To improve error messages, also report the wrong signature
+// when the method exists on *V instead of V.
+func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
 	// fast path for common case
 	if T.Empty() {
 		return
 	}
 
-	// TODO(gri) Consider using method sets here. Might be more efficient.
+	if ityp := asInterface(V); ityp != nil {
+		// TODO(gri) the methods are sorted - could do this more efficiently
+		for _, m := range T.typeSet().methods {
+			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name)
 
-	if ityp, _ := V.Underlying().(*Interface); ityp != nil {
-		// TODO(gri) allMethods is sorted - can do this more efficiently
-		for _, m := range T.allMethods {
-			_, obj := lookupMethod(ityp.allMethods, m.pkg, m.name)
-			switch {
-			case obj == nil:
-				if static {
-					return m, false
+			if f == nil {
+				if !static {
+					continue
 				}
-			case !Identical(obj.Type(), m.typ):
-				return m, true
+				return m, f
+			}
+
+			// both methods must have the same number of type parameters
+			ftyp := f.typ.(*Signature)
+			mtyp := m.typ.(*Signature)
+			if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
+				return m, f
+			}
+			if ftyp.TypeParams().Len() > 0 {
+				panic("method with type parameters")
+			}
+
+			// If the methods have type parameters we don't care whether they
+			// are the same or not, as long as they match up. Use unification
+			// to see if they can be made to match.
+			// TODO(gri) is this always correct? what about type bounds?
+			// (Alternative is to rename/subst type parameters and compare.)
+			u := newUnifier(true)
+			u.x.init(ftyp.TypeParams().list())
+			if !u.unify(ftyp, mtyp) {
+				return m, f
 			}
 		}
+
 		return
 	}
 
 	// A concrete type implements T if it implements all methods of T.
-	for _, m := range T.allMethods {
+	for _, m := range T.typeSet().methods {
+		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
 		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name)
 
-		f, _ := obj.(*Func)
-		if f == nil {
-			return m, false
+		// Check if *V implements this method of T.
+		if obj == nil {
+			ptr := NewPointer(V)
+			obj, _, _ = lookupFieldOrMethod(ptr, false, m.pkg, m.name)
+			if obj != nil {
+				return m, obj.(*Func)
+			}
 		}
 
-		if !Identical(f.typ, m.typ) {
-			return m, true
+		// we must have a method (not a field of matching function type)
+		f, _ := obj.(*Func)
+		if f == nil {
+			return m, nil
+		}
+
+		// methods may not have a fully set up signature yet
+		if check != nil {
+			check.objDecl(f, nil)
+		}
+
+		// both methods must have the same number of type parameters
+		ftyp := f.typ.(*Signature)
+		mtyp := m.typ.(*Signature)
+		if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
+			return m, f
+		}
+		if ftyp.TypeParams().Len() > 0 {
+			panic("method with type parameters")
+		}
+
+		// If the methods have type parameters we don't care whether they
+		// are the same or not, as long as they match up. Use unification
+		// to see if they can be made to match.
+		// TODO(gri) is this always correct? what about type bounds?
+		// (Alternative is to rename/subst type parameters and compare.)
+		u := newUnifier(true)
+		u.x.init(ftyp.RecvTypeParams().list())
+		if !u.unify(ftyp, mtyp) {
+			return m, f
 		}
 	}
 
@@ -291,14 +392,18 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // assertableTo reports whether a value of type V can be asserted to have type T.
 // It returns (nil, false) as affirmative answer. Otherwise it returns a missing
 // method required by V and whether it is missing or just has the wrong type.
-func assertableTo(V *Interface, T Type) (method *Func, wrongType bool) {
+// The receiver may be nil if assertableTo is invoked through an exported API call
+// (such as AssertableTo), i.e., when all methods have been type-checked.
+// If the global constant forceStrict is set, assertions that are known to fail
+// are not permitted.
+func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Func) {
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
-	if _, ok := T.Underlying().(*Interface); ok && !strict {
+	if asInterface(T) != nil && !forceStrict {
 		return
 	}
-	return MissingMethod(T, V, false)
+	return check.missingMethod(T, V, false)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.
@@ -313,8 +418,8 @@ func deref(typ Type) (Type, bool) {
 // derefStructPtr dereferences typ if it is a (named or unnamed) pointer to a
 // (named or unnamed) struct and returns its base. Otherwise it returns typ.
 func derefStructPtr(typ Type) Type {
-	if p, _ := typ.Underlying().(*Pointer); p != nil {
-		if _, ok := p.base.Underlying().(*Struct); ok {
+	if p := asPointer(typ); p != nil {
+		if asStruct(p.base) != nil {
 			return p.base
 		}
 	}

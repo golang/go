@@ -9,9 +9,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -162,12 +161,12 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 			if err != nil {
 				return err
 			}
-			dir, err := ioutil.TempDir(os.TempDir(), "fix_cgo_typecheck")
+			dir, err := os.MkdirTemp(os.TempDir(), "fix_cgo_typecheck")
 			if err != nil {
 				return err
 			}
 			defer os.RemoveAll(dir)
-			err = ioutil.WriteFile(filepath.Join(dir, "in.go"), txt, 0600)
+			err = os.WriteFile(filepath.Join(dir, "in.go"), txt, 0600)
 			if err != nil {
 				return err
 			}
@@ -176,7 +175,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 			if err != nil {
 				return err
 			}
-			out, err := ioutil.ReadFile(filepath.Join(dir, "_cgo_gotypes.go"))
+			out, err := os.ReadFile(filepath.Join(dir, "_cgo_gotypes.go"))
 			if err != nil {
 				return err
 			}
@@ -193,12 +192,12 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 					var params, results []string
 					for _, p := range fn.Type.Params.List {
 						t := gofmt(p.Type)
-						t = strings.Replace(t, "_Ctype_", "C.", -1)
+						t = strings.ReplaceAll(t, "_Ctype_", "C.")
 						params = append(params, t)
 					}
 					for _, r := range fn.Type.Results.List {
 						t := gofmt(r.Type)
-						t = strings.Replace(t, "_Ctype_", "C.", -1)
+						t = strings.ReplaceAll(t, "_Ctype_", "C.")
 						results = append(results, t)
 					}
 					cfg.External["C."+fn.Name.Name[7:]] = joinFunc(params, results)
@@ -207,7 +206,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 			return nil
 		}()
 		if err != nil {
-			fmt.Printf("warning: no cgo types: %s\n", err)
+			fmt.Fprintf(os.Stderr, "go fix: warning: no cgo types: %s\n", err)
 		}
 	}
 
@@ -384,7 +383,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 		if n == nil {
 			return
 		}
-		if false && reflect.TypeOf(n).Kind() == reflect.Ptr { // debugging trace
+		if false && reflect.TypeOf(n).Kind() == reflect.Pointer { // debugging trace
 			defer func() {
 				if t := typeof[n]; t != "" {
 					pos := fset.Position(n.(ast.Node).Pos())
@@ -545,8 +544,8 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			if strings.HasPrefix(t, "[") || strings.HasPrefix(t, "map[") {
 				// Lazy: assume there are no nested [] in the array
 				// length or map key type.
-				if i := strings.Index(t, "]"); i >= 0 {
-					typeof[n] = t[i+1:]
+				if _, elem, ok := strings.Cut(t, "]"); ok {
+					typeof[n] = elem
 				}
 			}
 
@@ -576,8 +575,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			t := expand(typeof[n])
 			if strings.HasPrefix(t, "[") { // array or slice
 				// Lazy: assume there are no nested [] in the array length.
-				if i := strings.Index(t, "]"); i >= 0 {
-					et := t[i+1:]
+				if _, et, ok := strings.Cut(t, "]"); ok {
 					for _, e := range n.Elts {
 						if kv, ok := e.(*ast.KeyValueExpr); ok {
 							e = kv.Value
@@ -590,8 +588,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			}
 			if strings.HasPrefix(t, "map[") { // map
 				// Lazy: assume there are no nested [] in the map key type.
-				if i := strings.Index(t, "]"); i >= 0 {
-					kt, vt := t[4:i], t[i+1:]
+				if kt, vt, ok := strings.Cut(t[len("map["):], "]"); ok {
 					for _, e := range n.Elts {
 						if kv, ok := e.(*ast.KeyValueExpr); ok {
 							if typeof[kv.Key] == "" {
@@ -630,12 +627,10 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 				key, value = "int", "rune"
 			} else if strings.HasPrefix(t, "[") {
 				key = "int"
-				if i := strings.Index(t, "]"); i >= 0 {
-					value = t[i+1:]
-				}
+				_, value, _ = strings.Cut(t, "]")
 			} else if strings.HasPrefix(t, "map[") {
-				if i := strings.Index(t, "]"); i >= 0 {
-					key, value = t[4:i], t[i+1:]
+				if k, v, ok := strings.Cut(t[len("map["):], "]"); ok {
+					key, value = k, v
 				}
 			}
 			changed := false

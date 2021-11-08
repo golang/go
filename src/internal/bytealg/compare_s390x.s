@@ -13,14 +13,6 @@ TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-56
 	LA	ret+48(FP), R7
 	BR	cmpbody<>(SB)
 
-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
-	MOVD	a_base+0(FP), R3
-	MOVD	a_len+8(FP), R4
-	MOVD	b_base+24(FP), R5
-	MOVD	b_len+32(FP), R6
-	LA	ret+48(FP), R7
-	BR	cmpbody<>(SB)
-
 TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
 	MOVD	a_base+0(FP), R3
 	MOVD	a_len+8(FP), R4
@@ -49,6 +41,8 @@ loop:
 	BGT	gt
 	BLT	lt
 	SUB	$256, R8
+	MOVD	$256(R3), R3
+	MOVD	$256(R5), R5
 	CMP	R8, $256
 	BGT	loop
 tail:

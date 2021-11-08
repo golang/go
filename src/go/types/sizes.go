@@ -48,7 +48,7 @@ type StdSizes struct {
 func (s *StdSizes) Alignof(T Type) int64 {
 	// For arrays and structs, alignment is defined in terms
 	// of alignment of the elements and fields, respectively.
-	switch t := T.Underlying().(type) {
+	switch t := under(T).(type) {
 	case *Array:
 		// spec: "For a variable x of array type: unsafe.Alignof(x)
 		// is the same as unsafe.Alignof(x[0]), but at least 1."
@@ -73,6 +73,8 @@ func (s *StdSizes) Alignof(T Type) int64 {
 		if t.Info()&IsString != 0 {
 			return s.WordSize
 		}
+	case *TypeParam, *Union:
+		unreachable()
 	}
 	a := s.Sizeof(T) // may be 0
 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
@@ -118,7 +120,7 @@ var basicSizes = [...]byte{
 }
 
 func (s *StdSizes) Sizeof(T Type) int64 {
-	switch t := T.Underlying().(type) {
+	switch t := under(T).(type) {
 	case *Basic:
 		assert(isTyped(T))
 		k := t.kind
@@ -150,6 +152,8 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
 	case *Interface:
 		return s.WordSize * 2
+	case *TypeParam, *Union:
+		unreachable()
 	}
 	return s.WordSize // catch-all
 }
@@ -169,6 +173,7 @@ var gcArchSizes = map[string]*StdSizes{
 	"ppc64le":  {8, 8},
 	"riscv64":  {8, 8},
 	"s390x":    {8, 8},
+	"sparc64":  {8, 8},
 	"wasm":     {8, 8},
 	// When adding more architectures here,
 	// update the doc string of SizesFor below.
@@ -179,12 +184,18 @@ var gcArchSizes = map[string]*StdSizes{
 //
 // Supported architectures for compiler "gc":
 // "386", "arm", "arm64", "amd64", "amd64p32", "mips", "mipsle",
-// "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "wasm".
+// "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "sparc64", "wasm".
 func SizesFor(compiler, arch string) Sizes {
-	if compiler != "gc" {
+	var m map[string]*StdSizes
+	switch compiler {
+	case "gc":
+		m = gcArchSizes
+	case "gccgo":
+		m = gccgoArchSizes
+	default:
 		return nil
 	}
-	s, ok := gcArchSizes[arch]
+	s, ok := m[arch]
 	if !ok {
 		return nil
 	}
@@ -232,7 +243,7 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
 func (conf *Config) offsetof(typ Type, index []int) int64 {
 	var o int64
 	for _, i := range index {
-		s := typ.Underlying().(*Struct)
+		s := asStruct(typ)
 		o += conf.offsetsof(s)[i]
 		typ = s.fields[i].typ
 	}

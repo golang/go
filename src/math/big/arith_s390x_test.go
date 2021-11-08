@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build s390x && !math_big_pure_go
 // +build s390x,!math_big_pure_go
 
 package big
@@ -27,18 +28,6 @@ func TestFunVVnovec(t *testing.T) {
 
 			arg = argVV{a.y, a.z, a.x, a.c}
 			testFunVV(t, "subVV_novec symmetric", subVV_novec, arg)
-		}
-	}
-}
-
-func TestFunVWnovec(t *testing.T) {
-	if hasVX == true {
-		for _, a := range sumVW {
-			arg := a
-			testFunVW(t, "addVW_novec", addVW_novec, arg)
-
-			arg = argVW{a.x, a.z, a.y, a.c}
-			testFunVW(t, "subVW_novec", subVW_novec, arg)
 		}
 	}
 }

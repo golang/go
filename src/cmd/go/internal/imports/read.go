@@ -8,6 +8,7 @@ package imports
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 	"unicode/utf8"
@@ -20,6 +21,19 @@ type importReader struct {
 	err  error
 	eof  bool
 	nerr int
+}
+
+var bom = []byte{0xef, 0xbb, 0xbf}
+
+func newImportReader(b *bufio.Reader) *importReader {
+	// Remove leading UTF-8 BOM.
+	// Per https://golang.org/ref/spec#Source_code_representation:
+	// a compiler may ignore a UTF-8-encoded byte order mark (U+FEFF)
+	// if it is the first Unicode code point in the source text.
+	if leadingBytes, err := b.Peek(3); err == nil && bytes.Equal(leadingBytes, bom) {
+		b.Discard(3)
+	}
+	return &importReader{b: b}
 }
 
 func isIdent(c byte) bool {
@@ -198,10 +212,10 @@ func (r *importReader) readImport(imports *[]string) {
 	r.readString(imports)
 }
 
-// ReadComments is like ioutil.ReadAll, except that it only reads the leading
+// ReadComments is like io.ReadAll, except that it only reads the leading
 // block of comments in the file.
 func ReadComments(f io.Reader) ([]byte, error) {
-	r := &importReader{b: bufio.NewReader(f)}
+	r := newImportReader(bufio.NewReader(f))
 	r.peekByte(true)
 	if r.err == nil && !r.eof {
 		// Didn't reach EOF, so must have found a non-space byte. Remove it.
@@ -210,10 +224,10 @@ func ReadComments(f io.Reader) ([]byte, error) {
 	return r.buf, r.err
 }
 
-// ReadImports is like ioutil.ReadAll, except that it expects a Go file as input
+// ReadImports is like io.ReadAll, except that it expects a Go file as input
 // and stops reading the input once the imports have completed.
 func ReadImports(f io.Reader, reportSyntaxError bool, imports *[]string) ([]byte, error) {
-	r := &importReader{b: bufio.NewReader(f)}
+	r := newImportReader(bufio.NewReader(f))
 
 	r.readKeyword("package")
 	r.readIdent()

@@ -11,4 +11,4 @@ func f() bool {
 	} else {
 		return true
 	}
-} // ERROR "missing return at end of function"
+} // ERROR "missing return( at end of function)?"

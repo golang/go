@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -120,6 +120,53 @@ func TestReader(t *testing.T) {
 	}
 }
 
+func TestReaderReset(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range lzwTests {
+		d := strings.Split(tt.desc, ";")
+		var order Order
+		switch d[1] {
+		case "LSB":
+			order = LSB
+		case "MSB":
+			order = MSB
+		default:
+			t.Errorf("%s: bad order %q", tt.desc, d[1])
+		}
+		litWidth, _ := strconv.Atoi(d[2])
+		rc := NewReader(strings.NewReader(tt.compressed), order, litWidth)
+		defer rc.Close()
+		b.Reset()
+		n, err := io.Copy(&b, rc)
+		b1 := b.Bytes()
+		if err != nil {
+			if err != tt.err {
+				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
+			}
+			if err == io.ErrUnexpectedEOF {
+				// Even if the input is truncated, we should still return the
+				// partial decoded result.
+				if n == 0 || !strings.HasPrefix(tt.raw, b.String()) {
+					t.Errorf("got %d bytes (%q), want a non-empty prefix of %q", n, b.String(), tt.raw)
+				}
+			}
+			continue
+		}
+
+		b.Reset()
+		rc.(*Reader).Reset(strings.NewReader(tt.compressed), order, litWidth)
+		n, err = io.Copy(&b, rc)
+		b2 := b.Bytes()
+		if err != nil {
+			t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, nil)
+			continue
+		}
+		if !bytes.Equal(b1, b2) {
+			t.Errorf("bytes read were not the same")
+		}
+	}
+}
+
 type devZero struct{}
 
 func (devZero) Read(p []byte) (int, error) {
@@ -131,7 +178,7 @@ func (devZero) Read(p []byte) (int, error) {
 
 func TestHiCodeDoesNotOverflow(t *testing.T) {
 	r := NewReader(devZero{}, LSB, 8)
-	d := r.(*decoder)
+	d := r.(*Reader)
 	buf := make([]byte, 1024)
 	oldHi := uint16(0)
 	for i := 0; i < 100; i++ {
@@ -206,7 +253,7 @@ func TestNoLongerSavingPriorExpansions(t *testing.T) {
 	in = append(in, 0x80, 0xff, 0x0f, 0x08)
 
 	r := NewReader(bytes.NewReader(in), LSB, 8)
-	nDecoded, err := io.Copy(ioutil.Discard, r)
+	nDecoded, err := io.Copy(io.Discard, r)
 	if err != nil {
 		t.Fatalf("Copy: %v", err)
 	}
@@ -218,7 +265,7 @@ func TestNoLongerSavingPriorExpansions(t *testing.T) {
 }
 
 func BenchmarkDecoder(b *testing.B) {
-	buf, err := ioutil.ReadFile("../testdata/e.txt")
+	buf, err := os.ReadFile("../testdata/e.txt")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -226,27 +273,42 @@ func BenchmarkDecoder(b *testing.B) {
 		b.Fatalf("test file has no data")
 	}
 
+	getInputBuf := func(buf []byte, n int) []byte {
+		compressed := new(bytes.Buffer)
+		w := NewWriter(compressed, LSB, 8)
+		for i := 0; i < n; i += len(buf) {
+			if len(buf) > n-i {
+				buf = buf[:n-i]
+			}
+			w.Write(buf)
+		}
+		w.Close()
+		return compressed.Bytes()
+	}
+
 	for e := 4; e <= 6; e++ {
 		n := int(math.Pow10(e))
 		b.Run(fmt.Sprint("1e", e), func(b *testing.B) {
 			b.StopTimer()
 			b.SetBytes(int64(n))
-			buf0 := buf
-			compressed := new(bytes.Buffer)
-			w := NewWriter(compressed, LSB, 8)
-			for i := 0; i < n; i += len(buf0) {
-				if len(buf0) > n-i {
-					buf0 = buf0[:n-i]
-				}
-				w.Write(buf0)
-			}
-			w.Close()
-			buf1 := compressed.Bytes()
-			buf0, compressed, w = nil, nil, nil
+			buf1 := getInputBuf(buf, n)
 			runtime.GC()
 			b.StartTimer()
 			for i := 0; i < b.N; i++ {
-				io.Copy(ioutil.Discard, NewReader(bytes.NewReader(buf1), LSB, 8))
+				io.Copy(io.Discard, NewReader(bytes.NewReader(buf1), LSB, 8))
+			}
+		})
+		b.Run(fmt.Sprint("1e-Reuse", e), func(b *testing.B) {
+			b.StopTimer()
+			b.SetBytes(int64(n))
+			buf1 := getInputBuf(buf, n)
+			runtime.GC()
+			b.StartTimer()
+			r := NewReader(bytes.NewReader(buf1), LSB, 8)
+			for i := 0; i < b.N; i++ {
+				io.Copy(io.Discard, r)
+				r.Close()
+				r.(*Reader).Reset(bytes.NewReader(buf1), LSB, 8)
 			}
 		})
 	}

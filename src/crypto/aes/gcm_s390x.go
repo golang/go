@@ -8,6 +8,7 @@ import (
 	"crypto/cipher"
 	subtleoverlap "crypto/internal/subtle"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 	"internal/cpu"
 )
@@ -22,35 +23,15 @@ type gcmCount [16]byte
 
 // inc increments the rightmost 32-bits of the count value by 1.
 func (x *gcmCount) inc() {
-	// The compiler should optimize this to a 32-bit addition.
-	n := uint32(x[15]) | uint32(x[14])<<8 | uint32(x[13])<<16 | uint32(x[12])<<24
-	n += 1
-	x[12] = byte(n >> 24)
-	x[13] = byte(n >> 16)
-	x[14] = byte(n >> 8)
-	x[15] = byte(n)
+	binary.BigEndian.PutUint32(x[len(x)-4:], binary.BigEndian.Uint32(x[len(x)-4:])+1)
 }
 
 // gcmLengths writes len0 || len1 as big-endian values to a 16-byte array.
 func gcmLengths(len0, len1 uint64) [16]byte {
-	return [16]byte{
-		byte(len0 >> 56),
-		byte(len0 >> 48),
-		byte(len0 >> 40),
-		byte(len0 >> 32),
-		byte(len0 >> 24),
-		byte(len0 >> 16),
-		byte(len0 >> 8),
-		byte(len0),
-		byte(len1 >> 56),
-		byte(len1 >> 48),
-		byte(len1 >> 40),
-		byte(len1 >> 32),
-		byte(len1 >> 24),
-		byte(len1 >> 16),
-		byte(len1 >> 8),
-		byte(len1),
-	}
+	v := [16]byte{}
+	binary.BigEndian.PutUint64(v[0:], len0)
+	binary.BigEndian.PutUint64(v[8:], len1)
+	return v
 }
 
 // gcmHashKey represents the 16-byte hash key required by the GHASH algorithm.

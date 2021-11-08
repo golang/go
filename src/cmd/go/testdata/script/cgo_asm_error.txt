@@ -1,0 +1,25 @@
+[!cgo] skip
+
+# Test that cgo package can't contain a go assembly file.
+
+# Ensure the build fails and reports that the package has a Go assembly file.
+! go build cgoasm
+stderr 'package using cgo has Go assembly file'
+
+-- go.mod --
+module cgoasm
+
+go 1.16
+-- p.go --
+package p
+
+/*
+// hi
+*/
+import "C"
+
+func F() {}
+-- p.s --
+TEXT asm(SB),$0
+	RET
+

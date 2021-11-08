@@ -13,8 +13,6 @@ import (
 // because while ptr does not escape, new does.
 // If new is marked as not escaping, the compiler will make incorrect
 // escape analysis decisions about the pointer value being stored.
-// Instead, these are wrappers around the actual atomics (casp1 and so on)
-// that use noescape to convey which arguments do not escape.
 
 // atomicwb performs a write barrier before an atomic pointer write.
 // The caller should guard the call with "if writeBarrier.enabled".
@@ -35,17 +33,6 @@ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
 		atomicwb((*unsafe.Pointer)(ptr), new)
 	}
 	atomic.StorepNoWB(noescape(ptr), new)
-}
-
-//go:nosplit
-func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
-	// The write barrier is only necessary if the CAS succeeds,
-	// but since it needs to happen before the write becomes
-	// public, we have to do it conservatively all the time.
-	if writeBarrier.enabled {
-		atomicwb(ptr, new)
-	}
-	return atomic.Casp1((*unsafe.Pointer)(noescape(unsafe.Pointer(ptr))), noescape(old), new)
 }
 
 // Like above, but implement in terms of sync/atomic's uintptr operations.

@@ -538,10 +538,12 @@ type MemExtend struct {
 	Extend ExtShift
 	// Amount indicates the index shift amount (but also see ShiftMustBeZero field below).
 	Amount uint8
-	// ShiftMustBeZero is set to true when the shift amount must be 0, even if the
-	// Amount field is not 0. In GNU syntax, a #0 shift amount is printed if Amount
-	// is not 0 but ShiftMustBeZero is true; #0 is not printed if Amount is 0 and
-	// ShiftMustBeZero is true. Both cases represent shift by 0 bit.
+	// Refer to ARM reference manual, for byte load/store(register), the index
+	// shift amount must be 0, encoded in "S" as 0 if omitted, or as 1 if present.
+	// a.ShiftMustBeZero is set true indicates the index shift amount must be 0.
+	// In GNU syntax, a #0 shift amount is printed if Amount is 1 but ShiftMustBeZero
+	// is true; #0 is not printed if Amount is 0 and ShiftMustBeZero is true.
+	// Both cases represent shift by 0 bit.
 	ShiftMustBeZero bool
 }
 

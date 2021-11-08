@@ -1,0 +1,58 @@
+# Verify that go bug creates the appropriate URL issue body
+
+[!linux] skip
+[short] skip
+
+go install
+go build -o $TMPDIR/go ./go
+env BROWSER=$GOPATH/bin/browser PATH=$TMPDIR:$PATH
+go bug
+exists $TMPDIR/browser
+grep '^go version' $TMPDIR/browser
+grep '^GOROOT/bin/go version: go version' $TMPDIR/browser
+grep '^GOROOT/bin/go tool compile -V: compile version' $TMPDIR/browser
+grep '^uname -sr: Linux' $TMPDIR/browser
+
+-- go.mod --
+module browser
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	u, err := url.Parse(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+	body, err := url.PathUnescape(u.Query().Get("body"))
+	if err != nil {
+		panic(err)
+	}
+	out := filepath.Join(os.TempDir(), "browser")
+	f, err := os.Create(out)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Fprintln(f, body)
+	if err := f.Close(); err != nil {
+		panic(err)
+	}
+}
+
+-- go/main.go --
+package main
+
+import (
+    "os"
+)
+
+func main() {
+    os.Exit(1)
+}

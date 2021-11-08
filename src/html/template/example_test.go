@@ -116,11 +116,33 @@ func Example_escape() {
 	// &#34;Fran &amp; Freddie&#39;s Diner&#34; &lt;tasty@example.com&gt;
 	// &#34;Fran &amp; Freddie&#39;s Diner&#34; &lt;tasty@example.com&gt;
 	// &#34;Fran &amp; Freddie&#39;s Diner&#34;32&lt;tasty@example.com&gt;
-	// \"Fran & Freddie\'s Diner\" \x3Ctasty@example.com\x3E
-	// \"Fran & Freddie\'s Diner\" \x3Ctasty@example.com\x3E
-	// \"Fran & Freddie\'s Diner\"32\x3Ctasty@example.com\x3E
+	// \"Fran \u0026 Freddie\'s Diner\" \u003Ctasty@example.com\u003E
+	// \"Fran \u0026 Freddie\'s Diner\" \u003Ctasty@example.com\u003E
+	// \"Fran \u0026 Freddie\'s Diner\"32\u003Ctasty@example.com\u003E
 	// %22Fran+%26+Freddie%27s+Diner%2232%3Ctasty%40example.com%3E
 
+}
+
+func ExampleTemplate_Delims() {
+	const text = "<<.Greeting>> {{.Name}}"
+
+	data := struct {
+		Greeting string
+		Name     string
+	}{
+		Greeting: "Hello",
+		Name:     "Joe",
+	}
+
+	t := template.Must(template.New("tpl").Delims("<<", ">>").Parse(text))
+
+	err := t.Execute(os.Stdout, data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Output:
+	// Hello {{.Name}}
 }
 
 // The following example is duplicated in text/template; keep them in sync.

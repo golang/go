@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Compiled program.
@@ -154,7 +155,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 
 	// Have prefix; gather characters.
 	var buf strings.Builder
-	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
+	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 && i.Rune[0] != utf8.RuneError {
 		buf.WriteRune(i.Rune[0])
 		i = p.skipNop(i.Out)
 	}
@@ -201,8 +202,12 @@ func (i *Inst) MatchRune(r rune) bool {
 func (i *Inst) MatchRunePos(r rune) int {
 	rune := i.Rune
 
-	// Special case: single-rune slice is from literal string, not char class.
-	if len(rune) == 1 {
+	switch len(rune) {
+	case 0:
+		return noMatch
+
+	case 1:
+		// Special case: single-rune slice is from literal string, not char class.
 		r0 := rune[0]
 		if r == r0 {
 			return 0
@@ -215,17 +220,25 @@ func (i *Inst) MatchRunePos(r rune) int {
 			}
 		}
 		return noMatch
-	}
 
-	// Peek at the first few pairs.
-	// Should handle ASCII well.
-	for j := 0; j < len(rune) && j <= 8; j += 2 {
-		if r < rune[j] {
-			return noMatch
+	case 2:
+		if r >= rune[0] && r <= rune[1] {
+			return 0
 		}
-		if r <= rune[j+1] {
-			return j / 2
+		return noMatch
+
+	case 4, 6, 8:
+		// Linear search for a few pairs.
+		// Should handle ASCII well.
+		for j := 0; j < len(rune); j += 2 {
+			if r < rune[j] {
+				return noMatch
+			}
+			if r <= rune[j+1] {
+				return j / 2
+			}
 		}
+		return noMatch
 	}
 
 	// Otherwise binary search.

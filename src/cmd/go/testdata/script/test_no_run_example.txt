@@ -1,0 +1,30 @@
+go test -v norunexample
+stdout 'File with non-runnable example was built.'
+
+-- go.mod --
+module norunexample
+
+go 1.16
+-- example_test.go --
+package pkg_test
+
+import "os"
+
+func init() {
+	os.Stdout.Write([]byte("File with non-runnable example was built.\n"))
+}
+
+func Example_test() {
+	// This test will not be run, it has no "Output:" comment.
+}
+-- test_test.go --
+package pkg
+
+import (
+	"os"
+	"testing"
+)
+
+func TestBuilt(t *testing.T) {
+	os.Stdout.Write([]byte("A normal test was executed.\n"))
+}

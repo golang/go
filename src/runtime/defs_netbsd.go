@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo.
@@ -32,6 +32,11 @@ import "C"
 const (
 	EINTR  = C.EINTR
 	EFAULT = C.EFAULT
+	EAGAIN = C.EAGAIN
+	ENOSYS = C.ENOSYS
+
+	O_NONBLOCK = C.O_NONBLOCK
+	O_CLOEXEC  = C.O_CLOEXEC
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ

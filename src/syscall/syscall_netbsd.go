@@ -14,6 +14,8 @@ package syscall
 
 import "unsafe"
 
+const _SYS_DUP3 = SYS_DUP3
+
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8
@@ -52,7 +54,6 @@ func sysctlNodes(mib []_C_int) (nodes []Sysctlnode, err error) {
 }
 
 func nametomib(name string) (mib []_C_int, err error) {
-
 	// Split name into components.
 	var parts []string
 	last := 0
@@ -147,11 +148,6 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	return -1, ENOSYS
 }
 
-func setattrlistTimes(path string, times []Timespec) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
-}
-
 /*
  * Exposed directly
  */
@@ -234,3 +230,4 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
 //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

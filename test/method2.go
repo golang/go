@@ -15,8 +15,8 @@ type T struct {
 type P *T
 type P1 *T
 
-func (p P) val() int   { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver"
-func (p *P1) val() int { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver"
+func (p P) val() int   { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver|invalid receiver"
+func (p *P1) val() int { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver|invalid receiver"
 
 type I interface{}
 type I1 interface{}
@@ -33,9 +33,9 @@ var _ = (*Val).val // ERROR "method"
 var v Val
 var pv = &v
 
-var _ = pv.val() // ERROR "pv.val undefined"
-var _ = pv.val   // ERROR "pv.val undefined"
+var _ = pv.val() // ERROR "undefined|pointer to interface"
+var _ = pv.val   // ERROR "undefined|pointer to interface"
 
 func (t *T) g() int { return t.a }
 
-var _ = (T).g() // ERROR "needs pointer receiver|undefined"
+var _ = (T).g() // ERROR "needs pointer receiver|undefined|method requires pointer|cannot call pointer method"

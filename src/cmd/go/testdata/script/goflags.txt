@@ -1,0 +1,59 @@
+env GO111MODULE=off
+
+# GOFLAGS sets flags for commands
+
+env GOFLAGS='-e -f={{.Dir}} --test.benchtime=1s -count=10'
+go list asdfasdfasdf  # succeeds because of -e
+go list runtime
+stdout '[\\/]runtime$'
+
+env GOFLAGS=-race OLDGOARCH=$GOARCH OLDGOOS=$GOOS GOARCH=386 GOOS=linux
+! go list runtime
+stderr 'race is not supported on linux/386'
+
+env GOARCH=$OLDGOARCH GOOS=$OLDGOOS
+
+# go env succeeds even though -f={{.Dir}} is inappropriate
+go env
+
+# bad flags are diagnosed
+env GOFLAGS=-typoflag
+! go list runtime
+stderr 'unknown flag -typoflag'
+
+env GOFLAGS=-
+! go list runtime
+stderr '^go: parsing \$GOFLAGS: non-flag "-"'
+
+env GOFLAGS=--
+! go list runtime
+stderr '^go: parsing \$GOFLAGS: non-flag "--"'
+
+env GOFLAGS=---oops
+! go list runtime
+stderr '^go: parsing \$GOFLAGS: non-flag "---oops"'
+
+env GOFLAGS=-=noname
+! go list runtime
+stderr '^go: parsing \$GOFLAGS: non-flag "-=noname"'
+
+env GOFLAGS=-f
+! go list runtime
+stderr '^go: flag needs an argument: -f \(from (\$GOFLAGS|%GOFLAGS%)\)$'
+
+env GOFLAGS=-e=asdf
+! go list runtime
+stderr '^go: invalid boolean value \"asdf\" for flag -e \(from (\$GOFLAGS|%GOFLAGS%)\)'
+
+# except in go bug (untested) and go env
+go env
+stdout GOFLAGS
+
+# Flags listed in GOFLAGS should be safe to duplicate on the command line.
+env GOFLAGS=-tags=magic
+go list -tags=magic
+go test -tags=magic -c -o $devnull
+go vet -tags=magic
+
+-- foo_test.go --
+package foo

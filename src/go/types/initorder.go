@@ -69,7 +69,7 @@ func (check *Checker) initOrder() {
 
 		// if n still depends on other nodes, we have a cycle
 		if n.ndeps > 0 {
-			cycle := findPath(check.objMap, n.obj, n.obj, make(objSet))
+			cycle := findPath(check.objMap, n.obj, n.obj, make(map[Object]bool))
 			// If n.obj is not part of the cycle (e.g., n.obj->b->c->d->c),
 			// cycle will be nil. Don't report anything in that case since
 			// the cycle is reported when the algorithm gets to an object
@@ -130,17 +130,17 @@ func (check *Checker) initOrder() {
 // findPath returns the (reversed) list of objects []Object{to, ... from}
 // such that there is a path of object dependencies from 'from' to 'to'.
 // If there is no such path, the result is nil.
-func findPath(objMap map[Object]*declInfo, from, to Object, visited objSet) []Object {
-	if visited[from] {
-		return nil // node already seen
+func findPath(objMap map[Object]*declInfo, from, to Object, seen map[Object]bool) []Object {
+	if seen[from] {
+		return nil
 	}
-	visited[from] = true
+	seen[from] = true
 
 	for d := range objMap[from].deps {
 		if d == to {
 			return []Object{d}
 		}
-		if P := findPath(objMap, d, to, visited); P != nil {
+		if P := findPath(objMap, d, to, seen); P != nil {
 			return append(P, d)
 		}
 	}
@@ -151,14 +151,14 @@ func findPath(objMap map[Object]*declInfo, from, to Object, visited objSet) []Ob
 // reportCycle reports an error for the given cycle.
 func (check *Checker) reportCycle(cycle []Object) {
 	obj := cycle[0]
-	check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
+	check.errorf(obj, _InvalidInitCycle, "initialization cycle for %s", obj.Name())
 	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
 	for i := len(cycle) - 1; i >= 0; i-- {
-		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+		check.errorf(obj, _InvalidInitCycle, "\t%s refers to", obj.Name()) // secondary error, \t indented
 		obj = cycle[i]
 	}
 	// print cycle[0] again to close the cycle
-	check.errorf(obj.Pos(), "\t%s", obj.Name())
+	check.errorf(obj, _InvalidInitCycle, "\t%s", obj.Name())
 }
 
 // ----------------------------------------------------------------------------

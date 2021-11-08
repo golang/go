@@ -12,7 +12,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
@@ -70,7 +69,7 @@ func stressNet() {
 		if res.StatusCode != 200 {
 			log.Fatalf("stressNet: Status code = %d", res.StatusCode)
 		}
-		n, err := io.Copy(ioutil.Discard, res.Body)
+		n, err := io.Copy(io.Discard, res.Body)
 		if err != nil {
 			log.Fatalf("stressNet: io.Copy: %v", err)
 		}

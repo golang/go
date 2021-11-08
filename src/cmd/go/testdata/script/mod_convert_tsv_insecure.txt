@@ -1,0 +1,29 @@
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+[!net] skip
+[!exec:git] skip
+
+# secure fetch should report insecure warning
+cd $WORK/test
+go mod init
+stderr 'redirected .* to insecure URL'
+
+# insecure fetch should not
+env GOINSECURE=*.golang.org
+rm go.mod
+go mod init
+! stderr 'redirected .* to insecure URL'
+
+# insecure fetch invalid path should report insecure warning
+env GOINSECURE=foo.golang.org
+rm go.mod
+go mod init
+stderr 'redirected .* to insecure URL'
+
+-- $WORK/test/dependencies.tsv --
+vcs-test.golang.org/insecure/go/insecure	git	6fecd21f7c0c	2019-09-04T18:39:48Z 
+
+-- $WORK/test/x.go --
+package x // import "m"

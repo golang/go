@@ -7,9 +7,10 @@ package search
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"fmt"
 	"go/build"
-	"log"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,37 +18,99 @@ import (
 	"strings"
 )
 
-// AllPackages returns all the packages that can be found
-// under the $GOPATH directories and $GOROOT matching pattern.
-// The pattern is either "all" (all packages), "std" (standard packages),
-// "cmd" (standard commands), or a path including "...".
-func AllPackages(pattern string) []string {
-	pkgs := MatchPackages(pattern)
-	if len(pkgs) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
-	}
-	return pkgs
+// A Match represents the result of matching a single package pattern.
+type Match struct {
+	pattern string   // the pattern itself
+	Dirs    []string // if the pattern is local, directories that potentially contain matching packages
+	Pkgs    []string // matching packages (import paths)
+	Errs    []error  // errors matching the patterns to packages, NOT errors loading those packages
+
+	// Errs may be non-empty even if len(Pkgs) > 0, indicating that some matching
+	// packages could be located but results may be incomplete.
+	// If len(Pkgs) == 0 && len(Errs) == 0, the pattern is well-formed but did not
+	// match any packages.
 }
 
-// AllPackagesInFS is like allPackages but is passed a pattern
-// beginning ./ or ../, meaning it should scan the tree rooted
-// at the given directory. There are ... in the pattern too.
-func AllPackagesInFS(pattern string) []string {
-	pkgs := MatchPackagesInFS(pattern)
-	if len(pkgs) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
-	}
-	return pkgs
+// NewMatch returns a Match describing the given pattern,
+// without resolving its packages or errors.
+func NewMatch(pattern string) *Match {
+	return &Match{pattern: pattern}
 }
 
-// MatchPackages returns a list of package paths matching pattern
-// (see go help packages for pattern syntax).
-func MatchPackages(pattern string) []string {
+// Pattern returns the pattern to be matched.
+func (m *Match) Pattern() string { return m.pattern }
+
+// AddError appends a MatchError wrapping err to m.Errs.
+func (m *Match) AddError(err error) {
+	m.Errs = append(m.Errs, &MatchError{Match: m, Err: err})
+}
+
+// Literal reports whether the pattern is free of wildcards and meta-patterns.
+//
+// A literal pattern must match at most one package.
+func (m *Match) IsLiteral() bool {
+	return !strings.Contains(m.pattern, "...") && !m.IsMeta()
+}
+
+// Local reports whether the pattern must be resolved from a specific root or
+// directory, such as a filesystem path or a single module.
+func (m *Match) IsLocal() bool {
+	return build.IsLocalImport(m.pattern) || filepath.IsAbs(m.pattern)
+}
+
+// Meta reports whether the pattern is a “meta-package” keyword that represents
+// multiple packages, such as "std", "cmd", or "all".
+func (m *Match) IsMeta() bool {
+	return IsMetaPackage(m.pattern)
+}
+
+// IsMetaPackage checks if name is a reserved package name that expands to multiple packages.
+func IsMetaPackage(name string) bool {
+	return name == "std" || name == "cmd" || name == "all"
+}
+
+// A MatchError indicates an error that occurred while attempting to match a
+// pattern.
+type MatchError struct {
+	Match *Match
+	Err   error
+}
+
+func (e *MatchError) Error() string {
+	if e.Match.IsLiteral() {
+		return fmt.Sprintf("%s: %v", e.Match.Pattern(), e.Err)
+	}
+	return fmt.Sprintf("pattern %s: %v", e.Match.Pattern(), e.Err)
+}
+
+func (e *MatchError) Unwrap() error {
+	return e.Err
+}
+
+// MatchPackages sets m.Pkgs to a non-nil slice containing all the packages that
+// can be found under the $GOPATH directories and $GOROOT that match the
+// pattern. The pattern must be either "all" (all packages), "std" (standard
+// packages), "cmd" (standard commands), or a path including "...".
+//
+// If any errors may have caused the set of packages to be incomplete,
+// MatchPackages appends those errors to m.Errs.
+func (m *Match) MatchPackages() {
+	m.Pkgs = []string{}
+	if m.IsLocal() {
+		m.AddError(fmt.Errorf("internal error: MatchPackages: %s is not a valid package pattern", m.pattern))
+		return
+	}
+
+	if m.IsLiteral() {
+		m.Pkgs = []string{m.pattern}
+		return
+	}
+
 	match := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
-	if !IsMetaPackage(pattern) {
-		match = MatchPattern(pattern)
-		treeCanMatch = TreeCanMatchPattern(pattern)
+	if !m.IsMeta() {
+		match = MatchPattern(m.pattern)
+		treeCanMatch = TreeCanMatchPattern(m.pattern)
 	}
 
 	have := map[string]bool{
@@ -56,20 +119,22 @@ func MatchPackages(pattern string) []string {
 	if !cfg.BuildContext.CgoEnabled {
 		have["runtime/cgo"] = true // ignore during walk
 	}
-	var pkgs []string
 
 	for _, src := range cfg.BuildContext.SrcDirs() {
-		if (pattern == "std" || pattern == "cmd") && src != cfg.GOROOTsrc {
+		if (m.pattern == "std" || m.pattern == "cmd") && src != cfg.GOROOTsrc {
 			continue
 		}
 		src = filepath.Clean(src) + string(filepath.Separator)
 		root := src
-		if pattern == "cmd" {
+		if m.pattern == "cmd" {
 			root += "cmd" + string(filepath.Separator)
 		}
-		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
-			if err != nil || path == src {
-				return nil
+		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
+			if err != nil {
+				return err // Likely a permission error, which could interfere with matching.
+			}
+			if path == src {
+				return nil // GOROOT/src and GOPATH/src cannot contain packages.
 			}
 
 			want := true
@@ -80,7 +145,7 @@ func MatchPackages(pattern string) []string {
 			}
 
 			name := filepath.ToSlash(path[len(src):])
-			if pattern == "std" && (!IsStandardImportPath(name) || name == "cmd") {
+			if m.pattern == "std" && (!IsStandardImportPath(name) || name == "cmd") {
 				// The name "std" is only the standard library.
 				// If the name is cmd, it's the root of the command tree.
 				want = false
@@ -90,8 +155,8 @@ func MatchPackages(pattern string) []string {
 			}
 
 			if !fi.IsDir() {
-				if fi.Mode()&os.ModeSymlink != 0 && want {
-					if target, err := os.Stat(path); err == nil && target.IsDir() {
+				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.pattern, "...") {
+					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
 				}
@@ -111,70 +176,108 @@ func MatchPackages(pattern string) []string {
 			pkg, err := cfg.BuildContext.ImportDir(path, 0)
 			if err != nil {
 				if _, noGo := err.(*build.NoGoError); noGo {
+					// The package does not actually exist, so record neither the package
+					// nor the error.
 					return nil
 				}
+				// There was an error importing path, but not matching it,
+				// which is all that Match promises to do.
+				// Ignore the import error.
 			}
 
 			// If we are expanding "cmd", skip main
 			// packages under cmd/vendor. At least as of
 			// March, 2017, there is one there for the
 			// vendored pprof tool.
-			if pattern == "cmd" && strings.HasPrefix(pkg.ImportPath, "cmd/vendor") && pkg.Name == "main" {
+			if m.pattern == "cmd" && pkg != nil && strings.HasPrefix(pkg.ImportPath, "cmd/vendor") && pkg.Name == "main" {
 				return nil
 			}
 
-			pkgs = append(pkgs, name)
+			m.Pkgs = append(m.Pkgs, name)
 			return nil
 		})
+		if err != nil {
+			m.AddError(err)
+		}
 	}
-	return pkgs
 }
 
-var modRoot string
+// MatchDirs sets m.Dirs to a non-nil slice containing all directories that
+// potentially match a local pattern. The pattern must begin with an absolute
+// path, or "./", or "../". On Windows, the pattern may use slash or backslash
+// separators or a mix of both.
+//
+// If any errors may have caused the set of directories to be incomplete,
+// MatchDirs appends those errors to m.Errs.
+func (m *Match) MatchDirs(modRoots []string) {
+	m.Dirs = []string{}
+	if !m.IsLocal() {
+		m.AddError(fmt.Errorf("internal error: MatchDirs: %s is not a valid filesystem pattern", m.pattern))
+		return
+	}
 
-func SetModRoot(dir string) {
-	modRoot = dir
-}
+	if m.IsLiteral() {
+		m.Dirs = []string{m.pattern}
+		return
+	}
 
-// MatchPackagesInFS returns a list of package paths matching pattern,
-// which must begin with ./ or ../
-// (see go help packages for pattern syntax).
-func MatchPackagesInFS(pattern string) []string {
+	// Clean the path and create a matching predicate.
+	// filepath.Clean removes "./" prefixes (and ".\" on Windows). We need to
+	// preserve these, since they are meaningful in MatchPattern and in
+	// returned import paths.
+	cleanPattern := filepath.Clean(m.pattern)
+	isLocal := strings.HasPrefix(m.pattern, "./") || (os.PathSeparator == '\\' && strings.HasPrefix(m.pattern, `.\`))
+	prefix := ""
+	if cleanPattern != "." && isLocal {
+		prefix = "./"
+		cleanPattern = "." + string(os.PathSeparator) + cleanPattern
+	}
+	slashPattern := filepath.ToSlash(cleanPattern)
+	match := MatchPattern(slashPattern)
+
 	// Find directory to begin the scan.
 	// Could be smarter but this one optimization
 	// is enough for now, since ... is usually at the
 	// end of a path.
-	i := strings.Index(pattern, "...")
-	dir, _ := path.Split(pattern[:i])
+	i := strings.Index(cleanPattern, "...")
+	dir, _ := filepath.Split(cleanPattern[:i])
 
 	// pattern begins with ./ or ../.
 	// path.Clean will discard the ./ but not the ../.
 	// We need to preserve the ./ for pattern matching
 	// and in the returned import paths.
-	prefix := ""
-	if strings.HasPrefix(pattern, "./") {
-		prefix = "./"
-	}
-	match := MatchPattern(pattern)
 
-	if modRoot != "" {
+	if len(modRoots) > 1 {
 		abs, err := filepath.Abs(dir)
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			m.AddError(err)
+			return
 		}
-		if !hasFilepathPrefix(abs, modRoot) {
-			base.Fatalf("go: pattern %s refers to dir %s, outside module root %s", pattern, abs, modRoot)
-			return nil
+		var found bool
+		for _, modRoot := range modRoots {
+			if modRoot != "" && hasFilepathPrefix(abs, modRoot) {
+				found = true
+			}
+		}
+		if !found {
+			plural := ""
+			if len(modRoots) > 1 {
+				plural = "s"
+			}
+			m.AddError(fmt.Errorf("directory %s is outside module root%s (%s)", abs, plural, strings.Join(modRoots, ", ")))
 		}
 	}
 
-	var pkgs []string
-	filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
-		if err != nil || !fi.IsDir() {
+	err := fsys.Walk(dir, func(path string, fi fs.FileInfo, err error) error {
+		if err != nil {
+			return err // Likely a permission error, which could interfere with matching.
+		}
+		if !fi.IsDir() {
 			return nil
 		}
+		top := false
 		if path == dir {
-			// filepath.Walk starts at dir and recurses. For the recursive case,
+			// Walk starts at dir and recurses. For the recursive case,
 			// the path is the result of filepath.Join, which calls filepath.Clean.
 			// The initial case is not Cleaned, though, so we do this explicitly.
 			//
@@ -182,6 +285,7 @@ func MatchPackagesInFS(pattern string) []string {
 			// "cd $GOROOT/src; go list ./io/..." would incorrectly skip the io
 			// package, because prepending the prefix "./" to the unclean path would
 			// result in "././io", and match("././io") returns false.
+			top = true
 			path = filepath.Clean(path)
 		}
 
@@ -190,6 +294,13 @@ func MatchPackagesInFS(pattern string) []string {
 		dot := strings.HasPrefix(elem, ".") && elem != "." && elem != ".."
 		if dot || strings.HasPrefix(elem, "_") || elem == "testdata" {
 			return filepath.SkipDir
+		}
+
+		if !top && cfg.ModulesEnabled {
+			// Ignore other modules found in subdirectories.
+			if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+				return filepath.SkipDir
+			}
 		}
 
 		name := prefix + filepath.ToSlash(path)
@@ -204,15 +315,21 @@ func MatchPackagesInFS(pattern string) []string {
 		// behavior means people miss serious mistakes.
 		// See golang.org/issue/11407.
 		if p, err := cfg.BuildContext.ImportDir(path, 0); err != nil && (p == nil || len(p.InvalidGoFiles) == 0) {
-			if _, noGo := err.(*build.NoGoError); !noGo {
-				log.Print(err)
+			if _, noGo := err.(*build.NoGoError); noGo {
+				// The package does not actually exist, so record neither the package
+				// nor the error.
+				return nil
 			}
-			return nil
+			// There was an error importing path, but not matching it,
+			// which is all that Match promises to do.
+			// Ignore the import error.
 		}
-		pkgs = append(pkgs, name)
+		m.Dirs = append(m.Dirs, name)
 		return nil
 	})
-	return pkgs
+	if err != nil {
+		m.AddError(err)
+	}
 }
 
 // TreeCanMatchPattern(pattern)(name) reports whether
@@ -238,7 +355,7 @@ func TreeCanMatchPattern(pattern string) func(name string) bool {
 //
 // First, /... at the end of the pattern can match an empty string,
 // so that net/... matches both net and packages in its subdirectories, like net/http.
-// Second, any slash-separted pattern element containing a wildcard never
+// Second, any slash-separated pattern element containing a wildcard never
 // participates in a match of the "vendor" element in the path of a vendored
 // package, so that ./... does not match packages in subdirectories of
 // ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
@@ -272,7 +389,7 @@ func MatchPattern(pattern string) func(name string) bool {
 	case strings.HasSuffix(re, `/\.\.\.`):
 		re = strings.TrimSuffix(re, `/\.\.\.`) + `(/\.\.\.)?`
 	}
-	re = strings.Replace(re, `\.\.\.`, `[^`+vendorChar+`]*`, -1)
+	re = strings.ReplaceAll(re, `\.\.\.`, `[^`+vendorChar+`]*`)
 
 	reg := regexp.MustCompile(`^` + re + `$`)
 
@@ -299,76 +416,100 @@ func replaceVendor(x, repl string) string {
 	return strings.Join(elem, "/")
 }
 
-// ImportPaths returns the import paths to use for the given command line.
-func ImportPaths(args []string) []string {
-	args = CleanImportPaths(args)
-	var out []string
-	for _, a := range args {
-		if IsMetaPackage(a) {
-			out = append(out, AllPackages(a)...)
-			continue
+// WarnUnmatched warns about patterns that didn't match any packages.
+func WarnUnmatched(matches []*Match) {
+	for _, m := range matches {
+		if len(m.Pkgs) == 0 && len(m.Errs) == 0 {
+			fmt.Fprintf(os.Stderr, "go: warning: %q matched no packages\n", m.pattern)
 		}
-		if strings.Contains(a, "...") {
-			if build.IsLocalImport(a) {
-				out = append(out, AllPackagesInFS(a)...)
-			} else {
-				out = append(out, AllPackages(a)...)
+	}
+}
+
+// ImportPaths returns the matching paths to use for the given command line.
+// It calls ImportPathsQuiet and then WarnUnmatched.
+func ImportPaths(patterns, modRoots []string) []*Match {
+	matches := ImportPathsQuiet(patterns, modRoots)
+	WarnUnmatched(matches)
+	return matches
+}
+
+// ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
+func ImportPathsQuiet(patterns, modRoots []string) []*Match {
+	var out []*Match
+	for _, a := range CleanPatterns(patterns) {
+		m := NewMatch(a)
+		if m.IsLocal() {
+			m.MatchDirs(modRoots)
+
+			// Change the file import path to a regular import path if the package
+			// is in GOPATH or GOROOT. We don't report errors here; LoadImport
+			// (or something similar) will report them later.
+			m.Pkgs = make([]string, len(m.Dirs))
+			for i, dir := range m.Dirs {
+				absDir := dir
+				if !filepath.IsAbs(dir) {
+					absDir = filepath.Join(base.Cwd(), dir)
+				}
+				if bp, _ := cfg.BuildContext.ImportDir(absDir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
+					m.Pkgs[i] = bp.ImportPath
+				} else {
+					m.Pkgs[i] = dir
+				}
 			}
-			continue
+		} else {
+			m.MatchPackages()
 		}
-		out = append(out, a)
+
+		out = append(out, m)
 	}
 	return out
 }
 
-// CleanImportPaths returns the import paths to use for the given
-// command line, but it does no wildcard expansion.
-func CleanImportPaths(args []string) []string {
-	if len(args) == 0 {
+// CleanPatterns returns the patterns to use for the given command line. It
+// canonicalizes the patterns but does not evaluate any matches. For patterns
+// that are not local or absolute paths, it preserves text after '@' to avoid
+// modifying version queries.
+func CleanPatterns(patterns []string) []string {
+	if len(patterns) == 0 {
 		return []string{"."}
 	}
 	var out []string
-	for _, a := range args {
-		// Arguments are supposed to be import paths, but
-		// as a courtesy to Windows developers, rewrite \ to /
-		// in command-line arguments. Handles .\... and so on.
-		if filepath.Separator == '\\' {
-			a = strings.Replace(a, `\`, `/`, -1)
-		}
-
-		// Put argument in canonical form, but preserve leading ./.
-		if strings.HasPrefix(a, "./") {
-			a = "./" + path.Clean(a)
-			if a == "./." {
-				a = "."
-			}
+	for _, a := range patterns {
+		var p, v string
+		if build.IsLocalImport(a) || filepath.IsAbs(a) {
+			p = a
+		} else if i := strings.IndexByte(a, '@'); i < 0 {
+			p = a
 		} else {
-			a = path.Clean(a)
+			p = a[:i]
+			v = a[i:]
 		}
-		out = append(out, a)
+
+		// Arguments may be either file paths or import paths.
+		// As a courtesy to Windows developers, rewrite \ to /
+		// in arguments that look like import paths.
+		// Don't replace slashes in absolute paths.
+		if filepath.IsAbs(p) {
+			p = filepath.Clean(p)
+		} else {
+			if filepath.Separator == '\\' {
+				p = strings.ReplaceAll(p, `\`, `/`)
+			}
+
+			// Put argument in canonical form, but preserve leading ./.
+			if strings.HasPrefix(p, "./") {
+				p = "./" + path.Clean(p)
+				if p == "./." {
+					p = "."
+				}
+			} else {
+				p = path.Clean(p)
+			}
+		}
+
+		out = append(out, p+v)
 	}
 	return out
-}
-
-// ImportPathsNoDotExpansion returns the import paths to use for the given
-// command line, but it does no ... expansion.
-// TODO(vgo): Delete once old go get is gone.
-func ImportPathsNoDotExpansion(args []string) []string {
-	args = CleanImportPaths(args)
-	var out []string
-	for _, a := range args {
-		if IsMetaPackage(a) {
-			out = append(out, AllPackages(a)...)
-			continue
-		}
-		out = append(out, a)
-	}
-	return out
-}
-
-// IsMetaPackage checks if name is a reserved package name that expands to multiple packages.
-func IsMetaPackage(name string) bool {
-	return name == "std" || name == "cmd" || name == "all"
 }
 
 // hasPathPrefix reports whether the path s begins with the
@@ -420,4 +561,81 @@ func IsStandardImportPath(path string) bool {
 	}
 	elem := path[:i]
 	return !strings.Contains(elem, ".")
+}
+
+// IsRelativePath reports whether pattern should be interpreted as a directory
+// path relative to the current directory, as opposed to a pattern matching
+// import paths.
+func IsRelativePath(pattern string) bool {
+	return strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../") || pattern == "." || pattern == ".."
+}
+
+// InDir checks whether path is in the file tree rooted at dir.
+// If so, InDir returns an equivalent path relative to dir.
+// If not, InDir returns an empty string.
+// InDir makes some effort to succeed even in the presence of symbolic links.
+func InDir(path, dir string) string {
+	if rel := inDirLex(path, dir); rel != "" {
+		return rel
+	}
+	xpath, err := filepath.EvalSymlinks(path)
+	if err != nil || xpath == path {
+		xpath = ""
+	} else {
+		if rel := inDirLex(xpath, dir); rel != "" {
+			return rel
+		}
+	}
+
+	xdir, err := filepath.EvalSymlinks(dir)
+	if err == nil && xdir != dir {
+		if rel := inDirLex(path, xdir); rel != "" {
+			return rel
+		}
+		if xpath != "" {
+			if rel := inDirLex(xpath, xdir); rel != "" {
+				return rel
+			}
+		}
+	}
+	return ""
+}
+
+// inDirLex is like inDir but only checks the lexical form of the file names.
+// It does not consider symbolic links.
+// TODO(rsc): This is a copy of str.HasFilePathPrefix, modified to
+// return the suffix. Most uses of str.HasFilePathPrefix should probably
+// be calling InDir instead.
+func inDirLex(path, dir string) string {
+	pv := strings.ToUpper(filepath.VolumeName(path))
+	dv := strings.ToUpper(filepath.VolumeName(dir))
+	path = path[len(pv):]
+	dir = dir[len(dv):]
+	switch {
+	default:
+		return ""
+	case pv != dv:
+		return ""
+	case len(path) == len(dir):
+		if path == dir {
+			return "."
+		}
+		return ""
+	case dir == "":
+		return path
+	case len(path) > len(dir):
+		if dir[len(dir)-1] == filepath.Separator {
+			if path[:len(dir)] == dir {
+				return path[len(dir):]
+			}
+			return ""
+		}
+		if path[len(dir)] == filepath.Separator && path[:len(dir)] == dir {
+			if len(path) == len(dir)+1 {
+				return "."
+			}
+			return path[len(dir)+1:]
+		}
+		return ""
+	}
 }

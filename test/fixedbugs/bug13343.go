@@ -7,8 +7,8 @@
 package main
 
 var (
-	a, b = f() // ERROR "initialization loop|depends upon itself"
-	c    = b
+	a, b = f() // ERROR "initialization loop|depends upon itself|depend upon each other"
+	c    = b   // GCCGO_ERROR "depends upon itself|depend upon each other"
 )
 
 func f() (int, int) {

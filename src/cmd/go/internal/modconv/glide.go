@@ -5,16 +5,17 @@
 package modconv
 
 import (
-	"cmd/go/internal/module"
 	"strings"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
-func ParseGlideLock(file string, data []byte) ([]module.Version, error) {
-	var list []module.Version
+func ParseGlideLock(file string, data []byte) (*modfile.File, error) {
+	mf := new(modfile.File)
 	imports := false
 	name := ""
-	for lineno, line := range strings.Split(string(data), "\n") {
-		lineno++
+	for _, line := range strings.Split(string(data), "\n") {
 		if line == "" {
 			continue
 		}
@@ -32,9 +33,9 @@ func ParseGlideLock(file string, data []byte) ([]module.Version, error) {
 		if strings.HasPrefix(line, "  version:") {
 			version := strings.TrimSpace(line[len("  version:"):])
 			if name != "" && version != "" {
-				list = append(list, module.Version{Path: name, Version: version})
+				mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: name, Version: version}})
 			}
 		}
 	}
-	return list, nil
+	return mf, nil
 }

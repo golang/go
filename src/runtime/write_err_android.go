@@ -21,7 +21,7 @@ var (
 // in kernel ring buffers. In Android-L, those /dev/log files are no longer
 // accessible and logging is done through a centralized user-mode logger, logd.
 //
-// https://android.googlesource.com/platform/system/core/+/master/liblog/logd_write.c
+// https://android.googlesource.com/platform/system/core/+/refs/tags/android-6.0.1_r78/liblog/logd_write.c
 type loggerType int32
 
 const (
@@ -144,7 +144,7 @@ func writeLogdHeader() int {
 	//      hdr[3:7] sec unsigned uint32, little endian.
 	//      hdr[7:11] nsec unsigned uint32, little endian.
 	hdr[0] = 0 // LOG_ID_MAIN
-	sec, nsec := walltime()
+	sec, nsec, _ := time_now()
 	packUint32(hdr[3:7], uint32(sec))
 	packUint32(hdr[7:11], uint32(nsec))
 

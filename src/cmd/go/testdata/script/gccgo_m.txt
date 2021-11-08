@@ -1,0 +1,19 @@
+# It's absurd, but builds with -compiler=gccgo used to fail to build module m.
+# golang.org/issue/34358
+
+env GO111MODULE=off
+
+[short] skip
+
+cd m
+go build
+exists m$GOEXE
+rm m$GOEXE
+[exec:gccgo] go build -compiler=gccgo
+[exec:gccgo] exists m$GOEXE
+
+-- m/go.mod --
+module m
+-- m/main.go --
+package main
+func main() {}

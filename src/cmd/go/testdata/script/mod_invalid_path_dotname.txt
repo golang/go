@@ -1,0 +1,46 @@
+# Test that an import path containing an element with a leading dot
+# in another module is valid.
+
+# 'go get' works with no version query.
+cp go.mod.empty go.mod
+go get example.com/dotname/.dot
+go list -m example.com/dotname
+stdout '^example.com/dotname v1.0.0$'
+
+# 'go get' works with a version query.
+cp go.mod.empty go.mod
+go get example.com/dotname/.dot@latest
+go list -m example.com/dotname
+stdout '^example.com/dotname v1.0.0$'
+
+# 'go get' works on an importing package.
+cp go.mod.empty go.mod
+go get .
+go list -m example.com/dotname
+stdout '^example.com/dotname v1.0.0$'
+
+# 'go list' works on the dotted package.
+go list example.com/dotname/.dot
+stdout '^example.com/dotname/.dot$'
+
+# 'go list' works on an importing package.
+go list .
+stdout '^m$'
+
+# 'go mod tidy' works.
+cp go.mod.empty go.mod
+go mod tidy
+go list -m example.com/dotname
+stdout '^example.com/dotname v1.0.0$'
+
+-- go.mod.empty --
+module m
+
+go 1.16
+-- go.sum --
+example.com/dotname v1.0.0 h1:Q0JMAn464CnwFVCshs1n4+f5EFiW/eRhnx/fTWjw2Ag=
+example.com/dotname v1.0.0/go.mod h1:7K4VLT7QylRI8H7yZwUkeDH2s19wQnyfp/3oBlItWJ0=
+-- use.go --
+package use
+
+import _ "example.com/dotname/.dot"

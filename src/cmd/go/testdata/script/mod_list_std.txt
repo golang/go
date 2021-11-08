@@ -1,0 +1,92 @@
+env GO111MODULE=on
+env GOPROXY=off
+
+[!gc] skip
+[short] skip
+
+# Outside of GOROOT, our vendored packages should be reported as part of the standard library.
+go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' std cmd
+stdout ^vendor/golang\.org/x/net/http2/hpack
+stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
+! stdout ^golang\.org/x/
+
+# The dependencies of those packages should also be vendored.
+go list -deps vendor/golang.org/x/crypto/chacha20
+stdout ^vendor/golang\.org/x/crypto/internal/subtle
+
+# cmd/... should match the same packages it used to match in GOPATH mode.
+go list cmd/...
+stdout ^cmd/compile
+! stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
+
+# GOROOT/src/... should list the packages in std as if it were a module
+# dependency: omitting vendored dependencies and stopping at the 'cmd' module
+# boundary.
+
+go list $GOROOT/src/...
+stdout ^bytes$
+! stdout ^builtin$
+! stdout ^cmd/
+! stdout ^vendor/
+! stdout ^golang\.org/x/
+
+
+# Vendored dependencies should appear with their 'vendor/' paths in std (they're
+# in GOROOT/src, but not in the 'std' module following the usual module-boundary
+# rules).
+
+cd $GOROOT/src
+
+go list std
+stdout ^vendor/golang.org/x/net/http2/hpack
+! stdout ^golang\.org/x
+
+# The dependencies of packages with an explicit 'vendor/' prefix should
+# still themselves resolve to vendored packages.
+go list -deps vendor/golang.org/x/crypto/chacha20
+stdout ^vendor/golang.org/x/crypto/internal/subtle
+! stdout ^golang\.org/x
+
+# Within the std module, the dependencies of the non-vendored packages within
+# std should appear to be packages beginning with 'vendor/', not 'golang.org/…'
+# module dependencies.
+
+go list all
+! stdout ^golang.org/x/
+! stdout ^std/
+! stdout ^cmd/
+stdout ^vendor/
+
+go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' std
+! stdout .
+
+# However, the 'golang.org/…' module dependencies should resolve to those same
+# directories.
+
+go list -f '{{.Dir}}' golang.org/x/net/http2/hpack
+stdout $GOROOT[/\\]src[/\\]vendor
+
+# Within the std module, the packages within the module should omit the 'std/'
+# prefix (they retain their own identities), but should respect normal module
+# boundaries (vendored packages are not included in the module, even though they
+# are included in the 'std' pattern).
+
+go list ./...
+stdout ^bytes$
+! stdout ^builtin$
+! stdout ^cmd/
+! stdout ^vendor/
+! stdout ^golang\.org/x/
+
+
+# Within std, the vendored dependencies of cmd should still appear to be part of cmd.
+
+go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' cmd
+stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
+
+go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' cmd
+! stdout .
+
+go list cmd/...
+stdout ^cmd/compile
+! stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm

@@ -7,17 +7,17 @@ package modconv
 import (
 	"strings"
 
-	"cmd/go/internal/module"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
-func ParseDependenciesTSV(file string, data []byte) ([]module.Version, error) {
-	var list []module.Version
-	for lineno, line := range strings.Split(string(data), "\n") {
-		lineno++
+func ParseDependenciesTSV(file string, data []byte) (*modfile.File, error) {
+	mf := new(modfile.File)
+	for _, line := range strings.Split(string(data), "\n") {
 		f := strings.Split(line, "\t")
 		if len(f) >= 3 {
-			list = append(list, module.Version{Path: f[0], Version: f[2]})
+			mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: f[0], Version: f[2]}})
 		}
 	}
-	return list, nil
+	return mf, nil
 }

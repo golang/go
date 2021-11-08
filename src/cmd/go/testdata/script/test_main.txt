@@ -1,0 +1,92 @@
+# Test TestMain
+go test standalone_main_normal_test.go
+! stdout '^ok.*\[no tests to run\]'
+! stderr '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+# Test TestMain sees testing flags
+go test standalone_testmain_flag_test.go
+stdout '^ok.*\[no tests to run\]'
+
+# Test TestMain with wrong signature (Issue #22388)
+! go test standalone_main_wrong_test.go
+stderr 'wrong signature for TestMain, must be: func TestMain\(m \*testing.M\)'
+
+# Test TestMain does not call os.Exit (Issue #34129)
+! go test standalone_testmain_not_call_os_exit_test.go
+! stdout '^ok'
+
+-- standalone_main_normal_test.go --
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package standalone_main_normal_test
+
+import "testing"
+
+func TestMain(t *testing.T) {
+}
+-- standalone_main_wrong_test.go --
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package standalone_main_wrong_test
+
+import "testing"
+
+func TestMain(m *testing.Main) {
+}
+-- standalone_testmain_flag_test.go --
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package standalone_testmain_flag_test
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	// A TestMain should be able to access testing flags if it calls
+	// flag.Parse without needing to use testing.Init.
+	flag.Parse()
+	found := false
+	flag.VisitAll(func(f *flag.Flag) {
+		if f.Name == "test.count" {
+			found = true
+		}
+	})
+	if !found {
+		fmt.Println("testing flags not registered")
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
+-- standalone_testmain_not_call_os_exit_test.go --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package standalone_testmain_not_call_os_exit_test
+
+import (
+	"testing"
+)
+
+func TestWillFail(t *testing.T) {
+	t.Error("this test will fail.")
+}
+
+func TestMain(m *testing.M) {
+	defer func() {
+		recover()
+	}()
+	exit := m.Run()
+	panic(exit)
+}

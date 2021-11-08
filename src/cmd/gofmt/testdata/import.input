@@ -1,3 +1,4 @@
+// package comment
 package main
 
 import (
@@ -19,6 +20,10 @@ import (
 
 	"io"
 )
+
+// We reset the line numbering to test that
+// the formatting works independent of line directives
+//line :19
 
 import (
 	"fmt"
@@ -129,3 +134,66 @@ import (
 
 	"dedup_by_group"
 )
+
+import (
+	/* comment */ io1 "io"
+	"fmt" // for Printf
+	/* comment */ "log"
+	/* comment */ io2 "io"
+)
+
+import (
+	/* comment */ io2 "io" // hello
+	/* comment */ io1 "io"
+	"math" /* right side */
+	"fmt"
+	// end
+)
+
+import (
+	/* comment */ io1 "io" /* before */ // after
+	"fmt"
+	"errors" // for New
+	io2 "io" // another
+	// end
+)
+
+import (
+	/* left */ "fmt" /* right */
+	"errors" // for New
+	/* left */ "math" /* right */
+	"log" // for Fatal
+)
+
+import /* why */ /* comment here? */ (
+	/* comment */ "fmt"
+	"math"
+)
+
+// Reset it again
+//line :100
+
+// Dedup with different import styles
+import (
+	"path"
+	. "path"
+	_ "path"
+	"path"
+	pathpkg "path"
+)
+
+/* comment */
+import (
+	"math" // for Abs
+	"fmt"
+	// This is a new run
+	"errors"
+	"fmt"
+	"errors"
+)
+
+// End an import declaration in the same line
+// as the last import. See golang.org/issue/33538.
+// Note: Must be the last (or 2nd last) line of the file.
+import("fmt"
+"math")

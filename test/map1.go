@@ -61,8 +61,8 @@ type T8 struct { F *T7 }
 
 func main() {
 	m := make(map[int]int)
-	delete()        // ERROR "missing arguments"
-	delete(m)       // ERROR "missing second \(key\) argument"
+	delete()        // ERROR "missing arguments|not enough arguments"
+	delete(m)       // ERROR "missing second \(key\) argument|not enough arguments"
 	delete(m, 2, 3) // ERROR "too many arguments"
-	delete(1, m)    // ERROR "first argument to delete must be map"
+	delete(1, m)    // ERROR "first argument to delete must be map|argument 1 must be a map|is not a map"
 }

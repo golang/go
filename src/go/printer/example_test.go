@@ -48,7 +48,7 @@ func ExampleFprint() {
 	// and trim leading and trailing white space.
 	s := buf.String()
 	s = s[1 : len(s)-1]
-	s = strings.TrimSpace(strings.Replace(s, "\n\t", "\n", -1))
+	s = strings.TrimSpace(strings.ReplaceAll(s, "\n\t", "\n"))
 
 	// Print the cleaned-up body text to stdout.
 	fmt.Println(s)
@@ -61,7 +61,7 @@ func ExampleFprint() {
 	//
 	// s := buf.String()
 	// s = s[1 : len(s)-1]
-	// s = strings.TrimSpace(strings.Replace(s, "\n\t", "\n", -1))
+	// s = strings.TrimSpace(strings.ReplaceAll(s, "\n\t", "\n"))
 	//
 	// fmt.Println(s)
 }

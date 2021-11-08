@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package rand
 
@@ -13,6 +13,7 @@ func init() {
 }
 
 var jsCrypto = js.Global().Get("crypto")
+var uint8Array = js.Global().Get("Uint8Array")
 
 // reader implements a pseudorandom generator
 // using JavaScript crypto.getRandomValues method.
@@ -20,6 +21,8 @@ var jsCrypto = js.Global().Get("crypto")
 type reader struct{}
 
 func (r *reader) Read(b []byte) (int, error) {
-	jsCrypto.Call("getRandomValues", b)
+	a := uint8Array.New(len(b))
+	jsCrypto.Call("getRandomValues", a)
+	js.CopyBytesToGo(b, a)
 	return len(b), nil
 }

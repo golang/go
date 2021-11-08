@@ -5,17 +5,16 @@
 package s390x
 
 import (
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/s390x"
 )
 
-func Init(arch *gc.Arch) {
+func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &s390x.Links390x
 	arch.REGSP = s390x.REGSP
 	arch.MAXWIDTH = 1 << 50
 
 	arch.ZeroRange = zerorange
-	arch.ZeroAuto = zeroAuto
 	arch.Ginsnop = ginsnop
 
 	arch.SSAMarkMoves = ssaMarkMoves

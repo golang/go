@@ -1,4 +1,4 @@
-// errorcheck
+// errorcheck -lang=go1.17
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -11,7 +11,7 @@
 package main
 
 type I interface {
-	int // ERROR "interface contains embedded non-interface int"
+	int // ERROR "interface contains embedded non-interface"
 }
 
 func n() {
@@ -19,7 +19,7 @@ func n() {
 }
 
 func m() {
-	(interface{int}) // ERROR "interface contains embedded non-interface int" "type interface { int } is not an expression"
+	(interface{int}) // ERROR "interface contains embedded non-interface" "type interface { int } is not an expression"
 }
 
 func main() {

@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -21,14 +20,17 @@ var memProfBuf bytes.Buffer
 var memProfStr string
 
 func MemProf() {
-	for i := 0; i < 1000; i++ {
+	// Force heap sampling for determinism.
+	runtime.MemProfileRate = 1
+
+	for i := 0; i < 10; i++ {
 		fmt.Fprintf(&memProfBuf, "%*d\n", i, i)
 	}
 	memProfStr = memProfBuf.String()
 
 	runtime.GC()
 
-	f, err := ioutil.TempFile("", "memprof")
+	f, err := os.CreateTemp("", "memprof")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)

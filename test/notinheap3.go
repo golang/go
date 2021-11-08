@@ -58,3 +58,19 @@ func h() {
 	_ = append(v1s, v1s...) // no barrier
 	_ = append(v2s, v2s...) // ERROR "write barrier"
 }
+
+// Slice clearing
+
+var (
+	sliceIH  []*ih
+	sliceNIH []*nih
+)
+
+func sliceClear() {
+	for i := range sliceIH {
+		sliceIH[i] = nil // ERROR "write barrier"
+	}
+	for i := range sliceNIH {
+		sliceNIH[i] = nil // no barrier
+	}
+}

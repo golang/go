@@ -112,19 +112,17 @@ loop:
 	ANDCC	$7,R6,R8	// any leftover bytes
 	BEQ	done		// none --> done
 	MOVD	R8,CTR		// byte count
-
+        PCALIGN $16             // align short loop
 short:
 	MOVBZ   0(R5),R8        // get v
 	MOVBZ   R7,R9           // byte(crc) -> R8 BE vs LE?
-	MOVWZ	R7,R14
-	SRD	$8,R14,R14	// crc>>8
+        SRD     $8,R7,R14       // crc>>8
 	XOR     R8,R9,R8        // byte(crc)^v -> R8
 	ADD	$1,R5		// ptr to next v
 	SLD     $2,R8           // convert index-> bytes
 	ADD     R8,R4,R9        // &tab[byte(crc)^v]
 	MOVWZ   0(R9),R10       // tab[byte(crc)^v]
 	XOR     R10,R14,R7       // loop crc in R7
-	MOVWZ   R7,R7           // 32 bits
 	BC      16,0,short
 done:
 	NOR     R7,R7,R7        // ^crc

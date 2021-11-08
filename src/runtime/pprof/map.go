@@ -68,7 +68,8 @@ Search:
 	if len(m.freeStk) < len(stk) {
 		m.freeStk = make([]uintptr, 1024)
 	}
-	e.stk = m.freeStk[:len(stk)]
+	// Limit cap to prevent append from clobbering freeStk.
+	e.stk = m.freeStk[:len(stk):len(stk)]
 	m.freeStk = m.freeStk[len(stk):]
 
 	for j := range stk {

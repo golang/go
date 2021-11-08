@@ -37,6 +37,7 @@ const (
 	TagUTCTime         = 23
 	TagGeneralizedTime = 24
 	TagGeneralString   = 27
+	TagBMPString       = 30
 )
 
 // ASN.1 class types represent the namespace of the tag.
@@ -91,7 +92,9 @@ type fieldParameters struct {
 // parseFieldParameters will parse it into a fieldParameters structure,
 // ignoring unknown parts of the string.
 func parseFieldParameters(str string) (ret fieldParameters) {
-	for _, part := range strings.Split(str, ",") {
+	var part string
+	for len(str) > 0 {
+		part, str, _ = strings.Cut(str, ",")
 		switch {
 		case part == "optional":
 			ret.optional = true

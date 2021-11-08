@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/internal/src"
+
 // trim removes blocks with no code in them.
 // These blocks were inserted to remove critical edges.
 func trim(f *Func) {
@@ -14,6 +16,9 @@ func trim(f *Func) {
 			n++
 			continue
 		}
+
+		bPos := b.Pos
+		bIsStmt := bPos.IsStmt() == src.PosIsStmt
 
 		// Splice b out of the graph. NOTE: `mergePhi` depends on the
 		// order, in which the predecessors edges are merged here.
@@ -29,6 +34,23 @@ func trim(f *Func) {
 			s.Preds = append(s.Preds, Edge{p, i})
 		}
 
+		// Attempt to preserve a statement boundary
+		if bIsStmt {
+			sawStmt := false
+			for _, v := range s.Values {
+				if isPoorStatementOp(v.Op) {
+					continue
+				}
+				if v.Pos.SameFileAndLine(bPos) {
+					v.Pos = v.Pos.WithIsStmt()
+				}
+				sawStmt = true
+				break
+			}
+			if !sawStmt && s.Pos.SameFileAndLine(bPos) {
+				s.Pos = s.Pos.WithIsStmt()
+			}
+		}
 		// If `s` had more than one predecessor, update its phi-ops to
 		// account for the merge.
 		if ns > 1 {
@@ -36,6 +58,7 @@ func trim(f *Func) {
 				if v.Op == OpPhi {
 					mergePhi(v, j, b)
 				}
+
 			}
 			// Remove the phi-ops from `b` if they were merged into the
 			// phi-ops of `s`.
@@ -94,7 +117,7 @@ func trim(f *Func) {
 	}
 }
 
-// emptyBlock returns true if the block does not contain actual
+// emptyBlock reports whether the block does not contain actual
 // instructions
 func emptyBlock(b *Block) bool {
 	for _, v := range b.Values {
@@ -105,7 +128,7 @@ func emptyBlock(b *Block) bool {
 	return true
 }
 
-// trimmableBlock returns true if the block can be trimmed from the CFG,
+// trimmableBlock reports whether the block can be trimmed from the CFG,
 // subject to the following criteria:
 //  - it should not be the first block
 //  - it should be BlockPlain

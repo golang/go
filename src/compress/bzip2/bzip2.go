@@ -29,8 +29,8 @@ type reader struct {
 	setupDone    bool // true if we have parsed the bzip2 header.
 	blockSize    int  // blockSize in bytes, i.e. 900 * 1000.
 	eof          bool
-	c            [256]uint // the `C' array for the inverse BWT.
-	tt           []uint32  // mirrors the `tt' array in the bzip2 source and contains the P array in the upper 24 bits.
+	c            [256]uint // the ``C'' array for the inverse BWT.
+	tt           []uint32  // mirrors the ``tt'' array in the bzip2 source and contains the P array in the upper 24 bits.
 	tPos         uint32    // Index of the next output byte in tt.
 
 	preRLE      []uint32 // contains the RLE data still to be processed.
@@ -447,11 +447,11 @@ func (bz2 *reader) readBlock() (err error) {
 
 // inverseBWT implements the inverse Burrows-Wheeler transform as described in
 // http://www.hpl.hp.com/techreports/Compaq-DEC/SRC-RR-124.pdf, section 4.2.
-// In that document, origPtr is called `I' and c is the `C' array after the
+// In that document, origPtr is called ``I'' and c is the ``C'' array after the
 // first pass over the data. It's an argument here because we merge the first
 // pass with the Huffman decoding.
 //
-// This also implements the `single array' method from the bzip2 source code
+// This also implements the ``single array'' method from the bzip2 source code
 // which leaves the output, still shuffled, in the bottom 8 bits of tt with the
 // index of the next byte in the top 24-bits. The index of the first byte is
 // returned.

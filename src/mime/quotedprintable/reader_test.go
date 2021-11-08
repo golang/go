@@ -37,7 +37,7 @@ func TestReader(t *testing.T) {
 		{in: " A B =\n C ", want: " A B  C"}, // lax. treating LF as CRLF
 		{in: "foo=\nbar", want: "foobar"},
 		{in: "foo\x00bar", want: "foo", err: "quotedprintable: invalid unescaped byte 0x00 in body"},
-		{in: "foo bar\xff", want: "foo bar", err: "quotedprintable: invalid unescaped byte 0xff in body"},
+		{in: "foo bar\xff", want: "foo bar\xff"},
 
 		// Equal sign.
 		{in: "=3D30\n", want: "=30\n"},
@@ -65,6 +65,8 @@ func TestReader(t *testing.T) {
 		// Example from RFC 2045:
 		{in: "Now's the time =\n" + "for all folk to come=\n" + " to the aid of their country.",
 			want: "Now's the time for all folk to come to the aid of their country."},
+		{in: "accept UTF-8 right quotation mark: ’",
+			want: "accept UTF-8 right quotation mark: ’"},
 	}
 	for _, tt := range tests {
 		var buf bytes.Buffer
@@ -114,7 +116,11 @@ func TestExhaustive(t *testing.T) {
 
 	var buf bytes.Buffer
 	res := make(map[string]int)
-	everySequence("", "0A \r\n=", 6, func(s string) {
+	n := 6
+	if testing.Short() {
+		n = 4
+	}
+	everySequence("", "0A \r\n=", n, func(s string) {
 		if strings.HasSuffix(s, "=") || strings.Contains(s, "==") {
 			return
 		}
@@ -198,6 +204,13 @@ func TestExhaustive(t *testing.T) {
 invalid bytes after =: 3949
 quotedprintable: invalid hex byte 0x0d: 2048
 unexpected EOF: 194`
+	if testing.Short() {
+		want = `OK: 896
+invalid bytes after =: 100
+quotedprintable: invalid hex byte 0x0d: 26
+unexpected EOF: 3`
+	}
+
 	if got != want {
 		t.Errorf("Got:\n%s\nWant:\n%s", got, want)
 	}

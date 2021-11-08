@@ -48,7 +48,7 @@ func test16(x []byte) uint16 {
 			panic("no fault or bounds check failure happened")
 		}
 		s := fmt.Sprintf("%s", r)
-		if s != "runtime error: index out of range" {
+		if s != "runtime error: index out of range [1] with length 1" {
 			panic("bad panic: " + s)
 		}
 	}()
@@ -66,7 +66,7 @@ func test16i(x []byte, i int) uint16 {
 			panic("no fault or bounds check failure happened")
 		}
 		s := fmt.Sprintf("%s", r)
-		if s != "runtime error: index out of range" {
+		if s != "runtime error: index out of range [1] with length 1" {
 			panic("bad panic: " + s)
 		}
 	}()
@@ -80,7 +80,7 @@ func test32(x []byte) uint32 {
 			panic("no fault or bounds check failure happened")
 		}
 		s := fmt.Sprintf("%s", r)
-		if s != "runtime error: index out of range" {
+		if s != "runtime error: index out of range [1] with length 1" {
 			panic("bad panic: " + s)
 		}
 	}()
@@ -94,7 +94,7 @@ func test32i(x []byte, i int) uint32 {
 			panic("no fault or bounds check failure happened")
 		}
 		s := fmt.Sprintf("%s", r)
-		if s != "runtime error: index out of range" {
+		if s != "runtime error: index out of range [1] with length 1" {
 			panic("bad panic: " + s)
 		}
 	}()
@@ -108,7 +108,7 @@ func test64(x []byte) uint64 {
 			panic("no fault or bounds check failure happened")
 		}
 		s := fmt.Sprintf("%s", r)
-		if s != "runtime error: index out of range" {
+		if s != "runtime error: index out of range [1] with length 1" {
 			panic("bad panic: " + s)
 		}
 	}()
@@ -123,7 +123,7 @@ func test64i(x []byte, i int) uint64 {
 			panic("no fault or bounds check failure happened")
 		}
 		s := fmt.Sprintf("%s", r)
-		if s != "runtime error: index out of range" {
+		if s != "runtime error: index out of range [1] with length 1" {
 			panic("bad panic: " + s)
 		}
 	}()

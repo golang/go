@@ -1,7 +1,12 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gzip
 
 import (
 	"internal/testenv"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -30,7 +35,7 @@ func TestGZIPFilesHaveZeroMTimes(t *testing.T) {
 		t.Fatal("error evaluating GOROOT: ", err)
 	}
 	var files []string
-	err = filepath.Walk(goroot, func(path string, info os.FileInfo, err error) error {
+	err = filepath.WalkDir(goroot, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

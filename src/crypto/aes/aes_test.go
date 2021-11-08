@@ -231,12 +231,10 @@ L:
 				continue L
 			}
 		}
-		if dec != nil {
-			for j, v := range dec {
-				if v != tt.dec[j] {
-					t.Errorf("key %d: dec[%d] = %#x, want %#x", i, j, v, tt.dec[j])
-					continue L
-				}
+		for j, v := range dec {
+			if v != tt.dec[j] {
+				t.Errorf("key %d: dec[%d] = %#x, want %#x", i, j, v, tt.dec[j])
+				continue L
 			}
 		}
 	}

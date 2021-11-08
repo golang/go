@@ -1,5 +1,5 @@
 // Inferno's libkern/memmove-386.s
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-386.s
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/memmove-386.s
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -23,9 +23,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build !plan9
+//go:build !plan9
 
+#include "go_asm.h"
 #include "textflag.h"
+
+// See memmove Go doc for important implementation constraints.
 
 // func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $0-12
@@ -51,8 +54,9 @@ tail:
 	JBE	move_5through8
 	CMPL	BX, $16
 	JBE	move_9through16
-	CMPB	runtime·support_sse2(SB), $1
-	JNE	nosse2
+#ifdef GO386_softfloat
+	JMP	nosse2
+#endif
 	CMPL	BX, $32
 	JBE	move_17through32
 	CMPL	BX, $64
@@ -72,7 +76,7 @@ nosse2:
  */
 forward:
 	// If REP MOVSB isn't fast, don't use it
-	CMPB	runtime·support_erms(SB), $1 // enhanced REP MOVSB/STOSB
+	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
 	JNE	fwdBy4
 
 	// Check alignment

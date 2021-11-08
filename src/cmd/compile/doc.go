@@ -44,8 +44,14 @@ Flags:
 		Print compiler version and exit.
 	-asmhdr file
 		Write assembly header to file.
+	-asan
+		Insert calls to C/C++ address sanitizer.
+	-buildid id
+		Record id as the build id in the export metadata.
 	-blockprofile file
 		Write block profile for the compilation to file.
+	-c int
+		Concurrency during compilation. Set 1 for no concurrency (default is 1).
 	-complete
 		Assume package has no non-Go components.
 	-cpuprofile file
@@ -54,8 +60,14 @@ Flags:
 		Allow references to Go symbols in shared libraries (experimental).
 	-e
 		Remove the limit on the number of errors reported (default limit is 10).
+	-goversion string
+		Specify required go tool version of the runtime.
+		Exits when the runtime go version does not match goversion.
 	-h
 		Halt with a stack trace at the first error detected.
+	-importcfg file
+		Read import configuration from file.
+		In the file, set importmap, packagefile to specify import resolution.
 	-importmap old=new
 		Interpret import "old" as import "new" during compilation.
 		The option may be repeated to add multiple mappings.
@@ -64,13 +76,17 @@ Flags:
 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
 	-l
 		Disable inlining.
-	-largemodel
-		Generate code that assumes a large memory model.
+	-lang version
+		Set language version to compile, as in -lang=go1.12.
+		Default is current version.
 	-linkobj file
 		Write linker-specific object to file and compiler-specific
 		object to usual output file (as specified by -o).
 		Without this flag, the -o output is a combination of both
 		linker and compiler input.
+	-m
+		Print optimization decisions. Higher values or repetition
+		produce more detail.
 	-memprofile file
 		Write memory profile for the compilation to file.
 	-memprofilerate rate
@@ -90,13 +106,52 @@ Flags:
 		Write a package (archive) file rather than an object file
 	-race
 		Compile with race detector enabled.
+	-s
+		Warn about composite literals that can be simplified.
+	-shared
+		Generate code that can be linked into a shared library.
+	-spectre list
+		Enable spectre mitigations in list (all, index, ret).
+	-traceprofile file
+		Write an execution trace to file.
 	-trimpath prefix
 		Remove prefix from recorded source file paths.
-	-u
-		Disallow importing packages not marked as safe; implies -nolocalimports.
 
-There are also a number of debugging flags; run the command with no arguments
-for a usage message.
+Flags related to debugging information:
+
+	-dwarf
+		Generate DWARF symbols.
+	-dwarflocationlists
+		Add location lists to DWARF in optimized mode.
+	-gendwarfinl int
+		Generate DWARF inline info records (default 2).
+
+Flags to debug the compiler itself:
+
+	-E
+		Debug symbol export.
+	-K
+		Debug missing line numbers.
+	-d list
+		Print debug information about items in list. Try -d help for further information.
+	-live
+		Debug liveness analysis.
+	-v
+		Increase debug verbosity.
+	-%
+		Debug non-static initializers.
+	-W
+		Debug parse tree after type checking.
+	-f
+		Debug stack frames.
+	-i
+		Debug line number stack.
+	-j
+		Debug runtime-initialized variables.
+	-r
+		Debug generated wrappers.
+	-w
+		Debug type checking.
 
 Compiler Directives
 
@@ -125,7 +180,7 @@ directive can skip over a directive like any other comment.
 // For a //line comment, this is the first character of the next line, and
 // for a /*line comment this is the character position immediately following the closing */.
 // If no filename is given, the recorded filename is empty if there is also no column number;
-// otherwise is is the most recently recorded filename (actual filename or filename specified
+// otherwise it is the most recently recorded filename (actual filename or filename specified
 // by previous line directive).
 // If a line directive doesn't specify a column number, the column is "unknown" until
 // the next directive and the compiler does not report column numbers for that range.
@@ -145,30 +200,62 @@ directive can skip over a directive like any other comment.
 // Line directives typically appear in machine-generated code, so that compilers and debuggers
 // will report positions in the original input to the generator.
 /*
-The line directive is an historical special case; all other directives are of the form
-//go:name and must start at the begnning of a line, indicating that the directive is defined
-by the Go toolchain.
+The line directive is a historical special case; all other directives are of the form
+//go:name, indicating that they are defined by the Go toolchain.
+Each directive must be placed its own line, with only leading spaces and tabs
+allowed before the comment.
+Each directive applies to the Go code that immediately follows it,
+which typically must be a declaration.
 
 	//go:noescape
 
-The //go:noescape directive specifies that the next declaration in the file, which
-must be a func without a body (meaning that it has an implementation not written
-in Go) does not allow any of the pointers passed as arguments to escape into the
-heap or into the values returned from the function. This information can be used
-during the compiler's escape analysis of Go code calling the function.
+The //go:noescape directive must be followed by a function declaration without
+a body (meaning that the function has an implementation not written in Go).
+It specifies that the function does not allow any of the pointers passed as
+arguments to escape into the heap or into the values returned from the function.
+This information can be used during the compiler's escape analysis of Go code
+calling the function.
+
+	//go:uintptrescapes
+
+The //go:uintptrescapes directive must be followed by a function declaration.
+It specifies that the function's uintptr arguments may be pointer values
+that have been converted to uintptr and must be treated as such by the
+garbage collector. The conversion from pointer to uintptr must appear in
+the argument list of any call to this function. This directive is necessary
+for some low-level system call implementations and should be avoided otherwise.
+
+	//go:noinline
+
+The //go:noinline directive must be followed by a function declaration.
+It specifies that calls to the function should not be inlined, overriding
+the compiler's usual optimization rules. This is typically only needed
+for special runtime functions or when debugging the compiler.
+
+	//go:norace
+
+The //go:norace directive must be followed by a function declaration.
+It specifies that the function's memory accesses must be ignored by the
+race detector. This is most commonly used in low-level code invoked
+at times when it is unsafe to call into the race detector runtime.
 
 	//go:nosplit
 
-The //go:nosplit directive specifies that the next function declared in the file must
-not include a stack overflow check. This is most commonly used by low-level
-runtime sources invoked at times when it is unsafe for the calling goroutine to be
-preempted.
+The //go:nosplit directive must be followed by a function declaration.
+It specifies that the function must omit its usual stack overflow check.
+This is most commonly used by low-level runtime code invoked
+at times when it is unsafe for the calling goroutine to be preempted.
 
-	//go:linkname localname importpath.name
+	//go:linkname localname [importpath.name]
 
-The //go:linkname directive instructs the compiler to use ``importpath.name'' as the
-object file symbol name for the variable or function declared as ``localname'' in the
-source code. Because this directive can subvert the type system and package
+This special directive does not apply to the Go code that follows it.
+Instead, the //go:linkname directive instructs the compiler to use ``importpath.name''
+as the object file symbol name for the variable or function declared as ``localname''
+in the source code.
+If the ``importpath.name'' argument is omitted, the directive uses the
+symbol's default object file symbol name and only has the effect of making
+the symbol accessible to other packages.
+Because this directive can subvert the type system and package
 modularity, it is only enabled in files that have imported "unsafe".
 */
 package main

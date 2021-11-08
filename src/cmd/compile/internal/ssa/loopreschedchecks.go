@@ -246,7 +246,8 @@ func insertLoopReschedChecks(f *Func) {
 		//    mem1 := call resched (mem0)
 		//    goto header
 		resched := f.fe.Syslook("goschedguarded")
-		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, resched, mem0)
+		// TODO(register args) -- will need more details
+		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched, nil), mem0)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)
 
@@ -451,6 +452,16 @@ func findLastMems(f *Func) []*Value {
 	}
 	return lastMems
 }
+
+// mark values
+type markKind uint8
+
+const (
+	notFound    markKind = iota // block has not been discovered yet
+	notExplored                 // discovered and in queue, outedges not processed yet
+	explored                    // discovered and in queue, outedges processed
+	done                        // all done, in output ordering
+)
 
 type backedgesState struct {
 	b *Block

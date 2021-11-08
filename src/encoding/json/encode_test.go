@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"encoding"
 	"fmt"
 	"log"
 	"math"
@@ -75,37 +76,69 @@ type StringTag struct {
 	IntStr     int64   `json:",string"`
 	UintptrStr uintptr `json:",string"`
 	StrStr     string  `json:",string"`
+	NumberStr  Number  `json:",string"`
 }
 
-var stringTagExpected = `{
- "BoolStr": "true",
- "IntStr": "42",
- "UintptrStr": "44",
- "StrStr": "\"xzbit\""
-}`
+func TestRoundtripStringTag(t *testing.T) {
+	tests := []struct {
+		name string
+		in   StringTag
+		want string // empty to just test that we roundtrip
+	}{
+		{
+			name: "AllTypes",
+			in: StringTag{
+				BoolStr:    true,
+				IntStr:     42,
+				UintptrStr: 44,
+				StrStr:     "xzbit",
+				NumberStr:  "46",
+			},
+			want: `{
+				"BoolStr": "true",
+				"IntStr": "42",
+				"UintptrStr": "44",
+				"StrStr": "\"xzbit\"",
+				"NumberStr": "46"
+			}`,
+		},
+		{
+			// See golang.org/issues/38173.
+			name: "StringDoubleEscapes",
+			in: StringTag{
+				StrStr:    "\b\f\n\r\t\"\\",
+				NumberStr: "0", // just to satisfy the roundtrip
+			},
+			want: `{
+				"BoolStr": "false",
+				"IntStr": "0",
+				"UintptrStr": "0",
+				"StrStr": "\"\\u0008\\u000c\\n\\r\\t\\\"\\\\\"",
+				"NumberStr": "0"
+			}`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// Indent with a tab prefix to make the multi-line string
+			// literals in the table nicer to read.
+			got, err := MarshalIndent(&test.in, "\t\t\t", "\t")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(got); got != test.want {
+				t.Fatalf(" got: %s\nwant: %s\n", got, test.want)
+			}
 
-func TestStringTag(t *testing.T) {
-	var s StringTag
-	s.BoolStr = true
-	s.IntStr = 42
-	s.UintptrStr = 44
-	s.StrStr = "xzbit"
-	got, err := MarshalIndent(&s, "", " ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := string(got); got != stringTagExpected {
-		t.Fatalf(" got: %s\nwant: %s\n", got, stringTagExpected)
-	}
-
-	// Verify that it round-trips.
-	var s2 StringTag
-	err = NewDecoder(bytes.NewReader(got)).Decode(&s2)
-	if err != nil {
-		t.Fatalf("Decode: %v", err)
-	}
-	if !reflect.DeepEqual(s, s2) {
-		t.Fatalf("decode didn't match.\nsource: %#v\nEncoded as:\n%s\ndecode: %#v", s, string(got), s2)
+			// Verify that it round-trips.
+			var s2 StringTag
+			if err := Unmarshal(got, &s2); err != nil {
+				t.Fatalf("Decode: %v", err)
+			}
+			if !reflect.DeepEqual(test.in, s2) {
+				t.Fatalf("decode didn't match.\nsource: %#v\nEncoded as:\n%s\ndecode: %#v", test.in, string(got), s2)
+			}
+		})
 	}
 }
 
@@ -134,10 +167,70 @@ func TestEncodeRenamedByteSlice(t *testing.T) {
 	}
 }
 
+type SamePointerNoCycle struct {
+	Ptr1, Ptr2 *SamePointerNoCycle
+}
+
+var samePointerNoCycle = &SamePointerNoCycle{}
+
+type PointerCycle struct {
+	Ptr *PointerCycle
+}
+
+var pointerCycle = &PointerCycle{}
+
+type PointerCycleIndirect struct {
+	Ptrs []interface{}
+}
+
+type RecursiveSlice []RecursiveSlice
+
+var (
+	pointerCycleIndirect = &PointerCycleIndirect{}
+	mapCycle             = make(map[string]interface{})
+	sliceCycle           = []interface{}{nil}
+	sliceNoCycle         = []interface{}{nil, nil}
+	recursiveSliceCycle  = []RecursiveSlice{nil}
+)
+
+func init() {
+	ptr := &SamePointerNoCycle{}
+	samePointerNoCycle.Ptr1 = ptr
+	samePointerNoCycle.Ptr2 = ptr
+
+	pointerCycle.Ptr = pointerCycle
+	pointerCycleIndirect.Ptrs = []interface{}{pointerCycleIndirect}
+
+	mapCycle["x"] = mapCycle
+	sliceCycle[0] = sliceCycle
+	sliceNoCycle[1] = sliceNoCycle[:1]
+	for i := startDetectingCyclesAfter; i > 0; i-- {
+		sliceNoCycle = []interface{}{sliceNoCycle}
+	}
+	recursiveSliceCycle[0] = recursiveSliceCycle
+}
+
+func TestSamePointerNoCycle(t *testing.T) {
+	if _, err := Marshal(samePointerNoCycle); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSliceNoCycle(t *testing.T) {
+	if _, err := Marshal(sliceNoCycle); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 var unsupportedValues = []interface{}{
 	math.NaN(),
 	math.Inf(-1),
 	math.Inf(1),
+	pointerCycle,
+	pointerCycleIndirect,
+	mapCycle,
+	sliceCycle,
+	recursiveSliceCycle,
 }
 
 func TestUnsupportedValues(t *testing.T) {
@@ -149,6 +242,22 @@ func TestUnsupportedValues(t *testing.T) {
 		} else {
 			t.Errorf("for %v, expected error", v)
 		}
+	}
+}
+
+// Issue 43207
+func TestMarshalTextFloatMap(t *testing.T) {
+	m := map[textfloat]string{
+		textfloat(math.NaN()): "1",
+		textfloat(math.NaN()): "1",
+	}
+	got, err := Marshal(m)
+	if err != nil {
+		t.Errorf("Marshal() error: %v", err)
+	}
+	want := `{"TF:NaN":"1","TF:NaN":"1"}`
+	if string(got) != want {
+		t.Errorf("Marshal() = %s, want %s", got, want)
 	}
 }
 
@@ -405,6 +514,19 @@ func TestAnonymousFields(t *testing.T) {
 			return S{s1{1, 2, s2{3, 4}}, 6}
 		},
 		want: `{"MyInt1":1,"MyInt2":3}`,
+	}, {
+		// If an anonymous struct pointer field is nil, we should ignore
+		// the embedded fields behind it. Not properly doing so may
+		// result in the wrong output or reflect panics.
+		label: "EmbeddedFieldBehindNilPointer",
+		makeInput: func() interface{} {
+			type (
+				S2 struct{ Field string }
+				S  struct{ *S2 }
+			)
+			return S{}
+		},
+		want: `{}`,
 	}}
 
 	for _, tt := range tests {
@@ -440,18 +562,31 @@ type BugX struct {
 	BugB
 }
 
-// Issue 16042. Even if a nil interface value is passed in
-// as long as it implements MarshalJSON, it should be marshaled.
-type nilMarshaler string
+// golang.org/issue/16042.
+// Even if a nil interface value is passed in, as long as
+// it implements Marshaler, it should be marshaled.
+type nilJSONMarshaler string
 
-func (nm *nilMarshaler) MarshalJSON() ([]byte, error) {
+func (nm *nilJSONMarshaler) MarshalJSON() ([]byte, error) {
 	if nm == nil {
 		return Marshal("0zenil0")
 	}
 	return Marshal("zenil:" + string(*nm))
 }
 
-// Issue 16042.
+// golang.org/issue/34235.
+// Even if a nil interface value is passed in, as long as
+// it implements encoding.TextMarshaler, it should be marshaled.
+type nilTextMarshaler string
+
+func (nm *nilTextMarshaler) MarshalText() ([]byte, error) {
+	if nm == nil {
+		return []byte("0zenil0"), nil
+	}
+	return []byte("zenil:" + string(*nm)), nil
+}
+
+// See golang.org/issue/16042 and golang.org/issue/34235.
 func TestNilMarshal(t *testing.T) {
 	testCases := []struct {
 		v    interface{}
@@ -465,8 +600,11 @@ func TestNilMarshal(t *testing.T) {
 		{v: []byte(nil), want: `null`},
 		{v: struct{ M string }{"gopher"}, want: `{"M":"gopher"}`},
 		{v: struct{ M Marshaler }{}, want: `{"M":null}`},
-		{v: struct{ M Marshaler }{(*nilMarshaler)(nil)}, want: `{"M":"0zenil0"}`},
-		{v: struct{ M interface{} }{(*nilMarshaler)(nil)}, want: `{"M":null}`},
+		{v: struct{ M Marshaler }{(*nilJSONMarshaler)(nil)}, want: `{"M":"0zenil0"}`},
+		{v: struct{ M interface{} }{(*nilJSONMarshaler)(nil)}, want: `{"M":null}`},
+		{v: struct{ M encoding.TextMarshaler }{}, want: `{"M":null}`},
+		{v: struct{ M encoding.TextMarshaler }{(*nilTextMarshaler)(nil)}, want: `{"M":"0zenil0"}`},
+		{v: struct{ M interface{} }{(*nilTextMarshaler)(nil)}, want: `{"M":null}`},
 	}
 
 	for _, tt := range testCases {
@@ -567,6 +705,9 @@ func TestStringBytes(t *testing.T) {
 	// Test that encodeState.stringBytes and encodeState.string use the same encoding.
 	var r []rune
 	for i := '\u0000'; i <= unicode.MaxRune; i++ {
+		if testing.Short() && i > 1000 {
+			i = unicode.MaxRune
+		}
 		r = append(r, i)
 	}
 	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
@@ -729,6 +870,10 @@ func tenc(format string, a ...interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type textfloat float64
+
+func (f textfloat) MarshalText() ([]byte, error) { return tenc(`TF:%0.2f`, f) }
+
 // Issue 13783
 func TestEncodeBytekind(t *testing.T) {
 	testdata := []struct {
@@ -747,6 +892,7 @@ func TestEncodeBytekind(t *testing.T) {
 		{[]jsonint{5, 4}, `[{"JI":5},{"JI":4}]`},
 		{[]textint{9, 3}, `["TI:9","TI:3"]`},
 		{[]int{9, 3}, `[9,3]`},
+		{[]textfloat{12, 3}, `["TF:12.00","TF:3.00"]`},
 	}
 	for _, d := range testdata {
 		js, err := Marshal(d.data)
@@ -774,6 +920,21 @@ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
 	const want = `{"a:z":3,"x:y":1,"y:x":2,"z:a":4}`
 	if string(b) != want {
 		t.Errorf("Marshal map with text.Marshaler keys: got %#q, want %#q", b, want)
+	}
+}
+
+// https://golang.org/issue/33675
+func TestNilMarshalerTextMapKey(t *testing.T) {
+	b, err := Marshal(map[*unmarshalerText]int{
+		(*unmarshalerText)(nil): 1,
+		{"A", "B"}:              2,
+	})
+	if err != nil {
+		t.Fatalf("Failed to Marshal *text.Marshaler: %v", err)
+	}
+	const want = `{"":1,"A:B":2}`
+	if string(b) != want {
+		t.Errorf("Marshal map with *text.Marshaler keys: got %#q, want %#q", b, want)
 	}
 }
 
@@ -851,6 +1012,9 @@ func TestMarshalFloat(t *testing.T) {
 
 	var digits = "1.2345678901234567890123"
 	for i := len(digits); i >= 2; i-- {
+		if testing.Short() && i < len(digits)-4 {
+			break
+		}
 		for exp := -30; exp <= 30; exp++ {
 			for _, sign := range "+-" {
 				for bits := 32; bits <= 64; bits += 32 {
@@ -994,4 +1158,46 @@ func TestMarshalPanic(t *testing.T) {
 	}()
 	Marshal(&marshalPanic{})
 	t.Error("Marshal should have panicked")
+}
+
+func TestMarshalUncommonFieldNames(t *testing.T) {
+	v := struct {
+		A0, À, Aβ int
+	}{}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{"A0":0,"À":0,"Aβ":0}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+}
+
+func TestMarshalerError(t *testing.T) {
+	s := "test variable"
+	st := reflect.TypeOf(s)
+	errText := "json: test error"
+
+	tests := []struct {
+		err  *MarshalerError
+		want string
+	}{
+		{
+			&MarshalerError{st, fmt.Errorf(errText), ""},
+			"json: error calling MarshalJSON for type " + st.String() + ": " + errText,
+		},
+		{
+			&MarshalerError{st, fmt.Errorf(errText), "TestMarshalerError"},
+			"json: error calling TestMarshalerError for type " + st.String() + ": " + errText,
+		},
+	}
+
+	for i, tt := range tests {
+		got := tt.err.Error()
+		if got != tt.want {
+			t.Errorf("MarshalerError test %d, got: %s, want: %s", i, got, tt.want)
+		}
+	}
 }

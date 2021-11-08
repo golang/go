@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64
+//go:build !amd64 && !arm64
 
 package elliptic
 
@@ -85,7 +85,7 @@ func (p256Curve) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y *big.Int) 
 
 // Field elements are represented as nine, unsigned 32-bit words.
 //
-// The value of an field element is:
+// The value of a field element is:
 //   x[0] + (x[1] * 2**29) + (x[2] * 2**57) + ... + (x[8] * 2**228)
 //
 // That is, each limb is alternately 29 or 28-bits wide in little-endian
@@ -209,6 +209,8 @@ var p256Precomputed = [p256Limbs * 2 * 15 * 2]uint32{
 
 // Field element operations:
 
+const bottom28Bits = 0xfffffff
+
 // nonZeroToAllOnes returns:
 //   0xffffffff for 0 < x <= 2**31
 //   0 for x == 0 or x > 2**31.
@@ -269,6 +271,7 @@ const (
 	two30m2    = 1<<30 - 1<<2
 	two30p13m2 = 1<<30 + 1<<13 - 1<<2
 	two31m2    = 1<<31 - 1<<2
+	two31m3    = 1<<31 - 1<<3
 	two31p24m2 = 1<<31 + 1<<24 - 1<<2
 	two30m27m2 = 1<<30 - 1<<27 - 1<<2
 )
@@ -307,7 +310,7 @@ func p256Diff(out, in, in2 *[p256Limbs]uint32) {
 }
 
 // p256ReduceDegree sets out = tmp/R mod p where tmp contains 64-bit words with
-// the same 29,28,... bit positions as an field element.
+// the same 29,28,... bit positions as a field element.
 //
 // The values in field elements are in Montgomery form: x*R mod p where R =
 // 2**257. Since we just multiplied two Montgomery values together, the result
@@ -326,7 +329,7 @@ func p256ReduceDegree(out *[p256Limbs]uint32, tmp [17]uint64) {
 	var tmp2 [18]uint32
 	var carry, x, xMask uint32
 
-	// tmp contains 64-bit words with the same 29,28,29-bit positions as an
+	// tmp contains 64-bit words with the same 29,28,29-bit positions as a
 	// field element. So the top of an element of tmp might overlap with
 	// another element two positions down. The following loop eliminates
 	// this overlap.

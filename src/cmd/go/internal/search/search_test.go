@@ -33,7 +33,7 @@ var matchPatternTests = `
 	match net net/http
 	not not/http not/net/http netchan
 
-	# Second, any slash-separted pattern element containing a wildcard never
+	# Second, any slash-separated pattern element containing a wildcard never
 	# participates in a match of the "vendor" element in the path of a vendored
 	# package, so that ./... does not match packages in subdirectories of
 	# ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.

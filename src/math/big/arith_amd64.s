@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !math_big_pure_go
 // +build !math_big_pure_go
 
 #include "textflag.h"
@@ -18,14 +19,6 @@ TEXT ·mulWW(SB),NOSPLIT,$0
 	RET
 
 
-// func divWW(x1, x0, y Word) (q, r Word)
-TEXT ·divWW(SB),NOSPLIT,$0
-	MOVQ x1+0(FP), DX
-	MOVQ x0+8(FP), AX
-	DIVQ y+16(FP)
-	MOVQ AX, q+24(FP)
-	MOVQ DX, r+32(FP)
-	RET
 
 // The carry bit is saved with SBBQ Rx, Rx: if the carry was set, Rx is -1, otherwise it is 0.
 // It is restored with ADDQ Rx, Rx: if Rx was -1 the carry is set, otherwise it is cleared.
@@ -143,6 +136,8 @@ E2:	NEGQ CX
 // func addVW(z, x []Word, y Word) (c Word)
 TEXT ·addVW(SB),NOSPLIT,$0
 	MOVQ z_len+8(FP), DI
+	CMPQ DI, $32
+	JG large
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -189,12 +184,16 @@ L3:	// n > 0
 
 E3:	MOVQ CX, c+56(FP)	// return c
 	RET
+large:
+	JMP ·addVWlarge(SB)
 
 
 // func subVW(z, x []Word, y Word) (c Word)
 // (same as addVW except for SUBQ/SBBQ instead of ADDQ/ADCQ and label names)
 TEXT ·subVW(SB),NOSPLIT,$0
 	MOVQ z_len+8(FP), DI
+	CMPQ DI, $32
+	JG large
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -242,6 +241,8 @@ L4:	// n > 0
 
 E4:	MOVQ CX, c+56(FP)	// return c
 	RET
+large:
+	JMP ·subVWlarge(SB)
 
 
 // func shlVU(z, x []Word, s uint) (c Word)
@@ -256,7 +257,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVQ s+48(FP), CX
 	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
 	MOVQ $0, DX
-	SHLQ CX, DX:AX		// w1>>ŝ
+	SHLQ CX, AX, DX		// w1>>ŝ
 	MOVQ DX, c+56(FP)
 
 	CMPQ BX, $0
@@ -265,7 +266,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	// i > 0
 L8:	MOVQ AX, DX		// w = w1
 	MOVQ -8(R8)(BX*8), AX	// w1 = x[i-1]
-	SHLQ CX, DX:AX		// w<<s | w1>>ŝ
+	SHLQ CX, AX, DX		// w<<s | w1>>ŝ
 	MOVQ DX, (R10)(BX*8)	// z[i] = w<<s | w1>>ŝ
 	SUBQ $1, BX		// i--
 	JG L8			// i > 0
@@ -291,7 +292,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVQ s+48(FP), CX
 	MOVQ (R8), AX		// w1 = x[0]
 	MOVQ $0, DX
-	SHRQ CX, DX:AX		// w1<<ŝ
+	SHRQ CX, AX, DX		// w1<<ŝ
 	MOVQ DX, c+56(FP)
 
 	MOVQ $0, BX		// i = 0
@@ -300,7 +301,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	// i < n-1
 L9:	MOVQ AX, DX		// w = w1
 	MOVQ 8(R8)(BX*8), AX	// w1 = x[i+1]
-	SHRQ CX, DX:AX		// w>>s | w1<<ŝ
+	SHRQ CX, AX, DX		// w>>s | w1<<ŝ
 	MOVQ DX, (R10)(BX*8)	// z[i] = w>>s | w1<<ŝ
 	ADDQ $1, BX		// i++
 
@@ -324,10 +325,10 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVQ r+56(FP), CX	// c = r
 	MOVQ z_len+8(FP), R11
 	MOVQ $0, BX		// i = 0
-	
+
 	CMPQ R11, $4
 	JL E5
-	
+
 U5:	// i+4 <= n
 	// regular loop body unrolled 4x
 	MOVQ (0*8)(R8)(BX*8), AX
@@ -355,7 +356,7 @@ U5:	// i+4 <= n
 	MOVQ AX, (3*8)(R10)(BX*8)
 	MOVQ DX, CX
 	ADDQ $4, BX		// i += 4
-	
+
 	LEAQ 4(BX), DX
 	CMPQ DX, R11
 	JLE U5
@@ -378,7 +379,7 @@ E5:	CMPQ BX, R11		// i < n
 
 // func addMulVVW(z, x []Word, y Word) (c Word)
 TEXT ·addMulVVW(SB),NOSPLIT,$0
-	CMPB    ·support_adx(SB), $1
+	CMPB ·support_adx(SB), $1
 	JEQ adx
 	MOVQ z+0(FP), R10
 	MOVQ x+24(FP), R8
@@ -523,21 +524,3 @@ adx_short:
 
 
 
-// func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
-TEXT ·divWVW(SB),NOSPLIT,$0
-	MOVQ z+0(FP), R10
-	MOVQ xn+24(FP), DX	// r = xn
-	MOVQ x+32(FP), R8
-	MOVQ y+56(FP), R9
-	MOVQ z_len+8(FP), BX	// i = z
-	JMP E7
-
-L7:	MOVQ (R8)(BX*8), AX
-	DIVQ R9
-	MOVQ AX, (R10)(BX*8)
-
-E7:	SUBQ $1, BX		// i--
-	JGE L7			// i >= 0
-
-	MOVQ DX, r+64(FP)
-	RET

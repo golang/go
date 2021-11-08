@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,7 +84,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // the corresponding package object to the packages map, and returns the object.
 // The packages map must contain all packages already imported.
 //
-func Import(packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
+func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
 	var rc io.ReadCloser
 	var id string
 	if lookup != nil {
@@ -143,40 +142,26 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
 
 	switch hdr {
 	case "$$\n":
-		err = fmt.Errorf("import %q: old export format no longer supported (recompile library)", path)
+		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile library)", path)
 
 	case "$$B\n":
-		var data []byte
-		data, err = ioutil.ReadAll(buf)
-		if err != nil {
-			break
-		}
-
-		// TODO(gri): allow clients of go/importer to provide a FileSet.
-		// Or, define a new standard go/types/gcexportdata package.
-		fset := token.NewFileSet()
+		var exportFormat byte
+		exportFormat, err = buf.ReadByte()
 
 		// The indexed export format starts with an 'i'; the older
 		// binary export format starts with a 'c', 'd', or 'v'
 		// (from "version"). Select appropriate importer.
-		if len(data) > 0 && data[0] == 'i' {
-			_, pkg, err = iImportData(fset, packages, data[1:], id)
+		if err == nil && exportFormat == 'i' {
+			pkg, err = iImportData(fset, packages, buf, id)
 		} else {
-			_, pkg, err = BImportData(fset, packages, data, id)
+			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
 		}
 
 	default:
-		err = fmt.Errorf("unknown export data header: %q", hdr)
+		err = fmt.Errorf("import %q: unknown export data header: %q", path, hdr)
 	}
 
 	return
-}
-
-func deref(typ types.Type) types.Type {
-	if p, _ := typ.(*types.Pointer); p != nil {
-		return p.Elem()
-	}
-	return typ
 }
 
 type byPath []*types.Package

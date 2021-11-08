@@ -8,19 +8,19 @@
 
 package p
 
-func f3(x *[1 << 31]byte) byte { // ERROR "stack frame too large"
+func f3(x *[1 << 31]byte) byte { // GC_ERROR "stack frame too large"
 	for _, b := range *x {
 		return b
 	}
 	return 0
 }
-func f4(x *[1 << 32]byte) byte { // ERROR "stack frame too large"
+func f4(x *[1 << 32]byte) byte { // GC_ERROR "stack frame too large"
 	for _, b := range *x {
 		return b
 	}
 	return 0
 }
-func f5(x *[1 << 33]byte) byte { // ERROR "stack frame too large"
+func f5(x *[1 << 33]byte) byte { // GC_ERROR "stack frame too large"
 	for _, b := range *x {
 		return b
 	}

@@ -6,7 +6,7 @@ package http
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 )
@@ -26,7 +26,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:    0,
 				Request:       dummyReq("GET"),
 				Header:        Header{},
-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
+				Body:          io.NopCloser(strings.NewReader("abcdef")),
 				ContentLength: 6,
 			},
 
@@ -42,7 +42,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:    0,
 				Request:       dummyReq("GET"),
 				Header:        Header{},
-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
+				Body:          io.NopCloser(strings.NewReader("abcdef")),
 				ContentLength: -1,
 			},
 			"HTTP/1.0 200 OK\r\n" +
@@ -57,7 +57,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:    1,
 				Request:       dummyReq("GET"),
 				Header:        Header{},
-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
+				Body:          io.NopCloser(strings.NewReader("abcdef")),
 				ContentLength: -1,
 				Close:         true,
 			},
@@ -74,7 +74,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:    1,
 				Request:       dummyReq11("GET"),
 				Header:        Header{},
-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
+				Body:          io.NopCloser(strings.NewReader("abcdef")),
 				ContentLength: -1,
 				Close:         false,
 			},
@@ -92,7 +92,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:       1,
 				Request:          dummyReq11("GET"),
 				Header:           Header{},
-				Body:             ioutil.NopCloser(strings.NewReader("abcdef")),
+				Body:             io.NopCloser(strings.NewReader("abcdef")),
 				ContentLength:    -1,
 				TransferEncoding: []string{"chunked"},
 				Close:            false,
@@ -125,7 +125,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:    1,
 				Request:       dummyReq11("GET"),
 				Header:        Header{},
-				Body:          ioutil.NopCloser(strings.NewReader("")),
+				Body:          io.NopCloser(strings.NewReader("")),
 				ContentLength: 0,
 				Close:         false,
 			},
@@ -141,7 +141,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:    1,
 				Request:       dummyReq11("GET"),
 				Header:        Header{},
-				Body:          ioutil.NopCloser(strings.NewReader("foo")),
+				Body:          io.NopCloser(strings.NewReader("foo")),
 				ContentLength: 0,
 				Close:         false,
 			},
@@ -157,7 +157,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:       1,
 				Request:          dummyReq("GET"),
 				Header:           Header{},
-				Body:             ioutil.NopCloser(strings.NewReader("abcdef")),
+				Body:             io.NopCloser(strings.NewReader("abcdef")),
 				ContentLength:    6,
 				TransferEncoding: []string{"chunked"},
 				Close:            true,
@@ -218,7 +218,7 @@ func TestResponseWrite(t *testing.T) {
 				Request:       &Request{Method: "POST"},
 				Header:        Header{},
 				ContentLength: -1,
-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
+				Body:          io.NopCloser(strings.NewReader("abcdef")),
 			},
 			"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nabcdef",
 		},

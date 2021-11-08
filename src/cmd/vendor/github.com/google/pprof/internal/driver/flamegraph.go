@@ -38,7 +38,10 @@ type treeNode struct {
 func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 	// Force the call tree so that the graph is a tree.
 	// Also do not trim the tree so that the flame graph contains all functions.
-	rpt, errList := ui.makeReport(w, req, []string{"svg"}, "call_tree", "true", "trim", "false")
+	rpt, errList := ui.makeReport(w, req, []string{"svg"}, func(cfg *config) {
+		cfg.CallTree = true
+		cfg.Trim = false
+	})
 	if rpt == nil {
 		return // error already reported
 	}
@@ -55,7 +58,7 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 		v := n.CumValue()
 		fullName := n.Info.PrintableName()
 		node := &treeNode{
-			Name:      getNodeShortName(fullName),
+			Name:      graph.ShortenFunctionName(fullName),
 			FullName:  fullName,
 			Cum:       v,
 			CumFormat: config.FormatValue(v),
@@ -96,24 +99,8 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	ui.render(w, "flamegraph", rpt, errList, config.Labels, webArgs{
+	ui.render(w, req, "flamegraph", rpt, errList, config.Labels, webArgs{
 		FlameGraph: template.JS(b),
 		Nodes:      nodeArr,
 	})
-}
-
-// getNodeShortName builds a short node name from fullName.
-func getNodeShortName(name string) string {
-	chunks := strings.SplitN(name, "(", 2)
-	head := chunks[0]
-	pathSep := strings.LastIndexByte(head, '/')
-	if pathSep == -1 || pathSep+1 >= len(head) {
-		return name
-	}
-	// Check if name is a stdlib package, i.e. doesn't have "." before "/"
-	if dot := strings.IndexByte(head, '.'); dot == -1 || dot > pathSep {
-		return name
-	}
-	// Trim package path prefix from node name
-	return name[pathSep+1:]
 }

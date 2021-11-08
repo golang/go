@@ -75,7 +75,8 @@ type huffmanBitWriter struct {
 	writer io.Writer
 
 	// Data waiting to be written is bytes[0:nbytes]
-	// and then the low nbits of bits.
+	// and then the low nbits of bits.  Data is always written
+	// sequentially into the bytes array.
 	bits            uint64
 	nbits           uint
 	bytes           [bufferSize]byte
@@ -105,7 +106,6 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 func (w *huffmanBitWriter) reset(writer io.Writer) {
 	w.writer = writer
 	w.bits, w.nbits, w.nbytes, w.err = 0, 0, 0, nil
-	w.bytes = [bufferSize]byte{}
 }
 
 func (w *huffmanBitWriter) flush() {
@@ -609,10 +609,10 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode)
 var huffOffset *huffmanEncoder
 
 func init() {
-	w := newHuffmanBitWriter(nil)
-	w.offsetFreq[0] = 1
+	offsetFreq := make([]int32, offsetCodeCount)
+	offsetFreq[0] = 1
 	huffOffset = newHuffmanEncoder(offsetCodeCount)
-	huffOffset.generate(w.offsetFreq, 15)
+	huffOffset.generate(offsetFreq, 15)
 }
 
 // writeBlockHuff encodes a block of bytes as either
@@ -634,6 +634,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 	w.literalFreq[endBlockMarker] = 1
 
 	const numLiterals = endBlockMarker + 1
+	w.offsetFreq[0] = 1
 	const numOffsets = 1
 
 	w.literalEncoding.generate(w.literalFreq, 15)

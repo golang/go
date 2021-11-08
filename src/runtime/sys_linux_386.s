@@ -32,6 +32,7 @@
 #define SYS_getpid		20
 #define SYS_access		33
 #define SYS_kill		37
+#define SYS_pipe		42
 #define SYS_brk 		45
 #define SYS_fcntl		55
 #define SYS_munmap		91
@@ -48,7 +49,6 @@
 #define SYS_mincore		218
 #define SYS_madvise		219
 #define SYS_gettid		224
-#define SYS_tkill		238
 #define SYS_futex		240
 #define SYS_sched_getaffinity	242
 #define SYS_set_thread_area	243
@@ -56,8 +56,13 @@
 #define SYS_epoll_create	254
 #define SYS_epoll_ctl		255
 #define SYS_epoll_wait		256
+#define SYS_timer_create	259
+#define SYS_timer_settime	260
+#define SYS_timer_delete	263
 #define SYS_clock_gettime	265
+#define SYS_tgkill		270
 #define SYS_epoll_create1	329
+#define SYS_pipe2		331
 
 TEXT runtime·exit(SB),NOSPLIT,$0
 	MOVL	$SYS_exit_group, AX
@@ -107,15 +112,12 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
+TEXT runtime·write1(SB),NOSPLIT,$0
 	MOVL	$SYS_write, AX
 	MOVL	fd+0(FP), BX
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	2(PC)
-	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -125,10 +127,24 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	2(PC)
-	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
+	RET
+
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT,$0-12
+	MOVL	$SYS_pipe, AX
+	LEAL	r+0(FP), BX
+	INVOKE_SYSCALL
+	MOVL	AX, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+	MOVL	$SYS_pipe2, AX
+	LEAL	r+4(FP), BX
+	MOVL	flags+0(FP), CX
+	INVOKE_SYSCALL
+	MOVL	AX, errno+12(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$8
@@ -155,11 +171,14 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$12
+	MOVL	$SYS_getpid, AX
+	INVOKE_SYSCALL
+	MOVL	AX, BX	// arg 1 pid
 	MOVL	$SYS_gettid, AX
 	INVOKE_SYSCALL
-	MOVL	AX, BX	// arg 1 tid
-	MOVL	sig+0(FP), CX	// arg 2 signal
-	MOVL	$SYS_tkill, AX
+	MOVL	AX, CX	// arg 2 tid
+	MOVL	sig+0(FP), DX	// arg 3 signal
+	MOVL	$SYS_tgkill, AX
 	INVOKE_SYSCALL
 	RET
 
@@ -172,12 +191,52 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
 	INVOKE_SYSCALL
 	RET
 
+TEXT ·getpid(SB),NOSPLIT,$0-4
+	MOVL	$SYS_getpid, AX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+0(FP)
+	RET
+
+TEXT ·tgkill(SB),NOSPLIT,$0
+	MOVL	$SYS_tgkill, AX
+	MOVL	tgid+0(FP), BX
+	MOVL	tid+4(FP), CX
+	MOVL	sig+8(FP), DX
+	INVOKE_SYSCALL
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVL	$SYS_setittimer, AX
 	MOVL	mode+0(FP), BX
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
 	INVOKE_SYSCALL
+	RET
+
+TEXT runtime·timer_create(SB),NOSPLIT,$0-16
+	MOVL	$SYS_timer_create, AX
+	MOVL	clockid+0(FP), BX
+	MOVL	sevp+4(FP), CX
+	MOVL	timerid+8(FP), DX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+12(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
+	MOVL	$SYS_timer_settime, AX
+	MOVL	timerid+0(FP), BX
+	MOVL	flags+4(FP), CX
+	MOVL	new+8(FP), DX
+	MOVL	old+12(FP), SI
+	INVOKE_SYSCALL
+	MOVL	AX, ret+16(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-8
+	MOVL	$SYS_timer_delete, AX
+	MOVL	timerid+0(FP), BX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0-16
@@ -190,7 +249,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	RET
 
 // func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $0-12
+TEXT runtime·walltime(SB), NOSPLIT, $8-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 
@@ -201,9 +260,16 @@ TEXT runtime·walltime(SB), NOSPLIT, $0-12
 	MOVL	g_m(AX), SI // SI unchanged by C code.
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
-	MOVL	0(SP), DX
-	MOVL	DX, m_vdsoPC(SI)
-	LEAL	sec+0(SP), DX
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVL	m_vdsoPC(SI), CX
+	MOVL	m_vdsoSP(SI), DX
+	MOVL	CX, 0(SP)
+	MOVL	DX, 4(SP)
+
+	LEAL	sec+0(FP), DX
+	MOVL	-4(DX), CX
+	MOVL	CX, m_vdsoPC(SI)
 	MOVL	DX, m_vdsoSP(SI)
 
 	CMPL	AX, m_curg(SI)	// Only switch if on curg.
@@ -244,7 +310,15 @@ finish:
 	MOVL	12(SP), BX	// nsec
 
 	MOVL	BP, SP		// Restore real SP
-	MOVL	$0, m_vdsoSP(SI)
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVL	4(SP), CX
+	MOVL	CX, m_vdsoSP(SI)
+	MOVL	0(SP), CX
+	MOVL	CX, m_vdsoPC(SI)
 
 	// sec is in AX, nsec in BX
 	MOVL	AX, sec_lo+0(FP)
@@ -254,7 +328,7 @@ finish:
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), NOSPLIT, $0-8
+TEXT runtime·nanotime1(SB), NOSPLIT, $8-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
 	MOVL	SP, BP	// Save old SP; BP unchanged by C code.
@@ -264,9 +338,16 @@ TEXT runtime·nanotime(SB), NOSPLIT, $0-8
 	MOVL	g_m(AX), SI // SI unchanged by C code.
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
-	MOVL	0(SP), DX
-	MOVL	DX, m_vdsoPC(SI)
-	LEAL	ret+0(SP), DX
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVL	m_vdsoPC(SI), CX
+	MOVL	m_vdsoSP(SI), DX
+	MOVL	CX, 0(SP)
+	MOVL	DX, 4(SP)
+
+	LEAL	ret+0(FP), DX
+	MOVL	-4(DX), CX
+	MOVL	CX, m_vdsoPC(SI)
 	MOVL	DX, m_vdsoSP(SI)
 
 	CMPL	AX, m_curg(SI)	// Only switch if on curg.
@@ -300,7 +381,15 @@ finish:
 	MOVL	12(SP), BX	// nsec
 
 	MOVL	BP, SP		// Restore real SP
-	MOVL	$0, m_vdsoSP(SI)
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVL	4(SP), CX
+	MOVL	CX, m_vdsoSP(SI)
+	MOVL	0(SP), CX
+	MOVL	CX, m_vdsoPC(SI)
 
 	// sec is in AX, nsec in BX
 	// convert to DX:AX nsec
@@ -352,6 +441,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	MOVL	AX, SP
 	RET
 
+// Called using C ABI.
 TEXT runtime·sigtramp(SB),NOSPLIT,$28
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVL	BX, bx-4(SP)
@@ -361,11 +451,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$28
 	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
 	// modify them.
 
-	MOVL	sig+0(FP), BX
+	MOVL	(28+4)(SP), BX
 	MOVL	BX, 0(SP)
-	MOVL	info+4(FP), BX
+	MOVL	(28+8)(SP), BX
 	MOVL	BX, 4(SP)
-	MOVL	ctx+8(FP), BX
+	MOVL	(28+12)(SP), BX
 	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
 
@@ -424,7 +514,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	n+4(FP), CX
 	MOVL	flags+8(FP), DX
 	INVOKE_SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVL	AX, ret+12(FP)
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,
@@ -471,6 +561,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	RET
 
 	// Paranoia: check that SP is as we expect.
+	NOP	SP // tell vet SP changed - stop checking offsets
 	MOVL	12(SP), BP
 	CMPL	BP, $1234
 	JEQ	2(PC)
@@ -569,15 +660,11 @@ GLOBL runtime·tls_entry_number(SB), NOPTR, $4
 // The name, setldt, is a misnomer, although we leave this name as it is for
 // the compatibility with other platforms.
 TEXT runtime·setldt(SB),NOSPLIT,$32
-	MOVL	address+4(FP), DX	// base address
+	MOVL	base+4(FP), DX
 
 #ifdef GOOS_android
-	/*
-	 * Same as in sys_darwin_386.s:/ugliness, different constant.
-	 * address currently holds m->tls, which must be %gs:0xf8.
-	 * See cgo/gcc_android_386.c for the derivation of the constant.
-	 */
-	SUBL	$0xf8, DX
+	// Android stores the TLS offset in runtime·tls_g.
+	SUBL	runtime·tls_g(SB), DX
 	MOVL	DX, 0(DX)
 #else
 	/*
@@ -692,6 +779,21 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), BX  // fd
 	MOVL	$2, CX  // F_SETFD
 	MOVL	$1, DX  // FD_CLOEXEC
+	INVOKE_SYSCALL
+	RET
+
+// func runtime·setNonblock(fd int32)
+TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+	MOVL	$SYS_fcntl, AX
+	MOVL	fd+0(FP), BX // fd
+	MOVL	$3, CX // F_GETFL
+	MOVL	$0, DX
+	INVOKE_SYSCALL
+	MOVL	fd+0(FP), BX // fd
+	MOVL	$4, CX // F_SETFL
+	MOVL	$0x800, DX // O_NONBLOCK
+	ORL	AX, DX
+	MOVL	$SYS_fcntl, AX
 	INVOKE_SYSCALL
 	RET
 

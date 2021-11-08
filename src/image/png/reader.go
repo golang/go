@@ -163,8 +163,9 @@ func (d *decoder) parseIHDR(length uint32) error {
 	if w <= 0 || h <= 0 {
 		return FormatError("non-positive dimension")
 	}
-	nPixels := int64(w) * int64(h)
-	if nPixels != int64(int(nPixels)) {
+	nPixels64 := int64(w) * int64(h)
+	nPixels := int(nPixels64)
+	if nPixels64 != int64(nPixels) {
 		return UnsupportedError("dimension overflow")
 	}
 	// There can be up to 8 bytes per pixel, for 16 bits per channel RGBA.
@@ -498,7 +499,10 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 	bytesPerPixel := (bitsPerPixel + 7) / 8
 
 	// The +1 is for the per-row filter type, which is at cr[0].
-	rowSize := 1 + (bitsPerPixel*width+7)/8
+	rowSize := 1 + (int64(bitsPerPixel)*int64(width)+7)/8
+	if rowSize != int64(int(rowSize)) {
+		return nil, UnsupportedError("dimension overflow")
+	}
 	// cr and pr are the bytes for the current and previous row.
 	cr := make([]uint8, rowSize)
 	pr := make([]uint8, rowSize)
@@ -706,7 +710,7 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				}
 			}
 		case cbP8:
-			if len(paletted.Palette) != 255 {
+			if len(paletted.Palette) != 256 {
 				for x := 0; x < width; x++ {
 					if len(paletted.Palette) <= int(cdat[x]) {
 						paletted.Palette = paletted.Palette[:int(cdat[x])+1]
@@ -817,9 +821,17 @@ func (d *decoder) mergePassInto(dst image.Image, src image.Image, pass int) {
 		dstPix, stride, rect = target.Pix, target.Stride, target.Rect
 		bytesPerPixel = 8
 	case *image.Paletted:
-		srcPix = src.(*image.Paletted).Pix
+		source := src.(*image.Paletted)
+		srcPix = source.Pix
 		dstPix, stride, rect = target.Pix, target.Stride, target.Rect
 		bytesPerPixel = 1
+		if len(target.Palette) < len(source.Palette) {
+			// readImagePass can return a paletted image whose implicit palette
+			// length (one more than the maximum Pix value) is larger than the
+			// explicit palette length (what's in the PLTE chunk). Make the
+			// same adjustment here.
+			target.Palette = source.Palette
+		}
 	case *image.RGBA:
 		srcPix = src.(*image.RGBA).Pix
 		dstPix, stride, rect = target.Pix, target.Stride, target.Rect
@@ -858,8 +870,7 @@ func (d *decoder) parseIEND(length uint32) error {
 
 func (d *decoder) parseChunk() error {
 	// Read the length and chunk type.
-	n, err := io.ReadFull(d.r, d.tmp[:8])
-	if err != nil {
+	if _, err := io.ReadFull(d.r, d.tmp[:8]); err != nil {
 		return err
 	}
 	length := binary.BigEndian.Uint32(d.tmp[:4])
@@ -916,7 +927,7 @@ func (d *decoder) parseChunk() error {
 	// Ignore this chunk (of a known length).
 	var ignored [4096]byte
 	for length > 0 {
-		n, err = io.ReadFull(d.r, ignored[:min(len(ignored), int(length))])
+		n, err := io.ReadFull(d.r, ignored[:min(len(ignored), int(length))])
 		if err != nil {
 			return err
 		}

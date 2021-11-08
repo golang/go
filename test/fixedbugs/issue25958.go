@@ -11,7 +11,7 @@ package p
 
 func f(done chan struct{}) {
 	select {
-	case done: // ERROR "must be receive", "not used"
-	case (chan struct{})(done): // ERROR "must be receive"
+	case done: // ERROR "must be receive|expected .*<-.* or .*=" "not used"
+	case (chan struct{})(done): // ERROR "must be receive|expected .*<-.* or .*="
 	}
 }

@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd
+//go:build dragonfly || freebsd || linux || netbsd || openbsd
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 func dumpregs(c *sigctxt) {
 	print("trap    ", hex(c.trap()), "\n")
@@ -60,5 +63,19 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 
 	// In case we are panicking from external C code
 	c.set_r10(uint32(uintptr(unsafe.Pointer(gp))))
-	c.set_pc(uint32(funcPC(sigpanic)))
+	c.set_pc(uint32(abi.FuncPCABIInternal(sigpanic)))
+}
+
+func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra slot is known to gentraceback.
+	sp := c.sp() - 4
+	c.set_sp(sp)
+	*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.lr()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at resumePC.
+	c.set_lr(uint32(resumePC))
+	c.set_pc(uint32(targetPC))
 }

@@ -14,7 +14,7 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/http/internal"
+	"net/http/internal/testcert"
 	"os"
 	"strings"
 	"sync"
@@ -26,6 +26,11 @@ import (
 type Server struct {
 	URL      string // base URL of form http://ipaddr:port with no trailing slash
 	Listener net.Listener
+
+	// EnableHTTP2 controls whether HTTP/2 is enabled
+	// on the server. It must be set between calling
+	// NewUnstartedServer and calling Server.StartTLS.
+	EnableHTTP2 bool
 
 	// TLS is the optional TLS configuration, populated with a new config
 	// after TLS is started. If set on an unstarted server before StartTLS
@@ -53,10 +58,10 @@ type Server struct {
 }
 
 func newLocalListener() net.Listener {
-	if *serve != "" {
-		l, err := net.Listen("tcp", *serve)
+	if serveFlag != "" {
+		l, err := net.Listen("tcp", serveFlag)
 		if err != nil {
-			panic(fmt.Sprintf("httptest: failed to listen on %v: %v", *serve, err))
+			panic(fmt.Sprintf("httptest: failed to listen on %v: %v", serveFlag, err))
 		}
 		return l
 	}
@@ -73,7 +78,25 @@ func newLocalListener() net.Listener {
 // this flag lets you run
 //	go test -run=BrokenTest -httptest.serve=127.0.0.1:8000
 // to start the broken server so you can interact with it manually.
-var serve = flag.String("httptest.serve", "", "if non-empty, httptest.NewServer serves on this address and blocks")
+// We only register this flag if it looks like the caller knows about it
+// and is trying to use it as we don't want to pollute flags and this
+// isn't really part of our API. Don't depend on this.
+var serveFlag string
+
+func init() {
+	if strSliceContainsPrefix(os.Args, "-httptest.serve=") || strSliceContainsPrefix(os.Args, "--httptest.serve=") {
+		flag.StringVar(&serveFlag, "httptest.serve", "", "if non-empty, httptest.NewServer serves on this address and blocks.")
+	}
+}
+
+func strSliceContainsPrefix(v []string, pre string) bool {
+	for _, s := range v {
+		if strings.HasPrefix(s, pre) {
+			return true
+		}
+	}
+	return false
+}
 
 // NewServer starts and returns a new Server.
 // The caller should call Close when finished, to shut it down.
@@ -107,7 +130,7 @@ func (s *Server) Start() {
 	s.URL = "http://" + s.Listener.Addr().String()
 	s.wrap()
 	s.goServe()
-	if *serve != "" {
+	if serveFlag != "" {
 		fmt.Fprintln(os.Stderr, "httptest: serving on", s.URL)
 		select {}
 	}
@@ -121,7 +144,7 @@ func (s *Server) StartTLS() {
 	if s.client == nil {
 		s.client = &http.Client{Transport: &http.Transport{}}
 	}
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		panic(fmt.Sprintf("httptest: NewTLSServer: %v", err))
 	}
@@ -133,7 +156,11 @@ func (s *Server) StartTLS() {
 		s.TLS = new(tls.Config)
 	}
 	if s.TLS.NextProtos == nil {
-		s.TLS.NextProtos = []string{"http/1.1"}
+		nextProtos := []string{"http/1.1"}
+		if s.EnableHTTP2 {
+			nextProtos = []string{"h2"}
+		}
+		s.TLS.NextProtos = nextProtos
 	}
 	if len(s.TLS.Certificates) == 0 {
 		s.TLS.Certificates = []tls.Certificate{cert}
@@ -148,6 +175,7 @@ func (s *Server) StartTLS() {
 		TLSClientConfig: &tls.Config{
 			RootCAs: certpool,
 		},
+		ForceAttemptHTTP2: s.EnableHTTP2,
 	}
 	s.Listener = tls.NewListener(s.Listener, s.TLS)
 	s.URL = "https://" + s.Listener.Addr().String()
@@ -288,6 +316,13 @@ func (s *Server) wrap() {
 	s.Config.ConnState = func(c net.Conn, cs http.ConnState) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
+
+		// Keep Close from returning until the user's ConnState hook
+		// (if any) finishes. Without this, the call to forgetConn
+		// below might send the count to 0 before we run the hook.
+		s.wg.Add(1)
+		defer s.wg.Done()
+
 		switch cs {
 		case http.StateNew:
 			s.wg.Add(1)

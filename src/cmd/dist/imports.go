@@ -11,7 +11,10 @@ package main
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
+	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -242,4 +245,32 @@ func readimports(file string) []string {
 	}
 
 	return imports
+}
+
+// resolveVendor returns a unique package path imported with the given import
+// path from srcDir.
+//
+// resolveVendor assumes that a package is vendored if and only if its first
+// path component contains a dot. If a package is vendored, its import path
+// is returned with a "vendor" or "cmd/vendor" prefix, depending on srcDir.
+// Otherwise, the import path is returned verbatim.
+func resolveVendor(imp, srcDir string) string {
+	var first string
+	if i := strings.Index(imp, "/"); i < 0 {
+		first = imp
+	} else {
+		first = imp[:i]
+	}
+	isStandard := !strings.Contains(first, ".")
+	if isStandard {
+		return imp
+	}
+
+	if strings.HasPrefix(srcDir, filepath.Join(goroot, "src", "cmd")) {
+		return path.Join("cmd", "vendor", imp)
+	} else if strings.HasPrefix(srcDir, filepath.Join(goroot, "src")) {
+		return path.Join("vendor", imp)
+	} else {
+		panic(fmt.Sprintf("srcDir %q not in GOOROT/src", srcDir))
+	}
 }

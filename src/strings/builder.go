@@ -24,6 +24,7 @@ type Builder struct {
 // USE CAREFULLY!
 // This was copied from the runtime; see issues 23382 and 7921.
 //go:nosplit
+//go:nocheckptr
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
 	return unsafe.Pointer(x ^ 0)
@@ -49,6 +50,11 @@ func (b *Builder) String() string {
 
 // Len returns the number of accumulated bytes; b.Len() == len(b.String()).
 func (b *Builder) Len() int { return len(b.buf) }
+
+// Cap returns the capacity of the builder's underlying byte slice. It is the
+// total space allocated for the string being built and includes any bytes
+// already written.
+func (b *Builder) Cap() int { return cap(b.buf) }
 
 // Reset resets the Builder to be empty.
 func (b *Builder) Reset() {
@@ -97,7 +103,8 @@ func (b *Builder) WriteByte(c byte) error {
 // It returns the length of r and a nil error.
 func (b *Builder) WriteRune(r rune) (int, error) {
 	b.copyCheck()
-	if r < utf8.RuneSelf {
+	// Compare as uint32 to correctly handle negative runes.
+	if uint32(r) < utf8.RuneSelf {
 		b.buf = append(b.buf, byte(r))
 		return 1, nil
 	}

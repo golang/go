@@ -231,7 +231,7 @@ func (p *parser) next0() {
 	// Because of one-token look-ahead, print the previous token
 	// when tracing as it provides a more readable output. The
 	// very first token (!p.pos.IsValid()) is not initialized
-	// (it is token.ILLEGAL), so don't print it .
+	// (it is token.ILLEGAL), so don't print it.
 	if p.trace && p.pos.IsValid() {
 		s := p.tok.String()
 		switch {
@@ -290,7 +290,7 @@ func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int)
 
 // Advance to the next non-comment token. In the process, collect
 // any comment groups encountered, and remember the last lead and
-// and line comments.
+// line comments.
 //
 // A lead comment is a comment group that starts and ends in a
 // line without any other tokens and that is followed by a non-comment

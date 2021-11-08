@@ -107,6 +107,26 @@ func ExampleEncodeRune() {
 	// 3
 }
 
+func ExampleEncodeRune_outOfRange() {
+	runes := []rune{
+		// Less than 0, out of range.
+		-1,
+		// Greater than 0x10FFFF, out of range.
+		0x110000,
+		// The Unicode replacement character.
+		utf8.RuneError,
+	}
+	for i, c := range runes {
+		buf := make([]byte, 3)
+		size := utf8.EncodeRune(buf, c)
+		fmt.Printf("%d: %d %[2]s %d\n", i, buf, size)
+	}
+	// Output:
+	// 0: [239 191 189] � 3
+	// 1: [239 191 189] � 3
+	// 2: [239 191 189] � 3
+}
+
 func ExampleFullRune() {
 	buf := []byte{228, 184, 150} // 世
 	fmt.Println(utf8.FullRune(buf))
@@ -193,4 +213,14 @@ func ExampleValidString() {
 	// Output:
 	// true
 	// false
+}
+
+func ExampleAppendRune() {
+	buf1 := utf8.AppendRune(nil, 0x10000)
+	buf2 := utf8.AppendRune([]byte("init"), 0x10000)
+	fmt.Println(string(buf1))
+	fmt.Println(string(buf2))
+	// Output:
+	// 𐀀
+	// init𐀀
 }

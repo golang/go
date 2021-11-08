@@ -7,6 +7,8 @@
 package types
 
 import (
+	"errors"
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -18,18 +20,18 @@ const (
 	trace = false // turn on for detailed type resolution traces
 )
 
-// If Strict is set, the type-checker enforces additional
+// If forceStrict is set, the type-checker enforces additional
 // rules not specified by the Go 1 spec, but which will
 // catch guaranteed run-time errors if the respective
 // code is executed. In other words, programs passing in
-// Strict mode are Go 1 compliant, but not all Go 1 programs
-// will pass in Strict mode. The additional rules are:
+// strict mode are Go 1 compliant, but not all Go 1 programs
+// will pass in strict mode. The additional rules are:
 //
 // - A type assertion x.(T) where T is an interface type
 //   is invalid if any (statically known) method that exists
 //   for both x and T have different signatures.
 //
-const strict = false
+const forceStrict = false
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -45,6 +47,7 @@ type context struct {
 	scope         *Scope                 // top-most scope for lookups
 	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
 	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
+	errpos        positioner             // if set, identifier position of a constant with inherited initializer
 	sig           *Signature             // function signature if inside a function; nil otherwise
 	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
 	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions
@@ -67,6 +70,34 @@ type importKey struct {
 	path, dir string
 }
 
+// A dotImportKey describes a dot-imported object in the given scope.
+type dotImportKey struct {
+	scope *Scope
+	name  string
+}
+
+// An action describes a (delayed) action.
+type action struct {
+	f    func()      // action to be executed
+	desc *actionDesc // action description; may be nil, requires debug to be set
+}
+
+// If debug is set, describef sets a printf-formatted description for action a.
+// Otherwise, it is a no-op.
+func (a *action) describef(pos positioner, format string, args ...interface{}) {
+	if debug {
+		a.desc = &actionDesc{pos, format, args}
+	}
+}
+
+// An actionDesc provides information on an action.
+// For debugging only.
+type actionDesc struct {
+	pos    positioner
+	format string
+	args   []interface{}
+}
+
 // A Checker maintains the state of the type checker.
 // It must be created with NewChecker.
 type Checker struct {
@@ -76,21 +107,36 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	objMap map[Object]*declInfo   // maps package-level object to declaration info
-	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	version version                // accepted language version
+	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+
+	// pkgPathMap maps package names to the set of distinct import paths we've
+	// seen for that name, anywhere in the import graph. It is used for
+	// disambiguating package names in error messages.
+	//
+	// pkgPathMap is allocated lazily, so that we don't pay the price of building
+	// it on the happy path. seenPkgMap tracks the packages that we've already
+	// walked.
+	pkgPathMap map[string]map[string]bool
+	seenPkgMap map[*Package]bool
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
-	files            []*ast.File                       // package files
-	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
+	files         []*ast.File               // package files
+	imports       []*PkgName                // list of imported packages
+	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
+	mono          monoGraph                 // graph for detecting non-monomorphizable instantiation loops
 
-	firstErr   error                    // first error encountered
-	methods    map[*TypeName][]*Func    // maps package scope type names to associated non-blank, non-interface methods
-	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
-	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
-	delayed    []func()                 // stack of delayed actions
-	objPath    []Object                 // path of object dependencies during type inference (for cycle reporting)
+	firstErr error                 // first error encountered
+	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
+	untyped  map[ast.Expr]exprInfo // map of expressions without final type
+	delayed  []action              // stack of delayed action segments; segments are processed in FIFO order
+	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
+	defTypes []*Named              // defined types created during type checking, for final validation.
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -98,22 +144,6 @@ type Checker struct {
 
 	// debugging
 	indent int // indentation for tracing
-}
-
-// addUnusedImport adds the position of a dot-imported package
-// pkg to the map of dot imports for the given file scope.
-func (check *Checker) addUnusedDotImport(scope *Scope, pkg *Package, pos token.Pos) {
-	mm := check.unusedDotImports
-	if mm == nil {
-		mm = make(map[*Scope]map[*Package]token.Pos)
-		check.unusedDotImports = mm
-	}
-	m := mm[scope]
-	if m == nil {
-		m = make(map[*Package]token.Pos)
-		mm[scope] = m
-	}
-	m[pkg] = pos
 }
 
 // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
@@ -141,8 +171,12 @@ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, ty
 // either at the end of the current statement, or in case of a local constant
 // or variable declaration, before the constant or variable is in scope
 // (so that f still sees the scope before any new declarations).
-func (check *Checker) later(f func()) {
-	check.delayed = append(check.delayed, f)
+// later returns the pushed action so one can provide a description
+// via action.describef for debugging, if desired.
+func (check *Checker) later(f func()) *action {
+	i := len(check.delayed)
+	check.delayed = append(check.delayed, action{f: f})
+	return &check.delayed[i]
 }
 
 // push pushes obj onto the object path and returns its index in the path.
@@ -160,18 +194,6 @@ func (check *Checker) pop() Object {
 	return obj
 }
 
-// pathString returns a string of the form a->b-> ... ->g for an object path [a, b, ... g].
-func (check *Checker) pathString() string {
-	var s string
-	for i, p := range check.objPath {
-		if i > 0 {
-			s += "->"
-		}
-		s += p.Name()
-	}
-	return s
-}
-
 // NewChecker returns a new Checker instance for a given package.
 // Package files may be added incrementally via checker.Files.
 func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
@@ -180,18 +202,29 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		conf = new(Config)
 	}
 
+	// make sure we have a context
+	if conf.Context == nil {
+		conf.Context = NewContext()
+	}
+
 	// make sure we have an info struct
 	if info == nil {
 		info = new(Info)
 	}
 
+	version, err := parseGoVersion(conf.GoVersion)
+	if err != nil {
+		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
+	}
+
 	return &Checker{
-		conf:   conf,
-		fset:   fset,
-		pkg:    pkg,
-		Info:   info,
-		objMap: make(map[Object]*declInfo),
-		impMap: make(map[importKey]*Package),
+		conf:    conf,
+		fset:    fset,
+		pkg:     pkg,
+		Info:    info,
+		version: version,
+		objMap:  make(map[Object]*declInfo),
+		impMap:  make(map[importKey]*Package),
 	}
 }
 
@@ -200,11 +233,11 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 func (check *Checker) initFiles(files []*ast.File) {
 	// start with a clean slate (check.Files may be called multiple times)
 	check.files = nil
-	check.unusedDotImports = nil
+	check.imports = nil
+	check.dotImportMap = nil
 
 	check.firstErr = nil
 	check.methods = nil
-	check.interfaces = nil
 	check.untyped = nil
 	check.delayed = nil
 
@@ -216,7 +249,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			if name != "_" {
 				pkg.name = name
 			} else {
-				check.errorf(file.Name.Pos(), "invalid package name _")
+				check.errorf(file.Name, _BlankPkgName, "invalid package name _")
 			}
 			fallthrough
 
@@ -224,7 +257,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
+			check.errorf(atPos(file.Package), _MismatchedPkgName, "package %s; expected %s", name, pkg.name)
 			// ignore this file
 		}
 	}
@@ -247,7 +280,13 @@ func (check *Checker) handleBailout(err *error) {
 // Files checks the provided files as part of the checker's package.
 func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
 
+var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
+
 func (check *Checker) checkFiles(files []*ast.File) (err error) {
+	if check.conf.FakeImportC && check.conf.go115UsesCgo {
+		return errBadCgo
+	}
+
 	defer check.handleBailout(&err)
 
 	check.initFiles(files)
@@ -258,6 +297,8 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	check.processDelayed(0) // incl. all functions
 
+	check.expandDefTypes()
+
 	check.initOrder()
 
 	if !check.conf.DisableUnusedImportCheck {
@@ -266,8 +307,94 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	check.recordUntyped()
 
+	if check.firstErr == nil {
+		// TODO(mdempsky): Ensure monomorph is safe when errors exist.
+		check.monomorph()
+	}
+
 	check.pkg.complete = true
+
+	// no longer needed - release memory
+	check.imports = nil
+	check.dotImportMap = nil
+	check.pkgPathMap = nil
+	check.seenPkgMap = nil
+	check.recvTParamMap = nil
+	check.defTypes = nil
+
+	// TODO(rFindley) There's more memory we should release at this point.
+
 	return
+}
+
+// processDelayed processes all delayed actions pushed after top.
+func (check *Checker) processDelayed(top int) {
+	// If each delayed action pushes a new action, the
+	// stack will continue to grow during this loop.
+	// However, it is only processing functions (which
+	// are processed in a delayed fashion) that may
+	// add more actions (such as nested functions), so
+	// this is a sufficiently bounded process.
+	for i := top; i < len(check.delayed); i++ {
+		a := &check.delayed[i]
+		if trace && a.desc != nil {
+			fmt.Println()
+			check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
+		}
+		a.f() // may append to check.delayed
+	}
+	assert(top <= len(check.delayed)) // stack must not have shrunk
+	check.delayed = check.delayed[:top]
+}
+
+func (check *Checker) expandDefTypes() {
+	// Ensure that every defined type created in the course of type-checking has
+	// either non-*Named underlying, or is unresolved.
+	//
+	// This guarantees that we don't leak any types whose underlying is *Named,
+	// because any unresolved instances will lazily compute their underlying by
+	// substituting in the underlying of their origin. The origin must have
+	// either been imported or type-checked and expanded here, and in either case
+	// its underlying will be fully expanded.
+	for i := 0; i < len(check.defTypes); i++ {
+		n := check.defTypes[i]
+		switch n.underlying.(type) {
+		case nil:
+			if n.resolver == nil {
+				panic("nil underlying")
+			}
+		case *Named:
+			n.under() // n.under may add entries to check.defTypes
+		}
+		n.check = nil
+	}
+}
+
+func (check *Checker) record(x *operand) {
+	// convert x into a user-friendly set of values
+	// TODO(gri) this code can be simplified
+	var typ Type
+	var val constant.Value
+	switch x.mode {
+	case invalid:
+		typ = Typ[Invalid]
+	case novalue:
+		typ = (*Tuple)(nil)
+	case constant_:
+		typ = x.typ
+		val = x.val
+	default:
+		typ = x.typ
+	}
+	assert(x.expr != nil && typ != nil)
+
+	if isUntyped(typ) {
+		// delay type and value recording until we know the type
+		// or until the end of type checking
+		check.rememberUntyped(x.expr, false, x.mode, typ.(*Basic), val)
+	} else {
+		check.recordTypeAndValue(x.expr, x.mode, typ, val)
+	}
 }
 
 func (check *Checker) recordUntyped() {
@@ -290,10 +417,11 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
 	if mode == invalid {
 		return // omit
 	}
-	assert(typ != nil)
 	if mode == constant_ {
 		assert(val != nil)
-		assert(typ == Typ[Invalid] || isConstType(typ))
+		// We check is(typ, IsConstType) here as constant expressions may be
+		// recorded as type parameters.
+		assert(typ == Typ[Invalid] || is(typ, IsConstType))
 	}
 	if m := check.Types; m != nil {
 		m[x] = TypeAndValue{mode, typ, val}
@@ -301,14 +429,14 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
 }
 
 func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
-	// f must be a (possibly parenthesized) identifier denoting a built-in
-	// (built-ins in package unsafe always produce a constant result and
-	// we don't record their signatures, so we don't see qualified idents
-	// here): record the signature for f and possible children.
+	// f must be a (possibly parenthesized, possibly qualified)
+	// identifier denoting a built-in (including unsafe's non-constant
+	// functions Add and Slice): record the signature for f and possible
+	// children.
 	for {
 		check.recordTypeAndValue(f, builtin, sig, nil)
 		switch p := f.(type) {
-		case *ast.Ident:
+		case *ast.Ident, *ast.SelectorExpr:
 			return // we're done
 		case *ast.ParenExpr:
 			f = p.X
@@ -323,7 +451,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 	if a[0] == nil || a[1] == nil {
 		return
 	}
-	assert(isTyped(a[0]) && isTyped(a[1]) && isBoolean(a[1]))
+	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]
@@ -342,6 +470,40 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 			x = p.X
 		}
 	}
+}
+
+// recordInstance records instantiation information into check.Info, if the
+// Instances map is non-nil. The given expr must be an ident, selector, or
+// index (list) expr with ident or selector operand.
+//
+// TODO(rfindley): the expr parameter is fragile. See if we can access the
+// instantiated identifier in some other way.
+func (check *Checker) recordInstance(expr ast.Expr, targs []Type, typ Type) {
+	ident := instantiatedIdent(expr)
+	assert(ident != nil)
+	assert(typ != nil)
+	if m := check.Instances; m != nil {
+		m[ident] = Instance{NewTypeList(targs), typ}
+	}
+}
+
+func instantiatedIdent(expr ast.Expr) *ast.Ident {
+	var selOrIdent ast.Expr
+	switch e := expr.(type) {
+	case *ast.IndexExpr:
+		selOrIdent = e.X
+	case *ast.IndexListExpr:
+		selOrIdent = e.X
+	case *ast.SelectorExpr, *ast.Ident:
+		selOrIdent = e
+	}
+	switch x := selOrIdent.(type) {
+	case *ast.Ident:
+		return x
+	case *ast.SelectorExpr:
+		return x.Sel
+	}
+	panic("instantiated ident not found")
 }
 
 func (check *Checker) recordDef(id *ast.Ident, obj Object) {

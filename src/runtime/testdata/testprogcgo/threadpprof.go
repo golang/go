@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !plan9 && !windows
 // +build !plan9,!windows
 
 package main
@@ -30,6 +31,9 @@ void cpuHogThread() {
 	threadSalt2 = foo;
 }
 
+void cpuHogThread2() {
+}
+
 static int cpuHogThreadCount;
 
 struct cgoTracebackArg {
@@ -44,7 +48,8 @@ struct cgoTracebackArg {
 void pprofCgoThreadTraceback(void* parg) {
 	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
 	arg->buf[0] = (uintptr_t)(cpuHogThread) + 0x10;
-	arg->buf[1] = 0;
+	arg->buf[1] = (uintptr_t)(cpuHogThread2) + 0x4;
+	arg->buf[2] = 0;
 	__sync_add_and_fetch(&cpuHogThreadCount, 1);
 }
 
@@ -70,7 +75,6 @@ import "C"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -93,7 +97,7 @@ func CgoPprofThreadNoTraceback() {
 }
 
 func pprofThread() {
-	f, err := ioutil.TempFile("", "prof")
+	f, err := os.CreateTemp("", "prof")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)

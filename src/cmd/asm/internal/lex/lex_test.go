@@ -281,6 +281,9 @@ func drain(input *Input) string {
 		if tok == scanner.EOF {
 			return buf.String()
 		}
+		if tok == '#' {
+			continue
+		}
 		if buf.Len() > 0 {
 			buf.WriteByte('.')
 		}

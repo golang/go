@@ -6,39 +6,73 @@
 
 package types
 
-import "go/constant"
+import (
+	"go/constant"
+	"unicode"
+)
 
 // Conversion type-checks the conversion T(x).
 // The result is in x.
 func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode == constant_
 
+	constConvertibleTo := func(T Type, val *constant.Value) bool {
+		switch t := asBasic(T); {
+		case t == nil:
+			// nothing to do
+		case representableConst(x.val, check, t, val):
+			return true
+		case isInteger(x.typ) && isString(t):
+			codepoint := unicode.ReplacementChar
+			if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
+				codepoint = rune(i)
+			}
+			if val != nil {
+				*val = constant.MakeString(string(codepoint))
+			}
+			return true
+		}
+		return false
+	}
+
 	var ok bool
+	var cause string
 	switch {
 	case constArg && isConstType(T):
 		// constant conversion
-		switch t := T.Underlying().(*Basic); {
-		case representableConst(x.val, check.conf, t, &x.val):
-			ok = true
-		case isInteger(x.typ) && isString(t):
-			codepoint := int64(-1)
-			if i, ok := constant.Int64Val(x.val); ok {
-				codepoint = i
+		ok = constConvertibleTo(T, &x.val)
+	case constArg && isTypeParam(T):
+		// x is convertible to T if it is convertible
+		// to each specific type in the type set of T.
+		// If T's type set is empty, or if it doesn't
+		// have specific types, constant x cannot be
+		// converted.
+		ok = under(T).(*TypeParam).underIs(func(u Type) bool {
+			// t is nil if there are no specific type terms
+			if u == nil {
+				cause = check.sprintf("%s does not contain specific types", T)
+				return false
 			}
-			// If codepoint < 0 the absolute value is too large (or unknown) for
-			// conversion. This is the same as converting any other out-of-range
-			// value - let string(codepoint) do the work.
-			x.val = constant.MakeString(string(codepoint))
-			ok = true
-		}
-	case x.convertibleTo(check.conf, T):
+			if !constConvertibleTo(u, nil) {
+				cause = check.sprintf("cannot convert %s to %s (in %s)", x, u, T)
+				return false
+			}
+			return true
+		})
+		x.mode = value // type parameters are not constants
+	case x.convertibleTo(check, T, &cause):
 		// non-constant conversion
-		x.mode = value
 		ok = true
+		x.mode = value
 	}
 
 	if !ok {
-		check.errorf(x.pos(), "cannot convert %s to %s", x, T)
+		// TODO(rfindley): use types2-style error reporting here.
+		if cause != "" {
+			check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, cause)
+		} else {
+			check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
+		}
 		x.mode = invalid
 		return
 	}
@@ -55,8 +89,8 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// - Keep untyped nil for untyped nil arguments.
 		// - For integer to string conversions, keep the argument type.
 		//   (See also the TODO below.)
-		if IsInterface(T) || constArg && !isConstType(T) {
-			final = Default(x.typ)
+		if IsInterface(T) || constArg && !isConstType(T) || x.isNil() {
+			final = Default(x.typ) // default type of untyped nil is untyped nil
 		} else if isInteger(x.typ) && isString(T) {
 			final = x.typ
 		}
@@ -76,46 +110,106 @@ func (check *Checker) conversion(x *operand, T Type) {
 // is tricky because we'd have to run updateExprType on the argument first.
 // (Issue #21982.)
 
-func (x *operand) convertibleTo(conf *Config, T Type) bool {
+// convertibleTo reports whether T(x) is valid. In the failure case, *cause
+// may be set to the cause for the failure.
+// The check parameter may be nil if convertibleTo is invoked through an
+// exported API call, i.e., when all methods have been type-checked.
+func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 	// "x is assignable to T"
-	if x.assignableTo(conf, T, nil) {
+	if ok, _ := x.assignableTo(check, T, cause); ok {
 		return true
 	}
 
-	// "x's type and T have identical underlying types if tags are ignored"
-	V := x.typ
-	Vu := V.Underlying()
-	Tu := T.Underlying()
+	// determine type parameter operands with specific type terms
+	Vp, _ := under(x.typ).(*TypeParam)
+	Tp, _ := under(T).(*TypeParam)
+	if Vp != nil && !Vp.hasTerms() {
+		Vp = nil
+	}
+	if Tp != nil && !Tp.hasTerms() {
+		Tp = nil
+	}
+
+	errorf := func(format string, args ...interface{}) {
+		if check != nil && cause != nil {
+			msg := check.sprintf(format, args...)
+			if *cause != "" {
+				msg += "\n\t" + *cause
+			}
+			*cause = msg
+		}
+	}
+
+	// generic cases with specific type terms
+	// (generic operands cannot be constants, so we can ignore x.val)
+	switch {
+	case Vp != nil && Tp != nil:
+		return Vp.is(func(V *term) bool {
+			return Tp.is(func(T *term) bool {
+				if !convertibleToImpl(check, V.typ, T.typ, cause) {
+					errorf("cannot convert %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
+					return false
+				}
+				return true
+			})
+		})
+	case Vp != nil:
+		return Vp.is(func(V *term) bool {
+			if !convertibleToImpl(check, V.typ, T, cause) {
+				errorf("cannot convert %s (in %s) to %s", V.typ, Vp, T)
+				return false
+			}
+			return true
+		})
+	case Tp != nil:
+		return Tp.is(func(T *term) bool {
+			if !convertibleToImpl(check, x.typ, T.typ, cause) {
+				errorf("cannot convert %s to %s (in %s)", x.typ, T.typ, Tp)
+				return false
+			}
+			return true
+		})
+	}
+
+	// non-generic case
+	return convertibleToImpl(check, x.typ, T, cause)
+}
+
+// convertibleToImpl should only be called by convertibleTo
+func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
+	// "V and T have identical underlying types if tags are ignored"
+	Vu := under(V)
+	Tu := under(T)
 	if IdenticalIgnoreTags(Vu, Tu) {
 		return true
 	}
 
-	// "x's type and T are unnamed pointer types and their pointer base types
+	// "V and T are unnamed pointer types and their pointer base types
 	// have identical underlying types if tags are ignored"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if IdenticalIgnoreTags(V.base.Underlying(), T.base.Underlying()) {
+			if IdenticalIgnoreTags(under(V.base), under(T.base)) {
 				return true
 			}
 		}
 	}
 
-	// "x's type and T are both integer or floating point types"
-	if (isInteger(V) || isFloat(V)) && (isInteger(T) || isFloat(T)) {
+	// "V and T are both integer or floating point types"
+	if isIntegerOrFloat(V) && isIntegerOrFloat(T) {
 		return true
 	}
 
-	// "x's type and T are both complex types"
+	// "V and T are both complex types"
 	if isComplex(V) && isComplex(T) {
 		return true
 	}
 
-	// "x is an integer or a slice of bytes or runes and T is a string type"
+	// "V is an integer or a slice of bytes or runes and T is a string type"
 	if (isInteger(V) || isBytesOrRunes(Vu)) && isString(T) {
 		return true
 	}
 
-	// "x is a string and T is a slice of bytes or runes"
+	// "V is a string and T is a slice of bytes or runes"
 	if isString(V) && isBytesOrRunes(Tu) {
 		return true
 	}
@@ -130,31 +224,52 @@ func (x *operand) convertibleTo(conf *Config, T Type) bool {
 		return true
 	}
 
+	// "V is a slice, T is a pointer-to-array type,
+	// and the slice and array types have identical element types."
+	if s := asSlice(V); s != nil {
+		if p := asPointer(T); p != nil {
+			if a := asArray(p.Elem()); a != nil {
+				if Identical(s.Elem(), a.Elem()) {
+					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+						return true
+					}
+					if cause != nil {
+						*cause = "conversion of slices to array pointers requires go1.17 or later"
+					}
+				}
+			}
+		}
+	}
+
 	return false
 }
 
+// Helper predicates for convertibleToImpl. The types provided to convertibleToImpl
+// may be type parameters but they won't have specific type terms. Thus it is ok to
+// use the toT convenience converters in the predicates below.
+
 func isUintptr(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.kind == Uintptr
+	t := asBasic(typ)
+	return t != nil && t.kind == Uintptr
 }
 
 func isUnsafePointer(typ Type) bool {
-	// TODO(gri): Is this (typ.Underlying() instead of just typ) correct?
+	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
+	//            (The former calls under(), while the latter doesn't.)
 	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.kind == UnsafePointer
+	t := asBasic(typ)
+	return t != nil && t.kind == UnsafePointer
 }
 
 func isPointer(typ Type) bool {
-	_, ok := typ.Underlying().(*Pointer)
-	return ok
+	return asPointer(typ) != nil
 }
 
 func isBytesOrRunes(typ Type) bool {
-	if s, ok := typ.(*Slice); ok {
-		t, ok := s.elem.Underlying().(*Basic)
-		return ok && (t.kind == Byte || t.kind == Rune)
+	if s := asSlice(typ); s != nil {
+		t := asBasic(s.elem)
+		return t != nil && (t.kind == Byte || t.kind == Rune)
 	}
 	return false
 }

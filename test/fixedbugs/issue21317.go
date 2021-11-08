@@ -1,3 +1,4 @@
+// +build !js,gc
 // run
 
 // Copyright 2017 The Go Authors. All rights reserved.
@@ -16,15 +17,10 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 
 func main() {
-	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" || runtime.GOOS == "js" {
-		return
-	}
-
 	f, err := ioutil.TempFile("", "issue21317.go")
 	if err != nil {
 		log.Fatal(err)
@@ -48,8 +44,8 @@ func main() {
 		log.Fatalf("expected cmd/compile to fail")
 	}
 	wantErrs := []string{
-		"7:9: n declared and not used",
-		"7:12: err declared and not used",
+		"7:9: n declared but not used",
+		"7:12: err declared but not used",
 	}
 	outStr := string(out)
 	for _, want := range wantErrs {

@@ -35,7 +35,12 @@ func isOddInt(x float64) bool {
 //	Pow(+Inf, y) = +0 for y < 0
 //	Pow(-Inf, y) = Pow(-0, -y)
 //	Pow(x, y) = NaN for finite x < 0 and finite non-integer y
-func Pow(x, y float64) float64
+func Pow(x, y float64) float64 {
+	if haveArchPow {
+		return archPow(x, y)
+	}
+	return pow(x, y)
+}
 
 func pow(x, y float64) float64 {
 	switch {
@@ -83,13 +88,7 @@ func pow(x, y float64) float64 {
 		return 1 / Sqrt(x)
 	}
 
-	absy := y
-	flip := false
-	if absy < 0 {
-		absy = -absy
-		flip = true
-	}
-	yi, yf := Modf(absy)
+	yi, yf := Modf(Abs(y))
 	if yf != 0 && x < 0 {
 		return NaN()
 	}
@@ -147,9 +146,9 @@ func pow(x, y float64) float64 {
 	}
 
 	// ans = a1*2**ae
-	// if flip { ans = 1 / ans }
+	// if y < 0 { ans = 1 / ans }
 	// but in the opposite order
-	if flip {
+	if y < 0 {
 		a1 = 1 / a1
 		ae = -ae
 	}

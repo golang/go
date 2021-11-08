@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64,!386,!s390x,!ppc64le,!arm64
+//go:build !amd64 && !386 && !s390x && !ppc64le && !arm64
 
 package sha256
 
-var block = blockGeneric
+func block(dig *digest, p []byte) {
+	blockGeneric(dig, p)
+}

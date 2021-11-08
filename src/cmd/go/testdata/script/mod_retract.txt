@@ -1,0 +1,45 @@
+cp go.mod go.mod.orig
+
+# 'go list pkg' does not report an error when a retracted version is used.
+go list -e -f '{{if .Error}}{{.Error}}{{end}}' ./use
+! stdout .
+cmp go.mod go.mod.orig
+
+# Nor does 'go build'.
+[!short] go build ./use
+[!short] ! stderr .
+[!short] cmp go.mod go.mod.orig
+
+# Neither 'go list' nor 'go build' should download go.mod from the version
+# that would list retractions.
+exists $GOPATH/pkg/mod/cache/download/example.com/retract/@v/v1.0.0-bad.mod
+! exists $GOPATH/pkg/mod/cache/download/example.com/retract/@v/v1.1.0.mod
+
+# Importing a package from a module with a retracted latest version will
+# select the latest non-retracted version.
+go get ./use_self_prev
+go list -m example.com/retract/self/prev
+stdout '^example.com/retract/self/prev v1.1.0$'
+exists $GOPATH/pkg/mod/cache/download/example.com/retract/self/prev/@v/v1.9.0.mod
+
+-- go.mod --
+module example.com/use
+
+go 1.15
+
+require example.com/retract v1.0.0-bad
+
+-- go.sum --
+example.com/retract v1.0.0-bad h1:liAW69rbtjY67x2CcNzat668L/w+YGgNX3lhJsWIJis=
+example.com/retract v1.0.0-bad/go.mod h1:0DvGGofJ9hr1q63cBrOY/jSY52OwhRGA0K47NE80I5Y=
+example.com/retract/self/prev v1.1.0 h1:0/8I/GTG+1eJTFeDQ/fUbgrMsVHHyKhh3Z8DSZp1fuA=
+example.com/retract/self/prev v1.1.0/go.mod h1:xl2EcklWuZZHVtHWcpzfSJQmnzAGpKZYpA/Wto7SZN4=
+-- use/use.go --
+package use
+
+import _ "example.com/retract"
+
+-- use_self_prev/use.go --
+package use_self_prev
+
+import _ "example.com/retract/self/prev"

@@ -6,6 +6,13 @@
 
 package windows
 
+import (
+	errorspkg "errors"
+	"unsafe"
+
+	"golang.org/x/sys/internal/unsafeheader"
+)
+
 // EscapeArg rewrites command line argument s as prescribed
 // in http://msdn.microsoft.com/en-us/library/ms880421.
 // This function returns "" (2 double quotes) if s is empty.
@@ -73,6 +80,40 @@ func EscapeArg(s string) string {
 	return string(qs[:j])
 }
 
+// ComposeCommandLine escapes and joins the given arguments suitable for use as a Windows command line,
+// in CreateProcess's CommandLine argument, CreateService/ChangeServiceConfig's BinaryPathName argument,
+// or any program that uses CommandLineToArgv.
+func ComposeCommandLine(args []string) string {
+	var commandLine string
+	for i := range args {
+		if i > 0 {
+			commandLine += " "
+		}
+		commandLine += EscapeArg(args[i])
+	}
+	return commandLine
+}
+
+// DecomposeCommandLine breaks apart its argument command line into unescaped parts using CommandLineToArgv,
+// as gathered from GetCommandLine, QUERY_SERVICE_CONFIG's BinaryPathName argument, or elsewhere that
+// command lines are passed around.
+func DecomposeCommandLine(commandLine string) ([]string, error) {
+	if len(commandLine) == 0 {
+		return []string{}, nil
+	}
+	var argc int32
+	argv, err := CommandLineToArgv(StringToUTF16Ptr(commandLine), &argc)
+	if err != nil {
+		return nil, err
+	}
+	defer LocalFree(Handle(unsafe.Pointer(argv)))
+	var args []string
+	for _, v := range (*argv)[:argc] {
+		args = append(args, UTF16ToString((*v)[:]))
+	}
+	return args, nil
+}
+
 func CloseOnExec(fd Handle) {
 	SetHandleInformation(Handle(fd), HANDLE_FLAG_INHERIT, 0)
 }
@@ -94,4 +135,61 @@ func FullPath(name string) (path string, err error) {
 			return UTF16ToString(buf[:n]), nil
 		}
 	}
+}
+
+// NewProcThreadAttributeList allocates a new ProcThreadAttributeListContainer, with the requested maximum number of attributes.
+func NewProcThreadAttributeList(maxAttrCount uint32) (*ProcThreadAttributeListContainer, error) {
+	var size uintptr
+	err := initializeProcThreadAttributeList(nil, maxAttrCount, 0, &size)
+	if err != ERROR_INSUFFICIENT_BUFFER {
+		if err == nil {
+			return nil, errorspkg.New("unable to query buffer size from InitializeProcThreadAttributeList")
+		}
+		return nil, err
+	}
+	// size is guaranteed to be ≥1 by InitializeProcThreadAttributeList.
+	al := &ProcThreadAttributeListContainer{data: (*ProcThreadAttributeList)(unsafe.Pointer(&make([]byte, size)[0]))}
+	err = initializeProcThreadAttributeList(al.data, maxAttrCount, 0, &size)
+	if err != nil {
+		return nil, err
+	}
+	return al, err
+}
+
+// Update modifies the ProcThreadAttributeList using UpdateProcThreadAttribute.
+// Note that the value passed to this function will be copied into memory
+// allocated by LocalAlloc, the contents of which should not contain any
+// Go-managed pointers, even if the passed value itself is a Go-managed
+// pointer.
+func (al *ProcThreadAttributeListContainer) Update(attribute uintptr, value unsafe.Pointer, size uintptr) error {
+	alloc, err := LocalAlloc(LMEM_FIXED, uint32(size))
+	if err != nil {
+		return err
+	}
+	var src, dst []byte
+	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&src))
+	hdr.Data = value
+	hdr.Cap = int(size)
+	hdr.Len = int(size)
+	hdr = (*unsafeheader.Slice)(unsafe.Pointer(&dst))
+	hdr.Data = unsafe.Pointer(alloc)
+	hdr.Cap = int(size)
+	hdr.Len = int(size)
+	copy(dst, src)
+	al.heapAllocations = append(al.heapAllocations, alloc)
+	return updateProcThreadAttribute(al.data, 0, attribute, unsafe.Pointer(alloc), size, nil, nil)
+}
+
+// Delete frees ProcThreadAttributeList's resources.
+func (al *ProcThreadAttributeListContainer) Delete() {
+	deleteProcThreadAttributeList(al.data)
+	for i := range al.heapAllocations {
+		LocalFree(Handle(al.heapAllocations[i]))
+	}
+	al.heapAllocations = nil
+}
+
+// List returns the actual ProcThreadAttributeList to be passed to StartupInfoEx.
+func (al *ProcThreadAttributeListContainer) List() *ProcThreadAttributeList {
+	return al.data
 }

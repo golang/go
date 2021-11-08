@@ -68,7 +68,7 @@ func TestNoGetgLoadReg(t *testing.T) {
 			Exit("v16"),
 		),
 		Bloc("b2",
-			Valu("v12", OpARM64CALLstatic, types.TypeMem, 0, nil, "v1"),
+			Valu("v12", OpARM64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "v1"),
 			Goto("b3"),
 		),
 	)
@@ -99,7 +99,7 @@ func TestSpillWithLoop(t *testing.T) {
 		),
 		Bloc("loop",
 			Valu("memphi", OpPhi, types.TypeMem, 0, nil, "mem", "call"),
-			Valu("call", OpAMD64CALLstatic, types.TypeMem, 0, nil, "memphi"),
+			Valu("call", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "memphi"),
 			Valu("test", OpAMD64CMPBconst, types.TypeFlags, 0, nil, "cond"),
 			Eq("test", "next", "exit"),
 		),
@@ -140,12 +140,12 @@ func TestSpillMove1(t *testing.T) {
 		Bloc("exit1",
 			// store before call, y is available in a register
 			Valu("mem2", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem"),
-			Valu("mem3", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem2"),
+			Valu("mem3", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem2"),
 			Exit("mem3"),
 		),
 		Bloc("exit2",
 			// store after call, y must be loaded from a spill location
-			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem"),
+			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
 			Valu("mem5", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem4"),
 			Exit("mem5"),
 		),
@@ -188,13 +188,13 @@ func TestSpillMove2(t *testing.T) {
 		),
 		Bloc("exit1",
 			// store after call, y must be loaded from a spill location
-			Valu("mem2", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem"),
+			Valu("mem2", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
 			Valu("mem3", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem2"),
 			Exit("mem3"),
 		),
 		Bloc("exit2",
 			// store after call, y must be loaded from a spill location
-			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem"),
+			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
 			Valu("mem5", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem4"),
 			Exit("mem5"),
 		),

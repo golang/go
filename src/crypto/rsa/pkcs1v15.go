@@ -14,9 +14,9 @@ import (
 	"crypto/internal/randutil"
 )
 
-// This file implements encryption and decryption using PKCS#1 v1.5 padding.
+// This file implements encryption and decryption using PKCS #1 v1.5 padding.
 
-// PKCS1v15DecrypterOpts is for passing options to PKCS#1 v1.5 decryption using
+// PKCS1v15DecrypterOpts is for passing options to PKCS #1 v1.5 decryption using
 // the crypto.Decrypter interface.
 type PKCS1v15DecryptOptions struct {
 	// SessionKeyLen is the length of the session key that is being
@@ -27,7 +27,7 @@ type PKCS1v15DecryptOptions struct {
 }
 
 // EncryptPKCS1v15 encrypts the given message with RSA and the padding
-// scheme from PKCS#1 v1.5.  The message must be no longer than the
+// scheme from PKCS #1 v1.5.  The message must be no longer than the
 // length of the public modulus minus 11 bytes.
 //
 // The rand parameter is used as a source of entropy to ensure that
@@ -61,11 +61,10 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error)
 	m := new(big.Int).SetBytes(em)
 	c := encrypt(new(big.Int), pub, m)
 
-	copyWithLeftPad(em, c.Bytes())
-	return em, nil
+	return c.FillBytes(em), nil
 }
 
-// DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS#1 v1.5.
+// DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
 // If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
 //
 // Note that whether this function returns an error or not discloses secret
@@ -87,7 +86,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
 	return out[index:], nil
 }
 
-// DecryptPKCS1v15SessionKey decrypts a session key using RSA and the padding scheme from PKCS#1 v1.5.
+// DecryptPKCS1v15SessionKey decrypts a session key using RSA and the padding scheme from PKCS #1 v1.5.
 // If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
 // It returns an error if the ciphertext is the wrong length or if the
 // ciphertext is greater than the public modulus. Otherwise, no error is
@@ -150,7 +149,7 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 		return
 	}
 
-	em = leftPad(m.Bytes(), k)
+	em = m.FillBytes(make([]byte, k))
 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
 	secondByteIsTwo := subtle.ConstantTimeByteEq(em[1], 2)
 
@@ -217,7 +216,7 @@ var hashPrefixes = map[crypto.Hash][]byte{
 }
 
 // SignPKCS1v15 calculates the signature of hashed using
-// RSASSA-PKCS1-V1_5-SIGN from RSA PKCS#1 v1.5.  Note that hashed must
+// RSASSA-PKCS1-V1_5-SIGN from RSA PKCS #1 v1.5.  Note that hashed must
 // be the result of hashing the input message using the given hash
 // function. If hash is zero, hashed is signed directly. This isn't
 // advisable except for interoperability.
@@ -256,11 +255,10 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
 		return nil, err
 	}
 
-	copyWithLeftPad(em, c.Bytes())
-	return em, nil
+	return c.FillBytes(em), nil
 }
 
-// VerifyPKCS1v15 verifies an RSA PKCS#1 v1.5 signature.
+// VerifyPKCS1v15 verifies an RSA PKCS #1 v1.5 signature.
 // hashed is the result of hashing the input message using the given hash
 // function and sig is the signature. A valid signature is indicated by
 // returning a nil error. If hash is zero then hashed is used directly. This
@@ -277,9 +275,16 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 		return ErrVerification
 	}
 
+	// RFC 8017 Section 8.2.2: If the length of the signature S is not k
+	// octets (where k is the length in octets of the RSA modulus n), output
+	// "invalid signature" and stop.
+	if k != len(sig) {
+		return ErrVerification
+	}
+
 	c := new(big.Int).SetBytes(sig)
 	m := encrypt(new(big.Int), pub, c)
-	em := leftPad(m.Bytes(), k)
+	em := m.FillBytes(make([]byte, k))
 	// EM = 0x00 || 0x01 || PS || 0x00 || T
 
 	ok := subtle.ConstantTimeByteEq(em[0], 0)
@@ -315,14 +320,4 @@ func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, 
 		return 0, nil, errors.New("crypto/rsa: unsupported hash function")
 	}
 	return
-}
-
-// copyWithLeftPad copies src to the end of dest, padding with zero bytes as
-// needed.
-func copyWithLeftPad(dest, src []byte) {
-	numPaddingBytes := len(dest) - len(src)
-	for i := 0; i < numPaddingBytes; i++ {
-		dest[i] = 0
-	}
-	copy(dest[numPaddingBytes:], src)
 }

@@ -5,24 +5,73 @@
 package ssa
 
 import (
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"strings"
+	"fmt"
 )
 
-// needwb returns whether we need write barrier for store op v.
+// A ZeroRegion records parts of an object which are known to be zero.
+// A ZeroRegion only applies to a single memory state.
+// Each bit in mask is set if the corresponding pointer-sized word of
+// the base object is known to be zero.
+// In other words, if mask & (1<<i) != 0, then [base+i*ptrSize, base+(i+1)*ptrSize)
+// is known to be zero.
+type ZeroRegion struct {
+	base *Value
+	mask uint64
+}
+
+// needwb reports whether we need write barrier for store op v.
 // v must be Store/Move/Zero.
-func needwb(v *Value) bool {
+// zeroes provides known zero information (keyed by ID of memory-type values).
+func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 	t, ok := v.Aux.(*types.Type)
 	if !ok {
 		v.Fatalf("store aux is not a type: %s", v.LongString())
 	}
-	if !t.HasHeapPointer() {
+	if !t.HasPointers() {
 		return false
 	}
 	if IsStackAddr(v.Args[0]) {
 		return false // write on stack doesn't need write barrier
+	}
+	if v.Op == OpMove && IsReadOnlyGlobalAddr(v.Args[1]) {
+		if mem, ok := IsNewObject(v.Args[0]); ok && mem == v.MemoryArg() {
+			// Copying data from readonly memory into a fresh object doesn't need a write barrier.
+			return false
+		}
+	}
+	if v.Op == OpStore && IsGlobalAddr(v.Args[1]) {
+		// Storing pointers to non-heap locations into zeroed memory doesn't need a write barrier.
+		ptr := v.Args[0]
+		var off int64
+		size := v.Aux.(*types.Type).Size()
+		for ptr.Op == OpOffPtr {
+			off += ptr.AuxInt
+			ptr = ptr.Args[0]
+		}
+		ptrSize := v.Block.Func.Config.PtrSize
+		if off%ptrSize != 0 || size%ptrSize != 0 {
+			v.Fatalf("unaligned pointer write")
+		}
+		if off < 0 || off+size > 64*ptrSize {
+			// write goes off end of tracked offsets
+			return true
+		}
+		z := zeroes[v.MemoryArg().ID]
+		if ptr != z.base {
+			return true
+		}
+		for i := off; i < off+size; i += ptrSize {
+			if z.mask>>uint(i/ptrSize)&1 == 0 {
+				return true // not known to be zero
+			}
+		}
+		// All written locations are known to be zero - write barrier not needed.
+		return false
 	}
 	return true
 }
@@ -50,6 +99,7 @@ func writebarrier(f *Func) {
 	var sset *sparseSet
 	var storeNumber []int32
 
+	zeroes := f.computeZeroMap()
 	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no stores to expand
 		// first, identify all the stores that need to insert a write barrier.
 		// mark them with WB ops temporarily. record presence of WB ops.
@@ -57,7 +107,7 @@ func writebarrier(f *Func) {
 		for _, v := range b.Values {
 			switch v.Op {
 			case OpStore, OpMove, OpZero:
-				if needwb(v) {
+				if needwb(v, zeroes) {
 					switch v.Op {
 					case OpStore:
 						v.Op = OpStoreWB
@@ -78,23 +128,7 @@ func writebarrier(f *Func) {
 			// lazily initialize global values for write barrier test and calls
 			// find SB and SP values in entry block
 			initpos := f.Entry.Pos
-			for _, v := range f.Entry.Values {
-				if v.Op == OpSB {
-					sb = v
-				}
-				if v.Op == OpSP {
-					sp = v
-				}
-				if sb != nil && sp != nil {
-					break
-				}
-			}
-			if sb == nil {
-				sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
-			}
-			if sp == nil {
-				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
-			}
+			sp, sb = f.spSb()
 			wbsym := f.fe.Syslook("writeBarrier")
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
@@ -154,7 +188,7 @@ func writebarrier(f *Func) {
 		b.Pos = pos
 
 		// set up control flow for end block
-		bEnd.SetControl(b.Control)
+		bEnd.CopyControls(b)
 		bEnd.Likely = b.Likely
 		for _, e := range b.Succs {
 			bEnd.Succs = append(bEnd.Succs, e)
@@ -188,6 +222,43 @@ func writebarrier(f *Func) {
 		// and simple store version to bElse
 		memThen := mem
 		memElse := mem
+
+		// If the source of a MoveWB is volatile (will be clobbered by a
+		// function call), we need to copy it to a temporary location, as
+		// marshaling the args of typedmemmove might clobber the value we're
+		// trying to move.
+		// Look for volatile source, copy it to temporary before we emit any
+		// call.
+		// It is unlikely to have more than one of them. Just do a linear
+		// search instead of using a map.
+		type volatileCopy struct {
+			src *Value // address of original volatile value
+			tmp *Value // address of temporary we've copied the volatile value into
+		}
+		var volatiles []volatileCopy
+	copyLoop:
+		for _, w := range stores {
+			if w.Op == OpMoveWB {
+				val := w.Args[1]
+				if isVolatile(val) {
+					for _, c := range volatiles {
+						if val == c.src {
+							continue copyLoop // already copied
+						}
+					}
+
+					t := val.Type.Elem()
+					tmp := f.fe.Auto(w.Pos, t)
+					memThen = bThen.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, memThen)
+					tmpaddr := bThen.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, memThen)
+					siz := t.Size()
+					memThen = bThen.NewValue3I(w.Pos, OpMove, types.TypeMem, siz, tmpaddr, val, memThen)
+					memThen.Aux = t
+					volatiles = append(volatiles, volatileCopy{val, tmpaddr})
+				}
+			}
+		}
+
 		for _, w := range stores {
 			ptr := w.Args[0]
 			pos := w.Pos
@@ -202,11 +273,11 @@ func writebarrier(f *Func) {
 			case OpMoveWB:
 				fn = typedmemmove
 				val = w.Args[1]
-				typ = w.Aux.(*types.Type).Symbol()
+				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
 				nWBops--
 			case OpZeroWB:
 				fn = typedmemclr
-				typ = w.Aux.(*types.Type).Symbol()
+				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
 				nWBops--
 			case OpVarDef, OpVarLive, OpVarKill:
 			}
@@ -214,11 +285,19 @@ func writebarrier(f *Func) {
 			// then block: emit write barrier call
 			switch w.Op {
 			case OpStoreWB, OpMoveWB, OpZeroWB:
-				volatile := w.Op == OpMoveWB && isVolatile(val)
 				if w.Op == OpStoreWB {
 					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
 				} else {
-					memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
+					srcval := val
+					if w.Op == OpMoveWB && isVolatile(srcval) {
+						for _, c := range volatiles {
+							if srcval == c.src {
+								srcval = c.tmp
+								break
+							}
+						}
+					}
+					memThen = wbcall(pos, bThen, fn, typ, ptr, srcval, memThen, sp, sb)
 				}
 				// Note that we set up a writebarrier function call.
 				f.fe.SetWBPos(pos)
@@ -241,6 +320,12 @@ func writebarrier(f *Func) {
 			}
 		}
 
+		// mark volatile temps dead
+		for _, c := range volatiles {
+			tmpNode := c.tmp.Aux
+			memThen = bThen.NewValue1A(memThen.Pos, OpVarKill, types.TypeMem, tmpNode, memThen)
+		}
+
 		// merge memory
 		// Splice memory Phi into the last memory of the original sequence,
 		// which may be used in subsequent blocks. Other memories in the
@@ -249,6 +334,7 @@ func writebarrier(f *Func) {
 		bEnd.Values = append(bEnd.Values, last)
 		last.Block = bEnd
 		last.reset(OpPhi)
+		last.Pos = last.Pos.WithNotStmt()
 		last.Type = types.TypeMem
 		last.AddArg(memThen)
 		last.AddArg(memElse)
@@ -293,59 +379,158 @@ func writebarrier(f *Func) {
 	}
 }
 
+// computeZeroMap returns a map from an ID of a memory value to
+// a set of locations that are known to be zeroed at that memory value.
+func (f *Func) computeZeroMap() map[ID]ZeroRegion {
+	ptrSize := f.Config.PtrSize
+	// Keep track of which parts of memory are known to be zero.
+	// This helps with removing write barriers for various initialization patterns.
+	// This analysis is conservative. We only keep track, for each memory state, of
+	// which of the first 64 words of a single object are known to be zero.
+	zeroes := map[ID]ZeroRegion{}
+	// Find new objects.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if mem, ok := IsNewObject(v); ok {
+				nptr := v.Type.Elem().Size() / ptrSize
+				if nptr > 64 {
+					nptr = 64
+				}
+				zeroes[mem.ID] = ZeroRegion{base: v, mask: 1<<uint(nptr) - 1}
+			}
+		}
+	}
+	// Find stores to those new objects.
+	for {
+		changed := false
+		for _, b := range f.Blocks {
+			// Note: iterating forwards helps convergence, as values are
+			// typically (but not always!) in store order.
+			for _, v := range b.Values {
+				if v.Op != OpStore {
+					continue
+				}
+				z, ok := zeroes[v.MemoryArg().ID]
+				if !ok {
+					continue
+				}
+				ptr := v.Args[0]
+				var off int64
+				size := v.Aux.(*types.Type).Size()
+				for ptr.Op == OpOffPtr {
+					off += ptr.AuxInt
+					ptr = ptr.Args[0]
+				}
+				if ptr != z.base {
+					// Different base object - we don't know anything.
+					// We could even be writing to the base object we know
+					// about, but through an aliased but offset pointer.
+					// So we have to throw all the zero information we have away.
+					continue
+				}
+				// Round to cover any partially written pointer slots.
+				// Pointer writes should never be unaligned like this, but non-pointer
+				// writes to pointer-containing types will do this.
+				if d := off % ptrSize; d != 0 {
+					off -= d
+					size += d
+				}
+				if d := size % ptrSize; d != 0 {
+					size += ptrSize - d
+				}
+				// Clip to the 64 words that we track.
+				min := off
+				max := off + size
+				if min < 0 {
+					min = 0
+				}
+				if max > 64*ptrSize {
+					max = 64 * ptrSize
+				}
+				// Clear bits for parts that we are writing (and hence
+				// will no longer necessarily be zero).
+				for i := min; i < max; i += ptrSize {
+					bit := i / ptrSize
+					z.mask &^= 1 << uint(bit)
+				}
+				if z.mask == 0 {
+					// No more known zeros - don't bother keeping.
+					continue
+				}
+				// Save updated known zero contents for new store.
+				if zeroes[v.ID] != z {
+					zeroes[v.ID] = z
+					changed = true
+				}
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+	if f.pass.debug > 0 {
+		fmt.Printf("func %s\n", f.Name)
+		for mem, z := range zeroes {
+			fmt.Printf("  memory=v%d ptr=%v zeromask=%b\n", mem, z.base, z.mask)
+		}
+	}
+	return zeroes
+}
+
 // wbcall emits write barrier runtime call in b, returns memory.
-// if valIsVolatile, it moves val into temp space before making the call.
-func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value) *Value {
 	config := b.Func.Config
 
-	var tmp GCNode
-	if valIsVolatile {
-		// Copy to temp location if the source is volatile (will be clobbered by
-		// a function call). Marshaling the args to typedmemmove might clobber the
-		// value we're trying to move.
-		t := val.Type.Elem()
-		tmp = b.Func.fe.Auto(val.Pos, t)
-		mem = b.NewValue1A(pos, OpVarDef, types.TypeMem, tmp, mem)
-		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), tmp, sp)
-		siz := t.Size()
-		mem = b.NewValue3I(pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
-		mem.Aux = t
-		val = tmpaddr
-	}
+	var wbargs []*Value
+	// TODO (register args) this is a bit of a hack.
+	inRegs := b.Func.ABIDefault == b.Func.ABI1 && len(config.intParamRegs) >= 3
 
 	// put arguments on stack
 	off := config.ctxt.FixedFrameSize()
 
+	var argTypes []*types.Type
 	if typ != nil { // for typedmemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
 		off = round(off, taddr.Type.Alignment())
-		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
-		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
+		if inRegs {
+			wbargs = append(wbargs, taddr)
+		} else {
+			arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
+			mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
+		}
 		off += taddr.Type.Size()
 	}
 
+	argTypes = append(argTypes, ptr.Type)
 	off = round(off, ptr.Type.Alignment())
-	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
-	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
+	if inRegs {
+		wbargs = append(wbargs, ptr)
+	} else {
+		arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
+		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
+	}
 	off += ptr.Type.Size()
 
 	if val != nil {
+		argTypes = append(argTypes, val.Type)
 		off = round(off, val.Type.Alignment())
-		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
-		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
+		if inRegs {
+			wbargs = append(wbargs, val)
+		} else {
+			arg := b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
+			mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
+		}
 		off += val.Type.Size()
 	}
 	off = round(off, config.PtrSize)
+	wbargs = append(wbargs, mem)
 
 	// issue call
-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, fn, mem)
-	mem.AuxInt = off - config.ctxt.FixedFrameSize()
-
-	if valIsVolatile {
-		mem = b.NewValue1A(pos, OpVarKill, types.TypeMem, tmp, mem) // mark temp dead
-	}
-
-	return mem
+	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)))
+	call.AddArgs(wbargs...)
+	call.AuxInt = off - config.ctxt.FixedFrameSize()
+	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
 }
 
 // round to a multiple of r, r is a power of 2
@@ -353,18 +538,101 @@ func round(o int64, r int64) int64 {
 	return (o + r - 1) &^ (r - 1)
 }
 
-// IsStackAddr returns whether v is known to be an address of a stack slot
+// IsStackAddr reports whether v is known to be an address of a stack slot.
 func IsStackAddr(v *Value) bool {
 	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP:
+	case OpSP, OpLocalAddr, OpSelectNAddr, OpGetCallerSP:
 		return true
-	case OpAddr:
-		return v.Args[0].Op == OpSP
 	}
 	return false
+}
+
+// IsGlobalAddr reports whether v is known to be an address of a global (or nil).
+func IsGlobalAddr(v *Value) bool {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+		v = v.Args[0]
+	}
+	if v.Op == OpAddr && v.Args[0].Op == OpSB {
+		return true // address of a global
+	}
+	if v.Op == OpConstNil {
+		return true
+	}
+	if v.Op == OpLoad && IsReadOnlyGlobalAddr(v.Args[0]) {
+		return true // loading from a read-only global - the resulting address can't be a heap address.
+	}
+	return false
+}
+
+// IsReadOnlyGlobalAddr reports whether v is known to be an address of a read-only global.
+func IsReadOnlyGlobalAddr(v *Value) bool {
+	if v.Op == OpConstNil {
+		// Nil pointers are read only. See issue 33438.
+		return true
+	}
+	if v.Op == OpAddr && v.Aux.(*obj.LSym).Type == objabi.SRODATA {
+		return true
+	}
+	return false
+}
+
+// IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object,
+// if so, also returns the memory state mem at which v is zero.
+func IsNewObject(v *Value) (mem *Value, ok bool) {
+	f := v.Block.Func
+	c := f.Config
+	if f.ABIDefault == f.ABI1 && len(c.intParamRegs) >= 1 {
+		if v.Op != OpSelectN || v.AuxInt != 0 {
+			return nil, false
+		}
+		// Find the memory
+		for _, w := range v.Block.Values {
+			if w.Op == OpSelectN && w.AuxInt == 1 && w.Args[0] == v.Args[0] {
+				mem = w
+				break
+			}
+		}
+		if mem == nil {
+			return nil, false
+		}
+	} else {
+		if v.Op != OpLoad {
+			return nil, false
+		}
+		mem = v.MemoryArg()
+		if mem.Op != OpSelectN {
+			return nil, false
+		}
+		if mem.Type != types.TypeMem {
+			return nil, false
+		} // assume it is the right selection if true
+	}
+	call := mem.Args[0]
+	if call.Op != OpStaticCall {
+		return nil, false
+	}
+	if !isSameCall(call.Aux, "runtime.newobject") {
+		return nil, false
+	}
+	if f.ABIDefault == f.ABI1 && len(c.intParamRegs) >= 1 {
+		if v.Args[0] == call {
+			return mem, true
+		}
+		return nil, false
+	}
+	if v.Args[0].Op != OpOffPtr {
+		return nil, false
+	}
+	if v.Args[0].Args[0].Op != OpSP {
+		return nil, false
+	}
+	if v.Args[0].AuxInt != c.ctxt.FixedFrameSize()+c.RegSize { // offset of return value
+		return nil, false
+	}
+	return mem, true
 }
 
 // IsSanitizerSafeAddr reports whether v is known to be an address
@@ -374,7 +642,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP:
+	case OpSP, OpLocalAddr, OpSelectNAddr:
 		// Stack addresses are always safe.
 		return true
 	case OpITab, OpStringPtr, OpGetClosurePtr:
@@ -382,28 +650,15 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		// read-only once initialized.
 		return true
 	case OpAddr:
-		switch v.Args[0].Op {
-		case OpSP:
-			return true
-		case OpSB:
-			sym := v.Aux.(*obj.LSym)
-			// TODO(mdempsky): Find a cleaner way to
-			// detect this. It would be nice if we could
-			// test sym.Type==objabi.SRODATA, but we don't
-			// initialize sym.Type until after function
-			// compilation.
-			if strings.HasPrefix(sym.Name, `"".statictmp_`) {
-				return true
-			}
-		}
+		return v.Aux.(*obj.LSym).Type == objabi.SRODATA || v.Aux.(*obj.LSym).Type == objabi.SLIBFUZZER_EXTRA_COUNTER
 	}
 	return false
 }
 
-// isVolatile returns whether v is a pointer to argument region on stack which
+// isVolatile reports whether v is a pointer to argument region on stack which
 // will be clobbered by a function call.
 func isVolatile(v *Value) bool {
-	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy || v.Op == OpSelectNAddr {
 		v = v.Args[0]
 	}
 	return v.Op == OpSP

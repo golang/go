@@ -8,7 +8,7 @@
 // The sql package must be used in conjunction with a database driver.
 // See https://golang.org/s/sqldrivers for a list of drivers.
 //
-// Drivers that do not support context cancelation will not return until
+// Drivers that do not support context cancellation will not return until
 // after the query is completed.
 //
 // For usage examples, see the wiki page at
@@ -64,7 +64,7 @@ func unregisterAllDrivers() {
 func Drivers() []string {
 	driversMu.RLock()
 	defer driversMu.RUnlock()
-	var list []string
+	list := make([]string, 0, len(drivers))
 	for name := range drivers {
 		list = append(list, name)
 	}
@@ -133,6 +133,7 @@ const (
 	LevelLinearizable
 )
 
+// String returns the name of the transaction isolation level.
 func (i IsolationLevel) String() string {
 	switch i {
 	case LevelDefault:
@@ -233,6 +234,86 @@ func (n NullInt64) Value() (driver.Value, error) {
 	return n.Int64, nil
 }
 
+// NullInt32 represents an int32 that may be null.
+// NullInt32 implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullInt32 struct {
+	Int32 int32
+	Valid bool // Valid is true if Int32 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullInt32) Scan(value interface{}) error {
+	if value == nil {
+		n.Int32, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.Int32, value)
+}
+
+// Value implements the driver Valuer interface.
+func (n NullInt32) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return int64(n.Int32), nil
+}
+
+// NullInt16 represents an int16 that may be null.
+// NullInt16 implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullInt16 struct {
+	Int16 int16
+	Valid bool // Valid is true if Int16 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullInt16) Scan(value interface{}) error {
+	if value == nil {
+		n.Int16, n.Valid = 0, false
+		return nil
+	}
+	err := convertAssign(&n.Int16, value)
+	n.Valid = err == nil
+	return err
+}
+
+// Value implements the driver Valuer interface.
+func (n NullInt16) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return int64(n.Int16), nil
+}
+
+// NullByte represents a byte that may be null.
+// NullByte implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullByte struct {
+	Byte  byte
+	Valid bool // Valid is true if Byte is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullByte) Scan(value interface{}) error {
+	if value == nil {
+		n.Byte, n.Valid = 0, false
+		return nil
+	}
+	err := convertAssign(&n.Byte, value)
+	n.Valid = err == nil
+	return err
+}
+
+// Value implements the driver Valuer interface.
+func (n NullByte) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return int64(n.Byte), nil
+}
+
 // NullFloat64 represents a float64 that may be null.
 // NullFloat64 implements the Scanner interface so
 // it can be used as a scan destination, similar to NullString.
@@ -283,6 +364,32 @@ func (n NullBool) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return n.Bool, nil
+}
+
+// NullTime represents a time.Time that may be null.
+// NullTime implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullTime struct {
+	Time  time.Time
+	Valid bool // Valid is true if Time is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullTime) Scan(value interface{}) error {
+	if value == nil {
+		n.Time, n.Valid = time.Time{}, false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.Time, value)
+}
+
+// Value implements the driver Valuer interface.
+func (n NullTime) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.Time, nil
 }
 
 // Scanner is an interface used by Scan.
@@ -357,8 +464,8 @@ type DB struct {
 	// connections in Stmt.css.
 	numClosed uint64
 
-	mu           sync.Mutex // protects following fields
-	freeConn     []*driverConn
+	mu           sync.Mutex    // protects following fields
+	freeConn     []*driverConn // free connections ordered by returnedAt oldest to newest
 	connRequests map[uint64]chan connRequest
 	nextRequest  uint64 // Next key to use in connRequests.
 	numOpen      int    // number of opened and pending open connections
@@ -368,19 +475,20 @@ type DB struct {
 	// It is closed during db.Close(). The close tells the connectionOpener
 	// goroutine to exit.
 	openerCh          chan struct{}
-	resetterCh        chan *driverConn
 	closed            bool
 	dep               map[finalCloser]depSet
 	lastPut           map[*driverConn]string // stacktrace of last conn's put; debug only
-	maxIdle           int                    // zero means defaultMaxIdleConns; negative means 0
+	maxIdleCount      int                    // zero means defaultMaxIdleConns; negative means 0
 	maxOpen           int                    // <= 0 means unlimited
 	maxLifetime       time.Duration          // maximum amount of time a connection may be reused
+	maxIdleTime       time.Duration          // maximum amount of time a connection may be idle before being closed
 	cleanerCh         chan struct{}
 	waitCount         int64 // Total number of connections waited for.
-	maxIdleClosed     int64 // Total number of connections closed due to idle.
-	maxLifetimeClosed int64 // Total number of connections closed due to max free limit.
+	maxIdleClosed     int64 // Total number of connections closed due to idle count.
+	maxIdleTimeClosed int64 // Total number of connections closed due to idle time.
+	maxLifetimeClosed int64 // Total number of connections closed due to max connection lifetime limit.
 
-	stop func() // stop cancels the connection opener and the session resetter.
+	stop func() // stop cancels the connection opener.
 }
 
 // connReuseStrategy determines how (*DB).conn returns database connections.
@@ -405,15 +513,16 @@ type driverConn struct {
 
 	sync.Mutex  // guards following
 	ci          driver.Conn
+	needReset   bool // The connection session should be reset before use if true.
 	closed      bool
 	finalClosed bool // ci.Close has been called
 	openStmt    map[*driverStmt]bool
-	lastErr     error // lastError captures the result of the session resetter.
 
 	// guarded by db.mu
 	inUse      bool
-	onPut      []func() // code (with db.mu held) run when conn is next returned
-	dbmuClosed bool     // same as closed, but guarded by db.mu, for removeClosedStmtLocked
+	returnedAt time.Time // Time the connection was created or returned.
+	onPut      []func()  // code (with db.mu held) run when conn is next returned
+	dbmuClosed bool      // same as closed, but guarded by db.mu, for removeClosedStmtLocked
 }
 
 func (dc *driverConn) releaseConn(err error) {
@@ -431,6 +540,36 @@ func (dc *driverConn) expired(timeout time.Duration) bool {
 		return false
 	}
 	return dc.createdAt.Add(timeout).Before(nowFunc())
+}
+
+// resetSession checks if the driver connection needs the
+// session to be reset and if required, resets it.
+func (dc *driverConn) resetSession(ctx context.Context) error {
+	dc.Lock()
+	defer dc.Unlock()
+
+	if !dc.needReset {
+		return nil
+	}
+	if cr, ok := dc.ci.(driver.SessionResetter); ok {
+		return cr.ResetSession(ctx)
+	}
+	return nil
+}
+
+// validateConnection checks if the connection is valid and can
+// still be used. It also marks the session for reset if required.
+func (dc *driverConn) validateConnection(needsReset bool) bool {
+	dc.Lock()
+	defer dc.Unlock()
+
+	if needsReset {
+		dc.needReset = true
+	}
+	if cv, ok := dc.ci.(driver.Validator); ok {
+		return cv.IsValid()
+	}
+	return true
 }
 
 // prepareLocked prepares the query on dc. When cg == nil the dc must keep track of
@@ -456,19 +595,6 @@ func (dc *driverConn) prepareLocked(ctx context.Context, cg stmtConnGrabber, que
 	}
 	dc.openStmt[ds] = true
 	return ds, nil
-}
-
-// resetSession resets the connection session and sets the lastErr
-// that is checked before returning the connection to another query.
-//
-// resetSession assumes that the embedded mutex is locked when the connection
-// was returned to the pool. This unlocks the mutex.
-func (dc *driverConn) resetSession(ctx context.Context) {
-	defer dc.Unlock() // In case of panic.
-	if dc.closed {    // Check if the database has been closed.
-		return
-	}
-	dc.lastErr = dc.ci.(driver.SessionResetter).ResetSession(ctx)
 }
 
 // the dc.db's Mutex is held.
@@ -540,7 +666,7 @@ type driverStmt struct {
 	closeErr    error // return value of previous Close call
 }
 
-// Close ensures dirver.Stmt is only closed once any always returns the same
+// Close ensures driver.Stmt is only closed once and always returns the same
 // result.
 func (ds *driverStmt) Close() error {
 	ds.Lock()
@@ -567,7 +693,6 @@ type finalCloser interface {
 // addDep notes that x now depends on dep, and x's finalClose won't be
 // called until all of x's dependencies are removed with removeDep.
 func (db *DB) addDep(x finalCloser, dep interface{}) {
-	//println(fmt.Sprintf("addDep(%T %p, %T %p)", x, x, dep, dep))
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	db.addDepLocked(x, dep)
@@ -597,7 +722,6 @@ func (db *DB) removeDep(x finalCloser, dep interface{}) error {
 }
 
 func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
-	//println(fmt.Sprintf("removeDep(%T %p, %T %p)", x, x, dep, dep))
 
 	xdep, ok := db.dep[x]
 	if !ok {
@@ -662,14 +786,12 @@ func OpenDB(c driver.Connector) *DB {
 	db := &DB{
 		connector:    c,
 		openerCh:     make(chan struct{}, connectionRequestQueueSize),
-		resetterCh:   make(chan *driverConn, 50),
 		lastPut:      make(map[*driverConn]string),
 		connRequests: make(map[uint64]chan connRequest),
 		stop:         cancel,
 	}
 
 	go db.connectionOpener(ctx)
-	go db.connectionResetter(ctx)
 
 	return db
 }
@@ -726,14 +848,15 @@ func (db *DB) pingDC(ctx context.Context, dc *driverConn, release func(error)) e
 func (db *DB) PingContext(ctx context.Context) error {
 	var dc *driverConn
 	var err error
-
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		dc, err = db.conn(ctx, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		dc, err = db.conn(ctx, alwaysNewConn)
 	}
 	if err != nil {
@@ -745,6 +868,9 @@ func (db *DB) PingContext(ctx context.Context) error {
 
 // Ping verifies a connection to the database is still alive,
 // establishing a connection if necessary.
+//
+// Ping uses context.Background internally; to specify the context, use
+// PingContext.
 func (db *DB) Ping() error {
 	return db.PingContext(context.Background())
 }
@@ -782,13 +908,19 @@ func (db *DB) Close() error {
 		}
 	}
 	db.stop()
+	if c, ok := db.connector.(io.Closer); ok {
+		err1 := c.Close()
+		if err1 != nil {
+			err = err1
+		}
+	}
 	return err
 }
 
 const defaultMaxIdleConns = 2
 
 func (db *DB) maxIdleConnsLocked() int {
-	n := db.maxIdle
+	n := db.maxIdleCount
 	switch {
 	case n == 0:
 		// TODO(bradfitz): ask driver, if supported, for its default preference
@@ -798,6 +930,21 @@ func (db *DB) maxIdleConnsLocked() int {
 	default:
 		return n
 	}
+}
+
+func (db *DB) shortestIdleTimeLocked() time.Duration {
+	if db.maxIdleTime <= 0 {
+		return db.maxLifetime
+	}
+	if db.maxLifetime <= 0 {
+		return db.maxIdleTime
+	}
+
+	min := db.maxIdleTime
+	if min > db.maxLifetime {
+		min = db.maxLifetime
+	}
+	return min
 }
 
 // SetMaxIdleConns sets the maximum number of connections in the idle
@@ -813,14 +960,14 @@ func (db *DB) maxIdleConnsLocked() int {
 func (db *DB) SetMaxIdleConns(n int) {
 	db.mu.Lock()
 	if n > 0 {
-		db.maxIdle = n
+		db.maxIdleCount = n
 	} else {
 		// No idle connections.
-		db.maxIdle = -1
+		db.maxIdleCount = -1
 	}
 	// Make sure maxIdle doesn't exceed maxOpen
 	if db.maxOpen > 0 && db.maxIdleConnsLocked() > db.maxOpen {
-		db.maxIdle = db.maxOpen
+		db.maxIdleCount = db.maxOpen
 	}
 	var closing []*driverConn
 	idleCount := len(db.freeConn)
@@ -861,13 +1008,13 @@ func (db *DB) SetMaxOpenConns(n int) {
 //
 // Expired connections may be closed lazily before reuse.
 //
-// If d <= 0, connections are reused forever.
+// If d <= 0, connections are not closed due to a connection's age.
 func (db *DB) SetConnMaxLifetime(d time.Duration) {
 	if d < 0 {
 		d = 0
 	}
 	db.mu.Lock()
-	// wake cleaner up when lifetime is shortened.
+	// Wake cleaner up when lifetime is shortened.
 	if d > 0 && d < db.maxLifetime && db.cleanerCh != nil {
 		select {
 		case db.cleanerCh <- struct{}{}:
@@ -879,11 +1026,34 @@ func (db *DB) SetConnMaxLifetime(d time.Duration) {
 	db.mu.Unlock()
 }
 
+// SetConnMaxIdleTime sets the maximum amount of time a connection may be idle.
+//
+// Expired connections may be closed lazily before reuse.
+//
+// If d <= 0, connections are not closed due to a connection's idle time.
+func (db *DB) SetConnMaxIdleTime(d time.Duration) {
+	if d < 0 {
+		d = 0
+	}
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	// Wake cleaner up when idle time is shortened.
+	if d > 0 && d < db.maxIdleTime && db.cleanerCh != nil {
+		select {
+		case db.cleanerCh <- struct{}{}:
+		default:
+		}
+	}
+	db.maxIdleTime = d
+	db.startCleanerLocked()
+}
+
 // startCleanerLocked starts connectionCleaner if needed.
 func (db *DB) startCleanerLocked() {
-	if db.maxLifetime > 0 && db.numOpen > 0 && db.cleanerCh == nil {
+	if (db.maxLifetime > 0 || db.maxIdleTime > 0) && db.numOpen > 0 && db.cleanerCh == nil {
 		db.cleanerCh = make(chan struct{}, 1)
-		go db.connectionCleaner(db.maxLifetime)
+		go db.connectionCleaner(db.shortestIdleTimeLocked())
 	}
 }
 
@@ -902,29 +1072,16 @@ func (db *DB) connectionCleaner(d time.Duration) {
 		}
 
 		db.mu.Lock()
-		d = db.maxLifetime
+
+		d = db.shortestIdleTimeLocked()
 		if db.closed || db.numOpen == 0 || d <= 0 {
 			db.cleanerCh = nil
 			db.mu.Unlock()
 			return
 		}
 
-		expiredSince := nowFunc().Add(-d)
-		var closing []*driverConn
-		for i := 0; i < len(db.freeConn); i++ {
-			c := db.freeConn[i]
-			if c.createdAt.Before(expiredSince) {
-				closing = append(closing, c)
-				last := len(db.freeConn) - 1
-				db.freeConn[i] = db.freeConn[last]
-				db.freeConn[last] = nil
-				db.freeConn = db.freeConn[:last]
-				i--
-			}
-		}
-		db.maxLifetimeClosed += int64(len(closing))
+		d, closing := db.connectionCleanerRunLocked(d)
 		db.mu.Unlock()
-
 		for _, c := range closing {
 			c.Close()
 		}
@@ -932,8 +1089,74 @@ func (db *DB) connectionCleaner(d time.Duration) {
 		if d < minInterval {
 			d = minInterval
 		}
+
+		if !t.Stop() {
+			select {
+			case <-t.C:
+			default:
+			}
+		}
 		t.Reset(d)
 	}
+}
+
+// connectionCleanerRunLocked removes connections that should be closed from
+// freeConn and returns them along side an updated duration to the next check
+// if a quicker check is required to ensure connections are checked appropriately.
+func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*driverConn) {
+	var idleClosing int64
+	var closing []*driverConn
+	if db.maxIdleTime > 0 {
+		// As freeConn is ordered by returnedAt process
+		// in reverse order to minimise the work needed.
+		idleSince := nowFunc().Add(-db.maxIdleTime)
+		last := len(db.freeConn) - 1
+		for i := last; i >= 0; i-- {
+			c := db.freeConn[i]
+			if c.returnedAt.Before(idleSince) {
+				i++
+				closing = db.freeConn[:i]
+				db.freeConn = db.freeConn[i:]
+				idleClosing = int64(len(closing))
+				db.maxIdleTimeClosed += idleClosing
+				break
+			}
+		}
+
+		if len(db.freeConn) > 0 {
+			c := db.freeConn[0]
+			if d2 := c.returnedAt.Sub(idleSince); d2 < d {
+				// Ensure idle connections are cleaned up as soon as
+				// possible.
+				d = d2
+			}
+		}
+	}
+
+	if db.maxLifetime > 0 {
+		expiredSince := nowFunc().Add(-db.maxLifetime)
+		for i := 0; i < len(db.freeConn); i++ {
+			c := db.freeConn[i]
+			if c.createdAt.Before(expiredSince) {
+				closing = append(closing, c)
+
+				last := len(db.freeConn) - 1
+				// Use slow delete as order is required to ensure
+				// connections are reused least idle time first.
+				copy(db.freeConn[i:], db.freeConn[i+1:])
+				db.freeConn[last] = nil
+				db.freeConn = db.freeConn[:last]
+				i--
+			} else if d2 := c.createdAt.Sub(expiredSince); d2 < d {
+				// Prevent connections sitting the freeConn when they
+				// have expired by updating our next deadline d.
+				d = d2
+			}
+		}
+		db.maxLifetimeClosed += int64(len(closing)) - idleClosing
+	}
+
+	return d, closing
 }
 
 // DBStats contains database statistics.
@@ -949,6 +1172,7 @@ type DBStats struct {
 	WaitCount         int64         // The total number of connections waited for.
 	WaitDuration      time.Duration // The total time blocked waiting for a new connection.
 	MaxIdleClosed     int64         // The total number of connections closed due to SetMaxIdleConns.
+	MaxIdleTimeClosed int64         // The total number of connections closed due to SetConnMaxIdleTime.
 	MaxLifetimeClosed int64         // The total number of connections closed due to SetConnMaxLifetime.
 }
 
@@ -969,6 +1193,7 @@ func (db *DB) Stats() DBStats {
 		WaitCount:         db.waitCount,
 		WaitDuration:      time.Duration(wait),
 		MaxIdleClosed:     db.maxIdleClosed,
+		MaxIdleTimeClosed: db.maxIdleTimeClosed,
 		MaxLifetimeClosed: db.maxLifetimeClosed,
 	}
 	return stats
@@ -1007,26 +1232,9 @@ func (db *DB) connectionOpener(ctx context.Context) {
 	}
 }
 
-// connectionResetter runs in a separate goroutine to reset connections async
-// to exported API.
-func (db *DB) connectionResetter(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			close(db.resetterCh)
-			for dc := range db.resetterCh {
-				dc.Unlock()
-			}
-			return
-		case dc := <-db.resetterCh:
-			dc.resetSession(ctx)
-		}
-	}
-}
-
 // Open one new connection
 func (db *DB) openNewConnection(ctx context.Context) {
-	// maybeOpenNewConnctions has already executed db.numOpen++ before it sent
+	// maybeOpenNewConnections has already executed db.numOpen++ before it sent
 	// on db.openerCh. This function must execute db.numOpen-- if the
 	// connection fails or is closed before returning.
 	ci, err := db.connector.Connect(ctx)
@@ -1046,9 +1254,10 @@ func (db *DB) openNewConnection(ctx context.Context) {
 		return
 	}
 	dc := &driverConn{
-		db:        db,
-		createdAt: nowFunc(),
-		ci:        ci,
+		db:         db,
+		createdAt:  nowFunc(),
+		returnedAt: nowFunc(),
+		ci:         ci,
 	}
 	if db.putConnDBLocked(dc, err) {
 		db.addDepLocked(dc, dc)
@@ -1093,25 +1302,27 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 	lifetime := db.maxLifetime
 
 	// Prefer a free connection, if possible.
-	numFree := len(db.freeConn)
-	if strategy == cachedOrNewConn && numFree > 0 {
-		conn := db.freeConn[0]
-		copy(db.freeConn, db.freeConn[1:])
-		db.freeConn = db.freeConn[:numFree-1]
+	last := len(db.freeConn) - 1
+	if strategy == cachedOrNewConn && last >= 0 {
+		// Reuse the lowest idle time connection so we can close
+		// connections which remain idle as soon as possible.
+		conn := db.freeConn[last]
+		db.freeConn = db.freeConn[:last]
 		conn.inUse = true
-		db.mu.Unlock()
 		if conn.expired(lifetime) {
+			db.maxLifetimeClosed++
+			db.mu.Unlock()
 			conn.Close()
 			return nil, driver.ErrBadConn
 		}
-		// Lock around reading lastErr to ensure the session resetter finished.
-		conn.Lock()
-		err := conn.lastErr
-		conn.Unlock()
-		if err == driver.ErrBadConn {
+		db.mu.Unlock()
+
+		// Reset the session if required.
+		if err := conn.resetSession(ctx); errors.Is(err, driver.ErrBadConn) {
 			conn.Close()
-			return nil, driver.ErrBadConn
+			return nil, err
 		}
+
 		return conn, nil
 	}
 
@@ -1126,7 +1337,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		db.waitCount++
 		db.mu.Unlock()
 
-		waitStart := time.Now()
+		waitStart := nowFunc()
 
 		// Timeout the connection request with the context.
 		select {
@@ -1153,20 +1364,27 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			if !ok {
 				return nil, errDBClosed
 			}
-			if ret.err == nil && ret.conn.expired(lifetime) {
+			// Only check if the connection is expired if the strategy is cachedOrNewConns.
+			// If we require a new connection, just re-use the connection without looking
+			// at the expiry time. If it is expired, it will be checked when it is placed
+			// back into the connection pool.
+			// This prioritizes giving a valid connection to a client over the exact connection
+			// lifetime, which could expire exactly after this point anyway.
+			if strategy == cachedOrNewConn && ret.err == nil && ret.conn.expired(lifetime) {
+				db.mu.Lock()
+				db.maxLifetimeClosed++
+				db.mu.Unlock()
 				ret.conn.Close()
 				return nil, driver.ErrBadConn
 			}
 			if ret.conn == nil {
 				return nil, ret.err
 			}
-			// Lock around reading lastErr to ensure the session resetter finished.
-			ret.conn.Lock()
-			err := ret.conn.lastErr
-			ret.conn.Unlock()
-			if err == driver.ErrBadConn {
+
+			// Reset the session if required.
+			if err := ret.conn.resetSession(ctx); errors.Is(err, driver.ErrBadConn) {
 				ret.conn.Close()
-				return nil, driver.ErrBadConn
+				return nil, err
 			}
 			return ret.conn, ret.err
 		}
@@ -1184,10 +1402,11 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 	}
 	db.mu.Lock()
 	dc := &driverConn{
-		db:        db,
-		createdAt: nowFunc(),
-		ci:        ci,
-		inUse:     true,
+		db:         db,
+		createdAt:  nowFunc(),
+		returnedAt: nowFunc(),
+		ci:         ci,
+		inUse:      true,
 	}
 	db.addDepLocked(dc, dc)
 	db.mu.Unlock()
@@ -1224,24 +1443,36 @@ const debugGetPut = false
 // putConn adds a connection to the db's free pool.
 // err is optionally the last error that occurred on this connection.
 func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
+	if !errors.Is(err, driver.ErrBadConn) {
+		if !dc.validateConnection(resetSession) {
+			err = driver.ErrBadConn
+		}
+	}
 	db.mu.Lock()
 	if !dc.inUse {
+		db.mu.Unlock()
 		if debugGetPut {
 			fmt.Printf("putConn(%v) DUPLICATE was: %s\n\nPREVIOUS was: %s", dc, stack(), db.lastPut[dc])
 		}
 		panic("sql: connection returned that was never out")
 	}
+
+	if !errors.Is(err, driver.ErrBadConn) && dc.expired(db.maxLifetime) {
+		db.maxLifetimeClosed++
+		err = driver.ErrBadConn
+	}
 	if debugGetPut {
 		db.lastPut[dc] = stack()
 	}
 	dc.inUse = false
+	dc.returnedAt = nowFunc()
 
 	for _, fn := range dc.onPut {
 		fn()
 	}
 	dc.onPut = nil
 
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		// Don't reuse bad connections.
 		// Since the conn is considered bad and is being discarded, treat it
 		// as closed. Don't decrement the open count here, finalClose will
@@ -1254,40 +1485,12 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 	if putConnHook != nil {
 		putConnHook(db, dc)
 	}
-	if db.closed {
-		// Connections do not need to be reset if they will be closed.
-		// Prevents writing to resetterCh after the DB has closed.
-		resetSession = false
-	}
-	if resetSession {
-		if _, resetSession = dc.ci.(driver.SessionResetter); resetSession {
-			// Lock the driverConn here so it isn't released until
-			// the connection is reset.
-			// The lock must be taken before the connection is put into
-			// the pool to prevent it from being taken out before it is reset.
-			dc.Lock()
-		}
-	}
 	added := db.putConnDBLocked(dc, nil)
 	db.mu.Unlock()
 
 	if !added {
-		if resetSession {
-			dc.Unlock()
-		}
 		dc.Close()
 		return
-	}
-	if !resetSession {
-		return
-	}
-	select {
-	default:
-		// If the resetterCh is blocking then mark the connection
-		// as bad and continue on.
-		dc.lastErr = driver.ErrBadConn
-		dc.Unlock()
-	case db.resetterCh <- dc:
 	}
 }
 
@@ -1322,11 +1525,13 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 			err:  err,
 		}
 		return true
-	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > len(db.freeConn) {
-		db.freeConn = append(db.freeConn, dc)
+	} else if err == nil && !db.closed {
+		if db.maxIdleConnsLocked() > len(db.freeConn) {
+			db.freeConn = append(db.freeConn, dc)
+			db.startCleanerLocked()
+			return true
+		}
 		db.maxIdleClosed++
-		db.startCleanerLocked()
-		return true
 	}
 	return false
 }
@@ -1347,13 +1552,15 @@ const maxBadConnRetries = 2
 func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var stmt *Stmt
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		stmt, err = db.prepare(ctx, query, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		return db.prepare(ctx, query, alwaysNewConn)
 	}
 	return stmt, err
@@ -1364,6 +1571,9 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 // returned statement.
 // The caller must call the statement's Close method
 // when the statement is no longer needed.
+//
+// Prepare uses context.Background internally; to specify the context, use
+// PrepareContext.
 func (db *DB) Prepare(query string) (*Stmt, error) {
 	return db.PrepareContext(context.Background(), query)
 }
@@ -1420,13 +1630,15 @@ func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error)
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (Result, error) {
 	var res Result
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		res, err = db.exec(ctx, query, args, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		return db.exec(ctx, query, args, alwaysNewConn)
 	}
 	return res, err
@@ -1434,6 +1646,9 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 
 // Exec executes a query without returning any rows.
 // The args are for any placeholder parameters in the query.
+//
+// Exec uses context.Background internally; to specify the context, use
+// ExecContext.
 func (db *DB) Exec(query string, args ...interface{}) (Result, error) {
 	return db.ExecContext(context.Background(), query, args...)
 }
@@ -1490,13 +1705,15 @@ func (db *DB) execDC(ctx context.Context, dc *driverConn, release func(error), q
 func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	var rows *Rows
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		rows, err = db.query(ctx, query, args, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		return db.query(ctx, query, args, alwaysNewConn)
 	}
 	return rows, err
@@ -1504,6 +1721,9 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{
 
 // Query executes a query that returns rows, typically a SELECT.
 // The args are for any placeholder parameters in the query.
+//
+// Query uses context.Background internally; to specify the context, use
+// QueryContext.
 func (db *DB) Query(query string, args ...interface{}) (*Rows, error) {
 	return db.QueryContext(context.Background(), query, args...)
 }
@@ -1602,6 +1822,9 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 // If the query selects no rows, the *Row's Scan will return ErrNoRows.
 // Otherwise, the *Row's Scan scans the first selected row and discards
 // the rest.
+//
+// QueryRow uses context.Background internally; to specify the context, use
+// QueryRowContext.
 func (db *DB) QueryRow(query string, args ...interface{}) *Row {
 	return db.QueryRowContext(context.Background(), query, args...)
 }
@@ -1619,13 +1842,15 @@ func (db *DB) QueryRow(query string, args ...interface{}) *Row {
 func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	var tx *Tx
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		tx, err = db.begin(ctx, opts, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		return db.begin(ctx, opts, alwaysNewConn)
 	}
 	return tx, err
@@ -1633,6 +1858,9 @@ func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 
 // Begin starts a transaction. The default isolation level is dependent on
 // the driver.
+//
+// Begin uses context.Background internally; to specify the context, use
+// BeginTx.
 func (db *DB) Begin() (*Tx, error) {
 	return db.BeginTx(context.Background(), nil)
 }
@@ -1648,7 +1876,11 @@ func (db *DB) begin(ctx context.Context, opts *TxOptions, strategy connReuseStra
 // beginDC starts a transaction. The provided dc must be valid and ready to use.
 func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error), opts *TxOptions) (tx *Tx, err error) {
 	var txi driver.Tx
+	keepConnOnRollback := false
 	withLock(dc, func() {
+		_, hasSessionResetter := dc.ci.(driver.SessionResetter)
+		_, hasConnectionValidator := dc.ci.(driver.Validator)
+		keepConnOnRollback = hasSessionResetter && hasConnectionValidator
 		txi, err = ctxDriverBegin(ctx, opts, dc.ci)
 	})
 	if err != nil {
@@ -1656,16 +1888,17 @@ func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error), 
 		return nil, err
 	}
 
-	// Schedule the transaction to rollback when the context is cancelled.
+	// Schedule the transaction to rollback when the context is canceled.
 	// The cancel function in Tx will be called after done is set to true.
 	ctx, cancel := context.WithCancel(ctx)
 	tx = &Tx{
-		db:          db,
-		dc:          dc,
-		releaseConn: release,
-		txi:         txi,
-		cancel:      cancel,
-		ctx:         ctx,
+		db:                 db,
+		dc:                 dc,
+		releaseConn:        release,
+		txi:                txi,
+		cancel:             cancel,
+		keepConnOnRollback: keepConnOnRollback,
+		ctx:                ctx,
 	}
 	go tx.awaitDone()
 	return tx, nil
@@ -1690,14 +1923,16 @@ var ErrConnDone = errors.New("sql: connection is already closed")
 func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 	var dc *driverConn
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		dc, err = db.conn(ctx, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
-		dc, err = db.conn(ctx, cachedOrNewConn)
+	if isBadConn {
+		dc, err = db.conn(ctx, alwaysNewConn)
 	}
 	if err != nil {
 		return nil, err
@@ -1739,6 +1974,8 @@ type Conn struct {
 	done int32
 }
 
+// grabConn takes a context to implement stmtConnGrabber
+// but the context is not used.
 func (c *Conn) grabConn(context.Context) (*driverConn, releaseConn, error) {
 	if atomic.LoadInt32(&c.done) != 0 {
 		return nil, nil, ErrConnDone
@@ -1803,6 +2040,39 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 	return c.db.prepareDC(ctx, dc, release, c, query)
 }
 
+// Raw executes f exposing the underlying driver connection for the
+// duration of f. The driverConn must not be used outside of f.
+//
+// Once f returns and err is not driver.ErrBadConn, the Conn will continue to be usable
+// until Conn.Close is called.
+func (c *Conn) Raw(f func(driverConn interface{}) error) (err error) {
+	var dc *driverConn
+	var release releaseConn
+
+	// grabConn takes a context to implement stmtConnGrabber, but the context is not used.
+	dc, release, err = c.grabConn(nil)
+	if err != nil {
+		return
+	}
+	fPanic := true
+	dc.Mutex.Lock()
+	defer func() {
+		dc.Mutex.Unlock()
+
+		// If f panics fPanic will remain true.
+		// Ensure an error is passed to release so the connection
+		// may be discarded.
+		if fPanic {
+			err = driver.ErrBadConn
+		}
+		release(err)
+	}()
+	err = f(dc.ci)
+	fPanic = false
+
+	return
+}
+
 // BeginTx starts a transaction.
 //
 // The provided context is used until the transaction is committed or rolled back.
@@ -1825,7 +2095,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 // as the sql operation is done with the dc.
 func (c *Conn) closemuRUnlockCondReleaseConn(err error) {
 	c.closemu.RUnlock()
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		c.close(err)
 	}
 }
@@ -1892,6 +2162,11 @@ type Tx struct {
 	// Use atomic operations on value when checking value.
 	done int32
 
+	// keepConnOnRollback is true if the driver knows
+	// how to reset the connection's session and if need be discard
+	// the connection.
+	keepConnOnRollback bool
+
 	// All Stmts prepared for this transaction. These will be closed after the
 	// transaction has been committed or rolled back.
 	stmts struct {
@@ -1917,7 +2192,10 @@ func (tx *Tx) awaitDone() {
 	// transaction is closed and the resources are released.  This
 	// rollback does nothing if the transaction has already been
 	// committed or rolled back.
-	tx.rollback(true)
+	// Do not discard the connection if the connection knows
+	// how to reset the session.
+	discardConnection := !tx.keepConnOnRollback
+	tx.rollback(discardConnection)
 }
 
 func (tx *Tx) isDone() bool {
@@ -1929,13 +2207,9 @@ func (tx *Tx) isDone() bool {
 var ErrTxDone = errors.New("sql: transaction has already been committed or rolled back")
 
 // close returns the connection to the pool and
-// must only be called by Tx.rollback or Tx.Commit.
+// must only be called by Tx.rollback or Tx.Commit while
+// tx is already canceled and won't be executed concurrently.
 func (tx *Tx) close(err error) {
-	tx.cancel()
-
-	tx.closemu.Lock()
-	defer tx.closemu.Unlock()
-
 	tx.releaseConn(err)
 	tx.dc = nil
 	tx.txi = nil
@@ -1952,7 +2226,7 @@ func (tx *Tx) grabConn(ctx context.Context) (*driverConn, releaseConn, error) {
 		return nil, nil, ctx.Err()
 	}
 
-	// closeme.RLock must come before the check for isDone to prevent the Tx from
+	// closemu.RLock must come before the check for isDone to prevent the Tx from
 	// closing while a query is executing.
 	tx.closemu.RLock()
 	if tx.isDone() {
@@ -2002,16 +2276,27 @@ func (tx *Tx) Commit() error {
 	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
 		return ErrTxDone
 	}
+
+	// Cancel the Tx to release any active R-closemu locks.
+	// This is safe to do because tx.done has already transitioned
+	// from 0 to 1. Hold the W-closemu lock prior to rollback
+	// to ensure no other connection has an active query.
+	tx.cancel()
+	tx.closemu.Lock()
+	tx.closemu.Unlock()
+
 	var err error
 	withLock(tx.dc, func() {
 		err = tx.txi.Commit()
 	})
-	if err != driver.ErrBadConn {
+	if !errors.Is(err, driver.ErrBadConn) {
 		tx.closePrepared()
 	}
 	tx.close(err)
 	return err
 }
+
+var rollbackHook func()
 
 // rollback aborts the transaction and optionally forces the pool to discard
 // the connection.
@@ -2019,11 +2304,24 @@ func (tx *Tx) rollback(discardConn bool) error {
 	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
 		return ErrTxDone
 	}
+
+	if rollbackHook != nil {
+		rollbackHook()
+	}
+
+	// Cancel the Tx to release any active R-closemu locks.
+	// This is safe to do because tx.done has already transitioned
+	// from 0 to 1. Hold the W-closemu lock prior to rollback
+	// to ensure no other connection has an active query.
+	tx.cancel()
+	tx.closemu.Lock()
+	tx.closemu.Unlock()
+
 	var err error
 	withLock(tx.dc, func() {
 		err = tx.txi.Rollback()
 	})
-	if err != driver.ErrBadConn {
+	if !errors.Is(err, driver.ErrBadConn) {
 		tx.closePrepared()
 	}
 	if discardConn {
@@ -2066,10 +2364,13 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 
 // Prepare creates a prepared statement for use within a transaction.
 //
-// The returned statement operates within the transaction and can no longer
-// be used once the transaction has been committed or rolled back.
+// The returned statement operates within the transaction and will be closed
+// when the transaction has been committed or rolled back.
 //
 // To use an existing prepared statement on this transaction, see Tx.Stmt.
+//
+// Prepare uses context.Background internally; to specify the context, use
+// PrepareContext.
 func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	return tx.PrepareContext(context.Background(), query)
 }
@@ -2173,6 +2474,9 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 //
 // The returned statement operates within the transaction and will be closed
 // when the transaction has been committed or rolled back.
+//
+// Stmt uses context.Background internally; to specify the context, use
+// StmtContext.
 func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 	return tx.StmtContext(context.Background(), stmt)
 }
@@ -2189,6 +2493,9 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 
 // Exec executes a query that doesn't return rows.
 // For example: an INSERT and UPDATE.
+//
+// Exec uses context.Background internally; to specify the context, use
+// ExecContext.
 func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 	return tx.ExecContext(context.Background(), query, args...)
 }
@@ -2204,6 +2511,9 @@ func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{
 }
 
 // Query executes a query that returns rows, typically a SELECT.
+//
+// Query uses context.Background internally; to specify the context, use
+// QueryContext.
 func (tx *Tx) Query(query string, args ...interface{}) (*Rows, error) {
 	return tx.QueryContext(context.Background(), query, args...)
 }
@@ -2225,6 +2535,9 @@ func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...interfa
 // If the query selects no rows, the *Row's Scan will return ErrNoRows.
 // Otherwise, the *Row's Scan scans the first selected row and discards
 // the rest.
+//
+// QueryRow uses context.Background internally; to specify the context, use
+// QueryRowContext.
 func (tx *Tx) QueryRow(query string, args ...interface{}) *Row {
 	return tx.QueryRowContext(context.Background(), query, args...)
 }
@@ -2255,6 +2568,13 @@ var (
 
 // Stmt is a prepared statement.
 // A Stmt is safe for concurrent use by multiple goroutines.
+//
+// If a Stmt is prepared on a Tx or Conn, it will be bound to a single
+// underlying connection forever. If the Tx or Conn closes, the Stmt will
+// become unusable and all operations will return an error.
+// If a Stmt is prepared on a DB, it will remain usable for the lifetime of the
+// DB. When the Stmt needs to execute on a new underlying connection, it will
+// prepare itself on the new connection automatically.
 type Stmt struct {
 	// Immutable:
 	db        *DB    // where we came from
@@ -2307,7 +2627,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (Result, er
 		}
 		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
-			if err == driver.ErrBadConn {
+			if errors.Is(err, driver.ErrBadConn) {
 				continue
 			}
 			return nil, err
@@ -2315,7 +2635,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (Result, er
 
 		res, err = resultFromStatement(ctx, dc.ci, ds, args...)
 		releaseConn(err)
-		if err != driver.ErrBadConn {
+		if !errors.Is(err, driver.ErrBadConn) {
 			return res, err
 		}
 	}
@@ -2324,6 +2644,9 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (Result, er
 
 // Exec executes a prepared statement with the given arguments and
 // returns a Result summarizing the effect of the statement.
+//
+// Exec uses context.Background internally; to specify the context, use
+// ExecContext.
 func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 	return s.ExecContext(context.Background(), args...)
 }
@@ -2452,7 +2775,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 		}
 		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
-			if err == driver.ErrBadConn {
+			if errors.Is(err, driver.ErrBadConn) {
 				continue
 			}
 			return nil, err
@@ -2486,7 +2809,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 		}
 
 		releaseConn(err)
-		if err != driver.ErrBadConn {
+		if !errors.Is(err, driver.ErrBadConn) {
 			return nil, err
 		}
 	}
@@ -2495,6 +2818,9 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 
 // Query executes a prepared query statement with the given arguments
 // and returns the query results as a *Rows.
+//
+// Query uses context.Background internally; to specify the context, use
+// QueryContext.
 func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 	return s.QueryContext(context.Background(), args...)
 }
@@ -2534,6 +2860,9 @@ func (s *Stmt) QueryRowContext(ctx context.Context, args ...interface{}) *Row {
 //
 //  var name string
 //  err := nameByUseridStmt.QueryRow(id).Scan(&name)
+//
+// QueryRow uses context.Background internally; to specify the context, use
+// QueryRowContext.
 func (s *Stmt) QueryRow(args ...interface{}) *Row {
 	return s.QueryRowContext(context.Background(), args...)
 }
@@ -2605,8 +2934,24 @@ type Rows struct {
 	lastcols []driver.Value
 }
 
+// lasterrOrErrLocked returns either lasterr or the provided err.
+// rs.closemu must be read-locked.
+func (rs *Rows) lasterrOrErrLocked(err error) error {
+	if rs.lasterr != nil && rs.lasterr != io.EOF {
+		return rs.lasterr
+	}
+	return err
+}
+
+// bypassRowsAwaitDone is only used for testing.
+// If true, it will not close the Rows automatically from the context.
+var bypassRowsAwaitDone = false
+
 func (rs *Rows) initContextClose(ctx, txctx context.Context) {
 	if ctx.Done() == nil && (txctx == nil || txctx.Done() == nil) {
+		return
+	}
+	if bypassRowsAwaitDone {
 		return
 	}
 	ctx, rs.cancel = context.WithCancel(ctx)
@@ -2681,7 +3026,7 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 	return false, true
 }
 
-// NextResultSet prepares the next result set for reading. It returns true if
+// NextResultSet prepares the next result set for reading. It reports whether
 // there is further result sets, or false if there is no further result set
 // or if there is an error advancing to it. The Err method should be consulted
 // to distinguish between the two cases.
@@ -2728,23 +3073,22 @@ func (rs *Rows) NextResultSet() bool {
 func (rs *Rows) Err() error {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
-	if rs.lasterr == io.EOF {
-		return nil
-	}
-	return rs.lasterr
+	return rs.lasterrOrErrLocked(nil)
 }
 
+var errRowsClosed = errors.New("sql: Rows are closed")
+var errNoRows = errors.New("sql: no Rows available")
+
 // Columns returns the column names.
-// Columns returns an error if the rows are closed, or if the rows
-// are from QueryRow and there was a deferred error.
+// Columns returns an error if the rows are closed.
 func (rs *Rows) Columns() ([]string, error) {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
 	if rs.closed {
-		return nil, errors.New("sql: Rows are closed")
+		return nil, rs.lasterrOrErrLocked(errRowsClosed)
 	}
 	if rs.rowsi == nil {
-		return nil, errors.New("sql: no Rows available")
+		return nil, rs.lasterrOrErrLocked(errNoRows)
 	}
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
@@ -2758,10 +3102,10 @@ func (rs *Rows) ColumnTypes() ([]*ColumnType, error) {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
 	if rs.closed {
-		return nil, errors.New("sql: Rows are closed")
+		return nil, rs.lasterrOrErrLocked(errRowsClosed)
 	}
 	if rs.rowsi == nil {
-		return nil, errors.New("sql: no Rows available")
+		return nil, rs.lasterrOrErrLocked(errNoRows)
 	}
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
@@ -2812,17 +3156,18 @@ func (ci *ColumnType) ScanType() reflect.Type {
 	return ci.scanType
 }
 
-// Nullable returns whether the column may be null.
+// Nullable reports whether the column may be null.
 // If a driver does not support this property ok will be false.
 func (ci *ColumnType) Nullable() (nullable, ok bool) {
 	return ci.nullable, ci.hasNullable
 }
 
 // DatabaseTypeName returns the database system name of the column type. If an empty
-// string is returned the driver type name is not supported.
+// string is returned, then the driver type name is not supported.
 // Consult your driver documentation for a list of driver data types. Length specifiers
 // are not included.
-// Common type include "VARCHAR", "TEXT", "NVARCHAR", "DECIMAL", "BOOL", "INT", "BIGINT".
+// Common type names include "VARCHAR", "TEXT", "NVARCHAR", "DECIMAL", "BOOL",
+// "INT", and "BIGINT".
 func (ci *ColumnType) DatabaseTypeName() string {
 	return ci.databaseType
 }
@@ -2873,6 +3218,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 //    *float32, *float64
 //    *interface{}
 //    *RawBytes
+//    *Rows (cursor value)
 //    any type implementing Scanner (see Scanner docs)
 //
 // In the most simple case, if the type of the value from the source
@@ -2909,6 +3255,14 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 //
 // For scanning into *bool, the source may be true, false, 1, 0, or
 // string inputs parseable by strconv.ParseBool.
+//
+// Scan can also convert a cursor returned from a query, such as
+// "select cursor(select * from my_table) from dual", into a
+// *Rows value that can itself be scanned from. The parent
+// select query will close any cursor *Rows if the parent *Rows is closed.
+//
+// If any of the first arguments implementing Scanner returns an error,
+// that error will be wrapped in the returned error
 func (rs *Rows) Scan(dest ...interface{}) error {
 	rs.closemu.RLock()
 
@@ -2917,8 +3271,9 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 		return rs.lasterr
 	}
 	if rs.closed {
+		err := rs.lasterrOrErrLocked(errRowsClosed)
 		rs.closemu.RUnlock()
-		return errors.New("sql: Rows are closed")
+		return err
 	}
 	rs.closemu.RUnlock()
 
@@ -2929,9 +3284,9 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
 	}
 	for i, sv := range rs.lastcols {
-		err := convertAssign(dest[i], sv)
+		err := convertAssignRows(dest[i], sv, rs)
 		if err != nil {
-			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %v`, i, rs.rowsi.Columns()[i], err)
+			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, i, rs.rowsi.Columns()[i], err)
 		}
 	}
 	return nil
@@ -3028,6 +3383,14 @@ func (r *Row) Scan(dest ...interface{}) error {
 	}
 	// Make sure the query can be processed to completion with no errors.
 	return r.rows.Close()
+}
+
+// Err provides a way for wrapping packages to check for
+// query errors without calling Scan.
+// Err returns the error, if any, that was encountered while running the query.
+// If this error is not nil, this error will also be returned from Scan.
+func (r *Row) Err() error {
+	return r.err
 }
 
 // A Result summarizes an executed SQL command.

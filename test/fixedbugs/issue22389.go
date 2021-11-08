@@ -1,4 +1,4 @@
-// errorcheck
+// errorcheck -d=panic
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -14,5 +14,5 @@ func (f *Foo) Call(cb func(*Foo)) {
 
 func main() {
 	f := &Foo{}
-	f.Call(func(f) {}) // ERROR "f is not a type"
+	f.Call(func(f) {}) // ERROR "f .*is not a type"
 }

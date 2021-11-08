@@ -9,6 +9,8 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
+	"fmt"
+	"strconv"
 	"testing"
 )
 
@@ -165,6 +167,115 @@ func TestTypedefCycle(t *testing.T) {
 		_, err := d.Type(offset)
 		if err != nil {
 			t.Fatalf("d.Type(0x%x): %s", offset, err)
+		}
+	}
+}
+
+var unsupportedTypeTests = []string{
+	// varname:typename:string:size
+	"culprit::(unsupported type ReferenceType):8",
+	"pdm::(unsupported type PtrToMemberType):-1",
+}
+
+func TestUnsupportedTypes(t *testing.T) {
+	// Issue 29601:
+	// When reading DWARF from C++ load modules, we can encounter
+	// oddball type DIEs. These will be returned as "UnsupportedType"
+	// objects; check to make sure this works properly.
+	d := elfData(t, "testdata/cppunsuptypes.elf")
+	r := d.Reader()
+	seen := make(map[string]bool)
+	for {
+		e, err := r.Next()
+		if err != nil {
+			t.Fatal("r.Next:", err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag == TagVariable {
+			vname, _ := e.Val(AttrName).(string)
+			tAttr := e.Val(AttrType)
+			typOff, ok := tAttr.(Offset)
+			if !ok {
+				t.Errorf("variable at offset %v has no type", e.Offset)
+				continue
+			}
+			typ, err := d.Type(typOff)
+			if err != nil {
+				t.Errorf("err in type decode: %v\n", err)
+				continue
+			}
+			unsup, isok := typ.(*UnsupportedType)
+			if !isok {
+				continue
+			}
+			tag := vname + ":" + unsup.Name + ":" + unsup.String() +
+				":" + strconv.FormatInt(unsup.Size(), 10)
+			seen[tag] = true
+		}
+	}
+	dumpseen := false
+	for _, v := range unsupportedTypeTests {
+		if !seen[v] {
+			t.Errorf("missing %s", v)
+			dumpseen = true
+		}
+	}
+	if dumpseen {
+		for k := range seen {
+			fmt.Printf("seen: %s\n", k)
+		}
+	}
+}
+
+func TestBitOffsetsELF(t *testing.T) { testBitOffsets(t, elfData(t, "testdata/typedef.elf")) }
+
+func TestBitOffsetsMachO(t *testing.T) {
+	testBitOffsets(t, machoData(t, "testdata/typedef.macho"))
+}
+
+func TestBitOffsetsMachO4(t *testing.T) {
+	testBitOffsets(t, machoData(t, "testdata/typedef.macho4"))
+}
+
+func TestBitOffsetsELFDwarf4(t *testing.T) {
+	testBitOffsets(t, elfData(t, "testdata/typedef.elf4"))
+}
+
+func testBitOffsets(t *testing.T, d *Data) {
+	r := d.Reader()
+	for {
+		e, err := r.Next()
+		if err != nil {
+			t.Fatal("r.Next:", err)
+		}
+		if e == nil {
+			break
+		}
+
+		if e.Tag == TagStructType {
+			typ, err := d.Type(e.Offset)
+			if err != nil {
+				t.Fatal("d.Type:", err)
+			}
+
+			t1 := typ.(*StructType)
+
+			for _, field := range t1.Field {
+				// We're only testing for bitfields
+				if field.BitSize == 0 {
+					continue
+				}
+
+				// Ensure BitOffset is not zero
+				if field.BitOffset == 0 {
+					t.Errorf("bit offset of field %s in %s %s is not set", field.Name, t1.Kind, t1.StructName)
+				}
+			}
+		}
+		if e.Tag != TagCompileUnit {
+			r.SkipChildren()
 		}
 	}
 }

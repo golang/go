@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -19,8 +18,6 @@ import (
 	"testing"
 	"time"
 )
-
-var _ = log.Printf
 
 // fakeDriver is a fake database that implements Go's driver.Driver
 // interface, just for testing.
@@ -59,6 +56,7 @@ type fakeConnector struct {
 	name string
 
 	waiter func(context.Context)
+	closed bool
 }
 
 func (c *fakeConnector) Connect(context.Context) (driver.Conn, error) {
@@ -69,6 +67,14 @@ func (c *fakeConnector) Connect(context.Context) (driver.Conn, error) {
 
 func (c *fakeConnector) Driver() driver.Driver {
 	return fdriver
+}
+
+func (c *fakeConnector) Close() error {
+	if c.closed {
+		return errors.New("fakedb: connector is closed")
+	}
+	c.closed = true
+	return nil
 }
 
 type fakeDriverCtx struct {
@@ -88,6 +94,19 @@ type fakeDB struct {
 	tables   map[string]*table
 	badConn  bool
 	allowAny bool
+}
+
+type fakeError struct {
+	Message string
+	Wrapped error
+}
+
+func (err fakeError) Error() string {
+	return err.Message
+}
+
+func (err fakeError) Unwrap() error {
+	return err.Wrapped
 }
 
 type table struct {
@@ -362,7 +381,7 @@ func (c *fakeConn) isDirtyAndMark() bool {
 
 func (c *fakeConn) Begin() (driver.Tx, error) {
 	if c.isBad() {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Wrapped: driver.ErrBadConn}
 	}
 	if c.currTx != nil {
 		return nil, errors.New("fakedb: already in a transaction")
@@ -393,10 +412,17 @@ func setStrictFakeConnClose(t *testing.T) {
 
 func (c *fakeConn) ResetSession(ctx context.Context) error {
 	c.dirtySession = false
+	c.currTx = nil
 	if c.isBad() {
-		return driver.ErrBadConn
+		return fakeError{Message: "Reset Session: bad conn", Wrapped: driver.ErrBadConn}
 	}
 	return nil
+}
+
+var _ driver.Validator = (*fakeConn)(nil)
+
+func (c *fakeConn) IsValid() bool {
+	return !c.isBad()
 }
 
 func (c *fakeConn) Close() (err error) {
@@ -539,7 +565,7 @@ func (c *fakeConn) prepareCreate(stmt *fakeStmt, parts []string) (*fakeStmt, err
 }
 
 // parts are table|col=?,col2=val
-func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
+func (c *fakeConn) prepareInsert(ctx context.Context, stmt *fakeStmt, parts []string) (*fakeStmt, error) {
 	if len(parts) != 2 {
 		stmt.Close()
 		return nil, errf("invalid INSERT syntax with %d parts; want 2", len(parts))
@@ -574,6 +600,20 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (*fakeStmt, err
 					return nil, errf("invalid conversion to int32 from %q", value)
 				}
 				subsetVal = int64(i) // int64 is a subset type, but not int32
+			case "table": // For testing cursor reads.
+				c.skipDirtySession = true
+				vparts := strings.Split(value, "!")
+
+				substmt, err := c.PrepareContext(ctx, fmt.Sprintf("SELECT|%s|%s|", vparts[0], strings.Join(vparts[1:], ",")))
+				if err != nil {
+					return nil, err
+				}
+				cursor, err := (substmt.(driver.StmtQueryContext)).QueryContext(ctx, []driver.NamedValue{})
+				substmt.Close()
+				if err != nil {
+					return nil, err
+				}
+				subsetVal = cursor
 			default:
 				stmt.Close()
 				return nil, errf("unsupported conversion for pre-bound parameter %q to type %q", value, ctype)
@@ -602,7 +642,7 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 	}
 
 	if c.stickyBad || (hookPrepareBadConn != nil && hookPrepareBadConn()) {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Message: "Preapre: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 
 	c.touchMem()
@@ -658,11 +698,11 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 		case "CREATE":
 			stmt, err = c.prepareCreate(stmt, parts)
 		case "INSERT":
-			stmt, err = c.prepareInsert(stmt, parts)
+			stmt, err = c.prepareInsert(ctx, stmt, parts)
 		case "NOSERT":
 			// Do all the prep-work like for an INSERT but don't actually insert the row.
 			// Used for some of the concurrent tests.
-			stmt, err = c.prepareInsert(stmt, parts)
+			stmt, err = c.prepareInsert(ctx, stmt, parts)
 		default:
 			stmt.Close()
 			return nil, errf("unsupported command type %q", cmd)
@@ -717,6 +757,9 @@ var hookExecBadConn func() bool
 func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 	panic("Using ExecContext")
 }
+
+var errFakeConnSessionDirty = errors.New("fakedb: session is dirty")
+
 func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 	if s.panic == "Exec" {
 		panic(s.panic)
@@ -726,10 +769,10 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	}
 
 	if s.c.stickyBad || (hookExecBadConn != nil && hookExecBadConn()) {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Message: "Exec: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 	if s.c.isDirtyAndMark() {
-		return nil, errors.New("fakedb: session is dirty")
+		return nil, errFakeConnSessionDirty
 	}
 
 	err := checkSubsetTypes(s.c.db.allowAny, args)
@@ -840,10 +883,10 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 	}
 
 	if s.c.stickyBad || (hookQueryBadConn != nil && hookQueryBadConn()) {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Message: "Query: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 	if s.c.isDirtyAndMark() {
-		return nil, errors.New("fakedb: session is dirty")
+		return nil, errFakeConnSessionDirty
 	}
 
 	err := checkSubsetTypes(s.c.db.allowAny, args)
@@ -875,6 +918,37 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 					time.Sleep(time.Duration(args[1].Value.(int64)) * time.Millisecond)
 				}
 			}
+		}
+		if s.table == "tx_status" && s.colName[0] == "tx_status" {
+			txStatus := "autocommit"
+			if s.c.currTx != nil {
+				txStatus = "transaction"
+			}
+			cursor := &rowsCursor{
+				parentMem: s.c,
+				posRow:    -1,
+				rows: [][]*row{
+					{
+						{
+							cols: []interface{}{
+								txStatus,
+							},
+						},
+					},
+				},
+				cols: [][]string{
+					{
+						"tx_status",
+					},
+				},
+				colType: [][]string{
+					{
+						"string",
+					},
+				},
+				errPos: -1,
+			}
+			return cursor, nil
 		}
 
 		t.mu.Lock()
@@ -970,7 +1044,7 @@ var hookCommitBadConn func() bool
 func (tx *fakeTx) Commit() error {
 	tx.c.currTx = nil
 	if hookCommitBadConn != nil && hookCommitBadConn() {
-		return driver.ErrBadConn
+		return fakeError{Message: "Commit: Hook Bad Conn", Wrapped: driver.ErrBadConn}
 	}
 	tx.c.touchMem()
 	return nil
@@ -982,7 +1056,7 @@ var hookRollbackBadConn func() bool
 func (tx *fakeTx) Rollback() error {
 	tx.c.currTx = nil
 	if hookRollbackBadConn != nil && hookRollbackBadConn() {
-		return driver.ErrBadConn
+		return fakeError{Message: "Rollback: Hook Bad Conn", Wrapped: driver.ErrBadConn}
 	}
 	tx.c.touchMem()
 	return nil
@@ -1125,8 +1199,12 @@ func converterForType(typ string) driver.ValueConverter {
 		return driver.Bool
 	case "nullbool":
 		return driver.Null{Converter: driver.Bool}
+	case "byte", "int16":
+		return driver.NotNull{Converter: driver.DefaultParameterConverter}
 	case "int32":
 		return driver.Int32
+	case "nullbyte", "nullint32", "nullint16":
+		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "string":
 		return driver.NotNull{Converter: fakeDriverString{}}
 	case "nullstring":
@@ -1144,7 +1222,9 @@ func converterForType(typ string) driver.ValueConverter {
 		// TODO(coopernurse): add type-specific converter
 		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "datetime":
-		return driver.DefaultParameterConverter
+		return driver.NotNull{Converter: driver.DefaultParameterConverter}
+	case "nulldatetime":
+		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "any":
 		return anyTypeConverter{}
 	}
@@ -1157,8 +1237,14 @@ func colTypeToReflectType(typ string) reflect.Type {
 		return reflect.TypeOf(false)
 	case "nullbool":
 		return reflect.TypeOf(NullBool{})
+	case "int16":
+		return reflect.TypeOf(int16(0))
+	case "nullint16":
+		return reflect.TypeOf(NullInt16{})
 	case "int32":
 		return reflect.TypeOf(int32(0))
+	case "nullint32":
+		return reflect.TypeOf(NullInt32{})
 	case "string":
 		return reflect.TypeOf("")
 	case "nullstring":

@@ -6,9 +6,6 @@
 // Unicode code points.
 package unicode
 
-// Tables are regenerated each time we update the Unicode version.
-//go:generate go run maketables.go -tables=all -output tables.go
-
 const (
 	MaxRune         = '\U0010FFFF' // Maximum valid Unicode code point.
 	ReplacementChar = '\uFFFD'     // Represents invalid code points.
@@ -157,7 +154,8 @@ func is32(ranges []Range32, r uint32) bool {
 // Is reports whether the rune is in the specified table of ranges.
 func Is(rangeTab *RangeTable, r rune) bool {
 	r16 := rangeTab.R16
-	if len(r16) > 0 && r <= rune(r16[len(r16)-1].Hi) {
+	// Compare as uint32 to correctly handle negative runes.
+	if len(r16) > 0 && uint32(r) <= uint32(r16[len(r16)-1].Hi) {
 		return is16(r16, uint16(r))
 	}
 	r32 := rangeTab.R32
@@ -169,7 +167,8 @@ func Is(rangeTab *RangeTable, r rune) bool {
 
 func isExcludingLatin(rangeTab *RangeTable, r rune) bool {
 	r16 := rangeTab.R16
-	if off := rangeTab.LatinOffset; len(r16) > off && r <= rune(r16[len(r16)-1].Hi) {
+	// Compare as uint32 to correctly handle negative runes.
+	if off := rangeTab.LatinOffset; len(r16) > off && uint32(r) <= uint32(r16[len(r16)-1].Hi) {
 		return is16(r16[off:], uint16(r))
 	}
 	r32 := rangeTab.R32

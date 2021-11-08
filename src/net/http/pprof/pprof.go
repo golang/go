@@ -20,6 +20,9 @@
 // 		log.Println(http.ListenAndServe("localhost:6060", nil))
 // 	}()
 //
+// If you are not using DefaultServeMux, you will have to register handlers
+// with the mux you are using.
+//
 // Then use the pprof tool to look at the heap profile:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/heap
@@ -33,14 +36,16 @@
 //
 //	go tool pprof http://localhost:6060/debug/pprof/block
 //
-// Or to collect a 5-second execution trace:
-//
-//	wget http://localhost:6060/debug/pprof/trace?seconds=5
-//
 // Or to look at the holders of contended mutexes, after calling
 // runtime.SetMutexProfileFraction in your program:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/mutex
+//
+// The package also exports a handler that serves execution trace data
+// for the "go tool trace" command. To collect a 5-second execution trace:
+//
+//	curl -o trace.out http://localhost:6060/debug/pprof/trace?seconds=5
+//	go tool trace trace.out
 //
 // To view all available profiles, open http://localhost:6060/debug/pprof/
 // in your browser.
@@ -54,11 +59,14 @@ package pprof
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
-	"html/template"
+	"html"
+	"internal/profile"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -83,17 +91,13 @@ func init() {
 func Cmdline(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
+	fmt.Fprint(w, strings.Join(os.Args, "\x00"))
 }
 
-func sleep(w http.ResponseWriter, d time.Duration) {
-	var clientGone <-chan bool
-	if cn, ok := w.(http.CloseNotifier); ok {
-		clientGone = cn.CloseNotify()
-	}
+func sleep(r *http.Request, d time.Duration) {
 	select {
 	case <-time.After(d):
-	case <-clientGone:
+	case <-r.Context().Done():
 	}
 }
 
@@ -135,7 +139,7 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("Could not enable CPU profiling: %s", err))
 		return
 	}
-	sleep(w, time.Duration(sec)*time.Second)
+	sleep(r, time.Duration(sec)*time.Second)
 	pprof.StopCPUProfile()
 }
 
@@ -164,7 +168,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("Could not enable tracing: %s", err))
 		return
 	}
-	sleep(w, time.Duration(sec*float64(time.Second)))
+	sleep(r, time.Duration(sec*float64(time.Second)))
 	trace.Stop()
 }
 
@@ -231,6 +235,10 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		serveError(w, http.StatusNotFound, "Unknown profile")
 		return
 	}
+	if sec := r.FormValue("seconds"); sec != "" {
+		name.serveDeltaProfile(w, r, p, sec)
+		return
+	}
 	gc, _ := strconv.Atoi(r.FormValue("gc"))
 	if name == "heap" && gc > 0 {
 		runtime.GC()
@@ -245,6 +253,94 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.WriteTo(w, debug)
 }
 
+func (name handler) serveDeltaProfile(w http.ResponseWriter, r *http.Request, p *pprof.Profile, secStr string) {
+	sec, err := strconv.ParseInt(secStr, 10, 64)
+	if err != nil || sec <= 0 {
+		serveError(w, http.StatusBadRequest, `invalid value for "seconds" - must be a positive integer`)
+		return
+	}
+	if !profileSupportsDelta[name] {
+		serveError(w, http.StatusBadRequest, `"seconds" parameter is not supported for this profile type`)
+		return
+	}
+	// 'name' should be a key in profileSupportsDelta.
+	if durationExceedsWriteTimeout(r, float64(sec)) {
+		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
+		return
+	}
+	debug, _ := strconv.Atoi(r.FormValue("debug"))
+	if debug != 0 {
+		serveError(w, http.StatusBadRequest, "seconds and debug params are incompatible")
+		return
+	}
+	p0, err := collectProfile(p)
+	if err != nil {
+		serveError(w, http.StatusInternalServerError, "failed to collect profile")
+		return
+	}
+
+	t := time.NewTimer(time.Duration(sec) * time.Second)
+	defer t.Stop()
+
+	select {
+	case <-r.Context().Done():
+		err := r.Context().Err()
+		if err == context.DeadlineExceeded {
+			serveError(w, http.StatusRequestTimeout, err.Error())
+		} else { // TODO: what's a good status code for canceled requests? 400?
+			serveError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	case <-t.C:
+	}
+
+	p1, err := collectProfile(p)
+	if err != nil {
+		serveError(w, http.StatusInternalServerError, "failed to collect profile")
+		return
+	}
+	ts := p1.TimeNanos
+	dur := p1.TimeNanos - p0.TimeNanos
+
+	p0.Scale(-1)
+
+	p1, err = profile.Merge([]*profile.Profile{p0, p1})
+	if err != nil {
+		serveError(w, http.StatusInternalServerError, "failed to compute delta")
+		return
+	}
+
+	p1.TimeNanos = ts // set since we don't know what profile.Merge set for TimeNanos.
+	p1.DurationNanos = dur
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-delta"`, name))
+	p1.Write(w)
+}
+
+func collectProfile(p *pprof.Profile) (*profile.Profile, error) {
+	var buf bytes.Buffer
+	if err := p.WriteTo(&buf, 0); err != nil {
+		return nil, err
+	}
+	ts := time.Now().UnixNano()
+	p0, err := profile.Parse(&buf)
+	if err != nil {
+		return nil, err
+	}
+	p0.TimeNanos = ts
+	return p0, nil
+}
+
+var profileSupportsDelta = map[handler]bool{
+	"allocs":       true,
+	"block":        true,
+	"goroutine":    true,
+	"heap":         true,
+	"mutex":        true,
+	"threadcreate": true,
+}
+
 var profileDescriptions = map[string]string{
 	"allocs":       "A sampling of all past memory allocations",
 	"block":        "Stack traces that led to blocking on synchronization primitives",
@@ -255,6 +351,13 @@ var profileDescriptions = map[string]string{
 	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
 	"threadcreate": "Stack traces that led to the creation of new OS threads",
 	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
+}
+
+type profileEntry struct {
+	Name  string
+	Href  string
+	Desc  string
+	Count int
 }
 
 // Index responds with the pprof-formatted profile named by the request.
@@ -270,17 +373,14 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	type profile struct {
-		Name  string
-		Href  string
-		Desc  string
-		Count int
-	}
-	var profiles []profile
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	var profiles []profileEntry
 	for _, p := range pprof.Profiles() {
-		profiles = append(profiles, profile{
+		profiles = append(profiles, profileEntry{
 			Name:  p.Name(),
-			Href:  p.Name() + "?debug=1",
+			Href:  p.Name(),
 			Desc:  profileDescriptions[p.Name()],
 			Count: p.Count(),
 		})
@@ -288,7 +388,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 
 	// Adding other profiles exposed from within this package
 	for _, p := range []string{"cmdline", "profile", "trace"} {
-		profiles = append(profiles, profile{
+		profiles = append(profiles, profileEntry{
 			Name: p,
 			Href: p,
 			Desc: profileDescriptions[p],
@@ -299,12 +399,14 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		return profiles[i].Name < profiles[j].Name
 	})
 
-	if err := indexTmpl.Execute(w, profiles); err != nil {
+	if err := indexTmplExecute(w, profiles); err != nil {
 		log.Print(err)
 	}
 }
 
-var indexTmpl = template.Must(template.New("index").Parse(`<html>
+func indexTmplExecute(w io.Writer, profiles []profileEntry) error {
+	var b bytes.Buffer
+	b.WriteString(`<html>
 <head>
 <title>/debug/pprof/</title>
 <style>
@@ -320,22 +422,28 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
 Types of profiles available:
 <table>
 <thead><td>Count</td><td>Profile</td></thead>
-{{range .}}
-	<tr>
-	<td>{{.Count}}</td><td><a href={{.Href}}>{{.Name}}</a></td>
-	</tr>
-{{end}}
-</table>
+`)
+
+	for _, profile := range profiles {
+		link := &url.URL{Path: profile.Href, RawQuery: "debug=1"}
+		fmt.Fprintf(&b, "<tr><td>%d</td><td><a href='%s'>%s</a></td></tr>\n", profile.Count, link, html.EscapeString(profile.Name))
+	}
+
+	b.WriteString(`</table>
 <a href="goroutine?debug=2">full goroutine stack dump</a>
-<br/>
+<br>
 <p>
 Profile Descriptions:
 <ul>
-{{range .}}
-<li><div class=profile-name>{{.Name}}:</div> {{.Desc}}</li>
-{{end}}
-</ul>
+`)
+	for _, profile := range profiles {
+		fmt.Fprintf(&b, "<li><div class=profile-name>%s: </div> %s</li>\n", html.EscapeString(profile.Name), html.EscapeString(profile.Desc))
+	}
+	b.WriteString(`</ul>
 </p>
 </body>
-</html>
-`))
+</html>`)
+
+	_, err := w.Write(b.Bytes())
+	return err
+}

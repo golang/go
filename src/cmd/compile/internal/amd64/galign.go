@@ -5,27 +5,23 @@
 package amd64
 
 import (
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/x86"
-	"cmd/internal/objabi"
 )
 
 var leaptr = x86.ALEAQ
 
-func Init(arch *gc.Arch) {
+func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &x86.Linkamd64
-	if objabi.GOARCH == "amd64p32" {
-		arch.LinkArch = &x86.Linkamd64p32
-		leaptr = x86.ALEAL
-	}
 	arch.REGSP = x86.REGSP
 	arch.MAXWIDTH = 1 << 50
 
 	arch.ZeroRange = zerorange
-	arch.ZeroAuto = zeroAuto
 	arch.Ginsnop = ginsnop
 
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue
 	arch.SSAGenBlock = ssaGenBlock
+	arch.LoadRegResult = loadRegResult
+	arch.SpillArgReg = spillArgReg
 }

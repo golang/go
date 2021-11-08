@@ -46,9 +46,7 @@ func urlFilter(args ...interface{}) string {
 // isSafeURL is true if s is a relative URL or if URL has a protocol in
 // (http, https, mailto).
 func isSafeURL(s string) bool {
-	if i := strings.IndexRune(s, ':'); i >= 0 && !strings.ContainsRune(s[:i], '/') {
-
-		protocol := s[:i]
+	if protocol, _, ok := strings.Cut(s, ":"); ok && !strings.Contains(protocol, "/") {
 		if !strings.EqualFold(protocol, "http") && !strings.EqualFold(protocol, "https") && !strings.EqualFold(protocol, "mailto") {
 			return false
 		}
@@ -86,7 +84,7 @@ func urlProcessor(norm bool, args ...interface{}) string {
 }
 
 // processURLOnto appends a normalized URL corresponding to its input to b
-// and returns true if the appended content differs from s.
+// and reports whether the appended content differs from s.
 func processURLOnto(s string, norm bool, b *bytes.Buffer) bool {
 	b.Grow(len(s) + 16)
 	written := 0
@@ -156,7 +154,7 @@ func srcsetFilterAndEscaper(args ...interface{}) string {
 			s = b.String()
 		}
 		// Additionally, commas separate one source from another.
-		return strings.Replace(s, ",", "%2c", -1)
+		return strings.ReplaceAll(s, ",", "%2c")
 	}
 
 	var b bytes.Buffer

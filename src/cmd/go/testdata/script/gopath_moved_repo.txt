@@ -1,0 +1,67 @@
+env GO111MODULE=off
+
+# Test that 'go get -u' reports packages whose VCS configurations do not
+# match their import paths.
+
+[!net] skip
+[short] skip
+
+# We need to execute a custom Go program to break the config files.
+#
+# git will ask for a username and password when we run 'go get -d -f -u',
+# so we also need to set GIT_ASKPASS. Conveniently, a single binary can
+# perform both tasks!
+
+go build -o replace.exe replace
+env GIT_ASKPASS=$PWD/replace.exe
+
+
+# Test that 'go get -u' reports moved git packages.
+
+[exec:git] go get -d rsc.io/pdf
+[exec:git] go get -d -u rsc.io/pdf
+[exec:git] exec ./replace.exe pdf rsc.io/pdf/.git/config
+
+[exec:git] ! go get -d -u rsc.io/pdf
+[exec:git] stderr 'is a custom import path for'
+[exec:git] ! go get -d -f -u rsc.io/pdf
+[exec:git] stderr 'validating server certificate|[nN]ot [fF]ound'
+
+
+# Test that 'go get -u' reports moved Mercurial packages.
+
+[exec:hg] go get -d vcs-test.golang.org/go/custom-hg-hello
+[exec:hg] go get -d -u vcs-test.golang.org/go/custom-hg-hello
+[exec:hg] exec ./replace.exe custom-hg-hello vcs-test.golang.org/go/custom-hg-hello/.hg/hgrc
+
+[exec:hg] ! go get -d -u vcs-test.golang.org/go/custom-hg-hello
+[exec:hg] stderr 'is a custom import path for'
+[exec:hg] ! go get -d -f -u vcs-test.golang.org/go/custom-hg-hello
+[exec:hg] stderr 'validating server certificate|[nN]ot [fF]ound'
+
+
+-- replace/replace.go --
+package main
+
+import (
+	"bytes"
+	"log"
+	"os"
+)
+
+func main() {
+	if len(os.Args) < 3 {
+		return
+	}
+
+	base := []byte(os.Args[1])
+	path := os.Args[2]
+	data, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.WriteFile(path, bytes.ReplaceAll(data, base, append(base, "XXX"...)), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}

@@ -35,6 +35,19 @@ type RWMutex struct {
 
 const rwmutexMaxReaders = 1 << 30
 
+// Happens-before relationships are indicated to the race detector via:
+// - Unlock  -> Lock:  readerSem
+// - Unlock  -> RLock: readerSem
+// - RUnlock -> Lock:  writerSem
+//
+// The methods below temporarily disable handling of race synchronization
+// events in order to provide the more precise model above to the race
+// detector.
+//
+// For example, atomic.AddInt32 in RLock should not appear to provide
+// acquire-release semantics, which would incorrectly synchronize racing
+// readers, thus potentially missing races.
+
 // RLock locks rw for reading.
 //
 // It should not be used for recursive read locking; a blocked Lock
@@ -47,11 +60,39 @@ func (rw *RWMutex) RLock() {
 	}
 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
 		// A writer is pending, wait for it.
-		runtime_SemacquireMutex(&rw.readerSem, false)
+		runtime_SemacquireMutex(&rw.readerSem, false, 0)
 	}
 	if race.Enabled {
 		race.Enable()
 		race.Acquire(unsafe.Pointer(&rw.readerSem))
+	}
+}
+
+// TryRLock tries to lock rw for reading and reports whether it succeeded.
+//
+// Note that while correct uses of TryRLock do exist, they are rare,
+// and use of TryRLock is often a sign of a deeper problem
+// in a particular use of mutexes.
+func (rw *RWMutex) TryRLock() bool {
+	if race.Enabled {
+		_ = rw.w.state
+		race.Disable()
+	}
+	for {
+		c := atomic.LoadInt32(&rw.readerCount)
+		if c < 0 {
+			if race.Enabled {
+				race.Enable()
+			}
+			return false
+		}
+		if atomic.CompareAndSwapInt32(&rw.readerCount, c, c+1) {
+			if race.Enabled {
+				race.Enable()
+				race.Acquire(unsafe.Pointer(&rw.readerSem))
+			}
+			return true
+		}
 	}
 }
 
@@ -66,18 +107,23 @@ func (rw *RWMutex) RUnlock() {
 		race.Disable()
 	}
 	if r := atomic.AddInt32(&rw.readerCount, -1); r < 0 {
-		if r+1 == 0 || r+1 == -rwmutexMaxReaders {
-			race.Enable()
-			throw("sync: RUnlock of unlocked RWMutex")
-		}
-		// A writer is pending.
-		if atomic.AddInt32(&rw.readerWait, -1) == 0 {
-			// The last reader unblocks the writer.
-			runtime_Semrelease(&rw.writerSem, false)
-		}
+		// Outlined slow-path to allow the fast-path to be inlined
+		rw.rUnlockSlow(r)
 	}
 	if race.Enabled {
 		race.Enable()
+	}
+}
+
+func (rw *RWMutex) rUnlockSlow(r int32) {
+	if r+1 == 0 || r+1 == -rwmutexMaxReaders {
+		race.Enable()
+		throw("sync: RUnlock of unlocked RWMutex")
+	}
+	// A writer is pending.
+	if atomic.AddInt32(&rw.readerWait, -1) == 0 {
+		// The last reader unblocks the writer.
+		runtime_Semrelease(&rw.writerSem, false, 1)
 	}
 }
 
@@ -95,13 +141,44 @@ func (rw *RWMutex) Lock() {
 	r := atomic.AddInt32(&rw.readerCount, -rwmutexMaxReaders) + rwmutexMaxReaders
 	// Wait for active readers.
 	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
-		runtime_SemacquireMutex(&rw.writerSem, false)
+		runtime_SemacquireMutex(&rw.writerSem, false, 0)
 	}
 	if race.Enabled {
 		race.Enable()
 		race.Acquire(unsafe.Pointer(&rw.readerSem))
 		race.Acquire(unsafe.Pointer(&rw.writerSem))
 	}
+}
+
+// TryLock tries to lock rw for writing and reports whether it succeeded.
+//
+// Note that while correct uses of TryLock do exist, they are rare,
+// and use of TryLock is often a sign of a deeper problem
+// in a particular use of mutexes.
+func (rw *RWMutex) TryLock() bool {
+	if race.Enabled {
+		_ = rw.w.state
+		race.Disable()
+	}
+	if !rw.w.TryLock() {
+		if race.Enabled {
+			race.Enable()
+		}
+		return false
+	}
+	if !atomic.CompareAndSwapInt32(&rw.readerCount, 0, -rwmutexMaxReaders) {
+		rw.w.Unlock()
+		if race.Enabled {
+			race.Enable()
+		}
+		return false
+	}
+	if race.Enabled {
+		race.Enable()
+		race.Acquire(unsafe.Pointer(&rw.readerSem))
+		race.Acquire(unsafe.Pointer(&rw.writerSem))
+	}
+	return true
 }
 
 // Unlock unlocks rw for writing. It is a run-time error if rw is
@@ -125,7 +202,7 @@ func (rw *RWMutex) Unlock() {
 	}
 	// Unblock blocked readers, if any.
 	for i := 0; i < int(r); i++ {
-		runtime_Semrelease(&rw.readerSem, false)
+		runtime_Semrelease(&rw.readerSem, false, 0)
 	}
 	// Allow other writers to proceed.
 	rw.w.Unlock()

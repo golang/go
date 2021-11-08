@@ -5,12 +5,13 @@
 package obj
 
 import (
+	"cmd/internal/goobj"
 	"cmd/internal/src"
 )
 
 // AddImport adds a package to the list of imported packages.
-func (ctxt *Link) AddImport(pkg string) {
-	ctxt.Imports = append(ctxt.Imports, pkg)
+func (ctxt *Link) AddImport(pkg string, fingerprint goobj.FingerprintType) {
+	ctxt.Imports = append(ctxt.Imports, goobj.ImportedPkg{Pkg: pkg, Fingerprint: fingerprint})
 }
 
 func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f string, l int32) {
@@ -20,4 +21,10 @@ func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f string, l int32) {
 	}
 	// TODO(gri) Should this use relative or absolute line number?
 	return pos.SymFilename(), int32(pos.RelLine())
+}
+
+// getFileIndexAndLine returns the file index (local to the CU), and the line number for a position.
+func getFileIndexAndLine(ctxt *Link, xpos src.XPos) (int, int32) {
+	f, l := linkgetlineFromPos(ctxt, xpos)
+	return ctxt.PosTable.FileIndex(f), l
 }

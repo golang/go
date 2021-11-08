@@ -138,7 +138,7 @@ TEXT runtime·nsec(SB),NOSPLIT|NOFRAME,$0-12
 	MOVW	R0, ret_hi+8(FP)
 	RET
 
-// time.now() (sec int64, nsec int32)
+// func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB),NOSPLIT,$12-12
 	// use nsec system call to get current time in nanoseconds
 	MOVW	$sysnsec_lo-8(SP), R0	// destination addr

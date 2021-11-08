@@ -1,0 +1,22 @@
+# https://golang.org/issue/44296: the --versions flag should not affect
+# the version reported by 'go list' in case of retractions.
+
+env FMT='{{.Path}}{{with .Error}}: {{printf "%q" .Err}}{{end}} {{printf "%q" .Version}}{{with .Versions}} {{.}}{{end}}'
+
+go list -m -e -f $FMT example.com/retract/self/pseudo
+stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: not a known dependency" ""$'
+
+go list -m -e -f $FMT example.com/retract/self/pseudo@latest
+stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'
+
+
+go list -m -e -f $FMT --versions example.com/retract/self/pseudo
+stdout '^example.com/retract/self/pseudo ""$'
+
+go list -m -e -f $FMT --versions example.com/retract/self/pseudo@latest
+stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'
+
+-- go.mod --
+module test
+
+go 1.17

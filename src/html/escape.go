@@ -12,7 +12,7 @@ import (
 
 // These replacements permit compatibility with old numeric entities that
 // assumed Windows-1252 encoding.
-// http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
+// https://html.spec.whatwg.org/multipage/parsing.html#numeric-character-reference-end-state
 var replacementTable = [...]rune{
 	'\u20AC', // First entry is what 0x80 should be replaced with.
 	'\u0081',
@@ -185,6 +185,7 @@ func EscapeString(s string) string {
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func UnescapeString(s string) string {
+	populateMapsOnce.Do(populateMaps)
 	i := strings.IndexByte(s, '&')
 
 	if i < 0 {

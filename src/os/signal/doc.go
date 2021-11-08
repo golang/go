@@ -50,7 +50,7 @@ If the Go program is started with either SIGHUP or SIGINT ignored
 If the Go program is started with a non-empty signal mask, that will
 generally be honored. However, some signals are explicitly unblocked:
 the synchronous signals, SIGILL, SIGTRAP, SIGSTKFLT, SIGCHLD, SIGPROF,
-and, on GNU/Linux, signals 32 (SIGCANCEL) and 33 (SIGSETXID)
+and, on Linux, signals 32 (SIGCANCEL) and 33 (SIGSETXID)
 (SIGCANCEL and SIGSETXID are used internally by glibc). Subprocesses
 started by os.Exec, or by the os/exec package, will inherit the
 modified signal mask.
@@ -129,9 +129,7 @@ If the non-Go code installs any signal handlers, it must use the
 SA_ONSTACK flag with sigaction. Failing to do so is likely to cause
 the program to crash if the signal is received. Go programs routinely
 run with a limited stack, and therefore set up an alternate signal
-stack. Also, the Go standard library expects that any signal handlers
-will use the SA_RESTART flag. Failing to do so may cause some library
-calls to return "interrupted system call" errors.
+stack.
 
 If the non-Go code installs a signal handler for any of the
 synchronous signals (SIGBUS, SIGFPE, SIGSEGV), then it should record
@@ -178,7 +176,7 @@ will initialize signals at global constructor time.  For
 shared library is loaded.
 
 If the Go runtime sees an existing signal handler for the SIGCANCEL or
-SIGSETXID signals (which are used only on GNU/Linux), it will turn on
+SIGSETXID signals (which are used only on Linux), it will turn on
 the SA_ONSTACK flag and otherwise keep the signal handler.
 
 For the synchronous signals and SIGPIPE, the Go runtime will install a
@@ -210,6 +208,14 @@ the program to exit. If Notify is called for os.Interrupt, ^C or ^BREAK
 will cause os.Interrupt to be sent on the channel, and the program will
 not exit. If Reset is called, or Stop is called on all channels passed
 to Notify, then the default behavior will be restored.
+
+Additionally, if Notify is called, and Windows sends CTRL_CLOSE_EVENT,
+CTRL_LOGOFF_EVENT or CTRL_SHUTDOWN_EVENT to the process, Notify will
+return syscall.SIGTERM. Unlike Control-C and Control-Break, Notify does
+not change process behavior when either CTRL_CLOSE_EVENT,
+CTRL_LOGOFF_EVENT or CTRL_SHUTDOWN_EVENT is received - the process will
+still get terminated unless it exits. But receiving syscall.SIGTERM will
+give the process an opportunity to clean up before termination.
 
 Plan 9
 

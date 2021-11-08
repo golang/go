@@ -5,7 +5,6 @@
 package main
 
 import (
-	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/amd64"
 	"cmd/link/internal/arm"
@@ -14,10 +13,12 @@ import (
 	"cmd/link/internal/mips"
 	"cmd/link/internal/mips64"
 	"cmd/link/internal/ppc64"
+	"cmd/link/internal/riscv64"
 	"cmd/link/internal/s390x"
 	"cmd/link/internal/wasm"
 	"cmd/link/internal/x86"
 	"fmt"
+	"internal/buildcfg"
 	"os"
 )
 
@@ -39,13 +40,14 @@ func main() {
 	var arch *sys.Arch
 	var theArch ld.Arch
 
-	switch objabi.GOARCH {
+	buildcfg.Check()
+	switch buildcfg.GOARCH {
 	default:
-		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", objabi.GOARCH)
+		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", buildcfg.GOARCH)
 		os.Exit(2)
 	case "386":
 		arch, theArch = x86.Init()
-	case "amd64", "amd64p32":
+	case "amd64":
 		arch, theArch = amd64.Init()
 	case "arm":
 		arch, theArch = arm.Init()
@@ -57,6 +59,8 @@ func main() {
 		arch, theArch = mips64.Init()
 	case "ppc64", "ppc64le":
 		arch, theArch = ppc64.Init()
+	case "riscv64":
+		arch, theArch = riscv64.Init()
 	case "s390x":
 		arch, theArch = s390x.Init()
 	case "wasm":

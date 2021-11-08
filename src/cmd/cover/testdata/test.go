@@ -13,6 +13,7 @@ package main
 import _ "unsafe" // for go:linkname
 
 //go:linkname some_name some_name
+var some_name int
 
 const anything = 1e9 // Just some unlikely value that means "we got here, don't care how often"
 
@@ -132,6 +133,10 @@ func testBlockRun() {
 
 func testSwitch() {
 	for i := 0; i < 5; func() { i++; check(LINE, 5) }() {
+		goto label2
+	label1:
+		goto label1
+	label2:
 		switch i {
 		case 0:
 			check(LINE, 1)

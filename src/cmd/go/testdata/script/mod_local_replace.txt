@@ -1,0 +1,23 @@
+# Test that local replacements work even with dummy module names.
+# golang.org/issue/24100.
+
+env GO111MODULE=on
+
+cd x/y
+go list -f '{{.Dir}}' zz
+stdout x[/\\]z$
+
+-- x/y/go.mod --
+module x/y
+require zz v1.0.0
+replace zz v1.0.0 => ../z
+
+-- x/y/y.go --
+package y
+import _ "zz"
+
+-- x/z/go.mod --
+module x/z
+
+-- x/z/z.go --
+package z

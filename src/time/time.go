@@ -75,7 +75,10 @@
 //
 package time
 
-import "errors"
+import (
+	"errors"
+	_ "unsafe" // for go:linkname
+)
 
 // A Time represents an instant in time with nanosecond precision.
 //
@@ -101,6 +104,10 @@ import "errors"
 // Changing the location in this way changes only the presentation; it does not
 // change the instant in time being denoted and therefore does not affect the
 // computations described in earlier paragraphs.
+//
+// Representations of a Time value saved by the GobEncode, MarshalBinary,
+// MarshalJSON, and MarshalText methods store the Time.Location's offset, but not
+// the location name. They therefore lose information about Daylight Saving Time.
 //
 // In addition to the required “wall clock” reading, a Time may contain an optional
 // reading of the current process's monotonic clock, to provide additional precision
@@ -182,8 +189,15 @@ func (t *Time) addSec(d int64) {
 		t.stripMono()
 	}
 
-	// TODO: Check for overflow.
-	t.ext += d
+	// Check if the sum of t.ext and d overflows and handle it properly.
+	sum := t.ext + d
+	if (sum > t.ext) == (d > 0) {
+		t.ext = sum
+	} else if d > 0 {
+		t.ext = 1<<63 - 1
+	} else {
+		t.ext = -(1<<63 - 1)
+	}
 }
 
 // setLoc sets the location associated with the time.
@@ -245,12 +259,14 @@ func (t Time) Before(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return t.ext < u.ext
 	}
-	return t.sec() < u.sec() || t.sec() == u.sec() && t.nsec() < u.nsec()
+	ts := t.sec()
+	us := u.sec()
+	return ts < us || ts == us && t.nsec() < u.nsec()
 }
 
 // Equal reports whether t and u represent the same time instant.
 // Two times can be equal even if they are in different locations.
-// For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
+// For example, 6:00 +0200 and 4:00 UTC are Equal.
 // See the documentation on the Time type for the pitfalls of using == with
 // Time values; most code should use Equal instead.
 func (t Time) Equal(u Time) bool {
@@ -278,25 +294,10 @@ const (
 	December
 )
 
-var months = [...]string{
-	"January",
-	"February",
-	"March",
-	"April",
-	"May",
-	"June",
-	"July",
-	"August",
-	"September",
-	"October",
-	"November",
-	"December",
-}
-
 // String returns the English name of the month ("January", "February", ...).
 func (m Month) String() string {
 	if January <= m && m <= December {
-		return months[m-1]
+		return longMonthNames[m-1]
 	}
 	buf := make([]byte, 20)
 	n := fmtInt(buf, uint64(m))
@@ -316,20 +317,10 @@ const (
 	Saturday
 )
 
-var days = [...]string{
-	"Sunday",
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-}
-
 // String returns the English name of the day ("Sunday", "Monday", ...).
 func (d Weekday) String() string {
 	if Sunday <= d && d <= Saturday {
-		return days[d]
+		return longDayNames[d]
 	}
 	buf := make([]byte, 20)
 	n := fmtInt(buf, uint64(d))
@@ -434,7 +425,6 @@ const (
 	internalToUnix int64 = -unixToInternal
 
 	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
-	internalToWall int64 = -wallToInternal
 )
 
 // IsZero reports whether t represents the zero time instant,
@@ -456,7 +446,7 @@ func (t Time) abs() uint64 {
 		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
 			sec += int64(l.cacheZone.offset)
 		} else {
-			_, offset, _, _ := l.lookup(sec)
+			_, offset, _, _, _ := l.lookup(sec)
 			sec += int64(offset)
 		}
 	}
@@ -477,7 +467,7 @@ func (t Time) locabs() (name string, offset int, abs uint64) {
 			name = l.cacheZone.name
 			offset = l.cacheZone.offset
 		} else {
-			name, offset, _, _ = l.lookup(sec)
+			name, offset, _, _, _ = l.lookup(sec)
 		}
 		sec += int64(offset)
 	} else {
@@ -528,58 +518,26 @@ func absWeekday(abs uint64) Weekday {
 // week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1
 // of year n+1.
 func (t Time) ISOWeek() (year, week int) {
-	year, month, day, yday := t.date(true)
-	wday := int(t.Weekday()+6) % 7 // weekday but Monday = 0.
-	const (
-		Mon int = iota
-		Tue
-		Wed
-		Thu
-		Fri
-		Sat
-		Sun
-	)
+	// According to the rule that the first calendar week of a calendar year is
+	// the week including the first Thursday of that year, and that the last one is
+	// the week immediately preceding the first calendar week of the next calendar year.
+	// See https://www.iso.org/obp/ui#iso:std:iso:8601:-1:ed-1:v1:en:term:3.1.1.23 for details.
 
-	// Calculate week as number of Mondays in year up to
-	// and including today, plus 1 because the first week is week 0.
-	// Putting the + 1 inside the numerator as a + 7 keeps the
-	// numerator from being negative, which would cause it to
-	// round incorrectly.
-	week = (yday - wday + 7) / 7
-
-	// The week number is now correct under the assumption
-	// that the first Monday of the year is in week 1.
-	// If Jan 1 is a Tuesday, Wednesday, or Thursday, the first Monday
-	// is actually in week 2.
-	jan1wday := (wday - yday + 7*53) % 7
-	if Tue <= jan1wday && jan1wday <= Thu {
-		week++
+	// weeks start with Monday
+	// Monday Tuesday Wednesday Thursday Friday Saturday Sunday
+	// 1      2       3         4        5      6        7
+	// +3     +2      +1        0        -1     -2       -3
+	// the offset to Thursday
+	abs := t.abs()
+	d := Thursday - absWeekday(abs)
+	// handle Sunday
+	if d == 4 {
+		d = -3
 	}
-
-	// If the week number is still 0, we're in early January but in
-	// the last week of last year.
-	if week == 0 {
-		year--
-		week = 52
-		// A year has 53 weeks when Jan 1 or Dec 31 is a Thursday,
-		// meaning Jan 1 of the next year is a Friday
-		// or it was a leap year and Jan 1 of the next year is a Saturday.
-		if jan1wday == Fri || (jan1wday == Sat && isLeap(year)) {
-			week++
-		}
-	}
-
-	// December 29 to 31 are in week 1 of next year if
-	// they are after the last Thursday of the year and
-	// December 31 is a Monday, Tuesday, or Wednesday.
-	if month == December && day >= 29 && wday < Thu {
-		if dec31wday := (wday + 31 - day) % 7; Mon <= dec31wday && dec31wday <= Wed {
-			year++
-			week = 1
-		}
-	}
-
-	return
+	// find the Thursday of the calendar week
+	abs += uint64(d) * secondsPerDay
+	year, _, _, yday := absDate(abs, false)
+	return year, yday/7 + 1
 }
 
 // Clock returns the hour, minute, and second within the day specified by t.
@@ -776,6 +734,12 @@ func fmtInt(buf []byte, v uint64) int {
 // Nanoseconds returns the duration as an integer nanosecond count.
 func (d Duration) Nanoseconds() int64 { return int64(d) }
 
+// Microseconds returns the duration as an integer microsecond count.
+func (d Duration) Microseconds() int64 { return int64(d) / 1e3 }
+
+// Milliseconds returns the duration as an integer millisecond count.
+func (d Duration) Milliseconds() int64 { return int64(d) / 1e6 }
+
 // These methods return float64 because the dominant
 // use case is for printing a floating point number like 1.5s, and
 // a truncation to integer would make them not useful in those cases.
@@ -908,13 +872,27 @@ func (t Time) Sub(u Time) Duration {
 // Since returns the time elapsed since t.
 // It is shorthand for time.Now().Sub(t).
 func Since(t Time) Duration {
-	return Now().Sub(t)
+	var now Time
+	if t.wall&hasMonotonic != 0 {
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
+		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
+	} else {
+		now = Now()
+	}
+	return now.Sub(t)
 }
 
 // Until returns the duration until t.
 // It is shorthand for t.Sub(time.Now()).
 func Until(t Time) Duration {
-	return t.Sub(Now())
+	var now Time
+	if t.wall&hasMonotonic != 0 {
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
+		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
+	} else {
+		now = Now()
+	}
+	return t.Sub(now)
 }
 
 // AddDate returns the time corresponding to adding the
@@ -933,7 +911,7 @@ func (t Time) AddDate(years int, months int, days int) Time {
 
 const (
 	secondsPerMinute = 60
-	secondsPerHour   = 60 * 60
+	secondsPerHour   = 60 * secondsPerMinute
 	secondsPerDay    = 24 * secondsPerHour
 	secondsPerWeek   = 7 * secondsPerDay
 	daysPer400Years  = 365*400 + 97
@@ -1047,12 +1025,53 @@ func daysIn(m Month, year int) int {
 	return int(daysBefore[m] - daysBefore[m-1])
 }
 
+// daysSinceEpoch takes a year and returns the number of days from
+// the absolute epoch to the start of that year.
+// This is basically (year - zeroYear) * 365, but accounting for leap days.
+func daysSinceEpoch(year int) uint64 {
+	y := uint64(int64(year) - absoluteZeroYear)
+
+	// Add in days from 400-year cycles.
+	n := y / 400
+	y -= 400 * n
+	d := daysPer400Years * n
+
+	// Add in 100-year cycles.
+	n = y / 100
+	y -= 100 * n
+	d += daysPer100Years * n
+
+	// Add in 4-year cycles.
+	n = y / 4
+	y -= 4 * n
+	d += daysPer4Years * n
+
+	// Add in non-leap years.
+	n = y
+	d += 365 * n
+
+	return d
+}
+
 // Provided by package runtime.
 func now() (sec int64, nsec int32, mono int64)
+
+// runtimeNano returns the current value of the runtime clock in nanoseconds.
+//go:linkname runtimeNano runtime.nanotime
+func runtimeNano() int64
+
+// Monotonic times are reported as offsets from startNano.
+// We initialize startNano to runtimeNano() - 1 so that on systems where
+// monotonic time resolution is fairly low (e.g. Windows 2008
+// which appears to have a default resolution of 15ms),
+// we avoid ever reporting a monotonic time of 0.
+// (Callers may want to use 0 as "time not set".)
+var startNano int64 = runtimeNano() - 1
 
 // Now returns the current local time.
 func Now() Time {
 	sec, nsec, mono := now()
+	mono -= startNano
 	sec += unixToInternal - minWall
 	if uint64(sec)>>33 != 0 {
 		return Time{uint64(nsec), sec + minWall, Local}
@@ -1076,7 +1095,9 @@ func (t Time) Local() Time {
 	return t
 }
 
-// In returns t with the location information set to loc.
+// In returns a copy of t representing the same time instant, but
+// with the copy's location information set to loc for display
+// purposes.
 //
 // In panics if loc is nil.
 func (t Time) In(loc *Location) Time {
@@ -1099,38 +1120,68 @@ func (t Time) Location() *Location {
 // Zone computes the time zone in effect at time t, returning the abbreviated
 // name of the zone (such as "CET") and its offset in seconds east of UTC.
 func (t Time) Zone() (name string, offset int) {
-	name, offset, _, _ = t.loc.lookup(t.unixSec())
+	name, offset, _, _, _ = t.loc.lookup(t.unixSec())
 	return
 }
 
 // Unix returns t as a Unix time, the number of seconds elapsed
-// since January 1, 1970 UTC.
+// since January 1, 1970 UTC. The result does not depend on the
+// location associated with t.
+// Unix-like operating systems often record time as a 32-bit
+// count of seconds, but since the method here returns a 64-bit
+// value it is valid for billions of years into the past or future.
 func (t Time) Unix() int64 {
 	return t.unixSec()
+}
+
+// UnixMilli returns t as a Unix time, the number of milliseconds elapsed since
+// January 1, 1970 UTC. The result is undefined if the Unix time in
+// milliseconds cannot be represented by an int64 (a date more than 292 million
+// years before or after 1970). The result does not depend on the
+// location associated with t.
+func (t Time) UnixMilli() int64 {
+	return t.unixSec()*1e3 + int64(t.nsec())/1e6
+}
+
+// UnixMicro returns t as a Unix time, the number of microseconds elapsed since
+// January 1, 1970 UTC. The result is undefined if the Unix time in
+// microseconds cannot be represented by an int64 (a date before year -290307 or
+// after year 294246). The result does not depend on the location associated
+// with t.
+func (t Time) UnixMicro() int64 {
+	return t.unixSec()*1e6 + int64(t.nsec())/1e3
 }
 
 // UnixNano returns t as a Unix time, the number of nanoseconds elapsed
 // since January 1, 1970 UTC. The result is undefined if the Unix time
 // in nanoseconds cannot be represented by an int64 (a date before the year
 // 1678 or after 2262). Note that this means the result of calling UnixNano
-// on the zero Time is undefined.
+// on the zero Time is undefined. The result does not depend on the
+// location associated with t.
 func (t Time) UnixNano() int64 {
 	return (t.unixSec())*1e9 + int64(t.nsec())
 }
 
-const timeBinaryVersion byte = 1
+const (
+	timeBinaryVersionV1 byte = iota + 1 // For general situation
+	timeBinaryVersionV2                 // For LMT only
+)
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (t Time) MarshalBinary() ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
+	var offsetSec int8
+	version := timeBinaryVersionV1
 
 	if t.Location() == UTC {
 		offsetMin = -1
 	} else {
 		_, offset := t.Zone()
 		if offset%60 != 0 {
-			return nil, errors.New("Time.MarshalBinary: zone offset has fractional minute")
+			version = timeBinaryVersionV2
+			offsetSec = int8(offset % 60)
 		}
+
 		offset /= 60
 		if offset < -32768 || offset == -1 || offset > 32767 {
 			return nil, errors.New("Time.MarshalBinary: unexpected zone offset")
@@ -1141,8 +1192,8 @@ func (t Time) MarshalBinary() ([]byte, error) {
 	sec := t.sec()
 	nsec := t.nsec()
 	enc := []byte{
-		timeBinaryVersion, // byte 0 : version
-		byte(sec >> 56),   // bytes 1-8: seconds
+		version,         // byte 0 : version
+		byte(sec >> 56), // bytes 1-8: seconds
 		byte(sec >> 48),
 		byte(sec >> 40),
 		byte(sec >> 32),
@@ -1157,6 +1208,9 @@ func (t Time) MarshalBinary() ([]byte, error) {
 		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
 		byte(offsetMin),
 	}
+	if version == timeBinaryVersionV2 {
+		enc = append(enc, byte(offsetSec))
+	}
 
 	return enc, nil
 }
@@ -1168,11 +1222,16 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 		return errors.New("Time.UnmarshalBinary: no data")
 	}
 
-	if buf[0] != timeBinaryVersion {
+	version := buf[0]
+	if version != timeBinaryVersionV1 && version != timeBinaryVersionV2 {
 		return errors.New("Time.UnmarshalBinary: unsupported version")
 	}
 
-	if len(buf) != /*version*/ 1+ /*sec*/ 8+ /*nsec*/ 4+ /*zone offset*/ 2 {
+	wantLen := /*version*/ 1 + /*sec*/ 8 + /*nsec*/ 4 + /*zone offset*/ 2
+	if version == timeBinaryVersionV2 {
+		wantLen++
+	}
+	if len(buf) != wantLen {
 		return errors.New("Time.UnmarshalBinary: invalid length")
 	}
 
@@ -1185,6 +1244,9 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 
 	buf = buf[4:]
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
+	if version == timeBinaryVersionV2 {
+		offset += int(buf[2])
+	}
 
 	*t = Time{}
 	t.wall = uint64(nsec)
@@ -1192,7 +1254,7 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 
 	if offset == -1*60 {
 		t.setLoc(&utcLoc)
-	} else if _, localoff, _, _ := Local.lookup(t.unixSec()); offset == localoff {
+	} else if _, localoff, _, _, _ := Local.lookup(t.unixSec()); offset == localoff {
 		t.setLoc(Local)
 	} else {
 		t.setLoc(FixedZone("", offset))
@@ -1282,6 +1344,24 @@ func Unix(sec int64, nsec int64) Time {
 	return unixTime(sec, int32(nsec))
 }
 
+// UnixMilli returns the local Time corresponding to the given Unix time,
+// msec milliseconds since January 1, 1970 UTC.
+func UnixMilli(msec int64) Time {
+	return Unix(msec/1e3, (msec%1e3)*1e6)
+}
+
+// UnixMicro returns the local Time corresponding to the given Unix time,
+// usec microseconds since January 1, 1970 UTC.
+func UnixMicro(usec int64) Time {
+	return Unix(usec/1e6, (usec%1e6)*1e3)
+}
+
+// IsDST reports whether the time in the configured location is in Daylight Savings Time.
+func (t Time) IsDST() bool {
+	_, _, _, _, isDST := t.loc.lookup(t.Unix())
+	return isDST
+}
+
 func isLeap(year int) bool {
 	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
 }
@@ -1335,28 +1415,8 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	hour, min = norm(hour, min, 60)
 	day, hour = norm(day, hour, 24)
 
-	y := uint64(int64(year) - absoluteZeroYear)
-
 	// Compute days since the absolute epoch.
-
-	// Add in days from 400-year cycles.
-	n := y / 400
-	y -= 400 * n
-	d := daysPer400Years * n
-
-	// Add in 100-year cycles.
-	n = y / 100
-	y -= 100 * n
-	d += daysPer100Years * n
-
-	// Add in 4-year cycles.
-	n = y / 4
-	y -= 4 * n
-	d += daysPer4Years * n
-
-	// Add in non-leap years.
-	n = y
-	d += 365 * n
+	d := daysSinceEpoch(year)
 
 	// Add in days before this month.
 	d += uint64(daysBefore[month-1])
@@ -1373,17 +1433,17 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 
 	unix := int64(abs) + (absoluteToInternal + internalToUnix)
 
-	// Look for zone offset for t, so we can adjust to UTC.
-	// The lookup function expects UTC, so we pass t in the
+	// Look for zone offset for expected time, so we can adjust to UTC.
+	// The lookup function expects UTC, so first we pass unix in the
 	// hope that it will not be too close to a zone transition,
 	// and then adjust if it is.
-	_, offset, start, end := loc.lookup(unix)
+	_, offset, start, end, _ := loc.lookup(unix)
 	if offset != 0 {
-		switch utc := unix - int64(offset); {
-		case utc < start:
-			_, offset, _, _ = loc.lookup(start - 1)
-		case utc >= end:
-			_, offset, _, _ = loc.lookup(end)
+		utc := unix - int64(offset)
+		// If utc is valid for the time zone we found, then we have the right offset.
+		// If not, we get the correct offset by looking up utc in the location.
+		if utc < start || utc >= end {
+			_, offset, _, _, _ = loc.lookup(utc)
 		}
 		unix -= int64(offset)
 	}

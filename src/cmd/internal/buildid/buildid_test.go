@@ -7,9 +7,11 @@ package buildid
 import (
 	"bytes"
 	"crypto/sha256"
+	"internal/obscuretestdata"
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -19,13 +21,6 @@ const (
 )
 
 func TestReadFile(t *testing.T) {
-	var files = []string{
-		"p.a",
-		"a.elf",
-		"a.macho",
-		"a.pe",
-	}
-
 	f, err := ioutil.TempFile("", "buildid-test-")
 	if err != nil {
 		t.Fatal(err)
@@ -34,26 +29,43 @@ func TestReadFile(t *testing.T) {
 	defer os.Remove(tmp)
 	f.Close()
 
-	for _, f := range files {
-		id, err := ReadFile("testdata/" + f)
+	// Use obscured files to prevent Apple’s notarization service from
+	// mistaking them as candidates for notarization and rejecting the entire
+	// toolchain.
+	// See golang.org/issue/34986
+	var files = []string{
+		"p.a.base64",
+		"a.elf.base64",
+		"a.macho.base64",
+		"a.pe.base64",
+	}
+
+	for _, name := range files {
+		f, err := obscuretestdata.DecodeToTempFile("testdata/" + name)
+		if err != nil {
+			t.Errorf("obscuretestdata.DecodeToTempFile(testdata/%s): %v", name, err)
+			continue
+		}
+		defer os.Remove(f)
+		id, err := ReadFile(f)
 		if id != expectedID || err != nil {
 			t.Errorf("ReadFile(testdata/%s) = %q, %v, want %q, nil", f, id, err, expectedID)
 		}
 		old := readSize
 		readSize = 2048
-		id, err = ReadFile("testdata/" + f)
+		id, err = ReadFile(f)
 		readSize = old
 		if id != expectedID || err != nil {
-			t.Errorf("ReadFile(testdata/%s) [readSize=2k] = %q, %v, want %q, nil", f, id, err, expectedID)
+			t.Errorf("ReadFile(%s) [readSize=2k] = %q, %v, want %q, nil", f, id, err, expectedID)
 		}
 
-		data, err := ioutil.ReadFile("testdata/" + f)
+		data, err := ioutil.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
 		}
 		m, _, err := FindAndHash(bytes.NewReader(data), expectedID, 1024)
 		if err != nil {
-			t.Errorf("FindAndHash(testdata/%s): %v", f, err)
+			t.Errorf("FindAndHash(%s): %v", f, err)
 			continue
 		}
 		if err := ioutil.WriteFile(tmp, data, 0666); err != nil {
@@ -68,7 +80,7 @@ func TestReadFile(t *testing.T) {
 		err = Rewrite(tf, m, newID)
 		err2 := tf.Close()
 		if err != nil {
-			t.Errorf("Rewrite(testdata/%s): %v", f, err)
+			t.Errorf("Rewrite(%s): %v", f, err)
 			continue
 		}
 		if err2 != nil {
@@ -77,7 +89,7 @@ func TestReadFile(t *testing.T) {
 
 		id, err = ReadFile(tmp)
 		if id != newID || err != nil {
-			t.Errorf("ReadFile(testdata/%s after Rewrite) = %q, %v, want %q, nil", f, id, err, newID)
+			t.Errorf("ReadFile(%s after Rewrite) = %q, %v, want %q, nil", f, id, err, newID)
 		}
 	}
 }
@@ -133,5 +145,43 @@ func TestFindAndHash(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestExcludedReader(t *testing.T) {
+	const s = "0123456789abcdefghijklmn"
+	tests := []struct {
+		start, end int64    // excluded range
+		results    []string // expected results of reads
+	}{
+		{12, 15, []string{"0123456789", "ab\x00\x00\x00fghij", "klmn"}},                              // within one read
+		{8, 21, []string{"01234567\x00\x00", "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", "\x00lmn"}}, // across multiple reads
+		{10, 20, []string{"0123456789", "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", "klmn"}},         // a whole read
+		{0, 5, []string{"\x00\x00\x00\x00\x0056789", "abcdefghij", "klmn"}},                          // start
+		{12, 24, []string{"0123456789", "ab\x00\x00\x00\x00\x00\x00\x00\x00", "\x00\x00\x00\x00"}},   // end
+	}
+	p := make([]byte, 10)
+	for _, test := range tests {
+		r := &excludedReader{strings.NewReader(s), 0, test.start, test.end}
+		for _, res := range test.results {
+			n, err := r.Read(p)
+			if err != nil {
+				t.Errorf("read failed: %v", err)
+			}
+			if n != len(res) {
+				t.Errorf("unexpected number of bytes read: want %d, got %d", len(res), n)
+			}
+			if string(p[:n]) != res {
+				t.Errorf("unexpected bytes: want %q, got %q", res, p[:n])
+			}
+		}
+	}
+}
+
+func TestEmptyID(t *testing.T) {
+	r := strings.NewReader("aha!")
+	matches, hash, err := FindAndHash(r, "", 1000)
+	if matches != nil || hash != ([32]byte{}) || err == nil || !strings.Contains(err.Error(), "no id") {
+		t.Errorf("FindAndHash: want nil, [32]byte{}, no id specified, got %v, %v, %v", matches, hash, err)
 	}
 }

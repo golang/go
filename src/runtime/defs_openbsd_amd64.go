@@ -8,6 +8,11 @@ import "unsafe"
 const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
+	_EAGAIN = 0x23
+	_ENOSYS = 0x4e
+
+	_O_NONBLOCK = 0x4
+	_O_CLOEXEC  = 0x10000
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -17,12 +22,20 @@ const (
 	_MAP_ANON    = 0x1000
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
+	_MAP_STACK   = 0x4000
 
 	_MADV_FREE = 0x6
 
 	_SA_SIGINFO = 0x40
 	_SA_RESTART = 0x2
 	_SA_ONSTACK = 0x1
+
+	_PTHREAD_CREATE_DETACHED = 0x1
+
+	_F_SETFD    = 0x2
+	_F_GETFL    = 0x3
+	_F_SETFL    = 0x4
+	_FD_CLOEXEC = 0x1
 
 	_SIGHUP    = 0x1
 	_SIGINT    = 0x2
@@ -143,12 +156,10 @@ type timespec struct {
 	tv_nsec int64
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = x
-}
-
-func (ts *timespec) set_nsec(x int32) {
-	ts.tv_nsec = int64(x)
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = ns / 1e9
+	ts.tv_nsec = ns % 1e9
 }
 
 type timeval struct {
@@ -173,3 +184,10 @@ type keventt struct {
 	data   int64
 	udata  *byte
 }
+
+type pthread uintptr
+type pthreadattr uintptr
+type pthreadcond uintptr
+type pthreadcondattr uintptr
+type pthreadmutex uintptr
+type pthreadmutexattr uintptr

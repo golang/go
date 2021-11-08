@@ -1,0 +1,47 @@
+pkg debug/buildinfo, func Read(io.ReaderAt) (*debug.BuildInfo, error)
+pkg debug/buildinfo, func ReadFile(string) (*debug.BuildInfo, error)
+pkg debug/buildinfo, type BuildInfo = debug.BuildInfo
+pkg runtime/debug, method (*BuildInfo) MarshalText() ([]byte, error)
+pkg runtime/debug, method (*BuildInfo) UnmarshalText() ([]byte, error)
+pkg runtime/debug, type BuildInfo struct, GoVersion string
+pkg runtime/debug, type BuildInfo struct, Settings []BuildSetting
+pkg runtime/debug, type BuildSetting struct
+pkg runtime/debug, type BuildSetting struct, Key string
+pkg runtime/debug, type BuildSetting struct, Value string
+pkg testing, func Fuzz(func(*F)) FuzzResult
+pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalFuzzTarget, []InternalExample) *M
+pkg testing, func RunFuzzTargets(func(string, string) (bool, error), []InternalFuzzTarget) bool
+pkg testing, func RunFuzzing(func(string, string) (bool, error), []InternalFuzzTarget) bool
+pkg testing, method (*B) Setenv(string, string)
+pkg testing, method (*F) Add(...interface{})
+pkg testing, method (*F) Cleanup(func())
+pkg testing, method (*F) Error(...interface{})
+pkg testing, method (*F) Errorf(string, ...interface{})
+pkg testing, method (*F) Fail()
+pkg testing, method (*F) FailNow()
+pkg testing, method (*F) Failed() bool
+pkg testing, method (*F) Fatal(...interface{})
+pkg testing, method (*F) Fatalf(string, ...interface{})
+pkg testing, method (*F) Fuzz(interface{})
+pkg testing, method (*F) Helper()
+pkg testing, method (*F) Log(...interface{})
+pkg testing, method (*F) Logf(string, ...interface{})
+pkg testing, method (*F) Name() string
+pkg testing, method (*F) Setenv(string, string)
+pkg testing, method (*F) Skip(...interface{})
+pkg testing, method (*F) SkipNow()
+pkg testing, method (*F) Skipf(string, ...interface{})
+pkg testing, method (*F) Skipped() bool
+pkg testing, method (*F) TempDir() string
+pkg testing, method (*T) Setenv(string, string)
+pkg testing, method (FuzzResult) String() string
+pkg testing, type F struct
+pkg testing, type FuzzResult struct
+pkg testing, type FuzzResult struct, Crasher entry
+pkg testing, type FuzzResult struct, Error error
+pkg testing, type FuzzResult struct, N int
+pkg testing, type FuzzResult struct, T time.Duration
+pkg testing, type InternalFuzzTarget struct
+pkg testing, type InternalFuzzTarget struct, Fn func(*F)
+pkg testing, type InternalFuzzTarget struct, Name string
+pkg net/http, method (*Cookie) Valid() error

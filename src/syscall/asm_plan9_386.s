@@ -45,11 +45,11 @@ TEXT	·Syscall(SB),NOSPLIT,$148-32
 	CALL	runtime·gostring(SB)
 	LEAL	str-144(SP), SI
 	JMP	copyresult3
-	
+
 ok3:
 	CALL	runtime·exitsyscall(SB)
 	LEAL	·emptystring(SB), SI
-	
+
 copyresult3:
 	LEAL	err+24(FP), DI
 
@@ -78,7 +78,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$148-44
 	MOVL	$0, r2+32(FP)
 	CMPL	AX, $-1
 	JNE	ok4
-	
+
 	LEAL	errbuf-128(SP), AX
 	MOVL	AX, sysargs-144(SP)
 	MOVL	$128, sysargs1-140(SP)
@@ -90,11 +90,11 @@ TEXT	·Syscall6(SB),NOSPLIT,$148-44
 	CALL	runtime·gostring(SB)
 	LEAL	str-144(SP), SI
 	JMP	copyresult4
-	
+
 ok4:
 	CALL	runtime·exitsyscall(SB)
 	LEAL	·emptystring(SB), SI
-	
+
 copyresult4:
 	LEAL	err+36(FP), DI
 
@@ -144,7 +144,7 @@ TEXT ·seek(SB),NOSPLIT,$24-36
 	NO_LOCAL_POINTERS
 	LEAL	newoffset+20(FP), AX
 	MOVL	AX, placeholder+0(FP)
-	
+
 	// copy args down
 	LEAL	placeholder+0(FP), SI
 	LEAL	sysargs-20(SP), DI
@@ -156,19 +156,19 @@ TEXT ·seek(SB),NOSPLIT,$24-36
 	MOVSL
 	MOVL	$SYS_SEEK, AX	// syscall entry
 	INT	$64
-	
+
 	CMPL	AX, $-1
 	JNE	ok6
 	MOVL	AX, newoffset_lo+20(FP)
 	MOVL	AX, newoffset_hi+24(FP)
-	
+
 	CALL	syscall·errstr(SB)
 	MOVL	SP, SI
 	JMP	copyresult6
-	
+
 ok6:
 	LEAL	·emptystring(SB), SI
-	
+
 copyresult6:
 	LEAL	err+28(FP), DI
 

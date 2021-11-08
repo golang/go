@@ -16,8 +16,9 @@ import "runtime"
 // 386:"TEXT\t.*, [$]0-"
 // amd64:"TEXT\t.*, [$]0-"
 // arm:"TEXT\t.*, [$]-4-"
-// arm64:"TEXT\t.*, [$]-8-"
+// arm64:"TEXT\t.*, [$]0-"
 // mips:"TEXT\t.*, [$]-4-"
+// ppc64:"TEXT\t.*, [$]0-"
 // ppc64le:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 func StackStore() int {
@@ -35,8 +36,9 @@ type T struct {
 // 386:"TEXT\t.*, [$]0-"
 // amd64:"TEXT\t.*, [$]0-"
 // arm:"TEXT\t.*, [$]0-" (spills return address)
-// arm64:"TEXT\t.*, [$]-8-"
+// arm64:"TEXT\t.*, [$]0-"
 // mips:"TEXT\t.*, [$]-4-"
+// ppc64:"TEXT\t.*, [$]0-"
 // ppc64le:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 func ZeroLargeStruct(x *T) {
@@ -50,7 +52,8 @@ func ZeroLargeStruct(x *T) {
 // - 386 fails due to spilling a register
 // amd64:"TEXT\t.*, [$]0-"
 // arm:"TEXT\t.*, [$]0-" (spills return address)
-// arm64:"TEXT\t.*, [$]-8-"
+// arm64:"TEXT\t.*, [$]0-"
+// ppc64:"TEXT\t.*, [$]0-"
 // ppc64le:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 // Note: that 386 currently has to spill a register.
@@ -64,7 +67,8 @@ func KeepWanted(t *T) {
 // - 386 fails due to spilling a register
 // - arm & mips fail due to softfloat calls
 // amd64:"TEXT\t.*, [$]0-"
-// arm64:"TEXT\t.*, [$]-8-"
+// arm64:"TEXT\t.*, [$]0-"
+// ppc64:"TEXT\t.*, [$]0-"
 // ppc64le:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 func ArrayAdd64(a, b [4]float64) [4]float64 {
@@ -76,8 +80,9 @@ func ArrayAdd64(a, b [4]float64) [4]float64 {
 // 386:"TEXT\t.*, [$]0-"
 // amd64:"TEXT\t.*, [$]0-"
 // arm:"TEXT\t.*, [$]0-" (spills return address)
-// arm64:"TEXT\t.*, [$]-8-"
+// arm64:"TEXT\t.*, [$]0-"
 // mips:"TEXT\t.*, [$]-4-"
+// ppc64:"TEXT\t.*, [$]0-"
 // ppc64le:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 func ArrayInit(i, j int) [4]int {
@@ -87,9 +92,29 @@ func ArrayInit(i, j int) [4]int {
 // Check that assembly output has matching offset and base register
 // (issue #21064).
 
-func check_asmout(a, b int) int {
+func check_asmout(b [2]int) int {
 	runtime.GC() // use some frame
 	// amd64:`.*b\+24\(SP\)`
 	// arm:`.*b\+4\(FP\)`
-	return b
+	return b[1]
+}
+
+// Check that simple functions get promoted to nosplit, even when
+// they might panic in various ways. See issue 31219.
+// amd64:"TEXT\t.*NOSPLIT.*"
+func MightPanic(a []int, i, j, k, s int) {
+	_ = a[i]     // panicIndex
+	_ = a[i:j]   // panicSlice
+	_ = a[i:j:k] // also panicSlice
+	_ = i << s   // panicShift
+	_ = i / j    // panicDivide
+}
+
+// Put a defer in a loop, so second defer is not open-coded
+func Defer() {
+	for i := 0; i < 2; i++ {
+		defer func() {}()
+	}
+	// amd64:`CALL\truntime\.deferprocStack`
+	defer func() {}()
 }

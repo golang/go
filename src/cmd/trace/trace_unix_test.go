@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package main
 
 import (
 	"bytes"
+	"cmd/internal/traceviewer"
 	traceparser "internal/trace"
-	"io/ioutil"
+	"io"
 	"runtime"
 	"runtime/trace"
 	"sync"
@@ -82,8 +83,8 @@ func TestGoroutineInSyscall(t *testing.T) {
 
 	// Check only one thread for the pipe read goroutine is
 	// considered in-syscall.
-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
+	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
+	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
 		if ev.Name == "Threads" {
 			arg := ev.Arg.(*threadCountersArg)
 			if arg.InSyscall > 1 {

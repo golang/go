@@ -17,14 +17,16 @@ func copyelim(f *Func) {
 
 	// Update block control values.
 	for _, b := range f.Blocks {
-		if v := b.Control; v != nil && v.Op == OpCopy {
-			b.SetControl(v.Args[0])
+		for i, v := range b.ControlValues() {
+			if v.Op == OpCopy {
+				b.ReplaceControl(i, v.Args[0])
+			}
 		}
 	}
 
 	// Update named values.
 	for _, name := range f.Names {
-		values := f.NamedValues[name]
+		values := f.NamedValues[*name]
 		for i, v := range values {
 			if v.Op == OpCopy {
 				values[i] = v.Args[0]

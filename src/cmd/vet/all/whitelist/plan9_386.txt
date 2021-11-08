@@ -1,3 +1,0 @@
-// plan9/386-specific vet whitelist. See readme.txt for details.
-
-runtime/sys_plan9_386.s: [386] setldt: function setldt missing Go declaration

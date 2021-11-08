@@ -11,7 +11,7 @@ import (
 	"image/color"
 	"image/color/palette"
 	"io"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"runtime"
 	"runtime/debug"
@@ -424,7 +424,7 @@ func TestDecodeMemoryConsumption(t *testing.T) {
 }
 
 func BenchmarkDecode(b *testing.B) {
-	data, err := ioutil.ReadFile("../testdata/video-001.gif")
+	data, err := os.ReadFile("../testdata/video-001.gif")
 	if err != nil {
 		b.Fatal(err)
 	}

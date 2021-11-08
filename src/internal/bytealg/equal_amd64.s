@@ -5,80 +5,50 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·Equal(SB),NOSPLIT,$0-49
-	MOVQ	a_len+8(FP), BX
-	MOVQ	b_len+32(FP), CX
-	CMPQ	BX, CX
-	JNE	neq
-	MOVQ	a_base+0(FP), SI
-	MOVQ	b_base+24(FP), DI
-	CMPQ	SI, DI
-	JEQ	eq
-	LEAQ	ret+48(FP), AX
-	JMP	memeqbody<>(SB)
-neq:
-	MOVB	$0, ret+48(FP)
-	RET
-eq:
-	MOVB	$1, ret+48(FP)
-	RET
-
-TEXT bytes·Equal(SB),NOSPLIT,$0-49
-	MOVQ	a_len+8(FP), BX
-	MOVQ	b_len+32(FP), CX
-	CMPQ	BX, CX
-	JNE	neq
-	MOVQ	a_base+0(FP), SI
-	MOVQ	b_base+24(FP), DI
-	CMPQ	SI, DI
-	JEQ	eq
-	LEAQ	ret+48(FP), AX
-	JMP	memeqbody<>(SB)
-neq:
-	MOVB	$0, ret+48(FP)
-	RET
-eq:
-	MOVB	$1, ret+48(FP)
-	RET
-
 // memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT,$0-25
-	MOVQ	a+0(FP), SI
-	MOVQ	b+8(FP), DI
-	CMPQ	SI, DI
-	JEQ	eq
-	MOVQ	size+16(FP), BX
-	LEAQ	ret+24(FP), AX
-	JMP	memeqbody<>(SB)
-eq:
-	MOVB	$1, ret+24(FP)
+TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT,$0-25
+	// AX = a    (want in SI)
+	// BX = b    (want in DI)
+	// CX = size (want in BX)
+	CMPQ	AX, BX
+	JNE	neq
+	MOVQ	$1, AX	// return 1
 	RET
+neq:
+	MOVQ	AX, SI
+	MOVQ	BX, DI
+	MOVQ	CX, BX
+	JMP	memeqbody<>(SB)
 
 // memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
-	MOVQ	a+0(FP), SI
-	MOVQ	b+8(FP), DI
-	CMPQ	SI, DI
-	JEQ	eq
-	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
-	LEAQ	ret+16(FP), AX
-	JMP	memeqbody<>(SB)
-eq:
-	MOVB	$1, ret+16(FP)
+TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT,$0-17
+	// AX = a       (want in SI)
+	// BX = b       (want in DI)
+	// 8(DX) = size (want in BX)
+	CMPQ	AX, BX
+	JNE	neq
+	MOVQ	$1, AX	// return 1
 	RET
+neq:
+	MOVQ	AX, SI
+	MOVQ	BX, DI
+	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
+	JMP	memeqbody<>(SB)
 
-// a in SI
-// b in DI
-// count in BX
-// address of result byte in AX
+// Input:
+//   a in SI
+//   b in DI
+//   count in BX
+// Output:
+//   result in AX
 TEXT memeqbody<>(SB),NOSPLIT,$0-0
 	CMPQ	BX, $8
 	JB	small
 	CMPQ	BX, $64
 	JB	bigloop
-	CMPB	internal∕cpu·X86+const_x86_HasAVX2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JE	hugeloop_avx2
-	
+
 	// 64 bytes at a time using xmm registers
 hugeloop:
 	CMPQ	BX, $64
@@ -104,7 +74,7 @@ hugeloop:
 	SUBQ	$64, BX
 	CMPL	DX, $0xffff
 	JEQ	hugeloop
-	MOVB	$0, (AX)
+	XORQ	AX, AX	// return 0
 	RET
 
 	// 64 bytes at a time using ymm registers
@@ -125,7 +95,7 @@ hugeloop_avx2:
 	CMPL	DX, $0xffffffff
 	JEQ	hugeloop_avx2
 	VZEROUPPER
-	MOVB	$0, (AX)
+	XORQ	AX, AX	// return 0
 	RET
 
 bigloop_avx2:
@@ -142,7 +112,7 @@ bigloop:
 	SUBQ	$8, BX
 	CMPQ	CX, DX
 	JEQ	bigloop
-	MOVB	$0, (AX)
+	XORQ	AX, AX	// return 0
 	RET
 
 	// remaining 0-8 bytes
@@ -150,7 +120,7 @@ leftover:
 	MOVQ	-8(SI)(BX*1), CX
 	MOVQ	-8(DI)(BX*1), DX
 	CMPQ	CX, DX
-	SETEQ	(AX)
+	SETEQ	AX
 	RET
 
 small:
@@ -185,6 +155,5 @@ di_finish:
 	SUBQ	SI, DI
 	SHLQ	CX, DI
 equal:
-	SETEQ	(AX)
+	SETEQ	AX
 	RET
-

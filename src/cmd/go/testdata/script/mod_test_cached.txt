@@ -1,0 +1,76 @@
+[short] skip
+
+env GO111MODULE=on
+env GOCACHE=$WORK/gocache
+env GODEBUG=gocachetest=1
+
+# The first run of a test should not be cached.
+# The second run should be.
+go test -run=WriteTmp .
+! stdout '(cached)'
+go test -run=WriteTmp .
+stdout '(cached)'
+
+# 'go test' without arguments should never be cached.
+go test -run=WriteTmp
+! stdout '(cached)'
+go test -run=WriteTmp
+! stdout '(cached)'
+
+# We should never cache a test run from command-line files.
+go test -run=WriteTmp ./foo_test.go
+! stdout '(cached)'
+go test -run=WriteTmp ./foo_test.go
+! stdout '(cached)'
+
+[!exec:sleep] stop
+# The go command refuses to cache access to files younger than 2s, so sleep that long.
+exec sleep 2
+
+# Touching a file that the test reads from within its testdata should invalidate the cache.
+go test -run=ReadTestdata .
+! stdout '(cached)'
+go test -run=ReadTestdata .
+stdout '(cached)'
+cp testdata/bar.txt testdata/foo.txt
+go test -run=ReadTestdata .
+! stdout '(cached)'
+
+-- go.mod --
+module golang.org/issue/29111/foo
+
+-- foo.go --
+package foo
+
+-- testdata/foo.txt --
+foo
+-- testdata/bar.txt --
+bar
+
+-- foo_test.go --
+package foo_test
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestWriteTmp(t *testing.T) {
+	dir, err := os.MkdirTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	err = os.WriteFile(filepath.Join(dir, "x"), nil, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReadTestdata(t *testing.T) {
+	_, err := os.ReadFile("testdata/foo.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

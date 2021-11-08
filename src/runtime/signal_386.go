@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd
+//go:build dragonfly || freebsd || linux || netbsd || openbsd
 
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -37,34 +38,22 @@ func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
 
 // preparePanic sets up the stack to look like a call to sigpanic.
 func (c *sigctxt) preparePanic(sig uint32, gp *g) {
-	if GOOS == "darwin" {
-		// Work around Leopard bug that doesn't set FPE_INTDIV.
-		// Look at instruction to see if it is a divide.
-		// Not necessary in Snow Leopard (si_code will be != 0).
-		if sig == _SIGFPE && gp.sigcode0 == 0 {
-			pc := (*[4]byte)(unsafe.Pointer(gp.sigpc))
-			i := 0
-			if pc[i] == 0x66 { // 16-bit instruction prefix
-				i++
-			}
-			if pc[i] == 0xF6 || pc[i] == 0xF7 {
-				gp.sigcode0 = _FPE_INTDIV
-			}
-		}
-	}
-
 	pc := uintptr(c.eip())
 	sp := uintptr(c.esp())
 
 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
-		// Make it look like the faulting PC called sigpanic.
-		if sys.RegSize > sys.PtrSize {
-			sp -= sys.PtrSize
-			*(*uintptr)(unsafe.Pointer(sp)) = 0
-		}
-		sp -= sys.PtrSize
-		*(*uintptr)(unsafe.Pointer(sp)) = pc
-		c.set_esp(uint32(sp))
+		c.pushCall(abi.FuncPCABIInternal(sigpanic), pc)
+	} else {
+		// Not safe to push the call. Just clobber the frame.
+		c.set_eip(uint32(abi.FuncPCABIInternal(sigpanic)))
 	}
-	c.set_eip(uint32(funcPC(sigpanic)))
+}
+
+func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+	// Make it look like we called target at resumePC.
+	sp := uintptr(c.esp())
+	sp -= goarch.PtrSize
+	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
+	c.set_esp(uint32(sp))
+	c.set_eip(uint32(targetPC))
 }

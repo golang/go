@@ -17,10 +17,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/quotedprintable"
 	"net/textproto"
+	"path/filepath"
+	"strings"
 )
 
 var emptyParams = make(map[string]string)
@@ -35,11 +36,6 @@ type Part struct {
 	// The headers of the body, if any, with the keys canonicalized
 	// in the same fashion that the Go http.Request headers are.
 	// For example, "foo-bar" changes case to "Foo-Bar"
-	//
-	// As a special case, if the "Content-Transfer-Encoding" header
-	// has a value of "quoted-printable", that header is instead
-	// hidden from this map and the body is transparently decoded
-	// during Read calls.
 	Header textproto.MIMEHeader
 
 	mr *Reader
@@ -72,23 +68,20 @@ func (p *Part) FormName() string {
 	return p.dispositionParams["name"]
 }
 
-// FileName returns the filename parameter of the Part's
-// Content-Disposition header.
+// FileName returns the filename parameter of the Part's Content-Disposition
+// header. If not empty, the filename is passed through filepath.Base (which is
+// platform dependent) before being returned.
 func (p *Part) FileName() string {
 	if p.dispositionParams == nil {
 		p.parseContentDisposition()
 	}
-	return p.dispositionParams["filename"]
-}
-
-// hasFileName determines if a (empty or otherwise)
-// filename parameter was included in the Content-Disposition header
-func (p *Part) hasFileName() bool {
-	if p.dispositionParams == nil {
-		p.parseContentDisposition()
+	filename := p.dispositionParams["filename"]
+	if filename == "" {
+		return ""
 	}
-	_, ok := p.dispositionParams["filename"]
-	return ok
+	// RFC 7578, Section 4.2 requires that if a filename is provided, the
+	// directory path information must not be used.
+	return filepath.Base(filename)
 }
 
 func (p *Part) parseContentDisposition() {
@@ -135,7 +128,7 @@ func (r *stickyErrorReader) Read(p []byte) (n int, _ error) {
 	return n, r.err
 }
 
-func newPart(mr *Reader) (*Part, error) {
+func newPart(mr *Reader, rawPart bool) (*Part, error) {
 	bp := &Part{
 		Header: make(map[string][]string),
 		mr:     mr,
@@ -144,10 +137,14 @@ func newPart(mr *Reader) (*Part, error) {
 		return nil, err
 	}
 	bp.r = partReader{bp}
-	const cte = "Content-Transfer-Encoding"
-	if bp.Header.Get(cte) == "quoted-printable" {
-		bp.Header.Del(cte)
-		bp.r = quotedprintable.NewReader(bp.r)
+
+	// rawPart is used to switch between Part.NextPart and Part.NextRawPart.
+	if !rawPart {
+		const cte = "Content-Transfer-Encoding"
+		if strings.EqualFold(bp.Header.Get(cte), "quoted-printable") {
+			bp.Header.Del(cte)
+			bp.r = quotedprintable.NewReader(bp.r)
+		}
 	}
 	return bp, nil
 }
@@ -288,7 +285,7 @@ func matchAfterPrefix(buf, prefix []byte, readErr error) int {
 }
 
 func (p *Part) Close() error {
-	io.Copy(ioutil.Discard, p)
+	io.Copy(io.Discard, p)
 	return nil
 }
 
@@ -309,7 +306,24 @@ type Reader struct {
 
 // NextPart returns the next part in the multipart or an error.
 // When there are no more parts, the error io.EOF is returned.
+//
+// As a special case, if the "Content-Transfer-Encoding" header
+// has a value of "quoted-printable", that header is instead
+// hidden and the body is transparently decoded during Read calls.
 func (r *Reader) NextPart() (*Part, error) {
+	return r.nextPart(false)
+}
+
+// NextRawPart returns the next part in the multipart or an error.
+// When there are no more parts, the error io.EOF is returned.
+//
+// Unlike NextPart, it does not have special handling for
+// "Content-Transfer-Encoding: quoted-printable".
+func (r *Reader) NextRawPart() (*Part, error) {
+	return r.nextPart(true)
+}
+
+func (r *Reader) nextPart(rawPart bool) (*Part, error) {
 	if r.currentPart != nil {
 		r.currentPart.Close()
 	}
@@ -334,7 +348,7 @@ func (r *Reader) NextPart() (*Part, error) {
 
 		if r.isBoundaryDelimiterLine(line) {
 			r.partsRead++
-			bp, err := newPart(r)
+			bp, err := newPart(r, rawPart)
 			if err != nil {
 				return nil, err
 			}

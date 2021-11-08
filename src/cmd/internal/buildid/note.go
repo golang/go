@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 )
 
@@ -30,6 +31,7 @@ func ReadELFNote(filename, name string, typ int32) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 	for _, sect := range f.Sections {
 		if sect.Type != elf.SHT_NOTE {
 			continue
@@ -95,7 +97,7 @@ func readELF(name string, f *os.File, data []byte) (buildid string, err error) {
 
 	ef, err := elf.NewFile(bytes.NewReader(data))
 	if err != nil {
-		return "", &os.PathError{Path: name, Op: "parse", Err: err}
+		return "", &fs.PathError{Path: name, Op: "parse", Err: err}
 	}
 	var gnu string
 	for _, p := range ef.Progs {
@@ -180,13 +182,13 @@ func readMacho(name string, f *os.File, data []byte) (buildid string, err error)
 
 	mf, err := macho.NewFile(f)
 	if err != nil {
-		return "", &os.PathError{Path: name, Op: "parse", Err: err}
+		return "", &fs.PathError{Path: name, Op: "parse", Err: err}
 	}
 
 	sect := mf.Section("__text")
 	if sect == nil {
 		// Every binary has a __text section. Something is wrong.
-		return "", &os.PathError{Path: name, Op: "parse", Err: fmt.Errorf("cannot find __text section")}
+		return "", &fs.PathError{Path: name, Op: "parse", Err: fmt.Errorf("cannot find __text section")}
 	}
 
 	// It should be in the first few bytes, but read a lot just in case,

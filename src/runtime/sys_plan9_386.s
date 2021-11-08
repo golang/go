@@ -104,7 +104,7 @@ TEXT runtime·nsec(SB),NOSPLIT,$8
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime(SB)
+	CALL	runtime·nanotime1(SB)
 	MOVL	0(SP), AX
 	MOVL	4(SP), DX
 
@@ -126,7 +126,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
 	INT	$64
 	MOVL	AX, ret+4(FP)
 	RET
-	
+
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVL	$38, AX
 	INT	$64
@@ -250,3 +250,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$8-8
 	MOVL	0(SP), AX
 	MOVL	AX, ret_base+0(FP)
 	RET
+
+// never called on this platform
+TEXT ·sigpanictramp(SB),NOSPLIT,$0-0
+	UNDEF

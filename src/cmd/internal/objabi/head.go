@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -42,17 +42,19 @@ const (
 	Hfreebsd
 	Hjs
 	Hlinux
-	Hnacl
 	Hnetbsd
 	Hopenbsd
 	Hplan9
 	Hsolaris
 	Hwindows
+	Haix
 )
 
 func (h *HeadType) Set(s string) error {
 	switch s {
-	case "darwin":
+	case "aix":
+		*h = Haix
+	case "darwin", "ios":
 		*h = Hdarwin
 	case "dragonfly":
 		*h = Hdragonfly
@@ -62,15 +64,13 @@ func (h *HeadType) Set(s string) error {
 		*h = Hjs
 	case "linux", "android":
 		*h = Hlinux
-	case "nacl":
-		*h = Hnacl
 	case "netbsd":
 		*h = Hnetbsd
 	case "openbsd":
 		*h = Hopenbsd
 	case "plan9":
 		*h = Hplan9
-	case "solaris":
+	case "illumos", "solaris":
 		*h = Hsolaris
 	case "windows":
 		*h = Hwindows
@@ -82,6 +82,8 @@ func (h *HeadType) Set(s string) error {
 
 func (h *HeadType) String() string {
 	switch *h {
+	case Haix:
+		return "aix"
 	case Hdarwin:
 		return "darwin"
 	case Hdragonfly:
@@ -92,8 +94,6 @@ func (h *HeadType) String() string {
 		return "js"
 	case Hlinux:
 		return "linux"
-	case Hnacl:
-		return "nacl"
 	case Hnetbsd:
 		return "netbsd"
 	case Hopenbsd:

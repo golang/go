@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -38,8 +39,10 @@ func setitimer(mode int32, new, old *itimerval)
 //go:noescape
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 
-func raise(sig uint32)
 func raiseproc(sig uint32)
+
+func lwp_gettid() int32
+func lwp_kill(pid, tid int32, sig int)
 
 //go:noescape
 func sys_umtx_sleep(addr *uint32, val, timeout int32) int32
@@ -49,13 +52,20 @@ func sys_umtx_wakeup(addr *uint32, val int32) int32
 
 func osyield()
 
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
 func kqueue() int32
 
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
-func closeonexec(fd int32)
 
-const stackSystem = 0
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
+func closeonexec(fd int32)
+func setNonblock(fd int32)
 
 // From DragonFly's <sys/sysctl.h>
 const (
@@ -138,17 +148,17 @@ func lwp_start(uintptr)
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", abi.FuncPCABI0(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 
 	params := lwpparams{
-		start_func: funcPC(lwp_start),
+		start_func: abi.FuncPCABI0(lwp_start),
 		arg:        unsafe.Pointer(mp),
 		stack:      uintptr(stk),
-		tid1:       unsafe.Pointer(&mp.procid),
+		tid1:       nil, // minit will record tid
 		tid2:       nil,
 	}
 
@@ -188,10 +198,7 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// m.procid is a uint64, but lwp_start writes an int32. Fix it up.
-	_g_ := getg()
-	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
-
+	getg().m.procid = uint64(lwp_gettid())
 	minitSignals()
 }
 
@@ -199,6 +206,11 @@ func minit() {
 //go:nosplit
 func unminit() {
 	unminitSignals()
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 func sigtramp()
@@ -215,8 +227,8 @@ func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		fn = abi.FuncPCABI0(sigtramp)
 	}
 	sa.sa_sigaction = fn
 	sigaction(i, &sa, nil)
@@ -252,7 +264,21 @@ func sigdelset(mask *sigset, i int) {
 	mask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }
 
 func sysargs(argc int32, argv **byte) {
@@ -266,7 +292,7 @@ func sysargs(argc int32, argv **byte) {
 	// skip NULL separator
 	n++
 
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
 	sysauxv(auxv[:])
 }
 
@@ -283,4 +309,18 @@ func sysauxv(auxv []uintptr) {
 			physPageSize = val
 		}
 	}
+}
+
+// raise sends a signal to the calling thread.
+//
+// It must be nosplit because it is used by the signal handler before
+// it definitely has a Go stack.
+//
+//go:nosplit
+func raise(sig uint32) {
+	lwp_kill(-1, lwp_gettid(), int(sig))
+}
+
+func signalM(mp *m, sig int) {
+	lwp_kill(-1, int32(mp.procid), sig)
 }

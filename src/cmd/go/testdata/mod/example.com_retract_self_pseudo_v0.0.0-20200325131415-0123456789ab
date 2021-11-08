@@ -1,0 +1,20 @@
+See example.com_retract_self_pseudo_v1.9.0.txt.
+
+This version is not retracted. It should be returned by the proxy's
+@latest endpoint. It should match the @latest version query.
+
+TODO(golang.org/issue/24031): the proxy and proxy.golang.org both return
+the highest release version from the @latest endpoint, even if that
+version is retracted, so there is no way for the go command to
+discover an unretracted pseudo-version.
+
+-- .mod --
+module example.com/retract/self/pseudo
+
+go 1.15
+
+-- .info --
+{"Version":"v0.0.0-20200325131415-01234567890ab"}
+
+-- p.go --
+package p

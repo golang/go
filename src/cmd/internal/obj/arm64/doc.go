@@ -22,7 +22,8 @@ using different register names.
 
   Examples:
     MOVD.P -8(R10), R8         <=>      ldr x8, [x10],#-8
-    MOVB.W 16(R16), R10        <=>      ldr x10, [x16,#16]!
+    MOVB.W 16(R16), R10        <=>      ldrsb x10, [x16,#16]!
+    MOVBU.W 16(R16), R10       <=>      ldrb x10, [x16,#16]!
 
 3. Go uses a series of MOV instructions as load and store.
 
@@ -35,7 +36,7 @@ ldrsh, sturh, strh =>  MOVH.
 
 4. Go moves conditions into opcode suffix, like BLT.
 
-5. Go adds a V prefix for most floating-point and SIMD instrutions except cryptographic extension
+5. Go adds a V prefix for most floating-point and SIMD instructions, except cryptographic extension
 instructions and floating-point(scalar) instructions.
 
   Examples:
@@ -45,6 +46,69 @@ instructions and floating-point(scalar) instructions.
     AESD V22.B16, V19.B16             <=>      aesd v19.16b, v22.16b
     SCVTFWS R3, F16                   <=>      scvtf s17, w6
 
+6. Align directive
+
+Go asm supports the PCALIGN directive, which indicates that the next instruction should be aligned
+to a specified boundary by padding with NOOP instruction. The alignment value supported on arm64
+must be a power of 2 and in the range of [8, 2048].
+
+  Examples:
+    PCALIGN $16
+    MOVD $2, R0          // This instruction is aligned with 16 bytes.
+    PCALIGN $1024
+    MOVD $3, R1          // This instruction is aligned with 1024 bytes.
+
+PCALIGN also changes the function alignment. If a function has one or more PCALIGN directives,
+its address will be aligned to the same or coarser boundary, which is the maximum of all the
+alignment values.
+
+In the following example, the function Add is aligned with 128 bytes.
+  Examples:
+    TEXT ·Add(SB),$40-16
+    MOVD $2, R0
+    PCALIGN $32
+    MOVD $4, R1
+    PCALIGN $128
+    MOVD $8, R2
+    RET
+
+On arm64, functions in Go are aligned to 16 bytes by default, we can also use PCALGIN to set the
+function alignment. The functions that need to be aligned are preferably using NOFRAME and NOSPLIT
+to avoid the impact of the prologues inserted by the assembler, so that the function address will
+have the same alignment as the first hand-written instruction.
+
+In the following example, PCALIGN at the entry of the function Add will align its address to 2048 bytes.
+
+  Examples:
+    TEXT ·Add(SB),NOSPLIT|NOFRAME,$0
+      PCALIGN $2048
+      MOVD $1, R0
+      MOVD $1, R1
+      RET
+
+7. Move large constants to vector registers.
+
+Go asm uses VMOVQ/VMOVD/VMOVS to move 128-bit, 64-bit and 32-bit constants into vector registers, respectively.
+And for a 128-bit interger, it take two 64-bit operands, for the high and low parts separately.
+
+  Examples:
+    VMOVS $0x11223344, V0
+    VMOVD $0x1122334455667788, V1
+    VMOVQ $0x1122334455667788, $8877665544332211, V2   // V2=0x11223344556677888877665544332211
+
+8. Move an optionally-shifted 16-bit immediate value to a register.
+
+The instructions are MOVK(W), MOVZ(W) and MOVN(W), the assembly syntax is "op $(uimm16<<shift), <Rd>". The <uimm16>
+is the 16-bit unsigned immediate, in the range 0 to 65535; For the 32-bit variant, the <shift> is 0 or 16, for the
+64-bit variant, the <shift> is 0, 16, 32 or 48.
+
+The current Go assembler does not accept zero shifts, such as "op $0, Rd" and "op $(0<<(16|32|48)), Rd" instructions.
+
+  Examples:
+    MOVK $(10<<32), R20     <=>      movk x20, #10, lsl #32
+    MOVZW $(20<<16), R8     <=>      movz w8, #20, lsl #16
+    MOVK $(0<<16), R10 will be reported as an error by the assembler.
+
 Special Cases.
 
 (1) umov is written as VMOV.
@@ -53,12 +117,17 @@ Special Cases.
 
 (3) No need to add "W" suffix: LDARB, LDARH, LDAXRB, LDAXRH, LDTRH, LDXRB, LDXRH.
 
+(4) In Go assembly syntax, NOP is a zero-width pseudo-instruction serves generic purpose, nothing
+related to real ARM64 instruction. NOOP serves for the hardware nop instruction. NOOP is an alias of
+HINT $0.
+
   Examples:
     VMOV V13.B[1], R20      <=>      mov x20, v13.b[1]
     VMOV V13.H[1], R20      <=>      mov w20, v13.h[1]
     JMP (R3)                <=>      br x3
     CALL (R17)              <=>      blr x17
     LDAXRB (R19), R16       <=>      ldaxrb w16, [x19]
+    NOOP                    <=>      nop
 
 
 Register mapping rules
@@ -89,7 +158,7 @@ such as str, stur, strb, sturb, strh, sturh stlr, stlrb. stlrh, st1.
   Examples:
     MOVD R29, 384(R19)    <=>    str x29, [x19,#384]
     MOVB.P R30, 30(R4)    <=>    strb w30, [x4],#30
-    STLRH R21, (R18)      <=>    stlrh w21, [x18]
+    STLRH R21, (R19)      <=>    stlrh w21, [x19]
 
 (2) MADD, MADDW, MSUB, MSUBW, SMADDL, SMSUBL, UMADDL, UMSUBL <Rm>, <Ra>, <Rn>, <Rd>
 
@@ -127,7 +196,7 @@ such as str, stur, strb, sturb, strh, sturh stlr, stlrb. stlrh, st1.
 
   Examples:
     CCMN VS, R13, R22, $10     <=>    ccmn x13, x22, #0xa, vs
-    CCMPW HS, R18, R14, $11    <=>    ccmp w18, w14, #0xb, cs
+    CCMPW HS, R19, R14, $11    <=>    ccmp w19, w14, #0xb, cs
 
 (9) CSEL, CSELW, CSNEG, CSNEGW, CSINC, CSINCW <cond>, <Rn>, <Rm>, <Rd> ;
 FCSELD, FCSELS <cond>, <Fn>, <Fm>, <Fd>
@@ -144,19 +213,19 @@ FCSELD, FCSELS <cond>, <Fn>, <Fm>, <Fd>
 
   Examples:
     STLXR ZR, (R15), R16    <=>    stlxr w16, xzr, [x15]
-    STXRB R9, (R21), R18    <=>    stxrb w18, w9, [x21]
+    STXRB R9, (R21), R19    <=>    stxrb w19, w9, [x21]
 
 (12) STLXP, STLXPW, STXP, STXPW (<Rf1>, <Rf2>), (<Rn|RSP>), <Rs>
 
   Examples:
-    STLXP (R17, R18), (R4), R5      <=>    stlxp w5, x17, x18, [x4]
+    STLXP (R17, R19), (R4), R5      <=>    stlxp w5, x17, x19, [x4]
     STXPW (R30, R25), (R22), R13    <=>    stxp w13, w30, w25, [x22]
 
 2. Expressions for special arguments.
 
 #<immediate> is written as $<immediate>.
 
-Optionally-shifted immedate.
+Optionally-shifted immediate.
 
   Examples:
     ADD $(3151<<12), R14, R20     <=>    add x20, x14, #0xc4f, lsl #12
@@ -173,7 +242,7 @@ Extended registers are written as <Rm>{.<extend>{<<<amount>}}.
 <extend> can be UXTB, UXTH, UXTW, UXTX, SXTB, SXTH, SXTW or SXTX.
 
   Examples:
-    ADDS R18.UXTB<<4, R9, R26     <=>    adds x26, x9, w18, uxtb #4
+    ADDS R19.UXTB<<4, R9, R26     <=>    adds x26, x9, w19, uxtb #4
     ADDSW R14.SXTX, R14, R6       <=>    adds w6, w14, w14, sxtx
 
 Memory references: [<Xn|SP>{,#0}] is written as (Rn|RSP), a base register and an immediate

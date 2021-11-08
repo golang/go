@@ -1,3 +1,7 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 #include "go_asm.h"
 #include "textflag.h"
 
@@ -12,7 +16,7 @@ TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8
 	MOVW	CR, R0     // Save CR in caller's frame
 	MOVD	R0, 8(R1)
 	MOVDU	R1, -320(R1) // Allocate frame.
-	
+
 	// Preserve callee-save registers.
 	MOVD	R14, 24(R1)
 	MOVD	R15, 32(R1)

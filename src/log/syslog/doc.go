@@ -22,5 +22,3 @@ package syslog
 // see https://golang.org/issue/1108.
 
 // BUG(akumar): This package is not implemented on Plan 9.
-
-// BUG(minux): This package is not implemented on NaCl (Native Client).

@@ -10,11 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 )
 
@@ -228,7 +228,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 0, // as if unset by user
 		},
 
-		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
+		Body: func() io.ReadCloser { return io.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
 
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
@@ -280,7 +280,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 0, // as if unset by user
 		},
 
-		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
+		Body: func() io.ReadCloser { return io.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
 
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
@@ -349,8 +349,8 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
-			errReader := &errorReader{err}
-			return ioutil.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
+			errReader := iotest.ErrReader(err)
+			return io.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
 		},
 
 		WantError: errors.New("Custom reader error"),
@@ -369,8 +369,8 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
-			errReader := &errorReader{err}
-			return ioutil.NopCloser(errReader)
+			errReader := iotest.ErrReader(err)
+			return io.NopCloser(errReader)
 		},
 
 		WantError: errors.New("Custom reader error"),
@@ -512,6 +512,101 @@ var reqWriteTests = []reqWriteTest{
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"\r\n",
 	},
+
+	// CONNECT without Opaque
+	21: {
+		Req: Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Scheme: "https", // of proxy.com
+				Host:   "proxy.com",
+			},
+		},
+		// What we used to do, locking that behavior in:
+		WantWrite: "CONNECT proxy.com HTTP/1.1\r\n" +
+			"Host: proxy.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"\r\n",
+	},
+
+	// CONNECT with Opaque
+	22: {
+		Req: Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Scheme: "https", // of proxy.com
+				Host:   "proxy.com",
+				Opaque: "backend:443",
+			},
+		},
+		WantWrite: "CONNECT backend:443 HTTP/1.1\r\n" +
+			"Host: proxy.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"\r\n",
+	},
+
+	// Verify that a nil header value doesn't get written.
+	23: {
+		Req: Request{
+			Method: "GET",
+			URL:    mustParseURL("/foo"),
+			Header: Header{
+				"X-Foo":             []string{"X-Bar"},
+				"X-Idempotency-Key": nil,
+			},
+		},
+
+		WantWrite: "GET /foo HTTP/1.1\r\n" +
+			"Host: \r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"X-Foo: X-Bar\r\n\r\n",
+	},
+	24: {
+		Req: Request{
+			Method: "GET",
+			URL:    mustParseURL("/foo"),
+			Header: Header{
+				"X-Foo":             []string{"X-Bar"},
+				"X-Idempotency-Key": []string{},
+			},
+		},
+
+		WantWrite: "GET /foo HTTP/1.1\r\n" +
+			"Host: \r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"X-Foo: X-Bar\r\n\r\n",
+	},
+
+	25: {
+		Req: Request{
+			Method: "GET",
+			URL: &url.URL{
+				Host:     "www.example.com",
+				RawQuery: "new\nline", // or any CTL
+			},
+		},
+		WantError: errors.New("net/http: can't write control character in Request.URL"),
+	},
+
+	26: { // Request with nil body and PATCH method. Issue #40978
+		Req: Request{
+			Method:        "PATCH",
+			URL:           mustParseURL("/"),
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0, // as if unset by user
+		},
+		Body: nil,
+		WantWrite: "PATCH / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 0\r\n\r\n",
+		WantProxy: "PATCH / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 0\r\n\r\n",
+	},
 }
 
 func TestRequestWrite(t *testing.T) {
@@ -524,7 +619,7 @@ func TestRequestWrite(t *testing.T) {
 			}
 			switch b := tt.Body.(type) {
 			case []byte:
-				tt.Req.Body = ioutil.NopCloser(bytes.NewReader(b))
+				tt.Req.Body = io.NopCloser(bytes.NewReader(b))
 			case func() io.ReadCloser:
 				tt.Req.Body = b()
 			}
@@ -620,20 +715,20 @@ func TestRequestWriteTransport(t *testing.T) {
 		},
 		{
 			method: "GET",
-			body:   ioutil.NopCloser(strings.NewReader("")),
+			body:   io.NopCloser(strings.NewReader("")),
 			want:   noContentLengthOrTransferEncoding,
 		},
 		{
 			method: "GET",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("")),
+			body:   io.NopCloser(strings.NewReader("")),
 			want:   noContentLengthOrTransferEncoding,
 		},
 		// A GET with a body, with explicit content length:
 		{
 			method: "GET",
 			clen:   7,
-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			body:   io.NopCloser(strings.NewReader("foobody")),
 			want: all(matchSubstr("Content-Length: 7"),
 				matchSubstr("foobody")),
 		},
@@ -641,7 +736,7 @@ func TestRequestWriteTransport(t *testing.T) {
 		{
 			method: "GET",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			body:   io.NopCloser(strings.NewReader("foobody")),
 			want: all(matchSubstr("Transfer-Encoding: chunked"),
 				matchSubstr("\r\n1\r\nf\r\n"),
 				matchSubstr("oobody")),
@@ -651,14 +746,14 @@ func TestRequestWriteTransport(t *testing.T) {
 		{
 			method: "POST",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			body:   io.NopCloser(strings.NewReader("foobody")),
 			want: all(matchSubstr("Transfer-Encoding: chunked"),
 				matchSubstr("foobody")),
 		},
 		{
 			method: "POST",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("")),
+			body:   io.NopCloser(strings.NewReader("")),
 			want:   all(matchSubstr("Transfer-Encoding: chunked")),
 		},
 		// Verify that a blocking Request.Body doesn't block forever.
@@ -670,7 +765,7 @@ func TestRequestWriteTransport(t *testing.T) {
 				tt.afterReqRead = func() {
 					pw.Close()
 				}
-				tt.body = ioutil.NopCloser(pr)
+				tt.body = io.NopCloser(pr)
 			},
 			want: matchSubstr("Transfer-Encoding: chunked"),
 		},
@@ -841,7 +936,7 @@ func dumpRequestOut(req *Request, onReadHeaders func()) ([]byte, error) {
 			}
 			// Ensure all the body is read; otherwise
 			// we'll get a partial dump.
-			io.Copy(ioutil.Discard, req.Body)
+			io.Copy(io.Discard, req.Body)
 			req.Body.Close()
 		}
 		dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")

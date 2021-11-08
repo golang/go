@@ -8,6 +8,8 @@
 
 package sha512
 
+import "math/bits"
+
 var _K = []uint64{
 	0x428a2f98d728ae22,
 	0x7137449123ef65cd,
@@ -102,9 +104,9 @@ func blockGeneric(dig *digest, p []byte) {
 		}
 		for i := 16; i < 80; i++ {
 			v1 := w[i-2]
-			t1 := (v1>>19 | v1<<(64-19)) ^ (v1>>61 | v1<<(64-61)) ^ (v1 >> 6)
+			t1 := bits.RotateLeft64(v1, -19) ^ bits.RotateLeft64(v1, -61) ^ (v1 >> 6)
 			v2 := w[i-15]
-			t2 := (v2>>1 | v2<<(64-1)) ^ (v2>>8 | v2<<(64-8)) ^ (v2 >> 7)
+			t2 := bits.RotateLeft64(v2, -1) ^ bits.RotateLeft64(v2, -8) ^ (v2 >> 7)
 
 			w[i] = t1 + w[i-7] + t2 + w[i-16]
 		}
@@ -112,9 +114,9 @@ func blockGeneric(dig *digest, p []byte) {
 		a, b, c, d, e, f, g, h := h0, h1, h2, h3, h4, h5, h6, h7
 
 		for i := 0; i < 80; i++ {
-			t1 := h + ((e>>14 | e<<(64-14)) ^ (e>>18 | e<<(64-18)) ^ (e>>41 | e<<(64-41))) + ((e & f) ^ (^e & g)) + _K[i] + w[i]
+			t1 := h + (bits.RotateLeft64(e, -14) ^ bits.RotateLeft64(e, -18) ^ bits.RotateLeft64(e, -41)) + ((e & f) ^ (^e & g)) + _K[i] + w[i]
 
-			t2 := ((a>>28 | a<<(64-28)) ^ (a>>34 | a<<(64-34)) ^ (a>>39 | a<<(64-39))) + ((a & b) ^ (a & c) ^ (b & c))
+			t2 := (bits.RotateLeft64(a, -28) ^ bits.RotateLeft64(a, -34) ^ bits.RotateLeft64(a, -39)) + ((a & b) ^ (a & c) ^ (b & c))
 
 			h = g
 			g = f

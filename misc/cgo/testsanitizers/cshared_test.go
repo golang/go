@@ -6,7 +6,7 @@ package sanitizers_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -19,6 +19,12 @@ func TestShared(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	GOARCH, err := goEnv("GOARCH")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	libExt := "so"
 	if GOOS == "darwin" {
 		libExt = "dylib"
@@ -41,6 +47,11 @@ func TestShared(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		name := strings.TrimSuffix(tc.src, ".go")
+		//The memory sanitizer tests require support for the -msan option.
+		if tc.sanitizer == "memory" && !mSanSupported(GOOS, GOARCH) {
+			t.Logf("skipping %s test on %s/%s; -msan option is not supported.", name, GOOS, GOARCH)
+			continue
+		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			config := configure(tc.sanitizer)
@@ -53,7 +64,7 @@ func TestShared(t *testing.T) {
 			mustRun(t, config.goCmd("build", "-buildmode=c-shared", "-o", lib, srcPath(tc.src)))
 
 			cSrc := dir.Join("main.c")
-			if err := ioutil.WriteFile(cSrc, cMain, 0600); err != nil {
+			if err := os.WriteFile(cSrc, cMain, 0600); err != nil {
 				t.Fatalf("failed to write C source file: %v", err)
 			}
 

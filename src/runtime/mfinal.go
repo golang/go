@@ -7,8 +7,9 @@
 package runtime
 
 import (
+	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -25,14 +26,14 @@ type finblock struct {
 	next    *finblock
 	cnt     uint32
 	_       int32
-	fin     [(_FinBlockSize - 2*sys.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
+	fin     [(_FinBlockSize - 2*goarch.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
 }
 
 var finlock mutex  // protects the following variables
 var fing *g        // goroutine that runs finalizers
 var finq *finblock // list of finalizers that are to be executed
 var finc *finblock // cache of free blocks
-var finptrmask [_FinBlockSize / sys.PtrSize / 8]byte
+var finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
 var fingwait bool
 var fingwake bool
 var allfin *finblock // list of all blocks
@@ -88,18 +89,18 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 	lock(&finlock)
 	if finq == nil || finq.cnt == uint32(len(finq.fin)) {
 		if finc == nil {
-			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gc_sys))
+			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gcMiscSys))
 			finc.alllink = allfin
 			allfin = finc
 			if finptrmask[0] == 0 {
 				// Build pointer mask for Finalizer array in block.
 				// Check assumptions made in finalizer1 array above.
-				if (unsafe.Sizeof(finalizer{}) != 5*sys.PtrSize ||
+				if (unsafe.Sizeof(finalizer{}) != 5*goarch.PtrSize ||
 					unsafe.Offsetof(finalizer{}.fn) != 0 ||
-					unsafe.Offsetof(finalizer{}.arg) != sys.PtrSize ||
-					unsafe.Offsetof(finalizer{}.nret) != 2*sys.PtrSize ||
-					unsafe.Offsetof(finalizer{}.fint) != 3*sys.PtrSize ||
-					unsafe.Offsetof(finalizer{}.ot) != 4*sys.PtrSize) {
+					unsafe.Offsetof(finalizer{}.arg) != goarch.PtrSize ||
+					unsafe.Offsetof(finalizer{}.nret) != 2*goarch.PtrSize ||
+					unsafe.Offsetof(finalizer{}.fint) != 3*goarch.PtrSize ||
+					unsafe.Offsetof(finalizer{}.ot) != 4*goarch.PtrSize) {
 					throw("finalizer out of sync")
 				}
 				for i := range finptrmask {
@@ -162,6 +163,7 @@ func runfinq() {
 	var (
 		frame    unsafe.Pointer
 		framecap uintptr
+		argRegs  int
 	)
 
 	for {
@@ -175,6 +177,7 @@ func runfinq() {
 			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
 			continue
 		}
+		argRegs = intArgRegs
 		unlock(&finlock)
 		if raceenabled {
 			racefingo()
@@ -183,7 +186,22 @@ func runfinq() {
 			for i := fb.cnt; i > 0; i-- {
 				f := &fb.fin[i-1]
 
-				framesz := unsafe.Sizeof((interface{})(nil)) + f.nret
+				var regs abi.RegArgs
+				var framesz uintptr
+				if argRegs > 0 {
+					// The args can always be passed in registers if they're
+					// available, because platforms we support always have no
+					// argument registers available, or more than 2.
+					//
+					// But unfortunately because we can have an arbitrary
+					// amount of returns and it would be complex to try and
+					// figure out how many of those can get passed in registers,
+					// just conservatively assume none of them do.
+					framesz = f.nret
+				} else {
+					// Need to pass arguments on the stack too.
+					framesz = unsafe.Sizeof((interface{})(nil)) + f.nret
+				}
 				if framecap < framesz {
 					// The frame does not contain pointers interesting for GC,
 					// all not yet finalized objects are stored in finq.
@@ -196,30 +214,35 @@ func runfinq() {
 				if f.fint == nil {
 					throw("missing type in runfinq")
 				}
-				// frame is effectively uninitialized
-				// memory. That means we have to clear
-				// it before writing to it to avoid
-				// confusing the write barrier.
-				*(*[2]uintptr)(frame) = [2]uintptr{}
+				r := frame
+				if argRegs > 0 {
+					r = unsafe.Pointer(&regs.Ints)
+				} else {
+					// frame is effectively uninitialized
+					// memory. That means we have to clear
+					// it before writing to it to avoid
+					// confusing the write barrier.
+					*(*[2]uintptr)(frame) = [2]uintptr{}
+				}
 				switch f.fint.kind & kindMask {
 				case kindPtr:
 					// direct use of pointer
-					*(*unsafe.Pointer)(frame) = f.arg
+					*(*unsafe.Pointer)(r) = f.arg
 				case kindInterface:
 					ityp := (*interfacetype)(unsafe.Pointer(f.fint))
 					// set up with empty interface
-					(*eface)(frame)._type = &f.ot.typ
-					(*eface)(frame).data = f.arg
+					(*eface)(r)._type = &f.ot.typ
+					(*eface)(r).data = f.arg
 					if len(ityp.mhdr) != 0 {
 						// convert to interface with methods
 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
-						*(*iface)(frame) = assertE2I(ityp, *(*eface)(frame))
+						(*iface)(r).tab = assertE2I(ityp, (*eface)(r)._type)
 					}
 				default:
 					throw("bad kind in runfinq")
 				}
 				fingRunning = true
-				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
+				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz), uint32(framesz), &regs)
 				fingRunning = false
 
 				// Drop finalizer queue heap references
@@ -267,8 +290,8 @@ func runfinq() {
 // is not guaranteed to run, because there is no ordering that
 // respects the dependencies.
 //
-// The finalizer for obj is scheduled to run at some arbitrary time after
-// obj becomes unreachable.
+// The finalizer is scheduled to run at some arbitrary time after the
+// program can no longer reach the object to which obj points.
 // There is no guarantee that finalizers will run before a program exits,
 // so typically they are useful only for releasing non-memory resources
 // associated with an object during a long-running program.
@@ -293,15 +316,15 @@ func runfinq() {
 // pass the object to a call of the KeepAlive function to mark the
 // last point in the function where the object must be reachable.
 //
-// For example, if p points to a struct that contains a file descriptor d,
-// and p has a finalizer that closes that file descriptor, and if the last
-// use of p in a function is a call to syscall.Write(p.d, buf, size), then
-// p may be unreachable as soon as the program enters syscall.Write. The
-// finalizer may run at that moment, closing p.d, causing syscall.Write
-// to fail because it is writing to a closed file descriptor (or, worse,
-// to an entirely different file descriptor opened by a different goroutine).
-// To avoid this problem, call runtime.KeepAlive(p) after the call to
-// syscall.Write.
+// For example, if p points to a struct, such as os.File, that contains
+// a file descriptor d, and p has a finalizer that closes that file
+// descriptor, and if the last use of p in a function is a call to
+// syscall.Write(p.d, buf, size), then p may be unreachable as soon as
+// the program enters syscall.Write. The finalizer may run at that moment,
+// closing p.d, causing syscall.Write to fail because it is writing to
+// a closed file descriptor (or, worse, to an entirely different
+// file descriptor opened by a different goroutine). To avoid this problem,
+// call runtime.KeepAlive(p) after the call to syscall.Write.
 //
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
@@ -356,7 +379,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	if uintptr(e.data) != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
-		if ot.elem == nil || ot.elem.kind&kindNoPointers == 0 || ot.elem.size >= maxTinySize {
+		if ot.elem == nil || ot.elem.ptrdata != 0 || ot.elem.size >= maxTinySize {
 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
 		}
 	}
@@ -398,7 +421,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 			// ok - satisfies empty interface
 			goto okarg
 		}
-		if _, ok := assertE2I2(ityp, *efaceOf(&obj)); ok {
+		if iface := assertE2I2(ityp, *efaceOf(&obj)); iface.tab != nil {
 			goto okarg
 		}
 	}
@@ -407,9 +430,9 @@ okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
 	for _, t := range ft.out() {
-		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
+		nret = alignUp(nret, uintptr(t.align)) + uintptr(t.size)
 	}
-	nret = round(nret, sys.PtrSize)
+	nret = alignUp(nret, goarch.PtrSize)
 
 	// make sure we have a finalizer goroutine
 	createfing()
@@ -443,6 +466,10 @@ okarg:
 // Without the KeepAlive call, the finalizer could run at the start of
 // syscall.Read, closing the file descriptor before syscall.Read makes
 // the actual system call.
+//
+// Note: KeepAlive should only be used to prevent finalizers from
+// running prematurely. In particular, when used with unsafe.Pointer,
+// the rules for valid uses of unsafe.Pointer still apply.
 func KeepAlive(x interface{}) {
 	// Introduce a use of x that the compiler can't eliminate.
 	// This makes sure x is alive on entry. We need x to be alive

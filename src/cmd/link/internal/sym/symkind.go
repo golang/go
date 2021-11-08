@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -30,6 +30,8 @@
 
 package sym
 
+import "cmd/internal/objabi"
+
 // A SymKind describes the kind of memory represented by a symbol.
 type SymKind uint8
 
@@ -41,6 +43,7 @@ const (
 	Sxxx SymKind = iota
 	STEXT
 	SELFRXSECT
+	SMACHOPLT
 
 	// Read-only sections.
 	STYPE
@@ -52,7 +55,6 @@ const (
 	SFUNCTAB
 
 	SELFROSECT
-	SMACHOPLT
 
 	// Read-only sections with relocations.
 	//
@@ -81,6 +83,8 @@ const (
 	SPCLNTAB
 
 	// Writable sections.
+	SFirstWritable
+	SBUILDINFO
 	SELFSECT
 	SMACHO
 	SMACHOGOT
@@ -89,8 +93,10 @@ const (
 	SNOPTRDATA
 	SINITARR
 	SDATA
+	SXCOFFTOC
 	SBSS
 	SNOPTRBSS
+	SLIBFUZZER_EXTRA_COUNTER
 	STLSBSS
 	SXREF
 	SMACHOSYMSTR
@@ -98,33 +104,45 @@ const (
 	SMACHOINDIRECTPLT
 	SMACHOINDIRECTGOT
 	SFILEPATH
-	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
+	SUNDEFEXT // Undefined symbol for resolution by external linker
 
 	// Sections for debugging information
 	SDWARFSECT
-	SDWARFINFO
+	// DWARF symbol types
+	SDWARFCUINFO
+	SDWARFCONST
+	SDWARFFCN
+	SDWARFABSFCN
+	SDWARFTYPE
+	SDWARFVAR
 	SDWARFRANGE
 	SDWARFLOC
-	SDWARFMISC // Not really a section; informs/affects other DWARF section generation
+	SDWARFLINES
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are
 // of type cmd/internal/objabi.SymKind) to values of type SymKind.
 var AbiSymKindToSymKind = [...]SymKind{
-	Sxxx,
-	STEXT,
-	SRODATA,
-	SNOPTRDATA,
-	SDATA,
-	SBSS,
-	SNOPTRBSS,
-	STLSBSS,
-	SDWARFINFO,
-	SDWARFRANGE,
-	SDWARFLOC,
-	SDWARFMISC,
+	objabi.Sxxx:                     Sxxx,
+	objabi.STEXT:                    STEXT,
+	objabi.SRODATA:                  SRODATA,
+	objabi.SNOPTRDATA:               SNOPTRDATA,
+	objabi.SDATA:                    SDATA,
+	objabi.SBSS:                     SBSS,
+	objabi.SNOPTRBSS:                SNOPTRBSS,
+	objabi.STLSBSS:                  STLSBSS,
+	objabi.SDWARFCUINFO:             SDWARFCUINFO,
+	objabi.SDWARFCONST:              SDWARFCONST,
+	objabi.SDWARFFCN:                SDWARFFCN,
+	objabi.SDWARFABSFCN:             SDWARFABSFCN,
+	objabi.SDWARFTYPE:               SDWARFTYPE,
+	objabi.SDWARFVAR:                SDWARFVAR,
+	objabi.SDWARFRANGE:              SDWARFRANGE,
+	objabi.SDWARFLOC:                SDWARFLOC,
+	objabi.SDWARFLINES:              SDWARFLINES,
+	objabi.SLIBFUZZER_EXTRA_COUNTER: SLIBFUZZER_EXTRA_COUNTER,
 }
 
 // ReadOnly are the symbol kinds that form read-only sections. In some
@@ -150,4 +168,9 @@ var RelROMap = map[SymKind]SymKind{
 	SGCBITS:   SGCBITSRELRO,
 	SRODATA:   SRODATARELRO,
 	SFUNCTAB:  SFUNCTABRELRO,
+}
+
+// IsData returns true if the type is a data type.
+func (t SymKind) IsData() bool {
+	return t == SDATA || t == SNOPTRDATA || t == SBSS || t == SNOPTRBSS
 }

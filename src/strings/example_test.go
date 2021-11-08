@@ -10,17 +10,15 @@ import (
 	"unicode"
 )
 
-func ExampleFields() {
-	fmt.Printf("Fields are: %q", strings.Fields("  foo bar  baz   "))
-	// Output: Fields are: ["foo" "bar" "baz"]
-}
-
-func ExampleFieldsFunc() {
-	f := func(c rune) bool {
-		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+func ExampleBuilder() {
+	var b strings.Builder
+	for i := 3; i >= 1; i-- {
+		fmt.Fprintf(&b, "%d...", i)
 	}
-	fmt.Printf("Fields are: %q", strings.FieldsFunc("  foo1;bar2,baz3...", f))
-	// Output: Fields are: ["foo1" "bar2" "baz3"]
+	b.WriteString("ignition")
+	fmt.Println(b.String())
+
+	// Output: 3...2...1...ignition
 }
 
 func ExampleCompare() {
@@ -47,11 +45,15 @@ func ExampleContains() {
 
 func ExampleContainsAny() {
 	fmt.Println(strings.ContainsAny("team", "i"))
-	fmt.Println(strings.ContainsAny("failure", "u & i"))
+	fmt.Println(strings.ContainsAny("fail", "ui"))
+	fmt.Println(strings.ContainsAny("ure", "ui"))
+	fmt.Println(strings.ContainsAny("failure", "ui"))
 	fmt.Println(strings.ContainsAny("foo", ""))
 	fmt.Println(strings.ContainsAny("", ""))
 	// Output:
 	// false
+	// true
+	// true
 	// true
 	// false
 	// false
@@ -75,9 +77,38 @@ func ExampleCount() {
 	// 5
 }
 
+func ExampleCut() {
+	show := func(s, sep string) {
+		before, after, found := strings.Cut(s, sep)
+		fmt.Printf("Cut(%q, %q) = %q, %q, %v\n", s, sep, before, after, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "ph")
+	show("Gopher", "er")
+	show("Gopher", "Badger")
+	// Output:
+	// Cut("Gopher", "Go") = "", "pher", true
+	// Cut("Gopher", "ph") = "Go", "er", true
+	// Cut("Gopher", "er") = "Goph", "", true
+	// Cut("Gopher", "Badger") = "Gopher", "", false
+}
+
 func ExampleEqualFold() {
 	fmt.Println(strings.EqualFold("Go", "go"))
 	// Output: true
+}
+
+func ExampleFields() {
+	fmt.Printf("Fields are: %q", strings.Fields("  foo bar  baz   "))
+	// Output: Fields are: ["foo" "bar" "baz"]
+}
+
+func ExampleFieldsFunc() {
+	f := func(c rune) bool {
+		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+	}
+	fmt.Printf("Fields are: %q", strings.FieldsFunc("  foo1;bar2,baz3...", f))
+	// Output: Fields are: ["foo1" "bar2" "baz3"]
 }
 
 func ExampleHasPrefix() {
@@ -205,6 +236,12 @@ func ExampleReplace() {
 	// moo moo moo
 }
 
+func ExampleReplaceAll() {
+	fmt.Println(strings.ReplaceAll("oink oink oink", "oink", "moo"))
+	// Output:
+	// moo moo moo
+}
+
 func ExampleSplit() {
 	fmt.Printf("%q\n", strings.Split("a,b,c", ","))
 	fmt.Printf("%q\n", strings.Split("a man a plan a canal panama", "a "))
@@ -237,14 +274,23 @@ func ExampleSplitAfterN() {
 }
 
 func ExampleTitle() {
+	// Compare this example to the ToTitle example.
 	fmt.Println(strings.Title("her royal highness"))
-	// Output: Her Royal Highness
+	fmt.Println(strings.Title("loud noises"))
+	fmt.Println(strings.Title("хлеб"))
+	// Output:
+	// Her Royal Highness
+	// Loud Noises
+	// Хлеб
 }
 
 func ExampleToTitle() {
+	// Compare this example to the Title example.
+	fmt.Println(strings.ToTitle("her royal highness"))
 	fmt.Println(strings.ToTitle("loud noises"))
 	fmt.Println(strings.ToTitle("хлеб"))
 	// Output:
+	// HER ROYAL HIGHNESS
 	// LOUD NOISES
 	// ХЛЕБ
 }
@@ -350,15 +396,4 @@ func ExampleTrimRightFunc() {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	}))
 	// Output: ¡¡¡Hello, Gophers
-}
-
-func ExampleBuilder() {
-	var b strings.Builder
-	for i := 3; i >= 1; i-- {
-		fmt.Fprintf(&b, "%d...", i)
-	}
-	b.WriteString("ignition")
-	fmt.Println(b.String())
-
-	// Output: 3...2...1...ignition
 }

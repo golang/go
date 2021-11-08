@@ -23,74 +23,52 @@ import (
 // compiled with a Go 1.4 toolchain to produce the bootstrapTargets.
 // All directories in this list are relative to and must be below $GOROOT/src.
 //
-// The list has have two kinds of entries: names beginning with cmd/ with
+// The list has two kinds of entries: names beginning with cmd/ with
 // no other slashes, which are commands, and other paths, which are packages
 // supporting the commands. Packages in the standard library can be listed
 // if a newer copy needs to be substituted for the Go 1.4 copy when used
-// by the command packages.
+// by the command packages. Paths ending with /... automatically
+// include all packages within subdirectories as well.
 // These will be imported during bootstrap as bootstrap/name, like bootstrap/math/big.
 var bootstrapDirs = []string{
 	"cmd/asm",
-	"cmd/asm/internal/arch",
-	"cmd/asm/internal/asm",
-	"cmd/asm/internal/flags",
-	"cmd/asm/internal/lex",
+	"cmd/asm/internal/...",
 	"cmd/cgo",
 	"cmd/compile",
-	"cmd/compile/internal/amd64",
-	"cmd/compile/internal/arm",
-	"cmd/compile/internal/arm64",
-	"cmd/compile/internal/gc",
-	"cmd/compile/internal/mips",
-	"cmd/compile/internal/mips64",
-	"cmd/compile/internal/ppc64",
-	"cmd/compile/internal/types",
-	"cmd/compile/internal/s390x",
-	"cmd/compile/internal/ssa",
-	"cmd/compile/internal/syntax",
-	"cmd/compile/internal/x86",
-	"cmd/compile/internal/wasm",
+	"cmd/compile/internal/...",
+	"cmd/internal/archive",
 	"cmd/internal/bio",
-	"cmd/internal/gcprog",
+	"cmd/internal/codesign",
 	"cmd/internal/dwarf",
 	"cmd/internal/edit",
+	"cmd/internal/gcprog",
+	"cmd/internal/goobj",
+	"cmd/internal/obj/...",
 	"cmd/internal/objabi",
-	"cmd/internal/obj",
-	"cmd/internal/obj/arm",
-	"cmd/internal/obj/arm64",
-	"cmd/internal/obj/mips",
-	"cmd/internal/obj/ppc64",
-	"cmd/internal/obj/s390x",
-	"cmd/internal/obj/x86",
-	"cmd/internal/obj/wasm",
+	"cmd/internal/pkgpath",
+	"cmd/internal/quoted",
 	"cmd/internal/src",
 	"cmd/internal/sys",
 	"cmd/link",
-	"cmd/link/internal/amd64",
-	"cmd/link/internal/arm",
-	"cmd/link/internal/arm64",
-	"cmd/link/internal/ld",
-	"cmd/link/internal/loadelf",
-	"cmd/link/internal/loadmacho",
-	"cmd/link/internal/loadpe",
-	"cmd/link/internal/mips",
-	"cmd/link/internal/mips64",
-	"cmd/link/internal/objfile",
-	"cmd/link/internal/ppc64",
-	"cmd/link/internal/s390x",
-	"cmd/link/internal/sym",
-	"cmd/link/internal/x86",
+	"cmd/link/internal/...",
 	"compress/flate",
 	"compress/zlib",
-	"cmd/link/internal/wasm",
 	"container/heap",
 	"debug/dwarf",
 	"debug/elf",
 	"debug/macho",
 	"debug/pe",
+	"go/constant",
+	"internal/buildcfg",
+	"internal/goexperiment",
+	"internal/goversion",
+	"internal/race",
+	"internal/unsafeheader",
+	"internal/xcoff",
 	"math/big",
 	"math/bits",
 	"sort",
+	"strconv",
 }
 
 // File prefixes that are ignored by go/build anyway, and cause
@@ -98,15 +76,21 @@ var bootstrapDirs = []string{
 var ignorePrefixes = []string{
 	".",
 	"_",
+	"#",
 }
 
 // File suffixes that use build tags introduced since Go 1.4.
 // These must not be copied into the bootstrap build directory.
+// Also ignore test files.
 var ignoreSuffixes = []string{
 	"_arm64.s",
 	"_arm64.go",
+	"_riscv64.s",
+	"_riscv64.go",
 	"_wasm.s",
 	"_wasm.go",
+	"_test.s",
+	"_test.go",
 }
 
 func bootstrapBuildTools() {
@@ -116,7 +100,8 @@ func bootstrapBuildTools() {
 	}
 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
 
-	mkzbootstrap(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
+	mkbuildcfg(pathf("%s/src/internal/buildcfg/zbootstrap.go", goroot))
+	mkobjabi(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
 
 	// Use $GOROOT/pkg/bootstrap as the bootstrap workspace root.
 	// We use a subdirectory of $GOROOT/pkg because that's the
@@ -125,36 +110,54 @@ func bootstrapBuildTools() {
 	// but it is easier to debug on failure if the files are in a known location.
 	workspace := pathf("%s/pkg/bootstrap", goroot)
 	xremoveall(workspace)
+	xatexit(func() { xremoveall(workspace) })
 	base := pathf("%s/src/bootstrap", workspace)
 	xmkdirall(base)
 
 	// Copy source code into $GOROOT/pkg/bootstrap and rewrite import paths.
+	writefile("module bootstrap\n", pathf("%s/%s", base, "go.mod"), 0)
 	for _, dir := range bootstrapDirs {
-		src := pathf("%s/src/%s", goroot, dir)
-		dst := pathf("%s/%s", base, dir)
-		xmkdirall(dst)
-		if dir == "cmd/cgo" {
-			// Write to src because we need the file both for bootstrap
-			// and for later in the main build.
-			mkzdefaultcc("", pathf("%s/zdefaultcc.go", src))
-		}
-	Dir:
-		for _, name := range xreaddirfiles(src) {
+		recurse := strings.HasSuffix(dir, "/...")
+		dir = strings.TrimSuffix(dir, "/...")
+		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				fatalf("walking bootstrap dirs failed: %v: %v", path, err)
+			}
+
+			name := filepath.Base(path)
+			src := pathf("%s/src/%s", goroot, path)
+			dst := pathf("%s/%s", base, path)
+
+			if info.IsDir() {
+				if !recurse && path != dir || name == "testdata" {
+					return filepath.SkipDir
+				}
+
+				xmkdirall(dst)
+				if path == "cmd/cgo" {
+					// Write to src because we need the file both for bootstrap
+					// and for later in the main build.
+					mkzdefaultcc("", pathf("%s/zdefaultcc.go", src))
+					mkzdefaultcc("", pathf("%s/zdefaultcc.go", dst))
+				}
+				return nil
+			}
+
 			for _, pre := range ignorePrefixes {
 				if strings.HasPrefix(name, pre) {
-					continue Dir
+					return nil
 				}
 			}
 			for _, suf := range ignoreSuffixes {
 				if strings.HasSuffix(name, suf) {
-					continue Dir
+					return nil
 				}
 			}
-			srcFile := pathf("%s/%s", src, name)
-			dstFile := pathf("%s/%s", dst, name)
-			text := bootstrapRewriteFile(srcFile)
-			writefile(text, dstFile, 0)
-		}
+
+			text := bootstrapRewriteFile(src)
+			writefile(text, dst, 0)
+			return nil
+		})
 	}
 
 	// Set up environment for invoking Go 1.4 go command.
@@ -202,7 +205,7 @@ func bootstrapBuildTools() {
 		cmd = append(cmd, "-toolexec="+tool)
 	}
 	cmd = append(cmd, "bootstrap/cmd/...")
-	run(workspace, ShowOutput|CheckExit, cmd...)
+	run(base, ShowOutput|CheckExit, cmd...)
 
 	// Copy binaries into tool binary directory.
 	for _, name := range bootstrapDirs {
@@ -242,6 +245,10 @@ func isUnneededSSARewriteFile(srcFile string) (archCaps string, unneeded bool) {
 	}
 	archCaps = fileArch
 	fileArch = strings.ToLower(fileArch)
+	fileArch = strings.TrimSuffix(fileArch, "splitload")
+	if fileArch == os.Getenv("GOHOSTARCH") {
+		return "", false
+	}
 	if fileArch == strings.TrimSuffix(runtime.GOARCH, "le") {
 		return "", false
 	}
@@ -282,8 +289,10 @@ func bootstrapFixImports(srcFile string) string {
 			continue
 		}
 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
+			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"")) {
 			line = strings.Replace(line, `"cmd/`, `"bootstrap/cmd/`, -1)
+			// During bootstrap, must use plain os/exec.
+			line = strings.Replace(line, `exec "internal/execabs"`, `"os/exec"`, -1)
 			for _, dir := range bootstrapDirs {
 				if strings.HasPrefix(dir, "cmd/") {
 					continue
