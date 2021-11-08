@@ -47,11 +47,12 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 		return false
 	}
 
+	// ordinary index expression
 	valid := false
 	length := int64(-1) // valid if >= 0
 	switch typ := under(x.typ).(type) {
 	case *Basic:
-		if isString(typ) {
+		if is_String(typ) {
 			valid = true
 			if x.mode == constant_ {
 				length = int64(len(constant.StringVal(x.val)))
@@ -109,7 +110,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 			var k, e Type  // k is only set for maps
 			switch t := u.(type) {
 			case *Basic:
-				if isString(t) {
+				if is_String(t) {
 					e = universeByte
 					mode = value
 				}
@@ -217,7 +218,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		return
 
 	case *Basic:
-		if isString(u) {
+		if is_String(u) {
 			if e.Slice3 {
 				check.invalidOp(x, _InvalidSliceExpr, "3-index slice of string")
 				x.mode = invalid
@@ -372,7 +373,7 @@ func (check *Checker) isValidIndex(x *operand, code errorCode, what string, allo
 	}
 
 	// spec: "the index x must be of integer type or an untyped constant"
-	if !isInteger(x.typ) {
+	if !allInteger(x.typ) {
 		check.invalidArg(x, code, "%s %s must be integer", what, x)
 		return false
 	}

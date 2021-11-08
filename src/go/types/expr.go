@@ -64,10 +64,10 @@ var unaryOpPredicates opPredicates
 func init() {
 	// Setting unaryOpPredicates in init avoids declaration cycles.
 	unaryOpPredicates = opPredicates{
-		token.ADD: isNumeric,
-		token.SUB: isNumeric,
-		token.XOR: isInteger,
-		token.NOT: isBoolean,
+		token.ADD: allNumeric,
+		token.SUB: allNumeric,
+		token.XOR: allInteger,
+		token.NOT: allBoolean,
 	}
 }
 
@@ -212,7 +212,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 			return
 		}
 		var prec uint
-		if isUnsigned(x.typ) {
+		if is_Unsigned(x.typ) {
 			prec = uint(check.conf.sizeof(x.typ) * 8)
 		}
 		x.val = constant.UnaryOp(e.Op, x.val, prec)
@@ -289,7 +289,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 	}
 
 	switch {
-	case isInteger(typ):
+	case is_Integer(typ):
 		x := constant.ToInt(x)
 		if x.Kind() != constant.Int {
 			return false
@@ -344,7 +344,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 			return true
 		}
 
-	case isFloat(typ):
+	case is_Float(typ):
 		x := constant.ToFloat(x)
 		if x.Kind() != constant.Float {
 			return false
@@ -374,7 +374,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 			unreachable()
 		}
 
-	case isComplex(typ):
+	case is_Complex(typ):
 		x := constant.ToComplex(x)
 		if x.Kind() != constant.Complex {
 			return false
@@ -406,10 +406,10 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 			unreachable()
 		}
 
-	case isString(typ):
+	case is_String(typ):
 		return x.Kind() == constant.String
 
-	case isBoolean(typ):
+	case is_Boolean(typ):
 		return x.Kind() == constant.Bool
 	}
 
@@ -437,7 +437,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, er
 	assert(x.mode == constant_)
 	v := x.val
 	if !representableConst(x.val, check, typ, &v) {
-		if isNumeric(x.typ) && isNumeric(typ) {
+		if is_Numeric(x.typ) && is_Numeric(typ) {
 			// numeric conversion : error msg
 			//
 			// integer -> integer : overflows
@@ -445,7 +445,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, er
 			// float   -> integer : truncated
 			// float   -> float   : overflows
 			//
-			if !isInteger(x.typ) && isInteger(typ) {
+			if !is_Integer(x.typ) && is_Integer(typ) {
 				return nil, _TruncatedFloat
 			} else {
 				return nil, _NumericOverflow
@@ -569,7 +569,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 		// If x is the lhs of a shift, its final type must be integer.
 		// We already know from the shift check that it is representable
 		// as an integer if it is a constant.
-		if !isInteger(typ) {
+		if !is_Integer(typ) {
 			check.invalidOp(x, _InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
 			return
 		}
@@ -631,7 +631,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		// both x and target are untyped
 		xkind := x.typ.(*Basic).kind
 		tkind := target.(*Basic).kind
-		if isNumeric(x.typ) && isNumeric(target) {
+		if is_Numeric(x.typ) && is_Numeric(target) {
 			if xkind < tkind {
 				return target, nil, 0
 			}
@@ -641,10 +641,10 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		return x.typ, nil, 0
 	}
 
-	switch t := under(target).(type) {
+	switch u := under(target).(type) {
 	case *Basic:
 		if x.mode == constant_ {
-			v, code := check.representation(x, t)
+			v, code := check.representation(x, u)
 			if code != 0 {
 				return nil, nil, code
 			}
@@ -656,18 +656,18 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		// the value nil.
 		switch x.typ.(*Basic).kind {
 		case UntypedBool:
-			if !isBoolean(target) {
+			if !is_Boolean(target) {
 				return nil, nil, _InvalidUntypedConversion
 			}
 		case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
-			if !isNumeric(target) {
+			if !is_Numeric(target) {
 				return nil, nil, _InvalidUntypedConversion
 			}
 		case UntypedString:
 			// Non-constant untyped string values are not permitted by the spec and
 			// should not occur during normal typechecking passes, but this path is
 			// reachable via the AssignableTo API.
-			if !isString(target) {
+			if !is_String(target) {
 				return nil, nil, _InvalidUntypedConversion
 			}
 		case UntypedNil:
@@ -682,7 +682,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		}
 	case *TypeParam:
 		// TODO(gri) review this code - doesn't look quite right
-		ok := t.underIs(func(t Type) bool {
+		ok := u.underIs(func(t Type) bool {
 			target, _, _ := check.implicitTypeAndValue(x, t)
 			return target != nil
 		})
@@ -702,7 +702,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 			return Typ[UntypedNil], nil, 0
 		}
 		// cannot assign untyped values to non-empty interfaces
-		if !t.Empty() {
+		if !u.Empty() {
 			return nil, nil, _InvalidUntypedConversion
 		}
 		return Default(x.typ), nil, 0
@@ -733,7 +733,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 			defined = Comparable(x.typ) && Comparable(y.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
 		case token.LSS, token.LEQ, token.GTR, token.GEQ:
 			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
-			defined = isOrdered(x.typ) && isOrdered(y.typ)
+			defined = allOrdered(x.typ) && allOrdered(y.typ)
 		default:
 			unreachable()
 		}
@@ -784,7 +784,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		xval = constant.ToInt(x.val)
 	}
 
-	if isInteger(x.typ) || isUntyped(x.typ) && xval != nil && xval.Kind() == constant.Int {
+	if allInteger(x.typ) || isUntyped(x.typ) && xval != nil && xval.Kind() == constant.Int {
 		// The lhs is of integer type or an untyped constant representable
 		// as an integer. Nothing to do.
 	} else {
@@ -810,7 +810,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 
 		if isUntyped(y.typ) {
 			// Caution: Check for representability here, rather than in the switch
-			// below, because isInteger includes untyped integers (was bug #43697).
+			// below, because is_Integer includes untyped integers (was bug #43697).
 			check.representable(y, Typ[Uint])
 			if y.mode == invalid {
 				x.mode = invalid
@@ -821,8 +821,8 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 
 	// Check that RHS is otherwise at least of integer type.
 	switch {
-	case isInteger(y.typ):
-		if !isUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+	case allInteger(y.typ):
+		if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
 			check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
 			x.mode = invalid
 			return
@@ -847,7 +847,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
 				x.val = constant.MakeUnknown()
 				// ensure the correct type - see comment below
-				if !isInteger(x.typ) {
+				if !is_Integer(x.typ) {
 					x.typ = Typ[UntypedInt]
 				}
 				return
@@ -864,7 +864,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			// (e.g., 2.0, an untyped float) - this can only happen for untyped
 			// non-integer numeric constants. Correct the type so that the shift
 			// result is of integer type.
-			if !isInteger(x.typ) {
+			if !is_Integer(x.typ) {
 				x.typ = Typ[UntypedInt]
 			}
 			// x is a constant so xval != nil and it must be of Int kind.
@@ -910,7 +910,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	}
 
 	// non-constant shift - lhs must be an integer
-	if !isInteger(x.typ) {
+	if !allInteger(x.typ) {
 		check.invalidOp(x, _InvalidShiftOperand, "shifted operand %s must be integer", x)
 		x.mode = invalid
 		return
@@ -924,19 +924,19 @@ var binaryOpPredicates opPredicates
 func init() {
 	// Setting binaryOpPredicates in init avoids declaration cycles.
 	binaryOpPredicates = opPredicates{
-		token.ADD: isNumericOrString,
-		token.SUB: isNumeric,
-		token.MUL: isNumeric,
-		token.QUO: isNumeric,
-		token.REM: isInteger,
+		token.ADD: allNumericOrString,
+		token.SUB: allNumeric,
+		token.MUL: allNumeric,
+		token.QUO: allNumeric,
+		token.REM: allInteger,
 
-		token.AND:     isInteger,
-		token.OR:      isInteger,
-		token.XOR:     isInteger,
-		token.AND_NOT: isInteger,
+		token.AND:     allInteger,
+		token.OR:      allInteger,
+		token.XOR:     allInteger,
+		token.AND_NOT: allInteger,
 
-		token.LAND: isBoolean,
-		token.LOR:  isBoolean,
+		token.LAND: allBoolean,
+		token.LOR:  allBoolean,
 	}
 }
 
@@ -966,10 +966,10 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 		if IsInterface(x.typ) || IsInterface(y.typ) {
 			return true
 		}
-		if isBoolean(x.typ) != isBoolean(y.typ) {
+		if allBoolean(x.typ) != allBoolean(y.typ) {
 			return false
 		}
-		if isString(x.typ) != isString(y.typ) {
+		if allString(x.typ) != allString(y.typ) {
 			return false
 		}
 		if x.isNil() && !hasNil(y.typ) {
@@ -1022,14 +1022,14 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 
 	if op == token.QUO || op == token.REM {
 		// check for zero divisor
-		if (x.mode == constant_ || isInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
+		if (x.mode == constant_ || allInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
 			check.invalidOp(&y, _DivByZero, "division by zero")
 			x.mode = invalid
 			return
 		}
 
 		// check for divisor underflow in complex division (see issue 20227)
-		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ) {
+		if x.mode == constant_ && y.mode == constant_ && is_Complex(x.typ) {
 			re, im := constant.Real(y.val), constant.Imag(y.val)
 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
 			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
@@ -1048,7 +1048,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 			return
 		}
 		// force integer division of integer operands
-		if op == token.QUO && isInteger(x.typ) {
+		if op == token.QUO && is_Integer(x.typ) {
 			op = token.QUO_ASSIGN
 		}
 		x.val = constant.BinaryOp(x.val, op, y.val)

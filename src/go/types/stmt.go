@@ -456,7 +456,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if x.mode == invalid {
 			return
 		}
-		if !isNumeric(x.typ) {
+		if !allNumeric(x.typ) {
 			check.invalidOp(s.X, _NonNumericIncDec, "%s%s (non-numeric type %s)", s.X, s.Tok, x.typ)
 			return
 		}
@@ -572,7 +572,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.simpleStmt(s.Init)
 		var x operand
 		check.expr(&x, s.Cond)
-		if x.mode != invalid && !isBoolean(x.typ) {
+		if x.mode != invalid && !allBoolean(x.typ) {
 			check.error(s.Cond, _InvalidCond, "non-boolean condition in if statement")
 		}
 		check.stmt(inner, s.Body)
@@ -804,7 +804,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if s.Cond != nil {
 			var x operand
 			check.expr(&x, s.Cond)
-			if x.mode != invalid && !isBoolean(x.typ) {
+			if x.mode != invalid && !allBoolean(x.typ) {
 				check.error(s.Cond, _InvalidCond, "non-boolean condition in for statement")
 			}
 		}
@@ -944,7 +944,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 func rangeKeyVal(typ Type) (key, val Type) {
 	switch typ := arrayPtrDeref(typ).(type) {
 	case *Basic:
-		if isString(typ) {
+		if is_String(typ) {
 			return Typ[Int], universeRune // use 'rune' name
 		}
 	case *Array:

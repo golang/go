@@ -82,7 +82,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
 		return 1
 	}
 	// complex{64,128} are aligned like [2]float{32,64}.
-	if isComplex(T) {
+	if is_Complex(T) {
 		a /= 2
 	}
 	if a > s.MaxAlign {
