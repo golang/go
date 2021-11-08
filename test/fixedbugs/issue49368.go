@@ -1,4 +1,4 @@
-// errorcheck -lang=go1.17
+// errorcheck -G=3 -lang=go1.17
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
