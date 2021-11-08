@@ -2085,6 +2085,7 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
 		fn.Dcl = append(fn.Dcl, arg)
 		f := types.NewField(pos, arg.Sym(), t)
 		f.Nname = arg
+		f.SetIsDDD(typ.Params().Field(i).IsDDD())
 		formalParams = append(formalParams, f)
 	}
 	for i := 0; i < typ.NumResults(); i++ {
