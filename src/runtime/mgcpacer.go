@@ -349,9 +349,6 @@ func (c *gcControllerState) init(gcPercent int32) {
 			kp: 0.9,
 			ti: 4.0,
 
-			// An update is done once per GC cycle.
-			period: 1,
-
 			// Set a high reset time in GC cycles.
 			// This is inversely proportional to the rate at which we
 			// accumulate error from clipping. By making this very high
@@ -677,8 +674,9 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) floa
 			(float64(scanWork) * (1 - utilization))
 
 		// Update cons/mark controller.
+		// Period for this is 1 GC cycle.
 		oldConsMark := c.consMark
-		c.consMark = c.consMarkController.next(c.consMark, currentConsMark)
+		c.consMark = c.consMarkController.next(c.consMark, currentConsMark, 1.0)
 
 		if debug.gcpacertrace > 0 {
 			printlock()
@@ -1259,10 +1257,7 @@ func readGOGC() int32 {
 type piController struct {
 	kp float64 // Proportional constant.
 	ti float64 // Integral time constant.
-	tt float64 // Reset time in GC cyles.
-
-	// Period in GC cycles between updates.
-	period float64
+	tt float64 // Reset time.
 
 	min, max float64 // Output boundaries.
 
@@ -1271,7 +1266,7 @@ type piController struct {
 	errIntegral float64 // Integral of the error from t=0 to now.
 }
 
-func (c *piController) next(input, setpoint float64) float64 {
+func (c *piController) next(input, setpoint, period float64) float64 {
 	// Compute the raw output value.
 	prop := c.kp * (setpoint - input)
 	rawOutput := prop + c.errIntegral
@@ -1286,7 +1281,7 @@ func (c *piController) next(input, setpoint float64) float64 {
 
 	// Update the controller's state.
 	if c.ti != 0 && c.tt != 0 {
-		c.errIntegral += (c.kp*c.period/c.ti)*(setpoint-input) + (c.period/c.tt)*(output-rawOutput)
+		c.errIntegral += (c.kp*period/c.ti)*(setpoint-input) + (period/c.tt)*(output-rawOutput)
 	}
 	return output
 }

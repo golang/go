@@ -796,21 +796,17 @@ func (p *PageAlloc) Free(base, npages uintptr) {
 		// None of the tests need any higher-level locking, so we just
 		// take the lock internally.
 		lock(pp.mheapLock)
-		pp.free(base, npages)
+		pp.free(base, npages, true)
 		unlock(pp.mheapLock)
 	})
 }
 func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
 	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
 }
-func (p *PageAlloc) Scavenge(nbytes uintptr, mayUnlock bool) (r uintptr) {
+func (p *PageAlloc) Scavenge(nbytes uintptr) (r uintptr) {
 	pp := (*pageAlloc)(p)
 	systemstack(func() {
-		// None of the tests need any higher-level locking, so we just
-		// take the lock internally.
-		lock(pp.mheapLock)
-		r = pp.scavenge(nbytes, mayUnlock)
-		unlock(pp.mheapLock)
+		r = pp.scavenge(nbytes)
 	})
 	return
 }

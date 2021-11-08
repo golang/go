@@ -1616,3 +1616,45 @@ func TestTimeAddSecOverflow(t *testing.T) {
 		}
 	}
 }
+
+// Issue 49284: time: ParseInLocation incorrectly because of Daylight Saving Time
+func TestTimeWithZoneTransition(t *testing.T) {
+	ForceZipFileForTesting(true)
+	defer ForceZipFileForTesting(false)
+
+	loc, err := LoadLocation("Asia/Shanghai")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := [...]struct {
+		give Time
+		want Time
+	}{
+		// 14 Apr 1991 - Daylight Saving Time Started
+		// When time of "Asia/Shanghai" was about to reach
+		// Sunday, 14 April 1991, 02:00:00 clocks were turned forward 1 hour to
+		// Sunday, 14 April 1991, 03:00:00 local daylight time instead.
+		// The UTC time was 13 April 1991, 18:00:00
+		0: {Date(1991, April, 13, 17, 50, 0, 0, loc), Date(1991, April, 13, 9, 50, 0, 0, UTC)},
+		1: {Date(1991, April, 13, 18, 0, 0, 0, loc), Date(1991, April, 13, 10, 0, 0, 0, UTC)},
+		2: {Date(1991, April, 14, 1, 50, 0, 0, loc), Date(1991, April, 13, 17, 50, 0, 0, UTC)},
+		3: {Date(1991, April, 14, 3, 0, 0, 0, loc), Date(1991, April, 13, 18, 0, 0, 0, UTC)},
+
+		// 15 Sep 1991 - Daylight Saving Time Ended
+		// When local daylight time of "Asia/Shanghai" was about to reach
+		// Sunday, 15 September 1991, 02:00:00 clocks were turned backward 1 hour to
+		// Sunday, 15 September 1991, 01:00:00 local standard time instead.
+		// The UTC time was 14 September 1991, 17:00:00
+		4: {Date(1991, September, 14, 16, 50, 0, 0, loc), Date(1991, September, 14, 7, 50, 0, 0, UTC)},
+		5: {Date(1991, September, 14, 17, 0, 0, 0, loc), Date(1991, September, 14, 8, 0, 0, 0, UTC)},
+		6: {Date(1991, September, 15, 0, 50, 0, 0, loc), Date(1991, September, 14, 15, 50, 0, 0, UTC)},
+		7: {Date(1991, September, 15, 2, 00, 0, 0, loc), Date(1991, September, 14, 18, 00, 0, 0, UTC)},
+	}
+
+	for i, tt := range tests {
+		if !tt.give.Equal(tt.want) {
+			t.Errorf("#%d:: %#v is not equal to %#v", i, tt.give.Format(RFC3339), tt.want.Format(RFC3339))
+		}
+	}
+}

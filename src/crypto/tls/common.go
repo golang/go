@@ -18,6 +18,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"net"
 	"strings"
@@ -682,11 +683,20 @@ type Config struct {
 	ClientSessionCache ClientSessionCache
 
 	// MinVersion contains the minimum TLS version that is acceptable.
-	// If zero, TLS 1.0 is currently taken as the minimum.
+	//
+	// By default, TLS 1.2 is currently used as the minimum when acting as a
+	// client, and TLS 1.0 when acting as a server. TLS 1.0 is the minimum
+	// supported by this package, both as a client and as a server.
+	//
+	// The client-side default can temporarily be reverted to TLS 1.0 by
+	// including the value "x509sha1=1" in the GODEBUG environment variable.
+	// Note that this option will be removed in Go 1.19 (but it will still be
+	// possible to set this field to VersionTLS10 explicitly).
 	MinVersion uint16
 
 	// MaxVersion contains the maximum TLS version that is acceptable.
-	// If zero, the maximum version supported by this package is used,
+	//
+	// By default, the maximum version supported by this package is used,
 	// which is currently TLS 1.3.
 	MaxVersion uint16
 
@@ -967,10 +977,22 @@ var supportedVersions = []uint16{
 	VersionTLS10,
 }
 
-func (c *Config) supportedVersions() []uint16 {
+// debugEnableTLS10 enables TLS 1.0. See issue 45428.
+var debugEnableTLS10 = godebug.Get("tls10default") == "1"
+
+// roleClient and roleServer are meant to call supportedVersions and parents
+// with more readability at the callsite.
+const roleClient = true
+const roleServer = false
+
+func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
 		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
+			continue
+		}
+		if (c == nil || c.MinVersion == 0) && !debugEnableTLS10 &&
+			isClient && v < VersionTLS12 {
 			continue
 		}
 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
@@ -984,8 +1006,8 @@ func (c *Config) supportedVersions() []uint16 {
 	return versions
 }
 
-func (c *Config) maxSupportedVersion() uint16 {
-	supportedVersions := c.supportedVersions()
+func (c *Config) maxSupportedVersion(isClient bool) uint16 {
+	supportedVersions := c.supportedVersions(isClient)
 	if len(supportedVersions) == 0 {
 		return 0
 	}
@@ -1029,8 +1051,8 @@ func (c *Config) supportsCurve(curve CurveID) bool {
 
 // mutualVersion returns the protocol version to use given the advertised
 // versions of the peer. Priority is given to the peer preference order.
-func (c *Config) mutualVersion(peerVersions []uint16) (uint16, bool) {
-	supportedVersions := c.supportedVersions()
+func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
+	supportedVersions := c.supportedVersions(isClient)
 	for _, peerVersion := range peerVersions {
 		for _, v := range supportedVersions {
 			if v == peerVersion {
@@ -1109,7 +1131,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 	if config == nil {
 		config = &Config{}
 	}
-	vers, ok := config.mutualVersion(chi.SupportedVersions)
+	vers, ok := config.mutualVersion(roleServer, chi.SupportedVersions)
 	if !ok {
 		return errors.New("no mutually supported protocol versions")
 	}

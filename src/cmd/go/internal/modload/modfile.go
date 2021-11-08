@@ -378,7 +378,7 @@ func canonicalizeReplacePath(r module.Version, modRoot string) module.Version {
 		return r
 	}
 	abs := filepath.Join(modRoot, r.Path)
-	if rel, err := filepath.Rel(workFilePath, abs); err == nil {
+	if rel, err := filepath.Rel(filepath.Dir(workFilePath), abs); err == nil {
 		return module.Version{Path: rel, Version: r.Version}
 	}
 	// We couldn't make the version's path relative to the workspace's path,

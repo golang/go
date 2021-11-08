@@ -37,6 +37,16 @@ func ExampleBuffer_Bytes() {
 	// Output: hello world
 }
 
+func ExampleBuffer_Cap() {
+	buf1 := bytes.NewBuffer(make([]byte, 10))
+	buf2 := bytes.NewBuffer(make([]byte, 0, 10))
+	fmt.Println(buf1.Cap())
+	fmt.Println(buf2.Cap())
+	// Output:
+	// 10
+	// 10
+}
+
 func ExampleBuffer_Grow() {
 	var b bytes.Buffer
 	b.Grow(64)
@@ -65,6 +75,39 @@ func ExampleBuffer_Next() {
 	// ab
 	// cd
 	// e
+}
+
+func ExampleBuffer_Read() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	rdbuf := make([]byte, 1)
+	n, err := b.Read(rdbuf)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(n)
+	fmt.Println(b.String())
+	fmt.Println(string(rdbuf))
+	// Output
+	// 1
+	// bcde
+	// a
+}
+
+func ExampleBuffer_ReadByte() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	c, err := b.ReadByte()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(c)
+	fmt.Println(b.String())
+	// Output
+	// 97
+	// bcde
 }
 
 func ExampleCompare() {

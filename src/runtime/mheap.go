@@ -80,7 +80,7 @@ type mheap struct {
 	// access (since that may free the backing store).
 	allspans []*mspan // all spans out there
 
-	_ uint32 // align uint64 fields on 32-bit for atomics
+	// _ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	//
@@ -1120,6 +1120,7 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 	// Function-global state.
 	gp := getg()
 	base, scav := uintptr(0), uintptr(0)
+	growth := uintptr(0)
 
 	// On some platforms we need to provide physical page aligned stack
 	// allocations. Where the page size is less than the physical page
@@ -1165,7 +1166,9 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 		// Try to acquire a base address.
 		base, scav = h.pages.alloc(npages)
 		if base == 0 {
-			if !h.grow(npages) {
+			var ok bool
+			growth, ok = h.grow(npages)
+			if !ok {
 				unlock(&h.lock)
 				return nil
 			}
@@ -1189,15 +1192,34 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 		// Return memory around the aligned allocation.
 		spaceBefore := base - allocBase
 		if spaceBefore > 0 {
-			h.pages.free(allocBase, spaceBefore/pageSize)
+			h.pages.free(allocBase, spaceBefore/pageSize, false)
 		}
 		spaceAfter := (allocPages-npages)*pageSize - spaceBefore
 		if spaceAfter > 0 {
-			h.pages.free(base+npages*pageSize, spaceAfter/pageSize)
+			h.pages.free(base+npages*pageSize, spaceAfter/pageSize, false)
 		}
 	}
 
 	unlock(&h.lock)
+
+	if growth > 0 {
+		// We just caused a heap growth, so scavenge down what will soon be used.
+		// By scavenging inline we deal with the failure to allocate out of
+		// memory fragments by scavenging the memory fragments that are least
+		// likely to be re-used.
+		scavengeGoal := atomic.Load64(&h.scavengeGoal)
+		if retained := heapRetained(); retained+uint64(growth) > scavengeGoal {
+			// The scavenging algorithm requires the heap lock to be dropped so it
+			// can acquire it only sparingly. This is a potentially expensive operation
+			// so it frees up other goroutines to allocate in the meanwhile. In fact,
+			// they can make use of the growth we just created.
+			todo := growth
+			if overage := uintptr(retained + uint64(growth) - scavengeGoal); todo > overage {
+				todo = overage
+			}
+			h.pages.scavenge(todo)
+		}
+	}
 
 HaveSpan:
 	// At this point, both s != nil and base != 0, and the heap
@@ -1311,10 +1333,10 @@ HaveSpan:
 }
 
 // Try to add at least npage pages of memory to the heap,
-// returning whether it worked.
+// returning how much the heap grew by and whether it worked.
 //
 // h.lock must be held.
-func (h *mheap) grow(npage uintptr) bool {
+func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 	assertLockHeld(&h.lock)
 
 	// We must grow the heap in whole palloc chunks.
@@ -1336,7 +1358,7 @@ func (h *mheap) grow(npage uintptr) bool {
 		av, asize := h.sysAlloc(ask)
 		if av == nil {
 			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", memstats.heap_sys, " in use)\n")
-			return false
+			return 0, false
 		}
 
 		if uintptr(av) == h.curArena.end {
@@ -1396,20 +1418,7 @@ func (h *mheap) grow(npage uintptr) bool {
 	// space ready for allocation.
 	h.pages.grow(v, nBase-v)
 	totalGrowth += nBase - v
-
-	// We just caused a heap growth, so scavenge down what will soon be used.
-	// By scavenging inline we deal with the failure to allocate out of
-	// memory fragments by scavenging the memory fragments that are least
-	// likely to be re-used.
-	scavengeGoal := atomic.Load64(&h.scavengeGoal)
-	if retained := heapRetained(); retained+uint64(totalGrowth) > scavengeGoal {
-		todo := totalGrowth
-		if overage := uintptr(retained + uint64(totalGrowth) - scavengeGoal); todo > overage {
-			todo = overage
-		}
-		h.pages.scavenge(todo, false)
-	}
-	return true
+	return totalGrowth, true
 }
 
 // Free the span back into the heap.
@@ -1499,7 +1508,7 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 	memstats.heapStats.release()
 
 	// Mark the space as free.
-	h.pages.free(s.base(), s.npages)
+	h.pages.free(s.base(), s.npages, false)
 
 	// Free the span structure. We no longer have a use for it.
 	s.state.set(mSpanDead)
@@ -1515,13 +1524,19 @@ func (h *mheap) scavengeAll() {
 	// the mheap API.
 	gp := getg()
 	gp.m.mallocing++
+
 	lock(&h.lock)
 	// Start a new scavenge generation so we have a chance to walk
 	// over the whole heap.
 	h.pages.scavengeStartGen()
-	released := h.pages.scavenge(^uintptr(0), false)
-	gen := h.pages.scav.gen
 	unlock(&h.lock)
+
+	released := h.pages.scavenge(^uintptr(0))
+
+	lock(&h.pages.scav.lock)
+	gen := h.pages.scav.gen
+	unlock(&h.pages.scav.lock)
+
 	gp.m.mallocing--
 
 	if debug.scavtrace > 0 {

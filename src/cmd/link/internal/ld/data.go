@@ -227,6 +227,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 					// DWARF info between the compiler and linker.
 					continue
 				}
+			} else if target.IsPPC64() && target.IsPIE() && ldr.SymName(rs) == ".TOC." {
+				// This is a TOC relative relocation generated from a go object. It is safe to resolve.
 			} else {
 				st.err.errorUnresolved(ldr, s, rs)
 				continue
