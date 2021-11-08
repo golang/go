@@ -27,32 +27,54 @@ func isGeneric(typ Type) bool {
 	return named != nil && named.obj != nil && named.targs == nil && named.TypeParams() != nil
 }
 
-func is(typ Type, what BasicInfo) bool {
-	switch t := under(typ).(type) {
+// The is_X predicates below report whether t is an X.
+// If t is a type parameter the result is false; i.e.,
+// these predicates don't look inside a type parameter.
+
+func is_Boolean(t Type) bool        { return isBasic(t, IsBoolean) }
+func is_Integer(t Type) bool        { return isBasic(t, IsInteger) }
+func is_Unsigned(t Type) bool       { return isBasic(t, IsUnsigned) }
+func is_Float(t Type) bool          { return isBasic(t, IsFloat) }
+func is_Complex(t Type) bool        { return isBasic(t, IsComplex) }
+func is_Numeric(t Type) bool        { return isBasic(t, IsNumeric) }
+func is_String(t Type) bool         { return isBasic(t, IsString) }
+func is_IntegerOrFloat(t Type) bool { return isBasic(t, IsInteger|IsFloat) }
+
+// isBasic reports whether under(t) is a basic type with the specified info.
+// If t is a type parameter the result is false; i.e.,
+// isBasic does not look inside a type parameter.
+func isBasic(t Type, info BasicInfo) bool {
+	u, _ := under(t).(*Basic)
+	return u != nil && u.info&info != 0
+}
+
+// The allX predicates below report whether t is an X.
+// If t is a type parameter the result is true if is_X is true
+// for all specified types of the type parameter's type set.
+// allX is an optimized version of is_X(structure(t)) (which
+// is the same as underIs(t, is_X)).
+
+func allBoolean(typ Type) bool         { return allBasic(typ, IsBoolean) }
+func allInteger(typ Type) bool         { return allBasic(typ, IsInteger) }
+func allUnsigned(typ Type) bool        { return allBasic(typ, IsUnsigned) }
+func allNumeric(typ Type) bool         { return allBasic(typ, IsNumeric) }
+func allString(typ Type) bool          { return allBasic(typ, IsString) }
+func allOrdered(typ Type) bool         { return allBasic(typ, IsOrdered) }
+func allNumericOrString(typ Type) bool { return allBasic(typ, IsNumeric|IsString) }
+
+// allBasic reports whether under(t) is a basic type with the specified info.
+// If t is a type parameter, the result is true if isBasic(t, info) is true
+// for all specific types of the type parameter's type set.
+// allBasic(t, info) is an optimized version of isBasic(structure(t), info).
+func allBasic(t Type, info BasicInfo) bool {
+	switch u := under(t).(type) {
 	case *Basic:
-		return t.info&what != 0
+		return u.info&info != 0
 	case *TypeParam:
-		return t.underIs(func(typ Type) bool { return is(typ, what) })
+		return u.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
 	}
 	return false
 }
-
-func isBoolean(typ Type) bool  { return is(typ, IsBoolean) }
-func isInteger(typ Type) bool  { return is(typ, IsInteger) }
-func isUnsigned(typ Type) bool { return is(typ, IsUnsigned) }
-func isFloat(typ Type) bool    { return is(typ, IsFloat) }
-func isComplex(typ Type) bool  { return is(typ, IsComplex) }
-func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
-func isString(typ Type) bool   { return is(typ, IsString) }
-
-// Note that if typ is a type parameter, isInteger(typ) || isFloat(typ) does not
-// produce the expected result because a type set that contains both an integer
-// and a floating-point type is neither (all) integers, nor (all) floats.
-// Use isIntegerOrFloat instead.
-func isIntegerOrFloat(typ Type) bool { return is(typ, IsInteger|IsFloat) }
-
-// isNumericOrString is the equivalent of isIntegerOrFloat for isNumeric(typ) || isString(typ).
-func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
 
 // isTyped reports whether typ is typed; i.e., not an untyped
 // constant or boolean. isTyped may be called with types that
@@ -68,8 +90,6 @@ func isTyped(typ Type) bool {
 func isUntyped(typ Type) bool {
 	return !isTyped(typ)
 }
-
-func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
 
 func isConstType(typ Type) bool {
 	// Type parameters are never const types.
