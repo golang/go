@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"testing"
 )
@@ -131,6 +132,12 @@ func TestObjImporter(t *testing.T) {
 	gpath := gccgoPath()
 	if gpath == "" {
 		t.Skip("This test needs gccgo")
+	}
+	if runtime.GOOS == "aix" {
+		// We don't yet have a debug/xcoff package for reading
+		// object files on AIX. Remove this skip if/when issue #29038
+		// is implemented (see also issue #49445).
+		t.Skip("no support yet for debug/xcoff")
 	}
 
 	verout, err := exec.Command(gpath, "--version").CombinedOutput()
