@@ -122,6 +122,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				seen[named] = true
 
 				// look for a matching attached method
+				named.resolve(nil)
 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet
@@ -305,7 +306,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		return
 	}
 
-	if ityp, _ := under(V).(*Interface); ityp != nil {
+	if ityp := asInterface(V); ityp != nil {
 		// TODO(gri) the methods are sorted - could do this more efficiently
 		for _, m := range T.typeSet().methods {
 			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name)
@@ -416,7 +417,7 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
-	if IsInterface(T) && !forceStrict {
+	if asInterface(T) != nil && !forceStrict {
 		return
 	}
 	return check.missingMethod(T, V, false)
@@ -434,8 +435,8 @@ func deref(typ Type) (Type, bool) {
 // derefStructPtr dereferences typ if it is a (named or unnamed) pointer to a
 // (named or unnamed) struct and returns its base. Otherwise it returns typ.
 func derefStructPtr(typ Type) Type {
-	if p, _ := under(typ).(*Pointer); p != nil {
-		if _, ok := under(p.base).(*Struct); ok {
+	if p := asPointer(typ); p != nil {
+		if asStruct(p.base) != nil {
 			return p.base
 		}
 	}
