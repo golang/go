@@ -39,7 +39,7 @@ func (ctxt *Context) TypeHash(typ Type, targs []Type) string {
 	var buf bytes.Buffer
 
 	h := newTypeHasher(&buf, ctxt)
-	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
+	if named := asNamed(typ); named != nil && len(targs) > 0 {
 		// Don't use WriteType because we need to use the provided targs
 		// and not any targs that might already be with the *Named type.
 		h.typePrefix(named)

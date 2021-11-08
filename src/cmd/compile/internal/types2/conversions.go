@@ -18,7 +18,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode == constant_
 
 	constConvertibleTo := func(T Type, val *constant.Value) bool {
-		switch t := asBasic(T); {
+		switch t, _ := under(T).(*Basic); {
 		case t == nil:
 			// nothing to do
 		case representableConst(x.val, check, t, val):
@@ -173,9 +173,9 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 
 	// "V a slice, T is a pointer-to-array type,
 	// and the slice and array types have identical element types."
-	if s := asSlice(V); s != nil {
-		if p := asPointer(T); p != nil {
-			if a := asArray(p.Elem()); a != nil {
+	if s, _ := under(V).(*Slice); s != nil {
+		if p, _ := under(T).(*Pointer); p != nil {
+			if a, _ := under(p.Elem()).(*Array); a != nil {
 				if Identical(s.Elem(), a.Elem()) {
 					if check == nil || check.allowVersion(check.pkg, 1, 17) {
 						return true
@@ -262,26 +262,27 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 // use the toT convenience converters in the predicates below.
 
 func isUintptr(typ Type) bool {
-	t := asBasic(typ)
+	t, _ := under(typ).(*Basic)
 	return t != nil && t.kind == Uintptr
 }
 
 func isUnsafePointer(typ Type) bool {
-	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
+	// TODO(gri): Is this under(typ).(*Basic) instead of typ.(*Basic) correct?
 	//            (The former calls under(), while the latter doesn't.)
 	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.
-	t := asBasic(typ)
+	t, _ := under(typ).(*Basic)
 	return t != nil && t.kind == UnsafePointer
 }
 
 func isPointer(typ Type) bool {
-	return asPointer(typ) != nil
+	_, ok := under(typ).(*Pointer)
+	return ok
 }
 
 func isBytesOrRunes(typ Type) bool {
-	if s := asSlice(typ); s != nil {
-		t := asBasic(s.elem)
+	if s, _ := under(typ).(*Slice); s != nil {
+		t, _ := under(s.elem).(*Basic)
 		return t != nil && (t.kind == Byte || t.kind == Rune)
 	}
 	return false
