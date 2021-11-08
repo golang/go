@@ -2520,22 +2520,28 @@ func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
 func TestTimeoutHandlerContextCanceled(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
-	sendHi := make(chan bool, 1)
 	writeErrors := make(chan error, 1)
 	sayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		<-sendHi
-		_, werr := w.Write([]byte("hi"))
-		writeErrors <- werr
+		var err error
+		// The request context has already been canceled, but
+		// retry the write for a while to give the timeout handler
+		// a chance to notice.
+		for i := 0; i < 100; i++ {
+			_, err = w.Write([]byte("a"))
+			if err != nil {
+				break
+			}
+			time.Sleep(1 * time.Millisecond)
+		}
+		writeErrors <- err
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
-	h := NewTestTimeoutHandler(sayHi, ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+	h := NewTestTimeoutHandler(sayHi, ctx)
 	cst := newClientServerTest(t, h1Mode, h)
 	defer cst.close()
 
-	// Succeed without timing out:
-	sendHi <- true
 	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
@@ -2548,7 +2554,7 @@ func TestTimeoutHandlerContextCanceled(t *testing.T) {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
 	if g, e := <-writeErrors, context.Canceled; g != e {
-		t.Errorf("got unexpected Write error on first request: %v", g)
+		t.Errorf("got unexpected Write in handler: %v, want %g", g, e)
 	}
 }
 
