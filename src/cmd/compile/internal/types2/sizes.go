@@ -243,7 +243,7 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
 func (conf *Config) offsetof(typ Type, index []int) int64 {
 	var o int64
 	for _, i := range index {
-		s := under(typ).(*Struct)
+		s := asStruct(typ)
 		o += conf.offsetsof(s)[i]
 		typ = s.fields[i].typ
 	}
