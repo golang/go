@@ -113,8 +113,8 @@ func getEnvAny(names ...string) string {
 // environment, or a proxy should not be used for the given request, as
 // defined by NO_PROXY.
 //
-// As a special case, if req.URL.Host is "localhost" (with or without a
-// port number), then a nil URL and nil error will be returned.
+// As a special case, if req.URL.Host is "localhost" or a loopback address
+// (with or without a port number), then a nil URL and nil error will be returned.
 func (cfg *Config) ProxyFunc() func(reqURL *url.URL) (*url.URL, error) {
 	// Preprocess the Config settings for more efficient evaluation.
 	cfg1 := &config{
