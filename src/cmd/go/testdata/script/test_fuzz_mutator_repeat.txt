@@ -13,7 +13,7 @@
 ! exists want
 ! go test -fuzz=. -parallel=1 -fuzztime=110x -fuzzminimizetime=10x -v
 stdout 'fuzzing process terminated unexpectedly'
-stdout 'Crash written to testdata'
+stdout 'Failing input written to testdata'
 
 # Run the fuzz target without fuzzing. The fuzz function is called with the
 # crashing input in testdata. The test passes if that input is identical to

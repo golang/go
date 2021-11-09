@@ -65,7 +65,7 @@ followed by detailed output for each failed package.
 'Go test' recompiles each package along with any files with names matching
 the file pattern "*_test.go".
 These additional files can contain test functions, benchmark functions, fuzz
-targets and example functions. See 'go help testfunc' for more.
+tests and example functions. See 'go help testfunc' for more.
 Each listed package causes the execution of a separate test binary.
 Files whose names begin with "_" (including "_test.go") or "." are ignored.
 
@@ -214,7 +214,7 @@ control the execution of any test:
 	    Run each test, benchmark, and fuzz seed n times (default 1).
 	    If -cpu is set, run n times for each GOMAXPROCS value.
 	    Examples are always run once. -count does not apply to
-	    fuzz targets matched by -fuzz.
+	    fuzz tests matched by -fuzz.
 
 	-cover
 	    Enable coverage analysis.
@@ -242,20 +242,19 @@ control the execution of any test:
 
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests, benchmarks or
-	    fuzz targets should be executed. The default is the current value
-	    of GOMAXPROCS. -cpu does not apply to fuzz targets matched by -fuzz.
+	    fuzz tests should be executed. The default is the current value
+	    of GOMAXPROCS. -cpu does not apply to fuzz tests matched by -fuzz.
 
 	-failfast
 	    Do not start new tests after the first test failure.
 
 	-fuzz regexp
-	    Run the fuzz target matching the regular expression. When specified,
+	    Run the fuzz test matching the regular expression. When specified,
 	    the command line argument must match exactly one package within the
-	    main module, and regexp must match exactly one fuzz target within
-	    that package. After tests, benchmarks, seed corpora of other fuzz
-	    targets, and examples have completed, the matching target will be
-	    fuzzed. See the Fuzzing section of the testing package documentation
-	    for details.
+	    main module, and regexp must match exactly one fuzz test within
+	    that package. Fuzzing will occur after tests, benchmarks, seed corpora
+	    of other fuzz tests, and examples have completed. See the Fuzzing
+	    section of the testing package documentation for details.
 
 	-fuzztime t
 	    Run enough iterations of the fuzz test to take t, specified as a
@@ -269,14 +268,14 @@ control the execution of any test:
 	    same information as the -v flag in a machine-readable format.
 
 	-list regexp
-	    List tests, benchmarks, fuzz targets, or examples matching the regular
-	    expression. No tests, benchmarks, fuzz targets, or examples will be run.
+	    List tests, benchmarks, fuzz tests, or examples matching the regular
+	    expression. No tests, benchmarks, fuzz tests, or examples will be run.
 	    This will only list top-level tests. No subtest or subbenchmarks will be
 	    shown.
 
 	-parallel n
 	    Allow parallel execution of test functions that call t.Parallel, and
-	    f.Fuzz functions that call t.Parallel when running the seed corpus.
+	    fuzz targets that call t.Parallel when running the seed corpus.
 	    The value of this flag is the maximum number of tests to run
 	    simultaneously.
 	    While fuzzing, the value of this flag is the maximum number of
@@ -291,7 +290,7 @@ control the execution of any test:
 	    (see 'go help build').
 
 	-run regexp
-	    Run only those tests, examples, and fuzz targets matching the regular
+	    Run only those tests, examples, and fuzz tests matching the regular
 	    expression. For tests, the regular expression is split by unbracketed
 	    slash (/) characters into a sequence of regular expressions, and each
 	    part of a test's identifier must match the corresponding element in
@@ -468,7 +467,7 @@ A benchmark function is one named BenchmarkXxx and should have the signature,
 
 	func BenchmarkXxx(b *testing.B) { ... }
 
-A fuzz target is one named FuzzXxx and should have the signature,
+A fuzz test is one named FuzzXxx and should have the signature,
 
 	func FuzzXxx(f *testing.F) { ... }
 
@@ -511,7 +510,7 @@ Here is another example where the ordering of the output is ignored:
 
 The entire test file is presented as the example when it contains a single
 example function, at least one other function, type, variable, or constant
-declaration, and no fuzz targets or test or benchmark functions.
+declaration, and no tests, benchmarks, or fuzz tests.
 
 See the documentation of the testing package for more information.
 `,
@@ -1196,8 +1195,8 @@ func declareCoverVars(p *load.Package, files ...string) map[string]*load.CoverVa
 }
 
 var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
-var noTargetsToFuzz = []byte("\ntesting: warning: no targets to fuzz\n")
-var tooManyTargetsToFuzz = []byte("\ntesting: warning: -fuzz matches more than one target, won't fuzz\n")
+var noFuzzTestsToFuzz = []byte("\ntesting: warning: no fuzz tests to fuzz\n")
+var tooManyFuzzTestsToFuzz = []byte("\ntesting: warning: -fuzz matches more than one fuzz test, won't fuzz\n")
 
 type runCache struct {
 	disableCache bool // cache should be disabled for this run
@@ -1399,11 +1398,11 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
 			norun = " [no tests to run]"
 		}
-		if bytes.HasPrefix(out, noTargetsToFuzz[1:]) || bytes.Contains(out, noTargetsToFuzz) {
-			norun = " [no targets to fuzz]"
+		if bytes.HasPrefix(out, noFuzzTestsToFuzz[1:]) || bytes.Contains(out, noFuzzTestsToFuzz) {
+			norun = " [no fuzz tests to fuzz]"
 		}
-		if bytes.HasPrefix(out, tooManyTargetsToFuzz[1:]) || bytes.Contains(out, tooManyTargetsToFuzz) {
-			norun = " [will not fuzz, -fuzz matches more than one target]"
+		if bytes.HasPrefix(out, tooManyFuzzTestsToFuzz[1:]) || bytes.Contains(out, tooManyFuzzTestsToFuzz) {
+			norun = "[-fuzz matches more than one fuzz test, won't fuzz]"
 		}
 		if len(out) > 0 && !bytes.HasSuffix(out, []byte("\n")) {
 			// Ensure that the output ends with a newline before the "ok"
