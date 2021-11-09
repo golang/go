@@ -271,18 +271,20 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		return check.definedType(e.X, def)
 
 	case *ast.ArrayType:
-		if e.Len != nil {
-			typ := new(Array)
+		if e.Len == nil {
+			typ := new(Slice)
 			def.setUnderlying(typ)
-			typ.len = check.arrayLength(e.Len)
 			typ.elem = check.varType(e.Elt)
 			return typ
 		}
 
-		typ := new(Slice)
+		typ := new(Array)
 		def.setUnderlying(typ)
+		typ.len = check.arrayLength(e.Len)
 		typ.elem = check.varType(e.Elt)
-		return typ
+		if typ.len >= 0 {
+			return typ
+		}
 
 	case *ast.Ellipsis:
 		// dots are handled explicitly where they are legal
