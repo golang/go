@@ -232,7 +232,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 			if result.crasherMsg != "" {
 				if c.warmupRun() && result.entry.IsSeed {
 					target := filepath.Base(c.opts.CorpusDir)
-					fmt.Fprintf(c.opts.Log, "found a crash while testing seed corpus entry: %s/%s\n", target, testName(result.entry.Parent))
+					fmt.Fprintf(c.opts.Log, "failure while testing seed corpus entry: %s/%s\n", target, testName(result.entry.Parent))
 					stop(errors.New(result.crasherMsg))
 					break
 				}
@@ -246,7 +246,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					// Send it back to a worker for minimization. Disable inputC so
 					// other workers don't continue fuzzing.
 					c.crashMinimizing = &result
-					fmt.Fprintf(c.opts.Log, "fuzz: minimizing %d-byte crash file\n", len(result.entry.Data))
+					fmt.Fprintf(c.opts.Log, "fuzz: minimizing %d-byte failing input file\n", len(result.entry.Data))
 					c.queueForMinimization(result, nil)
 				} else if !crashWritten {
 					// Found a crasher that's either minimized or not minimizable.
