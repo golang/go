@@ -46,6 +46,7 @@ type context struct {
 	pos           syntax.Pos                // if valid, identifiers are looked up as if at position pos (used by Eval)
 	iota          constant.Value            // value of iota in a constant declaration; nil otherwise
 	errpos        syntax.Pos                // if valid, identifier position of a constant with inherited initializer
+	inTParamList  bool                      // set if inside a type parameter list
 	sig           *Signature                // function signature if inside a function; nil otherwise
 	isPanic       map[*syntax.CallExpr]bool // set of panic call expressions (used for termination check)
 	hasLabel      bool                      // set if a function makes use of labels (only ~1% of functions); unused outside functions
