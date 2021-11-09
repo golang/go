@@ -22,7 +22,7 @@ import (
 )
 
 // Enable extra consistency checks.
-const doubleCheck = true
+const doubleCheck = false
 
 func assert(p bool) {
 	base.Assert(p)
@@ -802,11 +802,6 @@ func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*t
 	// Make sure name/type of newf is set before substituting the body.
 	newf.Body = subst.list(gf.Body)
 
-	// Add code to check that the dictionary is correct.
-	// TODO: must be adjusted to deal with shapes, but will go away soon when we move
-	// to many->1 shape to concrete mapping.
-	// newf.Body.Prepend(subst.checkDictionary(dictionaryName, shapes)...)
-
 	if len(subst.defnMap) > 0 {
 		base.Fatalf("defnMap is not empty")
 	}
@@ -857,49 +852,6 @@ func (subst *subster) localvar(name *ir.Name) *ir.Name {
 	}
 
 	return m
-}
-
-// checkDictionary returns code that does runtime consistency checks
-// between the dictionary and the types it should contain.
-func (subst *subster) checkDictionary(name *ir.Name, targs []*types.Type) (code []ir.Node) {
-	if false {
-		return // checking turned off
-	}
-	// TODO: when moving to GCshape, this test will become harder. Call into
-	// runtime to check the expected shape is correct?
-	pos := name.Pos()
-	// Convert dictionary to *[N]uintptr
-	d := ir.NewConvExpr(pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], name)
-	d.SetTypecheck(1)
-	d = ir.NewConvExpr(pos, ir.OCONVNOP, types.NewArray(types.Types[types.TUINTPTR], int64(len(targs))).PtrTo(), d)
-	d.SetTypecheck(1)
-	types.CheckSize(d.Type().Elem())
-
-	// Check that each type entry in the dictionary is correct.
-	for i, t := range targs {
-		if t.HasShape() {
-			// Check the concrete type, not the shape type.
-			base.Fatalf("shape type in dictionary %s %+v\n", name.Sym().Name, t)
-		}
-		want := reflectdata.TypePtr(t)
-		typed(types.Types[types.TUINTPTR], want)
-		deref := ir.NewStarExpr(pos, d)
-		typed(d.Type().Elem(), deref)
-		idx := ir.NewConstExpr(constant.MakeUint64(uint64(i)), name) // TODO: what to set orig to?
-		typed(types.Types[types.TUINTPTR], idx)
-		got := ir.NewIndexExpr(pos, deref, idx)
-		typed(types.Types[types.TUINTPTR], got)
-		cond := ir.NewBinaryExpr(pos, ir.ONE, want, got)
-		typed(types.Types[types.TBOOL], cond)
-		panicArg := ir.NewNilExpr(pos)
-		typed(types.NewInterface(types.LocalPkg, nil, false), panicArg)
-		then := ir.NewUnaryExpr(pos, ir.OPANIC, panicArg)
-		then.SetTypecheck(1)
-		x := ir.NewIfStmt(pos, cond, []ir.Node{then}, nil)
-		x.SetTypecheck(1)
-		code = append(code, x)
-	}
-	return
 }
 
 // getDictionaryEntry gets the i'th entry in the dictionary dict.
