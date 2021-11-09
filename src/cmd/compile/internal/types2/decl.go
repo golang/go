@@ -124,7 +124,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 		fallthrough
 
 	case grey:
-		// We have a cycle.
+		// We have a (possibly invalid) cycle.
 		// In the existing code, this is marked by a non-nil type
 		// for the object except for constants and variables whose
 		// type may be non-nil (known), or nil if it depends on the
@@ -136,17 +136,17 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 		// order code.
 		switch obj := obj.(type) {
 		case *Const:
-			if check.cycle(obj) || obj.typ == nil {
+			if !check.validCycle(obj) || obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 
 		case *Var:
-			if check.cycle(obj) || obj.typ == nil {
+			if !check.validCycle(obj) || obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 
 		case *TypeName:
-			if check.cycle(obj) {
+			if !check.validCycle(obj) {
 				// break cycle
 				// (without this, calling underlying()
 				// below may lead to an endless loop
@@ -156,7 +156,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 			}
 
 		case *Func:
-			if check.cycle(obj) {
+			if !check.validCycle(obj) {
 				// Don't set obj.typ to Typ[Invalid] here
 				// because plenty of code type-asserts that
 				// functions have a *Signature type. Grey
@@ -210,9 +210,9 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	}
 }
 
-// cycle checks if the cycle starting with obj is valid and
+// validCycle reports whether the cycle starting with obj is valid and
 // reports an error if it is not.
-func (check *Checker) cycle(obj Object) (isCycle bool) {
+func (check *Checker) validCycle(obj Object) (valid bool) {
 	// The object map contains the package scope objects and the non-interface methods.
 	if debug {
 		info := check.objMap[obj]
@@ -264,7 +264,7 @@ func (check *Checker) cycle(obj Object) (isCycle bool) {
 		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", pathString(cycle), obj.Name(), len(cycle))
 		check.trace(obj.Pos(), "## cycle contains: %d values, %d type definitions", nval, ndef)
 		defer func() {
-			if isCycle {
+			if !valid {
 				check.trace(obj.Pos(), "=> error: cycle is invalid")
 			}
 		}()
@@ -274,19 +274,18 @@ func (check *Checker) cycle(obj Object) (isCycle bool) {
 	// ignore them here because they are reported via the initialization
 	// cycle check.
 	if nval == len(cycle) {
-		return false
+		return true
 	}
 
 	// A cycle involving only types (and possibly functions) must have at least
 	// one type definition to be permitted: If there is no type definition, we
 	// have a sequence of alias type names which will expand ad infinitum.
 	if nval == 0 && ndef > 0 {
-		return false // cycle is permitted
+		return true
 	}
 
 	check.cycleError(cycle)
-
-	return true
+	return false
 }
 
 type typeInfo uint
