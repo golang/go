@@ -74,7 +74,7 @@ func hasName(t Type) bool {
 // are not fully set up.
 func isTyped(t Type) bool {
 	// isTyped is called with types that are not fully
-	// set up. Must not call asBasic()!
+	// set up. Must not call under()!
 	b, _ := t.(*Basic)
 	return b == nil || b.info&IsUntyped == 0
 }
@@ -86,7 +86,8 @@ func isUntyped(t Type) bool {
 
 // IsInterface reports whether t is an interface type.
 func IsInterface(t Type) bool {
-	return asInterface(t) != nil
+	_, ok := under(t).(*Interface)
+	return ok
 }
 
 // isTypeParam reports whether t is a type parameter.
