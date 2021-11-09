@@ -15,7 +15,7 @@
 // used with a fixed key in order to generate one-time keys from an nonce.
 // However, in this package AES isn't used and the one-time key is specified
 // directly.
-package poly1305 // import "golang.org/x/crypto/poly1305"
+package poly1305
 
 import "crypto/subtle"
 

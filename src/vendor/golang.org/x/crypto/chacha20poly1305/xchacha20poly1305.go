@@ -35,7 +35,7 @@ func (*xchacha20poly1305) NonceSize() int {
 }
 
 func (*xchacha20poly1305) Overhead() int {
-	return 16
+	return Overhead
 }
 
 func (x *xchacha20poly1305) Seal(dst, nonce, plaintext, additionalData []byte) []byte {

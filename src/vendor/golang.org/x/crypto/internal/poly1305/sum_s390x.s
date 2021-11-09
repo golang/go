@@ -18,7 +18,7 @@
 // value. These limbs are, for the most part, zero extended and
 // placed into 64-bit vector register elements. Each vector
 // register is 128-bits wide and so holds 2 of these elements.
-// Using 26-bit limbs allows us plenty of headroom to accomodate
+// Using 26-bit limbs allows us plenty of headroom to accommodate
 // accumulations before and after multiplication without
 // overflowing either 32-bits (before multiplication) or 64-bits
 // (after multiplication).
