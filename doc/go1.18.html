@@ -276,6 +276,12 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
+    <p><!-- CL 330852 -->
+      On WebAssembly targets, the <code>Dial</code>, <code>DialContext</code>,
+      <code>DialTLS</code> and <code>DialTLSContext</code> method fields in
+      <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+      will now be correctly used, if specified, for making HTTP requests.
+    </p>
     <p><!-- CL 338590 -->
       TODO: <a href="https://golang.org/cl/338590">https://golang.org/cl/338590</a>: add Cookie.Valid method
     </p>
