@@ -228,13 +228,23 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 	assert(obj.color() >= grey)
 	start := obj.color() - grey // index of obj in objPath
 	cycle := check.objPath[start:]
-	nval := 0 // number of (constant or variable) values in the cycle
-	ndef := 0 // number of type definitions in the cycle
+	tparCycle := false // if set, the cycle is through a type parameter list
+	nval := 0          // number of (constant or variable) values in the cycle; valid if !generic
+	ndef := 0          // number of type definitions in the cycle; valid if !generic
+loop:
 	for _, obj := range cycle {
 		switch obj := obj.(type) {
 		case *Const, *Var:
 			nval++
 		case *TypeName:
+			// If we reach a generic type that is part of a cycle
+			// and we are in a type parameter list, we have a cycle
+			// through a type parameter list, which is invalid.
+			if check.inTParamList && isGeneric(obj.typ) {
+				tparCycle = true
+				break loop
+			}
+
 			// Determine if the type name is an alias or not. For
 			// package-level objects, use the object map which
 			// provides syntactic information (which doesn't rely
@@ -262,7 +272,11 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 
 	if check.conf.Trace {
 		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", pathString(cycle), obj.Name(), len(cycle))
-		check.trace(obj.Pos(), "## cycle contains: %d values, %d type definitions", nval, ndef)
+		if tparCycle {
+			check.trace(obj.Pos(), "## cycle contains: generic type in a type parameter list")
+		} else {
+			check.trace(obj.Pos(), "## cycle contains: %d values, %d type definitions", nval, ndef)
+		}
 		defer func() {
 			if !valid {
 				check.trace(obj.Pos(), "=> error: cycle is invalid")
@@ -270,18 +284,20 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 		}()
 	}
 
-	// A cycle involving only constants and variables is invalid but we
-	// ignore them here because they are reported via the initialization
-	// cycle check.
-	if nval == len(cycle) {
-		return true
-	}
+	if !tparCycle {
+		// A cycle involving only constants and variables is invalid but we
+		// ignore them here because they are reported via the initialization
+		// cycle check.
+		if nval == len(cycle) {
+			return true
+		}
 
-	// A cycle involving only types (and possibly functions) must have at least
-	// one type definition to be permitted: If there is no type definition, we
-	// have a sequence of alias type names which will expand ad infinitum.
-	if nval == 0 && ndef > 0 {
-		return true
+		// A cycle involving only types (and possibly functions) must have at least
+		// one type definition to be permitted: If there is no type definition, we
+		// have a sequence of alias type names which will expand ad infinitum.
+		if nval == 0 && ndef > 0 {
+			return true
+		}
 	}
 
 	check.cycleError(cycle)
@@ -623,6 +639,19 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 	// the parameterized type may be used by the constraints (issue #47887).
 	// Example: type T[P T[P]] interface{}
 	*dst = bindTParams(tparams)
+
+	// Signal to cycle detection that we are in a type parameter list.
+	// We can only be inside one type parameter list at any given time:
+	// function closures may appear inside a type parameter list but they
+	// cannot be generic, and their bodies are processed in delayed and
+	// sequential fashion. Note that with each new declaration, we save
+	// the existing context and restore it when done; thus inTParamList
+	// is true exactly only when we are in a specific type parameter list.
+	assert(!check.inTParamList)
+	check.inTParamList = true
+	defer func() {
+		check.inTParamList = false
+	}()
 
 	// Keep track of bounds for later validation.
 	var bound Type
