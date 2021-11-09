@@ -51,6 +51,7 @@ var (
 	modshell32  = NewLazySystemDLL("shell32.dll")
 	moduser32   = NewLazySystemDLL("user32.dll")
 	moduserenv  = NewLazySystemDLL("userenv.dll")
+	modversion  = NewLazySystemDLL("version.dll")
 	modwintrust = NewLazySystemDLL("wintrust.dll")
 	modws2_32   = NewLazySystemDLL("ws2_32.dll")
 	modwtsapi32 = NewLazySystemDLL("wtsapi32.dll")
@@ -114,6 +115,7 @@ var (
 	procOpenThreadToken                                      = modadvapi32.NewProc("OpenThreadToken")
 	procQueryServiceConfig2W                                 = modadvapi32.NewProc("QueryServiceConfig2W")
 	procQueryServiceConfigW                                  = modadvapi32.NewProc("QueryServiceConfigW")
+	procQueryServiceDynamicInformation                       = modadvapi32.NewProc("QueryServiceDynamicInformation")
 	procQueryServiceLockStatusW                              = modadvapi32.NewProc("QueryServiceLockStatusW")
 	procQueryServiceStatus                                   = modadvapi32.NewProc("QueryServiceStatus")
 	procQueryServiceStatusEx                                 = modadvapi32.NewProc("QueryServiceStatusEx")
@@ -124,6 +126,7 @@ var (
 	procRegQueryInfoKeyW                                     = modadvapi32.NewProc("RegQueryInfoKeyW")
 	procRegQueryValueExW                                     = modadvapi32.NewProc("RegQueryValueExW")
 	procRegisterEventSourceW                                 = modadvapi32.NewProc("RegisterEventSourceW")
+	procRegisterServiceCtrlHandlerExW                        = modadvapi32.NewProc("RegisterServiceCtrlHandlerExW")
 	procReportEventW                                         = modadvapi32.NewProc("ReportEventW")
 	procRevertToSelf                                         = modadvapi32.NewProc("RevertToSelf")
 	procSetEntriesInAclW                                     = modadvapi32.NewProc("SetEntriesInAclW")
@@ -365,8 +368,13 @@ var (
 	procNtCreateFile                                         = modntdll.NewProc("NtCreateFile")
 	procNtCreateNamedPipeFile                                = modntdll.NewProc("NtCreateNamedPipeFile")
 	procNtQueryInformationProcess                            = modntdll.NewProc("NtQueryInformationProcess")
+	procNtQuerySystemInformation                             = modntdll.NewProc("NtQuerySystemInformation")
+	procNtSetInformationFile                                 = modntdll.NewProc("NtSetInformationFile")
 	procNtSetInformationProcess                              = modntdll.NewProc("NtSetInformationProcess")
+	procNtSetSystemInformation                               = modntdll.NewProc("NtSetSystemInformation")
+	procRtlAddFunctionTable                                  = modntdll.NewProc("RtlAddFunctionTable")
 	procRtlDefaultNpAcl                                      = modntdll.NewProc("RtlDefaultNpAcl")
+	procRtlDeleteFunctionTable                               = modntdll.NewProc("RtlDeleteFunctionTable")
 	procRtlDosPathNameToNtPathName_U_WithStatus              = modntdll.NewProc("RtlDosPathNameToNtPathName_U_WithStatus")
 	procRtlDosPathNameToRelativeNtPathName_U_WithStatus      = modntdll.NewProc("RtlDosPathNameToRelativeNtPathName_U_WithStatus")
 	procRtlGetCurrentPeb                                     = modntdll.NewProc("RtlGetCurrentPeb")
@@ -402,6 +410,9 @@ var (
 	procCreateEnvironmentBlock                               = moduserenv.NewProc("CreateEnvironmentBlock")
 	procDestroyEnvironmentBlock                              = moduserenv.NewProc("DestroyEnvironmentBlock")
 	procGetUserProfileDirectoryW                             = moduserenv.NewProc("GetUserProfileDirectoryW")
+	procGetFileVersionInfoSizeW                              = modversion.NewProc("GetFileVersionInfoSizeW")
+	procGetFileVersionInfoW                                  = modversion.NewProc("GetFileVersionInfoW")
+	procVerQueryValueW                                       = modversion.NewProc("VerQueryValueW")
 	procWinVerifyTrustEx                                     = modwintrust.NewProc("WinVerifyTrustEx")
 	procFreeAddrInfoW                                        = modws2_32.NewProc("FreeAddrInfoW")
 	procGetAddrInfoW                                         = modws2_32.NewProc("GetAddrInfoW")
@@ -966,6 +977,18 @@ func QueryServiceConfig(service Handle, serviceConfig *QUERY_SERVICE_CONFIG, buf
 	return
 }
 
+func QueryServiceDynamicInformation(service Handle, infoLevel uint32, dynamicInfo unsafe.Pointer) (err error) {
+	err = procQueryServiceDynamicInformation.Find()
+	if err != nil {
+		return
+	}
+	r1, _, e1 := syscall.Syscall(procQueryServiceDynamicInformation.Addr(), 3, uintptr(service), uintptr(infoLevel), uintptr(dynamicInfo))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func QueryServiceLockStatus(mgr Handle, lockStatus *QUERY_SERVICE_LOCK_STATUS, bufSize uint32, bytesNeeded *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procQueryServiceLockStatusW.Addr(), 4, uintptr(mgr), uintptr(unsafe.Pointer(lockStatus)), uintptr(bufSize), uintptr(unsafe.Pointer(bytesNeeded)), 0, 0)
 	if r1 == 0 {
@@ -1048,6 +1071,15 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
 
 func RegisterEventSource(uncServerName *uint16, sourceName *uint16) (handle Handle, err error) {
 	r0, _, e1 := syscall.Syscall(procRegisterEventSourceW.Addr(), 2, uintptr(unsafe.Pointer(uncServerName)), uintptr(unsafe.Pointer(sourceName)), 0)
+	handle = Handle(r0)
+	if handle == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func RegisterServiceCtrlHandlerEx(serviceName *uint16, handlerProc uintptr, context uintptr) (handle Handle, err error) {
+	r0, _, e1 := syscall.Syscall(procRegisterServiceCtrlHandlerExW.Addr(), 3, uintptr(unsafe.Pointer(serviceName)), uintptr(handlerProc), uintptr(context))
 	handle = Handle(r0)
 	if handle == 0 {
 		err = errnoErr(e1)
@@ -3160,6 +3192,22 @@ func NtQueryInformationProcess(proc Handle, procInfoClass int32, procInfo unsafe
 	return
 }
 
+func NtQuerySystemInformation(sysInfoClass int32, sysInfo unsafe.Pointer, sysInfoLen uint32, retLen *uint32) (ntstatus error) {
+	r0, _, _ := syscall.Syscall6(procNtQuerySystemInformation.Addr(), 4, uintptr(sysInfoClass), uintptr(sysInfo), uintptr(sysInfoLen), uintptr(unsafe.Pointer(retLen)), 0, 0)
+	if r0 != 0 {
+		ntstatus = NTStatus(r0)
+	}
+	return
+}
+
+func NtSetInformationFile(handle Handle, iosb *IO_STATUS_BLOCK, inBuffer *byte, inBufferLen uint32, class uint32) (ntstatus error) {
+	r0, _, _ := syscall.Syscall6(procNtSetInformationFile.Addr(), 5, uintptr(handle), uintptr(unsafe.Pointer(iosb)), uintptr(unsafe.Pointer(inBuffer)), uintptr(inBufferLen), uintptr(class), 0)
+	if r0 != 0 {
+		ntstatus = NTStatus(r0)
+	}
+	return
+}
+
 func NtSetInformationProcess(proc Handle, procInfoClass int32, procInfo unsafe.Pointer, procInfoLen uint32) (ntstatus error) {
 	r0, _, _ := syscall.Syscall6(procNtSetInformationProcess.Addr(), 4, uintptr(proc), uintptr(procInfoClass), uintptr(procInfo), uintptr(procInfoLen), 0, 0)
 	if r0 != 0 {
@@ -3168,11 +3216,31 @@ func NtSetInformationProcess(proc Handle, procInfoClass int32, procInfo unsafe.P
 	return
 }
 
+func NtSetSystemInformation(sysInfoClass int32, sysInfo unsafe.Pointer, sysInfoLen uint32) (ntstatus error) {
+	r0, _, _ := syscall.Syscall(procNtSetSystemInformation.Addr(), 3, uintptr(sysInfoClass), uintptr(sysInfo), uintptr(sysInfoLen))
+	if r0 != 0 {
+		ntstatus = NTStatus(r0)
+	}
+	return
+}
+
+func RtlAddFunctionTable(functionTable *RUNTIME_FUNCTION, entryCount uint32, baseAddress uintptr) (ret bool) {
+	r0, _, _ := syscall.Syscall(procRtlAddFunctionTable.Addr(), 3, uintptr(unsafe.Pointer(functionTable)), uintptr(entryCount), uintptr(baseAddress))
+	ret = r0 != 0
+	return
+}
+
 func RtlDefaultNpAcl(acl **ACL) (ntstatus error) {
 	r0, _, _ := syscall.Syscall(procRtlDefaultNpAcl.Addr(), 1, uintptr(unsafe.Pointer(acl)), 0, 0)
 	if r0 != 0 {
 		ntstatus = NTStatus(r0)
 	}
+	return
+}
+
+func RtlDeleteFunctionTable(functionTable *RUNTIME_FUNCTION) (ret bool) {
+	r0, _, _ := syscall.Syscall(procRtlDeleteFunctionTable.Addr(), 1, uintptr(unsafe.Pointer(functionTable)), 0, 0)
+	ret = r0 != 0
 	return
 }
 
@@ -3443,6 +3511,58 @@ func DestroyEnvironmentBlock(block *uint16) (err error) {
 
 func GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetUserProfileDirectoryW.Addr(), 3, uintptr(t), uintptr(unsafe.Pointer(dir)), uintptr(unsafe.Pointer(dirLen)))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetFileVersionInfoSize(filename string, zeroHandle *Handle) (bufSize uint32, err error) {
+	var _p0 *uint16
+	_p0, err = syscall.UTF16PtrFromString(filename)
+	if err != nil {
+		return
+	}
+	return _GetFileVersionInfoSize(_p0, zeroHandle)
+}
+
+func _GetFileVersionInfoSize(filename *uint16, zeroHandle *Handle) (bufSize uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetFileVersionInfoSizeW.Addr(), 2, uintptr(unsafe.Pointer(filename)), uintptr(unsafe.Pointer(zeroHandle)), 0)
+	bufSize = uint32(r0)
+	if bufSize == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetFileVersionInfo(filename string, handle uint32, bufSize uint32, buffer unsafe.Pointer) (err error) {
+	var _p0 *uint16
+	_p0, err = syscall.UTF16PtrFromString(filename)
+	if err != nil {
+		return
+	}
+	return _GetFileVersionInfo(_p0, handle, bufSize, buffer)
+}
+
+func _GetFileVersionInfo(filename *uint16, handle uint32, bufSize uint32, buffer unsafe.Pointer) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetFileVersionInfoW.Addr(), 4, uintptr(unsafe.Pointer(filename)), uintptr(handle), uintptr(bufSize), uintptr(buffer), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func VerQueryValue(block unsafe.Pointer, subBlock string, pointerToBufferPointer unsafe.Pointer, bufSize *uint32) (err error) {
+	var _p0 *uint16
+	_p0, err = syscall.UTF16PtrFromString(subBlock)
+	if err != nil {
+		return
+	}
+	return _VerQueryValue(block, _p0, pointerToBufferPointer, bufSize)
+}
+
+func _VerQueryValue(block unsafe.Pointer, subBlock *uint16, pointerToBufferPointer unsafe.Pointer, bufSize *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procVerQueryValueW.Addr(), 4, uintptr(block), uintptr(unsafe.Pointer(subBlock)), uintptr(pointerToBufferPointer), uintptr(unsafe.Pointer(bufSize)), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

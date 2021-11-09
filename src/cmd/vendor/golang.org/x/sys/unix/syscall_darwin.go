@@ -430,8 +430,25 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 	return x, err
 }
 
-func SysctlKinfoProcSlice(name string) ([]KinfoProc, error) {
-	mib, err := sysctlmib(name)
+func SysctlKinfoProc(name string, args ...int) (*KinfoProc, error) {
+	mib, err := sysctlmib(name, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var kinfo KinfoProc
+	n := uintptr(SizeofKinfoProc)
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&kinfo)), &n, nil, 0); err != nil {
+		return nil, err
+	}
+	if n != SizeofKinfoProc {
+		return nil, EIO
+	}
+	return &kinfo, nil
+}
+
+func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
+	mib, err := sysctlmib(name, args...)
 	if err != nil {
 		return nil, err
 	}

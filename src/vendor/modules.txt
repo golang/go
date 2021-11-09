@@ -19,7 +19,7 @@ golang.org/x/net/idna
 golang.org/x/net/lif
 golang.org/x/net/nettest
 golang.org/x/net/route
-# golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
+# golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 # golang.org/x/text v0.3.7

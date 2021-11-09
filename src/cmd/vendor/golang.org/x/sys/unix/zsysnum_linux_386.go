@@ -444,4 +444,5 @@ const (
 	SYS_LANDLOCK_ADD_RULE            = 445
 	SYS_LANDLOCK_RESTRICT_SELF       = 446
 	SYS_MEMFD_SECRET                 = 447
+	SYS_PROCESS_MRELEASE             = 448
 )

@@ -641,13 +641,13 @@ type Eproc struct {
 	Tdev    int32
 	Tpgid   int32
 	Tsess   uintptr
-	Wmesg   [8]int8
+	Wmesg   [8]byte
 	Xsize   int32
 	Xrssize int16
 	Xccount int16
 	Xswrss  int16
 	Flag    int32
-	Login   [12]int8
+	Login   [12]byte
 	Spare   [4]int32
 	_       [4]byte
 }
@@ -688,7 +688,7 @@ type ExternProc struct {
 	P_priority  uint8
 	P_usrpri    uint8
 	P_nice      int8
-	P_comm      [17]int8
+	P_comm      [17]byte
 	P_pgrp      uintptr
 	P_addr      uintptr
 	P_xstat     uint16

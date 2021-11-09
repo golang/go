@@ -356,6 +356,7 @@ const (
 	SO_BPF_EXTENSIONS                = 0x30
 	SO_BROADCAST                     = 0x6
 	SO_BSDCOMPAT                     = 0xe
+	SO_BUF_LOCK                      = 0x48
 	SO_BUSY_POLL                     = 0x2e
 	SO_BUSY_POLL_BUDGET              = 0x46
 	SO_CNX_ADVICE                    = 0x35
