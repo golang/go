@@ -1499,8 +1499,19 @@ func (ctxt *Link) hostlink() {
 			}
 			return strings.Trim(string(out), "\n")
 		}
-		argv = append(argv, getPathFile("crtcxa.o"))
-		argv = append(argv, getPathFile("crtdbase.o"))
+		// Since GCC version 11, the 64-bit version of GCC starting files
+		// are now suffixed by "_64". Even under "-maix64" multilib directory
+		// "crtcxa.o" is 32-bit.
+		crtcxa := getPathFile("crtcxa_64.o")
+		if !filepath.IsAbs(crtcxa) {
+			crtcxa = getPathFile("crtcxa.o")
+		}
+		crtdbase := getPathFile("crtdbase_64.o")
+		if !filepath.IsAbs(crtdbase) {
+			crtdbase = getPathFile("crtdbase.o")
+		}
+		argv = append(argv, crtcxa)
+		argv = append(argv, crtdbase)
 	}
 
 	if ctxt.linkShared {
