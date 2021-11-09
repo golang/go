@@ -147,7 +147,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		var val constant.Value
 		switch typ = arrayPtrDeref(under(x.typ)); t := typ.(type) {
 		case *Basic:
-			if is_String(t) && id == _Len {
+			if isString(t) && id == _Len {
 				if x.mode == constant_ {
 					mode = constant_
 					val = constant.MakeInt64(int64(len(constant.StringVal(x.val))))
@@ -183,7 +183,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			if t.underIs(func(t Type) bool {
 				switch t := arrayPtrDeref(t).(type) {
 				case *Basic:
-					if is_String(t) && id == _Len {
+					if isString(t) && id == _Len {
 						return true
 					}
 				case *Array, *Slice, *Chan:
@@ -272,7 +272,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			//    because shifts of floats are not permitted)
 			if x.mode == constant_ && y.mode == constant_ {
 				toFloat := func(x *operand) {
-					if is_Numeric(x.typ) && constant.Sign(constant.Imag(x.val)) == 0 {
+					if isNumeric(x.typ) && constant.Sign(constant.Imag(x.val)) == 0 {
 						x.typ = Typ[UntypedFloat]
 					}
 				}
@@ -403,7 +403,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			if x.mode == constant_ {
 				// an untyped constant number can always be considered
 				// as a complex constant
-				if is_Numeric(x.typ) {
+				if isNumeric(x.typ) {
 					x.typ = Typ[UntypedComplex]
 				}
 			} else {
@@ -735,7 +735,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// assert(pred) causes a typechecker error if pred is false.
 		// The result of assert is the value of pred if there is no error.
 		// Note: assert is only available in self-test mode.
-		if x.mode != constant_ || !is_Boolean(x.typ) {
+		if x.mode != constant_ || !isBoolean(x.typ) {
 			check.invalidArg(x, _Test, "%s is not a boolean constant", x)
 			return
 		}
@@ -801,7 +801,7 @@ func structure(typ Type) Type {
 func structureString(typ Type) Type {
 	var su Type
 	if underIs(typ, func(u Type) bool {
-		if is_String(u) {
+		if isString(u) {
 			u = NewSlice(universeByte)
 		}
 		if su != nil && !Identical(su, u) {
