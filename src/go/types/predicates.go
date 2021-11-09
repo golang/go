@@ -27,18 +27,18 @@ func isGeneric(typ Type) bool {
 	return named != nil && named.obj != nil && named.targs == nil && named.TypeParams() != nil
 }
 
-// The is_X predicates below report whether t is an X.
+// The isX predicates below report whether t is an X.
 // If t is a type parameter the result is false; i.e.,
 // these predicates don't look inside a type parameter.
 
-func is_Boolean(t Type) bool        { return isBasic(t, IsBoolean) }
-func is_Integer(t Type) bool        { return isBasic(t, IsInteger) }
-func is_Unsigned(t Type) bool       { return isBasic(t, IsUnsigned) }
-func is_Float(t Type) bool          { return isBasic(t, IsFloat) }
-func is_Complex(t Type) bool        { return isBasic(t, IsComplex) }
-func is_Numeric(t Type) bool        { return isBasic(t, IsNumeric) }
-func is_String(t Type) bool         { return isBasic(t, IsString) }
-func is_IntegerOrFloat(t Type) bool { return isBasic(t, IsInteger|IsFloat) }
+func isBoolean(t Type) bool        { return isBasic(t, IsBoolean) }
+func isInteger(t Type) bool        { return isBasic(t, IsInteger) }
+func isUnsigned(t Type) bool       { return isBasic(t, IsUnsigned) }
+func isFloat(t Type) bool          { return isBasic(t, IsFloat) }
+func isComplex(t Type) bool        { return isBasic(t, IsComplex) }
+func isNumeric(t Type) bool        { return isBasic(t, IsNumeric) }
+func isString(t Type) bool         { return isBasic(t, IsString) }
+func isIntegerOrFloat(t Type) bool { return isBasic(t, IsInteger|IsFloat) }
 
 // isBasic reports whether under(t) is a basic type with the specified info.
 // If t is a type parameter the result is false; i.e.,
@@ -49,10 +49,10 @@ func isBasic(t Type, info BasicInfo) bool {
 }
 
 // The allX predicates below report whether t is an X.
-// If t is a type parameter the result is true if is_X is true
+// If t is a type parameter the result is true if isX is true
 // for all specified types of the type parameter's type set.
-// allX is an optimized version of is_X(structure(t)) (which
-// is the same as underIs(t, is_X)).
+// allX is an optimized version of isX(structure(t)) (which
+// is the same as underIs(t, isX)).
 
 func allBoolean(typ Type) bool         { return allBasic(typ, IsBoolean) }
 func allInteger(typ Type) bool         { return allBasic(typ, IsInteger) }
