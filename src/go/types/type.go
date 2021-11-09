@@ -27,45 +27,8 @@ func under(t Type) Type {
 	return t
 }
 
-// Convenience converters
-
-func asBasic(t Type) *Basic {
-	op, _ := under(t).(*Basic)
-	return op
-}
-
-func asArray(t Type) *Array {
-	op, _ := under(t).(*Array)
-	return op
-}
-
-func asSlice(t Type) *Slice {
-	op, _ := under(t).(*Slice)
-	return op
-}
-
-func asStruct(t Type) *Struct {
-	op, _ := under(t).(*Struct)
-	return op
-}
-
-func asPointer(t Type) *Pointer {
-	op, _ := under(t).(*Pointer)
-	return op
-}
-
-func asSignature(t Type) *Signature {
-	op, _ := under(t).(*Signature)
-	return op
-}
-
-func asInterface(t Type) *Interface {
-	op, _ := under(t).(*Interface)
-	return op
-}
-
 // If the argument to asNamed, or asTypeParam is of the respective type
-// (possibly after expanding resolving a *Named type), these methods return that type.
+// (possibly after resolving a *Named type), these methods return that type.
 // Otherwise the result is nil.
 
 func asNamed(t Type) *Named {

@@ -299,7 +299,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(asTypeParam(typ) == nil)
-			if t := asBasic(typ); t != nil {
+			if t, _ := under(typ).(*Basic); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -423,7 +423,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(asTypeParam(typ) == nil)
-			if t := asBasic(typ); t != nil {
+			if t, _ := under(typ).(*Basic); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -713,7 +713,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		typ := asPointer(x.typ)
+		typ, _ := under(x.typ).(*Pointer)
 		if typ == nil {
 			check.invalidArg(x, _InvalidUnsafeSlice, "%s is not a pointer", x)
 			return
@@ -893,7 +893,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
-		if a := asArray(p.base); a != nil {
+		if a, _ := under(p.base).(*Array); a != nil {
 			return a
 		}
 	}
