@@ -204,6 +204,7 @@ var plan9Suffix = [maxOp + 1]bool{
 	OUT:       true,
 	POP:       true,
 	POPA:      true,
+	POPCNT:    true,
 	PUSH:      true,
 	PUSHA:     true,
 	RCL:       true,

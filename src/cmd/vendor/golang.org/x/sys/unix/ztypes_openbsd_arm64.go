@@ -558,12 +558,11 @@ type Uvmexp struct {
 	Kmapent            int32
 }
 
-const SizeofClockinfo = 0x14
+const SizeofClockinfo = 0x10
 
 type Clockinfo struct {
-	Hz      int32
-	Tick    int32
-	Tickadj int32
-	Stathz  int32
-	Profhz  int32
+	Hz     int32
+	Tick   int32
+	Stathz int32
+	Profhz int32
 }
