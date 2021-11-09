@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = `report calls to (*testing.T).Fatal from goroutines started by a test.
@@ -124,14 +125,28 @@ func typeIsTestingDotTOrB(expr ast.Expr) (string, bool) {
 // function literals declared in the same function, and
 // static calls within the same package are supported.
 func goStmtFun(goStmt *ast.GoStmt) ast.Node {
-	switch goStmt.Call.Fun.(type) {
-	case *ast.Ident:
-		id := goStmt.Call.Fun.(*ast.Ident)
-		// TODO(cuonglm): improve this once golang/go#48141 resolved.
+	switch fun := goStmt.Call.Fun.(type) {
+	case *ast.IndexExpr, *typeparams.IndexListExpr:
+		ix := typeparams.GetIndexExprData(fun)
+		if ix == nil {
+			break
+		}
+		id, _ := ix.X.(*ast.Ident)
+		if id == nil {
+			break
+		}
 		if id.Obj == nil {
 			break
 		}
 		if funDecl, ok := id.Obj.Decl.(ast.Node); ok {
+			return funDecl
+		}
+	case *ast.Ident:
+		// TODO(cuonglm): improve this once golang/go#48141 resolved.
+		if fun.Obj == nil {
+			break
+		}
+		if funDecl, ok := fun.Obj.Decl.(ast.Node); ok {
 			return funDecl
 		}
 	case *ast.FuncLit:
