@@ -8,10 +8,10 @@ import (
 	"bufio"
 	"bytes"
 	"flag"
+	"internal/buildcfg"
 	"runtime"
 	"sort"
 
-	// "flag"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -45,7 +45,7 @@ func testGoArch() string {
 	return *testGoArchFlag
 }
 
-func TestDebugLines(t *testing.T) {
+func TestDebugLinesSayHi(t *testing.T) {
 	// This test is potentially fragile, the goal is that debugging should step properly through "sayhi"
 	// If the blocks are reordered in a way that changes the statement order but execution flows correctly,
 	// then rearrange the expected numbers.  Register abi and not-register-abi also have different sequences,
@@ -53,13 +53,32 @@ func TestDebugLines(t *testing.T) {
 
 	switch testGoArch() {
 	case "arm64", "amd64": // register ABI
-		testDebugLines(t, "sayhi.go", "sayhi", []int{8, 9, 10, 11})
+		testDebugLines(t, "-N -l", "sayhi.go", "sayhi", []int{8, 9, 10, 11}, false)
 
 	case "arm", "386": // probably not register ABI for a while
-		testDebugLines(t, "sayhi.go", "sayhi", []int{9, 10, 11})
+		testDebugLines(t, "-N -l", "sayhi.go", "sayhi", []int{9, 10, 11}, false)
 
 	default: // expect ppc64le and riscv will pick up register ABI soonish, not sure about others
 		t.Skip("skipped for many architectures, also changes w/ register ABI")
+	}
+}
+
+func TestDebugLinesPushback(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
+		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
+	}
+
+	switch testGoArch() {
+	default:
+		t.Skip("skipped for many architectures")
+
+	case "arm64", "amd64": // register ABI
+		fn := "(*List[go.shape.int_0]).PushBack"
+		if buildcfg.Experiment.Unified {
+			// Unified mangles differently
+			fn = "(*List[int]).PushBack"
+		}
+		testDebugLines(t, "-N -l -G=3", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
 	}
 }
 
@@ -181,8 +200,8 @@ func testInlineStack(t *testing.T, file, function string, wantStacks [][]int) {
 // then verifies that the statement-marked lines in that file are the same as those in wantStmts
 // These files must all be short because this is super-fragile.
 // "go build" is run in a temporary directory that is normally deleted, unless -test.v
-func testDebugLines(t *testing.T, file, function string, wantStmts []int) {
-	dumpBytes := compileAndDump(t, file, function, "-N -l")
+func testDebugLines(t *testing.T, gcflags, file, function string, wantStmts []int, ignoreRepeats bool) {
+	dumpBytes := compileAndDump(t, file, function, gcflags)
 	dump := bufio.NewScanner(bytes.NewReader(dumpBytes))
 	var gotStmts []int
 	dumpLineNum := 0
@@ -201,8 +220,20 @@ func testDebugLines(t *testing.T, file, function string, wantStmts []int) {
 			gotStmts = append(gotStmts, int(stmt))
 		}
 	}
-	if !reflect.DeepEqual(wantStmts, gotStmts) {
-		t.Errorf("wanted stmts %v but got %v", wantStmts, gotStmts)
-	}
+	if ignoreRepeats { // remove repeats from gotStmts
+		newGotStmts := []int{gotStmts[0]}
+		for _, x := range gotStmts {
+			if x != newGotStmts[len(newGotStmts)-1] {
+				newGotStmts = append(newGotStmts, x)
+			}
+		}
+		if !reflect.DeepEqual(wantStmts, newGotStmts) {
+			t.Errorf("wanted stmts %v but got %v (with repeats still in: %v)", wantStmts, newGotStmts, gotStmts)
+		}
 
+	} else {
+		if !reflect.DeepEqual(wantStmts, gotStmts) {
+			t.Errorf("wanted stmts %v but got %v", wantStmts, gotStmts)
+		}
+	}
 }
