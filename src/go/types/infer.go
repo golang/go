@@ -59,7 +59,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// If we have type arguments, see how far we get with constraint type inference.
 	if len(targs) > 0 {
 		var index int
-		targs, index = check.inferB(tparams, targs)
+		targs, index = check.inferB(posn, tparams, targs)
 		if targs == nil || index < 0 {
 			return targs
 		}
@@ -174,7 +174,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// See how far we get with constraint type inference.
 	// Note that even if we don't have any type arguments, constraint type inference
 	// may produce results for constraints that explicitly specify a type.
-	targs, index = check.inferB(tparams, targs)
+	targs, index = check.inferB(posn, tparams, targs)
 	if targs == nil || index < 0 {
 		return targs
 	}
@@ -210,7 +210,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	}
 
 	// Again, follow up with constraint type inference.
-	targs, index = check.inferB(tparams, targs)
+	targs, index = check.inferB(posn, tparams, targs)
 	if targs == nil || index < 0 {
 		return targs
 	}
@@ -359,7 +359,7 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
 // first type argument in that list that couldn't be inferred (and thus is nil). If all
 // type arguments were inferred successfully, index is < 0. The number of type arguments
 // provided may be less than the number of type parameters, but there must be at least one.
-func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, index int) {
+func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type) (types []Type, index int) {
 	assert(len(tparams) >= len(targs) && len(targs) > 0)
 
 	// Setup bidirectional unification between constraints
@@ -387,7 +387,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 			if !u.unify(tpar, sbound) {
 				// TODO(gri) improve error message by providing the type arguments
 				//           which we know already
-				check.errorf(tpar.obj, _InvalidTypeArg, "%s does not match %s", tpar, sbound)
+				check.errorf(posn, _InvalidTypeArg, "%s does not match %s", tpar, sbound)
 				return nil, 0
 			}
 		}
