@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types
+package types_test
 
 import (
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"testing"
+
+	. "go/types"
 )
 
 func TestIsAlias(t *testing.T) {
@@ -36,15 +38,15 @@ func TestIsAlias(t *testing.T) {
 		name  *TypeName
 		alias bool
 	}{
-		{NewTypeName(0, nil, "t0", nil), false},            // no type yet
-		{NewTypeName(0, pkg, "t0", nil), false},            // no type yet
-		{t1, false},                                        // type name refers to named type and vice versa
-		{NewTypeName(0, nil, "t2", &emptyInterface), true}, // type name refers to unnamed type
-		{NewTypeName(0, pkg, "t3", n1), true},              // type name refers to named type with different type name
-		{NewTypeName(0, nil, "t4", Typ[Int32]), true},      // type name refers to basic type with different name
-		{NewTypeName(0, nil, "int32", Typ[Int32]), false},  // type name refers to basic type with same name
-		{NewTypeName(0, pkg, "int32", Typ[Int32]), true},   // type name is declared in user-defined package (outside Universe)
-		{NewTypeName(0, nil, "rune", Typ[Rune]), true},     // type name refers to basic type rune which is an alias already
+		{NewTypeName(0, nil, "t0", nil), false},                       // no type yet
+		{NewTypeName(0, pkg, "t0", nil), false},                       // no type yet
+		{t1, false},                                                   // type name refers to named type and vice versa
+		{NewTypeName(0, nil, "t2", NewInterfaceType(nil, nil)), true}, // type name refers to unnamed type
+		{NewTypeName(0, pkg, "t3", n1), true},                         // type name refers to named type with different type name
+		{NewTypeName(0, nil, "t4", Typ[Int32]), true},                 // type name refers to basic type with different name
+		{NewTypeName(0, nil, "int32", Typ[Int32]), false},             // type name refers to basic type with same name
+		{NewTypeName(0, pkg, "int32", Typ[Int32]), true},              // type name is declared in user-defined package (outside Universe)
+		{NewTypeName(0, nil, "rune", Typ[Rune]), true},                // type name refers to basic type rune which is an alias already
 		{t5, false}, // type name refers to type parameter and vice versa
 	} {
 		check(test.name, test.alias)
