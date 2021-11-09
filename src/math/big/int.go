@@ -1216,3 +1216,8 @@ func (z *Int) Sqrt(x *Int) *Int {
 	z.abs = z.abs.sqrt(x.abs)
 	return z
 }
+
+// Copy returns a copy of [z].
+func (z *Int) Copy() *Int {
+	return new(Int).Set(z)
+}
