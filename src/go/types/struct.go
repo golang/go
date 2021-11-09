@@ -15,7 +15,7 @@ import (
 
 // A Struct represents a struct type.
 type Struct struct {
-	fields []*Var
+	fields []*Var   // fields != nil indicates the struct is set up (possibly with len(fields) == 0)
 	tags   []string // field tags; nil if there are no tags
 }
 
@@ -33,7 +33,9 @@ func NewStruct(fields []*Var, tags []string) *Struct {
 	if len(tags) > len(fields) {
 		panic("more tags than fields")
 	}
-	return &Struct{fields: fields, tags: tags}
+	s := &Struct{fields: fields, tags: tags}
+	s.markComplete()
+	return s
 }
 
 // NumFields returns the number of fields in the struct (including blank and embedded fields).
@@ -56,9 +58,16 @@ func (t *Struct) String() string   { return TypeString(t, nil) }
 // ----------------------------------------------------------------------------
 // Implementation
 
+func (s *Struct) markComplete() {
+	if s.fields == nil {
+		s.fields = make([]*Var, 0)
+	}
+}
+
 func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	list := e.Fields
 	if list == nil {
+		styp.markComplete()
 		return
 	}
 
@@ -161,6 +170,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 
 	styp.fields = fields
 	styp.tags = tags
+	styp.markComplete()
 }
 
 func embeddedFieldIdent(e ast.Expr) *ast.Ident {
