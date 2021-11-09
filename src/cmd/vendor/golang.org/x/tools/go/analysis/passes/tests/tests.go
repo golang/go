@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = `check for common mistaken usages of tests and examples
@@ -170,6 +171,9 @@ func checkExampleName(pass *analysis.Pass, fn *ast.FuncDecl) {
 	if results := fn.Type.Results; results != nil && len(results.List) != 0 {
 		pass.Reportf(fn.Pos(), "%s should return nothing", fnName)
 	}
+	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
+		pass.Reportf(fn.Pos(), "%s should not have type params", fnName)
+	}
 
 	if fnName == "Example" {
 		// Nothing more to do.
@@ -234,6 +238,12 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
 	// The param must look like a *testing.T or *testing.B.
 	if !isTestParam(fn.Type.Params.List[0].Type, prefix[:1]) {
 		return
+	}
+
+	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
+		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
+		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
+		pass.Reportf(fn.Pos(), "%s has type parameters: it will not be run by go test as a %sXXX function", fn.Name.Name, prefix)
 	}
 
 	if !isTestSuffix(fn.Name.Name[len(prefix):]) {
