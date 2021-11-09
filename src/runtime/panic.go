@@ -1002,11 +1002,6 @@ var runningPanicDefers uint32
 // panicking is incremented and decremented atomically.
 var panicking uint32
 
-// tracebackprinted is zero before gopanic() prints the traceback. After
-// traceback is printed, it sets to 1 so that the subsequent exception handler
-// won't print the traceback again.
-var tracebackprinted uint32
-
 // paniclk is held while printing the panic information and stack trace,
 // so that two concurrent panics don't overlap their output.
 var paniclk mutex
@@ -1050,9 +1045,6 @@ func fatalthrow() {
 		startpanic_m()
 
 		if dopanic_m(gp, pc, sp) {
-			// At this point, traceback has already been printed.
-			// Set tracebackprinted to 1 to avoid printing traceback again
-			tracebackprinted = 1
 			// crash uses a decent amount of nosplit stack and we're already
 			// low on stack in throw, so crash on the system stack (unlike
 			// fatalpanic).
@@ -1094,9 +1086,6 @@ func fatalpanic(msgs *_panic) {
 	})
 
 	if docrash {
-		// At this point, traceback has already been printed.
-		// Set tracebackprinted to 1 to avoid printing traceback again
-		tracebackprinted = 1
 		// By crashing outside the above systemstack call, debuggers
 		// will not be confused when generating a backtrace.
 		// Function crash is marked nosplit to avoid stack growth.
