@@ -494,6 +494,7 @@ func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, p
 	p := parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, labels map[string][]string) {
 		fmt.Fprintf(&buf, "%d:", count)
 		fprintStack(&buf, stk)
+		fmt.Fprintf(&buf, " labels: %v\n", labels)
 		samples += count
 		for i, spec := range need {
 			if matches(spec, count, stk, labels) {
@@ -675,7 +676,6 @@ func fprintStack(w io.Writer, stk []*profile.Location) {
 		}
 		fmt.Fprintf(w, ")")
 	}
-	fmt.Fprintf(w, "\n")
 }
 
 // Test that profiling of division operations is okay, especially on ARM. See issue 6681.
