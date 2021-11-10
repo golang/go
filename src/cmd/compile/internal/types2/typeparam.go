@@ -10,7 +10,7 @@ import "sync/atomic"
 // is the underlying type of its type constraint, i.e.,
 // an interface. With that, a type parameter satisfies
 // isInterface.
-const tparamIsIface = false
+const tparamIsIface = true
 
 // Note: This is a uint32 rather than a uint64 because the
 // respective 64 bit atomic instructions are not available
