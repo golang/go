@@ -82,7 +82,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
 		var T Type
-		if s, _ := structure(S).(*Slice); s != nil {
+		if s, _ := structuralType(S).(*Slice); s != nil {
 			T = s.elem
 		} else {
 			check.errorf(x, invalidArg+"%s is not a slice", x)
@@ -327,14 +327,14 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Copy:
 		// copy(x, y []T) int
-		dst, _ := structure(x.typ).(*Slice)
+		dst, _ := structuralType(x.typ).(*Slice)
 
 		var y operand
 		arg(&y, 1)
 		if y.mode == invalid {
 			return
 		}
-		src, _ := structureString(y.typ).(*Slice)
+		src, _ := structuralString(y.typ).(*Slice)
 
 		if dst == nil || src == nil {
 			check.errorf(x, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
@@ -464,7 +464,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		var min int // minimum number of arguments
-		switch structure(T).(type) {
+		switch structuralType(T).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
@@ -774,14 +774,14 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 // or nil otherwise. If typ is not a type parameter, Structure returns
 // the underlying type.
 func Structure(typ Type) Type {
-	return structure(typ)
+	return structuralType(typ)
 }
 
-// If typ is a type parameter, structure returns the single underlying
-// type of all types in the corresponding type constraint if it exists,
-// or nil otherwise. If typ is not a type parameter, structure returns
+// If typ is a type parameter, structuralType returns the single underlying
+// type of all types in the corresponding type constraint if it exists, or
+// nil otherwise. If typ is not a type parameter, structuralType returns
 // the underlying type.
-func structure(typ Type) Type {
+func structuralType(typ Type) Type {
 	var su Type
 	if underIs(typ, func(u Type) bool {
 		if su != nil && !Identical(su, u) {
@@ -796,10 +796,10 @@ func structure(typ Type) Type {
 	return nil
 }
 
-// structureString is like structure but also considers []byte and
-// string as "identical". In this case, if successful, the result
+// structuralString is like structuralType but also considers []byte
+// and string as "identical". In this case, if successful, the result
 // is always []byte.
-func structureString(typ Type) Type {
+func structuralString(typ Type) Type {
 	var su Type
 	if underIs(typ, func(u Type) bool {
 		if isString(u) {

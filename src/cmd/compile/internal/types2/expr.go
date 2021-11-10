@@ -1258,7 +1258,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			goto Error
 		}
 
-		switch utyp := structure(base).(type) {
+		switch utyp := structuralType(base).(type) {
 		case *Struct:
 			// Prevent crash if the struct referred to is not yet set up.
 			// See analogous comment for *Array.
