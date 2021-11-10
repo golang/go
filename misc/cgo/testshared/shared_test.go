@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -694,7 +695,15 @@ func requireGccgo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s -dumpversion failed: %v\n%s", gccgoPath, err, output)
 	}
-	if string(output) < "5" {
+	dot := bytes.Index(output, []byte{'.'})
+	if dot > 0 {
+		output = output[:dot]
+	}
+	major, err := strconv.Atoi(string(output))
+	if err != nil {
+		t.Skipf("can't parse gccgo version number %s", output)
+	}
+	if major < 5 {
 		t.Skipf("gccgo too old (%s)", strings.TrimSpace(string(output)))
 	}
 
