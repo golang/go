@@ -50,7 +50,7 @@ func pathString(path []Object) string {
 	return s
 }
 
-// objDecl type-checks the declaration of obj in its respective (file) context.
+// objDecl type-checks the declaration of obj in its respective (file) environment.
 // For the meaning of def, see Checker.definedType, in typexpr.go.
 func (check *Checker) objDecl(obj Object, def *Named) {
 	if trace && obj.Type() == nil {
@@ -177,11 +177,11 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 		unreachable()
 	}
 
-	// save/restore current context and setup object context
-	defer func(ctxt context) {
-		check.context = ctxt
-	}(check.context)
-	check.context = context{
+	// save/restore current environment and set up object environment
+	defer func(env environment) {
+		check.environment = env
+	}(check.environment)
+	check.environment = environment{
 		scope: d.file,
 	}
 
@@ -239,7 +239,7 @@ loop:
 			// If we reach a generic type that is part of a cycle
 			// and we are in a type parameter list, we have a cycle
 			// through a type parameter list, which is invalid.
-			if check.context.inTParamList && isGeneric(obj.typ) {
+			if check.environment.inTParamList && isGeneric(obj.typ) {
 				tparCycle = true
 				break loop
 			}
@@ -697,7 +697,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 	// function closures may appear inside a type parameter list but they
 	// cannot be generic, and their bodies are processed in delayed and
 	// sequential fashion. Note that with each new declaration, we save
-	// the existing context and restore it when done; thus inTPList is
+	// the existing environment and restore it when done; thus inTPList is
 	// true exactly only when we are in a specific type parameter list.
 	assert(!check.inTParamList)
 	check.inTParamList = true

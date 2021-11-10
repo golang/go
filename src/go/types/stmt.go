@@ -29,13 +29,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	sig.scope.pos = body.Pos()
 	sig.scope.end = body.End()
 
-	// save/restore current context and setup function context
+	// save/restore current environment and set up function environment
 	// (and use 0 indentation at function start)
-	defer func(ctxt context, indent int) {
-		check.context = ctxt
+	defer func(env environment, indent int) {
+		check.environment = env
 		check.indent = indent
-	}(check.context, check.indent)
-	check.context = context{
+	}(check.environment, check.indent)
+	check.environment = environment{
 		decl:  decl,
 		scope: sig.scope,
 		iota:  iota,
