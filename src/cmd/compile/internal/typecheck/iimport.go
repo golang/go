@@ -1315,9 +1315,15 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.ONONAME:
+		isKey := r.bool()
 		n := r.qualifiedIdent()
 		if go117ExportTypes {
-			n2 := Resolve(n)
+			var n2 ir.Node = n
+			// Key ONONAME entries should not be resolved - they should
+			// stay as identifiers.
+			if !isKey {
+				n2 = Resolve(n)
+			}
 			typ := r.typ()
 			if n2.Type() == nil {
 				n2.SetType(typ)
