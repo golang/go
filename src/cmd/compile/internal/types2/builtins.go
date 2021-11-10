@@ -470,7 +470,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		case *Map, *Chan:
 			min = 1
 		case nil:
-			check.errorf(arg0, invalidArg+"cannot make %s; type set has no single underlying type", arg0)
+			check.errorf(arg0, invalidArg+"cannot make %s: no structural type", arg0)
 			return
 		default:
 			check.errorf(arg0, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
