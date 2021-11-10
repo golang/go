@@ -222,15 +222,17 @@ func (n *Named) setUnderlying(typ Type) {
 
 // bestContext returns the best available context. In order of preference:
 // - the given ctxt, if non-nil
-// - check.Config.Context, if check is non-nil
+// - check.ctxt, if check is non-nil
 // - a new Context
 func (check *Checker) bestContext(ctxt *Context) *Context {
 	if ctxt != nil {
 		return ctxt
 	}
 	if check != nil {
-		assert(check.conf.Context != nil)
-		return check.conf.Context
+		if check.ctxt == nil {
+			check.ctxt = NewContext()
+		}
+		return check.ctxt
 	}
 	return NewContext()
 }
