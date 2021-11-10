@@ -59,3 +59,16 @@ func AnotherFunc[T ~struct{ f int }](_ struct{ f int }) {}
 // don't filter type parameters (to be consistent with function declarations),
 // but DO filter the RHS.
 type AFuncType[T ~struct{ f int }] func(_ struct{ f int })
+
+// See issue #49477: type parameters should not be interpreted as named types
+// for the purpose of determining whether a function is a factory function.
+
+// Slice is not a factory function.
+func Slice[T any]() []T {
+	return nil
+}
+
+// Single is not a factory function.
+func Single[T any]() *T {
+	return nil
+}
