@@ -116,6 +116,30 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 		t.Skip("issue 35057 is only confirmed on Linux")
 	}
 
+	// Linux [5.9,5.16) has a kernel bug that can break CPU timers on newly
+	// created threads, breaking our CPU accounting.
+	major, minor, patch, err := linuxKernelVersion()
+	if err != nil {
+		t.Errorf("Error determining kernel version: %v", err)
+	}
+	t.Logf("Running on Linux %d.%d.%d", major, minor, patch)
+	defer func() {
+		if t.Failed() {
+			t.Logf("Failure of this test may indicate that your system suffers from a known Linux kernel bug fixed on newer kernels. See https://golang.org/issue/49065.")
+		}
+	}()
+
+	// Disable on affected builders to avoid flakiness, but otherwise keep
+	// it enabled to potentially warn users that they are on a broken
+	// kernel.
+	if testenv.Builder() != "" && (runtime.GOARCH == "386" || runtime.GOARCH == "amd64") {
+		have59 := major > 5 || (major == 5 && minor >= 9)
+		have516 := major > 5 || (major == 5 && minor >= 16)
+		if have59 && !have516 {
+			testenv.SkipFlaky(t, 49065)
+		}
+	}
+
 	// Run a workload in a single goroutine, then run copies of the same
 	// workload in several goroutines. For both the serial and parallel cases,
 	// the CPU time the process measures with its own profiler should match the
