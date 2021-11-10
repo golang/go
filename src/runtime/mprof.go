@@ -805,7 +805,11 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
 				// truncated profile than to crash the entire process.
 				return
 			}
-			saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
+			// saveg calls gentraceback, which may call cgo traceback functions.
+			// The world is stopped, so it cannot use cgocall (which will be
+			// blocked at exitsyscall). Do it on the system stack so it won't
+			// call into the schedular (see traceback.go:cgoContextPCs).
+			systemstack(func() { saveg(^uintptr(0), ^uintptr(0), gp1, &r[0]) })
 			if labels != nil {
 				lbl[0] = gp1.labels
 				lbl = lbl[1:]
