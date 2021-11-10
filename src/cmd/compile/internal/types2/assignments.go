@@ -85,7 +85,11 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	reason := ""
 	if ok, _ := x.assignableTo(check, T, &reason); !ok {
 		if check.conf.CompilerErrorMessages {
-			check.errorf(x, "incompatible type: cannot use %s as %s value", x, T)
+			if reason != "" {
+				check.errorf(x, "cannot use %s as type %s in %s:\n\t%s", x, T, context, reason)
+			} else {
+				check.errorf(x, "cannot use %s as type %s in %s", x, T, context)
+			}
 		} else {
 			if reason != "" {
 				check.errorf(x, "cannot use %s as %s value in %s: %s", x, T, context, reason)

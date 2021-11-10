@@ -2125,14 +2125,11 @@ var types2Failures = setOf(
 	"shift1.go",       // issue #42989
 	"typecheck.go",    // invalid function is not causing errors when called
 
-	"interface/private.go", // types2 phrases errors differently (doesn't use non-spec "private" term)
-
 	"fixedbugs/bug176.go", // types2 reports all errors (pref: types2)
 	"fixedbugs/bug195.go", // types2 reports slightly different (but correct) bugs
 	"fixedbugs/bug228.go", // types2 doesn't run when there are syntax errors
 	"fixedbugs/bug231.go", // types2 bug? (same error reported twice)
 	"fixedbugs/bug255.go", // types2 reports extra errors
-	"fixedbugs/bug374.go", // types2 reports extra errors
 	"fixedbugs/bug388.go", // types2 not run due to syntax errors
 	"fixedbugs/bug412.go", // types2 produces a follow-on error
 

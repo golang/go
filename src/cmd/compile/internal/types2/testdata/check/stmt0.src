@@ -715,7 +715,7 @@ func typeswitches() {
 	var t I
 	switch t.(type) {
 	case T:
-	case T1 /* ERROR "missing m method" */ :
+	case T1 /* ERROR "missing method m" */ :
 	case T2 /* ERROR "wrong type for method m" */ :
 	case I2 /* STRICT "wrong type for method m" */ : // only an error in strict mode (issue 8561)
 	}

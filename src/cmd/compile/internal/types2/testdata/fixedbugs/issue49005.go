@@ -23,12 +23,12 @@ type T2 interface{ M() }
 
 func F2() T2
 
-var _ = F2(). /* ERROR impossible type assertion: F2\(\).\(\*X2\)\n\t\*X2 does not implement T2 \(missing M method\) */ (*X2)
+var _ = F2(). /* ERROR impossible type assertion: F2\(\).\(\*X2\)\n\t\*X2 does not implement T2 \(missing method M\) */ (*X2)
 
 type X2 struct{}
 
 func _() {
 	switch F2().(type) {
-	case * /* ERROR impossible type switch case: \*X2\n\tF2\(\) \(value of type T2\) cannot have dynamic type \*X2 \(missing M method\) */ X2:
+	case * /* ERROR impossible type switch case: \*X2\n\tF2\(\) \(value of type T2\) cannot have dynamic type \*X2 \(missing method M\) */ X2:
 	}
 }

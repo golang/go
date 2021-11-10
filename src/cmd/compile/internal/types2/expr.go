@@ -1626,25 +1626,20 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, xtyp *Interface, 
 		return
 	}
 
-	var msg string
-	if wrongType != nil {
-		if Identical(method.typ, wrongType.typ) {
-			msg = fmt.Sprintf("%s method has pointer receiver", method.name)
-		} else {
-			msg = fmt.Sprintf("wrong type for method %s: have %s, want %s", method.name, wrongType.typ, method.typ)
-		}
-	} else {
-		msg = fmt.Sprintf("missing %s method", method.name)
-	}
-
 	var err error_
+	var msg string
 	if typeSwitch {
 		err.errorf(e.Pos(), "impossible type switch case: %s", e)
-		err.errorf(nopos, "%s cannot have dynamic type %s (%s)", x, T, msg)
+		msg = check.sprintf("%s cannot have dynamic type %s %s", x, T,
+			check.missingMethodReason(T, x.typ, method, wrongType))
+
 	} else {
 		err.errorf(e.Pos(), "impossible type assertion: %s", e)
-		err.errorf(nopos, "%s does not implement %s (%s)", T, x.typ, msg)
+		msg = check.sprintf("%s does not implement %s %s", T, x.typ,
+			check.missingMethodReason(T, x.typ, method, wrongType))
+
 	}
+	err.errorf(nopos, msg)
 	check.report(&err)
 }
 

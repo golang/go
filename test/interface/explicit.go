@@ -38,7 +38,7 @@ var e E
 
 func main() {
 	e = t // ok
-	t = e // ERROR "need explicit|need type assertion|incompatible type"
+	t = e // ERROR "need explicit|need type assertion"
 
 	// neither of these can work,
 	// because i has an extra method

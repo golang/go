@@ -19,7 +19,7 @@ var (
 	_ = sum(1.0, 2.0)
 	_ = sum(1.5)      // ERROR "1\.5 .untyped float constant. as int|integer"
 	_ = sum("hello")  // ERROR ".hello. (.untyped string constant. as int|.type untyped string. as type int)|incompatible"
-	_ = sum([]int{1}) // ERROR "\[\]int{...}.*as type int|incompatible"
+	_ = sum([]int{1}) // ERROR "\[\]int{.*}.*as type int"
 )
 
 func sum3(int, int, int) int { return 0 }
