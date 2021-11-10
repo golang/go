@@ -150,6 +150,19 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	dcl := apDecls
 	if fnsym.WasInlined() {
 		dcl = preInliningDcls(fnsym)
+	} else {
+		// The backend's stackframe pass prunes away entries from the
+		// fn's Dcl list, including PARAMOUT nodes that correspond to
+		// output params passed in registers. Add back in these
+		// entries here so that we can process them properly during
+		// DWARF-gen. See issue 48573 for more details.
+		debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
+		for _, n := range debugInfo.RegOutputParams {
+			if n.Class != ir.PPARAMOUT || !n.IsOutputParamInRegisters() {
+				panic("invalid ir.Name on debugInfo.RegOutputParams list")
+			}
+			dcl = append(dcl, n)
+		}
 	}
 
 	// If optimization is enabled, the list above will typically be

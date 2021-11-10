@@ -1635,6 +1635,66 @@ func TestIssue42484(t *testing.T) {
 	f.Close()
 }
 
+// processParams examines the formal parameter children of subprogram
+// DIE "die" using the explorer "ex" and returns a string that
+// captures the name, order, and classification of the subprogram's
+// input and output parameters. For example, for the go function
+//
+//     func foo(i1 int, f1 float64) (string, bool) {
+//
+// this function would return a string something like
+//
+//     i1:0:1 f1:1:1 ~r0:2:2 ~r1:3:2
+//
+// where each chunk above is of the form NAME:ORDER:INOUTCLASSIFICATION
+//
+func processParams(die *dwarf.Entry, ex *examiner) string {
+	// Values in the returned map are of the form <order>:<varparam>
+	// where order is the order within the child DIE list of the
+	// param, and <varparam> is an integer:
+	//
+	//  -1: varparm attr not found
+	//   1: varparm found with value false
+	//   2: varparm found with value true
+	//
+	foundParams := make(map[string]string)
+
+	// Walk ABCs's children looking for params.
+	abcIdx := ex.idxFromOffset(die.Offset)
+	childDies := ex.Children(abcIdx)
+	idx := 0
+	for _, child := range childDies {
+		if child.Tag == dwarf.TagFormalParameter {
+			// NB: a setting of DW_AT_variable_parameter indicates
+			// that the param in question is an output parameter; we
+			// want to see this attribute set to TRUE for all Go
+			// return params. It would be OK to have it missing for
+			// input parameters, but for the moment we verify that the
+			// attr is present but set to false.
+			st := -1
+			if vp, ok := child.Val(dwarf.AttrVarParam).(bool); ok {
+				if vp {
+					st = 2
+				} else {
+					st = 1
+				}
+			}
+			if name, ok := child.Val(dwarf.AttrName).(string); ok {
+				foundParams[name] = fmt.Sprintf("%d:%d", idx, st)
+				idx++
+			}
+		}
+	}
+
+	found := make([]string, 0, len(foundParams))
+	for k, v := range foundParams {
+		found = append(found, fmt.Sprintf("%s:%s", k, v))
+	}
+	sort.Strings(found)
+
+	return fmt.Sprintf("%+v", found)
+}
+
 func TestOutputParamAbbrevAndAttr(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
@@ -1694,56 +1754,15 @@ func main() {
 		t.Fatalf("unexpected tag %v on main.ABC DIE", abcdie.Tag)
 	}
 
-	// A setting of DW_AT_variable_parameter indicates that the
-	// param in question is an output parameter; we want to see this
-	// attribute set to TRUE for all Go return params. It would be
-	// OK to have it missing for input parameters, but for the moment
-	// we verify that the attr is present but set to false.
-
-	// Values in this map are of the form <order>:<varparam>
-	// where order is the order within the child DIE list of the param,
-	// and <varparam> is an integer:
-	//
-	//  -1: varparm attr not found
-	//   1: varparm found with value false
-	//   2: varparm found with value true
-	//
-	foundParams := make(map[string]string)
-
-	// Walk ABCs's children looking for params.
-	abcIdx := ex.idxFromOffset(abcdie.Offset)
-	childDies := ex.Children(abcIdx)
-	idx := 0
-	for _, child := range childDies {
-		if child.Tag == dwarf.TagFormalParameter {
-			st := -1
-			if vp, ok := child.Val(dwarf.AttrVarParam).(bool); ok {
-				if vp {
-					st = 2
-				} else {
-					st = 1
-				}
-			}
-			if name, ok := child.Val(dwarf.AttrName).(string); ok {
-				foundParams[name] = fmt.Sprintf("%d:%d", idx, st)
-				idx++
-			}
-		}
-	}
-
-	// Digest the result.
-	found := make([]string, 0, len(foundParams))
-	for k, v := range foundParams {
-		found = append(found, fmt.Sprintf("%s:%s", k, v))
-	}
-	sort.Strings(found)
+	// Call a helper to collect param info.
+	found := processParams(abcdie, &ex)
 
 	// Make sure we see all of the expected params in the proper
-	// order, that they have the varparam attr, and the varparm is set
-	// for the returns.
+	// order, that they have the varparam attr, and the varparam is
+	// set for the returns.
 	expected := "[c1:0:1 c2:1:1 c3:2:1 d1:3:1 d2:4:1 d3:5:1 d4:6:1 f1:7:1 f2:8:1 f3:9:1 g1:10:1 r1:11:2 r2:12:2 r3:13:2 r4:14:2 r5:15:2 r6:16:2]"
-	if fmt.Sprintf("%+v", found) != expected {
-		t.Errorf("param check failed, wanted %s got %s\n",
+	if found != expected {
+		t.Errorf("param check failed, wanted:\n%s\ngot:\n%s\n",
 			expected, found)
 	}
 }
@@ -1846,6 +1865,159 @@ func main() {
 		}
 		if dies[0].Val(intdwarf.DW_AT_go_runtime_type).(uint64) == 0 {
 			t.Errorf("type %s does not have DW_AT_go_runtime_type", typeName)
+		}
+	}
+}
+
+func TestOptimizedOutParamHandling(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	t.Parallel()
+
+	// This test is intended to verify that the compiler emits DWARF
+	// DIE entries for all input and output parameters, and that:
+	//
+	//   - attributes are set correctly for output params,
+	//   - things appear in the proper order
+	//   - things work properly for both register-resident
+	//     params and params passed on the stack
+	//   - things work for both referenced and unreferenced params
+	//   - things work for named return values un-named return vals
+	//
+	// The scenarios below don't cover all possible permutations and
+	// combinations, but they hit a bunch of the high points.
+
+	const prog = `
+package main
+
+// First testcase. All input params in registers, all params used.
+
+//go:noinline
+func tc1(p1, p2 int, p3 string) (int, string) {
+	return p1 + p2, p3 + "foo"
+}
+
+// Second testcase. Some params in registers, some on stack.
+
+//go:noinline
+func tc2(p1 int, p2 [128]int, p3 string) (int, string, [128]int) {
+	return p1 + p2[p1], p3 + "foo", [128]int{p1}
+}
+
+// Third testcase. Named return params.
+
+//go:noinline
+func tc3(p1 int, p2 [128]int, p3 string) (r1 int, r2 bool, r3 string, r4 [128]int) {
+	if p1 == 101 {
+		r1 = p1 + p2[p1]
+		r2 = p3 == "foo"
+		r4 = [128]int{p1}
+		return
+	} else {
+		return p1 - p2[p1+3], false, "bar", [128]int{p1 + 2}
+	}
+}
+
+// Fourth testcase. Some thing are used, some are unused.
+
+//go:noinline
+func tc4(p1, p1un int, p2, p2un [128]int, p3, p3un string) (r1 int, r1un int, r2 bool, r3 string, r4, r4un [128]int) {
+	if p1 == 101 {
+		r1 = p1 + p2[p2[0]]
+		r2 = p3 == "foo"
+		r4 = [128]int{p1}
+		return
+	} else {
+		return p1, -1, true, "plex", [128]int{p1 + 2}, [128]int{-1}
+	}
+}
+
+func main() {
+	{
+		r1, r2 := tc1(3, 4, "five")
+		println(r1, r2)
+	}
+	{
+		x := [128]int{9}
+		r1, r2, r3 := tc2(3, x, "five")
+		println(r1, r2, r3[0])
+	}
+	{
+		x := [128]int{9}
+		r1, r2, r3, r4 := tc3(3, x, "five")
+		println(r1, r2, r3, r4[0])
+	}
+	{
+		x := [128]int{3}
+		y := [128]int{7}
+		r1, r1u, r2, r3, r4, r4u := tc4(0, 1, x, y, "a", "b")
+		println(r1, r1u, r2, r3, r4[0], r4u[1])
+	}
+
+}
+`
+	dir := t.TempDir()
+	f := gobuild(t, dir, prog, DefaultOpt)
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	ex := examiner{}
+	if err := ex.populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	testcases := []struct {
+		tag      string
+		expected string
+	}{
+		{
+			tag:      "tc1",
+			expected: "[p1:0:1 p2:1:1 p3:2:1 ~r0:3:2 ~r1:4:2]",
+		},
+		{
+			tag:      "tc2",
+			expected: "[p1:0:1 p2:1:1 p3:2:1 ~r0:3:2 ~r1:4:2 ~r2:5:2]",
+		},
+		{
+			tag:      "tc3",
+			expected: "[p1:0:1 p2:1:1 p3:2:1 r1:3:2 r2:4:2 r3:5:2 r4:6:2]",
+		},
+		{
+			tag:      "tc4",
+			expected: "[p1:0:1 p1un:1:1 p2:2:1 p2un:3:1 p3:4:1 p3un:5:1 r1:6:2 r1un:7:2 r2:8:2 r3:9:2 r4:10:2 r4un:11:2]",
+		},
+	}
+
+	for _, tc := range testcases {
+		// Locate the proper DIE
+		which := fmt.Sprintf("main.%s", tc.tag)
+		tcs := ex.Named(which)
+		if len(tcs) == 0 {
+			t.Fatalf("unable to locate DIE for " + which)
+		}
+		if len(tcs) != 1 {
+			t.Fatalf("more than one " + which + " DIE")
+		}
+		die := tcs[0]
+
+		// Vet the DIE
+		if die.Tag != dwarf.TagSubprogram {
+			t.Fatalf("unexpected tag %v on "+which+" DIE", die.Tag)
+		}
+
+		// Examine params for this subprogram.
+		foundParams := processParams(die, &ex)
+		if foundParams != tc.expected {
+			t.Errorf("check failed for testcase %s -- wanted:\n%s\ngot:%s\n",
+				tc.tag, tc.expected, foundParams)
 		}
 	}
 }

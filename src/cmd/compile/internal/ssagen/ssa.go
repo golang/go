@@ -484,6 +484,19 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	var params *abi.ABIParamResultInfo
 	params = s.f.ABISelf.ABIAnalyze(fn.Type(), true)
 
+	// The backend's stackframe pass prunes away entries from the fn's
+	// Dcl list, including PARAMOUT nodes that correspond to output
+	// params passed in registers. Walk the Dcl list and capture these
+	// nodes to a side list, so that we'll have them available during
+	// DWARF-gen later on. See issue 48573 for more details.
+	var debugInfo ssa.FuncDebug
+	for _, n := range fn.Dcl {
+		if n.Class == ir.PPARAMOUT && n.IsOutputParamInRegisters() {
+			debugInfo.RegOutputParams = append(debugInfo.RegOutputParams, n)
+		}
+	}
+	fn.DebugInfo = &debugInfo
+
 	// Generate addresses of local declarations
 	s.decladdrs = map[*ir.Name]*ssa.Value{}
 	for _, n := range fn.Dcl {
@@ -7003,12 +7016,12 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 	if base.Ctxt.Flag_locationlists {
 		var debugInfo *ssa.FuncDebug
+		debugInfo = e.curfn.DebugInfo.(*ssa.FuncDebug)
 		if e.curfn.ABI == obj.ABIInternal && base.Flag.N != 0 {
-			debugInfo = ssa.BuildFuncDebugNoOptimized(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset)
+			ssa.BuildFuncDebugNoOptimized(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
 		} else {
-			debugInfo = ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset)
+			ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
 		}
-		e.curfn.DebugInfo = debugInfo
 		bstart := s.bstart
 		idToIdx := make([]int, f.NumBlocks())
 		for i, b := range f.Blocks {
