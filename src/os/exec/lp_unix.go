@@ -42,6 +42,9 @@ func LookPath(file string) (string, error) {
 		if err == nil {
 			return file, nil
 		}
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", &Error{file, ErrNotFound}
+		}
 		return "", &Error{file, err}
 	}
 	path := os.Getenv("PATH")
