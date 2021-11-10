@@ -94,7 +94,7 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 	if recv != nil {
 		t2 := deref2(recv.Type())
 		// This is a method, so set g.curDecl to recvTypeName.methName instead.
-		g.curDecl = types2.AsNamed(t2).Obj().Name() + "." + g.curDecl
+		g.curDecl = t2.(*types2.Named).Obj().Name() + "." + g.curDecl
 	}
 
 	fn := ir.NewFunc(g.pos(decl))

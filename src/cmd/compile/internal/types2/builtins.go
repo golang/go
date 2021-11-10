@@ -767,56 +767,6 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	return true
 }
 
-// Structure is exported for the compiler.
-
-// If typ is a type parameter, Structure returns the single underlying
-// type of all types in the corresponding type constraint if it exists,
-// or nil otherwise. If typ is not a type parameter, Structure returns
-// the underlying type.
-func Structure(typ Type) Type {
-	return structuralType(typ)
-}
-
-// If typ is a type parameter, structuralType returns the single underlying
-// type of all types in the corresponding type constraint if it exists, or
-// nil otherwise. If typ is not a type parameter, structuralType returns
-// the underlying type.
-func structuralType(typ Type) Type {
-	var su Type
-	if underIs(typ, func(u Type) bool {
-		if su != nil && !Identical(su, u) {
-			return false
-		}
-		// su == nil || Identical(su, u)
-		su = u
-		return true
-	}) {
-		return su
-	}
-	return nil
-}
-
-// structuralString is like structuralType but also considers []byte
-// and string as "identical". In this case, if successful, the result
-// is always []byte.
-func structuralString(typ Type) Type {
-	var su Type
-	if underIs(typ, func(u Type) bool {
-		if isString(u) {
-			u = NewSlice(universeByte)
-		}
-		if su != nil && !Identical(su, u) {
-			return false
-		}
-		// su == nil || Identical(su, u)
-		su = u
-		return true
-	}) {
-		return su
-	}
-	return nil
-}
-
 // hasVarSize reports if the size of type t is variable due to type parameters.
 func hasVarSize(t Type) bool {
 	switch t := under(t).(type) {
