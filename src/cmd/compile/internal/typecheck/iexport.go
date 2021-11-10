@@ -1735,6 +1735,8 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.Name)
 		if (n.Class == ir.PEXTERN || n.Class == ir.PFUNC) && !ir.IsBlank(n) {
 			w.op(ir.ONONAME)
+			// Indicate that this is not an OKEY entry.
+			w.bool(false)
 			w.qualifiedIdent(n)
 			if go117ExportTypes {
 				w.typ(n.Type())
@@ -1761,7 +1763,9 @@ func (w *exportWriter) expr(n ir.Node) {
 
 	case ir.ONONAME:
 		w.op(ir.ONONAME)
-		// This should only be for OKEY nodes in generic functions
+		// This can only be for OKEY nodes in generic functions. Mark it
+		// as a key entry.
+		w.bool(true)
 		s := n.Sym()
 		w.string(s.Name)
 		w.pkg(s.Pkg)
