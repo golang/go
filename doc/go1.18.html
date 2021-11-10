@@ -114,6 +114,15 @@ Do not send CLs removing the interior tags from such phrases.
   <code>go</code> <code>mod</code> <code>download</code> <code>all</code>.
 </p>
 
+<p><!-- https://golang.org/issue/47327 -->
+  The <code>go</code> <code>mod</code> <code>vendor</code> subcommand now
+  supports a <code>-o</code> flag to set the output directory.
+  (Other <code>go</code> commands still read from the <code>vendor</code>
+  directory at the module root when loading packages
+  with <code>-mod=vendor</code>, so the main use for this flag is for
+  third-party tools that need to collect package source code.)
+</p>
+
 <p><!-- CL 349595 -->
   TODO: <a href="https://golang.org/cl/349595">https://golang.org/cl/349595</a>: cmd/go: add GOAMD64 environment variable
 </p>
