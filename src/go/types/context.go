@@ -37,28 +37,22 @@ func NewContext() *Context {
 	}
 }
 
-// typeHash returns a string representation of typ, which can be used as an exact
-// type hash: types that are identical produce identical string representations.
-// If typ is a *Named type and targs is not empty, typ is printed as if it were
-// instantiated with targs. The result is guaranteed to not contain blanks (" ").
+// typeHash returns a string representation of typ instantiated with targs,
+// which can be used as an exact type hash: types that are identical produce
+// identical string representations. If targs is not empty, typ is printed as
+// if it were instantiated with targs. The result is guaranteed to not contain
+// blanks (" ").
 func (ctxt *Context) typeHash(typ Type, targs []Type) string {
 	assert(ctxt != nil)
 	assert(typ != nil)
 	var buf bytes.Buffer
 
 	h := newTypeHasher(&buf, ctxt)
-	// Caution: don't use asNamed here. TypeHash may be called for unexpanded
-	// types. We don't need anything other than name and type arguments below,
-	// which do not require expansion.
-	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
-		// Don't use WriteType because we need to use the provided targs
-		// and not any targs that might already be with the *Named type.
-		h.typePrefix(named)
-		h.typeName(named.obj)
+	h.typ(typ)
+	if len(targs) > 0 {
+		// TODO(rfindley): consider asserting on isGeneric(typ) here, if and when
+		// isGeneric handles *Signature types.
 		h.typeList(targs)
-	} else {
-		assert(targs == nil)
-		h.typ(typ)
 	}
 
 	return strings.Replace(buf.String(), " ", "#", -1) // ReplaceAll is not available in Go1.4
@@ -66,7 +60,7 @@ func (ctxt *Context) typeHash(typ Type, targs []Type) string {
 
 // lookup returns an existing instantiation of orig with targs, if it exists.
 // Otherwise, it returns nil.
-func (ctxt *Context) lookup(h string, orig *Named, targs []Type) Type {
+func (ctxt *Context) lookup(h string, orig Type, targs []Type) Type {
 	ctxt.mu.Lock()
 	defer ctxt.mu.Unlock()
 
