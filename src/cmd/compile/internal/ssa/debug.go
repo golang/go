@@ -34,6 +34,9 @@ type FuncDebug struct {
 	VarSlots [][]SlotID
 	// The location list data, indexed by VarID. Must be processed by PutLocationList.
 	LocationLists [][]byte
+	// Register-resident output parameters for the function. This is filled in at
+	// SSA generation time.
+	RegOutputParams []*ir.Name
 
 	// Filled in by the user. Translates Block and Value ID to PC.
 	GetPC func(ID, ID) int64
@@ -548,10 +551,10 @@ func PopulateABIInRegArgOps(f *Func) {
 	f.Entry.Values = append(newValues, f.Entry.Values...)
 }
 
-// BuildFuncDebug returns debug information for f.
+// BuildFuncDebug debug information for f, placing the results in "rval".
 // f must be fully processed, so that each Value is where it will be when
 // machine code is emitted.
-func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32) *FuncDebug {
+func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
 	if f.RegAlloc == nil {
 		f.Fatalf("BuildFuncDebug on func %v that has not been fully processed", f)
 	}
@@ -661,12 +664,11 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	blockLocs := state.liveness()
 	state.buildLocationLists(blockLocs)
 
-	return &FuncDebug{
-		Slots:         state.slots,
-		VarSlots:      state.varSlots,
-		Vars:          state.vars,
-		LocationLists: state.lists,
-	}
+	// Populate "rval" with what we've computed.
+	rval.Slots = state.slots
+	rval.VarSlots = state.varSlots
+	rval.Vars = state.vars
+	rval.LocationLists = state.lists
 }
 
 // liveness walks the function in control flow order, calculating the start
@@ -1593,7 +1595,7 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
 	return true
 }
 
-// BuildFuncDebugNoOptimized constructs a FuncDebug object with
+// BuildFuncDebugNoOptimized populates a FuncDebug object "rval" with
 // entries corresponding to the register-resident input parameters for
 // the function "f"; it is used when we are compiling without
 // optimization but the register ABI is enabled. For each reg param,
@@ -1601,8 +1603,7 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
 // the input register, and the second element holds the stack location
 // of the param (the assumption being that when optimization is off,
 // each input param reg will be spilled in the prolog.
-func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32) *FuncDebug {
-	fd := FuncDebug{}
+func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
 
 	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type.FuncType())
 
@@ -1616,7 +1617,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 		}
 	}
 	if numRegParams == 0 {
-		return &fd
+		return
 	}
 
 	state := debugState{f: f}
@@ -1626,7 +1627,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 	}
 
 	// Allocate location lists.
-	fd.LocationLists = make([][]byte, numRegParams)
+	rval.LocationLists = make([][]byte, numRegParams)
 
 	// Locate the value corresponding to the last spill of
 	// an input register.
@@ -1642,10 +1643,10 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 
 		n := inp.Name.(*ir.Name)
 		sl := LocalSlot{N: n, Type: inp.Type, Off: 0}
-		fd.Vars = append(fd.Vars, n)
-		fd.Slots = append(fd.Slots, sl)
-		slid := len(fd.VarSlots)
-		fd.VarSlots = append(fd.VarSlots, []SlotID{SlotID(slid)})
+		rval.Vars = append(rval.Vars, n)
+		rval.Slots = append(rval.Slots, sl)
+		slid := len(rval.VarSlots)
+		rval.VarSlots = append(rval.VarSlots, []SlotID{SlotID(slid)})
 
 		if afterPrologVal == ID(-1) {
 			// This can happen for degenerate functions with infinite
@@ -1662,7 +1663,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 		// Param is arriving in one or more registers. We need a 2-element
 		// location expression for it. First entry in location list
 		// will correspond to lifetime in input registers.
-		list, sizeIdx := setupLocList(ctxt, f, fd.LocationLists[pidx],
+		list, sizeIdx := setupLocList(ctxt, f, rval.LocationLists[pidx],
 			BlockStart.ID, afterPrologVal)
 		if list == nil {
 			pidx++
@@ -1727,8 +1728,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 		// fill in size
 		ctxt.Arch.ByteOrder.PutUint16(list[sizeIdx:], uint16(len(list)-sizeIdx-2))
 
-		fd.LocationLists[pidx] = list
+		rval.LocationLists[pidx] = list
 		pidx++
 	}
-	return &fd
 }
