@@ -425,6 +425,11 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 				factoryType = t.Elt
 			}
 			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) && !r.isPredeclared(n) {
+				if lookupTypeParam(n, fun.Type.TypeParams) != nil {
+					// Issue #49477: don't associate fun with its type parameter result.
+					// A type parameter is not a defined type.
+					continue
+				}
 				if t := r.lookupType(n); t != nil {
 					typ = t
 					numResultTypes++
@@ -444,6 +449,22 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 
 	// just an ordinary function
 	r.funcs.set(fun, r.mode&PreserveAST != 0)
+}
+
+// lookupTypeParam searches for type parameters named name within the tparams
+// field list, returning the relevant identifier if found, or nil if not.
+func lookupTypeParam(name string, tparams *ast.FieldList) *ast.Ident {
+	if tparams == nil {
+		return nil
+	}
+	for _, field := range tparams.List {
+		for _, id := range field.Names {
+			if id.Name == name {
+				return id
+			}
+		}
+	}
+	return nil
 }
 
 var (
