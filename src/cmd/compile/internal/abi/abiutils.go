@@ -715,19 +715,20 @@ func setup() {
 	synthOnce.Do(func() {
 		fname := types.BuiltinPkg.Lookup
 		nxp := src.NoXPos
-		unsp := types.Types[types.TUNSAFEPTR]
-		ui := types.Types[types.TUINTPTR]
+		bp := types.NewPtr(types.Types[types.TUINT8])
+		it := types.Types[types.TINT]
 		synthSlice = types.NewStruct(types.NoPkg, []*types.Field{
-			types.NewField(nxp, fname("ptr"), unsp),
-			types.NewField(nxp, fname("len"), ui),
-			types.NewField(nxp, fname("cap"), ui),
+			types.NewField(nxp, fname("ptr"), bp),
+			types.NewField(nxp, fname("len"), it),
+			types.NewField(nxp, fname("cap"), it),
 		})
 		types.CalcStructSize(synthSlice)
 		synthString = types.NewStruct(types.NoPkg, []*types.Field{
-			types.NewField(nxp, fname("data"), unsp),
-			types.NewField(nxp, fname("len"), ui),
+			types.NewField(nxp, fname("data"), bp),
+			types.NewField(nxp, fname("len"), it),
 		})
 		types.CalcStructSize(synthString)
+		unsp := types.Types[types.TUNSAFEPTR]
 		synthIface = types.NewStruct(types.NoPkg, []*types.Field{
 			types.NewField(nxp, fname("f1"), unsp),
 			types.NewField(nxp, fname("f2"), unsp),
