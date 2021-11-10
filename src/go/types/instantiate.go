@@ -52,30 +52,26 @@ func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, er
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
 // unexpanded.
-func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Context) Type {
+func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Context) (res Type) {
+	var h string
+	if ctxt != nil {
+		h = ctxt.instanceHash(orig, targs)
+		// typ may already have been instantiated with identical type arguments. In
+		// that case, re-use the existing instance.
+		if inst := ctxt.lookup(h, orig, targs); inst != nil {
+			return inst
+		}
+	}
+
 	switch orig := orig.(type) {
 	case *Named:
-		var h string
-		if ctxt != nil {
-			h = ctxt.typeHash(orig, targs)
-			// typ may already have been instantiated with identical type arguments. In
-			// that case, re-use the existing instance.
-			if inst := ctxt.lookup(h, orig, targs); inst != nil {
-				return inst
-			}
-		}
 		tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
 		named := check.newNamed(tname, orig, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
 		named.targs = NewTypeList(targs)
 		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
 			return expandNamed(ctxt, n, pos)
 		}
-		if ctxt != nil {
-			// It's possible that we've lost a race to add named to the context.
-			// In this case, use whichever instance is recorded in the context.
-			named = ctxt.update(h, orig, targs, named).(*Named)
-		}
-		return named
+		res = named
 
 	case *Signature:
 		tparams := orig.TypeParams()
@@ -96,10 +92,19 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Con
 		// After instantiating a generic signature, it is not generic
 		// anymore; we need to set tparams to nil.
 		sig.tparams = nil
-		return sig
+		res = sig
+	default:
+		// only types and functions can be generic
+		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))
 	}
-	// only types and functions can be generic
-	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))
+
+	if ctxt != nil {
+		// It's possible that we've lost a race to add named to the context.
+		// In this case, use whichever instance is recorded in the context.
+		res = ctxt.update(h, orig, targs, res)
+	}
+
+	return res
 }
 
 // validateTArgLen verifies that the length of targs and tparams matches,
