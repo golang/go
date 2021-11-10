@@ -255,7 +255,7 @@ func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParam
 		ctxt = check.bestContext(ctxt)
 		h := ctxt.typeHash(n.orig, n.targs.list())
 		// ensure that an instance is recorded for h to avoid infinite recursion.
-		ctxt.typeForHash(h, n)
+		ctxt.update(h, n)
 
 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
 		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
