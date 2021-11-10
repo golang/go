@@ -8,6 +8,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"go/token"
 	"strconv"
 	"unicode/utf8"
@@ -71,20 +72,21 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 }
 
 type typeWriter struct {
-	buf   *bytes.Buffer
-	seen  map[Type]bool
-	qf    Qualifier
-	ctxt  *Context // if non-nil, we are type hashing
-	debug bool     // if true, write debug annotations
+	buf     *bytes.Buffer
+	seen    map[Type]bool
+	qf      Qualifier
+	ctxt    *Context       // if non-nil, we are type hashing
+	tparams *TypeParamList // local type parameters
+	debug   bool           // if true, write debug annotations
 }
 
 func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
-	return &typeWriter{buf, make(map[Type]bool), qf, nil, false}
+	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, false}
 }
 
 func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
 	assert(ctxt != nil)
-	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, false}
+	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false}
 }
 
 func (w *typeWriter) byte(b byte) {
@@ -259,8 +261,12 @@ func (w *typeWriter) typ(typ Type) {
 		}
 
 	case *Named:
-		w.typePrefix(t)
-		w.typeName(t.obj)
+		// If hashing, write a unique prefix for t to represent its identity, since
+		// named type identity is pointer identity.
+		if w.ctxt != nil {
+			w.string(strconv.Itoa(w.ctxt.getID(t)))
+		}
+		w.typeName(t.obj) // when hashing written for readability of the hash only
 		if t.targs != nil {
 			// instantiated type
 			w.typeList(t.targs.list())
@@ -274,24 +280,22 @@ func (w *typeWriter) typ(typ Type) {
 			w.error("unnamed type parameter")
 			break
 		}
-		w.string(t.obj.name)
-		if w.debug || w.ctxt != nil {
-			w.string(subscript(t.id))
+		if i := tparamIndex(w.tparams.list(), t); i >= 0 {
+			// The names of type parameters that are declared by the type being
+			// hashed are not part of the type identity. Replace them with a
+			// placeholder indicating their index.
+			w.string(fmt.Sprintf("$%d", i))
+		} else {
+			w.string(t.obj.name)
+			if w.debug || w.ctxt != nil {
+				w.string(subscript(t.id))
+			}
 		}
 
 	default:
 		// For externally defined implementations of Type.
 		// Note: In this case cycles won't be caught.
 		w.string(t.String())
-	}
-}
-
-// If w.ctxt is non-nil, typePrefix writes a unique prefix for the named type t
-// based on the types already observed by w.ctxt. If w.ctxt is nil, it does
-// nothing.
-func (w *typeWriter) typePrefix(t *Named) {
-	if w.ctxt != nil {
-		w.string(strconv.Itoa(w.ctxt.getID(t)))
 	}
 }
 
@@ -379,6 +383,13 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 
 func (w *typeWriter) signature(sig *Signature) {
 	if sig.TypeParams().Len() != 0 {
+		if w.ctxt != nil {
+			assert(w.tparams == nil)
+			w.tparams = sig.TypeParams()
+			defer func() {
+				w.tparams = nil
+			}()
+		}
 		w.tParamList(sig.TypeParams().list())
 	}
 
