@@ -294,7 +294,7 @@ func (s *initServer) Initialize(ctx context.Context, params *protocol.ParamIniti
 func TestEnvForwarding(t *testing.T) {
 	testenv.NeedsGo1Point(t, 13)
 	server := &initServer{}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	_, tsForwarded, cleanup := setupForwarding(ctx, t, server)
 	defer cleanup()
