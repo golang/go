@@ -180,8 +180,8 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 				pmap = continuation[baseName]
 			}
 		}
-		if _, exists := pmap[key]; exists {
-			// Duplicate parameter name is bogus.
+		if v, exists := pmap[key]; exists && v != value {
+			// Duplicate parameter names are incorrect, but we allow them if they are equal.
 			return "", nil, errors.New("mime: duplicate parameter name")
 		}
 		pmap[key] = value
