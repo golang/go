@@ -134,9 +134,10 @@ var runtimeDecls = [...]struct {
 	{"makeslice64", funcTag, 114},
 	{"makeslicecopy", funcTag, 115},
 	{"growslice", funcTag, 117},
-	{"unsafeslice", funcTag, 118},
-	{"unsafeslice64", funcTag, 119},
-	{"unsafeslicecheckptr", funcTag, 119},
+	{"unsafeslicecheckptr", funcTag, 118},
+	{"panicunsafeslicelen", funcTag, 9},
+	{"panicunsafeslicenilptr", funcTag, 9},
+	{"mulUintptr", funcTag, 119},
 	{"memmove", funcTag, 120},
 	{"memclrNoHeapPointers", funcTag, 121},
 	{"memclrHasPointers", funcTag, 121},
@@ -346,8 +347,8 @@ func runtimeTypes() []*types.Type {
 	typs[115] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
 	typs[116] = types.NewSlice(typs[2])
 	typs[117] = newSig(params(typs[1], typs[116], typs[15]), params(typs[116]))
-	typs[118] = newSig(params(typs[1], typs[7], typs[15]), nil)
-	typs[119] = newSig(params(typs[1], typs[7], typs[22]), nil)
+	typs[118] = newSig(params(typs[1], typs[7], typs[22]), nil)
+	typs[119] = newSig(params(typs[5], typs[5]), params(typs[5], typs[6]))
 	typs[120] = newSig(params(typs[3], typs[3], typs[5]), nil)
 	typs[121] = newSig(params(typs[7], typs[5]), nil)
 	typs[122] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
