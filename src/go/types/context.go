@@ -7,6 +7,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -17,10 +18,10 @@ import (
 //
 // It is safe for concurrent use.
 type Context struct {
-	mu      sync.Mutex
-	typeMap map[string][]ctxtEntry // type hash -> instances entries
-	nextID  int                    // next unique ID
-	seen    map[*Named]int         // assigned unique IDs
+	mu        sync.Mutex
+	typeMap   map[string][]ctxtEntry // type hash -> instances entries
+	nextID    int                    // next unique ID
+	originIDs map[Type]int           // origin type -> unique ID
 }
 
 type ctxtEntry struct {
@@ -32,23 +33,25 @@ type ctxtEntry struct {
 // NewContext creates a new Context.
 func NewContext() *Context {
 	return &Context{
-		typeMap: make(map[string][]ctxtEntry),
-		seen:    make(map[*Named]int),
+		typeMap:   make(map[string][]ctxtEntry),
+		originIDs: make(map[Type]int),
 	}
 }
 
-// typeHash returns a string representation of typ instantiated with targs,
-// which can be used as an exact type hash: types that are identical produce
-// identical string representations. If targs is not empty, typ is printed as
-// if it were instantiated with targs. The result is guaranteed to not contain
-// blanks (" ").
-func (ctxt *Context) typeHash(typ Type, targs []Type) string {
+// instanceHash returns a string representation of typ instantiated with targs.
+// The hash should be a perfect hash, though out of caution the type checker
+// does not assume this. The result is guaranteed to not contain blanks.
+func (ctxt *Context) instanceHash(orig Type, targs []Type) string {
 	assert(ctxt != nil)
-	assert(typ != nil)
+	assert(orig != nil)
 	var buf bytes.Buffer
 
 	h := newTypeHasher(&buf, ctxt)
-	h.typ(typ)
+	h.string(strconv.Itoa(ctxt.getID(orig)))
+	// Because we've already written the unique origin ID this call to h.typ is
+	// unnecessary, but we leave it for hash readability. It can be removed later
+	// if performance is an issue.
+	h.typ(orig)
 	if len(targs) > 0 {
 		// TODO(rfindley): consider asserting on isGeneric(typ) here, if and when
 		// isGeneric handles *Signature types.
@@ -106,14 +109,14 @@ func (ctxt *Context) update(h string, orig Type, targs []Type, inst Type) Type {
 	return inst
 }
 
-// idForType returns a unique ID for the pointer n.
-func (ctxt *Context) idForType(n *Named) int {
+// getID returns a unique ID for the type t.
+func (ctxt *Context) getID(t Type) int {
 	ctxt.mu.Lock()
 	defer ctxt.mu.Unlock()
-	id, ok := ctxt.seen[n]
+	id, ok := ctxt.originIDs[t]
 	if !ok {
 		id = ctxt.nextID
-		ctxt.seen[n] = id
+		ctxt.originIDs[t] = id
 		ctxt.nextID++
 	}
 	return id

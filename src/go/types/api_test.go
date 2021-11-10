@@ -28,8 +28,12 @@ import (
 // If source begins with "package generic_" and type parameters are enabled,
 // generic code is permitted.
 func pkgFor(path, source string, info *Info) (*Package, error) {
-	fset := token.NewFileSet()
 	mode := modeForSource(source)
+	return pkgForMode(path, source, info, mode)
+}
+
+func pkgForMode(path, source string, info *Info, mode parser.Mode) (*Package, error) {
+	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, source, mode)
 	if err != nil {
 		return nil, err
@@ -1938,8 +1942,8 @@ func f(x T) T { return foo.F(x) }
 
 func TestInstantiate(t *testing.T) {
 	// eventually we like more tests but this is a start
-	const src = genericPkg + "p; type T[P any] *T[P]"
-	pkg, err := pkgFor(".", src, nil)
+	const src = "package p; type T[P any] *T[P]"
+	pkg, err := pkgForMode(".", src, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1976,8 +1980,8 @@ func TestInstantiateErrors(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		src := genericPkg + "p; " + test.src
-		pkg, err := pkgFor(".", src, nil)
+		src := "package p; " + test.src
+		pkg, err := pkgForMode(".", src, nil, 0)
 		if err != nil {
 			t.Fatal(err)
 		}

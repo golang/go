@@ -291,7 +291,7 @@ func (w *typeWriter) typ(typ Type) {
 // nothing.
 func (w *typeWriter) typePrefix(t *Named) {
 	if w.ctxt != nil {
-		w.string(strconv.Itoa(w.ctxt.idForType(t)))
+		w.string(strconv.Itoa(w.ctxt.getID(t)))
 	}
 }
 
