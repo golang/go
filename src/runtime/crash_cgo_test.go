@@ -702,3 +702,11 @@ func TestNeedmDeadlock(t *testing.T) {
 		t.Fatalf("want %s, got %s\n", want, output)
 	}
 }
+
+func TestCgoTracebackGoroutineProfile(t *testing.T) {
+	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
