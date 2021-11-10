@@ -289,23 +289,44 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	// T is an interface type and x implements T and T is not a type parameter
 	if Ti, ok := Tu.(*Interface); ok {
-		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
+		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
 			if reason != nil {
-				// TODO(gri) the error messages here should follow the style in Checker.typeAssertion (factor!)
-				if wrongType != nil {
-					if Identical(m.typ, wrongType.typ) {
-						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
-					} else {
-						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
-					}
-
+				if check.conf.CompilerErrorMessages {
+					*reason = check.sprintf("%s does not implement %s %s", x.typ, T,
+						check.missingMethodReason(x.typ, T, m, wrongType))
 				} else {
-					*reason = "missing method " + m.Name()
+					if wrongType != nil {
+						if Identical(m.typ, wrongType.typ) {
+							*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+						} else {
+							*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
+						}
+					} else {
+						*reason = "missing method " + m.Name()
+					}
 				}
 			}
 			return false, _InvalidIfaceAssign
 		}
 		return true, 0
+	}
+
+	// Provide extra detail in compiler error messages in some cases when T is
+	// not an interface.
+	if check != nil && check.conf.CompilerErrorMessages {
+		if isInterfacePtr(Tu) {
+			*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
+			return false, _InvalidIfaceAssign
+		}
+		if Vi, _ := Vu.(*Interface); Vi != nil {
+			if m, _ := check.missingMethod(T, Vi, true); m == nil {
+				// T implements Vi, so give hint about type assertion.
+				if reason != nil {
+					*reason = check.sprintf("need type assertion")
+				}
+				return false, _IncompatibleAssign
+			}
+		}
 	}
 
 	// x is a bidirectional channel value, T is a channel
