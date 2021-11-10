@@ -142,7 +142,7 @@ func (w *worker) coordinate(ctx context.Context) error {
 			}
 			// Worker exited non-zero or was terminated by a non-interrupt
 			// signal (for example, SIGSEGV) while fuzzing.
-			return fmt.Errorf("fuzzing process terminated unexpectedly: %w", err)
+			return fmt.Errorf("fuzzing process hung or terminated unexpectedly: %w", err)
 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
 
 		case input := <-w.coordinator.inputC:
@@ -183,7 +183,7 @@ func (w *worker) coordinate(ctx context.Context) error {
 				// Unexpected termination. Set error message and fall through.
 				// We'll restart the worker on the next iteration.
 				// Don't attempt to minimize this since it crashed the worker.
-				resp.Err = fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
+				resp.Err = fmt.Sprintf("fuzzing process hung or terminated unexpectedly: %v", w.waitErr)
 				canMinimize = false
 			}
 			result := fuzzResult{
@@ -255,7 +255,7 @@ func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuz
 				limit:        input.limit,
 			}, nil
 		}
-		return fuzzResult{}, fmt.Errorf("fuzzing process terminated unexpectedly while minimizing: %w", w.waitErr)
+		return fuzzResult{}, fmt.Errorf("fuzzing process hung or terminated unexpectedly while minimizing: %w", w.waitErr)
 	}
 
 	if input.crasherMsg != "" && resp.Err == "" {
@@ -471,8 +471,16 @@ func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) error) error {
 	}
 	srv := &workerServer{
 		workerComm: comm,
-		fuzzFn:     fn,
-		m:          newMutator(),
+		fuzzFn: func(e CorpusEntry) (time.Duration, error) {
+			timer := time.AfterFunc(10*time.Second, func() {
+				panic("deadlocked!") // this error message won't be printed
+			})
+			defer timer.Stop()
+			start := time.Now()
+			err := fn(e)
+			return time.Since(start), err
+		},
+		m: newMutator(),
 	}
 	return srv.serve(ctx)
 }
@@ -604,9 +612,12 @@ type workerServer struct {
 	// coverage is found.
 	coverageMask []byte
 
-	// fuzzFn runs the worker's fuzz function on the given input and returns
-	// an error if it finds a crasher (the process may also exit or crash).
-	fuzzFn func(CorpusEntry) error
+	// fuzzFn runs the worker's fuzz target on the given input and returns an
+	// error if it finds a crasher (the process may also exit or crash), and the
+	// time it took to run the input. It sets a deadline of 10 seconds, at which
+	// point it will panic with the assumption that the process is hanging or
+	// deadlocked.
+	fuzzFn func(CorpusEntry) (time.Duration, error)
 }
 
 // serve reads serialized RPC messages on fuzzIn. When serve receives a message,
@@ -699,9 +710,8 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	}
 	fuzzOnce := func(entry CorpusEntry) (dur time.Duration, cov []byte, errMsg string) {
 		mem.header().count++
-		start := time.Now()
-		err := ws.fuzzFn(entry)
-		dur = time.Since(start)
+		var err error
+		dur, err = ws.fuzzFn(entry)
 		if err != nil {
 			errMsg = err.Error()
 			if errMsg == "" {
@@ -803,7 +813,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 	// If not, then whatever caused us to think the value was interesting may
 	// have been a flake, and we can't minimize it.
 	*count++
-	retErr = ws.fuzzFn(CorpusEntry{Values: vals})
+	_, retErr = ws.fuzzFn(CorpusEntry{Values: vals})
 	if keepCoverage != nil {
 		if !hasCoverageBit(keepCoverage, coverageSnapshot) || retErr != nil {
 			return false, nil
@@ -870,7 +880,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 			panic("impossible")
 		}
 		*count++
-		err := ws.fuzzFn(CorpusEntry{Values: vals})
+		_, err := ws.fuzzFn(CorpusEntry{Values: vals})
 		if err != nil {
 			retErr = err
 			if keepCoverage != nil {

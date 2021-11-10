@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -279,7 +280,9 @@ func TestMinimizeInput(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ws := &workerServer{
-				fuzzFn: tc.fn,
+				fuzzFn: func(e CorpusEntry) (time.Duration, error) {
+					return time.Second, tc.fn(e)
+				},
 			}
 			count := int64(0)
 			vals := tc.input
@@ -304,8 +307,8 @@ func TestMinimizeInput(t *testing.T) {
 // input and a flaky failure occurs, that minimization was not indicated
 // to be successful, and the error isn't returned (since it's flaky).
 func TestMinimizeFlaky(t *testing.T) {
-	ws := &workerServer{fuzzFn: func(e CorpusEntry) error {
-		return errors.New("ohno")
+	ws := &workerServer{fuzzFn: func(e CorpusEntry) (time.Duration, error) {
+		return time.Second, errors.New("ohno")
 	}}
 	keepCoverage := make([]byte, len(coverageSnapshot))
 	count := int64(0)
