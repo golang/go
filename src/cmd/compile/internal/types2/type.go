@@ -80,30 +80,6 @@ func structuralType(typ Type) Type {
 	return nil
 }
 
-// structuralString is like structuralType but also considers []byte
-// and string as "identical". In this case, if successful, the result
-// is always []byte.
-func structuralString(typ Type) Type {
-	var su Type
-	if underIs(typ, func(u Type) bool {
-		if isString(u) {
-			u = NewSlice(universeByte)
-		}
-		if su != nil {
-			u = match(su, u)
-			if u == nil {
-				return false
-			}
-		}
-		// su == nil || match(su, u) != nil
-		su = u
-		return true
-	}) {
-		return su
-	}
-	return nil
-}
-
 // If t is a defined type, asNamed returns that type (possibly after resolving it), otherwise it returns nil.
 func asNamed(t Type) *Named {
 	e, _ := t.(*Named)
