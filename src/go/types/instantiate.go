@@ -52,20 +52,20 @@ func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, er
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
 // unexpanded.
-func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, ctxt *Context) Type {
-	switch t := typ.(type) {
+func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Context) Type {
+	switch orig := orig.(type) {
 	case *Named:
 		var h string
 		if ctxt != nil {
-			h = ctxt.typeHash(t, targs)
+			h = ctxt.typeHash(orig, targs)
 			// typ may already have been instantiated with identical type arguments. In
 			// that case, re-use the existing instance.
-			if named := ctxt.lookup(h, t, targs); named != nil {
+			if named := ctxt.lookup(h, orig, targs); named != nil {
 				return named
 			}
 		}
-		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
-		named := check.newNamed(tname, t, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
+		tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
+		named := check.newNamed(tname, orig, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
 		named.targs = NewTypeList(targs)
 		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
 			return expandNamed(ctxt, n, pos)
@@ -73,23 +73,23 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, ctxt *Cont
 		if ctxt != nil {
 			// It's possible that we've lost a race to add named to the context.
 			// In this case, use whichever instance is recorded in the context.
-			named = ctxt.update(h, named)
+			named = ctxt.update(h, orig, targs, named).(*Named)
 		}
 		return named
 
 	case *Signature:
-		tparams := t.TypeParams()
+		tparams := orig.TypeParams()
 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
 			return Typ[Invalid]
 		}
 		if tparams.Len() == 0 {
-			return typ // nothing to do (minor optimization)
+			return orig // nothing to do (minor optimization)
 		}
-		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
+		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
 		// If the signature doesn't use its type parameters, subst
 		// will not make a copy. In that case, make a copy now (so
 		// we can set tparams to nil w/o causing side-effects).
-		if sig == t {
+		if sig == orig {
 			copy := *sig
 			sig = &copy
 		}
@@ -99,7 +99,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, ctxt *Cont
 		return sig
 	}
 	// only types and functions can be generic
-	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))
 }
 
 // validateTArgLen verifies that the length of targs and tparams matches,

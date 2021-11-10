@@ -411,7 +411,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 	// create the instance
 	h := check.conf.Context.typeHash(orig, targs)
 	// targs may be incomplete, and require inference. In any case we should de-duplicate.
-	inst := check.conf.Context.lookup(h, orig, targs)
+	inst, _ := check.conf.Context.lookup(h, orig, targs).(*Named)
 	// If inst is non-nil, we can't just return here. Inst may have been
 	// constructed via recursive substitution, in which case we wouldn't do the
 	// validation below. Ensure that the validation (and resulting errors) runs
@@ -420,7 +420,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 		tname := NewTypeName(x.Pos(), orig.obj.pkg, orig.obj.name, nil)
 		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
 		inst.targs = NewTypeList(targs)
-		inst = check.conf.Context.update(h, inst)
+		inst = check.conf.Context.update(h, orig, targs, inst).(*Named)
 	}
 	def.setUnderlying(inst)
 
