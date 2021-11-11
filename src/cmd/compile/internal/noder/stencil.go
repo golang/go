@@ -515,6 +515,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 
 	// Build call itself.
 	var innerCall ir.Node = ir.NewCallExpr(pos, ir.OCALL, target.Nname, args)
+	innerCall.(*ir.CallExpr).IsDDD = typ.IsVariadic()
 	if len(formalResults) > 0 {
 		innerCall = ir.NewReturnStmt(pos, []ir.Node{innerCall})
 	}
