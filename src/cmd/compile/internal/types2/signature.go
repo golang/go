@@ -18,7 +18,7 @@ type Signature struct {
 	// We then unpack the *Signature and use the scope for the literal body.
 	rparams  *TypeParamList // receiver type parameters from left to right, or nil
 	tparams  *TypeParamList // type parameters from left to right, or nil
-	scope    *Scope         // function scope, present for package-local signatures
+	scope    *Scope         // function scope for package-local and non-instantiated signatures; nil otherwise
 	recv     *Var           // nil if not a method
 	params   *Tuple         // (incoming) parameters from left to right; or nil
 	results  *Tuple         // (outgoing) results from left to right; or nil
