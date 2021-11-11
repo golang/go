@@ -60,6 +60,11 @@ func testDir(t *testing.T, f embed.FS, name string, expect ...string) {
 	}
 }
 
+// Tests for issue 49514.
+var _ = '"'
+var _ = '\''
+var _ = '🦆'
+
 func TestGlobal(t *testing.T) {
 	testFiles(t, global, "concurrency.txt", "Concurrency is not parallelism.\n")
 	testFiles(t, global, "testdata/hello.txt", "hello, world\n")
