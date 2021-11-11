@@ -605,6 +605,10 @@ func BenchmarkWriteToReadFromUDPAddrPort(b *testing.B) {
 }
 
 func TestUDPIPVersionReadMsg(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping on %v", runtime.GOOS)
+	}
 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)
