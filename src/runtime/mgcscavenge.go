@@ -326,8 +326,8 @@ func bgscavenge(c chan int) {
 
 			// Accumulate the amount of time spent scavenging.
 			start := nanotime()
-			released = mheap_.pages.scavenge(scavengeQuantum)
-			atomic.Xadduintptr(&mheap_.pages.scav.released, released)
+			r := mheap_.pages.scavenge(scavengeQuantum)
+			atomic.Xadduintptr(&mheap_.pages.scav.released, r)
 			end := nanotime()
 
 			// On some platforms we may see end >= start if the time it takes to scavenge
@@ -339,10 +339,11 @@ func bgscavenge(c chan int) {
 			// on timing.
 			const approxCritNSPerPhysicalPage = 10e3
 			if end <= start {
-				crit += approxCritNSPerPhysicalPage * float64(released/physPageSize)
+				crit += approxCritNSPerPhysicalPage * float64(r/physPageSize)
 			} else {
 				crit += float64(end - start)
 			}
+			released += r
 		}
 
 		if released == 0 {
