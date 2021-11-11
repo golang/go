@@ -1103,7 +1103,6 @@ func hostlinksetup(ctxt *Link) {
 		*flagTmpdir = dir
 		ownTmpDir = true
 		AtExit(func() {
-			ctxt.Out.Close()
 			os.RemoveAll(*flagTmpdir)
 		})
 	}
