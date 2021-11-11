@@ -343,6 +343,8 @@ func (obj *Func) FullName() string {
 }
 
 // Scope returns the scope of the function's body block.
+// The result is nil for imported or instantiated functions and methods
+// (but there is also no mechanism to get to an instantiated function).
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
 
 // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.

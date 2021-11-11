@@ -115,8 +115,8 @@ func (subst *subster) typ(typ Type) Type {
 			return &Signature{
 				rparams: t.rparams,
 				// TODO(gri) why can't we nil out tparams here, rather than in instantiate?
-				tparams:  t.tparams,
-				scope:    t.scope,
+				tparams: t.tparams,
+				// instantiated signatures have a nil scope
 				recv:     recv,
 				params:   params,
 				results:  results,
