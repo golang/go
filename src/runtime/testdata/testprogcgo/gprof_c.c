@@ -21,9 +21,10 @@ void gprofCgoContext(void *arg) {
 
 void gprofCgoTraceback(void *arg) {
 	// spend some time here so the P is more likely to be retaken.
- 	for (volatile int i = 0; i < 123456789; i++);
+	volatile int i;
+	for (i = 0; i < 123456789; i++);
 }
 
 void CallGoSleep() {
- 	GoSleep();
+	GoSleep();
 }
