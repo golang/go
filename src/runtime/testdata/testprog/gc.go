@@ -140,13 +140,26 @@ func GCPhys() {
 	// returned to the OS.
 
 	const (
+		// The total amount of memory we're willing to allocate.
 		allocTotal = 32 << 20
-		allocChunk = 64 << 10
-		allocs     = allocTotal / allocChunk
 
 		// The page cache could hide 64 8-KiB pages from the scavenger today.
 		maxPageCache = (8 << 10) * 64
 	)
+
+	// How big the allocations are needs to depend on the page size.
+	// If the page size is too big and the allocations are too small,
+	// they might not be aligned to the physical page size, so the scavenger
+	// will gloss over them.
+	pageSize := os.Getpagesize()
+	var allocChunk int
+	if pageSize <= 8<<10 {
+		allocChunk = 64 << 10
+	} else {
+		allocChunk = 512 << 10
+	}
+	allocs := allocTotal / allocChunk
+
 	// Set GC percent just so this test is a little more consistent in the
 	// face of varying environments.
 	debug.SetGCPercent(100)
@@ -197,7 +210,7 @@ func GCPhys() {
 	//
 	// heapBacked also subtracts out maxPageCache bytes of memory because
 	// this is memory that may be hidden from the scavenger per-P. Since
-	// GOMAXPROCS=1 here, that's fine.
+	// GOMAXPROCS=1 here, subtracting it out once is fine.
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
 	heapBacked := stats.HeapSys - stats.HeapReleased - maxPageCache
@@ -212,7 +225,12 @@ func GCPhys() {
 	overuse := (float64(heapBacked) - float64(stats.HeapAlloc)) / float64(stats.HeapAlloc)
 	// Check against our overuse threshold, which is what the scavenger always reserves
 	// to encourage allocation of memory that doesn't need to be faulted in.
-	const threshold = 0.1
+	//
+	// Add additional slack in case the page size is large and the scavenger
+	// can't reach that memory because it doesn't constitute a complete aligned
+	// physical page. Assume the worst case: a full physical page out of each
+	// allocation.
+	threshold := 0.1 + float64(pageSize)/float64(allocChunk)
 	if overuse <= threshold {
 		fmt.Println("OK")
 		return
