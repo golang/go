@@ -802,6 +802,12 @@ func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*t
 
 	// Make sure name/type of newf is set before substituting the body.
 	newf.Body = subst.list(gf.Body)
+	if len(newf.Body) == 0 {
+		// Ensure the body is nonempty, for issue 49524.
+		// TODO: have some other way to detect the difference between
+		// a function declared with no body, vs. one with an empty body?
+		newf.Body = append(newf.Body, ir.NewBlockStmt(gf.Pos(), nil))
+	}
 
 	if len(subst.defnMap) > 0 {
 		base.Fatalf("defnMap is not empty")
