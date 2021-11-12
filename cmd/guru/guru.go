@@ -126,8 +126,7 @@ func setPTAScope(lconf *loader.Config, scope []string) error {
 // and their dependencies.
 func setupPTA(prog *ssa.Program, lprog *loader.Program, ptaLog io.Writer, reflection bool) (*pointer.Config, error) {
 	// For each initial package (specified on the command line),
-	// if it has a main function, analyze that,
-	// otherwise analyze its tests, if any.
+	// analyze the package if it has a main function.
 	var mains []*ssa.Package
 	for _, info := range lprog.InitialPackages() {
 		p := prog.Package(info.Pkg)
@@ -135,8 +134,6 @@ func setupPTA(prog *ssa.Program, lprog *loader.Program, ptaLog io.Writer, reflec
 		// Add package to the pointer analysis scope.
 		if p.Pkg.Name() == "main" && p.Func("main") != nil {
 			mains = append(mains, p)
-		} else if main := prog.CreateTestMainPackage(p); main != nil {
-			mains = append(mains, main)
 		}
 	}
 	if mains == nil {
