@@ -352,7 +352,7 @@ func (v Value) CallSlice(in []Value) []Value {
 	return v.call("CallSlice", in)
 }
 
-var callGC bool // for testing; see TestCallMethodJump
+var callGC bool // for testing; see TestCallMethodJump and TestCallArgLive
 
 const debugReflectCall = false
 
@@ -509,12 +509,16 @@ func (v Value) call(op string, in []Value) []Value {
 				// Copy values to "integer registers."
 				if v.flag&flagIndir != 0 {
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					intToReg(&regArgs, st.ireg, st.size, offset)
-				} else {
 					if st.kind == abiStepPointer {
 						// Duplicate this pointer in the pointer area of the
 						// register space. Otherwise, there's the potential for
 						// this to be the last reference to v.ptr.
+						regArgs.Ptrs[st.ireg] = *(*unsafe.Pointer)(offset)
+					}
+					intToReg(&regArgs, st.ireg, st.size, offset)
+				} else {
+					if st.kind == abiStepPointer {
+						// See the comment in abiStepPointer case above.
 						regArgs.Ptrs[st.ireg] = v.ptr
 					}
 					regArgs.Ints[st.ireg] = uintptr(v.ptr)
@@ -538,6 +542,15 @@ func (v Value) call(op string, in []Value) []Value {
 
 	// Mark pointers in registers for the return path.
 	regArgs.ReturnIsPtr = abi.outRegPtrs
+
+	if debugReflectCall {
+		regArgs.Dump()
+	}
+
+	// For testing; see TestCallArgLive.
+	if callGC {
+		runtime.GC()
+	}
 
 	// Call.
 	call(frametype, fn, stackArgs, uint32(frametype.size), uint32(abi.retOffset), uint32(frameSize), &regArgs)

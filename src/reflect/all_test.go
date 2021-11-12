@@ -6478,6 +6478,29 @@ func TestCallMethodJump(t *testing.T) {
 	*CallGC = false
 }
 
+func TestCallArgLive(t *testing.T) {
+	type T struct{ X, Y *string } // pointerful aggregate
+
+	F := func(t T) { *t.X = "ok" }
+
+	// In reflect.Value.Call, trigger a garbage collection in reflect.call
+	// between marshaling argument and the actual call.
+	*CallGC = true
+
+	x := new(string)
+	runtime.SetFinalizer(x, func(p *string) {
+		if *p != "ok" {
+			t.Errorf("x dead prematurely")
+		}
+	})
+	v := T{x, nil}
+
+	ValueOf(F).Call([]Value{ValueOf(v)})
+
+	// Stop garbage collecting during reflect.call.
+	*CallGC = false
+}
+
 func TestMakeFuncStackCopy(t *testing.T) {
 	target := func(in []Value) []Value {
 		runtime.GC()
