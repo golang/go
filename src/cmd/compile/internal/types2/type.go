@@ -25,9 +25,7 @@ func under(t Type) Type {
 	case *Named:
 		return t.under()
 	case *TypeParam:
-		if tparamIsIface {
-			return t.iface()
-		}
+		return t.iface()
 	}
 	return t
 }
