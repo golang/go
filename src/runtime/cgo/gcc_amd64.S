@@ -12,7 +12,7 @@
 #endif
 
 /*
- * void crosscall_amd64(void (*fn)(void))
+ * void crosscall_amd64(void (*fn)(void), void (*setg_gcc)(void*), void *g)
  *
  * Calling into the 6c tool chain, where all registers are caller save.
  * Called from standard x86-64 ABI, where %rbx, %rbp, %r12-%r15
