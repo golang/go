@@ -19,13 +19,11 @@ package pointer
 
 import (
 	"flag"
-	"go/build"
 	"go/token"
 	"testing"
 	"time"
 
-	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
@@ -37,22 +35,18 @@ func TestStdlib(t *testing.T) {
 		t.Skip("skipping (slow) stdlib test (use --stdlib)")
 	}
 
-	// Load, parse and type-check the program.
-	ctxt := build.Default // copy
-	ctxt.GOPATH = ""      // disable GOPATH
-	conf := loader.Config{Build: &ctxt}
-	if _, err := conf.FromArgs(buildutil.AllPackages(conf.Build), true); err != nil {
-		t.Errorf("FromArgs failed: %v", err)
-		return
+	cfg := &packages.Config{
+		Mode: packages.LoadAllSyntax,
+		// Create test main packages with a main function.
+		Tests: true,
 	}
-
-	iprog, err := conf.Load()
-	if err != nil {
+	pkgs, err := packages.Load(cfg, "std")
+	if err != nil || packages.PrintErrors(pkgs) > 0 {
 		t.Fatalf("Load failed: %v", err)
 	}
 
 	// Create SSA packages.
-	prog := ssautil.CreateProgram(iprog, 0)
+	prog, _ := ssautil.AllPackages(pkgs, 0)
 	prog.Build()
 
 	numPkgs := len(prog.AllPackages())
@@ -62,10 +56,9 @@ func TestStdlib(t *testing.T) {
 
 	// Determine the set of packages/tests to analyze.
 	var mains []*ssa.Package
-	for _, info := range iprog.InitialPackages() {
-		ssapkg := prog.Package(info.Pkg)
-		if main := prog.CreateTestMainPackage(ssapkg); main != nil {
-			mains = append(mains, main)
+	for _, ssapkg := range prog.AllPackages() {
+		if ssapkg.Pkg.Name() == "main" && ssapkg.Func("main") != nil {
+			mains = append(mains, ssapkg)
 		}
 	}
 	if mains == nil {
