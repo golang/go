@@ -87,12 +87,3 @@ func structuralType(typ Type) Type {
 	}
 	return nil
 }
-
-// If t is a defined type, asNamed returns that type (possibly after resolving it), otherwise it returns nil.
-func asNamed(t Type) *Named {
-	e, _ := t.(*Named)
-	if e != nil {
-		e.resolve(nil)
-	}
-	return e
-}
