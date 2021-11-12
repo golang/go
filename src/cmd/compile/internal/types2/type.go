@@ -65,6 +65,9 @@ func match(x, y Type) Type {
 func structuralType(typ Type) Type {
 	var su Type
 	if underIs(typ, func(u Type) bool {
+		if u == nil {
+			return false
+		}
 		if su != nil {
 			u = match(su, u)
 			if u == nil {
