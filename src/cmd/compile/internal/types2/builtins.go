@@ -337,26 +337,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		if y.mode == invalid {
 			return
 		}
-		// src, _ := structuralType(y.typ).(*Slice); but also accepts strings
-		var src *Slice
-		var elem Type // == src.elem if valid
-		if underIs(y.typ, func(u Type) bool {
-			switch u := u.(type) {
-			case *Basic:
-				if isString(u) && (elem == nil || Identical(elem, universeByte)) {
-					elem = universeByte
-					return true
-				}
-			case *Slice:
-				if elem == nil || Identical(elem, u.elem) {
-					elem = u.elem
-					return true
-				}
-			}
-			return false
-		}) {
-			src = NewSlice(elem)
+		src0 := structuralString(y.typ)
+		if src0 != nil && isString(src0) {
+			src0 = NewSlice(universeByte)
 		}
+		src, _ := src0.(*Slice)
 
 		if dst == nil || src == nil {
 			check.errorf(x, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)

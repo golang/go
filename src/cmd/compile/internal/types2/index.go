@@ -213,7 +213,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch u := structuralType(x.typ).(type) {
+	switch u := structuralString(x.typ).(type) {
 	case nil:
 		check.errorf(x, invalidOp+"cannot slice %s: %s has no structural type", x, x.typ)
 		x.mode = invalid
@@ -232,7 +232,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 			}
 			// spec: "For untyped string operands the result
 			// is a non-constant value of type string."
-			if u.kind == UntypedString {
+			if isUntyped(x.typ) {
 				x.typ = Typ[String]
 			}
 		}
