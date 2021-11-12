@@ -48,7 +48,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// If T's type set is empty, or if it doesn't
 		// have specific types, constant x cannot be
 		// converted.
-		ok = under(T).(*TypeParam).underIs(func(u Type) bool {
+		ok = T.(*TypeParam).underIs(func(u Type) bool {
 			// t is nil if there are no specific type terms
 			if u == nil {
 				cause = check.sprintf("%s does not contain specific types", T)
@@ -194,8 +194,8 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 	}
 
 	// optimization: if we don't have type parameters, we're done
-	Vp, _ := Vu.(*TypeParam)
-	Tp, _ := Tu.(*TypeParam)
+	Vp, _ := V.(*TypeParam)
+	Tp, _ := T.(*TypeParam)
 	if Vp == nil && Tp == nil {
 		return false
 	}

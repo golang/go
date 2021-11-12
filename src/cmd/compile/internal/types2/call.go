@@ -528,7 +528,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			check.errorf(e.Sel, "cannot call pointer method %s on %s", sel, x.typ)
 		default:
 			var why string
-			if tpar := asTypeParam(x.typ); tpar != nil {
+			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
 				// Type parameter bounds don't specify fields, so don't mention "field".
 				if tname := tpar.iface().obj; tname != nil {
 					why = check.sprintf("interface %s has no method %s", tname.name, sel)

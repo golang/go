@@ -706,8 +706,7 @@ func (r *importReader) tparamList() []*types2.TypeParam {
 	}
 	xs := make([]*types2.TypeParam, n)
 	for i := range xs {
-		typ := r.typ()
-		xs[i] = types2.AsTypeParam(typ)
+		xs[i] = r.typ().(*types2.TypeParam)
 	}
 	return xs
 }

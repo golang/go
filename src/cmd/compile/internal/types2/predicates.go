@@ -90,7 +90,7 @@ func IsInterface(t Type) bool {
 
 // isTypeParam reports whether t is a type parameter.
 func isTypeParam(t Type) bool {
-	_, ok := under(t).(*TypeParam)
+	_, ok := t.(*TypeParam)
 	return ok
 }
 

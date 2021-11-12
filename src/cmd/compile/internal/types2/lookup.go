@@ -134,12 +134,8 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 					continue // we can't have a matching field or interface method
 				}
 
-				// continue with underlying type, but only if it's not a type parameter
-				// TODO(gri) is this what we want to do for type parameters? (spec question)
+				// continue with underlying type
 				typ = named.under()
-				if asTypeParam(typ) != nil {
-					continue
-				}
 			}
 
 			tpar = nil

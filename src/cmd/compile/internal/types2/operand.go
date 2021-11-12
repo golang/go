@@ -183,7 +183,7 @@ func operandString(x *operand, qf Qualifier) string {
 			}
 			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
-			if tpar := asTypeParam(x.typ); tpar != nil {
+			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
 				buf.WriteString(" constrained by ")
 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
 			}
@@ -256,8 +256,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	Vu := under(V)
 	Tu := under(T)
-	Vp, _ := Vu.(*TypeParam)
-	Tp, _ := Tu.(*TypeParam)
+	Vp, _ := V.(*TypeParam)
+	Tp, _ := T.(*TypeParam)
 
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {

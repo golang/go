@@ -143,7 +143,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 
 	// A type argument that is a type parameter with an empty type set satisfies any constraint.
 	// (The empty set is a subset of any set.)
-	if targ := asTypeParam(targ); targ != nil && targ.iface().typeSet().IsEmpty() {
+	if targ, _ := targ.(*TypeParam); targ != nil && targ.iface().typeSet().IsEmpty() {
 		return nil
 	}
 
@@ -172,7 +172,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 	// if iface is comparable, targ must be comparable
 	// TODO(gri) the error messages needs to be better, here
 	if iface.IsComparable() && !Comparable(targ) {
-		if tpar := asTypeParam(targ); tpar != nil && tpar.iface().typeSet().IsAll() {
+		if tpar, _ := targ.(*TypeParam); tpar != nil && tpar.iface().typeSet().IsAll() {
 			return errorf("%s has no constraints", targ)
 		}
 		return errorf("%s does not satisfy comparable", targ)
@@ -184,7 +184,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 		// If the type argument is a pointer to a type parameter, the type argument's
 		// method set is empty.
 		// TODO(gri) is this what we want? (spec question)
-		if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
+		if base, isPtr := deref(targ); isPtr && isTypeParam(base) {
 			return errorf("%s has no methods", targ)
 		}
 		if m, wrong := check.missingMethod(targ, iface, true); m != nil {
@@ -212,7 +212,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 	// If targ is itself a type parameter, each of its possible types must be in the set
 	// of iface types (i.e., the targ type set must be a subset of the iface type set).
 	// Type arguments with empty type sets were already excluded above.
-	if targ := asTypeParam(targ); targ != nil {
+	if targ, _ := targ.(*TypeParam); targ != nil {
 		targBound := targ.iface()
 		if !targBound.typeSet().subsetOf(iface.typeSet()) {
 			// TODO(gri) report which type is missing
