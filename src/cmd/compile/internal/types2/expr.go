@@ -740,6 +740,9 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 	case *TypeParam:
 		// TODO(gri) review this code - doesn't look quite right
 		ok := u.underIs(func(t Type) bool {
+			if t == nil {
+				return false
+			}
 			target, _, _ := check.implicitTypeAndValue(x, t)
 			return target != nil
 		})
