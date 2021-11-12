@@ -156,11 +156,8 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 					}
 				case *Pointer:
 					check.error(embeddedPos, "embedded field type cannot be a pointer")
-				case *TypeParam:
-					assert(!tparamIsIface)
-					check.error(embeddedPos, "embedded field type cannot be a (pointer to a) type parameter")
 				case *Interface:
-					if tparamIsIface && isTypeParam(t) {
+					if isTypeParam(t) {
 						check.error(embeddedPos, "embedded field type cannot be a (pointer to a) type parameter")
 						break
 					}
