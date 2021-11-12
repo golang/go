@@ -57,7 +57,7 @@ func main() {
 
 	// cannot type-assert non-interfaces
 	f := 2.0
-	_ = f.(int) // ERROR "non-interface type|only valid for interface types|not an interface type"
+	_ = f.(int) // ERROR "non-interface type|only valid for interface types|not an interface"
 
 }
 

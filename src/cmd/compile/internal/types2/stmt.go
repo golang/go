@@ -733,13 +733,14 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	if x.mode == invalid {
 		return
 	}
-	// Caution: We're not using asInterface here because we don't want
-	//          to switch on a suitably constrained type parameter (for
-	//          now).
-	// TODO(gri) Need to revisit this.
+	// TODO(gri) we may want to permit type switches on type parameter values at some point
+	if isTypeParam(x.typ) {
+		check.errorf(&x, "cannot use type switch on type parameter value %s", &x)
+		return
+	}
 	xtyp, _ := under(x.typ).(*Interface)
 	if xtyp == nil {
-		check.errorf(&x, "%s is not an interface type", &x)
+		check.errorf(&x, "%s is not an interface", &x)
 		return
 	}
 
