@@ -482,8 +482,8 @@ func (_ R2[X, Y]) m2(X) Y
 // type assertions and type switches over generic types lead to errors for now
 
 func _[T any](x T) {
-	_ = x /* ERROR not an interface */ .(int)
-	switch x /* ERROR not an interface */ .(type) {
+	_ = x /* ERROR cannot use type assertion */ .(int)
+	switch x /* ERROR cannot use type switch */ .(type) {
 	}
 
 	// work-around
@@ -494,8 +494,8 @@ func _[T any](x T) {
 }
 
 func _[T interface{~int}](x T) {
-	_ = x /* ERROR not an interface */ .(int)
-	switch x /* ERROR not an interface */ .(type) {
+	_ = x /* ERROR cannot use type assertion */ .(int)
+	switch x /* ERROR cannot use type switch */ .(type) {
 	}
 
 	// work-around
