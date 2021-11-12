@@ -1,14 +1,15 @@
 format the code according to the go standard
 
-Usage: format [flags] <filerange>
+Usage:
+  gopls [flags] format [format-flags] <filerange>
 
 The arguments supplied may be simple file names, or ranges within files.
 
 Example: reformat this file:
 
-  $ gopls format -w internal/lsp/cmd/check.go
+	$ gopls format -w internal/lsp/cmd/check.go
 
-	gopls format flags are:
+format-flags:
   -d	display diffs instead of rewriting files
   -l	list files whose formatting differs from gofmt's
   -w	write result to (source) file instead of stdout

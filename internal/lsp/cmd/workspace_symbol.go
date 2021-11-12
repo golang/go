@@ -22,15 +22,16 @@ type workspaceSymbol struct {
 }
 
 func (r *workspaceSymbol) Name() string      { return "workspace_symbol" }
-func (r *workspaceSymbol) Usage() string     { return "<query>" }
+func (r *workspaceSymbol) Parent() string    { return r.app.Name() }
+func (r *workspaceSymbol) Usage() string     { return "[workspace_symbol-flags] <query>" }
 func (r *workspaceSymbol) ShortHelp() string { return "search symbols in workspace" }
 func (r *workspaceSymbol) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example:
 
-  $ gopls workspace_symbol -matcher fuzzy 'wsymbols'
+	$ gopls workspace_symbol -matcher fuzzy 'wsymbols'
 
-gopls workspace_symbol flags are:
+workspace_symbol-flags:
 `)
 	f.PrintDefaults()
 }

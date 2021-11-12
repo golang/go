@@ -21,15 +21,16 @@ type implementation struct {
 }
 
 func (i *implementation) Name() string      { return "implementation" }
+func (i *implementation) Parent() string    { return i.app.Name() }
 func (i *implementation) Usage() string     { return "<position>" }
 func (i *implementation) ShortHelp() string { return "display selected identifier's implementation" }
 func (i *implementation) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example:
 
-  $ # 1-indexed location (:line:column or :#offset) of the target identifier
-  $ gopls implementation helper/helper.go:8:6
-  $ gopls implementation helper/helper.go:#53
+	$ # 1-indexed location (:line:column or :#offset) of the target identifier
+	$ gopls implementation helper/helper.go:8:6
+	$ gopls implementation helper/helper.go:#53
 `)
 	f.PrintDefaults()
 }

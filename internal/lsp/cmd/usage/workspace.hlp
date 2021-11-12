@@ -1,6 +1,7 @@
 manage the gopls workspace (experimental: under development)
 
-Usage: workspace [flags] <subcommand> [args...]
+Usage:
+  gopls [flags] workspace <subcommand> [arg]...
 
 subcommands:
-  generate: generate a gopls.mod file for a workspace
+  generate  generate a gopls.mod file for a workspace

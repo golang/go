@@ -41,8 +41,9 @@ type Serve struct {
 	app *Application
 }
 
-func (s *Serve) Name() string  { return "serve" }
-func (s *Serve) Usage() string { return "" }
+func (s *Serve) Name() string   { return "serve" }
+func (s *Serve) Parent() string { return s.app.Name() }
+func (s *Serve) Usage() string  { return "[server-flags]" }
 func (s *Serve) ShortHelp() string {
 	return "run a server for Go code using the Language Server Protocol"
 }
@@ -51,7 +52,7 @@ func (s *Serve) DetailedHelp(f *flag.FlagSet) {
 The server communicates using JSONRPC2 on stdin and stdout, and is intended to be run directly as
 a child of an editor process.
 
-gopls server flags are:
+server-flags:
 `)
 	f.PrintDefaults()
 }

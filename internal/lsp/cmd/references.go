@@ -23,17 +23,18 @@ type references struct {
 }
 
 func (r *references) Name() string      { return "references" }
-func (r *references) Usage() string     { return "<position>" }
+func (r *references) Parent() string    { return r.app.Name() }
+func (r *references) Usage() string     { return "[references-flags] <position>" }
 func (r *references) ShortHelp() string { return "display selected identifier's references" }
 func (r *references) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example:
 
-  $ # 1-indexed location (:line:column or :#offset) of the target identifier
-  $ gopls references helper/helper.go:8:6
-  $ gopls references helper/helper.go:#53
+	$ # 1-indexed location (:line:column or :#offset) of the target identifier
+	$ gopls references helper/helper.go:8:6
+	$ gopls references helper/helper.go:#53
 
-  gopls references flags are:
+references-flags:
 `)
 	f.PrintDefaults()
 }

@@ -19,13 +19,14 @@ type check struct {
 }
 
 func (c *check) Name() string      { return "check" }
+func (c *check) Parent() string    { return c.app.Name() }
 func (c *check) Usage() string     { return "<filename>" }
 func (c *check) ShortHelp() string { return "show diagnostic results for the specified file" }
 func (c *check) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example: show the diagnostic results of this file:
 
-  $ gopls check internal/lsp/cmd/check.go
+	$ gopls check internal/lsp/cmd/check.go
 `)
 	f.PrintDefaults()
 }

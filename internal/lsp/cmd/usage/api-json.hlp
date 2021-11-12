@@ -1,3 +1,4 @@
 print json describing gopls API
 
-Usage: api-json [flags] 
+Usage:
+  gopls [flags] api-json

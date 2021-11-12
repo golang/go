@@ -21,15 +21,16 @@ type callHierarchy struct {
 }
 
 func (c *callHierarchy) Name() string      { return "call_hierarchy" }
+func (c *callHierarchy) Parent() string    { return c.app.Name() }
 func (c *callHierarchy) Usage() string     { return "<position>" }
 func (c *callHierarchy) ShortHelp() string { return "display selected identifier's call hierarchy" }
 func (c *callHierarchy) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example:
 
-  $ # 1-indexed location (:line:column or :#offset) of the target identifier
-  $ gopls call_hierarchy helper/helper.go:8:6
-  $ gopls call_hierarchy helper/helper.go:#53
+	$ # 1-indexed location (:line:column or :#offset) of the target identifier
+	$ gopls call_hierarchy helper/helper.go:8:6
+	$ gopls call_hierarchy helper/helper.go:#53
 `)
 	f.PrintDefaults()
 }

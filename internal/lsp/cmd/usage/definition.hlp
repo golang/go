@@ -1,13 +1,14 @@
 show declaration of selected identifier
 
-Usage: definition [flags] <position>
+Usage:
+  gopls [flags] definition [definition-flags] <position>
 
 Example: show the definition of the identifier at syntax at offset 44 in this file (flag.FlagSet):
 
-$ gopls definition internal/lsp/cmd/definition.go:44:47
-$ gopls definition internal/lsp/cmd/definition.go:#1270
+	$ gopls definition internal/lsp/cmd/definition.go:44:47
+	$ gopls definition internal/lsp/cmd/definition.go:#1270
 
-	gopls query definition flags are:
+definition-flags:
   -json
     	emit output in JSON format
   -markdown

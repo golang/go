@@ -1,6 +1,7 @@
 test validity of a rename operation at location
 
-Usage: prepare_rename [flags] <position>
+Usage:
+  gopls [flags] prepare_rename <position>
 
 Example:
 

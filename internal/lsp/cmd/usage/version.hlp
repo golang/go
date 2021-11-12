@@ -1,3 +1,4 @@
 print the gopls version information
 
-Usage: version [flags] 
+Usage:
+  gopls [flags] version

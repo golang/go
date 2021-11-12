@@ -31,17 +31,18 @@ type rename struct {
 }
 
 func (r *rename) Name() string      { return "rename" }
-func (r *rename) Usage() string     { return "<position> <new name>" }
+func (r *rename) Parent() string    { return r.app.Name() }
+func (r *rename) Usage() string     { return "[rename-flags] <position> <name>" }
 func (r *rename) ShortHelp() string { return "rename selected identifier" }
 func (r *rename) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example:
 
-  $ # 1-based location (:line:column or :#position) of the thing to change
-  $ gopls rename helper/helper.go:8:6 Foo
-  $ gopls rename helper/helper.go:#53 Foo
+	$ # 1-based location (:line:column or :#position) of the thing to change
+	$ gopls rename helper/helper.go:8:6 Foo
+	$ gopls rename helper/helper.go:#53 Foo
 
-	gopls rename flags are:
+rename-flags:
 `)
 	f.PrintDefaults()
 }

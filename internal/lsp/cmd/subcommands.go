@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"text/tabwriter"
 
 	"golang.org/x/tools/internal/tool"
 )
@@ -17,14 +18,16 @@ import (
 type subcommands []tool.Application
 
 func (s subcommands) DetailedHelp(f *flag.FlagSet) {
-	fmt.Fprint(f.Output(), "\nsubcommands:\n")
+	w := tabwriter.NewWriter(f.Output(), 0, 0, 2, ' ', 0)
+	defer w.Flush()
+	fmt.Fprint(w, "\nsubcommands:\n")
 	for _, c := range s {
-		fmt.Fprintf(f.Output(), "  %s: %s\n", c.Name(), c.ShortHelp())
+		fmt.Fprintf(w, "  %s\t%s\n", c.Name(), c.ShortHelp())
 	}
 	f.PrintDefaults()
 }
 
-func (s subcommands) Usage() string { return "<subcommand> [args...]" }
+func (s subcommands) Usage() string { return "<subcommand> [arg]..." }
 
 func (s subcommands) Run(ctx context.Context, args ...string) error {
 	if len(args) == 0 {

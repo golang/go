@@ -1,7 +1,8 @@
 show diagnostic results for the specified file
 
-Usage: check [flags] <filename>
+Usage:
+  gopls [flags] check <filename>
 
 Example: show the diagnostic results of this file:
 
-  $ gopls check internal/lsp/cmd/check.go
+	$ gopls check internal/lsp/cmd/check.go

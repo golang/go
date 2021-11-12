@@ -28,15 +28,15 @@ type suggestedFix struct {
 }
 
 func (s *suggestedFix) Name() string      { return "fix" }
-func (s *suggestedFix) Usage() string     { return "<filename>" }
+func (s *suggestedFix) Parent() string    { return s.app.Name() }
+func (s *suggestedFix) Usage() string     { return "[fix-flags] <filename>" }
 func (s *suggestedFix) ShortHelp() string { return "apply suggested fixes" }
 func (s *suggestedFix) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprintf(f.Output(), `
-Example: apply suggested fixes for this file:
+Example: apply suggested fixes for this file
+	$ gopls fix -w internal/lsp/cmd/check.go
 
-  $ gopls fix -w internal/lsp/cmd/check.go
-
-gopls fix flags are:
+fix-flags:
 `)
 	f.PrintDefaults()
 }

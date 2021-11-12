@@ -1,12 +1,13 @@
 display selected identifier's references
 
-Usage: references [flags] <position>
+Usage:
+  gopls [flags] references [references-flags] <position>
 
 Example:
 
-  $ # 1-indexed location (:line:column or :#offset) of the target identifier
-  $ gopls references helper/helper.go:8:6
-  $ gopls references helper/helper.go:#53
+	$ # 1-indexed location (:line:column or :#offset) of the target identifier
+	$ gopls references helper/helper.go:8:6
+	$ gopls references helper/helper.go:#53
 
-  gopls references flags are:
+references-flags:
   -d	include the declaration of the specified identifier in the results

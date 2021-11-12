@@ -19,18 +19,21 @@ import (
 // used for manipulating the workspace mod file, rather than editing it
 // manually.
 type workspace struct {
+	app *Application
 	subcommands
 }
 
 func newWorkspace(app *Application) *workspace {
 	return &workspace{
+		app: app,
 		subcommands: subcommands{
 			&generateWorkspaceMod{app: app},
 		},
 	}
 }
 
-func (w *workspace) Name() string { return "workspace" }
+func (w *workspace) Name() string   { return "workspace" }
+func (w *workspace) Parent() string { return w.app.Name() }
 func (w *workspace) ShortHelp() string {
 	return "manage the gopls workspace (experimental: under development)"
 }

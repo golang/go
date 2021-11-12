@@ -27,7 +27,8 @@ type format struct {
 }
 
 func (c *format) Name() string      { return "format" }
-func (c *format) Usage() string     { return "<filerange>" }
+func (c *format) Parent() string    { return c.app.Name() }
+func (c *format) Usage() string     { return "[format-flags] <filerange>" }
 func (c *format) ShortHelp() string { return "format the code according to the go standard" }
 func (c *format) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
@@ -35,9 +36,9 @@ The arguments supplied may be simple file names, or ranges within files.
 
 Example: reformat this file:
 
-  $ gopls format -w internal/lsp/cmd/check.go
+	$ gopls format -w internal/lsp/cmd/check.go
 
-	gopls format flags are:
+format-flags:
 `)
 	f.PrintDefaults()
 }

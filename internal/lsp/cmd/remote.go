@@ -18,6 +18,7 @@ import (
 )
 
 type remote struct {
+	app *Application
 	subcommands
 
 	// For backward compatibility, allow aliasing this command (it was previously
@@ -30,6 +31,7 @@ type remote struct {
 
 func newRemote(app *Application, alias string) *remote {
 	return &remote{
+		app: app,
 		subcommands: subcommands{
 			&listSessions{app: app},
 			&startDebugging{app: app},
@@ -45,6 +47,8 @@ func (r *remote) Name() string {
 	return "remote"
 }
 
+func (r *remote) Parent() string { return r.app.Name() }
+
 func (r *remote) ShortHelp() string {
 	short := "interact with the gopls daemon"
 	if r.alias != "" {
@@ -58,8 +62,9 @@ type listSessions struct {
 	app *Application
 }
 
-func (c *listSessions) Name() string  { return "sessions" }
-func (c *listSessions) Usage() string { return "" }
+func (c *listSessions) Name() string   { return "sessions" }
+func (c *listSessions) Parent() string { return c.app.Name() }
+func (c *listSessions) Usage() string  { return "" }
 func (c *listSessions) ShortHelp() string {
 	return "print information about current gopls sessions"
 }

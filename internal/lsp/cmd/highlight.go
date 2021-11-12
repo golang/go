@@ -21,15 +21,16 @@ type highlight struct {
 }
 
 func (r *highlight) Name() string      { return "highlight" }
+func (r *highlight) Parent() string    { return r.app.Name() }
 func (r *highlight) Usage() string     { return "<position>" }
 func (r *highlight) ShortHelp() string { return "display selected identifier's highlights" }
 func (r *highlight) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example:
 
-  $ # 1-indexed location (:line:column or :#offset) of the target identifier
-  $ gopls highlight helper/helper.go:8:6
-  $ gopls highlight helper/helper.go:#53
+	$ # 1-indexed location (:line:column or :#offset) of the target identifier
+	$ gopls highlight helper/helper.go:8:6
+	$ gopls highlight helper/helper.go:#53
 `)
 	f.PrintDefaults()
 }

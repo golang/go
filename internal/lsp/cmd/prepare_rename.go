@@ -21,6 +21,7 @@ type prepareRename struct {
 }
 
 func (r *prepareRename) Name() string      { return "prepare_rename" }
+func (r *prepareRename) Parent() string    { return r.app.Name() }
 func (r *prepareRename) Usage() string     { return "<position>" }
 func (r *prepareRename) ShortHelp() string { return "test validity of a rename operation at location" }
 func (r *prepareRename) DetailedHelp(f *flag.FlagSet) {

@@ -17,6 +17,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"text/tabwriter"
 	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -94,6 +95,7 @@ func New(name, wd string, env []string, options func(*source.Options)) *Applicat
 			RemoteListenTimeout: 1 * time.Minute,
 		},
 	}
+	app.Serve.app = app
 	return app
 }
 
@@ -111,28 +113,25 @@ func (app *Application) ShortHelp() string {
 // DetailedHelp implements tool.Application returning the main binary help.
 // This includes the short help for all the sub commands.
 func (app *Application) DetailedHelp(f *flag.FlagSet) {
-	fmt.Fprint(f.Output(), `
+	w := tabwriter.NewWriter(f.Output(), 0, 0, 2, ' ', 0)
+	defer w.Flush()
+
+	fmt.Fprint(w, `
 gopls is a Go language server. It is typically used with an editor to provide
 language features. When no command is specified, gopls will default to the 'serve'
 command. The language features can also be accessed via the gopls command-line interface.
 
-Available commands are:
+command:
 `)
-	fmt.Fprint(f.Output(), `
-main:
-`)
+	fmt.Fprint(w, "\nMain\t\n")
 	for _, c := range app.mainCommands() {
-		fmt.Fprintf(f.Output(), "  %s : %v\n", c.Name(), c.ShortHelp())
+		fmt.Fprintf(w, "  %s\t%s\n", c.Name(), c.ShortHelp())
 	}
-	fmt.Fprint(f.Output(), `
-features:
-`)
+	fmt.Fprint(w, "\t\nFeatures\t\n")
 	for _, c := range app.featureCommands() {
-		fmt.Fprintf(f.Output(), "  %s : %v\n", c.Name(), c.ShortHelp())
+		fmt.Fprintf(w, "  %s\t%s\n", c.Name(), c.ShortHelp())
 	}
-	fmt.Fprint(f.Output(), `
-gopls flags are:
-`)
+	fmt.Fprint(w, "\nflags:\n")
 	f.PrintDefaults()
 }
 
@@ -142,7 +141,6 @@ gopls flags are:
 // temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
 	ctx = debug.WithInstance(ctx, app.wd, app.OCAgent)
-	app.Serve.app = app
 	if len(args) == 0 {
 		s := flag.NewFlagSet(app.Name(), flag.ExitOnError)
 		return tool.Run(ctx, s, &app.Serve, args)
@@ -171,8 +169,8 @@ func (app *Application) mainCommands() []tool.Application {
 	return []tool.Application{
 		&app.Serve,
 		&version{app: app},
-		&bug{},
-		&apiJSON{},
+		&bug{app: app},
+		&apiJSON{app: app},
 		&licenses{app: app},
 	}
 }

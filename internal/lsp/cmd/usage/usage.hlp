@@ -1,43 +1,44 @@
 The Go Language source tools.
 
-Usage: gopls [flags] <command> [command-flags] [command-args]
+Usage:
+  gopls [flags] <command> [command-flags] [command-args]
 
 gopls is a Go language server. It is typically used with an editor to provide
 language features. When no command is specified, gopls will default to the 'serve'
 command. The language features can also be accessed via the gopls command-line interface.
 
-Available commands are:
+command:
 
-main:
-  serve : run a server for Go code using the Language Server Protocol
-  version : print the gopls version information
-  bug : report a bug in gopls
-  api-json : print json describing gopls API
-  licenses : print licenses of included software
+Main                
+  serve             run a server for Go code using the Language Server Protocol
+  version           print the gopls version information
+  bug               report a bug in gopls
+  api-json          print json describing gopls API
+  licenses          print licenses of included software
+                    
+Features            
+  call_hierarchy    display selected identifier's call hierarchy
+  check             show diagnostic results for the specified file
+  definition        show declaration of selected identifier
+  folding_ranges    display selected file's folding ranges
+  format            format the code according to the go standard
+  highlight         display selected identifier's highlights
+  implementation    display selected identifier's implementation
+  imports           updates import statements
+  remote            interact with the gopls daemon
+  inspect           interact with the gopls daemon (deprecated: use 'remote')
+  links             list links in a file
+  prepare_rename    test validity of a rename operation at location
+  references        display selected identifier's references
+  rename            rename selected identifier
+  semtok            show semantic tokens for the specified file
+  signature         display selected identifier's signature
+  fix               apply suggested fixes
+  symbols           display selected file's symbols
+  workspace         manage the gopls workspace (experimental: under development)
+  workspace_symbol  search symbols in workspace
 
-features:
-  call_hierarchy : display selected identifier's call hierarchy
-  check : show diagnostic results for the specified file
-  definition : show declaration of selected identifier
-  folding_ranges : display selected file's folding ranges
-  format : format the code according to the go standard
-  highlight : display selected identifier's highlights
-  implementation : display selected identifier's implementation
-  imports : updates import statements
-  remote : interact with the gopls daemon
-  inspect : interact with the gopls daemon (deprecated: use 'remote')
-  links : list links in a file
-  prepare_rename : test validity of a rename operation at location
-  references : display selected identifier's references
-  rename : rename selected identifier
-  semtok : show semantic tokens for the specified file
-  signature : display selected identifier's signature
-  fix : apply suggested fixes
-  symbols : display selected file's symbols
-  workspace : manage the gopls workspace (experimental: under development)
-  workspace_symbol : search symbols in workspace
-
-gopls flags are:
+flags:
   -debug string
     	serve debug information on the supplied address
   -listen string

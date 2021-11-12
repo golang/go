@@ -1,7 +1,8 @@
 interact with the gopls daemon
 
-Usage: remote [flags] <subcommand> [args...]
+Usage:
+  gopls [flags] remote <subcommand> [arg]...
 
 subcommands:
-  sessions: print information about current gopls sessions
-  debug: start the debug server
+  sessions  print information about current gopls sessions
+  debug     start the debug server

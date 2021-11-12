@@ -27,15 +27,16 @@ type imports struct {
 }
 
 func (t *imports) Name() string      { return "imports" }
-func (t *imports) Usage() string     { return "<filename>" }
+func (t *imports) Parent() string    { return t.app.Name() }
+func (t *imports) Usage() string     { return "[imports-flags] <filename>" }
 func (t *imports) ShortHelp() string { return "updates import statements" }
 func (t *imports) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprintf(f.Output(), `
 Example: update imports statements in a file:
 
-  $ gopls imports -w internal/lsp/cmd/check.go
+	$ gopls imports -w internal/lsp/cmd/check.go
 
-gopls imports flags are:
+imports-flags:
 `)
 	f.PrintDefaults()
 }

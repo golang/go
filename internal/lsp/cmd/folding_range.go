@@ -20,13 +20,14 @@ type foldingRanges struct {
 }
 
 func (r *foldingRanges) Name() string      { return "folding_ranges" }
+func (r *foldingRanges) Parent() string    { return r.app.Name() }
 func (r *foldingRanges) Usage() string     { return "<file>" }
 func (r *foldingRanges) ShortHelp() string { return "display selected file's folding ranges" }
 func (r *foldingRanges) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example:
 
-  $ gopls folding_ranges helper/helper.go
+	$ gopls folding_ranges helper/helper.go
 `)
 	f.PrintDefaults()
 }

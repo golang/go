@@ -1,12 +1,12 @@
 apply suggested fixes
 
-Usage: fix [flags] <filename>
+Usage:
+  gopls [flags] fix [fix-flags] <filename>
 
-Example: apply suggested fixes for this file:
+Example: apply suggested fixes for this file
+	$ gopls fix -w internal/lsp/cmd/check.go
 
-  $ gopls fix -w internal/lsp/cmd/check.go
-
-gopls fix flags are:
+fix-flags:
   -a	apply all fixes, not just preferred fixes
   -d	display diffs instead of rewriting files
   -w	write result to (source) file instead of stdout

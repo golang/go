@@ -14,7 +14,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"runtime"
 	"unicode/utf8"
 
 	"golang.org/x/tools/internal/lsp"
@@ -53,20 +52,14 @@ type semtok struct {
 var colmap *protocol.ColumnMapper
 
 func (c *semtok) Name() string      { return "semtok" }
+func (c *semtok) Parent() string    { return c.app.Name() }
 func (c *semtok) Usage() string     { return "<filename>" }
 func (c *semtok) ShortHelp() string { return "show semantic tokens for the specified file" }
 func (c *semtok) DetailedHelp(f *flag.FlagSet) {
-	for i := 1; ; i++ {
-		_, f, l, ok := runtime.Caller(i)
-		if !ok {
-			break
-		}
-		log.Printf("%d: %s:%d", i, f, l)
-	}
 	fmt.Fprint(f.Output(), `
 Example: show the semantic tokens for this file:
 
-  $ gopls semtok internal/lsp/cmd/semtok.go
+	$ gopls semtok internal/lsp/cmd/semtok.go
 `)
 	f.PrintDefaults()
 }

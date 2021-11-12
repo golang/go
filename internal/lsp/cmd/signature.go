@@ -20,15 +20,16 @@ type signature struct {
 }
 
 func (r *signature) Name() string      { return "signature" }
+func (r *signature) Parent() string    { return r.app.Name() }
 func (r *signature) Usage() string     { return "<position>" }
 func (r *signature) ShortHelp() string { return "display selected identifier's signature" }
 func (r *signature) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example:
 
-  $ # 1-indexed location (:line:column or :#offset) of the target identifier
-  $ gopls signature helper/helper.go:8:6
-  $ gopls signature helper/helper.go:#53
+	$ # 1-indexed location (:line:column or :#offset) of the target identifier
+	$ gopls signature helper/helper.go:8:6
+	$ gopls signature helper/helper.go:#53
 `)
 	f.PrintDefaults()
 }

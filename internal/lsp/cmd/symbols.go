@@ -22,12 +22,13 @@ type symbols struct {
 }
 
 func (r *symbols) Name() string      { return "symbols" }
+func (r *symbols) Parent() string    { return r.app.Name() }
 func (r *symbols) Usage() string     { return "<file>" }
 func (r *symbols) ShortHelp() string { return "display selected file's symbols" }
 func (r *symbols) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Example:
-  $ gopls symbols helper/helper.go
+	$ gopls symbols helper/helper.go
 `)
 	f.PrintDefaults()
 }

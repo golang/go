@@ -1,7 +1,8 @@
 display selected file's folding ranges
 
-Usage: folding_ranges [flags] <file>
+Usage:
+  gopls [flags] folding_ranges <file>
 
 Example:
 
-  $ gopls folding_ranges helper/helper.go
+	$ gopls folding_ranges helper/helper.go

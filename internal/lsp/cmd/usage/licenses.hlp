@@ -1,3 +1,4 @@
 print licenses of included software
 
-Usage: licenses [flags] 
+Usage:
+  gopls [flags] licenses
