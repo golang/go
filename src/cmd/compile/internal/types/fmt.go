@@ -140,11 +140,17 @@ func sconv2(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
 }
 
 func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
+	name := s.Name
 	if q := pkgqual(s.Pkg, verb, mode); q != "" {
 		b.WriteString(q)
 		b.WriteByte('.')
+		if mode == fmtTypeIDName {
+			// If name is a generic instantiation, it might have local package placeholders
+			// in it. Replace those placeholders with the package name. See issue 49547.
+			name = strings.Replace(name, LocalPkg.Prefix, q, -1)
+		}
 	}
-	b.WriteString(s.Name)
+	b.WriteString(name)
 }
 
 // pkgqual returns the qualifier that should be used for printing
