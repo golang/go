@@ -19,12 +19,6 @@ func AsSignature(t Type) *Signature {
 	return u
 }
 
-// If t is a type parameter, AsTypeParam returns that type, otherwise it returns nil.
-func AsTypeParam(t Type) *TypeParam {
-	u, _ := t.Underlying().(*TypeParam)
-	return u
-}
-
 // If typ is a type parameter, structuralType returns the single underlying
 // type of all types in the corresponding type constraint if it exists, or
 // nil otherwise. If the type set contains only unrestricted and restricted
