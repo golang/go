@@ -29,11 +29,11 @@ func NewContext() *Context {
 	}
 }
 
-// TypeHash returns a string representation of typ, which can be used as an exact
+// typeHash returns a string representation of typ, which can be used as an exact
 // type hash: types that are identical produce identical string representations.
 // If typ is a *Named type and targs is not empty, typ is printed as if it were
 // instantiated with targs. The result is guaranteed to not contain blanks (" ").
-func (ctxt *Context) TypeHash(typ Type, targs []Type) string {
+func (ctxt *Context) typeHash(typ Type, targs []Type) string {
 	assert(ctxt != nil)
 	assert(typ != nil)
 	var buf bytes.Buffer

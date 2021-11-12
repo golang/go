@@ -57,7 +57,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Con
 	case *Named:
 		var h string
 		if ctxt != nil {
-			h = ctxt.TypeHash(t, targs)
+			h = ctxt.typeHash(t, targs)
 			// typ may already have been instantiated with identical type arguments. In
 			// that case, re-use the existing instance.
 			if named := ctxt.typeForHash(h, nil); named != nil {

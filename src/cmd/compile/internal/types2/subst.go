@@ -207,7 +207,7 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		// before creating a new named type, check if we have this one already
-		h := subst.ctxt.TypeHash(t.orig, newTArgs)
+		h := subst.ctxt.typeHash(t.orig, newTArgs)
 		dump(">>> new type hash: %s", h)
 		if named := subst.ctxt.typeForHash(h, nil); named != nil {
 			dump(">>> found %s", named)

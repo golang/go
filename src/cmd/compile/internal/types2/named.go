@@ -251,7 +251,7 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
 	if n.orig.tparams.Len() == n.targs.Len() {
 		// We must always have a context, to avoid infinite recursion.
 		ctxt = check.bestContext(ctxt)
-		h := ctxt.TypeHash(n.orig, n.targs.list())
+		h := ctxt.typeHash(n.orig, n.targs.list())
 		// ensure that an instance is recorded for h to avoid infinite recursion.
 		ctxt.typeForHash(h, n)
 
