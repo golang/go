@@ -1,0 +1,15 @@
+rename selected identifier
+
+Usage: rename [flags] <position> <new name>
+
+Example:
+
+  $ # 1-based location (:line:column or :#position) of the thing to change
+  $ gopls rename helper/helper.go:8:6 Foo
+  $ gopls rename helper/helper.go:#53 Foo
+
+	gopls rename flags are:
+  -d	display diffs instead of rewriting files
+  -preserve
+    	preserve original files
+  -w	write result to (source) file instead of stdout

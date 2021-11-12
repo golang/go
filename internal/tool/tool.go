@@ -83,13 +83,7 @@ func CommandLineErrorf(message string, args ...interface{}) error {
 // application exits with an exit code of 2.
 func Main(ctx context.Context, app Application, args []string) {
 	s := flag.NewFlagSet(app.Name(), flag.ExitOnError)
-	s.Usage = func() {
-		fmt.Fprint(s.Output(), app.ShortHelp())
-		fmt.Fprintf(s.Output(), "\n\nUsage: %v [flags] %v\n", app.Name(), app.Usage())
-		app.DetailedHelp(s)
-	}
-	addFlags(s, reflect.StructField{}, reflect.ValueOf(app))
-	if err := Run(ctx, app, args); err != nil {
+	if err := Run(ctx, s, app, args); err != nil {
 		fmt.Fprintf(s.Output(), "%s: %v\n", app.Name(), err)
 		if _, printHelp := err.(commandLineError); printHelp {
 			s.Usage()
@@ -101,15 +95,16 @@ func Main(ctx context.Context, app Application, args []string) {
 // Run is the inner loop for Main; invoked by Main, recursively by
 // Run, and by various tests.  It runs the application and returns an
 // error.
-func Run(ctx context.Context, app Application, args []string) error {
-	s := flag.NewFlagSet(app.Name(), flag.ExitOnError)
+func Run(ctx context.Context, s *flag.FlagSet, app Application, args []string) error {
 	s.Usage = func() {
 		fmt.Fprint(s.Output(), app.ShortHelp())
 		fmt.Fprintf(s.Output(), "\n\nUsage: %v [flags] %v\n", app.Name(), app.Usage())
 		app.DetailedHelp(s)
 	}
 	p := addFlags(s, reflect.StructField{}, reflect.ValueOf(app))
-	s.Parse(args)
+	if err := s.Parse(args); err != nil {
+		return err
+	}
 
 	if p != nil && p.CPU != "" {
 		f, err := os.Create(p.CPU)
@@ -165,15 +160,15 @@ func addFlags(f *flag.FlagSet, field reflect.StructField, value reflect.Value) *
 	help := field.Tag.Get("help")
 	if !isFlag {
 		// not a flag, but it might be a struct with flags in it
-		if value.Elem().Kind() != reflect.Struct {
+		value = resolve(value.Elem())
+		if value.Kind() != reflect.Struct {
 			return nil
 		}
-		p, _ := value.Interface().(*Profile)
+		p, _ := value.Addr().Interface().(*Profile)
 		// go through all the fields of the struct
-		sv := value.Elem()
-		for i := 0; i < sv.Type().NumField(); i++ {
-			child := sv.Type().Field(i)
-			v := sv.Field(i)
+		for i := 0; i < value.Type().NumField(); i++ {
+			child := value.Type().Field(i)
+			v := value.Field(i)
 			// make sure we have a pointer
 			if v.Kind() != reflect.Ptr {
 				v = v.Addr()
@@ -208,4 +203,15 @@ func addFlags(f *flag.FlagSet, field reflect.StructField, value reflect.Value) *
 		log.Fatalf("Cannot understand flag of type %T", v)
 	}
 	return nil
+}
+
+func resolve(v reflect.Value) reflect.Value {
+	for {
+		switch v.Kind() {
+		case reflect.Interface, reflect.Ptr:
+			v = v.Elem()
+		default:
+			return v
+		}
+	}
 }

@@ -1,0 +1,11 @@
+list links in a file
+
+Usage: links [flags] <filename>
+
+Example: list links contained within a file:
+
+  $ gopls links internal/lsp/cmd/check.go
+
+gopls links flags are:
+  -json
+    	emit document links in JSON format

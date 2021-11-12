@@ -1,0 +1,6 @@
+display selected file's symbols
+
+Usage: symbols [flags] <file>
+
+Example:
+  $ gopls symbols helper/helper.go

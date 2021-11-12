@@ -1,0 +1,3 @@
+print the gopls version information
+
+Usage: version [flags] 

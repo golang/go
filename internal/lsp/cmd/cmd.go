@@ -144,12 +144,14 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 	ctx = debug.WithInstance(ctx, app.wd, app.OCAgent)
 	app.Serve.app = app
 	if len(args) == 0 {
-		return tool.Run(ctx, &app.Serve, args)
+		s := flag.NewFlagSet(app.Name(), flag.ExitOnError)
+		return tool.Run(ctx, s, &app.Serve, args)
 	}
 	command, args := args[0], args[1:]
-	for _, c := range app.commands() {
+	for _, c := range app.Commands() {
 		if c.Name() == command {
-			return tool.Run(ctx, c, args)
+			s := flag.NewFlagSet(app.Name(), flag.ExitOnError)
+			return tool.Run(ctx, s, c, args)
 		}
 	}
 	return tool.CommandLineErrorf("Unknown command %v", command)
@@ -158,7 +160,7 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 // commands returns the set of commands supported by the gopls tool on the
 // command line.
 // The command is specified by the first non flag argument.
-func (app *Application) commands() []tool.Application {
+func (app *Application) Commands() []tool.Application {
 	var commands []tool.Application
 	commands = append(commands, app.mainCommands()...)
 	commands = append(commands, app.featureCommands()...)

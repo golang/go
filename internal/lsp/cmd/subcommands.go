@@ -33,7 +33,8 @@ func (s subcommands) Run(ctx context.Context, args ...string) error {
 	command, args := args[0], args[1:]
 	for _, c := range s {
 		if c.Name() == command {
-			return tool.Run(ctx, c, args)
+			s := flag.NewFlagSet(c.Name(), flag.ExitOnError)
+			return tool.Run(ctx, s, c, args)
 		}
 	}
 	return tool.CommandLineErrorf("unknown subcommand %v", command)
