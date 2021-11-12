@@ -1095,6 +1095,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			case ir.OXDOT:
 				// This is the case of a bound call on a typeparam,
 				// which will be handled in the dictPass.
+				// As with OFUNCINST, we must transform the arguments of the call now,
+				// so any needed CONVIFACE nodes are exposed.
+				transformEarlyCall(call)
 
 			case ir.ODOTTYPE, ir.ODOTTYPE2:
 				// These are DOTTYPEs that could get transformed into
@@ -1229,14 +1232,15 @@ func (g *genInst) dictPass(info *instInfo) {
 				transformDot(mse, false)
 			}
 		case ir.OCALL:
-			op := m.(*ir.CallExpr).X.Op()
+			call := m.(*ir.CallExpr)
+			op := call.X.Op()
 			if op == ir.OMETHVALUE {
 				// Redo the transformation of OXDOT, now that we
 				// know the method value is being called.
-				m.(*ir.CallExpr).X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
-				transformDot(m.(*ir.CallExpr).X.(*ir.SelectorExpr), true)
+				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
+				transformDot(call.X.(*ir.SelectorExpr), true)
 			}
-			transformCall(m.(*ir.CallExpr))
+			transformCall(call)
 
 		case ir.OCONVIFACE:
 			if m.Type().IsEmptyInterface() && m.(*ir.ConvExpr).X.Type().IsEmptyInterface() {
