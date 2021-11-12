@@ -45,19 +45,6 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy:  "build",
 			},
 			{
-				Name: "templateSupport",
-				Type: "bool",
-				Doc:  "templateSupport can be used to turn off support for template files.\n",
-				EnumKeys: EnumKeys{
-					ValueType: "",
-					Keys:      nil,
-				},
-				EnumValues: nil,
-				Default:    "true",
-				Status:     "",
-				Hierarchy:  "build",
-			},
-			{
 				Name: "templateExtensions",
 				Type: "[]string",
 				Doc:  "templateExtensions gives the extensions of file names that are treateed\nas template files. (The extension\nis the part of the file name after the final dot.)\n",

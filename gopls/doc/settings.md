@@ -72,12 +72,6 @@ Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-pro
 
 Default: `["-node_modules"]`.
 
-#### **templateSupport** *bool*
-
-templateSupport can be used to turn off support for template files.
-
-Default: `true`.
-
 #### **templateExtensions** *[]string*
 
 templateExtensions gives the extensions of file names that are treateed

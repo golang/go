@@ -347,7 +347,7 @@ func fileHasExtension(path string, suffixes []string) bool {
 }
 
 func (s *snapshot) locateTemplateFiles(ctx context.Context) {
-	if !s.view.Options().TemplateSupport {
+	if len(s.view.Options().TemplateExtensions) == 0 {
 		return
 	}
 	suffixes := s.view.Options().TemplateExtensions

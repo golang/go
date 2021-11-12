@@ -114,7 +114,6 @@ func DefaultOptions() *Options {
 					ExperimentalPackageCacheKey: true,
 					MemoryMode:                  ModeNormal,
 					DirectoryFilters:            []string{"-node_modules"},
-					TemplateSupport:             true,
 					TemplateExtensions:          []string{"tmpl", "gotmpl"},
 				},
 				UIOptions: UIOptions{
@@ -232,9 +231,6 @@ type BuildOptions struct {
 	//
 	// Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
 	DirectoryFilters []string
-
-	// TemplateSupport can be used to turn off support for template files.
-	TemplateSupport bool
 
 	// TemplateExtensions gives the extensions of file names that are treateed
 	// as template files. (The extension
@@ -940,22 +936,23 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "experimentalWorkspaceModule":
 		result.setBool(&o.ExperimentalWorkspaceModule)
 
-	case "experimentalTemplateSupport", // remove after June 2022
-		"templateSupport":
-		if name == "experimentalTemplateSupport" {
-			result.State = OptionDeprecated
-			result.Replacement = "templateSupport"
-		}
-		result.setBool(&o.TemplateSupport)
+	case "experimentalTemplateSupport": // remove after June 2022
+		result.State = OptionDeprecated
 
 	case "templateExtensions":
-		iexts, ok := value.([]string)
-		if !ok {
-			result.errorf("invalid type %T, expect []string", value)
+		if iexts, ok := value.([]interface{}); ok {
+			ans := []string{}
+			for _, x := range iexts {
+				ans = append(ans, fmt.Sprint(x))
+			}
+			o.TemplateExtensions = ans
 			break
 		}
-		o.TemplateExtensions = iexts
-
+		if value == nil {
+			o.TemplateExtensions = nil
+			break
+		}
+		result.errorf(fmt.Sprintf("unexpected type %T not []string", value))
 	case "experimentalDiagnosticsDelay", "diagnosticsDelay":
 		if name == "experimentalDiagnosticsDelay" {
 			result.State = OptionDeprecated

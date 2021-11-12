@@ -159,7 +159,7 @@ func (s *snapshot) ModFiles() []span.URI {
 }
 
 func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
-	if !s.view.Options().TemplateSupport {
+	if len(s.view.Options().TemplateExtensions) == 0 {
 		return nil
 	}
 
