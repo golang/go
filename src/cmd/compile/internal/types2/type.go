@@ -87,3 +87,40 @@ func structuralType(t Type) Type {
 	}
 	return nil
 }
+
+// structuralString is like structuralType but also considers []byte
+// and strings as identical. In this case, if successful and we saw
+// a string, the result is of type (possibly untyped) string.
+func structuralString(t Type) Type {
+	tpar, _ := t.(*TypeParam)
+	if tpar == nil {
+		return under(t) // string or untyped string
+	}
+
+	var su Type
+	hasString := false
+	if tpar.underIs(func(u Type) bool {
+		if u == nil {
+			return false
+		}
+		if isString(u) {
+			u = NewSlice(universeByte)
+			hasString = true
+		}
+		if su != nil {
+			u = match(su, u)
+			if u == nil {
+				return false
+			}
+		}
+		// su == nil || match(su, u) != nil
+		su = u
+		return true
+	}) {
+		if hasString {
+			return Typ[String]
+		}
+		return su
+	}
+	return nil
+}
