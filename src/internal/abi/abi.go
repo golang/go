@@ -44,6 +44,24 @@ type RegArgs struct {
 	ReturnIsPtr IntArgRegBitmap
 }
 
+func (r *RegArgs) Dump() {
+	print("Ints:")
+	for _, x := range r.Ints {
+		print(" ", x)
+	}
+	println()
+	print("Floats:")
+	for _, x := range r.Floats {
+		print(" ", x)
+	}
+	println()
+	print("Ptrs:")
+	for _, x := range r.Ptrs {
+		print(" ", x)
+	}
+	println()
+}
+
 // IntRegArgAddr returns a pointer inside of r.Ints[reg] that is appropriately
 // offset for an argument of size argSize.
 //
