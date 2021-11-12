@@ -431,7 +431,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 	}
 
 	// create the instance
-	h := check.conf.Context.TypeHash(origin, targs)
+	h := check.conf.Context.typeHash(origin, targs)
 	// targs may be incomplete, and require inference. In any case we should de-duplicate.
 	inst := check.conf.Context.typeForHash(h, nil)
 	// If inst is non-nil, we can't just return here. Inst may have been
