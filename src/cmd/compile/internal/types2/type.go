@@ -56,15 +56,20 @@ func match(x, y Type) Type {
 	return nil
 }
 
-// If typ is a type parameter, structuralType returns the single underlying
-// type of all types in the corresponding type constraint if it exists, or
-// nil otherwise. If the type set contains only unrestricted and restricted
-// channel types (with identical element types), the single underlying type
-// is the restricted channel type if the restrictions are always the same.
-// If typ is not a type parameter, structuralType returns the underlying type.
-func structuralType(typ Type) Type {
+// If t is not a type parameter, structuralType returns the underlying type.
+// If t is a type parameter, structuralType returns the single underlying
+// type of all types in its type set if it exists, or nil otherwise. If the
+// type set contains only unrestricted and restricted channel types (with
+// identical element types), the single underlying type is the restricted
+// channel type if the restrictions are always the same, or nil otherwise.
+func structuralType(t Type) Type {
+	tpar, _ := t.(*TypeParam)
+	if tpar == nil {
+		return under(t)
+	}
+
 	var su Type
-	if underIs(typ, func(u Type) bool {
+	if tpar.underIs(func(u Type) bool {
 		if u == nil {
 			return false
 		}
