@@ -87,13 +87,22 @@ func (m *Mutex) Lock() {
 // and use of TryLock is often a sign of a deeper problem
 // in a particular use of mutexes.
 func (m *Mutex) TryLock() bool {
-	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
-		if race.Enabled {
-			race.Acquire(unsafe.Pointer(m))
-		}
-		return true
+	old := m.state
+	if old&(mutexLocked|mutexStarving) != 0 {
+		return false
 	}
-	return false
+
+	// There may be a goroutine waiting for the mutex, but we are
+	// running now and can try to grab the mutex before that
+	// goroutine wakes up.
+	if !atomic.CompareAndSwapInt32(&m.state, old, old|mutexLocked) {
+		return false
+	}
+
+	if race.Enabled {
+		race.Acquire(unsafe.Pointer(m))
+	}
+	return true
 }
 
 func (m *Mutex) lockSlow() {
