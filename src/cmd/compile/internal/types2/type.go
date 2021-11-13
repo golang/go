@@ -27,35 +27,6 @@ func under(t Type) Type {
 	return t.Underlying()
 }
 
-// If x and y are identical, match returns x.
-// If x and y are identical channels but for their direction
-// and one of them is unrestricted, match returns the channel
-// with the restricted direction.
-// In all other cases, match returns nil.
-func match(x, y Type) Type {
-	// Common case: we don't have channels.
-	if Identical(x, y) {
-		return x
-	}
-
-	// We may have channels that differ in direction only.
-	if x, _ := x.(*Chan); x != nil {
-		if y, _ := y.(*Chan); y != nil && Identical(x.elem, y.elem) {
-			// We have channels that differ in direction only.
-			// If there's an unrestricted channel, select the restricted one.
-			switch {
-			case x.dir == SendRecv:
-				return y
-			case y.dir == SendRecv:
-				return x
-			}
-		}
-	}
-
-	// types are different
-	return nil
-}
-
 // If t is not a type parameter, structuralType returns the underlying type.
 // If t is a type parameter, structuralType returns the single underlying
 // type of all types in its type set if it exists, or nil otherwise. If the
@@ -122,5 +93,34 @@ func structuralString(t Type) Type {
 		}
 		return su
 	}
+	return nil
+}
+
+// If x and y are identical, match returns x.
+// If x and y are identical channels but for their direction
+// and one of them is unrestricted, match returns the channel
+// with the restricted direction.
+// In all other cases, match returns nil.
+func match(x, y Type) Type {
+	// Common case: we don't have channels.
+	if Identical(x, y) {
+		return x
+	}
+
+	// We may have channels that differ in direction only.
+	if x, _ := x.(*Chan); x != nil {
+		if y, _ := y.(*Chan); y != nil && Identical(x.elem, y.elem) {
+			// We have channels that differ in direction only.
+			// If there's an unrestricted channel, select the restricted one.
+			switch {
+			case x.dir == SendRecv:
+				return y
+			case y.dir == SendRecv:
+				return x
+			}
+		}
+	}
+
+	// types are different
 	return nil
 }
