@@ -315,6 +315,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 	case *syntax.Operation:
 		if e.Op == syntax.Mul && e.Y == nil {
 			typ := new(Pointer)
+			typ.base = Typ[Invalid] // avoid nil base in invalid recursive type declaration
 			def.setUnderlying(typ)
 			typ.base = check.varType(e.X)
 			// If typ.base is invalid, it's unlikely that *base is particularly
