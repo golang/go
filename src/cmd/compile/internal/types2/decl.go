@@ -570,7 +570,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		check.validType(obj.typ, nil)
 		// If typ is local, an error was already reported where typ is specified/defined.
 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
-			check.versionErrorf(tdecl.Type.Pos(), "go1.18", "using type constraint %s", rhs)
+			check.versionErrorf(tdecl.Type, "go1.18", "using type constraint %s", rhs)
 		}
 	}).describef(obj, "validType(%s)", obj.Name())
 

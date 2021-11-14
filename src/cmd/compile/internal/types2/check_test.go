@@ -25,6 +25,7 @@ package types2_test
 import (
 	"cmd/compile/internal/syntax"
 	"flag"
+	"internal/buildcfg"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -93,9 +94,25 @@ func asGoVersion(s string) string {
 	return ""
 }
 
+// excludedForUnifiedBuild lists files that cannot be tested
+// when using the unified build's export data.
+// TODO(gri) enable as soon as the unified build supports this.
+var excludedForUnifiedBuild = map[string]bool{
+	"issue47818.go2": true,
+}
+
 func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
+	}
+
+	if buildcfg.Experiment.Unified {
+		for _, f := range filenames {
+			if excludedForUnifiedBuild[filepath.Base(f)] {
+				t.Logf("%s cannot be tested with unified build - skipped", f)
+				return
+			}
+		}
 	}
 
 	var mode syntax.Mode
