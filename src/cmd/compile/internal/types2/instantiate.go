@@ -119,34 +119,6 @@ func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool
 }
 
 func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type) (int, error) {
-	smap := makeSubstMap(tparams, targs)
-	for i, tpar := range tparams {
-		// stop checking bounds after the first failure
-		if err := check.satisfies(pos, targs[i], tpar, smap); err != nil {
-			return i, err
-		}
-	}
-	return -1, nil
-}
-
-// satisfies reports whether the type argument targ satisfies the constraint of type parameter
-// parameter tpar (after any of its type parameters have been substituted through smap).
-// A suitable error is reported if the result is false.
-// TODO(gri) This should be a method of interfaces or type sets.
-func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap substMap) error {
-	iface := tpar.iface()
-
-	// Every type argument satisfies interface{}.
-	if iface.Empty() {
-		return nil
-	}
-
-	// A type argument that is a type parameter with an empty type set satisfies any constraint.
-	// (The empty set is a subset of any set.)
-	if targ, _ := targ.(*TypeParam); targ != nil && targ.iface().typeSet().IsEmpty() {
-		return nil
-	}
-
 	// TODO(rfindley): it would be great if users could pass in a qualifier here,
 	// rather than falling back to verbose qualification. Maybe this can be part
 	// of the shared context.
@@ -154,77 +126,114 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 	if check != nil {
 		qf = check.qualifier
 	}
+
+	smap := makeSubstMap(tparams, targs)
+	for i, tpar := range tparams {
+		// The type parameter bound is parameterized with the same type parameters
+		// as the instantiated type; before we can use it for bounds checking we
+		// need to instantiate it with the type arguments with which we instantiated
+		// the parameterized type.
+		bound := check.subst(pos, tpar.bound, smap, nil)
+		if err := check.implements(targs[i], bound, qf); err != nil {
+			return i, err
+		}
+	}
+	return -1, nil
+}
+
+// implements checks if V implements T and reports an error if it doesn't.
+// If a qualifier is provided, it is used in error formatting.
+func (check *Checker) implements(V, T Type, qf Qualifier) error {
+	Vu := under(V)
+	Tu := under(T)
+	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
+		return nil
+	}
+
 	errorf := func(format string, args ...interface{}) error {
 		return errors.New(sprintf(qf, false, format, args...))
 	}
 
-	// No type argument with non-empty type set satisfies the empty type set.
-	if iface.typeSet().IsEmpty() {
-		return errorf("%s does not satisfy %s (constraint type set is empty)", targ, tpar.bound)
+	Ti, _ := Tu.(*Interface)
+	if Ti == nil {
+		return errorf("%s is not an interface", T)
 	}
 
-	// The type parameter bound is parameterized with the same type parameters
-	// as the instantiated type; before we can use it for bounds checking we
-	// need to instantiate it with the type arguments with which we instantiate
-	// the parameterized type.
-	iface = check.subst(pos, iface, smap, nil).(*Interface)
+	// Every type satisfies the empty interface.
+	if Ti.Empty() {
+		return nil
+	}
+	// T is not the empty interface (i.e., the type set of T is restricted)
 
-	// if iface is comparable, targ must be comparable
+	// An interface V with an empty type set satisfies any interface.
+	// (The empty set is a subset of any set.)
+	Vi, _ := Vu.(*Interface)
+	if Vi != nil && Vi.typeSet().IsEmpty() {
+		return nil
+	}
+	// type set of V is not empty
+
+	// No type with non-empty type set satisfies the empty type set.
+	// TODO(gri) should use "implements" rather than "satisfies" throughout
+	if Ti.typeSet().IsEmpty() {
+		return errorf("%s does not satisfy %s (constraint type set is empty)", V, T)
+	}
+
+	// If T is comparable, V must be comparable.
 	// TODO(gri) the error messages needs to be better, here
-	if iface.IsComparable() && !Comparable(targ) {
-		if tpar, _ := targ.(*TypeParam); tpar != nil && tpar.iface().typeSet().IsAll() {
-			return errorf("%s has no constraints", targ)
+	if Ti.IsComparable() && !Comparable(V) {
+		if Vi != nil && Vi.typeSet().IsAll() {
+			return errorf("%s has no constraints", V)
 		}
-		return errorf("%s does not satisfy comparable", targ)
+		return errorf("%s does not satisfy comparable", V)
 	}
 
-	// targ must implement iface (methods)
+	// V must implement T (methods)
 	// - check only if we have methods
-	if iface.NumMethods() > 0 {
+	if Ti.NumMethods() > 0 {
 		// If the type argument is a pointer to a type parameter, the type argument's
 		// method set is empty.
 		// TODO(gri) is this what we want? (spec question)
-		if base, isPtr := deref(targ); isPtr && isTypeParam(base) {
-			return errorf("%s has no methods", targ)
+		if base, isPtr := deref(V); isPtr && isTypeParam(base) {
+			return errorf("%s has no methods", V)
 		}
-		if m, wrong := check.missingMethod(targ, iface, true); m != nil {
+		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
 			//           (print warning for now)
 			// Old warning:
-			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
+			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", V, T, Ti, m)
 			if wrong != nil {
 				// TODO(gri) This can still report uninstantiated types which makes the error message
 				//           more difficult to read then necessary.
 				return errorf("%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
-					targ, tpar.bound, wrong, m,
+					V, T, wrong, m,
 				)
 			}
-			return errorf("%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
+			return errorf("%s does not satisfy %s (missing method %s)", V, T, m.name)
 		}
 	}
 
-	// targ must also be in the set of types of iface, if any.
+	// V must also be in the set of types of T, if any.
 	// Constraints with empty type sets were already excluded above.
-	if !iface.typeSet().hasTerms() {
+	if !Ti.typeSet().hasTerms() {
 		return nil // nothing to do
 	}
 
-	// If targ is itself a type parameter, each of its possible types must be in the set
-	// of iface types (i.e., the targ type set must be a subset of the iface type set).
-	// Type arguments with empty type sets were already excluded above.
-	if targ, _ := targ.(*TypeParam); targ != nil {
-		targBound := targ.iface()
-		if !targBound.typeSet().subsetOf(iface.typeSet()) {
+	// If V is itself an interface, each of its possible types must be in the set
+	// of T types (i.e., the V type set must be a subset of the T type set).
+	// Interfaces V with empty type sets were already excluded above.
+	if Vi != nil {
+		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
 			// TODO(gri) report which type is missing
-			return errorf("%s does not satisfy %s", targ, tpar.bound)
+			return errorf("%s does not satisfy %s", V, T)
 		}
 		return nil
 	}
 
-	// Otherwise, targ's type must be included in the iface type set.
-	if !iface.typeSet().includes(targ) {
+	// Otherwise, V's type must be included in the iface type set.
+	if !Ti.typeSet().includes(V) {
 		// TODO(gri) report which type is missing
-		return errorf("%s does not satisfy %s", targ, tpar.bound)
+		return errorf("%s does not satisfy %s", V, T)
 	}
 
 	return nil
