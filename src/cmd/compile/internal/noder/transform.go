@@ -133,6 +133,9 @@ func transformConvCall(n *ir.CallExpr) ir.Node {
 // (non-conversion, non-builtin part) of typecheck.tcCall. This code should work even
 // in the case of OCALL/OFUNCINST.
 func transformCall(n *ir.CallExpr) {
+	// Set base.Pos, since transformArgs below may need it, but transformCall
+	// is called in some passes that don't set base.Pos.
+	ir.SetPos(n)
 	// n.Type() can be nil for calls with no return value
 	assert(n.Typecheck() == 1)
 	transformArgs(n)
