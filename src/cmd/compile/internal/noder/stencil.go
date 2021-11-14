@@ -500,7 +500,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 			// explicitly traverse any embedded fields in the receiver
 			// argument in order to call the method instantiation.
 			arg0 := formalParams[0].Nname.(ir.Node)
-			arg0 = typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, arg0, x.(*ir.SelectorExpr).Sel)).X
+			arg0 = typecheck.AddImplicitDots(ir.NewSelectorExpr(x.Pos(), ir.OXDOT, arg0, x.(*ir.SelectorExpr).Sel)).X
 			if valueMethod && arg0.Type().IsPtr() {
 				// For handling the (*T).M case: if we have a pointer
 				// receiver after following all the embedded fields,
@@ -616,7 +616,7 @@ func (g *genInst) getDictOrSubdict(declInfo *instInfo, n ir.Node, nameNode *ir.N
 		}
 	}
 	if !usingSubdict {
-		dict = g.getDictionaryValue(nameNode, targs, isMeth)
+		dict = g.getDictionaryValue(n.Pos(), nameNode, targs, isMeth)
 	}
 	return dict, usingSubdict
 }
@@ -905,6 +905,10 @@ func (subst *subster) node(n ir.Node) ir.Node {
 	// Use closure to capture all state needed by the ir.EditChildren argument.
 	var edit func(ir.Node) ir.Node
 	edit = func(x ir.Node) ir.Node {
+		// Analogous to ir.SetPos() at beginning of typecheck.typecheck() -
+		// allows using base.Pos during the transform functions, just like
+		// the tc*() functions.
+		ir.SetPos(x)
 		switch x.Op() {
 		case ir.OTYPE:
 			return ir.TypeNode(subst.ts.Typ(x.Type()))
@@ -1555,9 +1559,9 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
 				if se.X.Type().IsShape() {
 					// This is a method call enabled by a type bound.
 
-					// We need this extra check for type expressions, which
-					// don't add in the implicit XDOTs.
-					tmpse := ir.NewSelectorExpr(base.Pos, ir.OXDOT, se.X, se.Sel)
+					// We need this extra check for method expressions,
+					// which don't add in the implicit XDOTs.
+					tmpse := ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, se.X, se.Sel)
 					tmpse = typecheck.AddImplicitDots(tmpse)
 					tparam := tmpse.X.Type()
 					if !tparam.IsShape() {
@@ -1725,7 +1729,7 @@ func (g *genInst) finalizeSyms() {
 	g.dictSymsToFinalize = nil
 }
 
-func (g *genInst) getDictionaryValue(gf *ir.Name, targs []*types.Type, isMeth bool) ir.Node {
+func (g *genInst) getDictionaryValue(pos src.XPos, gf *ir.Name, targs []*types.Type, isMeth bool) ir.Node {
 	sym := g.getDictionarySym(gf, targs, isMeth)
 
 	// Make (or reuse) a node referencing the dictionary symbol.
@@ -1733,15 +1737,18 @@ func (g *genInst) getDictionaryValue(gf *ir.Name, targs []*types.Type, isMeth bo
 	if sym.Def != nil {
 		n = sym.Def.(*ir.Name)
 	} else {
-		n = typecheck.NewName(sym)
+		// We set the position of a static dictionary to be the position of
+		// one of its uses.
+		n = ir.NewNameAt(pos, sym)
+		n.Curfn = ir.CurFunc
 		n.SetType(types.Types[types.TUINTPTR]) // should probably be [...]uintptr, but doesn't really matter
 		n.SetTypecheck(1)
 		n.Class = ir.PEXTERN
 		sym.Def = n
 	}
 
-	// Return the address of the dictionary.
-	np := typecheck.NodAddr(n)
+	// Return the address of the dictionary.  Addr node gets position that was passed in.
+	np := typecheck.NodAddrAt(pos, n)
 	// Note: treat dictionary pointers as uintptrs, so they aren't pointers
 	// with respect to GC. That saves on stack scanning work, write barriers, etc.
 	// We can get away with it because dictionaries are global variables.
