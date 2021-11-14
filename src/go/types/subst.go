@@ -137,7 +137,7 @@ func (subst *subster) typ(typ Type) Type {
 		methods, mcopied := subst.funcList(t.methods)
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		if mcopied || ecopied {
-			iface := &Interface{methods: methods, embeddeds: embeddeds, complete: t.complete}
+			iface := &Interface{methods: methods, embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
 			return iface
 		}
 
