@@ -372,6 +372,23 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	return false
 }
 
+// identicalInstance reports if two type instantiations are identical.
+// Instantiations are identical if their origin and type arguments are
+// identical.
+func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool {
+	if len(xargs) != len(yargs) {
+		return false
+	}
+
+	for i, xa := range xargs {
+		if !Identical(xa, yargs[i]) {
+			return false
+		}
+	}
+
+	return Identical(xorig, yorig)
+}
+
 func identicalTParams(x, y []*TypeParam, cmpTags bool, p *ifacePair) bool {
 	if len(x) != len(y) {
 		return false

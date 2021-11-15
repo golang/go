@@ -418,8 +418,8 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 		return gtyp // error already reported
 	}
 
-	origin, _ := gtyp.(*Named)
-	if origin == nil {
+	orig, _ := gtyp.(*Named)
+	if orig == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
 	}
 
@@ -437,23 +437,23 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 	}
 
 	// create the instance
-	h := check.conf.Context.typeHash(origin, targs)
+	h := check.conf.Context.typeHash(orig, targs)
 	// targs may be incomplete, and require inference. In any case we should de-duplicate.
-	inst := check.conf.Context.typeForHash(h, nil)
+	inst := check.conf.Context.lookup(h, orig, targs)
 	// If inst is non-nil, we can't just return here. Inst may have been
 	// constructed via recursive substitution, in which case we wouldn't do the
 	// validation below. Ensure that the validation (and resulting errors) runs
 	// for each instantiated type in the source.
 	if inst == nil {
-		tname := NewTypeName(x.Pos(), origin.obj.pkg, origin.obj.name, nil)
-		inst = check.newNamed(tname, origin, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+		tname := NewTypeName(x.Pos(), orig.obj.pkg, orig.obj.name, nil)
+		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
 		inst.targs = NewTypeList(targs)
-		inst = check.conf.Context.typeForHash(h, inst)
+		inst = check.conf.Context.update(h, inst)
 	}
 	def.setUnderlying(inst)
 
 	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
-		tparams := origin.TypeParams().list()
+		tparams := orig.TypeParams().list()
 
 		inferred := targs
 		if len(targs) < len(tparams) {
@@ -469,7 +469,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 		return expandNamed(ctxt, n, x.Pos())
 	}
 
-	// origin.tparams may not be set up, so we need to do expansion later.
+	// orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
 		// This is an instance from the source, not from recursive substitution,
 		// and so it must be resolved during type-checking so that we can report
