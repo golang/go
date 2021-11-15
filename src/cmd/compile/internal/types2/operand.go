@@ -316,7 +316,9 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	// not an interface.
 	if check != nil && check.conf.CompilerErrorMessages {
 		if isInterfacePtr(Tu) {
-			*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
+			if reason != nil {
+				*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
+			}
 			return false, _InvalidIfaceAssign
 		}
 		if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
