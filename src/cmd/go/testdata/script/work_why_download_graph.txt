@@ -24,7 +24,7 @@ stdout 'example.com/a rsc.io/quote@v1.5.2\nexample.com/b example.com/c@v1.0.0\nr
 -- go.work --
 go 1.18
 
-directory (
+use (
     ./a
     ./b
 )

@@ -9,8 +9,8 @@ stdout 'example.com/dep v1.0.0 => ./dep1'
 
 -- foo --
 -- go.work --
-directory m
-directory n
+use m
+use n
 -- m/go.mod --
 module example.com/m
 

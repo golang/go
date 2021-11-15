@@ -10,7 +10,7 @@ go list -m example.com/other
 stdout 'example.com/other v1.0.0 => ./other2'
 
 -- go.work --
-directory m
+use m
 
 replace example.com/dep => ./dep
 replace example.com/other => ./other2

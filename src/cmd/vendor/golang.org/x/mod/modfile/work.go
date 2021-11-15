@@ -12,16 +12,16 @@ import (
 
 // A WorkFile is the parsed, interpreted form of a go.work file.
 type WorkFile struct {
-	Go        *Go
-	Directory []*Directory
-	Replace   []*Replace
+	Go      *Go
+	Use     []*Use
+	Replace []*Replace
 
 	Syntax *FileSyntax
 }
 
-// A Directory is a single directory statement.
-type Directory struct {
-	Path       string // Directory path of module.
+// A Use is a single directory statement.
+type Use struct {
+	Path       string // Use path of module.
 	ModulePath string // Module path in the comment.
 	Syntax     *Line
 }
@@ -67,7 +67,7 @@ func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
 					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
 				})
 				continue
-			case "directory", "replace":
+			case "use", "replace":
 				for _, l := range x.Line {
 					f.add(&errs, l, x.Token[0], l.Token, fix)
 				}
@@ -87,13 +87,13 @@ func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
 // Cleanup cleans out all the cleared entries.
 func (f *WorkFile) Cleanup() {
 	w := 0
-	for _, r := range f.Directory {
+	for _, r := range f.Use {
 		if r.Path != "" {
-			f.Directory[w] = r
+			f.Use[w] = r
 			w++
 		}
 	}
-	f.Directory = f.Directory[:w]
+	f.Use = f.Use[:w]
 
 	w = 0
 	for _, r := range f.Replace {
@@ -133,60 +133,60 @@ func (f *WorkFile) AddGoStmt(version string) error {
 	return nil
 }
 
-func (f *WorkFile) AddDirectory(diskPath, modulePath string) error {
+func (f *WorkFile) AddUse(diskPath, modulePath string) error {
 	need := true
-	for _, d := range f.Directory {
+	for _, d := range f.Use {
 		if d.Path == diskPath {
 			if need {
 				d.ModulePath = modulePath
-				f.Syntax.updateLine(d.Syntax, "directory", AutoQuote(diskPath))
+				f.Syntax.updateLine(d.Syntax, "use", AutoQuote(diskPath))
 				need = false
 			} else {
 				d.Syntax.markRemoved()
-				*d = Directory{}
+				*d = Use{}
 			}
 		}
 	}
 
 	if need {
-		f.AddNewDirectory(diskPath, modulePath)
+		f.AddNewUse(diskPath, modulePath)
 	}
 	return nil
 }
 
-func (f *WorkFile) AddNewDirectory(diskPath, modulePath string) {
-	line := f.Syntax.addLine(nil, "directory", AutoQuote(diskPath))
-	f.Directory = append(f.Directory, &Directory{Path: diskPath, ModulePath: modulePath, Syntax: line})
+func (f *WorkFile) AddNewUse(diskPath, modulePath string) {
+	line := f.Syntax.addLine(nil, "use", AutoQuote(diskPath))
+	f.Use = append(f.Use, &Use{Path: diskPath, ModulePath: modulePath, Syntax: line})
 }
 
-func (f *WorkFile) SetDirectory(dirs []*Directory) {
+func (f *WorkFile) SetUse(dirs []*Use) {
 	need := make(map[string]string)
 	for _, d := range dirs {
 		need[d.Path] = d.ModulePath
 	}
 
-	for _, d := range f.Directory {
+	for _, d := range f.Use {
 		if modulePath, ok := need[d.Path]; ok {
 			d.ModulePath = modulePath
 		} else {
 			d.Syntax.markRemoved()
-			*d = Directory{}
+			*d = Use{}
 		}
 	}
 
 	// TODO(#45713): Add module path to comment.
 
 	for diskPath, modulePath := range need {
-		f.AddNewDirectory(diskPath, modulePath)
+		f.AddNewUse(diskPath, modulePath)
 	}
 	f.SortBlocks()
 }
 
-func (f *WorkFile) DropDirectory(path string) error {
-	for _, d := range f.Directory {
+func (f *WorkFile) DropUse(path string) error {
+	for _, d := range f.Use {
 		if d.Path == path {
 			d.Syntax.markRemoved()
-			*d = Directory{}
+			*d = Use{}
 		}
 	}
 	return nil

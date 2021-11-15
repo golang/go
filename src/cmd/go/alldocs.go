@@ -1411,8 +1411,8 @@
 // rewrite the go.mod file. The only time this flag is needed is if no other
 // flags are specified, as in 'go mod editwork -fmt'.
 //
-// The -directory=path and -dropdirectory=path flags
-// add and drop a directory from the go.work files set of module directories.
+// The -use=path and -dropuse=path flags
+// add and drop a use directive from the go.work file's set of module directories.
 //
 // The -replace=old[@v]=new[@v] flag adds a replacement of the given
 // module path and version pair. If the @v in old@v is omitted, a
@@ -1426,7 +1426,7 @@
 // module path and version pair. If the @v is omitted, a replacement without
 // a version on the left side is dropped.
 //
-// The -directory, -dropdirectory, -replace, and -dropreplace,
+// The -use, -dropuse, -replace, and -dropreplace,
 // editing flags may be repeated, and the changes are applied in the order given.
 //
 // The -go=version flag sets the expected Go language version.
@@ -1448,7 +1448,7 @@
 // 		Replace   []Replace
 // 	}
 //
-// 	type Directory struct {
+// 	type Use struct {
 // 		Path       string
 // 		ModulePath string
 // 	}

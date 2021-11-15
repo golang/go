@@ -5,7 +5,7 @@ cmp b/go.mod b/want_go.mod
 -- go.work --
 go 1.18
 
-directory (
+use (
 	./a
 	./b
 )

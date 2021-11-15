@@ -3,31 +3,31 @@
 go work init m
 cmp go.work go.work.want_initial
 
-go work edit -directory n
-cmp go.work go.work.want_directory_n
+go work edit -use n
+cmp go.work go.work.want_use_n
 
 go work edit -go 1.18
 cmp go.work go.work.want_go_118
 
-go work edit -dropdirectory m
-cmp go.work go.work.want_dropdirectory_m
+go work edit -dropuse m
+cmp go.work go.work.want_dropuse_m
 
 go work edit -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
 cmp go.work go.work.want_add_replaces
 
-go work edit -directory n -directory ../a -directory /b -directory c -directory c
-cmp go.work go.work.want_multidirectory
+go work edit -use n -use ../a -use /b -use c -use c
+cmp go.work go.work.want_multiuse
 
-go work edit -dropdirectory /b -dropdirectory n
-cmp go.work go.work.want_multidropdirectory
+go work edit -dropuse /b -dropuse n
+cmp go.work go.work.want_multidropuse
 
 go work edit -dropreplace='x.1@v1.4.0'
 cmp go.work go.work.want_dropreplace
 
-go work edit -print -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+go work edit -print -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
 cmp stdout go.work.want_print
 
-go work edit -json -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+go work edit -json -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
 cmp stdout go.work.want_json
 
 go work edit -print -fmt -workfile $GOPATH/src/unformatted
@@ -40,38 +40,38 @@ go 1.18
 -- go.work.want_initial --
 go 1.18
 
-directory ./m
--- go.work.want_directory_n --
+use ./m
+-- go.work.want_use_n --
 go 1.18
 
-directory (
+use (
 	./m
 	./n
 )
 -- go.work.want_go_118 --
 go 1.18
 
-directory (
+use (
 	./m
 	./n
 )
--- go.work.want_dropdirectory_m --
+-- go.work.want_dropuse_m --
 go 1.18
 
-directory ./n
+use ./n
 -- go.work.want_add_replaces --
 go 1.18
 
-directory ./n
+use ./n
 
 replace (
 	x.1 v1.3.0 => y.1 v1.4.0
 	x.1 v1.4.0 => ../z
 )
--- go.work.want_multidirectory --
+-- go.work.want_multiuse --
 go 1.18
 
-directory (
+use (
 	../a
 	./c
 	./n
@@ -82,10 +82,10 @@ replace (
 	x.1 v1.3.0 => y.1 v1.4.0
 	x.1 v1.4.0 => ../z
 )
--- go.work.want_multidropdirectory --
+-- go.work.want_multidropuse --
 go 1.18
 
-directory (
+use (
 	../a
 	./c
 )
@@ -97,7 +97,7 @@ replace (
 -- go.work.want_dropreplace --
 go 1.18
 
-directory (
+use (
 	../a
 	./c
 )
@@ -106,7 +106,7 @@ replace x.1 v1.3.0 => y.1 v1.4.0
 -- go.work.want_print --
 go 1.19
 
-directory (
+use (
 	../a
 	./b
 )
@@ -115,7 +115,7 @@ replace x.1 v1.4.0 => ../z
 -- go.work.want_json --
 {
 	"Go": "1.19",
-	"Directory": [
+	"Use": [
 		{
 			"DiskPath": "../a"
 		},
@@ -137,7 +137,7 @@ replace x.1 v1.4.0 => ../z
 }
 -- unformatted --
 go 1.18
- directory (
+ use (
  a
   b
   c
@@ -149,7 +149,7 @@ go 1.18
 -- formatted --
 go 1.18
 
-directory (
+use (
 	a
 	b
 	c

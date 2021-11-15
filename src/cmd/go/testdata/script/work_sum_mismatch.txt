@@ -17,8 +17,8 @@ For more information, see 'go help module-auth'.
 -- go.work --
 go 1.18
 
-directory ./a
-directory ./b
+use ./a
+use ./b
 -- a/go.mod --
 go 1.18
 
