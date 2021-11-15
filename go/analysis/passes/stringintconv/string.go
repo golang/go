@@ -110,17 +110,17 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		// First, find a type T0 in T that has an underlying type of string.
 		T := tname.Type()
-		tterms, err := typeparams.StructuralTerms(T)
+		ttypes, err := structuralTypes(T)
 		if err != nil {
 			return // invalid type
 		}
 
 		var T0 types.Type // string type in the type set of T
 
-		for _, term := range tterms {
-			u, _ := term.Type().Underlying().(*types.Basic)
+		for _, tt := range ttypes {
+			u, _ := tt.Underlying().(*types.Basic)
 			if u != nil && u.Kind() == types.String {
-				T0 = term.Type()
+				T0 = tt
 				break
 			}
 		}
@@ -133,21 +133,21 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// Next, find a type V0 in V that has an underlying integral type that is
 		// not byte or rune.
 		V := pass.TypesInfo.TypeOf(arg)
-		vterms, err := typeparams.StructuralTerms(V)
+		vtypes, err := structuralTypes(V)
 		if err != nil {
 			return // invalid type
 		}
 
 		var V0 types.Type // integral type in the type set of V
 
-		for _, term := range vterms {
-			u, _ := term.Type().Underlying().(*types.Basic)
+		for _, vt := range vtypes {
+			u, _ := vt.Underlying().(*types.Basic)
 			if u != nil && u.Info()&types.IsInteger != 0 {
 				switch u.Kind() {
 				case types.Byte, types.Rune, types.UntypedRune:
 					continue
 				}
-				V0 = term.Type()
+				V0 = vt
 				break
 			}
 		}
@@ -158,8 +158,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		convertibleToRune := true // if true, we can suggest a fix
-		for _, term := range vterms {
-			if !types.ConvertibleTo(term.Type(), types.Typ[types.Rune]) {
+		for _, t := range vtypes {
+			if !types.ConvertibleTo(t, types.Typ[types.Rune]) {
 				convertibleToRune = false
 				break
 			}
@@ -199,4 +199,21 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		pass.Report(diag)
 	})
 	return nil, nil
+}
+
+func structuralTypes(t types.Type) ([]types.Type, error) {
+	var structuralTypes []types.Type
+	switch t := t.(type) {
+	case *typeparams.TypeParam:
+		terms, err := typeparams.StructuralTerms(t)
+		if err != nil {
+			return nil, err
+		}
+		for _, term := range terms {
+			structuralTypes = append(structuralTypes, term.Type())
+		}
+	default:
+		structuralTypes = append(structuralTypes, t)
+	}
+	return structuralTypes, nil
 }

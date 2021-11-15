@@ -12,35 +12,47 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/typeparams"
 	. "golang.org/x/tools/internal/typeparams"
 )
 
-func TestNormalize(t *testing.T) {
+func TestStructuralTerms(t *testing.T) {
 	if !Enabled {
 		t.Skip("typeparams are not enabled")
 	}
+
+	// In the following tests, src must define a type T with (at least) one type
+	// parameter. We will compute the structural terms of the first type
+	// parameter.
 	tests := []struct {
 		src       string
 		want      string
 		wantError string
 	}{
-		{"package emptyinterface0; type T interface{}", "interface{}", ""},
-		{"package emptyinterface1; type T interface{ int | interface{} }", "interface{}", ""},
-		{"package singleton; type T interface{ int }", "interface{int}", ""},
-		{"package under; type T interface{~int}", "interface{~int}", ""},
-		{"package superset; type T interface{ ~int | int }", "interface{~int}", ""},
-		{"package overlap; type T interface{ ~int; int }", "interface{int}", ""},
-		{"package emptyintersection; type T interface{ ~int; string }", "nil", ""},
+		{"package emptyinterface0; type T[P interface{}] int", "all", ""},
+		{"package emptyinterface1; type T[P interface{ int | interface{} }] int", "all", ""},
+		{"package singleton; type T[P interface{ int }] int", "int", ""},
+		{"package under; type T[P interface{~int}] int", "~int", ""},
+		{"package superset; type T[P interface{ ~int | int }] int", "~int", ""},
+		{"package overlap; type T[P interface{ ~int; int }] int", "int", ""},
+		{"package emptyintersection; type T[P interface{ ~int; string }] int", "", "empty type set"},
 
-		// The type-checker now produces Typ[Invalid] here (golang/go#48819).
-		// TODO(rfindley): can we still test the cycle logic?
-		// {"package cycle0; type T interface{ T }", "", "cycle"},
-		// {"package cycle1; type T interface{ int | T }", "", "cycle"},
-		// {"package cycle2; type T interface{ I }; type I interface { T }", "", "cycle"},
+		{"package embedded0; type T[P interface{ I }] int; type I interface { int }", "int", ""},
+		{"package embedded1; type T[P interface{ I | string }] int; type I interface{ int | ~string }", "int|~string", ""},
+		{"package embedded2; type T[P interface{ I; string }] int; type I interface{ int | ~string }", "string", ""},
 
-		{"package embedded0; type T interface{ I }; type I interface { int }", "interface{int}", ""},
-		{"package embedded1; type T interface{ I | string }; type I interface{ int | ~string }", "interface{int|~string}", ""},
-		{"package embedded2; type T interface{ I; string }; type I interface{ int | ~string }", "interface{string}", ""},
+		{"package named; type T[P C] int; type C interface{ ~int|int }", "~int", ""},
+		{`// package example is taken from the docstring for StructuralTerms
+package example
+
+type A interface{ ~string|~[]byte }
+
+type B interface{ int|string }
+
+type C interface { ~string|~int }
+
+type T[P interface{ A|B; C }] int
+`, "~string|int", ""},
 	}
 
 	for _, test := range tests {
@@ -63,29 +75,29 @@ func TestNormalize(t *testing.T) {
 			if obj == nil {
 				t.Fatal("type T not found")
 			}
-			T := obj.Type().Underlying().(*types.Interface)
-			normal, err := NormalizeInterface(T)
+			T := typeparams.ForNamed(obj.Type().(*types.Named)).At(0)
+			terms, err := StructuralTerms(T)
 			if test.wantError != "" {
 				if err == nil {
-					t.Fatalf("Normalize(%s): nil error, want %q", T, test.wantError)
+					t.Fatalf("StructuralTerms(%s): nil error, want %q", T, test.wantError)
 				}
 				if !strings.Contains(err.Error(), test.wantError) {
-					t.Errorf("Normalize(%s): err = %q, want %q", T, err, test.wantError)
+					t.Errorf("StructuralTerms(%s): err = %q, want %q", T, err, test.wantError)
 				}
 				return
 			}
 			if err != nil {
 				t.Fatal(err)
 			}
-			qf := types.RelativeTo(pkg)
 			var got string
-			if normal == nil {
-				got = "nil"
+			if len(terms) == 0 {
+				got = "all"
 			} else {
-				got = types.TypeString(normal, qf)
+				qf := types.RelativeTo(pkg)
+				got = types.TypeString(NewUnion(terms), qf)
 			}
 			if got != test.want {
-				t.Errorf("Normalize(%s) = %q, want %q", T, got, test.want)
+				t.Errorf("StructuralTerms(%s) = %q, want %q", T, got, test.want)
 			}
 		})
 	}

@@ -13,7 +13,7 @@ func TestBasicTypeParams[T interface{ ~int }, E error, F fmt.Formatter, S fmt.St
 	fmt.Printf("%d", t)
 	fmt.Printf("%s", t) // want "wrong type.*contains ~int"
 	fmt.Printf("%v", t)
-	fmt.Printf("%d", e)
+	fmt.Printf("%d", e) // want "wrong type"
 	fmt.Printf("%s", e)
 	fmt.Errorf("%w", e)
 	fmt.Printf("%a", f)
@@ -26,6 +26,15 @@ func TestBasicTypeParams[T interface{ ~int }, E error, F fmt.Formatter, S fmt.St
 	fmt.Printf("%s", a) // want "wrong type"
 	fmt.Printf("%v", a)
 	fmt.Printf("%T", a)
+}
+
+type Constraint interface {
+	~int
+}
+
+func TestNamedConstraints_Issue49597[T Constraint](t T) {
+	fmt.Printf("%d", t)
+	fmt.Printf("%s", t) // want "wrong type.*contains ~int"
 }
 
 func TestNestedTypeParams[T interface{ ~int }, S interface{ ~string }]() {
@@ -71,11 +80,14 @@ func TestRecusivePointers[T1 ~*T2, T2 ~*T1](t1 T1, t2 T2) {
 	fmt.Printf("%s", t2)
 }
 
-func TestEmptyTypeSet[T interface{ int | string; float64 }](t T) {
+func TestEmptyTypeSet[T interface {
+	int | string
+	float64
+}](t T) {
 	fmt.Printf("%s", t) // No error: empty type set.
 }
 
-func TestPointerRules[T ~*[]int|*[2]int](t T) {
+func TestPointerRules[T ~*[]int | *[2]int](t T) {
 	var slicePtr *[]int
 	var arrayPtr *[2]int
 	fmt.Printf("%d", slicePtr)
