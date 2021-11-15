@@ -176,13 +176,15 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
 	return typ
 }
 
-// genericType is like typ but the type must be an (uninstantiated) generic type.
-func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
+// genericType is like typ but the type must be an (uninstantiated) generic
+// type. If reason is non-nil and the type expression was a valid type but not
+// generic, reason will be populated with a message describing the error.
+func (check *Checker) genericType(e ast.Expr, reason *string) Type {
 	typ := check.typInternal(e, nil)
 	assert(isTyped(typ))
 	if typ != Typ[Invalid] && !isGeneric(typ) {
-		if reportErr {
-			check.errorf(e, _Todo, "%s is not a generic type", typ)
+		if reason != nil {
+			*reason = check.sprintf("%s is not a generic type", typ)
 		}
 		typ = Typ[Invalid]
 	}
@@ -263,7 +265,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		if !check.allowVersion(check.pkg, 1, 18) {
 			check.softErrorf(inNode(e, ix.Lbrack), _UnsupportedFeature, "type instantiation requires go1.18 or later")
 		}
-		return check.instantiatedType(ix.X, ix.Indices, def)
+		return check.instantiatedType(ix, def)
 
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
@@ -374,29 +376,34 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 	return typ
 }
 
-func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named) (res Type) {
+func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (res Type) {
+	pos := ix.X.Pos()
 	if trace {
-		check.trace(x.Pos(), "-- instantiating %s with %s", x, targsx)
+		check.trace(pos, "-- instantiating %s with %s", ix.X, ix.Indices)
 		check.indent++
 		defer func() {
 			check.indent--
 			// Don't format the underlying here. It will always be nil.
-			check.trace(x.Pos(), "=> %s", res)
+			check.trace(pos, "=> %s", res)
 		}()
 	}
 
-	gtyp := check.genericType(x, true)
+	var reason string
+	gtyp := check.genericType(ix.X, &reason)
+	if reason != "" {
+		check.invalidOp(ix.Orig, _NotAGenericType, "%s (%s)", ix.Orig, reason)
+	}
 	if gtyp == Typ[Invalid] {
 		return gtyp // error already reported
 	}
 
 	orig, _ := gtyp.(*Named)
 	if orig == nil {
-		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
+		panic(fmt.Sprintf("%v: cannot instantiate %v", ix.Pos(), gtyp))
 	}
 
 	// evaluate arguments
-	targs := check.typeList(targsx)
+	targs := check.typeList(ix.Indices)
 	if targs == nil {
 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
 		return Typ[Invalid]
@@ -404,7 +411,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 
 	// determine argument positions
 	posList := make([]token.Pos, len(targs))
-	for i, arg := range targsx {
+	for i, arg := range ix.Indices {
 		posList[i] = arg.Pos()
 	}
 
@@ -418,7 +425,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 	// validation below. Ensure that the validation (and resulting errors) runs
 	// for each instantiated type in the source.
 	if inst == nil {
-		tname := NewTypeName(x.Pos(), orig.obj.pkg, orig.obj.name, nil)
+		tname := NewTypeName(ix.X.Pos(), orig.obj.pkg, orig.obj.name, nil)
 		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
 		inst.targs = NewTypeList(targs)
 		inst = ctxt.update(h, orig, targs, inst).(*Named)
@@ -432,14 +439,14 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 		if len(targs) < len(tparams) {
 			// If inference fails, len(inferred) will be 0, and inst.underlying will
 			// be set to Typ[Invalid] in expandNamed.
-			inferred = check.infer(x, tparams, targs, nil, nil)
+			inferred = check.infer(ix.Orig, tparams, targs, nil, nil)
 			if len(inferred) > len(targs) {
 				inst.targs = NewTypeList(inferred)
 			}
 		}
 
-		check.recordInstance(x, inferred, inst)
-		return expandNamed(ctxt, n, x.Pos())
+		check.recordInstance(ix.Orig, inferred, inst)
+		return expandNamed(ctxt, n, pos)
 	}
 
 	// origin.tparams may not be set up, so we need to do expansion later.
@@ -452,16 +459,16 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 		// frees some memory.
 		inst.resolver = nil
 
-		if check.validateTArgLen(x.Pos(), inst.tparams.Len(), inst.targs.Len()) {
-			if i, err := check.verify(x.Pos(), inst.tparams.list(), inst.targs.list()); err != nil {
+		if check.validateTArgLen(pos, inst.tparams.Len(), inst.targs.Len()) {
+			if i, err := check.verify(pos, inst.tparams.list(), inst.targs.list()); err != nil {
 				// best position for error reporting
-				pos := x.Pos()
+				pos := ix.Pos()
 				if i < len(posList) {
 					pos = posList[i]
 				}
 				check.softErrorf(atPos(pos), _InvalidTypeArg, err.Error())
 			} else {
-				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), posList)
+				check.mono.recordInstance(check.pkg, pos, inst.tparams.list(), inst.targs.list(), posList)
 			}
 		}
 
