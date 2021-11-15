@@ -545,6 +545,9 @@ var depsRules = `
 	NET, testing, math/rand
 	< golang.org/x/net/nettest;
 
+	syscall
+	< os/exec/internal/fdtest;
+
 	FMT, container/heap, math/rand
 	< internal/trace;
 `
