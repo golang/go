@@ -641,6 +641,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			} else {
 				if len(b.dwarf.lineStr) == 0 {
 					b.error("DW_FORM_line_strp with no .debug_line_str section")
+					return nil
 				}
 				b1 = makeBuf(b.dwarf, b.format, "line_str", 0, b.dwarf.lineStr)
 			}
