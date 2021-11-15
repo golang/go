@@ -104,8 +104,8 @@ var testObjects = []struct {
 
 	{"type t struct{f int}", "t", "type p.t struct{f int}"},
 	{"type t func(int)", "t", "type p.t func(int)"},
-	{"type t[P any] struct{f P}", "t", "type p.t[P interface{}] struct{f P}"},
-	{"type t[P any] struct{f P}", "t.P", "type parameter P interface{}"},
+	{"type t[P any] struct{f P}", "t", "type p.t[P any] struct{f P}"},
+	{"type t[P any] struct{f P}", "t.P", "type parameter P any"},
 	{"type C interface{m()}; type t[P C] struct{}", "t.P", "type parameter P p.C"},
 
 	{"type t = struct{f int}", "t", "type p.t = struct{f int}"},
@@ -114,8 +114,9 @@ var testObjects = []struct {
 	{"var v int", "v", "var p.v int"},
 
 	{"func f(int) string", "f", "func p.f(int) string"},
-	{"func g[P any](x P){}", "g", "func p.g[P interface{}](x P)"},
+	{"func g[P any](x P){}", "g", "func p.g[P any](x P)"},
 	{"func g[P interface{~int}](x P){}", "g.P", "type parameter P interface{~int}"},
+	{"", "any", "type any = interface{}"},
 }
 
 func TestObjectString(t *testing.T) {
@@ -134,7 +135,7 @@ func TestObjectString(t *testing.T) {
 			t.Errorf("%s: invalid object path %s", test.src, test.obj)
 			continue
 		}
-		obj := pkg.Scope().Lookup(names[0])
+		_, obj := pkg.Scope().LookupParent(names[0], token.NoPos)
 		if obj == nil {
 			t.Errorf("%s: %s not found", test.src, names[0])
 			continue

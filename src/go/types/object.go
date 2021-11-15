@@ -482,6 +482,14 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		}
 	}
 
+	// Special handling for any: because WriteType will format 'any' as 'any',
+	// resulting in the object string `type any = any` rather than `type any =
+	// interface{}`. To avoid this, swap in a different empty interface.
+	if obj == universeAny {
+		assert(Identical(typ, &emptyInterface))
+		typ = &emptyInterface
+	}
+
 	buf.WriteByte(' ')
 	WriteType(buf, typ, qf)
 }
