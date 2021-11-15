@@ -26,6 +26,8 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
 	return types.NewPkg(pkg.Path(), pkg.Name())
 }
 
+var universeAny = types2.Universe.Lookup("any").Type()
+
 // typ converts a types2.Type to a types.Type, including caching of previously
 // translated types.
 func (g *irgen) typ(typ types2.Type) *types.Type {
@@ -53,6 +55,12 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
 // constructed part of a recursive type. Should not be called from outside this
 // file (g.typ is the "external" entry point).
 func (g *irgen) typ1(typ types2.Type) *types.Type {
+	// See issue 49583: the type checker has trouble keeping track of aliases,
+	// but for such a common alias as any we can improve things by preserving a
+	// pointer identity that can be checked when formatting type strings.
+	if typ == universeAny {
+		return types.AnyType
+	}
 	// Cache type2-to-type mappings. Important so that each defined generic
 	// type (instantiated or not) has a single types.Type representation.
 	// Also saves a lot of computation and memory by avoiding re-translating

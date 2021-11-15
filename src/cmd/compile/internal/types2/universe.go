@@ -79,7 +79,10 @@ func defPredeclaredTypes() {
 	}
 
 	// type any = interface{}
-	def(NewTypeName(nopos, nil, "any", &emptyInterface))
+	// Note: don't use &emptyInterface for the type of any. Using a unique
+	// pointer allows us to detect any and format it as "any" rather than
+	// interface{}, which clarifies user-facing error messages significantly.
+	def(NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
 
 	// type error interface{ Error() string }
 	{

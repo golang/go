@@ -197,6 +197,13 @@ func (w *typeWriter) typ(typ Type) {
 		}
 
 	case *Interface:
+		if t == universeAny.Type() && w.ctxt == nil {
+			// When not hashing, we can try to improve type strings by writing "any"
+			// for a type that is pointer-identical to universeAny. This logic should
+			// be deprecated by more robust handling for aliases.
+			w.string("any")
+			break
+		}
 		if t.implicit {
 			if len(t.methods) == 0 && len(t.embeddeds) == 1 {
 				w.typ(t.embeddeds[0])
