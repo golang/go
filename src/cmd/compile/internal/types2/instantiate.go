@@ -60,8 +60,8 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, ctxt *Co
 			h = ctxt.typeHash(orig, targs)
 			// typ may already have been instantiated with identical type arguments. In
 			// that case, re-use the existing instance.
-			if named := ctxt.lookup(h, orig, targs); named != nil {
-				return named
+			if inst := ctxt.lookup(h, orig, targs); inst != nil {
+				return inst
 			}
 		}
 		tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
