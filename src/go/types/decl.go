@@ -623,7 +623,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		check.validType(obj.typ, nil)
 		// If typ is local, an error was already reported where typ is specified/defined.
 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
-			check.errorf(tdecl.Type, _Todo, "using type constraint %s requires go1.18 or later", rhs)
+			check.errorf(tdecl.Type, _UnsupportedFeature, "using type constraint %s requires go1.18 or later", rhs)
 		}
 	}).describef(obj, "validType(%s)", obj.Name())
 
@@ -631,7 +631,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	if alias && tdecl.TypeParams.NumFields() != 0 {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
-		check.error(atPos(tdecl.Assign), _Todo, "generic type cannot be alias")
+		check.error(atPos(tdecl.Assign), _BadDecl, "generic type cannot be alias")
 		alias = false
 	}
 
@@ -673,7 +673,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	// type (underlying not fully resolved yet) it cannot become a type parameter due
 	// to this very restriction.
 	if tpar, _ := named.underlying.(*TypeParam); tpar != nil {
-		check.error(tdecl.Type, _Todo, "cannot use a type parameter as RHS in type declaration")
+		check.error(tdecl.Type, _MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
 		named.underlying = Typ[Invalid]
 	}
 }
@@ -724,7 +724,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 	check.later(func() {
 		for i, bound := range bounds {
 			if _, ok := under(bound).(*TypeParam); ok {
-				check.error(posns[i], _Todo, "cannot use a type parameter as constraint")
+				check.error(posns[i], _MisplacedTypeParam, "cannot use a type parameter as constraint")
 			}
 		}
 		for _, tpar := range tparams {
@@ -861,7 +861,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	obj.color_ = saved
 
 	if fdecl.Type.TypeParams.NumFields() > 0 && fdecl.Body == nil {
-		check.softErrorf(fdecl.Name, _Todo, "parameterized function is missing function body")
+		check.softErrorf(fdecl.Name, _BadDecl, "parameterized function is missing function body")
 	}
 
 	// function body must be type-checked after global declarations

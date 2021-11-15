@@ -269,7 +269,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			tset := computeInterfaceTypeSet(check, pos, u)
 			// If typ is local, an error was already reported where typ is specified/defined.
 			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _Todo, "embedding constraint interface %s requires go1.18 or later", typ)
+				check.errorf(atPos(pos), _UnsupportedFeature, "embedding constraint interface %s requires go1.18 or later", typ)
 				continue
 			}
 			if tset.comparable {
@@ -281,7 +281,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			terms = tset.terms
 		case *Union:
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _Todo, "embedding interface element %s requires go1.18 or later", u)
+				check.errorf(atPos(pos), _InvalidIfaceEmbed, "embedding interface element %s requires go1.18 or later", u)
 				continue
 			}
 			tset := computeUnionTypeSet(check, pos, u)
@@ -385,7 +385,7 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
 		allTerms = allTerms.union(terms)
 		if len(allTerms) > maxTermCount {
 			if check != nil {
-				check.errorf(atPos(pos), _Todo, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+				check.errorf(atPos(pos), _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 			}
 			utyp.tset = &invalidTypeSet
 			return utyp.tset

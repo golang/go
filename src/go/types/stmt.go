@@ -429,7 +429,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				return false
 			}
 			if elem != nil && !Identical(uch.elem, elem) {
-				check.invalidOp(inNode(s, s.Arrow), _Todo, "channels of %s must have the same element type", &ch)
+				check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "channels of %s must have the same element type", &ch)
 				return false
 			}
 			elem = uch.elem

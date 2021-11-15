@@ -370,7 +370,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				return false
 			}
 			if key != nil && !Identical(map_.key, key) {
-				check.invalidArg(x, _Todo, "maps of %s must have identical key types", x)
+				check.invalidArg(x, _InvalidDelete, "maps of %s must have identical key types", x)
 				return false
 			}
 			key = map_.key
