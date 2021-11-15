@@ -449,7 +449,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 		return expandNamed(ctxt, n, pos)
 	}
 
-	// origin.tparams may not be set up, so we need to do expansion later.
+	// orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
 		// This is an instance from the source, not from recursive substitution,
 		// and so it must be resolved during type-checking so that we can report

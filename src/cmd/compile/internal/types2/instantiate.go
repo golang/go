@@ -60,7 +60,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Con
 			h = ctxt.typeHash(t, targs)
 			// typ may already have been instantiated with identical type arguments. In
 			// that case, re-use the existing instance.
-			if named := ctxt.typeForHash(h, nil); named != nil {
+			if named := ctxt.lookup(h, t, targs); named != nil {
 				return named
 			}
 		}
@@ -73,7 +73,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Con
 		if ctxt != nil {
 			// It's possible that we've lost a race to add named to the context.
 			// In this case, use whichever instance is recorded in the context.
-			named = ctxt.typeForHash(h, named)
+			named = ctxt.update(h, named)
 		}
 		return named
 
