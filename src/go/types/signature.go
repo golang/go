@@ -137,7 +137,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv, _ := check.genericType(rname, false).(*Named); recv != nil {
+				if recv, _ := check.genericType(rname, nil).(*Named); recv != nil {
 					recvTParams = recv.TypeParams().list()
 				}
 			}

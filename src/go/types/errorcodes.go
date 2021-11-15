@@ -1307,6 +1307,15 @@ const (
 	// supported at this Go version.
 	_UnsupportedFeature
 
+	// _NotAGenericType occurs when a non-generic type is used where a generic
+	// type is expected: in type or function instantiation.
+	//
+	// Example:
+	//  type T int
+	//
+	//  var _ T[int]
+	_NotAGenericType
+
 	// _WrongTypeArgCount occurs when a type or function is instantiated with an
 	// incorrent number of type arguments, including when a generic type or
 	// function is used without instantiation.
@@ -1391,8 +1400,4 @@ const (
 	// Example:
 	//  type T[P any] struct{ *P }
 	_MisplacedTypeParam
-
-	// _Todo is a placeholder for error codes that have not been decided.
-	// TODO(rFindley) remove this error code after deciding on errors for generics code.
-	_Todo
 )
