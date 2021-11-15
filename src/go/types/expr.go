@@ -186,7 +186,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 				return false
 			}
 			if elem != nil && !Identical(ch.elem, elem) {
-				check.invalidOp(x, _Todo, "channels of %s must have the same element type", x)
+				check.invalidOp(x, _InvalidReceive, "channels of %s must have the same element type", x)
 				return false
 			}
 			elem = ch.elem
@@ -1116,7 +1116,7 @@ func (check *Checker) nonGeneric(x *operand) {
 		}
 	}
 	if what != "" {
-		check.errorf(x.expr, _Todo, "cannot use generic %s %s without instantiation", what, x.expr)
+		check.errorf(x.expr, _WrongTypeArgCount, "cannot use generic %s %s without instantiation", what, x.expr)
 		x.mode = invalid
 		x.typ = Typ[Invalid]
 	}
@@ -1233,7 +1233,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// Prevent crash if the struct referred to is not yet set up.
 			// See analogous comment for *Array.
 			if utyp.fields == nil {
-				check.error(e, _Todo, "illegal cycle in type declaration")
+				check.error(e, _InvalidDeclCycle, "illegal cycle in type declaration")
 				goto Error
 			}
 			if len(e.Elts) == 0 {
@@ -1472,7 +1472,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					return false
 				}
 				if base != nil && !Identical(p.base, base) {
-					check.invalidOp(x, _Todo, "pointers of %s must have identical base types", x)
+					check.invalidOp(x, _InvalidIndirection, "pointers of %s must have identical base types", x)
 					return false
 				}
 				base = p.base

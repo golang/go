@@ -118,17 +118,21 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				}
 			}
 			if allFailed {
-				check.errorf(arg, _Todo, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
+				check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
 				return
 			}
 		}
 		smap := makeSubstMap(tparams, targs)
 		// TODO(rFindley): pass a positioner here, rather than arg.Pos().
 		inferred := check.subst(arg.Pos(), tpar, smap, nil)
+		// _CannotInferTypeArgs indicates a failure of inference, though the actual
+		// error may be better attributed to a user-provided type argument (hence
+		// _InvalidTypeArg). We can't differentiate these cases, so fall back on
+		// the more general _CannotInferTypeArgs.
 		if inferred != tpar {
-			check.errorf(arg, _Todo, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {
-			check.errorf(arg, _Todo, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
 		}
 	}
 
@@ -214,7 +218,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// At least one type argument couldn't be inferred.
 	assert(index >= 0 && targs[index] == nil)
 	tpar := tparams[index]
-	check.errorf(posn, _Todo, "cannot infer %s (%v)", tpar.obj.name, tpar.obj.pos)
+	check.errorf(posn, _CannotInferTypeArgs, "cannot infer %s (%v)", tpar.obj.name, tpar.obj.pos)
 	return nil
 }
 
@@ -383,7 +387,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 			if !u.unify(tpar, sbound) {
 				// TODO(gri) improve error message by providing the type arguments
 				//           which we know already
-				check.errorf(tpar.obj, _Todo, "%s does not match %s", tpar, sbound)
+				check.errorf(tpar.obj, _InvalidTypeArg, "%s does not match %s", tpar, sbound)
 				return nil, 0
 			}
 		}

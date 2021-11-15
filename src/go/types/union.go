@@ -63,7 +63,7 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
 			return typ
 		}
 		if len(terms) >= maxTermCount {
-			check.errorf(x, _Todo, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+			check.errorf(x, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 			return Typ[Invalid]
 		}
 		terms = append(terms, NewTerm(tilde, typ))
@@ -82,12 +82,12 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
 			f, _ := u.(*Interface)
 			if t.tilde {
 				if f != nil {
-					check.errorf(tlist[i], _Todo, "invalid use of ~ (%s is an interface)", t.typ)
+					check.errorf(tlist[i], _InvalidUnion, "invalid use of ~ (%s is an interface)", t.typ)
 					continue // don't report another error for t
 				}
 
 				if !Identical(u, t.typ) {
-					check.errorf(tlist[i], _Todo, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+					check.errorf(tlist[i], _InvalidUnion, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
 					continue // don't report another error for t
 				}
 			}
@@ -96,14 +96,14 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
 			// here, we must have at least two terms in the union.
 			if f != nil && !f.typeSet().IsTypeSet() {
-				check.errorf(tlist[i], _Todo, "cannot use %s in union (interface contains methods)", t)
+				check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (interface contains methods)", t)
 				continue // don't report another error for t
 			}
 
 			// Report overlapping (non-disjoint) terms such as
 			// a|a, a|~a, ~a|~a, and ~a|A (where under(A) == a).
 			if j := overlappingTerm(terms[:i], t); j >= 0 {
-				check.softErrorf(tlist[i], _Todo, "overlapping terms %s and %s", t, terms[j])
+				check.softErrorf(tlist[i], _InvalidUnion, "overlapping terms %s and %s", t, terms[j])
 			}
 		}
 	})
@@ -124,7 +124,7 @@ func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
 	//       check to later and could return Typ[Invalid] instead.
 	check.later(func() {
 		if _, ok := under(typ).(*TypeParam); ok {
-			check.error(x, _Todo, "cannot embed a type parameter")
+			check.error(x, _MisplacedTypeParam, "cannot embed a type parameter")
 		}
 	})
 	return

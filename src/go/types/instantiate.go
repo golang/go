@@ -124,7 +124,7 @@ func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool 
 	if ntargs != ntparams {
 		// TODO(gri) provide better error message
 		if check != nil {
-			check.errorf(atPos(pos), _Todo, "got %d arguments but %d type parameters", ntargs, ntparams)
+			check.errorf(atPos(pos), _WrongTypeArgCount, "got %d arguments but %d type parameters", ntargs, ntparams)
 			return false
 		}
 		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))

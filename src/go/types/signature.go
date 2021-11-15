@@ -168,7 +168,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
 		if recvPar != nil {
-			check.errorf(ftyp.TypeParams, _Todo, "methods cannot have type parameters")
+			check.errorf(ftyp.TypeParams, _InvalidMethodTypeParams, "methods cannot have type parameters")
 		}
 	}
 
@@ -215,7 +215,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// The receiver type may be an instantiated type referred to
 				// by an alias (which cannot have receiver parameters for now).
 				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
-					check.errorf(atPos(recv.pos), _Todo, "cannot define methods on instantiated type %s", recv.typ)
+					check.errorf(atPos(recv.pos), _InvalidRecv, "cannot define methods on instantiated type %s", recv.typ)
 					break
 				}
 				// spec: "The type denoted by T is called the receiver base type; it must not

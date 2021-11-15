@@ -181,7 +181,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
 				at = ftyp.TypeParams
 			}
-			check.errorf(at, _Todo, "methods cannot have type parameters")
+			check.errorf(at, _InvalidMethodTypeParams, "methods cannot have type parameters")
 		}
 
 		// use named receiver type if available (for better error messages)
