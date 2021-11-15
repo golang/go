@@ -19,7 +19,7 @@ stdout '^v1.1.0$'
 -- go.work --
 go 1.18
 
-directory (
+use (
 	./a
 	./p
 )

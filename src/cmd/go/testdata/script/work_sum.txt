@@ -11,7 +11,7 @@ rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
 -- go.work --
 go 1.18
 
-directory .
+use .
 -- go.mod --
 go 1.18
 

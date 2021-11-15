@@ -53,7 +53,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	haveDirs := make(map[string]bool)
-	for _, dir := range workFile.Directory {
+	for _, dir := range workFile.Use {
 		haveDirs[filepath.Join(filepath.Dir(gowork), filepath.FromSlash(dir.Path))] = true
 	}
 
@@ -105,10 +105,10 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	for dir := range removeDirs {
-		workFile.DropDirectory(filepath.ToSlash(dir))
+		workFile.DropUse(filepath.ToSlash(dir))
 	}
 	for dir := range addDirs {
-		workFile.AddDirectory(filepath.ToSlash(dir), "")
+		workFile.AddUse(filepath.ToSlash(dir), "")
 	}
 	modload.UpdateWorkFile(workFile)
 	modload.WriteWorkFile(gowork, workFile)

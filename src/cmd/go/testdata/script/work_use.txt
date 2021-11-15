@@ -6,21 +6,21 @@ cmp go.work go.want_work_other
 -- go.work --
 go 1.18
 
-directory (
+use (
 	foo
 	foo/bar // doesn't exist
 )
 -- go.want_work_r --
 go 1.18
 
-directory (
+use (
 	foo
 	foo/bar/baz
 )
 -- go.want_work_other --
 go 1.18
 
-directory (
+use (
 	foo
 	foo/bar/baz
 	other

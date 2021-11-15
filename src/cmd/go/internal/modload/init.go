@@ -565,7 +565,7 @@ func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []
 		goVersion = wf.Go.Version
 	}
 	seen := map[string]bool{}
-	for _, d := range wf.Directory {
+	for _, d := range wf.Use {
 		modRoot := d.Path
 		if !filepath.IsAbs(modRoot) {
 			modRoot = filepath.Join(workDir, modRoot)
@@ -606,7 +606,7 @@ func WriteWorkFile(path string, wf *modfile.WorkFile) error {
 func UpdateWorkFile(wf *modfile.WorkFile) {
 	missingModulePaths := map[string]string{} // module directory listed in file -> abspath modroot
 
-	for _, d := range wf.Directory {
+	for _, d := range wf.Use {
 		modRoot := d.Path
 		if d.ModulePath == "" {
 			missingModulePaths[d.Path] = modRoot
@@ -620,7 +620,7 @@ func UpdateWorkFile(wf *modfile.WorkFile) {
 		if err != nil {
 			continue // Error will be reported if modules are loaded.
 		}
-		wf.AddDirectory(moddir, f.Module.Mod.Path)
+		wf.AddUse(moddir, f.Module.Mod.Path)
 	}
 }
 
@@ -887,7 +887,7 @@ func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
 			}
 			base.Fatalf("go: error parsing go.mod in directory %s: %v", dir, err)
 		}
-		workF.AddDirectory(ToDirectoryPath(dir), f.Module.Mod.Path)
+		workF.AddUse(ToDirectoryPath(dir), f.Module.Mod.Path)
 	}
 
 	UpdateWorkFile(workF)

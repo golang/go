@@ -37,8 +37,8 @@ This reformatting is also implied by any other modifications that use or
 rewrite the go.mod file. The only time this flag is needed is if no other
 flags are specified, as in 'go mod editwork -fmt'.
 
-The -directory=path and -dropdirectory=path flags
-add and drop a directory from the go.work files set of module directories.
+The -use=path and -dropuse=path flags
+add and drop a use directive from the go.work file's set of module directories.
 
 The -replace=old[@v]=new[@v] flag adds a replacement of the given
 module path and version pair. If the @v in old@v is omitted, a
@@ -52,7 +52,7 @@ The -dropreplace=old[@v] flag drops a replacement of the given
 module path and version pair. If the @v is omitted, a replacement without
 a version on the left side is dropped.
 
-The -directory, -dropdirectory, -replace, and -dropreplace,
+The -use, -dropuse, -replace, and -dropreplace,
 editing flags may be repeated, and the changes are applied in the order given.
 
 The -go=version flag sets the expected Go language version.
@@ -74,7 +74,7 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Replace   []Replace
 	}
 
-	type Directory struct {
+	type Use struct {
 		Path       string
 		ModulePath string
 	}
@@ -106,8 +106,8 @@ func (f flagFunc) Set(s string) error { f(s); return nil }
 func init() {
 	cmdEdit.Run = runEditwork // break init cycle
 
-	cmdEdit.Flag.Var(flagFunc(flagEditworkDirectory), "directory", "")
-	cmdEdit.Flag.Var(flagFunc(flagEditworkDropDirectory), "dropdirectory", "")
+	cmdEdit.Flag.Var(flagFunc(flagEditworkUse), "use", "")
+	cmdEdit.Flag.Var(flagFunc(flagEditworkDropUse), "dropuse", "")
 	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "")
 
@@ -182,25 +182,25 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 	modload.WriteWorkFile(gowork, workFile)
 }
 
-// flagEditworkDirectory implements the -directory flag.
-func flagEditworkDirectory(arg string) {
+// flagEditworkUse implements the -use flag.
+func flagEditworkUse(arg string) {
 	workedits = append(workedits, func(f *modfile.WorkFile) {
 		_, mf, err := modload.ReadModFile(filepath.Join(arg, "go.mod"), nil)
 		modulePath := ""
 		if err == nil {
 			modulePath = mf.Module.Mod.Path
 		}
-		f.AddDirectory(modload.ToDirectoryPath(arg), modulePath)
-		if err := f.AddDirectory(modload.ToDirectoryPath(arg), ""); err != nil {
-			base.Fatalf("go: -directory=%s: %v", arg, err)
+		f.AddUse(modload.ToDirectoryPath(arg), modulePath)
+		if err := f.AddUse(modload.ToDirectoryPath(arg), ""); err != nil {
+			base.Fatalf("go: -use=%s: %v", arg, err)
 		}
 	})
 }
 
-// flagEditworkDropDirectory implements the -dropdirectory flag.
-func flagEditworkDropDirectory(arg string) {
+// flagEditworkDropUse implements the -dropuse flag.
+func flagEditworkDropUse(arg string) {
 	workedits = append(workedits, func(f *modfile.WorkFile) {
-		if err := f.DropDirectory(modload.ToDirectoryPath(arg)); err != nil {
+		if err := f.DropUse(modload.ToDirectoryPath(arg)); err != nil {
 			base.Fatalf("go: -dropdirectory=%s: %v", arg, err)
 		}
 	})
@@ -287,8 +287,8 @@ func editPrintJSON(workFile *modfile.WorkFile) {
 	if workFile.Go != nil {
 		f.Go = workFile.Go.Version
 	}
-	for _, d := range workFile.Directory {
-		f.Directory = append(f.Directory, directoryJSON{DiskPath: d.Path, ModPath: d.ModulePath})
+	for _, d := range workFile.Use {
+		f.Use = append(f.Use, useJSON{DiskPath: d.Path, ModPath: d.ModulePath})
 	}
 
 	for _, r := range workFile.Replace {
@@ -304,12 +304,12 @@ func editPrintJSON(workFile *modfile.WorkFile) {
 
 // workfileJSON is the -json output data structure.
 type workfileJSON struct {
-	Go        string `json:",omitempty"`
-	Directory []directoryJSON
-	Replace   []replaceJSON
+	Go      string `json:",omitempty"`
+	Use     []useJSON
+	Replace []replaceJSON
 }
 
-type directoryJSON struct {
+type useJSON struct {
 	DiskPath string
 	ModPath  string `json:",omitempty"`
 }

@@ -609,7 +609,7 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string, 
 		f.Go = &Go{Syntax: line}
 		f.Go.Version = args[0]
 
-	case "directory":
+	case "use":
 		if len(args) != 1 {
 			errorf("usage: %s local/dir", verb)
 			return
@@ -619,7 +619,7 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string, 
 			errorf("invalid quoted string: %v", err)
 			return
 		}
-		f.Directory = append(f.Directory, &Directory{
+		f.Use = append(f.Use, &Use{
 			Path:   s,
 			Syntax: line,
 		})

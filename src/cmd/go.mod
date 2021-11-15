@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/google/pprof v0.0.0-20211104044539-f987b9c94b31
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670
-	golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a
+	golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c
