@@ -145,28 +145,14 @@ GLOBL bad_cpu_msg<>(SB), RODATA, $84
 
 #endif
 
-#ifdef GOAMD64_v1
-#define SKIP_GOAMD64_CHECK
-#endif
-
-#ifndef GOAMD64_v1
-#ifndef GOAMD64_v2
-#ifndef GOAMD64_v3
-#ifndef GOAMD64_v4
-#define SKIP_GOAMD64_CHECK
-#endif
-#endif
-#endif
-#endif
-
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
 	MOVQ	SI, BX		// argv
-	SUBQ	$(4*8+7), SP		// 2args 2auto
+	SUBQ	$(5*8), SP		// 3args 2auto
 	ANDQ	$~15, SP
-	MOVQ	AX, 16(SP)
-	MOVQ	BX, 24(SP)
+	MOVQ	AX, 24(SP)
+	MOVQ	BX, 32(SP)
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
@@ -181,23 +167,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	MOVL	$0, AX
 	CPUID
 	CMPL	AX, $0
-#ifdef SKIP_GOAMD64_CHECK
 	JE	nocpuinfo
-#else
-	JNE	has_cpuinfo
 
-bad_cpu: // show that the program requires a certain microarchitecture level.
-	MOVQ	$2, 0(SP)
-	MOVQ	$bad_cpu_msg<>(SB), AX
-	MOVQ	AX, 8(SP)
-	MOVQ	$84, 16(SP)
-	CALL	runtime·write(SB)
-	MOVQ	$1, 0(SP)
-	CALL	runtime·exit(SB)
-	CALL	runtime·abort(SB)
-#endif
-
-has_cpuinfo:
 	CMPL	BX, $0x756E6547  // "Genu"
 	JNE	notintel
 	CMPL	DX, $0x49656E69  // "ineI"
@@ -211,44 +182,6 @@ notintel:
 	MOVL	$1, AX
 	CPUID
 	MOVL	AX, runtime·processorVersionInfo(SB)
-
-#ifdef NEED_FEATURES_CX
-	ANDL	$NEED_FEATURES_CX, CX
-	CMPL	CX, $NEED_FEATURES_CX
-	JNE	bad_cpu
-#endif
-
-#ifdef NEED_MAX_CPUID
-	MOVL	$0x80000000, AX
-	CPUID
-	CMPL	AX, $NEED_MAX_CPUID
-	JL	bad_cpu
-#endif
-
-#ifdef NEED_EXT_FEATURES_BX
-	MOVL	$7, AX
-	MOVL	$0, CX
-	CPUID
-	ANDL	$NEED_EXT_FEATURES_BX, BX
-	CMPL	BX, $NEED_EXT_FEATURES_BX
-	JNE	bad_cpu
-#endif
-
-#ifdef NEED_EXT_FEATURES_CX
-	MOVL	$0x80000001, AX
-	CPUID
-	ANDL	$NEED_EXT_FEATURES_CX, CX
-	CMPL	CX, $NEED_EXT_FEATURES_CX
-	JNE	bad_cpu
-#endif
-
-#ifdef NEED_OS_SUPPORT_AX
-	XORL    CX, CX
-	XGETBV
-	ANDL	$NEED_OS_SUPPORT_AX, AX
-	CMPL	AX, $NEED_OS_SUPPORT_AX
-	JNE	bad_cpu
-#endif
 
 nocpuinfo:
 	// if there is an _cgo_init, call it.
@@ -330,11 +263,59 @@ ok:
 	MOVQ	AX, g_m(CX)
 
 	CLD				// convention is D is always left cleared
+
+	// Check GOAMD64 reqirements
+	// We need to do this after setting up TLS, so that
+	// we can report an error if there is a failure. See issue 49586.
+#ifdef NEED_FEATURES_CX
+	MOVL	$0, AX
+	CPUID
+	CMPL	AX, $0
+	JE	bad_cpu
+	MOVL	$1, AX
+	CPUID
+	ANDL	$NEED_FEATURES_CX, CX
+	CMPL	CX, $NEED_FEATURES_CX
+	JNE	bad_cpu
+#endif
+
+#ifdef NEED_MAX_CPUID
+	MOVL	$0x80000000, AX
+	CPUID
+	CMPL	AX, $NEED_MAX_CPUID
+	JL	bad_cpu
+#endif
+
+#ifdef NEED_EXT_FEATURES_BX
+	MOVL	$7, AX
+	MOVL	$0, CX
+	CPUID
+	ANDL	$NEED_EXT_FEATURES_BX, BX
+	CMPL	BX, $NEED_EXT_FEATURES_BX
+	JNE	bad_cpu
+#endif
+
+#ifdef NEED_EXT_FEATURES_CX
+	MOVL	$0x80000001, AX
+	CPUID
+	ANDL	$NEED_EXT_FEATURES_CX, CX
+	CMPL	CX, $NEED_EXT_FEATURES_CX
+	JNE	bad_cpu
+#endif
+
+#ifdef NEED_OS_SUPPORT_AX
+	XORL    CX, CX
+	XGETBV
+	ANDL	$NEED_OS_SUPPORT_AX, AX
+	CMPL	AX, $NEED_OS_SUPPORT_AX
+	JNE	bad_cpu
+#endif
+
 	CALL	runtime·check(SB)
 
-	MOVL	16(SP), AX		// copy argc
+	MOVL	24(SP), AX		// copy argc
 	MOVL	AX, 0(SP)
-	MOVQ	24(SP), AX		// copy argv
+	MOVQ	32(SP), AX		// copy argv
 	MOVQ	AX, 8(SP)
 	CALL	runtime·args(SB)
 	CALL	runtime·osinit(SB)
@@ -350,6 +331,17 @@ ok:
 	CALL	runtime·mstart(SB)
 
 	CALL	runtime·abort(SB)	// mstart should never return
+	RET
+
+bad_cpu: // show that the program requires a certain microarchitecture level.
+	MOVQ	$2, 0(SP)
+	MOVQ	$bad_cpu_msg<>(SB), AX
+	MOVQ	AX, 8(SP)
+	MOVQ	$84, 16(SP)
+	CALL	runtime·write(SB)
+	MOVQ	$1, 0(SP)
+	CALL	runtime·exit(SB)
+	CALL	runtime·abort(SB)
 	RET
 
 	// Prevent dead-code elimination of debugCallV2, which is
