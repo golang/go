@@ -174,18 +174,17 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 	// type set of V is not empty
 
 	// No type with non-empty type set satisfies the empty type set.
-	// TODO(gri) should use "implements" rather than "satisfies" throughout
 	if Ti.typeSet().IsEmpty() {
-		return errorf("%s does not satisfy %s (constraint type set is empty)", V, T)
+		return errorf("cannot implement %s (empty type set)", T)
 	}
 
 	// If T is comparable, V must be comparable.
-	// TODO(gri) the error messages needs to be better, here
+	// TODO(gri) the error messages could be better, here
 	if Ti.IsComparable() && !Comparable(V) {
-		if Vi != nil && Vi.typeSet().IsAll() {
-			return errorf("%s has no constraints", V)
+		if Vi != nil && Vi.Empty() {
+			return errorf("empty interface %s does not implement %s", V, T)
 		}
-		return errorf("%s does not satisfy comparable", V)
+		return errorf("%s does not implement comparable", V)
 	}
 
 	// V must implement T (methods)
@@ -195,15 +194,15 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
 			//           (print warning for now)
 			// Old warning:
-			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", V, T, Ti, m)
+			// check.softErrorf(pos, "%s does not implement %s (warning: name not updated) = %s (missing method %s)", V, T, Ti, m)
 			if wrong != nil {
 				// TODO(gri) This can still report uninstantiated types which makes the error message
 				//           more difficult to read then necessary.
-				return errorf("%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
+				return errorf("%s does not implement %s: wrong method signature\n\tgot  %s\n\twant %s",
 					V, T, wrong, m,
 				)
 			}
-			return errorf("%s does not satisfy %s (missing method %s)", V, T, m.name)
+			return errorf("%s does not implement %s (missing method %s)", V, T, m.name)
 		}
 	}
 
@@ -219,7 +218,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 	if Vi != nil {
 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
 			// TODO(gri) report which type is missing
-			return errorf("%s does not satisfy %s", V, T)
+			return errorf("%s does not implement %s", V, T)
 		}
 		return nil
 	}
@@ -227,7 +226,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 	// Otherwise, V's type must be included in the iface type set.
 	if !Ti.typeSet().includes(V) {
 		// TODO(gri) report which type is missing
-		return errorf("%s does not satisfy %s", V, T)
+		return errorf("%s does not implement %s", V, T)
 	}
 
 	return nil

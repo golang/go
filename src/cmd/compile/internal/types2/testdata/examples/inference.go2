@@ -97,7 +97,7 @@ func _() {
 	// last.
 	related2(1.2, []float64{})
 	related2(1.0, []int{})
-	related2( /* ERROR does not satisfy */ float64(1.0), []int{}) // TODO(gri) fix error position
+	related2( /* ERROR does not implement */ float64(1.0), []int{}) // TODO(gri) fix error position
 }
 
 type List[P any] []P

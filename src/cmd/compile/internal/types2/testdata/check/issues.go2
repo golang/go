@@ -58,7 +58,7 @@ func _() {
 type T1[P interface{~uint}] struct{}
 
 func _[P any]() {
-    _ = T1[P /* ERROR P has no constraints */ ]{}
+    _ = T1[P /* ERROR empty interface P does not implement interface{~uint} */ ]{}
 }
 
 // This is the original (simplified) program causing the same issue.
@@ -74,8 +74,8 @@ func (u T2[U]) Add1() U {
     return u.s + 1
 }
 
-func NewT2[U any]() T2[U /* ERROR U has no constraints */ ] {
-    return T2[U /* ERROR U has no constraints */ ]{}
+func NewT2[U any]() T2[U /* ERROR empty interface U does not implement Unsigned */ ] {
+    return T2[U /* ERROR empty interface U does not implement Unsigned */ ]{}
 }
 
 func _() {
