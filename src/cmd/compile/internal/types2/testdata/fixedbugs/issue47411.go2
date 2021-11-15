@@ -15,12 +15,12 @@ func _[P comparable,
         _ = f[int]
         _ = f[P]
         _ = f[Q]
-        _ = f[func( /* ERROR does not satisfy comparable */ )]
-        _ = f[R /* ERROR R has no constraints */ ]
+        _ = f[func( /* ERROR does not implement comparable */ )]
+        _ = f[R /* ERROR empty interface R does not implement comparable */ ]
 
         _ = g[int]
-        _ = g[P /* ERROR P does not satisfy interface{interface{comparable; ~int\|~string} */ ]
+        _ = g[P /* ERROR P does not implement interface{interface{comparable; ~int\|~string} */ ]
         _ = g[Q]
-        _ = g[func( /* ERROR does not satisfy comparable */ )]
-        _ = g[R /* ERROR R has no constraints */ ]
+        _ = g[func( /* ERROR does not implement comparable */ )]
+        _ = g[R /* ERROR empty interface R does not implement interface{interface{comparable; ~int\|~string} */ ]
 }

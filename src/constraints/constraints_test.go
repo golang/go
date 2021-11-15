@@ -105,7 +105,7 @@ func TestFailure(t *testing.T) {
 				t.Error("build succeeded, but expected to fail")
 			} else if len(out) > 0 {
 				t.Logf("%s", out)
-				const want = "does not satisfy"
+				const want = "does not implement"
 				if !bytes.Contains(out, []byte(want)) {
 					t.Errorf("output does not include %q", want)
 				}
