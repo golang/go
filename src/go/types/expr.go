@@ -1432,6 +1432,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		if x.mode == invalid {
 			goto Error
 		}
+		// TODO(gri) we may want to permit type assertions on type parameter values at some point
+		if isTypeParam(x.typ) {
+			check.invalidOp(x, _InvalidAssert, "cannot use type assertion on type parameter value %s", x)
+			goto Error
+		}
 		xtyp, _ := under(x.typ).(*Interface)
 		if xtyp == nil {
 			check.invalidOp(x, _InvalidAssert, "%s is not an interface", x)

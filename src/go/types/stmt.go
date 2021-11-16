@@ -685,6 +685,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if x.mode == invalid {
 			return
 		}
+		// TODO(gri) we may want to permit type switches on type parameter values at some point
+		if isTypeParam(x.typ) {
+			check.errorf(&x, _InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
+			return
+		}
 		xtyp, _ := under(x.typ).(*Interface)
 		if xtyp == nil {
 			check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
