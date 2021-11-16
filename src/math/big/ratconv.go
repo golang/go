@@ -113,7 +113,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 
 	// special-case 0 (see also issue #16176)
 	if len(z.a.abs) == 0 {
-		return z, true
+		return z.norm(), true
 	}
 	// len(z.a.abs) > 0
 
