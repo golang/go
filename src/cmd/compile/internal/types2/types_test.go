@@ -7,6 +7,3 @@ package types2
 func init() {
 	acceptMethodTypeParams = true
 }
-
-// Debug is set if types2 is built with debug mode enabled.
-const Debug = debug
