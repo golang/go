@@ -69,7 +69,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	// Funcs with m.instRecv set have not yet be completed. Complete them now
 	// so that they have a type when objDecl exits.
 	if m, _ := obj.(*Func); m != nil && m.instRecv != nil {
-		check.completeMethod(check.conf.Context, m)
+		check.completeMethod(nil, m)
 	}
 
 	// Checking the declaration of obj means inferring its type

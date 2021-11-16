@@ -103,6 +103,7 @@ type Checker struct {
 	// package information
 	// (initialized by NewChecker, valid for the life-time of checker)
 	conf *Config
+	ctxt *Context // context for de-duplicating instances
 	pkg  *Package
 	*Info
 	version version                // accepted language version
@@ -200,11 +201,6 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 		conf = new(Config)
 	}
 
-	// make sure we have a context
-	if conf.Context == nil {
-		conf.Context = NewContext()
-	}
-
 	// make sure we have an info struct
 	if info == nil {
 		info = new(Info)
@@ -217,6 +213,7 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 
 	return &Checker{
 		conf:    conf,
+		ctxt:    conf.Context,
 		pkg:     pkg,
 		Info:    info,
 		version: version,
@@ -333,6 +330,7 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 	check.seenPkgMap = nil
 	check.recvTParamMap = nil
 	check.defTypes = nil
+	check.ctxt = nil
 
 	// TODO(gri) There's more memory we should release at this point.
 
