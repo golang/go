@@ -96,14 +96,11 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 
 // exportCertificate returns a *Certificate for a SecCertificateRef.
 func exportCertificate(cert macOS.CFRef) (*Certificate, error) {
-	data, err := macOS.SecItemExport(cert)
+	data, err := macOS.SecCertificateCopyData(cert)
 	if err != nil {
 		return nil, err
 	}
-	defer macOS.CFRelease(data)
-	der := macOS.CFDataToSlice(data)
-
-	return ParseCertificate(der)
+	return ParseCertificate(data)
 }
 
 func loadSystemRoots() (*CertPool, error) {
