@@ -27,10 +27,47 @@ func under(t Type) Type {
 	return t
 }
 
-// If the argument to asNamed, or asTypeParam is of the respective type
-// (possibly after resolving a *Named type), these methods return that type.
-// Otherwise the result is nil.
+// If typ is a type parameter, structuralType returns the single underlying
+// type of all types in the corresponding type constraint if it exists,
+// or nil otherwise. If typ is not a type parameter, structuralType returns
+// the underlying type.
+func structuralType(typ Type) Type {
+	var su Type
+	if underIs(typ, func(u Type) bool {
+		if su != nil && !Identical(su, u) {
+			return false
+		}
+		// su == nil || Identical(su, u)
+		su = u
+		return true
+	}) {
+		return su
+	}
+	return nil
+}
 
+// structuralString is like structuralType but also considers []byte
+// and string as "identical". In this case, if successful, the result
+// is always []byte.
+func structuralString(typ Type) Type {
+	var su Type
+	if underIs(typ, func(u Type) bool {
+		if isString(u) {
+			u = NewSlice(universeByte)
+		}
+		if su != nil && !Identical(su, u) {
+			return false
+		}
+		// su == nil || Identical(su, u)
+		su = u
+		return true
+	}) {
+		return su
+	}
+	return nil
+}
+
+// If t is a defined type, asNamed returns that type (possibly after resolving it), otherwise it returns nil.
 func asNamed(t Type) *Named {
 	e, _ := t.(*Named)
 	if e != nil {
@@ -39,6 +76,7 @@ func asNamed(t Type) *Named {
 	return e
 }
 
+// If t is a type parameter, asTypeParam returns that type, otherwise it returns nil.
 func asTypeParam(t Type) *TypeParam {
 	u, _ := under(t).(*TypeParam)
 	return u
