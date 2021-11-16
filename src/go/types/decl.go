@@ -669,10 +669,11 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	}
 
 	// Disallow a lone type parameter as the RHS of a type declaration (issue #45639).
-	// We can look directly at named.underlying because even if it is still a *Named
-	// type (underlying not fully resolved yet) it cannot become a type parameter due
-	// to this very restriction.
-	if tpar, _ := named.underlying.(*TypeParam); tpar != nil {
+	// We don't need this restriction anymore if we make the underlying type of a type
+	// parameter its constraint interface: if the RHS is a lone type parameter, we will
+	// use its underlying type (like we do for any RHS in a type declaration), and its
+	// underlying type is an interface and the type declaration is well defined.
+	if isTypeParam(rhs) {
 		check.error(tdecl.Type, _MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
 		named.underlying = Typ[Invalid]
 	}
@@ -723,7 +724,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 
 	check.later(func() {
 		for i, bound := range bounds {
-			if _, ok := under(bound).(*TypeParam); ok {
+			if isTypeParam(bound) {
 				check.error(posns[i], _MisplacedTypeParam, "cannot use a type parameter as constraint")
 			}
 		}

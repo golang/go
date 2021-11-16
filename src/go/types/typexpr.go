@@ -337,7 +337,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		check.later(func() {
 			if !Comparable(typ.key) {
 				var why string
-				if asTypeParam(typ.key) != nil {
+				if isTypeParam(typ.key) {
 					why = " (missing comparable constraint)"
 				}
 				check.errorf(e.Key, _IncomparableMapKey, "incomparable map key type %s%s", typ.key, why)

@@ -289,10 +289,6 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 				continue // ignore invalid unions
 			}
 			terms = tset.terms
-		case *TypeParam:
-			// Embedding stand-alone type parameters is not permitted.
-			// Union parsing reports a (delayed) error, so we can ignore this entry.
-			continue
 		default:
 			if u == Typ[Invalid] {
 				continue
@@ -370,10 +366,6 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
 		switch u := under(t.typ).(type) {
 		case *Interface:
 			terms = computeInterfaceTypeSet(check, pos, u).terms
-		case *TypeParam:
-			// A stand-alone type parameters is not permitted as union term.
-			// Union parsing reports a (delayed) error, so we can ignore this entry.
-			continue
 		default:
 			if t.typ == Typ[Invalid] {
 				continue
