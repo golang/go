@@ -980,17 +980,18 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		gp.trackingSeq++
 	}
 	if gp.tracking {
-		now := nanotime()
 		if oldval == _Grunnable {
 			// We transitioned out of runnable, so measure how much
 			// time we spent in this state and add it to
 			// runnableTime.
+			now := nanotime()
 			gp.runnableTime += now - gp.runnableStamp
 			gp.runnableStamp = 0
 		}
 		if newval == _Grunnable {
 			// We just transitioned into runnable, so record what
 			// time that happened.
+			now := nanotime()
 			gp.runnableStamp = now
 		} else if newval == _Grunning {
 			// We're transitioning into running, so turn off
