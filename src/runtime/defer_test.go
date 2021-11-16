@@ -467,7 +467,6 @@ func TestIssue43920(t *testing.T) {
 }
 
 func step(t *testing.T, steps *int, want int) {
-	println("step", want)
 	*steps++
 	if *steps != want {
 		t.Fatalf("have %v, want %v", *steps, want)
