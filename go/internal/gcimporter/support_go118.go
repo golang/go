@@ -16,5 +16,8 @@ func additionalPredeclared() []types.Type {
 	return []types.Type{
 		// comparable
 		types.Universe.Lookup("comparable").Type(),
+
+		// any
+		types.Universe.Lookup("any").Type(),
 	}
 }

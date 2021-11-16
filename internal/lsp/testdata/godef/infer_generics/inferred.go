@@ -1,6 +1,6 @@
 package inferred
 
-func app[S interface{ ~[]E }, E any](s S, e E) S {
+func app[S interface{ ~[]E }, E interface{}](s S, e E) S {
 	return append(s, e)
 }
 
