@@ -174,29 +174,26 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 		return
 
 	case token.ARROW:
-		var elem Type
-		if !underIs(x.typ, func(u Type) bool {
-			ch, _ := u.(*Chan)
-			if ch == nil {
-				check.invalidOp(x, _InvalidReceive, "cannot receive from non-channel %s", x)
-				return false
-			}
-			if ch.dir == SendOnly {
-				check.invalidOp(x, _InvalidReceive, "cannot receive from send-only channel %s", x)
-				return false
-			}
-			if elem != nil && !Identical(ch.elem, elem) {
-				check.invalidOp(x, _InvalidReceive, "channels of %s must have the same element type", x)
-				return false
-			}
-			elem = ch.elem
-			return true
-		}) {
+		u := structuralType(x.typ)
+		if u == nil {
+			check.invalidOp(x, _InvalidReceive, "cannot receive from %s: no structural type", x)
 			x.mode = invalid
 			return
 		}
+		ch, _ := u.(*Chan)
+		if ch == nil {
+			check.invalidOp(x, _InvalidReceive, "cannot receive from non-channel %s", x)
+			x.mode = invalid
+			return
+		}
+		if ch.dir == SendOnly {
+			check.invalidOp(x, _InvalidReceive, "cannot receive from send-only channel %s", x)
+			x.mode = invalid
+			return
+		}
+
 		x.mode = commaok
-		x.typ = elem
+		x.typ = ch.elem
 		check.hasCallOrRecv = true
 		return
 	}

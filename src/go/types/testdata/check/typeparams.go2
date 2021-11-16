@@ -210,7 +210,7 @@ func _[
         for _, _ /* ERROR permits only one iteration variable */ = range c1 {}
 
         var c2 C2
-        for range c2 /* ERROR cannot range over c2.*no structural type */ {}
+        for range c2 {}
 
         var c3 C3
         for range c3 /* ERROR receive from send-only channel */ {}
