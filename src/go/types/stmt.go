@@ -832,12 +832,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// determine key/value types
 		var key, val Type
 		if x.mode != invalid {
-			// Ranging over a type parameter is permitted if it has a single underlying type.
+			// Ranging over a type parameter is permitted if it has a structural type.
 			var cause string
 			u := structuralType(x.typ)
 			switch t := u.(type) {
 			case nil:
-				cause = "type set has no single underlying type"
+				cause = check.sprintf("%s has no structural type", x.typ)
 			case *Chan:
 				if s.Value != nil {
 					check.softErrorf(s.Value, _InvalidIterVar, "range over %s permits only one iteration variable", &x)
