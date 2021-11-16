@@ -1194,8 +1194,10 @@ func ctrlHandler(_type uint32) uintptr {
 	if sigsend(s) {
 		if s == _SIGTERM {
 			// Windows terminates the process after this handler returns.
-			// Block indefinitely to give signal handlers a chance to clean up.
-			stdcall1(_Sleep, uintptr(_INFINITE))
+			// Block indefinitely to give signal handlers a chance to clean up,
+			// but make sure to be properly parked first, so the rest of the
+			// program can continue executing.
+			block()
 		}
 		return 1
 	}
