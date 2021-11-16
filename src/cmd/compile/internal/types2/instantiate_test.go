@@ -10,27 +10,98 @@ import (
 )
 
 func TestInstantiateEquality(t *testing.T) {
-	const src = "package p; type T[P any] int"
-	pkg, err := pkgFor(".", src, nil)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		src       string
+		name1     string
+		targs1    []Type
+		name2     string
+		targs2    []Type
+		wantEqual bool
+	}{
+		{
+			"package basictype; type T[P any] int",
+			"T", []Type{Typ[Int]},
+			"T", []Type{Typ[Int]},
+			true,
+		},
+		{
+			"package differenttypeargs; type T[P any] int",
+			"T", []Type{Typ[Int]},
+			"T", []Type{Typ[String]},
+			false,
+		},
+		{
+			"package typeslice; type T[P any] int",
+			"T", []Type{NewSlice(Typ[Int])},
+			"T", []Type{NewSlice(Typ[Int])},
+			true,
+		},
+		{
+			"package basicfunc; func F[P any]() {}",
+			"F", []Type{Typ[Int]},
+			"F", []Type{Typ[Int]},
+			true,
+		},
+		{
+			"package funcslice; func F[P any]() {}",
+			"F", []Type{NewSlice(Typ[Int])},
+			"F", []Type{NewSlice(Typ[Int])},
+			true,
+		},
+		{
+			"package funcwithparams; func F[P any](x string) float64 { return 0 }",
+			"F", []Type{Typ[Int]},
+			"F", []Type{Typ[Int]},
+			true,
+		},
+		{
+			"package differentfuncargs; func F[P any](x string) float64 { return 0 }",
+			"F", []Type{Typ[Int]},
+			"F", []Type{Typ[String]},
+			false,
+		},
+		{
+			"package funcequality; func F1[P any](x int) {}; func F2[Q any](x int) {}",
+			"F1", []Type{Typ[Int]},
+			"F2", []Type{Typ[Int]},
+			false,
+		},
+		{
+			"package funcsymmetry; func F1[P any](x P) {}; func F2[Q any](x Q) {}",
+			"F1", []Type{Typ[Int]},
+			"F2", []Type{Typ[Int]},
+			false,
+		},
 	}
-	T := pkg.Scope().Lookup("T").Type().(*Named)
-	// Instantiating the same type twice should result in pointer-equivalent
-	// instances.
-	ctxt := NewContext()
-	res1, err := Instantiate(ctxt, T, []Type{Typ[Int]}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res2, err := Instantiate(ctxt, T, []Type{Typ[Int]}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res1 != res2 {
-		t.Errorf("first instance (%s) not pointer-equivalent to second instance (%s)", res1, res2)
+
+	for _, test := range tests {
+		pkg, err := pkgFor(".", test.src, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run(pkg.Name(), func(t *testing.T) {
+			ctxt := NewContext()
+
+			T1 := pkg.Scope().Lookup(test.name1).Type()
+			res1, err := Instantiate(ctxt, T1, test.targs1, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			T2 := pkg.Scope().Lookup(test.name2).Type()
+			res2, err := Instantiate(ctxt, T2, test.targs2, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if gotEqual := res1 == res2; gotEqual != test.wantEqual {
+				t.Errorf("%s == %s: %t, want %t", res1, res2, gotEqual, test.wantEqual)
+			}
+		})
 	}
 }
+
 func TestInstantiateNonEquality(t *testing.T) {
 	const src = "package p; type T[P any] int"
 	pkg1, err := pkgFor(".", src, nil)
