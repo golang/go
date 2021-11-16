@@ -78,7 +78,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
 		}()
 	}
 
-	inst := check.instance(pos, typ, targs, check.conf.Context).(*Signature)
+	inst := check.instance(pos, typ, targs, check.bestContext(nil)).(*Signature)
 	assert(len(posList) <= len(targs))
 	tparams := typ.TypeParams().list()
 	if i, err := check.verify(pos, tparams, targs); err != nil {
