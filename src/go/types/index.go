@@ -211,7 +211,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch u := structure(x.typ).(type) {
+	switch u := structuralType(x.typ).(type) {
 	case nil:
 		check.errorf(x, _NonSliceableOperand, "cannot slice %s: type set has no single underlying type", x)
 		x.mode = invalid
