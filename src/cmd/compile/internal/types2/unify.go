@@ -9,6 +9,7 @@ package types2
 import (
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 )
 
 // The unifier maintains two separate sets of type parameters x and y
@@ -161,6 +162,12 @@ func (d *tparamsList) index(typ Type) int {
 // If tpar is a type parameter in list, tparamIndex returns the type parameter index.
 // Otherwise, the result is < 0. tpar must not be nil.
 func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+	// Temporary work-around for getting around a crash
+	// with unified build.
+	// TODO(gri) investigate and implement proper fix
+	if buildcfg.Experiment.Unified && tpar.index < 0 {
+		return -1
+	}
 	if i := tpar.index; i < len(list) && list[i] == tpar {
 		return i
 	}
