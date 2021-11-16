@@ -88,9 +88,3 @@ func asNamed(t Type) *Named {
 	}
 	return e
 }
-
-// If t is a type parameter, asTypeParam returns that type, otherwise it returns nil.
-func asTypeParam(t Type) *TypeParam {
-	u, _ := under(t).(*TypeParam)
-	return u
-}

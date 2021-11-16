@@ -298,7 +298,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// the argument types must be of floating-point type
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
-			assert(asTypeParam(typ) == nil)
+			assert(!isTypeParam(typ))
 			if t, _ := under(typ).(*Basic); t != nil {
 				switch t.kind {
 				case Float32:
@@ -441,7 +441,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// the argument must be of complex type
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
-			assert(asTypeParam(typ) == nil)
+			assert(!isTypeParam(typ))
 			if t, _ := under(typ).(*Basic); t != nil {
 				switch t.kind {
 				case Complex64:
@@ -822,7 +822,7 @@ func hasVarSize(t Type) bool {
 // applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
 func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
-	if tp := asTypeParam(x); tp != nil {
+	if tp, _ := x.(*TypeParam); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var terms []*Term
