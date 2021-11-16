@@ -8,7 +8,7 @@ require (
 	golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
-	golang.org/x/tools v0.1.8-0.20211109164901-e9000123914f
+	golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c
 )
 
 require (
