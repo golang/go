@@ -95,7 +95,8 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 	// The interrupter goroutine waits for the context to be done and
 	// interrupts the dial (by altering the fd's write deadline, which
 	// wakes up waitWrite).
-	if ctxDone := ctx.Done(); ctxDone != nil {
+	ctxDone := ctx.Done()
+	if ctxDone != nil {
 		// Wait for the interrupter goroutine to exit before returning
 		// from connect.
 		done := make(chan struct{})
@@ -139,7 +140,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 		// details.
 		if err := fd.pfd.WaitWrite(); err != nil {
 			select {
-			case <-ctx.Done():
+			case <-ctxDone:
 				return nil, mapErr(ctx.Err())
 			default:
 			}
