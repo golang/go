@@ -68,17 +68,26 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// skip whitelisted types
 			return
 		}
-		terms, err := typeparams.StructuralTerms(typ)
-		if err != nil {
-			return // invalid type
+		var structuralTypes []types.Type
+		switch typ := typ.(type) {
+		case *typeparams.TypeParam:
+			terms, err := typeparams.StructuralTerms(typ)
+			if err != nil {
+				return // invalid type
+			}
+			for _, term := range terms {
+				structuralTypes = append(structuralTypes, term.Type())
+			}
+		default:
+			structuralTypes = append(structuralTypes, typ)
 		}
-		for _, term := range terms {
-			under := deref(term.Type().Underlying())
+		for _, typ := range structuralTypes {
+			under := deref(typ.Underlying())
 			if _, ok := under.(*types.Struct); !ok {
 				// skip non-struct composite literals
 				continue
 			}
-			if isLocalType(pass, term.Type()) {
+			if isLocalType(pass, typ) {
 				// allow unkeyed locally defined composite literal
 				continue
 			}
