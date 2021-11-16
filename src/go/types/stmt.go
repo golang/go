@@ -834,7 +834,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if x.mode != invalid {
 			// Ranging over a type parameter is permitted if it has a single underlying type.
 			var cause string
-			u := structure(x.typ)
+			u := structuralType(x.typ)
 			switch t := u.(type) {
 			case nil:
 				cause = "type set has no single underlying type"

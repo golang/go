@@ -377,7 +377,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 
 	// If a constraint has a structural type, unify the corresponding type parameter with it.
 	for _, tpar := range tparams {
-		sbound := structure(tpar)
+		sbound := structuralType(tpar)
 		if sbound != nil {
 			// If the structural type is the underlying type of a single
 			// defined type in the constraint, use that defined type instead.
