@@ -239,7 +239,7 @@ loop:
 			// If we reach a generic type that is part of a cycle
 			// and we are in a type parameter list, we have a cycle
 			// through a type parameter list, which is invalid.
-			if check.environment.inTParamList && isGeneric(obj.typ) {
+			if check.inTParamList && isGeneric(obj.typ) {
 				tparCycle = true
 				break loop
 			}
