@@ -2014,6 +2014,20 @@ func TestInstantiateErrors(t *testing.T) {
 	}
 }
 
+func TestArgumentErrorUnwrapping(t *testing.T) {
+	var err error = &ArgumentError{
+		Index: 1,
+		Err:   Error{Msg: "test"},
+	}
+	var e Error
+	if !errors.As(err, &e) {
+		t.Fatalf("error %v does not wrap types.Error", err)
+	}
+	if e.Msg != "test" {
+		t.Errorf("e.Msg = %q, want %q", e.Msg, "test")
+	}
+}
+
 func TestInstanceIdentity(t *testing.T) {
 	imports := make(testImporter)
 	conf := Config{Importer: imports}
