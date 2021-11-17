@@ -149,7 +149,9 @@ func hasNil(t Type) bool {
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
 		return true
 	case *TypeParam:
-		return u.underIs(hasNil)
+		return u.underIs(func(u Type) bool {
+			return u != nil && hasNil(u)
+		})
 	}
 	return false
 }
