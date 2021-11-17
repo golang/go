@@ -549,7 +549,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 		}
 	}
 
-	check.initVars(lhs, []syntax.Expr{init}, nopos)
+	check.initVars(lhs, []syntax.Expr{init}, nil)
 }
 
 // isImportedConstraint reports whether typ is an imported type constraint.
