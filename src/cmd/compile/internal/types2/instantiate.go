@@ -24,8 +24,8 @@ import (
 // instances with the same identity.
 //
 // If verify is set and constraint satisfaction fails, the returned error may
-// be of dynamic type ArgumentError indicating which type argument did not
-// satisfy its corresponding type parameter constraint, and why.
+// wrap an *ArgumentError indicating which type argument did not satisfy its
+// corresponding type parameter constraint, and why.
 //
 // TODO(rfindley): change this function to also return an error if lengths of
 // tparams and targs do not match.
@@ -42,7 +42,7 @@ func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, er
 			tparams = t.TypeParams().list()
 		}
 		if i, err := (*Checker)(nil).verify(nopos, tparams, targs); err != nil {
-			return inst, ArgumentError{i, err}
+			return inst, &ArgumentError{i, err}
 		}
 	}
 
