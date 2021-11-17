@@ -68,10 +68,19 @@ func (check *Checker) conversion(x *operand, T Type) {
 
 	if !ok {
 		// TODO(rfindley): use types2-style error reporting here.
-		if cause != "" {
-			check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, cause)
+		if compilerErrorMessages {
+			if cause != "" {
+				// Add colon at end of line if we have a following cause.
+				check.errorf(x, _InvalidConversion, "cannot convert %s to type %s:\n\t%s", x, T, cause)
+			} else {
+				check.errorf(x, _InvalidConversion, "cannot convert %s to type %s", x, T)
+			}
 		} else {
-			check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
+			if cause != "" {
+				check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, cause)
+			} else {
+				check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
+			}
 		}
 		x.mode = invalid
 		return

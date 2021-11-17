@@ -18,6 +18,10 @@ import (
 const (
 	debug = false // leave on during development
 	trace = false // turn on for detailed type resolution traces
+
+	// TODO(rfindley): add compiler error message handling from types2, guarded
+	// behind this flag, so that we can keep the code in sync.
+	compilerErrorMessages = false // match compiler error messages
 )
 
 // If forceStrict is set, the type-checker enforces additional
