@@ -344,6 +344,11 @@ func bgscavenge(c chan int) {
 				crit += float64(end - start)
 			}
 			released += r
+
+			// When using fake time just do one loop.
+			if faketime != 0 {
+				break
+			}
 		}
 
 		if released == 0 {
