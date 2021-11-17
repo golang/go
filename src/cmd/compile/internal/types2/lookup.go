@@ -71,6 +71,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
 // If checkFold is true, the lookup for methods will include looking for any method
 // which case-folds to the same as 'name' (used for giving helpful error messages).
+//
+// The resulting object may not be fully type-checked.
 func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 
@@ -352,14 +354,17 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		if obj == nil {
 			ptr := NewPointer(V)
 			obj, _, _ = lookupFieldOrMethod(ptr, false, false, m.pkg, m.name)
-			if obj != nil {
-				return m, obj.(*Func)
+			if obj == nil {
+				// If we didn't find the exact method (even with pointer
+				// receiver), look to see if there is a method that
+				// matches m.name with case-folding.
+				obj, _, _ = lookupFieldOrMethod(V, false, true, m.pkg, m.name)
 			}
-			// If we didn't find the exact method (even with pointer
-			// receiver), look to see if there is a method that
-			// matches m.name with case-folding.
-			obj, _, _ := lookupFieldOrMethod(V, false, true, m.pkg, m.name)
 			if obj != nil {
+				// methods may not have a fully set up signature yet
+				if check != nil {
+					check.objDecl(obj, nil)
+				}
 				return m, obj.(*Func)
 			}
 		}
