@@ -29,10 +29,10 @@ func assignments0() (int, int) {
 
 	a, b, c = <- /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ch
 
-	return /* ERROR "wrong number of return values" */
-	return /* ERROR "wrong number of return values" */ 1
+	return /* ERROR "not enough return values\n\thave \(\)\n\twant \(int, int\)" */
+	return 1 /* ERROR "not enough return values\n\thave \(number\)\n\twant \(int, int\)" */
 	return 1, 2
-	return /* ERROR "wrong number of return values" */ 1, 2, 3
+	return 1, 2, 3 /* ERROR "too many return values\n\thave \(number, number, number\)\n\twant \(int, int\)" */
 }
 
 func assignments1() {
@@ -81,12 +81,12 @@ func assignments1() {
 	// test cases for issue 5500
 	_ = func() (int, bool) {
 		var m map[int]int
-		return /* ERROR "wrong number of return values" */ m[0]
+		return m /* ERROR "not enough return values" */ [0]
 	}
 
 	g := func(int, bool){}
 	var m map[int]int
-	g(m[0]) /* ERROR "not enough arguments" */
+	g(m /* ERROR "not enough arguments" */ [0])
 
 	// assignments to _
 	_ = nil /* ERROR "use of untyped nil" */
@@ -380,15 +380,15 @@ func returns0() {
 
 func returns1(x float64) (int, *float64) {
 	return 0, &x
-	return /* ERROR wrong number of return values */
+	return /* ERROR not enough return values */
 	return "foo" /* ERROR "cannot .* in return statement" */, x /* ERROR "cannot use .* in return statement" */
-	return /* ERROR wrong number of return values */ 0, &x, 1
+	return 0, &x, 1 /* ERROR too many return values */
 }
 
 func returns2() (a, b int) {
 	return
 	return 1, "foo" /* ERROR cannot use .* in return statement */
-	return /* ERROR wrong number of return values */ 1, 2, 3
+	return 1, 2, 3 /* ERROR too many return values */
 	{
 		type a int
 		return 1, 2

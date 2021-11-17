@@ -9,6 +9,7 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
+	"strings"
 )
 
 // assignment reports whether x can be assigned to a variable of type T,
@@ -241,6 +242,58 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 	return x.typ
 }
 
+// operandTypes returns the list of types for the given operands.
+func operandTypes(list []*operand) (res []Type) {
+	for _, x := range list {
+		res = append(res, x.typ)
+	}
+	return res
+}
+
+// varTypes returns the list of types for the given variables.
+func varTypes(list []*Var) (res []Type) {
+	for _, x := range list {
+		res = append(res, x.typ)
+	}
+	return res
+}
+
+// typesSummary returns a string of the form "(t1, t2, ...)" where the
+// ti's are user-friendly string representations for the given types.
+// If variadic is set and the last type is a slice, its string is of
+// the form "...E" where E is the slice's element type.
+func (check *Checker) typesSummary(list []Type, variadic bool) string {
+	var res []string
+	for i, t := range list {
+		var s string
+		switch {
+		case t == nil:
+			fallthrough // should not happend but be cautious
+		case t == Typ[Invalid]:
+			s = "<T>"
+		case isUntyped(t):
+			if isNumeric(t) {
+				// Do not imply a specific type requirement:
+				// "have number, want float64" is better than
+				// "have untyped int, want float64" or
+				// "have int, want float64".
+				s = "number"
+			} else {
+				// If we don't have a number, omit the "untyped" qualifier
+				// for compactness.
+				s = strings.Replace(t.(*Basic).name, "untyped ", "", -1)
+			}
+		case variadic && i == len(list)-1:
+			s = check.sprintf("...%s", t.(*Slice).elem)
+		}
+		if s == "" {
+			s = check.sprintf("%s", t)
+		}
+		res = append(res, s)
+	}
+	return "(" + strings.Join(res, ", ") + ")"
+}
+
 func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
 	measure := func(x int, unit string) string {
 		s := fmt.Sprintf("%d %s", x, unit)
@@ -263,10 +316,10 @@ func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
 	check.errorf(rhs0, "assignment mismatch: %s but %s", vars, vals)
 }
 
-// If returnPos is valid, initVars is called to type-check the assignment of
-// return expressions, and returnPos is the position of the return statement.
-func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syntax.Pos) {
-	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2 && !returnPos.IsKnown())
+// If returnStmt != nil, initVars is called to type-check the assignment
+// of return expressions, and returnStmt is the the return statement.
+func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt syntax.Stmt) {
+	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2 && returnStmt == nil)
 
 	if len(lhs) != len(rhs) {
 		// invalidate lhs
@@ -282,8 +335,20 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
 				return
 			}
 		}
-		if returnPos.IsKnown() {
-			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", len(lhs), len(rhs))
+		if returnStmt != nil {
+			var at poser = returnStmt
+			qualifier := "not enough"
+			if len(rhs) > len(lhs) {
+				at = rhs[len(lhs)].expr // report at first extra value
+				qualifier = "too many"
+			} else if len(rhs) > 0 {
+				at = rhs[len(rhs)-1].expr // report at last value
+			}
+			var err error_
+			err.errorf(at, "%s return values", qualifier)
+			err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
+			err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
+			check.report(&err)
 			return
 		}
 		if check.conf.CompilerErrorMessages {
@@ -295,7 +360,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
 	}
 
 	context := "assignment"
-	if returnPos.IsKnown() {
+	if returnStmt != nil {
 		context = "return statement"
 	}
 
@@ -449,7 +514,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 		}
 	}
 
-	check.initVars(lhsVars, rhs, nopos)
+	check.initVars(lhsVars, rhs, nil)
 
 	// process function literals in rhs expressions before scope changes
 	check.processDelayed(top)

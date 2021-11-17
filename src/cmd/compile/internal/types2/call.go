@@ -350,12 +350,25 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	}
 
 	// check argument count
-	switch {
-	case nargs < npars:
-		check.errorf(call, "not enough arguments in call to %s", call.Fun)
-		return
-	case nargs > npars:
-		check.errorf(args[npars], "too many arguments in call to %s", call.Fun) // report at first extra argument
+	if nargs != npars {
+		var at poser = call
+		qualifier := "not enough"
+		if nargs > npars {
+			at = args[npars].expr // report at first extra argument
+			qualifier = "too many"
+		} else if nargs > 0 {
+			at = args[nargs-1].expr // report at last argument
+		}
+		// take care of empty parameter lists represented by nil tuples
+		var params []*Var
+		if sig.params != nil {
+			params = sig.params.vars
+		}
+		var err error_
+		err.errorf(at, "%s arguments in call to %s", qualifier, call.Fun)
+		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
+		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+		check.report(&err)
 		return
 	}
 

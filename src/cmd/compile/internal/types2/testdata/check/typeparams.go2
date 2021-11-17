@@ -312,7 +312,7 @@ var _ = f7(1.2, 3 /* ERROR does not match */ )
 
 func f8[A, B any](A, B, ...B) int { panic(0) }
 
-var _ = f8(1) /* ERROR not enough arguments */
+var _ = f8(1 /* ERROR not enough arguments */ )
 var _ = f8(1, 2.3)
 var _ = f8(1, 2.3, 3.4, 4.5)
 var _ = f8(1, 2.3, 3.4, 4 /* ERROR does not match */ )
