@@ -915,6 +915,11 @@ void issue40494(enum Enum40494 e, union Union40494* up) {}
 
 // Issue 45451, bad handling of go:notinheap types.
 typedef struct issue45451Undefined issue45451;
+
+// Issue 49633, example of cgo.Handle with void*.
+extern void GoFunc49633(void*);
+void cfunc49633(void *context) { GoFunc49633(context); }
+
 */
 import "C"
 
