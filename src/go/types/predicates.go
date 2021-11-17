@@ -49,13 +49,10 @@ func allNumericOrString(typ Type) bool { return allBasic(typ, IsNumeric|IsString
 // for all specific types of the type parameter's type set.
 // allBasic(t, info) is an optimized version of isBasic(structuralType(t), info).
 func allBasic(t Type, info BasicInfo) bool {
-	switch u := under(t).(type) {
-	case *Basic:
-		return u.info&info != 0
-	case *TypeParam:
-		return u.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
+	if tpar, _ := t.(*TypeParam); tpar != nil {
+		return tpar.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
 	}
-	return false
+	return isBasic(t, info)
 }
 
 // hasName reports whether t has a name. This includes
@@ -124,7 +121,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 		// assume invalid types to be comparable
 		// to avoid follow-up errors
 		return t.kind != UntypedNil
-	case *Pointer, *Interface, *Chan:
+	case *Pointer, *Chan:
 		return true
 	case *Struct:
 		for _, f := range t.fields {
@@ -135,7 +132,13 @@ func comparable(T Type, seen map[Type]bool) bool {
 		return true
 	case *Array:
 		return comparable(t.elem, seen)
+	case *Interface:
+		if tparamIsIface && isTypeParam(T) {
+			return t.IsComparable()
+		}
+		return true
 	case *TypeParam:
+		assert(!tparamIsIface)
 		return t.iface().IsComparable()
 	}
 	return false
@@ -146,9 +149,17 @@ func hasNil(t Type) bool {
 	switch u := under(t).(type) {
 	case *Basic:
 		return u.kind == UnsafePointer
-	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
+	case *Slice, *Pointer, *Signature, *Map, *Chan:
+		return true
+	case *Interface:
+		if tparamIsIface && isTypeParam(t) {
+			return u.typeSet().underIs(func(u Type) bool {
+				return u != nil && hasNil(u)
+			})
+		}
 		return true
 	case *TypeParam:
+		assert(!tparamIsIface)
 		return u.underIs(func(u Type) bool {
 			return u != nil && hasNil(u)
 		})

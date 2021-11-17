@@ -141,9 +141,15 @@ func (check *Checker) typ(e ast.Expr) Type {
 // constraint interface.
 func (check *Checker) varType(e ast.Expr) Type {
 	typ := check.definedType(e, nil)
-	// We don't want to call under() (via toInterface) or complete interfaces while we
-	// are in the middle of type-checking parameter declarations that might belong to
-	// interface methods. Delay this check to the end of type-checking.
+
+	// If we have a type parameter there's nothing to do.
+	if isTypeParam(typ) {
+		return typ
+	}
+
+	// We don't want to call under() or complete interfaces while we are in
+	// the middle of type-checking parameter declarations that might belong
+	// to interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
 		if t, _ := under(typ).(*Interface); t != nil {
 			tset := computeInterfaceTypeSet(check, e.Pos(), t) // TODO(gri) is this the correct position?

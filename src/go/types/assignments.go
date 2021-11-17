@@ -37,7 +37,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// bool, rune, int, float64, complex128 or string respectively, depending
 		// on whether the value is a boolean, rune, integer, floating-point,
 		// complex, or string constant."
-		if T == nil || IsInterface(T) {
+		if T == nil || IsInterface(T) && !isTypeParam(T) {
 			if T == nil && x.typ == Typ[UntypedNil] {
 				check.errorf(x, _UntypedNil, "use of untyped nil in %s", context)
 				x.mode = invalid
