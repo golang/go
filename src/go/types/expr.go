@@ -681,16 +681,14 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 			return nil, nil, _InvalidUntypedConversion
 		}
 	case *TypeParam:
-		// TODO(gri) review this code - doesn't look quite right
 		assert(!tparamIsIface)
-		ok := u.underIs(func(t Type) bool {
-			if t == nil {
+		if !u.underIs(func(u Type) bool {
+			if u == nil {
 				return false
 			}
-			target, _, _ := check.implicitTypeAndValue(x, t)
-			return target != nil
-		})
-		if !ok {
+			t, _, _ := check.implicitTypeAndValue(x, u)
+			return t != nil
+		}) {
 			return nil, nil, _InvalidUntypedConversion
 		}
 		// keep nil untyped (was bug #39755)
@@ -699,15 +697,13 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		}
 	case *Interface:
 		if tparamIsIface && isTypeParam(target) {
-			// TODO(gri) review this code - doesn't look quite right
-			ok := u.typeSet().underIs(func(t Type) bool {
-				if t == nil {
+			if !u.typeSet().underIs(func(u Type) bool {
+				if u == nil {
 					return false
 				}
-				target, _, _ := check.implicitTypeAndValue(x, t)
-				return target != nil
-			})
-			if !ok {
+				t, _, _ := check.implicitTypeAndValue(x, u)
+				return t != nil
+			}) {
 				return nil, nil, _InvalidUntypedConversion
 			}
 			// keep nil untyped (was bug #39755)
