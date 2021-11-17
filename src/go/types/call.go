@@ -141,7 +141,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 					check.errorf(call.Args[0], _BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
 				}
-				if t, _ := under(T).(*Interface); t != nil {
+				if t, _ := under(T).(*Interface); t != nil && !isTypeParam(T) {
 					if !t.IsMethodSet() {
 						check.errorf(call, _MisplacedConstraintIface, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
 						break

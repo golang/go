@@ -9,6 +9,12 @@ import (
 	"sync/atomic"
 )
 
+// If set, the underlying type of a type parameter is
+// is the underlying type of its type constraint, i.e.,
+// an interface. With that, a type parameter satisfies
+// isInterface.
+const tparamIsIface = false
+
 // Note: This is a uint32 rather than a uint64 because the
 // respective 64 bit atomic instructions are not available
 // on all platforms.
@@ -72,13 +78,21 @@ func (t *TypeParam) SetConstraint(bound Type) {
 	t.bound = bound
 }
 
-func (t *TypeParam) Underlying() Type { return t }
-func (t *TypeParam) String() string   { return TypeString(t, nil) }
+func (t *TypeParam) Underlying() Type {
+	if tparamIsIface {
+		return t.iface()
+	}
+	return t
+}
+
+func (t *TypeParam) String() string { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------
 // Implementation
 
 // iface returns the constraint interface of t.
+// TODO(gri) If we make tparamIsIface the default, this should be renamed to under
+//           (similar to Named.under).
 func (t *TypeParam) iface() *Interface {
 	bound := t.bound
 
@@ -91,8 +105,13 @@ func (t *TypeParam) iface() *Interface {
 			return &emptyInterface
 		}
 	case *Interface:
+		if tparamIsIface && isTypeParam(bound) {
+			// error is reported in Checker.collectTypeParams
+			return &emptyInterface
+		}
 		ityp = u
 	case *TypeParam:
+		assert(!tparamIsIface)
 		// error is reported in Checker.collectTypeParams
 		return &emptyInterface
 	}

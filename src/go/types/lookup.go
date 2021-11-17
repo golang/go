@@ -429,11 +429,11 @@ func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string 
 		// an extra formatting option for types2.Type that doesn't print out
 		// 'func'.
 		r = strings.Replace(r, "^^func", "", -1)
-	} else if IsInterface(T) {
+	} else if IsInterface(T) && !isTypeParam(T) {
 		if isInterfacePtr(V) {
 			r = fmt.Sprintf("(%s is pointer to interface, not interface)", V)
 		}
-	} else if isInterfacePtr(T) {
+	} else if isInterfacePtr(T) && !isTypeParam(T) {
 		r = fmt.Sprintf("(%s is pointer to interface, not interface)", T)
 	}
 	if r == "" {
@@ -444,7 +444,7 @@ func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string 
 
 func isInterfacePtr(T Type) bool {
 	p, _ := under(T).(*Pointer)
-	return p != nil && IsInterface(p.base)
+	return p != nil && IsInterface(p.base) && !isTypeParam(T)
 }
 
 // assertableTo reports whether a value of type V can be asserted to have type T.

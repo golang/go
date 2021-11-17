@@ -98,7 +98,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// - Keep untyped nil for untyped nil arguments.
 		// - For integer to string conversions, keep the argument type.
 		//   (See also the TODO below.)
-		if IsInterface(T) || constArg && !isConstType(T) || x.isNil() {
+		if IsInterface(T) && !isTypeParam(T) || constArg && !isConstType(T) || x.isNil() {
 			final = Default(x.typ) // default type of untyped nil is untyped nil
 		} else if isInteger(x.typ) && allString(T) {
 			final = x.typ
@@ -129,19 +129,23 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return true
 	}
 
-	// "V and T have identical underlying types if tags are ignored"
+	// "V and T have identical underlying types if tags are ignored
+	// and V and T are not type parameters"
 	V := x.typ
 	Vu := under(V)
 	Tu := under(T)
-	if IdenticalIgnoreTags(Vu, Tu) {
+	Vp, _ := V.(*TypeParam)
+	Tp, _ := T.(*TypeParam)
+	if IdenticalIgnoreTags(Vu, Tu) && Vp == nil && Tp == nil {
 		return true
 	}
 
 	// "V and T are unnamed pointer types and their pointer base types
-	// have identical underlying types if tags are ignored"
+	// have identical underlying types if tags are ignored
+	// and their pointer base types are not type parameters"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if IdenticalIgnoreTags(under(V.base), under(T.base)) {
+			if IdenticalIgnoreTags(under(V.base), under(T.base)) && !isTypeParam(V.base) && !isTypeParam(T.base) {
 				return true
 			}
 		}
@@ -195,8 +199,6 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 	}
 
 	// optimization: if we don't have type parameters, we're done
-	Vp, _ := V.(*TypeParam)
-	Tp, _ := T.(*TypeParam)
 	if Vp == nil && Tp == nil {
 		return false
 	}

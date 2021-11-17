@@ -267,13 +267,14 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	// Vu is typed
 
 	// x's type V and T have identical underlying types
-	// and at least one of V or T is not a named type.
-	if Identical(Vu, Tu) && (!hasName(V) || !hasName(T)) {
+	// and at least one of V or T is not a named type
+	// and neither V nor T is a type parameter.
+	if Identical(Vu, Tu) && (!hasName(V) || !hasName(T)) && Vp == nil && Tp == nil {
 		return true, 0
 	}
 
 	// T is an interface type and x implements T and T is not a type parameter
-	if Ti, ok := Tu.(*Interface); ok {
+	if Ti, ok := Tu.(*Interface); ok && Tp == nil {
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
 				if compilerErrorMessages {
@@ -306,7 +307,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 			}
 			return false, _InvalidIfaceAssign
 		}
-		if Vi, _ := Vu.(*Interface); Vi != nil {
+		if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
 			if m, _ := check.missingMethod(T, Vi, true); m == nil {
 				// T implements Vi, so give hint about type assertion.
 				if reason != nil {
