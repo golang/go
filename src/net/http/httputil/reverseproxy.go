@@ -611,7 +611,6 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	go spc.copyToBackend(errc)
 	go spc.copyFromBackend(errc)
 	<-errc
-	return
 }
 
 // switchProtocolCopier exists so goroutines proxying data back and

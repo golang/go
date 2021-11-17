@@ -216,8 +216,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
 			p = p[4:]
 		}
 
-		var typ byte
-		typ = p[0] & 0x7F
+		typ := p[0] & 0x7F
 		s.typ = typ
 		p = p[1:]
 

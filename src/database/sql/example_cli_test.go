@@ -49,10 +49,8 @@ func Example_openDBCLI() {
 	signal.Notify(appSignal, os.Interrupt)
 
 	go func() {
-		select {
-		case <-appSignal:
-			stop()
-		}
+		<-appSignal
+		stop()
 	}()
 
 	Ping(ctx)

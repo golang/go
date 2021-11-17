@@ -303,10 +303,8 @@ func canonicalHost(host string) (string, error) {
 			return "", err
 		}
 	}
-	if strings.HasSuffix(host, ".") {
-		// Strip trailing dot from fully qualified domain names.
-		host = host[:len(host)-1]
-	}
+	// Strip trailing dot from fully qualified domain names.
+	host = strings.TrimSuffix(host, ".")
 	encoded, err := toASCII(host)
 	if err != nil {
 		return "", err
