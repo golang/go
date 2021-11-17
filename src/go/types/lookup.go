@@ -69,6 +69,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 //           indirectly via different packages.)
 
 // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
+//
+// The resulting object may not be fully type-checked.
 func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 
@@ -346,7 +348,12 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		if obj == nil {
 			ptr := NewPointer(V)
 			obj, _, _ = lookupFieldOrMethod(ptr, false, m.pkg, m.name)
+
 			if obj != nil {
+				// methods may not have a fully set up signature yet
+				if check != nil {
+					check.objDecl(obj, nil)
+				}
 				return m, obj.(*Func)
 			}
 		}
