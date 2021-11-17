@@ -1718,9 +1718,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			_, text, ok := strings.Cut(resp.Status, " ")
 			conn.Close()
 			if !ok {
-				return nil, errors.New("unknown status code")
+				return nil, errors.New("http: unknown status code (proxy)")
 			}
-			return nil, errors.New(text)
+			return nil, errors.New("http: " + text + " (proxy)")
 		}
 	}
 
