@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -34,12 +35,13 @@ func TestMain(m *testing.M) {
 var testprog struct {
 	sync.Mutex
 	dir    string
-	target map[string]buildexe
+	target map[string]*buildexe
 }
 
 type buildexe struct {
-	exe string
-	err error
+	once sync.Once
+	exe  string
+	err  error
 }
 
 func runTestProg(t *testing.T, binary, name string, env ...string) string {
@@ -108,13 +110,15 @@ func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
 	return b.String()
 }
 
+var serializeBuild = make(chan bool, 2)
+
 func buildTestProg(t *testing.T, binary string, flags ...string) (string, error) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
+	testenv.MustHaveGoBuild(t)
 
 	testprog.Lock()
-	defer testprog.Unlock()
 	if testprog.dir == "" {
 		dir, err := os.MkdirTemp("", "go-build")
 		if err != nil {
@@ -125,29 +129,48 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	}
 
 	if testprog.target == nil {
-		testprog.target = make(map[string]buildexe)
+		testprog.target = make(map[string]*buildexe)
 	}
 	name := binary
 	if len(flags) > 0 {
 		name += "_" + strings.Join(flags, "_")
 	}
 	target, ok := testprog.target[name]
-	if ok {
-		return target.exe, target.err
+	if !ok {
+		target = &buildexe{}
+		testprog.target[name] = target
 	}
 
-	exe := filepath.Join(testprog.dir, name+".exe")
-	cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
-	cmd.Dir = "testdata/" + binary
-	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
-	if err != nil {
-		target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
-		testprog.target[name] = target
-		return "", target.err
-	}
-	target.exe = exe
-	testprog.target[name] = target
-	return exe, nil
+	dir := testprog.dir
+
+	// Unlock testprog while actually building, so that other
+	// tests can look up executables that were already built.
+	testprog.Unlock()
+
+	target.once.Do(func() {
+		// Only do two "go build"'s at a time,
+		// to keep load from getting too high.
+		serializeBuild <- true
+		defer func() { <-serializeBuild }()
+
+		// Don't get confused if testenv.GoToolPath calls t.Skip.
+		target.err = errors.New("building test called t.Skip")
+
+		exe := filepath.Join(dir, name+".exe")
+
+		t.Logf("running go build -o %s %s", exe, strings.Join(flags, " "))
+		cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
+		cmd.Dir = "testdata/" + binary
+		out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+		if err != nil {
+			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
+		} else {
+			target.exe = exe
+			target.err = nil
+		}
+	})
+
+	return target.exe, target.err
 }
 
 func TestVDSO(t *testing.T) {
