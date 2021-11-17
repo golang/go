@@ -61,6 +61,7 @@ func Test32579(t *testing.T)                 { test32579(t) }
 func Test31891(t *testing.T)                 { test31891(t) }
 func Test42018(t *testing.T)                 { test42018(t) }
 func Test45451(t *testing.T)                 { test45451(t) }
+func Test49633(t *testing.T)                 { test49633(t) }
 func TestAlign(t *testing.T)                 { testAlign(t) }
 func TestAtol(t *testing.T)                  { testAtol(t) }
 func TestBlocking(t *testing.T)              { testBlocking(t) }
