@@ -1694,6 +1694,12 @@ func enclosingFunction(path []ast.Node, info *types.Info) *funcInfo {
 			}
 		case *ast.FuncLit:
 			if typ, ok := info.Types[t]; ok {
+				if sig, _ := typ.Type.(*types.Signature); sig == nil {
+					// golang/go#49397: it should not be possible, but we somehow arrived
+					// here with a non-signature type, most likely due to AST mangling
+					// such that node.Type is not a FuncType.
+					return nil
+				}
 				return &funcInfo{
 					sig:  typ.Type.(*types.Signature),
 					body: t.Body,
