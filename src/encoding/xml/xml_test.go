@@ -673,6 +673,19 @@ func TestCopyTokenStartElement(t *testing.T) {
 	}
 }
 
+func TestCopyTokenComment(t *testing.T) {
+	data := []byte("<!-- some comment -->")
+	var tok1 Token = Comment(data)
+	tok2 := CopyToken(tok1)
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Comment) != Comment")
+	}
+	data[1] = 'o'
+	if reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Comment) uses same buffer.")
+	}
+}
+
 func TestSyntaxErrorLineNum(t *testing.T) {
 	testInput := "<P>Foo<P>\n\n<P>Bar</>\n"
 	d := NewDecoder(strings.NewReader(testInput))
@@ -1058,5 +1071,157 @@ func TestRoundTrip(t *testing.T) {
 	}
 	for name, input := range tests {
 		t.Run(name, func(t *testing.T) { testRoundTrip(t, input) })
+	}
+}
+
+func TestParseErrors(t *testing.T) {
+	withDefaultHeader := func(s string) string {
+		return `<?xml version="1.0" encoding="UTF-8"?>` + s
+	}
+	tests := []struct {
+		src string
+		err string
+	}{
+		{withDefaultHeader(`</foo>`), `unexpected end element </foo>`},
+		{withDefaultHeader(`<x:foo></y:foo>`), `element <foo> in space x closed by </foo> in space y`},
+		{withDefaultHeader(`<? not ok ?>`), `expected target name after <?`},
+		{withDefaultHeader(`<!- not ok -->`), `invalid sequence <!- not part of <!--`},
+		{withDefaultHeader(`<!-? not ok -->`), `invalid sequence <!- not part of <!--`},
+		{withDefaultHeader(`<![not ok]>`), `invalid <![ sequence`},
+		{withDefaultHeader("\xf1"), `invalid UTF-8`},
+
+		// Header-related errors.
+		{`<?xml version="1.1" encoding="UTF-8"?>`, `unsupported version "1.1"; only version 1.0 is supported`},
+
+		// Cases below are for "no errors".
+		{withDefaultHeader(`<?ok?>`), ``},
+		{withDefaultHeader(`<?ok version="ok"?>`), ``},
+	}
+
+	for _, test := range tests {
+		d := NewDecoder(strings.NewReader(test.src))
+		var err error
+		for {
+			_, err = d.Token()
+			if err != nil {
+				break
+			}
+		}
+		if test.err == "" {
+			if err != io.EOF {
+				t.Errorf("parse %s: have %q error, expected none", test.src, err)
+			}
+			continue
+		}
+		if err == nil || err == io.EOF {
+			t.Errorf("parse %s: have no error, expected a non-nil error", test.src)
+			continue
+		}
+		if !strings.Contains(err.Error(), test.err) {
+			t.Errorf("parse %s: can't find %q error sudbstring\nerror: %q", test.src, test.err, err)
+			continue
+		}
+	}
+}
+
+const testInputHTMLAutoClose = `<?xml version="1.0" encoding="UTF-8"?>
+<br>
+<br/><br/>
+<br><br>
+<br></br>
+<BR>
+<BR/><BR/>
+<Br></Br>
+<BR><span id="test">abc</span><br/><br/>`
+
+func BenchmarkHTMLAutoClose(b *testing.B) {
+	b.RunParallel(func(p *testing.PB) {
+		for p.Next() {
+			d := NewDecoder(strings.NewReader(testInputHTMLAutoClose))
+			d.Strict = false
+			d.AutoClose = HTMLAutoClose
+			d.Entity = HTMLEntity
+			for {
+				_, err := d.Token()
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					b.Fatalf("unexpected error: %v", err)
+				}
+			}
+		}
+	})
+}
+
+func TestHTMLAutoClose(t *testing.T) {
+	wantTokens := []Token{
+		ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		CharData("\n"),
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		CharData("\n"),
+		StartElement{Name{"", "Br"}, []Attr{}},
+		EndElement{Name{"", "Br"}},
+		CharData("\n"),
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		StartElement{Name{"", "span"}, []Attr{{Name: Name{"", "id"}, Value: "test"}}},
+		CharData("abc"),
+		EndElement{Name{"", "span"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+	}
+
+	d := NewDecoder(strings.NewReader(testInputHTMLAutoClose))
+	d.Strict = false
+	d.AutoClose = HTMLAutoClose
+	d.Entity = HTMLEntity
+	var haveTokens []Token
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatalf("unexpected error: %v", err)
+		}
+		haveTokens = append(haveTokens, CopyToken(tok))
+	}
+	if len(haveTokens) != len(wantTokens) {
+		t.Errorf("tokens count mismatch: have %d, want %d", len(haveTokens), len(wantTokens))
+	}
+	for i, want := range wantTokens {
+		if i >= len(haveTokens) {
+			t.Errorf("token[%d] expected %#v, have no token", i, want)
+		} else {
+			have := haveTokens[i]
+			if !reflect.DeepEqual(have, want) {
+				t.Errorf("token[%d] mismatch:\nhave: %#v\nwant: %#v", i, have, want)
+			}
+		}
 	}
 }
