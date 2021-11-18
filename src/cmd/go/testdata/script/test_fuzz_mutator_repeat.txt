@@ -1,5 +1,3 @@
-skip  # https://golang.org/issue/49047
-
 # TODO(jayconrod): support shared memory on more platforms.
 [!darwin] [!linux] [!windows] skip
 
