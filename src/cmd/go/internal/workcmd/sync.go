@@ -74,6 +74,13 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	workFilePath := modload.WorkFilePath() // save go.work path because EnterModule clobbers it.
 
 	for _, m := range mms.Versions() {
+		if mms.ModRoot(m) == "" && m.Path == "command-line-arguments" {
+			// This is not a real module.
+			// TODO(#49228): Remove this special case once the special
+			// command-line-arguments module is gone.
+			continue
+		}
+
 		// Use EnterModule to reset the global state in modload to be in
 		// single-module mode using the modroot of m.
 		modload.EnterModule(ctx, mms.ModRoot(m))

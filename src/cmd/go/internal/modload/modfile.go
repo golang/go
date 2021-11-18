@@ -124,6 +124,9 @@ const (
 )
 
 func pruningForGoVersion(goVersion string) modPruning {
+	if inWorkspaceMode() {
+		return workspace
+	}
 	if semver.Compare("v"+goVersion, ExplicitIndirectVersionV) < 0 {
 		// The go.mod file does not duplicate relevant information about transitive
 		// dependencies, so they cannot be pruned out.
