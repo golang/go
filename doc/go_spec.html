@@ -1,16 +1,14 @@
 <!--{
-	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Nov 17, 2021",
+	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
+	"Subtitle": "Version of Nov 18, 2021",
 	"Path": "/ref/spec"
 }-->
 
-<h2>Draft Go 1.18 Specification - Work in Progress </h2>
+<h2>Earlier version</h2>
 
 <p>
-<strong>
-For the pre-Go1.18 spec see
+For the pre-Go1.18 specification without generics support see
 <a href="/doc/go1.17_spec.html">The Go Programming Language Specification</a>.
-</strong>
 </p>
 
 <h2 id="Introduction">Introduction</h2>
@@ -852,7 +850,7 @@ Every type has a (possibly empty) method set associated with it:
 
 <li>
 The method set of a <a href="#Pointer_types">pointer</a> <code>*T</code>
-to a defined type <code>*T</code>
+to a defined type <code>T</code>
 (where <code>T</code> is neither a pointer nor an interface)
 is the set of all methods declared with receiver <code>*T</code> or <code>T</code>.
 </li>
@@ -1271,7 +1269,8 @@ InterfaceElem  = MethodElem | TypeElem .
 MethodElem     = MethodName Signature .
 MethodName     = identifier .
 TypeElem       = TypeTerm { "|" TypeTerm } .
-TypeTerm       = [ "~" ] Type .
+TypeTerm       = Type | UnderlyingType .
+UnderlyingType = "~" Type .
 </pre>
 
 <p>
@@ -1415,9 +1414,9 @@ type ReadCloser interface {
 </pre>
 
 <p>
-Finally, in their most general form, an interface element may be an arbitrary type
-<code>T</code>, a type term of the form <code>~T</code>, or a union of type terms
-<code>T1 | T2 | … Tn</code>.
+Finally, in their most general form, an interface element may also be an arbitrary type term
+<code>T</code>, or a term of the form <code>~T</code> specifying the underlying type <code>T</code>,
+or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>.
 Together with method specifications, these elements enable the precise
 definition of an interface's type set as follows:
 </p>
@@ -1434,7 +1433,7 @@ definition of an interface's type set as follows:
 		whose method sets include that method.
 	</li>
 
-	<li>The type set of a non-interface type is the set consisting
+	<li>The type set of a non-interface type term is the set consisting
 		of just that type.
 	</li>
 
@@ -1442,7 +1441,8 @@ definition of an interface's type set as follows:
 		is the set of types whose underlying type is <code>T</code>.
 	</li>
 
-	<li>The type set of a <i>union</i> of terms <code>T1 | T2 | … Tn</code>
+	<li>The type set of a <i>union</i> of terms
+		<code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>
 		is the union of the type sets of the terms.
 	</li>
 </ul>
@@ -1487,7 +1487,7 @@ interface {
 </pre>
 
 <p>
-Union expressions denote unions of type sets:
+Union elements denote unions of type sets:
 </p>
 
 <pre>
@@ -1500,7 +1500,7 @@ type Floats interface {
 </pre>
 
 <p>
-In a union expression, a term cannot be a type parameter, and the type sets of all
+In a union, a term cannot be a type parameter, and the type sets of all
 non-interface terms must be pairwise disjoint (the pairwise intersection of the type sets must be empty).
 Given a type parameter <code>P</code>:
 </p>
@@ -1516,14 +1516,15 @@ interface {
 
 <p>
 Implementation restriction:
-A union expression with more than one term cannot contain interface types
+A union with more than one term cannot contain interface types
 with non-empty <a href="#Method_sets">method sets</a>.
 </p>
 
 <p>
-Interfaces that contain union or tilde terms (not just methods) may only be used
-as type constraints, or as elements of other interfaces used as constraints. They
-cannot be the types of values or variables, or components of other, non-interface types.
+Interfaces that contain non-interface types, terms of the form <code>~T</code>,
+or unions may only be used as type constraints, or as elements of other interfaces used
+as constraints. They cannot be the types of values or variables, or components of other,
+non-interface types.
 </p>
 
 <pre>
