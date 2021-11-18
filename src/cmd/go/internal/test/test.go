@@ -890,6 +890,17 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	// Collect all the packages imported by the packages being tested.
+	allImports := make(map[*load.Package]bool)
+	for _, p := range pkgs {
+		if p.Error != nil && p.Error.IsImportCycle {
+			continue
+		}
+		for _, p1 := range p.Internal.Imports {
+			allImports[p1] = true
+		}
+	}
+
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
 		// sync/atomic import is inserted by the cover tool. See #18486
@@ -897,7 +908,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			ensureImport(p, "sync/atomic")
 		}
 
-		buildTest, runTest, printTest, err := builderTest(&b, ctx, pkgOpts, p)
+		buildTest, runTest, printTest, err := builderTest(&b, ctx, pkgOpts, p, allImports[p])
 		if err != nil {
 			str := err.Error()
 			str = strings.TrimPrefix(str, "\n")
@@ -964,7 +975,7 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
+func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
@@ -990,6 +1001,16 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 	pmain, ptest, pxtest, err := load.TestPackagesFor(ctx, pkgOpts, p, cover)
 	if err != nil {
 		return nil, nil, nil, err
+	}
+
+	// If imported is true then this package is imported by some
+	// package being tested. Make building the test version of the
+	// package depend on building the non-test version, so that we
+	// only report build errors once. Issue #44624.
+	if imported && ptest != p {
+		buildTest := b.CompileAction(work.ModeBuild, work.ModeBuild, ptest)
+		buildP := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+		buildTest.Deps = append(buildTest.Deps, buildP)
 	}
 
 	// Use last element of import path, not package name.
