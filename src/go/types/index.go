@@ -310,9 +310,13 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 L:
 	for i, x := range ind[:len(ind)-1] {
 		if x > 0 {
-			for _, y := range ind[i+1:] {
-				if y >= 0 && x > y {
-					check.errorf(inNode(e, e.Rbrack), _SwappedSliceIndices, "swapped slice indices: %d > %d", x, y)
+			for j, y := range ind[i+1:] {
+				if y >= 0 && y < x {
+					// The value y corresponds to the expression e.Index[i+1+j].
+					// Because y >= 0, it must have been set from the expression
+					// when checking indices and thus e.Index[i+1+j] is not nil.
+					at := []ast.Expr{e.Low, e.High, e.Max}[i+1+j]
+					check.errorf(at, _SwappedSliceIndices, "invalid slice indices: %d < %d", y, x)
 					break L // only report one error, ok to continue
 				}
 			}
