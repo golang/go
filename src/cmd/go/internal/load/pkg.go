@@ -2203,6 +2203,10 @@ func (p *Package) collectDeps() {
 	}
 }
 
+// vcsStatusCache maps repository directories (string)
+// to their VCS information (vcsStatusError).
+var vcsStatusCache par.Cache
+
 // setBuildInfo gathers build information, formats it as a string to be
 // embedded in the binary, then sets p.Internal.BuildInfo to that string.
 // setBuildInfo should only be called on a main package with no errors.
@@ -2365,11 +2369,20 @@ func (p *Package) setBuildInfo() {
 			return
 		}
 
-		st, err := vcsCmd.Status(vcsCmd, repoDir)
-		if err != nil {
+		type vcsStatusError struct {
+			Status vcs.Status
+			Err    error
+		}
+		cached := vcsStatusCache.Do(repoDir, func() interface{} {
+			st, err := vcsCmd.Status(vcsCmd, repoDir)
+			return vcsStatusError{st, err}
+		}).(vcsStatusError)
+		if err := cached.Err; err != nil {
 			setVCSError(err)
 			return
 		}
+		st := cached.Status
+
 		if st.Revision != "" {
 			appendSetting(vcsCmd.Cmd+"revision", st.Revision)
 		}
