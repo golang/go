@@ -109,6 +109,13 @@ func (g *genInst) buildInstantiations(preinliningMainScan bool) {
 		// main round of inlining)
 		for _, fun := range g.newInsts {
 			inline.InlineCalls(fun.(*ir.Func))
+			// New instantiations created during inlining should run
+			// ComputeAddrTaken directly, since we are past the main pass
+			// that did ComputeAddrTaken(). We could instead do this
+			// incrementally during stenciling (for all instantiations,
+			// including main ones before inlining), since we have the
+			// type information.
+			typecheck.ComputeAddrtaken(fun.(*ir.Func).Body)
 		}
 	}
 	assert(l == len(g.newInsts))
