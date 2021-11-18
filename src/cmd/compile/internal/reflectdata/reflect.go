@@ -924,11 +924,12 @@ func hashMightPanic(t *types.Type) bool {
 	}
 }
 
-// formalType replaces byte and rune aliases with real types.
+// formalType replaces predeclared aliases with real types.
 // They've been separate internally to make error messages
 // better, but we have to merge them in the reflect tables.
 func formalType(t *types.Type) *types.Type {
-	if t == types.ByteType || t == types.RuneType {
+	switch t {
+	case types.AnyType, types.ByteType, types.RuneType:
 		return types.Types[t.Kind()]
 	}
 	return t

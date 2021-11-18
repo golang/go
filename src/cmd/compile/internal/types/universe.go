@@ -59,6 +59,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 
 	Types[TANY] = newType(TANY)
 	Types[TINTER] = NewInterface(LocalPkg, nil, false)
+	CheckSize(Types[TINTER])
 
 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
 		typ := newType(kind)
@@ -108,11 +109,14 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	ResumeCheckSize()
 
 	// any type (interface)
-	if base.Flag.G > 0 {
-		DeferCheckSize()
-		AnyType = defBasic(TFORW, BuiltinPkg, "any")
-		AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}, false))
-		ResumeCheckSize()
+	DeferCheckSize()
+	AnyType = defBasic(TFORW, BuiltinPkg, "any")
+	AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}, false))
+	ResumeCheckSize()
+
+	if base.Flag.G == 0 {
+		ComparableType.Sym().Def = nil
+		AnyType.Sym().Def = nil
 	}
 
 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")

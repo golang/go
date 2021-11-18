@@ -106,12 +106,16 @@ const (
 // It also stores pointers to several special types:
 //   - Types[TANY] is the placeholder "any" type recognized by SubstArgTypes.
 //   - Types[TBLANK] represents the blank variable's type.
+//   - Types[TINTER] is the canonical "interface{}" type.
 //   - Types[TNIL] represents the predeclared "nil" value's type.
 //   - Types[TUNSAFEPTR] is package unsafe's Pointer type.
 var Types [NTYPE]*Type
 
 var (
-	// Predeclared alias types. Kept separate for better error messages.
+	// Predeclared alias types. These are actually created as distinct
+	// defined types for better error messages, but are then specially
+	// treated as identical to their respective underlying types.
+	AnyType  *Type
 	ByteType *Type
 	RuneType *Type
 
@@ -119,8 +123,6 @@ var (
 	ErrorType *Type
 	// Predeclared comparable interface type.
 	ComparableType *Type
-	// Predeclared any interface type.
-	AnyType *Type
 
 	// Types to represent untyped string and boolean constants.
 	UntypedString = newType(TSTRING)
@@ -1205,6 +1207,11 @@ func (t *Type) cmp(x *Type) Cmp {
 
 		case TINT32:
 			if (t == Types[RuneType.kind] || t == RuneType) && (x == Types[RuneType.kind] || x == RuneType) {
+				return CMPeq
+			}
+
+		case TINTER:
+			if (t == Types[AnyType.kind] || t == AnyType) && (x == Types[AnyType.kind] || x == AnyType) {
 				return CMPeq
 			}
 		}
