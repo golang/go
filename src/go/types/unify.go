@@ -241,14 +241,12 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// If exact unification is known to fail because we attempt to
 		// match a type name against an unnamed type literal, consider
 		// the underlying type of the named type.
-		// (Subtle: We use hasName to include any type with a name (incl.
-		// basic types and type parameters. We use asNamed because we only
-		// want *Named types.)
-		switch {
-		case !hasName(x) && y != nil && asNamed(y) != nil:
-			return u.nify(x, under(y), p)
-		case x != nil && asNamed(x) != nil && !hasName(y):
-			return u.nify(under(x), y, p)
+		// (We use !hasName to exclude any type with a name, including
+		// basic types and type parameters; the rest are unamed types.)
+		if nx, _ := x.(*Named); nx != nil && !hasName(y) {
+			return u.nify(nx.under(), y, p)
+		} else if ny, _ := y.(*Named); ny != nil && !hasName(x) {
+			return u.nify(x, ny.under(), p)
 		}
 	}
 
