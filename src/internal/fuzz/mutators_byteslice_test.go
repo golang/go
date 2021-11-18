@@ -10,30 +10,31 @@ import (
 )
 
 type mockRand struct {
+	values  []int
 	counter int
 	b       bool
 }
 
 func (mr *mockRand) uint32() uint32 {
-	c := mr.counter
+	c := mr.values[mr.counter]
 	mr.counter++
 	return uint32(c)
 }
 
 func (mr *mockRand) intn(n int) int {
-	c := mr.counter
+	c := mr.values[mr.counter]
 	mr.counter++
 	return c % n
 }
 
 func (mr *mockRand) uint32n(n uint32) uint32 {
-	c := mr.counter
+	c := mr.values[mr.counter]
 	mr.counter++
 	return uint32(c) % n
 }
 
 func (mr *mockRand) exp2() int {
-	c := mr.counter
+	c := mr.values[mr.counter]
 	mr.counter++
 	return c
 }
@@ -56,6 +57,7 @@ func TestByteSliceMutators(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		mutator  func(*mutator, []byte) []byte
+		randVals []int
 		input    []byte
 		expected []byte
 	}{
@@ -164,12 +166,17 @@ func TestByteSliceMutators(t *testing.T) {
 		{
 			name:     "byteSliceSwapBytes",
 			mutator:  byteSliceSwapBytes,
+			randVals: []int{0, 2, 0, 2},
 			input:    append(make([]byte, 0, 9), []byte{1, 2, 3, 4}...),
-			expected: []byte{2, 1, 3, 4},
+			expected: []byte{3, 2, 1, 4},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			m := &mutator{r: &mockRand{}}
+			r := &mockRand{values: []int{0, 1, 2, 3, 4, 5}}
+			if tc.randVals != nil {
+				r.values = tc.randVals
+			}
+			m := &mutator{r: r}
 			b := tc.mutator(m, tc.input)
 			if !bytes.Equal(b, tc.expected) {
 				t.Errorf("got %x, want %x", b, tc.expected)
