@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Nov 18, 2021",
+	"Subtitle": "Version of Nov 19, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -849,8 +849,7 @@ Every type has a (possibly empty) method set associated with it:
 </li>
 
 <li>
-The method set of a <a href="#Pointer_types">pointer</a> <code>*T</code>
-to a defined type <code>T</code>
+The method set of a pointer to a defined type <code>T</code>
 (where <code>T</code> is neither a pointer nor an interface)
 is the set of all methods declared with receiver <code>*T</code> or <code>T</code>.
 </li>
@@ -2246,12 +2245,12 @@ type (
 
 <p>
 A type definition creates a new, distinct type with the same
-<a href="#Types">underlying type</a> and operations as the given type,
-and binds an identifier to it.
+<a href="#Types">underlying type</a> and operations as the given type
+and binds an identifier, the <i>type name</i>, to it.
 </p>
 
 <pre class="ebnf">
-TypeDef = identifier Type .
+TypeDef = identifier [ TypeParameters ] Type .
 </pre>
 
 <p>
@@ -2328,6 +2327,130 @@ func (tz TimeZone) String() string {
 }
 </pre>
 
+<p>
+If the type definition specifies <a href="#Type_parameter_lists">type parameters</a>,
+the type name denotes a <i>parameterized type</i>.
+Parameterized types must be <a href="#Instantiations">instantiated</a> when they
+are used.
+</p>
+
+<pre>
+type List[T any] struct {
+	next  *List[T]
+	value T
+}
+
+type Tree[T constraints.Ordered] struct {
+	left, right *Tree[T]
+	value       T
+}
+</pre>
+
+<p>
+The given type cannot be a type parameter in a type definition.
+</p>
+
+<pre>
+type T[P any] P    // illegal: P is a type parameter
+
+func f[T any]() {
+	type L T   // illegal: T is a type parameter declared by the enclosing function
+}
+</pre>
+
+<p>
+A parameterized type may also have methods associated with it. In this case,
+the method receivers must declare the same number of type parameters as
+present in the parameterized type definition.
+</p>
+
+<pre>
+// The method Len returns the number of elements in the linked list l.
+func (l *List[T]) Len() int  { … }
+</pre>
+
+<h3 id="Type_parameter_lists">Type parameter lists</h3>
+
+<p>
+A type parameter list declares the <a href="#Type_parameters">type parameters</a>
+in a type-parameterized function or type declaration.
+The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
+except that the type parameter names must all be present and the list is enclosed
+in square brackets rather than parentheses.
+</p>
+
+<pre class="ebnf">
+TypeParameters  = "[" TypeParamList [ "," ] "]" .
+TypeParamList   = TypeParamDecl { "," TypeParamDecl } .
+TypeParamDecl   = IdentifierList TypeConstraint .
+</pre>
+
+<p>
+Each identifier declares a type parameter.
+All non-blank names in the list must be unique.
+Each type parameter is a new and different <a href="#Types">named type</a>.
+</p>
+
+<pre>
+[P any]
+[S interface{ ~[]byte|string }]
+[S ~[]E, E any]
+[P Constraint[int]]
+[_ any]
+</pre>
+
+<p>
+Just as each ordinary function parameter has a parameter type, each type parameter
+has a corresponding (meta-)type which is called its
+<a href="#Type_constraints"><i>type constraint</i></a>.
+</p>
+
+<p>
+A parsing ambiguity arises when the type parameter list for a parameterized type
+declares a single type parameter with a type constraint of the form <code>*C</code>
+or <code>(C)</code>:
+</p>
+
+<pre>
+type T[P *C] …
+type T[P (C)] …
+</pre>
+
+<p>
+In these rare cases, the type parameter declaration is indistinguishable from
+the expressions <code>P*C</code> or <code>P(C)</code> and the type declaration
+is parsed as an array type declaration.
+To resolve the ambiguity, embed the constraint in an interface:
+</p>
+
+<pre>
+type T[P interface{*C}] …
+</pre>
+
+<h4 id="Type_constraints">Type constraints</h4>
+
+<p>
+A type constraint is an <a href="#Interface_types">interface</a> that determines the
+set of permissible type arguments for the respective type parameter and controls the
+operations supported by values of that type parameter.
+</p>
+
+<pre class="ebnf">
+TypeConstraint = TypeElem .
+</pre>
+
+<p>
+If the constraint is an interface literal containing exactly one embedded type element
+<code>interface{E}</code>, in a type parameter list the enclosing <code>interface{ … }</code>
+may be omitted for convenience:
+</p>
+
+<pre>
+[T *P]                             // = [T interface{*P}]
+[T ~int]                           // = [T interface{~int}]
+[T int|string]                     // = [T interface{int|string}]
+type Constraint ~int               // illegal: ~int is not inside a type parameter list
+</pre>
 
 <h3 id="Variable_declarations">Variable declarations</h3>
 
@@ -2437,13 +2560,19 @@ they can be used to declare local temporary variables.
 
 <h3 id="Function_declarations">Function declarations</h3>
 
+<!--
+	Given the importance of functions, this section has always
+	been woefully underdeveloped. Would be nice to expand this
+	a bit.
+-->
+
 <p>
 A function declaration binds an identifier, the <i>function name</i>,
 to a function.
 </p>
 
 <pre class="ebnf">
-FunctionDecl = "func" FunctionName Signature [ FunctionBody ] .
+FunctionDecl = "func" FunctionName [ TypeParameters ] Signature [ FunctionBody ] .
 FunctionName = identifier .
 FunctionBody = Block .
 </pre>
@@ -2466,18 +2595,28 @@ func IndexRune(s string, r rune) int {
 </pre>
 
 <p>
-A function declaration may omit the body. Such a declaration provides the
-signature for a function implemented outside Go, such as an assembly routine.
+If the function declaration specifies <a href="#Type_parameter_lists">type parameters</a>,
+the function name denotes a <i>type-parameterized function</i>.
+Type-parameterized functions must be <a href="#Instantiations">instantiated</a> when they
+are used.
 </p>
 
 <pre>
-func min(x int, y int) int {
+func min[T constraints.Ordered](x, y T) T {
 	if x &lt; y {
 		return x
 	}
 	return y
 }
+</pre>
 
+<p>
+A function declaration without type parameters may omit the body.
+Such a declaration provides the signature for a function implemented outside Go,
+such as an assembly routine.
+</p>
+
+<pre>
 func flushICache(begin, end uintptr)  // implemented externally
 </pre>
 
@@ -2498,9 +2637,10 @@ Receiver   = Parameters .
 The receiver is specified via an extra parameter section preceding the method
 name. That parameter section must declare a single non-variadic parameter, the receiver.
 Its type must be a <a href="#Type_definitions">defined</a> type <code>T</code> or a
-pointer to a defined type <code>T</code>. <code>T</code> is called the receiver
-<i>base type</i>. A receiver base type cannot be a pointer or interface type and
-it must be defined in the same package as the method.
+pointer to a defined type <code>T</code>, possibly followed by a list of type parameter
+names <code>[P1, P2, …]</code> enclosed in square brackets.
+<code>T</code> is called the receiver <i>base type</i>. A receiver base type cannot be
+a pointer or interface type and it must be defined in the same package as the method.
 The method is said to be <i>bound</i> to its receiver base type and the method name
 is visible only within <a href="#Selectors">selectors</a> for type <code>T</code>
 or <code>*T</code>.
@@ -2542,18 +2682,32 @@ to the base type <code>Point</code>.
 </p>
 
 <p>
-The type of a method is the type of a function with the receiver as first
-argument.  For instance, the method <code>Scale</code> has type
+If the receiver base type is a <a href="#Type_declarations">parameterized type</a>, the
+receiver specification must declare corresponding type parameters for the method
+to use. This makes the receiver type parameters available to the method.
+</p>
+
+<p>
+Syntactically, this type parameter declaration looks like an
+<a href="#Instantiantions">instantiation</a> of the receiver base type, except that
+the type arguments are the type parameters being declared, one for each type parameter
+of the receiver base type.
+The type parameter names do not need to match their corresponding parameter names in the
+receiver base type definition, and all non-blank parameter names must be unique in the
+receiver parameter section and the method signature.
+The receiver type parameter constraints are implied by the receiver base type definition:
+corresponding type parameters have corresponding constraints.
 </p>
 
 <pre>
-func(p *Point, factor float64)
+type Pair[A, B any] struct {
+	a A
+	b B
+}
+
+func (p Pair[A, B]) Swap() Pair[A, B]  { return Pair[A, B]{p.b, p.a} }
+func (p Pair[First, _]) First() First  { return p.a }
 </pre>
-
-<p>
-However, a function declared this way is not a method.
-</p>
-
 
 <h2 id="Expressions">Expressions</h2>
 
@@ -2823,6 +2977,7 @@ noteFrequency := map[string]float32{
 
 <p>
 A function literal represents an anonymous <a href="#Function_declarations">function</a>.
+Function literals cannot declare type parameters.
 </p>
 
 <pre class="ebnf">
