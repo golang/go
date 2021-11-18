@@ -21,13 +21,10 @@ type Type interface {
 // under must only be called when a type is known
 // to be fully set up.
 func under(t Type) Type {
-	switch t := t.(type) {
-	case *Named:
+	if t, _ := t.(*Named); t != nil {
 		return t.under()
-	case *TypeParam:
-		return t.iface()
 	}
-	return t
+	return t.Underlying()
 }
 
 // If x and y are identical, match returns x.
