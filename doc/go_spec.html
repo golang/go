@@ -787,32 +787,46 @@ If a variable has not yet been assigned a value, its value is the
 
 <p>
 A type determines a set of values together with operations and methods specific
-to those values. A type may be denoted by a <i>type name</i>, if it has one,
-or specified using a <i>type literal</i>, which composes a type from existing types.
+to those values. A type may be denoted by a <i>type name</i>, if it has one, which must be
+followed by <a href="#Instantiations">type arguments</a> if the type is parameterized.
+A type may also be specified using a <i>type literal</i>, which composes a type
+from existing types.
 </p>
 
 <pre class="ebnf">
-Type      = TypeName | TypeLit | "(" Type ")" .
+Type      = TypeName [ TypeArgs ] | TypeLit | "(" Type ")" .
 TypeName  = identifier | QualifiedIdent .
+TypeArgs  = "[" TypeList [ "," ] "]" .
+TypeList  = Type { "," Type } .
 TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
 	    SliceType | MapType | ChannelType .
 </pre>
 
 <p>
 The language <a href="#Predeclared_identifiers">predeclares</a> certain type names.
-Others are introduced with <a href="#Type_declarations">type declarations</a>.
+Others are introduced with <a href="#Type_declarations">type declarations</a>
+or <a href="#Type_parameter_lists">type parameter lists</a>.
 <i>Composite types</i>&mdash;array, struct, pointer, function,
 interface, slice, map, and channel types&mdash;may be constructed using
 type literals.
 </p>
 
 <p>
+Predeclared types, defined types, and type parameters are called <i>named types</i>.
+An alias denotes a named type if the type given in the alias declaration is a named type.
+</p>
+
+<h3 id="Underlying_types">Underlying types</h3>
+
+<p>
 Each type <code>T</code> has an <i>underlying type</i>: If <code>T</code>
 is one of the predeclared boolean, numeric, or string types, or a type literal,
-the corresponding underlying
-type is <code>T</code> itself. Otherwise, <code>T</code>'s underlying type
-is the underlying type of the type to which <code>T</code> refers in its
-<a href="#Type_declarations">type declaration</a>.
+the corresponding underlying type is <code>T</code> itself.
+Otherwise, <code>T</code>'s underlying type is the underlying type of the
+type to which <code>T</code> refers in its <a href="#Type_declarations">type
+declaration</a>. Accordingly, the underlying type of a type parameter is the
+underlying type of its <a href="#Type_constraints">type constraint</a>, which
+is always an interface.
 </p>
 
 <pre>
@@ -827,12 +841,15 @@ type (
 	B3 []B1
 	B4 B3
 )
+
+func f[P any](x P) { … }
 </pre>
 
 <p>
 The underlying type of <code>string</code>, <code>A1</code>, <code>A2</code>, <code>B1</code>,
 and <code>B2</code> is <code>string</code>.
 The underlying type of <code>[]B1</code>, <code>B3</code>, and <code>B4</code> is <code>[]B1</code>.
+The underlying type of <code>P</code> is <code>interface{}</code>.
 </p>
 
 <h3 id="Method_sets">Method sets</h3>
@@ -1706,6 +1723,25 @@ and a second goroutine receives them, the values are
 received in the order sent.
 </p>
 
+<h3 id="Type_parameters">Type parameters</h3>
+
+<p>
+A <i>type parameter</i> is an (unqualified) type name declared in the
+<a href="#Type_parameter_lists">type parameter list</a> of a
+<a href="#Function_declarations">function declaration</a> or
+<a href="#Type_definitions">type definition</a>; or in the receiver specification
+of a <a href="#Method_declarations">method declaration</a> that is associated
+with a parameterized type.
+A type parameter acts as a place holder for an (as of yet) unknown type in the declaration;
+the type parameter is replaced with a <i>type argument</i> upon
+<a href="#Instantiations">instantiation</a> of the parameterized function or type.
+</p>
+
+<p>
+The properties of a type parameter are determined by its
+<a href="#Type_constraints">type constraint</a>.
+</p>
+
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
 
 <h3 id="Type_identity">Type identity</h3>
@@ -1982,6 +2018,15 @@ Go is lexically scoped using <a href="#Blocks">blocks</a>:
 
 	<li>The scope of an identifier denoting a method receiver, function parameter,
 	    or result variable is the function body.</li>
+
+	<li>The scope of an identifier denoting a type parameter of a type-parameterized function
+	    or declared by a method receiver is the function body and all parameter lists of the
+	    function.
+	</li>
+
+	<li>The scope of an identifier denoting a type parameter of a parameterized type
+	    begins after the name of the parameterized type and ends at the end
+	    of the TypeSpec.</li>
 
 	<li>The scope of a constant or variable identifier declared
 	    inside a function begins at the end of the ConstSpec or VarSpec
@@ -5384,7 +5429,6 @@ TypeSwitchStmt  = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClau
 TypeSwitchGuard = [ identifier ":=" ] PrimaryExpr "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" StatementList .
 TypeSwitchCase  = "case" TypeList | "default" .
-TypeList        = Type { "," Type } .
 </pre>
 
 <p>
