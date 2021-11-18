@@ -599,7 +599,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 	newType, val, code := check.implicitTypeAndValue(x, target)
 	if code != 0 {
 		t := target
-		if !tparamIsIface || !isTypeParam(target) {
+		if !isTypeParam(target) {
 			t = safeUnderlying(target)
 		}
 		check.invalidConversion(code, x, t)
@@ -680,23 +680,8 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		default:
 			return nil, nil, _InvalidUntypedConversion
 		}
-	case *TypeParam:
-		assert(!tparamIsIface)
-		if !u.underIs(func(u Type) bool {
-			if u == nil {
-				return false
-			}
-			t, _, _ := check.implicitTypeAndValue(x, u)
-			return t != nil
-		}) {
-			return nil, nil, _InvalidUntypedConversion
-		}
-		// keep nil untyped (was bug #39755)
-		if x.isNil() {
-			return Typ[UntypedNil], nil, 0
-		}
 	case *Interface:
-		if tparamIsIface && isTypeParam(target) {
+		if isTypeParam(target) {
 			if !u.typeSet().underIs(func(u Type) bool {
 				if u == nil {
 					return false

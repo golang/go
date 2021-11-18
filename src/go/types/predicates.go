@@ -133,13 +133,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 	case *Array:
 		return comparable(t.elem, seen)
 	case *Interface:
-		if tparamIsIface && isTypeParam(T) {
-			return t.IsComparable()
-		}
-		return true
-	case *TypeParam:
-		assert(!tparamIsIface)
-		return t.iface().IsComparable()
+		return !isTypeParam(T) || t.IsComparable()
 	}
 	return false
 }
@@ -152,15 +146,7 @@ func hasNil(t Type) bool {
 	case *Slice, *Pointer, *Signature, *Map, *Chan:
 		return true
 	case *Interface:
-		if tparamIsIface && isTypeParam(t) {
-			return u.typeSet().underIs(func(u Type) bool {
-				return u != nil && hasNil(u)
-			})
-		}
-		return true
-	case *TypeParam:
-		assert(!tparamIsIface)
-		return u.underIs(func(u Type) bool {
+		return !isTypeParam(t) || u.typeSet().underIs(func(u Type) bool {
 			return u != nil && hasNil(u)
 		})
 	}

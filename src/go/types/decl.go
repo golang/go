@@ -725,6 +725,10 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 	check.later(func() {
 		for i, bound := range bounds {
 			if isTypeParam(bound) {
+				// We may be able to allow this since it is now well-defined what
+				// the underlying type and thus type set of a type parameter is.
+				// But we may need some additional form of cycle detection within
+				// type parameter lists.
 				check.error(posns[i], _MisplacedTypeParam, "cannot use a type parameter as constraint")
 			}
 		}
