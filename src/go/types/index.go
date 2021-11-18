@@ -223,7 +223,11 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	case *Basic:
 		if isString(u) {
 			if e.Slice3 {
-				check.invalidOp(x, _InvalidSliceExpr, "3-index slice of string")
+				at := e.Max
+				if at == nil {
+					at = e // e.Index[2] should be present but be careful
+				}
+				check.invalidOp(at, _InvalidSliceExpr, "3-index slice of string")
 				x.mode = invalid
 				return
 			}
