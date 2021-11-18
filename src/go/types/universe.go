@@ -244,7 +244,7 @@ func def(obj Object) {
 		return // nothing to do
 	}
 	// fix Obj link for named types
-	if typ := asNamed(obj.Type()); typ != nil {
+	if typ, _ := obj.Type().(*Named); typ != nil {
 		typ.obj = obj.(*TypeName)
 	}
 	// exported identifiers go into package unsafe
