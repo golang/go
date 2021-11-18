@@ -205,12 +205,6 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 	// V must implement T (methods)
 	// - check only if we have methods
 	if Ti.NumMethods() > 0 {
-		// If the type argument is a pointer to a type parameter, the type argument's
-		// method set is empty.
-		// TODO(gri) is this what we want? (spec question)
-		if base, isPtr := deref(V); isPtr && isTypeParam(base) {
-			return errorf("%s has no methods", V)
-		}
 		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
 			//           (print warning for now)
