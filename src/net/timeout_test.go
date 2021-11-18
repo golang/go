@@ -643,9 +643,24 @@ func TestWriteToTimeout(t *testing.T) {
 	}
 }
 
-func TestReadTimeoutFluctuation(t *testing.T) {
-	t.Parallel()
+const (
+	// minDynamicTimeout is the minimum timeout to attempt for
+	// tests that automatically increase timeouts until success.
+	//
+	// Lower values may allow tests to succeed more quickly if the value is close
+	// to the true minimum, but may require more iterations (and waste more time
+	// and CPU power on failed attempts) if the timeout is too low.
+	minDynamicTimeout = 1 * time.Millisecond
 
+	// maxDynamicTimeout is the maximum timeout to attempt for
+	// tests that automatically increase timeouts until succeess.
+	//
+	// This should be a strict upper bound on the latency of the timeout: if a
+	// test would increase the timeout beyond this value, the test fails.
+	maxDynamicTimeout = 1 * time.Second
+)
+
+func TestReadTimeoutFluctuation(t *testing.T) {
 	ln, err := newLocalListener("tcp")
 	if err != nil {
 		t.Fatal(err)
@@ -658,27 +673,52 @@ func TestReadTimeoutFluctuation(t *testing.T) {
 	}
 	defer c.Close()
 
-	max := time.NewTimer(time.Second)
-	defer max.Stop()
-	ch := make(chan error)
-	go timeoutReceiver(c, 100*time.Millisecond, 50*time.Millisecond, 250*time.Millisecond, ch)
+	d := minDynamicTimeout
+	b := make([]byte, 256)
+	for {
+		t.Logf("SetReadDeadline(+%v)", d)
+		t0 := time.Now()
+		deadline := t0.Add(d)
+		if err = c.SetReadDeadline(deadline); err != nil {
+			t.Fatalf("SetReadDeadline(%v): %v", deadline, err)
+		}
+		var n int
+		n, err = c.Read(b)
+		t1 := time.Now()
 
-	select {
-	case <-max.C:
-		t.Fatal("Read took over 1s; expected 0.1s")
-	case err := <-ch:
+		if n != 0 || err == nil || !err.(Error).Timeout() {
+			t.Errorf("Read did not return (0, timeout): (%d, %v)", n, err)
+		}
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
 		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
+			t.Errorf("Read error is not DeadlineExceeded: %v", err)
 		}
+
+		actual := t1.Sub(t0)
+		if t1.Before(deadline) {
+			t.Errorf("Read took %s; expected at least %s", actual, d)
+		}
+		if t.Failed() {
+			return
+		}
+		if actual > d*11/10 {
+			if actual > maxDynamicTimeout || d > maxDynamicTimeout/2 {
+				t.Fatalf("Read took %s; expected %v", actual, d)
+			}
+			// Maybe this machine is too slow to reliably schedule goroutines within
+			// the requested duration. Increase the timeout and try again.
+			t.Logf("Read took %s (expected %s); trying with longer timeout", actual, d)
+			d *= 2
+			continue
+		}
+
+		break
 	}
 }
 
 func TestReadFromTimeoutFluctuation(t *testing.T) {
-	t.Parallel()
-
 	c1, err := newLocalPacketListener("udp")
 	if err != nil {
 		t.Fatal(err)
@@ -691,27 +731,52 @@ func TestReadFromTimeoutFluctuation(t *testing.T) {
 	}
 	defer c2.Close()
 
-	max := time.NewTimer(time.Second)
-	defer max.Stop()
-	ch := make(chan error)
-	go timeoutPacketReceiver(c2.(PacketConn), 100*time.Millisecond, 50*time.Millisecond, 250*time.Millisecond, ch)
+	d := minDynamicTimeout
+	b := make([]byte, 256)
+	for {
+		t.Logf("SetReadDeadline(+%v)", d)
+		t0 := time.Now()
+		deadline := t0.Add(d)
+		if err = c2.SetReadDeadline(deadline); err != nil {
+			t.Fatalf("SetReadDeadline(%v): %v", deadline, err)
+		}
+		var n int
+		n, _, err = c2.(PacketConn).ReadFrom(b)
+		t1 := time.Now()
 
-	select {
-	case <-max.C:
-		t.Fatal("ReadFrom took over 1s; expected 0.1s")
-	case err := <-ch:
+		if n != 0 || err == nil || !err.(Error).Timeout() {
+			t.Errorf("ReadFrom did not return (0, timeout): (%d, %v)", n, err)
+		}
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
 		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
+			t.Errorf("ReadFrom error is not DeadlineExceeded: %v", err)
 		}
+
+		actual := t1.Sub(t0)
+		if t1.Before(deadline) {
+			t.Errorf("ReadFrom took %s; expected at least %s", actual, d)
+		}
+		if t.Failed() {
+			return
+		}
+		if actual > d*11/10 {
+			if actual > maxDynamicTimeout || d > maxDynamicTimeout/2 {
+				t.Fatalf("ReadFrom took %s; expected %s", actual, d)
+			}
+			// Maybe this machine is too slow to reliably schedule goroutines within
+			// the requested duration. Increase the timeout and try again.
+			t.Logf("ReadFrom took %s (expected %s); trying with longer timeout", actual, d)
+			d *= 2
+			continue
+		}
+
+		break
 	}
 }
 
 func TestWriteTimeoutFluctuation(t *testing.T) {
-	t.Parallel()
-
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
@@ -729,25 +794,64 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 	}
 	defer c.Close()
 
-	d := time.Second
-	if iOS() {
-		d = 3 * time.Second // see golang.org/issue/10775
-	}
-	max := time.NewTimer(d)
-	defer max.Stop()
-	ch := make(chan error)
-	go timeoutTransmitter(c, 100*time.Millisecond, 50*time.Millisecond, 250*time.Millisecond, ch)
+	d := minDynamicTimeout
+	for {
+		t.Logf("SetWriteDeadline(+%v)", d)
+		t0 := time.Now()
+		deadline := t0.Add(d)
+		if err = c.SetWriteDeadline(deadline); err != nil {
+			t.Fatalf("SetWriteDeadline(%v): %v", deadline, err)
+		}
+		var n int64
+		for {
+			var dn int
+			dn, err = c.Write([]byte("TIMEOUT TRANSMITTER"))
+			n += int64(dn)
+			if err != nil {
+				break
+			}
+		}
+		t1 := time.Now()
 
-	select {
-	case <-max.C:
-		t.Fatalf("Write took over %v; expected 0.1s", d)
-	case err := <-ch:
+		if err == nil || !err.(Error).Timeout() {
+			t.Fatalf("Write did not return (any, timeout): (%d, %v)", n, err)
+		}
 		if perr := parseWriteError(err); perr != nil {
 			t.Error(perr)
 		}
 		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
+			t.Errorf("Write error is not DeadlineExceeded: %v", err)
 		}
+
+		actual := t1.Sub(t0)
+		if t1.Before(deadline) {
+			t.Errorf("Write took %s; expected at least %s", actual, d)
+		}
+		if t.Failed() {
+			return
+		}
+		if actual > d*11/10 {
+			if n > 0 {
+				// SetWriteDeadline specifies a time “after which I/O operations fail
+				// instead of blocking”. However, the kernel's send buffer is not yet
+				// full, we may be able to write some arbitrary (but finite) number of
+				// bytes to it without blocking.
+				t.Logf("Wrote %d bytes into send buffer; retrying until buffer is full", n)
+				if d <= maxDynamicTimeout/2 {
+					d *= 2
+				}
+			} else if actual > maxDynamicTimeout || d > maxDynamicTimeout/2 {
+				t.Fatalf("Write took %s; expected %s", actual, d)
+			} else {
+				// Maybe this machine is too slow to reliably schedule goroutines within
+				// the requested duration. Increase the timeout and try again.
+				t.Logf("Write took %s (expected %s); trying with longer timeout", actual, d)
+				d *= 2
+			}
+			continue
+		}
+
+		break
 	}
 }
 
