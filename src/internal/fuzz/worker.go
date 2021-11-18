@@ -1111,7 +1111,8 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 		wc.m.r.restore(mem.header().randState, mem.header().randInc)
 		if !args.Warmup {
 			// Only mutate the valuesOut if fuzzing actually occurred.
-			for i := int64(0); i < resp.Count%chainedMutations; i++ {
+			numMutations := ((resp.Count - 1) % chainedMutations) + 1
+			for i := int64(0); i < numMutations; i++ {
 				wc.m.mutate(valuesOut, cap(mem.valueRef()))
 			}
 		}
