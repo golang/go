@@ -16,6 +16,7 @@ rm $GOBIN/a$GOEXE
 
 # If there is a repository, but it can't be used for some reason,
 # there should be an error. It should hint about -buildvcs=false.
+# Also ensure that multiple errors are collected by "go list -e".
 cd ..
 mkdir .git
 env PATH=$WORK${/}fakebin${:}$oldpath
@@ -24,6 +25,10 @@ chmod 0755 $WORK/fakebin/git
 cd a
 ! go install
 stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
+go list -e -f '{{.ImportPath}}: {{.Error}}' ./...
+stdout -count=1 '^example\.com/a: error obtaining VCS status'
+stdout -count=1 '^example\.com/a/library: <nil>'
+stdout -count=1 '^example\.com/a/othermain: error obtaining VCS status'
 cd ..
 env PATH=$oldpath
 rm .git
@@ -99,6 +104,14 @@ go version -m $GOBIN/d$GOEXE
 exec git checkout go.mod
 rm $GOBIN/d$GOEXE
 
+# If we're loading multiple main packages,
+# but they share the same VCS repository,
+# we only need to execute VCS status commands once.
+go list -x ./...
+stdout -count=3 '^example.com'
+stderr -count=1 '^git status'
+stderr -count=1 '^git show'
+
 -- $WORK/fakebin/git --
 #!/bin/sh
 exit 1
@@ -112,6 +125,12 @@ module example.com/a
 
 go 1.18
 -- repo/a/a.go --
+package main
+
+func main() {}
+-- repo/a/library/f.go --
+package library
+-- repo/a/othermain/f.go --
 package main
 
 func main() {}
