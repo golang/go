@@ -328,8 +328,8 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		return
 	}
 
-	if t == ByteType || t == RuneType {
-		// in %-T mode collapse rune and byte with their originals.
+	if t == AnyType || t == ByteType || t == RuneType {
+		// in %-T mode collapse predeclared aliases with their originals.
 		switch mode {
 		case fmtTypeIDName, fmtTypeID:
 			t = Types[t.Kind()]

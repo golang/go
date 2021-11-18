@@ -58,6 +58,8 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
 			return (t1 == Types[TUINT8] || t1 == ByteType) && (t2 == Types[TUINT8] || t2 == ByteType)
 		case TINT32:
 			return (t1 == Types[TINT32] || t1 == RuneType) && (t2 == Types[TINT32] || t2 == RuneType)
+		case TINTER:
+			return (t1 == Types[TINTER] || t1 == AnyType) && (t2 == Types[TINTER] || t2 == AnyType)
 		default:
 			return false
 		}
