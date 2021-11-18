@@ -469,6 +469,13 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
 // Otherwise it returns (typ, false).
 func deref(typ Type) (Type, bool) {
 	if p, _ := typ.(*Pointer); p != nil {
+		// p.base should never be nil, but be conservative
+		if p.base == nil {
+			if debug {
+				panic("pointer with nil base type (possibly due to an invalid cyclic declaration)")
+			}
+			return Typ[Invalid], true
+		}
 		return p.base, true
 	}
 	return typ, false
