@@ -109,8 +109,8 @@ func indexes() {
 	_ = t[- /* ERROR "negative" */ 1]
 	_ = t[- /* ERROR "negative" */ 1 :]
 	_ = t[: - /* ERROR "negative" */ 1]
-	_ = t /* ERROR "3-index slice of string" */ [1:2:3]
-	_ = "foo" /* ERROR "3-index slice of string" */ [1:2:3]
+	_ = t[1:2:3 /* ERROR "3-index slice of string" */ ]
+	_ = "foo"[1:2:3 /* ERROR "3-index slice of string" */ ]
 	var t0 byte
 	t0 = t[0]
 	_ = t0
