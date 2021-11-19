@@ -1,0 +1,21 @@
+! go list -workfile=stop.work a # require absolute path
+! stderr panic
+! go list -workfile=doesnotexist a
+! stderr panic
+
+go list -n -workfile=$GOPATH/src/stop.work a
+go build -n -workfile=$GOPATH/src/stop.work a
+go test -n -workfile=$GOPATH/src/stop.work a
+
+-- stop.work --
+go 1.18
+
+use ./a
+-- a/a.go --
+package a
+-- a/a_test.go --
+package a
+-- a/go.mod --
+module a
+
+go 1.18
