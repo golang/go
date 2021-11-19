@@ -1290,10 +1290,6 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 }
 
 func (ctxt *Link) doxcoff() {
-	if *FlagD {
-		// All XCOFF files have dynamic symbols because of the syscalls.
-		Exitf("-d is not available on AIX")
-	}
 	ldr := ctxt.loader
 
 	// TOC

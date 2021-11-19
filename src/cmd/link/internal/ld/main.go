@@ -172,6 +172,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 		usage()
 	}
 
+	if *FlagD && ctxt.UsesLibc() {
+		Exitf("dynamic linking required on %s; -d flag cannot be used", buildcfg.GOOS)
+	}
+
 	checkStrictDups = *FlagStrictDups
 
 	if !buildcfg.Experiment.RegabiWrappers {
