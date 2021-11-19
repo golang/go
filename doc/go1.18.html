@@ -290,7 +290,7 @@ proposal</a>.
 <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
   <dd>
     <p><!-- CL 345569 -->
-      The new <a href="/pkg/bufio#AvailableBuffer"><code>Writer.AvailableBuffer</code></a>
+      The new <a href="/pkg/bufio#Writer.AvailableBuffer"><code>Writer.AvailableBuffer</code></a>
       method returns an empty buffer with a possibly non-empty capacity for use
       with append-like APIs. After appending, the buffer can be provided to a
 			succeeding <code>Write</code> call and possibly avoid any copying.
@@ -517,7 +517,11 @@ proposal</a>.
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
   <dd>
     <p><!-- CL 321490 -->
-      TODO: <a href="https://golang.org/cl/321490">https://golang.org/cl/321490</a>: implement short-circuit and, or
+      The <code>and</code> function no longer always evaluates all arguments; it
+      stops evaluating arguments after the first argument that evaluates to
+      false.  Similarly, the <code>or</code> function now stops evaluating
+      arguments after the first argument that evaluates to true. This makes a
+      difference if any of the arguments is a function call.
     </p>
   </dd>
 </dl><!-- text/template -->
