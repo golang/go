@@ -98,6 +98,7 @@ type Type interface {
 	String() string
 
 	// Kind returns the specific kind of this type.
+	// If called by nil, will panic.
 	Kind() Kind
 
 	// Implements reports whether the type implements the interface type u.
