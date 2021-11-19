@@ -525,6 +525,9 @@ func die() {
 	if cfg.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 	}
+	if inWorkspaceMode() {
+		base.Fatalf("go: no modules were found in the current workspace; see 'go help work'")
+	}
 	if dir, name := findAltConfig(base.Cwd()); dir != "" {
 		rel, err := filepath.Rel(base.Cwd(), dir)
 		if err != nil {
