@@ -662,6 +662,46 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/tls -->
 
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 353132, CL 353403 -->
+      <a href="/pkg/crypto/x509/#Certificate.Verify"><code>Certificate.Verify</code></a>
+      now uses platform APIs to verify certificate validity on macOS and iOS when it
+      is called with a nil
+      <a href="/pkg/crypto/x509/#VerifyOpts.Roots"><code>VerifyOpts.Roots</code></a>
+      or when using the root pool returned from
+      <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>.
+    </p>
+
+    <p><!-- CL 353589 -->
+      <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
+      is now available on Windows.
+    </p>
+
+    <p>
+      On Windows, macOS, and iOS, when a
+      <a href="/pkg/crypto/x509/#CertPool"><code>CertPool</code></a> returned by
+      <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
+      has additional certificates added to it,
+      <a href="/pkg/crypto/x509/#Certificate.Verify"><code>Certificate.Verify</code></a>
+      will do two verifications: one using the platform verifier APIs and the
+      system roots, and one using the Go verifier and the additional roots.
+      Chains returned by the platform verifier APIs will be prioritized.
+    </p>
+
+    <p>
+      <a href="/pkg/crypto/x509/#CertPool.Subjects"><code>CertPool.Subjects</code></a>
+      is deprecated. On Windows, macOS, and iOS the
+      <a href="/pkg/crypto/x509/#CertPool"><code>CertPool</code></a> returned by
+      <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
+      will return a pool which does not include system roots in the slice
+      returned by <code>Subjects</code>, as a static list can't appropriately
+      represent the platform policies and might not be available at all from the
+      platform APIs.
+    </p>
+  </dd>
+</dl>
+
 <dl id="debug/dwarf"><dt><a href="/pkg/debug/dwarf/">debug/dwarf</a></dt>
   <dd>
     <p><!-- CL 380714 -->
