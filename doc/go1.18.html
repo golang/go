@@ -236,11 +236,17 @@ proposal</a>.
 <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
   <dd>
     <p><!-- CL 345569 -->
-      TODO: <a href="https://golang.org/cl/345569">https://golang.org/cl/345569</a>: add Writer.AvailableBuffer
+      The new <a href="/pkg/bufio#AvailableBuffer"><code>Writer.AvailableBuffer</code></a>
+      method returns an empty buffer with a possibly non-empty capacity for use
+      with append-like APIs. After appending, the buffer can be provided to a
+			succeeding <code>Write</code> call and possibly avoid any copying.
     </p>
 
     <p><!-- CL 345570 -->
-      TODO: <a href="https://golang.org/cl/345570">https://golang.org/cl/345570</a>: make Reader.Reset and Writer.Reset work on the zero value
+      The methods <a href="/pkg/bufio#Reader.Reset"><code>Reader.Reset</code></a> and
+      <a href="/pkg/bufio#Writer.Reset"><code>Writer.Reset</code></a>
+      now use the default buffer size when called on objects with a
+      <code>nil</code> buffer.
     </p>
   </dd>
 </dl><!-- bufio -->
