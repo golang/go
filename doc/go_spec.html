@@ -1269,7 +1269,6 @@ func(int, int, float64) (float64, *[]int)
 func(n int) func(p *T)
 </pre>
 
-
 <h3 id="Interface_types">Interface types</h3>
 
 <p>
@@ -1655,8 +1654,8 @@ ChannelType = ( "chan" | "chan" "&lt;-" | "&lt;-" "chan" ) ElementType .
 
 <p>
 The optional <code>&lt;-</code> operator specifies the channel <i>direction</i>,
-<i>send</i> or <i>receive</i>. If no direction is given, the channel is
-<i>bidirectional</i>.
+<i>send</i> or <i>receive</i>. If a direction is given, the channel is <i>directional</i>,
+otherwise it is <i>bidirectional</i>.
 A channel may be constrained only to send or only to receive by
 <a href="#Assignments">assignment</a> or
 explicit <a href="#Conversions">conversion</a>.
@@ -1836,7 +1835,6 @@ created by distinct <a href="#Type_definitions">type definitions</a>;
 are different because <code>B0</code> is different from <code>[]string</code>.
 </p>
 
-
 <h3 id="Assignability">Assignability</h3>
 
 <p>
@@ -1928,6 +1926,66 @@ x                   T           x is not representable by a value of T because
 1e1000              float64     1e1000 overflows to IEEE +Inf after rounding
 </pre>
 
+<h3 id="Structural_interfaces">Structural interfaces</h3>
+
+<p>
+An interface <code>T</code> is called <i>structural</i> if one of the following
+conditions is satisfied:
+</p>
+
+<ol>
+<li>
+There is a single type <code>U</code> which is the <a href="#Underlying_types">underlying type</a>
+of all types in the <a href="#Interface_types">type set</a> of <code>T</code>; or
+</li>
+<li>
+the type set of <code>T</code> contains only <a href="#Channel_types">channel types</a>
+with identical element type <code>E</code>, and all directional channels have the same
+direction.
+</li>
+</ol>
+
+<p>
+A structural interface has a <i>structural type</i> which is, depending on the
+condition that is satisfied, either:
+</p>
+
+<ol>
+<li>
+the type <code>U</code>; or
+</li>
+<li>
+the type <code>chan E</code> if <code>T</code> contains only bidirectional
+channels, or the type <code>chan&lt;- E</code> or <code>&lt;-chan E</code>
+depending on the direction of the directional channels present.
+</li>
+</ol>
+
+<p>
+Examples of structural interfaces with their structural types:
+</p>
+
+<pre>
+type Celsius float32
+type Kelvin  float32
+
+interface{ int }                          // int
+interface{ Celsius|Kelvin }               // float32
+interface{ ~chan int }                    // chan int
+interface{ ~chan int|~chan&lt;- int }        // chan&lt;- int
+interface{ ~[]*data; String() string }    // []*data
+</pre>
+
+<p>
+Examples of non-structural interfaces:
+</p>
+
+<pre>
+interface{}                               // no single underlying type
+interface{ Celsius|float64 }              // no single underlying type
+interface{ chan int | chan&lt;- string }     // channels have different element types
+interface{ &lt;-chan int | chan&lt;- int }      // directional channels have different directions
+</pre>
 
 <h2 id="Blocks">Blocks</h2>
 
