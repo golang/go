@@ -1,3 +1,5 @@
+skip # flaky: https://golang.org/issue/49685
+
 [!fuzz] skip
 [short] skip
 
