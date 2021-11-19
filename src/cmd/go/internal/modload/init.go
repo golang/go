@@ -294,7 +294,7 @@ func InitWorkfile() {
 		workFilePath = findWorkspaceFile(base.Cwd())
 	default:
 		if !filepath.IsAbs(cfg.WorkFile) {
-			base.Errorf("the path provided to -workfile must be an absolute path")
+			base.Fatalf("the path provided to -workfile must be an absolute path")
 		}
 		workFilePath = cfg.WorkFile
 	}
@@ -590,9 +590,8 @@ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	wf, err := modfile.ParseWork(path, workData, nil)
 
-	return wf, nil
+	return modfile.ParseWork(path, workData, nil)
 }
 
 // WriteWorkFile cleans and writes out the go.work file to the given path.

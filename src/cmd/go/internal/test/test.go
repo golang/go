@@ -619,8 +619,8 @@ var defaultVetFlags = []string{
 }
 
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
 	pkgArgs, testArgs = testFlags(args)
+	modload.InitWorkfile() // The test command does custom flag processing; initialize workspaces after that.
 
 	if cfg.DebugTrace != "" {
 		var close func() error
