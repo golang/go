@@ -15,6 +15,7 @@ import "C"
 
 import (
 	"runtime"
+	"runtime/debug"
 	"sync/atomic"
 	"testing"
 
@@ -45,6 +46,10 @@ func test9400(t *testing.T) {
 	for i := range big {
 		big[i] = pattern
 	}
+
+	// Disable GC for the duration of the test.
+	// This avoids a potential GC deadlock when spinning in uninterruptable ASM below #49695.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 
 	// Temporarily rewind the stack and trigger SIGSETXID
 	issue9400.RewindAndSetgid()
