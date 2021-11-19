@@ -1848,21 +1848,22 @@ A value <code>x</code> is <i>assignable</i> to a <a href="#Variables">variable</
 </li>
 <li>
 <code>x</code>'s type <code>V</code> and <code>T</code> have identical
-<a href="#Types">underlying types</a> and at least one of <code>V</code>
-or <code>T</code> is not a <a href="#Type_definitions">defined</a> type.
+<a href="#Underlying_types">underlying types</a> and at least one of <code>V</code>
+or <code>T</code> is not a <a href="#Types">named type</a>.
 </li>
 <li>
-<code>T</code> is an interface type and
+<code>x</code>'s type <code>V</code> and <code>T</code> are channel types with
+identical element types, <code>V</code> is a bidirectional channel,
+and at least one of <code>V</code> or <code>T</code> is not a <a href="#Types">named type</a>.
+</li>
+<li>
+<code>T</code> is an interface type, but not a type parameter, and
 <code>x</code> <a href="#Interface_types">implements</a> <code>T</code>.
 </li>
 <li>
-<code>x</code> is a bidirectional channel value, <code>T</code> is a channel type,
-<code>x</code>'s type <code>V</code> and <code>T</code> have identical element types,
-and at least one of <code>V</code> or <code>T</code> is not a defined type.
-</li>
-<li>
 <code>x</code> is the predeclared identifier <code>nil</code> and <code>T</code>
-is a pointer, function, slice, map, channel, or interface type.
+is a pointer, function, slice, map, channel, or interface type,
+but not a type parameter.
 </li>
 <li>
 <code>x</code> is an untyped <a href="#Constants">constant</a>
@@ -1871,6 +1872,29 @@ by a value of type <code>T</code>.
 </li>
 </ul>
 
+<p>
+Additionally, if <code>x's</code> type <code>V</code> or <code>T</code> are type parameters
+with <a href="#Structure_of_interfaces">specific types</a>, <code>x</code>
+is assignable to a variable of type <code>T</code> if one of the following conditions applies:
+</p>
+
+<ul>
+<li>
+<code>x</code> is the predeclared identifier <code>nil</code>, <code>T</code> is
+a type parameter, and <code>x</code> is assignable to each specific type of
+<code>T</code>.
+</li>
+<li>
+<code>V</code> is not a <a href="#Types">named type</a>, <code>T</code> is
+a type parameter, and <code>x</code> is assignable to each specific type of
+<code>T</code>.
+</li>
+<li>
+<code>V</code> is a type parameter and <code>T</code> is not a named type,
+and values of each specific type of <code>V</code> are assignable
+to <code>T</code>.
+</li>
+</ul>
 
 <h3 id="Representability">Representability</h3>
 
