@@ -1418,6 +1418,12 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 		w.uint64(1 + uint64(n.Func.Inl.Cost))
 		w.bool(n.Func.Inl.CanDelayResults)
 		if n.Func.ExportInline() || n.Type().HasTParam() {
+			if n.Type().HasTParam() {
+				// If this generic function/method is from another
+				// package, but we didn't use for instantiation in
+				// this package, we may not yet have imported it.
+				ImportedBody(n.Func)
+			}
 			w.p.doInline(n)
 		}
 
