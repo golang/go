@@ -50,6 +50,8 @@ func test9400(t *testing.T) {
 	// Disable GC for the duration of the test.
 	// This avoids a potential GC deadlock when spinning in uninterruptable ASM below #49695.
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// And finish any pending GC after we pause, if any.
+	runtime.GC()
 
 	// Temporarily rewind the stack and trigger SIGSETXID
 	issue9400.RewindAndSetgid()
