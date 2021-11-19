@@ -2290,7 +2290,8 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 		if file == nil || parsed.Module == nil {
 			return nil, fmt.Errorf("no module declaration for %s", modURI)
 		}
-		if parsed.Go != nil && semver.Compare(goVersion, parsed.Go.Version) < 0 {
+		// Prepend "v" to go versions to make them valid semver.
+		if parsed.Go != nil && semver.Compare("v"+goVersion, "v"+parsed.Go.Version) < 0 {
 			goVersion = parsed.Go.Version
 		}
 		path := parsed.Module.Mod.Path

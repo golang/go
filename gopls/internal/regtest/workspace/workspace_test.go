@@ -855,6 +855,7 @@ func TestWorkspaceDirAccess(t *testing.T) {
 -- moda/a/go.mod --
 module a.com
 
+go 1.15
 -- moda/a/a.go --
 package main
 
@@ -863,6 +864,8 @@ func main() {
 }
 -- modb/go.mod --
 module b.com
+
+go 1.16
 -- modb/b/b.go --
 package main
 
@@ -892,7 +895,7 @@ func main() {
 			t.Fatalf("reading expected workspace modfile: %v", err)
 		}
 		got := string(gotb)
-		for _, want := range []string{"a.com v1.9999999.0-goplsworkspace", "b.com v1.9999999.0-goplsworkspace"} {
+		for _, want := range []string{"go 1.16", "a.com v1.9999999.0-goplsworkspace", "b.com v1.9999999.0-goplsworkspace"} {
 			if !strings.Contains(got, want) {
 				// want before got here, since the go.mod is multi-line
 				t.Fatalf("workspace go.mod missing %q. got:\n%s", want, got)
