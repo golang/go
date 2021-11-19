@@ -49,7 +49,7 @@ func NewPkg(path, name string) *Pkg {
 	p := new(Pkg)
 	p.Path = path
 	p.Name = name
-	if strings.HasPrefix(path, "go.") {
+	if strings.HasPrefix(path, "go.") && !strings.Contains(path, "/") {
 		// Special compiler-internal packages don't need to be escaped.
 		// This particularly helps with the go.shape package.
 		p.Prefix = path
