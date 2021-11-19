@@ -46,7 +46,7 @@ func branchingBit(x, y prefix) bitpos {
 	if p == 0 {
 		return 0
 	}
-	return 1 << (bits.Len64(uint64(p)) - 1)
+	return bitpos(1) << uint(bits.Len64(uint64(p))-1) // uint conversion needed for go1.12
 }
 
 // zeroBit returns true if k has a 0 bit at position `b`.
