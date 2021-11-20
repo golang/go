@@ -1876,7 +1876,9 @@ by a value of type <code>T</code>.
 
 <p>
 A <a href="#Constants">constant</a> <code>x</code> is <i>representable</i>
-by a value of type <code>T</code> if one of the following conditions applies:
+by a value of type <code>T</code>,
+where <code>T</code> is not a <a href="#Type_parameters">type parameter</a>,
+if one of the following conditions applies:
 </p>
 
 <ul>
@@ -1898,6 +1900,12 @@ are representable by values of <code>T</code>'s component type (<code>float32</c
 <code>float64</code>).
 </li>
 </ul>
+
+<p>
+If <code>T</code> is a type parameter with <a href="#Structure_of_interfaces">specific types</a>,
+<code>x</code> is representable by a value of type <code>T</code> if <code>x</code> is representable
+by a value of each specific type of <code>T</code>.
+</p>
 
 <pre>
 x                   T           x is representable by a value of T because
