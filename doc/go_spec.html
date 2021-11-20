@@ -4633,7 +4633,9 @@ as for non-constant <code>x</code>.
 </p>
 
 <p>
-Converting a constant yields a typed constant as result.
+Converting a constant to a type that is not a <a href="#Type_parameters">type parameter</a>
+yields a typed constant.
+Converting a constant to a type parameter yields a non-constant value of that type.	
 </p>
 
 <pre>
@@ -4669,7 +4671,7 @@ in any of these cases:
 	<li>
 	ignoring struct tags (see below),
 	<code>x</code>'s type and <code>T</code> are pointer types
-	that are not <a href="#Type_definitions">defined types</a>,
+	that are not <a href="#Types">named types</a>,
 	and their pointer base types have identical underlying types.
 	</li>
 	<li>
@@ -4690,6 +4692,28 @@ in any of these cases:
 	<code>x</code> is a slice, <code>T</code> is a pointer to an array,
 	and the slice and array types have <a href="#Type_identity">identical</a> element types.
 	</li>
+</ul>
+
+<p>
+Additionally, if <code>T</code> or </code><code>x's</code> type <code>V</code> are type
+parameters with <a href="#Structure_of_interfaces">specific types</a>, <code>x</code>
+can also be converted to type <code>T</code> if one of the following conditions applies:
+</p>
+
+<ul>
+<li>
+Both <code>V</code> and <code>T</code> are type parameters and a value of each
+specific type of <code>V</code> can be converted to each specific type
+of <code>T</code>.
+</li>
+<li>
+Only <code>V</code> is a type parameter and a value of each
+specific type of <code>V</code> can be converted to <code>T</code>.
+</li>
+<li>
+Only <code>T</code> is a type parameter and <code>x</code> can can be converted to each
+specific type of <code>T</code>.
+</li>
 </ul>
 
 <p>
