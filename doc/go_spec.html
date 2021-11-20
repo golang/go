@@ -2914,12 +2914,18 @@ or a parenthesized expression.
 </p>
 
 <p>
+An operand name denoting a <a href="#Function_declarations">type-parameterized function</a>
+may be followed by a list of <a href="#Type_arguments">type arguments</a>; the
+resulting operand is an <a href="#Instantiations">instantiated</a> function.
+</p>
+
+<p>
 The <a href="#Blank_identifier">blank identifier</a> may appear as an
 operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
 </p>
 
 <pre class="ebnf">
-Operand     = Literal | OperandName | "(" Expression ")" .
+Operand     = Literal | OperandName [ TypeArgs ] | "(" Expression ")" .
 Literal     = BasicLit | CompositeLit | FunctionLit .
 BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
 OperandName = identifier | QualifiedIdent .
@@ -2928,7 +2934,7 @@ OperandName = identifier | QualifiedIdent .
 <h3 id="Qualified_identifiers">Qualified identifiers</h3>
 
 <p>
-A qualified identifier is an identifier qualified with a package name prefix.
+A <i>qualified identifier</i> is an identifier qualified with a package name prefix.
 Both the package name and the identifier must not be
 <a href="#Blank_identifier">blank</a>.
 </p>
@@ -3963,6 +3969,11 @@ pt.Scale(3.5)     // method call with receiver pt
 </pre>
 
 <p>
+If <code>f</code> denotes a parameterized function, it must be
+<a href="#Instantiations">instantiated</a> before it can be called.
+</p>
+
+<p>
 In a function call, the function value and arguments are evaluated in
 <a href="#Order_of_evaluation">the usual order</a>.
 After they are evaluated, the parameters of the call are passed by value to the function
@@ -4073,6 +4084,81 @@ within <code>Greeting</code>, <code>who</code> will have the same value as <code
 with the same underlying array.
 </p>
 
+<h3 id="Instantiations">Instantiations</h3>
+
+<p>
+A parameterized function or type is <i>instantiated</i> by substituting type arguments
+for the type parameters.
+Instantiation proceeds in two phases:
+</p>
+
+<ol>
+<li>
+Each type argument is substituted for its corresponding type parameter in the parameterized
+declaration.
+This substitution happens across the entire function or type declaration,
+including the type parameter list itself and any types in that list.
+</li>
+
+<li>
+After substitution, each type argument must <a href="#Interface_types">implement</a>
+the <a href="#Type_parameter_lists">constraint</a> (instantiated, if necessary)
+of the corresponding type parameter. Otherwise instantiation fails.
+</li>
+</ol>
+
+<p>
+Instantiating a type results in a new non-parameterized <a href="#Types">named type</a>;
+instantiating a function produces a new non-parameterized function.
+</p>
+
+<pre>
+type parameter list    type arguments    after substitution
+
+[P any]                int               [int any]
+[S ~[]E, E any]        []int, int        [[]int ~[]int, int any]
+[P io.Writer]          string            [string io.Writer]         // illegal: string doesn't implement io.Writer
+</pre>
+
+<p>
+Type arguments may be provided explicitly, or they may be partially or completely
+<a href="#Type_inference">inferred</a>.
+A partially provided type argument list cannot be empty; there must be at least the
+first argument.
+</p>
+
+<pre>
+type T[P1 ~int, P2 ~[]P1] struct{ … }
+
+T[]            // illegal: at least the first type argument must be present, even if it could be inferred
+T[int]         // argument for P1 explicitly provided, argument for P2 inferred
+T[int, []int]  // both arguments explicitly provided
+</pre>
+
+<p>
+A partial type argument list specifies a prefix of the full list of type arguments, leaving
+the remaining arguments to be inferred. Loosely speaking, type arguments may be omitted from
+"right to left".
+</p>
+
+<p>
+Parameterized types, and parameterized functions that are not <a href="#Calls">called</a>,
+require a type argument list for instantiation; if the list is partial, all
+remaining type arguments must be inferrable.
+Calls to parameterized functions may provide a (possibly partial) type
+argument list, or may omit it entirely if the omitted type arguments are
+inferrable from the ordinary (non-type) function arguments.
+</p>
+
+<pre>
+func min[T constraints.Ordered](x, y T) T { … }
+
+f := min                   // illegal: min must be instantiated when used without being called
+minInt := min[int]         // minInt has type func(x, y int) int
+a := minInt(2, 3)          // a has value 2 of type int
+b := min[float64](2.0, 3)  // b has value 2.0 of type float64
+c := min(b, -1)            // c has value -1.0 of type float64
+</pre>
 
 <h3 id="Operators">Operators</h3>
 
