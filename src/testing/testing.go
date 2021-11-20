@@ -740,7 +740,7 @@ func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
-// TB is the interface common to T and B.
+// TB is the interface common to T, B, and F.
 type TB interface {
 	Cleanup(func())
 	Error(args ...interface{})
