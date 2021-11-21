@@ -565,7 +565,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 		// If x is the lhs of a shift, its final type must be integer.
 		// We already know from the shift check that it is representable
 		// as an integer if it is a constant.
-		if !isInteger(typ) {
+		if !allInteger(typ) {
 			check.invalidOp(x, _InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
 			return
 		}
