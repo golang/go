@@ -205,6 +205,7 @@ func asGoVersion(s string) string {
 // TODO(gri) enable as soon as the unified build supports this.
 var excludedForUnifiedBuild = map[string]bool{
 	"issue47818.go2": true,
+	"issue49705.go2": true,
 }
 
 func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
