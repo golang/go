@@ -304,9 +304,10 @@ proposal</a>.
 
 <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
   <dd>
-    <p><!-- CL 332771 -->
-      <a href="/pkg/bytes#Trim"><code>bytes.Trim</code></a> and related
-      functions, have had their most common use cases optimized.
+    <p><!-- CL 323318, CL 332771 -->
+      <a href="/pkg/bytes/#Trim"><code>Trim</code></a>, <a href="/pkg/bytes/#TrimLeft"><code>TrimLeft</code></a>,
+      and <a href="/pkg/bytes/#TrimRight"><code>TrimRight</code></a> are now allocation free and, especially for 
+      small ASCII cutsets, up to 10 times faster.
     </p>
 
     <p><!-- CL 359485 -->
@@ -447,9 +448,10 @@ proposal</a>.
       the input string's memory.
     </p>
 
-    <p><!-- CL 332771 -->
-      <a href="/pkg/bytes#Trim"><code>strings.Trim</code></a> and related functions
-      functions, have had their most common use cases optimized.
+    <p><!-- CL 323318, CL 332771 -->
+      <a href="/pkg/strings/#Trim"><code>Trim</code></a>, <a href="/pkg/strings/#TrimLeft"><code>TrimLeft</code></a>,
+      and <a href="/pkg/strings/#TrimRight"><code>TrimRight</code></a> are now allocation free and, especially for 
+      small ASCII cutsets, up to 10 times faster.
     </p>
 
     <p><!-- CL 359485 -->
