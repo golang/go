@@ -7,6 +7,7 @@
 package runtime_test
 
 import (
+	"io"
 	"os/exec"
 	"syscall"
 	"testing"
@@ -28,6 +29,10 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 
 	start := time.Now()
 	cmd := exec.Command(exe, "After1")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatalf("StdoutPipe: %v", err)
+	}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Failed to start command: %v", err)
 	}
@@ -36,27 +41,43 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 		doneCh <- cmd.Wait()
 	}()
 
+	// Wait for After1 to close its stdout so that we know the runtime's SIGIO
+	// handler is registered.
+	b, err := io.ReadAll(stdout)
+	if len(b) > 0 {
+		t.Logf("read from testprog stdout: %s", b)
+	}
+	if err != nil {
+		t.Fatalf("error reading from testprog: %v", err)
+	}
+
 	// With the repro running, we can continuously send to it
-	// a non-terminal signal such as SIGIO, to spuriously
-	// wakeup pthread_cond_timedwait_relative_np.
-	unfixedTimer := time.NewTimer(2 * time.Second)
+	// a signal that the runtime considers non-terminal,
+	// such as SIGIO, to spuriously wake up
+	// pthread_cond_timedwait_relative_np.
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-time.After(200 * time.Millisecond):
+		case now := <-ticker.C:
+			if now.Sub(start) > 2*time.Second {
+				t.Error("Program failed to return on time and has to be killed, issue #27520 still exists")
+				cmd.Process.Signal(syscall.SIGKILL)
+				<-doneCh
+				return
+			}
+
 			// Send the pesky signal that toggles spinning
 			// indefinitely if #27520 is not fixed.
 			cmd.Process.Signal(syscall.SIGIO)
-
-		case <-unfixedTimer.C:
-			t.Error("Program failed to return on time and has to be killed, issue #27520 still exists")
-			cmd.Process.Signal(syscall.SIGKILL)
-			return
 
 		case err := <-doneCh:
 			if err != nil {
 				t.Fatalf("The program returned but unfortunately with an error: %v", err)
 			}
-			if time.Since(start) < 100*time.Millisecond {
+			if time.Since(start) < 1*time.Second {
+				// The program was supposed to sleep for a full (monotonic) second;
+				// it should not return before that has elapsed.
 				t.Fatalf("The program stopped too quickly.")
 			}
 			return
