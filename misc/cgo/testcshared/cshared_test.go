@@ -781,10 +781,10 @@ func copyFile(t *testing.T, dst, src string) {
 
 func TestGo2C2Go(t *testing.T) {
 	switch GOOS {
-	case "darwin", "ios":
-		// Darwin shared libraries don't support the multiple
+	case "darwin", "ios", "windows":
+		// Non-ELF shared libraries don't support the multiple
 		// copies of the runtime package implied by this test.
-		t.Skip("linking c-shared into Go programs not supported on Darwin; issue 29061")
+		t.Skipf("linking c-shared into Go programs not supported on %s; issue 29061, 49457", GOOS)
 	case "android":
 		t.Skip("test fails on android; issue 29087")
 	}
