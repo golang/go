@@ -21,6 +21,7 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
+	t.Parallel() // Waits for a program to sleep for 1s.
 
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {
