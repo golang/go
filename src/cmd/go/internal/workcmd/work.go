@@ -24,7 +24,7 @@ A workspace is specified by a go.work file that specifies a set of
 module directories with the "use" directive. These modules are used
 as root modules by the go command for builds and related operations.
 A workspace that does not specify modules to be used cannot be used
-to do builds from local code.
+to do builds from local modules.
 
 To determine whether the go command is operating in workspace mode,
 use the "go env GOWORK" command. This will specify the workspace
