@@ -1307,3 +1307,12 @@ func escape(x interface{}) interface{} {
 	escapeSink = nil
 	return x
 }
+
+// Acquirem blocks preemption.
+func Acquirem() {
+	acquirem()
+}
+
+func Releasem() {
+	releasem(getg().m)
+}
