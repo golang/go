@@ -1661,6 +1661,56 @@ func TestAssignableTo(t *testing.T) {
 	}
 }
 
+func TestIdentical(t *testing.T) {
+	// For each test, we compare the types of objects X and Y in the source.
+	tests := []struct {
+		src  string
+		want bool
+	}{
+		// Basic types.
+		{"var X int; var Y int", true},
+		{"var X int; var Y string", false},
+
+		// TODO: add more tests for complex types.
+
+		// Named types.
+		{"type X int; type Y int", false},
+
+		// Aliases.
+		{"type X = int; type Y = int", true},
+
+		// Functions.
+		{`func X(int) string { return "" }; func Y(int) string { return "" }`, true},
+		{`func X() string { return "" }; func Y(int) string { return "" }`, false},
+		{`func X(int) string { return "" }; func Y(int) {}`, false},
+
+		// Generic functions. Type parameters should be considered identical modulo
+		// renaming. See also issue #49722.
+		{`func X[P ~int](){}; func Y[Q ~int]() {}`, true},
+		{`func X[P1 any, P2 ~*P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, true},
+		{`func X[P1 any, P2 ~[]P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, false},
+		{`func X[P ~int](P){}; func Y[Q ~int](Q) {}`, true},
+		{`func X[P ~string](P){}; func Y[Q ~int](Q) {}`, false},
+		{`func X[P ~int]([]P){}; func Y[Q ~int]([]Q) {}`, true},
+	}
+
+	for _, test := range tests {
+		pkg, err := pkgForMode("test", "package p;"+test.src, nil, 0)
+		if err != nil {
+			t.Errorf("%s: incorrect test case: %s", test.src, err)
+			continue
+		}
+		X := pkg.Scope().Lookup("X")
+		Y := pkg.Scope().Lookup("Y")
+		if X == nil || Y == nil {
+			t.Fatal("test must declare both X and Y")
+		}
+		if got := Identical(X.Type(), Y.Type()); got != test.want {
+			t.Errorf("Identical(%s, %s) = %t, want %t", X.Type(), Y.Type(), got, test.want)
+		}
+	}
+}
+
 func TestIdentical_issue15173(t *testing.T) {
 	// Identical should allow nil arguments and be symmetric.
 	for _, test := range []struct {
