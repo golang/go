@@ -78,13 +78,15 @@ func filterSyms(syms map[string]symbol, ns []symbol) {
 
 // return the starting position of the enclosing token, or -1 if none
 func inTemplate(fc *Parsed, pos protocol.Position) int {
+	// pos is the pos-th character. if the cursor is at the beginning
+	// of the file, pos is 0. That is, we've only seen characters before pos
 	// 1. pos might be in a Token, return tk.Start
 	// 2. pos might be after an elided but before a Token, return elided
 	// 3. return -1 for false
 	offset := fc.FromPosition(pos)
 	// this could be a binary search, as the tokens are ordered
 	for _, tk := range fc.tokens {
-		if tk.Start <= offset && offset < tk.End {
+		if tk.Start < offset && offset <= tk.End {
 			return tk.Start
 		}
 	}
@@ -244,7 +246,7 @@ func scan(buf []byte) []string {
 			ans[len(ans)-1] = "." + lit
 		} else if tok == token.IDENT && len(ans) > 0 && ans[len(ans)-1] == "$" {
 			ans[len(ans)-1] = "$" + lit
-		} else {
+		} else if lit != "" {
 			ans = append(ans, lit)
 		}
 	}
