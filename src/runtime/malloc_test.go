@@ -198,6 +198,10 @@ func TestTinyAllocIssue37262(t *testing.T) {
 	runtime.GC()
 	runtime.GC()
 
+	// Disable preemption so we stay on one P's tiny allocator and
+	// nothing else allocates from it.
+	runtime.Acquirem()
+
 	// Make 1-byte allocations until we get a fresh tiny slot.
 	aligned := false
 	for i := 0; i < 16; i++ {
@@ -208,6 +212,7 @@ func TestTinyAllocIssue37262(t *testing.T) {
 		}
 	}
 	if !aligned {
+		runtime.Releasem()
 		t.Fatal("unable to get a fresh tiny slot")
 	}
 
@@ -229,6 +234,8 @@ func TestTinyAllocIssue37262(t *testing.T) {
 	tinyByteSink = nil
 	tinyUint32Sink = nil
 	tinyObj12Sink = nil
+
+	runtime.Releasem()
 }
 
 func TestPageCacheLeak(t *testing.T) {
