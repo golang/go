@@ -146,6 +146,7 @@ var extraEnvKeys = []string{
 	"GO_TESTING_GOTOOLS", // for gccgo testing
 	"GCCGO",              // for gccgo testing
 	"GCCGOTOOLDIR",       // for gccgo testing
+	"MallocNanoZone",     // Needed to work around an apparent kernel bug in macOS 12; see https://golang.org/issue/49138.
 }
 
 // setup sets up the test execution temporary directory and environment.
