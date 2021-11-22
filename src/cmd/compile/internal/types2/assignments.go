@@ -220,9 +220,6 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 		return nil
 	case variable, mapindex:
 		// ok
-	case nilvalue:
-		check.error(&z, "cannot assign to nil") // default would print "untyped nil"
-		return nil
 	default:
 		if sel, ok := z.expr.(*syntax.SelectorExpr); ok {
 			var op operand
