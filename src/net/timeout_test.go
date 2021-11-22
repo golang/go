@@ -655,10 +655,36 @@ const (
 	// maxDynamicTimeout is the maximum timeout to attempt for
 	// tests that automatically increase timeouts until succeess.
 	//
-	// This should be a strict upper bound on the latency of the timeout: if a
-	// test would increase the timeout beyond this value, the test fails.
-	maxDynamicTimeout = 1 * time.Second
+	// This should be a strict upper bound on the latency required to hit a
+	// timeout accurately, even on a slow or heavily-loaded machine. If a test
+	// would increase the timeout beyond this value, the test fails.
+	maxDynamicTimeout = 4 * time.Second
 )
+
+// timeoutUpperBound returns the maximum time that we expect a timeout of
+// duration d to take to return the caller.
+func timeoutUpperBound(d time.Duration) time.Duration {
+	// In https://storage.googleapis.com/go-build-log/1e637cd3/openbsd-amd64-68_3585d3e7.log,
+	// we observed that an openbsd-amd64-68 builder took 636ms for a 512ms timeout
+	// (24.2% overhead).
+	return d * 4 / 3
+}
+
+// nextTimeout returns the next timeout to try after an operation took the given
+// actual duration with a timeout shorter than that duration.
+func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
+	if actual >= maxDynamicTimeout {
+		return maxDynamicTimeout, false
+	}
+	// Since the previous attempt took actual, we can't expect to beat that
+	// duration by any significant margin. Try the next attempt with an arbitrary
+	// factor above that, so that our growth curve is at least exponential.
+	next = actual * 5 / 4
+	if next > maxDynamicTimeout {
+		return maxDynamicTimeout, true
+	}
+	return next, true
+}
 
 func TestReadTimeoutFluctuation(t *testing.T) {
 	ln, err := newLocalListener("tcp")
@@ -703,14 +729,15 @@ func TestReadTimeoutFluctuation(t *testing.T) {
 		if t.Failed() {
 			return
 		}
-		if actual > d*11/10 {
-			if actual > maxDynamicTimeout || d > maxDynamicTimeout/2 {
-				t.Fatalf("Read took %s; expected %v", actual, d)
+		if want := timeoutUpperBound(d); actual > want {
+			next, ok := nextTimeout(actual)
+			if !ok {
+				t.Fatalf("Read took %s; expected at most %v", actual, want)
 			}
 			// Maybe this machine is too slow to reliably schedule goroutines within
 			// the requested duration. Increase the timeout and try again.
 			t.Logf("Read took %s (expected %s); trying with longer timeout", actual, d)
-			d *= 2
+			d = next
 			continue
 		}
 
@@ -761,14 +788,15 @@ func TestReadFromTimeoutFluctuation(t *testing.T) {
 		if t.Failed() {
 			return
 		}
-		if actual > d*11/10 {
-			if actual > maxDynamicTimeout || d > maxDynamicTimeout/2 {
-				t.Fatalf("ReadFrom took %s; expected %s", actual, d)
+		if want := timeoutUpperBound(d); actual > want {
+			next, ok := nextTimeout(actual)
+			if !ok {
+				t.Fatalf("ReadFrom took %s; expected at most %s", actual, want)
 			}
 			// Maybe this machine is too slow to reliably schedule goroutines within
 			// the requested duration. Increase the timeout and try again.
 			t.Logf("ReadFrom took %s (expected %s); trying with longer timeout", actual, d)
-			d *= 2
+			d = next
 			continue
 		}
 
@@ -830,7 +858,7 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 		if t.Failed() {
 			return
 		}
-		if actual > d*11/10 {
+		if want := timeoutUpperBound(d); actual > want {
 			if n > 0 {
 				// SetWriteDeadline specifies a time “after which I/O operations fail
 				// instead of blocking”. However, the kernel's send buffer is not yet
@@ -838,15 +866,18 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 				// bytes to it without blocking.
 				t.Logf("Wrote %d bytes into send buffer; retrying until buffer is full", n)
 				if d <= maxDynamicTimeout/2 {
+					// We don't know how long the actual write loop would have taken if
+					// the buffer were full, so just guess and double the duration so that
+					// the next attempt can make twice as much progress toward filling it.
 					d *= 2
 				}
-			} else if actual > maxDynamicTimeout || d > maxDynamicTimeout/2 {
-				t.Fatalf("Write took %s; expected %s", actual, d)
+			} else if next, ok := nextTimeout(actual); !ok {
+				t.Fatalf("Write took %s; expected at most %s", actual, want)
 			} else {
 				// Maybe this machine is too slow to reliably schedule goroutines within
 				// the requested duration. Increase the timeout and try again.
 				t.Logf("Write took %s (expected %s); trying with longer timeout", actual, d)
-				d *= 2
+				d = next
 			}
 			continue
 		}
