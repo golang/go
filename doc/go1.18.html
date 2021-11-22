@@ -29,6 +29,20 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<h3 id="bug_fixes">Bug fixes</h3>
+
+<p>
+  The Go 1.18 compiler now correctly reports <code>declared but not used</code> errors
+  for variables that are set inside a function literal but are never used. Before Go 1.18,
+  the compiler did not report an error in such cases. This fixes long-outstanding compiler
+  issue <a href="https://golang.org/issue/8560">#8560</a>. As a result of this change,
+  (possibly incorrect) programs may not compile anymore. The necessary fix is
+  straightforward: fix the program if it was in fact incorrect, or use the offending
+  variable, for instance by assigning it to the blank identifier <code>_</code>.
+  Since <code>go vet</code> always pointed out this error, the number of affected
+  programs is likely very small.
+</p>
+
 <h3 id="generics">Generics</h3>
 
 <p>
