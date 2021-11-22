@@ -116,7 +116,7 @@ func operandString(x *operand, qf Qualifier) string {
 		case nil, Typ[Invalid]:
 			return "nil (with invalid type)"
 		case Typ[UntypedNil]:
-			return "untyped nil"
+			return "nil"
 		default:
 			return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
 		}
