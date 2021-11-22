@@ -894,7 +894,7 @@ Found:
 
 		isTest := strings.HasSuffix(name, "_test.go")
 		isXTest := false
-		if isTest && strings.HasSuffix(pkg, "_test") {
+		if isTest && strings.HasSuffix(pkg, "_test") && p.Name != pkg {
 			isXTest = true
 			pkg = pkg[:len(pkg)-len("_test")]
 		}
