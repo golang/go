@@ -163,7 +163,7 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	mw := w
 	// chain a bunch of multiWriters
 	for i := 0; i < 100; i++ {
-		mw = MultiWriter(w)
+		mw = MultiWriter(mw)
 	}
 
 	mw = MultiWriter(w, mw, w, mw)
