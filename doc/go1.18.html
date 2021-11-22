@@ -43,6 +43,19 @@ Do not send CLs removing the interior tags from such phrases.
   programs is likely very small.
 </p>
 
+<p>
+  The Go 1.18 compiler now reports an overflow when passing a rune constant expression
+  such as <code>'1' << 32</code> as an argument to the predeclared functions
+  <code>print</code> and <code>println</code>, consistent with the behavior of
+  user-defined functions. Before Go 1.18, the compiler did not report an error
+  in such cases but silently accepted such constant arguments if they fit into an
+  <code>int64</code>. As a result of this change, (possibly incorrect) programs
+  may not compile anymore. The necessary fix is straightforward: fix the program if it
+  was in fact incorrect, or explicitly convert the offending argument to the correct type.
+  Since <code>go vet</code> always pointed out this error, the number of affected
+  programs is likely very small.
+</p>
+
 <h3 id="generics">Generics</h3>
 
 <p>
