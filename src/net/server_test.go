@@ -7,7 +7,9 @@
 package net
 
 import (
+	"fmt"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -187,7 +189,34 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 				}
 				t.Fatal(err)
 			}
-			defer os.Remove(c.LocalAddr().String())
+
+			// We really just want to defer os.Remove(c.LocalAddr().String()) here,
+			// but sometimes that panics due to a nil dereference on the
+			// solaris-amd64-oraclerel builder (https://golang.org/issue/34611).
+			// The source of the nil panic is not obvious because there are many
+			// nillable types involved, so we will temporarily inspect all of them to
+			// try to get a better idea of what is happening on that platform.
+			checkNils := func() {
+				if c == nil {
+					panic("Dial returned a nil Conn")
+				}
+				if rc := reflect.ValueOf(c); rc.Kind() == reflect.Pointer && rc.IsNil() {
+					panic(fmt.Sprintf("Dial returned a nil %T", c))
+				}
+				addr := c.LocalAddr()
+				if addr == nil {
+					panic(fmt.Sprintf("(%T).LocalAddr returned a nil Addr", c))
+				}
+				if raddr := reflect.ValueOf(addr); raddr.Kind() == reflect.Pointer && raddr.IsNil() {
+					panic(fmt.Sprintf("(%T).LocalAddr returned a nil %T", c, addr))
+				}
+			}
+			defer func() {
+				checkNils()
+				os.Remove(c.LocalAddr().String())
+			}()
+			checkNils()
+
 			defer c.Close()
 			trchs = append(trchs, make(chan error, 1))
 			go transceiver(c, []byte("UNIX AND UNIXPACKET SERVER TEST"), trchs[i])
