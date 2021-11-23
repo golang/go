@@ -7830,36 +7830,49 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 		}
 	}
 
+	handleResponseHeaders := func() (*Response, error) {
+		res := cs.res
+		if res.StatusCode > 299 {
+			// On error or status code 3xx, 4xx, 5xx, etc abort any
+			// ongoing write, assuming that the server doesn't care
+			// about our request body. If the server replied with 1xx or
+			// 2xx, however, then assume the server DOES potentially
+			// want our body (e.g. full-duplex streaming:
+			// golang.org/issue/13444). If it turns out the server
+			// doesn't, they'll RST_STREAM us soon enough. This is a
+			// heuristic to avoid adding knobs to Transport. Hopefully
+			// we can keep it.
+			cs.abortRequestBodyWrite()
+		}
+		res.Request = req
+		res.TLS = cc.tlsState
+		if res.Body == http2noBody && http2actualContentLength(req) == 0 {
+			// If there isn't a request or response body still being
+			// written, then wait for the stream to be closed before
+			// RoundTrip returns.
+			if err := waitDone(); err != nil {
+				return nil, err
+			}
+		}
+		return res, nil
+	}
+
 	for {
 		select {
 		case <-cs.respHeaderRecv:
-			res := cs.res
-			if res.StatusCode > 299 {
-				// On error or status code 3xx, 4xx, 5xx, etc abort any
-				// ongoing write, assuming that the server doesn't care
-				// about our request body. If the server replied with 1xx or
-				// 2xx, however, then assume the server DOES potentially
-				// want our body (e.g. full-duplex streaming:
-				// golang.org/issue/13444). If it turns out the server
-				// doesn't, they'll RST_STREAM us soon enough. This is a
-				// heuristic to avoid adding knobs to Transport. Hopefully
-				// we can keep it.
-				cs.abortRequestBodyWrite()
-			}
-			res.Request = req
-			res.TLS = cc.tlsState
-			if res.Body == http2noBody && http2actualContentLength(req) == 0 {
-				// If there isn't a request or response body still being
-				// written, then wait for the stream to be closed before
-				// RoundTrip returns.
-				if err := waitDone(); err != nil {
-					return nil, err
-				}
-			}
-			return res, nil
+			return handleResponseHeaders()
 		case <-cs.abort:
-			waitDone()
-			return nil, cs.abortErr
+			select {
+			case <-cs.respHeaderRecv:
+				// If both cs.respHeaderRecv and cs.abort are signaling,
+				// pick respHeaderRecv. The server probably wrote the
+				// response and immediately reset the stream.
+				// golang.org/issue/49645
+				return handleResponseHeaders()
+			default:
+				waitDone()
+				return nil, cs.abortErr
+			}
 		case <-ctx.Done():
 			err := ctx.Err()
 			cs.abortStream(err)
@@ -7919,6 +7932,9 @@ func (cs *http2clientStream) writeRequest(req *Request) (err error) {
 		return err
 	}
 	cc.addStreamLocked(cs) // assigns stream ID
+	if http2isConnectionCloseRequest(req) {
+		cc.doNotReuse = true
+	}
 	cc.mu.Unlock()
 
 	// TODO(bradfitz): this is a copy of the logic in net/http. Unify somewhere?
@@ -8016,6 +8032,7 @@ func (cs *http2clientStream) writeRequest(req *Request) (err error) {
 		case <-respHeaderTimer:
 			return http2errTimeout
 		case <-respHeaderRecv:
+			respHeaderRecv = nil
 			respHeaderTimer = nil // keep waiting for END_STREAM
 		case <-cs.abort:
 			return cs.abortErr
@@ -9019,7 +9036,7 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 	cs.bytesRemain = res.ContentLength
 	res.Body = http2transportResponseBody{cs}
 
-	if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" {
+	if cs.requestedGzip && http2asciiEqualFold(res.Header.Get("Content-Encoding"), "gzip") {
 		res.Header.Del("Content-Encoding")
 		res.Header.Del("Content-Length")
 		res.ContentLength = -1
@@ -9158,7 +9175,10 @@ func (b http2transportResponseBody) Close() error {
 	select {
 	case <-cs.donec:
 	case <-cs.ctx.Done():
-		return cs.ctx.Err()
+		// See golang/go#49366: The net/http package can cancel the
+		// request context after the response body is fully read.
+		// Don't treat this as an error.
+		return nil
 	case <-cs.reqCancel:
 		return http2errRequestCanceled
 	}
