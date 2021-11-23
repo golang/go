@@ -402,9 +402,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 	return typ
 }
 
-func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def *Named) (res Type) {
+func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *Named) (res Type) {
 	if check.conf.Trace {
-		check.trace(x.Pos(), "-- instantiating %s with %s", x, targsx)
+		check.trace(x.Pos(), "-- instantiating %s with %s", x, xlist)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -424,16 +424,10 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 	}
 
 	// evaluate arguments
-	targs := check.typeList(targsx)
+	targs := check.typeList(xlist)
 	if targs == nil {
 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
 		return Typ[Invalid]
-	}
-
-	// determine argument positions
-	posList := make([]syntax.Pos, len(targs))
-	for i, arg := range targsx {
-		posList[i] = arg.Pos()
 	}
 
 	// create the instance
@@ -484,12 +478,12 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 			if i, err := check.verify(x.Pos(), inst.tparams.list(), inst.targs.list()); err != nil {
 				// best position for error reporting
 				pos := x.Pos()
-				if i < len(posList) {
-					pos = posList[i]
+				if i < len(xlist) {
+					pos = syntax.StartPos(xlist[i])
 				}
-				check.softErrorf(pos, err.Error())
+				check.softErrorf(pos, "%s", err)
 			} else {
-				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), posList)
+				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), xlist)
 			}
 		}
 

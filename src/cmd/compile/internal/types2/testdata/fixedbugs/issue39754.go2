@@ -17,7 +17,5 @@ func f[V interface{}, A, B Box[V]]() {}
 func _() {
 	f[int, Optional[int], Optional[int]]()
 	_ = f[int, Optional[int], Optional /* ERROR does not implement Box */ [string]]
-	// TODO(gri) Provide better position information here.
-	//           See TODO in call.go, Checker.arguments.
-	f[int, Optional[int], Optional[string]]( /* ERROR does not implement Box */ )
+	_ = f[int, Optional[int], Optional /* ERROR Optional.* does not implement Box.* */ [string]]
 }
