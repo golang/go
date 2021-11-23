@@ -69,10 +69,10 @@ func assignments1() {
 
 	// test cases for issue 5800
 	var (
-		_ int = nil /* ERROR "untyped nil value" */
-		_ [10]int = nil /* ERROR "untyped nil value" */
+		_ int = nil /* ERROR "cannot use nil as int value in variable declaration" */
+		_ [10]int = nil /* ERROR "cannot use nil as \[10\]int value in variable declaration" */
 		_ []byte = nil
-		_ struct{} = nil /* ERROR "untyped nil value" */
+		_ struct{} = nil /* ERROR "cannot use nil as struct{} value in variable declaration" */
 		_ func() = nil
 		_ map[int]string = nil
 		_ chan int = nil

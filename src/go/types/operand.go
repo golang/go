@@ -105,6 +105,11 @@ func (x *operand) Pos() token.Pos {
 // cgofunc    <expr> (               <mode>       of type <typ>)
 //
 func operandString(x *operand, qf Qualifier) string {
+	// special-case nil
+	if x.mode == value && x.typ == Typ[UntypedNil] {
+		return "nil"
+	}
+
 	var buf bytes.Buffer
 
 	var expr string
