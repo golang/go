@@ -1306,18 +1306,13 @@ func setThreadCPUProfiler(hz int32) {
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
 }
 
-const preemptMSupported = GOARCH != "arm64"
+const preemptMSupported = true
 
 // suspendLock protects simultaneous SuspendThread operations from
 // suspending each other.
 var suspendLock mutex
 
 func preemptM(mp *m) {
-	if !preemptMSupported {
-		// TODO: Implement call injection
-		return
-	}
-
 	if mp == getg().m {
 		throw("self-preempt")
 	}
@@ -1411,6 +1406,17 @@ func preemptM(mp *m) {
 				c.set_sp(sp)
 				*(*uint32)(unsafe.Pointer(sp)) = uint32(c.lr())
 				c.set_lr(newpc - 1)
+				c.set_ip(targetPC)
+
+			case "arm64":
+				// Push LR. The injected call is responsible
+				// for restoring LR. gentraceback is aware of
+				// this extra slot. See sigctxt.pushCall in
+				// signal_arm64.go.
+				sp := c.sp() - 16 // SP needs 16-byte alignment
+				c.set_sp(sp)
+				*(*uint64)(unsafe.Pointer(sp)) = uint64(c.lr())
+				c.set_lr(newpc)
 				c.set_ip(targetPC)
 			}
 			stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
