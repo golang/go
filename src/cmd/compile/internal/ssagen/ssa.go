@@ -6577,6 +6577,22 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
 			// explicit statement boundaries should appear
 			// in the generated code.
 			if p.IsStmt() != src.PosIsStmt {
+				if s.pp.Pos.IsStmt() == src.PosIsStmt && s.pp.Pos.SameFileAndLine(p) {
+					// If s.pp.Pos already has a statement mark, then it was set here (below) for
+					// the previous value.  If an actual instruction had been emitted for that
+					// value, then the statement mark would have been reset.  Since the statement
+					// mark of s.pp.Pos was not reset, this position (file/line) still needs a
+					// statement mark on an instruction.  If file and line for this value are
+					// the same as the previous value, then the first instruction for this
+					// value will work to take the statement mark.  Return early to avoid
+					// resetting the statement mark.
+					//
+					// The reset of s.pp.Pos occurs in (*Progs).Prog() -- if it emits
+					// an instruction, and the instruction's statement mark was set,
+					// and it is not one of the LosesStmtMark instructions,
+					// then Prog() resets the statement mark on the (*Progs).Pos.
+					return
+				}
 				p = p.WithNotStmt()
 				// Calls use the pos attached to v, but copy the statement mark from State
 			}
@@ -6818,6 +6834,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.Next
 		s.lineRunStart = nil
+		s.SetPos(s.pp.Pos.WithNotStmt()) // It needs a non-empty Pos, but cannot be a statement boundary (yet).
 
 		// Attach a "default" liveness info. Normally this will be
 		// overwritten in the Values loop below for each Value. But
