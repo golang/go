@@ -238,9 +238,28 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 	}
 
 	// Otherwise, V's type must be included in the iface type set.
-	if !Ti.typeSet().includes(V) {
-		// TODO(gri) report which type is missing
-		return errorf("%s does not implement %s", V, T)
+	var alt Type
+	if Ti.typeSet().is(func(t *term) bool {
+		if !t.includes(V) {
+			// If V ∉ t.typ but V ∈ ~t.typ then remember this type
+			// so we can suggest it as an alternative in the error
+			// message.
+			if alt == nil && !t.tilde && Identical(t.typ, under(t.typ)) {
+				tt := *t
+				tt.tilde = true
+				if tt.includes(V) {
+					alt = t.typ
+				}
+			}
+			return true
+		}
+		return false
+	}) {
+		if alt != nil {
+			return errorf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+		} else {
+			return errorf("%s does not implement %s", V, T)
+		}
 	}
 
 	return nil
