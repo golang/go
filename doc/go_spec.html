@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Nov 22, 2021",
+	"Subtitle": "Version of Nov 24, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -1290,8 +1290,8 @@ UnderlyingType = "~" Type .
 
 <p>
 An interface type is specified by a list of <i>interface elements</i>.
-An interface element is either a method or a type element,
-where a type element is a union of one or more type terms.
+An interface element is either a <i>method</i> or a <i>type element</i>,
+where a type element is a union of one or more <i>type terms</i>.
 A type term is either a single type or a single underlying type.
 </p>
 
@@ -1926,7 +1926,60 @@ x                   T           x is not representable by a value of T because
 1e1000              float64     1e1000 overflows to IEEE +Inf after rounding
 </pre>
 
-<h3 id="Structural_interfaces">Structural interfaces</h3>
+<h3 id="Structure_of_interfaces">Structure of interfaces</h3>
+
+<p>
+An interface specification which contains <a href="#Interface_types">type elements</a>
+that are not interface types defines a (possibly empty) set of <i>specific types</i>.
+Loosely speaking, these are the types <code>T</code> that appear in the
+interface definition in terms of the form <code>T</code>, <code>~T</code>,
+or in unions of such terms.
+</p>
+
+<p>
+More precisely, for a given interface, the set of specific types is defined as follows:
+</p>
+
+<ul>
+	<li>The set of specific types of the empty interface is the empty set.
+	</li>
+
+	<li>The set of specific types of a non-empty interface is the intersection
+		of the specific types of its interface elements.
+	</li>
+
+	<li>The set of specific types of a method specification is the empty set.
+	</li>
+
+	<li>The set of specific types of a non-interface type term <code>T</code>
+		or <code>~T</code> is the set consisting of the type <code>T</code>.
+	</li>
+
+	<li>The set of specific types of a <i>union</i> of terms
+		<code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>
+		is the union of the specific types of the terms.
+	</li>
+</ul>
+
+<p>
+If the set of specific types is empty, the interface has <i>no specific types</i>.
+</p>
+
+<p>
+Examples of interfaces with their specific types:
+</p>
+
+<pre>
+type Celsius float32
+type Kelvin  float32
+
+interface{}                    // no specific types
+interface{ int }               // int
+interface{ ~string }           // string
+interface{ int|~string }       // int, string
+interface{ Celsius|Kelvin }    // Celsius, Kelvin
+interface{ int; string }       // no specific types (intersection is empty)
+</pre>
 
 <p>
 An interface <code>T</code> is called <i>structural</i> if one of the following
@@ -1966,9 +2019,6 @@ Examples of structural interfaces with their structural types:
 </p>
 
 <pre>
-type Celsius float32
-type Kelvin  float32
-
 interface{ int }                          // int
 interface{ Celsius|Kelvin }               // float32
 interface{ ~chan int }                    // chan int
