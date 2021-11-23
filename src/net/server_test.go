@@ -200,8 +200,16 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 				if c == nil {
 					panic("Dial returned a nil Conn")
 				}
-				if rc := reflect.ValueOf(c); rc.Kind() == reflect.Pointer && rc.IsNil() {
+				rc := reflect.ValueOf(c)
+				if rc.IsNil() {
 					panic(fmt.Sprintf("Dial returned a nil %T", c))
+				}
+				fd := rc.Elem().FieldByName("fd")
+				if fd.IsNil() {
+					panic(fmt.Sprintf("Dial returned a %T with a nil fd", c))
+				}
+				if addr := fd.Elem().FieldByName("laddr"); addr.IsNil() {
+					panic(fmt.Sprintf("Dial returned a %T whose fd has a nil laddr", c))
 				}
 				addr := c.LocalAddr()
 				if addr == nil {
