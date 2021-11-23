@@ -694,7 +694,11 @@ func LoadModFile(ctx context.Context) *Requirements {
 		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil}, "", nil)
 		goVersion := LatestGoVersion()
 		rawGoVersion.Store(mainModule, goVersion)
-		requirements = newRequirements(pruningForGoVersion(goVersion), nil, nil)
+		pruning := pruningForGoVersion(goVersion)
+		if inWorkspaceMode() {
+			pruning = workspace
+		}
+		requirements = newRequirements(pruning, nil, nil)
 		return requirements
 	}
 
