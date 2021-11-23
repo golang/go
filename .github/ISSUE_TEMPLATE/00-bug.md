@@ -1,6 +1,11 @@
+---
+name: Bugs
+about: The go command, standard library, or anything else
+title: "affected/package: "
+---
+
 <!--
 Please answer these questions before submitting your issue. Thanks!
-For questions please use one of our forums: https://github.com/golang/go/wiki/Questions
 -->
 
 ### What version of Go are you using (`go version`)?
@@ -26,7 +31,7 @@ $ go env
 <!--
 If possible, provide a recipe for reproducing the error.
 A complete runnable program is good.
-A link on play.golang.org is best.
+A link on go.dev/play is best.
 -->
 
 
@@ -36,3 +41,5 @@ A link on play.golang.org is best.
 
 
 ### What did you see instead?
+
+
