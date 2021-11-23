@@ -367,14 +367,18 @@ func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *_TypeSet 
 	var allTerms termlist
 	for _, t := range utyp.terms {
 		var terms termlist
-		switch u := under(t.typ).(type) {
-		case *Interface:
+		u := under(t.typ)
+		if ui, _ := u.(*Interface); ui != nil {
 			// For now we don't permit type parameters as constraints.
 			assert(!isTypeParam(t.typ))
-			terms = computeInterfaceTypeSet(check, pos, u).terms
-		default:
-			if t.typ == Typ[Invalid] {
-				continue
+			terms = computeInterfaceTypeSet(check, pos, ui).terms
+		} else if t.typ == Typ[Invalid] {
+			continue
+		} else {
+			if t.tilde && !Identical(t.typ, u) {
+				// There is no underlying type which is t.typ.
+				// The corresponding type set is empty.
+				t = nil // ∅ term
 			}
 			terms = termlist{(*term)(t)}
 		}
