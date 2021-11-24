@@ -108,7 +108,7 @@ see https://golang.org/pkg/testing/#hdr-Examples for the conventions.
 See "Godoc: documenting Go code" for how to write good comments for godoc:
 https://golang.org/doc/articles/godoc_documenting_go_code.html
 
-// Deprecated: godoc cannot select what version of a package is displayed.
-// Instead, use golang.org/x/pkgsite/cmd/pkgsite.
+Deprecated: godoc cannot select what version of a package is displayed.
+Instead, use golang.org/x/pkgsite/cmd/pkgsite.
 */
 package main // import "golang.org/x/tools/cmd/godoc"
