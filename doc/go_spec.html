@@ -1750,7 +1750,7 @@ Two types are either <i>identical</i> or <i>different</i>.
 </p>
 
 <p>
-A <a href="#Type_definitions">defined type</a> is always different from any other type.
+A <a href="#Types">named type</a> is always different from any other type.
 Otherwise, two types are identical if their <a href="#Types">underlying</a> type literals are
 structurally equivalent; that is, they have the same literal structure and corresponding
 components have identical types. In detail:
@@ -1775,15 +1775,17 @@ components have identical types. In detail:
 	    identical, and either both functions are variadic or neither is.
 	    Parameter and result names are not required to match.</li>
 
-	<li>Two interface types are identical if they have the same set of methods
-	    with the same names and identical function types.
-	    <a href="#Exported_identifiers">Non-exported</a> method names from different
-	    packages are always different. The order of the methods is irrelevant.</li>
+	<li>Two interface types are identical if they define the same type set.
+	</li>
 
 	<li>Two map types are identical if they have identical key and element types.</li>
 
 	<li>Two channel types are identical if they have identical element types and
 	    the same direction.</li>
+
+	<li>Two <a href="#Instantiations">instantiated</a> types are identical if
+	    their defined types and all type arguments are identical.
+	</li>
 </ul>
 
 <p>
@@ -1798,18 +1800,18 @@ type (
 	A3 = int
 	A4 = func(A3, float64) *A0
 	A5 = func(x int, _ float64) *[]string
-)
 
-type (
 	B0 A0
 	B1 []string
 	B2 struct{ a, b int }
 	B3 struct{ a, c int }
 	B4 func(int, float64) *B0
 	B5 func(x int, y float64) *A1
-)
 
-type	C0 = B0
+	C0 = B0
+	D0[P1, P2 any] struct{ x P1; y P2 }
+	E0 = D0[int, string]
+)
 </pre>
 
 <p>
@@ -1823,6 +1825,7 @@ A3 and int
 A4, func(int, float64) *[]string, and A5
 
 B0 and C0
+D0[int, string] and E0
 []int and []int
 struct{ a, b *T5 } and struct{ a, b *T5 }
 func(x int, y float64) *[]string, func(int, float64) (result *[]string), and A5
@@ -1832,7 +1835,13 @@ func(x int, y float64) *[]string, func(int, float64) (result *[]string), and A5
 <code>B0</code> and <code>B1</code> are different because they are new types
 created by distinct <a href="#Type_definitions">type definitions</a>;
 <code>func(int, float64) *B0</code> and <code>func(x int, y float64) *[]string</code>
-are different because <code>B0</code> is different from <code>[]string</code>.
+are different because <code>B0</code> is different from <code>[]string</code>;
+and <code>P1</code> and <code>P2</code> are different because they are different
+type parameters.
+<code>D0[int, string]</code> and <code>struct{ x int; y string }</code> are
+different because the former is an <a href="#Instantiations">instantiated</a>
+defined type while the latter is a type literal
+(but they are still <a href="#Assignability">assignable</a>).
 </p>
 
 <h3 id="Assignability">Assignability</h3>
