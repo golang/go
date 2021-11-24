@@ -717,7 +717,7 @@ func TestTimePprof(t *testing.T) {
 	// This test is unreliable on any system in which nanotime
 	// calls into libc.
 	switch runtime.GOOS {
-	case "aix", "darwin", "openbsd", "solaris":
+	case "aix", "darwin", "illumos", "openbsd", "solaris":
 		t.Skipf("skipping on %s because nanotime calls libc", runtime.GOOS)
 	}
 
