@@ -263,6 +263,17 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegMIPS64
 		c.LinkReg = linkRegMIPS64
 		c.hasGReg = true
+	case "loong64":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockLOONG64
+		c.lowerValue = rewriteValueLOONG64
+		c.registers = registersLOONG64[:]
+		c.gpRegMask = gpRegMaskLOONG64
+		c.fpRegMask = fpRegMaskLOONG64
+		c.FPReg = framepointerRegLOONG64
+		c.LinkReg = linkRegLOONG64
+		c.hasGReg = true
 	case "s390x":
 		c.PtrSize = 8
 		c.RegSize = 8
