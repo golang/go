@@ -714,6 +714,13 @@ func TestBadTraceback(t *testing.T) {
 }
 
 func TestTimePprof(t *testing.T) {
+	// This test is unreliable on any system in which nanotime
+	// calls into libc.
+	switch runtime.GOOS {
+	case "aix", "darwin", "openbsd", "solaris":
+		t.Skipf("skipping on %s because nanotime calls libc", runtime.GOOS)
+	}
+
 	// Pass GOTRACEBACK for issue #41120 to try to get more
 	// information on timeout.
 	fn := runTestProg(t, "testprog", "TimeProf", "GOTRACEBACK=crash")
