@@ -20,9 +20,9 @@ import (
 
 // suggestedFix implements the fix verb for gopls.
 type suggestedFix struct {
-	Diff  bool `flag:"d" help:"display diffs instead of rewriting files"`
-	Write bool `flag:"w" help:"write result to (source) file instead of stdout"`
-	All   bool `flag:"a" help:"apply all fixes, not just preferred fixes"`
+	Diff  bool `flag:"d,diff" help:"display diffs instead of rewriting files"`
+	Write bool `flag:"w,write" help:"write result to (source) file instead of stdout"`
+	All   bool `flag:"a,all" help:"apply all fixes, not just preferred fixes"`
 
 	app *Application
 }

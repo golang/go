@@ -23,8 +23,8 @@ import (
 
 // rename implements the rename verb for gopls.
 type rename struct {
-	Diff     bool `flag:"d" help:"display diffs instead of rewriting files"`
-	Write    bool `flag:"w" help:"write result to (source) file instead of stdout"`
+	Diff     bool `flag:"d,diff" help:"display diffs instead of rewriting files"`
+	Write    bool `flag:"w,write" help:"write result to (source) file instead of stdout"`
 	Preserve bool `flag:"preserve" help:"preserve original files"`
 
 	app *Application

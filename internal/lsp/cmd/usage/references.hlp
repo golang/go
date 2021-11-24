@@ -10,4 +10,5 @@ Example:
 	$ gopls references helper/helper.go:#53
 
 references-flags:
-  -d	include the declaration of the specified identifier in the results
+  -d,-declaration
+    	include the declaration of the specified identifier in the results

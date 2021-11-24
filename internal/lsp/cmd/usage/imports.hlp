@@ -8,5 +8,7 @@ Example: update imports statements in a file:
 	$ gopls imports -w internal/lsp/cmd/check.go
 
 imports-flags:
-  -d	display diffs instead of rewriting files
-  -w	write result to (source) file instead of stdout
+  -d,-diff
+    	display diffs instead of rewriting files
+  -w,-write
+    	write result to (source) file instead of stdout

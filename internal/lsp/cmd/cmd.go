@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"text/tabwriter"
@@ -63,10 +64,10 @@ type Application struct {
 	Remote string `flag:"remote" help:"forward all commands to a remote lsp specified by this flag. With no special prefix, this is assumed to be a TCP address. If prefixed by 'unix;', the subsequent address is assumed to be a unix domain socket. If 'auto', or prefixed by 'auto;', the remote address is automatically resolved based on the executing environment."`
 
 	// Verbose enables verbose logging.
-	Verbose bool `flag:"v" help:"verbose output"`
+	Verbose bool `flag:"v,verbose" help:"verbose output"`
 
 	// VeryVerbose enables a higher level of verbosity in logging output.
-	VeryVerbose bool `flag:"vv" help:"very verbose output"`
+	VeryVerbose bool `flag:"vv,veryverbose" help:"very verbose output"`
 
 	// Control ocagent export of telemetry
 	OCAgent string `flag:"ocagent" help:"the address of the ocagent (e.g. http://localhost:55678), or off"`
@@ -138,9 +139,32 @@ command:
 
 // this is a slightly modified version of flag.PrintDefaults to give us control
 func printFlagDefaults(s *flag.FlagSet) {
+	var flags [][]*flag.Flag
+	seen := map[flag.Value]int{}
 	s.VisitAll(func(f *flag.Flag) {
+		if i, ok := seen[f.Value]; !ok {
+			seen[f.Value] = len(flags)
+			flags = append(flags, []*flag.Flag{f})
+		} else {
+			flags[i] = append(flags[i], f)
+		}
+	})
+	for _, entry := range flags {
+		sort.SliceStable(entry, func(i, j int) bool {
+			return len(entry[i].Name) < len(entry[j].Name)
+		})
 		var b strings.Builder
-		fmt.Fprintf(&b, "  -%s", f.Name) // Two spaces before -; see next two comments.
+		for i, f := range entry {
+			switch i {
+			case 0:
+				b.WriteString("  -")
+			default:
+				b.WriteString(",-")
+			}
+			b.WriteString(f.Name)
+		}
+
+		f := entry[0]
 		name, usage := flag.UnquoteUsage(f)
 		if len(name) > 0 {
 			b.WriteString(" ")
@@ -164,7 +188,7 @@ func printFlagDefaults(s *flag.FlagSet) {
 			}
 		}
 		fmt.Fprint(s.Output(), b.String(), "\n")
-	})
+	}
 }
 
 // isZeroValue is copied from the flags package

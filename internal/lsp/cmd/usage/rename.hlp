@@ -10,7 +10,9 @@ Example:
 	$ gopls rename helper/helper.go:#53 Foo
 
 rename-flags:
-  -d	display diffs instead of rewriting files
+  -d,-diff
+    	display diffs instead of rewriting files
   -preserve
     	preserve original files
-  -w	write result to (source) file instead of stdout
+  -w,-write
+    	write result to (source) file instead of stdout

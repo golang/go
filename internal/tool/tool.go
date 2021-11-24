@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
+	"strings"
 	"time"
 )
 
@@ -28,8 +29,9 @@ import (
 //       (&Application{}).Main("myapp", "non-flag-command-line-arg-help", os.Args[1:])
 //     }
 // It recursively scans the application object for fields with a tag containing
-//     `flag:"flagname" help:"short help text"``
-// uses all those fields to build command line flags.
+//     `flag:"flagnames" help:"short help text"``
+// uses all those fields to build command line flags. It will split flagnames on
+// commas and add a flag per name.
 // It expects the Application type to have a method
 //     Run(context.Context, args...string) error
 // which it invokes only after all command line flag processing has been finished.
@@ -168,30 +170,44 @@ func addFlags(f *flag.FlagSet, field reflect.StructField, value reflect.Value) *
 		return nil
 	}
 	// now see if is actually a flag
-	flagName, isFlag := field.Tag.Lookup("flag")
+	flagNames, isFlag := field.Tag.Lookup("flag")
 	help := field.Tag.Get("help")
-	if !isFlag {
-		// not a flag, but it might be a struct with flags in it
-		value = resolve(value.Elem())
-		if value.Kind() != reflect.Struct {
-			return nil
-		}
-		p, _ := value.Addr().Interface().(*Profile)
-		// go through all the fields of the struct
-		for i := 0; i < value.Type().NumField(); i++ {
-			child := value.Type().Field(i)
-			v := value.Field(i)
-			// make sure we have a pointer
-			if v.Kind() != reflect.Ptr {
-				v = v.Addr()
-			}
-			// check if that field is a flag or contains flags
-			if fp := addFlags(f, child, v); fp != nil {
-				p = fp
+	if isFlag {
+		nameList := strings.Split(flagNames, ",")
+		// add the main flag
+		addFlag(f, value, nameList[0], help)
+		if len(nameList) > 1 {
+			// and now add any aliases using the same flag value
+			fv := f.Lookup(nameList[0]).Value
+			for _, flagName := range nameList[1:] {
+				f.Var(fv, flagName, help)
 			}
 		}
-		return p
+		return nil
 	}
+	// not a flag, but it might be a struct with flags in it
+	value = resolve(value.Elem())
+	if value.Kind() != reflect.Struct {
+		return nil
+	}
+	p, _ := value.Addr().Interface().(*Profile)
+	// go through all the fields of the struct
+	for i := 0; i < value.Type().NumField(); i++ {
+		child := value.Type().Field(i)
+		v := value.Field(i)
+		// make sure we have a pointer
+		if v.Kind() != reflect.Ptr {
+			v = v.Addr()
+		}
+		// check if that field is a flag or contains flags
+		if fp := addFlags(f, child, v); fp != nil {
+			p = fp
+		}
+	}
+	return p
+}
+
+func addFlag(f *flag.FlagSet, value reflect.Value, flagName string, help string) {
 	switch v := value.Interface().(type) {
 	case flag.Value:
 		f.Var(v, flagName, help)
@@ -214,7 +230,6 @@ func addFlags(f *flag.FlagSet, field reflect.StructField, value reflect.Value) *
 	default:
 		log.Fatalf("Cannot understand flag of type %T", v)
 	}
-	return nil
 }
 
 func resolve(v reflect.Value) reflect.Value {

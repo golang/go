@@ -7,6 +7,9 @@ Example: apply suggested fixes for this file
 	$ gopls fix -w internal/lsp/cmd/check.go
 
 fix-flags:
-  -a	apply all fixes, not just preferred fixes
-  -d	display diffs instead of rewriting files
-  -w	write result to (source) file instead of stdout
+  -a,-all
+    	apply all fixes, not just preferred fixes
+  -d,-diff
+    	display diffs instead of rewriting files
+  -w,-write
+    	write result to (source) file instead of stdout

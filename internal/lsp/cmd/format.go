@@ -19,9 +19,9 @@ import (
 
 // format implements the format verb for gopls.
 type format struct {
-	Diff  bool `flag:"d" help:"display diffs instead of rewriting files"`
-	Write bool `flag:"w" help:"write result to (source) file instead of stdout"`
-	List  bool `flag:"l" help:"list files whose formatting differs from gofmt's"`
+	Diff  bool `flag:"d,diff" help:"display diffs instead of rewriting files"`
+	Write bool `flag:"w,write" help:"write result to (source) file instead of stdout"`
+	List  bool `flag:"l,list" help:"list files whose formatting differs from gofmt's"`
 
 	app *Application
 }

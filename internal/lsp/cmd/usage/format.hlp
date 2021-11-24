@@ -10,6 +10,9 @@ Example: reformat this file:
 	$ gopls format -w internal/lsp/cmd/check.go
 
 format-flags:
-  -d	display diffs instead of rewriting files
-  -l	list files whose formatting differs from gofmt's
-  -w	write result to (source) file instead of stdout
+  -d,-diff
+    	display diffs instead of rewriting files
+  -l,-list
+    	list files whose formatting differs from gofmt's
+  -w,-write
+    	write result to (source) file instead of stdout

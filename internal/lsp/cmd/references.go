@@ -17,7 +17,7 @@ import (
 
 // references implements the references verb for gopls
 type references struct {
-	IncludeDeclaration bool `flag:"d" help:"include the declaration of the specified identifier in the results"`
+	IncludeDeclaration bool `flag:"d,declaration" help:"include the declaration of the specified identifier in the results"`
 
 	app *Application
 }
