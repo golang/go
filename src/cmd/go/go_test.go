@@ -1128,11 +1128,11 @@ func TestGoListTest(t *testing.T) {
 	tg.grepStdoutNot(`^testing \[sort.test\]$`, "unexpected test copy of testing")
 	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
 
-	tg.run("list", "-test", "cmd/dist", "cmd/doc")
-	tg.grepStdout(`^cmd/dist$`, "missing cmd/dist")
+	tg.run("list", "-test", "cmd/buildid", "cmd/doc")
+	tg.grepStdout(`^cmd/buildid$`, "missing cmd/buildid")
 	tg.grepStdout(`^cmd/doc$`, "missing cmd/doc")
 	tg.grepStdout(`^cmd/doc\.test$`, "missing cmd/doc test")
-	tg.grepStdoutNot(`^cmd/dist\.test$`, "unexpected cmd/dist test")
+	tg.grepStdoutNot(`^cmd/buildid\.test$`, "unexpected cmd/buildid test")
 	tg.grepStdoutNot(`^testing`, "unexpected testing")
 
 	tg.run("list", "-test", "runtime/cgo")
