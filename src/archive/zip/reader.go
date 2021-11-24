@@ -229,6 +229,9 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 	n, err = r.rc.Read(b)
 	r.hash.Write(b[:n])
 	r.nread += uint64(n)
+	if r.nread > r.f.UncompressedSize64 {
+		return 0, ErrFormat
+	}
 	if err == nil {
 		return
 	}
