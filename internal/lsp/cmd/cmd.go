@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"text/tabwriter"
@@ -132,7 +133,53 @@ command:
 		fmt.Fprintf(w, "  %s\t%s\n", c.Name(), c.ShortHelp())
 	}
 	fmt.Fprint(w, "\nflags:\n")
-	f.PrintDefaults()
+	printFlagDefaults(f)
+}
+
+// this is a slightly modified version of flag.PrintDefaults to give us control
+func printFlagDefaults(s *flag.FlagSet) {
+	s.VisitAll(func(f *flag.Flag) {
+		var b strings.Builder
+		fmt.Fprintf(&b, "  -%s", f.Name) // Two spaces before -; see next two comments.
+		name, usage := flag.UnquoteUsage(f)
+		if len(name) > 0 {
+			b.WriteString(" ")
+			b.WriteString(name)
+		}
+		// Boolean flags of one ASCII letter are so common we
+		// treat them specially, putting their usage on the same line.
+		if b.Len() <= 4 { // space, space, '-', 'x'.
+			b.WriteString("\t")
+		} else {
+			// Four spaces before the tab triggers good alignment
+			// for both 4- and 8-space tab stops.
+			b.WriteString("\n    \t")
+		}
+		b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
+		if !isZeroValue(f, f.DefValue) {
+			if reflect.TypeOf(f.Value).Elem().Name() == "stringValue" {
+				fmt.Fprintf(&b, " (default %q)", f.DefValue)
+			} else {
+				fmt.Fprintf(&b, " (default %v)", f.DefValue)
+			}
+		}
+		fmt.Fprint(s.Output(), b.String(), "\n")
+	})
+}
+
+// isZeroValue is copied from the flags package
+func isZeroValue(f *flag.Flag, value string) bool {
+	// Build a zero value of the flag's Value type, and see if the
+	// result of calling its String method equals the value passed in.
+	// This works unless the Value type is itself an interface type.
+	typ := reflect.TypeOf(f.Value)
+	var z reflect.Value
+	if typ.Kind() == reflect.Ptr {
+		z = reflect.New(typ.Elem())
+	} else {
+		z = reflect.Zero(typ)
+	}
+	return value == z.Interface().(flag.Value).String()
 }
 
 // Run takes the args after top level flag processing, and invokes the correct

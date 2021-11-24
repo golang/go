@@ -32,7 +32,7 @@ Example:
 	$ gopls call_hierarchy helper/helper.go:8:6
 	$ gopls call_hierarchy helper/helper.go:#53
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (c *callHierarchy) Run(ctx context.Context, args ...string) error {

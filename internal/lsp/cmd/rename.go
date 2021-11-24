@@ -44,7 +44,7 @@ Example:
 
 rename-flags:
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // Run renames the specified identifier and either;

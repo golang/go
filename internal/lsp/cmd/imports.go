@@ -38,7 +38,7 @@ Example: update imports statements in a file:
 
 imports-flags:
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // Run performs diagnostic checks on the file specified and either;

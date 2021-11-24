@@ -36,7 +36,7 @@ Example: list links contained within a file:
 
 links-flags:
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // Run finds all the links within a document

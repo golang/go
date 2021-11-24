@@ -55,7 +55,7 @@ Example: show the definition of the identifier at syntax at offset %[1]v in this
 
 definition-flags:
 `, exampleLine, exampleColumn, exampleOffset)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // Run performs the definition query as specified by args and prints the

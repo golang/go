@@ -32,7 +32,7 @@ Example:
 	$ gopls implementation helper/helper.go:8:6
 	$ gopls implementation helper/helper.go:#53
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (i *implementation) Run(ctx context.Context, args ...string) error {

@@ -36,7 +36,7 @@ Example:
 
 references-flags:
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (r *references) Run(ctx context.Context, args ...string) error {

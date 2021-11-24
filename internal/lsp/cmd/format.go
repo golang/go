@@ -40,7 +40,7 @@ Example: reformat this file:
 
 format-flags:
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // Run performs the check on the files specified by args and prints the

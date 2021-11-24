@@ -32,7 +32,7 @@ Example:
 	$ gopls prepare_rename helper/helper.go:8:6
 	$ gopls prepare_rename helper/helper.go:#53
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // ErrInvalidRenamePosition is returned when prepareRename is run at a position that

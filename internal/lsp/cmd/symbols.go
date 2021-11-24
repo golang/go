@@ -30,7 +30,7 @@ func (r *symbols) DetailedHelp(f *flag.FlagSet) {
 Example:
 	$ gopls symbols helper/helper.go
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 func (r *symbols) Run(ctx context.Context, args ...string) error {
 	if len(args) != 1 {

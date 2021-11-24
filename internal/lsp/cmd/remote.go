@@ -85,7 +85,7 @@ $ gopls -remote=localhost:8082 remote sessions
 
 func (c *listSessions) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), listSessionsExamples)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (c *listSessions) Run(ctx context.Context, args ...string) error {
@@ -131,7 +131,7 @@ $ gopls -remote=localhost:8082 remote debug localhost:8083
 
 func (c *startDebugging) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), startDebuggingExamples)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (c *startDebugging) Run(ctx context.Context, args ...string) error {

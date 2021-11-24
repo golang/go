@@ -29,7 +29,7 @@ Example:
 
 	$ gopls folding_ranges helper/helper.go
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (r *foldingRanges) Run(ctx context.Context, args ...string) error {

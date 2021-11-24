@@ -61,7 +61,7 @@ Example: show the semantic tokens for this file:
 
 	$ gopls semtok internal/lsp/cmd/semtok.go
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // Run performs the semtok on the files specified by args and prints the

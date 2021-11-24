@@ -30,7 +30,7 @@ func (v *version) Usage() string     { return "" }
 func (v *version) ShortHelp() string { return "print the gopls version information" }
 func (v *version) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), ``)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // Run prints version information to stdout.
@@ -50,7 +50,7 @@ func (b *bug) Usage() string     { return "" }
 func (b *bug) ShortHelp() string { return "report a bug in gopls" }
 func (b *bug) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), ``)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 const goplsBugPrefix = "x/tools/gopls: <DESCRIBE THE PROBLEM>"
@@ -98,7 +98,7 @@ func (j *apiJSON) Usage() string     { return "" }
 func (j *apiJSON) ShortHelp() string { return "print json describing gopls API" }
 func (j *apiJSON) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), ``)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (j *apiJSON) Run(ctx context.Context, args ...string) error {
@@ -120,7 +120,7 @@ func (l *licenses) Usage() string     { return "" }
 func (l *licenses) ShortHelp() string { return "print licenses of included software" }
 func (l *licenses) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), ``)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 const licensePreamble = `

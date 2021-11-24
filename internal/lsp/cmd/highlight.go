@@ -32,7 +32,7 @@ Example:
 	$ gopls highlight helper/helper.go:8:6
 	$ gopls highlight helper/helper.go:#53
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (r *highlight) Run(ctx context.Context, args ...string) error {

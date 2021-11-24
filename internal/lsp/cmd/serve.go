@@ -54,7 +54,7 @@ a child of an editor process.
 
 server-flags:
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (s *Serve) remoteArgs(network, address string) []string {

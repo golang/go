@@ -38,7 +38,7 @@ Example: apply suggested fixes for this file
 
 fix-flags:
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // Run performs diagnostic checks on the file specified and either;

@@ -33,7 +33,7 @@ Example:
 
 workspace_symbol-flags:
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (r *workspaceSymbol) Run(ctx context.Context, args ...string) error {

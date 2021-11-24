@@ -31,7 +31,7 @@ Example:
 	$ gopls signature helper/helper.go:8:6
 	$ gopls signature helper/helper.go:#53
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (r *signature) Run(ctx context.Context, args ...string) error {

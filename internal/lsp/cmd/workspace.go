@@ -51,7 +51,7 @@ func (c *generateWorkspaceMod) ShortHelp() string {
 }
 
 func (c *generateWorkspaceMod) DetailedHelp(f *flag.FlagSet) {
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (c *generateWorkspaceMod) Run(ctx context.Context, args ...string) error {

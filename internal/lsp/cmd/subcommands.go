@@ -24,7 +24,7 @@ func (s subcommands) DetailedHelp(f *flag.FlagSet) {
 	for _, c := range s {
 		fmt.Fprintf(w, "  %s\t%s\n", c.Name(), c.ShortHelp())
 	}
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 func (s subcommands) Usage() string { return "<subcommand> [arg]..." }

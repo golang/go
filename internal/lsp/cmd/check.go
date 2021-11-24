@@ -28,7 +28,7 @@ Example: show the diagnostic results of this file:
 
 	$ gopls check internal/lsp/cmd/check.go
 `)
-	f.PrintDefaults()
+	printFlagDefaults(f)
 }
 
 // Run performs the check on the files specified by args and prints the
