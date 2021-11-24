@@ -7,23 +7,23 @@ The server communicates using JSONRPC2 on stdin and stdout, and is intended to b
 a child of an editor process.
 
 server-flags:
-  -debug string
+  -debug=string
     	serve debug information on the supplied address
-  -listen string
+  -listen=string
     	address on which to listen for remote connections. If prefixed by 'unix;', the subsequent address is assumed to be a unix domain socket. Otherwise, TCP is used.
-  -listen.timeout duration
+  -listen.timeout=duration
     	when used with -listen, shut down the server when there are no connected clients for this duration
-  -logfile string
+  -logfile=string
     	filename to log to. if value is "auto", then logging to a default output file is enabled
-  -mode string
+  -mode=string
     	no effect
-  -port int
+  -port=int
     	port on which to run gopls for debugging purposes
-  -remote.debug string
+  -remote.debug=string
     	when used with -remote=auto, the -debug value used to start the daemon
-  -remote.listen.timeout duration
+  -remote.listen.timeout=duration
     	when used with -remote=auto, the -listen.timeout value used to start the daemon (default 1m0s)
-  -remote.logfile string
+  -remote.logfile=string
     	when used with -remote=auto, the -logfile value used to start the daemon
   -rpc.trace
     	print the full rpc trace in lsp inspector format

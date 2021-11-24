@@ -39,33 +39,33 @@ Features
   workspace_symbol  search symbols in workspace
 
 flags:
-  -debug string
+  -debug=string
     	serve debug information on the supplied address
-  -listen string
+  -listen=string
     	address on which to listen for remote connections. If prefixed by 'unix;', the subsequent address is assumed to be a unix domain socket. Otherwise, TCP is used.
-  -listen.timeout duration
+  -listen.timeout=duration
     	when used with -listen, shut down the server when there are no connected clients for this duration
-  -logfile string
+  -logfile=string
     	filename to log to. if value is "auto", then logging to a default output file is enabled
-  -mode string
+  -mode=string
     	no effect
-  -ocagent string
+  -ocagent=string
     	the address of the ocagent (e.g. http://localhost:55678), or off (default "off")
-  -port int
+  -port=int
     	port on which to run gopls for debugging purposes
-  -profile.cpu string
+  -profile.cpu=string
     	write CPU profile to this file
-  -profile.mem string
+  -profile.mem=string
     	write memory profile to this file
-  -profile.trace string
+  -profile.trace=string
     	write trace log to this file
-  -remote string
+  -remote=string
     	forward all commands to a remote lsp specified by this flag. With no special prefix, this is assumed to be a TCP address. If prefixed by 'unix;', the subsequent address is assumed to be a unix domain socket. If 'auto', or prefixed by 'auto;', the remote address is automatically resolved based on the executing environment.
-  -remote.debug string
+  -remote.debug=string
     	when used with -remote=auto, the -debug value used to start the daemon
-  -remote.listen.timeout duration
+  -remote.listen.timeout=duration
     	when used with -remote=auto, the -listen.timeout value used to start the daemon (default 1m0s)
-  -remote.logfile string
+  -remote.logfile=string
     	when used with -remote=auto, the -logfile value used to start the daemon
   -rpc.trace
     	print the full rpc trace in lsp inspector format
