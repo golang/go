@@ -26,8 +26,8 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/search"
-	"cmd/go/internal/web"
 	"cmd/go/internal/str"
+	"cmd/go/internal/web"
 
 	"golang.org/x/mod/module"
 )
@@ -309,7 +309,7 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
 	// uncommitted files and skip tagging revision / committime.
 	var rev string
 	var commitTime time.Time
-	out, err = vcsGit.runOutputVerboseOnly(rootDir, "show -s --format=%H:%ct")
+	out, err = vcsGit.runOutputVerboseOnly(rootDir, "show -s --no-show-signature --format=%H:%ct")
 	if err != nil && !uncommitted {
 		return Status{}, err
 	} else if err == nil {
