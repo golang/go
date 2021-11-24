@@ -2269,7 +2269,6 @@ An identifier is exported if both:
 All other identifiers are not exported.
 </p>
 
-
 <h3 id="Uniqueness_of_identifiers">Uniqueness of identifiers</h3>
 
 <p>
@@ -3713,6 +3712,26 @@ For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
 	<li>if the map is <code>nil</code> or does not contain such an entry,
 	    <code>a[x]</code> is the <a href="#The_zero_value">zero value</a>
 	    for the element type of <code>M</code></li>
+</ul>
+
+<p>
+For <code>a</code> of <a href="#Type_parameters">type parameter type</a> <code>P</code>:
+</p>
+<ul>
+	<li><code>P</code> must have <a href="#Structure_of_interfaces">specific types</a>.</li>
+	<li>The index expression <code>a[x]</code> must be valid for values
+	    of all specific types of <code>P</code>.</li>
+	<li>The element types of all specific types of <code>P</code> must be identical.
+	    In this context, the element type of a string type is <code>byte</code>.</li>
+	<li>If there is a map type among the specific types of <code>P</code>,
+	    all specific types must be map types, and the respective key types
+	    must be all identical.</li>
+	<li><code>a[x]</code> is the array, slice, or string element at index <code>x</code>,
+	    or the map element with key <code>x</code> of the type argument
+	    that <code>P</code> is instantiated with, and the type of <code>a[x]</code> is
+	    the type of the (identical) element types.</li>
+	<li><code>a[x]</code> may not be assigned to if the specific types of <code>P</code>
+	    include string types.
 </ul>
 
 <p>
@@ -6468,11 +6487,23 @@ len(s)    string type      string length in bytes
           []T              slice length
           map[K]T          map length (number of defined keys)
           chan T           number of elements queued in channel buffer
+	  type parameter   see below
 
 cap(s)    [n]T, *[n]T      array length (== n)
           []T              slice capacity
           chan T           channel buffer capacity
+	  type parameter   see below
 </pre>
+
+<p>
+If the argument type is a <a href="#Type_parameters">type parameter</a> <code>P</code>,
+<code>P</code> must have <a href="#Structure of interfaces">specific types</a>, and
+the call <code>len(e)</code> (or <code>cap(e)</code> respectively) must be valid for
+each specific type of <code>P</code>.
+The result is the length (or capacity, respectively) of the argument whose type
+corresponds to the type argument with which <code>P</code> was
+<a href="#Instantiations">instantiated</a>.
+</p>
 
 <p>
 The capacity of a slice is the number of elements for which there is
