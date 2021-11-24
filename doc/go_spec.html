@@ -3884,8 +3884,9 @@ If the indices are out of range at run time, a <a href="#Run_time_panics">run-ti
 <h3 id="Type_assertions">Type assertions</h3>
 
 <p>
-For an expression <code>x</code> of <a href="#Interface_types">interface type</a>
-and a type <code>T</code>, the primary expression
+For an expression <code>x</code> of <a href="#Interface_types">interface type</a>,
+but not a <a href="#Type_parameters">type parameter</a>, and a type <code>T</code>,
+the primary expression
 </p>
 
 <pre>
@@ -5677,7 +5678,8 @@ switch x.(type) {
 <p>
 Cases then match actual types <code>T</code> against the dynamic type of the
 expression <code>x</code>. As with type assertions, <code>x</code> must be of
-<a href="#Interface_types">interface type</a>, and each non-interface type
+<a href="#Interface_types">interface type</a>, but not a
+<a href="#Type_parameters">type parameter</a>, and each non-interface type
 <code>T</code> listed in a case must implement the type of <code>x</code>.
 The types listed in the cases of a type switch must all be
 <a href="#Type_identity">different</a>.
