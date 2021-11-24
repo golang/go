@@ -289,7 +289,7 @@ the literal's value.
 </p>
 <pre class="ebnf">
 int_lit        = decimal_lit | binary_lit | octal_lit | hex_lit .
-decimal_lit    = "0" | ( "1" … "9" ) [ [ "_" ] decimal_digits ] .
+decimal_lit    = ( "1" … "9" ) [ [ "_" ] decimal_digits ] .
 binary_lit     = "0" ( "b" | "B" ) [ "_" ] binary_digits .
 octal_lit      = "0" [ "o" | "O" ] [ "_" ] octal_digits .
 hex_lit        = "0" ( "x" | "X" ) [ "_" ] hex_digits .
