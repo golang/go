@@ -209,6 +209,7 @@ func ValueOf(x interface{}) Value {
 	}
 }
 
+//go:noescape
 func stringVal(x string) ref
 
 // Type represents the JavaScript type of a Value.
@@ -292,6 +293,7 @@ func (v Value) Get(p string) Value {
 	return r
 }
 
+//go:noescape
 func valueGet(v ref, p string) ref
 
 // Set sets the JavaScript property p of value v to ValueOf(x).
@@ -306,6 +308,7 @@ func (v Value) Set(p string, x interface{}) {
 	runtime.KeepAlive(xv)
 }
 
+//go:noescape
 func valueSet(v ref, p string, x ref)
 
 // Delete deletes the JavaScript property p of value v.
@@ -318,6 +321,7 @@ func (v Value) Delete(p string) {
 	runtime.KeepAlive(v)
 }
 
+//go:noescape
 func valueDelete(v ref, p string)
 
 // Index returns JavaScript index i of value v.
@@ -347,15 +351,29 @@ func (v Value) SetIndex(i int, x interface{}) {
 
 func valueSetIndex(v ref, i int, x ref)
 
-func makeArgs(args []interface{}) ([]Value, []ref) {
-	argVals := make([]Value, len(args))
-	argRefs := make([]ref, len(args))
+func makeArgs(args []interface{}) (argVals []Value, argRefs []ref) {
+	// value chosen for being power of two, and enough to handle all web APIs
+	// in particular, note that WebGL2's texImage2D takes up to 10 arguments
+	const maxStackArgs = 16
+	if len(args) <= maxStackArgs {
+		// as long as makeArgs is inlined, these will be stack-allocated
+		argVals = make([]Value, len(args), maxStackArgs)
+		argRefs = make([]ref, len(args), maxStackArgs)
+	} else {
+		// allocates on the heap, but exceeding maxStackArgs should be rare
+		argVals = make([]Value, len(args))
+		argRefs = make([]ref, len(args))
+	}
+	return
+}
+
+func storeArgs(args []interface{}, argValsDst []Value, argRefsDst []ref) {
+	// would go in makeArgs if the combined func was simple enough to inline
 	for i, arg := range args {
 		v := ValueOf(arg)
-		argVals[i] = v
-		argRefs[i] = v.ref
+		argValsDst[i] = v
+		argRefsDst[i] = v.ref
 	}
-	return argVals, argRefs
 }
 
 // Length returns the JavaScript property "length" of v.
@@ -376,6 +394,7 @@ func valueLength(v ref) int
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) Call(m string, args ...interface{}) Value {
 	argVals, argRefs := makeArgs(args)
+	storeArgs(args, argVals, argRefs)
 	res, ok := valueCall(v.ref, m, argRefs)
 	runtime.KeepAlive(v)
 	runtime.KeepAlive(argVals)
@@ -391,6 +410,7 @@ func (v Value) Call(m string, args ...interface{}) Value {
 	return makeValue(res)
 }
 
+//go:noescape
 func valueCall(v ref, m string, args []ref) (ref, bool)
 
 // Invoke does a JavaScript call of the value v with the given arguments.
@@ -398,6 +418,7 @@ func valueCall(v ref, m string, args []ref) (ref, bool)
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) Invoke(args ...interface{}) Value {
 	argVals, argRefs := makeArgs(args)
+	storeArgs(args, argVals, argRefs)
 	res, ok := valueInvoke(v.ref, argRefs)
 	runtime.KeepAlive(v)
 	runtime.KeepAlive(argVals)
@@ -410,6 +431,7 @@ func (v Value) Invoke(args ...interface{}) Value {
 	return makeValue(res)
 }
 
+//go:noescape
 func valueInvoke(v ref, args []ref) (ref, bool)
 
 // New uses JavaScript's "new" operator with value v as constructor and the given arguments.
@@ -417,6 +439,7 @@ func valueInvoke(v ref, args []ref) (ref, bool)
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) New(args ...interface{}) Value {
 	argVals, argRefs := makeArgs(args)
+	storeArgs(args, argVals, argRefs)
 	res, ok := valueNew(v.ref, argRefs)
 	runtime.KeepAlive(v)
 	runtime.KeepAlive(argVals)
@@ -429,6 +452,7 @@ func (v Value) New(args ...interface{}) Value {
 	return makeValue(res)
 }
 
+//go:noescape
 func valueNew(v ref, args []ref) (ref, bool)
 
 func (v Value) isNumber() bool {
@@ -580,4 +604,5 @@ func CopyBytesToJS(dst Value, src []byte) int {
 	return n
 }
 
+//go:noescape
 func copyBytesToJS(dst ref, src []byte) (int, bool)
