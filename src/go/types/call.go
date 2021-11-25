@@ -355,12 +355,25 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 	}
 
 	// check argument count
-	switch {
-	case nargs < npars:
-		check.errorf(inNode(call, call.Rparen), _WrongArgCount, "not enough arguments in call to %s", call.Fun)
-		return
-	case nargs > npars:
-		check.errorf(args[npars], _WrongArgCount, "too many arguments in call to %s", call.Fun) // report at first extra argument
+	if nargs != npars {
+		var at positioner = call
+		qualifier := "not enough"
+		if nargs > npars {
+			at = args[npars].expr // report at first extra argument
+			qualifier = "too many"
+		} else {
+			at = atPos(call.Rparen) // report at closing )
+		}
+		// take care of empty parameter lists represented by nil tuples
+		var params []*Var
+		if sig.params != nil {
+			params = sig.params.vars
+		}
+		check.errorf(at, _WrongArgCount, "%s arguments in call to %s\n\thave %s\n\twant %s",
+			qualifier, call.Fun,
+			check.typesSummary(operandTypes(args), false),
+			check.typesSummary(varTypes(params), sig.variadic),
+		)
 		return
 	}
 

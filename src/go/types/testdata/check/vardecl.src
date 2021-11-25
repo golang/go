@@ -175,7 +175,7 @@ func _() {
 
 func _() int {
 	var x, y int
-	return /* ERROR wrong number of return values */ x, y
+	return x, y /* ERROR too many return values */
 }
 
 // Short variable declarations must declare at least one new non-blank variable.
