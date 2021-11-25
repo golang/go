@@ -18,8 +18,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 )
 
 var CmdRun = &base.Command{
