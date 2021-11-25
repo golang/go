@@ -21,8 +21,8 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
-	"cmd/go/internal/trace"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
