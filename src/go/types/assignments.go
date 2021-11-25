@@ -7,6 +7,7 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 )
@@ -237,6 +238,28 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	return x.typ
 }
 
+func (check *Checker) assignError(rhs []ast.Expr, nvars, nvals int) {
+	measure := func(x int, unit string) string {
+		s := fmt.Sprintf("%d %s", x, unit)
+		if x != 1 {
+			s += "s"
+		}
+		return s
+	}
+
+	vars := measure(nvars, "variable")
+	vals := measure(nvals, "value")
+	rhs0 := rhs[0]
+
+	if len(rhs) == 1 {
+		if call, _ := unparen(rhs0).(*ast.CallExpr); call != nil {
+			check.errorf(rhs0, _WrongAssignCount, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
+			return
+		}
+	}
+	check.errorf(rhs0, _WrongAssignCount, "assignment mismatch: %s but %s", vars, vals)
+}
+
 // If returnPos is valid, initVars is called to type-check the assignment of
 // return expressions, and returnPos is the position of the return statement.
 func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnPos token.Pos) {
@@ -260,7 +283,11 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnPos token.P
 			check.errorf(atPos(returnPos), _WrongResultCount, "wrong number of return values (want %d, got %d)", len(lhs), len(rhs))
 			return
 		}
-		check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", len(lhs), len(rhs))
+		if compilerErrorMessages {
+			check.assignError(origRHS, len(lhs), len(rhs))
+		} else {
+			check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", len(lhs), len(rhs))
+		}
 		return
 	}
 
@@ -294,7 +321,11 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
 				return
 			}
 		}
-		check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", len(rhs), len(lhs))
+		if compilerErrorMessages {
+			check.assignError(origRHS, len(lhs), len(rhs))
+		} else {
+			check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", len(rhs), len(lhs))
+		}
 		return
 	}
 

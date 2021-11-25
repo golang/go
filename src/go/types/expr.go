@@ -1657,7 +1657,11 @@ func (check *Checker) singleValue(x *operand) {
 		// tuple types are never named - no need for underlying type below
 		if t, ok := x.typ.(*Tuple); ok {
 			assert(t.Len() != 1)
-			check.errorf(x, _TooManyValues, "%d-valued %s where single value is expected", t.Len(), x)
+			if compilerErrorMessages {
+				check.errorf(x, _TooManyValues, "multiple-value %s in single-value context", x)
+			} else {
+				check.errorf(x, _TooManyValues, "%d-valued %s where single value is expected", t.Len(), x)
+			}
 			x.mode = invalid
 		}
 	}
