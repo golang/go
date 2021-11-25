@@ -86,7 +86,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
 	// across the board given the nature of the test).
 	pair := runtime.GOOS + "-" + runtime.GOARCH
 	switch pair {
-	case "linux-amd64", "freebsd-amd64", "openbsd-amd64":
+	case "linux-amd64", "linux-arm64", "freebsd-amd64", "openbsd-amd64":
 	default:
 		t.Skip("no need for test on " + pair)
 	}
