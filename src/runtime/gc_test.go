@@ -196,7 +196,10 @@ func TestPeriodicGC(t *testing.T) {
 
 func TestGcZombieReporting(t *testing.T) {
 	// This test is somewhat sensitive to how the allocator works.
-	got := runTestProg(t, "testprog", "GCZombie")
+	// Pointers in zombies slice may cross-span, thus we
+	// add invalidptr=0 for avoiding the badPointer check.
+	// See issue https://golang.org/issues/49613/
+	got := runTestProg(t, "testprog", "GCZombie", "GODEBUG=invalidptr=0")
 	want := "found pointer to free object"
 	if !strings.Contains(got, want) {
 		t.Fatalf("expected %q in output, but got %q", want, got)
