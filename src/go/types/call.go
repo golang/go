@@ -51,16 +51,8 @@ func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
 	}
 	assert(got == want)
 
-	// determine argument positions (for error reporting)
-	// TODO(rFindley) use a positioner here? instantiate would need to be
-	//                updated accordingly.
-	poslist := make([]token.Pos, len(ix.Indices))
-	for i, x := range ix.Indices {
-		poslist[i] = x.Pos()
-	}
-
 	// instantiate function signature
-	res := check.instantiateSignature(x.Pos(), sig, targs, poslist)
+	res := check.instantiateSignature(x.Pos(), sig, targs, ix.Indices)
 	assert(res.TypeParams().Len() == 0) // signature is not generic anymore
 	check.recordInstance(ix.Orig, targs, res)
 	x.typ = res
@@ -68,7 +60,7 @@ func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
 	x.expr = ix.Orig
 }
 
-func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs []Type, posList []token.Pos) (res *Signature) {
+func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs []Type, xlist []ast.Expr) (res *Signature) {
 	assert(check != nil)
 	assert(len(targs) == typ.TypeParams().Len())
 
@@ -82,17 +74,17 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs 
 	}
 
 	inst := check.instance(pos, typ, targs, check.bestContext(nil)).(*Signature)
-	assert(len(posList) <= len(targs))
+	assert(len(xlist) <= len(targs))
 	tparams := typ.TypeParams().list()
 	if i, err := check.verify(pos, tparams, targs); err != nil {
 		// best position for error reporting
 		pos := pos
-		if i < len(posList) {
-			pos = posList[i]
+		if i < len(xlist) {
+			pos = xlist[i].Pos()
 		}
-		check.softErrorf(atPos(pos), _InvalidTypeArg, err.Error())
+		check.softErrorf(atPos(pos), _InvalidTypeArg, "%s", err)
 	} else {
-		check.mono.recordInstance(check.pkg, pos, tparams, targs, posList)
+		check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
 	}
 
 	return inst
@@ -184,21 +176,23 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	}
 
 	// evaluate type arguments, if any
+	var xlist []ast.Expr
 	var targs []Type
 	if ix != nil {
-		targs = check.typeList(ix.Indices)
+		xlist = ix.Indices
+		targs = check.typeList(xlist)
 		if targs == nil {
 			check.use(call.Args...)
 			x.mode = invalid
 			x.expr = call
 			return statement
 		}
-		assert(len(targs) == len(ix.Indices))
+		assert(len(targs) == len(xlist))
 
 		// check number of type arguments (got) vs number of type parameters (want)
 		got, want := len(targs), sig.TypeParams().Len()
 		if got > want {
-			check.errorf(ix.Indices[want], _WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+			check.errorf(xlist[want], _WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 			check.use(call.Args...)
 			x.mode = invalid
 			x.expr = call
@@ -209,7 +203,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	// evaluate arguments
 	args, _ := check.exprList(call.Args, false)
 	isGeneric := sig.TypeParams().Len() > 0
-	sig = check.arguments(call, sig, targs, args)
+	sig = check.arguments(call, sig, targs, args, xlist)
 
 	if isGeneric && sig.TypeParams().Len() == 0 {
 		// Update the recorded type of call.Fun to its instantiated type.
@@ -286,7 +280,8 @@ func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*op
 	return
 }
 
-func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type, args []*operand) (rsig *Signature) {
+// xlist is the list of type argument expressions supplied in the source code.
+func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type, args []*operand, xlist []ast.Expr) (rsig *Signature) {
 	rsig = sig
 
 	// TODO(gri) try to eliminate this extra verification loop
@@ -388,15 +383,13 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 				check.softErrorf(inNode(call, call.Lparen), _UnsupportedFeature, "implicit function instantiation requires go1.18 or later")
 			}
 		}
-		// TODO(gri) provide position information for targs so we can feed
-		//           it to the instantiate call for better error reporting
 		targs := check.infer(call, sig.TypeParams().list(), targs, sigParams, args)
 		if targs == nil {
 			return // error already reported
 		}
 
 		// compute result signature
-		rsig = check.instantiateSignature(call.Pos(), sig, targs, nil)
+		rsig = check.instantiateSignature(call.Pos(), sig, targs, xlist)
 		assert(rsig.TypeParams().Len() == 0) // signature is not generic anymore
 		check.recordInstance(call.Fun, targs, rsig)
 
