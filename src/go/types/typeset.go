@@ -106,6 +106,8 @@ func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll
 func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
 
 // includes reports whether t ∈ s.
+// TODO(gri) This function is not used anywhere anymore. Remove once we
+//           are clear that we don't need it elsewhere in the future.
 func (s *_TypeSet) includes(t Type) bool { return s.terms.includes(t) }
 
 // subsetOf reports whether s1 ⊆ s2.
