@@ -11,7 +11,6 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/internal/typeparams"
-	"go/token"
 	"strings"
 )
 
@@ -416,12 +415,6 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 		return Typ[Invalid]
 	}
 
-	// determine argument positions
-	posList := make([]token.Pos, len(targs))
-	for i, arg := range ix.Indices {
-		posList[i] = arg.Pos()
-	}
-
 	// create the instance
 	ctxt := check.bestContext(nil)
 	h := ctxt.instanceHash(orig, targs)
@@ -470,12 +463,12 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 			if i, err := check.verify(pos, inst.tparams.list(), inst.targs.list()); err != nil {
 				// best position for error reporting
 				pos := ix.Pos()
-				if i < len(posList) {
-					pos = posList[i]
+				if i < len(ix.Indices) {
+					pos = ix.Indices[i].Pos()
 				}
 				check.softErrorf(atPos(pos), _InvalidTypeArg, err.Error())
 			} else {
-				check.mono.recordInstance(check.pkg, pos, inst.tparams.list(), inst.targs.list(), posList)
+				check.mono.recordInstance(check.pkg, pos, inst.tparams.list(), inst.targs.list(), ix.Indices)
 			}
 		}
 
