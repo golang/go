@@ -423,12 +423,10 @@ type fuzzResult struct {
 }
 
 func (r fuzzResult) String() string {
-	s := ""
 	if r.Error == nil {
-		return s
+		return ""
 	}
-	s = fmt.Sprintf("%s", r.Error.Error())
-	return s
+	return r.Error.Error()
 }
 
 // fuzzCrashError is satisfied by a failing input detected while fuzzing.
