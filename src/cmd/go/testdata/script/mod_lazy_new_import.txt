@@ -7,7 +7,7 @@
 #     \
 #      ---- a/y (new) ---- c
 #
-# Where a/x and x/y are disjoint packages, but both contained in module a.
+# Where a/x and a/y are disjoint packages, but both contained in module a.
 #
 # The module dependency graph initially looks like:
 #
