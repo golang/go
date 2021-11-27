@@ -2115,14 +2115,11 @@ func overlayDir(dstRoot, srcRoot string) error {
 // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
 // Temporary scaffolding until we pass all the tests at which point this map can be removed.
 var types2Failures = setOf(
-	"directive.go",    // misplaced compiler directive checks
-	"float_lit3.go",   // types2 reports extra errors
 	"import1.go",      // types2 reports extra errors
 	"import6.go",      // issue #43109
 	"initializerr.go", // types2 reports extra errors
-	"linkname2.go",    // error reported by noder (not running for types2 errorcheck test)
 	"notinheap.go",    // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
-	"shift1.go",       // issue #42989
+	"shift1.go",       // mostly just different wording, but reports two new errors.
 	"typecheck.go",    // invalid function is not causing errors when called
 
 	"fixedbugs/bug176.go", // types2 reports all errors (pref: types2)
@@ -2138,11 +2135,9 @@ var types2Failures = setOf(
 	"fixedbugs/issue11610.go",  // types2 not run after syntax errors
 	"fixedbugs/issue11614.go",  // types2 reports an extra error
 	"fixedbugs/issue14520.go",  // missing import path error by types2
-	"fixedbugs/issue16428.go",  // types2 reports two instead of one error
 	"fixedbugs/issue17038.go",  // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue17645.go",  // multiple errors on same line
 	"fixedbugs/issue18331.go",  // missing error about misuse of //go:noescape (irgen needs code from noder)
-	"fixedbugs/issue18419.go",  // types2 reports
+	"fixedbugs/issue18419.go",  // types2 reports no field or method member, but should say unexported
 	"fixedbugs/issue19012.go",  // multiple errors on same line
 	"fixedbugs/issue20233.go",  // types2 reports two instead of one error (pref: compiler)
 	"fixedbugs/issue20245.go",  // types2 reports two instead of one error (pref: compiler)
@@ -2156,8 +2151,6 @@ var types2Failures = setOf(
 	"fixedbugs/issue4232.go",   // types2 reports (correct) extra errors
 	"fixedbugs/issue4452.go",   // types2 reports (correct) extra errors
 	"fixedbugs/issue4510.go",   // types2 reports different (but ok) line numbers
-	"fixedbugs/issue47201.go",  // types2 spells the error message differently
-	"fixedbugs/issue5609.go",   // types2 needs a better error message
 	"fixedbugs/issue7525b.go",  // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525c.go",  // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525d.go",  // types2 reports init cycle error on different line - ok otherwise
@@ -2176,9 +2169,10 @@ var g3Failures = setOf(
 )
 
 var unifiedFailures = setOf(
-	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
-	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
-	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+	"closure3.go",  // unified IR numbers closures differently than -d=inlfuncswithclosures
+	"escape4.go",   // unified IR can inline f5 and f6; test doesn't expect this
+	"inline.go",    // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+	"linkname3.go", // unified IR is missing some linkname errors
 
 	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
 	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
