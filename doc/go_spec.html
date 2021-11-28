@@ -642,7 +642,7 @@ an identifier denoting a constant,
 a <a href="#Constant_expressions">constant expression</a>,
 a <a href="#Conversions">conversion</a> with a result that is a constant, or
 the result value of some built-in functions such as
-<code>unsafe.Sizeof</code> applied to any value,
+<code>unsafe.Sizeof</code> applied to <a href="#Package_unsafe">certain values</a>,
 <code>cap</code> or <code>len</code> applied to
 <a href="#Length_and_capacity">some expressions</a>,
 <code>real</code> and <code>imag</code> applied to a complex constant
@@ -7446,8 +7446,14 @@ uintptr(unsafe.Pointer(&amp;x)) % unsafe.Alignof(x) == 0
 </pre>
 
 <p>
-Calls to <code>Alignof</code>, <code>Offsetof</code>, and
-<code>Sizeof</code> are compile-time constant expressions of type <code>uintptr</code>.
+A (variable of) type <code>T</code> has <i>variable size</i> if <code>T</code>
+is a type parameter, or if it is an array or struct type containing elements
+or fields of variable size. Otherwise the size is <i>constant</i>.
+Calls to <code>Alignof</code>, <code>Offsetof</code>, and <code>Sizeof</code>
+are compile-time <a href="#Constant_expressions">constant expressions</a> of
+type <code>uintptr</code> if their arguments (or the struct <code>s</code> in
+the selector expression <code>s.f</code> for <code>Offsetof</code>) are types
+of constant size.
 </p>
 
 <p>
