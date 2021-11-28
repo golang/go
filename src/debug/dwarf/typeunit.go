@@ -117,7 +117,7 @@ type typeUnitReader struct {
 func (tur *typeUnitReader) Seek(off Offset) {
 	tur.err = nil
 	doff := off - tur.tu.off
-	if doff < 0 || doff >= Offset(len(tur.tu.data)) {
+	if doff >= Offset(len(tur.tu.data)) {
 		tur.err = fmt.Errorf("%s: offset %d out of range; max %d", tur.tu.name, doff, len(tur.tu.data))
 		return
 	}
