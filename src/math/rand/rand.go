@@ -112,6 +112,9 @@ func (r *Rand) Int63n(n int64) int64 {
 	if n&(n-1) == 0 { // n is power of two, can mask
 		return r.Int63() & (n - 1)
 	}
+	if n<=1<<31-1{
+		return int64(Int31n(int32(n)))
+	}
 	max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
 	v := r.Int63()
 	for v > max {
