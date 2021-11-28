@@ -59,22 +59,6 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 	}
 }
 
-func sendCtrlBreak(pid int) error {
-	kernel32, err := syscall.LoadDLL("kernel32.dll")
-	if err != nil {
-		return fmt.Errorf("LoadDLL: %v\n", err)
-	}
-	generateEvent, err := kernel32.FindProc("GenerateConsoleCtrlEvent")
-	if err != nil {
-		return fmt.Errorf("FindProc: %v\n", err)
-	}
-	result, _, err := generateEvent.Call(syscall.CTRL_BREAK_EVENT, uintptr(pid))
-	if result == 0 {
-		return fmt.Errorf("GenerateConsoleCtrlEvent: %v\n", err)
-	}
-	return nil
-}
-
 // TestCtrlHandler tests that Go can gracefully handle closing the console window.
 // See https://golang.org/issues/41884.
 func TestCtrlHandler(t *testing.T) {
@@ -183,7 +167,7 @@ func TestLibraryCtrlHandler(t *testing.T) {
 		} else if strings.TrimSpace(line) != "ready" {
 			errCh <- fmt.Errorf("unexpected message: %v", line)
 		} else {
-			errCh <- sendCtrlBreak(cmd.Process.Pid)
+			errCh <- cmd.Process.Signal(syscall.SIGINT)
 		}
 	}()
 

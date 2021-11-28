@@ -15,9 +15,7 @@ import (
 
 // The only signal values guaranteed to be present in the os package on all
 // systems are os.Interrupt (send the process an interrupt) and os.Kill (force
-// the process to exit). On Windows, sending os.Interrupt to a process with
-// os.Process.Signal is not implemented; it will return an error instead of
-// sending a signal.
+// the process to exit).
 var (
 	Interrupt Signal = syscall.SIGINT
 	Kill      Signal = syscall.SIGKILL

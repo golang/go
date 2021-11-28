@@ -344,3 +344,4 @@ func LoadGetFinalPathNameByHandle() error {
 //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
 
 //sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036
+//sys	GenerateConsoleCtrlEvent(ctrlEvent uint32, processGroupID uint32) (err error) = kernel32.GenerateConsoleCtrlEvent
