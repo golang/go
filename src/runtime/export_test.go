@@ -47,6 +47,8 @@ var NetpollGenericInit = netpollGenericInit
 var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
 
+var CgoCheckPointer = cgoCheckPointer
+
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
 
@@ -1825,4 +1827,16 @@ func PersistentAlloc(n uintptr) unsafe.Pointer {
 // pcBuf with the return addresses of the physical frames on the stack.
 func FPCallers(pcBuf []uintptr) int {
 	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), pcBuf)
+}
+
+var (
+	IsPinned      = isPinned
+	GetPinCounter = pinnerGetPinCounter
+)
+
+func SetPinnerLeakPanic(f func()) {
+	pinnerLeakPanic = f
+}
+func GetPinnerLeakPanic() func() {
+	return pinnerLeakPanic
 }

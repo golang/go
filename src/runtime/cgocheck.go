@@ -12,10 +12,11 @@ import (
 	"unsafe"
 )
 
-const cgoWriteBarrierFail = "Go pointer stored into non-Go memory"
+const cgoWriteBarrierFail = "unpinned Go pointer stored into non-Go memory"
 
 // cgoCheckPtrWrite is called whenever a pointer is stored into memory.
-// It throws if the program is storing a Go pointer into non-Go memory.
+// It throws if the program is storing an unpinned Go pointer into non-Go
+// memory.
 //
 // This is called from generated code when GOEXPERIMENT=cgocheck2 is enabled.
 //
@@ -48,6 +49,12 @@ func cgoCheckPtrWrite(dst *unsafe.Pointer, src unsafe.Pointer) {
 		return
 	}
 
+	// If the object is pinned, it's safe to store it in C memory. The GC
+	// ensures it will not be moved or freed.
+	if isPinned(src) {
+		return
+	}
+
 	// It's OK if writing to memory allocated by persistentalloc.
 	// Do this check last because it is more expensive and rarely true.
 	// If it is false the expense doesn't matter since we are crashing.
@@ -56,14 +63,14 @@ func cgoCheckPtrWrite(dst *unsafe.Pointer, src unsafe.Pointer) {
 	}
 
 	systemstack(func() {
-		println("write of Go pointer", hex(uintptr(src)), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
+		println("write of unpinned Go pointer", hex(uintptr(src)), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
 		throw(cgoWriteBarrierFail)
 	})
 }
 
 // cgoCheckMemmove is called when moving a block of memory.
-// It throws if the program is copying a block that contains a Go pointer
-// into non-Go memory.
+// It throws if the program is copying a block that contains an unpinned Go
+// pointer into non-Go memory.
 //
 // This is called from generated code when GOEXPERIMENT=cgocheck2 is enabled.
 //
@@ -76,8 +83,8 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
 // cgoCheckMemmove2 is called when moving a block of memory.
 // dst and src point off bytes into the value to copy.
 // size is the number of bytes to copy.
-// It throws if the program is copying a block that contains a Go pointer
-// into non-Go memory.
+// It throws if the program is copying a block that contains an unpinned Go
+// pointer into non-Go memory.
 //
 //go:nosplit
 //go:nowritebarrier
@@ -97,8 +104,8 @@ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 // cgoCheckSliceCopy is called when copying n elements of a slice.
 // src and dst are pointers to the first element of the slice.
 // typ is the element type of the slice.
-// It throws if the program is copying slice elements that contain Go pointers
-// into non-Go memory.
+// It throws if the program is copying slice elements that contain unpinned Go
+// pointers into non-Go memory.
 //
 //go:nosplit
 //go:nowritebarrier
@@ -120,7 +127,7 @@ func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
 }
 
 // cgoCheckTypedBlock checks the block of memory at src, for up to size bytes,
-// and throws if it finds a Go pointer. The type of the memory is typ,
+// and throws if it finds an unpinned Go pointer. The type of the memory is typ,
 // and src is off bytes into that type.
 //
 //go:nosplit
@@ -177,14 +184,14 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 			break
 		}
 		v := *(*unsafe.Pointer)(unsafe.Pointer(addr))
-		if cgoIsGoPointer(v) {
+		if cgoIsGoPointer(v) && !isPinned(v) {
 			throw(cgoWriteBarrierFail)
 		}
 	}
 }
 
 // cgoCheckBits checks the block of memory at src, for up to size
-// bytes, and throws if it finds a Go pointer. The gcbits mark each
+// bytes, and throws if it finds an unpinned Go pointer. The gcbits mark each
 // pointer value. The src pointer is off bytes into the gcbits.
 //
 //go:nosplit
@@ -209,7 +216,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
 		} else {
 			if bits&1 != 0 {
 				v := *(*unsafe.Pointer)(add(src, i))
-				if cgoIsGoPointer(v) {
+				if cgoIsGoPointer(v) && !isPinned(v) {
 					throw(cgoWriteBarrierFail)
 				}
 			}

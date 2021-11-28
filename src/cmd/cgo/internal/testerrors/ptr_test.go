@@ -164,6 +164,17 @@ var ptrTests = []ptrTest{
 		expensive: true,
 	},
 	{
+		// Storing a pinned Go pointer into C memory should succeed.
+		name: "barrierpinnedok",
+		c: `#include <stdlib.h>
+		    char **f14a2() { return malloc(sizeof(char*)); }
+		    void f14b2(char **p) {}`,
+		imports:   []string{"runtime"},
+		body:      `var pinr runtime.Pinner; p := C.f14a2(); x := new(C.char); pinr.Pin(x); *p = x; C.f14b2(p); pinr.Unpin()`,
+		fail:      false,
+		expensive: true,
+	},
+	{
 		// Storing a Go pointer into C memory by assigning a
 		// large value should fail.
 		name: "barrierstruct",

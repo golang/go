@@ -199,13 +199,15 @@ type mheap struct {
 		pad      [(cpu.CacheLinePadSize - unsafe.Sizeof(mcentral{})%cpu.CacheLinePadSize) % cpu.CacheLinePadSize]byte
 	}
 
-	spanalloc             fixalloc // allocator for span*
-	cachealloc            fixalloc // allocator for mcache*
-	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
-	specialprofilealloc   fixalloc // allocator for specialprofile*
-	specialReachableAlloc fixalloc // allocator for specialReachable
-	speciallock           mutex    // lock for special record allocators.
-	arenaHintAlloc        fixalloc // allocator for arenaHints
+	spanalloc              fixalloc // allocator for span*
+	cachealloc             fixalloc // allocator for mcache*
+	specialfinalizeralloc  fixalloc // allocator for specialfinalizer*
+	specialprofilealloc    fixalloc // allocator for specialprofile*
+	specialReachableAlloc  fixalloc // allocator for specialReachable
+	specialPinCounterAlloc fixalloc // allocator for specialPinCounter
+	pinnerBitsAlloc        fixalloc // allocator for *pBits
+	speciallock            mutex    // lock for special record and pinnerBits allocators.
+	arenaHintAlloc         fixalloc // allocator for arenaHints
 
 	// User arena state.
 	//
@@ -488,8 +490,9 @@ type mspan struct {
 	allocCountBeforeCache uint16        // a copy of allocCount that is stored just before this span is cached
 	elemsize              uintptr       // computed from sizeclass or from npages
 	limit                 uintptr       // end of data in span
-	speciallock           mutex         // guards specials list
+	speciallock           mutex         // guards specials list and changes to pinnerBits
 	specials              *special      // linked list of special records sorted by offset.
+	pinnerBits            *pinBits      // bitmap for pinned objects; accessed atomically
 	userArenaChunkFree    addrRange     // interval for managing chunk allocation
 
 	// freeIndexForScan is like freeindex, except that freeindex is
@@ -756,6 +759,8 @@ func (h *mheap) init() {
 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
+	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
+	h.pinnerBitsAlloc.init(unsafe.Sizeof(pinBits{}), nil, nil, &memstats.other_sys)
 	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
 
 	// Don't zero mspan allocations. Background sweeping can
@@ -1635,6 +1640,12 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 	// Mark the space as free.
 	h.pages.free(s.base(), s.npages)
 
+	// Free pinnerBits if set.
+	if pinnerBits := s.getPinnerBits(); pinnerBits != nil {
+		s.setPinnerBits(nil)
+		h.freePinnerBits(pinnerBits)
+	}
+
 	// Free the span structure. We no longer have a use for it.
 	s.state.set(mSpanDead)
 	h.freeMSpanLocked(s)
@@ -1688,6 +1699,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.freeIndexForScan = 0
 	span.allocBits = nil
 	span.gcmarkBits = nil
+	span.pinnerBits = nil
 	span.state.set(mSpanDead)
 	lockInit(&span.speciallock, lockRankMspanSpecial)
 }
@@ -1793,6 +1805,9 @@ const (
 	// _KindSpecialReachable is a special used for tracking
 	// reachability during testing.
 	_KindSpecialReachable = 3
+	// _KindSpecialPinCounter is a special used for objects that are pinned
+	// multiple times
+	_KindSpecialPinCounter = 4
 	// Note: The finalizer special must be first because if we're freeing
 	// an object, a finalizer special will cause the freeing operation
 	// to abort, and we want to keep the other special records around
@@ -1846,32 +1861,18 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 	lock(&span.speciallock)
 
 	// Find splice point, check for existing record.
-	t := &span.specials
-	for {
-		x := *t
-		if x == nil {
-			break
-		}
-		if offset == uintptr(x.offset) && kind == x.kind {
-			unlock(&span.speciallock)
-			releasem(mp)
-			return false // already exists
-		}
-		if offset < uintptr(x.offset) || (offset == uintptr(x.offset) && kind < x.kind) {
-			break
-		}
-		t = &x.next
+	iter, exists := span.specialFindSplicePoint(offset, kind)
+	if !exists {
+		// Splice in record, fill in offset.
+		s.offset = uint16(offset)
+		s.next = *iter
+		*iter = s
+		spanHasSpecials(span)
 	}
 
-	// Splice in record, fill in offset.
-	s.offset = uint16(offset)
-	s.next = *t
-	*t = s
-	spanHasSpecials(span)
 	unlock(&span.speciallock)
 	releasem(mp)
-
-	return true
+	return !exists // already exists
 }
 
 // Removes the Special record of the given kind for the object p.
@@ -1893,20 +1894,12 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 
 	var result *special
 	lock(&span.speciallock)
-	t := &span.specials
-	for {
-		s := *t
-		if s == nil {
-			break
-		}
-		// This function is used for finalizers only, so we don't check for
-		// "interior" specials (p must be exactly equal to s->offset).
-		if offset == uintptr(s.offset) && kind == s.kind {
-			*t = s.next
-			result = s
-			break
-		}
-		t = &s.next
+
+	iter, exists := span.specialFindSplicePoint(offset, kind)
+	if exists {
+		s := *iter
+		*iter = s.next
+		result = s
 	}
 	if span.specials == nil {
 		spanHasNoSpecials(span)
@@ -1914,6 +1907,30 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 	unlock(&span.speciallock)
 	releasem(mp)
 	return result
+}
+
+// Find a splice point in the sorted list and check for an already existing
+// record. Returns a pointer to the next-reference in the list predecessor.
+// Returns true, if the referenced item is an exact match.
+func (span *mspan) specialFindSplicePoint(offset uintptr, kind byte) (**special, bool) {
+	// Find splice point, check for existing record.
+	iter := &span.specials
+	found := false
+	for {
+		s := *iter
+		if s == nil {
+			break
+		}
+		if offset == uintptr(s.offset) && kind == s.kind {
+			found = true
+			break
+		}
+		if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && kind < s.kind) {
+			break
+		}
+		iter = &s.next
+	}
+	return iter, found
 }
 
 // The described object has a finalizer set for it.
@@ -2006,6 +2023,12 @@ type specialReachable struct {
 	reachable bool
 }
 
+// specialPinCounter tracks whether an object is pinned multiple times.
+type specialPinCounter struct {
+	special special
+	counter uintptr
+}
+
 // specialsIter helps iterate over specials lists.
 type specialsIter struct {
 	pprev **special
@@ -2054,6 +2077,10 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		sp := (*specialReachable)(unsafe.Pointer(s))
 		sp.done = true
 		// The creator frees these.
+	case _KindSpecialPinCounter:
+		lock(&mheap_.speciallock)
+		mheap_.specialPinCounterAlloc.free(unsafe.Pointer(s))
+		unlock(&mheap_.speciallock)
 	default:
 		throw("bad special kind")
 		panic("not reached")

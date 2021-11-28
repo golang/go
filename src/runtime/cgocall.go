@@ -376,12 +376,12 @@ var racecgosync uint64 // represents possible synchronization in C code
 
 // We want to detect all cases where a program that does not use
 // unsafe makes a cgo call passing a Go pointer to memory that
-// contains a Go pointer. Here a Go pointer is defined as a pointer
-// to memory allocated by the Go runtime. Programs that use unsafe
-// can evade this restriction easily, so we don't try to catch them.
-// The cgo program will rewrite all possibly bad pointer arguments to
-// call cgoCheckPointer, where we can catch cases of a Go pointer
-// pointing to a Go pointer.
+// contains an unpinned Go pointer. Here a Go pointer is defined as a
+// pointer to memory allocated by the Go runtime. Programs that use
+// unsafe can evade this restriction easily, so we don't try to catch
+// them. The cgo program will rewrite all possibly bad pointer
+// arguments to call cgoCheckPointer, where we can catch cases of a Go
+// pointer pointing to an unpinned Go pointer.
 
 // Complicating matters, taking the address of a slice or array
 // element permits the C program to access all elements of the slice
@@ -403,7 +403,7 @@ var racecgosync uint64 // represents possible synchronization in C code
 // pointers.)
 
 // cgoCheckPointer checks if the argument contains a Go pointer that
-// points to a Go pointer, and panics if it does.
+// points to an unpinned Go pointer, and panics if it does.
 func cgoCheckPointer(ptr any, arg any) {
 	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
 		return
@@ -450,13 +450,14 @@ func cgoCheckPointer(ptr any, arg any) {
 	cgoCheckArg(t, ep.data, t.Kind_&kindDirectIface == 0, top, cgoCheckPointerFail)
 }
 
-const cgoCheckPointerFail = "cgo argument has Go pointer to Go pointer"
+const cgoCheckPointerFail = "cgo argument has Go pointer to unpinned Go pointer"
 const cgoResultFail = "cgo result has Go pointer"
 
 // cgoCheckArg is the real work of cgoCheckPointer. The argument p
 // is either a pointer to the value (of type t), or the value itself,
 // depending on indir. The top parameter is whether we are at the top
-// level, where Go pointers are allowed.
+// level, where Go pointers are allowed. Go pointers to pinned objects are
+// always allowed.
 func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 	if t.PtrBytes == 0 || p == nil {
 		// If the type has no pointers there is nothing to do.
@@ -507,7 +508,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !cgoIsGoPointer(p) {
 			return
 		}
-		if !top {
+		if !top && !isPinned(p) {
 			panic(errorString(msg))
 		}
 		cgoCheckArg(it, p, it.Kind_&kindDirectIface == 0, false, msg)
@@ -518,7 +519,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if p == nil || !cgoIsGoPointer(p) {
 			return
 		}
-		if !top {
+		if !top && !isPinned(p) {
 			panic(errorString(msg))
 		}
 		if st.Elem.PtrBytes == 0 {
@@ -533,7 +534,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !cgoIsGoPointer(ss.str) {
 			return
 		}
-		if !top {
+		if !top && !isPinned(ss.str) {
 			panic(errorString(msg))
 		}
 	case kindStruct:
@@ -562,7 +563,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !cgoIsGoPointer(p) {
 			return
 		}
-		if !top {
+		if !top && !isPinned(p) {
 			panic(errorString(msg))
 		}
 
@@ -572,7 +573,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 
 // cgoCheckUnknownPointer is called for an arbitrary pointer into Go
 // memory. It checks whether that Go memory contains any other
-// pointer into Go memory. If it does, we panic.
+// pointer into unpinned Go memory. If it does, we panic.
 // The return values are unused but useful to see in panic tracebacks.
 func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 	if inheap(uintptr(p)) {
@@ -588,7 +589,8 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 			if hbits, addr = hbits.next(); addr == 0 {
 				break
 			}
-			if cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(addr))) {
+			pp := *(*unsafe.Pointer)(unsafe.Pointer(addr))
+			if cgoIsGoPointer(pp) && !isPinned(pp) {
 				panic(errorString(msg))
 			}
 		}

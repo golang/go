@@ -202,6 +202,10 @@ func (s *mspan) isFree(index uintptr) bool {
 // n must be within [0, s.npages*_PageSize),
 // or may be exactly s.npages*_PageSize
 // if s.elemsize is from sizeclasses.go.
+//
+// nosplit, because it is called by objIndex, which is nosplit
+//
+//go:nosplit
 func (s *mspan) divideByElemSize(n uintptr) uintptr {
 	const doubleCheck = false
 
@@ -215,6 +219,9 @@ func (s *mspan) divideByElemSize(n uintptr) uintptr {
 	return q
 }
 
+// nosplit, because it is called by other nosplit code like findObject
+//
+//go:nosplit
 func (s *mspan) objIndex(p uintptr) uintptr {
 	return s.divideByElemSize(p - s.base())
 }

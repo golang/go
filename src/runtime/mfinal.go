@@ -274,6 +274,31 @@ func runfinq() {
 	}
 }
 
+func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
+	// 0-length objects are okay.
+	if p == unsafe.Pointer(&zerobase) {
+		return true
+	}
+
+	// Global initializers might be linker-allocated.
+	//	var Foo = &Object{}
+	//	func main() {
+	//		runtime.SetFinalizer(Foo, nil)
+	//	}
+	// The relevant segments are: noptrdata, data, bss, noptrbss.
+	// We cannot assume they are in any order or even contiguous,
+	// due to external linking.
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		if datap.noptrdata <= uintptr(p) && uintptr(p) < datap.enoptrdata ||
+			datap.data <= uintptr(p) && uintptr(p) < datap.edata ||
+			datap.bss <= uintptr(p) && uintptr(p) < datap.ebss ||
+			datap.noptrbss <= uintptr(p) && uintptr(p) < datap.enoptrbss {
+			return true
+		}
+	}
+	return false
+}
+
 // SetFinalizer sets the finalizer associated with obj to the provided
 // finalizer function. When the garbage collector finds an unreachable block
 // with an associated finalizer, it clears the association and runs
@@ -388,26 +413,8 @@ func SetFinalizer(obj any, finalizer any) {
 	base, _, _ := findObject(uintptr(e.data), 0, 0)
 
 	if base == 0 {
-		// 0-length objects are okay.
-		if e.data == unsafe.Pointer(&zerobase) {
+		if isGoPointerWithoutSpan(e.data) {
 			return
-		}
-
-		// Global initializers might be linker-allocated.
-		//	var Foo = &Object{}
-		//	func main() {
-		//		runtime.SetFinalizer(Foo, nil)
-		//	}
-		// The relevant segments are: noptrdata, data, bss, noptrbss.
-		// We cannot assume they are in any order or even contiguous,
-		// due to external linking.
-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
-			if datap.noptrdata <= uintptr(e.data) && uintptr(e.data) < datap.enoptrdata ||
-				datap.data <= uintptr(e.data) && uintptr(e.data) < datap.edata ||
-				datap.bss <= uintptr(e.data) && uintptr(e.data) < datap.ebss ||
-				datap.noptrbss <= uintptr(e.data) && uintptr(e.data) < datap.enoptrbss {
-				return
-			}
 		}
 		throw("runtime.SetFinalizer: pointer not in allocated block")
 	}
