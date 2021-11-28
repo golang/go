@@ -54,6 +54,7 @@ var (
 	procSetTokenInformation          = modadvapi32.NewProc("SetTokenInformation")
 	procSystemFunction036            = modadvapi32.NewProc("SystemFunction036")
 	procGetAdaptersAddresses         = modiphlpapi.NewProc("GetAdaptersAddresses")
+	procGenerateConsoleCtrlEvent     = modkernel32.NewProc("GenerateConsoleCtrlEvent")
 	procGetACP                       = modkernel32.NewProc("GetACP")
 	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
 	procGetConsoleCP                 = modkernel32.NewProc("GetConsoleCP")
@@ -157,6 +158,14 @@ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapter
 	r0, _, _ := syscall.Syscall6(procGetAdaptersAddresses.Addr(), 5, uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)), 0)
 	if r0 != 0 {
 		errcode = syscall.Errno(r0)
+	}
+	return
+}
+
+func GenerateConsoleCtrlEvent(ctrlEvent uint32, processGroupID uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGenerateConsoleCtrlEvent.Addr(), 2, uintptr(ctrlEvent), uintptr(processGroupID), 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
 	}
 	return
 }

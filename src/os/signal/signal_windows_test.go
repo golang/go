@@ -15,21 +15,6 @@ import (
 	"time"
 )
 
-func sendCtrlBreak(t *testing.T, pid int) {
-	d, e := syscall.LoadDLL("kernel32.dll")
-	if e != nil {
-		t.Fatalf("LoadDLL: %v\n", e)
-	}
-	p, e := d.FindProc("GenerateConsoleCtrlEvent")
-	if e != nil {
-		t.Fatalf("FindProc: %v\n", e)
-	}
-	r, _, e := p.Call(syscall.CTRL_BREAK_EVENT, uintptr(pid))
-	if r == 0 {
-		t.Fatalf("GenerateConsoleCtrlEvent: %v\n", e)
-	}
-}
-
 func TestCtrlBreak(t *testing.T) {
 	// create source file
 	const source = `
@@ -90,7 +75,7 @@ func main() {
 	}
 	go func() {
 		time.Sleep(1 * time.Second)
-		sendCtrlBreak(t, cmd.Process.Pid)
+		cmd.Process.Signal(os.Interrupt)
 	}()
 	err = cmd.Wait()
 	if err != nil {

@@ -7,6 +7,7 @@
 package exec_test
 
 import (
+	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
@@ -52,5 +53,22 @@ func TestNoInheritHandles(t *testing.T) {
 	}
 	if exitError.ExitCode() != 88 {
 		t.Fatalf("got exit code %d; want 88", exitError.ExitCode())
+	}
+}
+
+func TestErrProcessDone(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	// On Windows, ProcAttr cannot be empty
+	p, err := os.StartProcess(testenv.GoToolPath(t), []string{""},
+		&os.ProcAttr{Dir: "", Env: nil, Files: []*os.File{os.Stdin, os.Stdout, os.Stderr}, Sys: nil})
+	if err != nil {
+		t.Errorf("starting test process: %v", err)
+	}
+	_, err = p.Wait()
+	if err != nil {
+		t.Errorf("Wait: %v", err)
+	}
+	if got := p.Signal(os.Kill); got != os.ErrProcessDone {
+		t.Fatalf("got %v want %v", got, os.ErrProcessDone)
 	}
 }
