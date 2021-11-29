@@ -160,6 +160,8 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 }
 
 func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+	// Set the position for any error messages we might print (e.g. too large types).
+	base.Pos = g.pos(decl)
 	assert(g.curDecl == "")
 	// Set g.curDecl to the type name, as context for the type params declared
 	// during types2-to-types1 translation if this is a generic type.
@@ -244,6 +246,8 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 
 func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 	pos := g.pos(decl)
+	// Set the position for any error messages we might print (e.g. too large types).
+	base.Pos = pos
 	names := make([]*ir.Name, len(decl.NameList))
 	for i, name := range decl.NameList {
 		names[i], _ = g.def(name)
