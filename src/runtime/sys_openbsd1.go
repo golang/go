@@ -14,7 +14,10 @@ import (
 //go:nosplit
 //go:cgo_unsafe_args
 func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32 {
-	return libcCall(unsafe.Pointer(abi.FuncPCABI0(thrsleep_trampoline)), unsafe.Pointer(&ident))
+	ret := libcCall(unsafe.Pointer(abi.FuncPCABI0(thrsleep_trampoline)), unsafe.Pointer(&ident))
+	KeepAlive(tsp)
+	KeepAlive(abort)
+	return ret
 }
 func thrsleep_trampoline()
 
