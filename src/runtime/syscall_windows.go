@@ -276,6 +276,8 @@ func syscall_loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (hand
 	}
 
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	KeepAlive(filename)
+	KeepAlive(absoluteFilepath)
 	handle = c.r1
 	if handle == 0 {
 		err = c.err
@@ -294,6 +296,7 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 	c.n = 1
 	c.args = uintptr(noescape(unsafe.Pointer(&filename)))
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	KeepAlive(filename)
 	handle = c.r1
 	if handle == 0 {
 		err = c.err
@@ -311,6 +314,7 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
 	c.n = 2
 	c.args = uintptr(noescape(unsafe.Pointer(&handle)))
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	KeepAlive(procname)
 	outhandle = c.r1
 	if outhandle == 0 {
 		err = c.err
