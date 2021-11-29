@@ -60,11 +60,11 @@ func TestGenerations(t *testing.T) {
 	expectGet(t, h2, g2, "res")
 
 	// With g1 destroyed, g2 should still work.
-	g1.Destroy()
+	g1.Destroy("TestGenerations")
 	expectGet(t, h2, g2, "res")
 
 	// With all generations destroyed, key should be re-evaluated.
-	g2.Destroy()
+	g2.Destroy("TestGenerations")
 	g3 := s.Generation("g3")
 	h3 := g3.Bind("key", func(context.Context, memoize.Arg) interface{} { return "new res" }, nil)
 	expectGet(t, h3, g3, "new res")
@@ -89,7 +89,7 @@ func TestCleanup(t *testing.T) {
 	g2 := s.Generation("g2")
 	g2.Inherit(h1, h2)
 
-	g1.Destroy()
+	g1.Destroy("TestCleanup")
 	expectGet(t, h1, g2, &v1)
 	expectGet(t, h2, g2, &v2)
 	for k, v := range map[string]*bool{"key1": &v1, "key2": &v2} {
@@ -97,7 +97,7 @@ func TestCleanup(t *testing.T) {
 			t.Errorf("after destroying g1, bound value %q is cleaned up", k)
 		}
 	}
-	g2.Destroy()
+	g2.Destroy("TestCleanup")
 	if got, want := v1, false; got != want {
 		t.Error("after destroying g2, v1 is cleaned up")
 	}

@@ -505,7 +505,7 @@ func (v *View) shutdown(ctx context.Context) {
 	}
 	v.mu.Unlock()
 	v.snapshotMu.Lock()
-	go v.snapshot.generation.Destroy()
+	go v.snapshot.generation.Destroy("View.shutdown")
 	v.snapshotMu.Unlock()
 	v.importsState.destroy()
 }
@@ -694,7 +694,7 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 			event.Error(ctx, "copying workspace dir", err)
 		}
 	}
-	go oldSnapshot.generation.Destroy()
+	go oldSnapshot.generation.Destroy("View.invalidateContent")
 
 	return v.snapshot, v.snapshot.generation.Acquire(ctx)
 }
