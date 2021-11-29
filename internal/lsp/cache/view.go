@@ -74,7 +74,7 @@ type View struct {
 	initCancelFirstAttempt context.CancelFunc
 
 	snapshotMu sync.Mutex
-	snapshot   *snapshot
+	snapshot   *snapshot // nil after shutdown has been called
 
 	// initialWorkspaceLoad is closed when the first workspace initialization has
 	// completed. If we failed to load, we only retry if the go.mod file changes,
@@ -505,7 +505,10 @@ func (v *View) shutdown(ctx context.Context) {
 	}
 	v.mu.Unlock()
 	v.snapshotMu.Lock()
-	go v.snapshot.generation.Destroy("View.shutdown")
+	if v.snapshot != nil {
+		go v.snapshot.generation.Destroy("View.shutdown")
+		v.snapshot = nil
+	}
 	v.snapshotMu.Unlock()
 	v.importsState.destroy()
 }
@@ -551,13 +554,16 @@ func checkIgnored(suffix string) bool {
 }
 
 func (v *View) Snapshot(ctx context.Context) (source.Snapshot, func()) {
-	return v.getSnapshot(ctx)
+	return v.getSnapshot()
 }
 
-func (v *View) getSnapshot(ctx context.Context) (*snapshot, func()) {
+func (v *View) getSnapshot() (*snapshot, func()) {
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
-	return v.snapshot, v.snapshot.generation.Acquire(ctx)
+	if v.snapshot == nil {
+		panic("getSnapshot called after shutdown")
+	}
+	return v.snapshot, v.snapshot.generation.Acquire()
 }
 
 func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
@@ -670,6 +676,9 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
+//
+// invalidateContent returns a non-nil snapshot for the new content, along with
+// a callback which the caller must invoke to release that snapshot.
 func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, func()) {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
@@ -677,6 +686,10 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
+
+	if v.snapshot == nil {
+		panic("invalidateContent called after shutdown")
+	}
 
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
@@ -696,7 +709,7 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	}
 	go oldSnapshot.generation.Destroy("View.invalidateContent")
 
-	return v.snapshot, v.snapshot.generation.Acquire(ctx)
+	return v.snapshot, v.snapshot.generation.Acquire()
 }
 
 func (v *View) updateWorkspace(ctx context.Context) error {
@@ -714,7 +727,11 @@ func (v *View) updateWorkspace(ctx context.Context) error {
 // all changes to the workspace module, only that it is eventually consistent
 // with the workspace module of the latest snapshot.
 func (v *View) updateWorkspaceLocked(ctx context.Context) error {
-	release := v.snapshot.generation.Acquire(ctx)
+	if v.snapshot == nil {
+		return errors.New("view is shutting down")
+	}
+
+	release := v.snapshot.generation.Acquire()
 	defer release()
 	src, err := v.snapshot.getWorkspaceDir(ctx)
 	if err != nil {

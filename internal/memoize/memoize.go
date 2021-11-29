@@ -102,11 +102,8 @@ func (g *Generation) Destroy(destroyedBy string) {
 
 // Acquire creates a new reference to g, and returns a func to release that
 // reference.
-func (g *Generation) Acquire(ctx context.Context) func() {
+func (g *Generation) Acquire() func() {
 	destroyed := atomic.LoadUint32(&g.destroyed)
-	if ctx.Err() != nil {
-		return func() {}
-	}
 	if destroyed != 0 {
 		panic("acquire on generation " + g.name + " destroyed by " + g.destroyedBy)
 	}
@@ -274,7 +271,7 @@ func (h *Handle) Cached(g *Generation) interface{} {
 // If the value is not yet ready, the underlying function will be invoked.
 // If ctx is cancelled, Get returns nil.
 func (h *Handle) Get(ctx context.Context, g *Generation, arg Arg) (interface{}, error) {
-	release := g.Acquire(ctx)
+	release := g.Acquire()
 	defer release()
 
 	if ctx.Err() != nil {
@@ -319,7 +316,7 @@ func (h *Handle) run(ctx context.Context, g *Generation, arg Arg) (interface{}, 
 	function := h.function // Read under the lock
 
 	// Make sure that the generation isn't destroyed while we're running in it.
-	release := g.Acquire(ctx)
+	release := g.Acquire()
 	go func() {
 		defer release()
 		// Just in case the function does something expensive without checking
