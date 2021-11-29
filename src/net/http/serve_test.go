@@ -3075,22 +3075,14 @@ func TestClientWriteShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CloseWrite: %v", err)
 	}
-	donec := make(chan bool)
-	go func() {
-		defer close(donec)
-		bs, err := io.ReadAll(conn)
-		if err != nil {
-			t.Errorf("ReadAll: %v", err)
-		}
-		got := string(bs)
-		if got != "" {
-			t.Errorf("read %q from server; want nothing", got)
-		}
-	}()
-	select {
-	case <-donec:
-	case <-time.After(10 * time.Second):
-		t.Fatalf("timeout")
+
+	bs, err := io.ReadAll(conn)
+	if err != nil {
+		t.Errorf("ReadAll: %v", err)
+	}
+	got := string(bs)
+	if got != "" {
+		t.Errorf("read %q from server; want nothing", got)
 	}
 }
 
