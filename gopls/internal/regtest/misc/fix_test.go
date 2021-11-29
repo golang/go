@@ -62,6 +62,7 @@ func Foo() {
 }
 
 func TestFillReturns(t *testing.T) {
+	t.Skip("temporarily skipped until CL 367196 is submitted")
 	const files = `
 -- go.mod --
 module mod.com

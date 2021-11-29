@@ -13,6 +13,7 @@ import (
 )
 
 func Test(t *testing.T) {
+	t.Skip("temporarily skipped until CL 367196 is submitted and this test is adjusted accordingly")
 	testdata := analysistest.TestData()
 	tests := []string{"a"}
 	if typeparams.Enabled {
