@@ -1715,12 +1715,8 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			return nil, err
 		}
 		if resp.StatusCode != 200 {
-			_, text, ok := strings.Cut(resp.Status, " ")
 			conn.Close()
-			if !ok {
-				return nil, errors.New("http: unknown status code (proxy)")
-			}
-			return nil, errors.New("http: " + text + " (proxy)")
+			return nil, fmt.Errorf("http: proxy returned unexpected status %q", resp.Status)
 		}
 	}
 
