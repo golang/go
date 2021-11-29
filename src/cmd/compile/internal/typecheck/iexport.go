@@ -261,7 +261,7 @@ import (
 const (
 	iexportVersionGo1_11   = 0
 	iexportVersionPosCol   = 1
-	iexportVersionGenerics = 1 // probably change to 2 before release
+	iexportVersionGenerics = 2
 	iexportVersionGo1_18   = 2
 
 	iexportVersionCurrent = 2
