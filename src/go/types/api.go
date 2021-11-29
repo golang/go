@@ -436,8 +436,16 @@ func ConvertibleTo(V, T Type) bool {
 
 // Implements reports whether type V implements interface T.
 func Implements(V Type, T *Interface) bool {
-	f, _ := MissingMethod(V, T, true)
-	return f == nil
+	if T.Empty() {
+		// All types (even Typ[Invalid]) implement the empty interface.
+		return true
+	}
+	// Checker.implements suppresses errors for invalid types, so we need special
+	// handling here.
+	if V.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).implements(V, T, nil) == nil
 }
 
 // Identical reports whether x and y are identical types.
