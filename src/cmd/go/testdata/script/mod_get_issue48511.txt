@@ -1,0 +1,68 @@
+# Regression test for https://golang.org/issue/48511:
+# requirement minimization was accidentally replacing previous
+# versions of the main module, causing dependencies to be
+# spuriously dropping during requirement minimization and
+# leading to an infinite loop.
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
+
+go get -u=patch ./...
+cmp go.mod go.mod.want
+
+-- go.mod --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/a v0.1.0 => ./a
+	example.net/b v0.1.0 => ./b
+	example.net/b v0.1.1 => ./b
+	example.net/m v0.1.0 => ./m1
+)
+
+require example.net/a v0.1.0
+-- go.mod.want --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/a v0.1.0 => ./a
+	example.net/b v0.1.0 => ./b
+	example.net/b v0.1.1 => ./b
+	example.net/m v0.1.0 => ./m1
+)
+
+require (
+	example.net/a v0.1.0
+	example.net/b v0.1.1 // indirect
+)
+-- m.go --
+package m
+
+import "example.net/a"
+-- m1/go.mod --
+module example.net/m
+
+go 1.16
+
+require example.net/b v0.1.0
+-- a/go.mod --
+module example.net/a
+
+go 1.16
+
+require example.net/m v0.1.0
+-- a/a.go --
+package a
+
+import "example.net/b"
+-- b/go.mod --
+module example.net/b
+
+go 1.16
+-- b/b.go --
+package b

@@ -1124,7 +1124,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 	}
 
 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
-		if m.Path == "" || m.Version == "" && modload.MainModules.Contains(m.Path) {
+		if m.Path == "" || m.Version == "" {
 			// Packages in the standard library and main modules are already at their
 			// latest (and only) available versions.
 			return nil

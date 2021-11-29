@@ -1091,7 +1091,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			break
 		}
 		if changed {
-			// Don't resolve missing imports until the module graph have stabilized.
+			// Don't resolve missing imports until the module graph has stabilized.
 			// If the roots are still changing, they may turn out to specify a
 			// requirement on the missing package(s), and we would rather use a
 			// version specified by a new root than add a new dependency on an

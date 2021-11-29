@@ -45,7 +45,7 @@ type Requirements struct {
 	pruning modPruning
 
 	// rootModules is the set of root modules of the graph, sorted and capped to
-	// length. It may contain duplicates, and may  contain multiple versions for a
+	// length. It may contain duplicates, and may contain multiple versions for a
 	// given module path. The root modules of the groph are the set of main
 	// modules in workspace mode, and the main module's direct requirements
 	// outside workspace mode.
