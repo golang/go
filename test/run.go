@@ -2153,8 +2153,6 @@ var types2Failures = setOf(
 	"fixedbugs/issue28268.go",  // types2 reports follow-on errors
 	"fixedbugs/issue31053.go",  // types2 reports "unknown field" instead of "cannot refer to unexported field"
 	"fixedbugs/issue33460.go",  // types2 reports alternative positions in separate error
-	"fixedbugs/issue42058a.go", // types2 doesn't report "channel element type too large"
-	"fixedbugs/issue42058b.go", // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue4232.go",   // types2 reports (correct) extra errors
 	"fixedbugs/issue4452.go",   // types2 reports (correct) extra errors
 	"fixedbugs/issue4510.go",   // types2 reports different (but ok) line numbers
@@ -2171,7 +2169,6 @@ var types2Failures32Bit = setOf(
 	"printbig.go",             // large untyped int passed to print (32-bit)
 	"fixedbugs/bug114.go",     // large untyped int passed to println (32-bit)
 	"fixedbugs/issue23305.go", // large untyped int passed to println (32-bit)
-	"fixedbugs/bug385_32.go",  // types2 doesn't produce missing error "type .* too large" (32-bit specific)
 )
 
 var g3Failures = setOf(
@@ -2183,10 +2180,14 @@ var unifiedFailures = setOf(
 	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
 	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
 
-	"fixedbugs/issue42284.go", // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
-	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
-	"typeparam/issue48538.go", // assertion failure, interprets struct key as closure variable
-	"typeparam/issue47631.go", // unified IR can handle local type declarations
+	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
+	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+	"typeparam/issue48538.go",  // assertion failure, interprets struct key as closure variable
+	"typeparam/issue47631.go",  // unified IR can handle local type declarations
+	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large
+	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
+	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
+	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
 )
 
 func setOf(keys ...string) map[string]bool {

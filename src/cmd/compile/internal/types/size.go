@@ -450,16 +450,21 @@ func CalcSize(t *Type) {
 
 		CheckSize(t.Elem())
 
-		// make fake type to check later to
-		// trigger channel argument check.
+		// Make fake type to trigger channel element size check after
+		// any top-level recursive type has been completed.
 		t1 := NewChanArgs(t)
 		CheckSize(t1)
 
 	case TCHANARGS:
 		t1 := t.ChanArgs()
 		CalcSize(t1) // just in case
+		// Make sure size of t1.Elem() is calculated at this point. We can
+		// use CalcSize() here rather than CheckSize(), because the top-level
+		// (possibly recursive) type will have been calculated before the fake
+		// chanargs is handled.
+		CalcSize(t1.Elem())
 		if t1.Elem().width >= 1<<16 {
-			base.ErrorfAt(typePos(t1), "channel element type too large (>64kB)")
+			base.Errorf("channel element type too large (>64kB)")
 		}
 		w = 1 // anything will do
 
@@ -492,7 +497,7 @@ func CalcSize(t *Type) {
 		if t.Elem().width != 0 {
 			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().width)
 			if uint64(t.NumElem()) > cap {
-				base.ErrorfAt(typePos(t), "type %L larger than address space", t)
+				base.Errorf("type %L larger than address space", t)
 			}
 		}
 		w = t.NumElem() * t.Elem().width
@@ -539,7 +544,7 @@ func CalcSize(t *Type) {
 	}
 
 	if PtrSize == 4 && w != int64(int32(w)) {
-		base.ErrorfAt(typePos(t), "type %v too large", t)
+		base.Errorf("type %v too large", t)
 	}
 
 	t.width = w
