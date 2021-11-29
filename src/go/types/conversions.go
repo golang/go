@@ -224,6 +224,9 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 			}
 			x.typ = V.typ
 			return Tp.is(func(T *term) bool {
+				if T == nil {
+					return false // no specific types
+				}
 				if !x.convertibleTo(check, T.typ, cause) {
 					errorf("cannot convert %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
 					return false
