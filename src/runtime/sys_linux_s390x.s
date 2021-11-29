@@ -224,29 +224,32 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	RET
 
 // func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$16-12
+TEXT runtime·walltime(SB),NOSPLIT,$32-12
         MOVW    $0, R2 // CLOCK_REALTIME
         MOVD    R15, R7 // Backup stack pointer
 
-        MOVD    g_m(g), R10      //m
+        MOVD    g_m(g), R6      //m
 
         MOVD    runtime·vdsoClockgettimeSym(SB), R9   // Check for VDSO availability
         CMPBEQ   R9, $0, fallback
 
-        MOVD    m_vdsoPC(R10), R6
-        MOVD    m_vdsoSP(R10), R12
+        MOVD    m_vdsoPC(R6), R4
+        MOVD    R4, 16(R15)
+        MOVD    m_vdsoSP(R6), R4
+        MOVD    R4, 24(R15)
+
 
         MOVD    R14, R8 // Backup LR
-        MOVD    $sec+0(FP), R4 // caller's SP
+        MOVD    $sec+0(FP), R4 // return parameter caller
 
-        MOVD    R8, m_vdsoPC(R10)
-        MOVD    R4, m_vdsoSP(R10)
+        MOVD    R8, m_vdsoPC(R6)
+        MOVD    R4, m_vdsoSP(R6)
 
-        MOVD    m_curg(R10), R5
+        MOVD    m_curg(R6), R5
         CMP     g, R5
         BNE noswitch
 
-        MOVD    m_g0(R10), R4
+        MOVD    m_g0(R6), R4
         MOVD    (g_sched+gobuf_sp)(R4), R15     // Set SP to g0 stack
 
 noswitch:
@@ -255,6 +258,23 @@ noswitch:
         AND     R4, R15
         MOVD    R15, R3 // R15 needs to be in R3 as expected by kernel_clock_gettime
 
+        MOVB  runtime·iscgo(SB),R12
+        CMPBNE        R12, $0, nosaveg
+
+        MOVD  m_gsignal(R6), R12      // g.m.gsignal
+        CMPBEQ  R12, $0, nosaveg
+
+        CMPBEQ  g, R12, nosaveg
+        MOVD  (g_stack+stack_lo)(R12), R12 // g.m.gsignal.stack.lo
+        MOVD  g, (R12)
+
+        BL R9 // to vdso lookup
+
+        MOVD $0, (R12)
+
+        JMP finish
+
+nosaveg:
         BL R9 // to vdso lookup
 
 finish:
@@ -267,8 +287,10 @@ finish:
         // If we are not in a signal handler, we'll restore vdsoSP to 0,
         // and no one will care about vdsoPC. If we are in a signal handler,
         // we cannot receive another signal.
-        MOVD  R12, m_vdsoSP(R10)
-        MOVD  R6, m_vdsoPC(R10)
+        MOVD    24(R15), R12
+        MOVD    R12, m_vdsoSP(R6)
+        MOVD    16(R15), R12
+        MOVD    R12, m_vdsoPC(R6)
 
 return:
         // sec is in R3, nsec in R5
@@ -288,30 +310,33 @@ fallback:
         MOVW    R3, nsec+8(FP)
         RET
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+TEXT runtime·nanotime1(SB),NOSPLIT,$32-8
         MOVW    $1, R2 // CLOCK_MONOTONIC
 
         MOVD    R15, R7 // Backup stack pointer
 
-        MOVD    g_m(g), R10      //m
+        MOVD    g_m(g), R6      //m
 
         MOVD    runtime·vdsoClockgettimeSym(SB), R9   // Check for VDSO availability
         CMPBEQ   R9, $0, fallback
 
-        MOVD    m_vdsoPC(R10), R6
-        MOVD    m_vdsoSP(R10), R12
+        MOVD    m_vdsoPC(R6), R4
+        MOVD    R4, 16(R15)
+        MOVD    m_vdsoSP(R6), R4
+        MOVD    R4, 24(R15)
+
 
         MOVD    R14, R8 // Backup LR
         MOVD    $ret+0(FP), R4 // caller's SP
 
-        MOVD    R8, m_vdsoPC(R10)
-        MOVD    R4, m_vdsoSP(R10)
+        MOVD    R8, m_vdsoPC(R6)
+        MOVD    R4, m_vdsoSP(R6)
 
-        MOVD    m_curg(R10), R5
+        MOVD    m_curg(R6), R5
         CMP     g, R5
         BNE noswitch
 
-        MOVD    m_g0(R10), R4
+        MOVD    m_g0(R6), R4
         MOVD    (g_sched+gobuf_sp)(R4), R15     // Set SP to g0 stack
 
 noswitch:
@@ -320,6 +345,23 @@ noswitch:
         AND     R4, R15
         MOVD    R15, R3 // R15 needs to be in R3 as expected by kernel_clock_gettime
 
+        MOVB  runtime·iscgo(SB),R12
+        CMPBNE        R12, $0, nosaveg
+
+        MOVD  m_gsignal(R6), R12      // g.m.gsignal
+        CMPBEQ  R12, $0, nosaveg
+
+        CMPBEQ	g, R12, nosaveg
+        MOVD  (g_stack+stack_lo)(R12), R12 // g.m.gsignal.stack.lo
+        MOVD  g, (R12)
+
+        BL R9 // to vdso lookup
+
+        MOVD $0, (R12)
+
+        JMP finish
+
+nosaveg:
         BL R9 // to vdso lookup
 
 finish:
@@ -333,8 +375,10 @@ finish:
         // and no one will care about vdsoPC. If we are in a signal handler,
         // we cannot receive another signal.
 
-        MOVD    R12, m_vdsoSP(R10)
-        MOVD    R6, m_vdsoPC(R10)
+	MOVD    24(R15), R12
+        MOVD    R12, m_vdsoSP(R6)
+	MOVD    16(R15), R12
+        MOVD    R12, m_vdsoPC(R6)
 
 return:
         // sec is in R3, nsec in R5
