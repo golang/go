@@ -60,9 +60,8 @@ The package path must be either a qualified path or a proper suffix of a
 path. The go tool's usual package mechanism does not apply: package path
 elements like . and ... are not implemented by go doc.
 
-When run with two arguments, the first must be a full package path (not just a
-suffix), and the second is a symbol, or symbol with method or struct field.
-This is similar to the syntax accepted by godoc:
+When run with two arguments, the first is a package path (full path or suffix),
+and the second is a symbol, or symbol with method or struct field:
 
 	go doc <pkg> <sym>[.<methodOrField>]
 
