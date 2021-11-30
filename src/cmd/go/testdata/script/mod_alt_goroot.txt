@@ -9,7 +9,7 @@ stdout ^std/bytes.*$PWD[/\\]bytes
 stdout '^bytes/modified'
 
 -- go.mod --
-module std
+module github.com/ThalesIgnite/go
 
 go 1.12
 -- bytes/bytes.go --

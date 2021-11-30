@@ -38,7 +38,7 @@ package importstd
 
 import _ "std"
 -- modstd/go.mod --
-module std
+module github.com/ThalesIgnite/go
 go 1.16
 -- modstd/std.go --
 // Package std is an incredibly confusingly-named package.

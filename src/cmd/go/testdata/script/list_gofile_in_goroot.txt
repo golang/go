@@ -62,7 +62,7 @@ go list all
 ! stdout gopath/src
 
 -- $WORK/goroot/src/go.mod --
-module std
+module github.com/ThalesIgnite/go
 
 go 1.14
 -- $WORK/goroot/src/foo.go --

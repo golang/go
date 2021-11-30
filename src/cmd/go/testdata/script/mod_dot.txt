@@ -121,7 +121,7 @@ module example.com/emptyroot
 -- emptyroot/pkg/pkg.go --
 package pkg
 -- $WORK/othergoroot/src/go.mod --
-module std
+module github.com/ThalesIgnite/go
 go 1.13
 -- $WORK/othergoroot/src/builtin/builtin.go --
 package builtin
