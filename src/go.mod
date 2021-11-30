@@ -1,4 +1,4 @@
-module github.com/ThalesIgnite/go/src
+module github.com/ThalesIgnite/go
 
 go 1.18
 
