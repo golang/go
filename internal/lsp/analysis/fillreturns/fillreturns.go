@@ -14,7 +14,6 @@ import (
 	"go/format"
 	"go/types"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -23,7 +22,7 @@ import (
 	"golang.org/x/tools/internal/typeparams"
 )
 
-const Doc = `suggested fixes for "wrong number of return values (want %d, got %d)"
+const Doc = `suggest fixes for errors due to an incorrect number of return values
 
 This checker provides suggested fixes for type errors of the
 type "wrong number of return values (want %d, got %d)". For example:
@@ -46,8 +45,6 @@ var Analyzer = &analysis.Analyzer{
 	RunDespiteErrors: true,
 }
 
-var wrongReturnNumRegex = regexp.MustCompile(`wrong number of return values \(want (\d+), got (\d+)\)`)
-
 func run(pass *analysis.Pass) (interface{}, error) {
 	info := pass.TypesInfo
 	if info == nil {
@@ -58,7 +55,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 outer:
 	for _, typeErr := range errors {
 		// Filter out the errors that are not relevant to this analyzer.
-		if !FixesError(typeErr.Msg) {
+		if !FixesError(typeErr) {
 			continue
 		}
 		var file *ast.File
@@ -79,20 +76,32 @@ outer:
 		}
 		typeErrEndPos := analysisinternal.TypeErrorEndPos(pass.Fset, buf.Bytes(), typeErr.Pos)
 
+		// TODO(rfindley): much of the error handling code below returns, when it
+		// should probably continue.
+
 		// Get the path for the relevant range.
 		path, _ := astutil.PathEnclosingInterval(file, typeErr.Pos, typeErrEndPos)
 		if len(path) == 0 {
 			return nil, nil
 		}
-		// Check to make sure the node of interest is a ReturnStmt.
-		ret, ok := path[0].(*ast.ReturnStmt)
-		if !ok {
+
+		// Find the enclosing return statement.
+		var ret *ast.ReturnStmt
+		var retIdx int
+		for i, n := range path {
+			if r, ok := n.(*ast.ReturnStmt); ok {
+				ret = r
+				retIdx = i
+				break
+			}
+		}
+		if ret == nil {
 			return nil, nil
 		}
 
 		// Get the function type that encloses the ReturnStmt.
 		var enclosingFunc *ast.FuncType
-		for _, n := range path {
+		for _, n := range path[retIdx+1:] {
 			switch node := n.(type) {
 			case *ast.FuncLit:
 				enclosingFunc = node.Type
@@ -109,7 +118,7 @@ outer:
 
 		// Skip any generic enclosing functions, since type parameters don't
 		// have 0 values.
-		// TODO(rstambler): We should be able to handle this if the return
+		// TODO(rfindley): We should be able to handle this if the return
 		// values are all concrete types.
 		if tparams := typeparams.ForFuncType(enclosingFunc); tparams != nil && tparams.NumFields() > 0 {
 			return nil, nil
@@ -127,7 +136,8 @@ outer:
 			return nil, nil
 		}
 
-		// Skip any return statements that contain function calls with multiple return values.
+		// Skip any return statements that contain function calls with multiple
+		// return values.
 		for _, expr := range ret.Results {
 			e, ok := expr.(*ast.CallExpr)
 			if !ok {
@@ -244,16 +254,23 @@ func matchingTypes(want, got types.Type) bool {
 	return types.AssignableTo(want, got) || types.ConvertibleTo(want, got)
 }
 
-func FixesError(msg string) bool {
-	matches := wrongReturnNumRegex.FindStringSubmatch(strings.TrimSpace(msg))
-	if len(matches) < 3 {
-		return false
+// Error messages have changed across Go versions. These regexps capture recent
+// incarnations.
+//
+// TODO(rfindley): once error codes are exported and exposed via go/packages,
+// use error codes rather than string matching here.
+var wrongReturnNumRegexes = []*regexp.Regexp{
+	regexp.MustCompile(`wrong number of return values \(want (\d+), got (\d+)\)`),
+	regexp.MustCompile(`too many return values`),
+	regexp.MustCompile(`not enough return values`),
+}
+
+func FixesError(err types.Error) bool {
+	msg := strings.TrimSpace(err.Msg)
+	for _, rx := range wrongReturnNumRegexes {
+		if rx.MatchString(msg) {
+			return true
+		}
 	}
-	if _, err := strconv.Atoi(matches[1]); err != nil {
-		return false
-	}
-	if _, err := strconv.Atoi(matches[2]); err != nil {
-		return false
-	}
-	return true
+	return false
 }

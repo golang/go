@@ -578,7 +578,7 @@ check for constraints that could be simplified to "any"
 
 ## **fillreturns**
 
-suggested fixes for "wrong number of return values (want %d, got %d)"
+suggest fixes for errors due to an incorrect number of return values
 
 This checker provides suggested fixes for type errors of the
 type "wrong number of return values (want %d, got %d)". For example:

@@ -563,7 +563,7 @@ var GeneratedAPIJSON = &APIJSON{
 						},
 						{
 							Name:    "\"fillreturns\"",
-							Doc:     "suggested fixes for \"wrong number of return values (want %d, got %d)\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"wrong number of return values (want %d, got %d)\". For example:\n\tfunc m() (int, string, *bool, error) {\n\t\treturn\n\t}\nwill turn into\n\tfunc m() (int, string, *bool, error) {\n\t\treturn 0, \"\", nil, nil\n\t}\n\nThis functionality is similar to https://github.com/sqs/goreturns.\n",
+							Doc:     "suggest fixes for errors due to an incorrect number of return values\n\nThis checker provides suggested fixes for type errors of the\ntype \"wrong number of return values (want %d, got %d)\". For example:\n\tfunc m() (int, string, *bool, error) {\n\t\treturn\n\t}\nwill turn into\n\tfunc m() (int, string, *bool, error) {\n\t\treturn 0, \"\", nil, nil\n\t}\n\nThis functionality is similar to https://github.com/sqs/goreturns.\n",
 							Default: "true",
 						},
 						{
@@ -1141,7 +1141,7 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 		{
 			Name:    "fillreturns",
-			Doc:     "suggested fixes for \"wrong number of return values (want %d, got %d)\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"wrong number of return values (want %d, got %d)\". For example:\n\tfunc m() (int, string, *bool, error) {\n\t\treturn\n\t}\nwill turn into\n\tfunc m() (int, string, *bool, error) {\n\t\treturn 0, \"\", nil, nil\n\t}\n\nThis functionality is similar to https://github.com/sqs/goreturns.\n",
+			Doc:     "suggest fixes for errors due to an incorrect number of return values\n\nThis checker provides suggested fixes for type errors of the\ntype \"wrong number of return values (want %d, got %d)\". For example:\n\tfunc m() (int, string, *bool, error) {\n\t\treturn\n\t}\nwill turn into\n\tfunc m() (int, string, *bool, error) {\n\t\treturn 0, \"\", nil, nil\n\t}\n\nThis functionality is similar to https://github.com/sqs/goreturns.\n",
 			Default: true,
 		},
 		{
