@@ -1,9 +1,0 @@
-v2;
-package main;
-pkgpath main;
-import runtime runtime "runtime";
-init runtime runtime..import sys runtime_internal_sys..import;
-init_graph 0 1;
-type <type 1 "E" = <type 2 "F" <type 3 struct { .main._ <type 4 *<type 5 "M" <type 6 struct { E <type 1>; }>>>; }>>>;
-type <type 2>;
-type <type 5>;

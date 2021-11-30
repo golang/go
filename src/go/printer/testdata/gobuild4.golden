@@ -1,6 +1,0 @@
-//go:build (x || y) && z
-// +build x y
-// +build z
-
-// doc comment
-package p

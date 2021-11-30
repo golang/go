@@ -1,4 +1,0 @@
---- FAIL: BenchmarkFoo
-	x_test.go:8: My benchmark
-FAIL
-FAIL	command-line-arguments	0.008s

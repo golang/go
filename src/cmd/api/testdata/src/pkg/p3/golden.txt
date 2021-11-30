@@ -1,3 +1,0 @@
-pkg p3, func BadHop(int, int, int) (bool, bool, *ThirdBase, *ThirdBase, error)
-pkg p3, method (*ThirdBase) GoodPlayer() (int, int, int)
-pkg p3, type ThirdBase struct

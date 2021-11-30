@@ -1,9 +1,0 @@
-env GO111MODULE=off
-
-# hello world
-go run hello.go
-stderr 'hello world'
-
--- hello.go --
-package main
-func main() { println("hello world") }

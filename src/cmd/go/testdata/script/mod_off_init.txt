@@ -1,5 +1,0 @@
-# 'go mod init' should refuse to initialize a module if it will be
-# ignored anyway due to GO111MODULE=off.
-env GO111MODULE=off
-! go mod init
-stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''

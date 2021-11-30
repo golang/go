@@ -1,9 +1,0 @@
-go tool cover -func=cover.out
-stdout total.*statements.*0.0%
-
-go mod init golang.org/issue/33855
-
-go tool cover -func=cover.out
-stdout total.*statements.*0.0%
-
--- cover.out --

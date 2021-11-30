@@ -1,6 +1,0 @@
-{"Action":"output","Test":"BenchmarkFoo","Output":"--- FAIL: BenchmarkFoo\n"}
-{"Action":"output","Test":"BenchmarkFoo","Output":"\tx_test.go:8: My benchmark\n"}
-{"Action":"fail","Test":"BenchmarkFoo"}
-{"Action":"output","Output":"FAIL\n"}
-{"Action":"output","Output":"FAIL\tcommand-line-arguments\t0.008s\n"}
-{"Action":"fail"}

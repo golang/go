@@ -1,8 +1,0 @@
-example.com/badchain/c v1.0.0
-
--- .mod --
-module example.com/badchain/c
--- .info --
-{"Version":"v1.0.0"}
--- c.go --
-package c

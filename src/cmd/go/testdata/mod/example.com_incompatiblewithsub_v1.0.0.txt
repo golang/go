@@ -1,8 +1,0 @@
-Module example.com/incompatiblewithsub has an incompatible version
-and a package in a subdirectory.
--- .info --
-{"Version":"v1.0.0"}
--- .mod --
-module example.com/incompatiblewithsub
--- sub/sub.go --
-package sub

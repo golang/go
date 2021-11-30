@@ -1,5 +1,0 @@
-# This file ends in an early EOF to trigger the Benchmark prefix test,
-# which only happens when a benchmark prefix is seen ahead of the \n.
-# Normally that's due to the benchmark running and the \n coming later,
-# but to avoid questions of timing, we just use a file with no \n at all.
-BenchmarkFoo   	10000 early EOF

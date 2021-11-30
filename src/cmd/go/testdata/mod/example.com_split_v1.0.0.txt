@@ -1,9 +1,0 @@
-Written by hand.
-Test case for getting a package that has been moved to a different module.
-
--- .mod --
-module example.com/split
--- .info --
-{"Version": "v1.0.0"}
--- subpkg/x.go --
-package subpkg

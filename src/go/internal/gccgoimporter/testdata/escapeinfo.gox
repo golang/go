@@ -1,9 +1,0 @@
-v2;
-package escapeinfo;
-prefix go;
-package escapeinfo go.escapeinfo go.escapeinfo;
-func NewT (data <type 1 [] <type -20>>) <type 2 *<type 3 "T" <type 4 struct { .go.escapeinfo.data <type 5 [] <type -20>>; }>
- func (? <type 6 *<type 3>>) Read (p <esc:0x1> <type 7 [] <type -20>>);
->>;
-type <type 3>;
-checksum 3500838130783C0059CD0C81527F60E9738E3ACE;

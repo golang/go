@@ -1,8 +1,0 @@
-example.com/newcycle/b v1.0.0
-
--- .mod --
-module example.com/newcycle/b
-
-require example.com/newcycle/a v1.0.1
--- .info --
-{"Version":"v1.0.0"}

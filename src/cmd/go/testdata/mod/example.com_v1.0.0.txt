@@ -1,9 +1,0 @@
-Written by hand.
-Test case for module at root of domain.
-
--- .mod --
-module example.com
--- .info --
-{"Version": "v1.0.0"}
--- x.go --
-package x

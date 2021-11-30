@@ -1,8 +1,0 @@
--- .mod --
-module example.com/retract/rationale
-
-go 1.14
--- .info --
-{"Version":"v1.0.0-multiline2"}
--- empty.go --
-package empty

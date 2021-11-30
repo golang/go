@@ -1,9 +1,0 @@
-env GO111MODULE=off
-
-# check for linker name in error message about linker crash
-[!gc] skip
-! go build -ldflags=-crash_for_testing x.go
-stderr [\\/]tool[\\/].*[\\/]link
-
--- x.go --
-package main; func main() {}

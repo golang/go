@@ -1,6 +1,0 @@
-//go:build x
-// +build x
-
-package p
-
-func f()

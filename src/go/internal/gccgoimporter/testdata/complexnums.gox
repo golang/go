@@ -1,8 +1,0 @@
-v1;
-package complexnums;
-pkgpath complexnums;
-priority 1;
-const NN = -0.1E1-0.1E1i ;
-const NP = -0.1E1+0.1E1i ;
-const PN = 0.1E1-0.1E1i ;
-const PP = 0.1E1+0.1E1i ;

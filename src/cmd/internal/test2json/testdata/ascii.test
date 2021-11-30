@@ -1,7 +1,0 @@
-=== RUN   TestAscii
-I can eat glass, and it doesn't hurt me. I can eat glass, and it doesn't hurt me.
-I CAN EAT GLASS, AND IT DOESN'T HURT ME. I CAN EAT GLASS, AND IT DOESN'T HURT ME.
---- PASS: TestAscii
-    i can eat glass, and it doesn't hurt me. i can eat glass, and it doesn't hurt me.
-    V PNA RNG TYNFF, NAQ VG QBRFA'G UHEG ZR. V PNA RNG TYNFF, NAQ VG QBRFA'G UHEG ZR.
-PASS

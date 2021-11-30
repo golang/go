@@ -1,8 +1,0 @@
-A module which has no root package.
-
--- .mod --
-module example.com/noroot
--- .info --
-{"Version":"v1.0.1"}
--- pkg/pkg.go --
-package pkg

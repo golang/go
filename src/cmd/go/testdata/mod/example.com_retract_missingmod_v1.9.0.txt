@@ -1,4 +1,0 @@
-The go.mod file at this version will be loaded to check for retractions
-of earlier versions. However, the .mod file is not available.
--- .info --
-{"Version":"v1.9.0"}

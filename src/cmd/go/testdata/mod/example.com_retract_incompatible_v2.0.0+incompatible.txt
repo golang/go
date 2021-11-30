@@ -1,9 +1,0 @@
-The v1.0.0 release of example.com/retract/incompatible retracts
-v2.0.0+incompatible.
-
--- .mod --
-module example.com/retract/incompatible
--- .info --
-{"Version":"v2.0.0+incompatible"}
--- incompatible.go --
-package incompatible

@@ -1,9 +1,0 @@
-This module is a replacement for rsc.io/quote, but its go.mod file declares
-a module path different from its location and the original module.
-
--- .mod --
-module rsc.io/Quote
-
-go 1.14
--- .info --
-{"Version":"v1.5.2"}

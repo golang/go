@@ -1,7 +1,0 @@
-  ./testdata/i22600.go
-8:	func test() {
-9:		pwd, err := os.Getwd()
-10:		if err != nil {
-14:		fmt.Println(pwd)
-15:	}
-20:	}

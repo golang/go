@@ -1,9 +1,0 @@
-Written by hand.
-Test case for package moved into a parent module.
-
--- .mod --
-module example.com/join/subpkg
--- .info --
-{"Version": "v1.0.0"}
--- x.go --
-package subpkg

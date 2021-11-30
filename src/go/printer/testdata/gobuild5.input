@@ -1,4 +1,0 @@
-//go:build !(x || y) && z
-// +build something else
-
-package p

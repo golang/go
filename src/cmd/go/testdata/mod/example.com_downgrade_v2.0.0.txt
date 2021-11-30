@@ -1,9 +1,0 @@
-example.com/downgrade v2.0.0
-written by hand
-
--- .mod --
-module example.com/downgrade
-
-require rsc.io/quote v1.5.2
--- .info --
-{"Version":"v2.0.0"}

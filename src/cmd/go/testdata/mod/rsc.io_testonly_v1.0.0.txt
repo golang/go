@@ -1,9 +1,0 @@
-rsc.io/testonly v1.0.0
-written by hand
-
--- .mod --
-module rsc.io/testonly
--- .info --
-{"Version":"v1.0.0"}
--- testonly.go --
-package testonly
