@@ -56,6 +56,11 @@ package sort
 //		fmt.Printf("Your number is %d.\n", answer)
 //	}
 //
+// If you will say 'n' all the times the program will ask you
+// if the number is <= 50, 75, 88, 94, 97, 99 and finally print 100.
+// If you will say 'y' all the times:
+// 50, 25, 12, 6, 3, 1 and the answer will 0.
+//
 func Search(n int, f func(int) bool) int {
 	// Define f(-1) == false and f(n) == true.
 	// Invariant: f(i-1) == false, f(j) == true.
