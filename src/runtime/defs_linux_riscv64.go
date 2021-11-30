@@ -122,10 +122,12 @@ func (tv *timeval) set_usec(x int32) {
 }
 
 type sigactiont struct {
-	sa_handler  uintptr
-	sa_flags    uint64
+	sa_handler uintptr
+	sa_flags   uint64
+	sa_mask    uint64
+	// Linux on riscv64 does not have the sa_restorer field, but the setsig
+	// function references it (for x86). Not much harm to include it at the end.
 	sa_restorer uintptr
-	sa_mask     uint64
 }
 
 type siginfoFields struct {
