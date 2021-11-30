@@ -1211,7 +1211,8 @@ func (t *Type) cmp(x *Type) Cmp {
 			}
 
 		case TINTER:
-			if (t == Types[AnyType.kind] || t == AnyType) && (x == Types[AnyType.kind] || x == AnyType) {
+			// Make sure named any type matches any empty interface.
+			if t == AnyType && x.IsEmptyInterface() || x == AnyType && t.IsEmptyInterface() {
 				return CMPeq
 			}
 		}
