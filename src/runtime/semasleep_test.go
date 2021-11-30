@@ -28,19 +28,24 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	start := time.Now()
 	cmd := exec.Command(exe, "After1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatalf("StdoutPipe: %v", err)
 	}
+	beforeStart := time.Now()
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Failed to start command: %v", err)
 	}
 	doneCh := make(chan error, 1)
 	go func() {
 		doneCh <- cmd.Wait()
+		close(doneCh)
 	}()
+	t.Cleanup(func() {
+		cmd.Process.Kill()
+		<-doneCh
+	})
 
 	// Wait for After1 to close its stdout so that we know the runtime's SIGIO
 	// handler is registered.
@@ -52,6 +57,19 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 		t.Fatalf("error reading from testprog: %v", err)
 	}
 
+	// Wait for an arbitrary timeout longer than one second. The subprocess itself
+	// attempts to sleep for one second, but if the machine running the test is
+	// heavily loaded that subprocess may not schedule very quickly even if the
+	// bug remains fixed. (This is fine, because if the bug really is unfixed we
+	// can keep the process hung indefinitely, as long as we signal it often
+	// enough.)
+	timeout := 10 * time.Second
+
+	// The subprocess begins sleeping for 1s after it writes to stdout, so measure
+	// the timeout from here (not from when we started creating the process).
+	// That should reduce noise from process startup overhead.
+	ready := time.Now()
+
 	// With the repro running, we can continuously send to it
 	// a signal that the runtime considers non-terminal,
 	// such as SIGIO, to spuriously wake up
@@ -61,10 +79,11 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 	for {
 		select {
 		case now := <-ticker.C:
-			if now.Sub(start) > 2*time.Second {
+			if now.Sub(ready) > timeout {
 				t.Error("Program failed to return on time and has to be killed, issue #27520 still exists")
-				cmd.Process.Signal(syscall.SIGKILL)
-				<-doneCh
+				// Send SIGQUIT to get a goroutine dump.
+				// Stop sending SIGIO so that the program can clean up and actually terminate.
+				cmd.Process.Signal(syscall.SIGQUIT)
 				return
 			}
 
@@ -76,7 +95,7 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 			if err != nil {
 				t.Fatalf("The program returned but unfortunately with an error: %v", err)
 			}
-			if time.Since(start) < 1*time.Second {
+			if time.Since(beforeStart) < 1*time.Second {
 				// The program was supposed to sleep for a full (monotonic) second;
 				// it should not return before that has elapsed.
 				t.Fatalf("The program stopped too quickly.")
