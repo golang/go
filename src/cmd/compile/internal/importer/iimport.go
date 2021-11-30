@@ -259,7 +259,7 @@ func (p *iimporter) posBaseAt(off uint64) *syntax.PosBase {
 }
 
 func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
-	if t, ok := p.typCache[off]; ok && (base == nil || !isInterface(t)) {
+	if t, ok := p.typCache[off]; ok && canReuse(base, t) {
 		return t
 	}
 
@@ -274,10 +274,28 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
 	r.declReader = *strings.NewReader(p.declData[off-predeclReserved:])
 	t := r.doType(base)
 
-	if base == nil || !isInterface(t) {
+	if canReuse(base, t) {
 		p.typCache[off] = t
 	}
 	return t
+}
+
+// canReuse reports whether the type rhs on the RHS of the declaration for def
+// may be re-used.
+//
+// Specifically, if def is non-nil and rhs is an interface type with methods, it
+// may not be re-used because we have a convention of setting the receiver type
+// for interface methods to def.
+func canReuse(def *types2.Named, rhs types2.Type) bool {
+	if def == nil {
+		return true
+	}
+	iface, _ := rhs.(*types2.Interface)
+	if iface == nil {
+		return true
+	}
+	// Don't use iface.Empty() here as iface may not be complete.
+	return iface.NumEmbeddeds() == 0 && iface.NumExplicitMethods() == 0
 }
 
 type importReader struct {
