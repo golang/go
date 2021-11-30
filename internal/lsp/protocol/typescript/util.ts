@@ -15,7 +15,7 @@ export const fnames = [
   `${dir}/${srcDir}/protocol/src/browser/main.ts`, `${dir}${srcDir}/types/src/main.ts`,
   `${dir}${srcDir}/jsonrpc/src/node/main.ts`
 ];
-export const gitHash = '10b56de150ad67c3c330da8e2df53ebf2cf347c4';
+export const gitHash = 'd959faf4be476a6e0a08d5612e91fcac14ff9929';
 let outFname = 'tsprotocol.go';
 let fda: number, fdb: number, fde: number;  // file descriptors
 
@@ -112,7 +112,7 @@ export function constName(nm: string, type: string): string {
   let pref = new Map<string, string>([
     ['DiagnosticSeverity', 'Severity'], ['WatchKind', 'Watch'],
     ['SignatureHelpTriggerKind', 'Sig'], ['CompletionItemTag', 'Compl'],
-    ['Integer', 'INT_'], ['Uinteger', 'UINT_']
+    ['Integer', 'INT_'], ['Uinteger', 'UINT_'], ['CodeActionTriggerKind', 'CodeAction']
   ]);  // typeName->prefix
   let suff = new Map<string, string>([
     ['CompletionItemKind', 'Completion'], ['InsertTextFormat', 'TextFormat'],

@@ -6,8 +6,8 @@ package protocol
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 10b56de150ad67c3c330da8e2df53ebf2cf347c4
-// last fetched Wed Sep 29 2021 12:31:31 GMT-0400 (Eastern Daylight Time)
+// commit: d959faf4be476a6e0a08d5612e91fcac14ff9929
+// last fetched Mon Nov 29 2021 15:51:05 GMT-0500 (Eastern Standard Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -26,7 +26,7 @@ type Client interface {
 	PublishDiagnostics(context.Context, *PublishDiagnosticsParams) error
 	Progress(context.Context, *ProgressParams) error
 	WorkspaceFolders(context.Context) ([]WorkspaceFolder /*WorkspaceFolder[] | null*/, error)
-	Configuration(context.Context, *ParamConfiguration) ([]interface{}, error)
+	Configuration(context.Context, *ParamConfiguration) ([]LSPAny, error)
 	WorkDoneProgressCreate(context.Context, *WorkDoneProgressCreateParams) error
 	ShowDocument(context.Context, *ShowDocumentParams) (*ShowDocumentResult, error)
 	RegisterCapability(context.Context, *RegistrationParams) error
@@ -160,8 +160,8 @@ func (s *clientDispatcher) WorkspaceFolders(ctx context.Context) ([]WorkspaceFol
 	return result, nil
 }
 
-func (s *clientDispatcher) Configuration(ctx context.Context, params *ParamConfiguration) ([]interface{}, error) {
-	var result []interface{}
+func (s *clientDispatcher) Configuration(ctx context.Context, params *ParamConfiguration) ([]LSPAny, error) {
+	var result []LSPAny
 	if err := s.sender.Call(ctx, "workspace/configuration", params, &result); err != nil {
 		return nil, err
 	}

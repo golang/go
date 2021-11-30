@@ -48,7 +48,7 @@ the generated files and stored in the variable `gitHash` in `go.ts`. It is check
 3. (There's a good chance that soon you will be asked to upgrade your new npm. `sudo npm install -g npm` is the command.)
 4. For either system, node and nvm should now be available. Running `node -v` and `npm -v` should produce version numbers.
 5. `npm install typescript`
-    1. This will likely give warning messages that indicate you've failed to set up a project. Ignore them.
+    1. This may give warning messages that indicate you've failed to set up a project. Ignore them.
     2. Your home directory will now have new directories `.npm` and `node_modules` (and a `package_lock.json` file)
     3. The typescript executable `tsc` will be in `node_modules/.bin`, so put that directory in your path.
     4. `tsc -v` should print "Version 4.2.4" (or later). If not you may (as I did) have an obsolete tsc earlier in your path.

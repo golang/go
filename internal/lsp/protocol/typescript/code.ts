@@ -532,6 +532,7 @@ function cleanData() { // middle pass
 function sameType(a: ts.TypeNode, b: ts.TypeNode): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === ts.SyntaxKind.BooleanKeyword) return true;
+  if (a.kind === ts.SyntaxKind.StringKeyword) return true;
   if (ts.isTypeReferenceNode(a) && ts.isTypeReferenceNode(b) &&
     a.typeName.getText() === b.typeName.getText()) return true;
   if (ts.isArrayTypeNode(a) && ts.isArrayTypeNode(b)) return sameType(a.elementType, b.elementType);
@@ -540,7 +541,7 @@ function sameType(a: ts.TypeNode, b: ts.TypeNode): boolean {
     if (a.members.length === 1) return a.members[0].name.getText() === b.members[0].name.getText();
     if (loc(a) === loc(b)) return true;
   }
-  throw new Error(`546 sameType? ${strKind(a)} ${strKind(b)}`);
+  throw new Error(`544 sameType? ${strKind(a)} ${strKind(b)} ${a.getText()}`);
 }
 type CreateMutable<Type> = {
   -readonly [Property in keyof Type]: Type[Property];
@@ -721,6 +722,7 @@ function goInterface(d: Data, nm: string) {
   const f = function (n: ts.ExpressionWithTypeArguments) {
     if (!ts.isIdentifier(n.expression))
       throw new Error(`Interface ${nm} heritage ${strKind(n.expression)} `);
+    if (n.expression.getText() === 'Omit') return;  // Type modification type
     ans = ans.concat(goName(n.expression.getText()), '\n');
   };
   d.as.forEach((n: ts.HeritageClause) => n.types.forEach(f));
@@ -896,9 +898,11 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
         return `*TextEdit ${help}`;
       }
       if (a == 'TypeReference') {
-        if (nm == 'edits') return `${goType(n.types[0], '715')} ${help}`;
+        if (nm == 'edits') return `${goType(n.types[0], '901')} ${help}`;
         if (a == b) return `interface{} ${help}`;
         if (nm == 'code') return `interface{} ${help}`;
+        if (nm == 'editRange') return `${goType(n.types[0], '904')} ${help}`;
+        if (nm === 'location') return `${goType(n.types[0], '905')} ${help}`;
       }
       if (a == 'StringKeyword') return `string ${help}`;
       if (a == 'TypeLiteral' && nm == 'TextDocumentContentChangeEvent') {
@@ -915,6 +919,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       const aa = strKind(n.types[0]);
       const bb = strKind(n.types[1]);
       const cc = strKind(n.types[2]);
+      if (nm === 'workspace/symbol') return `${goType(n.types[0], '930')} ${help}`;
       if (nm == 'DocumentFilter') {
         // not really a union. the first is enough, up to a missing
         // omitempty but avoid repetitious comments
@@ -942,9 +947,11 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
     case 4:
       if (nm == 'documentChanges') return `TextDocumentEdit ${help} `;
       if (nm == 'textDocument/prepareRename') return `Range ${help} `;
-    // eslint-disable-next-line no-fallthrough
+      break;
+      case 8: // LSPany
+        break;
     default:
-      throw new Error(`goUnionType len=${n.types.length} nm=${nm}`);
+      throw new Error(`957 goUnionType len=${n.types.length} nm=${nm} ${n.getText()}`);
   }
 
   // Result will be interface{} with a comment
@@ -1048,7 +1055,7 @@ function isStructType(te: ts.TypeNode): boolean {
     case 'TypeReference': {
       if (!ts.isTypeReferenceNode(te)) throw new Error(`1047 impossible ${strKind(te)}`);
       const d = seenTypes.get(goName(te.typeName.getText()));
-      if (d === undefined) return false;
+      if (d === undefined || d.properties.length == 0) return false;
       if (d.properties.length > 1) return true;
       // alias or interface with a single property (The alias is Uinteger, which we ignore later)
       if (d.alias) return false;
@@ -1067,6 +1074,8 @@ function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
     if (ts.isPropertySignature(nx)) {
       let json = u.JSON(nx);
       let typ = goType(nx.type, nx.name.getText());
+      // }/*\n*/`json:v` is not legal, the comment is a newline
+      typ = typ.replace(/\n\t*/g, ' '); // PJW: try to do this only when needed
       const v = getComments(nx) || '';
       starred.forEach(([a, b]) => {
         if (a != nm || b != typ.toLowerCase()) return;
@@ -1080,12 +1089,16 @@ function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
       const comment = nx.getText().replace(/[/]/g, '');
       if (nx.getText() == '[uri: string]: TextEdit[];') {
         res = 'map[string][]TextEdit';
-      } else if (nx.getText() == '[id: string /* ChangeAnnotationIdentifier */]: ChangeAnnotation;') {
+      } else if (nx.getText().startsWith('[id: ChangeAnnotationIdentifier]')) {
         res = 'map[string]ChangeAnnotationIdentifier';
       } else if (nx.getText().startsWith('[uri: string')) {
         res = 'map[string]interface{}';
+      } else if (nx.getText().startsWith('[uri: DocumentUri')) {
+        res = 'map[DocumentURI]interface{}'; //PJW make this more precise
+      } else if (nx.getText().startsWith('[key: string')) {
+        res = 'map[string]interface{}';
       } else {
-        throw new Error(`1088 handle ${nx.getText()} ${loc(nx)}`);
+        throw new Error(`1100 handle ${nx.getText()} ${loc(nx)}`);
       }
       res += ` /*${comment}*/`;
       ans.push(res);

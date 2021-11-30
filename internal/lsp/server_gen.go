@@ -144,6 +144,14 @@ func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedPa
 	return s.initialized(ctx, params)
 }
 
+func (s *Server) InlineValues(context.Context, *protocol.InlineValuesParams) ([]protocol.InlineValue, error) {
+	return nil, notImplemented("InlineValues")
+}
+
+func (s *Server) InlineValuesRefresh(context.Context) error {
+	return notImplemented("InlineValuesRefresh")
+}
+
 func (s *Server) LinkedEditingRange(context.Context, *protocol.LinkedEditingRangeParams) (*protocol.LinkedEditingRanges, error) {
 	return nil, notImplemented("LinkedEditingRange")
 }
@@ -206,6 +214,10 @@ func (s *Server) ResolveCodeLens(context.Context, *protocol.CodeLens) (*protocol
 
 func (s *Server) ResolveDocumentLink(context.Context, *protocol.DocumentLink) (*protocol.DocumentLink, error) {
 	return nil, notImplemented("ResolveDocumentLink")
+}
+
+func (s *Server) ResolveWorkspaceSymbol(context.Context, *protocol.WorkspaceSymbol) (*protocol.WorkspaceSymbol, error) {
+	return nil, notImplemented("ResolveWorkspaceSymbol")
 }
 
 func (s *Server) SelectionRange(context.Context, *protocol.SelectionRangeParams) ([]protocol.SelectionRange, error) {
