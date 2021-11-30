@@ -166,3 +166,39 @@ func TestLookupEnv(t *testing.T) {
 		t.Errorf("smallpox release failed; world remains safe but LookupEnv is broken")
 	}
 }
+
+// On Windows, Environ was observed to report keys with a single leading "=".
+// Check that they are properly reported by LookupEnv and can be set by SetEnv.
+// See https://golang.org/issue/49886.
+func TestEnvironConsistency(t *testing.T) {
+	for _, kv := range Environ() {
+		i := strings.Index(kv, "=")
+		if i == 0 {
+			// We observe in practice keys with a single leading "=" on Windows.
+			// TODO(#49886): Should we consume only the first leading "=" as part
+			// of the key, or parse through arbitrarily many of them until a non-=,
+			// or try each possible key/value boundary until LookupEnv succeeds?
+			i = strings.Index(kv[1:], "=") + 1
+		}
+		if i < 0 {
+			t.Errorf("Environ entry missing '=': %q", kv)
+		}
+
+		k := kv[:i]
+		v := kv[i+1:]
+		v2, ok := LookupEnv(k)
+		if ok && v == v2 {
+			t.Logf("LookupEnv(%q) = %q, %t", k, v2, ok)
+		} else {
+			t.Errorf("Environ contains %q, but LookupEnv(%q) = %q, %t", kv, k, v2, ok)
+		}
+
+		// Since k=v is already present in the environment,
+		// setting it should be a no-op.
+		if err := Setenv(k, v); err == nil {
+			t.Logf("Setenv(%q, %q)", k, v)
+		} else {
+			t.Errorf("Environ contains %q, but SetEnv(%q, %q) = %q", kv, k, v, err)
+		}
+	}
+}
