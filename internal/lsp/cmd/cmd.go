@@ -105,11 +105,11 @@ func New(name, wd string, env []string, options func(*source.Options)) *Applicat
 func (app *Application) Name() string { return app.name }
 
 // Usage implements tool.Application returning empty extra argument usage.
-func (app *Application) Usage() string { return "<command> [command-flags] [command-args]" }
+func (app *Application) Usage() string { return "" }
 
 // ShortHelp implements tool.Application returning the main binary help.
 func (app *Application) ShortHelp() string {
-	return "The Go Language source tools."
+	return ""
 }
 
 // DetailedHelp implements tool.Application returning the main binary help.
@@ -119,11 +119,16 @@ func (app *Application) DetailedHelp(f *flag.FlagSet) {
 	defer w.Flush()
 
 	fmt.Fprint(w, `
-gopls is a Go language server. It is typically used with an editor to provide
-language features. When no command is specified, gopls will default to the 'serve'
-command. The language features can also be accessed via the gopls command-line interface.
+gopls is a Go language server.
 
-command:
+It is typically used with an editor to provide language features. When no
+command is specified, gopls will default to the 'serve' command. The language
+features can also be accessed via the gopls command-line interface.
+
+Usage:
+  gopls help [<subject>]
+
+Command:
 `)
 	fmt.Fprint(w, "\nMain\t\n")
 	for _, c := range app.mainCommands() {

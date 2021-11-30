@@ -1,13 +1,14 @@
-The Go Language source tools.
+
+gopls is a Go language server.
+
+It is typically used with an editor to provide language features. When no
+command is specified, gopls will default to the 'serve' command. The language
+features can also be accessed via the gopls command-line interface.
 
 Usage:
-  gopls [flags] <command> [command-flags] [command-args]
+  gopls help [<subject>]
 
-gopls is a Go language server. It is typically used with an editor to provide
-language features. When no command is specified, gopls will default to the 'serve'
-command. The language features can also be accessed via the gopls command-line interface.
-
-command:
+Command:
 
 Main                
   serve             run a server for Go code using the Language Server Protocol

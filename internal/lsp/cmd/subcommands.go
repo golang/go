@@ -20,7 +20,7 @@ type subcommands []tool.Application
 func (s subcommands) DetailedHelp(f *flag.FlagSet) {
 	w := tabwriter.NewWriter(f.Output(), 0, 0, 2, ' ', 0)
 	defer w.Flush()
-	fmt.Fprint(w, "\nsubcommands:\n")
+	fmt.Fprint(w, "\nSubcommand:\n")
 	for _, c := range s {
 		fmt.Fprintf(w, "  %s\t%s\n", c.Name(), c.ShortHelp())
 	}

@@ -48,7 +48,8 @@ func (s *Serve) ShortHelp() string {
 	return "run a server for Go code using the Language Server Protocol"
 }
 func (s *Serve) DetailedHelp(f *flag.FlagSet) {
-	fmt.Fprint(f.Output(), `
+	fmt.Fprint(f.Output(), `  gopls [flags] [server-flags]
+
 The server communicates using JSONRPC2 on stdin and stdout, and is intended to be run directly as
 a child of an editor process.
 

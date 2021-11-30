@@ -103,16 +103,18 @@ func Main(ctx context.Context, app Application, args []string) {
 // error.
 func Run(ctx context.Context, s *flag.FlagSet, app Application, args []string) error {
 	s.Usage = func() {
-		fmt.Fprintf(s.Output(), "%s\n\nUsage:\n  ", app.ShortHelp())
-		if sub, ok := app.(SubCommand); ok && sub.Parent() != "" {
-			fmt.Fprintf(s.Output(), "%s [flags] %s", sub.Parent(), app.Name())
-		} else {
-			fmt.Fprintf(s.Output(), "%s [flags]", app.Name())
+		if app.ShortHelp() != "" {
+			fmt.Fprintf(s.Output(), "%s\n\nUsage:\n  ", app.ShortHelp())
+			if sub, ok := app.(SubCommand); ok && sub.Parent() != "" {
+				fmt.Fprintf(s.Output(), "%s [flags] %s", sub.Parent(), app.Name())
+			} else {
+				fmt.Fprintf(s.Output(), "%s [flags]", app.Name())
+			}
+			if usage := app.Usage(); usage != "" {
+				fmt.Fprintf(s.Output(), " %s", usage)
+			}
+			fmt.Fprint(s.Output(), "\n")
 		}
-		if usage := app.Usage(); usage != "" {
-			fmt.Fprintf(s.Output(), " %s", usage)
-		}
-		fmt.Fprint(s.Output(), "\n")
 		app.DetailedHelp(s)
 	}
 	p := addFlags(s, reflect.StructField{}, reflect.ValueOf(app))

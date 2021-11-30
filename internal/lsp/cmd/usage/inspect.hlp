@@ -3,6 +3,6 @@ interact with the gopls daemon (deprecated: use 'remote')
 Usage:
   gopls [flags] inspect <subcommand> [arg]...
 
-subcommands:
+Subcommand:
   sessions  print information about current gopls sessions
   debug     start the debug server
