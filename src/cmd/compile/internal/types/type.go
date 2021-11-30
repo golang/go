@@ -1628,6 +1628,7 @@ func (t *Type) NumComponents(countBlank componentsIncludeBlankFields) int64 {
 // SoleComponent returns the only primitive component in t,
 // if there is exactly one. Otherwise, it returns nil.
 // Components are counted as in NumComponents, including blank fields.
+// Keep in sync with cmd/compile/internal/walk/convert.go:soleComponent.
 func (t *Type) SoleComponent() *Type {
 	switch t.kind {
 	case TSTRUCT:
