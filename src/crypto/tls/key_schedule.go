@@ -58,7 +58,7 @@ func (c *cipherSuiteTLS13) deriveSecret(secret []byte, label string, transcript 
 	return c.expandLabel(secret, label, transcript.Sum(nil), c.hash.Size())
 }
 
-// extract implements HKDF-Extract with the cipher suite hash.
+// extract implements HKDF-Extract with the Cipher suite hash.
 func (c *cipherSuiteTLS13) extract(newSecret, currentSecret []byte) []byte {
 	if newSecret == nil {
 		newSecret = make([]byte, c.hash.Size())
@@ -74,7 +74,7 @@ func (c *cipherSuiteTLS13) nextTrafficSecret(trafficSecret []byte) []byte {
 
 // trafficKey generates traffic keys according to RFC 8446, Section 7.3.
 func (c *cipherSuiteTLS13) trafficKey(trafficSecret []byte) (key, iv []byte) {
-	key = c.expandLabel(trafficSecret, "key", nil, c.keyLen)
+	key = c.expandLabel(trafficSecret, "key", nil, c.KeyLen)
 	iv = c.expandLabel(trafficSecret, "iv", nil, aeadNonceLength)
 	return
 }
@@ -89,10 +89,11 @@ func (c *cipherSuiteTLS13) finishedHash(baseKey []byte, transcript hash.Hash) []
 	return verifyData.Sum(nil)
 }
 
-// exportKeyingMaterial implements RFC5705 exporters for TLS 1.3 according to
+// ExportKeyingMaterial implements RFC5705 exporters for TLS 1.3 according to
 // RFC 8446, Section 7.5.
-func (c *cipherSuiteTLS13) exportKeyingMaterial(masterSecret []byte, transcript hash.Hash) func(string, []byte, int) ([]byte, error) {
+func (c *cipherSuiteTLS13) ExportKeyingMaterial(masterSecret []byte, transcript hash.Hash) func(string, []byte, int) ([]byte, error) {
 	expMasterSecret := c.deriveSecret(masterSecret, exporterLabel, transcript)
+
 	return func(label string, context []byte, length int) ([]byte, error) {
 		secret := c.deriveSecret(expMasterSecret, label, nil)
 		h := c.hash.New()
@@ -197,3 +198,4 @@ func (p *x25519Parameters) SharedKey(peerPublicKey []byte) []byte {
 	}
 	return sharedKey
 }
+

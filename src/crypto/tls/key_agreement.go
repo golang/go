@@ -18,7 +18,7 @@ import (
 // a keyAgreement implements the client and server side of a TLS key agreement
 // protocol by generating and processing key exchange messages.
 type keyAgreement interface {
-	// On the server side, the first two methods are called in order.
+	// On the server side, the first two methods are called In order.
 
 	// In the case that the key agreement protocol doesn't use a
 	// ServerKeyExchange message, generateServerKeyExchange can return nil,
@@ -26,7 +26,7 @@ type keyAgreement interface {
 	generateServerKeyExchange(*Config, *Certificate, *clientHelloMsg, *serverHelloMsg) (*serverKeyExchangeMsg, error)
 	processClientKeyExchange(*Config, *Certificate, *clientKeyExchangeMsg, uint16) ([]byte, error)
 
-	// On the client side, the next two methods are called in order.
+	// On the client side, the next two methods are called In order.
 
 	// This method may not be called if the server doesn't send a
 	// ServerKeyExchange message.
@@ -64,11 +64,11 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
 	if err != nil {
 		return nil, err
 	}
-	// We don't check the version number in the premaster secret. For one,
+	// We don't check the Version number In the premaster secret. For one,
 	// by checking it, we would leak information about the validity of the
 	// encrypted pre-master secret. Secondly, it provides only a small
 	// benefit against a downgrade attack and some implementations send the
-	// wrong version anyway. See the discussion at the end of section
+	// wrong Version anyway. See the discussion at the end of section
 	// 7.4.7.1 of RFC 4346.
 	return preMasterSecret, nil
 }
@@ -79,8 +79,8 @@ func (ka rsaKeyAgreement) processServerKeyExchange(config *Config, clientHello *
 
 func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {
 	preMasterSecret := make([]byte, 48)
-	preMasterSecret[0] = byte(clientHello.vers >> 8)
-	preMasterSecret[1] = byte(clientHello.vers)
+	preMasterSecret[0] = byte(clientHello.Vers >> 8)
+	preMasterSecret[1] = byte(clientHello.Vers)
 	_, err := io.ReadFull(config.rand(), preMasterSecret[2:])
 	if err != nil {
 		return nil, nil, err
@@ -159,15 +159,15 @@ type ecdheKeyAgreement struct {
 	isRSA   bool
 	params  ecdheParameters
 
-	// ckx and preMasterSecret are generated in processServerKeyExchange
-	// and returned in generateClientKeyExchange.
+	// ckx and preMasterSecret are generated In processServerKeyExchange
+	// and returned In generateClientKeyExchange.
 	ckx             *clientKeyExchangeMsg
 	preMasterSecret []byte
 }
 
 func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
 	var curveID CurveID
-	for _, c := range clientHello.supportedCurves {
+	for _, c := range clientHello.SupportedCurves {
 		if config.supportsCurve(c) {
 			curveID = c
 			break
@@ -205,7 +205,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 	var sigType uint8
 	var sigHash crypto.Hash
 	if ka.version >= VersionTLS12 {
-		signatureAlgorithm, err = selectSignatureScheme(ka.version, cert, clientHello.supportedSignatureAlgorithms)
+		signatureAlgorithm, err = selectSignatureScheme(ka.version, cert, clientHello.SupportedSignatureAlgorithms)
 		if err != nil {
 			return nil, err
 		}
@@ -220,10 +220,10 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 		}
 	}
 	if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
-		return nil, errors.New("tls: certificate cannot be used with the selected cipher suite")
+		return nil, errors.New("tls: certificate cannot be used with the selected Cipher suite")
 	}
 
-	signed := hashForServerKeyExchange(sigType, sigHash, ka.version, clientHello.random, hello.random, serverECDHEParams)
+	signed := hashForServerKeyExchange(sigType, sigHash, ka.version, clientHello.Random, hello.random, serverECDHEParams)
 
 	signOpts := crypto.SignerOpts(sigHash)
 	if sigType == signatureRSAPSS {
@@ -318,7 +318,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 			return errServerKeyExchange
 		}
 
-		if !isSupportedSignatureAlgorithm(signatureAlgorithm, clientHello.supportedSignatureAlgorithms) {
+		if !isSupportedSignatureAlgorithm(signatureAlgorithm, clientHello.SupportedSignatureAlgorithms) {
 			return errors.New("tls: certificate used with invalid signature algorithm")
 		}
 		sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
@@ -341,7 +341,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	}
 	sig = sig[2:]
 
-	signed := hashForServerKeyExchange(sigType, sigHash, ka.version, clientHello.random, serverHello.random, serverECDHEParams)
+	signed := hashForServerKeyExchange(sigType, sigHash, ka.version, clientHello.Random, serverHello.random, serverECDHEParams)
 	if err := verifyHandshakeSignature(sigType, cert.PublicKey, sigHash, signed, sig); err != nil {
 		return errors.New("tls: invalid signature by the server certificate: " + err.Error())
 	}
@@ -355,3 +355,4 @@ func (ka *ecdheKeyAgreement) generateClientKeyExchange(config *Config, clientHel
 
 	return ka.preMasterSecret, ka.ckx, nil
 }
+

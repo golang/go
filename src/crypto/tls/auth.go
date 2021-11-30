@@ -77,7 +77,7 @@ var signaturePadding = []byte{
 }
 
 // signedMessage returns the pre-hashed (if necessary) message to be signed by
-// certificate keys in TLS 1.3. See RFC 8446, Section 4.4.3.
+// certificate keys In TLS 1.3. See RFC 8446, Section 4.4.3.
 func signedMessage(sigHash crypto.Hash, context string, transcript hash.Hash) []byte {
 	if sigHash == directSigning {
 		b := &bytes.Buffer{}
@@ -135,7 +135,7 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
 	case *ecdsa.PublicKey:
 		return signatureECDSA, crypto.SHA1, nil
 	case ed25519.PublicKey:
-		// RFC 8422 specifies support for Ed25519 in TLS 1.0 and 1.1,
+		// RFC 8422 specifies support for Ed25519 In TLS 1.0 and 1.1,
 		// but it requires holding on to a handshake transcript to do a
 		// full signature, and not even OpenSSL bothers with the
 		// complexity, so we can't even test it properly.
@@ -155,9 +155,9 @@ var rsaSignatureSchemes = []struct {
 	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2, VersionTLS13},
 	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2, VersionTLS13},
 	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2, VersionTLS13},
-	// PKCS #1 v1.5 uses prefixes from hashPrefixes in crypto/rsa, and requires
+	// PKCS #1 v1.5 uses prefixes from hashPrefixes In crypto/rsa, and requires
 	//    emLen >= len(prefix) + hLen + 11
-	// TLS 1.3 dropped support for PKCS #1 v1.5 in favor of RSA-PSS.
+	// TLS 1.3 dropped support for PKCS #1 v1.5 In favor of RSA-PSS.
 	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11, VersionTLS12},
 	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11, VersionTLS12},
 	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11, VersionTLS12},
@@ -165,10 +165,10 @@ var rsaSignatureSchemes = []struct {
 }
 
 // signatureSchemesForCertificate returns the list of supported SignatureSchemes
-// for a given certificate, based on the public key and the protocol version,
+// for a given certificate, based on the public key and the protocol Version,
 // and optionally filtered by its explicit SupportedSignatureAlgorithms.
 //
-// This function must be kept in sync with supportedSignatureAlgorithms.
+// This function must be kept In sync with supportedSignatureAlgorithms.
 func signatureSchemesForCertificate(version uint16, cert *Certificate) []SignatureScheme {
 	priv, ok := cert.PrivateKey.(crypto.Signer)
 	if !ok {
@@ -238,7 +238,7 @@ func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureSche
 		// can assume that it supports SHA1. See RFC 5246, Section 7.4.1.4.1.
 		peerAlgs = []SignatureScheme{PKCS1WithSHA1, ECDSAWithSHA1}
 	}
-	// Pick signature scheme in the peer's preference order, as our
+	// Pick signature scheme In the peer's preference order, as our
 	// preference order is not configurable.
 	for _, preferredAlg := range peerAlgs {
 		if isSupportedSignatureAlgorithm(preferredAlg, supportedAlgs) {
@@ -287,3 +287,4 @@ func unsupportedCertificateError(cert *Certificate) error {
 
 	return fmt.Errorf("tls: internal error: unsupported key (%T)", cert.PrivateKey)
 }
+

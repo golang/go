@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// serverHandshakeState contains details of a server handshake in progress.
+// serverHandshakeState contains details of a server handshake In progress.
 // It's discarded once the handshake has completed.
 type serverHandshakeState struct {
 	c            *Conn
@@ -39,27 +39,47 @@ type serverHandshakeState struct {
 }
 
 // serverHandshake performs a TLS handshake as a server.
-func (c *Conn) serverHandshake(ctx context.Context) error {
-	clientHello, err := c.readClientHello(ctx)
-	if err != nil {
-		return err
-	}
+func (c *Conn) serverHandshake(ctx context.Context) (err error) {
 
-	if c.vers == VersionTLS13 {
-		hs := serverHandshakeStateTLS13{
+	if !c.handshakePrimaryComplete() {
+
+		clientHello, err := c.readClientHello(ctx)
+		if err != nil {
+			return err
+		}
+		c.ClientHello = *clientHello
+
+		if c.Vers == VersionTLS13 {
+			hs := serverHandshakeStateTLS13{
+				c:           c,
+				ctx:         ctx,
+				clientHello: clientHello,
+			}
+
+			err = hs.handshake()
+			atomic.StoreUint32(&c.HandshakePrimaryStatus, 1)
+			return err
+		}
+
+		hs := serverHandshakeState{
 			c:           c,
 			ctx:         ctx,
 			clientHello: clientHello,
 		}
 		return hs.handshake()
+	} else {
+		hs := serverHandshakeStateTLS13{
+			c:           c,
+			ctx:         ctx,
+			clientHello: &c.ClientHello,
+			clientFinished: c.HS.ClientFinished,
+			suite: cipherSuiteTLS13ByID(c.CipherSuite),
+			trafficSecret: c.HS.TrafficSecret,
+		}
+		err = hs.handshakeSecondary()
+		atomic.StoreUint32(&c.HandshakeStatus, 1)
+		return err
 	}
-
-	hs := serverHandshakeState{
-		c:           c,
-		ctx:         ctx,
-		clientHello: clientHello,
-	}
-	return hs.handshake()
 }
 
 func (hs *serverHandshakeState) handshake() error {
@@ -70,10 +90,10 @@ func (hs *serverHandshakeState) handshake() error {
 	}
 
 	// For an overview of TLS handshaking, see RFC 5246, Section 7.3.
-	c.buffering = true
+	c.Buffering = true
 	if hs.checkForResumption() {
 		// The client has included a session ticket and so we do an abbreviated handshake.
-		c.didResume = true
+		c.DidResume = true
 		if err := hs.doResumeHandshake(); err != nil {
 			return err
 		}
@@ -83,13 +103,13 @@ func (hs *serverHandshakeState) handshake() error {
 		if err := hs.sendSessionTicket(); err != nil {
 			return err
 		}
-		if err := hs.sendFinished(c.serverFinished[:]); err != nil {
+		if err := hs.sendFinished(c.ServerFinished[:]); err != nil {
 			return err
 		}
 		if _, err := c.flush(); err != nil {
 			return err
 		}
-		c.clientFinishedIsFirst = false
+		c.ClientFinishedIsFirst = false
 		if err := hs.readFinished(nil); err != nil {
 			return err
 		}
@@ -105,11 +125,11 @@ func (hs *serverHandshakeState) handshake() error {
 		if err := hs.establishKeys(); err != nil {
 			return err
 		}
-		if err := hs.readFinished(c.clientFinished[:]); err != nil {
+		if err := hs.readFinished(c.ClientFinished[:]); err != nil {
 			return err
 		}
-		c.clientFinishedIsFirst = true
-		c.buffering = true
+		c.ClientFinishedIsFirst = true
+		c.Buffering = true
 		if err := hs.sendSessionTicket(); err != nil {
 			return err
 		}
@@ -121,13 +141,13 @@ func (hs *serverHandshakeState) handshake() error {
 		}
 	}
 
-	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random)
-	atomic.StoreUint32(&c.handshakeStatus, 1)
+	c.ekm = ekmFromMasterSecret(c.Vers, hs.suite, hs.masterSecret, hs.clientHello.Random, hs.hello.random)
+	atomic.StoreUint32(&c.HandshakeStatus, 1)
 
 	return nil
 }
 
-// readClientHello reads a ClientHello message and selects the protocol version.
+// readClientHello reads a ClientHello message and selects the protocol Version.
 func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
 	msg, err := c.readHandshake()
 	if err != nil {
@@ -152,18 +172,18 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
 	}
 	c.ticketKeys = originalConfig.ticketKeys(configForClient)
 
-	clientVersions := clientHello.supportedVersions
-	if len(clientHello.supportedVersions) == 0 {
-		clientVersions = supportedVersionsFromMax(clientHello.vers)
+	clientVersions := clientHello.SupportedVersions
+	if len(clientHello.SupportedVersions) == 0 {
+		clientVersions = supportedVersionsFromMax(clientHello.Vers)
 	}
-	c.vers, ok = c.config.mutualVersion(roleServer, clientVersions)
+	c.Vers, ok = c.config.mutualVersion(clientVersions)
 	if !ok {
 		c.sendAlert(alertProtocolVersion)
 		return nil, fmt.Errorf("tls: client offered only unsupported versions: %x", clientVersions)
 	}
-	c.haveVers = true
-	c.in.version = c.vers
-	c.out.version = c.vers
+	c.HaveVers = true
+	c.In.Version = c.Vers
+	c.Out.Version = c.Vers
 
 	return clientHello, nil
 }
@@ -172,11 +192,11 @@ func (hs *serverHandshakeState) processClientHello() error {
 	c := hs.c
 
 	hs.hello = new(serverHelloMsg)
-	hs.hello.vers = c.vers
+	hs.hello.vers = c.Vers
 
 	foundCompression := false
 	// We only support null compression, so check that the client offered it.
-	for _, compression := range hs.clientHello.compressionMethods {
+	for _, compression := range hs.clientHello.CompressionMethods {
 		if compression == compressionNone {
 			foundCompression = true
 			break
@@ -191,9 +211,9 @@ func (hs *serverHandshakeState) processClientHello() error {
 	hs.hello.random = make([]byte, 32)
 	serverRandom := hs.hello.random
 	// Downgrade protection canaries. See RFC 8446, Section 4.1.3.
-	maxVers := c.config.maxSupportedVersion(roleServer)
-	if maxVers >= VersionTLS12 && c.vers < maxVers || testingOnlyForceDowngradeCanary {
-		if c.vers == VersionTLS12 {
+	maxVers := c.config.maxSupportedVersion()
+	if maxVers >= VersionTLS12 && c.Vers < maxVers || testingOnlyForceDowngradeCanary {
+		if c.Vers == VersionTLS12 {
 			copy(serverRandom[24:], downgradeCanaryTLS12)
 		} else {
 			copy(serverRandom[24:], downgradeCanaryTLS11)
@@ -206,24 +226,24 @@ func (hs *serverHandshakeState) processClientHello() error {
 		return err
 	}
 
-	if len(hs.clientHello.secureRenegotiation) != 0 {
+	if len(hs.clientHello.SecureRenegotiation) != 0 {
 		c.sendAlert(alertHandshakeFailure)
 		return errors.New("tls: initial handshake had non-empty renegotiation extension")
 	}
 
-	hs.hello.secureRenegotiationSupported = hs.clientHello.secureRenegotiationSupported
+	hs.hello.secureRenegotiationSupported = hs.clientHello.SecureRenegotiationSupported
 	hs.hello.compressionMethod = compressionNone
-	if len(hs.clientHello.serverName) > 0 {
-		c.serverName = hs.clientHello.serverName
+	if len(hs.clientHello.ServerName) > 0 {
+		c.ServerName = hs.clientHello.ServerName
 	}
 
-	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols)
+	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.AlpnProtocols)
 	if err != nil {
 		c.sendAlert(alertNoApplicationProtocol)
 		return err
 	}
 	hs.hello.alpnProtocol = selectedProto
-	c.clientProtocol = selectedProto
+	c.ClientProtocol = selectedProto
 
 	hs.cert, err = c.config.getCertificate(clientHelloInfo(hs.ctx, c, hs.clientHello))
 	if err != nil {
@@ -234,15 +254,15 @@ func (hs *serverHandshakeState) processClientHello() error {
 		}
 		return err
 	}
-	if hs.clientHello.scts {
+	if hs.clientHello.Scts {
 		hs.hello.scts = hs.cert.SignedCertificateTimestamps
 	}
 
-	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
+	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.SupportedCurves, hs.clientHello.SupportedPoints)
 
 	if hs.ecdheOk {
 		// Although omitting the ec_point_formats extension is permitted, some
-		// old OpenSSL version will refuse to handshake if not present.
+		// old OpenSSL Version will refuse to handshake if not present.
 		//
 		// Per RFC 4492, section 5.1.2, implementations MUST support the
 		// uncompressed point format. See golang.org/issue/31943.
@@ -275,7 +295,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 	return nil
 }
 
-// negotiateALPN picks a shared ALPN protocol that both sides support in server
+// negotiateALPN picks a shared ALPN protocol that both sides support In server
 // preference order. If ALPN is not configured or the peer doesn't support it,
 // it returns "" and no error.
 func negotiateALPN(serverProtos, clientProtos []string) (string, error) {
@@ -329,7 +349,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 	c := hs.c
 
 	preferenceOrder := cipherSuitesPreferenceOrder
-	if !hasAESGCMHardwareSupport || !aesgcmPreferred(hs.clientHello.cipherSuites) {
+	if !hasAESGCMHardwareSupport || !aesgcmPreferred(hs.clientHello.CipherSuites) {
 		preferenceOrder = cipherSuitesPreferenceOrderNoAES
 	}
 
@@ -344,17 +364,17 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 		}
 	}
 
-	hs.suite = selectCipherSuite(preferenceList, hs.clientHello.cipherSuites, hs.cipherSuiteOk)
+	hs.suite = selectCipherSuite(preferenceList, hs.clientHello.CipherSuites, hs.cipherSuiteOk)
 	if hs.suite == nil {
 		c.sendAlert(alertHandshakeFailure)
-		return errors.New("tls: no cipher suite supported by both client and server")
+		return errors.New("tls: no Cipher suite supported by both client and server")
 	}
-	c.cipherSuite = hs.suite.id
+	c.CipherSuite = hs.suite.id
 
-	for _, id := range hs.clientHello.cipherSuites {
+	for _, id := range hs.clientHello.CipherSuites {
 		if id == TLS_FALLBACK_SCSV {
 			// The client is doing a fallback connection. See RFC 7507.
-			if hs.clientHello.vers < c.config.maxSupportedVersion(roleServer) {
+			if hs.clientHello.Vers < c.config.maxSupportedVersion() {
 				c.sendAlert(alertInappropriateFallback)
 				return errors.New("tls: client using inappropriate protocol fallback")
 			}
@@ -380,7 +400,7 @@ func (hs *serverHandshakeState) cipherSuiteOk(c *cipherSuite) bool {
 	} else if !hs.rsaDecryptOk {
 		return false
 	}
-	if hs.c.vers < VersionTLS12 && c.flags&suiteTLS12 != 0 {
+	if hs.c.Vers < VersionTLS12 && c.flags&suiteTLS12 != 0 {
 		return false
 	}
 	return true
@@ -394,7 +414,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 		return false
 	}
 
-	plaintext, usedOldKey := c.decryptTicket(hs.clientHello.sessionTicket)
+	plaintext, usedOldKey := c.decryptTicket(hs.clientHello.SessionTicket)
 	if plaintext == nil {
 		return false
 	}
@@ -409,14 +429,14 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 		return false
 	}
 
-	// Never resume a session for a different TLS version.
-	if c.vers != hs.sessionState.vers {
+	// Never resume a session for a different TLS Version.
+	if c.Vers != hs.sessionState.vers {
 		return false
 	}
 
 	cipherSuiteOk := false
-	// Check that the client is still offering the ciphersuite in the session.
-	for _, id := range hs.clientHello.cipherSuites {
+	// Check that the client is still offering the ciphersuite In the session.
+	for _, id := range hs.clientHello.CipherSuites {
 		if id == hs.sessionState.cipherSuite {
 			cipherSuiteOk = true
 			break
@@ -449,12 +469,12 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 	c := hs.c
 
 	hs.hello.cipherSuite = hs.suite.id
-	c.cipherSuite = hs.suite.id
-	// We echo the client's session ID in the ServerHello to let it know
+	c.CipherSuite = hs.suite.id
+	// We echo the client's session ID In the ServerHello to let it know
 	// that we're doing a resumption.
-	hs.hello.sessionId = hs.clientHello.sessionId
+	hs.hello.sessionId = hs.clientHello.SessionId
 	hs.hello.ticketSupported = hs.sessionState.usedOldKey
-	hs.finishedHash = newFinishedHash(c.vers, hs.suite)
+	hs.finishedHash = newFinishedHash(c.Vers, hs.suite)
 	hs.finishedHash.discardHandshakeBuffer()
 	hs.finishedHash.Write(hs.clientHello.marshal())
 	hs.finishedHash.Write(hs.hello.marshal())
@@ -483,14 +503,14 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 func (hs *serverHandshakeState) doFullHandshake() error {
 	c := hs.c
 
-	if hs.clientHello.ocspStapling && len(hs.cert.OCSPStaple) > 0 {
+	if hs.clientHello.OcspStapling && len(hs.cert.OCSPStaple) > 0 {
 		hs.hello.ocspStapling = true
 	}
 
-	hs.hello.ticketSupported = hs.clientHello.ticketSupported && !c.config.SessionTicketsDisabled
+	hs.hello.ticketSupported = hs.clientHello.TicketSupported && !c.config.SessionTicketsDisabled
 	hs.hello.cipherSuite = hs.suite.id
 
-	hs.finishedHash = newFinishedHash(hs.c.vers, hs.suite)
+	hs.finishedHash = newFinishedHash(hs.c.Vers, hs.suite)
 	if c.config.ClientAuth == NoClientCert {
 		// No need to keep a full record of the handshake if client
 		// certificates won't be used.
@@ -518,7 +538,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 	}
 
-	keyAgreement := hs.suite.ka(c.vers)
+	keyAgreement := hs.suite.ka(c.Vers)
 	skx, err := keyAgreement.generateServerKeyExchange(c.config, hs.cert, hs.clientHello, hs.hello)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
@@ -539,13 +559,13 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			byte(certTypeRSASign),
 			byte(certTypeECDSASign),
 		}
-		if c.vers >= VersionTLS12 {
+		if c.Vers >= VersionTLS12 {
 			certReq.hasSignatureAlgorithm = true
 			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms
 		}
 
 		// An empty list of certificateAuthorities signals to
-		// the client that it may send any certificate in response
+		// the client that it may send any certificate In response
 		// to our request. When we know the CAs we trust, then
 		// we can send them down, so that the client can choose
 		// an appropriate certificate to give to us.
@@ -614,22 +634,22 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	}
 	hs.finishedHash.Write(ckx.marshal())
 
-	preMasterSecret, err := keyAgreement.processClientKeyExchange(c.config, hs.cert, ckx, c.vers)
+	preMasterSecret, err := keyAgreement.processClientKeyExchange(c.config, hs.cert, ckx, c.Vers)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
 		return err
 	}
-	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.clientHello.random, hs.hello.random)
-	if err := c.config.writeKeyLog(keyLogLabelTLS12, hs.clientHello.random, hs.masterSecret); err != nil {
+	hs.masterSecret = masterFromPreMasterSecret(c.Vers, hs.suite, preMasterSecret, hs.clientHello.Random, hs.hello.random)
+	if err := c.config.writeKeyLog(keyLogLabelTLS12, hs.clientHello.Random, hs.masterSecret); err != nil {
 		c.sendAlert(alertInternalError)
 		return err
 	}
 
-	// If we received a client cert in response to our certificate request message,
+	// If we received a client cert In response to our certificate request message,
 	// the client will send us a certificateVerifyMsg immediately after the
 	// clientKeyExchangeMsg. This message is a digest of all preceding
 	// handshake-layer messages that is signed using the private key corresponding
-	// to the client's certificate. This allows us to verify that the client is in
+	// to the client's certificate. This allows us to verify that the client is In
 	// possession of the private key of the certificate.
 	if len(c.peerCertificates) > 0 {
 		msg, err = c.readHandshake()
@@ -644,7 +664,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 
 		var sigType uint8
 		var sigHash crypto.Hash
-		if c.vers >= VersionTLS12 {
+		if c.Vers >= VersionTLS12 {
 			if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, certReq.supportedSignatureAlgorithms) {
 				c.sendAlert(alertIllegalParameter)
 				return errors.New("tls: client certificate used with invalid signature algorithm")
@@ -679,7 +699,7 @@ func (hs *serverHandshakeState) establishKeys() error {
 	c := hs.c
 
 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
-		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
+		keysFromMasterSecret(c.Vers, hs.suite, hs.masterSecret, hs.clientHello.Random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
 
 	var clientCipher, serverCipher interface{}
 	var clientHash, serverHash hash.Hash
@@ -694,8 +714,8 @@ func (hs *serverHandshakeState) establishKeys() error {
 		serverCipher = hs.suite.aead(serverKey, serverIV)
 	}
 
-	c.in.prepareCipherSpec(c.vers, clientCipher, clientHash)
-	c.out.prepareCipherSpec(c.vers, serverCipher, serverHash)
+	c.In.prepareCipherSpec(c.Vers, clientCipher, clientHash)
+	c.Out.prepareCipherSpec(c.Vers, serverCipher, serverHash)
 
 	return nil
 }
@@ -730,7 +750,7 @@ func (hs *serverHandshakeState) readFinished(out []byte) error {
 }
 
 func (hs *serverHandshakeState) sendSessionTicket() error {
-	// ticketSupported is set in a resumption handshake if the
+	// TicketSupported is set In a resumption handshake if the
 	// ticket from the client was encrypted with an old session
 	// ticket key and thus a refreshed ticket should be sent.
 	if !hs.hello.ticketSupported {
@@ -752,7 +772,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 		certsFromClient = append(certsFromClient, cert.Raw)
 	}
 	state := sessionState{
-		vers:         c.vers,
+		vers:         c.Vers,
 		cipherSuite:  hs.suite.id,
 		createdAt:    createdAt,
 		masterSecret: hs.masterSecret,
@@ -832,8 +852,8 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	}
 
 	c.peerCertificates = certs
-	c.ocspResponse = certificate.OCSPStaple
-	c.scts = certificate.SignedCertificateTimestamps
+	c.OcspResponse = certificate.OCSPStaple
+	c.Scts = certificate.SignedCertificateTimestamps
 
 	if len(certs) > 0 {
 		switch certs[0].PublicKey.(type) {
@@ -855,21 +875,22 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 }
 
 func clientHelloInfo(ctx context.Context, c *Conn, clientHello *clientHelloMsg) *ClientHelloInfo {
-	supportedVersions := clientHello.supportedVersions
-	if len(clientHello.supportedVersions) == 0 {
-		supportedVersions = supportedVersionsFromMax(clientHello.vers)
+	supportedVersions := clientHello.SupportedVersions
+	if len(clientHello.SupportedVersions) == 0 {
+		supportedVersions = supportedVersionsFromMax(clientHello.Vers)
 	}
 
 	return &ClientHelloInfo{
-		CipherSuites:      clientHello.cipherSuites,
-		ServerName:        clientHello.serverName,
-		SupportedCurves:   clientHello.supportedCurves,
-		SupportedPoints:   clientHello.supportedPoints,
-		SignatureSchemes:  clientHello.supportedSignatureAlgorithms,
-		SupportedProtos:   clientHello.alpnProtocols,
+		CipherSuites:      clientHello.CipherSuites,
+		ServerName:        clientHello.ServerName,
+		SupportedCurves:   clientHello.SupportedCurves,
+		SupportedPoints:   clientHello.SupportedPoints,
+		SignatureSchemes:  clientHello.SupportedSignatureAlgorithms,
+		SupportedProtos:   clientHello.AlpnProtocols,
 		SupportedVersions: supportedVersions,
 		Conn:              c.conn,
 		config:            c.config,
 		ctx:               ctx,
 	}
 }
+

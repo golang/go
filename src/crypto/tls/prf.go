@@ -16,14 +16,14 @@ import (
 	"hash"
 )
 
-// Split a premaster secret in two as specified in RFC 4346, Section 5.
+// Split a premaster secret In two as specified In RFC 4346, Section 5.
 func splitPreMasterSecret(secret []byte) (s1, s2 []byte) {
 	s1 = secret[0 : (len(secret)+1)/2]
 	s2 = secret[len(secret)/2:]
 	return
 }
 
-// pHash implements the P_hash function, as defined in RFC 4346, Section 5.
+// pHash implements the P_hash function, as defined In RFC 4346, Section 5.
 func pHash(result, secret, seed []byte, hash func() hash.Hash) {
 	h := hmac.New(hash, secret)
 	h.Write(seed)
@@ -44,7 +44,7 @@ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
 	}
 }
 
-// prf10 implements the TLS 1.0 pseudo-random function, as defined in RFC 2246, Section 5.
+// prf10 implements the TLS 1.0 pseudo-Random function, as defined In RFC 2246, Section 5.
 func prf10(result, secret, label, seed []byte) {
 	hashSHA1 := sha1.New
 	hashMD5 := md5.New
@@ -63,7 +63,7 @@ func prf10(result, secret, label, seed []byte) {
 	}
 }
 
-// prf12 implements the TLS 1.2 pseudo-random function, as defined in RFC 5246, Section 5.
+// prf12 implements the TLS 1.2 pseudo-Random function, as defined In RFC 5246, Section 5.
 func prf12(hashFunc func() hash.Hash) func(result, secret, label, seed []byte) {
 	return func(result, secret, label, seed []byte) {
 		labelAndSeed := make([]byte, len(label)+len(seed))
@@ -75,8 +75,8 @@ func prf12(hashFunc func() hash.Hash) func(result, secret, label, seed []byte) {
 }
 
 const (
-	masterSecretLength   = 48 // Length of a master secret in TLS 1.1.
-	finishedVerifyLength = 12 // Length of verify_data in a Finished message.
+	masterSecretLength   = 48 // Length of a master secret In TLS 1.1.
+	finishedVerifyLength = 12 // Length of verify_data In a Finished message.
 )
 
 var masterSecretLabel = []byte("master secret")
@@ -94,7 +94,7 @@ func prfAndHashForVersion(version uint16, suite *cipherSuite) (func(result, secr
 		}
 		return prf12(sha256.New), crypto.SHA256
 	default:
-		panic("unknown version")
+		panic("unknown Version")
 	}
 }
 
@@ -116,7 +116,7 @@ func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecr
 }
 
 // keysFromMasterSecret generates the connection keys from the master
-// secret, given the lengths of the MAC key, cipher key and IV, as defined in
+// secret, given the lengths of the MAC key, Cipher key and IV, as defined In
 // RFC 2246, Section 6.3.
 func keysFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
 	seed := make([]byte, 0, len(serverRandom)+len(clientRandom))
@@ -155,7 +155,7 @@ func newFinishedHash(version uint16, cipherSuite *cipherSuite) finishedHash {
 }
 
 // A finishedHash calculates the hash of a set of handshake messages suitable
-// for including in a Finished message.
+// for including In a Finished message.
 type finishedHash struct {
 	client hash.Hash
 	server hash.Hash
@@ -250,13 +250,13 @@ func noExportedKeyingMaterial(label string, context []byte, length int) ([]byte,
 	return nil, errors.New("crypto/tls: ExportKeyingMaterial is unavailable when renegotiation is enabled")
 }
 
-// ekmFromMasterSecret generates exported keying material as defined in RFC 5705.
+// ekmFromMasterSecret generates exported keying material as defined In RFC 5705.
 func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte) func(string, []byte, int) ([]byte, error) {
 	return func(label string, context []byte, length int) ([]byte, error) {
 		switch label {
 		case "client finished", "server finished", "master secret", "key expansion":
 			// These values are reserved and may not be used.
-			return nil, fmt.Errorf("crypto/tls: reserved ExportKeyingMaterial label: %s", label)
+			return nil, fmt.Errorf("crypto/tls: reserved ExportKeyingMaterial Label: %s", label)
 		}
 
 		seedLen := len(serverRandom) + len(clientRandom)
@@ -281,3 +281,4 @@ func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clien
 		return keyMaterial, nil
 	}
 }
+

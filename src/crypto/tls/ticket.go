@@ -18,7 +18,7 @@ import (
 )
 
 // sessionState contains the information that is serialized into a session
-// ticket in order to later resume a connection.
+// ticket In order to later resume a connection.
 type sessionState struct {
 	vers         uint16
 	cipherSuite  uint16
@@ -75,10 +75,10 @@ func (m *sessionState) unmarshal(data []byte) bool {
 }
 
 // sessionStateTLS13 is the content of a TLS 1.3 session ticket. Its first
-// version (revision = 0) doesn't carry any of the information needed for 0-RTT
+// Version (revision = 0) doesn't carry any of the information needed for 0-RTT
 // validation and the nonce is always empty.
 type sessionStateTLS13 struct {
-	// uint8 version  = 0x0304;
+	// uint8 Version  = 0x0304;
 	// uint8 revision = 0;
 	cipherSuite      uint16
 	createdAt        uint64
@@ -133,7 +133,7 @@ func (c *Conn) encryptTicket(state []byte) ([]byte, error) {
 	copy(keyName, key.keyName[:])
 	block, err := aes.NewCipher(key.aesKey[:])
 	if err != nil {
-		return nil, errors.New("tls: failed to create cipher while encrypting ticket: " + err.Error())
+		return nil, errors.New("tls: failed to create Cipher while encrypting ticket: " + err.Error())
 	}
 	cipher.NewCTR(block, iv).XORKeyStream(encrypted[ticketKeyNameLen+aes.BlockSize:], state)
 
@@ -183,3 +183,4 @@ func (c *Conn) decryptTicket(encrypted []byte) (plaintext []byte, usedOldKey boo
 
 	return plaintext, keyIndex > 0
 }
+

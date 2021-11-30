@@ -69,7 +69,7 @@ var alertText = map[alert]string{
 	alertDecodeError:                  "error decoding message",
 	alertDecryptError:                 "error decrypting message",
 	alertExportRestriction:            "export restriction",
-	alertProtocolVersion:              "protocol version not supported",
+	alertProtocolVersion:              "protocol Version not supported",
 	alertInsufficientSecurity:         "insufficient security level",
 	alertInternalError:                "internal error",
 	alertInappropriateFallback:        "inappropriate fallback",
@@ -97,3 +97,4 @@ func (e alert) String() string {
 func (e alert) Error() string {
 	return e.String()
 }
+

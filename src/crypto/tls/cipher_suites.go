@@ -14,24 +14,24 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
+	"golang.org/x/sys/cpu"
 	"hash"
-	"internal/cpu"
 	"runtime"
 
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// CipherSuite is a TLS cipher suite. Note that most functions in this package
-// accept and expose cipher suite IDs instead of this type.
+// CipherSuite is a TLS Cipher suite. Note that most functions In this package
+// accept and expose Cipher suite IDs instead of this type.
 type CipherSuite struct {
 	ID   uint16
 	Name string
 
 	// Supported versions is the list of TLS protocol versions that can
-	// negotiate this cipher suite.
+	// negotiate this Cipher suite.
 	SupportedVersions []uint16
 
-	// Insecure is true if the cipher suite has known security issues
+	// Insecure is true if the Cipher suite has known security issues
 	// due to its primitives, design, or implementation.
 	Insecure bool
 }
@@ -42,11 +42,11 @@ var (
 	supportedOnlyTLS13 = []uint16{VersionTLS13}
 )
 
-// CipherSuites returns a list of cipher suites currently implemented by this
+// CipherSuites returns a list of Cipher suites currently implemented by this
 // package, excluding those with security issues, which are returned by
 // InsecureCipherSuites.
 //
-// The list is sorted by ID. Note that the default cipher suites selected by
+// The list is sorted by ID. Note that the default Cipher suites selected by
 // this package might depend on logic that can't be captured by a static list,
 // and might not match those returned by this function.
 func CipherSuites() []*CipherSuite {
@@ -73,13 +73,13 @@ func CipherSuites() []*CipherSuite {
 	}
 }
 
-// InsecureCipherSuites returns a list of cipher suites currently implemented by
+// InsecureCipherSuites returns a list of Cipher suites currently implemented by
 // this package and which have security issues.
 //
-// Most applications should not use the cipher suites in this list, and should
+// Most applications should not use the Cipher suites In this list, and should
 // only use those returned by CipherSuites.
 func InsecureCipherSuites() []*CipherSuite {
-	// This list includes RC4, CBC_SHA256, and 3DES cipher suites. See
+	// This list includes RC4, CBC_SHA256, and 3DES Cipher suites. See
 	// cipherSuitesPreferenceOrder for details.
 	return []*CipherSuite{
 		{TLS_RSA_WITH_RC4_128_SHA, "TLS_RSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
@@ -93,9 +93,9 @@ func InsecureCipherSuites() []*CipherSuite {
 	}
 }
 
-// CipherSuiteName returns the standard name for the passed cipher suite ID
+// CipherSuiteName returns the standard name for the passed Cipher suite ID
 // (e.g. "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"), or a fallback representation
-// of the ID value if the cipher suite is not implemented by this package.
+// of the ID value if the Cipher suite is not implemented by this package.
 func CipherSuiteName(id uint16) string {
 	for _, c := range CipherSuites() {
 		if c.ID == id {
@@ -111,20 +111,20 @@ func CipherSuiteName(id uint16) string {
 }
 
 const (
-	// suiteECDHE indicates that the cipher suite involves elliptic curve
+	// suiteECDHE indicates that the Cipher suite involves elliptic curve
 	// Diffie-Hellman. This means that it should only be selected when the
 	// client indicates that it supports ECC with a curve and point format
 	// that we're happy with.
 	suiteECDHE = 1 << iota
-	// suiteECSign indicates that the cipher suite involves an ECDSA or
+	// suiteECSign indicates that the Cipher suite involves an ECDSA or
 	// EdDSA signature and therefore may only be selected when the server's
-	// certificate is ECDSA or EdDSA. If this is not set then the cipher suite
+	// certificate is ECDSA or EdDSA. If this is not set then the Cipher suite
 	// is RSA based.
 	suiteECSign
-	// suiteTLS12 indicates that the cipher suite should only be advertised
+	// suiteTLS12 indicates that the Cipher suite should only be advertised
 	// and accepted when using TLS 1.2.
 	suiteTLS12
-	// suiteSHA384 indicates that the cipher suite uses SHA384 as the
+	// suiteSHA384 indicates that the Cipher suite uses SHA384 as the
 	// handshake hash.
 	suiteSHA384
 )
@@ -133,7 +133,7 @@ const (
 // mechanism, as well as the cipher+MAC pair or the AEAD.
 type cipherSuite struct {
 	id uint16
-	// the lengths, in bytes, of the key material needed for each component.
+	// the lengths, In bytes, of the key material needed for each component.
 	keyLen int
 	macLen int
 	ivLen  int
@@ -170,8 +170,8 @@ var cipherSuites = []*cipherSuite{ // TODO: replace with a map, since the order 
 	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECSign, cipherRC4, macSHA1, nil},
 }
 
-// selectCipherSuite returns the first TLS 1.0–1.2 cipher suite from ids which
-// is also in supportedIDs and passes the ok filter.
+// selectCipherSuite returns the first TLS 1.0–1.2 Cipher suite from ids which
+// is also In supportedIDs and passes the ok filter.
 func selectCipherSuite(ids, supportedIDs []uint16, ok func(*cipherSuite) bool) *cipherSuite {
 	for _, id := range ids {
 		candidate := cipherSuiteByID(id)
@@ -191,8 +191,8 @@ func selectCipherSuite(ids, supportedIDs []uint16, ok func(*cipherSuite) bool) *
 // A cipherSuiteTLS13 defines only the pair of the AEAD algorithm and hash
 // algorithm to be used with HKDF. See RFC 8446, Appendix B.4.
 type cipherSuiteTLS13 struct {
-	id     uint16
-	keyLen int
+	Id     uint16 `json:"id"`
+	KeyLen int `json:"key_len"`
 	aead   func(key, fixedNonce []byte) aead
 	hash   crypto.Hash
 }
@@ -203,14 +203,14 @@ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
 	{TLS_AES_256_GCM_SHA384, 32, aeadAESGCMTLS13, crypto.SHA384},
 }
 
-// cipherSuitesPreferenceOrder is the order in which we'll select (on the
-// server) or advertise (on the client) TLS 1.0–1.2 cipher suites.
+// cipherSuitesPreferenceOrder is the order In which we'll select (on the
+// server) or advertise (on the client) TLS 1.0–1.2 Cipher suites.
 //
 // Cipher suites are filtered but not reordered based on the application and
-// peer's preferences, meaning we'll never select a suite lower in this list if
+// peer's preferences, meaning we'll never select a suite lower In this list if
 // any higher one is available. This makes it more defensible to keep weaker
-// cipher suites enabled, especially on the server side where we get the last
-// word, since there are no known downgrade attacks on cipher suites selection.
+// Cipher suites enabled, especially on the server side where we get the last
+// word, since there are no known downgrade attacks on Cipher suites selection.
 //
 // The list is sorted by applying the following priority rules, stopping at the
 // first (most important) applicable one:
@@ -232,13 +232,13 @@ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
 //
 //   - ECDHE comes before anything else
 //
-//       Once we got the broken stuff out of the way, the most important
-//       property a cipher suite can have is forward secrecy. We don't
+//       Once we got the broken stuff Out of the way, the most important
+//       property a Cipher suite can have is forward secrecy. We don't
 //       implement FFDHE, so that means ECDHE.
 //
 //   - AEADs come before CBC ciphers
 //
-//       Even with Lucky13 countermeasures, MAC-then-Encrypt CBC cipher suites
+//       Even with Lucky13 countermeasures, MAC-then-Encrypt CBC Cipher suites
 //       are fundamentally fragile, and suffered from an endless sequence of
 //       padding oracle attacks. See https://eprint.iacr.org/2015/1129,
 //       https://www.imperialviolet.org/2014/12/08/poodleagain.html, and
@@ -265,7 +265,7 @@ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
 //
 //   - ECDSA comes before RSA
 //
-//       The relative order of ECDSA and RSA cipher suites doesn't matter,
+//       The relative order of ECDSA and RSA Cipher suites doesn't matter,
 //       as they depend on the certificate. Pick one to get a stable order.
 //
 var cipherSuitesPreferenceOrder = []uint16{
@@ -322,7 +322,7 @@ var cipherSuitesPreferenceOrderNoAES = []uint16{
 	TLS_RSA_WITH_RC4_128_SHA,
 }
 
-// disabledCipherSuites are not used unless explicitly listed in
+// disabledCipherSuites are not used unless explicitly listed In
 // Config.CipherSuites. They MUST be at the end of cipherSuitesPreferenceOrder.
 var disabledCipherSuites = []uint16{
 	// CBC_SHA256
@@ -340,7 +340,7 @@ var (
 )
 
 // defaultCipherSuitesTLS13 is also the preference order, since there are no
-// disabled by default TLS 1.3 cipher suites. The same AES vs ChaCha20 logic as
+// disabled by default TLS 1.3 Cipher suites. The same AES vs ChaCha20 logic as
 // cipherSuitesPreferenceOrder applies.
 var defaultCipherSuitesTLS13 = []uint16{
 	TLS_AES_128_GCM_SHA256,
@@ -357,7 +357,7 @@ var defaultCipherSuitesTLS13NoAES = []uint16{
 var (
 	hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
 	hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
-	// Keep in sync with crypto/aes/cipher_s390x.go.
+	// Keep In sync with crypto/aes/cipher_s390x.go.
 	hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR &&
 		(cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
 
@@ -385,8 +385,8 @@ var nonAESGCMAEADCiphers = map[uint16]bool{
 	TLS_CHACHA20_POLY1305_SHA256: true,
 }
 
-// aesgcmPreferred returns whether the first known cipher in the preference list
-// is an AES-GCM cipher, implying the peer has hardware support for it.
+// aesgcmPreferred returns whether the first known Cipher In the preference list
+// is an AES-GCM Cipher, implying the peer has hardware support for it.
 func aesgcmPreferred(ciphers []uint16) bool {
 	for _, cID := range ciphers {
 		if c := cipherSuiteByID(cID); c != nil {
@@ -425,8 +425,8 @@ func macSHA1(key []byte) hash.Hash {
 	return hmac.New(newConstantTimeHash(sha1.New), key)
 }
 
-// macSHA256 returns a SHA-256 based MAC. This is only supported in TLS 1.2 and
-// is currently only used in disabled-by-default cipher suites.
+// macSHA256 returns a SHA-256 based MAC. This is only supported In TLS 1.2 and
+// is currently only used In disabled-by-default Cipher suites.
 func macSHA256(key []byte) hash.Hash {
 	return hmac.New(sha256.New, key)
 }
@@ -435,7 +435,7 @@ type aead interface {
 	cipher.AEAD
 
 	// explicitNonceLen returns the number of bytes of explicit nonce
-	// included in each record. This is eight for older AEADs and
+	// included In each record. This is eight for older AEADs and
 	// zero for modern ones.
 	explicitNonceLen() int
 }
@@ -448,7 +448,7 @@ const (
 // prefixNonceAEAD wraps an AEAD and prefixes a fixed portion of the nonce to
 // each call.
 type prefixNonceAEAD struct {
-	// nonce contains the fixed part of the nonce in the first four bytes.
+	// nonce contains the fixed part of the nonce In the first four bytes.
 	nonce [aeadNonceLength]byte
 	aead  cipher.AEAD
 }
@@ -467,24 +467,24 @@ func (f *prefixNonceAEAD) Open(out, nonce, ciphertext, additionalData []byte) ([
 	return f.aead.Open(out, f.nonce[:], ciphertext, additionalData)
 }
 
-// xoredNonceAEAD wraps an AEAD by XORing in a fixed pattern to the nonce
+// xoredNonceAEAD wraps an AEAD by XORing In a fixed pattern to the nonce
 // before each call.
 type xorNonceAEAD struct {
-	nonceMask [aeadNonceLength]byte
-	aead      cipher.AEAD
+	NonceMask [aeadNonceLength]byte `json:"nonce_mask"`
+	Aead      cipher.AEAD
 }
 
 func (f *xorNonceAEAD) NonceSize() int        { return 8 } // 64-bit sequence number
-func (f *xorNonceAEAD) Overhead() int         { return f.aead.Overhead() }
+func (f *xorNonceAEAD) Overhead() int         { return f.Aead.Overhead() }
 func (f *xorNonceAEAD) explicitNonceLen() int { return 0 }
 
 func (f *xorNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte {
 	for i, b := range nonce {
-		f.nonceMask[4+i] ^= b
+		f.NonceMask[4+i] ^= b
 	}
-	result := f.aead.Seal(out, f.nonceMask[:], plaintext, additionalData)
+	result := f.Aead.Seal(out, f.NonceMask[:], plaintext, additionalData)
 	for i, b := range nonce {
-		f.nonceMask[4+i] ^= b
+		f.NonceMask[4+i] ^= b
 	}
 
 	return result
@@ -492,11 +492,11 @@ func (f *xorNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte
 
 func (f *xorNonceAEAD) Open(out, nonce, ciphertext, additionalData []byte) ([]byte, error) {
 	for i, b := range nonce {
-		f.nonceMask[4+i] ^= b
+		f.NonceMask[4+i] ^= b
 	}
-	result, err := f.aead.Open(out, f.nonceMask[:], ciphertext, additionalData)
+	result, err := f.Aead.Open(out, f.NonceMask[:], ciphertext, additionalData)
 	for i, b := range nonce {
-		f.nonceMask[4+i] ^= b
+		f.NonceMask[4+i] ^= b
 	}
 
 	return result, err
@@ -533,8 +533,8 @@ func aeadAESGCMTLS13(key, nonceMask []byte) aead {
 		panic(err)
 	}
 
-	ret := &xorNonceAEAD{aead: aead}
-	copy(ret.nonceMask[:], nonceMask)
+	ret := &xorNonceAEAD{Aead: aead}
+	copy(ret.NonceMask[:], nonceMask)
 	return ret
 }
 
@@ -547,8 +547,8 @@ func aeadChaCha20Poly1305(key, nonceMask []byte) aead {
 		panic(err)
 	}
 
-	ret := &xorNonceAEAD{aead: aead}
-	copy(ret.nonceMask[:], nonceMask)
+	ret := &xorNonceAEAD{Aead: aead}
+	copy(ret.NonceMask[:], nonceMask)
 	return ret
 }
 
@@ -607,7 +607,7 @@ func ecdheRSAKA(version uint16) keyAgreement {
 }
 
 // mutualCipherSuite returns a cipherSuite given a list of supported
-// ciphersuites and the id requested by the peer.
+// ciphersuites and the Id requested by the peer.
 func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
 	for _, id := range have {
 		if id == want {
@@ -637,21 +637,24 @@ func mutualCipherSuiteTLS13(have []uint16, want uint16) *cipherSuiteTLS13 {
 
 func cipherSuiteTLS13ByID(id uint16) *cipherSuiteTLS13 {
 	for _, cipherSuite := range cipherSuitesTLS13 {
-		if cipherSuite.id == id {
+		if cipherSuite.Id == id {
 			return cipherSuite
 		}
 	}
 	return nil
 }
 
-// A list of cipher suite IDs that are, or have been, implemented by this
+// A list of Cipher suite IDs that are, or have been, implemented by this
 // package.
 //
 // See https://www.iana.org/assignments/tls-parameters/tls-parameters.xml
 const (
-	// TLS 1.0 - 1.2 cipher suites.
+	// TLS 1.0 - 1.2 Cipher suites.
+	//nolint:
 	TLS_RSA_WITH_RC4_128_SHA                      uint16 = 0x0005
+	//nolint:
 	TLS_RSA_WITH_3DES_EDE_CBC_SHA                 uint16 = 0x000a
+	//nolint:
 	TLS_RSA_WITH_AES_128_CBC_SHA                  uint16 = 0x002f
 	TLS_RSA_WITH_AES_256_CBC_SHA                  uint16 = 0x0035
 	TLS_RSA_WITH_AES_128_CBC_SHA256               uint16 = 0x003c
@@ -673,17 +676,18 @@ const (
 	TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256   uint16 = 0xcca8
 	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 uint16 = 0xcca9
 
-	// TLS 1.3 cipher suites.
+	// TLS 1.3 Cipher suites.
 	TLS_AES_128_GCM_SHA256       uint16 = 0x1301
 	TLS_AES_256_GCM_SHA384       uint16 = 0x1302
 	TLS_CHACHA20_POLY1305_SHA256 uint16 = 0x1303
 
-	// TLS_FALLBACK_SCSV isn't a standard cipher suite but an indicator
-	// that the client is doing version fallback. See RFC 7507.
+	// TLS_FALLBACK_SCSV isn't a standard Cipher suite but an indicator
+	// that the client is doing Version fallback. See RFC 7507.
 	TLS_FALLBACK_SCSV uint16 = 0x5600
 
-	// Legacy names for the corresponding cipher suites with the correct _SHA256
+	// Legacy names for the corresponding Cipher suites with the correct _SHA256
 	// suffix, retained for backward compatibility.
 	TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305   = TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
 	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305 = TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
 )
+
