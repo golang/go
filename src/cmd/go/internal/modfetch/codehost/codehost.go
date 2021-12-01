@@ -55,21 +55,6 @@ type Repo interface {
 	// os.IsNotExist(err) returns true.
 	ReadFile(rev, file string, maxSize int64) (data []byte, err error)
 
-	// ReadFileRevs reads a single file at multiple versions.
-	// It should refuse to read more than maxSize bytes.
-	// The result is a map from each requested rev strings
-	// to the associated FileRev. The map must have a non-nil
-	// entry for every requested rev (unless ReadFileRevs returned an error).
-	// A file simply being missing or even corrupted in revs[i]
-	// should be reported only in files[revs[i]].Err, not in the error result
-	// from ReadFileRevs.
-	// The overall call should return an error (and no map) only
-	// in the case of a problem with obtaining the data, such as
-	// a network failure.
-	// Implementations may assume that revs only contain tags,
-	// not direct commit hashes.
-	ReadFileRevs(revs []string, file string, maxSize int64) (files map[string]*FileRev, err error)
-
 	// ReadZip downloads a zip file for the subdir subdirectory
 	// of the given revision to a new file in a given temporary directory.
 	// It should refuse to read more than maxSize bytes.
