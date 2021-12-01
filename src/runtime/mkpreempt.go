@@ -80,6 +80,7 @@ var arches = map[string]func(){
 	"amd64":   genAMD64,
 	"arm":     genARM,
 	"arm64":   genARM64,
+	"loong64": genLoong64,
 	"mips64x": func() { genMIPS(true) },
 	"mipsx":   func() { genMIPS(false) },
 	"ppc64x":  genPPC64,
@@ -449,6 +450,46 @@ func genMIPS(_64bit bool) {
 	p(mov + " (R29), R23")                // load PC to REGTMP
 	p(add+" $%d, R29", lfp.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
 	p("JMP (R23)")
+}
+
+func genLoong64() {
+	mov := "MOVV"
+	movf := "MOVD"
+	add := "ADDV"
+	sub := "SUBV"
+	r31 := "RSB"
+	regsize := 8
+
+	// Add integer registers r4-r21 r23-r29 r31
+	// R0 (zero), R30 (REGTMP), R2 (tp), R3 (SP), R22 (g), R1 (LR) are special,
+	var l = layout{sp: "R3", stack: regsize} // add slot to save PC of interrupted instruction (in LR)
+	for i := 4; i <= 29; i++ {
+		if i == 22 {
+			continue // R3 is REGSP  R22 is g
+		}
+		reg := fmt.Sprintf("R%d", i)
+		l.add(mov, reg, regsize)
+	}
+	l.add(mov, r31, regsize)
+
+	// Add floating point registers F0-F31.
+	for i := 0; i <= 31; i++ {
+		reg := fmt.Sprintf("F%d", i)
+		l.add(movf, reg, regsize)
+	}
+
+	// allocate frame, save PC of interrupted instruction (in LR)
+	p(mov+" R1, -%d(R3)", l.stack)
+	p(sub+" $%d, R3", l.stack)
+
+	l.save()
+	p("CALL ·asyncPreempt2(SB)")
+	l.restore()
+
+	p(mov+" %d(R3), R1", l.stack)      // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
+	p(mov + " (R3), R30")              // load PC to REGTMP
+	p(add+" $%d, R3", l.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
+	p("JMP (R30)")
 }
 
 func genPPC64() {
