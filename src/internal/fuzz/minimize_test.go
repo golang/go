@@ -22,8 +22,8 @@ func TestMinimizeInput(t *testing.T) {
 	type testcase struct {
 		name     string
 		fn       func(CorpusEntry) error
-		input    []interface{}
-		expected []interface{}
+		input    []any
+		expected []any
 	}
 	cases := []testcase{
 		{
@@ -41,8 +41,8 @@ func TestMinimizeInput(t *testing.T) {
 				}
 				return nil
 			},
-			input:    []interface{}{[]byte{0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-			expected: []interface{}{[]byte{1, 1, 1}},
+			input:    []any{[]byte{0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+			expected: []any{[]byte{1, 1, 1}},
 		},
 		{
 			name: "single_bytes",
@@ -56,8 +56,8 @@ func TestMinimizeInput(t *testing.T) {
 				}
 				return fmt.Errorf("bad %v", e.Values[0])
 			},
-			input:    []interface{}{[]byte{1, 2, 3, 4, 5}},
-			expected: []interface{}{[]byte("00")},
+			input:    []any{[]byte{1, 2, 3, 4, 5}},
+			expected: []any{[]byte("00")},
 		},
 		{
 			name: "set_of_bytes",
@@ -71,8 +71,8 @@ func TestMinimizeInput(t *testing.T) {
 				}
 				return nil
 			},
-			input:    []interface{}{[]byte{0, 1, 2, 3, 4, 5}},
-			expected: []interface{}{[]byte{0, 4, 5}},
+			input:    []any{[]byte{0, 1, 2, 3, 4, 5}},
+			expected: []any{[]byte{0, 4, 5}},
 		},
 		{
 			name: "non_ascii_bytes",
@@ -83,8 +83,8 @@ func TestMinimizeInput(t *testing.T) {
 				}
 				return nil
 			},
-			input:    []interface{}{[]byte("ท")}, // ท is 3 bytes
-			expected: []interface{}{[]byte("000")},
+			input:    []any{[]byte("ท")}, // ท is 3 bytes
+			expected: []any{[]byte("000")},
 		},
 		{
 			name: "ones_string",
@@ -101,8 +101,8 @@ func TestMinimizeInput(t *testing.T) {
 				}
 				return nil
 			},
-			input:    []interface{}{"001010001000000000000000000"},
-			expected: []interface{}{"111"},
+			input:    []any{"001010001000000000000000000"},
+			expected: []any{"111"},
 		},
 		{
 			name: "string_length",
@@ -113,8 +113,8 @@ func TestMinimizeInput(t *testing.T) {
 				}
 				return nil
 			},
-			input:    []interface{}{"zzzzz"},
-			expected: []interface{}{"00000"},
+			input:    []any{"zzzzz"},
+			expected: []any{"00000"},
 		},
 		{
 			name: "string_with_letter",
@@ -126,8 +126,8 @@ func TestMinimizeInput(t *testing.T) {
 				}
 				return nil
 			},
-			input:    []interface{}{"ZZZZZ"},
-			expected: []interface{}{"A"},
+			input:    []any{"ZZZZZ"},
+			expected: []any{"A"},
 		},
 	}
 
@@ -167,7 +167,7 @@ func TestMinimizeFlaky(t *testing.T) {
 		return time.Second, errors.New("ohno")
 	}}
 	mem := &sharedMem{region: make([]byte, 100)} // big enough to hold value and header
-	vals := []interface{}{[]byte(nil)}
+	vals := []any{[]byte(nil)}
 	args := minimizeArgs{KeepCoverage: make([]byte, len(coverageSnapshot))}
 	success, err := ws.minimizeInput(context.Background(), vals, mem, args)
 	if success {

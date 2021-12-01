@@ -31,7 +31,7 @@ import (
 // apply to arguments of arbitrary type can use parameters of type interface{} or
 // of type reflect.Value. Similarly, functions meant to return a result of arbitrary
 // type can return interface{} or reflect.Value.
-type FuncMap map[string]interface{}
+type FuncMap map[string]any
 
 // builtins returns the FuncMap.
 // It is not a global variable so the linker can dead code eliminate
@@ -627,7 +627,7 @@ func HTMLEscapeString(s string) string {
 
 // HTMLEscaper returns the escaped HTML equivalent of the textual
 // representation of its arguments.
-func HTMLEscaper(args ...interface{}) string {
+func HTMLEscaper(args ...any) string {
 	return HTMLEscapeString(evalArgs(args))
 }
 
@@ -718,13 +718,13 @@ func jsIsSpecial(r rune) bool {
 
 // JSEscaper returns the escaped JavaScript equivalent of the textual
 // representation of its arguments.
-func JSEscaper(args ...interface{}) string {
+func JSEscaper(args ...any) string {
 	return JSEscapeString(evalArgs(args))
 }
 
 // URLQueryEscaper returns the escaped value of the textual representation of
 // its arguments in a form suitable for embedding in a URL query.
-func URLQueryEscaper(args ...interface{}) string {
+func URLQueryEscaper(args ...any) string {
 	return url.QueryEscape(evalArgs(args))
 }
 
@@ -733,7 +733,7 @@ func URLQueryEscaper(args ...interface{}) string {
 // except that each argument is indirected (if a pointer), as required,
 // using the same rules as the default string evaluation during template
 // execution.
-func evalArgs(args []interface{}) string {
+func evalArgs(args []any) string {
 	ok := false
 	var s string
 	// Fast path for simple common case.

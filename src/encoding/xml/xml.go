@@ -52,7 +52,7 @@ type Attr struct {
 
 // A Token is an interface holding one of the token types:
 // StartElement, EndElement, CharData, Comment, ProcInst, or Directive.
-type Token interface{}
+type Token any
 
 // A StartElement represents an XML start element.
 type StartElement struct {

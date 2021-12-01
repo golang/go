@@ -183,7 +183,7 @@ func (r *reporter) getState() *reporterState {
 
 // Warnf emits a warning message to the reporter's error stream,
 // without changing its exit code.
-func (r *reporter) Warnf(format string, args ...interface{}) {
+func (r *reporter) Warnf(format string, args ...any) {
 	fmt.Fprintf(r.getState().err, format, args...)
 }
 

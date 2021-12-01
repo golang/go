@@ -288,7 +288,7 @@ func TestCallbackInAnotherThread(t *testing.T) {
 }
 
 type cbFunc struct {
-	goFunc interface{}
+	goFunc any
 }
 
 func (f cbFunc) cName(cdecl bool) string {

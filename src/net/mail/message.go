@@ -35,7 +35,7 @@ var debug = debugT(false)
 
 type debugT bool
 
-func (d debugT) Printf(format string, args ...interface{}) {
+func (d debugT) Printf(format string, args ...any) {
 	if d {
 		log.Printf(format, args...)
 	}

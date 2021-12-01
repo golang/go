@@ -375,7 +375,7 @@ Script:
 			default:
 				if strings.HasPrefix(cond.tag, "exec:") {
 					prog := cond.tag[len("exec:"):]
-					ok = execCache.Do(prog, func() interface{} {
+					ok = execCache.Do(prog, func() any {
 						if runtime.GOOS == "plan9" && prog == "git" {
 							// The Git command is usually not the real Git on Plan 9.
 							// See https://golang.org/issues/29640.
@@ -1310,7 +1310,7 @@ func (ts *testScript) expand(s string, inRegexp bool) string {
 }
 
 // fatalf aborts the test with the given failure message.
-func (ts *testScript) fatalf(format string, args ...interface{}) {
+func (ts *testScript) fatalf(format string, args ...any) {
 	fmt.Fprintf(&ts.log, "FAIL: %s:%d: %s\n", ts.file, ts.lineno, fmt.Sprintf(format, args...))
 	ts.t.FailNow()
 }

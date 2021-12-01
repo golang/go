@@ -78,7 +78,7 @@ func TestFinalizerRegisterABI(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		fin          interface{}
+		fin          any
 		confirmValue int
 	}{
 		{"Pointer", regFinalizerPointer, -1},

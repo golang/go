@@ -53,7 +53,7 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
 		}
 	}()
 
-	initialVal := []interface{}{make([]byte, 32)}
+	initialVal := []any{make([]byte, 32)}
 	encodedVals := marshalCorpusFile(initialVal...)
 	mem.setValue(encodedVals)
 
@@ -92,7 +92,7 @@ func BenchmarkWorkerFuzz(b *testing.B) {
 	}
 	b.SetParallelism(1)
 	w := newWorkerForTest(b)
-	entry := CorpusEntry{Values: []interface{}{[]byte(nil)}}
+	entry := CorpusEntry{Values: []any{[]byte(nil)}}
 	entry.Data = marshalCorpusFile(entry.Values...)
 	for i := int64(0); i < int64(b.N); {
 		args := fuzzArgs{
@@ -183,7 +183,7 @@ func BenchmarkWorkerMinimize(b *testing.B) {
 	ctx := context.Background()
 	for sz := 1; sz <= len(bytes); sz <<= 1 {
 		sz := sz
-		input := []interface{}{bytes[:sz]}
+		input := []any{bytes[:sz]}
 		encodedVals := marshalCorpusFile(input...)
 		mem = <-ws.memMu
 		mem.setValue(encodedVals)

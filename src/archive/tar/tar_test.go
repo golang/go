@@ -23,7 +23,7 @@ import (
 
 type testError struct{ error }
 
-type fileOps []interface{} // []T where T is (string | int64)
+type fileOps []any // []T where T is (string | int64)
 
 // testFile is an io.ReadWriteSeeker where the IO operations performed
 // on it must match the list of operations in ops.

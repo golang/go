@@ -45,7 +45,7 @@ func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 
 // evalArgs formats the list of arguments into a string. It is equivalent to
 // fmt.Sprint(args...), except that it deferences all pointers.
-func evalArgs(args ...interface{}) string {
+func evalArgs(args ...any) string {
 	// Optimization for simple common case of a single string argument.
 	if len(args) == 1 {
 		if s, ok := args[0].(string); ok {
@@ -934,7 +934,7 @@ func HTMLEscapeString(s string) string {
 
 // HTMLEscaper returns the escaped HTML equivalent of the textual
 // representation of its arguments.
-func HTMLEscaper(args ...interface{}) string {
+func HTMLEscaper(args ...any) string {
 	return template.HTMLEscaper(args...)
 }
 
@@ -950,12 +950,12 @@ func JSEscapeString(s string) string {
 
 // JSEscaper returns the escaped JavaScript equivalent of the textual
 // representation of its arguments.
-func JSEscaper(args ...interface{}) string {
+func JSEscaper(args ...any) string {
 	return template.JSEscaper(args...)
 }
 
 // URLQueryEscaper returns the escaped value of the textual representation of
 // its arguments in a form suitable for embedding in a URL query.
-func URLQueryEscaper(args ...interface{}) string {
+func URLQueryEscaper(args ...any) string {
 	return template.URLQueryEscaper(args...)
 }

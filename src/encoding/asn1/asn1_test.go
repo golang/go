@@ -479,7 +479,7 @@ type TestSet struct {
 
 var unmarshalTestData = []struct {
 	in  []byte
-	out interface{}
+	out any
 }{
 	{[]byte{0x02, 0x01, 0x42}, newInt(0x42)},
 	{[]byte{0x05, 0x00}, &RawValue{0, 5, false, []byte{}, []byte{0x05, 0x00}}},
@@ -521,7 +521,7 @@ func TestUnmarshal(t *testing.T) {
 func TestUnmarshalWithNilOrNonPointer(t *testing.T) {
 	tests := []struct {
 		b    []byte
-		v    interface{}
+		v    any
 		want string
 	}{
 		{b: []byte{0x05, 0x00}, v: nil, want: "asn1: Unmarshal recipient value is nil"},
@@ -567,7 +567,7 @@ type RelativeDistinguishedNameSET []AttributeTypeAndValue
 
 type AttributeTypeAndValue struct {
 	Type  ObjectIdentifier
-	Value interface{}
+	Value any
 }
 
 type Validity struct {
@@ -998,9 +998,9 @@ func TestUnmarshalInvalidUTF8(t *testing.T) {
 }
 
 func TestMarshalNilValue(t *testing.T) {
-	nilValueTestData := []interface{}{
+	nilValueTestData := []any{
 		nil,
-		struct{ V interface{} }{},
+		struct{ V any }{},
 	}
 	for i, test := range nilValueTestData {
 		if _, err := Marshal(test); err == nil {

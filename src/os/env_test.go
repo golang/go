@@ -66,7 +66,7 @@ func TestExpand(t *testing.T) {
 	}
 }
 
-var global interface{}
+var global any
 
 func BenchmarkExpand(b *testing.B) {
 	b.Run("noop", func(b *testing.B) {

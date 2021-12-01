@@ -135,7 +135,7 @@ func TestDriverPanic(t *testing.T) {
 	exec(t, db, "WIPE")                            // check not deadlocked
 }
 
-func exec(t testing.TB, db *DB, query string, args ...interface{}) {
+func exec(t testing.TB, db *DB, query string, args ...any) {
 	t.Helper()
 	_, err := db.Exec(query, args...)
 	if err != nil {
@@ -743,7 +743,7 @@ func TestRowsColumnTypes(t *testing.T) {
 		}
 		types[i] = st
 	}
-	values := make([]interface{}, len(tt))
+	values := make([]any, len(tt))
 	for i := range values {
 		values[i] = reflect.New(types[i]).Interface()
 	}
@@ -1006,23 +1006,23 @@ func TestExec(t *testing.T) {
 	defer stmt.Close()
 
 	type execTest struct {
-		args    []interface{}
+		args    []any
 		wantErr string
 	}
 	execTests := []execTest{
 		// Okay:
-		{[]interface{}{"Brad", 31}, ""},
-		{[]interface{}{"Brad", int64(31)}, ""},
-		{[]interface{}{"Bob", "32"}, ""},
-		{[]interface{}{7, 9}, ""},
+		{[]any{"Brad", 31}, ""},
+		{[]any{"Brad", int64(31)}, ""},
+		{[]any{"Bob", "32"}, ""},
+		{[]any{7, 9}, ""},
 
 		// Invalid conversions:
-		{[]interface{}{"Brad", int64(0xFFFFFFFF)}, "sql: converting argument $2 type: sql/driver: value 4294967295 overflows int32"},
-		{[]interface{}{"Brad", "strconv fail"}, `sql: converting argument $2 type: sql/driver: value "strconv fail" can't be converted to int32`},
+		{[]any{"Brad", int64(0xFFFFFFFF)}, "sql: converting argument $2 type: sql/driver: value 4294967295 overflows int32"},
+		{[]any{"Brad", "strconv fail"}, `sql: converting argument $2 type: sql/driver: value "strconv fail" can't be converted to int32`},
 
 		// Wrong number of args:
-		{[]interface{}{}, "sql: expected 2 arguments, got 0"},
-		{[]interface{}{1, 2, 3}, "sql: expected 2 arguments, got 3"},
+		{[]any{}, "sql: expected 2 arguments, got 0"},
+		{[]any{1, 2, 3}, "sql: expected 2 arguments, got 3"},
 	}
 	for n, et := range execTests {
 		_, err := stmt.Exec(et.args...)
@@ -1409,7 +1409,7 @@ func TestConnRaw(t *testing.T) {
 	defer conn.Close()
 
 	sawFunc := false
-	err = conn.Raw(func(dc interface{}) error {
+	err = conn.Raw(func(dc any) error {
 		sawFunc = true
 		if _, ok := dc.(*fakeConn); !ok {
 			return fmt.Errorf("got %T want *fakeConn", dc)
@@ -1436,7 +1436,7 @@ func TestConnRaw(t *testing.T) {
 				t.Fatal("expected connection to be closed after panic")
 			}
 		}()
-		err = conn.Raw(func(dc interface{}) error {
+		err = conn.Raw(func(dc any) error {
 			panic("Conn.Raw panic should return an error")
 		})
 		t.Fatal("expected panic from Raw func")
@@ -1495,7 +1495,7 @@ func TestInvalidNilValues(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		input         interface{}
+		input         any
 		expectedError string
 	}{
 		{
@@ -1593,7 +1593,7 @@ func TestConnIsValid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = c.Raw(func(raw interface{}) error {
+	err = c.Raw(func(raw any) error {
 		dc := raw.(*fakeConn)
 		dc.stickyBad = true
 		return nil
@@ -1772,9 +1772,9 @@ func TestIssue6651(t *testing.T) {
 }
 
 type nullTestRow struct {
-	nullParam    interface{}
-	notNullParam interface{}
-	scanNullVal  interface{}
+	nullParam    any
+	notNullParam any
+	scanNullVal  any
 }
 
 type nullTestSpec struct {
@@ -4129,7 +4129,7 @@ func TestNamedValueChecker(t *testing.T) {
 		t.Fatal("select", err)
 	}
 
-	list := []struct{ got, want interface{} }{
+	list := []struct{ got, want any }{
 		{o1, "from-server"},
 		{dec1, decimalInt{123}},
 		{str1, "hello"},
@@ -4318,7 +4318,7 @@ type alwaysErrScanner struct{}
 
 var errTestScanWrap = errors.New("errTestScanWrap")
 
-func (alwaysErrScanner) Scan(interface{}) error {
+func (alwaysErrScanner) Scan(any) error {
 	return errTestScanWrap
 }
 

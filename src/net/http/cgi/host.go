@@ -350,7 +350,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (h *Handler) printf(format string, v ...interface{}) {
+func (h *Handler) printf(format string, v ...any) {
 	if h.Logger != nil {
 		h.Logger.Printf(format, v...)
 	} else {

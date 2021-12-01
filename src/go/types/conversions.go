@@ -203,7 +203,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return false
 	}
 
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		if check != nil && cause != nil {
 			msg := check.sprintf(format, args...)
 			if *cause != "" {

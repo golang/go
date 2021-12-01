@@ -1363,7 +1363,7 @@ func TestFileReader(t *testing.T) {
 			wantLCnt int64
 			wantPCnt int64
 		}
-		testFnc interface{} // testRead | testWriteTo | testRemaining
+		testFnc any // testRead | testWriteTo | testRemaining
 	)
 
 	type (
@@ -1376,7 +1376,7 @@ func TestFileReader(t *testing.T) {
 			spd     sparseDatas
 			size    int64
 		}
-		fileMaker interface{} // makeReg | makeSparse
+		fileMaker any // makeReg | makeSparse
 	)
 
 	vectors := []struct {

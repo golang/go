@@ -358,9 +358,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	var do func(interface{})
+	var do func(any)
 	if *listJson {
-		do = func(x interface{}) {
+		do = func(x any) {
 			b, err := json.MarshalIndent(x, "", "\t")
 			if err != nil {
 				out.Flush()
@@ -386,7 +386,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
-		do = func(x interface{}) {
+		do = func(x any) {
 			if err := tmpl.Execute(out, x); err != nil {
 				out.Flush()
 				base.Fatalf("%s", err)

@@ -277,7 +277,7 @@ func TestUnitIteration(t *testing.T) {
 	for _, file := range files {
 		t.Run(file, func(t *testing.T) {
 			d := elfData(t, file)
-			var units [2][]interface{}
+			var units [2][]any
 			for method := range units {
 				for r := d.Reader(); ; {
 					ent, err := r.Next()

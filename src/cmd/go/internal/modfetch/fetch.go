@@ -48,7 +48,7 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 		dir string
 		err error
 	}
-	c := downloadCache.Do(mod, func() interface{} {
+	c := downloadCache.Do(mod, func() any {
 		dir, err := download(ctx, mod)
 		if err != nil {
 			return cached{"", err}
@@ -165,7 +165,7 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		zipfile string
 		err     error
 	}
-	c := downloadZipCache.Do(mod, func() interface{} {
+	c := downloadZipCache.Do(mod, func() any {
 		zipfile, err := CachePath(mod, "zip")
 		if err != nil {
 			return cached{"", err}
