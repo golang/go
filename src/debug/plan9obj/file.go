@@ -82,7 +82,7 @@ type Sym struct {
 type formatError struct {
 	off int
 	msg string
-	val interface{}
+	val any
 }
 
 func (e *formatError) Error() string {

@@ -68,7 +68,7 @@ func TestPKCS1MismatchPublicKeyFormat(t *testing.T) {
 	}
 }
 
-func testParsePKIXPublicKey(t *testing.T, pemBytes string) (pub interface{}) {
+func testParsePKIXPublicKey(t *testing.T, pemBytes string) (pub any) {
 	block, _ := pem.Decode([]byte(pemBytes))
 	pub, err := ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
@@ -581,7 +581,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		pub, priv interface{}
+		pub, priv any
 		checkSig  bool
 		sigAlgo   SignatureAlgorithm
 	}{
@@ -1233,7 +1233,7 @@ func TestCRLCreation(t *testing.T) {
 
 	tests := []struct {
 		name string
-		priv interface{}
+		priv any
 		cert *Certificate
 	}{
 		{"RSA CA", privRSA, certRSA},
@@ -1385,7 +1385,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		priv    interface{}
+		priv    any
 		sigAlgo SignatureAlgorithm
 	}{
 		{"RSA", testPrivateKey, SHA256WithRSA},

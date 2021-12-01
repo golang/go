@@ -37,7 +37,7 @@ var (
 	ed25519Key = flag.Bool("ed25519", false, "Generate an Ed25519 key")
 )
 
-func publicKey(priv interface{}) interface{} {
+func publicKey(priv any) any {
 	switch k := priv.(type) {
 	case *rsa.PrivateKey:
 		return &k.PublicKey
@@ -57,7 +57,7 @@ func main() {
 		log.Fatalf("Missing required --host parameter")
 	}
 
-	var priv interface{}
+	var priv any
 	var err error
 	switch *ecdsaCurve {
 	case "":

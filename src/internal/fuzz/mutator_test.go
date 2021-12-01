@@ -34,7 +34,7 @@ func BenchmarkMutatorBytes(b *testing.B) {
 				// resize buffer to the correct shape and reset the PCG
 				buf = buf[0:size]
 				m.r = newPcgRand()
-				m.mutate([]interface{}{buf}, workerSharedMemSize)
+				m.mutate([]any{buf}, workerSharedMemSize)
 			}
 		})
 	}
@@ -62,7 +62,7 @@ func BenchmarkMutatorString(b *testing.B) {
 				// resize buffer to the correct shape and reset the PCG
 				buf = buf[0:size]
 				m.r = newPcgRand()
-				m.mutate([]interface{}{string(buf)}, workerSharedMemSize)
+				m.mutate([]any{string(buf)}, workerSharedMemSize)
 			}
 		})
 	}
@@ -74,7 +74,7 @@ func BenchmarkMutatorAllBasicTypes(b *testing.B) {
 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
 	m := newMutator()
 
-	types := []interface{}{
+	types := []any{
 		[]byte(""),
 		string(""),
 		false,
@@ -95,14 +95,14 @@ func BenchmarkMutatorAllBasicTypes(b *testing.B) {
 		b.Run(fmt.Sprintf("%T", t), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				m.r = newPcgRand()
-				m.mutate([]interface{}{t}, workerSharedMemSize)
+				m.mutate([]any{t}, workerSharedMemSize)
 			}
 		})
 	}
 }
 
 func TestStringImmutability(t *testing.T) {
-	v := []interface{}{"hello"}
+	v := []any{"hello"}
 	m := newMutator()
 	m.mutate(v, 1024)
 	original := v[0].(string)

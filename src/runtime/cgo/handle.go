@@ -105,7 +105,7 @@ type Handle uintptr
 //
 // The intended use is to pass the returned handle to C code, which
 // passes it back to Go, which calls Value.
-func NewHandle(v interface{}) Handle {
+func NewHandle(v any) Handle {
 	h := atomic.AddUintptr(&handleIdx, 1)
 	if h == 0 {
 		panic("runtime/cgo: ran out of handle space")
@@ -118,7 +118,7 @@ func NewHandle(v interface{}) Handle {
 // Value returns the associated Go value for a valid handle.
 //
 // The method panics if the handle is invalid.
-func (h Handle) Value() interface{} {
+func (h Handle) Value() any {
 	v, ok := handles.Load(uintptr(h))
 	if !ok {
 		panic("runtime/cgo: misuse of an invalid Handle")

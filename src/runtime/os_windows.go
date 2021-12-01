@@ -323,7 +323,7 @@ func monitorSuspendResume() {
 	if powerRegisterSuspendResumeNotification == nil {
 		return // Running on Windows 7, where we don't need it anyway.
 	}
-	var fn interface{} = func(context uintptr, changeType uint32, setting uintptr) uintptr {
+	var fn any = func(context uintptr, changeType uint32, setting uintptr) uintptr {
 		for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
 			if mp.resumesema != 0 {
 				stdcall1(_SetEvent, mp.resumesema)
@@ -682,7 +682,7 @@ func goenvs() {
 
 	// We call these all the way here, late in init, so that malloc works
 	// for the callback functions these generate.
-	var fn interface{} = ctrlHandler
+	var fn any = ctrlHandler
 	ctrlHandlerPC := compileCallback(*efaceOf(&fn), true)
 	stdcall2(_SetConsoleCtrlHandler, ctrlHandlerPC, 1)
 

@@ -162,7 +162,7 @@ func TestAliases(t *testing.T) {
 	if e != nil {
 		t.Fatal("ReadFile:", e)
 	}
-	check := func(g interface{}) {
+	check := func(g any) {
 		got := reflect.ValueOf(g)
 		for i := 0; i < got.Len(); i++ {
 			if byte(got.Index(i).Uint()) != want[i] {

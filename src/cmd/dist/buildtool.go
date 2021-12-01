@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -288,7 +289,11 @@ func rewriteBlock%s(b *Block) bool { panic("unused during bootstrap") }
 }
 
 func bootstrapFixImports(srcFile string) string {
-	lines := strings.SplitAfter(readfile(srcFile), "\n")
+	text := readfile(srcFile)
+	if !strings.Contains(srcFile, "/cmd/") && !strings.Contains(srcFile, `\cmd\`) {
+		text = regexp.MustCompile(`\bany\b`).ReplaceAllString(text, "interface{}")
+	}
+	lines := strings.SplitAfter(text, "\n")
 	inBlock := false
 	for i, line := range lines {
 		if strings.HasPrefix(line, "import (") {

@@ -1049,11 +1049,11 @@ var (
 		16 << 10,
 	}
 	http2dataChunkPools = [...]sync.Pool{
-		{New: func() interface{} { return make([]byte, 1<<10) }},
-		{New: func() interface{} { return make([]byte, 2<<10) }},
-		{New: func() interface{} { return make([]byte, 4<<10) }},
-		{New: func() interface{} { return make([]byte, 8<<10) }},
-		{New: func() interface{} { return make([]byte, 16<<10) }},
+		{New: func() any { return make([]byte, 1<<10) }},
+		{New: func() any { return make([]byte, 2<<10) }},
+		{New: func() any { return make([]byte, 4<<10) }},
+		{New: func() any { return make([]byte, 8<<10) }},
+		{New: func() any { return make([]byte, 16<<10) }},
 	}
 )
 
@@ -1548,7 +1548,7 @@ func (h *http2FrameHeader) invalidate() { h.valid = false }
 // frame header bytes.
 // Used only by ReadFrameHeader.
 var http2fhBytes = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]byte, http2frameHeaderLen)
 		return &buf
 	},
@@ -1655,8 +1655,8 @@ type http2Framer struct {
 
 	debugFramer       *http2Framer // only use for logging written writes
 	debugFramerBuf    *bytes.Buffer
-	debugReadLoggerf  func(string, ...interface{})
-	debugWriteLoggerf func(string, ...interface{})
+	debugReadLoggerf  func(string, ...any)
+	debugWriteLoggerf func(string, ...any)
 
 	frameCache *http2frameCache // nil if frames aren't reused (default)
 }
@@ -3061,7 +3061,7 @@ func http2curGoroutineID() uint64 {
 }
 
 var http2littleBuf = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]byte, 64)
 		return &buf
 	},
@@ -3468,7 +3468,7 @@ func http2newBufferedWriter(w io.Writer) *http2bufferedWriter {
 const http2bufWriterPoolBufferSize = 4 << 10
 
 var http2bufWriterPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return bufio.NewWriterSize(nil, http2bufWriterPoolBufferSize)
 	},
 }
@@ -3540,7 +3540,7 @@ type http2connectionStater interface {
 	ConnectionState() tls.ConnectionState
 }
 
-var http2sorterPool = sync.Pool{New: func() interface{} { return new(http2sorter) }}
+var http2sorterPool = sync.Pool{New: func() any { return new(http2sorter) }}
 
 type http2sorter struct {
 	v []string // owned by sorter
@@ -3781,7 +3781,7 @@ var (
 )
 
 var http2responseWriterStatePool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		rws := &http2responseWriterState{}
 		rws.bw = bufio.NewWriterSize(http2chunkWriter{rws}, http2handlerChunkWriteSize)
 		return rws
@@ -3793,7 +3793,7 @@ var (
 	http2testHookOnConn        func()
 	http2testHookGetServerConn func(*http2serverConn)
 	http2testHookOnPanicMu     *sync.Mutex // nil except in tests
-	http2testHookOnPanic       func(sc *http2serverConn, panicVal interface{}) (rePanic bool)
+	http2testHookOnPanic       func(sc *http2serverConn, panicVal any) (rePanic bool)
 )
 
 // Server is an HTTP/2 server.
@@ -4086,7 +4086,7 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 		streams:                     make(map[uint32]*http2stream),
 		readFrameCh:                 make(chan http2readFrameResult),
 		wantWriteFrameCh:            make(chan http2FrameWriteRequest, 8),
-		serveMsgCh:                  make(chan interface{}, 8),
+		serveMsgCh:                  make(chan any, 8),
 		wroteFrameCh:                make(chan http2frameWriteResult, 1), // buffered; one send in writeFrameAsync
 		bodyReadCh:                  make(chan http2bodyReadMsg),         // buffering doesn't matter either way
 		doneServing:                 make(chan struct{}),
@@ -4216,7 +4216,7 @@ type http2serverConn struct {
 	wantWriteFrameCh chan http2FrameWriteRequest // from handlers -> serve
 	wroteFrameCh     chan http2frameWriteResult  // from writeFrameAsync -> serve, tickles more frame writes
 	bodyReadCh       chan http2bodyReadMsg       // from handlers -> serve
-	serveMsgCh       chan interface{}            // misc messages & code to send to / run on the serve loop
+	serveMsgCh       chan any                    // misc messages & code to send to / run on the serve loop
 	flow             http2flow                   // conn-wide (not stream-specific) outbound flow control
 	inflow           http2flow                   // conn-wide inbound flow control
 	tlsState         *tls.ConnectionState        // shared by all handlers, like net/http
@@ -4351,13 +4351,13 @@ func (sc *http2serverConn) setConnState(state ConnState) {
 	}
 }
 
-func (sc *http2serverConn) vlogf(format string, args ...interface{}) {
+func (sc *http2serverConn) vlogf(format string, args ...any) {
 	if http2VerboseLogs {
 		sc.logf(format, args...)
 	}
 }
 
-func (sc *http2serverConn) logf(format string, args ...interface{}) {
+func (sc *http2serverConn) logf(format string, args ...any) {
 	if lg := sc.hs.ErrorLog; lg != nil {
 		lg.Printf(format, args...)
 	} else {
@@ -4409,7 +4409,7 @@ func http2isClosedConnError(err error) bool {
 	return false
 }
 
-func (sc *http2serverConn) condlogf(err error, format string, args ...interface{}) {
+func (sc *http2serverConn) condlogf(err error, format string, args ...any) {
 	if err == nil {
 		return
 	}
@@ -4679,7 +4679,7 @@ func (sc *http2serverConn) onIdleTimer() { sc.sendServeMsg(http2idleTimerMsg) }
 
 func (sc *http2serverConn) onShutdownTimer() { sc.sendServeMsg(http2shutdownTimerMsg) }
 
-func (sc *http2serverConn) sendServeMsg(msg interface{}) {
+func (sc *http2serverConn) sendServeMsg(msg any) {
 	sc.serveG.checkNotOn() // NOT
 	select {
 	case sc.serveMsgCh <- msg:
@@ -4721,11 +4721,11 @@ func (sc *http2serverConn) readPreface() error {
 }
 
 var http2errChanPool = sync.Pool{
-	New: func() interface{} { return make(chan error, 1) },
+	New: func() any { return make(chan error, 1) },
 }
 
 var http2writeDataPool = sync.Pool{
-	New: func() interface{} { return new(http2writeData) },
+	New: func() any { return new(http2writeData) },
 }
 
 // writeDataFromHandler writes DATA response frames from a handler on
@@ -6712,7 +6712,7 @@ func http2new400Handler(err error) HandlerFunc {
 // disabled. See comments on h1ServerShutdownChan above for why
 // the code is written this way.
 func http2h1ServerKeepAlivesDisabled(hs *Server) bool {
-	var x interface{} = hs
+	var x any = hs
 	type I interface {
 		doKeepAlives() bool
 	}
@@ -9577,21 +9577,21 @@ var (
 	http2errRequestHeaderListSize  = errors.New("http2: request header list larger than peer's advertised limit")
 )
 
-func (cc *http2ClientConn) logf(format string, args ...interface{}) {
+func (cc *http2ClientConn) logf(format string, args ...any) {
 	cc.t.logf(format, args...)
 }
 
-func (cc *http2ClientConn) vlogf(format string, args ...interface{}) {
+func (cc *http2ClientConn) vlogf(format string, args ...any) {
 	cc.t.vlogf(format, args...)
 }
 
-func (t *http2Transport) vlogf(format string, args ...interface{}) {
+func (t *http2Transport) vlogf(format string, args ...any) {
 	if http2VerboseLogs {
 		t.logf(format, args...)
 	}
 }
 
-func (t *http2Transport) logf(format string, args ...interface{}) {
+func (t *http2Transport) logf(format string, args ...any) {
 	log.Printf(format, args...)
 }
 

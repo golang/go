@@ -197,7 +197,7 @@ var m map[string]int
 
 var chanVar chan int
 
-var ifaceVar interface{} = 5
+var ifaceVar any = 5
 
 var assertVar = ifaceVar.(int)
 

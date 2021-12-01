@@ -67,7 +67,7 @@ func TestWriter(t *testing.T) {
 		testClose struct { // Close() == wantErr
 			wantErr error
 		}
-		testFnc interface{} // testHeader | testWrite | testReadFrom | testClose
+		testFnc any // testHeader | testWrite | testReadFrom | testClose
 	)
 
 	vectors := []struct {
@@ -1031,7 +1031,7 @@ func TestFileWriter(t *testing.T) {
 			wantLCnt int64
 			wantPCnt int64
 		}
-		testFnc interface{} // testWrite | testReadFrom | testRemaining
+		testFnc any // testWrite | testReadFrom | testRemaining
 	)
 
 	type (
@@ -1044,7 +1044,7 @@ func TestFileWriter(t *testing.T) {
 			sph     sparseHoles
 			size    int64
 		}
-		fileMaker interface{} // makeReg | makeSparse
+		fileMaker any // makeReg | makeSparse
 	)
 
 	vectors := []struct {

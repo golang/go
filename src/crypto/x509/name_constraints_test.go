@@ -1850,7 +1850,7 @@ func parseEKUs(ekuStrs []string) (ekus []ExtKeyUsage, unknowns []asn1.ObjectIden
 
 func TestConstraintCases(t *testing.T) {
 	privateKeys := sync.Pool{
-		New: func() interface{} {
+		New: func() any {
 			priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			if err != nil {
 				panic(err)

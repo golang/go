@@ -103,7 +103,7 @@ func TestFindAndHash(t *testing.T) {
 		id[i] = byte(i)
 	}
 	numError := 0
-	errorf := func(msg string, args ...interface{}) {
+	errorf := func(msg string, args ...any) {
 		t.Errorf(msg, args...)
 		if numError++; numError > 20 {
 			t.Logf("stopping after too many errors")

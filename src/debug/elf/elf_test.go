@@ -10,7 +10,7 @@ import (
 )
 
 type nameTest struct {
-	val interface{}
+	val any
 	str string
 }
 

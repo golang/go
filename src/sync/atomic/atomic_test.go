@@ -32,7 +32,7 @@ const (
 )
 
 // Do the 64-bit functions panic? If so, don't bother testing.
-var test64err = func() (err interface{}) {
+var test64err = func() (err any) {
 	defer func() {
 		err = recover()
 	}()

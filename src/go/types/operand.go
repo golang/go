@@ -337,7 +337,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		return false, _IncompatibleAssign
 	}
 
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		if check != nil && reason != nil {
 			msg := check.sprintf(format, args...)
 			if *reason != "" {

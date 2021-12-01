@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-var tests = []interface{}{
+var tests = []any{
 	&clientHelloMsg{},
 	&serverHelloMsg{},
 	&finishedMsg{},
