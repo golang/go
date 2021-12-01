@@ -23,9 +23,12 @@ import (
 	"golang.org/x/tools/go/internal/gcimporter"
 )
 
+// TODO(rfindley): migrate this to testdata, as has been done in the standard library.
 func TestGenericExport(t *testing.T) {
 	const src = `
 package generic
+
+type Any any
 
 type T[A, B any] struct { Left A; Right B }
 
