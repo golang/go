@@ -5,7 +5,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: d959faf4be476a6e0a08d5612e91fcac14ff9929
-// last fetched Mon Nov 29 2021 15:51:05 GMT-0500 (Eastern Standard Time)
+// last fetched Wed Dec 01 2021 09:27:34 GMT-0500 (Eastern Standard Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -382,7 +382,13 @@ type CodeActionClientCapabilities struct {
 		 * The code action kind is support with the following value
 		 * set.
 		 */
-		CodeActionKind struct { /**  * The code action kind values the client supports. When this  * property exists the client also guarantees that it will  * handle values outside its set gracefully and falls back  * to a default value when unknown.  */
+		CodeActionKind struct {
+			/**
+			 * The code action kind values the client supports. When this
+			 * property exists the client also guarantees that it will
+			 * handle values outside its set gracefully and falls back
+			 * to a default value when unknown.
+			 */
 			ValueSet []CodeActionKind `json:"valueSet"`
 		} `json:"codeActionKind"`
 	} `json:"codeActionLiteralSupport,omitempty"`
@@ -745,7 +751,10 @@ type CompletionClientCapabilities struct {
 		 *
 		 * @since 3.15.0
 		 */
-		TagSupport struct { /**  * The tags supported by the client.  */
+		TagSupport struct {
+			/**
+			 * The tags supported by the client.
+			 */
 			ValueSet []CompletionItemTag `json:"valueSet"`
 		} `json:"tagSupport,omitempty"`
 		/**
@@ -762,7 +771,10 @@ type CompletionClientCapabilities struct {
 		 *
 		 * @since 3.16.0
 		 */
-		ResolveSupport struct { /**  * The properties that a client can resolve lazily.  */
+		ResolveSupport struct {
+			/**
+			 * The properties that a client can resolve lazily.
+			 */
 			Properties []string `json:"properties"`
 		} `json:"resolveSupport,omitempty"`
 		/**
@@ -4139,7 +4151,13 @@ type SignatureHelpClientCapabilities struct {
 		/**
 		 * Client capabilities specific to parameter information.
 		 */
-		ParameterInformation struct { /**  * The client supports processing label offsets instead of a  * simple label string.  *  * @since 3.14.0  */
+		ParameterInformation struct {
+			/**
+			 * The client supports processing label offsets instead of a
+			 * simple label string.
+			 *
+			 * @since 3.14.0
+			 */
 			LabelOffsetSupport bool `json:"labelOffsetSupport,omitempty"`
 		} `json:"parameterInformation,omitempty"`
 		/**
@@ -5113,7 +5131,7 @@ type WorkspaceEdit struct {
 	/**
 	 * Holds changes to existing resources.
 	 */
-	Changes map[DocumentURI]interface{}/*[uri: DocumentUri]: TextEdit[];*/ `json:"changes,omitempty"`
+	Changes map[DocumentURI][]TextEdit/*[uri: DocumentUri]: TextEdit[];*/ `json:"changes,omitempty"`
 	/**
 	 * Depending on the client capability `workspace.workspaceEdit.resourceOperations` document changes
 	 * are either an array of `TextDocumentEdit`s to express changes to n different text documents

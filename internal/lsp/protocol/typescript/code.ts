@@ -876,9 +876,8 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       if (a == 'NumberKeyword' && b == 'StringKeyword') {  // ID
         return `interface{} ${help}`;
       }
-      if (b == 'NullKeyword' || n.types[1].getText() === 'null') {
-        // PJW: fix this. it looks like 'null' is now being parsed as LiteralType
-        // and check the other keyword cases
+      // for null, b is not useful (LiternalType)
+      if (n.types[1].getText() === 'null') {
         if (nm == 'textDocument/codeAction') {
           // (Command | CodeAction)[] | null
           return `[]CodeAction ${help}`;
@@ -948,8 +947,8 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       if (nm == 'documentChanges') return `TextDocumentEdit ${help} `;
       if (nm == 'textDocument/prepareRename') return `Range ${help} `;
       break;
-      case 8: // LSPany
-        break;
+    case 8: // LSPany
+      break;
     default:
       throw new Error(`957 goUnionType len=${n.types.length} nm=${nm} ${n.getText()}`);
   }
@@ -1075,7 +1074,9 @@ function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
       let json = u.JSON(nx);
       let typ = goType(nx.type, nx.name.getText());
       // }/*\n*/`json:v` is not legal, the comment is a newline
-      typ = typ.replace(/\n\t*/g, ' '); // PJW: try to do this only when needed
+      if (typ.includes('\n') && typ.indexOf('*/') === typ.length - 2) {
+        typ = typ.replace(/\n\t*/g, ' ');
+      }
       const v = getComments(nx) || '';
       starred.forEach(([a, b]) => {
         if (a != nm || b != typ.toLowerCase()) return;
@@ -1094,7 +1095,7 @@ function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
       } else if (nx.getText().startsWith('[uri: string')) {
         res = 'map[string]interface{}';
       } else if (nx.getText().startsWith('[uri: DocumentUri')) {
-        res = 'map[DocumentURI]interface{}'; //PJW make this more precise
+        res = 'map[DocumentURI][]TextEdit';
       } else if (nx.getText().startsWith('[key: string')) {
         res = 'map[string]interface{}';
       } else {
