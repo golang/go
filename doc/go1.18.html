@@ -459,7 +459,10 @@ proposal</a>.
     </p>
 
     <p><!-- CL 357962 -->
-      TODO: <a href="https://golang.org/cl/357962">https://golang.org/cl/357962</a>: add FieldByIndexErr
+      <a href="/pkg/reflect#Value.FieldByIndexErr"><code>Value.FieldByIndexErr</code></a>
+      has been added to avoid the panic that occurs in
+      <a href="/pkg/reflect#Value.FieldByIndex"><code>Value.FieldByIndex</code></a>
+      when stepping through a nil pointer to an embedded struct.
     </p>
   </dd>
 </dl><!-- reflect -->
