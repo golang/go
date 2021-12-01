@@ -174,7 +174,13 @@ func nanotime1() int64 {
 		clock_id int32
 		tp       unsafe.Pointer
 	}{_CLOCK_MONOTONIC, unsafe.Pointer(&ts)}
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(clock_gettime_trampoline)), unsafe.Pointer(&args))
+	if errno := libcCall(unsafe.Pointer(abi.FuncPCABI0(clock_gettime_trampoline)), unsafe.Pointer(&args)); errno < 0 {
+		// Avoid growing the nosplit stack.
+		systemstack(func() {
+			println("runtime: errno", -errno)
+			throw("clock_gettime failed")
+		})
+	}
 	return ts.tv_sec*1e9 + int64(ts.tv_nsec)
 }
 func clock_gettime_trampoline()
@@ -186,7 +192,13 @@ func walltime() (int64, int32) {
 		clock_id int32
 		tp       unsafe.Pointer
 	}{_CLOCK_REALTIME, unsafe.Pointer(&ts)}
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(clock_gettime_trampoline)), unsafe.Pointer(&args))
+	if errno := libcCall(unsafe.Pointer(abi.FuncPCABI0(clock_gettime_trampoline)), unsafe.Pointer(&args)); errno < 0 {
+		// Avoid growing the nosplit stack.
+		systemstack(func() {
+			println("runtime: errno", -errno)
+			throw("clock_gettime failed")
+		})
+	}
 	return ts.tv_sec, int32(ts.tv_nsec)
 }
 
