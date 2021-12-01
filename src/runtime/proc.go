@@ -547,6 +547,20 @@ func allgadd(gp *g) {
 	unlock(&allglock)
 }
 
+// allGsSnapshot returns a snapshot of the slice of all Gs.
+//
+// The world must be stopped or allglock must be held.
+func allGsSnapshot() []*g {
+	assertWorldStoppedOrLockHeld(&allglock)
+
+	// Because the world is stopped or allglock is held, allgadd
+	// cannot happen concurrently with this. allgs grows
+	// monotonically and existing entries never change, so we can
+	// simply return a copy of the slice header. For added safety,
+	// we trim everything past len because that can still change.
+	return allgs[:len(allgs):len(allgs)]
+}
+
 // atomicAllG returns &allgs[0] and len(allgs) for use with atomicAllGIndex.
 func atomicAllG() (**g, uintptr) {
 	length := atomic.Loaduintptr(&allglen)

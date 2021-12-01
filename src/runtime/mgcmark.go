@@ -102,7 +102,8 @@ func gcMarkRootPrepare() {
 	// ignore them because they begin life without any roots, so
 	// there's nothing to scan, and any roots they create during
 	// the concurrent phase will be caught by the write barrier.
-	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
+	work.stackRoots = allGsSnapshot()
+	work.nStackRoots = len(work.stackRoots)
 
 	work.markrootNext = 0
 	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
@@ -194,15 +195,12 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 	default:
 		// the rest is scanning goroutine stacks
 		workCounter = &gcController.stackScanWork
-		var gp *g
-		if work.baseStacks <= i && i < work.baseEnd {
-			// N.B. Atomic read of allglen in gcMarkRootPrepare
-			// acts as a barrier to ensure that allgs must be large
-			// enough to contain all relevant Gs.
-			gp = allgs[i-work.baseStacks]
-		} else {
+		if i < work.baseStacks || work.baseEnd <= i {
+			printlock()
+			print("runtime: markroot index ", i, " not in stack roots range [", work.baseStacks, ", ", work.baseEnd, ")\n")
 			throw("markroot: bad index")
 		}
+		gp := work.stackRoots[i-work.baseStacks]
 
 		// remember when we've first observed the G blocked
 		// needed only to output in traceback
