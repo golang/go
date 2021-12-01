@@ -6,6 +6,7 @@ package fuzz
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/race"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -154,5 +156,51 @@ func runBenchmarkWorker() {
 	fn := func(CorpusEntry) error { return nil }
 	if err := RunFuzzWorker(ctx, fn); err != nil && err != ctx.Err() {
 		panic(err)
+	}
+}
+
+func BenchmarkWorkerMinimize(b *testing.B) {
+	if race.Enabled {
+		b.Skip("TODO(48504): fix and re-enable")
+	}
+
+	ws := &workerServer{
+		workerComm: workerComm{memMu: make(chan *sharedMem, 1)},
+	}
+
+	mem, err := sharedMemTempFile(workerSharedMemSize)
+	if err != nil {
+		b.Fatalf("failed to create temporary shared memory file: %s", err)
+	}
+	defer func() {
+		if err := mem.Close(); err != nil {
+			b.Error(err)
+		}
+	}()
+	ws.memMu <- mem
+
+	bytes := make([]byte, 1024)
+	ctx := context.Background()
+	for sz := 1; sz <= len(bytes); sz <<= 1 {
+		sz := sz
+		input := []interface{}{bytes[:sz]}
+		encodedVals := marshalCorpusFile(input...)
+		mem = <-ws.memMu
+		mem.setValue(encodedVals)
+		ws.memMu <- mem
+		b.Run(strconv.Itoa(sz), func(b *testing.B) {
+			i := 0
+			ws.fuzzFn = func(_ CorpusEntry) (time.Duration, error) {
+				if i == 0 {
+					i++
+					return time.Second, errors.New("initial failure for deflake")
+				}
+				return time.Second, nil
+			}
+			for i := 0; i < b.N; i++ {
+				b.SetBytes(int64(sz))
+				ws.minimize(ctx, minimizeArgs{})
+			}
+		})
 	}
 }
