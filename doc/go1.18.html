@@ -433,7 +433,13 @@ proposal</a>.
     </p>
 
     <p><!-- CL 321891 -->
-      TODO: <a href="https://golang.org/cl/321891">https://golang.org/cl/321891</a>: add MapIter.Reset
+      The new
+      <a href="/pkg/reflect/#MapIter.Reset"><code>MapIter.Reset</code></a>
+      method changes its receiver to iterate over a
+      different map. The use of
+      <a href="/pkg/reflect/#MapIter.Reset"><code>MapIter.Reset</code></a>
+      allows allocation-free iteration
+      over many maps.
     </p>
 
     <p><!-- CL 345486 -->
