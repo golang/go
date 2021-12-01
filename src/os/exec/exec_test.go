@@ -954,6 +954,10 @@ func TestContext(t *testing.T) {
 }
 
 func TestContextCancel(t *testing.T) {
+	// To reduce noise in the final goroutine dump,
+	// let other parallel tests complete if possible.
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c := helperCommandContext(t, ctx, "cat")
@@ -978,14 +982,25 @@ func TestContextCancel(t *testing.T) {
 	// Calling cancel should have killed the process, so writes
 	// should now fail.  Give the process a little while to die.
 	start := time.Now()
+	delay := 1 * time.Millisecond
 	for {
 		if _, err := io.WriteString(stdin, "echo"); err != nil {
 			break
 		}
+
 		if time.Since(start) > time.Minute {
-			t.Fatal("canceling context did not stop program")
+			// Panic instead of calling t.Fatal so that we get a goroutine dump.
+			// We want to know exactly what the os/exec goroutines got stuck on.
+			panic("canceling context did not stop program")
 		}
-		time.Sleep(time.Millisecond)
+
+		// Back off exponentially (up to 1-second sleeps) to give the OS time to
+		// terminate the process.
+		delay *= 2
+		if delay > 1*time.Second {
+			delay = 1 * time.Second
+		}
+		time.Sleep(delay)
 	}
 
 	if err := c.Wait(); err == nil {
