@@ -221,12 +221,15 @@ proposal</a>.
   <a href=go1.17#compiler>Go 1.17 release notes</a> for more details.
 </p>
 
-<p><!-- CL 298611 -->
-  TODO: <a href="https://golang.org/cl/298611">https://golang.org/cl/298611</a>: cmd/compile: add -asan option
+<p><!-- CL 352057, https://golang.org/issue/45728 -->
+  Go 1.17 generally improved the formatting of arguments in stack traces,
+  but could print inaccurate values for arguments passed in registers.
+  This is improved in Go 1.18 by printing a question mark (<code>?</code>)
+  after each value that may be inaccurate.
 </p>
 
-<p><!-- CL 352057 -->
-  TODO: <a href="https://golang.org/cl/352057">https://golang.org/cl/352057</a>: cmd/compile, runtime: track argument stack slot liveness
+<p><!-- CL 298611 -->
+  TODO: <a href="https://golang.org/cl/298611">https://golang.org/cl/298611</a>: cmd/compile: add -asan option
 </p>
 
 <h2 id="linker">Linker</h2>
