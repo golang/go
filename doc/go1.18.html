@@ -200,6 +200,21 @@ proposal</a>.
   into Win32 functions that block for extended periods of time.
 </p>
 
+<p><!-- https://github.com/golang/go/issues/44167-->
+  The garbage collector now includes non-heap sources of garbage collector work
+  (e.g., stack scanning) when determining how frequently to run. As a result,
+  garbage collector overhead is more predictable when these sources are
+  significant. For most applications these changes will be negligible; however,
+  some Go applications may now use less memory and spend more time on garbage
+  collection, or vice versa, than before. The intended workaround is to tweak
+  <code>GOGC</code> where necessary.
+</p>
+
+<p>
+  The runtime now returns memory to the operating system more efficiently and has
+  been tuned to work more aggressively as a result.
+</p>
+
 <h2 id="compiler">Compiler</h2>
 
 <p><!-- https://golang.org/issue/40724 -->
