@@ -229,6 +229,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		pkg := g.tpkg(typ)
 		// Create the unique types1 name for a type param, using its context with a
 		// function, type, or method declaration.
+		assert(g.curDecl != "")
 		nm := g.curDecl + "." + typ.Obj().Name()
 		sym := pkg.Lookup(nm)
 		if sym.Def != nil {
@@ -331,11 +332,15 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 				tparams := make([]*types.Type, rparams.Len())
 				// Set g.curDecl to be the method context, so type
 				// params in the receiver of the method that we are
-				// translating gets the right unique name.
+				// translating gets the right unique name. We could
+				// be in a top-level typeDecl, so save and restore
+				// the current contents of g.curDecl.
+				savedCurDecl := g.curDecl
 				g.curDecl = typ.Obj().Name() + "." + m.Name()
 				for i := range tparams {
 					tparams[i] = g.typ1(rparams.At(i))
 				}
+				g.curDecl = savedCurDecl
 				assert(len(tparams) == len(targs))
 				ts := typecheck.Tsubster{
 					Tparams: tparams,

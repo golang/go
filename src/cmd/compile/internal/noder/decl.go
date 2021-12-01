@@ -86,6 +86,7 @@ func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
 }
 
 func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+	assert(g.curDecl == "")
 	// Set g.curDecl to the function name, as context for the type params declared
 	// during types2-to-types1 translation if this is a generic function.
 	g.curDecl = decl.Name.Value
@@ -133,6 +134,7 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 	}
 
 	haveEmbed := g.haveEmbed
+	g.curDecl = ""
 	g.later(func() {
 		defer func(b bool) { g.haveEmbed = b }(g.haveEmbed)
 
@@ -158,6 +160,7 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 }
 
 func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+	assert(g.curDecl == "")
 	// Set g.curDecl to the type name, as context for the type params declared
 	// during types2-to-types1 translation if this is a generic type.
 	g.curDecl = decl.Name.Value
@@ -167,6 +170,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 		assert(name.Alias()) // should be set by irgen.obj
 
 		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLTYPE, name))
+		g.curDecl = ""
 		return
 	}
 
@@ -219,6 +223,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	}
 	types.ResumeCheckSize()
 
+	g.curDecl = ""
 	if otyp, ok := otyp.(*types2.Named); ok && otyp.NumMethods() != 0 {
 		methods := make([]*types.Field, otyp.NumMethods())
 		for i := range methods {
@@ -229,6 +234,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 			meth := g.obj(m)
 			methods[i] = types.NewField(meth.Pos(), g.selector(m), meth.Type())
 			methods[i].Nname = meth
+			g.curDecl = ""
 		}
 		ntyp.Methods().Set(methods)
 	}
