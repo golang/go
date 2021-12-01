@@ -129,150 +129,6 @@ func TestMinimizeInput(t *testing.T) {
 			input:    []interface{}{"ZZZZZ"},
 			expected: []interface{}{"A"},
 		},
-		{
-			name: "int",
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(int)
-				if i > 100 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{123456},
-			expected: []interface{}{123},
-		},
-		{
-			name: "int8",
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(int8)
-				if i > 10 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{int8(1<<7 - 1)},
-			expected: []interface{}{int8(12)},
-		},
-		{
-			name: "int16",
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(int16)
-				if i > 10 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{int16(1<<15 - 1)},
-			expected: []interface{}{int16(32)},
-		},
-		{
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(int32)
-				if i > 10 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{int32(1<<31 - 1)},
-			expected: []interface{}{int32(21)},
-		},
-		{
-			name: "int32",
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(uint)
-				if i > 10 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{uint(123456)},
-			expected: []interface{}{uint(12)},
-		},
-		{
-			name: "uint8",
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(uint8)
-				if i > 10 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{uint8(1<<8 - 1)},
-			expected: []interface{}{uint8(25)},
-		},
-		{
-			name: "uint16",
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(uint16)
-				if i > 10 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{uint16(1<<16 - 1)},
-			expected: []interface{}{uint16(65)},
-		},
-		{
-			name: "uint32",
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(uint32)
-				if i > 10 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{uint32(1<<32 - 1)},
-			expected: []interface{}{uint32(42)},
-		},
-		{
-			name: "float32",
-			fn: func(e CorpusEntry) error {
-				if i := e.Values[0].(float32); i == 1.23 {
-					return nil
-				}
-				return fmt.Errorf("bad %v", e.Values[0])
-			},
-			input:    []interface{}{float32(1.23456789)},
-			expected: []interface{}{float32(1.2)},
-		},
-		{
-			name: "float64",
-			fn: func(e CorpusEntry) error {
-				if i := e.Values[0].(float64); i == 1.23 {
-					return nil
-				}
-				return fmt.Errorf("bad %v", e.Values[0])
-			},
-			input:    []interface{}{float64(1.23456789)},
-			expected: []interface{}{float64(1.2)},
-		},
-	}
-
-	// If we are on a 64 bit platform add int64 and uint64 tests
-	if v := int64(1<<63 - 1); int64(int(v)) == v {
-		cases = append(cases, testcase{
-			name: "int64",
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(int64)
-				if i > 10 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{int64(1<<63 - 1)},
-			expected: []interface{}{int64(92)},
-		}, testcase{
-			name: "uint64",
-			fn: func(e CorpusEntry) error {
-				i := e.Values[0].(uint64)
-				if i > 10 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
-			},
-			input:    []interface{}{uint64(1<<64 - 1)},
-			expected: []interface{}{uint64(18)},
-		})
 	}
 
 	for _, tc := range cases {
@@ -284,9 +140,9 @@ func TestMinimizeInput(t *testing.T) {
 					return time.Second, tc.fn(e)
 				},
 			}
-			count := int64(0)
+			mem := &sharedMem{region: make([]byte, 100)} // big enough to hold value and header
 			vals := tc.input
-			success, err := ws.minimizeInput(context.Background(), vals, &count, 0, nil)
+			success, err := ws.minimizeInput(context.Background(), vals, mem, minimizeArgs{})
 			if !success {
 				t.Errorf("minimizeInput did not succeed")
 			}
@@ -310,17 +166,17 @@ func TestMinimizeFlaky(t *testing.T) {
 	ws := &workerServer{fuzzFn: func(e CorpusEntry) (time.Duration, error) {
 		return time.Second, errors.New("ohno")
 	}}
-	keepCoverage := make([]byte, len(coverageSnapshot))
-	count := int64(0)
+	mem := &sharedMem{region: make([]byte, 100)} // big enough to hold value and header
 	vals := []interface{}{[]byte(nil)}
-	success, err := ws.minimizeInput(context.Background(), vals, &count, 0, keepCoverage)
+	args := minimizeArgs{KeepCoverage: make([]byte, len(coverageSnapshot))}
+	success, err := ws.minimizeInput(context.Background(), vals, mem, args)
 	if success {
 		t.Error("unexpected success")
 	}
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	if count != 1 {
+	if count := mem.header().count; count != 1 {
 		t.Errorf("count: got %d, want 1", count)
 	}
 }
