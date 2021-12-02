@@ -91,6 +91,16 @@ type byte = uint8
 // used, by convention, to distinguish character values from integer values.
 type rune = int32
 
+// any is an alias for interface{} and is equivalent to interface{} in all ways.
+type any = interface{}
+
+// comparable is an interface that is implemented by all comparable types
+// (booleans, numbers, strings, pointers, channels, interfaces,
+// arrays of comparable types, structs whose fields are all comparable types).
+// The comparable interface may only be used as a type parameter constraint,
+// not as the type of a variable.
+type comparable comparable
+
 // iota is a predeclared identifier representing the untyped integer ordinal
 // number of the current const specification in a (usually parenthesized)
 // const declaration. It is zero-indexed.
