@@ -412,22 +412,25 @@ func geneq(t *types.Type) *obj.LSym {
 		//
 		// if eq(p[0], q[0]) && eq(p[1], q[1]) && ... {
 		// } else {
-		//   return
+		//   goto neq
 		// }
 		//
 		// And so on.
 		//
 		// Otherwise it generates:
 		//
-		// for i := 0; i < nelem; i++ {
-		//   if eq(p[i], q[i]) {
+		// iterateTo := nelem/unroll*unroll
+		// for i := 0; i < iterateTo; i += unroll {
+		//   if eq(p[i+0], q[i+0]) && eq(p[i+1], q[i+1]) && ... && eq(p[i+unroll-1], q[i+unroll-1]) {
 		//   } else {
 		//     goto neq
 		//   }
 		// }
+		// if eq(p[iterateTo+0], q[iterateTo+0]) && eq(p[iterateTo+1], q[iterateTo+1]) && ... {
+		// } else {
+		//    goto neq
+		// }
 		//
-		// TODO(josharian): consider doing some loop unrolling
-		// for larger nelem as well, processing a few elements at a time in a loop.
 		checkAll := func(unroll int64, last bool, eq func(pi, qi ir.Node) ir.Node) {
 			// checkIdx generates a node to check for equality at index i.
 			checkIdx := func(i ir.Node) ir.Node {
@@ -442,38 +445,62 @@ func geneq(t *types.Type) *obj.LSym {
 				return eq(pi, qi)
 			}
 
-			if nelem <= unroll {
-				if last {
-					// Do last comparison in a different manner.
-					nelem--
-				}
-				// Generate a series of checks.
-				for i := int64(0); i < nelem; i++ {
-					// if check {} else { goto neq }
-					nif := ir.NewIfStmt(base.Pos, checkIdx(ir.NewInt(i)), nil, nil)
-					nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
-					fn.Body.Append(nif)
-				}
-				if last {
-					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(ir.NewInt(nelem))))
-				}
-			} else {
-				// Generate a for loop.
-				// for i := 0; i < nelem; i++
+			iterations := nelem / unroll
+			iterateTo := iterations * unroll
+			// If a loop is iterated only once, there shouldn't be any loop at all.
+			if iterations == 1 {
+				iterateTo = 0
+			}
+
+			if iterateTo > 0 {
+				// Generate an unrolled for loop.
+				// for i := 0; i < nelem/unroll*unroll; i += unroll
 				i := typecheck.Temp(types.Types[types.TINT])
 				init := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
-				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(nelem))
-				post := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
-				loop := ir.NewForStmt(base.Pos, nil, cond, post, nil)
+				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(iterateTo))
+				loop := ir.NewForStmt(base.Pos, nil, cond, nil, nil)
 				loop.PtrInit().Append(init)
-				// if eq(pi, qi) {} else { goto neq }
-				nif := ir.NewIfStmt(base.Pos, checkIdx(i), nil, nil)
-				nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
-				loop.Body.Append(nif)
-				fn.Body.Append(loop)
-				if last {
-					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
+
+				// if eq(p[i+0], q[i+0]) && eq(p[i+1], q[i+1]) && ... && eq(p[i+unroll-1], q[i+unroll-1]) {
+				// } else {
+				//   goto neq
+				// }
+				for j := int64(0); j < unroll; j++ {
+					// if check {} else { goto neq }
+					nif := ir.NewIfStmt(base.Pos, checkIdx(i), nil, nil)
+					nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
+					loop.Body.Append(nif)
+					post := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
+					loop.Body.Append(post)
 				}
+
+				fn.Body.Append(loop)
+
+				if nelem == iterateTo {
+					if last {
+						fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
+					}
+					return
+				}
+			}
+
+			// Generate remaining checks, if nelem is not a multiple of unroll.
+			if last {
+				// Do last comparison in a different manner.
+				nelem--
+			}
+			// if eq(p[iterateTo+0], q[iterateTo+0]) && eq(p[iterateTo+1], q[iterateTo+1]) && ... {
+			// } else {
+			//    goto neq
+			// }
+			for j := iterateTo; j < nelem; j++ {
+				// if check {} else { goto neq }
+				nif := ir.NewIfStmt(base.Pos, checkIdx(ir.NewInt(j)), nil, nil)
+				nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
+				fn.Body.Append(nif)
+			}
+			if last {
+				fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(ir.NewInt(nelem))))
 			}
 		}
 
@@ -481,7 +508,6 @@ func geneq(t *types.Type) *obj.LSym {
 		case types.TSTRING:
 			// Do two loops. First, check that all the lengths match (cheap).
 			// Second, check that all the contents match (expensive).
-			// TODO: when the array size is small, unroll the length match checks.
 			checkAll(3, false, func(pi, qi ir.Node) ir.Node {
 				// Compare lengths.
 				eqlen, _ := EqString(pi, qi)
