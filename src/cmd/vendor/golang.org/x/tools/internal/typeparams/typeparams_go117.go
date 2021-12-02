@@ -75,6 +75,7 @@ func ForFuncType(*ast.FuncType) *ast.FieldList {
 // this Go version. Its methods panic on use.
 type TypeParam struct{ types.Type }
 
+func (*TypeParam) Index() int             { unsupported(); return 0 }
 func (*TypeParam) Constraint() types.Type { unsupported(); return nil }
 func (*TypeParam) Obj() *types.TypeName   { unsupported(); return nil }
 
