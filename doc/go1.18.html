@@ -782,11 +782,17 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
     <p><!-- CL 343883 -->
-      TODO: <a href="https://golang.org/cl/343883">https://golang.org/cl/343883</a>: increase alternation precedence
+      The precedence of <code>/</code> in the argument for <code>-run</code> and
+      <code>-bench</code> has been increased. <code>A/B|C/D</code> used to be
+      treated as <code>A/(B|C)/D</code> and is now treated as
+      <code>(A/B)/(C/D)</code>.
     </p>
 
     <p><!-- CL 356669 -->
-      TODO: <a href="https://golang.org/cl/356669">https://golang.org/cl/356669</a>: skip extra -count iterations if there are no tests
+      If the <code>-run</code> option does not select any tests, the
+      <code>-count</code> option is ignored. This could change the behavior of
+      existing tests in the unlikely case that a test changes the set of subtests
+      that are run each time the test function itself is run.
     </p>
   </dd>
 </dl><!-- testing -->
