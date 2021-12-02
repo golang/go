@@ -183,6 +183,13 @@ proposal</a>.
   third-party tools that need to collect package source code.)
 </p>
 
+<p><!-- CL 298612 -->
+  The <code>go</code> <code>build</code> command and related commands
+  now support an <code>-asan</code> flag that enables interoperation
+  with C (or C++) code compiled with the address sanitizer (C compiler
+  option <code>-fsanitize=address</code>).
+</p>
+
 <h3 id="gofmt"><code>gofmt</code></h3>
 
 <p><!-- https://golang.org/issue/43566 -->
@@ -244,13 +251,15 @@ proposal</a>.
 </p>
 
 <p><!-- CL 298611 -->
-  TODO: <a href="https://golang.org/cl/298611">https://golang.org/cl/298611</a>: cmd/compile: add -asan option
+  The new compiler <code>-asan</code> option supports the
+  new <code>go</code> command <code>-asan</code> option.
 </p>
 
 <h2 id="linker">Linker</h2>
 
 <p><!-- CL 298610 -->
-  TODO: <a href="https://golang.org/cl/298610">https://golang.org/cl/298610</a>: cmd/link: add -asan option
+  The new linker <code>-asan</code> option supports the
+  new <code>go</code> command <code>-asan</code> option.
 </p>
 
 <h2 id="library">Core library</h2>
