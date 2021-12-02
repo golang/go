@@ -740,7 +740,11 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
     <p><!-- CL 319769 -->
-      TODO: <a href="https://golang.org/cl/319769">https://golang.org/cl/319769</a>: add Mutex.TryLock, RWMutex.TryLock, RWMutex.TryRLock
+      The new methods
+      <a href="/pkg/sync#Mutex.TryLock"><code>Mutex.TryLock</code></a>,
+      <a href="/pkg/sync#RWMutex.TryLock"><code>RWMutex.TryLock</code></a>, and
+      <a href="/pkg/sync#RWMutex.TryRLock"><code>RWMutex.TryRLock</code></a>,
+      will acquire the lock if it is not currently held.
     </p>
   </dd>
 </dl><!-- sync -->
