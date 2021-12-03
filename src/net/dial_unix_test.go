@@ -8,10 +8,17 @@ package net
 
 import (
 	"context"
+	"errors"
 	"syscall"
 	"testing"
 	"time"
 )
+
+func init() {
+	isEADDRINUSE = func(err error) bool {
+		return errors.Is(err, syscall.EADDRINUSE)
+	}
+}
 
 // Issue 16523
 func TestDialContextCancelRace(t *testing.T) {

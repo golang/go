@@ -537,6 +537,9 @@ func TestDialerPartialDeadline(t *testing.T) {
 	}
 }
 
+// isEADDRINUSE reports whether err is syscall.EADDRINUSE.
+var isEADDRINUSE = func(err error) bool { return false }
+
 func TestDialerLocalAddr(t *testing.T) {
 	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
@@ -592,7 +595,9 @@ func TestDialerLocalAddr(t *testing.T) {
 		{"tcp", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
 	}
 
+	issue34264Index := -1
 	if supportsIPv4map() {
+		issue34264Index = len(tests)
 		tests = append(tests, test{
 			"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, nil,
 		})
@@ -627,7 +632,7 @@ func TestDialerLocalAddr(t *testing.T) {
 		}
 	}
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 		d := &Dialer{LocalAddr: tt.laddr}
 		var addr string
 		ip := ParseIP(tt.raddr)
@@ -639,7 +644,15 @@ func TestDialerLocalAddr(t *testing.T) {
 		}
 		c, err := d.Dial(tt.network, addr)
 		if err == nil && tt.error != nil || err != nil && tt.error == nil {
-			t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+			if i == issue34264Index && runtime.GOOS == "freebsd" && isEADDRINUSE(err) {
+				// https://golang.org/issue/34264: FreeBSD through at least version 12.2
+				// has been observed to fail with EADDRINUSE when dialing from an IPv6
+				// local address to an IPv4 remote address.
+				t.Logf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+				t.Logf("(spurious EADDRINUSE ignored on freebsd: see https://golang.org/issue/34264)")
+			} else {
+				t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+			}
 		}
 		if err != nil {
 			if perr := parseDialError(err); perr != nil {
