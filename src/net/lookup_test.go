@@ -925,6 +925,8 @@ func TestNilResolverLookup(t *testing.T) {
 // canceled lookups (see golang.org/issue/24178 for details).
 func TestLookupHostCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
+	t.Parallel() // Executes 600ms worth of sequential sleeps.
+
 	const (
 		google        = "www.google.com"
 		invalidDomain = "invalid.invalid" // RFC 2606 reserves .invalid
@@ -943,9 +945,15 @@ func TestLookupHostCancel(t *testing.T) {
 		if err == nil {
 			t.Fatalf("LookupHost(%q): returns %v, but should fail", invalidDomain, addr)
 		}
-		if !strings.Contains(err.Error(), "canceled") {
-			t.Fatalf("LookupHost(%q): failed with unexpected error: %v", invalidDomain, err)
-		}
+
+		// Don't verify what the actual error is.
+		// We know that it must be non-nil because the domain is invalid,
+		// but we don't have any guarantee that LookupHost actually bothers
+		// to check for cancellation on the fast path.
+		// (For example, it could use a local cache to avoid blocking entirely.)
+
+		// The lookup may deduplicate in-flight requests, so give it time to settle
+		// in between.
 		time.Sleep(time.Millisecond * 1)
 	}
 
