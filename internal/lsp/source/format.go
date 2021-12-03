@@ -29,6 +29,11 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 	ctx, done := event.Start(ctx, "source.Format")
 	defer done()
 
+	// Generated files shouldn't be edited. So, don't format them
+	if IsGenerated(ctx, snapshot, fh.URI()) {
+		return nil, fmt.Errorf("can't format %q: file is generated", fh.URI().Filename())
+	}
+
 	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return nil, err
