@@ -2709,6 +2709,31 @@ func TestEmptyEnvironment(t *testing.T) {
 	}
 }
 
+func TestPackageLoadSingleFile(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	filename := filepath.Join(tmp, "a.go")
+
+	if err := ioutil.WriteFile(filename, []byte(`package main; func main() { println("hello world") }`), 0775); err != nil {
+		t.Fatal(err)
+	}
+
+	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadSyntax, Dir: tmp}, "file="+filename)
+	if err != nil {
+		t.Fatalf("could not load package: %v", err)
+	}
+	if len(pkgs) != 1 {
+		t.Fatalf("expected one package to be loaded, got %d", len(pkgs))
+	}
+	if len(pkgs[0].CompiledGoFiles) != 1 || pkgs[0].CompiledGoFiles[0] != filename {
+		t.Fatalf("expected one compiled go file (%q), got %v", filename, pkgs[0].CompiledGoFiles)
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {

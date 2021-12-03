@@ -302,11 +302,12 @@ func (state *golistState) runContainsQueries(response *responseDeduper, queries 
 		}
 		dirResponse, err := state.createDriverResponse(pattern)
 
-		// If there was an error loading the package, or the package is returned
-		// with errors, try to load the file as an ad-hoc package.
+		// If there was an error loading the package, or no packages are returned,
+		// or the package is returned with errors, try to load the file as an
+		// ad-hoc package.
 		// Usually the error will appear in a returned package, but may not if we're
 		// in module mode and the ad-hoc is located outside a module.
-		if err != nil || len(dirResponse.Packages) == 1 && len(dirResponse.Packages[0].GoFiles) == 0 &&
+		if err != nil || len(dirResponse.Packages) == 0 || len(dirResponse.Packages) == 1 && len(dirResponse.Packages[0].GoFiles) == 0 &&
 			len(dirResponse.Packages[0].Errors) == 1 {
 			var queryErr error
 			if dirResponse, queryErr = state.adhocPackage(pattern, query); queryErr != nil {
