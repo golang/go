@@ -255,7 +255,7 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="compiler">Compiler</h2>
 
 <p><!-- https://golang.org/issue/40724 -->
-  Go 1.17 <a href=go1.17#compiler>implemented</a> a new way of passing
+  Go 1.17 <a href="go1.17#compiler">implemented</a> a new way of passing
   function arguments and results using registers instead of the stack
   on 64-bit x86 architecture on selected operating systems.
   Go 1.18 expands the supported platforms to include 64-bit ARM (<code>GOARCH=arm64</code>),
@@ -263,19 +263,28 @@ Do not send CLs removing the interior tags from such phrases.
   as well as 64-bit x86 architecture (<code>GOARCH=amd64</code>)
   on all operating systems.
   On 64-bit ARM and 64-bit PowerPC systems, benchmarking shows
-  performance improvements of 10% or more.
+  typical performance improvements of 10% or more.
 </p>
 
 <p>
-  As <a href=go1.17#compiler>mentioned</a> in the Go 1.17 release notes,
+  As <a href="go1.17#compiler">mentioned</a> in the Go 1.17 release notes,
   this change does not affect the functionality of any safe Go code and
   is designed to have no impact on most assembly code. See the
-  <a href=go1.17#compiler>Go 1.17 release notes</a> for more details.
+  <a href="go1.17#compiler">Go 1.17 release notes</a> for more details.
+</p>
+
+<p><!-- CL 355497, CL 356869 -->
+  The compiler now can inline functions that contain range loops or
+  labeled for loops.
 </p>
 
 <p><!-- CL 298611 -->
   The new compiler <code>-asan</code> option supports the
   new <code>go</code> command <code>-asan</code> option.
+</p>
+
+<p>
+  TODO: Mention build speed impact.
 </p>
 
 <h2 id="linker">Linker</h2>
@@ -367,6 +376,10 @@ Do not send CLs removing the interior tags from such phrases.
       handle Unicode punctuation and language-specific capitalization rules, and is superseded by the
       <a href="https://golang.org/x/text/cases">golang.org/x/text/cases</a> package.
     </p>
+
+    <p><!-- CL 351710 -->
+      TODO: bytes.Cut.
+    </p>
   </dd>
 </dl><!-- bytes -->
 
@@ -393,6 +406,22 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl>
 
+<dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
+  <dd>
+    <p>
+      TODO: Mention new generics APIs.
+    </p>
+  </dd>
+</dl>
+
+<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+  <dd>
+    <p>
+      TODO: Mention new generics APIs.
+    </p>
+  </dd>
+</dl>
+
 <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
   <dd>
     <p><!-- CL 340049 -->
@@ -410,6 +439,12 @@ Do not send CLs removing the interior tags from such phrases.
   <dd>
     <p><!-- CL 340261 -->
       <a href="/pkg/net#Error"><code>net.Error.Temporary</code></a> has been deprecated.
+    </p>
+  </dd>
+
+  <dd>
+    <p>
+      TODO: Several new net APIs.
     </p>
   </dd>
 </dl><!-- net -->
@@ -488,6 +523,17 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/reflect#Value.FieldByIndex"><code>Value.FieldByIndex</code></a>
       when stepping through a nil pointer to an embedded struct.
     </p>
+
+    <p><!-- CL 341333 -->
+      <a href="/pkg/reflect#Ptr"><code>reflect.Ptr</code></a> and
+      <a href="/pkg/reflect#PtrTo"><code>reflect.PtrTo</code></a>
+      have been renamed to
+      <a href="/pkg/reflect#Pointer"><code>reflect.Pointer</code></a> and
+      <a href="/pkg/reflect#Pointer"><code>reflect.PointerTo</code></a>,
+      respectively, for consistency with the rest of the reflect package.
+      The old names will continue to work, but will be deprecated in a
+      future Go release.
+    </p>
   </dd>
 </dl><!-- reflect -->
 
@@ -525,6 +571,10 @@ Do not send CLs removing the interior tags from such phrases.
       The <a href="/pkg/strings/#Title"><code>Title</code></a> function is now deprecated. It doesn't
       handle Unicode punctuation and language-specific capitalization rules, and is superseded by the
       <a href="https://golang.org/x/text/cases">golang.org/x/text/cases</a> package.
+    </p>
+
+    <p><!-- CL 351710 -->
+      TODO: strings.Cut.
     </p>
   </dd>
 </dl><!-- strings -->
