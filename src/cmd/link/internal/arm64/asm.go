@@ -602,7 +602,7 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	rs := r.Xsym
 	rt := r.Type
 
-	if r.Xadd != signext21(r.Xadd) {
+	if rt == objabi.R_ADDRARM64 && r.Xadd != signext21(r.Xadd) {
 		// If the relocation target would overflow the addend, then target
 		// a linker-manufactured label symbol with a smaller addend instead.
 		label := ldr.Lookup(offsetLabelName(ldr, rs, r.Xadd/peRelocLimit*peRelocLimit), ldr.SymVersion(rs))

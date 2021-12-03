@@ -759,6 +759,9 @@ func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *_TypeP
 
 func (t *_TypeParam) Bound() *Interface {
 	iface := asInterface(t.bound)
+	if iface == nil {
+		return &emptyInterface
+	}
 	// use the type bound position if we have one
 	pos := token.NoPos
 	if n, _ := t.bound.(*Named); n != nil {

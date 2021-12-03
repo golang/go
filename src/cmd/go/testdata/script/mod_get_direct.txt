@@ -10,7 +10,7 @@ env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 
-go list -m cloud.google.com/go@master
+go list -m cloud.google.com/go@main
 ! stdout 'v0.0.0-'
 
 -- go.mod --
