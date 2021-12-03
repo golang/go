@@ -406,6 +406,30 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl>
 
+<dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
+  <dd>
+    <p><!-- https://golang.org/issue/47781, CL 325689, CL 327149, CL 348375, CL 348609 -->
+      Per the proposal
+      <a href="https://go.googlesource.com/proposal/+/master/design/47781-parameterized-go-ast.md">
+        Additions to go/ast and go/token to support parameterized functions and types
+      </a>
+      the following additions are made to the <a href="/pkg/go/ast"><code>go/ast</code></a> package:
+      <ul>
+        <li>
+          the <a href="/pkg/go/ast/#FuncType"><code>FuncType</code></a>
+          and <a href="/pkg/go/ast/#TypeSpec"><code>TypeSpec</code></a>
+          nodes have a new field <code>TypeParams</code> to hold type parameters, if any.
+        </li>
+        <li>
+          The new expression node <a href="/pkg/go/ast/#IndexListExpr"><code>IndexListExpr</code></a>
+          represents index expressions with multiple indices, used for function and type instantiations
+          with more than one explicit type argument.
+        </li>
+      </ul>
+    </p>
+  </dd>
+</dl>
+
 <dl id="go/constant"><dt><a href="/pkg/go/constant/">go/constant</a></dt>
   <dd>
     <p><!-- https://golang.org/issue/46211, CL 320491 -->
