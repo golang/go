@@ -102,28 +102,38 @@ func syscallNoErr()
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_attr_init(attr *pthreadattr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_init_trampoline)), unsafe.Pointer(&attr))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_attr_init_trampoline)), unsafe.Pointer(&attr))
+	KeepAlive(attr)
+	return ret
 }
 func pthread_attr_init_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_attr_getstacksize(attr *pthreadattr, size *uintptr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_getstacksize_trampoline)), unsafe.Pointer(&attr))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_attr_getstacksize_trampoline)), unsafe.Pointer(&attr))
+	KeepAlive(attr)
+	KeepAlive(size)
+	return ret
 }
 func pthread_attr_getstacksize_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_attr_setdetachstate(attr *pthreadattr, state int) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_setdetachstate_trampoline)), unsafe.Pointer(&attr))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_attr_setdetachstate_trampoline)), unsafe.Pointer(&attr))
+	KeepAlive(attr)
+	return ret
 }
 func pthread_attr_setdetachstate_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_create_trampoline)), unsafe.Pointer(&attr))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_create_trampoline)), unsafe.Pointer(&attr))
+	KeepAlive(attr)
+	KeepAlive(arg) // Just for consistency. Arg of course needs to be kept alive for the start function.
+	return ret
 }
 func pthread_create_trampoline()
 
@@ -172,6 +182,7 @@ func mmap_trampoline()
 //go:cgo_unsafe_args
 func munmap(addr unsafe.Pointer, n uintptr) {
 	libcCall(unsafe.Pointer(funcPC(munmap_trampoline)), unsafe.Pointer(&addr))
+	KeepAlive(addr) // Just for consistency. Hopefully addr is not a Go address.
 }
 func munmap_trampoline()
 
@@ -179,6 +190,7 @@ func munmap_trampoline()
 //go:cgo_unsafe_args
 func madvise(addr unsafe.Pointer, n uintptr, flags int32) {
 	libcCall(unsafe.Pointer(funcPC(madvise_trampoline)), unsafe.Pointer(&addr))
+	KeepAlive(addr) // Just for consistency. Hopefully addr is not a Go address.
 }
 func madvise_trampoline()
 
@@ -186,13 +198,16 @@ func madvise_trampoline()
 //go:cgo_unsafe_args
 func mlock(addr unsafe.Pointer, n uintptr) {
 	libcCall(unsafe.Pointer(funcPC(mlock_trampoline)), unsafe.Pointer(&addr))
+	KeepAlive(addr) // Just for consistency. Hopefully addr is not a Go address.
 }
 func mlock_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func read(fd int32, p unsafe.Pointer, n int32) int32 {
-	return libcCall(unsafe.Pointer(funcPC(read_trampoline)), unsafe.Pointer(&fd))
+	ret := libcCall(unsafe.Pointer(funcPC(read_trampoline)), unsafe.Pointer(&fd))
+	KeepAlive(p)
+	return ret
 }
 func read_trampoline()
 
@@ -230,14 +245,18 @@ func usleep_trampoline()
 //go:nosplit
 //go:cgo_unsafe_args
 func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
-	return libcCall(unsafe.Pointer(funcPC(write_trampoline)), unsafe.Pointer(&fd))
+	ret := libcCall(unsafe.Pointer(funcPC(write_trampoline)), unsafe.Pointer(&fd))
+	KeepAlive(p)
+	return ret
 }
 func write_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func open(name *byte, mode, perm int32) (ret int32) {
-	return libcCall(unsafe.Pointer(funcPC(open_trampoline)), unsafe.Pointer(&name))
+	ret = libcCall(unsafe.Pointer(funcPC(open_trampoline)), unsafe.Pointer(&name))
+	KeepAlive(name)
+	return
 }
 func open_trampoline()
 
@@ -276,6 +295,8 @@ func walltime_trampoline()
 //go:cgo_unsafe_args
 func sigaction(sig uint32, new *usigactiont, old *usigactiont) {
 	libcCall(unsafe.Pointer(funcPC(sigaction_trampoline)), unsafe.Pointer(&sig))
+	KeepAlive(new)
+	KeepAlive(old)
 }
 func sigaction_trampoline()
 
@@ -283,6 +304,8 @@ func sigaction_trampoline()
 //go:cgo_unsafe_args
 func sigprocmask(how uint32, new *sigset, old *sigset) {
 	libcCall(unsafe.Pointer(funcPC(sigprocmask_trampoline)), unsafe.Pointer(&how))
+	KeepAlive(new)
+	KeepAlive(old)
 }
 func sigprocmask_trampoline()
 
@@ -297,6 +320,8 @@ func sigaltstack(new *stackt, old *stackt) {
 		new.ss_size = 32768
 	}
 	libcCall(unsafe.Pointer(funcPC(sigaltstack_trampoline)), unsafe.Pointer(&new))
+	KeepAlive(new)
+	KeepAlive(old)
 }
 func sigaltstack_trampoline()
 
@@ -311,20 +336,32 @@ func raiseproc_trampoline()
 //go:cgo_unsafe_args
 func setitimer(mode int32, new, old *itimerval) {
 	libcCall(unsafe.Pointer(funcPC(setitimer_trampoline)), unsafe.Pointer(&mode))
+	KeepAlive(new)
+	KeepAlive(old)
 }
 func setitimer_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func sysctl(mib *uint32, miblen uint32, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
+	ret := libcCall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
+	KeepAlive(mib)
+	KeepAlive(oldp)
+	KeepAlive(oldlenp)
+	KeepAlive(newp)
+	return ret
 }
 func sysctl_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func sysctlbyname(name *byte, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(sysctlbyname_trampoline)), unsafe.Pointer(&name))
+	ret := libcCall(unsafe.Pointer(funcPC(sysctlbyname_trampoline)), unsafe.Pointer(&name))
+	KeepAlive(name)
+	KeepAlive(oldp)
+	KeepAlive(oldlenp)
+	KeepAlive(newp)
+	return ret
 }
 func sysctlbyname_trampoline()
 
@@ -346,56 +383,79 @@ func kqueue_trampoline()
 //go:nosplit
 //go:cgo_unsafe_args
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32 {
-	return libcCall(unsafe.Pointer(funcPC(kevent_trampoline)), unsafe.Pointer(&kq))
+	ret := libcCall(unsafe.Pointer(funcPC(kevent_trampoline)), unsafe.Pointer(&kq))
+	KeepAlive(ch)
+	KeepAlive(ev)
+	KeepAlive(ts)
+	return ret
 }
 func kevent_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_mutex_init(m *pthreadmutex, attr *pthreadmutexattr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_init_trampoline)), unsafe.Pointer(&m))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_mutex_init_trampoline)), unsafe.Pointer(&m))
+	KeepAlive(m)
+	KeepAlive(attr)
+	return ret
 }
 func pthread_mutex_init_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_mutex_lock(m *pthreadmutex) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_lock_trampoline)), unsafe.Pointer(&m))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_mutex_lock_trampoline)), unsafe.Pointer(&m))
+	KeepAlive(m)
+	return ret
 }
 func pthread_mutex_lock_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_mutex_unlock(m *pthreadmutex) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_unlock_trampoline)), unsafe.Pointer(&m))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_mutex_unlock_trampoline)), unsafe.Pointer(&m))
+	KeepAlive(m)
+	return ret
 }
 func pthread_mutex_unlock_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_cond_init(c *pthreadcond, attr *pthreadcondattr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_init_trampoline)), unsafe.Pointer(&c))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_cond_init_trampoline)), unsafe.Pointer(&c))
+	KeepAlive(c)
+	KeepAlive(attr)
+	return ret
 }
 func pthread_cond_init_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_cond_wait(c *pthreadcond, m *pthreadmutex) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_wait_trampoline)), unsafe.Pointer(&c))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_cond_wait_trampoline)), unsafe.Pointer(&c))
+	KeepAlive(c)
+	KeepAlive(m)
+	return ret
 }
 func pthread_cond_wait_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_cond_timedwait_relative_np(c *pthreadcond, m *pthreadmutex, t *timespec) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_relative_np_trampoline)), unsafe.Pointer(&c))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_relative_np_trampoline)), unsafe.Pointer(&c))
+	KeepAlive(c)
+	KeepAlive(m)
+	KeepAlive(t)
+	return ret
 }
 func pthread_cond_timedwait_relative_np_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_cond_signal(c *pthreadcond) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_signal_trampoline)), unsafe.Pointer(&c))
+	ret := libcCall(unsafe.Pointer(funcPC(pthread_cond_signal_trampoline)), unsafe.Pointer(&c))
+	KeepAlive(c)
+	return ret
 }
 func pthread_cond_signal_trampoline()
 

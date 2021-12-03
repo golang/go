@@ -303,6 +303,8 @@ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
 	exitsyscall()
+	KeepAlive(wstatus)
+	KeepAlive(rusage)
 	return int(call.r1), call.err
 }
 
