@@ -59,9 +59,9 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="generics">Generics</h3>
 
 <p>
-Go 1.18 includes an implementation of generics as described
-by <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">the
-proposal</a>.
+  Go 1.18 includes an implementation of generics as described
+  by <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">the
+  generics proposal</a>.
 </p>
 
 <p>
@@ -72,6 +72,27 @@ proposal</a>.
       or methods. We hope to provide support for this feature in Go 1.19.
     </li>
   </ul>
+</p>
+
+<h3 id="fuzzing">Fuzzing</h3>
+
+<p>
+  Go 1.18 includes an implementation of fuzzing as described by
+  <a href="https://golang.org/issue/44551">the fuzzing proposal</a>.
+</p>
+
+<p>
+  See the <a href="https://go.dev/doc/fuzz">fuzzing landing page</a> to get
+  started.
+</p>
+
+<p>
+  Please be aware that fuzzing can consume a lot of memory and may impact your
+  machine’s performance while it runs. Also be aware that the fuzzing engine
+  writes values that expand test coverage to a fuzz cache directory within
+  <code>$GOCACHE/fuzz</code> while it runs. There is currently no limit to the
+  number of files or total bytes that may be written to the fuzz cache, so it
+  may occupy a large amount of storage (possibly several GBs).
 </p>
 
 <h2 id="ports">Ports</h2>
