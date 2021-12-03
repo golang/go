@@ -410,7 +410,11 @@ Special-purpose registers are as follows:
 | R13 | Scratch | Scratch | Scratch |
 | R14 | Current goroutine | Same | Same |
 | R15 | GOT reference temporary if dynlink | Same | Same |
-| X15 | Zero value | Same | Scratch |
+| X15 | Zero value (*) | Same | Scratch |
+
+(*) Except on Plan 9, where X15 is a scratch register because SSE
+registers cannot be used in note handlers (so the compiler avoids
+using them except when absolutely necessary).
 
 *Rationale*: These register meanings are compatible with Go’s
 stack-based calling convention except for R14 and X15, which will have
