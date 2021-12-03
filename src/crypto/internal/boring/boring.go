@@ -7,7 +7,12 @@
 
 package boring
 
-// #include "goboringcrypto.h"
+/*
+// goboringcrypto_linux_amd64.syso references pthread functions.
+#cgo LDFLAGS: "-pthread"
+
+#include "goboringcrypto.h"
+*/
 import "C"
 import (
 	"crypto/internal/boring/sig"
