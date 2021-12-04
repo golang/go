@@ -326,7 +326,13 @@ func (b *B) launch() {
 			// Run more iterations than we think we'll need (1.2x).
 			n += n / 5
 			// Don't grow too fast in case we had timing errors previously.
-			n = min(n, 100*last)
+			if n < 0 {
+				// If n < 0 (overflow int64), means need to be executed many times,
+				// Otherwise it is easy to time out.
+				n = max(n, 100*last)
+			} else {
+				n = min(n, 100*last)
+			}
 			// Be sure to run at least one more than last time.
 			n = max(n, last+1)
 			// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
