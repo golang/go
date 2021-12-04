@@ -7,6 +7,7 @@ package types
 import (
 	"container/heap"
 	"fmt"
+	"sort"
 )
 
 // initOrder computes the Info.InitOrder for package variables.
@@ -184,6 +185,12 @@ type graphNode struct {
 	ndeps      int        // number of outstanding dependencies before this object can be initialized
 }
 
+// cost returns the cost of removing this node, which involves copying each
+// predecessor to each successor (and vice-versa).
+func (n *graphNode) cost() int {
+	return len(n.pred) * len(n.succ)
+}
+
 type nodeSet map[*graphNode]bool
 
 func (s *nodeSet) add(p *graphNode) {
@@ -221,35 +228,48 @@ func dependencyGraph(objMap map[Object]*declInfo) []*graphNode {
 		}
 	}
 
+	var G, funcG []*graphNode // separate non-functions and functions
+	for _, n := range M {
+		if _, ok := n.obj.(*Func); ok {
+			funcG = append(funcG, n)
+		} else {
+			G = append(G, n)
+		}
+	}
+
 	// remove function nodes and collect remaining graph nodes in G
 	// (Mutually recursive functions may introduce cycles among themselves
 	// which are permitted. Yet such cycles may incorrectly inflate the dependency
 	// count for variables which in turn may not get scheduled for initialization
 	// in correct order.)
-	var G []*graphNode
-	for obj, n := range M {
-		if _, ok := obj.(*Func); ok {
-			// connect each predecessor p of n with each successor s
-			// and drop the function node (don't collect it in G)
-			for p := range n.pred {
-				// ignore self-cycles
-				if p != n {
-					// Each successor s of n becomes a successor of p, and
-					// each predecessor p of n becomes a predecessor of s.
-					for s := range n.succ {
-						// ignore self-cycles
-						if s != n {
-							p.succ.add(s)
-							s.pred.add(p)
-							delete(s.pred, n) // remove edge to n
-						}
+	//
+	// Note that because we recursively copy predecessors and successors
+	// throughout the function graph, the cost of removing a function at
+	// position X is proportional to cost * (len(funcG)-X). Therefore, we should
+	// remove high-cost functions last.
+	sort.Slice(funcG, func(i, j int) bool {
+		return funcG[i].cost() < funcG[j].cost()
+	})
+	for _, n := range funcG {
+		// connect each predecessor p of n with each successor s
+		// and drop the function node (don't collect it in G)
+		for p := range n.pred {
+			// ignore self-cycles
+			if p != n {
+				// Each successor s of n becomes a successor of p, and
+				// each predecessor p of n becomes a predecessor of s.
+				for s := range n.succ {
+					// ignore self-cycles
+					if s != n {
+						p.succ.add(s)
+						s.pred.add(p)
 					}
-					delete(p.succ, n) // remove edge to n
 				}
+				delete(p.succ, n) // remove edge to n
 			}
-		} else {
-			// collect non-function nodes
-			G = append(G, n)
+		}
+		for s := range n.succ {
+			delete(s.pred, n) // remove edge to n
 		}
 	}
 
