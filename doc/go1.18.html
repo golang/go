@@ -29,6 +29,66 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<h3 id="generics">Generics</h3>
+
+<p><!-- https://golang.org/issue/43651, https://golang.org/issue/45346 -->
+  Go 1.18 includes an implementation of generic features as described by the
+  <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">Type
+    Parameters Proposal</a>.
+  This includes major - but fully backward-compatible - changes to the language.
+  The following is a list of the most visible changes. For a more comprehensive overview, see the
+  <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">proposal</a>.
+  For details see the <a href="https://golang.org/ref/spec">language spec</a>.
+</p>
+<ul>
+  <li>
+    The new token <code>~</code> is added to the set of
+    <a href="https://golang.org/ref/spec#Operators_and_punctuation">operators and punctuation</a>.
+  </li>
+  <li>
+    The syntax for
+    <a href="https://golang.org/ref/spec#Function_declarations">Function</a> and
+    <a href="https://golang.org/ref/spec#Type_declarations">type declarations</a>
+    now accepts
+    <a href="https://golang.org/ref/spec#Type_parameters">type parameters</a>.
+  </li>
+  <li>
+    The syntax for
+    <a href="https://golang.org/ref/spec#Interface_types">Interface types</a>
+    now permits the embedding of arbitrary types (not just type names of interfaces)
+    as well as union and <code>~T</code> type elements. Such interfaces may only be used
+    as type constraints.
+    An interface now defines a set of types as well as a set of methods.
+  </li>
+  <li>
+    Parameterized functions and types can be instantiated by following them with a list of
+    type arguments in square brackets.
+  </li>
+  <li>
+    The new
+    <a href="https://golang.org/ref/spec#Predeclared_identifiers">predeclared identifier</a>
+    <code>any</code> is an alias for the empty interface. It may be used instead of
+    <code>interface{}</code>.
+  </li>
+  <li>
+    The new
+    <a href="https://golang.org/ref/spec#Predeclared_identifiers">predeclared identifier</a>
+    <code>comparable</code> is an interface the denotes the set of all types which can be
+    compared using <code>==</code> or <code>!=</code>. It may only be used as (or embedded in)
+    a type constraint.
+  </li>
+</ul>
+
+<p>
+  The current generics implementation has the following limitations:
+  <ul>
+    <li><!-- https://golang.org/issue/47631 -->
+      The Go compiler cannot currently handle type declarations inside generic functions
+      or methods. We hope to provide support for this feature in Go 1.19.
+    </li>
+  </ul>
+</p>
+
 <h3 id="bug_fixes">Bug fixes</h3>
 
 <p>
@@ -54,24 +114,6 @@ Do not send CLs removing the interior tags from such phrases.
   was in fact incorrect, or explicitly convert the offending argument to the correct type.
   Since <code>go vet</code> always pointed out this error, the number of affected
   programs is likely very small.
-</p>
-
-<h3 id="generics">Generics</h3>
-
-<p>
-  Go 1.18 includes an implementation of generics as described
-  by <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">the
-  generics proposal</a>.
-</p>
-
-<p>
-  The current generics implementation has the following limitations:
-  <ul>
-    <li><!-- issue 47631 -->
-      The Go compiler cannot currently handle type declarations inside generic functions
-      or methods. We hope to provide support for this feature in Go 1.19.
-    </li>
-  </ul>
 </p>
 
 <h3 id="fuzzing">Fuzzing</h3>
