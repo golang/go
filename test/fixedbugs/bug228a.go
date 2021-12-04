@@ -8,8 +8,6 @@ package main
 
 func f(x int, y ...int) // ok
 
-func g(x int, y float32) (...)	// ERROR "[.][.][.]"
+func h(x, y ...int) // ERROR "[.][.][.]"
 
-var x ...int;		// ERROR "[.][.][.]|syntax|type"
-
-type T ...int;		// ERROR "[.][.][.]|syntax|type"
+func i(x int, y ...int, z float32) // ERROR "[.][.][.]"
