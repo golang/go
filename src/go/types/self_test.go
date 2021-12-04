@@ -36,6 +36,7 @@ func BenchmarkCheck(b *testing.B) {
 		"net/http",
 		"go/parser",
 		"go/constant",
+		"runtime",
 		filepath.Join("go", "internal", "gcimporter"),
 	} {
 		b.Run(path.Base(p), func(b *testing.B) {
