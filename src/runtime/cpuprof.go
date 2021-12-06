@@ -200,6 +200,8 @@ func runtime_pprof_runtime_cyclesPerSecond() int64 {
 // If profiling is turned off and all the profile data accumulated while it was
 // on has been returned, readProfile returns eof=true.
 // The caller must save the returned data and tags before calling readProfile again.
+// The returned data contains a whole number of records, and tags contains
+// exactly one entry per record.
 //
 //go:linkname runtime_pprof_readProfile runtime/pprof.readProfile
 func runtime_pprof_readProfile() ([]uint64, []unsafe.Pointer, bool) {
