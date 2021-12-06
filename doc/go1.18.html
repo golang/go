@@ -42,15 +42,19 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 <ul>
   <li>
-    The new token <code>~</code> is added to the set of
-    <a href="https://golang.org/ref/spec#Operators_and_punctuation">operators and punctuation</a>.
-  </li>
-  <li>
     The syntax for
     <a href="https://golang.org/ref/spec#Function_declarations">Function</a> and
     <a href="https://golang.org/ref/spec#Type_declarations">type declarations</a>
     now accepts
     <a href="https://golang.org/ref/spec#Type_parameters">type parameters</a>.
+  </li>
+  <li>
+    Parameterized functions and types can be instantiated by following them with a list of
+    type arguments in square brackets.
+  </li>
+  <li>
+    The new token <code>~</code> has been added to the set of
+    <a href="https://golang.org/ref/spec#Operators_and_punctuation">operators and punctuation</a>.
   </li>
   <li>
     The syntax for
@@ -59,10 +63,6 @@ Do not send CLs removing the interior tags from such phrases.
     as well as union and <code>~T</code> type elements. Such interfaces may only be used
     as type constraints.
     An interface now defines a set of types as well as a set of methods.
-  </li>
-  <li>
-    Parameterized functions and types can be instantiated by following them with a list of
-    type arguments in square brackets.
   </li>
   <li>
     The new
