@@ -1425,52 +1425,8 @@ func TestLabelRace(t *testing.T) {
 // TestLabelSystemstack makes sure CPU profiler samples of goroutines running
 // on systemstack include the correct pprof labels. See issue #48577
 func TestLabelSystemstack(t *testing.T) {
-	matchBasics := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime.systemstack;key=value"}, avoidFunctions())
-	matches := func(t *testing.T, prof *profile.Profile) bool {
-		if !matchBasics(t, prof) {
-			return false
-		}
-
-		var withLabel, withoutLabel int64
-		for _, s := range prof.Sample {
-			var systemstack, labelHog bool
-			for _, loc := range s.Location {
-				for _, l := range loc.Line {
-					switch l.Function.Name {
-					case "runtime.systemstack":
-						systemstack = true
-					case "runtime/pprof.labelHog":
-						labelHog = true
-					}
-				}
-			}
-
-			if systemstack && labelHog {
-				if s.Label != nil && contains(s.Label["key"], "value") {
-					withLabel += s.Value[0]
-				} else {
-					withoutLabel += s.Value[0]
-				}
-			}
-		}
-
-		// ratio on 2019 Intel MBP before/after CL 351751 for n=30 runs:
-		// before: mean=0.013 stddev=0.013 min=0.000 max=0.039
-		// after : mean=0.996 stddev=0.007 min=0.967 max=1.000
-		//
-		// TODO: Figure out why some samples (containing gcWriteBarrier, gcStart)
-		// still have labelHog without labels. Once fixed this test case can be
-		// simplified to just check that all samples containing labelHog() have the
-		// label, and no other samples do.
-		ratio := float64(withLabel) / float64((withLabel + withoutLabel))
-		if ratio < 0.9 {
-			t.Logf("only %.1f%% of labelHog(systemstack()) samples have label", ratio*100)
-			return false
-		}
-		return true
-	}
-
-	testCPUProfile(t, matches, func(dur time.Duration) {
+	matches := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime.systemstack;key=value"}, avoidFunctions())
+	p := testCPUProfile(t, matches, func(dur time.Duration) {
 		Do(context.Background(), Labels("key", "value"), func(context.Context) {
 			var wg sync.WaitGroup
 			stop := make(chan struct{})
@@ -1487,6 +1443,26 @@ func TestLabelSystemstack(t *testing.T) {
 			wg.Wait()
 		})
 	})
+
+	// labelHog should always be labeled.
+	for _, s := range p.Sample {
+		for _, loc := range s.Location {
+			for _, l := range loc.Line {
+				if l.Function.Name != "runtime/pprof.labelHog" {
+					continue
+				}
+
+				if s.Label == nil {
+					t.Errorf("labelHog sample labels got nil want key=value")
+					continue
+				}
+				if !contains(s.Label["key"], "value") {
+					t.Errorf("labelHog sample labels got %+v want contains key=value", s.Label)
+					continue
+				}
+			}
+		}
+	}
 }
 
 // labelHog is designed to burn CPU time in a way that a high number of CPU
