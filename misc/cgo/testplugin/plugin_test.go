@@ -265,10 +265,6 @@ func TestIssue25756(t *testing.T) {
 
 // Test with main using -buildmode=pie with plugin for issue #43228
 func TestIssue25756pie(t *testing.T) {
-	if os.Getenv("GO_BUILDER_NAME") == "darwin-arm64-11_0-toothrot" {
-		t.Skip("broken on darwin/arm64 builder in sharded mode; see issue 46239")
-	}
-
 	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
 	goCmd(t, "build", "-buildmode=pie", "-o", "issue25756pie.exe", "./issue25756/main.go")
 	run(t, "./issue25756pie.exe")
