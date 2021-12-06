@@ -794,10 +794,13 @@ OverlayLoop:
 	}
 
 	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
-		if err := b.writeFile(objdir+"_gomod_.go", modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")); err != nil {
-			return err
+		prog := modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")
+		if len(prog) > 0 {
+			if err := b.writeFile(objdir+"_gomod_.go", prog); err != nil {
+				return err
+			}
+			gofiles = append(gofiles, objdir+"_gomod_.go")
 		}
-		gofiles = append(gofiles, objdir+"_gomod_.go")
 	}
 
 	// Compile Go.
@@ -1394,6 +1397,7 @@ func (b *Builder) writeLinkImportcfg(a *Action, file string) error {
 			fmt.Fprintf(&icfg, "packageshlib %s=%s\n", p1.ImportPath, p1.Shlib)
 		}
 	}
+	fmt.Fprintf(&icfg, "modinfo %q\n", modload.ModInfoData(a.Package.Internal.BuildInfo))
 	return b.writeFile(file, icfg.Bytes())
 }
 
