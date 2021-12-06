@@ -17,6 +17,9 @@ func init() {
 func BadTraceback() {
 	// Disable GC to prevent traceback at unexpected time.
 	debug.SetGCPercent(-1)
+	// Out of an abundance of caution, also make sure that there are
+	// no GCs actively in progress.
+	runtime.GC()
 
 	// Run badLR1 on its own stack to minimize the stack size and
 	// exercise the stack bounds logic in the hex dump.

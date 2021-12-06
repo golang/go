@@ -20,6 +20,9 @@ func AsyncPreempt() {
 	runtime.GOMAXPROCS(1)
 	// Disable GC so we have complete control of what we're testing.
 	debug.SetGCPercent(-1)
+	// Out of an abundance of caution, also make sure that there are
+	// no GCs actively in progress.
+	runtime.GC()
 
 	// Start a goroutine with no sync safe-points.
 	var ready, ready2 uint32
