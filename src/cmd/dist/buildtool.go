@@ -93,10 +93,21 @@ var ignoreSuffixes = []string{
 	"_test.go",
 }
 
+var tryDirs = []string{
+	"sdk/go1.17",
+	"go1.17",
+}
+
 func bootstrapBuildTools() {
 	goroot_bootstrap := os.Getenv("GOROOT_BOOTSTRAP")
 	if goroot_bootstrap == "" {
-		goroot_bootstrap = pathf("%s/go1.4", os.Getenv("HOME"))
+		home := os.Getenv("HOME")
+		goroot_bootstrap = pathf("%s/go1.4", home)
+		for _, d := range tryDirs {
+			if p := pathf("%s/%s", home, d); isdir(p) {
+				goroot_bootstrap = p
+			}
+		}
 	}
 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
 
