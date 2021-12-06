@@ -37,11 +37,9 @@ go test -v chatty_with_test_fuzz_test.go -fuzz=Fuzz -fuzztime=1x
 stdout ok
 stdout PASS
 ! stdout FAIL
-# TODO: It's currently the case that it's logged twice. Fix that, and change
-# this check to verify it.
-stdout 'all good here'
+stdout -count=1 'all good here'
 # Verify that the unit test is only run once.
-! stdout '(?s)logged foo.*logged foo'
+stdout -count=1 'logged foo'
 
 -- chatty_error_fuzz_test.go --
 package chatty_error_fuzz
