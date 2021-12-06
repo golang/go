@@ -442,7 +442,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	if inst == nil {
 		tname := NewTypeName(x.Pos(), orig.obj.pkg, orig.obj.name, nil)
 		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
-		inst.targs = NewTypeList(targs)
+		inst.targs = newTypeList(targs)
 		inst = ctxt.update(h, orig, targs, inst).(*Named)
 	}
 	def.setUnderlying(inst)
@@ -456,7 +456,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 			// be set to Typ[Invalid] in expandNamed.
 			inferred = check.infer(x.Pos(), tparams, targs, nil, nil)
 			if len(inferred) > len(targs) {
-				inst.targs = NewTypeList(inferred)
+				inst.targs = newTypeList(inferred)
 			}
 		}
 
