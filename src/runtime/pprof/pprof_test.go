@@ -1608,6 +1608,7 @@ func TestTryAdd(t *testing.T) {
 	testCases := []struct {
 		name        string
 		input       []uint64          // following the input format assumed by profileBuilder.addCPUData.
+		count       int               // number of records in input.
 		wantLocs    [][]string        // ordered location entries with function names.
 		wantSamples []*profile.Sample // ordered samples, we care only about Value and the profile location IDs.
 	}{{
@@ -1617,6 +1618,7 @@ func TestTryAdd(t *testing.T) {
 			3, 0, 500, // hz = 500. Must match the period.
 			5, 0, 50, inlinedCallerStack[0], inlinedCallerStack[1],
 		},
+		count: 2,
 		wantLocs: [][]string{
 			{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"},
 		},
@@ -1633,6 +1635,7 @@ func TestTryAdd(t *testing.T) {
 			7, 0, 10, inlinedCallerStack[0], inlinedCallerStack[1], inlinedCallerStack[0], inlinedCallerStack[1],
 			5, 0, 20, inlinedCallerStack[0], inlinedCallerStack[1],
 		},
+		count:    3,
 		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{10, 10 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}}},
@@ -1646,6 +1649,7 @@ func TestTryAdd(t *testing.T) {
 			// entry. The "stk" entry is actually the count.
 			4, 0, 0, 4242,
 		},
+		count:    2,
 		wantLocs: [][]string{{"runtime/pprof.lostProfileEvent"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{4242, 4242 * period}, Location: []*profile.Location{{ID: 1}}},
@@ -1664,6 +1668,7 @@ func TestTryAdd(t *testing.T) {
 			5, 0, 30, inlinedCallerStack[0], inlinedCallerStack[0],
 			4, 0, 40, inlinedCallerStack[0],
 		},
+		count: 3,
 		// inlinedCallerDump shows up here because
 		// runtime_expandFinalInlineFrame adds it to the stack frame.
 		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump"}, {"runtime/pprof.inlinedCallerDump"}},
@@ -1677,6 +1682,7 @@ func TestTryAdd(t *testing.T) {
 			3, 0, 500, // hz = 500. Must match the period.
 			9, 0, 10, recursionStack[0], recursionStack[1], recursionStack[2], recursionStack[3], recursionStack[4], recursionStack[5],
 		},
+		count: 2,
 		wantLocs: [][]string{
 			{"runtime/pprof.recursionChainBottom"},
 			{
@@ -1700,6 +1706,7 @@ func TestTryAdd(t *testing.T) {
 			5, 0, 50, inlinedCallerStack[0], inlinedCallerStack[1],
 			4, 0, 60, inlinedCallerStack[0],
 		},
+		count:    3,
 		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{50, 50 * period}, Location: []*profile.Location{{ID: 1}}},
@@ -1712,6 +1719,7 @@ func TestTryAdd(t *testing.T) {
 			4, 0, 70, inlinedCallerStack[0],
 			5, 0, 80, inlinedCallerStack[0], inlinedCallerStack[1],
 		},
+		count:    3,
 		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
@@ -1724,6 +1732,7 @@ func TestTryAdd(t *testing.T) {
 			3, 0, 500, // hz = 500. Must match the period.
 			4, 0, 70, inlinedCallerStack[0],
 		},
+		count:    2,
 		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
@@ -1739,6 +1748,7 @@ func TestTryAdd(t *testing.T) {
 			// from getting merged into above.
 			5, 0, 80, inlinedCallerStack[1], inlinedCallerStack[0],
 		},
+		count: 3,
 		wantLocs: [][]string{
 			{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"},
 			{"runtime/pprof.inlinedCallerDump"},
@@ -1751,7 +1761,7 @@ func TestTryAdd(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			p, err := translateCPUProfile(tc.input)
+			p, err := translateCPUProfile(tc.input, tc.count)
 			if err != nil {
 				t.Fatalf("translating profile: %v", err)
 			}
