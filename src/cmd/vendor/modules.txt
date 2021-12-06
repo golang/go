@@ -42,7 +42,7 @@ golang.org/x/mod/zip
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 ## explicit
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e
+# golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
