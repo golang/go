@@ -1043,10 +1043,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		return false
 	case "plugin":
-		// linux-arm64 is missing because it causes the external linker
-		// to crash, see https://golang.org/issue/17138
 		switch pair {
-		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x", "linux-ppc64le":
+		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-s390x", "linux-ppc64le":
 			return true
 		case "darwin-amd64", "darwin-arm64":
 			return true
