@@ -346,33 +346,22 @@ func findModule(ld *loader, path string) (module.Version, bool) {
 }
 
 func ModInfoProg(info string, isgccgo bool) []byte {
-	// Inject a variable with the debug information as runtime.modinfo,
-	// but compile it in package main so that it is specific to the binary.
-	// The variable must be a literal so that it will have the correct value
-	// before the initializer for package main runs.
-	//
-	// The runtime startup code refers to the variable, which keeps it live
-	// in all binaries.
-	//
-	// Note: we use an alternate recipe below for gccgo (based on an
-	// init function) due to the fact that gccgo does not support
-	// applying a "//go:linkname" directive to a variable. This has
-	// drawbacks in that other packages may want to look at the module
-	// info in their init functions (see issue 29628), which won't
-	// work for gccgo. See also issue 30344.
-
-	if !isgccgo {
-		return []byte(fmt.Sprintf(`package main
-import _ "unsafe"
-//go:linkname __debug_modinfo__ runtime.modinfo
-var __debug_modinfo__ = %q
-`, string(infoStart)+info+string(infoEnd)))
-	} else {
+	// Inject an init function to set runtime.modinfo.
+	// This is only used for gccgo - with gc we hand the info directly to the linker.
+	// The init function has the drawback that packages may want to
+	// look at the module info in their init functions (see issue 29628),
+	// which won't work. See also issue 30344.
+	if isgccgo {
 		return []byte(fmt.Sprintf(`package main
 import _ "unsafe"
 //go:linkname __set_debug_modinfo__ runtime.setmodinfo
 func __set_debug_modinfo__(string)
 func init() { __set_debug_modinfo__(%q) }
-`, string(infoStart)+info+string(infoEnd)))
+`, ModInfoData(info)))
 	}
+	return nil
+}
+
+func ModInfoData(info string) []byte {
+	return []byte(string(infoStart) + info + string(infoEnd))
 }

@@ -71,12 +71,6 @@ func (d *deadcodePass) init() {
 	// runtime.unreachableMethod is a function that will throw if called.
 	// We redirect unreachable methods to it.
 	names = append(names, "runtime.unreachableMethod")
-	if !d.ctxt.linkShared && d.ctxt.BuildMode != BuildModePlugin {
-		// runtime.buildVersion and runtime.modinfo are referenced in .go.buildinfo section
-		// (see function buildinfo in data.go). They should normally be reachable from the
-		// runtime. Just make it explicit, in case.
-		names = append(names, "runtime.buildVersion", "runtime.modinfo")
-	}
 	if d.ctxt.BuildMode == BuildModePlugin {
 		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
 
