@@ -427,7 +427,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 	if inst == nil {
 		tname := NewTypeName(ix.X.Pos(), orig.obj.pkg, orig.obj.name, nil)
 		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
-		inst.targs = NewTypeList(targs)
+		inst.targs = newTypeList(targs)
 		inst = ctxt.update(h, orig, targs, inst).(*Named)
 	}
 	def.setUnderlying(inst)
@@ -441,7 +441,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 			// be set to Typ[Invalid] in expandNamed.
 			inferred = check.infer(ix.Orig, tparams, targs, nil, nil)
 			if len(inferred) > len(targs) {
-				inst.targs = NewTypeList(inferred)
+				inst.targs = newTypeList(inferred)
 			}
 		}
 

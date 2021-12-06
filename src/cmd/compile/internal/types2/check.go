@@ -494,7 +494,7 @@ func (check *Checker) recordInstance(expr syntax.Expr, targs []Type, typ Type) {
 	assert(ident != nil)
 	assert(typ != nil)
 	if m := check.Instances; m != nil {
-		m[ident] = Instance{NewTypeList(targs), typ}
+		m[ident] = Instance{newTypeList(targs), typ}
 	}
 }
 
