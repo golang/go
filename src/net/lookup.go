@@ -434,7 +434,8 @@ func (r *Resolver) LookupCNAME(ctx context.Context, host string) (string, error)
 // The returned records are sorted by priority and randomized
 // by weight within a priority.
 //
-// LookupSRV constructs the DNS name to look up following RFC 2782.
+// LookupSRV constructs the DNS name to look up following RFC 2782
+// and returns it and the SRV records.
 // That is, it looks up _service._proto.name. To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
@@ -452,7 +453,8 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 // The returned records are sorted by priority and randomized
 // by weight within a priority.
 //
-// LookupSRV constructs the DNS name to look up following RFC 2782.
+// LookupSRV constructs the DNS name to look up following RFC 2782
+// and returns it and the SRV records.
 // That is, it looks up _service._proto.name. To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
