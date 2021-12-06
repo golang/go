@@ -58,19 +58,19 @@ type NRGBA struct {
 }
 
 func (c NRGBA) RGBA() (r, g, b, a uint32) {
+	a = uint32(c.A)
 	r = uint32(c.R)
 	r |= r << 8
-	r *= uint32(c.A)
+	r *= a
 	r /= 0xff
 	g = uint32(c.G)
 	g |= g << 8
-	g *= uint32(c.A)
+	g *= a
 	g /= 0xff
 	b = uint32(c.B)
 	b |= b << 8
-	b *= uint32(c.A)
+	b *= a
 	b /= 0xff
-	a = uint32(c.A)
 	a |= a << 8
 	return
 }
@@ -82,16 +82,16 @@ type NRGBA64 struct {
 }
 
 func (c NRGBA64) RGBA() (r, g, b, a uint32) {
+	a = uint32(c.A)
 	r = uint32(c.R)
-	r *= uint32(c.A)
+	r *= a
 	r /= 0xffff
 	g = uint32(c.G)
-	g *= uint32(c.A)
+	g *= a
 	g /= 0xffff
 	b = uint32(c.B)
-	b *= uint32(c.A)
+	b *= a
 	b /= 0xffff
-	a = uint32(c.A)
 	return
 }
 
