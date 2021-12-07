@@ -948,7 +948,7 @@ QUIT
 `
 
 func TestTLSClient(t *testing.T) {
-	if (runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64") || runtime.GOOS == "js" {
+	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" {
 		testenv.SkipFlaky(t, 19229)
 	}
 	ln := newLocalListener(t)
