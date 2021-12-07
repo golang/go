@@ -6,16 +6,18 @@
 
 package main
 
-type I interface { foo() int }
+type I interface{ foo() int }
 
 type myint int
 
 func (x myint) foo() int { return int(x) }
 
 type myfloat float64
+
 func (x myfloat) foo() int { return int(x) }
 
 type myint32 int32
+
 func (x myint32) foo() int { return int(x) }
 
 func f[T I](i I) {
@@ -32,4 +34,7 @@ func main() {
 	f[myfloat](myint(6))
 	f[myfloat](myfloat(7))
 	f[myfloat](myint32(8))
+	f[myint32](myint32(8))
+	f[myint32](myfloat(7))
+	f[myint](myint32(9))
 }
