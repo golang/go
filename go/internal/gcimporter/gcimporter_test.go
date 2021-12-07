@@ -10,6 +10,7 @@ package gcimporter
 import (
 	"bytes"
 	"fmt"
+	"go/build"
 	"go/constant"
 	"go/types"
 	"io/ioutil"
@@ -255,13 +256,25 @@ var importedObjectTests = []struct {
 	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string)"},
 
 	// interfaces
-	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key interface{}) interface{}}"},
+	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key any) any}"},
 	{"crypto.Decrypter", "type Decrypter interface{Decrypt(rand io.Reader, msg []byte, opts DecrypterOpts) (plaintext []byte, err error); Public() PublicKey}"},
 	{"encoding.BinaryMarshaler", "type BinaryMarshaler interface{MarshalBinary() (data []byte, err error)}"},
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
 	{"io.ReadWriter", "type ReadWriter interface{Reader; Writer}"},
 	{"go/ast.Node", "type Node interface{End() go/token.Pos; Pos() go/token.Pos}"},
 	{"go/types.Type", "type Type interface{String() string; Underlying() Type}"},
+}
+
+// TODO(rsc): Delete this init func after x/tools no longer needs to test successfully with Go 1.17.
+func init() {
+	if build.Default.ReleaseTags[len(build.Default.ReleaseTags)-1] <= "go1.17" {
+		for i := range importedObjectTests {
+			if importedObjectTests[i].name == "context.Context" {
+				// Expand any to interface{}.
+				importedObjectTests[i].want = "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key interface{}) interface{}}"
+			}
+		}
+	}
 }
 
 func TestImportedTypes(t *testing.T) {
@@ -275,6 +288,12 @@ func TestImportedTypes(t *testing.T) {
 			continue // error reported elsewhere
 		}
 		got := types.ObjectString(obj, types.RelativeTo(obj.Pkg()))
+
+		// TODO(rsc): Delete this block once go.dev/cl/368254 lands.
+		if got != test.want && test.want == strings.ReplaceAll(got, "interface{}", "any") {
+			got = test.want
+		}
+
 		if got != test.want {
 			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
 		}
