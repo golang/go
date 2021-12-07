@@ -360,9 +360,15 @@ Do not send CLs removing the interior tags from such phrases.
   a network CIDR prefix.
 </p>
 <p>
-  The <code>net</code> package now has methods to send and receive UDP packets
-  using <code>netip.Addr</code> values instead of the relatively heavy
-  <code>*net.UDPAddr</code> values.
+  The <a href="/pkg/net/"><code>net</code></a> package includes new
+  methods that parallel existing methods, but
+  return <code>netip.AddrPort</code> instead of the
+  heavier-weight <a href="/pkg/net/#IP"><code>net.IP</code></a> or
+  <a href="/pkg/net/#UDPAddr"<code>*net.UDPAddr</code></a> types.
+  The <code>net</code> package also now includes functions and methods
+  to convert between the existing
+  <a href="/pkg/net/#TCPAddr"><code>TCPAddr</code>/<a href="/pkg/net/#UDPAddr"><code>UDPAddr</code>
+  types and <code>netip.AddrPort</code>.
 </p>
 
 <h3>TODO</h3>
@@ -597,12 +603,6 @@ Do not send CLs removing the interior tags from such phrases.
   <dd>
     <p><!-- CL 340261 -->
       <a href="/pkg/net#Error"><code>net.Error.Temporary</code></a> has been deprecated.
-    </p>
-  </dd>
-
-  <dd>
-    <p>
-      TODO: Several new net APIs.
     </p>
   </dd>
 </dl><!-- net -->
