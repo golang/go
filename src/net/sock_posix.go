@@ -156,24 +156,18 @@ func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr, ctrlFn func(st
 		}
 	}
 	// Record the local and remote addresses from the actual socket.
-	// For the local address, use
-	// 1) the one returned by Getsockname, if that succeeds; or
-	// 2) the one passed to us as the laddr parameter; or
-	// 3) nil.
+	// Get the local address by calling Getsockname.
 	// For the remote address, use
 	// 1) the one returned by the connect method, if any; or
 	// 2) the one from Getpeername, if it succeeds; or
 	// 3) the one passed to us as the raddr parameter.
-	var laddrName Addr = laddr
-	if lsa, err := syscall.Getsockname(fd.pfd.Sysfd); err == nil {
-		laddrName = fd.addrFunc()(lsa)
-	}
+	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
 	if crsa != nil {
-		fd.setAddr(laddrName, fd.addrFunc()(crsa))
+		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(crsa))
 	} else if rsa, _ = syscall.Getpeername(fd.pfd.Sysfd); rsa != nil {
-		fd.setAddr(laddrName, fd.addrFunc()(rsa))
+		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(rsa))
 	} else {
-		fd.setAddr(laddrName, raddr)
+		fd.setAddr(fd.addrFunc()(lsa), raddr)
 	}
 	return nil
 }
