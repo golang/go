@@ -266,6 +266,28 @@ Do not send CLs removing the interior tags from such phrases.
   multiple CPUs, <code>gofmt</code> should now be significantly faster.
 </p>
 
+<h3 id="vet"><code>vet</code></h3>
+
+<h4 id="vet-generics">Updates for Generics</h4>
+
+<p><!-- https://golang.org/issue/48704 -->
+	The <code>vet</code> tool is updated to support generic code. In most cases,
+	it reports an error in generic code whenever it would report an error in the
+	equivalent non-generic code after substituting for type parameters with a
+	type from their
+	<a href="https://golang.org/ref/spec#Interface_types">type set</a>.
+
+	For example, <code>vet</code> reports a format error in
+	<pre>func Print[T ~int|~string](t T) {
+	fmt.Printf("%d", t)
+}</pre>
+	because it would report a format error in the non-generic equivalent of
+	<code>Print[string]</code>:
+	<pre>func PrintString(x string) {
+	fmt.Printf("%d", x)
+}</pre>
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p><!-- https://golang.org/issue/44167 -->
