@@ -34,10 +34,17 @@ func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
 	skipUnderDebugger(t)
 
 	// This can deadlock if there aren't enough threads or if a GC
-	// tries to interrupt an atomic loop (see issue #10958). A GC
-	// could also actively be in progress (see issue #49370), so we
-	// need to call runtime.GC to block until it has complete. We
-	// use 8 Ps so there's room for the debug call worker,
+	// tries to interrupt an atomic loop (see issue #10958). Execute
+	// an extra GC to ensure even the sweep phase is done (out of
+	// caution to prevent #49370 from happening).
+	// TODO(mknyszek): This extra GC cycle is likely unnecessary
+	// because preemption (which may happen during the sweep phase)
+	// isn't much of an issue anymore thanks to asynchronous preemption.
+	// The biggest risk is having a write barrier in the debug call
+	// injection test code fire, because it runs in a signal handler
+	// and may not have a P.
+	//
+	// We use 8 Ps so there's room for the debug call worker,
 	// something that's trying to preempt the call worker, and the
 	// goroutine that's trying to stop the call worker.
 	ogomaxprocs := runtime.GOMAXPROCS(8)
@@ -270,8 +277,14 @@ func TestDebugCallPanic(t *testing.T) {
 	// progress. Wait until the current GC is done, and turn it off.
 	//
 	// See #10958 and #49370.
-	runtime.GC()
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// TODO(mknyszek): This extra GC cycle is likely unnecessary
+	// because preemption (which may happen during the sweep phase)
+	// isn't much of an issue anymore thanks to asynchronous preemption.
+	// The biggest risk is having a write barrier in the debug call
+	// injection test code fire, because it runs in a signal handler
+	// and may not have a P.
+	runtime.GC()
 
 	ready := make(chan *runtime.G)
 	var stop uint32

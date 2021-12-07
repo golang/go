@@ -50,7 +50,9 @@ func test9400(t *testing.T) {
 	// Disable GC for the duration of the test.
 	// This avoids a potential GC deadlock when spinning in uninterruptable ASM below #49695.
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
-	// And finish any pending GC after we pause, if any.
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #49695.
 	runtime.GC()
 
 	// Temporarily rewind the stack and trigger SIGSETXID

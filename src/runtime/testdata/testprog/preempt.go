@@ -21,7 +21,8 @@ func AsyncPreempt() {
 	// Disable GC so we have complete control of what we're testing.
 	debug.SetGCPercent(-1)
 	// Out of an abundance of caution, also make sure that there are
-	// no GCs actively in progress.
+	// no GCs actively in progress. The sweep phase of a GC cycle
+	// for instance tries to preempt Ps at the very beginning.
 	runtime.GC()
 
 	// Start a goroutine with no sync safe-points.
