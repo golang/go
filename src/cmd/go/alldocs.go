@@ -1407,10 +1407,10 @@
 //
 // 	go work edit [editing flags] [go.work]
 //
-// Editwork provides a command-line interface for editing go.work,
+// Edit provides a command-line interface for editing go.work,
 // for use primarily by tools or scripts. It only reads go.work;
 // it does not look up information about the modules involved.
-// If no file is specified, editwork looks for a go.work file in the current
+// If no file is specified, Edit looks for a go.work file in the current
 // directory and its parent directories
 //
 // The editing flags specify a sequence of editing operations.
@@ -1418,7 +1418,7 @@
 // The -fmt flag reformats the go.work file without making other changes.
 // This reformatting is also implied by any other modifications that use or
 // rewrite the go.mod file. The only time this flag is needed is if no other
-// flags are specified, as in 'go mod editwork -fmt'.
+// flags are specified, as in 'go work edit -fmt'.
 //
 // The -use=path and -dropuse=path flags
 // add and drop a use directive from the go.work file's set of module directories.
@@ -1478,10 +1478,10 @@
 //
 // 	go work init [moddirs]
 //
-// go mod initwork initializes and writes a new go.work file in the current
+// Init initializes and writes a new go.work file in the current
 // directory, in effect creating a new workspace at the current directory.
 //
-// go mod initwork optionally accepts paths to the workspace modules as arguments.
+// go work init optionally accepts paths to the workspace modules as arguments.
 // If the argument is omitted, an empty workspace with no modules will be created.
 //
 // See the workspaces design proposal at

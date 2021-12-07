@@ -1019,7 +1019,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 				if replacedByWorkFile[r.Old.Path] {
 					continue
 				} else if prev, ok := replacements[r.Old]; ok && !curModuleReplaces[r.Old] && prev != r.New {
-					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go mod editwork -replace %v=[override]\" to resolve", r.Old, prev, r.New, r.Old)
+					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go work edit -replace %v=[override]\" to resolve", r.Old, prev, r.New, r.Old)
 				}
 				curModuleReplaces[r.Old] = true
 				replacements[r.Old] = r.New
