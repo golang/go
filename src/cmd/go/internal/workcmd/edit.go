@@ -24,10 +24,10 @@ import (
 var cmdEdit = &base.Command{
 	UsageLine: "go work edit [editing flags] [go.work]",
 	Short:     "edit go.work from tools or scripts",
-	Long: `Editwork provides a command-line interface for editing go.work,
+	Long: `Edit provides a command-line interface for editing go.work,
 for use primarily by tools or scripts. It only reads go.work;
 it does not look up information about the modules involved.
-If no file is specified, editwork looks for a go.work file in the current
+If no file is specified, Edit looks for a go.work file in the current
 directory and its parent directories
 
 The editing flags specify a sequence of editing operations.
@@ -35,7 +35,7 @@ The editing flags specify a sequence of editing operations.
 The -fmt flag reformats the go.work file without making other changes.
 This reformatting is also implied by any other modifications that use or
 rewrite the go.mod file. The only time this flag is needed is if no other
-flags are specified, as in 'go mod editwork -fmt'.
+flags are specified, as in 'go work edit -fmt'.
 
 The -use=path and -dropuse=path flags
 add and drop a use directive from the go.work file's set of module directories.
@@ -123,7 +123,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 			len(workedits) > 0
 
 	if !anyFlags {
-		base.Fatalf("go: no flags specified (see 'go help mod editwork').")
+		base.Fatalf("go: no flags specified (see 'go help work edit').")
 	}
 
 	if *editJSON && *editPrint {
@@ -131,7 +131,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if len(args) > 1 {
-		base.Fatalf("go: 'go mod editwork' accepts at most one argument")
+		base.Fatalf("go: 'go help work edit' accepts at most one argument")
 	}
 	var gowork string
 	if len(args) == 1 {

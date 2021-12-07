@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// go mod initwork
+// go work init
 
 package workcmd
 
@@ -20,10 +20,10 @@ import (
 var cmdInit = &base.Command{
 	UsageLine: "go work init [moddirs]",
 	Short:     "initialize workspace file",
-	Long: `go mod initwork initializes and writes a new go.work file in the current
+	Long: `Init initializes and writes a new go.work file in the current
 directory, in effect creating a new workspace at the current directory.
 
-go mod initwork optionally accepts paths to the workspace modules as arguments.
+go work init optionally accepts paths to the workspace modules as arguments.
 If the argument is omitted, an empty workspace with no modules will be created.
 
 See the workspaces design proposal at
