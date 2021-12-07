@@ -314,7 +314,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	defer os.Remove(fn)
 
 	for try := 0; try < 2; try++ {
-		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-traces"))
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-tagignore=ignore", "-traces"))
 		// Check that pprof works both with and without explicit executable on command line.
 		if try == 0 {
 			cmd.Args = append(cmd.Args, exe, fn)

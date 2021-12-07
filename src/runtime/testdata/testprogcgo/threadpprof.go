@@ -64,6 +64,7 @@ void runCPUHogThread(void) {
 import "C"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -98,7 +99,14 @@ func pprofThread() {
 		os.Exit(2)
 	}
 
-	C.runCPUHogThread()
+	// This goroutine may receive a profiling signal while creating the C-owned
+	// thread. If it does, the SetCgoTraceback handler will make the leaf end of
+	// the stack look almost (but not exactly) like the stacks the test case is
+	// trying to find. Attach a profiler label so the test can filter out those
+	// confusing samples.
+	pprof.Do(context.Background(), pprof.Labels("ignore", "ignore"), func(ctx context.Context) {
+		C.runCPUHogThread()
+	})
 
 	time.Sleep(1*time.Second)
 
