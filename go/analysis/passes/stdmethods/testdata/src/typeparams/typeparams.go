@@ -28,7 +28,7 @@ type E[P any] int
 
 func (E[_]) Error() string { return "" } // E implements error.
 
-func (E[P]) As()     {} // want `method As\(\) should have signature As\(interface{}\) bool`
+func (E[P]) As()     {} // want `method As\(\) should have signature As\((any|interface\{\})\) bool`
 func (E[_]) Is()     {} // want `method Is\(\) should have signature Is\(error\) bool`
 func (E[_]) Unwrap() {} // want `method Unwrap\(\) should have signature Unwrap\(\) error`
 
@@ -36,6 +36,6 @@ type F[P any] int
 
 func (F[_]) Error() string { return "" } // Both F and *F implement error.
 
-func (*F[_]) As()     {} // want `method As\(\) should have signature As\(interface{}\) bool`
+func (*F[_]) As()     {} // want `method As\(\) should have signature As\((any|interface\{\})\) bool`
 func (*F[_]) Is()     {} // want `method Is\(\) should have signature Is\(error\) bool`
 func (*F[_]) Unwrap() {} // want `method Unwrap\(\) should have signature Unwrap\(\) error`

@@ -47,7 +47,7 @@ type E int
 
 func (E) Error() string { return "" } // E implements error.
 
-func (E) As()     {} // want `method As\(\) should have signature As\(interface{}\) bool`
+func (E) As()     {} // want `method As\(\) should have signature As\((any|interface\{\})\) bool`
 func (E) Is()     {} // want `method Is\(\) should have signature Is\(error\) bool`
 func (E) Unwrap() {} // want `method Unwrap\(\) should have signature Unwrap\(\) error`
 
@@ -55,6 +55,10 @@ type F int
 
 func (F) Error() string { return "" } // Both F and *F implement error.
 
-func (*F) As()     {} // want `method As\(\) should have signature As\(interface{}\) bool`
+func (*F) As()     {} // want `method As\(\) should have signature As\((any|interface\{\})\) bool`
 func (*F) Is()     {} // want `method Is\(\) should have signature Is\(error\) bool`
 func (*F) Unwrap() {} // want `method Unwrap\(\) should have signature Unwrap\(\) error`
+
+type G int
+
+func (G) As(interface{}) bool // ok
