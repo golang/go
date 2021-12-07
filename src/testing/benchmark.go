@@ -323,14 +323,15 @@ func (b *B) launch() {
 			// which can hide an order of magnitude in execution time.
 			// So multiply first, then divide.
 			n = goalns * prevIters / prevns
-			// Run more iterations than we think we'll need (1.2x).
-			n += n / 5
-			// Don't grow too fast in case we had timing errors previously.
-			if n < 0 {
-				// If n < 0 (overflow int64), means need to be executed many times,
-				// Otherwise it is easy to time out.
-				n = max(n, 100*last)
+			// Can't restore goalns means overflows.
+			if n*prevns/prevIters != goalns {
+				// Overflows means need to be executed many many times,
+				// otherwise it is easy to be timeout.
+				n = 100 * last
 			} else {
+				// Run more iterations than we think we'll need (1.2x).
+				n += n / 5
+				// Don't grow too fast in case we had timing errors previously.
 				n = min(n, 100*last)
 			}
 			// Be sure to run at least one more than last time.
