@@ -118,6 +118,12 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 		ans.Contents.Value = fmt.Sprintf("template %s\n(add definition)", sym.name)
 	case protocol.Namespace:
 		ans.Contents.Value = fmt.Sprintf("template %s defined", sym.name)
+	case protocol.Number:
+		ans.Contents.Value = "number"
+	case protocol.String:
+		ans.Contents.Value = "string"
+	case protocol.Boolean:
+		ans.Contents.Value = "boolean"
 	default:
 		ans.Contents.Value = fmt.Sprintf("oops, sym=%#v", sym)
 	}
