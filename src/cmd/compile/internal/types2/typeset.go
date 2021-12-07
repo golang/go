@@ -167,7 +167,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	}
 
 	// If the interface is not fully set up yet, the type set will
-	// not be complete, which may lead to errors when using the the
+	// not be complete, which may lead to errors when using the
 	// type set (e.g. missing method). Don't compute a partial type
 	// set (and don't store it!), so that we still compute the full
 	// type set eventually. Instead, return the top type set and
