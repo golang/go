@@ -4300,11 +4300,13 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	newg.gopc = callerpc
 	newg.ancestors = saveAncestors(callergp)
 	newg.startpc = fn.fn
-	if _g_.m.curg != nil {
-		newg.labels = _g_.m.curg.labels
-	}
 	if isSystemGoroutine(newg, false) {
 		atomic.Xadd(&sched.ngsys, +1)
+	} else {
+		// Only user goroutines inherit pprof labels.
+		if _g_.m.curg != nil {
+			newg.labels = _g_.m.curg.labels
+		}
 	}
 	// Track initial transition?
 	newg.trackingSeq = uint8(fastrand())
