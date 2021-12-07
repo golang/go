@@ -112,27 +112,6 @@ Do not send CLs removing the interior tags from such phrases.
   programs is likely very small.
 </p>
 
-<h3 id="fuzzing">Fuzzing</h3>
-
-<p>
-  Go 1.18 includes an implementation of fuzzing as described by
-  <a href="https://golang.org/issue/44551">the fuzzing proposal</a>.
-</p>
-
-<p>
-  See the <a href="https://go.dev/doc/fuzz">fuzzing landing page</a> to get
-  started.
-</p>
-
-<p>
-  Please be aware that fuzzing can consume a lot of memory and may impact your
-  machine’s performance while it runs. Also be aware that the fuzzing engine
-  writes values that expand test coverage to a fuzz cache directory within
-  <code>$GOCACHE/fuzz</code> while it runs. There is currently no limit to the
-  number of files or total bytes that may be written to the fuzz cache, so it
-  may occupy a large amount of storage (possibly several GBs).
-</p>
-
 <h2 id="ports">Ports</h2>
 
 <h3 id="amd64">AMD64</h3>
@@ -182,6 +161,27 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <h2 id="tools">Tools</h2>
+
+<h3 id="fuzzing">Fuzzing</h3>
+
+<p>
+  Go 1.18 includes an implementation of fuzzing as described by
+  <a href="https://golang.org/issue/44551">the fuzzing proposal</a>.
+</p>
+
+<p>
+  See the <a href="https://go.dev/doc/fuzz">fuzzing landing page</a> to get
+  started.
+</p>
+
+<p>
+  Please be aware that fuzzing can consume a lot of memory and may impact your
+  machine’s performance while it runs. Also be aware that the fuzzing engine
+  writes values that expand test coverage to a fuzz cache directory within
+  <code>$GOCACHE/fuzz</code> while it runs. There is currently no limit to the
+  number of files or total bytes that may be written to the fuzz cache, so it
+  may occupy a large amount of storage (possibly several GBs).
+</p>
 
 <h3 id="go-command">Go command</h3>
 
