@@ -6138,7 +6138,7 @@ func (ord *randomOrder) start(i uint32) randomEnum {
 	return randomEnum{
 		count: ord.count,
 		pos:   i % ord.count,
-		inc:   ord.coprimes[i%uint32(len(ord.coprimes))],
+		inc:   ord.coprimes[i/ord.count%uint32(len(ord.coprimes))],
 	}
 }
 
