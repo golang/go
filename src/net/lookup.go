@@ -434,13 +434,15 @@ func (r *Resolver) LookupCNAME(ctx context.Context, host string) (string, error)
 // The returned records are sorted by priority and randomized
 // by weight within a priority.
 //
-// LookupSRV constructs the DNS name to look up following RFC 2782
-// and returns it and the SRV records.
+// LookupSRV constructs the DNS name to look up following RFC 2782.
 // That is, it looks up _service._proto.name. To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
 //
-// The returned service names are validated to be properly
+// LookupSRV returns the canonical name and the SRV records for the given SRV query.
+// On Windows, the returned canonical name is the target that LookupSRV looks up.
+//
+// The returned canonical name and service names are validated to be properly
 // formatted presentation-format domain names. If the response contains
 // invalid names, those records are filtered out and an error
 // will be returned alongside the the remaining results, if any.
@@ -453,13 +455,15 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 // The returned records are sorted by priority and randomized
 // by weight within a priority.
 //
-// LookupSRV constructs the DNS name to look up following RFC 2782
-// and returns it and the SRV records.
+// LookupSRV constructs the DNS name to look up following RFC 2782.
 // That is, it looks up _service._proto.name. To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
 //
-// The returned service names are validated to be properly
+// LookupSRV returns the canonical name and the SRV records for the given SRV query.
+// On Windows, the returned canonical name is the target that LookupSRV looks up.
+//
+// The returned canonical name and service names are validated to be properly
 // formatted presentation-format domain names. If the response contains
 // invalid names, those records are filtered out and an error
 // will be returned alongside the the remaining results, if any.
