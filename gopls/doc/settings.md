@@ -94,8 +94,8 @@ Must be one of:
 * `"DegradeClosed"`: In DegradeClosed mode, `gopls` will collect less information about
 packages without open files. As a result, features like Find
 References and Rename will miss results in such packages.
-
 * `"Normal"`
+
 Default: `"Normal"`.
 
 #### **expandWorkspaceToModule** *bool*
@@ -247,6 +247,7 @@ Must be one of:
 * `"CaseInsensitive"`
 * `"CaseSensitive"`
 * `"Fuzzy"`
+
 Default: `"Fuzzy"`.
 
 ##### **experimentalPostfixCompletions** *bool*
@@ -298,11 +299,8 @@ that should be reported by the gc_details command.
 Can contain any of:
 
 * `"bounds"` controls bounds checking diagnostics.
-
 * `"escape"` controls diagnostics about escape choices.
-
 * `"inline"` controls diagnostics about inlining choices.
-
 * `"nil"` controls nil checks.
 
 Default: `{"bounds":true,"escape":true,"inline":true,"nil":true}`.
@@ -350,8 +348,8 @@ Must be one of:
 This format separates the signature from the documentation, so that the client
 can do more manipulation of these fields.\
 This should only be used by clients that support this behavior.
-
 * `"SynopsisDocumentation"`
+
 Default: `"FullDocumentation"`.
 
 ##### **linkTarget** *string*
@@ -384,6 +382,7 @@ Must be one of:
 * `"Both"`
 * `"Definition"`
 * `"Link"`
+
 Default: `"Both"`.
 
 ##### **symbolMatcher** *enum*
@@ -398,6 +397,7 @@ Must be one of:
 * `"CaseSensitive"`
 * `"FastFuzzy"`
 * `"Fuzzy"`
+
 Default: `"Fuzzy"`.
 
 ##### **symbolStyle** *enum*
@@ -422,10 +422,8 @@ Must be one of:
 match for the given symbol query. Here a "qualifier" is any "/" or "."
 delimited suffix of the fully qualified symbol. i.e. "to/pkg.Foo.Field" or
 just "Foo.Field".
-
 * `"Full"` is fully qualified symbols, i.e.
 "path/to/pkg.Foo.Field".
-
 * `"Package"` is package qualified symbols i.e.
 "pkg.Foo.Field".
 

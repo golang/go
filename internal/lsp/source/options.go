@@ -1336,12 +1336,9 @@ func collectEnums(opt *OptionJSON) string {
 	write := func(name, doc string, index, len int) {
 		if doc != "" {
 			unbroken := parBreakRE.ReplaceAllString(doc, "\\\n")
-			fmt.Fprintf(&b, "* %s", unbroken)
+			fmt.Fprintf(&b, "* %s\n", strings.TrimSpace(unbroken))
 		} else {
-			fmt.Fprintf(&b, "* `%s`", name)
-		}
-		if index < len-1 {
-			fmt.Fprint(&b, "\n")
+			fmt.Fprintf(&b, "* `%s`\n", name)
 		}
 	}
 	if len(opt.EnumValues) > 0 && opt.Type == "enum" {
