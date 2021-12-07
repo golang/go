@@ -5998,11 +5998,7 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Error("timeout")
-	}
+	<-done
 }
 
 // Issue 18319: test that the Server validates the request method.
