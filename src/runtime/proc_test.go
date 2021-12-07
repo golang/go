@@ -119,8 +119,9 @@ func TestGoroutineParallelism(t *testing.T) {
 	// since the goroutines can't be stopped/preempted.
 	// Disable GC for this test (see issue #10958).
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
-	// Now that GCs are disabled, block until any outstanding GCs
-	// are also done.
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
 	runtime.GC()
 	for try := 0; try < N; try++ {
 		done := make(chan bool)
@@ -166,8 +167,9 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
 	// since the goroutines can't be stopped/preempted.
 	// Disable GC for this test (see issue #10958).
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
-	// Now that GCs are disabled, block until any outstanding GCs
-	// are also done.
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
 	runtime.GC()
 	for try := 0; try < N; try++ {
 		if load {
@@ -629,8 +631,9 @@ func TestSchedLocalQueueEmpty(t *testing.T) {
 	// If runtime triggers a forced GC during this test then it will deadlock,
 	// since the goroutines can't be stopped/preempted during spin wait.
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
-	// Now that GCs are disabled, block until any outstanding GCs
-	// are also done.
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
 	runtime.GC()
 
 	iters := int(1e5)
