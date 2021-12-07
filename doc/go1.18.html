@@ -321,8 +321,11 @@ Do not send CLs removing the interior tags from such phrases.
   new <code>go</code> command <code>-asan</code> option.
 </p>
 
-<p>
-  TODO: Mention build speed impact.
+<p> <!-- https://github.com/golang/go/issues/49569 -->
+  Because of changes in the compiler related to supporting generics, the
+  Go 1.18 compile speed can be roughly 15% slower than the Go 1.17 compile speed.
+  The execution time of the compiled code is not affected.  We
+  intend to improve the speed of the compiler in Go 1.19.
 </p>
 
 <h2 id="linker">Linker</h2>
