@@ -460,7 +460,7 @@ type listImports struct {
 var listCache sync.Map // map[string]listImports, keyed by contextName
 
 // listSem is a semaphore restricting concurrent invocations of 'go list'.
-var listSem = make(chan semToken, runtime.GOMAXPROCS(0))
+var listSem = make(chan semToken, ((runtime.GOMAXPROCS(0)-1)/2)+1)
 
 type semToken struct{}
 
