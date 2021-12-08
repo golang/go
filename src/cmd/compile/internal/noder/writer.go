@@ -229,6 +229,8 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
 
 // @@@ Types
 
+var anyTypeName = types2.Universe.Lookup("any").(*types2.TypeName)
+
 func (w *writer) typ(typ types2.Type) {
 	w.typInfo(w.p.typIdx(typ, w.dict))
 }
@@ -350,6 +352,12 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		w.structType(typ)
 
 	case *types2.Interface:
+		if typ == anyTypeName.Type() {
+			w.code(typeNamed)
+			w.obj(anyTypeName, nil)
+			break
+		}
+
 		w.code(typeInterface)
 		w.interfaceType(typ)
 
