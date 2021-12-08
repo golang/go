@@ -55,7 +55,9 @@ func Pipe(p []int) (err error) {
 	if e1 != 0 {
 		err = Errno(e1)
 	}
-	p[0], p[1] = int(r0), int(w0)
+	if err == nil {
+		p[0], p[1] = int(r0), int(w0)
+	}
 	return
 }
 
