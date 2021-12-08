@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -27,7 +28,7 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.Signa
 	expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-	if expect != got {
+	if tests.NormalizeAny(expect) != tests.NormalizeAny(got) {
 		t.Errorf("signature failed for %s expected:\n%q\ngot:\n%q'", filename, expect, got)
 	}
 }

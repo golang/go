@@ -252,7 +252,7 @@ func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) (string, e
 	}
 	g := got.Signatures[0]
 	w := want.Signatures[0]
-	if w.Label != g.Label {
+	if NormalizeAny(w.Label) != NormalizeAny(g.Label) {
 		wLabel := w.Label + "\n"
 		d, err := myers.ComputeEdits("", wLabel, g.Label+"\n")
 		if err != nil {
@@ -269,6 +269,14 @@ func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) (string, e
 		return decorate("expected signature %q to contain params %q", g.Label, paramsStr), nil
 	}
 	return "", nil
+}
+
+// NormalizeAny replaces occurrences of interface{} in input with any.
+//
+// In Go 1.18, standard library functions were changed to use the 'any'
+// alias in place of interface{}, which affects their type string.
+func NormalizeAny(input string) string {
+	return strings.ReplaceAll(input, "interface{}", "any")
 }
 
 // DiffCallHierarchyItems returns the diff between expected and actual call locations for incoming/outgoing call hierarchies
@@ -369,7 +377,7 @@ func CheckCompletionOrder(want, got []protocol.CompletionItem, strictScores bool
 	for _, w := range want {
 		var found bool
 		for i, g := range got {
-			if w.Label == g.Label && w.Detail == g.Detail && w.Kind == g.Kind {
+			if w.Label == g.Label && NormalizeAny(w.Detail) == NormalizeAny(g.Detail) && w.Kind == g.Kind {
 				matchedIdxs = append(matchedIdxs, i)
 				found = true
 
@@ -444,7 +452,7 @@ func DiffCompletionItems(want, got []protocol.CompletionItem) string {
 		if w.Label != g.Label {
 			return summarizeCompletionItems(i, want, got, "incorrect Label got %v want %v", g.Label, w.Label)
 		}
-		if w.Detail != g.Detail {
+		if NormalizeAny(w.Detail) != NormalizeAny(g.Detail) {
 			return summarizeCompletionItems(i, want, got, "incorrect Detail got %v want %v", g.Detail, w.Detail)
 		}
 		if w.Documentation != "" && !strings.HasPrefix(w.Documentation, "@") {
