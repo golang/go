@@ -331,8 +331,8 @@ func buildGorename(t *testing.T) (tmp, bin string, cleanup func()) {
 		bin += ".exe"
 	}
 	cmd := exec.Command("go", "build", "-o", bin)
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Building gorename: %v", err)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Building gorename: %v\n%s", err, out)
 	}
 	return tmp, bin, func() { os.RemoveAll(tmp) }
 }
