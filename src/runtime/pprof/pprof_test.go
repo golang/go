@@ -1425,6 +1425,11 @@ func TestLabelRace(t *testing.T) {
 // TestLabelSystemstack makes sure CPU profiler samples of goroutines running
 // on systemstack include the correct pprof labels. See issue #48577
 func TestLabelSystemstack(t *testing.T) {
+	// Grab and re-set the initial value before continuing to ensure
+	// GOGC doesn't actually change following the test.
+	gogc := debug.SetGCPercent(100)
+	debug.SetGCPercent(gogc)
+
 	matches := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime.systemstack;key=value"}, avoidFunctions())
 	p := testCPUProfile(t, matches, func(dur time.Duration) {
 		Do(context.Background(), Labels("key", "value"), func(context.Context) {
@@ -1434,7 +1439,7 @@ func TestLabelSystemstack(t *testing.T) {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					labelHog(stop)
+					labelHog(stop, gogc)
 				}()
 			}
 
@@ -1467,13 +1472,13 @@ func TestLabelSystemstack(t *testing.T) {
 
 // labelHog is designed to burn CPU time in a way that a high number of CPU
 // samples end up running on systemstack.
-func labelHog(stop chan struct{}) {
+func labelHog(stop chan struct{}, gogc int) {
 	for i := 0; ; i++ {
 		select {
 		case <-stop:
 			return
 		default:
-			fmt.Fprintf(io.Discard, "%d", i)
+			debug.SetGCPercent(gogc)
 		}
 	}
 }
