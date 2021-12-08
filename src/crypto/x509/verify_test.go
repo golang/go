@@ -13,6 +13,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"math/big"
 	"runtime"
 	"strings"
@@ -469,6 +470,9 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 	chains, err := leaf.Verify(opts)
 
 	if test.errorCallback == nil && err != nil {
+		if runtime.GOOS == "windows" && strings.HasSuffix(testenv.Builder(), "-2008") && err.Error() == "x509: certificate signed by unknown authority" {
+			testenv.SkipFlaky(t, 19564)
+		}
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if test.errorCallback != nil {
