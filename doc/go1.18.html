@@ -528,6 +528,11 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
   <dd>
+		<p><!-- https://golang.org/issue/46648 -->
+			The new <a href="/pkg/go/types/#Config.GoVersion"><code>Config.GoVersion</code></a>
+			field sets the accepted Go language version.
+		</p>
+
     <p><!-- https://golang.org/issue/47916 -->
       Per the proposal
       <a href="https://go.googlesource.com/proposal/+/master/design/47916-parameterized-go-types.md">
@@ -540,7 +545,7 @@ Do not send CLs removing the interior tags from such phrases.
         The new type
         <a href="/pkg/go/types/#TypeParam"><code>TypeParam</code></a>, factory function
         <a href="/pkg/go/types/#NewTypeParam"><code>NewTypeParam</code></a>,
-        and associated methods were added to represent a type parameter.
+        and associated methods are added to represent a type parameter.
       </li>
       <li>
         The new type
@@ -569,7 +574,7 @@ Do not send CLs removing the interior tags from such phrases.
         type arguments or type parameters of an instantiated or parameterized type, and
         <a href="/pkg/go/types/#Named.TypeParams"><code>Named.SetTypeParams</code></a> to set the
         type parameters (for instance, when importing a named type where allocation of the named
-        type and setting of type parameters cannot be done both at once due to possible cycles).
+        type and setting of type parameters cannot be done simultaneously due to possible cycles).
       </li>
       <li>
         The <a href="/pkg/go/types/#Interface"><code>Interface</code></a> type has four new methods:
@@ -586,7 +591,7 @@ Do not send CLs removing the interior tags from such phrases.
         <a href="/pkg/go/types/#Term"><code>Term</code></a>, factory functions
         <a href="/pkg/go/types/#NewUnion"><code>NewUnion</code></a> and
         <a href="/pkg/go/types/#NewTerm"><code>NewTerm</code></a>, and associated
-        methods were added to represent type sets in interfaces.
+        methods are added to represent type sets in interfaces.
       </li>
       <li>
         The new function
@@ -600,12 +605,12 @@ Do not send CLs removing the interior tags from such phrases.
       </li>
       <li><!-- CL 342671 -->
         The new type <a href="/pkg/go/types/#ArgumentError"><code>ArgumentError</code></a>
-        and associated methods were added to represent an error related to a type argument.
+        and associated methods are added to represent an error related to a type argument.
       </li>
       <li><!-- CL 353089 -->
         The new type <a href="/pkg/go/types/#Context"><code>Context</code></a> and factory function
         <a href="/pkg/go/types/#NewContext"><code>NewContext</code></a>
-        were added to facilitate sharing of identical type instances across type-checked packages.
+        are added to facilitate sharing of identical type instances across type-checked packages.
       </li>
     </ul>
   </dd>
