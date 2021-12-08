@@ -177,7 +177,9 @@ func TestReadFile(t *testing.T) {
 		{
 			name:  "valid_gopath",
 			build: buildWithGOPATH,
-			want:  "go\tGOVERSION\n",
+			want: "go\tGOVERSION\n" +
+				"path\texample.com/m\n" +
+				"build\t-compiler=gc\n",
 		},
 		{
 			name: "invalid_gopath",
