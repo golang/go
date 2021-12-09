@@ -27,16 +27,16 @@ func packetConnTestData(t *testing.T, network string) ([]byte, func()) {
 	return []byte("PACKETCONN TEST"), nil
 }
 
-var packetConnTests = []struct {
-	net   string
-	addr1 string
-	addr2 string
-}{
-	{"udp", "127.0.0.1:0", "127.0.0.1:0"},
-	{"unixgram", testUnixAddr(), testUnixAddr()},
-}
-
 func TestPacketConn(t *testing.T) {
+	var packetConnTests = []struct {
+		net   string
+		addr1 string
+		addr2 string
+	}{
+		{"udp", "127.0.0.1:0", "127.0.0.1:0"},
+		{"unixgram", testUnixAddr(t), testUnixAddr(t)},
+	}
+
 	closer := func(c PacketConn, net, addr1, addr2 string) {
 		c.Close()
 		switch net {
@@ -85,6 +85,15 @@ func TestPacketConn(t *testing.T) {
 }
 
 func TestConnAndPacketConn(t *testing.T) {
+	var packetConnTests = []struct {
+		net   string
+		addr1 string
+		addr2 string
+	}{
+		{"udp", "127.0.0.1:0", "127.0.0.1:0"},
+		{"unixgram", testUnixAddr(t), testUnixAddr(t)},
+	}
+
 	closer := func(c PacketConn, net, addr1, addr2 string) {
 		c.Close()
 		switch net {

@@ -204,7 +204,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 		t.Skip("unix test")
 	}
 
-	addr := testUnixAddr()
+	addr := testUnixAddr(t)
 	la, err := ResolveUnixAddr("unix", addr)
 	if err != nil {
 		t.Fatal(err)
@@ -245,7 +245,7 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 		t.Skip("unixgram test")
 	}
 
-	addr1, addr2, addr3 := testUnixAddr(), testUnixAddr(), testUnixAddr()
+	addr1, addr2, addr3 := testUnixAddr(t), testUnixAddr(t), testUnixAddr(t)
 
 	a1, err := ResolveUnixAddr("unixgram", addr1)
 	if err != nil {

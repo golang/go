@@ -45,9 +45,9 @@ func TestUnixConnLocalWindows(t *testing.T) {
 	}
 
 	handler := func(ls *localServer, ln Listener) {}
-	for _, laddr := range []string{"", testUnixAddr()} {
+	for _, laddr := range []string{"", testUnixAddr(t)} {
 		laddr := laddr
-		taddr := testUnixAddr()
+		taddr := testUnixAddr(t)
 		ta, err := ResolveUnixAddr("unix", taddr)
 		if err != nil {
 			t.Fatal(err)

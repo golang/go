@@ -213,7 +213,7 @@ func testSpliceNoUnixpacket(t *testing.T) {
 }
 
 func testSpliceNoUnixgram(t *testing.T) {
-	addr, err := ResolveUnixAddr("unixgram", testUnixAddr())
+	addr, err := ResolveUnixAddr("unixgram", testUnixAddr(t))
 	if err != nil {
 		t.Fatal(err)
 	}
