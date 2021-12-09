@@ -1,13 +1,13 @@
-// Copyright 2016 The Go Authors. All rights reserved.
+// Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 //go:build windows || plan9 || (js && wasm)
 
-package runtime_test
+package testenv
 
 import "os"
 
-// sigquit is the signal to send to kill a hanging testdata program.
+// Sigquit is the signal to send to kill a hanging subprocess.
 // On Unix we send SIGQUIT, but on non-Unix we only have os.Kill.
-var sigquit = os.Kill
+var Sigquit = os.Kill

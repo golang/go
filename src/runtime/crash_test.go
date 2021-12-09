@@ -15,11 +15,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 )
 
 var toRemove []string
@@ -71,43 +69,8 @@ func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
 	if testing.Short() {
 		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
 	}
-	var b bytes.Buffer
-	cmd.Stdout = &b
-	cmd.Stderr = &b
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("starting %s %s: %v", exe, name, err)
-	}
-
-	// If the process doesn't complete within 1 minute,
-	// assume it is hanging and kill it to get a stack trace.
-	p := cmd.Process
-	done := make(chan bool)
-	go func() {
-		scale := 1
-		// This GOARCH/GOOS test is copied from cmd/dist/test.go.
-		// TODO(iant): Have cmd/dist update the environment variable.
-		if runtime.GOARCH == "arm" || runtime.GOOS == "windows" {
-			scale = 2
-		}
-		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
-			if sc, err := strconv.Atoi(s); err == nil {
-				scale = sc
-			}
-		}
-
-		select {
-		case <-done:
-		case <-time.After(time.Duration(scale) * time.Minute):
-			p.Signal(sigquit)
-		}
-	}()
-
-	if err := cmd.Wait(); err != nil {
-		t.Logf("%s %s exit status: %v", exe, name, err)
-	}
-	close(done)
-
-	return b.String()
+	out, _ := testenv.RunWithTimeout(t, cmd)
+	return string(out)
 }
 
 var serializeBuild = make(chan bool, 2)

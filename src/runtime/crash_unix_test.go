@@ -21,16 +21,12 @@ import (
 	"unsafe"
 )
 
-// sigquit is the signal to send to kill a hanging testdata program.
-// Send SIGQUIT to get a stack trace.
-var sigquit = syscall.SIGQUIT
-
 func init() {
 	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
 		// We can't use SIGQUIT to kill subprocesses because
 		// it's blocked. Use SIGKILL instead. See issue
 		// #19196 for an example of when this happens.
-		sigquit = syscall.SIGKILL
+		testenv.Sigquit = syscall.SIGKILL
 	}
 }
 
