@@ -243,7 +243,6 @@ func TestListenerClose(t *testing.T) {
 				defer os.Remove(ln.Addr().String())
 			}
 
-			dst := ln.Addr().String()
 			if err := ln.Close(); err != nil {
 				if perr := parseCloseError(err, false); perr != nil {
 					t.Error(perr)
@@ -256,28 +255,12 @@ func TestListenerClose(t *testing.T) {
 				t.Fatal("should fail")
 			}
 
-			if network == "tcp" {
-				// We will have two TCP FSMs inside the
-				// kernel here. There's no guarantee that a
-				// signal comes from the far end FSM will be
-				// delivered immediately to the near end FSM,
-				// especially on the platforms that allow
-				// multiple consumer threads to pull pending
-				// established connections at the same time by
-				// enabling SO_REUSEPORT option such as Linux,
-				// DragonFly BSD. So we need to give some time
-				// quantum to the kernel.
-				//
-				// Note that net.inet.tcp.reuseport_ext=1 by
-				// default on DragonFly BSD.
-				time.Sleep(time.Millisecond)
-
-				cc, err := Dial("tcp", dst)
-				if err == nil {
-					t.Error("Dial to closed TCP listener succeeded.")
-					cc.Close()
-				}
-			}
+			// Note: we cannot ensure that a subsequent Dial does not succeed, because
+			// we do not in general have any guarantee that ln.Addr is not immediately
+			// reused. (TCP sockets enter a TIME_WAIT state when closed, but that only
+			// applies to existing connections for the port — it does not prevent the
+			// port itself from being used for entirely new connections in the
+			// meantime.)
 		})
 	}
 }
