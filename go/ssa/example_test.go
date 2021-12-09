@@ -50,6 +50,9 @@ func main() {
 // golang.org/x/tools/cmd/ssadump.
 //
 func Example_buildPackage() {
+	// Replace interface{} with any for this test.
+	ssa.SetNormalizeAnyForTesting(true)
+	defer ssa.SetNormalizeAnyForTesting(false)
 	// Parse the source files.
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "hello.go", hello, parser.ParseComments)
@@ -105,11 +108,11 @@ func Example_buildPackage() {
 	// # Location: hello.go:8:6
 	// func main():
 	// 0:                                                                entry P:0 S:0
-	// 	t0 = new [1]interface{} (varargs)                       *[1]interface{}
-	// 	t1 = &t0[0:int]                                            *interface{}
-	// 	t2 = make interface{} <- string ("Hello, World!":string)    interface{}
+	// 	t0 = new [1]any (varargs)                                       *[1]any
+	// 	t1 = &t0[0:int]                                                    *any
+	// 	t2 = make any <- string ("Hello, World!":string)                    any
 	// 	*t1 = t2
-	// 	t3 = slice t0[:]                                          []interface{}
+	// 	t3 = slice t0[:]                                                  []any
 	// 	t4 = fmt.Println(t3...)                              (n int, err error)
 	// 	return
 }

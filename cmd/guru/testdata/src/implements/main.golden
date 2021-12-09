@@ -13,7 +13,7 @@ interface type FG
 	implements F
 
 -------- @implements slice --------
-slice type []int implements only interface{}
+slice type []int implements only any
 
 -------- @implements C --------
 pointer type *C

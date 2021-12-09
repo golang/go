@@ -14,6 +14,7 @@ import (
 	"io"
 	"reflect"
 	"sort"
+	"strings"
 
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -38,8 +39,16 @@ func relName(v Value, i Instruction) string {
 	return v.Name()
 }
 
+// normalizeAnyFortesting controls whether we replace occurrences of
+// interface{} with any. It is only used for normalizing test output.
+var normalizeAnyForTesting bool
+
 func relType(t types.Type, from *types.Package) string {
-	return types.TypeString(t, types.RelativeTo(from))
+	s := types.TypeString(t, types.RelativeTo(from))
+	if normalizeAnyForTesting {
+		s = strings.ReplaceAll(s, "interface{}", "any")
+	}
+	return s
 }
 
 func relString(m Member, from *types.Package) string {

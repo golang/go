@@ -9,7 +9,7 @@ import (
 // rules this replacement should be ok, but types.Assignable doesn't work
 // in the expected way (elementwise assignability) for tuples.
 // Perhaps that's even a type-checker bug?
-const shouldFail = "(n int, err error) is not a safe replacement for (key interface{}, err error)"
+const shouldFail = "(n int, err error) is not a safe replacement for (key any, err error)"
 
 func before() (interface{}, error) { return x509.ParsePKCS8PrivateKey(nil) }
 func after() (interface{}, error)  { return fmt.Print() }

@@ -215,6 +215,9 @@ func doQuery(out io.Writer, q *query, json bool) {
 	}
 
 	for _, output := range outputs {
+		// Replace occurrences of interface{} with any, for consistent output
+		// across go 1.18 and earlier.
+		output = strings.ReplaceAll(output, "interface{}", "any")
 		fmt.Fprintf(out, "%s\n", output)
 	}
 

@@ -81,7 +81,7 @@ this map[string]*int may point to these objects:
 
 Error: pointer analysis wants an expression of reference type; got ()
 -------- @pointsto var-ref-s-f --------
-this interface{} may contain these dynamic types:
+this any may contain these dynamic types:
 	chan bool, may point to:
 		makechan
 

@@ -115,7 +115,7 @@ func Test(t *testing.T) {
 			if err != nil {
 				if shouldFail == nil {
 					t.Errorf("NewTransformer(%s): %s", filename, err)
-				} else if want := constant.StringVal(shouldFail.Val()); !strings.Contains(err.Error(), want) {
+				} else if want := constant.StringVal(shouldFail.Val()); !strings.Contains(normalizeAny(err.Error()), want) {
 					t.Errorf("NewTransformer(%s): got error %q, want error %q", filename, err, want)
 				}
 			} else if shouldFail != nil {
@@ -172,4 +172,10 @@ func Test(t *testing.T) {
 			}
 		}
 	}
+}
+
+// normalizeAny replaces occurrences of interface{} with any, for consistent
+// output.
+func normalizeAny(s string) string {
+	return strings.ReplaceAll(s, "interface{}", "any")
 }

@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/tools/go/gcexportdata"
 )
@@ -59,8 +60,9 @@ func ExampleRead() {
 	fmt.Printf("Package members:    %s...\n", members[:5])
 	println := pkg.Scope().Lookup("Println")
 	posn := fset.Position(println.Pos())
-	posn.Line = 123 // make example deterministic
-	fmt.Printf("Println type:       %s\n", println.Type())
+	posn.Line = 123                                                          // make example deterministic
+	typ := strings.ReplaceAll(println.Type().String(), "interface{}", "any") // go 1.18+ uses the 'any' alias
+	fmt.Printf("Println type:       %s\n", typ)
 	fmt.Printf("Println location:   %s\n", slashify(posn))
 
 	// Output:
@@ -68,7 +70,7 @@ func ExampleRead() {
 	// Package path:       fmt
 	// Export data:        fmt.a
 	// Package members:    [Errorf Formatter Fprint Fprintf Fprintln]...
-	// Println type:       func(a ...interface{}) (n int, err error)
+	// Println type:       func(a ...any) (n int, err error)
 	// Println location:   $GOROOT/src/fmt/print.go:123:1
 }
 

@@ -8,7 +8,7 @@ this reflect.Value may contain these dynamic types:
 		makemap
 
 -------- @pointsto p1 --------
-this interface{} may contain these dynamic types:
+this any may contain these dynamic types:
 	*bool, may point to:
 		reflection.b
 	*int, may point to:
