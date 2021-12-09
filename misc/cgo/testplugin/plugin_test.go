@@ -265,7 +265,7 @@ func TestIssue25756(t *testing.T) {
 
 // Test with main using -buildmode=pie with plugin for issue #43228
 func TestIssue25756pie(t *testing.T) {
-	if os.Getenv("GO_BUILDER_NAME") == "darwin-arm64-11_0-toothrot" {
+	if os.Getenv("GO_BUILDER_NAME") == "darwin-arm64-11_0-toothrot" || os.Getenv("GO_BUILDER_NAME") == "darwin-arm64-12_0-toothrot" {
 		t.Skip("broken on darwin/arm64 builder in sharded mode; see issue 46239")
 	}
 
