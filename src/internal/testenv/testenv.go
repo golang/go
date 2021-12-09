@@ -346,6 +346,13 @@ func RunWithTimeout(t testing.TB, cmd *exec.Cmd) ([]byte, error) {
 		case <-done:
 		case <-time.After(time.Duration(scale) * time.Minute):
 			p.Signal(Sigquit)
+			// If SIGQUIT doesn't do it after a little
+			// while, kill the process.
+			select {
+			case <-done:
+			case <-time.After(time.Duration(scale) * 30 * time.Second):
+				p.Signal(os.Kill)
+			}
 		}
 	}()
 
