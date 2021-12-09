@@ -285,10 +285,7 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 			t.Log(err)
 			continue
 		}
-		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&packetListener{PacketConn: c1}).newLocalServer()
 		defer ls.teardown()
 		ch := make(chan error, 1)
 		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, ch) }
@@ -333,10 +330,7 @@ func TestUDPZeroBytePayload(t *testing.T) {
 		testenv.SkipFlaky(t, 29225)
 	}
 
-	c, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := newLocalPacketListener(t, "udp")
 	defer c.Close()
 
 	for _, genericRead := range []bool{false, true} {
@@ -369,10 +363,7 @@ func TestUDPZeroByteBuffer(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	c, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := newLocalPacketListener(t, "udp")
 	defer c.Close()
 
 	b := []byte("UDP ZERO BYTE BUFFER TEST")
@@ -406,10 +397,7 @@ func TestUDPReadSizeError(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	c1, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
 
 	c2, err := Dial("udp", c1.LocalAddr().String())

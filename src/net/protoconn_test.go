@@ -73,10 +73,7 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 	}
 	ch := make(chan error, 1)
 	handler := func(ls *localServer, ln Listener) { ls.transponder(ls.Listener, ch) }
-	ls, err := (&streamListener{Listener: ln}).newLocalServer()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := (&streamListener{Listener: ln}).newLocalServer()
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)

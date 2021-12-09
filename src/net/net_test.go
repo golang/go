@@ -33,10 +33,7 @@ func TestCloseRead(t *testing.T) {
 			}
 			t.Parallel()
 
-			ln, err := newLocalListener(network)
-			if err != nil {
-				t.Fatal(err)
-			}
+			ln := newLocalListener(t, network)
 			switch network {
 			case "unix", "unixpacket":
 				defer os.Remove(ln.Addr().String())
@@ -132,10 +129,7 @@ func TestCloseWrite(t *testing.T) {
 				}
 			}
 
-			ls, err := newLocalServer(network)
-			if err != nil {
-				t.Fatal(err)
-			}
+			ls := newLocalServer(t, network)
 			defer ls.teardown()
 			if err := ls.buildup(handler); err != nil {
 				t.Fatal(err)
@@ -189,10 +183,7 @@ func TestConnClose(t *testing.T) {
 			}
 			t.Parallel()
 
-			ln, err := newLocalListener(network)
-			if err != nil {
-				t.Fatal(err)
-			}
+			ln := newLocalListener(t, network)
 			switch network {
 			case "unix", "unixpacket":
 				defer os.Remove(ln.Addr().String())
@@ -234,10 +225,7 @@ func TestListenerClose(t *testing.T) {
 			}
 			t.Parallel()
 
-			ln, err := newLocalListener(network)
-			if err != nil {
-				t.Fatal(err)
-			}
+			ln := newLocalListener(t, network)
 			switch network {
 			case "unix", "unixpacket":
 				defer os.Remove(ln.Addr().String())
@@ -275,10 +263,7 @@ func TestPacketConnClose(t *testing.T) {
 			}
 			t.Parallel()
 
-			c, err := newLocalPacketListener(network)
-			if err != nil {
-				t.Fatal(err)
-			}
+			c := newLocalPacketListener(t, network)
 			switch network {
 			case "unixgram":
 				defer os.Remove(c.LocalAddr().String())
@@ -303,18 +288,17 @@ func TestPacketConnClose(t *testing.T) {
 func TestListenCloseListen(t *testing.T) {
 	const maxTries = 10
 	for tries := 0; tries < maxTries; tries++ {
-		ln, err := newLocalListener("tcp")
-		if err != nil {
-			t.Fatal(err)
-		}
+		ln := newLocalListener(t, "tcp")
 		addr := ln.Addr().String()
+		// TODO: This is racy. The selected address could be reused in between this
+		// Close and the subsequent Listen.
 		if err := ln.Close(); err != nil {
 			if perr := parseCloseError(err, false); perr != nil {
 				t.Error(perr)
 			}
 			t.Fatal(err)
 		}
-		ln, err = Listen("tcp", addr)
+		ln, err := Listen("tcp", addr)
 		if err == nil {
 			// Success. (This test didn't always make it here earlier.)
 			ln.Close()
@@ -360,10 +344,7 @@ func TestAcceptIgnoreAbortedConnRequest(t *testing.T) {
 		}
 		c.Close()
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -390,10 +371,7 @@ func TestZeroByteRead(t *testing.T) {
 			}
 			t.Parallel()
 
-			ln, err := newLocalListener(network)
-			if err != nil {
-				t.Fatal(err)
-			}
+			ln := newLocalListener(t, network)
 			connc := make(chan Conn, 1)
 			go func() {
 				defer ln.Close()
@@ -442,10 +420,7 @@ func TestZeroByteRead(t *testing.T) {
 // runs peer1 and peer2 concurrently. withTCPConnPair returns when
 // both have completed.
 func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 	errc := make(chan error, 2)
 	go func() {
