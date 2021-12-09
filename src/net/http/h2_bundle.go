@@ -4382,7 +4382,15 @@ func (sc *http2serverConn) canonicalHeader(v string) string {
 		sc.canonHeader = make(map[string]string)
 	}
 	cv = CanonicalHeaderKey(v)
-	sc.canonHeader[v] = cv
+	// maxCachedCanonicalHeaders is an arbitrarily-chosen limit on the number of
+	// entries in the canonHeader cache. This should be larger than the number
+	// of unique, uncommon header keys likely to be sent by the peer, while not
+	// so high as to permit unreaasonable memory usage if the peer sends an unbounded
+	// number of unique header keys.
+	const maxCachedCanonicalHeaders = 32
+	if len(sc.canonHeader) < maxCachedCanonicalHeaders {
+		sc.canonHeader[v] = cv
+	}
 	return cv
 }
 
