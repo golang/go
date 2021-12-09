@@ -86,8 +86,6 @@ const (
 	MACHO_SUBCPU_ARMV7                   = 9
 	MACHO_CPU_ARM64                      = 1<<24 | 12
 	MACHO_SUBCPU_ARM64_ALL               = 0
-	MACHO_SUBCPU_ARM64_V8                = 1
-	MACHO_SUBCPU_ARM64E                  = 2
 	MACHO32SYMSIZE                       = 12
 	MACHO64SYMSIZE                       = 16
 	MACHO_X86_64_RELOC_UNSIGNED          = 0
@@ -178,8 +176,6 @@ const (
 	LC_VERSION_MIN_WATCHOS      = 0x30
 	LC_VERSION_NOTE             = 0x31
 	LC_BUILD_VERSION            = 0x32
-	LC_DYLD_EXPORTS_TRIE        = 0x80000033
-	LC_DYLD_CHAINED_FIXUPS      = 0x80000034
 )
 
 const (
