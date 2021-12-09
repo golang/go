@@ -500,6 +500,10 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	args := []string{"-nx", "-batch",
 		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
+		// Some gdb may set scheduling-locking as "step" by default. This prevents background tasks
+		// (e.g GC) from completing which may result in a hang when executing the step command.
+		// See #49852.
+		"-ex", "set scheduler-locking off",
 		"-ex", "break main.main",
 		"-ex", "run",
 		"-ex", "step",
