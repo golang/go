@@ -93,10 +93,7 @@ func TestDialTimeout(t *testing.T) {
 }
 
 func TestDialTimeoutMaxDuration(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer func() {
 		if err := ln.Close(); err != nil {
 			t.Error(err)
@@ -147,10 +144,7 @@ func TestAcceptTimeout(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	var wg sync.WaitGroup
@@ -203,10 +197,7 @@ func TestAcceptTimeoutMustReturn(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	max := time.NewTimer(time.Second)
@@ -249,10 +240,7 @@ func TestAcceptTimeoutMustNotReturn(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	max := time.NewTimer(100 * time.Millisecond)
@@ -302,10 +290,7 @@ func TestReadTimeout(t *testing.T) {
 		c.Write([]byte("READ TIMEOUT TEST"))
 		defer c.Close()
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -354,10 +339,7 @@ func TestReadTimeoutMustNotReturn(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -421,10 +403,7 @@ func TestReadFromTimeout(t *testing.T) {
 			c.WriteTo([]byte("READFROM TIMEOUT TEST"), dst)
 		}
 	}
-	ls, err := newLocalPacketServer("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalPacketServer(t, "udp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -484,10 +463,7 @@ var writeTimeoutTests = []struct {
 func TestWriteTimeout(t *testing.T) {
 	t.Parallel()
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	for i, tt := range writeTimeoutTests {
@@ -532,10 +508,7 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -598,10 +571,7 @@ var writeToTimeoutTests = []struct {
 func TestWriteToTimeout(t *testing.T) {
 	t.Parallel()
 
-	c1, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
 
 	host, _, err := SplitHostPort(c1.LocalAddr().String())
@@ -687,10 +657,7 @@ func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
 }
 
 func TestReadTimeoutFluctuation(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -746,10 +713,7 @@ func TestReadTimeoutFluctuation(t *testing.T) {
 }
 
 func TestReadFromTimeoutFluctuation(t *testing.T) {
-	c1, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
 
 	c2, err := Dial(c1.LocalAddr().Network(), c1.LocalAddr().String())
@@ -810,10 +774,7 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -938,10 +899,7 @@ func testVariousDeadlines(t *testing.T) {
 			c.Close()
 		}
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -1073,10 +1031,7 @@ func TestReadWriteProlongedTimeout(t *testing.T) {
 		}()
 		wg.Wait()
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -1103,10 +1058,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 		N = 50
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -1156,10 +1108,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 
 // Issue 35367.
 func TestConcurrentSetDeadline(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	const goroutines = 8
@@ -1168,6 +1117,7 @@ func TestConcurrentSetDeadline(t *testing.T) {
 
 	var c [conns]Conn
 	for i := 0; i < conns; i++ {
+		var err error
 		c[i], err = Dial(ln.Addr().Network(), ln.Addr().String())
 		if err != nil {
 			t.Fatal(err)

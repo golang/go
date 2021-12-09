@@ -77,10 +77,7 @@ func TestTCPServer(t *testing.T) {
 				}
 			}()
 			for i := 0; i < N; i++ {
-				ls, err := (&streamListener{Listener: ln}).newLocalServer()
-				if err != nil {
-					t.Fatal(err)
-				}
+				ls := (&streamListener{Listener: ln}).newLocalServer()
 				lss = append(lss, ls)
 				tpchs = append(tpchs, make(chan error, 1))
 			}
@@ -162,10 +159,7 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 			}
 		}()
 		for i := 0; i < N; i++ {
-			ls, err := (&streamListener{Listener: ln}).newLocalServer()
-			if err != nil {
-				t.Fatal(err)
-			}
+			ls := (&streamListener{Listener: ln}).newLocalServer()
 			lss = append(lss, ls)
 			tpchs = append(tpchs, make(chan error, 1))
 		}
@@ -270,10 +264,7 @@ func TestUDPServer(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&packetListener{PacketConn: c1}).newLocalServer()
 		defer ls.teardown()
 		tpch := make(chan error, 1)
 		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }
@@ -348,10 +339,7 @@ func TestUnixgramServer(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&packetListener{PacketConn: c1}).newLocalServer()
 		defer ls.teardown()
 		tpch := make(chan error, 1)
 		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }

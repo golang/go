@@ -186,10 +186,7 @@ func TestWritevError(t *testing.T) {
 		t.Skipf("skipping the test: windows does not have problem sending large chunks of data")
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	ch := make(chan Conn, 1)

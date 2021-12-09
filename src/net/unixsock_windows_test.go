@@ -56,10 +56,7 @@ func TestUnixConnLocalWindows(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ls, err := (&streamListener{Listener: ln}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&streamListener{Listener: ln}).newLocalServer()
 		defer ls.teardown()
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)

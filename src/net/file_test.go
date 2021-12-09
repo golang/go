@@ -44,10 +44,7 @@ func TestFileConn(t *testing.T) {
 		var network, address string
 		switch tt.network {
 		case "udp":
-			c, err := newLocalPacketListener(tt.network)
-			if err != nil {
-				t.Fatal(err)
-			}
+			c := newLocalPacketListener(t, tt.network)
 			defer c.Close()
 			network = c.LocalAddr().Network()
 			address = c.LocalAddr().String()
@@ -61,10 +58,7 @@ func TestFileConn(t *testing.T) {
 				var b [1]byte
 				c.Read(b[:])
 			}
-			ls, err := newLocalServer(tt.network)
-			if err != nil {
-				t.Fatal(err)
-			}
+			ls := newLocalServer(t, tt.network)
 			defer ls.teardown()
 			if err := ls.buildup(handler); err != nil {
 				t.Fatal(err)
@@ -148,17 +142,17 @@ func TestFileListener(t *testing.T) {
 			continue
 		}
 
-		ln1, err := newLocalListener(tt.network)
-		if err != nil {
-			t.Fatal(err)
-		}
+		ln1 := newLocalListener(t, tt.network)
 		switch tt.network {
 		case "unix", "unixpacket":
 			defer os.Remove(ln1.Addr().String())
 		}
 		addr := ln1.Addr()
 
-		var f *os.File
+		var (
+			f   *os.File
+			err error
+		)
 		switch ln1 := ln1.(type) {
 		case *TCPListener:
 			f, err = ln1.File()
@@ -240,17 +234,17 @@ func TestFilePacketConn(t *testing.T) {
 			continue
 		}
 
-		c1, err := newLocalPacketListener(tt.network)
-		if err != nil {
-			t.Fatal(err)
-		}
+		c1 := newLocalPacketListener(t, tt.network)
 		switch tt.network {
 		case "unixgram":
 			defer os.Remove(c1.LocalAddr().String())
 		}
 		addr := c1.LocalAddr()
 
-		var f *os.File
+		var (
+			f   *os.File
+			err error
+		)
 		switch c1 := c1.(type) {
 		case *UDPConn:
 			f, err = c1.File()
@@ -314,10 +308,7 @@ func TestFileCloseRace(t *testing.T) {
 		c.Read(b[:])
 	}
 
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)

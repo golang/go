@@ -59,10 +59,7 @@ func TestProhibitionaryDialArg(t *testing.T) {
 }
 
 func TestDialLocal(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 	_, port, err := SplitHostPort(ln.Addr().String())
 	if err != nil {
@@ -619,13 +616,9 @@ func TestDialerLocalAddr(t *testing.T) {
 			c.Close()
 		}
 	}
-	var err error
 	var lss [2]*localServer
 	for i, network := range []string{"tcp4", "tcp6"} {
-		lss[i], err = newLocalServer(network)
-		if err != nil {
-			t.Fatal(err)
-		}
+		lss[i] = newLocalServer(t, network)
 		defer lss[i].teardown()
 		if err := lss[i].buildup(handler); err != nil {
 			t.Fatal(err)
@@ -725,10 +718,7 @@ func TestDialerKeepAlive(t *testing.T) {
 			c.Close()
 		}
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -826,10 +816,7 @@ func TestCancelAfterDial(t *testing.T) {
 		t.Skip("avoiding time.Sleep")
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -932,11 +919,7 @@ func TestDialerControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			ln, err := newLocalListener(network)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
+			ln := newLocalListener(t, network)
 			defer ln.Close()
 			d := Dialer{Control: controlOnConnSetup}
 			c, err := d.Dial(network, ln.Addr().String())
@@ -952,11 +935,7 @@ func TestDialerControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			c1, err := newLocalPacketListener(network)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
+			c1 := newLocalPacketListener(t, network)
 			if network == "unixgram" {
 				defer os.Remove(c1.LocalAddr().String())
 			}
@@ -992,10 +971,7 @@ func (contextWithNonZeroDeadline) Deadline() (time.Time, bool) {
 }
 
 func TestDialWithNonZeroDeadline(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 	_, port, err := SplitHostPort(ln.Addr().String())
 	if err != nil {

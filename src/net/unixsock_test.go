@@ -76,10 +76,7 @@ func TestUnixgramZeroBytePayload(t *testing.T) {
 		t.Skip("unixgram test")
 	}
 
-	c1, err := newLocalPacketListener("unixgram")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c1 := newLocalPacketListener(t, "unixgram")
 	defer os.Remove(c1.LocalAddr().String())
 	defer c1.Close()
 
@@ -126,10 +123,7 @@ func TestUnixgramZeroByteBuffer(t *testing.T) {
 	// issue 4352: Recvfrom failed with "address family not
 	// supported by protocol family" if zero-length buffer provided
 
-	c1, err := newLocalPacketListener("unixgram")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c1 := newLocalPacketListener(t, "unixgram")
 	defer os.Remove(c1.LocalAddr().String())
 	defer c1.Close()
 
@@ -259,10 +253,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ls, err := (&streamListener{Listener: ln}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&streamListener{Listener: ln}).newLocalServer()
 		defer ls.teardown()
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)

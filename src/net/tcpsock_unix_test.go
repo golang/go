@@ -22,10 +22,7 @@ func TestTCPSpuriousConnSetupCompletion(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(ln Listener) {
