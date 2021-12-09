@@ -94,6 +94,11 @@ var reqWriteExcludeHeader = map[string]bool{
 	"Trailer":           true,
 }
 
+type PathAsIs struct {
+	Flag   bool
+	RawUrl string
+}
+
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
 //
@@ -315,6 +320,9 @@ type Request struct {
 	// to be created. This field is only populated during client
 	// redirects.
 	Response *Response
+
+	// Act as curl --path-as-is
+	PathAsIs PathAsIs
 
 	// ctx is either the client or server context. It should only
 	// be modified via copying the whole Request using WithContext.
@@ -581,7 +589,14 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	// to an outgoing URI.
 	host = removeZone(host)
 
-	ruri := r.URL.RequestURI()
+	var ruri string
+	// if using Pathasis mode, then we need to use the full raw URL
+	if r.PathAsIs.Flag && r.PathAsIs.RawUrl != "" {
+		ruri = r.PathAsIs.RawUrl // use full raw URL
+	} else {
+		ruri = r.URL.RequestURI() // else use just the path
+	}
+
 	if usingProxy && r.URL.Scheme != "" && r.URL.Opaque == "" {
 		ruri = r.URL.Scheme + "://" + host + ruri
 	} else if r.Method == "CONNECT" && r.URL.Path == "" {
