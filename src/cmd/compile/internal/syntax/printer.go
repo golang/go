@@ -666,9 +666,7 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(n.Name)
 		if n.TParamList != nil {
-			p.print(_Lbrack)
-			p.printFieldList(n.TParamList, nil, _Comma)
-			p.print(_Rbrack)
+			p.printParameterList(n.TParamList, true)
 		}
 		p.print(blank)
 		if n.Alias {
@@ -700,9 +698,7 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(n.Name)
 		if n.TParamList != nil {
-			p.print(_Lbrack)
-			p.printFieldList(n.TParamList, nil, _Comma)
-			p.print(_Rbrack)
+			p.printParameterList(n.TParamList, true)
 		}
 		p.printSignature(n.Type)
 		if n.Body != nil {
@@ -887,38 +883,47 @@ func (p *printer) printDeclList(list []Decl) {
 }
 
 func (p *printer) printSignature(sig *FuncType) {
-	p.printParameterList(sig.ParamList)
+	p.printParameterList(sig.ParamList, false)
 	if list := sig.ResultList; list != nil {
 		p.print(blank)
 		if len(list) == 1 && list[0].Name == nil {
 			p.printNode(list[0].Type)
 		} else {
-			p.printParameterList(list)
+			p.printParameterList(list, false)
 		}
 	}
 }
 
-func (p *printer) printParameterList(list []*Field) {
-	p.print(_Lparen)
-	if len(list) > 0 {
-		for i, f := range list {
-			if i > 0 {
-				p.print(_Comma, blank)
-			}
-			if f.Name != nil {
-				p.printNode(f.Name)
-				if i+1 < len(list) {
-					f1 := list[i+1]
-					if f1.Name != nil && f1.Type == f.Type {
-						continue // no need to print type
-					}
+func (p *printer) printParameterList(list []*Field, types bool) {
+	open, close := _Lparen, _Rparen
+	if types {
+		open, close = _Lbrack, _Rbrack
+	}
+	p.print(open)
+	for i, f := range list {
+		if i > 0 {
+			p.print(_Comma, blank)
+		}
+		if f.Name != nil {
+			p.printNode(f.Name)
+			if i+1 < len(list) {
+				f1 := list[i+1]
+				if f1.Name != nil && f1.Type == f.Type {
+					continue // no need to print type
 				}
-				p.print(blank)
 			}
-			p.printNode(f.Type)
+			p.print(blank)
+		}
+		p.printNode(unparen(f.Type)) // no need for (extra) parentheses around parameter types
+	}
+	// A type parameter list [P *T] where T is not a type literal requires a comma as in [P *T,]
+	// so that it's not parsed as [P*T].
+	if types && len(list) == 1 {
+		if t, _ := list[0].Type.(*Operation); t != nil && t.Op == Mul && t.Y == nil && !isTypeLit(t.X) {
+			p.print(_Comma)
 		}
 	}
-	p.print(_Rparen)
+	p.print(close)
 }
 
 func (p *printer) printStmtList(list []Stmt, braces bool) {

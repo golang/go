@@ -588,44 +588,81 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.Name = p.name()
 	if p.allowGenerics() && p.tok == _Lbrack {
 		// d.Name "[" ...
-		// array/slice or type parameter list
+		// array/slice type or type parameter list
 		pos := p.pos()
 		p.next()
 		switch p.tok {
 		case _Name:
-			// d.Name "[" name ...
-			// array or type parameter list
-			name := p.name()
-			// Index or slice expressions are never constant and thus invalid
-			// array length expressions. Thus, if we see a "[" following name
-			// we can safely assume that "[" name starts a type parameter list.
-			var x Expr // x != nil means x is the array length expression
+			// We may have an array type or a type parameter list.
+			// In either case we expect an expression x (which may
+			// just be a name, or a more complex expression) which
+			// we can analyze further.
+			//
+			// A type parameter list may have a type bound starting
+			// with a "[" as in: P []E. In that case, simply parsing
+			// an expression would lead to an error: P[] is invalid.
+			// But since index or slice expressions are never constant
+			// and thus invalid array length expressions, if we see a
+			// "[" following a name it must be the start of an array
+			// or slice constraint. Only if we don't see a "[" do we
+			// need to parse a full expression.
+			var x Expr = p.name()
 			if p.tok != _Lbrack {
-				// d.Name "[" name ...
-				// If we reach here, the next token is not a "[", and we need to
-				// parse the expression starting with name. If that expression is
-				// just that name, not followed by a "]" (in which case we might
-				// have the array length "[" name "]"), we can also safely assume
-				// a type parameter list.
+				// To parse the expression starting with name, expand
+				// the call sequence we would get by passing in name
+				// to parser.expr, and pass in name to parser.pexpr.
 				p.xnest++
-				// To parse the expression starting with name, expand the call
-				// sequence we would get by passing in name to parser.expr, and
-				// pass in name to parser.pexpr.
-				x = p.binaryExpr(p.pexpr(name, false), 0)
+				x = p.binaryExpr(p.pexpr(x, false), 0)
 				p.xnest--
-				if x == name && p.tok != _Rbrack {
-					x = nil
+			}
+
+			// analyze the cases
+			var pname *Name // pname != nil means pname is the type parameter name
+			var ptype Expr  // ptype != nil means ptype is the type parameter type; pname != nil in this case
+			switch t := x.(type) {
+			case *Name:
+				// Unless we see a "]", we are at the start of a type parameter list.
+				if p.tok != _Rbrack {
+					// d.Name "[" name ...
+					pname = t
+					// no ptype
+				}
+			case *Operation:
+				// If we have an expression of the form name*T, and T is a (possibly
+				// parenthesized) type literal or the next token is a comma, we are
+				// at the start of a type parameter list.
+				if name, _ := t.X.(*Name); name != nil {
+					if t.Op == Mul && (isTypeLit(t.Y) || p.tok == _Comma) {
+						// d.Name "[" name "*" t.Y
+						// d.Name "[" name "*" t.Y ","
+						t.X, t.Y = t.Y, nil // convert t into unary *t.Y
+						pname = name
+						ptype = t
+					}
+				}
+			case *CallExpr:
+				// If we have an expression of the form name(T), and T is a (possibly
+				// parenthesized) type literal or the next token is a comma, we are
+				// at the start of a type parameter list.
+				if name, _ := t.Fun.(*Name); name != nil {
+					if len(t.ArgList) == 1 && !t.HasDots && (isTypeLit(t.ArgList[0]) || p.tok == _Comma) {
+						// d.Name "[" name "(" t.ArgList[0] ")"
+						// d.Name "[" name "(" t.ArgList[0] ")" ","
+						pname = name
+						ptype = t.ArgList[0]
+					}
 				}
 			}
-			if x == nil {
-				// d.Name "[" name ...
-				// type parameter list
-				d.TParamList = p.paramList(name, _Rbrack, true)
+
+			if pname != nil {
+				// d.Name "[" pname ...
+				// d.Name "[" pname ptype ...
+				// d.Name "[" pname ptype "," ...
+				d.TParamList = p.paramList(pname, ptype, _Rbrack, true)
 				d.Alias = p.gotAssign()
 				d.Type = p.typeOrNil()
 			} else {
-				// d.Name "[" x "]" ...
-				// x is the array length expression
+				// d.Name "[" x ...
 				d.Type = p.arrayType(pos, x)
 			}
 		case _Rbrack:
@@ -648,6 +685,21 @@ func (p *parser) typeDecl(group *Group) Decl {
 	}
 
 	return d
+}
+
+// isTypeLit reports whether x is a (possibly parenthesized) type literal.
+func isTypeLit(x Expr) bool {
+	switch x := x.(type) {
+	case *ArrayType, *StructType, *FuncType, *InterfaceType, *SliceType, *MapType, *ChanType:
+		return true
+	case *Operation:
+		// *T may be a pointer dereferenciation.
+		// Only consider *T as type literal if T is a type literal.
+		return x.Op == Mul && x.Y == nil && isTypeLit(x.X)
+	case *ParenExpr:
+		return isTypeLit(x.X)
+	}
+	return false
 }
 
 // VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
@@ -689,7 +741,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	f.Pragma = p.takePragma()
 
 	if p.got(_Lparen) {
-		rcvr := p.paramList(nil, _Rparen, false)
+		rcvr := p.paramList(nil, nil, _Rparen, false)
 		switch len(rcvr) {
 		case 0:
 			p.error("method has no receiver")
@@ -1369,12 +1421,12 @@ func (p *parser) funcType(context string) ([]*Field, *FuncType) {
 			p.syntaxError("empty type parameter list")
 			p.next()
 		} else {
-			tparamList = p.paramList(nil, _Rbrack, true)
+			tparamList = p.paramList(nil, nil, _Rbrack, true)
 		}
 	}
 
 	p.want(_Lparen)
-	typ.ParamList = p.paramList(nil, _Rparen, false)
+	typ.ParamList = p.paramList(nil, nil, _Rparen, false)
 	typ.ResultList = p.funcResult()
 
 	return tparamList, typ
@@ -1391,6 +1443,13 @@ func (p *parser) arrayType(pos Pos, len Expr) Expr {
 		p.xnest++
 		len = p.expr()
 		p.xnest--
+	}
+	if p.tok == _Comma {
+		// Trailing commas are accepted in type parameter
+		// lists but not in array type declarations.
+		// Accept for better error handling but complain.
+		p.syntaxError("unexpected comma; expecting ]")
+		p.next()
 	}
 	p.want(_Rbrack)
 	t := new(ArrayType)
@@ -1516,7 +1575,7 @@ func (p *parser) funcResult() []*Field {
 	}
 
 	if p.got(_Lparen) {
-		return p.paramList(nil, _Rparen, false)
+		return p.paramList(nil, nil, _Rparen, false)
 	}
 
 	pos := p.pos()
@@ -1742,7 +1801,7 @@ func (p *parser) methodDecl() *Field {
 
 			// A type argument list looks like a parameter list with only
 			// types. Parse a parameter list and decide afterwards.
-			list := p.paramList(nil, _Rbrack, false)
+			list := p.paramList(nil, nil, _Rbrack, false)
 			if len(list) == 0 {
 				// The type parameter list is not [] but we got nothing
 				// due to other errors (reported by paramList). Treat
@@ -1948,17 +2007,41 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 // ParameterList = ParameterDecl { "," ParameterDecl } .
 // "(" or "[" has already been consumed.
 // If name != nil, it is the first name after "(" or "[".
+// If typ != nil, name must be != nil, and (name, typ) is the first field in the list.
 // In the result list, either all fields have a name, or no field has a name.
-func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*Field) {
+func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool) (list []*Field) {
 	if trace {
 		defer p.trace("paramList")()
+	}
+
+	// p.list won't invoke its function argument if we're at the end of the
+	// parameter list. If we have a complete field, handle this case here.
+	if name != nil && typ != nil && p.tok == close {
+		p.next()
+		par := new(Field)
+		par.pos = name.pos
+		par.Name = name
+		par.Type = typ
+		return []*Field{par}
 	}
 
 	var named int // number of parameters that have an explicit name and type
 	var typed int // number of parameters that have an explicit type
 	end := p.list(_Comma, close, func() bool {
-		par := p.paramDeclOrNil(name, close)
+		var par *Field
+		if typ != nil {
+			if debug && name == nil {
+				panic("initial type provided without name")
+			}
+			par = new(Field)
+			par.pos = name.pos
+			par.Name = name
+			par.Type = typ
+		} else {
+			par = p.paramDeclOrNil(name, close)
+		}
 		name = nil // 1st name was consumed if present
+		typ = nil  // 1st type was consumed if present
 		if par != nil {
 			if debug && par.Name == nil && par.Type == nil {
 				panic("parameter without name or type")
