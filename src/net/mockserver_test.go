@@ -10,21 +10,27 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 )
 
-// testUnixAddr uses os.CreateTemp to get a name that is unique.
-func testUnixAddr() string {
-	f, err := os.CreateTemp("", "go-nettest")
+// testUnixAddr uses os.MkdirTemp to get a name that is unique.
+func testUnixAddr(t testing.TB) string {
+	// Pass an empty pattern to get a directory name that is as short as possible.
+	// If we end up with a name longer than the sun_path field in the sockaddr_un
+	// struct, we won't be able to make the syscall to open the socket.
+	d, err := os.MkdirTemp("", "")
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
-	addr := f.Name()
-	f.Close()
-	os.Remove(addr)
-	return addr
+	t.Cleanup(func() {
+		if err := os.RemoveAll(d); err != nil {
+			t.Error(err)
+		}
+	})
+	return filepath.Join(d, "sock")
 }
 
 func newLocalListener(t testing.TB, network string) Listener {
@@ -59,7 +65,7 @@ func newLocalListener(t testing.TB, network string) Listener {
 			return listen("tcp6", "[::1]:0")
 		}
 	case "unix", "unixpacket":
-		return listen(network, testUnixAddr())
+		return listen(network, testUnixAddr(t))
 	}
 
 	t.Helper()
@@ -327,7 +333,7 @@ func newLocalPacketListener(t testing.TB, network string) PacketConn {
 			return listenPacket("udp6", "[::1]:0")
 		}
 	case "unixgram":
-		return listenPacket(network, testUnixAddr())
+		return listenPacket(network, testUnixAddr(t))
 	}
 
 	t.Helper()

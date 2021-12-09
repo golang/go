@@ -122,19 +122,19 @@ func TestTCPServer(t *testing.T) {
 	}
 }
 
-var unixAndUnixpacketServerTests = []struct {
-	network, address string
-}{
-	{"unix", testUnixAddr()},
-	{"unix", "@nettest/go/unix"},
-
-	{"unixpacket", testUnixAddr()},
-	{"unixpacket", "@nettest/go/unixpacket"},
-}
-
 // TestUnixAndUnixpacketServer tests concurrent accept-read-write
 // servers
 func TestUnixAndUnixpacketServer(t *testing.T) {
+	var unixAndUnixpacketServerTests = []struct {
+		network, address string
+	}{
+		{"unix", testUnixAddr(t)},
+		{"unix", "@nettest/go/unix"},
+
+		{"unixpacket", testUnixAddr(t)},
+		{"unixpacket", "@nettest/go/unixpacket"},
+	}
+
 	const N = 3
 
 	for i, tt := range unixAndUnixpacketServerTests {
@@ -313,18 +313,18 @@ func TestUDPServer(t *testing.T) {
 	}
 }
 
-var unixgramServerTests = []struct {
-	saddr string // server endpoint
-	caddr string // client endpoint
-	dial  bool   // test with Dial
-}{
-	{saddr: testUnixAddr(), caddr: testUnixAddr()},
-	{saddr: testUnixAddr(), caddr: testUnixAddr(), dial: true},
-
-	{saddr: "@nettest/go/unixgram/server", caddr: "@nettest/go/unixgram/client"},
-}
-
 func TestUnixgramServer(t *testing.T) {
+	var unixgramServerTests = []struct {
+		saddr string // server endpoint
+		caddr string // client endpoint
+		dial  bool   // test with Dial
+	}{
+		{saddr: testUnixAddr(t), caddr: testUnixAddr(t)},
+		{saddr: testUnixAddr(t), caddr: testUnixAddr(t), dial: true},
+
+		{saddr: "@nettest/go/unixgram/server", caddr: "@nettest/go/unixgram/client"},
+	}
+
 	for i, tt := range unixgramServerTests {
 		if !testableListenArgs("unixgram", tt.saddr, "") {
 			t.Logf("skipping %s test", "unixgram "+tt.saddr+"<-"+tt.caddr)

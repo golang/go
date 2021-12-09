@@ -25,7 +25,7 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 		testenv.SkipFlaky(t, 15157)
 	}
 
-	addr := testUnixAddr()
+	addr := testUnixAddr(t)
 	la, err := ResolveUnixAddr("unixgram", addr)
 	if err != nil {
 		t.Fatal(err)
@@ -168,7 +168,7 @@ func TestUnixgramWrite(t *testing.T) {
 		t.Skip("unixgram test")
 	}
 
-	addr := testUnixAddr()
+	addr := testUnixAddr(t)
 	laddr, err := ResolveUnixAddr("unixgram", addr)
 	if err != nil {
 		t.Fatal(err)
@@ -213,7 +213,7 @@ func testUnixgramWriteConn(t *testing.T, raddr *UnixAddr) {
 }
 
 func testUnixgramWritePacketConn(t *testing.T, raddr *UnixAddr) {
-	addr := testUnixAddr()
+	addr := testUnixAddr(t)
 	c, err := ListenPacket("unixgram", addr)
 	if err != nil {
 		t.Fatal(err)
@@ -242,9 +242,9 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 	}
 
 	handler := func(ls *localServer, ln Listener) {}
-	for _, laddr := range []string{"", testUnixAddr()} {
+	for _, laddr := range []string{"", testUnixAddr(t)} {
 		laddr := laddr
-		taddr := testUnixAddr()
+		taddr := testUnixAddr(t)
 		ta, err := ResolveUnixAddr("unix", taddr)
 		if err != nil {
 			t.Fatal(err)
@@ -301,9 +301,9 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 		t.Skip("unixgram test")
 	}
 
-	for _, laddr := range []string{"", testUnixAddr()} {
+	for _, laddr := range []string{"", testUnixAddr(t)} {
 		laddr := laddr
-		taddr := testUnixAddr()
+		taddr := testUnixAddr(t)
 		ta, err := ResolveUnixAddr("unixgram", taddr)
 		if err != nil {
 			t.Fatal(err)
@@ -359,7 +359,7 @@ func TestUnixUnlink(t *testing.T) {
 	if !testableNetwork("unix") {
 		t.Skip("unix test")
 	}
-	name := testUnixAddr()
+	name := testUnixAddr(t)
 
 	listen := func(t *testing.T) *UnixListener {
 		l, err := Listen("unix", name)
