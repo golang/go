@@ -96,8 +96,11 @@ func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	p[0], p[1], err = pipe()
-	return
+	r, w, err := pipe()
+	if err == nil {
+		p[0], p[1] = r, w
+	}
+	return err
 }
 
 //sys	extpread(fd int, p []byte, flags int, offset int64) (n int, err error)

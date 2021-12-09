@@ -119,8 +119,10 @@ func Pipe2(p []int, flags int) (err error) {
 	}
 	var pp [2]_C_int
 	err = pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return
 }
 
@@ -130,8 +132,11 @@ func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	p[0], p[1], err = pipe()
-	return
+	r, w, err := pipe()
+	if err == nil {
+		p[0], p[1] = r, w
+	}
+	return err
 }
 
 //sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, err error)
