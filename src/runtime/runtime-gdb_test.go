@@ -424,7 +424,7 @@ func TestGdbBacktrace(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, err := exec.Command("gdb", args...).CombinedOutput()
+	got, err := testenv.RunWithTimeout(t, exec.Command("gdb", args...))
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
 		t.Fatalf("gdb exited with error: %v", err)
