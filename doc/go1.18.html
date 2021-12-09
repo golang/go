@@ -288,6 +288,21 @@ Do not send CLs removing the interior tags from such phrases.
 }</pre>
 </p>
 
+<h4 id="vet-precision">Precision improvements for existing checkers</h4>
+
+<p><!-- CL 323589 356830 319689 355730 351553 338529 -->
+  The <code>cmd/vet</code> checkers <code>copylock</code>, <code>printf</code>,
+  <code>sortslice</code>, <code>testinggoroutine</code>, and <code>tests</code>
+  have all had moderate precision improvements to handle additional code patterns.
+  This may lead to newly reported errors in existing packages. For example, the
+  <code>printf</code> checker now tracks formatting strings created by
+  concatenating string constants. So <code>vet</code> will report an error in:
+<pre>
+  // fmt.Printf formatting directive %d is being passed to Println.
+  fmt.Println("%d"+` ≡ x (mod 2)`+"\n", x%2)
+</pre>
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p><!-- https://golang.org/issue/44167 -->
