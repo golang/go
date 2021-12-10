@@ -702,7 +702,7 @@ func parseIPv6(s string) (ip IP) {
 // If s is not a valid textual representation of an IP address,
 // ParseIP returns nil.
 func ParseIP(s string) IP {
-	for i := 0; i < len(s); i++ {
+	for i := 1; i < len(s); i++ {
 		switch s[i] {
 		case '.':
 			return parseIPv4(s)
@@ -716,7 +716,7 @@ func ParseIP(s string) IP {
 // parseIPZone parses s as an IP address, return it and its associated zone
 // identifier (IPv6 only).
 func parseIPZone(s string) (IP, string) {
-	for i := 0; i < len(s); i++ {
+	for i := 1; i < len(s); i++ {
 		switch s[i] {
 		case '.':
 			return parseIPv4(s), ""
