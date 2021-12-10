@@ -2861,11 +2861,19 @@
 // 	    section of the testing package documentation for details.
 //
 // 	-fuzztime t
-// 	    Run enough iterations of the fuzz test to take t, specified as a
-// 	    time.Duration (for example, -fuzztime 1h30s). The default is to run
-// 	    forever.
-// 	    The special syntax Nx means to run the fuzz test N times
-// 	    (for example, -fuzztime 100x).
+// 	    Run enough iterations of the fuzz target during fuzzing to take t,
+// 	    specified as a time.Duration (for example, -fuzztime 1h30s).
+// 		The default is to run forever.
+// 	    The special syntax Nx means to run the fuzz target N times
+// 	    (for example, -fuzztime 1000x).
+//
+// 	-fuzzminimizetime t
+// 	    Run enough iterations of the fuzz target during each minimization
+// 	    attempt to take t, as specified as a time.Duration (for example,
+// 	    -fuzzminimizetime 30s).
+// 		The default is 60s.
+// 	    The special syntax Nx means to run the fuzz target N times
+// 	    (for example, -fuzzminimizetime 100x).
 //
 // 	-json
 // 	    Log verbose output and test results in JSON. This presents the
