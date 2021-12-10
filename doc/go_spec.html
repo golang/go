@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Nov 29, 2021",
+	"Subtitle": "Version of Dec 13, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -4782,14 +4782,16 @@ in any of these cases:
 	</li>
 	<li>
 	ignoring struct tags (see below),
-	<code>x</code>'s type and <code>T</code> have <a href="#Type_identity">identical</a>
-	<a href="#Types">underlying types</a>.
+	<code>x</code>'s type and <code>T</code> are not
+	<a href="#Type_parameters">type parameters</a> but have
+	<a href="#Type_identity">identical</a> <a href="#Types">underlying types</a>.
 	</li>
 	<li>
 	ignoring struct tags (see below),
 	<code>x</code>'s type and <code>T</code> are pointer types
 	that are not <a href="#Types">named types</a>,
-	and their pointer base types have identical underlying types.
+	and their pointer base types are not type parameters but
+	have identical underlying types.
 	</li>
 	<li>
 	<code>x</code>'s type and <code>T</code> are both integer or floating
