@@ -47,7 +47,6 @@ func (T) m1()
 func (*T) m2()
 
 func _() {
-	// TODO(rFindley) this error should be positioned on the 'T'.
 	f2[T /* ERROR wrong method signature */ ]()
 	f2[*T]()
 }
