@@ -884,8 +884,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = c.newprog()
 				q.As = ABR
 				q.Pos = p.Pos
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_LR
+				if retTarget == nil {
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REG_LR
+				} else {
+					q.To.Type = obj.TYPE_BRANCH
+					q.To.Sym = retTarget
+				}
 				q.Mark |= BRANCH
 				q.Spadj = +autosize
 
