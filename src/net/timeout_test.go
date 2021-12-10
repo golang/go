@@ -557,17 +557,6 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 	}
 }
 
-var writeToTimeoutTests = []struct {
-	timeout time.Duration
-	xerrs   [2]error // expected errors in transition
-}{
-	// Tests that write deadlines work, even if there's buffer
-	// space available to write.
-	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
-
-	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
-}
-
 func TestWriteToTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -579,37 +568,58 @@ func TestWriteToTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, tt := range writeToTimeoutTests {
-		c2, err := ListenPacket(c1.LocalAddr().Network(), JoinHostPort(host, "0"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer c2.Close()
+	timeouts := []time.Duration{
+		-5 * time.Second,
+		10 * time.Millisecond,
+	}
 
-		if err := c2.SetWriteDeadline(time.Now().Add(tt.timeout)); err != nil {
-			t.Fatalf("#%d: %v", i, err)
-		}
-		for j, xerr := range tt.xerrs {
-			for {
+	for _, timeout := range timeouts {
+		t.Run(fmt.Sprint(timeout), func(t *testing.T) {
+			c2, err := ListenPacket(c1.LocalAddr().Network(), JoinHostPort(host, "0"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c2.Close()
+
+			if err := c2.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
+				t.Fatalf("SetWriteDeadline: %v", err)
+			}
+			backoff := 1 * time.Millisecond
+			nDeadlineExceeded := 0
+			for j := 0; nDeadlineExceeded < 2; j++ {
 				n, err := c2.WriteTo([]byte("WRITETO TIMEOUT TEST"), c1.LocalAddr())
-				if xerr != nil {
-					if perr := parseWriteError(err); perr != nil {
-						t.Errorf("#%d/%d: %v", i, j, perr)
-					}
-					if !isDeadlineExceeded(err) {
-						t.Fatalf("#%d/%d: %v", i, j, err)
-					}
-				}
-				if err == nil {
-					time.Sleep(tt.timeout / 3)
+				t.Logf("#%d: WriteTo: %d, %v", j, n, err)
+				if err == nil && timeout >= 0 && nDeadlineExceeded == 0 {
+					// If the timeout is nonnegative, some number of WriteTo calls may
+					// succeed before the timeout takes effect.
+					t.Logf("WriteTo succeeded; sleeping %v", timeout/3)
+					time.Sleep(timeout / 3)
 					continue
 				}
-				if n != 0 {
-					t.Fatalf("#%d/%d: wrote %d; want 0", i, j, n)
+				if isENOBUFS(err) {
+					t.Logf("WriteTo: %v", err)
+					// We're looking for a deadline exceeded error, but if the kernel's
+					// network buffers are saturated we may see ENOBUFS instead (see
+					// https://go.dev/issue/49930). Give it some time to unsaturate.
+					time.Sleep(backoff)
+					backoff *= 2
+					continue
 				}
-				break
+				if perr := parseWriteError(err); perr != nil {
+					t.Errorf("failed to parse error: %v", perr)
+				}
+				if !isDeadlineExceeded(err) {
+					t.Errorf("error is not 'deadline exceeded'")
+				}
+				if n != 0 {
+					t.Errorf("unexpectedly wrote %d bytes", n)
+				}
+				if !t.Failed() {
+					t.Logf("WriteTo timed out as expected")
+				}
+				nDeadlineExceeded++
 			}
-		}
+		})
 	}
 }
 
