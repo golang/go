@@ -8,25 +8,25 @@ package rand
 
 import (
 	"internal/syscall/unix"
+	"runtime"
+	"syscall"
 )
 
-// maxGetRandomRead is platform dependent.
 func init() {
-	altGetRandom = batched(getRandomBatch, maxGetRandomRead)
-}
-
-// batched returns a function that calls f to populate a []byte by chunking it
-// into subslices of, at most, readMax bytes.
-func batched(f func([]byte) bool, readMax int) func([]byte) bool {
-	return func(buf []byte) bool {
-		for len(buf) > readMax {
-			if !f(buf[:readMax]) {
-				return false
-			}
-			buf = buf[readMax:]
-		}
-		return len(buf) == 0 || f(buf)
+	var maxGetRandomRead int
+	switch runtime.GOOS {
+	case "linux", "android":
+		// Per the manpage:
+		//     When reading from the urandom source, a maximum of 33554431 bytes
+		//     is returned by a single call to getrandom() on systems where int
+		//     has a size of 32 bits.
+		maxGetRandomRead = (1 << 25) - 1
+	case "freebsd", "dragonfly", "solaris":
+		maxGetRandomRead = 1 << 8
+	default:
+		panic("no maximum specified for GetRandom")
 	}
+	altGetRandom = batched(getRandom, maxGetRandomRead)
 }
 
 // If the kernel is too old to support the getrandom syscall(),
@@ -36,7 +36,13 @@ func batched(f func([]byte) bool, readMax int) func([]byte) bool {
 // If the kernel supports the getrandom() syscall, unix.GetRandom will block
 // until the kernel has sufficient randomness (as we don't use GRND_NONBLOCK).
 // In this case, unix.GetRandom will not return an error.
-func getRandomBatch(p []byte) (ok bool) {
+func getRandom(p []byte) error {
 	n, err := unix.GetRandom(p, 0)
-	return n == len(p) && err == nil
+	if err != nil {
+		return err
+	}
+	if n != len(p) {
+		return syscall.EIO
+	}
+	return nil
 }
