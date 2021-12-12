@@ -143,6 +143,18 @@ func FuzzParse(f *testing.F) {
 			}
 
 			if ip.IsValid() && !ip.Is4In6() {
+				buf, err := ip.MarshalText()
+				if err != nil {
+					t.Fatal(err)
+				}
+				buf2, err := stdip.MarshalText()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(buf, buf2) {
+					t.Logf("ip=%q stdip=%q", ip, stdip)
+					t.Fatal("Addr.MarshalText() != net.IP.MarshalText()")
+				}
 				if ip.String() != stdip.String() {
 					t.Logf("ip=%q stdip=%q", ip, stdip)
 					t.Fatal("Addr.String() != net.IP.String()")
