@@ -1,4 +1,4 @@
-// Copyright 2020 The Go Authors. All rights reserved.
+// Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -224,8 +224,8 @@ func FuzzParse(f *testing.F) {
 	})
 }
 
-// checkTextMarshaller checks that x's MarshalText and UnmarshalText functions round trip correctly.
-func checkTextMarshaller(t *testing.T, x encoding.TextMarshaler) {
+// checkTextMarshaler checks that x's MarshalText and UnmarshalText functions round trip correctly.
+func checkTextMarshaler(t *testing.T, x encoding.TextMarshaler) {
 	buf, err := x.MarshalText()
 	if err == nil {
 		return
@@ -255,8 +255,8 @@ func checkTextMarshaller(t *testing.T, x encoding.TextMarshaler) {
 	}
 }
 
-// checkBinaryMarshaller checks that x's MarshalText and UnmarshalText functions round trip correctly.
-func checkBinaryMarshaller(t *testing.T, x encoding.BinaryMarshaler) {
+// checkBinaryMarshaler checks that x's MarshalText and UnmarshalText functions round trip correctly.
+func checkBinaryMarshaler(t *testing.T, x encoding.BinaryMarshaler) {
 	buf, err := x.MarshalBinary()
 	if err == nil {
 		return
@@ -358,8 +358,8 @@ func checkStringParseRoundTrip[P netipTypeCmp](t *testing.T, x P, parse func(str
 }
 
 func checkEncoding(t *testing.T, x netipType) {
-	checkTextMarshaller(t, x)
-	checkBinaryMarshaller(t, x)
+	checkTextMarshaler(t, x)
+	checkBinaryMarshaler(t, x)
 	checkTextMarshalMatchesString(t, x)
 	if am, ok := x.(appendMarshaler); ok {
 		checkTextMarshalMatchesAppendTo(t, am)
