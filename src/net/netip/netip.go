@@ -1157,8 +1157,17 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 	case z4:
 		b = p.ip.appendTo4(b)
 	default:
-		b = append(b, '[')
-		b = p.ip.appendTo6(b)
+		if p.ip.Is4In6() {
+			b = append(b, "[::ffff:"...)
+			b = p.ip.Unmap().appendTo4(b)
+			if z := p.ip.Zone(); z != "" {
+				b = append(b, '%')
+				b = append(b, z...)
+			}
+		} else {
+			b = append(b, '[')
+			b = p.ip.appendTo6(b)
+		}
 		b = append(b, ']')
 	}
 	b = append(b, ':')
