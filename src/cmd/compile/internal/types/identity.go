@@ -59,7 +59,11 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
 		case TINT32:
 			return (t1 == Types[TINT32] || t1 == RuneType) && (t2 == Types[TINT32] || t2 == RuneType)
 		case TINTER:
-			// Make sure named any type matches any empty interface.
+			// Make sure named any type matches any empty interface
+			// (but not a shape type, if identStrict).
+			if flags&identStrict != 0 {
+				return t1 == AnyType && t2.IsEmptyInterface() && !t2.HasShape() || t2 == AnyType && t1.IsEmptyInterface() && !t1.HasShape()
+			}
 			return t1 == AnyType && t2.IsEmptyInterface() || t2 == AnyType && t1.IsEmptyInterface()
 		default:
 			return false
