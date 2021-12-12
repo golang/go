@@ -114,6 +114,12 @@ func TestParseAddr(t *testing.T) {
 			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), intern.Get("eth1")),
 			str: "1:2::ffff:c0a8:8cff%eth1",
 		},
+		// 4-in-6 with zone
+		{
+			in:  "::ffff:192.168.140.255%eth1",
+			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), intern.Get("eth1")),
+			str: "::ffff:192.168.140.255%eth1",
+		},
 		// IPv6 with capital letters.
 		{
 			in:  "FD9E:1A04:F01D::1",
