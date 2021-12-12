@@ -413,6 +413,32 @@ func TestAddrPortMarshalUnmarshalBinary(t *testing.T) {
 	}
 }
 
+func TestPrefixMarshalTextString(t *testing.T) {
+	tests := []struct {
+		in   Prefix
+		want string
+	}{
+		{mustPrefix("1.2.3.4/24"), "1.2.3.4/24"},
+		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"},
+		{mustPrefix("::ffff:c000:0280/96"), "::ffff:192.0.2.128/96"},
+		{mustPrefix("::ffff:c000:0280%eth0/37"), "::ffff:192.0.2.128/37"}, // Zone should be stripped
+		{mustPrefix("::ffff:192.168.140.255/8"), "::ffff:192.168.140.255/8"},
+	}
+	for i, tt := range tests {
+		if got := tt.in.String(); got != tt.want {
+			t.Errorf("%d. for %v String = %q; want %q", i, tt.in, got, tt.want)
+		}
+		mt, err := tt.in.MarshalText()
+		if err != nil {
+			t.Errorf("%d. for %v MarshalText error: %v", i, tt.in, err)
+			continue
+		}
+		if string(mt) != tt.want {
+			t.Errorf("%d. for %v MarshalText = %q; want %q", i, tt.in, mt, tt.want)
+		}
+	}
+}
+
 func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
 	type testCase struct {
 		prefix   Prefix
@@ -994,7 +1020,6 @@ func TestPrefixMarshalUnmarshal(t *testing.T) {
 		"0.0.0.0/0",
 		"::/0",
 		"::1/128",
-		"::ffff:c000:1234/128",
 		"2001:db8::/32",
 	}
 

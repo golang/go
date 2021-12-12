@@ -1422,7 +1422,12 @@ func (p Prefix) AppendTo(b []byte) []byte {
 	if p.ip.z == z4 {
 		b = p.ip.appendTo4(b)
 	} else {
-		b = p.ip.appendTo6(b)
+		if p.ip.Is4In6() {
+			b = append(b, "::ffff:"...)
+			b = p.ip.Unmap().appendTo4(b)
+		} else {
+			b = p.ip.appendTo6(b)
+		}
 	}
 
 	b = append(b, '/')
