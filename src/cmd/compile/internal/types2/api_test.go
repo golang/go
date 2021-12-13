@@ -342,6 +342,16 @@ func TestTypesInfo(t *testing.T) {
 
 		// issue 47895
 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
+
+		// issue 50093
+		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
+		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
+		{`package u2a; func _[_ interface{int|string}]() {}`, `int | string`, `int|string`},
+		{`package u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string | ~bool`, `int|string|~bool`},
+		{`package u0b; func _[_ int]() {}`, `int`, `int`},
+		{`package u1b; func _[_ ~int]() {}`, `~int`, `~int`},
+		{`package u2b; func _[_ int|string]() {}`, `int | string`, `int|string`},
+		{`package u3b; func _[_ int|string|~bool]() {}`, `int | string | ~bool`, `int|string|~bool`},
 	}
 
 	for _, test := range tests {

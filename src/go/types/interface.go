@@ -152,7 +152,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 	for _, f := range iface.Methods.List {
 		if len(f.Names) == 0 {
-			addEmbedded(f.Type.Pos(), parseUnion(check, flattenUnion(nil, f.Type)))
+			addEmbedded(f.Type.Pos(), parseUnion(check, f.Type))
 			continue
 		}
 		// f.Name != nil
@@ -222,12 +222,4 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
 		ityp.check = nil
 	}).describef(iface, "compute type set for %s", ityp)
-}
-
-func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
-	if o, _ := x.(*ast.BinaryExpr); o != nil && o.Op == token.OR {
-		list = flattenUnion(list, o.X)
-		x = o.Y
-	}
-	return append(list, x)
 }
