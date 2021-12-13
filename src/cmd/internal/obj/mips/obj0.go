@@ -466,9 +466,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = c.newprog()
 				q.As = AJMP
 				q.Pos = p.Pos
-				q.To.Type = obj.TYPE_MEM
-				q.To.Offset = 0
-				q.To.Reg = REGLINK
+				if retSym != nil { // retjmp
+					q.To.Type = obj.TYPE_BRANCH
+					q.To.Name = obj.NAME_EXTERN
+					q.To.Sym = retSym
+				} else {
+					q.To.Type = obj.TYPE_MEM
+					q.To.Reg = REGLINK
+					q.To.Offset = 0
+				}
 				q.Mark |= BRANCH
 				q.Spadj = +autosize
 
