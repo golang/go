@@ -1087,7 +1087,7 @@ func (c *common) TempDir() string {
 		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {
-				if err := os.RemoveAll(c.tempDir); err != nil {
+				if err := removeAll(c.tempDir); err != nil {
 					c.Errorf("TempDir RemoveAll cleanup: %v", err)
 				}
 			})
@@ -1104,6 +1104,36 @@ func (c *common) TempDir() string {
 		c.Fatalf("TempDir: %v", err)
 	}
 	return dir
+}
+
+// removeAll is like os.RemoveAll, but retries Windows "Access is denied."
+// errors up to an arbitrary timeout.
+//
+// Those errors have been known to occur spuriously on at least the
+// windows-amd64-2012 builder (https://go.dev/issue/50051), and can only occur
+// legitimately if the test leaves behind a temp file that either is still open
+// or the test otherwise lacks permission to delete. In the case of legitimate
+// failures, a failing test may take a bit longer to fail, but once the test is
+// fixed the extra latency will go away.
+func removeAll(path string) error {
+	const arbitraryTimeout = 2 * time.Second
+	var (
+		start     time.Time
+		nextSleep = 1 * time.Millisecond
+	)
+	for {
+		err := os.RemoveAll(path)
+		if !isWindowsAccessDenied(err) {
+			return err
+		}
+		if start.IsZero() {
+			start = time.Now()
+		} else if d := time.Since(start) + nextSleep; d >= arbitraryTimeout {
+			return err
+		}
+		time.Sleep(nextSleep)
+		nextSleep += time.Duration(rand.Int63n(int64(nextSleep)))
+	}
 }
 
 // Setenv calls os.Setenv(key, value) and uses Cleanup to
