@@ -5,7 +5,6 @@
 package vcs
 
 import (
-	"cmd/go/internal/web"
 	"errors"
 	"fmt"
 	"internal/testenv"
@@ -13,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"cmd/go/internal/web"
 )
 
 func init() {
