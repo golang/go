@@ -684,7 +684,22 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 		}
 		info.dictInfo.shapeToBound = make(map[*types.Type]*types.Type)
 
-		// genericSubst fills in info.dictParam and info.tparamToBound.
+		if sym.Def != nil {
+			// This instantiation must have been imported from another
+			// package (because it was needed for inlining), so we should
+			// not re-generate it and have conflicting definitions for the
+			// symbol (issue #50121). It will have already gone through the
+			// dictionary transformations of dictPass, so we don't actually
+			// need the info.dictParam and info.shapeToBound info filled in
+			// below. We just set the imported instantiation as info.fun.
+			assert(sym.Pkg != types.LocalPkg)
+			info.fun = sym.Def.(*ir.Name).Func
+			assert(info.fun != nil)
+			g.instInfoMap[sym] = info
+			return info
+		}
+
+		// genericSubst fills in info.dictParam and info.shapeToBound.
 		st := g.genericSubst(sym, nameNode, shapes, isMeth, info)
 		info.fun = st
 		g.instInfoMap[sym] = info
@@ -722,7 +737,7 @@ type subster struct {
 // args shapes. For a method with a generic receiver, it returns an instantiated
 // function type where the receiver becomes the first parameter. For either a generic
 // method or function, a dictionary parameter is the added as the very first
-// parameter. genericSubst fills in info.dictParam and info.tparamToBound.
+// parameter. genericSubst fills in info.dictParam and info.shapeToBound.
 func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*types.Type, isMethod bool, info *instInfo) *ir.Func {
 	var tparams []*types.Type
 	if isMethod {
