@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/google/go-cmp v0.5.6
+	github.com/jba/printsrc v0.2.2
 	github.com/jba/templatecheck v0.6.0
-	github.com/sanity-io/litter v1.5.1
 	github.com/sergi/go-diff v1.1.0
 	golang.org/x/mod v0.5.1
 	golang.org/x/sys v0.0.0-20211019181941-9d821ace8654
