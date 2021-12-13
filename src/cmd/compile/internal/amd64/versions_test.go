@@ -74,8 +74,18 @@ func TestGoAMD64v1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("couldn't execute test: %s", err)
 	}
-	if string(out) != "PASS\n" {
-		t.Fatalf("test reported error: %s", string(out))
+	// Expect to see output of the form "PASS\n", unless the test binary
+	// was compiled for coverage (in which case there will be an extra line).
+	success := false
+	lines := strings.Split(string(out), "\n")
+	if len(lines) == 2 {
+		success = lines[0] == "PASS" && lines[1] == ""
+	} else if len(lines) == 3 {
+		success = lines[0] == "PASS" &&
+			strings.HasPrefix(lines[1], "coverage") && lines[2] == ""
+	}
+	if !success {
+		t.Fatalf("test reported error: %s lines=%+v", string(out), lines)
 	}
 }
 
