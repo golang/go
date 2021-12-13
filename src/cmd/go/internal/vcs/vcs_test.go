@@ -5,6 +5,7 @@
 package vcs
 
 import (
+	"cmd/go/internal/web"
 	"errors"
 	"fmt"
 	"internal/testenv"
@@ -12,8 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"cmd/go/internal/web"
 )
 
 func init() {
@@ -182,6 +181,13 @@ func TestRepoRootForImportPath(t *testing.T) {
 		{
 			"chiselapp.com/user/kyle/fossilgg",
 			nil,
+		},
+		{
+			"bitbucket.org/workspace/pkgname",
+			&RepoRoot{
+				VCS:  vcsGit,
+				Repo: "https://bitbucket.org/workspace/pkgname",
+			},
 		},
 	}
 
