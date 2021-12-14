@@ -22,7 +22,7 @@ const seekStart = 0
 // A File represents an open PE file.
 type File struct {
 	FileHeader
-	OptionalHeader any // of type *OptionalHeader32 or *OptionalHeader64
+	OptionalHeader interface{} // of type *OptionalHeader32 or *OptionalHeader64
 	Sections       []*Section
 	Symbols        []*Symbol    // COFF symbols with auxiliary symbol records removed
 	COFFSymbols    []COFFSymbol // all COFF symbols (including auxiliary symbol records)
@@ -452,7 +452,7 @@ func (e *FormatError) Error() string {
 // and its size as seen in the file header.
 // It parses the given size of bytes and returns optional header. It infers whether the
 // bytes being parsed refer to 32 bit or 64 bit version of optional header.
-func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
+func readOptionalHeader(r io.ReadSeeker, sz uint16) (interface{}, error) {
 	// If optional header size is 0, return empty optional header.
 	if sz == 0 {
 		return nil, nil
@@ -473,7 +473,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
 
 	// read reads from io.ReadSeeke, r, into data.
 	var err error
-	read := func(data any) bool {
+	read := func(data interface{}) bool {
 		err = binary.Read(r, binary.LittleEndian, data)
 		return err == nil
 	}

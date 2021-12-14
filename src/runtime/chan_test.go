@@ -494,7 +494,7 @@ func TestSelectFairness(t *testing.T) {
 func TestChanSendInterface(t *testing.T) {
 	type mt struct{}
 	m := &mt{}
-	c := make(chan any, 1)
+	c := make(chan interface{}, 1)
 	c <- m
 	select {
 	case c <- m:

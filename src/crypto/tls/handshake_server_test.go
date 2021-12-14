@@ -249,7 +249,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 	}
 
 	c, s := localPipe(t)
-	replyChan := make(chan any)
+	replyChan := make(chan interface{})
 	go func() {
 		cli := Client(c, testConfig)
 		cli.vers = clientHello.vers
@@ -304,7 +304,7 @@ func TestTLSPointFormats(t *testing.T) {
 			}
 
 			c, s := localPipe(t)
-			replyChan := make(chan any)
+			replyChan := make(chan interface{})
 			go func() {
 				cli := Client(c, testConfig)
 				cli.vers = clientHello.vers
@@ -600,7 +600,7 @@ func (test *serverTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 		return nil, nil, err
 	}
 
-	connChan := make(chan any, 1)
+	connChan := make(chan interface{}, 1)
 	go func() {
 		tcpConn, err := l.Accept()
 		if err != nil {

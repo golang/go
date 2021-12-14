@@ -14,7 +14,7 @@ import "errors"
 // invalid to include more than one %w verb or to supply it with an operand
 // that does not implement the error interface. The %w verb is otherwise
 // a synonym for %v.
-func Errorf(format string, a ...any) error {
+func Errorf(format string, a ...interface{}) error {
 	p := newPrinter()
 	p.wrapErrs = true
 	p.doPrintf(format, a)

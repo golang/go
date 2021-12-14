@@ -82,7 +82,7 @@ func (p *parser) allowTypeSets() bool { return p.mode&typeparams.DisallowTypeSet
 // ----------------------------------------------------------------------------
 // Parsing support
 
-func (p *parser) printTrace(a ...any) {
+func (p *parser) printTrace(a ...interface{}) {
 	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
 	const n = len(dots)
 	pos := p.file.Position(p.pos)

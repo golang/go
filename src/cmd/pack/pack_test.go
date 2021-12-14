@@ -203,7 +203,7 @@ func TestLargeDefs(t *testing.T) {
 	}
 	b := bufio.NewWriter(f)
 
-	printf := func(format string, args ...any) {
+	printf := func(format string, args ...interface{}) {
 		_, err := fmt.Fprintf(b, format, args...)
 		if err != nil {
 			t.Fatalf("Writing to %s: %v", large, err)
@@ -454,7 +454,7 @@ func (f *FakeFile) IsDir() bool {
 	return false
 }
 
-func (f *FakeFile) Sys() any {
+func (f *FakeFile) Sys() interface{} {
 	return nil
 }
 

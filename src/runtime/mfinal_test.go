@@ -34,14 +34,14 @@ func TestFinalizerType(t *testing.T) {
 	}
 
 	var finalizerTests = []struct {
-		convert   func(*int) any
-		finalizer any
+		convert   func(*int) interface{}
+		finalizer interface{}
 	}{
-		{func(x *int) any { return x }, func(v *int) { finalize(v) }},
-		{func(x *int) any { return Tintptr(x) }, func(v Tintptr) { finalize(v) }},
-		{func(x *int) any { return Tintptr(x) }, func(v *int) { finalize(v) }},
-		{func(x *int) any { return (*Tint)(x) }, func(v *Tint) { finalize((*int)(v)) }},
-		{func(x *int) any { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
+		{func(x *int) interface{} { return x }, func(v *int) { finalize(v) }},
+		{func(x *int) interface{} { return Tintptr(x) }, func(v Tintptr) { finalize(v) }},
+		{func(x *int) interface{} { return Tintptr(x) }, func(v *int) { finalize(v) }},
+		{func(x *int) interface{} { return (*Tint)(x) }, func(v *Tint) { finalize((*int)(v)) }},
+		{func(x *int) interface{} { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
 	}
 
 	for i, tt := range finalizerTests {
@@ -85,7 +85,7 @@ func TestFinalizerInterfaceBig(t *testing.T) {
 	go func() {
 		v := &bigValue{0xDEADBEEFDEADBEEF, true, "It matters not how strait the gate"}
 		old := *v
-		runtime.SetFinalizer(v, func(v any) {
+		runtime.SetFinalizer(v, func(v interface{}) {
 			i, ok := v.(*bigValue)
 			if !ok {
 				t.Errorf("finalizer called with type %T, want *bigValue", v)

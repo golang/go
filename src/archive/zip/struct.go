@@ -163,7 +163,7 @@ func (fi headerFileInfo) ModTime() time.Time {
 }
 func (fi headerFileInfo) Mode() fs.FileMode { return fi.fh.Mode() }
 func (fi headerFileInfo) Type() fs.FileMode { return fi.fh.Mode().Type() }
-func (fi headerFileInfo) Sys() any          { return fi.fh }
+func (fi headerFileInfo) Sys() interface{}  { return fi.fh }
 
 func (fi headerFileInfo) Info() (fs.FileInfo, error) { return fi, nil }
 

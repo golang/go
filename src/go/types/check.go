@@ -90,7 +90,7 @@ type action struct {
 
 // If debug is set, describef sets a printf-formatted description for action a.
 // Otherwise, it is a no-op.
-func (a *action) describef(pos positioner, format string, args ...any) {
+func (a *action) describef(pos positioner, format string, args ...interface{}) {
 	if debug {
 		a.desc = &actionDesc{pos, format, args}
 	}
@@ -101,7 +101,7 @@ func (a *action) describef(pos positioner, format string, args ...any) {
 type actionDesc struct {
 	pos    positioner
 	format string
-	args   []any
+	args   []interface{}
 }
 
 // A Checker maintains the state of the type checker.

@@ -16,21 +16,21 @@ import (
 
 type testingT interface {
 	Deadline() (time.Time, bool)
-	Error(args ...any)
-	Errorf(format string, args ...any)
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
 	Fail()
 	FailNow()
 	Failed() bool
-	Fatal(args ...any)
-	Fatalf(format string, args ...any)
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
 	Helper()
-	Log(args ...any)
-	Logf(format string, args ...any)
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
 	Name() string
 	Parallel()
-	Skip(args ...any)
+	Skip(args ...interface{})
 	SkipNow()
-	Skipf(format string, args ...any)
+	Skipf(format string, args ...interface{})
 	Skipped() bool
 }
 
@@ -553,7 +553,7 @@ func testLayers(t testingT, seed int64, testTimeout bool) {
 	t.Parallel()
 
 	r := rand.New(rand.NewSource(seed))
-	errorf := func(format string, a ...any) {
+	errorf := func(format string, a ...interface{}) {
 		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)
 	}
 	const (
@@ -691,7 +691,7 @@ func XTestInvalidDerivedFail(t testingT) {
 	}
 }
 
-func recoveredValue(fn func()) (v any) {
+func recoveredValue(fn func()) (v interface{}) {
 	defer func() { v = recover() }()
 	fn()
 	return

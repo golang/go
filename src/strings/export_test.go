@@ -4,7 +4,7 @@
 
 package strings
 
-func (r *Replacer) Replacer() any {
+func (r *Replacer) Replacer() interface{} {
 	r.once.Do(r.buildOnce)
 	return r.r
 }

@@ -187,7 +187,7 @@ func runTests(t *testing.T) ([]byte, error) {
 func TestIssue8102(t *testing.T) {
 	// If this compiles with -race, the test passes.
 	type S struct {
-		x any
+		x interface{}
 		i int
 	}
 	c := make(chan int)

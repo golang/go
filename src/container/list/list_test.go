@@ -141,7 +141,7 @@ func TestList(t *testing.T) {
 	checkListPointers(t, l, []*Element{})
 }
 
-func checkList(t *testing.T, l *List, es []any) {
+func checkList(t *testing.T, l *List, es []interface{}) {
 	if !checkListLen(t, l, len(es)) {
 		return
 	}
@@ -169,36 +169,36 @@ func TestExtending(t *testing.T) {
 
 	l3 := New()
 	l3.PushBackList(l1)
-	checkList(t, l3, []any{1, 2, 3})
+	checkList(t, l3, []interface{}{1, 2, 3})
 	l3.PushBackList(l2)
-	checkList(t, l3, []any{1, 2, 3, 4, 5})
+	checkList(t, l3, []interface{}{1, 2, 3, 4, 5})
 
 	l3 = New()
 	l3.PushFrontList(l2)
-	checkList(t, l3, []any{4, 5})
+	checkList(t, l3, []interface{}{4, 5})
 	l3.PushFrontList(l1)
-	checkList(t, l3, []any{1, 2, 3, 4, 5})
+	checkList(t, l3, []interface{}{1, 2, 3, 4, 5})
 
-	checkList(t, l1, []any{1, 2, 3})
-	checkList(t, l2, []any{4, 5})
+	checkList(t, l1, []interface{}{1, 2, 3})
+	checkList(t, l2, []interface{}{4, 5})
 
 	l3 = New()
 	l3.PushBackList(l1)
-	checkList(t, l3, []any{1, 2, 3})
+	checkList(t, l3, []interface{}{1, 2, 3})
 	l3.PushBackList(l3)
-	checkList(t, l3, []any{1, 2, 3, 1, 2, 3})
+	checkList(t, l3, []interface{}{1, 2, 3, 1, 2, 3})
 
 	l3 = New()
 	l3.PushFrontList(l1)
-	checkList(t, l3, []any{1, 2, 3})
+	checkList(t, l3, []interface{}{1, 2, 3})
 	l3.PushFrontList(l3)
-	checkList(t, l3, []any{1, 2, 3, 1, 2, 3})
+	checkList(t, l3, []interface{}{1, 2, 3, 1, 2, 3})
 
 	l3 = New()
 	l1.PushBackList(l3)
-	checkList(t, l1, []any{1, 2, 3})
+	checkList(t, l1, []interface{}{1, 2, 3})
 	l1.PushFrontList(l3)
-	checkList(t, l1, []any{1, 2, 3})
+	checkList(t, l1, []interface{}{1, 2, 3})
 }
 
 func TestRemove(t *testing.T) {
@@ -289,19 +289,19 @@ func TestMove(t *testing.T) {
 func TestZeroList(t *testing.T) {
 	var l1 = new(List)
 	l1.PushFront(1)
-	checkList(t, l1, []any{1})
+	checkList(t, l1, []interface{}{1})
 
 	var l2 = new(List)
 	l2.PushBack(1)
-	checkList(t, l2, []any{1})
+	checkList(t, l2, []interface{}{1})
 
 	var l3 = new(List)
 	l3.PushFrontList(l1)
-	checkList(t, l3, []any{1})
+	checkList(t, l3, []interface{}{1})
 
 	var l4 = new(List)
 	l4.PushBackList(l2)
-	checkList(t, l4, []any{1})
+	checkList(t, l4, []interface{}{1})
 }
 
 // Test that a list l is not modified when calling InsertBefore with a mark that is not an element of l.
@@ -311,7 +311,7 @@ func TestInsertBeforeUnknownMark(t *testing.T) {
 	l.PushBack(2)
 	l.PushBack(3)
 	l.InsertBefore(1, new(Element))
-	checkList(t, &l, []any{1, 2, 3})
+	checkList(t, &l, []interface{}{1, 2, 3})
 }
 
 // Test that a list l is not modified when calling InsertAfter with a mark that is not an element of l.
@@ -321,7 +321,7 @@ func TestInsertAfterUnknownMark(t *testing.T) {
 	l.PushBack(2)
 	l.PushBack(3)
 	l.InsertAfter(1, new(Element))
-	checkList(t, &l, []any{1, 2, 3})
+	checkList(t, &l, []interface{}{1, 2, 3})
 }
 
 // Test that a list l is not modified when calling MoveAfter or MoveBefore with a mark that is not an element of l.
@@ -333,10 +333,10 @@ func TestMoveUnknownMark(t *testing.T) {
 	e2 := l2.PushBack(2)
 
 	l1.MoveAfter(e1, e2)
-	checkList(t, &l1, []any{1})
-	checkList(t, &l2, []any{2})
+	checkList(t, &l1, []interface{}{1})
+	checkList(t, &l2, []interface{}{2})
 
 	l1.MoveBefore(e1, e2)
-	checkList(t, &l1, []any{1})
-	checkList(t, &l2, []any{2})
+	checkList(t, &l1, []interface{}{1})
+	checkList(t, &l2, []interface{}{2})
 }

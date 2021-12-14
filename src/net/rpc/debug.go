@@ -72,7 +72,7 @@ type debugHTTP struct {
 func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Build a sorted version of the data.
 	var services serviceArray
-	server.serviceMap.Range(func(snamei, svci any) bool {
+	server.serviceMap.Range(func(snamei, svci interface{}) bool {
 		svc := svci.(*service)
 		ds := debugService{svc, snamei.(string), make(methodArray, 0, len(svc.method))}
 		for mname, method := range svc.method {

@@ -1414,7 +1414,7 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
 
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
-func TypeOf(i any) Type {
+func TypeOf(i interface{}) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
 	return toType(eface.typ)
 }
@@ -1458,7 +1458,7 @@ func (t *rtype) ptrTo() *rtype {
 
 	// Create a new ptrType starting with the description
 	// of an *unsafe.Pointer.
-	var iptr any = (*unsafe.Pointer)(nil)
+	var iptr interface{} = (*unsafe.Pointer)(nil)
 	prototype := *(**ptrType)(unsafe.Pointer(&iptr))
 	pp := *prototype
 
@@ -1876,7 +1876,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	}
 
 	// Make a channel type.
-	var ichan any = (chan unsafe.Pointer)(nil)
+	var ichan interface{} = (chan unsafe.Pointer)(nil)
 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
 	ch := *prototype
 	ch.tflag = tflagRegularMemory
@@ -1922,7 +1922,7 @@ func MapOf(key, elem Type) Type {
 	// Make a map type.
 	// Note: flag values must match those used in the TMAP case
 	// in ../cmd/compile/internal/reflectdata/reflect.go:writeType.
-	var imap any = (map[unsafe.Pointer]unsafe.Pointer)(nil)
+	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := **(**mapType)(unsafe.Pointer(&imap))
 	mt.str = resolveReflectName(newName(s, "", false))
 	mt.tflag = 0
@@ -2002,7 +2002,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	}
 
 	// Make a func type.
-	var ifunc any = (func())(nil)
+	var ifunc interface{} = (func())(nil)
 	prototype := *(**funcType)(unsafe.Pointer(&ifunc))
 	n := len(in) + len(out)
 
@@ -2360,7 +2360,7 @@ func SliceOf(t Type) Type {
 	}
 
 	// Make a slice type.
-	var islice any = ([]unsafe.Pointer)(nil)
+	var islice interface{} = ([]unsafe.Pointer)(nil)
 	prototype := *(**sliceType)(unsafe.Pointer(&islice))
 	slice := *prototype
 	slice.tflag = 0
@@ -2688,7 +2688,7 @@ func StructOf(fields []StructField) Type {
 	size = align(size, uintptr(typalign))
 
 	// Make the struct type.
-	var istruct any = struct{}{}
+	var istruct interface{} = struct{}{}
 	prototype := *(**structType)(unsafe.Pointer(&istruct))
 	*typ = *prototype
 	typ.fields = fs
@@ -2908,7 +2908,7 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	// Make an array type.
-	var iarray any = [1]unsafe.Pointer{}
+	var iarray interface{} = [1]unsafe.Pointer{}
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := *prototype
 	array.tflag = typ.tflag & tflagRegularMemory
@@ -3095,7 +3095,7 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
 	x.str = resolveReflectName(newName(s, "", false))
 
 	// cache result for future callers
-	framePool = &sync.Pool{New: func() any {
+	framePool = &sync.Pool{New: func() interface{} {
 		return unsafe_New(x)
 	}}
 	lti, _ := layoutCache.LoadOrStore(k, layoutType{

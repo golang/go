@@ -11,7 +11,7 @@ import "reflect"
 
 var reflectValueOf = reflect.ValueOf
 
-func reflectSwapper(x any) func(int, int) {
+func reflectSwapper(x interface{}) func(int, int) {
 	v := reflectValueOf(x)
 	tmp := reflect.New(v.Type().Elem()).Elem()
 	return func(i, j int) {

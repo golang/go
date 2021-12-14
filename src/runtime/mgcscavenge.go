@@ -263,7 +263,7 @@ func bgscavenge(c chan int) {
 	scavenge.parked = true
 
 	scavenge.timer = new(timer)
-	scavenge.timer.f = func(_ any, _ uintptr) {
+	scavenge.timer.f = func(_ interface{}, _ uintptr) {
 		wakeScavenger()
 	}
 

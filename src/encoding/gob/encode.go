@@ -40,7 +40,7 @@ type encBuffer struct {
 }
 
 var encBufferPool = sync.Pool{
-	New: func() any {
+	New: func() interface{} {
 		e := new(encBuffer)
 		e.data = e.scratch[0:0]
 		return e

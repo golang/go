@@ -237,7 +237,7 @@ func initBig() {
 	jsonBig = b
 }
 
-func genValue(n int) any {
+func genValue(n int) interface{} {
 	if n > 1 {
 		switch rand.Intn(2) {
 		case 0:
@@ -270,7 +270,7 @@ func genString(stddev float64) string {
 	return string(c)
 }
 
-func genArray(n int) []any {
+func genArray(n int) []interface{} {
 	f := int(math.Abs(rand.NormFloat64()) * math.Min(10, float64(n/2)))
 	if f > n {
 		f = n
@@ -278,14 +278,14 @@ func genArray(n int) []any {
 	if f < 1 {
 		f = 1
 	}
-	x := make([]any, f)
+	x := make([]interface{}, f)
 	for i := range x {
 		x[i] = genValue(((i+1)*n)/f - (i*n)/f)
 	}
 	return x
 }
 
-func genMap(n int) map[string]any {
+func genMap(n int) map[string]interface{} {
 	f := int(math.Abs(rand.NormFloat64()) * math.Min(10, float64(n/2)))
 	if f > n {
 		f = n
@@ -293,7 +293,7 @@ func genMap(n int) map[string]any {
 	if n > 0 && f == 0 {
 		f = 1
 	}
-	x := make(map[string]any)
+	x := make(map[string]interface{})
 	for i := 0; i < f; i++ {
 		x[genString(10)] = genValue(((i+1)*n)/f - (i*n)/f)
 	}

@@ -1050,7 +1050,7 @@ func BenchmarkMapDelete(b *testing.B) {
 func TestDeferDeleteSlow(t *testing.T) {
 	ks := []complex128{0, 1, 2, 3}
 
-	m := make(map[any]int)
+	m := make(map[interface{}]int)
 	for i, k := range ks {
 		m[k] = i
 	}
@@ -1193,14 +1193,14 @@ func TestMapInterfaceKey(t *testing.T) {
 		c64  complex64
 		c128 complex128
 		s    string
-		i0   any
+		i0   interface{}
 		i1   interface {
 			String() string
 		}
 		a [4]string
 	}
 
-	m := map[any]bool{}
+	m := map[interface{}]bool{}
 	// Put a bunch of data in m, so that a bad hash is likely to
 	// lead to a bad bucket, which will lead to a missed lookup.
 	for i := 0; i < 1000; i++ {

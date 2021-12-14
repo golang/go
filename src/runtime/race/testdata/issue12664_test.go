@@ -56,7 +56,7 @@ func TestRaceIssue12664_3(t *testing.T) {
 		close(c)
 	}()
 	var r MyT
-	var i any = r
+	var i interface{} = r
 	issue12664_3 = i.(MyT)
 	<-c
 }

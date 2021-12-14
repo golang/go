@@ -360,7 +360,7 @@ var readSetCookiesTests = []struct {
 	// Header{"Set-Cookie": {"ASP.NET_SessionId=foo; path=/; HttpOnly, .ASPXAUTH=7E3AA; expires=Wed, 07-Mar-2012 14:25:06 GMT; path=/; HttpOnly"}},
 }
 
-func toJSON(v any) string {
+func toJSON(v interface{}) string {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Sprintf("%#v", v)

@@ -16,7 +16,7 @@ type queue struct {
 	// The queue is empty when begin = end.
 	// The queue is full (until grow is called) when end = begin + N - 1 (mod N)
 	// where N = cap(elems).
-	elems     []any
+	elems     []interface{}
 	head, len int
 }
 
@@ -30,7 +30,7 @@ func (q *queue) grow() {
 	if newCap == 0 {
 		newCap = 8
 	}
-	newElems := make([]any, newCap)
+	newElems := make([]interface{}, newCap)
 	oldLen := q.len
 	for i := 0; i < oldLen; i++ {
 		newElems[i] = q.elems[(q.head+i)%oldCap]
@@ -39,7 +39,7 @@ func (q *queue) grow() {
 	q.head = 0
 }
 
-func (q *queue) enqueue(e any) {
+func (q *queue) enqueue(e interface{}) {
 	if q.len+1 > q.cap() {
 		q.grow()
 	}
@@ -48,7 +48,7 @@ func (q *queue) enqueue(e any) {
 	q.len++
 }
 
-func (q *queue) dequeue() (any, bool) {
+func (q *queue) dequeue() (interface{}, bool) {
 	if q.len == 0 {
 		return nil, false
 	}
@@ -59,7 +59,7 @@ func (q *queue) dequeue() (any, bool) {
 	return e, true
 }
 
-func (q *queue) peek() (any, bool) {
+func (q *queue) peek() (interface{}, bool) {
 	if q.len == 0 {
 		return nil, false
 	}

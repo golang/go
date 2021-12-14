@@ -70,7 +70,7 @@ func equal(p, q *FileSet) error {
 
 func checkSerialize(t *testing.T, p *FileSet) {
 	var buf bytes.Buffer
-	encode := func(x any) error {
+	encode := func(x interface{}) error {
 		return gob.NewEncoder(&buf).Encode(x)
 	}
 	if err := p.Write(encode); err != nil {
@@ -78,7 +78,7 @@ func checkSerialize(t *testing.T, p *FileSet) {
 		return
 	}
 	q := NewFileSet()
-	decode := func(x any) error {
+	decode := func(x interface{}) error {
 		return gob.NewDecoder(&buf).Decode(x)
 	}
 	if err := q.Read(decode); err != nil {

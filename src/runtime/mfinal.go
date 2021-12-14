@@ -200,7 +200,7 @@ func runfinq() {
 					framesz = f.nret
 				} else {
 					// Need to pass arguments on the stack too.
-					framesz = unsafe.Sizeof((any)(nil)) + f.nret
+					framesz = unsafe.Sizeof((interface{})(nil)) + f.nret
 				}
 				if framecap < framesz {
 					// The frame does not contain pointers interesting for GC,
@@ -329,7 +329,7 @@ func runfinq() {
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
-func SetFinalizer(obj any, finalizer any) {
+func SetFinalizer(obj interface{}, finalizer interface{}) {
 	if debug.sbrk != 0 {
 		// debug.sbrk never frees memory, so no finalizers run
 		// (and we don't have the data structures to record them).
@@ -470,7 +470,7 @@ okarg:
 // Note: KeepAlive should only be used to prevent finalizers from
 // running prematurely. In particular, when used with unsafe.Pointer,
 // the rules for valid uses of unsafe.Pointer still apply.
-func KeepAlive(x any) {
+func KeepAlive(x interface{}) {
 	// Introduce a use of x that the compiler can't eliminate.
 	// This makes sure x is alive on entry. We need x to be alive
 	// on entry for "defer runtime.KeepAlive(x)"; see issue 21402.

@@ -53,13 +53,13 @@ type Pool struct {
 	// New optionally specifies a function to generate
 	// a value when Get would otherwise return nil.
 	// It may not be changed concurrently with calls to Get.
-	New func() any
+	New func() interface{}
 }
 
 // Local per-P Pool appendix.
 type poolLocalInternal struct {
-	private any       // Can be used only by the respective P.
-	shared  poolChain // Local P can pushHead/popHead; any P can popTail.
+	private interface{} // Can be used only by the respective P.
+	shared  poolChain   // Local P can pushHead/popHead; any P can popTail.
 }
 
 type poolLocal struct {
@@ -80,14 +80,14 @@ var poolRaceHash [128]uint64
 // directly, for fear of conflicting with other synchronization on that address.
 // Instead, we hash the pointer to get an index into poolRaceHash.
 // See discussion on golang.org/cl/31589.
-func poolRaceAddr(x any) unsafe.Pointer {
+func poolRaceAddr(x interface{}) unsafe.Pointer {
 	ptr := uintptr((*[2]unsafe.Pointer)(unsafe.Pointer(&x))[1])
 	h := uint32((uint64(uint32(ptr)) * 0x85ebca6b) >> 16)
 	return unsafe.Pointer(&poolRaceHash[h%uint32(len(poolRaceHash))])
 }
 
 // Put adds x to the pool.
-func (p *Pool) Put(x any) {
+func (p *Pool) Put(x interface{}) {
 	if x == nil {
 		return
 	}
@@ -121,7 +121,7 @@ func (p *Pool) Put(x any) {
 //
 // If Get would otherwise return nil and p.New is non-nil, Get returns
 // the result of calling p.New.
-func (p *Pool) Get() any {
+func (p *Pool) Get() interface{} {
 	if race.Enabled {
 		race.Disable()
 	}
@@ -150,7 +150,7 @@ func (p *Pool) Get() any {
 	return x
 }
 
-func (p *Pool) getSlow(pid int) any {
+func (p *Pool) getSlow(pid int) interface{} {
 	// See the comment in pin regarding ordering of the loads.
 	size := runtime_LoadAcquintptr(&p.localSize) // load-acquire
 	locals := p.local                            // load-consume

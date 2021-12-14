@@ -136,7 +136,7 @@ func TestGcLastTime(t *testing.T) {
 	}
 }
 
-var hugeSink any
+var hugeSink interface{}
 
 func TestHugeGCInfo(t *testing.T) {
 	// The test ensures that compiler can chew these huge types even on weakest machines.
@@ -457,7 +457,7 @@ func BenchmarkSetTypeNode1024Slice(b *testing.B) {
 	benchSetType(b, make([]Node1024, 32))
 }
 
-func benchSetType(b *testing.B, x any) {
+func benchSetType(b *testing.B, x interface{}) {
 	v := reflect.ValueOf(x)
 	t := v.Type()
 	switch t.Kind() {
@@ -523,7 +523,7 @@ func TestPrintGC(t *testing.T) {
 	close(done)
 }
 
-func testTypeSwitch(x any) error {
+func testTypeSwitch(x interface{}) error {
 	switch y := x.(type) {
 	case nil:
 		// ok
@@ -533,14 +533,14 @@ func testTypeSwitch(x any) error {
 	return nil
 }
 
-func testAssert(x any) error {
+func testAssert(x interface{}) error {
 	if y, ok := x.(error); ok {
 		return y
 	}
 	return nil
 }
 
-func testAssertVar(x any) error {
+func testAssertVar(x interface{}) error {
 	var y, ok = x.(error)
 	if ok {
 		return y
@@ -551,7 +551,7 @@ func testAssertVar(x any) error {
 var a bool
 
 //go:noinline
-func testIfaceEqual(x any) {
+func testIfaceEqual(x interface{}) {
 	if x == "abc" {
 		a = true
 	}

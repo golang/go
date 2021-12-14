@@ -210,7 +210,7 @@ type stringer interface {
 // printany prints an argument passed to panic.
 // If panic is called with a value that has a String or Error method,
 // it has already been converted into a string by preprintpanics.
-func printany(i any) {
+func printany(i interface{}) {
 	switch v := i.(type) {
 	case nil:
 		print("nil")
@@ -253,7 +253,7 @@ func printany(i any) {
 	}
 }
 
-func printanycustomtype(i any) {
+func printanycustomtype(i interface{}) {
 	eface := efaceOf(&i)
 	typestring := eface._type.string()
 

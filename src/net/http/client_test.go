@@ -745,7 +745,7 @@ func (j *RecordingJar) Cookies(u *url.URL) []*Cookie {
 	return nil
 }
 
-func (j *RecordingJar) logf(format string, args ...any) {
+func (j *RecordingJar) logf(format string, args ...interface{}) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	fmt.Fprintf(&j.log, format, args...)

@@ -38,7 +38,7 @@ type VCSError struct {
 
 func (e *VCSError) Error() string { return e.Err.Error() }
 
-func vcsErrorf(format string, a ...any) error {
+func vcsErrorf(format string, a ...interface{}) error {
 	return &VCSError{Err: fmt.Errorf(format, a...)}
 }
 
@@ -51,7 +51,7 @@ func NewRepo(vcs, remote string) (Repo, error) {
 		repo Repo
 		err  error
 	}
-	c := vcsRepoCache.Do(key{vcs, remote}, func() any {
+	c := vcsRepoCache.Do(key{vcs, remote}, func() interface{} {
 		repo, err := newVCSRepo(vcs, remote)
 		if err != nil {
 			err = &VCSError{err}

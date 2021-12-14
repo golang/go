@@ -670,7 +670,7 @@ func (f *fileListEntry) Size() int64       { return 0 }
 func (f *fileListEntry) Mode() fs.FileMode { return fs.ModeDir | 0555 }
 func (f *fileListEntry) Type() fs.FileMode { return fs.ModeDir }
 func (f *fileListEntry) IsDir() bool       { return true }
-func (f *fileListEntry) Sys() any          { return nil }
+func (f *fileListEntry) Sys() interface{}  { return nil }
 
 func (f *fileListEntry) ModTime() time.Time {
 	if f.file == nil {

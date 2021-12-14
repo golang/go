@@ -601,7 +601,7 @@ func (r *resolver) matchInModule(ctx context.Context, pattern string, m module.V
 		err      error
 	}
 
-	e := r.matchInModuleCache.Do(key{pattern, m}, func() any {
+	e := r.matchInModuleCache.Do(key{pattern, m}, func() interface{} {
 		match := modload.MatchInModule(ctx, pattern, m, imports.AnyTags())
 		if len(match.Errs) > 0 {
 			return entry{match.Pkgs, match.Errs[0]}
@@ -893,7 +893,7 @@ func (r *resolver) checkWildcardVersions(ctx context.Context) {
 					// curM at its original version contains a path matching q.pattern,
 					// but at rev.Version it does not, so (somewhat paradoxically) if
 					// we changed the version of curM it would no longer match the query.
-					var version any = m
+					var version interface{} = m
 					if rev.Version != q.version {
 						version = fmt.Sprintf("%s@%s (%s)", m.Path, q.version, m.Version)
 					}

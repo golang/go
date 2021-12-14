@@ -48,7 +48,7 @@ func TestURLFilters(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		escaper func(...any) string
+		escaper func(...interface{}) string
 		escaped string
 	}{
 		{

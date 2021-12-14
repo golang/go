@@ -103,7 +103,7 @@ func TestNextJsCtx(t *testing.T) {
 
 func TestJSValEscaper(t *testing.T) {
 	tests := []struct {
-		x  any
+		x  interface{}
 		js string
 	}{
 		{int(42), " 42 "},
@@ -140,8 +140,8 @@ func TestJSValEscaper(t *testing.T) {
 		// "\v" == "v" on IE 6 so use "\u000b" instead.
 		{"\t\x0b", `"\t\u000b"`},
 		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
-		{[]any{}, "[]"},
-		{[]any{42, "foo", nil}, `[42,"foo",null]`},
+		{[]interface{}{}, "[]"},
+		{[]interface{}{42, "foo", nil}, `[42,"foo",null]`},
 		{[]string{"<!--", "</script>", "-->"}, `["\u003c!--","\u003c/script\u003e","--\u003e"]`},
 		{"<!--", `"\u003c!--"`},
 		{"-->", `"--\u003e"`},
@@ -158,7 +158,7 @@ func TestJSValEscaper(t *testing.T) {
 		}
 		// Make sure that escaping corner cases are not broken
 		// by nesting.
-		a := []any{test.x}
+		a := []interface{}{test.x}
 		want := "[" + strings.TrimSpace(test.js) + "]"
 		if js := jsValEscaper(a); js != want {
 			t.Errorf("%+v: want\n\t%q\ngot\n\t%q", a, want, js)
@@ -168,7 +168,7 @@ func TestJSValEscaper(t *testing.T) {
 
 func TestJSStrEscaper(t *testing.T) {
 	tests := []struct {
-		x   any
+		x   interface{}
 		esc string
 	}{
 		{"", ``},
@@ -223,7 +223,7 @@ func TestJSStrEscaper(t *testing.T) {
 
 func TestJSRegexpEscaper(t *testing.T) {
 	tests := []struct {
-		x   any
+		x   interface{}
 		esc string
 	}{
 		{"", `(?:)`},
@@ -278,7 +278,7 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		escaper func(...any) string
+		escaper func(...interface{}) string
 		escaped string
 	}{
 		{

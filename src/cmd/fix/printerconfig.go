@@ -23,7 +23,7 @@ func printerconfig(f *ast.File) bool {
 	}
 
 	fixed := false
-	walk(f, func(n any) {
+	walk(f, func(n interface{}) {
 		cl, ok := n.(*ast.CompositeLit)
 		if !ok {
 			return

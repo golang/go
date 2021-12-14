@@ -37,7 +37,7 @@ type Builder struct {
 	actionCache map[cacheKey]*Action // a cache of already-constructed actions
 	mkdirCache  map[string]bool      // a cache of created directories
 	flagCache   map[[2]string]bool   // a cache of supported compiler flags
-	Print       func(args ...any) (int, error)
+	Print       func(args ...interface{}) (int, error)
 
 	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
 	NeedError           bool // list needs p.Error
@@ -120,8 +120,8 @@ type actionQueue []*Action
 func (q *actionQueue) Len() int           { return len(*q) }
 func (q *actionQueue) Swap(i, j int)      { (*q)[i], (*q)[j] = (*q)[j], (*q)[i] }
 func (q *actionQueue) Less(i, j int) bool { return (*q)[i].priority < (*q)[j].priority }
-func (q *actionQueue) Push(x any)         { *q = append(*q, x.(*Action)) }
-func (q *actionQueue) Pop() any {
+func (q *actionQueue) Push(x interface{}) { *q = append(*q, x.(*Action)) }
+func (q *actionQueue) Pop() interface{} {
 	n := len(*q) - 1
 	x := (*q)[n]
 	*q = (*q)[:n]
@@ -241,7 +241,7 @@ const (
 )
 
 func (b *Builder) Init() {
-	b.Print = func(a ...any) (int, error) {
+	b.Print = func(a ...interface{}) (int, error) {
 		return fmt.Fprint(os.Stderr, a...)
 	}
 	b.actionCache = make(map[cacheKey]*Action)

@@ -340,7 +340,7 @@ func (s *Scanner) error(msg string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
 }
 
-func (s *Scanner) errorf(format string, args ...any) {
+func (s *Scanner) errorf(format string, args ...interface{}) {
 	s.error(fmt.Sprintf(format, args...))
 }
 

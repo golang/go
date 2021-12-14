@@ -129,7 +129,7 @@ func header(arch string) {
 	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
 }
 
-func p(f string, args ...any) {
+func p(f string, args ...interface{}) {
 	fmted := fmt.Sprintf(f, args...)
 	fmt.Fprintf(out, "\t%s\n", strings.ReplaceAll(fmted, "\n", "\n\t"))
 }

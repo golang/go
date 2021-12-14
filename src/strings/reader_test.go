@@ -77,7 +77,7 @@ func TestReaderAt(t *testing.T) {
 		off     int64
 		n       int
 		want    string
-		wanterr any
+		wanterr interface{}
 	}{
 		{0, 10, "0123456789", nil},
 		{1, 10, "123456789", io.EOF},

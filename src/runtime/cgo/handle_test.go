@@ -13,8 +13,8 @@ func TestHandle(t *testing.T) {
 	v := 42
 
 	tests := []struct {
-		v1 any
-		v2 any
+		v1 interface{}
+		v2 interface{}
 	}{
 		{v1: v, v2: v},
 		{v1: &v, v2: &v},
@@ -44,7 +44,7 @@ func TestHandle(t *testing.T) {
 	}
 
 	siz := 0
-	handles.Range(func(k, v any) bool {
+	handles.Range(func(k, v interface{}) bool {
 		siz++
 		return true
 	})

@@ -88,7 +88,7 @@ func TypeLinks() []string {
 
 var GCBits = gcbits
 
-func gcbits(any) []byte // provided by runtime
+func gcbits(interface{}) []byte // provided by runtime
 
 func MapBucketOf(x, y Type) Type {
 	return bucketOf(x.(*rtype), y.(*rtype))

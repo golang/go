@@ -45,7 +45,8 @@ const (
 	SYS_FCNTL = 500 // unsupported
 )
 
-type Sockaddr any
+type Sockaddr interface {
+}
 
 type SockaddrInet4 struct {
 	Port int

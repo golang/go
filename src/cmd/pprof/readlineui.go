@@ -69,18 +69,18 @@ func (r *readlineUI) ReadLine(prompt string) (string, error) {
 // It formats the text as fmt.Print would and adds a final \n if not already present.
 // For line-based UI, Print writes to standard error.
 // (Standard output is reserved for report data.)
-func (r *readlineUI) Print(args ...any) {
+func (r *readlineUI) Print(args ...interface{}) {
 	r.print(false, args...)
 }
 
 // PrintErr shows an error message to the user.
 // It formats the text as fmt.Print would and adds a final \n if not already present.
 // For line-based UI, PrintErr writes to standard error.
-func (r *readlineUI) PrintErr(args ...any) {
+func (r *readlineUI) PrintErr(args ...interface{}) {
 	r.print(true, args...)
 }
 
-func (r *readlineUI) print(withColor bool, args ...any) {
+func (r *readlineUI) print(withColor bool, args ...interface{}) {
 	text := fmt.Sprint(args...)
 	if !strings.HasSuffix(text, "\n") {
 		text += "\n"

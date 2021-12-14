@@ -22,7 +22,7 @@ import (
 //
 // On success, InjectDebugCall returns the panic value of fn or nil.
 // If fn did not panic, its results will be available in args.
-func InjectDebugCall(gp *g, fn any, regArgs *abi.RegArgs, stackArgs any, tkill func(tid int) error, returnOnUnsafePoint bool) (any, error) {
+func InjectDebugCall(gp *g, fn interface{}, regArgs *abi.RegArgs, stackArgs interface{}, tkill func(tid int) error, returnOnUnsafePoint bool) (interface{}, error) {
 	if gp.lockedm == 0 {
 		return nil, plainError("goroutine not locked to thread")
 	}
@@ -96,7 +96,7 @@ type debugCallHandler struct {
 	regArgs *abi.RegArgs
 	argp    unsafe.Pointer
 	argSize uintptr
-	panic   any
+	panic   interface{}
 
 	handleF func(info *siginfo, ctxt *sigctxt, gp2 *g) bool
 

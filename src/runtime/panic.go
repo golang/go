@@ -755,7 +755,7 @@ func deferCallSave(p *_panic, fn func()) {
 }
 
 // The implementation of the predeclared function panic.
-func gopanic(e any) {
+func gopanic(e interface{}) {
 	gp := getg()
 	if gp.m.curg != gp {
 		print("panic: ")
@@ -957,7 +957,7 @@ func getargp() uintptr {
 // TODO(rsc): Once we commit to CopyStackAlways,
 // this doesn't need to be nosplit.
 //go:nosplit
-func gorecover(argp uintptr) any {
+func gorecover(argp uintptr) interface{} {
 	// Must be in a function running as part of a deferred call during the panic.
 	// Must be called from the topmost function of the call
 	// (the function used in the defer statement).

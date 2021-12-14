@@ -28,9 +28,9 @@ type Reply struct {
 type Arith int
 
 type ArithAddResp struct {
-	Id     any   `json:"id"`
-	Result Reply `json:"result"`
-	Error  any   `json:"error"`
+	Id     interface{} `json:"id"`
+	Result Reply       `json:"result"`
+	Error  interface{} `json:"error"`
 }
 
 func (t *Arith) Add(args *Args, reply *Reply) error {

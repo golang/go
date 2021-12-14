@@ -389,7 +389,7 @@ var racecgosync uint64 // represents possible synchronization in C code
 
 // cgoCheckPointer checks if the argument contains a Go pointer that
 // points to a Go pointer, and panics if it does.
-func cgoCheckPointer(ptr any, arg any) {
+func cgoCheckPointer(ptr interface{}, arg interface{}) {
 	if debug.cgocheck == 0 {
 		return
 	}
@@ -628,7 +628,7 @@ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
 // cgoCheckResult is called to check the result parameter of an
 // exported Go function. It panics if the result is or contains a Go
 // pointer.
-func cgoCheckResult(val any) {
+func cgoCheckResult(val interface{}) {
 	if debug.cgocheck == 0 {
 		return
 	}

@@ -261,7 +261,7 @@ type Entry struct {
 // ClassUnknown.
 type Field struct {
 	Attr  Attr
-	Val   any
+	Val   interface{}
 	Class Class
 }
 
@@ -382,7 +382,7 @@ func (i Class) GoString() string {
 // the check that the value has the expected dynamic type, as in:
 //	v, ok := e.Val(AttrSibling).(int64)
 //
-func (e *Entry) Val(a Attr) any {
+func (e *Entry) Val(a Attr) interface{} {
 	if f := e.AttrField(a); f != nil {
 		return f.Val
 	}
@@ -501,7 +501,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			fmt = format(b.uint())
 			e.Field[i].Class = formToClass(fmt, a.field[i].attr, vers, b)
 		}
-		var val any
+		var val interface{}
 		switch fmt {
 		default:
 			b.error("unknown entry attr format 0x" + strconv.FormatInt(int64(fmt), 16))

@@ -24,7 +24,7 @@ type Tree struct {
 	Mode      Mode      // parsing mode.
 	text      string    // text parsed to create the template (or its parent)
 	// Parsing only; cleared after parse.
-	funcs      []map[string]any
+	funcs      []map[string]interface{}
 	lex        *lexer
 	token      [3]item // three-token lookahead for parser.
 	peekCount  int
@@ -59,7 +59,7 @@ func (t *Tree) Copy() *Tree {
 // templates described in the argument string. The top-level template will be
 // given the specified name. If an error is encountered, parsing stops and an
 // empty map is returned with the error.
-func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]any) (map[string]*Tree, error) {
+func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (map[string]*Tree, error) {
 	treeSet := make(map[string]*Tree)
 	t := New(name)
 	t.text = text
@@ -128,7 +128,7 @@ func (t *Tree) peekNonSpace() item {
 // Parsing.
 
 // New allocates a new parse tree with the given name.
-func New(name string, funcs ...map[string]any) *Tree {
+func New(name string, funcs ...map[string]interface{}) *Tree {
 	return &Tree{
 		Name:  name,
 		funcs: funcs,
@@ -158,7 +158,7 @@ func (t *Tree) ErrorContext(n Node) (location, context string) {
 }
 
 // errorf formats the error and terminates processing.
-func (t *Tree) errorf(format string, args ...any) {
+func (t *Tree) errorf(format string, args ...interface{}) {
 	t.Root = nil
 	format = fmt.Sprintf("template: %s:%d: %s", t.ParseName, t.token[0].line, format)
 	panic(fmt.Errorf(format, args...))
@@ -218,7 +218,7 @@ func (t *Tree) recover(errp *error) {
 }
 
 // startParse initializes the parser, using the lexer.
-func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string]*Tree) {
+func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer, treeSet map[string]*Tree) {
 	t.Root = nil
 	t.lex = lex
 	t.vars = []string{"$"}
@@ -240,7 +240,7 @@ func (t *Tree) stopParse() {
 // the template for execution. If either action delimiter string is empty, the
 // default ("{{" or "}}") is used. Embedded template definitions are added to
 // the treeSet map.
-func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]any) (tree *Tree, err error) {
+func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.ParseName = t.Name
 	emitComment := t.Mode&ParseComments != 0

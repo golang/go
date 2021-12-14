@@ -290,7 +290,7 @@ func int64Hash(i uint64, seed uintptr) uintptr {
 	return memhash64(noescape(unsafe.Pointer(&i)), seed)
 }
 
-func efaceHash(i any, seed uintptr) uintptr {
+func efaceHash(i interface{}, seed uintptr) uintptr {
 	return nilinterhash(noescape(unsafe.Pointer(&i)), seed)
 }
 

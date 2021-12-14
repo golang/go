@@ -1054,7 +1054,7 @@ func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
 			cname = colorLightGrey
 		}
 	}
-	var arg any
+	var arg interface{}
 	if ev.Type == trace.EvProcStart {
 		type Arg struct {
 			ThreadID uint64

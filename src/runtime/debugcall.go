@@ -16,7 +16,7 @@ const (
 )
 
 func debugCallV2()
-func debugCallPanicked(val any)
+func debugCallPanicked(val interface{})
 
 // debugCallCheck checks whether it is safe to inject a debugger
 // function call with return PC pc. If not, it returns a string

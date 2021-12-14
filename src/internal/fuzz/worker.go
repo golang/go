@@ -654,7 +654,7 @@ func (ws *workerServer) serve(ctx context.Context) error {
 			}
 		}
 
-		var resp any
+		var resp interface{}
 		switch {
 		case c.Fuzz != nil:
 			resp = ws.fuzz(ctx, *c.Fuzz)
@@ -726,7 +726,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		resp.InternalErr = err.Error()
 		return resp
 	}
-	vals := make([]any, len(originalVals))
+	vals := make([]interface{}, len(originalVals))
 	copy(vals, originalVals)
 
 	shouldStop := func() bool {
@@ -827,7 +827,7 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 // coverage, in fuzzFn. It uses the context to determine how long to run,
 // stopping once closed. It returns a bool indicating whether minimization was
 // successful and an error if one was found.
-func (ws *workerServer) minimizeInput(ctx context.Context, vals []any, mem *sharedMem, args minimizeArgs) (success bool, retErr error) {
+func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, mem *sharedMem, args minimizeArgs) (success bool, retErr error) {
 	keepCoverage := args.KeepCoverage
 	memBytes := mem.valueRef()
 	bPtr := &memBytes
@@ -900,7 +900,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []any, mem *shar
 	return true, retErr
 }
 
-func writeToMem(vals []any, mem *sharedMem) {
+func writeToMem(vals []interface{}, mem *sharedMem) {
 	b := marshalCorpusFile(vals...)
 	mem.setValue(b)
 }
@@ -1127,7 +1127,7 @@ func (wc *workerClient) ping(ctx context.Context) error {
 
 // callLocked sends an RPC from the coordinator to the worker process and waits
 // for the response. The callLocked may be cancelled with ctx.
-func (wc *workerClient) callLocked(ctx context.Context, c call, resp any) (err error) {
+func (wc *workerClient) callLocked(ctx context.Context, c call, resp interface{}) (err error) {
 	enc := json.NewEncoder(wc.fuzzIn)
 	dec := json.NewDecoder(&contextReader{ctx: ctx, r: wc.fuzzOut})
 	if err := enc.Encode(c); err != nil {

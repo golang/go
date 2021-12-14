@@ -66,7 +66,7 @@ func TestGCInfo(t *testing.T) {
 		runtime.KeepAlive(x)
 	}
 	{
-		var x any
+		var x interface{}
 		verifyGCInfo(t, "stack eface", &x, infoEface)
 		runtime.KeepAlive(x)
 	}
@@ -84,12 +84,12 @@ func TestGCInfo(t *testing.T) {
 		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), trimDead(infoPtrScalar))
 		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), trimDead(infoBigStruct()))
 		verifyGCInfo(t, "heap string", escape(new(string)), trimDead(infoString))
-		verifyGCInfo(t, "heap eface", escape(new(any)), trimDead(infoEface))
+		verifyGCInfo(t, "heap eface", escape(new(interface{})), trimDead(infoEface))
 		verifyGCInfo(t, "heap iface", escape(new(Iface)), trimDead(infoIface))
 	}
 }
 
-func verifyGCInfo(t *testing.T, name string, p any, mask0 []byte) {
+func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 	mask := runtime.GCMask(p)
 	if !bytes.Equal(mask, mask0) {
 		t.Errorf("bad GC program for %v:\nwant %+v\ngot  %+v", name, mask0, mask)
@@ -104,9 +104,9 @@ func trimDead(mask []byte) []byte {
 	return mask
 }
 
-var gcinfoSink any
+var gcinfoSink interface{}
 
-func escape(p any) any {
+func escape(p interface{}) interface{} {
 	gcinfoSink = p
 	return p
 }
@@ -194,18 +194,18 @@ var (
 	bssBigStruct BigStruct
 	bssString    string
 	bssSlice     []string
-	bssEface     any
+	bssEface     interface{}
 	bssIface     Iface
 
 	// DATA
-	dataPtr             = Ptr{new(byte)}
-	dataScalarPtr       = ScalarPtr{q: 1}
-	dataPtrScalar       = PtrScalar{w: 1}
-	dataBigStruct       = BigStruct{w: 1}
-	dataString          = "foo"
-	dataSlice           = []string{"foo"}
-	dataEface     any   = 42
-	dataIface     Iface = IfaceImpl(42)
+	dataPtr                   = Ptr{new(byte)}
+	dataScalarPtr             = ScalarPtr{q: 1}
+	dataPtrScalar             = PtrScalar{w: 1}
+	dataBigStruct             = BigStruct{w: 1}
+	dataString                = "foo"
+	dataSlice                 = []string{"foo"}
+	dataEface     interface{} = 42
+	dataIface     Iface       = IfaceImpl(42)
 
 	infoString = []byte{typePointer, typeScalar}
 	infoSlice  = []byte{typePointer, typeScalar, typeScalar}

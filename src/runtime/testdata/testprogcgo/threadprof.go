@@ -5,8 +5,8 @@
 // We only build this file with the tag "threadprof", since it starts
 // a thread running a busy loop at constructor time.
 
-//go:build !plan9 && !windows && threadprof
-// +build !plan9,!windows,threadprof
+// +build !plan9,!windows
+// +build threadprof
 
 package main
 

@@ -200,7 +200,7 @@ func ExampleRawMessage_unmarshal() {
 	}
 
 	for _, c := range colors {
-		var dst any
+		var dst interface{}
 		switch c.Space {
 		case "RGB":
 			dst = new(RGB)

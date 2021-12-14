@@ -57,7 +57,7 @@ func Example_rand() {
 	// The tabwriter here helps us generate aligned output.
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
 	defer w.Flush()
-	show := func(name string, v1, v2, v3 any) {
+	show := func(name string, v1, v2, v3 interface{}) {
 		fmt.Fprintf(w, "%s\t%v\t%v\t%v\n", name, v1, v2, v3)
 	}
 

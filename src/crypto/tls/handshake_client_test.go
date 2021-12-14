@@ -134,7 +134,7 @@ type clientTest struct {
 	cert []byte
 	// key, if not nil, contains either a *rsa.PrivateKey, ed25519.PrivateKey or
 	// *ecdsa.PrivateKey which is the private key for the reference server.
-	key any
+	key interface{}
 	// extensions, if not nil, contains a list of extension data to be returned
 	// from the ServerHello. The data should be in standard TLS format with
 	// a 2-byte uint16 type, 2-byte data length, followed by the extension data.
@@ -171,7 +171,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 	certPath := tempFile(string(cert))
 	defer os.Remove(certPath)
 
-	var key any = testRSAPrivateKey
+	var key interface{} = testRSAPrivateKey
 	if test.key != nil {
 		key = test.key
 	}

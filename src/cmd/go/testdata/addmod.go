@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
 // +build ignore
 
 // Addmod adds a module as a txtar archive to the testdata/mod directory.
@@ -40,7 +39,7 @@ func usage() {
 
 var tmpdir string
 
-func fatalf(format string, args ...any) {
+func fatalf(format string, args ...interface{}) {
 	os.RemoveAll(tmpdir)
 	log.Fatalf(format, args...)
 }

@@ -225,7 +225,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 // values that have been compared before, it treats the values as
 // equal rather than examining the values to which they point.
 // This ensures that DeepEqual terminates.
-func DeepEqual(x, y any) bool {
+func DeepEqual(x, y interface{}) bool {
 	if x == nil || y == nil {
 		return x == y
 	}

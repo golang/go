@@ -122,7 +122,7 @@ func (p *parser) closeLabelScope() {
 	p.labelScope = p.labelScope.Outer
 }
 
-func (p *parser) declare(decl any, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
+func (p *parser) declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
 	for _, ident := range idents {
 		assert(ident.Obj == nil, "identifier already declared or resolved")
 		if ident.Name != "_" {
@@ -200,7 +200,7 @@ func (p *parser) resolve(x ast.Expr) {
 // ----------------------------------------------------------------------------
 // Parsing support
 
-func (p *parser) printTrace(a ...any) {
+func (p *parser) printTrace(a ...interface{}) {
 	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . " +
 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
 	const n = uint(len(dots))

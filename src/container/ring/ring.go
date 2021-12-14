@@ -13,7 +13,7 @@ package ring
 //
 type Ring struct {
 	next, prev *Ring
-	Value      any // for use by client; untouched by this library
+	Value      interface{} // for use by client; untouched by this library
 }
 
 func (r *Ring) init() *Ring {
@@ -131,7 +131,7 @@ func (r *Ring) Len() int {
 
 // Do calls function f on each element of the ring, in forward order.
 // The behavior of Do is undefined if f changes *r.
-func (r *Ring) Do(f func(any)) {
+func (r *Ring) Do(f func(interface{})) {
 	if r != nil {
 		f(r.Value)
 		for p := r.Next(); p != r; p = p.next {

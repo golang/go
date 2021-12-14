@@ -1,4 +1,3 @@
-//go:build !illumos
 // +build !illumos
 
 package illumos

@@ -206,7 +206,7 @@ var templMain = template.Must(template.New("").Parse(`
 </html>
 `))
 
-func dief(msg string, args ...any) {
+func dief(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg, args...)
 	os.Exit(1)
 }

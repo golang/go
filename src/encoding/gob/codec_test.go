@@ -1178,13 +1178,13 @@ func TestInterface(t *testing.T) {
 
 // A struct with all basic types, stored in interfaces.
 type BasicInterfaceItem struct {
-	Int, Int8, Int16, Int32, Int64      any
-	Uint, Uint8, Uint16, Uint32, Uint64 any
-	Float32, Float64                    any
-	Complex64, Complex128               any
-	Bool                                any
-	String                              any
-	Bytes                               any
+	Int, Int8, Int16, Int32, Int64      interface{}
+	Uint, Uint8, Uint16, Uint32, Uint64 interface{}
+	Float32, Float64                    interface{}
+	Complex64, Complex128               interface{}
+	Bool                                interface{}
+	String                              interface{}
+	Bytes                               interface{}
 }
 
 func TestInterfaceBasic(t *testing.T) {
@@ -1223,8 +1223,8 @@ func TestInterfaceBasic(t *testing.T) {
 type String string
 
 type PtrInterfaceItem struct {
-	Str1 any // basic
-	Str2 any // derived
+	Str1 interface{} // basic
+	Str2 interface{} // derived
 }
 
 // We'll send pointers; should receive values.
@@ -1318,7 +1318,7 @@ func TestUnexportedFields(t *testing.T) {
 	}
 }
 
-var singletons = []any{
+var singletons = []interface{}{
 	true,
 	7,
 	uint(10),
@@ -1354,9 +1354,9 @@ type DT struct {
 	A     int
 	B     string
 	C     float64
-	I     any
-	J     any
-	I_nil any
+	I     interface{}
+	J     interface{}
+	I_nil interface{}
 	M     map[string]int
 	T     [3]int
 	S     []string
@@ -1396,7 +1396,7 @@ func TestDebugStruct(t *testing.T) {
 	debugFunc(debugBuffer)
 }
 
-func encFuzzDec(rng *rand.Rand, in any) error {
+func encFuzzDec(rng *rand.Rand, in interface{}) error {
 	buf := new(bytes.Buffer)
 	enc := NewEncoder(buf)
 	if err := enc.Encode(&in); err != nil {
@@ -1411,7 +1411,7 @@ func encFuzzDec(rng *rand.Rand, in any) error {
 	}
 
 	dec := NewDecoder(buf)
-	var e any
+	var e interface{}
 	if err := dec.Decode(&e); err != nil {
 		return err
 	}
@@ -1425,7 +1425,7 @@ func TestFuzz(t *testing.T) {
 	}
 
 	// all possible inputs
-	input := []any{
+	input := []interface{}{
 		new(int),
 		new(float32),
 		new(float64),
@@ -1450,7 +1450,7 @@ func TestFuzzRegressions(t *testing.T) {
 	testFuzz(t, 1330522872628565000, 100, new(int))
 }
 
-func testFuzz(t *testing.T, seed int64, n int, input ...any) {
+func testFuzz(t *testing.T, seed int64, n int, input ...interface{}) {
 	for _, e := range input {
 		t.Logf("seed=%d n=%d e=%T", seed, n, e)
 		rng := rand.New(rand.NewSource(seed))

@@ -43,15 +43,15 @@ func register(f fix) {
 // walk traverses the AST x, calling visit(y) for each node y in the tree but
 // also with a pointer to each ast.Expr, ast.Stmt, and *ast.BlockStmt,
 // in a bottom-up traversal.
-func walk(x any, visit func(any)) {
+func walk(x interface{}, visit func(interface{})) {
 	walkBeforeAfter(x, nop, visit)
 }
 
-func nop(any) {}
+func nop(interface{}) {}
 
 // walkBeforeAfter is like walk but calls before(x) before traversing
 // x's children and after(x) afterward.
-func walkBeforeAfter(x any, before, after func(any)) {
+func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 	before(x)
 
 	switch n := x.(type) {
@@ -390,7 +390,7 @@ func renameTop(f *ast.File, old, new string) bool {
 	// Rename top-level old to new, both unresolved names
 	// (probably defined in another file) and names that resolve
 	// to a declaration we renamed.
-	walk(f, func(n any) {
+	walk(f, func(n interface{}) {
 		id, ok := n.(*ast.Ident)
 		if ok && isTopName(id, old) {
 			id.Name = new

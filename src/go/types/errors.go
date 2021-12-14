@@ -62,11 +62,11 @@ func (check *Checker) markImports(pkg *Package) {
 	}
 }
 
-func (check *Checker) sprintf(format string, args ...any) string {
+func (check *Checker) sprintf(format string, args ...interface{}) string {
 	return sprintf(check.fset, check.qualifier, false, format, args...)
 }
 
-func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args ...any) string {
+func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
@@ -91,7 +91,7 @@ func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args 
 	return fmt.Sprintf(format, args...)
 }
 
-func (check *Checker) trace(pos token.Pos, format string, args ...any) {
+func (check *Checker) trace(pos token.Pos, format string, args ...interface{}) {
 	fmt.Printf("%s:\t%s%s\n",
 		check.fset.Position(pos),
 		strings.Repeat(".  ", check.indent),
@@ -100,7 +100,7 @@ func (check *Checker) trace(pos token.Pos, format string, args ...any) {
 }
 
 // dump is only needed for debugging
-func (check *Checker) dump(format string, args ...any) {
+func (check *Checker) dump(format string, args ...interface{}) {
 	fmt.Println(sprintf(check.fset, check.qualifier, true, format, args...))
 }
 
@@ -170,7 +170,7 @@ func (check *Checker) newError(at positioner, code errorCode, soft bool, msg str
 }
 
 // newErrorf creates a new Error, but does not handle it.
-func (check *Checker) newErrorf(at positioner, code errorCode, soft bool, format string, args ...any) error {
+func (check *Checker) newErrorf(at positioner, code errorCode, soft bool, format string, args ...interface{}) error {
 	msg := check.sprintf(format, args...)
 	return check.newError(at, code, soft, msg)
 }
@@ -179,23 +179,23 @@ func (check *Checker) error(at positioner, code errorCode, msg string) {
 	check.err(check.newError(at, code, false, msg))
 }
 
-func (check *Checker) errorf(at positioner, code errorCode, format string, args ...any) {
+func (check *Checker) errorf(at positioner, code errorCode, format string, args ...interface{}) {
 	check.error(at, code, check.sprintf(format, args...))
 }
 
-func (check *Checker) softErrorf(at positioner, code errorCode, format string, args ...any) {
+func (check *Checker) softErrorf(at positioner, code errorCode, format string, args ...interface{}) {
 	check.err(check.newErrorf(at, code, true, format, args...))
 }
 
-func (check *Checker) invalidAST(at positioner, format string, args ...any) {
+func (check *Checker) invalidAST(at positioner, format string, args ...interface{}) {
 	check.errorf(at, 0, "invalid AST: "+format, args...)
 }
 
-func (check *Checker) invalidArg(at positioner, code errorCode, format string, args ...any) {
+func (check *Checker) invalidArg(at positioner, code errorCode, format string, args ...interface{}) {
 	check.errorf(at, code, "invalid argument: "+format, args...)
 }
 
-func (check *Checker) invalidOp(at positioner, code errorCode, format string, args ...any) {
+func (check *Checker) invalidOp(at positioner, code errorCode, format string, args ...interface{}) {
 	check.errorf(at, code, "invalid operation: "+format, args...)
 }
 

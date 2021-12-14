@@ -18,7 +18,7 @@ import (
 
 // Test basic operations in a safe manner.
 func TestBasicEncoderDecoder(t *testing.T) {
-	var values = []any{
+	var values = []interface{}{
 		true,
 		int(123),
 		int8(123),
@@ -228,7 +228,7 @@ func TestEncoderDecoder(t *testing.T) {
 
 // Run one value through the encoder/decoder, but use the wrong type.
 // Input is always an ET1; we compare it to whatever is under 'e'.
-func badTypeCheck(e any, shouldFail bool, msg string, t *testing.T) {
+func badTypeCheck(e interface{}, shouldFail bool, msg string, t *testing.T) {
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	et1 := new(ET1)
@@ -256,7 +256,7 @@ func TestWrongTypeDecoder(t *testing.T) {
 }
 
 // Types not supported at top level by the Encoder.
-var unsupportedValues = []any{
+var unsupportedValues = []interface{}{
 	make(chan int),
 	func(a int) bool { return true },
 }
@@ -272,7 +272,7 @@ func TestUnsupported(t *testing.T) {
 	}
 }
 
-func encAndDec(in, out any) error {
+func encAndDec(in, out interface{}) error {
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	err := enc.Encode(in)
@@ -418,8 +418,8 @@ var testMap map[string]int
 var testArray [7]int
 
 type SingleTest struct {
-	in  any
-	out any
+	in  interface{}
+	out interface{}
 	err string
 }
 
@@ -536,7 +536,7 @@ func TestInterfaceIndirect(t *testing.T) {
 // encoder and decoder don't skew with respect to type definitions.
 
 type Struct0 struct {
-	I any
+	I interface{}
 }
 
 type NewType0 struct {
@@ -544,7 +544,7 @@ type NewType0 struct {
 }
 
 type ignoreTest struct {
-	in, out any
+	in, out interface{}
 }
 
 var ignoreTests = []ignoreTest{
@@ -559,7 +559,7 @@ var ignoreTests = []ignoreTest{
 	// Decode struct containing an interface into a nil.
 	{&Struct0{&NewType0{"value0"}}, nil},
 	// Decode singleton slice of interfaces into a nil.
-	{[]any{"hi", &NewType0{"value1"}, 23}, nil},
+	{[]interface{}{"hi", &NewType0{"value1"}, 23}, nil},
 }
 
 func TestDecodeIntoNothing(t *testing.T) {
@@ -621,7 +621,7 @@ func TestIgnoreRecursiveType(t *testing.T) {
 
 // Another bug from golang-nuts, involving nested interfaces.
 type Bug0Outer struct {
-	Bug0Field any
+	Bug0Field interface{}
 }
 
 type Bug0Inner struct {
@@ -635,7 +635,7 @@ func TestNestedInterfaces(t *testing.T) {
 	Register(new(Bug0Outer))
 	Register(new(Bug0Inner))
 	f := &Bug0Outer{&Bug0Outer{&Bug0Inner{7}}}
-	var v any = f
+	var v interface{} = f
 	err := e.Encode(&v)
 	if err != nil {
 		t.Fatal("Encode:", err)
@@ -694,7 +694,7 @@ func TestMapBug1(t *testing.T) {
 }
 
 func TestGobMapInterfaceEncode(t *testing.T) {
-	m := map[string]any{
+	m := map[string]interface{}{
 		"up": uintptr(0),
 		"i0": []int{-1},
 		"i1": []int8{-1},
@@ -876,10 +876,10 @@ func TestGobPtrSlices(t *testing.T) {
 // getDecEnginePtr cached engine for ut.base instead of ut.user so we passed
 // a *map and then tried to reuse its engine to decode the inner map.
 func TestPtrToMapOfMap(t *testing.T) {
-	Register(make(map[string]any))
-	subdata := make(map[string]any)
+	Register(make(map[string]interface{}))
+	subdata := make(map[string]interface{})
 	subdata["bar"] = "baz"
-	data := make(map[string]any)
+	data := make(map[string]interface{})
 	data["foo"] = subdata
 
 	b := new(bytes.Buffer)
@@ -887,7 +887,7 @@ func TestPtrToMapOfMap(t *testing.T) {
 	if err != nil {
 		t.Fatal("encode:", err)
 	}
-	var newData map[string]any
+	var newData map[string]interface{}
 	err = NewDecoder(b).Decode(&newData)
 	if err != nil {
 		t.Fatal("decode:", err)
@@ -927,7 +927,7 @@ func TestTopLevelNilPointer(t *testing.T) {
 	}
 }
 
-func encodeAndRecover(value any) (encodeErr, panicErr error) {
+func encodeAndRecover(value interface{}) (encodeErr, panicErr error) {
 	defer func() {
 		e := recover()
 		if e != nil {
@@ -959,7 +959,7 @@ func TestNilPointerPanics(t *testing.T) {
 	)
 
 	testCases := []struct {
-		value     any
+		value     interface{}
 		mustPanic bool
 	}{
 		{nilStringPtr, true},
@@ -991,7 +991,7 @@ func TestNilPointerPanics(t *testing.T) {
 func TestNilPointerInsideInterface(t *testing.T) {
 	var ip *int
 	si := struct {
-		I any
+		I interface{}
 	}{
 		I: ip,
 	}
@@ -1049,7 +1049,7 @@ type Z struct {
 
 func Test29ElementSlice(t *testing.T) {
 	Register(Z{})
-	src := make([]any, 100) // Size needs to be bigger than size of type definition.
+	src := make([]interface{}, 100) // Size needs to be bigger than size of type definition.
 	for i := range src {
 		src[i] = Z{}
 	}
@@ -1060,7 +1060,7 @@ func Test29ElementSlice(t *testing.T) {
 		return
 	}
 
-	var dst []any
+	var dst []interface{}
 	err = NewDecoder(buf).Decode(&dst)
 	if err != nil {
 		t.Errorf("decode: %v", err)
@@ -1091,9 +1091,9 @@ func TestErrorForHugeSlice(t *testing.T) {
 }
 
 type badDataTest struct {
-	input string // The input encoded as a hex string.
-	error string // A substring of the error that should result.
-	data  any    // What to decode into.
+	input string      // The input encoded as a hex string.
+	error string      // A substring of the error that should result.
+	data  interface{} // What to decode into.
 }
 
 var badDataTests = []badDataTest{

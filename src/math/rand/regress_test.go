@@ -46,7 +46,7 @@ func TestRegress(t *testing.T) {
 			var args []reflect.Value
 			var argstr string
 			if mt.NumIn() == 1 {
-				var x any
+				var x interface{}
 				switch mt.In(0).Kind() {
 				default:
 					t.Fatalf("unexpected argument type for r.%s", m.Name)
@@ -83,7 +83,7 @@ func TestRegress(t *testing.T) {
 				args = append(args, reflect.ValueOf(x))
 			}
 
-			var out any
+			var out interface{}
 			out = mv.Call(args)[0].Interface()
 			if m.Name == "Int" || m.Name == "Intn" {
 				out = int64(out.(int))
@@ -120,7 +120,7 @@ func TestRegress(t *testing.T) {
 	}
 }
 
-var regressGolden = []any{
+var regressGolden = []interface{}{
 	float64(4.668112973579268),          // ExpFloat64()
 	float64(0.1601593871172866),         // ExpFloat64()
 	float64(3.0465834105636),            // ExpFloat64()

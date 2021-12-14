@@ -455,7 +455,7 @@ type CorpusEntry = struct {
 	Data []byte
 
 	// Values is the unmarshaled values from a corpus file.
-	Values []any
+	Values []interface{}
 
 	Generation int
 
@@ -684,7 +684,7 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 
 	if len(c.corpus.entries) == 0 {
 		fmt.Fprintf(c.opts.Log, "warning: starting with empty corpus\n")
-		var vals []any
+		var vals []interface{}
 		for _, t := range opts.Types {
 			vals = append(vals, zeroValue(t))
 		}
@@ -968,7 +968,7 @@ func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read corpus file: %v", err)
 		}
-		var vals []any
+		var vals []interface{}
 		vals, err = readCorpusData(data, types)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%q: %v", filename, err))
@@ -982,7 +982,7 @@ func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
 	return corpus, nil
 }
 
-func readCorpusData(data []byte, types []reflect.Type) ([]any, error) {
+func readCorpusData(data []byte, types []reflect.Type) ([]interface{}, error) {
 	vals, err := unmarshalCorpusFile(data)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal: %v", err)
@@ -995,7 +995,7 @@ func readCorpusData(data []byte, types []reflect.Type) ([]any, error) {
 
 // CheckCorpus verifies that the types in vals match the expected types
 // provided.
-func CheckCorpus(vals []any, types []reflect.Type) error {
+func CheckCorpus(vals []interface{}, types []reflect.Type) error {
 	if len(vals) != len(types) {
 		return fmt.Errorf("wrong number of values in corpus entry: %d, want %d", len(vals), len(types))
 	}
@@ -1032,7 +1032,7 @@ func testName(path string) string {
 	return filepath.Base(path)
 }
 
-func zeroValue(t reflect.Type) any {
+func zeroValue(t reflect.Type) interface{} {
 	for _, v := range zeroVals {
 		if reflect.TypeOf(v) == t {
 			return v
@@ -1041,7 +1041,7 @@ func zeroValue(t reflect.Type) any {
 	panic(fmt.Sprintf("unsupported type: %v", t))
 }
 
-var zeroVals []any = []any{
+var zeroVals []interface{} = []interface{}{
 	[]byte(""),
 	string(""),
 	false,

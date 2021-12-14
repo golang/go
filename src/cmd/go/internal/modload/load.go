@@ -859,7 +859,7 @@ func (ld *loader) reset() {
 
 // errorf reports an error via either os.Stderr or base.Errorf,
 // according to whether ld.AllowErrors is set.
-func (ld *loader) errorf(format string, args ...any) {
+func (ld *loader) errorf(format string, args ...interface{}) {
 	if ld.AllowErrors {
 		fmt.Fprintf(os.Stderr, format, args...)
 	} else {
@@ -1492,7 +1492,7 @@ func (ld *loader) pkg(ctx context.Context, path string, flags loadPkgFlags) *loa
 		panic("internal error: (*loader).pkg called with pkgImportsLoaded flag set")
 	}
 
-	pkg := ld.pkgCache.Do(path, func() any {
+	pkg := ld.pkgCache.Do(path, func() interface{} {
 		pkg := &loadPkg{
 			path: path,
 		}

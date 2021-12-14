@@ -500,9 +500,9 @@ func (c *Certificate) checkNameConstraints(count *int,
 	maxConstraintComparisons int,
 	nameType string,
 	name string,
-	parsedName any,
-	match func(parsedName, constraint any) (match bool, err error),
-	permitted, excluded any) error {
+	parsedName interface{},
+	match func(parsedName, constraint interface{}) (match bool, err error),
+	permitted, excluded interface{}) error {
 
 	excludedValue := reflect.ValueOf(excluded)
 
@@ -609,7 +609,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
-					func(parsedName, constraint any) (bool, error) {
+					func(parsedName, constraint interface{}) (bool, error) {
 						return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
 					}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
 					return err
@@ -622,7 +622,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
-					func(parsedName, constraint any) (bool, error) {
+					func(parsedName, constraint interface{}) (bool, error) {
 						return matchDomainConstraint(parsedName.(string), constraint.(string))
 					}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
 					return err
@@ -636,7 +636,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "URI", name, uri,
-					func(parsedName, constraint any) (bool, error) {
+					func(parsedName, constraint interface{}) (bool, error) {
 						return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
 					}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
 					return err
@@ -649,7 +649,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
-					func(parsedName, constraint any) (bool, error) {
+					func(parsedName, constraint interface{}) (bool, error) {
 						return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
 					}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
 					return err

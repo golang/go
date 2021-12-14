@@ -33,14 +33,14 @@ func TestMemStats(t *testing.T) {
 	st := new(MemStats)
 	ReadMemStats(st)
 
-	nz := func(x any) error {
+	nz := func(x interface{}) error {
 		if x != reflect.Zero(reflect.TypeOf(x)).Interface() {
 			return nil
 		}
 		return fmt.Errorf("zero value")
 	}
-	le := func(thresh float64) func(any) error {
-		return func(x any) error {
+	le := func(thresh float64) func(interface{}) error {
+		return func(x interface{}) error {
 			// These sanity tests aren't necessarily valid
 			// with high -test.count values, so only run
 			// them once.
@@ -54,8 +54,8 @@ func TestMemStats(t *testing.T) {
 			return fmt.Errorf("insanely high value (overflow?); want <= %v", thresh)
 		}
 	}
-	eq := func(x any) func(any) error {
-		return func(y any) error {
+	eq := func(x interface{}) func(interface{}) error {
+		return func(y interface{}) error {
 			if x == y {
 				return nil
 			}
@@ -64,7 +64,7 @@ func TestMemStats(t *testing.T) {
 	}
 	// Of the uint fields, HeapReleased, HeapIdle can be 0.
 	// PauseTotalNs can be 0 if timer resolution is poor.
-	fields := map[string][]func(any) error{
+	fields := map[string][]func(interface{}) error{
 		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
 		"Lookups": {eq(uint64(0))}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
 		"HeapAlloc": {nz, le(1e10)}, "HeapSys": {nz, le(1e10)}, "HeapIdle": {le(1e10)},

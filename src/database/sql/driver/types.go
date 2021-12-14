@@ -29,7 +29,7 @@ import (
 //    to a user's type in a scan.
 type ValueConverter interface {
 	// ConvertValue converts a value to a driver Value.
-	ConvertValue(v any) (Value, error)
+	ConvertValue(v interface{}) (Value, error)
 }
 
 // Valuer is the interface providing the Value method.
@@ -60,7 +60,7 @@ var _ ValueConverter = boolType{}
 
 func (boolType) String() string { return "Bool" }
 
-func (boolType) ConvertValue(src any) (Value, error) {
+func (boolType) ConvertValue(src interface{}) (Value, error) {
 	switch s := src.(type) {
 	case bool:
 		return s, nil
@@ -105,7 +105,7 @@ type int32Type struct{}
 
 var _ ValueConverter = int32Type{}
 
-func (int32Type) ConvertValue(v any) (Value, error) {
+func (int32Type) ConvertValue(v interface{}) (Value, error) {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -138,7 +138,7 @@ var String stringType
 
 type stringType struct{}
 
-func (stringType) ConvertValue(v any) (Value, error) {
+func (stringType) ConvertValue(v interface{}) (Value, error) {
 	switch v.(type) {
 	case string, []byte:
 		return v, nil
@@ -152,7 +152,7 @@ type Null struct {
 	Converter ValueConverter
 }
 
-func (n Null) ConvertValue(v any) (Value, error) {
+func (n Null) ConvertValue(v interface{}) (Value, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -165,7 +165,7 @@ type NotNull struct {
 	Converter ValueConverter
 }
 
-func (n NotNull) ConvertValue(v any) (Value, error) {
+func (n NotNull) ConvertValue(v interface{}) (Value, error) {
 	if v == nil {
 		return nil, fmt.Errorf("nil value not allowed")
 	}
@@ -173,7 +173,7 @@ func (n NotNull) ConvertValue(v any) (Value, error) {
 }
 
 // IsValue reports whether v is a valid Value parameter type.
-func IsValue(v any) bool {
+func IsValue(v interface{}) bool {
 	if v == nil {
 		return true
 	}
@@ -188,7 +188,7 @@ func IsValue(v any) bool {
 
 // IsScanValue is equivalent to IsValue.
 // It exists for compatibility.
-func IsScanValue(v any) bool {
+func IsScanValue(v interface{}) bool {
 	return IsValue(v)
 }
 
@@ -233,7 +233,7 @@ func callValuerValue(vr Valuer) (v Value, err error) {
 	return vr.Value()
 }
 
-func (defaultConverter) ConvertValue(v any) (Value, error) {
+func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
 	if IsValue(v) {
 		return v, nil
 	}

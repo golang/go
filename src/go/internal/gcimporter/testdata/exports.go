@@ -50,7 +50,7 @@ type (
 		_ *T10
 	}
 	T11 map[int]string
-	T12 any
+	T12 interface{}
 	T13 interface {
 		m1()
 		m2(int) float32
@@ -65,7 +65,7 @@ type (
 	T17 func(x int)
 	T18 func() float32
 	T19 func() (x float32)
-	T20 func(...any)
+	T20 func(...interface{})
 	T21 struct{ next *T21 }
 	T22 struct{ link *T23 }
 	T23 struct{ link *T22 }
@@ -86,6 +86,6 @@ func F1()         {}
 func F2(x int)    {}
 func F3() int     { return 0 }
 func F4() float32 { return 0 }
-func F5(a, b, c int, u, v, w struct{ x, y T1 }, more ...any) (p, q, r chan<- T10)
+func F5(a, b, c int, u, v, w struct{ x, y T1 }, more ...interface{}) (p, q, r chan<- T10)
 
 func (p *T1) M1()

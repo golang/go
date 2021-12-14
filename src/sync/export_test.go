@@ -12,9 +12,9 @@ var Runtime_procUnpin = runtime_procUnpin
 
 // poolDequeue testing.
 type PoolDequeue interface {
-	PushHead(val any) bool
-	PopHead() (any, bool)
-	PopTail() (any, bool)
+	PushHead(val interface{}) bool
+	PopHead() (interface{}, bool)
+	PopTail() (interface{}, bool)
 }
 
 func NewPoolDequeue(n int) PoolDequeue {
@@ -27,15 +27,15 @@ func NewPoolDequeue(n int) PoolDequeue {
 	return d
 }
 
-func (d *poolDequeue) PushHead(val any) bool {
+func (d *poolDequeue) PushHead(val interface{}) bool {
 	return d.pushHead(val)
 }
 
-func (d *poolDequeue) PopHead() (any, bool) {
+func (d *poolDequeue) PopHead() (interface{}, bool) {
 	return d.popHead()
 }
 
-func (d *poolDequeue) PopTail() (any, bool) {
+func (d *poolDequeue) PopTail() (interface{}, bool) {
 	return d.popTail()
 }
 
@@ -43,15 +43,15 @@ func NewPoolChain() PoolDequeue {
 	return new(poolChain)
 }
 
-func (c *poolChain) PushHead(val any) bool {
+func (c *poolChain) PushHead(val interface{}) bool {
 	c.pushHead(val)
 	return true
 }
 
-func (c *poolChain) PopHead() (any, bool) {
+func (c *poolChain) PopHead() (interface{}, bool) {
 	return c.popHead()
 }
 
-func (c *poolChain) PopTail() (any, bool) {
+func (c *poolChain) PopTail() (interface{}, bool) {
 	return c.popTail()
 }

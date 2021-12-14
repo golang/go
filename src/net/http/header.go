@@ -157,7 +157,7 @@ func (s *headerSorter) Swap(i, j int)      { s.kvs[i], s.kvs[j] = s.kvs[j], s.kv
 func (s *headerSorter) Less(i, j int) bool { return s.kvs[i].key < s.kvs[j].key }
 
 var headerSorterPool = sync.Pool{
-	New: func() any { return new(headerSorter) },
+	New: func() interface{} { return new(headerSorter) },
 }
 
 // sortedKeyValues returns h's keys sorted in the returned kvs

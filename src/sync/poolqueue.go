@@ -77,7 +77,7 @@ func (d *poolDequeue) pack(head, tail uint32) uint64 {
 
 // pushHead adds val at the head of the queue. It returns false if the
 // queue is full. It must only be called by a single producer.
-func (d *poolDequeue) pushHead(val any) bool {
+func (d *poolDequeue) pushHead(val interface{}) bool {
 	ptrs := atomic.LoadUint64(&d.headTail)
 	head, tail := d.unpack(ptrs)
 	if (tail+uint32(len(d.vals)))&(1<<dequeueBits-1) == head {
@@ -98,7 +98,7 @@ func (d *poolDequeue) pushHead(val any) bool {
 	if val == nil {
 		val = dequeueNil(nil)
 	}
-	*(*any)(unsafe.Pointer(slot)) = val
+	*(*interface{})(unsafe.Pointer(slot)) = val
 
 	// Increment head. This passes ownership of slot to popTail
 	// and acts as a store barrier for writing the slot.
@@ -109,7 +109,7 @@ func (d *poolDequeue) pushHead(val any) bool {
 // popHead removes and returns the element at the head of the queue.
 // It returns false if the queue is empty. It must only be called by a
 // single producer.
-func (d *poolDequeue) popHead() (any, bool) {
+func (d *poolDequeue) popHead() (interface{}, bool) {
 	var slot *eface
 	for {
 		ptrs := atomic.LoadUint64(&d.headTail)
@@ -131,7 +131,7 @@ func (d *poolDequeue) popHead() (any, bool) {
 		}
 	}
 
-	val := *(*any)(unsafe.Pointer(slot))
+	val := *(*interface{})(unsafe.Pointer(slot))
 	if val == dequeueNil(nil) {
 		val = nil
 	}
@@ -144,7 +144,7 @@ func (d *poolDequeue) popHead() (any, bool) {
 // popTail removes and returns the element at the tail of the queue.
 // It returns false if the queue is empty. It may be called by any
 // number of consumers.
-func (d *poolDequeue) popTail() (any, bool) {
+func (d *poolDequeue) popTail() (interface{}, bool) {
 	var slot *eface
 	for {
 		ptrs := atomic.LoadUint64(&d.headTail)
@@ -166,7 +166,7 @@ func (d *poolDequeue) popTail() (any, bool) {
 	}
 
 	// We now own slot.
-	val := *(*any)(unsafe.Pointer(slot))
+	val := *(*interface{})(unsafe.Pointer(slot))
 	if val == dequeueNil(nil) {
 		val = nil
 	}
@@ -225,7 +225,7 @@ func loadPoolChainElt(pp **poolChainElt) *poolChainElt {
 	return (*poolChainElt)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(pp))))
 }
 
-func (c *poolChain) pushHead(val any) {
+func (c *poolChain) pushHead(val interface{}) {
 	d := c.head
 	if d == nil {
 		// Initialize the chain.
@@ -255,7 +255,7 @@ func (c *poolChain) pushHead(val any) {
 	d2.pushHead(val)
 }
 
-func (c *poolChain) popHead() (any, bool) {
+func (c *poolChain) popHead() (interface{}, bool) {
 	d := c.head
 	for d != nil {
 		if val, ok := d.popHead(); ok {
@@ -268,7 +268,7 @@ func (c *poolChain) popHead() (any, bool) {
 	return nil, false
 }
 
-func (c *poolChain) popTail() (any, bool) {
+func (c *poolChain) popTail() (interface{}, bool) {
 	d := loadPoolChainElt(&c.tail)
 	if d == nil {
 		return nil, false

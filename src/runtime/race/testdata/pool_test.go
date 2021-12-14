@@ -15,7 +15,7 @@ func TestRacePool(t *testing.T) {
 	// Repeat so that at least one iteration gets reuse.
 	for i := 0; i < 10; i++ {
 		c := make(chan int)
-		p := &sync.Pool{New: func() any { return make([]byte, 10) }}
+		p := &sync.Pool{New: func() interface{} { return make([]byte, 10) }}
 		x := p.Get().([]byte)
 		x[0] = 1
 		p.Put(x)
@@ -31,7 +31,7 @@ func TestRacePool(t *testing.T) {
 
 func TestNoRacePool(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		p := &sync.Pool{New: func() any { return make([]byte, 10) }}
+		p := &sync.Pool{New: func() interface{} { return make([]byte, 10) }}
 		x := p.Get().([]byte)
 		x[0] = 1
 		p.Put(x)

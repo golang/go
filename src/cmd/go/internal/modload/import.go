@@ -612,7 +612,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// (the main module, and any directory trees pointed at by replace directives).
 	if isLocal {
 		for d := dir; d != mdir && len(d) > len(mdir); {
-			haveGoMod := haveGoModCache.Do(d, func() any {
+			haveGoMod := haveGoModCache.Do(d, func() interface{} {
 				fi, err := fsys.Stat(filepath.Join(d, "go.mod"))
 				return err == nil && !fi.IsDir()
 			}).(bool)
@@ -635,7 +635,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// Are there Go source files in the directory?
 	// We don't care about build tags, not even "+build ignore".
 	// We're just looking for a plausible directory.
-	res := haveGoFilesCache.Do(dir, func() any {
+	res := haveGoFilesCache.Do(dir, func() interface{} {
 		ok, err := fsys.IsDirWithGoFiles(dir)
 		return goFilesEntry{haveGoFiles: ok, err: err}
 	}).(goFilesEntry)

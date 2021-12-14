@@ -169,7 +169,7 @@ func (e Errno) Timeout() bool {
 }
 
 // Implemented in runtime/syscall_windows.go.
-func compileCallback(fn any, cleanstack bool) uintptr
+func compileCallback(fn interface{}, cleanstack bool) uintptr
 
 // NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
@@ -177,7 +177,7 @@ func compileCallback(fn any, cleanstack bool) uintptr
 // Only a limited number of callbacks may be created in a single Go process, and any memory allocated
 // for these callbacks is never released.
 // Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
-func NewCallback(fn any) uintptr {
+func NewCallback(fn interface{}) uintptr {
 	return compileCallback(fn, true)
 }
 
@@ -187,7 +187,7 @@ func NewCallback(fn any) uintptr {
 // Only a limited number of callbacks may be created in a single Go process, and any memory allocated
 // for these callbacks is never released.
 // Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
-func NewCallbackCDecl(fn any) uintptr {
+func NewCallbackCDecl(fn interface{}) uintptr {
 	return compileCallback(fn, false)
 }
 

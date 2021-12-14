@@ -168,7 +168,7 @@ type N2 struct{}
 // See comment in type.go/Register.
 func TestRegistrationNaming(t *testing.T) {
 	testCases := []struct {
-		t    any
+		t    interface{}
 		name string
 	}{
 		{&N1{}, "*gob.N1"},
@@ -231,7 +231,7 @@ func TestTypeRace(t *testing.T) {
 			var buf bytes.Buffer
 			enc := NewEncoder(&buf)
 			dec := NewDecoder(&buf)
-			var x any
+			var x interface{}
 			switch i {
 			case 0:
 				x = &N1{}

@@ -164,7 +164,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 		return nil
 	}
 
-	errorf := func(format string, args ...any) error {
+	errorf := func(format string, args ...interface{}) error {
 		return errors.New(sprintf(nil, qf, false, format, args...))
 	}
 

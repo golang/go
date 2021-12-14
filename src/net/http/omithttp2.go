@@ -26,7 +26,7 @@ const http2NextProtoTLS = "h2"
 
 type http2Transport struct {
 	MaxHeaderListSize uint32
-	ConnPool          any
+	ConnPool          interface{}
 }
 
 func (*http2Transport) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
@@ -56,9 +56,9 @@ type http2Server struct {
 	NewWriteScheduler func() http2WriteScheduler
 }
 
-type http2WriteScheduler any
+type http2WriteScheduler interface{}
 
-func http2NewPriorityWriteScheduler(any) http2WriteScheduler { panic(noHTTP2) }
+func http2NewPriorityWriteScheduler(interface{}) http2WriteScheduler { panic(noHTTP2) }
 
 func http2ConfigureServer(s *Server, conf *http2Server) error { panic(noHTTP2) }
 

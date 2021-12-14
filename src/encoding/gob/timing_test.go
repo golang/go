@@ -20,7 +20,7 @@ type Bench struct {
 	D []byte
 }
 
-func benchmarkEndToEnd(b *testing.B, ctor func() any, pipe func() (r io.Reader, w io.Writer, err error)) {
+func benchmarkEndToEnd(b *testing.B, ctor func() interface{}, pipe func() (r io.Reader, w io.Writer, err error)) {
 	b.RunParallel(func(pb *testing.PB) {
 		r, w, err := pipe()
 		if err != nil {
@@ -41,7 +41,7 @@ func benchmarkEndToEnd(b *testing.B, ctor func() any, pipe func() (r io.Reader, 
 }
 
 func BenchmarkEndToEndPipe(b *testing.B) {
-	benchmarkEndToEnd(b, func() any {
+	benchmarkEndToEnd(b, func() interface{} {
 		return &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
 	}, func() (r io.Reader, w io.Writer, err error) {
 		r, w, err = os.Pipe()
@@ -50,7 +50,7 @@ func BenchmarkEndToEndPipe(b *testing.B) {
 }
 
 func BenchmarkEndToEndByteBuffer(b *testing.B) {
-	benchmarkEndToEnd(b, func() any {
+	benchmarkEndToEnd(b, func() interface{} {
 		return &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
 	}, func() (r io.Reader, w io.Writer, err error) {
 		var buf bytes.Buffer
@@ -59,10 +59,10 @@ func BenchmarkEndToEndByteBuffer(b *testing.B) {
 }
 
 func BenchmarkEndToEndSliceByteBuffer(b *testing.B) {
-	benchmarkEndToEnd(b, func() any {
+	benchmarkEndToEnd(b, func() interface{} {
 		v := &Bench{7, 3.2, "now is the time", nil}
 		Register(v)
-		arr := make([]any, 100)
+		arr := make([]interface{}, 100)
 		for i := range arr {
 			arr[i] = v
 		}
@@ -133,7 +133,7 @@ func TestCountDecodeMallocs(t *testing.T) {
 	}
 }
 
-func benchmarkEncodeSlice(b *testing.B, a any) {
+func benchmarkEncodeSlice(b *testing.B, a interface{}) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		var buf bytes.Buffer
@@ -182,7 +182,7 @@ func BenchmarkEncodeStringSlice(b *testing.B) {
 }
 
 func BenchmarkEncodeInterfaceSlice(b *testing.B) {
-	a := make([]any, 1000)
+	a := make([]interface{}, 1000)
 	for i := range a {
 		a[i] = "now is the time"
 	}
@@ -217,7 +217,7 @@ func (b *benchmarkBuf) reset() {
 	b.offset = 0
 }
 
-func benchmarkDecodeSlice(b *testing.B, a any) {
+func benchmarkDecodeSlice(b *testing.B, a interface{}) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	err := enc.Encode(a)
@@ -295,7 +295,7 @@ func BenchmarkDecodeBytesSlice(b *testing.B) {
 }
 
 func BenchmarkDecodeInterfaceSlice(b *testing.B) {
-	a := make([]any, 1000)
+	a := make([]interface{}, 1000)
 	for i := range a {
 		a[i] = "now is the time"
 	}

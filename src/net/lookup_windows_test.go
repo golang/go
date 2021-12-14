@@ -21,7 +21,7 @@ import (
 var nslookupTestServers = []string{"mail.golang.com", "gmail.com"}
 var lookupTestIPs = []string{"8.8.8.8", "1.1.1.1"}
 
-func toJson(v any) string {
+func toJson(v interface{}) string {
 	data, _ := json.Marshal(v)
 	return string(data)
 }

@@ -53,7 +53,7 @@ func min(a, b int) int {
 }
 
 // mutate performs several mutations on the provided values.
-func (m *mutator) mutate(vals []any, maxBytes int) {
+func (m *mutator) mutate(vals []interface{}, maxBytes int) {
 	// TODO(katiehockman): pull some of these functions into helper methods and
 	// test that each case is working as expected.
 	// TODO(katiehockman): perform more types of mutations for []byte.

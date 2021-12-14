@@ -1952,7 +1952,7 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
 // gcbits returns the GC type info for x, for testing.
 // The result is the bitmap entries (0 or 1), one entry per byte.
 //go:linkname reflect_gcbits reflect.gcbits
-func reflect_gcbits(x any) []byte {
+func reflect_gcbits(x interface{}) []byte {
 	ret := getgcmask(x)
 	typ := (*ptrtype)(unsafe.Pointer(efaceOf(&x)._type)).elem
 	nptr := typ.ptrdata / goarch.PtrSize
@@ -1965,7 +1965,7 @@ func reflect_gcbits(x any) []byte {
 // Returns GC type info for the pointer stored in ep for testing.
 // If ep points to the stack, only static live information will be returned
 // (i.e. not for objects which are only dynamically live stack objects).
-func getgcmask(ep any) (mask []byte) {
+func getgcmask(ep interface{}) (mask []byte) {
 	e := *efaceOf(&ep)
 	p := e.data
 	t := e._type

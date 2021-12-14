@@ -81,7 +81,7 @@ func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
 	}
 }
 
-func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...any) *clientServerTest {
+func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {
 	if h2 {
 		CondSkipHTTP2(t)
 	}
@@ -189,7 +189,7 @@ type h12Compare struct {
 	ReqFunc            reqFunc                           // optional
 	CheckResponse      func(proto string, res *Response) // optional
 	EarlyCheckResponse func(proto string, res *Response) // optional; pre-normalize
-	Opts               []any
+	Opts               []interface{}
 }
 
 func (tt h12Compare) reqFunc() reqFunc {
@@ -441,7 +441,7 @@ func TestH12_AutoGzip(t *testing.T) {
 
 func TestH12_AutoGzip_Disabled(t *testing.T) {
 	h12Compare{
-		Opts: []any{
+		Opts: []interface{}{
 			func(tr *Transport) { tr.DisableCompression = true },
 		},
 		Handler: func(w ResponseWriter, r *Request) {
@@ -1168,7 +1168,7 @@ func TestInterruptWithPanic_ErrAbortHandler_h1(t *testing.T) {
 func TestInterruptWithPanic_ErrAbortHandler_h2(t *testing.T) {
 	testInterruptWithPanic(t, h2Mode, ErrAbortHandler)
 }
-func testInterruptWithPanic(t *testing.T, h2 bool, panicValue any) {
+func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
 	setParallel(t)
 	const msg = "hello"
 	defer afterTest(t)
@@ -1518,7 +1518,7 @@ func TestBidiStreamReverseProxy(t *testing.T) {
 	}))
 	defer proxy.close()
 
-	bodyRes := make(chan any, 1) // error or hash.Hash
+	bodyRes := make(chan interface{}, 1) // error or hash.Hash
 	pr, pw := io.Pipe()
 	req, _ := NewRequest("PUT", proxy.ts.URL, pr)
 	const size = 4 << 20

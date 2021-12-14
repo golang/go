@@ -17,7 +17,7 @@ import (
 	"unsafe"
 )
 
-var memSink any
+var memSink interface{}
 
 func allocateTransient1M() {
 	for i := 0; i < 1024; i++ {

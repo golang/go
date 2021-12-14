@@ -664,7 +664,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		summary *modFileSummary
 		err     error
 	}
-	c := rawGoModSummaryCache.Do(key{m}, func() any {
+	c := rawGoModSummaryCache.Do(key{m}, func() interface{} {
 		summary := new(modFileSummary)
 		name, data, err := rawGoModData(m)
 		if err != nil {
@@ -766,7 +766,7 @@ func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (la
 		latest module.Version
 		err    error
 	}
-	e := latestVersionIgnoringRetractionsCache.Do(path, func() any {
+	e := latestVersionIgnoringRetractionsCache.Do(path, func() interface{} {
 		ctx, span := trace.StartSpan(ctx, "queryLatestVersionIgnoringRetractions "+path)
 		defer span.Done()
 

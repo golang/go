@@ -30,7 +30,7 @@ type Trace struct {
 	// The coalesced parameter is whether singleflight de-dupped
 	// the call. The addrs are of type net.IPAddr but can't
 	// actually be for circular dependency reasons.
-	DNSDone func(netIPs []any, coalesced bool, err error)
+	DNSDone func(netIPs []interface{}, coalesced bool, err error)
 
 	// ConnectStart is called before a Dial, excluding Dials made
 	// during DNS lookups. In the case of DualStack (Happy Eyeballs)

@@ -164,7 +164,7 @@ func (p *ProcessState) Success() bool {
 // Sys returns system-dependent exit information about
 // the process. Convert it to the appropriate underlying
 // type, such as syscall.WaitStatus on Unix, to access its contents.
-func (p *ProcessState) Sys() any {
+func (p *ProcessState) Sys() interface{} {
 	return p.sys()
 }
 
@@ -173,6 +173,6 @@ func (p *ProcessState) Sys() any {
 // type, such as *syscall.Rusage on Unix, to access its contents.
 // (On Unix, *syscall.Rusage matches struct rusage as defined in the
 // getrusage(2) manual page.)
-func (p *ProcessState) SysUsage() any {
+func (p *ProcessState) SysUsage() interface{} {
 	return p.sysUsage()
 }

@@ -75,7 +75,7 @@ func Netpoll(delta int64) {
 	})
 }
 
-func GCMask(x any) (ret []byte) {
+func GCMask(x interface{}) (ret []byte) {
 	systemstack(func() {
 		ret = getgcmask(x)
 	})
@@ -218,7 +218,7 @@ func SetEnvs(e []string) { envs = e }
 
 // For benchmarking.
 
-func BenchSetType(n int, x any) {
+func BenchSetType(n int, x interface{}) {
 	e := *efaceOf(&x)
 	t := e._type
 	var size uintptr
@@ -546,7 +546,7 @@ func MapTombstoneCheck(m map[int]int) {
 	// We should have a series of filled and emptyOne cells, followed by
 	// a series of emptyRest cells.
 	h := *(**hmap)(unsafe.Pointer(&m))
-	i := any(m)
+	i := interface{}(m)
 	t := *(**maptype)(unsafe.Pointer(&i))
 
 	for x := 0; x < 1<<h.B; x++ {
@@ -1311,10 +1311,10 @@ func (c *GCController) EndCycle(bytesMarked uint64, assistTime, elapsed int64, g
 	c.commit(triggerRatio)
 }
 
-var escapeSink any
+var escapeSink interface{}
 
 //go:noinline
-func escape(x any) any {
+func escape(x interface{}) interface{} {
 	escapeSink = x
 	escapeSink = nil
 	return x

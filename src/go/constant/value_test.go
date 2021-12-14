@@ -659,10 +659,10 @@ func TestMakeFloat64(t *testing.T) {
 
 type makeTestCase struct {
 	kind      Kind
-	arg, want any
+	arg, want interface{}
 }
 
-func dup(k Kind, x any) makeTestCase { return makeTestCase{k, x, x} }
+func dup(k Kind, x interface{}) makeTestCase { return makeTestCase{k, x, x} }
 
 func TestMake(t *testing.T) {
 	for _, test := range []makeTestCase{

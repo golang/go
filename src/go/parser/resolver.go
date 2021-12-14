@@ -67,11 +67,11 @@ type resolver struct {
 	targetStack [][]*ast.Ident // stack of unresolved labels
 }
 
-func (r *resolver) dump(format string, args ...any) {
+func (r *resolver) dump(format string, args ...interface{}) {
 	fmt.Println(">>> " + r.sprintf(format, args...))
 }
 
-func (r *resolver) sprintf(format string, args ...any) string {
+func (r *resolver) sprintf(format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch arg := arg.(type) {
 		case token.Pos:
@@ -115,7 +115,7 @@ func (r *resolver) closeLabelScope() {
 	r.labelScope = r.labelScope.Outer
 }
 
-func (r *resolver) declare(decl, data any, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
+func (r *resolver) declare(decl, data interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
 	for _, ident := range idents {
 		assert(ident.Obj == nil, "identifier already declared or resolved")
 		obj := ast.NewObj(kind, ident.Name)

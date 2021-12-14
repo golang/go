@@ -53,8 +53,8 @@ func BenchmarkIfaceCmpNil100(b *testing.B) {
 	}
 }
 
-var efaceCmp1 any
-var efaceCmp2 any
+var efaceCmp1 interface{}
+var efaceCmp2 interface{}
 
 func BenchmarkEfaceCmpDiff(b *testing.B) {
 	x := 5

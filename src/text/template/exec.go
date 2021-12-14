@@ -126,7 +126,7 @@ func (e ExecError) Unwrap() error {
 }
 
 // errorf records an ExecError and terminates processing.
-func (s *state) errorf(format string, args ...any) {
+func (s *state) errorf(format string, args ...interface{}) {
 	name := doublePercent(s.tmpl.Name())
 	if s.node == nil {
 		format = fmt.Sprintf("template: %s: %s", name, format)
@@ -179,7 +179,7 @@ func errRecover(errp *error) {
 // the output writer.
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
-func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
+func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
 	tmpl := t.Lookup(name)
 	if tmpl == nil {
 		return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
@@ -197,11 +197,11 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 //
 // If data is a reflect.Value, the template applies to the concrete
 // value that the reflect.Value holds, as in fmt.Print.
-func (t *Template) Execute(wr io.Writer, data any) error {
+func (t *Template) Execute(wr io.Writer, data interface{}) error {
 	return t.execute(wr, data)
 }
 
-func (t *Template) execute(wr io.Writer, data any) (err error) {
+func (t *Template) execute(wr io.Writer, data interface{}) (err error) {
 	defer errRecover(&err)
 	value, ok := data.(reflect.Value)
 	if !ok {
@@ -311,7 +311,7 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 // IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
 // and whether the value has a meaningful truth value. This is the definition of
 // truth used by if and other such actions.
-func IsTrue(val any) (truth, ok bool) {
+func IsTrue(val interface{}) (truth, ok bool) {
 	return isTrue(reflect.ValueOf(val))
 }
 
@@ -1023,7 +1023,7 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
 
 // printableValue returns the, possibly indirected, interface value inside v that
 // is best for a call to formatted printer.
-func printableValue(v reflect.Value) (any, bool) {
+func printableValue(v reflect.Value) (interface{}, bool) {
 	if v.Kind() == reflect.Pointer {
 		v, _ = indirect(v) // fmt.Fprint handles nil.
 	}

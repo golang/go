@@ -129,13 +129,13 @@ import (
 // A missing element or empty attribute value will be unmarshaled as a zero value.
 // If the field is a slice, a zero value will be appended to the field. Otherwise, the
 // field will be set to its zero value.
-func Unmarshal(data []byte, v any) error {
+func Unmarshal(data []byte, v interface{}) error {
 	return NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
 // Decode works like Unmarshal, except it reads the decoder
 // stream to find the start element.
-func (d *Decoder) Decode(v any) error {
+func (d *Decoder) Decode(v interface{}) error {
 	return d.DecodeElement(v, nil)
 }
 
@@ -143,7 +143,7 @@ func (d *Decoder) Decode(v any) error {
 // a pointer to the start XML element to decode into v.
 // It is useful when a client reads some raw XML tokens itself
 // but also wants to defer to Unmarshal for some elements.
-func (d *Decoder) DecodeElement(v any, start *StartElement) error {
+func (d *Decoder) DecodeElement(v interface{}, start *StartElement) error {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Pointer {
 		return errors.New("non-pointer passed to Unmarshal")
@@ -188,7 +188,7 @@ type UnmarshalerAttr interface {
 }
 
 // receiverType returns the receiver type to use in an expression like "%s.MethodName".
-func receiverType(val any) string {
+func receiverType(val interface{}) string {
 	t := reflect.TypeOf(val)
 	if t.Name() != "" {
 		return t.String()

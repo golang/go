@@ -111,7 +111,7 @@ func TestEvalPos(t *testing.T) {
 			x = a + len(s)
 			return float64(x)
 			/* true => true, untyped bool */
-			/* fmt.Println => , func(a ...any) (n int, err error) */
+			/* fmt.Println => , func(a ...interface{}) (n int, err error) */
 			/* c => 3, untyped float */
 			/* T => , p.T */
 			/* a => , int */
@@ -218,7 +218,7 @@ type T []int
 type S struct{ X int }
 
 func f(a int, s string) S {
-	/* fmt.Println => func fmt.Println(a ...any) (n int, err error) */
+	/* fmt.Println => func fmt.Println(a ...interface{}) (n int, err error) */
 	/* fmt.Stringer.String => func (fmt.Stringer).String() string */
 	fmt.Println("calling f")
 

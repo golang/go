@@ -15,7 +15,7 @@ import (
 type fileTest struct {
 	file        string
 	hdr         FileHeader
-	loads       []any
+	loads       []interface{}
 	sections    []*SectionHeader
 	relocations map[string][]Reloc
 }
@@ -24,7 +24,7 @@ var fileTests = []fileTest{
 	{
 		"testdata/gcc-386-darwin-exec.base64",
 		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0xc, 0x3c0, 0x85},
-		[]any{
+		[]interface{}{
 			&SegmentHeader{LoadCmdSegment, 0x38, "__PAGEZERO", 0x0, 0x1000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
 			&SegmentHeader{LoadCmdSegment, 0xc0, "__TEXT", 0x1000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x2, 0x0},
 			&SegmentHeader{LoadCmdSegment, 0xc0, "__DATA", 0x2000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x2, 0x0},
@@ -50,7 +50,7 @@ var fileTests = []fileTest{
 	{
 		"testdata/gcc-amd64-darwin-exec.base64",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0xb, 0x568, 0x85},
-		[]any{
+		[]interface{}{
 			&SegmentHeader{LoadCmdSegment64, 0x48, "__PAGEZERO", 0x0, 0x100000000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
 			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x5, 0x0},
 			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x3, 0x0},
@@ -78,7 +78,7 @@ var fileTests = []fileTest{
 	{
 		"testdata/gcc-amd64-darwin-exec-debug.base64",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0xa, 0x4, 0x5a0, 0},
-		[]any{
+		[]interface{}{
 			nil, // LC_UUID
 			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x0, 0x7, 0x5, 0x5, 0x0},
 			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x0, 0x0, 0x7, 0x3, 0x3, 0x0},
@@ -106,7 +106,7 @@ var fileTests = []fileTest{
 	{
 		"testdata/clang-386-darwin-exec-with-rpath.base64",
 		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0x10, 0x42c, 0x1200085},
-		[]any{
+		[]interface{}{
 			nil, // LC_SEGMENT
 			nil, // LC_SEGMENT
 			nil, // LC_SEGMENT
@@ -130,7 +130,7 @@ var fileTests = []fileTest{
 	{
 		"testdata/clang-amd64-darwin-exec-with-rpath.base64",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0x10, 0x4c8, 0x200085},
-		[]any{
+		[]interface{}{
 			nil, // LC_SEGMENT
 			nil, // LC_SEGMENT
 			nil, // LC_SEGMENT

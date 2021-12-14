@@ -26,7 +26,7 @@ var crnl = []byte{'\r', '\n'}
 var dotcrnl = []byte{'.', '\r', '\n'}
 
 // PrintfLine writes the formatted output followed by \r\n.
-func (w *Writer) PrintfLine(format string, args ...any) error {
+func (w *Writer) PrintfLine(format string, args ...interface{}) error {
 	w.closeDot()
 	fmt.Fprintf(w.W, format, args...)
 	w.W.Write(crnl)

@@ -33,7 +33,7 @@ func (r *Template) build() {
 	r.name, r.text = "", ""
 }
 
-func (r *Template) Execute(w io.Writer, data any) error {
+func (r *Template) Execute(w io.Writer, data interface{}) error {
 	return r.tp().Execute(w, data)
 }
 

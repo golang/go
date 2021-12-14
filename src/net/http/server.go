@@ -798,7 +798,7 @@ var (
 )
 
 var copyBufPool = sync.Pool{
-	New: func() any {
+	New: func() interface{} {
 		b := make([]byte, 32*1024)
 		return &b
 	},
@@ -3190,7 +3190,7 @@ func (srv *Server) SetKeepAlivesEnabled(v bool) {
 	// TODO: Issue 26303: close HTTP/2 conns as soon as they become idle.
 }
 
-func (s *Server) logf(format string, args ...any) {
+func (s *Server) logf(format string, args ...interface{}) {
 	if s.ErrorLog != nil {
 		s.ErrorLog.Printf(format, args...)
 	} else {
@@ -3201,7 +3201,7 @@ func (s *Server) logf(format string, args ...any) {
 // logf prints to the ErrorLog of the *Server associated with request r
 // via ServerContextKey. If there's no associated server, or if ErrorLog
 // is nil, logging is done via the log package's standard logger.
-func logf(r *Request, format string, args ...any) {
+func logf(r *Request, format string, args ...interface{}) {
 	s, _ := r.Context().Value(ServerContextKey).(*Server)
 	if s != nil && s.ErrorLog != nil {
 		s.ErrorLog.Printf(format, args...)
@@ -3364,7 +3364,7 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		h:   make(Header),
 		req: r,
 	}
-	panicChan := make(chan any, 1)
+	panicChan := make(chan interface{}, 1)
 	go func() {
 		defer func() {
 			if p := recover(); p != nil {

@@ -69,7 +69,7 @@ func init() {
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
-func printStderr(args ...any) (int, error) {
+func printStderr(args ...interface{}) (int, error) {
 	return fmt.Fprint(os.Stderr, args...)
 }
 

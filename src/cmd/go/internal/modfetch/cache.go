@@ -204,7 +204,7 @@ func (r *cachingRepo) Versions(prefix string) ([]string, error) {
 		list []string
 		err  error
 	}
-	c := r.cache.Do("versions:"+prefix, func() any {
+	c := r.cache.Do("versions:"+prefix, func() interface{} {
 		list, err := r.repo().Versions(prefix)
 		return cached{list, err}
 	}).(cached)
@@ -221,7 +221,7 @@ type cachedInfo struct {
 }
 
 func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
-	c := r.cache.Do("stat:"+rev, func() any {
+	c := r.cache.Do("stat:"+rev, func() interface{} {
 		file, info, err := readDiskStat(r.path, rev)
 		if err == nil {
 			return cachedInfo{info, nil}
@@ -233,7 +233,7 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 			// then save the information under the proper version, for future use.
 			if info.Version != rev {
 				file, _ = CachePath(module.Version{Path: r.path, Version: info.Version}, "info")
-				r.cache.Do("stat:"+info.Version, func() any {
+				r.cache.Do("stat:"+info.Version, func() interface{} {
 					return cachedInfo{info, err}
 				})
 			}
@@ -253,12 +253,12 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 }
 
 func (r *cachingRepo) Latest() (*RevInfo, error) {
-	c := r.cache.Do("latest:", func() any {
+	c := r.cache.Do("latest:", func() interface{} {
 		info, err := r.repo().Latest()
 
 		// Save info for likely future Stat call.
 		if err == nil {
-			r.cache.Do("stat:"+info.Version, func() any {
+			r.cache.Do("stat:"+info.Version, func() interface{} {
 				return cachedInfo{info, err}
 			})
 			if file, _, err := readDiskStat(r.path, info.Version); err != nil {
@@ -281,7 +281,7 @@ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
 		text []byte
 		err  error
 	}
-	c := r.cache.Do("gomod:"+version, func() any {
+	c := r.cache.Do("gomod:"+version, func() interface{} {
 		file, text, err := readDiskGoMod(r.path, version)
 		if err == nil {
 			// Note: readDiskGoMod already called checkGoMod.

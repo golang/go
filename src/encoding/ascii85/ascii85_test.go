@@ -42,7 +42,7 @@ var pairs = []testpair{
 	},
 }
 
-func testEqual(t *testing.T, msg string, args ...any) bool {
+func testEqual(t *testing.T, msg string, args ...interface{}) bool {
 	t.Helper()
 	if args[len(args)-2] != args[len(args)-1] {
 		t.Errorf(msg, args...)

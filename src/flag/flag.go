@@ -122,7 +122,7 @@ func (b *boolValue) Set(s string) error {
 	return err
 }
 
-func (b *boolValue) Get() any { return bool(*b) }
+func (b *boolValue) Get() interface{} { return bool(*b) }
 
 func (b *boolValue) String() string { return strconv.FormatBool(bool(*b)) }
 
@@ -152,7 +152,7 @@ func (i *intValue) Set(s string) error {
 	return err
 }
 
-func (i *intValue) Get() any { return int(*i) }
+func (i *intValue) Get() interface{} { return int(*i) }
 
 func (i *intValue) String() string { return strconv.Itoa(int(*i)) }
 
@@ -173,7 +173,7 @@ func (i *int64Value) Set(s string) error {
 	return err
 }
 
-func (i *int64Value) Get() any { return int64(*i) }
+func (i *int64Value) Get() interface{} { return int64(*i) }
 
 func (i *int64Value) String() string { return strconv.FormatInt(int64(*i), 10) }
 
@@ -194,7 +194,7 @@ func (i *uintValue) Set(s string) error {
 	return err
 }
 
-func (i *uintValue) Get() any { return uint(*i) }
+func (i *uintValue) Get() interface{} { return uint(*i) }
 
 func (i *uintValue) String() string { return strconv.FormatUint(uint64(*i), 10) }
 
@@ -215,7 +215,7 @@ func (i *uint64Value) Set(s string) error {
 	return err
 }
 
-func (i *uint64Value) Get() any { return uint64(*i) }
+func (i *uint64Value) Get() interface{} { return uint64(*i) }
 
 func (i *uint64Value) String() string { return strconv.FormatUint(uint64(*i), 10) }
 
@@ -232,7 +232,7 @@ func (s *stringValue) Set(val string) error {
 	return nil
 }
 
-func (s *stringValue) Get() any { return string(*s) }
+func (s *stringValue) Get() interface{} { return string(*s) }
 
 func (s *stringValue) String() string { return string(*s) }
 
@@ -253,7 +253,7 @@ func (f *float64Value) Set(s string) error {
 	return err
 }
 
-func (f *float64Value) Get() any { return float64(*f) }
+func (f *float64Value) Get() interface{} { return float64(*f) }
 
 func (f *float64Value) String() string { return strconv.FormatFloat(float64(*f), 'g', -1, 64) }
 
@@ -274,7 +274,7 @@ func (d *durationValue) Set(s string) error {
 	return err
 }
 
-func (d *durationValue) Get() any { return time.Duration(*d) }
+func (d *durationValue) Get() interface{} { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
@@ -305,7 +305,7 @@ type Value interface {
 // by this package satisfy the Getter interface, except the type used by Func.
 type Getter interface {
 	Value
-	Get() any
+	Get() interface{}
 }
 
 // ErrorHandling defines how FlagSet.Parse behaves if the parse fails.
@@ -895,7 +895,7 @@ func Var(value Value, name string, usage string) {
 }
 
 // sprintf formats the message, prints it to output, and returns it.
-func (f *FlagSet) sprintf(format string, a ...any) string {
+func (f *FlagSet) sprintf(format string, a ...interface{}) string {
 	msg := fmt.Sprintf(format, a...)
 	fmt.Fprintln(f.Output(), msg)
 	return msg
@@ -903,7 +903,7 @@ func (f *FlagSet) sprintf(format string, a ...any) string {
 
 // failf prints to standard error a formatted error and usage message and
 // returns the error.
-func (f *FlagSet) failf(format string, a ...any) error {
+func (f *FlagSet) failf(format string, a ...interface{}) error {
 	msg := f.sprintf(format, a...)
 	f.usage()
 	return errors.New(msg)

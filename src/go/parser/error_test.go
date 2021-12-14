@@ -154,7 +154,7 @@ func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]str
 	}
 }
 
-func checkErrors(t *testing.T, filename string, input any, mode Mode, expectErrors bool) {
+func checkErrors(t *testing.T, filename string, input interface{}, mode Mode, expectErrors bool) {
 	t.Helper()
 	src, err := readSource(filename, input)
 	if err != nil {

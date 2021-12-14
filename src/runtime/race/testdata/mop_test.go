@@ -255,7 +255,7 @@ func TestRaceCaseIssue6418(t *testing.T) {
 
 func TestRaceCaseType(t *testing.T) {
 	var x, y int
-	var i any = x
+	var i interface{} = x
 	c := make(chan int, 1)
 	go func() {
 		switch i.(type) {
@@ -270,7 +270,7 @@ func TestRaceCaseType(t *testing.T) {
 
 func TestRaceCaseTypeBody(t *testing.T) {
 	var x, y int
-	var i any = &x
+	var i interface{} = &x
 	c := make(chan int, 1)
 	go func() {
 		switch i := i.(type) {
@@ -288,8 +288,8 @@ func TestRaceCaseTypeIssue5890(t *testing.T) {
 	// spurious extra instrumentation of the initial interface
 	// value.
 	var x, y int
-	m := make(map[int]map[int]any)
-	m[0] = make(map[int]any)
+	m := make(map[int]map[int]interface{})
+	m[0] = make(map[int]interface{})
 	c := make(chan int, 1)
 	go func() {
 		switch i := m[0][1].(type) {
@@ -758,7 +758,7 @@ func TestRaceStructFieldRW3(t *testing.T) {
 }
 
 func TestRaceEfaceWW(t *testing.T) {
-	var a, b any
+	var a, b interface{}
 	ch := make(chan bool, 1)
 	go func() {
 		a = 1
@@ -810,7 +810,7 @@ func TestRaceEfaceConv(t *testing.T) {
 	c := make(chan bool)
 	v := 0
 	go func() {
-		go func(x any) {
+		go func(x interface{}) {
 		}(v)
 		c <- true
 	}()
@@ -1127,7 +1127,7 @@ func TestRaceRune(t *testing.T) {
 
 func TestRaceEmptyInterface1(t *testing.T) {
 	c := make(chan bool)
-	var x any
+	var x interface{}
 	go func() {
 		x = nil
 		c <- true
@@ -1138,7 +1138,7 @@ func TestRaceEmptyInterface1(t *testing.T) {
 
 func TestRaceEmptyInterface2(t *testing.T) {
 	c := make(chan bool)
-	var x any
+	var x interface{}
 	go func() {
 		x = &Point{}
 		c <- true
@@ -1579,7 +1579,7 @@ func TestRaceAddrExpr(t *testing.T) {
 func TestRaceTypeAssert(t *testing.T) {
 	c := make(chan bool, 1)
 	x := 0
-	var i any = x
+	var i interface{} = x
 	go func() {
 		y := 0
 		i = y

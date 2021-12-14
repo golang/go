@@ -98,7 +98,7 @@ type RelativeDistinguishedNameSET []AttributeTypeAndValue
 // RFC 5280, Section 4.1.2.4.
 type AttributeTypeAndValue struct {
 	Type  asn1.ObjectIdentifier
-	Value any
+	Value interface{}
 }
 
 // AttributeTypeAndValueSET represents a set of ASN.1 sequences of

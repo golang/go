@@ -1948,7 +1948,7 @@ func mayberemovefile(s string) {
 //	fmtcmd replaces the name of the current directory with dot (.)
 //	but only when it is at the beginning of a space-separated token.
 //
-func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
+func (b *Builder) fmtcmd(dir string, format string, args ...interface{}) string {
 	cmd := fmt.Sprintf(format, args...)
 	if dir != "" && dir != "/" {
 		dot := " ."
@@ -1974,7 +1974,7 @@ func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
 
 // showcmd prints the given command to standard output
 // for the implementation of -n or -x.
-func (b *Builder) Showcmd(dir string, format string, args ...any) {
+func (b *Builder) Showcmd(dir string, format string, args ...interface{}) {
 	b.output.Lock()
 	defer b.output.Unlock()
 	b.Print(b.fmtcmd(dir, format, args...) + "\n")
@@ -2038,7 +2038,7 @@ var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
 // run runs the command given by cmdline in the directory dir.
 // If the command fails, run prints information about the failure
 // and returns a non-nil error.
-func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs ...any) error {
+func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs ...interface{}) error {
 	out, err := b.runOut(a, dir, env, cmdargs...)
 	if len(out) > 0 {
 		if desc == "" {
@@ -2072,7 +2072,7 @@ func (b *Builder) processOutput(out []byte) string {
 // runOut runs the command given by cmdline in the directory dir.
 // It returns the command output and any errors that occurred.
 // It accumulates execution time in a.
-func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([]byte, error) {
+func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interface{}) ([]byte, error) {
 	cmdline := str.StringList(cmdargs...)
 
 	for _, arg := range cmdline {
@@ -2409,7 +2409,7 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
 		cmd = b.GccCmd(p.Dir, objdir)
 	}
 
-	cmdargs := []any{cmd, "-o", outfile, objs, flags}
+	cmdargs := []interface{}{cmd, "-o", outfile, objs, flags}
 	dir := p.Dir
 	out, err := b.runOut(a, base.Cwd(), b.cCompilerEnv(), cmdargs...)
 

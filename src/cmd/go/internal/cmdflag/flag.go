@@ -92,7 +92,7 @@ func ParseOne(fs *flag.FlagSet, args []string) (f *flag.Flag, remainingArgs []st
 	// Use fs.Set instead of f.Value.Set below so that any subsequent call to
 	// fs.Visit will correctly visit the flags that have been set.
 
-	failf := func(format string, a ...any) (*flag.Flag, []string, error) {
+	failf := func(format string, a ...interface{}) (*flag.Flag, []string, error) {
 		return f, args, fmt.Errorf(format, a...)
 	}
 

@@ -579,7 +579,7 @@ func Float64Val(x Value) (float64, bool) {
 //    Float              *big.Float or *big.Rat
 //    everything else    nil
 //
-func Val(x Value) any {
+func Val(x Value) interface{} {
 	switch x := x.(type) {
 	case boolVal:
 		return bool(x)
@@ -610,7 +610,7 @@ func Val(x Value) any {
 //    *big.Rat         Float
 //    anything else    Unknown
 //
-func Make(x any) Value {
+func Make(x interface{}) Value {
 	switch x := x.(type) {
 	case bool:
 		return boolVal(x)

@@ -151,7 +151,7 @@ func (r *excludedReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func findMachoCodeSignature(r any) (*macho.File, codesign.CodeSigCmd, bool) {
+func findMachoCodeSignature(r interface{}) (*macho.File, codesign.CodeSigCmd, bool) {
 	ra, ok := r.(io.ReaderAt)
 	if !ok {
 		return nil, codesign.CodeSigCmd{}, false

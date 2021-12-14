@@ -658,7 +658,7 @@ type fakeFileInfo struct {
 }
 
 func (f *fakeFileInfo) Name() string       { return f.basename }
-func (f *fakeFileInfo) Sys() any           { return nil }
+func (f *fakeFileInfo) Sys() interface{}   { return nil }
 func (f *fakeFileInfo) ModTime() time.Time { return f.modtime }
 func (f *fakeFileInfo) IsDir() bool        { return f.dir }
 func (f *fakeFileInfo) Size() int64        { return int64(len(f.contents)) }

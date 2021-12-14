@@ -11,10 +11,10 @@ import (
 )
 
 func Fuzz(data []byte) (score int) {
-	for _, ctor := range []func() any{
-		func() any { return new(any) },
-		func() any { return new(map[string]any) },
-		func() any { return new([]any) },
+	for _, ctor := range []func() interface{}{
+		func() interface{} { return new(interface{}) },
+		func() interface{} { return new(map[string]interface{}) },
+		func() interface{} { return new([]interface{}) },
 	} {
 		v := ctor()
 		err := Unmarshal(data, v)

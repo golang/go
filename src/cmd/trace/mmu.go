@@ -155,7 +155,7 @@ func httpMMUPlot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create JSON response.
-	err = json.NewEncoder(w).Encode(map[string]any{"xMin": int64(xMin), "xMax": int64(xMax), "quantiles": quantiles, "curve": plot})
+	err = json.NewEncoder(w).Encode(map[string]interface{}{"xMin": int64(xMin), "xMax": int64(xMax), "quantiles": quantiles, "curve": plot})
 	if err != nil {
 		log.Printf("failed to serialize response: %v", err)
 		return

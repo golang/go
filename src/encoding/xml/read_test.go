@@ -270,7 +270,7 @@ type PathTestE struct {
 	Before, After string
 }
 
-var pathTests = []any{
+var pathTests = []interface{}{
 	&PathTestA{Items: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
 	&PathTestB{Other: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
 	&PathTestC{Values1: []string{"A", "C", "D"}, Values2: []string{"B"}, Before: "1", After: "2"},
@@ -321,7 +321,7 @@ type BadPathEmbeddedB struct {
 }
 
 var badPathTests = []struct {
-	v, e any
+	v, e interface{}
 }{
 	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items"}},
 	{&BadPathTestB{}, &TagPathError{reflect.TypeOf(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
@@ -691,7 +691,7 @@ type Pea struct {
 }
 
 type Pod struct {
-	Pea any `xml:"Pea"`
+	Pea interface{} `xml:"Pea"`
 }
 
 // https://golang.org/issue/6836

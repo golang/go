@@ -173,7 +173,7 @@ type splicePipe struct {
 // a finalizer for each pipe to close its file descriptors before the actual GC.
 var splicePipePool = sync.Pool{New: newPoolPipe}
 
-func newPoolPipe() any {
+func newPoolPipe() interface{} {
 	// Discard the error which occurred during the creation of pipe buffer,
 	// redirecting the data transmission to the conventional way utilizing read() + write() as a fallback.
 	p := newPipe()

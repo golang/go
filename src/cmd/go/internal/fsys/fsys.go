@@ -499,7 +499,7 @@ func (f fakeFile) Size() int64        { return f.real.Size() }
 func (f fakeFile) Mode() fs.FileMode  { return f.real.Mode() }
 func (f fakeFile) ModTime() time.Time { return f.real.ModTime() }
 func (f fakeFile) IsDir() bool        { return f.real.IsDir() }
-func (f fakeFile) Sys() any           { return f.real.Sys() }
+func (f fakeFile) Sys() interface{}   { return f.real.Sys() }
 
 // missingFile provides an fs.FileInfo for an overlaid file where the
 // destination file in the overlay doesn't exist. It returns zero values
@@ -512,7 +512,7 @@ func (f missingFile) Size() int64        { return 0 }
 func (f missingFile) Mode() fs.FileMode  { return fs.ModeIrregular }
 func (f missingFile) ModTime() time.Time { return time.Unix(0, 0) }
 func (f missingFile) IsDir() bool        { return false }
-func (f missingFile) Sys() any           { return nil }
+func (f missingFile) Sys() interface{}   { return nil }
 
 // fakeDir provides an fs.FileInfo implementation for directories that are
 // implicitly created by overlaid files. Each directory in the
@@ -524,7 +524,7 @@ func (f fakeDir) Size() int64        { return 0 }
 func (f fakeDir) Mode() fs.FileMode  { return fs.ModeDir | 0500 }
 func (f fakeDir) ModTime() time.Time { return time.Unix(0, 0) }
 func (f fakeDir) IsDir() bool        { return true }
-func (f fakeDir) Sys() any           { return nil }
+func (f fakeDir) Sys() interface{}   { return nil }
 
 // Glob is like filepath.Glob but uses the overlay file system.
 func Glob(pattern string) (matches []string, err error) {

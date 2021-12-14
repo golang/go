@@ -245,7 +245,7 @@ func processFile(filename string, useStdin bool) error {
 	return os.WriteFile(f.Name(), newSrc, 0)
 }
 
-func gofmt(n any) string {
+func gofmt(n interface{}) string {
 	var gofmtBuf bytes.Buffer
 	if err := format.Node(&gofmtBuf, fset, n); err != nil {
 		return "<" + err.Error() + ">"

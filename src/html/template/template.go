@@ -117,7 +117,7 @@ func (t *Template) escape() error {
 // the output writer.
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
-func (t *Template) Execute(wr io.Writer, data any) error {
+func (t *Template) Execute(wr io.Writer, data interface{}) error {
 	if err := t.escape(); err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (t *Template) Execute(wr io.Writer, data any) error {
 // the output writer.
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
-func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
+func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
 	tmpl, err := t.lookupAndEscapeTemplate(name)
 	if err != nil {
 		return err
@@ -335,7 +335,7 @@ func (t *Template) Name() string {
 // terminates and Execute returns that error. FuncMap has the same base type
 // as FuncMap in "text/template", copied here so clients need not import
 // "text/template".
-type FuncMap map[string]any
+type FuncMap map[string]interface{}
 
 // Funcs adds the elements of the argument map to the template's function map.
 // It must be called before the template is parsed.
@@ -486,7 +486,7 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 // IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
 // and whether the value has a meaningful truth value. This is the definition of
 // truth used by if and other such actions.
-func IsTrue(val any) (truth, ok bool) {
+func IsTrue(val interface{}) (truth, ok bool) {
 	return template.IsTrue(val)
 }
 

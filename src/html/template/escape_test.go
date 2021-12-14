@@ -35,8 +35,8 @@ func TestEscape(t *testing.T) {
 		A, E    []string
 		B, M    json.Marshaler
 		N       int
-		U       any  // untyped nil
-		Z       *int // typed nil
+		U       interface{} // untyped nil
+		Z       *int        // typed nil
 		W       HTML
 	}{
 		F: false,
@@ -858,7 +858,7 @@ func TestEscapeSet(t *testing.T) {
 
 	// pred is a template function that returns the predecessor of a
 	// natural number for testing recursive templates.
-	fns := FuncMap{"pred": func(a ...any) (any, error) {
+	fns := FuncMap{"pred": func(a ...interface{}) (interface{}, error) {
 		if len(a) == 1 {
 			if i, _ := a[0].(int); i > 0 {
 				return i - 1, nil
@@ -1788,7 +1788,7 @@ func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
 }
 
 func TestRedundantFuncs(t *testing.T) {
-	inputs := []any{
+	inputs := []interface{}{
 		"\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f" +
 			"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
 			` !"#$%&'()*+,-./` +
@@ -1808,9 +1808,9 @@ func TestRedundantFuncs(t *testing.T) {
 	}
 
 	for n0, m := range redundantFuncs {
-		f0 := funcMap[n0].(func(...any) string)
+		f0 := funcMap[n0].(func(...interface{}) string)
 		for n1 := range m {
-			f1 := funcMap[n1].(func(...any) string)
+			f1 := funcMap[n1].(func(...interface{}) string)
 			for _, input := range inputs {
 				want := f0(input)
 				if got := f1(want); want != got {

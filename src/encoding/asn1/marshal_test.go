@@ -97,7 +97,7 @@ type testSET []int
 var PST = time.FixedZone("PST", -8*60*60)
 
 type marshalTest struct {
-	in  any
+	in  interface{}
 	out string // hex encoded
 }
 
@@ -196,7 +196,7 @@ func TestMarshal(t *testing.T) {
 }
 
 type marshalWithParamsTest struct {
-	in     any
+	in     interface{}
 	params string
 	out    string // hex encoded
 }
@@ -222,7 +222,7 @@ func TestMarshalWithParams(t *testing.T) {
 }
 
 type marshalErrTest struct {
-	in  any
+	in  interface{}
 	err string
 }
 
@@ -276,7 +276,7 @@ func TestMarshalOID(t *testing.T) {
 
 func TestIssue11130(t *testing.T) {
 	data := []byte("\x06\x010") // == \x06\x01\x30 == OID = 0 (the figure)
-	var v any
+	var v interface{}
 	// v has Zero value here and Elem() would panic
 	_, err := Unmarshal(data, &v)
 	if err != nil {
@@ -299,7 +299,7 @@ func TestIssue11130(t *testing.T) {
 		return
 	}
 
-	var v1 any
+	var v1 interface{}
 	_, err = Unmarshal(data1, &v1)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -382,7 +382,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 
 	type testCase struct {
 		in  []byte
-		out any
+		out interface{}
 	}
 	var testData []testCase
 	for _, test := range unmarshalTestData {

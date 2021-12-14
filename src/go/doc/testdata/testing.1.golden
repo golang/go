@@ -119,10 +119,10 @@ TYPES
 	}
 
 	// Error is equivalent to Log() followed by Fail(). 
-	func (c *B) Error(args ...any)
+	func (c *B) Error(args ...interface{})
 
 	// Errorf is equivalent to Logf() followed by Fail(). 
-	func (c *B) Errorf(format string, args ...any)
+	func (c *B) Errorf(format string, args ...interface{})
 
 	// Fail marks the function as having failed but continues ...
 	func (c *B) Fail()
@@ -134,16 +134,16 @@ TYPES
 	func (c *B) Failed() bool
 
 	// Fatal is equivalent to Log() followed by FailNow(). 
-	func (c *B) Fatal(args ...any)
+	func (c *B) Fatal(args ...interface{})
 
 	// Fatalf is equivalent to Logf() followed by FailNow(). 
-	func (c *B) Fatalf(format string, args ...any)
+	func (c *B) Fatalf(format string, args ...interface{})
 
 	// Log formats its arguments using default formatting, analogous ...
-	func (c *B) Log(args ...any)
+	func (c *B) Log(args ...interface{})
 
 	// Logf formats its arguments according to the format, analogous ...
-	func (c *B) Logf(format string, args ...any)
+	func (c *B) Logf(format string, args ...interface{})
 
 	// ResetTimer sets the elapsed benchmark time to zero. It does not ...
 	func (b *B) ResetTimer()
@@ -221,10 +221,10 @@ TYPES
 	}
 
 	// Error is equivalent to Log() followed by Fail(). 
-	func (c *T) Error(args ...any)
+	func (c *T) Error(args ...interface{})
 
 	// Errorf is equivalent to Logf() followed by Fail(). 
-	func (c *T) Errorf(format string, args ...any)
+	func (c *T) Errorf(format string, args ...interface{})
 
 	// Fail marks the function as having failed but continues ...
 	func (c *T) Fail()
@@ -236,16 +236,16 @@ TYPES
 	func (c *T) Failed() bool
 
 	// Fatal is equivalent to Log() followed by FailNow(). 
-	func (c *T) Fatal(args ...any)
+	func (c *T) Fatal(args ...interface{})
 
 	// Fatalf is equivalent to Logf() followed by FailNow(). 
-	func (c *T) Fatalf(format string, args ...any)
+	func (c *T) Fatalf(format string, args ...interface{})
 
 	// Log formats its arguments using default formatting, analogous ...
-	func (c *T) Log(args ...any)
+	func (c *T) Log(args ...interface{})
 
 	// Logf formats its arguments according to the format, analogous ...
-	func (c *T) Logf(format string, args ...any)
+	func (c *T) Logf(format string, args ...interface{})
 
 	// Parallel signals that this test is to be run in parallel with ...
 	func (t *T) Parallel()
@@ -262,15 +262,15 @@ TYPES
 		failed		bool		// Test or benchmark has failed.
 		start		time.Time	// Time test or benchmark started
 		duration	time.Duration
-		self		any		// To be sent on signal channel when done.
-		signal		chan any	// Output for serial tests.
+		self		interface{}		// To be sent on signal channel when done.
+		signal		chan interface{}	// Output for serial tests.
 	}
 
 	// Error is equivalent to Log() followed by Fail(). 
-	func (c *common) Error(args ...any)
+	func (c *common) Error(args ...interface{})
 
 	// Errorf is equivalent to Logf() followed by Fail(). 
-	func (c *common) Errorf(format string, args ...any)
+	func (c *common) Errorf(format string, args ...interface{})
 
 	// Fail marks the function as having failed but continues ...
 	func (c *common) Fail()
@@ -282,16 +282,16 @@ TYPES
 	func (c *common) Failed() bool
 
 	// Fatal is equivalent to Log() followed by FailNow(). 
-	func (c *common) Fatal(args ...any)
+	func (c *common) Fatal(args ...interface{})
 
 	// Fatalf is equivalent to Logf() followed by FailNow(). 
-	func (c *common) Fatalf(format string, args ...any)
+	func (c *common) Fatalf(format string, args ...interface{})
 
 	// Log formats its arguments using default formatting, analogous ...
-	func (c *common) Log(args ...any)
+	func (c *common) Log(args ...interface{})
 
 	// Logf formats its arguments according to the format, analogous ...
-	func (c *common) Logf(format string, args ...any)
+	func (c *common) Logf(format string, args ...interface{})
 
 	// log generates the output. It's always at the same stack depth. 
 	func (c *common) log(s string)

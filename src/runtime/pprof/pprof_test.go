@@ -235,14 +235,14 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 
 // containsInlinedCall reports whether the function body for the function f is
 // known to contain an inlined function call within the first maxBytes bytes.
-func containsInlinedCall(f any, maxBytes int) bool {
+func containsInlinedCall(f interface{}, maxBytes int) bool {
 	_, found := findInlinedCall(f, maxBytes)
 	return found
 }
 
 // findInlinedCall returns the PC of an inlined function call within
 // the function body for the function f if any.
-func findInlinedCall(f any, maxBytes int) (pc uint64, found bool) {
+func findInlinedCall(f interface{}, maxBytes int) (pc uint64, found bool) {
 	fFunc := runtime.FuncForPC(uintptr(abi.FuncPCABIInternal(f)))
 	if fFunc == nil || fFunc.Entry() == 0 {
 		panic("failed to locate function entry")

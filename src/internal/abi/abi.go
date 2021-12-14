@@ -114,7 +114,7 @@ func (b *IntArgRegBitmap) Get(i int) bool {
 // compile-time error.
 //
 // Implemented as a compile intrinsic.
-func FuncPCABI0(f any) uintptr
+func FuncPCABI0(f interface{}) uintptr
 
 // FuncPCABIInternal returns the entry PC of the function f. If f is a
 // direct reference of a function, it must be defined as ABIInternal.
@@ -123,4 +123,4 @@ func FuncPCABI0(f any) uintptr
 // the behavior is undefined.
 //
 // Implemented as a compile intrinsic.
-func FuncPCABIInternal(f any) uintptr
+func FuncPCABIInternal(f interface{}) uintptr

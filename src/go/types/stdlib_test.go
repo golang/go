@@ -296,7 +296,7 @@ func pkgFilenames(dir string) ([]string, error) {
 	return filenames, nil
 }
 
-func walkPkgDirs(dir string, pkgh func(dir string, filenames []string), errh func(args ...any)) time.Duration {
+func walkPkgDirs(dir string, pkgh func(dir string, filenames []string), errh func(args ...interface{})) time.Duration {
 	w := walker{time.Now(), 10 * time.Millisecond, pkgh, errh}
 	w.walk(dir)
 	return time.Since(w.start)
@@ -306,7 +306,7 @@ type walker struct {
 	start time.Time
 	dmax  time.Duration
 	pkgh  func(dir string, filenames []string)
-	errh  func(args ...any)
+	errh  func(args ...interface{})
 }
 
 func (w *walker) walk(dir string) {

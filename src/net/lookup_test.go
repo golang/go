@@ -1057,7 +1057,7 @@ func TestLookupIPAddrPreservesContextValues(t *testing.T) {
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
 
 	keyValues := []struct {
-		key, value any
+		key, value interface{}
 	}{
 		{"key-1", 12},
 		{384, "value2"},

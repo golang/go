@@ -38,12 +38,12 @@ var compareTests = [][]reflect.Value{
 	ct(reflect.TypeOf(chans[0]), chans[0], chans[1], chans[2]),
 	ct(reflect.TypeOf(toy{}), toy{0, 1}, toy{0, 2}, toy{1, -1}, toy{1, 1}),
 	ct(reflect.TypeOf([2]int{}), [2]int{1, 1}, [2]int{1, 2}, [2]int{2, 0}),
-	ct(reflect.TypeOf(any(any(0))), iFace, 1, 2, 3),
+	ct(reflect.TypeOf(interface{}(interface{}(0))), iFace, 1, 2, 3),
 }
 
-var iFace any
+var iFace interface{}
 
-func ct(typ reflect.Type, args ...any) []reflect.Value {
+func ct(typ reflect.Type, args ...interface{}) []reflect.Value {
 	value := make([]reflect.Value, len(args))
 	for i, v := range args {
 		x := reflect.ValueOf(v)
@@ -84,8 +84,8 @@ func TestCompare(t *testing.T) {
 }
 
 type sortTest struct {
-	data  any    // Always a map.
-	print string // Printed result using our custom printer.
+	data  interface{} // Always a map.
+	print string      // Printed result using our custom printer.
 }
 
 var sortTests = []sortTest{
@@ -135,7 +135,7 @@ var sortTests = []sortTest{
 	},
 }
 
-func sprint(data any) string {
+func sprint(data interface{}) string {
 	om := fmtsort.Sort(reflect.ValueOf(data))
 	if om == nil {
 		return "nil"
@@ -244,7 +244,7 @@ func TestInterface(t *testing.T) {
 	// A map containing multiple concrete types should be sorted by type,
 	// then value. However, the relative ordering of types is unspecified,
 	// so test this by checking the presence of sorted subgroups.
-	m := map[any]string{
+	m := map[interface{}]string{
 		[2]int{1, 0}:             "",
 		[2]int{0, 1}:             "",
 		true:                     "",

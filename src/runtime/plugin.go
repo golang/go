@@ -7,7 +7,7 @@ package runtime
 import "unsafe"
 
 //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
-func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
+func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr string) {
 	var md *moduledata
 	for pmd := firstmoduledata.next; pmd != nil; pmd = pmd.next {
 		if pmd.bad {
@@ -76,11 +76,11 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
 	// Because functions are handled specially in the plugin package,
 	// function symbol names are prefixed here with '.' to avoid
 	// a dependency on the reflect package.
-	syms = make(map[string]any, len(md.ptab))
+	syms = make(map[string]interface{}, len(md.ptab))
 	for _, ptab := range md.ptab {
 		symName := resolveNameOff(unsafe.Pointer(md.types), ptab.name)
 		t := (*_type)(unsafe.Pointer(md.types)).typeOff(ptab.typ)
-		var val any
+		var val interface{}
 		valp := (*[2]unsafe.Pointer)(unsafe.Pointer(&val))
 		(*valp)[0] = unsafe.Pointer(t)
 

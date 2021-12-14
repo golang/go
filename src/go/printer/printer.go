@@ -104,7 +104,7 @@ func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]
 	p.cachedPos = -1
 }
 
-func (p *printer) internalError(msg ...any) {
+func (p *printer) internalError(msg ...interface{}) {
 	if debug {
 		fmt.Print(p.pos.String() + ": ")
 		fmt.Println(msg...)
@@ -878,7 +878,7 @@ func mayCombine(prev token.Token, next byte) (b bool) {
 // space for best comment placement. Then, any leftover whitespace is
 // printed, followed by the actual token.
 //
-func (p *printer) print(args ...any) {
+func (p *printer) print(args ...interface{}) {
 	for _, arg := range args {
 		// information about the current arg
 		var data string
@@ -1075,7 +1075,7 @@ func getLastComment(n ast.Node) *ast.CommentGroup {
 	return nil
 }
 
-func (p *printer) printNode(node any) error {
+func (p *printer) printNode(node interface{}) error {
 	// unpack *CommentedNode, if any
 	var comments []*ast.CommentGroup
 	if cnode, ok := node.(*CommentedNode); ok {
@@ -1309,7 +1309,7 @@ type Config struct {
 }
 
 // fprint implements Fprint and takes a nodesSizes map for setting up the printer state.
-func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node any, nodeSizes map[ast.Node]int) (err error) {
+func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{}, nodeSizes map[ast.Node]int) (err error) {
 	// print node
 	var p printer
 	p.init(cfg, fset, nodeSizes)
@@ -1365,7 +1365,7 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node any, nodeS
 // It may be provided as argument to any of the Fprint functions.
 //
 type CommentedNode struct {
-	Node     any // *ast.File, or ast.Expr, ast.Decl, ast.Spec, or ast.Stmt
+	Node     interface{} // *ast.File, or ast.Expr, ast.Decl, ast.Spec, or ast.Stmt
 	Comments []*ast.CommentGroup
 }
 
@@ -1374,7 +1374,7 @@ type CommentedNode struct {
 // The node type must be *ast.File, *CommentedNode, []ast.Decl, []ast.Stmt,
 // or assignment-compatible to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
 //
-func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node any) error {
+func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
 
@@ -1383,6 +1383,6 @@ func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node any) error
 // Note that gofmt uses tabs for indentation but spaces for alignment;
 // use format.Node (package go/format) for output that matches gofmt.
 //
-func Fprint(output io.Writer, fset *token.FileSet, node any) error {
+func Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
 	return (&Config{Tabwidth: 8}).Fprint(output, fset, node)
 }

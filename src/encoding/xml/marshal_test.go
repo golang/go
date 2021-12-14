@@ -120,17 +120,17 @@ type MixedNested struct {
 }
 
 type NilTest struct {
-	A any `xml:"parent1>parent2>a"`
-	B any `xml:"parent1>b"`
-	C any `xml:"parent1>parent2>c"`
+	A interface{} `xml:"parent1>parent2>a"`
+	B interface{} `xml:"parent1>b"`
+	C interface{} `xml:"parent1>parent2>c"`
 }
 
 type Service struct {
 	XMLName struct{} `xml:"service"`
 	Domain  *Domain  `xml:"host>domain"`
 	Port    *Port    `xml:"host>port"`
-	Extra1  any
-	Extra2  any `xml:"host>extra2"`
+	Extra1  interface{}
+	Extra2  interface{} `xml:"host>extra2"`
 }
 
 var nilStruct *Ship
@@ -283,7 +283,7 @@ type Data struct {
 }
 
 type Plain struct {
-	V any
+	V interface{}
 }
 
 type MyInt int
@@ -387,7 +387,7 @@ type NestedAndCData struct {
 	CDATA string   `xml:",cdata"`
 }
 
-func ifaceptr(x any) any {
+func ifaceptr(x interface{}) interface{} {
 	return &x
 }
 
@@ -412,7 +412,7 @@ type DirectComment struct {
 
 type IfaceComment struct {
 	T1      T1
-	Comment any `xml:",comment"`
+	Comment interface{} `xml:",comment"`
 	T2      T2
 }
 
@@ -430,7 +430,7 @@ type DirectChardata struct {
 
 type IfaceChardata struct {
 	T1       T1
-	Chardata any `xml:",chardata"`
+	Chardata interface{} `xml:",chardata"`
 	T2       T2
 }
 
@@ -448,7 +448,7 @@ type DirectCDATA struct {
 
 type IfaceCDATA struct {
 	T1    T1
-	CDATA any `xml:",cdata"`
+	CDATA interface{} `xml:",cdata"`
 	T2    T2
 }
 
@@ -466,7 +466,7 @@ type DirectInnerXML struct {
 
 type IfaceInnerXML struct {
 	T1       T1
-	InnerXML any `xml:",innerxml"`
+	InnerXML interface{} `xml:",innerxml"`
 	T2       T2
 }
 
@@ -484,7 +484,7 @@ type DirectElement struct {
 
 type IfaceElement struct {
 	T1      T1
-	Element any
+	Element interface{}
 	T2      T2
 }
 
@@ -502,7 +502,7 @@ type DirectOmitEmpty struct {
 
 type IfaceOmitEmpty struct {
 	T1        T1
-	OmitEmpty any `xml:",omitempty"`
+	OmitEmpty interface{} `xml:",omitempty"`
 	T2        T2
 }
 
@@ -520,7 +520,7 @@ type DirectAny struct {
 
 type IfaceAny struct {
 	T1  T1
-	Any any `xml:",any"`
+	Any interface{} `xml:",any"`
 	T2  T2
 }
 
@@ -540,7 +540,7 @@ var (
 // please try to make them two-way as well to ensure that
 // marshaling and unmarshaling are as symmetrical as feasible.
 var marshalTests = []struct {
-	Value          any
+	Value          interface{}
 	ExpectXML      string
 	MarshalOnly    bool
 	MarshalError   string
@@ -1700,7 +1700,7 @@ type BadAttr struct {
 }
 
 var marshalErrorTests = []struct {
-	Value any
+	Value interface{}
 	Err   string
 	Kind  reflect.Kind
 }{
@@ -1738,7 +1738,7 @@ var marshalErrorTests = []struct {
 }
 
 var marshalIndentTests = []struct {
-	Value     any
+	Value     interface{}
 	Prefix    string
 	Indent    string
 	ExpectXML string
@@ -1933,7 +1933,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 func TestStructPointerMarshal(t *testing.T) {
 	type A struct {
 		XMLName string `xml:"a"`
-		B       []any
+		B       []interface{}
 	}
 	type C struct {
 		XMLName Name
@@ -2327,7 +2327,7 @@ loop:
 				continue loop
 			}
 		}
-		errorf := func(f string, a ...any) {
+		errorf := func(f string, a ...interface{}) {
 			t.Errorf("#%d %s token #%d:%s", i, tt.desc, len(tt.toks)-1, fmt.Sprintf(f, a...))
 		}
 		switch {

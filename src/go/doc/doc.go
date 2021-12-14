@@ -157,7 +157,7 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
 // NewFromFiles takes ownership of the AST files and may edit them,
 // unless the PreserveAST Mode bit is on.
 //
-func NewFromFiles(fset *token.FileSet, files []*ast.File, importPath string, opts ...any) (*Package, error) {
+func NewFromFiles(fset *token.FileSet, files []*ast.File, importPath string, opts ...interface{}) (*Package, error) {
 	// Check for invalid API usage.
 	if fset == nil {
 		panic(fmt.Errorf("doc.NewFromFiles: no token.FileSet provided (fset == nil)"))

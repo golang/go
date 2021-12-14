@@ -265,7 +265,7 @@ type onlyValuesCtx struct {
 var _ context.Context = (*onlyValuesCtx)(nil)
 
 // Value performs a lookup if the original context hasn't expired.
-func (ovc *onlyValuesCtx) Value(key any) any {
+func (ovc *onlyValuesCtx) Value(key interface{}) interface{} {
 	select {
 	case <-ovc.lookupValues.Done():
 		return nil
@@ -314,7 +314,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 
 	lookupKey := network + "\000" + host
 	dnsWaitGroup.Add(1)
-	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
+	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (interface{}, error) {
 		defer dnsWaitGroup.Done()
 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
 	})
@@ -377,7 +377,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 
 // lookupIPReturn turns the return values from singleflight.Do into
 // the return values from LookupIP.
-func lookupIPReturn(addrsi any, err error, shared bool) ([]IPAddr, error) {
+func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -391,8 +391,8 @@ func lookupIPReturn(addrsi any, err error, shared bool) ([]IPAddr, error) {
 }
 
 // ipAddrsEface returns an empty interface slice of addrs.
-func ipAddrsEface(addrs []IPAddr) []any {
-	s := make([]any, len(addrs))
+func ipAddrsEface(addrs []IPAddr) []interface{} {
+	s := make([]interface{}, len(addrs))
 	for i, v := range addrs {
 		s[i] = v
 	}

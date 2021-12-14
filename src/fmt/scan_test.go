@@ -21,22 +21,22 @@ import (
 
 type ScanTest struct {
 	text string
-	in   any
-	out  any
+	in   interface{}
+	out  interface{}
 }
 
 type ScanfTest struct {
 	format string
 	text   string
-	in     any
-	out    any
+	in     interface{}
+	out    interface{}
 }
 
 type ScanfMultiTest struct {
 	format string
 	text   string
-	in     []any
-	out    []any
+	in     []interface{}
+	out    []interface{}
 	err    string
 }
 
@@ -444,7 +444,7 @@ var z IntString
 var r1, r2, r3 rune
 
 var multiTests = []ScanfMultiTest{
-	{"", "", []any{}, []any{}, ""},
+	{"", "", []interface{}{}, []interface{}{}, ""},
 	{"%d", "23", args(&i), args(23), ""},
 	{"%2s%3s", "22333", args(&s, &t), args("22", "333"), ""},
 	{"%2d%3d", "44555", args(&i, &j), args(44, 555), ""},
@@ -498,7 +498,7 @@ var readers = []struct {
 	}},
 }
 
-func testScan(t *testing.T, f func(string) io.Reader, scan func(r io.Reader, a ...any) (int, error)) {
+func testScan(t *testing.T, f func(string) io.Reader, scan func(r io.Reader, a ...interface{}) (int, error)) {
 	for _, test := range scanTests {
 		r := f(test.text)
 		n, err := scan(r, test.in)
@@ -637,7 +637,7 @@ func TestInf(t *testing.T) {
 }
 
 func testScanfMulti(t *testing.T, f func(string) io.Reader) {
-	sliceType := reflect.TypeOf(make([]any, 1))
+	sliceType := reflect.TypeOf(make([]interface{}, 1))
 	for _, test := range multiTests {
 		r := f(test.text)
 		n, err := Fscanf(r, test.format, test.in...)
@@ -836,7 +836,7 @@ func TestEOFAtEndOfInput(t *testing.T) {
 
 var eofTests = []struct {
 	format string
-	v      any
+	v      interface{}
 }{
 	{"%s", &stringVal},
 	{"%q", &stringVal},

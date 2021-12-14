@@ -22,7 +22,7 @@ import (
 func TestReader(t *testing.T) {
 	tests := []struct {
 		in, want string
-		err      any
+		err      interface{}
 	}{
 		{in: "", want: ""},
 		{in: "foo bar", want: "foo bar"},
@@ -160,7 +160,7 @@ func TestExhaustive(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			qpres := make(chan any, 2)
+			qpres := make(chan interface{}, 2)
 			go func() {
 				br := bufio.NewReader(stderr)
 				s, _ := br.ReadString('\n')

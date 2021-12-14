@@ -19,7 +19,7 @@ import (
 const userFile = "/etc/passwd"
 
 // lineFunc returns a value, an error, or (nil, nil) to skip the row.
-type lineFunc func(line []byte) (v any, err error)
+type lineFunc func(line []byte) (v interface{}, err error)
 
 // readColonFile parses r as an /etc/group or /etc/passwd style file, running
 // fn for each row. readColonFile returns a value, an error, or (nil, nil) if
@@ -27,7 +27,7 @@ type lineFunc func(line []byte) (v any, err error)
 //
 // readCols is the minimum number of colon-separated fields that will be passed
 // to fn; in a long line additional fields may be silently discarded.
-func readColonFile(r io.Reader, fn lineFunc, readCols int) (v any, err error) {
+func readColonFile(r io.Reader, fn lineFunc, readCols int) (v interface{}, err error) {
 	rd := bufio.NewReader(r)
 
 	// Read the file line-by-line.
@@ -98,7 +98,7 @@ func matchGroupIndexValue(value string, idx int) lineFunc {
 		leadColon = ":"
 	}
 	substr := []byte(leadColon + value + ":")
-	return func(line []byte) (v any, err error) {
+	return func(line []byte) (v interface{}, err error) {
 		if !bytes.Contains(line, substr) || bytes.Count(line, colon) < 3 {
 			return
 		}
@@ -145,7 +145,7 @@ func matchUserIndexValue(value string, idx int) lineFunc {
 		leadColon = ":"
 	}
 	substr := []byte(leadColon + value + ":")
-	return func(line []byte) (v any, err error) {
+	return func(line []byte) (v interface{}, err error) {
 		if !bytes.Contains(line, substr) || bytes.Count(line, colon) < 6 {
 			return
 		}

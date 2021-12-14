@@ -31,7 +31,7 @@ func TestImplicitMapConversion(t *testing.T) {
 	}
 	{
 		// convert interface key
-		m := make(map[any]int)
+		m := make(map[interface{}]int)
 		mv := ValueOf(m)
 		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
@@ -44,7 +44,7 @@ func TestImplicitMapConversion(t *testing.T) {
 	}
 	{
 		// convert interface value
-		m := make(map[int]any)
+		m := make(map[int]interface{})
 		mv := ValueOf(m)
 		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
@@ -57,7 +57,7 @@ func TestImplicitMapConversion(t *testing.T) {
 	}
 	{
 		// convert both interface key and interface value
-		m := make(map[any]any)
+		m := make(map[interface{}]interface{})
 		mv := ValueOf(m)
 		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
@@ -160,8 +160,8 @@ func TestImplicitAppendConversion(t *testing.T) {
 }
 
 var implementsTests = []struct {
-	x any
-	t any
+	x interface{}
+	t interface{}
 	b bool
 }{
 	{new(*bytes.Buffer), new(io.Reader), true},
@@ -198,8 +198,8 @@ func TestImplements(t *testing.T) {
 }
 
 var assignableTests = []struct {
-	x any
-	t any
+	x interface{}
+	t interface{}
 	b bool
 }{
 	{new(chan int), new(<-chan int), true},
@@ -207,13 +207,13 @@ var assignableTests = []struct {
 	{new(*int), new(IntPtr), true},
 	{new(IntPtr), new(*int), true},
 	{new(IntPtr), new(IntPtr1), false},
-	{new(Ch), new(<-chan any), true},
+	{new(Ch), new(<-chan interface{}), true},
 	// test runs implementsTests too
 }
 
 type IntPtr *int
 type IntPtr1 *int
-type Ch <-chan any
+type Ch <-chan interface{}
 
 func TestAssignableTo(t *testing.T) {
 	for _, tt := range append(assignableTests, implementsTests...) {

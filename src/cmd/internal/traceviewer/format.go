@@ -16,20 +16,20 @@ type Data struct {
 }
 
 type Event struct {
-	Name      string  `json:"name,omitempty"`
-	Phase     string  `json:"ph"`
-	Scope     string  `json:"s,omitempty"`
-	Time      float64 `json:"ts"`
-	Dur       float64 `json:"dur,omitempty"`
-	PID       uint64  `json:"pid"`
-	TID       uint64  `json:"tid"`
-	ID        uint64  `json:"id,omitempty"`
-	BindPoint string  `json:"bp,omitempty"`
-	Stack     int     `json:"sf,omitempty"`
-	EndStack  int     `json:"esf,omitempty"`
-	Arg       any     `json:"args,omitempty"`
-	Cname     string  `json:"cname,omitempty"`
-	Category  string  `json:"cat,omitempty"`
+	Name      string      `json:"name,omitempty"`
+	Phase     string      `json:"ph"`
+	Scope     string      `json:"s,omitempty"`
+	Time      float64     `json:"ts"`
+	Dur       float64     `json:"dur,omitempty"`
+	PID       uint64      `json:"pid"`
+	TID       uint64      `json:"tid"`
+	ID        uint64      `json:"id,omitempty"`
+	BindPoint string      `json:"bp,omitempty"`
+	Stack     int         `json:"sf,omitempty"`
+	EndStack  int         `json:"esf,omitempty"`
+	Arg       interface{} `json:"args,omitempty"`
+	Cname     string      `json:"cname,omitempty"`
+	Category  string      `json:"cat,omitempty"`
 }
 
 type Frame struct {

@@ -24,7 +24,7 @@ func ExampleWrite() {
 
 func ExampleWrite_multi() {
 	buf := new(bytes.Buffer)
-	var data = []any{
+	var data = []interface{}{
 		uint16(61374),
 		int8(-54),
 		uint8(254),

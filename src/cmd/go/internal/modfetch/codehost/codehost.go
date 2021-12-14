@@ -228,7 +228,7 @@ var dirLock sync.Map
 // It returns the standard output and, for a non-zero exit,
 // a *RunError indicating the command, exit status, and standard error.
 // Standard error is unavailable for commands that exit successfully.
-func Run(dir string, cmdline ...any) ([]byte, error) {
+func Run(dir string, cmdline ...interface{}) ([]byte, error) {
 	return RunWithStdin(dir, nil, cmdline...)
 }
 
@@ -236,7 +236,7 @@ func Run(dir string, cmdline ...any) ([]byte, error) {
 // See https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html.
 var bashQuoter = strings.NewReplacer(`"`, `\"`, `$`, `\$`, "`", "\\`", `\`, `\\`)
 
-func RunWithStdin(dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
+func RunWithStdin(dir string, stdin io.Reader, cmdline ...interface{}) ([]byte, error) {
 	if dir != "" {
 		muIface, ok := dirLock.Load(dir)
 		if !ok {

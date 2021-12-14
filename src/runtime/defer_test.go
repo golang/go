@@ -433,7 +433,7 @@ func TestIssue43921(t *testing.T) {
 	}()
 }
 
-func expect(t *testing.T, n int, err any) {
+func expect(t *testing.T, n int, err interface{}) {
 	if n != err {
 		t.Fatalf("have %v, want %v", err, n)
 	}

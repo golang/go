@@ -50,7 +50,7 @@ func WithClientTrace(ctx context.Context, trace *ClientTrace) context.Context {
 			}
 		}
 		if trace.DNSDone != nil {
-			nt.DNSDone = func(netIPs []any, coalesced bool, err error) {
+			nt.DNSDone = func(netIPs []interface{}, coalesced bool, err error) {
 				addrs := make([]net.IPAddr, len(netIPs))
 				for i, ip := range netIPs {
 					addrs[i] = ip.(net.IPAddr)

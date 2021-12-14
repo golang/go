@@ -14,24 +14,24 @@ import (
 // Work manages a set of work items to be executed in parallel, at most once each.
 // The items in the set must all be valid map keys.
 type Work struct {
-	f       func(any) // function to run for each item
-	running int       // total number of runners
+	f       func(interface{}) // function to run for each item
+	running int               // total number of runners
 
 	mu      sync.Mutex
-	added   map[any]bool // items added to set
-	todo    []any        // items yet to be run
-	wait    sync.Cond    // wait when todo is empty
-	waiting int          // number of runners waiting for todo
+	added   map[interface{}]bool // items added to set
+	todo    []interface{}        // items yet to be run
+	wait    sync.Cond            // wait when todo is empty
+	waiting int                  // number of runners waiting for todo
 }
 
 func (w *Work) init() {
 	if w.added == nil {
-		w.added = make(map[any]bool)
+		w.added = make(map[interface{}]bool)
 	}
 }
 
 // Add adds item to the work set, if it hasn't already been added.
-func (w *Work) Add(item any) {
+func (w *Work) Add(item interface{}) {
 	w.mu.Lock()
 	w.init()
 	if !w.added[item] {
@@ -51,7 +51,7 @@ func (w *Work) Add(item any) {
 // before calling Do (or else Do returns immediately),
 // but it is allowed for f(item) to add new items to the set.
 // Do should only be used once on a given Work.
-func (w *Work) Do(n int, f func(item any)) {
+func (w *Work) Do(n int, f func(item interface{})) {
 	if n < 1 {
 		panic("par.Work.Do: n < 1")
 	}
@@ -110,13 +110,13 @@ type Cache struct {
 type cacheEntry struct {
 	done   uint32
 	mu     sync.Mutex
-	result any
+	result interface{}
 }
 
 // Do calls the function f if and only if Do is being called for the first time with this key.
 // No call to Do with a given key returns until the one call to f returns.
 // Do returns the value returned by the one call to f.
-func (c *Cache) Do(key any, f func() any) any {
+func (c *Cache) Do(key interface{}, f func() interface{}) interface{} {
 	entryIface, ok := c.m.Load(key)
 	if !ok {
 		entryIface, _ = c.m.LoadOrStore(key, new(cacheEntry))
@@ -136,7 +136,7 @@ func (c *Cache) Do(key any, f func() any) any {
 // Get returns the cached result associated with key.
 // It returns nil if there is no such result.
 // If the result for key is being computed, Get does not wait for the computation to finish.
-func (c *Cache) Get(key any) any {
+func (c *Cache) Get(key interface{}) interface{} {
 	entryIface, ok := c.m.Load(key)
 	if !ok {
 		return nil
@@ -156,7 +156,7 @@ func (c *Cache) Get(key any) any {
 // TODO(jayconrod): Delete this after the package cache clearing functions
 // in internal/load have been removed.
 func (c *Cache) Clear() {
-	c.m.Range(func(key, value any) bool {
+	c.m.Range(func(key, value interface{}) bool {
 		c.m.Delete(key)
 		return true
 	})
@@ -169,7 +169,7 @@ func (c *Cache) Clear() {
 //
 // TODO(jayconrod): Delete this after the package cache clearing functions
 // in internal/load have been removed.
-func (c *Cache) Delete(key any) {
+func (c *Cache) Delete(key interface{}) {
 	c.m.Delete(key)
 }
 
@@ -180,8 +180,8 @@ func (c *Cache) Delete(key any) {
 //
 // TODO(jayconrod): Delete this after the package cache clearing functions
 // in internal/load have been removed.
-func (c *Cache) DeleteIf(pred func(key any) bool) {
-	c.m.Range(func(key, _ any) bool {
+func (c *Cache) DeleteIf(pred func(key interface{}) bool) {
+	c.m.Range(func(key, _ interface{}) bool {
 		if pred(key) {
 			c.Delete(key)
 		}

@@ -22,7 +22,7 @@ func (p *pkgBuilder) error(pos token.Pos, msg string) {
 	p.errors.Add(p.fset.Position(pos), msg)
 }
 
-func (p *pkgBuilder) errorf(pos token.Pos, format string, args ...any) {
+func (p *pkgBuilder) errorf(pos token.Pos, format string, args ...interface{}) {
 	p.error(pos, fmt.Sprintf(format, args...))
 }
 

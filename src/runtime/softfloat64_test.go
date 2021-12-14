@@ -127,7 +127,7 @@ func fromint64sw(f float64) float64 {
 
 var nerr int
 
-func err(t *testing.T, format string, args ...any) {
+func err(t *testing.T, format string, args ...interface{}) {
 	t.Errorf(format, args...)
 
 	// cut errors off after a while.

@@ -22,7 +22,7 @@ type Plugin struct {
 	pluginpath string
 	err        string        // set if plugin failed to load
 	loaded     chan struct{} // closed when loaded
-	syms       map[string]any
+	syms       map[string]interface{}
 }
 
 // Open opens a Go plugin.
@@ -69,4 +69,4 @@ func (p *Plugin) Lookup(symName string) (Symbol, error) {
 //	}
 //	*v.(*int) = 7
 //	f.(func())() // prints "Hello, number 7"
-type Symbol any
+type Symbol interface{}

@@ -379,7 +379,7 @@ func differentWildcardAddr(i, j string) bool {
 	return true
 }
 
-func checkFirstListener(network string, ln any) error {
+func checkFirstListener(network string, ln interface{}) error {
 	switch network {
 	case "tcp":
 		fd := ln.(*TCPListener).fd

@@ -115,11 +115,11 @@ func (p *ProcessState) success() bool {
 	return p.status.ExitStatus() == 0
 }
 
-func (p *ProcessState) sys() any {
+func (p *ProcessState) sys() interface{} {
 	return p.status
 }
 
-func (p *ProcessState) sysUsage() any {
+func (p *ProcessState) sysUsage() interface{} {
 	return p.status
 }
 

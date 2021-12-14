@@ -147,7 +147,7 @@ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
 	}
 
 	vendErrors := new(strings.Builder)
-	vendErrorf := func(mod module.Version, format string, args ...any) {
+	vendErrorf := func(mod module.Version, format string, args ...interface{}) {
 		detail := fmt.Sprintf(format, args...)
 		if mod.Version == "" {
 			fmt.Fprintf(vendErrors, "\n\t%s: %s", mod.Path, detail)

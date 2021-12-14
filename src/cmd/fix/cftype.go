@@ -45,8 +45,8 @@ func typefix(f *ast.File, badType func(string) bool) bool {
 
 	// step 1: Find all the nils with the offending types.
 	// Compute their replacement.
-	badNils := map[any]ast.Expr{}
-	walk(f, func(n any) {
+	badNils := map[interface{}]ast.Expr{}
+	walk(f, func(n interface{}) {
 		if i, ok := n.(*ast.Ident); ok && i.Name == "nil" && badType(typeof[n]) {
 			badNils[n] = &ast.BasicLit{ValuePos: i.NamePos, Kind: token.INT, Value: "0"}
 		}
@@ -58,7 +58,7 @@ func typefix(f *ast.File, badType func(string) bool) bool {
 	if len(badNils) > 0 {
 		exprType := reflect.TypeOf((*ast.Expr)(nil)).Elem()
 		exprSliceType := reflect.TypeOf(([]ast.Expr)(nil))
-		walk(f, func(n any) {
+		walk(f, func(n interface{}) {
 			if n == nil {
 				return
 			}
@@ -99,7 +99,7 @@ func typefix(f *ast.File, badType func(string) bool) bool {
 	// Now we need unsafe.Pointer as an intermediate cast.
 	// (*unsafe.Pointer)(x) where x is type *bad -> (*unsafe.Pointer)(unsafe.Pointer(x))
 	// (*bad.type)(x) where x is type *unsafe.Pointer -> (*bad.type)(unsafe.Pointer(x))
-	walk(f, func(n any) {
+	walk(f, func(n interface{}) {
 		if n == nil {
 			return
 		}

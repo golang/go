@@ -20,7 +20,7 @@ import (
 
 type reqWriteTest struct {
 	Req  Request
-	Body any // optional []byte or func() io.ReadCloser to populate Req.Body
+	Body interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
 
 	// Any of these three may be empty to skip that test.
 	WantWrite string // Request.Write

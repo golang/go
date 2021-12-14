@@ -80,7 +80,7 @@ func TestValuePanic(t *testing.T) {
 }
 
 func TestValueConcurrent(t *testing.T) {
-	tests := [][]any{
+	tests := [][]interface{}{
 		{uint16(0), ^uint16(0), uint16(1 + 2<<8), uint16(3 + 4<<8)},
 		{uint32(0), ^uint32(0), uint32(1 + 2<<16), uint32(3 + 4<<16)},
 		{uint64(0), ^uint64(0), uint64(1 + 2<<32), uint64(3 + 4<<32)},
@@ -138,10 +138,10 @@ func BenchmarkValueRead(b *testing.B) {
 }
 
 var Value_SwapTests = []struct {
-	init any
-	new  any
-	want any
-	err  any
+	init interface{}
+	new  interface{}
+	want interface{}
+	err  interface{}
 }{
 	{init: nil, new: nil, err: "sync/atomic: swap of nil value into Value"},
 	{init: nil, new: true, want: nil, err: nil},
@@ -207,11 +207,11 @@ func TestValueSwapConcurrent(t *testing.T) {
 var heapA, heapB = struct{ uint }{0}, struct{ uint }{0}
 
 var Value_CompareAndSwapTests = []struct {
-	init any
-	new  any
-	old  any
+	init interface{}
+	new  interface{}
+	old  interface{}
 	want bool
-	err  any
+	err  interface{}
 }{
 	{init: nil, new: nil, old: nil, err: "sync/atomic: compare and swap of nil value into Value"},
 	{init: nil, new: true, old: "", err: "sync/atomic: compare and swap of inconsistently typed values into Value"},

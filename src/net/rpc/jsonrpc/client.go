@@ -44,12 +44,12 @@ func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
 }
 
 type clientRequest struct {
-	Method string `json:"method"`
-	Params [1]any `json:"params"`
-	Id     uint64 `json:"id"`
+	Method string         `json:"method"`
+	Params [1]interface{} `json:"params"`
+	Id     uint64         `json:"id"`
 }
 
-func (c *clientCodec) WriteRequest(r *rpc.Request, param any) error {
+func (c *clientCodec) WriteRequest(r *rpc.Request, param interface{}) error {
 	c.mutex.Lock()
 	c.pending[r.Seq] = r.ServiceMethod
 	c.mutex.Unlock()
@@ -62,7 +62,7 @@ func (c *clientCodec) WriteRequest(r *rpc.Request, param any) error {
 type clientResponse struct {
 	Id     uint64           `json:"id"`
 	Result *json.RawMessage `json:"result"`
-	Error  any              `json:"error"`
+	Error  interface{}      `json:"error"`
 }
 
 func (r *clientResponse) reset() {
@@ -97,7 +97,7 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) error {
 	return nil
 }
 
-func (c *clientCodec) ReadResponseBody(x any) error {
+func (c *clientCodec) ReadResponseBody(x interface{}) error {
 	if x == nil {
 		return nil
 	}

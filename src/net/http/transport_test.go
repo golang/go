@@ -776,7 +776,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	c := ts.Client()
 
 	fetch := func(n, retries int) string {
-		condFatalf := func(format string, arg ...any) {
+		condFatalf := func(format string, arg ...interface{}) {
 			if retries <= 0 {
 				t.Fatalf(format, arg...)
 			}
@@ -3514,7 +3514,7 @@ func TestRetryRequestsOnError(t *testing.T) {
 				mu     sync.Mutex
 				logbuf bytes.Buffer
 			)
-			logf := func(format string, args ...any) {
+			logf := func(format string, args ...interface{}) {
 				mu.Lock()
 				defer mu.Unlock()
 				fmt.Fprintf(&logbuf, format, args...)
@@ -4491,7 +4491,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 
 	var mu sync.Mutex // guards buf
 	var buf bytes.Buffer
-	logf := func(format string, args ...any) {
+	logf := func(format string, args ...interface{}) {
 		mu.Lock()
 		defer mu.Unlock()
 		fmt.Fprintf(&buf, format, args...)
@@ -4650,7 +4650,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 func TestTransportEventTraceTLSVerify(t *testing.T) {
 	var mu sync.Mutex
 	var buf bytes.Buffer
-	logf := func(format string, args ...any) {
+	logf := func(format string, args ...interface{}) {
 		mu.Lock()
 		defer mu.Unlock()
 		fmt.Fprintf(&buf, format, args...)
@@ -4736,7 +4736,7 @@ func TestTransportEventTraceRealDNS(t *testing.T) {
 
 	var mu sync.Mutex // guards buf
 	var buf bytes.Buffer
-	logf := func(format string, args ...any) {
+	logf := func(format string, args ...interface{}) {
 		mu.Lock()
 		defer mu.Unlock()
 		fmt.Fprintf(&buf, format, args...)

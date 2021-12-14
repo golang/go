@@ -122,7 +122,7 @@ func trim(path, prefix string) (string, bool) {
 // main do function, so it doesn't cause an exit. Allows testing to work
 // without running a subprocess. The log prefix will be added when
 // logged in main; it is not added here.
-func (pkg *Package) Fatalf(format string, args ...any) {
+func (pkg *Package) Fatalf(format string, args ...interface{}) {
 	panic(PackageError(fmt.Sprintf(format, args...)))
 }
 
@@ -209,7 +209,7 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 	return p
 }
 
-func (pkg *Package) Printf(format string, args ...any) {
+func (pkg *Package) Printf(format string, args ...interface{}) {
 	fmt.Fprintf(&pkg.buf, format, args...)
 }
 
@@ -235,7 +235,7 @@ func (pkg *Package) newlines(n int) {
 // clears the stuff we don't want to print anyway. It's a bit of a magic trick.
 func (pkg *Package) emit(comment string, node ast.Node) {
 	if node != nil {
-		var arg any = node
+		var arg interface{} = node
 		if showSrc {
 			// Need an extra little dance to get internal comments to appear.
 			arg = &printer.CommentedNode{

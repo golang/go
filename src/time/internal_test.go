@@ -31,7 +31,7 @@ func forceZipFileForTesting(zipOnly bool) {
 var Interrupt = interrupt
 var DaysIn = daysIn
 
-func empty(arg any, seq uintptr) {}
+func empty(arg interface{}, seq uintptr) {}
 
 // Test that a runtimeTimer with a period that would overflow when on
 // expiration does not throw or cause other timers to hang.

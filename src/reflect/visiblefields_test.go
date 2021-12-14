@@ -17,7 +17,7 @@ type structField struct {
 
 var fieldsTests = []struct {
 	testName string
-	val      any
+	val      interface{}
 	expect   []structField
 }{{
 	testName: "SimpleStruct",
@@ -279,7 +279,7 @@ type RS3 struct {
 	RS1
 }
 
-type M map[string]any
+type M map[string]interface{}
 
 type Rec1 struct {
 	*Rec2

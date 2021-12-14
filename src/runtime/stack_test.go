@@ -879,7 +879,7 @@ func deferHeapAndStack(n int) (r int) {
 }
 
 // Pass a value to escapeMe to force it to escape.
-var escapeMe = func(x any) {}
+var escapeMe = func(x interface{}) {}
 
 // Test that when F -> G is inlined and F is excluded from stack
 // traces, G still appears.

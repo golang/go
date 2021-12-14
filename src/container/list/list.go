@@ -24,7 +24,7 @@ type Element struct {
 	list *List
 
 	// The value stored with this element.
-	Value any
+	Value interface{}
 }
 
 // Next returns the next list element or nil.
@@ -100,7 +100,7 @@ func (l *List) insert(e, at *Element) *Element {
 }
 
 // insertValue is a convenience wrapper for insert(&Element{Value: v}, at).
-func (l *List) insertValue(v any, at *Element) *Element {
+func (l *List) insertValue(v interface{}, at *Element) *Element {
 	return l.insert(&Element{Value: v}, at)
 }
 
@@ -131,7 +131,7 @@ func (l *List) move(e, at *Element) {
 // Remove removes e from l if e is an element of list l.
 // It returns the element value e.Value.
 // The element must not be nil.
-func (l *List) Remove(e *Element) any {
+func (l *List) Remove(e *Element) interface{} {
 	if e.list == l {
 		// if e.list == l, l must have been initialized when e was inserted
 		// in l or l == nil (e is a zero Element) and l.remove will crash
@@ -141,13 +141,13 @@ func (l *List) Remove(e *Element) any {
 }
 
 // PushFront inserts a new element e with value v at the front of list l and returns e.
-func (l *List) PushFront(v any) *Element {
+func (l *List) PushFront(v interface{}) *Element {
 	l.lazyInit()
 	return l.insertValue(v, &l.root)
 }
 
 // PushBack inserts a new element e with value v at the back of list l and returns e.
-func (l *List) PushBack(v any) *Element {
+func (l *List) PushBack(v interface{}) *Element {
 	l.lazyInit()
 	return l.insertValue(v, l.root.prev)
 }
@@ -155,7 +155,7 @@ func (l *List) PushBack(v any) *Element {
 // InsertBefore inserts a new element e with value v immediately before mark and returns e.
 // If mark is not an element of l, the list is not modified.
 // The mark must not be nil.
-func (l *List) InsertBefore(v any, mark *Element) *Element {
+func (l *List) InsertBefore(v interface{}, mark *Element) *Element {
 	if mark.list != l {
 		return nil
 	}
@@ -166,7 +166,7 @@ func (l *List) InsertBefore(v any, mark *Element) *Element {
 // InsertAfter inserts a new element e with value v immediately after mark and returns e.
 // If mark is not an element of l, the list is not modified.
 // The mark must not be nil.
-func (l *List) InsertAfter(v any, mark *Element) *Element {
+func (l *List) InsertAfter(v interface{}, mark *Element) *Element {
 	if mark.list != l {
 		return nil
 	}

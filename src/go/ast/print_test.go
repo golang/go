@@ -11,7 +11,7 @@ import (
 )
 
 var tests = []struct {
-	x any // x is printed as s
+	x interface{} // x is printed as s
 	s string
 }{
 	// basic types

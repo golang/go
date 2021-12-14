@@ -56,7 +56,7 @@ func newGitRepoCached(remote string, localOK bool) (Repo, error) {
 		err  error
 	}
 
-	c := gitRepoCache.Do(key{remote, localOK}, func() any {
+	c := gitRepoCache.Do(key{remote, localOK}, func() interface{} {
 		repo, err := newGitRepo(remote, localOK)
 		return cached{repo, err}
 	}).(cached)
@@ -503,7 +503,7 @@ func (r *gitRepo) Stat(rev string) (*RevInfo, error) {
 		info *RevInfo
 		err  error
 	}
-	c := r.statCache.Do(rev, func() any {
+	c := r.statCache.Do(rev, func() interface{} {
 		info, err := r.stat(rev)
 		return cached{info, err}
 	}).(cached)

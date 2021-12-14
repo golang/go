@@ -145,7 +145,7 @@ func writeAndKill(w io.Writer, b []byte) {
 // and fails the test with a useful message if they don't match.
 func diffJSON(t *testing.T, have, want []byte) {
 	t.Helper()
-	type event map[string]any
+	type event map[string]interface{}
 
 	// Parse into events, one per line.
 	parseEvents := func(b []byte) ([]event, []string) {

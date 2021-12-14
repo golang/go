@@ -93,7 +93,7 @@ import (
 // Instead, they are replaced by the Unicode replacement
 // character U+FFFD.
 //
-func Unmarshal(data []byte, v any) error {
+func Unmarshal(data []byte, v interface{}) error {
 	// Check for well-formedness.
 	// Avoids filling out half a data structure
 	// before discovering a JSON syntax error.
@@ -167,7 +167,7 @@ func (e *InvalidUnmarshalError) Error() string {
 	return "json: Unmarshal(nil " + e.Type.String() + ")"
 }
 
-func (d *decodeState) unmarshal(v any) error {
+func (d *decodeState) unmarshal(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return &InvalidUnmarshalError{reflect.TypeOf(v)}
@@ -398,7 +398,7 @@ type unquotedValue struct{}
 // quoted string literal or literal null into an interface value.
 // If it finds anything other than a quoted string literal or null,
 // valueQuoted returns unquotedValue{}.
-func (d *decodeState) valueQuoted() any {
+func (d *decodeState) valueQuoted() interface{} {
 	switch d.opcode {
 	default:
 		panic(phasePanicMsg)
@@ -840,7 +840,7 @@ func (d *decodeState) object(v reflect.Value) error {
 
 // convertNumber converts the number literal s to a float64 or a Number
 // depending on the setting of d.useNumber.
-func (d *decodeState) convertNumber(s string) (any, error) {
+func (d *decodeState) convertNumber(s string) (interface{}, error) {
 	if d.useNumber {
 		return Number(s), nil
 	}
@@ -1037,7 +1037,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 // but they avoid the weight of reflection in this common case.
 
 // valueInterface is like value but returns interface{}
-func (d *decodeState) valueInterface() (val any) {
+func (d *decodeState) valueInterface() (val interface{}) {
 	switch d.opcode {
 	default:
 		panic(phasePanicMsg)
@@ -1054,8 +1054,8 @@ func (d *decodeState) valueInterface() (val any) {
 }
 
 // arrayInterface is like array but returns []interface{}.
-func (d *decodeState) arrayInterface() []any {
-	var v = make([]any, 0)
+func (d *decodeState) arrayInterface() []interface{} {
+	var v = make([]interface{}, 0)
 	for {
 		// Look ahead for ] - can only happen on first iteration.
 		d.scanWhile(scanSkipSpace)
@@ -1080,8 +1080,8 @@ func (d *decodeState) arrayInterface() []any {
 }
 
 // objectInterface is like object but returns map[string]interface{}.
-func (d *decodeState) objectInterface() map[string]any {
-	m := make(map[string]any)
+func (d *decodeState) objectInterface() map[string]interface{} {
+	m := make(map[string]interface{})
 	for {
 		// Read opening " of string key or closing }.
 		d.scanWhile(scanSkipSpace)
@@ -1131,7 +1131,7 @@ func (d *decodeState) objectInterface() map[string]any {
 // literalInterface consumes and returns a literal from d.data[d.off-1:] and
 // it reads the following byte ahead. The first byte of the literal has been
 // read already (that's how the caller knows it's a literal).
-func (d *decodeState) literalInterface() any {
+func (d *decodeState) literalInterface() interface{} {
 	// All bytes inside literal return scanContinue op code.
 	start := d.readIndex()
 	d.rescanLiteral()

@@ -12,7 +12,7 @@ import (
 )
 
 func TestTypedContent(t *testing.T) {
-	data := []any{
+	data := []interface{}{
 		`<b> "foo%" O'Reilly &bar;`,
 		CSS(`a[href =~ "//example.com"]#foo`),
 		HTML(`Hello, <b>World</b> &amp;tc!`),
@@ -449,7 +449,7 @@ func TestEscapingNilNonemptyInterfaces(t *testing.T) {
 
 	// A non-empty interface should print like an empty interface.
 	want := new(bytes.Buffer)
-	data := struct{ E any }{}
+	data := struct{ E interface{} }{}
 	tmpl.Execute(want, data)
 
 	if !bytes.Equal(want.Bytes(), got.Bytes()) {

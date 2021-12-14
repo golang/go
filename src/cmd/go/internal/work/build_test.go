@@ -234,7 +234,7 @@ func TestRespectSetgidDir(t *testing.T) {
 	// of `(*Builder).ShowCmd` afterwards as a sanity check.
 	cfg.BuildX = true
 	var cmdBuf bytes.Buffer
-	b.Print = func(a ...any) (int, error) {
+	b.Print = func(a ...interface{}) (int, error) {
 		return cmdBuf.WriteString(fmt.Sprint(a...))
 	}
 

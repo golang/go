@@ -118,7 +118,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		errCh            = make(chan error, 1)
 		success, failure js.Func
 	)
-	success = js.FuncOf(func(this js.Value, args []js.Value) any {
+	success = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		success.Release()
 		failure.Release()
 
@@ -182,7 +182,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 
 		return nil
 	})
-	failure = js.FuncOf(func(this js.Value, args []js.Value) any {
+	failure = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		success.Release()
 		failure.Release()
 		errCh <- fmt.Errorf("net/http: fetch() failed: %s", args[0].Get("message").String())
@@ -223,7 +223,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 			bCh   = make(chan []byte, 1)
 			errCh = make(chan error, 1)
 		)
-		success := js.FuncOf(func(this js.Value, args []js.Value) any {
+		success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			result := args[0]
 			if result.Get("done").Bool() {
 				errCh <- io.EOF
@@ -235,7 +235,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 			return nil
 		})
 		defer success.Release()
-		failure := js.FuncOf(func(this js.Value, args []js.Value) any {
+		failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			// Assumes it's a TypeError. See
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
 			// for more information on this type. See
@@ -289,7 +289,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 			bCh   = make(chan []byte, 1)
 			errCh = make(chan error, 1)
 		)
-		success := js.FuncOf(func(this js.Value, args []js.Value) any {
+		success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			// Wrap the input ArrayBuffer with a Uint8Array
 			uint8arrayWrapper := uint8Array.New(args[0])
 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
@@ -298,7 +298,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 			return nil
 		})
 		defer success.Release()
-		failure := js.FuncOf(func(this js.Value, args []js.Value) any {
+		failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			// Assumes it's a TypeError. See
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
 			// for more information on this type.

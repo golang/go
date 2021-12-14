@@ -31,8 +31,8 @@ import "sort"
 // use heap.Push and heap.Pop.
 type Interface interface {
 	sort.Interface
-	Push(x any) // add x as element Len()
-	Pop() any   // remove and return element Len() - 1.
+	Push(x interface{}) // add x as element Len()
+	Pop() interface{}   // remove and return element Len() - 1.
 }
 
 // Init establishes the heap invariants required by the other routines in this package.
@@ -49,7 +49,7 @@ func Init(h Interface) {
 
 // Push pushes the element x onto the heap.
 // The complexity is O(log n) where n = h.Len().
-func Push(h Interface, x any) {
+func Push(h Interface, x interface{}) {
 	h.Push(x)
 	up(h, h.Len()-1)
 }
@@ -57,7 +57,7 @@ func Push(h Interface, x any) {
 // Pop removes and returns the minimum element (according to Less) from the heap.
 // The complexity is O(log n) where n = h.Len().
 // Pop is equivalent to Remove(h, 0).
-func Pop(h Interface) any {
+func Pop(h Interface) interface{} {
 	n := h.Len() - 1
 	h.Swap(0, n)
 	down(h, 0, n)
@@ -66,7 +66,7 @@ func Pop(h Interface) any {
 
 // Remove removes and returns the element at index i from the heap.
 // The complexity is O(log n) where n = h.Len().
-func Remove(h Interface, i int) any {
+func Remove(h Interface, i int) interface{} {
 	n := h.Len() - 1
 	if n != i {
 		h.Swap(i, n)

@@ -718,7 +718,7 @@ var ipAddrScopeTests = []struct {
 	{IP.IsPrivate, IP{0xfe, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
 }
 
-func name(f any) string {
+func name(f interface{}) string {
 	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 }
 

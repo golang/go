@@ -27,11 +27,11 @@ var ErrShutdown = errors.New("connection is shut down")
 
 // Call represents an active RPC.
 type Call struct {
-	ServiceMethod string     // The name of the service and method to call.
-	Args          any        // The argument to the function (*struct).
-	Reply         any        // The reply from the function (*struct).
-	Error         error      // After completion, the error status.
-	Done          chan *Call // Receives *Call when Go is complete.
+	ServiceMethod string      // The name of the service and method to call.
+	Args          interface{} // The argument to the function (*struct).
+	Reply         interface{} // The reply from the function (*struct).
+	Error         error       // After completion, the error status.
+	Done          chan *Call  // Receives *Call when Go is complete.
 }
 
 // Client represents an RPC Client.
@@ -61,9 +61,9 @@ type Client struct {
 // discarded.
 // See NewClient's comment for information about concurrent access.
 type ClientCodec interface {
-	WriteRequest(*Request, any) error
+	WriteRequest(*Request, interface{}) error
 	ReadResponseHeader(*Response) error
-	ReadResponseBody(any) error
+	ReadResponseBody(interface{}) error
 
 	Close() error
 }
@@ -214,7 +214,7 @@ type gobClientCodec struct {
 	encBuf *bufio.Writer
 }
 
-func (c *gobClientCodec) WriteRequest(r *Request, body any) (err error) {
+func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) (err error) {
 	if err = c.enc.Encode(r); err != nil {
 		return
 	}
@@ -228,7 +228,7 @@ func (c *gobClientCodec) ReadResponseHeader(r *Response) error {
 	return c.dec.Decode(r)
 }
 
-func (c *gobClientCodec) ReadResponseBody(body any) error {
+func (c *gobClientCodec) ReadResponseBody(body interface{}) error {
 	return c.dec.Decode(body)
 }
 
@@ -295,7 +295,7 @@ func (client *Client) Close() error {
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(serviceMethod string, args any, reply any, done chan *Call) *Call {
+func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
 	call := new(Call)
 	call.ServiceMethod = serviceMethod
 	call.Args = args
@@ -317,7 +317,7 @@ func (client *Client) Go(serviceMethod string, args any, reply any, done chan *C
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(serviceMethod string, args any, reply any) error {
+func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	call := <-client.Go(serviceMethod, args, reply, make(chan *Call, 1)).Done
 	return call.Error
 }

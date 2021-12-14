@@ -232,7 +232,7 @@ func (f *file) Name() string               { _, elem, _ := split(f.name); return
 func (f *file) Size() int64                { return int64(len(f.data)) }
 func (f *file) ModTime() time.Time         { return time.Time{} }
 func (f *file) IsDir() bool                { _, _, isDir := split(f.name); return isDir }
-func (f *file) Sys() any                   { return nil }
+func (f *file) Sys() interface{}           { return nil }
 func (f *file) Type() fs.FileMode          { return f.Mode().Type() }
 func (f *file) Info() (fs.FileInfo, error) { return f, nil }
 

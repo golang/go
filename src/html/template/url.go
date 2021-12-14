@@ -32,7 +32,7 @@ import (
 // To allow URLs containing other schemes to bypass this filter, developers must
 // explicitly indicate that such a URL is expected and safe by encapsulating it
 // in a template.URL value.
-func urlFilter(args ...any) string {
+func urlFilter(args ...interface{}) string {
 	s, t := stringify(args...)
 	if t == contentTypeURL {
 		return s
@@ -56,7 +56,7 @@ func isSafeURL(s string) bool {
 
 // urlEscaper produces an output that can be embedded in a URL query.
 // The output can be embedded in an HTML attribute without further escaping.
-func urlEscaper(args ...any) string {
+func urlEscaper(args ...interface{}) string {
 	return urlProcessor(false, args...)
 }
 
@@ -65,13 +65,13 @@ func urlEscaper(args ...any) string {
 // The normalizer does not encode all HTML specials. Specifically, it does not
 // encode '&' so correct embedding in an HTML attribute requires escaping of
 // '&' to '&amp;'.
-func urlNormalizer(args ...any) string {
+func urlNormalizer(args ...interface{}) string {
 	return urlProcessor(true, args...)
 }
 
 // urlProcessor normalizes (when norm is true) or escapes its input to produce
 // a valid hierarchical or opaque URL part.
-func urlProcessor(norm bool, args ...any) string {
+func urlProcessor(norm bool, args ...interface{}) string {
 	s, t := stringify(args...)
 	if t == contentTypeURL {
 		norm = true
@@ -141,7 +141,7 @@ func processURLOnto(s string, norm bool, b *bytes.Buffer) bool {
 
 // Filters and normalizes srcset values which are comma separated
 // URLs followed by metadata.
-func srcsetFilterAndEscaper(args ...any) string {
+func srcsetFilterAndEscaper(args ...interface{}) string {
 	s, t := stringify(args...)
 	switch t {
 	case contentTypeSrcset:

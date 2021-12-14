@@ -576,7 +576,7 @@ func TestFloatText(t *testing.T) {
 func TestFloatFormat(t *testing.T) {
 	for _, test := range []struct {
 		format string
-		value  any // float32, float64, or string (== 512bit *Float)
+		value  interface{} // float32, float64, or string (== 512bit *Float)
 		want   string
 	}{
 		// from fmt/fmt_test.go

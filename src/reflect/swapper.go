@@ -14,7 +14,7 @@ import (
 // slice.
 //
 // Swapper panics if the provided interface is not a slice.
-func Swapper(slice any) func(i, j int) {
+func Swapper(slice interface{}) func(i, j int) {
 	v := ValueOf(slice)
 	if v.Kind() != Slice {
 		panic(&ValueError{Method: "Swapper", Kind: v.Kind()})

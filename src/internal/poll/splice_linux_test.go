@@ -73,7 +73,7 @@ func TestSplicePipePool(t *testing.T) {
 
 		// Detect whether all pipes are closed properly.
 		var leakedFDs []int
-		pendingFDs.Range(func(k, v any) bool {
+		pendingFDs.Range(func(k, v interface{}) bool {
 			leakedFDs = append(leakedFDs, k.(int))
 			return true
 		})

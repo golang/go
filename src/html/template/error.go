@@ -228,6 +228,6 @@ func (e *Error) Error() string {
 
 // errorf creates an error given a format string f and args.
 // The template Name still needs to be supplied.
-func errorf(k ErrorCode, node parse.Node, line int, f string, args ...any) *Error {
+func errorf(k ErrorCode, node parse.Node, line int, f string, args ...interface{}) *Error {
 	return &Error{k, node, "", line, fmt.Sprintf(f, args...)}
 }

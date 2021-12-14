@@ -20,7 +20,7 @@ type gobError struct {
 
 // errorf is like error_ but takes Printf-style arguments to construct an error.
 // It always prefixes the message with "gob: ".
-func errorf(format string, args ...any) {
+func errorf(format string, args ...interface{}) {
 	error_(fmt.Errorf("gob: "+format, args...))
 }
 

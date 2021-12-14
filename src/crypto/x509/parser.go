@@ -229,7 +229,7 @@ func parseExtension(der cryptobyte.String) (pkix.Extension, error) {
 	return ext, nil
 }
 
-func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error) {
+func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, error) {
 	der := cryptobyte.String(keyData.PublicKey.RightAlign())
 	switch algo {
 	case RSA:

@@ -206,7 +206,7 @@ func (c *testCase) mustNotParse(t *Template, text string) {
 	}
 }
 
-func (c *testCase) mustExecute(t *Template, val any, want string) {
+func (c *testCase) mustExecute(t *Template, val interface{}, want string) {
 	var buf bytes.Buffer
 	err := t.Execute(&buf, val)
 	if err != nil {

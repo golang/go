@@ -134,7 +134,7 @@ import (
 type Profile struct {
 	name  string
 	mu    sync.Mutex
-	m     map[any][]uintptr
+	m     map[interface{}][]uintptr
 	count func() int
 	write func(io.Writer, int) error
 }
@@ -217,7 +217,7 @@ func NewProfile(name string) *Profile {
 	}
 	p := &Profile{
 		name: name,
-		m:    map[any][]uintptr{},
+		m:    map[interface{}][]uintptr{},
 	}
 	profiles.m[name] = p
 	return p
@@ -277,7 +277,7 @@ func (p *Profile) Count() int {
 // Passing skip=0 begins the stack trace at the call to Add inside rpc.NewClient.
 // Passing skip=1 begins the stack trace at the call to NewClient inside mypkg.Run.
 //
-func (p *Profile) Add(value any, skip int) {
+func (p *Profile) Add(value interface{}, skip int) {
 	if p.name == "" {
 		panic("pprof: use of uninitialized Profile")
 	}
@@ -303,7 +303,7 @@ func (p *Profile) Add(value any, skip int) {
 
 // Remove removes the execution stack associated with value from the profile.
 // It is a no-op if the value is not in the profile.
-func (p *Profile) Remove(value any) {
+func (p *Profile) Remove(value interface{}) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.m, value)

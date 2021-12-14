@@ -155,7 +155,7 @@ func (s *Scanner) error(offs int, msg string) {
 	s.ErrorCount++
 }
 
-func (s *Scanner) errorf(offs int, format string, args ...any) {
+func (s *Scanner) errorf(offs int, format string, args ...interface{}) {
 	s.error(offs, fmt.Sprintf(format, args...))
 }
 

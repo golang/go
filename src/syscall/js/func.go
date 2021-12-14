@@ -10,7 +10,7 @@ import "sync"
 
 var (
 	funcsMu    sync.Mutex
-	funcs             = make(map[uint32]func(Value, []Value) any)
+	funcs             = make(map[uint32]func(Value, []Value) interface{})
 	nextFuncID uint32 = 1
 )
 
@@ -38,7 +38,7 @@ type Func struct {
 // new goroutine.
 //
 // Func.Release must be called to free up resources when the function will not be invoked any more.
-func FuncOf(fn func(this Value, args []Value) any) Func {
+func FuncOf(fn func(this Value, args []Value) interface{}) Func {
 	funcsMu.Lock()
 	id := nextFuncID
 	nextFuncID++

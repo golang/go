@@ -1354,7 +1354,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
 				goto Error
 			}
-			visited := make(map[any][]Type, len(e.Elts))
+			visited := make(map[interface{}][]Type, len(e.Elts))
 			for _, e := range e.Elts {
 				kv, _ := e.(*ast.KeyValueExpr)
 				if kv == nil {
@@ -1542,7 +1542,7 @@ Error:
 	return statement // avoid follow-up errors
 }
 
-func keyVal(x constant.Value) any {
+func keyVal(x constant.Value) interface{} {
 	switch x.Kind() {
 	case constant.Bool:
 		return constant.BoolVal(x)

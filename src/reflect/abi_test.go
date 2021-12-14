@@ -33,7 +33,7 @@ func TestMethodValueCallABI(t *testing.T) {
 	// for us, so there isn't a whole lot to do. Let's just
 	// make sure that we can pass register and stack arguments
 	// through. The exact combination is not super important.
-	makeMethodValue := func(method string) (*StructWithMethods, any) {
+	makeMethodValue := func(method string) (*StructWithMethods, interface{}) {
 		s := new(StructWithMethods)
 		v := reflect.ValueOf(s).MethodByName(method)
 		return s, v.Interface()
@@ -256,7 +256,7 @@ func TestReflectMakeFuncCallABI(t *testing.T) {
 	})
 }
 
-var abiCallTestCases = []any{
+var abiCallTestCases = []interface{}{
 	passNone,
 	passInt,
 	passInt8,
@@ -551,7 +551,7 @@ func passStruct10AndSmall(a Struct10, b byte, c uint) (Struct10, byte, uint) {
 	return a, b, c
 }
 
-var abiMakeFuncTestCases = []any{
+var abiMakeFuncTestCases = []interface{}{
 	callArgsNone,
 	callArgsInt,
 	callArgsInt8,

@@ -37,44 +37,44 @@ func main() {
 	for _, e := range []struct {
 		name string
 		in   int
-		out  [4]any
-		out2 [4]any
+		out  [4]interface{}
+		out2 [4]interface{}
 	}{
 		{
 			name: "LeadingZeros",
 			in:   1,
-			out:  [4]any{bits.LeadingZeros8(1), bits.LeadingZeros16(1), bits.LeadingZeros32(1), bits.LeadingZeros64(1)},
+			out:  [4]interface{}{bits.LeadingZeros8(1), bits.LeadingZeros16(1), bits.LeadingZeros32(1), bits.LeadingZeros64(1)},
 		},
 		{
 			name: "TrailingZeros",
 			in:   14,
-			out:  [4]any{bits.TrailingZeros8(14), bits.TrailingZeros16(14), bits.TrailingZeros32(14), bits.TrailingZeros64(14)},
+			out:  [4]interface{}{bits.TrailingZeros8(14), bits.TrailingZeros16(14), bits.TrailingZeros32(14), bits.TrailingZeros64(14)},
 		},
 		{
 			name: "OnesCount",
 			in:   14,
-			out:  [4]any{bits.OnesCount8(14), bits.OnesCount16(14), bits.OnesCount32(14), bits.OnesCount64(14)},
+			out:  [4]interface{}{bits.OnesCount8(14), bits.OnesCount16(14), bits.OnesCount32(14), bits.OnesCount64(14)},
 		},
 		{
 			name: "RotateLeft",
 			in:   15,
-			out:  [4]any{bits.RotateLeft8(15, 2), bits.RotateLeft16(15, 2), bits.RotateLeft32(15, 2), bits.RotateLeft64(15, 2)},
-			out2: [4]any{bits.RotateLeft8(15, -2), bits.RotateLeft16(15, -2), bits.RotateLeft32(15, -2), bits.RotateLeft64(15, -2)},
+			out:  [4]interface{}{bits.RotateLeft8(15, 2), bits.RotateLeft16(15, 2), bits.RotateLeft32(15, 2), bits.RotateLeft64(15, 2)},
+			out2: [4]interface{}{bits.RotateLeft8(15, -2), bits.RotateLeft16(15, -2), bits.RotateLeft32(15, -2), bits.RotateLeft64(15, -2)},
 		},
 		{
 			name: "Reverse",
 			in:   19,
-			out:  [4]any{bits.Reverse8(19), bits.Reverse16(19), bits.Reverse32(19), bits.Reverse64(19)},
+			out:  [4]interface{}{bits.Reverse8(19), bits.Reverse16(19), bits.Reverse32(19), bits.Reverse64(19)},
 		},
 		{
 			name: "ReverseBytes",
 			in:   15,
-			out:  [4]any{nil, bits.ReverseBytes16(15), bits.ReverseBytes32(15), bits.ReverseBytes64(15)},
+			out:  [4]interface{}{nil, bits.ReverseBytes16(15), bits.ReverseBytes32(15), bits.ReverseBytes64(15)},
 		},
 		{
 			name: "Len",
 			in:   8,
-			out:  [4]any{bits.Len8(8), bits.Len16(8), bits.Len32(8), bits.Len64(8)},
+			out:  [4]interface{}{bits.Len8(8), bits.Len16(8), bits.Len32(8), bits.Len64(8)},
 		},
 	} {
 		for i, size := range []int{8, 16, 32, 64} {

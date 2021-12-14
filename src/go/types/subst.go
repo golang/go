@@ -156,13 +156,13 @@ func (subst *subster) typ(typ Type) Type {
 
 	case *Named:
 		// dump is for debugging
-		dump := func(string, ...any) {}
+		dump := func(string, ...interface{}) {}
 		if subst.check != nil && trace {
 			subst.check.indent++
 			defer func() {
 				subst.check.indent--
 			}()
-			dump = func(format string, args ...any) {
+			dump = func(format string, args ...interface{}) {
 				subst.check.trace(subst.pos, format, args...)
 			}
 		}

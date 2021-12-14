@@ -21,7 +21,7 @@ import (
 // See func Get for how Value pointers may be used.
 type Value struct {
 	_      [0]func() // prevent people from accidentally using value type as comparable
-	cmpVal any
+	cmpVal interface{}
 	// resurrected is guarded by mu (for all instances of Value).
 	// It is set true whenever v is synthesized from a uintptr.
 	resurrected bool
@@ -29,21 +29,21 @@ type Value struct {
 
 // Get returns the comparable value passed to the Get func
 // that returned v.
-func (v *Value) Get() any { return v.cmpVal }
+func (v *Value) Get() interface{} { return v.cmpVal }
 
 // key is a key in our global value map.
 // It contains type-specialized fields to avoid allocations
 // when converting common types to empty interfaces.
 type key struct {
 	s      string
-	cmpVal any
+	cmpVal interface{}
 	// isString reports whether key contains a string.
 	// Without it, the zero value of key is ambiguous.
 	isString bool
 }
 
 // keyFor returns a key to use with cmpVal.
-func keyFor(cmpVal any) key {
+func keyFor(cmpVal interface{}) key {
 	if s, ok := cmpVal.(string); ok {
 		return key{s: s, isString: true}
 	}
@@ -79,7 +79,7 @@ func safeMap() map[key]*Value {
 //
 // The returned pointer will be the same for Get(v) and Get(v2)
 // if and only if v == v2, and can be used as a map key.
-func Get(cmpVal any) *Value {
+func Get(cmpVal interface{}) *Value {
 	return get(keyFor(cmpVal))
 }
 

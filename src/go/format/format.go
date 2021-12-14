@@ -51,7 +51,7 @@ const parserMode = parser.ParseComments
 // The function may return early (before the entire result is written)
 // and return a formatting error, for instance due to an incorrect AST.
 //
-func Node(dst io.Writer, fset *token.FileSet, node any) error {
+func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
 	// Determine if we have a complete source file (file != nil).
 	var file *ast.File
 	var cnode *printer.CommentedNode

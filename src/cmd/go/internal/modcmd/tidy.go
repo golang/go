@@ -75,8 +75,8 @@ type goVersionFlag struct {
 	v string
 }
 
-func (f *goVersionFlag) String() string { return f.v }
-func (f *goVersionFlag) Get() any       { return f.v }
+func (f *goVersionFlag) String() string   { return f.v }
+func (f *goVersionFlag) Get() interface{} { return f.v }
 
 func (f *goVersionFlag) Set(s string) error {
 	if s != "" {

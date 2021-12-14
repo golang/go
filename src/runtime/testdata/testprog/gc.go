@@ -90,7 +90,7 @@ func GCFairness2() {
 	runtime.GOMAXPROCS(1)
 	debug.SetGCPercent(1)
 	var count [3]int64
-	var sink [3]any
+	var sink [3]interface{}
 	for i := range count {
 		go func(i int) {
 			for {
@@ -266,9 +266,9 @@ func DeferLiveness() {
 }
 
 //go:noinline
-func escape(x any) { sink2 = x; sink2 = nil }
+func escape(x interface{}) { sink2 = x; sink2 = nil }
 
-var sink2 any
+var sink2 interface{}
 
 // Test zombie object detection and reporting.
 func GCZombie() {

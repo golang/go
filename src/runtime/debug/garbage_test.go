@@ -151,8 +151,8 @@ func TestFreeOSMemory(t *testing.T) {
 }
 
 var (
-	setGCPercentBallast any
-	setGCPercentSink    any
+	setGCPercentBallast interface{}
+	setGCPercentSink    interface{}
 )
 
 func TestSetGCPercent(t *testing.T) {

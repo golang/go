@@ -239,7 +239,7 @@ func close(c chan<- Type)
 // that point, the program is terminated with a non-zero exit code. This
 // termination sequence is called panicking and can be controlled by the
 // built-in function recover.
-func panic(v any)
+func panic(v interface{})
 
 // The recover built-in function allows a program to manage behavior of a
 // panicking goroutine. Executing a call to recover inside a deferred
@@ -250,7 +250,7 @@ func panic(v any)
 // panicking, or if the argument supplied to panic was nil, recover returns
 // nil. Thus the return value from recover reports whether the goroutine is
 // panicking.
-func recover() any
+func recover() interface{}
 
 // The print built-in function formats its arguments in an
 // implementation-specific way and writes the result to standard error.

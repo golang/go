@@ -155,7 +155,7 @@ func isCSSSpace(b byte) bool {
 }
 
 // cssEscaper escapes HTML and CSS special characters using \<hex>+ escapes.
-func cssEscaper(args ...any) string {
+func cssEscaper(args ...interface{}) string {
 	s, _ := stringify(args...)
 	var b strings.Builder
 	r, w, written := rune(0), 0, 0
@@ -218,7 +218,7 @@ var mozBindingBytes = []byte("mozbinding")
 // (inherit, blue), and colors (#888).
 // It filters out unsafe values, such as those that affect token boundaries,
 // and anything that might execute scripts.
-func cssValueFilter(args ...any) string {
+func cssValueFilter(args ...interface{}) string {
 	s, t := stringify(args...)
 	if t == contentTypeCSS {
 		return s

@@ -142,9 +142,9 @@ func (typ *Type) dot(cfg *TypeConfig, name string) string {
 // typeof maps AST nodes to type information in gofmt string form.
 // assign maps type strings to lists of expressions that were assigned
 // to values of another type that were assigned to that type.
-func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[any]string, assign map[string][]any) {
-	typeof = make(map[any]string)
-	assign = make(map[string][]any)
+func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, assign map[string][]interface{}) {
+	typeof = make(map[interface{}]string)
+	assign = make(map[string][]interface{})
 	cfg1 := &TypeConfig{}
 	*cfg1 = *cfg // make copy so we can add locally
 	copied := false
@@ -296,7 +296,7 @@ func makeExprList(a []*ast.Ident) []ast.Expr {
 // Typecheck1 is the recursive form of typecheck.
 // It is like typecheck but adds to the information in typeof
 // instead of allocating a new map.
-func typecheck1(cfg *TypeConfig, f any, typeof map[any]string, assign map[string][]any) {
+func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, assign map[string][]interface{}) {
 	// set sets the type of n to typ.
 	// If isDecl is true, n is being declared.
 	set := func(n ast.Expr, typ string, isDecl bool) {
@@ -368,7 +368,7 @@ func typecheck1(cfg *TypeConfig, f any, typeof map[any]string, assign map[string
 	// the curfn stack.
 	var curfn []*ast.FuncType
 
-	before := func(n any) {
+	before := func(n interface{}) {
 		// push function type on stack
 		switch n := n.(type) {
 		case *ast.FuncDecl:
@@ -379,7 +379,7 @@ func typecheck1(cfg *TypeConfig, f any, typeof map[any]string, assign map[string
 	}
 
 	// After is the real type checker.
-	after := func(n any) {
+	after := func(n interface{}) {
 		if n == nil {
 			return
 		}

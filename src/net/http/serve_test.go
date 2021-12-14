@@ -2147,7 +2147,7 @@ func TestInvalidTrailerClosesConnection(t *testing.T) {
 // Read and Write.
 type slowTestConn struct {
 	// over multiple calls to Read, time.Durations are slept, strings are read.
-	script []any
+	script []interface{}
 	closec chan bool
 
 	mu     sync.Mutex // guards rd/wd
@@ -2239,7 +2239,7 @@ func TestRequestBodyTimeoutClosesConnection(t *testing.T) {
 	defer afterTest(t)
 	for _, handler := range testHandlerBodyConsumers {
 		conn := &slowTestConn{
-			script: []any{
+			script: []interface{}{
 				"POST /public HTTP/1.1\r\n" +
 					"Host: test\r\n" +
 					"Content-Length: 10000\r\n" +
@@ -2766,7 +2766,7 @@ func TestHandlerPanicWithHijack(t *testing.T) {
 	testHandlerPanic(t, true, h1Mode, nil, "intentional death for testing")
 }
 
-func testHandlerPanic(t *testing.T, withHijack, h2 bool, wrapper func(Handler) Handler, panicValue any) {
+func testHandlerPanic(t *testing.T, withHijack, h2 bool, wrapper func(Handler) Handler, panicValue interface{}) {
 	defer afterTest(t)
 	// Unlike the other tests that set the log output to io.Discard
 	// to quiet the output, this test uses a pipe. The pipe serves three
@@ -3934,7 +3934,7 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 	// this test fails, it hangs. This helps debugging and I've
 	// added this enough times "temporarily".  It now gets added
 	// full time.
-	errorf := func(format string, args ...any) {
+	errorf := func(format string, args ...interface{}) {
 		v := fmt.Sprintf(format, args...)
 		println(v)
 		t.Error(v)
@@ -3943,10 +3943,10 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 	unblockBackend := make(chan bool)
 	backend := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		gone := rw.(CloseNotifier).CloseNotify()
-		didCopy := make(chan any)
+		didCopy := make(chan interface{})
 		go func() {
 			n, err := io.CopyN(rw, req.Body, bodySize)
-			didCopy <- []any{n, err}
+			didCopy <- []interface{}{n, err}
 		}()
 		isGone := false
 	Loop:
@@ -4938,7 +4938,7 @@ func TestServerContext_LocalAddrContextKey_h2(t *testing.T) {
 func testServerContext_LocalAddrContextKey(t *testing.T, h2 bool) {
 	setParallel(t)
 	defer afterTest(t)
-	ch := make(chan any, 1)
+	ch := make(chan interface{}, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ch <- r.Context().Value(LocalAddrContextKey)
 	}))
@@ -6293,7 +6293,7 @@ func testContentEncodingNoSniffing(t *testing.T, h2 bool) {
 		// setting contentEncoding as an interface instead of a string
 		// directly, so as to differentiate between 3 states:
 		//    unset, empty string "" and set string "foo/bar".
-		contentEncoding any
+		contentEncoding interface{}
 		wantContentType string
 	}
 

@@ -49,7 +49,7 @@ type T struct {
 	MSI      map[string]int
 	MSIone   map[string]int // one element, for deterministic output
 	MSIEmpty map[string]int
-	MXI      map[any]int
+	MXI      map[interface{}]int
 	MII      map[int]int
 	MI32S    map[int32]string
 	MI64S    map[int64]string
@@ -59,11 +59,11 @@ type T struct {
 	MUI8S    map[uint8]string
 	SMSI     []map[string]int
 	// Empty interfaces; used to see if we can dig inside one.
-	Empty0 any // nil
-	Empty1 any
-	Empty2 any
-	Empty3 any
-	Empty4 any
+	Empty0 interface{} // nil
+	Empty1 interface{}
+	Empty2 interface{}
+	Empty3 interface{}
+	Empty4 interface{}
 	// Non-empty interfaces.
 	NonEmptyInterface         I
 	NonEmptyInterfacePtS      *I
@@ -141,7 +141,7 @@ var tVal = &T{
 	SB:     []bool{true, false},
 	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
 	MSIone: map[string]int{"one": 1},
-	MXI:    map[any]int{"one": 1},
+	MXI:    map[interface{}]int{"one": 1},
 	MII:    map[int]int{1: 1},
 	MI32S:  map[int32]string{1: "one", 2: "two"},
 	MI64S:  map[int64]string{2: "i642", 3: "i643"},
@@ -212,7 +212,7 @@ func (t *T) Method2(a uint16, b string) string {
 	return fmt.Sprintf("Method2: %d %s", a, b)
 }
 
-func (t *T) Method3(v any) string {
+func (t *T) Method3(v interface{}) string {
 	return fmt.Sprintf("Method3: %v", v)
 }
 
@@ -252,7 +252,7 @@ func (u *U) TrueFalse(b bool) string {
 	return ""
 }
 
-func typeOf(arg any) string {
+func typeOf(arg interface{}) string {
 	return fmt.Sprintf("%T", arg)
 }
 
@@ -260,7 +260,7 @@ type execTest struct {
 	name   string
 	input  string
 	output string
-	data   any
+	data   interface{}
 	ok     bool
 }
 
@@ -393,7 +393,7 @@ var execTests = []execTest{
 	{".VariadicFuncInt", "{{call .VariadicFuncInt 33 `he` `llo`}}", "33=&lt;he&#43;llo&gt;", tVal, true},
 	{"if .BinaryFunc call", "{{ if .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{end}}", "[1=2]", tVal, true},
 	{"if not .BinaryFunc call", "{{ if not .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{else}}No{{end}}", "No", tVal, true},
-	{"Interface Call", `{{stringer .S}}`, "foozle", map[string]any{"S": bytes.NewBufferString("foozle")}, true},
+	{"Interface Call", `{{stringer .S}}`, "foozle", map[string]interface{}{"S": bytes.NewBufferString("foozle")}, true},
 	{".ErrFunc", "{{call .ErrFunc}}", "bla", tVal, true},
 	{"call nil", "{{call nil}}", "", tVal, false},
 
@@ -740,7 +740,7 @@ func add(args ...int) int {
 	return sum
 }
 
-func echo(arg any) any {
+func echo(arg interface{}) interface{} {
 	return arg
 }
 
@@ -759,7 +759,7 @@ func stringer(s fmt.Stringer) string {
 	return s.String()
 }
 
-func mapOfThree() any {
+func mapOfThree() interface{} {
 	return map[string]int{"three": 3}
 }
 
@@ -1438,7 +1438,7 @@ func TestBlock(t *testing.T) {
 func TestEvalFieldErrors(t *testing.T) {
 	tests := []struct {
 		name, src string
-		value     any
+		value     interface{}
 		want      string
 	}{
 		{
@@ -1581,7 +1581,7 @@ func TestInterfaceValues(t *testing.T) {
 	for _, tt := range tests {
 		tmpl := Must(New("tmpl").Parse(tt.text))
 		var buf bytes.Buffer
-		err := tmpl.Execute(&buf, map[string]any{
+		err := tmpl.Execute(&buf, map[string]interface{}{
 			"PlusOne": func(n int) int {
 				return n + 1
 			},
@@ -1610,7 +1610,7 @@ func TestInterfaceValues(t *testing.T) {
 
 // Check that panics during calls are recovered and returned as errors.
 func TestExecutePanicDuringCall(t *testing.T) {
-	funcs := map[string]any{
+	funcs := map[string]interface{}{
 		"doPanic": func() string {
 			panic("custom panic string")
 		},
@@ -1618,7 +1618,7 @@ func TestExecutePanicDuringCall(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		data    any
+		data    interface{}
 		wantErr string
 	}{
 		{
@@ -1816,7 +1816,7 @@ func TestRecursiveExecuteViaMethod(t *testing.T) {
 func TestTemplateFuncsAfterClone(t *testing.T) {
 	s := `{{ f . }}`
 	want := "test"
-	orig := New("orig").Funcs(map[string]any{
+	orig := New("orig").Funcs(map[string]interface{}{
 		"f": func(in string) string {
 			return in
 		},

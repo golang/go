@@ -186,7 +186,7 @@ func (TestDeps) ReadCorpus(dir string, types []reflect.Type) ([]fuzz.CorpusEntry
 	return fuzz.ReadCorpus(dir, types)
 }
 
-func (TestDeps) CheckCorpus(vals []any, types []reflect.Type) error {
+func (TestDeps) CheckCorpus(vals []interface{}, types []reflect.Type) error {
 	return fuzz.CheckCorpus(vals, types)
 }
 

@@ -193,7 +193,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 }
 
 // goVal returns the Go value for val, or nil.
-func goVal(val constant.Value) any {
+func goVal(val constant.Value) interface{} {
 	// val should exist, but be conservative and check
 	if val == nil {
 		return nil
@@ -227,7 +227,7 @@ func goVal(val constant.Value) any {
 // types we need to also check the value's types (e.g., byte(1) vs myByte(1))
 // when the switch expression is of interface type.
 type (
-	valueMap  map[any][]valueType // underlying Go value -> valueType
+	valueMap  map[interface{}][]valueType // underlying Go value -> valueType
 	valueType struct {
 		pos token.Pos
 		typ Type

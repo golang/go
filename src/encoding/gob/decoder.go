@@ -186,7 +186,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 // correct type for the next data item received.
 // If the input is at EOF, Decode returns io.EOF and
 // does not modify e.
-func (dec *Decoder) Decode(e any) error {
+func (dec *Decoder) Decode(e interface{}) error {
 	if e == nil {
 		return dec.DecodeValue(reflect.Value{})
 	}

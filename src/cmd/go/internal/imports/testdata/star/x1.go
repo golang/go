@@ -1,5 +1,8 @@
-//go:build blahblh && linux && !linux && windows && darwin
-// +build blahblh,linux,!linux,windows,darwin
+// +build blahblh
+// +build linux
+// +build !linux
+// +build windows
+// +build darwin
 
 package x
 

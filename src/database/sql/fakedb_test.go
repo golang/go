@@ -126,7 +126,7 @@ func (t *table) columnIndex(name string) int {
 }
 
 type row struct {
-	cols []any // must be same size as its table colname + coltype
+	cols []interface{} // must be same size as its table colname + coltype
 }
 
 type memToucher interface {
@@ -198,10 +198,10 @@ type fakeStmt struct {
 
 	closed bool
 
-	colName      []string // used by CREATE, INSERT, SELECT (selected columns)
-	colType      []string // used by CREATE
-	colValue     []any    // used by INSERT (mix of strings and "?" for bound params)
-	placeholders int      // used by INSERT/SELECT: number of ? params
+	colName      []string      // used by CREATE, INSERT, SELECT (selected columns)
+	colType      []string      // used by CREATE
+	colValue     []interface{} // used by INSERT (mix of strings and "?" for bound params)
+	placeholders int           // used by INSERT/SELECT: number of ? params
 
 	whereCol []boundCol // used by SELECT (all placeholders)
 
@@ -504,7 +504,7 @@ func (c *fakeConn) QueryContext(ctx context.Context, query string, args []driver
 	return nil, driver.ErrSkip
 }
 
-func errf(msg string, args ...any) error {
+func errf(msg string, args ...interface{}) error {
 	return errors.New("fakedb: " + fmt.Sprintf(msg, args...))
 }
 
@@ -586,7 +586,7 @@ func (c *fakeConn) prepareInsert(ctx context.Context, stmt *fakeStmt, parts []st
 		stmt.colName = append(stmt.colName, column)
 
 		if !strings.HasPrefix(value, "?") {
-			var subsetVal any
+			var subsetVal interface{}
 			// Convert to driver subset type
 			switch ctype {
 			case "string":
@@ -829,9 +829,9 @@ func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.R
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	var cols []any
+	var cols []interface{}
 	if doInsert {
-		cols = make([]any, len(t.colname))
+		cols = make([]interface{}, len(t.colname))
 	}
 	argPos := 0
 	for n, colname := range s.colName {
@@ -839,7 +839,7 @@ func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.R
 		if colidx == -1 {
 			return nil, fmt.Errorf("fakedb: column %q doesn't exist or dropped since prepared statement was created", colname)
 		}
-		var val any
+		var val interface{}
 		if strvalue, ok := s.colValue[n].(string); ok && strings.HasPrefix(strvalue, "?") {
 			if strvalue == "?" {
 				val = args[argPos].Value
@@ -930,7 +930,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				rows: [][]*row{
 					{
 						{
-							cols: []any{
+							cols: []interface{}{
 								txStatus,
 							},
 						},
@@ -980,7 +980,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 					// lazy hack to avoid sprintf %v on a []byte
 					tcol = string(bs)
 				}
-				var argValue any
+				var argValue interface{}
 				if wcol.Placeholder == "?" {
 					argValue = args[wcol.Ordinal-1].Value
 				} else {
@@ -996,7 +996,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 					continue rows
 				}
 			}
-			mrow := &row{cols: make([]any, len(s.colName))}
+			mrow := &row{cols: make([]interface{}, len(s.colName))}
 			for seli, name := range s.colName {
 				mrow.cols[seli] = trow.cols[colIdx[name]]
 			}
@@ -1174,7 +1174,7 @@ func (rc *rowsCursor) NextResultSet() error {
 //
 type fakeDriverString struct{}
 
-func (fakeDriverString) ConvertValue(v any) (driver.Value, error) {
+func (fakeDriverString) ConvertValue(v interface{}) (driver.Value, error) {
 	switch c := v.(type) {
 	case string, []byte:
 		return v, nil
@@ -1189,7 +1189,7 @@ func (fakeDriverString) ConvertValue(v any) (driver.Value, error) {
 
 type anyTypeConverter struct{}
 
-func (anyTypeConverter) ConvertValue(v any) (driver.Value, error) {
+func (anyTypeConverter) ConvertValue(v interface{}) (driver.Value, error) {
 	return v, nil
 }
 
@@ -1260,7 +1260,7 @@ func colTypeToReflectType(typ string) reflect.Type {
 	case "datetime":
 		return reflect.TypeOf(time.Time{})
 	case "any":
-		return reflect.TypeOf(new(any)).Elem()
+		return reflect.TypeOf(new(interface{})).Elem()
 	}
 	panic("invalid fakedb column type of " + typ)
 }

@@ -73,7 +73,7 @@ type transferWriter struct {
 	ByteReadCh   chan readResult // non-nil if probeRequestBody called
 }
 
-func newTransferWriter(r any) (t *transferWriter, err error) {
+func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 	t = &transferWriter{}
 
 	// Extract relevant fields
@@ -481,7 +481,7 @@ func suppressedHeaders(status int) []string {
 }
 
 // msg is *Request or *Response.
-func readTransfer(msg any, r *bufio.Reader) (err error) {
+func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	t := &transferReader{RequestMethod: "GET"}
 
 	// Unify input
@@ -809,7 +809,7 @@ func fixTrailer(header Header, chunked bool) (Header, error) {
 // and then reads the trailer if necessary.
 type body struct {
 	src          io.Reader
-	hdr          any           // non-nil (Response or Request) value means read trailer
+	hdr          interface{}   // non-nil (Response or Request) value means read trailer
 	r            *bufio.Reader // underlying wire-format reader for the trailer
 	closing      bool          // is the connection to be closed after reading body?
 	doEarlyClose bool          // whether Close should stop early

@@ -40,7 +40,7 @@ type (
 )
 
 func TestFmtInterface(t *testing.T) {
-	var i1 any
+	var i1 interface{}
 	i1 = "abc"
 	s := Sprintf("%s", i1)
 	if s != "abc" {
@@ -56,7 +56,7 @@ var (
 	intVar = 0
 
 	array  = [5]int{1, 2, 3, 4, 5}
-	iarray = [4]any{1, "hello", 2.5, nil}
+	iarray = [4]interface{}{1, "hello", 2.5, nil}
 	slice  = array[:]
 	islice = iarray[:]
 )
@@ -100,7 +100,7 @@ type S struct {
 }
 
 type SI struct {
-	I any
+	I interface{}
 }
 
 // P is a type with a String method with pointer receiver for testing %p.
@@ -141,7 +141,7 @@ func (sf writeStringFormatter) Format(f State, c rune) {
 
 var fmtTests = []struct {
 	fmt string
-	val any
+	val interface{}
 	out string
 }{
 	{"%d", 12345, "12345"},
@@ -993,14 +993,14 @@ var fmtTests = []struct {
 
 	// float and complex formatting should not change the padding width
 	// for other elements. See issue 14642.
-	{"%06v", []any{+10.0, 10}, "[000010 000010]"},
-	{"%06v", []any{-10.0, 10}, "[-00010 000010]"},
-	{"%06v", []any{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
-	{"%06v", []any{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
+	{"%06v", []interface{}{+10.0, 10}, "[000010 000010]"},
+	{"%06v", []interface{}{-10.0, 10}, "[-00010 000010]"},
+	{"%06v", []interface{}{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
+	{"%06v", []interface{}{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
 
 	// integer formatting should not alter padding for other elements.
-	{"%03.6v", []any{1, 2.0, "x"}, "[000001 002 00x]"},
-	{"%03.0v", []any{0, 2.0, "x"}, "[    002 000]"},
+	{"%03.6v", []interface{}{1, 2.0, "x"}, "[000001 002 00x]"},
+	{"%03.0v", []interface{}{0, 2.0, "x"}, "[    002 000]"},
 
 	// Complex fmt used to leave the plus flag set for future entries in the array
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
@@ -1060,7 +1060,7 @@ var fmtTests = []struct {
 
 	// Tests to check that not supported verbs generate an error string.
 	{"%☠", nil, "%!☠(<nil>)"},
-	{"%☠", any(nil), "%!☠(<nil>)"},
+	{"%☠", interface{}(nil), "%!☠(<nil>)"},
 	{"%☠", int(0), "%!☠(int=0)"},
 	{"%☠", uint(0), "%!☠(uint=0)"},
 	{"%☠", []byte{0, 1}, "[%!☠(uint8=0) %!☠(uint8=1)]"},
@@ -1077,8 +1077,8 @@ var fmtTests = []struct {
 	{"%☠", func() {}, "%!☠(func()=0xPTR)"},
 	{"%☠", reflect.ValueOf(renamedInt(0)), "%!☠(fmt_test.renamedInt=0)"},
 	{"%☠", SI{renamedInt(0)}, "{%!☠(fmt_test.renamedInt=0)}"},
-	{"%☠", &[]any{I(1), G(2)}, "&[%!☠(fmt_test.I=1) %!☠(fmt_test.G=2)]"},
-	{"%☠", SI{&[]any{I(1), G(2)}}, "{%!☠(*[]interface {}=&[1 2])}"},
+	{"%☠", &[]interface{}{I(1), G(2)}, "&[%!☠(fmt_test.I=1) %!☠(fmt_test.G=2)]"},
+	{"%☠", SI{&[]interface{}{I(1), G(2)}}, "{%!☠(*[]interface {}=&[1 2])}"},
 	{"%☠", reflect.Value{}, "<invalid reflect.Value>"},
 	{"%☠", map[float64]int{NaN: 1}, "map[%!☠(float64=NaN):%!☠(int=1)]"},
 }
@@ -1180,7 +1180,7 @@ func TestComplexFormatting(t *testing.T) {
 	}
 }
 
-type SE []any // slice of empty; notational compactness.
+type SE []interface{} // slice of empty; notational compactness.
 
 var reorderTests = []struct {
 	fmt string
@@ -1267,7 +1267,7 @@ func BenchmarkSprintfTruncateString(b *testing.B) {
 }
 
 func BenchmarkSprintfTruncateBytes(b *testing.B) {
-	var bytes any = []byte("日本語日本語日本語日本語")
+	var bytes interface{} = []byte("日本語日本語日本語日本語")
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%.3s", bytes)
@@ -1375,7 +1375,7 @@ func BenchmarkSprintfStringer(b *testing.B) {
 }
 
 func BenchmarkSprintfStructure(b *testing.B) {
-	s := &[]any{SI{12345}, map[int]string{0: "hello"}}
+	s := &[]interface{}{SI{12345}, map[int]string{0: "hello"}}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%#v", s)
@@ -1411,7 +1411,7 @@ func BenchmarkFprintfBytes(b *testing.B) {
 }
 
 func BenchmarkFprintIntNoAlloc(b *testing.B) {
-	var x any = 123456
+	var x interface{} = 123456
 	var buf bytes.Buffer
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
@@ -1641,11 +1641,11 @@ func TestFormatterPrintln(t *testing.T) {
 	}
 }
 
-func args(a ...any) []any { return a }
+func args(a ...interface{}) []interface{} { return a }
 
 var startests = []struct {
 	fmt string
-	in  []any
+	in  []interface{}
 	out string
 }{
 	{"%*d", args(4, 42), "  42"},
@@ -1687,7 +1687,7 @@ func TestWidthAndPrecision(t *testing.T) {
 
 // PanicS is a type that panics in String.
 type PanicS struct {
-	message any
+	message interface{}
 }
 
 // Value receiver.
@@ -1697,7 +1697,7 @@ func (p PanicS) String() string {
 
 // PanicGo is a type that panics in GoString.
 type PanicGo struct {
-	message any
+	message interface{}
 }
 
 // Value receiver.
@@ -1707,7 +1707,7 @@ func (p PanicGo) GoString() string {
 
 // PanicF is a type that panics in Format.
 type PanicF struct {
-	message any
+	message interface{}
 }
 
 // Value receiver.
@@ -1717,7 +1717,7 @@ func (p PanicF) Format(f State, c rune) {
 
 var panictests = []struct {
 	fmt string
-	in  any
+	in  interface{}
 	out string
 }{
 	// String
@@ -1729,7 +1729,7 @@ var panictests = []struct {
 	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=GoString method: unexpected EOF)"},
 	{"%#v", PanicGo{3}, "%!v(PANIC=GoString method: 3)"},
 	// Issue 18282. catchPanic should not clear fmtFlags permanently.
-	{"%#v", []any{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=GoString method: 3), %!v(PANIC=GoString method: 3)}"},
+	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=GoString method: 3), %!v(PANIC=GoString method: 3)}"},
 	// Format
 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
 	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=Format method: unexpected EOF)"},
@@ -1805,7 +1805,7 @@ func TestNilDoesNotBecomeTyped(t *testing.T) {
 
 var formatterFlagTests = []struct {
 	in  string
-	val any
+	val interface{}
 	out string
 }{
 	// scalar values with the (unused by fmt) 'a' verb.

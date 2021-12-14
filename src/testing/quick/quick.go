@@ -227,7 +227,7 @@ func (s SetupError) Error() string { return string(s) }
 // A CheckError is the result of Check finding an error.
 type CheckError struct {
 	Count int
-	In    []any
+	In    []interface{}
 }
 
 func (s *CheckError) Error() string {
@@ -237,8 +237,8 @@ func (s *CheckError) Error() string {
 // A CheckEqualError is the result CheckEqual finding an error.
 type CheckEqualError struct {
 	CheckError
-	Out1 []any
-	Out2 []any
+	Out1 []interface{}
+	Out2 []interface{}
 }
 
 func (s *CheckEqualError) Error() string {
@@ -260,7 +260,7 @@ func (s *CheckEqualError) Error() string {
 // 			t.Error(err)
 // 		}
 // 	}
-func Check(f any, config *Config) error {
+func Check(f interface{}, config *Config) error {
 	if config == nil {
 		config = &defaultConfig
 	}
@@ -299,7 +299,7 @@ func Check(f any, config *Config) error {
 // It calls f and g repeatedly with arbitrary values for each argument.
 // If f and g return different answers, CheckEqual returns a *CheckEqualError
 // describing the input and the outputs.
-func CheckEqual(f, g any, config *Config) error {
+func CheckEqual(f, g interface{}, config *Config) error {
 	if config == nil {
 		config = &defaultConfig
 	}
@@ -358,7 +358,7 @@ func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand 
 	return
 }
 
-func functionAndType(f any) (v reflect.Value, t reflect.Type, ok bool) {
+func functionAndType(f interface{}) (v reflect.Value, t reflect.Type, ok bool) {
 	v = reflect.ValueOf(f)
 	ok = v.Kind() == reflect.Func
 	if !ok {
@@ -368,15 +368,15 @@ func functionAndType(f any) (v reflect.Value, t reflect.Type, ok bool) {
 	return
 }
 
-func toInterfaces(values []reflect.Value) []any {
-	ret := make([]any, len(values))
+func toInterfaces(values []reflect.Value) []interface{} {
+	ret := make([]interface{}, len(values))
 	for i, v := range values {
 		ret[i] = v.Interface()
 	}
 	return ret
 }
 
-func toString(interfaces []any) string {
+func toString(interfaces []interface{}) string {
 	s := make([]string, len(interfaces))
 	for i, v := range interfaces {
 		s[i] = fmt.Sprintf("%#v", v)

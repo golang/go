@@ -209,7 +209,7 @@ type eface struct {
 	data  unsafe.Pointer
 }
 
-func efaceOf(ep *any) *eface {
+func efaceOf(ep *interface{}) *eface {
 	return (*eface)(unsafe.Pointer(ep))
 }
 
@@ -982,7 +982,7 @@ type _defer struct {
 // adjustment takes care of them.
 type _panic struct {
 	argp      unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
-	arg       any            // argument to panic
+	arg       interface{}    // argument to panic
 	link      *_panic        // link to earlier panic
 	pc        uintptr        // where to return to in runtime if this panic is bypassed
 	sp        unsafe.Pointer // where to return to in runtime if this panic is bypassed

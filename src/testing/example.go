@@ -64,7 +64,7 @@ func sortLines(output string) string {
 // If recovered is non-nil, it'll panic with that value.
 // If the test panicked with nil, or invoked runtime.Goexit, it'll be
 // made to fail and panic with errNilPanicOrGoexit
-func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Duration, finished bool, recovered any) (passed bool) {
+func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Duration, finished bool, recovered interface{}) (passed bool) {
 	passed = true
 	dstr := fmtDuration(timeSpent)
 	var fail string

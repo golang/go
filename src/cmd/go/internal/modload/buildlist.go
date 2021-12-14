@@ -326,7 +326,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 	// It does not load the transitive requirements of m even if the go version in
 	// m's go.mod file indicates that it supports graph pruning.
 	loadOne := func(m module.Version) (*modFileSummary, error) {
-		cached := mg.loadCache.Do(m, func() any {
+		cached := mg.loadCache.Do(m, func() interface{} {
 			summary, err := goModSummary(m)
 
 			mu.Lock()

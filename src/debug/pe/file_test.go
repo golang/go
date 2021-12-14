@@ -22,7 +22,7 @@ import (
 type fileTest struct {
 	file           string
 	hdr            FileHeader
-	opthdr         any
+	opthdr         interface{}
 	sections       []*SectionHeader
 	symbols        []*Symbol
 	hasNoDwarfInfo bool
@@ -250,7 +250,7 @@ var fileTests = []fileTest{
 	},
 }
 
-func isOptHdrEq(a, b any) bool {
+func isOptHdrEq(a, b interface{}) bool {
 	switch va := a.(type) {
 	case *OptionalHeader32:
 		vb, ok := b.(*OptionalHeader32)

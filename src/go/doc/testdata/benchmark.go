@@ -232,7 +232,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			runtime.GOMAXPROCS(procs)
 			b := &B{
 				common: common{
-					signal: make(chan any),
+					signal: make(chan interface{}),
 				},
 				benchmark: Benchmark,
 			}
@@ -285,7 +285,7 @@ func (b *B) trimOutput() {
 func Benchmark(f func(b *B)) BenchmarkResult {
 	b := &B{
 		common: common{
-			signal: make(chan any),
+			signal: make(chan interface{}),
 		},
 		benchmark: InternalBenchmark{"", f},
 	}

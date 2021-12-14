@@ -29,10 +29,10 @@ var mapOps = [...]mapOp{opLoad, opStore, opLoadOrStore, opLoadAndDelete, opDelet
 // mapCall is a quick.Generator for calls on mapInterface.
 type mapCall struct {
 	op   mapOp
-	k, v any
+	k, v interface{}
 }
 
-func (c mapCall) apply(m mapInterface) (any, bool) {
+func (c mapCall) apply(m mapInterface) (interface{}, bool) {
 	switch c.op {
 	case opLoad:
 		return m.Load(c.k)
@@ -52,11 +52,11 @@ func (c mapCall) apply(m mapInterface) (any, bool) {
 }
 
 type mapResult struct {
-	value any
+	value interface{}
 	ok    bool
 }
 
-func randValue(r *rand.Rand) any {
+func randValue(r *rand.Rand) interface{} {
 	b := make([]byte, r.Intn(4))
 	for i := range b {
 		b[i] = 'a' + byte(rand.Intn(26))
@@ -73,14 +73,14 @@ func (mapCall) Generate(r *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(c)
 }
 
-func applyCalls(m mapInterface, calls []mapCall) (results []mapResult, final map[any]any) {
+func applyCalls(m mapInterface, calls []mapCall) (results []mapResult, final map[interface{}]interface{}) {
 	for _, c := range calls {
 		v, ok := c.apply(m)
 		results = append(results, mapResult{v, ok})
 	}
 
-	final = make(map[any]any)
-	m.Range(func(k, v any) bool {
+	final = make(map[interface{}]interface{})
+	m.Range(func(k, v interface{}) bool {
 		final[k] = v
 		return true
 	})
@@ -88,15 +88,15 @@ func applyCalls(m mapInterface, calls []mapCall) (results []mapResult, final map
 	return results, final
 }
 
-func applyMap(calls []mapCall) ([]mapResult, map[any]any) {
+func applyMap(calls []mapCall) ([]mapResult, map[interface{}]interface{}) {
 	return applyCalls(new(sync.Map), calls)
 }
 
-func applyRWMutexMap(calls []mapCall) ([]mapResult, map[any]any) {
+func applyRWMutexMap(calls []mapCall) ([]mapResult, map[interface{}]interface{}) {
 	return applyCalls(new(RWMutexMap), calls)
 }
 
-func applyDeepCopyMap(calls []mapCall) ([]mapResult, map[any]any) {
+func applyDeepCopyMap(calls []mapCall) ([]mapResult, map[interface{}]interface{}) {
 	return applyCalls(new(DeepCopyMap), calls)
 }
 
@@ -155,7 +155,7 @@ func TestConcurrentRange(t *testing.T) {
 	for n := iters; n > 0; n-- {
 		seen := make(map[int64]bool, mapSize)
 
-		m.Range(func(ki, vi any) bool {
+		m.Range(func(ki, vi interface{}) bool {
 			k, v := ki.(int64), vi.(int64)
 			if v%k != 0 {
 				t.Fatalf("while Storing multiples of %v, Range saw value %v", k, v)
@@ -201,8 +201,8 @@ func TestMapRangeNestedCall(t *testing.T) { // Issue 46399
 	for i, v := range [3]string{"hello", "world", "Go"} {
 		m.Store(i, v)
 	}
-	m.Range(func(key, value any) bool {
-		m.Range(func(key, value any) bool {
+	m.Range(func(key, value interface{}) bool {
+		m.Range(func(key, value interface{}) bool {
 			// We should be able to load the key offered in the Range callback,
 			// because there are no concurrent Delete involved in this tested map.
 			if v, ok := m.Load(key); !ok || !reflect.DeepEqual(v, value) {
@@ -236,7 +236,7 @@ func TestMapRangeNestedCall(t *testing.T) { // Issue 46399
 	// After a Range of Delete, all keys should be removed and any
 	// further Range won't invoke the callback. Hence length remains 0.
 	length := 0
-	m.Range(func(key, value any) bool {
+	m.Range(func(key, value interface{}) bool {
 		length++
 		return true
 	})

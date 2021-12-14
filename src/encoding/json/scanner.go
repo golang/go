@@ -83,7 +83,7 @@ type scanner struct {
 }
 
 var scannerPool = sync.Pool{
-	New: func() any {
+	New: func() interface{} {
 		return &scanner{}
 	},
 }

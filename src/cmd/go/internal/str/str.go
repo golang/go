@@ -14,7 +14,7 @@ import (
 
 // StringList flattens its arguments into a single []string.
 // Each argument in args must have type string or []string.
-func StringList(args ...any) []string {
+func StringList(args ...interface{}) []string {
 	var x []string
 	for _, arg := range args {
 		switch arg := arg.(type) {

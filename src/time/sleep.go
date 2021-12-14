@@ -14,8 +14,8 @@ type runtimeTimer struct {
 	pp       uintptr
 	when     int64
 	period   int64
-	f        func(any, uintptr) // NOTE: must not be closure
-	arg      any
+	f        func(interface{}, uintptr) // NOTE: must not be closure
+	arg      interface{}
 	seq      uintptr
 	nextwhen int64
 	status   uint32
@@ -41,7 +41,7 @@ func when(d Duration) int64 {
 func startTimer(*runtimeTimer)
 func stopTimer(*runtimeTimer) bool
 func resetTimer(*runtimeTimer, int64) bool
-func modTimer(t *runtimeTimer, when, period int64, f func(any, uintptr), arg any, seq uintptr)
+func modTimer(t *runtimeTimer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr)
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
@@ -140,7 +140,7 @@ func (t *Timer) Reset(d Duration) bool {
 }
 
 // sendTime does a non-blocking send of the current time on c.
-func sendTime(c any, seq uintptr) {
+func sendTime(c interface{}, seq uintptr) {
 	select {
 	case c.(chan Time) <- Now():
 	default:
@@ -172,6 +172,6 @@ func AfterFunc(d Duration, f func()) *Timer {
 	return t
 }
 
-func goFunc(arg any, seq uintptr) {
+func goFunc(arg interface{}, seq uintptr) {
 	go arg.(func())()
 }

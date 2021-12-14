@@ -357,7 +357,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 			zip []byte
 			err error
 		}
-		c := zipCache.Do(a, func() any {
+		c := zipCache.Do(a, func() interface{} {
 			var buf bytes.Buffer
 			z := zip.NewWriter(&buf)
 			for _, f := range a.Files {
@@ -431,7 +431,7 @@ func readArchive(path, vers string) (*txtar.Archive, error) {
 
 	prefix := strings.ReplaceAll(enc, "/", "_")
 	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+encVers+".txt")
-	a := archiveCache.Do(name, func() any {
+	a := archiveCache.Do(name, func() interface{} {
 		a, err := txtar.ParseFile(name)
 		if err != nil {
 			if testing.Verbose() || !os.IsNotExist(err) {

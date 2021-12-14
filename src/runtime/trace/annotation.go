@@ -98,7 +98,7 @@ func Log(ctx context.Context, category, message string) {
 }
 
 // Logf is like Log, but the value is formatted using the specified format spec.
-func Logf(ctx context.Context, category, format string, args ...any) {
+func Logf(ctx context.Context, category, format string, args ...interface{}) {
 	if IsEnabled() {
 		// Ideally this should be just Log, but that will
 		// add one more frame in the stack trace.

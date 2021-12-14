@@ -104,7 +104,7 @@ func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
 // The statement ds may be nil, if no statement is available.
 //
 // ci must be locked.
-func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.NamedValue, error) {
+func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.NamedValue, error) {
 	nvargs := make([]driver.NamedValue, len(args))
 
 	// -1 means the driver doesn't know how to count the number of
@@ -207,7 +207,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 
 // convertAssign is the same as convertAssignRows, but without the optional
 // rows argument.
-func convertAssign(dest, src any) error {
+func convertAssign(dest, src interface{}) error {
 	return convertAssignRows(dest, src, nil)
 }
 
@@ -216,7 +216,7 @@ func convertAssign(dest, src any) error {
 // dest should be a pointer type. If rows is passed in, the rows will
 // be used as the parent for any cursor values converted from a
 // driver.Rows to a *Rows.
-func convertAssignRows(dest, src any, rows *Rows) error {
+func convertAssignRows(dest, src interface{}, rows *Rows) error {
 	// Common cases, without reflect.
 	switch s := src.(type) {
 	case string:
@@ -248,7 +248,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			}
 			*d = string(s)
 			return nil
-		case *any:
+		case *interface{}:
 			if d == nil {
 				return errNilPtr
 			}
@@ -295,7 +295,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 		}
 	case nil:
 		switch d := dest.(type) {
-		case *any:
+		case *interface{}:
 			if d == nil {
 				return errNilPtr
 			}
@@ -376,7 +376,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			*d = bv.(bool)
 		}
 		return err
-	case *any:
+	case *interface{}:
 		*d = src
 		return nil
 	}
@@ -495,7 +495,7 @@ func cloneBytes(b []byte) []byte {
 	return c
 }
 
-func asString(src any) string {
+func asString(src interface{}) string {
 	switch v := src.(type) {
 	case string:
 		return v

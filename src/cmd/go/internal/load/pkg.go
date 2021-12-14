@@ -498,7 +498,7 @@ type importError struct {
 	err        error // created with fmt.Errorf
 }
 
-func ImportErrorf(path, format string, args ...any) ImportPathError {
+func ImportErrorf(path, format string, args ...interface{}) ImportPathError {
 	err := &importError{importPath: path, err: fmt.Errorf(format, args...)}
 	if errStr := err.Error(); !strings.Contains(errStr, path) {
 		panic(fmt.Sprintf("path %q not in error %q", path, errStr))
@@ -589,10 +589,10 @@ func ClearPackageCachePartial(args []string) {
 			delete(packageCache, arg)
 		}
 	}
-	resolvedImportCache.DeleteIf(func(key any) bool {
+	resolvedImportCache.DeleteIf(func(key interface{}) bool {
 		return shouldDelete[key.(importSpec).path]
 	})
-	packageDataCache.DeleteIf(func(key any) bool {
+	packageDataCache.DeleteIf(func(key interface{}) bool {
 		return shouldDelete[key.(string)]
 	})
 }
@@ -605,7 +605,7 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 	p := packageCache[arg]
 	if p != nil {
 		delete(packageCache, arg)
-		resolvedImportCache.DeleteIf(func(key any) bool {
+		resolvedImportCache.DeleteIf(func(key interface{}) bool {
 			return key.(importSpec).path == p.ImportPath
 		})
 		packageDataCache.Delete(p.ImportPath)
@@ -817,7 +817,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 		parentIsStd: parentIsStd,
 		mode:        mode,
 	}
-	r := resolvedImportCache.Do(importKey, func() any {
+	r := resolvedImportCache.Do(importKey, func() interface{} {
 		var r resolvedImport
 		if build.IsLocalImport(path) {
 			r.dir = filepath.Join(parentDir, path)
@@ -844,7 +844,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 
 	// Load the package from its directory. If we already found the package's
 	// directory when resolving its import path, use that.
-	data := packageDataCache.Do(r.path, func() any {
+	data := packageDataCache.Do(r.path, func() interface{} {
 		loaded = true
 		var data packageData
 		if r.dir != "" {
@@ -1063,7 +1063,7 @@ func cleanImport(path string) string {
 var isDirCache par.Cache
 
 func isDir(path string) bool {
-	return isDirCache.Do(path, func() any {
+	return isDirCache.Do(path, func() interface{} {
 		fi, err := fsys.Stat(path)
 		return err == nil && fi.IsDir()
 	}).(bool)
@@ -1191,7 +1191,7 @@ var (
 
 // goModPath returns the module path in the go.mod in dir, if any.
 func goModPath(dir string) (path string) {
-	return goModPathCache.Do(dir, func() any {
+	return goModPathCache.Do(dir, func() interface{} {
 		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
 			return ""
@@ -2221,7 +2221,7 @@ func (p *Package) setBuildInfo() {
 	// executables always appear stale unless the user sets the same flags.
 	// Perhaps it's safe to omit those flags when GO_GCFLAGS and GO_LDFLAGS
 	// are not set?
-	setPkgErrorf := func(format string, args ...any) {
+	setPkgErrorf := func(format string, args ...interface{}) {
 		if p.Error == nil {
 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
 		}
@@ -2397,7 +2397,7 @@ func (p *Package) setBuildInfo() {
 			Status vcs.Status
 			Err    error
 		}
-		cached := vcsStatusCache.Do(repoDir, func() any {
+		cached := vcsStatusCache.Do(repoDir, func() interface{} {
 			st, err := vcsCmd.Status(vcsCmd, repoDir)
 			return vcsStatusError{st, err}
 		}).(vcsStatusError)

@@ -38,7 +38,7 @@ func readTemplate(filename string) *template.Template {
 	return template.Must(t.ParseFiles(filepath.Join(dataDir, filename)))
 }
 
-func nodeFmt(node any, fset *token.FileSet) string {
+func nodeFmt(node interface{}, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	printer.Fprint(&buf, fset, node)
 	return strings.ReplaceAll(strings.TrimSpace(buf.String()), "\n", "\n\t")

@@ -44,8 +44,8 @@ func (Tstr) Method1()   {}
 func (Tslice) Method1() {}
 
 var (
-	e  any
-	e_ any
+	e  interface{}
+	e_ interface{}
 	i1 I1
 	i2 I2
 	ts TS
@@ -196,7 +196,7 @@ func BenchmarkAssertI2I(b *testing.B) {
 func BenchmarkAssertI2E(b *testing.B) {
 	i1 = tm
 	for i := 0; i < b.N; i++ {
-		e = i1.(any)
+		e = i1.(interface{})
 	}
 }
 
@@ -224,33 +224,33 @@ func BenchmarkAssertE2T2Blank(b *testing.B) {
 func BenchmarkAssertI2E2(b *testing.B) {
 	i1 = tm
 	for i := 0; i < b.N; i++ {
-		e, ok = i1.(any)
+		e, ok = i1.(interface{})
 	}
 }
 
 func BenchmarkAssertI2E2Blank(b *testing.B) {
 	i1 = tm
 	for i := 0; i < b.N; i++ {
-		_, ok = i1.(any)
+		_, ok = i1.(interface{})
 	}
 }
 
 func BenchmarkAssertE2E2(b *testing.B) {
 	e = tm
 	for i := 0; i < b.N; i++ {
-		e_, ok = e.(any)
+		e_, ok = e.(interface{})
 	}
 }
 
 func BenchmarkAssertE2E2Blank(b *testing.B) {
 	e = tm
 	for i := 0; i < b.N; i++ {
-		_, ok = e.(any)
+		_, ok = e.(interface{})
 	}
 }
 
 func TestNonEscapingConvT2E(t *testing.T) {
-	m := make(map[any]bool)
+	m := make(map[interface{}]bool)
 	m[42] = true
 	if !m[42] {
 		t.Fatalf("42 is not present in the map")

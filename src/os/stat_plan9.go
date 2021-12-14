@@ -43,7 +43,7 @@ func fileInfoFromStat(d *syscall.Dir) *fileStat {
 }
 
 // arg is an open *File or a path string.
-func dirstat(arg any) (*syscall.Dir, error) {
+func dirstat(arg interface{}) (*syscall.Dir, error) {
 	var name string
 	var err error
 

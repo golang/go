@@ -64,7 +64,7 @@ func TestPoolNew(t *testing.T) {
 
 	i := 0
 	p := Pool{
-		New: func() any {
+		New: func() interface{} {
 			i++
 			return i
 		},
@@ -143,7 +143,7 @@ func TestPoolStress(t *testing.T) {
 	done := make(chan bool)
 	for i := 0; i < P; i++ {
 		go func() {
-			var v any = 0
+			var v interface{} = 0
 			for j := 0; j < N; j++ {
 				if v == nil {
 					v = 0
@@ -290,7 +290,7 @@ func BenchmarkPoolStarvation(b *testing.B) {
 	})
 }
 
-var globalSink any
+var globalSink interface{}
 
 func BenchmarkPoolSTW(b *testing.B) {
 	// Take control of GC.
@@ -303,7 +303,7 @@ func BenchmarkPoolSTW(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Put a large number of items into a pool.
 		const N = 100000
-		var item any = 42
+		var item interface{} = 42
 		for i := 0; i < N; i++ {
 			p.Put(item)
 		}
@@ -338,7 +338,7 @@ func BenchmarkPoolExpensiveNew(b *testing.B) {
 	// Create a pool that's "expensive" to fill.
 	var p Pool
 	var nNew uint64
-	p.New = func() any {
+	p.New = func() interface{} {
 		atomic.AddUint64(&nNew, 1)
 		time.Sleep(time.Millisecond)
 		return 42
@@ -348,7 +348,7 @@ func BenchmarkPoolExpensiveNew(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		// Simulate 100X the number of goroutines having items
 		// checked out from the Pool simultaneously.
-		items := make([]any, 100)
+		items := make([]interface{}, 100)
 		var sink []byte
 		for pb.Next() {
 			// Stress the pool.

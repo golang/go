@@ -17,8 +17,8 @@ type shutdownCodec struct {
 	closed    bool
 }
 
-func (c *shutdownCodec) WriteRequest(*Request, any) error { return nil }
-func (c *shutdownCodec) ReadResponseBody(any) error       { return nil }
+func (c *shutdownCodec) WriteRequest(*Request, interface{}) error { return nil }
+func (c *shutdownCodec) ReadResponseBody(interface{}) error       { return nil }
 func (c *shutdownCodec) ReadResponseHeader(*Response) error {
 	c.responded <- 1
 	return errors.New("shutdownCodec ReadResponseHeader")

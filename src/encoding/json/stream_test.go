@@ -18,14 +18,14 @@ import (
 
 // Test values for the stream test.
 // One of each JSON kind.
-var streamTest = []any{
+var streamTest = []interface{}{
 	0.1,
 	"hello",
 	nil,
 	true,
 	false,
-	[]any{"a", "b", "c"},
-	map[string]any{"K": "Kelvin", "ß": "long s"},
+	[]interface{}{"a", "b", "c"},
+	map[string]interface{}{"K": "Kelvin", "ß": "long s"},
 	3.14, // another value to make sure something can follow map
 }
 
@@ -124,7 +124,7 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 
 	for _, tt := range []struct {
 		name       string
-		v          any
+		v          interface{}
 		wantEscape string
 		want       string
 	}{
@@ -182,7 +182,7 @@ func TestDecoder(t *testing.T) {
 				buf.WriteRune(c)
 			}
 		}
-		out := make([]any, i)
+		out := make([]interface{}, i)
 		dec := NewDecoder(&buf)
 		for j := range out {
 			if err := dec.Decode(&out[j]); err != nil {
@@ -297,7 +297,7 @@ func TestBlocking(t *testing.T) {
 	for _, enc := range blockingTests {
 		r, w := net.Pipe()
 		go w.Write([]byte(enc))
-		var val any
+		var val interface{}
 
 		// If Decode reads beyond what w.Write writes above,
 		// it will block, and the test will deadlock.
@@ -326,80 +326,80 @@ func BenchmarkEncoderEncode(b *testing.B) {
 
 type tokenStreamCase struct {
 	json      string
-	expTokens []any
+	expTokens []interface{}
 }
 
 type decodeThis struct {
-	v any
+	v interface{}
 }
 
 var tokenStreamCases = []tokenStreamCase{
 	// streaming token cases
-	{json: `10`, expTokens: []any{float64(10)}},
-	{json: ` [10] `, expTokens: []any{
+	{json: `10`, expTokens: []interface{}{float64(10)}},
+	{json: ` [10] `, expTokens: []interface{}{
 		Delim('['), float64(10), Delim(']')}},
-	{json: ` [false,10,"b"] `, expTokens: []any{
+	{json: ` [false,10,"b"] `, expTokens: []interface{}{
 		Delim('['), false, float64(10), "b", Delim(']')}},
-	{json: `{ "a": 1 }`, expTokens: []any{
+	{json: `{ "a": 1 }`, expTokens: []interface{}{
 		Delim('{'), "a", float64(1), Delim('}')}},
-	{json: `{"a": 1, "b":"3"}`, expTokens: []any{
+	{json: `{"a": 1, "b":"3"}`, expTokens: []interface{}{
 		Delim('{'), "a", float64(1), "b", "3", Delim('}')}},
-	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []any{
+	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []interface{}{
 		Delim('['),
 		Delim('{'), "a", float64(1), Delim('}'),
 		Delim('{'), "a", float64(2), Delim('}'),
 		Delim(']')}},
-	{json: `{"obj": {"a": 1}}`, expTokens: []any{
+	{json: `{"obj": {"a": 1}}`, expTokens: []interface{}{
 		Delim('{'), "obj", Delim('{'), "a", float64(1), Delim('}'),
 		Delim('}')}},
-	{json: `{"obj": [{"a": 1}]}`, expTokens: []any{
+	{json: `{"obj": [{"a": 1}]}`, expTokens: []interface{}{
 		Delim('{'), "obj", Delim('['),
 		Delim('{'), "a", float64(1), Delim('}'),
 		Delim(']'), Delim('}')}},
 
 	// streaming tokens with intermittent Decode()
-	{json: `{ "a": 1 }`, expTokens: []any{
+	{json: `{ "a": 1 }`, expTokens: []interface{}{
 		Delim('{'), "a",
 		decodeThis{float64(1)},
 		Delim('}')}},
-	{json: ` [ { "a" : 1 } ] `, expTokens: []any{
+	{json: ` [ { "a" : 1 } ] `, expTokens: []interface{}{
 		Delim('['),
-		decodeThis{map[string]any{"a": float64(1)}},
+		decodeThis{map[string]interface{}{"a": float64(1)}},
 		Delim(']')}},
-	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []any{
+	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []interface{}{
 		Delim('['),
-		decodeThis{map[string]any{"a": float64(1)}},
-		decodeThis{map[string]any{"a": float64(2)}},
+		decodeThis{map[string]interface{}{"a": float64(1)}},
+		decodeThis{map[string]interface{}{"a": float64(2)}},
 		Delim(']')}},
-	{json: `{ "obj" : [ { "a" : 1 } ] }`, expTokens: []any{
+	{json: `{ "obj" : [ { "a" : 1 } ] }`, expTokens: []interface{}{
 		Delim('{'), "obj", Delim('['),
-		decodeThis{map[string]any{"a": float64(1)}},
+		decodeThis{map[string]interface{}{"a": float64(1)}},
 		Delim(']'), Delim('}')}},
 
-	{json: `{"obj": {"a": 1}}`, expTokens: []any{
+	{json: `{"obj": {"a": 1}}`, expTokens: []interface{}{
 		Delim('{'), "obj",
-		decodeThis{map[string]any{"a": float64(1)}},
+		decodeThis{map[string]interface{}{"a": float64(1)}},
 		Delim('}')}},
-	{json: `{"obj": [{"a": 1}]}`, expTokens: []any{
+	{json: `{"obj": [{"a": 1}]}`, expTokens: []interface{}{
 		Delim('{'), "obj",
-		decodeThis{[]any{
-			map[string]any{"a": float64(1)},
+		decodeThis{[]interface{}{
+			map[string]interface{}{"a": float64(1)},
 		}},
 		Delim('}')}},
-	{json: ` [{"a": 1} {"a": 2}] `, expTokens: []any{
+	{json: ` [{"a": 1} {"a": 2}] `, expTokens: []interface{}{
 		Delim('['),
-		decodeThis{map[string]any{"a": float64(1)}},
+		decodeThis{map[string]interface{}{"a": float64(1)}},
 		decodeThis{&SyntaxError{"expected comma after array element", 11}},
 	}},
-	{json: `{ "` + strings.Repeat("a", 513) + `" 1 }`, expTokens: []any{
+	{json: `{ "` + strings.Repeat("a", 513) + `" 1 }`, expTokens: []interface{}{
 		Delim('{'), strings.Repeat("a", 513),
 		decodeThis{&SyntaxError{"expected colon after object key", 518}},
 	}},
-	{json: `{ "\a" }`, expTokens: []any{
+	{json: `{ "\a" }`, expTokens: []interface{}{
 		Delim('{'),
 		&SyntaxError{"invalid character 'a' in string escape code", 3},
 	}},
-	{json: ` \a`, expTokens: []any{
+	{json: ` \a`, expTokens: []interface{}{
 		&SyntaxError{"invalid character '\\\\' looking for beginning of value", 1},
 	}},
 }
@@ -410,7 +410,7 @@ func TestDecodeInStream(t *testing.T) {
 		dec := NewDecoder(strings.NewReader(tcase.json))
 		for i, etk := range tcase.expTokens {
 
-			var tk any
+			var tk interface{}
 			var err error
 
 			if dt, ok := etk.(decodeThis); ok {

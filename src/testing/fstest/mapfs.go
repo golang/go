@@ -37,7 +37,7 @@ type MapFile struct {
 	Data    []byte      // file content
 	Mode    fs.FileMode // FileInfo.Mode
 	ModTime time.Time   // FileInfo.ModTime
-	Sys     any         // FileInfo.Sys
+	Sys     interface{} // FileInfo.Sys
 }
 
 var _ fs.FS = MapFS(nil)
@@ -156,7 +156,7 @@ func (i *mapFileInfo) Mode() fs.FileMode          { return i.f.Mode }
 func (i *mapFileInfo) Type() fs.FileMode          { return i.f.Mode.Type() }
 func (i *mapFileInfo) ModTime() time.Time         { return i.f.ModTime }
 func (i *mapFileInfo) IsDir() bool                { return i.f.Mode&fs.ModeDir != 0 }
-func (i *mapFileInfo) Sys() any                   { return i.f.Sys }
+func (i *mapFileInfo) Sys() interface{}           { return i.f.Sys }
 func (i *mapFileInfo) Info() (fs.FileInfo, error) { return i, nil }
 
 // An openMapFile is a regular (non-directory) fs.File open for reading.

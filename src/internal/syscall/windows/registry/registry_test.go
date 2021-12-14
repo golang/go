@@ -118,7 +118,7 @@ func equalStringSlice(a, b []string) bool {
 type ValueTest struct {
 	Type     uint32
 	Name     string
-	Value    any
+	Value    interface{}
 	WillFail bool
 }
 

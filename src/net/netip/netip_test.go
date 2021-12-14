@@ -1451,7 +1451,7 @@ type ip4i struct {
 	flags2 byte
 	flags3 byte
 	flags4 byte
-	ipv6   any
+	ipv6   interface{}
 }
 
 func newip4i_v4(a, b, c, d byte) ip4i {

@@ -321,7 +321,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		return ok
 	}
 
-	invalidf := func(format string, args ...any) error {
+	invalidf := func(format string, args ...interface{}) error {
 		return &module.ModuleError{
 			Path: r.modPath,
 			Err: &module.InvalidVersionError{
@@ -1066,7 +1066,7 @@ func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
 func (fi dataFileInfo) Mode() fs.FileMode  { return 0644 }
 func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
 func (fi dataFileInfo) IsDir() bool        { return false }
-func (fi dataFileInfo) Sys() any           { return nil }
+func (fi dataFileInfo) Sys() interface{}   { return nil }
 
 // hasPathPrefix reports whether the path s begins with the
 // elements in prefix.

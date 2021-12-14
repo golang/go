@@ -751,7 +751,7 @@ func (e *UnknownLineError) Error() string {
 type DecodingError struct {
 	off int
 	msg string
-	val any
+	val interface{}
 }
 
 func (e *DecodingError) Error() string {

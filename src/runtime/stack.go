@@ -1358,7 +1358,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjectinit
 
 func stkobjinit() {
-	var abiRegArgsEface any = abi.RegArgs{}
+	var abiRegArgsEface interface{} = abi.RegArgs{}
 	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
 	if abiRegArgsType.kind&kindGCProg != 0 {
 		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")

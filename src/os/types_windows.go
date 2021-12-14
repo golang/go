@@ -138,7 +138,7 @@ func (fs *fileStat) ModTime() time.Time {
 }
 
 // Sys returns syscall.Win32FileAttributeData for file fs.
-func (fs *fileStat) Sys() any {
+func (fs *fileStat) Sys() interface{} {
 	return &syscall.Win32FileAttributeData{
 		FileAttributes: fs.FileAttributes,
 		CreationTime:   fs.CreationTime,

@@ -538,7 +538,7 @@ type headerFileInfo struct {
 func (fi headerFileInfo) Size() int64        { return fi.h.Size }
 func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
 func (fi headerFileInfo) ModTime() time.Time { return fi.h.ModTime }
-func (fi headerFileInfo) Sys() any           { return fi.h }
+func (fi headerFileInfo) Sys() interface{}   { return fi.h }
 
 // Name returns the base name of the file.
 func (fi headerFileInfo) Name() string {

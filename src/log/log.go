@@ -198,7 +198,7 @@ func (l *Logger) Output(calldepth int, s string) error {
 
 // Printf calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Printf.
-func (l *Logger) Printf(format string, v ...any) {
+func (l *Logger) Printf(format string, v ...interface{}) {
 	if atomic.LoadInt32(&l.isDiscard) != 0 {
 		return
 	}
@@ -207,7 +207,7 @@ func (l *Logger) Printf(format string, v ...any) {
 
 // Print calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Print.
-func (l *Logger) Print(v ...any) {
+func (l *Logger) Print(v ...interface{}) {
 	if atomic.LoadInt32(&l.isDiscard) != 0 {
 		return
 	}
@@ -216,7 +216,7 @@ func (l *Logger) Print(v ...any) {
 
 // Println calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Println.
-func (l *Logger) Println(v ...any) {
+func (l *Logger) Println(v ...interface{}) {
 	if atomic.LoadInt32(&l.isDiscard) != 0 {
 		return
 	}
@@ -224,39 +224,39 @@ func (l *Logger) Println(v ...any) {
 }
 
 // Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
-func (l *Logger) Fatal(v ...any) {
+func (l *Logger) Fatal(v ...interface{}) {
 	l.Output(2, fmt.Sprint(v...))
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
-func (l *Logger) Fatalf(format string, v ...any) {
+func (l *Logger) Fatalf(format string, v ...interface{}) {
 	l.Output(2, fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
-func (l *Logger) Fatalln(v ...any) {
+func (l *Logger) Fatalln(v ...interface{}) {
 	l.Output(2, fmt.Sprintln(v...))
 	os.Exit(1)
 }
 
 // Panic is equivalent to l.Print() followed by a call to panic().
-func (l *Logger) Panic(v ...any) {
+func (l *Logger) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
 	l.Output(2, s)
 	panic(s)
 }
 
 // Panicf is equivalent to l.Printf() followed by a call to panic().
-func (l *Logger) Panicf(format string, v ...any) {
+func (l *Logger) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
 	l.Output(2, s)
 	panic(s)
 }
 
 // Panicln is equivalent to l.Println() followed by a call to panic().
-func (l *Logger) Panicln(v ...any) {
+func (l *Logger) Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
 	l.Output(2, s)
 	panic(s)
@@ -335,7 +335,7 @@ func Writer() io.Writer {
 
 // Print calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Print.
-func Print(v ...any) {
+func Print(v ...interface{}) {
 	if atomic.LoadInt32(&std.isDiscard) != 0 {
 		return
 	}
@@ -344,7 +344,7 @@ func Print(v ...any) {
 
 // Printf calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Printf.
-func Printf(format string, v ...any) {
+func Printf(format string, v ...interface{}) {
 	if atomic.LoadInt32(&std.isDiscard) != 0 {
 		return
 	}
@@ -353,7 +353,7 @@ func Printf(format string, v ...any) {
 
 // Println calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Println.
-func Println(v ...any) {
+func Println(v ...interface{}) {
 	if atomic.LoadInt32(&std.isDiscard) != 0 {
 		return
 	}
@@ -361,39 +361,39 @@ func Println(v ...any) {
 }
 
 // Fatal is equivalent to Print() followed by a call to os.Exit(1).
-func Fatal(v ...any) {
+func Fatal(v ...interface{}) {
 	std.Output(2, fmt.Sprint(v...))
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
-func Fatalf(format string, v ...any) {
+func Fatalf(format string, v ...interface{}) {
 	std.Output(2, fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to Println() followed by a call to os.Exit(1).
-func Fatalln(v ...any) {
+func Fatalln(v ...interface{}) {
 	std.Output(2, fmt.Sprintln(v...))
 	os.Exit(1)
 }
 
 // Panic is equivalent to Print() followed by a call to panic().
-func Panic(v ...any) {
+func Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
 	std.Output(2, s)
 	panic(s)
 }
 
 // Panicf is equivalent to Printf() followed by a call to panic().
-func Panicf(format string, v ...any) {
+func Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
 	std.Output(2, s)
 	panic(s)
 }
 
 // Panicln is equivalent to Println() followed by a call to panic().
-func Panicln(v ...any) {
+func Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
 	std.Output(2, s)
 	panic(s)

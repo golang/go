@@ -14,9 +14,9 @@ func TestSizeof(t *testing.T) {
 	const _64bit = ^uint(0)>>32 != 0
 
 	var tests = []struct {
-		val    any     // type as a value
-		_32bit uintptr // size on 32bit platforms
-		_64bit uintptr // size on 64bit platforms
+		val    interface{} // type as a value
+		_32bit uintptr     // size on 32bit platforms
+		_64bit uintptr     // size on 64bit platforms
 	}{
 		// Types
 		{Basic{}, 16, 32},

@@ -111,7 +111,7 @@ func Dial(network, addr string) (*Conn, error) {
 //	}
 //	return c.ReadCodeLine(250)
 //
-func (c *Conn) Cmd(format string, args ...any) (id uint, err error) {
+func (c *Conn) Cmd(format string, args ...interface{}) (id uint, err error) {
 	id = c.Next()
 	c.StartRequest(id)
 	err = c.PrintfLine(format, args...)

@@ -105,7 +105,7 @@ type fsTester struct {
 }
 
 // errorf adds an error line to errText.
-func (t *fsTester) errorf(format string, args ...any) {
+func (t *fsTester) errorf(format string, args ...interface{}) {
 	if len(t.errText) > 0 {
 		t.errText = append(t.errText, '\n')
 	}

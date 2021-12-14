@@ -1311,7 +1311,7 @@ func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.Secu
 		return res, nil
 	}
 
-	resi, _, _ := fetchGroup.Do(importPrefix, func() (resi any, err error) {
+	resi, _, _ := fetchGroup.Do(importPrefix, func() (resi interface{}, err error) {
 		fetchCacheMu.Lock()
 		if res, ok := fetchCache[importPrefix]; ok {
 			fetchCacheMu.Unlock()
@@ -1588,7 +1588,7 @@ type importError struct {
 	err        error
 }
 
-func importErrorf(path, format string, args ...any) error {
+func importErrorf(path, format string, args ...interface{}) error {
 	err := &importError{importPath: path, err: fmt.Errorf(format, args...)}
 	if errStr := err.Error(); !strings.Contains(errStr, path) {
 		panic(fmt.Sprintf("path %q not in error %q", path, errStr))

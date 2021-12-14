@@ -403,7 +403,7 @@ func TestRuntimePanicWithRuntimeError(t *testing.T) {
 	}
 }
 
-func panicValue(fn func()) (recovered any) {
+func panicValue(fn func()) (recovered interface{}) {
 	defer func() {
 		recovered = recover()
 	}()

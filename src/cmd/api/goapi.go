@@ -1071,7 +1071,7 @@ func (w *Walker) emitMethod(m *types.Selection) {
 	w.emitf("method (%s%s) %s%s", w.typeString(recv), tps, m.Obj().Name(), w.signatureString(sig))
 }
 
-func (w *Walker) emitf(format string, args ...any) {
+func (w *Walker) emitf(format string, args ...interface{}) {
 	f := strings.Join(w.scope, ", ") + ", " + fmt.Sprintf(format, args...)
 	if strings.Contains(f, "\n") {
 		panic("feature contains newlines: " + f)
