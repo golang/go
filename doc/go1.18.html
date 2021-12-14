@@ -32,10 +32,25 @@ Do not send CLs removing the interior tags from such phrases.
   <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">Type
     Parameters Proposal</a>.
   This includes major - but fully backward-compatible - changes to the language.
+</p>
+
+<p>
+  These new language changes required a large amount of new code that
+  has not had significant testing in production settings. That will
+  only happen as more people write and use generic code. We believe
+  that this feature is well implemented and high quality. However,
+  unlike most aspects of Go, we can't back up that belief with real
+  world experience. Therefore, while we encourage the use of generics
+  where it makes sense, please use appropriate caution when deploying
+  generic code in production.
+</p>
+
+<p>
   The following is a list of the most visible changes. For a more comprehensive overview, see the
   <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">proposal</a>.
   For details see the <a href="https://golang.org/ref/spec">language spec</a>.
 </p>
+
 <ul>
   <li>
     The syntax for
