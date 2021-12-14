@@ -6,7 +6,6 @@ package vcs
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	exec "internal/execabs"
