@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	testHookDialChannel = func() { time.Sleep(time.Millisecond) } // see golang.org/issue/5349
+	testHookDialChannel  = func() { time.Sleep(time.Millisecond) } // see golang.org/issue/5349
+	testHookCanceledDial = func() {}                               // for golang.org/issue/16523
 
 	// Placeholders for socket system calls.
 	socketFunc    func(int, int, int) (syscall.Handle, error)                                                 = syscall.Socket

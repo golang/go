@@ -86,26 +86,31 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.
 		}
 	}
 
-	// Wait for the goroutine converting context.Done into a write timeout
-	// to exist, otherwise our caller might cancel the context and
-	// cause fd.setWriteDeadline(aLongTimeAgo) to cancel a successful dial.
-	done := make(chan bool) // must be unbuffered
-	defer func() { done <- true }()
-	go func() {
-		select {
-		case <-ctx.Done():
-			// Force the runtime's poller to immediately give
-			// up waiting for writability.
-			fd.pfd.SetWriteDeadline(aLongTimeAgo)
-			<-done
-		case <-done:
-		}
-	}()
+	// Start the "interrupter" goroutine, if this context might be canceled.
+	ctxDone := ctx.Done()
+	if ctxDone != nil {
+		// Wait for the goroutine converting context.Done into a write timeout
+		// to exist, otherwise our caller might cancel the context and
+		// cause fd.setWriteDeadline(aLongTimeAgo) to cancel a successful dial.
+		done := make(chan struct{})
+		defer func() { done <- struct{}{} }()
+		go func() {
+			select {
+			case <-ctxDone:
+				// Force the runtime's poller to immediately give
+				// up waiting for writability.
+				fd.pfd.SetWriteDeadline(aLongTimeAgo)
+				testHookCanceledDial()
+				<-done
+			case <-done:
+			}
+		}()
+	}
 
 	// Call ConnectEx API.
 	if err := fd.pfd.ConnectEx(ra); err != nil {
 		select {
-		case <-ctx.Done():
+		case <-ctxDone:
 			return nil, mapErr(ctx.Err())
 		default:
 			if _, ok := err.(syscall.Errno); ok {
