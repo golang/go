@@ -393,6 +393,18 @@ Do not send CLs removing the interior tags from such phrases.
   generic functions.
 </p>
 
+<h3 id="debug/buildinfo">New <code>debug/buildinfo</code> package</h3>
+
+<p><!-- golang.org/issue/39301 -->
+  The new <a href="/pkg/debug/buildinfo"><code>debug/buildinfo</code></a> package
+  provides access to module versions, version control information, and build
+  flags embedded in executable files built by the <code>go</code> command.
+  The same information is also available via
+  <a href="/pkg/runtime/debug#ReadBuildInfo"><code>runtime/debug.ReadBuildInfo</code></a>
+  for the currently running binary and via <code>go</code>
+  <code>version</code> <code>-m</code> on the command line.
+</p>
+
 <h3 id="netip">New <code>net/netip</code> package</h3>
 
 <p>
@@ -483,19 +495,6 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
-
-<dl id="debug/buildinfo"><dt><a href="/pkg/debug/buildinfo">debug/buildinfo</a></dt>
-  <dd>
-    <p><!-- golang.org/issue/39301 -->
-      This new package provides access to module versions, version control
-      information, and build flags embedded in executable files built by
-      the <code>go</code> command. The same information is also available via
-      <a href="/pkg/runtime/debug#ReadBuildInfo"><code>runtime/debug.ReadBuildInfo</code></a>
-      for the currently running binary and via <code>go</code>
-      <code>version</code> <code>-m</code> on the command line.
-    </p>
-  </dd>
-</dl>
 
 <dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
   <dd>
