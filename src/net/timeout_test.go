@@ -947,35 +947,23 @@ func testVariousDeadlines(t *testing.T) {
 			name := fmt.Sprintf("%v %d/%d", timeout, run, numRuns)
 			t.Log(name)
 
-			tooSlow := time.NewTimer(5 * time.Second)
-			defer tooSlow.Stop()
-
 			c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			ch := make(chan result, 1)
-			go func() {
-				t0 := time.Now()
-				if err := c.SetDeadline(t0.Add(timeout)); err != nil {
-					t.Error(err)
-				}
-				n, err := io.Copy(io.Discard, c)
-				dt := time.Since(t0)
-				c.Close()
-				ch <- result{n, err, dt}
-			}()
+			t0 := time.Now()
+			if err := c.SetDeadline(t0.Add(timeout)); err != nil {
+				t.Error(err)
+			}
+			n, err := io.Copy(io.Discard, c)
+			dt := time.Since(t0)
+			c.Close()
 
-			select {
-			case res := <-ch:
-				if nerr, ok := res.err.(Error); ok && nerr.Timeout() {
-					t.Logf("%v: good timeout after %v; %d bytes", name, res.d, res.n)
-				} else {
-					t.Fatalf("%v: Copy = %d, %v; want timeout", name, res.n, res.err)
-				}
-			case <-tooSlow.C:
-				t.Fatalf("%v: client stuck in Dial+Copy", name)
+			if nerr, ok := err.(Error); ok && nerr.Timeout() {
+				t.Logf("%v: good timeout after %v; %d bytes", name, dt, n)
+			} else {
+				t.Fatalf("%v: Copy = %d, %v; want timeout", name, n, err)
 			}
 		}
 	}
