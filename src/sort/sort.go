@@ -7,6 +7,8 @@
 // Package sort provides primitives for sorting slices and user-defined collections.
 package sort
 
+import "math/bits"
+
 // An implementation of Interface can be sorted by the routines in this package.
 // The methods refer to elements of the underlying collection by integer index.
 type Interface interface {
@@ -39,17 +41,34 @@ type Interface interface {
 // data.Less and data.Swap. The sort is not guaranteed to be stable.
 func Sort(data Interface) {
 	n := data.Len()
-	quickSort(data, 0, n, maxDepth(n))
+	if n <= 1 {
+		return
+	}
+	limit := bits.Len(uint(n))
+	pdqsort(data, 0, n, limit)
 }
 
-// maxDepth returns a threshold at which quicksort should switch
-// to heapsort. It returns 2*ceil(lg(n+1)).
-func maxDepth(n int) int {
-	var depth int
-	for i := n; i > 0; i >>= 1 {
-		depth++
-	}
-	return depth * 2
+type sortedHint int // hint for pdqsort when choosing the pivot
+
+const (
+	unknownHint sortedHint = iota
+	increasingHint
+	decreasingHint
+)
+
+// xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
+type xorshift uint64
+
+func (r *xorshift) Next() uint64 {
+	*r ^= *r << 13
+	*r ^= *r >> 17
+	*r ^= *r << 5
+	return uint64(*r)
+}
+
+func nextPowerOfTwo(length int) uint {
+	shift := uint(bits.Len(uint(length)))
+	return uint(1 << shift)
 }
 
 // lessSwap is a pair of Less and Swap function for use with the
