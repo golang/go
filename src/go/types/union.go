@@ -51,23 +51,37 @@ const maxTermCount = 100
 // parseUnion parses uexpr as a union of expressions.
 // The result is a Union type, or Typ[Invalid] for some errors.
 func parseUnion(check *Checker, uexpr ast.Expr) Type {
-	tlist := flattenUnion(nil, uexpr)
+	blist, tlist := flattenUnion(nil, uexpr)
+	assert(len(blist) == len(tlist)-1)
 
 	var terms []*Term
-	for _, x := range tlist {
-		tilde, typ := parseTilde(check, x)
-		if len(tlist) == 1 && !tilde {
+
+	var u Type
+	for i, x := range tlist {
+		term := parseTilde(check, x)
+		if len(tlist) == 1 && !term.tilde {
 			// Single type. Ok to return early because all relevant
 			// checks have been performed in parseTilde (no need to
 			// run through term validity check below).
-			return typ // typ already recorded through check.typ in parseTilde
+			return term.typ // typ already recorded through check.typ in parseTilde
 		}
 		if len(terms) >= maxTermCount {
-			check.errorf(x, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
-			check.recordTypeAndValue(uexpr, typexpr, Typ[Invalid], nil)
-			return Typ[Invalid]
+			if u != Typ[Invalid] {
+				check.errorf(x, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+				u = Typ[Invalid]
+			}
+		} else {
+			terms = append(terms, term)
+			u = &Union{terms}
 		}
-		terms = append(terms, NewTerm(tilde, typ))
+
+		if i > 0 {
+			check.recordTypeAndValue(blist[i-1], typexpr, u, nil)
+		}
+	}
+
+	if u == Typ[Invalid] {
+		return u
 	}
 
 	// Check validity of terms.
@@ -109,17 +123,17 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 		}
 	})
 
-	u := &Union{terms}
-	check.recordTypeAndValue(uexpr, typexpr, u, nil)
 	return u
 }
 
-func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
+func parseTilde(check *Checker, tx ast.Expr) *Term {
+	x := tx
+	var tilde bool
 	if op, _ := x.(*ast.UnaryExpr); op != nil && op.Op == token.TILDE {
 		x = op.X
 		tilde = true
 	}
-	typ = check.typ(x)
+	typ := check.typ(x)
 	// Embedding stand-alone type parameters is not permitted (issue #47127).
 	// We don't need this restriction anymore if we make the underlying type of a type
 	// parameter its constraint interface: if we embed a lone type parameter, we will
@@ -129,7 +143,11 @@ func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
 		check.error(x, _MisplacedTypeParam, "cannot embed a type parameter")
 		typ = Typ[Invalid]
 	}
-	return
+	term := NewTerm(tilde, typ)
+	if tilde {
+		check.recordTypeAndValue(tx, typexpr, &Union{[]*Term{term}}, nil)
+	}
+	return term
 }
 
 // overlappingTerm reports the index of the term x in terms which is
@@ -150,10 +168,13 @@ func overlappingTerm(terms []*Term, y *Term) int {
 	return -1
 }
 
-func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
+// flattenUnion walks a union type expression of the form A | B | C | ...,
+// extracting both the binary exprs (blist) and leaf types (tlist).
+func flattenUnion(list []ast.Expr, x ast.Expr) (blist, tlist []ast.Expr) {
 	if o, _ := x.(*ast.BinaryExpr); o != nil && o.Op == token.OR {
-		list = flattenUnion(list, o.X)
+		blist, tlist = flattenUnion(list, o.X)
+		blist = append(blist, o)
 		x = o.Y
 	}
-	return append(list, x)
+	return blist, append(tlist, x)
 }
