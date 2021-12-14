@@ -52,146 +52,283 @@ func heapSort_func(data lessSwap, a, b int) {
 	}
 }
 
-// Quicksort, loosely following Bentley and McIlroy,
-// "Engineering a Sort Function" SP&E November 1993.
+// pdqsort_func sorts data[a:b].
+// The algorithm based on pattern-defeating quicksort(pdqsort), but without the optimizations from BlockQuicksort.
+// pdqsort paper: https://arxiv.org/pdf/2106.05123.pdf
+// C++ implementation: https://github.com/orlp/pdqsort
+// Rust implementation: https://docs.rs/pdqsort/latest/pdqsort/
+// limit is the number of allowed bad (very unbalanced) pivots before falling back to heapsort.
+func pdqsort_func(data lessSwap, a, b, limit int) {
+	const maxInsertion = 12
 
-// medianOfThree_func moves the median of the three values data[m0], data[m1], data[m2] into data[m1].
-func medianOfThree_func(data lessSwap, m1, m0, m2 int) {
-	// sort 3 elements
-	if data.Less(m1, m0) {
-		data.Swap(m1, m0)
-	}
-	// data[m0] <= data[m1]
-	if data.Less(m2, m1) {
-		data.Swap(m2, m1)
-		// data[m0] <= data[m2] && data[m1] < data[m2]
-		if data.Less(m1, m0) {
-			data.Swap(m1, m0)
+	var (
+		wasBalanced    = true // whether the last partitioning was reasonably balanced
+		wasPartitioned = true // whether the slice was already partitioned
+	)
+
+	for {
+		length := b - a
+
+		if length <= maxInsertion {
+			insertionSort_func(data, a, b)
+			return
+		}
+
+		// Fall back to heapsort if too many bad choices were made.
+		if limit == 0 {
+			heapSort_func(data, a, b)
+			return
+		}
+
+		// If the last partitioning was imbalanced, we need to breaking patterns.
+		if !wasBalanced {
+			breakPatterns_func(data, a, b)
+			limit--
+		}
+
+		pivot, hint := choosePivot_func(data, a, b)
+		if hint == decreasingHint {
+			reverseRange_func(data, a, b)
+			// The chosen pivot was pivot-a elements after the start of the array.
+			// After reversing it is pivot-a elements before the end of the array.
+			// The idea came from Rust's implementation.
+			pivot = (b - 1) - (pivot - a)
+			hint = increasingHint
+		}
+
+		// The slice is likely already sorted.
+		if wasBalanced && wasPartitioned && hint == increasingHint {
+			if partialInsertionSort_func(data, a, b) {
+				return
+			}
+		}
+
+		// Probably the slice contains many duplicate elements, partition the slice into
+		// elements equal to and elements greater than the pivot.
+		if a > 0 && !data.Less(a-1, pivot) {
+			mid := partitionEqual_func(data, a, b, pivot)
+			a = mid
+			continue
+		}
+
+		mid, alreadyPartitioned := partition_func(data, a, b, pivot)
+		wasPartitioned = alreadyPartitioned
+
+		leftLen, rightLen := mid-a, b-mid
+		balanceThreshold := length / 8
+		if leftLen < rightLen {
+			wasBalanced = leftLen >= balanceThreshold
+			pdqsort_func(data, a, mid, limit)
+			a = mid + 1
+		} else {
+			wasBalanced = rightLen >= balanceThreshold
+			pdqsort_func(data, mid+1, b, limit)
+			b = mid
 		}
 	}
-	// now data[m0] <= data[m1] <= data[m2]
+}
+
+// partition_func does one quicksort partition.
+// Let p = data[pivot]
+// Moves elements in data[a:b] around, so that data[i]<p and data[j]>=p for i<newpivot and j>newpivot.
+// On return, data[newpivot] = p
+func partition_func(data lessSwap, a, b, pivot int) (newpivot int, alreadyPartitioned bool) {
+	data.Swap(a, pivot)
+	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
+
+	for i <= j && data.Less(i, a) {
+		i++
+	}
+	for i <= j && !data.Less(j, a) {
+		j--
+	}
+	if i > j {
+		data.Swap(j, a)
+		return j, true
+	}
+	data.Swap(i, j)
+	i++
+	j--
+
+	for {
+		for i <= j && data.Less(i, a) {
+			i++
+		}
+		for i <= j && !data.Less(j, a) {
+			j--
+		}
+		if i > j {
+			break
+		}
+		data.Swap(i, j)
+		i++
+		j--
+	}
+	data.Swap(j, a)
+	return j, false
+}
+
+// partitionEqual_func partitions data[a:b] into elements equal to data[pivot] followed by elements greater than data[pivot].
+// It assumed that data[a:b] does not contain elements smaller than the data[pivot].
+func partitionEqual_func(data lessSwap, a, b, pivot int) (newpivot int) {
+	data.Swap(a, pivot)
+	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
+
+	for {
+		for i <= j && !data.Less(a, i) {
+			i++
+		}
+		for i <= j && data.Less(a, j) {
+			j--
+		}
+		if i > j {
+			break
+		}
+		data.Swap(i, j)
+		i++
+		j--
+	}
+	return i
+}
+
+// partialInsertionSort_func partially sorts a slice, returns true if the slice is sorted at the end.
+func partialInsertionSort_func(data lessSwap, a, b int) bool {
+	const (
+		maxSteps         = 5  // maximum number of adjacent out-of-order pairs that will get shifted
+		shortestShifting = 50 // don't shift any elements on short arrays
+	)
+	i := a + 1
+	for j := 0; j < maxSteps; j++ {
+		for i < b && !data.Less(i, i-1) {
+			i++
+		}
+
+		if i == b {
+			return true
+		}
+
+		if b-a < shortestShifting {
+			return false
+		}
+
+		data.Swap(i, i-1)
+
+		// Shift the smaller one to the left.
+		if i-a >= 2 {
+			for j := i - 1; j >= 1; j-- {
+				if !data.Less(j, j-1) {
+					break
+				}
+				data.Swap(j, j-1)
+			}
+		}
+		// Shift the greater one to the right.
+		if b-i >= 2 {
+			for j := i + 1; j < b; j++ {
+				if !data.Less(j, j-1) {
+					break
+				}
+				data.Swap(j, j-1)
+			}
+		}
+	}
+	return false
+}
+
+// breakPatterns_func scatters some elements around in an attempt to break some patterns
+// that might cause imbalanced partitions in quicksort.
+func breakPatterns_func(data lessSwap, a, b int) {
+	length := b - a
+	if length >= 8 {
+		random := xorshift(length)
+		modulus := nextPowerOfTwo(length)
+
+		for idx := a + (length/4)*2 - 1; idx <= a+(length/4)*2+1; idx++ {
+			other := int(uint(random.Next()) & (modulus - 1))
+			if other >= length {
+				other -= length
+			}
+			data.Swap(idx, a+other)
+		}
+	}
+}
+
+// choosePivot_func chooses a pivot in data[a:b].
+//
+// [0,8): chooses a static pivot.
+// [8,shortestNinther): uses the simple median-of-three method.
+// [shortestNinther,∞): uses the Tukey ninther method.
+func choosePivot_func(data lessSwap, a, b int) (pivot int, hint sortedHint) {
+	const (
+		shortestNinther = 50
+		maxSwaps        = 4 * 3
+	)
+
+	l := b - a
+
+	var (
+		swaps int
+		i     = a + l/4*1
+		j     = a + l/4*2
+		k     = a + l/4*3
+	)
+
+	if l >= 8 {
+		if l >= shortestNinther {
+			// Tukey ninther method, the idea came from Rust's implementation.
+			i = medianAdjacent_func(data, i, &swaps)
+			j = medianAdjacent_func(data, j, &swaps)
+			k = medianAdjacent_func(data, k, &swaps)
+		}
+		// Find the median among i, j, k and stores it into j.
+		j = median_func(data, i, j, k, &swaps)
+	}
+
+	switch swaps {
+	case 0:
+		return j, increasingHint
+	case maxSwaps:
+		return j, decreasingHint
+	default:
+		return j, unknownHint
+	}
+}
+
+// order2_func returns x,y where data[x] <= data[y], where x,y=a,b or x,y=b,a.
+func order2_func(data lessSwap, a, b int, swaps *int) (int, int) {
+	if data.Less(b, a) {
+		*swaps++
+		return b, a
+	}
+	return a, b
+}
+
+// median_func returns x where data[x] is the median of data[a],data[b],data[c], where x is a, b, or c.
+func median_func(data lessSwap, a, b, c int, swaps *int) int {
+	a, b = order2_func(data, a, b, swaps)
+	b, c = order2_func(data, b, c, swaps)
+	a, b = order2_func(data, a, b, swaps)
+	return b
+}
+
+// medianAdjacent_func finds the median of data[a - 1], data[a], data[a + 1] and stores the index into a.
+func medianAdjacent_func(data lessSwap, a int, swaps *int) int {
+	return median_func(data, a-1, a, a+1, swaps)
+}
+
+func reverseRange_func(data lessSwap, a, b int) {
+	i := a
+	j := b - 1
+	for i < j {
+		data.Swap(i, j)
+		i++
+		j--
+	}
 }
 
 func swapRange_func(data lessSwap, a, b, n int) {
 	for i := 0; i < n; i++ {
 		data.Swap(a+i, b+i)
-	}
-}
-
-func doPivot_func(data lessSwap, lo, hi int) (midlo, midhi int) {
-	m := int(uint(lo+hi) >> 1) // Written like this to avoid integer overflow.
-	if hi-lo > 40 {
-		// Tukey's "Ninther" median of three medians of three.
-		s := (hi - lo) / 8
-		medianOfThree_func(data, lo, lo+s, lo+2*s)
-		medianOfThree_func(data, m, m-s, m+s)
-		medianOfThree_func(data, hi-1, hi-1-s, hi-1-2*s)
-	}
-	medianOfThree_func(data, lo, m, hi-1)
-
-	// Invariants are:
-	//	data[lo] = pivot (set up by ChoosePivot)
-	//	data[lo < i < a] < pivot
-	//	data[a <= i < b] <= pivot
-	//	data[b <= i < c] unexamined
-	//	data[c <= i < hi-1] > pivot
-	//	data[hi-1] >= pivot
-	pivot := lo
-	a, c := lo+1, hi-1
-
-	for ; a < c && data.Less(a, pivot); a++ {
-	}
-	b := a
-	for {
-		for ; b < c && !data.Less(pivot, b); b++ { // data[b] <= pivot
-		}
-		for ; b < c && data.Less(pivot, c-1); c-- { // data[c-1] > pivot
-		}
-		if b >= c {
-			break
-		}
-		// data[b] > pivot; data[c-1] <= pivot
-		data.Swap(b, c-1)
-		b++
-		c--
-	}
-	// If hi-c<3 then there are duplicates (by property of median of nine).
-	// Let's be a bit more conservative, and set border to 5.
-	protect := hi-c < 5
-	if !protect && hi-c < (hi-lo)/4 {
-		// Lets test some points for equality to pivot
-		dups := 0
-		if !data.Less(pivot, hi-1) { // data[hi-1] = pivot
-			data.Swap(c, hi-1)
-			c++
-			dups++
-		}
-		if !data.Less(b-1, pivot) { // data[b-1] = pivot
-			b--
-			dups++
-		}
-		// m-lo = (hi-lo)/2 > 6
-		// b-lo > (hi-lo)*3/4-1 > 8
-		// ==> m < b ==> data[m] <= pivot
-		if !data.Less(m, pivot) { // data[m] = pivot
-			data.Swap(m, b-1)
-			b--
-			dups++
-		}
-		// if at least 2 points are equal to pivot, assume skewed distribution
-		protect = dups > 1
-	}
-	if protect {
-		// Protect against a lot of duplicates
-		// Add invariant:
-		//	data[a <= i < b] unexamined
-		//	data[b <= i < c] = pivot
-		for {
-			for ; a < b && !data.Less(b-1, pivot); b-- { // data[b] == pivot
-			}
-			for ; a < b && data.Less(a, pivot); a++ { // data[a] < pivot
-			}
-			if a >= b {
-				break
-			}
-			// data[a] == pivot; data[b-1] < pivot
-			data.Swap(a, b-1)
-			a++
-			b--
-		}
-	}
-	// Swap pivot into middle
-	data.Swap(pivot, b-1)
-	return b - 1, c
-}
-
-func quickSort_func(data lessSwap, a, b, maxDepth int) {
-	for b-a > 12 { // Use ShellSort for slices <= 12 elements
-		if maxDepth == 0 {
-			heapSort_func(data, a, b)
-			return
-		}
-		maxDepth--
-		mlo, mhi := doPivot_func(data, a, b)
-		// Avoiding recursion on the larger subproblem guarantees
-		// a stack depth of at most lg(b-a).
-		if mlo-a < b-mhi {
-			quickSort_func(data, a, mlo, maxDepth)
-			a = mhi // i.e., quickSort_func(data, mhi, b)
-		} else {
-			quickSort_func(data, mhi, b, maxDepth)
-			b = mlo // i.e., quickSort_func(data, a, mlo)
-		}
-	}
-	if b-a > 1 {
-		// Do ShellSort pass with gap 6
-		// It could be written in this simplified form cause b-a <= 12
-		for i := a + 6; i < b; i++ {
-			if data.Less(i, i-6) {
-				data.Swap(i, i-6)
-			}
-		}
-		insertionSort_func(data, a, b)
 	}
 }
 

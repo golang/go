@@ -122,6 +122,37 @@ func TestReverseSortIntSlice(t *testing.T) {
 	}
 }
 
+func TestBreakPatterns(t *testing.T) {
+	// Special slice used to trigger breakPatterns.
+	data := make([]int, 30)
+	for i := range data {
+		data[i] = 10
+	}
+	data[(len(data)/4)*1] = 0
+	data[(len(data)/4)*2] = 1
+	data[(len(data)/4)*3] = 2
+	Sort(IntSlice(data))
+}
+
+func TestReverseRange(t *testing.T) {
+	data := []int{1, 2, 3, 4, 5, 6, 7}
+	ReverseRange(IntSlice(data), 0, len(data))
+	for i := len(data) - 1; i > 0; i-- {
+		if data[i] > data[i-1] {
+			t.Fatalf("reverseRange didn't work")
+		}
+	}
+
+	data1 := []int{1, 2, 3, 4, 5, 6, 7}
+	data2 := []int{1, 2, 5, 4, 3, 6, 7}
+	ReverseRange(IntSlice(data1), 2, 5)
+	for i, v := range data1 {
+		if v != data2[i] {
+			t.Fatalf("reverseRange didn't work")
+		}
+	}
+}
+
 type nonDeterministicTestingData struct {
 	r *rand.Rand
 }
@@ -213,6 +244,45 @@ func BenchmarkSortInt1K(b *testing.B) {
 		data := make([]int, 1<<10)
 		for i := 0; i < len(data); i++ {
 			data[i] = i ^ 0x2cc
+		}
+		b.StartTimer()
+		Ints(data)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkSortInt1K_Sorted(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 1<<10)
+		for i := 0; i < len(data); i++ {
+			data[i] = i
+		}
+		b.StartTimer()
+		Ints(data)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkSortInt1K_Reversed(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 1<<10)
+		for i := 0; i < len(data); i++ {
+			data[i] = len(data) - i
+		}
+		b.StartTimer()
+		Ints(data)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkSortInt1K_Mod8(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 1<<10)
+		for i := 0; i < len(data); i++ {
+			data[i] = i % 8
 		}
 		b.StartTimer()
 		Ints(data)
