@@ -138,8 +138,7 @@ func FuzzParse(f *testing.F) {
 		if !strings.Contains(s, "%") {
 			stdip := net.ParseIP(s)
 			if !ip.IsValid() != (stdip == nil) {
-				t.Logf("ip=%q stdip=%q", ip, stdip)
-				t.Fatal("ParseAddr zero != net.ParseIP nil")
+				t.Errorf("ParseAddr zero != net.ParseIP nil: ip=%q stdip=%q", ip, stdip)
 			}
 
 			if ip.IsValid() && !ip.Is4In6() {
@@ -152,56 +151,46 @@ func FuzzParse(f *testing.F) {
 					t.Fatal(err)
 				}
 				if !bytes.Equal(buf, buf2) {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.MarshalText() != net.IP.MarshalText()")
+					t.Errorf("Addr.MarshalText() != net.IP.MarshalText(): ip=%q stdip=%q", ip, stdip)
 				}
 				if ip.String() != stdip.String() {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.String() != net.IP.String()")
+					t.Errorf("Addr.String() != net.IP.String(): ip=%q stdip=%q", ip, stdip)
 				}
 				if ip.IsGlobalUnicast() != stdip.IsGlobalUnicast() {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.IsGlobalUnicast() != net.IP.IsGlobalUnicast()")
+					t.Errorf("Addr.IsGlobalUnicast() != net.IP.IsGlobalUnicast(): ip=%q stdip=%q", ip, stdip)
 				}
 				if ip.IsInterfaceLocalMulticast() != stdip.IsInterfaceLocalMulticast() {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.IsInterfaceLocalMulticast() != net.IP.IsInterfaceLocalMulticast()")
+					t.Errorf("Addr.IsInterfaceLocalMulticast() != net.IP.IsInterfaceLocalMulticast(): ip=%q stdip=%q", ip, stdip)
 				}
 				if ip.IsLinkLocalMulticast() != stdip.IsLinkLocalMulticast() {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.IsLinkLocalMulticast() != net.IP.IsLinkLocalMulticast()")
+					t.Errorf("Addr.IsLinkLocalMulticast() != net.IP.IsLinkLocalMulticast(): ip=%q stdip=%q", ip, stdip)
 				}
 				if ip.IsLinkLocalUnicast() != stdip.IsLinkLocalUnicast() {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.IsLinkLocalUnicast() != net.IP.IsLinkLocalUnicast()")
+					t.Errorf("Addr.IsLinkLocalUnicast() != net.IP.IsLinkLocalUnicast(): ip=%q stdip=%q", ip, stdip)
 				}
 				if ip.IsLoopback() != stdip.IsLoopback() {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.IsLoopback() != net.IP.IsLoopback()")
+					t.Errorf("Addr.IsLoopback() != net.IP.IsLoopback(): ip=%q stdip=%q", ip, stdip)
 				}
 				if ip.IsMulticast() != stdip.IsMulticast() {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.IsMulticast() != net.IP.IsMulticast()")
+					t.Errorf("Addr.IsMulticast() != net.IP.IsMulticast(): ip=%q stdip=%q", ip, stdip)
 				}
 				if ip.IsPrivate() != stdip.IsPrivate() {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.IsPrivate() != net.IP.IsPrivate()")
+					t.Errorf("Addr.IsPrivate() != net.IP.IsPrivate(): ip=%q stdip=%q", ip, stdip)
 				}
 				if ip.IsUnspecified() != stdip.IsUnspecified() {
-					t.Logf("ip=%q stdip=%q", ip, stdip)
-					t.Fatal("Addr.IsUnspecified() != net.IP.IsUnspecified()")
+					t.Errorf("Addr.IsUnspecified() != net.IP.IsUnspecified(): ip=%q stdip=%q", ip, stdip)
 				}
 			}
 		}
 
 		// Check that .Next().Prev() and .Prev().Next() preserve the IP.
 		if ip.IsValid() && ip.Next().IsValid() && ip.Next().Prev() != ip {
-			t.Log("ip=", ip, ".next=", ip.Next(), ".next.prev=", ip.Next().Prev())
-			t.Fatal(".Next.Prev did not round trip")
+			t.Logf("ip=%q .next=%q .next.prev=%q", ip, ip.Next(), ip.Next().Prev())
+			t.Error(".Next.Prev did not round trip")
 		}
 		if ip.IsValid() && ip.Prev().IsValid() && ip.Prev().Next() != ip {
-			t.Log("ip=", ip, ".prev=", ip.Prev(), ".prev.next=", ip.Prev().Next())
-			t.Fatal(".Prev.Next did not round trip")
+			t.Logf("ip=%q .prev=%q .prev.next=%q", ip, ip.Prev(), ip.Prev().Next())
+			t.Error(".Prev.Next did not round trip")
 		}
 
 		port, err := ParseAddrPort(s)
@@ -347,13 +336,11 @@ func checkStringParseRoundTrip[P netipTypeCmp](t *testing.T, x P, parse func(str
 		t.Fatalf("s=%q err=%v", s, err)
 	}
 	if x != y {
-		t.Logf("s=%q x=%#v y=%#v", s, x, y)
-		t.Fatalf("%T round trip identity failure", x)
+		t.Fatalf("%T round trip identity failure: s=%q x=%#v y=%#v", x, s, x, y)
 	}
 	s2 := y.String()
 	if s != s2 {
-		t.Logf("s=%#v s2=%#v", s, s2)
-		t.Fatalf("%T String round trip identity failure", x)
+		t.Fatalf("%T String round trip identity failure: s=%#v s2=%#v", x, s, s2)
 	}
 }
 
