@@ -130,7 +130,7 @@ func (subst *subster) typ(typ Type) Type {
 			// term list substitution may introduce duplicate terms (unlikely but possible).
 			// This is ok; lazy type set computation will determine the actual type set
 			// in normal form.
-			return &Union{terms, nil}
+			return &Union{terms}
 		}
 
 	case *Interface:
