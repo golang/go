@@ -2701,15 +2701,15 @@ func (s *Server) closeDoneChanLocked() {
 //
 // Close returns any error returned from closing the Server's
 // underlying Listener(s).
-func (srv *Server) Close() error {
-	srv.inShutdown.setTrue()
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	srv.closeDoneChanLocked()
-	err := srv.closeListenersLocked()
-	for c := range srv.activeConn {
+func (s *Server) Close() error {
+	s.inShutdown.setTrue()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.closeDoneChanLocked()
+	err := s.closeListenersLocked()
+	for c := range s.activeConn {
 		c.rwc.Close()
-		delete(srv.activeConn, c)
+		delete(s.activeConn, c)
 	}
 	return err
 }
@@ -2743,16 +2743,16 @@ const shutdownPollIntervalMax = 500 * time.Millisecond
 //
 // Once Shutdown has been called on a server, it may not be reused;
 // future calls to methods such as Serve will return ErrServerClosed.
-func (srv *Server) Shutdown(ctx context.Context) error {
-	srv.inShutdown.setTrue()
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.inShutdown.setTrue()
 
-	srv.mu.Lock()
-	lnerr := srv.closeListenersLocked()
-	srv.closeDoneChanLocked()
-	for _, f := range srv.onShutdown {
+	s.mu.Lock()
+	lnerr := s.closeListenersLocked()
+	s.closeDoneChanLocked()
+	for _, f := range s.onShutdown {
 		go f()
 	}
-	srv.mu.Unlock()
+	s.mu.Unlock()
 
 	pollIntervalBase := time.Millisecond
 	nextPollInterval := func() time.Duration {
@@ -2769,7 +2769,7 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 	timer := time.NewTimer(nextPollInterval())
 	defer timer.Stop()
 	for {
-		if srv.closeIdleConns() && srv.numListeners() == 0 {
+		if s.closeIdleConns() && s.numListeners() == 0 {
 			return lnerr
 		}
 		select {
@@ -2786,10 +2786,10 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 // undergone ALPN protocol upgrade or that have been hijacked.
 // This function should start protocol-specific graceful shutdown,
 // but should not wait for shutdown to complete.
-func (srv *Server) RegisterOnShutdown(f func()) {
-	srv.mu.Lock()
-	srv.onShutdown = append(srv.onShutdown, f)
-	srv.mu.Unlock()
+func (s *Server) RegisterOnShutdown(f func()) {
+	s.mu.Lock()
+	s.onShutdown = append(s.onShutdown, f)
+	s.mu.Unlock()
 }
 
 func (s *Server) numListeners() int {
