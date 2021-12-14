@@ -201,6 +201,16 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 	// reason.
 	ityp.tset = &_TypeSet{terms: allTermlist} // TODO(gri) is this sufficient?
 
+	var unionSets map[*Union]*_TypeSet
+	if check != nil {
+		if check.unionTypeSets == nil {
+			check.unionTypeSets = make(map[*Union]*_TypeSet)
+		}
+		unionSets = check.unionTypeSets
+	} else {
+		unionSets = make(map[*Union]*_TypeSet)
+	}
+
 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
 	// of a method I.m's Func Object of an interface I is the same as that of
 	// the method m in an interface that embeds interface I. On the other hand,
@@ -288,7 +298,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 				check.errorf(atPos(pos), _InvalidIfaceEmbed, "embedding interface element %s requires go1.18 or later", u)
 				continue
 			}
-			tset := computeUnionTypeSet(check, pos, u)
+			tset := computeUnionTypeSet(check, unionSets, pos, u)
 			if tset == &invalidTypeSet {
 				continue // ignore invalid unions
 			}
@@ -356,13 +366,13 @@ var invalidTypeSet _TypeSet
 
 // computeUnionTypeSet may be called with check == nil.
 // The result is &invalidTypeSet if the union overflows.
-func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
-	if utyp.tset != nil {
-		return utyp.tset
+func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos token.Pos, utyp *Union) *_TypeSet {
+	if tset, _ := unionSets[utyp]; tset != nil {
+		return tset
 	}
 
 	// avoid infinite recursion (see also computeInterfaceTypeSet)
-	utyp.tset = new(_TypeSet)
+	unionSets[utyp] = new(_TypeSet)
 
 	var allTerms termlist
 	for _, t := range utyp.terms {
@@ -389,11 +399,11 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
 			if check != nil {
 				check.errorf(atPos(pos), _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 			}
-			utyp.tset = &invalidTypeSet
-			return utyp.tset
+			unionSets[utyp] = &invalidTypeSet
+			return unionSets[utyp]
 		}
 	}
-	utyp.tset.terms = allTerms
+	unionSets[utyp].terms = allTerms
 
-	return utyp.tset
+	return unionSets[utyp]
 }
