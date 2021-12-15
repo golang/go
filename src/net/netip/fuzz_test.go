@@ -185,12 +185,10 @@ func FuzzParse(f *testing.F) {
 
 		// Check that .Next().Prev() and .Prev().Next() preserve the IP.
 		if ip.IsValid() && ip.Next().IsValid() && ip.Next().Prev() != ip {
-			t.Logf("ip=%q .next=%q .next.prev=%q", ip, ip.Next(), ip.Next().Prev())
-			t.Error(".Next.Prev did not round trip")
+			t.Errorf(".Next.Prev did not round trip: ip=%q .next=%q .next.prev=%q", ip, ip.Next(), ip.Next().Prev())
 		}
 		if ip.IsValid() && ip.Prev().IsValid() && ip.Prev().Next() != ip {
-			t.Logf("ip=%q .prev=%q .prev.next=%q", ip, ip.Prev(), ip.Prev().Next())
-			t.Error(".Prev.Next did not round trip")
+			t.Errorf(".Prev.Next did not round trip: ip=%q .prev=%q .prev.next=%q", ip, ip.Prev(), ip.Prev().Next())
 		}
 
 		port, err := ParseAddrPort(s)
