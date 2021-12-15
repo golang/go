@@ -379,9 +379,10 @@ func TestTypesInfo(t *testing.T) {
 		{genericPkg + `u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
 		{genericPkg + `u2a; func _[_ interface{int|string}]() {}`, `int | string`, `int|string`},
 		{genericPkg + `u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string | ~bool`, `int|string|~bool`},
-		{genericPkg + `u3b; func _[_ interface{int|string|~bool}]() {}`, `int | string`, `int|string`},
-		{genericPkg + `u3b; func _[_ interface{int|string|~bool}]() {}`, `~bool`, `~bool`},
-		{genericPkg + `u3b; func _[_ interface{int|string|~float64|~bool}]() {}`, `int | string | ~float64`, `int|string|~float64`},
+		{genericPkg + `u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string`, `int|string`},
+		{genericPkg + `u3a; func _[_ interface{int|string|~bool}]() {}`, `~bool`, `~bool`},
+		{genericPkg + `u3a; func _[_ interface{int|string|~float64|~bool}]() {}`, `int | string | ~float64`, `int|string|~float64`},
+
 		{genericPkg + `u0b; func _[_ int]() {}`, `int`, `int`},
 		{genericPkg + `u1b; func _[_ ~int]() {}`, `~int`, `~int`},
 		{genericPkg + `u2b; func _[_ int|string]() {}`, `int | string`, `int|string`},
@@ -389,13 +390,14 @@ func TestTypesInfo(t *testing.T) {
 		{genericPkg + `u3b; func _[_ int|string|~bool]() {}`, `int | string`, `int|string`},
 		{genericPkg + `u3b; func _[_ int|string|~bool]() {}`, `~bool`, `~bool`},
 		{genericPkg + `u3b; func _[_ int|string|~float64|~bool]() {}`, `int | string | ~float64`, `int|string|~float64`},
-		{genericPkg + `u0b; type _ interface{int}`, `int`, `int`},
-		{genericPkg + `u1b; type _ interface{~int}`, `~int`, `~int`},
-		{genericPkg + `u2b; type _ interface{int|string}`, `int | string`, `int|string`},
-		{genericPkg + `u3b; type _ interface{int|string|~bool}`, `int | string | ~bool`, `int|string|~bool`},
-		{genericPkg + `u3b; type _ interface{int|string|~bool}`, `int | string`, `int|string`},
-		{genericPkg + `u3b; type _ interface{int|string|~bool}`, `~bool`, `~bool`},
-		{genericPkg + `u3b; type _ interface{int|string|~float64|~bool}`, `int | string | ~float64`, `int|string|~float64`},
+
+		{genericPkg + `u0c; type _ interface{int}`, `int`, `int`},
+		{genericPkg + `u1c; type _ interface{~int}`, `~int`, `~int`},
+		{genericPkg + `u2c; type _ interface{int|string}`, `int | string`, `int|string`},
+		{genericPkg + `u3c; type _ interface{int|string|~bool}`, `int | string | ~bool`, `int|string|~bool`},
+		{genericPkg + `u3c; type _ interface{int|string|~bool}`, `int | string`, `int|string`},
+		{genericPkg + `u3c; type _ interface{int|string|~bool}`, `~bool`, `~bool`},
+		{genericPkg + `u3c; type _ interface{int|string|~float64|~bool}`, `int | string | ~float64`, `int|string|~float64`},
 	}
 
 	for _, test := range tests {
