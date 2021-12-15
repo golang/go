@@ -2382,7 +2382,7 @@ func (s *state) ssaShiftOp(op ir.Op, t *types.Type, u *types.Type) ssa.Op {
 func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 	if ft.IsBoolean() && tt.IsKind(types.TUINT8) {
 		// Bool -> uint8 is generated internally when indexing into runtime.staticbyte.
-		return s.newValue1(ssa.OpCopy, tt, v)
+		return s.newValue1(ssa.OpCvtBoolToUint8, tt, v)
 	}
 	if ft.IsInteger() && tt.IsInteger() {
 		var op ssa.Op
