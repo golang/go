@@ -13,22 +13,20 @@ import (
 	"path/filepath"
 )
 
-// TODO(#49232) Add more documentation below. Though this is
-// enough for those trying workspaces out, there should be more through
-// documentation before Go 1.18 is released.
-
 var cmdInit = &base.Command{
 	UsageLine: "go work init [moddirs]",
 	Short:     "initialize workspace file",
-	Long: `Init initializes and writes a new go.work file in the current
-directory, in effect creating a new workspace at the current directory.
+	Long: `Init initializes and writes a new go.work file in the
+current directory, in effect creating a new workspace at the current
+directory.
 
-go work init optionally accepts paths to the workspace modules as arguments.
-If the argument is omitted, an empty workspace with no modules will be created.
+go work init optionally accepts paths to the workspace modules as
+arguments. If the argument is omitted, an empty workspace with no
+modules will be created.
 
-See the workspaces design proposal at
-https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
-more information.
+Each argument path is added to a use directive in the go.work file. The
+current go version will also be listed in the go.work file.
+
 `,
 	Run: runInit,
 }
