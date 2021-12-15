@@ -352,7 +352,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 		if pruning == unpruned {
 			if _, dup := loadingUnpruned.LoadOrStore(m, nil); dup {
 				// m has already been enqueued for loading. Since unpruned loading may
-				// follow cycles in the the requirement graph, we need to return early
+				// follow cycles in the requirement graph, we need to return early
 				// to avoid making the load queue infinitely long.
 				return
 			}

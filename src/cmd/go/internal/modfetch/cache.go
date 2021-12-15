@@ -642,7 +642,7 @@ func rewriteVersionList(dir string) (err error) {
 	// Lock listfile when writing to it to try to avoid corruption to the file.
 	// Under rare circumstances, for instance, if the system loses power in the
 	// middle of a write it is possible for corrupt data to be written. This is
-	// not a problem for the go command itself, but may be an issue if the the
+	// not a problem for the go command itself, but may be an issue if the
 	// cache is being served by a GOPROXY HTTP server. This will be corrected
 	// the next time a new version of the module is fetched and the file is rewritten.
 	// TODO(matloob): golang.org/issue/43313 covers adding a go mod verify

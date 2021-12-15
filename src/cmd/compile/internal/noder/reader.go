@@ -2029,7 +2029,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 
 	// Quirk: If deadcode elimination turned a non-empty function into
 	// an empty one, we need to set the position for the empty block
-	// left behind to the the inlined position for src.NoXPos, so that
+	// left behind to the inlined position for src.NoXPos, so that
 	// an empty string gets added into the DWARF file name listing at
 	// the appropriate index.
 	if quirksMode() && len(body) == 1 {
