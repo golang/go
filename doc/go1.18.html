@@ -97,6 +97,12 @@ Do not send CLs removing the interior tags from such phrases.
       The Go compiler cannot currently handle type declarations inside generic functions
       or methods. We hope to provide support for this feature in Go 1.19.
     </li>
+    <li><!-- https://golang.org/issue/49030 -->
+      Embedding a type parameter, or a pointer to a type parameter, as
+      an unnamed field in a struct type is not permitted. Similarly
+      embedding a type parameter in an interface type is not permitted.
+      Whether these will ever be permitted is unclear at present.
+    </li>
   </ul>
 </p>
 
