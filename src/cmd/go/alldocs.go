@@ -1372,21 +1372,53 @@
 //
 // Go workspace provides access to operations on workspaces.
 //
-// Note that support for workspaces is built into many other commands,
-// not just 'go work'.
+// Note that support for workspaces is built into many other commands, not
+// just 'go work'.
 //
-// See 'go help modules' for information about Go's module system of
-// which workspaces are a part.
+// See 'go help modules' for information about Go's module system of which
+// workspaces are a part.
 //
 // A workspace is specified by a go.work file that specifies a set of
-// module directories with the "use" directive. These modules are used
-// as root modules by the go command for builds and related operations.
-// A workspace that does not specify modules to be used cannot be used
-// to do builds from local modules.
+// module directories with the "use" directive. These modules are used as
+// root modules by the go command for builds and related operations.  A
+// workspace that does not specify modules to be used cannot be used to do
+// builds from local modules.
 //
-// To determine whether the go command is operating in workspace mode,
-// use the "go env GOWORK" command. This will specify the workspace
-// file being used.
+// go.work files are line-oriented. Each line holds a single directive,
+// made up of a keyword followed by aruments. For example:
+//
+// 	go 1.18
+//
+// 	use ../foo/bar
+// 	use ./baz
+//
+// 	replace example.com/foo v1.2.3 => example.com/bar v1.4.5
+//
+// The leading keyword can be factored out of adjacent lines to create a block,
+// like in Go imports.
+//
+// 	use (
+// 	  ../foo/bar
+// 	  ./baz
+// 	)
+//
+// The use directive specifies a module to be included in the workspace's
+// set of main modules. The argument to the use directive is the directory
+// containing the module's go.mod file.
+//
+// The go directive specifies the version of Go the file was written at. It
+// is possible there may be future changes in the semantics of workspaces
+// that could be controlled by this version, but for now the version
+// specified has no effect.
+//
+// The replace directive has the same syntax as the replace directive in a
+// go.mod file and takes precedence over replaces in go.mod files.  It is
+// primarily intended to override conflicting replaces in different workspace
+// modules.
+//
+// To determine whether the go command is operating in workspace mode, use
+// the "go env GOWORK" command. This will specify the workspace file being
+// used.
 //
 // Usage:
 //
@@ -1478,24 +1510,39 @@
 //
 // 	go work init [moddirs]
 //
-// Init initializes and writes a new go.work file in the current
-// directory, in effect creating a new workspace at the current directory.
+// Init initializes and writes a new go.work file in the
+// current directory, in effect creating a new workspace at the current
+// directory.
 //
-// go work init optionally accepts paths to the workspace modules as arguments.
-// If the argument is omitted, an empty workspace with no modules will be created.
+// go work init optionally accepts paths to the workspace modules as
+// arguments. If the argument is omitted, an empty workspace with no
+// modules will be created.
 //
-// See the workspaces design proposal at
-// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
-// more information.
+// Each argument path is added to a use directive in the go.work file. The
+// current go version will also be listed in the go.work file.
 //
 //
 // Sync workspace build list to modules
 //
 // Usage:
 //
-// 	go work sync [moddirs]
+// 	go work sync
 //
-// go work sync
+// Sync syncs the workspace's build list back to the
+// workspace's modules
+//
+// The workspace's build list is the set of versions of all the
+// (transitive) dependency modules used to do builds in the workspace. go
+// work sync generates that build list using the Minimal Version Selection
+// algorithm, and then syncs those versions back to each of modules
+// specified in the workspace (with use directives).
+//
+// The syncing is done by sequentially upgrading each of the dependency
+// modules specified in a workspace module to the version in the build list
+// if the dependency module's version is not already the same as the build
+// list's version. Note that Minimal Version Selection guarantees that the
+// build list's version of each module is always the same or higher than
+// that in each workspace module.
 //
 //
 // Add modules to workspace file
@@ -1504,10 +1551,17 @@
 //
 // 	go work use [-r] [moddirs]
 //
-// Use provides a command-line interface for adding directories,
-// optionally recursively, to a go.work file.
+// Use provides a command-line interface for adding
+// directories, optionally recursively, to a go.work file.
 //
-// The -r flag searches recursively for modules in the argument directories.
+// A use directive will be added to the go.work file for each argument
+// directory listed on the command line go.work file, if it exists on disk,
+// or removed from the go.work file if it does not exist on disk.
+//
+// The -r flag searches recursively for modules in the argument
+// directories, and the use command operates as if each of the directories
+// were specified as arguments: namely, use directives will be added for
+// directories that exist, and removed for directories that do not exist.
 //
 //
 // Compile and run Go program

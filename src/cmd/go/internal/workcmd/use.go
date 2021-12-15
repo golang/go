@@ -16,17 +16,21 @@ import (
 	"path/filepath"
 )
 
-// TODO(#49232) Add more documentation below. Though this is
-// enough for those trying workspaces out, there should be more thorough
-// documentation before Go 1.18 is released.
-
 var cmdUse = &base.Command{
 	UsageLine: "go work use [-r] [moddirs]",
 	Short:     "add modules to workspace file",
-	Long: `Use provides a command-line interface for adding directories,
-optionally recursively, to a go.work file.
+	Long: `Use provides a command-line interface for adding
+directories, optionally recursively, to a go.work file.
 
-The -r flag searches recursively for modules in the argument directories.`,
+A use directive will be added to the go.work file for each argument
+directory listed on the command line go.work file, if it exists on disk,
+or removed from the go.work file if it does not exist on disk.
+
+The -r flag searches recursively for modules in the argument
+directories, and the use command operates as if each of the directories
+were specified as arguments: namely, use directives will be added for
+directories that exist, and removed for directories that do not exist.
+`,
 }
 
 var useR = cmdUse.Flag.Bool("r", false, "")
