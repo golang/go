@@ -43,4 +43,14 @@ it is presented as a diagnostic. (Missing functions do not produce errors.)
 +  **Definitions**: gopls provides jump-to-definition inside templates, though it does not understand scoping (all templates are considered to be in one global scope).
 +  **References**: gopls provides find-references, with the same scoping limitation as definitions.
 + **Completions**: gopls will attempt to suggest completions inside templates.
+
+### Configuring your editor
+
+In addition to configuring `templateExtensions`, you may need to configure your
+editor or LSP client to activate `gopls` for template files. In recent versions
+of `VS Code Go`, this happens automatically for files ending in `.tmpl` or
+`.gotmpl`. In Vim, you may need to configure your LSP client to operate on the
+`template` filetype.
+
 <!--TODO(rstambler): Automatically generate a list of supported features.-->
+
