@@ -352,6 +352,7 @@ var lookupCNAMETests = []struct {
 
 func TestLookupCNAME(t *testing.T) {
 	mustHaveExternalNetwork(t)
+	testenv.SkipFlakyNet(t)
 
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
@@ -390,6 +391,7 @@ var lookupGoogleHostTests = []struct {
 
 func TestLookupGoogleHost(t *testing.T) {
 	mustHaveExternalNetwork(t)
+	testenv.SkipFlakyNet(t)
 
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
@@ -442,6 +444,7 @@ var lookupGoogleIPTests = []struct {
 
 func TestLookupGoogleIP(t *testing.T) {
 	mustHaveExternalNetwork(t)
+	testenv.SkipFlakyNet(t)
 
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
@@ -632,6 +635,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
 		testenv.SkipFlaky(t, 27992)
 	}
 	mustHaveExternalNetwork(t)
+	testenv.SkipFlakyNet(t)
 
 	if !supportsIPv4() || !*testIPv4 {
 		t.Skip("IPv4 is required")
@@ -656,7 +660,6 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
 func testDots(t *testing.T, mode string) {
 	names, err := LookupAddr("8.8.8.8") // Google dns server
 	if err != nil {
-		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupAddr(8.8.8.8): %v (mode=%v)", err, mode)
 	} else {
 		for _, name := range names {
@@ -669,7 +672,6 @@ func testDots(t *testing.T, mode string) {
 
 	cname, err := LookupCNAME("www.mit.edu")
 	if err != nil {
-		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupCNAME(www.mit.edu, mode=%v): %v", mode, err)
 	} else if !strings.HasSuffix(cname, ".") {
 		t.Errorf("LookupCNAME(www.mit.edu) = %v, want cname ending in . with trailing dot (mode=%v)", cname, mode)
@@ -677,7 +679,6 @@ func testDots(t *testing.T, mode string) {
 
 	mxs, err := LookupMX("google.com")
 	if err != nil {
-		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupMX(google.com): %v (mode=%v)", err, mode)
 	} else {
 		for _, mx := range mxs {
@@ -690,7 +691,6 @@ func testDots(t *testing.T, mode string) {
 
 	nss, err := LookupNS("google.com")
 	if err != nil {
-		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupNS(google.com): %v (mode=%v)", err, mode)
 	} else {
 		for _, ns := range nss {
@@ -703,7 +703,6 @@ func testDots(t *testing.T, mode string) {
 
 	cname, srvs, err := LookupSRV("xmpp-server", "tcp", "google.com")
 	if err != nil {
-		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupSRV(xmpp-server, tcp, google.com): %v (mode=%v)", err, mode)
 	} else {
 		if !hasSuffixFold(cname, ".google.com.") {
@@ -925,6 +924,7 @@ func TestNilResolverLookup(t *testing.T) {
 // canceled lookups (see golang.org/issue/24178 for details).
 func TestLookupHostCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
+	testenv.SkipFlakyNet(t)
 	t.Parallel() // Executes 600ms worth of sequential sleeps.
 
 	const (
