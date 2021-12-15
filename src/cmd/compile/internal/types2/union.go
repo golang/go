@@ -11,8 +11,7 @@ import "cmd/compile/internal/syntax"
 
 // A Union represents a union of terms embedded in an interface.
 type Union struct {
-	terms []*Term   // list of syntactical terms (not a canonicalized termlist)
-	tset  *_TypeSet // type set described by this union, computed lazily
+	terms []*Term // list of syntactical terms (not a canonicalized termlist)
 }
 
 // NewUnion returns a new Union type with the given terms.
@@ -21,7 +20,7 @@ func NewUnion(terms []*Term) *Union {
 	if len(terms) == 0 {
 		panic("empty union")
 	}
-	return &Union{terms, nil}
+	return &Union{terms}
 }
 
 func (u *Union) Len() int         { return len(u.terms) }
@@ -107,7 +106,7 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
 		}
 	})
 
-	u := &Union{terms, nil}
+	u := &Union{terms}
 	check.recordTypeAndValue(uexpr, typexpr, u, nil)
 	return u
 }
