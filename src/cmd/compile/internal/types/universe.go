@@ -152,7 +152,7 @@ func makeErrorInterface() *Type {
 	return NewInterface(NoPkg, []*Field{method}, false)
 }
 
-// makeComparableInterface makes the the predefined "comparable" interface in the
+// makeComparableInterface makes the predefined "comparable" interface in the
 // built-in package. It has a unique name, but no methods.
 func makeComparableInterface() *Type {
 	return NewInterface(NoPkg, nil, false)

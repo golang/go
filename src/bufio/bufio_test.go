@@ -657,7 +657,7 @@ func TestWriterAppend(t *testing.T) {
 		}
 
 		// While not recommended, it is valid to append to a shifted buffer.
-		// This forces Write to copy the the input.
+		// This forces Write to copy the input.
 		if rn.Intn(8) == 0 && cap(b) > 0 {
 			b = b[1:1:cap(b)]
 		}

@@ -63,7 +63,7 @@ type InternalFuzzTarget struct {
 // for an example, and see the F.Fuzz and F.Add method documentation for
 // details.
 //
-// *F methods can only be called before (*F).Fuzz. Once the the test is
+// *F methods can only be called before (*F).Fuzz. Once the test is
 // executing the fuzz target, only (*T) methods can be used. The only *F methods
 // that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
 type F struct {

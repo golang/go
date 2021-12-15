@@ -313,7 +313,7 @@ func (check *Checker) assignError(rhs []ast.Expr, nvars, nvals int) {
 }
 
 // If returnStmt != nil, initVars is called to type-check the assignment
-// of return expressions, and returnStmt is the the return statement.
+// of return expressions, and returnStmt is the return statement.
 func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.Stmt) {
 	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2 && returnStmt == nil)
 
