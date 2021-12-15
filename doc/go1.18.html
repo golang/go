@@ -250,6 +250,15 @@ Do not send CLs removing the interior tags from such phrases.
   package.
 </p>
 
+<p><!-- CL 369977 -->
+  The underlying data format of the embedded build information can change with
+  new go releases, so an older version of <code>go</code> may not handle the
+  build information produced with a newer version of <code>go</code>.
+  To read the version information from a binary built with <code>go</code> 1.18,
+  use the <code>go</code> <code>version</code> command and the
+  <code>debug/buildinfo</code> package from <code>go</code> 1.18+.
+</p>
+
 <p><!-- https://golang.org/issue/44435 -->
   If the main module's <code>go.mod</code> file
   specifies <a href="/ref/mod#go-mod-file-go"><code>go</code> <code>1.17</code></a>
