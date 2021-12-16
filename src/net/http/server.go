@@ -153,13 +153,13 @@ type ResponseWriter interface {
 	// Informational headers (status in the 1xx range) can be sent multiple
 	// times before sending the final header.
 	//
-	// If the passed status code is 103, the current content of the header
+	// If the status code is 103, the current content of the header
 	// map will be sent immediatly as early hints for the client.
 	//
-	// The server automatically sends the 100-continue response header
-	// when the Request.Body is read.
+	// When request by the client, the server automatically sends the
+	// 100-continue response header when the Request.Body is read.
 	//
-	// Response headers may be buffered. In some cases (e.g. when using
+	// Response headers may be buffered. In some cases (as when using
 	// Resource Hints or Preload Link headers), sending headers to the
 	// client while the response is being generated can improve performance.
 	// To do so, use the Flusher interface.
@@ -432,7 +432,7 @@ type response struct {
 	req              *Request // request for this response
 	reqBody          io.ReadCloser
 	cancelCtx        context.CancelFunc // when ServeHTTP exits
-	wroteHeader      bool               // reply header has been (logically) written
+	wroteHeader      bool               // response is not 1xx and header has been (logically) written
 	wroteContinue    bool               // 100 Continue response was written
 	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
 	wantsClose       bool               // HTTP request has Connection "close"
