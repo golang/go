@@ -954,6 +954,10 @@ func TestContext(t *testing.T) {
 }
 
 func TestContextCancel(t *testing.T) {
+	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
+		testenv.SkipFlaky(t, 42061)
+	}
+
 	// To reduce noise in the final goroutine dump,
 	// let other parallel tests complete if possible.
 	t.Parallel()
