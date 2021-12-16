@@ -74,7 +74,7 @@ func init() {
 func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
 	if pred := m[op]; pred != nil {
 		if !pred(x.typ) {
-			check.invalidOp(x, _UndefinedOp, "operator %s not defined for %s", op, x)
+			check.invalidOp(x, _UndefinedOp, "operator %s not defined on %s", op, x)
 			return false
 		}
 	} else {
@@ -745,7 +745,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 			if x.isNil() {
 				typ = y.typ
 			}
-			err = check.sprintf("operator %s not defined for %s", op, typ)
+			err = check.sprintf("operator %s not defined on %s", op, typ)
 			code = _UndefinedOp
 		}
 	} else {

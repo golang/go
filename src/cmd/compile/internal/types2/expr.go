@@ -73,11 +73,7 @@ func init() {
 func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
 	if pred := m[op]; pred != nil {
 		if !pred(x.typ) {
-			if check.conf.CompilerErrorMessages {
-				check.errorf(x, invalidOp+"operator %s not defined on %s", op, x)
-			} else {
-				check.errorf(x, invalidOp+"operator %s not defined for %s", op, x)
-			}
+			check.errorf(x, invalidOp+"operator %s not defined on %s", op, x)
 			return false
 		}
 	} else {
@@ -790,11 +786,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
 			if x.isNil() {
 				typ = y.typ
 			}
-			if check.conf.CompilerErrorMessages {
-				err = check.sprintf("operator %s not defined on %s", op, typ)
-			} else {
-				err = check.sprintf("operator %s not defined for %s", op, typ)
-			}
+			err = check.sprintf("operator %s not defined on %s", op, typ)
 		}
 	} else {
 		err = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
