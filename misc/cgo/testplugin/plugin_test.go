@@ -289,3 +289,31 @@ func TestIssue44956(t *testing.T) {
 	goCmd(t, "build", "-o", "issue44956.exe", "./issue44956/main.go")
 	run(t, "./issue44956.exe")
 }
+
+func TestForkExec(t *testing.T) {
+	// Issue 38824: importing the plugin package causes it hang in forkExec on darwin.
+
+	t.Parallel()
+	goCmd(t, "build", "-o", "forkexec.exe", "./forkexec/main.go")
+
+	var cmd *exec.Cmd
+	done := make(chan int, 1)
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			cmd = exec.Command("./forkexec.exe", "1")
+			err := cmd.Run()
+			if err != nil {
+				t.Errorf("running command failed: %v", err)
+				break
+			}
+		}
+		done <- 1
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Minute):
+		cmd.Process.Kill()
+		t.Fatalf("subprocess hang")
+	}
+}

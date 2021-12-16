@@ -1269,7 +1269,10 @@ func (ctxt *Link) hostlink() {
 		if ctxt.DynlinkingGo() && buildcfg.GOOS != "ios" {
 			// -flat_namespace is deprecated on iOS.
 			// It is useful for supporting plugins. We don't support plugins on iOS.
-			argv = append(argv, "-Wl,-flat_namespace")
+			// -flat_namespace may cause the dynamic linker to hang at forkExec when
+			// resolving a lazy binding. See issue 38824.
+			// Force eager resolution to work around.
+			argv = append(argv, "-Wl,-flat_namespace", "-Wl,-bind_at_load")
 		}
 		if !combineDwarf {
 			argv = append(argv, "-Wl,-S") // suppress STAB (symbolic debugging) symbols
