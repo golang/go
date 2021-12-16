@@ -214,8 +214,8 @@ func FuzzParse(f *testing.F) {
 // checkTextMarshaler checks that x's MarshalText and UnmarshalText functions round trip correctly.
 func checkTextMarshaler(t *testing.T, x encoding.TextMarshaler) {
 	buf, err := x.MarshalText()
-	if err == nil {
-		return
+	if err != nil {
+		t.Fatal(err)
 	}
 	y := reflect.New(reflect.TypeOf(x)).Interface().(encoding.TextUnmarshaler)
 	err = y.UnmarshalText(buf)
@@ -223,10 +223,11 @@ func checkTextMarshaler(t *testing.T, x encoding.TextMarshaler) {
 		t.Logf("(%v).MarshalText() = %q", x, buf)
 		t.Fatalf("(%T).UnmarshalText(%q) = %v", y, buf, err)
 	}
-	if !reflect.DeepEqual(x, y) {
+	e := reflect.ValueOf(y).Elem().Interface()
+	if !reflect.DeepEqual(x, e) {
 		t.Logf("(%v).MarshalText() = %q", x, buf)
 		t.Logf("(%T).UnmarshalText(%q) = %v", y, buf, y)
-		t.Fatalf("MarshalText/UnmarshalText failed to round trip: %v != %v", x, y)
+		t.Fatalf("MarshalText/UnmarshalText failed to round trip: %#v != %#v", x, e)
 	}
 	buf2, err := y.(encoding.TextMarshaler).MarshalText()
 	if err != nil {
@@ -245,8 +246,8 @@ func checkTextMarshaler(t *testing.T, x encoding.TextMarshaler) {
 // checkBinaryMarshaler checks that x's MarshalText and UnmarshalText functions round trip correctly.
 func checkBinaryMarshaler(t *testing.T, x encoding.BinaryMarshaler) {
 	buf, err := x.MarshalBinary()
-	if err == nil {
-		return
+	if err != nil {
+		t.Fatal(err)
 	}
 	y := reflect.New(reflect.TypeOf(x)).Interface().(encoding.BinaryUnmarshaler)
 	err = y.UnmarshalBinary(buf)
@@ -254,10 +255,11 @@ func checkBinaryMarshaler(t *testing.T, x encoding.BinaryMarshaler) {
 		t.Logf("(%v).MarshalBinary() = %q", x, buf)
 		t.Fatalf("(%T).UnmarshalBinary(%q) = %v", y, buf, err)
 	}
-	if !reflect.DeepEqual(x, y) {
+	e := reflect.ValueOf(y).Elem().Interface()
+	if !reflect.DeepEqual(x, e) {
 		t.Logf("(%v).MarshalBinary() = %q", x, buf)
 		t.Logf("(%T).UnmarshalBinary(%q) = %v", y, buf, y)
-		t.Fatalf("MarshalBinary/UnmarshalBinary failed to round trip: %v != %v", x, y)
+		t.Fatalf("MarshalBinary/UnmarshalBinary failed to round trip: %#v != %#v", x, e)
 	}
 	buf2, err := y.(encoding.BinaryMarshaler).MarshalBinary()
 	if err != nil {
@@ -274,12 +276,6 @@ func checkBinaryMarshaler(t *testing.T, x encoding.BinaryMarshaler) {
 }
 
 func checkTextMarshalMatchesString(t *testing.T, x netipType) {
-	if !x.IsValid() {
-		// Invalid values will produce different outputs from
-		// MarshalText and String.
-		return
-	}
-
 	buf, err := x.MarshalText()
 	if err != nil {
 		t.Fatal(err)
@@ -343,9 +339,12 @@ func checkStringParseRoundTrip[P netipTypeCmp](t *testing.T, x P, parse func(str
 }
 
 func checkEncoding(t *testing.T, x netipType) {
-	checkTextMarshaler(t, x)
-	checkBinaryMarshaler(t, x)
-	checkTextMarshalMatchesString(t, x)
+	if x.IsValid() {
+		checkTextMarshaler(t, x)
+		checkBinaryMarshaler(t, x)
+		checkTextMarshalMatchesString(t, x)
+	}
+
 	if am, ok := x.(appendMarshaler); ok {
 		checkTextMarshalMatchesAppendTo(t, am)
 	}
