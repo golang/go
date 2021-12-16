@@ -7768,3 +7768,17 @@ func TestMethodCallValueCodePtr(t *testing.T) {
 		t.Errorf("methodValueCall code pointer mismatched, want: %v, got: %v", want, got)
 	}
 }
+
+type A struct{}
+type B[T any] struct{}
+
+func TestIssue50208(t *testing.T) {
+	want1 := "B[reflect_test.A]"
+	if got := TypeOf(new(B[A])).Elem().Name(); got != want1 {
+		t.Errorf("name of type parameter mismatched, want:%s, got:%s", want1, got)
+	}
+	want2 := "B[reflect_test.B[reflect_test.A]]"
+	if got := TypeOf(new(B[B[A]])).Elem().Name(); got != want2 {
+		t.Errorf("name of type parameter mismatched, want:%s, got:%s", want2, got)
+	}
+}
