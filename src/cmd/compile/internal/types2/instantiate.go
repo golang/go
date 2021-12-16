@@ -192,17 +192,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 		return errorf("cannot implement %s (empty type set)", T)
 	}
 
-	// If T is comparable, V must be comparable.
-	// TODO(gri) the error messages could be better, here
-	if Ti.IsComparable() && !Comparable(V) {
-		if Vi != nil && Vi.Empty() {
-			return errorf("empty interface %s does not implement %s", V, T)
-		}
-		return errorf("%s does not implement comparable", V)
-	}
-
-	// V must implement T (methods)
-	// - check only if we have methods
+	// V must implement T's methods, if any.
 	if Ti.NumMethods() > 0 {
 		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
@@ -220,10 +210,17 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 		}
 	}
 
+	// If T is comparable, V must be comparable.
+	// Remember as a pending error and report only if we don't have a more specific error.
+	var pending error
+	if Ti.IsComparable() && !Comparable(V) {
+		pending = errorf("%s does not implement comparable", V)
+	}
+
 	// V must also be in the set of types of T, if any.
 	// Constraints with empty type sets were already excluded above.
 	if !Ti.typeSet().hasTerms() {
-		return nil // nothing to do
+		return pending // nothing to do
 	}
 
 	// If V is itself an interface, each of its possible types must be in the set
@@ -234,7 +231,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 			// TODO(gri) report which type is missing
 			return errorf("%s does not implement %s", V, T)
 		}
-		return nil
+		return pending
 	}
 
 	// Otherwise, V's type must be included in the iface type set.
@@ -262,5 +259,5 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 		}
 	}
 
-	return nil
+	return pending
 }
