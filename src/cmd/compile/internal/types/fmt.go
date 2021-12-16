@@ -631,6 +631,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 	}
 
 	var name string
+	nameSep := " "
 	if verb != 'S' {
 		s := f.Sym
 
@@ -639,7 +640,47 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 			s = OrigSym(s)
 		}
 
-		if s != nil && f.Embedded == 0 {
+		// Using type aliases and embedded fields, it's possible to
+		// construct types that can't be directly represented as a
+		// type literal. For example, given "type Int = int" (#50190),
+		// it would be incorrect to format "struct{ Int }" as either
+		// "struct{ int }" or "struct{ Int int }", because those each
+		// represent other, distinct types.
+		//
+		// So for the purpose of LinkString (i.e., fmtTypeID), we use
+		// the non-standard syntax "struct{ Int = int }" to represent
+		// embedded fields that have been renamed through the use of
+		// type aliases.
+		if f.Embedded != 0 {
+			if mode == fmtTypeID {
+				nameSep = " = "
+
+				// Compute tsym, the symbol that would normally be used as
+				// the field name when embedding f.Type.
+				// TODO(mdempsky): Check for other occurences of this logic
+				// and deduplicate.
+				typ := f.Type
+				if typ.IsPtr() {
+					base.Assertf(typ.Sym() == nil, "embedded pointer type has name: %L", typ)
+					typ = typ.Elem()
+				}
+				tsym := typ.Sym()
+
+				// If the field name matches the embedded type's name, then
+				// suppress printing of the field name. For example, format
+				// "struct{ T }" as simply that instead of "struct{ T = T }".
+				if tsym != nil && (s == tsym || IsExported(tsym.Name) && s.Name == tsym.Name) {
+					s = nil
+				}
+			} else {
+				// Suppress the field name for embedded fields for
+				// non-LinkString formats, to match historical behavior.
+				// TODO(mdempsky): Re-evaluate this.
+				s = nil
+			}
+		}
+
+		if s != nil {
 			if funarg != FunargNone {
 				name = fmt.Sprint(f.Nname)
 			} else if verb == 'L' {
@@ -658,7 +699,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 
 	if name != "" {
 		b.WriteString(name)
-		b.WriteString(" ")
+		b.WriteString(nameSep)
 	}
 
 	if f.IsDDD() {
