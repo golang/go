@@ -2604,7 +2604,8 @@ has a corresponding (meta-)type which is called its
 <p>
 A parsing ambiguity arises when the type parameter list for a parameterized type
 declares a single type parameter with a type constraint of the form <code>*C</code>
-or <code>(C)</code>:
+or <code>(C)</code> where <code>C</code> is not a (possibly parenthesized)
+<a href="#Types">type literal</a>:
 </p>
 
 <pre>
@@ -2616,17 +2617,19 @@ type T[P (C)] …
 In these rare cases, the type parameter declaration is indistinguishable from
 the expressions <code>P*C</code> or <code>P(C)</code> and the type declaration
 is parsed as an array type declaration.
-To resolve the ambiguity, embed the constraint in an interface:
+To resolve the ambiguity, embed the constraint in an interface or use a trailing
+comma:
 </p>
 
 <pre>
 type T[P interface{*C}] …
+type T[P *C,] …
 </pre>
 
 <h4 id="Type_constraints">Type constraints</h4>
 
 <p>
-A type constraint is an <a href="#Interface_types">interface</a> that determines the
+A type constraint is an <a href="#Interface_types">interface</a> that defines the
 set of permissible type arguments for the respective type parameter and controls the
 operations supported by values of that type parameter.
 </p>
