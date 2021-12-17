@@ -25,7 +25,12 @@ TEXT callCfunction<>(SB),	NOSPLIT|NOFRAME,$0
 // stored in libcall_fn and store the results in libcall struture
 // Up to 6 arguments can be passed to this C function
 // Called by runtime.asmcgocall
-// It reserves a stack of 288 bytes for the C function.
+// It reserves a stack of 288 bytes for the C function. It must
+// follow AIX convention, thus the first local variable must
+// be stored at the offset 112, after the linker area (48 bytes)
+// and the argument area (64).
+// The AIX convention is described here:
+// https://www.ibm.com/docs/en/aix/7.2?topic=overview-runtime-process-stack
 // NOT USING GO CALLING CONVENTION
 // runtime.asmsyscall6 is a function descriptor to the real asmsyscall6.
 DATA	runtime·asmsyscall6+0(SB)/8, $asmsyscall6<>(SB)
@@ -34,7 +39,8 @@ DATA	runtime·asmsyscall6+16(SB)/8, $0
 GLOBL	runtime·asmsyscall6(SB), NOPTR, $24
 
 TEXT asmsyscall6<>(SB),NOSPLIT,$256
-	MOVD	R3, 48(R1) // Save libcall for later
+	// Save libcall for later
+	MOVD	R3, 112(R1)
 	MOVD	libcall_fn(R3), R12
 	MOVD	libcall_args(R3), R9
 	MOVD	0(R9), R3
@@ -50,7 +56,7 @@ TEXT asmsyscall6<>(SB),NOSPLIT,$256
 	MOVD	40(R1), R2
 
 	// Store result in libcall
-	MOVD	48(R1), R5
+	MOVD	112(R1), R5
 	MOVD	R3, (libcall_r1)(R5)
 	MOVD	$-1, R6
 	CMP	R6, R3
