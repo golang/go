@@ -19,4 +19,5 @@ var certDirectories = []string{
 	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
 	"/etc/pki/tls/certs",           // Fedora/RHEL
 	"/system/etc/security/cacerts", // Android
+	"/data/misc/keychain/certs-added", // Android user trusted CA folder
 }
