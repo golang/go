@@ -426,6 +426,9 @@ func ReadTrace() []byte {
 		trace.footerWritten = true
 		// Use float64 because (trace.ticksEnd - trace.ticksStart) * 1e9 can overflow int64.
 		freq := float64(trace.ticksEnd-trace.ticksStart) * 1e9 / float64(trace.timeEnd-trace.timeStart) / traceTickDiv
+		if freq <= 0 {
+			throw("trace: ReadTrace got invalid frequency")
+		}
 		trace.lockOwner = nil
 		unlock(&trace.lock)
 		var data []byte
