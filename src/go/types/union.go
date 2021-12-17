@@ -111,7 +111,16 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
 			// here, we must have at least two terms in the union.
 			if f != nil && !f.typeSet().IsTypeSet() {
-				check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (interface contains methods)", t)
+				switch {
+				case f.typeSet().NumMethods() != 0:
+					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s contains methods)", t, t)
+				case t.typ == universeComparable.Type():
+					check.error(tlist[i], _InvalidUnion, "cannot use comparable in union")
+				case f.typeSet().comparable:
+					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s embeds comparable)", t, t)
+				default:
+					panic("not a type set but no methods and not comparable")
+				}
 				continue // don't report another error for t
 			}
 
