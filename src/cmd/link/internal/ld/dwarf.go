@@ -471,6 +471,11 @@ func (d *dwctxt) dotypedef(parent *dwarf.DWDie, name string, def *dwarf.DWDie) *
 	if strings.HasPrefix(name, "struct {") {
 		return nil
 	}
+	// cmd/compile uses "noalg.struct {...}" as type name when hash and eq algorithm generation of
+	// this struct type is suppressed.
+	if strings.HasPrefix(name, "noalg.struct {") {
+		return nil
+	}
 	if strings.HasPrefix(name, "chan ") {
 		return nil
 	}
