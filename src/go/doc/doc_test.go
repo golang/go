@@ -100,58 +100,56 @@ func test(t *testing.T, mode Mode) {
 
 	// test packages
 	for _, pkg := range pkgs {
-		importPath := dataDir + "/" + pkg.Name
-		var files []*ast.File
-		for _, f := range pkg.Files {
-			files = append(files, f)
-		}
-		doc, err := NewFromFiles(fset, files, importPath, mode)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		// golden files always use / in filenames - canonicalize them
-		for i, filename := range doc.Filenames {
-			doc.Filenames[i] = filepath.ToSlash(filename)
-		}
-
-		// print documentation
-		var buf bytes.Buffer
-		if err := templateTxt.Execute(&buf, bundle{doc, fset}); err != nil {
-			t.Error(err)
-			continue
-		}
-		got := buf.Bytes()
-
-		// update golden file if necessary
-		golden := filepath.Join(dataDir, fmt.Sprintf("%s.%d.golden", pkg.Name, mode))
-		if *update {
-			err := os.WriteFile(golden, got, 0644)
-			if err != nil {
-				t.Error(err)
+		t.Run(pkg.Name, func(t *testing.T) {
+			importPath := dataDir + "/" + pkg.Name
+			var files []*ast.File
+			for _, f := range pkg.Files {
+				files = append(files, f)
 			}
-			continue
-		}
+			doc, err := NewFromFiles(fset, files, importPath, mode)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		// get golden file
-		want, err := os.ReadFile(golden)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
+			// golden files always use / in filenames - canonicalize them
+			for i, filename := range doc.Filenames {
+				doc.Filenames[i] = filepath.ToSlash(filename)
+			}
 
-		// compare
-		if !bytes.Equal(got, want) {
-			t.Errorf("package %s\n\tgot:\n%s\n\twant:\n%s", pkg.Name, got, want)
-		}
+			// print documentation
+			var buf bytes.Buffer
+			if err := templateTxt.Execute(&buf, bundle{doc, fset}); err != nil {
+				t.Fatal(err)
+			}
+			got := buf.Bytes()
+
+			// update golden file if necessary
+			golden := filepath.Join(dataDir, fmt.Sprintf("%s.%d.golden", pkg.Name, mode))
+			if *update {
+				err := os.WriteFile(golden, got, 0644)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			// get golden file
+			want, err := os.ReadFile(golden)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// compare
+			if !bytes.Equal(got, want) {
+				t.Errorf("package %s\n\tgot:\n%s\n\twant:\n%s", pkg.Name, got, want)
+			}
+		})
 	}
 }
 
 func Test(t *testing.T) {
-	test(t, 0)
-	test(t, AllDecls)
-	test(t, AllMethods)
+	t.Run("default", func(t *testing.T) { test(t, 0) })
+	t.Run("AllDecls", func(t *testing.T) { test(t, AllDecls) })
+	t.Run("AllMethods", func(t *testing.T) { test(t, AllMethods) })
 }
 
 func TestAnchorID(t *testing.T) {
