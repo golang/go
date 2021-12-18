@@ -5,11 +5,13 @@
 package doc
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"internal/lazyregexp"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // ----------------------------------------------------------------------------
@@ -22,8 +24,8 @@ import (
 //
 type methodSet map[string]*Func
 
-// recvString returns a string representation of recv of the
-// form "T", "*T", or "BADRECV" (if not a proper receiver type).
+// recvString returns a string representation of recv of the form "T", "*T",
+// "T[A, ...]", "*T[A, ...]" or "BADRECV" (if not a proper receiver type).
 //
 func recvString(recv ast.Expr) string {
 	switch t := recv.(type) {
@@ -31,8 +33,32 @@ func recvString(recv ast.Expr) string {
 		return t.Name
 	case *ast.StarExpr:
 		return "*" + recvString(t.X)
+	case *ast.IndexExpr:
+		// Generic type with one parameter.
+		return fmt.Sprintf("%s[%s]", recvString(t.X), recvParam(t.Index))
+	case *ast.IndexListExpr:
+		// Generic type with multiple parameters.
+		if len(t.Indices) > 0 {
+			var b strings.Builder
+			b.WriteString(recvString(t.X))
+			b.WriteByte('[')
+			b.WriteString(recvParam(t.Indices[0]))
+			for _, e := range t.Indices[1:] {
+				b.WriteString(", ")
+				b.WriteString(recvParam(e))
+			}
+			b.WriteByte(']')
+			return b.String()
+		}
 	}
 	return "BADRECV"
+}
+
+func recvParam(p ast.Expr) string {
+	if id, ok := p.(*ast.Ident); ok {
+		return id.Name
+	}
+	return "BADPARAM"
 }
 
 // set creates the corresponding Func for f and adds it to mset.
