@@ -48,16 +48,16 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   The following is a list of the most visible changes. For a more comprehensive overview, see the
   <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">proposal</a>.
-  For details see the <a href="https://golang.org/ref/spec">language spec</a>.
+  For details see the <a href="/ref/spec">language spec</a>.
 </p>
 
 <ul>
   <li>
     The syntax for
-    <a href="https://golang.org/ref/spec#Function_declarations">Function</a> and
-    <a href="https://golang.org/ref/spec#Type_declarations">type declarations</a>
+    <a href="/ref/spec#Function_declarations">function</a> and
+    <a href="/ref/spec#Type_declarations">type declarations</a>
     now accepts
-    <a href="https://golang.org/ref/spec#Type_parameters">type parameters</a>.
+    <a href="/ref/spec#Type_parameters">type parameters</a>.
   </li>
   <li>
     Parameterized functions and types can be instantiated by following them with a list of
@@ -65,11 +65,11 @@ Do not send CLs removing the interior tags from such phrases.
   </li>
   <li>
     The new token <code>~</code> has been added to the set of
-    <a href="https://golang.org/ref/spec#Operators_and_punctuation">operators and punctuation</a>.
+    <a href="/ref/spec#Operators_and_punctuation">operators and punctuation</a>.
   </li>
   <li>
     The syntax for
-    <a href="https://golang.org/ref/spec#Interface_types">Interface types</a>
+    <a href="/ref/spec#Interface_types">Interface types</a>
     now permits the embedding of arbitrary types (not just type names of interfaces)
     as well as union and <code>~T</code> type elements. Such interfaces may only be used
     as type constraints.
@@ -77,13 +77,13 @@ Do not send CLs removing the interior tags from such phrases.
   </li>
   <li>
     The new
-    <a href="https://golang.org/ref/spec#Predeclared_identifiers">predeclared identifier</a>
+    <a href="/ref/spec#Predeclared_identifiers">predeclared identifier</a>
     <code>any</code> is an alias for the empty interface. It may be used instead of
     <code>interface{}</code>.
   </li>
   <li>
     The new
-    <a href="https://golang.org/ref/spec#Predeclared_identifiers">predeclared identifier</a>
+    <a href="/ref/spec#Predeclared_identifiers">predeclared identifier</a>
     <code>comparable</code> is an interface the denotes the set of all types which can be
     compared using <code>==</code> or <code>!=</code>. It may only be used as (or embedded in)
     a type constraint.
