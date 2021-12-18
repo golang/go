@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -125,6 +126,9 @@ var tests = []test{
 			`func MultiLineFunc\(x interface{ ... }\) \(r struct{ ... }\)`, // Multi line function.
 			`var LongLine = newLongLine\(("someArgument[1-4]", ){4}...\)`,  // Long list of arguments.
 			`type T1 = T2`,                                                 // Type alias
+			`type SimpleConstraint interface{ ... }`,
+			`type TildeConstraint interface{ ... }`,
+			`type StructConstraint interface{ ... }`,
 		},
 		[]string{
 			`const internalConstant = 2`,       // No internal constants.
@@ -199,6 +203,9 @@ var tests = []test{
 			`Comment about exported method`,
 			`type T1 = T2`,
 			`type T2 int`,
+			`type SimpleConstraint interface {`,
+			`type TildeConstraint interface {`,
+			`type StructConstraint interface {`,
 		},
 		[]string{
 			`constThree`,
@@ -822,12 +829,18 @@ var tests = []test{
 
 func TestDoc(t *testing.T) {
 	maybeSkip(t)
+	defer log.SetOutput(log.Writer())
 	for _, test := range tests {
 		var b bytes.Buffer
 		var flagSet flag.FlagSet
+		var logbuf bytes.Buffer
+		log.SetOutput(&logbuf)
 		err := do(&b, &flagSet, test.args)
 		if err != nil {
 			t.Fatalf("%s %v: %s\n", test.name, test.args, err)
+		}
+		if logbuf.Len() > 0 {
+			t.Errorf("%s %v: unexpected log messages:\n%s", test.name, test.args, logbuf.Bytes())
 		}
 		output := b.Bytes()
 		failed := false
