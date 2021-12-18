@@ -865,6 +865,7 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
 		if len(names) == 0 {
 			// Embedded type. Use the name of the type. It must be of the form ident or
 			// pkg.ident (for structs and interfaces), or *ident or *pkg.ident (structs only).
+			// Or a type embedded in a constraint.
 			// Nothing else is allowed.
 			ty := field.Type
 			if se, ok := field.Type.(*ast.StarExpr); !isInterface && ok {
@@ -872,6 +873,7 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
 				// embedded types in structs.
 				ty = se.X
 			}
+			constraint := false
 			switch ident := ty.(type) {
 			case *ast.Ident:
 				if isInterface && ident.Name == "error" && ident.Obj == nil {
@@ -885,8 +887,12 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
 			case *ast.SelectorExpr:
 				// An embedded type may refer to a type in another package.
 				names = []*ast.Ident{ident.Sel}
+			default:
+				// An approximation or union or type
+				// literal in an interface.
+				constraint = true
 			}
-			if names == nil {
+			if names == nil && !constraint {
 				// Can only happen if AST is incorrect. Safe to continue with a nil list.
 				log.Print("invalid program: unexpected type for embedded field")
 			}
