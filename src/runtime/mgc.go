@@ -1323,7 +1323,7 @@ func gcBgMarkWorker() {
 		// point, signal the main GC goroutine.
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
 			// We don't need the P-local buffers here, allow
-			// preemption becuse we may schedule like a regular
+			// preemption because we may schedule like a regular
 			// goroutine in gcMarkDone (block on locks, etc).
 			releasem(node.m.ptr())
 			node.m.set(nil)
