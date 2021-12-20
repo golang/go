@@ -393,7 +393,7 @@ func sweepone() uintptr {
 		// The scavenger is signaled by the last sweeper because once
 		// sweeping is done, we will definitely have useful work for
 		// the scavenger to do, since the scavenger only runs over the
-		// heap once per GC cyle. This update is not done during sweep
+		// heap once per GC cycle. This update is not done during sweep
 		// termination because in some cases there may be a long delay
 		// between sweep done and sweep termination (e.g. not enough
 		// allocations to trigger a GC) which would be nice to fill in
