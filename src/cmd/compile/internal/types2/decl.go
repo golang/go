@@ -351,7 +351,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		// Instantiating such a type would lead to an infinite sequence of instantiations.
 		// In general, we need "type flow analysis" to recognize those cases.
 		// Example: type A[T any] struct{ x A[*T] } (issue #48951)
-		// In this algorithm we always only consider the orginal, uninstantiated type.
+		// In this algorithm we always only consider the original, uninstantiated type.
 		// This won't recognize some invalid cases with parameterized types, but it
 		// will terminate.
 		t = t.orig

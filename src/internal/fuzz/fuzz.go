@@ -323,7 +323,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 							// flakiness in the coverage counters). In order to prevent adding
 							// duplicate entries to the corpus (and re-writing the file on
 							// disk), skip it if the on disk file already exists.
-							// TOOD(roland): this check is limited in that it will only be
+							// TODO(roland): this check is limited in that it will only be
 							// applied if we are using the CacheDir. Another option would be
 							// to iterate through the corpus and check if it is already present,
 							// which would catch cases where we are not caching entries.

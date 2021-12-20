@@ -268,7 +268,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
 		var s string
 		switch {
 		case t == nil:
-			fallthrough // should not happend but be cautious
+			fallthrough // should not happen but be cautious
 		case t == Typ[Invalid]:
 			s = "<T>"
 		case isUntyped(t):
