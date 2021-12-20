@@ -790,6 +790,12 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_X10
 
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = ctxt.StartUnsafePoint(p, newprog)
+
 	var to_done, to_more *obj.Prog
 
 	if framesize <= objabi.StackSmall {
@@ -854,7 +860,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		to_done = p
 	}
 
-	p = ctxt.EmitEntryLiveness(cursym, p, newprog)
+	p = ctxt.EmitEntryStackMap(cursym, p, newprog)
 
 	// CALL runtime.morestack(SB)
 	p = obj.Appendp(p, newprog)
@@ -871,6 +877,8 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		to_more.To.SetTarget(p)
 	}
 	jalToSym(ctxt, p, REG_X5)
+
+	p = ctxt.EndUnsafePoint(p, newprog, -1)
 
 	// JMP start
 	p = obj.Appendp(p, newprog)
