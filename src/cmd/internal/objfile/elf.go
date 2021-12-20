@@ -68,14 +68,26 @@ func (f *elfFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
 	if sect := f.elf.Section(".text"); sect != nil {
 		textStart = sect.Addr
 	}
-	if sect := f.elf.Section(".gosymtab"); sect != nil {
-		if symtab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
+
+	// In dynamically-linked executable, gosymtab data may be in seciton
+	// ".data.rel.ro.gosymtab".
+	for _, s := range []string{".gosymtab", ".data.rel.ro.gosymtab"} {
+		if sect := f.elf.Section(s); sect != nil {
+			if symtab, err = sect.Data(); err != nil {
+				return 0, nil, nil, err
+			}
+			break
 		}
 	}
-	if sect := f.elf.Section(".gopclntab"); sect != nil {
-		if pclntab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
+
+	// In dynamically-linked executable, pclntab data may be in seciton
+	// ".data.rel.ro.gopclntab".
+	for _, s := range []string{".gopclntab", ".data.rel.ro.gopclntab"} {
+		if sect := f.elf.Section(s); sect != nil {
+			if pclntab, err = sect.Data(); err != nil {
+				return 0, nil, nil, err
+			}
+			break
 		}
 	}
 	return textStart, symtab, pclntab, nil
