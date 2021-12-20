@@ -232,9 +232,11 @@ func vdsoParseSymbols(info *vdsoInfo, version int32) {
 	if !info.isGNUHash {
 		// Old-style DT_HASH table.
 		for _, k := range vdsoSymbolKeys {
-			for chain := info.bucket[k.symHash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
-				if apply(chain, k) {
-					break
+			if len(info.bucket) > 0 {
+				for chain := info.bucket[k.symHash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
+					if apply(chain, k) {
+						break
+					}
 				}
 			}
 		}
