@@ -83,13 +83,6 @@ type RevInfo struct {
 	Tags    []string  // known tags for commit
 }
 
-// A FileRev describes the result of reading a file at a given revision.
-type FileRev struct {
-	Rev  string // requested revision
-	Data []byte // file data
-	Err  error  // error if any; os.IsNotExist(Err)==true if rev exists but file does not exist in that rev
-}
-
 // UnknownRevisionError is an error equivalent to fs.ErrNotExist, but for a
 // revision rather than a file.
 type UnknownRevisionError struct {
