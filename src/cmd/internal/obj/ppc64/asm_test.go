@@ -300,7 +300,7 @@ func TestLarge(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !matched {
-				t.Errorf("Failed to detect long foward BC fixup in (%v):%s\n", platenv, out)
+				t.Errorf("Failed to detect long forward BC fixup in (%v):%s\n", platenv, out)
 			}
 			matched, err = regexp.MatchString(strings.Join(test.backpattern, "\n\t*"), string(out))
 			if err != nil {
