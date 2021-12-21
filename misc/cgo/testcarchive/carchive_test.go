@@ -10,6 +10,7 @@ import (
 	"debug/elf"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -287,6 +289,173 @@ func checkLineComments(t *testing.T, hdrname string) {
 	}
 }
 
+// checkArchive verifies that the created library looks OK.
+// We just check a couple of things now, we can add more checks as needed.
+func checkArchive(t *testing.T, arname string) {
+	t.Helper()
+
+	switch GOOS {
+	case "aix", "darwin", "ios", "windows":
+		// We don't have any checks for non-ELF libraries yet.
+		if _, err := os.Stat(arname); err != nil {
+			t.Errorf("archive %s does not exist: %v", arname, err)
+		}
+	default:
+		checkELFArchive(t, arname)
+	}
+}
+
+// checkELFArchive checks an ELF archive.
+func checkELFArchive(t *testing.T, arname string) {
+	t.Helper()
+
+	f, err := os.Open(arname)
+	if err != nil {
+		t.Errorf("archive %s does not exist: %v", arname, err)
+		return
+	}
+	defer f.Close()
+
+	// TODO(iant): put these in a shared package?  But where?
+	const (
+		magic = "!<arch>\n"
+		fmag  = "`\n"
+
+		namelen = 16
+		datelen = 12
+		uidlen  = 6
+		gidlen  = 6
+		modelen = 8
+		sizelen = 10
+		fmaglen = 2
+		hdrlen  = namelen + datelen + uidlen + gidlen + modelen + sizelen + fmaglen
+	)
+
+	type arhdr struct {
+		name string
+		date string
+		uid  string
+		gid  string
+		mode string
+		size string
+		fmag string
+	}
+
+	var magbuf [len(magic)]byte
+	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
+		t.Errorf("%s: archive too short", arname)
+		return
+	}
+	if string(magbuf[:]) != magic {
+		t.Errorf("%s: incorrect archive magic string %q", arname, magbuf)
+	}
+
+	off := int64(len(magic))
+	for {
+		if off&1 != 0 {
+			var b [1]byte
+			if _, err := f.Read(b[:]); err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Errorf("%s: error skipping alignment byte at %d: %v", arname, off, err)
+			}
+			off++
+		}
+
+		var hdrbuf [hdrlen]byte
+		if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Errorf("%s: error reading archive header at %d: %v", arname, off, err)
+			return
+		}
+
+		var hdr arhdr
+		hdrslice := hdrbuf[:]
+		set := func(len int, ps *string) {
+			*ps = string(bytes.TrimSpace(hdrslice[:len]))
+			hdrslice = hdrslice[len:]
+		}
+		set(namelen, &hdr.name)
+		set(datelen, &hdr.date)
+		set(uidlen, &hdr.uid)
+		set(gidlen, &hdr.gid)
+		set(modelen, &hdr.mode)
+		set(sizelen, &hdr.size)
+		hdr.fmag = string(hdrslice[:fmaglen])
+		hdrslice = hdrslice[fmaglen:]
+		if len(hdrslice) != 0 {
+			t.Fatalf("internal error: len(hdrslice) == %d", len(hdrslice))
+		}
+
+		if hdr.fmag != fmag {
+			t.Errorf("%s: invalid fmagic value %q at %d", arname, hdr.fmag, off)
+			return
+		}
+
+		size, err := strconv.ParseInt(hdr.size, 10, 64)
+		if err != nil {
+			t.Errorf("%s: error parsing size %q at %d: %v", arname, hdr.size, off, err)
+			return
+		}
+
+		off += hdrlen
+
+		switch hdr.name {
+		case "__.SYMDEF", "/", "/SYM64/":
+			// The archive symbol map.
+		case "//", "ARFILENAMES/":
+			// The extended name table.
+		default:
+			// This should be an ELF object.
+			checkELFArchiveObject(t, arname, off, io.NewSectionReader(f, off, size))
+		}
+
+		off += size
+		if _, err := f.Seek(off, os.SEEK_SET); err != nil {
+			t.Errorf("%s: failed to seek to %d: %v", arname, off, err)
+		}
+	}
+}
+
+// checkELFArchiveObject checks an object in an ELF archive.
+func checkELFArchiveObject(t *testing.T, arname string, off int64, obj io.ReaderAt) {
+	t.Helper()
+
+	ef, err := elf.NewFile(obj)
+	if err != nil {
+		t.Errorf("%s: failed to open ELF file at %d: %v", arname, off, err)
+		return
+	}
+	defer ef.Close()
+
+	// Verify section types.
+	for _, sec := range ef.Sections {
+		want := elf.SHT_NULL
+		switch sec.Name {
+		case ".text", ".data":
+			want = elf.SHT_PROGBITS
+		case ".bss":
+			want = elf.SHT_NOBITS
+		case ".symtab":
+			want = elf.SHT_SYMTAB
+		case ".strtab":
+			want = elf.SHT_STRTAB
+		case ".init_array":
+			want = elf.SHT_INIT_ARRAY
+		case ".fini_array":
+			want = elf.SHT_FINI_ARRAY
+		case ".preinit_array":
+			want = elf.SHT_PREINIT_ARRAY
+		}
+		if want != elf.SHT_NULL && sec.Type != want {
+			t.Errorf("%s: incorrect section type in elf file at %d for section %q: got %v want %v", arname, off, sec.Name, sec.Type, want)
+		}
+	}
+}
+
 func TestInstall(t *testing.T) {
 	if !testWork {
 		defer os.RemoveAll(filepath.Join(GOPATH, "pkg"))
@@ -345,6 +514,7 @@ func TestEarlySignalHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main2.c", "libgo2.a")
 	if runtime.Compiler == "gccgo" {
@@ -385,6 +555,7 @@ func TestSignalForwarding(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
 	if runtime.Compiler == "gccgo" {
@@ -437,6 +608,7 @@ func TestSignalForwardingExternal(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
 	if runtime.Compiler == "gccgo" {
@@ -554,6 +726,7 @@ func TestOsSignal(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo3.h")
+	checkArchive(t, "libgo3.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main3.c", "libgo3.a")
 	if runtime.Compiler == "gccgo" {
@@ -591,6 +764,7 @@ func TestSigaltstack(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo4.h")
+	checkArchive(t, "libgo4.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main4.c", "libgo4.a")
 	if runtime.Compiler == "gccgo" {
@@ -779,6 +953,7 @@ func TestSIGPROF(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo6.h")
+	checkArchive(t, "libgo6.a")
 
 	ccArgs := append(cc, "-o", "testp6"+exeSuffix, "main6.c", "libgo6.a")
 	if runtime.Compiler == "gccgo" {
@@ -824,6 +999,7 @@ func TestCompileWithoutShared(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
 
 	exe := "./testnoshared" + exeSuffix
 
@@ -926,6 +1102,7 @@ func TestManyCalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo7.h")
+	checkArchive(t, "libgo7.a")
 
 	ccArgs := append(cc, "-o", "testp7"+exeSuffix, "main7.c", "libgo7.a")
 	if runtime.Compiler == "gccgo" {
@@ -985,6 +1162,7 @@ func TestPreemption(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo8.h")
+	checkArchive(t, "libgo8.a")
 
 	ccArgs := append(cc, "-o", "testp8"+exeSuffix, "main8.c", "libgo8.a")
 	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
