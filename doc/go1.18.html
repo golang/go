@@ -458,15 +458,45 @@ Do not send CLs removing the interior tags from such phrases.
   a network CIDR prefix.
 </p>
 <p>
+  The package also defines several functions to create and examine
+  these new types:
+  <a href="/pkg/net/netip#AddrFrom4"><code>AddrFrom4</code></a>,
+  <a href="/pkg/net/netip#AddrFrom16"><code>AddrFrom16</code></a>,
+  <a href="/pkg/net/netip#AddrFromSlice"><code>AddrFromSlice</code></a>,
+  <a href="/pkg/net/netip#AddrPortFrom"><code>AddrPortFrom</code></a>,
+  <a href="/pkg/net/netip#IPv4Unspecified"><code>IPv4Unspecified</code></a>,
+  <a href="/pkg/net/netip#IPv6LinkLocalAllNodes"><code>IPv6LinkLocalAllNodes</code></a>,
+  <a href="/pkg/net/netip#IPv6Unspecified"><code>IPv6Unspecified</code></a>,
+  <a href="/pkg/net/netip#MustParseAddr"><code>MustParseAddr</code></a>,
+  <a href="/pkg/net/netip#MustParseAddrPort"><code>MustParseAddrPort</code></a>,
+  <a href="/pkg/net/netip#MustParsePrefix"><code>MustParsePrefix</code></a>,
+  <a href="/pkg/net/netip#ParseAddr"><code>ParseAddr</code></a>,
+  <a href="/pkg/net/netip#ParseAddrPort"><code>ParseAddrPort</code></a>,
+  <a href="/pkg/net/netip#ParsePrefix"><code>ParsePrefix</code></a>,
+  <a href="/pkg/net/netip#PrefixFrom"><code>PrefixFrom</code></a>.
+</p>
+<p>
   The <a href="/pkg/net/"><code>net</code></a> package includes new
   methods that parallel existing methods, but
   return <code>netip.AddrPort</code> instead of the
   heavier-weight <a href="/pkg/net/#IP"><code>net.IP</code></a> or
-  <a href="/pkg/net/#UDPAddr"><code>*net.UDPAddr</code></a> types.
+  <a href="/pkg/net/#UDPAddr"><code>*net.UDPAddr</code></a> types:
+  <a href="/pkg/net/#Resolver.LookupNetIP"><code>Resolver.LookupNetIP</code></a>,
+  <a href="/pkg/net/#UDPConn.ReadFromUDPAddrPort"><code>UDPConn.ReadFromUDPAddrPort</code></a>,
+  <a href="/pkg/net/#UDPConn.ReadMsgUDPAddrPort"><code>UDPConn.ReadMsgUDPAddrPort</code></a>,
+  <a href="/pkg/net/#UDPConn.WriteToUDPAddrPort"><code>UDPConn.WriteToUDPAddrPort</code></a>,
+  <a href="/pkg/net/#UDPConn.WriteMsgUDPAddrPort"><code>UDPConn.WriteMsgUDPAddrPort</code></a>.
+  The new <code>UDPConn</code> methods support allocation-free I/O.
+</p>
+<p>
   The <code>net</code> package also now includes functions and methods
   to convert between the existing
   <a href="/pkg/net/#TCPAddr"><code>TCPAddr</code></a>/<a href="/pkg/net/#UDPAddr"><code>UDPAddr</code></a>
-  types and <code>netip.AddrPort</code>.
+  types and <code>netip.AddrPort</code>:
+  <a href="/pkg/net/#TCPAddrFromAddrPort"><code>TCPAddrFromAddrPort</code></a>,
+  <a href="/pkg/net/#UDPAddrFromAddrPort"><code>UDPAddrFromAddrPort</code></a>,
+  <a href="/pkg/net/#TCPAddr.AddrPort"><code>TCPAddr.AddrPort</code></a>,
+  <a href="/pkg/net/#UDPAddr.AddrPort"><code>UDPAddr.AddrPort</code></a>.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
