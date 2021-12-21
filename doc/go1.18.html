@@ -570,6 +570,17 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- debug/elf -->
 
+<dl id="debug/plan9obj"><dt><a href="/pkg/debug/plan9obj/">debug/plan9obj</a></dt>
+  <dd>
+    <p><!-- CL 350229 -->
+      The <a href="/pkg/debug/plan9obj#File.Symbols">File.Symbols</a>
+      method now returns the new exported error
+      value <a href="/pkg/debug/plan9obj#ErrNoSymbols">ErrNoSymbols</a>
+      if the file has no symbol section.
+    </p>
+  </dd>
+</dl><!-- debug/plan9obj -->
+
 <dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
   <dd>
     <p><!-- https://golang.org/issue/47781, CL 325689, CL 327149, CL 348375, CL 348609 -->
