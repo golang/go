@@ -587,10 +587,10 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
   <dd>
-		<p><!-- https://golang.org/issue/46648 -->
-			The new <a href="/pkg/go/types/#Config.GoVersion"><code>Config.GoVersion</code></a>
-			field sets the accepted Go language version.
-		</p>
+    <p><!-- https://golang.org/issue/46648 -->
+      The new <a href="/pkg/go/types/#Config.GoVersion"><code>Config.GoVersion</code></a>
+      field sets the accepted Go language version.
+    </p>
 
     <p><!-- https://golang.org/issue/47916 -->
       Per the proposal
@@ -669,7 +669,10 @@ Do not send CLs removing the interior tags from such phrases.
       <li><!-- CL 353089 -->
         The new type <a href="/pkg/go/types/#Context"><code>Context</code></a> and factory function
         <a href="/pkg/go/types/#NewContext"><code>NewContext</code></a>
-        are added to facilitate sharing of identical type instances across type-checked packages.
+        are added to facilitate sharing of identical type instances
+        across type-checked packages, via the new
+        <a href="/pkg/go/types/#Config.Context"><code>Config.Context</code></a>
+        field.
       </li>
     </ul>
   </dd>
