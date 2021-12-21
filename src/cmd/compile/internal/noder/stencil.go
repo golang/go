@@ -609,7 +609,7 @@ func (g *genInst) getDictOrSubdict(declInfo *instInfo, n ir.Node, nameNode *ir.N
 	if declInfo != nil {
 		entry := -1
 		for i, de := range declInfo.dictInfo.subDictCalls {
-			if n == de {
+			if n == de.callNode {
 				entry = declInfo.dictInfo.startSubDict + i
 				break
 			}
@@ -1570,8 +1570,9 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
 		markTypeUsed(ts, lsym)
 	}
 	// Emit an entry for each subdictionary (after substituting targs)
-	for _, n := range info.subDictCalls {
+	for _, subDictInfo := range info.subDictCalls {
 		var sym *types.Sym
+		n := subDictInfo.callNode
 		switch n.Op() {
 		case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH:
 			call := n.(*ir.CallExpr)
@@ -1618,31 +1619,31 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
 				} else {
 					// This is the case of a normal
 					// method call on a generic type.
-					recvType := deref(call.X.(*ir.SelectorExpr).X.Type())
-					genRecvType := recvType.OrigSym().Def.Type()
-					nameNode = typecheck.Lookdot1(call.X, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
-					subtargs := recvType.RParams()
-					s2targs := make([]*types.Type, len(subtargs))
-					for i, t := range subtargs {
-						s2targs[i] = subst.Typ(t)
-					}
-					sym = g.getDictionarySym(nameNode, s2targs, true)
+					assert(subDictInfo.savedXNode == se)
+					sym = g.getSymForMethodCall(se, &subst)
 				}
 			} else {
-				inst := call.X.(*ir.InstExpr)
-				var nameNode *ir.Name
-				var meth *ir.SelectorExpr
-				var isMeth bool
-				if meth, isMeth = inst.X.(*ir.SelectorExpr); isMeth {
-					nameNode = meth.Selection.Nname.(*ir.Name)
+				inst, ok := call.X.(*ir.InstExpr)
+				if ok {
+					// Code hasn't been transformed yet
+					assert(subDictInfo.savedXNode == inst)
+				}
+				// If !ok, then the generic method/function call has
+				// already been transformed to a shape instantiation
+				// call. Either way, use the SelectorExpr/InstExpr
+				// node saved in info.
+				cex := subDictInfo.savedXNode
+				if se, ok := cex.(*ir.SelectorExpr); ok {
+					sym = g.getSymForMethodCall(se, &subst)
 				} else {
-					nameNode = inst.X.(*ir.Name)
+					inst := cex.(*ir.InstExpr)
+					nameNode := inst.X.(*ir.Name)
+					subtargs := typecheck.TypesOf(inst.Targs)
+					for i, t := range subtargs {
+						subtargs[i] = subst.Typ(t)
+					}
+					sym = g.getDictionarySym(nameNode, subtargs, false)
 				}
-				subtargs := typecheck.TypesOf(inst.Targs)
-				for i, t := range subtargs {
-					subtargs[i] = subst.Typ(t)
-				}
-				sym = g.getDictionarySym(nameNode, subtargs, isMeth)
 			}
 
 		case ir.OFUNCINST:
@@ -1655,16 +1656,7 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
 			sym = g.getDictionarySym(nameNode, subtargs, false)
 
 		case ir.OXDOT, ir.OMETHEXPR, ir.OMETHVALUE:
-			selExpr := n.(*ir.SelectorExpr)
-			recvType := deref(selExpr.Selection.Type.Recv().Type)
-			genRecvType := recvType.OrigSym().Def.Type()
-			subtargs := recvType.RParams()
-			s2targs := make([]*types.Type, len(subtargs))
-			for i, t := range subtargs {
-				s2targs[i] = subst.Typ(t)
-			}
-			nameNode := typecheck.Lookdot1(selExpr, selExpr.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
-			sym = g.getDictionarySym(nameNode, s2targs, true)
+			sym = g.getSymForMethodCall(n.(*ir.SelectorExpr), &subst)
 
 		default:
 			assert(false)
@@ -1690,6 +1682,24 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
 	}
 	g.dictSymsToFinalize = append(g.dictSymsToFinalize, delay)
 	return sym
+}
+
+// getSymForMethodCall gets the dictionary sym for a method call, method value, or method
+// expression that has selector se. subst gives the substitution from shape types to
+// concrete types.
+func (g *genInst) getSymForMethodCall(se *ir.SelectorExpr, subst *typecheck.Tsubster) *types.Sym {
+	// For everything except method expressions, 'recvType = deref(se.X.Type)' would
+	// also give the receiver type. For method expressions with embedded types, we
+	// need to look at the type of the selection to get the final receiver type.
+	recvType := deref(se.Selection.Type.Recv().Type)
+	genRecvType := recvType.OrigSym().Def.Type()
+	nameNode := typecheck.Lookdot1(se, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
+	subtargs := recvType.RParams()
+	s2targs := make([]*types.Type, len(subtargs))
+	for i, t := range subtargs {
+		s2targs[i] = subst.Typ(t)
+	}
+	return g.getDictionarySym(nameNode, s2targs, true)
 }
 
 // finalizeSyms finishes up all dictionaries on g.dictSymsToFinalize, by writing out
@@ -1839,7 +1849,7 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 		case ir.OFUNCINST:
 			if !callMap[n] && hasShapeNodes(n.(*ir.InstExpr).Targs) {
 				infoPrint("  Closure&subdictionary required at generic function value %v\n", n.(*ir.InstExpr).X)
-				info.subDictCalls = append(info.subDictCalls, n)
+				info.subDictCalls = append(info.subDictCalls, subDictInfo{callNode: n, savedXNode: nil})
 			}
 		case ir.OMETHEXPR, ir.OMETHVALUE:
 			if !callMap[n] && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) &&
@@ -1850,7 +1860,7 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 				} else {
 					infoPrint("  Closure&subdictionary required at generic meth value %v\n", n)
 				}
-				info.subDictCalls = append(info.subDictCalls, n)
+				info.subDictCalls = append(info.subDictCalls, subDictInfo{callNode: n, savedXNode: nil})
 			}
 		case ir.OCALL:
 			ce := n.(*ir.CallExpr)
@@ -1858,14 +1868,18 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 				callMap[ce.X] = true
 				if hasShapeNodes(ce.X.(*ir.InstExpr).Targs) {
 					infoPrint("  Subdictionary at generic function/method call: %v - %v\n", ce.X.(*ir.InstExpr).X, n)
-					info.subDictCalls = append(info.subDictCalls, n)
+					// Save the instExpr node for the function call,
+					// since we will lose this information when the
+					// generic function call is transformed to a call
+					// on the shape instantiation.
+					info.subDictCalls = append(info.subDictCalls, subDictInfo{callNode: n, savedXNode: ce.X})
 				}
 			}
 			if ce.X.Op() == ir.OXDOT &&
 				isShapeDeref(ce.X.(*ir.SelectorExpr).X.Type()) {
 				callMap[ce.X] = true
 				infoPrint("  Optional subdictionary at generic bound call: %v\n", n)
-				info.subDictCalls = append(info.subDictCalls, n)
+				info.subDictCalls = append(info.subDictCalls, subDictInfo{callNode: n, savedXNode: nil})
 			}
 		case ir.OCALLMETH:
 			ce := n.(*ir.CallExpr)
@@ -1874,7 +1888,11 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 				callMap[ce.X] = true
 				if hasShapeTypes(deref(ce.X.(*ir.SelectorExpr).X.Type()).RParams()) {
 					infoPrint("  Subdictionary at generic method call: %v\n", n)
-					info.subDictCalls = append(info.subDictCalls, n)
+					// Save the selector for the method call, since we
+					// will eventually lose this information when the
+					// generic method call is transformed into a
+					// function call on the method shape instantiation.
+					info.subDictCalls = append(info.subDictCalls, subDictInfo{callNode: n, savedXNode: ce.X})
 				}
 			}
 		case ir.OCONVIFACE:
