@@ -678,6 +678,17 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl>
 
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 321491 -->
+      Within a <code>range</code> pipeline the new
+      <code>{{break}}</code> command will end the loop early and the
+      new <code>{{continue}}</code> command will immediately start the
+      next loop iteration.
+    </p>
+  </dd>
+</dl><!-- html/template -->
+
 <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
   <dd>
     <p><!-- CL 340049 -->
@@ -907,12 +918,38 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
   <dd>
+    <p><!-- CL 321491 -->
+      Within a <code>range</code> pipeline the new
+      <code>{{break}}</code> command will end the loop early and the
+      new <code>{{continue}}</code> command will immediately start the
+      next loop iteration.
+    </p>
+
     <p><!-- CL 321490 -->
       The <code>and</code> function no longer always evaluates all arguments; it
       stops evaluating arguments after the first argument that evaluates to
       false.  Similarly, the <code>or</code> function now stops evaluating
       arguments after the first argument that evaluates to true. This makes a
       difference if any of the arguments is a function call.
+    </p>
+  </dd>
+</dl><!-- text/template -->
+
+<dl id="text/template/parse"><dt><a href="/pkg/text/template/parse/">text/template/parse</a></dt>
+  <dd>
+    <p><!-- CL 321491 -->
+      The package supports the new
+      <a href="/pkg/text/template/">text/template</a> and
+      <a href="/pkg/html/template/">html/template</a>
+      <code>{{break}}</code> command via the new constant
+      <a href="/pkg/text/template/parse#NodeBreak"><code>NodeBreak</code></a>
+      and the new type
+      <a href="/pkg/text/template/parse#BreakNode"><code>BreakNode</code></a>,
+      and similarly supports the new <code>{{continue}}</code> command
+      via the new constant
+      <a href="/pkg/text/template/parse#NodeContinue"><code>NodeContinue</code></a>
+      and the new type
+      <a href="/pkg/text/template/parse#ContinueNode"><code>ContinueNode</code></a>.
     </p>
   </dd>
 </dl><!-- text/template -->
