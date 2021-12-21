@@ -23,3 +23,16 @@ func AddCredentials(req *http.Request) (added bool) {
 
 	return false
 }
+// GetCredentials if matched the host name
+func GetCredentials(host string) (string, string) {
+
+	// TODO(golang.org/issue/26232): Support arbitrary user-provided credentials.
+	netrcOnce.Do(readNetrc)
+	for _, l := range netrc {
+		if l.machine == host {
+			return l.login, l.password
+		}
+	}
+
+	return "", ""
+}
