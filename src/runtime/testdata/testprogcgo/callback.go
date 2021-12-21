@@ -66,7 +66,7 @@ func grow1(x, sum *int) int {
 
 func CgoCallbackGC() {
 	P := 100
-	if os.Getenv("RUNTIME_TESTING_SHORT") != "" {
+	if os.Getenv("RUNTIME_TEST_SHORT") != "" {
 		P = 10
 	}
 	done := make(chan bool)
