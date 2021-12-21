@@ -856,6 +856,27 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- regexp -->
 
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 354569 -->
+      The <a href="/pkg/runtime/debug#BuildInfo"><code>BuildInfo</code></a>
+      struct has two new fields, containing additional information
+      about how the binary was built:
+      <ul>
+	<li><a href="/pkg/runtime/debug#BuildInfo.GoVersion"><code>GoVersion</code></a>
+	  holds the version of Go used to build the binary.
+	</li>
+	<li>
+	  <a href="/pkg/runtime/debug#BuildInfo.Settings"><code>Settings</code></a>
+	  is a slice of
+	  <a href="/pkg/runtime/debug#BuildSettings"><code>BuildSettings</code></a>
+	  structs holding key/value pairs describing the build.
+	</li>
+      </ul>
+    </p>
+  </dd>
+</dl><!-- runtime/debug -->
+
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
     <p><!-- CL 343877 -->
