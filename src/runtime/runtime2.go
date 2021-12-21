@@ -1086,7 +1086,7 @@ var waitReasonStrings = [...]string{
 }
 
 func (w waitReason) String() string {
-	if w < 0 || w >= waitReason(len(waitReasonStrings)) {
+	if w >= waitReason(len(waitReasonStrings)) {
 		return "unknown wait reason"
 	}
 	return waitReasonStrings[w]
