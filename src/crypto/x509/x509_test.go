@@ -3253,3 +3253,98 @@ func TestAuthKeyIdOptional(t *testing.T) {
 		t.Fatalf("ParseCertificate to failed to parse certificate with optional authority key identifier fields: %s", err)
 	}
 }
+
+const largeOIDPEM = `
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            da:ba:53:19:1b:09:4b:82:b2:89:26:7d:c7:6f:a0:02
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: O = Acme Co
+        Validity
+            Not Before: Dec 21 16:59:27 2021 GMT
+            Not After : Dec 21 16:59:27 2022 GMT
+        Subject: O = Acme Co
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                RSA Public-Key: (2048 bit)
+                Modulus:
+                    00:bf:17:16:d8:bc:29:9c:16:e5:76:b4:93:15:78:
+                    ad:6e:45:c5:4a:63:46:a1:b2:76:71:65:51:9c:14:
+                    c4:ea:74:13:e4:34:df:2f:2c:65:11:e8:56:52:69:
+                    11:f9:0e:fc:77:bb:63:a8:7c:1a:c6:a1:7b:6e:6c:
+                    e7:18:25:25:c9:e8:fb:06:7f:a2:a9:98:fe:2a:bc:
+                    8a:b3:75:b6:b8:7d:b6:c9:6b:29:08:32:22:10:cb:
+                    8d:d6:60:c8:83:ad:f5:58:91:d6:11:e8:55:56:fb:
+                    8f:a3:a2:9f:48:cb:79:e4:65:4a:8c:a6:52:64:9f:
+                    99:38:35:d4:d5:ac:6f:cf:a0:cb:42:8c:07:eb:21:
+                    17:31:3a:eb:91:7b:62:43:a4:75:5f:ef:a7:2f:94:
+                    f8:69:0b:d4:ec:09:e6:00:c0:8c:dd:07:63:0b:e4:
+                    77:aa:60:18:3c:a0:e0:ae:0a:ea:0e:52:3b:b4:fa:
+                    6a:30:1b:50:62:21:73:53:33:01:60:a1:6b:99:58:
+                    00:f3:77:c6:0f:46:19:ca:c2:5d:cd:f5:e2:52:4d:
+                    84:94:23:d3:32:2f:ae:5f:da:43:a1:19:95:d2:17:
+                    dd:49:14:b4:d9:48:1c:08:13:93:8e:d5:09:43:21:
+                    b6:ce:52:e8:87:bb:d2:60:0d:c6:4e:bf:c5:93:6a:
+                    c6:bf
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Subject Alternative Name:
+                DNS:longOID.example
+            X509v3 Certificate Policies:
+                Policy: 1.3.6.1.4.1.311.21.8.1492336001
+
+    Signature Algorithm: sha256WithRSAEncryption
+         72:77:8b:de:48:fb:6d:9a:94:b1:be:d4:90:7d:4c:e6:d3:79:
+         fa:fb:fc:3e:d5:3d:e9:a0:ce:28:2b:2f:94:77:3f:87:f8:9c:
+         9f:91:1c:f3:f6:58:91:15:6b:24:b9:ca:ae:9f:ee:ca:c8:31:
+         db:1a:3d:bb:6b:83:6d:bc:81:8b:a1:79:d5:3e:bb:dd:93:fe:
+         35:3e:b7:99:e0:d6:eb:58:0c:fd:42:73:dc:49:da:e2:b7:ae:
+         15:ee:e6:cc:aa:ef:91:41:9a:18:46:8d:4a:39:65:a2:85:3c:
+         7f:0c:41:f8:0b:9c:e8:1f:35:36:60:8d:8c:e0:8e:18:b1:06:
+         57:d0:4e:c4:c3:cd:8f:6f:e7:76:02:52:da:03:43:61:2b:b3:
+         bf:19:fd:73:0d:6a:0b:b4:b6:cb:a9:6f:70:4e:53:2a:54:07:
+         b3:74:fd:85:49:57:5b:23:8d:8c:6b:53:2b:09:e8:41:a5:80:
+         3f:69:1b:11:d1:6b:13:35:2e:f9:d6:50:15:d9:91:38:42:43:
+         e9:17:af:67:d9:96:a4:d1:6a:4f:cc:b4:a7:8e:48:1f:00:72:
+         69:de:4d:f1:73:a4:47:12:67:e9:f9:07:3e:79:75:90:42:b8:
+         d4:b5:fd:d1:7e:35:04:f7:00:04:cf:f1:36:be:0f:27:81:1f:
+         a6:ba:88:6c
+-----BEGIN CERTIFICATE-----
+MIIDHTCCAgWgAwIBAgIRANq6UxkbCUuCsokmfcdvoAIwDQYJKoZIhvcNAQELBQAw
+EjEQMA4GA1UEChMHQWNtZSBDbzAeFw0yMTEyMjExNjU5MjdaFw0yMjEyMjExNjU5
+MjdaMBIxEDAOBgNVBAoTB0FjbWUgQ28wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+ggEKAoIBAQC/FxbYvCmcFuV2tJMVeK1uRcVKY0ahsnZxZVGcFMTqdBPkNN8vLGUR
+6FZSaRH5Dvx3u2OofBrGoXtubOcYJSXJ6PsGf6KpmP4qvIqzdba4fbbJaykIMiIQ
+y43WYMiDrfVYkdYR6FVW+4+jop9Iy3nkZUqMplJkn5k4NdTVrG/PoMtCjAfrIRcx
+OuuRe2JDpHVf76cvlPhpC9TsCeYAwIzdB2ML5HeqYBg8oOCuCuoOUju0+mowG1Bi
+IXNTMwFgoWuZWADzd8YPRhnKwl3N9eJSTYSUI9MyL65f2kOhGZXSF91JFLTZSBwI
+E5OO1QlDIbbOUuiHu9JgDcZOv8WTasa/AgMBAAGjbjBsMA4GA1UdDwEB/wQEAwIF
+oDATBgNVHSUEDDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBoGA1UdEQQTMBGC
+D2xvbmdPSUQuZXhhbXBsZTAbBgNVHSAEFDASMBAGDisGAQQBgjcVCIXHzPsBMA0G
+CSqGSIb3DQEBCwUAA4IBAQByd4veSPttmpSxvtSQfUzm03n6+/w+1T3poM4oKy+U
+dz+H+JyfkRzz9liRFWskucqun+7KyDHbGj27a4NtvIGLoXnVPrvdk/41PreZ4Nbr
+WAz9QnPcSdrit64V7ubMqu+RQZoYRo1KOWWihTx/DEH4C5zoHzU2YI2M4I4YsQZX
+0E7Ew82Pb+d2AlLaA0NhK7O/Gf1zDWoLtLbLqW9wTlMqVAezdP2FSVdbI42Ma1Mr
+CehBpYA/aRsR0WsTNS751lAV2ZE4QkPpF69n2Zak0WpPzLSnjkgfAHJp3k3xc6RH
+Emfp+Qc+eXWQQrjUtf3RfjUE9wAEz/E2vg8ngR+muohs
+-----END CERTIFICATE-----`
+
+func TestLargeOID(t *testing.T) {
+	// See Issue 49678.
+	b, _ := pem.Decode([]byte(largeOIDPEM))
+	if b == nil {
+		t.Fatalf("couldn't decode test certificate")
+	}
+	_, err := ParseCertificate(b.Bytes)
+	if err != nil {
+		t.Fatalf("ParseCertificate to failed to parse certificate with large OID: %s", err)
+	}
+}
