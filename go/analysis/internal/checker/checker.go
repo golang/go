@@ -890,7 +890,7 @@ func (act *action) exportPackageFact(fact analysis.Fact) {
 func factType(fact analysis.Fact) reflect.Type {
 	t := reflect.TypeOf(fact)
 	if t.Kind() != reflect.Ptr {
-		log.Fatalf("invalid Fact type: got %T, want pointer", t)
+		log.Fatalf("invalid Fact type: got %T, want pointer", fact)
 	}
 	return t
 }

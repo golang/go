@@ -390,7 +390,7 @@ func exportedFrom(obj types.Object, pkg *types.Package) bool {
 func factType(fact analysis.Fact) reflect.Type {
 	t := reflect.TypeOf(fact)
 	if t.Kind() != reflect.Ptr {
-		panic(fmt.Sprintf("invalid Fact type: got %T, want pointer", t))
+		panic(fmt.Sprintf("invalid Fact type: got %T, want pointer", fact))
 	}
 	return t
 }
