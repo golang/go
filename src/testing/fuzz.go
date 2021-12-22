@@ -323,10 +323,10 @@ func (f *F) Fuzz(ff any) {
 			for _, v := range e.Values {
 				args = append(args, reflect.ValueOf(v))
 			}
-			// Before reseting the current coverage, defer the snapshot so that we
-			// make sure it is called right before the tRunner function exits,
-			// regardless of whether it was executed cleanly, panicked, or if the
-			// fuzzFn called t.Fatal.
+			// Before resetting the current coverage, defer the snapshot so that
+			// we make sure it is called right before the tRunner function
+			// exits, regardless of whether it was executed cleanly, panicked,
+			// or if the fuzzFn called t.Fatal.
 			defer f.fuzzContext.deps.SnapshotCoverage()
 			f.fuzzContext.deps.ResetCoverage()
 			fn.Call(args)
@@ -666,6 +666,7 @@ func fRunner(f *F, fn func(*F)) {
 			// This only affects fuzz tests run as normal tests.
 			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
 			// branch is not taken. f.barrier is nil in that case.
+			f.testContext.release()
 			close(f.barrier)
 			// Wait for the subtests to complete.
 			for _, sub := range f.sub {
