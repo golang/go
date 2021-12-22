@@ -34,9 +34,7 @@ func bar() string {
 	x, y := make(<>), make(<>)
 	select {<>}
 	// This is a multiline comment<>
-	return `
-this string
-is not indented`
+	return <>
 }
 
 -- foldingRange-2 --
@@ -283,6 +281,7 @@ is not indented`
 67:10-68:24
 68:15-68:23
 70:32-71:30
+72:9-74:16
 
 -- foldingRange-comment-0 --
 package folding //@fold("package")
@@ -474,9 +473,7 @@ func bar() string {
 	select {<>
 	}
 	// This is a multiline comment<>
-	return `
-this string
-is not indented`
+	return <>
 }
 
 -- foldingRange-lineFolding-2 --

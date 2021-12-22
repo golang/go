@@ -106,6 +106,11 @@ func foldingRangeFunc(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node,
 			startSpecs, endSpecs = n.Specs[0].Pos(), n.Specs[num-1].End()
 		}
 		start, end = validLineFoldingRange(fset, n.Lparen, n.Rparen, startSpecs, endSpecs, lineFoldingOnly)
+	case *ast.BasicLit:
+		// Fold raw string literals from position of "`" to position of "`".
+		if n.Kind == token.STRING && len(n.Value) >= 2 && n.Value[0] == '`' && n.Value[len(n.Value)-1] == '`' {
+			start, end = n.Pos(), n.End()
+		}
 	case *ast.CompositeLit:
 		// Fold between positions of or lines between "{" and "}".
 		var startElts, endElts token.Pos
