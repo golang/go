@@ -157,9 +157,6 @@ func (p *pageAlloc) allocToCache() pageCache {
 	// Set the bits as allocated and clear the scavenged bits.
 	p.allocRange(c.base, pageCachePages)
 
-	// Update as an allocation, but note that it's not contiguous.
-	p.update(c.base, pageCachePages, false, true)
-
 	// Set the search address to the last page represented by the cache.
 	// Since all of the pages in this block are going to the cache, and we
 	// searched for the first free page, we can confidently start at the
