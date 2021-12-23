@@ -471,7 +471,7 @@ const (
 	UintptrEscapes              // pointers converted to uintptr escape
 
 	// Runtime-only func pragmas.
-	// See ../../../../runtime/README.md for detailed descriptions.
+	// See ../../../../runtime/HACKING.md for detailed descriptions.
 	Systemstack        // func must run on system stack
 	Nowritebarrier     // emit compiler error instead of write barrier
 	Nowritebarrierrec  // error on write barrier in this or recursive callees
