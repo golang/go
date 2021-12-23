@@ -304,6 +304,27 @@ Do not send CLs removing the interior tags from such phrases.
   file to specify the single main module.
 </p>
 
+<p><!-- CL 251441 -->
+  The <code>go</code> command now supports additional command line
+  options for the new <a href="#fuzzing">fuzzing support described
+  above</a>:
+  <ul>
+    <li>
+      <code>go test</code> supports
+      <code>-fuzz</code>, <code>-fuzztime</code>, and
+      <code>-fuzzminimizetime</code> options.
+      For documentation on these see
+      <a href="/pkg/cmd/go#hdr-Testing_flags"><code>go help testflag</code></a>.
+    </li>
+    <li>
+      <code>go clean</code> supports a <code>-fuzzcache</code>
+      option.
+      For documentation see
+      <a href="/pkg/cmd/go#hdr-Remove_object_files_and_cached_files"><code>go help clean</code></a>.
+    </li>
+  </ul>
+</p>
+
 <h3 id="gofmt"><code>gofmt</code></h3>
 
 <p><!-- https://golang.org/issue/43566 -->
@@ -979,7 +1000,9 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 251441 -->
       The new <a href="/pkg/testing#F"><code>testing.F</code></a> type
       is used by the new <a href="#fuzzing">fuzzing support described
-      above</a>.
+      above</a>. Tests also now support the command line
+      options <code>-test.fuzz</code>, <code>-test.fuzztime</code>, and
+      <code>-test.fuzzminimizetime</code>.
     </p>
   </dd>
 </dl><!-- testing -->
