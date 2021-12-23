@@ -708,34 +708,29 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 
 	index := 0
 	var bounds []Type
-	var posns []positioner // bound positions
 	for _, f := range list.List {
-		// TODO(rfindley) we should be able to rely on f.Type != nil at this point
+		var bound Type
+		// NOTE: we may be able to assert that f.Type != nil here, but this is not
+		// an invariant of the AST, so we are cautious.
 		if f.Type != nil {
-			bound := check.bound(f.Type)
-			bounds = append(bounds, bound)
-			posns = append(posns, f.Type)
-			for i := range f.Names {
-				tparams[index+i].bound = bound
-			}
-		}
-		index += len(f.Names)
-	}
-
-	check.later(func() {
-		for i, bound := range bounds {
+			bound = check.bound(f.Type)
 			if isTypeParam(bound) {
 				// We may be able to allow this since it is now well-defined what
 				// the underlying type and thus type set of a type parameter is.
 				// But we may need some additional form of cycle detection within
 				// type parameter lists.
-				check.error(posns[i], _MisplacedTypeParam, "cannot use a type parameter as constraint")
+				check.error(f.Type, _MisplacedTypeParam, "cannot use a type parameter as constraint")
+				bound = Typ[Invalid]
 			}
+		} else {
+			bound = Typ[Invalid]
 		}
-		for _, tpar := range tparams {
-			tpar.iface() // compute type set
+		bounds = append(bounds, bound)
+		for i := range f.Names {
+			tparams[index+i].bound = bound
 		}
-	})
+		index += len(f.Names)
+	}
 }
 
 func (check *Checker) bound(x ast.Expr) Type {
