@@ -8,6 +8,7 @@
 #include "funcdata.h"
 #include "textflag.h"
 #include "tls_arm64.h"
+#include "cgo/abi_arm64.h"
 
 // The following thunks allow calling the gcc-compiled race runtime directly
 // from Go code without going all the way through cgo.
@@ -450,13 +451,12 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 rest:
 	// Save callee-saved registers (Go code won't respect that).
 	// 8(RSP) and 16(RSP) are for args passed through racecallback
-	SUB	$112, RSP
+	SUB	$176, RSP
 	MOVD	LR, 0(RSP)
-	STP	(R19, R20), 24(RSP)
-	STP	(R21, R22), 40(RSP)
-	STP	(R23, R24), 56(RSP)
-	STP	(R25, R26), 72(RSP)
-	STP	(R27,   g), 88(RSP)
+
+	SAVE_R19_TO_R28(8*3)
+	SAVE_F8_TO_F15(8*13)
+	MOVD	R29, (8*21)(RSP)
 	// Set g = g0.
 	// load_g will clobber R0, Save R0
 	MOVD	R0, R13
@@ -479,12 +479,10 @@ rest:
 ret:
 	// Restore callee-saved registers.
 	MOVD	0(RSP), LR
-	LDP	24(RSP), (R19, R20)
-	LDP	40(RSP), (R21, R22)
-	LDP	56(RSP), (R23, R24)
-	LDP	72(RSP), (R25, R26)
-	LDP	88(RSP), (R27,   g)
-	ADD	$112, RSP
+	MOVD	(8*21)(RSP), R29
+	RESTORE_F8_TO_F15(8*13)
+	RESTORE_R19_TO_R28(8*3)
+	ADD	$176, RSP
 	JMP	(LR)
 
 noswitch:
