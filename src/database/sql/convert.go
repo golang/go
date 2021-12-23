@@ -367,7 +367,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 	case *RawBytes:
 		sv = reflect.ValueOf(src)
 		if b, ok := asBytes([]byte(*d)[:0], sv); ok {
-			*d = RawBytes(b)
+			*d = b
 			return nil
 		}
 	case *bool:
