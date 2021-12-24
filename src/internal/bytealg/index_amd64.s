@@ -232,9 +232,161 @@ fail:
 success_avx2:
 	VZEROUPPER
 	JMP success
+evex_prefix_match:
+	// SIMD prefix matching
+	// The algorithm use first 2 byte of needle as prefix, then
+	// 1. bulk compare with haystack to see any prefix matching
+	// 2. if found, compare with last byte to filter out unmatch tail quickly
+	// 3. if still match candicates remains, do full match
+	// (evex mask loading for data len < 32)
+
+	// R9 is the safe pointer will not cross haystack boundary.
+	// R12 is haystack start pointer for vec checking.
+	LEAQ -32(DI)(DX*1), R9
+	SUBQ AX, R9
+	MOVQ DI, R12
+	// Register allocation for needle:
+	// Y1: 1st byte broadcast
+	// Y2: 2nd byte broadcast
+	// Y3: last byte broadcast
+	// Y4: first 32 bytes of needle
+	// Y5: needle[-32:] if have
+	// K1: load mask for needle (ne_len <= 32)
+	MOVBLZX (R8), BX
+	MOVBLZX 1(R8), CX
+	MOVBLZX -1(R8)(AX*1), SI
+	VPBROADCASTB BX, Y1
+	VPBROADCASTB CX, Y2
+	VPBROADCASTB SI, Y3
+	// Depends on needle length, we have 2 variants of full match:
+	// * len <= 32: mask loading, cmp to single YMM register
+	// * 64 > len > 32: overlap loading, cmp to 2 YMM register
+	CMPQ AX, $32
+	JA load_needle_overlap
+	// load_mask = (-1L) >> (32 - ne_len)
+	MOVL $0xffffffff, BX
+	MOVL $32, CX
+	SUBL AX, CX
+	SHRL CX, BX
+	KMOVD BX, K1
+	// K1 is the load mask for needle.
+	VMOVDQU8.Z (R8), K1, Y4
+vec_loop_entry:
+	// R12 -= 32 is for init the vec_loop.
+	SUBQ $32, R12
+vec_loop:
+	ADDQ $32, R12
+	CMPQ R12, R9
+	JA tail_handler
+	VPCMPEQB (R12), Y1, Y6
+	VPCMPEQB 1(R12), Y2, Y7
+	VPAND Y6, Y7, Y6
+	VPMOVMSKB Y6, SI
+	// Check if prefix match, otherwise, next loop.
+	TESTL SI, SI
+	JE    vec_loop
+	// Filter out unmatch tail.
+	VPCMPEQB -1(R12)(AX*1), Y3, Y7
+	VPAND Y6, Y7, Y6
+	VPMOVMSKB Y6, SI
+	TESTL SI, SI
+	JE    vec_loop
+next_pair_index:
+	// Match found, extract first match index.
+	BSFL SI, BX
+	LEAQ (R12)(BX*1), DI
+	CMPQ AX, $32
+	JA  full_match_overlap
+	// Test if full match.
+	VMOVDQU8.Z (DI), K1, Y6
+	VPCMPEQB Y6, Y4, Y7
+	VPMOVMSKB Y7, CX
+	// Use full match since unused Y6, Y4 bytes are all zeros.
+	CMPL  CX, $0xffffffff
+	JE    success_avx2
+prepare_next_pair:
+	// False matching, iter to next pair index.
+	LEAL -1(SI), CX
+	ANDL CX, SI
+	JNE  next_pair_index
+	// No more matched bits, back to loop.
+	JMP  vec_loop
+full_match_overlap:
+	VPCMPEQB (DI), Y4, Y6
+	VPCMPEQB -32(DI)(AX*1), Y5, Y7
+	VPAND Y6, Y7, Y7
+	VPMOVMSKB Y7, CX
+	CMPL  CX, $0xffffffff
+	JE    success_avx2
+	JMP   prepare_next_pair
+tail_handler:
+	// Save possible matching mask to K2
+	// last possible matching end_pos = hs_end - ne_len + 1
+	// while R9 = (hs_end - ne_len) - 32
+	// remain potential match_count = end_pos - R12
+	//                              = hs_end - ne_len + 1- R12 = R9 - R12 + 33
+	// mask = (-1L) >> (32 - match_count) = (-1L) >> (R12 - R9 - 1)
+	MOVL $0xffffffff, BX
+	LEAQ -1(R12), CX
+	SUBQ R9, CX
+	SHRL CX, BX
+	KMOVD BX, K2
+	// Prefix mathcing.
+	VMOVDQU8.Z (R12), K2, Y6
+	VMOVDQU8.Z 1(R12), K2, Y7
+	VPCMPEQB Y6, Y1, Y6
+	VPCMPEQB Y7, Y2, Y7
+	VPAND Y6, Y7, Y6
+	VPMOVMSKB Y6, SI
+	TESTL SI, SI
+	JE    fail_avx2
+	// Filter out unmatch tail.
+	VMOVDQU8.Z -1(R12)(AX*1), K2, Y7
+	VPCMPEQB Y7, Y3, Y7
+	VPAND Y6, Y7, Y6
+	VPMOVMSKB Y6, SI
+	// Discard false match that out of range.
+	ANDL BX, SI
+	TESTL SI, SI
+	JE    fail_avx2
+next_pair_index1:
+	// Match found, extract first index.
+	BSFL SI, BX
+	LEAQ (R12)(BX*1), DI
+	CMPQ AX, $32
+	JA  full_match_overlap1
+	// Test if full match.
+	VMOVDQU8.Z (DI), K1, Y6
+	VPCMPEQB Y6, Y4, Y7
+	VPMOVMSKB Y7, CX
+	CMPL  CX, $0xffffffff
+	JE    success_avx2
+prepare_next_pair1:
+	// False matching, iter to next pair index.
+	LEAL -1(SI), CX
+	ANDL CX, SI
+	JNE  next_pair_index1
+	// No match any more, fail.
+	JMP  fail_avx2
+full_match_overlap1:
+	VPCMPEQB (DI), Y4, Y6
+	VPCMPEQB -32(DI)(AX*1), Y5, Y7
+	VPAND Y6, Y7, Y7
+	VPMOVMSKB Y7, CX
+	CMPL  CX, $0xffffffff
+	JE    success_avx2
+	JMP   prepare_next_pair1
+load_needle_overlap:
+	// Needle length > 32, use overlap loading.
+	VMOVDQU (R8), Y4
+	VMOVDQU -32(R8)(AX*1), Y5
+	JMP  vec_loop_entry
 sse42:
 	CMPB internal∕cpu·X86+const_offsetX86HasSSE42(SB), $1
 	JNE no_sse42
+	MOVBLZX internal∕cpu·X86+const_offsetX86HasAVX512BW(SB), BX
+	TESTB internal∕cpu·X86+const_offsetX86HasAVX512VL(SB), BX
+	JNZ evex_prefix_match
 	CMPQ AX, $12
 	// PCMPESTRI is slower than normal compare,
 	// so using it makes sense only if we advance 4+ bytes per compare

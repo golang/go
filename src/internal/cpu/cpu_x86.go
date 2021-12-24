@@ -31,11 +31,14 @@ const (
 	cpuid_AVX       = 1 << 28
 
 	// ebx bits
-	cpuid_BMI1 = 1 << 3
-	cpuid_AVX2 = 1 << 5
-	cpuid_BMI2 = 1 << 8
-	cpuid_ERMS = 1 << 9
-	cpuid_ADX  = 1 << 19
+	cpuid_BMI1     = 1 << 3
+	cpuid_AVX2     = 1 << 5
+	cpuid_BMI2     = 1 << 8
+	cpuid_ERMS     = 1 << 9
+	cpuid_AVX512   = 1 << 16
+	cpuid_ADX      = 1 << 19
+	cpuid_AVX512BW = 1 << 30
+	cpuid_AVX512VL = 1 << 31
 
 	// edx bits for CPUID 0x80000001
 	cpuid_RDTSCP = 1 << 27
@@ -49,6 +52,10 @@ func doinit() {
 		{Name: "aes", Feature: &X86.HasAES},
 		{Name: "avx", Feature: &X86.HasAVX},
 		{Name: "avx2", Feature: &X86.HasAVX2},
+		{Name: "avx512", Feature: &X86.HasAVX512},
+		{Name: "avx512f", Feature: &X86.HasAVX512F},
+		{Name: "avx512bw", Feature: &X86.HasAVX512BW},
+		{Name: "avx512vl", Feature: &X86.HasAVX512VL},
 		{Name: "bmi1", Feature: &X86.HasBMI1},
 		{Name: "bmi2", Feature: &X86.HasBMI2},
 		{Name: "erms", Feature: &X86.HasERMS},
@@ -92,11 +99,19 @@ func doinit() {
 	X86.HasFMA = isSet(ecx1, cpuid_FMA) && X86.HasOSXSAVE
 
 	osSupportsAVX := false
+	osSupportsAVX512 := false
 	// For XGETBV, OSXSAVE bit is required and sufficient.
 	if X86.HasOSXSAVE {
 		eax, _ := xgetbv()
 		// Check if XMM and YMM registers have OS support.
 		osSupportsAVX = isSet(eax, 1<<1) && isSet(eax, 1<<2)
+
+		if GOOS == "darwin" {
+			osSupportsAVX512 = false
+		} else {
+			// Check if opmask, ZMMhi256 and Hi16_ZMM have OS support.
+			osSupportsAVX512 = osSupportsAVX && isSet(eax, 1<<5) && isSet(eax, 1<<6) && isSet(eax, 1<<7)
+		}
 	}
 
 	X86.HasAVX = isSet(ecx1, cpuid_AVX) && osSupportsAVX
@@ -111,6 +126,13 @@ func doinit() {
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
+
+	X86.HasAVX512 = isSet(ebx7, cpuid_AVX512) && osSupportsAVX512
+	if X86.HasAVX512 {
+		X86.HasAVX512F = true
+		X86.HasAVX512BW = isSet(ebx7, cpuid_AVX512BW)
+		X86.HasAVX512VL = isSet(ebx7, cpuid_AVX512VL)
+	}
 
 	var maxExtendedInformation uint32
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
