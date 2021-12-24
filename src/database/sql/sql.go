@@ -464,11 +464,12 @@ type DB struct {
 	// connections in Stmt.css.
 	numClosed uint64
 
-	mu           sync.Mutex // protects following fields
-	freeConn     []*driverConn
-	connRequests map[uint64]chan connRequest
-	nextRequest  uint64 // Next key to use in connRequests.
-	numOpen      int    // number of opened and pending open connections
+	mu                   sync.Mutex // protects following fields
+	freeConn             []*driverConn
+	connRequests         map[uint64]chan connRequest
+	nextRequest          uint64 // Next key to use in connRequests.
+	nextRequestToSatisfy uint64 // Next key to satisfy from connRequests.
+	numOpen              int    // number of opened and pending open connections
 	// Used to signal the need for new connections
 	// a goroutine running connectionOpener() reads on this chan and
 	// maybeOpenNewConnections sends on the chan (one send per needed connection)
@@ -1482,8 +1483,9 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 	if c := len(db.connRequests); c > 0 {
 		var req chan connRequest
 		var reqKey uint64
-		for reqKey, req = range db.connRequests {
-			break
+		for ok := false; !ok && db.nextRequestToSatisfy < db.nextRequest; db.nextRequestToSatisfy++ {
+			req, ok = db.connRequests[db.nextRequestToSatisfy]
+			reqKey = db.nextRequestToSatisfy
 		}
 		delete(db.connRequests, reqKey) // Remove from pending requests.
 		if err == nil {
