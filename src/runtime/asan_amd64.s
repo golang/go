@@ -15,25 +15,33 @@
 #ifdef GOOS_windows
 #define RARG0 CX
 #define RARG1 DX
+#define RARG2 R8
+#define RARG3 R9
 #else
 #define RARG0 DI
 #define RARG1 SI
+#define RARG2 DX
+#define RARG3 CX
 #endif
 
 // Called from intrumented code.
-// func runtime·asanread(addr unsafe.Pointer, sz uintptr)
-TEXT	runtime·asanread(SB), NOSPLIT, $0-16
+// func runtime·doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
+TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
 	MOVQ	addr+0(FP), RARG0
 	MOVQ	size+8(FP), RARG1
-	// void __asan_read_go(void *addr, uintptr_t sz);
+	MOVQ	sp+16(FP), RARG2
+	MOVQ	pc+24(FP), RARG3
+	// void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc);
 	MOVQ	$__asan_read_go(SB), AX
 	JMP	asancall<>(SB)
 
-// func runtime·asanwrite(addr unsafe.Pointer, sz uintptr)
-TEXT	runtime·asanwrite(SB), NOSPLIT, $0-16
+// func runtime·doasanwrite(addr unsafe.Pointer, sz, sp, pc uintptr)
+TEXT	runtime·doasanwrite(SB), NOSPLIT, $0-32
 	MOVQ	addr+0(FP), RARG0
 	MOVQ	size+8(FP), RARG1
-	// void __asan_write_go(void *addr, uintptr_t sz);
+	MOVQ	sp+16(FP), RARG2
+	MOVQ	pc+24(FP), RARG3
+	// void __asan_write_go(void *addr, uintptr_t sz, void *sp, void *pc);
 	MOVQ	$__asan_write_go(SB), AX
 	JMP	asancall<>(SB)
 

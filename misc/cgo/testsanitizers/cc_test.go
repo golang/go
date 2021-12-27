@@ -269,6 +269,8 @@ func configure(sanitizer string) *config {
 
 	case "address":
 		c.goFlags = append(c.goFlags, "-asan")
+		// Set the debug mode to print the C stack trace.
+		c.cFlags = append(c.cFlags, "-g")
 
 	default:
 		panic(fmt.Sprintf("unrecognized sanitizer: %q", sanitizer))

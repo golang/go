@@ -33,11 +33,12 @@ func TestASAN(t *testing.T) {
 	cases := []struct {
 		src               string
 		memoryAccessError string
+		errorLocation     string
 	}{
-		{src: "asan1_fail.go", memoryAccessError: "heap-use-after-free"},
-		{src: "asan2_fail.go", memoryAccessError: "heap-buffer-overflow"},
-		{src: "asan3_fail.go", memoryAccessError: "use-after-poison"},
-		{src: "asan4_fail.go", memoryAccessError: "use-after-poison"},
+		{src: "asan1_fail.go", memoryAccessError: "heap-use-after-free", errorLocation: "asan1_fail.go:25"},
+		{src: "asan2_fail.go", memoryAccessError: "heap-buffer-overflow", errorLocation: "asan2_fail.go:31"},
+		{src: "asan3_fail.go", memoryAccessError: "use-after-poison", errorLocation: "asan3_fail.go:13"},
+		{src: "asan4_fail.go", memoryAccessError: "use-after-poison", errorLocation: "asan4_fail.go:13"},
 		{src: "asan_useAfterReturn.go"},
 	}
 	for _, tc := range cases {
@@ -56,6 +57,10 @@ func TestASAN(t *testing.T) {
 			if tc.memoryAccessError != "" {
 				out, err := cmd.CombinedOutput()
 				if err != nil && strings.Contains(string(out), tc.memoryAccessError) {
+					// Check if -asan option can correctly print where the error occured.
+					if tc.errorLocation != "" && !strings.Contains(string(out), tc.errorLocation) {
+						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.errorLocation, out)
+					}
 					return
 				}
 				t.Fatalf("%#q exited without expected memory access error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.memoryAccessError, out)
