@@ -104,6 +104,16 @@ func Getenv(key string) string {
 	return v
 }
 
+// Getenv retrieves the value of the environment variable 
+// named by the key if key is present. Returns the defaultValue otherwise.
+func GetenvOrDefault(key string, defaultValue string) string {
+	v, ok := LookupEnv(key)
+	if !ok {
+		return defaultValue
+	}
+	return v
+}
+
 // LookupEnv retrieves the value of the environment variable named
 // by the key. If the variable is present in the environment the
 // value (which may be empty) is returned and the boolean is true.
