@@ -27,6 +27,7 @@ package intsets // import "golang.org/x/tools/container/intsets"
 import (
 	"bytes"
 	"fmt"
+	"math/bits"
 )
 
 // A Sparse is a set of int values.
@@ -62,6 +63,36 @@ const (
 	MaxInt = int(^uint(0) >> 1)
 	MinInt = -MaxInt - 1
 )
+
+// popcount returns the number of set bits in w.
+func popcount(x word) int {
+	// Avoid OnesCount(uint): don't assume uint = uintptr.
+	if bitsPerWord == 32 {
+		return bits.OnesCount32(uint32(x))
+	} else {
+		return bits.OnesCount64(uint64(x))
+	}
+}
+
+// nlz returns the number of leading zeros of x.
+func nlz(x word) int {
+	// Avoid LeadingZeros(uint): don't assume uint = uintptr.
+	if bitsPerWord == 32 {
+		return bits.LeadingZeros32(uint32(x))
+	} else {
+		return bits.LeadingZeros64(uint64(x))
+	}
+}
+
+// ntz returns the number of trailing zeros of x.
+func ntz(x word) int {
+	// Avoid TrailingZeros(uint): don't assume uint = uintptr.
+	if bitsPerWord == 32 {
+		return bits.TrailingZeros32(uint32(x))
+	} else {
+		return bits.TrailingZeros64(uint64(x))
+	}
+}
 
 // -- block ------------------------------------------------------------
 
