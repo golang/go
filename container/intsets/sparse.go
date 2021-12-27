@@ -666,8 +666,9 @@ func (s *Sparse) UnionWith(x *Sparse) bool {
 	for xb != &none {
 		if sb != &none && sb.offset == xb.offset {
 			for i := range xb.bits {
-				if sb.bits[i] != xb.bits[i] {
-					sb.bits[i] |= xb.bits[i]
+				union := sb.bits[i] | xb.bits[i]
+				if sb.bits[i] != union {
+					sb.bits[i] = union
 					changed = true
 				}
 			}

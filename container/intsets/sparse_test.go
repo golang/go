@@ -460,6 +460,41 @@ func TestSetOperations(t *testing.T) {
 	}
 }
 
+// TestUnionWithChanged checks the 'changed' result of UnionWith.
+func TestUnionWithChanged(t *testing.T) {
+	setOf := func(elems ...int) *intsets.Sparse {
+		s := new(intsets.Sparse)
+		for _, elem := range elems {
+			s.Insert(elem)
+		}
+		return s
+	}
+
+	checkUnionWith := func(x, y *intsets.Sparse) {
+		xstr := x.String()
+		prelen := x.Len()
+		changed := x.UnionWith(y)
+		if (x.Len() > prelen) != changed {
+			t.Errorf("%s.UnionWith(%s) => %s, changed=%t", xstr, y, x, changed)
+		}
+	}
+
+	// The case marked "!" is a regression test for Issue 50352,
+	// which spuriously returned true when y ⊂ x.
+
+	// same block
+	checkUnionWith(setOf(1, 2), setOf(1, 2))
+	checkUnionWith(setOf(1, 2, 3), setOf(1, 2)) // !
+	checkUnionWith(setOf(1, 2), setOf(1, 2, 3))
+	checkUnionWith(setOf(1, 2), setOf())
+
+	// different blocks
+	checkUnionWith(setOf(1, 1000000), setOf(1, 1000000))
+	checkUnionWith(setOf(1, 2, 1000000), setOf(1, 2))
+	checkUnionWith(setOf(1, 2), setOf(1, 2, 1000000))
+	checkUnionWith(setOf(1, 1000000), setOf())
+}
+
 func TestIntersectionWith(t *testing.T) {
 	// Edge cases: the pairs (1,1), (1000,2000), (8000,4000)
 	// exercise the <, >, == cases in IntersectionWith that the
