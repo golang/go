@@ -11,23 +11,38 @@ import (
 )
 
 // Public address sanitizer API.
-
 func ASanRead(addr unsafe.Pointer, len int) {
-	asanread(addr, uintptr(len))
+	sp := getcallersp()
+	pc := getcallerpc()
+	doasanread(addr, uintptr(len), sp, pc)
 }
 
 func ASanWrite(addr unsafe.Pointer, len int) {
-	asanwrite(addr, uintptr(len))
+	sp := getcallersp()
+	pc := getcallerpc()
+	doasanwrite(addr, uintptr(len), sp, pc)
 }
 
 // Private interface for the runtime.
 const asanenabled = true
 
-//go:noescape
-func asanread(addr unsafe.Pointer, sz uintptr)
+func asanread(addr unsafe.Pointer, sz uintptr) {
+	sp := getcallersp()
+	pc := getcallerpc()
+	doasanread(addr, sz, sp, pc)
+}
+
+func asanwrite(addr unsafe.Pointer, sz uintptr) {
+	sp := getcallersp()
+	pc := getcallerpc()
+	doasanwrite(addr, sz, sp, pc)
+}
 
 //go:noescape
-func asanwrite(addr unsafe.Pointer, sz uintptr)
+func doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
+
+//go:noescape
+func doasanwrite(addr unsafe.Pointer, sz, sp, pc uintptr)
 
 //go:noescape
 func asanunpoison(addr unsafe.Pointer, sz uintptr)

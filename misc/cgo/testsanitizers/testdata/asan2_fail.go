@@ -28,7 +28,7 @@ func main() {
 	a := C.f()
 	q5 := (*C.int)(unsafe.Add(unsafe.Pointer(a), 4*5))
 	// Access to C pointer out of bounds.
-	*q5 = 100
+	*q5 = 100 // BOOM
 	// We shouldn't get here; asan should stop us first.
 	fmt.Printf("q5: %d, %x\n", *q5, q5)
 }

@@ -22,7 +22,7 @@ func main() {
 	// C passes Go an invalid pointer.
 	a := C.test()
 	// Use after free
-	*a = 2
+	*a = 2 // BOOM
 	// We shouldn't get here; asan should stop us first.
 	fmt.Println(*a)
 }
