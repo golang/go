@@ -248,11 +248,11 @@ func (v *upgradeFlag) String() string { return "" }
 
 func init() {
 	work.AddBuildFlags(CmdGet, work.OmitModFlag)
-	CmdGet.Run = runGet // break init loop
+	CmdGet.Run = RunGet // break init loop
 	CmdGet.Flag.Var(&getU, "u", "")
 }
 
-func runGet(ctx context.Context, cmd *base.Command, args []string) {
+func RunGet(ctx context.Context, cmd *base.Command, args []string) {
 	switch getU.version {
 	case "", "upgrade", "patch":
 		// ok
