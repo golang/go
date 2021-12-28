@@ -42,7 +42,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 }
 
 func timespecToTime(ts syscall.Timespec) time.Time {
-	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+	return time.Unix(ts.Sec, ts.Nsec)
 }
 
 // For testing.
