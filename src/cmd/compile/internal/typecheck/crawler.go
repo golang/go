@@ -222,7 +222,38 @@ func (p *crawler) markInlBody(n *ir.Name) {
 	doFlood = func(n ir.Node) {
 		t := n.Type()
 		if t != nil {
-			if t.HasTParam() || t.IsFullyInstantiated() {
+			if t.IsFullyInstantiated() && !t.HasShape() && !t.IsInterface() && t.Methods().Len() > 0 {
+				// For any fully-instantiated type, the relevant
+				// dictionaries and shape instantiations will have
+				// already been created. Make sure that they are
+				// exported, so that any other package that inlines
+				// this function will have them available for import,
+				// and so will not need another round of method and
+				// dictionary instantiation after inlining.
+				baseType := t.OrigSym().Def.(*ir.Name).Type()
+				shapes := make([]*types.Type, len(t.RParams()))
+				for i, t1 := range t.RParams() {
+					shapes[i] = Shapify(t1, i)
+				}
+				for j := range t.Methods().Slice() {
+					baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
+					dictsym := MakeDictSym(baseNname.Sym(), t.RParams(), true)
+					Export(dictsym.Def.(*ir.Name))
+					methsym := MakeFuncInstSym(baseNname.Sym(), shapes, false, true)
+					methNode := methsym.Def.(*ir.Name)
+					Export(methNode)
+					if HaveInlineBody(methNode.Func) {
+						// Export the body as well if
+						// instantiation is inlineable.
+						methNode.Func.SetExportInline(true)
+					}
+				}
+			}
+
+			if t.HasTParam() {
+				// If any generic types are used, then make sure that
+				// the methods of the generic type are exported and
+				// scanned for other possible exports.
 				p.markGeneric(t)
 			}
 			if base.Debug.Unified == 0 {

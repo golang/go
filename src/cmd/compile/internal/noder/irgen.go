@@ -328,7 +328,7 @@ Outer:
 
 	// Create any needed instantiations of generic functions and transform
 	// existing and new functions to use those instantiations.
-	BuildInstantiations(true)
+	BuildInstantiations()
 
 	// Remove all generic functions from g.target.Decl, since they have been
 	// used for stenciling, but don't compile. Generic functions will already
