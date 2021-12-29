@@ -218,6 +218,23 @@ func compilerVersion() (version, error) {
 	return compiler.version, compiler.err
 }
 
+// compilerSupportsLocation reports whether the compiler should be
+// able to provide file/line information in backtraces.
+func compilerSupportsLocation() bool {
+	compiler, err := compilerVersion()
+	if err != nil {
+		return false
+	}
+	switch compiler.name {
+	case "gcc":
+		return compiler.major >= 10
+	case "clang":
+		return true
+	default:
+		return false
+	}
+}
+
 type compilerCheck struct {
 	once sync.Once
 	err  error

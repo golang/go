@@ -63,7 +63,11 @@ func TestASAN(t *testing.T) {
 					// symbolizer program and can't find it.
 					const noSymbolizer = "external symbolizer"
 					// Check if -asan option can correctly print where the error occured.
-					if tc.errorLocation != "" && !strings.Contains(out, tc.errorLocation) && !strings.Contains(out, noSymbolizer) {
+					if tc.errorLocation != "" &&
+						!strings.Contains(out, tc.errorLocation) &&
+						!strings.Contains(out, noSymbolizer) &&
+						compilerSupportsLocation() {
+
 						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.errorLocation, out)
 					}
 					return
