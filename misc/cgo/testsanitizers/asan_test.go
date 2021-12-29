@@ -55,10 +55,15 @@ func TestASAN(t *testing.T) {
 
 			cmd := hangProneCmd(outPath)
 			if tc.memoryAccessError != "" {
-				out, err := cmd.CombinedOutput()
-				if err != nil && strings.Contains(string(out), tc.memoryAccessError) {
+				outb, err := cmd.CombinedOutput()
+				out := string(outb)
+				if err != nil && strings.Contains(out, tc.memoryAccessError) {
+					// This string is output if the
+					// sanitizer library needs a
+					// symbolizer program and can't find it.
+					const noSymbolizer = "external symbolizer"
 					// Check if -asan option can correctly print where the error occured.
-					if tc.errorLocation != "" && !strings.Contains(string(out), tc.errorLocation) {
+					if tc.errorLocation != "" && !strings.Contains(out, tc.errorLocation) && !strings.Contains(out, noSymbolizer) {
 						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.errorLocation, out)
 					}
 					return
