@@ -1177,11 +1177,13 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 	return nil
 }
 
+// JoinPath returns a new URL with the provided path elements
+// joined to any existing path and cleaned of any ./ or ../ elements.
 func (u *URL) JoinPath(elem ...string) *URL {
 	url := *u
 	if len(elem) > 0 {
 		elem = append([]string{u.Path}, elem...)
-		url.Path = path.Join(elem...)
+		url.setPath(path.Join(elem...))
 	}
 	return &url
 }
@@ -1227,11 +1229,9 @@ func stringContainsCTLByte(s string) bool {
 	return false
 }
 
-// JoinPath  concatenates baseUrl and the elements
-// - check baseUrl format
-// - concatenates baseUrl and the elements
-func JoinPath(baseUrl string, elem ...string) (result string, err error) {
-	url, err := Parse(baseUrl)
+// JoinPath concatenates the path elements to the base URL and cleans any ./ or ../ elements from the final URL string.
+func JoinPath(base string, elem ...string) (result string, err error) {
+	url, err := Parse(base)
 	if err != nil {
 		return
 	}
