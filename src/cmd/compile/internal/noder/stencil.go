@@ -9,7 +9,6 @@ package noder
 
 import (
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
@@ -40,34 +39,29 @@ func infoPrint(format string, a ...interface{}) {
 
 var geninst genInst
 
-func BuildInstantiations(preinliningMainScan bool) {
-	if geninst.instInfoMap == nil {
-		geninst.instInfoMap = make(map[*types.Sym]*instInfo)
-	}
-	geninst.buildInstantiations(preinliningMainScan)
+func BuildInstantiations() {
+	geninst.instInfoMap = make(map[*types.Sym]*instInfo)
+	geninst.buildInstantiations()
+	geninst.instInfoMap = nil
 }
 
 // buildInstantiations scans functions for generic function calls and methods, and
 // creates the required instantiations. It also creates instantiated methods for all
 // fully-instantiated generic types that have been encountered already or new ones
-// that are encountered during the instantiation process. If preinliningMainScan is
-// true, it scans all declarations in typecheck.Target.Decls first, before scanning
-// any new instantiations created. If preinliningMainScan is false, we do not scan
-// any existing decls - we only scan method instantiations for any new
-// fully-instantiated types that we saw during inlining.
-func (g *genInst) buildInstantiations(preinliningMainScan bool) {
+// that are encountered during the instantiation process. It scans all declarations
+// in typecheck.Target.Decls first, before scanning any new instantiations created.
+func (g *genInst) buildInstantiations() {
 	// Instantiate the methods of instantiated generic types that we have seen so far.
 	g.instantiateMethods()
 
-	if preinliningMainScan {
-		n := len(typecheck.Target.Decls)
-		for i := 0; i < n; i++ {
-			g.scanForGenCalls(typecheck.Target.Decls[i])
-		}
+	// Scan all currentdecls for call to generic functions/methods.
+	n := len(typecheck.Target.Decls)
+	for i := 0; i < n; i++ {
+		g.scanForGenCalls(typecheck.Target.Decls[i])
 	}
 
 	// Scan all new instantiations created due to g.instantiateMethods() and the
-	// scan of current decls (if done). This loop purposely runs until no new
+	// scan of current decls. This loop purposely runs until no new
 	// instantiations are created.
 	for i := 0; i < len(g.newInsts); i++ {
 		g.scanForGenCalls(g.newInsts[i])
@@ -82,10 +76,6 @@ func (g *genInst) buildInstantiations(preinliningMainScan bool) {
 	for _, fun := range g.newInsts {
 		info := g.instInfoMap[fun.Sym()]
 		g.dictPass(info)
-		if !preinliningMainScan {
-			// Prepare for the round of inlining below.
-			inline.CanInline(fun.(*ir.Func))
-		}
 		if doubleCheck {
 			ir.Visit(info.fun, func(n ir.Node) {
 				if n.Op() != ir.OCONVIFACE {
@@ -101,21 +91,6 @@ func (g *genInst) buildInstantiations(preinliningMainScan bool) {
 		}
 		if base.Flag.W > 1 {
 			ir.Dump(fmt.Sprintf("\ndictpass %v", info.fun), info.fun)
-		}
-	}
-	if !preinliningMainScan {
-		// Extra round of inlining for the new instantiations (only if
-		// preinliningMainScan is false, which means we have already done the
-		// main round of inlining)
-		for _, fun := range g.newInsts {
-			inline.InlineCalls(fun.(*ir.Func))
-			// New instantiations created during inlining should run
-			// ComputeAddrTaken directly, since we are past the main pass
-			// that did ComputeAddrTaken(). We could instead do this
-			// incrementally during stenciling (for all instantiations,
-			// including main ones before inlining), since we have the
-			// type information.
-			typecheck.ComputeAddrtaken(fun.(*ir.Func).Body)
 		}
 	}
 	assert(l == len(g.newInsts))
