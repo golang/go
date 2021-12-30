@@ -662,6 +662,7 @@ type fileListEntry struct {
 	name  string
 	file  *File
 	isDir bool
+	isDup bool
 }
 
 type fileInfoDirEntry interface {
@@ -669,11 +670,14 @@ type fileInfoDirEntry interface {
 	fs.DirEntry
 }
 
-func (e *fileListEntry) stat() fileInfoDirEntry {
-	if !e.isDir {
-		return headerFileInfo{&e.file.FileHeader}
+func (e *fileListEntry) stat() (fileInfoDirEntry, error) {
+	if e.isDup {
+		return nil, errors.New(e.name + ": duplicate entries in zip file")
 	}
-	return e
+	if !e.isDir {
+		return headerFileInfo{&e.file.FileHeader}, nil
+	}
+	return e, nil
 }
 
 // Only used for directories.
@@ -708,17 +712,37 @@ func toValidName(name string) string {
 
 func (r *Reader) initFileList() {
 	r.fileListOnce.Do(func() {
+		// files and knownDirs map from a file/directory name
+		// to an index into the r.fileList entry that we are
+		// building. They are used to mark duplicate entries.
+		files := make(map[string]int)
+		knownDirs := make(map[string]int)
+
+		// dirs[name] is true if name is known to be a directory,
+		// because it appears as a prefix in a path.
 		dirs := make(map[string]bool)
-		knownDirs := make(map[string]bool)
+
 		for _, file := range r.File {
 			isDir := len(file.Name) > 0 && file.Name[len(file.Name)-1] == '/'
 			name := toValidName(file.Name)
 			if name == "" {
 				continue
 			}
+
+			if idx, ok := files[name]; ok {
+				r.fileList[idx].isDup = true
+				continue
+			}
+			if idx, ok := knownDirs[name]; ok {
+				r.fileList[idx].isDup = true
+				continue
+			}
+
 			for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
 				dirs[dir] = true
 			}
+
+			idx := len(r.fileList)
 			entry := fileListEntry{
 				name:  name,
 				file:  file,
@@ -726,17 +750,23 @@ func (r *Reader) initFileList() {
 			}
 			r.fileList = append(r.fileList, entry)
 			if isDir {
-				knownDirs[name] = true
+				knownDirs[name] = idx
+			} else {
+				files[name] = idx
 			}
 		}
 		for dir := range dirs {
-			if !knownDirs[dir] {
-				entry := fileListEntry{
-					name:  dir,
-					file:  nil,
-					isDir: true,
+			if _, ok := knownDirs[dir]; !ok {
+				if idx, ok := files[dir]; ok {
+					r.fileList[idx].isDup = true
+				} else {
+					entry := fileListEntry{
+						name:  dir,
+						file:  nil,
+						isDir: true,
+					}
+					r.fileList = append(r.fileList, entry)
 				}
-				r.fileList = append(r.fileList, entry)
 			}
 		}
 
@@ -831,7 +861,7 @@ type openDir struct {
 }
 
 func (d *openDir) Close() error               { return nil }
-func (d *openDir) Stat() (fs.FileInfo, error) { return d.e.stat(), nil }
+func (d *openDir) Stat() (fs.FileInfo, error) { return d.e.stat() }
 
 func (d *openDir) Read([]byte) (int, error) {
 	return 0, &fs.PathError{Op: "read", Path: d.e.name, Err: errors.New("is a directory")}
@@ -850,7 +880,11 @@ func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	}
 	list := make([]fs.DirEntry, n)
 	for i := range list {
-		list[i] = d.files[d.offset+i].stat()
+		s, err := d.files[d.offset+i].stat()
+		if err != nil {
+			return nil, err
+		}
+		list[i] = s
 	}
 	d.offset += n
 	return list, nil
