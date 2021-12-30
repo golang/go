@@ -26,12 +26,16 @@ func ASanWrite(addr unsafe.Pointer, len int) {
 // Private interface for the runtime.
 const asanenabled = true
 
+// Mark asan(read, write) as NOSPLIT, because they may run
+// on stacks that cannot grow. See issue #50391.
+//go:nosplit
 func asanread(addr unsafe.Pointer, sz uintptr) {
 	sp := getcallersp()
 	pc := getcallerpc()
 	doasanread(addr, sz, sp, pc)
 }
 
+//go:nosplit
 func asanwrite(addr unsafe.Pointer, sz uintptr) {
 	sp := getcallersp()
 	pc := getcallerpc()
