@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -32,6 +33,24 @@ var Analyzer = &analysis.Analyzer{
 	Name: "tests",
 	Doc:  Doc,
 	Run:  run,
+}
+
+var acceptedFuzzTypes = []types.Type{
+	types.Typ[types.String],
+	types.Typ[types.Bool],
+	types.Typ[types.Float32],
+	types.Typ[types.Float64],
+	types.Typ[types.Int],
+	types.Typ[types.Int8],
+	types.Typ[types.Int16],
+	types.Typ[types.Int32],
+	types.Typ[types.Int64],
+	types.Typ[types.Uint],
+	types.Typ[types.Uint8],
+	types.Typ[types.Uint16],
+	types.Typ[types.Uint32],
+	types.Typ[types.Uint64],
+	types.NewSlice(types.Universe.Lookup("byte").Type()),
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
@@ -54,9 +73,123 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			case strings.HasPrefix(fn.Name.Name, "Benchmark"):
 				checkTest(pass, fn, "Benchmark")
 			}
+			// run fuzz tests diagnostics only for 1.18 i.e. when analysisinternal.DiagnoseFuzzTests is turned on.
+			if strings.HasPrefix(fn.Name.Name, "Fuzz") && analysisinternal.DiagnoseFuzzTests {
+				checkTest(pass, fn, "Fuzz")
+				checkFuzzCall(pass, fn)
+			}
 		}
 	}
 	return nil, nil
+}
+
+// Check the arguments of f.Fuzz() calls :
+// 1. f.Fuzz() should call a function and it should be of type (*testing.F).Fuzz().
+// 2. The called function in f.Fuzz(func(){}) should not return result.
+// 3. First argument of func() should be of type *testing.T
+// 4. Second argument onwards should be of type []byte, string, bool, byte,
+//	  rune, float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16,
+//	  uint32, uint64
+func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) {
+	ast.Inspect(fn, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if ok {
+			if !isFuzzTargetDotFuzz(pass, call) {
+				return true
+			}
+
+			// Only one argument (func) must be passed to (*testing.F).Fuzz.
+			if len(call.Args) != 1 {
+				return true
+			}
+			expr := call.Args[0]
+			if pass.TypesInfo.Types[expr].Type == nil {
+				return true
+			}
+			t := pass.TypesInfo.Types[expr].Type.Underlying()
+			tSign, argOk := t.(*types.Signature)
+			// Argument should be a function
+			if !argOk {
+				pass.ReportRangef(expr, "argument to Fuzz must be a function")
+				return true
+			}
+			// ff Argument function should not return
+			if tSign.Results().Len() != 0 {
+				pass.ReportRangef(expr, "fuzz target must not return any value")
+			}
+			// ff Argument function should have 1 or more argument
+			if tSign.Params().Len() == 0 {
+				pass.ReportRangef(expr, "fuzz target must have 1 or more argument")
+				return true
+			}
+			validateFuzzArgs(pass, tSign.Params(), expr)
+		}
+		return true
+	})
+}
+
+// isFuzzTargetDotFuzz reports whether call is (*testing.F).Fuzz().
+func isFuzzTargetDotFuzz(pass *analysis.Pass, call *ast.CallExpr) bool {
+	if selExpr, ok := call.Fun.(*ast.SelectorExpr); ok {
+		if !isTestingType(pass.TypesInfo.Types[selExpr.X].Type, "F") {
+			return false
+		}
+		if selExpr.Sel.Name == "Fuzz" {
+			return true
+		}
+	}
+	return false
+}
+
+// Validate the arguments of fuzz target.
+func validateFuzzArgs(pass *analysis.Pass, params *types.Tuple, expr ast.Expr) {
+	fLit, isFuncLit := expr.(*ast.FuncLit)
+	exprRange := expr
+	if !isTestingType(params.At(0).Type(), "T") {
+		if isFuncLit {
+			exprRange = fLit.Type.Params.List[0].Type
+		}
+		pass.ReportRangef(exprRange, "the first parameter of a fuzz target must be *testing.T")
+	}
+	for i := 1; i < params.Len(); i++ {
+		if !isAcceptedFuzzType(params.At(i).Type()) {
+			if isFuncLit {
+				exprRange = fLit.Type.Params.List[i].Type
+			}
+			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: "+printAcceptedFuzzType())
+		}
+	}
+}
+
+func isTestingType(typ types.Type, testingType string) bool {
+	ptr, ok := typ.(*types.Pointer)
+	if !ok {
+		return false
+	}
+	named, ok := ptr.Elem().(*types.Named)
+	if !ok {
+		return false
+	}
+	return named.Obj().Pkg().Path() == "testing" && named.Obj().Name() == testingType
+}
+
+// Validate that fuzz target function's arguments are of accepted types.
+func isAcceptedFuzzType(paramType types.Type) bool {
+	for _, typ := range acceptedFuzzTypes {
+		if types.Identical(typ, paramType) {
+			return true
+		}
+	}
+	return false
+}
+
+func formatAcceptedFuzzType() string {
+	var acceptedFuzzTypesStrings []string
+	for _, typ := range acceptedFuzzTypes {
+		acceptedFuzzTypesStrings = append(acceptedFuzzTypesStrings, typ.String())
+	}
+	acceptedFuzzTypesMsg := strings.Join(acceptedFuzzTypesStrings, ", ")
+	return acceptedFuzzTypesMsg
 }
 
 func isExampleSuffix(s string) bool {
