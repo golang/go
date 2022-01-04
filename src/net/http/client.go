@@ -519,17 +519,6 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 		shouldRedirect = true
 		includeBody = true
 
-		// Treat 307 and 308 specially, since they're new in
-		// Go 1.8, and they also require re-sending the request body.
-		if resp.Header.Get("Location") == "" {
-			// 308s have been observed in the wild being served
-			// without Location headers. Since Go 1.7 and earlier
-			// didn't follow these codes, just stop here instead
-			// of returning an error.
-			// See Issue 17773.
-			shouldRedirect = false
-			break
-		}
 		if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
 			// We had a request body, and 307/308 require
 			// re-sending it, but GetBody is not defined. So just
@@ -641,8 +630,10 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 		if len(reqs) > 0 {
 			loc := resp.Header.Get("Location")
 			if loc == "" {
-				resp.closeBody()
-				return nil, uerr(fmt.Errorf("%d response missing Location header", resp.StatusCode))
+				// While most 3xx responses include a Location, it is not
+				// required and 3xx responses without a Location have been
+				// observed in the wild. See issues #17773 and #49281.
+				return resp, nil
 			}
 			u, err := req.URL.Parse(loc)
 			if err != nil {
