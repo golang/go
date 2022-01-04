@@ -26,6 +26,7 @@ type tparse struct {
 // Seen characters up to the ^
 func TestParsed(t *testing.T) {
 	var tests = []tparse{
+		{"{{x}}{{12. xx^", nil}, // https://github.com/golang/go/issues/50430
 		{`<table class="chroma" data-new-comment-url="{{if $.PageIsPullFiles}}{{$.Issue.HTMLURL}}/files/reviews/new_comment{{else}}{{$.CommitHTML}}/new_comment^{{end}}">`, nil},
 		{"{{i^f}}", []string{"index", "if"}},
 		{"{{if .}}{{e^ {{end}}", []string{"eq", "end}}", "else", "end"}},
@@ -60,7 +61,7 @@ func TestParsed(t *testing.T) {
 			}
 		}
 		if len(v) != len(tx.wanted) {
-			t.Errorf("%q: got %v, wanted %v", tx.marked, v, tx.wanted)
+			t.Errorf("%q: got %q, wanted %q %d,%d", tx.marked, v, tx.wanted, len(v), len(tx.wanted))
 			continue
 		}
 		sort.Strings(tx.wanted)

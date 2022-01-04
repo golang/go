@@ -33,6 +33,7 @@ var tmpl = []datum{{`
 
 	{`{{block "aaa" foo}}b{{end}}`, 2, []string{"{9,3,aaa,Namespace,true}",
 		"{9,3,aaa,Package,false}", "{14,3,foo,Function,false}", "{19,1,,Constant,false}"}},
+	{"", 0, nil},
 }
 
 func TestSymbols(t *testing.T) {

@@ -274,13 +274,17 @@ func weakMatch(choice, pattern string) float64 {
 		from = 2
 	}
 	// check that all the characters of pattern occur as a subsequence of choice
-	for i, j := from, from; j < len(pattern); j++ {
+	i, j := from, from
+	for ; i < len(lower) && j < len(pattern); j++ {
 		if pattern[j] == lower[i] {
 			i++
 			if i >= len(lower) {
 				return 0
 			}
 		}
+	}
+	if j < len(pattern) {
+		return 0
 	}
 	return 1
 }
