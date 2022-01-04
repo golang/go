@@ -47,3 +47,25 @@ func TestNames(t *testing.T) {
 		}
 	}
 }
+
+func TestNobitsSection(t *testing.T) {
+	const testdata = "testdata/gcc-amd64-linux-exec"
+	f, err := Open(testdata)
+	if err != nil {
+		t.Fatalf("could not read %s: %v", testdata, err)
+	}
+	defer f.Close()
+	bss := f.Section(".bss")
+	bssData, err := bss.Data()
+	if err != nil {
+		t.Fatalf("error reading .bss section: %v", err)
+	}
+	if g, w := uint64(len(bssData)), bss.Size; g != w {
+		t.Errorf(".bss section length mismatch: got %d, want %d", g, w)
+	}
+	for i := range bssData {
+		if bssData[i] != 0 {
+			t.Fatalf("unexpected non-zero byte at offset %d: %#x", i, bssData[i])
+		}
+	}
+}

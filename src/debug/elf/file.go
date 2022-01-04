@@ -120,6 +120,9 @@ func (f *File) stringTable(link uint32) ([]byte, error) {
 // Even if the section is stored compressed in the ELF file,
 // the ReadSeeker reads uncompressed data.
 func (s *Section) Open() io.ReadSeeker {
+	if s.Type == SHT_NOBITS {
+		return io.NewSectionReader(&zeroReader{}, 0, int64(s.Size))
+	}
 	if s.Flags&SHF_COMPRESSED == 0 {
 		return io.NewSectionReader(s.sr, 0, 1<<63-1)
 	}
@@ -1452,4 +1455,13 @@ func (f *File) DynString(tag DynTag) ([]string, error) {
 		}
 	}
 	return all, nil
+}
+
+type zeroReader struct{}
+
+func (*zeroReader) ReadAt(p []byte, off int64) (n int, err error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
 }
