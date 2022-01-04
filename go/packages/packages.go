@@ -328,6 +328,9 @@ type Package struct {
 	// The NeedSyntax LoadMode bit populates this field for packages matching the patterns.
 	// If NeedDeps and NeedImports are also set, this field will also be populated
 	// for dependencies.
+	//
+	// Syntax is kept in the same order as CompiledGoFiles, with the caveat that nils are
+	// removed.  If parsing returned nil, Syntax may be shorter than CompiledGoFiles.
 	Syntax []*ast.File
 
 	// TypesInfo provides type information about the package's syntax trees.
