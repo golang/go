@@ -9,6 +9,7 @@ package http_test
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/tls"
@@ -1654,8 +1655,6 @@ func testEarlyHintsRequest(t *testing.T, h2 bool) {
 		}
 	}
 
-	req, _ := NewRequest("GET", cst.ts.URL, nil)
-
 	var respCounter uint8
 	trace := &httptrace.ClientTrace{
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
@@ -1673,7 +1672,7 @@ func testEarlyHintsRequest(t *testing.T, h2 bool) {
 			return nil
 		},
 	}
-	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+	req, _ := NewRequestWithContext(httptrace.WithClientTrace(context.Background(), trace), "GET", cst.ts.URL, nil)
 
 	res, err := cst.c.Do(req)
 	if err != nil {
