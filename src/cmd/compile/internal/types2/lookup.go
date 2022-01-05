@@ -82,7 +82,7 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
 
 	typ, isPtr := deref(T)
 
-	// *typ where typ is an interface has no methods.
+	// *typ where typ is an interface (incl. a type parameter) has no methods.
 	if isPtr {
 		if _, ok := under(typ).(*Interface); ok {
 			return
@@ -106,7 +106,6 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
 		var next []embeddedType // embedded types found at current depth
 
 		// look for (pkg, name) in all types at current depth
-		var tpar *TypeParam // set if obj receiver is a type parameter
 		for _, e := range current {
 			typ := e.typ
 
@@ -139,13 +138,9 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
 					indirect = e.indirect
 					continue // we can't have a matching field or interface method
 				}
-
-				// continue with underlying type
-				typ = named.under()
 			}
 
-			tpar = nil
-			switch t := typ.(type) {
+			switch t := under(typ).(type) {
 			case *Struct:
 				// look for a matching field and collect embedded types
 				for i, f := range t.fields {
@@ -178,7 +173,7 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
 				}
 
 			case *Interface:
-				// look for a matching method
+				// look for a matching method (interface may be a type parameter)
 				if i, m := lookupMethodFold(t.typeSet().methods, pkg, name, checkFold); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
@@ -187,24 +182,6 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
 					}
 					obj = m
 					indirect = e.indirect
-				}
-
-			case *TypeParam:
-				if i, m := lookupMethodFold(t.iface().typeSet().methods, pkg, name, checkFold); m != nil {
-					assert(m.typ != nil)
-					index = concat(e.index, i)
-					if obj != nil || e.multiples {
-						return nil, index, false // collision
-					}
-					tpar = t
-					obj = m
-					indirect = e.indirect
-				}
-				if obj == nil {
-					// At this point we're not (yet) looking into methods
-					// that any underlying type of the types in the type list
-					// might have.
-					// TODO(gri) Do we want to specify the language that way?
 				}
 			}
 		}
@@ -217,8 +194,7 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
 			//        is shorthand for (&x).m()".
 			if f, _ := obj.(*Func); f != nil {
 				// determine if method has a pointer receiver
-				hasPtrRecv := tpar == nil && f.hasPtrRecv()
-				if hasPtrRecv && !indirect && !addressable {
+				if f.hasPtrRecv() && !indirect && !addressable {
 					return nil, nil, true // pointer/addressable receiver required
 				}
 			}
