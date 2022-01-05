@@ -39,9 +39,6 @@ directory is fine), and run:
 go install golang.org/x/tools/gopls@latest
 ```
 
-**NOTE**: Do not use the `-u` flag, as it will update your dependencies to
-incompatible versions.
-
 Learn more in the [advanced installation
 instructions](doc/advanced.md#installing-unreleased-versions).
 
