@@ -126,16 +126,9 @@ func NewMethodSet(T Type) *MethodSet {
 				seen[named] = true
 
 				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
-
-				// continue with underlying type, but only if it's not a type parameter
-				// TODO(rFindley): should this use named.under()? Can there be a difference?
-				typ = named.underlying
-				if _, ok := typ.(*TypeParam); ok {
-					continue
-				}
 			}
 
-			switch t := typ.(type) {
+			switch t := under(typ).(type) {
 			case *Struct:
 				for i, f := range t.fields {
 					if fset == nil {
@@ -158,9 +151,6 @@ func NewMethodSet(T Type) *MethodSet {
 
 			case *Interface:
 				mset = mset.add(t.typeSet().methods, e.index, true, e.multiples)
-
-			case *TypeParam:
-				mset = mset.add(t.iface().typeSet().methods, e.index, true, e.multiples)
 			}
 		}
 
