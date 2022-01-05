@@ -2505,15 +2505,10 @@
 // "go test ./..." to test all subdirectories. See 'go help packages' for details
 // on the pattern syntax.
 //
-// Second, if you are compiling a Go program not in a work space,
-// you can use a relative path in an import statement in that program
-// to refer to nearby code also not in a work space.
-// This makes it easy to experiment with small multipackage programs
-// outside of the usual work spaces, but such programs cannot be
-// installed with "go install" (there is no work space in which to install them),
-// so they are rebuilt from scratch each time they are built.
-// To avoid ambiguity, Go programs cannot use relative import paths
-// within a work space.
+// Second, if you are compiling a Go program with GO111MODULE=off, you can use a
+// relative path in an import statement in that program to refer to nearby code.
+// This makes it easy to experiment with small multipackage programs. Go
+// programs cannot use relative import paths when using Go modules.
 //
 // Remote import paths
 //
