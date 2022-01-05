@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"log"
 	"net"
@@ -21,6 +22,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -1289,6 +1291,9 @@ func testClientTimeout(t *testing.T, h2 bool) {
 			t.Errorf("net.Error.Timeout = false; want true")
 		}
 		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
+			if runtime.GOOS == "windows" && strings.HasPrefix(runtime.GOARCH, "arm") {
+				testenv.SkipFlaky(t, 43120)
+			}
 			t.Errorf("error string = %q; missing timeout substring", got)
 		}
 
