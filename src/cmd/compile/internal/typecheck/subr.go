@@ -80,7 +80,7 @@ func markAddrOf(n ir.Node) ir.Node {
 	if IncrementalAddrtaken {
 		// We can only do incremental addrtaken computation when it is ok
 		// to typecheck the argument of the OADDR. That's only safe after the
-		// main typecheck has completed.
+		// main typecheck has completed, and not loading the inlined body.
 		// The argument to OADDR needs to be typechecked because &x[i] takes
 		// the address of x if x is an array, but not if x is a slice.
 		// Note: OuterValue doesn't work correctly until n is typechecked.
