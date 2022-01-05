@@ -8,6 +8,7 @@ package field
 import (
 	"crypto/subtle"
 	"encoding/binary"
+	"errors"
 	"math/bits"
 )
 
@@ -186,14 +187,17 @@ func (v *Element) Set(a *Element) *Element {
 	return v
 }
 
-// SetBytes sets v to x, which must be a 32-byte little-endian encoding.
+// SetBytes sets v to x, where x is a 32-byte little-endian encoding. If x is
+// not of the right length, SetBytes returns nil and an error, and the
+// receiver is unchanged.
 //
 // Consistent with RFC 7748, the most significant bit (the high bit of the
 // last byte) is ignored, and non-canonical values (2^255-19 through 2^255-1)
-// are accepted. Note that this is laxer than specified by RFC 8032.
-func (v *Element) SetBytes(x []byte) *Element {
+// are accepted. Note that this is laxer than specified by RFC 8032, but
+// consistent with most Ed25519 implementations.
+func (v *Element) SetBytes(x []byte) (*Element, error) {
 	if len(x) != 32 {
-		panic("edwards25519: invalid field element input size")
+		return nil, errors.New("edwards25519: invalid field element input size")
 	}
 
 	// Bits 0:51 (bytes 0:8, bits 0:64, shift 0, mask 51).
@@ -208,12 +212,12 @@ func (v *Element) SetBytes(x []byte) *Element {
 	// Bits 153:204 (bytes 19:27, bits 152:216, shift 1, mask 51).
 	v.l3 = binary.LittleEndian.Uint64(x[19:27]) >> 1
 	v.l3 &= maskLow51Bits
-	// Bits 204:251 (bytes 24:32, bits 192:256, shift 12, mask 51).
+	// Bits 204:255 (bytes 24:32, bits 192:256, shift 12, mask 51).
 	// Note: not bytes 25:33, shift 4, to avoid overread.
 	v.l4 = binary.LittleEndian.Uint64(x[24:32]) >> 12
 	v.l4 &= maskLow51Bits
 
-	return v
+	return v, nil
 }
 
 // Bytes returns the canonical 32-byte little-endian encoding of v.
@@ -391,26 +395,26 @@ var sqrtM1 = &Element{1718705420411056, 234908883556509,
 // If u/v is square, SqrtRatio returns r and 1. If u/v is not square, SqrtRatio
 // sets r according to Section 4.3 of draft-irtf-cfrg-ristretto255-decaf448-00,
 // and returns r and 0.
-func (r *Element) SqrtRatio(u, v *Element) (rr *Element, wasSquare int) {
-	var a, b Element
+func (r *Element) SqrtRatio(u, v *Element) (R *Element, wasSquare int) {
+	t0 := new(Element)
 
 	// r = (u * v3) * (u * v7)^((p-5)/8)
-	v2 := a.Square(v)
-	uv3 := b.Multiply(u, b.Multiply(v2, v))
-	uv7 := a.Multiply(uv3, a.Square(v2))
-	r.Multiply(uv3, r.Pow22523(uv7))
+	v2 := new(Element).Square(v)
+	uv3 := new(Element).Multiply(u, t0.Multiply(v2, v))
+	uv7 := new(Element).Multiply(uv3, t0.Square(v2))
+	rr := new(Element).Multiply(uv3, t0.Pow22523(uv7))
 
-	check := a.Multiply(v, a.Square(r)) // check = v * r^2
+	check := new(Element).Multiply(v, t0.Square(rr)) // check = v * r^2
 
-	uNeg := b.Negate(u)
+	uNeg := new(Element).Negate(u)
 	correctSignSqrt := check.Equal(u)
 	flippedSignSqrt := check.Equal(uNeg)
-	flippedSignSqrtI := check.Equal(uNeg.Multiply(uNeg, sqrtM1))
+	flippedSignSqrtI := check.Equal(t0.Multiply(uNeg, sqrtM1))
 
-	rPrime := b.Multiply(r, sqrtM1) // r_prime = SQRT_M1 * r
+	rPrime := new(Element).Multiply(rr, sqrtM1) // r_prime = SQRT_M1 * r
 	// r = CT_SELECT(r_prime IF flipped_sign_sqrt | flipped_sign_sqrt_i ELSE r)
-	r.Select(rPrime, r, flippedSignSqrt|flippedSignSqrtI)
+	rr.Select(rPrime, rr, flippedSignSqrt|flippedSignSqrtI)
 
-	r.Absolute(r) // Choose the nonnegative square root.
+	r.Absolute(rr) // Choose the nonnegative square root.
 	return r, correctSignSqrt | flippedSignSqrt
 }
