@@ -429,14 +429,15 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 		readDeadline = time.Now().Add(5 * time.Second)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	var closed sync.WaitGroup
+	closed.Add(2)
 	handler := func(dss *dualStackServer, ln Listener) {
 		// Accept one connection per address.
 		c, err := ln.Accept()
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		// The client should close itself, without sending data.
 		c.SetReadDeadline(readDeadline)
 		var b [1]byte
@@ -444,7 +445,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 			t.Errorf("got %v; want %v", err, io.EOF)
 		}
 		c.Close()
-		wg.Done()
+		closed.Done()
 	}
 	dss, err := newDualStackServer()
 	if err != nil {
@@ -457,12 +458,16 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 
 	const fallbackDelay = 100 * time.Millisecond
 
+	var dialing sync.WaitGroup
+	dialing.Add(2)
 	origTestHookDialTCP := testHookDialTCP
 	defer func() { testHookDialTCP = origTestHookDialTCP }()
 	testHookDialTCP = func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
-		// Sleep long enough for Happy Eyeballs to kick in, and inhibit cancellation.
+		// Wait until Happy Eyeballs kicks in and both connections are dialing,
+		// and inhibit cancellation.
 		// This forces dialParallel to juggle two successful connections.
-		time.Sleep(fallbackDelay * 2)
+		dialing.Done()
+		dialing.Wait()
 
 		// Now ignore the provided context (which will be canceled) and use a
 		// different one to make sure this completes with a valid connection,
@@ -496,7 +501,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 	c.Close()
 
 	// The server should've seen both connections.
-	wg.Wait()
+	closed.Wait()
 }
 
 func TestDialerPartialDeadline(t *testing.T) {
