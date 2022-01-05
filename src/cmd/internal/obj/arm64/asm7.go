@@ -1184,7 +1184,7 @@ func (c *ctxt7) addpool128(p *obj.Prog, al, ah *obj.Addr) {
 	q := c.newprog()
 	q.As = ADWORD
 	q.To.Type = obj.TYPE_CONST
-	q.To.Offset = al.Offset
+	q.To.Offset = al.Offset // q.Pc is lower than t.Pc, so al.Offset is stored in q.
 
 	t := c.newprog()
 	t.As = ADWORD
