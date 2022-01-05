@@ -43,7 +43,7 @@ import (
 //	the method's formal receiver base type, nor was the receiver addressable.
 //
 func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
-	// Methods cannot be associated to a named pointer type
+	// Methods cannot be associated to a named pointer type.
 	// (spec: "The type denoted by T is called the receiver base type;
 	// it must not be a pointer or interface type and it must be declared
 	// in the same package as the method.").
@@ -60,7 +60,21 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 		}
 	}
 
-	return lookupFieldOrMethod(T, addressable, pkg, name)
+	obj, index, indirect = lookupFieldOrMethod(T, addressable, pkg, name)
+
+	// If we didn't find anything and if we have a type parameter with a structural constraint,
+	// see if there is a matching field (but not a method, those need to be declared explicitly
+	// in the constraint). If the structural constraint is a named pointer type (see above), we
+	// are ok here because only fields are accepted as results.
+	if obj == nil && isTypeParam(T) {
+		if t := structuralType(T); t != nil {
+			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name)
+			if _, ok := obj.(*Var); !ok {
+				obj, index, indirect = nil, nil, false // accept fields (variables) only
+			}
+		}
+	}
+	return
 }
 
 // TODO(gri) The named type consolidation and seen maps below must be
