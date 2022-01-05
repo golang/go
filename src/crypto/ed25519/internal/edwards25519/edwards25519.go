@@ -151,10 +151,10 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
 	// at https://hdevalence.ca/blog/2020-10-04-its-25519am, specifically the
 	// "Canonical A, R" section.
 
-	if len(x) != 32 {
+	y, err := new(field.Element).SetBytes(x)
+	if err != nil {
 		return nil, errors.New("edwards25519: invalid point encoding length")
 	}
-	y := new(field.Element).SetBytes(x)
 
 	// -x² + y² = 1 + dx²y²
 	// x² + dx²y² = x²(dy² + 1) = y² - 1
@@ -224,7 +224,7 @@ func (v *Point) fromP2(p *projP2) *Point {
 }
 
 // d is a constant in the curve equation.
-var d = new(field.Element).SetBytes([]byte{
+var d, _ = new(field.Element).SetBytes([]byte{
 	0xa3, 0x78, 0x59, 0x13, 0xca, 0x4d, 0xeb, 0x75,
 	0xab, 0xd8, 0x41, 0x41, 0x4d, 0x0a, 0x70, 0x00,
 	0x98, 0xe8, 0x79, 0x77, 0x79, 0x40, 0xc7, 0x8c,
