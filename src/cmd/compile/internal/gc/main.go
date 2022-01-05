@@ -248,7 +248,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		// If any new fully-instantiated types were referenced during
 		// inlining, we need to create needed instantiations.
 		if len(typecheck.GetInstTypeList()) > 0 {
+			// typecheck.IncrementalAddrtaken must be false when loading
+			// an inlined body. See comment in typecheck.ImportedBody function.
+			old := typecheck.IncrementalAddrtaken
+			typecheck.IncrementalAddrtaken = false
 			noder.BuildInstantiations(false)
+			typecheck.IncrementalAddrtaken = old
 		}
 	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
