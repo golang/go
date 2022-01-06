@@ -27,6 +27,9 @@ func TestSuffixes(t *testing.T) {
 	WithOptions(
 		EditorConfig{
 			AllExperiments: true,
+			Settings: map[string]interface{}{
+				"templateExtensions": []string{"tmpl", "gotmpl"},
+			},
 		},
 	).Run(t, filesA, func(t *testing.T, env *Env) {
 		env.OpenFile("a.tmpl")

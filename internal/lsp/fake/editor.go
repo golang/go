@@ -114,6 +114,10 @@ type EditorConfig struct {
 	// Whether to edit files with windows line endings.
 	WindowsLineEndings bool
 
+	// Settings holds arbitrary additional settings to apply to the gopls config.
+	// TODO(rfindley): replace existing EditorConfig fields with Settings.
+	Settings map[string]interface{}
+
 	ImportShortcut                 string
 	DirectoryFilters               []string
 	VerboseOutput                  bool
@@ -221,6 +225,10 @@ func (e *Editor) configuration() map[string]interface{} {
 		"env":                     e.overlayEnv(),
 		"expandWorkspaceToModule": !e.Config.LimitWorkspaceScope,
 		"completionBudget":        "10s",
+	}
+
+	for k, v := range e.Config.Settings {
+		config[k] = v
 	}
 
 	if e.Config.BuildFlags != nil {

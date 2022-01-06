@@ -114,7 +114,7 @@ func DefaultOptions() *Options {
 					ExperimentalPackageCacheKey: true,
 					MemoryMode:                  ModeNormal,
 					DirectoryFilters:            []string{"-node_modules"},
-					TemplateExtensions:          []string{"tmpl", "gotmpl"},
+					TemplateExtensions:          []string{},
 				},
 				UIOptions: UIOptions{
 					DiagnosticOptions: DiagnosticOptions{

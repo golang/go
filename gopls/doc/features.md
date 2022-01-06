@@ -25,9 +25,8 @@ supported within symbol queries:
 
 Gopls provides some support for Go template files, that is, files that
 are parsed by `text/template` or `html/template`.
-Gopls recognizes template files based on their file extension.
-By default it looks for files ending in `.tmpl` or `.gotmpl`,
-but this list may be configured by the
+Gopls recognizes template files based on their file extension, which may be
+configured by the
 [`templateExtensions`](https://github.com/golang/tools/blob/master/gopls/doc/settings.md#templateextensions-string) setting.
 Making this list empty turns off template support.
 
@@ -47,10 +46,10 @@ it is presented as a diagnostic. (Missing functions do not produce errors.)
 ### Configuring your editor
 
 In addition to configuring `templateExtensions`, you may need to configure your
-editor or LSP client to activate `gopls` for template files. In recent versions
-of `VS Code Go`, this happens automatically for files ending in `.tmpl` or
-`.gotmpl`. In Vim, you may need to configure your LSP client to operate on the
-`template` filetype.
+editor or LSP client to activate `gopls` for template files. For example, in
+`VS Code` you will need to configure both
+[`files.associations`](https://code.visualstudio.com/docs/languages/identifiers)
+and `build.templateExtensions` (the gopls setting).
 
 <!--TODO(rstambler): Automatically generate a list of supported features.-->
 
