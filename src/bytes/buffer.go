@@ -16,7 +16,9 @@ import (
 const smallBufferSize = 64
 
 // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
-// The zero value for Buffer is an empty buffer ready to use.
+// (Note, however, that the ReadFrom method writes to the buffer, while the
+// WriteTo method reads from the buffer.) The zero value for Buffer is an
+// empty buffer ready to use.
 type Buffer struct {
 	buf      []byte // contents are the bytes buf[off : len(buf)]
 	off      int    // read at &buf[off], write at &buf[len(buf)]
@@ -229,10 +231,11 @@ func makeSlice(n int) []byte {
 	return make([]byte, n)
 }
 
-// WriteTo writes data to w until the buffer is drained or an error occurs.
-// The return value n is the number of bytes written; it always fits into an
-// int, but it is int64 to match the io.WriterTo interface. Any error
-// encountered during the write is also returned.
+// WriteTo writes data, which it reads from the buffer, to w, until the
+// buffer is drained or an error occurs. The return value n is the number
+// of bytes written; it always fits into an int, but it is int64 to match
+// the io.WriterTo interface. Any error encountered during the write is
+// also returned.
 func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 	b.lastRead = opInvalid
 	if nBytes := b.Len(); nBytes > 0 {
