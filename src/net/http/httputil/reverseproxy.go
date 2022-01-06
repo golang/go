@@ -24,23 +24,37 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
+type ForwardedHeaderBehavior uint8
+
+const (
+	// Overwrite existing X-Forwarded-For, X-Forwarded-Proto
+	// and X-Forwarded-Host HTTP headers with values extracted
+	// from the current connection with the client.
+	// As a special case, headers explicitly set to nil
+	// are never modified.
+	ForwardedHeaderOverwrite ForwardedHeaderBehavior = iota
+
+	// Add client IP to the existing IPs in X-Forwarded-For.
+	// Preserve X-Forwarded-Proto and X-Forwarded-Host if set.
+	// Ensure that the previous proxies in the chain are trusted
+	// As a special case, headers explicitly set to nil
+	// are never modified.
+	// when using this value, or it will lead to security issues.
+	ForwardedHeaderAdd
+
+	// Preserve all existing forwarded HTTP headers.
+	// Ensure that the previous proxies in the chain are trusted
+	// when using this value, or it will lead to security issues.
+	ForwardedHeaderPreserve
+)
+
 // ReverseProxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
 // client.
 //
 // ReverseProxy by default sets the client IP as the value of the
-// X-Forwarded-For header.
-//
-// If an X-Forwarded-For header already exists, the client IP is
-// appended to the existing values. As a special case, if the header
-// exists in the Request.Header map but has a nil value (such as when
-// set by the Director func), the X-Forwarded-For header is
-// not modified.
-//
-// To prevent IP spoofing, be sure to delete any pre-existing
-// X-Forwarded-For header coming from the client or
-// an untrusted proxy, for instance, by setting
-// OverwriteForwardedHeaders to true.
+// X-Forwarded-For header. To control this behavior,
+// set the ForwardedHeaderBehavior field.
 type ReverseProxy struct {
 	// Director must be a function which modifies
 	// the request into a new request to be sent
@@ -94,19 +108,10 @@ type ReverseProxy struct {
 	// a 502 Status Bad Gateway response.
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 
-	// OverwriteForwardedHeaders specifies if X-Forwarded-For,
-	// X-Forwarded-Proto and X-Forwarded-Host headers coming from
-	// the previous proxy must be replaced or not.
-	//
-	// If true, these 3 headers will be set regardless of any
-	// existing value.
-	//
-	// If false, X-Forwarded-Proto and X-Forwarded-Host will not be
-	// touched (not even created if they don't exist), and the
-	// current client IP will be appended to the list in
-	// X-Forwarded-For. If X-Forwarded-For doesn't exist, it will be
-	// created.
-	OverwriteForwardedHeaders bool
+	// OverwriteForwardedHeaders specifies how to deal with the
+	// X-Forwarded-For, X-Forwarded-Proto, and X-Forwarded-Host
+	// headers.
+	ForwardedHeaderBehavior ForwardedHeaderBehavior
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -297,28 +302,38 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header.Set("Upgrade", reqUpType)
 	}
 
-	if p.OverwriteForwardedHeaders {
-		proto := "https"
-		if req.TLS == nil {
-			proto = "http"
+	if p.ForwardedHeaderBehavior != ForwardedHeaderPreserve {
+		if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+			// If we aren't the first proxy retain prior
+			// X-Forwarded-For information as a comma+space
+			// separated list and fold multiple headers into one.
+			prior, ok := outreq.Header["X-Forwarded-For"]
+			omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
+			log.Printf("%#v %#v", prior, omit)
+			if p.ForwardedHeaderBehavior == ForwardedHeaderAdd && len(prior) > 0 {
+				clientIP = strings.Join(prior, ", ") + ", " + clientIP
+			}
+			if !omit {
+				outreq.Header.Set("X-Forwarded-For", clientIP)
+			}
 		}
 
-		outreq.Header.Set("X-Forwarded-Proto", proto)
-		outreq.Header.Set("X-Forwarded-Host", outreq.Host)
-		outreq.Header.Del("X-Forwarded-For")
-	}
+		if p.ForwardedHeaderBehavior == ForwardedHeaderOverwrite {
+			prior, ok := outreq.Header["X-Forwarded-Host"]
+			omit := ok && prior == nil // nil means don't populate the header
+			if !omit {
+				outreq.Header.Set("X-Forwarded-Host", req.Host)
+			}
 
-	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
-		// If we aren't the first proxy retain prior
-		// X-Forwarded-For information as a comma+space
-		// separated list and fold multiple headers into one.
-		prior, ok := outreq.Header["X-Forwarded-For"]
-		omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
-		if len(prior) > 0 {
-			clientIP = strings.Join(prior, ", ") + ", " + clientIP
-		}
-		if !omit {
-			outreq.Header.Set("X-Forwarded-For", clientIP)
+			prior, ok = outreq.Header["X-Forwarded-Proto"]
+			omit = ok && prior == nil // nil means don't populate the header
+			if !omit {
+				if req.TLS == nil {
+					outreq.Header.Set("X-Forwarded-Proto", "http")
+				} else {
+					outreq.Header.Set("X-Forwarded-Proto", "https")
+				}
+			}
 		}
 	}
 

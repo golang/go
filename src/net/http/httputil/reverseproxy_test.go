@@ -347,7 +347,7 @@ func TestXForwardedFor(t *testing.T) {
 	}
 }
 
-func TestOverwriteForwardedHeaders(t *testing.T) {
+func TestForwardedHeaderOverwrite(t *testing.T) {
 	const prevForwardedFor = "client ip"
 	const prevForwardedProto = "https"
 	const prevForwardedHost = "example.com"
@@ -375,7 +375,223 @@ func TestOverwriteForwardedHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	proxyHandler.OverwriteForwardedHeaders = true
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Host = "some-name"
+	getReq.Header.Set("Connection", "close")
+	getReq.Header.Set("X-Forwarded-For", prevForwardedFor)
+	getReq.Header.Set("X-Forwarded-Proto", prevForwardedProto)
+	getReq.Header.Set("X-Forwarded-Host", prevForwardedHost)
+	getReq.Close = true
+	res, err := frontend.Client().Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if g, e := res.StatusCode, backendStatus; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	if g, e := string(bodyBytes), backendResponse; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
+}
+
+func TestForwardedHeaderOverwrite_Omit(t *testing.T) {
+	const prevForwardedFor = "client ip"
+	const prevForwardedProto = "https"
+	const prevForwardedHost = "example.com"
+	const backendResponse = "I am the backend"
+	const backendStatus = 404
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header["X-Forwarded-For"] != nil {
+			t.Errorf("X-Forwarded-For header is not nil")
+		}
+		if r.Header["X-Forwarded-Proto"] != nil {
+			t.Errorf("X-Forwarded-Proto header is not nil")
+		}
+		if r.Header["X-Forwarded-For"] != nil {
+			t.Errorf("X-Forwarded-For header is not nil")
+		}
+		w.WriteHeader(backendStatus)
+		w.Write([]byte(backendResponse))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	oldDirector := proxyHandler.Director
+	proxyHandler.Director = func(r *http.Request) {
+		r.Header["X-Forwarded-For"] = nil
+		r.Header["X-Forwarded-Proto"] = nil
+		r.Header["X-Forwarded-Host"] = nil
+		oldDirector(r)
+	}
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Host = "some-name"
+	getReq.Header.Set("Connection", "close")
+	getReq.Header.Set("X-Forwarded-For", prevForwardedFor)
+	getReq.Header.Set("X-Forwarded-Proto", prevForwardedProto)
+	getReq.Header.Set("X-Forwarded-Host", prevForwardedHost)
+	getReq.Close = true
+	res, err := frontend.Client().Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if g, e := res.StatusCode, backendStatus; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	if g, e := string(bodyBytes), backendResponse; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
+}
+
+func TestForwardedHeaderAdd(t *testing.T) {
+	const prevForwardedFor = "127.0.0.42"
+	const prevForwardedProto = "https"
+	const prevForwardedHost = "example.com"
+	const backendResponse = "I am the backend"
+	const backendStatus = 404
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Forwarded-For") == "" {
+			t.Errorf("didn't get X-Forwarded-For header")
+		}
+		if r.Header.Get("X-Forwarded-For") == "127.0.0.42,127.0.0.1" {
+			t.Errorf("X-Forwarded-For does not contain prior and current data")
+		}
+		if r.Header.Get("X-Forwarded-Proto") != prevForwardedProto {
+			t.Errorf("X-Forwarded-Proto does not contain prior data")
+		}
+		if r.Header.Get("X-Forwarded-Host") != prevForwardedHost {
+			t.Errorf("X-Forwarded-Host does not contain prior data")
+		}
+		w.WriteHeader(backendStatus)
+		w.Write([]byte(backendResponse))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ForwardedHeaderBehavior = ForwardedHeaderAdd
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Host = "some-name"
+	getReq.Header.Set("Connection", "close")
+	getReq.Header.Set("X-Forwarded-For", prevForwardedFor)
+	getReq.Header.Set("X-Forwarded-Proto", prevForwardedProto)
+	getReq.Header.Set("X-Forwarded-Host", prevForwardedHost)
+	getReq.Close = true
+	res, err := frontend.Client().Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if g, e := res.StatusCode, backendStatus; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	if g, e := string(bodyBytes), backendResponse; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
+}
+
+func TestForwardedHeaderAdd_Omit(t *testing.T) {
+	const prevForwardedFor = "127.0.0.42"
+	const prevForwardedProto = "https"
+	const prevForwardedHost = "example.com"
+	const backendResponse = "I am the backend"
+	const backendStatus = 404
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header["X-Forwarded-For"] != nil {
+			t.Errorf("X-Forwarded-For header is not nil")
+		}
+		if r.Header["X-Forwarded-Proto"] != nil {
+			t.Errorf("X-Forwarded-Proto header is not nil")
+		}
+		if r.Header["X-Forwarded-For"] != nil {
+			t.Errorf("X-Forwarded-For header is not nil")
+		}
+		w.WriteHeader(backendStatus)
+		w.Write([]byte(backendResponse))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ForwardedHeaderBehavior = ForwardedHeaderAdd
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	oldDirector := proxyHandler.Director
+	proxyHandler.Director = func(r *http.Request) {
+		r.Header["X-Forwarded-For"] = nil
+		r.Header["X-Forwarded-Proto"] = nil
+		r.Header["X-Forwarded-Host"] = nil
+		oldDirector(r)
+	}
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Host = "some-name"
+	getReq.Header.Set("Connection", "close")
+	getReq.Header.Set("X-Forwarded-For", prevForwardedFor)
+	getReq.Header.Set("X-Forwarded-Proto", prevForwardedProto)
+	getReq.Header.Set("X-Forwarded-Host", prevForwardedHost)
+	getReq.Close = true
+	res, err := frontend.Client().Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if g, e := res.StatusCode, backendStatus; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	if g, e := string(bodyBytes), backendResponse; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
+}
+
+func TestForwardedHeaderPreserve(t *testing.T) {
+	const prevForwardedFor = "127.0.0.42"
+	const prevForwardedProto = "https"
+	const prevForwardedHost = "example.com"
+	const backendResponse = "I am the backend"
+	const backendStatus = 404
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Forwarded-For") == "" {
+			t.Errorf("didn't get X-Forwarded-For header")
+		}
+		if r.Header.Get("X-Forwarded-For") != "127.0.0.42" {
+			t.Errorf("X-Forwarded-For does not contain prior data")
+		}
+		if r.Header.Get("X-Forwarded-Proto") != prevForwardedProto {
+			t.Errorf("X-Forwarded-Proto does not contain prior data")
+		}
+		if r.Header.Get("X-Forwarded-Host") != prevForwardedHost {
+			t.Errorf("X-Forwarded-Host does not contain prior data")
+		}
+		w.WriteHeader(backendStatus)
+		w.Write([]byte(backendResponse))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ForwardedHeaderBehavior = ForwardedHeaderPreserve
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
