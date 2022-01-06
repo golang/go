@@ -136,13 +136,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			continue // ignore
 		}
 
-		// Always type-check method type parameters but complain if they are not enabled.
-		// (This extra check is needed here because interface method signatures don't have
-		// a receiver specification.)
-		if sig.tparams != nil && !acceptMethodTypeParams {
-			check.error(f.Type, "methods cannot have type parameters")
-		}
-
 		// use named receiver type if available (for better error messages)
 		var recvTyp Type = ityp
 		if def != nil {
