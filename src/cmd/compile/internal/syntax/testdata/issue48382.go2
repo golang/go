@@ -4,12 +4,12 @@
 
 package p
 
-type _ func /* ERROR function type cannot have type parameters */ [ /* ERROR empty type parameter list */ ]()
-type _ func /* ERROR function type cannot have type parameters */ [ x /* ERROR missing type constraint */ ]()
-type _ func /* ERROR function type cannot have type parameters */ [P any]()
+type _ func /* ERROR function type must have no type parameters */ [ /* ERROR empty type parameter list */ ]()
+type _ func /* ERROR function type must have no type parameters */ [ x /* ERROR missing type constraint */ ]()
+type _ func /* ERROR function type must have no type parameters */ [P any]()
 
-var _ = func /* ERROR function literal cannot have type parameters */ [P any]() {}
+var _ = func /* ERROR function literal must have no type parameters */ [P any]() {}
 
 type _ interface{
-        m /* ERROR interface method cannot have type parameters */ [P any]()
+        m /* ERROR interface method must have no type parameters */ [P any]()
 }

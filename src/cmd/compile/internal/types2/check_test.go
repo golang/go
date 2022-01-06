@@ -118,7 +118,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 
 	var mode syntax.Mode
 	if strings.HasSuffix(filenames[0], ".go2") || manual {
-		mode |= syntax.AllowGenerics
+		mode |= syntax.AllowGenerics | syntax.AllowMethodTypeParams
 	}
 	// parse files and collect parser errors
 	files, errlist := parseFiles(t, filenames, mode)

@@ -17,6 +17,7 @@ type Mode uint
 const (
 	CheckBranches Mode = 1 << iota // check correct use of labels, break, continue, and goto statements
 	AllowGenerics
+	AllowMethodTypeParams // does not support interface methods yet; ignored if AllowGenerics is not set
 )
 
 // Error describes a syntax error. Error implements the error interface.

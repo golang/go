@@ -282,6 +282,11 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 	return m, typ != nil
 }
 
+// If we accept type parameters for methods, (at least) the code
+// guarded with this constant will need to be adjusted when such
+// methods are used (not just parsed).
+const acceptMethodTypeParams = false
+
 // missingMethod is like MissingMethod but accepts a *Checker as
 // receiver and an addressable flag.
 // The receiver may be nil if missingMethod is invoked through
