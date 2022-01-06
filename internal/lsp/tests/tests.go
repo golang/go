@@ -12,11 +12,11 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -274,9 +274,6 @@ func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*tes
 			if mode == "MultiModule" {
 				// Some bug in 1.12 breaks reading markers, and it's not worth figuring out.
 				testenv.NeedsGo1Point(t, 13)
-				if runtime.GOOS == "plan9" {
-					t.Skipf("MultiModule setup fails for undiagnosed reasons on plan9; see https://go.dev/issue/50478")
-				}
 			}
 			datum := load(t, mode, dataDir)
 			t.Helper()
@@ -500,12 +497,49 @@ func load(t testing.TB, mode string, dir string) *Data {
 		t.Fatal(err)
 	}
 	if mode == "MultiModule" {
-		if err := os.Rename(filepath.Join(datum.Config.Dir, "go.mod"), filepath.Join(datum.Config.Dir, "testmodule/go.mod")); err != nil {
+		if err := moveFile(filepath.Join(datum.Config.Dir, "go.mod"), filepath.Join(datum.Config.Dir, "testmodule/go.mod")); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	return datum
+}
+
+// moveFile moves the file at oldpath to newpath, by renaming if possible
+// or copying otherwise.
+func moveFile(oldpath, newpath string) (err error) {
+	renameErr := os.Rename(oldpath, newpath)
+	if renameErr == nil {
+		return nil
+	}
+
+	src, err := os.Open(oldpath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		src.Close()
+		if err == nil {
+			err = os.Remove(oldpath)
+		}
+	}()
+
+	perm := os.ModePerm
+	fi, err := src.Stat()
+	if err == nil {
+		perm = fi.Mode().Perm()
+	}
+
+	dst, err := os.OpenFile(newpath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(dst, src)
+	if closeErr := dst.Close(); err == nil {
+		err = closeErr
+	}
+	return err
 }
 
 func Run(t *testing.T, tests Tests, data *Data) {
