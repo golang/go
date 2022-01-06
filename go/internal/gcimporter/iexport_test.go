@@ -305,11 +305,11 @@ func cmpObj(x, y types.Object) error {
 	}
 	xt := x.Type()
 	yt := y.Type()
-	switch x.(type) {
+	switch x := x.(type) {
 	case *types.Var, *types.Func:
 		// ok
 	case *types.Const:
-		xval := x.(*types.Const).Val()
+		xval := x.Val()
 		yval := y.(*types.Const).Val()
 		equal := constant.Compare(xval, token.EQL, yval)
 		if !equal {
@@ -329,6 +329,25 @@ func cmpObj(x, y types.Object) error {
 			return fmt.Errorf("unequal constants %s vs %s", xval, yval)
 		}
 	case *types.TypeName:
+		if xalias, yalias := x.IsAlias(), y.(*types.TypeName).IsAlias(); xalias != yalias {
+			return fmt.Errorf("mismatching IsAlias(): %s vs %s", x, y)
+		}
+		// equalType does not recurse into the underlying types of named types, so
+		// we must pass the underlying type explicitly here. However, in doing this
+		// we may skip checking the features of the named types themselves, in
+		// situations where the type name is not referenced by the underlying or
+		// any other top-level declarations. Therefore, we must explicitly compare
+		// named types here, before passing their underlying types into equalType.
+		xn, _ := xt.(*types.Named)
+		yn, _ := yt.(*types.Named)
+		if (xn == nil) != (yn == nil) {
+			return fmt.Errorf("mismatching types: %T vs %T", xt, yt)
+		}
+		if xn != nil {
+			if err := cmpNamed(xn, yn); err != nil {
+				return err
+			}
+		}
 		xt = xt.Underlying()
 		yt = yt.Underlying()
 	default:

@@ -254,40 +254,7 @@ func equalType(x, y types.Type) error {
 		}
 	case *types.Named:
 		y := y.(*types.Named)
-		xOrig := typeparams.NamedTypeOrigin(x)
-		yOrig := typeparams.NamedTypeOrigin(y)
-		if sanitizeName(xOrig.String()) != sanitizeName(yOrig.String()) {
-			return fmt.Errorf("unequal named types: %s vs %s", x, y)
-		}
-		if err := equalTypeArgs(typeparams.NamedTypeArgs(x), typeparams.NamedTypeArgs(y)); err != nil {
-			return fmt.Errorf("type arguments: %s", err)
-		}
-		if x.NumMethods() != y.NumMethods() {
-			return fmt.Errorf("unequal methods: %d vs %d",
-				x.NumMethods(), y.NumMethods())
-		}
-		// Unfortunately method sorting is not canonical, so sort before comparing.
-		var xms, yms []*types.Func
-		for i := 0; i < x.NumMethods(); i++ {
-			xms = append(xms, x.Method(i))
-			yms = append(yms, y.Method(i))
-		}
-		for _, ms := range [][]*types.Func{xms, yms} {
-			sort.Slice(ms, func(i, j int) bool {
-				return ms[i].Name() < ms[j].Name()
-			})
-		}
-		for i, xm := range xms {
-			ym := yms[i]
-			if xm.Name() != ym.Name() {
-				return fmt.Errorf("mismatched %dth method: %s vs %s", i, xm, ym)
-			}
-			// Calling equalType here leads to infinite recursion, so just compare
-			// strings.
-			if sanitizeName(xm.String()) != sanitizeName(ym.String()) {
-				return fmt.Errorf("unequal methods: %s vs %s", x, y)
-			}
-		}
+		return cmpNamed(x, y)
 	case *types.Pointer:
 		y := y.(*types.Pointer)
 		if err := equalType(x.Elem(), y.Elem()); err != nil {
@@ -376,6 +343,49 @@ func equalType(x, y types.Type) error {
 
 	default:
 		panic(fmt.Sprintf("unexpected %T type", x))
+	}
+	return nil
+}
+
+// cmpNamed compares two named types x and y, returning an error for any
+// discrepancies. It does not compare their underlying types.
+func cmpNamed(x, y *types.Named) error {
+	xOrig := typeparams.NamedTypeOrigin(x)
+	yOrig := typeparams.NamedTypeOrigin(y)
+	if sanitizeName(xOrig.String()) != sanitizeName(yOrig.String()) {
+		return fmt.Errorf("unequal named types: %s vs %s", x, y)
+	}
+	if err := equalTypeParams(typeparams.ForNamed(x), typeparams.ForNamed(y)); err != nil {
+		return fmt.Errorf("type parameters: %s", err)
+	}
+	if err := equalTypeArgs(typeparams.NamedTypeArgs(x), typeparams.NamedTypeArgs(y)); err != nil {
+		return fmt.Errorf("type arguments: %s", err)
+	}
+	if x.NumMethods() != y.NumMethods() {
+		return fmt.Errorf("unequal methods: %d vs %d",
+			x.NumMethods(), y.NumMethods())
+	}
+	// Unfortunately method sorting is not canonical, so sort before comparing.
+	var xms, yms []*types.Func
+	for i := 0; i < x.NumMethods(); i++ {
+		xms = append(xms, x.Method(i))
+		yms = append(yms, y.Method(i))
+	}
+	for _, ms := range [][]*types.Func{xms, yms} {
+		sort.Slice(ms, func(i, j int) bool {
+			return ms[i].Name() < ms[j].Name()
+		})
+	}
+	for i, xm := range xms {
+		ym := yms[i]
+		if xm.Name() != ym.Name() {
+			return fmt.Errorf("mismatched %dth method: %s vs %s", i, xm, ym)
+		}
+		// Calling equalType here leads to infinite recursion, so just compare
+		// strings.
+		if sanitizeName(xm.String()) != sanitizeName(ym.String()) {
+			return fmt.Errorf("unequal methods: %s vs %s", x, y)
+		}
 	}
 	return nil
 }
