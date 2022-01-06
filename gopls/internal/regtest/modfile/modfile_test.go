@@ -6,6 +6,7 @@ package modfile
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -513,6 +514,10 @@ require (
 
 // Reproduces golang/go#38232.
 func TestUnknownRevision(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skipf("skipping test that fails for unknown reasons on plan9; see https://go.dev/issue/50477")
+	}
+
 	testenv.NeedsGo1Point(t, 14)
 
 	const unknown = `

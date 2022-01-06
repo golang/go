@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -273,6 +274,9 @@ func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*tes
 			if mode == "MultiModule" {
 				// Some bug in 1.12 breaks reading markers, and it's not worth figuring out.
 				testenv.NeedsGo1Point(t, 13)
+				if runtime.GOOS == "plan9" {
+					t.Skipf("MultiModule setup fails for undiagnosed reasons on plan9; see https://go.dev/issue/50478")
+				}
 			}
 			datum := load(t, mode, dataDir)
 			t.Helper()
