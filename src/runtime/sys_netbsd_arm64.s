@@ -279,8 +279,8 @@ fail:
 TEXT sigreturn_tramp<>(SB),NOSPLIT,$-8
 	MOVD	g, R0
 	SVC	$SYS_setcontext
-	MOVD	$0x4242, R0		// Something failed, return magic number
-	SVC	$SYS_exit
+	MOVD	$0, R0
+	MOVD	R0, (R0)		// crash
 
 TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVW	sig+0(FP), R0		// arg 1 - signum
