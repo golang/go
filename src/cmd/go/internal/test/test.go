@@ -124,8 +124,9 @@ elapsed time in the summary line.
 
 The rule for a match in the cache is that the run involves the same
 test binary and the flags on the command line come entirely from a
-restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
--list, -parallel, -run, -short, -timeout, -failfast, and -v.
+restricted set of 'cacheable' test flags, defined as -benchtime, -cover,
+-covermode, -coverprofile, -cpu, -list, -parallel, -run, -short, -timeout,
+-failfast, -v, -vet and -outputdir.
 If a run of go test has any test or non-test flags outside this set,
 the result is not cached. To disable test caching, use any test flag
 or argument other than the cacheable flags. The idiomatic way to disable
@@ -1342,11 +1343,13 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	}
 	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, fuzzArg, coverdirArg, testArgs)
 
+	var coverprofileFile string
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
+		coverprofileFile = a.Objdir + "_cover_.out"
 		for i, arg := range args {
 			if strings.HasPrefix(arg, "-test.coverprofile=") {
-				args[i] = "-test.coverprofile=" + a.Objdir + "_cover_.out"
+				args[i] = "-test.coverprofile=" + coverprofileFile
 			}
 		}
 	}
@@ -1426,7 +1429,9 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	a.TestOutput = &buf
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
 
-	mergeCoverProfile(cmd.Stdout, a.Objdir+"_cover_.out")
+	if coverErr := mergeCoverProfile(coverprofileFile); coverErr != nil {
+		fmt.Fprintf(cmd.Stdout, "error: %v\n", coverErr)
+	}
 
 	if err == nil {
 		norun := ""
@@ -1448,7 +1453,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			cmd.Stdout.Write([]byte("\n"))
 		}
 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
-		r.c.saveOutput(a)
+		r.c.saveOutput(a, coverprofileFile)
 	} else {
 		base.SetExitStatus(1)
 		if cancelSignaled {
@@ -1541,7 +1546,14 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 			// Note that this list is documented above,
 			// so if you add to this list, update the docs too.
 			cacheArgs = append(cacheArgs, arg)
-
+		case "-test.coverprofile",
+			"-test.outputdir":
+			// The -coverprofile and -outputdir arguments are cacheable but
+			// only change where profiles are written. They don't change the
+			// profile contents, so they aren't added to the cacheArgs. This
+			// allows cached coverage profiles to be written to different files.
+			// Note that this list is documented above,
+			// so if you add to this list, update the docs too.
 		default:
 			// nothing else is cacheable
 			if cache.DebugTest {
@@ -1653,6 +1665,26 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		j++
 	}
 	c.buf.Write(data[j:])
+
+	// Write coverage data to profile.
+	if cfg.BuildCover {
+		// coverprofile cache expiration time should be coupled with the test data above, so
+		// the entry can be ignored.
+		f, _, err := cache.Default().GetFile(testCoverProfileKey(testID, testInputsID))
+		if err != nil {
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: test coverage profile not found: %v\n", a.Package.ImportPath, err)
+			}
+			return false
+		}
+		if err := mergeCoverProfile(f); err != nil {
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: test coverage profile not merged: %v\n", a.Package.ImportPath, err)
+			}
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -1799,7 +1831,12 @@ func testAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
 	return cache.Subkey(testID, fmt.Sprintf("inputs:%x", testInputsID))
 }
 
-func (c *runCache) saveOutput(a *work.Action) {
+// testCoverProfileKey returns the "coverprofile" cache key for the pair (testID, testInputsID).
+func testCoverProfileKey(testID, testInputsID cache.ActionID) cache.ActionID {
+	return cache.Subkey(testAndInputKey(testID, testInputsID), "coverprofile")
+}
+
+func (c *runCache) saveOutput(a *work.Action, coverprofileFile string) {
 	if c.id1 == (cache.ActionID{}) && c.id2 == (cache.ActionID{}) {
 		return
 	}
@@ -1820,12 +1857,27 @@ func (c *runCache) saveOutput(a *work.Action) {
 	if err != nil {
 		return
 	}
+	saveCoverProfile := func(testID cache.ActionID) {
+		if coverprofileFile == "" {
+			return
+		}
+		coverprof, err := os.Open(coverprofileFile)
+		if err != nil {
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: failed to open temporary coverprofile file: %s", a.Package.ImportPath, err)
+			}
+			return
+		}
+		defer coverprof.Close()
+		cache.Default().Put(testCoverProfileKey(testID, testInputsID), coverprof)
+	}
 	if c.id1 != (cache.ActionID{}) {
 		if cache.DebugTest {
 			fmt.Fprintf(os.Stderr, "testcache: %s: save test ID %x => input ID %x => %x\n", a.Package.ImportPath, c.id1, testInputsID, testAndInputKey(c.id1, testInputsID))
 		}
 		cache.PutNoVerify(cache.Default(), c.id1, bytes.NewReader(testlog))
-		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
+		cache.PutNoVerify(testAndInputKey(cache.Default(), c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
+		saveCoverProfile(c.id1)
 	}
 	if c.id2 != (cache.ActionID{}) {
 		if cache.DebugTest {
@@ -1833,6 +1885,7 @@ func (c *runCache) saveOutput(a *work.Action) {
 		}
 		cache.PutNoVerify(cache.Default(), c.id2, bytes.NewReader(testlog))
 		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id2, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
+		saveCoverProfile(c.id2)
 	}
 }
 

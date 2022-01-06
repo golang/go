@@ -2447,6 +2447,68 @@ func TestCacheCoverage(t *testing.T) {
 	tg.run("test", "-cover", "-short", "math", "strings")
 }
 
+func TestCacheCoverageProfile(t *testing.T) {
+	tooSlow(t)
+
+	if godebug.Get("gocacheverify") == "1" {
+		t.Skip("GODEBUG gocacheverify")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.makeTempdir()
+	tg.setenv("GOCACHE", tg.path("c1"))
+
+	// checkProfile asserts that the given profile contains the given mode
+	// and coverage lines for all given files.
+	checkProfile := func(t *testing.T, profile, mode string, files ...string) {
+		t.Helper()
+		if out, err := os.ReadFile(profile); err != nil {
+			t.Fatalf("failed to open coverprofile: %v", err)
+		} else {
+			if n := bytes.Count(out, []byte("mode: "+mode)); n != 1 {
+				if n == 0 {
+					t.Fatalf("missing mode: %s", mode)
+				} else {
+					t.Fatalf("too many mode: %s", mode)
+				}
+			}
+			for _, fname := range files {
+				if !bytes.Contains(out, []byte(fname)) {
+					t.Fatalf("missing file in coverprofile: %s", fname)
+				}
+			}
+		}
+	}
+
+	tg.run("test", "-coverprofile="+tg.path("cover.out"), "-x", "-v", "-short", "strings")
+	tg.grepStdout(`ok  \t`, "expected strings test to succeed")
+	checkProfile(t, tg.path("cover.out"), "set", "strings/strings.go")
+	// Repeat commands should use the cache.
+	tg.run("test", "-coverprofile="+tg.path("cover.out"), "-x", "-v", "-short", "strings")
+	tg.grepStdout(`ok  \tstrings\t\(cached\)`, "expected strings test results to be cached")
+	checkProfile(t, tg.path("cover.out"), "set", "strings/strings.go")
+	// Cover profiles should be cached independently. Since strings is already cached,
+	// only math should need to run.
+	tg.run("test", "-coverprofile="+tg.path("cover.out"), "-x", "-v", "-short", "strings", "math")
+	tg.grepStdout(`ok  \tstrings\t\(cached\)`, "expected strings test results to be cached")
+	checkProfile(t, tg.path("cover.out"), "set", "strings/strings.go", "math/mod.go")
+	// A new -coverprofile file should use the cached coverage profile contents.
+	tg.run("test", "-coverprofile="+tg.path("cover1.out"), "-x", "-v", "-short", "strings")
+	tg.grepStdout(`ok  \tstrings\t\(cached\)`, "expected cached strings test results to be used regardless of -coverprofile")
+	checkProfile(t, tg.path("cover1.out"), "set", "strings/strings.go")
+	// A new -covermode should not use the cached coverage profile, since the covermode changes
+	// the profile output.
+	tg.run("test", "-covermode=count", "-coverprofile="+tg.path("cover.out"), "-x", "-v", "-short", "strings")
+	tg.grepStdoutNot(`ok  \tstrings\t\(cached\)`, "cached strings test results should not be used with different -covermode")
+	// A new -coverpkg should not use the cached coverage profile, since the coverpkg changes
+	// the profile output.
+	tg.run("test", "-coverpkg=math", "-coverprofile="+tg.path("cover.out"), "-x", "-v", "-short", "strings")
+	tg.grepStdoutNot(`ok  \tstrings\t\(cached\)`, "cached strings test results should not be used with different -coverpkg")
+}
+
 func TestIssue22588(t *testing.T) {
 	// Don't get confused by stderr coming from tools.
 	tg := testgo(t)
