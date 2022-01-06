@@ -9896,7 +9896,8 @@ type http2WriteScheduler interface {
 
 	// Pop dequeues the next frame to write. Returns false if no frames can
 	// be written. Frames with a given wr.StreamID() are Pop'd in the same
-	// order they are Push'd. No frames should be discarded except by CloseStream.
+	// order they are Push'd, except RST_STREAM frames. No frames should be
+	// discarded except by CloseStream.
 	Pop() (wr http2FrameWriteRequest, ok bool)
 }
 
@@ -9916,6 +9917,7 @@ type http2FrameWriteRequest struct {
 
 	// stream is the stream on which this frame will be written.
 	// nil for non-stream frames like PING and SETTINGS.
+	// nil for RST_STREAM streams, which use the StreamError.StreamID field instead.
 	stream *http2stream
 
 	// done, if non-nil, must be a buffered channel with space for
@@ -10595,11 +10597,11 @@ func (ws *http2randomWriteScheduler) AdjustStream(streamID uint32, priority http
 }
 
 func (ws *http2randomWriteScheduler) Push(wr http2FrameWriteRequest) {
-	id := wr.StreamID()
-	if id == 0 {
+	if wr.isControl() {
 		ws.zero.push(wr)
 		return
 	}
+	id := wr.StreamID()
 	q, ok := ws.sq[id]
 	if !ok {
 		q = ws.queuePool.get()
@@ -10609,7 +10611,7 @@ func (ws *http2randomWriteScheduler) Push(wr http2FrameWriteRequest) {
 }
 
 func (ws *http2randomWriteScheduler) Pop() (http2FrameWriteRequest, bool) {
-	// Control frames first.
+	// Control and RST_STREAM frames first.
 	if !ws.zero.empty() {
 		return ws.zero.shift(), true
 	}
