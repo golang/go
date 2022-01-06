@@ -212,7 +212,11 @@ func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *sourc
 		// vice versa.
 		srcDiag, err := directnessDiagnostic(pm.Mapper, req, snapshot.View().Options().ComputeEdits)
 		if err != nil {
-			return nil, err
+			// We're probably in a bad state if we can't compute a
+			// directnessDiagnostic, but try to keep going so as to not suppress
+			// other, valid diagnostics.
+			event.Error(ctx, "computing directness diagnostic", err)
+			continue
 		}
 		diagnostics = append(diagnostics, srcDiag)
 	}
@@ -428,7 +432,14 @@ func switchDirectness(req *modfile.Require, m *protocol.ColumnMapper, computeEdi
 	// Change the directness in the matching require statement. To avoid
 	// reordering the require statements, rewrite all of them.
 	var requires []*modfile.Require
+	seenVersions := make(map[string]string)
 	for _, r := range copied.Require {
+		if seen := seenVersions[r.Mod.Path]; seen != "" && seen != r.Mod.Version {
+			// Avoid a panic in SetRequire below, which panics on conflicting
+			// versions.
+			return nil, fmt.Errorf("%q has conflicting versions: %q and %q", r.Mod.Path, seen, r.Mod.Version)
+		}
+		seenVersions[r.Mod.Path] = r.Mod.Version
 		if r.Mod.Path == req.Mod.Path {
 			requires = append(requires, &modfile.Require{
 				Mod:      r.Mod,
