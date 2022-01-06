@@ -270,20 +270,18 @@ func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*tes
 	}
 	for _, mode := range modes {
 		t.Run(mode, func(t *testing.T) {
-			t.Helper()
 			if mode == "MultiModule" {
 				// Some bug in 1.12 breaks reading markers, and it's not worth figuring out.
 				testenv.NeedsGo1Point(t, 13)
 			}
 			datum := load(t, mode, dataDir)
+			t.Helper()
 			f(t, datum)
 		})
 	}
 }
 
 func load(t testing.TB, mode string, dir string) *Data {
-	t.Helper()
-
 	datum := &Data{
 		CallHierarchy:            make(CallHierarchy),
 		CodeLens:                 make(CodeLens),
