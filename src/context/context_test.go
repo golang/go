@@ -650,8 +650,9 @@ func XTestCancelRemoves(t testingT) {
 }
 
 func XTestWithCancelCanceledParent(t testingT) {
-	parent, pcancel := WithCancel(Background())
-	pcancel()
+	parent, pcancel := WithCancelCause(Background())
+	cause := fmt.Errorf("Because!")
+	pcancel(cause)
 
 	c, _ := WithCancel(parent)
 	select {
@@ -661,6 +662,9 @@ func XTestWithCancelCanceledParent(t testingT) {
 	}
 	if got, want := c.Err(), Canceled; got != want {
 		t.Errorf("child not canceled; got = %v, want = %v", got, want)
+	}
+	if got, want := Cause(c), cause; got != want {
+		t.Errorf("child has wrong cause; got = %v, want = %v", got, want)
 	}
 }
 
@@ -784,4 +788,149 @@ func XTestCustomContextGoroutines(t testingT) {
 	_, cancel7 := WithCancel(ctx5)
 	defer cancel7()
 	checkNoGoroutine()
+}
+
+func XTestCause(t testingT) {
+	var (
+		parentCause = fmt.Errorf("parentCause")
+		childCause  = fmt.Errorf("childCause")
+	)
+	for _, test := range []struct {
+		name  string
+		ctx   Context
+		err   error
+		cause error
+	}{
+		{
+			name:  "Background",
+			ctx:   Background(),
+			err:   nil,
+			cause: nil,
+		},
+		{
+			name:  "TODO",
+			ctx:   TODO(),
+			err:   nil,
+			cause: nil,
+		},
+		{
+			name: "WithCancel",
+			ctx: func() Context {
+				ctx, cancel := WithCancel(Background())
+				cancel()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithCancelCause",
+			ctx: func() Context {
+				ctx, cancel := WithCancelCause(Background())
+				cancel(parentCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: parentCause,
+		},
+		{
+			name: "WithCancelCause nil",
+			ctx: func() Context {
+				ctx, cancel := WithCancelCause(Background())
+				cancel(nil)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithCancelCause: parent cause before child",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancelCause(Background())
+				ctx, cancelChild := WithCancelCause(ctx)
+				cancelParent(parentCause)
+				cancelChild(childCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: parentCause,
+		},
+		{
+			name: "WithCancelCause: parent cause after child",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancelCause(Background())
+				ctx, cancelChild := WithCancelCause(ctx)
+				cancelChild(childCause)
+				cancelParent(parentCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: childCause,
+		},
+		{
+			name: "WithCancelCause: parent cause before nil",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancelCause(Background())
+				ctx, cancelChild := WithCancel(ctx)
+				cancelParent(parentCause)
+				cancelChild()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: parentCause,
+		},
+		{
+			name: "WithCancelCause: parent cause after nil",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancelCause(Background())
+				ctx, cancelChild := WithCancel(ctx)
+				cancelChild()
+				cancelParent(parentCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithCancelCause: child cause after nil",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancel(Background())
+				ctx, cancelChild := WithCancelCause(ctx)
+				cancelParent()
+				cancelChild(childCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithCancelCause: child cause before nil",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancel(Background())
+				ctx, cancelChild := WithCancelCause(ctx)
+				cancelChild(childCause)
+				cancelParent()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: childCause,
+		},
+		{
+			name: "WithTimeout",
+			ctx: func() Context {
+				ctx, cancel := WithTimeout(Background(), 0)
+				cancel()
+				return ctx
+			}(),
+			err:   DeadlineExceeded,
+			cause: DeadlineExceeded,
+		},
+	} {
+		if got, want := test.ctx.Err(), test.err; want != got {
+			t.Errorf("%s: ctx.Err() = %v want %v", test.name, got, want)
+		}
+		if got, want := Cause(test.ctx), test.cause; want != got {
+			t.Errorf("%s: Cause(ctx) = %v want %v", test.name, got, want)
+		}
+	}
 }
