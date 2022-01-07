@@ -101,7 +101,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				if x.mode == invalid {
 					return
 				}
-				if allString(x.typ) {
+				if t := structuralString(x.typ); t != nil && isString(t) {
 					if check.Types != nil {
 						sig := makeSig(S, S, x.typ)
 						sig.variadic = true
