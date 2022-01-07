@@ -18,7 +18,7 @@
 
 TEXT	·Syscall(SB),NOSPLIT,$168-64
 	NO_LOCAL_POINTERS
-	CALL	runtime·entersyscall(SB)
+	CALL	runtime·entersyscall<ABIInternal>(SB)
 	MOVQ	trap+0(FP), BP	// syscall entry
 	// copy args down
 	LEAQ	a1+8(FP), SI
@@ -38,7 +38,7 @@ TEXT	·Syscall(SB),NOSPLIT,$168-64
 	MOVQ	$128, sysargs1-152(SP)
 	MOVQ	$SYS_ERRSTR, BP
 	SYSCALL
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	MOVQ	sysargs-160(SP), AX
 	MOVQ	AX, errbuf-168(SP)
 	CALL	runtime·gostring(SB)
@@ -46,7 +46,7 @@ TEXT	·Syscall(SB),NOSPLIT,$168-64
 	JMP	copyresult3
 
 ok3:
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	LEAQ	·emptystring(SB), SI
 
 copyresult3:
@@ -60,7 +60,7 @@ copyresult3:
 
 TEXT	·Syscall6(SB),NOSPLIT,$168-88
 	NO_LOCAL_POINTERS
-	CALL	runtime·entersyscall(SB)
+	CALL	runtime·entersyscall<ABIInternal>(SB)
 	MOVQ	trap+0(FP), BP	// syscall entry
 	// copy args down
 	LEAQ	a1+8(FP), SI
@@ -83,7 +83,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
 	MOVQ	$128, sysargs1-152(SP)
 	MOVQ	$SYS_ERRSTR, BP
 	SYSCALL
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	MOVQ	sysargs-160(SP), AX
 	MOVQ	AX, errbuf-168(SP)
 	CALL	runtime·gostring(SB)
@@ -91,7 +91,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
 	JMP	copyresult4
 
 ok4:
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	LEAQ	·emptystring(SB), SI
 
 copyresult4:

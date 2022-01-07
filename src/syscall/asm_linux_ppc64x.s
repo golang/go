@@ -12,7 +12,7 @@
 
 // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
 TEXT ·Syscall(SB),NOSPLIT,$0-56
-	BL	runtime·entersyscall(SB)
+	BL	runtime·entersyscall<ABIInternal>(SB)
 	MOVD	a1+8(FP), R3
 	MOVD	a2+16(FP), R4
 	MOVD	a3+24(FP), R5
@@ -26,17 +26,17 @@ TEXT ·Syscall(SB),NOSPLIT,$0-56
 	MOVD	R4, r1+32(FP)	// r1
 	MOVD	R0, r2+40(FP)	// r2
 	MOVD	R3, err+48(FP)	// errno
-	BL	runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 ok:
 	MOVD	R3, r1+32(FP)	// r1
 	MOVD	R0, r2+40(FP)	// r2
 	MOVD	R0, err+48(FP)	// errno
-	BL	runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 
 TEXT ·Syscall6(SB),NOSPLIT,$0-80
-	BL	runtime·entersyscall(SB)
+	BL	runtime·entersyscall<ABIInternal>(SB)
 	MOVD	a1+8(FP), R3
 	MOVD	a2+16(FP), R4
 	MOVD	a3+24(FP), R5
@@ -50,13 +50,13 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	MOVD	R4, r1+56(FP)	// r1
 	MOVD	R0, r2+64(FP)	// r2
 	MOVD	R3, err+72(FP)	// errno
-	BL	runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 ok6:
 	MOVD	R3, r1+56(FP)	// r1
 	MOVD	R0, r2+64(FP)	// r2
 	MOVD	R0, err+72(FP)	// errno
-	BL	runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-56
