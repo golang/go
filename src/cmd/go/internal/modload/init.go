@@ -75,6 +75,7 @@ func EnterModule(ctx context.Context, enterModroot string) {
 	MainModules = nil // reset MainModules
 	requirements = nil
 	workFilePath = "" // Force module mode
+	modfetch.Reset()
 
 	modRoots = []string{enterModroot}
 	LoadModFile(ctx)

@@ -108,13 +108,13 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 
 		modload.LoadPackages(ctx, modload.PackageOpts{
 			Tags:                     imports.AnyTags(),
+			Tidy:                     true,
 			VendorModulesInGOROOTSrc: true,
 			ResolveMissingImports:    false,
 			LoadTests:                true,
 			AllowErrors:              true,
+			SilenceMissingStdImports: true,
 			SilencePackageErrors:     true,
-			Tidy:                     true,
-			SilenceUnmatchedWarnings: true,
 		}, "all")
 		modload.WriteGoMod(ctx)
 	}
