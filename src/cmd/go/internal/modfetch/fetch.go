@@ -405,6 +405,28 @@ type modSumStatus struct {
 	used, dirty bool
 }
 
+// Reset resets globals in the modfetch package, so previous loads don't affect
+// contents of go.sum files
+func Reset() {
+	GoSumFile = ""
+	WorkspaceGoSumFiles = nil
+
+	// Uses of lookupCache and downloadCache both can call checkModSum,
+	// which in turn sets the used bit on goSum.status for modules.
+	// Reset them so used can be computed properly.
+	lookupCache = par.Cache{}
+	downloadCache = par.Cache{}
+
+	// Clear all fields on goSum. It will be initialized later
+	goSum.mu.Lock()
+	goSum.m = nil
+	goSum.w = nil
+	goSum.status = nil
+	goSum.overwrite = false
+	goSum.enabled = false
+	goSum.mu.Unlock()
+}
+
 // initGoSum initializes the go.sum data.
 // The boolean it returns reports whether the
 // use of go.sum is now enabled.
