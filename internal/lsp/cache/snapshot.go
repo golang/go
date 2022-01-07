@@ -966,14 +966,24 @@ func (s *snapshot) activePackageHandles(ctx context.Context) ([]*packageHandle, 
 
 func (s *snapshot) Symbols(ctx context.Context) (map[span.URI][]source.Symbol, error) {
 	result := make(map[span.URI][]source.Symbol)
+
+	// Keep going on errors, but log the first failure. Partial symbol results
+	// are better than no symbol results.
+	var firstErr error
 	for uri, f := range s.files {
 		sh := s.buildSymbolHandle(ctx, f)
 		v, err := sh.handle.Get(ctx, s.generation, s)
 		if err != nil {
-			return nil, err
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
 		}
 		data := v.(*symbolData)
 		result[uri] = data.symbols
+	}
+	if firstErr != nil {
+		event.Error(ctx, "getting snapshot symbols", firstErr)
 	}
 	return result, nil
 }
