@@ -2178,6 +2178,7 @@ var unifiedFailures = setOf(
 	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
 	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
 	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
+	"typeparam/issue50417b.go", // Need to handle field access on a type param
 	"typeparam/issue50552.go",  // gives missing method for instantiated type
 )
 

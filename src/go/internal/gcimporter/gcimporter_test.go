@@ -169,8 +169,9 @@ func TestImportTypeparamTests(t *testing.T) {
 	}
 
 	skip := map[string]string{
-		"equal.go":  "inconsistent embedded sorting", // TODO(rfindley): investigate this.
-		"nested.go": "fails to compile",              // TODO(rfindley): investigate this.
+		"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+		"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
+		"issue50417.go": "inconsistent interface member sorting",
 	}
 
 	for _, entry := range list {

@@ -634,17 +634,38 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 		checkFetchBody(nameNode)
 	}
 
+	var tparams []*types.Type
+	if isMeth {
+		// Get the type params from the method receiver (after skipping
+		// over any pointer)
+		recvType := nameNode.Type().Recv().Type
+		recvType = deref(recvType)
+		tparams = recvType.RParams()
+	} else {
+		fields := nameNode.Type().TParams().Fields().Slice()
+		tparams = make([]*types.Type, len(fields))
+		for i, f := range fields {
+			tparams[i] = f.Type
+		}
+	}
+
 	// Convert any non-shape type arguments to their shape, so we can reduce the
 	// number of instantiations we have to generate. You can actually have a mix
 	// of shape and non-shape arguments, because of inferred or explicitly
 	// specified concrete type args.
 	s1 := make([]*types.Type, len(shapes))
 	for i, t := range shapes {
+		var tparam *types.Type
+		if tparams[i].Kind() == types.TTYPEPARAM {
+			// Shapes are grouped differently for structural types, so we
+			// pass the type param to Shapify(), so we can distinguish.
+			tparam = tparams[i]
+		}
 		if !t.IsShape() {
-			s1[i] = typecheck.Shapify(t, i)
+			s1[i] = typecheck.Shapify(t, i, tparam)
 		} else {
 			// Already a shape, but make sure it has the correct index.
-			s1[i] = typecheck.Shapify(shapes[i].Underlying(), i)
+			s1[i] = typecheck.Shapify(shapes[i].Underlying(), i, tparam)
 		}
 	}
 	shapes = s1
@@ -675,7 +696,7 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 		}
 
 		// genericSubst fills in info.dictParam and info.shapeToBound.
-		st := g.genericSubst(sym, nameNode, shapes, isMeth, info)
+		st := g.genericSubst(sym, nameNode, tparams, shapes, isMeth, info)
 		info.fun = st
 		g.instInfoMap[sym] = info
 
@@ -713,21 +734,7 @@ type subster struct {
 // function type where the receiver becomes the first parameter. For either a generic
 // method or function, a dictionary parameter is the added as the very first
 // parameter. genericSubst fills in info.dictParam and info.shapeToBound.
-func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*types.Type, isMethod bool, info *instInfo) *ir.Func {
-	var tparams []*types.Type
-	if isMethod {
-		// Get the type params from the method receiver (after skipping
-		// over any pointer)
-		recvType := nameNode.Type().Recv().Type
-		recvType = deref(recvType)
-		tparams = recvType.RParams()
-	} else {
-		fields := nameNode.Type().TParams().Fields().Slice()
-		tparams = make([]*types.Type, len(fields))
-		for i, f := range fields {
-			tparams[i] = f.Type
-		}
-	}
+func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, tparams []*types.Type, shapes []*types.Type, isMethod bool, info *instInfo) *ir.Func {
 	gf := nameNode.Func
 	// Pos of the instantiated function is same as the generic function
 	newf := ir.NewFunc(gf.Pos())
@@ -1208,31 +1215,40 @@ func (g *genInst) dictPass(info *instInfo) {
 			ir.CurFunc = info.fun
 
 		case ir.OXDOT:
+			// This is the case of a dot access on a type param. This is
+			// typically a bound call on the type param, but could be a
+			// field access, if the constraint has a single structural type.
 			mse := m.(*ir.SelectorExpr)
 			src := mse.X.Type()
 			assert(src.IsShape())
 
-			// The only dot on a shape type value are methods.
 			if mse.X.Op() == ir.OTYPE {
 				// Method expression T.M
 				m = g.buildClosure2(info, m)
 				// No need for transformDot - buildClosure2 has already
 				// transformed to OCALLINTER/ODOTINTER.
 			} else {
-				// Implement x.M as a conversion-to-bound-interface
-				//  1) convert x to the bound interface
-				//  2) call M on that interface
 				dst := info.dictInfo.shapeToBound[m.(*ir.SelectorExpr).X.Type()]
-				if src.IsInterface() {
-					// If type arg is an interface (unusual case),
-					// we do a type assert to the type bound.
-					mse.X = assertToBound(info, info.dictParam, m.Pos(), mse.X, dst)
-				} else {
-					mse.X = convertUsingDictionary(info, info.dictParam, m.Pos(), mse.X, m, dst, true)
-					// Note: we set nonEscaping==true, because we can assume the backing store for the
-					// interface conversion doesn't escape. The method call will immediately go to
-					// a wrapper function which copies all the data out of the interface value.
-					// (It only matters for non-pointer-shaped interface conversions. See issue 50182.)
+				// If we can't find the selected method in the
+				// AllMethods of the bound, then this must be an access
+				// to a field of a structural type. If so, we skip the
+				// dictionary lookups - transformDot() will convert to
+				// the desired direct field access.
+				if typecheck.Lookdot1(mse, mse.Sel, dst, dst.AllMethods(), 1) != nil {
+					// Implement x.M as a conversion-to-bound-interface
+					//  1) convert x to the bound interface
+					//  2) call M on that interface
+					if src.IsInterface() {
+						// If type arg is an interface (unusual case),
+						// we do a type assert to the type bound.
+						mse.X = assertToBound(info, info.dictParam, m.Pos(), mse.X, dst)
+					} else {
+						mse.X = convertUsingDictionary(info, info.dictParam, m.Pos(), mse.X, m, dst, true)
+						// Note: we set nonEscaping==true, because we can assume the backing store for the
+						// interface conversion doesn't escape. The method call will immediately go to
+						// a wrapper function which copies all the data out of the interface value.
+						// (It only matters for non-pointer-shaped interface conversions. See issue 50182.)
+					}
 				}
 				transformDot(mse, false)
 			}

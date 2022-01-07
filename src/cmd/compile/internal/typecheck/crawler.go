@@ -232,7 +232,7 @@ func (p *crawler) checkForFullyInst(t *types.Type) {
 		baseType := t.OrigSym().Def.(*ir.Name).Type()
 		shapes := make([]*types.Type, len(t.RParams()))
 		for i, t1 := range t.RParams() {
-			shapes[i] = Shapify(t1, i)
+			shapes[i] = Shapify(t1, i, baseType.RParams()[i])
 		}
 		for j := range t.Methods().Slice() {
 			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
