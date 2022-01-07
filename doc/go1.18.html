@@ -108,6 +108,12 @@ Do not send CLs removing the interior tags from such phrases.
       interface type with a non-empty method set. Whether this will
       ever be permitted is unclear at present.
     </li>
+    <li><!-- https://golang.org/issue/50481 -->
+      A generic type or function currently may declare at most one blank (<code>_</code>)
+      type parameter name. Note that it is always possible to use an arbitrary new
+      (unused) identifier in place of a blank type parameter name.
+      We plan to remove this restriction in Go 1.19.
+    </li>
   </ul>
 </p>
 
