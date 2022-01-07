@@ -113,6 +113,15 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			// based on the names of the type arguments.
 			instName := g.instTypeName2(typ.Obj().Name(), typ.TypeArgs())
 			s := g.pkg(typ.Obj().Pkg()).Lookup(instName)
+
+			// Make sure the base generic type exists in type1 (it may
+			// not yet if we are referecing an imported generic type, as
+			// opposed to a generic type declared in this package). Make
+			// sure to do this lookup before checking s.Def, in case
+			// s.Def gets defined while importing base (if an imported
+			// type). (Issue #50486).
+			base := g.obj(typ.Origin().Obj())
+
 			if s.Def != nil {
 				// We have already encountered this instantiation.
 				// Use the type we previously created, since there
@@ -120,10 +129,6 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 				return s.Def.Type()
 			}
 
-			// Make sure the base generic type exists in type1 (it may
-			// not yet if we are referecing an imported generic type, as
-			// opposed to a generic type declared in this package).
-			base := g.obj(typ.Origin().Obj())
 			if base.Class == ir.PAUTO {
 				// If the base type is a local type, we want to pop
 				// this instantiated type symbol/definition when we
