@@ -153,8 +153,8 @@ func TestGdbPython(t *testing.T) {
 }
 
 func TestGdbPythonCgo(t *testing.T) {
-	if runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" || runtime.GOARCH == "mips64" {
-		testenv.SkipFlaky(t, 18784)
+	if strings.HasPrefix(runtime.GOARCH, "mips") {
+		testenv.SkipFlaky(t, 37794)
 	}
 	testGdbPython(t, true)
 }
