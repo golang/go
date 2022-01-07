@@ -38,7 +38,7 @@ func TestParseQuery(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		matcher := parseQuery(test.query)
+		matcher := parseQuery(test.query, newFuzzyMatcher)
 		if _, score := matcher([]string{test.s}); score > 0 != test.wantMatch {
 			t.Errorf("parseQuery(%q) match for %q: %.2g, want match: %t", test.query, test.s, score, test.wantMatch)
 		}

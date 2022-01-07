@@ -49,11 +49,6 @@ const (
 //
 // Currently this matcher only accepts case-insensitive fuzzy patterns.
 //
-// TODO(rfindley):
-//  - implement smart-casing
-//  - implement space-separated groups
-//  - implement ', ^, and $ modifiers
-//
 // An empty pattern matches no input.
 func NewSymbolMatcher(pattern string) *SymbolMatcher {
 	m := &SymbolMatcher{}

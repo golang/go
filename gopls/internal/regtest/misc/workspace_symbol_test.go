@@ -7,6 +7,7 @@ package misc
 import (
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/protocol"
 	. "golang.org/x/tools/internal/lsp/regtest"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/testenv"
@@ -20,7 +21,7 @@ func TestWorkspaceSymbolMissingMetadata(t *testing.T) {
 -- go.mod --
 module mod.com
 
-go 1.12
+go 1.17
 -- a.go --
 package p
 
@@ -56,7 +57,7 @@ func TestWorkspaceSymbolSorting(t *testing.T) {
 -- go.mod --
 module mod.com
 
-go 1.12
+go 1.17
 -- a/a.go --
 package a
 
@@ -82,15 +83,49 @@ const (
 			"Fooey",  // shorter than Fooest, Foobar
 			"Fooest",
 		}
-		syms := env.WorkspaceSymbol("Foo")
-		if len(syms) != len(want) {
-			t.Errorf("got %d symbols, want %d", len(syms), len(want))
-		}
-
-		for i := range syms {
-			if syms[i].Name != want[i] {
-				t.Errorf("syms[%d] = %q, want %q", i, syms[i].Name, want[i])
-			}
-		}
+		got := env.WorkspaceSymbol("Foo")
+		compareSymbols(t, got, want)
 	})
+}
+
+func TestWorkspaceSymbolSpecialPatterns(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.17
+-- a/a.go --
+package a
+
+const (
+	AxxBxxCxx
+	ABC
+)
+`
+
+	var symbolMatcher = string(source.SymbolFastFuzzy)
+	WithOptions(
+		EditorConfig{
+			SymbolMatcher: &symbolMatcher,
+		},
+	).Run(t, files, func(t *testing.T, env *Env) {
+		compareSymbols(t, env.WorkspaceSymbol("ABC"), []string{"ABC", "AxxBxxCxx"})
+		compareSymbols(t, env.WorkspaceSymbol("'ABC"), []string{"ABC"})
+		compareSymbols(t, env.WorkspaceSymbol("^mod.com"), []string{"mod.com/a.ABC", "mod.com/a.AxxBxxCxx"})
+		compareSymbols(t, env.WorkspaceSymbol("^mod.com Axx"), []string{"mod.com/a.AxxBxxCxx"})
+		compareSymbols(t, env.WorkspaceSymbol("C$"), []string{"ABC"})
+	})
+}
+
+func compareSymbols(t *testing.T, got []protocol.SymbolInformation, want []string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Errorf("got %d symbols, want %d", len(got), len(want))
+	}
+
+	for i := range got {
+		if got[i].Name != want[i] {
+			t.Errorf("got[%d] = %q, want %q", i, got[i].Name, want[i])
+		}
+	}
 }
