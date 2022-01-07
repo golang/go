@@ -50,6 +50,8 @@ func (r *workspaceSymbol) Run(ctx context.Context, args ...string) error {
 			o.SymbolMatcher = source.SymbolFuzzy
 		case "caseSensitive":
 			o.SymbolMatcher = source.SymbolCaseSensitive
+		case "fastfuzzy":
+			o.SymbolMatcher = source.SymbolFastFuzzy
 		default:
 			o.SymbolMatcher = source.SymbolCaseInsensitive
 		}

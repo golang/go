@@ -43,8 +43,9 @@ func TestSymbolRanking(t *testing.T) {
 		"atest",
 		"thebest",
 		"test.foo",
-		"tTest",
 		"test.foo",
+		"tTest",
+		"testage",
 		"foo.test",
 		"test",
 	}

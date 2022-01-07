@@ -76,10 +76,10 @@ const (
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		want := []string{
-			"Foo",    // prefer exact segment first
-			"Fooex",  // shorter than Fooest, FooBar, lexically befor Fooey
+			"Foo",    // prefer exact segment matches first
+			"FooBar", // ...followed by exact word matches
+			"Fooex",  // shorter than Fooest, FooBar, lexically before Fooey
 			"Fooey",  // shorter than Fooest, Foobar
-			"FooBar", // TODO: prefer exact word matches.
 			"Fooest",
 		}
 		syms := env.WorkspaceSymbol("Foo")
