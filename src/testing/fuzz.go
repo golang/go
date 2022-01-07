@@ -327,8 +327,10 @@ func (f *F) Fuzz(ff any) {
 			// we make sure it is called right before the tRunner function
 			// exits, regardless of whether it was executed cleanly, panicked,
 			// or if the fuzzFn called t.Fatal.
-			defer f.fuzzContext.deps.SnapshotCoverage()
-			f.fuzzContext.deps.ResetCoverage()
+			if f.testContext.isFuzzing {
+				defer f.fuzzContext.deps.SnapshotCoverage()
+				f.fuzzContext.deps.ResetCoverage()
+			}
 			fn.Call(args)
 		})
 		<-t.signal
