@@ -504,7 +504,14 @@ func (sc *symbolStore) store(si symbolInformation) {
 		return
 	}
 	insertAt := sort.Search(len(sc.res), func(i int) bool {
-		return sc.res[i].score < si.score
+		// Sort by score, then symbol length, and finally lexically.
+		if sc.res[i].score != si.score {
+			return sc.res[i].score < si.score
+		}
+		if len(sc.res[i].symbol) != len(si.symbol) {
+			return len(sc.res[i].symbol) > len(si.symbol)
+		}
+		return sc.res[i].symbol > si.symbol
 	})
 	if insertAt < len(sc.res)-1 {
 		copy(sc.res[insertAt+1:], sc.res[insertAt:len(sc.res)-1])
