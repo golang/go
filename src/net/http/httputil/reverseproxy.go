@@ -218,7 +218,18 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	ctx := req.Context()
-	if cn, ok := rw.(http.CloseNotifier); ok {
+	if ctx.Done() != nil {
+		// CloseNotifier predates context.Context, and has been
+		// entirely superseded by it. If the request contains
+		// a Context that carries a cancelation signal, don't
+		// bother spinning up a goroutine to watch the CloseNotify
+		// channel (if any).
+		//
+		// If the request Context has a nil Done channel (which
+		// means it is either context.Background, or a custom
+		// Context implementation with no cancelation signal),
+		// then consult the CloseNotifier if available.
+	} else if cn, ok := rw.(http.CloseNotifier); ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
