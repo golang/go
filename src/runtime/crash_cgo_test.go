@@ -625,11 +625,19 @@ func TestSegv(t *testing.T) {
 				// TODO(golang.org/issue/49182): Skip, runtime
 				// throws while attempting to generate
 				// traceback.
-			default:
-				nowant := "runtime: "
-				if strings.Contains(got, nowant) {
-					t.Errorf("unexpectedly saw %q in output", nowant)
+				return
+			case "linux":
+				if runtime.GOARCH == "386" {
+					// TODO(golang.org/issue/50504): Skip,
+					// runtime throws while attempting to
+					// generate traceback from VDSO call
+					// via asmcgocall.
+					return
 				}
+			}
+			nowant := "runtime: "
+			if strings.Contains(got, nowant) {
+				t.Errorf("unexpectedly saw %q in output", nowant)
 			}
 		})
 	}
