@@ -58,7 +58,7 @@ type PSfm *Sfm
 func f3[P interface{ PSfm }](p P) {
         _ = p.f
         p.f = 0
-        p.m /* ERROR type bound for P has no method m */ ()
+        p.m /* ERROR type P has no field or method m */ ()
 }
 
 var _ = f3[PSfm]

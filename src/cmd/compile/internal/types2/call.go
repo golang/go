@@ -542,39 +542,26 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			goto Error
 		}
 
-		if isInterfacePtr(x.typ) {
-			check.errorf(e.Sel, "%s.%s undefined (type %s is pointer to interface, not interface)", x.expr, sel, x.typ)
-			goto Error
-		}
-
 		var why string
-		if tpar, _ := x.typ.(*TypeParam); tpar != nil {
-			// Type parameter bounds don't specify fields, so don't mention "field".
-			// TODO(gri) Type constraints may have accessible fields now. Revisit this.
-			if tname := tpar.iface().obj; tname != nil {
-				why = check.sprintf("interface %s has no method %s", tname.name, sel)
-			} else {
-				why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
-			}
+		if isInterfacePtr(x.typ) {
+			why = check.sprintf("type %s is pointer to interface, not interface", x.typ)
 		} else {
 			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
-		}
-
-		// Check if capitalization of sel matters and provide better error message in that case.
-		// TODO(gri) This code only looks at the first character but LookupFieldOrMethod has an
-		//           (internal) mechanism for case-insensitive lookup. Should use that instead.
-		if len(sel) > 0 {
-			var changeCase string
-			if r := rune(sel[0]); unicode.IsUpper(r) {
-				changeCase = string(unicode.ToLower(r)) + sel[1:]
-			} else {
-				changeCase = string(unicode.ToUpper(r)) + sel[1:]
+			// Check if capitalization of sel matters and provide better error message in that case.
+			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod has an
+			//           (internal) mechanism for case-insensitive lookup. Should use that instead.
+			if len(sel) > 0 {
+				var changeCase string
+				if r := rune(sel[0]); unicode.IsUpper(r) {
+					changeCase = string(unicode.ToLower(r)) + sel[1:]
+				} else {
+					changeCase = string(unicode.ToUpper(r)) + sel[1:]
+				}
+				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+					why += ", but does have " + changeCase
+				}
 			}
-			if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
-				why += ", but does have " + changeCase
-			}
 		}
-
 		check.errorf(e.Sel, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
 	}
