@@ -57,7 +57,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 			uri := span.URI(scope)
 			// Don't try to load a file that doesn't exist.
 			fh := s.FindFile(uri)
-			if fh == nil || fh.Kind() != source.Go {
+			if fh == nil || s.View().FileKind(uri) != source.Go {
 				continue
 			}
 			query = append(query, fmt.Sprintf("file=%s", uri.Filename()))
@@ -264,7 +264,7 @@ func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, fi
 	for _, fh := range files {
 		// Place the diagnostics on the package or module declarations.
 		var rng protocol.Range
-		switch fh.Kind() {
+		switch s.view.FileKind(fh.URI()) {
 		case source.Go:
 			if pgf, err := s.ParseGo(ctx, fh, source.ParseHeader); err == nil {
 				pkgDecl := span.NewRange(s.FileSet(), pgf.File.Package, pgf.File.Name.End())

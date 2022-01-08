@@ -168,10 +168,6 @@ func (h *fileHandle) URI() span.URI {
 	return h.uri
 }
 
-func (h *fileHandle) Kind() source.FileKind {
-	return source.DetectLanguage("", h.uri.Filename())
-}
-
 func (h *fileHandle) Hash() string {
 	return h.hash
 }
@@ -180,7 +176,6 @@ func (h *fileHandle) FileIdentity() source.FileIdentity {
 	return source.FileIdentity{
 		URI:  h.uri,
 		Hash: h.hash,
-		Kind: h.Kind(),
 	}
 }
 

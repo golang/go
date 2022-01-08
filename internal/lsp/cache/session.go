@@ -62,7 +62,6 @@ func (o *overlay) FileIdentity() source.FileIdentity {
 	return source.FileIdentity{
 		URI:  o.uri,
 		Hash: o.hash,
-		Kind: o.kind,
 	}
 }
 

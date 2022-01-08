@@ -241,6 +241,26 @@ func (v *View) Options() *source.Options {
 	return v.options
 }
 
+func (v *View) FileKind(URI span.URI) source.FileKind {
+	got := filepath.Ext(URI.Filename())
+	switch got {
+	case ".go":
+		return source.Go
+	case ".mod":
+		return source.Mod
+	case ".sum":
+		return source.Sum
+	}
+	exts := v.Options().TemplateExtensions
+	for _, ext := range exts {
+		if got == ext || got == "."+ext {
+			return source.Tmpl
+		}
+	}
+	// and now what? This should never happen, but it does for cgo before go1.15
+	return source.Go
+}
+
 func minorOptionsChange(a, b *source.Options) bool {
 	// Check if any of the settings that modify our understanding of files have been changed
 	if !reflect.DeepEqual(a.Env, b.Env) {

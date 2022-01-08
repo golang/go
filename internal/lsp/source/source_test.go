@@ -66,8 +66,7 @@ func testSource(t *testing.T, datum *tests.Data) {
 
 	var modifications []source.FileModification
 	for filename, content := range datum.Config.Overlay {
-		kind := source.DetectLanguage("", filename)
-		if kind != source.Go {
+		if filepath.Ext(filename) != ".go" {
 			continue
 		}
 		modifications = append(modifications, source.FileModification{

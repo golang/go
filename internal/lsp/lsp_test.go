@@ -71,8 +71,7 @@ func testLSP(t *testing.T, datum *tests.Data) {
 
 	var modifications []source.FileModification
 	for filename, content := range datum.Config.Overlay {
-		kind := source.DetectLanguage("", filename)
-		if kind != source.Go {
+		if filepath.Ext(filename) != ".go" {
 			continue
 		}
 		modifications = append(modifications, source.FileModification{
@@ -187,7 +186,7 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 }
 
 func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) {
-	if source.DetectLanguage("", uri.Filename()) != source.Mod {
+	if !strings.HasSuffix(uri.Filename(), "go.mod") {
 		return
 	}
 	got, err := r.server.codeLens(r.ctx, &protocol.CodeLensParams{

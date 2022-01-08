@@ -266,6 +266,9 @@ type View interface {
 
 	// RegisterModuleUpgrades registers that upgrades exist for the given modules.
 	RegisterModuleUpgrades(upgrades map[string]string)
+
+	// FileKind returns the type of a file
+	FileKind(uri span.URI) FileKind
 }
 
 // A FileSource maps uris to FileHandles. This abstraction exists both for
@@ -498,7 +501,6 @@ type VersionedFileIdentity struct {
 // FileHandle represents a handle to a specific version of a single file.
 type FileHandle interface {
 	URI() span.URI
-	Kind() FileKind
 
 	// FileIdentity returns a FileIdentity for the file, even if there was an
 	// error reading it.
@@ -516,17 +518,14 @@ type FileIdentity struct {
 
 	// Identifier represents a unique identifier for the file's content.
 	Hash string
-
-	// Kind is the file's kind.
-	Kind FileKind
 }
 
 func (id FileIdentity) String() string {
-	return fmt.Sprintf("%s%s%s", id.URI, id.Hash, id.Kind)
+	return fmt.Sprintf("%s%s", id.URI, id.Hash)
 }
 
 // FileKind describes the kind of the file in question.
-// It can be one of Go, mod, or sum.
+// It can be one of Go,mod, Sum, or Tmpl.
 type FileKind int
 
 const (

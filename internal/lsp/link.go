@@ -30,7 +30,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if !ok {
 		return nil, err
 	}
-	switch fh.Kind() {
+	switch snapshot.View().FileKind(fh.URI()) {
 	case source.Mod:
 		links, err = modLinks(ctx, snapshot, fh)
 	case source.Go:

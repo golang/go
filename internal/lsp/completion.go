@@ -27,7 +27,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	var candidates []completion.CompletionItem
 	var surrounding *completion.Selection
-	switch fh.Kind() {
+	switch snapshot.View().FileKind(fh.URI()) {
 	case source.Go:
 		candidates, surrounding, err = completion.Completion(ctx, snapshot, fh, params.Position, params.Context)
 	case source.Mod:

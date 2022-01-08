@@ -18,7 +18,7 @@ func (s *Server) definition(ctx context.Context, params *protocol.DefinitionPara
 	if !ok {
 		return nil, err
 	}
-	if fh.Kind() == source.Tmpl {
+	if snapshot.View().FileKind(fh.URI()) == source.Tmpl {
 		return template.Definition(snapshot, fh, params.Position)
 	}
 	ident, err := source.Identifier(ctx, snapshot, fh, params.Position)

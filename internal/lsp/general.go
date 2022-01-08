@@ -466,7 +466,8 @@ func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI
 		release()
 		return nil, nil, false, func() {}, err
 	}
-	if expectKind != source.UnknownKind && fh.Kind() != expectKind {
+	kind := snapshot.View().FileKind(fh.URI())
+	if expectKind != source.UnknownKind && kind != expectKind {
 		// Wrong kind of file. Nothing to do.
 		release()
 		return nil, nil, false, func() {}, nil

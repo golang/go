@@ -159,7 +159,8 @@ func (s *snapshot) ModFiles() []span.URI {
 }
 
 func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
-	if len(s.view.Options().TemplateExtensions) == 0 {
+	opts := s.view.Options().TemplateExtensions
+	if len(opts) == 0 {
 		return nil
 	}
 
@@ -168,8 +169,18 @@ func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	isin := func(s string, a []string) bool {
+		for _, x := range a {
+			if x == s || "."+x == s {
+				return true
+			}
+		}
+		return false
+	}
+
 	for k, x := range s.files {
-		if strings.HasSuffix(filepath.Ext(k.Filename()), "tmpl") {
+		suffix := filepath.Ext(k.Filename())
+		if isin(suffix, opts) {
 			ans[k] = x
 		}
 	}
@@ -516,8 +527,8 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	if err != nil {
 		return nil, err
 	}
-	if fh.Kind() != source.Go {
-		return nil, fmt.Errorf("no packages for non-Go file %s", uri)
+	if kind := s.view.FileKind(fh.FileIdentity().URI); kind != source.Go {
+		return nil, fmt.Errorf("no packages for non-Go file %s (%v)", uri, kind)
 	}
 	knownIDs, err := s.getOrLoadIDsForURI(ctx, uri)
 	if err != nil {
@@ -780,7 +791,7 @@ func (s *snapshot) getWorkspacePkgPath(id PackageID) PackagePath {
 	return s.workspacePackages[id]
 }
 
-const fileExtensions = "go,mod,sum,work,tmpl"
+const fileExtensions = "go,mod,sum,work"
 
 func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {
 	extensions := fileExtensions
@@ -1574,7 +1585,7 @@ func (s *snapshot) orphanedFiles() []source.VersionedFileHandle {
 	var files []source.VersionedFileHandle
 	for uri, fh := range s.files {
 		// Don't try to reload metadata for go.mod files.
-		if fh.Kind() != source.Go {
+		if s.view.FileKind(uri) != source.Go {
 			continue
 		}
 		// If the URI doesn't belong to this view, then it's not in a workspace

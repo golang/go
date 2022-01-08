@@ -497,7 +497,7 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 	p := &protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{
 			URI:        protocol.URIFromSpanURI(uri),
-			LanguageID: source.DetectLanguage("", file.uri.Filename()).String(),
+			LanguageID: "go",
 			Version:    1,
 			Text:       string(file.mapper.Content),
 		},

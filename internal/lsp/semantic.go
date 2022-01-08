@@ -70,7 +70,8 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		// the client won't remember the wrong answer
 		return nil, errors.Errorf("semantictokens are disabled")
 	}
-	if fh.Kind() == source.Tmpl {
+	kind := snapshot.View().FileKind(fh.URI())
+	if kind == source.Tmpl {
 		// this is a little cumbersome to avoid both exporting 'encoded' and its methods
 		// and to avoid import cycles
 		e := &encoded{
@@ -87,7 +88,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		}
 		return template.SemanticTokens(ctx, snapshot, fh.URI(), add, data)
 	}
-	if fh.Kind() != source.Go {
+	if kind != source.Go {
 		return nil, nil
 	}
 	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), source.TypecheckFull, source.WidestPackage)
