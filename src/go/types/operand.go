@@ -308,7 +308,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	if check != nil && compilerErrorMessages {
 		if isInterfacePtr(Tu) {
 			if reason != nil {
-				*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
+				*reason = check.sprintf("%s does not implement %s (type %s is pointer to interface, not interface)", x.typ, T, T)
 			}
 			return false, _InvalidIfaceAssign
 		}
