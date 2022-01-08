@@ -519,13 +519,13 @@ func _[P C[P]] (x P) {
 type I interface {}
 
 func _[P I] (x P) {
-	x.m /* ERROR interface I has no method m */ ()
+	x.m /* ERROR type P has no field or method m */ ()
 }
 
 func _[P interface{}] (x P) {
-	x.m /* ERROR type bound for P has no method m */ ()
+	x.m /* ERROR type P has no field or method m */ ()
 }
 
 func _[P any] (x P) {
-	x.m /* ERROR type bound for P has no method m */ ()
+	x.m /* ERROR type P has no field or method m */ ()
 }
