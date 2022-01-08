@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Jan 6, 2022",
+	"Subtitle": "Version of Jan 10, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -1980,30 +1980,34 @@ or in unions of such terms.
 </p>
 
 <p>
-More precisely, for a given interface, the set 𝑆 of specific types is defined as follows:
+More precisely, for a given interface, the set of specific types corresponds to
+the set 𝑅 of representative types of the interface, if 𝑅 is non-empty and finite.
+Otherwise, if 𝑅 is empty or infinite, the interface has <i>no specific types</i>.
+</p>
+
+<p>
+For a given interface, type element or type term, the set 𝑅 of representative types is defined as follows:
 </p>
 
 <ul>
-	<li>For an interface with no type elements, 𝑆 is the empty set.
+	<li>For an interface with no type elements, 𝑅 is the (infinite) set of all types.
 	</li>
 
-	<li>For an interface with type elements, 𝑆 is the intersection
-		of the specific types of its type elements with specific types
-		(type elements that have no specific types are ignored).
+	<li>For an interface with type elements,
+		𝑅 is the intersection of the representative types of its type elements.
 	</li>
 
-	<li>For a non-interface type term <code>T</code>
-		or <code>~T</code>, 𝑆 is the set consisting of the type <code>T</code>.
+	<li>For a non-interface type term <code>T</code> or a term of the form <code>~T</code>,
+		𝑅 is the set consisting of the type <code>T</code>.
 	</li>
 
 	<li>For a <i>union</i> of terms
 		<code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>,
-		𝑆 is the union of the specific types of the terms.
+		𝑅 is the union of the representative types of the terms.
 	</li>
 </ul>
 
 <p>
-If 𝑆 is empty, the interface has <i>no specific types</i>.
 An interface may have specific types even if its <a href="#Interface_types">type set</a>
 is empty.
 </p>
@@ -2021,8 +2025,10 @@ interface{ int }               // int
 interface{ ~string }           // string
 interface{ int|~string }       // int, string
 interface{ Celsius|Kelvin }    // Celsius, Kelvin
+interface{ float64|any }       // no specific types (union is all types)
 interface{ int; m() }          // int (but type set is empty because int has no method m)
-interface{ int; any }          // int (any has no specific types and is ignored)
+interface{ ~int; m() }         // int (but type set is infinite because many integer types have a method m)
+interface{ int; any }          // int
 interface{ int; string }       // no specific types (intersection is empty)
 </pre>
 
