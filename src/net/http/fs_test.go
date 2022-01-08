@@ -1244,10 +1244,19 @@ func TestLinuxSendfileChild(*testing.T) {
 	}
 }
 
-// Issue 18984: tests that requests for paths beyond files return not-found errors
+// Issues 18984, 49552: tests that requests for paths beyond files return not-found errors
 func TestFileServerNotDirError(t *testing.T) {
 	defer afterTest(t)
-	ts := httptest.NewServer(FileServer(Dir("testdata")))
+	t.Run("Dir", func(t *testing.T) {
+		testFileServerNotDirError(t, func(path string) FileSystem { return Dir(path) })
+	})
+	t.Run("FS", func(t *testing.T) {
+		testFileServerNotDirError(t, func(path string) FileSystem { return FS(os.DirFS(path)) })
+	})
+}
+
+func testFileServerNotDirError(t *testing.T, newfs func(string) FileSystem) {
+	ts := httptest.NewServer(FileServer(newfs("testdata")))
 	defer ts.Close()
 
 	res, err := Get(ts.URL + "/index.html/not-a-file")
@@ -1259,9 +1268,9 @@ func TestFileServerNotDirError(t *testing.T) {
 		t.Errorf("StatusCode = %v; want 404", res.StatusCode)
 	}
 
-	test := func(name string, dir Dir) {
+	test := func(name string, fsys FileSystem) {
 		t.Run(name, func(t *testing.T) {
-			_, err = dir.Open("/index.html/not-a-file")
+			_, err = fsys.Open("/index.html/not-a-file")
 			if err == nil {
 				t.Fatal("err == nil; want != nil")
 			}
@@ -1270,7 +1279,7 @@ func TestFileServerNotDirError(t *testing.T) {
 					errors.Is(err, fs.ErrNotExist))
 			}
 
-			_, err = dir.Open("/index.html/not-a-dir/not-a-file")
+			_, err = fsys.Open("/index.html/not-a-dir/not-a-file")
 			if err == nil {
 				t.Fatal("err == nil; want != nil")
 			}
@@ -1286,8 +1295,8 @@ func TestFileServerNotDirError(t *testing.T) {
 		t.Fatal("get abs path:", err)
 	}
 
-	test("RelativePath", Dir("testdata"))
-	test("AbsolutePath", Dir(absPath))
+	test("RelativePath", newfs("testdata"))
+	test("AbsolutePath", newfs(absPath))
 }
 
 func TestFileServerCleanPath(t *testing.T) {
