@@ -14,7 +14,7 @@ Get, Head, Post, and PostForm make HTTP (or HTTPS) requests:
 	resp, err := http.PostForm("http://example.com/form",
 		url.Values{"key": {"Value"}, "id": {"123"}})
 
-The client must close the response body when finished with it:
+The client must read and close the response body when finished with it:
 
 	resp, err := http.Get("http://example.com/")
 	if err != nil {
