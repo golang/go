@@ -751,6 +751,7 @@ func (o *Options) EnableAllExperiments() {
 	o.ExperimentalPostfixCompletions = true
 	o.ExperimentalUseInvalidMetadata = true
 	o.ExperimentalWatchedFileDelay = 50 * time.Millisecond
+	o.SymbolMatcher = SymbolFastFuzzy
 }
 
 func (o *Options) enableAllExperimentMaps() {
