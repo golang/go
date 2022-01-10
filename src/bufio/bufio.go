@@ -92,7 +92,9 @@ var errNegativeRead = errors.New("bufio: reader returned negative count from Rea
 func (b *Reader) fill() {
 	// Slide existing data to beginning.
 	if b.r > 0 {
-		copy(b.buf, b.buf[b.r:b.w])
+		if b.r != b.w {
+			copy(b.buf, b.buf[b.r:b.w])
+		}
 		b.w -= b.r
 		b.r = 0
 	}
