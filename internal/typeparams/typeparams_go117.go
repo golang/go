@@ -17,38 +17,6 @@ func unsupported() {
 	panic("type parameters are unsupported at this go version")
 }
 
-// GetIndexExprData extracts data from *ast.IndexExpr nodes.
-// For other nodes, GetIndexExprData returns nil.
-func GetIndexExprData(n ast.Node) *IndexExprData {
-	if e, _ := n.(*ast.IndexExpr); e != nil {
-		return &IndexExprData{
-			X:       e.X,
-			Lbrack:  e.Lbrack,
-			Indices: []ast.Expr{e.Index},
-			Rbrack:  e.Rbrack,
-		}
-	}
-	return nil
-}
-
-// PackIndexExpr returns an *ast.IndexExpr with the given index.
-// Calling PackIndexExpr with len(indices) != 1 will panic.
-func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) ast.Expr {
-	switch len(indices) {
-	case 0:
-		panic("empty indices")
-	case 1:
-		return &ast.IndexExpr{
-			X:      x,
-			Lbrack: lbrack,
-			Index:  indices[0],
-			Rbrack: rbrack,
-		}
-	default:
-		panic("cannot pack multiple indices at this go version")
-	}
-}
-
 // IndexListExpr is a placeholder type, as type parameters are not supported at
 // this Go version. Its methods panic on use.
 type IndexListExpr struct {

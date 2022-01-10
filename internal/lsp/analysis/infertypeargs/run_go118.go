@@ -27,8 +27,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	inspect.Preorder(nodeFilter, func(node ast.Node) {
 		call := node.(*ast.CallExpr)
-		ident, ix := instanceData(call)
-		if ix == nil || len(ix.Indices) == 0 {
+		x, lbrack, indices, rbrack := typeparams.UnpackIndexExpr(call.Fun)
+		ident := calledIdent(x)
+		if ident == nil || len(indices) == 0 {
 			return // no explicit args, nothing to do
 		}
 
@@ -41,14 +42,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		// Start removing argument expressions from the right, and check if we can
 		// still infer the call expression.
-		required := len(ix.Indices) // number of type expressions that are required
-		for i := len(ix.Indices) - 1; i >= 0; i-- {
+		required := len(indices) // number of type expressions that are required
+		for i := len(indices) - 1; i >= 0; i-- {
 			var fun ast.Expr
 			if i == 0 {
 				// No longer an index expression: just use the parameterized operand.
-				fun = ix.X
+				fun = x
 			} else {
-				fun = typeparams.PackIndexExpr(ix.X, ix.Lbrack, ix.Indices[:i], ix.Indices[i-1].End())
+				fun = typeparams.PackIndexExpr(x, lbrack, indices[:i], indices[i-1].End())
 			}
 			newCall := &ast.CallExpr{
 				Fun:      fun,
@@ -72,17 +73,17 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 			required = i
 		}
-		if required < len(ix.Indices) {
+		if required < len(indices) {
 			var start, end token.Pos
 			var edit analysis.TextEdit
 			if required == 0 {
-				start, end = ix.Lbrack, ix.Rbrack+1 // erase the entire index
+				start, end = lbrack, rbrack+1 // erase the entire index
 				edit = analysis.TextEdit{Pos: start, End: end}
 			} else {
-				start = ix.Indices[required].Pos()
-				end = ix.Rbrack
+				start = indices[required].Pos()
+				end = rbrack
 				//  erase from end of last arg to include last comma & white-spaces
-				edit = analysis.TextEdit{Pos: ix.Indices[required-1].End(), End: end}
+				edit = analysis.TextEdit{Pos: indices[required-1].End(), End: end}
 			}
 			pass.Report(analysis.Diagnostic{
 				Pos:     start,
@@ -99,20 +100,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-// instanceData returns the instantiated identifier and index data.
-func instanceData(call *ast.CallExpr) (*ast.Ident, *typeparams.IndexExprData) {
-	ix := typeparams.GetIndexExprData(call.Fun)
-	if ix == nil {
-		return nil, nil
-	}
-	var id *ast.Ident
-	switch x := ix.X.(type) {
-	case *ast.SelectorExpr:
-		id = x.Sel
+func calledIdent(x ast.Expr) *ast.Ident {
+	switch x := x.(type) {
 	case *ast.Ident:
-		id = x
-	default:
-		return nil, nil
+		return x
+	case *ast.SelectorExpr:
+		return x.Sel
 	}
-	return id, ix
+	return nil
 }

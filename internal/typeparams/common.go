@@ -16,13 +16,47 @@ import (
 	"go/types"
 )
 
-// A IndexExprData holds data from both ast.IndexExpr and the new
-// ast.MultiIndexExpr, which was introduced in Go 1.18.
-type IndexExprData struct {
-	X       ast.Expr   // expression
-	Lbrack  token.Pos  // position of "["
-	Indices []ast.Expr // index expressions
-	Rbrack  token.Pos  // position of "]"
+// UnpackIndexExpr extracts data from AST nodes that represent index
+// expressions.
+//
+// For an ast.IndexExpr, the resulting indices slice will contain exactly one
+// index expression. For an ast.IndexListExpr (go1.18+), it may have a variable
+// number of index expressions.
+//
+// For nodes that don't represent index expressions, the first return value of
+// UnpackIndexExpr will be nil.
+func UnpackIndexExpr(n ast.Node) (x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) {
+	switch e := n.(type) {
+	case *ast.IndexExpr:
+		return e.X, e.Lbrack, []ast.Expr{e.Index}, e.Rbrack
+	case *IndexListExpr:
+		return e.X, e.Lbrack, e.Indices, e.Rbrack
+	}
+	return nil, token.NoPos, nil, token.NoPos
+}
+
+// PackIndexExpr returns an *ast.IndexExpr or *ast.IndexListExpr, depending on
+// the cardinality of indices. Calling PackIndexExpr with len(indices) == 0
+// will panic.
+func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) ast.Expr {
+	switch len(indices) {
+	case 0:
+		panic("empty indices")
+	case 1:
+		return &ast.IndexExpr{
+			X:      x,
+			Lbrack: lbrack,
+			Index:  indices[0],
+			Rbrack: rbrack,
+		}
+	default:
+		return &IndexListExpr{
+			X:       x,
+			Lbrack:  lbrack,
+			Indices: indices,
+			Rbrack:  rbrack,
+		}
+	}
 }
 
 // IsTypeParam reports whether t is a type parameter.
