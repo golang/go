@@ -2,12 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package typeparams provides functions to work indirectly with type parameter
-// data stored in go/ast and go/types objects, while these API are guarded by a
-// build constraint.
+// Package typeparams contains common utilities for writing tools that interact
+// with generic Go code, as introduced with Go 1.18.
 //
-// This package exists to make it easier for tools to work with generic code,
-// while also compiling against older Go versions.
+// Many of the types and functions in this package are proxies for the new APIs
+// introduced in the standard library with Go 1.18. For example, the
+// typeparams.Union type is an alias for go/types.Union, and the ForTypeSpec
+// function returns the value of the go/ast.TypeSpec.TypeParams field. At Go
+// versions older than 1.18 these helpers are implemented as stubs, allowing
+// users of this package to write code that handles generic constructs inline,
+// even if the Go version being used to compile does not support generics.
+//
+// Additionally, this package contains common utilities for working with the
+// new generic constructs, to supplement the standard library APIs. Notably,
+// the StructuralTerms API computes a minimal representation of the structural
+// restrictions on a type parameter. In the future, this API may be available
+// from go/types.
 package typeparams
 
 import (
