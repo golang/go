@@ -297,7 +297,6 @@ func (c comboMatcher) match(chunks []string) (int, float64) {
 }
 
 func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.SymbolInformation, error) {
-
 	// Use the root view URIs for determining (lexically) whether a uri is in any
 	// open workspace.
 	var roots []string
@@ -331,7 +330,8 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 			}
 			mds, err := snapshot.MetadataForFile(ctx, uri)
 			if err != nil {
-				return nil, err
+				event.Error(ctx, fmt.Sprintf("missing metadata for %q", uri), err)
+				continue
 			}
 			if len(mds) == 0 {
 				// TODO: should use the bug reporting API
