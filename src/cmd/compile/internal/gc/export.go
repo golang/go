@@ -31,7 +31,7 @@ func dumpasmhdr() {
 			if t == constant.Float || t == constant.Complex {
 				break
 			}
-			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym().Name, n.Val())
+			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym().Name, n.Val().ExactString())
 
 		case ir.OTYPE:
 			t := n.Type()
