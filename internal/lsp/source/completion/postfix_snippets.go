@@ -174,6 +174,18 @@ for {{.VarName .KeyType "k"}}, {{.VarName .ElemType "v"}} := range {{.X}} {
 	body: `{{if and (eq .Kind "tuple") .StmtOK -}}
 {{.Import "fmt"}}.Println({{.X}})
 {{- end}}`,
+}, {
+	label:   "split",
+	details: "split string",
+	body: `{{if (eq (.TypeName .Type) "string") -}}
+{{.Import "strings"}}.Split({{.X}}, "{{.Cursor}}")
+{{- end}}`,
+}, {
+	label:   "join",
+	details: "join string slice",
+	body: `{{if and (eq .Kind "slice") (eq (.TypeName .ElemType) "string") -}}
+{{.Import "strings"}}.Join({{.X}}, "{{.Cursor}}")
+{{- end}}`,
 }}
 
 // Cursor indicates where the client's cursor should end up after the

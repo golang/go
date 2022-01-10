@@ -372,6 +372,44 @@ func _() {
 }
 `,
 		},
+		{
+			name: "string split",
+			before: `
+package foo
+
+func foo() []string { 
+	x := "test"
+	return x.split
+}`,
+			after: `
+package foo
+
+import "strings"
+
+func foo() []string { 
+	x := "test"
+	return strings.Split(x, "$0")
+}`,
+		},
+		{
+			name: "string slice join",
+			before: `
+package foo
+
+func foo() string {
+	x := []string{"a", "test"}
+	return x.join
+}`,
+			after: `
+package foo
+
+import "strings"
+
+func foo() string {
+	x := []string{"a", "test"}
+	return strings.Join(x, "$0")
+}`,
+		},
 	}
 
 	r := WithOptions(Options(func(o *source.Options) {
