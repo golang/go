@@ -546,7 +546,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 		var why string
 		if isInterfacePtr(x.typ) {
-			why = check.sprintf("type %s is pointer to interface, not interface", x.typ)
+			why = check.interfacePtrError(x.typ)
 		} else {
 			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
 			// Check if capitalization of sel matters and provide better error message in that case.

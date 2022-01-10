@@ -292,7 +292,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	if Ti, ok := Tu.(*Interface); ok && Tp == nil {
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
 			if reason != nil {
-				if check.conf.CompilerErrorMessages {
+				if check != nil && check.conf.CompilerErrorMessages {
 					*reason = check.sprintf("%s does not implement %s %s", x.typ, T,
 						check.missingMethodReason(x.typ, T, m, wrongType))
 				} else {

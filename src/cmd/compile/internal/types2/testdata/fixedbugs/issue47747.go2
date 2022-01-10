@@ -20,7 +20,7 @@ func _[P interface{ m() }](x P) {
         x.m()
         // (&x).m doesn't exist because &x is of type *P
         // and pointers to type parameters don't have methods
-        (&x).m /* ERROR type \*P is pointer to interface, not interface */ ()
+        (&x).m /* ERROR type \*P is pointer to type parameter, not type parameter */ ()
 }
 
 

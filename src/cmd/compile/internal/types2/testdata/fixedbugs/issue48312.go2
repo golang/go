@@ -16,5 +16,5 @@ func _(p P) {
 }
 
 func _[P T](p *P) {
-	p.m /* ERROR type \*P is pointer to interface, not interface */ ()
+	p.m /* ERROR type \*P is pointer to type parameter, not type parameter */ ()
 }
