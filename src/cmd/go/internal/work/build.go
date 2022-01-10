@@ -617,6 +617,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	modload.InitWorkfile()
 	BuildInit()
 	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
 	if cfg.ModulesEnabled && !modload.HasModRoot() {
