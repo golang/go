@@ -247,6 +247,50 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	return c, nil
 }
 
+// DialTCPContext acts like DialTCP but connects using
+// the provided context.
+//
+// The provided Context must be non-nil.
+//
+// The network must be a TCP network name; see func Dial for details.
+//
+// If laddr is nil, a local address is automatically chosen.
+// If the IP field of raddr is nil or an unspecified IP address, the
+// local system is assumed.
+func DialTCPContext(ctx context.Context, network string, laddr, raddr netip.AddrPort) (*TCPConn, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	switch network {
+	case "tcp", "tcp4", "tcp6":
+	default:
+		return nil, &OpErrorNetIP{Op: "dial", Net: network, Source: laddr, Addr: raddr, Err: UnknownNetworkError(network)}
+	}
+	if !raddr.IsValid() {
+		return nil, &OpErrorNetIP{Op: "dial", Net: network, Source: laddr, Err: errMissingAddress}
+	}
+
+	var src *TCPAddr
+	if laddr.IsValid() {
+		src = &TCPAddr{
+			IP:   laddr.Addr().AsSlice(),
+			Zone: laddr.Addr().Zone(),
+			Port: int(laddr.Port()),
+		}
+	}
+	dst := &TCPAddr{
+		IP:   raddr.Addr().AsSlice(),
+		Zone: raddr.Addr().Zone(),
+		Port: int(raddr.Port()),
+	}
+	sd := &sysDialer{network: network, address: raddr.String()}
+	c, err := sd.dialTCP(ctx, src, dst)
+	if err != nil {
+		return nil, &OpErrorNetIP{Op: "dial", Net: network, Source: laddr, Addr: raddr, Err: err}
+	}
+	return c, nil
+}
+
 // TCPListener is a TCP network listener. Clients should typically
 // use variables of type Listener instead of assuming TCP.
 type TCPListener struct {

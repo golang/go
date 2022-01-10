@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"internal/nettrace"
+	"net/netip"
 	"syscall"
 	"time"
 )
@@ -441,6 +442,114 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		testHookSetKeepAlive(ka)
 	}
 	return c, nil
+}
+
+func (d *Dialer) dialAddr(ctx context.Context, network string, address Addr) (Conn, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if address == nil {
+		return nil, &OpError{Op: "dial", Net: network, Source: d.LocalAddr, Addr: nil, Err: errMissingAddress}
+	}
+	deadline := d.deadline(ctx, time.Now())
+	if !deadline.IsZero() {
+		if d, ok := ctx.Deadline(); !ok || deadline.Before(d) {
+			subCtx, cancel := context.WithDeadline(ctx, deadline)
+			defer cancel()
+			ctx = subCtx
+		}
+	}
+	if oldCancel := d.Cancel; oldCancel != nil {
+		subCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		go func() {
+			select {
+			case <-oldCancel:
+				cancel()
+			case <-subCtx.Done():
+			}
+		}()
+		ctx = subCtx
+	}
+	sd := &sysDialer{
+		Dialer:  *d,
+		network: network,
+		address: address.String(),
+	}
+	return sd.dialSingle(ctx, address)
+}
+
+func (d *Dialer) DialTCP(ctx context.Context, network string, address netip.AddrPort) (Conn, error) {
+	if _, ok := d.LocalAddr.(*TCPAddr); !ok && d.LocalAddr != nil {
+		return nil, &AddrError{Err: "mismatched local address type", Addr: d.LocalAddr.String()}
+	}
+	var addr *TCPAddr
+	if address.IsValid() {
+		addr = &TCPAddr{
+			IP:   address.Addr().AsSlice(),
+			Port: int(address.Port()),
+			Zone: address.Addr().Zone(),
+		}
+	}
+	switch network {
+	case "tcp", "tcp4", "tcp6":
+	default:
+		return nil, &OpError{Op: "dial", Net: network, Source: d.LocalAddr, Addr: addr, Err: UnknownNetworkError(network)}
+	}
+	c, err := d.dialAddr(ctx, network, addr)
+	if err != nil {
+		return nil, err
+	}
+	if tc := c.(*TCPConn); d.KeepAlive >= 0 {
+		setKeepAlive(tc.fd, true)
+		ka := d.KeepAlive
+		if d.KeepAlive == 0 {
+			ka = defaultTCPKeepAlive
+		}
+		setKeepAlivePeriod(tc.fd, ka)
+		testHookSetKeepAlive(ka)
+	}
+	return c, nil
+}
+
+func (d *Dialer) DialIP(ctx context.Context, network string, address netip.Addr) (Conn, error) {
+	if _, ok := d.LocalAddr.(*IPAddr); !ok && d.LocalAddr != nil {
+		return nil, &AddrError{Err: "mismatched local address type", Addr: d.LocalAddr.String()}
+	}
+	addr := &IPAddr{
+		IP:   address.AsSlice(),
+		Zone: address.Zone(),
+	}
+	return d.dialAddr(ctx, network, addr)
+}
+
+func (d *Dialer) DialUnix(ctx context.Context, network string, address *UnixAddr) (Conn, error) {
+	if _, ok := d.LocalAddr.(*UnixAddr); !ok && d.LocalAddr != nil {
+		return nil, &AddrError{Err: "mismatched local address type", Addr: d.LocalAddr.String()}
+	}
+	switch network {
+	case "unix", "unixgram", "unixpacket":
+	default:
+		return nil, &OpError{Op: "dial", Net: network, Source: d.LocalAddr, Addr: address, Err: UnknownNetworkError(network)}
+	}
+	return d.dialAddr(ctx, network, address)
+}
+
+func (d *Dialer) DialUDP(ctx context.Context, network string, address netip.AddrPort) (Conn, error) {
+	if _, ok := d.LocalAddr.(*UDPAddr); !ok && d.LocalAddr != nil {
+		return nil, &AddrError{Err: "mismatched local address type", Addr: d.LocalAddr.String()}
+	}
+	addr := &UDPAddr{
+		IP:   address.Addr().AsSlice(),
+		Zone: address.Addr().Zone(),
+		Port: int(address.Port()),
+	}
+	switch network {
+	case "udp", "udp4", "udp6":
+	default:
+		return nil, &OpError{Op: "dial", Net: network, Source: d.LocalAddr, Addr: addr, Err: UnknownNetworkError(network)}
+	}
+	return d.dialAddr(ctx, network, addr)
 }
 
 // dialParallel races two copies of dialSerial, giving the first a

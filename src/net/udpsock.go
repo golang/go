@@ -300,6 +300,50 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	return c, nil
 }
 
+// DialUDPContext acts like DialUDP but connects using
+// the provided context.
+//
+// The provided Context must be non-nil.
+//
+// The network must be a UDP network name; see func Dial for details.
+//
+// If laddr is nil, a local address is automatically chosen.
+// If the IP field of raddr is nil or an unspecified IP address, the
+// local system is assumed.
+func DialUDPContext(ctx context.Context, network string, laddr, raddr netip.AddrPort) (*UDPConn, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	switch network {
+	case "udp", "udp4", "udp6":
+	default:
+		return nil, &OpErrorNetIP{Op: "dial", Net: network, Source: laddr, Addr: raddr, Err: UnknownNetworkError(network)}
+	}
+	if !raddr.IsValid() {
+		return nil, &OpErrorNetIP{Op: "dial", Net: network, Source: laddr, Err: errMissingAddress}
+	}
+	sd := &sysDialer{network: network, address: raddr.String()}
+
+	var src *UDPAddr
+	if laddr.IsValid() {
+		src = &UDPAddr{
+			IP:   laddr.Addr().AsSlice(),
+			Zone: laddr.Addr().Zone(),
+			Port: int(laddr.Port()),
+		}
+	}
+	dst := &UDPAddr{
+		IP:   raddr.Addr().AsSlice(),
+		Zone: raddr.Addr().Zone(),
+		Port: int(raddr.Port()),
+	}
+	c, err := sd.dialUDP(ctx, src, dst)
+	if err != nil {
+		return nil, &OpErrorNetIP{Op: "dial", Net: network, Source: laddr, Addr: raddr, Err: err}
+	}
+	return c, nil
+}
+
 // ListenUDP acts like ListenPacket for UDP networks.
 //
 // The network must be a UDP network name; see func Dial for details.

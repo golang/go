@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"net/netip"
 	"syscall"
 )
 
@@ -216,6 +217,42 @@ func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
 	c, err := sd.dialIP(context.Background(), laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+	}
+	return c, nil
+}
+
+// DialIPContext acts like DialIP but connects using
+// the provided context.
+//
+// The provided Context must be non-nil.
+//
+// The network must be an IP network name; see func Dial for details.
+//
+// If laddr is nil, a local address is automatically chosen.
+// If the IP field of raddr is nil or an unspecified IP address, the
+// local system is assumed.
+func DialIPContext(ctx context.Context, network string, laddr, raddr netip.Addr) (*IPConn, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if !raddr.IsValid() {
+		return nil, &OpErrorNetIP{Op: "dial", Net: network, Source: netip.AddrPortFrom(laddr, 0), Err: errMissingAddress}
+	}
+	sd := &sysDialer{network: network, address: raddr.String()}
+	var src *IPAddr
+	if laddr.IsValid() {
+		src = &IPAddr{
+			IP:   laddr.AsSlice(),
+			Zone: laddr.Zone(),
+		}
+	}
+	dst := &IPAddr{
+		IP:   raddr.AsSlice(),
+		Zone: raddr.Zone(),
+	}
+	c, err := sd.dialIP(ctx, src, dst)
+	if err != nil {
+		return nil, &OpErrorNetIP{Op: "dial", Net: network, Source: netip.AddrPortFrom(laddr, 0), Addr: netip.AddrPortFrom(raddr, 0), Err: err}
 	}
 	return c, nil
 }
