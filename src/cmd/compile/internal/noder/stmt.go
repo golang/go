@@ -13,8 +13,10 @@ import (
 	"cmd/internal/src"
 )
 
+// stmts creates nodes for a slice of statements that form a scope.
 func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
 	var nodes []ir.Node
+	types.Markdcl()
 	for _, stmt := range stmts {
 		switch s := g.stmt(stmt).(type) {
 		case nil: // EmptyStmt
@@ -24,6 +26,7 @@ func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
 			nodes = append(nodes, s)
 		}
 	}
+	types.Popdcl()
 	return nodes
 }
 

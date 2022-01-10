@@ -25,7 +25,7 @@ const brokenPkg = "package broken_"
 
 func parseSrc(path, src string) (*syntax.File, error) {
 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics)
+	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics|syntax.AllowMethodTypeParams)
 }
 
 func pkgFor(path, source string, info *Info) (*Package, error) {

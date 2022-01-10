@@ -632,8 +632,19 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 	// Declare type parameters up-front.
 	// The scope of type parameters starts at the beginning of the type parameter
 	// list (so we can have mutually recursive parameterized type bounds).
+	nblanks := 0
 	for i, f := range list {
 		tparams[i] = check.declareTypeParam(f.Name)
+		// Issue #50481: For now, disallow multiple blank type parameters because
+		// it causes problems with export data. Report an error unless we are in
+		// testing mode ("assert" is defined).
+		// We expect to lift this restriction for Go 1.19.
+		if f.Name.Value == "_" {
+			nblanks++
+			if nblanks == 2 && Universe.Lookup("assert") == nil {
+				check.softErrorf(f, "cannot have multiple blank type parameters (temporary restriction, see issue #50481)")
+			}
+		}
 	}
 
 	// Set the type parameters before collecting the type constraints because
@@ -657,33 +668,24 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 	// Keep track of bounds for later validation.
 	var bound Type
 	var bounds []Type
-	var posers []poser
 	for i, f := range list {
 		// Optimization: Re-use the previous type bound if it hasn't changed.
 		// This also preserves the grouped output of type parameter lists
 		// when printing type strings.
 		if i == 0 || f.Type != list[i-1].Type {
 			bound = check.bound(f.Type)
-			bounds = append(bounds, bound)
-			posers = append(posers, f.Type)
-		}
-		tparams[i].bound = bound
-	}
-
-	check.later(func() {
-		for i, bound := range bounds {
 			if isTypeParam(bound) {
 				// We may be able to allow this since it is now well-defined what
 				// the underlying type and thus type set of a type parameter is.
 				// But we may need some additional form of cycle detection within
 				// type parameter lists.
-				check.error(posers[i], "cannot use a type parameter as constraint")
+				check.error(f.Type, "cannot use a type parameter as constraint")
+				bound = Typ[Invalid]
 			}
+			bounds = append(bounds, bound)
 		}
-		for _, tpar := range tparams {
-			tpar.iface() // compute type set
-		}
-	})
+		tparams[i].bound = bound
+	}
 }
 
 func (check *Checker) bound(x syntax.Expr) Type {

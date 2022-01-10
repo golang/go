@@ -760,7 +760,13 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	}
 
 	f.Name = p.name()
-	f.TParamList, f.Type = p.funcType("")
+
+	context := ""
+	if f.Recv != nil && p.mode&AllowMethodTypeParams == 0 {
+		context = "method" // don't permit (method) type parameters in funcType
+	}
+	f.TParamList, f.Type = p.funcType(context)
+
 	if p.tok == _Lbrace {
 		f.Body = p.funcBody()
 	}
@@ -1415,7 +1421,7 @@ func (p *parser) funcType(context string) ([]*Field, *FuncType) {
 	if p.allowGenerics() && p.got(_Lbrack) {
 		if context != "" {
 			// accept but complain
-			p.syntaxErrorAt(typ.pos, context+" cannot have type parameters")
+			p.syntaxErrorAt(typ.pos, context+" must have no type parameters")
 		}
 		if p.tok == _Rbrack {
 			p.syntaxError("empty type parameter list")
@@ -1823,7 +1829,7 @@ func (p *parser) methodDecl() *Field {
 				// TODO(gri) Record list as type parameter list with f.Type
 				//           if we want to type-check the generic method.
 				//           For now, report an error so this is not a silent event.
-				p.errorAt(pos, "interface method cannot have type parameters")
+				p.errorAt(pos, "interface method must have no type parameters")
 				break
 			}
 

@@ -41,7 +41,7 @@ var (
 
 // fuzzWorkerExitCode is used as an exit code by fuzz worker processes after an
 // internal error. This distinguishes internal errors from uncontrolled panics
-// and other failiures. Keep in sync with internal/fuzz.workerExitCode.
+// and other failures. Keep in sync with internal/fuzz.workerExitCode.
 const fuzzWorkerExitCode = 70
 
 // InternalFuzzTarget is an internal type but exported because it is
@@ -200,7 +200,7 @@ var supportedTypes = map[reflect.Type]bool{
 // the (*F).Fuzz function are (*F).Failed and (*F).Name.
 //
 // This function should be fast and deterministic, and its behavior should not
-// depend on shared state. No mutatable input arguments, or pointers to them,
+// depend on shared state. No mutable input arguments, or pointers to them,
 // should be retained between executions of the fuzz function, as the memory
 // backing them may be mutated during a subsequent invocation. ff must not
 // modify the underlying data of the arguments provided by the fuzzing engine.
@@ -323,10 +323,10 @@ func (f *F) Fuzz(ff any) {
 			for _, v := range e.Values {
 				args = append(args, reflect.ValueOf(v))
 			}
-			// Before reseting the current coverage, defer the snapshot so that we
-			// make sure it is called right before the tRunner function exits,
-			// regardless of whether it was executed cleanly, panicked, or if the
-			// fuzzFn called t.Fatal.
+			// Before resetting the current coverage, defer the snapshot so that
+			// we make sure it is called right before the tRunner function
+			// exits, regardless of whether it was executed cleanly, panicked,
+			// or if the fuzzFn called t.Fatal.
 			defer f.fuzzContext.deps.SnapshotCoverage()
 			f.fuzzContext.deps.ResetCoverage()
 			fn.Call(args)
@@ -352,7 +352,8 @@ func (f *F) Fuzz(ff any) {
 			f.corpus,
 			types,
 			corpusTargetDir,
-			cacheTargetDir)
+			cacheTargetDir,
+		)
 		if err != nil {
 			f.result = fuzzResult{Error: err}
 			f.Fail()
@@ -666,6 +667,7 @@ func fRunner(f *F, fn func(*F)) {
 			// This only affects fuzz tests run as normal tests.
 			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
 			// branch is not taken. f.barrier is nil in that case.
+			f.testContext.release()
 			close(f.barrier)
 			// Wait for the subtests to complete.
 			for _, sub := range f.sub {

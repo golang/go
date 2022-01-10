@@ -48,16 +48,16 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   The following is a list of the most visible changes. For a more comprehensive overview, see the
   <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">proposal</a>.
-  For details see the <a href="https://golang.org/ref/spec">language spec</a>.
+  For details see the <a href="/ref/spec">language spec</a>.
 </p>
 
 <ul>
   <li>
     The syntax for
-    <a href="https://golang.org/ref/spec#Function_declarations">Function</a> and
-    <a href="https://golang.org/ref/spec#Type_declarations">type declarations</a>
+    <a href="/ref/spec#Function_declarations">function</a> and
+    <a href="/ref/spec#Type_declarations">type declarations</a>
     now accepts
-    <a href="https://golang.org/ref/spec#Type_parameters">type parameters</a>.
+    <a href="/ref/spec#Type_parameters">type parameters</a>.
   </li>
   <li>
     Parameterized functions and types can be instantiated by following them with a list of
@@ -65,11 +65,11 @@ Do not send CLs removing the interior tags from such phrases.
   </li>
   <li>
     The new token <code>~</code> has been added to the set of
-    <a href="https://golang.org/ref/spec#Operators_and_punctuation">operators and punctuation</a>.
+    <a href="/ref/spec#Operators_and_punctuation">operators and punctuation</a>.
   </li>
   <li>
     The syntax for
-    <a href="https://golang.org/ref/spec#Interface_types">Interface types</a>
+    <a href="/ref/spec#Interface_types">Interface types</a>
     now permits the embedding of arbitrary types (not just type names of interfaces)
     as well as union and <code>~T</code> type elements. Such interfaces may only be used
     as type constraints.
@@ -77,13 +77,13 @@ Do not send CLs removing the interior tags from such phrases.
   </li>
   <li>
     The new
-    <a href="https://golang.org/ref/spec#Predeclared_identifiers">predeclared identifier</a>
+    <a href="/ref/spec#Predeclared_identifiers">predeclared identifier</a>
     <code>any</code> is an alias for the empty interface. It may be used instead of
     <code>interface{}</code>.
   </li>
   <li>
     The new
-    <a href="https://golang.org/ref/spec#Predeclared_identifiers">predeclared identifier</a>
+    <a href="/ref/spec#Predeclared_identifiers">predeclared identifier</a>
     <code>comparable</code> is an interface the denotes the set of all types which can be
     compared using <code>==</code> or <code>!=</code>. It may only be used as (or embedded in)
     a type constraint.
@@ -107,6 +107,12 @@ Do not send CLs removing the interior tags from such phrases.
       A union element with more than one term may not contain an
       interface type with a non-empty method set. Whether this will
       ever be permitted is unclear at present.
+    </li>
+    <li><!-- https://golang.org/issue/50481 -->
+      A generic type or function currently may declare at most one blank (<code>_</code>)
+      type parameter name. Note that it is always possible to use an arbitrary new
+      (unused) identifier in place of a blank type parameter name.
+      We plan to remove this restriction in Go 1.19.
     </li>
   </ul>
 </p>
@@ -143,11 +149,12 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="amd64">AMD64</h3>
 
 <p><!-- CL 349595 -->
-  Go 1.18 introduces the new <code>GOAMD64</code> environment variable which selects
-  a version of the AMD64 architecture. Allowed values are <code>v1</code>,
+  Go 1.18 introduces the new <code>GOAMD64</code> environment variable, which selects
+  a mininum target version of the AMD64 architecture. Allowed values are <code>v1</code>,
   <code>v2</code>, <code>v3</code>, or <code>v4</code>. Each higher level requires,
-  and takes advantage of, additional processor features.  A detailed description of the
-  versions is <a href="https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels">here</a>.
+  and takes advantage of, additional processor features. A detailed
+  description can be found
+  <a href="https://golang.org/wiki/MinimumRequirements#amd64">here</a>.
 </p>
 <p>
   The <code>GOAMD64</code> environment variable defaults to <code>v1</code>.
@@ -302,6 +309,27 @@ Do not send CLs removing the interior tags from such phrases.
   determine the set of main modules used as the roots for module
   resolution, instead of using the normally-found <code>go.mod</code>
   file to specify the single main module.
+</p>
+
+<p><!-- CL 251441 -->
+  The <code>go</code> command now supports additional command line
+  options for the new <a href="#fuzzing">fuzzing support described
+  above</a>:
+  <ul>
+    <li>
+      <code>go test</code> supports
+      <code>-fuzz</code>, <code>-fuzztime</code>, and
+      <code>-fuzzminimizetime</code> options.
+      For documentation on these see
+      <a href="/pkg/cmd/go#hdr-Testing_flags"><code>go help testflag</code></a>.
+    </li>
+    <li>
+      <code>go clean</code> supports a <code>-fuzzcache</code>
+      option.
+      For documentation see
+      <a href="/pkg/cmd/go#hdr-Remove_object_files_and_cached_files"><code>go help clean</code></a>.
+    </li>
+  </ul>
 </p>
 
 <h3 id="gofmt"><code>gofmt</code></h3>
@@ -979,7 +1007,9 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 251441 -->
       The new <a href="/pkg/testing#F"><code>testing.F</code></a> type
       is used by the new <a href="#fuzzing">fuzzing support described
-      above</a>.
+      above</a>. Tests also now support the command line
+      options <code>-test.fuzz</code>, <code>-test.fuzztime</code>, and
+      <code>-test.fuzzminimizetime</code>.
     </p>
   </dd>
 </dl><!-- testing -->

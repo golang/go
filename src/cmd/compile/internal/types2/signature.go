@@ -91,9 +91,6 @@ func (s *Signature) String() string   { return TypeString(s, nil) }
 // ----------------------------------------------------------------------------
 // Implementation
 
-// Disabled by default, but enabled when running tests (via types_test.go).
-var acceptMethodTypeParams bool
-
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []*syntax.Field, ftyp *syntax.FuncType) {
 	check.openScope(ftyp, "function")
@@ -163,13 +160,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	}
 
 	if tparams != nil {
+		// The parser will complain about invalid type parameters for methods.
 		check.collectTypeParams(&sig.tparams, tparams)
-		// Always type-check method type parameters but complain if they are not enabled.
-		// (A separate check is needed when type-checking interface method signatures because
-		// they don't have a receiver specification.)
-		if recvPar != nil && !acceptMethodTypeParams {
-			check.error(ftyp, "methods cannot have type parameters")
-		}
 	}
 
 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their

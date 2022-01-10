@@ -75,17 +75,21 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs 
 
 	inst := check.instance(pos, typ, targs, check.bestContext(nil)).(*Signature)
 	assert(len(xlist) <= len(targs))
-	tparams := typ.TypeParams().list()
-	if i, err := check.verify(pos, tparams, targs); err != nil {
-		// best position for error reporting
-		pos := pos
-		if i < len(xlist) {
-			pos = xlist[i].Pos()
+
+	// verify instantiation lazily (was issue #50450)
+	check.later(func() {
+		tparams := typ.TypeParams().list()
+		if i, err := check.verify(pos, tparams, targs); err != nil {
+			// best position for error reporting
+			pos := pos
+			if i < len(xlist) {
+				pos = xlist[i].Pos()
+			}
+			check.softErrorf(atPos(pos), _InvalidTypeArg, "%s", err)
+		} else {
+			check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
 		}
-		check.softErrorf(atPos(pos), _InvalidTypeArg, "%s", err)
-	} else {
-		check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
-	}
+	})
 
 	return inst
 }

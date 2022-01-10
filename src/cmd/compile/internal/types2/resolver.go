@@ -448,15 +448,10 @@ func (check *Checker) collectObjects() {
 				} else {
 					// method
 					// d.Recv != nil
-					if !acceptMethodTypeParams && len(s.TParamList) != 0 {
-						//check.error(d.TParamList.Pos(), invalidAST + "method must have no type parameters")
-						check.error(s.TParamList[0], invalidAST+"method must have no type parameters")
-						hasTParamError = true
-					}
 					ptr, recv, _ := check.unpackRecv(s.Recv.Type, false)
-					// (Methods with invalid receiver cannot be associated to a type, and
+					// Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any
-					// of them. They will still be type-checked with all the other functions.)
+					// of them. They will still be type-checked with all the other functions.
 					if recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}

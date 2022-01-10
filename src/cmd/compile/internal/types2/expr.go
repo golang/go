@@ -770,10 +770,12 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
 	xok, _ := x.assignableTo(check, y.typ, nil)
 	yok, _ := y.assignableTo(check, x.typ, nil)
 	if xok || yok {
+		equality := false
 		defined := false
 		switch op {
 		case syntax.Eql, syntax.Neq:
 			// spec: "The equality operators == and != apply to operands that are comparable."
+			equality = true
 			defined = Comparable(x.typ) && Comparable(y.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
 		case syntax.Lss, syntax.Leq, syntax.Gtr, syntax.Geq:
 			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
@@ -782,11 +784,19 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
 			unreachable()
 		}
 		if !defined {
-			typ := x.typ
-			if x.isNil() {
-				typ = y.typ
+			if equality && (isTypeParam(x.typ) || isTypeParam(y.typ)) {
+				typ := x.typ
+				if isTypeParam(y.typ) {
+					typ = y.typ
+				}
+				err = check.sprintf("%s is not comparable", typ)
+			} else {
+				typ := x.typ
+				if x.isNil() {
+					typ = y.typ
+				}
+				err = check.sprintf("operator %s not defined on %s", op, typ)
 			}
-			err = check.sprintf("operator %s not defined on %s", op, typ)
 		}
 	} else {
 		err = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
