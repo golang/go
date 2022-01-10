@@ -1682,13 +1682,10 @@ func (t *Type) HasPointers() bool {
 	return PtrDataSize(t) > 0
 }
 
-var recvType *Type
+var recvType  = NewPtr(newType(TSTRUCT))
 
 // FakeRecvType returns the singleton type used for interface method receivers.
 func FakeRecvType() *Type {
-	if recvType == nil {
-		recvType = NewPtr(newType(TSTRUCT))
-	}
 	return recvType
 }
 
