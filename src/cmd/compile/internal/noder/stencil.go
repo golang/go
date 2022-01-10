@@ -38,12 +38,9 @@ func infoPrint(format string, a ...interface{}) {
 	}
 }
 
-var geninst genInst
+var geninst = genInst{instInfoMap: map[*types.Sym]*instInfo{}}
 
 func BuildInstantiations(preinliningMainScan bool) {
-	if geninst.instInfoMap == nil {
-		geninst.instInfoMap = make(map[*types.Sym]*instInfo)
-	}
 	geninst.buildInstantiations(preinliningMainScan)
 }
 
