@@ -265,6 +265,7 @@ type Info struct {
 	//
 	//     *syntax.File
 	//     *syntax.FuncType
+	//     *syntax.TypeDecl
 	//     *syntax.BlockStmt
 	//     *syntax.IfStmt
 	//     *syntax.SwitchStmt
