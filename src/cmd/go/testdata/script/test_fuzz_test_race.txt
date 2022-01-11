@@ -4,8 +4,9 @@
 
 [short] skip
 [!fuzz] skip
+[!race] skip
 
-# Test with coverage instrumentation enbaled (-fuzz) and race instrumentation
+# Test with coverage instrumentation enabled (-fuzz) and race instrumentation
 # but without actually fuzzing the target (by using a non-matching pattern)
 go test -fuzz=xxx -race -v
 ! stderr 'race detected during execution of test'
