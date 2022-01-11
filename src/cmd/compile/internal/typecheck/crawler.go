@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // crawlExports crawls the type/object graph rooted at the given list of exported
@@ -241,11 +242,12 @@ func (p *crawler) markInlBody(n *ir.Name) {
 			if t.IsFullyInstantiated() && !t.HasShape() && !t.IsInterface() && t.Methods().Len() > 0 {
 				// For any fully-instantiated type, the relevant
 				// dictionaries and shape instantiations will have
-				// already been created. Make sure that they are
-				// exported, so that any other package that inlines
-				// this function will have them available for import,
-				// and so will not need another round of method and
-				// dictionary instantiation after inlining.
+				// already been created or are in the import data.
+				// Make sure that they are exported, so that any
+				// other package that inlines this function will have
+				// them available for import, and so will not need
+				// another round of method and dictionary
+				// instantiation after inlining.
 				baseType := t.OrigSym().Def.(*ir.Name).Type()
 				shapes := make([]*types.Type, len(t.RParams()))
 				for i, t1 := range t.RParams() {
@@ -254,8 +256,16 @@ func (p *crawler) markInlBody(n *ir.Name) {
 				for j := range t.Methods().Slice() {
 					baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
 					dictsym := MakeDictSym(baseNname.Sym(), t.RParams(), true)
+					if dictsym.Def == nil {
+						in := Resolve(ir.NewIdent(src.NoXPos, dictsym))
+						dictsym = in.Sym()
+					}
 					Export(dictsym.Def.(*ir.Name))
 					methsym := MakeFuncInstSym(baseNname.Sym(), shapes, false, true)
+					if methsym.Def == nil {
+						in := Resolve(ir.NewIdent(src.NoXPos, methsym))
+						methsym = in.Sym()
+					}
 					methNode := methsym.Def.(*ir.Name)
 					Export(methNode)
 					if HaveInlineBody(methNode.Func) {
