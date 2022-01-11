@@ -18,15 +18,17 @@ import (
 // function arguments args, if any. There must be at least one type parameter, no more type arguments
 // than type parameters, and params and args must match in number (incl. zero).
 // If successful, infer returns the complete list of type arguments, one for each type parameter.
-// Otherwise the result is nil and appropriate errors will be reported unless report is set to false.
+// Otherwise the result is nil and appropriate errors will be reported.
 //
-// Inference proceeds in 3 steps:
+// Inference proceeds as follows:
 //
-//   1) Start with given type arguments.
-//   2) Infer type arguments from typed function arguments.
-//   3) Infer type arguments from untyped function arguments.
+//   Starting with given type arguments
+//   1) apply FTI (function type inference) with typed arguments,
+//   2) apply CTI (constraint type inference),
+//   3) apply FTI with untyped function arguments,
+//   4) apply CTI.
 //
-// Constraint type inference is used after each step to expand the set of type arguments.
+// The process stops as soon as all type arguments are known or an error occurs.
 func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (result []Type) {
 	if debug {
 		defer func() {
@@ -45,7 +47,6 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// Function parameters and arguments must match in number.
 	assert(params.Len() == len(args))
 
-	// --- 0 ---
 	// If we already have all type arguments, we're done.
 	if len(targs) == n {
 		return targs
@@ -53,25 +54,13 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// len(targs) < n
 
 	// --- 1 ---
-	// Explicitly provided type arguments take precedence over any inferred types;
-	// and types inferred via constraint type inference take precedence over types
-	// inferred from function arguments.
-	// If we have type arguments, see how far we get with constraint type inference.
-	if len(targs) > 0 {
-		var index int
-		targs, index = check.inferB(posn, tparams, targs)
-		if targs == nil || index < 0 {
-			return targs
-		}
-	}
-
-	// Continue with the type arguments we have now. Avoid matching generic
+	// Continue with the type arguments we have. Avoid matching generic
 	// parameters that already have type arguments against function arguments:
 	// It may fail because matching uses type identity while parameter passing
 	// uses assignment rules. Instantiate the parameter list with the type
 	// arguments we have, and continue with that parameter list.
 
-	// First, make sure we have a "full" list of type arguments, so of which
+	// First, make sure we have a "full" list of type arguments, some of which
 	// may be nil (unknown).
 	if len(targs) < n {
 		targs2 := make([]Type, n)
@@ -89,7 +78,6 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		params = check.subst(token.NoPos, params, smap, nil).(*Tuple)
 	}
 
-	// --- 2 ---
 	// Unify parameter and argument types for generic parameters with typed arguments
 	// and collect the indices of generic parameters with untyped arguments.
 	// Terminology: generic parameter = function parameter with a type-parameterized type
@@ -171,6 +159,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		return targs
 	}
 
+	// --- 2 ---
 	// See how far we get with constraint type inference.
 	// Note that even if we don't have any type arguments, constraint type inference
 	// may produce results for constraints that explicitly specify a type.
@@ -209,6 +198,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		return targs
 	}
 
+	// --- 4 ---
 	// Again, follow up with constraint type inference.
 	targs, index = check.inferB(posn, tparams, targs)
 	if targs == nil || index < 0 {
