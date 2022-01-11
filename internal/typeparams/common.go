@@ -18,6 +18,9 @@
 // the StructuralTerms API computes a minimal representation of the structural
 // restrictions on a type parameter. In the future, this API may be available
 // from go/types.
+//
+// See the example/README.md for a more detailed guide on how to update tools
+// to support generics.
 package typeparams
 
 import (
