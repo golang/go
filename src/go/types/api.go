@@ -260,6 +260,7 @@ type Info struct {
 	//
 	//     *ast.File
 	//     *ast.FuncType
+	//     *ast.TypeSpec
 	//     *ast.BlockStmt
 	//     *ast.IfStmt
 	//     *ast.SwitchStmt
