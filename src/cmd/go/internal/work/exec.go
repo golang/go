@@ -2116,8 +2116,11 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([
 	cmd.Stderr = &buf
 	cleanup := passLongArgsInResponseFiles(cmd)
 	defer cleanup()
-	cmd.Dir = dir
-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+	cmd.Env = os.Environ()
+	if dir != "." {
+		cmd.Dir = dir
+		cmd.Env = base.AppendPWD(cmd.Env, dir)
+	}
 
 	// Add the TOOLEXEC_IMPORTPATH environment variable for -toolexec tools.
 	// It doesn't really matter if -toolexec isn't being used.
@@ -3071,7 +3074,7 @@ var (
 )
 
 func (b *Builder) swigDoVersionCheck() error {
-	out, err := b.runOut(nil, "", nil, "swig", "-version")
+	out, err := b.runOut(nil, ".", nil, "swig", "-version")
 	if err != nil {
 		return err
 	}
