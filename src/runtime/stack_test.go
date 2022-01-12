@@ -7,11 +7,9 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"reflect"
 	"regexp"
 	. "runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -83,12 +81,7 @@ func TestStackGrowth(t *testing.T) {
 		t.Skip("-quick")
 	}
 
-	if GOARCH == "wasm" {
-		t.Skip("fails on wasm (too slow?)")
-	}
-
-	// Don't make this test parallel as this makes the 20 second
-	// timeout unreliable on slow builders. (See issue #19381.)
+	t.Parallel()
 
 	var wg sync.WaitGroup
 
@@ -102,6 +95,7 @@ func TestStackGrowth(t *testing.T) {
 		growDuration = time.Since(start)
 	}()
 	wg.Wait()
+	t.Log("first growStack took", growDuration)
 
 	// in locked goroutine
 	wg.Add(1)
@@ -114,48 +108,38 @@ func TestStackGrowth(t *testing.T) {
 	wg.Wait()
 
 	// in finalizer
+	var finalizerStart time.Time
+	var started, progress uint32
 	wg.Add(1)
-	go func() {
+	s := new(string) // Must be of a type that avoids the tiny allocator, or else the finalizer might not run.
+	SetFinalizer(s, func(ss *string) {
 		defer wg.Done()
-		done := make(chan bool)
-		var startTime time.Time
-		var started, progress uint32
-		go func() {
-			s := new(string)
-			SetFinalizer(s, func(ss *string) {
-				startTime = time.Now()
-				atomic.StoreUint32(&started, 1)
-				growStack(&progress)
-				done <- true
-			})
-			s = nil
-			done <- true
-		}()
-		<-done
-		GC()
+		finalizerStart = time.Now()
+		atomic.StoreUint32(&started, 1)
+		growStack(&progress)
+	})
+	setFinalizerTime := time.Now()
+	s = nil
 
-		timeout := 20 * time.Second
-		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
-			scale, err := strconv.Atoi(s)
-			if err == nil {
-				timeout *= time.Duration(scale)
-			}
-		}
-
-		select {
-		case <-done:
-		case <-time.After(timeout):
+	if d, ok := t.Deadline(); ok {
+		// Pad the timeout by an arbitrary 5% to give the AfterFunc time to run.
+		timeout := time.Until(d) * 19 / 20
+		timer := time.AfterFunc(timeout, func() {
+			// Panic — instead of calling t.Error and returning from the test — so
+			// that we get a useful goroutine dump if the test times out, especially
+			// if GOTRACEBACK=system or GOTRACEBACK=crash is set.
 			if atomic.LoadUint32(&started) == 0 {
-				t.Log("finalizer did not start")
+				panic("finalizer did not start")
 			} else {
-				t.Logf("finalizer started %s ago and finished %d iterations", time.Since(startTime), atomic.LoadUint32(&progress))
+				panic(fmt.Sprintf("finalizer started %s ago (%s after registration) and ran %d iterations, but did not return", time.Since(finalizerStart), finalizerStart.Sub(setFinalizerTime), atomic.LoadUint32(&progress)))
 			}
-			t.Log("first growStack took", growDuration)
-			t.Error("finalizer did not run")
-			return
-		}
-	}()
+		})
+		defer timer.Stop()
+	}
+
+	GC()
 	wg.Wait()
+	t.Logf("finalizer started after %s and ran %d iterations in %v", finalizerStart.Sub(setFinalizerTime), atomic.LoadUint32(&progress), time.Since(finalizerStart))
 }
 
 // ... and in init
