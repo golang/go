@@ -24,16 +24,6 @@ import (
 	exec "golang.org/x/sys/execabs"
 )
 
-// Testing is an abstraction of a *testing.T.
-type Testing interface {
-	Skipf(format string, args ...interface{})
-	Fatalf(format string, args ...interface{})
-}
-
-type helperer interface {
-	Helper()
-}
-
 // packageMainIsDevel reports whether the module containing package main
 // is a development version (if module information is available).
 func packageMainIsDevel() bool {
@@ -192,14 +182,13 @@ func allowMissingTool(tool string) bool {
 
 // NeedsTool skips t if the named tool is not present in the path.
 // As a special case, "cgo" means "go" is present and can compile cgo programs.
-func NeedsTool(t Testing, tool string) {
-	if t, ok := t.(helperer); ok {
-		t.Helper()
-	}
+func NeedsTool(t testing.TB, tool string) {
 	err := hasTool(tool)
 	if err == nil {
 		return
 	}
+
+	t.Helper()
 	if allowMissingTool(tool) {
 		t.Skipf("skipping because %s tool not available: %v", tool, err)
 	} else {
@@ -209,10 +198,8 @@ func NeedsTool(t Testing, tool string) {
 
 // NeedsGoPackages skips t if the go/packages driver (or 'go' tool) implied by
 // the current process environment is not present in the path.
-func NeedsGoPackages(t Testing) {
-	if t, ok := t.(helperer); ok {
-		t.Helper()
-	}
+func NeedsGoPackages(t testing.TB) {
+	t.Helper()
 
 	tool := os.Getenv("GOPACKAGESDRIVER")
 	switch tool {
@@ -232,10 +219,8 @@ func NeedsGoPackages(t Testing) {
 
 // NeedsGoPackagesEnv skips t if the go/packages driver (or 'go' tool) implied
 // by env is not present in the path.
-func NeedsGoPackagesEnv(t Testing, env []string) {
-	if t, ok := t.(helperer); ok {
-		t.Helper()
-	}
+func NeedsGoPackagesEnv(t testing.TB, env []string) {
+	t.Helper()
 
 	for _, v := range env {
 		if strings.HasPrefix(v, "GOPACKAGESDRIVER=") {
@@ -256,10 +241,8 @@ func NeedsGoPackagesEnv(t Testing, env []string) {
 // and then run them with os.StartProcess or exec.Command.
 // Android doesn't have the userspace go build needs to run,
 // and js/wasm doesn't support running subprocesses.
-func NeedsGoBuild(t Testing) {
-	if t, ok := t.(helperer); ok {
-		t.Helper()
-	}
+func NeedsGoBuild(t testing.TB) {
+	t.Helper()
 
 	// This logic was derived from internal/testing.HasGoBuild and
 	// may need to be updated as that function evolves.
@@ -318,29 +301,25 @@ func Go1Point() int {
 
 // NeedsGo1Point skips t if the Go version used to run the test is older than
 // 1.x.
-func NeedsGo1Point(t Testing, x int) {
-	if t, ok := t.(helperer); ok {
-		t.Helper()
-	}
+func NeedsGo1Point(t testing.TB, x int) {
 	if Go1Point() < x {
+		t.Helper()
 		t.Skipf("running Go version %q is version 1.%d, older than required 1.%d", runtime.Version(), Go1Point(), x)
 	}
 }
 
 // SkipAfterGo1Point skips t if the Go version used to run the test is newer than
 // 1.x.
-func SkipAfterGo1Point(t Testing, x int) {
-	if t, ok := t.(helperer); ok {
-		t.Helper()
-	}
+func SkipAfterGo1Point(t testing.TB, x int) {
 	if Go1Point() > x {
+		t.Helper()
 		t.Skipf("running Go version %q is version 1.%d, newer than maximum 1.%d", runtime.Version(), Go1Point(), x)
 	}
 }
 
 // Deadline returns the deadline of t, if known,
 // using the Deadline method added in Go 1.15.
-func Deadline(t Testing) (time.Time, bool) {
+func Deadline(t testing.TB) (time.Time, bool) {
 	td, ok := t.(interface {
 		Deadline() (time.Time, bool)
 	})

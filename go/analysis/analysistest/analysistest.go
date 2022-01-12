@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"testing"
 	"text/scanner"
 
 	"golang.org/x/tools/go/analysis"
@@ -278,7 +279,7 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 // attempted, even if unsuccessful. It is safe for a test to ignore all
 // the results, but a test may use it to perform additional checks.
 func Run(t Testing, dir string, a *analysis.Analyzer, patterns ...string) []*Result {
-	if t, ok := t.(testenv.Testing); ok {
+	if t, ok := t.(testing.TB); ok {
 		testenv.NeedsGoPackages(t)
 	}
 
