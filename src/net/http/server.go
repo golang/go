@@ -2281,9 +2281,7 @@ type muxEntry struct {
 func NewServeMux() *ServeMux { return new(ServeMux) }
 
 // DefaultServeMux is the default ServeMux used by Serve.
-var DefaultServeMux = &defaultServeMux
-
-var defaultServeMux ServeMux
+var DefaultServeMux = &ServeMux{}
 
 // cleanPath returns the canonical path for p, eliminating . and .. elements.
 func cleanPath(p string) string {
