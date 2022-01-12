@@ -4,14 +4,18 @@
 
 package types
 
-type typeInfo uint
-
-// validType verifies that the given type does not "expand" infinitely
+// validType verifies that the given type does not "expand" indefinitely
 // producing a cycle in the type graph. Cycles are detected by marking
 // defined types.
 // (Cycles involving alias types, as in "type A = [10]A" are detected
 // earlier, via the objDecl cycle detection mechanism.)
-func (check *Checker) validType(typ Type, path []Object) typeInfo {
+func (check *Checker) validType(typ Type) {
+	check.validType0(typ, nil)
+}
+
+type typeInfo uint
+
+func (check *Checker) validType0(typ Type, path []Object) typeInfo {
 	const (
 		unknown typeInfo = iota
 		marked
@@ -21,25 +25,25 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 
 	switch t := typ.(type) {
 	case *Array:
-		return check.validType(t.elem, path)
+		return check.validType0(t.elem, path)
 
 	case *Struct:
 		for _, f := range t.fields {
-			if check.validType(f.typ, path) == invalid {
+			if check.validType0(f.typ, path) == invalid {
 				return invalid
 			}
 		}
 
 	case *Union:
 		for _, t := range t.terms {
-			if check.validType(t.typ, path) == invalid {
+			if check.validType0(t.typ, path) == invalid {
 				return invalid
 			}
 		}
 
 	case *Interface:
 		for _, etyp := range t.embeddeds {
-			if check.validType(etyp, path) == invalid {
+			if check.validType0(etyp, path) == invalid {
 				return invalid
 			}
 		}
@@ -65,14 +69,14 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		// don't report a 2nd error if we already know the type is invalid
 		// (e.g., if a cycle was detected earlier, via under).
 		if t.underlying == Typ[Invalid] {
-			t.info = invalid
+			check.infoMap[t] = invalid
 			return invalid
 		}
 
-		switch t.info {
+		switch check.infoMap[t] {
 		case unknown:
-			t.info = marked
-			t.info = check.validType(t.fromRHS, append(path, t.obj)) // only types of current package added to path
+			check.infoMap[t] = marked
+			check.infoMap[t] = check.validType0(t.fromRHS, append(path, t.obj)) // only types of current package added to path
 		case marked:
 			// cycle detected
 			for i, tn := range path {
@@ -81,14 +85,14 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 				}
 				if tn == t.obj {
 					check.cycleError(path[i:])
-					t.info = invalid
+					check.infoMap[t] = invalid
 					t.underlying = Typ[Invalid]
 					return invalid
 				}
 			}
 			panic("cycle start not found")
 		}
-		return t.info
+		return check.infoMap[t]
 	}
 
 	return valid
