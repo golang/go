@@ -71,12 +71,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		ix := typeparams.UnpackIndexExpr(x)
 		WriteExpr(buf, ix.X)
 		buf.WriteByte('[')
-		for i, e := range ix.Indices {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			WriteExpr(buf, e)
-		}
+		writeExprList(buf, ix.Indices)
 		buf.WriteByte(']')
 
 	case *ast.SliceExpr:

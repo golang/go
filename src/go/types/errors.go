@@ -7,6 +7,7 @@
 package types
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -81,10 +82,27 @@ func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args 
 			}
 		case ast.Expr:
 			arg = ExprString(a)
+		case []ast.Expr:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			writeExprList(&buf, a)
+			buf.WriteByte(']')
+			arg = buf.String()
 		case Object:
 			arg = ObjectString(a, qf)
 		case Type:
 			arg = typeString(a, qf, debug)
+		case []Type:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(typeString(x, qf, debug))
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
 		}
 		args[i] = arg
 	}
