@@ -472,7 +472,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 			}
 		}
 
-		check.validType(inst, nil)
+		check.validType(inst)
 	})
 
 	return inst

@@ -12,7 +12,6 @@ import (
 // A Named represents a named (defined) type.
 type Named struct {
 	check      *Checker
-	info       typeInfo       // for cycle detection
 	obj        *TypeName      // corresponding declared object for declared types; placeholder for instantiated types
 	orig       *Named         // original, uninstantiated type
 	fromRHS    Type           // type (on RHS of declaration) this *Named type is derived from (for cycle reporting)

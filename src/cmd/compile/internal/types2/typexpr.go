@@ -487,7 +487,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 			}
 		}
 
-		check.validType(inst, nil)
+		check.validType(inst)
 	})
 
 	return inst
