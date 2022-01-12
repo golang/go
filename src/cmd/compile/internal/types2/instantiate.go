@@ -161,7 +161,10 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 	Vu := under(V)
 	Tu := under(T)
 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
-		return nil
+		return nil // avoid follow-on errors
+	}
+	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
+		return nil // avoid follow-on errors (see issue #49541 for an example)
 	}
 
 	errorf := func(format string, args ...interface{}) error {

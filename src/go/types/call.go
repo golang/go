@@ -533,6 +533,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
+		// Don't report another error if the underlying type was invalid (issue #49541).
+		if under(x.typ) == Typ[Invalid] {
+			goto Error
+		}
+
 		if index != nil {
 			// TODO(gri) should provide actual type where the conflict happens
 			check.errorf(e.Sel, _AmbiguousSelector, "ambiguous selector %s.%s", x.expr, sel)
