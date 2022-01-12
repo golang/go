@@ -1447,9 +1447,6 @@ func Shapify(t *types.Type, index int) *types.Type {
 		u = types.Types[types.TUINT8].PtrTo()
 	}
 
-	if shapeMap == nil {
-		shapeMap = map[int]map[*types.Type]*types.Type{}
-	}
 	submap := shapeMap[index]
 	if submap == nil {
 		submap = map[*types.Type]*types.Type{}
@@ -1479,4 +1476,4 @@ func Shapify(t *types.Type, index int) *types.Type {
 	return s
 }
 
-var shapeMap map[int]map[*types.Type]*types.Type
+var shapeMap = map[int]map[*types.Type]*types.Type{}
