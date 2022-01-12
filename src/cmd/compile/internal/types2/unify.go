@@ -33,6 +33,10 @@ import (
 // by setting up one of them (using init) and then assigning its value
 // to the other.
 
+// Upper limit for recursion depth. Used to catch infinite recursions
+// due to implementation issues (e.g., see issues #48619, #48656).
+const unificationDepthLimit = 50
+
 // A unifier maintains the current type parameters for x and y
 // and the respective types inferred for each type parameter.
 // A unifier is created by calling newUnifier.
@@ -40,6 +44,7 @@ type unifier struct {
 	exact bool
 	x, y  tparamsList // x and y must initialized via tparamsList.init
 	types []Type      // inferred types, shared by x and y
+	depth int         // recursion depth during unification
 }
 
 // newUnifier returns a new unifier.
@@ -237,6 +242,18 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
 // code the corresponding changes should be made here.
 // Must not be called directly from outside the unifier.
 func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+	// Stop gap for cases where unification fails.
+	if u.depth >= unificationDepthLimit {
+		if debug {
+			panic("unification reached recursion depth limit")
+		}
+		return false
+	}
+	u.depth++
+	defer func() {
+		u.depth--
+	}()
+
 	if !u.exact {
 		// If exact unification is known to fail because we attempt to
 		// match a type name against an unnamed type literal, consider
