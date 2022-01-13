@@ -137,8 +137,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Internal.OmitDebug || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
 		defaultGcFlags = append(defaultGcFlags, "-dwarf=false")
 	}
-	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
-		defaultGcFlags = append(defaultGcFlags, "-goversion", runtimeVersion)
+	if strings.HasPrefix(RuntimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+		defaultGcFlags = append(defaultGcFlags, "-goversion", RuntimeVersion)
 	}
 	if symabis != "" {
 		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
