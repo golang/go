@@ -418,171 +418,204 @@ var codeRepoTests = []codeRepoTest{
 		zipSum:      "h1:JItBZ+gwA5WvtZEGEbuDL4lUttGtLrs53lmdurq3bOg=",
 		zipFileHash: "9ea9ae1673cffcc44b7fdd3cc89953d68c102449b46c982dbf085e4f2e394da5",
 	},
+	{
+		// Git branch with a semver name, +incompatible version, and no go.mod file.
+		vcs:  "git",
+		path: "vcs-test.golang.org/go/mod/gitrepo1",
+		rev:  "v2.3.4+incompatible",
+		err:  `resolves to version v2.0.1+incompatible (v2.3.4 is not a tag)`,
+	},
+	{
+		// Git branch with a semver name, matching go.mod file, and compatible version.
+		vcs:  "git",
+		path: "vcs-test.golang.org/git/semver-branch.git",
+		rev:  "v1.0.0",
+		err:  `resolves to version v0.1.1-0.20220202191944-09c4d8f6938c (v1.0.0 is not a tag)`,
+	},
+	{
+		// Git branch with a semver name, matching go.mod file, and disallowed +incompatible version.
+		// The version/tag mismatch takes precedence over the +incompatible mismatched.
+		vcs:  "git",
+		path: "vcs-test.golang.org/git/semver-branch.git",
+		rev:  "v2.0.0+incompatible",
+		err:  `resolves to version v0.1.0 (v2.0.0 is not a tag)`,
+	},
+	{
+		// Git branch with a semver name, matching go.mod file, and mismatched version.
+		// The version/tag mismatch takes precedence over the +incompatible mismatched.
+		vcs:  "git",
+		path: "vcs-test.golang.org/git/semver-branch.git",
+		rev:  "v2.0.0",
+		err:  `resolves to version v0.1.0 (v2.0.0 is not a tag)`,
+	},
+	{
+		// v3.0.0-devel is the same as tag v4.0.0-beta.1, but v4.0.0-beta.1 would
+		// not be allowed because it is incompatible and a go.mod file exists.
+		// The error message should refer to a valid pseudo-version, not the
+		// unusable semver tag.
+		vcs:  "git",
+		path: "vcs-test.golang.org/git/semver-branch.git",
+		rev:  "v3.0.0-devel",
+		err:  `resolves to version v0.1.1-0.20220203155313-d59622f6e4d7 (v3.0.0-devel is not a tag)`,
+	},
 }
 
 func TestCodeRepo(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	tmpdir := t.TempDir()
 
-	tmpdir, err := os.MkdirTemp("", "modfetch-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	for _, tt := range codeRepoTests {
+		f := func(tt codeRepoTest) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+				if tt.vcs != "mod" {
+					testenv.MustHaveExecPath(t, tt.vcs)
+				}
 
-	t.Run("parallel", func(t *testing.T) {
-		for _, tt := range codeRepoTests {
-			f := func(tt codeRepoTest) func(t *testing.T) {
-				return func(t *testing.T) {
-					t.Parallel()
-					if tt.vcs != "mod" {
-						testenv.MustHaveExecPath(t, tt.vcs)
-					}
+				repo := Lookup("direct", tt.path)
 
-					repo := Lookup("direct", tt.path)
+				if tt.mpath == "" {
+					tt.mpath = tt.path
+				}
+				if mpath := repo.ModulePath(); mpath != tt.mpath {
+					t.Errorf("repo.ModulePath() = %q, want %q", mpath, tt.mpath)
+				}
 
-					if tt.mpath == "" {
-						tt.mpath = tt.path
-					}
-					if mpath := repo.ModulePath(); mpath != tt.mpath {
-						t.Errorf("repo.ModulePath() = %q, want %q", mpath, tt.mpath)
-					}
-
-					info, err := repo.Stat(tt.rev)
-					if err != nil {
-						if tt.err != "" {
-							if !strings.Contains(err.Error(), tt.err) {
-								t.Fatalf("repoStat(%q): %v, wanted %q", tt.rev, err, tt.err)
-							}
-							return
-						}
-						t.Fatalf("repo.Stat(%q): %v", tt.rev, err)
-					}
+				info, err := repo.Stat(tt.rev)
+				if err != nil {
 					if tt.err != "" {
-						t.Errorf("repo.Stat(%q): success, wanted error", tt.rev)
+						if !strings.Contains(err.Error(), tt.err) {
+							t.Fatalf("repoStat(%q): %v, wanted %q", tt.rev, err, tt.err)
+						}
+						return
 					}
-					if info.Version != tt.version {
-						t.Errorf("info.Version = %q, want %q", info.Version, tt.version)
-					}
-					if info.Name != tt.name {
-						t.Errorf("info.Name = %q, want %q", info.Name, tt.name)
-					}
-					if info.Short != tt.short {
-						t.Errorf("info.Short = %q, want %q", info.Short, tt.short)
-					}
-					if !info.Time.Equal(tt.time) {
-						t.Errorf("info.Time = %v, want %v", info.Time, tt.time)
-					}
+					t.Fatalf("repo.Stat(%q): %v", tt.rev, err)
+				}
+				if tt.err != "" {
+					t.Errorf("repo.Stat(%q): success, wanted error", tt.rev)
+				}
+				if info.Version != tt.version {
+					t.Errorf("info.Version = %q, want %q", info.Version, tt.version)
+				}
+				if info.Name != tt.name {
+					t.Errorf("info.Name = %q, want %q", info.Name, tt.name)
+				}
+				if info.Short != tt.short {
+					t.Errorf("info.Short = %q, want %q", info.Short, tt.short)
+				}
+				if !info.Time.Equal(tt.time) {
+					t.Errorf("info.Time = %v, want %v", info.Time, tt.time)
+				}
 
-					if tt.gomod != "" || tt.gomodErr != "" {
-						data, err := repo.GoMod(tt.version)
-						if err != nil && tt.gomodErr == "" {
-							t.Errorf("repo.GoMod(%q): %v", tt.version, err)
-						} else if err != nil && tt.gomodErr != "" {
-							if err.Error() != tt.gomodErr {
-								t.Errorf("repo.GoMod(%q): %v, want %q", tt.version, err, tt.gomodErr)
-							}
-						} else if tt.gomodErr != "" {
-							t.Errorf("repo.GoMod(%q) = %q, want error %q", tt.version, data, tt.gomodErr)
-						} else if string(data) != tt.gomod {
-							t.Errorf("repo.GoMod(%q) = %q, want %q", tt.version, data, tt.gomod)
+				if tt.gomod != "" || tt.gomodErr != "" {
+					data, err := repo.GoMod(tt.version)
+					if err != nil && tt.gomodErr == "" {
+						t.Errorf("repo.GoMod(%q): %v", tt.version, err)
+					} else if err != nil && tt.gomodErr != "" {
+						if err.Error() != tt.gomodErr {
+							t.Errorf("repo.GoMod(%q): %v, want %q", tt.version, err, tt.gomodErr)
 						}
-					}
-
-					needHash := !testing.Short() && (tt.zipFileHash != "" || tt.zipSum != "")
-					if tt.zip != nil || tt.zipErr != "" || needHash {
-						f, err := os.CreateTemp(tmpdir, tt.version+".zip.")
-						if err != nil {
-							t.Fatalf("os.CreateTemp: %v", err)
-						}
-						zipfile := f.Name()
-						defer func() {
-							f.Close()
-							os.Remove(zipfile)
-						}()
-
-						var w io.Writer
-						var h hash.Hash
-						if needHash {
-							h = sha256.New()
-							w = io.MultiWriter(f, h)
-						} else {
-							w = f
-						}
-						err = repo.Zip(w, tt.version)
-						f.Close()
-						if err != nil {
-							if tt.zipErr != "" {
-								if err.Error() == tt.zipErr {
-									return
-								}
-								t.Fatalf("repo.Zip(%q): %v, want error %q", tt.version, err, tt.zipErr)
-							}
-							t.Fatalf("repo.Zip(%q): %v", tt.version, err)
-						}
-						if tt.zipErr != "" {
-							t.Errorf("repo.Zip(%q): success, want error %q", tt.version, tt.zipErr)
-						}
-
-						if tt.zip != nil {
-							prefix := tt.path + "@" + tt.version + "/"
-							z, err := zip.OpenReader(zipfile)
-							if err != nil {
-								t.Fatalf("open zip %s: %v", zipfile, err)
-							}
-							var names []string
-							for _, file := range z.File {
-								if !strings.HasPrefix(file.Name, prefix) {
-									t.Errorf("zip entry %v does not start with prefix %v", file.Name, prefix)
-									continue
-								}
-								names = append(names, file.Name[len(prefix):])
-							}
-							z.Close()
-							if !reflect.DeepEqual(names, tt.zip) {
-								t.Fatalf("zip = %v\nwant %v\n", names, tt.zip)
-							}
-						}
-
-						if needHash {
-							sum, err := dirhash.HashZip(zipfile, dirhash.Hash1)
-							if err != nil {
-								t.Errorf("repo.Zip(%q): %v", tt.version, err)
-							} else if sum != tt.zipSum {
-								t.Errorf("repo.Zip(%q): got file with sum %q, want %q", tt.version, sum, tt.zipSum)
-							} else if zipFileHash := hex.EncodeToString(h.Sum(nil)); zipFileHash != tt.zipFileHash {
-								t.Errorf("repo.Zip(%q): got file with hash %q, want %q (but content has correct sum)", tt.version, zipFileHash, tt.zipFileHash)
-							}
-						}
+					} else if tt.gomodErr != "" {
+						t.Errorf("repo.GoMod(%q) = %q, want error %q", tt.version, data, tt.gomodErr)
+					} else if string(data) != tt.gomod {
+						t.Errorf("repo.GoMod(%q) = %q, want %q", tt.version, data, tt.gomod)
 					}
 				}
-			}
-			t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f(tt))
-			if strings.HasPrefix(tt.path, vgotest1git) {
-				for vcs, alt := range altVgotests {
-					altTest := tt
-					altTest.vcs = vcs
-					altTest.path = alt + strings.TrimPrefix(altTest.path, vgotest1git)
-					if strings.HasPrefix(altTest.mpath, vgotest1git) {
-						altTest.mpath = alt + strings.TrimPrefix(altTest.mpath, vgotest1git)
+
+				needHash := !testing.Short() && (tt.zipFileHash != "" || tt.zipSum != "")
+				if tt.zip != nil || tt.zipErr != "" || needHash {
+					f, err := os.CreateTemp(tmpdir, tt.version+".zip.")
+					if err != nil {
+						t.Fatalf("os.CreateTemp: %v", err)
 					}
-					var m map[string]string
-					if alt == vgotest1hg {
-						m = hgmap
+					zipfile := f.Name()
+					defer func() {
+						f.Close()
+						os.Remove(zipfile)
+					}()
+
+					var w io.Writer
+					var h hash.Hash
+					if needHash {
+						h = sha256.New()
+						w = io.MultiWriter(f, h)
+					} else {
+						w = f
 					}
-					altTest.version = remap(altTest.version, m)
-					altTest.name = remap(altTest.name, m)
-					altTest.short = remap(altTest.short, m)
-					altTest.rev = remap(altTest.rev, m)
-					altTest.err = remap(altTest.err, m)
-					altTest.gomodErr = remap(altTest.gomodErr, m)
-					altTest.zipErr = remap(altTest.zipErr, m)
-					altTest.zipSum = ""
-					altTest.zipFileHash = ""
-					t.Run(strings.ReplaceAll(altTest.path, "/", "_")+"/"+altTest.rev, f(altTest))
+					err = repo.Zip(w, tt.version)
+					f.Close()
+					if err != nil {
+						if tt.zipErr != "" {
+							if err.Error() == tt.zipErr {
+								return
+							}
+							t.Fatalf("repo.Zip(%q): %v, want error %q", tt.version, err, tt.zipErr)
+						}
+						t.Fatalf("repo.Zip(%q): %v", tt.version, err)
+					}
+					if tt.zipErr != "" {
+						t.Errorf("repo.Zip(%q): success, want error %q", tt.version, tt.zipErr)
+					}
+
+					if tt.zip != nil {
+						prefix := tt.path + "@" + tt.version + "/"
+						z, err := zip.OpenReader(zipfile)
+						if err != nil {
+							t.Fatalf("open zip %s: %v", zipfile, err)
+						}
+						var names []string
+						for _, file := range z.File {
+							if !strings.HasPrefix(file.Name, prefix) {
+								t.Errorf("zip entry %v does not start with prefix %v", file.Name, prefix)
+								continue
+							}
+							names = append(names, file.Name[len(prefix):])
+						}
+						z.Close()
+						if !reflect.DeepEqual(names, tt.zip) {
+							t.Fatalf("zip = %v\nwant %v\n", names, tt.zip)
+						}
+					}
+
+					if needHash {
+						sum, err := dirhash.HashZip(zipfile, dirhash.Hash1)
+						if err != nil {
+							t.Errorf("repo.Zip(%q): %v", tt.version, err)
+						} else if sum != tt.zipSum {
+							t.Errorf("repo.Zip(%q): got file with sum %q, want %q", tt.version, sum, tt.zipSum)
+						} else if zipFileHash := hex.EncodeToString(h.Sum(nil)); zipFileHash != tt.zipFileHash {
+							t.Errorf("repo.Zip(%q): got file with hash %q, want %q (but content has correct sum)", tt.version, zipFileHash, tt.zipFileHash)
+						}
+					}
 				}
 			}
 		}
-	})
+		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f(tt))
+		if strings.HasPrefix(tt.path, vgotest1git) {
+			for vcs, alt := range altVgotests {
+				altTest := tt
+				altTest.vcs = vcs
+				altTest.path = alt + strings.TrimPrefix(altTest.path, vgotest1git)
+				if strings.HasPrefix(altTest.mpath, vgotest1git) {
+					altTest.mpath = alt + strings.TrimPrefix(altTest.mpath, vgotest1git)
+				}
+				var m map[string]string
+				if alt == vgotest1hg {
+					m = hgmap
+				}
+				altTest.version = remap(altTest.version, m)
+				altTest.name = remap(altTest.name, m)
+				altTest.short = remap(altTest.short, m)
+				altTest.rev = remap(altTest.rev, m)
+				altTest.err = remap(altTest.err, m)
+				altTest.gomodErr = remap(altTest.gomodErr, m)
+				altTest.zipErr = remap(altTest.zipErr, m)
+				altTest.zipSum = ""
+				altTest.zipFileHash = ""
+				t.Run(strings.ReplaceAll(altTest.path, "/", "_")+"/"+altTest.rev, f(altTest))
+			}
+		}
+	}
 }
 
 var hgmap = map[string]string{
