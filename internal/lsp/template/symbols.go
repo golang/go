@@ -194,9 +194,6 @@ func (p *Parsed) findSymbols() {
 // DocumentSymbols returns a heirarchy of the symbols defined in a template file.
 // (The heirarchy is flat. SymbolInformation might be better.)
 func DocumentSymbols(snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentSymbol, error) {
-	if skipTemplates(snapshot) {
-		return nil, nil
-	}
 	buf, err := fh.Read()
 	if err != nil {
 		return nil, err

@@ -14,9 +14,6 @@ import (
 )
 
 func Highlight(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, loc protocol.Position) ([]protocol.DocumentHighlight, error) {
-	if skipTemplates(snapshot) {
-		return nil, nil
-	}
 	buf, err := fh.Read()
 	if err != nil {
 		return nil, err

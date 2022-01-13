@@ -65,18 +65,11 @@ func Diagnose(f source.VersionedFileHandle) []*source.Diagnostic {
 	return []*source.Diagnostic{&d}
 }
 
-func skipTemplates(s source.Snapshot) bool {
-	return len(s.View().Options().TemplateExtensions) == 0
-}
-
 // Definition finds the definitions of the symbol at loc. It
 // does not understand scoping (if any) in templates. This code is
 // for defintions, type definitions, and implementations.
 // Results only for variables and templates.
 func Definition(snapshot source.Snapshot, fh source.VersionedFileHandle, loc protocol.Position) ([]protocol.Location, error) {
-	if skipTemplates(snapshot) {
-		return nil, nil
-	}
 	x, _, err := symAtPosition(fh, loc)
 	if err != nil {
 		return nil, err
@@ -97,9 +90,6 @@ func Definition(snapshot source.Snapshot, fh source.VersionedFileHandle, loc pro
 }
 
 func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, position protocol.Position) (*protocol.Hover, error) {
-	if skipTemplates(snapshot) {
-		return nil, nil
-	}
 	sym, p, err := symAtPosition(fh, position)
 	if sym == nil || err != nil {
 		return nil, err
@@ -131,9 +121,6 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 }
 
 func References(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, params *protocol.ReferenceParams) ([]protocol.Location, error) {
-	if skipTemplates(snapshot) {
-		return nil, nil
-	}
 	sym, _, err := symAtPosition(fh, params.Position)
 	if sym == nil || err != nil || sym.name == "" {
 		return nil, err
@@ -157,9 +144,6 @@ func References(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 }
 
 func SemanticTokens(ctx context.Context, snapshot source.Snapshot, spn span.URI, add func(line, start, len uint32), d func() []uint32) (*protocol.SemanticTokens, error) {
-	if skipTemplates(snapshot) {
-		return nil, nil
-	}
 	fh, err := snapshot.GetFile(ctx, spn)
 	if err != nil {
 		return nil, err
