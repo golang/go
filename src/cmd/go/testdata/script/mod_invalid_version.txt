@@ -194,10 +194,10 @@ cp go.mod.orig go.mod
 go mod edit -require github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d+incompatible
 cd outside
 ! go list -m github.com/pierrec/lz4
-stderr 'go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr '^go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 cd ..
 ! go list -m github.com/pierrec/lz4
-stderr 'github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr '^go: github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 
 # A +incompatible pseudo-version is valid for a revision of the module
 # that lacks a go.mod file.
@@ -222,7 +222,7 @@ stdout 'github.com/pierrec/lz4 v2.0.5\+incompatible'
 # not resolve to a pseudo-version with a different major version.
 cp go.mod.orig go.mod
 ! go get github.com/pierrec/lz4@v2.0.8
-stderr 'go: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so major version must be compatible: should be v0 or v1, not v2'
+stderr 'go: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 
 # An invalid +incompatible suffix for a canonical version should error out,
 # not resolve to a pseudo-version.
@@ -233,10 +233,10 @@ cp go.mod.orig go.mod
 go mod edit -require github.com/pierrec/lz4@v2.0.8+incompatible
 cd outside
 ! go list -m github.com/pierrec/lz4
-stderr 'github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr '^go: github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 cd ..
 ! go list -m github.com/pierrec/lz4
-stderr 'github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr '^go: github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 
 -- go.mod.orig --
 module example.com
