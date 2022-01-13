@@ -293,6 +293,14 @@ func (b *batch) finish(fns []*ir.Func) {
 		// TODO(mdempsky): Update tests to expect this.
 		goDeferWrapper := n.Op() == ir.OCLOSURE && n.(*ir.ClosureExpr).Func.Wrapper()
 
+		if n.Op() == ir.OCONVIDATA && n.(*ir.ConvExpr).NonEscaping {
+			// The allocation for the data word of an interface is known to not escape.
+			// See issue 50182.
+			// (But we do still need to process that allocation, as pointers inside
+			// the data word may escape.)
+			loc.escapes = false
+		}
+
 		if loc.escapes {
 			if n.Op() == ir.ONAME {
 				if base.Flag.CompilingRuntime {
