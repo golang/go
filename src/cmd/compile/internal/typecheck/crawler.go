@@ -252,6 +252,7 @@ func (p *crawler) checkForFullyInst(t *types.Type) {
 			if HaveInlineBody(methNode.Func) {
 				// Export the body as well if
 				// instantiation is inlineable.
+				ImportedBody(methNode.Func)
 				methNode.Func.SetExportInline(true)
 			}
 		}
