@@ -159,32 +159,16 @@ func (s *snapshot) ModFiles() []span.URI {
 }
 
 func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
-	opts := s.view.Options().TemplateExtensions
-	if len(opts) == 0 {
-		return nil
-	}
-
-	ans := map[span.URI]source.VersionedFileHandle{}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	isin := func(s string, a []string) bool {
-		for _, x := range a {
-			if x == s || "."+x == s {
-				return true
-			}
-		}
-		return false
-	}
-
-	for k, x := range s.files {
-		suffix := filepath.Ext(k.Filename())
-		if isin(suffix, opts) {
-			ans[k] = x
+	tmpls := map[span.URI]source.VersionedFileHandle{}
+	for k, fh := range s.files {
+		if s.view.FileKind(fh) == source.Tmpl {
+			tmpls[k] = fh
 		}
 	}
-	return ans
+	return tmpls
 }
 
 func (s *snapshot) ValidBuildConfiguration() bool {
