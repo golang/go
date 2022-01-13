@@ -161,21 +161,27 @@ func posToMappedRange(snapshot Snapshot, pkg Package, pos, end token.Pos) (Mappe
 //	https://golang.org/s/generatedcode
 var generatedRx = regexp.MustCompile(`// .*DO NOT EDIT\.?`)
 
+// FileKindForLang returns the file kind associated with the given language ID,
+// or UnknownKind if the language ID is not recognized.
+func FileKindForLang(langID string) FileKind {
+	switch langID {
+	case "go":
+		return Go
+	case "go.mod":
+		return Mod
+	case "go.sum":
+		return Sum
+	case "tmpl", "gotmpl":
+		return Tmpl
+	default:
+		return UnknownKind
+	}
+}
+
 func DetectLanguage(langID, filename string) FileKind {
 	// use the langID if the client sent it
-	if langID != "" {
-		switch langID {
-		case "go":
-			return Go
-		case "go.mod":
-			return Mod
-		case "go.sum":
-			return Sum
-		case "tmpl", "gotmpl":
-			return Tmpl
-		default:
-			return UnknownKind
-		}
+	if kind := FileKindForLang(langID); kind != UnknownKind {
+		return kind
 	}
 	// Detect the language based on the file extension.
 	switch ext := filepath.Ext(filename); ext {

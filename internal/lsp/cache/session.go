@@ -616,15 +616,12 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 		var kind source.FileKind
 		switch c.Action {
 		case source.Open:
-			kind = source.DetectLanguage(c.LanguageID, c.URI.Filename())
+			kind = source.FileKindForLang(c.LanguageID)
 		default:
 			if !ok {
 				return nil, errors.Errorf("updateOverlays: modifying unopened overlay %v", c.URI)
 			}
 			kind = o.kind
-		}
-		if kind == source.UnknownKind {
-			return nil, errors.Errorf("updateOverlays: unknown file kind for %s", c.URI)
 		}
 
 		// Closing a file just deletes its overlay.
@@ -679,6 +676,18 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 			hash:    hash,
 			saved:   sameContentOnDisk,
 		}
+
+		// When opening files, ensure that we actually have a well-defined view and file kind.
+		if c.Action == source.Open {
+			view, err := s.ViewOf(o.uri)
+			if err != nil {
+				return nil, errors.Errorf("updateOverlays: finding view for %s: %v", o.uri, err)
+			}
+			if kind := view.FileKind(o); kind == source.UnknownKind {
+				return nil, errors.Errorf("updateOverlays: unknown file kind for %s", o.uri)
+			}
+		}
+
 		s.overlays[c.URI] = o
 	}
 

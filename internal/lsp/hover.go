@@ -19,7 +19,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.HoverParams) (*prot
 	if !ok {
 		return nil, err
 	}
-	switch snapshot.View().FileKind(fh.URI()) {
+	switch snapshot.View().FileKind(fh) {
 	case source.Mod:
 		return mod.Hover(ctx, snapshot, fh, params.Position)
 	case source.Go:

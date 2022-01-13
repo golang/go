@@ -24,7 +24,7 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 		return []interface{}{}, err
 	}
 	var docSymbols []protocol.DocumentSymbol
-	if snapshot.View().FileKind(fh.URI()) == source.Tmpl {
+	if snapshot.View().FileKind(fh) == source.Tmpl {
 		docSymbols, err = template.DocumentSymbols(snapshot, fh)
 	} else {
 		docSymbols, err = source.DocumentSymbols(ctx, snapshot, fh)

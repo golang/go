@@ -416,7 +416,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 // If they cannot and the workspace is not otherwise unloaded, it also surfaces
 // a warning, suggesting that the user check the file for build tags.
 func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle) *source.Diagnostic {
-	if snapshot.View().FileKind(fh.URI()) != source.Go {
+	if snapshot.View().FileKind(fh) != source.Go {
 		return nil
 	}
 	// builtin files won't have a package, but they are never orphaned.

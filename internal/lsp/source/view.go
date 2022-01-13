@@ -268,7 +268,7 @@ type View interface {
 	RegisterModuleUpgrades(upgrades map[string]string)
 
 	// FileKind returns the type of a file
-	FileKind(uri span.URI) FileKind
+	FileKind(FileHandle) FileKind
 }
 
 // A FileSource maps uris to FileHandles. This abstraction exists both for
@@ -380,6 +380,7 @@ var ErrViewExists = errors.New("view already exists for session")
 
 // Overlay is the type for a file held in memory on a session.
 type Overlay interface {
+	Kind() FileKind
 	VersionedFileHandle
 }
 

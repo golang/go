@@ -527,7 +527,7 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	if err != nil {
 		return nil, err
 	}
-	if kind := s.view.FileKind(fh.FileIdentity().URI); kind != source.Go {
+	if kind := s.view.FileKind(fh); kind != source.Go {
 		return nil, fmt.Errorf("no packages for non-Go file %s (%v)", uri, kind)
 	}
 	knownIDs, err := s.getOrLoadIDsForURI(ctx, uri)
@@ -1585,7 +1585,7 @@ func (s *snapshot) orphanedFiles() []source.VersionedFileHandle {
 	var files []source.VersionedFileHandle
 	for uri, fh := range s.files {
 		// Don't try to reload metadata for go.mod files.
-		if s.view.FileKind(uri) != source.Go {
+		if s.view.FileKind(fh) != source.Go {
 			continue
 		}
 		// If the URI doesn't belong to this view, then it's not in a workspace

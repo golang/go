@@ -30,7 +30,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	uri := fh.URI()
 
 	// Determine the supported actions for this file kind.
-	kind := snapshot.View().FileKind(uri)
+	kind := snapshot.View().FileKind(fh)
 	supportedCodeActions, ok := snapshot.View().Options().SupportedCodeActions[kind]
 	if !ok {
 		return nil, fmt.Errorf("no supported code actions for %v file kind", kind)

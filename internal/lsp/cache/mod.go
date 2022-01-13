@@ -164,7 +164,7 @@ func (mwh *modWhyHandle) why(ctx context.Context, snapshot *snapshot) (map[strin
 }
 
 func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
-	if s.View().FileKind(fh.URI()) != source.Mod {
+	if s.View().FileKind(fh) != source.Mod {
 		return nil, fmt.Errorf("%s is not a go.mod file", fh.URI())
 	}
 	if handle := s.getModWhyHandle(fh.URI()); handle != nil {

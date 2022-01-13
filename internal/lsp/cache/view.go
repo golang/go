@@ -241,9 +241,14 @@ func (v *View) Options() *source.Options {
 	return v.options
 }
 
-func (v *View) FileKind(URI span.URI) source.FileKind {
-	got := filepath.Ext(URI.Filename())
-	switch got {
+func (v *View) FileKind(fh source.FileHandle) source.FileKind {
+	if o, ok := fh.(source.Overlay); ok {
+		if o.Kind() != source.UnknownKind {
+			return o.Kind()
+		}
+	}
+	fext := filepath.Ext(fh.URI().Filename())
+	switch fext {
 	case ".go":
 		return source.Go
 	case ".mod":
@@ -253,7 +258,7 @@ func (v *View) FileKind(URI span.URI) source.FileKind {
 	}
 	exts := v.Options().TemplateExtensions
 	for _, ext := range exts {
-		if got == ext || got == "."+ext {
+		if fext == ext || fext == "."+ext {
 			return source.Tmpl
 		}
 	}

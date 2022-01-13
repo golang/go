@@ -23,7 +23,7 @@ func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) 
 		return nil, err
 	}
 	var lenses map[command.Command]source.LensFunc
-	switch snapshot.View().FileKind(fh.URI()) {
+	switch snapshot.View().FileKind(fh) {
 	case source.Mod:
 		lenses = mod.LensFuncs()
 	case source.Go:
