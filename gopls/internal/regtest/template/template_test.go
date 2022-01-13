@@ -43,6 +43,33 @@ Hello {{}} <-- missing body
 	})
 }
 
+func TestTemplatesObserveDirectoryFilters(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- a/a.tmpl --
+A {{}} <-- missing body
+-- b/b.tmpl --
+B {{}} <-- missing body
+`
+
+	WithOptions(
+		EditorConfig{
+			Settings: map[string]interface{}{
+				"templateExtensions": []string{"tmpl"},
+			},
+			DirectoryFilters: []string{"-b"},
+		},
+	).Run(t, files, func(t *testing.T, env *Env) {
+		env.Await(
+			OnceMet(env.DiagnosticAtRegexp("a/a.tmpl", "()A")),
+			NoDiagnostics("b/b.tmpl"),
+		)
+	})
+}
+
 func TestTemplatesFromLangID(t *testing.T) {
 	const files = `
 -- go.mod --
