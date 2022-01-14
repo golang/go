@@ -993,7 +993,12 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 	}
 
 	if sect.Vaddr < sect.Seg.Vaddr+sect.Seg.Filelen {
-		sh.Type = uint32(elf.SHT_PROGBITS)
+		switch sect.Name {
+		case ".init_array":
+			sh.Type = uint32(elf.SHT_INIT_ARRAY)
+		default:
+			sh.Type = uint32(elf.SHT_PROGBITS)
+		}
 	} else {
 		sh.Type = uint32(elf.SHT_NOBITS)
 	}
