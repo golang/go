@@ -2292,7 +2292,7 @@ func (p *Package) setBuildInfo() {
 	// Add command-line flags relevant to the build.
 	// This is informational, not an exhaustive list.
 	// Please keep the list sorted.
-	if cfg.BuildBuildinfo && !p.Standard {
+	if !p.Standard {
 		if cfg.BuildASan {
 			appendSetting("-asan", "true")
 		}
