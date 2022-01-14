@@ -34,9 +34,9 @@ exec git log
 # Verify commit signature does not interfere with versioning
 go install
 go version -m $GOBIN/a
-stdout '^\tbuild\tgitrevision\t'
-stdout '^\tbuild\tgitcommittime\t'
-stdout '^\tbuild\tgituncommitted\tfalse$'
+stdout '^\tbuild\tvcs\.revision='
+stdout '^\tbuild\tvcs\.time='
+stdout '^\tbuild\tvcs\.modified=false$'
 
 -- repo/README --
 Far out in the uncharted backwaters of the unfashionable end of the western
