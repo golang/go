@@ -218,15 +218,6 @@ func (t *tester) run() {
 		}
 	}
 
-	if err := t.maybeLogMetadata(); err != nil {
-		t.failed = true
-		if t.keepGoing {
-			log.Printf("Failed logging metadata: %v", err)
-		} else {
-			fatalf("Failed logging metadata: %v", err)
-		}
-	}
-
 	for _, dt := range t.tests {
 		if !t.shouldRunTest(dt.name) {
 			t.partial = true
@@ -275,16 +266,6 @@ func (t *tester) shouldRunTest(name string) bool {
 		}
 	}
 	return false
-}
-
-func (t *tester) maybeLogMetadata() error {
-	if t.compileOnly {
-		// We need to run a subprocess to log metadata. Don't do that
-		// on compile-only runs.
-		return nil
-	}
-	t.out("Test execution environment.")
-	return logMetadata()
 }
 
 // short returns a -short flag value to use with 'go test'
