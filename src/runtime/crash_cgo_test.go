@@ -622,17 +622,19 @@ func TestSegv(t *testing.T) {
 			// No runtime errors like "runtime: unknown pc".
 			switch runtime.GOOS {
 			case "darwin", "illumos", "solaris":
-				// TODO(golang.org/issue/49182): Skip, runtime
-				// throws while attempting to generate
-				// traceback.
-				return
+				// Runtime sometimes throws when generating the traceback.
+				testenv.SkipFlaky(t, 49182)
 			case "linux":
 				if runtime.GOARCH == "386" {
-					// TODO(golang.org/issue/50504): Skip,
-					// runtime throws while attempting to
-					// generate traceback from VDSO call
-					// via asmcgocall.
-					return
+					// Runtime throws when generating a traceback from
+					// a VDSO call via asmcgocall.
+					testenv.SkipFlaky(t, 50504)
+				}
+				if testenv.Builder() == "linux-mips64le-mengzhuo" && strings.Contains(got, "runtime: unknown pc") {
+					// Runtime sometimes throw "unknown pc" when generating the traceback.
+					// Curiously, that doesn't seem to happen on the linux-mips64le-rtrk
+					// builder.
+					testenv.SkipFlaky(t, 50605)
 				}
 			}
 			nowant := "runtime: "
