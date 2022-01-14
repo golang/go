@@ -300,6 +300,16 @@ Do not send CLs removing the interior tags from such phrases.
   option <code>-fsanitize=address</code>).
 </p>
 
+<p><!-- https://golang.org/issue/47738 -->
+  The <code>go</code> <code>mod</code> <code>tidy</code> command now retains
+  additional checksums in the <code>go.sum</code> file for modules whose source
+  code is needed to verify that each imported package is provided by only one
+  module in the <a href="/ref/mod#glos-build-list">build list</a>. Because this
+  condition is rare and failure to apply it results in a build error, this
+  change is <em>not</em> conditioned on the <code>go</code> version in the main
+  module's <code>go.mod</code> file.
+</p>
+
 <p><!-- https://golang.org/issue/45713 -->
   The <code>go</code> command now supports a "Workspace" mode. If a
   <code>go.work</code> file is found in the working directory or a
