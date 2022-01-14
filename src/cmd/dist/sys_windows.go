@@ -38,11 +38,11 @@ const (
 	PROCESSOR_ARCHITECTURE_IA64  = 6
 )
 
-var winsysinfo systeminfo
+var sysinfo systeminfo
 
 func sysinit() {
-	syscall.Syscall(procGetSystemInfo.Addr(), 1, uintptr(unsafe.Pointer(&winsysinfo)), 0, 0)
-	switch winsysinfo.wProcessorArchitecture {
+	syscall.Syscall(procGetSystemInfo.Addr(), 1, uintptr(unsafe.Pointer(&sysinfo)), 0, 0)
+	switch sysinfo.wProcessorArchitecture {
 	case PROCESSOR_ARCHITECTURE_AMD64:
 		gohostarch = "amd64"
 	case PROCESSOR_ARCHITECTURE_INTEL:
