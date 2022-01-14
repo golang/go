@@ -33,6 +33,24 @@ type RegArgs struct {
 	ReturnIsPtr IntArgRegBitmap
 }
 
+func (r *RegArgs) Dump() {
+	print("Ints:")
+	for _, x := range r.Ints {
+		print(" ", x)
+	}
+	println()
+	print("Floats:")
+	for _, x := range r.Floats {
+		print(" ", x)
+	}
+	println()
+	print("Ptrs:")
+	for _, x := range r.Ptrs {
+		print(" ", x)
+	}
+	println()
+}
+
 // IntArgRegBitmap is a bitmap large enough to hold one bit per
 // integer argument/return register.
 type IntArgRegBitmap [(IntArgRegs + 7) / 8]uint8
