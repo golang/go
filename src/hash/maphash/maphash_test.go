@@ -218,87 +218,18 @@ func benchmarkSize(b *testing.B, size int) {
 	}
 }
 
-func benchmarkChunked(b *testing.B, size int, chunk int) {
-	h := &Hash{}
-	buf := make([]byte, size)
-	b.SetBytes(int64(size))
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		h.Reset()
-
-		start := 0
-
-		// Write and sum based on the chunk size
-		for end := chunk; end < size; end += chunk {
-			h.Write(buf[start:end])
-			h.Sum64()
-
-			start = end
-		}
-
-		// Write the remainder of the buffer
-		h.Write(buf[start:])
-		h.Sum64()
-	}
-}
-
-func benchmarkRepeat(b *testing.B, size int, times int) {
-	h := &Hash{}
-	buf := make([]byte, size)
-	b.SetBytes(int64(size))
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		h.Reset()
-		h.Write(buf)
-
-		for i := 0; i < times; i += 1 {
-			h.Sum64()
-		}
-	}
-}
-
 func BenchmarkHash8Bytes(b *testing.B) {
 	benchmarkSize(b, 8)
-}
-
-func BenchmarkHash8BytesRepeat(b *testing.B) {
-	benchmarkRepeat(b, 8, 8)
 }
 
 func BenchmarkHash320Bytes(b *testing.B) {
 	benchmarkSize(b, 320)
 }
 
-func BenchmarkHash320BytesRepeat(b *testing.B) {
-	benchmarkRepeat(b, 320, 8)
-}
-
-func BenchmarkHash320BytesChunked(b *testing.B) {
-	benchmarkChunked(b, 320, 100)
-}
-
 func BenchmarkHash1K(b *testing.B) {
 	benchmarkSize(b, 1024)
 }
 
-func BenchmarkHash1KRepeat(b *testing.B) {
-	benchmarkRepeat(b, 1024, 8)
-}
-
-func BenchmarkHash1KChunked(b *testing.B) {
-	benchmarkChunked(b, 1024, 100)
-}
-
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192)
-}
-
-func BenchmarkHash8KRepeat(b *testing.B) {
-	benchmarkRepeat(b, 8192, 8)
-}
-
-func BenchmarkHash8KChunked(b *testing.B) {
-	benchmarkChunked(b, 8192, 100)
 }
