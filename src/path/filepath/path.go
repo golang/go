@@ -462,11 +462,12 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 //
 // WalkDir does not follow symbolic links.
 func WalkDir(root string, fn fs.WalkDirFunc) error {
-	info, err := os.Lstat(root)
+	cleanRootPath := Clean(root)
+	info, err := os.Lstat(cleanRootPath)
 	if err != nil {
-		err = fn(root, nil, err)
+		err = fn(cleanRootPath, nil, err)
 	} else {
-		err = walkDir(root, &statDirEntry{info}, fn)
+		err = walkDir(cleanRootPath, &statDirEntry{info}, fn)
 	}
 	if err == SkipDir {
 		return nil
@@ -498,11 +499,12 @@ func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
 // Walk is less efficient than WalkDir, introduced in Go 1.16,
 // which avoids calling os.Lstat on every visited file or directory.
 func Walk(root string, fn WalkFunc) error {
-	info, err := os.Lstat(root)
+	cleanRootPath := Clean(root)
+	info, err := os.Lstat(cleanRootPath)
 	if err != nil {
-		err = fn(root, nil, err)
+		err = fn(cleanRootPath, nil, err)
 	} else {
-		err = walk(root, info, fn)
+		err = walk(cleanRootPath, info, fn)
 	}
 	if err == SkipDir {
 		return nil
