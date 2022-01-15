@@ -37,7 +37,7 @@ func main7() { var _ foo7 = x7[int]{} }
 // func main8() {}
 
 // crash 9
-type foo9 /* ERROR illegal cycle */ [A any] interface { foo9[A] }
+type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
 func _() { var _ = new(foo9[int]) }
 
 // crash 12
