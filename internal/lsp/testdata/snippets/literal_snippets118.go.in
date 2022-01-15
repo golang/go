@@ -1,0 +1,14 @@
+// +build go1.18
+//go:build go1.18
+
+package snippets
+
+type Tree[T any] struct{}
+
+func (tree Tree[T]) Do(f func(s T)) {}
+
+func _() {
+    _ = "func(...) {}" //@item(litFunc, "func(...) {}", "", "var")
+	var t Tree[string]
+	t.Do(fun) //@complete(")", litFunc),snippet(")", litFunc, "func(s string) {$0\\}", "func(s string) {$0\\}")
+}
