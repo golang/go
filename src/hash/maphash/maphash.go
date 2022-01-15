@@ -181,11 +181,8 @@ func (h *Hash) Reset() {
 	h.n = 0
 }
 
-// precondition: buffer is full.
+// Updates the sum with the contents of the buffer.
 func (h *Hash) flush() {
-	if h.n != len(h.buf) {
-		panic("maphash: flush of partially full buffer")
-	}
 	h.initSeed()
 	h.state.s = rthash(&h.buf[0], h.n, h.state.s)
 	h.n = 0
@@ -199,8 +196,8 @@ func (h *Hash) flush() {
 // independently distributed, so it can be safely reduced
 // by using bit masking, shifting, or modular arithmetic.
 func (h *Hash) Sum64() uint64 {
-	h.initSeed()
-	return rthash(&h.buf[0], h.n, h.state.s)
+	h.flush()
+	return h.state.s
 }
 
 // MakeSeed returns a new random seed.
