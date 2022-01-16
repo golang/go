@@ -23,6 +23,10 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+const(
+	DefaultGoVersion = ""
+)
+
 // capVersionSlice returns s with its cap reduced to its length.
 func capVersionSlice(s []module.Version) []module.Version {
 	return s[:len(s):len(s)]
@@ -518,7 +522,7 @@ func (mg *ModuleGraph) allRootsSelected() bool {
 func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
 	rs := LoadModFile(ctx)
 
-	if goVersion != "" {
+	if goVersion != DefaultGoVersion {
 		pruning := pruningForGoVersion(goVersion)
 		if pruning == unpruned && rs.pruning != unpruned {
 			// Use newRequirements instead of convertDepth because convertDepth

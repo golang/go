@@ -458,8 +458,7 @@ type versionReason struct {
 func newResolver(ctx context.Context, queries []*query) *resolver {
 	// LoadModGraph also sets modload.Target, which is needed by various resolver
 	// methods.
-	const defaultGoVersion = ""
-	mg := modload.LoadModGraph(ctx, defaultGoVersion)
+	mg := modload.LoadModGraph(ctx, modload.DefaultGoVersion)
 
 	buildList := mg.BuildList()
 	initialVersion := make(map[string]string, len(buildList))
@@ -1770,8 +1769,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		return false
 	}
 
-	const defaultGoVersion = ""
-	r.buildList = modload.LoadModGraph(ctx, defaultGoVersion).BuildList()
+	r.buildList = modload.LoadModGraph(ctx, modload.DefaultGoVersion).BuildList()
 	r.buildListVersion = make(map[string]string, len(r.buildList))
 	for _, m := range r.buildList {
 		r.buildListVersion[m.Path] = m.Version
