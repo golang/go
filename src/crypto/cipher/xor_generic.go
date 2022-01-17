@@ -63,7 +63,22 @@ func fastXORBytes(dst, a, b []byte, n int) {
 
 // n needs to be smaller or equal than the length of a and b.
 func safeXORBytes(dst, a, b []byte, n int) {
-	for i := 0; i < n; i++ {
+	// Load multiple bytes so the compiler can recognize
+	// and optimize them into single multi-byte loads
+	w := n / 8
+	for i := 0; i < w; i++ {
+		offset := i * 8
+		first32 := uint32(a[offset]) | uint32(a[offset+1])<<8 | uint32(a[offset+2])<<16 | uint32(a[offset+3])<<24
+		first32 ^= uint32(b[offset]) | uint32(b[offset+1])<<8 | uint32(b[offset+2])<<16 | uint32(b[offset+3])<<24
+		second32 := uint32(a[offset+4]) | uint32(a[offset+5])<<8 | uint32(a[offset+6])<<16 | uint32(a[offset+7])<<24
+		second32 ^= uint32(b[offset+4]) | uint32(b[offset+5])<<8 | uint32(b[offset+6])<<16 | uint32(b[offset+7])<<24
+		for j := 0; j < 4; j++ {
+			dst[offset+j] = byte(first32 >> (j * 8))
+			dst[offset+j+4] = byte(second32 >> (j * 8))
+		}
+	}
+
+	for i := w * 8; i < n; i++ {
 		dst[i] = a[i] ^ b[i]
 	}
 }
