@@ -919,7 +919,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       const bb = strKind(n.types[1]);
       const cc = strKind(n.types[2]);
       if (nm === 'workspace/symbol') return `${goType(n.types[0], '930')} ${help}`;
-      if (nm == 'DocumentFilter') {
+      if (nm == 'DocumentFilter' || nm == 'NotebookDocumentFilter' || nm == 'TextDocumentFilter') {
         // not really a union. the first is enough, up to a missing
         // omitempty but avoid repetitious comments
         return `${goType(n.types[0], 'g')}`;

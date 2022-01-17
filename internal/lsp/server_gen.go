@@ -60,6 +60,10 @@ func (s *Server) DidChangeConfiguration(ctx context.Context, _gen *protocol.DidC
 	return s.didChangeConfiguration(ctx, _gen)
 }
 
+func (s *Server) DidChangeNotebookDocument(context.Context, *protocol.DidChangeNotebookDocumentParams) error {
+	return notImplemented("DidChangeNotebookDocument")
+}
+
 func (s *Server) DidChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
 	return s.didChangeWatchedFiles(ctx, params)
 }
@@ -72,6 +76,10 @@ func (s *Server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	return s.didClose(ctx, params)
 }
 
+func (s *Server) DidCloseNotebookDocument(context.Context, *protocol.DidCloseNotebookDocumentParams) error {
+	return notImplemented("DidCloseNotebookDocument")
+}
+
 func (s *Server) DidCreateFiles(context.Context, *protocol.CreateFilesParams) error {
 	return notImplemented("DidCreateFiles")
 }
@@ -82,6 +90,10 @@ func (s *Server) DidDeleteFiles(context.Context, *protocol.DeleteFilesParams) er
 
 func (s *Server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
 	return s.didOpen(ctx, params)
+}
+
+func (s *Server) DidOpenNotebookDocument(context.Context, *protocol.DidOpenNotebookDocumentParams) error {
+	return notImplemented("DidOpenNotebookDocument")
 }
 
 func (s *Server) DidRenameFiles(context.Context, *protocol.RenameFilesParams) error {

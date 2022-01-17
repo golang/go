@@ -6,8 +6,8 @@ package protocol
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: d959faf4be476a6e0a08d5612e91fcac14ff9929
-// last fetched Mon Nov 29 2021 15:51:05 GMT-0500 (Eastern Standard Time)
+// commit: f17727af04704c0e2ede73dfdbeb463156e94561
+// last fetched Mon Jan 17 2022 11:52:52 GMT-0500 (Eastern Standard Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -34,6 +34,9 @@ type Server interface {
 	DidSave(context.Context, *DidSaveTextDocumentParams) error
 	WillSave(context.Context, *WillSaveTextDocumentParams) error
 	DidChangeWatchedFiles(context.Context, *DidChangeWatchedFilesParams) error
+	DidOpenNotebookDocument(context.Context, *DidOpenNotebookDocumentParams) error
+	DidChangeNotebookDocument(context.Context, *DidChangeNotebookDocumentParams) error
+	DidCloseNotebookDocument(context.Context, *DidCloseNotebookDocumentParams) error
 	SetTrace(context.Context, *SetTraceParams) error
 	LogTrace(context.Context, *LogTraceParams) error
 	Implementation(context.Context, *ImplementationParams) (Definition /*Definition | DefinitionLink[] | null*/, error)
@@ -187,6 +190,27 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 			return true, sendParseError(ctx, reply, err)
 		}
 		err := server.DidChangeWatchedFiles(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "notebookDocument/didOpen": // notif
+		var params DidOpenNotebookDocumentParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := server.DidOpenNotebookDocument(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "notebookDocument/didChange": // notif
+		var params DidChangeNotebookDocumentParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := server.DidChangeNotebookDocument(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "notebookDocument/didClose": // notif
+		var params DidCloseNotebookDocumentParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := server.DidCloseNotebookDocument(ctx, &params)
 		return true, reply(ctx, nil, err)
 	case "$/setTrace": // notif
 		var params SetTraceParams
@@ -630,6 +654,18 @@ func (s *serverDispatcher) WillSave(ctx context.Context, params *WillSaveTextDoc
 
 func (s *serverDispatcher) DidChangeWatchedFiles(ctx context.Context, params *DidChangeWatchedFilesParams) error {
 	return s.sender.Notify(ctx, "workspace/didChangeWatchedFiles", params)
+}
+
+func (s *serverDispatcher) DidOpenNotebookDocument(ctx context.Context, params *DidOpenNotebookDocumentParams) error {
+	return s.sender.Notify(ctx, "notebookDocument/didOpen", params)
+}
+
+func (s *serverDispatcher) DidChangeNotebookDocument(ctx context.Context, params *DidChangeNotebookDocumentParams) error {
+	return s.sender.Notify(ctx, "notebookDocument/didChange", params)
+}
+
+func (s *serverDispatcher) DidCloseNotebookDocument(ctx context.Context, params *DidCloseNotebookDocumentParams) error {
+	return s.sender.Notify(ctx, "notebookDocument/didClose", params)
 }
 
 func (s *serverDispatcher) SetTrace(ctx context.Context, params *SetTraceParams) error {

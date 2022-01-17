@@ -4,8 +4,8 @@
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: d959faf4be476a6e0a08d5612e91fcac14ff9929
-// last fetched Wed Dec 01 2021 09:27:34 GMT-0500 (Eastern Standard Time)
+// commit: f17727af04704c0e2ede73dfdbeb463156e94561
+// last fetched Mon Jan 17 2022 11:52:52 GMT-0500 (Eastern Standard Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -1478,6 +1478,30 @@ type DidChangeConfigurationParams struct {
 	Settings LSPAny `json:"settings"`
 }
 
+type DidChangeNotebookDocumentParams struct {
+	/**
+	 * The notebook document that did change. The version number points
+	 * to the version after all provided changes have been applied.
+	 */
+	NotebookDocument VersionedNotebookDocumentIdentifier `json:"notebookDocument"`
+	/**
+	 * The actual changes to the notebook document.
+	 *
+	 * The changes describe single state changes to the notebook document.
+	 * So if there are two changes c1 (at array index 0) and c2 (at array
+	 * index 1) for a notebook in state S then c1 moves the notebook from
+	 * S to S' and c2 from S' to S''. So c1 is computed on the state S and
+	 * c2 is computed on the state S'.
+	 *
+	 * To mirror the content of a notebook using change events use the following approach:
+	 * - start with the same initial content
+	 * - apply the 'notebookDocument/didChange' notifications in the order you receive them.
+	 * - apply the `NotebookChangeEvent`s in a single notification in the order
+	 *   you receive them.
+	 */
+	Changes []NotebookDocumentChangeEvent `json:"changes"`
+}
+
 /**
  * The change text document notification's parameters.
  */
@@ -1544,6 +1568,18 @@ type DidChangeWorkspaceFoldersParams struct {
 }
 
 /**
+ * The params sent in a close notebook document notification.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type DidCloseNotebookDocumentParams struct {
+	/**
+	 * The notebook document that got opened.
+	 */
+	NotebookDocument NotebookDocumentIdentifier `json:"notebookDocument"`
+}
+
+/**
  * The parameters send in a close text document notification
  */
 type DidCloseTextDocumentParams struct {
@@ -1551,6 +1587,18 @@ type DidCloseTextDocumentParams struct {
 	 * The document that was closed.
 	 */
 	TextDocument TextDocumentIdentifier `json:"textDocument"`
+}
+
+/**
+ * The params sent in a open notebook document notification.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type DidOpenNotebookDocumentParams struct {
+	/**
+	 * The notebook document that got opened.
+	 */
+	NotebookDocument NotebookDocument `json:"notebookDocument"`
 }
 
 /**
@@ -1643,29 +1691,12 @@ type DocumentDiagnosticParams struct {
 type DocumentDiagnosticReport = interface{} /*RelatedFullDocumentDiagnosticReport | RelatedUnchangedDocumentDiagnosticReport*/
 
 /**
- * A document filter denotes a document by different properties like
- * the [language](#TextDocument.languageId), the [scheme](#Uri.scheme) of
- * its resource, or a glob-pattern that is applied to the [path](#TextDocument.fileName).
+ * A document filter describes a top level text document or
+ * a notebook cell document.
  *
- * Glob patterns can have the following syntax:
- * - `*` to match one or more characters in a path segment
- * - `?` to match on one character in a path segment
- * - `**` to match any number of path segments, including none
- * - `{}` to group sub patterns into an OR expression. (e.g. `**​/*.{ts,js}` matches all TypeScript and JavaScript files)
- * - `[]` to declare a range of characters to match in a path segment (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
- * - `[!...]` to negate a range of characters to match in a path segment (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but not `example.0`)
- *
- * @sample A language filter that applies to typescript files on disk: `{ language: 'typescript', scheme: 'file' }`
- * @sample A language filter that applies to all package.json paths: `{ language: 'json', pattern: '**package.json' }`
+ * @since 3.17.0 - proposed support for NotebookCellTextDocumentFilter.
  */
-type DocumentFilter = struct {
-	/** A language id, like `typescript`. */
-	Language string `json:"language"`
-	/** A Uri [scheme](#Uri.scheme), like `file` or `untitled`. */
-	Scheme string `json:"scheme,omitempty"`
-	/** A glob pattern, like `*.{ts,js}`. */
-	Pattern string `json:"pattern,omitempty"`
-}
+type DocumentFilter = interface{} /*TextDocumentFilter | NotebookCellTextDocumentFilter*/
 
 /**
  * Client capabilities of a [DocumentFormattingRequest](#DocumentFormattingRequest).
@@ -3114,6 +3145,131 @@ type MonikerRegistrationOptions struct {
 }
 
 /**
+ * A notebook cell.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type NotebookCell struct {
+	/**
+	 * The cell's kind
+	 */
+	Kind NotebookCellKind `json:"kind"`
+	/**
+	 * The cell's text represented as a text document.
+	 * The document's content is synced using the
+	 * existing text document sync notifications.
+	 */
+	Document DocumentURI `json:"document"`
+}
+
+/**
+ * A change describing how to move a `NotebookCell`
+ * array from state S' to S''.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type NotebookCellChange struct {
+	/**
+	 * The start oftest of the cell that changed.
+	 */
+	Start uint32 `json:"start"`
+	/**
+	 * The deleted cells
+	 */
+	DeleteCount uint32 `json:"deleteCount"`
+	/**
+	 * The new cells, if any
+	 */
+	Cells []NotebookCell `json:"cells,omitempty"`
+}
+
+/**
+ * A notebook cell kind.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type NotebookCellKind float64
+
+/**
+ * A notebook cell text document filter denotes a cell text
+ * document by different properties.
+ *
+ * @since 3.17.0 - proposed state.
+ */
+type NotebookCellTextDocumentFilter = struct {
+	/**
+	 * A filter that matches against the notebook
+	 * containing the notebook cell.
+	 */
+	NotebookDocument NotebookDocumentFilter `json:"notebookDocument"`
+	/**
+	 * A language id like `python`.
+	 *
+	 * Will be matched against the language id of the
+	 * notebook cell document.
+	 */
+	CellLanguage string `json:"cellLanguage,omitempty"`
+}
+
+/**
+ * A notebook document.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type NotebookDocument struct {
+	/**
+	 * The notebook document's uri.
+	 */
+	URI URI `json:"uri"`
+	/**
+	 * The type of the notebook.
+	 */
+	NotebookType string `json:"notebookType"`
+	/**
+	 * The version number of this document (it will increase after each
+	 * change, including undo/redo).
+	 */
+	Version int32 `json:"version"`
+	/**
+	 * The cells of a notebook.
+	 */
+	Cells []NotebookCell `json:"cells"`
+}
+
+type NotebookDocumentChangeEvent struct {
+	Cells NotebookCellChange `json:"cells"`
+}
+
+/**
+ * A notebook document filter denotes a notebook document by
+ * different properties.
+ *
+ * @since 3.17.0 - proposed state.
+ */
+type NotebookDocumentFilter = struct {
+	/** The type of the enclosing notebook. */
+	NotebookType string `json:"notebookType"`
+	/** A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
+	 * Will be matched against the URI of the notebook. */
+	Scheme string `json:"scheme,omitempty"`
+	/** A glob pattern, like `*.ipynb`.
+	 * Will be matched against the notebooks` URI path section.*/
+	Pattern string `json:"pattern,omitempty"`
+}
+
+/**
+ * A literal to identify a notebook document in the client.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type NotebookDocumentIdentifier struct {
+	/**
+	 * The notebook document's uri.
+	 */
+	URI URI `json:"uri"`
+}
+
+/**
  * A text document identifier to optionally denote a specific version of a text document.
  */
 type OptionalVersionedTextDocumentIdentifier struct {
@@ -3982,7 +4138,7 @@ type ServerCapabilities struct {
 	 *
 	 * @since 3.17.0 - proposed state
 	 */
-	InlineValuesProvider interface{}/* bool | InlineValuesOptions | InlineValuesOptions | InlineValuesRegistrationOptions*/ `json:"inlineValuesProvider,omitempty"`
+	InlineValuesProvider interface{}/* bool | InlineValuesOptions | InlineValuesRegistrationOptions*/ `json:"inlineValuesProvider,omitempty"`
 	/**
 	 * Experimental server capabilities.
 	 */
@@ -4534,6 +4690,33 @@ type TextDocumentEdit struct {
 }
 
 /**
+ * A document filter denotes a document by different properties like
+ * the [language](#TextDocument.languageId), the [scheme](#Uri.scheme) of
+ * its resource, or a glob-pattern that is applied to the [path](#TextDocument.fileName).
+ *
+ * Glob patterns can have the following syntax:
+ * - `*` to match one or more characters in a path segment
+ * - `?` to match on one character in a path segment
+ * - `**` to match any number of path segments, including none
+ * - `{}` to group sub patterns into an OR expression. (e.g. `**​/*.{ts,js}` matches all TypeScript and JavaScript files)
+ * - `[]` to declare a range of characters to match in a path segment (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
+ * - `[!...]` to negate a range of characters to match in a path segment (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but not `example.0`)
+ *
+ * @sample A language filter that applies to typescript files on disk: `{ language: 'typescript', scheme: 'file' }`
+ * @sample A language filter that applies to all package.json paths: `{ language: 'json', pattern: '**package.json' }`
+ *
+ * @since 3.17.0 - proposed state.
+ */
+type TextDocumentFilter = struct {
+	/** A language id, like `typescript`. */
+	Language string `json:"language"`
+	/** A Uri [scheme](#Uri.scheme), like `file` or `untitled`. */
+	Scheme string `json:"scheme,omitempty"`
+	/** A glob pattern, like `*.{ts,js}`. */
+	Pattern string `json:"pattern,omitempty"`
+}
+
+/**
  * A literal to identify a text document in the client.
  */
 type TextDocumentIdentifier struct {
@@ -4867,6 +5050,22 @@ type Unregistration struct {
 
 type UnregistrationParams struct {
 	Unregisterations []Unregistration `json:"unregisterations"`
+}
+
+/**
+ * A versioned notebook document identifier.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type VersionedNotebookDocumentIdentifier struct {
+	/**
+	 * The version number of this notebook document.
+	 */
+	Version int32 `json:"version"`
+	/**
+	 * The notebook document's uri.
+	 */
+	URI URI `json:"uri"`
 }
 
 /**
@@ -5718,6 +5917,16 @@ const (
 	 * variable of a function, a class not visible outside the project, ...)
 	 */
 	Local MonikerKind = "local"
+	/**
+	 * A markup-cell is formatted source that is used for display.
+	 */
+
+	Markup NotebookCellKind = 1
+	/**
+	 * A code-cell is source code.
+	 */
+
+	Code NotebookCellKind = 2
 	/**
 	 * Supports creating new files and folders.
 	 */
