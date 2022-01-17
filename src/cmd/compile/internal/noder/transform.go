@@ -356,6 +356,37 @@ assignOK:
 		}
 		checkLHS(0, r.Type())
 		checkLHS(1, types.UntypedBool)
+		t := lhs[0].Type()
+		if t != nil && rhs[0].Type().HasShape() && t.IsInterface() && !types.IdenticalStrict(t, rhs[0].Type()) {
+			// This is a multi-value assignment (map, channel, or dot-type)
+			// where the main result is converted to an interface during the
+			// assignment. Normally, the needed CONVIFACE is not created
+			// until (*orderState).as2ok(), because the AS2* ops and their
+			// sub-ops are so tightly intertwined. But we need to create the
+			// CONVIFACE now to enable dictionary lookups. So, assign the
+			// results first to temps, so that we can manifest the CONVIFACE
+			// in assigning the first temp to lhs[0]. If we added the
+			// CONVIFACE into rhs[0] directly, we would break a lot of later
+			// code that depends on the tight coupling between the AS2* ops
+			// and their sub-ops. (Issue #50642).
+			v := typecheck.Temp(rhs[0].Type())
+			ok := typecheck.Temp(types.Types[types.TBOOL])
+			as := ir.NewAssignListStmt(base.Pos, stmt.Op(), []ir.Node{v, ok}, []ir.Node{r})
+			as.Def = true
+			as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, v))
+			as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, ok))
+			as.SetTypecheck(1)
+			// Change stmt to be a normal assignment of the temps to the final
+			// left-hand-sides. We re-create the original multi-value assignment
+			// so that it assigns to the temps and add it as an init of stmt.
+			//
+			// TODO: fix the order of evaluation, so that the lval of lhs[0]
+			// is evaluated before rhs[0] (similar to problem in #50672).
+			stmt.SetOp(ir.OAS2)
+			stmt.PtrInit().Append(as)
+			// assignconvfn inserts the CONVIFACE.
+			stmt.Rhs = []ir.Node{assignconvfn(v, t), ok}
+		}
 		return
 	}
 
