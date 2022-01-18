@@ -375,7 +375,7 @@ func continues() {
 
 func returns0() {
 	return
-	return 0 /* ERROR no result values expected */
+	return 0 /* ERROR too many return values */
 }
 
 func returns1(x float64) (int, *float64) {
