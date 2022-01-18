@@ -420,7 +420,7 @@ var GeneratedAPIJSON = &APIJSON{
 						},
 						{
 							Name:    "\"noresultvalues\"",
-							Doc:     "suggested fixes for \"no result values expected\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"no result values expected\". For example:\n\tfunc z() { return nil }\nwill turn into\n\tfunc z() { return }\n",
+							Doc:     "suggested fixes for unexpected return values\n\nThis checker provides suggested fixes for type errors of the\ntype \"no result values expected\" or \"too many return values\".\nFor example:\n\tfunc z() { return nil }\nwill turn into\n\tfunc z() { return }\n",
 							Default: "true",
 						},
 						{
@@ -932,7 +932,7 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 		{
 			Name:    "noresultvalues",
-			Doc:     "suggested fixes for \"no result values expected\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"no result values expected\". For example:\n\tfunc z() { return nil }\nwill turn into\n\tfunc z() { return }\n",
+			Doc:     "suggested fixes for unexpected return values\n\nThis checker provides suggested fixes for type errors of the\ntype \"no result values expected\" or \"too many return values\".\nFor example:\n\tfunc z() { return nil }\nwill turn into\n\tfunc z() { return }\n",
 			Default: true,
 		},
 		{

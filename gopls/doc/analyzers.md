@@ -612,10 +612,11 @@ will turn into
 
 ## **noresultvalues**
 
-suggested fixes for "no result values expected"
+suggested fixes for unexpected return values
 
 This checker provides suggested fixes for type errors of the
-type "no result values expected". For example:
+type "no result values expected" or "too many return values".
+For example:
 	func z() { return nil }
 will turn into
 	func z() { return }

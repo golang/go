@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"go/ast"
 	"go/format"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -17,10 +18,11 @@ import (
 	"golang.org/x/tools/internal/analysisinternal"
 )
 
-const Doc = `suggested fixes for "no result values expected"
+const Doc = `suggested fixes for unexpected return values
 
 This checker provides suggested fixes for type errors of the
-type "no result values expected". For example:
+type "no result values expected" or "too many return values".
+For example:
 	func z() { return nil }
 will turn into
 	func z() { return }
@@ -83,5 +85,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func FixesError(msg string) bool {
-	return msg == "no result values expected"
+	return msg == "no result values expected" ||
+		strings.HasPrefix(msg, "too many return values") && strings.Contains(msg, "want ()")
 }

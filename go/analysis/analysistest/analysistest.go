@@ -284,7 +284,7 @@ func Run(t Testing, dir string, a *analysis.Analyzer, patterns ...string) []*Res
 		testenv.NeedsGoPackages(t)
 	}
 
-	pkgs, err := loadPackages(dir, patterns...)
+	pkgs, err := loadPackages(a, dir, patterns...)
 	if err != nil {
 		t.Errorf("loading %s: %v", patterns, err)
 		return nil
@@ -308,7 +308,7 @@ type Result = checker.TestAnalyzerResult
 // dependencies) from dir, which is the root of a GOPATH-style project
 // tree. It returns an error if any package had an error, or the pattern
 // matched no packages.
-func loadPackages(dir string, patterns ...string) ([]*packages.Package, error) {
+func loadPackages(a *analysis.Analyzer, dir string, patterns ...string) ([]*packages.Package, error) {
 	// packages.Load loads the real standard library, not a minimal
 	// fake version, which would be more efficient, especially if we
 	// have many small tests that import, say, net/http.
@@ -327,9 +327,13 @@ func loadPackages(dir string, patterns ...string) ([]*packages.Package, error) {
 		return nil, err
 	}
 
-	// Print errors but do not stop:
-	// some Analyzers may be disposed to RunDespiteErrors.
-	packages.PrintErrors(pkgs)
+	// Do NOT print errors if the analyzer will continue running.
+	// It is incredibly confusing for tests to be printing to stderr
+	// willy-nilly instead of their test logs, especially when the
+	// errors are expected and are going to be fixed.
+	if !a.RunDespiteErrors {
+		packages.PrintErrors(pkgs)
+	}
 
 	if len(pkgs) == 0 {
 		return nil, fmt.Errorf("no packages matched %s", patterns)
@@ -441,7 +445,7 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 					want[k] = expects
 					return
 				}
-				unmatched = append(unmatched, fmt.Sprintf("%q", exp.rx))
+				unmatched = append(unmatched, fmt.Sprintf("%#q", exp.rx))
 			}
 		}
 		if unmatched == nil {
@@ -505,7 +509,7 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 	var surplus []string
 	for key, expects := range want {
 		for _, exp := range expects {
-			err := fmt.Sprintf("%s:%d: no %s was reported matching %q", key.file, key.line, exp.kind, exp.rx)
+			err := fmt.Sprintf("%s:%d: no %s was reported matching %#q", key.file, key.line, exp.kind, exp.rx)
 			surplus = append(surplus, err)
 		}
 	}

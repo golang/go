@@ -4,6 +4,6 @@
 
 package noresultvalues
 
-func x() { return } // want "no result values expected"
+func x() { return } // want `no result values expected|too many return values`
 
-func y() { return } // want "no result values expected"
+func y() { return } // want `no result values expected|too many return values`
