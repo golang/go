@@ -11,8 +11,6 @@ func main() {
 	ss := 1 << s
 	y1 := float64(ss)
 	y2 := float64(1 << s) // ERROR "shift"
-	// see issues #45114, #45117
-	// y3 := string(1 << s)  // DISABLED "shift"
-	y3 := 0
+	y3 := string(1 << s)  // ERROR "shift"
 	_, _, _, _, _ = s, ss, y1, y2, y3
 }

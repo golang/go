@@ -381,7 +381,7 @@ func issue21727() {
 	var a = make([]int, 1<<s + 1.2 /* ERROR "truncated to int" */ )
 	var _ = a[1<<s - 2.3 /* ERROR "truncated to int" */ ]
 	var _ int = 1<<s + 3.4 /* ERROR "truncated to int" */
-	var _ = string(1 << s)
+	var _ = string(1 /* ERROR shifted operand 1 .* must be integer */ << s)
 	var _ = string(1.0 /* ERROR "cannot convert" */ << s)
 }
 
