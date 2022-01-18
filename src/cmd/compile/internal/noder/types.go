@@ -239,10 +239,13 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		// Save the name of the type parameter in the sym of the type.
 		// Include the types2 subscript in the sym name
 		pkg := g.tpkg(typ)
-		// Create the unique types1 name for a type param, using its context with a
-		// function, type, or method declaration.
+		// Create the unique types1 name for a type param, using its context
+		// with a function, type, or method declaration. Also, map blank type
+		// param names to a unique name based on their type param index. The
+		// unique blank names will be exported, but will be reverted during
+		// types2 and gcimporter import.
 		assert(g.curDecl != "")
-		nm := g.curDecl + "." + typ.Obj().Name()
+		nm := typecheck.TparamExportName(g.curDecl, typ.Obj().Name(), typ.Index())
 		sym := pkg.Lookup(nm)
 		if sym.Def != nil {
 			// Make sure we use the same type param type for the same

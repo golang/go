@@ -243,6 +243,7 @@ import (
 	"io"
 	"math/big"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -728,6 +729,36 @@ func (w *exportWriter) qualifiedIdent(n *ir.Name) {
 	s := n.Sym()
 	w.string(s.Name)
 	w.pkg(s.Pkg)
+}
+
+const blankMarker = "$"
+
+// TparamExportName creates a unique name for type param in a method or a generic
+// type, using the specified unique prefix and the index of the type param. The index
+// is only used if the type param is blank, in which case the blank is replace by
+// "$<index>". A unique name is needed for later substitution in the compiler and
+// export/import that keeps blank type params associated with the correct constraint.
+func TparamExportName(prefix string, name string, index int) string {
+	if name == "_" {
+		name = blankMarker + strconv.Itoa(index)
+	}
+	return prefix + "." + name
+}
+
+// TparamName returns the real name of a type parameter, after stripping its
+// qualifying prefix and reverting blank-name encoding. See TparamExportName
+// for details.
+func TparamName(exportName string) string {
+	// Remove the "path" from the type param name that makes it unique.
+	ix := strings.LastIndex(exportName, ".")
+	if ix < 0 {
+		return ""
+	}
+	name := exportName[ix+1:]
+	if strings.HasPrefix(name, blankMarker) {
+		return "_"
+	}
+	return name
 }
 
 func (w *exportWriter) selector(s *types.Sym) {
