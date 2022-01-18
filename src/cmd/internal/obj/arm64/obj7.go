@@ -165,21 +165,13 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	q := (*obj.Prog)(nil)
 	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
-		//	MOV	SP, RT2
-		//	CMP	stackguard, RT2
-		p = obj.Appendp(p, c.newprog)
-
-		p.As = AMOVD
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REGSP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGRT2
+		//	CMP	stackguard, SP
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ACMP
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGRT1
-		p.Reg = REGRT2
+		p.Reg = REGSP
 	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	SUB	$(framesize-StackSmall), SP, RT2
