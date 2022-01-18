@@ -1044,7 +1044,7 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
 		interations = 1
 	}
 	const (
-		maxDuration = 3 * time.Second
+		maxDuration = 5 * time.Second
 		nroutines   = 8
 	)
 
@@ -1080,6 +1080,10 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
 }
 
 func TestPreemptionAfterSyscall(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		testenv.SkipFlaky(t, 41015)
+	}
+
 	for _, i := range []time.Duration{10, 100, 1000} {
 		d := i * time.Microsecond
 		t.Run(fmt.Sprint(d), func(t *testing.T) {
