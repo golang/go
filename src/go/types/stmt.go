@@ -310,7 +310,7 @@ L:
 			}
 		}
 		seen[T] = e
-		if T != nil {
+		if T != nil && xtyp != nil {
 			check.typeAssertion(e, x, xtyp, T)
 		}
 	}
@@ -686,14 +686,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			return
 		}
 		// TODO(gri) we may want to permit type switches on type parameter values at some point
+		var xtyp *Interface
 		if isTypeParam(x.typ) {
 			check.errorf(&x, _InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
-			return
-		}
-		xtyp, _ := under(x.typ).(*Interface)
-		if xtyp == nil {
-			check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
-			return
+		} else {
+			xtyp, _ = under(x.typ).(*Interface)
+			if xtyp == nil {
+				check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
+			}
 		}
 
 		check.multipleDefaults(s.Body.List)

@@ -695,7 +695,7 @@ func typeswitches() {
 		_ = y
 	}
 
-	switch x := i /* ERROR "not an interface" */ .(type) {}
+	switch /* ERROR "x declared but not used" */ x := i /* ERROR "not an interface" */ .(type) {}
 
 	switch t := x.(type) {
 	case nil:
@@ -718,6 +718,18 @@ func typeswitches() {
 	case T1 /* ERROR "missing method m" */ :
 	case T2 /* ERROR "wrong type for method m" */ :
 	case I2 /* STRICT "wrong type for method m" */ : // only an error in strict mode (issue 8561)
+	}
+
+
+	{
+		x := 1
+		v := 2
+		switch v /* ERROR "v [(]variable of type int[)] is not an interface" */ .(type) {
+		case int:
+			println(x)
+			println(x / /* ERROR "invalid operation: division by zero" */ 0)
+		case /* ERROR "1 is not a type" */ 1:
+		}
 	}
 }
 
