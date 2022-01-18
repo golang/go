@@ -1,3 +1,7 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package types
 
 // Implementation of structural type computation for types.
@@ -107,7 +111,7 @@ func specificTypes(t *Type) (list []term, inf bool) {
 		default:
 			// m.Type is a single non-interface type, so r2 is just a
 			// one-element list, inf2 is false.
-			r2 = []term{term{false, m.Type}}
+			r2 = []term{{false, m.Type}}
 		}
 
 		if inf2 {
