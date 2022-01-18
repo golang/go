@@ -98,13 +98,13 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// - For conversions of untyped constants to non-constant types, also
 		//   use the default type (e.g., []byte("foo") should report string
 		//   not []byte as type for the constant "foo").
-		// - For integer to string conversions, keep the argument type.
+		// - For constant integer to string conversions, keep the argument type.
 		//   (See also the TODO below.)
 		if x.typ == Typ[UntypedNil] {
 			// ok
 		} else if IsInterface(T) && !isTypeParam(T) || constArg && !isConstType(T) {
 			final = Default(x.typ)
-		} else if isInteger(x.typ) && allString(T) {
+		} else if x.mode == constant_ && isInteger(x.typ) && allString(T) {
 			final = x.typ
 		}
 		check.updateExprType(x.expr, final, true)
