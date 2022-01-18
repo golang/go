@@ -9,6 +9,7 @@ package importer
 
 import (
 	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types2"
 	"encoding/binary"
 	"fmt"
@@ -376,12 +377,12 @@ func (r *importReader) obj(name string) {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		// Remove the "path" from the type param name that makes it unique
-		ix := strings.LastIndex(name, ".")
-		if ix < 0 {
-			errorf("missing path for type param")
+		name0 := typecheck.TparamName(name)
+		if name0 == "" {
+			errorf("malformed type parameter export name %s: missing prefix", name)
 		}
-		tn := types2.NewTypeName(pos, r.currPkg, name[ix+1:], nil)
+
+		tn := types2.NewTypeName(pos, r.currPkg, name0, nil)
 		t := types2.NewTypeParam(tn, nil)
 		// To handle recursive references to the typeparam within its
 		// bound, save the partial type in tparamIndex before reading the bounds.

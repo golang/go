@@ -684,21 +684,8 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 	// Declare type parameters up-front, with empty interface as type bound.
 	// The scope of type parameters starts at the beginning of the type parameter
 	// list (so we can have mutually recursive parameterized interfaces).
-	nblanks := 0
 	for _, f := range list.List {
 		tparams = check.declareTypeParams(tparams, f.Names)
-		// Issue #50481: For now, disallow multiple blank type parameters because
-		// it causes problems with export data. Report an error unless we are in
-		// testing mode ("assert" is defined).
-		// We expect to lift this restriction for Go 1.19.
-		for _, name := range f.Names {
-			if name.Name == "_" {
-				nblanks++
-				if nblanks == 2 && Universe.Lookup("assert") == nil {
-					check.softErrorf(name, _InvalidBlank, "cannot have multiple blank type parameters (temporary restriction, see issue #50481)")
-				}
-			}
-		}
 	}
 
 	// Set the type parameters before collecting the type constraints because

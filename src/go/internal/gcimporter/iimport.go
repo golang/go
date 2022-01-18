@@ -369,12 +369,10 @@ func (r *importReader) obj(name string) {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		// Remove the "path" from the type param name that makes it unique
-		ix := strings.LastIndex(name, ".")
-		if ix < 0 {
-			errorf("missing path for type param")
-		}
-		tn := types.NewTypeName(pos, r.currPkg, name[ix+1:], nil)
+		// Remove the "path" from the type param name that makes it unique,
+		// and revert any unique name used for blank typeparams.
+		name0 := tparamName(name)
+		tn := types.NewTypeName(pos, r.currPkg, name0, nil)
 		t := types.NewTypeParam(tn, nil)
 		// To handle recursive references to the typeparam within its
 		// bound, save the partial type in tparamIndex before reading the bounds.
@@ -771,4 +769,22 @@ func baseType(typ types.Type) *types.Named {
 	// receiver base types are always (possibly generic) types.Named types
 	n, _ := typ.(*types.Named)
 	return n
+}
+
+const blankMarker = "$"
+
+// tparamName returns the real name of a type parameter, after stripping its
+// qualifying prefix and reverting blank-name encoding. See tparamExportName
+// for details.
+func tparamName(exportName string) string {
+	// Remove the "path" from the type param name that makes it unique.
+	ix := strings.LastIndex(exportName, ".")
+	if ix < 0 {
+		errorf("malformed type parameter export name %s: missing prefix", exportName)
+	}
+	name := exportName[ix+1:]
+	if strings.HasPrefix(name, blankMarker) {
+		return "_"
+	}
+	return name
 }
