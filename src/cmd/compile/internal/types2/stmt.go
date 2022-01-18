@@ -474,30 +474,28 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.ReturnStmt:
 		res := check.sig.results
+		// Return with implicit results allowed for function with named results.
+		// (If one is named, all are named.)
 		results := unpackExpr(s.Results)
-		if res.Len() > 0 {
-			// function returns results
-			// (if one, say the first, result parameter is named, all of them are named)
-			if len(results) == 0 && res.vars[0].name != "" {
-				// spec: "Implementation restriction: A compiler may disallow an empty expression
-				// list in a "return" statement if a different entity (constant, type, or variable)
-				// with the same name as a result parameter is in scope at the place of the return."
-				for _, obj := range res.vars {
-					if alt := check.lookup(obj.name); alt != nil && alt != obj {
-						var err error_
-						err.errorf(s, "result parameter %s not in scope at return", obj.name)
-						err.errorf(alt, "inner declaration of %s", obj)
-						check.report(&err)
-						// ok to continue
-					}
+		if len(results) == 0 && res.Len() > 0 && res.vars[0].name != "" {
+			// spec: "Implementation restriction: A compiler may disallow an empty expression
+			// list in a "return" statement if a different entity (constant, type, or variable)
+			// with the same name as a result parameter is in scope at the place of the return."
+			for _, obj := range res.vars {
+				if alt := check.lookup(obj.name); alt != nil && alt != obj {
+					var err error_
+					err.errorf(s, "result parameter %s not in scope at return", obj.name)
+					err.errorf(alt, "inner declaration of %s", obj)
+					check.report(&err)
+					// ok to continue
 				}
-			} else {
-				// return has results or result parameters are unnamed
-				check.initVars(res.vars, results, s)
 			}
-		} else if len(results) > 0 {
-			check.error(results[0], "no result values expected")
-			check.use(results...)
+		} else {
+			var lhs []*Var
+			if res.Len() > 0 {
+				lhs = res.vars
+			}
+			check.initVars(lhs, results, s)
 		}
 
 	case *syntax.BranchStmt:

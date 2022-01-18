@@ -177,8 +177,8 @@ func _() {
 
 func _() {
 	var x int
-	return x /* ERROR no result values expected */
-	return math /* ERROR no result values expected */ .Sin(0)
+	return x /* ERROR too many return values */
+	return math /* ERROR too many return values */ .Sin(0)
 }
 
 func _() int {
