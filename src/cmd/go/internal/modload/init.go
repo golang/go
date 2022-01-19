@@ -983,9 +983,16 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 		workFileReplaceMap: toReplaceMap(workFileReplaces),
 		highestReplaced:    map[string]string{},
 	}
+	mainModulePaths := make(map[string]bool)
+	for _, m := range ms {
+		mainModulePaths[m.Path] = true
+	}
 	replacedByWorkFile := make(map[string]bool)
 	replacements := make(map[module.Version]module.Version)
 	for _, r := range workFileReplaces {
+		if mainModulePaths[r.Old.Path] && r.Old.Version == "" {
+			base.Errorf("go: workspace module %v is replaced at all versions in the go.work file. To fix, remove the replacement from the go.work file or specify the version at which to replace the module.", r.Old.Path)
+		}
 		replacedByWorkFile[r.Old.Path] = true
 		v, ok := mainModules.highestReplaced[r.Old.Path]
 		if !ok || semver.Compare(r.Old.Version, v) > 0 {
