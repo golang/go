@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Jan 10, 2022",
+	"Subtitle": "Version of Jan 18, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -4259,7 +4259,8 @@ var p = 1&lt;&lt;s == 1&lt;&lt;33          // 1 has type int; p == true
 var u = 1.0&lt;&lt;s                 // illegal: 1.0 has type float64, cannot shift
 var u1 = 1.0&lt;&lt;s != 0           // illegal: 1.0 has type float64, cannot shift
 var u2 = 1&lt;&lt;s != 1.0           // illegal: 1 has type float64, cannot shift
-var v float32 = 1&lt;&lt;s           // illegal: 1 has type float32, cannot shift
+var v1 float32 = 1&lt;&lt;s          // illegal: 1 has type float32, cannot shift
+var v2 = string(1&lt;&lt;s)          // illegal: 1 is converted to a string, cannot shift
 var w int64 = 1.0&lt;&lt;33          // 1.0&lt;&lt;33 is a constant shift expression; w == 1&lt;&lt;33
 var x = a[1.0&lt;&lt;s]              // panics: 1.0 has type int, but 1&lt;&lt;33 overflows array bounds
 var b = make([]byte, 1.0&lt;&lt;s)   // 1.0 has type int; len(b) == 1&lt;&lt;33
