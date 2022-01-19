@@ -1036,13 +1036,13 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			}
 
 		case ir.OXDOT:
-			// Finish the transformation of an OXDOT, unless this was a
-			// bound call (a direct call on a type param). A bound call
-			// will be transformed during the dictPass. Otherwise, m
-			// will be transformed to an OMETHVALUE node. It will be
-			// transformed to an ODOTMETH or ODOTINTER node if we find in
-			// the OCALL case below that the method value is actually
-			// called.
+			// Finish the transformation of an OXDOT, unless this is
+			// bound call or field access on a type param. A bound call
+			// or field access on a type param will be transformed during
+			// the dictPass. Otherwise, m will be transformed to an
+			// OMETHVALUE node. It will be transformed to an ODOTMETH or
+			// ODOTINTER node if we find in the OCALL case below that the
+			// method value is actually called.
 			mse := m.(*ir.SelectorExpr)
 			if src := mse.X.Type(); !src.IsShape() {
 				transformDot(mse, false)
@@ -1101,10 +1101,11 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				transformEarlyCall(call)
 
 			case ir.OXDOT:
-				// This is the case of a bound call on a typeparam,
-				// which will be handled in the dictPass.
-				// As with OFUNCINST, we must transform the arguments of the call now,
-				// so any needed CONVIFACE nodes are exposed.
+				// This is the case of a bound call or a field access
+				// on a typeparam, which will be handled in the
+				// dictPass. As with OFUNCINST, we must transform the
+				// arguments of the call now, so any needed CONVIFACE
+				// nodes are exposed.
 				transformEarlyCall(call)
 
 			case ir.ODOTTYPE, ir.ODOTTYPE2:
@@ -1228,13 +1229,13 @@ func (g *genInst) dictPass(info *instInfo) {
 				// No need for transformDot - buildClosure2 has already
 				// transformed to OCALLINTER/ODOTINTER.
 			} else {
-				dst := info.dictInfo.shapeToBound[m.(*ir.SelectorExpr).X.Type()]
 				// If we can't find the selected method in the
 				// AllMethods of the bound, then this must be an access
 				// to a field of a structural type. If so, we skip the
 				// dictionary lookups - transformDot() will convert to
 				// the desired direct field access.
-				if typecheck.Lookdot1(mse, mse.Sel, dst, dst.AllMethods(), 1) != nil {
+				if isBoundMethod(info.dictInfo, mse) {
+					dst := info.dictInfo.shapeToBound[mse.X.Type()]
 					// Implement x.M as a conversion-to-bound-interface
 					//  1) convert x to the bound interface
 					//  2) call M on that interface
@@ -1873,11 +1874,15 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 					info.subDictCalls = append(info.subDictCalls, subDictInfo{callNode: n, savedXNode: ce.X})
 				}
 			}
-			if ce.X.Op() == ir.OXDOT &&
-				isShapeDeref(ce.X.(*ir.SelectorExpr).X.Type()) {
+			// Note: this XDOT code is not actually needed as long as we
+			// continue to disable type parameters on RHS of type
+			// declarations (#45639).
+			if ce.X.Op() == ir.OXDOT {
 				callMap[ce.X] = true
-				infoPrint("  Optional subdictionary at generic bound call: %v\n", n)
-				info.subDictCalls = append(info.subDictCalls, subDictInfo{callNode: n, savedXNode: nil})
+				if isBoundMethod(info, ce.X.(*ir.SelectorExpr)) {
+					infoPrint("  Optional subdictionary at generic bound call: %v\n", n)
+					info.subDictCalls = append(info.subDictCalls, subDictInfo{callNode: n, savedXNode: nil})
+				}
 			}
 		case ir.OCALLMETH:
 			ce := n.(*ir.CallExpr)
@@ -1900,7 +1905,8 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 				info.itabConvs = append(info.itabConvs, n)
 			}
 		case ir.OXDOT:
-			if n.(*ir.SelectorExpr).X.Type().IsShape() {
+			se := n.(*ir.SelectorExpr)
+			if isBoundMethod(info, se) {
 				infoPrint("  Itab for bound call: %v\n", n)
 				info.itabConvs = append(info.itabConvs, n)
 			}
@@ -1956,11 +1962,13 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 	info.dictLen = len(info.shapeParams) + len(info.derivedTypes) + len(info.subDictCalls) + len(info.itabConvs)
 }
 
-// isShapeDeref returns true if t is either a shape or a pointer to a shape. (We
-// can't just use deref(t).IsShape(), since a shape type is a complex type and may
-// have a pointer as part of its shape.)
-func isShapeDeref(t *types.Type) bool {
-	return t.IsShape() || t.IsPtr() && t.Elem().IsShape()
+// isBoundMethod returns true if the selection indicated by se is a bound method of
+// se.X. se.X must be a shape type (i.e. substituted directly from a type param). If
+// isBoundMethod returns false, then the selection must be a field access of a
+// structural type.
+func isBoundMethod(info *dictInfo, se *ir.SelectorExpr) bool {
+	bound := info.shapeToBound[se.X.Type()]
+	return typecheck.Lookdot1(se, se.Sel, bound, bound.AllMethods(), 1) != nil
 }
 
 // addType adds t to info.derivedTypes if it is parameterized type (which is not
