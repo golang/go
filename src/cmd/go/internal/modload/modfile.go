@@ -340,6 +340,9 @@ func Replacement(mod module.Version) module.Version {
 	foundFrom, found, foundModRoot := "", module.Version{}, ""
 	if MainModules == nil {
 		return module.Version{}
+	} else if MainModules.Contains(mod.Path) && mod.Version == "" {
+		// Don't replace the workspace version of the main module.
+		return module.Version{}
 	}
 	if _, r, ok := replacement(mod, MainModules.WorkFileReplaceMap()); ok {
 		return r
