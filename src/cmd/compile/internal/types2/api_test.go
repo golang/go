@@ -1443,6 +1443,18 @@ var _ = a.C2
 	makePkg("main", mainSrc) // don't crash when type-checking this package
 }
 
+func TestLookupFieldOrMethodOnNil(t *testing.T) {
+	// LookupFieldOrMethod on a nil type is expected to produce a run-time panic.
+	defer func() {
+		const want = "LookupFieldOrMethod on nil type"
+		p := recover()
+		if s, ok := p.(string); !ok || s != want {
+			t.Fatalf("got %v, want %s", p, want)
+		}
+	}()
+	LookupFieldOrMethod(nil, false, nil, "")
+}
+
 func TestLookupFieldOrMethod(t *testing.T) {
 	// Test cases assume a lookup of the form a.f or x.f, where a stands for an
 	// addressable value, and x for a non-addressable value (even though a variable
