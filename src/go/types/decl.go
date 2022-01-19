@@ -530,7 +530,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 
 	var rhs Type
 	check.later(func() {
-		check.validType(obj.typ)
+		if t, _ := obj.typ.(*Named); t != nil { // type may be invalid
+			check.validType(t)
+		}
 		// If typ is local, an error was already reported where typ is specified/defined.
 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
 			check.errorf(tdecl.Type, _UnsupportedFeature, "using type constraint %s requires go1.18 or later", rhs)
