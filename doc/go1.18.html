@@ -253,10 +253,10 @@ Do not send CLs removing the interior tags from such phrases.
   including build and tool tags (set with <code>-tags</code>), compiler,
   assembler, and linker flags (like <code>-gcflags</code>), whether cgo was
   enabled, and if it was, the values of the cgo environment variables
-  (like <code>CGO_CFLAGS</code>). This information may be omitted using the
-  flag <code>-buildinfo=false</code>. Both VCS and build information may be
-  read together with module information using <code>go</code>
-  <code>version</code> <code>-m</code> <code>file</code> or
+  (like <code>CGO_CFLAGS</code>).
+  Both VCS and build information may be read together with module
+  information using
+  <code>go</code> <code>version</code> <code>-m</code> <code>file</code> or
   <code>runtime/debug.ReadBuildInfo</code> (for the currently running binary)
   or the new <a href="#debug/buildinfo"><code>debug/buildinfo</code></a>
   package.
