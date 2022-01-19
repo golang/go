@@ -126,7 +126,7 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 		typCache: make(map[uint64]types2.Type),
 		// Separate map for typeparams, keyed by their package and unique
 		// name (name with subscript).
-		tparamIndex: make(map[ident]types2.Type),
+		tparamIndex: make(map[ident]*types2.TypeParam),
 	}
 
 	for i, pt := range predeclared {
@@ -202,7 +202,7 @@ type iimporter struct {
 	declData    string
 	pkgIndex    map[*types2.Package]map[string]uint64
 	typCache    map[uint64]types2.Type
-	tparamIndex map[ident]types2.Type
+	tparamIndex map[ident]*types2.TypeParam
 
 	interfaceList []*types2.Interface
 }

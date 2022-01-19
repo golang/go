@@ -127,7 +127,7 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 		typCache: make(map[uint64]types.Type),
 		// Separate map for typeparams, keyed by their package and unique
 		// name (name with subscript).
-		tparamIndex: make(map[ident]types.Type),
+		tparamIndex: make(map[ident]*types.TypeParam),
 
 		fake: fakeFileSet{
 			fset:  fset,
@@ -207,7 +207,7 @@ type iimporter struct {
 	declData    []byte
 	pkgIndex    map[*types.Package]map[string]uint64
 	typCache    map[uint64]types.Type
-	tparamIndex map[ident]types.Type
+	tparamIndex map[ident]*types.TypeParam
 
 	fake          fakeFileSet
 	interfaceList []*types.Interface
