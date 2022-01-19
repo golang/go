@@ -154,14 +154,6 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 		maxDiff = 0.40
 	}
 
-	// This test compares the process's total CPU time against the CPU
-	// profiler's view of time spent in direct execution of user code.
-	// Background work, especially from the garbage collector, adds noise to
-	// that measurement. Disable automatic triggering of the GC, and then
-	// request a complete GC cycle (up through sweep termination).
-	defer debug.SetGCPercent(debug.SetGCPercent(-1))
-	runtime.GC()
-
 	compare := func(a, b time.Duration, maxDiff float64) error {
 		if a <= 0 || b <= 0 {
 			return fmt.Errorf("Expected both time reports to be positive")
@@ -221,11 +213,14 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 				}
 			}
 
+			// cpuHog1 called above is the primary source of CPU
+			// load, but there may be some background work by the
+			// runtime. Since the OS rusage measurement will
+			// include all work done by the process, also compare
+			// against all samples in our profile.
 			var value time.Duration
 			for _, sample := range p.Sample {
-				if stackContains("runtime/pprof.cpuHog1", uintptr(sample.Value[0]), sample.Location, sample.Label) {
-					value += time.Duration(sample.Value[1]) * time.Nanosecond
-				}
+				value += time.Duration(sample.Value[1]) * time.Nanosecond
 			}
 
 			t.Logf("compare %s vs %s", cpuTime, value)
