@@ -327,7 +327,7 @@ func equalType(x, y types.Type) error {
 		}
 	case *typeparams.TypeParam:
 		y := y.(*typeparams.TypeParam)
-		if sanitizeName(x.String()) != sanitizeName(y.String()) {
+		if x.String() != y.String() {
 			return fmt.Errorf("unequal named types: %s vs %s", x, y)
 		}
 		// For now, just compare constraints by type string to short-circuit
@@ -335,8 +335,8 @@ func equalType(x, y types.Type) error {
 		// doesn't support marking interfaces as implicit.
 		// TODO(rfindley): remove makeExplicit once export data contains an
 		// implicit bit.
-		xc := sanitizeName(makeExplicit(x.Constraint()).String())
-		yc := sanitizeName(makeExplicit(y.Constraint()).String())
+		xc := makeExplicit(x.Constraint()).String()
+		yc := makeExplicit(y.Constraint()).String()
 		if xc != yc {
 			return fmt.Errorf("unequal constraints: %s vs %s", xc, yc)
 		}
@@ -352,7 +352,7 @@ func equalType(x, y types.Type) error {
 func cmpNamed(x, y *types.Named) error {
 	xOrig := typeparams.NamedTypeOrigin(x)
 	yOrig := typeparams.NamedTypeOrigin(y)
-	if sanitizeName(xOrig.String()) != sanitizeName(yOrig.String()) {
+	if xOrig.String() != yOrig.String() {
 		return fmt.Errorf("unequal named types: %s vs %s", x, y)
 	}
 	if err := equalTypeParams(typeparams.ForNamed(x), typeparams.ForNamed(y)); err != nil {
@@ -383,7 +383,7 @@ func cmpNamed(x, y *types.Named) error {
 		}
 		// Calling equalType here leads to infinite recursion, so just compare
 		// strings.
-		if sanitizeName(xm.String()) != sanitizeName(ym.String()) {
+		if xm.String() != ym.String() {
 			return fmt.Errorf("unequal methods: %s vs %s", x, y)
 		}
 	}
@@ -429,20 +429,6 @@ func equalTypeParams(x, y *typeparams.TypeParamList) error {
 		}
 	}
 	return nil
-}
-
-// sanitizeName removes type parameter debugging markers from an object
-// or type string, to normalize it for comparison.
-// TODO(rfindley): remove once this is no longer necessary.
-func sanitizeName(name string) string {
-	var runes []rune
-	for _, r := range name {
-		if '₀' <= r && r < '₀'+10 {
-			continue // trim type parameter subscripts
-		}
-		runes = append(runes, r)
-	}
-	return string(runes)
 }
 
 // TestVeryLongFile tests the position of an import object declared in
