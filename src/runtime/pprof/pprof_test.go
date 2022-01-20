@@ -1462,13 +1462,13 @@ func TestLabelSystemstack(t *testing.T) {
 					// runtime.isSystemGoroutine). These
 					// should never be labeled.
 					mustNotBeLabeled = true
-				case "gogo", "gosave_systemstack_switch":
-					// These are context switch critical
-					// that we can't do a full traceback
-					// from. Typically this would be
-					// covered by the runtime check below,
-					// but these symbols don't have the
-					// package name.
+				case "gogo", "gosave_systemstack_switch", "racecall":
+					// These are context switch/race
+					// critical that we can't do a full
+					// traceback from. Typically this would
+					// be covered by the runtime check
+					// below, but these symbols don't have
+					// the package name.
 					mayBeLabeled = true
 				}
 
