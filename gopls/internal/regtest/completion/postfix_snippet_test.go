@@ -13,6 +13,8 @@ import (
 )
 
 func TestPostfixSnippetCompletion(t *testing.T) {
+	t.Skipf("skipping test due to suspected synchronization bug; see https://go.dev/issue/50707")
+
 	const mod = `
 -- go.mod --
 module mod.com
