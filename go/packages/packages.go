@@ -80,6 +80,12 @@ const (
 
 	// NeedModule adds Module.
 	NeedModule
+
+	// NeedEmbedFiles adds EmbedFiles.
+	NeedEmbedFiles
+
+	// NeedEmbedPatterns adds EmbedPatterns.
+	NeedEmbedPatterns
 )
 
 const (
@@ -296,6 +302,14 @@ type Package struct {
 	// including assembly, C, C++, Fortran, Objective-C, SWIG, and so on.
 	OtherFiles []string
 
+	// EmbedFiles lists the absolute file paths of the package's files
+	// embedded with go:embed.
+	EmbedFiles []string
+
+	// EmbedPatterns lists the absolute file patterns of the package's
+	// files embedded with go:embed.
+	EmbedPatterns []string
+
 	// IgnoredFiles lists source files that are not part of the package
 	// using the current build configuration but that might be part of
 	// the package using other build configurations.
@@ -431,6 +445,8 @@ type flatPackage struct {
 	GoFiles         []string          `json:",omitempty"`
 	CompiledGoFiles []string          `json:",omitempty"`
 	OtherFiles      []string          `json:",omitempty"`
+	EmbedFiles      []string          `json:",omitempty"`
+	EmbedPatterns   []string          `json:",omitempty"`
 	IgnoredFiles    []string          `json:",omitempty"`
 	ExportFile      string            `json:",omitempty"`
 	Imports         map[string]string `json:",omitempty"`
@@ -454,6 +470,8 @@ func (p *Package) MarshalJSON() ([]byte, error) {
 		GoFiles:         p.GoFiles,
 		CompiledGoFiles: p.CompiledGoFiles,
 		OtherFiles:      p.OtherFiles,
+		EmbedFiles:      p.EmbedFiles,
+		EmbedPatterns:   p.EmbedPatterns,
 		IgnoredFiles:    p.IgnoredFiles,
 		ExportFile:      p.ExportFile,
 	}
@@ -481,6 +499,8 @@ func (p *Package) UnmarshalJSON(b []byte) error {
 		GoFiles:         flat.GoFiles,
 		CompiledGoFiles: flat.CompiledGoFiles,
 		OtherFiles:      flat.OtherFiles,
+		EmbedFiles:      flat.EmbedFiles,
+		EmbedPatterns:   flat.EmbedPatterns,
 		ExportFile:      flat.ExportFile,
 	}
 	if len(flat.Imports) > 0 {
@@ -751,6 +771,12 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 			ld.pkgs[i].GoFiles = nil
 			ld.pkgs[i].OtherFiles = nil
 			ld.pkgs[i].IgnoredFiles = nil
+		}
+		if ld.requestedMode&NeedEmbedFiles == 0 {
+			ld.pkgs[i].EmbedFiles = nil
+		}
+		if ld.requestedMode&NeedEmbedPatterns == 0 {
+			ld.pkgs[i].EmbedPatterns = nil
 		}
 		if ld.requestedMode&NeedCompiledGoFiles == 0 {
 			ld.pkgs[i].CompiledGoFiles = nil

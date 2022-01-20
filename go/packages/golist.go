@@ -393,6 +393,8 @@ type jsonPackage struct {
 	CompiledGoFiles   []string
 	IgnoredGoFiles    []string
 	IgnoredOtherFiles []string
+	EmbedPatterns     []string
+	EmbedFiles        []string
 	CFiles            []string
 	CgoFiles          []string
 	CXXFiles          []string
@@ -565,6 +567,8 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
 			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
+			EmbedFiles:      absJoin(p.Dir, p.EmbedFiles),
+			EmbedPatterns:   absJoin(p.Dir, p.EmbedPatterns),
 			IgnoredFiles:    absJoin(p.Dir, p.IgnoredGoFiles, p.IgnoredOtherFiles),
 			forTest:         p.ForTest,
 			depsErrors:      p.DepsErrors,

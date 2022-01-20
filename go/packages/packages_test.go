@@ -1077,6 +1077,10 @@ func testAbsoluteFilenames(t *testing.T, exporter packagestest.Exporter) {
 			"e/e2.go":         `package main; import _ "golang.org/fake/c"`,
 			"f/f.go":          `package f`,
 			"f/f.s":           ``,
+			"g/g.go":          `package g; import _ "embed";` + "\n//go:embed g2.txt\n" + `var s string`,
+			"g/g2.txt":        "hello",
+			"h/h.go":          `package g; import _ "embed";` + "\n//go:embed a*.txt\n" + `var s string`,
+			"h/aa.txt":        "hello",
 		}}})
 	defer exported.Cleanup()
 	exported.Config.Dir = filepath.Dir(filepath.Dir(exported.File("golang.org/fake", "a/a.go")))
@@ -1103,6 +1107,8 @@ func testAbsoluteFilenames(t *testing.T, exporter packagestest.Exporter) {
 		{"golang.org/fake/subdir/e", "d.go"},
 		{"golang.org/fake/e", "e.go e2.go"},
 		{"golang.org/fake/f", "f.go f.s"},
+		{"golang.org/fake/g", "g.go g2.txt"},
+		{"golang.org/fake/h", "h.go aa.txt"},
 		// Relative paths
 		{"./a", "a.go"},
 		{"./b/vendor/a", "a.go"},
@@ -1112,8 +1118,10 @@ func testAbsoluteFilenames(t *testing.T, exporter packagestest.Exporter) {
 		{"./subdir/e", "d.go"},
 		{"./e", "e.go e2.go"},
 		{"./f", "f.go f.s"},
+		{"./g", "g.go g2.txt"},
+		{"./h", "h.go aa.txt"},
 	} {
-		exported.Config.Mode = packages.LoadFiles
+		exported.Config.Mode = packages.LoadFiles | packages.NeedEmbedFiles
 		pkgs, err := packages.Load(exported.Config, test.pattern)
 		if err != nil {
 			t.Errorf("pattern %s: %v", test.pattern, err)
@@ -1131,6 +1139,9 @@ func testAbsoluteFilenames(t *testing.T, exporter packagestest.Exporter) {
 				checkFile(filename)
 			}
 			for _, filename := range pkg.OtherFiles {
+				checkFile(filename)
+			}
+			for _, filename := range pkg.EmbedFiles {
 				checkFile(filename)
 			}
 			for _, filename := range pkg.IgnoredFiles {
@@ -2707,7 +2718,7 @@ func errorMessages(errors []packages.Error) []string {
 }
 
 func srcs(p *packages.Package) []string {
-	return cleanPaths(append(p.GoFiles[:len(p.GoFiles):len(p.GoFiles)], p.OtherFiles...))
+	return cleanPaths(append(append(p.GoFiles[:len(p.GoFiles):len(p.GoFiles)], p.OtherFiles...), p.EmbedFiles...))
 }
 
 // cleanPaths attempts to reduce path names to stable forms
