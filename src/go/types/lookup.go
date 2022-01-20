@@ -320,14 +320,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 				panic("method with type parameters")
 			}
 
-			// If the methods have type parameters we don't care whether they
-			// are the same or not, as long as they match up. Use unification
-			// to see if they can be made to match.
-			// TODO(gri) is this always correct? what about type bounds?
-			// (Alternative is to rename/subst type parameters and compare.)
-			u := newUnifier(true)
-			u.x.init(ftyp.TypeParams().list())
-			if !u.unify(ftyp, mtyp) {
+			if !Identical(ftyp, mtyp) {
 				return m, f
 			}
 		}
@@ -375,14 +368,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			panic("method with type parameters")
 		}
 
-		// If the methods have type parameters we don't care whether they
-		// are the same or not, as long as they match up. Use unification
-		// to see if they can be made to match.
-		// TODO(gri) is this always correct? what about type bounds?
-		// (Alternative is to rename/subst type parameters and compare.)
-		u := newUnifier(true)
-		u.x.init(ftyp.RecvTypeParams().list())
-		if !u.unify(ftyp, mtyp) {
+		if !Identical(ftyp, mtyp) {
 			return m, f
 		}
 	}
