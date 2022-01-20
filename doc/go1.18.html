@@ -571,7 +571,7 @@ Do not send CLs removing the interior tags from such phrases.
 
     <p><!-- CL 323318, CL 332771 -->
       <a href="/pkg/bytes/#Trim"><code>Trim</code></a>, <a href="/pkg/bytes/#TrimLeft"><code>TrimLeft</code></a>,
-      and <a href="/pkg/bytes/#TrimRight"><code>TrimRight</code></a> are now allocation free and, especially for 
+      and <a href="/pkg/bytes/#TrimRight"><code>TrimRight</code></a> are now allocation free and, especially for
       small ASCII cutsets, up to 10 times faster.
     </p>
 
@@ -759,6 +759,14 @@ Do not send CLs removing the interior tags from such phrases.
       new <code>{{continue}}</code> command will immediately start the
       next loop iteration.
     </p>
+
+    <p><!-- CL 321490 -->
+      The <code>and</code> function no longer always evaluates all arguments; it
+      stops evaluating arguments after the first argument that evaluates to
+      false.  Similarly, the <code>or</code> function now stops evaluating
+      arguments after the first argument that evaluates to true. This makes a
+      difference if any of the arguments is a function call.
+    </p>
   </dd>
 </dl><!-- html/template -->
 
@@ -938,7 +946,7 @@ Do not send CLs removing the interior tags from such phrases.
 
     <p><!-- CL 323318, CL 332771 -->
       <a href="/pkg/strings/#Trim"><code>Trim</code></a>, <a href="/pkg/strings/#TrimLeft"><code>TrimLeft</code></a>,
-      and <a href="/pkg/strings/#TrimRight"><code>TrimRight</code></a> are now allocation free and, especially for 
+      and <a href="/pkg/strings/#TrimRight"><code>TrimRight</code></a> are now allocation free and, especially for
       small ASCII cutsets, up to 10 times faster.
     </p>
 
