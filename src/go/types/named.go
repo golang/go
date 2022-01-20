@@ -115,6 +115,9 @@ func (t *Named) SetUnderlying(underlying Type) {
 		panic("underlying type must not be *Named")
 	}
 	t.resolve(nil).underlying = underlying
+	if t.fromRHS == nil {
+		t.fromRHS = underlying // for cycle detection
+	}
 }
 
 // AddMethod adds method m unless it is already in the method list.
