@@ -32,6 +32,8 @@ type Any any
 
 type T[A, B any] struct { Left A; Right B }
 
+func (T[P, Q]) m() {}
+
 var X T[int, string] = T[int, string]{1, "hi"}
 
 func ToInt[P interface{ ~int }](p P) int { return int(p) }
@@ -48,6 +50,17 @@ type ImplicitType[T ~int] int
 const C1 = 42
 const C2 int = 42
 const C3 float64 = 42
+
+type Constraint[T any] interface {
+       m(T)
+}
+
+// TODO(rfindley): revert to multiple blanks once the restriction on multiple
+// blanks is removed from the type checker.
+// type Blanks[_ any, _ Constraint[int]] int
+// func (Blanks[_, _]) m() {}
+type Blanks[_ any] int
+func (Blanks[_]) m() {}
 `
 	testExportSrc(t, []byte(src))
 }

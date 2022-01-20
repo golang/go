@@ -438,12 +438,7 @@ func (r *importReader) obj(name string) {
 		if r.p.version < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		// Remove the "path" from the type param name that makes it unique
-		ix := strings.LastIndex(name, ".")
-		if ix < 0 {
-			errorf("missing path for type param")
-		}
-		name0 := name[ix+1:]
+		name0 := tparamName(name)
 		tn := types.NewTypeName(pos, r.currPkg, name0, nil)
 		t := typeparams.NewTypeParam(tn, nil)
 
