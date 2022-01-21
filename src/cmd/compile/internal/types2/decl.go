@@ -314,8 +314,13 @@ func (check *Checker) cycleError(cycle []Object) {
 	//           cycle? That would be more consistent with other error messages.
 	i := firstInSrc(cycle)
 	obj := cycle[i]
+	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
+	tname, _ := obj.(*TypeName)
+	if tname != nil && tname.IsAlias() {
+		check.validAlias(tname, Typ[Invalid])
+	}
 	var err error_
-	if check.conf.CompilerErrorMessages {
+	if tname != nil && check.conf.CompilerErrorMessages {
 		err.errorf(obj, "invalid recursive type %s", obj.Name())
 	} else {
 		err.errorf(obj, "illegal cycle in declaration of %s", obj.Name())
@@ -502,9 +507,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 			check.versionErrorf(tdecl, "go1.9", "type aliases")
 		}
 
-		obj.typ = Typ[Invalid]
+		check.brokenAlias(obj)
 		rhs = check.varType(tdecl.Type)
-		obj.typ = rhs
+		check.validAlias(obj, rhs)
 		return
 	}
 
