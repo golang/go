@@ -1199,6 +1199,8 @@ func (th *TimeHistogram) Record(duration int64) {
 	(*timeHistogram)(th).record(duration)
 }
 
+var TimeHistogramMetricsBuckets = timeHistogramMetricsBuckets
+
 func SetIntArgRegs(a int) int {
 	lock(&finlock)
 	old := intArgRegs
