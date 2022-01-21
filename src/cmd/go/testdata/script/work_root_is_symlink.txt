@@ -1,0 +1,20 @@
+# Test that cmd/go follows the symlink and properly determines
+# the module boundary when the working directory is a symlink.
+
+[!symlink] skip
+
+symlink worksym -> workspace
+cd worksym
+go list all
+stdout example.com/workspace
+
+-- workspace/go.work --
+go 1.18
+
+use .
+-- workspace/go.mod --
+module example.com/workspace
+
+go  1.18
+-- workspace/pkg.go --
+package workspace
