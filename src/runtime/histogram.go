@@ -47,7 +47,7 @@ const (
 	//    │  └---- Next 4 bits -> sub-bucket 1
 	//    └------- Bit 5 set -> super-bucket 2
 	//
-	// Following this pattern, bucket 45 will have the bit 48 set. We don't
+	// Following this pattern, super-bucket 44 will have the bit 47 set. We don't
 	// have any buckets for higher values, so the highest sub-bucket will
 	// contain values of 2^48-1 nanoseconds or approx. 3 days. This range is
 	// more than enough to handle durations produced by the runtime.
@@ -139,36 +139,30 @@ func float64NegInf() float64 {
 func timeHistogramMetricsBuckets() []float64 {
 	b := make([]float64, timeHistTotalBuckets+1)
 	b[0] = float64NegInf()
-	for i := 0; i < timeHistNumSuperBuckets; i++ {
-		superBucketMin := uint64(0)
-		// The (inclusive) minimum for the first non-negative bucket is 0.
-		if i > 0 {
-			// The minimum for the second bucket will be
-			// 1 << timeHistSubBucketBits, indicating that all
-			// sub-buckets are represented by the next timeHistSubBucketBits
-			// bits.
-			// Thereafter, we shift up by 1 each time, so we can represent
-			// this pattern as (i-1)+timeHistSubBucketBits.
-			superBucketMin = uint64(1) << uint(i-1+timeHistSubBucketBits)
-		}
-		// subBucketShift is the amount that we need to shift the sub-bucket
-		// index to combine it with the bucketMin.
-		subBucketShift := uint(0)
-		if i > 1 {
-			// The first two super buckets are exact with respect to integers,
-			// so we'll never have to shift the sub-bucket index. Thereafter,
-			// we shift up by 1 with each subsequent bucket.
-			subBucketShift = uint(i - 2)
-		}
+	// Super-bucket 0 has no bits above timeHistSubBucketBits
+	// set, so just iterate over each bucket and assign the
+	// incrementing bucket.
+	for i := 0; i < timeHistNumSubBuckets; i++ {
+		bucketNanos := uint64(i)
+		b[i+1] = float64(bucketNanos) / 1e9
+	}
+	// Generate the rest of the super-buckets. It's easier to reason
+	// about if we cut out the 0'th bucket, so subtract one since
+	// we just handled that bucket.
+	for i := 0; i < timeHistNumSuperBuckets-1; i++ {
 		for j := 0; j < timeHistNumSubBuckets; j++ {
-			// j is the sub-bucket index. By shifting the index into position to
-			// combine with the bucket minimum, we obtain the minimum value for that
-			// sub-bucket.
-			subBucketMin := superBucketMin + (uint64(j) << subBucketShift)
-
-			// Convert the subBucketMin which is in nanoseconds to a float64 seconds value.
+			// Set the super-bucket bit.
+			bucketNanos := uint64(1) << (i + timeHistSubBucketBits)
+			// Set the sub-bucket bits.
+			bucketNanos |= uint64(j) << i
+			// The index for this bucket is going to be the (i+1)'th super bucket
+			// (note that we're starting from zero, but handled the first super-bucket
+			// earlier, so we need to compensate), and the j'th sub bucket.
+			// Add 1 because we left space for -Inf.
+			bucketIndex := (i+1)*timeHistNumSubBuckets + j + 1
+			// Convert nanoseconds to seconds via a division.
 			// These values will all be exactly representable by a float64.
-			b[i*timeHistNumSubBuckets+j+1] = float64(subBucketMin) / 1e9
+			b[bucketIndex] = float64(bucketNanos) / 1e9
 		}
 	}
 	b[len(b)-1] = float64Inf()
