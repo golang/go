@@ -1448,7 +1448,7 @@ func TestLabelSystemstack(t *testing.T) {
 		for _, loc := range s.Location {
 			for _, l := range loc.Line {
 				switch l.Function.Name {
-				case "runtime/pprof.labelHog", "runtime/pprof.parallelLabelHog":
+				case "runtime/pprof.labelHog", "runtime/pprof.parallelLabelHog", "runtime/pprof.parallelLabelHog.func1":
 					mustBeLabeled = true
 				case "runtime/pprof.Do":
 					// Do sets the labels, so samples may
