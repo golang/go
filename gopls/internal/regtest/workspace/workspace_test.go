@@ -194,6 +194,8 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 // This test checks that gopls updates the set of files it watches when a
 // replace target is added to the go.mod.
 func TestWatchReplaceTargets(t *testing.T) {
+	t.Skipf("skipping known-flaky test: see https://go.dev/issue/50748")
+
 	WithOptions(
 		ProxyFiles(workspaceProxy),
 		WorkspaceFolders("pkg"),
