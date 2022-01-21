@@ -755,6 +755,17 @@ func runtime_goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer
 
 // labels may be nil. If labels is non-nil, it must have the same length as p.
 func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	return goroutineProfileWithLabelsAndLimit(p, labels, 0)
+}
+
+//go:linkname runtime_goroutineProfileWithLabelsAndLimit runtime/pprof.runtime_goroutineProfileWithLabelsAndLimit
+func runtime_goroutineProfileWithLabelsAndLimit(p []StackRecord, labels []unsafe.Pointer, max int) (n int, ok bool) {
+	return goroutineProfileWithLabelsAndLimit(p, labels, max)
+}
+
+// limit the max goroutine, sample them when return there are more than max goroutines.
+// 0 means not limitation.
+func goroutineProfileWithLabelsAndLimit(p []StackRecord, labels []unsafe.Pointer, max int) (m int, ok bool) {
 	if labels != nil && len(labels) != len(p) {
 		labels = nil
 	}
@@ -769,14 +780,19 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
 	stopTheWorld("profile")
 
 	// World is stopped, no locking required.
-	n = 1
+	n := 1
 	forEachGRace(func(gp1 *g) {
 		if isOK(gp1) {
 			n++
 		}
 	})
 
-	if n <= len(p) {
+	m = n
+	if max > 0 && n > max {
+		m = max
+	}
+
+	if m <= len(p) {
 		ok = true
 		r, lbl := p, labels
 
@@ -794,11 +810,21 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
 			lbl = lbl[1:]
 		}
 
+		got, i := 1, 0
+		rand := fastrand()
+
 		// Save other goroutines.
 		forEachGRace(func(gp1 *g) {
 			if !isOK(gp1) {
 				return
 			}
+
+			i++
+			// make sure we will have m goroutines.
+			if m < n && int(rand%uint32(n-i)) >= (m-got) {
+				return
+			}
+			got++
 
 			if len(r) == 0 {
 				// Should be impossible, but better to return a
@@ -819,7 +845,7 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
 	}
 
 	startTheWorld()
-	return n, ok
+	return m, ok
 }
 
 // GoroutineProfile returns n, the number of records in the active goroutine stack profile.

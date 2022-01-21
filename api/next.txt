@@ -1,0 +1,1 @@
+pkg runtime/pprof, func SetMaxDumpGoroutineNum(int)

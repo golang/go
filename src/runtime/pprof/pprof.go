@@ -230,6 +230,14 @@ func Lookup(name string) *Profile {
 	return profiles.m[name]
 }
 
+// no limit by default
+var maxDumpGoroutineNum = 0
+
+// SetMaxDumpGoroutineNum set the max number for dumping goroutine
+func SetMaxDumpGoroutineNum(limit int) {
+	maxDumpGoroutineNum = limit
+}
+
 // Profiles returns a slice of all the known profiles, sorted by name.
 func Profiles() []*Profile {
 	lockProfiles()
@@ -664,7 +672,7 @@ func writeThreadCreate(w io.Writer, debug int) error {
 	// Until https://golang.org/issues/6104 is addressed, wrap
 	// ThreadCreateProfile because there's no point in tracking labels when we
 	// don't get any stack-traces.
-	return writeRuntimeProfile(w, debug, "threadcreate", func(p []runtime.StackRecord, _ []unsafe.Pointer) (n int, ok bool) {
+	return writeRuntimeProfile(w, debug, "threadcreate", func(p []runtime.StackRecord, _ []unsafe.Pointer, _ int) (n int, ok bool) {
 		return runtime.ThreadCreateProfile(p)
 	})
 }
@@ -674,15 +682,15 @@ func countGoroutine() int {
 	return runtime.NumGoroutine()
 }
 
-// runtime_goroutineProfileWithLabels is defined in runtime/mprof.go
-func runtime_goroutineProfileWithLabels(p []runtime.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
+// runtime_goroutineProfileWithLabelsAndLimit is defined in runtime/mprof.go
+func runtime_goroutineProfileWithLabelsAndLimit(p []runtime.StackRecord, labels []unsafe.Pointer, max int) (n int, ok bool)
 
 // writeGoroutine writes the current runtime GoroutineProfile to w.
 func writeGoroutine(w io.Writer, debug int) error {
 	if debug >= 2 {
 		return writeGoroutineStacks(w)
 	}
-	return writeRuntimeProfile(w, debug, "goroutine", runtime_goroutineProfileWithLabels)
+	return writeRuntimeProfile(w, debug, "goroutine", runtime_goroutineProfileWithLabelsAndLimit)
 }
 
 func writeGoroutineStacks(w io.Writer) error {
@@ -706,7 +714,7 @@ func writeGoroutineStacks(w io.Writer) error {
 	return err
 }
 
-func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runtime.StackRecord, []unsafe.Pointer) (int, bool)) error {
+func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runtime.StackRecord, []unsafe.Pointer, int) (int, bool)) error {
 	// Find out how many records there are (fetch(nil)),
 	// allocate that many records, and get the data.
 	// There's a race—more records might be added between
@@ -715,14 +723,15 @@ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runti
 	// The loop should only execute one iteration in the common case.
 	var p []runtime.StackRecord
 	var labels []unsafe.Pointer
-	n, ok := fetch(nil, nil)
+	max := maxDumpGoroutineNum
+	n, ok := fetch(nil, nil, max)
 	for {
 		// Allocate room for a slightly bigger profile,
 		// in case a few more entries have been added
 		// since the call to ThreadProfile.
 		p = make([]runtime.StackRecord, n+10)
 		labels = make([]unsafe.Pointer, n+10)
-		n, ok = fetch(p, labels)
+		n, ok = fetch(p, labels, max)
 		if ok {
 			p = p[0:n]
 			break
