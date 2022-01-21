@@ -96,6 +96,10 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		x.mode = constant_
 
 	case *TypeName:
+		if check.isBrokenAlias(obj) {
+			check.errorf(e, _InvalidDeclCycle, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
+			return
+		}
 		x.mode = typexpr
 
 	case *Var:

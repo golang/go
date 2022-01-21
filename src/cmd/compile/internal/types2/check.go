@@ -130,6 +130,7 @@ type Checker struct {
 	imports       []*PkgName                  // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
+	brokenAliases map[*TypeName]bool          // set of aliases with broken (not yet determined) types
 	unionTypeSets map[*Union]*_TypeSet        // computed type sets for union types
 	mono          monoGraph                   // graph for detecting non-monomorphizable instantiation loops
 
@@ -158,6 +159,27 @@ func (check *Checker) addDeclDep(to Object) {
 		return // to is not a package-level object
 	}
 	from.addDep(to)
+}
+
+// brokenAlias records that alias doesn't have a determined type yet.
+// It also sets alias.typ to Typ[Invalid].
+func (check *Checker) brokenAlias(alias *TypeName) {
+	if check.brokenAliases == nil {
+		check.brokenAliases = make(map[*TypeName]bool)
+	}
+	check.brokenAliases[alias] = true
+	alias.typ = Typ[Invalid]
+}
+
+// validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
+func (check *Checker) validAlias(alias *TypeName, typ Type) {
+	delete(check.brokenAliases, alias)
+	alias.typ = typ
+}
+
+// isBrokenAlias reports whether alias doesn't have a determined type yet.
+func (check *Checker) isBrokenAlias(alias *TypeName) bool {
+	return alias.typ == Typ[Invalid] && check.brokenAliases[alias]
 }
 
 func (check *Checker) rememberUntyped(e syntax.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
@@ -333,6 +355,7 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 	check.pkgPathMap = nil
 	check.seenPkgMap = nil
 	check.recvTParamMap = nil
+	check.brokenAliases = nil
 	check.unionTypeSets = nil
 	check.defTypes = nil
 	check.ctxt = nil
