@@ -7,7 +7,7 @@ package p
 var x T[B]
 
 type T[_ any] struct{}
-type A T[B /* ERROR invalid use of type alias */ ]
+type A T[B]
 type B = T[A]
 
 // test case from issue
@@ -15,4 +15,4 @@ type B = T[A]
 var v Box[Step]
 type Box[T any] struct{}
 type Step = Box[StepBox]
-type StepBox Box[Step /* ERROR invalid use of type alias */ ]
+type StepBox Box[Step]

@@ -1,13 +1,26 @@
-// compile -G=3
-
 // Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package p
 
-var x T[B]
+// examples from the issue
 
-type T[_ any] struct{}
-type A T[B]
-type B = T[A]
+type (
+	e = f
+	f = g
+	g = []h
+	h i
+	i = j
+	j = e
+)
+
+type (
+	e1 = []h1
+	h1 e1
+)
+
+type (
+	P = *T
+	T P
+)
