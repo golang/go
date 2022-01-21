@@ -1226,3 +1226,5 @@ func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
 func (th *TimeHistogram) Record(duration int64) {
 	(*timeHistogram)(th).record(duration)
 }
+
+var TimeHistogramMetricsBuckets = timeHistogramMetricsBuckets
