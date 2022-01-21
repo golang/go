@@ -1328,3 +1328,5 @@ func Acquirem() {
 func Releasem() {
 	releasem(getg().m)
 }
+
+var Timediv = timediv
