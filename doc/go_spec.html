@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Jan 18, 2022",
+	"Subtitle": "Version of Jan 21, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -1602,7 +1602,6 @@ slice.
 If the key type is an interface type, these
 comparison operators must be defined for the dynamic key values;
 failure will cause a <a href="#Run_time_panics">run-time panic</a>.
-
 </p>
 
 <pre>
@@ -2259,7 +2258,6 @@ Functions:
 	append cap close complex copy delete imag len
 	make new panic print println real recover
 </pre>
-
 
 <h3 id="Exported_identifiers">Exported identifiers</h3>
 
@@ -2936,7 +2934,7 @@ or a parenthesized expression.
 
 <p>
 An operand name denoting a <a href="#Function_declarations">type-parameterized function</a>
-may be followed by a list of <a href="#Type_arguments">type arguments</a>; the
+may be followed by a list of <a href="#Instantiations">type arguments</a>; the
 resulting operand is an <a href="#Instantiations">instantiated</a> function.
 </p>
 
@@ -4130,8 +4128,8 @@ with the same underlying array.
 <h3 id="Instantiations">Instantiations</h3>
 
 <p>
-A parameterized function or type is <i>instantiated</i> by substituting type arguments
-for the type parameters.
+A parameterized function or type is <i>instantiated</i> by substituting
+<i>type arguments</i> for the type parameters.
 Instantiation proceeds in two phases:
 </p>
 
@@ -4337,7 +4335,6 @@ The bitwise logical and shift operators apply to integers only.
 &gt;&gt;   right shift            integer &gt;&gt; integer &gt;= 0
 </pre>
 
-
 <h4 id="Integer_operators">Integer operators</h4>
 
 <p>
@@ -4430,6 +4427,7 @@ the <a href="#Numeric_types">unsigned integer</a>'s type.
 Loosely speaking, these unsigned integer operations
 discard high bits upon overflow, and programs may rely on "wrap around".
 </p>
+
 <p>
 For signed integers, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, <code>/</code>, and <code>&lt;&lt;</code> may legally
@@ -5934,7 +5932,7 @@ For a string value, the "range" clause iterates over the Unicode code points
 in the string starting at byte index 0.  On successive iterations, the index value will be the
 index of the first byte of successive UTF-8-encoded code points in the string,
 and the second value, of type <code>rune</code>, will be the value of
-the corresponding code point.  If the iteration encounters an invalid
+the corresponding code point. If the iteration encounters an invalid
 UTF-8 sequence, the second value will be <code>0xFFFD</code>,
 the Unicode replacement character, and the next iteration will advance
 a single byte in the string.
@@ -6485,7 +6483,6 @@ The multi-valued <a href="#Receive_operator">receive operation</a>
 returns a received value along with an indication of whether the channel is closed.
 </p>
 
-
 <h3 id="Length_and_capacity">Length and capacity</h3>
 
 <p>
@@ -6502,12 +6499,12 @@ len(s)    string type      string length in bytes
           []T              slice length
           map[K]T          map length (number of defined keys)
           chan T           number of elements queued in channel buffer
-	  type parameter   see below
+          type parameter   see below
 
 cap(s)    [n]T, *[n]T      array length (== n)
           []T              slice capacity
           chan T           channel buffer capacity
-	  type parameter   see below
+          type parameter   see below
 </pre>
 
 <p>
