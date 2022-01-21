@@ -11,7 +11,7 @@ type pair[S any] struct {}
 
 var _ transform[step]
 
-type box transform[step /* ERROR invalid use of type alias */ ]
+type box transform[step]
 type step = pair[box]
 
 // test case from issue
@@ -27,7 +27,7 @@ var first Transform[Step]
 // This line doesn't use the Step alias, and it compiles fine if you uncomment it.
 var second Transform[Pair[Box, interface{}]]
 
-type Box *Transform[Step /* ERROR invalid use of type alias */ ]
+type Box *Transform[Step]
 
 // This line is the same as the `first` line, but it comes after the Box declaration and
 // does not break the compile.
