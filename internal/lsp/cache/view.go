@@ -396,11 +396,10 @@ func (s *snapshot) locateTemplateFiles(ctx context.Context) {
 		excluded := pathExcludedByFilter(relpath, dir, s.view.gomodcache, s.view.options)
 		if fileHasExtension(path, suffixes) && !excluded && !fi.IsDir() {
 			k := span.URIFromPath(path)
-			fh, err := s.GetVersionedFile(ctx, k)
+			_, err := s.GetVersionedFile(ctx, k)
 			if err != nil {
 				return nil
 			}
-			s.files[k] = fh
 		}
 		searched++
 		if fileLimit > 0 && searched > fileLimit {
