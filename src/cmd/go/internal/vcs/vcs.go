@@ -164,7 +164,7 @@ func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
 
 func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
 	// Output changeset ID and seconds since epoch.
-	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -l1 -T {node}:{date(date,"%s")}`)
+	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -l1 -T {node}:{date|hgdate}`)
 	if err != nil {
 		return Status{}, err
 	}
@@ -173,6 +173,10 @@ func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
 	var rev string
 	var commitTime time.Time
 	if len(out) > 0 {
+		// Strip trailing timezone offset.
+		if i := bytes.IndexByte(out, ' '); i > 0 {
+			out = out[:i]
+		}
 		rev, commitTime, err = parseRevTime(out)
 		if err != nil {
 			return Status{}, err
