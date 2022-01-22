@@ -54,11 +54,6 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	)
 
 	walkPkgs := func(root, importPathRoot string, prune pruning) {
-		// Follow root if it's a symlink so path == root comparisons don't
-		// spuriously fail when root is a symlink and it points to path.
-		if r, err := filepath.EvalSymlinks(root); err == nil {
-			root = r
-		}
 		root = filepath.Clean(root)
 		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
 			if err != nil {
