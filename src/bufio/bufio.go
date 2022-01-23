@@ -149,16 +149,16 @@ func (b *Reader) Peek(n int) ([]byte, error) {
 	}
 
 	// 0 <= n <= len(b.buf)
-	var err error
 	if avail := b.w - b.r; avail < n {
 		// not enough data in buffer
 		n = avail
-		err = b.readErr()
+		err := b.readErr()
 		if err == nil {
-			err = ErrBufferFull
+			return nil, ErrBufferFull
 		}
+		return nil, err
 	}
-	return b.buf[b.r : b.r+n], err
+	return b.buf[b.r : b.r+n], nil
 }
 
 // Discard skips the next n bytes, returning the number of bytes discarded.
