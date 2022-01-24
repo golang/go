@@ -111,7 +111,7 @@ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
 func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
 
 // IsComparable reports whether each type in interface t's type set is comparable.
-func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable(nil) }
 
 // IsMethodSet reports whether the interface t is fully described by its method
 // set.
