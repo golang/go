@@ -32,12 +32,12 @@ func (s *_TypeSet) IsAll() bool { return !s.comparable && len(s.methods) == 0 &&
 func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
-func (s *_TypeSet) IsComparable() bool {
+func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
 	if s.terms.isAll() {
 		return s.comparable
 	}
 	return s.is(func(t *term) bool {
-		return t != nil && Comparable(t.typ)
+		return t != nil && comparable(t.typ, seen)
 	})
 }
 

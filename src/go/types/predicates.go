@@ -133,7 +133,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 	case *Array:
 		return comparable(t.elem, seen)
 	case *Interface:
-		return !isTypeParam(T) || t.IsComparable()
+		return !isTypeParam(T) || t.typeSet().IsComparable(seen)
 	}
 	return false
 }
