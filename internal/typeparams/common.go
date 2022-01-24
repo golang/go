@@ -77,3 +77,35 @@ func IsTypeParam(t types.Type) bool {
 	_, ok := t.(*TypeParam)
 	return ok
 }
+
+// OriginMethod returns the origin method associated with the method fn.
+// For methods on a non-generic receiver base type, this is just
+// fn. However, for methods with a generic receiver, OriginMethod returns the
+// corresponding method in the method set of the origin type.
+//
+// As a special case, if fn is not a method (has no receiver), OriginMethod
+// returns fn.
+func OriginMethod(fn *types.Func) *types.Func {
+	recv := fn.Type().(*types.Signature).Recv()
+	if recv == nil {
+
+		return fn
+	}
+	base := recv.Type()
+	p, isPtr := base.(*types.Pointer)
+	if isPtr {
+		base = p.Elem()
+	}
+	named, isNamed := base.(*types.Named)
+	if !isNamed {
+		// Receiver is a *types.Interface.
+		return fn
+	}
+	if ForNamed(named).Len() == 0 {
+		// Receiver base has no type parameters, so we can avoid the lookup below.
+		return fn
+	}
+	orig := NamedTypeOrigin(named)
+	gfn, _, _ := types.LookupFieldOrMethod(orig, true, fn.Pkg(), fn.Name())
+	return gfn.(*types.Func)
+}
