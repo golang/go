@@ -15,10 +15,14 @@
 package elliptic
 
 import (
+	_ "embed"
 	"math/big"
 )
 
 //go:generate go run -tags=tablegen gen_p256_table.go
+
+//go:embed p256_asm_table.bin
+var p256Precomputed string
 
 type (
 	p256Curve struct {
