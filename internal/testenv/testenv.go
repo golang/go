@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	exec "golang.org/x/sys/execabs"
 )
@@ -306,4 +307,16 @@ func SkipAfterGo1Point(t Testing, x int) {
 	if Go1Point() > x {
 		t.Skipf("running Go version %q is version 1.%d, newer than maximum 1.%d", runtime.Version(), Go1Point(), x)
 	}
+}
+
+// Deadline returns the deadline of t, if known,
+// using the Deadline method added in Go 1.15.
+func Deadline(t Testing) (time.Time, bool) {
+	td, ok := t.(interface {
+		Deadline() (time.Time, bool)
+	})
+	if !ok {
+		return time.Time{}, false
+	}
+	return td.Deadline()
 }
