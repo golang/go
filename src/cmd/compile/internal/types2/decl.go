@@ -66,12 +66,6 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 		}()
 	}
 
-	// Funcs with m.instRecv set have not yet be completed. Complete them now
-	// so that they have a type when objDecl exits.
-	if m, _ := obj.(*Func); m != nil && m.instRecv != nil {
-		check.completeMethod(nil, m)
-	}
-
 	// Checking the declaration of obj means inferring its type
 	// (and possibly its value, for constants).
 	// An object's type (and thus the object) may be in one of
@@ -643,6 +637,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 	// and field names must be distinct."
 	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
 	if base != nil {
+		assert(base.targs.Len() == 0) // collectMethods should not be called on an instantiated type
 		u := base.under()
 		if t, _ := u.(*Struct); t != nil {
 			for _, fld := range t.fields {
@@ -655,7 +650,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		// Checker.Files may be called multiple times; additional package files
 		// may add methods to already type-checked types. Add pre-existing methods
 		// so that we can detect redeclarations.
-		for _, m := range base.methods {
+		for i := 0; i < base.methods.Len(); i++ {
+			m := base.methods.At(i, nil)
 			assert(m.name != "_")
 			assert(mset.insert(m) == nil)
 		}
@@ -687,7 +683,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 
 		if base != nil {
 			base.resolve(nil) // TODO(mdempsky): Probably unnecessary.
-			base.methods = append(base.methods, m)
+			base.AddMethod(m)
 		}
 	}
 }

@@ -142,7 +142,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 
 				// look for a matching attached method
 				named.resolve(nil)
-				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
+				if i, m := named.lookupMethod(pkg, name); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet
 					index = concat(e.index, i)

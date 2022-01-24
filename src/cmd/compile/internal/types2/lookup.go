@@ -144,7 +144,7 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
 
 				// look for a matching attached method
 				named.resolve(nil)
-				if i, m := lookupMethodFold(named.methods, pkg, name, checkFold); m != nil {
+				if i, m := named.lookupMethodFold(pkg, name, checkFold); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet
 					index = concat(e.index, i)

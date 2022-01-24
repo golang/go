@@ -632,6 +632,11 @@ func TestDefsInfo(t *testing.T) {
 		{`package p3; type x int`, `x`, `type p3.x int`},
 		{`package p4; func f()`, `f`, `func p4.f()`},
 		{`package p5; func f() int { x, _ := 1, 2; return x }`, `_`, `var _ int`},
+
+		// Tests using generics.
+		{`package generic_g0; type x[T any] int`, `x`, `type generic_g0.x[T any] int`},
+		{`package generic_g1; func f[T any]() {}`, `f`, `func generic_g1.f[T any]()`},
+		{`package generic_g2; type x[T any] int; func (*x[_]) m() {}`, `m`, `func (*generic_g2.x[_]).m()`},
 	}
 
 	for _, test := range tests {
@@ -670,6 +675,20 @@ func TestUsesInfo(t *testing.T) {
 		{`package p2; func _() { _ = x }; var x int`, `x`, `var p2.x int`},
 		{`package p3; func _() { type _ x }; type x int`, `x`, `type p3.x int`},
 		{`package p4; func _() { _ = f }; func f()`, `f`, `func p4.f()`},
+
+		// Tests using generics.
+		{`package generic_g0; func _[T any]() { _ = x }; const x = 42`, `x`, `const generic_g0.x untyped int`},
+		{`package generic_g1; func _[T any](x T) { }`, `T`, `type parameter T any`},
+		{`package generic_g2; type N[A any] int; var _ N[int]`, `N`, `type generic_g2.N[A any] int`},
+		{`package generic_g3; type N[A any] int; func (N[_]) m() {}`, `N`, `type generic_g3.N[A any] int`},
+
+		// Uses of fields are instantiated.
+		{`package generic_s1; type N[A any] struct{ a A }; var f = N[int]{}.a`, `a`, `field a int`},
+		{`package generic_s1; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
+
+		// Uses of methods are uses of the instantiated method.
+		{`package generic_m0; type N[A any] int; func (r N[B]) m() { r.n() }; func (N[C]) n() {}`, `n`, `func (generic_m0.N[B]).n()`},
+		{`package generic_m1; type N[A any] int; func (r N[B]) m() { }; var f = N[int].m`, `m`, `func (generic_m1.N[int]).m()`},
 	}
 
 	for _, test := range tests {
@@ -697,6 +716,90 @@ func TestUsesInfo(t *testing.T) {
 	}
 }
 
+func TestGenericMethodInfo(t *testing.T) {
+	src := `package p
+
+type N[A any] int
+
+func (r N[B]) m() { r.m(); r.n() }
+
+func (r *N[C]) n() {  }
+`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "p.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := Info{
+		Defs:       make(map[*ast.Ident]Object),
+		Uses:       make(map[*ast.Ident]Object),
+		Selections: make(map[*ast.SelectorExpr]*Selection),
+	}
+	var conf Config
+	pkg, err := conf.Check("p", fset, []*ast.File{f}, &info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	N := pkg.Scope().Lookup("N").Type().(*Named)
+
+	// Find the generic methods stored on N.
+	gm, gn := N.Method(0), N.Method(1)
+	if gm.Name() == "n" {
+		gm, gn = gn, gm
+	}
+
+	// Collect objects from info.
+	var dm, dn *Func   // the declared methods
+	var dmm, dmn *Func // the methods used in the body of m
+	for _, decl := range f.Decls {
+		fdecl, ok := decl.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		def := info.Defs[fdecl.Name].(*Func)
+		switch fdecl.Name.Name {
+		case "m":
+			dm = def
+			ast.Inspect(fdecl.Body, func(n ast.Node) bool {
+				if call, ok := n.(*ast.CallExpr); ok {
+					sel := call.Fun.(*ast.SelectorExpr)
+					use := info.Uses[sel.Sel].(*Func)
+					selection := info.Selections[sel]
+					if selection.Kind() != MethodVal {
+						t.Errorf("Selection kind = %v, want %v", selection.Kind(), MethodVal)
+					}
+					if selection.Obj() != use {
+						t.Errorf("info.Selections contains %v, want %v", selection.Obj(), use)
+					}
+					switch sel.Sel.Name {
+					case "m":
+						dmm = use
+					case "n":
+						dmn = use
+					}
+				}
+				return true
+			})
+		case "n":
+			dn = def
+		}
+	}
+
+	if gm != dm {
+		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
+	}
+	if gn != dn {
+		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
+	}
+	if dmm != dm {
+		t.Errorf(`Inside "m", r.m uses %v, want the defined func %v`, dmm, dm)
+	}
+	if dmn == dn {
+		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmm, dm)
+	}
+}
+
 func TestImplicitsInfo(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
@@ -717,6 +820,17 @@ func TestImplicitsInfo(t *testing.T) {
 		{`package p8; func f(int) {}`, "field: var  int"},
 		{`package p9; func f() (complex64) { return 0 }`, "field: var  complex64"},
 		{`package p10; type T struct{}; func (*T) f() {}`, "field: var  *p10.T"},
+
+		// Tests using generics.
+		{`package generic_f0; func f[T any](x int) {}`, ""}, // no Implicits entry
+		{`package generic_f1; func f[T any](int) {}`, "field: var  int"},
+		{`package generic_f2; func f[T any](T) {}`, "field: var  T"},
+		{`package generic_f3; func f[T any]() (complex64) { return 0 }`, "field: var  complex64"},
+		{`package generic_f4; func f[T any](t T) (T) { return t }`, "field: var  T"},
+		{`package generic_t0; type T[A any] struct{}; func (*T[_]) f() {}`, "field: var  *generic_t0.T[_]"},
+		{`package generic_t1; type T[A any] struct{}; func _(x interface{}) { switch t := x.(type) { case T[int]: _ = t } }`, "caseClause: var t generic_t1.T[int]"},
+		{`package generic_t2; type T[A any] struct{}; func _[P any](x interface{}) { switch t := x.(type) { case T[P]: _ = t } }`, "caseClause: var t generic_t2.T[P]"},
+		{`package generic_t3; func _[P any](x interface{}) { switch t := x.(type) { case P: _ = t } }`, "caseClause: var t P"},
 	}
 
 	for _, test := range tests {
