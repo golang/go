@@ -29,6 +29,7 @@ import (
 	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/xcontext"
 )
 
@@ -71,20 +72,19 @@ type Runner struct {
 }
 
 type runConfig struct {
-	editor      fake.EditorConfig
-	sandbox     fake.SandboxConfig
-	modes       Mode
-	timeout     time.Duration
-	debugAddr   string
-	skipLogs    bool
-	skipHooks   bool
-	optionsHook func(*source.Options)
+	editor           fake.EditorConfig
+	sandbox          fake.SandboxConfig
+	modes            Mode
+	noDefaultTimeout bool
+	debugAddr        string
+	skipLogs         bool
+	skipHooks        bool
+	optionsHook      func(*source.Options)
 }
 
 func (r *Runner) defaultConfig() *runConfig {
 	return &runConfig{
 		modes:       r.DefaultModes,
-		timeout:     r.Timeout,
 		optionsHook: r.OptionsHook,
 	}
 }
@@ -100,10 +100,12 @@ func (f optionSetter) set(opts *runConfig) {
 	f(opts)
 }
 
-// Timeout configures a custom timeout for this test run.
-func Timeout(d time.Duration) RunOption {
+// NoDefaultTimeout removes the timeout set by the -regtest_timeout flag, for
+// individual tests that are expected to run longer than is reasonable for
+// ordinary regression tests.
+func NoDefaultTimeout() RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.timeout = d
+		opts.noDefaultTimeout = true
 	})
 }
 
@@ -257,8 +259,18 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 		}
 
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), config.timeout)
-			defer cancel()
+			ctx := context.Background()
+			if r.Timeout != 0 && !config.noDefaultTimeout {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, r.Timeout)
+				defer cancel()
+			} else if d, ok := testenv.Deadline(t); ok {
+				timeout := time.Until(d) * 19 / 20 // Leave an arbitrary 5% for cleanup.
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, timeout)
+				defer cancel()
+			}
+
 			ctx = debug.WithInstance(ctx, "", "off")
 			if config.debugAddr != "" {
 				di := debug.GetInstance(ctx)

@@ -10,7 +10,6 @@ import (
 	"os"
 	"runtime/pprof"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/internal/lsp/fake"
@@ -32,9 +31,9 @@ func benchmarkOptions(dir string) []RunOption {
 		SkipLogs(),
 		// The Debug server only makes sense if running in singleton mode.
 		Modes(Singleton),
-		// Set a generous timeout. Individual tests should control their own
-		// graceful termination.
-		Timeout(20 * time.Minute),
+		// Remove the default timeout. Individual tests should control their
+		// own graceful termination.
+		NoDefaultTimeout(),
 
 		// Use the actual proxy, since we want our builds to succeed.
 		GOPROXY("https://proxy.golang.org"),

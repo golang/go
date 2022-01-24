@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/gopls/internal/hooks"
 	. "golang.org/x/tools/internal/lsp/regtest"
@@ -292,13 +291,6 @@ func TestGCDetails(t *testing.T) {
 		t.Skipf("the gc details code lens doesn't work on Android")
 	}
 
-	// TestGCDetails seems to suffer from poor performance on certain builders.
-	// Give it as long as it needs to complete.
-	timeout := 60 * time.Second
-	if d, ok := testenv.Deadline(t); ok {
-		timeout = time.Until(d) * 19 / 20 // Leave 5% headroom for cleanup.
-	}
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -318,7 +310,6 @@ func main() {
 			CodeLenses: map[string]bool{
 				"gc_details": true,
 			}},
-		Timeout(timeout),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.ExecuteCodeLensCommand("main.go", command.GCDetails)
