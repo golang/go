@@ -437,7 +437,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 	}
 	def.setUnderlying(inst)
 
-	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
 		tparams := orig.TypeParams().list()
 
 		inferred := targs

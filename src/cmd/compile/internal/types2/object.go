@@ -281,7 +281,7 @@ func NewTypeName(pos syntax.Pos, pkg *Package, name string, typ Type) *TypeName 
 func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, load func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
 	obj := NewTypeName(pos, pkg, name, nil)
 
-	resolve := func(_ *Context, t *Named) (*TypeParamList, Type, []*Func) {
+	resolve := func(_ *Context, t *Named) (*TypeParamList, Type, *methodList) {
 		tparams, underlying, methods := load(t)
 
 		switch underlying.(type) {
@@ -289,7 +289,7 @@ func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, load func(named 
 			panic(fmt.Sprintf("invalid underlying type %T", t.underlying))
 		}
 
-		return bindTParams(tparams), underlying, methods
+		return bindTParams(tparams), underlying, newMethodList(methods)
 	}
 
 	NewNamed(obj, nil, nil).resolver = resolve
@@ -365,8 +365,7 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
 // An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object
-	instRecv    *Named // if non-nil, the receiver type for an incomplete instance method
-	hasPtrRecv_ bool   // only valid for methods that don't have a type yet; use hasPtrRecv() to read
+	hasPtrRecv_ bool // only valid for methods that don't have a type yet; use hasPtrRecv() to read
 }
 
 // NewFunc returns a new function with the given signature, representing
@@ -377,7 +376,7 @@ func NewFunc(pos syntax.Pos, pkg *Package, name string, sig *Signature) *Func {
 	if sig != nil {
 		typ = sig
 	}
-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, nil, false}
+	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false}
 }
 
 // FullName returns the package- or receiver-type-qualified name of
