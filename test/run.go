@@ -2180,6 +2180,8 @@ var unifiedFailures = setOf(
 	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
 	"typeparam/issue50417b.go", // Need to handle field access on a type param
 	"typeparam/issue50552.go",  // gives missing method for instantiated type
+	"typeparam/absdiff2.go",    // wrong assertion about closure variables
+	"typeparam/absdiffimp2.go", // wrong assertion about closure variables
 )
 
 func setOf(keys ...string) map[string]bool {

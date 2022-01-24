@@ -133,12 +133,20 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 		g.target.Inits = append(g.target.Inits, fn)
 	}
 
-	haveEmbed := g.haveEmbed
+	saveHaveEmbed := g.haveEmbed
+	saveCurDecl := g.curDecl
 	g.curDecl = ""
 	g.later(func() {
-		defer func(b bool) { g.haveEmbed = b }(g.haveEmbed)
+		defer func(b bool, s string) {
+			// Revert haveEmbed and curDecl back to what they were before
+			// the "later" function.
+			g.haveEmbed = b
+			g.curDecl = s
+		}(g.haveEmbed, g.curDecl)
 
-		g.haveEmbed = haveEmbed
+		// Set haveEmbed and curDecl to what they were for this funcDecl.
+		g.haveEmbed = saveHaveEmbed
+		g.curDecl = saveCurDecl
 		if fn.Type().HasTParam() {
 			g.topFuncIsGeneric = true
 		}
@@ -162,9 +170,10 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	// Set the position for any error messages we might print (e.g. too large types).
 	base.Pos = g.pos(decl)
-	assert(g.curDecl == "")
+	assert(ir.CurFunc != nil || g.curDecl == "")
 	// Set g.curDecl to the type name, as context for the type params declared
 	// during types2-to-types1 translation if this is a generic type.
+	saveCurDecl := g.curDecl
 	g.curDecl = decl.Name.Value
 	if decl.Alias {
 		name, _ := g.def(decl.Name)
@@ -225,7 +234,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	}
 	types.ResumeCheckSize()
 
-	g.curDecl = ""
+	g.curDecl = saveCurDecl
 	if otyp, ok := otyp.(*types2.Named); ok && otyp.NumMethods() != 0 {
 		methods := make([]*types.Field, otyp.NumMethods())
 		for i := range methods {
