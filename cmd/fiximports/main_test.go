@@ -245,6 +245,9 @@ import (
 
 // TestDryRun tests that the -n flag suppresses calls to writeFile.
 func TestDryRun(t *testing.T) {
+	if os.Getenv("GO_BUILDER_NAME") == "plan9-arm" {
+		t.Skipf("skipping test that times out on plan9-arm; see https://go.dev/issue/50775")
+	}
 	testenv.NeedsTool(t, "go")
 
 	*dryrun = true
