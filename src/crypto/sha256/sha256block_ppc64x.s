@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ppc64 || ppc64le
+
 // Based on CRYPTOGAMS code with the following comment:
 // # ====================================================================
 // # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -57,19 +59,11 @@
 #define END	R5
 #define TBL	R6
 #define IDX	R7
-#define CNT	R8
 #define LEN	R9
-#define OFFLOAD	R11
 #define TEMP	R12
 
 #define HEX00	R0
 #define HEX10	R10
-#define HEX20	R25
-#define HEX30	R26
-#define HEX40	R27
-#define HEX50	R28
-#define HEX60	R29
-#define HEX70	R31
 
 // V0-V7 are A-H
 // V8-V23 are used for the message schedule
@@ -212,12 +206,23 @@ DATA  ·kcon+0x3F0(SB)/8, $0xc67178f2c67178f2
 DATA  ·kcon+0x3F8(SB)/8, $0xc67178f2c67178f2
 DATA  ·kcon+0x400(SB)/8, $0x0000000000000000
 DATA  ·kcon+0x408(SB)/8, $0x0000000000000000
+
+#ifdef GOARCH_ppc64le
 DATA  ·kcon+0x410(SB)/8, $0x1011121310111213	// permutation control vectors
 DATA  ·kcon+0x418(SB)/8, $0x1011121300010203
 DATA  ·kcon+0x420(SB)/8, $0x1011121310111213
 DATA  ·kcon+0x428(SB)/8, $0x0405060700010203
 DATA  ·kcon+0x430(SB)/8, $0x1011121308090a0b
 DATA  ·kcon+0x438(SB)/8, $0x0405060700010203
+#else
+DATA  ·kcon+0x410(SB)/8, $0x1011121300010203
+DATA  ·kcon+0x418(SB)/8, $0x1011121310111213	// permutation control vectors
+DATA  ·kcon+0x420(SB)/8, $0x0405060700010203
+DATA  ·kcon+0x428(SB)/8, $0x1011121310111213
+DATA  ·kcon+0x430(SB)/8, $0x0001020304050607
+DATA  ·kcon+0x438(SB)/8, $0x08090a0b10111213
+#endif
+
 GLOBL ·kcon(SB), RODATA, $1088
 
 #define SHA256ROUND0(a, b, c, d, e, f, g, h, xi) \
@@ -257,36 +262,34 @@ GLOBL ·kcon(SB), RODATA, $1088
 	VADDUWM		S0, h, h; \
 	VADDUWM		s1, xj, xj
 
+#ifdef GOARCH_ppc64le
+#define VPERMLE(va,vb,vc,vt) VPERM va, vb, vc, vt
+#else
+#define VPERMLE(va,vb,vc,vt)
+#endif
+
 // func block(dig *digest, p []byte)
-TEXT ·block(SB),0,$128-32
+TEXT ·block(SB),0,$0-32
 	MOVD	dig+0(FP), CTX
 	MOVD	p_base+8(FP), INP
 	MOVD	p_len+16(FP), LEN
 
 	SRD	$6, LEN
 	SLD	$6, LEN
-
 	ADD	INP, LEN, END
 
 	CMP	INP, END
 	BEQ	end
 
 	MOVD	$·kcon(SB), TBL
-	MOVD	R1, OFFLOAD
-
-	MOVD	R0, CNT
 	MOVWZ	$0x10, HEX10
-	MOVWZ	$0x20, HEX20
-	MOVWZ	$0x30, HEX30
-	MOVWZ	$0x40, HEX40
-	MOVWZ	$0x50, HEX50
-	MOVWZ	$0x60, HEX60
-	MOVWZ	$0x70, HEX70
-
 	MOVWZ	$8, IDX
+
+#ifdef GOARCH_ppc64le
 	LVSL	(IDX)(R0), LEMASK
 	VSPLTISB	$0x0F, KI
 	VXOR	KI, LEMASK, LEMASK
+#endif
 
 	LXVW4X	(CTX)(HEX00), VS32	// v0 = vs32
 	LXVW4X	(CTX)(HEX10), VS36	// v4 = vs36
@@ -306,20 +309,21 @@ loop:
 	LXVD2X	(INP)(R0), VS40	// load v8 (=vs40) in advance
 	ADD	$16, INP
 
-	STVX	V0, (OFFLOAD+HEX00)
-	STVX	V1, (OFFLOAD+HEX10)
-	STVX	V2, (OFFLOAD+HEX20)
-	STVX	V3, (OFFLOAD+HEX30)
-	STVX	V4, (OFFLOAD+HEX40)
-	STVX	V5, (OFFLOAD+HEX50)
-	STVX	V6, (OFFLOAD+HEX60)
-	STVX	V7, (OFFLOAD+HEX70)
+	// Offload to VSR24-31 (aka FPR24-31)
+	XXLOR	V0, V0, VS24
+	XXLOR	V1, V1, VS25
+	XXLOR	V2, V2, VS26
+	XXLOR	V3, V3, VS27
+	XXLOR	V4, V4, VS28
+	XXLOR	V5, V5, VS29
+	XXLOR	V6, V6, VS30
+	XXLOR	V7, V7, VS31
 
 	VADDUWM	KI, V7, V7	// h+K[i]
 	LVX	(TBL)(IDX), KI
 	ADD	$16, IDX
 
-	VPERM	V8, V8, LEMASK, V8
+	VPERMLE(V8, V8, LEMASK, V8)
 	SHA256ROUND0(V0, V1, V2, V3, V4, V5, V6, V7, V8)
 	VSLDOI	$4, V8, V8, V9
 	SHA256ROUND0(V7, V0, V1, V2, V3, V4, V5, V6, V9)
@@ -329,7 +333,7 @@ loop:
 	ADD	$16, INP, INP
 	VSLDOI	$4, V10, V10, V11
 	SHA256ROUND0(V5, V6, V7, V0, V1, V2, V3, V4, V11)
-	VPERM	V12, V12, LEMASK, V12
+	VPERMLE(V12, V12, LEMASK, V12)
 	SHA256ROUND0(V4, V5, V6, V7, V0, V1, V2, V3, V12)
 	VSLDOI	$4, V12, V12, V13
 	SHA256ROUND0(V3, V4, V5, V6, V7, V0, V1, V2, V13)
@@ -339,7 +343,7 @@ loop:
 	ADD	$16, INP, INP
 	VSLDOI	$4, V14, V14, V15
 	SHA256ROUND0(V1, V2, V3, V4, V5, V6, V7, V0, V15)
-	VPERM	V16, V16, LEMASK, V16
+	VPERMLE(V16, V16, LEMASK, V16)
 	SHA256ROUND0(V0, V1, V2, V3, V4, V5, V6, V7, V16)
 	VSLDOI	$4, V16, V16, V17
 	SHA256ROUND0(V7, V0, V1, V2, V3, V4, V5, V6, V17)
@@ -349,7 +353,7 @@ loop:
 	LXVD2X	(INP)(R0), VS52	// load v20 (=vs52) in advance
 	ADD	$16, INP, INP
 	SHA256ROUND0(V5, V6, V7, V0, V1, V2, V3, V4, V19)
-	VPERM	V20, V20, LEMASK, V20
+	VPERMLE(V20, V20, LEMASK, V20)
 	SHA256ROUND0(V4, V5, V6, V7, V0, V1, V2, V3, V20)
 	VSLDOI	$4, V20, V20, V21
 	SHA256ROUND0(V3, V4, V5, V6, V7, V0, V1, V2, V21)
@@ -381,21 +385,21 @@ L16_xx:
 
 	BC	0x10, 0, L16_xx		// bdnz
 
-	LVX	(OFFLOAD)(HEX00), V10
+	XXLOR	VS24, VS24, V10
 
-	LVX	(OFFLOAD)(HEX10), V11
+	XXLOR	VS25, VS25, V11
 	VADDUWM	V10, V0, V0
-	LVX	(OFFLOAD)(HEX20), V12
+	XXLOR	VS26, VS26, V12
 	VADDUWM	V11, V1, V1
-	LVX	(OFFLOAD)(HEX30), V13
+	XXLOR	VS27, VS27, V13
 	VADDUWM	V12, V2, V2
-	LVX	(OFFLOAD)(HEX40), V14
+	XXLOR	VS28, VS28, V14
 	VADDUWM	V13, V3, V3
-	LVX	(OFFLOAD)(HEX50), V15
+	XXLOR	VS29, VS29, V15
 	VADDUWM	V14, V4, V4
-	LVX	(OFFLOAD)(HEX60), V16
+	XXLOR	VS30, VS30, V16
 	VADDUWM	V15, V5, V5
-	LVX	(OFFLOAD)(HEX70), V17
+	XXLOR	VS31, VS31, V17
 	VADDUWM	V16, V6, V6
 	VADDUWM	V17, V7, V7
 
