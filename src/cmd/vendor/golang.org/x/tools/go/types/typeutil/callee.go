@@ -27,8 +27,7 @@ func Callee(info *types.Info, call *ast.CallExpr) types.Object {
 		// it is a *types.Func and not a *types.Var.
 		// Example: Don't match a slice m within the expression `m[0]()`.
 		isInstance = true
-		ix := typeparams.GetIndexExprData(fun)
-		fun = ix.X
+		fun, _, _, _ = typeparams.UnpackIndexExpr(fun)
 	}
 
 	var obj types.Object
