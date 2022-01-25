@@ -1226,6 +1226,18 @@ func (w *wantConn) tryDeliver(pc *persistConn, err error) bool {
 	return true
 }
 
+// cleanContext removes the context if the wantConn is not waiting anymore.
+// It mitigates memory leak as the wantConn can be stuck in the wantConnQueue and
+// this context can be big (it comes from the http.Request).
+func (w *wantConn) cleanContext() {
+	if !w.waiting() {
+		w.mu.Lock()
+		defer w.mu.Unlock()
+
+		w.ctx = nil
+	}
+}
+
 // cancel marks w as no longer wanting a result (for example, due to cancellation).
 // If a connection has been delivered already, cancel returns it with t.putOrCloseIdleConn.
 func (w *wantConn) cancel(t *Transport, err error) {
@@ -1341,10 +1353,12 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 		beforeDial: testHookPrePendingDial,
 		afterDial:  testHookPostPendingDial,
 	}
+
 	defer func() {
 		if err != nil {
 			w.cancel(t, err)
 		}
+		w.cleanContext()
 	}()
 
 	// Queue for idle connection.
@@ -1362,11 +1376,46 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 		return pc, nil
 	}
 
+	defer func() {
+		t.idleMu.Lock()
+		defer t.idleMu.Unlock()
+
+		if err != nil {
+			w.cancel(t, err)
+		}
+
+		q, ok := t.idleConnWait[w.key]
+		if ok {
+			q.cleanFront()
+			t.idleConnWait[w.key] = q
+			if q.len() == 0 {
+				delete(t.idleConnWait, w.key)
+			}
+		}
+	}()
+
 	cancelc := make(chan error, 1)
 	t.setReqCanceler(treq.cancelKey, func(err error) { cancelc <- err })
 
 	// Queue for permission to dial.
 	t.queueForDial(w)
+	defer func() {
+		t.connsPerHostMu.Lock()
+		defer t.connsPerHostMu.Unlock()
+
+		if err != nil {
+			w.cancel(t, err)
+		}
+
+		q, ok := t.connsPerHostWait[w.key]
+		if ok {
+			q.cleanFront()
+			t.connsPerHostWait[w.key] = q
+			if q.len() == 0 {
+				delete(t.connsPerHostWait, w.key)
+			}
+		}
+	}()
 
 	// Wait for completion or cancellation.
 	select {

@@ -3152,6 +3152,45 @@ func TestIdleConnChannelLeak(t *testing.T) {
 	}
 }
 
+func TestIdleConnWaitWantConnLeak(t *testing.T) {
+	// Not parallel: uses global test hooks.
+	var mu sync.Mutex
+	var n int
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		mu.Lock()
+		n++
+		mu.Unlock()
+		w.Write([]byte("CONTENT"))
+	}))
+	defer ts.Close()
+
+	const nReqs = 5
+
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	tr.Dial = func(netw, addr string) (net.Conn, error) {
+		return net.Dial(netw, ts.Listener.Addr().String())
+	}
+
+	// First, without keep-alives.
+	for _, disableKeep := range []bool{true, false} {
+		tr.DisableKeepAlives = disableKeep
+
+		for i := 0; i < nReqs; i++ {
+			resp, err := c.Get(fmt.Sprintf("http://foo-host-%d.tld/", i))
+			if err != nil {
+				t.Fatal(err)
+			}
+			resp.Body.Close()
+		}
+
+		if got := tr.IdleConnWaitMapSizeForTesting(); got != 0 {
+			t.Fatalf("for DisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
+		}
+	}
+}
+
 // Verify the status quo: that the Client.Post function coerces its
 // body into a ReadCloser if it's a Closer, and that the Transport
 // then closes it.
