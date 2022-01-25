@@ -573,6 +573,13 @@ func (b *builder) call(c ssa.CallInstruction) {
 }
 
 func addArgumentFlows(b *builder, c ssa.CallInstruction, f *ssa.Function) {
+	// When f has no paremeters (including receiver), there is no type
+	// flow here. Also, f's body and parameters might be missing, such
+	// as when vta is used within the golang.org/x/tools/go/analysis
+	// framework (see github.com/golang/go/issues/50670).
+	if len(f.Params) == 0 {
+		return
+	}
 	cc := c.Common()
 	// When c is an unresolved method call (cc.Method != nil), cc.Value contains
 	// the receiver object rather than cc.Args[0].
@@ -585,6 +592,14 @@ func addArgumentFlows(b *builder, c ssa.CallInstruction, f *ssa.Function) {
 		offset = 1
 	}
 	for i, v := range cc.Args {
+		// Parameters of f might not be available, as in the case
+		// when vta is used within the golang.org/x/tools/go/analysis
+		// framework (see github.com/golang/go/issues/50670).
+		//
+		// TODO: investigate other cases of missing body and parameters
+		if len(f.Params) <= i+offset {
+			return
+		}
 		b.addInFlowAliasEdges(b.nodeFromVal(f.Params[i+offset]), b.nodeFromVal(v))
 	}
 }

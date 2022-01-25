@@ -7,6 +7,9 @@ package vta
 import (
 	"testing"
 
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/analysistest"
+	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
@@ -74,5 +77,37 @@ func TestVTAProgVsFuncSet(t *testing.T) {
 	g = CallGraph(noBarFuncs, cha.CallGraph(prog))
 	if got := callGraphStr(g); !subGraph(want, got) {
 		t.Errorf("pruned callgraph %v should contain %v", got, want)
+	}
+}
+
+// TestVTAPanicMissingDefinitions tests if VTA gracefully handles the case
+// where VTA panics when a definition of a function or method is not
+// available, which can happen when using analysis package. A successful
+// test simply does not panic.
+func TestVTAPanicMissingDefinitions(t *testing.T) {
+	run := func(pass *analysis.Pass) (interface{}, error) {
+		s := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
+		CallGraph(ssautil.AllFunctions(s.Pkg.Prog), cha.CallGraph(s.Pkg.Prog))
+		return nil, nil
+	}
+
+	analyzer := &analysis.Analyzer{
+		Name: "test",
+		Doc:  "test",
+		Run:  run,
+		Requires: []*analysis.Analyzer{
+			buildssa.Analyzer,
+		},
+	}
+
+	testdata := analysistest.TestData()
+	res := analysistest.Run(t, testdata, analyzer, "t", "d")
+	if len(res) != 2 {
+		t.Errorf("want analysis results for 2 packages; got %v", len(res))
+	}
+	for _, r := range res {
+		if r.Err != nil {
+			t.Errorf("want no error for package %v; got %v", r.Pass.Pkg.Path(), r.Err)
+		}
 	}
 }
