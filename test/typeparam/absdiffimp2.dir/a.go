@@ -21,7 +21,7 @@ type numericAbs[T Numeric] interface {
 	Abs() T
 }
 
-// AbsDifference computes the absolute value of the difference of
+// absDifference computes the absolute value of the difference of
 // a and b, where the absolute value is determined by the Abs method.
 func absDifference[T Numeric, U numericAbs[T]](a, b U) T {
 	d := a.Value - b.Value
