@@ -611,3 +611,30 @@ func TestIssue43124(t *testing.T) {
 		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
 	}
 }
+
+func TestIssue50646(t *testing.T) {
+	anyType := Universe.Lookup("any").Type()
+	comparableType := Universe.Lookup("comparable").Type()
+
+	if !Comparable(anyType) {
+		t.Errorf("any is not a comparable type")
+	}
+	if !Comparable(comparableType) {
+		t.Errorf("comparable is not a comparable type")
+	}
+
+	// TODO(gri) should comparable be an alias, like any? (see #50791)
+	if !Implements(anyType, comparableType.Underlying().(*Interface)) {
+		t.Errorf("any does not implement comparable")
+	}
+	if !Implements(comparableType, anyType.(*Interface)) {
+		t.Errorf("comparable does not implement any")
+	}
+
+	if !AssignableTo(anyType, comparableType) {
+		t.Errorf("any not assignable to comparable")
+	}
+	if !AssignableTo(comparableType, anyType) {
+		t.Errorf("comparable not assignable to any")
+	}
+}
