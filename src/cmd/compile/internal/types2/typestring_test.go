@@ -93,6 +93,10 @@ var independentTestTypes = []testEntry{
 	dup(`interface{String() string; m(int) float32}`),
 	dup("interface{int|float32|complex128}"),
 	dup("interface{int|~float32|~complex128}"),
+	dup("any"),
+	dup("interface{comparable}"),
+	{"comparable", "interface{comparable}"},
+	{"error", "interface{Error() string}"},
 
 	// maps
 	dup("map[string]int"),
