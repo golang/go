@@ -4,6 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// absdiff example in which an Abs method is attached to a generic type, which is a
+// structure with a single field that may be a list of possible basic types.
+
 package main
 
 import (
@@ -24,7 +27,7 @@ type numericAbs[T Numeric] interface {
 	Abs() T
 }
 
-// AbsDifference computes the absolute value of the difference of
+// absDifference computes the absolute value of the difference of
 // a and b, where the absolute value is determined by the Abs method.
 func absDifference[T Numeric, U numericAbs[T]](a, b U) T {
 	d := a.Value - b.Value
