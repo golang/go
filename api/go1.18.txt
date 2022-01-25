@@ -13,6 +13,8 @@ pkg debug/buildinfo, func ReadFile(string) (*debug.BuildInfo, error)
 pkg debug/buildinfo, type BuildInfo = debug.BuildInfo
 pkg debug/elf, const R_PPC64_RELATIVE = 22
 pkg debug/elf, const R_PPC64_RELATIVE R_PPC64
+pkg debug/dwarf, type BasicType struct, DataBitOffset int64
+pkg debug/dwarf, type StructField struct, DataBitOffset int64
 pkg debug/plan9obj, var ErrNoSymbols error
 pkg go/ast, method (*IndexListExpr) End() token.Pos
 pkg go/ast, method (*IndexListExpr) Pos() token.Pos
