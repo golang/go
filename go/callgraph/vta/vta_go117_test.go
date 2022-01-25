@@ -15,7 +15,7 @@ import (
 )
 
 func TestVTACallGraphGo117(t *testing.T) {
-	file := "testdata/go117.go"
+	file := "testdata/src/go117.go"
 	prog, want, err := testProg(file)
 	if err != nil {
 		t.Fatalf("couldn't load test file '%s': %s", file, err)
