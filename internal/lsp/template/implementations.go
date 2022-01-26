@@ -29,7 +29,8 @@ func Diagnose(f source.VersionedFileHandle) []*source.Diagnostic {
 	if err != nil {
 		// Is a Diagnostic with no Range useful? event.Error also?
 		msg := fmt.Sprintf("failed to read %s (%v)", f.URI().Filename(), err)
-		d := source.Diagnostic{Message: msg, Severity: protocol.SeverityError, URI: f.URI()}
+		d := source.Diagnostic{Message: msg, Severity: protocol.SeverityError, URI: f.URI(),
+			Source: source.TemplateError}
 		return []*source.Diagnostic{&d}
 	}
 	p := parseBuffer(buf)
@@ -38,7 +39,9 @@ func Diagnose(f source.VersionedFileHandle) []*source.Diagnostic {
 	}
 	unknownError := func(msg string) []*source.Diagnostic {
 		s := fmt.Sprintf("malformed template error %q: %s", p.ParseErr.Error(), msg)
-		d := source.Diagnostic{Message: s, Severity: protocol.SeverityError, Range: p.Range(p.nls[0], 1), URI: f.URI()}
+		d := source.Diagnostic{
+			Message: s, Severity: protocol.SeverityError, Range: p.Range(p.nls[0], 1),
+			URI: f.URI(), Source: source.TemplateError}
 		return []*source.Diagnostic{&d}
 	}
 	// errors look like `template: :40: unexpected "}" in operand`
@@ -54,7 +57,8 @@ func Diagnose(f source.VersionedFileHandle) []*source.Diagnostic {
 		return unknownError(msg)
 	}
 	msg := matches[2]
-	d := source.Diagnostic{Message: msg, Severity: protocol.SeverityError}
+	d := source.Diagnostic{Message: msg, Severity: protocol.SeverityError,
+		Source: source.TemplateError}
 	start := p.nls[lineno-1]
 	if lineno < len(p.nls) {
 		size := p.nls[lineno] - start

@@ -645,6 +645,7 @@ const (
 	ModTidyError             DiagnosticSource = "go mod tidy"
 	OptimizationDetailsError DiagnosticSource = "optimizer details"
 	UpgradeNotification      DiagnosticSource = "upgrade available"
+	TemplateError            DiagnosticSource = "template"
 )
 
 func AnalyzerErrorKind(name string) DiagnosticSource {

@@ -38,6 +38,14 @@ Hello {{}} <-- missing body
 	).Run(t, files, func(t *testing.T, env *Env) {
 		// TODO: can we move this diagnostic onto {{}}?
 		env.Await(env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"))
+		d := env.DiagnosticsFor("hello.tmpl").Diagnostics // issue 50786: check for Source
+		if len(d) != 1 {
+			t.Errorf("expected 1 diagnostic, got %d", len(d))
+			return
+		}
+		if d[0].Source != "template" {
+			t.Errorf("expected Source 'template', got %q", d[0].Source)
+		}
 		env.WriteWorkspaceFile("hello.tmpl", "{{range .Planets}}\nHello {{.}}\n{{end}}")
 		env.Await(EmptyDiagnostics("hello.tmpl"))
 	})
