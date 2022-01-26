@@ -2167,7 +2167,6 @@ var unifiedFailures = setOf(
 
 	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
 	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
-	"typeparam/issue48538.go",  // assertion failure, interprets struct key as closure variable
 	"typeparam/issue47631.go",  // unified IR can handle local type declarations
 	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large
 	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
@@ -2178,10 +2177,7 @@ var unifiedFailures = setOf(
 	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
 	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
 	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
-	"typeparam/issue50417b.go", // Need to handle field access on a type param
 	"typeparam/issue50552.go",  // gives missing method for instantiated type
-	"typeparam/absdiff2.go",    // wrong assertion about closure variables
-	"typeparam/absdiffimp2.go", // wrong assertion about closure variables
 )
 
 func setOf(keys ...string) map[string]bool {
