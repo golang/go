@@ -250,7 +250,7 @@ func (r *reader2) doTyp() (res types2.Type) {
 	case typePointer:
 		return types2.NewPointer(r.typ())
 	case typeSignature:
-		return r.signature(nil)
+		return r.signature(nil, nil, nil)
 	case typeSlice:
 		return types2.NewSlice(r.typ())
 	case typeStruct:
@@ -298,7 +298,7 @@ func (r *reader2) interfaceType() *types2.Interface {
 	for i := range methods {
 		pos := r.pos()
 		pkg, name := r.selector()
-		mtyp := r.signature(nil)
+		mtyp := r.signature(nil, nil, nil)
 		methods[i] = types2.NewFunc(pos, pkg, name, mtyp)
 	}
 
@@ -309,14 +309,14 @@ func (r *reader2) interfaceType() *types2.Interface {
 	return types2.NewInterfaceType(methods, embeddeds)
 }
 
-func (r *reader2) signature(recv *types2.Var) *types2.Signature {
+func (r *reader2) signature(recv *types2.Var, rtparams, tparams []*types2.TypeParam) *types2.Signature {
 	r.sync(syncSignature)
 
 	params := r.params()
 	results := r.params()
 	variadic := r.bool()
 
-	return types2.NewSignatureType(recv, nil, nil, params, results, variadic)
+	return types2.NewSignatureType(recv, rtparams, tparams, params, results, variadic)
 }
 
 func (r *reader2) params() *types2.Tuple {
@@ -393,8 +393,7 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 		case objFunc:
 			pos := r.pos()
 			tparams := r.typeParamNames()
-			sig := r.signature(nil)
-			sig.SetTypeParams(tparams)
+			sig := r.signature(nil, nil, tparams)
 			return types2.NewFunc(pos, objPkg, objName, sig)
 
 		case objType:
@@ -490,9 +489,8 @@ func (r *reader2) method() *types2.Func {
 	pos := r.pos()
 	pkg, name := r.selector()
 
-	rparams := r.typeParamNames()
-	sig := r.signature(r.param())
-	sig.SetRecvTypeParams(rparams)
+	rtparams := r.typeParamNames()
+	sig := r.signature(r.param(), rtparams, nil)
 
 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
 	return types2.NewFunc(pos, pkg, name, sig)
