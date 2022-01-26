@@ -1,0 +1,40 @@
+pkg sync/atomic, method (*Bool) CompareAndSwap(bool, bool) bool #50860
+pkg sync/atomic, method (*Bool) Load() bool #50860
+pkg sync/atomic, method (*Bool) Store(bool) #50860
+pkg sync/atomic, method (*Bool) Swap(bool) bool #50860
+pkg sync/atomic, method (*Int32) Add(int32) int32 #50860
+pkg sync/atomic, method (*Int32) CompareAndSwap(int32, int32) bool #50860
+pkg sync/atomic, method (*Int32) Load() int32 #50860
+pkg sync/atomic, method (*Int32) Store(int32) #50860
+pkg sync/atomic, method (*Int32) Swap(int32) int32 #50860
+pkg sync/atomic, method (*Int64) Add(int64) int64 #50860
+pkg sync/atomic, method (*Int64) CompareAndSwap(int64, int64) bool #50860
+pkg sync/atomic, method (*Int64) Load() int64 #50860
+pkg sync/atomic, method (*Int64) Store(int64) #50860
+pkg sync/atomic, method (*Int64) Swap(int64) int64 #50860
+pkg sync/atomic, method (*Pointer[$0]) CompareAndSwap(*$0, *$0) bool #50860
+pkg sync/atomic, method (*Pointer[$0]) Load() *$0 #50860
+pkg sync/atomic, method (*Pointer[$0]) Store(*$0) #50860
+pkg sync/atomic, method (*Pointer[$0]) Swap(*$0) *$0 #50860
+pkg sync/atomic, method (*Uint32) Add(uint32) uint32 #50860
+pkg sync/atomic, method (*Uint32) CompareAndSwap(uint32, uint32) bool #50860
+pkg sync/atomic, method (*Uint32) Load() uint32 #50860
+pkg sync/atomic, method (*Uint32) Store(uint32) #50860
+pkg sync/atomic, method (*Uint32) Swap(uint32) uint32 #50860
+pkg sync/atomic, method (*Uint64) Add(uint64) uint64 #50860
+pkg sync/atomic, method (*Uint64) CompareAndSwap(uint64, uint64) bool #50860
+pkg sync/atomic, method (*Uint64) Load() uint64 #50860
+pkg sync/atomic, method (*Uint64) Store(uint64) #50860
+pkg sync/atomic, method (*Uint64) Swap(uint64) uint64 #50860
+pkg sync/atomic, method (*Uintptr) Add(uintptr) uintptr #50860
+pkg sync/atomic, method (*Uintptr) CompareAndSwap(uintptr, uintptr) bool #50860
+pkg sync/atomic, method (*Uintptr) Load() uintptr #50860
+pkg sync/atomic, method (*Uintptr) Store(uintptr) #50860
+pkg sync/atomic, method (*Uintptr) Swap(uintptr) uintptr #50860
+pkg sync/atomic, type Bool struct #50860
+pkg sync/atomic, type Int32 struct #50860
+pkg sync/atomic, type Int64 struct #50860
+pkg sync/atomic, type Pointer[$0 interface{}] struct #50860
+pkg sync/atomic, type Uint32 struct #50860
+pkg sync/atomic, type Uint64 struct #50860
+pkg sync/atomic, type Uintptr struct #50860
