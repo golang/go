@@ -88,22 +88,32 @@ func defPredeclaredTypes() {
 	{
 		obj := NewTypeName(nopos, nil, "error", nil)
 		obj.setColor(black)
+		typ := NewNamed(obj, nil, nil)
+
+		// error.Error() string
+		recv := NewVar(nopos, nil, "", typ)
 		res := NewVar(nopos, nil, "", Typ[String])
-		sig := NewSignatureType(nil, nil, nil, nil, NewTuple(res), false)
+		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
 		err := NewFunc(nopos, nil, "Error", sig)
-		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, false, true, nil}
+
+		// interface{ Error() string }
+		ityp := &Interface{obj: obj, methods: []*Func{err}, complete: true}
 		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
-		typ := NewNamed(obj, ityp, nil)
-		sig.recv = NewVar(nopos, nil, "", typ)
+
+		typ.SetUnderlying(ityp)
 		def(obj)
 	}
 
-	// type comparable interface{ /* type set marked comparable */ }
+	// type comparable interface{} // marked as comparable
 	{
 		obj := NewTypeName(nopos, nil, "comparable", nil)
 		obj.setColor(black)
-		ityp := &Interface{nil, obj, nil, nil, nil, false, true, &_TypeSet{true, nil, allTermlist}}
-		NewNamed(obj, ityp, nil)
+		typ := NewNamed(obj, nil, nil)
+
+		// interface{} // marked as comparable
+		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{true, nil, allTermlist}}
+
+		typ.SetUnderlying(ityp)
 		def(obj)
 	}
 }
