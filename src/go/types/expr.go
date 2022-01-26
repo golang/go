@@ -1241,11 +1241,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case hint != nil:
 			// no composite literal type present - use hint (element type of enclosing type)
 			typ = hint
-			base = typ
-			if !isTypeParam(typ) {
-				base = under(typ)
-			}
-			base, _ = deref(base) // *T implies &T{}
+			base, _ = deref(structuralType(typ)) // *T implies &T{}
 
 		default:
 			// TODO(gri) provide better error messages depending on context
