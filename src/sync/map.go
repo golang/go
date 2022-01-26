@@ -24,6 +24,13 @@ import (
 // contention compared to a Go map paired with a separate Mutex or RWMutex.
 //
 // The zero Map is empty and ready for use. A Map must not be copied after first use.
+//
+// In the terminology of the Go memory model, Map arranges that a write operation
+// “synchronizes before” any read operation that observes the effect of the write, where
+// read and write operations are defined as follows.
+// Load, LoadAndDelete, LoadOrStore are read operations;
+// Delete, LoadAndDelete, and Store are write operations;
+// and LoadOrStore is a write operation when it returns loaded set to false.
 type Map struct {
 	mu Mutex
 
