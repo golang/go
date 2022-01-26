@@ -38,16 +38,15 @@ func F[FP0, FP1 any](FP0, FP1) {}
 `},
 	}
 	paths := []pathTest{
-		// TODO: uncomment tests once type parameter strings have been adjusted.
 		// Good paths
-		// {"b", "T", "type b.T[b.TP0 interface{}, b.TP1 interface{M0(); M1()}] struct{}", ""},
-		// {"b", "T.O", "type b.T[b.TP0 interface{}, b.TP1 interface{M0(); M1()}] struct{}", ""},
-		// {"b", "T.M0", "func (b.T[b.RP0, b.RP1]).M()", ""},
-		// {"b", "T.T0O", "type TP0 b.TP0", ""},
-		// {"b", "T.T1O", "type TP1 b.TP1", ""},
+		{"b", "T", "type b.T[TP0 any, TP1 interface{M0(); M1()}] struct{}", ""},
+		{"b", "T.O", "type b.T[TP0 any, TP1 interface{M0(); M1()}] struct{}", ""},
+		{"b", "T.M0", "func (b.T[RP0, RP1]).M()", ""},
+		{"b", "T.T0O", "type parameter TP0 any", ""},
+		{"b", "T.T1O", "type parameter TP1 interface{M0(); M1()}", ""},
 		{"b", "T.T1CM0", "func (interface).M0()", ""},
 		// Obj of an instance is the generic declaration.
-		// {"b", "A.O", "type b.T[b.TP0 interface{}, b.TP1 interface{M0(); M1()}] struct{}", ""},
+		{"b", "A.O", "type b.T[TP0 any, TP1 interface{M0(); M1()}] struct{}", ""},
 		{"b", "A.M0", "func (b.T[int, b.N]).M()", ""},
 
 		// Bad paths
@@ -56,7 +55,7 @@ func F[FP0, FP1 any](FP0, FP1) {}
 		{"b", "N.T", "", `invalid path: bad numeric operand "" for code 'T'`},
 		{"b", "N.T0", "", "tuple index 0 out of range [0-0)"},
 		{"b", "T.T2O", "", "tuple index 2 out of range [0-2)"},
-		// {"b", "T.T1M0", "", "cannot apply 'M' to b.TP1 (got *types.TypeParam, want interface or named)"},
+		{"b", "T.T1M0", "", "cannot apply 'M' to TP1 (got *types.TypeParam, want interface or named)"},
 		{"b", "C.T0", "", "cannot apply 'T' to int (got *types.Basic, want named or signature)"},
 	}
 
@@ -79,7 +78,8 @@ func F[FP0, FP1 any](FP0, FP1) {}
 		wantErr string
 	}{
 		{types.Universe.Lookup("any"), "predeclared type any = interface{} has no path"},
-		{types.Universe.Lookup("comparable"), "predeclared type comparable interface{} has no path"},
+		// TODO: uncomment once the type string of comparable has been updated.
+		// {types.Universe.Lookup("comparable"), "predeclared type comparable interface{} has no path"},
 	} {
 		path, err := objectpath.For(test.obj)
 		if err == nil {
