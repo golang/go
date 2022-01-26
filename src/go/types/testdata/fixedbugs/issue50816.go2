@@ -1,0 +1,23 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package pkg
+
+type I interface {
+	Foo()
+}
+
+type T1 struct{}
+
+func (T1) foo() {}
+
+type T2 struct{}
+
+func (T2) foo() string { return "" }
+
+func _() {
+	var i I
+	_ = i/* ERROR i \(variable of type I\) cannot have dynamic type T1 \(missing method Foo\) */.(T1)
+	_ = i/* ERROR i \(variable of type I\) cannot have dynamic type T2 \(missing method Foo\) */.(T2)
+}

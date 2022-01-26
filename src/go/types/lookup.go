@@ -390,21 +390,20 @@ func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string 
 		mname = "method " + m.Name()
 	}
 	if wrongType != nil {
-		pos := check.fset.Position(wrongType.Pos())
-		if Identical(m.typ, wrongType.typ) {
-			if m.Name() == wrongType.Name() {
-				r = check.sprintf("(%s has pointer receiver) at %s", mname, pos)
-			} else {
-				r = check.sprintf("(missing %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
-					mname, wrongType.Name(), wrongType.typ, pos, m.Name(), m.typ)
-			}
+		if m.Name() != wrongType.Name() {
+			// Note: this case can't happen because we don't look for alternative
+			// method spellings, unlike types2. Keep for symmetry with types2.
+			r = check.sprintf("(missing %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
+				mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
+		} else if Identical(m.typ, wrongType.typ) {
+			r = check.sprintf("(%s has pointer receiver)", mname)
 		} else {
 			if compilerErrorMessages {
-				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
-					mname, wrongType.Name(), wrongType.typ, pos, m.Name(), m.typ)
+				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
+					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
 			} else {
-				r = check.sprintf("(wrong type for %s)\n\thave %s at %s\nwant %s",
-					mname, wrongType.typ, pos, m.typ)
+				r = check.sprintf("(wrong type for %s)\n\thave %s\n\twant %s",
+					mname, wrongType.typ, m.typ)
 			}
 		}
 		// This is a hack to print the function type without the leading
