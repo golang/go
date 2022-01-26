@@ -1102,6 +1102,9 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 	}
 	if strings.HasPrefix(sect.Name, ".debug") || strings.HasPrefix(sect.Name, ".zdebug") {
 		sh.Flags = 0
+		if sect.Compressed {
+			sh.Flags |= uint64(elf.SHF_COMPRESSED)
+		}
 	}
 
 	if linkmode != LinkExternal {
