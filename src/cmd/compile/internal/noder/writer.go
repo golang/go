@@ -1338,8 +1338,7 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 	w.typ(tv.Type)
 
 	typ := tv.Type
-	// TODO(mdempsky): Use types2.StructuralType here too? See #50833.
-	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
+	if ptr, ok := types2.StructuralType(typ).(*types2.Pointer); ok {
 		typ = ptr.Elem()
 	}
 	str, isStruct := types2.StructuralType(typ).(*types2.Struct)

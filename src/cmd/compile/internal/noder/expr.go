@@ -332,7 +332,7 @@ func (g *irgen) exprs(exprs []syntax.Expr) []ir.Node {
 }
 
 func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
-	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
+	if ptr, ok := types2.StructuralType(typ).(*types2.Pointer); ok {
 		n := ir.NewAddrExpr(g.pos(lit), g.compLit(ptr.Elem(), lit))
 		n.SetOp(ir.OPTRLIT)
 		return typed(g.typ(typ), n)
