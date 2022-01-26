@@ -1,0 +1,17 @@
+# Regression test for https://go.dev/issue/47215 and https://go.dev/issue/50183:
+# A mismatched $GOROOT_FINAL or missing $CC caused the C dependencies of the net
+# package to appear stale, and it could not be rebuilt due to a missing $CC.
+
+[!cgo] skip
+
+# Control case: net must not already be stale.
+! stale net
+
+# https://go.dev/issue/47215: a missing $(go env CC) caused the precompiled net to be stale.
+[!plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
+[plan9] env path=''
+! stale net  # issue #47215
+
+# https://go.dev/issue/50183: a mismatched GOROOT_FINAL caused net to be stale.
+env GOROOT_FINAL=$WORK${/}goroot
+! stale net
