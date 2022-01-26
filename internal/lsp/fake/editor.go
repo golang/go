@@ -304,6 +304,14 @@ func (e *Editor) initialize(ctx context.Context, workspaceFolders []string) erro
 	}
 
 	params.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport = true
+	params.Capabilities.TextDocument.SemanticTokens.Requests.Full = true
+	// copied from lsp/semantic.go to avoid import cycle in tests
+	params.Capabilities.TextDocument.SemanticTokens.TokenTypes = []string{
+		"namespace", "type", "class", "enum", "interface",
+		"struct", "typeParameter", "parameter", "variable", "property", "enumMember",
+		"event", "function", "method", "macro", "keyword", "modifier", "comment",
+		"string", "number", "regexp", "operator",
+	}
 
 	// This is a bit of a hack, since the fake editor doesn't actually support
 	// watching changed files that match a specific glob pattern. However, the

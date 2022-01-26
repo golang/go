@@ -157,9 +157,7 @@ func SemanticTokens(ctx context.Context, snapshot source.Snapshot, spn span.URI,
 		return nil, err
 	}
 	p := parseBuffer(buf)
-	if p.ParseErr != nil {
-		return nil, p.ParseErr
-	}
+
 	for _, t := range p.Tokens() {
 		if t.Multiline {
 			la, ca := p.LineCol(t.Start)

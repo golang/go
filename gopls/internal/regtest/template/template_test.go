@@ -33,6 +33,7 @@ Hello {{}} <-- missing body
 		EditorConfig{
 			Settings: map[string]interface{}{
 				"templateExtensions": []string{"tmpl"},
+				"semanticTokens":     true,
 			},
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
@@ -46,6 +47,17 @@ Hello {{}} <-- missing body
 		if d[0].Source != "template" {
 			t.Errorf("expected Source 'template', got %q", d[0].Source)
 		}
+		// issue 50801 (even broken templates could return some semantic tokens)
+		var p protocol.SemanticTokensParams
+		p.TextDocument.URI = env.Sandbox.Workdir.URI("hello.tmpl")
+		toks, err := env.Editor.Server.SemanticTokensFull(env.Ctx, &p)
+		if err != nil {
+			t.Errorf("semantic token failed: %v", err)
+		}
+		if toks == nil || len(toks.Data) == 0 {
+			t.Errorf("got no semantic tokens")
+		}
+
 		env.WriteWorkspaceFile("hello.tmpl", "{{range .Planets}}\nHello {{.}}\n{{end}}")
 		env.Await(EmptyDiagnostics("hello.tmpl"))
 	})
