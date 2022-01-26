@@ -55,7 +55,7 @@ func main() {
 
 	// <= go 1.7 doesn't embed the contentID or actionID, so no slash is present
 	if !strings.Contains(id, "/") {
-		log.Fatalf("%s: build ID is a legacy format...binary to old for this tool", file)
+		log.Fatalf("%s: build ID is a legacy format...binary too old for this tool", file)
 	}
 
 	newID := id[:strings.LastIndex(id, "/")] + "/" + buildid.HashToString(hash)
