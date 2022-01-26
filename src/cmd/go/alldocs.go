@@ -869,7 +869,10 @@
 // for the go/build package's Context type.
 //
 // The -json flag causes the package data to be printed in JSON format
-// instead of using the template format.
+// instead of using the template format. The JSON flag can optionally be
+// provided with a set of comma-separated required field names to be output.
+// If so, those required fields will always appear in JSON output, but
+// others may be omitted to save work in computing the JSON struct.
 //
 // The -compiled flag causes list to set CompiledGoFiles to the Go source
 // files presented to the compiler. Typically this means that it repeats
