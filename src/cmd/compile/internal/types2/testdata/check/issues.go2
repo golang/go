@@ -9,19 +9,18 @@ package p
 import "io"
 import "context"
 
-// Interfaces are always comparable (though the comparison may panic at runtime).
 func eql[T comparable](x, y T) bool {
 	return x == y
 }
 
-func _() {
-	var x interface{}
-	var y interface{ m() }
+func _[X comparable, Y interface{comparable; m()}]() {
+	var x X
+	var y Y
 	eql(x, y /* ERROR does not match */ ) // interfaces of different types
 	eql(x, x)
 	eql(y, y)
-	eql(y, nil)
-	eql[io.Reader](nil, nil)
+	eql(y, nil /* ERROR cannot use nil as Y value in argument to eql */ )
+	eql[io /* ERROR does not implement comparable */ .Reader](nil, nil)
 }
 
 // If we have a receiver of pointer to type parameter type (below: *T)
