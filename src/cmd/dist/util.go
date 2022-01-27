@@ -71,7 +71,11 @@ func run(dir string, mode int, cmd ...string) string {
 		errprintf("run: %s\n", strings.Join(cmd, " "))
 	}
 
-	xcmd := exec.Command(cmd[0], cmd[1:]...)
+	bin := cmd[0]
+	if bin == "go" {
+		bin = gorootBinGo
+	}
+	xcmd := exec.Command(bin, cmd[1:]...)
 	setDir(xcmd, dir)
 	var data []byte
 	var err error

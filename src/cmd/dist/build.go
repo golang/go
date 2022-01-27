@@ -27,6 +27,7 @@ import (
 var (
 	goarch           string
 	gorootBin        string
+	gorootBinGo      string
 	gohostarch       string
 	gohostos         string
 	goos             string
@@ -113,6 +114,12 @@ func xinit() {
 	}
 	goroot = filepath.Clean(b)
 	gorootBin = pathf("%s/bin", goroot)
+
+	// Don't run just 'go' because the build infrastructure
+	// runs cmd/dist inside go/bin often, and on Windows
+	// it will be found in the current directory and refuse to exec.
+	// All exec calls rewrite "go" into gorootBinGo.
+	gorootBinGo = pathf("%s/bin/go", goroot)
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
