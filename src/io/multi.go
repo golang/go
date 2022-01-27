@@ -41,6 +41,32 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
 	return 0, EOF
 }
 
+func (mr *multiReader) WriteTo(w Writer) (int64, error) {
+	var sum int64
+	for len(mr.readers) > 0 {
+		// Optimization to flatten nested multiReaders (Issue 13558).
+		if len(mr.readers) == 1 {
+			if r, ok := mr.readers[0].(*multiReader); ok {
+				mr.readers = r.readers
+				continue
+			}
+		}
+		n, err := Copy(w, mr.readers[0])
+		sum += n
+		if err != nil {
+			return sum, err
+		}
+		// Use eofReader instead of nil to avoid nil panic
+		// after performing flatten (Issue 18232).
+		mr.readers[0] = eofReader{} // permit earlier GC
+		mr.readers = mr.readers[1:]
+		continue
+	}
+	return sum, nil
+}
+
+var _ WriterTo = (*multiReader)(nil)
+
 // MultiReader returns a Reader that's the logical concatenation of
 // the provided input readers. They're read sequentially. Once all
 // inputs have returned EOF, Read will return EOF.  If any of the readers
