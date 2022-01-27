@@ -157,6 +157,8 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 
 // implements checks if V implements T and reports an error if it doesn't.
 // If a qualifier is provided, it is used in error formatting.
+// The receiver may be nil if implements is called through an exported
+// API call such as AssignableTo.
 func (check *Checker) implements(V, T Type, qf Qualifier) error {
 	Vu := under(V)
 	Tu := under(T)

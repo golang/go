@@ -288,47 +288,30 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		return true, 0
 	}
 
-	// T is an interface type and x implements T and T is not a type parameter
-	if Ti, ok := Tu.(*Interface); ok && Tp == nil {
-		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+	// T is an interface type and x implements T and T is not a type parameter.
+	// Also handle the case where T is a pointer to an interface.
+	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+		var qf Qualifier
+		if check != nil {
+			qf = check.qualifier
+		}
+		if err := check.implements(V, T, qf); err != nil {
 			if reason != nil {
-				if check != nil && check.conf.CompilerErrorMessages {
-					*reason = check.sprintf("%s does not implement %s %s", x.typ, T,
-						check.missingMethodReason(x.typ, T, m, wrongType))
-				} else {
-					if wrongType != nil {
-						if Identical(m.typ, wrongType.typ) {
-							*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
-						} else {
-							*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
-						}
-					} else {
-						*reason = "missing method " + m.Name()
-					}
-				}
+				*reason = err.Error()
 			}
 			return false, _InvalidIfaceAssign
 		}
 		return true, 0
 	}
 
-	// Provide extra detail in compiler error messages in some cases when T is
-	// not an interface.
-	if check != nil && check.conf.CompilerErrorMessages {
-		if isInterfacePtr(Tu) {
+	// If V is an interface, check if a missing type assertion is the problem.
+	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+		if check.implements(T, V, nil) == nil {
+			// T implements V, so give hint about type assertion.
 			if reason != nil {
-				*reason = check.sprintf("%s does not implement %s (type %s is pointer to interface, not interface)", x.typ, T, T)
+				*reason = "need type assertion"
 			}
-			return false, _InvalidIfaceAssign
-		}
-		if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
-			if m, _ := check.missingMethod(T, Vi, true); m == nil {
-				// T implements Vi, so give hint about type assertion.
-				if reason != nil {
-					*reason = check.sprintf("need type assertion")
-				}
-				return false, _IncompatibleAssign
-			}
+			return false, _IncompatibleAssign
 		}
 	}
 
