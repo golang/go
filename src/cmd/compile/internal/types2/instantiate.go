@@ -173,7 +173,13 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 
 	Ti, _ := Tu.(*Interface)
 	if Ti == nil {
-		return errorf("%s is not an interface", T)
+		var cause string
+		if isInterfacePtr(Tu) {
+			cause = sprintf(qf, false, "type %s is pointer to interface, not interface", T)
+		} else {
+			cause = sprintf(qf, false, "%s is not an interface", T)
+		}
+		return errorf("%s does not implement %s (%s)", V, T, cause)
 	}
 
 	// Every type satisfies the empty interface.
@@ -197,19 +203,21 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 
 	// V must implement T's methods, if any.
 	if Ti.NumMethods() > 0 {
-		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
-			// TODO(gri) needs to print updated name to avoid major confusion in error message!
-			//           (print warning for now)
-			// Old warning:
-			// check.softErrorf(pos, "%s does not implement %s (warning: name not updated) = %s (missing method %s)", V, T, Ti, m)
-			if wrong != nil {
-				// TODO(gri) This can still report uninstantiated types which makes the error message
-				//           more difficult to read then necessary.
-				return errorf("%s does not implement %s: wrong method signature\n\tgot  %s\n\twant %s",
-					V, T, wrong, m,
-				)
+		if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+			if check != nil && check.conf.CompilerErrorMessages {
+				return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
 			}
-			return errorf("%s does not implement %s (missing method %s)", V, T, m.name)
+			var cause string
+			if wrong != nil {
+				if Identical(m.typ, wrong.typ) {
+					cause = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+				} else {
+					cause = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrong.typ, m.typ)
+				}
+			} else {
+				cause = "missing method " + m.Name()
+			}
+			return errorf("%s does not implement %s: %s", V, T, cause)
 		}
 	}
 
