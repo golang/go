@@ -7,8 +7,8 @@
 package goroot
 
 import (
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"

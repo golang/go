@@ -12,7 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/buildcfg"
-	exec "internal/execabs"
+	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
