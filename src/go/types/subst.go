@@ -106,12 +106,24 @@ func (subst *subster) typ(typ Type) Type {
 		return subst.tuple(t)
 
 	case *Signature:
-		// TODO(gri) rethink the recv situation with respect to methods on parameterized types
-		// recv := subst.var_(t.recv) // TODO(gri) this causes a stack overflow - explain
+		// Preserve the receiver: it is handled during *Interface and *Named type
+		// substitution.
+		//
+		// Naively doing the substitution here can lead to an infinite recursion in
+		// the case where the receiver is an interface. For example, consider the
+		// following declaration:
+		//
+		//  type T[A any] struct { f interface{ m() } }
+		//
+		// In this case, the type of f is an interface that is itself the receiver
+		// type of all of its methods. Because we have no type name to break
+		// cycles, substituting in the recv results in an infinite loop of
+		// recv->interface->recv->interface->...
 		recv := t.recv
+
 		params := subst.tuple(t.params)
 		results := subst.tuple(t.results)
-		if recv != t.recv || params != t.params || results != t.results {
+		if params != t.params || results != t.results {
 			return &Signature{
 				rparams: t.rparams,
 				// TODO(rFindley) why can't we nil out tparams here, rather than in instantiate?
@@ -137,7 +149,21 @@ func (subst *subster) typ(typ Type) Type {
 		methods, mcopied := subst.funcList(t.methods)
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		if mcopied || ecopied {
-			iface := &Interface{methods: methods, embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
+			iface := &Interface{embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
+			// If we've changed the interface type, we may need to replace its
+			// receiver if the receiver type is the original interface. Receivers of
+			// *Named type are replaced during named type expansion.
+			//
+			// Notably, it's possible to reach here and not create a new *Interface,
+			// even though the receiver type may be parameterized. For example:
+			//
+			//  type T[P any] interface{ m() }
+			//
+			// In this case the interface will not be substituted here, because its
+			// method signatures do not depend on the type parameter P, but we still
+			// need to create new interface methods to hold the instantiated
+			// receiver. This is handled by expandNamed.
+			iface.methods, _ = replaceRecvType(methods, t, iface)
 			return iface
 		}
 
@@ -345,6 +371,34 @@ func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
 				copied = true
 			}
 			out[i] = NewTerm(t.tilde, u)
+		}
+	}
+	return
+}
+
+// replaceRecvType updates any function receivers that have type old to have
+// type new. It does not modify the input slice; if modifications are required,
+// the input slice and any affected signatures will be copied before mutating.
+//
+// The resulting out slice contains the updated functions, and copied reports
+// if anything was modified.
+func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
+	out = in
+	for i, method := range in {
+		sig := method.Type().(*Signature)
+		if sig.recv != nil && sig.recv.Type() == old {
+			if !copied {
+				// Allocate a new methods slice before mutating for the first time.
+				// This is defensive, as we may share methods across instantiations of
+				// a given interface type if they do not get substituted.
+				out = make([]*Func, len(in))
+				copy(out, in)
+				copied = true
+			}
+			newsig := *sig
+			sig = &newsig
+			sig.recv = NewVar(sig.recv.pos, sig.recv.pkg, "", new)
+			out[i] = NewFunc(method.pos, method.pkg, method.name, sig)
 		}
 	}
 	return
