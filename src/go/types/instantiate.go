@@ -133,14 +133,6 @@ func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool 
 }
 
 func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) (int, error) {
-	// TODO(rfindley): it would be great if users could pass in a qualifier here,
-	// rather than falling back to verbose qualification. Maybe this can be part
-	// of the shared context.
-	var qf Qualifier
-	if check != nil {
-		qf = check.qualifier
-	}
-
 	smap := makeSubstMap(tparams, targs)
 	for i, tpar := range tparams {
 		// The type parameter bound is parameterized with the same type parameters
@@ -148,7 +140,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) 
 		// need to instantiate it with the type arguments with which we instantiated
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil)
-		if err := check.implements(targs[i], bound, qf); err != nil {
+		if err := check.implements(targs[i], bound); err != nil {
 			return i, err
 		}
 	}
@@ -156,10 +148,9 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) 
 }
 
 // implements checks if V implements T and reports an error if it doesn't.
-// If a qualifier is provided, it is used in error formatting.
 // The receiver may be nil if implements is called through an exported
 // API call such as AssignableTo.
-func (check *Checker) implements(V, T Type, qf Qualifier) error {
+func (check *Checker) implements(V, T Type) error {
 	Vu := under(V)
 	Tu := under(T)
 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
@@ -169,6 +160,10 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 		return nil // avoid follow-on errors (see issue #49541 for an example)
 	}
 
+	var qf Qualifier
+	if check != nil {
+		qf = check.qualifier
+	}
 	errorf := func(format string, args ...any) error {
 		return errors.New(sprintf(nil, qf, false, format, args...))
 	}
