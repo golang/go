@@ -1326,9 +1326,9 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 	if t.NumFields() == 0 {
 		if t.HasTParam() || t.HasShape() {
-			// For an empty struct, we need to return a new type,
-			// since it may now be fully instantiated (HasTParam
-			// becomes false).
+			// For an empty struct, we need to return a new type, if
+			// substituting from a generic type or shape type, since it
+			// will change HasTParam/HasShape flags.
 			return types.NewStruct(t.Pkg(), nil)
 		}
 		return t
@@ -1387,10 +1387,10 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 // tinter substitutes type params in types of the methods of an interface type.
 func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 	if t.Methods().Len() == 0 {
-		if t.HasTParam() {
-			// For an empty interface, we need to return a new type,
-			// since it may now be fully instantiated (HasTParam
-			// becomes false).
+		if t.HasTParam() || t.HasShape() {
+			// For an empty interface, we need to return a new type, if
+			// substituting from a generic type or shape type, since
+			// since it will change HasTParam/HasShape flags.
 			return types.NewInterface(t.Pkg(), nil, false)
 		}
 		return t
