@@ -78,8 +78,7 @@ func F[FP0, FP1 any](FP0, FP1) {}
 		wantErr string
 	}{
 		{types.Universe.Lookup("any"), "predeclared type any = interface{} has no path"},
-		// TODO: uncomment once the type string of comparable has been updated.
-		// {types.Universe.Lookup("comparable"), "predeclared type comparable interface{} has no path"},
+		{types.Universe.Lookup("comparable"), "predeclared type comparable interface{comparable} has no path"},
 	} {
 		path, err := objectpath.For(test.obj)
 		if err == nil {
