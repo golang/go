@@ -203,15 +203,10 @@ var depsRules = `
 
 	log !< FMT;
 
-	OS, FMT
-	< internal/execabs;
-
-	OS, internal/execabs
-	< internal/goroot;
-
 	# Misc packages needing only FMT.
 	FMT
 	< html,
+	  internal/goroot,
 	  mime/quotedprintable,
 	  net/internal/socktest,
 	  net/url,

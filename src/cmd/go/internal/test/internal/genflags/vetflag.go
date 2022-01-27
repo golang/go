@@ -9,7 +9,7 @@ import (
 	"cmd/go/internal/base"
 	"encoding/json"
 	"fmt"
-	exec "internal/execabs"
+	"os/exec"
 	"regexp"
 	"sort"
 )

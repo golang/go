@@ -8,8 +8,8 @@ package tool
 import (
 	"context"
 	"fmt"
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"os/signal"
 	"sort"
 	"strings"
