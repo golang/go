@@ -12,11 +12,7 @@ package execabs
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
-	"path/filepath"
-	"reflect"
-	"unsafe"
 )
 
 var ErrNotFound = exec.ErrNotFound
@@ -27,44 +23,14 @@ type (
 	ExitError = exec.ExitError
 )
 
-func relError(file, path string) error {
-	return fmt.Errorf("%s resolves to executable relative to current directory (.%c%s)", file, filepath.Separator, path)
-}
-
 func LookPath(file string) (string, error) {
-	path, err := exec.LookPath(file)
-	if err != nil {
-		return "", err
-	}
-	if filepath.Base(file) == file && !filepath.IsAbs(path) {
-		return "", relError(file, path)
-	}
-	return path, nil
-}
-
-func fixCmd(name string, cmd *exec.Cmd) {
-	if filepath.Base(name) == name && !filepath.IsAbs(cmd.Path) {
-		// exec.Command was called with a bare binary name and
-		// exec.LookPath returned a path which is not absolute.
-		// Set cmd.lookPathErr and clear cmd.Path so that it
-		// cannot be run.
-		lookPathErr := (*error)(unsafe.Pointer(reflect.ValueOf(cmd).Elem().FieldByName("lookPathErr").Addr().Pointer()))
-		if *lookPathErr == nil {
-			*lookPathErr = relError(name, cmd.Path)
-		}
-		cmd.Path = ""
-	}
+	return exec.LookPath(file)
 }
 
 func CommandContext(ctx context.Context, name string, arg ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, name, arg...)
-	fixCmd(name, cmd)
-	return cmd
-
+	return exec.CommandContext(ctx, name, arg...)
 }
 
 func Command(name string, arg ...string) *exec.Cmd {
-	cmd := exec.Command(name, arg...)
-	fixCmd(name, cmd)
-	return cmd
+	return exec.Command(name, arg...)
 }

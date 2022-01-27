@@ -1,0 +1,2 @@
+pkg os/exec, type Cmd struct, Err error #43724
+pkg os/exec, var ErrDot error #43724
