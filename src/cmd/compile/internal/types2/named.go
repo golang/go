@@ -351,13 +351,30 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
 
 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
 		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
+		// If the underlying of n is an interface, we need to set the receiver of
+		// its methods accurately -- we set the receiver of interface methods on
+		// the RHS of a type declaration to the defined type.
+		if iface, _ := underlying.(*Interface); iface != nil {
+			if methods, copied := replaceRecvType(iface.methods, n.orig, n); copied {
+				// If the underlying doesn't actually use type parameters, it's possible
+				// that it wasn't substituted. In this case we need to create a new
+				// *Interface before modifying receivers.
+				if iface == n.orig.underlying {
+					iface = &Interface{
+						embeddeds: iface.embeddeds,
+						complete:  iface.complete,
+						implicit:  iface.implicit, // should be false but be conservative
+					}
+					underlying = iface
+				}
+				iface.methods = methods
+			}
+		}
 	} else {
 		underlying = Typ[Invalid]
 	}
 
-	mlist := newLazyMethodList(n.orig.methods.Len())
-
-	return n.orig.tparams, underlying, mlist
+	return n.orig.tparams, underlying, newLazyMethodList(n.orig.methods.Len())
 }
 
 // safeUnderlying returns the underlying of typ without expanding instances, to
