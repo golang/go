@@ -1,10 +1,10 @@
 # Tests issue 49137. The following commands should not panic any way.
 
 ! go list '"a"'
-stderr 'malformed import path "\\"a\\"": invalid char ''"'''
+stderr '^malformed import path "\\"a\\"": invalid char ''"''$'
 
 ! go build '' -ldflags='-X "main.Tags="'
-stderr 'malformed import path "-ldflags=-X \\"main.Tags=\\"": leading dash'
+stderr '^malformed import path "-ldflags=-X \\"main.Tags=\\"": leading dash$'
 
 -- go.mod --
 module m
