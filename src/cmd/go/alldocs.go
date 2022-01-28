@@ -2036,6 +2036,8 @@
 // 	GOENV
 // 		The location of the Go environment configuration file.
 // 		Cannot be set using 'go env -w'.
+// 		Setting GOENV=off in the environment disables the use of the
+// 		default configuration file.
 // 	GOFLAGS
 // 		A space-separated list of -flag=value settings to apply
 // 		to go commands by default, when the given flag is known by
