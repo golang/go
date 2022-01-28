@@ -51,7 +51,6 @@ pkg go/types, method (*Term) Tilde() bool
 pkg go/types, method (*Term) Type() Type
 pkg go/types, method (*TypeList) At(int) Type
 pkg go/types, method (*TypeList) Len() int
-pkg go/types, method (*TypeList) String() string
 pkg go/types, method (*TypeParam) Constraint() Type
 pkg go/types, method (*TypeParam) Index() int
 pkg go/types, method (*TypeParam) Obj() *TypeName
