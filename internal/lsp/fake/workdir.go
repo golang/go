@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -152,11 +153,21 @@ func toURI(fp string) protocol.DocumentURI {
 
 // ReadFile reads a text file specified by a workdir-relative path.
 func (w *Workdir) ReadFile(path string) (string, error) {
-	b, err := ioutil.ReadFile(w.AbsPath(path))
-	if err != nil {
-		return "", err
+	backoff := 1 * time.Millisecond
+	for {
+		b, err := ioutil.ReadFile(w.AbsPath(path))
+		if err != nil {
+			if runtime.GOOS == "plan9" && strings.HasSuffix(err.Error(), " exclusive use file already open") {
+				// Plan 9 enforces exclusive access to locked files.
+				// Give the owner time to unlock it and retry.
+				time.Sleep(backoff)
+				backoff *= 2
+				continue
+			}
+			return "", err
+		}
+		return string(b), nil
 	}
-	return string(b), nil
 }
 
 func (w *Workdir) RegexpRange(path, re string) (Pos, Pos, error) {
