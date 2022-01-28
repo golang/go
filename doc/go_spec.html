@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Jan 28, 2022",
+	"Subtitle": "Version of Jan 31, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -2655,6 +2655,53 @@ may be omitted for convenience:
 [T int|string]                     // = [T interface{int|string}]
 type Constraint ~int               // illegal: ~int is not inside a type parameter list
 </pre>
+
+<!--
+We should be able to simplify the rules for comparable or delegate some of them
+elsewhere once we have a section that clearly defines how interfaces implement
+other interfaces based on their type sets. But this should get us going for now.
+-->
+
+<p>
+The <a href="#Predeclared_identifiers">predeclared</a>
+<a href="#Interface_types">interface type</a> <code>comparable</code>
+denotes the set of all concrete (non-interface) types that are
+<a href="#Comparison_operators">comparable</a>. Specifically,
+a type <code>T</code> implements <code>comparable</code> if:
+</p>
+
+<ul>
+<li>
+	<code>T</code> is not an interface type and <code>T</code> supports the operations
+	<code>==</code> and <code>!=</code>; or
+</li>
+<li>
+	<code>T</code> is an interface type and each type in <code>T</code>'s
+	<a href="#Interface_types">type set</a> implements <code>comparable</code>.
+</li>
+</ul>
+
+<p>
+Even though interfaces that are not type parameters can be
+<a href="#Comparison_operators">compared</a>
+(possibly causing a run-time panic) they do not implement
+<code>comparable</code>.
+</p>
+
+<pre>
+int                          // implements comparable
+[]byte                       // does not implement comparable (slices cannot be compared)
+interface{}                  // does not implement comparable (see above)
+interface{ ~int | ~string }  // type parameter only: implements comparable
+interface{ comparable }      // type parameter only: implements comparable
+interface{ ~int | ~[]byte }  // type parameter only: does not implement comparable (not all types in the type set are comparable)
+</pre>
+
+<p>
+The <code>comparable</code> interface and interfaces that (directly or indirectly) embed
+<code>comparable</code> may only be used as type constraints. They cannot be the types of
+values or variables, or components of other, non-interface types.
+</p>
 
 <h3 id="Variable_declarations">Variable declarations</h3>
 
