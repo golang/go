@@ -95,6 +95,7 @@ func TestRedirects(t *testing.T) {
 			t.Errorf("(path: %q) unexpected error: %v", path, err)
 			continue
 		}
+		resp.Body.Close() // We only care about the headers, so close the body immediately.
 
 		if resp.StatusCode != want.status {
 			t.Errorf("(path: %q) got status %d, want %d", path, resp.StatusCode, want.status)
