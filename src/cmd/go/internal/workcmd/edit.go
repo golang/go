@@ -63,25 +63,25 @@ writing it back to go.mod.
 The -json flag prints the final go.work file in JSON format instead of
 writing it back to go.mod. The JSON output corresponds to these Go types:
 
-	type Module struct {
-		Path    string
-		Version string
-	}
-
 	type GoWork struct {
-		Go        string
-		Directory []Directory
-		Replace   []Replace
+		Go      string
+		Use     []Use
+		Replace []Replace
 	}
 
 	type Use struct {
-		Path       string
+		DiskPath   string
 		ModulePath string
 	}
 
 	type Replace struct {
 		Old Module
 		New Module
+	}
+
+	type Module struct {
+		Path    string
+		Version string
 	}
 
 See the workspaces design proposal at
