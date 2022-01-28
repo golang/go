@@ -133,7 +133,7 @@ func TestMain(m *testing.M) {
 		}
 		gotool, err := testenv.GoTool()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, "locating go tool: ", err)
 			os.Exit(2)
 		}
 

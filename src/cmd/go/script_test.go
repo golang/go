@@ -902,7 +902,7 @@ func (ts *testScript) cmdStale(want simpleStatus, args []string) {
 	tmpl := "{{if .Error}}{{.ImportPath}}: {{.Error.Err}}{{else}}"
 	switch want {
 	case failure:
-		tmpl += "{{if .Stale}}{{.ImportPath}} is unexpectedly stale{{end}}"
+		tmpl += "{{if .Stale}}{{.ImportPath}} is unexpectedly stale: {{.StaleReason}}{{end}}"
 	case success:
 		tmpl += "{{if not .Stale}}{{.ImportPath}} is unexpectedly NOT stale{{end}}"
 	default:
