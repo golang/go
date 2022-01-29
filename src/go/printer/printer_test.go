@@ -6,6 +6,7 @@ package printer
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -92,8 +93,7 @@ func checkEqual(aname, bname string, a, b []byte) error {
 	if bytes.Equal(a, b) {
 		return nil
 	}
-
-	return fmt.Errorf("diff %s %s\n%s", aname, bname, diff.Diff(aname, a, bname, b))
+	return errors.New(string(diff.Diff(aname, a, bname, b)))
 }
 
 func runcheck(t *testing.T, source, golden string, mode checkMode) {

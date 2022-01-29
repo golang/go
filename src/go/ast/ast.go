@@ -159,6 +159,7 @@ func (g *CommentGroup) Text() string {
 }
 
 // isDirective reports whether c is a comment directive.
+// This code is also in go/printer.
 func isDirective(c string) bool {
 	// "//line " is a line directive.
 	// (The // has been removed.)
