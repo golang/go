@@ -555,7 +555,7 @@ var depsRules = `
 	< internal/trace;
 
 	FMT
-	< internal/txtar;
+	< internal/diff, internal/txtar;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".
