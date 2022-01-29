@@ -11,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/txtar"
 	"io"
 	"io/fs"
 	"log"
@@ -30,7 +31,6 @@ import (
 	"golang.org/x/mod/semver"
 	"golang.org/x/mod/sumdb"
 	"golang.org/x/mod/sumdb/dirhash"
-	"golang.org/x/tools/txtar"
 )
 
 var (
