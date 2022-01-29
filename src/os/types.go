@@ -52,7 +52,7 @@ const (
 	// Mask for the type bits. For regular files, none will be set.
 	ModeType = fs.ModeType
 
-	ModePerm = fs.ModePerm // Unix permission bits, 0o777
+	ModePerm = fs.ModePerm // Unix permission bits, 0777
 )
 
 func (fs *fileStat) Name() string { return fs.name }
