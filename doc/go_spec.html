@@ -886,7 +886,7 @@ Any other type has an empty method set.
 <p>
 In a method set, each method must have a
 <a href="#Uniqueness_of_identifiers">unique</a>
-non-<a href="#Blank_identifier">blank</a> <a href="#MethodName">method name</a>.
+non-<a href="#Blank_identifier">blank</a> <a href="#Method_declarations">method name</a>.
 </p>
 
 <h3 id="Boolean_types">Boolean types</h3>
@@ -2270,7 +2270,7 @@ An identifier is exported if both:
 	letter (Unicode class "Lu"); and</li>
 	<li>the identifier is declared in the <a href="#Blocks">package block</a>
 	or it is a <a href="#Struct_types">field name</a> or
-	<a href="#MethodName">method name</a>.</li>
+	<a href="#Method_declarations">method name</a>.</li>
 </ol>
 <p>
 All other identifiers are not exported.
@@ -2359,7 +2359,7 @@ const (
 <p>
 Within a <a href="#Constant_declarations">constant declaration</a>, the predeclared identifier
 <code>iota</code> represents successive untyped integer <a href="#Constants">
-constants</a>. Its value is the index of the respective <a href="#ConstSpec">ConstSpec</a>
+constants</a>. Its value is the index of the respective <a href="#Constant_declarations">ConstSpec</a>
 in that constant declaration, starting at zero.
 It can be used to construct a set of related constants:
 </p>
@@ -6888,7 +6888,7 @@ cap(s)    [n]T, *[n]T      array length (== n)
 
 <p>
 If the argument type is a <a href="#Type_parameters">type parameter</a> <code>P</code>,
-<code>P</code> must have <a href="#Structure of interfaces">specific types</a>, and
+<code>P</code> must have <a href="#Structure_of_interfaces">specific types</a>, and
 the call <code>len(e)</code> (or <code>cap(e)</code> respectively) must be valid for
 each specific type of <code>P</code>.
 The result is the length (or capacity, respectively) of the argument whose type
