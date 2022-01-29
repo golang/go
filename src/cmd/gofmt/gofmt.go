@@ -14,6 +14,7 @@ import (
 	"go/printer"
 	"go/scanner"
 	"go/token"
+	"internal/diff"
 	"io"
 	"io/fs"
 	"os"
@@ -21,8 +22,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
-
-	"cmd/internal/diff"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -287,12 +286,9 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			}
 		}
 		if *doDiff {
-			data, err := diffWithReplaceTempFile(src, res, filename)
-			if err != nil {
-				return fmt.Errorf("computing diff: %s", err)
-			}
-			fmt.Fprintf(r, "diff -u %s %s\n", filepath.ToSlash(filename+".orig"), filepath.ToSlash(filename))
-			r.Write(data)
+			newName := filepath.ToSlash(filename)
+			oldName := newName + ".orig"
+			r.Write(diff.Diff(oldName, src, newName, res))
 		}
 	}
 
@@ -462,43 +458,6 @@ func fileWeight(path string, info fs.FileInfo) int64 {
 		return exclusive
 	}
 	return info.Size()
-}
-
-func diffWithReplaceTempFile(b1, b2 []byte, filename string) ([]byte, error) {
-	data, err := diff.Diff("gofmt", b1, b2)
-	if len(data) > 0 {
-		return replaceTempFilename(data, filename)
-	}
-	return data, err
-}
-
-// replaceTempFilename replaces temporary filenames in diff with actual one.
-//
-// --- /tmp/gofmt316145376	2017-02-03 19:13:00.280468375 -0500
-// +++ /tmp/gofmt617882815	2017-02-03 19:13:00.280468375 -0500
-// ...
-// ->
-// --- path/to/file.go.orig	2017-02-03 19:13:00.280468375 -0500
-// +++ path/to/file.go	2017-02-03 19:13:00.280468375 -0500
-// ...
-func replaceTempFilename(diff []byte, filename string) ([]byte, error) {
-	bs := bytes.SplitN(diff, []byte{'\n'}, 3)
-	if len(bs) < 3 {
-		return nil, fmt.Errorf("got unexpected diff for %s", filename)
-	}
-	// Preserve timestamps.
-	var t0, t1 []byte
-	if i := bytes.LastIndexByte(bs[0], '\t'); i != -1 {
-		t0 = bs[0][i:]
-	}
-	if i := bytes.LastIndexByte(bs[1], '\t'); i != -1 {
-		t1 = bs[1][i:]
-	}
-	// Always print filepath with slash separator.
-	f := filepath.ToSlash(filename)
-	bs[0] = []byte(fmt.Sprintf("--- %s%s", f+".orig", t0))
-	bs[1] = []byte(fmt.Sprintf("+++ %s%s", f, t1))
-	return bytes.Join(bs, []byte{'\n'}), nil
 }
 
 const chmodSupported = runtime.GOOS != "windows"
