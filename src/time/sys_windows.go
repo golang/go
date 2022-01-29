@@ -16,6 +16,9 @@ func interrupt() {
 func open(name string) (uintptr, error) {
 	fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
 	if err != nil {
+		if err == syscall.ERROR_PATH_NOT_FOUND {
+			err = syscall.ENOENT
+		}
 		return 0, err
 	}
 	return uintptr(fd), nil
