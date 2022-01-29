@@ -738,10 +738,27 @@ func (p *printer) containsLinebreak() bool {
 func (p *printer) intersperseComments(next token.Position, tok token.Token) (wroteNewline, droppedFF bool) {
 	var last *ast.Comment
 	for p.commentBefore(next) {
-		for _, c := range p.comment.List {
+		list := p.comment.List
+		changed := false
+		if p.lastTok != token.IMPORT && // do not rewrite cgo's import "C" comments
+			p.posFor(p.comment.Pos()).Column == 1 &&
+			p.posFor(p.comment.End()+1) == next {
+			// Unindented comment abutting next token position:
+			// a top-level doc comment.
+			list = formatDocComment(list)
+			changed = true
+		}
+		for _, c := range list {
 			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, tok)
 			p.writeComment(c)
 			last = c
+		}
+		// In case list was rewritten, change print state to where
+		// the original list would have ended.
+		if len(p.comment.List) > 0 && changed {
+			last = p.comment.List[len(p.comment.List)-1]
+			p.pos = p.posFor(last.End())
+			p.last = p.pos
 		}
 		p.nextComment()
 	}
