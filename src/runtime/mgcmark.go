@@ -401,7 +401,7 @@ func markrootSpans(gcw *gcWork, shard int) {
 }
 
 // gcAssistAlloc performs GC work to make gp's assist debt positive.
-// gp must be the calling user gorountine.
+// gp must be the calling user goroutine.
 //
 // This must be called with preemption enabled.
 func gcAssistAlloc(gp *g) {
