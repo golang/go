@@ -343,7 +343,7 @@ func NewParam(pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
 
 // NewField returns a new variable representing a struct field.
 // For embedded fields, the name is the unqualified type name
-/// under which the field is accessible.
+// under which the field is accessible.
 func NewField(pos syntax.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
 	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, embedded: embedded, isField: true}
 }

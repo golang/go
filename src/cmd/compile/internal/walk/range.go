@@ -316,9 +316,9 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 // isMapClear checks if n is of the form:
 //
-// for k := range m {
-//   delete(m, k)
-// }
+//	for k := range m {
+//		delete(m, k)
+//	}
 //
 // where == for keys of map m is reflexive.
 func isMapClear(n *ir.RangeStmt) bool {
@@ -374,9 +374,9 @@ func mapClear(m ir.Node) ir.Node {
 // fast zeroing of slices and arrays (issue 5373).
 // Look for instances of
 //
-// for i := range a {
-// 	a[i] = zero
-// }
+//	for i := range a {
+//		a[i] = zero
+//	}
 //
 // in which the evaluation of a is side-effect-free.
 //

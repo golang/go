@@ -147,10 +147,10 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 // and otherwise intrinsified by the compiler.
 //
 // Some internal compiler optimizations use this function.
-// - Used for m[T1{... Tn{..., string(k), ...} ...}] and m[string(k)]
-//   where k is []byte, T1 to Tn is a nesting of struct and array literals.
-// - Used for "<"+string(b)+">" concatenation where b is []byte.
-// - Used for string(b)=="foo" comparison where b is []byte.
+//  - Used for m[T1{... Tn{..., string(k), ...} ...}] and m[string(k)]
+//    where k is []byte, T1 to Tn is a nesting of struct and array literals.
+//  - Used for "<"+string(b)+">" concatenation where b is []byte.
+//  - Used for string(b)=="foo" comparison where b is []byte.
 func slicebytetostringtmp(ptr *byte, n int) (str string) {
 	if raceenabled && n > 0 {
 		racereadrangepc(unsafe.Pointer(ptr),

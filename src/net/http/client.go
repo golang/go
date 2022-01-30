@@ -942,9 +942,9 @@ func (c *Client) CloseIdleConnections() {
 }
 
 // cancelTimerBody is an io.ReadCloser that wraps rc with two features:
-// 1) On Read error or close, the stop func is called.
-// 2) On Read failure, if reqDidTimeout is true, the error is wrapped and
-//    marked as net.Error that hit its timeout.
+//  1) On Read error or close, the stop func is called.
+//  2) On Read failure, if reqDidTimeout is true, the error is wrapped and
+//     marked as net.Error that hit its timeout.
 type cancelTimerBody struct {
 	stop          func() // stops the time.Timer waiting to cancel the request
 	rc            io.ReadCloser

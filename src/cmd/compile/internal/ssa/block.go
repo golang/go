@@ -76,10 +76,10 @@ type Block struct {
 //   d.Preds = [?, {b,1}, ?]
 // These indexes allow us to edit the CFG in constant time.
 // In addition, it informs phi ops in degenerate cases like:
-// b:
-//    if k then c else c
-// c:
-//    v = Phi(x, y)
+//  b:
+//     if k then c else c
+//  c:
+//     v = Phi(x, y)
 // Then the indexes tell you whether x is chosen from
 // the if or else branch from b.
 //   b.Succs = [{c,0},{c,1}]
@@ -105,6 +105,7 @@ func (e Edge) String() string {
 	return fmt.Sprintf("{%v,%d}", e.b, e.i)
 }
 
+// BlockKind is the kind of SSA block.
 //     kind          controls        successors
 //   ------------------------------------------
 //     Exit      [return mem]                []

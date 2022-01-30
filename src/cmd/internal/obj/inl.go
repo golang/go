@@ -13,19 +13,19 @@ import "cmd/internal/src"
 // every time a function is inlined. For example, suppose f() calls g()
 // and g has two calls to h(), and that f, g, and h are inlineable:
 //
-//  1 func main() {
-//  2     f()
-//  3 }
-//  4 func f() {
-//  5     g()
-//  6 }
-//  7 func g() {
-//  8     h()
-//  9     h()
-// 10 }
-// 11 func h() {
-// 12     println("H")
-// 13 }
+//   1 func main() {
+//   2     f()
+//   3 }
+//   4 func f() {
+//   5     g()
+//   6 }
+//   7 func g() {
+//   8     h()
+//   9     h()
+//  10 }
+//  11 func h() {
+//  12     println("H")
+//  13 }
 //
 // Assuming the global tree starts empty, inlining will produce the
 // following tree:

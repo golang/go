@@ -1373,7 +1373,9 @@ type command struct {
 // parse parses a single line as a list of space-separated arguments
 // subject to environment variable expansion (but not resplitting).
 // Single quotes around text disable splitting and expansion.
-// To embed a single quote, double it: 'Don''t communicate by sharing memory.'
+// To embed a single quote, double it:
+//
+//	'Don''t communicate by sharing memory.'
 func (ts *testScript) parse(line string) command {
 	ts.line = line
 

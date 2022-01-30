@@ -17,7 +17,7 @@ import (
 //	cmd/compile/internal/reflectdata/reflect.go
 //	cmd/link/internal/ld/decodesym.go
 //	reflect/type.go
-//      internal/reflectlite/type.go
+//	internal/reflectlite/type.go
 type tflag uint8
 
 const (

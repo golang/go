@@ -282,7 +282,8 @@ var p256Zero31 = [p256Limbs]uint32{two31m3, two30m2, two31m2, two30p13m2, two31m
 // p256Diff sets out = in-in2.
 //
 // On entry: in[0,2,...] < 2**30, in[1,3,...] < 2**29 and
-//           in2[0,2,...] < 2**30, in2[1,3,...] < 2**29.
+// in2[0,2,...] < 2**30, in2[1,3,...] < 2**29.
+//
 // On exit: out[0,2,...] < 2**30, out[1,3,...] < 2**29.
 func p256Diff(out, in, in2 *[p256Limbs]uint32) {
 	var carry uint32
