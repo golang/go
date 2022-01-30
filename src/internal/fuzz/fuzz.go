@@ -316,12 +316,12 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					} else {
 						// Update the coordinator's coverage mask and save the value.
 						inputSize := len(result.entry.Data)
-						duplicate, err := c.addCorpusEntries(true, result.entry)
+						entryNew, err := c.addCorpusEntries(true, result.entry)
 						if err != nil {
 							stop(err)
 							break
 						}
-						if duplicate {
+						if !entryNew {
 							continue
 						}
 						c.updateCoverage(keepCoverage)
@@ -419,11 +419,21 @@ type corpus struct {
 	hashes  map[[sha256.Size]byte]bool
 }
 
+// addCorpusEntries adds entries to the corpus, and optional also writes the entries
+// to the cache directory. If an entry is already in the corpus it is skipped. If
+// all of the entries are unique, addCorpusEntries returns true and a nil error,
+// if at least one of the entries was a duplicate, it returns false and a nil error.
 func (c *coordinator) addCorpusEntries(addToCache bool, entries ...CorpusEntry) (bool, error) {
+	noDupes := true
 	for _, e := range entries {
-		h := sha256.Sum256(e.Data)
+		data, err := CorpusEntryData(e)
+		if err != nil {
+			return false, err
+		}
+		h := sha256.Sum256(data)
 		if c.corpus.hashes[h] {
-			return true, nil
+			noDupes = false
+			continue
 		}
 		if addToCache {
 			if err := writeToCorpus(&e, c.opts.CacheDir); err != nil {
@@ -437,7 +447,7 @@ func (c *coordinator) addCorpusEntries(addToCache bool, entries ...CorpusEntry) 
 		c.corpus.hashes[h] = true
 		c.corpus.entries = append(c.corpus.entries, e)
 	}
-	return false, nil
+	return noDupes, nil
 }
 
 // CorpusEntry represents an individual input for fuzzing.
