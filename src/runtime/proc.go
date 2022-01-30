@@ -5575,11 +5575,11 @@ func (p pMask) clear(id int32) {
 //
 // Thus, we get the following effects on timer-stealing in findrunnable:
 //
-// * Idle Ps with no timers when they go idle are never checked in findrunnable
-//   (for work- or timer-stealing; this is the ideal case).
-// * Running Ps must always be checked.
-// * Idle Ps whose timers are stolen must continue to be checked until they run
-//   again, even after timer expiration.
+//  * Idle Ps with no timers when they go idle are never checked in findrunnable
+//    (for work- or timer-stealing; this is the ideal case).
+//  * Running Ps must always be checked.
+//  * Idle Ps whose timers are stolen must continue to be checked until they run
+//    again, even after timer expiration.
 //
 // When the P starts running again, the mask should be set, as a timer may be
 // added at any time.

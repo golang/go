@@ -15,12 +15,12 @@ package ssa
 //
 // In SSA code this appears as
 //
-// b0
-//   If b -> b1 b2
-// b1
-//   Plain -> b2
-// b2
-//   x = (OpPhi (ConstBool [true]) (ConstBool [false]))
+//  b0
+//    If b -> b1 b2
+//  b1
+//    Plain -> b2
+//  b2
+//    x = (OpPhi (ConstBool [true]) (ConstBool [false]))
 //
 // In this case we can replace x with a copy of b.
 func phiopt(f *Func) {

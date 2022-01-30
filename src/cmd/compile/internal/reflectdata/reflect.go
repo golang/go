@@ -667,10 +667,10 @@ var kinds = []int{
 // tflag is documented in reflect/type.go.
 //
 // tflag values must be kept in sync with copies in:
-//	cmd/compile/internal/reflectdata/reflect.go
-//	cmd/link/internal/ld/decodesym.go
-//	reflect/type.go
-//	runtime/type.go
+//	- cmd/compile/internal/reflectdata/reflect.go
+//	- cmd/link/internal/ld/decodesym.go
+//	- reflect/type.go
+//	- runtime/type.go
 const (
 	tflagUncommon      = 1 << 0
 	tflagExtraStar     = 1 << 1

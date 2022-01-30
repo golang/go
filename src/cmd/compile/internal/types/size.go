@@ -17,18 +17,18 @@ var RegSize int
 
 // Slices in the runtime are represented by three components:
 //
-// type slice struct {
-// 	ptr unsafe.Pointer
-// 	len int
-// 	cap int
-// }
+//	type slice struct {
+//		ptr unsafe.Pointer
+//		len int
+//		cap int
+//	}
 //
 // Strings in the runtime are represented by two components:
 //
-// type string struct {
-// 	ptr unsafe.Pointer
-// 	len int
-// }
+//	type string struct {
+//		ptr unsafe.Pointer
+//		len int
+//	}
 //
 // These variables are the offsets of fields and sizes of these structs.
 var (

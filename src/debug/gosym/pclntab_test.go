@@ -271,13 +271,12 @@ func TestPCLine(t *testing.T) {
 // read115Executable returns a hello world executable compiled by Go 1.15.
 //
 // The file was compiled in /tmp/hello.go:
-// [BEGIN]
-// package main
 //
-// func main() {
-//    println("hello")
-// }
-// [END]
+//	package main
+//
+//	func main() {
+//		println("hello")
+//	}
 func read115Executable(tb testing.TB) []byte {
 	zippedDat, err := os.ReadFile("testdata/pcln115.gz")
 	if err != nil {

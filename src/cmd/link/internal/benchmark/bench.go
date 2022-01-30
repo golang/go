@@ -44,16 +44,16 @@ type mark struct {
 //
 // Typical usage should look like:
 //
-// func main() {
-//   filename := "" // Set to enable per-phase pprof file output.
-//   bench := benchmark.New(benchmark.GC, filename)
-//   defer bench.Report(os.Stdout)
-//   // etc
-//   bench.Start("foo")
-//   foo()
-//   bench.Start("bar")
-//   bar()
-// }
+//  func main() {
+//    filename := "" // Set to enable per-phase pprof file output.
+//    bench := benchmark.New(benchmark.GC, filename)
+//    defer bench.Report(os.Stdout)
+//    // etc
+//    bench.Start("foo")
+//    foo()
+//    bench.Start("bar")
+//    bar()
+//  }
 //
 // Note that a nil Metrics object won't cause any errors, so one could write
 // code like:

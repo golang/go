@@ -788,12 +788,12 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
 // field. For things that are not structs (or structs without padding)
 // it returns a list of zeros. Example:
 //
-// type small struct {
-//   x uint16
-//   y uint8
-//   z int32
-//   w int32
-// }
+//	type small struct {
+//		x uint16
+//		y uint8
+//		z int32
+//		w int32
+//	}
 //
 // For this struct we would return a list [0, 1, 0, 0], meaning that
 // we have one byte of padding after the second field, and no bytes of

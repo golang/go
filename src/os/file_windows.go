@@ -401,7 +401,7 @@ func openSymlink(path string) (syscall.Handle, error) {
 // normaliseLinkPath converts absolute paths returned by
 // DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...)
 // into paths acceptable by all Windows APIs.
-// For example, it coverts
+// For example, it converts
 //  \??\C:\foo\bar into C:\foo\bar
 //  \??\UNC\foo\bar into \\foo\bar
 //  \??\Volume{abc}\ into C:\

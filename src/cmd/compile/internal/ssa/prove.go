@@ -27,17 +27,17 @@ const (
 //
 // E.g.
 //
-// r := relation(...)
+//  r := relation(...)
 //
-// if v < w {
-//   newR := r & lt
-// }
-// if v >= w {
-//   newR := r & (eq|gt)
-// }
-// if v != w {
-//   newR := r & (lt|gt)
-// }
+//  if v < w {
+//    newR := r & lt
+//  }
+//  if v >= w {
+//    newR := r & (eq|gt)
+//  }
+//  if v != w {
+//    newR := r & (lt|gt)
+//  }
 type relation uint
 
 const (

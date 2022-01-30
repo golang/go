@@ -80,11 +80,11 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 // when necessary (the condition above). It rewrites store ops to branches
 // and runtime calls, like
 //
-// if writeBarrier.enabled {
-//   gcWriteBarrier(ptr, val)	// Not a regular Go call
-// } else {
-//   *ptr = val
-// }
+//	if writeBarrier.enabled {
+//		gcWriteBarrier(ptr, val)	// Not a regular Go call
+//	} else {
+//		*ptr = val
+//	}
 //
 // A sequence of WB stores for many pointer fields of a single type will
 // be emitted together, with a single branch.

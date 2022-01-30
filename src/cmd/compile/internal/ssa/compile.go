@@ -24,10 +24,10 @@ import (
 
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
-//   · all Values in f map to 0 or 1 assembly instructions of the target architecture
-//   · the order of f.Blocks is the order to emit the Blocks
-//   · the order of b.Values is the order to emit the Values in each Block
-//   · f has a non-nil regAlloc field
+//   - all Values in f map to 0 or 1 assembly instructions of the target architecture
+//   - the order of f.Blocks is the order to emit the Blocks
+//   - the order of b.Values is the order to emit the Values in each Block
+//   - f has a non-nil regAlloc field
 func Compile(f *Func) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.
@@ -250,8 +250,8 @@ var GenssaDump map[string]bool = make(map[string]bool) // names of functions to 
 // version is used as a regular expression to match the phase name(s).
 //
 // Special cases that have turned out to be useful:
-//  ssa/check/on enables checking after each phase
-//  ssa/all/time enables time reporting for all phases
+//  - ssa/check/on enables checking after each phase
+//  - ssa/all/time enables time reporting for all phases
 //
 // See gc/lex.go for dissection of the option string.
 // Example uses:
