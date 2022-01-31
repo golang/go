@@ -187,7 +187,6 @@ func (p *parser) parseQualifiedNameStr(unquotedName string) (pkgpath, name strin
 // getPkg returns the package for a given path. If the package is
 // not found but we have a package name, create the package and
 // add it to the p.imports map.
-//
 func (p *parser) getPkg(pkgpath, name string) *types.Package {
 	// package unsafe is not in the imports map - handle explicitly
 	if pkgpath == "unsafe" {
@@ -934,7 +933,6 @@ func lookupBuiltinType(typ int) types.Type {
 // Type = "<" "type" ( "-" int | int [ TypeSpec ] ) ">" .
 //
 // parseType updates the type map to t for all type numbers n.
-//
 func (p *parser) parseType(pkg *types.Package, n ...any) types.Type {
 	p.expect('<')
 	t, _ := p.parseTypeAfterAngle(pkg, n...)

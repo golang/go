@@ -165,7 +165,6 @@ func buildCover(t *testing.T) {
 // 	go build -o testcover
 // 	testcover -mode=count -var=CoverTest -o ./testdata/test_cover.go testdata/test_line.go
 //	go run ./testdata/main.go ./testdata/test.go
-//
 func TestCover(t *testing.T) {
 	t.Parallel()
 	testenv.MustHaveGoRun(t)

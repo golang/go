@@ -449,7 +449,6 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 //     A(B(C|D)|EF)|BC(X|Y)
 // which simplifies by character class introduction to
 //     A(B[CD]|EF)|BC[XY]
-//
 func (p *parser) factor(sub []*Regexp) []*Regexp {
 	if len(sub) < 2 {
 		return sub

@@ -48,7 +48,6 @@ func (o *SortedMap) Swap(i, j int) {
 //    Otherwise identical arrays compare by length.
 //  - interface values compare first by reflect.Type describing the concrete type
 //    and then by concrete value as described in the previous rules.
-//
 func Sort(mapValue reflect.Value) *SortedMap {
 	if mapValue.Type().Kind() != reflect.Map {
 		return nil

@@ -1830,7 +1830,6 @@ func (iter *MapIter) Reset(v Value) {
 //		v := iter.Value()
 //		...
 //	}
-//
 func (v Value) MapRange() *MapIter {
 	v.mustBe(Map)
 	return &MapIter{m: v}
@@ -2785,7 +2784,6 @@ const (
 // Normally Chan's underlying value must be a channel and Send must be a zero Value.
 // If Chan is a zero Value, then the case is ignored, but Send must still be a zero Value.
 // When a receive operation is selected, the received Value is returned by Select.
-//
 type SelectCase struct {
 	Dir  SelectDir // direction of case
 	Chan Value     // channel to use (for send or receive)

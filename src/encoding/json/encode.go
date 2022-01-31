@@ -154,7 +154,6 @@ import (
 // JSON cannot represent cyclic data structures and Marshal does not
 // handle them. Passing cyclic structures to Marshal will result in
 // an error.
-//
 func Marshal(v any) ([]byte, error) {
 	e := newEncodeState()
 

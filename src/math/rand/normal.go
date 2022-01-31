@@ -34,7 +34,6 @@ func absInt32(i int32) uint32 {
 // adjust the output using:
 //
 //  sample = NormFloat64() * desiredStdDev + desiredMean
-//
 func (r *Rand) NormFloat64() float64 {
 	for {
 		j := int32(r.Uint32()) // Possibly negative

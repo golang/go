@@ -88,7 +88,6 @@ func (r *Reader) readLineSlice() ([]byte, error) {
 // and the second will return "Line 2".
 //
 // Empty lines are never continued.
-//
 func (r *Reader) ReadContinuedLine() (string, error) {
 	line, err := r.readContinuedLineSlice(noValidation)
 	return string(line), err
@@ -230,7 +229,6 @@ func parseCodeLine(line string, expectCode int) (code int, continued bool, messa
 // If the response is multi-line, ReadCodeLine returns an error.
 //
 // An expectCode <= 0 disables the check of the status code.
-//
 func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err error) {
 	code, continued, message, err := r.readCodeLine(expectCode)
 	if err == nil && continued {
@@ -265,7 +263,6 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 // the status is not in the range [310,319].
 //
 // An expectCode <= 0 disables the check of the status code.
-//
 func (r *Reader) ReadResponse(expectCode int) (code int, message string, err error) {
 	code, continued, message, err := r.readCodeLine(expectCode)
 	multi := continued
@@ -481,7 +478,6 @@ var colon = []byte(":")
 //		"My-Key": {"Value 1", "Value 2"},
 //		"Long-Key": {"Even Longer Value"},
 //	}
-//
 func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	// Avoid lots of small slice allocations later by allocating one
 	// large one ahead of time which we'll cut up into smaller

@@ -48,7 +48,6 @@ func NewCond(l Locker) *Cond {
 //    }
 //    ... make use of condition ...
 //    c.L.Unlock()
-//
 func (c *Cond) Wait() {
 	c.checker.check()
 	t := runtime_notifyListAdd(&c.notify)

@@ -55,7 +55,6 @@ var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(?s)(.*)`)
 // splitError splits an error's error message into a position string
 // and the actual error message. If there's no position information,
 // pos is the empty string, and msg is the entire error message.
-//
 func splitError(err error) (pos, msg string) {
 	msg = err.Error()
 	if m := posMsgRx.FindStringSubmatch(msg); len(m) == 3 {
@@ -92,7 +91,6 @@ func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode parser.Mod
 // Space around "rx" or rx is ignored. Use the form `ERROR HERE "rx"`
 // for error messages that are located immediately after rather than
 // at a token's position.
-//
 var errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
 
 // errMap collects the regular expressions of ERROR comments found

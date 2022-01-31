@@ -259,7 +259,6 @@ var GenssaDump map[string]bool = make(map[string]bool) // names of functions to 
 // GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash
 //
 // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
-//
 func PhaseOption(phase, flag string, val int, valString string) string {
 	switch phase {
 	case "", "help":

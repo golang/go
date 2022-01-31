@@ -87,7 +87,6 @@ import "errors"
 //
 // Some valid layouts are invalid time values for time.Parse, due to formats
 // such as _ for space padding and Z for zone information.
-//
 const (
 	Layout      = "01/02 03:04:05PM '06 -0700" // The reference time, in numerical order.
 	ANSIC       = "Mon Jan _2 15:04:05 2006"

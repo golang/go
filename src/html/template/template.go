@@ -72,7 +72,6 @@ func (t *Template) Templates() []*Template {
 //		The operation returns the zero value for the map type's element.
 //	"missingkey=error"
 //		Execution stops immediately with an error.
-//
 func (t *Template) Option(opt ...string) *Template {
 	t.text.Option(opt...)
 	return t

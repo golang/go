@@ -54,7 +54,6 @@ import (
 // with the expectation that the Jar will insert those mutated cookies
 // with the updated values (assuming the origin matches).
 // If Jar is nil, the initial cookies are forwarded without change.
-//
 type Client struct {
 	// Transport specifies the mechanism by which individual
 	// HTTP requests are made.

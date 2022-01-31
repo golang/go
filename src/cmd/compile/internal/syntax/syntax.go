@@ -63,7 +63,6 @@ type PragmaHandler func(pos Pos, blank bool, text string, current Pragma) Pragma
 // error, and the returned syntax tree is nil.
 //
 // If pragh != nil, it is called with each pragma encountered.
-//
 func Parse(base *PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
 	defer func() {
 		if p := recover(); p != nil {

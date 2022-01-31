@@ -490,7 +490,6 @@ func isCaseSensitive(t *testing.T) bool {
 // Keep list and the implementations below sorted by name.
 //
 // NOTE: If you make changes here, update testdata/script/README too!
-//
 var scriptCmds = map[string]func(*testScript, simpleStatus, []string){
 	"addcrlf": (*testScript).cmdAddcrlf,
 	"cc":      (*testScript).cmdCc,

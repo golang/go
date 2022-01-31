@@ -133,7 +133,6 @@ func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 //	n;
 //
 // Also works if b is a string.
-//
 func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 	if n.X.Type().Elem().HasPointers() {
 		ir.CurFunc.SetWBPos(n.Pos())

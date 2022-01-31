@@ -153,7 +153,6 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 //	for p, q := uint64(0), uint64(1); p < q; p, q = q, q*5 {
 //		fmt.Println(q)
 //	}
-//
 var pow5tab = [...]uint64{
 	1,
 	5,
@@ -257,7 +256,6 @@ func (z *Float) pow5(n uint64) *Float {
 //
 // The returned *Float f is nil and the value of z is valid but not
 // defined if an error is reported.
-//
 func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 	// scan doesn't handle ±Inf
 	if len(s) == 3 && (s == "Inf" || s == "inf") {
