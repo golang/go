@@ -1352,7 +1352,7 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 
 // If lhs is set and the result is an identifier, it is not resolved.
 // TODO(gri): parseExpr may return a type or even a raw type ([..]int) -
-//            should reject when a type/raw type is obviously not allowed
+// should reject when a type/raw type is obviously not allowed
 func (p *parser) parseExpr(lhs bool) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Expression"))

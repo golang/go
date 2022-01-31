@@ -107,7 +107,7 @@ func (t *Named) Obj() *TypeName { return t.orig.obj } // for non-instances this 
 func (t *Named) Origin() *Named { return t.orig }
 
 // TODO(gri) Come up with a better representation and API to distinguish
-//           between parameterized instantiated and non-instantiated types.
+// between parameterized instantiated and non-instantiated types.
 
 // TypeParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) generic type even if it is instantiated.

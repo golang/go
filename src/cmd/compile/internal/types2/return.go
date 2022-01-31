@@ -99,8 +99,8 @@ func (check *Checker) isTerminatingSwitch(body []*syntax.CaseClause, label strin
 }
 
 // TODO(gri) For nested breakable statements, the current implementation of hasBreak
-//	     will traverse the same subtree repeatedly, once for each label. Replace
-//           with a single-pass label/break matching phase.
+// will traverse the same subtree repeatedly, once for each label. Replace
+// with a single-pass label/break matching phase.
 
 // hasBreak reports if s is or contains a break statement
 // referring to the label-ed statement or implicit-ly the
