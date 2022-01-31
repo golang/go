@@ -38,7 +38,6 @@ func (x *t2) f2() {}
 // of one without, and it favors duplicate entries appearing
 // later in the source over ones appearing earlier. This is why
 // (*t2).f2 is kept and t2.f2 is eliminated in this test case.
-//
 const golden = `package p
 
 type t1 struct{}

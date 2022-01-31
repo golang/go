@@ -1211,7 +1211,6 @@ const (
 // If hint != nil, it is the type of a composite literal element.
 // If allowGeneric is set, the operand type may be an uninstantiated
 // parameterized type or function value.
-//
 func (check *Checker) rawExpr(x *operand, e syntax.Expr, hint Type, allowGeneric bool) exprKind {
 	if check.conf.Trace {
 		check.trace(e.Pos(), "-- expr %s", e)
@@ -1259,7 +1258,6 @@ func (check *Checker) nonGeneric(x *operand) {
 
 // exprInternal contains the core of type checking of expressions.
 // Must only be called by rawExpr.
-//
 func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKind {
 	// make sure x has a valid state in case of bailout
 	// (was issue 5770)
@@ -1764,7 +1762,6 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitc
 // expr typechecks expression e and initializes x with the expression value.
 // The result must be a single value.
 // If an error occurred, x.mode is set to invalid.
-//
 func (check *Checker) expr(x *operand, e syntax.Expr) {
 	check.rawExpr(x, e, nil, false)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
@@ -1780,7 +1777,6 @@ func (check *Checker) multiExpr(x *operand, e syntax.Expr) {
 // exprWithHint typechecks expression e and initializes x with the expression value;
 // hint is the type of a composite literal element.
 // If an error occurred, x.mode is set to invalid.
-//
 func (check *Checker) exprWithHint(x *operand, e syntax.Expr, hint Type) {
 	assert(hint != nil)
 	check.rawExpr(x, e, hint, false)
@@ -1792,7 +1788,6 @@ func (check *Checker) exprWithHint(x *operand, e syntax.Expr, hint Type) {
 // If allowGeneric is set, the operand type may be an uninstantiated parameterized type or function
 // value.
 // If an error occurred, x.mode is set to invalid.
-//
 func (check *Checker) exprOrType(x *operand, e syntax.Expr, allowGeneric bool) {
 	check.rawExpr(x, e, nil, allowGeneric)
 	check.exclude(x, 1<<novalue)

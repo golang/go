@@ -59,7 +59,6 @@ func TestSearch(t *testing.T) {
 
 // log2 computes the binary logarithm of x, rounded up to the next integer.
 // (log2(0) == 0, log2(1) == 0, log2(2) == 1, log2(3) == 2, etc.)
-//
 func log2(x int) int {
 	n := 0
 	for p := 1; p < x; p += p {

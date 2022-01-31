@@ -180,7 +180,6 @@ type IntegerType int
 //	hdr.Data = uintptr(unsafe.Pointer(p))
 //	hdr.Len = n
 //	s := *(*string)(unsafe.Pointer(&hdr)) // p possibly already lost
-//
 type Pointer *ArbitraryType
 
 // Sizeof takes an expression x of any type and returns the size in bytes

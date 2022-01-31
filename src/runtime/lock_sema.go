@@ -23,7 +23,6 @@ import (
 //
 //	func semawakeup(mp *m)
 //		Wake up mp, which is or will soon be sleeping on its semaphore.
-//
 const (
 	locked uintptr = 1
 

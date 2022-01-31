@@ -14,7 +14,6 @@ import (
 // An Object describes a named language entity such as a package,
 // constant, type, variable, function (incl. methods), or label.
 // All objects implement the Object interface.
-//
 type Object interface {
 	Parent() *Scope // scope in which this object is declared; nil for methods and struct fields
 	Pos() token.Pos // position of object identifier in declaration

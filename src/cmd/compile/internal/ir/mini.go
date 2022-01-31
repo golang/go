@@ -27,7 +27,6 @@ import (
 // The embedding struct should also fill in n.op in its constructor,
 // for more useful panic messages when invalid methods are called,
 // instead of implementing Op itself.
-//
 type miniNode struct {
 	pos  src.XPos // uint32
 	op   Op       // uint8

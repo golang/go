@@ -2151,7 +2151,6 @@ func (ld *loader) buildStacks() {
 //		other2 tested by
 //		other2.test imports
 //		pkg
-//
 func (pkg *loadPkg) stackText() string {
 	var stack []*loadPkg
 	for p := pkg; p != nil; p = p.stack {

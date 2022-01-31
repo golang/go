@@ -1174,7 +1174,6 @@ func (rc *rowsCursor) NextResultSet() error {
 // This could be surprising behavior to retroactively apply to
 // driver.String now that Go1 is out, but this is convenient for
 // our TestPointerParamsAndScans.
-//
 type fakeDriverString struct{}
 
 func (fakeDriverString) ConvertValue(v any) (driver.Value, error) {

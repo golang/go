@@ -381,7 +381,6 @@ func (i Class) GoString() string {
 // A common idiom is to merge the check for nil return with
 // the check that the value has the expected dynamic type, as in:
 //	v, ok := e.Val(AttrSibling).(int64)
-//
 func (e *Entry) Val(a Attr) any {
 	if f := e.AttrField(a); f != nil {
 		return f.Val

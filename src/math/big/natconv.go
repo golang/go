@@ -105,7 +105,6 @@ var (
 // parsed. A digit count <= 0 indicates the presence of a period (if fracOk
 // is set, only), and -count is the number of fractional digits found.
 // In this case, the actual value of the scanned number is res * b**count.
-//
 func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count int, err error) {
 	// reject invalid bases
 	baseOk := base == 0 ||
@@ -366,7 +365,6 @@ func (x nat) itoa(neg bool, base int) []byte {
 // range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and
 // ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
 // specific hardware.
-//
 func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []divisor) {
 	// split larger blocks recursively
 	if table != nil {

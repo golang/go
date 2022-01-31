@@ -149,7 +149,6 @@ func WithRegion(ctx context.Context, regionType string, fn func()) {
 // Recommended usage is
 //
 //     defer trace.StartRegion(ctx, "myTracedRegion").End()
-//
 func StartRegion(ctx context.Context, regionType string) *Region {
 	if !IsEnabled() {
 		return noopRegion

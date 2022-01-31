@@ -683,7 +683,6 @@ func chanparkcommit(gp *g, chanLock unsafe.Pointer) bool {
 //	} else {
 //		... bar
 //	}
-//
 func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
 	return chansend(c, elem, false, getcallerpc())
 }
@@ -704,7 +703,6 @@ func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
 //	} else {
 //		... bar
 //	}
-//
 func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected, received bool) {
 	return chanrecv(c, elem, false)
 }

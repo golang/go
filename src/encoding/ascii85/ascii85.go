@@ -183,7 +183,6 @@ func (e CorruptInputError) Error() string {
 // than wait for the completion of another 32-bit block.
 //
 // NewDecoder wraps an io.Reader interface around Decode.
-//
 func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err error) {
 	var v uint32
 	var nb int

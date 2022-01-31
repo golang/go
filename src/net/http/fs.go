@@ -836,7 +836,6 @@ func FS(fsys fs.FS) FileSystem {
 // To use an fs.FS implementation, use http.FS to convert it:
 //
 //	http.Handle("/", http.FileServer(http.FS(fsys)))
-//
 func FileServer(root FileSystem) Handler {
 	return &fileHandler{root}
 }

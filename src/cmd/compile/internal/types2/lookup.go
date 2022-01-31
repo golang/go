@@ -41,7 +41,6 @@ import (
 //	- If indirect is set, a method with a pointer receiver type was found
 //      but there was no pointer on the path from the actual receiver type to
 //	the method's formal receiver base type, nor was the receiver addressable.
-//
 func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	if T == nil {
 		panic("LookupFieldOrMethod on nil type")
@@ -281,7 +280,6 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
 // is not set), MissingMethod only checks that methods of T which are also
 // present in V have matching types (e.g., for a type assertion x.(T) where
 // x is of interface type V).
-//
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
 	m, alt := (*Checker)(nil).missingMethod(V, T, static)
 	// Only report a wrong type if the alternative method has the same name as m.

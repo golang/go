@@ -534,7 +534,6 @@ func nameExt(name string) string {
 //
 // If an error occurs, Import returns a non-nil error and a non-nil
 // *Package containing partial information.
-//
 func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Package, error) {
 	p := &Package{
 		ImportPath: path,
@@ -1813,7 +1812,6 @@ func safeCgoName(s string) bool {
 // Would be parsed as:
 //
 //     []string{"a", "b:c d", "ef", `g"`}
-//
 func splitQuoted(s string) (r []string, err error) {
 	var args []string
 	arg := make([]rune, len(s))

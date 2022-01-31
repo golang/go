@@ -66,7 +66,6 @@ import (
 //
 // All-caps names are pseudo-names for specific points
 // in the dependency lattice.
-//
 var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE

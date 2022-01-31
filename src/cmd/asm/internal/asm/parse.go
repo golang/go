@@ -855,7 +855,6 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 //
 // Anything else beginning with "<" logs an error if issueError is
 // true, otherwise returns (false, obj.ABI0).
-//
 func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
 	abi := obj.ABI0
 	isStatic := false

@@ -33,7 +33,6 @@ import (
 //	if err := fstest.TestFS(myFS, "file/that/should/be/present"); err != nil {
 //		t.Fatal(err)
 //	}
-//
 func TestFS(fsys fs.FS, expected ...string) error {
 	if err := testFS(fsys, expected...); err != nil {
 		return err

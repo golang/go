@@ -10,7 +10,6 @@ package types2
 //   𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
 //   T:  &term{false, T}  == {T}                    // set of type T
 //  ~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
-//
 type term struct {
 	tilde bool // valid if typ != nil
 	typ   Type
