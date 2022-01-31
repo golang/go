@@ -216,6 +216,19 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
 	}
 }
 
+func TestCgoPprofCallback(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping cgo pprof callback test on %s", runtime.GOOS)
+	}
+	got := runTestProg(t, "testprogcgo", "CgoPprofCallback")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
 func TestCgoCrashTraceback(t *testing.T) {
 	t.Parallel()
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
