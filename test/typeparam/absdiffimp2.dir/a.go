@@ -60,9 +60,25 @@ type complexAbs[T Complex] struct {
 	Value T
 }
 
+func realimag(x any) (re, im float64) {
+	switch z := x.(type) {
+	case complex64:
+		re = float64(real(z))
+		im = float64(imag(z))
+	case complex128:
+		re = real(z)
+		im = imag(z)
+	default:
+		panic("unknown complex type")
+	}
+	return
+}
+
 func (a complexAbs[T]) Abs() T {
-	r := float64(real(a.Value))
-	i := float64(imag(a.Value))
+	// TODO use direct conversion instead of realimag once #50937 is fixed
+	r, i := realimag(a.Value)
+	// r := float64(real(a.Value))
+	// i := float64(imag(a.Value))
 	d := math.Sqrt(r*r + i*i)
 	return T(complex(d, 0))
 }
