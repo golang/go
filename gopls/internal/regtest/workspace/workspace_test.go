@@ -686,7 +686,7 @@ func Hello() int {
 -- go.work --
 go 1.17
 
-directory (
+use (
 	./moda/a
 )
 `
@@ -719,7 +719,7 @@ directory (
 		env.WriteWorkspaceFile("go.work", `
 go 1.17
 
-directory (
+use (
 	./moda/a
 	./modb
 )
@@ -750,7 +750,7 @@ directory (
 		env.Await(env.DoneWithOpen())
 		env.SetBufferContent("go.work", `go 1.17
 
-directory (
+use (
 	./moda/a
 )`)
 

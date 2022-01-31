@@ -16,7 +16,6 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/source"
-	workfile "golang.org/x/tools/internal/mod/modfile"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
@@ -484,16 +483,16 @@ func getLegacyModules(ctx context.Context, root span.URI, fs source.FileSource) 
 }
 
 func parseGoWork(ctx context.Context, root, uri span.URI, contents []byte, fs source.FileSource) (*modfile.File, map[span.URI]struct{}, error) {
-	workFile, err := workfile.ParseWork(uri.Filename(), contents, nil)
+	workFile, err := modfile.ParseWork(uri.Filename(), contents, nil)
 	if err != nil {
 		return nil, nil, errors.Errorf("parsing go.work: %w", err)
 	}
 	modFiles := make(map[span.URI]struct{})
-	for _, dir := range workFile.Directory {
+	for _, dir := range workFile.Use {
 		// The resulting modfile must use absolute paths, so that it can be
 		// written to a temp directory.
-		dir.DiskPath = absolutePath(root, dir.DiskPath)
-		modURI := span.URIFromPath(filepath.Join(dir.DiskPath, "go.mod"))
+		dir.Path = absolutePath(root, dir.Path)
+		modURI := span.URIFromPath(filepath.Join(dir.Path, "go.mod"))
 		modFiles[modURI] = struct{}{}
 	}
 	modFile, err := buildWorkspaceModFile(ctx, modFiles, fs)
