@@ -391,14 +391,13 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 			} else {
 				inv.ModFlag = mutableModFlag
 			}
-		case source.UpdateUserModFile, source.WriteTemporaryModFile:
+		case source.WriteTemporaryModFile:
 			inv.ModFlag = mutableModFlag
 		}
 	}
 
-	wantTempMod := mode != source.UpdateUserModFile
 	needTempMod := mode == source.WriteTemporaryModFile
-	tempMod := wantTempMod && s.workspaceMode()&tempModfile != 0
+	tempMod := s.workspaceMode()&tempModfile != 0
 	if needTempMod && !tempMod {
 		return "", nil, cleanup, source.ErrTmpModfileUnsupported
 	}

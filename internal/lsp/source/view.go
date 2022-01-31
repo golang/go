@@ -201,9 +201,6 @@ const (
 	// Normal is appropriate for commands that might be run by a user and don't
 	// deliberately modify go.mod files, e.g. `go test`.
 	Normal InvocationFlags = iota
-	// UpdateUserModFile is for commands that intend to update the user's real
-	// go.mod file, e.g. `go mod tidy` in response to a user's request to tidy.
-	UpdateUserModFile
 	// WriteTemporaryModFile is for commands that need information from a
 	// modified version of the user's go.mod file, e.g. `go mod tidy` used to
 	// generate diagnostics.
