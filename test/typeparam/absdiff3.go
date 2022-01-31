@@ -43,9 +43,25 @@ type Complex interface {
 	~complex64 | ~complex128
 }
 
+func realimag(x any) (re, im float64) {
+	switch z := x.(type) {
+	case complex64:
+		re = float64(real(z))
+		im = float64(imag(z))
+	case complex128:
+		re = real(z)
+		im = imag(z)
+	default:
+		panic("unknown complex type")
+	}
+	return
+}
+
 func ComplexAbs[T Complex](a T) T {
-	r := float64(real(a))
-	i := float64(imag(a))
+	// TODO use direct conversion instead of realimag once #50937 is fixed
+	r, i := realimag(a)
+	// r := float64(real(a))
+	// i := float64(imag(a))
 	d := math.Sqrt(r*r + i*i)
 	return T(complex(d, 0))
 }

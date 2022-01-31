@@ -314,7 +314,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 			return nil
 		}
-		resTyp := check.applyTypeFunc(f, x.typ)
+		resTyp := check.applyTypeFunc(f, x, id)
 		if resTyp == nil {
 			check.invalidArg(x, _InvalidComplex, "arguments have type %s, expected floating-point", x.typ)
 			return
@@ -442,7 +442,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 			return nil
 		}
-		resTyp := check.applyTypeFunc(f, x.typ)
+		resTyp := check.applyTypeFunc(f, x, id)
 		if resTyp == nil {
 			code := _InvalidImag
 			if id == _Real {
@@ -809,8 +809,8 @@ func hasVarSize(t Type) bool {
 // of x. If any of these applications of f return nil,
 // applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
-func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
-	if tp, _ := x.(*TypeParam); tp != nil {
+func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId) Type {
+	if tp, _ := x.typ.(*TypeParam); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var terms []*Term
@@ -827,17 +827,34 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 			return nil
 		}
 
+		// We can type-check this fine but we're introducing a synthetic
+		// type parameter for the result. It's not clear what the API
+		// implications are here. Report an error for 1.18 (see #50912),
+		// but continue type-checking.
+		var code errorCode
+		switch id {
+		case _Real:
+			code = _InvalidReal
+		case _Imag:
+			code = _InvalidImag
+		case _Complex:
+			code = _InvalidComplex
+		default:
+			unreachable()
+		}
+		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
+
 		// Construct a suitable new type parameter for the result type.
 		// The type parameter is placed in the current package so export/import
 		// works as expected.
-		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
+		tpar := NewTypeName(token.NoPos, check.pkg, tp.obj.name, nil)
 		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
 
 		return ptyp
 	}
 
-	return f(x)
+	return f(x.typ)
 }
 
 // makeSig makes a signature for the given argument and result types.
