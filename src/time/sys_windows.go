@@ -16,6 +16,10 @@ func interrupt() {
 func open(name string) (uintptr, error) {
 	fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
 	if err != nil {
+		// This condition solves issue https://go.dev/issue/50248
+		if err == syscall.ERROR_PATH_NOT_FOUND {
+			err = syscall.ENOENT
+		}
 		return 0, err
 	}
 	return uintptr(fd), nil
