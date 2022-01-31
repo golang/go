@@ -23,6 +23,7 @@ const (
 
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
+//
 //go:nosplit
 func sysAllocOS(n uintptr) unsafe.Pointer {
 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
@@ -95,6 +96,7 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
 
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
+//
 //go:nosplit
 func sysFreeOS(v unsafe.Pointer, n uintptr) {
 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)

@@ -475,6 +475,7 @@ func less(a, b uint32) bool {
 // notifyListAdd adds the caller to a notify list such that it can receive
 // notifications. The caller must eventually call notifyListWait to wait for
 // such a notification, passing the returned ticket number.
+//
 //go:linkname notifyListAdd sync.runtime_notifyListAdd
 func notifyListAdd(l *notifyList) uint32 {
 	// This may be called concurrently, for example, when called from
@@ -484,6 +485,7 @@ func notifyListAdd(l *notifyList) uint32 {
 
 // notifyListWait waits for a notification. If one has been sent since
 // notifyListAdd was called, it returns immediately. Otherwise, it blocks.
+//
 //go:linkname notifyListWait sync.runtime_notifyListWait
 func notifyListWait(l *notifyList, t uint32) {
 	lockWithRank(&l.lock, lockRankNotifyList)
@@ -518,6 +520,7 @@ func notifyListWait(l *notifyList, t uint32) {
 }
 
 // notifyListNotifyAll notifies all entries in the list.
+//
 //go:linkname notifyListNotifyAll sync.runtime_notifyListNotifyAll
 func notifyListNotifyAll(l *notifyList) {
 	// Fast-path: if there are no new waiters since the last notification
@@ -550,6 +553,7 @@ func notifyListNotifyAll(l *notifyList) {
 }
 
 // notifyListNotifyOne notifies one entry in the list.
+//
 //go:linkname notifyListNotifyOne sync.runtime_notifyListNotifyOne
 func notifyListNotifyOne(l *notifyList) {
 	// Fast-path: if there are no new waiters since the last notification

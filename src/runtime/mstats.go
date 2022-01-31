@@ -550,6 +550,7 @@ func readGCStats(pauses *[]uint64) {
 
 // readGCStats_m must be called on the system stack because it acquires the heap
 // lock. See mheap for details.
+//
 //go:systemstack
 func readGCStats_m(pauses *[]uint64) {
 	p := *pauses
@@ -622,6 +623,7 @@ type sysMemStat uint64
 // load atomically reads the value of the stat.
 //
 // Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
+//
 //go:nosplit
 func (s *sysMemStat) load() uint64 {
 	return atomic.Load64((*uint64)(s))
@@ -630,6 +632,7 @@ func (s *sysMemStat) load() uint64 {
 // add atomically adds the sysMemStat by n.
 //
 // Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
+//
 //go:nosplit
 func (s *sysMemStat) add(n int64) {
 	if s == nil {

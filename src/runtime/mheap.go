@@ -589,6 +589,7 @@ func (i arenaIdx) l2() uint {
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
 // It returns false for pointers into mSpanManual spans.
 // Non-preemptible because it is used by write barriers.
+//
 //go:nowritebarrier
 //go:nosplit
 func inheap(b uintptr) bool {

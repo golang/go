@@ -126,6 +126,7 @@ func syscall_chroot1(path uintptr) (err uintptr) {
 }
 
 // like close, but must not split stack, for fork.
+//
 //go:linkname syscall_close syscall.close
 //go:nosplit
 func syscall_close(fd int32) int32 {
@@ -148,6 +149,7 @@ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
 }
 
 // like exit, but must not split stack, for fork.
+//
 //go:linkname syscall_exit syscall.exit
 //go:nosplit
 func syscall_exit(code uintptr) {

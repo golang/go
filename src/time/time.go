@@ -1068,6 +1068,7 @@ func daysSinceEpoch(year int) uint64 {
 func now() (sec int64, nsec int32, mono int64)
 
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
+//
 //go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64
 

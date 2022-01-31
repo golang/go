@@ -280,6 +280,7 @@ func vdsoauxv(tag, val uintptr) {
 }
 
 // vdsoMarker reports whether PC is on the VDSO page.
+//
 //go:nosplit
 func inVDSOPage(pc uintptr) bool {
 	for _, k := range vdsoSymbolKeys {

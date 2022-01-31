@@ -15,6 +15,7 @@ import (
 )
 
 // Security.framework linker flags for the external linker. See Issue 42459.
+//
 //go:cgo_ldflag "-framework"
 //go:cgo_ldflag "Security"
 

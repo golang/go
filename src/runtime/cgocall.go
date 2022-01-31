@@ -102,6 +102,7 @@ type argset struct {
 }
 
 // wrapper for syscall package to call cgocall for libc (cgo) calls.
+//
 //go:linkname syscall_cgocaller syscall.cgocaller
 //go:nosplit
 //go:uintptrescapes
@@ -199,6 +200,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 }
 
 // Call from C back to Go. fn must point to an ABIInternal Go entry-point.
+//
 //go:nosplit
 func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	gp := getg()
@@ -598,6 +600,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 // cgoIsGoPointer reports whether the pointer is a Go pointer--a
 // pointer to Go memory. We only care about Go memory that might
 // contain pointers.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func cgoIsGoPointer(p unsafe.Pointer) bool {
@@ -619,6 +622,7 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
 }
 
 // cgoInRange reports whether p is between start and end.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {

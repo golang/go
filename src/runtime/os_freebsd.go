@@ -192,6 +192,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
 func thr_start()
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -221,6 +222,7 @@ func newosproc(mp *m) {
 }
 
 // Version of newosproc that doesn't require a valid G.
+//
 //go:nosplit
 func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
@@ -261,6 +263,7 @@ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
 // None of the Go runtime is initialized.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
@@ -318,6 +321,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
@@ -359,6 +363,7 @@ func getsig(i uint32) uintptr {
 }
 
 // setSignaltstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = sp
@@ -431,6 +436,7 @@ func sysauxv(auxv []uintptr) {
 }
 
 // sysSigaction calls the sigaction system call.
+//
 //go:nosplit
 func sysSigaction(sig uint32, new, old *sigactiont) {
 	// Use system stack to avoid split stack overflow on amd64
@@ -442,6 +448,7 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
 }
 
 // asmSigaction is implemented in assembly.
+//
 //go:noescape
 func asmSigaction(sig uintptr, new, old *sigactiont) int32
 

@@ -444,6 +444,7 @@ func exit(e int32) {
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	if false {
@@ -506,6 +507,7 @@ func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 var _badsignal = []byte("runtime: signal received on thread not created by Go.\n")
 
 // This runs on a foreign stack, without an m or a g. No stack split.
+//
 //go:nosplit
 func badsignal2() {
 	pwrite(2, unsafe.Pointer(&_badsignal[0]), int32(len(_badsignal)), -1)

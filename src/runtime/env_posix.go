@@ -49,6 +49,7 @@ var _cgo_unsetenv unsafe.Pointer // pointer to C function
 
 // Update the C environment if cgo is loaded.
 // Called from syscall.Setenv.
+//
 //go:linkname syscall_setenv_c syscall.setenv_c
 func syscall_setenv_c(k string, v string) {
 	if _cgo_setenv == nil {
@@ -60,6 +61,7 @@ func syscall_setenv_c(k string, v string) {
 
 // Update the C environment if cgo is loaded.
 // Called from syscall.unsetenv.
+//
 //go:linkname syscall_unsetenv_c syscall.unsetenv_c
 func syscall_unsetenv_c(k string) {
 	if _cgo_unsetenv == nil {

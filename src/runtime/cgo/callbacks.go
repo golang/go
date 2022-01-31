@@ -21,6 +21,7 @@ import "unsafe"
 // that pattern working. In particular, crosscall2 actually takes four
 // arguments, but it works to call it with three arguments when
 // calling _cgo_panic.
+//
 //go:cgo_export_static crosscall2
 //go:cgo_export_dynamic crosscall2
 

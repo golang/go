@@ -173,6 +173,7 @@ const verifyTimers = false
 // time.now is implemented in assembly.
 
 // timeSleep puts the current goroutine to sleep for at least ns nanoseconds.
+//
 //go:linkname timeSleep time.Sleep
 func timeSleep(ns int64) {
 	if ns <= 0 {
@@ -205,6 +206,7 @@ func resetForSleep(gp *g, ut unsafe.Pointer) bool {
 }
 
 // startTimer adds t to the timer heap.
+//
 //go:linkname startTimer time.startTimer
 func startTimer(t *timer) {
 	if raceenabled {
@@ -215,12 +217,14 @@ func startTimer(t *timer) {
 
 // stopTimer stops a timer.
 // It reports whether t was stopped before being run.
+//
 //go:linkname stopTimer time.stopTimer
 func stopTimer(t *timer) bool {
 	return deltimer(t)
 }
 
 // resetTimer resets an inactive timer, adding it to the heap.
+//
 //go:linkname resetTimer time.resetTimer
 // Reports whether the timer was modified before it was run.
 func resetTimer(t *timer, when int64) bool {
@@ -231,6 +235,7 @@ func resetTimer(t *timer, when int64) bool {
 }
 
 // modTimer modifies an existing timer.
+//
 //go:linkname modTimer time.modTimer
 func modTimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq uintptr) {
 	modtimer(t, when, period, f, arg, seq)
@@ -737,6 +742,7 @@ func addAdjustedTimers(pp *p, moved []*timer) {
 // should wake up the netpoller. It returns 0 if there are no timers.
 // This function is invoked when dropping a P, and must run without
 // any write barriers.
+//
 //go:nowritebarrierrec
 func nobarrierWakeTime(pp *p) int64 {
 	next := int64(atomic.Load64(&pp.timer0When))
@@ -753,6 +759,7 @@ func nobarrierWakeTime(pp *p) int64 {
 // when the first timer should run.
 // The caller must have locked the timers for pp.
 // If a timer is run, this will temporarily unlock the timers.
+//
 //go:systemstack
 func runtimer(pp *p, now int64) int64 {
 	for {
@@ -819,6 +826,7 @@ func runtimer(pp *p, now int64) int64 {
 // runOneTimer runs a single timer.
 // The caller must have locked the timers for pp.
 // This will temporarily unlock the timers while running the timer function.
+//
 //go:systemstack
 func runOneTimer(pp *p, t *timer, now int64) {
 	if raceenabled {

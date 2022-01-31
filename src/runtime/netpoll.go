@@ -271,6 +271,7 @@ func (c *pollCache) free(pd *pollDesc) {
 // poll_runtime_pollReset, which is internal/poll.runtime_pollReset,
 // prepares a descriptor for polling in mode, which is 'r' or 'w'.
 // This returns an error code; the codes are defined above.
+//
 //go:linkname poll_runtime_pollReset internal/poll.runtime_pollReset
 func poll_runtime_pollReset(pd *pollDesc, mode int) int {
 	errcode := netpollcheckerr(pd, int32(mode))
@@ -289,6 +290,7 @@ func poll_runtime_pollReset(pd *pollDesc, mode int) int {
 // waits for a descriptor to be ready for reading or writing,
 // according to mode, which is 'r' or 'w'.
 // This returns an error code; the codes are defined above.
+//
 //go:linkname poll_runtime_pollWait internal/poll.runtime_pollWait
 func poll_runtime_pollWait(pd *pollDesc, mode int) int {
 	errcode := netpollcheckerr(pd, int32(mode))
@@ -438,6 +440,7 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 // whether the fd is ready for reading or writing or both.
 //
 // This may run while the world is stopped, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func netpollready(toRun *gList, pd *pollDesc, mode int32) {
 	var rg, wg *g
