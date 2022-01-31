@@ -38,12 +38,12 @@ import (
 // printed.
 //
 // TODO(gri): linebreak may add too many lines if the next statement at "line"
-//            is preceded by comments because the computation of n assumes
-//            the current position before the comment and the target position
-//            after the comment. Thus, after interspersing such comments, the
-//            space taken up by them is not considered to reduce the number of
-//            linebreaks. At the moment there is no easy way to know about
-//            future (not yet interspersed) comments in this function.
+// is preceded by comments because the computation of n assumes
+// the current position before the comment and the target position
+// after the comment. Thus, after interspersing such comments, the
+// space taken up by them is not considered to reduce the number of
+// linebreaks. At the moment there is no easy way to know about
+// future (not yet interspersed) comments in this function.
 //
 func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (nbreaks int) {
 	n := nlimit(line - p.pos.Line)
@@ -125,7 +125,7 @@ const filteredMsg = "contains filtered or unexported fields"
 // expressions.
 //
 // TODO(gri) Consider rewriting this to be independent of []ast.Expr
-//           so that we can use the algorithm for any kind of list
+// so that we can use the algorithm for any kind of list
 //           (e.g., pass list via a channel over which to range).
 func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exprListMode, next0 token.Pos, isIncomplete bool) {
 	if len(list) == 0 {

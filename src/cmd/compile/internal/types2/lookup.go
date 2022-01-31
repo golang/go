@@ -83,9 +83,9 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 }
 
 // TODO(gri) The named type consolidation and seen maps below must be
-//           indexed by unique keys for a given type. Verify that named
-//           types always have only one representation (even when imported
-//           indirectly via different packages.)
+// indexed by unique keys for a given type. Verify that named
+// types always have only one representation (even when imported
+// indirectly via different packages.)
 
 // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
 // If foldCase is true, the lookup for methods will include looking for any method

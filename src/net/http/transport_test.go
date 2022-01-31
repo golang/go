@@ -48,7 +48,7 @@ import (
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
-//       and then verify that the final 2 responses get errors back.
+// and then verify that the final 2 responses get errors back.
 
 // hostPortHandler writes back the client's "host:port".
 var hostPortHandler = HandlerFunc(func(w ResponseWriter, r *Request) {

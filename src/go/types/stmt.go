@@ -317,7 +317,7 @@ L:
 }
 
 // TODO(gri) Once we are certain that typeHash is correct in all situations, use this version of caseTypes instead.
-//           (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
+// (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
 //
 // func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[string]ast.Expr) (T Type) {
 // 	var dummy operand
