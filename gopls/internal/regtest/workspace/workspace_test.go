@@ -1150,14 +1150,11 @@ func main() {}
 		)
 		env.WriteWorkspaceFile("go.work", `go 1.16
 
-directory (
+use (
 	a
 	b
 )
 `)
-		env.Await(
-			EmptyDiagnostics("a/main.go"),
-			EmptyDiagnostics("b/main.go"),
-		)
+		env.Await(NoOutstandingDiagnostics())
 	})
 }

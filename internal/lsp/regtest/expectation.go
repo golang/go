@@ -518,6 +518,23 @@ func (e DiagnosticExpectation) Description() string {
 	return desc
 }
 
+// NoOutstandingDiagnostics asserts that the workspace has no outstanding
+// diagnostic messages.
+func NoOutstandingDiagnostics() Expectation {
+	check := func(s State) Verdict {
+		for _, diags := range s.diagnostics {
+			if len(diags.Diagnostics) > 0 {
+				return Unmet
+			}
+		}
+		return Met
+	}
+	return SimpleExpectation{
+		check:       check,
+		description: "no outstanding diagnostics",
+	}
+}
+
 // EmptyDiagnostics asserts that empty diagnostics are sent for the
 // workspace-relative path name.
 func EmptyDiagnostics(name string) Expectation {
