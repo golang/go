@@ -56,6 +56,7 @@ func asanunpoison(addr unsafe.Pointer, sz uintptr)
 func asanpoison(addr unsafe.Pointer, sz uintptr)
 
 // These are called from asan_GOARCH.s
+//
 //go:cgo_import_static __asan_read_go
 //go:cgo_import_static __asan_write_go
 //go:cgo_import_static __asan_unpoison_go

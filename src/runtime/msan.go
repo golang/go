@@ -54,6 +54,7 @@ func msanfree(addr unsafe.Pointer, sz uintptr)
 func msanmove(dst, src unsafe.Pointer, sz uintptr)
 
 // These are called from msan_GOARCH.s
+//
 //go:cgo_import_static __msan_read_go
 //go:cgo_import_static __msan_write_go
 //go:cgo_import_static __msan_malloc_go

@@ -201,6 +201,7 @@ func semawakeup(mp *m) {
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -248,6 +249,7 @@ func netbsdMstart()
 // baroque to remove a signal stack here only to add one in minit, but
 // it's a simple change that keeps NetBSD working like other OS's.
 // At this point all signals are blocked, so there is no race.
+//
 //go:nosplit
 func netbsdMstart0() {
 	st := stackt{ss_flags: _SS_DISABLE}
@@ -304,6 +306,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
@@ -350,6 +353,7 @@ func getsig(i uint32) uintptr {
 }
 
 // setSignaltstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = sp

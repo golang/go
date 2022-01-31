@@ -2757,6 +2757,7 @@ type runtimeSelect struct {
 // If the case was a receive, val is filled in with the received value.
 // The conventional OK bool indicates whether the receive corresponds
 // to a sent value.
+//
 //go:noescape
 func rselect([]runtimeSelect) (chosen int, recvOK bool)
 
@@ -3493,6 +3494,7 @@ func maplen(m unsafe.Pointer) int
 // Arguments passed through to call do not escape. The type is used only in a
 // very limited callee of call, the stackArgs are copied, and regArgs is only
 // used in the call frame.
+//
 //go:noescape
 //go:linkname call runtime.reflectcall
 func call(stackArgsType *rtype, f, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs)
@@ -3500,29 +3502,35 @@ func call(stackArgsType *rtype, f, stackArgs unsafe.Pointer, stackArgsSize, stac
 func ifaceE2I(t *rtype, src any, dst unsafe.Pointer)
 
 // memmove copies size bytes to dst from src. No write barriers are used.
+//
 //go:noescape
 func memmove(dst, src unsafe.Pointer, size uintptr)
 
 // typedmemmove copies a value of type t to dst from src.
+//
 //go:noescape
 func typedmemmove(t *rtype, dst, src unsafe.Pointer)
 
 // typedmemmovepartial is like typedmemmove but assumes that
 // dst and src point off bytes into the value and only copies size bytes.
+//
 //go:noescape
 func typedmemmovepartial(t *rtype, dst, src unsafe.Pointer, off, size uintptr)
 
 // typedmemclr zeros the value at ptr of type t.
+//
 //go:noescape
 func typedmemclr(t *rtype, ptr unsafe.Pointer)
 
 // typedmemclrpartial is like typedmemclr but assumes that
 // dst points off bytes into the value and only clears size bytes.
+//
 //go:noescape
 func typedmemclrpartial(t *rtype, ptr unsafe.Pointer, off, size uintptr)
 
 // typedslicecopy copies a slice of elemType values from src to dst,
 // returning the number of elements copied.
+//
 //go:noescape
 func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
 

@@ -12,6 +12,7 @@ import "unsafe"
 
 // _cgo_sigaction is filled in by runtime/cgo when it is linked into the
 // program, so it is only non-nil when using cgo.
+//
 //go:linkname _cgo_sigaction _cgo_sigaction
 var _cgo_sigaction unsafe.Pointer
 
@@ -88,5 +89,6 @@ func sigaction(sig uint32, new, old *sigactiont) {
 
 // callCgoSigaction calls the sigaction function in the runtime/cgo package
 // using the GCC calling convention. It is implemented in assembly.
+//
 //go:noescape
 func callCgoSigaction(sig uintptr, new, old *sigactiont) int32

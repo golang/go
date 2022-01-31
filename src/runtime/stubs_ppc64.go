@@ -7,5 +7,6 @@
 package runtime
 
 // This is needed for vet
+//
 //go:noescape
 func callCgoSigaction(sig uintptr, new, old *sigactiont) int32

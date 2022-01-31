@@ -158,6 +158,7 @@ type makeFuncCtxt struct {
 // nosplit because pointers are being held in uintptr slots in args, so
 // having our stack scanned now could lead to accidentally freeing
 // memory.
+//
 //go:nosplit
 func moveMakeFuncArgPtrs(ctxt *makeFuncCtxt, args *abi.RegArgs) {
 	for i, arg := range args.Ints {

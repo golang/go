@@ -545,6 +545,7 @@ func passEmptyStruct(a int, b struct{}, c float64) (int, struct{}, float64) {
 
 // This test case forces a large argument to the stack followed by more
 // in-register arguments.
+//
 //go:registerparams
 //go:noinline
 func passStruct10AndSmall(a Struct10, b byte, c uint) (Struct10, byte, uint) {

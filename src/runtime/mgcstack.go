@@ -158,6 +158,7 @@ type stackObject struct {
 }
 
 // obj.r = r, but with no write barrier.
+//
 //go:nowritebarrier
 func (obj *stackObject) setRecord(r *stackObjectRecord) {
 	// Types of stack objects are always in read-only memory, not the heap.

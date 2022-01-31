@@ -439,6 +439,7 @@ okarg:
 }
 
 // Mark KeepAlive as noinline so that it is easily detectable as an intrinsic.
+//
 //go:noinline
 
 // KeepAlive marks its argument as currently reachable.

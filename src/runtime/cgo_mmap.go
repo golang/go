@@ -12,11 +12,13 @@ import "unsafe"
 
 // _cgo_mmap is filled in by runtime/cgo when it is linked into the
 // program, so it is only non-nil when using cgo.
+//
 //go:linkname _cgo_mmap _cgo_mmap
 var _cgo_mmap unsafe.Pointer
 
 // _cgo_munmap is filled in by runtime/cgo when it is linked into the
 // program, so it is only non-nil when using cgo.
+//
 //go:linkname _cgo_munmap _cgo_munmap
 var _cgo_munmap unsafe.Pointer
 
@@ -24,6 +26,7 @@ var _cgo_munmap unsafe.Pointer
 // support sanitizer interceptors. Don't allow stack splits, since this function
 // (used by sysAlloc) is called in a lot of low-level parts of the runtime and
 // callers often assume it won't acquire any locks.
+//
 //go:nosplit
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
 	if _cgo_mmap != nil {

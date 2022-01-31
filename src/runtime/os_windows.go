@@ -902,6 +902,7 @@ func semacreate(mp *m) {
 // May run with m.p==nil, so write barriers are not allowed. This
 // function is called by newosproc0, so it is also required to
 // operate without stack guards.
+//
 //go:nowritebarrierrec
 //go:nosplit
 func newosproc(mp *m) {
@@ -930,6 +931,7 @@ func newosproc(mp *m) {
 // Used by the C library build mode. On Linux this function would allocate a
 // stack, but that's not necessary for Windows. No stack guards are present
 // and the GC has not been initialized, so write barriers will fail.
+//
 //go:nowritebarrierrec
 //go:nosplit
 func newosproc0(mp *m, stk unsafe.Pointer) {
@@ -1019,6 +1021,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	mp := getg().m
@@ -1032,6 +1035,7 @@ func unminit() {
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned
 // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+//
 //go:nosplit
 func mdestroy(mp *m) {
 	if mp.highResTimer != 0 {
@@ -1050,6 +1054,7 @@ func mdestroy(mp *m) {
 
 // Calling stdcall on os stack.
 // May run during STW, so write barriers are not allowed.
+//
 //go:nowritebarrier
 //go:nosplit
 func stdcall(fn stdFunction) uintptr {

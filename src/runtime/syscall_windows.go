@@ -399,6 +399,7 @@ const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 // parameter and the important SEARCH_SYSTEM32 argument. But on systems that
 // do not have that option, absoluteFilepath should contain a fallback
 // to the full path inside of system32 for use with vanilla LoadLibrary.
+//
 //go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
 //go:nosplit
 //go:cgo_unsafe_args

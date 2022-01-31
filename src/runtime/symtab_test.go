@@ -29,6 +29,7 @@ func TestCaller(t *testing.T) {
 
 // These are marked noinline so that we can use FuncForPC
 // in testCallerBar.
+//
 //go:noinline
 func testCallerFoo(t *testing.T) {
 	testCallerBar(t)

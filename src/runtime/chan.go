@@ -139,6 +139,7 @@ func full(c *hchan) bool {
 }
 
 // entry point for c <- x from compiled code
+//
 //go:nosplit
 func chansend1(c *hchan, elem unsafe.Pointer) {
 	chansend(c, elem, true, getcallerpc())
@@ -435,6 +436,7 @@ func empty(c *hchan) bool {
 }
 
 // entry points for <- c from compiled code
+//
 //go:nosplit
 func chanrecv1(c *hchan, elem unsafe.Pointer) {
 	chanrecv(c, elem, true)

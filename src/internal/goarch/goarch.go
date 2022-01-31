@@ -9,6 +9,7 @@ package goarch
 // per-arch information, including constants named $GOARCH for every
 // GOARCH. The constant is 1 on the current system, 0 otherwise; multiplying
 // by them is useful for defining GOARCH-specific constants.
+//
 //go:generate go run gengoarch.go
 
 type ArchFamilyType int

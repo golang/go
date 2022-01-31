@@ -1143,6 +1143,7 @@ func SemNwait(addr *uint32) uint32 {
 }
 
 // mspan wrapper for testing.
+//
 //go:notinheap
 type MSpan mspan
 

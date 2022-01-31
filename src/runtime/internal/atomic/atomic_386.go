@@ -9,6 +9,7 @@ package atomic
 import "unsafe"
 
 // Export some functions via linkname to assembly in sync/atomic.
+//
 //go:linkname Load
 //go:linkname Loadp
 

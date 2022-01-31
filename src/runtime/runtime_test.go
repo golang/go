@@ -196,6 +196,7 @@ func TestSetPanicOnFault(t *testing.T) {
 // testSetPanicOnFault tests one potentially faulting address.
 // It deliberately constructs and uses an invalid pointer,
 // so mark it as nocheckptr.
+//
 //go:nocheckptr
 func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
 	if GOOS == "js" {
