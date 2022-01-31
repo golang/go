@@ -204,6 +204,9 @@ func (c *Client) transport() RoundTripper {
 	return DefaultTransport
 }
 
+// ErrSchemeMismatch is returned when a server returns an HTTP response to an HTTPS client.
+var ErrSchemeMismatch = errors.New("http: server gave HTTP response to HTTPS client")
+
 // send issues an HTTP request.
 // Caller should close resp.Body when done reading from it.
 func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, didTimeout func() bool, err error) {
@@ -265,7 +268,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 			// response looks like HTTP and give a more helpful error.
 			// See golang.org/issue/11111.
 			if string(tlsErr.RecordHeader[:]) == "HTTP/" {
-				err = errors.New("http: server gave HTTP response to HTTPS client")
+				err = ErrSchemeMismatch
 			}
 		}
 		return nil, didTimeout, err
