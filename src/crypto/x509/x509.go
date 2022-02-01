@@ -1269,10 +1269,7 @@ func marshalKeyUsage(ku KeyUsage) (pkix.Extension, error) {
 	bitString := a[:l]
 	var err error
 	ext.Value, err = asn1.Marshal(asn1.BitString{Bytes: bitString, BitLength: asn1BitLength(bitString)})
-	if err != nil {
-		return ext, err
-	}
-	return ext, nil
+	return ext, err
 }
 
 func marshalExtKeyUsage(extUsages []ExtKeyUsage, unknownUsages []asn1.ObjectIdentifier) (pkix.Extension, error) {
@@ -1291,10 +1288,7 @@ func marshalExtKeyUsage(extUsages []ExtKeyUsage, unknownUsages []asn1.ObjectIden
 
 	var err error
 	ext.Value, err = asn1.Marshal(oids)
-	if err != nil {
-		return ext, err
-	}
-	return ext, nil
+	return ext, err
 }
 
 func marshalBasicConstraints(isCA bool, maxPathLen int, maxPathLenZero bool) (pkix.Extension, error) {
@@ -1307,10 +1301,7 @@ func marshalBasicConstraints(isCA bool, maxPathLen int, maxPathLenZero bool) (pk
 	}
 	var err error
 	ext.Value, err = asn1.Marshal(basicConstraints{isCA, maxPathLen})
-	if err != nil {
-		return ext, nil
-	}
-	return ext, nil
+	return ext, err
 }
 
 func marshalCertificatePolicies(policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
@@ -1321,10 +1312,7 @@ func marshalCertificatePolicies(policyIdentifiers []asn1.ObjectIdentifier) (pkix
 	}
 	var err error
 	ext.Value, err = asn1.Marshal(policies)
-	if err != nil {
-		return ext, err
-	}
-	return ext, nil
+	return ext, err
 }
 
 func buildCSRExtensions(template *CertificateRequest) ([]pkix.Extension, error) {
