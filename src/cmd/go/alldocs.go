@@ -1379,7 +1379,7 @@
 // builds from local modules.
 //
 // go.work files are line-oriented. Each line holds a single directive,
-// made up of a keyword followed by aruments. For example:
+// made up of a keyword followed by arguments. For example:
 //
 // 	go 1.18
 //
