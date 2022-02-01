@@ -2,3 +2,5 @@ print the gopls version information
 
 Usage:
   gopls [flags] version
+  -json
+    	outputs in json format.

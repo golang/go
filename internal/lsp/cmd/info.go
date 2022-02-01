@@ -21,6 +21,8 @@ import (
 
 // version implements the version command.
 type version struct {
+	JSON bool `flag:"json" help:"outputs in json format."`
+
 	app *Application
 }
 
@@ -35,8 +37,12 @@ func (v *version) DetailedHelp(f *flag.FlagSet) {
 
 // Run prints version information to stdout.
 func (v *version) Run(ctx context.Context, args ...string) error {
-	debug.PrintVersionInfo(ctx, os.Stdout, v.app.verbose(), debug.PlainText)
-	return nil
+	var mode = debug.PlainText
+	if v.JSON {
+		mode = debug.JSON
+	}
+
+	return debug.PrintVersionInfo(ctx, os.Stdout, v.app.verbose(), mode)
 }
 
 // bug implements the bug command.

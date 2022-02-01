@@ -17,6 +17,8 @@ import (
 	"golang.org/x/tools/internal/tool"
 )
 
+//go:generate go test -run Help -update-help-files
+
 var updateHelpFiles = flag.Bool("update-help-files", false, "Write out the help files instead of checking them")
 
 const appName = "gopls"
