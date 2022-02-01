@@ -9,8 +9,8 @@ package expr2
 func _bool() {
 	const t = true == true
 	const f = true == false
-	_ = t /* ERROR "cannot compare" */ < f
-	_ = 0 /* ERROR "mismatched types untyped int and untyped bool" */ == t
+	_ = t /* ERROR cannot compare */ < f
+	_ = 0 /* ERROR mismatched types untyped int and untyped bool */ == t
 	var b bool
 	var x, y float32
 	b = x < y
@@ -20,7 +20,7 @@ func _bool() {
 
 // corner cases
 var (
-	v0 = nil /* ERROR "cannot compare" */ == nil
+	v0 = nil == nil // ERROR operator == not defined on untyped nil
 )
 
 func arrays() {
@@ -40,7 +40,7 @@ func arrays() {
 	_ = c /* ERROR mismatched types */ == d
 
 	var e [10]func() int
-	_ = e /* ERROR == not defined */ == e
+	_ = e /* ERROR \[10\]func\(\) int cannot be compared */ == e
 }
 
 func structs() {
@@ -79,8 +79,8 @@ func structs() {
 
 func pointers() {
 	// nil
-	_ = nil /* ERROR == not defined */ == nil
-	_ = nil /* ERROR != not defined */ != nil
+	_ = nil == nil // ERROR operator == not defined on untyped nil
+	_ = nil != nil // ERROR operator != not defined on untyped nil
 	_ = nil /* ERROR < not defined */ < nil
 	_ = nil /* ERROR <= not defined */ <= nil
 	_ = nil /* ERROR > not defined */ > nil
@@ -211,16 +211,16 @@ func interfaces() {
 
 	// issue #28164
 	// testcase from issue
-	_ = interface /* ERROR cannot compare */ {}(nil) == []int(nil)
+	_ = interface{}(nil) == [ /* ERROR slice can only be compared to nil */ ]int(nil)
 
 	// related cases
 	var e interface{}
 	var s []int
 	var x int
-	_ = e /* ERROR cannot compare */ == s
-	_ = s /* ERROR cannot compare */ == e
-	_ = e /* ERROR cannot compare */ < x
-	_ = x /* ERROR cannot compare */ < e
+	_ = e == s // ERROR slice can only be compared to nil
+	_ = s /* ERROR slice can only be compared to nil */ == e
+	_ = e /* ERROR operator < not defined on interface */ < x
+	_ = x < e // ERROR operator < not defined on interface
 }
 
 func slices() {
@@ -231,7 +231,7 @@ func slices() {
 	_ = s /* ERROR < not defined */ < nil
 
 	// slices are not otherwise comparable
-	_ = s /* ERROR == not defined */ == s
+	_ = s /* ERROR slice can only be compared to nil */ == s
 	_ = s /* ERROR < not defined */ < s
 }
 
@@ -243,7 +243,7 @@ func maps() {
 	_ = m /* ERROR < not defined */ < nil
 
 	// maps are not otherwise comparable
-	_ = m /* ERROR == not defined */ == m
+	_ = m /* ERROR map can only be compared to nil */ == m
 	_ = m /* ERROR < not defined */ < m
 }
 
@@ -255,6 +255,6 @@ func funcs() {
 	_ = f /* ERROR < not defined */ < nil
 
 	// funcs are not otherwise comparable
-	_ = f /* ERROR == not defined */ == f
+	_ = f /* ERROR func can only be compared to nil */ == f
 	_ = f /* ERROR < not defined */ < f
 }

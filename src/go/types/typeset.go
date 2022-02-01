@@ -37,7 +37,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
 		return s.comparable
 	}
 	return s.is(func(t *term) bool {
-		return t != nil && comparable(t.typ, seen)
+		return t != nil && comparable(t.typ, seen, nil)
 	})
 }
 
