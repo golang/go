@@ -248,6 +248,10 @@ func compareCompletionResults(want []string, gotItems []protocol.CompletionItem)
 	var got []string
 	for _, item := range gotItems {
 		got = append(got, item.Label)
+		if item.Label != item.InsertText && item.TextEdit == nil {
+			// Label should be the same as InsertText, if InsertText is to be used
+			return fmt.Sprintf("label not the same as InsertText %#v", item)
+		}
 	}
 
 	for i, v := range got {

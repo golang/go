@@ -65,6 +65,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if named, ok := x.Type().(*types.Named); ok {
 			tp := typeparams.ForNamed(named)
 			label += string(formatTypeParams(tp))
+			insert = label // maintain invariant above (label == insert)
 		}
 	}
 
