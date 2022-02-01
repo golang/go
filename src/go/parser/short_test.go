@@ -237,6 +237,8 @@ var invalidNoTParamErrs = []string{
 	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
 	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
 	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
+
+	`package p; func(*T[ /* ERROR "missing ',' in parameter list" */ e, e]) _()`,
 }
 
 // invalidTParamErrs holds invalid source code examples annotated with the
@@ -255,6 +257,8 @@ var invalidTParamErrs = []string{
 	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B any](a A) B`,
 	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C](a A) B`,
 	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C[A, B]](a A) B`,
+
+	`package p; func(*T[e, e /* ERROR "e redeclared" */ ]) _()`,
 }
 
 func TestInvalid(t *testing.T) {

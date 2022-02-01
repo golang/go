@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 )
 
 const debugResolve = false
@@ -24,6 +25,7 @@ func resolveFile(file *ast.File, handle *token.File, declErr func(token.Pos, str
 		declErr:  declErr,
 		topScope: pkgScope,
 		pkgScope: pkgScope,
+		depth:    1,
 	}
 
 	for _, decl := range file.Decls {
@@ -45,7 +47,7 @@ func resolveFile(file *ast.File, handle *token.File, declErr func(token.Pos, str
 			i++
 		} else if debugResolve {
 			pos := ident.Obj.Decl.(interface{ Pos() token.Pos }).Pos()
-			r.dump("resolved %s@%v to package object %v", ident.Name, ident.Pos(), pos)
+			r.trace("resolved %s@%v to package object %v", ident.Name, ident.Pos(), pos)
 		}
 	}
 	file.Scope = r.pkgScope
@@ -60,6 +62,7 @@ type resolver struct {
 	pkgScope   *ast.Scope   // pkgScope.Outer == nil
 	topScope   *ast.Scope   // top-most scope; may be pkgScope
 	unresolved []*ast.Ident // unresolved identifiers
+	depth      int          // scope depth
 
 	// Label scopes
 	// (maintained by open/close LabelScope)
@@ -67,8 +70,8 @@ type resolver struct {
 	targetStack [][]*ast.Ident // stack of unresolved labels
 }
 
-func (r *resolver) dump(format string, args ...any) {
-	fmt.Println(">>> " + r.sprintf(format, args...))
+func (r *resolver) trace(format string, args ...any) {
+	fmt.Println(strings.Repeat(". ", r.depth) + r.sprintf(format, args...))
 }
 
 func (r *resolver) sprintf(format string, args ...any) string {
@@ -83,14 +86,16 @@ func (r *resolver) sprintf(format string, args ...any) string {
 
 func (r *resolver) openScope(pos token.Pos) {
 	if debugResolve {
-		r.dump("opening scope @%v", pos)
+		r.trace("opening scope @%v", pos)
+		r.depth++
 	}
 	r.topScope = ast.NewScope(r.topScope)
 }
 
 func (r *resolver) closeScope() {
 	if debugResolve {
-		r.dump("closing scope")
+		r.depth--
+		r.trace("closing scope")
 	}
 	r.topScope = r.topScope.Outer
 }
@@ -117,21 +122,27 @@ func (r *resolver) closeLabelScope() {
 
 func (r *resolver) declare(decl, data any, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
 	for _, ident := range idents {
-		assert(ident.Obj == nil, "identifier already declared or resolved")
+		if ident.Obj != nil {
+			panic(fmt.Sprintf("%v: identifier %s already declared or resolved", ident.Pos(), ident.Name))
+		}
 		obj := ast.NewObj(kind, ident.Name)
 		// remember the corresponding declaration for redeclaration
 		// errors and global variable resolution/typechecking phase
 		obj.Decl = decl
 		obj.Data = data
-		ident.Obj = obj
+		// Identifiers (for receiver type parameters) are written to the scope, but
+		// never set as the resolved object. See issue #50956.
+		if _, ok := decl.(*ast.Ident); !ok {
+			ident.Obj = obj
+		}
 		if ident.Name != "_" {
 			if debugResolve {
-				r.dump("declaring %s@%v", ident.Name, ident.Pos())
+				r.trace("declaring %s@%v", ident.Name, ident.Pos())
 			}
 			if alt := scope.Insert(obj); alt != nil && r.declErr != nil {
 				prevDecl := ""
 				if pos := alt.Pos(); pos.IsValid() {
-					prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", r.handle.Position(pos))
+					prevDecl = r.sprintf("\n\tprevious declaration at %v", pos)
 				}
 				r.declErr(ident.Pos(), fmt.Sprintf("%s redeclared in this block%s", ident.Name, prevDecl))
 			}
@@ -153,7 +164,7 @@ func (r *resolver) shortVarDecl(decl *ast.AssignStmt) {
 			ident.Obj = obj
 			if ident.Name != "_" {
 				if debugResolve {
-					r.dump("declaring %s@%v", ident.Name, ident.Pos())
+					r.trace("declaring %s@%v", ident.Name, ident.Pos())
 				}
 				if alt := r.topScope.Insert(obj); alt != nil {
 					ident.Obj = alt // redeclaration
@@ -180,7 +191,7 @@ var unresolved = new(ast.Object)
 //
 func (r *resolver) resolve(ident *ast.Ident, collectUnresolved bool) {
 	if ident.Obj != nil {
-		panic(fmt.Sprintf("%s: identifier %s already declared or resolved", r.handle.Position(ident.Pos()), ident.Name))
+		panic(r.sprintf("%v: identifier %s already declared or resolved", ident.Pos(), ident.Name))
 	}
 	// '_' should never refer to existing declarations, because it has special
 	// handling in the spec.
@@ -189,8 +200,15 @@ func (r *resolver) resolve(ident *ast.Ident, collectUnresolved bool) {
 	}
 	for s := r.topScope; s != nil; s = s.Outer {
 		if obj := s.Lookup(ident.Name); obj != nil {
+			if debugResolve {
+				r.trace("resolved %v:%s to %v", ident.Pos(), ident.Name, obj)
+			}
 			assert(obj.Name != "", "obj with no name")
-			ident.Obj = obj
+			// Identifiers (for receiver type parameters) are written to the scope,
+			// but never set as the resolved object. See issue #50956.
+			if _, ok := obj.Decl.(*ast.Ident); !ok {
+				ident.Obj = obj
+			}
 			return
 		}
 	}
@@ -227,7 +245,7 @@ func (r *resolver) walkStmts(list []ast.Stmt) {
 
 func (r *resolver) Visit(node ast.Node) ast.Visitor {
 	if debugResolve && node != nil {
-		r.dump("node %T@%v", node, node.Pos())
+		r.trace("node %T@%v", node, node.Pos())
 	}
 
 	switch n := node.(type) {
@@ -461,8 +479,7 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 		r.openScope(n.Pos())
 		defer r.closeScope()
 
-		// Resolve the receiver first, without declaring.
-		r.resolveList(n.Recv)
+		r.walkRecv(n.Recv)
 
 		// Type parameters are walked normally: they can reference each other, and
 		// can be referenced by normal parameters.
@@ -516,6 +533,52 @@ func (r *resolver) declareList(list *ast.FieldList, kind ast.ObjKind) {
 	}
 	for _, f := range list.List {
 		r.declare(f, nil, r.topScope, kind, f.Names...)
+	}
+}
+
+func (r *resolver) walkRecv(recv *ast.FieldList) {
+	// If our receiver has receiver type parameters, we must declare them before
+	// trying to resolve the rest of the receiver, and avoid re-resolving the
+	// type parameter identifiers.
+	if recv == nil || len(recv.List) == 0 {
+		return // nothing to do
+	}
+	typ := recv.List[0].Type
+	if ptr, ok := typ.(*ast.StarExpr); ok {
+		typ = ptr.X
+	}
+
+	var declareExprs []ast.Expr // exprs to declare
+	var resolveExprs []ast.Expr // exprs to resolve
+	switch typ := typ.(type) {
+	case *ast.IndexExpr:
+		declareExprs = []ast.Expr{typ.Index}
+		resolveExprs = append(resolveExprs, typ.X)
+	case *ast.IndexListExpr:
+		declareExprs = typ.Indices
+		resolveExprs = append(resolveExprs, typ.X)
+	default:
+		resolveExprs = append(resolveExprs, typ)
+	}
+	for _, expr := range declareExprs {
+		if id, _ := expr.(*ast.Ident); id != nil {
+			r.declare(expr, nil, r.topScope, ast.Typ, id)
+		} else {
+			// The receiver type parameter expression is invalid, but try to resolve
+			// it anyway for consistency.
+			resolveExprs = append(resolveExprs, expr)
+		}
+	}
+	for _, expr := range resolveExprs {
+		if expr != nil {
+			ast.Walk(r, expr)
+		}
+	}
+	// The receiver is invalid, but try to resolve it anyway for consistency.
+	for _, f := range recv.List[1:] {
+		if f.Type != nil {
+			ast.Walk(r, f.Type)
+		}
 	}
 }
 
