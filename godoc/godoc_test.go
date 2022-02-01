@@ -10,6 +10,8 @@ import (
 	"go/token"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func TestPkgLinkFunc(t *testing.T) {
@@ -366,5 +368,60 @@ func TestFilterOutBuildAnnotations(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("filterOutBuildAnnotations should not remove non-build tag comment")
+	}
+}
+
+func TestLinkifyGenerics(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("type params are not enabled at this Go version")
+	}
+
+	got := linkifySource(t, []byte(`
+package foo
+
+type T struct {
+	field *T
+}
+
+type ParametricStruct[T any] struct {
+	field *T
+}
+
+func F1[T any](arg T) { }
+
+func F2(arg T) { }
+
+func (*ParametricStruct[T]) M(arg T) { }
+
+func (*T) M(arg T) { }
+
+type ParametricStruct2[T1, T2 any] struct {
+	a T1
+	b T2
+}
+
+func (*ParametricStruct2[T1, T2]) M(a T1, b T2) { }
+
+
+`))
+
+	want := `type T struct {
+<span id="T.field"></span>field *<a href="#T">T</a>
+}
+type ParametricStruct[T <a href="/pkg/builtin/#any">any</a>] struct {
+<span id="ParametricStruct.field"></span>field *T
+}
+func F1[T <a href="/pkg/builtin/#any">any</a>](arg T) {}
+func F2(arg <a href="#T">T</a>) {}
+func (*<a href="#ParametricStruct">ParametricStruct</a>[T]) M(arg T) {}
+func (*<a href="#T">T</a>) M(arg <a href="#T">T</a>) {}
+type ParametricStruct2[T1, T2 <a href="/pkg/builtin/#any">any</a>] struct {
+<span id="ParametricStruct2.a"></span>a T1
+<span id="ParametricStruct2.b"></span>b T2
+}
+func (*<a href="#ParametricStruct2">ParametricStruct2</a>[T1, T2]) M(a T1, b T2) {}`
+
+	if got != want {
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
 	}
 }

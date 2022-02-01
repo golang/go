@@ -17,6 +17,8 @@ import (
 	"go/token"
 	"io"
 	"strconv"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // LinkifyText HTML-escapes source text and writes it to w.
@@ -89,6 +91,8 @@ func linksFor(node ast.Node) (links []link) {
 	// their ast.Ident nodes are visited.
 	linkMap := make(map[*ast.Ident]link)
 
+	typeParams := make(map[string]bool)
+
 	ast.Inspect(node, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.Field:
@@ -105,6 +109,24 @@ func linksFor(node ast.Node) (links []link) {
 			}
 		case *ast.FuncDecl:
 			linkMap[n.Name] = link{}
+			if n.Recv != nil {
+				recv := n.Recv.List[0].Type
+				if r, isstar := recv.(*ast.StarExpr); isstar {
+					recv = r.X
+				}
+				switch x := recv.(type) {
+				case *ast.IndexExpr:
+					if ident, _ := x.Index.(*ast.Ident); ident != nil {
+						typeParams[ident.Name] = true
+					}
+				case *typeparams.IndexListExpr:
+					for _, index := range x.Indices {
+						if ident, _ := index.(*ast.Ident); ident != nil {
+							typeParams[ident.Name] = true
+						}
+					}
+				}
+			}
 		case *ast.TypeSpec:
 			linkMap[n.Name] = link{}
 		case *ast.AssignStmt:
@@ -183,8 +205,26 @@ func linksFor(node ast.Node) (links []link) {
 				links = append(links, l)
 			} else {
 				l := link{name: n.Name}
-				if n.Obj == nil && doc.IsPredeclared(n.Name) {
-					l.path = builtinPkgPath
+				if n.Obj == nil {
+					if doc.IsPredeclared(n.Name) {
+						l.path = builtinPkgPath
+					} else {
+						if typeParams[n.Name] {
+							// If a type parameter was declared then do not generate a link.
+							// Doing this is necessary because type parameter identifiers do not
+							// have their Decl recorded sometimes, see
+							// https://golang.org/issue/50956.
+							l = link{}
+						}
+					}
+				} else {
+					if n.Obj.Kind == ast.Typ {
+						if _, isfield := n.Obj.Decl.(*ast.Field); isfield {
+							// If an identifier is a type declared in a field assume it is a type
+							// parameter and do not generate a link.
+							l = link{}
+						}
+					}
 				}
 				links = append(links, l)
 			}
