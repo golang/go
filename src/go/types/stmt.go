@@ -248,7 +248,7 @@ L:
 		}
 		// Order matters: By comparing v against x, error positions are at the case values.
 		res := v // keep original v unchanged
-		check.comparison(&res, x, token.EQL)
+		check.comparison(&res, x, token.EQL, true)
 		if res.mode == invalid {
 			continue L
 		}

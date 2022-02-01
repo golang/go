@@ -10,7 +10,7 @@ func _[P comparable](x, y P) {
 	_ = y == x
 	_ = y == y
 
-	_ = x /* ERROR operator < not defined on P */ < y
+	_ = x /* ERROR type parameter P is not comparable with < */ < y
 }
 
 func _[P comparable](x P, y any) {
@@ -19,23 +19,23 @@ func _[P comparable](x P, y any) {
 	_ = y == x
 	_ = y == y
 
-	_ = x /* ERROR operator < not defined on P */ < y
+	_ = x /* ERROR type parameter P is not comparable with < */ < y
 }
 
 func _[P any](x, y P) {
-	_ = x /* ERROR P is not comparable */ == x
-	_ = x /* ERROR P is not comparable */ == y
-	_ = y /* ERROR P is not comparable */ == x
-	_ = y /* ERROR P is not comparable */ == y
+	_ = x /* ERROR type parameter P is not comparable with == */ == x
+	_ = x /* ERROR type parameter P is not comparable with == */ == y
+	_ = y /* ERROR type parameter P is not comparable with == */ == x
+	_ = y /* ERROR type parameter P is not comparable with == */ == y
 
-	_ = x /* ERROR operator < not defined on P */ < y
+	_ = x /* ERROR type parameter P is not comparable with < */ < y
 }
 
 func _[P any](x P, y any) {
-	_ = x /* ERROR P is not comparable */ == x
-	_ = x /* ERROR P is not comparable */ == y
-	_ = y /* ERROR P is not comparable */ == x
+	_ = x /* ERROR type parameter P is not comparable with == */ == x
+	_ = x /* ERROR type parameter P is not comparable with == */ == y
+	_ = y == x // ERROR type parameter P is not comparable with ==
 	_ = y == y
 
-	_ = x /* ERROR operator < not defined on P */ < y
+	_ = x /* ERROR type parameter P is not comparable with < */ < y
 }
