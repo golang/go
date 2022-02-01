@@ -5,9 +5,7 @@
 package workspace
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -17,7 +15,6 @@ import (
 	. "golang.org/x/tools/internal/lsp/regtest"
 	"golang.org/x/tools/internal/lsp/source"
 
-	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
@@ -849,80 +846,6 @@ func main() {
 			env.DiagnosticAtRegexp("modb/v2/b/b.go", "x"),
 			env.DiagnosticAtRegexp("modc/main.go", "x"),
 		)
-	})
-}
-
-func TestWorkspaceDirAccess(t *testing.T) {
-	const multiModule = `
--- moda/a/go.mod --
-module a.com
-
-go 1.15
--- moda/a/a.go --
-package main
-
-func main() {
-	fmt.Println("Hello")
-}
--- modb/go.mod --
-module b.com
-
-go 1.16
--- modb/b/b.go --
-package main
-
-func main() {
-	fmt.Println("World")
-}
-`
-	WithOptions(
-		Modes(Experimental),
-		SendPID(),
-	).Run(t, multiModule, func(t *testing.T, env *Env) {
-		params := &protocol.ExecuteCommandParams{
-			Command:   command.WorkspaceMetadata.ID(),
-			Arguments: []json.RawMessage{json.RawMessage("{}")},
-		}
-		var result command.WorkspaceMetadataResult
-		env.ExecuteCommand(params, &result)
-
-		if n := len(result.Workspaces); n != 1 {
-			env.T.Fatalf("got %d workspaces, want 1", n)
-		}
-		// Don't factor this out of Server.addFolders. vscode-go expects this
-		// directory.
-		modPath := filepath.Join(result.Workspaces[0].ModuleDir, "go.mod")
-		gotb, err := ioutil.ReadFile(modPath)
-		if err != nil {
-			t.Fatalf("reading expected workspace modfile: %v", err)
-		}
-		got := string(gotb)
-		for _, want := range []string{"go 1.16", "a.com v1.9999999.0-goplsworkspace", "b.com v1.9999999.0-goplsworkspace"} {
-			if !strings.Contains(got, want) {
-				// want before got here, since the go.mod is multi-line
-				t.Fatalf("workspace go.mod missing %q. got:\n%s", want, got)
-			}
-		}
-		workdir := env.Sandbox.Workdir.RootURI().SpanURI().Filename()
-		env.WriteWorkspaceFile("gopls.mod", fmt.Sprintf(`
-				module gopls-workspace
-
-				require (
-					a.com v1.9999999.0-goplsworkspace
-				)
-
-				replace a.com => %s/moda/a
-				`, workdir))
-		env.Await(env.DoneWithChangeWatchedFiles())
-		gotb, err = ioutil.ReadFile(modPath)
-		if err != nil {
-			t.Fatalf("reading expected workspace modfile: %v", err)
-		}
-		got = string(gotb)
-		want := "b.com v1.9999999.0-goplsworkspace"
-		if strings.Contains(got, want) {
-			t.Fatalf("workspace go.mod contains unexpected %q. got:\n%s", want, got)
-		}
 	})
 }
 

@@ -93,10 +93,6 @@ type View struct {
 	// workspaceInformation tracks various details about this view's
 	// environment variables, go version, and use of modules.
 	workspaceInformation
-
-	// tempWorkspace is a temporary directory dedicated to holding the latest
-	// version of the workspace go.mod file. (TODO: also go.sum file)
-	tempWorkspace span.URI
 }
 
 type workspaceInformation struct {
@@ -229,10 +225,6 @@ func (v *View) Name() string {
 // Folder returns the folder at the base of this view.
 func (v *View) Folder() span.URI {
 	return v.folder
-}
-
-func (v *View) TempWorkspace() span.URI {
-	return v.tempWorkspace
 }
 
 func (v *View) Options() *source.Options {
@@ -734,61 +726,10 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 
 	oldSnapshot := v.snapshot
 
-	var workspaceChanged bool
-	v.snapshot, workspaceChanged = oldSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
-	if workspaceChanged {
-		if err := v.updateWorkspaceLocked(ctx); err != nil {
-			event.Error(ctx, "copying workspace dir", err)
-		}
-	}
+	v.snapshot = oldSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
 	go oldSnapshot.generation.Destroy("View.invalidateContent")
 
 	return v.snapshot, v.snapshot.generation.Acquire()
-}
-
-func (v *View) updateWorkspace(ctx context.Context) error {
-	if v.tempWorkspace == "" {
-		return nil
-	}
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
-	return v.updateWorkspaceLocked(ctx)
-}
-
-// updateWorkspaceLocked should only be called when v.snapshotMu is held. It
-// guarantees that workspace module content will be copied to v.tempWorkace at
-// some point in the future. We do not guarantee that the temp workspace sees
-// all changes to the workspace module, only that it is eventually consistent
-// with the workspace module of the latest snapshot.
-func (v *View) updateWorkspaceLocked(ctx context.Context) error {
-	if v.snapshot == nil {
-		return errors.New("view is shutting down")
-	}
-
-	release := v.snapshot.generation.Acquire()
-	defer release()
-	src, err := v.snapshot.getWorkspaceDir(ctx)
-	if err != nil {
-		return err
-	}
-	for _, name := range []string{"go.mod", "go.sum"} {
-		srcname := filepath.Join(src.Filename(), name)
-		srcf, err := os.Open(srcname)
-		if err != nil {
-			return errors.Errorf("opening snapshot %s: %w", name, err)
-		}
-		defer srcf.Close()
-		dstname := filepath.Join(v.tempWorkspace.Filename(), name)
-		dstf, err := os.Create(dstname)
-		if err != nil {
-			return errors.Errorf("truncating view %s: %w", name, err)
-		}
-		defer dstf.Close()
-		if _, err := io.Copy(dstf, srcf); err != nil {
-			return errors.Errorf("copying %s: %w", name, err)
-		}
-	}
-	return nil
 }
 
 func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (*workspaceInformation, error) {

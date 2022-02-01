@@ -127,11 +127,6 @@ type Interface interface {
 	// themselves.
 	AddImport(context.Context, AddImportArgs) error
 
-	// WorkspaceMetadata: Query workspace metadata
-	//
-	// Query the server for information about active workspaces.
-	WorkspaceMetadata(context.Context) (WorkspaceMetadataResult, error)
-
 	// StartDebugging: Start the gopls debug server
 	//
 	// Start the gopls debug server if it isn't running, and return the debug

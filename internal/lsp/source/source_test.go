@@ -52,7 +52,7 @@ func testSource(t *testing.T, datum *tests.Data) {
 	options := source.DefaultOptions().Clone()
 	tests.DefaultOptions(options)
 	options.SetEnvSlice(datum.Config.Env)
-	view, _, release, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), "", options)
+	view, _, release, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)
 	release()
 	if err != nil {
 		t.Fatal(err)

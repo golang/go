@@ -350,21 +350,4 @@ Args:
 }
 ```
 
-### **Query workspace metadata**
-Identifier: `gopls.workspace_metadata`
-
-Query the server for information about active workspaces.
-
-Result:
-
-```
-{
-	// All workspaces for this session.
-	"Workspaces": []{
-		"Name": string,
-		"ModuleDir": string,
-	},
-}
-```
-
 <!-- END Commands: DO NOT MANUALLY EDIT THIS SECTION -->

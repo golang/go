@@ -155,7 +155,7 @@ func (s *Session) Cache() interface{} {
 	return s.cache
 }
 
-func (s *Session) NewView(ctx context.Context, name string, folder, tempWorkspace span.URI, options *source.Options) (source.View, source.Snapshot, func(), error) {
+func (s *Session) NewView(ctx context.Context, name string, folder span.URI, options *source.Options) (source.View, source.Snapshot, func(), error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	for _, view := range s.views {
@@ -163,7 +163,7 @@ func (s *Session) NewView(ctx context.Context, name string, folder, tempWorkspac
 			return nil, nil, nil, source.ErrViewExists
 		}
 	}
-	view, snapshot, release, err := s.createView(ctx, name, folder, tempWorkspace, options, 0)
+	view, snapshot, release, err := s.createView(ctx, name, folder, options, 0)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
@@ -173,7 +173,7 @@ func (s *Session) NewView(ctx context.Context, name string, folder, tempWorkspac
 	return view, snapshot, release, nil
 }
 
-func (s *Session) createView(ctx context.Context, name string, folder, tempWorkspace span.URI, options *source.Options, snapshotID uint64) (*View, *snapshot, func(), error) {
+func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, snapshotID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 
 	if s.cache.options != nil {
@@ -218,7 +218,6 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 		filesByBase:          map[string][]*fileBase{},
 		rootURI:              root,
 		workspaceInformation: *ws,
-		tempWorkspace:        tempWorkspace,
 	}
 	v.importsState = &importsState{
 		ctx: backgroundCtx,
@@ -257,11 +256,6 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 	go func() {
 		defer release()
 		snapshot.initialize(initCtx, true)
-		// Ensure that the view workspace is written at least once following
-		// initialization.
-		if err := v.updateWorkspace(initCtx); err != nil {
-			event.Error(ctx, "copying workspace dir", err)
-		}
 	}()
 	return v, snapshot, snapshot.generation.Acquire(), nil
 }
@@ -381,7 +375,7 @@ func (s *Session) updateView(ctx context.Context, view *View, options *source.Op
 		return nil, err
 	}
 
-	v, _, release, err := s.createView(ctx, view.name, view.folder, view.tempWorkspace, options, snapshotID)
+	v, _, release, err := s.createView(ctx, view.name, view.folder, options, snapshotID)
 	release()
 
 	if err != nil {

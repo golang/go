@@ -232,10 +232,6 @@ type View interface {
 	// Folder returns the folder with which this view was created.
 	Folder() span.URI
 
-	// TempWorkspace returns the folder this view uses for its temporary
-	// workspace module.
-	TempWorkspace() span.URI
-
 	// Shutdown closes this view, and detaches it from its session.
 	Shutdown(ctx context.Context)
 
@@ -325,7 +321,7 @@ type Session interface {
 	// non-empty tempWorkspace directory is provided, the View will record a copy
 	// of its gopls workspace module in that directory, so that client tooling
 	// can execute in the same main module.
-	NewView(ctx context.Context, name string, folder, tempWorkspace span.URI, options *Options) (View, Snapshot, func(), error)
+	NewView(ctx context.Context, name string, folder span.URI, options *Options) (View, Snapshot, func(), error)
 
 	// Cache returns the cache that created this session, for debugging only.
 	Cache() interface{}

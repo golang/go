@@ -6,12 +6,7 @@ package lsp
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sync/atomic"
 
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -44,19 +39,7 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 	if err := s.fetchConfig(ctx, name, uri, options); err != nil {
 		return nil, func() {}, err
 	}
-	// Try to assign a persistent temp directory for tracking this view's
-	// temporary workspace.
-	var tempWorkspace span.URI
-	if s.tempDir != "" {
-		index := atomic.AddInt64(&wsIndex, 1)
-		wsDir := filepath.Join(s.tempDir, fmt.Sprintf("workspace.%d", index))
-		if err := os.Mkdir(wsDir, 0700); err == nil {
-			tempWorkspace = span.URIFromPath(wsDir)
-		} else {
-			event.Error(ctx, "making workspace dir", err)
-		}
-	}
-	_, snapshot, release, err := s.session.NewView(ctx, name, uri, tempWorkspace, options)
+	_, snapshot, release, err := s.session.NewView(ctx, name, uri, options)
 	return snapshot, release, err
 }
 

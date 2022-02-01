@@ -45,7 +45,7 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, release, err := session.NewView(ctx, "diagnostics_test", span.URIFromPath(folder), "", options)
+	_, _, release, err := session.NewView(ctx, "diagnostics_test", span.URIFromPath(folder), options)
 	release()
 	if err != nil {
 		t.Fatal(err)
