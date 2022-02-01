@@ -1288,7 +1288,7 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
 func (p Prefix) IsSingleIP() bool { return p.bits != 0 && int(p.bits) == p.ip.BitLen() }
 
 // ParsePrefix parses s as an IP address prefix.
-// The string can be in the form "192.168.1.0/24" or "2001::db8::/32",
+// The string can be in the form "192.168.1.0/24" or "2001:db8::/32",
 // the CIDR notation defined in RFC 4632 and RFC 4291.
 //
 // Note that masked address bits are not zeroed. Use Masked for that.
