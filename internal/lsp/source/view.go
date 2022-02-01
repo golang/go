@@ -534,6 +534,8 @@ const (
 	Sum
 	// Tmpl is a template file.
 	Tmpl
+	// Work is a go.work file.
+	Work
 )
 
 // Analyzer represents a go/analysis analyzer with some boolean properties

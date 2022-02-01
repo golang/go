@@ -247,6 +247,8 @@ func (v *View) FileKind(fh source.FileHandle) source.FileKind {
 		return source.Mod
 	case ".sum":
 		return source.Sum
+	case ".work":
+		return source.Work
 	}
 	exts := v.Options().TemplateExtensions
 	for _, ext := range exts {

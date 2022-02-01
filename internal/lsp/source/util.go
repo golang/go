@@ -173,6 +173,8 @@ func FileKindForLang(langID string) FileKind {
 		return Sum
 	case "tmpl", "gotmpl":
 		return Tmpl
+	case "go.work":
+		return Work
 	default:
 		return UnknownKind
 	}
@@ -188,6 +190,8 @@ func (k FileKind) String() string {
 		return "go.sum"
 	case Tmpl:
 		return "tmpl"
+	case Work:
+		return "go.work"
 	default:
 		return fmt.Sprintf("unk%d", k)
 	}
