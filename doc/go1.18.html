@@ -97,6 +97,11 @@ Do not send CLs removing the interior tags from such phrases.
       The Go compiler cannot currently handle type declarations inside generic functions
       or methods. We hope to provide support for this feature in Go 1.19.
     </li>
+    <li><!-- https://golang.org/issue/50937 -->
+      The Go compiler currently does not accept arguments of type parameter type with
+      the predeclared functions <code>real</code>, <code>imag</code>, and <code>complex</code>.
+      We hope to remove this restriction in Go 1.19.
+    </li>
     <li><!-- https://golang.org/issue/49030 -->
       Embedding a type parameter, or a pointer to a type parameter, as
       an unnamed field in a struct type is not permitted. Similarly
