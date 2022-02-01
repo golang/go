@@ -43,8 +43,6 @@ func init() {
 }
 
 func runUse(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
-
 	modload.ForceUseModules = true
 
 	var gowork string
@@ -56,29 +54,42 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: %v", err)
 	}
 
-	haveDirs := make(map[string]bool)
-	for _, dir := range workFile.Use {
-		haveDirs[filepath.Join(filepath.Dir(gowork), filepath.FromSlash(dir.Path))] = true
+	haveDirs := make(map[string][]string) // absolute → original(s)
+	for _, use := range workFile.Use {
+		var absDir string
+		if filepath.IsAbs(use.Path) {
+			absDir = filepath.Clean(use.Path)
+		} else {
+			absDir = filepath.Join(filepath.Dir(gowork), use.Path)
+		}
+		haveDirs[absDir] = append(haveDirs[absDir], use.Path)
 	}
 
 	addDirs := make(map[string]bool)
 	removeDirs := make(map[string]bool)
 	lookDir := func(dir string) {
-		absDir := filepath.Join(base.Cwd(), dir)
-		// If the path is absolute, keep it absolute. If it's relative,
+		// If the path is absolute, try to keep it absolute. If it's relative,
 		// make it relative to the go.work file rather than the working directory.
+		absDir := dir
 		if !filepath.IsAbs(dir) {
+			absDir = filepath.Join(base.Cwd(), dir)
 			rel, err := filepath.Rel(filepath.Dir(gowork), absDir)
 			if err == nil {
-				dir = rel
+				// Normalize relative paths to use slashes, so that checked-in go.work
+				// files with relative paths within the repo are platform-independent.
+				dir = filepath.ToSlash(rel)
+			} else {
+				// The path can't be made relative to the go.work file,
+				// so it must be kept absolute instead.
+				dir = absDir
 			}
 		}
-		fi, err := os.Stat(filepath.Join(dir, "go.mod"))
+
+		fi, err := os.Stat(filepath.Join(absDir, "go.mod"))
 		if err != nil {
 			if os.IsNotExist(err) {
-
-				if haveDirs[absDir] {
-					removeDirs[dir] = true
+				for _, origDir := range haveDirs[absDir] {
+					removeDirs[origDir] = true
 				}
 				return
 			}
@@ -89,7 +100,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 			base.Errorf("go: %v is not regular", filepath.Join(dir, "go.mod"))
 		}
 
-		if !haveDirs[absDir] {
+		if len(haveDirs[absDir]) == 0 {
 			addDirs[dir] = true
 		}
 	}
@@ -109,10 +120,10 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	for dir := range removeDirs {
-		workFile.DropUse(filepath.ToSlash(dir))
+		workFile.DropUse(dir)
 	}
 	for dir := range addDirs {
-		workFile.AddUse(filepath.ToSlash(dir), "")
+		workFile.AddUse(dir, "")
 	}
 	modload.UpdateWorkFile(workFile)
 	modload.WriteWorkFile(gowork, workFile)
