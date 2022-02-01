@@ -648,9 +648,9 @@ func (ts *testScript) doCmdCmp(want simpleStatus, args []string, env, quiet bool
 		}
 	case successOrFailure:
 		if eq {
-			fmt.Fprintf(&ts.log, "%s and %s do not differ", name1, name2)
+			fmt.Fprintf(&ts.log, "%s and %s do not differ\n", name1, name2)
 		} else {
-			fmt.Fprintf(&ts.log, "%s and %s differ", name1, name2)
+			fmt.Fprintf(&ts.log, "%s and %s differ\n", name1, name2)
 		}
 	default:
 		ts.fatalf("unsupported: %v cmp", want)
