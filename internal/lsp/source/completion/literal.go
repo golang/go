@@ -294,6 +294,15 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 	})
 }
 
+// conventionalAcronyms contains conventional acronyms for type names
+// in lower case. For example, "ctx" for "context" and "err" for "error".
+var conventionalAcronyms = map[string]string{
+	"context":        "ctx",
+	"error":          "err",
+	"tx":             "tx",
+	"responsewriter": "w",
+}
+
 // abbreviateTypeName abbreviates type names into acronyms. For
 // example, "fooBar" is abbreviated "fb". Care is taken to ignore
 // non-identifier runes. For example, "[]int" becomes "i", and
@@ -319,6 +328,10 @@ func abbreviateTypeName(s string) string {
 
 		return !unicode.IsLetter(r)
 	})
+
+	if acr, ok := conventionalAcronyms[strings.ToLower(s)]; ok {
+		return acr
+	}
 
 	for i, r := range s {
 		// Stop if we encounter a non-identifier rune.

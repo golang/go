@@ -2,6 +2,7 @@ package snippets
 
 import (
 	"bytes"
+	"context"
 	"go/ast"
 	"net/http"
 	"sort"
@@ -137,14 +138,14 @@ func _() {
 
 	sort.Slice(nil, fun) //@complete(")", litFunc),snippet(")", litFunc, "func(i, j int) bool {$0\\}", "func(i, j int) bool {$0\\}")
 
-	http.HandleFunc("", f) //@snippet(")", litFunc, "func(rw http.ResponseWriter, r *http.Request) {$0\\}", "func(${1:rw} http.ResponseWriter, ${2:r} *http.Request) {$0\\}")
+	http.HandleFunc("", f) //@snippet(")", litFunc, "func(w http.ResponseWriter, r *http.Request) {$0\\}", "func(${1:w} http.ResponseWriter, ${2:r} *http.Request) {$0\\}")
 
 	// no literal "func" completions
 	http.Handle("", fun) //@complete(")")
 
 	http.HandlerFunc() //@item(handlerFunc, "http.HandlerFunc()", "", "var")
 	http.Handle("", h) //@snippet(")", handlerFunc, "http.HandlerFunc($0)", "http.HandlerFunc($0)")
-	http.Handle("", http.HandlerFunc()) //@snippet("))", litFunc, "func(rw http.ResponseWriter, r *http.Request) {$0\\}", "func(${1:rw} http.ResponseWriter, ${2:r} *http.Request) {$0\\}")
+	http.Handle("", http.HandlerFunc()) //@snippet("))", litFunc, "func(w http.ResponseWriter, r *http.Request) {$0\\}", "func(${1:w} http.ResponseWriter, ${2:r} *http.Request) {$0\\}")
 
 	var namedReturn func(s string) (b bool)
 	namedReturn = f //@snippet(" //", litFunc, "func(s string) (b bool) {$0\\}", "func(s string) (b bool) {$0\\}")
@@ -167,6 +168,11 @@ func _() {
 	builtinTypes = f //@snippet(" //", litFunc, "func(i1 []int, b [two]bool, m map[string]string, s struct{ i int \\}, i2 interface{ foo() \\}, c <-chan int) {$0\\}", "func(${1:i1} []int, ${2:b} [two]bool, ${3:m} map[string]string, ${4:s} struct{ i int \\}, ${5:i2} interface{ foo() \\}, ${6:c} <-chan int) {$0\\}")
 
 	var _ func(ast.Node) = f //@snippet(" //", litFunc, "func(n ast.Node) {$0\\}", "func(${1:n} ast.Node) {$0\\}")
+	var _ func(error) = f //@snippet(" //", litFunc, "func(err error) {$0\\}", "func(${1:err} error) {$0\\}")
+	var _ func(context.Context) = f //@snippet(" //", litFunc, "func(ctx context.Context) {$0\\}", "func(${1:ctx} context.Context) {$0\\}")
+
+	type context struct {}
+	var _ func(context) = f //@snippet(" //", litFunc, "func(ctx context) {$0\\}", "func(${1:ctx} context) {$0\\}")
 }
 
 func _() {
