@@ -16,23 +16,23 @@ BSD-style license found in the LICENSE file.
 
 #### Binary Distributions
 
-Official binary distributions are available at https://golang.org/dl/.
+Official binary distributions are available at https://go.dev/dl/.
 
-After downloading a binary release, visit https://golang.org/doc/install
+After downloading a binary release, visit https://go.dev/doc/install
 for installation instructions.
 
 #### Install From Source
 
 If a binary distribution is not available for your combination of
 operating system and architecture, visit
-https://golang.org/doc/install/source
+https://go.dev/doc/install/source
 for source installation instructions.
 
 ### Contributing
 
 Go is the work of thousands of contributors. We appreciate your help!
 
-To contribute, please read the contribution guidelines at https://golang.org/doc/contribute.
+To contribute, please read the contribution guidelines at https://go.dev/doc/contribute.
 
 Note that the Go project uses the issue tracker for bug reports and
 proposals only. See https://golang.org/wiki/Questions for a list of
