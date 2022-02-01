@@ -49,6 +49,9 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 	gowork = modload.WorkFilePath()
 
+	if gowork == "" {
+		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
+	}
 	workFile, err := modload.ReadWorkFile(gowork)
 	if err != nil {
 		base.Fatalf("go: %v", err)
