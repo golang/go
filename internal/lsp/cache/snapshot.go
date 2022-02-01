@@ -198,18 +198,6 @@ func (s *snapshot) workspaceMode() workspaceMode {
 	if options.TempModfile && s.view.workspaceInformation.goversion >= 14 {
 		mode |= tempModfile
 	}
-	// If the user is intentionally limiting their workspace scope, don't
-	// enable multi-module workspace mode.
-	// TODO(rstambler): This should only change the calculation of the root,
-	// not the mode.
-	if !options.ExpandWorkspaceToModule {
-		return mode
-	}
-	// The workspace module has been disabled by the user.
-	if s.workspace.moduleSource != goWorkWorkspace && s.workspace.moduleSource != goplsModWorkspace && !options.ExperimentalWorkspaceModule {
-		return mode
-	}
-	mode |= usesWorkspaceModule
 	return mode
 }
 
@@ -334,17 +322,41 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 		inv.Env = append(inv.Env, "GOPROXY=off")
 	}
 
+	// What follows is rather complicated logic for how to actually run the go
+	// command. A word of warning: this is the result of various incremental
+	// features added to gopls, and varying behavior of the Go command across Go
+	// versions. It can surely be cleaned up significantly, but tread carefully.
+	//
+	// Roughly speaking we need to resolve four things:
+	//  - the working directory.
+	//  - the -mod flag
+	//  - the -modfile flag
+	//  - the -workfile flag
+	//
+	// These are dependent on a number of factors: whether we need to run in a
+	// synthetic workspace, whether flags are supported at the current go
+	// version, and what we're actually trying to achieve (the
+	// source.InvocationFlags).
+
 	var modURI span.URI
 	// Select the module context to use.
 	// If we're type checking, we need to use the workspace context, meaning
 	// the main (workspace) module. Otherwise, we should use the module for
 	// the passed-in working dir.
 	if mode == source.LoadWorkspace {
-		if s.workspaceMode()&usesWorkspaceModule == 0 {
+		switch s.workspace.moduleSource {
+		case legacyWorkspace:
 			for m := range s.workspace.getActiveModFiles() { // range to access the only element
 				modURI = m
 			}
-		} else {
+		case goWorkWorkspace:
+			if s.view.goversion >= 18 {
+				break
+			}
+			// Before go 1.18, the Go command did not natively support go.work files,
+			// so we 'fake' them with a workspace module.
+			fallthrough
+		case fileSystemWorkspace, goplsModWorkspace:
 			var tmpDir span.URI
 			var err error
 			tmpDir, err = s.getWorkspaceDir(ctx)
@@ -375,9 +387,9 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 		return "", nil, cleanup, err
 	}
 
+	mutableModFlag := ""
 	// If the mod flag isn't set, populate it based on the mode and workspace.
 	if inv.ModFlag == "" {
-		mutableModFlag := ""
 		if s.view.goversion >= 16 {
 			mutableModFlag = "mod"
 		}
@@ -396,13 +408,32 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 		}
 	}
 
-	needTempMod := mode == source.WriteTemporaryModFile
-	tempMod := s.workspaceMode()&tempModfile != 0
-	if needTempMod && !tempMod {
+	// Only use a temp mod file if the modfile can actually be mutated.
+	needTempMod := inv.ModFlag == mutableModFlag
+	useTempMod := s.workspaceMode()&tempModfile != 0
+	if needTempMod && !useTempMod {
 		return "", nil, cleanup, source.ErrTmpModfileUnsupported
 	}
 
-	if tempMod {
+	// We should use -workfile if:
+	//  1. We're not actively trying to mutate a modfile.
+	//  2. We have an active go.work file.
+	//  3. We're using at least Go 1.18.
+	useWorkFile := !needTempMod && s.workspace.moduleSource == goWorkWorkspace && s.view.goversion >= 18
+	if useWorkFile {
+		workURI := uriForSource(s.workspace.root, goWorkWorkspace)
+		workFH, err := s.GetFile(ctx, workURI)
+		if err != nil {
+			return "", nil, cleanup, err
+		}
+		// TODO(rfindley): we should use the last workfile that actually parsed, as
+		// tracked by the workspace.
+		tmpURI, cleanup, err = tempWorkFile(workFH)
+		if err != nil {
+			return "", nil, cleanup, err
+		}
+		inv.WorkFile = tmpURI.Filename()
+	} else if useTempMod {
 		if modURI == "" {
 			return "", nil, cleanup, fmt.Errorf("no go.mod file found in %s", inv.WorkingDir)
 		}

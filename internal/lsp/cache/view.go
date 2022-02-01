@@ -137,10 +137,6 @@ const (
 
 	// tempModfile indicates whether or not the -modfile flag should be used.
 	tempModfile
-
-	// usesWorkspaceModule indicates support for the experimental workspace module
-	// feature.
-	usesWorkspaceModule
 )
 
 type builtinPackageHandle struct {
@@ -170,6 +166,33 @@ func (f *fileBase) addURI(uri span.URI) int {
 }
 
 func (v *View) ID() string { return v.id }
+
+// TODO(rfindley): factor this out to use server.tempDir, and consolidate logic with tempModFile.
+func tempWorkFile(workFH source.FileHandle) (tmpURI span.URI, cleanup func(), err error) {
+	filenameHash := hashContents([]byte(workFH.URI().Filename()))
+	tmpMod, err := ioutil.TempFile("", fmt.Sprintf("go.%s.*.work", filenameHash))
+	if err != nil {
+		return "", nil, err
+	}
+	defer tmpMod.Close()
+
+	tmpURI = span.URIFromPath(tmpMod.Name())
+
+	content, err := workFH.Read()
+	if err != nil {
+		return "", nil, err
+	}
+
+	if _, err := tmpMod.Write(content); err != nil {
+		return "", nil, err
+	}
+
+	cleanup = func() {
+		_ = os.Remove(tmpURI.Filename())
+	}
+
+	return tmpURI, cleanup, nil
+}
 
 // tempModFile creates a temporary go.mod file based on the contents of the
 // given go.mod file. It is the caller's responsibility to clean up the files

@@ -727,15 +727,20 @@ use (
 		env.OpenFile("modb/go.mod")
 		env.Await(env.DoneWithOpen())
 
-		var d protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexpWithMessage("modb/go.mod", `require example.com v1.2.3`, "has not been downloaded"),
-				ReadDiagnostics("modb/go.mod", &d),
-			),
-		)
-		env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
-		env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
+		//  TODO(golang/go#50862): the go command drops error messages when using
+		//  go.work, so we need to build our go.mod diagnostics in a different way.
+		if testenv.Go1Point() < 18 {
+			var d protocol.PublishDiagnosticsParams
+			env.Await(
+				OnceMet(
+					env.DiagnosticAtRegexpWithMessage("modb/go.mod", `require example.com v1.2.3`, "has not been downloaded"),
+					ReadDiagnostics("modb/go.mod", &d),
+				),
+			)
+			env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
+			env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
+		}
+
 		// Jumping to definition should now go to b.com in the workspace.
 		if err := checkHelloLocation("modb/b/b.go"); err != nil {
 			t.Fatal(err)
@@ -755,7 +760,7 @@ use (
 		// should clear outstanding diagnostics...
 		env.Await(OnceMet(
 			env.DoneWithChange(),
-			EmptyDiagnostics("modb/go.mod"),
+			EmptyOrNoDiagnostics("modb/go.mod"),
 		))
 		// ...but does not yet cause a workspace reload, so we should still jump to modb.
 		if err := checkHelloLocation("modb/b/b.go"); err != nil {

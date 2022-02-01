@@ -21,13 +21,14 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
+// workspaceSource reports how the set of active modules has been derived.
 type workspaceSource int
 
 const (
-	legacyWorkspace = iota
-	goplsModWorkspace
-	goWorkWorkspace
-	fileSystemWorkspace
+	legacyWorkspace     = iota // non-module or single module mode
+	goplsModWorkspace          // modules provided by a gopls.mod file
+	goWorkWorkspace            // modules provided by a go.work file
+	fileSystemWorkspace        // modules scanned from the filesystem
 )
 
 func (s workspaceSource) String() string {
