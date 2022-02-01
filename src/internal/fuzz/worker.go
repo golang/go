@@ -973,7 +973,7 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
 	mem.header().count = 0
-	inp, err := CorpusEntryData(entryIn)
+	inp, err := corpusEntryData(entryIn)
 	if err != nil {
 		return CorpusEntry{}, minimizeResponse{}, err
 	}
@@ -1059,7 +1059,7 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 		return CorpusEntry{}, fuzzResponse{}, true, errSharedMemClosed
 	}
 	mem.header().count = 0
-	inp, err := CorpusEntryData(entryIn)
+	inp, err := corpusEntryData(entryIn)
 	if err != nil {
 		return CorpusEntry{}, fuzzResponse{}, true, err
 	}
