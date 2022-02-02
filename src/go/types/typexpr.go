@@ -329,9 +329,6 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 	case *ast.InterfaceType:
 		typ := check.newInterface()
 		def.setUnderlying(typ)
-		if def != nil {
-			typ.obj = def.obj
-		}
 		check.interfaceType(typ, e, def)
 		return typ
 
