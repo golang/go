@@ -33,9 +33,15 @@ import (
 // by setting up one of them (using init) and then assigning its value
 // to the other.
 
-// Upper limit for recursion depth. Used to catch infinite recursions
-// due to implementation issues (e.g., see issues #48619, #48656).
-const unificationDepthLimit = 50
+const (
+	// Upper limit for recursion depth. Used to catch infinite recursions
+	// due to implementation issues (e.g., see issues #48619, #48656).
+	unificationDepthLimit = 50
+
+	// Whether to panic when unificationDepthLimit is reached. Turn on when
+	// investigating infinite recursion.
+	panicAtUnificationDepthLimit = false
+)
 
 // A unifier maintains the current type parameters for x and y
 // and the respective types inferred for each type parameter.
@@ -244,7 +250,7 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
 func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 	// Stop gap for cases where unification fails.
 	if u.depth >= unificationDepthLimit {
-		if debug {
+		if panicAtUnificationDepthLimit {
 			panic("unification reached recursion depth limit")
 		}
 		return false
