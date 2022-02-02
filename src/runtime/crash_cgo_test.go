@@ -596,6 +596,9 @@ func TestSegv(t *testing.T) {
 			t.Log(got)
 			want := "SIGSEGV"
 			if !strings.Contains(got, want) {
+				if runtime.GOOS == "darwin" && runtime.GOARCH == "amd64" && strings.Contains(got, "fatal: morestack on g0") {
+					testenv.SkipFlaky(t, 39457)
+				}
 				t.Errorf("did not see %q in output", want)
 			}
 
