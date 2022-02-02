@@ -94,9 +94,7 @@ var validWithTParamsOnly = []string{
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
-	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
-	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
-	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
+
 	`package p; type _[A, /* ERROR "expected ']', found ','" */ B any] interface { _(a A) B }`,
 	`package p; type _[A, /* ERROR "expected ']', found ','" */ B C[A, B]] interface { _(a A) B }`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T1, T2 interface{}](x T1) T2`,
@@ -110,10 +108,10 @@ var validWithTParamsOnly = []string{
 	`package p; var _ T[ /* ERROR "expected ';', found '\['" */ chan int]`,
 
 	// TODO(rfindley) this error message could be improved.
-	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[P]) _[T any](x T)`,
-	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[ P, Q]) _[T1, T2 any](x T)`,
+	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[P]) _(x T)`,
+	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[ P, Q]) _(x T)`,
 
-	`package p; func (R[P] /* ERROR "missing element type" */ ) _[T any]()`,
+	`package p; func (R[P] /* ERROR "missing element type" */ ) _()`,
 	`package p; func _(T[P] /* ERROR "missing element type" */ )`,
 	`package p; func _(T[P1, /* ERROR "expected ']', found ','" */ P2, P3 ])`,
 	`package p; func _(T[P] /* ERROR "missing element type" */ ) T[P]`,
@@ -122,7 +120,7 @@ var validWithTParamsOnly = []string{
 	`package p; type _ interface{int| /* ERROR "expected ';'" */ float32; bool; m(); string;}`,
 	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2 interface{ I1[int] }`,
 	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2[T any] interface{ I1[T] }`,
-	`package p; type _ interface { f[ /* ERROR "expected ';', found '\['" */ T any]() }`,
+	`package p; type _ interface { N[ /* ERROR "expected ';', found '\['" */ T] }`,
 	`package p; type T[P any /* ERROR "expected ']'" */ ] = T0`,
 }
 
@@ -235,20 +233,28 @@ var invalidNoTParamErrs = []string{
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ ]()`,
 	`package p; type _[A, /* ERROR "expected ']', found ','" */] struct{ A }`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ type P, *Q interface{}]()`,
+
+	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
+	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
+	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
 }
 
 // invalidTParamErrs holds invalid source code examples annotated with the
 // error messages produced when ParseTypeParams is set.
 var invalidTParamErrs = []string{
 	`package p; type _[_ any] int; var _ = T[] /* ERROR "expected operand" */ {}`,
-	`package p; var _ func[ /* ERROR "cannot have type parameters" */ T any](T)`,
+	`package p; var _ func[ /* ERROR "must have no type parameters" */ T any](T)`,
 	`package p; func _[]/* ERROR "empty type parameter list" */()`,
 
 	// TODO(rfindley) a better location would be after the ']'
-	`package p; type _[A/* ERROR "all type parameters must be named" */,] struct{ A }`,
+	`package p; type _[A /* ERROR "all type parameters must be named" */ ,] struct{ A }`,
 
 	// TODO(rfindley) this error is confusing.
-	`package p; func _[type /* ERROR "all type parameters must be named" */P, *Q interface{}]()`,
+	`package p; func _[type /* ERROR "all type parameters must be named" */ P, *Q interface{}]()`,
+
+	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B any](a A) B`,
+	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C](a A) B`,
+	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C[A, B]](a A) B`,
 }
 
 func TestInvalid(t *testing.T) {
