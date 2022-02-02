@@ -40,12 +40,12 @@ which is used for error reporting and the creation of debugging information.
 
 * `cmd/compile/internal/gc` (create compiler AST, type checking, AST transformations)
 
-The gc package includes an AST definition carried over from when it was written
-in C. All of its code is written in terms of it, so the first thing that the gc
+The gc package includes its own AST definition carried over from when it was written
+in C. All of its code is written in terms of this AST, so the first thing that the gc
 package must do is convert the syntax package's syntax tree to the compiler's
 AST representation. This extra step may be refactored away in the future.
 
-The AST is then type-checked. The first steps are name resolution and type
+The gc AST is then type-checked. The first steps are name resolution and type
 inference, which determine which object belongs to which identifier, and what
 type each expression has. Type-checking includes certain extra checks, such as
 "declared and not used" as well as determining whether or not a function
@@ -79,8 +79,7 @@ historical reasons, but the long-term plan is to move all of them here.
 
 Then, a series of machine-independent passes and rules are applied. These do not
 concern any single computer architecture, and thus run on all `GOARCH` variants.
-
-Some examples of these generic passes include dead code elimination, removal of
+These passes include dead code elimination, removal of
 unneeded nil checks, and removal of unused branches. The generic rewrite rules
 mainly concern expressions, such as replacing some expressions with constant
 values, and optimizing multiplications and float operations.
