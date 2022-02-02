@@ -429,7 +429,7 @@ func switches0() {
 
 	switch int32(x) {
 	case 1, 2:
-	case x /* ERROR "cannot compare" */ :
+	case x /* ERROR "invalid case x in switch on int32\(x\) \(mismatched types int and int32\)" */ :
 	}
 
 	switch x {

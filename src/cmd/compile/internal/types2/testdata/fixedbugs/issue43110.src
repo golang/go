@@ -30,7 +30,7 @@ func _() {
 	}
 
 	switch (func())(nil) {
-	case f /* ERROR cannot compare */ :
+	case f /* ERROR invalid case f in switch on .* \(func can only be compared to nil\) */ :
 	}
 
 	switch nil /* ERROR use of untyped nil in switch expression */ {
