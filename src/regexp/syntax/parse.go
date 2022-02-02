@@ -43,6 +43,7 @@ const (
 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
 	ErrUnexpectedParen       ErrorCode = "unexpected )"
+	ErrInvalidDepth          ErrorCode = "invalid nesting depth"
 )
 
 func (e ErrorCode) String() string {
@@ -133,7 +134,7 @@ func (p *parser) checkHeight(re *Regexp) {
 		}
 	}
 	if p.calcHeight(re, true) > maxHeight {
-		panic(ErrInternalError)
+		panic(ErrInvalidDepth)
 	}
 }
 
@@ -756,8 +757,8 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			panic(r)
 		case nil:
 			// ok
-		case ErrInternalError:
-			err = &Error{Code: ErrInternalError, Expr: s}
+		case ErrInvalidDepth:
+			err = &Error{Code: ErrInvalidDepth, Expr: s}
 		}
 	}()
 
