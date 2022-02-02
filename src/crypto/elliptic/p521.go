@@ -32,6 +32,11 @@ func (curve p521Curve) Params() *CurveParams {
 }
 
 func (curve p521Curve) IsOnCurve(x, y *big.Int) bool {
+	if x.Sign() < 0 || x.Cmp(curve.P) >= 0 ||
+		y.Sign() < 0 || y.Cmp(curve.P) >= 0 {
+		return false
+	}
+
 	x1 := bigIntToFiatP521(x)
 	y1 := bigIntToFiatP521(y)
 	b := bigIntToFiatP521(curve.B) // TODO: precompute this value.
