@@ -173,14 +173,29 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
 	return bld
 }
 
+// peLoaderState holds various bits of useful state information needed
+// while loading a PE object file.
+type peLoaderState struct {
+	l               *loader.Loader
+	arch            *sys.Arch
+	f               *pe.File
+	sectsyms        map[*pe.Section]loader.Sym
+	sectdata        map[*pe.Section][]byte
+	localSymVersion int
+}
+
 // Load loads the PE file pn from input.
 // Symbols are written into syms, and a slice of the text symbols is returned.
 // If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
 // returned as rsrc.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc []loader.Sym, err error) {
-	lookup := l.LookupOrCreateCgoExport
-	sectsyms := make(map[*pe.Section]loader.Sym)
-	sectdata := make(map[*pe.Section][]byte)
+	state := &peLoaderState{
+		l:               l,
+		arch:            arch,
+		sectsyms:        make(map[*pe.Section]loader.Sym),
+		sectdata:        make(map[*pe.Section][]byte),
+		localSymVersion: localSymVersion,
+	}
 
 	// Some input files are archives containing multiple of
 	// object files, and pe.NewFile seeks to the start of
@@ -194,6 +209,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		return nil, nil, err
 	}
 	defer f.Close()
+	state.f = f
 
 	// TODO return error if found .cormeta
 
@@ -210,7 +226,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.Name)
-		s := lookup(name, localSymVersion)
+		s := state.l.LookupOrCreateCgoExport(name, localSymVersion)
 		bld := l.MakeSymbolUpdater(s)
 
 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
@@ -235,11 +251,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			if err != nil {
 				return nil, nil, err
 			}
-			sectdata[sect] = data
+			state.sectdata[sect] = data
 			bld.SetData(data)
 		}
 		bld.SetSize(int64(sect.Size))
-		sectsyms[sect] = s
+		state.sectsyms[sect] = s
 		if sect.Name == ".rsrc" || strings.HasPrefix(sect.Name, ".rsrc$") {
 			rsrc = append(rsrc, s)
 		}
@@ -247,7 +263,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 	// load relocations
 	for _, rsect := range f.Sections {
-		if _, found := sectsyms[rsect]; !found {
+		if _, found := state.sectsyms[rsect]; !found {
 			continue
 		}
 		if rsect.NumberOfRelocations == 0 {
@@ -263,13 +279,13 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		}
 
 		splitResources := strings.HasPrefix(rsect.Name, ".rsrc$")
-		sb := l.MakeSymbolUpdater(sectsyms[rsect])
+		sb := l.MakeSymbolUpdater(state.sectsyms[rsect])
 		for j, r := range rsect.Relocs {
 			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
 				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
-			_, gosym, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
+			_, gosym, err := state.readpesym(pesym)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -292,20 +308,20 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			case sys.I386, sys.AMD64:
 				switch r.Type {
 				default:
-					return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
+					return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, state.sectsyms[rsect], r.Type)
 
 				case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 					IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
 					IMAGE_REL_AMD64_ADDR32NB:
 					rType = objabi.R_PCREL
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
 					rType = objabi.R_ADDR
 
 					// load addend from image
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
 					rSize = 8
@@ -313,39 +329,39 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 					rType = objabi.R_ADDR
 
 					// load addend from image
-					rAdd = int64(binary.LittleEndian.Uint64(sectdata[rsect][rOff:]))
+					rAdd = int64(binary.LittleEndian.Uint64(state.sectdata[rsect][rOff:]))
 				}
 
 			case sys.ARM:
 				switch r.Type {
 				default:
-					return nil, nil, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, sectsyms[rsect], r.Type)
+					return nil, nil, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, state.sectsyms[rsect], r.Type)
 
 				case IMAGE_REL_ARM_SECREL:
 					rType = objabi.R_PCREL
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_ARM_ADDR32, IMAGE_REL_ARM_ADDR32NB:
 					rType = objabi.R_ADDR
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_ARM_BRANCH24:
 					rType = objabi.R_CALLARM
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 				}
 
 			case sys.ARM64:
 				switch r.Type {
 				default:
-					return nil, nil, fmt.Errorf("%s: %v: unknown ARM64 relocation type %v", pn, sectsyms[rsect], r.Type)
+					return nil, nil, fmt.Errorf("%s: %v: unknown ARM64 relocation type %v", pn, state.sectsyms[rsect], r.Type)
 
 				case IMAGE_REL_ARM64_ADDR32, IMAGE_REL_ARM64_ADDR32NB:
 					rType = objabi.R_ADDR
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 				}
 			}
 
@@ -406,12 +422,12 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		var sect *pe.Section
 		if pesym.SectionNumber > 0 {
 			sect = f.Sections[pesym.SectionNumber-1]
-			if _, found := sectsyms[sect]; !found {
+			if _, found := state.sectsyms[sect]; !found {
 				continue
 			}
 		}
 
-		bld, s, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
+		bld, s, err := state.readpesym(pesym)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -430,7 +446,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			continue
 		} else if pesym.SectionNumber > 0 && int(pesym.SectionNumber) <= len(f.Sections) {
 			sect = f.Sections[pesym.SectionNumber-1]
-			if _, found := sectsyms[sect]; !found {
+			if _, found := state.sectsyms[sect]; !found {
 				return nil, nil, fmt.Errorf("%s: %v: missing sect.sym", pn, s)
 			}
 		} else {
@@ -446,12 +462,12 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				continue
 			}
 			outerName := l.SymName(l.OuterSym(s))
-			sectName := l.SymName(sectsyms[sect])
+			sectName := l.SymName(state.sectsyms[sect])
 			return nil, nil, fmt.Errorf("%s: duplicate symbol reference: %s in both %s and %s", pn, l.SymName(s), outerName, sectName)
 		}
 
 		bld = makeUpdater(l, bld, s)
-		sectsym := sectsyms[sect]
+		sectsym := state.sectsyms[sect]
 		bld.SetType(l.SymType(sectsym))
 		l.AddInteriorSym(sectsym, s)
 		bld.SetValue(int64(pesym.Value))
@@ -467,7 +483,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
 	for _, sect := range f.Sections {
-		s := sectsyms[sect]
+		s := state.sectsyms[sect]
 		if s == 0 {
 			continue
 		}
@@ -490,17 +506,17 @@ func issect(s *pe.COFFSymbol) bool {
 	return s.StorageClass == IMAGE_SYM_CLASS_STATIC && s.Type == 0 && s.Name[0] == '.'
 }
 
-func readpesym(l *loader.Loader, arch *sys.Arch, lookup func(string, int) loader.Sym, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Section]loader.Sym, localSymVersion int) (*loader.SymbolBuilder, loader.Sym, error) {
-	symname, err := pesym.FullName(f.StringTable)
+func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuilder, loader.Sym, error) {
+	symname, err := pesym.FullName(state.f.StringTable)
 	if err != nil {
 		return nil, 0, err
 	}
 	var name string
 	if issect(pesym) {
-		name = l.SymName(sectsyms[f.Sections[pesym.SectionNumber-1]])
+		name = state.l.SymName(state.sectsyms[state.f.Sections[pesym.SectionNumber-1]])
 	} else {
 		name = symname
-		switch arch.Family {
+		switch state.arch.Family {
 		case sys.AMD64:
 			if name == "__imp___acrt_iob_func" {
 				// Do not rename __imp___acrt_iob_func into __acrt_iob_func,
@@ -537,11 +553,11 @@ func readpesym(l *loader.Loader, arch *sys.Arch, lookup func(string, int) loader
 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
 		switch pesym.StorageClass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
-			s = lookup(name, 0)
+			s = state.l.LookupOrCreateCgoExport(name, 0)
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
-			s = lookup(name, localSymVersion)
-			bld = makeUpdater(l, bld, s)
+			s = state.l.LookupOrCreateCgoExport(name, state.localSymVersion)
+			bld = makeUpdater(state.l, bld, s)
 			bld.SetDuplicateOK(true)
 
 		default:
@@ -549,12 +565,12 @@ func readpesym(l *loader.Loader, arch *sys.Arch, lookup func(string, int) loader
 		}
 	}
 
-	if s != 0 && l.SymType(s) == 0 && (pesym.StorageClass != IMAGE_SYM_CLASS_STATIC || pesym.Value != 0) {
-		bld = makeUpdater(l, bld, s)
+	if s != 0 && state.l.SymType(s) == 0 && (pesym.StorageClass != IMAGE_SYM_CLASS_STATIC || pesym.Value != 0) {
+		bld = makeUpdater(state.l, bld, s)
 		bld.SetType(sym.SXREF)
 	}
 	if strings.HasPrefix(symname, "__imp_") {
-		bld = makeUpdater(l, bld, s)
+		bld = makeUpdater(state.l, bld, s)
 		bld.SetGot(-2) // flag for __imp_
 	}
 
