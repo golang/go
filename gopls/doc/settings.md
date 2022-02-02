@@ -398,7 +398,7 @@ Must be one of:
 * `"FastFuzzy"`
 * `"Fuzzy"`
 
-Default: `"Fuzzy"`.
+Default: `"FastFuzzy"`.
 
 ##### **symbolStyle** *enum*
 

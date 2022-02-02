@@ -185,7 +185,7 @@ var GeneratedAPIJSON = &APIJSON{
 					{Value: "\"FastFuzzy\""},
 					{Value: "\"Fuzzy\""},
 				},
-				Default:   "\"Fuzzy\"",
+				Default:   "\"FastFuzzy\"",
 				Status:    "advanced",
 				Hierarchy: "ui.navigation",
 			},

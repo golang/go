@@ -133,7 +133,7 @@ func DefaultOptions() *Options {
 					},
 					NavigationOptions: NavigationOptions{
 						ImportShortcut: Both,
-						SymbolMatcher:  SymbolFuzzy,
+						SymbolMatcher:  SymbolFastFuzzy,
 						SymbolStyle:    DynamicSymbols,
 					},
 					CompletionOptions: CompletionOptions{
