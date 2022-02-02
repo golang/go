@@ -41,19 +41,20 @@ func (l *methodList) isLazy() bool {
 // panics if the receiver is lazy.
 func (l *methodList) Add(m *Func) {
 	assert(!l.isLazy())
-	if i, _ := lookupMethod(l.methods, m.pkg, m.name); i < 0 {
+	if i, _ := lookupMethod(l.methods, m.pkg, m.name, false); i < 0 {
 		l.methods = append(l.methods, m)
 	}
 }
 
 // Lookup looks up the method identified by pkg and name in the receiver.
-// Lookup panics if the receiver is lazy.
-func (l *methodList) Lookup(pkg *Package, name string) (int, *Func) {
+// Lookup panics if the receiver is lazy. If foldCase is true, method names
+// are considered equal if they are equal with case folding.
+func (l *methodList) Lookup(pkg *Package, name string, foldCase bool) (int, *Func) {
 	assert(!l.isLazy())
 	if l == nil {
 		return -1, nil
 	}
-	return lookupMethod(l.methods, pkg, name)
+	return lookupMethod(l.methods, pkg, name, foldCase)
 }
 
 // Len returns the length of the method list.
