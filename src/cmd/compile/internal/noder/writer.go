@@ -396,6 +396,15 @@ func (w *writer) interfaceType(typ *types2.Interface) {
 	w.Len(typ.NumExplicitMethods())
 	w.Len(typ.NumEmbeddeds())
 
+	if typ.NumExplicitMethods() == 0 && typ.NumEmbeddeds() == 1 {
+		w.Bool(typ.IsImplicit())
+	} else {
+		// Implicit interfaces always have 0 explicit methods and 1
+		// embedded type, so we skip writing out the implicit flag
+		// otherwise as a space optimization.
+		assert(!typ.IsImplicit())
+	}
+
 	for i := 0; i < typ.NumExplicitMethods(); i++ {
 		m := typ.ExplicitMethod(i)
 		sig := m.Type().(*types2.Signature)

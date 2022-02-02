@@ -295,6 +295,7 @@ func (r *reader2) unionType() *types2.Union {
 func (r *reader2) interfaceType() *types2.Interface {
 	methods := make([]*types2.Func, r.Len())
 	embeddeds := make([]types2.Type, r.Len())
+	implicit := len(methods) == 0 && len(embeddeds) == 1 && r.Bool()
 
 	for i := range methods {
 		pos := r.pos()
@@ -307,7 +308,11 @@ func (r *reader2) interfaceType() *types2.Interface {
 		embeddeds[i] = r.typ()
 	}
 
-	return types2.NewInterfaceType(methods, embeddeds)
+	iface := types2.NewInterfaceType(methods, embeddeds)
+	if implicit {
+		iface.MarkImplicit()
+	}
+	return iface
 }
 
 func (r *reader2) signature(recv *types2.Var, rtparams, tparams []*types2.TypeParam) *types2.Signature {

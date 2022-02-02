@@ -449,6 +449,8 @@ func (r *reader) interfaceType() *types.Type {
 	tpkg := types.LocalPkg // TODO(mdempsky): Remove after iexport is gone.
 
 	nmethods, nembeddeds := r.Len(), r.Len()
+	implicit := nmethods == 0 && nembeddeds == 1 && r.Bool()
+	assert(!implicit) // implicit interfaces only appear in constraints
 
 	fields := make([]*types.Field, nmethods+nembeddeds)
 	methods, embeddeds := fields[:nmethods], fields[nmethods:]
