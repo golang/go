@@ -941,7 +941,7 @@ func extendRandom(r []byte, n int) {
 }
 
 // A _defer holds an entry on the list of deferred calls.
-// If you add a field here, add code to clear it in freedefer and deferProcStack
+// If you add a field here, add code to clear it in deferProcStack.
 // This struct must match the code in cmd/compile/internal/ssagen/ssa.go:deferstruct
 // and cmd/compile/internal/ssagen/ssa.go:(*state).call.
 // Some defers will be allocated on the stack and some on the heap.
