@@ -55,7 +55,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// not have found it for T (see also issue 8590).
 	if t, _ := T.(*Named); t != nil {
 		if p, _ := t.Underlying().(*Pointer); p != nil {
-			obj, index, indirect = lookupFieldOrMethod(p, false, false, pkg, name)
+			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name, false)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
 			}
@@ -63,7 +63,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 		}
 	}
 
-	obj, index, indirect = lookupFieldOrMethod(T, addressable, false, pkg, name)
+	obj, index, indirect = lookupFieldOrMethod(T, addressable, pkg, name, false)
 
 	// If we didn't find anything and if we have a type parameter with a structural constraint,
 	// see if there is a matching field (but not a method, those need to be declared explicitly
@@ -71,7 +71,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// are ok here because only fields are accepted as results.
 	if obj == nil && isTypeParam(T) {
 		if t := structuralType(T); t != nil {
-			obj, index, indirect = lookupFieldOrMethod(t, addressable, false, pkg, name)
+			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)
 			if _, ok := obj.(*Var); !ok {
 				obj, index, indirect = nil, nil, false // accept fields (variables) only
 			}
@@ -86,11 +86,11 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 //           indirectly via different packages.)
 
 // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
-// If checkFold is true, the lookup for methods will include looking for any method
+// If foldCase is true, the lookup for methods will include looking for any method
 // which case-folds to the same as 'name' (used for giving helpful error messages).
 //
 // The resulting object may not be fully type-checked.
-func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 
 	if name == "_" {
@@ -144,7 +144,7 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
 
 				// look for a matching attached method
 				named.resolve(nil)
-				if i, m := named.lookupMethodFold(pkg, name, checkFold); m != nil {
+				if i, m := named.lookupMethod(pkg, name, foldCase); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet
 					index = concat(e.index, i)
@@ -191,7 +191,7 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
 
 			case *Interface:
 				// look for a matching method (interface may be a type parameter)
-				if i, m := lookupMethodFold(t.typeSet().methods, pkg, name, checkFold); m != nil {
+				if i, m := t.typeSet().LookupMethod(pkg, name, foldCase); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
 					if obj != nil || e.multiples {
@@ -308,7 +308,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 	if ityp, _ := under(V).(*Interface); ityp != nil {
 		// TODO(gri) the methods are sorted - could do this more efficiently
 		for _, m := range T.typeSet().methods {
-			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name)
+			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name, false)
 
 			if f == nil {
 				if !static {
@@ -339,17 +339,17 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 	// A concrete type implements T if it implements all methods of T.
 	for _, m := range T.typeSet().methods {
 		// TODO(gri) should this be calling LookupFieldOrMethod instead (and why not)?
-		obj, _, _ := lookupFieldOrMethod(V, false, false, m.pkg, m.name)
+		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name, false)
 
 		// Check if *V implements this method of T.
 		if obj == nil {
 			ptr := NewPointer(V)
-			obj, _, _ = lookupFieldOrMethod(ptr, false, false, m.pkg, m.name)
+			obj, _, _ = lookupFieldOrMethod(ptr, false, m.pkg, m.name, false)
 			if obj == nil {
 				// If we didn't find the exact method (even with pointer
 				// receiver), look to see if there is a method that
 				// matches m.name with case-folding.
-				obj, _, _ = lookupFieldOrMethod(V, false, true, m.pkg, m.name)
+				obj, _, _ = lookupFieldOrMethod(V, false, m.pkg, m.name, true)
 			}
 			if obj != nil {
 				// methods may not have a fully set up signature yet
@@ -513,28 +513,11 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
 }
 
 // lookupMethod returns the index of and method with matching package and name, or (-1, nil).
-func lookupMethod(methods []*Func, pkg *Package, name string) (int, *Func) {
+// If foldCase is true, method names are considered equal if they are equal with case folding.
+func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
 	if name != "_" {
 		for i, m := range methods {
-			if m.sameId(pkg, name) {
-				return i, m
-			}
-		}
-	}
-	return -1, nil
-}
-
-// lookupMethodFold is like lookupMethod, but if checkFold is true, it matches a method
-// name if the names are equal with case folding.
-func lookupMethodFold(methods []*Func, pkg *Package, name string, checkFold bool) (int, *Func) {
-	if name != "_" {
-		for i, m := range methods {
-			if m.name != name && !(checkFold && strings.EqualFold(m.name, name)) {
-				continue
-			}
-			// Use m.name, since we've already checked that m.name and
-			// name are equal with folding.
-			if m.sameId(pkg, m.name) {
+			if (m.name == name || foldCase && strings.EqualFold(m.name, name)) && m.sameId(pkg, m.name) {
 				return i, m
 			}
 		}
