@@ -415,19 +415,14 @@ func TestUDPReadSizeError(t *testing.T) {
 		if n != len(b1) {
 			t.Errorf("got %d; want %d", n, len(b1))
 		}
-		c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		b2 := make([]byte, len(b1)-1)
 		if genericRead {
 			n, err = c1.(Conn).Read(b2)
 		} else {
 			n, _, err = c1.ReadFrom(b2)
 		}
-		switch err {
-		case nil: // ReadFrom succeeds
-		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
-				t.Fatal(err)
-			}
+		if err != nil && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
+			t.Fatal(err)
 		}
 		if n != len(b1)-1 {
 			t.Fatalf("got %d; want %d", n, len(b1)-1)
