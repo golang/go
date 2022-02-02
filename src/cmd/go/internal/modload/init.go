@@ -301,7 +301,7 @@ func InitWorkfile() {
 	}
 }
 
-// WorkFilePath returns the path of the go.work file, or "" if not in
+// WorkFilePath returns the absolute path of the go.work file, or "" if not in
 // workspace mode. WorkFilePath must be called after InitWorkfile.
 func WorkFilePath() string {
 	return workFilePath
