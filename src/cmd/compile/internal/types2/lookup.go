@@ -285,28 +285,21 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 	return m, typ != nil
 }
 
-// If we accept type parameters for methods, (at least) the code
-// guarded with this constant will need to be adjusted when such
-// methods are used (not just parsed).
-const acceptMethodTypeParams = false
-
-// missingMethod is like MissingMethod but accepts a *Checker as
-// receiver and an addressable flag.
-// The receiver may be nil if missingMethod is invoked through
-// an exported API call (such as MissingMethod), i.e., when all
-// methods have been type-checked.
-// If the type has the correctly named method, but with the wrong
-// signature, the existing method is returned as well.
-// To improve error messages, also report the wrong signature
-// when the method exists on *V instead of V.
-func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
+// missingMethod is like MissingMethod but accepts a *Checker as receiver.
+// The receiver may be nil if missingMethod is invoked through an exported
+// API call (such as MissingMethod), i.e., when all methods have been type-
+// checked.
+//
+// If a method is missing on T but is found on *T, or if a method is found
+// on T when looked up with case-folding, this alternative method is returned
+// as the second result.
+func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, alt *Func) {
 	// fast path for common case
 	if T.Empty() {
 		return
 	}
 
 	if ityp, _ := under(V).(*Interface); ityp != nil {
-		// TODO(gri) the methods are sorted - could do this more efficiently
 		for _, m := range T.typeSet().methods {
 			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name, false)
 
@@ -318,17 +311,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 				return m, f
 			}
 
-			// both methods must have the same number of type parameters
-			ftyp := f.typ.(*Signature)
-			mtyp := m.typ.(*Signature)
-			if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
-				return m, f
-			}
-			if !acceptMethodTypeParams && ftyp.TypeParams().Len() > 0 {
-				panic("method with type parameters")
-			}
-
-			if !Identical(ftyp, mtyp) {
+			if !Identical(f.typ, m.typ) {
 				return m, f
 			}
 		}
@@ -346,9 +329,8 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			ptr := NewPointer(V)
 			obj, _, _ = lookupFieldOrMethod(ptr, false, m.pkg, m.name, false)
 			if obj == nil {
-				// If we didn't find the exact method (even with pointer
-				// receiver), look to see if there is a method that
-				// matches m.name with case-folding.
+				// If we didn't find the exact method (even with pointer receiver),
+				// check if there is a matching method using case-folding.
 				obj, _, _ = lookupFieldOrMethod(V, false, m.pkg, m.name, true)
 			}
 			if obj != nil {
@@ -371,17 +353,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			check.objDecl(f, nil)
 		}
 
-		// both methods must have the same number of type parameters
-		ftyp := f.typ.(*Signature)
-		mtyp := m.typ.(*Signature)
-		if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
-			return m, f
-		}
-		if !acceptMethodTypeParams && ftyp.TypeParams().Len() > 0 {
-			panic("method with type parameters")
-		}
-
-		if !Identical(ftyp, mtyp) {
+		if !Identical(f.typ, m.typ) {
 			return m, f
 		}
 	}
