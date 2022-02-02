@@ -906,7 +906,7 @@ func (po *poset) Ordered(n1, n2 *Value) bool {
 	return i1 != i2 && po.reaches(i1, i2, true)
 }
 
-// Ordered reports whether n1<=n2. It returns false either when it is
+// OrderedOrEqual reports whether n1<=n2. It returns false either when it is
 // certain that n1<=n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(n).
