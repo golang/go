@@ -46,7 +46,7 @@
 // The canonical way to strip a monotonic clock reading is to use t = t.Round(0).
 //
 // If Times t and u both contain monotonic clock readings, the operations
-// t.After(u), t.Before(u), t.Equal(u), and t.Sub(u) are carried out
+// t.After(u), t.Before(u), t.Equal(u), t.Compare(u), and t.Sub(u) are carried out
 // using the monotonic clock readings alone, ignoring the wall clock
 // readings. If either t or u contains no monotonic clock reading, these
 // operations fall back to using the wall clock readings.
@@ -264,6 +264,27 @@ func (t Time) Before(u Time) bool {
 	ts := t.sec()
 	us := u.sec()
 	return ts < us || ts == us && t.nsec() < u.nsec()
+}
+
+// Compare compares the time instant t with u. If t is before u, it returns -1;
+// if t is after u, it returns +1; if they're the same, it returns 0.
+func (t Time) Compare(u Time) int {
+	var tc, uc int64
+	if t.wall&u.wall&hasMonotonic != 0 {
+		tc, uc = t.ext, u.ext
+	} else {
+		tc, uc = t.sec(), u.sec()
+		if tc == uc {
+			tc, uc = int64(t.nsec()), int64(u.nsec())
+		}
+	}
+	switch {
+	case tc < uc:
+		return -1
+	case tc > uc:
+		return +1
+	}
+	return 0
 }
 
 // Equal reports whether t and u represent the same time instant.

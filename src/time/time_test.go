@@ -1282,6 +1282,7 @@ var defaultLocTests = []struct {
 	{"After", func(t1, t2 Time) bool { return t1.After(t2) == t2.After(t1) }},
 	{"Before", func(t1, t2 Time) bool { return t1.Before(t2) == t2.Before(t1) }},
 	{"Equal", func(t1, t2 Time) bool { return t1.Equal(t2) == t2.Equal(t1) }},
+	{"Compare", func(t1, t2 Time) bool { return t1.Compare(t2) == t2.Compare(t1) }},
 
 	{"IsZero", func(t1, t2 Time) bool { return t1.IsZero() == t2.IsZero() }},
 	{"Date", func(t1, t2 Time) bool {
