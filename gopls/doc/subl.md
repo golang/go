@@ -56,6 +56,10 @@ LSP and gopls settings can also be adjusted on a per-project basis to override g
     "settings": {
         "LSP": {
             "gopls": {
+                // To use a specific version of gopls with Sublime Text LSP (e.g., to try new features in development)
+                "command": [
+                    "/path/to/your/go/bin/gopls"
+                ],
                 "env": {
                     "PATH": "/path/to/your/go-dev/bin:/path/to/your/go/bin",
                     "GOPATH": "",
