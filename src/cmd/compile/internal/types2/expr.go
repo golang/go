@@ -1578,8 +1578,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			check.errorf(x, invalidOp+"cannot use type assertion on type parameter value %s", x)
 			goto Error
 		}
-		xtyp, _ := under(x.typ).(*Interface)
-		if xtyp == nil {
+		if _, ok := under(x.typ).(*Interface); !ok {
 			check.errorf(x, invalidOp+"%s is not an interface", x)
 			goto Error
 		}
@@ -1592,7 +1591,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		if T == Typ[Invalid] {
 			goto Error
 		}
-		check.typeAssertion(e, x, xtyp, T, false)
+		check.typeAssertion(e, x, T, false)
 		x.mode = commaok
 		x.typ = T
 
@@ -1733,28 +1732,21 @@ func keyVal(x constant.Value) interface{} {
 	return x
 }
 
-// typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
-func (check *Checker) typeAssertion(e syntax.Expr, x *operand, xtyp *Interface, T Type, typeSwitch bool) {
-	method, wrongType := check.assertableTo(xtyp, T)
+// typeAssertion checks x.(T). The type of x must be an interface.
+func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitch bool) {
+	method, alt := check.assertableTo(under(x.typ).(*Interface), T)
 	if method == nil {
+		return // success
+	}
+
+	cause := check.missingMethodReason(T, x.typ, method, alt)
+
+	if typeSwitch {
+		check.errorf(e, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
 		return
 	}
 
-	var err error_
-	var msg string
-	if typeSwitch {
-		err.errorf(e.Pos(), "impossible type switch case: %s", e)
-		msg = check.sprintf("%s cannot have dynamic type %s %s", x, T,
-			check.missingMethodReason(T, x.typ, method, wrongType))
-
-	} else {
-		err.errorf(e.Pos(), "impossible type assertion: %s", e)
-		msg = check.sprintf("%s does not implement %s %s", T, x.typ,
-			check.missingMethodReason(T, x.typ, method, wrongType))
-
-	}
-	err.errorf(nopos, msg)
-	check.report(&err)
+	check.errorf(e, "impossible type assertion: %s\n\t%s does not implement %s %s", e, T, x.typ, cause)
 }
 
 // expr typechecks expression e and initializes x with the expression value.

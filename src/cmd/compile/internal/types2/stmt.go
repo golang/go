@@ -274,7 +274,8 @@ func (check *Checker) isNil(e syntax.Expr) bool {
 	return false
 }
 
-func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
+// If the type switch expression is invalid, x is nil.
+func (check *Checker) caseTypes(x *operand, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
 	var dummy operand
 L:
 	for _, e := range types {
@@ -305,8 +306,8 @@ L:
 			}
 		}
 		seen[T] = e
-		if T != nil && xtyp != nil {
-			check.typeAssertion(e, x, xtyp, T, true)
+		if x != nil && T != nil {
+			check.typeAssertion(e, x, T, true)
 		}
 	}
 	return
@@ -733,12 +734,13 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	}
 
 	// TODO(gri) we may want to permit type switches on type parameter values at some point
-	var xtyp *Interface
+	var sx *operand // switch expression against which cases are compared against; nil if invalid
 	if isTypeParam(x.typ) {
 		check.errorf(&x, "cannot use type switch on type parameter value %s", &x)
 	} else {
-		xtyp, _ = under(x.typ).(*Interface)
-		if xtyp == nil {
+		if _, ok := under(x.typ).(*Interface); ok {
+			sx = &x
+		} else {
 			check.errorf(&x, "%s is not an interface", &x)
 		}
 	}
@@ -758,7 +760,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		}
 		// Check each type in this type switch case.
 		cases := unpackExpr(clause.Cases)
-		T := check.caseTypes(&x, xtyp, cases, seen)
+		T := check.caseTypes(sx, cases, seen)
 		check.openScopeUntil(clause, end, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
