@@ -138,7 +138,7 @@ func instrumentInit() {
 		cfg.BuildContext.InstallSuffix += "_"
 	}
 	cfg.BuildContext.InstallSuffix += mode
-	cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, mode)
+	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, mode)
 }
 
 func buildModeInit() {

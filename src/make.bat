@@ -83,6 +83,8 @@ for /f "tokens=*" %%g in ('where go 2^>nul') do (
 		)
 	)
 )
+if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go1.17
+if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go1.17
 if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
 
 :bootstrapset

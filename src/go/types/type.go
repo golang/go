@@ -21,62 +21,106 @@ type Type interface {
 // under must only be called when a type is known
 // to be fully set up.
 func under(t Type) Type {
-	if n := asNamed(t); n != nil {
-		return n.under()
+	if t, _ := t.(*Named); t != nil {
+		return t.under()
 	}
-	return t
+	return t.Underlying()
 }
 
-// Convenience converters
-
-func asBasic(t Type) *Basic {
-	op, _ := under(t).(*Basic)
-	return op
-}
-
-func asArray(t Type) *Array {
-	op, _ := under(t).(*Array)
-	return op
-}
-
-func asSlice(t Type) *Slice {
-	op, _ := under(t).(*Slice)
-	return op
-}
-
-func asStruct(t Type) *Struct {
-	op, _ := under(t).(*Struct)
-	return op
-}
-
-func asPointer(t Type) *Pointer {
-	op, _ := under(t).(*Pointer)
-	return op
-}
-
-func asSignature(t Type) *Signature {
-	op, _ := under(t).(*Signature)
-	return op
-}
-
-func asInterface(t Type) *Interface {
-	op, _ := under(t).(*Interface)
-	return op
-}
-
-// If the argument to asNamed, or asTypeParam is of the respective type
-// (possibly after expanding resolving a *Named type), these methods return that type.
-// Otherwise the result is nil.
-
-func asNamed(t Type) *Named {
-	e, _ := t.(*Named)
-	if e != nil {
-		e.resolve(nil)
+// If t is not a type parameter, structuralType returns the underlying type.
+// If t is a type parameter, structuralType returns the single underlying
+// type of all types in its type set if it exists, or nil otherwise. If the
+// type set contains only unrestricted and restricted channel types (with
+// identical element types), the single underlying type is the restricted
+// channel type if the restrictions are always the same, or nil otherwise.
+func structuralType(t Type) Type {
+	tpar, _ := t.(*TypeParam)
+	if tpar == nil {
+		return under(t)
 	}
-	return e
+
+	var su Type
+	if tpar.underIs(func(u Type) bool {
+		if u == nil {
+			return false
+		}
+		if su != nil {
+			u = match(su, u)
+			if u == nil {
+				return false
+			}
+		}
+		// su == nil || match(su, u) != nil
+		su = u
+		return true
+	}) {
+		return su
+	}
+	return nil
 }
 
-func asTypeParam(t Type) *TypeParam {
-	u, _ := under(t).(*TypeParam)
-	return u
+// structuralString is like structuralType but also considers []byte
+// and strings as identical. In this case, if successful and we saw
+// a string, the result is of type (possibly untyped) string.
+func structuralString(t Type) Type {
+	tpar, _ := t.(*TypeParam)
+	if tpar == nil {
+		return under(t) // string or untyped string
+	}
+
+	var su Type
+	hasString := false
+	if tpar.underIs(func(u Type) bool {
+		if u == nil {
+			return false
+		}
+		if isString(u) {
+			u = NewSlice(universeByte)
+			hasString = true
+		}
+		if su != nil {
+			u = match(su, u)
+			if u == nil {
+				return false
+			}
+		}
+		// su == nil || match(su, u) != nil
+		su = u
+		return true
+	}) {
+		if hasString {
+			return Typ[String]
+		}
+		return su
+	}
+	return nil
+}
+
+// If x and y are identical, match returns x.
+// If x and y are identical channels but for their direction
+// and one of them is unrestricted, match returns the channel
+// with the restricted direction.
+// In all other cases, match returns nil.
+func match(x, y Type) Type {
+	// Common case: we don't have channels.
+	if Identical(x, y) {
+		return x
+	}
+
+	// We may have channels that differ in direction only.
+	if x, _ := x.(*Chan); x != nil {
+		if y, _ := y.(*Chan); y != nil && Identical(x.elem, y.elem) {
+			// We have channels that differ in direction only.
+			// If there's an unrestricted channel, select the restricted one.
+			switch {
+			case x.dir == SendRecv:
+				return y
+			case y.dir == SendRecv:
+				return x
+			}
+		}
+	}
+
+	// types are different
+	return nil
 }

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ppc64le || ppc64
-// +build ppc64le ppc64
 
 #include "go_asm.h"
 #include "textflag.h"

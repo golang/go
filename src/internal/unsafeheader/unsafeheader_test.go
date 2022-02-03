@@ -25,7 +25,7 @@ func TestTypeMatchesReflectType(t *testing.T) {
 	})
 }
 
-func testHeaderMatchesReflect(t *testing.T, header, reflectHeader interface{}) {
+func testHeaderMatchesReflect(t *testing.T, header, reflectHeader any) {
 	h := reflect.TypeOf(header)
 	rh := reflect.TypeOf(reflectHeader)
 

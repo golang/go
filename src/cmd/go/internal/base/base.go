@@ -117,12 +117,12 @@ func Exit() {
 	os.Exit(exitStatus)
 }
 
-func Fatalf(format string, args ...interface{}) {
+func Fatalf(format string, args ...any) {
 	Errorf(format, args...)
 	Exit()
 }
 
-func Errorf(format string, args ...interface{}) {
+func Errorf(format string, args ...any) {
 	log.Printf(format, args...)
 	SetExitStatus(1)
 }
@@ -151,7 +151,7 @@ func GetExitStatus() int {
 // Run runs the command, with stdout and stderr
 // connected to the go command's own stdout and stderr.
 // If the command fails, Run reports the error using Errorf.
-func Run(cmdargs ...interface{}) {
+func Run(cmdargs ...any) {
 	cmdline := str.StringList(cmdargs...)
 	if cfg.BuildN || cfg.BuildX {
 		fmt.Printf("%s\n", strings.Join(cmdline, " "))

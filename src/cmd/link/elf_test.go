@@ -201,6 +201,61 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	}
 }
 
+func TestMergeNoteSections(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	expected := 1
+
+	switch runtime.GOOS {
+	case "linux", "freebsd", "dragonfly":
+	case "openbsd", "netbsd":
+		// These OSes require independent segment
+		expected = 2
+	default:
+		t.Skip("We should only test on elf output.")
+	}
+	t.Parallel()
+
+	goFile := filepath.Join(t.TempDir(), "notes.go")
+	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	outFile := filepath.Join(t.TempDir(), "notes.exe")
+	goTool := testenv.GoToolPath(t)
+	// sha1sum of "gopher"
+	id := "0xf4e8cd51ce8bae2996dc3b74639cdeaa1f7fee5f"
+	cmd := exec.Command(goTool, "build", "-o", outFile, "-ldflags",
+		"-B "+id, goFile)
+	cmd.Dir = t.TempDir()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	ef, err := elf.Open(outFile)
+	if err != nil {
+		t.Fatalf("open elf file failed:%v", err)
+	}
+	defer ef.Close()
+	sec := ef.Section(".note.gnu.build-id")
+	if sec == nil {
+		t.Fatalf("can't find gnu build id")
+	}
+
+	sec = ef.Section(".note.go.buildid")
+	if sec == nil {
+		t.Fatalf("can't find go build id")
+	}
+	cnt := 0
+	for _, ph := range ef.Progs {
+		if ph.Type == elf.PT_NOTE {
+			cnt += 1
+		}
+	}
+	if cnt != expected {
+		t.Fatalf("want %d PT_NOTE segment, got %d", expected, cnt)
+	}
+}
+
 const pieSourceTemplate = `
 package main
 

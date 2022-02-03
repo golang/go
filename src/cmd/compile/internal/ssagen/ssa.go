@@ -484,6 +484,19 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	var params *abi.ABIParamResultInfo
 	params = s.f.ABISelf.ABIAnalyze(fn.Type(), true)
 
+	// The backend's stackframe pass prunes away entries from the fn's
+	// Dcl list, including PARAMOUT nodes that correspond to output
+	// params passed in registers. Walk the Dcl list and capture these
+	// nodes to a side list, so that we'll have them available during
+	// DWARF-gen later on. See issue 48573 for more details.
+	var debugInfo ssa.FuncDebug
+	for _, n := range fn.Dcl {
+		if n.Class == ir.PPARAMOUT && n.IsOutputParamInRegisters() {
+			debugInfo.RegOutputParams = append(debugInfo.RegOutputParams, n)
+		}
+	}
+	fn.DebugInfo = &debugInfo
+
 	// Generate addresses of local declarations
 	s.decladdrs = map[*ir.Name]*ssa.Value{}
 	for _, n := range fn.Dcl {
@@ -2433,6 +2446,38 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 		return s.newValue1(op, tt, v)
 	}
 
+	if ft.IsComplex() && tt.IsComplex() {
+		var op ssa.Op
+		if ft.Size() == tt.Size() {
+			switch ft.Size() {
+			case 8:
+				op = ssa.OpRound32F
+			case 16:
+				op = ssa.OpRound64F
+			default:
+				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
+			}
+		} else if ft.Size() == 8 && tt.Size() == 16 {
+			op = ssa.OpCvt32Fto64F
+		} else if ft.Size() == 16 && tt.Size() == 8 {
+			op = ssa.OpCvt64Fto32F
+		} else {
+			s.Fatalf("weird complex conversion %v -> %v", ft, tt)
+		}
+		ftp := types.FloatForComplex(ft)
+		ttp := types.FloatForComplex(tt)
+		return s.newValue2(ssa.OpComplexMake, tt,
+			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, v)),
+			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, v)))
+	}
+
+	if tt.IsComplex() { // and ft is not complex
+		// Needed for generics support - can't happen in normal Go code.
+		et := types.FloatForComplex(tt)
+		v = s.conv(n, v, ft, et)
+		return s.newValue2(ssa.OpComplexMake, tt, v, s.zeroVal(et))
+	}
+
 	if ft.IsFloat() || tt.IsFloat() {
 		conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
 		if s.config.RegSize == 4 && Arch.LinkArch.Family != sys.MIPS && !s.softFloat {
@@ -2504,31 +2549,6 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 		}
 		s.Fatalf("weird float to unsigned integer conversion %v -> %v", ft, tt)
 		return nil
-	}
-
-	if ft.IsComplex() && tt.IsComplex() {
-		var op ssa.Op
-		if ft.Size() == tt.Size() {
-			switch ft.Size() {
-			case 8:
-				op = ssa.OpRound32F
-			case 16:
-				op = ssa.OpRound64F
-			default:
-				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
-			}
-		} else if ft.Size() == 8 && tt.Size() == 16 {
-			op = ssa.OpCvt32Fto64F
-		} else if ft.Size() == 16 && tt.Size() == 8 {
-			op = ssa.OpCvt64Fto32F
-		} else {
-			s.Fatalf("weird complex conversion %v -> %v", ft, tt)
-		}
-		ftp := types.FloatForComplex(ft)
-		ttp := types.FloatForComplex(tt)
-		return s.newValue2(ssa.OpComplexMake, tt,
-			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, v)),
-			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, v)))
 	}
 
 	s.Fatalf("unhandled OCONV %s -> %s", ft.Kind(), tt.Kind())
@@ -5075,6 +5095,18 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		for _, p := range params.InParams() { // includes receiver for interface calls
 			ACArgs = append(ACArgs, p.Type)
 		}
+
+		// Split the entry block if there are open defers, because later calls to
+		// openDeferSave may cause a mismatch between the mem for an OpDereference
+		// and the call site which uses it. See #49282.
+		if s.curBlock.ID == s.f.Entry.ID && s.hasOpenDefers {
+			b := s.endBlock()
+			b.Kind = ssa.BlockPlain
+			curb := s.f.NewBlock(ssa.BlockPlain)
+			b.AddEdgeTo(curb)
+			s.startBlock(curb)
+		}
+
 		for i, n := range args {
 			callArgs = append(callArgs, s.putArg(n, t.Params().Field(i).Type))
 		}
@@ -6552,6 +6584,22 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
 			// explicit statement boundaries should appear
 			// in the generated code.
 			if p.IsStmt() != src.PosIsStmt {
+				if s.pp.Pos.IsStmt() == src.PosIsStmt && s.pp.Pos.SameFileAndLine(p) {
+					// If s.pp.Pos already has a statement mark, then it was set here (below) for
+					// the previous value.  If an actual instruction had been emitted for that
+					// value, then the statement mark would have been reset.  Since the statement
+					// mark of s.pp.Pos was not reset, this position (file/line) still needs a
+					// statement mark on an instruction.  If file and line for this value are
+					// the same as the previous value, then the first instruction for this
+					// value will work to take the statement mark.  Return early to avoid
+					// resetting the statement mark.
+					//
+					// The reset of s.pp.Pos occurs in (*Progs).Prog() -- if it emits
+					// an instruction, and the instruction's statement mark was set,
+					// and it is not one of the LosesStmtMark instructions,
+					// then Prog() resets the statement mark on the (*Progs).Pos.
+					return
+				}
 				p = p.WithNotStmt()
 				// Calls use the pos attached to v, but copy the statement mark from State
 			}
@@ -6793,6 +6841,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.Next
 		s.lineRunStart = nil
+		s.SetPos(s.pp.Pos.WithNotStmt()) // It needs a non-empty Pos, but cannot be a statement boundary (yet).
 
 		// Attach a "default" liveness info. Normally this will be
 		// overwritten in the Values loop below for each Value. But
@@ -6991,12 +7040,12 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 	if base.Ctxt.Flag_locationlists {
 		var debugInfo *ssa.FuncDebug
+		debugInfo = e.curfn.DebugInfo.(*ssa.FuncDebug)
 		if e.curfn.ABI == obj.ABIInternal && base.Flag.N != 0 {
-			debugInfo = ssa.BuildFuncDebugNoOptimized(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset)
+			ssa.BuildFuncDebugNoOptimized(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
 		} else {
-			debugInfo = ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset)
+			ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
 		}
-		e.curfn.DebugInfo = debugInfo
 		bstart := s.bstart
 		idToIdx := make([]int, f.NumBlocks())
 		for i, b := range f.Blocks {

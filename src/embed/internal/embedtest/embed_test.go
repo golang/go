@@ -60,6 +60,11 @@ func testDir(t *testing.T, f embed.FS, name string, expect ...string) {
 	}
 }
 
+// Tests for issue 49514.
+var _ = '"'
+var _ = '\''
+var _ = '🦆'
+
 func TestGlobal(t *testing.T) {
 	testFiles(t, global, "concurrency.txt", "Concurrency is not parallelism.\n")
 	testFiles(t, global, "testdata/hello.txt", "hello, world\n")
@@ -157,7 +162,7 @@ func TestAliases(t *testing.T) {
 	if e != nil {
 		t.Fatal("ReadFile:", e)
 	}
-	check := func(g interface{}) {
+	check := func(g any) {
 		got := reflect.ValueOf(g)
 		for i := 0; i < got.Len(); i++ {
 			if byte(got.Index(i).Uint()) != want[i] {

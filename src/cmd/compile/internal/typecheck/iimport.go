@@ -1315,9 +1315,15 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.ONONAME:
+		isKey := r.bool()
 		n := r.qualifiedIdent()
 		if go117ExportTypes {
-			n2 := Resolve(n)
+			var n2 ir.Node = n
+			// Key ONONAME entries should not be resolved - they should
+			// stay as identifiers.
+			if !isKey {
+				n2 = Resolve(n)
+			}
 			typ := r.typ()
 			if n2.Type() == nil {
 				n2.SetType(typ)
@@ -1624,11 +1630,16 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OADDR, ir.OPTRLIT:
-		n := NodAddrAt(r.pos(), r.expr())
 		if go117ExportTypes {
+			pos := r.pos()
+			expr := r.expr()
+			expr.SetTypecheck(1) // we do this for all nodes after importing, but do it now so markAddrOf can see it.
+			n := NodAddrAt(pos, expr)
 			n.SetOp(op)
 			n.SetType(r.typ())
+			return n
 		}
+		n := NodAddrAt(r.pos(), r.expr())
 		return n
 
 	case ir.ODEREF:

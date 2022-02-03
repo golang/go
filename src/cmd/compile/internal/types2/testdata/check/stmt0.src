@@ -29,10 +29,10 @@ func assignments0() (int, int) {
 
 	a, b, c = <- /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ch
 
-	return /* ERROR "wrong number of return values" */
-	return /* ERROR "wrong number of return values" */ 1
+	return /* ERROR "not enough return values\n\thave \(\)\n\twant \(int, int\)" */
+	return 1 /* ERROR "not enough return values\n\thave \(number\)\n\twant \(int, int\)" */
 	return 1, 2
-	return /* ERROR "wrong number of return values" */ 1, 2, 3
+	return 1, 2, 3 /* ERROR "too many return values\n\thave \(number, number, number\)\n\twant \(int, int\)" */
 }
 
 func assignments1() {
@@ -69,10 +69,10 @@ func assignments1() {
 
 	// test cases for issue 5800
 	var (
-		_ int = nil /* ERROR "untyped nil" */
-		_ [10]int = nil /* ERROR "untyped nil" */
+		_ int = nil /* ERROR "cannot use nil as int value in variable declaration" */
+		_ [10]int = nil /* ERROR "cannot use nil as \[10\]int value in variable declaration" */
 		_ []byte = nil
-		_ struct{} = nil /* ERROR "untyped nil" */
+		_ struct{} = nil /* ERROR "cannot use nil as struct{} value in variable declaration" */
 		_ func() = nil
 		_ map[int]string = nil
 		_ chan int = nil
@@ -81,12 +81,12 @@ func assignments1() {
 	// test cases for issue 5500
 	_ = func() (int, bool) {
 		var m map[int]int
-		return /* ERROR "wrong number of return values" */ m[0]
+		return m /* ERROR "not enough return values" */ [0]
 	}
 
 	g := func(int, bool){}
 	var m map[int]int
-	g(m[0]) /* ERROR "not enough arguments" */
+	g(m /* ERROR "not enough arguments" */ [0])
 
 	// assignments to _
 	_ = nil /* ERROR "use of untyped nil" */
@@ -375,20 +375,20 @@ func continues() {
 
 func returns0() {
 	return
-	return 0 /* ERROR no result values expected */
+	return 0 /* ERROR too many return values */
 }
 
 func returns1(x float64) (int, *float64) {
 	return 0, &x
-	return /* ERROR wrong number of return values */
+	return /* ERROR not enough return values */
 	return "foo" /* ERROR "cannot .* in return statement" */, x /* ERROR "cannot use .* in return statement" */
-	return /* ERROR wrong number of return values */ 0, &x, 1
+	return 0, &x, 1 /* ERROR too many return values */
 }
 
 func returns2() (a, b int) {
 	return
 	return 1, "foo" /* ERROR cannot use .* in return statement */
-	return /* ERROR wrong number of return values */ 1, 2, 3
+	return 1, 2, 3 /* ERROR too many return values */
 	{
 		type a int
 		return 1, 2
@@ -695,7 +695,7 @@ func typeswitches() {
 		_ = y
 	}
 
-	switch x := i /* ERROR "not an interface" */ .(type) {}
+	switch /* ERROR "x declared but not used" */ x := i /* ERROR "not an interface" */ .(type) {}
 
 	switch t := x.(type) {
 	case nil:
@@ -715,9 +715,21 @@ func typeswitches() {
 	var t I
 	switch t.(type) {
 	case T:
-	case T1 /* ERROR "missing m method" */ :
+	case T1 /* ERROR "missing method m" */ :
 	case T2 /* ERROR "wrong type for method m" */ :
 	case I2 /* STRICT "wrong type for method m" */ : // only an error in strict mode (issue 8561)
+	}
+
+
+	{
+		x := 1
+		v := 2
+		switch v /* ERROR "v [(]variable of type int[)] is not an interface" */ .(type) {
+		case int:
+			println(x)
+			println(x / /* ERROR "invalid operation: division by zero" */ 0)
+		case /* ERROR "1 is not a type" */ 1:
+		}
 	}
 }
 

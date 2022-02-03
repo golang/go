@@ -133,7 +133,7 @@ func TestMain(m *testing.M) {
 		}
 		gotool, err := testenv.GoTool()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, "locating go tool: ", err)
 			os.Exit(2)
 		}
 
@@ -1128,11 +1128,11 @@ func TestGoListTest(t *testing.T) {
 	tg.grepStdoutNot(`^testing \[sort.test\]$`, "unexpected test copy of testing")
 	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
 
-	tg.run("list", "-test", "cmd/dist", "cmd/doc")
-	tg.grepStdout(`^cmd/dist$`, "missing cmd/dist")
+	tg.run("list", "-test", "cmd/buildid", "cmd/doc")
+	tg.grepStdout(`^cmd/buildid$`, "missing cmd/buildid")
 	tg.grepStdout(`^cmd/doc$`, "missing cmd/doc")
 	tg.grepStdout(`^cmd/doc\.test$`, "missing cmd/doc test")
-	tg.grepStdoutNot(`^cmd/dist\.test$`, "unexpected cmd/dist test")
+	tg.grepStdoutNot(`^cmd/buildid\.test$`, "unexpected cmd/buildid test")
 	tg.grepStdoutNot(`^testing`, "unexpected testing")
 
 	tg.run("list", "-test", "runtime/cgo")
@@ -1387,7 +1387,7 @@ func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
 	for buf.Len() < sys.ExecArgLengthLimit+1 {
 		buf.WriteString(testStr)
 	}
-	tg.run("run", "-buildinfo=false", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
+	tg.run("run", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
 	if tg.stderr.String() != buf.String() {
 		t.Errorf("strings differ")
 	}

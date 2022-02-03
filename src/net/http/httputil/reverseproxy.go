@@ -484,7 +484,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 	}
 }
 
-func (p *ReverseProxy) logf(format string, args ...interface{}) {
+func (p *ReverseProxy) logf(format string, args ...any) {
 	if p.ErrorLog != nil {
 		p.ErrorLog.Printf(format, args...)
 	} else {

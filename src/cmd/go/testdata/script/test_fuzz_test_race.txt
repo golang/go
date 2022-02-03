@@ -1,0 +1,39 @@
+# Test that when both race detection and coverage instrumentation are enabled,
+# and seed values are being executed, the race detector isn't mistakenly
+# triggered.
+
+[short] skip
+[!fuzz] skip
+[!race] skip
+
+# Test with coverage instrumentation enabled (-fuzz) and race instrumentation
+# but without actually fuzzing the target (by using a non-matching pattern)
+go test -fuzz=xxx -race -v
+! stderr 'race detected during execution of test'
+
+# Test with just race instrumentation enabled
+go test -race -v
+! stderr 'race detected during execution of test'
+
+# Test with coverage and race instrumentation enabled, and a matching fuzz
+# pattern
+go test -fuzz=FuzzRace -race -v -fuzztime=200x
+! stderr 'race detected during execution of test'
+
+-- go.mod --
+module test
+
+-- race_test.go --
+package race
+
+import "testing"
+
+func FuzzRace(f *testing.F) {
+	for i := 0; i < 100; i++ {
+		f.Add(i)
+	}
+
+	f.Fuzz(func(t *testing.T, i int) {
+		t.Parallel()
+	})
+}

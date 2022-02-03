@@ -649,19 +649,13 @@
 (GT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GTnoov (CMNW x y) yes no)
 (GE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GEnoov (CMNW x y) yes no)
 
+// CMP(x,-y) -> CMN(x,y) is only valid for unordered comparison, if y can be -1<<63
 (EQ (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (EQ (CMN x y) yes no)
 (NE (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (NE (CMN x y) yes no)
-(LT (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (LT (CMN x y) yes no)
-(LE (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (LE (CMN x y) yes no)
-(GT (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (GT (CMN x y) yes no)
-(GE (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (GE (CMN x y) yes no)
 
+// CMPW(x,-y) -> CMNW(x,y) is only valid for unordered comparison, if y can be -1<<31
 (EQ (CMPW x z:(NEG y)) yes no) && z.Uses == 1 => (EQ (CMNW x y) yes no)
 (NE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 => (NE (CMNW x y) yes no)
-(LT (CMPW x z:(NEG y)) yes no) && z.Uses == 1 => (LT (CMNW x y) yes no)
-(LE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 => (LE (CMNW x y) yes no)
-(GT (CMPW x z:(NEG y)) yes no) && z.Uses == 1 => (GT (CMNW x y) yes no)
-(GE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 => (GE (CMNW x y) yes no)
 
 (EQ (CMPconst [0] x) yes no) => (Z x yes no)
 (NE (CMPconst [0] x) yes no) => (NZ x yes no)

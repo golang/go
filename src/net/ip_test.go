@@ -407,6 +407,7 @@ var ipNetStringTests = []struct {
 	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: IPv4Mask(255, 0, 255, 0)}, "192.168.1.0/ff00ff00"},
 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: CIDRMask(55, 128)}, "2001:db8::/55"},
 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::"))}, "2001:db8::/8000f1230000cafe0000000000000000"},
+	{nil, "<nil>"},
 }
 
 func TestIPNetString(t *testing.T) {
@@ -718,7 +719,7 @@ var ipAddrScopeTests = []struct {
 	{IP.IsPrivate, IP{0xfe, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
 }
 
-func name(f interface{}) string {
+func name(f any) string {
 	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 }
 

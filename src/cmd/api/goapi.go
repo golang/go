@@ -459,8 +459,11 @@ type listImports struct {
 
 var listCache sync.Map // map[string]listImports, keyed by contextName
 
-// listSem is a semaphore restricting concurrent invocations of 'go list'.
-var listSem = make(chan semToken, runtime.GOMAXPROCS(0))
+// listSem is a semaphore restricting concurrent invocations of 'go list'. 'go
+// list' has its own internal concurrency, so we use a hard-coded constant (to
+// allow the I/O-intensive phases of 'go list' to overlap) instead of scaling
+// all the way up to GOMAXPROCS.
+var listSem = make(chan semToken, 2)
 
 type semToken struct{}
 
@@ -1071,7 +1074,7 @@ func (w *Walker) emitMethod(m *types.Selection) {
 	w.emitf("method (%s%s) %s%s", w.typeString(recv), tps, m.Obj().Name(), w.signatureString(sig))
 }
 
-func (w *Walker) emitf(format string, args ...interface{}) {
+func (w *Walker) emitf(format string, args ...any) {
 	f := strings.Join(w.scope, ", ") + ", " + fmt.Sprintf(format, args...)
 	if strings.Contains(f, "\n") {
 		panic("feature contains newlines: " + f)

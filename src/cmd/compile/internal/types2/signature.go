@@ -18,7 +18,7 @@ type Signature struct {
 	// We then unpack the *Signature and use the scope for the literal body.
 	rparams  *TypeParamList // receiver type parameters from left to right, or nil
 	tparams  *TypeParamList // type parameters from left to right, or nil
-	scope    *Scope         // function scope, present for package-local signatures
+	scope    *Scope         // function scope for package-local and non-instantiated signatures; nil otherwise
 	recv     *Var           // nil if not a method
 	params   *Tuple         // (incoming) parameters from left to right; or nil
 	results  *Tuple         // (outgoing) results from left to right; or nil
@@ -73,9 +73,6 @@ func (s *Signature) SetTypeParams(tparams []*TypeParam) { s.tparams = bindTParam
 // RecvTypeParams returns the receiver type parameters of signature s, or nil.
 func (s *Signature) RecvTypeParams() *TypeParamList { return s.rparams }
 
-// SetRecvTypeParams sets the receiver type params of signature s.
-func (s *Signature) SetRecvTypeParams(rparams []*TypeParam) { s.rparams = bindTParams(rparams) }
-
 // Params returns the parameters of signature s, or nil.
 func (s *Signature) Params() *Tuple { return s.params }
 
@@ -90,9 +87,6 @@ func (s *Signature) String() string   { return TypeString(s, nil) }
 
 // ----------------------------------------------------------------------------
 // Implementation
-
-// Disabled by default, but enabled when running tests (via types_test.go).
-var acceptMethodTypeParams bool
 
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []*syntax.Field, ftyp *syntax.FuncType) {
@@ -163,13 +157,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	}
 
 	if tparams != nil {
+		// The parser will complain about invalid type parameters for methods.
 		check.collectTypeParams(&sig.tparams, tparams)
-		// Always type-check method type parameters but complain if they are not enabled.
-		// (A separate check is needed when type-checking interface method signatures because
-		// they don't have a receiver specification.)
-		if recvPar != nil && !acceptMethodTypeParams {
-			check.error(ftyp, "methods cannot have type parameters")
-		}
 	}
 
 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
@@ -216,7 +205,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 			var err string
 			switch T := rtyp.(type) {
 			case *Named:
-				T.resolve(check.conf.Context)
+				T.resolve(check.bestContext(nil))
 				// The receiver type may be an instantiated type referred to
 				// by an alias (which cannot have receiver parameters for now).
 				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {

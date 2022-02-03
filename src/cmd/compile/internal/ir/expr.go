@@ -250,7 +250,8 @@ func (n *ConstExpr) Val() constant.Value { return n.val }
 // It may end up being a value or a type.
 type ConvExpr struct {
 	miniExpr
-	X Node
+	X           Node
+	NonEscaping bool // The allocation needed for the conversion to interface is known not to escape
 }
 
 func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {

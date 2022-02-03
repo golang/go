@@ -18,8 +18,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 )
 
 var CmdRun = &base.Command{
@@ -69,7 +69,7 @@ func init() {
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
-func printStderr(args ...interface{}) (int, error) {
+func printStderr(args ...any) (int, error) {
 	return fmt.Fprint(os.Stderr, args...)
 }
 

@@ -638,3 +638,29 @@ var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
 	testFiles(t, nil, []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
 	testFiles(t, nil, []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
 }
+
+func TestIssue50646(t *testing.T) {
+	anyType := Universe.Lookup("any").Type()
+	comparableType := Universe.Lookup("comparable").Type()
+
+	if !Comparable(anyType) {
+		t.Errorf("any is not a comparable type")
+	}
+	if !Comparable(comparableType) {
+		t.Errorf("comparable is not a comparable type")
+	}
+
+	if Implements(anyType, comparableType.Underlying().(*Interface)) {
+		t.Errorf("any implements comparable")
+	}
+	if !Implements(comparableType, anyType.(*Interface)) {
+		t.Errorf("comparable does not implement any")
+	}
+
+	if AssignableTo(anyType, comparableType) {
+		t.Errorf("any assignable to comparable")
+	}
+	if !AssignableTo(comparableType, anyType) {
+		t.Errorf("comparable not assignable to any")
+	}
+}

@@ -1,8 +1,15 @@
 <!--{
-	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Oct 15, 2021",
+	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
+	"Subtitle": "Version of Jan 31, 2022",
 	"Path": "/ref/spec"
 }-->
+
+<h2>Earlier version</h2>
+
+<p>
+For the pre-Go1.18 specification without generics support see
+<a href="/doc/go1.17_spec.html">The Go Programming Language Specification</a>.
+</p>
 
 <h2 id="Introduction">Introduction</h2>
 
@@ -258,7 +265,7 @@ continue     for          import       return       var
 
 <p>
 The following character sequences represent <a href="#Operators">operators</a>
-(including <a href="#assign_op">assignment operators</a>) and punctuation:
+(including <a href="#Assignments">assignment operators</a>) and punctuation:
 </p>
 <pre class="grammar">
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
@@ -266,7 +273,7 @@ The following character sequences represent <a href="#Operators">operators</a>
 *    ^     *=    ^=     &lt;-    &gt;     &gt;=    {    }
 /    &lt;&lt;    /=    &lt;&lt;=    ++    =     :=    ,    ;
 %    &gt;&gt;    %=    &gt;&gt;=    --    !     ...   .    :
-     &amp;^          &amp;^=
+     &amp;^          &amp;^=          ~
 </pre>
 
 <h3 id="Integer_literals">Integer literals</h3>
@@ -635,7 +642,7 @@ an identifier denoting a constant,
 a <a href="#Constant_expressions">constant expression</a>,
 a <a href="#Conversions">conversion</a> with a result that is a constant, or
 the result value of some built-in functions such as
-<code>unsafe.Sizeof</code> applied to any value,
+<code>unsafe.Sizeof</code> applied to <a href="#Package_unsafe">certain values</a>,
 <code>cap</code> or <code>len</code> applied to
 <a href="#Length_and_capacity">some expressions</a>,
 <code>real</code> and <code>imag</code> applied to a complex constant
@@ -780,32 +787,46 @@ If a variable has not yet been assigned a value, its value is the
 
 <p>
 A type determines a set of values together with operations and methods specific
-to those values. A type may be denoted by a <i>type name</i>, if it has one,
-or specified using a <i>type literal</i>, which composes a type from existing types.
+to those values. A type may be denoted by a <i>type name</i>, if it has one, which must be
+followed by <a href="#Instantiations">type arguments</a> if the type is parameterized.
+A type may also be specified using a <i>type literal</i>, which composes a type
+from existing types.
 </p>
 
 <pre class="ebnf">
-Type      = TypeName | TypeLit | "(" Type ")" .
+Type      = TypeName [ TypeArgs ] | TypeLit | "(" Type ")" .
 TypeName  = identifier | QualifiedIdent .
+TypeArgs  = "[" TypeList [ "," ] "]" .
+TypeList  = Type { "," Type } .
 TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
 	    SliceType | MapType | ChannelType .
 </pre>
 
 <p>
 The language <a href="#Predeclared_identifiers">predeclares</a> certain type names.
-Others are introduced with <a href="#Type_declarations">type declarations</a>.
+Others are introduced with <a href="#Type_declarations">type declarations</a>
+or <a href="#Type_parameter_lists">type parameter lists</a>.
 <i>Composite types</i>&mdash;array, struct, pointer, function,
 interface, slice, map, and channel types&mdash;may be constructed using
 type literals.
 </p>
 
 <p>
+Predeclared types, defined types, and type parameters are called <i>named types</i>.
+An alias denotes a named type if the type given in the alias declaration is a named type.
+</p>
+
+<h3 id="Underlying_types">Underlying types</h3>
+
+<p>
 Each type <code>T</code> has an <i>underlying type</i>: If <code>T</code>
 is one of the predeclared boolean, numeric, or string types, or a type literal,
-the corresponding underlying
-type is <code>T</code> itself. Otherwise, <code>T</code>'s underlying type
-is the underlying type of the type to which <code>T</code> refers in its
-<a href="#Type_declarations">type declaration</a>.
+the corresponding underlying type is <code>T</code> itself.
+Otherwise, <code>T</code>'s underlying type is the underlying type of the
+type to which <code>T</code> refers in its <a href="#Type_declarations">type
+declaration</a>. Accordingly, the underlying type of a type parameter is the
+underlying type of its <a href="#Type_constraints">type constraint</a>, which
+is always an interface.
 </p>
 
 <pre>
@@ -820,36 +841,52 @@ type (
 	B3 []B1
 	B4 B3
 )
+
+func f[P any](x P) { … }
 </pre>
 
 <p>
 The underlying type of <code>string</code>, <code>A1</code>, <code>A2</code>, <code>B1</code>,
 and <code>B2</code> is <code>string</code>.
 The underlying type of <code>[]B1</code>, <code>B3</code>, and <code>B4</code> is <code>[]B1</code>.
+The underlying type of <code>P</code> is <code>interface{}</code>.
 </p>
 
 <h3 id="Method_sets">Method sets</h3>
+
 <p>
-A type has a (possibly empty) <i>method set</i> associated with it.
-The method set of an <a href="#Interface_types">interface type</a> is its interface.
-The method set of any other type <code>T</code> consists of all
+The <i>method set</i> of a type determines the methods that can be
+<a href="#Calls">called</a> on an <a href="#Operands">operand</a> of that type.
+Every type has a (possibly empty) method set associated with it:
+</p>
+
+<ul>
+<li>The method set of a <a href="#Type_definitions">defined type</a> <code>T</code> consists of all
 <a href="#Method_declarations">methods</a> declared with receiver type <code>T</code>.
-The method set of the corresponding <a href="#Pointer_types">pointer type</a> <code>*T</code>
-is the set of all methods declared with receiver <code>*T</code> or <code>T</code>
-(that is, it also contains the method set of <code>T</code>).
-Further rules apply to structs containing embedded fields, as described
-in the section on <a href="#Struct_types">struct types</a>.
+</li>
+
+<li>
+The method set of a pointer to a defined type <code>T</code>
+(where <code>T</code> is neither a pointer nor an interface)
+is the set of all methods declared with receiver <code>*T</code> or <code>T</code>.
+</li>
+
+<li>The method set of an <a href="#Interface_types">interface type</a> is the intersection
+of the method sets of each type in the interface's <a href="#Interface_types">type set</a>
+(the resulting method set is usually just the set of declared methods in the interface).
+</li>
+</ul>
+
+<p>
+Further rules apply to structs (and pointer to structs) containing embedded fields,
+as described in the section on <a href="#Struct_types">struct types</a>.
 Any other type has an empty method set.
-In a method set, each method must have a
-<a href="#Uniqueness_of_identifiers">unique</a>
-non-<a href="#Blank_identifier">blank</a> <a href="#MethodName">method name</a>.
 </p>
 
 <p>
-The method set of a type determines the interfaces that the
-type <a href="#Interface_types">implements</a>
-and the methods that can be <a href="#Calls">called</a>
-using a receiver of that type.
+In a method set, each method must have a
+<a href="#Uniqueness_of_identifiers">unique</a>
+non-<a href="#Blank_identifier">blank</a> <a href="#MethodName">method name</a>.
 </p>
 
 <h3 id="Boolean_types">Boolean types</h3>
@@ -1232,27 +1269,37 @@ func(int, int, float64) (float64, *[]int)
 func(n int) func(p *T)
 </pre>
 
-
 <h3 id="Interface_types">Interface types</h3>
 
 <p>
-An interface type specifies a <a href="#Method_sets">method set</a> called its <i>interface</i>.
-A variable of interface type can store a value of any type with a method set
-that is any superset of the interface. Such a type is said to
-<i>implement the interface</i>.
+An interface type defines a <i>type set</i>.
+A variable of interface type can store a value of any type that is in the type
+set of the interface. Such a type is said to <i>implement the interface</i>.
 The value of an uninitialized variable of interface type is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
-InterfaceType      = "interface" "{" { ( MethodSpec | InterfaceTypeName ) ";" } "}" .
-MethodSpec         = MethodName Signature .
-MethodName         = identifier .
-InterfaceTypeName  = TypeName .
+InterfaceType  = "interface" "{" { InterfaceElem ";" } "}" .
+InterfaceElem  = MethodElem | TypeElem .
+MethodElem     = MethodName Signature .
+MethodName     = identifier .
+TypeElem       = TypeTerm { "|" TypeTerm } .
+TypeTerm       = Type | UnderlyingType .
+UnderlyingType = "~" Type .
 </pre>
 
 <p>
-An interface type may specify methods <i>explicitly</i> through method specifications,
-or it may <i>embed</i> methods of other interfaces through interface type names.
+An interface type is specified by a list of <i>interface elements</i>.
+An interface element is either a <i>method</i> or a <i>type element</i>,
+where a type element is a union of one or more <i>type terms</i>.
+A type term is either a single type or a single underlying type.
+</p>
+
+<p>
+In its most basic form an interface specifies a (possibly empty) list of methods.
+The type set defined by such an interface is the set of types which implement all of
+those methods, and the corresponding <a href="#Method_sets">method set</a> consists
+exactly of the methods specified by the interface.
 </p>
 
 <pre>
@@ -1297,14 +1344,18 @@ then the <code>File</code> interface is implemented by both <code>S1</code> and
 </p>
 
 <p>
-A type implements any interface comprising any subset of its methods
-and may therefore implement several distinct interfaces. For
-instance, all types implement the <i>empty interface</i>:
+Every type that is a member of the type set of an interface implements that interface.
+Any given type may implement several distinct interfaces.
+For instance, all types implement the <i>empty interface</i> which stands for the set of all types:
 </p>
 
 <pre>
 interface{}
 </pre>
+
+<p>
+For convenience, the predeclared type <code>any</code> is an alias for the empty interface.
+</p>
 
 <p>
 Similarly, consider this interface specification,
@@ -1334,12 +1385,16 @@ as the <code>File</code> interface.
 </p>
 
 <p>
-An interface <code>T</code> may use a (possibly qualified) interface type
-name <code>E</code> in place of a method specification. This is called
+In a slightly more general form
+an interface <code>T</code> may use a (possibly qualified) interface type
+name <code>E</code> as an interface element. This is called
 <i>embedding</i> interface <code>E</code> in <code>T</code>.
-The <a href="#Method_sets">method set</a> of <code>T</code> is the <i>union</i>
-of the method sets of <code>T</code>’s explicitly declared methods and of
-<code>T</code>’s embedded interfaces.
+The type set of <code>T</code> is the <i>intersection</i> of the type sets
+defined by <code>T</code>'s explicitly declared methods and the type sets
+of <code>T</code>’s embedded interfaces.
+In other words, the type set of <code>T</code> is the set of all types that implement all the
+explicitly declared methods of <code>T</code> and also all the methods of
+<code>E</code>.
 </p>
 
 <pre>
@@ -1361,8 +1416,7 @@ type ReadWriter interface {
 </pre>
 
 <p>
-A <i>union</i> of method sets contains the (exported and non-exported)
-methods of each method set exactly once, and methods with the
+When embedding interfaces, methods with the
 <a href="#Uniqueness_of_identifiers">same</a> names must
 have <a href="#Type_identity">identical</a> signatures.
 </p>
@@ -1373,6 +1427,138 @@ type ReadCloser interface {
 	Close()  // illegal: signatures of Reader.Close and Close are different
 }
 </pre>
+
+<p>
+Finally, in their most general form, an interface element may also be an arbitrary type term
+<code>T</code>, or a term of the form <code>~T</code> specifying the underlying type <code>T</code>,
+or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>.
+Together with method specifications, these elements enable the precise
+definition of an interface's type set as follows:
+</p>
+
+<ul>
+	<li>The type set of the empty interface is the set of all types.
+	</li>
+
+	<li>The type set of a non-empty interface is the intersection of the type sets
+		of its interface elements.
+	</li>
+
+	<li>The type set of a method specification is the set of types
+		whose method sets include that method.
+	</li>
+
+	<li>The type set of a non-interface type term is the set consisting
+		of just that type.
+	</li>
+
+	<li>The type set of a term of the form <code>~T</code>
+		is the set of types whose underlying type is <code>T</code>.
+	</li>
+
+	<li>The type set of a <i>union</i> of terms
+		<code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>
+		is the union of the type sets of the terms.
+	</li>
+</ul>
+
+<pre>
+// An interface representing only the type int.
+interface {
+	int
+}
+
+// An interface representing all types with underlying type int.
+interface {
+	~int
+}
+
+// An interface representing all types with underlying type int which implement the String method.
+interface {
+	~int
+	String() string
+}
+
+// An interface representing an empty type set: there is no type that is both an int and a string.
+interface {
+	int
+	string
+}
+</pre>
+
+<p>
+In a term of the form <code>~T</code>, the underlying type of <code>T</code>
+must be itself, and <code>T</code> cannot be an interface.
+</p>
+
+<pre>
+type MyInt int
+
+interface {
+	~[]byte  // the underlying type of []byte is itself
+	~MyInt   // illegal: the underlying type of MyInt is not MyInt
+	~error   // illegal: error is an interface
+}
+</pre>
+
+<p>
+Union elements denote unions of type sets:
+</p>
+
+<pre>
+// The Floats interface represents all floating-point types
+// (including any named types whose underlying types are
+// either float32 or float64).
+type Floats interface {
+	~float32 | ~float64
+}
+</pre>
+
+<p>
+In a union, a term cannot be a type parameter, and the type sets of all
+non-interface terms must be pairwise disjoint (the pairwise intersection of the type sets must be empty).
+Given a type parameter <code>P</code>:
+</p>
+
+<pre>
+interface {
+	P                 // illegal: the term P is a type parameter
+	int | P           // illegal: the term P is a type parameter
+	~int | MyInt      // illegal: the type sets for ~int and MyInt are not disjoint (~int includes MyInt)
+	float32 | Floats  // overlapping type sets but Floats is an interface
+}
+</pre>
+
+<p>
+Implementation restriction:
+A union with more than one term cannot contain interface types
+with non-empty <a href="#Method_sets">method sets</a> or which
+are or embed the <a href="#Predeclared_identifiers">predeclared identifier</a>
+<code>comparable</code>.
+</p>
+
+<p>
+Interfaces that contain non-interface types, terms of the form <code>~T</code>,
+or unions may only be used as type constraints, or as elements of other interfaces used
+as constraints. They cannot be the types of values or variables, or components of other,
+non-interface types.
+</p>
+
+<pre>
+var x Floats                     // illegal: Floats is restricted by float32 and float64
+
+var x interface{} = Floats(nil)  // illegal
+
+type Floatish struct {
+	f Floats                 // illegal
+}
+</pre>
+
+<!-- TODO The rule below needs to be generalized to interface elements.
+	  It should be factored out and generalized to other types
+	  such as arrays and structs which are currently missing such a
+	  rule. See also #5069.
+-->
 
 <p>
 An interface type <code>T</code> may not embed itself
@@ -1416,7 +1602,6 @@ slice.
 If the key type is an interface type, these
 comparison operators must be defined for the dynamic key values;
 failure will cause a <a href="#Run_time_panics">run-time panic</a>.
-
 </p>
 
 <pre>
@@ -1470,8 +1655,8 @@ ChannelType = ( "chan" | "chan" "&lt;-" | "&lt;-" "chan" ) ElementType .
 
 <p>
 The optional <code>&lt;-</code> operator specifies the channel <i>direction</i>,
-<i>send</i> or <i>receive</i>. If no direction is given, the channel is
-<i>bidirectional</i>.
+<i>send</i> or <i>receive</i>. If a direction is given, the channel is <i>directional</i>,
+otherwise it is <i>bidirectional</i>.
 A channel may be constrained only to send or only to receive by
 <a href="#Assignments">assignment</a> or
 explicit <a href="#Conversions">conversion</a>.
@@ -1538,6 +1723,25 @@ and a second goroutine receives them, the values are
 received in the order sent.
 </p>
 
+<h3 id="Type_parameters">Type parameters</h3>
+
+<p>
+A <i>type parameter</i> is an (unqualified) type name declared in the
+<a href="#Type_parameter_lists">type parameter list</a> of a
+<a href="#Function_declarations">function declaration</a> or
+<a href="#Type_definitions">type definition</a>; or in the receiver specification
+of a <a href="#Method_declarations">method declaration</a> that is associated
+with a parameterized type.
+A type parameter acts as a place holder for an (as of yet) unknown type in the declaration;
+the type parameter is replaced with a <i>type argument</i> upon
+<a href="#Instantiations">instantiation</a> of the parameterized function or type.
+</p>
+
+<p>
+The properties of a type parameter are determined by its
+<a href="#Type_constraints">type constraint</a>.
+</p>
+
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
 
 <h3 id="Type_identity">Type identity</h3>
@@ -1547,7 +1751,7 @@ Two types are either <i>identical</i> or <i>different</i>.
 </p>
 
 <p>
-A <a href="#Type_definitions">defined type</a> is always different from any other type.
+A <a href="#Types">named type</a> is always different from any other type.
 Otherwise, two types are identical if their <a href="#Types">underlying</a> type literals are
 structurally equivalent; that is, they have the same literal structure and corresponding
 components have identical types. In detail:
@@ -1572,15 +1776,17 @@ components have identical types. In detail:
 	    identical, and either both functions are variadic or neither is.
 	    Parameter and result names are not required to match.</li>
 
-	<li>Two interface types are identical if they have the same set of methods
-	    with the same names and identical function types.
-	    <a href="#Exported_identifiers">Non-exported</a> method names from different
-	    packages are always different. The order of the methods is irrelevant.</li>
+	<li>Two interface types are identical if they define the same type set.
+	</li>
 
 	<li>Two map types are identical if they have identical key and element types.</li>
 
 	<li>Two channel types are identical if they have identical element types and
 	    the same direction.</li>
+
+	<li>Two <a href="#Instantiations">instantiated</a> types are identical if
+	    their defined types and all type arguments are identical.
+	</li>
 </ul>
 
 <p>
@@ -1595,18 +1801,18 @@ type (
 	A3 = int
 	A4 = func(A3, float64) *A0
 	A5 = func(x int, _ float64) *[]string
-)
 
-type (
 	B0 A0
 	B1 []string
 	B2 struct{ a, b int }
 	B3 struct{ a, c int }
 	B4 func(int, float64) *B0
 	B5 func(x int, y float64) *A1
-)
 
-type	C0 = B0
+	C0 = B0
+	D0[P1, P2 any] struct{ x P1; y P2 }
+	E0 = D0[int, string]
+)
 </pre>
 
 <p>
@@ -1620,6 +1826,7 @@ A3 and int
 A4, func(int, float64) *[]string, and A5
 
 B0 and C0
+D0[int, string] and E0
 []int and []int
 struct{ a, b *T5 } and struct{ a, b *T5 }
 func(x int, y float64) *[]string, func(int, float64) (result *[]string), and A5
@@ -1629,9 +1836,14 @@ func(x int, y float64) *[]string, func(int, float64) (result *[]string), and A5
 <code>B0</code> and <code>B1</code> are different because they are new types
 created by distinct <a href="#Type_definitions">type definitions</a>;
 <code>func(int, float64) *B0</code> and <code>func(x int, y float64) *[]string</code>
-are different because <code>B0</code> is different from <code>[]string</code>.
+are different because <code>B0</code> is different from <code>[]string</code>;
+and <code>P1</code> and <code>P2</code> are different because they are different
+type parameters.
+<code>D0[int, string]</code> and <code>struct{ x int; y string }</code> are
+different because the former is an <a href="#Instantiations">instantiated</a>
+defined type while the latter is a type literal
+(but they are still <a href="#Assignability">assignable</a>).
 </p>
-
 
 <h3 id="Assignability">Assignability</h3>
 
@@ -1646,21 +1858,22 @@ A value <code>x</code> is <i>assignable</i> to a <a href="#Variables">variable</
 </li>
 <li>
 <code>x</code>'s type <code>V</code> and <code>T</code> have identical
-<a href="#Types">underlying types</a> and at least one of <code>V</code>
-or <code>T</code> is not a <a href="#Type_definitions">defined</a> type.
+<a href="#Underlying_types">underlying types</a> and at least one of <code>V</code>
+or <code>T</code> is not a <a href="#Types">named type</a>.
 </li>
 <li>
-<code>T</code> is an interface type and
+<code>x</code>'s type <code>V</code> and <code>T</code> are channel types with
+identical element types, <code>V</code> is a bidirectional channel,
+and at least one of <code>V</code> or <code>T</code> is not a <a href="#Types">named type</a>.
+</li>
+<li>
+<code>T</code> is an interface type, but not a type parameter, and
 <code>x</code> <a href="#Interface_types">implements</a> <code>T</code>.
 </li>
 <li>
-<code>x</code> is a bidirectional channel value, <code>T</code> is a channel type,
-<code>x</code>'s type <code>V</code> and <code>T</code> have identical element types,
-and at least one of <code>V</code> or <code>T</code> is not a defined type.
-</li>
-<li>
 <code>x</code> is the predeclared identifier <code>nil</code> and <code>T</code>
-is a pointer, function, slice, map, channel, or interface type.
+is a pointer, function, slice, map, channel, or interface type,
+but not a type parameter.
 </li>
 <li>
 <code>x</code> is an untyped <a href="#Constants">constant</a>
@@ -1669,12 +1882,37 @@ by a value of type <code>T</code>.
 </li>
 </ul>
 
+<p>
+Additionally, if <code>x's</code> type <code>V</code> or <code>T</code> are type parameters
+with <a href="#Structure_of_interfaces">specific types</a>, <code>x</code>
+is assignable to a variable of type <code>T</code> if one of the following conditions applies:
+</p>
+
+<ul>
+<li>
+<code>x</code> is the predeclared identifier <code>nil</code>, <code>T</code> is
+a type parameter, and <code>x</code> is assignable to each specific type of
+<code>T</code>.
+</li>
+<li>
+<code>V</code> is not a <a href="#Types">named type</a>, <code>T</code> is
+a type parameter, and <code>x</code> is assignable to each specific type of
+<code>T</code>.
+</li>
+<li>
+<code>V</code> is a type parameter and <code>T</code> is not a named type,
+and values of each specific type of <code>V</code> are assignable
+to <code>T</code>.
+</li>
+</ul>
 
 <h3 id="Representability">Representability</h3>
 
 <p>
 A <a href="#Constants">constant</a> <code>x</code> is <i>representable</i>
-by a value of type <code>T</code> if one of the following conditions applies:
+by a value of type <code>T</code>,
+where <code>T</code> is not a <a href="#Type_parameters">type parameter</a>,
+if one of the following conditions applies:
 </p>
 
 <ul>
@@ -1696,6 +1934,12 @@ are representable by values of <code>T</code>'s component type (<code>float32</c
 <code>float64</code>).
 </li>
 </ul>
+
+<p>
+If <code>T</code> is a type parameter with <a href="#Structure_of_interfaces">specific types</a>,
+<code>x</code> is representable by a value of type <code>T</code> if <code>x</code> is representable
+by a value of each specific type of <code>T</code>.
+</p>
 
 <pre>
 x                   T           x is representable by a value of T because
@@ -1724,6 +1968,124 @@ x                   T           x is not representable by a value of T because
 1e1000              float64     1e1000 overflows to IEEE +Inf after rounding
 </pre>
 
+<h3 id="Structure_of_interfaces">Structure of interfaces</h3>
+
+<p>
+An interface specification which contains <a href="#Interface_types">type elements</a>
+defines a (possibly empty) set of <i>specific types</i>.
+Loosely speaking, these are the types <code>T</code> that appear in the
+interface definition in terms of the form <code>T</code>, <code>~T</code>,
+or in unions of such terms.
+</p>
+
+<p>
+More precisely, for a given interface, the set of specific types corresponds to
+the set 𝑅 of representative types of the interface, if 𝑅 is non-empty and finite.
+Otherwise, if 𝑅 is empty or infinite, the interface has <i>no specific types</i>.
+</p>
+
+<p>
+For a given interface, type element or type term, the set 𝑅 of representative types is defined as follows:
+</p>
+
+<ul>
+	<li>For an interface with no type elements, 𝑅 is the (infinite) set of all types.
+	</li>
+
+	<li>For an interface with type elements,
+		𝑅 is the intersection of the representative types of its type elements.
+	</li>
+
+	<li>For a non-interface type term <code>T</code> or a term of the form <code>~T</code>,
+		𝑅 is the set consisting of the type <code>T</code>.
+	</li>
+
+	<li>For a <i>union</i> of terms
+		<code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>,
+		𝑅 is the union of the representative types of the terms.
+	</li>
+</ul>
+
+<p>
+An interface may have specific types even if its <a href="#Interface_types">type set</a>
+is empty.
+</p>
+
+<p>
+Examples of interfaces with their specific types:
+</p>
+
+<pre>
+type Celsius float32
+type Kelvin  float32
+
+interface{}                    // no specific types
+interface{ int }               // int
+interface{ ~string }           // string
+interface{ int|~string }       // int, string
+interface{ Celsius|Kelvin }    // Celsius, Kelvin
+interface{ float64|any }       // no specific types (union is all types)
+interface{ int; m() }          // int (but type set is empty because int has no method m)
+interface{ ~int; m() }         // int (but type set is infinite because many integer types have a method m)
+interface{ int; any }          // int
+interface{ int; string }       // no specific types (intersection is empty)
+</pre>
+
+<p>
+An interface <code>T</code> is called <i>structural</i> if one of the following
+conditions is satisfied:
+</p>
+
+<ol>
+<li>
+There is a single type <code>U</code> which is the <a href="#Underlying_types">underlying type</a>
+of all types in the <a href="#Interface_types">type set</a> of <code>T</code>; or
+</li>
+<li>
+the type set of <code>T</code> contains only <a href="#Channel_types">channel types</a>
+with identical element type <code>E</code>, and all directional channels have the same
+direction.
+</li>
+</ol>
+
+<p>
+A structural interface has a <i>structural type</i> which is, depending on the
+condition that is satisfied, either:
+</p>
+
+<ol>
+<li>
+the type <code>U</code>; or
+</li>
+<li>
+the type <code>chan E</code> if <code>T</code> contains only bidirectional
+channels, or the type <code>chan&lt;- E</code> or <code>&lt;-chan E</code>
+depending on the direction of the directional channels present.
+</li>
+</ol>
+
+<p>
+Examples of structural interfaces with their structural types:
+</p>
+
+<pre>
+interface{ int }                          // int
+interface{ Celsius|Kelvin }               // float32
+interface{ ~chan int }                    // chan int
+interface{ ~chan int|~chan&lt;- int }        // chan&lt;- int
+interface{ ~[]*data; String() string }    // []*data
+</pre>
+
+<p>
+Examples of non-structural interfaces:
+</p>
+
+<pre>
+interface{}                               // no single underlying type
+interface{ Celsius|float64 }              // no single underlying type
+interface{ chan int | chan&lt;- string }     // channels have different element types
+interface{ &lt;-chan int | chan&lt;- int }      // directional channels have different directions
+</pre>
 
 <h2 id="Blocks">Blocks</h2>
 
@@ -1815,6 +2177,15 @@ Go is lexically scoped using <a href="#Blocks">blocks</a>:
 	<li>The scope of an identifier denoting a method receiver, function parameter,
 	    or result variable is the function body.</li>
 
+	<li>The scope of an identifier denoting a type parameter of a type-parameterized function
+	    or declared by a method receiver is the function body and all parameter lists of the
+	    function.
+	</li>
+
+	<li>The scope of an identifier denoting a type parameter of a parameterized type
+	    begins after the name of the parameterized type and ends at the end
+	    of the TypeSpec.</li>
+
 	<li>The scope of a constant or variable identifier declared
 	    inside a function begins at the end of the ConstSpec or VarSpec
 	    (ShortVarDecl for short variable declarations)
@@ -1872,7 +2243,8 @@ The following identifiers are implicitly declared in the
 </p>
 <pre class="grammar">
 Types:
-	bool byte complex64 complex128 error float32 float64
+	any bool byte comparable
+	complex64 complex128 error float32 float64
 	int int8 int16 int32 int64 rune string
 	uint uint8 uint16 uint32 uint64 uintptr
 
@@ -1886,7 +2258,6 @@ Functions:
 	append cap close complex copy delete imag len
 	make new panic print println real recover
 </pre>
-
 
 <h3 id="Exported_identifiers">Exported identifiers</h3>
 
@@ -1904,7 +2275,6 @@ An identifier is exported if both:
 <p>
 All other identifiers are not exported.
 </p>
-
 
 <h3 id="Uniqueness_of_identifiers">Uniqueness of identifiers</h3>
 
@@ -2076,12 +2446,12 @@ type (
 
 <p>
 A type definition creates a new, distinct type with the same
-<a href="#Types">underlying type</a> and operations as the given type,
-and binds an identifier to it.
+<a href="#Types">underlying type</a> and operations as the given type
+and binds an identifier, the <i>type name</i>, to it.
 </p>
 
 <pre class="ebnf">
-TypeDef = identifier Type .
+TypeDef = identifier [ TypeParameters ] Type .
 </pre>
 
 <p>
@@ -2158,6 +2528,180 @@ func (tz TimeZone) String() string {
 }
 </pre>
 
+<p>
+If the type definition specifies <a href="#Type_parameter_lists">type parameters</a>,
+the type name denotes a <i>parameterized type</i>.
+Parameterized types must be <a href="#Instantiations">instantiated</a> when they
+are used.
+</p>
+
+<pre>
+type List[T any] struct {
+	next  *List[T]
+	value T
+}
+
+type Tree[T constraints.Ordered] struct {
+	left, right *Tree[T]
+	value       T
+}
+</pre>
+
+<p>
+The given type cannot be a type parameter in a type definition.
+</p>
+
+<pre>
+type T[P any] P    // illegal: P is a type parameter
+
+func f[T any]() {
+	type L T   // illegal: T is a type parameter declared by the enclosing function
+}
+</pre>
+
+<p>
+A parameterized type may also have methods associated with it. In this case,
+the method receivers must declare the same number of type parameters as
+present in the parameterized type definition.
+</p>
+
+<pre>
+// The method Len returns the number of elements in the linked list l.
+func (l *List[T]) Len() int  { … }
+</pre>
+
+<h3 id="Type_parameter_lists">Type parameter lists</h3>
+
+<p>
+A type parameter list declares the <a href="#Type_parameters">type parameters</a>
+in a type-parameterized function or type declaration.
+The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
+except that the type parameter names must all be present and the list is enclosed
+in square brackets rather than parentheses.
+</p>
+
+<pre class="ebnf">
+TypeParameters  = "[" TypeParamList [ "," ] "]" .
+TypeParamList   = TypeParamDecl { "," TypeParamDecl } .
+TypeParamDecl   = IdentifierList TypeConstraint .
+</pre>
+
+<p>
+Each identifier declares a type parameter.
+All non-blank names in the list must be unique.
+Each type parameter is a new and different <a href="#Types">named type</a>.
+</p>
+
+<pre>
+[P any]
+[S interface{ ~[]byte|string }]
+[S ~[]E, E any]
+[P Constraint[int]]
+[_ any]
+</pre>
+
+<p>
+Just as each ordinary function parameter has a parameter type, each type parameter
+has a corresponding (meta-)type which is called its
+<a href="#Type_constraints"><i>type constraint</i></a>.
+</p>
+
+<p>
+A parsing ambiguity arises when the type parameter list for a parameterized type
+declares a single type parameter with a type constraint of the form <code>*C</code>
+or <code>(C)</code> where <code>C</code> is not a (possibly parenthesized)
+<a href="#Types">type literal</a>:
+</p>
+
+<pre>
+type T[P *C] …
+type T[P (C)] …
+</pre>
+
+<p>
+In these rare cases, the type parameter declaration is indistinguishable from
+the expressions <code>P*C</code> or <code>P(C)</code> and the type declaration
+is parsed as an array type declaration.
+To resolve the ambiguity, embed the constraint in an interface or use a trailing
+comma:
+</p>
+
+<pre>
+type T[P interface{*C}] …
+type T[P *C,] …
+</pre>
+
+<h4 id="Type_constraints">Type constraints</h4>
+
+<p>
+A type constraint is an <a href="#Interface_types">interface</a> that defines the
+set of permissible type arguments for the respective type parameter and controls the
+operations supported by values of that type parameter.
+</p>
+
+<pre class="ebnf">
+TypeConstraint = TypeElem .
+</pre>
+
+<p>
+If the constraint is an interface literal containing exactly one embedded type element
+<code>interface{E}</code>, in a type parameter list the enclosing <code>interface{ … }</code>
+may be omitted for convenience:
+</p>
+
+<pre>
+[T *P]                             // = [T interface{*P}]
+[T ~int]                           // = [T interface{~int}]
+[T int|string]                     // = [T interface{int|string}]
+type Constraint ~int               // illegal: ~int is not inside a type parameter list
+</pre>
+
+<!--
+We should be able to simplify the rules for comparable or delegate some of them
+elsewhere once we have a section that clearly defines how interfaces implement
+other interfaces based on their type sets. But this should get us going for now.
+-->
+
+<p>
+The <a href="#Predeclared_identifiers">predeclared</a>
+<a href="#Interface_types">interface type</a> <code>comparable</code>
+denotes the set of all concrete (non-interface) types that are
+<a href="#Comparison_operators">comparable</a>. Specifically,
+a type <code>T</code> implements <code>comparable</code> if:
+</p>
+
+<ul>
+<li>
+	<code>T</code> is not an interface type and <code>T</code> supports the operations
+	<code>==</code> and <code>!=</code>; or
+</li>
+<li>
+	<code>T</code> is an interface type and each type in <code>T</code>'s
+	<a href="#Interface_types">type set</a> implements <code>comparable</code>.
+</li>
+</ul>
+
+<p>
+Even though interfaces that are not type parameters can be
+<a href="#Comparison_operators">compared</a>
+(possibly causing a run-time panic) they do not implement
+<code>comparable</code>.
+</p>
+
+<pre>
+int                          // implements comparable
+[]byte                       // does not implement comparable (slices cannot be compared)
+interface{}                  // does not implement comparable (see above)
+interface{ ~int | ~string }  // type parameter only: implements comparable
+interface{ comparable }      // type parameter only: implements comparable
+interface{ ~int | ~[]byte }  // type parameter only: does not implement comparable (not all types in the type set are comparable)
+</pre>
+
+<p>
+The <code>comparable</code> interface and interfaces that (directly or indirectly) embed
+<code>comparable</code> may only be used as type constraints. They cannot be the types of
+values or variables, or components of other, non-interface types.
+</p>
 
 <h3 id="Variable_declarations">Variable declarations</h3>
 
@@ -2267,13 +2811,19 @@ they can be used to declare local temporary variables.
 
 <h3 id="Function_declarations">Function declarations</h3>
 
+<!--
+	Given the importance of functions, this section has always
+	been woefully underdeveloped. Would be nice to expand this
+	a bit.
+-->
+
 <p>
 A function declaration binds an identifier, the <i>function name</i>,
 to a function.
 </p>
 
 <pre class="ebnf">
-FunctionDecl = "func" FunctionName Signature [ FunctionBody ] .
+FunctionDecl = "func" FunctionName [ TypeParameters ] Signature [ FunctionBody ] .
 FunctionName = identifier .
 FunctionBody = Block .
 </pre>
@@ -2296,18 +2846,28 @@ func IndexRune(s string, r rune) int {
 </pre>
 
 <p>
-A function declaration may omit the body. Such a declaration provides the
-signature for a function implemented outside Go, such as an assembly routine.
+If the function declaration specifies <a href="#Type_parameter_lists">type parameters</a>,
+the function name denotes a <i>type-parameterized function</i>.
+Type-parameterized functions must be <a href="#Instantiations">instantiated</a> when they
+are used.
 </p>
 
 <pre>
-func min(x int, y int) int {
+func min[T constraints.Ordered](x, y T) T {
 	if x &lt; y {
 		return x
 	}
 	return y
 }
+</pre>
 
+<p>
+A function declaration without type parameters may omit the body.
+Such a declaration provides the signature for a function implemented outside Go,
+such as an assembly routine.
+</p>
+
+<pre>
 func flushICache(begin, end uintptr)  // implemented externally
 </pre>
 
@@ -2328,9 +2888,10 @@ Receiver   = Parameters .
 The receiver is specified via an extra parameter section preceding the method
 name. That parameter section must declare a single non-variadic parameter, the receiver.
 Its type must be a <a href="#Type_definitions">defined</a> type <code>T</code> or a
-pointer to a defined type <code>T</code>. <code>T</code> is called the receiver
-<i>base type</i>. A receiver base type cannot be a pointer or interface type and
-it must be defined in the same package as the method.
+pointer to a defined type <code>T</code>, possibly followed by a list of type parameter
+names <code>[P1, P2, …]</code> enclosed in square brackets.
+<code>T</code> is called the receiver <i>base type</i>. A receiver base type cannot be
+a pointer or interface type and it must be defined in the same package as the method.
 The method is said to be <i>bound</i> to its receiver base type and the method name
 is visible only within <a href="#Selectors">selectors</a> for type <code>T</code>
 or <code>*T</code>.
@@ -2372,18 +2933,32 @@ to the base type <code>Point</code>.
 </p>
 
 <p>
-The type of a method is the type of a function with the receiver as first
-argument.  For instance, the method <code>Scale</code> has type
+If the receiver base type is a <a href="#Type_declarations">parameterized type</a>, the
+receiver specification must declare corresponding type parameters for the method
+to use. This makes the receiver type parameters available to the method.
+</p>
+
+<p>
+Syntactically, this type parameter declaration looks like an
+<a href="#Instantiations">instantiation</a> of the receiver base type, except that
+the type arguments are the type parameters being declared, one for each type parameter
+of the receiver base type.
+The type parameter names do not need to match their corresponding parameter names in the
+receiver base type definition, and all non-blank parameter names must be unique in the
+receiver parameter section and the method signature.
+The receiver type parameter constraints are implied by the receiver base type definition:
+corresponding type parameters have corresponding constraints.
 </p>
 
 <pre>
-func(p *Point, factor float64)
+type Pair[A, B any] struct {
+	a A
+	b B
+}
+
+func (p Pair[A, B]) Swap() Pair[B, A]  { return Pair[B, A]{p.b, p.a} }
+func (p Pair[First, _]) First() First  { return p.a }
 </pre>
-
-<p>
-However, a function declared this way is not a method.
-</p>
-
 
 <h2 id="Expressions">Expressions</h2>
 
@@ -2405,12 +2980,18 @@ or a parenthesized expression.
 </p>
 
 <p>
+An operand name denoting a <a href="#Function_declarations">type-parameterized function</a>
+may be followed by a list of <a href="#Instantiations">type arguments</a>; the
+resulting operand is an <a href="#Instantiations">instantiated</a> function.
+</p>
+
+<p>
 The <a href="#Blank_identifier">blank identifier</a> may appear as an
 operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
 </p>
 
 <pre class="ebnf">
-Operand     = Literal | OperandName | "(" Expression ")" .
+Operand     = Literal | OperandName [ TypeArgs ] | "(" Expression ")" .
 Literal     = BasicLit | CompositeLit | FunctionLit .
 BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
 OperandName = identifier | QualifiedIdent .
@@ -2419,7 +3000,7 @@ OperandName = identifier | QualifiedIdent .
 <h3 id="Qualified_identifiers">Qualified identifiers</h3>
 
 <p>
-A qualified identifier is an identifier qualified with a package name prefix.
+A <i>qualified identifier</i> is an identifier qualified with a package name prefix.
 Both the package name and the identifier must not be
 <a href="#Blank_identifier">blank</a>.
 </p>
@@ -2653,6 +3234,7 @@ noteFrequency := map[string]float32{
 
 <p>
 A function literal represents an anonymous <a href="#Function_declarations">function</a>.
+Function literals cannot declare type parameters.
 </p>
 
 <pre class="ebnf">
@@ -3190,6 +3772,26 @@ For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
 </ul>
 
 <p>
+For <code>a</code> of <a href="#Type_parameters">type parameter type</a> <code>P</code>:
+</p>
+<ul>
+	<li><code>P</code> must have <a href="#Structure_of_interfaces">specific types</a>.</li>
+	<li>The index expression <code>a[x]</code> must be valid for values
+	    of all specific types of <code>P</code>.</li>
+	<li>The element types of all specific types of <code>P</code> must be identical.
+	    In this context, the element type of a string type is <code>byte</code>.</li>
+	<li>If there is a map type among the specific types of <code>P</code>,
+	    all specific types must be map types, and the respective key types
+	    must be all identical.</li>
+	<li><code>a[x]</code> is the array, slice, or string element at index <code>x</code>,
+	    or the map element with key <code>x</code> of the type argument
+	    that <code>P</code> is instantiated with, and the type of <code>a[x]</code> is
+	    the type of the (identical) element types.</li>
+	<li><code>a[x]</code> may not be assigned to if the specific types of <code>P</code>
+	    include string types.
+</ul>
+
+<p>
 Otherwise <code>a[x]</code> is illegal.
 </p>
 
@@ -3359,8 +3961,9 @@ If the indices are out of range at run time, a <a href="#Run_time_panics">run-ti
 <h3 id="Type_assertions">Type assertions</h3>
 
 <p>
-For an expression <code>x</code> of <a href="#Interface_types">interface type</a>
-and a type <code>T</code>, the primary expression
+For an expression <code>x</code> of <a href="#Interface_types">interface type</a>,
+but not a <a href="#Type_parameters">type parameter</a>, and a type <code>T</code>,
+the primary expression
 </p>
 
 <pre>
@@ -3451,6 +4054,12 @@ math.Atan2(x, y)  // function call
 var pt *Point
 pt.Scale(3.5)     // method call with receiver pt
 </pre>
+
+<p>
+If <code>f</code> denotes a parameterized function, it must be
+<a href="#Instantiations">instantiated</a> before it can be called
+or used as a function value.
+</p>
 
 <p>
 In a function call, the function value and arguments are evaluated in
@@ -3563,6 +4172,460 @@ within <code>Greeting</code>, <code>who</code> will have the same value as <code
 with the same underlying array.
 </p>
 
+<h3 id="Instantiations">Instantiations</h3>
+
+<p>
+A parameterized function or type is <i>instantiated</i> by substituting <i>type arguments</i>
+for the type parameters.
+Instantiation proceeds in two phases:
+</p>
+
+<ol>
+<li>
+Each type argument is substituted for its corresponding type parameter in the parameterized
+declaration.
+This substitution happens across the entire function or type declaration,
+including the type parameter list itself and any types in that list.
+</li>
+
+<li>
+After substitution, each type argument must <a href="#Interface_types">implement</a>
+the <a href="#Type_parameter_lists">constraint</a> (instantiated, if necessary)
+of the corresponding type parameter. Otherwise instantiation fails.
+</li>
+</ol>
+
+<p>
+Instantiating a type results in a new non-parameterized <a href="#Types">named type</a>;
+instantiating a function produces a new non-parameterized function.
+</p>
+
+<pre>
+type parameter list    type arguments    after substitution
+
+[P any]                int               [int any]
+[S ~[]E, E any]        []int, int        [[]int ~[]int, int any]
+[P io.Writer]          string            [string io.Writer]         // illegal: string doesn't implement io.Writer
+</pre>
+
+<p>
+Type arguments may be provided explicitly, or they may be partially or completely
+<a href="#Type_inference">inferred</a>.
+A partially provided type argument list cannot be empty; there must be at least the
+first argument.
+</p>
+
+<pre>
+type T[P1 ~int, P2 ~[]P1] struct{ … }
+
+T[]            // illegal: at least the first type argument must be present, even if it could be inferred
+T[int]         // argument for P1 explicitly provided, argument for P2 inferred
+T[int, []int]  // both arguments explicitly provided
+</pre>
+
+<p>
+A partial type argument list specifies a prefix of the full list of type arguments, leaving
+the remaining arguments to be inferred. Loosely speaking, type arguments may be omitted from
+"right to left".
+</p>
+
+<p>
+Parameterized types, and parameterized functions that are not <a href="#Calls">called</a>,
+require a type argument list for instantiation; if the list is partial, all
+remaining type arguments must be inferrable.
+Calls to parameterized functions may provide a (possibly partial) type
+argument list, or may omit it entirely if the omitted type arguments are
+inferrable from the ordinary (non-type) function arguments.
+</p>
+
+<pre>
+func min[T constraints.Ordered](x, y T) T { … }
+
+f := min                   // illegal: min must be instantiated when used without being called
+minInt := min[int]         // minInt has type func(x, y int) int
+a := minInt(2, 3)          // a has value 2 of type int
+b := min[float64](2.0, 3)  // b has value 2.0 of type float64
+c := min(b, -1)            // c has value -1.0 of type float64
+</pre>
+
+<h3 id="Type_inference">Type inference</h3>
+
+<p>
+Missing type arguments may be <i>inferred</i> by a series of steps, described below.
+Each step attempts to use known information to infer additional type arguments.
+Type inference stops as soon as all type arguments are known.
+After type inference is complete, it is still necessary to substitute all type arguments
+for type parameters and verify that each type argument implements the relevant constraint;
+it is possible for an inferred type argument to fail to implement a constraint, in which
+case instantiation fails.
+</p>
+
+<p>
+Type inference is based on
+</p>
+
+<ul>
+<li>
+	a <a href="#Type_parameter_lists">type parameter list</a>
+</li>
+<li>
+	a substitution map <i>M</i> initialized with the known type arguments, if any
+</li>
+<li>
+	a (possibly empty) list of ordinary function arguments (in case of a function call only)
+</li>
+</ul>
+
+<p>
+and then proceeds with the following steps:
+</p>
+
+<ol>
+<li>
+	apply <a href="#Function_argument_type_inference"><i>function argument type inference</i></a>
+	to all <i>typed</i> ordinary function arguments
+</li>
+<li>
+	apply <a href="#Constraint_type_inference"><i>constraint type inference</i></a>
+</li>
+<li>
+	apply function argument type inference to all <i>untyped</i> ordinary function arguments
+	using the default type for each of the untyped function arguments
+</li>
+<li>
+	apply constraint type inference
+</li>
+</ol>
+
+<p>
+If there are no ordinary or untyped function arguments, the respective steps are skipped.
+Constraint type inference is skipped if the previous step didn't infer any new type arguments,
+but it is run at least once if there are missing type arguments.
+</p>
+
+<p>
+The substitution map <i>M</i> is carried through all steps, and each step may add entries to <i>M</i>.
+The process stops as soon as <i>M</i> has a type argument for each type parameter or if an inference step fails.
+If an inference step fails, or if <i>M</i> is still missing type arguments after the last step, type inference fails.
+</p>
+
+<h4 id="Type_unification">Type unification</h3>
+
+<p>
+Type inference is based on <i>type unification</i>. A single unification step
+applies to a <a href="#Type_inference">substitution map</a> and two types, either
+or both of which may be or contain type parameters. The substitution map tracks
+the known (explicitly provided or already inferred) type arguments: the map
+contains an entry <code>P</code> &RightArrow; <code>A</code> for each type
+parameter <code>P</code> and corresponding known type argument <code>A</code>.
+During unification, known type arguments take the place of their corresponding type
+parameters when comparing types. Unification is the process of finding substitution
+map entries that make the two types equivalent.
+</p>
+
+<p>
+For unification, two types that don't contain any type parameters from the current type
+parameter list are <i>equivalent</i>
+if they are identical, or if they are channel types that are identical ignoring channel
+direction, or if their underlying types are equivalent.
+</p>
+
+<p>
+Unification works by comparing the structure of pairs of types: their structure
+disregarding type parameters must be identical, and types other than type parameters
+must be equivalent.
+A type parameter in one type may match any complete subtype in the other type;
+each successful match causes an entry to be added to the substitution map.
+If the structure differs, or types other than type parameters are not equivalent,
+unification fails.
+</p>
+
+<!--
+TODO(gri) Somewhere we need to describe the process of adding an entry to the
+          substitution map: if the entry is already present, the type argument
+	  values are themselves unified.
+-->
+
+<p>
+For example, if <code>T1</code> and <code>T2</code> are type parameters,
+<code>[]map[int]bool</code> can be unified with any of the following:
+</p>
+
+<pre>
+[]map[int]bool   // types are identical
+T1               // adds T1 &RightArrow; []map[int]bool to substitution map
+[]T1             // adds T1 &RightArrow; map[int]bool to substitution map
+[]map[T1]T2      // adds T1 &RightArrow; int and T2 &RightArrow; bool to substitution map
+</pre>
+
+<p>
+On the other hand, <code>[]map[int]bool</code> cannot be unified with any of
+</p>
+
+<pre>
+int              // int is not a slice
+struct{}         // a struct is not a slice
+[]struct{}       // a struct is not a map
+[]map[T1]string  // map element types don't match
+</pre>
+
+<p>
+As an exception to this general rule, because a <a href="#Type_definitions">defined type</a>
+<code>D</code> and a type literal <code>L</code> are never equivalent,
+unification compares the underlying type of <code>D</code> with <code>L</code> instead.
+For example, given the defined type
+</p>
+
+<pre>
+type Vector []float64
+</pre>
+
+<p>
+and the type literal <code>[]E</code>, unification compares <code>[]float64</code> with
+<code>[]E</code> and adds an entry <code>E</code> &RightArrow; <code>float64</code> to
+the substitution map.
+</p>
+
+<h4 id="Function_argument_type_inference">Function argument type inference</h3>
+
+<!-- In this section and the section on constraint type inference we start with examples
+rather than have the examples follow the rules as is customary elsewhere in spec.
+Hopefully this helps building an intuition and makes the rules easier to follow. -->
+
+<p>
+Function argument type inference infers type arguments from function arguments:
+if a function parameter is declared with a type <code>T</code> that uses
+type parameters,
+<a href="#Type_unification">unifying</a> the type of the corresponding
+function argument with <code>T</code> may infer type arguments for the type
+parameters used by <code>T</code>.
+</p>
+
+<p>
+For instance, given the type-parameterized function
+</p>
+
+<pre>
+func scale[Number ~int64|~float64|~complex128](v []Number, s Number) []Number
+</pre>
+
+<p>
+and the call
+</p>
+
+<pre>
+var vector []float64
+scaledVector := scale(vector, 42)
+</pre>
+
+<p>
+the type argument for <code>Number</code> can be inferred from the function argument
+<code>vector</code> by unifying the type of <code>vector</code> with the corresponding
+parameter type: <code>[]float64</code> and <code>[]Number</code>
+match in structure and <code>float64</code> matches with <code>Number</code>.
+This adds the entry <code>Number</code> &RightArrow; <code>float64</code> to the
+<a href="#Type_unification">substitution map</a>.
+Untyped arguments, such as the second function argument <code>42</code> here, are ignored
+in the first round of function argument type inference and only considered if there are
+unresolved type parameters left.
+</p>
+
+<p>
+Function argument type inference can be used when the function has ordinary parameters
+whose types are defined using the function's type parameters. Inference happens in two
+separate phases; each phase operates on a specific list of (parameter, argument) pairs:
+</p>
+
+<ol>
+<li>
+	The list <i>Lt</i> contains all (parameter, argument) pairs where the parameter
+	type uses type parameters and where the function argument is <i>typed</i>.
+</li>
+<li>
+	The list <i>Lu</i> contains all remaining pairs where the parameter type is a single
+	type parameter. In this list, the respective function arguments are untyped.
+</li>
+</ol>
+
+<p>
+Any other (parameter, argument) pair is ignored.
+</p>
+
+<p>
+By construction, the arguments of the pairs in <i>Lu</i> are <i>untyped</i> constants
+(or the untyped boolean result of a comparison). And because <a href="#Constants">default types</a>
+of untyped values are always predeclared non-composite types, they can never match against
+a composite type, so it is sufficient to only consider parameter types that are single type
+parameters.
+</p>
+
+<p>
+Each list is processed in a separate phase:
+</p>
+
+<ol>
+<li>
+	In the first phase, the parameter and argument types of each pair in <i>Lt</i>
+	are unified. If unification succeeds for a pair, it may yield new entries that
+	are added to the substitution map <i>M</i>. If unification fails, type inference
+	fails.
+</li>
+<li>
+	The second phase considers the entries of list <i>Lu</i>. Type parameters for
+	which the type argument has already been determined are ignored in this phase.
+	For each remaining pair, the parameter type (which is a single type parameter) and
+	the <a href="#Constants">default type</a> of the corresponding untyped argument is
+	unified. If unification fails, type inference fails.
+</li>
+</ol>
+
+<p>
+Example:
+</p>
+
+<pre>
+func min[T constraints.Ordered](x, y T) T
+
+var x int
+min(x, 2.0)    // T is int, inferred from typed argument x; 2.0 is assignable to int
+min(1.0, 2.0)  // T is float64, inferred from default type for 1.0 and matches default type for 2.0
+min(1.0, 2)    // illegal: default type float64 (for 1.0) doesn't match default type int (for 2)
+</pre>
+
+<h4 id="Constraint_type_inference">Constraint type inference</h3>
+
+<!--
+	The next paragraph needs to be updated for the new definition of structural type:
+	The structural type of an interface is the single underlying type of its type set,
+	if it exists. But for constraint type inference, if the type set consists of exactly
+	one type, we want to use that one type (which may be a defined type, different from
+	its underlying == structural type).
+-->
+
+<p>
+Constraint type inference infers type arguments from already known
+type arguments by considering <a href="#Structure_of_interfaces">structural type constraints</a>:
+if the structural type <code>T</code> of a structural constraint is parameterized,
+<a href="#Type_unification">unifying</a> a known type argument with <code>T</code> may
+infer type arguments for other type parameters used by the structural type.
+</p>
+
+<p>
+For instance, consider the type parameter list with type parameters <code>List</code> and
+<code>Elem</code>:
+</p>
+
+<pre>
+[List ~[]Elem, Elem any]
+</pre>
+
+<p>
+Constraint type inference can deduce the type of <code>Elem</code> from the type argument
+for <code>List</code> because <code>Elem</code> is a type parameter in the structural constraint
+<code>~[]Elem</code> for <code>List</code>.
+If the type argument is <code>Bytes</code>:
+</p>
+
+<pre>
+type Bytes []byte
+</pre>
+
+<p>
+unifying the underlying type of <code>Bytes</code> with the structural constraint means
+unifying <code>[]byte</code> with <code>[]Elem</code>. That unification succeeds and yields
+the <a href="#Type_unification">substitution map</a> entry
+<code>Elem</code> &RightArrow; <code>byte</code>.
+Thus, in this example, constraint type inference can infer the second type argument from the
+first one.
+</p>
+
+<p>
+Generally, constraint type inference proceeds in two phases: Starting with a given
+substitution map <i>M</i>
+</p>
+
+<ol>
+<li>
+For all type parameters with a structural constraint, unify the type parameter with the structural
+type of its constraint. If any unification fails, constraint type inference fails.
+</li>
+
+<li>
+At this point, some entries in <i>M</i> may map type parameters to other
+type parameters or to types containing type parameters. For each entry
+<code>P</code> &RightArrow; <code>A</code> in <i>M</i> where <code>A</code> is or
+contains type parameters <code>Q</code> for which there exist entries
+<code>Q</code> &RightArrow; <code>B</code> in <i>M</i>, substitute those
+<code>Q</code> with the respective <code>B</code> in <code>A</code>.
+Stop when no further substitution is possible.
+</li>
+</ol>
+
+<p>
+The result of constraint type inference is the final substitution map <i>M</i> from type
+parameters <code>P</code> to type arguments <code>A</code> where no type parameter <code>P</code>
+appears in any of the <code>A</code>.
+</p>
+
+<p>
+For instance, given the type parameter list
+</p>
+
+<pre>
+[A any, B []C, C *A]
+</pre>
+
+<p>
+and the single provided type argument <code>int</code> for type parameter <code>A</code>,
+the initial substitution map <i>M</i> contains the entry <code>A</code> &RightArrow; <code>int</code>.
+</p>
+
+<p>
+In the first phase, the type parameters <code>B</code> and <code>C</code> are unified
+with the structural type of their respective constraints. This adds the entries
+<code>B</code> &RightArrow; <code>[]C</code> and <code>C</code> &RightArrow; <code>*A</code>
+to <i>M</i>.
+
+<p>
+At this point there are two entries in <i>M</i> where the right-hand side
+is or contains type parameters for which there exists other entries in <i>M</i>:
+<code>[]C</code> and <code>*A</code>.
+In the second phase, these type parameters are replaced with their respective
+types. It doesn't matter in which order this happens. Starting with the state
+of <i>M</i> after the first phase:
+</p>
+
+<p>
+<code>A</code> &RightArrow; <code>int</code>,
+<code>B</code> &RightArrow; <code>[]C</code>,
+<code>C</code> &RightArrow; <code>*A</code>
+</p>
+
+<p>
+Replace <code>A</code> on the right-hand side of &RightArrow; with <code>int</code>:
+</p>
+
+<p>
+<code>A</code> &RightArrow; <code>int</code>,
+<code>B</code> &RightArrow; <code>[]C</code>,
+<code>C</code> &RightArrow; <code>*int</code>
+</p>
+
+<p>
+Replace <code>C</code> on the right-hand side of &RightArrow; with <code>*int</code>:
+</p>
+
+<p>
+<code>A</code> &RightArrow; <code>int</code>,
+<code>B</code> &RightArrow; <code>[]*int</code>,
+<code>C</code> &RightArrow; <code>*int</code>
+</p>
+
+<p>
+At this point no further substitution is possible and the map is full.
+Therefore, <code>M</code> represents the final map of type parameters
+to type arguments for the given type parameter list.
+</p>
 
 <h3 id="Operators">Operators</h3>
 
@@ -3620,7 +4683,8 @@ var p = 1&lt;&lt;s == 1&lt;&lt;33          // 1 has type int; p == true
 var u = 1.0&lt;&lt;s                 // illegal: 1.0 has type float64, cannot shift
 var u1 = 1.0&lt;&lt;s != 0           // illegal: 1.0 has type float64, cannot shift
 var u2 = 1&lt;&lt;s != 1.0           // illegal: 1 has type float64, cannot shift
-var v float32 = 1&lt;&lt;s           // illegal: 1 has type float32, cannot shift
+var v1 float32 = 1&lt;&lt;s          // illegal: 1 has type float32, cannot shift
+var v2 = string(1&lt;&lt;s)          // illegal: 1 is converted to a string, cannot shift
 var w int64 = 1.0&lt;&lt;33          // 1.0&lt;&lt;33 is a constant shift expression; w == 1&lt;&lt;33
 var x = a[1.0&lt;&lt;s]              // panics: 1.0 has type int, but 1&lt;&lt;33 overflows array bounds
 var b = make([]byte, 1.0&lt;&lt;s)   // 1.0 has type int; len(b) == 1&lt;&lt;33
@@ -3696,7 +4760,6 @@ The bitwise logical and shift operators apply to integers only.
 &lt;&lt;   left shift             integer &lt;&lt; integer &gt;= 0
 &gt;&gt;   right shift            integer &gt;&gt; integer &gt;= 0
 </pre>
-
 
 <h4 id="Integer_operators">Integer operators</h4>
 
@@ -3790,6 +4853,7 @@ the <a href="#Numeric_types">unsigned integer</a>'s type.
 Loosely speaking, these unsigned integer operations
 discard high bits upon overflow, and programs may rely on "wrap around".
 </p>
+
 <p>
 For signed integers, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, <code>/</code>, and <code>&lt;&lt;</code> may legally
@@ -4123,7 +5187,9 @@ as for non-constant <code>x</code>.
 </p>
 
 <p>
-Converting a constant yields a typed constant as result.
+Converting a constant to a type that is not a <a href="#Type_parameters">type parameter</a>
+yields a typed constant.
+Converting a constant to a type parameter yields a non-constant value of that type.	
 </p>
 
 <pre>
@@ -4153,14 +5219,16 @@ in any of these cases:
 	</li>
 	<li>
 	ignoring struct tags (see below),
-	<code>x</code>'s type and <code>T</code> have <a href="#Type_identity">identical</a>
-	<a href="#Types">underlying types</a>.
+	<code>x</code>'s type and <code>T</code> are not
+	<a href="#Type_parameters">type parameters</a> but have
+	<a href="#Type_identity">identical</a> <a href="#Types">underlying types</a>.
 	</li>
 	<li>
 	ignoring struct tags (see below),
 	<code>x</code>'s type and <code>T</code> are pointer types
-	that are not <a href="#Type_definitions">defined types</a>,
-	and their pointer base types have identical underlying types.
+	that are not <a href="#Types">named types</a>,
+	and their pointer base types are not type parameters but
+	have identical underlying types.
 	</li>
 	<li>
 	<code>x</code>'s type and <code>T</code> are both integer or floating
@@ -4180,6 +5248,28 @@ in any of these cases:
 	<code>x</code> is a slice, <code>T</code> is a pointer to an array,
 	and the slice and array types have <a href="#Type_identity">identical</a> element types.
 	</li>
+</ul>
+
+<p>
+Additionally, if <code>T</code> or </code><code>x's</code> type <code>V</code> are type
+parameters with <a href="#Structure_of_interfaces">specific types</a>, <code>x</code>
+can also be converted to type <code>T</code> if one of the following conditions applies:
+</p>
+
+<ul>
+<li>
+Both <code>V</code> and <code>T</code> are type parameters and a value of each
+specific type of <code>V</code> can be converted to each specific type
+of <code>T</code>.
+</li>
+<li>
+Only <code>V</code> is a type parameter and a value of each
+specific type of <code>V</code> can be converted to <code>T</code>.
+</li>
+<li>
+Only <code>T</code> is a type parameter and <code>x</code> can be converted to each
+specific type of <code>T</code>.
+</li>
 </ul>
 
 <p>
@@ -5048,7 +6138,8 @@ switch x.(type) {
 <p>
 Cases then match actual types <code>T</code> against the dynamic type of the
 expression <code>x</code>. As with type assertions, <code>x</code> must be of
-<a href="#Interface_types">interface type</a>, and each non-interface type
+<a href="#Interface_types">interface type</a>, but not a
+<a href="#Type_parameters">type parameter</a>, and each non-interface type
 <code>T</code> listed in a case must implement the type of <code>x</code>.
 The types listed in the cases of a type switch must all be
 <a href="#Type_identity">different</a>.
@@ -5059,7 +6150,6 @@ TypeSwitchStmt  = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClau
 TypeSwitchGuard = [ identifier ":=" ] PrimaryExpr "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" StatementList .
 TypeSwitchCase  = "case" TypeList | "default" .
-TypeList        = Type { "," Type } .
 </pre>
 
 <p>
@@ -5268,7 +6358,7 @@ For a string value, the "range" clause iterates over the Unicode code points
 in the string starting at byte index 0.  On successive iterations, the index value will be the
 index of the first byte of successive UTF-8-encoded code points in the string,
 and the second value, of type <code>rune</code>, will be the value of
-the corresponding code point.  If the iteration encounters an invalid
+the corresponding code point. If the iteration encounters an invalid
 UTF-8 sequence, the second value will be <code>0xFFFD</code>,
 the Unicode replacement character, and the next iteration will advance
 a single byte in the string.
@@ -5819,7 +6909,6 @@ The multi-valued <a href="#Receive_operator">receive operation</a>
 returns a received value along with an indication of whether the channel is closed.
 </p>
 
-
 <h3 id="Length_and_capacity">Length and capacity</h3>
 
 <p>
@@ -5836,11 +6925,23 @@ len(s)    string type      string length in bytes
           []T              slice length
           map[K]T          map length (number of defined keys)
           chan T           number of elements queued in channel buffer
+          type parameter   see below
 
 cap(s)    [n]T, *[n]T      array length (== n)
           []T              slice capacity
           chan T           channel buffer capacity
+          type parameter   see below
 </pre>
+
+<p>
+If the argument type is a <a href="#Type_parameters">type parameter</a> <code>P</code>,
+<code>P</code> must have <a href="#Structure of interfaces">specific types</a>, and
+the call <code>len(e)</code> (or <code>cap(e)</code> respectively) must be valid for
+each specific type of <code>P</code>.
+The result is the length (or capacity, respectively) of the argument whose type
+corresponds to the type argument with which <code>P</code> was
+<a href="#Instantiations">instantiated</a>.
+</p>
 
 <p>
 The capacity of a slice is the number of elements for which there is
@@ -6783,8 +7884,14 @@ uintptr(unsafe.Pointer(&amp;x)) % unsafe.Alignof(x) == 0
 </pre>
 
 <p>
-Calls to <code>Alignof</code>, <code>Offsetof</code>, and
-<code>Sizeof</code> are compile-time constant expressions of type <code>uintptr</code>.
+A (variable of) type <code>T</code> has <i>variable size</i> if <code>T</code>
+is a type parameter, or if it is an array or struct type containing elements
+or fields of variable size. Otherwise the size is <i>constant</i>.
+Calls to <code>Alignof</code>, <code>Offsetof</code>, and <code>Sizeof</code>
+are compile-time <a href="#Constant_expressions">constant expressions</a> of
+type <code>uintptr</code> if their arguments (or the struct <code>s</code> in
+the selector expression <code>s.f</code> for <code>Offsetof</code>) are types
+of constant size.
 </p>
 
 <p>

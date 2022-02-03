@@ -6,11 +6,11 @@
 
 package elliptic
 
-// This file contains a constant-time, 32-bit implementation of P256.
+// P-256 is implemented by various different backends, including a generic
+// 32-bit constant-time one in this file, which is used when assembly
+// implementations are not available, or not appropriate for the hardware.
 
-import (
-	"math/big"
-)
+import "math/big"
 
 type p256Curve struct {
 	*CurveParams

@@ -520,8 +520,11 @@ TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$0
 	MOVL	BX, 4(SP)		// arg 2 - clock_id
 	CALL	libc_clock_gettime(SB)
 	CMPL	AX, $-1
-	JNE	2(PC)
-	MOVL	$0xf1, 0xf1		// crash on failure
+	JNE	noerr
+	CALL	libc_errno(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno
+noerr:
 	MOVL	BP, SP
 	POPL	BP
 	RET

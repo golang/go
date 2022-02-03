@@ -60,34 +60,34 @@ stdout ok
 ! stdout ^ok
 ! stdout 'fatal here'
 stdout FAIL
-stdout 'f.Fuzz function'
+stdout 'fuzz target'
 
 # Test that f.Error within f.Fuzz panics
 ! go test error_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'error here'
 stdout FAIL
-stdout 'f.Fuzz function'
+stdout 'fuzz target'
 
 # Test that f.Fail within f.Fuzz panics
 ! go test fail_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
-stdout 'f.Fuzz function'
+stdout 'fuzz target'
 
 # Test that f.Skip within f.Fuzz panics
 ! go test skip_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'skip here'
 stdout FAIL
-stdout 'f.Fuzz function'
+stdout 'fuzz target'
 
 # Test that f.Skipped within f.Fuzz panics
 ! go test skipped_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'f.Skipped is'
 stdout FAIL
-stdout 'f.Fuzz function'
+stdout 'fuzz target'
 stdout 't.Skipped is false'
 
 # Test that runtime.Goexit within the fuzz function is an error.

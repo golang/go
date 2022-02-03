@@ -42,7 +42,7 @@ func TestConsumeValue(t *testing.T) {
 		{`"My \" value"end`, "My \" value", "end"},
 		{`"\" rest`, "", `"\" rest`},
 		{`"C:\dev\go\robots.txt"`, `C:\dev\go\robots.txt`, ""},
-		{`"C:\新建文件件\中文第二次测试.mp4"`, `C:\新建文件件\中文第二次测试.mp4`, ""},
+		{`"C:\新建文件夹\中文第二次测试.mp4"`, `C:\新建文件夹\中文第二次测试.mp4`, ""},
 	}
 	for _, test := range tests {
 		value, rest := consumeValue(test[0])
@@ -394,10 +394,21 @@ func TestParseMediaType(t *testing.T) {
 		// Empty string used to be mishandled.
 		{`foo; bar=""`, "foo", m("bar", "")},
 
-		// Microsoft browers in intranet mode do not think they need to escape \ in file name.
+		// Microsoft browsers in intranet mode do not think they need to escape \ in file name.
 		{`form-data; name="file"; filename="C:\dev\go\robots.txt"`, "form-data", m("name", "file", "filename", `C:\dev\go\robots.txt`)},
-		{`form-data; name="file"; filename="C:\新建文件件\中文第二次测试.mp4"`, "form-data", m("name", "file", "filename", `C:\新建文件件\中文第二次测试.mp4`)},
+		{`form-data; name="file"; filename="C:\新建文件夹\中文第二次测试.mp4"`, "form-data", m("name", "file", "filename", `C:\新建文件夹\中文第二次测试.mp4`)},
+
+		// issue #46323 (https://github.com/golang/go/issues/46323)
+		{
+			// example from rfc2231-p.3 (https://datatracker.ietf.org/doc/html/rfc2231)
+			`message/external-body; access-type=URL;
+		URL*0="ftp://";
+		URL*1="cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar";`, // <-- trailing semicolon
+			`message/external-body`,
+			m("access-type", "URL", "url", "ftp://cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar"),
+		},
 	}
+
 	for _, test := range tests {
 		mt, params, err := ParseMediaType(test.in)
 		if err != nil {

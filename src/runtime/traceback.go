@@ -96,6 +96,20 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 	}
 
+	// runtime/internal/atomic functions call into kernel helpers on
+	// arm < 7. See runtime/internal/atomic/sys_linux_arm.s.
+	//
+	// Start in the caller's frame.
+	if GOARCH == "arm" && goarm < 7 && GOOS == "linux" && frame.pc&0xffff0000 == 0xffff0000 {
+		// Note that the calls are simple BL without pushing the return
+		// address, so we use LR directly.
+		//
+		// The kernel helpers are frameless leaf functions, so SP and
+		// LR are not touched.
+		frame.pc = frame.lr
+		frame.lr = 0
+	}
+
 	f := findfunc(frame.pc)
 	if !f.valid() {
 		if callback != nil || printing {

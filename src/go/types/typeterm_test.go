@@ -100,7 +100,7 @@ func TestTermUnion(t *testing.T) {
 		"~int ~string ~int ~string",
 		"~int myInt ~int ∅",
 
-		// union is symmetric, but the result order isn't - repeat symmetric cases explictly
+		// union is symmetric, but the result order isn't - repeat symmetric cases explicitly
 		"𝓤 ∅ 𝓤 ∅",
 		"int ∅ int ∅",
 		"~int ∅ ~int ∅",

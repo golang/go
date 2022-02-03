@@ -466,6 +466,27 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 		if n.X.Op() == ir.OLITERAL {
 			return stringtoruneslit(n)
 		}
+
+	case ir.OBYTES2STR:
+		if t.Elem() != types.ByteType && t.Elem() != types.Types[types.TUINT8] {
+			// If t is a slice of a user-defined byte type B (not uint8
+			// or byte), then add an extra CONVNOP from []B to []byte, so
+			// that the call to slicebytetostring() added in walk will
+			// typecheck correctly.
+			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.ByteType), n.X)
+			n.X.SetTypecheck(1)
+		}
+
+	case ir.ORUNES2STR:
+		if t.Elem() != types.RuneType && t.Elem() != types.Types[types.TINT32] {
+			// If t is a slice of a user-defined rune type B (not uint32
+			// or rune), then add an extra CONVNOP from []B to []rune, so
+			// that the call to slicerunetostring() added in walk will
+			// typecheck correctly.
+			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.RuneType), n.X)
+			n.X.SetTypecheck(1)
+		}
+
 	}
 	return n
 }

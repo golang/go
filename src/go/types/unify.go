@@ -33,6 +33,16 @@ import (
 // by setting up one of them (using init) and then assigning its value
 // to the other.
 
+const (
+	// Upper limit for recursion depth. Used to catch infinite recursions
+	// due to implementation issues (e.g., see issues #48619, #48656).
+	unificationDepthLimit = 50
+
+	// Whether to panic when unificationDepthLimit is reached. Turn on when
+	// investigating infinite recursion.
+	panicAtUnificationDepthLimit = false
+)
+
 // A unifier maintains the current type parameters for x and y
 // and the respective types inferred for each type parameter.
 // A unifier is created by calling newUnifier.
@@ -40,6 +50,7 @@ type unifier struct {
 	exact bool
 	x, y  tparamsList // x and y must initialized via tparamsList.init
 	types []Type      // inferred types, shared by x and y
+	depth int         // recursion depth during unification
 }
 
 // newUnifier returns a new unifier.
@@ -161,7 +172,13 @@ func (d *tparamsList) index(typ Type) int {
 // If tpar is a type parameter in list, tparamIndex returns the type parameter index.
 // Otherwise, the result is < 0. tpar must not be nil.
 func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
-	if i := tpar.index; i < len(list) && list[i] == tpar {
+	// Once a type parameter is bound its index is >= 0. However, there are some
+	// code paths (namely tracing and type hashing) by which it is possible to
+	// arrive here with a type parameter that has not been bound, hence the check
+	// for 0 <= i below.
+	// TODO(rfindley): investigate a better approach for guarding against using
+	// unbound type parameters.
+	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
 		return i
 	}
 	return -1
@@ -231,18 +248,28 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
 // code the corresponding changes should be made here.
 // Must not be called directly from outside the unifier.
 func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+	// Stop gap for cases where unification fails.
+	if u.depth >= unificationDepthLimit {
+		if panicAtUnificationDepthLimit {
+			panic("unification reached recursion depth limit")
+		}
+		return false
+	}
+	u.depth++
+	defer func() {
+		u.depth--
+	}()
+
 	if !u.exact {
 		// If exact unification is known to fail because we attempt to
 		// match a type name against an unnamed type literal, consider
 		// the underlying type of the named type.
-		// (Subtle: We use hasName to include any type with a name (incl.
-		// basic types and type parameters. We use asNamed because we only
-		// want *Named types.)
-		switch {
-		case !hasName(x) && y != nil && asNamed(y) != nil:
-			return u.nify(x, under(y), p)
-		case x != nil && asNamed(x) != nil && !hasName(y):
-			return u.nify(under(x), y, p)
+		// (We use !hasName to exclude any type with a name, including
+		// basic types and type parameters; the rest are unamed types.)
+		if nx, _ := x.(*Named); nx != nil && !hasName(y) {
+			return u.nify(nx.under(), y, p)
+		} else if ny, _ := y.(*Named); ny != nil && !hasName(x) {
+			return u.nify(x, ny.under(), p)
 		}
 	}
 
@@ -366,6 +393,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		if y, ok := y.(*Interface); ok {
 			xset := x.typeSet()
 			yset := y.typeSet()
+			if xset.comparable != yset.comparable {
+				return false
+			}
 			if !xset.terms.equal(yset.terms) {
 				return false
 			}
@@ -433,11 +463,14 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 			xargs := x.targs.list()
 			yargs := y.targs.list()
 
+			if len(xargs) != len(yargs) {
+				return false
+			}
+
 			// TODO(gri) This is not always correct: two types may have the same names
 			//           in the same package if one of them is nested in a function.
 			//           Extremely unlikely but we need an always correct solution.
 			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
-				assert(len(xargs) == len(yargs))
 				for i, x := range xargs {
 					if !u.nify(x, yargs[i], p) {
 						return false

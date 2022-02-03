@@ -196,9 +196,9 @@ func issue5918() {
 		_ func(error) string = error.Error
 
 		perr = &err
-		_ = perr.Error /* ERROR "no field or method" */ ()
-		_ func() string = perr.Error /* ERROR "no field or method" */
-		_ func(*error) string = (*error).Error /* ERROR "no field or method" */
+		_ = perr.Error /* ERROR "type \*error is pointer to interface, not interface" */ ()
+		_ func() string = perr.Error /* ERROR "type \*error is pointer to interface, not interface" */
+		_ func(*error) string = (*error).Error /* ERROR "type \*error is pointer to interface, not interface" */
 	)
 
 	type T *interface{ m() int }
@@ -207,8 +207,8 @@ func issue5918() {
 		_ = (*x).m()
 		_ = (*x).m
 
-		_ = x.m /* ERROR "no field or method" */ ()
-		_ = x.m /* ERROR "no field or method" */
-		_ = T.m /* ERROR "no field or method" */
+		_ = x.m /* ERROR "type T is pointer to interface, not interface" */ ()
+		_ = x.m /* ERROR "type T is pointer to interface, not interface" */
+		_ = T.m /* ERROR "type T is pointer to interface, not interface" */
 	)
 }

@@ -11,6 +11,7 @@
 package testenv
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"internal/cfg"
@@ -22,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // Builder reports the name of the builder running this test
@@ -305,4 +307,60 @@ func SkipIfShortAndSlow(t testing.TB) {
 		t.Helper()
 		t.Skipf("skipping test in -short mode on %s", runtime.GOARCH)
 	}
+}
+
+// RunWithTimeout runs cmd and returns its combined output. If the
+// subprocess exits with a non-zero status, it will log that status
+// and return a non-nil error, but this is not considered fatal.
+func RunWithTimeout(t testing.TB, cmd *exec.Cmd) ([]byte, error) {
+	args := cmd.Args
+	if args == nil {
+		args = []string{cmd.Path}
+	}
+
+	var b bytes.Buffer
+	cmd.Stdout = &b
+	cmd.Stderr = &b
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("starting %s: %v", args, err)
+	}
+
+	// If the process doesn't complete within 1 minute,
+	// assume it is hanging and kill it to get a stack trace.
+	p := cmd.Process
+	done := make(chan bool)
+	go func() {
+		scale := 1
+		// This GOARCH/GOOS test is copied from cmd/dist/test.go.
+		// TODO(iant): Have cmd/dist update the environment variable.
+		if runtime.GOARCH == "arm" || runtime.GOOS == "windows" {
+			scale = 2
+		}
+		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+			if sc, err := strconv.Atoi(s); err == nil {
+				scale = sc
+			}
+		}
+
+		select {
+		case <-done:
+		case <-time.After(time.Duration(scale) * time.Minute):
+			p.Signal(Sigquit)
+			// If SIGQUIT doesn't do it after a little
+			// while, kill the process.
+			select {
+			case <-done:
+			case <-time.After(time.Duration(scale) * 30 * time.Second):
+				p.Signal(os.Kill)
+			}
+		}
+	}()
+
+	err := cmd.Wait()
+	if err != nil {
+		t.Logf("%s exit status: %v", args, err)
+	}
+	close(done)
+
+	return b.Bytes(), err
 }

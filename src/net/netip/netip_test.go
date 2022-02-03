@@ -25,6 +25,7 @@ type uint128 = Uint128
 var (
 	mustPrefix = MustParsePrefix
 	mustIP     = MustParseAddr
+	mustIPPort = MustParseAddrPort
 )
 
 func TestParseAddr(t *testing.T) {
@@ -112,6 +113,12 @@ func TestParseAddr(t *testing.T) {
 			in:  "1:2::ffff:192.168.140.255%eth1",
 			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), intern.Get("eth1")),
 			str: "1:2::ffff:c0a8:8cff%eth1",
+		},
+		// 4-in-6 with zone
+		{
+			in:  "::ffff:192.168.140.255%eth1",
+			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), intern.Get("eth1")),
+			str: "::ffff:192.168.140.255%eth1",
 		},
 		// IPv6 with capital letters.
 		{
@@ -332,10 +339,143 @@ func TestAddrMarshalUnmarshalBinary(t *testing.T) {
 	}
 
 	// Cannot unmarshal from unexpected IP length.
-	for _, l := range []int{3, 5} {
+	for _, n := range []int{3, 5} {
 		var ip2 Addr
-		if err := ip2.UnmarshalBinary(bytes.Repeat([]byte{1}, l)); err == nil {
-			t.Fatalf("unmarshaled from unexpected IP length %d", l)
+		if err := ip2.UnmarshalBinary(bytes.Repeat([]byte{1}, n)); err == nil {
+			t.Fatalf("unmarshaled from unexpected IP length %d", n)
+		}
+	}
+}
+
+func TestAddrPortMarshalTextString(t *testing.T) {
+	tests := []struct {
+		in   AddrPort
+		want string
+	}{
+		{mustIPPort("1.2.3.4:80"), "1.2.3.4:80"},
+		{mustIPPort("[1::CAFE]:80"), "[1::cafe]:80"},
+		{mustIPPort("[1::CAFE%en0]:80"), "[1::cafe%en0]:80"},
+		{mustIPPort("[::FFFF:192.168.140.255]:80"), "[::ffff:192.168.140.255]:80"},
+		{mustIPPort("[::FFFF:192.168.140.255%en0]:80"), "[::ffff:192.168.140.255%en0]:80"},
+	}
+	for i, tt := range tests {
+		if got := tt.in.String(); got != tt.want {
+			t.Errorf("%d. for (%v, %v) String = %q; want %q", i, tt.in.Addr(), tt.in.Port(), got, tt.want)
+		}
+		mt, err := tt.in.MarshalText()
+		if err != nil {
+			t.Errorf("%d. for (%v, %v) MarshalText error: %v", i, tt.in.Addr(), tt.in.Port(), err)
+			continue
+		}
+		if string(mt) != tt.want {
+			t.Errorf("%d. for (%v, %v) MarshalText = %q; want %q", i, tt.in.Addr(), tt.in.Port(), mt, tt.want)
+		}
+	}
+}
+
+func TestAddrPortMarshalUnmarshalBinary(t *testing.T) {
+	tests := []struct {
+		ipport   string
+		wantSize int
+	}{
+		{"1.2.3.4:51820", 4 + 2},
+		{"[fd7a:115c:a1e0:ab12:4843:cd96:626b:430b]:80", 16 + 2},
+		{"[::ffff:c000:0280]:65535", 16 + 2},
+		{"[::ffff:c000:0280%eth0]:1", 20 + 2},
+	}
+	for _, tc := range tests {
+		var ipport AddrPort
+		if len(tc.ipport) > 0 {
+			ipport = mustIPPort(tc.ipport)
+		}
+		b, err := ipport.MarshalBinary()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(b) != tc.wantSize {
+			t.Fatalf("%q encoded to size %d; want %d", tc.ipport, len(b), tc.wantSize)
+		}
+		var ipport2 AddrPort
+		if err := ipport2.UnmarshalBinary(b); err != nil {
+			t.Fatal(err)
+		}
+		if ipport != ipport2 {
+			t.Fatalf("got %v; want %v", ipport2, ipport)
+		}
+	}
+
+	// Cannot unmarshal from unexpected lengths.
+	for _, n := range []int{3, 7} {
+		var ipport2 AddrPort
+		if err := ipport2.UnmarshalBinary(bytes.Repeat([]byte{1}, n)); err == nil {
+			t.Fatalf("unmarshaled from unexpected length %d", n)
+		}
+	}
+}
+
+func TestPrefixMarshalTextString(t *testing.T) {
+	tests := []struct {
+		in   Prefix
+		want string
+	}{
+		{mustPrefix("1.2.3.4/24"), "1.2.3.4/24"},
+		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"},
+		{mustPrefix("::ffff:c000:0280/96"), "::ffff:192.0.2.128/96"},
+		{mustPrefix("::ffff:c000:0280%eth0/37"), "::ffff:192.0.2.128/37"}, // Zone should be stripped
+		{mustPrefix("::ffff:192.168.140.255/8"), "::ffff:192.168.140.255/8"},
+	}
+	for i, tt := range tests {
+		if got := tt.in.String(); got != tt.want {
+			t.Errorf("%d. for %v String = %q; want %q", i, tt.in, got, tt.want)
+		}
+		mt, err := tt.in.MarshalText()
+		if err != nil {
+			t.Errorf("%d. for %v MarshalText error: %v", i, tt.in, err)
+			continue
+		}
+		if string(mt) != tt.want {
+			t.Errorf("%d. for %v MarshalText = %q; want %q", i, tt.in, mt, tt.want)
+		}
+	}
+}
+
+func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
+	type testCase struct {
+		prefix   Prefix
+		wantSize int
+	}
+	tests := []testCase{
+		{mustPrefix("1.2.3.4/24"), 4 + 1},
+		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), 16 + 1},
+		{mustPrefix("::ffff:c000:0280/96"), 16 + 1},
+		{mustPrefix("::ffff:c000:0280%eth0/37"), 16 + 1}, // Zone should be stripped
+	}
+	tests = append(tests,
+		testCase{PrefixFrom(tests[0].prefix.Addr(), 33), tests[0].wantSize},
+		testCase{PrefixFrom(tests[1].prefix.Addr(), 129), tests[1].wantSize})
+	for _, tc := range tests {
+		prefix := tc.prefix
+		b, err := prefix.MarshalBinary()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(b) != tc.wantSize {
+			t.Fatalf("%q encoded to size %d; want %d", tc.prefix, len(b), tc.wantSize)
+		}
+		var prefix2 Prefix
+		if err := prefix2.UnmarshalBinary(b); err != nil {
+			t.Fatal(err)
+		}
+		if prefix != prefix2 {
+			t.Fatalf("got %v; want %v", prefix2, prefix)
+		}
+	}
+
+	// Cannot unmarshal from unexpected lengths.
+	for _, n := range []int{3, 6} {
+		var prefix2 Prefix
+		if err := prefix2.UnmarshalBinary(bytes.Repeat([]byte{1}, n)); err == nil {
+			t.Fatalf("unmarshaled from unexpected length %d", n)
 		}
 	}
 }
@@ -880,7 +1020,6 @@ func TestPrefixMarshalUnmarshal(t *testing.T) {
 		"0.0.0.0/0",
 		"::/0",
 		"::1/128",
-		"::ffff:c000:1234/128",
 		"2001:db8::/32",
 	}
 
@@ -1312,7 +1451,7 @@ type ip4i struct {
 	flags2 byte
 	flags3 byte
 	flags4 byte
-	ipv6   interface{}
+	ipv6   any
 }
 
 func newip4i_v4(a, b, c, d byte) ip4i {
@@ -1803,6 +1942,24 @@ func TestInvalidAddrPortString(t *testing.T) {
 	for _, tt := range tests {
 		if got := tt.ipp.String(); got != tt.want {
 			t.Errorf("(%#v).String() = %q want %q", tt.ipp, got, tt.want)
+		}
+	}
+}
+
+func TestAsSlice(t *testing.T) {
+	tests := []struct {
+		in   Addr
+		want []byte
+	}{
+		{in: Addr{}, want: nil},
+		{in: mustIP("1.2.3.4"), want: []byte{1, 2, 3, 4}},
+		{in: mustIP("ffff::1"), want: []byte{0xff, 0xff, 15: 1}},
+	}
+
+	for _, test := range tests {
+		got := test.in.AsSlice()
+		if !bytes.Equal(got, test.want) {
+			t.Errorf("%v.AsSlice() = %v want %v", test.in, got, test.want)
 		}
 	}
 }

@@ -142,7 +142,9 @@ func ExampleTeeReader() {
 	r = io.TeeReader(r, os.Stdout)
 
 	// Everything read from r will be copied to stdout.
-	io.ReadAll(r)
+	if _, err := io.ReadAll(r); err != nil {
+		log.Fatal(err)
+	}
 
 	// Output:
 	// some io.Reader stream to be read

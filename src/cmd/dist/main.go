@@ -94,7 +94,15 @@ func main() {
 	if gohostarch == "" {
 		// Default Unix system.
 		out := run("", CheckExit, "uname", "-m")
+		outAll := run("", CheckExit, "uname", "-a")
 		switch {
+		case strings.Contains(outAll, "RELEASE_ARM64"):
+			// MacOS prints
+			// Darwin p1.local 21.1.0 Darwin Kernel Version 21.1.0: Wed Oct 13 17:33:01 PDT 2021; root:xnu-8019.41.5~1/RELEASE_ARM64_T6000 x86_64
+			// on ARM64 laptops when there is an x86 parent in the
+			// process tree. Look for the RELEASE_ARM64 to avoid being
+			// confused into building an x86 toolchain.
+			gohostarch = "arm64"
 		case strings.Contains(out, "x86_64"), strings.Contains(out, "amd64"):
 			gohostarch = "amd64"
 		case strings.Contains(out, "86"):

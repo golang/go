@@ -118,8 +118,9 @@ type requireMeta struct {
 type modPruning uint8
 
 const (
-	pruned   modPruning = iota // transitive dependencies of modules at go 1.17 and higher are pruned out
-	unpruned                   // no transitive dependencies are pruned out
+	pruned    modPruning = iota // transitive dependencies of modules at go 1.17 and higher are pruned out
+	unpruned                    // no transitive dependencies are pruned out
+	workspace                   // pruned to the union of modules in the workspace
 )
 
 func pruningForGoVersion(goVersion string) modPruning {
@@ -339,6 +340,9 @@ func Replacement(mod module.Version) module.Version {
 	foundFrom, found, foundModRoot := "", module.Version{}, ""
 	if MainModules == nil {
 		return module.Version{}
+	} else if MainModules.Contains(mod.Path) && mod.Version == "" {
+		// Don't replace the workspace version of the main module.
+		return module.Version{}
 	}
 	if _, r, ok := replacement(mod, MainModules.WorkFileReplaceMap()); ok {
 		return r
@@ -554,7 +558,7 @@ type retraction struct {
 //
 // The caller must not modify the returned summary.
 func goModSummary(m module.Version) (*modFileSummary, error) {
-	if m.Version == "" && MainModules.Contains(m.Path) {
+	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
 		panic("internal error: goModSummary called on a main module")
 	}
 
@@ -663,7 +667,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		summary *modFileSummary
 		err     error
 	}
-	c := rawGoModSummaryCache.Do(key{m}, func() interface{} {
+	c := rawGoModSummaryCache.Do(key{m}, func() any {
 		summary := new(modFileSummary)
 		name, data, err := rawGoModData(m)
 		if err != nil {
@@ -718,9 +722,14 @@ var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
 func rawGoModData(m module.Version) (name string, data []byte, err error) {
 	if m.Version == "" {
 		// m is a replacement module with only a file path.
+
 		dir := m.Path
 		if !filepath.IsAbs(dir) {
-			dir = filepath.Join(replaceRelativeTo(), dir)
+			if inWorkspaceMode() && MainModules.Contains(m.Path) {
+				dir = MainModules.ModRoot(m)
+			} else {
+				dir = filepath.Join(replaceRelativeTo(), dir)
+			}
 		}
 		name = filepath.Join(dir, "go.mod")
 		if gomodActual, ok := fsys.OverlayPath(name); ok {
@@ -760,7 +769,7 @@ func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (la
 		latest module.Version
 		err    error
 	}
-	e := latestVersionIgnoringRetractionsCache.Do(path, func() interface{} {
+	e := latestVersionIgnoringRetractionsCache.Do(path, func() any {
 		ctx, span := trace.StartSpan(ctx, "queryLatestVersionIgnoringRetractions "+path)
 		defer span.Done()
 

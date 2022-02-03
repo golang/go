@@ -266,8 +266,9 @@ func newProfileBuilder(w io.Writer) *profileBuilder {
 }
 
 // addCPUData adds the CPU profiling data to the profile.
-// The data must be a whole number of records,
-// as delivered by the runtime.
+//
+// The data must be a whole number of records, as delivered by the runtime.
+// len(tags) must be equal to the number of records in data.
 func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error {
 	if !b.havePeriod {
 		// first record is period
@@ -282,6 +283,9 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 		b.period = 1e9 / int64(data[2])
 		b.havePeriod = true
 		data = data[3:]
+		// Consume tag slot. Note that there isn't a meaningful tag
+		// value for this record.
+		tags = tags[1:]
 	}
 
 	// Parse CPU samples from the profile.
@@ -306,14 +310,14 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 		if data[0] < 3 || tags != nil && len(tags) < 1 {
 			return fmt.Errorf("malformed profile")
 		}
+		if len(tags) < 1 {
+			return fmt.Errorf("mismatched profile records and tags")
+		}
 		count := data[2]
 		stk := data[3:data[0]]
 		data = data[data[0]:]
-		var tag unsafe.Pointer
-		if tags != nil {
-			tag = tags[0]
-			tags = tags[1:]
-		}
+		tag := tags[0]
+		tags = tags[1:]
 
 		if count == 0 && len(stk) == 1 {
 			// overflow record
@@ -326,6 +330,10 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 			}
 		}
 		b.m.lookup(stk, tag).count += int64(count)
+	}
+
+	if len(tags) != 0 {
+		return fmt.Errorf("mismatched profile records and tags")
 	}
 	return nil
 }

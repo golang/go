@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -93,10 +94,21 @@ var ignoreSuffixes = []string{
 	"_test.go",
 }
 
+var tryDirs = []string{
+	"sdk/go1.17",
+	"go1.17",
+}
+
 func bootstrapBuildTools() {
 	goroot_bootstrap := os.Getenv("GOROOT_BOOTSTRAP")
 	if goroot_bootstrap == "" {
-		goroot_bootstrap = pathf("%s/go1.4", os.Getenv("HOME"))
+		home := os.Getenv("HOME")
+		goroot_bootstrap = pathf("%s/go1.4", home)
+		for _, d := range tryDirs {
+			if p := pathf("%s/%s", home, d); isdir(p) {
+				goroot_bootstrap = p
+			}
+		}
 	}
 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
 
@@ -277,7 +289,11 @@ func rewriteBlock%s(b *Block) bool { panic("unused during bootstrap") }
 }
 
 func bootstrapFixImports(srcFile string) string {
-	lines := strings.SplitAfter(readfile(srcFile), "\n")
+	text := readfile(srcFile)
+	if !strings.Contains(srcFile, "/cmd/") && !strings.Contains(srcFile, `\cmd\`) {
+		text = regexp.MustCompile(`\bany\b`).ReplaceAllString(text, "interface{}")
+	}
+	lines := strings.SplitAfter(text, "\n")
 	inBlock := false
 	for i, line := range lines {
 		if strings.HasPrefix(line, "import (") {

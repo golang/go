@@ -16,7 +16,14 @@ stdout '^go version'
 env GOFLAGS=
 
 env GO111MODULE=on
-# Skip the builds below if we are running in short mode.
+
+# Check that very basic version lookup succeeds.
+go build empty.go
+go version empty$GOEXE
+[cgo] go build -ldflags=-linkmode=external empty.go
+[cgo] go version empty$GOEXE
+
+# Skip the remaining builds if we are running in short mode.
 [short] skip
 
 # Check that 'go version' and 'go version -m' work on a binary built in module mode.
@@ -57,3 +64,7 @@ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
 -- go.mod --
 module m
+
+-- empty.go --
+package main
+func main(){}

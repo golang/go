@@ -34,12 +34,22 @@ func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
 	skipUnderDebugger(t)
 
 	// This can deadlock if there aren't enough threads or if a GC
-	// tries to interrupt an atomic loop (see issue #10958). We
-	// use 8 Ps so there's room for the debug call worker,
+	// tries to interrupt an atomic loop (see issue #10958). Execute
+	// an extra GC to ensure even the sweep phase is done (out of
+	// caution to prevent #49370 from happening).
+	// TODO(mknyszek): This extra GC cycle is likely unnecessary
+	// because preemption (which may happen during the sweep phase)
+	// isn't much of an issue anymore thanks to asynchronous preemption.
+	// The biggest risk is having a write barrier in the debug call
+	// injection test code fire, because it runs in a signal handler
+	// and may not have a P.
+	//
+	// We use 8 Ps so there's room for the debug call worker,
 	// something that's trying to preempt the call worker, and the
 	// goroutine that's trying to stop the call worker.
 	ogomaxprocs := runtime.GOMAXPROCS(8)
 	ogcpercent := debug.SetGCPercent(-1)
+	runtime.GC()
 
 	// ready is a buffered channel so debugCallWorker won't block
 	// on sending to it. This makes it less likely we'll catch
@@ -143,6 +153,7 @@ func TestDebugCall(t *testing.T) {
 			x1: 42.0,
 		}
 	}
+
 	if _, err := runtime.InjectDebugCall(g, fn, &regs, args, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
@@ -233,6 +244,12 @@ func TestDebugCallUnsafePoint(t *testing.T) {
 	// This can deadlock if there aren't enough threads or if a GC
 	// tries to interrupt an atomic loop (see issue #10958).
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 
 	// Test that the runtime refuses call injection at unsafe points.
@@ -255,6 +272,19 @@ func TestDebugCallPanic(t *testing.T) {
 
 	// This can deadlock if there aren't enough threads.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #10958 and #49370.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// TODO(mknyszek): This extra GC cycle is likely unnecessary
+	// because preemption (which may happen during the sweep phase)
+	// isn't much of an issue anymore thanks to asynchronous preemption.
+	// The biggest risk is having a write barrier in the debug call
+	// injection test code fire, because it runs in a signal handler
+	// and may not have a P.
+	runtime.GC()
 
 	ready := make(chan *runtime.G)
 	var stop uint32

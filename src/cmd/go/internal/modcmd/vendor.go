@@ -31,7 +31,7 @@ import (
 )
 
 var cmdVendor = &base.Command{
-	UsageLine: "go mod vendor [-e] [-v]",
+	UsageLine: "go mod vendor [-e] [-v] [-o outdir]",
 	Short:     "make vendored copy of dependencies",
 	Long: `
 Vendor resets the main module's vendor directory to include all packages
@@ -44,16 +44,23 @@ modules and packages to standard error.
 The -e flag causes vendor to attempt to proceed despite errors
 encountered while loading packages.
 
+The -o flag causes vendor to create the vendor directory at the given
+path instead of "vendor". The go command can only use a vendor directory
+named "vendor" within the module root directory, so this flag is
+primarily useful for other tools.
+
 See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
 	`,
 	Run: runVendor,
 }
 
-var vendorE bool // if true, report errors but proceed anyway
+var vendorE bool   // if true, report errors but proceed anyway
+var vendorO string // if set, overrides the default output directory
 
 func init() {
 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
+	cmdVendor.Flag.StringVar(&vendorO, "o", "", "")
 	base.AddModCommonFlags(&cmdVendor.Flag)
 }
 
@@ -74,7 +81,15 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 
-	vdir := filepath.Join(modload.VendorDir())
+	var vdir string
+	switch {
+	case filepath.IsAbs(vendorO):
+		vdir = vendorO
+	case vendorO != "":
+		vdir = filepath.Join(base.Cwd(), vendorO)
+	default:
+		vdir = filepath.Join(modload.VendorDir())
+	}
 	if err := os.RemoveAll(vdir); err != nil {
 		base.Fatalf("go: %v", err)
 	}

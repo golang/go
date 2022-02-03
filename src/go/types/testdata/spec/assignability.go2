@@ -155,28 +155,28 @@ func _[
 // TODO(rfindley) error messages about untyped nil diverge from types2 here.
 // Consider aligning them.
 func _[TP Interface](X TP) {
-	b = nil // ERROR cannot use.*untyped nil
-	a = nil // ERROR cannot use.*untyped nil
+	b = nil // ERROR cannot use nil
+	a = nil // ERROR cannot use nil
 	l = nil
-	s = nil // ERROR cannot use.*untyped nil
+	s = nil // ERROR cannot use nil
 	p = nil
 	f = nil
 	i = nil
 	m = nil
 	c = nil
-	d = nil // ERROR cannot use.*untyped nil
+	d = nil // ERROR cannot use nil
 
-	B = nil // ERROR cannot use.*untyped nil
-	A = nil // ERROR cannot use.*untyped nil
+	B = nil // ERROR cannot use nil
+	A = nil // ERROR cannot use nil
 	L = nil
-	S = nil // ERROR cannot use.*untyped nil
+	S = nil // ERROR cannot use nil
 	P = nil
 	F = nil
 	I = nil
 	M = nil
 	C = nil
-	D = nil // ERROR cannot use.*untyped nil
-	X = nil // ERROR cannot use.*untyped nil
+	D = nil // ERROR cannot use nil
+	X = nil // ERROR cannot use nil
 }
 
 // "x is an untyped constant representable by a value of type T"

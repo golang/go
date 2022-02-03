@@ -129,7 +129,11 @@ const (
 
 var typecheckdefstack []*ir.Name
 
-// Resolve ONONAME to definition, if any.
+// Resolve resolves an ONONAME node to a definition, if any. If n is not an ONONAME node,
+// Resolve returns n unchanged. If n is an ONONAME node and not in the same package,
+// then n.Sym() is resolved using import data. Otherwise, Resolve returns
+// n.Sym().Def. An ONONAME node can be created using ir.NewIdent(), so an imported
+// symbol can be resolved via Resolve(ir.NewIdent(src.NoXPos, sym)).
 func Resolve(n ir.Node) (res ir.Node) {
 	if n == nil || n.Op() != ir.ONONAME {
 		return n

@@ -79,28 +79,41 @@ func defPredeclaredTypes() {
 	}
 
 	// type any = interface{}
-	def(NewTypeName(nopos, nil, "any", &emptyInterface))
+	// Note: don't use &emptyInterface for the type of any. Using a unique
+	// pointer allows us to detect any and format it as "any" rather than
+	// interface{}, which clarifies user-facing error messages significantly.
+	def(NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
 
 	// type error interface{ Error() string }
 	{
 		obj := NewTypeName(nopos, nil, "error", nil)
 		obj.setColor(black)
+		typ := NewNamed(obj, nil, nil)
+
+		// error.Error() string
+		recv := NewVar(nopos, nil, "", typ)
 		res := NewVar(nopos, nil, "", Typ[String])
-		sig := NewSignatureType(nil, nil, nil, nil, NewTuple(res), false)
+		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
 		err := NewFunc(nopos, nil, "Error", sig)
-		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, false, true, nil}
+
+		// interface{ Error() string }
+		ityp := &Interface{obj: obj, methods: []*Func{err}, complete: true}
 		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
-		typ := NewNamed(obj, ityp, nil)
-		sig.recv = NewVar(nopos, nil, "", typ)
+
+		typ.SetUnderlying(ityp)
 		def(obj)
 	}
 
-	// type comparable interface{ /* type set marked comparable */ }
+	// type comparable interface{} // marked as comparable
 	{
 		obj := NewTypeName(nopos, nil, "comparable", nil)
 		obj.setColor(black)
-		ityp := &Interface{nil, obj, nil, nil, nil, false, true, &_TypeSet{true, nil, allTermlist}}
-		NewNamed(obj, ityp, nil)
+		typ := NewNamed(obj, nil, nil)
+
+		// interface{} // marked as comparable
+		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{true, nil, allTermlist}}
+
+		typ.SetUnderlying(ityp)
 		def(obj)
 	}
 }
@@ -240,7 +253,7 @@ func def(obj Object) {
 		return // nothing to do
 	}
 	// fix Obj link for named types
-	if typ := asNamed(obj.Type()); typ != nil {
+	if typ, _ := obj.Type().(*Named); typ != nil {
 		typ.obj = obj.(*TypeName)
 	}
 	// exported identifiers go into package unsafe

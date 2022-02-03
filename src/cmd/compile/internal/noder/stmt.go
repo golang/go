@@ -13,8 +13,10 @@ import (
 	"cmd/internal/src"
 )
 
+// stmts creates nodes for a slice of statements that form a scope.
 func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
 	var nodes []ir.Node
+	types.Markdcl()
 	for _, stmt := range stmts {
 		switch s := g.stmt(stmt).(type) {
 		case nil: // EmptyStmt
@@ -24,6 +26,7 @@ func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
 			nodes = append(nodes, s)
 		}
 	}
+	types.Popdcl()
 	return nodes
 }
 
@@ -46,6 +49,12 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 		n.SetTypecheck(1)
 		return n
 	case *syntax.DeclStmt:
+		if g.topFuncIsGeneric && len(stmt.DeclList) > 0 {
+			if _, ok := stmt.DeclList[0].(*syntax.TypeDecl); ok {
+				// TODO: remove this restriction. See issue 47631.
+				base.ErrorfAt(g.pos(stmt), "type declarations inside generic functions are not currently supported")
+			}
+		}
 		n := ir.NewBlockStmt(g.pos(stmt), nil)
 		g.decls(&n.List, stmt.DeclList)
 		return n

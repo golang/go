@@ -136,6 +136,9 @@ func TestSignal(t *testing.T) {
 	// Using 10 is arbitrary.
 	c1 := make(chan os.Signal, 10)
 	Notify(c1)
+	// Stop relaying the SIGURG signals. See #49724
+	Reset(syscall.SIGURG)
+	defer Stop(c1)
 
 	// Send this process a SIGWINCH
 	t.Logf("sigwinch...")

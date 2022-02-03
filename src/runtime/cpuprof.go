@@ -89,7 +89,7 @@ func SetCPUProfileRate(hz int) {
 // held at the time of the signal, nor can it use substantial amounts
 // of stack.
 //go:nowritebarrierrec
-func (p *cpuProfile) add(gp *g, stk []uintptr) {
+func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
 	// Simple cas-lock to coordinate with setcpuprofilerate.
 	for !atomic.Cas(&prof.signalLock, 0, 1) {
 		osyield()
@@ -104,15 +104,6 @@ func (p *cpuProfile) add(gp *g, stk []uintptr) {
 		// because otherwise its write barrier behavior may not
 		// be correct. See the long comment there before
 		// changing the argument here.
-		//
-		// Note: it can happen on Windows, where we are calling
-		// p.add with a gp that is not the current g, that gp is nil,
-		// meaning we interrupted a system thread with no g.
-		// Avoid faulting in that case.
-		var tagPtr *unsafe.Pointer
-		if gp != nil {
-			tagPtr = &gp.labels
-		}
 		cpuprof.log.write(tagPtr, nanotime(), hdr[:], stk)
 	}
 
@@ -209,6 +200,8 @@ func runtime_pprof_runtime_cyclesPerSecond() int64 {
 // If profiling is turned off and all the profile data accumulated while it was
 // on has been returned, readProfile returns eof=true.
 // The caller must save the returned data and tags before calling readProfile again.
+// The returned data contains a whole number of records, and tags contains
+// exactly one entry per record.
 //
 //go:linkname runtime_pprof_readProfile runtime/pprof.readProfile
 func runtime_pprof_readProfile() ([]uint64, []unsafe.Pointer, bool) {

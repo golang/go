@@ -35,18 +35,18 @@ import (
 	"sort"
 )
 
-func hidePanic() {
-	if base.Debug.Panic == 0 && base.Errors() > 0 {
-		// If we've already complained about things
-		// in the program, don't bother complaining
-		// about a panic too; let the user clean up
-		// the code and try again.
-		if err := recover(); err != nil {
-			if err == "-h" {
-				panic(err)
-			}
-			base.ErrorExit()
+// handlePanic ensures that we print out an "internal compiler error" for any panic
+// or runtime exception during front-end compiler processing (unless there have
+// already been some compiler errors). It may also be invoked from the explicit panic in
+// hcrash(), in which case, we pass the panic on through.
+func handlePanic() {
+	if err := recover(); err != nil {
+		if err == "-h" {
+			// Force real panic now with -h option (hcrash) - the error
+			// information will have already been printed.
+			panic(err)
 		}
+		base.Fatalf("panic: %v", err)
 	}
 }
 
@@ -56,7 +56,7 @@ func hidePanic() {
 func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
 
-	defer hidePanic()
+	defer handlePanic()
 
 	archInit(&ssagen.Arch)
 
@@ -245,11 +245,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
 		inline.InlinePackage()
-		// If any new fully-instantiated types were referenced during
-		// inlining, we need to create needed instantiations.
-		if len(typecheck.GetInstTypeList()) > 0 {
-			noder.BuildInstantiations(false)
-		}
 	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 

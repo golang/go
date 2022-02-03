@@ -789,7 +789,7 @@ Found:
 		}
 
 		// package was not found
-		return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
+		return p, fmt.Errorf("cannot find package %q in:\n\t%s", p.ImportPath, p.Dir)
 	}
 
 	if mode&FindOnly != 0 {
@@ -894,7 +894,7 @@ Found:
 
 		isTest := strings.HasSuffix(name, "_test.go")
 		isXTest := false
-		if isTest && strings.HasSuffix(pkg, "_test") {
+		if isTest && strings.HasSuffix(pkg, "_test") && p.Name != pkg {
 			isXTest = true
 			pkg = pkg[:len(pkg)-len("_test")]
 		}

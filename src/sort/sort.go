@@ -223,7 +223,7 @@ func quickSort(data Interface, a, b, maxDepth int) {
 	}
 }
 
-// Sort sorts data.
+// Sort sorts data in ascending order as determined by the Less method.
 // It makes one call to data.Len to determine n and O(n*log(n)) calls to
 // data.Less and data.Swap. The sort is not guaranteed to be stable.
 func Sort(data Interface) {
@@ -370,7 +370,8 @@ func StringsAreSorted(x []string) bool { return IsSorted(StringSlice(x)) }
 //  - Often "optimal" algorithms are optimal in the number of assignments
 //    but Interface has only Swap as operation.
 
-// Stable sorts data while keeping the original order of equal elements.
+// Stable sorts data in ascending order as determined by the Less method,
+// while keeping the original order of equal elements.
 //
 // It makes one call to data.Len to determine n, O(n*log(n)) calls to
 // data.Less and O(n*log(n)*log(n)) calls to data.Swap.

@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && (ppc64 || ppc64le)
-// +build linux
-// +build ppc64 ppc64le
 
 //
 // System calls and other sys.stuff for ppc64, Linux

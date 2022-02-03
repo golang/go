@@ -3,3 +3,5 @@ int
 int32/int16
 struct{T,T}
 other
+T
+int32/int16

@@ -99,9 +99,9 @@ func (v Value) pointer() unsafe.Pointer {
 }
 
 // packEface converts v to the empty interface.
-func packEface(v Value) interface{} {
+func packEface(v Value) any {
 	t := v.typ
-	var i interface{}
+	var i any
 	e := (*emptyInterface)(unsafe.Pointer(&i))
 	// First, fill in the data portion of the interface.
 	switch {
@@ -136,7 +136,7 @@ func packEface(v Value) interface{} {
 }
 
 // unpackEface converts the empty interface i to a Value.
-func unpackEface(i interface{}) Value {
+func unpackEface(i any) Value {
 	e := (*emptyInterface)(unsafe.Pointer(&i))
 	// NOTE: don't read e.word until we know whether it is really a pointer or not.
 	t := e.typ
@@ -226,11 +226,11 @@ func (v Value) Elem() Value {
 	k := v.kind()
 	switch k {
 	case Interface:
-		var eface interface{}
+		var eface any
 		if v.typ.NumMethod() == 0 {
-			eface = *(*interface{})(v.ptr)
+			eface = *(*any)(v.ptr)
 		} else {
-			eface = (interface{})(*(*interface {
+			eface = (any)(*(*interface {
 				M()
 			})(v.ptr))
 		}
@@ -257,7 +257,7 @@ func (v Value) Elem() Value {
 	panic(&ValueError{"reflectlite.Value.Elem", v.kind()})
 }
 
-func valueInterface(v Value) interface{} {
+func valueInterface(v Value) any {
 	if v.flag == 0 {
 		panic(&ValueError{"reflectlite.Value.Interface", 0})
 	}
@@ -267,7 +267,7 @@ func valueInterface(v Value) interface{} {
 		// Empty interface has one layout, all interfaces with
 		// methods have a second layout.
 		if v.numMethod() == 0 {
-			return *(*interface{})(v.ptr)
+			return *(*any)(v.ptr)
 		}
 		return *(*interface {
 			M()
@@ -391,7 +391,7 @@ func unsafe_New(*rtype) unsafe.Pointer
 
 // ValueOf returns a new Value initialized to the concrete value
 // stored in the interface i. ValueOf(nil) returns the zero Value.
-func ValueOf(i interface{}) Value {
+func ValueOf(i any) Value {
 	if i == nil {
 		return Value{}
 	}
@@ -433,7 +433,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 		}
 		x := valueInterface(v)
 		if dst.NumMethod() == 0 {
-			*(*interface{})(target) = x
+			*(*any)(target) = x
 		} else {
 			ifaceE2I(dst, x, target)
 		}
@@ -455,7 +455,7 @@ func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Po
 	return add(p, uintptr(i)*eltSize, "i < len")
 }
 
-func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
+func ifaceE2I(t *rtype, src any, dst unsafe.Pointer)
 
 // typedmemmove copies a value of type t to dst from src.
 //go:noescape
@@ -464,7 +464,7 @@ func typedmemmove(t *rtype, dst, src unsafe.Pointer)
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that
 // the compiler cannot follow.
-func escapes(x interface{}) {
+func escapes(x any) {
 	if dummy.b {
 		dummy.x = x
 	}
@@ -472,5 +472,5 @@ func escapes(x interface{}) {
 
 var dummy struct {
 	b bool
-	x interface{}
+	x any
 }

@@ -318,7 +318,7 @@ var parseTests = []parseTest{
 	{"block definition", `{{block "foo"}}hello{{end}}`, hasError, ""},
 }
 
-var builtins = map[string]interface{}{
+var builtins = map[string]any{
 	"printf":   fmt.Sprintf,
 	"contains": strings.Contains,
 }

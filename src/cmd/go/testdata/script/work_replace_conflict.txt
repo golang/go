@@ -2,15 +2,15 @@
 # overriding it in the go.work file.
 
 ! go list -m example.com/dep
-stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t./dep1\n\t./dep2\nuse "go mod editwork -replace example.com/dep@v1.0.0=\[override\]" to resolve'
-go mod editwork -replace example.com/dep@v1.0.0=./dep1
+stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t./dep1\n\t./dep2\nuse "go work edit -replace example.com/dep@v1.0.0=\[override\]" to resolve'
+go work edit -replace example.com/dep@v1.0.0=./dep1
 go list -m example.com/dep
 stdout 'example.com/dep v1.0.0 => ./dep1'
 
 -- foo --
 -- go.work --
-directory m
-directory n
+use m
+use n
 -- m/go.mod --
 module example.com/m
 

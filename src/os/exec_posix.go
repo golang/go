@@ -87,11 +87,11 @@ func (p *ProcessState) success() bool {
 	return p.status.ExitStatus() == 0
 }
 
-func (p *ProcessState) sys() interface{} {
+func (p *ProcessState) sys() any {
 	return p.status
 }
 
-func (p *ProcessState) sysUsage() interface{} {
+func (p *ProcessState) sysUsage() any {
 	return p.rusage
 }
 

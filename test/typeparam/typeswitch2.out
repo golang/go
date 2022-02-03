@@ -3,3 +3,5 @@ int 7
 int32/int16 8
 struct{T,T} +1.000000e+000 +2.000000e+000
 other 9
+T 7
+int32/int16 7

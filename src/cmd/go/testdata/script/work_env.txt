@@ -19,6 +19,6 @@ stderr '^go: GOWORK cannot be modified$'
 -- go.work --
 go 1.18
 
-directory a
+use a
 -- a/go.mod --
 module example.com/a

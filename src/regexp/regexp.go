@@ -42,7 +42,7 @@
 // successive submatches of the expression. Submatches are matches of
 // parenthesized subexpressions (also known as capturing groups) within the
 // regular expression, numbered from left to right in order of opening
-// parenthesis. Submatch 0 is the match of the entire expression, submatch 1
+// parenthesis. Submatch 0 is the match of the entire expression, submatch 1 is
 // the match of the first parenthesized subexpression, and so on.
 //
 // If 'Index' is present, matches and submatches are identified by byte index

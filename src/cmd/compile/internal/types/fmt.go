@@ -140,11 +140,17 @@ func sconv2(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
 }
 
 func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
+	name := s.Name
 	if q := pkgqual(s.Pkg, verb, mode); q != "" {
 		b.WriteString(q)
 		b.WriteByte('.')
+		if mode == fmtTypeIDName {
+			// If name is a generic instantiation, it might have local package placeholders
+			// in it. Replace those placeholders with the package name. See issue 49547.
+			name = strings.Replace(name, LocalPkg.Prefix, q, -1)
+		}
 	}
-	b.WriteString(s.Name)
+	b.WriteString(name)
 }
 
 // pkgqual returns the qualifier that should be used for printing
@@ -322,8 +328,8 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		return
 	}
 
-	if t == ByteType || t == RuneType {
-		// in %-T mode collapse rune and byte with their originals.
+	if t == AnyType || t == ByteType || t == RuneType {
+		// in %-T mode collapse predeclared aliases with their originals.
 		switch mode {
 		case fmtTypeIDName, fmtTypeID:
 			t = Types[t.Kind()]
@@ -625,6 +631,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 	}
 
 	var name string
+	nameSep := " "
 	if verb != 'S' {
 		s := f.Sym
 
@@ -633,7 +640,47 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 			s = OrigSym(s)
 		}
 
-		if s != nil && f.Embedded == 0 {
+		// Using type aliases and embedded fields, it's possible to
+		// construct types that can't be directly represented as a
+		// type literal. For example, given "type Int = int" (#50190),
+		// it would be incorrect to format "struct{ Int }" as either
+		// "struct{ int }" or "struct{ Int int }", because those each
+		// represent other, distinct types.
+		//
+		// So for the purpose of LinkString (i.e., fmtTypeID), we use
+		// the non-standard syntax "struct{ Int = int }" to represent
+		// embedded fields that have been renamed through the use of
+		// type aliases.
+		if f.Embedded != 0 {
+			if mode == fmtTypeID {
+				nameSep = " = "
+
+				// Compute tsym, the symbol that would normally be used as
+				// the field name when embedding f.Type.
+				// TODO(mdempsky): Check for other occurences of this logic
+				// and deduplicate.
+				typ := f.Type
+				if typ.IsPtr() {
+					base.Assertf(typ.Sym() == nil, "embedded pointer type has name: %L", typ)
+					typ = typ.Elem()
+				}
+				tsym := typ.Sym()
+
+				// If the field name matches the embedded type's name, then
+				// suppress printing of the field name. For example, format
+				// "struct{ T }" as simply that instead of "struct{ T = T }".
+				if tsym != nil && (s == tsym || IsExported(tsym.Name) && s.Name == tsym.Name) {
+					s = nil
+				}
+			} else {
+				// Suppress the field name for embedded fields for
+				// non-LinkString formats, to match historical behavior.
+				// TODO(mdempsky): Re-evaluate this.
+				s = nil
+			}
+		}
+
+		if s != nil {
 			if funarg != FunargNone {
 				name = fmt.Sprint(f.Nname)
 			} else if verb == 'L' {
@@ -652,7 +699,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 
 	if name != "" {
 		b.WriteString(name)
-		b.WriteString(" ")
+		b.WriteString(nameSep)
 	}
 
 	if f.IsDDD() {

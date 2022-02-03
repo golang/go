@@ -14,7 +14,7 @@ stdout '^ok'
 go test -fuzz ThisWillNotMatch -fuzztime 1x standalone_fuzz_test.go
 ! stdout '^ok.*no tests to run'
 stdout '^ok'
-stdout 'no targets to fuzz'
+stdout 'no fuzz tests to fuzz'
 
 [short] stop
 
@@ -26,7 +26,7 @@ stdout '^ok'
 # Matches no fuzz targets.
 go test -run ThisWillNotMatch standalone_fuzz_test.go
 stdout '^ok.*no tests to run'
-! stdout 'no targets to fuzz'
+! stdout 'no fuzz tests to fuzz'
 
 -- standalone_fuzz_test.go --
 package standalone_fuzz

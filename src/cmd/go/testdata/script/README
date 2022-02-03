@@ -110,14 +110,15 @@ The commands are:
   Change the permissions of the files or directories named by the path arguments
   to be equal to perm. Only numerical permissions are supported.
 
-- cmp file1 file2
-  Check that the named files have the same content.
+- [! | ?] cmp file1 file2
+  Check that the named files have (or do not have) the same content.
   By convention, file1 is the actual data and file2 the expected data.
   File1 can be "stdout" or "stderr" to use the standard output or standard error
   from the most recent exec or go command.
-  (If the files have differing content, the failure prints a diff.)
+  (If the file contents differ and the command is not negated,
+  the failure prints a diff.)
 
-- cmpenv file1 file2
+- [! | ?] cmpenv file1 file2
   Like cmp, but environment variables are substituted in the file contents
   before the comparison. For example, $GOOS is replaced by the target GOOS.
 
@@ -162,6 +163,10 @@ The commands are:
 
 - mkdir path...
   Create the listed directories, if they do not already exists.
+
+- mv path1 path2
+  Rename path1 to path2. OS-specific restrictions may apply when path1 and path2
+  are in different directories.
 
 - rm file...
   Remove the listed files or directories.

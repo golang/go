@@ -2174,7 +2174,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		n++
-		if n > 20 {
+		if n > 1000 {
 			ctxt.Diag("span must be looping")
 			log.Fatalf("loop")
 		}

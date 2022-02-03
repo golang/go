@@ -146,12 +146,18 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 	}
 	const (
 		buildInfoAlign = 16
-		buildinfoSize  = 32
+		buildInfoSize  = 32
 	)
-	for ; !bytes.HasPrefix(data, buildInfoMagic); data = data[buildInfoAlign:] {
-		if len(data) < 32 {
+	for {
+		i := bytes.Index(data, buildInfoMagic)
+		if i < 0 || len(data)-i < buildInfoSize {
 			return "", "", errNotGoExe
 		}
+		if i%buildInfoAlign == 0 && len(data)-i >= buildInfoSize {
+			data = data[i:]
+			break
+		}
+		data = data[(i+buildInfoAlign-1)&^buildInfoAlign:]
 	}
 
 	// Decode the blob.
@@ -161,25 +167,33 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 	// Two virtual addresses to Go strings follow that: runtime.buildVersion,
 	// and runtime.modinfo.
 	// On 32-bit platforms, the last 8 bytes are unused.
+	// If the endianness has the 2 bit set, then the pointers are zero
+	// and the 32-byte header is followed by varint-prefixed string data
+	// for the two string values we care about.
 	ptrSize := int(data[14])
-	bigEndian := data[15] != 0
-	var bo binary.ByteOrder
-	if bigEndian {
-		bo = binary.BigEndian
+	if data[15]&2 != 0 {
+		vers, data = decodeString(data[32:])
+		mod, data = decodeString(data)
 	} else {
-		bo = binary.LittleEndian
+		bigEndian := data[15] != 0
+		var bo binary.ByteOrder
+		if bigEndian {
+			bo = binary.BigEndian
+		} else {
+			bo = binary.LittleEndian
+		}
+		var readPtr func([]byte) uint64
+		if ptrSize == 4 {
+			readPtr = func(b []byte) uint64 { return uint64(bo.Uint32(b)) }
+		} else {
+			readPtr = bo.Uint64
+		}
+		vers = readString(x, ptrSize, readPtr, readPtr(data[16:]))
+		mod = readString(x, ptrSize, readPtr, readPtr(data[16+ptrSize:]))
 	}
-	var readPtr func([]byte) uint64
-	if ptrSize == 4 {
-		readPtr = func(b []byte) uint64 { return uint64(bo.Uint32(b)) }
-	} else {
-		readPtr = bo.Uint64
-	}
-	vers = readString(x, ptrSize, readPtr, readPtr(data[16:]))
 	if vers == "" {
 		return "", "", errNotGoExe
 	}
-	mod = readString(x, ptrSize, readPtr, readPtr(data[16+ptrSize:]))
 	if len(mod) >= 33 && mod[len(mod)-17] == '\n' {
 		// Strip module framing: sentinel strings delimiting the module info.
 		// These are cmd/go/internal/modload.infoStart and infoEnd.
@@ -189,6 +203,14 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 	}
 
 	return vers, mod, nil
+}
+
+func decodeString(data []byte) (s string, rest []byte) {
+	u, n := binary.Uvarint(data)
+	if n <= 0 || u >= uint64(len(data)-n) {
+		return "", nil
+	}
+	return string(data[n : uint64(n)+u]), data[uint64(n)+u:]
 }
 
 // readString returns the string at address addr in the executable x.

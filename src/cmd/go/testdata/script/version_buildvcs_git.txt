@@ -11,11 +11,12 @@ cd repo/a
 # If there's no local repository, there's no VCS info.
 go install
 go version -m $GOBIN/a$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 rm $GOBIN/a$GOEXE
 
 # If there is a repository, but it can't be used for some reason,
 # there should be an error. It should hint about -buildvcs=false.
+# Also ensure that multiple errors are collected by "go list -e".
 cd ..
 mkdir .git
 env PATH=$WORK${/}fakebin${:}$oldpath
@@ -24,6 +25,10 @@ chmod 0755 $WORK/fakebin/git
 cd a
 ! go install
 stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
+go list -e -f '{{.ImportPath}}: {{.Error}}' ./...
+stdout -count=1 '^example\.com/a: error obtaining VCS status'
+stdout -count=1 '^example\.com/a/library: <nil>'
+stdout -count=1 '^example\.com/a/othermain: error obtaining VCS status'
 cd ..
 env PATH=$oldpath
 rm .git
@@ -35,9 +40,10 @@ exec git config user.name 'J.R. Gopher'
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
-! stdout gitrevision
-! stdout gitcommittime
-stdout '^\tbuild\tgituncommitted\ttrue$'
+stdout '^\tbuild\tvcs=git$'
+stdout '^\tbuild\tvcs.modified=true$'
+! stdout vcs.revision
+! stdout vcs.time
 rm $GOBIN/a$GOEXE
 
 # Revision and commit time are tagged for repositories with commits.
@@ -45,22 +51,22 @@ exec git add -A
 exec git commit -m 'initial commit'
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tgitrevision\t'
-stdout '^\tbuild\tgitcommittime\t'
-stdout '^\tbuild\tgituncommitted\tfalse$'
+stdout '^\tbuild\tvcs.revision='
+stdout '^\tbuild\tvcs.time='
+stdout '^\tbuild\tvcs.modified=false$'
 rm $GOBIN/a$GOEXE
 
 # Building with -buildvcs=false suppresses the info.
 go install -buildvcs=false
 go version -m $GOBIN/a$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 rm $GOBIN/a$GOEXE
 
 # An untracked file is shown as uncommitted, even if it isn't part of the build.
 cp ../../outside/empty.txt .
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tgituncommitted\ttrue$'
+stdout '^\tbuild\tvcs.modified=true$'
 rm empty.txt
 rm $GOBIN/a$GOEXE
 
@@ -68,7 +74,7 @@ rm $GOBIN/a$GOEXE
 cp ../../outside/empty.txt ../README
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tgituncommitted\ttrue$'
+stdout '^\tbuild\tvcs.modified=true$'
 exec git checkout ../README
 rm $GOBIN/a$GOEXE
 
@@ -76,14 +82,14 @@ rm $GOBIN/a$GOEXE
 # there should be no VCS info.
 go install example.com/cmd/a@v1.0.0
 go version -m $GOBIN/a$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 rm $GOBIN/a$GOEXE
 
 go mod edit -require=example.com/c@v0.0.0
 go mod edit -replace=example.com/c@v0.0.0=../../outside/c
 go install example.com/c
 go version -m $GOBIN/c$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 rm $GOBIN/c$GOEXE
 exec git checkout go.mod
 
@@ -95,9 +101,17 @@ go mod edit -require=example.com/d@v0.0.0
 go mod edit -replace=example.com/d@v0.0.0=../../outside/d
 go install example.com/d
 go version -m $GOBIN/d$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 exec git checkout go.mod
 rm $GOBIN/d$GOEXE
+
+# If we're loading multiple main packages,
+# but they share the same VCS repository,
+# we only need to execute VCS status commands once.
+go list -x ./...
+stdout -count=3 '^example.com'
+stderr -count=1 '^git status'
+stderr -count=1 '^git show'
 
 -- $WORK/fakebin/git --
 #!/bin/sh
@@ -112,6 +126,12 @@ module example.com/a
 
 go 1.18
 -- repo/a/a.go --
+package main
+
+func main() {}
+-- repo/a/library/f.go --
+package library
+-- repo/a/othermain/f.go --
 package main
 
 func main() {}

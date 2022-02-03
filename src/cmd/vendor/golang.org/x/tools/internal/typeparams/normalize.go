@@ -16,92 +16,96 @@ import (
 
 const debug = false
 
-// NormalizeInterface returns the normal form of the interface iface, or nil if iface
-// has an empty type set (i.e. there are no types that satisfy iface). If the
-// resulting interface is non-nil, it will be identical to iface.
+var ErrEmptyTypeSet = errors.New("empty type set")
+
+// StructuralTerms returns a slice of terms representing the normalized
+// structural type restrictions of a type parameter, if any.
 //
-// An error is returned if the interface type is invalid, or too complicated to
-// reasonably normalize (for example, contains unions with more than a hundred
-// terms).
+// Structural type restrictions of a type parameter are created via
+// non-interface types embedded in its constraint interface (directly, or via a
+// chain of interface embeddings). For example, in the declaration
+//  type T[P interface{~int; m()}] int
+// the structural restriction of the type parameter P is ~int.
 //
-// An interface is in normal form if and only if:
-//   - it has 0 or 1 embedded types.
-//   - its embedded type is either a types.Union or has a concrete
-//     (non-interface) underlying type
-//   - if the embedded type is a union, each term of the union has a concrete
-//     underlying type, and no terms may be removed without changing the type set
-//     of the interface
-func NormalizeInterface(iface *types.Interface) (*types.Interface, error) {
-	var methods []*types.Func
-	for i := 0; i < iface.NumMethods(); i++ {
-		methods = append(methods, iface.Method(i))
+// With interface embedding and unions, the specification of structural type
+// restrictions may be arbitrarily complex. For example, consider the
+// following:
+//
+//  type A interface{ ~string|~[]byte }
+//
+//  type B interface{ int|string }
+//
+//  type C interface { ~string|~int }
+//
+//  type T[P interface{ A|B; C }] int
+//
+// In this example, the structural type restriction of P is ~string|int: A|B
+// expands to ~string|~[]byte|int|string, which reduces to ~string|~[]byte|int,
+// which when intersected with C (~string|~int) yields ~string|int.
+//
+// StructuralTerms computes these expansions and reductions, producing a
+// "normalized" form of the embeddings. A structural restriction is normalized
+// if it is a single union containing no interface terms, and is minimal in the
+// sense that removing any term changes the set of types satisfying the
+// constraint. It is left as a proof for the reader that, modulo sorting, there
+// is exactly one such normalized form.
+//
+// Because the minimal representation always takes this form, StructuralTerms
+// returns a slice of tilde terms corresponding to the terms of the union in
+// the normalized structural restriction. An error is returned if the
+// constraint interface is invalid, exceeds complexity bounds, or has an empty
+// type set. In the latter case, StructuralTerms returns ErrEmptyTypeSet.
+//
+// StructuralTerms makes no guarantees about the order of terms, except that it
+// is deterministic.
+func StructuralTerms(tparam *TypeParam) ([]*Term, error) {
+	constraint := tparam.Constraint()
+	if constraint == nil {
+		return nil, fmt.Errorf("%s has nil constraint", tparam)
 	}
-	var embeddeds []types.Type
-	tset, err := computeTermSet(iface, make(map[types.Type]*termSet), 0)
+	iface, _ := constraint.Underlying().(*types.Interface)
+	if iface == nil {
+		return nil, fmt.Errorf("constraint is %T, not *types.Interface", constraint.Underlying())
+	}
+	return InterfaceTermSet(iface)
+}
+
+// InterfaceTermSet computes the normalized terms for a constraint interface,
+// returning an error if the term set cannot be computed or is empty. In the
+// latter case, the error will be ErrEmptyTypeSet.
+//
+// See the documentation of StructuralTerms for more information on
+// normalization.
+func InterfaceTermSet(iface *types.Interface) ([]*Term, error) {
+	return computeTermSet(iface)
+}
+
+// UnionTermSet computes the normalized terms for a union, returning an error
+// if the term set cannot be computed or is empty. In the latter case, the
+// error will be ErrEmptyTypeSet.
+//
+// See the documentation of StructuralTerms for more information on
+// normalization.
+func UnionTermSet(union *Union) ([]*Term, error) {
+	return computeTermSet(union)
+}
+
+func computeTermSet(typ types.Type) ([]*Term, error) {
+	tset, err := computeTermSetInternal(typ, make(map[types.Type]*termSet), 0)
 	if err != nil {
 		return nil, err
 	}
-	switch {
-	case tset.terms.isEmpty():
-		// Special case: as documented
+	if tset.terms.isEmpty() {
+		return nil, ErrEmptyTypeSet
+	}
+	if tset.terms.isAll() {
 		return nil, nil
-
-	case tset.terms.isAll():
-		// No embeddeds.
-
-	case len(tset.terms) == 1:
-		if !tset.terms[0].tilde {
-			embeddeds = append(embeddeds, tset.terms[0].typ)
-			break
-		}
-		fallthrough
-	default:
-		var terms []*Term
-		for _, term := range tset.terms {
-			terms = append(terms, NewTerm(term.tilde, term.typ))
-		}
-		embeddeds = append(embeddeds, NewUnion(terms))
 	}
-
-	return types.NewInterfaceType(methods, embeddeds), nil
-}
-
-var ErrEmptyTypeSet = errors.New("empty type set")
-
-// StructuralTerms returns the normalized structural type restrictions of a
-// type, if any. For types that are not type parameters, it returns term slice
-// containing a single non-tilde term holding the given type. For type
-// parameters, it returns the normalized term list of the type parameter's
-// constraint. See NormalizeInterface for more information on the normal form
-// of a constraint interface.
-//
-// StructuralTerms returns an error if the structural term list cannot be
-// computed. If the type set of typ is empty, it returns ErrEmptyTypeSet.
-func StructuralTerms(typ types.Type) ([]*Term, error) {
-	switch typ := typ.(type) {
-	case *TypeParam:
-		iface, _ := typ.Constraint().(*types.Interface)
-		if iface == nil {
-			return nil, fmt.Errorf("constraint is %T, not *types.Interface", typ)
-		}
-		tset, err := computeTermSet(iface, make(map[types.Type]*termSet), 0)
-		if err != nil {
-			return nil, err
-		}
-		if tset.terms.isEmpty() {
-			return nil, ErrEmptyTypeSet
-		}
-		if tset.terms.isAll() {
-			return nil, nil
-		}
-		var terms []*Term
-		for _, term := range tset.terms {
-			terms = append(terms, NewTerm(term.tilde, term.typ))
-		}
-		return terms, nil
-	default:
-		return []*Term{NewTerm(false, typ)}, nil
+	var terms []*Term
+	for _, term := range tset.terms {
+		terms = append(terms, NewTerm(term.tilde, term.typ))
 	}
+	return terms, nil
 }
 
 // A termSet holds the normalized set of terms for a given type.
@@ -118,7 +122,7 @@ func indentf(depth int, format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, strings.Repeat(".", depth)+format+"\n", args...)
 }
 
-func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res *termSet, err error) {
+func computeTermSetInternal(t types.Type, seen map[types.Type]*termSet, depth int) (res *termSet, err error) {
 	if t == nil {
 		panic("nil type")
 	}
@@ -159,7 +163,7 @@ func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res 
 			if _, ok := embedded.Underlying().(*TypeParam); ok {
 				return nil, fmt.Errorf("invalid embedded type %T", embedded)
 			}
-			tset2, err := computeTermSet(embedded, seen, depth+1)
+			tset2, err := computeTermSetInternal(embedded, seen, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -173,7 +177,7 @@ func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res 
 			var terms termlist
 			switch t.Type().Underlying().(type) {
 			case *types.Interface:
-				tset2, err := computeTermSet(t.Type(), seen, depth+1)
+				tset2, err := computeTermSetInternal(t.Type(), seen, depth+1)
 				if err != nil {
 					return nil, err
 				}

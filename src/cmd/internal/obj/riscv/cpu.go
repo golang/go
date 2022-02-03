@@ -183,7 +183,7 @@ const (
 	REGG  = REG_G
 )
 
-// https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md#dwarf-register-numbers
+// https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-dwarf.adoc#dwarf-register-numbers
 var RISCV64DWARFRegisters = map[int16]int16{
 	// Integer Registers.
 	REG_X0:  0,

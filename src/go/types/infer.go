@@ -18,15 +18,17 @@ import (
 // function arguments args, if any. There must be at least one type parameter, no more type arguments
 // than type parameters, and params and args must match in number (incl. zero).
 // If successful, infer returns the complete list of type arguments, one for each type parameter.
-// Otherwise the result is nil and appropriate errors will be reported unless report is set to false.
+// Otherwise the result is nil and appropriate errors will be reported.
 //
-// Inference proceeds in 3 steps:
+// Inference proceeds as follows:
 //
-//   1) Start with given type arguments.
-//   2) Infer type arguments from typed function arguments.
-//   3) Infer type arguments from untyped function arguments.
+//   Starting with given type arguments
+//   1) apply FTI (function type inference) with typed arguments,
+//   2) apply CTI (constraint type inference),
+//   3) apply FTI with untyped function arguments,
+//   4) apply CTI.
 //
-// Constraint type inference is used after each step to expand the set of type arguments.
+// The process stops as soon as all type arguments are known or an error occurs.
 func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (result []Type) {
 	if debug {
 		defer func() {
@@ -45,34 +47,69 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// Function parameters and arguments must match in number.
 	assert(params.Len() == len(args))
 
-	// --- 0 ---
 	// If we already have all type arguments, we're done.
 	if len(targs) == n {
 		return targs
 	}
 	// len(targs) < n
 
-	// --- 1 ---
-	// Explicitly provided type arguments take precedence over any inferred types;
-	// and types inferred via constraint type inference take precedence over types
-	// inferred from function arguments.
-	// If we have type arguments, see how far we get with constraint type inference.
-	if len(targs) > 0 {
-		var index int
-		targs, index = check.inferB(tparams, targs)
-		if targs == nil || index < 0 {
-			return targs
+	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
+	// If that is the case, permutate params and args such that the arguments with named
+	// types are first in the list. This doesn't affect type inference if all types are taken
+	// as is. But when we have inexact unification enabled (as is the case for function type
+	// inference), when a named type is unified with an unnamed type, unification proceeds
+	// with the underlying type of the named type because otherwise unification would fail
+	// right away. This leads to an asymmetry in type inference: in cases where arguments of
+	// named and unnamed types are passed to parameters with identical type, different types
+	// (named vs underlying) may be inferred depending on the order of the arguments.
+	// By ensuring that named types are seen first, order dependence is avoided and unification
+	// succeeds where it can.
+	//
+	// This code is disabled for now pending decision whether we want to address cases like
+	// these and make the spec on type inference more complicated (see issue #43056).
+	const enableArgSorting = false
+	if m := len(args); m >= 2 && enableArgSorting {
+		// Determine indices of arguments with named and unnamed types.
+		var named, unnamed []int
+		for i, arg := range args {
+			if hasName(arg.typ) {
+				named = append(named, i)
+			} else {
+				unnamed = append(unnamed, i)
+			}
+		}
+
+		// If we have named and unnamed types, move the arguments with
+		// named types first. Update the parameter list accordingly.
+		// Make copies so as not to clobber the incoming slices.
+		if len(named) != 0 && len(unnamed) != 0 {
+			params2 := make([]*Var, m)
+			args2 := make([]*operand, m)
+			i := 0
+			for _, j := range named {
+				params2[i] = params.At(j)
+				args2[i] = args[j]
+				i++
+			}
+			for _, j := range unnamed {
+				params2[i] = params.At(j)
+				args2[i] = args[j]
+				i++
+			}
+			params = NewTuple(params2...)
+			args = args2
 		}
 	}
 
-	// Continue with the type arguments we have now. Avoid matching generic
+	// --- 1 ---
+	// Continue with the type arguments we have. Avoid matching generic
 	// parameters that already have type arguments against function arguments:
 	// It may fail because matching uses type identity while parameter passing
 	// uses assignment rules. Instantiate the parameter list with the type
 	// arguments we have, and continue with that parameter list.
 
-	// First, make sure we have a "full" list of type arguments, so of which
-	// may be nil (unknown).
+	// First, make sure we have a "full" list of type arguments, some of which
+	// may be nil (unknown). Make a copy so as to not clobber the incoming slice.
 	if len(targs) < n {
 		targs2 := make([]Type, n)
 		copy(targs2, targs)
@@ -89,7 +126,6 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		params = check.subst(token.NoPos, params, smap, nil).(*Tuple)
 	}
 
-	// --- 2 ---
 	// Unify parameter and argument types for generic parameters with typed arguments
 	// and collect the indices of generic parameters with untyped arguments.
 	// Terminology: generic parameter = function parameter with a type-parameterized type
@@ -118,17 +154,21 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				}
 			}
 			if allFailed {
-				check.errorf(arg, _Todo, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
+				check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
 				return
 			}
 		}
 		smap := makeSubstMap(tparams, targs)
 		// TODO(rFindley): pass a positioner here, rather than arg.Pos().
 		inferred := check.subst(arg.Pos(), tpar, smap, nil)
+		// _CannotInferTypeArgs indicates a failure of inference, though the actual
+		// error may be better attributed to a user-provided type argument (hence
+		// _InvalidTypeArg). We can't differentiate these cases, so fall back on
+		// the more general _CannotInferTypeArgs.
 		if inferred != tpar {
-			check.errorf(arg, _Todo, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {
-			check.errorf(arg, _Todo, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
 		}
 	}
 
@@ -167,10 +207,11 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		return targs
 	}
 
+	// --- 2 ---
 	// See how far we get with constraint type inference.
 	// Note that even if we don't have any type arguments, constraint type inference
 	// may produce results for constraints that explicitly specify a type.
-	targs, index = check.inferB(tparams, targs)
+	targs, index = check.inferB(posn, tparams, targs)
 	if targs == nil || index < 0 {
 		return targs
 	}
@@ -205,8 +246,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		return targs
 	}
 
+	// --- 4 ---
 	// Again, follow up with constraint type inference.
-	targs, index = check.inferB(tparams, targs)
+	targs, index = check.inferB(posn, tparams, targs)
 	if targs == nil || index < 0 {
 		return targs
 	}
@@ -214,7 +256,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// At least one type argument couldn't be inferred.
 	assert(index >= 0 && targs[index] == nil)
 	tpar := tparams[index]
-	check.errorf(posn, _Todo, "cannot infer %s (%v)", tpar.obj.name, tpar.obj.pos)
+	check.errorf(posn, _CannotInferTypeArgs, "cannot infer %s (%v)", tpar.obj.name, tpar.obj.pos)
 	return nil
 }
 
@@ -355,7 +397,7 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
 // first type argument in that list that couldn't be inferred (and thus is nil). If all
 // type arguments were inferred successfully, index is < 0. The number of type arguments
 // provided may be less than the number of type parameters, but there must be at least one.
-func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, index int) {
+func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type) (types []Type, index int) {
 	assert(len(tparams) >= len(targs) && len(targs) > 0)
 
 	// Setup bidirectional unification between constraints
@@ -373,7 +415,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 
 	// If a constraint has a structural type, unify the corresponding type parameter with it.
 	for _, tpar := range tparams {
-		sbound := structure(tpar)
+		sbound := structuralType(tpar)
 		if sbound != nil {
 			// If the structural type is the underlying type of a single
 			// defined type in the constraint, use that defined type instead.
@@ -383,7 +425,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 			if !u.unify(tpar, sbound) {
 				// TODO(gri) improve error message by providing the type arguments
 				//           which we know already
-				check.errorf(tpar.obj, _Todo, "%s does not match %s", tpar, sbound)
+				check.errorf(posn, _InvalidTypeArg, "%s does not match %s", tpar, sbound)
 				return nil, 0
 			}
 		}

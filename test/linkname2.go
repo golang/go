@@ -16,12 +16,6 @@ var x, y int
 //go:linkname x ok
 
 // ERROR "//go:linkname requires linkname argument or -p compiler flag"
-// ERROR "//go:linkname must refer to declared function or variable"
-// ERROR "//go:linkname must refer to declared function or variable"
-// ERROR "duplicate //go:linkname for x"
 
 //line linkname2.go:18
 //go:linkname y
-//go:linkname nonexist nonexist
-//go:linkname t notvarfunc
-//go:linkname x duplicate

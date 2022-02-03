@@ -59,10 +59,7 @@ func TestProhibitionaryDialArg(t *testing.T) {
 }
 
 func TestDialLocal(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 	_, port, err := SplitHostPort(ln.Addr().String())
 	if err != nil {
@@ -432,14 +429,15 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 		readDeadline = time.Now().Add(5 * time.Second)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	var closed sync.WaitGroup
+	closed.Add(2)
 	handler := func(dss *dualStackServer, ln Listener) {
 		// Accept one connection per address.
 		c, err := ln.Accept()
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		// The client should close itself, without sending data.
 		c.SetReadDeadline(readDeadline)
 		var b [1]byte
@@ -447,7 +445,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 			t.Errorf("got %v; want %v", err, io.EOF)
 		}
 		c.Close()
-		wg.Done()
+		closed.Done()
 	}
 	dss, err := newDualStackServer()
 	if err != nil {
@@ -460,12 +458,16 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 
 	const fallbackDelay = 100 * time.Millisecond
 
+	var dialing sync.WaitGroup
+	dialing.Add(2)
 	origTestHookDialTCP := testHookDialTCP
 	defer func() { testHookDialTCP = origTestHookDialTCP }()
 	testHookDialTCP = func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
-		// Sleep long enough for Happy Eyeballs to kick in, and inhibit cancellation.
+		// Wait until Happy Eyeballs kicks in and both connections are dialing,
+		// and inhibit cancellation.
 		// This forces dialParallel to juggle two successful connections.
-		time.Sleep(fallbackDelay * 2)
+		dialing.Done()
+		dialing.Wait()
 
 		// Now ignore the provided context (which will be canceled) and use a
 		// different one to make sure this completes with a valid connection,
@@ -499,7 +501,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 	c.Close()
 
 	// The server should've seen both connections.
-	wg.Wait()
+	closed.Wait()
 }
 
 func TestDialerPartialDeadline(t *testing.T) {
@@ -536,6 +538,9 @@ func TestDialerPartialDeadline(t *testing.T) {
 		}
 	}
 }
+
+// isEADDRINUSE reports whether err is syscall.EADDRINUSE.
+var isEADDRINUSE = func(err error) bool { return false }
 
 func TestDialerLocalAddr(t *testing.T) {
 	if !supportsIPv4() || !supportsIPv6() {
@@ -592,7 +597,9 @@ func TestDialerLocalAddr(t *testing.T) {
 		{"tcp", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
 	}
 
+	issue34264Index := -1
 	if supportsIPv4map() {
+		issue34264Index = len(tests)
 		tests = append(tests, test{
 			"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, nil,
 		})
@@ -614,20 +621,16 @@ func TestDialerLocalAddr(t *testing.T) {
 			c.Close()
 		}
 	}
-	var err error
 	var lss [2]*localServer
 	for i, network := range []string{"tcp4", "tcp6"} {
-		lss[i], err = newLocalServer(network)
-		if err != nil {
-			t.Fatal(err)
-		}
+		lss[i] = newLocalServer(t, network)
 		defer lss[i].teardown()
 		if err := lss[i].buildup(handler); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 		d := &Dialer{LocalAddr: tt.laddr}
 		var addr string
 		ip := ParseIP(tt.raddr)
@@ -639,7 +642,15 @@ func TestDialerLocalAddr(t *testing.T) {
 		}
 		c, err := d.Dial(tt.network, addr)
 		if err == nil && tt.error != nil || err != nil && tt.error == nil {
-			t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+			if i == issue34264Index && runtime.GOOS == "freebsd" && isEADDRINUSE(err) {
+				// https://golang.org/issue/34264: FreeBSD through at least version 12.2
+				// has been observed to fail with EADDRINUSE when dialing from an IPv6
+				// local address to an IPv4 remote address.
+				t.Logf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+				t.Logf("(spurious EADDRINUSE ignored on freebsd: see https://golang.org/issue/34264)")
+			} else {
+				t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+			}
 		}
 		if err != nil {
 			if perr := parseDialError(err); perr != nil {
@@ -712,10 +723,7 @@ func TestDialerKeepAlive(t *testing.T) {
 			c.Close()
 		}
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -813,10 +821,7 @@ func TestCancelAfterDial(t *testing.T) {
 		t.Skip("avoiding time.Sleep")
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -919,11 +924,7 @@ func TestDialerControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			ln, err := newLocalListener(network)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
+			ln := newLocalListener(t, network)
 			defer ln.Close()
 			d := Dialer{Control: controlOnConnSetup}
 			c, err := d.Dial(network, ln.Addr().String())
@@ -939,11 +940,7 @@ func TestDialerControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			c1, err := newLocalPacketListener(network)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
+			c1 := newLocalPacketListener(t, network)
 			if network == "unixgram" {
 				defer os.Remove(c1.LocalAddr().String())
 			}
@@ -979,10 +976,7 @@ func (contextWithNonZeroDeadline) Deadline() (time.Time, bool) {
 }
 
 func TestDialWithNonZeroDeadline(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 	_, port, err := SplitHostPort(ln.Addr().String())
 	if err != nil {

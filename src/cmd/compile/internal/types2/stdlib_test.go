@@ -165,9 +165,11 @@ func TestStdTest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+		"directive2.go",  // tests compiler rejection of bad directive placement - ignore
 		"embedfunc.go",   // tests //go:embed
 		"embedvers.go",   // tests //go:embed
 		"linkname2.go",   // types2 doesn't check validity of //go:xxx directives
+		"linkname3.go",   // types2 doesn't check validity of //go:xxx directives
 	)
 }
 
@@ -194,6 +196,8 @@ func TestStdFixed(t *testing.T) {
 		"issue42058b.go", // types2 does not have constraints on channel element size
 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
+		"issue49767.go",  // go/types does not have constraints on channel element size
+		"issue49814.go",  // go/types does not have constraints on array size
 	)
 }
 
