@@ -281,8 +281,9 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
 // x is of interface type V).
 //
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
-	m, typ := (*Checker)(nil).missingMethod(V, T, static)
-	return m, typ != nil
+	m, alt := (*Checker)(nil).missingMethod(V, T, static)
+	// Only report a wrong type if the alternative method has the same name as m.
+	return m, alt != nil && alt.name == m.name // alt != nil implies m != nil
 }
 
 // missingMethod is like MissingMethod but accepts a *Checker as receiver.
