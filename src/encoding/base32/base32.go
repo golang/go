@@ -56,7 +56,7 @@ func NewEncoding(encoder string) *Encoding {
 // RFC 4648.
 var StdEncoding = NewEncoding(encodeStd)
 
-// HexEncoding is the ``Extended Hex Alphabet'' defined in RFC 4648.
+// HexEncoding is the “Extended Hex Alphabet” defined in RFC 4648.
 // It is typically used in DNS.
 var HexEncoding = NewEncoding(encodeHex)
 

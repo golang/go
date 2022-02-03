@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package version implements the ``go version'' command.
+// Package version implements the “go version” command.
 package version
 
 import (

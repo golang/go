@@ -66,7 +66,7 @@ var (
 // scan returns the corresponding natural number res, the actual base b,
 // a digit count, and a read or syntax error err, if any.
 //
-// For base 0, an underscore character ``_'' may appear between a base
+// For base 0, an underscore character “_” may appear between a base
 // prefix and an adjacent digit, and between successive digits; such
 // underscores do not change the value of the number, or the returned
 // digit count. Incorrect placement of underscores is reported as an
@@ -87,8 +87,8 @@ var (
 // time panic.
 //
 // For base 0, the number prefix determines the actual base: A prefix of
-// ``0b'' or ``0B'' selects base 2, ``0o'' or ``0O'' selects base 8, and
-// ``0x'' or ``0X'' selects base 16. If fracOk is false, a ``0'' prefix
+// “0b” or “0B” selects base 2, “0o” or “0O” selects base 8, and
+// “0x” or “0X” selects base 16. If fracOk is false, a “0” prefix
 // (immediately followed by digits) selects base 8 as well. Otherwise,
 // the selected base is 10 and no prefix is accepted.
 //
