@@ -180,6 +180,7 @@ type peLoaderState struct {
 	arch            *sys.Arch
 	f               *pe.File
 	sectsyms        map[*pe.Section]loader.Sym
+	defWithImp      map[string]struct{}
 	sectdata        map[*pe.Section][]byte
 	localSymVersion int
 }
@@ -259,6 +260,13 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		if sect.Name == ".rsrc" || strings.HasPrefix(sect.Name, ".rsrc$") {
 			rsrc = append(rsrc, s)
 		}
+	}
+
+	// Make a prepass over the symbols to detect situations where
+	// we have both a defined symbol X and an import symbol __imp_X
+	// (needed by readpesym()).
+	if err := state.preprocessSymbols(); err != nil {
+		return nil, nil, err
 	}
 
 	// load relocations
@@ -516,26 +524,20 @@ func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuild
 		name = state.l.SymName(state.sectsyms[state.f.Sections[pesym.SectionNumber-1]])
 	} else {
 		name = symname
-		switch state.arch.Family {
-		case sys.AMD64:
-			if name == "__imp___acrt_iob_func" {
-				// Do not rename __imp___acrt_iob_func into __acrt_iob_func,
-				// because __imp___acrt_iob_func symbol is real
-				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
+		if strings.HasPrefix(symname, "__imp_") {
+			orig := symname[len("__imp_"):]
+			if _, ok := state.defWithImp[orig]; ok {
+				// Don't rename __imp_XXX to XXX, since if we do this
+				// we'll wind up with a duplicate definition. One
+				// example is "__acrt_iob_func"; see commit b295099
+				// from git://git.code.sf.net/p/mingw-w64/mingw-w64
+				// for details.
 			} else {
 				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
 			}
-		case sys.I386:
-			if name == "__imp____acrt_iob_func" {
-				// Do not rename __imp____acrt_iob_func into ___acrt_iob_func,
-				// because __imp____acrt_iob_func symbol is real
-				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
-			} else {
-				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
-			}
-			if name[0] == '_' {
-				name = name[1:] // _Name => Name
-			}
+		}
+		if state.arch.Family == sys.I386 && name[0] == '_' {
+			name = name[1:] // _Name => Name
 		}
 	}
 
@@ -575,4 +577,36 @@ func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuild
 	}
 
 	return bld, s, nil
+}
+
+// preprocessSymbols walks the COFF symbols for the PE file we're
+// reading and looks for cases where we have both a symbol definition
+// for "XXX" and an "__imp_XXX" symbol, recording these cases in a map
+// in the state struct. This information will be used in readpesym()
+// above to give such symbols special treatment.
+func (state *peLoaderState) preprocessSymbols() error {
+	imp := make(map[string]struct{})
+	def := make(map[string]struct{})
+	for i, numaux := 0, 0; i < len(state.f.COFFSymbols); i += numaux + 1 {
+		pesym := &state.f.COFFSymbols[i]
+		numaux = int(pesym.NumberOfAuxSymbols)
+		if pesym.SectionNumber == 0 { // extern
+			continue
+		}
+		symname, err := pesym.FullName(state.f.StringTable)
+		if err != nil {
+			return err
+		}
+		def[symname] = struct{}{}
+		if strings.HasPrefix(symname, "__imp_") {
+			imp[strings.TrimPrefix(symname, "__imp_")] = struct{}{}
+		}
+	}
+	state.defWithImp = make(map[string]struct{})
+	for n := range imp {
+		if _, ok := def[n]; ok {
+			state.defWithImp[n] = struct{}{}
+		}
+	}
+	return nil
 }
