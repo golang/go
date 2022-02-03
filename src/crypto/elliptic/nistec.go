@@ -7,6 +7,7 @@ package elliptic
 import (
 	"crypto/elliptic/internal/nistec"
 	"crypto/rand"
+	"errors"
 	"math/big"
 )
 
@@ -114,28 +115,31 @@ func (curve *nistCurve[Point]) IsOnCurve(x, y *big.Int) bool {
 	if x.Sign() == 0 && y.Sign() == 0 {
 		return false
 	}
-	_, ok := curve.pointFromAffine(x, y)
-	return ok
+	_, err := curve.pointFromAffine(x, y)
+	return err == nil
 }
 
-func (curve *nistCurve[Point]) pointFromAffine(x, y *big.Int) (p Point, ok bool) {
+func (curve *nistCurve[Point]) pointFromAffine(x, y *big.Int) (p Point, err error) {
+	p = curve.newPoint()
 	// (0, 0) is by convention the point at infinity, which can't be represented
-	// in affine coordinates. Marshal incorrectly encodes it as an uncompressed
-	// point, which SetBytes would correctly reject. See Issue 37294.
+	// in affine coordinates. See Issue 37294.
 	if x.Sign() == 0 && y.Sign() == 0 {
-		return curve.newPoint(), true
+		return p, nil
 	}
+	// Reject values that would not get correctly encoded.
 	if x.Sign() < 0 || y.Sign() < 0 {
-		return curve.newPoint(), false
+		return p, errors.New("negative coordinate")
 	}
 	if x.BitLen() > curve.params.BitSize || y.BitLen() > curve.params.BitSize {
-		return *new(Point), false
+		return p, errors.New("overflowing coordinate")
 	}
-	p, err := curve.newPoint().SetBytes(Marshal(curve, x, y))
-	if err != nil {
-		return *new(Point), false
-	}
-	return p, true
+	// Encode the coordinates and let SetBytes reject invalid points.
+	byteLen := (curve.params.BitSize + 7) / 8
+	buf := make([]byte, 1+2*byteLen)
+	buf[0] = 4 // uncompressed point
+	x.FillBytes(buf[1 : 1+byteLen])
+	y.FillBytes(buf[1+byteLen : 1+2*byteLen])
+	return p.SetBytes(buf)
 }
 
 func (curve *nistCurve[Point]) pointToAffine(p Point) (x, y *big.Int) {
@@ -170,28 +174,28 @@ func (curve *nistCurve[Point]) randomPoint() (x, y *big.Int) {
 }
 
 func (curve *nistCurve[Point]) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
-	p1, ok := curve.pointFromAffine(x1, y1)
-	if !ok {
+	p1, err := curve.pointFromAffine(x1, y1)
+	if err != nil {
 		return curve.randomPoint()
 	}
-	p2, ok := curve.pointFromAffine(x2, y2)
-	if !ok {
+	p2, err := curve.pointFromAffine(x2, y2)
+	if err != nil {
 		return curve.randomPoint()
 	}
 	return curve.pointToAffine(p1.Add(p1, p2))
 }
 
 func (curve *nistCurve[Point]) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
-	p, ok := curve.pointFromAffine(x1, y1)
-	if !ok {
+	p, err := curve.pointFromAffine(x1, y1)
+	if err != nil {
 		return curve.randomPoint()
 	}
 	return curve.pointToAffine(p.Double(p))
 }
 
 func (curve *nistCurve[Point]) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
-	p, ok := curve.pointFromAffine(Bx, By)
-	if !ok {
+	p, err := curve.pointFromAffine(Bx, By)
+	if err != nil {
 		return curve.randomPoint()
 	}
 	return curve.pointToAffine(p.ScalarMult(p, scalar))
