@@ -789,7 +789,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 	return e
 }
 
-// A Reader allows reading Entry structures from a DWARF ``info'' section.
+// A Reader allows reading Entry structures from a DWARF “info” section.
 // The Entry structures are arranged in a tree. The Reader's Next function
 // return successive entries from a pre-order traversal of the tree.
 // If an entry has children, its Children field will be true, and the children
@@ -806,7 +806,7 @@ type Reader struct {
 }
 
 // Reader returns a new Reader for Data.
-// The reader is positioned at byte offset 0 in the DWARF ``info'' section.
+// The reader is positioned at byte offset 0 in the DWARF “info” section.
 func (d *Data) Reader() *Reader {
 	r := &Reader{d: d}
 	r.Seek(0)

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package modget implements the module-aware ``go get'' command.
+// Package modget implements the module-aware “go get” command.
 package modget
 
 // The arguments to 'go get' are patterns with optional version queries, with

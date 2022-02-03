@@ -381,9 +381,9 @@ func User(username string) *Userinfo {
 //
 // This functionality should only be used with legacy web sites.
 // RFC 2396 warns that interpreting Userinfo this way
-// ``is NOT RECOMMENDED, because the passing of authentication
+// “is NOT RECOMMENDED, because the passing of authentication
 // information in clear text (such as URI) has proven to be a
-// security risk in almost every case where it has been used.''
+// security risk in almost every case where it has been used.”
 func UserPassword(username, password string) *Userinfo {
 	return &Userinfo{username, password, true}
 }
@@ -960,7 +960,7 @@ func parseQuery(m Values, query string) (err error) {
 	return err
 }
 
-// Encode encodes the values into ``URL encoded'' form
+// Encode encodes the values into “URL encoded” form
 // ("bar=baz&foo=quux") sorted by key.
 func (v Values) Encode() string {
 	if v == nil {

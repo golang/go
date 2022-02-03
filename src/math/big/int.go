@@ -231,7 +231,7 @@ func (z *Int) Rem(x, y *Int) *Int {
 //	q = x/y      with the result truncated to zero
 //	r = x - y*q
 //
-// (See Daan Leijen, ``Division and Modulus for Computer Scientists''.)
+// (See Daan Leijen, “Division and Modulus for Computer Scientists”.)
 // See DivMod for Euclidean division and modulus (unlike Go).
 func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
 	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
@@ -285,8 +285,8 @@ func (z *Int) Mod(x, y *Int) *Int {
 //	q = x div y  such that
 //	m = x - y*q  with 0 <= m < |y|
 //
-// (See Raymond T. Boute, ``The Euclidean definition of the functions
-// div and mod''. ACM Transactions on Programming Languages and
+// (See Raymond T. Boute, “The Euclidean definition of the functions
+// div and mod”. ACM Transactions on Programming Languages and
 // Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
 // ACM press.)
 // See QuoRem for T-division and modulus (like Go).
@@ -400,8 +400,8 @@ func (x *Int) IsUint64() bool {
 //
 // The base argument must be 0 or a value between 2 and MaxBase.
 // For base 0, the number prefix determines the actual base: A prefix of
-// ``0b'' or ``0B'' selects base 2, ``0'', ``0o'' or ``0O'' selects base 8,
-// and ``0x'' or ``0X'' selects base 16. Otherwise, the selected base is 10
+// “0b” or “0B” selects base 2, “0”, “0o” or “0O” selects base 8,
+// and “0x” or “0X” selects base 16. Otherwise, the selected base is 10
 // and no prefix is accepted.
 //
 // For bases <= 36, lower and upper case letters are considered the same:
@@ -409,7 +409,7 @@ func (x *Int) IsUint64() bool {
 // For bases > 36, the upper case letters 'A' to 'Z' represent the digit
 // values 36 to 61.
 //
-// For base 0, an underscore character ``_'' may appear between a base
+// For base 0, an underscore character “_” may appear between a base
 // prefix and an adjacent digit, and between successive digits; such
 // underscores do not change the value of the number.
 // Incorrect placement of underscores is reported as an error if there

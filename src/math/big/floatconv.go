@@ -215,7 +215,7 @@ func (z *Float) pow5(n uint64) *Float {
 // point number with a mantissa in the given conversion base (the exponent
 // is always a decimal number), or a string representing an infinite value.
 //
-// For base 0, an underscore character ``_'' may appear between a base
+// For base 0, an underscore character “_” may appear between a base
 // prefix and an adjacent digit, and between successive digits; such
 // underscores do not change the value of the number, or the returned
 // digit count. Incorrect placement of underscores is reported as an
@@ -243,8 +243,8 @@ func (z *Float) pow5(n uint64) *Float {
 // argument will lead to a run-time panic.
 //
 // For base 0, the number prefix determines the actual base: A prefix of
-// ``0b'' or ``0B'' selects base 2, ``0o'' or ``0O'' selects base 8, and
-// ``0x'' or ``0X'' selects base 16. Otherwise, the actual base is 10 and
+// “0b” or “0B” selects base 2, “0o” or “0O” selects base 8, and
+// “0x” or “0X” selects base 16. Otherwise, the actual base is 10 and
 // no prefix is accepted. The octal prefix "0" is not supported (a leading
 // "0" is simply considered a "0").
 //

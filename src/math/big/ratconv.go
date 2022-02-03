@@ -41,16 +41,16 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
 // success. s can be given as a (possibly signed) fraction "a/b", or as a
 // floating-point number optionally followed by an exponent.
 // If a fraction is provided, both the dividend and the divisor may be a
-// decimal integer or independently use a prefix of ``0b'', ``0'' or ``0o'',
-// or ``0x'' (or their upper-case variants) to denote a binary, octal, or
+// decimal integer or independently use a prefix of “0b”, “0” or “0o”,
+// or “0x” (or their upper-case variants) to denote a binary, octal, or
 // hexadecimal integer, respectively. The divisor may not be signed.
 // If a floating-point number is provided, it may be in decimal form or
-// use any of the same prefixes as above but for ``0'' to denote a non-decimal
-// mantissa. A leading ``0'' is considered a decimal leading 0; it does not
+// use any of the same prefixes as above but for “0” to denote a non-decimal
+// mantissa. A leading “0” is considered a decimal leading 0; it does not
 // indicate octal representation in this case.
-// An optional base-10 ``e'' or base-2 ``p'' (or their upper-case variants)
+// An optional base-10 “e” or base-2 “p” (or their upper-case variants)
 // exponent may be provided as well, except for hexadecimal floats which
-// only accept an (optional) ``p'' exponent (because an ``e'' or ``E'' cannot
+// only accept an (optional) “p” exponent (because an “e” or “E” cannot
 // be distinguished from a mantissa digit). If the exponent's absolute value
 // is too large, the operation may fail.
 // The entire string, not just a prefix, must be valid for success. If the
@@ -205,10 +205,10 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 }
 
 // scanExponent scans the longest possible prefix of r representing a base 10
-// (``e'', ``E'') or a base 2 (``p'', ``P'') exponent, if any. It returns the
+// (“e”, “E”) or a base 2 (“p”, “P”) exponent, if any. It returns the
 // exponent, the exponent base (10 or 2), or a read or syntax error, if any.
 //
-// If sepOk is set, an underscore character ``_'' may appear between successive
+// If sepOk is set, an underscore character “_” may appear between successive
 // exponent digits; such underscores do not change the value of the exponent.
 // Incorrect placement of underscores is reported as an error if there are no
 // other errors. If sepOk is not set, underscores are not recognized and thus

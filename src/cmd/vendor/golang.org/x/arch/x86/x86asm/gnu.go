@@ -10,7 +10,7 @@ import (
 )
 
 // GNUSyntax returns the GNU assembler syntax for the instruction, as defined by GNU binutils.
-// This general form is often called ``AT&T syntax'' as a reference to AT&T System V Unix.
+// This general form is often called “AT&T syntax” as a reference to AT&T System V Unix.
 func GNUSyntax(inst Inst, pc uint64, symname SymLookup) string {
 	// Rewrite instruction to mimic GNU peculiarities.
 	// Note that inst has been passed by value and contains

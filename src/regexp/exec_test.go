@@ -52,8 +52,8 @@ import (
 // submatch indices. An unmatched subexpression formats
 // its pair as a single - (not illustrated above).  For now
 // each regexp run produces two match results, one for a
-// ``full match'' that restricts the regexp to matching the entire
-// string or nothing, and one for a ``partial match'' that gives
+// “full match” that restricts the regexp to matching the entire
+// string or nothing, and one for a “partial match” that gives
 // the leftmost first match found in the string.
 //
 // Lines beginning with # are comments. Lines beginning with
