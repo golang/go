@@ -27,10 +27,7 @@ const (
 )
 
 func TestSendfile(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	errc := make(chan error, 1)
@@ -97,10 +94,7 @@ func TestSendfile(t *testing.T) {
 }
 
 func TestSendfileParts(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	errc := make(chan error, 1)
@@ -155,10 +149,7 @@ func TestSendfileParts(t *testing.T) {
 }
 
 func TestSendfileSeeked(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	const seekTo = 65 << 10
@@ -225,10 +216,7 @@ func TestSendfilePipe(t *testing.T) {
 
 	t.Parallel()
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	r, w, err := os.Pipe()
@@ -317,10 +305,7 @@ func TestSendfilePipe(t *testing.T) {
 
 // Issue 43822: tests that returns EOF when conn write timeout.
 func TestSendfileOnWriteTimeoutExceeded(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	errc := make(chan error, 1)

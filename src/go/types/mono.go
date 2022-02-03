@@ -5,6 +5,7 @@
 package types
 
 import (
+	"go/ast"
 	"go/token"
 )
 
@@ -166,11 +167,11 @@ func (w *monoGraph) recordCanon(mpar, tpar *TypeParam) {
 
 // recordInstance records that the given type parameters were
 // instantiated with the corresponding type arguments.
-func (w *monoGraph) recordInstance(pkg *Package, pos token.Pos, tparams []*TypeParam, targs []Type, posList []token.Pos) {
+func (w *monoGraph) recordInstance(pkg *Package, pos token.Pos, tparams []*TypeParam, targs []Type, xlist []ast.Expr) {
 	for i, tpar := range tparams {
 		pos := pos
-		if i < len(posList) {
-			pos = posList[i]
+		if i < len(xlist) {
+			pos = xlist[i].Pos()
 		}
 		w.assign(pkg, pos, tpar, targs[i])
 	}

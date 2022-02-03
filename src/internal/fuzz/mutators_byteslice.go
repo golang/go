@@ -284,7 +284,19 @@ func byteSliceSwapBytes(m *mutator, b []byte) []byte {
 	for dst == src {
 		dst = m.rand(len(b))
 	}
-	n := m.chooseLen(len(b) - src - 1)
+	// Choose the random length as len(b) - max(src, dst)
+	// so that we don't attempt to swap a chunk that extends
+	// beyond the end of the slice
+	max := dst
+	if src > max {
+		max = src
+	}
+	n := m.chooseLen(len(b) - max - 1)
+	// Check that neither chunk intersect, so that we don't end up
+	// duplicating parts of the input, rather than swapping them
+	if src > dst && dst+n >= src || dst > src && src+n >= dst {
+		return nil
+	}
 	// Use the end of the slice as scratch space to avoid doing an
 	// allocation. If the slice is too small abort and try something
 	// else.

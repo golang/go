@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"internal/profile"
+	"internal/testenv"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -152,6 +153,10 @@ func mutexHog(duration time.Duration, hogger func(mu1, mu2 *sync.Mutex, start ti
 }
 
 func TestDeltaProfile(t *testing.T) {
+	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+		testenv.SkipFlaky(t, 50218)
+	}
+
 	rate := runtime.SetMutexProfileFraction(1)
 	defer func() {
 		runtime.SetMutexProfileFraction(rate)

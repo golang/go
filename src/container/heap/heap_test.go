@@ -23,12 +23,12 @@ func (h *myHeap) Len() int {
 	return len(*h)
 }
 
-func (h *myHeap) Pop() (v interface{}) {
+func (h *myHeap) Pop() (v any) {
 	*h, v = (*h)[:h.Len()-1], (*h)[h.Len()-1]
 	return
 }
 
-func (h *myHeap) Push(v interface{}) {
+func (h *myHeap) Push(v any) {
 	*h = append(*h, v.(int))
 }
 

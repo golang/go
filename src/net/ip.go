@@ -545,6 +545,9 @@ func (n *IPNet) Network() string { return "ip+net" }
 // character and a mask expressed as hexadecimal form with no
 // punctuation like "198.51.100.0/c000ff00".
 func (n *IPNet) String() string {
+	if n == nil {
+		return "<nil>"
+	}
 	nn, m := networkNumberAndMask(n)
 	if nn == nil || m == nil {
 		return "<nil>"

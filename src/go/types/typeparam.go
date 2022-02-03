@@ -24,7 +24,7 @@ type TypeParam struct {
 	id    uint64    // unique id, for debugging only
 	obj   *TypeName // corresponding type name
 	index int       // type parameter index in source order, starting at 0
-	bound Type      // any type, but eventually an *Interface for correct programs (see TypeParam.iface)
+	bound Type      // any type, but underlying is eventually *Interface for correct programs (see TypeParam.iface)
 }
 
 // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
@@ -47,6 +47,15 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	if obj.typ == nil {
 		obj.typ = typ
 	}
+	// iface may mutate typ.bound, so we must ensure that iface() is called
+	// at least once before the resulting TypeParam escapes.
+	if check != nil {
+		check.later(func() {
+			typ.iface()
+		})
+	} else if constraint != nil {
+		typ.iface()
+	}
 	return typ
 }
 
@@ -65,20 +74,31 @@ func (t *TypeParam) Constraint() Type {
 }
 
 // SetConstraint sets the type constraint for t.
+//
+// SetConstraint should not be called concurrently, but once SetConstraint
+// returns the receiver t is safe for concurrent use.
 func (t *TypeParam) SetConstraint(bound Type) {
 	if bound == nil {
 		panic("nil constraint")
 	}
 	t.bound = bound
+	// iface may mutate t.bound (if bound is not an interface), so ensure that
+	// this is done before returning.
+	t.iface()
 }
 
-func (t *TypeParam) Underlying() Type { return t }
-func (t *TypeParam) String() string   { return TypeString(t, nil) }
+func (t *TypeParam) Underlying() Type {
+	return t.iface()
+}
+
+func (t *TypeParam) String() string { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------
 // Implementation
 
 // iface returns the constraint interface of t.
+// TODO(gri) If we make tparamIsIface the default, this should be renamed to under
+//           (similar to Named.under).
 func (t *TypeParam) iface() *Interface {
 	bound := t.bound
 
@@ -91,14 +111,14 @@ func (t *TypeParam) iface() *Interface {
 			return &emptyInterface
 		}
 	case *Interface:
+		if isTypeParam(bound) {
+			// error is reported in Checker.collectTypeParams
+			return &emptyInterface
+		}
 		ityp = u
-	case *TypeParam:
-		// error is reported in Checker.collectTypeParams
-		return &emptyInterface
 	}
 
 	// If we don't have an interface, wrap constraint into an implicit interface.
-	// TODO(gri) mark it as implicit - see comment in Checker.bound
 	if ityp == nil {
 		ityp = NewInterfaceType(nil, []Type{bound})
 		ityp.implicit = true

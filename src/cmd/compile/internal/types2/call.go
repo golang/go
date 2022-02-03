@@ -16,7 +16,7 @@ import (
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	if !check.allowVersion(check.pkg, 1, 18) {
-		check.softErrorf(inst.Pos(), "function instantiation requires go1.18 or later")
+		check.versionErrorf(inst.Pos(), "go1.18", "function instantiation")
 	}
 
 	xlist := unpackExpr(inst.Index)
@@ -50,14 +50,8 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	}
 	assert(got == want)
 
-	// determine argument positions (for error reporting)
-	poslist := make([]syntax.Pos, len(xlist))
-	for i, x := range xlist {
-		poslist[i] = syntax.StartPos(x)
-	}
-
 	// instantiate function signature
-	res := check.instantiateSignature(x.Pos(), sig, targs, poslist)
+	res := check.instantiateSignature(x.Pos(), sig, targs, xlist)
 	assert(res.TypeParams().Len() == 0) // signature is not generic anymore
 	check.recordInstance(inst.X, targs, res)
 	x.typ = res
@@ -65,7 +59,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	x.expr = inst
 }
 
-func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs []Type, posList []syntax.Pos) (res *Signature) {
+func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs []Type, xlist []syntax.Expr) (res *Signature) {
 	assert(check != nil)
 	assert(len(targs) == typ.TypeParams().Len())
 
@@ -78,19 +72,23 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
 		}()
 	}
 
-	inst := check.instance(pos, typ, targs, check.conf.Context).(*Signature)
-	assert(len(posList) <= len(targs))
-	tparams := typ.TypeParams().list()
-	if i, err := check.verify(pos, tparams, targs); err != nil {
-		// best position for error reporting
-		pos := pos
-		if i < len(posList) {
-			pos = posList[i]
+	inst := check.instance(pos, typ, targs, check.bestContext(nil)).(*Signature)
+	assert(len(xlist) <= len(targs))
+
+	// verify instantiation lazily (was issue #50450)
+	check.later(func() {
+		tparams := typ.TypeParams().list()
+		if i, err := check.verify(pos, tparams, targs); err != nil {
+			// best position for error reporting
+			pos := pos
+			if i < len(xlist) {
+				pos = syntax.StartPos(xlist[i])
+			}
+			check.softErrorf(pos, "%s", err)
+		} else {
+			check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
 		}
-		check.softErrorf(pos, err.Error())
-	} else {
-		check.mono.recordInstance(check.pkg, pos, tparams, targs, posList)
-	}
+	})
 
 	return inst
 }
@@ -132,7 +130,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		case 1:
 			check.expr(x, call.ArgList[0])
 			if x.mode != invalid {
-				if t := asInterface(T); t != nil {
+				if t, _ := under(T).(*Interface); t != nil && !isTypeParam(T) {
 					if !t.IsMethodSet() {
 						check.errorf(call, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
 						break
@@ -170,7 +168,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	cgocall := x.mode == cgofunc
 
 	// a type parameter may be "called" if all types have the same signature
-	sig, _ := structure(x.typ).(*Signature)
+	sig, _ := structuralType(x.typ).(*Signature)
 	if sig == nil {
 		check.errorf(x, invalidOp+"cannot call non-function %s", x)
 		x.mode = invalid
@@ -179,9 +177,10 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	}
 
 	// evaluate type arguments, if any
+	var xlist []syntax.Expr
 	var targs []Type
 	if inst != nil {
-		xlist := unpackExpr(inst.Index)
+		xlist = unpackExpr(inst.Index)
 		targs = check.typeList(xlist)
 		if targs == nil {
 			check.use(call.ArgList...)
@@ -205,7 +204,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	// evaluate arguments
 	args, _ := check.exprList(call.ArgList, false)
 	isGeneric := sig.TypeParams().Len() > 0
-	sig = check.arguments(call, sig, targs, args)
+	sig = check.arguments(call, sig, targs, args, xlist)
 
 	if isGeneric && sig.TypeParams().Len() == 0 {
 		// update the recorded type of call.Fun to its instantiated type
@@ -279,7 +278,8 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
 	return
 }
 
-func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, args []*operand) (rsig *Signature) {
+// xlist is the list of type argument expressions supplied in the source code.
+func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, args []*operand, xlist []syntax.Expr) (rsig *Signature) {
 	rsig = sig
 
 	// TODO(gri) try to eliminate this extra verification loop
@@ -350,12 +350,25 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	}
 
 	// check argument count
-	switch {
-	case nargs < npars:
-		check.errorf(call, "not enough arguments in call to %s", call.Fun)
-		return
-	case nargs > npars:
-		check.errorf(args[npars], "too many arguments in call to %s", call.Fun) // report at first extra argument
+	if nargs != npars {
+		var at poser = call
+		qualifier := "not enough"
+		if nargs > npars {
+			at = args[npars].expr // report at first extra argument
+			qualifier = "too many"
+		} else if nargs > 0 {
+			at = args[nargs-1].expr // report at last argument
+		}
+		// take care of empty parameter lists represented by nil tuples
+		var params []*Var
+		if sig.params != nil {
+			params = sig.params.vars
+		}
+		var err error_
+		err.errorf(at, "%s arguments in call to %s", qualifier, call.Fun)
+		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
+		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+		check.report(&err)
 		return
 	}
 
@@ -363,20 +376,18 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	if sig.TypeParams().Len() > 0 {
 		if !check.allowVersion(check.pkg, 1, 18) {
 			if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
-				check.softErrorf(iexpr.Pos(), "function instantiation requires go1.18 or later")
+				check.versionErrorf(iexpr.Pos(), "go1.18", "function instantiation")
 			} else {
-				check.softErrorf(call.Pos(), "implicit function instantiation requires go1.18 or later")
+				check.versionErrorf(call.Pos(), "go1.18", "implicit function instantiation")
 			}
 		}
-		// TODO(gri) provide position information for targs so we can feed
-		//           it to the instantiate call for better error reporting
 		targs := check.infer(call.Pos(), sig.TypeParams().list(), targs, sigParams, args)
 		if targs == nil {
 			return // error already reported
 		}
 
 		// compute result signature
-		rsig = check.instantiateSignature(call.Pos(), sig, targs, nil)
+		rsig = check.instantiateSignature(call.Pos(), sig, targs, xlist)
 		assert(rsig.TypeParams().Len() == 0) // signature is not generic anymore
 		check.recordInstance(call.Fun, targs, rsig)
 
@@ -520,26 +531,30 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 
 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
-		switch {
-		case index != nil:
+		// Don't report another error if the underlying type was invalid (issue #49541).
+		if under(x.typ) == Typ[Invalid] {
+			goto Error
+		}
+
+		if index != nil {
 			// TODO(gri) should provide actual type where the conflict happens
 			check.errorf(e.Sel, "ambiguous selector %s.%s", x.expr, sel)
-		case indirect:
-			check.errorf(e.Sel, "cannot call pointer method %s on %s", sel, x.typ)
-		default:
-			var why string
-			if tpar := asTypeParam(x.typ); tpar != nil {
-				// Type parameter bounds don't specify fields, so don't mention "field".
-				if tname := tpar.iface().obj; tname != nil {
-					why = check.sprintf("interface %s has no method %s", tname.name, sel)
-				} else {
-					why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
-				}
-			} else {
-				why = check.sprintf("type %s has no field or method %s", x.typ, sel)
-			}
+			goto Error
+		}
 
+		if indirect {
+			check.errorf(e.Sel, "cannot call pointer method %s on %s", sel, x.typ)
+			goto Error
+		}
+
+		var why string
+		if isInterfacePtr(x.typ) {
+			why = check.interfacePtrError(x.typ)
+		} else {
+			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
 			// Check if capitalization of sel matters and provide better error message in that case.
+			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod has an
+			//           (internal) mechanism for case-insensitive lookup. Should use that instead.
 			if len(sel) > 0 {
 				var changeCase string
 				if r := rune(sel[0]); unicode.IsUpper(r) {
@@ -551,10 +566,8 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 					why += ", but does have " + changeCase
 				}
 			}
-
-			check.errorf(e.Sel, "%s.%s undefined (%s)", x.expr, sel, why)
-
 		}
+		check.errorf(e.Sel, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
 	}
 

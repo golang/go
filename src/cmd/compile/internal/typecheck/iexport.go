@@ -243,6 +243,7 @@ import (
 	"io"
 	"math/big"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -261,7 +262,7 @@ import (
 const (
 	iexportVersionGo1_11   = 0
 	iexportVersionPosCol   = 1
-	iexportVersionGenerics = 1 // probably change to 2 before release
+	iexportVersionGenerics = 2
 	iexportVersionGo1_18   = 2
 
 	iexportVersionCurrent = 2
@@ -728,6 +729,36 @@ func (w *exportWriter) qualifiedIdent(n *ir.Name) {
 	s := n.Sym()
 	w.string(s.Name)
 	w.pkg(s.Pkg)
+}
+
+const blankMarker = "$"
+
+// TparamExportName creates a unique name for type param in a method or a generic
+// type, using the specified unique prefix and the index of the type param. The index
+// is only used if the type param is blank, in which case the blank is replace by
+// "$<index>". A unique name is needed for later substitution in the compiler and
+// export/import that keeps blank type params associated with the correct constraint.
+func TparamExportName(prefix string, name string, index int) string {
+	if name == "_" {
+		name = blankMarker + strconv.Itoa(index)
+	}
+	return prefix + "." + name
+}
+
+// TparamName returns the real name of a type parameter, after stripping its
+// qualifying prefix and reverting blank-name encoding. See TparamExportName
+// for details.
+func TparamName(exportName string) string {
+	// Remove the "path" from the type param name that makes it unique.
+	ix := strings.LastIndex(exportName, ".")
+	if ix < 0 {
+		return ""
+	}
+	name := exportName[ix+1:]
+	if strings.HasPrefix(name, blankMarker) {
+		return "_"
+	}
+	return name
 }
 
 func (w *exportWriter) selector(s *types.Sym) {
@@ -1418,6 +1449,12 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 		w.uint64(1 + uint64(n.Func.Inl.Cost))
 		w.bool(n.Func.Inl.CanDelayResults)
 		if n.Func.ExportInline() || n.Type().HasTParam() {
+			if n.Type().HasTParam() {
+				// If this generic function/method is from another
+				// package, but we didn't use for instantiation in
+				// this package, we may not yet have imported it.
+				ImportedBody(n.Func)
+			}
 			w.p.doInline(n)
 		}
 
@@ -1735,6 +1772,8 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.Name)
 		if (n.Class == ir.PEXTERN || n.Class == ir.PFUNC) && !ir.IsBlank(n) {
 			w.op(ir.ONONAME)
+			// Indicate that this is not an OKEY entry.
+			w.bool(false)
 			w.qualifiedIdent(n)
 			if go117ExportTypes {
 				w.typ(n.Type())
@@ -1761,7 +1800,9 @@ func (w *exportWriter) expr(n ir.Node) {
 
 	case ir.ONONAME:
 		w.op(ir.ONONAME)
-		// This should only be for OKEY nodes in generic functions
+		// This can only be for OKEY nodes in generic functions. Mark it
+		// as a key entry.
+		w.bool(true)
 		s := n.Sym()
 		w.string(s.Name)
 		w.pkg(s.Pkg)

@@ -13,7 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
+	"runtime/debug"
 	"sync"
 	"syscall"
 	"testing"
@@ -21,16 +21,12 @@ import (
 	"unsafe"
 )
 
-// sigquit is the signal to send to kill a hanging testdata program.
-// Send SIGQUIT to get a stack trace.
-var sigquit = syscall.SIGQUIT
-
 func init() {
 	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
 		// We can't use SIGQUIT to kill subprocesses because
 		// it's blocked. Use SIGKILL instead. See issue
 		// #19196 for an example of when this happens.
-		sigquit = syscall.SIGKILL
+		testenv.Sigquit = syscall.SIGKILL
 	}
 }
 
@@ -211,6 +207,11 @@ func TestPanicSystemstack(t *testing.T) {
 
 func init() {
 	if len(os.Args) >= 2 && os.Args[1] == "testPanicSystemstackInternal" {
+		// Complete any in-flight GCs and disable future ones. We're going to
+		// block goroutines on runtime locks, which aren't ever preemptible for the
+		// GC to scan them.
+		runtime.GC()
+		debug.SetGCPercent(-1)
 		// Get two threads running on the system stack with
 		// something recognizable in the stack trace.
 		runtime.GOMAXPROCS(2)
@@ -244,9 +245,7 @@ func TestSignalExitStatus(t *testing.T) {
 
 func TestSignalIgnoreSIGTRAP(t *testing.T) {
 	if runtime.GOOS == "openbsd" {
-		if bn := testenv.Builder(); strings.HasSuffix(bn, "-62") || strings.HasSuffix(bn, "-64") {
-			testenv.SkipFlaky(t, 17496)
-		}
+		testenv.SkipFlaky(t, 49725)
 	}
 
 	output := runTestProg(t, "testprognet", "SignalIgnoreSIGTRAP")

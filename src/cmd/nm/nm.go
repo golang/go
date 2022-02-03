@@ -93,7 +93,7 @@ func main() {
 
 var exitCode = 0
 
-func errorf(format string, args ...interface{}) {
+func errorf(format string, args ...any) {
 	log.Printf(format, args...)
 	exitCode = 1
 }

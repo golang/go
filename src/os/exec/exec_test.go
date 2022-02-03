@@ -21,7 +21,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"os/exec/internal/fdtest"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -29,14 +31,9 @@ import (
 	"time"
 )
 
-// haveUnexpectedFDs is set at init time to report whether any
-// file descriptors were open at program start.
+// haveUnexpectedFDs is set at init time to report whether any file descriptors
+// were open at program start.
 var haveUnexpectedFDs bool
-
-// unfinalizedFiles holds files that should not be finalized,
-// because that would close the associated file descriptor,
-// which we don't want to do.
-var unfinalizedFiles []*os.File
 
 func init() {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
@@ -49,21 +46,10 @@ func init() {
 		if poll.IsPollDescriptor(fd) {
 			continue
 		}
-		// We have no good portable way to check whether an FD is open.
-		// We use NewFile to create a *os.File, which lets us
-		// know whether it is open, but then we have to cope with
-		// the finalizer on the *os.File.
-		f := os.NewFile(fd, "")
-		if _, err := f.Stat(); err != nil {
-			// Close the file to clear the finalizer.
-			// We expect the Close to fail.
-			f.Close()
-		} else {
-			fmt.Printf("fd %d open at test start\n", fd)
+
+		if fdtest.Exists(fd) {
 			haveUnexpectedFDs = true
-			// Use a global variable to avoid running
-			// the finalizer, which would close the FD.
-			unfinalizedFiles = append(unfinalizedFiles, f)
+			return
 		}
 	}
 }
@@ -377,50 +363,21 @@ func TestStdinCloseRace(t *testing.T) {
 
 // Issue 5071
 func TestPipeLookPathLeak(t *testing.T) {
-	// If we are reading from /proc/self/fd we (should) get an exact result.
-	tolerance := 0
-
-	// Reading /proc/self/fd is more reliable than calling lsof, so try that
-	// first.
-	numOpenFDs := func() (int, []byte, error) {
-		fds, err := os.ReadDir("/proc/self/fd")
-		if err != nil {
-			return 0, nil, err
-		}
-		return len(fds), nil, nil
+	if runtime.GOOS == "windows" {
+		t.Skip("we don't currently suppore counting open handles on windows")
 	}
-	want, before, err := numOpenFDs()
-	if err != nil {
-		// We encountered a problem reading /proc/self/fd (we might be on
-		// a platform that doesn't have it). Fall back onto lsof.
-		t.Logf("using lsof because: %v", err)
-		numOpenFDs = func() (int, []byte, error) {
-			// Android's stock lsof does not obey the -p option,
-			// so extra filtering is needed.
-			// https://golang.org/issue/10206
-			if runtime.GOOS == "android" {
-				// numOpenFDsAndroid handles errors itself and
-				// might skip or fail the test.
-				n, lsof := numOpenFDsAndroid(t)
-				return n, lsof, nil
+
+	openFDs := func() []uintptr {
+		var fds []uintptr
+		for i := uintptr(0); i < 100; i++ {
+			if fdtest.Exists(i) {
+				fds = append(fds, i)
 			}
-			lsof, err := exec.Command("lsof", "-b", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
-			return bytes.Count(lsof, []byte("\n")), lsof, err
 		}
-
-		// lsof may see file descriptors associated with the fork itself,
-		// so we allow some extra margin if we have to use it.
-		// https://golang.org/issue/19243
-		tolerance = 5
-
-		// Retry reading the number of open file descriptors.
-		want, before, err = numOpenFDs()
-		if err != nil {
-			t.Log(err)
-			t.Skipf("skipping test; error finding or running lsof")
-		}
+		return fds
 	}
 
+	want := openFDs()
 	for i := 0; i < 6; i++ {
 		cmd := exec.Command("something-that-does-not-exist-executable")
 		cmd.StdoutPipe()
@@ -430,59 +387,10 @@ func TestPipeLookPathLeak(t *testing.T) {
 			t.Fatal("unexpected success")
 		}
 	}
-	got, after, err := numOpenFDs()
-	if err != nil {
-		// numOpenFDs has already succeeded once, it should work here.
-		t.Errorf("unexpected failure: %v", err)
+	got := openFDs()
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("set of open file descriptors changed: got %v, want %v", got, want)
 	}
-	if got-want > tolerance {
-		t.Errorf("number of open file descriptors changed: got %v, want %v", got, want)
-		if before != nil {
-			t.Errorf("before:\n%v\n", before)
-		}
-		if after != nil {
-			t.Errorf("after:\n%v\n", after)
-		}
-	}
-}
-
-func numOpenFDsAndroid(t *testing.T) (n int, lsof []byte) {
-	raw, err := exec.Command("lsof").Output()
-	if err != nil {
-		t.Skip("skipping test; error finding or running lsof")
-	}
-
-	// First find the PID column index by parsing the first line, and
-	// select lines containing pid in the column.
-	pid := []byte(strconv.Itoa(os.Getpid()))
-	pidCol := -1
-
-	s := bufio.NewScanner(bytes.NewReader(raw))
-	for s.Scan() {
-		line := s.Bytes()
-		fields := bytes.Fields(line)
-		if pidCol < 0 {
-			for i, v := range fields {
-				if bytes.Equal(v, []byte("PID")) {
-					pidCol = i
-					break
-				}
-			}
-			lsof = append(lsof, line...)
-			continue
-		}
-		if bytes.Equal(fields[pidCol], pid) {
-			lsof = append(lsof, '\n')
-			lsof = append(lsof, line...)
-		}
-	}
-	if pidCol < 0 {
-		t.Fatal("error processing lsof output: unexpected header format")
-	}
-	if err := s.Err(); err != nil {
-		t.Fatalf("error processing lsof output: %v", err)
-	}
-	return bytes.Count(lsof, []byte("\n")), lsof
 }
 
 func TestExtraFilesFDShuffle(t *testing.T) {
@@ -792,7 +700,7 @@ func TestHelperProcess(*testing.T) {
 	cmd, args := args[0], args[1:]
 	switch cmd {
 	case "echo":
-		iargs := []interface{}{}
+		iargs := []any{}
 		for _, s := range args {
 			iargs = append(iargs, s)
 		}
@@ -1046,6 +954,14 @@ func TestContext(t *testing.T) {
 }
 
 func TestContextCancel(t *testing.T) {
+	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
+		testenv.SkipFlaky(t, 42061)
+	}
+
+	// To reduce noise in the final goroutine dump,
+	// let other parallel tests complete if possible.
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c := helperCommandContext(t, ctx, "cat")
@@ -1070,14 +986,25 @@ func TestContextCancel(t *testing.T) {
 	// Calling cancel should have killed the process, so writes
 	// should now fail.  Give the process a little while to die.
 	start := time.Now()
+	delay := 1 * time.Millisecond
 	for {
 		if _, err := io.WriteString(stdin, "echo"); err != nil {
 			break
 		}
+
 		if time.Since(start) > time.Minute {
-			t.Fatal("canceling context did not stop program")
+			// Panic instead of calling t.Fatal so that we get a goroutine dump.
+			// We want to know exactly what the os/exec goroutines got stuck on.
+			panic("canceling context did not stop program")
 		}
-		time.Sleep(time.Millisecond)
+
+		// Back off exponentially (up to 1-second sleeps) to give the OS time to
+		// terminate the process.
+		delay *= 2
+		if delay > 1*time.Second {
+			delay = 1 * time.Second
+		}
+		time.Sleep(delay)
 	}
 
 	if err := c.Wait(); err == nil {

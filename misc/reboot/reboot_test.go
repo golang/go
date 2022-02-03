@@ -15,6 +15,10 @@ import (
 )
 
 func TestRepeatBootstrap(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test that rebuilds the entire toolchain")
+	}
+
 	goroot, err := os.MkdirTemp("", "reboot-goroot")
 	if err != nil {
 		t.Fatal(err)

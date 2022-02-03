@@ -15,7 +15,7 @@ import (
 
 // A Struct represents a struct type.
 type Struct struct {
-	fields []*Var
+	fields []*Var   // fields != nil indicates the struct is set up (possibly with len(fields) == 0)
 	tags   []string // field tags; nil if there are no tags
 }
 
@@ -33,7 +33,9 @@ func NewStruct(fields []*Var, tags []string) *Struct {
 	if len(tags) > len(fields) {
 		panic("more tags than fields")
 	}
-	return &Struct{fields: fields, tags: tags}
+	s := &Struct{fields: fields, tags: tags}
+	s.markComplete()
+	return s
 }
 
 // NumFields returns the number of fields in the struct (including blank and embedded fields).
@@ -56,9 +58,16 @@ func (t *Struct) String() string   { return TypeString(t, nil) }
 // ----------------------------------------------------------------------------
 // Implementation
 
+func (s *Struct) markComplete() {
+	if s.fields == nil {
+		s.fields = make([]*Var, 0)
+	}
+}
+
 func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	list := e.Fields
 	if list == nil {
+		styp.markComplete()
 		return
 	}
 
@@ -115,9 +124,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			pos := f.Type.Pos()
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				// TODO(rFindley): using invalidAST here causes test failures (all
-				//                 errors should have codes). Clean this up.
-				check.errorf(f.Type, _Todo, "invalid AST: embedded field type %s has no name", f.Type)
+				check.invalidAST(f.Type, "embedded field type %s has no name", f.Type)
 				name = ast.NewIdent("_")
 				name.NamePos = pos
 				addInvalid(name, pos)
@@ -136,21 +143,26 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 
 			check.later(func() {
 				t, isPtr := deref(embeddedTyp)
-				switch t := under(t).(type) {
+				switch u := under(t).(type) {
 				case *Basic:
 					if t == Typ[Invalid] {
 						// error was reported before
 						return
 					}
 					// unsafe.Pointer is treated like a regular pointer
-					if t.kind == UnsafePointer {
+					if u.kind == UnsafePointer {
 						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
 					}
 				case *Pointer:
 					check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer")
-				case *TypeParam:
-					check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a (pointer to a) type parameter")
 				case *Interface:
+					if isTypeParam(t) {
+						// The error code here is inconsistent with other error codes for
+						// invalid embedding, because this restriction may be relaxed in the
+						// future, and so it did not warrant a new error code.
+						check.error(embeddedPos, _MisplacedTypeParam, "embedded field type cannot be a (pointer to a) type parameter")
+						break
+					}
 					if isPtr {
 						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
 					}
@@ -161,6 +173,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 
 	styp.fields = fields
 	styp.tags = tags
+	styp.markComplete()
 }
 
 func embeddedFieldIdent(e ast.Expr) *ast.Ident {

@@ -153,8 +153,8 @@ func TestGdbPython(t *testing.T) {
 }
 
 func TestGdbPythonCgo(t *testing.T) {
-	if runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" || runtime.GOARCH == "mips64" {
-		testenv.SkipFlaky(t, 18784)
+	if strings.HasPrefix(runtime.GOARCH, "mips") {
+		testenv.SkipFlaky(t, 37794)
 	}
 	testGdbPython(t, true)
 }
@@ -424,7 +424,7 @@ func TestGdbBacktrace(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, err := exec.Command("gdb", args...).CombinedOutput()
+	got, err := testenv.RunWithTimeout(t, exec.Command("gdb", args...))
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
 		t.Fatalf("gdb exited with error: %v", err)

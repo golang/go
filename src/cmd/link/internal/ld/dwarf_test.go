@@ -7,9 +7,9 @@ package ld
 import (
 	intdwarf "cmd/internal/dwarf"
 	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
+	"cmd/link/internal/dwtest"
 	"debug/dwarf"
 	"debug/pe"
-	"errors"
 	"fmt"
 	"internal/buildcfg"
 	"internal/testenv"
@@ -352,8 +352,8 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
 	}
 
 	rdr := d.Reader()
-	ex := examiner{}
-	if err := ex.populate(rdr); err != nil {
+	ex := dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 
@@ -373,7 +373,7 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
 	}
 
 	// Walk main's children and select variable "i".
-	mainIdx := ex.idxFromOffset(maindie.Offset)
+	mainIdx := ex.IdxFromOffset(maindie.Offset)
 	childDies := ex.Children(mainIdx)
 	var iEntry *dwarf.Entry
 	for _, child := range childDies {
@@ -396,7 +396,10 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
 	if !fileIdxOK {
 		t.Errorf("missing or invalid DW_AT_decl_file for main")
 	}
-	file := ex.FileRef(t, d, mainIdx, fileIdx)
+	file, err := ex.FileRef(d, mainIdx, fileIdx)
+	if err != nil {
+		t.Fatalf("FileRef: %v", err)
+	}
 	base := filepath.Base(file)
 	if base != expectFile {
 		t.Errorf("DW_AT_decl_file for main is %v, want %v", base, expectFile)
@@ -422,191 +425,6 @@ func TestVarDeclCoordsWithLineDirective(t *testing.T) {
 
 	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
 		"foobar.go", 202, "//line /foobar.go:200")
-}
-
-// Helper class for supporting queries on DIEs within a DWARF .debug_info
-// section. Invoke the populate() method below passing in a dwarf.Reader,
-// which will read in all DIEs and keep track of parent/child
-// relationships. Queries can then be made to ask for DIEs by name or
-// by offset. This will hopefully reduce boilerplate for future test
-// writing.
-
-type examiner struct {
-	dies        []*dwarf.Entry
-	idxByOffset map[dwarf.Offset]int
-	kids        map[int][]int
-	parent      map[int]int
-	byname      map[string][]int
-}
-
-// Populate the examiner using the DIEs read from rdr.
-func (ex *examiner) populate(rdr *dwarf.Reader) error {
-	ex.idxByOffset = make(map[dwarf.Offset]int)
-	ex.kids = make(map[int][]int)
-	ex.parent = make(map[int]int)
-	ex.byname = make(map[string][]int)
-	var nesting []int
-	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
-		if err != nil {
-			return err
-		}
-		if entry.Tag == 0 {
-			// terminator
-			if len(nesting) == 0 {
-				return errors.New("nesting stack underflow")
-			}
-			nesting = nesting[:len(nesting)-1]
-			continue
-		}
-		idx := len(ex.dies)
-		ex.dies = append(ex.dies, entry)
-		if _, found := ex.idxByOffset[entry.Offset]; found {
-			return errors.New("DIE clash on offset")
-		}
-		ex.idxByOffset[entry.Offset] = idx
-		if name, ok := entry.Val(dwarf.AttrName).(string); ok {
-			ex.byname[name] = append(ex.byname[name], idx)
-		}
-		if len(nesting) > 0 {
-			parent := nesting[len(nesting)-1]
-			ex.kids[parent] = append(ex.kids[parent], idx)
-			ex.parent[idx] = parent
-		}
-		if entry.Children {
-			nesting = append(nesting, idx)
-		}
-	}
-	if len(nesting) > 0 {
-		return errors.New("unterminated child sequence")
-	}
-	return nil
-}
-
-func indent(ilevel int) {
-	for i := 0; i < ilevel; i++ {
-		fmt.Printf("  ")
-	}
-}
-
-// For debugging new tests
-func (ex *examiner) dumpEntry(idx int, dumpKids bool, ilevel int) error {
-	if idx >= len(ex.dies) {
-		msg := fmt.Sprintf("bad DIE %d: index out of range\n", idx)
-		return errors.New(msg)
-	}
-	entry := ex.dies[idx]
-	indent(ilevel)
-	fmt.Printf("0x%x: %v\n", idx, entry.Tag)
-	for _, f := range entry.Field {
-		indent(ilevel)
-		fmt.Printf("at=%v val=0x%x\n", f.Attr, f.Val)
-	}
-	if dumpKids {
-		ksl := ex.kids[idx]
-		for _, k := range ksl {
-			ex.dumpEntry(k, true, ilevel+2)
-		}
-	}
-	return nil
-}
-
-// Given a DIE offset, return the previously read dwarf.Entry, or nil
-func (ex *examiner) entryFromOffset(off dwarf.Offset) *dwarf.Entry {
-	if idx, found := ex.idxByOffset[off]; found && idx != -1 {
-		return ex.entryFromIdx(idx)
-	}
-	return nil
-}
-
-// Return the ID that examiner uses to refer to the DIE at offset off
-func (ex *examiner) idxFromOffset(off dwarf.Offset) int {
-	if idx, found := ex.idxByOffset[off]; found {
-		return idx
-	}
-	return -1
-}
-
-// Return the dwarf.Entry pointer for the DIE with id 'idx'
-func (ex *examiner) entryFromIdx(idx int) *dwarf.Entry {
-	if idx >= len(ex.dies) || idx < 0 {
-		return nil
-	}
-	return ex.dies[idx]
-}
-
-// Returns a list of child entries for a die with ID 'idx'
-func (ex *examiner) Children(idx int) []*dwarf.Entry {
-	sl := ex.kids[idx]
-	ret := make([]*dwarf.Entry, len(sl))
-	for i, k := range sl {
-		ret[i] = ex.entryFromIdx(k)
-	}
-	return ret
-}
-
-// Returns parent DIE for DIE 'idx', or nil if the DIE is top level
-func (ex *examiner) Parent(idx int) *dwarf.Entry {
-	p, found := ex.parent[idx]
-	if !found {
-		return nil
-	}
-	return ex.entryFromIdx(p)
-}
-
-// ParentCU returns the enclosing compilation unit DIE for the DIE
-// with a given index, or nil if for some reason we can't establish a
-// parent.
-func (ex *examiner) ParentCU(idx int) *dwarf.Entry {
-	for {
-		parentDie := ex.Parent(idx)
-		if parentDie == nil {
-			return nil
-		}
-		if parentDie.Tag == dwarf.TagCompileUnit {
-			return parentDie
-		}
-		idx = ex.idxFromOffset(parentDie.Offset)
-	}
-}
-
-// FileRef takes a given DIE by index and a numeric file reference
-// (presumably from a decl_file or call_file attribute), looks up the
-// reference in the .debug_line file table, and returns the proper
-// string for it. We need to know which DIE is making the reference
-// so as find the right compilation unit.
-func (ex *examiner) FileRef(t *testing.T, dw *dwarf.Data, dieIdx int, fileRef int64) string {
-
-	// Find the parent compilation unit DIE for the specified DIE.
-	cuDie := ex.ParentCU(dieIdx)
-	if cuDie == nil {
-		t.Fatalf("no parent CU DIE for DIE with idx %d?", dieIdx)
-		return ""
-	}
-	// Construct a line reader and then use it to get the file string.
-	lr, lrerr := dw.LineReader(cuDie)
-	if lrerr != nil {
-		t.Fatal("d.LineReader: ", lrerr)
-		return ""
-	}
-	files := lr.Files()
-	if fileRef < 0 || int(fileRef) > len(files)-1 {
-		t.Fatalf("examiner.FileRef: malformed file reference %d", fileRef)
-		return ""
-	}
-	return files[fileRef].Name
-}
-
-// Return a list of all DIEs with name 'name'. When searching for DIEs
-// by name, keep in mind that the returned results will include child
-// DIEs such as params/variables. For example, asking for all DIEs named
-// "p" for even a small program will give you 400-500 entries.
-func (ex *examiner) Named(name string) []*dwarf.Entry {
-	sl := ex.byname[name]
-	ret := make([]*dwarf.Entry, len(sl))
-	for i, k := range sl {
-		ret[i] = ex.entryFromIdx(k)
-	}
-	return ret
 }
 
 func TestInlinedRoutineRecords(t *testing.T) {
@@ -656,8 +474,8 @@ func main() {
 	expectedInl := []string{"main.cand"}
 
 	rdr := d.Reader()
-	ex := examiner{}
-	if err := ex.populate(rdr); err != nil {
+	ex := dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 
@@ -677,7 +495,7 @@ func main() {
 	}
 
 	// Walk main's children and pick out the inlined subroutines
-	mainIdx := ex.idxFromOffset(maindie.Offset)
+	mainIdx := ex.IdxFromOffset(maindie.Offset)
 	childDies := ex.Children(mainIdx)
 	exCount := 0
 	for _, child := range childDies {
@@ -687,7 +505,7 @@ func main() {
 			if !originOK {
 				t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
 			}
-			originDIE := ex.entryFromOffset(ooff)
+			originDIE := ex.EntryFromOffset(ooff)
 			if originDIE == nil {
 				t.Fatalf("can't locate origin DIE at off %v", ooff)
 			}
@@ -696,7 +514,7 @@ func main() {
 			// to see child variables there, even if (perhaps due to
 			// optimization) there are no references to them from the
 			// inlined subroutine DIE.
-			absFcnIdx := ex.idxFromOffset(ooff)
+			absFcnIdx := ex.IdxFromOffset(ooff)
 			absFcnChildDies := ex.Children(absFcnIdx)
 			if len(absFcnChildDies) != 2 {
 				t.Fatalf("expected abstract function: expected 2 children, got %d children", len(absFcnChildDies))
@@ -735,7 +553,11 @@ func main() {
 			if !cfOK {
 				t.Fatalf("no call_file attr for inlined subroutine at offset %v", child.Offset)
 			}
-			file := ex.FileRef(t, d, mainIdx, cf)
+			file, err := ex.FileRef(d, mainIdx, cf)
+			if err != nil {
+				t.Errorf("FileRef: %v", err)
+				continue
+			}
 			base := filepath.Base(file)
 			if base != "test.go" {
 				t.Errorf("bad call_file attribute, found '%s', want '%s'",
@@ -747,7 +569,7 @@ func main() {
 			// Walk the child variables of the inlined routine. Each
 			// of them should have a distinct abstract origin-- if two
 			// vars point to the same origin things are definitely broken.
-			inlIdx := ex.idxFromOffset(child.Offset)
+			inlIdx := ex.IdxFromOffset(child.Offset)
 			inlChildDies := ex.Children(inlIdx)
 			for _, k := range inlChildDies {
 				ooff, originOK := k.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
@@ -780,15 +602,15 @@ func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 	rdr := d.Reader()
-	ex := examiner{}
-	if err := ex.populate(rdr); err != nil {
+	ex := dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 
 	// Make a pass through all DIEs looking for abstract origin
 	// references.
 	abscount := 0
-	for i, die := range ex.dies {
+	for i, die := range ex.DIEs() {
 		// Does it have an abstract origin?
 		ooff, originOK := die.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
 		if !originOK {
@@ -797,9 +619,9 @@ func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
 
 		// All abstract origin references should be resolvable.
 		abscount += 1
-		originDIE := ex.entryFromOffset(ooff)
+		originDIE := ex.EntryFromOffset(ooff)
 		if originDIE == nil {
-			ex.dumpEntry(i, false, 0)
+			ex.DumpEntry(i, false, 0)
 			t.Fatalf("unresolved abstract origin ref in DIE at offset 0x%x\n", die.Offset)
 		}
 
@@ -807,7 +629,7 @@ func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
 		// K2, ... KN}. If X has an abstract origin of A, then for
 		// each KJ, the abstract origin of KJ should be a child of A.
 		// Note that this same rule doesn't hold for non-variable DIEs.
-		pidx := ex.idxFromOffset(die.Offset)
+		pidx := ex.IdxFromOffset(die.Offset)
 		if pidx < 0 {
 			t.Fatalf("can't locate DIE id")
 		}
@@ -821,15 +643,15 @@ func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
 			if !originOK {
 				continue
 			}
-			childOriginDIE := ex.entryFromOffset(kooff)
+			childOriginDIE := ex.EntryFromOffset(kooff)
 			if childOriginDIE == nil {
-				ex.dumpEntry(i, false, 0)
+				ex.DumpEntry(i, false, 0)
 				t.Fatalf("unresolved abstract origin ref in DIE at offset %x", kid.Offset)
 			}
-			coidx := ex.idxFromOffset(childOriginDIE.Offset)
+			coidx := ex.IdxFromOffset(childOriginDIE.Offset)
 			childOriginParent := ex.Parent(coidx)
 			if childOriginParent != originDIE {
-				ex.dumpEntry(i, false, 0)
+				ex.DumpEntry(i, false, 0)
 				t.Fatalf("unexpected parent of abstract origin DIE at offset %v", childOriginDIE.Offset)
 			}
 		}
@@ -977,8 +799,8 @@ func main() {
 	}
 
 	rdr := d.Reader()
-	ex := examiner{}
-	if err := ex.populate(rdr); err != nil {
+	ex := dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 	dies := ex.Named("*main.X")
@@ -1501,8 +1323,8 @@ func TestIssue39757(t *testing.T) {
 		t.Fatalf("error parsing DWARF: %v", err)
 	}
 	rdr := dw.Reader()
-	ex := examiner{}
-	if err := ex.populate(rdr); err != nil {
+	ex := dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 
@@ -1521,7 +1343,7 @@ func TestIssue39757(t *testing.T) {
 	highpc := maindie.Val(dwarf.AttrHighpc).(uint64)
 
 	// Now read the line table for the 'main' compilation unit.
-	mainIdx := ex.idxFromOffset(maindie.Offset)
+	mainIdx := ex.IdxFromOffset(maindie.Offset)
 	cuentry := ex.Parent(mainIdx)
 	if cuentry == nil {
 		t.Fatalf("main.main DIE appears orphaned")
@@ -1635,6 +1457,66 @@ func TestIssue42484(t *testing.T) {
 	f.Close()
 }
 
+// processParams examines the formal parameter children of subprogram
+// DIE "die" using the explorer "ex" and returns a string that
+// captures the name, order, and classification of the subprogram's
+// input and output parameters. For example, for the go function
+//
+//     func foo(i1 int, f1 float64) (string, bool) {
+//
+// this function would return a string something like
+//
+//     i1:0:1 f1:1:1 ~r0:2:2 ~r1:3:2
+//
+// where each chunk above is of the form NAME:ORDER:INOUTCLASSIFICATION
+//
+func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {
+	// Values in the returned map are of the form <order>:<varparam>
+	// where order is the order within the child DIE list of the
+	// param, and <varparam> is an integer:
+	//
+	//  -1: varparm attr not found
+	//   1: varparm found with value false
+	//   2: varparm found with value true
+	//
+	foundParams := make(map[string]string)
+
+	// Walk the subprogram DIE's children looking for params.
+	pIdx := ex.IdxFromOffset(die.Offset)
+	childDies := ex.Children(pIdx)
+	idx := 0
+	for _, child := range childDies {
+		if child.Tag == dwarf.TagFormalParameter {
+			// NB: a setting of DW_AT_variable_parameter indicates
+			// that the param in question is an output parameter; we
+			// want to see this attribute set to TRUE for all Go
+			// return params. It would be OK to have it missing for
+			// input parameters, but for the moment we verify that the
+			// attr is present but set to false.
+			st := -1
+			if vp, ok := child.Val(dwarf.AttrVarParam).(bool); ok {
+				if vp {
+					st = 2
+				} else {
+					st = 1
+				}
+			}
+			if name, ok := child.Val(dwarf.AttrName).(string); ok {
+				foundParams[name] = fmt.Sprintf("%d:%d", idx, st)
+				idx++
+			}
+		}
+	}
+
+	found := make([]string, 0, len(foundParams))
+	for k, v := range foundParams {
+		found = append(found, fmt.Sprintf("%s:%s", k, v))
+	}
+	sort.Strings(found)
+
+	return fmt.Sprintf("%+v", found)
+}
+
 func TestOutputParamAbbrevAndAttr(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
@@ -1674,8 +1556,8 @@ func main() {
 	}
 
 	rdr := d.Reader()
-	ex := examiner{}
-	if err := ex.populate(rdr); err != nil {
+	ex := dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 
@@ -1694,56 +1576,15 @@ func main() {
 		t.Fatalf("unexpected tag %v on main.ABC DIE", abcdie.Tag)
 	}
 
-	// A setting of DW_AT_variable_parameter indicates that the
-	// param in question is an output parameter; we want to see this
-	// attribute set to TRUE for all Go return params. It would be
-	// OK to have it missing for input parameters, but for the moment
-	// we verify that the attr is present but set to false.
-
-	// Values in this map are of the form <order>:<varparam>
-	// where order is the order within the child DIE list of the param,
-	// and <varparam> is an integer:
-	//
-	//  -1: varparm attr not found
-	//   1: varparm found with value false
-	//   2: varparm found with value true
-	//
-	foundParams := make(map[string]string)
-
-	// Walk ABCs's children looking for params.
-	abcIdx := ex.idxFromOffset(abcdie.Offset)
-	childDies := ex.Children(abcIdx)
-	idx := 0
-	for _, child := range childDies {
-		if child.Tag == dwarf.TagFormalParameter {
-			st := -1
-			if vp, ok := child.Val(dwarf.AttrVarParam).(bool); ok {
-				if vp {
-					st = 2
-				} else {
-					st = 1
-				}
-			}
-			if name, ok := child.Val(dwarf.AttrName).(string); ok {
-				foundParams[name] = fmt.Sprintf("%d:%d", idx, st)
-				idx++
-			}
-		}
-	}
-
-	// Digest the result.
-	found := make([]string, 0, len(foundParams))
-	for k, v := range foundParams {
-		found = append(found, fmt.Sprintf("%s:%s", k, v))
-	}
-	sort.Strings(found)
+	// Call a helper to collect param info.
+	found := processParams(abcdie, &ex)
 
 	// Make sure we see all of the expected params in the proper
-	// order, that they have the varparam attr, and the varparm is set
-	// for the returns.
+	// order, that they have the varparam attr, and the varparam is
+	// set for the returns.
 	expected := "[c1:0:1 c2:1:1 c3:2:1 d1:3:1 d2:4:1 d3:5:1 d4:6:1 f1:7:1 f2:8:1 f3:9:1 g1:10:1 r1:11:2 r2:12:2 r3:13:2 r4:14:2 r5:15:2 r6:16:2]"
-	if fmt.Sprintf("%+v", found) != expected {
-		t.Errorf("param check failed, wanted %s got %s\n",
+	if found != expected {
+		t.Errorf("param check failed, wanted:\n%s\ngot:\n%s\n",
 			expected, found)
 	}
 }
@@ -1835,8 +1676,8 @@ func main() {
 	}
 
 	rdr.Seek(0)
-	ex := examiner{}
-	if err := ex.populate(rdr); err != nil {
+	ex := dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 	for _, typeName := range []string{"main.CustomInt", "map[int]main.CustomInt"} {
@@ -1846,6 +1687,159 @@ func main() {
 		}
 		if dies[0].Val(intdwarf.DW_AT_go_runtime_type).(uint64) == 0 {
 			t.Errorf("type %s does not have DW_AT_go_runtime_type", typeName)
+		}
+	}
+}
+
+func TestOptimizedOutParamHandling(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	t.Parallel()
+
+	// This test is intended to verify that the compiler emits DWARF
+	// DIE entries for all input and output parameters, and that:
+	//
+	//   - attributes are set correctly for output params,
+	//   - things appear in the proper order
+	//   - things work properly for both register-resident
+	//     params and params passed on the stack
+	//   - things work for both referenced and unreferenced params
+	//   - things work for named return values un-named return vals
+	//
+	// The scenarios below don't cover all possible permutations and
+	// combinations, but they hit a bunch of the high points.
+
+	const prog = `
+package main
+
+// First testcase. All input params in registers, all params used.
+
+//go:noinline
+func tc1(p1, p2 int, p3 string) (int, string) {
+	return p1 + p2, p3 + "foo"
+}
+
+// Second testcase. Some params in registers, some on stack.
+
+//go:noinline
+func tc2(p1 int, p2 [128]int, p3 string) (int, string, [128]int) {
+	return p1 + p2[p1], p3 + "foo", [128]int{p1}
+}
+
+// Third testcase. Named return params.
+
+//go:noinline
+func tc3(p1 int, p2 [128]int, p3 string) (r1 int, r2 bool, r3 string, r4 [128]int) {
+	if p1 == 101 {
+		r1 = p1 + p2[p1]
+		r2 = p3 == "foo"
+		r4 = [128]int{p1}
+		return
+	} else {
+		return p1 - p2[p1+3], false, "bar", [128]int{p1 + 2}
+	}
+}
+
+// Fourth testcase. Some thing are used, some are unused.
+
+//go:noinline
+func tc4(p1, p1un int, p2, p2un [128]int, p3, p3un string) (r1 int, r1un int, r2 bool, r3 string, r4, r4un [128]int) {
+	if p1 == 101 {
+		r1 = p1 + p2[p2[0]]
+		r2 = p3 == "foo"
+		r4 = [128]int{p1}
+		return
+	} else {
+		return p1, -1, true, "plex", [128]int{p1 + 2}, [128]int{-1}
+	}
+}
+
+func main() {
+	{
+		r1, r2 := tc1(3, 4, "five")
+		println(r1, r2)
+	}
+	{
+		x := [128]int{9}
+		r1, r2, r3 := tc2(3, x, "five")
+		println(r1, r2, r3[0])
+	}
+	{
+		x := [128]int{9}
+		r1, r2, r3, r4 := tc3(3, x, "five")
+		println(r1, r2, r3, r4[0])
+	}
+	{
+		x := [128]int{3}
+		y := [128]int{7}
+		r1, r1u, r2, r3, r4, r4u := tc4(0, 1, x, y, "a", "b")
+		println(r1, r1u, r2, r3, r4[0], r4u[1])
+	}
+
+}
+`
+	dir := t.TempDir()
+	f := gobuild(t, dir, prog, DefaultOpt)
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	ex := dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	testcases := []struct {
+		tag      string
+		expected string
+	}{
+		{
+			tag:      "tc1",
+			expected: "[p1:0:1 p2:1:1 p3:2:1 ~r0:3:2 ~r1:4:2]",
+		},
+		{
+			tag:      "tc2",
+			expected: "[p1:0:1 p2:1:1 p3:2:1 ~r0:3:2 ~r1:4:2 ~r2:5:2]",
+		},
+		{
+			tag:      "tc3",
+			expected: "[p1:0:1 p2:1:1 p3:2:1 r1:3:2 r2:4:2 r3:5:2 r4:6:2]",
+		},
+		{
+			tag:      "tc4",
+			expected: "[p1:0:1 p1un:1:1 p2:2:1 p2un:3:1 p3:4:1 p3un:5:1 r1:6:2 r1un:7:2 r2:8:2 r3:9:2 r4:10:2 r4un:11:2]",
+		},
+	}
+
+	for _, tc := range testcases {
+		// Locate the proper DIE
+		which := fmt.Sprintf("main.%s", tc.tag)
+		tcs := ex.Named(which)
+		if len(tcs) == 0 {
+			t.Fatalf("unable to locate DIE for " + which)
+		}
+		if len(tcs) != 1 {
+			t.Fatalf("more than one " + which + " DIE")
+		}
+		die := tcs[0]
+
+		// Vet the DIE
+		if die.Tag != dwarf.TagSubprogram {
+			t.Fatalf("unexpected tag %v on "+which+" DIE", die.Tag)
+		}
+
+		// Examine params for this subprogram.
+		foundParams := processParams(die, &ex)
+		if foundParams != tc.expected {
+			t.Errorf("check failed for testcase %s -- wanted:\n%s\ngot:%s\n",
+				tc.tag, tc.expected, foundParams)
 		}
 	}
 }

@@ -124,7 +124,7 @@ func TestReadFile(t *testing.T) {
 		// build lines are included.
 		got = goVersionRe.ReplaceAllString(got, "go\tGOVERSION\n")
 		got = buildRe.ReplaceAllStringFunc(got, func(match string) string {
-			if strings.HasPrefix(match, "build\tcompiler\t") {
+			if strings.HasPrefix(match, "build\t-compiler=") {
 				return match
 			}
 			return ""
@@ -163,7 +163,7 @@ func TestReadFile(t *testing.T) {
 			want: "go\tGOVERSION\n" +
 				"path\texample.com/m\n" +
 				"mod\texample.com/m\t(devel)\t\n" +
-				"build\tcompiler\tgc\n",
+				"build\t-compiler=gc\n",
 		},
 		{
 			name: "invalid_modules",
@@ -177,7 +177,9 @@ func TestReadFile(t *testing.T) {
 		{
 			name:  "valid_gopath",
 			build: buildWithGOPATH,
-			want:  "go\tGOVERSION\n",
+			want: "go\tGOVERSION\n" +
+				"path\texample.com/m\n" +
+				"build\t-compiler=gc\n",
 		},
 		{
 			name: "invalid_gopath",

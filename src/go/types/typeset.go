@@ -32,12 +32,12 @@ func (s *_TypeSet) IsAll() bool { return !s.comparable && len(s.methods) == 0 &&
 func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
-func (s *_TypeSet) IsComparable() bool {
+func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
 	if s.terms.isAll() {
 		return s.comparable
 	}
 	return s.is(func(t *term) bool {
-		return t != nil && Comparable(t.typ)
+		return t != nil && comparable(t.typ, seen)
 	})
 }
 
@@ -105,9 +105,6 @@ func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll
 // singleType returns the single type in s if there is exactly one; otherwise the result is nil.
 func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
 
-// includes reports whether t ∈ s.
-func (s *_TypeSet) includes(t Type) bool { return s.terms.includes(t) }
-
 // subsetOf reports whether s1 ⊆ s2.
 func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
 
@@ -131,7 +128,7 @@ func (s *_TypeSet) is(f func(*term) bool) bool {
 
 // underIs calls f with the underlying types of the specific type terms
 // of s and reports whether all calls to f returned true. If there are
-// no specific terms, is returns the result of f(nil).
+// no specific terms, underIs returns the result of f(nil).
 func (s *_TypeSet) underIs(f func(Type) bool) bool {
 	if !s.hasTerms() {
 		return f(nil)
@@ -163,7 +160,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 	}
 
 	// If the interface is not fully set up yet, the type set will
-	// not be complete, which may lead to errors when using the the
+	// not be complete, which may lead to errors when using the
 	// type set (e.g. missing method). Don't compute a partial type
 	// set (and don't store it!), so that we still compute the full
 	// type set eventually. Instead, return the top type set and
@@ -198,6 +195,16 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 	// infinite recursion if the validType check occurs later for some
 	// reason.
 	ityp.tset = &_TypeSet{terms: allTermlist} // TODO(gri) is this sufficient?
+
+	var unionSets map[*Union]*_TypeSet
+	if check != nil {
+		if check.unionTypeSets == nil {
+			check.unionTypeSets = make(map[*Union]*_TypeSet)
+		}
+		unionSets = check.unionTypeSets
+	} else {
+		unionSets = make(map[*Union]*_TypeSet)
+	}
 
 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
 	// of a method I.m's Func Object of an interface I is the same as that of
@@ -266,10 +273,12 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 		var terms termlist
 		switch u := under(typ).(type) {
 		case *Interface:
+			// For now we don't permit type parameters as constraints.
+			assert(!isTypeParam(typ))
 			tset := computeInterfaceTypeSet(check, pos, u)
 			// If typ is local, an error was already reported where typ is specified/defined.
 			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _Todo, "embedding constraint interface %s requires go1.18 or later", typ)
+				check.errorf(atPos(pos), _UnsupportedFeature, "embedding constraint interface %s requires go1.18 or later", typ)
 				continue
 			}
 			if tset.comparable {
@@ -281,18 +290,14 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			terms = tset.terms
 		case *Union:
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _Todo, "embedding interface element %s requires go1.18 or later", u)
+				check.errorf(atPos(pos), _InvalidIfaceEmbed, "embedding interface element %s requires go1.18 or later", u)
 				continue
 			}
-			tset := computeUnionTypeSet(check, pos, u)
+			tset := computeUnionTypeSet(check, unionSets, pos, u)
 			if tset == &invalidTypeSet {
 				continue // ignore invalid unions
 			}
 			terms = tset.terms
-		case *TypeParam:
-			// Embedding stand-alone type parameters is not permitted.
-			// Union parsing reports a (delayed) error, so we can ignore this entry.
-			continue
 		default:
 			if u == Typ[Invalid] {
 				continue
@@ -356,27 +361,29 @@ var invalidTypeSet _TypeSet
 
 // computeUnionTypeSet may be called with check == nil.
 // The result is &invalidTypeSet if the union overflows.
-func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
-	if utyp.tset != nil {
-		return utyp.tset
+func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos token.Pos, utyp *Union) *_TypeSet {
+	if tset, _ := unionSets[utyp]; tset != nil {
+		return tset
 	}
 
 	// avoid infinite recursion (see also computeInterfaceTypeSet)
-	utyp.tset = new(_TypeSet)
+	unionSets[utyp] = new(_TypeSet)
 
 	var allTerms termlist
 	for _, t := range utyp.terms {
 		var terms termlist
-		switch u := under(t.typ).(type) {
-		case *Interface:
-			terms = computeInterfaceTypeSet(check, pos, u).terms
-		case *TypeParam:
-			// A stand-alone type parameters is not permitted as union term.
-			// Union parsing reports a (delayed) error, so we can ignore this entry.
+		u := under(t.typ)
+		if ui, _ := u.(*Interface); ui != nil {
+			// For now we don't permit type parameters as constraints.
+			assert(!isTypeParam(t.typ))
+			terms = computeInterfaceTypeSet(check, pos, ui).terms
+		} else if t.typ == Typ[Invalid] {
 			continue
-		default:
-			if t.typ == Typ[Invalid] {
-				continue
+		} else {
+			if t.tilde && !Identical(t.typ, u) {
+				// There is no underlying type which is t.typ.
+				// The corresponding type set is empty.
+				t = nil // ∅ term
 			}
 			terms = termlist{(*term)(t)}
 		}
@@ -385,13 +392,13 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
 		allTerms = allTerms.union(terms)
 		if len(allTerms) > maxTermCount {
 			if check != nil {
-				check.errorf(atPos(pos), _Todo, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+				check.errorf(atPos(pos), _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 			}
-			utyp.tset = &invalidTypeSet
-			return utyp.tset
+			unionSets[utyp] = &invalidTypeSet
+			return unionSets[utyp]
 		}
 	}
-	utyp.tset.terms = allTerms
+	unionSets[utyp].terms = allTerms
 
-	return utyp.tset
+	return unionSets[utyp]
 }

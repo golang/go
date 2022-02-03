@@ -89,7 +89,7 @@ func main() {
 	by = bx[2:8]
 	tstb()
 
-	// width 4 (float64)
+	// width 8 (float64)
 	lb = 0
 	hb = 10
 	fy = fx[lb:hb]

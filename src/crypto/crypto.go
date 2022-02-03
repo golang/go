@@ -159,7 +159,7 @@ func RegisterHash(h Hash, f func() hash.Hash) {
 //     }
 //
 // which can be used for increased type safety within applications.
-type PublicKey interface{}
+type PublicKey any
 
 // PrivateKey represents a private key using an unspecified algorithm.
 //
@@ -173,7 +173,7 @@ type PublicKey interface{}
 //
 // as well as purpose-specific interfaces such as Signer and Decrypter, which
 // can be used for increased type safety within applications.
-type PrivateKey interface{}
+type PrivateKey any
 
 // Signer is an interface for an opaque private key that can be used for
 // signing operations. For example, an RSA key kept in a hardware module.
@@ -220,4 +220,4 @@ type Decrypter interface {
 	Decrypt(rand io.Reader, msg []byte, opts DecrypterOpts) (plaintext []byte, err error)
 }
 
-type DecrypterOpts interface{}
+type DecrypterOpts any

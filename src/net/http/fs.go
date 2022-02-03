@@ -42,20 +42,20 @@ import (
 // An empty Dir is treated as ".".
 type Dir string
 
-// mapDirOpenError maps the provided non-nil error from opening name
+// mapOpenError maps the provided non-nil error from opening name
 // to a possibly better non-nil error. In particular, it turns OS-specific errors
-// about opening files in non-directories into fs.ErrNotExist. See Issue 18984.
-func mapDirOpenError(originalErr error, name string) error {
+// about opening files in non-directories into fs.ErrNotExist. See Issues 18984 and 49552.
+func mapOpenError(originalErr error, name string, sep rune, stat func(string) (fs.FileInfo, error)) error {
 	if errors.Is(originalErr, fs.ErrNotExist) || errors.Is(originalErr, fs.ErrPermission) {
 		return originalErr
 	}
 
-	parts := strings.Split(name, string(filepath.Separator))
+	parts := strings.Split(name, string(sep))
 	for i := range parts {
 		if parts[i] == "" {
 			continue
 		}
-		fi, err := os.Stat(strings.Join(parts[:i+1], string(filepath.Separator)))
+		fi, err := stat(strings.Join(parts[:i+1], string(sep)))
 		if err != nil {
 			return originalErr
 		}
@@ -79,7 +79,7 @@ func (d Dir) Open(name string) (File, error) {
 	fullName := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
 	f, err := os.Open(fullName)
 	if err != nil {
-		return nil, mapDirOpenError(err, fullName)
+		return nil, mapOpenError(err, fullName, filepath.Separator, os.Stat)
 	}
 	return f, nil
 }
@@ -759,7 +759,9 @@ func (f ioFS) Open(name string) (File, error) {
 	}
 	file, err := f.fsys.Open(name)
 	if err != nil {
-		return nil, err
+		return nil, mapOpenError(err, name, '/', func(path string) (fs.FileInfo, error) {
+			return fs.Stat(f.fsys, path)
+		})
 	}
 	return ioFile{file}, nil
 }

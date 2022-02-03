@@ -242,12 +242,12 @@ func TestMapCounter(t *testing.T) {
 	// colors.String() should be '{"red":3, "blue":4}',
 	// though the order of red and blue could vary.
 	s := colors.String()
-	var j interface{}
+	var j any
 	err := json.Unmarshal([]byte(s), &j)
 	if err != nil {
 		t.Errorf("colors.String() isn't valid JSON: %v", err)
 	}
-	m, ok := j.(map[string]interface{})
+	m, ok := j.(map[string]any)
 	if !ok {
 		t.Error("colors.String() didn't produce a map.")
 	}
@@ -427,8 +427,8 @@ func BenchmarkMapAddDifferentSteadyState(b *testing.B) {
 
 func TestFunc(t *testing.T) {
 	RemoveAll()
-	var x interface{} = []string{"a", "b"}
-	f := Func(func() interface{} { return x })
+	var x any = []string{"a", "b"}
+	f := Func(func() any { return x })
 	if s, exp := f.String(), `["a","b"]`; s != exp {
 		t.Errorf(`f.String() = %q, want %q`, s, exp)
 	}

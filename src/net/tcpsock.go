@@ -96,6 +96,17 @@ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	return addrs.forResolve(network, address).(*TCPAddr), nil
 }
 
+// TCPAddrFromAddrPort returns addr as a TCPAddr. If addr.IsValid() is false,
+// then the returned TCPAddr will contain a nil IP field, indicating an
+// address family-agnostic unspecified address.
+func TCPAddrFromAddrPort(addr netip.AddrPort) *TCPAddr {
+	return &TCPAddr{
+		IP:   addr.Addr().AsSlice(),
+		Zone: addr.Addr().Zone(),
+		Port: int(addr.Port()),
+	}
+}
+
 // TCPConn is an implementation of the Conn interface for TCP network
 // connections.
 type TCPConn struct {

@@ -25,7 +25,6 @@ import (
 // These are general "build flags" used by build and other commands.
 var (
 	BuildA                 bool   // -a flag
-	BuildBuildinfo         bool   // -buildinfo flag
 	BuildBuildmode         string // -buildmode flag
 	BuildBuildvcs          bool   // -buildvcs flag
 	BuildContext           = defaultContext()
@@ -63,6 +62,8 @@ var (
 	// GoPathError is set when GOPATH is not set. it contains an
 	// explanation why GOPATH is unset.
 	GoPathError string
+
+	GOEXPERIMENT = envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT)
 )
 
 func defaultContext() build.Context {
@@ -89,7 +90,7 @@ func defaultContext() build.Context {
 
 	// The experiments flags are based on GOARCH, so they may
 	// need to change.  TODO: This should be cleaned up.
-	buildcfg.UpdateExperiments(ctxt.GOOS, ctxt.GOARCH, envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT))
+	buildcfg.UpdateExperiments(ctxt.GOOS, ctxt.GOARCH, GOEXPERIMENT)
 	ctxt.ToolTags = nil
 	for _, exp := range buildcfg.EnabledExperiments() {
 		ctxt.ToolTags = append(ctxt.ToolTags, "goexperiment."+exp)

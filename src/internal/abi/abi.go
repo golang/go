@@ -44,6 +44,24 @@ type RegArgs struct {
 	ReturnIsPtr IntArgRegBitmap
 }
 
+func (r *RegArgs) Dump() {
+	print("Ints:")
+	for _, x := range r.Ints {
+		print(" ", x)
+	}
+	println()
+	print("Floats:")
+	for _, x := range r.Floats {
+		print(" ", x)
+	}
+	println()
+	print("Ptrs:")
+	for _, x := range r.Ptrs {
+		print(" ", x)
+	}
+	println()
+}
+
 // IntRegArgAddr returns a pointer inside of r.Ints[reg] that is appropriately
 // offset for an argument of size argSize.
 //
@@ -96,7 +114,7 @@ func (b *IntArgRegBitmap) Get(i int) bool {
 // compile-time error.
 //
 // Implemented as a compile intrinsic.
-func FuncPCABI0(f interface{}) uintptr
+func FuncPCABI0(f any) uintptr
 
 // FuncPCABIInternal returns the entry PC of the function f. If f is a
 // direct reference of a function, it must be defined as ABIInternal.
@@ -105,4 +123,4 @@ func FuncPCABI0(f interface{}) uintptr
 // the behavior is undefined.
 //
 // Implemented as a compile intrinsic.
-func FuncPCABIInternal(f interface{}) uintptr
+func FuncPCABIInternal(f any) uintptr

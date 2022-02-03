@@ -84,7 +84,7 @@ func convertToSlowestRGBA(m image.Image) *slowestRGBA {
 }
 
 func init() {
-	var p interface{} = (*slowestRGBA)(nil)
+	var p any = (*slowestRGBA)(nil)
 	if _, ok := p.(RGBA64Image); ok {
 		panic("slowestRGBA should not be an RGBA64Image")
 	}
@@ -173,7 +173,7 @@ func convertToSlowerRGBA(m image.Image) *slowerRGBA {
 }
 
 func init() {
-	var p interface{} = (*slowerRGBA)(nil)
+	var p any = (*slowerRGBA)(nil)
 	if _, ok := p.(RGBA64Image); !ok {
 		panic("slowerRGBA should be an RGBA64Image")
 	}

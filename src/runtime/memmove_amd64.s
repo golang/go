@@ -24,7 +24,6 @@
 // THE SOFTWARE.
 
 //go:build !plan9
-// +build !plan9
 
 #include "go_asm.h"
 #include "textflag.h"

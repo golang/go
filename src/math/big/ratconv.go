@@ -169,6 +169,11 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		n := exp5
 		if n < 0 {
 			n = -n
+			if n < 0 {
+				// This can occur if -n overflows. -(-1 << 63) would become
+				// -1 << 63, which is still negative.
+				return nil, false
+			}
 		}
 		if n > 1e6 {
 			return nil, false // avoid excessively large exponents

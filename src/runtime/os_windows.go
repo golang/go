@@ -40,7 +40,6 @@ const (
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
-//go:cgo_import_dynamic runtime._RaiseException RaiseException%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
@@ -94,7 +93,6 @@ var (
 	_PostQueuedCompletionStatus,
 	_QueryPerformanceCounter,
 	_QueryPerformanceFrequency,
-	_RaiseException,
 	_ResumeThread,
 	_SetConsoleCtrlHandler,
 	_SetErrorMode,
@@ -122,7 +120,6 @@ var (
 	_AddVectoredContinueHandler,
 	_LoadLibraryExA,
 	_LoadLibraryExW,
-	_WerSetFlags,
 	_ stdFunction
 
 	// Use RtlGenRandom to generate cryptographically random data.
@@ -257,7 +254,6 @@ func loadOptionalSyscalls() {
 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
 	_LoadLibraryExA = windowsFindfunc(k32, []byte("LoadLibraryExA\000"))
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
-	_WerSetFlags = windowsFindfunc(k32, []byte("WerSetFlags\000"))
 	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
 
 	var advapi32dll = []byte("advapi32.dll\000")
@@ -327,7 +323,7 @@ func monitorSuspendResume() {
 	if powerRegisterSuspendResumeNotification == nil {
 		return // Running on Windows 7, where we don't need it anyway.
 	}
-	var fn interface{} = func(context uintptr, changeType uint32, setting uintptr) uintptr {
+	var fn any = func(context uintptr, changeType uint32, setting uintptr) uintptr {
 		for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
 			if mp.resumesema != 0 {
 				stdcall1(_SetEvent, mp.resumesema)
@@ -686,7 +682,7 @@ func goenvs() {
 
 	// We call these all the way here, late in init, so that malloc works
 	// for the callback functions these generate.
-	var fn interface{} = ctrlHandler
+	var fn any = ctrlHandler
 	ctrlHandlerPC := compileCallback(*efaceOf(&fn), true)
 	stdcall2(_SetConsoleCtrlHandler, ctrlHandlerPC, 1)
 
@@ -1198,8 +1194,10 @@ func ctrlHandler(_type uint32) uintptr {
 	if sigsend(s) {
 		if s == _SIGTERM {
 			// Windows terminates the process after this handler returns.
-			// Block indefinitely to give signal handlers a chance to clean up.
-			stdcall1(_Sleep, uintptr(_INFINITE))
+			// Block indefinitely to give signal handlers a chance to clean up,
+			// but make sure to be properly parked first, so the rest of the
+			// program can continue executing.
+			block()
 		}
 		return 1
 	}
@@ -1308,18 +1306,13 @@ func setThreadCPUProfiler(hz int32) {
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
 }
 
-const preemptMSupported = GOARCH == "386" || GOARCH == "amd64"
+const preemptMSupported = true
 
 // suspendLock protects simultaneous SuspendThread operations from
 // suspending each other.
 var suspendLock mutex
 
 func preemptM(mp *m) {
-	if !preemptMSupported {
-		// TODO: Implement call injection
-		return
-	}
-
 	if mp == getg().m {
 		throw("self-preempt")
 	}
@@ -1401,8 +1394,31 @@ func preemptM(mp *m) {
 				*(*uintptr)(unsafe.Pointer(sp)) = newpc
 				c.set_sp(sp)
 				c.set_ip(targetPC)
-			}
 
+			case "arm":
+				// Push LR. The injected call is responsible
+				// for restoring LR. gentraceback is aware of
+				// this extra slot. See sigctxt.pushCall in
+				// signal_arm.go, which is similar except we
+				// subtract 1 from IP here.
+				sp := c.sp()
+				sp -= goarch.PtrSize
+				c.set_sp(sp)
+				*(*uint32)(unsafe.Pointer(sp)) = uint32(c.lr())
+				c.set_lr(newpc - 1)
+				c.set_ip(targetPC)
+
+			case "arm64":
+				// Push LR. The injected call is responsible
+				// for restoring LR. gentraceback is aware of
+				// this extra slot. See sigctxt.pushCall in
+				// signal_arm64.go.
+				sp := c.sp() - 16 // SP needs 16-byte alignment
+				c.set_sp(sp)
+				*(*uint64)(unsafe.Pointer(sp)) = uint64(c.lr())
+				c.set_lr(newpc)
+				c.set_ip(targetPC)
+			}
 			stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 		}
 	}

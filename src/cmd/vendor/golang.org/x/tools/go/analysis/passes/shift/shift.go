@@ -14,11 +14,14 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"go/types"
+	"math"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = "check for shifts that equal or exceed the width of the integer"
@@ -93,9 +96,36 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 	if t == nil {
 		return
 	}
-	size := 8 * pass.TypesSizes.Sizeof(t)
-	if amt >= size {
+	var structuralTypes []types.Type
+	switch t := t.(type) {
+	case *typeparams.TypeParam:
+		terms, err := typeparams.StructuralTerms(t)
+		if err != nil {
+			return // invalid type
+		}
+		for _, term := range terms {
+			structuralTypes = append(structuralTypes, term.Type())
+		}
+	default:
+		structuralTypes = append(structuralTypes, t)
+	}
+	sizes := make(map[int64]struct{})
+	for _, t := range structuralTypes {
+		size := 8 * pass.TypesSizes.Sizeof(t)
+		sizes[size] = struct{}{}
+	}
+	minSize := int64(math.MaxInt64)
+	for size := range sizes {
+		if size < minSize {
+			minSize = size
+		}
+	}
+	if amt >= minSize {
 		ident := analysisutil.Format(pass.Fset, x)
-		pass.ReportRangef(node, "%s (%d bits) too small for shift of %d", ident, size, amt)
+		qualifier := ""
+		if len(sizes) > 1 {
+			qualifier = "may be "
+		}
+		pass.ReportRangef(node, "%s (%s%d bits) too small for shift of %d", ident, qualifier, minSize, amt)
 	}
 }

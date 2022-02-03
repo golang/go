@@ -96,6 +96,17 @@ func check2(noders []*noder) {
 	}
 }
 
+// Information about sub-dictionary entries in a dictionary
+type subDictInfo struct {
+	// Call or XDOT node that requires a dictionary.
+	callNode ir.Node
+	// Saved CallExpr.X node (*ir.SelectorExpr or *InstExpr node) for a generic
+	// method or function call, since this node will get dropped when the generic
+	// method/function call is transformed to a call on the instantiated shape
+	// function. Nil for other kinds of calls or XDOTs.
+	savedXNode ir.Node
+}
+
 // dictInfo is the dictionary format for an instantiation of a generic function with
 // particular shapes. shapeParams, derivedTypes, subDictCalls, and itabConvs describe
 // the actual dictionary entries in order, and the remaining fields are other info
@@ -108,7 +119,7 @@ type dictInfo struct {
 	// Nodes in the instantiation that requires a subdictionary. Includes
 	// method and function calls (OCALL), function values (OFUNCINST), method
 	// values/expressions (OXDOT).
-	subDictCalls []ir.Node
+	subDictCalls []subDictInfo
 	// Nodes in the instantiation that are a conversion from a typeparam/derived
 	// type to a specific interface.
 	itabConvs []ir.Node
@@ -317,7 +328,7 @@ Outer:
 
 	// Create any needed instantiations of generic functions and transform
 	// existing and new functions to use those instantiations.
-	BuildInstantiations(true)
+	BuildInstantiations()
 
 	// Remove all generic functions from g.target.Decl, since they have been
 	// used for stenciling, but don't compile. Generic functions will already

@@ -13,7 +13,7 @@ type t struct {
 }
 type t interface {
 	t[a]
-	m /* ERROR method cannot have type parameters */ [_ _, /* ERROR mixed */ _]()
+	m /* ERROR method must have no type parameters */ [_ _, /* ERROR mixed */ _]()
 	t[a, b]
 }
 

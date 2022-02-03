@@ -165,8 +165,8 @@ func issue10260() {
 	_ = map[int]I1{0: i0 /* ERROR cannot use .* missing method foo */ }
 	_ = map[int]I1{0: i2 /* ERROR cannot use .* wrong type for method foo */ }
 
-	make(chan I1) <- i0 /* ERROR cannot use .* in send: missing method foo */
-	make(chan I1) <- i2 /* ERROR cannot use .* in send: wrong type for method foo */
+	make(chan I1) <- i0 /* ERROR I0 does not implement I1: missing method foo */
+	make(chan I1) <- i2 /* ERROR wrong type for method foo \(have func\(x int\), want func\(\)\) */
 }
 
 // Check that constants representable as integers are in integer form

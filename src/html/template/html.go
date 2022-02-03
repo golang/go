@@ -12,7 +12,7 @@ import (
 )
 
 // htmlNospaceEscaper escapes for inclusion in unquoted attribute values.
-func htmlNospaceEscaper(args ...interface{}) string {
+func htmlNospaceEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeHTML {
 		return htmlReplacer(stripTags(s), htmlNospaceNormReplacementTable, false)
@@ -21,7 +21,7 @@ func htmlNospaceEscaper(args ...interface{}) string {
 }
 
 // attrEscaper escapes for inclusion in quoted attribute values.
-func attrEscaper(args ...interface{}) string {
+func attrEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeHTML {
 		return htmlReplacer(stripTags(s), htmlNormReplacementTable, true)
@@ -30,7 +30,7 @@ func attrEscaper(args ...interface{}) string {
 }
 
 // rcdataEscaper escapes for inclusion in an RCDATA element body.
-func rcdataEscaper(args ...interface{}) string {
+func rcdataEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeHTML {
 		return htmlReplacer(s, htmlNormReplacementTable, true)
@@ -39,7 +39,7 @@ func rcdataEscaper(args ...interface{}) string {
 }
 
 // htmlEscaper escapes for inclusion in HTML text.
-func htmlEscaper(args ...interface{}) string {
+func htmlEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeHTML {
 		return s
@@ -225,7 +225,7 @@ func stripTags(html string) string {
 
 // htmlNameFilter accepts valid parts of an HTML attribute or tag name or
 // a known-safe HTML attribute.
-func htmlNameFilter(args ...interface{}) string {
+func htmlNameFilter(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeHTMLAttr {
 		return s
@@ -260,6 +260,6 @@ func htmlNameFilter(args ...interface{}) string {
 // content interpolated into comments.
 // This approach is equally valid whether or not static comment content is
 // removed from the template.
-func commentEscaper(args ...interface{}) string {
+func commentEscaper(args ...any) string {
 	return ""
 }

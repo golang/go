@@ -28,13 +28,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	sig.scope.pos = body.Pos()
 	sig.scope.end = syntax.EndPos(body)
 
-	// save/restore current context and setup function context
+	// save/restore current environment and set up function environment
 	// (and use 0 indentation at function start)
-	defer func(ctxt context, indent int) {
-		check.context = ctxt
+	defer func(env environment, indent int) {
+		check.environment = env
 		check.indent = indent
-	}(check.context, check.indent)
-	check.context = context{
+	}(check.environment, check.indent)
+	check.environment = environment{
 		decl:  decl,
 		scope: sig.scope,
 		iota:  iota,
@@ -305,7 +305,7 @@ L:
 			}
 		}
 		seen[T] = e
-		if T != nil {
+		if T != nil && xtyp != nil {
 			check.typeAssertion(e, x, xtyp, T, true)
 		}
 	}
@@ -408,27 +408,21 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-		var elem Type
-		if !underIs(ch.typ, func(u Type) bool {
-			uch, _ := u.(*Chan)
-			if uch == nil {
-				check.errorf(s, invalidOp+"cannot send to non-channel %s", &ch)
-				return false
-			}
-			if uch.dir == RecvOnly {
-				check.errorf(s, invalidOp+"cannot send to receive-only channel %s", &ch)
-				return false
-			}
-			if elem != nil && !Identical(uch.elem, elem) {
-				check.errorf(s, invalidOp+"channels of %s must have the same element type", &ch)
-				return false
-			}
-			elem = uch.elem
-			return true
-		}) {
+		u := structuralType(ch.typ)
+		if u == nil {
+			check.errorf(s, invalidOp+"cannot send to %s: no structural type", &ch)
 			return
 		}
-		check.assignment(&val, elem, "send")
+		uch, _ := u.(*Chan)
+		if uch == nil {
+			check.errorf(s, invalidOp+"cannot send to non-channel %s", &ch)
+			return
+		}
+		if uch.dir == RecvOnly {
+			check.errorf(s, invalidOp+"cannot send to receive-only channel %s", &ch)
+			return
+		}
+		check.assignment(&val, uch.elem, "send")
 
 	case *syntax.AssignStmt:
 		lhs := unpackExpr(s.Lhs)
@@ -480,30 +474,28 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.ReturnStmt:
 		res := check.sig.results
+		// Return with implicit results allowed for function with named results.
+		// (If one is named, all are named.)
 		results := unpackExpr(s.Results)
-		if res.Len() > 0 {
-			// function returns results
-			// (if one, say the first, result parameter is named, all of them are named)
-			if len(results) == 0 && res.vars[0].name != "" {
-				// spec: "Implementation restriction: A compiler may disallow an empty expression
-				// list in a "return" statement if a different entity (constant, type, or variable)
-				// with the same name as a result parameter is in scope at the place of the return."
-				for _, obj := range res.vars {
-					if alt := check.lookup(obj.name); alt != nil && alt != obj {
-						var err error_
-						err.errorf(s, "result parameter %s not in scope at return", obj.name)
-						err.errorf(alt, "inner declaration of %s", obj)
-						check.report(&err)
-						// ok to continue
-					}
+		if len(results) == 0 && res.Len() > 0 && res.vars[0].name != "" {
+			// spec: "Implementation restriction: A compiler may disallow an empty expression
+			// list in a "return" statement if a different entity (constant, type, or variable)
+			// with the same name as a result parameter is in scope at the place of the return."
+			for _, obj := range res.vars {
+				if alt := check.lookup(obj.name); alt != nil && alt != obj {
+					var err error_
+					err.errorf(s, "result parameter %s not in scope at return", obj.name)
+					err.errorf(alt, "inner declaration of %s", obj)
+					check.report(&err)
+					// ok to continue
 				}
-			} else {
-				// return has results or result parameters are unnamed
-				check.initVars(res.vars, results, s.Pos())
 			}
-		} else if len(results) > 0 {
-			check.error(results[0], "no result values expected")
-			check.use(results...)
+		} else {
+			var lhs []*Var
+			if res.Len() > 0 {
+				lhs = res.vars
+			}
+			check.initVars(lhs, results, s)
 		}
 
 	case *syntax.BranchStmt:
@@ -739,14 +731,16 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	if x.mode == invalid {
 		return
 	}
-	// Caution: We're not using asInterface here because we don't want
-	//          to switch on a suitably constrained type parameter (for
-	//          now).
-	// TODO(gri) Need to revisit this.
-	xtyp, _ := under(x.typ).(*Interface)
-	if xtyp == nil {
-		check.errorf(&x, "%s is not an interface type", &x)
-		return
+
+	// TODO(gri) we may want to permit type switches on type parameter values at some point
+	var xtyp *Interface
+	if isTypeParam(x.typ) {
+		check.errorf(&x, "cannot use type switch on type parameter value %s", &x)
+	} else {
+		xtyp, _ = under(x.typ).(*Interface)
+		if xtyp == nil {
+			check.errorf(&x, "%s is not an interface", &x)
+		}
 	}
 
 	check.multipleSwitchDefaults(s.Body)
@@ -815,38 +809,48 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *syntax.RangeClause) {
 	// scope already opened
 
+	// determine lhs, if any
+	sKey := rclause.Lhs // possibly nil
+	var sValue, sExtra syntax.Expr
+	if p, _ := sKey.(*syntax.ListExpr); p != nil {
+		if len(p.ElemList) < 2 {
+			check.error(s, invalidAST+"invalid lhs in range clause")
+			return
+		}
+		// len(p.ElemList) >= 2
+		sKey = p.ElemList[0]
+		sValue = p.ElemList[1]
+		if len(p.ElemList) > 2 {
+			// delay error reporting until we know more
+			sExtra = p.ElemList[2]
+		}
+	}
+
 	// check expression to iterate over
 	var x operand
 	check.expr(&x, rclause.X)
 
-	// determine lhs, if any
-	sKey := rclause.Lhs // possibly nil
-	var sValue syntax.Expr
-	if p, _ := sKey.(*syntax.ListExpr); p != nil {
-		if len(p.ElemList) != 2 {
-			check.error(s, invalidAST+"invalid lhs in range clause")
-			return
-		}
-		sKey = p.ElemList[0]
-		sValue = p.ElemList[1]
-	}
-
 	// determine key/value types
 	var key, val Type
 	if x.mode != invalid {
-		// Ranging over a type parameter is permitted if it has a single underlying type.
+		// Ranging over a type parameter is permitted if it has a structural type.
 		var cause string
-		u := structure(x.typ)
-		switch t := u.(type) {
-		case nil:
-			cause = "type set has no single underlying type"
-		case *Chan:
+		u := structuralType(x.typ)
+		if t, _ := u.(*Chan); t != nil {
 			if sValue != nil {
 				check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
 				// ok to continue
 			}
 			if t.dir == SendOnly {
 				cause = "receive from send-only channel"
+			}
+		} else {
+			if sExtra != nil {
+				check.softErrorf(sExtra, "range clause permits at most two iteration variables")
+				// ok to continue
+			}
+			if u == nil {
+				cause = check.sprintf("%s has no structural type", x.typ)
 			}
 		}
 		key, val = rangeKeyVal(u)

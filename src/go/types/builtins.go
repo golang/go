@@ -83,7 +83,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
 		var T Type
-		if s, _ := structure(S).(*Slice); s != nil {
+		if s, _ := structuralType(S).(*Slice); s != nil {
 			T = s.elem
 		} else {
 			check.invalidArg(x, _InvalidAppend, "%s is not a slice", x)
@@ -102,7 +102,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				if x.mode == invalid {
 					return
 				}
-				if isString(x.typ) {
+				if t := structuralString(x.typ); t != nil && isString(t) {
 					if check.Types != nil {
 						sig := makeSig(S, S, x.typ)
 						sig.variadic = true
@@ -130,7 +130,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			arg(&x, i)
 			xlist = append(xlist, &x)
 		}
-		check.arguments(call, sig, nil, xlist) // discard result (we know the result type)
+		check.arguments(call, sig, nil, xlist, nil) // discard result (we know the result type)
 		// ok to continue even if check.arguments reported errors
 
 		x.mode = value
@@ -179,8 +179,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				mode = value
 			}
 
-		case *TypeParam:
-			if t.underIs(func(t Type) bool {
+		case *Interface:
+			if !isTypeParam(x.typ) {
+				break
+			}
+			if t.typeSet().underIs(func(t Type) bool {
 				switch t := arrayPtrDeref(t).(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
@@ -298,8 +301,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// the argument types must be of floating-point type
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
-			assert(asTypeParam(typ) == nil)
-			if t := asBasic(typ); t != nil {
+			assert(!isTypeParam(typ))
+			if t, _ := under(typ).(*Basic); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -311,7 +314,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 			return nil
 		}
-		resTyp := check.applyTypeFunc(f, x.typ)
+		resTyp := check.applyTypeFunc(f, x, id)
 		if resTyp == nil {
 			check.invalidArg(x, _InvalidComplex, "arguments have type %s, expected floating-point", x.typ)
 			return
@@ -332,14 +335,18 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Copy:
 		// copy(x, y []T) int
-		dst, _ := structure(x.typ).(*Slice)
+		dst, _ := structuralType(x.typ).(*Slice)
 
 		var y operand
 		arg(&y, 1)
 		if y.mode == invalid {
 			return
 		}
-		src, _ := structureString(y.typ).(*Slice)
+		src0 := structuralString(y.typ)
+		if src0 != nil && isString(src0) {
+			src0 = NewSlice(universeByte)
+		}
+		src, _ := src0.(*Slice)
 
 		if dst == nil || src == nil {
 			check.invalidArg(x, _InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
@@ -370,7 +377,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				return false
 			}
 			if key != nil && !Identical(map_.key, key) {
-				check.invalidArg(x, _Todo, "maps of %s must have identical key types", x)
+				check.invalidArg(x, _InvalidDelete, "maps of %s must have identical key types", x)
 				return false
 			}
 			key = map_.key
@@ -422,8 +429,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// the argument must be of complex type
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
-			assert(asTypeParam(typ) == nil)
-			if t := asBasic(typ); t != nil {
+			assert(!isTypeParam(typ))
+			if t, _ := under(typ).(*Basic); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -435,7 +442,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 			return nil
 		}
-		resTyp := check.applyTypeFunc(f, x.typ)
+		resTyp := check.applyTypeFunc(f, x, id)
 		if resTyp == nil {
 			code := _InvalidImag
 			if id == _Real {
@@ -473,13 +480,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		var min int // minimum number of arguments
-		switch structure(T).(type) {
+		switch structuralType(T).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
 			min = 1
 		case nil:
-			check.errorf(arg0, _InvalidMake, "cannot make %s; type set has no single underlying type", arg0)
+			check.errorf(arg0, _InvalidMake, "cannot make %s: no structural type", arg0)
 			return
 		default:
 			check.invalidArg(arg0, _InvalidMake, "cannot make %s; type must be slice, map, or channel", arg0)
@@ -713,7 +720,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		typ := asPointer(x.typ)
+		typ, _ := under(x.typ).(*Pointer)
 		if typ == nil {
 			check.invalidArg(x, _InvalidUnsafeSlice, "%s is not a pointer", x)
 			return
@@ -776,59 +783,19 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	return true
 }
 
-// If typ is a type parameter, structure returns the single underlying
-// type of all types in the corresponding type constraint if it exists,
-// or nil otherwise. If typ is not a type parameter, structure returns
-// the underlying type.
-func structure(typ Type) Type {
-	var su Type
-	if underIs(typ, func(u Type) bool {
-		if su != nil && !Identical(su, u) {
-			return false
-		}
-		// su == nil || Identical(su, u)
-		su = u
-		return true
-	}) {
-		return su
-	}
-	return nil
-}
-
-// structureString is like structure but also considers []byte and
-// string as "identical". In this case, if successful, the result
-// is always []byte.
-func structureString(typ Type) Type {
-	var su Type
-	if underIs(typ, func(u Type) bool {
-		if isString(u) {
-			u = NewSlice(universeByte)
-		}
-		if su != nil && !Identical(su, u) {
-			return false
-		}
-		// su == nil || Identical(su, u)
-		su = u
-		return true
-	}) {
-		return su
-	}
-	return nil
-}
-
 // hasVarSize reports if the size of type t is variable due to type parameters.
 func hasVarSize(t Type) bool {
-	switch t := under(t).(type) {
+	switch u := under(t).(type) {
 	case *Array:
-		return hasVarSize(t.elem)
+		return hasVarSize(u.elem)
 	case *Struct:
-		for _, f := range t.fields {
+		for _, f := range u.fields {
 			if hasVarSize(f.typ) {
 				return true
 			}
 		}
-	case *TypeParam:
-		return true
+	case *Interface:
+		return isTypeParam(t)
 	case *Named, *Union:
 		unreachable()
 	}
@@ -842,8 +809,8 @@ func hasVarSize(t Type) bool {
 // of x. If any of these applications of f return nil,
 // applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
-func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
-	if tp := asTypeParam(x); tp != nil {
+func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId) Type {
+	if tp, _ := x.typ.(*TypeParam); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var terms []*Term
@@ -860,17 +827,34 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 			return nil
 		}
 
+		// We can type-check this fine but we're introducing a synthetic
+		// type parameter for the result. It's not clear what the API
+		// implications are here. Report an error for 1.18 (see #50912),
+		// but continue type-checking.
+		var code errorCode
+		switch id {
+		case _Real:
+			code = _InvalidReal
+		case _Imag:
+			code = _InvalidImag
+		case _Complex:
+			code = _InvalidComplex
+		default:
+			unreachable()
+		}
+		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
+
 		// Construct a suitable new type parameter for the result type.
 		// The type parameter is placed in the current package so export/import
 		// works as expected.
-		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
+		tpar := NewTypeName(token.NoPos, check.pkg, tp.obj.name, nil)
 		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
 
 		return ptyp
 	}
 
-	return f(x)
+	return f(x.typ)
 }
 
 // makeSig makes a signature for the given argument and result types.
@@ -893,7 +877,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
-		if a := asArray(p.base); a != nil {
+		if a, _ := under(p.base).(*Array); a != nil {
 			return a
 		}
 	}

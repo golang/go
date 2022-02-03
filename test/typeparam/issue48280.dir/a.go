@@ -4,7 +4,7 @@
 
 package a
 
-type I[T I[T]] interface {
+type I[T any] interface {
 	F() T
 }
 

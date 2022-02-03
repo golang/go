@@ -7,6 +7,7 @@
 package unix
 
 const (
+	SYS_SYSCALL_MASK                 = 0
 	SYS_RESTART_SYSCALL              = 0
 	SYS_EXIT                         = 1
 	SYS_FORK                         = 2
@@ -407,4 +408,5 @@ const (
 	SYS_LANDLOCK_CREATE_RULESET      = 444
 	SYS_LANDLOCK_ADD_RULE            = 445
 	SYS_LANDLOCK_RESTRICT_SELF       = 446
+	SYS_PROCESS_MRELEASE             = 448
 )

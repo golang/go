@@ -8,6 +8,8 @@
 
 package go1_17
 
+import "constraints"
+
 type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
 
 // for init (and main, but we're not in package main) we should only get one error
@@ -56,4 +58,4 @@ type (
 	_ = C2
 )
 
-// TODO(gri) need test cases for imported constraint types (see also issue #47967)
+type Ordered constraints /* ERROR using type constraint constraints\.Ordered requires go1\.18 or later */ .Ordered

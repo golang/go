@@ -22,8 +22,8 @@ import (
 	"unicode/utf8"
 
 	"cmd/go/internal/fsys"
-	"cmd/go/internal/trace"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 )
 
 var TestMainDeps = []string{

@@ -34,7 +34,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		return false
 
 	case value:
-		if sig := asSignature(x.typ); sig != nil && sig.TypeParams().Len() > 0 {
+		if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
 			// function instantiation
 			return true
 		}
@@ -72,7 +72,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		x.typ = typ.elem
 
 	case *Pointer:
-		if typ := asArray(typ.base); typ != nil {
+		if typ, _ := under(typ.base).(*Array); typ != nil {
 			valid = true
 			length = typ.len
 			x.mode = variable
@@ -99,12 +99,15 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		x.expr = e
 		return false
 
-	case *TypeParam:
+	case *Interface:
+		if !isTypeParam(x.typ) {
+			break
+		}
 		// TODO(gri) report detailed failure cause for better error messages
 		var key, elem Type // key != nil: we must have all maps
 		mode := variable   // non-maps result mode
 		// TODO(gri) factor out closure and use it for non-typeparam cases as well
-		if typ.underIs(func(u Type) bool {
+		if typ.typeSet().underIs(func(u Type) bool {
 			l := int64(-1) // valid if >= 0
 			var k, e Type  // k is only set for maps
 			switch t := u.(type) {
@@ -120,7 +123,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 					mode = value
 				}
 			case *Pointer:
-				if t := asArray(t.base); t != nil {
+				if t, _ := under(t.base).(*Array); t != nil {
 					l = t.len
 					e = t.elem
 				}
@@ -210,16 +213,20 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch u := structure(x.typ).(type) {
+	switch u := structuralString(x.typ).(type) {
 	case nil:
-		check.errorf(x, invalidOp+"cannot slice %s: type set has no single underlying type", x)
+		check.errorf(x, invalidOp+"cannot slice %s: %s has no structural type", x, x.typ)
 		x.mode = invalid
 		return
 
 	case *Basic:
 		if isString(u) {
 			if e.Full {
-				check.error(x, invalidOp+"3-index slice of string")
+				at := e.Index[2]
+				if at == nil {
+					at = e // e.Index[2] should be present but be careful
+				}
+				check.error(at, invalidOp+"3-index slice of string")
 				x.mode = invalid
 				return
 			}
@@ -229,7 +236,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 			}
 			// spec: "For untyped string operands the result
 			// is a non-constant value of type string."
-			if u.kind == UntypedString {
+			if isUntyped(x.typ) {
 				x.typ = Typ[String]
 			}
 		}
@@ -245,7 +252,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		x.typ = &Slice{elem: u.elem}
 
 	case *Pointer:
-		if u := asArray(u.base); u != nil {
+		if u, _ := under(u.base).(*Array); u != nil {
 			valid = true
 			length = u.len
 			x.typ = &Slice{elem: u.elem}
@@ -302,9 +309,12 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 L:
 	for i, x := range ind[:len(ind)-1] {
 		if x > 0 {
-			for _, y := range ind[i+1:] {
-				if y >= 0 && x > y {
-					check.errorf(e, "invalid slice indices: %d > %d", x, y)
+			for j, y := range ind[i+1:] {
+				if y >= 0 && y < x {
+					// The value y corresponds to the expression e.Index[i+1+j].
+					// Because y >= 0, it must have been set from the expression
+					// when checking indices and thus e.Index[i+1+j] is not nil.
+					check.errorf(e.Index[i+1+j], "invalid slice indices: %d < %d", y, x)
 					break L // only report one error, ok to continue
 				}
 			}

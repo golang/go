@@ -57,8 +57,9 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 		SimType[et] = et
 	}
 
-	Types[TANY] = newType(TANY)
+	Types[TANY] = newType(TANY) // note: an old placeholder type, NOT the new builtin 'any' alias for interface{}
 	Types[TINTER] = NewInterface(LocalPkg, nil, false)
+	CheckSize(Types[TINTER])
 
 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
 		typ := newType(kind)
@@ -90,6 +91,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	// int32  Hence, (bytetype|runtype).Sym.isAlias() is false.
 	// TODO(gri) Should we get rid of this special case (at the cost
 	// of less informative error messages involving bytes and runes)?
+	// NOTE(rsc): No, the error message quality is important.
 	// (Alternatively, we could introduce an OTALIAS node representing
 	// type aliases, albeit at the cost of having to deal with it everywhere).
 	ByteType = defBasic(TUINT8, BuiltinPkg, "byte")
@@ -108,11 +110,13 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	ResumeCheckSize()
 
 	// any type (interface)
-	if base.Flag.G > 0 {
-		DeferCheckSize()
-		AnyType = defBasic(TFORW, BuiltinPkg, "any")
-		AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}, false))
-		ResumeCheckSize()
+	DeferCheckSize()
+	AnyType = defBasic(TFORW, BuiltinPkg, "any")
+	AnyType.SetUnderlying(NewInterface(BuiltinPkg, []*Field{}, false))
+	ResumeCheckSize()
+
+	if base.Flag.G == 0 {
+		ComparableType.Sym().Def = nil
 	}
 
 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
@@ -148,8 +152,8 @@ func makeErrorInterface() *Type {
 	return NewInterface(NoPkg, []*Field{method}, false)
 }
 
+// makeComparableInterface makes the predefined "comparable" interface in the
+// built-in package. It has a unique name, but no methods.
 func makeComparableInterface() *Type {
-	sig := NewSignature(NoPkg, FakeRecv(), nil, nil, nil)
-	method := NewField(src.NoXPos, LocalPkg.Lookup("=="), sig)
-	return NewInterface(NoPkg, []*Field{method}, false)
+	return NewInterface(NoPkg, nil, false)
 }

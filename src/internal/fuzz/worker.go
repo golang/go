@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"reflect"
 	"runtime"
 	"sync"
 	"time"
@@ -142,7 +143,7 @@ func (w *worker) coordinate(ctx context.Context) error {
 			}
 			// Worker exited non-zero or was terminated by a non-interrupt
 			// signal (for example, SIGSEGV) while fuzzing.
-			return fmt.Errorf("fuzzing process terminated unexpectedly: %w", err)
+			return fmt.Errorf("fuzzing process hung or terminated unexpectedly: %w", err)
 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
 
 		case input := <-w.coordinator.inputC:
@@ -183,7 +184,7 @@ func (w *worker) coordinate(ctx context.Context) error {
 				// Unexpected termination. Set error message and fall through.
 				// We'll restart the worker on the next iteration.
 				// Don't attempt to minimize this since it crashed the worker.
-				resp.Err = fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
+				resp.Err = fmt.Sprintf("fuzzing process hung or terminated unexpectedly: %v", w.waitErr)
 				canMinimize = false
 			}
 			result := fuzzResult{
@@ -255,7 +256,14 @@ func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuz
 				limit:        input.limit,
 			}, nil
 		}
-		return fuzzResult{}, fmt.Errorf("fuzzing process terminated unexpectedly while minimizing: %w", w.waitErr)
+		return fuzzResult{
+			entry:         entry,
+			crasherMsg:    fmt.Sprintf("fuzzing process hung or terminated unexpectedly while minimizing: %v", err),
+			canMinimize:   false,
+			limit:         input.limit,
+			count:         resp.Count,
+			totalDuration: resp.Duration,
+		}, nil
 	}
 
 	if input.crasherMsg != "" && resp.Err == "" {
@@ -471,8 +479,16 @@ func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) error) error {
 	}
 	srv := &workerServer{
 		workerComm: comm,
-		fuzzFn:     fn,
-		m:          newMutator(),
+		fuzzFn: func(e CorpusEntry) (time.Duration, error) {
+			timer := time.AfterFunc(10*time.Second, func() {
+				panic("deadlocked!") // this error message won't be printed
+			})
+			defer timer.Stop()
+			start := time.Now()
+			err := fn(e)
+			return time.Since(start), err
+		},
+		m: newMutator(),
 	}
 	return srv.serve(ctx)
 }
@@ -502,6 +518,9 @@ type minimizeArgs struct {
 	// keep in minimized values. When provided, the worker will reject inputs that
 	// don't cause at least one of these bits to be set.
 	KeepCoverage []byte
+
+	// Index is the index of the fuzz target parameter to be minimized.
+	Index int
 }
 
 // minimizeResponse contains results from workerServer.minimize.
@@ -604,9 +623,12 @@ type workerServer struct {
 	// coverage is found.
 	coverageMask []byte
 
-	// fuzzFn runs the worker's fuzz function on the given input and returns
-	// an error if it finds a crasher (the process may also exit or crash).
-	fuzzFn func(CorpusEntry) error
+	// fuzzFn runs the worker's fuzz target on the given input and returns an
+	// error if it finds a crasher (the process may also exit or crash), and the
+	// time it took to run the input. It sets a deadline of 10 seconds, at which
+	// point it will panic with the assumption that the process is hanging or
+	// deadlocked.
+	fuzzFn func(CorpusEntry) (time.Duration, error)
 }
 
 // serve reads serialized RPC messages on fuzzIn. When serve receives a message,
@@ -632,7 +654,7 @@ func (ws *workerServer) serve(ctx context.Context) error {
 			}
 		}
 
-		var resp interface{}
+		var resp any
 		switch {
 		case c.Fuzz != nil:
 			resp = ws.fuzz(ctx, *c.Fuzz)
@@ -649,6 +671,17 @@ func (ws *workerServer) serve(ctx context.Context) error {
 		}
 	}
 }
+
+// chainedMutations is how many mutations are applied before the worker
+// resets the input to it's original state.
+// NOTE: this number was picked without much thought. It is low enough that
+// it seems to create a significant diversity in mutated inputs. We may want
+// to consider looking into this more closely once we have a proper performance
+// testing framework. Another option is to randomly pick the number of chained
+// mutations on each invocation of the workerServer.fuzz method (this appears to
+// be what libFuzzer does, although there seems to be no documentation which
+// explains why this choice was made.)
+const chainedMutations = 5
 
 // fuzz runs the test function on random variations of the input value in shared
 // memory for a limited duration or number of iterations.
@@ -688,20 +721,21 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		return resp
 	}
 
-	vals, err := unmarshalCorpusFile(mem.valueCopy())
+	originalVals, err := unmarshalCorpusFile(mem.valueCopy())
 	if err != nil {
 		resp.InternalErr = err.Error()
 		return resp
 	}
+	vals := make([]any, len(originalVals))
+	copy(vals, originalVals)
 
 	shouldStop := func() bool {
 		return args.Limit > 0 && mem.header().count >= args.Limit
 	}
 	fuzzOnce := func(entry CorpusEntry) (dur time.Duration, cov []byte, errMsg string) {
 		mem.header().count++
-		start := time.Now()
-		err := ws.fuzzFn(entry)
-		dur = time.Since(start)
+		var err error
+		dur, err = ws.fuzzFn(entry)
 		if err != nil {
 			errMsg = err.Error()
 			if errMsg == "" {
@@ -732,9 +766,13 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		select {
 		case <-ctx.Done():
 			return resp
-
 		default:
+			if mem.header().count%chainedMutations == 0 {
+				copy(vals, originalVals)
+				ws.m.r.save(&mem.header().randState, &mem.header().randInc)
+			}
 			ws.m.mutate(vals, cap(mem.valueRef()))
+
 			entry := CorpusEntry{Values: vals}
 			dur, cov, errMsg := fuzzOnce(entry)
 			if errMsg != "" {
@@ -770,11 +808,10 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 
 	// Minimize the values in vals, then write to shared memory. We only write
 	// to shared memory after completing minimization.
-	// TODO(48165): If the worker terminates unexpectedly during minimization,
-	// the coordinator has no way of retrieving the crashing input.
-	success, err := ws.minimizeInput(ctx, vals, &mem.header().count, args.Limit, args.KeepCoverage)
+	success, err := ws.minimizeInput(ctx, vals, mem, args)
 	if success {
 		writeToMem(vals, mem)
+		mem.header().rawInMem = false
 		resp.WroteToMem = true
 		if err != nil {
 			resp.Err = err.Error()
@@ -786,14 +823,18 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 }
 
 // minimizeInput applies a series of minimizing transformations on the provided
-// vals, ensuring that each minimization still causes an error in fuzzFn. It
-// uses the context to determine how long to run, stopping once closed. It
-// returns a bool indicating whether minimization was successful and an error if
-// one was found.
-func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, count *int64, limit int64, keepCoverage []byte) (success bool, retErr error) {
+// vals, ensuring that each minimization still causes an error, or keeps
+// coverage, in fuzzFn. It uses the context to determine how long to run,
+// stopping once closed. It returns a bool indicating whether minimization was
+// successful and an error if one was found.
+func (ws *workerServer) minimizeInput(ctx context.Context, vals []any, mem *sharedMem, args minimizeArgs) (success bool, retErr error) {
+	keepCoverage := args.KeepCoverage
+	memBytes := mem.valueRef()
+	bPtr := &memBytes
+	count := &mem.header().count
 	shouldStop := func() bool {
 		return ctx.Err() != nil ||
-			(limit > 0 && *count >= limit)
+			(args.Limit > 0 && *count >= args.Limit)
 	}
 	if shouldStop() {
 		return false, nil
@@ -803,7 +844,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 	// If not, then whatever caused us to think the value was interesting may
 	// have been a flake, and we can't minimize it.
 	*count++
-	retErr = ws.fuzzFn(CorpusEntry{Values: vals})
+	_, retErr = ws.fuzzFn(CorpusEntry{Values: vals})
 	if keepCoverage != nil {
 		if !hasCoverageBit(keepCoverage, coverageSnapshot) || retErr != nil {
 			return false, nil
@@ -811,66 +852,27 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 	} else if retErr == nil {
 		return false, nil
 	}
+	mem.header().rawInMem = true
 
-	var valI int
 	// tryMinimized runs the fuzz function with candidate replacing the value
 	// at index valI. tryMinimized returns whether the input with candidate is
 	// interesting for the same reason as the original input: it returns
 	// an error if one was expected, or it preserves coverage.
-	tryMinimized := func(candidate interface{}) bool {
-		prev := vals[valI]
-		// Set vals[valI] to the candidate after it has been
-		// properly cast. We know that candidate must be of
-		// the same type as prev, so use that as a reference.
-		switch c := candidate.(type) {
-		case float64:
-			switch prev.(type) {
-			case float32:
-				vals[valI] = float32(c)
-			case float64:
-				vals[valI] = c
-			default:
-				panic("impossible")
-			}
-		case uint:
-			switch prev.(type) {
-			case uint:
-				vals[valI] = c
-			case uint8:
-				vals[valI] = uint8(c)
-			case uint16:
-				vals[valI] = uint16(c)
-			case uint32:
-				vals[valI] = uint32(c)
-			case uint64:
-				vals[valI] = uint64(c)
-			case int:
-				vals[valI] = int(c)
-			case int8:
-				vals[valI] = int8(c)
-			case int16:
-				vals[valI] = int16(c)
-			case int32:
-				vals[valI] = int32(c)
-			case int64:
-				vals[valI] = int64(c)
-			default:
-				panic("impossible")
-			}
+	tryMinimized := func(candidate []byte) bool {
+		prev := vals[args.Index]
+		switch prev.(type) {
 		case []byte:
-			switch prev.(type) {
-			case []byte:
-				vals[valI] = c
-			case string:
-				vals[valI] = string(c)
-			default:
-				panic("impossible")
-			}
+			vals[args.Index] = candidate
+		case string:
+			vals[args.Index] = string(candidate)
 		default:
 			panic("impossible")
 		}
+		copy(*bPtr, candidate)
+		*bPtr = (*bPtr)[:len(candidate)]
+		mem.setValueLen(len(candidate))
 		*count++
-		err := ws.fuzzFn(CorpusEntry{Values: vals})
+		_, err := ws.fuzzFn(CorpusEntry{Values: vals})
 		if err != nil {
 			retErr = err
 			if keepCoverage != nil {
@@ -884,63 +886,21 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 		if keepCoverage != nil && hasCoverageBit(keepCoverage, coverageSnapshot) {
 			return true
 		}
-		vals[valI] = prev
+		vals[args.Index] = prev
 		return false
 	}
-
-	for valI = range vals {
-		if shouldStop() {
-			break
-		}
-		switch v := vals[valI].(type) {
-		case bool:
-			continue // can't minimize
-		case float32:
-			minimizeFloat(float64(v), tryMinimized, shouldStop)
-		case float64:
-			minimizeFloat(v, tryMinimized, shouldStop)
-		case uint:
-			minimizeInteger(v, tryMinimized, shouldStop)
-		case uint8:
-			minimizeInteger(uint(v), tryMinimized, shouldStop)
-		case uint16:
-			minimizeInteger(uint(v), tryMinimized, shouldStop)
-		case uint32:
-			minimizeInteger(uint(v), tryMinimized, shouldStop)
-		case uint64:
-			if uint64(uint(v)) != v {
-				// Skip minimizing a uint64 on 32 bit platforms, since we'll truncate the
-				// value when casting
-				continue
-			}
-			minimizeInteger(uint(v), tryMinimized, shouldStop)
-		case int:
-			minimizeInteger(uint(v), tryMinimized, shouldStop)
-		case int8:
-			minimizeInteger(uint(v), tryMinimized, shouldStop)
-		case int16:
-			minimizeInteger(uint(v), tryMinimized, shouldStop)
-		case int32:
-			minimizeInteger(uint(v), tryMinimized, shouldStop)
-		case int64:
-			if int64(int(v)) != v {
-				// Skip minimizing a int64 on 32 bit platforms, since we'll truncate the
-				// value when casting
-				continue
-			}
-			minimizeInteger(uint(v), tryMinimized, shouldStop)
-		case string:
-			minimizeBytes([]byte(v), tryMinimized, shouldStop)
-		case []byte:
-			minimizeBytes(v, tryMinimized, shouldStop)
-		default:
-			panic("unreachable")
-		}
+	switch v := vals[args.Index].(type) {
+	case string:
+		minimizeBytes([]byte(v), tryMinimized, shouldStop)
+	case []byte:
+		minimizeBytes(v, tryMinimized, shouldStop)
+	default:
+		panic("impossible")
 	}
 	return true, retErr
 }
 
-func writeToMem(vals []interface{}, mem *sharedMem) {
+func writeToMem(vals []any, mem *sharedMem) {
 	b := marshalCorpusFile(vals...)
 	mem.setValue(b)
 }
@@ -956,8 +916,14 @@ func (ws *workerServer) ping(ctx context.Context, args pingArgs) pingResponse {
 // workerServer).
 type workerClient struct {
 	workerComm
+	m *mutator
+
+	// mu is the mutex protecting the workerComm.fuzzIn pipe. This must be
+	// locked before making calls to the workerServer. It prevents
+	// workerClient.Close from closing fuzzIn while workerClient methods are
+	// writing to it concurrently, and prevents multiple callers from writing to
+	// fuzzIn concurrently.
 	mu sync.Mutex
-	m  *mutator
 }
 
 func newWorkerClient(comm workerComm, m *mutator) *workerClient {
@@ -998,7 +964,7 @@ var errSharedMemClosed = errors.New("internal error: shared memory was closed an
 
 // minimize tells the worker to call the minimize method. See
 // workerServer.minimize.
-func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args minimizeArgs) (entryOut CorpusEntry, resp minimizeResponse, err error) {
+func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args minimizeArgs) (entryOut CorpusEntry, resp minimizeResponse, retErr error) {
 	wc.mu.Lock()
 	defer wc.mu.Unlock()
 
@@ -1007,39 +973,80 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
 	mem.header().count = 0
-	inp, err := CorpusEntryData(entryIn)
+	inp, err := corpusEntryData(entryIn)
 	if err != nil {
 		return CorpusEntry{}, minimizeResponse{}, err
 	}
 	mem.setValue(inp)
-	wc.memMu <- mem
-
-	c := call{Minimize: &args}
-	callErr := wc.callLocked(ctx, c, &resp)
-	mem, ok = <-wc.memMu
-	if !ok {
-		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
-	}
 	defer func() { wc.memMu <- mem }()
-	resp.Count = mem.header().count
-	if resp.WroteToMem {
-		entryOut.Data = mem.valueCopy()
-		entryOut.Values, err = unmarshalCorpusFile(entryOut.Data)
-		h := sha256.Sum256(entryOut.Data)
-		name := fmt.Sprintf("%x", h[:4])
-		entryOut.Path = name
-		entryOut.Parent = entryIn.Parent
-		entryOut.Generation = entryIn.Generation
-		if err != nil {
-			return CorpusEntry{}, minimizeResponse{}, fmt.Errorf("workerClient.minimize unmarshaling minimized value: %v", err)
-		}
-	} else {
-		// Did not minimize, but the original input may still be interesting,
-		// for example, if there was an error.
-		entryOut = entryIn
+	entryOut = entryIn
+	entryOut.Values, err = unmarshalCorpusFile(inp)
+	if err != nil {
+		return CorpusEntry{}, minimizeResponse{}, fmt.Errorf("workerClient.minimize unmarshaling provided value: %v", err)
 	}
+	for i, v := range entryOut.Values {
+		if !isMinimizable(reflect.TypeOf(v)) {
+			continue
+		}
 
-	return entryOut, resp, callErr
+		wc.memMu <- mem
+		args.Index = i
+		c := call{Minimize: &args}
+		callErr := wc.callLocked(ctx, c, &resp)
+		mem, ok = <-wc.memMu
+		if !ok {
+			return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
+		}
+
+		if callErr != nil {
+			retErr = callErr
+			if !mem.header().rawInMem {
+				// An unrecoverable error occurred before minimization began.
+				return entryIn, minimizeResponse{}, retErr
+			}
+			// An unrecoverable error occurred during minimization. mem now
+			// holds the raw, unmarshalled bytes of entryIn.Values[i] that
+			// caused the error.
+			switch entryOut.Values[i].(type) {
+			case string:
+				entryOut.Values[i] = string(mem.valueCopy())
+			case []byte:
+				entryOut.Values[i] = mem.valueCopy()
+			default:
+				panic("impossible")
+			}
+			entryOut.Data = marshalCorpusFile(entryOut.Values...)
+			// Stop minimizing; another unrecoverable error is likely to occur.
+			break
+		}
+
+		if resp.WroteToMem {
+			// Minimization succeeded, and mem holds the marshaled data.
+			entryOut.Data = mem.valueCopy()
+			entryOut.Values, err = unmarshalCorpusFile(entryOut.Data)
+			if err != nil {
+				return CorpusEntry{}, minimizeResponse{}, fmt.Errorf("workerClient.minimize unmarshaling minimized value: %v", err)
+			}
+		}
+
+		// Prepare for next iteration of the loop.
+		if args.Timeout != 0 {
+			args.Timeout -= resp.Duration
+			if args.Timeout <= 0 {
+				break
+			}
+		}
+		if args.Limit != 0 {
+			args.Limit -= mem.header().count
+			if args.Limit <= 0 {
+				break
+			}
+		}
+	}
+	resp.Count = mem.header().count
+	h := sha256.Sum256(entryOut.Data)
+	entryOut.Path = fmt.Sprintf("%x", h[:4])
+	return entryOut, resp, retErr
 }
 
 // fuzz tells the worker to call the fuzz method. See workerServer.fuzz.
@@ -1052,7 +1059,7 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 		return CorpusEntry{}, fuzzResponse{}, true, errSharedMemClosed
 	}
 	mem.header().count = 0
-	inp, err := CorpusEntryData(entryIn)
+	inp, err := corpusEntryData(entryIn)
 	if err != nil {
 		return CorpusEntry{}, fuzzResponse{}, true, err
 	}
@@ -1084,7 +1091,8 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 		wc.m.r.restore(mem.header().randState, mem.header().randInc)
 		if !args.Warmup {
 			// Only mutate the valuesOut if fuzzing actually occurred.
-			for i := int64(0); i < resp.Count; i++ {
+			numMutations := ((resp.Count - 1) % chainedMutations) + 1
+			for i := int64(0); i < numMutations; i++ {
 				wc.m.mutate(valuesOut, cap(mem.valueRef()))
 			}
 		}
@@ -1119,7 +1127,7 @@ func (wc *workerClient) ping(ctx context.Context) error {
 
 // callLocked sends an RPC from the coordinator to the worker process and waits
 // for the response. The callLocked may be cancelled with ctx.
-func (wc *workerClient) callLocked(ctx context.Context, c call, resp interface{}) (err error) {
+func (wc *workerClient) callLocked(ctx context.Context, c call, resp any) (err error) {
 	enc := json.NewEncoder(wc.fuzzIn)
 	dec := json.NewDecoder(&contextReader{ctx: ctx, r: wc.fuzzOut})
 	if err := enc.Encode(c); err != nil {

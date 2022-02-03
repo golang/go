@@ -76,7 +76,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		// requirements.
 		var rootPaths []string
 		for _, m := range mustSelect {
-			if !MainModules.Contains(m.Path) && m.Version != "none" {
+			if m.Version != "none" && !MainModules.Contains(m.Path) {
 				rootPaths = append(rootPaths, m.Path)
 			}
 		}
@@ -370,7 +370,7 @@ func selectPotentiallyImportedModules(ctx context.Context, limiter *versionLimit
 		if err != nil {
 			return nil, false, err
 		}
-		initial = mg.BuildList()[1:]
+		initial = mg.BuildList()[MainModules.Len():]
 	} else {
 		initial = rs.rootModules
 	}

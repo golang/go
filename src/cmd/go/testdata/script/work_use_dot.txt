@@ -1,0 +1,33 @@
+cp go.work go.work.orig
+
+# 'go work use .' should add an entry for the current directory.
+cd bar/baz
+go work use .
+cmp ../../go.work ../../go.work.rel
+
+# If the current directory lacks a go.mod file, 'go work use .'
+# should remove its entry.
+mv go.mod go.mod.bak
+go work use .
+cmp ../../go.work ../../go.work.orig
+
+mv go.mod.bak go.mod
+go work use $PWD
+cmpenv ../../go.work ../../go.work.abs
+
+-- go.mod --
+module example
+go 1.18
+-- go.work --
+go 1.18
+-- go.work.rel --
+go 1.18
+
+use bar/baz
+-- go.work.abs --
+go 1.18
+
+use $PWD
+-- bar/baz/go.mod --
+module example/bar/baz
+go 1.18

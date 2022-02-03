@@ -88,11 +88,6 @@ and test commands:
 
 	-asmflags '[pattern=]arg list'
 		arguments to pass on each go tool asm invocation.
-	-buildinfo
-		Whether to stamp binaries with build flags. By default, the compiler name
-		(gc or gccgo), toolchain flags (like -gcflags), and environment variables
-		containing flags (like CGO_CFLAGS) are stamped into binaries. Use
-		-buildinfo=false to omit build information. See also -buildvcs.
 	-buildmode mode
 		build mode to use. See 'go help buildmode' for more.
 	-buildvcs
@@ -100,7 +95,7 @@ and test commands:
 		version control information is stamped into a binary if the main package
 		and the main module containing it are in the repository containing the
 		current directory (if there is a repository). Use -buildvcs=false to
-		omit version control information. See also -buildinfo.
+		omit version control information.
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags '[pattern=]arg list'
@@ -167,9 +162,8 @@ and test commands:
 	-trimpath
 		remove all file system paths from the resulting executable.
 		Instead of absolute file system paths, the recorded file names
-		will begin with either "go" (for the standard library),
-		or a module path@version (when using modules),
-		or a plain import path (when using GOPATH).
+		will begin either a module path@version (when using modules),
+		or a plain import path (when using the standard library, or GOPATH).
 	-toolexec 'cmd args'
 		a program to use to invoke toolchain programs like vet and asm.
 		For example, instead of running asm, the go command will run
@@ -317,7 +311,6 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildBuildinfo, "buildinfo", true, "")
 	cmd.Flag.BoolVar(&cfg.BuildBuildvcs, "buildvcs", true, "")
 
 	// Undocumented, unstable debugging flags.
@@ -617,6 +610,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	modload.InitWorkfile()
 	BuildInit()
 	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
 	if cfg.ModulesEnabled && !modload.HasModRoot() {

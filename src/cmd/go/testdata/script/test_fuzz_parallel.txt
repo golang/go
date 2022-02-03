@@ -13,6 +13,13 @@ go test -run=FuzzSeed
 ! go test -run=FuzzMutate -fuzz=FuzzMutate
 exists testdata/fuzz/FuzzMutate
 
+# Testdata should now contain a corpus entry which will fail FuzzMutate.
+# Run the test without fuzzing, setting -parallel to different values to make
+# sure it fails, and doesn't hang.
+! go test -run=FuzzMutate -parallel=1
+! go test -run=FuzzMutate -parallel=2
+! go test -run=FuzzMutate -parallel=4
+
 -- go.mod --
 module fuzz_parallel
 

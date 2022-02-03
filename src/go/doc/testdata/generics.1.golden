@@ -14,6 +14,12 @@ FUNCTIONS
 	// Func has an instantiated constraint. 
 	func Func[T Constraint[string, Type[int]]]()
 
+	// Single is not a factory function. 
+	func Single[T any]() *T
+
+	// Slice is not a factory function. 
+	func Slice[T any]() []T
+
 
 TYPES
 	// AFuncType demonstrates filtering of parameters and type ...

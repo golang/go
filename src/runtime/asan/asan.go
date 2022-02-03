@@ -14,38 +14,15 @@ package asan
 #include <stdint.h>
 #include <sanitizer/asan_interface.h>
 
-extern void __asan_report_load1(void*);
-extern void __asan_report_load2(void*);
-extern void __asan_report_load4(void*);
-extern void __asan_report_load8(void*);
-extern void __asan_report_load_n(void*, uintptr_t);
-extern void __asan_report_store1(void*);
-extern void __asan_report_store2(void*);
-extern void __asan_report_store4(void*);
-extern void __asan_report_store8(void*);
-extern void __asan_report_store_n(void*, uintptr_t);
-
-void __asan_read_go(void *addr, uintptr_t sz) {
+void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc) {
 	if (__asan_region_is_poisoned(addr, sz)) {
-		switch (sz) {
-		case 1: __asan_report_load1(addr); break;
-		case 2: __asan_report_load2(addr); break;
-		case 4: __asan_report_load4(addr); break;
-		case 8: __asan_report_load8(addr); break;
-		default: __asan_report_load_n(addr, sz); break;
-		}
+		__asan_report_error(pc, 0, sp, addr, false, sz);
 	}
 }
 
-void __asan_write_go(void *addr, uintptr_t sz) {
+void __asan_write_go(void *addr, uintptr_t sz, void *sp, void *pc) {
 	if (__asan_region_is_poisoned(addr, sz)) {
-		switch (sz) {
-		case 1: __asan_report_store1(addr); break;
-		case 2: __asan_report_store2(addr); break;
-		case 4: __asan_report_store4(addr); break;
-		case 8: __asan_report_store8(addr); break;
-		default: __asan_report_store_n(addr, sz); break;
-		}
+		__asan_report_error(pc, 0, sp, addr, true, sz);
 	}
 }
 

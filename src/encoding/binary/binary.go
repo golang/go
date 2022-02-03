@@ -159,7 +159,7 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // The error is EOF only if no bytes were read.
 // If an EOF happens after reading some but not all the bytes,
 // Read returns ErrUnexpectedEOF.
-func Read(r io.Reader, order ByteOrder, data interface{}) error {
+func Read(r io.Reader, order ByteOrder, data any) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {
 		bs := make([]byte, n)
@@ -268,7 +268,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 // and read from successive fields of the data.
 // When writing structs, zero values are written for fields
 // with blank (_) field names.
-func Write(w io.Writer, order ByteOrder, data interface{}) error {
+func Write(w io.Writer, order ByteOrder, data any) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {
 		bs := make([]byte, n)
@@ -392,7 +392,7 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 // Size returns how many bytes Write would generate to encode the value v, which
 // must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
 // If v is neither of these, Size returns -1.
-func Size(v interface{}) int {
+func Size(v any) int {
 	return dataSize(reflect.Indirect(reflect.ValueOf(v)))
 }
 
@@ -696,7 +696,7 @@ func (e *encoder) skip(v reflect.Value) {
 
 // intDataSize returns the size of the data required to represent the data when encoded.
 // It returns zero if the type cannot be implemented by the fast path in Read or Write.
-func intDataSize(data interface{}) int {
+func intDataSize(data any) int {
 	switch data := data.(type) {
 	case bool, int8, uint8, *bool, *int8, *uint8:
 		return 1

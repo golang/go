@@ -22,7 +22,6 @@
 // implementation on power9.
 
 //go:build ppc64 || ppc64le
-// +build ppc64 ppc64le
 
 #include "go_asm.h"
 #include "textflag.h"

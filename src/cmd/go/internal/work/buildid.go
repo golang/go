@@ -15,8 +15,8 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
-	"cmd/internal/buildid"
 	"cmd/go/internal/str"
+	"cmd/internal/buildid"
 )
 
 // Build IDs
@@ -570,6 +570,8 @@ func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string)
 			b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
 		}
 		if !cfg.BuildN {
+			b.output.Lock()
+			defer b.output.Unlock()
 			b.Print(string(stdout))
 		}
 	}
@@ -578,6 +580,8 @@ func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string)
 
 // flushOutput flushes the output being queued in a.
 func (b *Builder) flushOutput(a *Action) {
+	b.output.Lock()
+	defer b.output.Unlock()
 	b.Print(string(a.output))
 	a.output = nil
 }

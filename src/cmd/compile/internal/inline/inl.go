@@ -1108,11 +1108,15 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 // closure does the necessary substitions for a ClosureExpr n and returns the new
 // closure node.
 func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
-	// Prior to the subst edit, set a flag in the inlsubst to
-	// indicated that we don't want to update the source positions in
-	// the new closure. If we do this, it will appear that the closure
-	// itself has things inlined into it, which is not the case. See
-	// issue #46234 for more details.
+	// Prior to the subst edit, set a flag in the inlsubst to indicate
+	// that we don't want to update the source positions in the new
+	// closure function. If we do this, it will appear that the
+	// closure itself has things inlined into it, which is not the
+	// case. See issue #46234 for more details. At the same time, we
+	// do want to update the position in the new ClosureExpr (which is
+	// part of the function we're working on). See #49171 for an
+	// example of what happens if we miss that update.
+	newClosurePos := subst.updatedPos(n.Pos())
 	defer func(prev bool) { subst.noPosUpdate = prev }(subst.noPosUpdate)
 	subst.noPosUpdate = true
 
@@ -1175,6 +1179,7 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 	// Actually create the named function for the closure, now that
 	// the closure is inlined in a specific function.
 	newclo := newfn.OClosure
+	newclo.SetPos(newClosurePos)
 	newclo.SetInit(subst.list(n.Init()))
 	return typecheck.Expr(newclo)
 }

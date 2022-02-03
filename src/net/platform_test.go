@@ -173,7 +173,7 @@ func testableListenArgs(network, address, client string) bool {
 	return true
 }
 
-func condFatalf(t *testing.T, network string, format string, args ...interface{}) {
+func condFatalf(t *testing.T, network string, format string, args ...any) {
 	t.Helper()
 	// A few APIs like File and Read/WriteMsg{UDP,IP} are not
 	// fully implemented yet on Plan 9 and Windows.

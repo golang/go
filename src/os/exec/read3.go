@@ -18,12 +18,15 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/exec/internal/fdtest"
 	"runtime"
 	"strings"
 )
 
 func main() {
 	fd3 := os.NewFile(3, "fd3")
+	defer fd3.Close()
+
 	bs, err := io.ReadAll(fd3)
 	if err != nil {
 		fmt.Printf("ReadAll from fd 3: %v\n", err)
@@ -37,65 +40,52 @@ func main() {
 	// descriptor from parent == 3
 	// All descriptors 4 and up should be available,
 	// except for any used by the network poller.
-	var files []*os.File
-	for wantfd := uintptr(4); wantfd <= 100; wantfd++ {
-		if poll.IsPollDescriptor(wantfd) {
+	for fd := uintptr(4); fd <= 100; fd++ {
+		if poll.IsPollDescriptor(fd) {
 			continue
 		}
-		f, err := os.Open(os.Args[0])
+
+		if !fdtest.Exists(fd) {
+			continue
+		}
+
+		fmt.Printf("leaked parent file. fdtest.Exists(%d) got true want false\n", fd)
+
+		fdfile := fmt.Sprintf("/proc/self/fd/%d", fd)
+		link, err := os.Readlink(fdfile)
+		fmt.Printf("readlink(%q) = %q, %v\n", fdfile, link, err)
+
+		var args []string
+		switch runtime.GOOS {
+		case "plan9":
+			args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
+		case "aix", "solaris", "illumos":
+			args = []string{fmt.Sprint(os.Getpid())}
+		default:
+			args = []string{"-p", fmt.Sprint(os.Getpid())}
+		}
+
+		// Determine which command to use to display open files.
+		ofcmd := "lsof"
+		switch runtime.GOOS {
+		case "dragonfly", "freebsd", "netbsd", "openbsd":
+			ofcmd = "fstat"
+		case "plan9":
+			ofcmd = "/bin/cat"
+		case "aix":
+			ofcmd = "procfiles"
+		case "solaris", "illumos":
+			ofcmd = "pfiles"
+		}
+
+		cmd := exec.Command(ofcmd, args...)
+		out, err := cmd.CombinedOutput()
 		if err != nil {
-			fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "%s failed: %v\n", strings.Join(cmd.Args, " "), err)
 		}
-		if got := f.Fd(); got != wantfd {
-			fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
-			fdfile := fmt.Sprintf("/proc/self/fd/%d", wantfd)
-			link, err := os.Readlink(fdfile)
-			fmt.Printf("readlink(%q) = %q, %v\n", fdfile, link, err)
-			var args []string
-			switch runtime.GOOS {
-			case "plan9":
-				args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
-			case "aix", "solaris", "illumos":
-				args = []string{fmt.Sprint(os.Getpid())}
-			default:
-				args = []string{"-p", fmt.Sprint(os.Getpid())}
-			}
-
-			// Determine which command to use to display open files.
-			ofcmd := "lsof"
-			switch runtime.GOOS {
-			case "dragonfly", "freebsd", "netbsd", "openbsd":
-				ofcmd = "fstat"
-			case "plan9":
-				ofcmd = "/bin/cat"
-			case "aix":
-				ofcmd = "procfiles"
-			case "solaris", "illumos":
-				ofcmd = "pfiles"
-			}
-
-			cmd := exec.Command(ofcmd, args...)
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s failed: %v\n", strings.Join(cmd.Args, " "), err)
-			}
-			fmt.Printf("%s", out)
-			os.Exit(1)
-		}
-		files = append(files, f)
+		fmt.Printf("%s", out)
+		os.Exit(1)
 	}
-
-	for _, f := range files {
-		f.Close()
-	}
-
-	// Referring to fd3 here ensures that it is not
-	// garbage collected, and therefore closed, while
-	// executing the wantfd loop above. It doesn't matter
-	// what we do with fd3 as long as we refer to it;
-	// closing it is the easy choice.
-	fd3.Close()
 
 	os.Stdout.Write(bs)
 }

@@ -8,8 +8,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/pem"
-	"errors"
-	"runtime"
 	"sync"
 )
 
@@ -29,6 +27,12 @@ type CertPool struct {
 	// call getCert and otherwise negate savings from lazy getCert
 	// funcs).
 	haveSum map[sum224]bool
+
+	// systemPool indicates whether this is a special pool derived from the
+	// system roots. If it includes additional roots, it requires doing two
+	// verifications, one using the roots provided by the caller, and one using
+	// the system platform verifier.
+	systemPool bool
 }
 
 // lazyCert is minimal metadata about a Cert and a func to retrieve it
@@ -75,9 +79,10 @@ func (s *CertPool) cert(n int) (*Certificate, error) {
 
 func (s *CertPool) copy() *CertPool {
 	p := &CertPool{
-		byName:    make(map[string][]int, len(s.byName)),
-		lazyCerts: make([]lazyCert, len(s.lazyCerts)),
-		haveSum:   make(map[sum224]bool, len(s.haveSum)),
+		byName:     make(map[string][]int, len(s.byName)),
+		lazyCerts:  make([]lazyCert, len(s.lazyCerts)),
+		haveSum:    make(map[sum224]bool, len(s.haveSum)),
+		systemPool: s.systemPool,
 	}
 	for k, v := range s.byName {
 		indexes := make([]int, len(v))
@@ -103,11 +108,6 @@ func (s *CertPool) copy() *CertPool {
 //
 // New changes in the system cert pool might not be reflected in subsequent calls.
 func SystemCertPool() (*CertPool, error) {
-	if runtime.GOOS == "windows" {
-		// Issue 16736, 18609:
-		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
-	}
-
 	if sysRoots := systemRootsPool(); sysRoots != nil {
 		return sysRoots.copy(), nil
 	}
@@ -239,6 +239,9 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 
 // Subjects returns a list of the DER-encoded subjects of
 // all of the certificates in the pool.
+//
+// Deprecated: if s was returned by SystemCertPool, Subjects
+// will not include the system roots.
 func (s *CertPool) Subjects() [][]byte {
 	res := make([][]byte, s.len())
 	for i, lc := range s.lazyCerts {

@@ -777,13 +777,12 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
 // - R2 is the destination of the write
 // - R3 is the value being written at R2.
-// It clobbers R10 (the temp register).
+// It clobbers R10 (the temp register) and R1 (used by PLT stub).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$96
 	// Save the registers clobbered by the fast path.
-	MOVD	R1, 96(R15)
-	MOVD	R4, 104(R15)
+	MOVD	R4, 96(R15)
 	MOVD	g_m(g), R1
 	MOVD	m_p(R1), R1
 	// Increment wbBuf.next position.
@@ -798,8 +797,7 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
 	// Is the buffer full?
 	CMPBEQ	R4, R1, flush
 ret:
-	MOVD	96(R15), R1
-	MOVD	104(R15), R4
+	MOVD	96(R15), R4
 	// Do the write.
 	MOVD	R3, (R2)
 	RET

@@ -111,7 +111,7 @@ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
 func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
 
 // IsComparable reports whether each type in interface t's type set is comparable.
-func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable(nil) }
 
 // IsMethodSet reports whether the interface t is fully described by its method
 // set.
@@ -152,7 +152,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 	for _, f := range iface.Methods.List {
 		if len(f.Names) == 0 {
-			addEmbedded(f.Type.Pos(), parseUnion(check, flattenUnion(nil, f.Type)))
+			addEmbedded(f.Type.Pos(), parseUnion(check, f.Type))
 			continue
 		}
 		// f.Name != nil
@@ -181,7 +181,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
 				at = ftyp.TypeParams
 			}
-			check.errorf(at, _Todo, "methods cannot have type parameters")
+			check.errorf(at, _InvalidMethodTypeParams, "methods cannot have type parameters")
 		}
 
 		// use named receiver type if available (for better error messages)
@@ -222,12 +222,4 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
 		ityp.check = nil
 	}).describef(iface, "compute type set for %s", ityp)
-}
-
-func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
-	if o, _ := x.(*ast.BinaryExpr); o != nil && o.Op == token.OR {
-		list = flattenUnion(list, o.X)
-		x = o.Y
-	}
-	return append(list, x)
 }

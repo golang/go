@@ -55,6 +55,10 @@ func init() {
 	}
 }
 
+// pollDuration is an arbitrary interval to wait between checks when polling for
+// a condition to occur.
+const pollDuration = 5 * time.Millisecond
+
 const fakeDBName = "foo"
 
 var chrisBirthday = time.Unix(123456789, 0)
@@ -135,7 +139,7 @@ func TestDriverPanic(t *testing.T) {
 	exec(t, db, "WIPE")                            // check not deadlocked
 }
 
-func exec(t testing.TB, db *DB, query string, args ...interface{}) {
+func exec(t testing.TB, db *DB, query string, args ...any) {
 	t.Helper()
 	_, err := db.Exec(query, args...)
 	if err != nil {
@@ -173,7 +177,7 @@ func closeDB(t testing.TB, db *DB) {
 	}
 
 	var numOpen int
-	if !waitCondition(5*time.Second, 5*time.Millisecond, func() bool {
+	if !waitCondition(t, func() bool {
 		numOpen = db.numOpenConns()
 		return numOpen == 0
 	}) {
@@ -197,16 +201,14 @@ func (db *DB) numDeps() int {
 }
 
 // Dependencies are closed via a goroutine, so this polls waiting for
-// numDeps to fall to want, waiting up to d.
-func (db *DB) numDepsPollUntil(want int, d time.Duration) int {
-	deadline := time.Now().Add(d)
-	for {
-		n := db.numDeps()
-		if n <= want || time.Now().After(deadline) {
-			return n
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+// numDeps to fall to want, waiting up to nearly the test's deadline.
+func (db *DB) numDepsPoll(t *testing.T, want int) int {
+	var n int
+	waitCondition(t, func() bool {
+		n = db.numDeps()
+		return n <= want
+	})
+	return n
 }
 
 func (db *DB) numFreeConns() int {
@@ -229,7 +231,7 @@ func (db *DB) clearAllConns(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(0, time.Second); n > 0 {
+	if n := db.numDepsPoll(t, 0); n > 0 {
 		t.Errorf("number of dependencies = %d; expected 0", n)
 		db.dumpDeps(t)
 	}
@@ -321,7 +323,7 @@ func TestQueryContext(t *testing.T) {
 	for rows.Next() {
 		if index == 2 {
 			cancel()
-			waitForRowsClose(t, rows, 5*time.Second)
+			waitForRowsClose(t, rows)
 		}
 		var r row
 		err = rows.Scan(&r.age, &r.name)
@@ -355,29 +357,43 @@ func TestQueryContext(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	waitForRowsClose(t, rows, 5*time.Second)
-	waitForFree(t, db, 5*time.Second, 1)
+	waitForRowsClose(t, rows)
+	waitForFree(t, db, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
 }
 
-func waitCondition(waitFor, checkEvery time.Duration, fn func() bool) bool {
-	deadline := time.Now().Add(waitFor)
-	for time.Now().Before(deadline) {
+func waitCondition(t testing.TB, fn func() bool) bool {
+	timeout := 5 * time.Second
+
+	type deadliner interface {
+		Deadline() (time.Time, bool)
+	}
+	if td, ok := t.(deadliner); ok {
+		if deadline, ok := td.Deadline(); ok {
+			timeout = time.Until(deadline)
+			timeout = timeout * 19 / 20 // Give 5% headroom for cleanup and error-reporting.
+		}
+	}
+
+	deadline := time.Now().Add(timeout)
+	for {
 		if fn() {
 			return true
 		}
-		time.Sleep(checkEvery)
+		if time.Until(deadline) < pollDuration {
+			return false
+		}
+		time.Sleep(pollDuration)
 	}
-	return false
 }
 
 // waitForFree checks db.numFreeConns until either it equals want or
 // the maxWait time elapses.
-func waitForFree(t *testing.T, db *DB, maxWait time.Duration, want int) {
+func waitForFree(t *testing.T, db *DB, want int) {
 	var numFree int
-	if !waitCondition(maxWait, 5*time.Millisecond, func() bool {
+	if !waitCondition(t, func() bool {
 		numFree = db.numFreeConns()
 		return numFree == want
 	}) {
@@ -385,8 +401,8 @@ func waitForFree(t *testing.T, db *DB, maxWait time.Duration, want int) {
 	}
 }
 
-func waitForRowsClose(t *testing.T, rows *Rows, maxWait time.Duration) {
-	if !waitCondition(maxWait, 5*time.Millisecond, func() bool {
+func waitForRowsClose(t *testing.T, rows *Rows) {
+	if !waitCondition(t, func() bool {
 		rows.closemu.RLock()
 		defer rows.closemu.RUnlock()
 		return rows.closed
@@ -416,7 +432,7 @@ func TestQueryContextWait(t *testing.T) {
 	}
 
 	// Verify closed rows connection after error condition.
-	waitForFree(t, db, 5*time.Second, 1)
+	waitForFree(t, db, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		// TODO(kardianos): if the context timeouts before the db.QueryContext
 		// executes this check may fail. After adjusting how the context
@@ -451,7 +467,7 @@ func TestTxContextWait(t *testing.T) {
 		t.Fatalf("expected QueryContext to error with context canceled but returned %v", err)
 	}
 
-	waitForFree(t, db, 5*time.Second, 0)
+	waitForFree(t, db, 0)
 }
 
 // TestTxContextWaitNoDiscard is the same as TestTxContextWait, but should not discard
@@ -480,7 +496,7 @@ func TestTxContextWaitNoDiscard(t *testing.T) {
 		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
 	}
 
-	waitForFree(t, db, 5*time.Second, 1)
+	waitForFree(t, db, 1)
 }
 
 // TestUnsupportedOptions checks that the database fails when a driver that
@@ -565,7 +581,7 @@ func TestMultiResultSetQuery(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	waitForFree(t, db, 5*time.Second, 1)
+	waitForFree(t, db, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
@@ -743,7 +759,7 @@ func TestRowsColumnTypes(t *testing.T) {
 		}
 		types[i] = st
 	}
-	values := make([]interface{}, len(tt))
+	values := make([]any, len(tt))
 	for i := range values {
 		values[i] = reflect.New(types[i]).Interface()
 	}
@@ -1006,23 +1022,23 @@ func TestExec(t *testing.T) {
 	defer stmt.Close()
 
 	type execTest struct {
-		args    []interface{}
+		args    []any
 		wantErr string
 	}
 	execTests := []execTest{
 		// Okay:
-		{[]interface{}{"Brad", 31}, ""},
-		{[]interface{}{"Brad", int64(31)}, ""},
-		{[]interface{}{"Bob", "32"}, ""},
-		{[]interface{}{7, 9}, ""},
+		{[]any{"Brad", 31}, ""},
+		{[]any{"Brad", int64(31)}, ""},
+		{[]any{"Bob", "32"}, ""},
+		{[]any{7, 9}, ""},
 
 		// Invalid conversions:
-		{[]interface{}{"Brad", int64(0xFFFFFFFF)}, "sql: converting argument $2 type: sql/driver: value 4294967295 overflows int32"},
-		{[]interface{}{"Brad", "strconv fail"}, `sql: converting argument $2 type: sql/driver: value "strconv fail" can't be converted to int32`},
+		{[]any{"Brad", int64(0xFFFFFFFF)}, "sql: converting argument $2 type: sql/driver: value 4294967295 overflows int32"},
+		{[]any{"Brad", "strconv fail"}, `sql: converting argument $2 type: sql/driver: value "strconv fail" can't be converted to int32`},
 
 		// Wrong number of args:
-		{[]interface{}{}, "sql: expected 2 arguments, got 0"},
-		{[]interface{}{1, 2, 3}, "sql: expected 2 arguments, got 3"},
+		{[]any{}, "sql: expected 2 arguments, got 0"},
+		{[]any{1, 2, 3}, "sql: expected 2 arguments, got 3"},
 	}
 	for n, et := range execTests {
 		_, err := stmt.Exec(et.args...)
@@ -1409,7 +1425,7 @@ func TestConnRaw(t *testing.T) {
 	defer conn.Close()
 
 	sawFunc := false
-	err = conn.Raw(func(dc interface{}) error {
+	err = conn.Raw(func(dc any) error {
 		sawFunc = true
 		if _, ok := dc.(*fakeConn); !ok {
 			return fmt.Errorf("got %T want *fakeConn", dc)
@@ -1436,7 +1452,7 @@ func TestConnRaw(t *testing.T) {
 				t.Fatal("expected connection to be closed after panic")
 			}
 		}()
-		err = conn.Raw(func(dc interface{}) error {
+		err = conn.Raw(func(dc any) error {
 			panic("Conn.Raw panic should return an error")
 		})
 		t.Fatal("expected panic from Raw func")
@@ -1495,7 +1511,7 @@ func TestInvalidNilValues(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		input         interface{}
+		input         any
 		expectedError string
 	}{
 		{
@@ -1593,7 +1609,7 @@ func TestConnIsValid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = c.Raw(func(raw interface{}) error {
+	err = c.Raw(func(raw any) error {
 		dc := raw.(*fakeConn)
 		dc.stickyBad = true
 		return nil
@@ -1772,9 +1788,9 @@ func TestIssue6651(t *testing.T) {
 }
 
 type nullTestRow struct {
-	nullParam    interface{}
-	notNullParam interface{}
-	scanNullVal  interface{}
+	nullParam    any
+	notNullParam any
+	scanNullVal  any
 }
 
 type nullTestSpec struct {
@@ -2083,18 +2099,15 @@ func TestMaxOpenConns(t *testing.T) {
 				}
 			}()
 		}
-		// Sleep for twice the expected length of time for the
-		// batch of 50 queries above to finish before starting
-		// the next round.
-		time.Sleep(2 * sleepMillis * time.Millisecond)
+		// Wait for the batch of queries above to finish before starting the next round.
+		wg.Wait()
 	}
-	wg.Wait()
 
 	if g, w := db.numFreeConns(), 10; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(20, time.Second); n > 20 {
+	if n := db.numDepsPoll(t, 20); n > 20 {
 		t.Errorf("number of dependencies = %d; expected <= 20", n)
 		db.dumpDeps(t)
 	}
@@ -2119,7 +2132,7 @@ func TestMaxOpenConns(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(10, time.Second); n > 10 {
+	if n := db.numDepsPoll(t, 10); n > 10 {
 		t.Errorf("number of dependencies = %d; expected <= 10", n)
 		db.dumpDeps(t)
 	}
@@ -2130,7 +2143,7 @@ func TestMaxOpenConns(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(5, time.Second); n > 5 {
+	if n := db.numDepsPoll(t, 5); n > 5 {
 		t.Errorf("number of dependencies = %d; expected 0", n)
 		db.dumpDeps(t)
 	}
@@ -2141,7 +2154,7 @@ func TestMaxOpenConns(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(5, time.Second); n > 5 {
+	if n := db.numDepsPoll(t, 5); n > 5 {
 		t.Errorf("number of dependencies = %d; expected 0", n)
 		db.dumpDeps(t)
 	}
@@ -2400,13 +2413,14 @@ func TestConnMaxLifetime(t *testing.T) {
 	tx2.Commit()
 
 	// Give connectionCleaner chance to run.
-	for i := 0; i < 100 && closes != 1; i++ {
-		time.Sleep(time.Millisecond)
+	waitCondition(t, func() bool {
 		driver.mu.Lock()
 		opens = driver.openCount - opens0
 		closes = driver.closeCount - closes0
 		driver.mu.Unlock()
-	}
+
+		return closes == 1
+	})
 
 	if opens != 3 {
 		t.Errorf("opens = %d; want 3", opens)
@@ -2466,18 +2480,15 @@ func TestStmtCloseDeps(t *testing.T) {
 				}
 			}()
 		}
-		// Sleep for twice the expected length of time for the
-		// batch of 50 queries above to finish before starting
-		// the next round.
-		time.Sleep(2 * sleepMillis * time.Millisecond)
+		// Wait for the batch of queries above to finish before starting the next round.
+		wg.Wait()
 	}
-	wg.Wait()
 
 	if g, w := db.numFreeConns(), 2; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(4, time.Second); n > 4 {
+	if n := db.numDepsPoll(t, 4); n > 4 {
 		t.Errorf("number of dependencies = %d; expected <= 4", n)
 		db.dumpDeps(t)
 	}
@@ -2496,7 +2507,7 @@ func TestStmtCloseDeps(t *testing.T) {
 		db.dumpDeps(t)
 	}
 
-	if !waitCondition(5*time.Second, 5*time.Millisecond, func() bool {
+	if !waitCondition(t, func() bool {
 		return len(stmt.css) <= nquery
 	}) {
 		t.Errorf("len(stmt.css) = %d; want <= %d", len(stmt.css), nquery)
@@ -2510,7 +2521,7 @@ func TestStmtCloseDeps(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(2, time.Second); n > 2 {
+	if n := db.numDepsPoll(t, 2); n > 2 {
 		t.Errorf("number of dependencies = %d; expected <= 2", n)
 		db.dumpDeps(t)
 	}
@@ -2942,7 +2953,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 					if ct > 0 {
 						return
 					}
-					time.Sleep(10 * time.Millisecond)
+					time.Sleep(pollDuration)
 				}
 			}()
 
@@ -3721,7 +3732,7 @@ func TestIssue18719(t *testing.T) {
 
 		// Wait for the context to cancel and tx to rollback.
 		for tx.isDone() == false {
-			time.Sleep(3 * time.Millisecond)
+			time.Sleep(pollDuration)
 		}
 	}
 	defer func() { hookTxGrabConn = nil }()
@@ -3910,6 +3921,10 @@ func testUseConns(t *testing.T, count int, tm time.Time, db *DB) time.Time {
 	conns := make([]*Conn, count)
 	ctx := context.Background()
 	for i := range conns {
+		tm = tm.Add(time.Nanosecond)
+		nowFunc = func() time.Time {
+			return tm
+		}
 		c, err := db.Conn(ctx)
 		if err != nil {
 			t.Error(err)
@@ -3917,12 +3932,12 @@ func testUseConns(t *testing.T, count int, tm time.Time, db *DB) time.Time {
 		conns[i] = c
 	}
 
-	for _, c := range conns {
+	for i := len(conns) - 1; i >= 0; i-- {
 		tm = tm.Add(time.Nanosecond)
 		nowFunc = func() time.Time {
 			return tm
 		}
-		if err := c.Close(); err != nil {
+		if err := conns[i].Close(); err != nil {
 			t.Error(err)
 		}
 	}
@@ -3934,18 +3949,46 @@ func TestMaxIdleTime(t *testing.T) {
 	usedConns := 5
 	reusedConns := 2
 	list := []struct {
-		wantMaxIdleTime time.Duration
-		wantNextCheck   time.Duration
-		wantIdleClosed  int64
-		timeOffset      time.Duration
+		wantMaxIdleTime   time.Duration
+		wantMaxLifetime   time.Duration
+		wantNextCheck     time.Duration
+		wantIdleClosed    int64
+		wantMaxIdleClosed int64
+		timeOffset        time.Duration
+		secondTimeOffset  time.Duration
 	}{
 		{
 			time.Millisecond,
+			0,
 			time.Millisecond - time.Nanosecond,
 			int64(usedConns - reusedConns),
+			int64(usedConns - reusedConns),
 			10 * time.Millisecond,
+			0,
 		},
-		{time.Hour, time.Second, 0, 10 * time.Millisecond},
+		{
+			// Want to close some connections via max idle time and one by max lifetime.
+			time.Millisecond,
+			// nowFunc() - MaxLifetime should be 1 * time.Nanosecond in connectionCleanerRunLocked.
+			// This guarantees that first opened connection is to be closed.
+			// Thus it is timeOffset + secondTimeOffset + 3 (+2 for Close while reusing conns and +1 for Conn).
+			10*time.Millisecond + 100*time.Nanosecond + 3*time.Nanosecond,
+			time.Nanosecond,
+			// Closed all not reused connections and extra one by max lifetime.
+			int64(usedConns - reusedConns + 1),
+			int64(usedConns - reusedConns),
+			10 * time.Millisecond,
+			// Add second offset because otherwise connections are expired via max lifetime in Close.
+			100 * time.Nanosecond,
+		},
+		{
+			time.Hour,
+			0,
+			time.Second,
+			0,
+			0,
+			10 * time.Millisecond,
+			0},
 	}
 	baseTime := time.Unix(0, 0)
 	defer func() {
@@ -3962,18 +4005,23 @@ func TestMaxIdleTime(t *testing.T) {
 			db.SetMaxOpenConns(usedConns)
 			db.SetMaxIdleConns(usedConns)
 			db.SetConnMaxIdleTime(item.wantMaxIdleTime)
-			db.SetConnMaxLifetime(0)
+			db.SetConnMaxLifetime(item.wantMaxLifetime)
 
 			preMaxIdleClosed := db.Stats().MaxIdleTimeClosed
 
 			// Busy usedConns.
-			tm := testUseConns(t, usedConns, baseTime, db)
+			testUseConns(t, usedConns, baseTime, db)
 
-			tm = baseTime.Add(item.timeOffset)
+			tm := baseTime.Add(item.timeOffset)
 
 			// Reuse connections which should never be considered idle
 			// and exercises the sorting for issue 39471.
-			testUseConns(t, reusedConns, tm, db)
+			tm = testUseConns(t, reusedConns, tm, db)
+
+			tm = tm.Add(item.secondTimeOffset)
+			nowFunc = func() time.Time {
+				return tm
+			}
 
 			db.mu.Lock()
 			nc, closing := db.connectionCleanerRunLocked(time.Second)
@@ -4001,7 +4049,7 @@ func TestMaxIdleTime(t *testing.T) {
 
 			st := db.Stats()
 			maxIdleClosed := st.MaxIdleTimeClosed - preMaxIdleClosed
-			if g, w := maxIdleClosed, item.wantIdleClosed; g != w {
+			if g, w := maxIdleClosed, item.wantMaxIdleClosed; g != w {
 				t.Errorf("got: %d; want %d max idle closed conns", g, w)
 			}
 		})
@@ -4092,7 +4140,7 @@ func TestNamedValueChecker(t *testing.T) {
 		t.Fatal("select", err)
 	}
 
-	list := []struct{ got, want interface{} }{
+	list := []struct{ got, want any }{
 		{o1, "from-server"},
 		{dec1, decimalInt{123}},
 		{str1, "hello"},
@@ -4281,7 +4329,7 @@ type alwaysErrScanner struct{}
 
 var errTestScanWrap = errors.New("errTestScanWrap")
 
-func (alwaysErrScanner) Scan(interface{}) error {
+func (alwaysErrScanner) Scan(any) error {
 	return errTestScanWrap
 }
 

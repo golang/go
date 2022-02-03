@@ -22,7 +22,7 @@ const seekStart = 0
 // A File represents an open PE file.
 type File struct {
 	FileHeader
-	OptionalHeader interface{} // of type *OptionalHeader32 or *OptionalHeader64
+	OptionalHeader any // of type *OptionalHeader32 or *OptionalHeader64
 	Sections       []*Section
 	Symbols        []*Symbol    // COFF symbols with auxiliary symbol records removed
 	COFFSymbols    []COFFSymbol // all COFF symbols (including auxiliary symbol records)
@@ -272,10 +272,14 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		return nil, err
 	}
 
-	// Look for DWARF4 .debug_types sections.
+	// Look for DWARF4 .debug_types sections and DWARF5 sections.
 	for i, s := range f.Sections {
 		suffix := dwarfSuffix(s)
-		if suffix != "types" {
+		if suffix == "" {
+			continue
+		}
+		if _, ok := dat[suffix]; ok {
+			// Already handled.
 			continue
 		}
 
@@ -284,7 +288,11 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 			return nil, err
 		}
 
-		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
+		if suffix == "types" {
+			err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
+		} else {
+			err = d.AddSection(".debug_"+suffix, b)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -444,7 +452,7 @@ func (e *FormatError) Error() string {
 // and its size as seen in the file header.
 // It parses the given size of bytes and returns optional header. It infers whether the
 // bytes being parsed refer to 32 bit or 64 bit version of optional header.
-func readOptionalHeader(r io.ReadSeeker, sz uint16) (interface{}, error) {
+func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
 	// If optional header size is 0, return empty optional header.
 	if sz == 0 {
 		return nil, nil
@@ -465,7 +473,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (interface{}, error) {
 
 	// read reads from io.ReadSeeke, r, into data.
 	var err error
-	read := func(data interface{}) bool {
+	read := func(data any) bool {
 		err = binary.Read(r, binary.LittleEndian, data)
 		return err == nil
 	}

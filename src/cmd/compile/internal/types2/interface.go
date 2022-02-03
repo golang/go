@@ -86,7 +86,7 @@ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
 func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
 
 // IsComparable reports whether each type in interface t's type set is comparable.
-func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable(nil) }
 
 // IsMethodSet reports whether the interface t is fully described by its method set.
 func (t *Interface) IsMethodSet() bool { return t.typeSet().IsMethodSet() }
@@ -111,7 +111,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 
 	for _, f := range iface.MethodList {
 		if f.Name == nil {
-			addEmbedded(posFor(f.Type), parseUnion(check, flattenUnion(nil, f.Type)))
+			addEmbedded(posFor(f.Type), parseUnion(check, f.Type))
 			continue
 		}
 		// f.Name != nil
@@ -134,13 +134,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 				check.errorf(f.Type, invalidAST+"%s is not a method signature", typ)
 			}
 			continue // ignore
-		}
-
-		// Always type-check method type parameters but complain if they are not enabled.
-		// (This extra check is needed here because interface method signatures don't have
-		// a receiver specification.)
-		if sig.tparams != nil && !acceptMethodTypeParams {
-			check.error(f.Type, "methods cannot have type parameters")
 		}
 
 		// use named receiver type if available (for better error messages)
@@ -181,12 +174,4 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
 		ityp.check = nil
 	}).describef(iface, "compute type set for %s", ityp)
-}
-
-func flattenUnion(list []syntax.Expr, x syntax.Expr) []syntax.Expr {
-	if o, _ := x.(*syntax.Operation); o != nil && o.Op == syntax.Or {
-		list = flattenUnion(list, o.X)
-		x = o.Y
-	}
-	return append(list, x)
 }

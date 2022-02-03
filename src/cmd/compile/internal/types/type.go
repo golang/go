@@ -75,7 +75,7 @@ const (
 	TNIL
 	TBLANK
 
-	// pseudo-types for frame layout
+	// pseudo-types used temporarily only during frame layout (CalcSize())
 	TFUNCARGS
 	TCHANARGS
 
@@ -106,12 +106,16 @@ const (
 // It also stores pointers to several special types:
 //   - Types[TANY] is the placeholder "any" type recognized by SubstArgTypes.
 //   - Types[TBLANK] represents the blank variable's type.
+//   - Types[TINTER] is the canonical "interface{}" type.
 //   - Types[TNIL] represents the predeclared "nil" value's type.
 //   - Types[TUNSAFEPTR] is package unsafe's Pointer type.
 var Types [NTYPE]*Type
 
 var (
-	// Predeclared alias types. Kept separate for better error messages.
+	// Predeclared alias types. These are actually created as distinct
+	// defined types for better error messages, but are then specially
+	// treated as identical to their respective underlying types.
+	AnyType  *Type
 	ByteType *Type
 	RuneType *Type
 
@@ -119,8 +123,6 @@ var (
 	ErrorType *Type
 	// Predeclared comparable interface type.
 	ComparableType *Type
-	// Predeclared any interface type.
-	AnyType *Type
 
 	// Types to represent untyped string and boolean constants.
 	UntypedString = newType(TSTRING)
@@ -134,6 +136,14 @@ var (
 )
 
 // A Type represents a Go type.
+//
+// There may be multiple unnamed types with identical structure. However, there must
+// be a unique Type object for each unique named (defined) type. After noding, a
+// package-level type can be looked up by building its unique symbol sym (sym =
+// package.Lookup(name)) and checking sym.Def. If sym.Def is non-nil, the type
+// already exists at package scope and is available at sym.Def.(*ir.Name).Type().
+// Local types (which may have the same name as a package-level type) are
+// distinguished by the value of vargen.
 type Type struct {
 	// extra contains extra etype-specific fields.
 	// As an optimization, those etype-specific structs which contain exactly
@@ -152,6 +162,7 @@ type Type struct {
 	// TSLICE: Slice
 	// TSSA: string
 	// TTYPEPARAM:  *Typeparam
+	// TUNION: *Union
 	extra interface{}
 
 	// width is the width of this Type in bytes.
@@ -228,7 +239,7 @@ func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
 // Generic types should never have alg functions.
 func (t *Type) SetHasTParam(b bool) { t.flags.set(typeHasTParam, b); t.flags.set(typeNoalg, b) }
 
-// Should always do SetHasShape(true) when doing SeIsShape(true).
+// Should always do SetHasShape(true) when doing SetIsShape(true).
 func (t *Type) SetIsShape(b bool)  { t.flags.set(typeIsShape, b) }
 func (t *Type) SetHasShape(b bool) { t.flags.set(typeHasShape, b) }
 
@@ -492,13 +503,17 @@ type Field struct {
 
 	Embedded uint8 // embedded field
 
-	Pos  src.XPos
+	Pos src.XPos
+
+	// Name of field/method/parameter. Can be nil for interface fields embedded
+	// in interfaces and unnamed parameters.
 	Sym  *Sym
 	Type *Type  // field type
 	Note string // literal string annotation
 
-	// For fields that represent function parameters, Nname points
-	// to the associated ONAME Node.
+	// For fields that represent function parameters, Nname points to the
+	// associated ONAME Node. For fields that represent methods, Nname points to
+	// the function name node.
 	Nname Object
 
 	// Offset in bytes of this field or method within its enclosing struct
@@ -1016,7 +1031,9 @@ func (t *Type) Methods() *Fields {
 }
 
 // AllMethods returns a pointer to all the methods (including embedding) for type t.
-// For an interface type, this is the set of methods that are typically iterated over.
+// For an interface type, this is the set of methods that are typically iterated
+// over. For non-interface types, AllMethods() only returns a valid result after
+// CalcMethods() has been called at least once.
 func (t *Type) AllMethods() *Fields {
 	if t.kind == TINTER {
 		// Calculate the full method set of an interface type on the fly
@@ -1205,6 +1222,12 @@ func (t *Type) cmp(x *Type) Cmp {
 
 		case TINT32:
 			if (t == Types[RuneType.kind] || t == RuneType) && (x == Types[RuneType.kind] || x == RuneType) {
+				return CMPeq
+			}
+
+		case TINTER:
+			// Make sure named any type matches any empty interface.
+			if t == AnyType && x.IsEmptyInterface() || x == AnyType && t.IsEmptyInterface() {
 				return CMPeq
 			}
 		}
@@ -1741,8 +1764,9 @@ func (t *Type) SetVargen() {
 	t.vargen = typeGen
 }
 
-// SetUnderlying sets the underlying type. SetUnderlying automatically updates any
-// types that were waiting for this type to be completed.
+// SetUnderlying sets the underlying type of an incomplete type (i.e. type whose kind
+// is currently TFORW). SetUnderlying automatically updates any types that were waiting
+// for this type to be completed.
 func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.kind == TFORW {
 		// This type isn't computed yet; when it is, update n.
@@ -2202,4 +2226,5 @@ var (
 
 var SimType [NTYPE]Kind
 
+// Fake package for shape types (see typecheck.Shapify()).
 var ShapePkg = NewPkg("go.shape", "go.shape")

@@ -734,7 +734,7 @@ func (a *isZeroBugArray) GobDecode(data []byte) error {
 }
 
 type isZeroBugInterface struct {
-	I interface{}
+	I any
 }
 
 func (i isZeroBugInterface) GobEncode() (b []byte, e error) {

@@ -6,13 +6,13 @@ package p
 
 // The example from the issue.
 type (
-	N /* ERROR illegal cycle */ [P any] M[P]
-	M[P any] N[P]
+	N[P any] M /* ERROR illegal cycle */ [P]
+	M[P any] N /* ERROR illegal cycle */ [P]
 )
 
 // A slightly more complicated case.
 type (
-	A /* ERROR illegal cycle */ [P any] B[P]
+	A[P any] B /* ERROR illegal cycle */ [P]
 	B[P any] C[P]
 	C[P any] A[P]
 )

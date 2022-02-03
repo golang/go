@@ -13,16 +13,6 @@ func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintT
 	println(i, runtime.UintType) // GCCGO_ERROR "undefined identifier"
 }
 
-func bar(i int) {
-	runtime.UintType := i       // ERROR "non-name runtime.UintType|non-name on left side|undefined identifier"
-	println(runtime.UintType)	// GCCGO_ERROR "invalid use of type|undefined identifier"
-}
-
-func baz() {
-	main.i := 1	// ERROR "non-name main.i|non-name on left side"
-	println(main.i)	// GCCGO_ERROR "no fields or methods"
-}
-
 func qux() {
 	var main.i	// ERROR "unexpected [.]|expected type"
 	println(main.i)

@@ -11,7 +11,6 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/internal/typeparams"
-	"go/token"
 	"strings"
 )
 
@@ -97,6 +96,10 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		x.mode = constant_
 
 	case *TypeName:
+		if check.isBrokenAlias(obj) {
+			check.errorf(e, _InvalidDeclCycle, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
+			return
+		}
 		x.mode = typexpr
 
 	case *Var:
@@ -141,17 +144,23 @@ func (check *Checker) typ(e ast.Expr) Type {
 // constraint interface.
 func (check *Checker) varType(e ast.Expr) Type {
 	typ := check.definedType(e, nil)
-	// We don't want to call under() (via toInterface) or complete interfaces while we
-	// are in the middle of type-checking parameter declarations that might belong to
-	// interface methods. Delay this check to the end of type-checking.
+
+	// If we have a type parameter there's nothing to do.
+	if isTypeParam(typ) {
+		return typ
+	}
+
+	// We don't want to call under() or complete interfaces while we are in
+	// the middle of type-checking parameter declarations that might belong
+	// to interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
-		if t := asInterface(typ); t != nil {
+		if t, _ := under(typ).(*Interface); t != nil {
 			tset := computeInterfaceTypeSet(check, e.Pos(), t) // TODO(gri) is this the correct position?
 			if !tset.IsMethodSet() {
 				if tset.comparable {
-					check.softErrorf(e, _Todo, "interface is (or embeds) comparable")
+					check.softErrorf(e, _MisplacedConstraintIface, "interface is (or embeds) comparable")
 				} else {
-					check.softErrorf(e, _Todo, "interface contains type constraints")
+					check.softErrorf(e, _MisplacedConstraintIface, "interface contains type constraints")
 				}
 			}
 		}
@@ -169,20 +178,22 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
 	typ := check.typInternal(e, def)
 	assert(isTyped(typ))
 	if isGeneric(typ) {
-		check.errorf(e, _Todo, "cannot use generic type %s without instantiation", typ)
+		check.errorf(e, _WrongTypeArgCount, "cannot use generic type %s without instantiation", typ)
 		typ = Typ[Invalid]
 	}
 	check.recordTypeAndValue(e, typexpr, typ, nil)
 	return typ
 }
 
-// genericType is like typ but the type must be an (uninstantiated) generic type.
-func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
+// genericType is like typ but the type must be an (uninstantiated) generic
+// type. If reason is non-nil and the type expression was a valid type but not
+// generic, reason will be populated with a message describing the error.
+func (check *Checker) genericType(e ast.Expr, reason *string) Type {
 	typ := check.typInternal(e, nil)
 	assert(isTyped(typ))
 	if typ != Typ[Invalid] && !isGeneric(typ) {
-		if reportErr {
-			check.errorf(e, _Todo, "%s is not a generic type", typ)
+		if reason != nil {
+			*reason = check.sprintf("%s is not a generic type", typ)
 		}
 		typ = Typ[Invalid]
 	}
@@ -202,7 +213,7 @@ func goTypeName(typ Type) string {
 //
 func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 	if trace {
-		check.trace(e0.Pos(), "type %s", e0)
+		check.trace(e0.Pos(), "-- type %s", e0)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -261,9 +272,9 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(e)
 		if !check.allowVersion(check.pkg, 1, 18) {
-			check.softErrorf(inNode(e, ix.Lbrack), _Todo, "type instantiation requires go1.18 or later")
+			check.softErrorf(inNode(e, ix.Lbrack), _UnsupportedFeature, "type instantiation requires go1.18 or later")
 		}
-		return check.instantiatedType(ix.X, ix.Indices, def)
+		return check.instantiatedType(ix, def)
 
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
@@ -271,18 +282,20 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		return check.definedType(e.X, def)
 
 	case *ast.ArrayType:
-		if e.Len != nil {
-			typ := new(Array)
+		if e.Len == nil {
+			typ := new(Slice)
 			def.setUnderlying(typ)
-			typ.len = check.arrayLength(e.Len)
 			typ.elem = check.varType(e.Elt)
 			return typ
 		}
 
-		typ := new(Slice)
+		typ := new(Array)
 		def.setUnderlying(typ)
+		typ.len = check.arrayLength(e.Len)
 		typ.elem = check.varType(e.Elt)
-		return typ
+		if typ.len >= 0 {
+			return typ
+		}
 
 	case *ast.Ellipsis:
 		// dots are handled explicitly where they are legal
@@ -298,6 +311,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 
 	case *ast.StarExpr:
 		typ := new(Pointer)
+		typ.base = Typ[Invalid] // avoid nil base in invalid recursive type declaration
 		def.setUnderlying(typ)
 		typ.base = check.varType(e.X)
 		return typ
@@ -333,7 +347,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		check.later(func() {
 			if !Comparable(typ.key) {
 				var why string
-				if asTypeParam(typ.key) != nil {
+				if isTypeParam(typ.key) {
 					why = " (missing comparable constraint)"
 				}
 				check.errorf(e.Key, _IncomparableMapKey, "incomparable map key type %s%s", typ.key, why)
@@ -372,97 +386,98 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 	return typ
 }
 
-func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named) (res Type) {
+func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (res Type) {
+	pos := ix.X.Pos()
 	if trace {
-		check.trace(x.Pos(), "-- instantiating %s with %s", x, targsx)
+		check.trace(pos, "-- instantiating %s with %s", ix.X, ix.Indices)
 		check.indent++
 		defer func() {
 			check.indent--
 			// Don't format the underlying here. It will always be nil.
-			check.trace(x.Pos(), "=> %s", res)
+			check.trace(pos, "=> %s", res)
 		}()
 	}
 
-	gtyp := check.genericType(x, true)
+	var reason string
+	gtyp := check.genericType(ix.X, &reason)
+	if reason != "" {
+		check.invalidOp(ix.Orig, _NotAGenericType, "%s (%s)", ix.Orig, reason)
+	}
 	if gtyp == Typ[Invalid] {
 		return gtyp // error already reported
 	}
 
-	origin, _ := gtyp.(*Named)
-	if origin == nil {
-		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
+	orig, _ := gtyp.(*Named)
+	if orig == nil {
+		panic(fmt.Sprintf("%v: cannot instantiate %v", ix.Pos(), gtyp))
 	}
 
 	// evaluate arguments
-	targs := check.typeList(targsx)
+	targs := check.typeList(ix.Indices)
 	if targs == nil {
 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
 		return Typ[Invalid]
 	}
 
-	// determine argument positions
-	posList := make([]token.Pos, len(targs))
-	for i, arg := range targsx {
-		posList[i] = arg.Pos()
-	}
-
 	// create the instance
-	h := check.conf.Context.typeHash(origin, targs)
+	ctxt := check.bestContext(nil)
+	h := ctxt.instanceHash(orig, targs)
 	// targs may be incomplete, and require inference. In any case we should de-duplicate.
-	inst := check.conf.Context.typeForHash(h, nil)
+	inst, _ := ctxt.lookup(h, orig, targs).(*Named)
 	// If inst is non-nil, we can't just return here. Inst may have been
 	// constructed via recursive substitution, in which case we wouldn't do the
 	// validation below. Ensure that the validation (and resulting errors) runs
 	// for each instantiated type in the source.
 	if inst == nil {
-		tname := NewTypeName(x.Pos(), origin.obj.pkg, origin.obj.name, nil)
-		inst = check.newNamed(tname, origin, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
-		inst.targs = NewTypeList(targs)
-		inst = check.conf.Context.typeForHash(h, inst)
+		// x may be a selector for an imported type; use its start pos rather than x.Pos().
+		tname := NewTypeName(ix.Pos(), orig.obj.pkg, orig.obj.name, nil)
+		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+		inst.targs = newTypeList(targs)
+		inst = ctxt.update(h, orig, targs, inst).(*Named)
 	}
 	def.setUnderlying(inst)
 
-	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
-		tparams := origin.TypeParams().list()
+	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
+		tparams := orig.TypeParams().list()
 
 		inferred := targs
 		if len(targs) < len(tparams) {
 			// If inference fails, len(inferred) will be 0, and inst.underlying will
 			// be set to Typ[Invalid] in expandNamed.
-			inferred = check.infer(x, tparams, targs, nil, nil)
+			inferred = check.infer(ix.Orig, tparams, targs, nil, nil)
 			if len(inferred) > len(targs) {
-				inst.targs = NewTypeList(inferred)
+				inst.targs = newTypeList(inferred)
 			}
 		}
 
-		check.recordInstance(x, inferred, inst)
-		return expandNamed(ctxt, n, x.Pos())
+		check.recordInstance(ix.Orig, inferred, inst)
+		return expandNamed(ctxt, n, pos)
 	}
 
-	// origin.tparams may not be set up, so we need to do expansion later.
+	// orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
 		// This is an instance from the source, not from recursive substitution,
 		// and so it must be resolved during type-checking so that we can report
 		// errors.
-		inst.resolve(check.conf.Context)
+		inst.resolve(ctxt)
 		// Since check is non-nil, we can still mutate inst. Unpinning the resolver
 		// frees some memory.
 		inst.resolver = nil
 
-		if check.validateTArgLen(x.Pos(), inst.tparams.Len(), inst.targs.Len()) {
-			if i, err := check.verify(x.Pos(), inst.tparams.list(), inst.targs.list()); err != nil {
+		if check.validateTArgLen(pos, inst.tparams.Len(), inst.targs.Len()) {
+			if i, err := check.verify(pos, inst.tparams.list(), inst.targs.list()); err != nil {
 				// best position for error reporting
-				pos := x.Pos()
-				if i < len(posList) {
-					pos = posList[i]
+				pos := ix.Pos()
+				if i < len(ix.Indices) {
+					pos = ix.Indices[i].Pos()
 				}
-				check.softErrorf(atPos(pos), _Todo, err.Error())
+				check.softErrorf(atPos(pos), _InvalidTypeArg, err.Error())
 			} else {
-				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), posList)
+				check.mono.recordInstance(check.pkg, pos, inst.tparams.list(), inst.targs.list(), ix.Indices)
 			}
 		}
 
-		check.validType(inst, nil)
+		check.validType(inst)
 	})
 
 	return inst

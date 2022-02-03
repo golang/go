@@ -76,6 +76,11 @@ func equalASCIIName(x, y dnsmessage.Name) bool {
 // (currently restricted to hostname-compatible "preferred name" LDH labels and
 // SRV-like "underscore labels"; see golang.org/issue/12421).
 func isDomainName(s string) bool {
+	// The root domain name is valid. See golang.org/issue/45715.
+	if s == "." {
+		return true
+	}
+
 	// See RFC 1035, RFC 3696.
 	// Presentation format has dots before every label except the first, and the
 	// terminal empty label is optional here because we assume fully-qualified

@@ -18,7 +18,7 @@ go test -fuzz=. -fuzztime=1x ./one
 
 # With fuzzing enabled, at most one target in the same package may match.
 ! go test -fuzz=. ./two
-stdout '^testing: will not fuzz, -fuzz matches more than one target: \[FuzzOne FuzzTwo\]$'
+stdout '^testing: will not fuzz, -fuzz matches more than one fuzz test: \[FuzzOne FuzzTwo\]$'
 go test -fuzz=FuzzTwo -fuzztime=1x ./two
 
 -- go.mod --

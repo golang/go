@@ -89,12 +89,12 @@ In the following example, PCALIGN at the entry of the function Add will align it
 7. Move large constants to vector registers.
 
 Go asm uses VMOVQ/VMOVD/VMOVS to move 128-bit, 64-bit and 32-bit constants into vector registers, respectively.
-And for a 128-bit interger, it take two 64-bit operands, for the high and low parts separately.
+And for a 128-bit interger, it take two 64-bit operands, for the low and high parts separately.
 
   Examples:
     VMOVS $0x11223344, V0
     VMOVD $0x1122334455667788, V1
-    VMOVQ $0x1122334455667788, $8877665544332211, V2   // V2=0x11223344556677888877665544332211
+    VMOVQ $0x1122334455667788, $0x99aabbccddeeff00, V2   // V2=0x99aabbccddeeff001122334455667788
 
 8. Move an optionally-shifted 16-bit immediate value to a register.
 

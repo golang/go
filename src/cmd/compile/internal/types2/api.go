@@ -55,17 +55,14 @@ func (err Error) FullError() string {
 	return fmt.Sprintf("%s: %s", err.Pos, err.Full)
 }
 
-// An ArgumentError holds an error that is associated with an argument.
+// An ArgumentError holds an error associated with an argument index.
 type ArgumentError struct {
-	index int
-	error
+	Index int
+	Err   error
 }
 
-// Index returns the positional index of the argument associated with the
-// error.
-func (e ArgumentError) Index() int {
-	return e.index
-}
+func (e *ArgumentError) Error() string { return e.Err.Error() }
+func (e *ArgumentError) Unwrap() error { return e.Err }
 
 // An Importer resolves import paths to Packages.
 //
@@ -268,6 +265,7 @@ type Info struct {
 	//
 	//     *syntax.File
 	//     *syntax.FuncType
+	//     *syntax.TypeDecl
 	//     *syntax.BlockStmt
 	//     *syntax.IfStmt
 	//     *syntax.SwitchStmt
@@ -443,8 +441,16 @@ func ConvertibleTo(V, T Type) bool {
 
 // Implements reports whether type V implements interface T.
 func Implements(V Type, T *Interface) bool {
-	f, _ := MissingMethod(V, T, true)
-	return f == nil
+	if T.Empty() {
+		// All types (even Typ[Invalid]) implement the empty interface.
+		return true
+	}
+	// Checker.implements suppresses errors for invalid types, so we need special
+	// handling here.
+	if V.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).implements(V, T) == nil
 }
 
 // Identical reports whether x and y are identical types.

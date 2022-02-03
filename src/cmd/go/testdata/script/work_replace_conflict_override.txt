@@ -5,8 +5,8 @@ go list -m example.com/dep
 stdout 'example.com/dep v1.0.0 => ./dep3'
 
 -- go.work --
-directory m
-directory n
+use m
+use n
 replace example.com/dep => ./dep3
 -- m/go.mod --
 module example.com/m

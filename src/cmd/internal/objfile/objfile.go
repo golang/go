@@ -152,6 +152,15 @@ func (e *Entry) PCLineTable() (Liner, error) {
 	if err != nil {
 		return nil, err
 	}
+	syms, err := e.raw.symbols()
+	if err == nil {
+		for _, s := range syms {
+			if s.Name == "runtime.text" {
+				textStart = s.Addr
+				break
+			}
+		}
+	}
 	return gosym.NewTable(symtab, gosym.NewLineTable(pclntab, textStart))
 }
 

@@ -16,7 +16,7 @@ func Init(arch *ssagen.ArchInfo) {
 		arch.LinkArch = &ppc64.Linkppc64le
 	}
 	arch.REGSP = ppc64.REGSP
-	arch.MAXWIDTH = 1 << 60
+	arch.MAXWIDTH = 1 << 50
 
 	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop

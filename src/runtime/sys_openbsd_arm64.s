@@ -359,9 +359,11 @@ TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$0
 	MOVD	0(R0), R0		// arg 1 - clock_id
 	CALL	libc_clock_gettime(SB)
 	CMP	$-1, R0
-	BNE	3(PC)
-	MOVD	$0, R0			// crash on failure
-	MOVD	R0, (R0)
+	BNE	noerr
+	CALL	libc_errno(SB)
+	MOVW	(R0), R0		// errno
+	NEG	R0, R0			// caller expects negative errno value
+noerr:
 	RET
 
 TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0

@@ -53,54 +53,77 @@ func TestPrintError(t *testing.T) {
 	}
 }
 
-var stringTests = []string{
-	"package p",
-	"package p; type _ int; type T1 = struct{}; type ( _ *struct{}; T2 = float32 )",
+var stringTests = [][2]string{
+	dup("package p"),
+	dup("package p; type _ int; type T1 = struct{}; type ( _ *struct{}; T2 = float32 )"),
 
 	// generic type declarations
-	"package p; type _[T any] struct{}",
-	"package p; type _[A, B, C interface{m()}] struct{}",
-	"package p; type _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}] struct{}",
+	dup("package p; type _[T any] struct{}"),
+	dup("package p; type _[A, B, C interface{m()}] struct{}"),
+	dup("package p; type _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}] struct{}"),
+
+	dup("package p; type _[P *T,] struct{}"),
+	dup("package p; type _[P *T, _ any] struct{}"),
+	{"package p; type _[P (*T),] struct{}", "package p; type _[P *T,] struct{}"},
+	{"package p; type _[P (*T), _ any] struct{}", "package p; type _[P *T, _ any] struct{}"},
+	{"package p; type _[P (T),] struct{}", "package p; type _[P T] struct{}"},
+	{"package p; type _[P (T), _ any] struct{}", "package p; type _[P T, _ any] struct{}"},
+
+	dup("package p; type _[P *struct{}] struct{}"),
+	{"package p; type _[P (*struct{})] struct{}", "package p; type _[P *struct{}] struct{}"},
+	{"package p; type _[P ([]int)] struct{}", "package p; type _[P []int] struct{}"},
+
+	dup("package p; type _ [P(T)]struct{}"),
+	dup("package p; type _ [P((T))]struct{}"),
+	dup("package p; type _ [P * *T]struct{}"),
+	dup("package p; type _ [P * T]struct{}"),
+	dup("package p; type _ [P(*T)]struct{}"),
+	dup("package p; type _ [P(**T)]struct{}"),
+	dup("package p; type _ [P * T - T]struct{}"),
+
+	// array type declarations
+	dup("package p; type _ [P * T]struct{}"),
+	dup("package p; type _ [P * T - T]struct{}"),
 
 	// generic function declarations
-	"package p; func _[T any]()",
-	"package p; func _[A, B, C interface{m()}]()",
-	"package p; func _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}]()",
+	dup("package p; func _[T any]()"),
+	dup("package p; func _[A, B, C interface{m()}]()"),
+	dup("package p; func _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}]()"),
 
 	// methods with generic receiver types
-	"package p; func (R[T]) _()",
-	"package p; func (*R[A, B, C]) _()",
-	"package p; func (_ *R[A, B, C]) _()",
+	dup("package p; func (R[T]) _()"),
+	dup("package p; func (*R[A, B, C]) _()"),
+	dup("package p; func (_ *R[A, B, C]) _()"),
 
 	// type constraint literals with elided interfaces
-	"package p; func _[P ~int, Q int | string]() {}",
-	"package p; func _[P struct{f int}, Q *P]() {}",
+	dup("package p; func _[P ~int, Q int | string]() {}"),
+	dup("package p; func _[P struct{f int}, Q *P]() {}"),
 
 	// channels
-	"package p; type _ chan chan int",
-	"package p; type _ chan (<-chan int)",
-	"package p; type _ chan chan<- int",
+	dup("package p; type _ chan chan int"),
+	dup("package p; type _ chan (<-chan int)"),
+	dup("package p; type _ chan chan<- int"),
 
-	"package p; type _ <-chan chan int",
-	"package p; type _ <-chan <-chan int",
-	"package p; type _ <-chan chan<- int",
+	dup("package p; type _ <-chan chan int"),
+	dup("package p; type _ <-chan <-chan int"),
+	dup("package p; type _ <-chan chan<- int"),
 
-	"package p; type _ chan<- chan int",
-	"package p; type _ chan<- <-chan int",
-	"package p; type _ chan<- chan<- int",
+	dup("package p; type _ chan<- chan int"),
+	dup("package p; type _ chan<- <-chan int"),
+	dup("package p; type _ chan<- chan<- int"),
 
 	// TODO(gri) expand
 }
 
 func TestPrintString(t *testing.T) {
-	for _, want := range stringTests {
-		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics)
+	for _, test := range stringTests {
+		ast, err := Parse(nil, strings.NewReader(test[0]), nil, nil, AllowGenerics)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
-		if got := String(ast); got != want {
-			t.Errorf("%q: got %q", want, got)
+		if got := String(ast); got != test[1] {
+			t.Errorf("%q: got %q", test[1], got)
 		}
 	}
 }

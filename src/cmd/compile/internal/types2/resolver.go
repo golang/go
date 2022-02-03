@@ -448,15 +448,10 @@ func (check *Checker) collectObjects() {
 				} else {
 					// method
 					// d.Recv != nil
-					if !acceptMethodTypeParams && len(s.TParamList) != 0 {
-						//check.error(d.TParamList.Pos(), invalidAST + "method must have no type parameters")
-						check.error(s.TParamList[0], invalidAST+"method must have no type parameters")
-						hasTParamError = true
-					}
 					ptr, recv, _ := check.unpackRecv(s.Recv.Type, false)
-					// (Methods with invalid receiver cannot be associated to a type, and
+					// Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any
-					// of them. They will still be type-checked with all the other functions.)
+					// of them. They will still be type-checked with all the other functions.
 					if recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
@@ -661,25 +656,31 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	// We process non-alias declarations first, in order to avoid situations where
-	// the type of an alias declaration is needed before it is available. In general
-	// this is still not enough, as it is possible to create sufficiently convoluted
-	// recursive type definitions that will cause a type alias to be needed before it
-	// is available (see issue #25838 for examples).
-	// As an aside, the cmd/compiler suffers from the same problem (#25838).
+	// We process non-alias type declarations first, followed by alias declarations,
+	// and then everything else. This appears to avoid most situations where the type
+	// of an alias is needed before it is available.
+	// There may still be cases where this is not good enough (see also issue #25838).
+	// In those cases Checker.ident will report an error ("invalid use of type alias").
 	var aliasList []*TypeName
-	// phase 1
+	var othersList []Object // everything that's not a type
+	// phase 1: non-alias type declarations
 	for _, obj := range objList {
-		// If we have a type alias, collect it for the 2nd phase.
-		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].tdecl.Alias {
-			aliasList = append(aliasList, tname)
-			continue
+		if tname, _ := obj.(*TypeName); tname != nil {
+			if check.objMap[tname].tdecl.Alias {
+				aliasList = append(aliasList, tname)
+			} else {
+				check.objDecl(obj, nil)
+			}
+		} else {
+			othersList = append(othersList, obj)
 		}
-
+	}
+	// phase 2: alias type declarations
+	for _, obj := range aliasList {
 		check.objDecl(obj, nil)
 	}
-	// phase 2
-	for _, obj := range aliasList {
+	// phase 3: all other declarations
+	for _, obj := range othersList {
 		check.objDecl(obj, nil)
 	}
 

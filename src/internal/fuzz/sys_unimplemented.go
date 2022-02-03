@@ -4,7 +4,7 @@
 
 // If you update this constraint, also update cmd/internal/sys.FuzzSupported.
 //
-//go:build !darwin && !linux && !windows
+//go:build !darwin && !freebsd && !linux && !windows
 
 package fuzz
 

@@ -369,8 +369,11 @@ TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$0
 	MOVL	0(DI), DI		// arg 1 clock_id
 	CALL	libc_clock_gettime(SB)
 	TESTL	AX, AX
-	JEQ	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	JEQ	noerr
+	CALL	libc_errno(SB)
+	MOVL	(AX), AX		// errno
+	NEGL	AX			// caller expects negative errno value
+noerr:
 	POPQ	BP
 	RET
 

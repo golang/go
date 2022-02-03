@@ -201,15 +201,21 @@ const (
 	// we further limit it to 31 bits.
 	//
 	// On ios/arm64, although 64-bit pointers are presumably
-	// available, pointers are truncated to 33 bits. Furthermore,
-	// only the top 4 GiB of the address space are actually available
-	// to the application, but we allow the whole 33 bits anyway for
-	// simplicity.
-	// TODO(mknyszek): Consider limiting it to 32 bits and using
-	// arenaBaseOffset to offset into the top 4 GiB.
+	// available, pointers are truncated to 33 bits in iOS <14.
+	// Furthermore, only the top 4 GiB of the address space are
+	// actually available to the application. In iOS >=14, more
+	// of the address space is available, and the OS can now
+	// provide addresses outside of those 33 bits. Pick 40 bits
+	// as a reasonable balance between address space usage by the
+	// page allocator, and flexibility for what mmap'd regions
+	// we'll accept for the heap. We can't just move to the full
+	// 48 bits because this uses too much address space for older
+	// iOS versions.
+	// TODO(mknyszek): Once iOS <14 is deprecated, promote ios/arm64
+	// to a 48-bit address space like every other arm64 platform.
 	//
 	// WebAssembly currently has a limit of 4GB linear memory.
-	heapAddrBits = (_64bit*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64))*48 + (1-_64bit+goarch.IsWasm)*(32-(goarch.IsMips+goarch.IsMipsle)) + 33*goos.IsIos*goarch.IsArm64
+	heapAddrBits = (_64bit*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64))*48 + (1-_64bit+goarch.IsWasm)*(32-(goarch.IsMips+goarch.IsMipsle)) + 40*goos.IsIos*goarch.IsArm64
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On

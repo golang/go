@@ -57,8 +57,9 @@ type Module struct {
 // BuildSetting describes a setting that may be used to understand how the
 // binary was built. For example, VCS commit and dirty status is stored here.
 type BuildSetting struct {
-	// Key and Value describe the build setting. They must not contain tabs
-	// or newlines.
+	// Key and Value describe the build setting.
+	// Key must not contain an equals sign, space, tab, or newline.
+	// Value must not contain newlines ('\n').
 	Key, Value string
 }
 
@@ -97,10 +98,13 @@ func (bi *BuildInfo) MarshalText() ([]byte, error) {
 		formatMod("dep", *dep)
 	}
 	for _, s := range bi.Settings {
-		if strings.ContainsAny(s.Key, "\n\t") || strings.ContainsAny(s.Value, "\n\t") {
-			return nil, fmt.Errorf("build setting %q contains tab or newline", s.Key)
+		if strings.ContainsAny(s.Key, "= \t\n") {
+			return nil, fmt.Errorf("invalid build setting key %q", s.Key)
 		}
-		fmt.Fprintf(buf, "build\t%s\t%s\n", s.Key, s.Value)
+		if strings.Contains(s.Value, "\n") {
+			return nil, fmt.Errorf("invalid build setting value for key %q: contains newline", s.Value)
+		}
+		fmt.Fprintf(buf, "build\t%s=%s\n", s.Key, s.Value)
 	}
 
 	return buf.Bytes(), nil
@@ -185,14 +189,14 @@ func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
 			}
 			last = nil
 		case bytes.HasPrefix(line, buildLine):
-			elem := bytes.Split(line[len(buildLine):], tab)
-			if len(elem) != 2 {
-				return fmt.Errorf("expected 2 columns for build setting; got %d", len(elem))
+			key, val, ok := strings.Cut(string(line[len(buildLine):]), "=")
+			if !ok {
+				return fmt.Errorf("invalid build line")
 			}
-			if len(elem[0]) == 0 {
+			if key == "" {
 				return fmt.Errorf("empty key")
 			}
-			bi.Settings = append(bi.Settings, BuildSetting{Key: string(elem[0]), Value: string(elem[1])})
+			bi.Settings = append(bi.Settings, BuildSetting{Key: key, Value: val})
 		}
 		lineNum++
 	}

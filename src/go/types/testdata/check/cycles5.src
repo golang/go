@@ -135,7 +135,7 @@ type (
 type (
 	a struct{ *b }
 	b = c
-	c struct{ *b }
+	c struct{ *b /* ERROR invalid use of type alias */ }
 )
 
 // issue #24939
@@ -145,7 +145,7 @@ type (
 	}
 
 	M interface {
-		F() P
+		F() P // ERROR invalid use of type alias
 	}
 
 	P = interface {

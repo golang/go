@@ -136,7 +136,7 @@ func TestGcLastTime(t *testing.T) {
 	}
 }
 
-var hugeSink interface{}
+var hugeSink any
 
 func TestHugeGCInfo(t *testing.T) {
 	// The test ensures that compiler can chew these huge types even on weakest machines.
@@ -196,7 +196,10 @@ func TestPeriodicGC(t *testing.T) {
 
 func TestGcZombieReporting(t *testing.T) {
 	// This test is somewhat sensitive to how the allocator works.
-	got := runTestProg(t, "testprog", "GCZombie")
+	// Pointers in zombies slice may cross-span, thus we
+	// add invalidptr=0 for avoiding the badPointer check.
+	// See issue https://golang.org/issues/49613/
+	got := runTestProg(t, "testprog", "GCZombie", "GODEBUG=invalidptr=0")
 	want := "found pointer to free object"
 	if !strings.Contains(got, want) {
 		t.Fatalf("expected %q in output, but got %q", want, got)
@@ -454,7 +457,7 @@ func BenchmarkSetTypeNode1024Slice(b *testing.B) {
 	benchSetType(b, make([]Node1024, 32))
 }
 
-func benchSetType(b *testing.B, x interface{}) {
+func benchSetType(b *testing.B, x any) {
 	v := reflect.ValueOf(x)
 	t := v.Type()
 	switch t.Kind() {
@@ -520,7 +523,7 @@ func TestPrintGC(t *testing.T) {
 	close(done)
 }
 
-func testTypeSwitch(x interface{}) error {
+func testTypeSwitch(x any) error {
 	switch y := x.(type) {
 	case nil:
 		// ok
@@ -530,14 +533,14 @@ func testTypeSwitch(x interface{}) error {
 	return nil
 }
 
-func testAssert(x interface{}) error {
+func testAssert(x any) error {
 	if y, ok := x.(error); ok {
 		return y
 	}
 	return nil
 }
 
-func testAssertVar(x interface{}) error {
+func testAssertVar(x any) error {
 	var y, ok = x.(error)
 	if ok {
 		return y
@@ -548,7 +551,7 @@ func testAssertVar(x interface{}) error {
 var a bool
 
 //go:noinline
-func testIfaceEqual(x interface{}) {
+func testIfaceEqual(x any) {
 	if x == "abc" {
 		a = true
 	}

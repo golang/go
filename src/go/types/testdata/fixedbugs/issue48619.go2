@@ -2,23 +2,26 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This issue has been re-opened.
+// This issue is still open:
+// - the error messages could be better or are incorrect
+// - unification fails due to stack overflow that is caught
 
 package p
 
 func f[P any](a, _ P) {
-	// var x int
-	// f(a, x /* ERROR type int of x does not match P */)
-	// f(x, a /* ERROR type P of a does not match inferred type int for P */)
+	var x int
+	// TODO(gri) these error messages, while correct, could be better
+	f(a, x /* ERROR type int of x does not match P */)
+	f(x, a /* ERROR type P of a does not match inferred type int for P */)
 }
 
 func g[P any](a, b P) {
-	// g(a, b)
-	// g(&a, &b)
-	// g([]P{}, []P{})
-}
+	g(a, b)
+	// TODO(gri) these error messages are incorrect because the code is valid
+	g(&a, & /* ERROR type \*P of &b does not match inferred type \*P for P */ b)
+	g([]P{}, [ /* ERROR type \[\]P of \(\[\]P literal\) does not match inferred type \[\]P for P */ ]P{})
 
-func h[P any](a, b P) {
-	// h(&a, &b)
-	// h([]P{a}, []P{b})
+	// work-around: provide type argument explicitly
+	g[*P](&a, &b)
+	g[[]P]([]P{}, []P{})
 }

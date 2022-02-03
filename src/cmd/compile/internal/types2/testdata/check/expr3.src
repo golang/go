@@ -45,9 +45,9 @@ func indexes() {
 	_ = a[:10:10]
 	_ = a[:11 /* ERROR "index .* out of bounds" */ :10]
 	_ = a[:10:11 /* ERROR "index .* out of bounds" */ ]
-	_ = a[10:0:10] /* ERROR "invalid slice indices" */
-	_ = a[0:10:0] /* ERROR "invalid slice indices" */
-	_ = a[10:0:0] /* ERROR "invalid slice indices" */
+	_ = a[10:0 /* ERROR "invalid slice indices" */ :10]
+	_ = a[0:10:0 /* ERROR "invalid slice indices" */ ]
+	_ = a[10:0 /* ERROR "invalid slice indices" */:0]
 	_ = &a /* ERROR "cannot take address" */ [:10]
 
 	pa := &a
@@ -63,9 +63,9 @@ func indexes() {
 	_ = pa[:10:10]
 	_ = pa[:11 /* ERROR "index .* out of bounds" */ :10]
 	_ = pa[:10:11 /* ERROR "index .* out of bounds" */ ]
-	_ = pa[10:0:10] /* ERROR "invalid slice indices" */
-	_ = pa[0:10:0] /* ERROR "invalid slice indices" */
-	_ = pa[10:0:0] /* ERROR "invalid slice indices" */
+	_ = pa[10:0 /* ERROR "invalid slice indices" */ :10]
+	_ = pa[0:10:0 /* ERROR "invalid slice indices" */ ]
+	_ = pa[10:0 /* ERROR "invalid slice indices" */ :0]
 	_ = &pa /* ERROR "cannot take address" */ [:10]
 
 	var b [0]int
@@ -90,9 +90,9 @@ func indexes() {
 	_ = s[1 /* ERROR "overflows" */ <<100 : 1 /* ERROR "overflows" */ <<100]
 	_ = s[: /* ERROR "middle index required" */ :  /* ERROR "final index required" */ ]
 	_ = s[:10:10]
-	_ = s[10:0:10] /* ERROR "invalid slice indices" */
-	_ = s[0:10:0] /* ERROR "invalid slice indices" */
-	_ = s[10:0:0] /* ERROR "invalid slice indices" */
+	_ = s[10:0 /* ERROR "invalid slice indices" */ :10]
+	_ = s[0:10:0 /* ERROR "invalid slice indices" */ ]
+	_ = s[10:0 /* ERROR "invalid slice indices" */ :0]
 	_ = &s /* ERROR "cannot take address" */ [:10]
 
 	var m map[string]int
@@ -110,8 +110,8 @@ func indexes() {
 	_ = t[- /* ERROR "negative" */ 1]
 	_ = t[- /* ERROR "negative" */ 1 :]
 	_ = t[: - /* ERROR "negative" */ 1]
-	_ = t /* ERROR "3-index slice of string" */ [1:2:3]
-	_ = "foo" /* ERROR "3-index slice of string" */ [1:2:3]
+	_ = t[1:2:3 /* ERROR "3-index slice of string" */ ]
+	_ = "foo"[1:2:3 /* ERROR "3-index slice of string" */ ]
 	var t0 byte
 	t0 = t[0]
 	_ = t0
@@ -459,9 +459,9 @@ func type_asserts() {
 
 	var t I
 	_ = t /* ERROR "use of .* outside type switch" */ .(type)
-	_ = t /* ERROR "m method has pointer receiver" */ .(T)
+	_ = t /* ERROR "method m has pointer receiver" */ .(T)
 	_ = t.(*T)
-	_ = t /* ERROR "missing m method" */ .(T1)
+	_ = t /* ERROR "missing method m" */ .(T1)
 	_ = t /* ERROR "wrong type for method m" */ .(T2)
 	_ = t /* STRICT "wrong type for method m" */ .(I2) // only an error in strict mode (issue 8561)
 
@@ -494,23 +494,23 @@ func _calls() {
 	f1(0)
 	f1(x)
 	f1(10.0)
-	f1() /* ERROR "not enough arguments" */
-	f1(x, y /* ERROR "too many arguments" */ )
+	f1 /* ERROR "not enough arguments in call to f1\n\thave \(\)\n\twant \(int\)" */ ()
+	f1(x, y /* ERROR "too many arguments in call to f1\n\thave \(int, float32\)\n\twant \(int\)" */ )
 	f1(s /* ERROR "cannot use .* in argument" */ )
 	f1(x ... /* ERROR "cannot use ..." */ )
 	f1(g0 /* ERROR "used as value" */ ())
 	f1(g1())
-	f1(g2 /* ERROR "too many arguments" */ ())
+	f1(g2 /* ERROR "too many arguments in call to f1\n\thave \(float32, string\)\n\twant \(int\)" */ ())
 
-	f2() /* ERROR "not enough arguments" */
-	f2(3.14) /* ERROR "not enough arguments" */
+	f2 /* ERROR "not enough arguments in call to f2\n\thave \(\)\n\twant \(float32, string\)" */ ()
+	f2(3.14 /* ERROR "not enough arguments in call to f2\n\thave \(number\)\n\twant \(float32, string\)" */ )
 	f2(3.14, "foo")
 	f2(x /* ERROR "cannot use .* in argument" */ , "foo")
 	f2(g0 /* ERROR "used as value" */ ())
-	f2(g1()) /* ERROR "not enough arguments" */
+	f2(g1 /* ERROR "not enough arguments in call to f2\n\thave \(int\)\n\twant \(float32, string\)" */ ())
 	f2(g2())
 
-	fs() /* ERROR "not enough arguments" */
+	fs /* ERROR "not enough arguments" */ ()
 	fs(g0 /* ERROR "used as value" */ ())
 	fs(g1 /* ERROR "cannot use .* in argument" */ ())
 	fs(g2 /* ERROR "too many arguments" */ ())

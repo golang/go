@@ -7,6 +7,7 @@
 package net
 
 import (
+	"errors"
 	"os"
 	"syscall"
 )
@@ -31,4 +32,8 @@ func samePlatformError(err, want error) bool {
 		err = sys.Err
 	}
 	return err == want
+}
+
+func isENOBUFS(err error) bool {
+	return errors.Is(err, syscall.ENOBUFS)
 }

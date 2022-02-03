@@ -183,6 +183,13 @@ func TestRepoRootForImportPath(t *testing.T) {
 			"chiselapp.com/user/kyle/fossilgg",
 			nil,
 		},
+		{
+			"bitbucket.org/workspace/pkgname",
+			&RepoRoot{
+				VCS:  vcsGit,
+				Repo: "https://bitbucket.org/workspace/pkgname",
+			},
+		},
 	}
 
 	for _, test := range tests {

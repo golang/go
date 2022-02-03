@@ -7,6 +7,7 @@
 package main
 
 import (
+	"cmd/go/internal/workcmd"
 	"context"
 	"flag"
 	"fmt"
@@ -56,6 +57,7 @@ func init() {
 		work.CmdInstall,
 		list.CmdList,
 		modcmd.CmdMod,
+		workcmd.CmdWork,
 		run.CmdRun,
 		test.CmdTest,
 		tool.CmdTool,
