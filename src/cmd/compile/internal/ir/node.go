@@ -551,7 +551,8 @@ func SetPos(n Node) src.XPos {
 }
 
 // The result of InitExpr MUST be assigned back to n, e.g.
-// 	n.X = InitExpr(init, n.X)
+//
+//	n.X = InitExpr(init, n.X)
 func InitExpr(init []Node, expr Node) Node {
 	if len(init) == 0 {
 		return expr

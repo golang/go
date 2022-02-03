@@ -92,9 +92,9 @@ func (s *Selection) Type() Type {
 // The last index entry is the field or method index of the type declaring f;
 // either:
 //
-//	1) the list of declared methods of a named type; or
-//	2) the list of methods of an interface type; or
-//	3) the list of fields of a struct type.
+//  1. the list of declared methods of a named type; or
+//  2. the list of methods of an interface type; or
+//  3. the list of fields of a struct type.
 //
 // The earlier index entries are the indices of the embedded fields implicitly
 // traversed to get from (the type of) x to f, starting at embedding depth 0.
@@ -111,6 +111,7 @@ func (s *Selection) String() string { return SelectionString(s, nil) }
 // package-level objects, and may be nil.
 //
 // Examples:
+//
 //	"field (T) f int"
 //	"method (T) f(X) Y"
 //	"method expr (T) f(X) Y"

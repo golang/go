@@ -19,10 +19,12 @@ import (
 // A Block represents a PEM encoded structure.
 //
 // The encoded form is:
-//    -----BEGIN Type-----
-//    Headers
-//    base64-encoded Bytes
-//    -----END Type-----
+//
+//	-----BEGIN Type-----
+//	Headers
+//	base64-encoded Bytes
+//	-----END Type-----
+//
 // where Headers is a possibly empty sequence of Key: Value lines.
 type Block struct {
 	Type    string            // The type, taken from the preamble (i.e. "RSA PRIVATE KEY").

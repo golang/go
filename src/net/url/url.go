@@ -793,15 +793,15 @@ func validOptionalPort(port string) bool {
 // To obtain the path, String uses u.EscapedPath().
 //
 // In the second form, the following rules apply:
-//	- if u.Scheme is empty, scheme: is omitted.
-//	- if u.User is nil, userinfo@ is omitted.
-//	- if u.Host is empty, host/ is omitted.
-//	- if u.Scheme and u.Host are empty and u.User is nil,
-//	   the entire scheme://userinfo@host/ is omitted.
-//	- if u.Host is non-empty and u.Path begins with a /,
-//	   the form host/path does not add its own /.
-//	- if u.RawQuery is empty, ?query is omitted.
-//	- if u.Fragment is empty, #fragment is omitted.
+//   - if u.Scheme is empty, scheme: is omitted.
+//   - if u.User is nil, userinfo@ is omitted.
+//   - if u.Host is empty, host/ is omitted.
+//   - if u.Scheme and u.Host are empty and u.User is nil,
+//     the entire scheme://userinfo@host/ is omitted.
+//   - if u.Host is non-empty and u.Path begins with a /,
+//     the form host/path does not add its own /.
+//   - if u.RawQuery is empty, ?query is omitted.
+//   - if u.Fragment is empty, #fragment is omitted.
 func (u *URL) String() string {
 	var buf strings.Builder
 	if u.Scheme != "" {
@@ -1207,10 +1207,11 @@ func (u *URL) JoinPath(elem ...string) *URL {
 
 // validUserinfo reports whether s is a valid userinfo string per RFC 3986
 // Section 3.2.1:
-//     userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
-//     unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
-//     sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
-//                   / "*" / "+" / "," / ";" / "="
+//
+//	userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+//	unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
+//	sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
+//	              / "*" / "+" / "," / ";" / "="
 //
 // It doesn't validate pct-encoded. The caller does that via func unescape.
 func validUserinfo(s string) bool {

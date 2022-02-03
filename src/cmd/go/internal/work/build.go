@@ -532,16 +532,22 @@ See also: go build, go get, go clean.
 // libname returns the filename to use for the shared library when using
 // -buildmode=shared. The rules we use are:
 // Use arguments for special 'meta' packages:
+//
 //	std --> libstd.so
 //	std cmd --> libstd,cmd.so
+//
 // A single non-meta argument with trailing "/..." is special cased:
+//
 //	foo/... --> libfoo.so
 //	(A relative path like "./..."  expands the "." first)
+//
 // Use import paths for other cases, changing '/' to '-':
+//
 //	somelib --> libsubdir-somelib.so
 //	./ or ../ --> libsubdir-somelib.so
 //	gopkg.in/tomb.v2 -> libgopkg.in-tomb.v2.so
 //	a/... b/... ---> liba/c,b/d.so - all matching import paths
+//
 // Name parts are joined with ','.
 func libname(args []string, pkgs []*load.Package) (string, error) {
 	var libname string

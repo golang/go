@@ -286,10 +286,10 @@ func dvarint(x *obj.LSym, off int, v int64) int {
 // for stack variables are specified as the number of bytes below varp (pointer to the
 // top of the local variables) for their starting address. The format is:
 //
-//  - Offset of the deferBits variable
-//  - Number of defers in the function
-//  - Information about each defer call, in reverse order of appearance in the function:
-//    - Offset of the closure value to call
+//   - Offset of the deferBits variable
+//   - Number of defers in the function
+//   - Information about each defer call, in reverse order of appearance in the function:
+//   - Offset of the closure value to call
 func (s *state) emitOpenDeferInfo() {
 	x := base.Ctxt.Lookup(s.curfn.LSym.Name + ".opendefer")
 	x.Set(obj.AttrContentAddressable, true)

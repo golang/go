@@ -55,19 +55,21 @@ func fuse(f *Func, typ fuseType) {
 
 // fuseBlockIf handles the following cases where s0 and s1 are empty blocks.
 //
-//       b        b           b       b
-//    \ / \ /    | \  /    \ / |     | |
-//     s0  s1    |  s1      s0 |     | |
-//      \ /      | /         \ |     | |
-//       ss      ss           ss      ss
+//	   b        b           b       b
+//	\ / \ /    | \  /    \ / |     | |
+//	 s0  s1    |  s1      s0 |     | |
+//	  \ /      | /         \ |     | |
+//	   ss      ss           ss      ss
 //
 // If all Phi ops in ss have identical variables for slots corresponding to
 // s0, s1 and b then the branch can be dropped.
 // This optimization often comes up in switch statements with multiple
 // expressions in a case clause:
-//   switch n {
-//     case 1,2,3: return 4
-//   }
+//
+//	switch n {
+//	  case 1,2,3: return 4
+//	}
+//
 // TODO: If ss doesn't contain any OpPhis, are s0 and s1 dead code anyway.
 func fuseBlockIf(b *Block) bool {
 	if b.Kind != BlockIf {

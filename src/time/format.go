@@ -8,12 +8,16 @@ import "errors"
 
 // These are predefined layouts for use in Time.Format and time.Parse.
 // The reference time used in these layouts is the specific time stamp:
+//
 //	01/02 03:04:05PM '06 -0700
+//
 // (January 2, 15:04:05, 2006, in time zone seven hours west of GMT).
 // That value is recorded as the constant named Layout, listed below. As a Unix
 // time, this is 1136239445. Since MST is GMT-0700, the reference would be
 // printed by the Unix date command as:
+//
 //	Mon Jan 2 15:04:05 MST 2006
+//
 // It is a regrettable historic error that the date uses the American convention
 // of putting the numerical month before the day.
 //
@@ -59,12 +63,15 @@ import "errors"
 //	AM/PM mark: "PM"
 //
 // Numeric time zone offsets format as follows:
+//
 //	"-0700"  ±hhmm
 //	"-07:00" ±hh:mm
 //	"-07"    ±hh
+//
 // Replacing the sign in the format with a Z triggers
 // the ISO 8601 behavior of printing Z instead of an
 // offset for the UTC zone. Thus:
+//
 //	"Z0700"  Z or ±hhmm
 //	"Z07:00" Z or ±hh:mm
 //	"Z07"    Z or ±hh
@@ -484,6 +491,7 @@ func formatNano(b []byte, nanosec uint, std int) []byte {
 }
 
 // String returns the time formatted using the format string
+//
 //	"2006-01-02 15:04:05.999999999 -0700 MST"
 //
 // If the time has a monotonic clock reading, the returned string

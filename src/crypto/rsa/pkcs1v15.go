@@ -197,10 +197,12 @@ func nonZeroRandomBytes(s []byte, rand io.Reader) (err error) {
 }
 
 // These are ASN1 DER structures:
-//   DigestInfo ::= SEQUENCE {
-//     digestAlgorithm AlgorithmIdentifier,
-//     digest OCTET STRING
-//   }
+//
+//	DigestInfo ::= SEQUENCE {
+//	  digestAlgorithm AlgorithmIdentifier,
+//	  digest OCTET STRING
+//	}
+//
 // For performance, we don't use the generic ASN1 encoder. Rather, we
 // precompute a prefix of the digest value that makes a valid ASN1 DER string
 // with the correct contents.

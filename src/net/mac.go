@@ -26,6 +26,7 @@ func (a HardwareAddr) String() string {
 
 // ParseMAC parses s as an IEEE 802 MAC-48, EUI-48, EUI-64, or a 20-octet
 // IP over InfiniBand link-layer address using one of the following formats:
+//
 //	00:00:5e:00:53:01
 //	02:00:5e:10:00:00:00:01
 //	00:00:00:00:fe:80:00:00:00:00:00:00:02:00:5e:10:00:00:00:01

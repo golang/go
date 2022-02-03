@@ -99,10 +99,9 @@ func add1(p *byte) *byte {
 
 // subtract1 returns the byte pointer p-1.
 //
-//go:nowritebarrier
-//
 // nosplit because it is used during write barriers and must not be preempted.
 //
+//go:nowritebarrier
 //go:nosplit
 func subtract1(p *byte) *byte {
 	// Note: wrote out full expression instead of calling subtractb(p, 1)

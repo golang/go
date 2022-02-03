@@ -11,7 +11,7 @@ The set of metrics defined by this package may evolve as the runtime itself
 evolves, and also enables variation across Go implementations, whose relevant
 metric sets may not intersect.
 
-Interface
+# Interface
 
 Metrics are designated by a string key, rather than, for example, a field name in
 a struct. The full list of supported metrics is always available in the slice of
@@ -30,7 +30,7 @@ In the interest of not breaking users of this package, the "kind" for a given me
 is guaranteed not to change. If it must change, then a new metric will be introduced
 with a new key and a new "kind."
 
-Metric key format
+# Metric key format
 
 As mentioned earlier, metric keys are strings. Their format is simple and well-defined,
 designed to be both human and machine readable. It is split into two components,
@@ -41,13 +41,13 @@ did also, and a new key should be introduced.
 For more details on the precise definition of the metric key's path and unit formats, see
 the documentation of the Name field of the Description struct.
 
-A note about floats
+# A note about floats
 
 This package supports metrics whose values have a floating-point representation. In
 order to improve ease-of-use, this package promises to never produce the following
 classes of floating-point values: NaN, infinity.
 
-Supported metrics
+# Supported metrics
 
 Below is the full list of supported metrics, ordered lexicographically.
 

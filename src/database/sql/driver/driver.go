@@ -47,12 +47,12 @@ import (
 // It is either nil, a type handled by a database driver's NamedValueChecker
 // interface, or an instance of one of these types:
 //
-//   int64
-//   float64
-//   bool
-//   []byte
-//   string
-//   time.Time
+//	int64
+//	float64
+//	bool
+//	[]byte
+//	string
+//	time.Time
 //
 // If the driver supports cursors, a returned Value may also implement the Rows interface
 // in this package. This is used, for example, when a user selects a cursor
@@ -481,12 +481,13 @@ type RowsColumnTypeDatabaseTypeName interface {
 // not a variable length type ok should return false.
 // If length is not limited other than system limits, it should return math.MaxInt64.
 // The following are examples of returned values for various types:
-//   TEXT          (math.MaxInt64, true)
-//   varchar(10)   (10, true)
-//   nvarchar(10)  (10, true)
-//   decimal       (0, false)
-//   int           (0, false)
-//   bytea(30)     (30, true)
+//
+//	TEXT          (math.MaxInt64, true)
+//	varchar(10)   (10, true)
+//	nvarchar(10)  (10, true)
+//	decimal       (0, false)
+//	int           (0, false)
+//	bytea(30)     (30, true)
 type RowsColumnTypeLength interface {
 	Rows
 	ColumnTypeLength(index int) (length int64, ok bool)
@@ -504,9 +505,10 @@ type RowsColumnTypeNullable interface {
 // RowsColumnTypePrecisionScale may be implemented by Rows. It should return
 // the precision and scale for decimal types. If not applicable, ok should be false.
 // The following are examples of returned values for various types:
-//   decimal(38, 4)    (38, 4, true)
-//   int               (0, 0, false)
-//   decimal           (math.MaxInt64, math.MaxInt64, true)
+//
+//	decimal(38, 4)    (38, 4, true)
+//	int               (0, 0, false)
+//	decimal           (math.MaxInt64, math.MaxInt64, true)
 type RowsColumnTypePrecisionScale interface {
 	Rows
 	ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool)

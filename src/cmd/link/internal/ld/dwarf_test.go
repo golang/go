@@ -1462,11 +1462,11 @@ func TestIssue42484(t *testing.T) {
 // captures the name, order, and classification of the subprogram's
 // input and output parameters. For example, for the go function
 //
-//     func foo(i1 int, f1 float64) (string, bool) {
+//	func foo(i1 int, f1 float64) (string, bool) {
 //
 // this function would return a string something like
 //
-//     i1:0:1 f1:1:1 ~r0:2:2 ~r1:3:2
+//	i1:0:1 f1:1:1 ~r0:2:2 ~r1:3:2
 //
 // where each chunk above is of the form NAME:ORDER:INOUTCLASSIFICATION
 func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {

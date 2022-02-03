@@ -333,10 +333,9 @@ func (z *Int) Abs(x *Int) *Int {
 
 // CmpInt compares x and y. The result is
 //
-//   -1 if x <  y
-//    0 if x == y
-//   +1 if x >  y
-//
+//	-1 if x <  y
+//	 0 if x == y
+//	+1 if x >  y
 func CmpInt(x, y *Int) int {
 	x.doinit()
 	y.doinit()

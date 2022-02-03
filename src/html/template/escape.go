@@ -411,13 +411,19 @@ func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
 // nudge returns the context that would result from following empty string
 // transitions from the input context.
 // For example, parsing:
-//     `<a href=`
+//
+//	`<a href=`
+//
 // will end in context{stateBeforeValue, attrURL}, but parsing one extra rune:
-//     `<a href=x`
+//
+//	`<a href=x`
+//
 // will end in context{stateURL, delimSpaceOrTagEnd, ...}.
 // There are two transitions that happen when the 'x' is seen:
 // (1) Transition from a before-value state to a start-of-value state without
-//     consuming any character.
+//
+//	consuming any character.
+//
 // (2) Consume 'x' and transition past the first value character.
 // In this case, nudging produces the context after (1) happens.
 func nudge(c context) context {

@@ -478,9 +478,9 @@ func (z *Int) scaleDenom(x *Int, f nat) {
 
 // Cmp compares x and y and returns:
 //
-//   -1 if x <  y
-//    0 if x == y
-//   +1 if x >  y
+//	-1 if x <  y
+//	 0 if x == y
+//	+1 if x >  y
 func (x *Rat) Cmp(y *Rat) int {
 	var a, b Int
 	a.scaleDenom(&x.a, y.b.abs)

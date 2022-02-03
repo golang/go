@@ -84,7 +84,7 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
 // "O" is an explicit indication that we expect it to be optimized out.
 // For example:
 //
-// 	if len(os.Args) > 1 { //gdb-dbg=(hist/A,cannedInput/A) //dlv-dbg=(hist/A,cannedInput/A)
+//	if len(os.Args) > 1 { //gdb-dbg=(hist/A,cannedInput/A) //dlv-dbg=(hist/A,cannedInput/A)
 //
 // TODO: not implemented for Delve yet, but this is the plan
 //

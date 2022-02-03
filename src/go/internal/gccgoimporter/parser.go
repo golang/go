@@ -1115,9 +1115,10 @@ func (p *parser) maybeCreatePackage() {
 }
 
 // InitDataDirective = ( "v1" | "v2" | "v3" ) ";" |
-//                     "priority" int ";" |
-//                     "init" { PackageInit } ";" |
-//                     "checksum" unquotedString ";" .
+//
+//	"priority" int ";" |
+//	"init" { PackageInit } ";" |
+//	"checksum" unquotedString ";" .
 func (p *parser) parseInitDataDirective() {
 	if p.tok != scanner.Ident {
 		// unexpected token kind; panic
@@ -1168,15 +1169,16 @@ func (p *parser) parseInitDataDirective() {
 }
 
 // Directive = InitDataDirective |
-//             "package" unquotedString [ unquotedString ] [ unquotedString ] ";" |
-//             "pkgpath" unquotedString ";" |
-//             "prefix" unquotedString ";" |
-//             "import" unquotedString unquotedString string ";" |
-//             "indirectimport" unquotedString unquotedstring ";" |
-//             "func" Func ";" |
-//             "type" Type ";" |
-//             "var" Var ";" |
-//             "const" Const ";" .
+//
+//	"package" unquotedString [ unquotedString ] [ unquotedString ] ";" |
+//	"pkgpath" unquotedString ";" |
+//	"prefix" unquotedString ";" |
+//	"import" unquotedString unquotedString string ";" |
+//	"indirectimport" unquotedString unquotedstring ";" |
+//	"func" Func ";" |
+//	"type" Type ";" |
+//	"var" Var ";" |
+//	"const" Const ";" .
 func (p *parser) parseDirective() {
 	if p.tok != scanner.Ident {
 		// unexpected token kind; panic

@@ -731,10 +731,10 @@ func (r *resolver) performWildcardQueries(ctx context.Context) {
 }
 
 // queryWildcard adds a candidate set to q for each module for which:
-// 	- some version of the module is already in the build list, and
-// 	- that module exists at some version matching q.version, and
-// 	- either the module path itself matches q.pattern, or some package within
-// 	  the module at q.version matches q.pattern.
+//   - some version of the module is already in the build list, and
+//   - that module exists at some version matching q.version, and
+//   - either the module path itself matches q.pattern, or some package within
+//     the module at q.version matches q.pattern.
 func (r *resolver) queryWildcard(ctx context.Context, q *query) {
 	// For wildcard patterns, modload.QueryPattern only identifies modules
 	// matching the prefix of the path before the wildcard. However, the build

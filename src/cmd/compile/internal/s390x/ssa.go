@@ -132,7 +132,9 @@ func moveByType(t *types.Type) obj.As {
 }
 
 // opregreg emits instructions for
-//     dest := dest(To) op src(From)
+//
+//	dest := dest(To) op src(From)
+//
 // and also returns the created obj.Prog so it
 // may be further adjusted (offset, scale, etc).
 func opregreg(s *ssagen.State, op obj.As, dest, src int16) *obj.Prog {
@@ -145,7 +147,9 @@ func opregreg(s *ssagen.State, op obj.As, dest, src int16) *obj.Prog {
 }
 
 // opregregimm emits instructions for
+//
 //	dest := src(From) op off
+//
 // and also returns the created obj.Prog so it
 // may be further adjusted (offset, scale, etc).
 func opregregimm(s *ssagen.State, op obj.As, dest, src int16, off int64) *obj.Prog {

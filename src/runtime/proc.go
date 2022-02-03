@@ -1664,9 +1664,9 @@ func forEachP(fn func(*p)) {
 // runSafePointFn runs the safe point function, if any, for this P.
 // This should be called like
 //
-//     if getg().m.p.runSafePointFn != 0 {
-//         runSafePointFn()
-//     }
+//	if getg().m.p.runSafePointFn != 0 {
+//	    runSafePointFn()
+//	}
 //
 // runSafePointFn must be checked on any transition in to _Pidle or
 // _Psyscall to avoid a race where forEachP sees that the P is running
@@ -5602,11 +5602,11 @@ func (p pMask) clear(id int32) {
 //
 // Thus, we get the following effects on timer-stealing in findrunnable:
 //
-//  * Idle Ps with no timers when they go idle are never checked in findrunnable
-//    (for work- or timer-stealing; this is the ideal case).
-//  * Running Ps must always be checked.
-//  * Idle Ps whose timers are stolen must continue to be checked until they run
-//    again, even after timer expiration.
+//   - Idle Ps with no timers when they go idle are never checked in findrunnable
+//     (for work- or timer-stealing; this is the ideal case).
+//   - Running Ps must always be checked.
+//   - Idle Ps whose timers are stolen must continue to be checked until they run
+//     again, even after timer expiration.
 //
 // When the P starts running again, the mask should be set, as a timer may be
 // added at any time.

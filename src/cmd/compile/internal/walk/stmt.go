@@ -10,7 +10,8 @@ import (
 )
 
 // The result of walkStmt MUST be assigned back to n, e.g.
-// 	n.Left = walkStmt(n.Left)
+//
+//	n.Left = walkStmt(n.Left)
 func walkStmt(n ir.Node) ir.Node {
 	if n == nil {
 		return n

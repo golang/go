@@ -1884,6 +1884,7 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
 }
 
 // cover runs, in effect,
+//
 //	go tool cover -mode=b.coverMode -var="varName" -o dst.go src.go
 func (b *Builder) cover(a *Action, dst, src string, varName string) error {
 	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,

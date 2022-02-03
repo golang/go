@@ -62,9 +62,9 @@ type Timer struct {
 // return value and drain the channel.
 // For example, assuming the program has not received from t.C already:
 //
-// 	if !t.Stop() {
-// 		<-t.C
-// 	}
+//	if !t.Stop() {
+//		<-t.C
+//	}
 //
 // This cannot be done concurrent to other receives from the Timer's
 // channel or other calls to the Timer's Stop method.
@@ -110,10 +110,10 @@ func NewTimer(d Duration) *Timer {
 // the timer must be stopped and—if Stop reports that the timer expired
 // before being stopped—the channel explicitly drained:
 //
-// 	if !t.Stop() {
-// 		<-t.C
-// 	}
-// 	t.Reset(d)
+//	if !t.Stop() {
+//		<-t.C
+//	}
+//	t.Reset(d)
 //
 // This should not be done concurrent to other receives from the Timer's
 // channel.

@@ -353,21 +353,21 @@ func walkFilenames(ctxt *Link, funcs []loader.Sym, f func(*sym.CompilationUnit, 
 // This function creates a per-CU list of filenames if CU[M] references
 // files[1-N], the following is generated:
 //
-//  runtime.cutab:
-//    CU[M]
-//     offsetToFilename[0]
-//     offsetToFilename[1]
-//     ..
+//	runtime.cutab:
+//	  CU[M]
+//	   offsetToFilename[0]
+//	   offsetToFilename[1]
+//	   ..
 //
-//  runtime.filetab
-//     filename[0]
-//     filename[1]
+//	runtime.filetab
+//	   filename[0]
+//	   filename[1]
 //
 // Looking up a filename then becomes:
-//  0) Given a func, and filename index [K]
-//  1) Get Func.CUIndex:       M := func.cuOffset
-//  2) Find filename offset:   fileOffset := runtime.cutab[M+K]
-//  3) Get the filename:       getcstring(runtime.filetab[fileOffset])
+//  0. Given a func, and filename index [K]
+//  1. Get Func.CUIndex:       M := func.cuOffset
+//  2. Find filename offset:   fileOffset := runtime.cutab[M+K]
+//  3. Get the filename:       getcstring(runtime.filetab[fileOffset])
 func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.CompilationUnit, funcs []loader.Sym) []uint32 {
 	// On a per-CU basis, keep track of all the filenames we need.
 	//

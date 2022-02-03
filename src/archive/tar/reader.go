@@ -336,9 +336,9 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 // header in case further processing is required.
 //
 // The err will be set to io.EOF only when one of the following occurs:
-//	* Exactly 0 bytes are read and EOF is hit.
-//	* Exactly 1 block of zeros is read and EOF is hit.
-//	* At least 2 blocks of zeros are read.
+//   - Exactly 0 bytes are read and EOF is hit.
+//   - Exactly 1 block of zeros is read and EOF is hit.
+//   - At least 2 blocks of zeros are read.
 func (tr *Reader) readHeader() (*Header, *block, error) {
 	// Two blocks of zero bytes marks the end of the archive.
 	if _, err := io.ReadFull(tr.r, tr.blk[:]); err != nil {

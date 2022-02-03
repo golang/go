@@ -8,7 +8,7 @@ such as functions to control goroutines. It also includes the low-level type inf
 used by the reflect package; see reflect's documentation for the programmable
 interface to the run-time type system.
 
-Environment Variables
+# Environment Variables
 
 The following environment variables ($name or %name%, depending on the host
 operating system) control the run-time behavior of Go programs. The meanings
@@ -172,9 +172,9 @@ or the failure is internal to the run-time.
 GOTRACEBACK=none omits the goroutine stack traces entirely.
 GOTRACEBACK=single (the default) behaves as described above.
 GOTRACEBACK=all adds stack traces for all user-created goroutines.
-GOTRACEBACK=system is like ``all'' but adds stack frames for run-time functions
+GOTRACEBACK=system is like “all” but adds stack frames for run-time functions
 and shows goroutines created internally by the run-time.
-GOTRACEBACK=crash is like ``system'' but crashes in an operating system-specific
+GOTRACEBACK=crash is like “system” but crashes in an operating system-specific
 manner instead of exiting. For example, on Unix systems, the crash raises
 SIGABRT to trigger a core dump.
 For historical reasons, the GOTRACEBACK settings 0, 1, and 2 are synonyms for

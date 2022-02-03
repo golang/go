@@ -131,10 +131,14 @@ var needSplit = map[Op]bool{
 }
 
 // For each entry k, v in this map, if we have a value x with:
-//   x.Op == k[0]
-//   x.Args[0].Op == k[1]
+//
+//	x.Op == k[0]
+//	x.Args[0].Op == k[1]
+//
 // then we can set x.Op to v and set x.Args like this:
-//   x.Args[0].Args + x.Args[1:]
+//
+//	x.Args[0].Args + x.Args[1:]
+//
 // Additionally, the Aux/AuxInt from x.Args[0] is merged into x.
 var combine = map[[2]Op]Op{
 	// amd64

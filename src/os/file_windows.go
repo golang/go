@@ -402,9 +402,10 @@ func openSymlink(path string) (syscall.Handle, error) {
 // DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...)
 // into paths acceptable by all Windows APIs.
 // For example, it converts
-//  \??\C:\foo\bar into C:\foo\bar
-//  \??\UNC\foo\bar into \\foo\bar
-//  \??\Volume{abc}\ into C:\
+//
+//	\??\C:\foo\bar into C:\foo\bar
+//	\??\UNC\foo\bar into \\foo\bar
+//	\??\Volume{abc}\ into C:\
 func normaliseLinkPath(path string) (string, error) {
 	if len(path) < 4 || path[:4] != `\??\` {
 		// unexpected path, return it as is
