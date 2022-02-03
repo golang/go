@@ -277,7 +277,7 @@ func propagateCancel(parent Context, child canceler) {
 		atomic.AddInt32(&goroutines, +1)
 		go func() {
 			select {
-			case <-parent.Done():
+			case <-done:
 				child.cancel(false, parent.Err())
 			case <-child.Done():
 			}
