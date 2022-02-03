@@ -614,25 +614,7 @@ func (ctxt *Link) loadlib() {
 				*flagLibGCC = ctxt.findLibPathCmd("--print-file-name=libcompiler_rt.a", "libcompiler_rt")
 			}
 			if ctxt.HeadType == objabi.Hwindows {
-				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				// Link libmsvcrt.a to resolve '__acrt_iob_func' symbol
-				// (see https://golang.org/issue/23649 for details).
-				if p := ctxt.findLibPath("libmsvcrt.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				// TODO: maybe do something similar to peimporteddlls to collect all lib names
-				// and try link them all to final exe just like libmingwex.a and libmingw32.a:
-				/*
-					for:
-					#cgo windows LDFLAGS: -lmsvcrt -lm
-					import:
-					libmsvcrt.a libm.a
-				*/
+				loadWindowsHostArchives(ctxt)
 			}
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
@@ -646,6 +628,52 @@ func (ctxt *Link) loadlib() {
 	importcycles()
 
 	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
+}
+
+// loadWindowsHostArchives loads in host archives and objects when
+// doing internal linking on windows. Older toolchains seem to require
+// just a single pass through the various archives, but some modern
+// toolchains when linking a C program with mingw pass library paths
+// multiple times to the linker, e.g. "... -lmingwex -lmingw32 ...
+// -lmingwex -lmingw32 ...". To accommodate this behavior, we make two
+// passes over the host archives below.
+func loadWindowsHostArchives(ctxt *Link) {
+	any := true
+	for i := 0; any && i < 2; i++ {
+		// Link crt2.o (if present) to resolve "atexit" when
+		// using LLVM-based compilers.
+		isunresolved := symbolsAreUnresolved(ctxt, []string{"atexit"})
+		if isunresolved[0] {
+			if p := ctxt.findLibPath("crt2.o"); p != "none" {
+				hostObject(ctxt, "crt2", p)
+			}
+		}
+		if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
+			hostArchive(ctxt, p)
+		}
+		if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
+			hostArchive(ctxt, p)
+		}
+		// Link libmsvcrt.a to resolve '__acrt_iob_func' symbol
+		// (see https://golang.org/issue/23649 for details).
+		if p := ctxt.findLibPath("libmsvcrt.a"); p != "none" {
+			hostArchive(ctxt, p)
+		}
+		any = false
+		undefs := ctxt.loader.UndefinedRelocTargets(1)
+		if len(undefs) > 0 {
+			any = true
+		}
+	}
+	// TODO: maybe do something similar to peimporteddlls to collect
+	// all lib names and try link them all to final exe just like
+	// libmingwex.a and libmingw32.a:
+	/*
+		for:
+		#cgo windows LDFLAGS: -lmsvcrt -lm
+		import:
+		libmsvcrt.a libm.a
+	*/
 }
 
 // loadcgodirectives reads the previously discovered cgo directives, creating
@@ -1998,6 +2026,59 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	addImports(ctxt, lib, pn)
 	return nil
+}
+
+// symbolsAreUnresolved scans through the loader's list of unresolved
+// symbols and checks to see whether any of them match the names of the
+// symbols in 'want'. Return value is a list of bools, with list[K] set
+// to true if there is an unresolved reference to the symbol in want[K].
+func symbolsAreUnresolved(ctxt *Link, want []string) []bool {
+	returnAllUndefs := -1
+	undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+	seen := make(map[loader.Sym]struct{})
+	rval := make([]bool, len(want))
+	wantm := make(map[string]int)
+	for k, w := range want {
+		wantm[w] = k
+	}
+	count := 0
+	for _, s := range undefs {
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		if k, ok := wantm[ctxt.loader.SymName(s)]; ok {
+			rval[k] = true
+			count++
+			if count == len(want) {
+				return rval
+			}
+		}
+	}
+	return rval
+}
+
+// hostObject reads a single host object file (compare to "hostArchive").
+// This is used as part of internal linking when we need to pull in
+// files such as "crt?.o".
+func hostObject(ctxt *Link, objname string, path string) {
+	if ctxt.Debugvlog > 1 {
+		ctxt.Logf("hostObject(%s)\n", path)
+	}
+	objlib := sym.Library{
+		Pkg: objname,
+	}
+	f, err := bio.Open(path)
+	if err != nil {
+		Exitf("cannot open host object %q file %s: %v", objname, path, err)
+	}
+	defer f.Close()
+	h := ldobj(ctxt, f, &objlib, 0, path, path)
+	if h.ld == nil {
+		Exitf("unrecognized object file format in %s", path)
+	}
+	f.MustSeek(h.off, 0)
+	h.ld(ctxt, f, h.pkg, h.length, h.pn)
 }
 
 func checkFingerprint(lib *sym.Library, libfp goobj.FingerprintType, src string, srcfp goobj.FingerprintType) {
