@@ -1480,6 +1480,7 @@ func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
 	s.SetUnderlying(u)
 	s.SetIsShape(true)
 	s.SetHasShape(true)
+	types.CalcSize(s)
 	name.SetType(s)
 	name.SetTypecheck(1)
 	submap[u] = s
