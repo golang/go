@@ -8,7 +8,7 @@ package rand
 // getrandom() syscall. In linux at most 2^25-1 bytes will be returned per call.
 // From the manpage
 //
-//	*  When reading from the urandom source, a maximum of 33554431 bytes
-//	   is returned by a single call to getrandom() on systems where int
-//	   has a size of 32 bits.
+//   - When reading from the urandom source, a maximum of 33554431 bytes
+//     is returned by a single call to getrandom() on systems where int
+//     has a size of 32 bits.
 const maxGetRandomRead = (1 << 25) - 1

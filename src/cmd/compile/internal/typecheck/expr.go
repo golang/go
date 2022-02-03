@@ -76,8 +76,9 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 // tcArith typechecks operands of a binary arithmetic expression.
 // The result of tcArith MUST be assigned back to original operands,
 // t is the type of the expression, and should be set by the caller. e.g:
-//     n.X, n.Y, t = tcArith(n, op, n.X, n.Y)
-//     n.SetType(t)
+//
+//	n.X, n.Y, t = tcArith(n, op, n.X, n.Y)
+//	n.SetType(t)
 func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	l, r = defaultlit2(l, r, false)
 	if l.Type() == nil || r.Type() == nil {
@@ -194,7 +195,8 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 }
 
 // The result of tcCompLit MUST be assigned back to n, e.g.
-// 	n.Left = tcCompLit(n.Left)
+//
+//	n.Left = tcCompLit(n.Left)
 func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("tcCompLit", n)(&res)

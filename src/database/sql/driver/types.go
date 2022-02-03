@@ -17,16 +17,16 @@ import (
 // driver package to provide consistent implementations of conversions
 // between drivers. The ValueConverters have several uses:
 //
-//  * converting from the Value types as provided by the sql package
-//    into a database table's specific column type and making sure it
-//    fits, such as making sure a particular int64 fits in a
-//    table's uint16 column.
+//   - converting from the Value types as provided by the sql package
+//     into a database table's specific column type and making sure it
+//     fits, such as making sure a particular int64 fits in a
+//     table's uint16 column.
 //
-//  * converting a value as given from the database into one of the
-//    driver Value types.
+//   - converting a value as given from the database into one of the
+//     driver Value types.
 //
-//  * by the sql package, for converting from a driver's Value type
-//    to a user's type in a scan.
+//   - by the sql package, for converting from a driver's Value type
+//     to a user's type in a scan.
 type ValueConverter interface {
 	// ConvertValue converts a value to a driver Value.
 	ConvertValue(v any) (Value, error)
@@ -45,13 +45,13 @@ type Valuer interface {
 // Bool is a ValueConverter that converts input values to bools.
 //
 // The conversion rules are:
-//  - booleans are returned unchanged
-//  - for integer types,
-//       1 is true
-//       0 is false,
-//       other integers are an error
-//  - for strings and []byte, same rules as strconv.ParseBool
-//  - all other types are an error
+//   - booleans are returned unchanged
+//   - for integer types,
+//     1 is true
+//     0 is false,
+//     other integers are an error
+//   - for strings and []byte, same rules as strconv.ParseBool
+//   - all other types are an error
 var Bool boolType
 
 type boolType struct{}

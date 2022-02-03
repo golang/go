@@ -67,11 +67,11 @@ func shortcircuit(f *Func) {
 //
 // (1) Look for a CFG of the form
 //
-//   p   other pred(s)
-//    \ /
-//     b
-//    / \
-//   t   other succ
+//	p   other pred(s)
+//	 \ /
+//	  b
+//	 / \
+//	t   other succ
 //
 // in which b is an If block containing a single phi value with a single use (b's Control),
 // which has a ConstBool arg.
@@ -80,21 +80,21 @@ func shortcircuit(f *Func) {
 //
 // Rewrite this into
 //
-//   p   other pred(s)
-//   |  /
-//   | b
-//   |/ \
-//   t   u
+//	p   other pred(s)
+//	|  /
+//	| b
+//	|/ \
+//	t   u
 //
 // and remove the appropriate phi arg(s).
 //
 // (2) Look for a CFG of the form
 //
-//   p   q
-//    \ /
-//     b
-//    / \
-//   t   u
+//	p   q
+//	 \ /
+//	  b
+//	 / \
+//	t   u
 //
 // in which b is as described in (1).
 // However, b may also contain other phi values.

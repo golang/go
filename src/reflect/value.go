@@ -1437,7 +1437,9 @@ func (v Value) CanInterface() bool {
 
 // Interface returns v's current value as an interface{}.
 // It is equivalent to:
+//
 //	var i interface{} = (v's underlying value)
+//
 // It panics if the Value was obtained by accessing
 // unexported struct fields.
 func (v Value) Interface() (i any) {
@@ -1825,7 +1827,7 @@ func (iter *MapIter) Reset(v Value) {
 // Example:
 //
 //	iter := reflect.ValueOf(m).MapRange()
-// 	for iter.Next() {
+//	for iter.Next() {
 //		k := iter.Key()
 //		v := iter.Value()
 //		...

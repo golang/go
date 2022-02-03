@@ -17,8 +17,8 @@
 // The package is sometimes only imported for the side effect of
 // registering its HTTP handler and the above variables. To use it
 // this way, link this package into your program:
-//	import _ "expvar"
 //
+//	import _ "expvar"
 package expvar
 
 import (

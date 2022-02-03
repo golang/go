@@ -27,6 +27,7 @@ func isInf(f float64) bool {
 // Abs returns the absolute value of x.
 //
 // Special cases are:
+//
 //	Abs(±Inf) = +Inf
 //	Abs(NaN) = NaN
 func abs(x float64) float64 {

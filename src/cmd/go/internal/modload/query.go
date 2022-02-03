@@ -33,19 +33,27 @@ import (
 // The version must take one of the following forms:
 //
 // - the literal string "latest", denoting the latest available, allowed
-//   tagged version, with non-prereleases preferred over prereleases.
-//   If there are no tagged versions in the repo, latest returns the most
-//   recent commit.
+//
+//	tagged version, with non-prereleases preferred over prereleases.
+//	If there are no tagged versions in the repo, latest returns the most
+//	recent commit.
+//
 // - the literal string "upgrade", equivalent to "latest" except that if
-//   current is a newer version, current will be returned (see below).
+//
+//	current is a newer version, current will be returned (see below).
+//
 // - the literal string "patch", denoting the latest available tagged version
-//   with the same major and minor number as current (see below).
+//
+//	with the same major and minor number as current (see below).
+//
 // - v1, denoting the latest available tagged version v1.x.x.
 // - v1.2, denoting the latest available tagged version v1.2.x.
 // - v1.2.3, a semantic version string denoting that tagged version.
 // - <v1.2.3, <=v1.2.3, >v1.2.3, >=v1.2.3,
-//   denoting the version closest to the target and satisfying the given operator,
-//   with non-prereleases preferred over prereleases.
+//
+//	denoting the version closest to the target and satisfying the given operator,
+//	with non-prereleases preferred over prereleases.
+//
 // - a repository commit identifier or tag, denoting that commit.
 //
 // current denotes the currently-selected version of the module; it may be
@@ -433,9 +441,9 @@ func (qm *queryMatcher) allowsVersion(ctx context.Context, v string) bool {
 
 // filterVersions classifies versions into releases and pre-releases, filtering
 // out:
-// 	1. versions that do not satisfy the 'allowed' predicate, and
-// 	2. "+incompatible" versions, if a compatible one satisfies the predicate
-// 	   and the incompatible version is not preferred.
+//  1. versions that do not satisfy the 'allowed' predicate, and
+//  2. "+incompatible" versions, if a compatible one satisfies the predicate
+//     and the incompatible version is not preferred.
 //
 // If the allowed predicate returns an error not equivalent to ErrDisallowed,
 // filterVersions returns that error.

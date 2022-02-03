@@ -681,7 +681,8 @@ func anyCall(fn *ir.Func) bool {
 }
 
 // eqfield returns the node
-// 	p.field == q.field
+//
+//	p.field == q.field
 func eqfield(p ir.Node, q ir.Node, field *types.Sym) ir.Node {
 	nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)
 	ny := ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)
@@ -690,9 +691,13 @@ func eqfield(p ir.Node, q ir.Node, field *types.Sym) ir.Node {
 }
 
 // EqString returns the nodes
-//   len(s) == len(t)
+//
+//	len(s) == len(t)
+//
 // and
-//   memequal(s.ptr, t.ptr, len(s))
+//
+//	memequal(s.ptr, t.ptr, len(s))
+//
 // which can be used to construct string equality comparison.
 // eqlen must be evaluated before eqmem, and shortcircuiting is required.
 func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
@@ -714,9 +719,13 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 }
 
 // EqInterface returns the nodes
-//   s.tab == t.tab (or s.typ == t.typ, as appropriate)
+//
+//	s.tab == t.tab (or s.typ == t.typ, as appropriate)
+//
 // and
-//   ifaceeq(s.tab, s.data, t.data) (or efaceeq(s.typ, s.data, t.data), as appropriate)
+//
+//	ifaceeq(s.tab, s.data, t.data) (or efaceeq(s.typ, s.data, t.data), as appropriate)
+//
 // which can be used to construct interface equality comparison.
 // eqtab must be evaluated before eqdata, and shortcircuiting is required.
 func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
@@ -750,7 +759,8 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 }
 
 // eqmem returns the node
-// 	memequal(&p.field, &q.field [, size])
+//
+//	memequal(&p.field, &q.field [, size])
 func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
 	nx := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)))
 	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))

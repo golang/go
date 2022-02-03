@@ -1225,7 +1225,9 @@ var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link"}
 // commands (like "go tool dist test" in run.bash) can rely on bug fixes
 // made since Go 1.4, but this function cannot. In particular, the uses
 // of os/exec in this function cannot assume that
+//
 //	cmd.Env = append(os.Environ(), "X=Y")
+//
 // sets $X to Y in the command's environment. That guarantee was
 // added after Go 1.4, and in fact in Go 1.4 it was typically the opposite:
 // if $X was already present in os.Environ(), most systems preferred

@@ -13,11 +13,11 @@ objects of the same type.
 Only methods that satisfy these criteria will be made available for remote access;
 other methods will be ignored:
 
-	- the method's type is exported.
-	- the method is exported.
-	- the method has two arguments, both exported (or builtin) types.
-	- the method's second argument is a pointer.
-	- the method has return type error.
+  - the method's type is exported.
+  - the method is exported.
+  - the method has two arguments, both exported (or builtin) types.
+  - the method's second argument is a pointer.
+  - the method has return type error.
 
 In effect, the method must look schematically like
 
@@ -213,10 +213,11 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 
 // Register publishes in the server the set of methods of the
 // receiver value that satisfy the following conditions:
-//	- exported method of exported type
-//	- two arguments, both of exported type
-//	- the second argument is a pointer
-//	- one return value, of type error
+//   - exported method of exported type
+//   - two arguments, both of exported type
+//   - the second argument is a pointer
+//   - one return value, of type error
+//
 // It returns an error if the receiver is not an exported type or has
 // no suitable methods. It also logs the error using package log.
 // The client accesses each method using a string of the form "Type.Method",

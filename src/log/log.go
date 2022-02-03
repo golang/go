@@ -32,8 +32,11 @@ import (
 // The prefix is followed by a colon only when Llongfile or Lshortfile
 // is specified.
 // For example, flags Ldate | Ltime (or LstdFlags) produce,
+//
 //	2009/01/23 01:23:23 message
+//
 // while flags Ldate | Ltime | Lmicroseconds | Llongfile produce,
+//
 //	2009/01/23 01:23:23.123123 /a/b/c/d.go:23: message
 const (
 	Ldate         = 1 << iota     // the date in the local time zone: 2009/01/23
@@ -107,10 +110,10 @@ func itoa(buf *[]byte, i int, wid int) {
 }
 
 // formatHeader writes log header to buf in following order:
-//   * l.prefix (if it's not blank and Lmsgprefix is unset),
-//   * date and/or time (if corresponding flags are provided),
-//   * file and line number (if corresponding flags are provided),
-//   * l.prefix (if it's not blank and Lmsgprefix is set).
+//   - l.prefix (if it's not blank and Lmsgprefix is unset),
+//   - date and/or time (if corresponding flags are provided),
+//   - file and line number (if corresponding flags are provided),
+//   - l.prefix (if it's not blank and Lmsgprefix is set).
 func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 	if l.flag&Lmsgprefix == 0 {
 		*buf = append(*buf, l.prefix...)

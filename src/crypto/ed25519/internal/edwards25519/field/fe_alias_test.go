@@ -77,11 +77,11 @@ func checkAliasingTwoArgs(f func(v, x, y *Element) *Element) func(v, x, y Elemen
 // TestAliasing checks that receivers and arguments can alias each other without
 // leading to incorrect results. That is, it ensures that it's safe to write
 //
-//     v.Invert(v)
+//	v.Invert(v)
 //
 // or
 //
-//     v.Add(v, v)
+//	v.Add(v, v)
 //
 // without any of the inputs getting clobbered by the output being written.
 func TestAliasing(t *testing.T) {

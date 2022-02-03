@@ -492,9 +492,9 @@ type Slice struct {
 
 // A Field is a (Sym, Type) pairing along with some other information, and,
 // depending on the context, is used to represent:
-//  - a field in a struct
-//  - a method in an interface or associated with a named type
-//  - a function parameter
+//   - a field in a struct
+//   - a method in an interface or associated with a named type
+//   - a function parameter
 type Field struct {
 	flags bitset8
 
@@ -1121,9 +1121,10 @@ func (t *Type) SimpleString() string {
 }
 
 // Cmp is a comparison between values a and b.
-//  -1 if a < b
-//   0 if a == b
-//   1 if a > b
+//
+//	-1 if a < b
+//	 0 if a == b
+//	 1 if a > b
 type Cmp int8
 
 const (

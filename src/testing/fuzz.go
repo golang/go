@@ -189,7 +189,7 @@ var supportedTypes = map[reflect.Type]bool{
 // whose remaining arguments are the types to be fuzzed.
 // For example:
 //
-//     f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
+//	f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
 //
 // The following types are allowed: []byte, string, bool, byte, rune, float32,
 // float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.

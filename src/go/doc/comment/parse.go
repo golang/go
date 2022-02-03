@@ -554,7 +554,9 @@ NoDefs:
 }
 
 // parseLink parses a single link definition line:
+//
 //	[text]: url
+//
 // It returns the link definition and whether the line was well formed.
 func parseLink(line string) (*LinkDef, bool) {
 	if line == "" || line[0] != '[' {

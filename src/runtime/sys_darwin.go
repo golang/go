@@ -233,11 +233,10 @@ func closefd(fd int32) int32 {
 }
 func close_trampoline()
 
-//go:nosplit
-//go:cgo_unsafe_args
-//
 // This is exported via linkname to assembly in runtime/cgo.
 //
+//go:nosplit
+//go:cgo_unsafe_args
 //go:linkname exit
 func exit(code int32) {
 	libcCall(unsafe.Pointer(abi.FuncPCABI0(exit_trampoline)), unsafe.Pointer(&code))

@@ -76,9 +76,9 @@ func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *T
 }
 
 // TestPackagesAndErrors returns three packages:
-//	- pmain, the package main corresponding to the test binary (running tests in ptest and pxtest).
-//	- ptest, the package p compiled with added "package p" test files.
-//	- pxtest, the result of compiling any "package p_test" (external) test files.
+//   - pmain, the package main corresponding to the test binary (running tests in ptest and pxtest).
+//   - ptest, the package p compiled with added "package p" test files.
+//   - pxtest, the result of compiling any "package p_test" (external) test files.
 //
 // If the package has no "package p_test" test files, pxtest will be nil.
 // If the non-test compilation of package p can be reused

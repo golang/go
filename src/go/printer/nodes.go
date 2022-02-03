@@ -125,7 +125,8 @@ const filteredMsg = "contains filtered or unexported fields"
 //
 // TODO(gri) Consider rewriting this to be independent of []ast.Expr
 // so that we can use the algorithm for any kind of list
-//           (e.g., pass list via a channel over which to range).
+//
+//	(e.g., pass list via a channel over which to range).
 func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exprListMode, next0 token.Pos, isIncomplete bool) {
 	if len(list) == 0 {
 		if isIncomplete {
@@ -714,6 +715,7 @@ func reduceDepth(depth int) int {
 // (Algorithm suggestion by Russ Cox.)
 //
 // The precedences are:
+//
 //	5             *  /  %  <<  >>  &  &^
 //	4             +  -  |  ^
 //	3             ==  !=  <  <=  >  >=
@@ -726,24 +728,24 @@ func reduceDepth(depth int) int {
 // To choose the cutoff, look at the whole expression but excluding primary
 // expressions (function calls, parenthesized exprs), and apply these rules:
 //
-//	1) If there is a binary operator with a right side unary operand
-//	   that would clash without a space, the cutoff must be (in order):
+//  1. If there is a binary operator with a right side unary operand
+//     that would clash without a space, the cutoff must be (in order):
 //
-//		/*	6
-//		&&	6
-//		&^	6
-//		++	5
-//		--	5
+//     /*	6
+//     &&	6
+//     &^	6
+//     ++	5
+//     --	5
 //
-//         (Comparison operators always have spaces around them.)
+//     (Comparison operators always have spaces around them.)
 //
-//	2) If there is a mix of level 5 and level 4 operators, then the cutoff
-//	   is 5 (use spaces to distinguish precedence) in Normal mode
-//	   and 4 (never use spaces) in Compact mode.
+//  2. If there is a mix of level 5 and level 4 operators, then the cutoff
+//     is 5 (use spaces to distinguish precedence) in Normal mode
+//     and 4 (never use spaces) in Compact mode.
 //
-//	3) If there are no level 4 operators or no level 5 operators, then the
-//	   cutoff is 6 (always use spaces) in Normal mode
-//	   and 4 (never use spaces) in Compact mode.
+//  3. If there are no level 4 operators or no level 5 operators, then the
+//     cutoff is 6 (always use spaces) in Normal mode
+//     and 4 (never use spaces) in Compact mode.
 func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int) {
 	prec := x.Op.Precedence()
 	if prec < prec1 {
@@ -1483,23 +1485,23 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 //
 // For example, the declaration:
 //
-//	const (
-//		foobar int = 42 // comment
-//		x          = 7  // comment
-//		foo
-//              bar = 991
-//	)
+//		const (
+//			foobar int = 42 // comment
+//			x          = 7  // comment
+//			foo
+//	             bar = 991
+//		)
 //
 // leads to the type/values matrix below. A run of value columns (V) can
 // be moved into the type column if there is no type for any of the values
 // in that column (we only move entire columns so that they align properly).
 //
-//	matrix        formatted     result
-//                    matrix
-//	T  V    ->    T  V     ->   true      there is a T and so the type
-//	-  V          -  V          true      column must be kept
-//	-  -          -  -          false
-//	-  V          V  -          false     V is moved into T column
+//		matrix        formatted     result
+//	                   matrix
+//		T  V    ->    T  V     ->   true      there is a T and so the type
+//		-  V          -  V          true      column must be kept
+//		-  -          -  -          false
+//		-  V          V  -          false     V is moved into T column
 func keepTypeColumn(specs []ast.Spec) []bool {
 	m := make([]bool, len(specs))
 

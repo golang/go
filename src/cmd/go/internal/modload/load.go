@@ -1222,16 +1222,16 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 //
 // In particular:
 //
-// 	- Modules that provide packages directly imported from the main module are
-// 	  marked as direct, and are promoted to explicit roots. If a needed root
-// 	  cannot be promoted due to -mod=readonly or -mod=vendor, the importing
-// 	  package is marked with an error.
+//   - Modules that provide packages directly imported from the main module are
+//     marked as direct, and are promoted to explicit roots. If a needed root
+//     cannot be promoted due to -mod=readonly or -mod=vendor, the importing
+//     package is marked with an error.
 //
-// 	- If ld scanned the "all" pattern independent of build constraints, it is
-// 	  guaranteed to have seen every direct import. Module dependencies that did
-// 	  not provide any directly-imported package are then marked as indirect.
+//   - If ld scanned the "all" pattern independent of build constraints, it is
+//     guaranteed to have seen every direct import. Module dependencies that did
+//     not provide any directly-imported package are then marked as indirect.
 //
-// 	- Root dependencies are updated to their selected versions.
+//   - Root dependencies are updated to their selected versions.
 //
 // The "changed" return value reports whether the update changed the selected
 // version of any module that either provided a loaded package or may now

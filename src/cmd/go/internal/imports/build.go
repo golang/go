@@ -215,7 +215,9 @@ func matchTag(name string, tags map[string]bool, prefer bool) bool {
 }
 
 // eval is like
+//
 //	x.Eval(func(tag string) bool { return matchTag(tag, tags) })
+//
 // except that it implements the special case for tags["*"] meaning
 // all tags are both true and false at the same time.
 func eval(x constraint.Expr, tags map[string]bool, prefer bool) bool {
@@ -236,17 +238,18 @@ func eval(x constraint.Expr, tags map[string]bool, prefer bool) bool {
 // suffix which does not match the current system.
 // The recognized name formats are:
 //
-//     name_$(GOOS).*
-//     name_$(GOARCH).*
-//     name_$(GOOS)_$(GOARCH).*
-//     name_$(GOOS)_test.*
-//     name_$(GOARCH)_test.*
-//     name_$(GOOS)_$(GOARCH)_test.*
+//	name_$(GOOS).*
+//	name_$(GOARCH).*
+//	name_$(GOOS)_$(GOARCH).*
+//	name_$(GOOS)_test.*
+//	name_$(GOARCH)_test.*
+//	name_$(GOOS)_$(GOARCH)_test.*
 //
 // Exceptions:
-//     if GOOS=android, then files with GOOS=linux are also matched.
-//     if GOOS=illumos, then files with GOOS=solaris are also matched.
-//     if GOOS=ios, then files with GOOS=darwin are also matched.
+//
+//	if GOOS=android, then files with GOOS=linux are also matched.
+//	if GOOS=illumos, then files with GOOS=solaris are also matched.
+//	if GOOS=ios, then files with GOOS=darwin are also matched.
 //
 // If tags["*"] is true, then MatchFile will consider all possible
 // GOOS and GOARCH to be available and will consequently

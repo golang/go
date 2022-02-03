@@ -210,6 +210,7 @@ func (t SparseTree) isAncestor(x, y *Block) bool {
 //  1. If domorder(x) > domorder(y) then x does not dominate y.
 //  2. If domorder(x) < domorder(y) and domorder(y) < domorder(z) and x does not dominate y,
 //     then x does not dominate z.
+//
 // Property (1) means that blocks sorted by domorder always have a maximal dominant block first.
 // Property (2) allows searches for dominated blocks to exit early.
 func (t SparseTree) domorder(x *Block) int32 {

@@ -10,7 +10,6 @@
 //
 // The hash functions are not cryptographically secure.
 // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
-//
 package maphash
 
 import (
@@ -92,9 +91,9 @@ func String(seed Seed, s string) uint64 {
 // the sequence of bytes provided to the Hash object, not on the way
 // in which the bytes are provided. For example, the three sequences
 //
-//     h.Write([]byte{'f','o','o'})
-//     h.WriteByte('f'); h.WriteByte('o'); h.WriteByte('o')
-//     h.WriteString("foo")
+//	h.Write([]byte{'f','o','o'})
+//	h.WriteByte('f'); h.WriteByte('o'); h.WriteByte('o')
+//	h.WriteString("foo")
 //
 // all have the same effect.
 //

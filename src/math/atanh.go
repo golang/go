@@ -39,6 +39,7 @@ package math
 // Atanh returns the inverse hyperbolic tangent of x.
 //
 // Special cases are:
+//
 //	Atanh(1) = +Inf
 //	Atanh(±0) = ±0
 //	Atanh(-1) = -Inf

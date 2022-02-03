@@ -4,7 +4,7 @@
 
 // Package edwards25519 implements group logic for the twisted Edwards curve
 //
-//     -x^2 + y^2 = 1 + -(121665/121666)*x^2*y^2
+//	-x^2 + y^2 = 1 + -(121665/121666)*x^2*y^2
 //
 // This is better known as the Edwards curve equivalent to Curve25519, and is
 // the curve used by the Ed25519 signature scheme.

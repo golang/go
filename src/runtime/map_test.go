@@ -29,8 +29,9 @@ func TestHmapSize(t *testing.T) {
 }
 
 // negative zero is a good test because:
-//  1) 0 and -0 are equal, yet have distinct representations.
-//  2) 0 is represented as all zeros, -0 isn't.
+//  1. 0 and -0 are equal, yet have distinct representations.
+//  2. 0 is represented as all zeros, -0 isn't.
+//
 // I'm not sure the language spec actually requires this behavior,
 // but it's what the current map implementation does.
 func TestNegativeZero(t *testing.T) {

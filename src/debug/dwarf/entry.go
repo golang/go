@@ -241,21 +241,21 @@ type Entry struct {
 // A value can be one of several "attribute classes" defined by DWARF.
 // The Go types corresponding to each class are:
 //
-//    DWARF class       Go type        Class
-//    -----------       -------        -----
-//    address           uint64         ClassAddress
-//    block             []byte         ClassBlock
-//    constant          int64          ClassConstant
-//    flag              bool           ClassFlag
-//    reference
-//      to info         dwarf.Offset   ClassReference
-//      to type unit    uint64         ClassReferenceSig
-//    string            string         ClassString
-//    exprloc           []byte         ClassExprLoc
-//    lineptr           int64          ClassLinePtr
-//    loclistptr        int64          ClassLocListPtr
-//    macptr            int64          ClassMacPtr
-//    rangelistptr      int64          ClassRangeListPtr
+//	DWARF class       Go type        Class
+//	-----------       -------        -----
+//	address           uint64         ClassAddress
+//	block             []byte         ClassBlock
+//	constant          int64          ClassConstant
+//	flag              bool           ClassFlag
+//	reference
+//	  to info         dwarf.Offset   ClassReference
+//	  to type unit    uint64         ClassReferenceSig
+//	string            string         ClassString
+//	exprloc           []byte         ClassExprLoc
+//	lineptr           int64          ClassLinePtr
+//	loclistptr        int64          ClassLocListPtr
+//	macptr            int64          ClassMacPtr
+//	rangelistptr      int64          ClassRangeListPtr
 //
 // For unrecognized or vendor-defined attributes, Class may be
 // ClassUnknown.
@@ -380,6 +380,7 @@ func (i Class) GoString() string {
 //
 // A common idiom is to merge the check for nil return with
 // the check that the value has the expected dynamic type, as in:
+//
 //	v, ok := e.Val(AttrSibling).(int64)
 func (e *Entry) Val(a Attr) any {
 	if f := e.AttrField(a); f != nil {

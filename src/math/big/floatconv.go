@@ -229,15 +229,15 @@ func (z *Float) pow5(n uint64) *Float {
 // If z's precision is 0, it is changed to 64 before rounding takes effect.
 // The number must be of the form:
 //
-//     number    = [ sign ] ( float | "inf" | "Inf" ) .
-//     sign      = "+" | "-" .
-//     float     = ( mantissa | prefix pmantissa ) [ exponent ] .
-//     prefix    = "0" [ "b" | "B" | "o" | "O" | "x" | "X" ] .
-//     mantissa  = digits "." [ digits ] | digits | "." digits .
-//     pmantissa = [ "_" ] digits "." [ digits ] | [ "_" ] digits | "." digits .
-//     exponent  = ( "e" | "E" | "p" | "P" ) [ sign ] digits .
-//     digits    = digit { [ "_" ] digit } .
-//     digit     = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
+//	number    = [ sign ] ( float | "inf" | "Inf" ) .
+//	sign      = "+" | "-" .
+//	float     = ( mantissa | prefix pmantissa ) [ exponent ] .
+//	prefix    = "0" [ "b" | "B" | "o" | "O" | "x" | "X" ] .
+//	mantissa  = digits "." [ digits ] | digits | "." digits .
+//	pmantissa = [ "_" ] digits "." [ digits ] | [ "_" ] digits | "." digits .
+//	exponent  = ( "e" | "E" | "p" | "P" ) [ sign ] digits .
+//	digits    = digit { [ "_" ] digit } .
+//	digit     = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
 // The base argument must be 0, 2, 8, 10, or 16. Providing an invalid base
 // argument will lead to a run-time panic.

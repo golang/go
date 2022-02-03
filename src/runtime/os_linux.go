@@ -52,7 +52,9 @@ const (
 )
 
 // Atomically,
+//
 //	if(*addr == val) sleep
+//
 // Might be woken up spuriously; that's allowed.
 // Don't sleep longer than ns; ns < 0 means forever.
 //

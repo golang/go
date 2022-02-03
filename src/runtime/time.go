@@ -225,8 +225,9 @@ func stopTimer(t *timer) bool {
 
 // resetTimer resets an inactive timer, adding it to the heap.
 //
-//go:linkname resetTimer time.resetTimer
 // Reports whether the timer was modified before it was run.
+//
+//go:linkname resetTimer time.resetTimer
 func resetTimer(t *timer, when int64) bool {
 	if raceenabled {
 		racerelease(unsafe.Pointer(t))
