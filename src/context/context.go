@@ -507,6 +507,23 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 	return WithDeadline(parent, time.Now().Add(timeout))
 }
 
+// WithChannel returns a context which will be cancelled in case of channel done
+// being closed  with Canceled error.
+func WithChannel(done chan struct{}) (Context, CancelFunc) {
+	c := newCancelCtx(background)
+	if done != nil {
+		atomic.AddInt32(&goroutines, +1)
+		go func() {
+			select {
+			case <-done:
+				c.cancel(false, context.Canceled)
+			case <-c.Done():
+			}
+		}()
+	}
+	return &c, func() { c.cancel(false, Canceled) }
+}
+
 // WithValue returns a copy of parent in which the value associated with key is
 // val.
 //
