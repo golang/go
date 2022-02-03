@@ -7,6 +7,7 @@
 package types2
 
 import (
+	"bytes"
 	"strings"
 )
 
@@ -364,48 +365,40 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 
 // missingMethodReason returns a string giving the detailed reason for a missing method m,
 // where m is missing from V, but required by T. It puts the reason in parentheses,
-// and may include more have/want info after that. If non-nil, wrongType is a relevant
+// and may include more have/want info after that. If non-nil, alt is a relevant
 // method that matches in some way. It may have the correct name, but wrong type, or
 // it may have a pointer receiver, or it may have the correct name except wrong case.
-func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string {
-	var r string
+func (check *Checker) missingMethodReason(V, T Type, m, alt *Func) string {
 	var mname string
 	if check.conf.CompilerErrorMessages {
 		mname = m.Name() + " method"
 	} else {
 		mname = "method " + m.Name()
 	}
-	if wrongType != nil {
-		if m.Name() != wrongType.Name() {
-			r = check.sprintf("(missing %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
-				mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
-		} else if Identical(m.typ, wrongType.typ) {
-			r = check.sprintf("(%s has pointer receiver)", mname)
-		} else {
-			if check.conf.CompilerErrorMessages {
-				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
-					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
-			} else {
-				r = check.sprintf("(wrong type for %s)\n\thave %s\n\twant %s",
-					mname, wrongType.typ, m.typ)
-			}
+
+	if alt != nil {
+		if m.Name() != alt.Name() {
+			return check.sprintf("(missing %s)\n\t\thave %s\n\t\twant %s",
+				mname, check.funcString(alt), check.funcString(m))
 		}
-		// This is a hack to print the function type without the leading
-		// 'func' keyword in the have/want printouts. We could change to have
-		// an extra formatting option for types2.Type that doesn't print out
-		// 'func'.
-		r = strings.Replace(r, "^^func", "", -1)
-	} else if IsInterface(T) {
-		if isInterfacePtr(V) {
-			r = "(" + check.interfacePtrError(V) + ")"
+
+		if Identical(m.typ, alt.typ) {
+			return check.sprintf("(%s has pointer receiver)", mname)
 		}
-	} else if isInterfacePtr(T) {
-		r = "(" + check.interfacePtrError(T) + ")"
+
+		return check.sprintf("(wrong type for %s)\n\t\thave %s\n\t\twant %s",
+			mname, check.funcString(alt), check.funcString(m))
 	}
-	if r == "" {
-		r = check.sprintf("(missing %s)", mname)
+
+	if isInterfacePtr(V) {
+		return "(" + check.interfacePtrError(V) + ")"
 	}
-	return r
+
+	if isInterfacePtr(T) {
+		return "(" + check.interfacePtrError(T) + ")"
+	}
+
+	return check.sprintf("(missing %s)", mname)
 }
 
 func isInterfacePtr(T Type) bool {
@@ -419,6 +412,13 @@ func (check *Checker) interfacePtrError(T Type) string {
 		return check.sprintf("type %s is pointer to type parameter, not type parameter", T)
 	}
 	return check.sprintf("type %s is pointer to interface, not interface", T)
+}
+
+// funcString returns a string of the form name + signature for f.
+func (check *Checker) funcString(f *Func) string {
+	buf := bytes.NewBufferString(f.name)
+	WriteSignature(buf, f.typ.(*Signature), check.qualifier)
+	return buf.String()
 }
 
 // assertableTo reports whether a value of type V can be asserted to have type T.
