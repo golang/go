@@ -12,6 +12,7 @@ import (
 	"go/types"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -420,6 +421,8 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *Metadata, mode source
 	return pkg, nil
 }
 
+var goVersionRx = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+
 func doTypeCheck(ctx context.Context, snapshot *snapshot, m *Metadata, mode source.ParseMode, deps map[PackagePath]*packageHandle, astFilter *unexportedFilter) (*pkg, error) {
 	ctx, done := event.Start(ctx, "cache.typeCheck", tag.Package.Of(string(m.ID)))
 	defer done()
@@ -514,6 +517,15 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, m *Metadata, mode sour
 			pkg.imports[depPkg.m.PkgPath] = depPkg
 			return depPkg.types, nil
 		}),
+	}
+	if pkg.m.Module != nil && pkg.m.Module.GoVersion != "" {
+		goVersion := "go" + pkg.m.Module.GoVersion
+		// types.NewChecker panics if GoVersion is invalid. An unparsable mod
+		// file should probably stop us before we get here, but double check
+		// just in case.
+		if goVersionRx.MatchString(goVersion) {
+			typesinternal.SetGoVersion(cfg, goVersion)
+		}
 	}
 
 	if mode != source.ParseFull {

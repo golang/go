@@ -1120,3 +1120,20 @@ func main() {
 		)
 	})
 }
+
+func TestInvalidGoVersion(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14) // Times out on 1.13 for reasons unclear. Not worth worrying about.
+	const files = `
+-- go.mod --
+module mod.com
+
+go foo
+-- main.go --
+package main
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.Await(env.DiagnosticAtRegexpWithMessage("go.mod", `go foo`, "invalid go version"))
+		env.WriteWorkspaceFile("go.mod", "module mod.com \n\ngo 1.12\n")
+		env.Await(EmptyDiagnostics("go.mod"))
+	})
+}

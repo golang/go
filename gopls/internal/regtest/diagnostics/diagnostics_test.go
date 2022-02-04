@@ -2138,3 +2138,22 @@ func main() {
 		)
 	})
 }
+
+func TestLangVersion(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // Requires types.Config.GoVersion, new in 1.18.
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+const C = 0b10
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.Await(env.DiagnosticAtRegexpWithMessage("main.go", `0b10`, "go1.13 or later"))
+		env.WriteWorkspaceFile("go.mod", "module mod.com \n\ngo 1.13\n")
+		env.Await(EmptyDiagnostics("main.go"))
+	})
+}

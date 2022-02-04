@@ -48,3 +48,5 @@ func ReadGo116ErrorData(err types.Error) (code ErrorCode, start, end token.Pos, 
 	}
 	return ErrorCode(data[0]), token.Pos(data[1]), token.Pos(data[2]), true
 }
+
+var SetGoVersion = func(conf *types.Config, version string) bool { return false }
