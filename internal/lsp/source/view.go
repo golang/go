@@ -129,6 +129,9 @@ type Snapshot interface {
 	// GoModForFile returns the URI of the go.mod file for the given URI.
 	GoModForFile(uri span.URI) span.URI
 
+	// ParseWork is used to parse go.work files.
+	ParseWork(ctx context.Context, fh FileHandle) (*ParsedWorkFile, error)
+
 	// BuiltinFile returns information about the special builtin package.
 	BuiltinFile(ctx context.Context) (*ParsedGoFile, error)
 
@@ -289,6 +292,14 @@ type ParsedGoFile struct {
 type ParsedModule struct {
 	URI         span.URI
 	File        *modfile.File
+	Mapper      *protocol.ColumnMapper
+	ParseErrors []*Diagnostic
+}
+
+// A ParsedWorkFile contains the results of parsing a go.work file.
+type ParsedWorkFile struct {
+	URI         span.URI
+	File        *modfile.WorkFile
 	Mapper      *protocol.ColumnMapper
 	ParseErrors []*Diagnostic
 }

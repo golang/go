@@ -101,6 +101,84 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 	return pmh.parse(ctx, s)
 }
 
+type parseWorkHandle struct {
+	handle *memoize.Handle
+}
+
+type parseWorkData struct {
+	parsed *source.ParsedWorkFile
+
+	// err is any error encountered while parsing the file.
+	err error
+}
+
+func (mh *parseWorkHandle) parse(ctx context.Context, snapshot *snapshot) (*source.ParsedWorkFile, error) {
+	v, err := mh.handle.Get(ctx, snapshot.generation, snapshot)
+	if err != nil {
+		return nil, err
+	}
+	data := v.(*parseWorkData)
+	return data.parsed, data.err
+}
+
+func (s *snapshot) ParseWork(ctx context.Context, modFH source.FileHandle) (*source.ParsedWorkFile, error) {
+	if handle := s.getParseWorkHandle(modFH.URI()); handle != nil {
+		return handle.parse(ctx, s)
+	}
+	h := s.generation.Bind(modFH.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
+		_, done := event.Start(ctx, "cache.ParseModHandle", tag.URI.Of(modFH.URI()))
+		defer done()
+
+		contents, err := modFH.Read()
+		if err != nil {
+			return &parseModData{err: err}
+		}
+		m := &protocol.ColumnMapper{
+			URI:       modFH.URI(),
+			Converter: span.NewContentConverter(modFH.URI().Filename(), contents),
+			Content:   contents,
+		}
+		file, parseErr := modfile.ParseWork(modFH.URI().Filename(), contents, nil)
+		// Attempt to convert the error to a standardized parse error.
+		var parseErrors []*source.Diagnostic
+		if parseErr != nil {
+			mfErrList, ok := parseErr.(modfile.ErrorList)
+			if !ok {
+				return &parseModData{err: fmt.Errorf("unexpected parse error type %v", parseErr)}
+			}
+			for _, mfErr := range mfErrList {
+				rng, err := rangeFromPositions(m, mfErr.Pos, mfErr.Pos)
+				if err != nil {
+					return &parseModData{err: err}
+				}
+				parseErrors = []*source.Diagnostic{{
+					URI:      modFH.URI(),
+					Range:    rng,
+					Severity: protocol.SeverityError,
+					Source:   source.ParseError,
+					Message:  mfErr.Err.Error(),
+				}}
+			}
+		}
+		return &parseWorkData{
+			parsed: &source.ParsedWorkFile{
+				URI:         modFH.URI(),
+				Mapper:      m,
+				File:        file,
+				ParseErrors: parseErrors,
+			},
+			err: parseErr,
+		}
+	}, nil)
+
+	pwh := &parseWorkHandle{handle: h}
+	s.mu.Lock()
+	s.parseWorkHandles[modFH.URI()] = pwh
+	s.mu.Unlock()
+
+	return pwh.parse(ctx, s)
+}
+
 // goSum reads the go.sum file for the go.mod file at modURI, if it exists. If
 // it doesn't exist, it returns nil.
 func (s *snapshot) goSum(ctx context.Context, modURI span.URI) []byte {

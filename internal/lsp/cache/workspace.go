@@ -439,7 +439,7 @@ func isGoMod(uri span.URI) bool {
 }
 
 func isGoSum(uri span.URI) bool {
-	return filepath.Base(uri.Filename()) == "go.sum"
+	return filepath.Base(uri.Filename()) == "go.sum" || filepath.Base(uri.Filename()) == "go.work.sum"
 }
 
 // fileExists reports if the file uri exists within source.

@@ -434,10 +434,11 @@ func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, cont
 }
 
 var defaultFileAssociations = map[string]*regexp.Regexp{
-	"go":     regexp.MustCompile(`^.*\.go$`), // '$' is important: don't match .gotmpl!
-	"go.mod": regexp.MustCompile(`^go\.mod$`),
-	"go.sum": regexp.MustCompile(`^go\.sum$`),
-	"gotmpl": regexp.MustCompile(`^.*tmpl$`),
+	"go":      regexp.MustCompile(`^.*\.go$`), // '$' is important: don't match .gotmpl!
+	"go.mod":  regexp.MustCompile(`^go\.mod$`),
+	"go.sum":  regexp.MustCompile(`^go(\.work)?\.sum$`),
+	"go.work": regexp.MustCompile(`^go\.work$`),
+	"gotmpl":  regexp.MustCompile(`^.*tmpl$`),
 }
 
 func (e *Editor) languageID(p string) string {

@@ -252,6 +252,7 @@ func DefaultOptions(o *source.Options) {
 			protocol.SourceOrganizeImports: true,
 		},
 		source.Sum:  {},
+		source.Work: {},
 		source.Tmpl: {},
 	}
 	o.UserOptions.Codelenses[string(command.Test)] = true

@@ -103,6 +103,7 @@ func DefaultOptions() *Options {
 						protocol.SourceOrganizeImports: true,
 						protocol.QuickFix:              true,
 					},
+					Work: {},
 					Sum:  {},
 					Tmpl: {},
 				},

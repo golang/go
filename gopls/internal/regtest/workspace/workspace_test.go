@@ -771,6 +771,28 @@ use (
 		if err := checkHelloLocation("b.com@v1.2.3/b/b.go"); err != nil {
 			t.Fatal(err)
 		}
+
+		// Test Formatting.
+		env.SetBufferContent("go.work", `go 1.18
+  use      (
+
+
+
+		./moda/a
+)
+`) // TODO(matloob): For some reason there's a "start position 7:0 is out of bounds" error when the ")" is on the last character/line in the file. Rob probably knows what's going on.
+		env.SaveBuffer("go.work")
+		env.Await(env.DoneWithSave())
+		gotWorkContents := env.ReadWorkspaceFile("go.work")
+		wantWorkContents := `go 1.18
+
+use (
+	./moda/a
+)
+`
+		if gotWorkContents != wantWorkContents {
+			t.Fatalf("formatted contents of workspace: got %q; want %q", gotWorkContents, wantWorkContents)
+		}
 	})
 }
 
