@@ -297,7 +297,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // as the second result.
 func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, alt *Func) {
 	// fast path for common case
-	if T.Empty() {
+	if T.NumMethods() == 0 {
 		return
 	}
 
@@ -368,9 +368,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 // and may include more have/want info after that. If non-nil, alt is a relevant
 // method that matches in some way. It may have the correct name, but wrong type, or
 // it may have a pointer receiver, or it may have the correct name except wrong case.
+// check may be nil.
 func (check *Checker) missingMethodReason(V, T Type, m, alt *Func) string {
 	var mname string
-	if check.conf.CompilerErrorMessages {
+	if check != nil && check.conf.CompilerErrorMessages {
 		mname = m.Name() + " method"
 	} else {
 		mname = "method " + m.Name()
@@ -406,6 +407,7 @@ func isInterfacePtr(T Type) bool {
 	return p != nil && IsInterface(p.base)
 }
 
+// check may be nil.
 func (check *Checker) interfacePtrError(T Type) string {
 	assert(isInterfacePtr(T))
 	if p, _ := under(T).(*Pointer); isTypeParam(p.base) {
@@ -415,9 +417,14 @@ func (check *Checker) interfacePtrError(T Type) string {
 }
 
 // funcString returns a string of the form name + signature for f.
+// check may be nil.
 func (check *Checker) funcString(f *Func) string {
 	buf := bytes.NewBufferString(f.name)
-	WriteSignature(buf, f.typ.(*Signature), check.qualifier)
+	var qf Qualifier
+	if check != nil {
+		qf = check.qualifier
+	}
+	WriteSignature(buf, f.typ.(*Signature), qf)
 	return buf.String()
 }
 
