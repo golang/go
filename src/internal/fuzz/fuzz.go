@@ -597,7 +597,7 @@ type coordinator struct {
 
 	// interestingCount is the number of unique interesting values which have
 	// been found this execution.
-	interestingCount int64
+	interestingCount int
 
 	// warmupInputCount is the count of all entries in the corpus which will
 	// need to be received from workers to run once during warmup, but not fuzz.
@@ -731,8 +731,8 @@ func (c *coordinator) logStats() {
 	} else {
 		rate := float64(c.count-c.countLastLog) / now.Sub(c.timeLastLog).Seconds()
 		if coverageEnabled {
-			interestingTotalCount := int64(c.warmupInputCount-len(c.opts.Seed)) + c.interestingCount
-			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), new interesting: %d (total: %d)\n", c.elapsed(), c.count, rate, c.interestingCount, interestingTotalCount)
+			total := c.warmupInputCount + c.interestingCount
+			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), new interesting: %d (total: %d)\n", c.elapsed(), c.count, rate, c.interestingCount, total)
 		} else {
 			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec)\n", c.elapsed(), c.count, rate)
 		}
