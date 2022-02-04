@@ -13,9 +13,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/command"
@@ -681,6 +683,48 @@ func (c *commandHandler) ListKnownPackages(ctx context.Context, args command.URI
 	})
 	return result, err
 }
+
+func (c *commandHandler) ListImports(ctx context.Context, args command.URIArg) (command.ListImportsResult, error) {
+	var result command.ListImportsResult
+	err := c.run(ctx, commandConfig{
+		forURI: args.URI,
+	}, func(ctx context.Context, deps commandDeps) error {
+		pkg, err := deps.snapshot.PackageForFile(ctx, args.URI.SpanURI(), source.TypecheckWorkspace, source.NarrowestPackage)
+		if err != nil {
+			return err
+		}
+		pgf, err := pkg.File(args.URI.SpanURI())
+		if err != nil {
+			return err
+		}
+		for _, group := range astutil.Imports(deps.snapshot.FileSet(), pgf.File) {
+			for _, imp := range group {
+				if imp.Path == nil {
+					continue
+				}
+				var name string
+				if imp.Name != nil {
+					name = imp.Name.Name
+				}
+				result.Imports = append(result.Imports, command.FileImport{
+					Path: source.ImportPath(imp),
+					Name: name,
+				})
+			}
+		}
+		for _, imp := range pkg.Imports() {
+			result.PackageImports = append(result.PackageImports, command.PackageImport{
+				Path: imp.PkgPath(), // This might be the vendored path under GOPATH vendoring, in which case it's a bug.
+			})
+		}
+		sort.Slice(result.PackageImports, func(i, j int) bool {
+			return result.PackageImports[i].Path < result.PackageImports[j].Path
+		})
+		return nil
+	})
+	return result, err
+}
+
 func (c *commandHandler) AddImport(ctx context.Context, args command.AddImportArgs) error {
 	return c.run(ctx, commandConfig{
 		progress: "Adding import",

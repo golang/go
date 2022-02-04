@@ -120,6 +120,12 @@ type Interface interface {
 	// Retrieve a list of packages that are importable from the given URI.
 	ListKnownPackages(context.Context, URIArg) (ListKnownPackagesResult, error)
 
+	// ListImports: List imports of a file and its package
+	//
+	// Retrieve a list of imports in the given Go file, and the package it
+	// belongs to.
+	ListImports(context.Context, URIArg) (ListImportsResult, error)
+
 	// AddImport: Add an import
 	//
 	// Ask the server to add an import path to a given Go file.  The method will
@@ -222,6 +228,26 @@ type ListKnownPackagesResult struct {
 	// imported or cannot be imported due to compiler
 	// restrictions.
 	Packages []string
+}
+
+type ListImportsResult struct {
+	// Imports is a list of imports in the requested file.
+	Imports []FileImport
+
+	// PackageImports is a list of all imports in the requested file's package.
+	PackageImports []PackageImport
+}
+
+type FileImport struct {
+	// Path is the import path of the import.
+	Path string
+	// Name is the name of the import, e.g. `foo` in `import foo "strings"`.
+	Name string
+}
+
+type PackageImport struct {
+	// Path is the import path of the import.
+	Path string
 }
 
 type WorkspaceMetadataArgs struct {
