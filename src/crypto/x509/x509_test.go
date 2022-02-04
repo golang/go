@@ -3661,3 +3661,49 @@ func TestCreateNegativeSerial(t *testing.T) {
 		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
 	}
 }
+
+const dupExtCert = `-----BEGIN CERTIFICATE-----
+MIIBrjCCARegAwIBAgIBATANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDEwR0ZXN0
+MCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMA8xDTALBgNVBAMT
+BHRlc3QwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAMiFchnHms9l9NninAIz
+SkY9acwl9Bk2AtmJrNCenFpiA17AcOO5q8DJYwdXi6WPKlVgcyH+ysW8XMWkq+CP
+yhtF/+LMzl9odaUF2iUy3vgTC5gxGLWH5URVssx21Und2Pm2f4xyou5IVxbS9dxy
+jLvV9PEY9BIb0H+zFthjhihDAgMBAAGjFjAUMAgGAioDBAIFADAIBgIqAwQCBQAw
+DQYJKoZIhvcNAQELBQADgYEAlhQ4TQQKIQ8GUyzGiN/75TCtQtjhMGemxc0cNgre
+d9rmm4DjydH0t7/sMCB56lQrfhJNplguzsbjFW4l245KbNKHfLiqwEGUgZjBNKur
+ot6qX/skahLtt0CNOaFIge75HVKe/69OrWQGdp18dkay/KS4Glu8YMKIjOhfrUi1
+NZA=
+-----END CERTIFICATE-----`
+
+func TestDuplicateExtensionsCert(t *testing.T) {
+	b, _ := pem.Decode([]byte(dupExtCert))
+	if b == nil {
+		t.Fatalf("couldn't decode test certificate")
+	}
+	_, err := ParseCertificate(b.Bytes)
+	if err == nil {
+		t.Fatal("ParseCertificate should fail when parsing certificate with duplicate extensions")
+	}
+}
+
+const dupExtCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIIBczCB3QIBADAPMQ0wCwYDVQQDEwR0ZXN0MIGfMA0GCSqGSIb3DQEBAQUAA4GN
+ADCBiQKBgQC5PbxMGVJ8aLF9lq/EvGObXTRMB7ieiZL9N+DJZg1n/ECCnZLIvYrr
+ZmmDV7YZsClgxKGfjJB0RQFFyZElFM9EfHEs8NJdidDKCRdIhDXQWRyhXKevHvdm
+CQNKzUeoxvdHpU/uscSkw6BgUzPyLyTx9A6ye2ix94z8Y9hGOBO2DQIDAQABoCUw
+IwYJKoZIhvcNAQkOMRYwFDAIBgIqAwQCBQAwCAYCKgMEAgUAMA0GCSqGSIb3DQEB
+CwUAA4GBAHROEsE7URk1knXmBnQtIHwoq663vlMcX3Hes58pUy020rWP8QkocA+X
+VF18/phg3p5ILlS4fcbbP2bEeV0pePo2k00FDPsJEKCBAX2LKxbU7Vp2OuV2HM2+
+VLOVx0i+/Q7fikp3hbN1JwuMTU0v2KL/IKoUcZc02+5xiYrnOIt5
+-----END CERTIFICATE REQUEST-----`
+
+func TestDuplicateExtensionsCSR(t *testing.T) {
+	b, _ := pem.Decode([]byte(dupExtCSR))
+	if b == nil {
+		t.Fatalf("couldn't decode test certificate")
+	}
+	_, err := ParseCertificateRequest(b.Bytes)
+	if err == nil {
+		t.Fatal("ParseCertificate should fail when parsing certificate with duplicate extensions")
+	}
+}
