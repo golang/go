@@ -295,23 +295,22 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // If a method is missing on T but is found on *T, or if a method is found
 // on T when looked up with case-folding, this alternative method is returned
 // as the second result.
-// Note: case-folding lookup is currently disabled
 func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, alt *Func) {
-	// fast path for common case
 	if T.NumMethods() == 0 {
 		return
 	}
 
-	if ityp, _ := under(V).(*Interface); ityp != nil {
+	// V is an interface
+	if u, _ := under(V).(*Interface); u != nil {
+		tset := u.typeSet()
 		for _, m := range T.typeSet().methods {
-			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name, false)
+			_, f := tset.LookupMethod(m.pkg, m.name, false)
 
 			if f == nil {
 				if !static {
 					continue
 				}
-				// We don't do any case-fold check if V is an interface.
-				return m, f
+				return m, nil
 			}
 
 			if !Identical(f.typ, m.typ) {
@@ -322,31 +321,22 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		return
 	}
 
-	// A concrete type implements T if it implements all methods of T.
+	// V is not an interface
 	for _, m := range T.typeSet().methods {
 		// TODO(gri) should this be calling LookupFieldOrMethod instead (and why not)?
 		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name, false)
 
-		// Check if *V implements this method of T.
-		if obj == nil {
-			ptr := NewPointer(V)
-			obj, _, _ = lookupFieldOrMethod(ptr, false, m.pkg, m.name, false)
+		// check if m is on *V, or on V with case-folding
+		found := obj != nil
+		if !found {
+			// TODO(gri) Instead of NewPointer(V) below, can we just set the "addressable" argument?
+			obj, _, _ = lookupFieldOrMethod(NewPointer(V), false, m.pkg, m.name, false)
 			if obj == nil {
-				// TODO(gri) enable this code
-				// If we didn't find the exact method (even with pointer receiver),
-				// check if there is a matching method using case-folding.
-				// obj, _, _ = lookupFieldOrMethod(V, false, m.pkg, m.name, true)
-			}
-			if obj != nil {
-				// methods may not have a fully set up signature yet
-				if check != nil {
-					check.objDecl(obj, nil)
-				}
-				return m, obj.(*Func)
+				obj, _, _ = lookupFieldOrMethod(V, false, m.pkg, m.name, true /* fold case */)
 			}
 		}
 
-		// we must have a method (not a field of matching function type)
+		// we must have a method (not a struct field)
 		f, _ := obj.(*Func)
 		if f == nil {
 			return m, nil
@@ -357,7 +347,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			check.objDecl(f, nil)
 		}
 
-		if !Identical(f.typ, m.typ) {
+		if !found || !Identical(f.typ, m.typ) {
 			return m, f
 		}
 	}
