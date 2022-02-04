@@ -6,12 +6,6 @@ package syscall
 
 import "unsafe"
 
-// archHonorsR2 captures the fact that r2 is honored by the
-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
-// syscall(trap, ...).  Not all architectures define r2 in their
-// ABI. See "man syscall".
-const archHonorsR2 = true
-
 const _SYS_setgroups = SYS_SETGROUPS
 
 func EpollCreate(size int) (fd int, err error) {
