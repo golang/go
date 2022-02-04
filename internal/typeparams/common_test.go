@@ -157,3 +157,76 @@ func TestOriginMethodUses(t *testing.T) {
 		})
 	}
 }
+
+func TestGenericAssignableTo(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+
+	tests := []struct {
+		src  string
+		want bool
+	}{
+		// The inciting issue: golang/go#50887.
+		{`
+			type T[P any] interface {
+			        Accept(P)
+			}
+
+			type V[Q any] struct {
+			        Element Q
+			}
+
+			func (c V[Q]) Accept(q Q) { c.Element = q }
+			`, true},
+
+		// Various permutations on constraints and signatures.
+		{`type T[P ~int] interface{ A(P) }; type V[Q int] int; func (V[Q]) A(Q) {}`, true},
+		{`type T[P int] interface{ A(P) }; type V[Q ~int] int; func (V[Q]) A(Q) {}`, false},
+		{`type T[P int|string] interface{ A(P) }; type V[Q int] int; func (V[Q]) A(Q) {}`, true},
+		{`type T[P any] interface{ A(P) }; type V[Q any] int; func (V[Q]) A(Q, Q) {}`, false},
+		{`type T[P any] interface{ int; A(P) }; type V[Q any] int; func (V[Q]) A(Q) {}`, false},
+
+		// Various structural restrictions on T.
+		{`type T[P any] interface{ ~int; A(P) }; type V[Q any] int; func (V[Q]) A(Q) {}`, true},
+		{`type T[P any] interface{ ~int|string; A(P) }; type V[Q any] int; func (V[Q]) A(Q) {}`, true},
+		{`type T[P any] interface{ int; A(P) }; type V[Q int] int; func (V[Q]) A(Q) {}`, false},
+
+		// Various recursive constraints.
+		{`type T[P ~struct{ f *P }] interface{ A(P) }; type V[Q ~struct{ f *Q }] int; func (V[Q]) A(Q) {}`, true},
+		{`type T[P ~struct{ f *P }] interface{ A(P) }; type V[Q ~struct{ g *Q }] int; func (V[Q]) A(Q) {}`, false},
+		{`type T[P ~*X, X any] interface{ A(P) X }; type V[Q ~*Y, Y any] int; func (V[Q, Y]) A(Q) (y Y) { return }`, true},
+		{`type T[P ~*X, X any] interface{ A(P) X }; type V[Q ~**Y, Y any] int; func (V[Q, Y]) A(Q) (y Y) { return }`, false},
+		{`type T[P, X any] interface{ A(P) X }; type V[Q ~*Y, Y any] int; func (V[Q, Y]) A(Q) (y Y) { return }`, true},
+		{`type T[P ~*X, X any] interface{ A(P) X }; type V[Q, Y any] int; func (V[Q, Y]) A(Q) (y Y) { return }`, false},
+		{`type T[P, X any] interface{ A(P) X }; type V[Q, Y any] int; func (V[Q, Y]) A(Q) (y Y) { return }`, true},
+
+		// In this test case, we reverse the type parameters in the signature of V.A
+		{`type T[P, X any] interface{ A(P) X }; type V[Q, Y any] int; func (V[Q, Y]) A(Y) (y Q) { return }`, false},
+		// It would be nice to return true here: V can only be instantiated with
+		// [int, int], so the identity of the type parameters should not matter.
+		{`type T[P, X any] interface{ A(P) X }; type V[Q, Y int] int; func (V[Q, Y]) A(Y) (y Q) { return }`, false},
+	}
+
+	for _, test := range tests {
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, "p.go", "package p; "+test.src, 0)
+		if err != nil {
+			t.Fatalf("%s:\n%v", test.src, err)
+		}
+		var conf types.Config
+		pkg, err := conf.Check("p", fset, []*ast.File{f}, nil)
+		if err != nil {
+			t.Fatalf("%s:\n%v", test.src, err)
+		}
+
+		V := pkg.Scope().Lookup("V").Type()
+		T := pkg.Scope().Lookup("T").Type()
+
+		if types.AssignableTo(V, T) {
+			t.Fatal("AssignableTo")
+		}
+
+		if got := GenericAssignableTo(nil, V, T); got != test.want {
+			t.Fatalf("%s:\nGenericAssignableTo(%v, %v) = %v, want %v", test.src, V, T, got, test.want)
+		}
+	}
+}
