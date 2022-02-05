@@ -1117,9 +1117,9 @@ func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 	setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=auto")
 
-	// Skip internal linking cases on linux/arm64 to support GCC-9.4 and above.
+	// Skip internal linking cases on arm64 to support GCC-9.4 and above.
 	// See issue #39466.
-	skipInternalLink := goarch == "arm64" && goos == "linux"
+	skipInternalLink := goarch == "arm64" && goos != "windows"
 
 	if t.internalLink() && !skipInternalLink {
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
