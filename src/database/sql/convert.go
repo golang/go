@@ -495,6 +495,8 @@ func cloneBytes(b []byte) []byte {
 	return c
 }
 
+// asString forces conversion to string
+// work with: []byte, int, uint, float, bool
 func asString(src any) string {
 	switch v := src.(type) {
 	case string:
