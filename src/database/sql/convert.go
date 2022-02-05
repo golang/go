@@ -466,12 +466,9 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 		if src == nil {
 			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())
 		}
-		switch v := src.(type) {
-		case string:
-			dv.SetString(v)
-			return nil
-		case []byte:
-			dv.SetString(string(v))
+		v := src.(type)
+		if v == string || v == []byte {
+			dv.SetString(asString(v))
 			return nil
 		}
 	}
