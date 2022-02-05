@@ -198,7 +198,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 
 // typedmemmovepartial is like typedmemmove but assumes that
 // dst and src point off bytes into the value and only copies size bytes.
-// off must be a multiple of sys.PtrSize.
+// off must be a multiple of goarch.PtrSize.
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 	if writeBarrier.needed && typ.ptrdata > off && size >= goarch.PtrSize {
