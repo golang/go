@@ -217,6 +217,10 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 			return nil, errors.Errorf("no declaration for %s", result.Name)
 		}
 		result.Declaration.node = decl
+		if typeSpec, ok := decl.(*ast.TypeSpec); ok {
+			// Find the GenDecl (which has the doc comments) for the TypeSpec.
+			result.Declaration.fullDecl = findGenDecl(builtin.File, typeSpec)
+		}
 
 		// The builtin package isn't in the dependency graph, so the usual
 		// utilities won't work here.
@@ -312,6 +316,18 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 		}
 	}
 	return result, nil
+}
+
+// findGenDecl determines the parent ast.GenDecl for a given ast.Spec.
+func findGenDecl(f *ast.File, spec ast.Spec) *ast.GenDecl {
+	for _, decl := range f.Decls {
+		if genDecl, ok := decl.(*ast.GenDecl); ok {
+			if genDecl.Pos() <= spec.Pos() && genDecl.End() >= spec.End() {
+				return genDecl
+			}
+		}
+	}
+	return nil
 }
 
 // fullNode tries to extract the full spec corresponding to obj's declaration.

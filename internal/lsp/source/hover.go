@@ -309,7 +309,8 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 			h.LinkPath = strings.Replace(h.LinkPath, mod, mod+"@"+version, 1)
 		}
 		return h, nil
-	case *types.Builtin:
+	}
+	if obj.Parent() == types.Universe {
 		h.importPath = "builtin"
 		h.LinkPath = h.importPath
 		h.LinkAnchor = obj.Name()
@@ -520,10 +521,8 @@ func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, p
 		}
 	case *ast.TypeSpec:
 		if obj.Parent() == types.Universe {
-			if obj.Name() == "error" {
-				info = &HoverInformation{source: node}
-			} else {
-				info = &HoverInformation{source: node.Name} // comments not needed for builtins
+			if genDecl, ok := fullDecl.(*ast.GenDecl); ok {
+				info = formatTypeSpec(node, genDecl)
 			}
 		}
 	case *ast.FuncDecl:

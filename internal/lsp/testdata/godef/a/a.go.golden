@@ -164,8 +164,12 @@ func(t Type, size ...IntegerType) Type
 The make built\-in function allocates and initializes an object of type slice, map, or chan \(only\)\.
 -- string-hoverdef --
 ```go
-string
+type string string
 ```
+
+[`string` on pkg.go.dev](https://pkg.go.dev/builtin?utm_source=gopls#string)
+
+string is the set of all strings of 8\-bit bytes, conventionally but not necessarily representing UTF\-8\-encoded text\.
 -- typesImport-hoverdef --
 ```go
 package types ("go/types")
