@@ -10,6 +10,11 @@ import (
 	"fmt"
 )
 
+// Fuzz the input data is a byte slice, The function must return 1 if the
+// fuzzer should increase priority of the given input during subsequent
+// fuzzing (for example, the input is lexically correct and was parsed successfully);
+// -1 if the input must not be added to corpus even if gives new coverage;
+// and 0 otherwise;
 func Fuzz(data []byte) (score int) {
 	for _, ctor := range []func() any{
 		func() any { return new(any) },
