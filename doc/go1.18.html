@@ -493,6 +493,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="linker">Linker</h2>
 
+<p>
+  The linker emits <a href="https://tailscale.com/blog/go-linker/">far fewer relocations</a>.
+  As a result, most codebases will link faster, require less memory to link,
+  and generate smaller binaries.
+  Tools that process Go binaries should use Go 1.18's <code>debug/gosym</code> package
+  to transparently handle both old and new binaries.
+</p>
+
 <p><!-- CL 298610 -->
   The new linker <code>-asan</code> option supports the
   new <code>go</code> command <code>-asan</code> option.
