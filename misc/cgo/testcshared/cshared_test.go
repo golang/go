@@ -117,6 +117,9 @@ func testMain(m *testing.M) int {
 	}
 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
 
+	// Force reallocation (and avoid aliasing bugs) for parallel tests that append to cc.
+	cc = cc[:len(cc):len(cc)]
+
 	if GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
