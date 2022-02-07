@@ -487,6 +487,7 @@ type FuncInfo struct {
 	OpenCodedDeferInfo *LSym
 	ArgInfo            *LSym // argument info for traceback
 	ArgLiveInfo        *LSym // argument liveness info for traceback
+	WrapInfo           *LSym // for wrapper, info of wrapped function
 
 	FuncInfoSym *LSym
 }

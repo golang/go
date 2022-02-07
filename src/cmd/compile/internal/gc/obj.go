@@ -263,6 +263,10 @@ func addGCLocals() {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 			x.Set(obj.AttrStatic, true)
 		}
+		if x := fn.WrapInfo; x != nil && !x.OnList() {
+			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+			x.Set(obj.AttrStatic, true)
+		}
 	}
 }
 

@@ -310,6 +310,7 @@ const (
 	_FUNCDATA_OpenCodedDeferInfo = 4
 	_FUNCDATA_ArgInfo            = 5
 	_FUNCDATA_ArgLiveInfo        = 6
+	_FUNCDATA_WrapInfo           = 7
 
 	_ArgsSizeUnknown = -0x80000000
 )
