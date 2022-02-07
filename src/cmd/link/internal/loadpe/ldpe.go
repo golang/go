@@ -135,17 +135,6 @@ const (
 	IMAGE_REL_ARM64_REL32            = 0x0011
 )
 
-// TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld, ideally in debug/pe.
-const (
-	IMAGE_SCN_CNT_CODE               = 0x00000020
-	IMAGE_SCN_CNT_INITIALIZED_DATA   = 0x00000040
-	IMAGE_SCN_CNT_UNINITIALIZED_DATA = 0x00000080
-	IMAGE_SCN_MEM_DISCARDABLE        = 0x02000000
-	IMAGE_SCN_MEM_EXECUTE            = 0x20000000
-	IMAGE_SCN_MEM_READ               = 0x40000000
-	IMAGE_SCN_MEM_WRITE              = 0x80000000
-)
-
 // TODO(brainman): maybe just add ReadAt method to bio.Reader instead of creating peBiobuf
 
 // peBiobuf makes bio.Reader look like io.ReaderAt.
@@ -179,11 +168,18 @@ type peLoaderState struct {
 	l               *loader.Loader
 	arch            *sys.Arch
 	f               *pe.File
+	pn              string
 	sectsyms        map[*pe.Section]loader.Sym
 	defWithImp      map[string]struct{}
+	comdats         map[uint16]int64 // key is section index, val is size
 	sectdata        map[*pe.Section][]byte
 	localSymVersion int
 }
+
+// comdatDefinitions records the names of symbols for which we've
+// previously seen a definition in COMDAT. Key is symbol name, value
+// is symbol size (or -1 if we're using the "any" strategy).
+var comdatDefinitions = make(map[string]int64)
 
 // Load loads the PE file pn from input.
 // Symbols are written into syms, and a slice of the text symbols is returned.
@@ -196,6 +192,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		sectsyms:        make(map[*pe.Section]loader.Sym),
 		sectdata:        make(map[*pe.Section][]byte),
 		localSymVersion: localSymVersion,
+		pn:              pn,
 	}
 
 	// Some input files are archives containing multiple of
@@ -216,11 +213,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 	// create symbols for mapped sections
 	for _, sect := range f.Sections {
-		if sect.Characteristics&IMAGE_SCN_MEM_DISCARDABLE != 0 {
+		if sect.Characteristics&pe.IMAGE_SCN_MEM_DISCARDABLE != 0 {
 			continue
 		}
 
-		if sect.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
+		if sect.Characteristics&(pe.IMAGE_SCN_CNT_CODE|pe.IMAGE_SCN_CNT_INITIALIZED_DATA|pe.IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
 			// want to ignore. See issues 5106 and 5273.
 			continue
@@ -230,17 +227,17 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		s := state.l.LookupOrCreateCgoExport(name, localSymVersion)
 		bld := l.MakeSymbolUpdater(s)
 
-		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
-		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
+		switch sect.Characteristics & (pe.IMAGE_SCN_CNT_UNINITIALIZED_DATA | pe.IMAGE_SCN_CNT_INITIALIZED_DATA | pe.IMAGE_SCN_MEM_READ | pe.IMAGE_SCN_MEM_WRITE | pe.IMAGE_SCN_CNT_CODE | pe.IMAGE_SCN_MEM_EXECUTE) {
+		case pe.IMAGE_SCN_CNT_INITIALIZED_DATA | pe.IMAGE_SCN_MEM_READ: //.rdata
 			bld.SetType(sym.SRODATA)
 
-		case IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.bss
+		case pe.IMAGE_SCN_CNT_UNINITIALIZED_DATA | pe.IMAGE_SCN_MEM_READ | pe.IMAGE_SCN_MEM_WRITE: //.bss
 			bld.SetType(sym.SNOPTRBSS)
 
-		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.data
+		case pe.IMAGE_SCN_CNT_INITIALIZED_DATA | pe.IMAGE_SCN_MEM_READ | pe.IMAGE_SCN_MEM_WRITE: //.data
 			bld.SetType(sym.SNOPTRDATA)
 
-		case IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ: //.text
+		case pe.IMAGE_SCN_CNT_CODE | pe.IMAGE_SCN_MEM_EXECUTE | pe.IMAGE_SCN_MEM_READ: //.text
 			bld.SetType(sym.STEXT)
 
 		default:
@@ -277,10 +274,10 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		if rsect.NumberOfRelocations == 0 {
 			continue
 		}
-		if rsect.Characteristics&IMAGE_SCN_MEM_DISCARDABLE != 0 {
+		if rsect.Characteristics&pe.IMAGE_SCN_MEM_DISCARDABLE != 0 {
 			continue
 		}
-		if rsect.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
+		if rsect.Characteristics&(pe.IMAGE_SCN_CNT_CODE|pe.IMAGE_SCN_CNT_INITIALIZED_DATA|pe.IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
 			// want to ignore. See issues 5106 and 5273.
 			continue
@@ -465,6 +462,16 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			return nil, nil, nil
 		}
 
+		// Check for COMDAT symbol.
+		if sz, ok1 := state.comdats[uint16(pesym.SectionNumber-1)]; ok1 {
+			if psz, ok2 := comdatDefinitions[l.SymName(s)]; ok2 {
+				if sz == psz {
+					//  OK to discard, we've seen an instance
+					// already.
+					continue
+				}
+			}
+		}
 		if l.OuterSym(s) != 0 {
 			if l.AttrDuplicateOK(s) {
 				continue
@@ -485,6 +492,14 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				return nil, nil, fmt.Errorf("%s: duplicate symbol definition", l.SymName(s))
 			}
 			bld.SetExternal(true)
+		}
+		if sz, ok := state.comdats[uint16(pesym.SectionNumber-1)]; ok {
+			// This is a COMDAT definition. Record that we're picking
+			// this instance so that we can ignore future defs.
+			if _, ok := comdatDefinitions[l.SymName(s)]; ok {
+				return nil, nil, fmt.Errorf("internal error: preexisting COMDAT definition for %q", name)
+			}
+			comdatDefinitions[l.SymName(s)] = sz
 		}
 	}
 
@@ -583,8 +598,20 @@ func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuild
 // reading and looks for cases where we have both a symbol definition
 // for "XXX" and an "__imp_XXX" symbol, recording these cases in a map
 // in the state struct. This information will be used in readpesym()
-// above to give such symbols special treatment.
+// above to give such symbols special treatment. This function also
+// gathers information about COMDAT sections/symbols for later use
+// in readpesym().
 func (state *peLoaderState) preprocessSymbols() error {
+
+	// Locate comdat sections.
+	state.comdats = make(map[uint16]int64)
+	for i, s := range state.f.Sections {
+		if s.Characteristics&uint32(pe.IMAGE_SCN_LNK_COMDAT) != 0 {
+			state.comdats[uint16(i)] = int64(s.Size)
+		}
+	}
+
+	// Examine symbol defs.
 	imp := make(map[string]struct{})
 	def := make(map[string]struct{})
 	for i, numaux := 0, 0; i < len(state.f.COFFSymbols); i += numaux + 1 {
@@ -600,6 +627,29 @@ func (state *peLoaderState) preprocessSymbols() error {
 		def[symname] = struct{}{}
 		if strings.HasPrefix(symname, "__imp_") {
 			imp[strings.TrimPrefix(symname, "__imp_")] = struct{}{}
+		}
+		if _, isc := state.comdats[uint16(pesym.SectionNumber-1)]; !isc {
+			continue
+		}
+		if pesym.StorageClass != uint8(IMAGE_SYM_CLASS_STATIC) {
+			continue
+		}
+		// This symbol corresponds to a COMDAT section. Read the
+		// aux data for it.
+		auxsymp, err := state.f.COFFSymbolReadSectionDefAux(i)
+		if err != nil {
+			return fmt.Errorf("unable to read aux info for section def symbol %d %s: pe.COFFSymbolReadComdatInfo returns %v", i, symname, err)
+		}
+		if auxsymp.Selection == pe.IMAGE_COMDAT_SELECT_SAME_SIZE {
+			// This is supported.
+		} else if auxsymp.Selection == pe.IMAGE_COMDAT_SELECT_ANY {
+			// Also supported.
+			state.comdats[uint16(pesym.SectionNumber-1)] = int64(-1)
+		} else {
+			// We don't support any of the other strategies at the
+			// moment. I suspect that we may need to also support
+			// "associative", we'll see.
+			return fmt.Errorf("internal error: unsupported COMDAT selection strategy found in path=%s sec=%d strategy=%d idx=%d, please file a bug", state.pn, auxsymp.SecNum, auxsymp.Selection, i)
 		}
 	}
 	state.defWithImp = make(map[string]struct{})
