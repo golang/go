@@ -132,7 +132,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 	out := outbuf.Bytes()
 	n := bytes.Count(out, []byte("main.crashDumpsAllThreadsLoop("))
 	if n != 4 {
-		t.Errorf("found %d instances of main.loop; expected 4", n)
+		t.Errorf("found %d instances of main.crashDumpsAllThreadsLoop; expected 4", n)
 		t.Logf("%s", out)
 	}
 }
