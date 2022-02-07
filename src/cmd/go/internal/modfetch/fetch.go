@@ -331,16 +331,14 @@ func hashZip(mod module.Version, zipfile, ziphashfile string) error {
 	if err != nil {
 		return err
 	}
+	// issue 50858: lockedfile.File leaked in case of write error
+	defer hf.Close()
 	if err := hf.Truncate(int64(len(hash))); err != nil {
 		return err
 	}
 	if _, err := hf.WriteAt([]byte(hash), 0); err != nil {
 		return err
 	}
-	if err := hf.Close(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
