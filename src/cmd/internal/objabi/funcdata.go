@@ -23,6 +23,7 @@ const (
 	FUNCDATA_OpenCodedDeferInfo = 4
 	FUNCDATA_ArgInfo            = 5
 	FUNCDATA_ArgLiveInfo        = 6
+	FUNCDATA_WrapInfo           = 7
 
 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
 	// whose argument size is unknown (C vararg functions, and

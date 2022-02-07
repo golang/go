@@ -6768,6 +6768,34 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	return x
 }
 
+// for wrapper, emit info of wrapped function.
+func emitWrappedFuncInfo(e *ssafn, pp *objw.Progs) {
+	if base.Ctxt.Flag_linkshared {
+		// Relative reference (SymPtrOff) to another shared object doesn't work.
+		// Unfortunate.
+		return
+	}
+
+	wfn := e.curfn.WrappedFunc
+	if wfn == nil {
+		return
+	}
+
+	wsym := wfn.Linksym()
+	x := base.Ctxt.LookupInit(fmt.Sprintf("%s.wrapinfo", wsym.Name), func(x *obj.LSym) {
+		objw.SymPtrOff(x, 0, wsym)
+		x.Set(obj.AttrContentAddressable, true)
+	})
+	e.curfn.LSym.Func().WrapInfo = x
+
+	// Emit a funcdata pointing at the wrap info data.
+	p := pp.Prog(obj.AFUNCDATA)
+	p.From.SetConst(objabi.FUNCDATA_WrapInfo)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = x
+}
+
 // genssa appends entries to pp for each instruction in f.
 func genssa(f *ssa.Func, pp *objw.Progs) {
 	var s State
@@ -6789,6 +6817,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = openDeferInfo
 	}
+
+	emitWrappedFuncInfo(e, pp)
 
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())

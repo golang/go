@@ -133,6 +133,10 @@ type Func struct {
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
 	NWBRCalls *[]SymAndPos
+
+	// For wrapper functions, WrappedFunc point to the original Func.
+	// Currently only used for go/defer wrappers.
+	WrappedFunc *Func
 }
 
 func NewFunc(pos src.XPos) *Func {
