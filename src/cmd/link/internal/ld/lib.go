@@ -665,6 +665,21 @@ func loadWindowsHostArchives(ctxt *Link) {
 			any = true
 		}
 	}
+	// If needed, create the __CTOR_LIST__ and __DTOR_LIST__
+	// symbols (referenced by some of the mingw support library
+	// routines). Creation of these symbols is normally done by the
+	// linker if not already present.
+	want := []string{"__CTOR_LIST__", "__DTOR_LIST__"}
+	isunresolved := symbolsAreUnresolved(ctxt, want)
+	for k, w := range want {
+		if isunresolved[k] {
+			sb := ctxt.loader.CreateSymForUpdate(w, 0)
+			sb.SetType(sym.SDATA)
+			sb.AddUint64(ctxt.Arch, 0)
+			sb.SetReachable(true)
+			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
+		}
+	}
 	// TODO: maybe do something similar to peimporteddlls to collect
 	// all lib names and try link them all to final exe just like
 	// libmingwex.a and libmingw32.a:
