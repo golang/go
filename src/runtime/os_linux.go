@@ -664,3 +664,142 @@ func setThreadCPUProfiler(hz int32) {
 	mp.profileTimer = timerid
 	atomic.Store(&mp.profileTimerValid, 1)
 }
+
+// syscall_runtime_doAllThreadsSyscall serializes Go execution and
+// executes a specified fn() call on all m's.
+//
+// The boolean argument to fn() indicates whether the function's
+// return value will be consulted or not. That is, fn(true) should
+// return true if fn() succeeds, and fn(true) should return false if
+// it failed. When fn(false) is called, its return status will be
+// ignored.
+//
+// syscall_runtime_doAllThreadsSyscall first invokes fn(true) on a
+// single, coordinating, m, and only if it returns true does it go on
+// to invoke fn(false) on all of the other m's known to the process.
+//
+//go:linkname syscall_runtime_doAllThreadsSyscall syscall.runtime_doAllThreadsSyscall
+func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
+	if iscgo {
+		panic("doAllThreadsSyscall not supported with cgo enabled")
+	}
+	if fn == nil {
+		return
+	}
+	for atomic.Load(&sched.sysmonStarting) != 0 {
+		osyield()
+	}
+
+	// We don't want this thread to handle signals for the
+	// duration of this critical section. The underlying issue
+	// being that this locked coordinating m is the one monitoring
+	// for fn() execution by all the other m's of the runtime,
+	// while no regular go code execution is permitted (the world
+	// is stopped). If this present m were to get distracted to
+	// run signal handling code, and find itself waiting for a
+	// second thread to execute go code before being able to
+	// return from that signal handling, a deadlock will result.
+	// (See golang.org/issue/44193.)
+	lockOSThread()
+	var sigmask sigset
+	sigsave(&sigmask)
+	sigblock(false)
+
+	stopTheWorldGC("doAllThreadsSyscall")
+	if atomic.Load(&newmHandoff.haveTemplateThread) != 0 {
+		// Ensure that there are no in-flight thread
+		// creations: don't want to race with allm.
+		lock(&newmHandoff.lock)
+		for !newmHandoff.waiting {
+			unlock(&newmHandoff.lock)
+			osyield()
+			lock(&newmHandoff.lock)
+		}
+		unlock(&newmHandoff.lock)
+	}
+	if netpollinited() {
+		netpollBreak()
+	}
+	sigRecvPrepareForFixup()
+	_g_ := getg()
+	if raceenabled {
+		// For m's running without racectx, we loan out the
+		// racectx of this call.
+		lock(&mFixupRace.lock)
+		mFixupRace.ctx = _g_.racectx
+		unlock(&mFixupRace.lock)
+	}
+	if ok := fn(true); ok {
+		tid := _g_.m.procid
+		for mp := allm; mp != nil; mp = mp.alllink {
+			if mp.procid == tid {
+				// This m has already completed fn()
+				// call.
+				continue
+			}
+			// Be wary of mp's without procid values if
+			// they are known not to park. If they are
+			// marked as parking with a zero procid, then
+			// they will be racing with this code to be
+			// allocated a procid and we will annotate
+			// them with the need to execute the fn when
+			// they acquire a procid to run it.
+			if mp.procid == 0 && !mp.doesPark {
+				// Reaching here, we are either
+				// running Windows, or cgo linked
+				// code. Neither of which are
+				// currently supported by this API.
+				throw("unsupported runtime environment")
+			}
+			// stopTheWorldGC() doesn't guarantee stopping
+			// all the threads, so we lock here to avoid
+			// the possibility of racing with mp.
+			lock(&mp.mFixup.lock)
+			mp.mFixup.fn = fn
+			atomic.Store(&mp.mFixup.used, 1)
+			if mp.doesPark {
+				// For non-service threads this will
+				// cause the wakeup to be short lived
+				// (once the mutex is unlocked). The
+				// next real wakeup will occur after
+				// startTheWorldGC() is called.
+				notewakeup(&mp.park)
+			}
+			unlock(&mp.mFixup.lock)
+		}
+		for {
+			done := true
+			for mp := allm; done && mp != nil; mp = mp.alllink {
+				if mp.procid == tid {
+					continue
+				}
+				done = atomic.Load(&mp.mFixup.used) == 0
+			}
+			if done {
+				break
+			}
+			// if needed force sysmon and/or newmHandoff to wakeup.
+			lock(&sched.lock)
+			if atomic.Load(&sched.sysmonwait) != 0 {
+				atomic.Store(&sched.sysmonwait, 0)
+				notewakeup(&sched.sysmonnote)
+			}
+			unlock(&sched.lock)
+			lock(&newmHandoff.lock)
+			if newmHandoff.waiting {
+				newmHandoff.waiting = false
+				notewakeup(&newmHandoff.wake)
+			}
+			unlock(&newmHandoff.lock)
+			osyield()
+		}
+	}
+	if raceenabled {
+		lock(&mFixupRace.lock)
+		mFixupRace.ctx = 0
+		unlock(&mFixupRace.lock)
+	}
+	startTheWorldGC()
+	msigrestore(sigmask)
+	unlockOSThread()
+}
