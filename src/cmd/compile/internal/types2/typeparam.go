@@ -124,8 +124,9 @@ func (t *TypeParam) iface() *Interface {
 
 	// compute type set if necessary
 	if ityp.tset == nil {
-		// use the (original) type bound position if we have one
-		pos := nopos
+		// pos is used for tracing output; start with the type parameter position.
+		pos := t.obj.pos
+		// use the (original or possibly instantiated) type bound position if we have one
 		if n, _ := bound.(*Named); n != nil {
 			pos = n.obj.pos
 		}

@@ -135,6 +135,8 @@ func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool
 func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type) (int, error) {
 	smap := makeSubstMap(tparams, targs)
 	for i, tpar := range tparams {
+		// Ensure that we have a (possibly implicit) interface as type bound (issue #51048).
+		tpar.iface()
 		// The type parameter bound is parameterized with the same type parameters
 		// as the instantiated type; before we can use it for bounds checking we
 		// need to instantiate it with the type arguments with which we instantiated
