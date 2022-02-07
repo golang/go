@@ -6,6 +6,7 @@ package deadcode
 
 import (
 	"go/constant"
+	"go/token"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -85,6 +86,85 @@ func stmts(nn *ir.Nodes) {
 					}
 				}
 			}
+		}
+		if n.Op() == ir.OSWITCH {
+			n := n.(*ir.SwitchStmt)
+			// Use a closure wrapper here so we can use "return" to abort the analysis.
+			func() {
+				if n.Tag != nil && n.Tag.Op() == ir.OTYPESW {
+					return // no special type-switch case yet.
+				}
+				var x constant.Value // value we're switching on
+				if n.Tag != nil {
+					if ir.ConstType(n.Tag) == constant.Unknown {
+						return
+					}
+					x = n.Tag.Val()
+				} else {
+					x = constant.MakeBool(true) // switch { ... }  =>  switch true { ... }
+				}
+				var def *ir.CaseClause
+				for _, cas := range n.Cases {
+					if len(cas.List) == 0 { // default case
+						def = cas
+						continue
+					}
+					for _, c := range cas.List {
+						if ir.ConstType(c) == constant.Unknown {
+							return // can't statically tell if it matches or not - give up.
+						}
+						if constant.Compare(x, token.EQL, c.Val()) {
+							for _, n := range cas.Body {
+								if n.Op() == ir.OFALL {
+									return // fallthrough makes it complicated - abort.
+								}
+							}
+							// This switch entry is the one that always triggers.
+							for _, cas2 := range n.Cases {
+								for _, c2 := range cas2.List {
+									if cas2 != cas || c2 != c {
+										ir.Visit(c2, markHiddenClosureDead)
+									}
+								}
+								if cas2 != cas {
+									ir.VisitList(cas2.Body, markHiddenClosureDead)
+								}
+							}
+
+							cas.List[0] = c
+							cas.List = cas.List[:1]
+							n.Cases[0] = cas
+							n.Cases = n.Cases[:1]
+							return
+						}
+					}
+				}
+				if def != nil {
+					for _, n := range def.Body {
+						if n.Op() == ir.OFALL {
+							return // fallthrough makes it complicated - abort.
+						}
+					}
+					for _, cas := range n.Cases {
+						if cas != def {
+							ir.VisitList(cas.List, markHiddenClosureDead)
+							ir.VisitList(cas.Body, markHiddenClosureDead)
+						}
+					}
+					n.Cases[0] = def
+					n.Cases = n.Cases[:1]
+					return
+				}
+
+				// TODO: handle case bodies ending with panic/return as we do in the IF case above.
+
+				// entire switch is a nop - no case ever triggers
+				for _, cas := range n.Cases {
+					ir.VisitList(cas.List, markHiddenClosureDead)
+					ir.VisitList(cas.Body, markHiddenClosureDead)
+				}
+				n.Cases = n.Cases[:0]
+			}()
 		}
 
 		if len(n.Init()) != 0 {
