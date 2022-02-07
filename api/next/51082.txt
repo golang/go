@@ -1,3 +1,9 @@
+pkg go/doc, method (*Package) HTML(string) []uint8 #51082
+pkg go/doc, method (*Package) Markdown(string) []uint8 #51082
+pkg go/doc, method (*Package) Parser() *comment.Parser #51082
+pkg go/doc, method (*Package) Printer() *comment.Printer #51082
+pkg go/doc, method (*Package) Synopsis(string) string #51082
+pkg go/doc, method (*Package) Text(string) []uint8 #51082
 pkg go/doc/comment, func DefaultLookupPackage(string) (string, bool) #51082
 pkg go/doc/comment, method (*DocLink) DefaultURL(string) string #51082
 pkg go/doc/comment, method (*Heading) DefaultID() string #51082

@@ -294,7 +294,7 @@ var depsRules = `
 	< go/printer
 	< go/format;
 
-	go/parser, internal/lazyregexp, text/template
+	go/doc/comment, go/parser, internal/lazyregexp, text/template
 	< go/doc;
 
 	math/big, go/token
