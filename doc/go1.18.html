@@ -91,6 +91,39 @@ Do not send CLs removing the interior tags from such phrases.
 </ul>
 
 <p>
+  There are three experimental packages using generics that may be
+  useful.
+  These packages are in x/exp repository; their API is not covered by
+  the Go 1 guarantee and may change as we gain more experience with
+  generics.
+  <dl>
+    <dt><a href="https://pkg.go.dev/golang.org/x/exp/constraints"><code>golang.org/x/exp/constraints</code></a></dt>
+    <dd>
+      <p>
+	Constraints that are useful for generic code, such as
+	<a href="https://pkg.go.dev/golang.org/x/exp/constraints#Ordered"><code>constraints.Ordered</code></a>.
+      </p>
+    </dd>
+
+    <dt><a href="https://pkg.go.dev/golang.org/x/exp/slices"><code>golang.org/x/exp/slices</code></a></dt>
+    <dd>
+      <p>
+	A collection of generic functions that operate on slices of
+	any element type.
+      </p>
+    </dd>
+
+    <dt><a href="https://pkg.go.dev/golang.org/x/exp/maps"><code>golang.org/x/exp/maps</code></a></dt>
+    <dd>
+      <p>
+	A collection of generic functions that operate on maps of
+	any key or element type.
+      </p>
+    </dd>
+  </dl>
+</p>
+
+<p>
   The current generics implementation has the following limitations:
   <ul>
     <li><!-- https://golang.org/issue/47631 -->
