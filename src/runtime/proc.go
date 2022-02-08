@@ -802,8 +802,18 @@ func mcommoninit(mp *m, id int64) {
 		mp.id = mReserveID()
 	}
 
-	// cputicks is not very random in startup virtual machine
-	mp.fastrand = uint64(int64Hash(uint64(mp.id), fastrandseed^uintptr(cputicks())))
+	lo := uint32(int64Hash(uint64(mp.id), fastrandseed))
+	hi := uint32(int64Hash(uint64(cputicks()), ^fastrandseed))
+	if lo|hi == 0 {
+		hi = 1
+	}
+	// Same behavior as for 1.17.
+	// TODO: Simplify ths.
+	if goarch.BigEndian {
+		mp.fastrand = uint64(lo)<<32 | uint64(hi)
+	} else {
+		mp.fastrand = uint64(hi)<<32 | uint64(lo)
+	}
 
 	mpreinit(mp)
 	if mp.gsignal != nil {
