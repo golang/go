@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 )
 
 func TestRepeatBootstrap(t *testing.T) {
@@ -19,16 +20,14 @@ func TestRepeatBootstrap(t *testing.T) {
 		t.Skipf("skipping test that rebuilds the entire toolchain")
 	}
 
-	goroot, err := os.MkdirTemp("", "reboot-goroot")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(goroot)
+	goroot := t.TempDir()
 
 	gorootSrc := filepath.Join(goroot, "src")
+	overlayStart := time.Now()
 	if err := overlayDir(gorootSrc, filepath.Join(runtime.GOROOT(), "src")); err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("GOROOT/src overlay set up in %s", time.Since(overlayStart))
 
 	if err := os.WriteFile(filepath.Join(goroot, "VERSION"), []byte(runtime.Version()), 0666); err != nil {
 		t.Fatal(err)
