@@ -62,8 +62,9 @@ func Compiling(pkgs []string) bool {
 // at best instrumentation would cause infinite recursion.
 var NoInstrumentPkgs = []string{
 	"runtime/internal/atomic",
-	"runtime/internal/sys",
 	"runtime/internal/math",
+	"runtime/internal/sys",
+	"runtime/internal/syscall",
 	"runtime",
 	"runtime/race",
 	"runtime/msan",
