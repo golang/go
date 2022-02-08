@@ -909,6 +909,19 @@ Do not send CLs removing the interior tags from such phrases.
         field.
       </li>
     </ul>
+    <p>
+      The predicates
+      <a href="/pkg/go/types/#AssignableTo"><code>AssignableTo</code></a>,
+      <a href="/pkg/go/types/#ConvertibleTo"><code>ConvertibleTo</code></a>,
+      <a href="/pkg/go/types/#Implements"><code>Implements</code></a>,
+      <a href="/pkg/go/types/#Identical"><code>Identical</code></a>,
+      <a href="/pkg/go/types/#IdenticalIgnoreTags"><code>IdenticalIgnoreTags</code></a>, and
+      <a href="/pkg/go/types/#AssertableTo"><code>AssertableTo</code></a>
+      now also work with arguments that are or contain generalized interfaces, i.e. interfaces
+      that may only be used as type constraints in Go code.
+      Note that the behavior of <code>AssertableTo</code> is undefined if the first argument
+      is a generalized interface.
+    </p>
   </dd>
 </dl>
 
