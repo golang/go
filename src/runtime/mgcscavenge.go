@@ -165,11 +165,12 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
 
 // Sleep/wait state of the background scavenger.
 var scavenge struct {
-	lock       mutex
-	g          *g
-	parked     bool
-	timer      *timer
-	sysmonWake uint32 // Set atomically.
+	lock                 mutex
+	g                    *g
+	parked               bool
+	timer                *timer
+	sysmonWake           uint32 // Set atomically.
+	printControllerReset bool   // Whether the scavenger is in cooldown.
 }
 
 // readyForScavenger signals sysmon to wake the scavenger because
@@ -295,8 +296,14 @@ func bgscavenge(c chan int) {
 		max: 1000.0, // 1000:1
 	}
 	// It doesn't really matter what value we start at, but we can't be zero, because
-	// that'll cause divide-by-zero issues.
-	critSleepRatio := 0.001
+	// that'll cause divide-by-zero issues. Pick something conservative which we'll
+	// also use as a fallback.
+	const startingCritSleepRatio = 0.001
+	critSleepRatio := startingCritSleepRatio
+	// Duration left in nanoseconds during which we avoid using the controller and
+	// we hold critSleepRatio at a conservative value. Used if the controller's
+	// assumptions fail to hold.
+	controllerCooldown := int64(0)
 	for {
 		released := uintptr(0)
 		crit := float64(0)
@@ -383,8 +390,21 @@ func bgscavenge(c chan int) {
 		// because of the additional overheads of using scavenged memory.
 		crit *= 1 + scavengeCostRatio
 
-		// Go to sleep for our current sleepNS.
+		// Go to sleep based on how much time we spent doing work.
 		slept := scavengeSleep(int64(crit / critSleepRatio))
+
+		// Stop here if we're cooling down from the controller.
+		if controllerCooldown > 0 {
+			// crit and slept aren't exact measures of time, but it's OK to be a bit
+			// sloppy here. We're just hoping we're avoiding some transient bad behavior.
+			t := slept + int64(crit)
+			if t > controllerCooldown {
+				controllerCooldown = 0
+			} else {
+				controllerCooldown -= t
+			}
+			continue
+		}
 
 		// Calculate the CPU time spent.
 		//
@@ -395,7 +415,20 @@ func bgscavenge(c chan int) {
 		cpuFraction := float64(crit) / ((float64(slept) + crit) * float64(gomaxprocs))
 
 		// Update the critSleepRatio, adjusting until we reach our ideal fraction.
-		critSleepRatio = critSleepController.next(cpuFraction, idealFraction, float64(slept)+crit)
+		var ok bool
+		critSleepRatio, ok = critSleepController.next(cpuFraction, idealFraction, float64(slept)+crit)
+		if !ok {
+			// The core assumption of the controller, that we can get a proportional
+			// response, broke down. This may be transient, so temporarily switch to
+			// sleeping a fixed, conservative amount.
+			critSleepRatio = startingCritSleepRatio
+			controllerCooldown = 5e9 // 5 seconds.
+
+			// Signal the scav trace printer to output this.
+			lock(&scavenge.lock)
+			scavenge.printControllerReset = true
+			unlock(&scavenge.lock)
+		}
 	}
 }
 
@@ -434,7 +467,11 @@ func (p *pageAlloc) scavenge(nbytes uintptr) uintptr {
 // released should be the amount of memory released since the last time this
 // was called, and forced indicates whether the scavenge was forced by the
 // application.
+//
+// scavenge.lock must be held.
 func printScavTrace(gen uint32, released uintptr, forced bool) {
+	assertLockHeld(&scavenge.lock)
+
 	printlock()
 	print("scav ", gen, " ",
 		released>>10, " KiB work, ",
@@ -443,6 +480,9 @@ func printScavTrace(gen uint32, released uintptr, forced bool) {
 	)
 	if forced {
 		print(" (forced)")
+	} else if scavenge.printControllerReset {
+		print(" [controller reset]")
+		scavenge.printControllerReset = false
 	}
 	println()
 	printunlock()
