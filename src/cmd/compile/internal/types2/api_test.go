@@ -2313,27 +2313,27 @@ type Bad Bad // invalid type
 	conf := Config{Error: func(error) {}}
 	pkg, _ := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
 
-	scope := pkg.Scope()
+	lookup := func(tname string) Type { return pkg.Scope().Lookup(tname).Type() }
 	var (
-		EmptyIface   = scope.Lookup("EmptyIface").Type().Underlying().(*Interface)
-		I            = scope.Lookup("I").Type().(*Named)
+		EmptyIface   = lookup("EmptyIface").Underlying().(*Interface)
+		I            = lookup("I").(*Named)
 		II           = I.Underlying().(*Interface)
-		C            = scope.Lookup("C").Type().(*Named)
+		C            = lookup("C").(*Named)
 		CI           = C.Underlying().(*Interface)
-		Integer      = scope.Lookup("Integer").Type().Underlying().(*Interface)
-		EmptyTypeSet = scope.Lookup("EmptyTypeSet").Type().Underlying().(*Interface)
-		N1           = scope.Lookup("N1").Type()
+		Integer      = lookup("Integer").Underlying().(*Interface)
+		EmptyTypeSet = lookup("EmptyTypeSet").Underlying().(*Interface)
+		N1           = lookup("N1")
 		N1p          = NewPointer(N1)
-		N2           = scope.Lookup("N2").Type()
+		N2           = lookup("N2")
 		N2p          = NewPointer(N2)
-		N3           = scope.Lookup("N3").Type()
-		N4           = scope.Lookup("N4").Type()
-		Bad          = scope.Lookup("Bad").Type()
+		N3           = lookup("N3")
+		N4           = lookup("N4")
+		Bad          = lookup("Bad")
 	)
 
 	tests := []struct {
-		t    Type
-		i    *Interface
+		V    Type
+		T    *Interface
 		want bool
 	}{
 		{I, II, true},
@@ -2364,8 +2364,20 @@ type Bad Bad // invalid type
 	}
 
 	for _, test := range tests {
-		if got := Implements(test.t, test.i); got != test.want {
-			t.Errorf("Implements(%s, %s) = %t, want %t", test.t, test.i, got, test.want)
+		if got := Implements(test.V, test.T); got != test.want {
+			t.Errorf("Implements(%s, %s) = %t, want %t", test.V, test.T, got, test.want)
+		}
+
+		// The type assertion x.(T) is valid if T is an interface or if T implements the type of x.
+		// The assertion is never valid if T is a bad type.
+		V := test.T
+		T := test.V
+		want := false
+		if _, ok := T.Underlying().(*Interface); (ok || Implements(T, V)) && T != Bad {
+			want = true
+		}
+		if got := AssertableTo(V, T); got != want {
+			t.Errorf("AssertableTo(%s, %s) = %t, want %t", V, T, got, want)
 		}
 	}
 }
