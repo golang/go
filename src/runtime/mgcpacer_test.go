@@ -715,3 +715,48 @@ func (f float64Stream) limit(min, max float64) float64Stream {
 		return v
 	}
 }
+
+func FuzzPIController(f *testing.F) {
+	isNormal := func(x float64) bool {
+		return !math.IsInf(x, 0) && !math.IsNaN(x)
+	}
+	isPositive := func(x float64) bool {
+		return isNormal(x) && x > 0
+	}
+	// Seed with constants from controllers in the runtime.
+	// It's not critical that we keep these in sync, they're just
+	// reasonable seed inputs.
+	f.Add(0.3375, 3.2e6, 1e9, 0.001, 1000.0, 0.01)
+	f.Add(0.9, 4.0, 1000.0, -1000.0, 1000.0, 0.84)
+	f.Fuzz(func(t *testing.T, kp, ti, tt, min, max, setPoint float64) {
+		// Ignore uninteresting invalid parameters. These parameters
+		// are constant, so in practice surprising values will be documented
+		// or will be other otherwise immediately visible.
+		//
+		// We just want to make sure that given a non-Inf, non-NaN input,
+		// we always get a non-Inf, non-NaN output.
+		if !isPositive(kp) || !isPositive(ti) || !isPositive(tt) {
+			return
+		}
+		if !isNormal(min) || !isNormal(max) || min > max {
+			return
+		}
+		// Use a random source, but make it deterministic.
+		rs := rand.New(rand.NewSource(800))
+		randFloat64 := func() float64 {
+			return math.Float64frombits(rs.Uint64())
+		}
+		p := NewPIController(kp, ti, tt, min, max)
+		state := float64(0)
+		for i := 0; i < 100; i++ {
+			input := randFloat64()
+			// Ignore the "ok" parameter. We're just trying to break it.
+			// state is intentionally completely uncorrelated with the input.
+			var ok bool
+			state, ok = p.Next(input, setPoint, 1.0)
+			if !isNormal(state) {
+				t.Fatalf("got NaN or Inf result from controller: %f %v", state, ok)
+			}
+		}
+	})
+}
