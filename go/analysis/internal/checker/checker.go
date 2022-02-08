@@ -11,6 +11,7 @@ package checker
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"flag"
 	"fmt"
 	"go/format"
@@ -129,8 +130,13 @@ func Run(args []string, analyzers []*analysis.Analyzer) (exitcode int) {
 	allSyntax := needFacts(analyzers)
 	initial, err := load(args, allSyntax)
 	if err != nil {
-		log.Print(err)
-		return 1 // load errors
+		if _, ok := err.(typeParseError); !ok {
+			// Fail when some of the errors are not
+			// related to parsing nor typing.
+			log.Print(err)
+			return 1
+		}
+		// TODO: filter analyzers based on RunDespiteError?
 	}
 
 	// Print the results.
@@ -139,11 +145,17 @@ func Run(args []string, analyzers []*analysis.Analyzer) (exitcode int) {
 	if Fix {
 		applyFixes(roots)
 	}
-
 	return printDiagnostics(roots)
 }
 
-// load loads the initial packages.
+// typeParseError represents a package load error
+// that is related to typing and parsing.
+type typeParseError struct {
+	error
+}
+
+// load loads the initial packages. If all loading issues are related to
+// typing and parsing, the returned error is of type typeParseError.
 func load(patterns []string, allSyntax bool) ([]*packages.Package, error) {
 	mode := packages.LoadSyntax
 	if allSyntax {
@@ -155,16 +167,41 @@ func load(patterns []string, allSyntax bool) ([]*packages.Package, error) {
 	}
 	initial, err := packages.Load(&conf, patterns...)
 	if err == nil {
-		if n := packages.PrintErrors(initial); n > 1 {
-			err = fmt.Errorf("%d errors during loading", n)
-		} else if n == 1 {
-			err = fmt.Errorf("error during loading")
-		} else if len(initial) == 0 {
+		if len(initial) == 0 {
 			err = fmt.Errorf("%s matched no packages", strings.Join(patterns, " "))
+		} else {
+			err = loadingError(initial)
 		}
 	}
-
 	return initial, err
+}
+
+// loadingError checks for issues during the loading of initial
+// packages. Returns nil if there are no issues. Returns error
+// of type typeParseError if all errors, including those in
+// dependencies, are related to typing or parsing. Otherwise,
+// a plain error is returned with an appropriate message.
+func loadingError(initial []*packages.Package) error {
+	var err error
+	if n := packages.PrintErrors(initial); n > 1 {
+		err = fmt.Errorf("%d errors during loading", n)
+	} else if n == 1 {
+		err = errors.New("error during loading")
+	} else {
+		// no errors
+		return nil
+	}
+	all := true
+	packages.Visit(initial, nil, func(pkg *packages.Package) {
+		for _, err := range pkg.Errors {
+			typeOrParse := err.Kind == packages.TypeError || err.Kind == packages.ParseError
+			all = all && typeOrParse
+		}
+	})
+	if all {
+		return typeParseError{err}
+	}
+	return err
 }
 
 // TestAnalyzer applies an analysis to a set of packages (and their
