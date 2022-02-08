@@ -1353,13 +1353,52 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Wl,-bbigtoc")
 	}
 
-	// Enable ASLR on Windows.
-	addASLRargs := func(argv []string) []string {
-		// Enable ASLR.
-		argv = append(argv, "-Wl,--dynamicbase")
+	// Enable/disable ASLR on Windows.
+	addASLRargs := func(argv []string, val bool) []string {
+		// Old/ancient versions of GCC support "--dynamicbase" and
+		// "--high-entropy-va" but don't enable it by default. In
+		// addition, they don't accept "--disable-dynamicbase" or
+		// "--no-dynamicbase", so the only way to disable ASLR is to
+		// not pass any flags at all.
+		//
+		// More modern versions of GCC (and also clang) enable ASLR
+		// by default. With these compilers, however you can turn it
+		// off if you want using "--disable-dynamicbase" or
+		// "--no-dynamicbase".
+		//
+		// The strategy below is to try using "--disable-dynamicbase";
+		// if this succeeds, then assume we're working with more
+		// modern compilers and act accordingly. If it fails, assume
+		// an ancient compiler with ancient defaults.
+		var dbopt string
+		var heopt string
+		dbon := "--dynamicbase"
+		heon := "--high-entropy-va"
+		dboff := "--disable-dynamicbase"
+		heoff := "--disable-high-entropy-va"
+		if val {
+			dbopt = dbon
+			heopt = heon
+		} else {
+			// Test to see whether "--disable-dynamicbase" works.
+			newer := linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,"+dboff)
+			if newer {
+				// Newer compiler, which supports both on/off options.
+				dbopt = dboff
+				heopt = heoff
+			} else {
+				// older toolchain: we have to say nothing in order to
+				// get a no-ASLR binary.
+				dbopt = ""
+				heopt = ""
+			}
+		}
+		if dbopt != "" {
+			argv = append(argv, "-Wl,"+dbopt)
+		}
 		// enable high-entropy ASLR on 64-bit.
-		if ctxt.Arch.PtrSize >= 8 {
-			argv = append(argv, "-Wl,--high-entropy-va")
+		if ctxt.Arch.PtrSize >= 8 && heopt != "" {
+			argv = append(argv, "-Wl,"+heopt)
 		}
 		return argv
 	}
@@ -1376,7 +1415,7 @@ func (ctxt *Link) hostlink() {
 		switch ctxt.HeadType {
 		case objabi.Hdarwin, objabi.Haix:
 		case objabi.Hwindows:
-			argv = addASLRargs(argv)
+			argv = addASLRargs(argv, *flagAslr)
 		default:
 			// ELF.
 			if ctxt.UseRelro() {
@@ -1393,9 +1432,7 @@ func (ctxt *Link) hostlink() {
 			}
 			argv = append(argv, "-shared")
 			if ctxt.HeadType == objabi.Hwindows {
-				if *flagAslr {
-					argv = addASLRargs(argv)
-				}
+				argv = addASLRargs(argv, *flagAslr)
 			} else {
 				// Pass -z nodelete to mark the shared library as
 				// non-closeable: a dlclose will do nothing.
