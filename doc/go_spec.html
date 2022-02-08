@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Jan 31, 2022",
+	"Subtitle": "Version of Feb 8, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -901,7 +901,9 @@ it is a <a href="#Type_definitions">defined type</a>.
 <h3 id="Numeric_types">Numeric types</h3>
 
 <p>
-A <i>numeric type</i> represents sets of integer or floating-point values.
+An <i>integer</i>, <i>floating-point</i>, or <i>complex</i> type
+represents the set of integer, floating-point, or complex values, respectively.
+They are collectively called <i>numeric types</i>.
 The predeclared architecture-independent numeric types are:
 </p>
 
@@ -932,7 +934,7 @@ The value of an <i>n</i>-bit integer is <i>n</i> bits wide and represented using
 </p>
 
 <p>
-There is also a set of predeclared numeric types with implementation-specific sizes:
+There is also a set of predeclared integer types with implementation-specific sizes:
 </p>
 
 <pre class="grammar">
@@ -1921,7 +1923,7 @@ if one of the following conditions applies:
 </li>
 
 <li>
-<code>T</code> is a floating-point type and <code>x</code> can be rounded to <code>T</code>'s
+<code>T</code> is a <a href="#Numeric_types">floating-point type</a> and <code>x</code> can be rounded to <code>T</code>'s
 precision without overflow. Rounding uses IEEE 754 round-to-even rules but with an IEEE
 negative zero further simplified to an unsigned zero. Note that constant values never result
 in an IEEE negative zero, NaN, or infinity.
@@ -3108,7 +3110,7 @@ For array and slice literals the following rules apply:
 	    key must be a non-negative constant
 	    <a href="#Representability">representable</a> by
 	    a value of type <code>int</code>; and if it is typed
-	    it must be of integer type.
+	    it must be of <a href="#Numeric_types">integer type</a>.
 	</li>
 	<li>An element without a key uses the previous element's index plus one.
 	    If the first element has no key, its index is zero.
@@ -3707,7 +3709,7 @@ The following rules apply:
 If <code>a</code> is not a map:
 </p>
 <ul>
-	<li>the index <code>x</code> must be of integer type or an untyped constant</li>
+	<li>the index <code>x</code> must be of <a href="#Numeric_types">integer type</a> or an untyped constant</li>
 	<li>a constant index must be non-negative and
 	    <a href="#Representability">representable</a> by a value of type <code>int</code></li>
 	<li>a constant index that is untyped is given type <code>int</code></li>
@@ -4660,7 +4662,7 @@ to the type of the other operand.
 </p>
 
 <p>
-The right operand in a shift expression must have integer type
+The right operand in a shift expression must have <a href="#Numeric_types">integer type</a>
 or be an untyped constant <a href="#Representability">representable</a> by a
 value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
@@ -4740,8 +4742,9 @@ x == y+1 &amp;&amp; &lt;-chanInt &gt; 0
 <p>
 Arithmetic operators apply to numeric values and yield a result of the same
 type as the first operand. The four standard arithmetic operators (<code>+</code>,
-<code>-</code>, <code>*</code>, <code>/</code>) apply to integer,
-floating-point, and complex types; <code>+</code> also applies to strings.
+<code>-</code>, <code>*</code>, <code>/</code>) apply to
+<a href="#Numeric_types">integer</a>, <a href="#Numeric_types">floating-point</a>, and
+<a href="#Numeric_types">complex</a> types; <code>+</code> also applies to <a href="#String_types">strings</.
 The bitwise logical and shift operators apply to integers only.
 </p>
 
@@ -4880,7 +4883,7 @@ occurs is implementation-specific.
 An implementation may combine multiple floating-point operations into a single
 fused operation, possibly across statements, and produce a result that differs
 from the value obtained by executing and rounding the instructions individually.
-An explicit floating-point type <a href="#Conversions">conversion</a> rounds to
+An explicit <a href="#Numeric_types">floating-point type</a> <a href="#Conversions">conversion</a> rounds to
 the precision of the target type, preventing fusion that would discard that rounding.
 </p>
 
@@ -5321,19 +5324,19 @@ For the conversion of non-constant numeric values, the following rules apply:
 
 <ol>
 <li>
-When converting between integer types, if the value is a signed integer, it is
+When converting between <a href="#Numeric_types">integer types</a>, if the value is a signed integer, it is
 sign extended to implicit infinite precision; otherwise it is zero extended.
 It is then truncated to fit in the result type's size.
 For example, if <code>v := uint16(0x10F0)</code>, then <code>uint32(int8(v)) == 0xFFFFFFF0</code>.
 The conversion always yields a valid value; there is no indication of overflow.
 </li>
 <li>
-When converting a floating-point number to an integer, the fraction is discarded
+When converting a <a href="#Numeric_types">floating-point number</a> to an integer, the fraction is discarded
 (truncation towards zero).
 </li>
 <li>
 When converting an integer or floating-point number to a floating-point type,
-or a complex number to another complex type, the result value is rounded
+or a <a href="#Numeric_types">complex number</a> to another complex type, the result value is rounded
 to the precision specified by the destination type.
 For instance, the value of a variable <code>x</code> of type <code>float32</code>
 may be stored using additional precision beyond that of an IEEE-754 32-bit number,
@@ -7037,7 +7040,7 @@ make(T, n)       channel    buffered channel of type T, buffer size n
 
 
 <p>
-Each of the size arguments <code>n</code> and <code>m</code> must be of integer type
+Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>
 or an untyped <a href="#Constants">constant</a>.
 A constant size argument must be non-negative and <a href="#Representability">representable</a>
 by a value of type <code>int</code>; if it is an untyped constant it is given type <code>int</code>.
@@ -7182,7 +7185,8 @@ imag(complexT) floatT
 <p>
 The type of the arguments and return value correspond.
 For <code>complex</code>, the two arguments must be of the same
-floating-point type and the return type is the complex type
+<a href="#Numeric_types">floating-point type</a> and the return type is the
+<a href="#Numeric_types">complex type</a>
 with the corresponding floating-point constituents:
 <code>complex64</code> for <code>float32</code> arguments, and
 <code>complex128</code> for <code>float64</code> arguments.
@@ -7897,7 +7901,7 @@ of constant size.
 <p>
 The function <code>Add</code> adds <code>len</code> to <code>ptr</code>
 and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
-The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
+The <code>len</code> argument must be of <a href="#Numeric_types">integer type</a> or an untyped <a href="#Constants">constant</a>.
 A constant <code>len</code> argument must be <a href="#Representability">representable</a> by a value of type <code>int</code>;
 if it is an untyped constant it is given type <code>int</code>.
 The rules for <a href="/pkg/unsafe#Pointer">valid uses</a> of <code>Pointer</code> still apply.
@@ -7920,7 +7924,7 @@ is <code>nil</code> and <code>len</code> is zero,
 </p>
 
 <p>
-The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
+The <code>len</code> argument must be of <a href="#Numeric_types">integer type</a> or an untyped <a href="#Constants">constant</a>.
 A constant <code>len</code> argument must be non-negative and <a href="#Representability">representable</a> by a value of type <code>int</code>;
 if it is an untyped constant it is given type <code>int</code>.
 At run time, if <code>len</code> is negative,
