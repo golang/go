@@ -28,6 +28,8 @@ var builtinCalls = []struct {
 	{"cap", `var s [10]int; _ = cap(&s)`, `invalid type`}, // constant
 	{"cap", `var s []int64; _ = cap(s)`, `func([]int64) int`},
 	{"cap", `var c chan<-bool; _ = cap(c)`, `func(chan<- bool) int`},
+	{"cap", `type S []byte; var s S; _ = cap(s)`, `func(p.S) int`},
+	{"cap", `var s P; _ = cap(s)`, `func(P) int`},
 
 	{"len", `_ = len("foo")`, `invalid type`}, // constant
 	{"len", `var s string; _ = len(s)`, `func(string) int`},
@@ -36,6 +38,8 @@ var builtinCalls = []struct {
 	{"len", `var s []int64; _ = len(s)`, `func([]int64) int`},
 	{"len", `var c chan<-bool; _ = len(c)`, `func(chan<- bool) int`},
 	{"len", `var m map[string]float32; _ = len(m)`, `func(map[string]float32) int`},
+	{"len", `type S []byte; var s S; _ = len(s)`, `func(p.S) int`},
+	{"len", `var s P; _ = len(s)`, `func(P) int`},
 
 	{"close", `var c chan int; close(c)`, `func(chan int)`},
 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
@@ -159,7 +163,7 @@ func parseGenericSrc(path, src string) (*syntax.File, error) {
 }
 
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
-	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P any]() { %s }`, src0)
+	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P ~[]byte]() { %s }`, src0)
 	f, err := parseGenericSrc("", src)
 	if err != nil {
 		t.Errorf("%s: %s", src0, err)

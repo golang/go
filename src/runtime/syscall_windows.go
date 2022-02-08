@@ -152,7 +152,7 @@ func (p *abiDesc) assignArg(t *_type) {
 // tryRegAssignArg tries to register-assign a value of type t.
 // If this type is nested in an aggregate type, then offset is the
 // offset of this type within its parent type.
-// Assumes t.size <= sys.PtrSize and t.size != 0.
+// Assumes t.size <= goarch.PtrSize and t.size != 0.
 //
 // Returns whether the assignment succeeded.
 func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {

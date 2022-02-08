@@ -27,7 +27,7 @@ type Trace struct {
 	DNSStart func(name string)
 
 	// DNSDone is called after a DNS lookup completes (or fails).
-	// The coalesced parameter is whether singleflight de-dupped
+	// The coalesced parameter is whether singleflight de-duped
 	// the call. The addrs are of type net.IPAddr but can't
 	// actually be for circular dependency reasons.
 	DNSDone func(netIPs []any, coalesced bool, err error)

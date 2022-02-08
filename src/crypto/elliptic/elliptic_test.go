@@ -182,6 +182,61 @@ func testUnmarshalToLargeCoordinates(t *testing.T, curve Curve) {
 	}
 }
 
+// TestInvalidCoordinates tests big.Int values that are not valid field elements
+// (negative or bigger than P). They are expected to return false from
+// IsOnCurve, all other behavior is undefined.
+func TestInvalidCoordinates(t *testing.T) {
+	testAllCurves(t, testInvalidCoordinates)
+}
+
+func testInvalidCoordinates(t *testing.T, curve Curve) {
+	checkIsOnCurveFalse := func(name string, x, y *big.Int) {
+		if curve.IsOnCurve(x, y) {
+			t.Errorf("IsOnCurve(%s) unexpectedly returned true", name)
+		}
+	}
+
+	p := curve.Params().P
+	_, x, y, _ := GenerateKey(curve, rand.Reader)
+	xx, yy := new(big.Int), new(big.Int)
+
+	// Check if the sign is getting dropped.
+	xx.Neg(x)
+	checkIsOnCurveFalse("-x, y", xx, y)
+	yy.Neg(y)
+	checkIsOnCurveFalse("x, -y", x, yy)
+
+	// Check if negative values are reduced modulo P.
+	xx.Sub(x, p)
+	checkIsOnCurveFalse("x-P, y", xx, y)
+	yy.Sub(y, p)
+	checkIsOnCurveFalse("x, y-P", x, yy)
+
+	// Check if positive values are reduced modulo P.
+	xx.Add(x, p)
+	checkIsOnCurveFalse("x+P, y", xx, y)
+	yy.Add(y, p)
+	checkIsOnCurveFalse("x, y+P", x, yy)
+
+	// Check if the overflow is dropped.
+	xx.Add(x, new(big.Int).Lsh(big.NewInt(1), 535))
+	checkIsOnCurveFalse("x+2⁵³⁵, y", xx, y)
+	yy.Add(y, new(big.Int).Lsh(big.NewInt(1), 535))
+	checkIsOnCurveFalse("x, y+2⁵³⁵", x, yy)
+
+	// Check if P is treated like zero (if possible).
+	// y^2 = x^3 - 3x + B
+	// y = mod_sqrt(x^3 - 3x + B)
+	// y = mod_sqrt(B) if x = 0
+	// If there is no modsqrt, there is no point with x = 0, can't test x = P.
+	if yy := new(big.Int).ModSqrt(curve.Params().B, p); yy != nil {
+		if !curve.IsOnCurve(big.NewInt(0), yy) {
+			t.Fatal("(0, mod_sqrt(B)) is not on the curve?")
+		}
+		checkIsOnCurveFalse("P, y", p, yy)
+	}
+}
+
 func TestMarshalCompressed(t *testing.T) {
 	t.Run("P-256/03", func(t *testing.T) {
 		data, _ := hex.DecodeString("031e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")

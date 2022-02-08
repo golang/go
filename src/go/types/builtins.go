@@ -143,9 +143,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// cap(x)
 		// len(x)
 		mode := invalid
-		var typ Type
 		var val constant.Value
-		switch typ = arrayPtrDeref(under(x.typ)); t := typ.(type) {
+		switch t := arrayPtrDeref(under(x.typ)).(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -202,7 +201,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 		}
 
-		if mode == invalid && typ != Typ[Invalid] {
+		if mode == invalid && under(x.typ) != Typ[Invalid] {
 			code := _InvalidCap
 			if id == _Len {
 				code = _InvalidLen
@@ -211,12 +210,14 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
+		// record the signature before changing x.typ
+		if check.Types != nil && mode != constant_ {
+			check.recordBuiltinType(call.Fun, makeSig(Typ[Int], x.typ))
+		}
+
 		x.mode = mode
 		x.typ = Typ[Int]
 		x.val = val
-		if check.Types != nil && mode != constant_ {
-			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
-		}
 
 	case _Close:
 		// close(c)

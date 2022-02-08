@@ -297,12 +297,12 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-func (n *Named) lookupMethodFold(pkg *Package, name string, checkFold bool) (int, *Func) {
+func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
 	n.resolve(nil)
 	// If n is an instance, we may not have yet instantiated all of its methods.
 	// Look up the method index in orig, and only instantiate method at the
 	// matching index (if any).
-	i, _ := n.orig.methods.LookupFold(pkg, name, checkFold)
+	i, _ := n.orig.methods.Lookup(pkg, name, foldCase)
 	if i < 0 {
 		return -1, nil
 	}

@@ -843,7 +843,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// size is sizeof(_defer{}) (at least 6 words) and dataSize may be
 	// arbitrarily larger.
 	//
-	// The checks for size == sys.PtrSize and size == 2*sys.PtrSize can therefore
+	// The checks for size == goarch.PtrSize and size == 2*goarch.PtrSize can therefore
 	// assume that dataSize == size without checking it explicitly.
 
 	if goarch.PtrSize == 8 && size == goarch.PtrSize {
@@ -893,7 +893,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			}
 			return
 		}
-		// Otherwise typ.size must be 2*sys.PtrSize,
+		// Otherwise typ.size must be 2*goarch.PtrSize,
 		// and typ.kind&kindGCProg == 0.
 		if doubleCheck {
 			if typ.size != 2*goarch.PtrSize || typ.kind&kindGCProg != 0 {
@@ -1095,8 +1095,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			// Replicate ptrmask to fill entire pbits uintptr.
 			// Doubling and truncating is fewer steps than
 			// iterating by nb each time. (nb could be 1.)
-			// Since we loaded typ.ptrdata/sys.PtrSize bits
-			// but are pretending to have typ.size/sys.PtrSize,
+			// Since we loaded typ.ptrdata/goarch.PtrSize bits
+			// but are pretending to have typ.size/goarch.PtrSize,
 			// there might be no replication necessary/possible.
 			pbits = b
 			endnb = nb
@@ -1564,7 +1564,7 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
 
 // progToPointerMask returns the 1-bit pointer mask output by the GC program prog.
 // size the size of the region described by prog, in bytes.
-// The resulting bitvector will have no more than size/sys.PtrSize bits.
+// The resulting bitvector will have no more than size/goarch.PtrSize bits.
 func progToPointerMask(prog *byte, size uintptr) bitvector {
 	n := (size/goarch.PtrSize + 7) / 8
 	x := (*[1 << 30]byte)(persistentalloc(n+1, 1, &memstats.buckhash_sys))[:n+1]
@@ -1697,7 +1697,7 @@ Run:
 		// into a register and use that register for the entire loop
 		// instead of repeatedly reading from memory.
 		// Handling fewer than 8 bits here makes the general loop simpler.
-		// The cutoff is sys.PtrSize*8 - 7 to guarantee that when we add
+		// The cutoff is goarch.PtrSize*8 - 7 to guarantee that when we add
 		// the pattern to a bit buffer holding at most 7 bits (a partial byte)
 		// it will not overflow.
 		src := dst

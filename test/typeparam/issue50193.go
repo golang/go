@@ -7,17 +7,20 @@
 package main
 
 import (
-	"constraints"
 	"fmt"
 )
 
-func zero[T constraints.Complex]() T {
+type Complex interface {
+	~complex64 | ~complex128
+}
+
+func zero[T Complex]() T {
 	return T(0)
 }
-func pi[T constraints.Complex]() T {
+func pi[T Complex]() T {
 	return T(3.14)
 }
-func sqrtN1[T constraints.Complex]() T {
+func sqrtN1[T Complex]() T {
 	return T(-1i)
 }
 

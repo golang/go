@@ -61,6 +61,9 @@ func p224PointFromAffine(x, y *big.Int) (p *nistec.P224Point, ok bool) {
 	if x.Sign() == 0 && y.Sign() == 0 {
 		return nistec.NewP224Point(), true
 	}
+	if x.Sign() < 0 || y.Sign() < 0 {
+		return nil, false
+	}
 	if x.BitLen() > 224 || y.BitLen() > 224 {
 		return nil, false
 	}

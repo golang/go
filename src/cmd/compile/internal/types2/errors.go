@@ -167,8 +167,13 @@ func (check *Checker) markImports(pkg *Package) {
 	}
 }
 
+// check may be nil.
 func (check *Checker) sprintf(format string, args ...interface{}) string {
-	return sprintf(check.qualifier, false, format, args...)
+	var qf Qualifier
+	if check != nil {
+		qf = check.qualifier
+	}
+	return sprintf(qf, false, format, args...)
 }
 
 func (check *Checker) report(err *error_) {

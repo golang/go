@@ -183,7 +183,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			if arg.mode == invalid {
 				// An error was reported earlier. Ignore this targ
 				// and continue, we may still be able to infer all
-				// targs resulting in fewer follon-on errors.
+				// targs resulting in fewer follow-on errors.
 				continue
 			}
 			if targ := arg.typ; isTyped(targ) {
@@ -194,7 +194,12 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 					errorf("type", par.typ, targ, arg)
 					return nil
 				}
-			} else {
+			} else if _, ok := par.typ.(*TypeParam); ok {
+				// Since default types are all basic (i.e., non-composite) types, an
+				// untyped argument will never match a composite parameter type; the
+				// only parameter type it can possibly match against is a *TypeParam.
+				// Thus, for untyped arguments we only need to look at parameter types
+				// that are single type parameters.
 				indices = append(indices, i)
 			}
 		}
@@ -221,20 +226,17 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// Some generic parameters with untyped arguments may have been given
 	// a type by now, we can ignore them.
 	for _, i := range indices {
-		par := params.At(i)
-		// Since untyped types are all basic (i.e., non-composite) types, an
-		// untyped argument will never match a composite parameter type; the
-		// only parameter type it can possibly match against is a *TypeParam.
-		// Thus, only consider untyped arguments for generic parameters that
-		// are not of composite types and which don't have a type inferred yet.
-		if tpar, _ := par.typ.(*TypeParam); tpar != nil && targs[tpar.index] == nil {
+		tpar := params.At(i).typ.(*TypeParam) // is type parameter by construction of indices
+		// Only consider untyped arguments for which the corresponding type
+		// parameter doesn't have an inferred type yet.
+		if targs[tpar.index] == nil {
 			arg := args[i]
 			targ := Default(arg.typ)
 			// The default type for an untyped nil is untyped nil. We must not
 			// infer an untyped nil type as type parameter type. Ignore untyped
 			// nil by making sure all default argument types are typed.
-			if isTyped(targ) && !u.unify(par.typ, targ) {
-				errorf("default type", par.typ, targ, arg)
+			if isTyped(targ) && !u.unify(tpar, targ) {
+				errorf("default type", tpar, targ, arg)
 				return nil
 			}
 		}
