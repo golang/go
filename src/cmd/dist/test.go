@@ -1119,7 +1119,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 	// Skip internal linking cases on arm64 to support GCC-9.4 and above.
 	// See issue #39466.
-	skipInternalLink := goarch == "arm64" && goos != "windows"
+	skipInternalLink := goarch == "arm64" && goos != "darwin"
 
 	if t.internalLink() && !skipInternalLink {
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
