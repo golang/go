@@ -202,8 +202,7 @@
 // mode, the fuzz test acts much like a regular test, with subtests started
 // with F.Fuzz instead of T.Run.
 //
-// TODO(#48255): write and link to documentation that will be helpful to users
-// who are unfamiliar with fuzzing.
+// See https://go.dev/doc/fuzz for documentation about fuzzing.
 //
 // Skipping
 //

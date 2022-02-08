@@ -404,7 +404,7 @@ var depsRules = `
 	sync/atomic < crypto/internal/boring/fipstls;
 
 	encoding/binary, golang.org/x/sys/cpu, hash,
-	FMT, math/big,
+	FMT, math/big, embed,
 	CGO, crypto/internal/boring/sig, crypto/internal/boring/fipstls
 	< crypto
 	< crypto/subtle

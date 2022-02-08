@@ -1,0 +1,19 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type T interface{ m[ /* ERROR "must have no type parameters" */ P any]() }
+
+func _(t T) {
+	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = t
+}
+
+type S struct{}
+
+func (S) m[ /* ERROR "must have no type parameters" */ P any]() {}
+
+func _(s S) {
+	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = s
+}

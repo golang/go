@@ -142,6 +142,8 @@ var extraEnvKeys = []string{
 	"SYSTEMROOT",         // must be preserved on Windows to find DLLs; golang.org/issue/25210
 	"WINDIR",             // must be preserved on Windows to be able to run PowerShell command; golang.org/issue/30711
 	"LD_LIBRARY_PATH",    // must be preserved on Unix systems to find shared libraries
+	"LIBRARY_PATH",       // allow override of non-standard static library paths
+	"C_INCLUDE_PATH",     // allow override non-standard include paths
 	"CC",                 // don't lose user settings when invoking cgo
 	"GO_TESTING_GOTOOLS", // for gccgo testing
 	"GCCGO",              // for gccgo testing

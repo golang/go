@@ -135,6 +135,8 @@ func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool 
 func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) (int, error) {
 	smap := makeSubstMap(tparams, targs)
 	for i, tpar := range tparams {
+		// Ensure that we have a (possibly implicit) interface as type bound (issue #51048).
+		tpar.iface()
 		// The type parameter bound is parameterized with the same type parameters
 		// as the instantiated type; before we can use it for bounds checking we
 		// need to instantiate it with the type arguments with which we instantiated
@@ -160,25 +162,17 @@ func (check *Checker) implements(V, T Type) error {
 		return nil // avoid follow-on errors (see issue #49541 for an example)
 	}
 
-	var qf Qualifier
-	if check != nil {
-		qf = check.qualifier
-	}
 	errorf := func(format string, args ...any) error {
-		return errors.New(sprintf(nil, qf, false, format, args...))
+		return errors.New(check.sprintf(format, args...))
 	}
 
 	Ti, _ := Tu.(*Interface)
 	if Ti == nil {
-		var fset *token.FileSet
-		if check != nil {
-			fset = check.fset
-		}
 		var cause string
 		if isInterfacePtr(Tu) {
-			cause = sprintf(fset, qf, false, "type %s is pointer to interface, not interface", T)
+			cause = check.sprintf("type %s is pointer to interface, not interface", T)
 		} else {
-			cause = sprintf(fset, qf, false, "%s is not an interface", T)
+			cause = check.sprintf("%s is not an interface", T)
 		}
 		return errorf("%s does not implement %s (%s)", V, T, cause)
 	}
@@ -203,23 +197,8 @@ func (check *Checker) implements(V, T Type) error {
 	}
 
 	// V must implement T's methods, if any.
-	if Ti.NumMethods() > 0 {
-		if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
-			if check != nil && compilerErrorMessages {
-				return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
-			}
-			var cause string
-			if wrong != nil {
-				if Identical(m.typ, wrong.typ) {
-					cause = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
-				} else {
-					cause = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrong.typ, m.typ)
-				}
-			} else {
-				cause = "missing method " + m.Name()
-			}
-			return errorf("%s does not implement %s: %s", V, T, cause)
-		}
+	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+		return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
 	}
 
 	// If T is comparable, V must be comparable.

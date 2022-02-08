@@ -1385,10 +1385,7 @@ const (
 
 	// _InvalidMethodTypeParams occurs when methods have type parameters.
 	//
-	// Example:
-	//  type T int
-	//
-	//  func (T) m[P any]() {}
+	// It cannot be encountered with an AST parsed using go/parser.
 	_InvalidMethodTypeParams
 
 	// _MisplacedTypeParam occurs when a type parameter is used in a place where

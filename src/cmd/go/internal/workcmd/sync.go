@@ -43,9 +43,11 @@ func init() {
 }
 
 func runSync(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
-
 	modload.ForceUseModules = true
+	modload.InitWorkfile()
+	if modload.WorkFilePath() == "" {
+		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
+	}
 
 	workGraph := modload.LoadModGraph(ctx, "")
 	_ = workGraph

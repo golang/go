@@ -977,7 +977,7 @@ func (p *parser) parseFuncType() *ast.FuncType {
 	pos := p.expect(token.FUNC)
 	tparams, params := p.parseParameters(true)
 	if tparams != nil {
-		p.error(tparams.Pos(), "function type cannot have type parameters")
+		p.error(tparams.Pos(), "function type must have no type parameters")
 	}
 	results := p.parseResult()
 
@@ -1004,18 +1004,21 @@ func (p *parser) parseMethodSpec() *ast.Field {
 			p.exprLev--
 			if name0, _ := x.(*ast.Ident); name0 != nil && p.tok != token.COMMA && p.tok != token.RBRACK {
 				// generic method m[T any]
-				list := p.parseParameterList(name0, token.RBRACK)
-				rbrack := p.expect(token.RBRACK)
-				tparams := &ast.FieldList{Opening: lbrack, List: list, Closing: rbrack}
+				//
+				// Interface methods do not have type parameters. We parse them for a
+				// better error message and improved error recovery.
+				_ = p.parseParameterList(name0, token.RBRACK)
+				_ = p.expect(token.RBRACK)
+				p.error(lbrack, "interface method must have no type parameters")
+
 				// TODO(rfindley) refactor to share code with parseFuncType.
 				_, params := p.parseParameters(false)
 				results := p.parseResult()
 				idents = []*ast.Ident{ident}
 				typ = &ast.FuncType{
-					Func:       token.NoPos,
-					TypeParams: tparams,
-					Params:     params,
-					Results:    results,
+					Func:    token.NoPos,
+					Params:  params,
+					Results: results,
 				}
 			} else {
 				// embedded instantiated type
@@ -2655,6 +2658,12 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	ident := p.parseIdent()
 
 	tparams, params := p.parseParameters(true)
+	if recv != nil && tparams != nil {
+		// Method declarations do not have type parameters. We parse them for a
+		// better error message and improved error recovery.
+		p.error(tparams.Opening, "method must have no type parameters")
+		tparams = nil
+	}
 	results := p.parseResult()
 
 	var body *ast.BlockStmt

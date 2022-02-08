@@ -1,12 +1,6 @@
 pkg bufio, method (*Writer) AvailableBuffer() []uint8
 pkg bufio, method (ReadWriter) AvailableBuffer() []uint8
 pkg bytes, func Cut([]uint8, []uint8) ([]uint8, []uint8, bool)
-pkg constraints, type Complex interface {}
-pkg constraints, type Float interface {}
-pkg constraints, type Integer interface {}
-pkg constraints, type Ordered interface {}
-pkg constraints, type Signed interface {}
-pkg constraints, type Unsigned interface {}
 pkg crypto/tls, method (*Conn) NetConn() net.Conn
 pkg debug/buildinfo, func Read(io.ReaderAt) (*debug.BuildInfo, error)
 pkg debug/buildinfo, func ReadFile(string) (*debug.BuildInfo, error)

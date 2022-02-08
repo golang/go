@@ -728,54 +728,84 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 	return target, nil, 0
 }
 
-func (check *Checker) comparison(x, y *operand, op token.Token) {
+// If switchCase is true, the operator op is ignored.
+func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool) {
+	if switchCase {
+		op = token.EQL
+	}
+
+	errOp := x  // operand for which error is reported, if any
+	cause := "" // specific error cause, if any
+
 	// spec: "In any comparison, the first operand must be assignable
 	// to the type of the second operand, or vice versa."
-	err := ""
-	var code errorCode
-	xok, _ := x.assignableTo(check, y.typ, nil)
-	yok, _ := y.assignableTo(check, x.typ, nil)
-	if xok || yok {
-		equality := false
-		defined := false
-		switch op {
-		case token.EQL, token.NEQ:
-			// spec: "The equality operators == and != apply to operands that are comparable."
-			equality = true
-			defined = Comparable(x.typ) && Comparable(y.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
-		case token.LSS, token.LEQ, token.GTR, token.GEQ:
-			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
-			defined = allOrdered(x.typ) && allOrdered(y.typ)
-		default:
-			unreachable()
+	code := _MismatchedTypes
+	ok, _ := x.assignableTo(check, y.typ, nil)
+	if !ok {
+		ok, _ = y.assignableTo(check, x.typ, nil)
+	}
+	if !ok {
+		// Report the error on the 2nd operand since we only
+		// know after seeing the 2nd operand whether we have
+		// a type mismatch.
+		errOp = y
+		// For now, if we're not running the compiler, use the
+		// position of x to minimize changes to existing tests.
+		if !compilerErrorMessages {
+			errOp = x
 		}
-		if !defined {
-			if equality && (isTypeParam(x.typ) || isTypeParam(y.typ)) {
-				typ := x.typ
-				if isTypeParam(y.typ) {
-					typ = y.typ
-				}
-				err = check.sprintf("%s is not comparable", typ)
-			} else {
-				typ := x.typ
-				if x.isNil() {
-					typ = y.typ
-				}
-				err = check.sprintf("operator %s not defined on %s", op, typ)
+		cause = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
+		goto Error
+	}
+
+	// check if comparison is defined for operands
+	code = _UndefinedOp
+	switch op {
+	case token.EQL, token.NEQ:
+		// spec: "The equality operators == and != apply to operands that are comparable."
+		switch {
+		case x.isNil() || y.isNil():
+			// Comparison against nil requires that the other operand type has nil.
+			typ := x.typ
+			if x.isNil() {
+				typ = y.typ
 			}
-			code = _UndefinedOp
+			if !hasNil(typ) {
+				// This case should only be possible for "nil == nil".
+				// Report the error on the 2nd operand since we only
+				// know after seeing the 2nd operand whether we have
+				// an invalid comparison.
+				errOp = y
+				goto Error
+			}
+
+		case !Comparable(x.typ):
+			errOp = x
+			cause = check.incomparableCause(x.typ)
+			goto Error
+
+		case !Comparable(y.typ):
+			errOp = y
+			cause = check.incomparableCause(y.typ)
+			goto Error
 		}
-	} else {
-		err = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
-		code = _MismatchedTypes
+
+	case token.LSS, token.LEQ, token.GTR, token.GEQ:
+		// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
+		switch {
+		case !allOrdered(x.typ):
+			errOp = x
+			goto Error
+		case !allOrdered(y.typ):
+			errOp = y
+			goto Error
+		}
+
+	default:
+		unreachable()
 	}
 
-	if err != "" {
-		check.errorf(x, code, "cannot compare %s %s %s (%s)", x.expr, op, y.expr, err)
-		x.mode = invalid
-		return
-	}
-
+	// comparison is ok
 	if x.mode == constant_ && y.mode == constant_ {
 		x.val = constant.MakeBool(constant.Compare(x.val, op, y.val))
 		// The operands are never materialized; no need to update
@@ -793,6 +823,73 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 	// spec: "Comparison operators compare two operands and yield
 	//        an untyped boolean value."
 	x.typ = Typ[UntypedBool]
+	return
+
+Error:
+	// We have an offending operand errOp and possibly an error cause.
+	if cause == "" {
+		if isTypeParam(x.typ) || isTypeParam(y.typ) {
+			// TODO(gri) should report the specific type causing the problem, if any
+			if !isTypeParam(x.typ) {
+				errOp = y
+			}
+			cause = check.sprintf("type parameter %s is not comparable with %s", errOp.typ, op)
+		} else {
+			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
+		}
+	}
+	if switchCase {
+		check.errorf(x, code, "invalid case %s in switch on %s (%s)", x.expr, y.expr, cause) // error position always at 1st operand
+	} else {
+		if compilerErrorMessages {
+			check.invalidOp(errOp, code, "%s %s %s (%s)", x.expr, op, y.expr, cause)
+		} else {
+			check.invalidOp(errOp, code, "cannot compare %s %s %s (%s)", x.expr, op, y.expr, cause)
+		}
+	}
+	x.mode = invalid
+}
+
+// incomparableCause returns a more specific cause why typ is not comparable.
+// If there is no more specific cause, the result is "".
+func (check *Checker) incomparableCause(typ Type) string {
+	switch under(typ).(type) {
+	case *Slice, *Signature, *Map:
+		return check.kindString(typ) + " can only be compared to nil"
+	}
+	// see if we can extract a more specific error
+	var cause string
+	comparable(typ, nil, func(format string, args ...interface{}) {
+		cause = check.sprintf(format, args...)
+	})
+	return cause
+}
+
+// kindString returns the type kind as a string.
+func (check *Checker) kindString(typ Type) string {
+	switch under(typ).(type) {
+	case *Array:
+		return "array"
+	case *Slice:
+		return "slice"
+	case *Struct:
+		return "struct"
+	case *Pointer:
+		return "pointer"
+	case *Signature:
+		return "func"
+	case *Interface:
+		if isTypeParam(typ) {
+			return check.sprintf("type parameter %s", typ)
+		}
+		return "interface"
+	case *Map:
+		return "map"
+	case *Chan:
+		return "chan"
+	default:
+		return check.sprintf("%s", typ) // catch-all
+	}
 }
 
 // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
@@ -1014,7 +1111,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 	}
 
 	if isComparison(op) {
-		check.comparison(x, &y, op)
+		check.comparison(x, &y, op, false)
 		return
 	}
 
@@ -1459,8 +1556,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidOp(x, _InvalidAssert, "cannot use type assertion on type parameter value %s", x)
 			goto Error
 		}
-		xtyp, _ := under(x.typ).(*Interface)
-		if xtyp == nil {
+		if _, ok := under(x.typ).(*Interface); !ok {
 			check.invalidOp(x, _InvalidAssert, "%s is not an interface", x)
 			goto Error
 		}
@@ -1475,7 +1571,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		if T == Typ[Invalid] {
 			goto Error
 		}
-		check.typeAssertion(x, x, xtyp, T)
+		check.typeAssertion(e, x, T, false)
 		x.mode = commaok
 		x.typ = T
 
@@ -1579,23 +1675,21 @@ func keyVal(x constant.Value) any {
 	return x
 }
 
-// typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
-func (check *Checker) typeAssertion(at positioner, x *operand, xtyp *Interface, T Type) {
-	method, wrongType := check.assertableTo(xtyp, T)
+// typeAssertion checks x.(T). The type of x must be an interface.
+func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch bool) {
+	method, alt := check.assertableTo(under(x.typ).(*Interface), T)
 	if method == nil {
+		return // success
+	}
+
+	cause := check.missingMethodReason(T, x.typ, method, alt)
+
+	if typeSwitch {
+		check.errorf(e, _ImpossibleAssert, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
 		return
 	}
-	var msg string
-	if wrongType != nil {
-		if Identical(method.typ, wrongType.typ) {
-			msg = fmt.Sprintf("missing method %s (%s has pointer receiver)", method.name, method.name)
-		} else {
-			msg = fmt.Sprintf("wrong type for method %s (have %s, want %s)", method.name, wrongType.typ, method.typ)
-		}
-	} else {
-		msg = "missing method " + method.name
-	}
-	check.errorf(at, _ImpossibleAssert, "%s cannot have dynamic type %s (%s)", x, T, msg)
+
+	check.errorf(e, _ImpossibleAssert, "impossible type assertion: %s\n\t%s does not implement %s %s", e, T, x.typ, cause)
 }
 
 // expr typechecks expression e and initializes x with the expression value.

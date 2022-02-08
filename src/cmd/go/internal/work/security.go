@@ -131,6 +131,7 @@ var validCompilerFlagsWithNextArg = []string{
 	"-D",
 	"-U",
 	"-I",
+	"-F",
 	"-framework",
 	"-include",
 	"-isysroot",

@@ -863,7 +863,7 @@ type pcvalueCacheEnt struct {
 
 // pcvalueCacheKey returns the outermost index in a pcvalueCache to use for targetpc.
 // It must be very cheap to calculate.
-// For now, align to sys.PtrSize and reduce mod the number of entries.
+// For now, align to goarch.PtrSize and reduce mod the number of entries.
 // In practice, this appears to be fairly randomly and evenly distributed.
 func pcvalueCacheKey(targetpc uintptr) uintptr {
 	return (targetpc / goarch.PtrSize) % uintptr(len(pcvalueCache{}.entries))

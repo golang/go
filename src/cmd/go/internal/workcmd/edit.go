@@ -115,17 +115,6 @@ func init() {
 }
 
 func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
-	anyFlags :=
-		*editGo != "" ||
-			*editJSON ||
-			*editPrint ||
-			*editFmt ||
-			len(workedits) > 0
-
-	if !anyFlags {
-		base.Fatalf("go: no flags specified (see 'go help work edit').")
-	}
-
 	if *editJSON && *editPrint {
 		base.Fatalf("go: cannot use both -json and -print")
 	}
@@ -145,6 +134,21 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 		if !modfile.GoVersionRE.MatchString(*editGo) {
 			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
 		}
+	}
+
+	if gowork == "" {
+		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
+	}
+
+	anyFlags :=
+		*editGo != "" ||
+			*editJSON ||
+			*editPrint ||
+			*editFmt ||
+			len(workedits) > 0
+
+	if !anyFlags {
+		base.Fatalf("go: no flags specified (see 'go help work edit').")
 	}
 
 	workFile, err := modload.ReadWorkFile(gowork)

@@ -2369,3 +2369,61 @@ type Bad Bad // invalid type
 		}
 	}
 }
+
+func TestMissingMethodAlternative(t *testing.T) {
+	const src = `
+package p
+type T interface {
+	m()
+}
+
+type V0 struct{}
+func (V0) m() {}
+
+type V1 struct{}
+
+type V2 struct{}
+func (V2) m() int
+
+type V3 struct{}
+func (*V3) m()
+
+type V4 struct{}
+func (V4) M()
+`
+
+	pkg, err := pkgFor("p.go", src, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	T := pkg.Scope().Lookup("T").Type().Underlying().(*Interface)
+	lookup := func(name string) (*Func, bool) {
+		return MissingMethod(pkg.Scope().Lookup(name).Type(), T, true)
+	}
+
+	// V0 has method m with correct signature. Should not report wrongType.
+	method, wrongType := lookup("V0")
+	if method != nil || wrongType {
+		t.Fatalf("V0: got method = %v, wrongType = %v", method, wrongType)
+	}
+
+	checkMissingMethod := func(tname string, reportWrongType bool) {
+		method, wrongType := lookup(tname)
+		if method == nil || method.Name() != "m" || wrongType != reportWrongType {
+			t.Fatalf("%s: got method = %v, wrongType = %v", tname, method, wrongType)
+		}
+	}
+
+	// V1 has no method m. Should not report wrongType.
+	checkMissingMethod("V1", false)
+
+	// V2 has method m with wrong signature type (ignoring receiver). Should report wrongType.
+	checkMissingMethod("V2", true)
+
+	// V3 has no method m but it exists on *V3. Should report wrongType.
+	checkMissingMethod("V3", true)
+
+	// V4 has no method m but has M. Should not report wrongType.
+	checkMissingMethod("V4", false)
+}
