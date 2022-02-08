@@ -5,9 +5,9 @@
 package debug
 
 import (
-	"bytes"
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -23,8 +23,8 @@ func ReadBuildInfo() (info *BuildInfo, ok bool) {
 		return nil, false
 	}
 	data = data[16 : len(data)-16]
-	bi := &BuildInfo{}
-	if err := bi.UnmarshalText([]byte(data)); err != nil {
+	bi, err := ParseBuildInfo(data)
+	if err != nil {
 		return nil, false
 	}
 
@@ -63,8 +63,18 @@ type BuildSetting struct {
 	Key, Value string
 }
 
-func (bi *BuildInfo) MarshalText() ([]byte, error) {
-	buf := &bytes.Buffer{}
+// quoteKey reports whether key is required to be quoted.
+func quoteKey(key string) bool {
+	return len(key) == 0 || strings.ContainsAny(key, "= \t\r\n\"`")
+}
+
+// quoteValue reports whether value is required to be quoted.
+func quoteValue(value string) bool {
+	return strings.ContainsAny(value, " \t\r\n\"`")
+}
+
+func (bi *BuildInfo) String() string {
+	buf := new(strings.Builder)
 	if bi.GoVersion != "" {
 		fmt.Fprintf(buf, "go\t%s\n", bi.GoVersion)
 	}
@@ -76,12 +86,8 @@ func (bi *BuildInfo) MarshalText() ([]byte, error) {
 		buf.WriteString(word)
 		buf.WriteByte('\t')
 		buf.WriteString(m.Path)
-		mv := m.Version
-		if mv == "" {
-			mv = "(devel)"
-		}
 		buf.WriteByte('\t')
-		buf.WriteString(mv)
+		buf.WriteString(m.Version)
 		if m.Replace == nil {
 			buf.WriteByte('\t')
 			buf.WriteString(m.Sum)
@@ -91,27 +97,28 @@ func (bi *BuildInfo) MarshalText() ([]byte, error) {
 		}
 		buf.WriteByte('\n')
 	}
-	if bi.Main.Path != "" {
+	if bi.Main != (Module{}) {
 		formatMod("mod", bi.Main)
 	}
 	for _, dep := range bi.Deps {
 		formatMod("dep", *dep)
 	}
 	for _, s := range bi.Settings {
-		if strings.ContainsAny(s.Key, "= \t\n") {
-			return nil, fmt.Errorf("invalid build setting key %q", s.Key)
+		key := s.Key
+		if quoteKey(key) {
+			key = strconv.Quote(key)
 		}
-		if strings.Contains(s.Value, "\n") {
-			return nil, fmt.Errorf("invalid build setting value for key %q: contains newline", s.Value)
+		value := s.Value
+		if quoteValue(value) {
+			value = strconv.Quote(value)
 		}
-		fmt.Fprintf(buf, "build\t%s=%s\n", s.Key, s.Value)
+		fmt.Fprintf(buf, "build\t%s=%s\n", key, value)
 	}
 
-	return buf.Bytes(), nil
+	return buf.String()
 }
 
-func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
-	*bi = BuildInfo{}
+func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 	lineNum := 1
 	defer func() {
 		if err != nil {
@@ -120,67 +127,69 @@ func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
 	}()
 
 	var (
-		pathLine  = []byte("path\t")
-		modLine   = []byte("mod\t")
-		depLine   = []byte("dep\t")
-		repLine   = []byte("=>\t")
-		buildLine = []byte("build\t")
-		newline   = []byte("\n")
-		tab       = []byte("\t")
+		pathLine  = "path\t"
+		modLine   = "mod\t"
+		depLine   = "dep\t"
+		repLine   = "=>\t"
+		buildLine = "build\t"
+		newline   = "\n"
+		tab       = "\t"
 	)
 
-	readModuleLine := func(elem [][]byte) (Module, error) {
+	readModuleLine := func(elem []string) (Module, error) {
 		if len(elem) != 2 && len(elem) != 3 {
 			return Module{}, fmt.Errorf("expected 2 or 3 columns; got %d", len(elem))
 		}
+		version := elem[1]
 		sum := ""
 		if len(elem) == 3 {
-			sum = string(elem[2])
+			sum = elem[2]
 		}
 		return Module{
-			Path:    string(elem[0]),
-			Version: string(elem[1]),
+			Path:    elem[0],
+			Version: version,
 			Sum:     sum,
 		}, nil
 	}
 
+	bi = new(BuildInfo)
 	var (
 		last *Module
-		line []byte
+		line string
 		ok   bool
 	)
 	// Reverse of BuildInfo.String(), except for go version.
 	for len(data) > 0 {
-		line, data, ok = bytes.Cut(data, newline)
+		line, data, ok = strings.Cut(data, newline)
 		if !ok {
 			break
 		}
 		switch {
-		case bytes.HasPrefix(line, pathLine):
+		case strings.HasPrefix(line, pathLine):
 			elem := line[len(pathLine):]
 			bi.Path = string(elem)
-		case bytes.HasPrefix(line, modLine):
-			elem := bytes.Split(line[len(modLine):], tab)
+		case strings.HasPrefix(line, modLine):
+			elem := strings.Split(line[len(modLine):], tab)
 			last = &bi.Main
 			*last, err = readModuleLine(elem)
 			if err != nil {
-				return err
+				return nil, err
 			}
-		case bytes.HasPrefix(line, depLine):
-			elem := bytes.Split(line[len(depLine):], tab)
+		case strings.HasPrefix(line, depLine):
+			elem := strings.Split(line[len(depLine):], tab)
 			last = new(Module)
 			bi.Deps = append(bi.Deps, last)
 			*last, err = readModuleLine(elem)
 			if err != nil {
-				return err
+				return nil, err
 			}
-		case bytes.HasPrefix(line, repLine):
-			elem := bytes.Split(line[len(repLine):], tab)
+		case strings.HasPrefix(line, repLine):
+			elem := strings.Split(line[len(repLine):], tab)
 			if len(elem) != 3 {
-				return fmt.Errorf("expected 3 columns for replacement; got %d", len(elem))
+				return nil, fmt.Errorf("expected 3 columns for replacement; got %d", len(elem))
 			}
 			if last == nil {
-				return fmt.Errorf("replacement with no module on previous line")
+				return nil, fmt.Errorf("replacement with no module on previous line")
 			}
 			last.Replace = &Module{
 				Path:    string(elem[0]),
@@ -188,17 +197,63 @@ func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
 				Sum:     string(elem[2]),
 			}
 			last = nil
-		case bytes.HasPrefix(line, buildLine):
-			key, val, ok := strings.Cut(string(line[len(buildLine):]), "=")
-			if !ok {
-				return fmt.Errorf("invalid build line")
+		case strings.HasPrefix(line, buildLine):
+			kv := line[len(buildLine):]
+			if len(kv) < 1 {
+				return nil, fmt.Errorf("build line missing '='")
 			}
-			if key == "" {
-				return fmt.Errorf("empty key")
+
+			var key, rawValue string
+			switch kv[0] {
+			case '=':
+				return nil, fmt.Errorf("build line with missing key")
+
+			case '`', '"':
+				rawKey, err := strconv.QuotedPrefix(kv)
+				if err != nil {
+					return nil, fmt.Errorf("invalid quoted key in build line")
+				}
+				if len(kv) == len(rawKey) {
+					return nil, fmt.Errorf("build line missing '=' after quoted key")
+				}
+				if c := kv[len(rawKey)]; c != '=' {
+					return nil, fmt.Errorf("unexpected character after quoted key: %q", c)
+				}
+				key, _ = strconv.Unquote(rawKey)
+				rawValue = kv[len(rawKey)+1:]
+
+			default:
+				var ok bool
+				key, rawValue, ok = strings.Cut(kv, "=")
+				if !ok {
+					return nil, fmt.Errorf("build line missing '=' after key")
+				}
+				if quoteKey(key) {
+					return nil, fmt.Errorf("unquoted key %q must be quoted", key)
+				}
 			}
-			bi.Settings = append(bi.Settings, BuildSetting{Key: key, Value: val})
+
+			var value string
+			if len(rawValue) > 0 {
+				switch rawValue[0] {
+				case '`', '"':
+					var err error
+					value, err = strconv.Unquote(rawValue)
+					if err != nil {
+						return nil, fmt.Errorf("invalid quoted value in build line")
+					}
+
+				default:
+					value = rawValue
+					if quoteValue(value) {
+						return nil, fmt.Errorf("unquoted value %q must be quoted", value)
+					}
+				}
+			}
+
+			bi.Settings = append(bi.Settings, BuildSetting{Key: key, Value: value})
 		}
 		lineNum++
 	}
-	return nil
+	return bi, nil
 }

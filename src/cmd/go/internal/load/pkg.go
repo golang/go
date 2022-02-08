@@ -2229,13 +2229,17 @@ func (p *Package) setBuildInfo() {
 
 	var debugModFromModinfo func(*modinfo.ModulePublic) *debug.Module
 	debugModFromModinfo = func(mi *modinfo.ModulePublic) *debug.Module {
+		version := mi.Version
+		if version == "" {
+			version = "(devel)"
+		}
 		dm := &debug.Module{
 			Path:    mi.Path,
-			Version: mi.Version,
+			Version: version,
 		}
 		if mi.Replace != nil {
 			dm.Replace = debugModFromModinfo(mi.Replace)
-		} else {
+		} else if mi.Version != "" {
 			dm.Sum = modfetch.Sum(module.Version{Path: mi.Path, Version: mi.Version})
 		}
 		return dm
@@ -2418,12 +2422,7 @@ func (p *Package) setBuildInfo() {
 		appendSetting("vcs.modified", strconv.FormatBool(st.Uncommitted))
 	}
 
-	text, err := info.MarshalText()
-	if err != nil {
-		setPkgErrorf("error formatting build info: %v", err)
-		return
-	}
-	p.Internal.BuildInfo = string(text)
+	p.Internal.BuildInfo = info.String()
 }
 
 // SafeArg reports whether arg is a "safe" command-line argument,

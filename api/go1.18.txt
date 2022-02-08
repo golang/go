@@ -165,8 +165,8 @@ pkg reflect, method (Value) FieldByIndexErr([]int) (Value, error)
 pkg reflect, method (Value) SetIterKey(*MapIter)
 pkg reflect, method (Value) SetIterValue(*MapIter)
 pkg reflect, method (Value) UnsafePointer() unsafe.Pointer
-pkg runtime/debug, method (*BuildInfo) MarshalText() ([]uint8, error)
-pkg runtime/debug, method (*BuildInfo) UnmarshalText([]uint8) error
+pkg runtime/debug, func ParseBuildInfo(string) (*BuildInfo, error)
+pkg runtime/debug, method (*BuildInfo) String() string
 pkg runtime/debug, type BuildInfo struct, GoVersion string
 pkg runtime/debug, type BuildInfo struct, Settings []BuildSetting
 pkg runtime/debug, type BuildSetting struct
