@@ -2034,7 +2034,7 @@ interface{ int; string }       // no specific types (intersection is empty)
 </pre>
 
 <p>
-An interface <code>T</code> is called <i>structural</i> if one of the following
+An interface <code>T</code> has a <i>core type</i> if one of the following
 conditions is satisfied:
 </p>
 
@@ -2051,8 +2051,11 @@ direction.
 </ol>
 
 <p>
-A structural interface has a <i>structural type</i> which is, depending on the
-condition that is satisfied, either:
+All other interfaces don't have a core type.
+</p>
+
+<p>
+The core type is, depending on the condition that is satisfied, either:
 </p>
 
 <ol>
@@ -2067,7 +2070,7 @@ depending on the direction of the directional channels present.
 </ol>
 
 <p>
-Examples of structural interfaces with their structural types:
+Examples of interfaces with core types:
 </p>
 
 <pre>
@@ -2079,7 +2082,7 @@ interface{ ~[]*data; String() string }    // []*data
 </pre>
 
 <p>
-Examples of non-structural interfaces:
+Examples of interfaces whithout core types:
 </p>
 
 <pre>
@@ -4497,19 +4500,21 @@ min(1.0, 2)    // illegal: default type float64 (for 1.0) doesn't match default 
 <h4 id="Constraint_type_inference">Constraint type inference</h3>
 
 <!--
-	The next paragraph needs to be updated for the new definition of structural type:
-	The structural type of an interface is the single underlying type of its type set,
+	The next paragraph needs to be updated for the new definition of core type:
+	The core type of an interface is the single underlying type of its type set,
 	if it exists. But for constraint type inference, if the type set consists of exactly
 	one type, we want to use that one type (which may be a defined type, different from
-	its underlying == structural type).
+	its underlying == core type).
 -->
 
 <p>
-Constraint type inference infers type arguments from already known
-type arguments by considering <a href="#Structure_of_interfaces">structural type constraints</a>:
-if the structural type <code>T</code> of a structural constraint is parameterized,
-<a href="#Type_unification">unifying</a> a known type argument with <code>T</code> may
-infer type arguments for other type parameters used by the structural type.
+Constraint type inference infers type arguments by considering type constraints.
+If a type parameter <code>P</code> has a constraint with a
+<a href="#Structure_of_interfaces">core type</a> <code>C</code>,
+<a href="#Type_unification">unifying</a> <code>P</code> with <code>C</code>
+may infer additional type arguments, either the type argument for <code>P</code>,
+or if that is already known, possibly the type arguments for type parameters
+used in <code>C</code>.
 </p>
 
 <p>
@@ -4523,8 +4528,8 @@ For instance, consider the type parameter list with type parameters <code>List</
 
 <p>
 Constraint type inference can deduce the type of <code>Elem</code> from the type argument
-for <code>List</code> because <code>Elem</code> is a type parameter in the structural constraint
-<code>~[]Elem</code> for <code>List</code>.
+for <code>List</code> because <code>Elem</code> is a type parameter in the core type
+<code>[]Elem</code> of <code>List</code>.
 If the type argument is <code>Bytes</code>:
 </p>
 
@@ -4533,7 +4538,7 @@ type Bytes []byte
 </pre>
 
 <p>
-unifying the underlying type of <code>Bytes</code> with the structural constraint means
+unifying the underlying type of <code>Bytes</code> with the core type means
 unifying <code>[]byte</code> with <code>[]Elem</code>. That unification succeeds and yields
 the <a href="#Type_unification">substitution map</a> entry
 <code>Elem</code> &RightArrow; <code>byte</code>.
@@ -4548,8 +4553,8 @@ substitution map <i>M</i>
 
 <ol>
 <li>
-For all type parameters with a structural constraint, unify the type parameter with the structural
-type of its constraint. If any unification fails, constraint type inference fails.
+For all type parameters with a core type, unify the type parameter with the core
+type. If any unification fails, constraint type inference fails.
 </li>
 
 <li>
@@ -4584,7 +4589,7 @@ the initial substitution map <i>M</i> contains the entry <code>A</code> &RightAr
 
 <p>
 In the first phase, the type parameters <code>B</code> and <code>C</code> are unified
-with the structural type of their respective constraints. This adds the entries
+with the core type of their respective constraints. This adds the entries
 <code>B</code> &RightArrow; <code>[]C</code> and <code>C</code> &RightArrow; <code>*A</code>
 to <i>M</i>.
 
@@ -5192,7 +5197,7 @@ as for non-constant <code>x</code>.
 <p>
 Converting a constant to a type that is not a <a href="#Type_parameters">type parameter</a>
 yields a typed constant.
-Converting a constant to a type parameter yields a non-constant value of that type.	
+Converting a constant to a type parameter yields a non-constant value of that type.
 </p>
 
 <pre>
