@@ -49,59 +49,80 @@ const undeclaredNamePrefix = "undeclared name: "
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, err := range analysisinternal.GetTypeErrors(pass) {
-		if !FixesError(err.Msg) {
-			continue
-		}
-		name := strings.TrimPrefix(err.Msg, undeclaredNamePrefix)
-		var file *ast.File
-		for _, f := range pass.Files {
-			if f.Pos() <= err.Pos && err.Pos < f.End() {
-				file = f
-				break
-			}
-		}
-		if file == nil {
-			continue
-		}
-
-		// Get the path for the relevant range.
-		path, _ := astutil.PathEnclosingInterval(file, err.Pos, err.Pos)
-		if len(path) < 2 {
-			continue
-		}
-		ident, ok := path[0].(*ast.Ident)
-		if !ok || ident.Name != name {
-			continue
-		}
-		// Skip selector expressions because it might be too complex
-		// to try and provide a suggested fix for fields and methods.
-		if _, ok := path[1].(*ast.SelectorExpr); ok {
-			continue
-		}
-		tok := pass.Fset.File(file.Pos())
-		if tok == nil {
-			continue
-		}
-		offset := pass.Fset.Position(err.Pos).Offset
-		end := tok.Pos(offset + len(name))
-		pass.Report(analysis.Diagnostic{
-			Pos:     err.Pos,
-			End:     end,
-			Message: err.Msg,
-		})
+		runForError(pass, err)
 	}
 	return nil, nil
+}
+
+func runForError(pass *analysis.Pass, err types.Error) {
+	if !strings.HasPrefix(err.Msg, undeclaredNamePrefix) {
+		return
+	}
+	name := strings.TrimPrefix(err.Msg, undeclaredNamePrefix)
+	var file *ast.File
+	for _, f := range pass.Files {
+		if f.Pos() <= err.Pos && err.Pos < f.End() {
+			file = f
+			break
+		}
+	}
+	if file == nil {
+		return
+	}
+
+	// Get the path for the relevant range.
+	path, _ := astutil.PathEnclosingInterval(file, err.Pos, err.Pos)
+	if len(path) < 2 {
+		return
+	}
+	ident, ok := path[0].(*ast.Ident)
+	if !ok || ident.Name != name {
+		return
+	}
+
+	// Undeclared quick fixes only work in function bodies.
+	inFunc := false
+	for i := range path {
+		if _, inFunc = path[i].(*ast.FuncDecl); inFunc {
+			if i == 0 {
+				return
+			}
+			if _, isBody := path[i-1].(*ast.BlockStmt); !isBody {
+				return
+			}
+			break
+		}
+	}
+	if !inFunc {
+		return
+	}
+	// Skip selector expressions because it might be too complex
+	// to try and provide a suggested fix for fields and methods.
+	if _, ok := path[1].(*ast.SelectorExpr); ok {
+		return
+	}
+	tok := pass.Fset.File(file.Pos())
+	if tok == nil {
+		return
+	}
+	offset := pass.Fset.Position(err.Pos).Offset
+	end := tok.Pos(offset + len(name))
+	pass.Report(analysis.Diagnostic{
+		Pos:     err.Pos,
+		End:     end,
+		Message: err.Msg,
+	})
 }
 
 func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
 	pos := rng.Start // don't use the end
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if len(path) < 2 {
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("no expression found")
 	}
 	ident, ok := path[0].(*ast.Ident)
 	if !ok {
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("no identifier found")
 	}
 
 	// Check for a possible call expression, in which case we should add a
@@ -115,7 +136,7 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 	// Get the place to insert the new statement.
 	insertBeforeStmt := analysisinternal.StmtToInsertVarBefore(path)
 	if insertBeforeStmt == nil {
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("could not locate insertion point")
 	}
 
 	insertBefore := fset.Position(insertBeforeStmt.Pos()).Offset
@@ -137,10 +158,6 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 			NewText: []byte(newStmt),
 		}},
 	}, nil
-}
-
-func FixesError(msg string) bool {
-	return strings.HasPrefix(msg, undeclaredNamePrefix)
 }
 
 func newFunctionDeclaration(path []ast.Node, file *ast.File, pkg *types.Package, info *types.Info, fset *token.FileSet) (*analysis.SuggestedFix, error) {

@@ -2157,3 +2157,31 @@ const C = 0b10
 		env.Await(EmptyDiagnostics("main.go"))
 	})
 }
+
+func TestNoQuickFixForUndeclaredConstraint(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- main.go --
+package main
+
+func F[T C](_ T) {
+}
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexpWithMessage("main.go", `C`, "undeclared name"),
+				ReadDiagnostics("main.go", &d),
+			),
+		)
+		if fixes := env.GetQuickFixes("main.go", d.Diagnostics); len(fixes) != 0 {
+			t.Errorf("got quick fixes %v, wanted none", fixes)
+		}
+	})
+}
