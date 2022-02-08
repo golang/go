@@ -427,6 +427,9 @@ func TestGdbBacktrace(t *testing.T) {
 	got, err := testenv.RunWithTimeout(t, exec.Command("gdb", args...))
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
+		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {
+			testenv.SkipFlaky(t, 43068)
+		}
 		t.Fatalf("gdb exited with error: %v", err)
 	}
 
