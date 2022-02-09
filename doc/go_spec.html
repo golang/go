@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Feb 8, 2022",
+	"Subtitle": "Version of Feb 9, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -679,6 +679,8 @@ or <a href="#Conversions">conversion</a>, or implicitly when used in a
 operand in an <a href="#Expressions">expression</a>.
 It is an error if the constant value
 cannot be <a href="#Representability">represented</a> as a value of the respective type.
+If the type is a type parameter, the constant is converted into a non-constant
+value of the type parameter.
 </p>
 
 <p>
@@ -2312,7 +2314,8 @@ ExpressionList = Expression { "," Expression } .
 
 <p>
 If the type is present, all constants take the type specified, and
-the expressions must be <a href="#Assignability">assignable</a> to that type.
+the expressions must be <a href="#Assignability">assignable</a> to that type,
+which must not be a type parameter.
 If the type is omitted, the constants take the
 individual types of the corresponding expressions.
 If the expression values are untyped <a href="#Constants">constants</a>,
@@ -5197,7 +5200,6 @@ as for non-constant <code>x</code>.
 <p>
 Converting a constant to a type that is not a <a href="#Type_parameters">type parameter</a>
 yields a typed constant.
-Converting a constant to a type parameter yields a non-constant value of that type.
 </p>
 
 <pre>
@@ -5214,6 +5216,29 @@ string([]byte{'a'})      // not a constant: []byte{'a'} is not a constant
 int(1.2)                 // illegal: 1.2 cannot be represented as an int
 string(65.0)             // illegal: 65.0 is not an integer constant
 </pre>
+
+<p>
+Converting a constant to a type parameter yields a <i>non-constant</i> value of that type,
+with the value represented as a value of the type argument that the type parameter
+is instantiated with.
+For example, given the function:
+</p>
+
+<pre>
+func f[P ~float32|~float64]() {
+	… P(1.1) …
+}
+</pre>
+
+<p>
+the conversion <code>P(1.1)</code> results in a non-constant value of type <code>P</code>
+and the value <code>1.1</code> is represented as a <code>float32</code> or a <code>float64</code>
+depending on the type argument for <code>f</code>.
+Accordingly, if <code>f</code> is instantiated with a <code>float32</code> type,
+the numeric value of the expression <code>P(1.1) + 1.2</code> will be computed
+with the same precision as the corresponding non-constant <code>float32</code>
+addition.
+</p>
 
 <p>
 A non-constant value <code>x</code> can be converted to type <code>T</code>
