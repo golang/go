@@ -329,37 +329,37 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 	if !obj.Exported() {
 		return h, nil
 	}
-	var rTypeName string
+	var recvName string // receiver type name
+
 	switch obj := obj.(type) {
 	case *types.Var:
 		// If the object is a field, and we have an associated selector
 		// composite literal, or struct, we can determine the link.
-		if obj.IsField() {
-			if named, ok := i.enclosing.(*types.Named); ok {
-				rTypeName = named.Obj().Name()
-			}
+		if obj.IsField() && i.enclosing != nil {
+			recvName = i.enclosing.Name()
 		}
 	case *types.Func:
 		typ, ok := obj.Type().(*types.Signature)
 		if !ok {
-			return h, nil
+			// Note: this should never happen. go/types guarantees that the type of
+			// *Funcs are Signatures.
+			//
+			// TODO(rfindley): given a 'debug' mode, we should panic here.
+			return nil, fmt.Errorf("BUG: incorrect type %T for *Func", obj.Type())
 		}
 		if r := typ.Recv(); r != nil {
-			switch rtyp := Deref(r.Type()).(type) {
-			case *types.Struct:
-				rTypeName = r.Name()
-			case *types.Named:
+			if rtyp, _ := Deref(r.Type()).(*types.Named); rtyp != nil {
 				// If we have an unexported type, see if the enclosing type is
 				// exported (we may have an interface or struct we can link
 				// to). If not, don't show any link.
 				if !rtyp.Obj().Exported() {
-					if named, ok := i.enclosing.(*types.Named); ok && named.Obj().Exported() {
-						rTypeName = named.Obj().Name()
+					if i.enclosing != nil && i.enclosing.Exported() {
+						recvName = i.enclosing.Name()
 					} else {
 						return h, nil
 					}
 				} else {
-					rTypeName = rtyp.Obj().Name()
+					recvName = rtyp.Obj().Name()
 				}
 			}
 		}
@@ -373,9 +373,9 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 	if mod, version, ok := moduleAtVersion(h.LinkPath, i); ok {
 		h.LinkPath = strings.Replace(h.LinkPath, mod, mod+"@"+version, 1)
 	}
-	if rTypeName != "" {
-		h.LinkAnchor = fmt.Sprintf("%s.%s", rTypeName, obj.Name())
-		h.symbolName = fmt.Sprintf("(%s.%s).%s", obj.Pkg().Name(), rTypeName, obj.Name())
+	if recvName != "" {
+		h.LinkAnchor = fmt.Sprintf("%s.%s", recvName, obj.Name())
+		h.symbolName = fmt.Sprintf("(%s.%s).%s", obj.Pkg().Name(), recvName, obj.Name())
 		return h, nil
 	}
 	// For most cases, the link is "package/path#symbol".
