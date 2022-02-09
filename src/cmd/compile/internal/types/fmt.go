@@ -157,6 +157,9 @@ func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
 // symbols from the given package in the given mode.
 // If it returns the empty string, no qualification is needed.
 func pkgqual(pkg *Pkg, verb rune, mode fmtMode) string {
+	if pkg == nil {
+		return ""
+	}
 	if verb != 'S' {
 		switch mode {
 		case fmtGo: // This is for the user
