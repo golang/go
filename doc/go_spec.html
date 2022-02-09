@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Feb 9, 2022",
+	"Subtitle": "Version of Feb 10, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -4752,7 +4752,7 @@ Arithmetic operators apply to numeric values and yield a result of the same
 type as the first operand. The four standard arithmetic operators (<code>+</code>,
 <code>-</code>, <code>*</code>, <code>/</code>) apply to
 <a href="#Numeric_types">integer</a>, <a href="#Numeric_types">floating-point</a>, and
-<a href="#Numeric_types">complex</a> types; <code>+</code> also applies to <a href="#String_types">strings</.
+<a href="#Numeric_types">complex</a> types; <code>+</code> also applies to <a href="#String_types">strings</a>.
 The bitwise logical and shift operators apply to integers only.
 </p>
 
@@ -4771,6 +4771,37 @@ The bitwise logical and shift operators apply to integers only.
 &lt;&lt;   left shift             integer &lt;&lt; integer &gt;= 0
 &gt;&gt;   right shift            integer &gt;&gt; integer &gt;= 0
 </pre>
+
+<p>
+Excluding shifts, if the operand type is a <a href="#Type_parameters">type parameter</a>,
+it must have <a href="#Structure_of_interfaces">specific types</a>, and the operator must
+apply to each specific type.
+The operands are represented as values of the type argument that the type parameter
+is <a href="#Instantiations">instantiated</a> with, and the operation is computed
+with the precision of that type argument. For example, given the function:
+</p>
+
+<pre>
+func dotProduct[F ~float32|~float64](v1, v2 []F) F {
+	var s F
+	for i, x := range v1 {
+		y := v2[i]
+		s += x * y
+	}
+	return s
+}
+</pre>
+
+<p>
+the the product <code>x * y</code> and the addition <code>s += x * y</code>
+are computed with <code>float32</code> or <code>float64</code> precision,
+respectively, depending on the type argument for <code>F</code>.
+</p>
+
+<p>
+For shifts, the <a href="#Core_types">core type</a> of both operands must be
+an integer.
+</p>
 
 <h4 id="Integer_operators">Integer operators</h4>
 
@@ -4857,10 +4888,10 @@ follows:
 <h4 id="Integer_overflow">Integer overflow</h4>
 
 <p>
-For unsigned integer values, the operations <code>+</code>,
+For <a href="#Numeric_types">unsigned integer</a> values, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> are
 computed modulo 2<sup><i>n</i></sup>, where <i>n</i> is the bit width of
-the <a href="#Numeric_types">unsigned integer</a>'s type.
+the unsigned integer's type.
 Loosely speaking, these unsigned integer operations
 discard high bits upon overflow, and programs may rely on "wrap around".
 </p>
@@ -4874,7 +4905,6 @@ Overflow does not cause a <a href="#Run_time_panics">run-time panic</a>.
 A compiler may not optimize code under the assumption that overflow does
 not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
 </p>
-
 
 <h4 id="Floating_point_operators">Floating-point operators</h4>
 
@@ -4930,7 +4960,6 @@ s += " and good bye"
 <p>
 String addition creates a new string by concatenating the operands.
 </p>
-
 
 <h3 id="Comparison_operators">Comparison operators</h3>
 
@@ -5220,7 +5249,7 @@ string(65.0)             // illegal: 65.0 is not an integer constant
 <p>
 Converting a constant to a type parameter yields a <i>non-constant</i> value of that type,
 with the value represented as a value of the type argument that the type parameter
-is instantiated with.
+is <a href="#Instantiations">instantiated</a> with.
 For example, given the function:
 </p>
 
