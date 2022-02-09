@@ -113,7 +113,7 @@ func _() {
 	// from the first one through constraint type inference.
 	related3[int]()
 
-	// The inferred type is the structural type of the Slice
+	// The inferred type is the core type of the Slice
 	// type parameter.
 	var _ []int = related3[int]()
 

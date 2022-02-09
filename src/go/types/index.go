@@ -214,9 +214,9 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch u := structuralString(x.typ).(type) {
+	switch u := coreString(x.typ).(type) {
 	case nil:
-		check.invalidOp(x, _NonSliceableOperand, "cannot slice %s: %s has no structural type", x, x.typ)
+		check.invalidOp(x, _NonSliceableOperand, "cannot slice %s: %s has no core type", x, x.typ)
 		x.mode = invalid
 		return
 

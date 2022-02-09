@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file tests type lists & structural constraints.
+// This file tests type lists & constraints with core types.
 
 // Note: This test has been adjusted to use the new
 //       type set notation rather than type lists.
@@ -30,28 +30,28 @@ func _[T interface{ ~int }](x T) {
 	var _ T = 42
 	var _ T = T(myint(42))
 }
+
 // TODO: put this type declaration back inside the above function when issue 47631 is fixed.
 type myint int
 
-// Indexing a generic type which has a structural contraints to be an array.
+// Indexing a generic type which has a an array as core type.
 func _[T interface{ ~[10]int }](x T) {
 	_ = x[9] // ok
 }
 
-// Dereference of a generic type which has a structural contraint to be a pointer.
+// Dereference of a generic type which has a pointer as core type.
 func _[T interface{ ~*int }](p T) int {
 	return *p
 }
 
-// Channel send and receive on a generic type which has a structural constraint to
-// be a channel.
+// Channel send and receive on a generic type which has a channel as core type.
 func _[T interface{ ~chan int }](ch T) int {
 	// This would deadlock if executed (but ok for a compile test)
 	ch <- 0
 	return <-ch
 }
 
-// Calling of a generic type which has a structural constraint to be a function.
+// Calling of a generic type which has a function as core type.
 func _[T interface{ ~func() }](f T) {
 	f()
 	go f()
@@ -62,7 +62,7 @@ func _[T interface{ ~func(string) int }](f T) int {
 	return f("hello")
 }
 
-// Map access of a generic type which has a structural constraint to be a map.
+// Map access of a generic type which has a map as core type.
 func _[V any, T interface{ ~map[string]V }](p T) V {
 	return p["test"]
 }
@@ -122,7 +122,9 @@ func f5[A interface {
 		b B
 		c C
 	}
-}, B any, C interface{ ~*B }](x B) A { panic(0) }
+}, B any, C interface{ ~*B }](x B) A {
+	panic(0)
+}
 func f5x() {
 	x := f5(1.2)
 	var _ float64 = x.b

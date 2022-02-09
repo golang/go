@@ -409,9 +409,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-		u := structuralType(ch.typ)
+		u := coreType(ch.typ)
 		if u == nil {
-			check.errorf(s, invalidOp+"cannot send to %s: no structural type", &ch)
+			check.errorf(s, invalidOp+"cannot send to %s: no core type", &ch)
 			return
 		}
 		uch, _ := u.(*Chan)
@@ -835,9 +835,9 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	// determine key/value types
 	var key, val Type
 	if x.mode != invalid {
-		// Ranging over a type parameter is permitted if it has a structural type.
+		// Ranging over a type parameter is permitted if it has a core type.
 		var cause string
-		u := structuralType(x.typ)
+		u := coreType(x.typ)
 		if t, _ := u.(*Chan); t != nil {
 			if sValue != nil {
 				check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
@@ -852,7 +852,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 				// ok to continue
 			}
 			if u == nil {
-				cause = check.sprintf("%s has no structural type", x.typ)
+				cause = check.sprintf("%s has no core type", x.typ)
 			}
 		}
 		key, val = rangeKeyVal(u)

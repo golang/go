@@ -66,12 +66,12 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 
 	obj, index, indirect = lookupFieldOrMethod(T, addressable, pkg, name, false)
 
-	// If we didn't find anything and if we have a type parameter with a structural constraint,
-	// see if there is a matching field (but not a method, those need to be declared explicitly
-	// in the constraint). If the structural constraint is a named pointer type (see above), we
-	// are ok here because only fields are accepted as results.
+	// If we didn't find anything and if we have a type parameter with a core type,
+	// see if there is a matching field (but not a method, those need to be declared
+	// explicitly in the constraint). If the constraint is a named pointer type (see
+	// above), we are ok here because only fields are accepted as results.
 	if obj == nil && isTypeParam(T) {
-		if t := structuralType(T); t != nil {
+		if t := coreType(T); t != nil {
 			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)
 			if _, ok := obj.(*Var); !ok {
 				obj, index, indirect = nil, nil, false // accept fields (variables) only

@@ -57,7 +57,7 @@ func f2[P interface {
 
 var _ = f2[Sfm]
 
-// special case: structural type is a named pointer type
+// special case: core type is a named pointer type
 
 type PSfm *Sfm
 
@@ -68,7 +68,7 @@ func f3[P interface{ PSfm }](p P) {
 
 var _ = f3[PSfm]
 
-// special case: structural type is an unnamed pointer type
+// special case: core type is an unnamed pointer type
 
 func f4[P interface{ *Sfm }](p P) {
 	_ = p.f
