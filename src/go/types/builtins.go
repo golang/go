@@ -86,7 +86,21 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if s, _ := structuralType(S).(*Slice); s != nil {
 			T = s.elem
 		} else {
-			check.invalidArg(x, _InvalidAppend, "%s is not a slice", x)
+			var cause string
+			switch {
+			case x.isNil():
+				cause = "have untyped nil"
+			case isTypeParam(S):
+				if u := structuralType(S); u != nil {
+					cause = check.sprintf("%s has structural type %s", x, u)
+				} else {
+					cause = check.sprintf("%s has no structural type", x)
+				}
+			default:
+				cause = check.sprintf("have %s", x)
+			}
+			// don't use Checker.invalidArg here as it would repeat "argument" in the error message
+			check.errorf(x, _InvalidAppend, "first argument to append must be a slice; %s", cause)
 			return
 		}
 
