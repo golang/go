@@ -415,11 +415,11 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 		}
 	}
 
-	// If a constraint has a structural type, unify the corresponding type parameter with it.
+	// If a constraint has a core type, unify the corresponding type parameter with it.
 	for _, tpar := range tparams {
-		sbound := structuralType(tpar)
+		sbound := coreType(tpar)
 		if sbound != nil {
-			// If the structural type is the underlying type of a single
+			// If the core type is the underlying type of a single
 			// defined type in the constraint, use that defined type instead.
 			if named, _ := tpar.singleType().(*Named); named != nil {
 				sbound = named
@@ -434,7 +434,7 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 	}
 
 	// u.x.types() now contains the incoming type arguments plus any additional type
-	// arguments which were inferred from structural types. The newly inferred non-
+	// arguments which were inferred from core types. The newly inferred non-
 	// nil entries may still contain references to other type parameters.
 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
@@ -503,8 +503,8 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 	}
 
 	// Once nothing changes anymore, we may still have type parameters left;
-	// e.g., a structural constraint *P may match a type parameter Q but we
-	// don't have any type arguments to fill in for *P or Q (issue #45548).
+	// e.g., a constraint with core type *P may match a type parameter Q but
+	// we don't have any type arguments to fill in for *P or Q (issue #45548).
 	// Don't let such inferences escape, instead nil them out.
 	for i, typ := range types {
 		if typ != nil && isParameterized(tparams, typ) {

@@ -27,13 +27,13 @@ func under(t Type) Type {
 	return t.Underlying()
 }
 
-// If t is not a type parameter, structuralType returns the underlying type.
-// If t is a type parameter, structuralType returns the single underlying
+// If t is not a type parameter, coreType returns the underlying type.
+// If t is a type parameter, coreType returns the single underlying
 // type of all types in its type set if it exists, or nil otherwise. If the
 // type set contains only unrestricted and restricted channel types (with
 // identical element types), the single underlying type is the restricted
 // channel type if the restrictions are always the same, or nil otherwise.
-func structuralType(t Type) Type {
+func coreType(t Type) Type {
 	tpar, _ := t.(*TypeParam)
 	if tpar == nil {
 		return under(t)
@@ -59,10 +59,10 @@ func structuralType(t Type) Type {
 	return nil
 }
 
-// structuralString is like structuralType but also considers []byte
+// coreString is like coreType but also considers []byte
 // and strings as identical. In this case, if successful and we saw
 // a string, the result is of type (possibly untyped) string.
-func structuralString(t Type) Type {
+func coreString(t Type) Type {
 	tpar, _ := t.(*TypeParam)
 	if tpar == nil {
 		return under(t) // string or untyped string
