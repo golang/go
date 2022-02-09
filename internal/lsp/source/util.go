@@ -540,13 +540,22 @@ func IsCommandLineArguments(s string) bool {
 	return strings.Contains(s, "command-line-arguments")
 }
 
-// Offset returns tok.Offset(pos), but it also checks that the pos is in range
+// Offset returns tok.Offset(pos), but first checks that the pos is in range
 // for the given file.
 func Offset(tok *token.File, pos token.Pos) (int, error) {
 	if !InRange(tok, pos) {
 		return -1, fmt.Errorf("pos %v is not in range for file [%v:%v)", pos, tok.Base(), tok.Base()+tok.Size())
 	}
 	return tok.Offset(pos), nil
+}
+
+// Pos returns tok.Pos(offset), but first checks that the offset is valid for
+// the given file.
+func Pos(tok *token.File, offset int) (token.Pos, error) {
+	if offset < 0 || offset > tok.Size() {
+		return token.NoPos, fmt.Errorf("offset %v is not in range for file of size %v", offset, tok.Size())
+	}
+	return tok.Pos(offset), nil
 }
 
 // InRange reports whether the given position is in the given token.File.

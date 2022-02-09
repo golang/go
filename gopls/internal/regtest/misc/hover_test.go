@@ -24,6 +24,7 @@ go 1.12
 package structs
 
 type Mixed struct {
+	// Exported comment
 	Exported   int
 	unexported string
 }
@@ -40,7 +41,7 @@ go 1.12
 
 require golang.org/x/structs v1.0.0
 -- go.sum --
-golang.org/x/structs v1.0.0 h1:3DlrFfd3OsEen7FnCHfqtnJvjBZ8ZFKmrD/+HjpdJj0=
+golang.org/x/structs v1.0.0 h1:Ito/a7hBYZaNKShFrZKjfBA/SIPvmBrcPCBWPx5QeKk=
 golang.org/x/structs v1.0.0/go.mod h1:47gkSIdo5AaQaWJS0upVORsxfEr1LL1MWv9dmYF3iq4=
 -- main.go --
 package main
@@ -48,9 +49,11 @@ package main
 import "golang.org/x/structs"
 
 func main() {
-	var _ structs.Mixed
+	var m structs.Mixed
+	_ = m.Exported
 }
 `
+
 	// TODO: use a nested workspace folder here.
 	WithOptions(
 		ProxyFiles(proxy),
@@ -61,11 +64,18 @@ func main() {
 		if !strings.Contains(got.Value, "unexported") {
 			t.Errorf("Workspace hover: missing expected field 'unexported'. Got:\n%q", got.Value)
 		}
+
 		cacheFile, _ := env.GoToDefinition("main.go", mixedPos)
 		argPos := env.RegexpSearch(cacheFile, "printMixed.*(Mixed)")
 		got, _ = env.Hover(cacheFile, argPos)
 		if !strings.Contains(got.Value, "unexported") {
 			t.Errorf("Non-workspace hover: missing expected field 'unexported'. Got:\n%q", got.Value)
+		}
+
+		exportedFieldPos := env.RegexpSearch("main.go", "Exported")
+		got, _ = env.Hover("main.go", exportedFieldPos)
+		if !strings.Contains(got.Value, "comment") {
+			t.Errorf("Workspace hover: missing comment for field 'Exported'. Got:\n%q", got.Value)
 		}
 	})
 }

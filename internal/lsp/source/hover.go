@@ -439,9 +439,10 @@ func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signatur
 	return str
 }
 
-// HoverInfo returns a HoverInformation struct for an ast node and its type
-// object. node should be the actual node used in type checking, while fullNode
-// could be a separate node with more complete syntactic information.
+// HoverInfo returns a HoverInformation struct for an ast node and its
+// declaration object. node should be the actual node used in type checking,
+// while fullNode could be a separate node with more complete syntactic
+// information.
 func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, pkgNode ast.Node, fullDecl ast.Decl) (*HoverInformation, error) {
 	var info *HoverInformation
 
@@ -497,15 +498,23 @@ func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, p
 			if err != nil {
 				return nil, err
 			}
-			tok2 := s.FileSet().File(node.Pos())
+
+			// fullTok and fullPos are the *token.File and object position in for the
+			// full AST.
+			fullTok := s.FileSet().File(node.Pos())
+			fullPos, err := Pos(fullTok, offset)
+			if err != nil {
+				return nil, err
+			}
+
 			var spec ast.Spec
 			for _, s := range node.Specs {
 				// Avoid panics by guarding the calls to token.Offset (golang/go#48249).
-				start, err := Offset(tok2, s.Pos())
+				start, err := Offset(fullTok, s.Pos())
 				if err != nil {
 					return nil, err
 				}
-				end, err := Offset(tok2, s.End())
+				end, err := Offset(fullTok, s.End())
 				if err != nil {
 					return nil, err
 				}
@@ -514,7 +523,8 @@ func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, p
 					break
 				}
 			}
-			info, err = formatGenDecl(node, spec, obj, obj.Type())
+
+			info, err = formatGenDecl(node, spec, fullPos, obj)
 			if err != nil {
 				return nil, err
 			}
@@ -584,21 +594,19 @@ func isFunctionParam(obj types.Object, node *ast.FuncDecl) bool {
 	return false
 }
 
-func formatGenDecl(node *ast.GenDecl, spec ast.Spec, obj types.Object, typ types.Type) (*HoverInformation, error) {
-	if _, ok := typ.(*types.Named); ok {
-		switch typ.Underlying().(type) {
-		case *types.Interface, *types.Struct:
-			return formatGenDecl(node, spec, obj, typ.Underlying())
-		}
-	}
+// formatGenDecl returns hover information an object declared via spec inside
+// of the GenDecl node. obj is the type-checked object corresponding to the
+// declaration, but may have been type-checked using a different AST than the
+// given nodes; fullPos is the position of obj in node's AST.
+func formatGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj types.Object) (*HoverInformation, error) {
 	if spec == nil {
-		return nil, errors.Errorf("no spec for node %v at position %v", node, obj.Pos())
+		return nil, errors.Errorf("no spec for node %v at position %v", node, fullPos)
 	}
 
 	// If we have a field or method.
 	switch obj.(type) {
 	case *types.Var, *types.Const, *types.Func:
-		return formatVar(spec, obj, node), nil
+		return formatVar(spec, fullPos, obj, node), nil
 	}
 	// Handle types.
 	switch spec := spec.(type) {
@@ -628,7 +636,7 @@ func formatTypeSpec(spec *ast.TypeSpec, decl *ast.GenDecl) *HoverInformation {
 	}
 }
 
-func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInformation {
+func formatVar(node ast.Spec, fullPos token.Pos, obj types.Object, decl *ast.GenDecl) *HoverInformation {
 	var fieldList *ast.FieldList
 	switch spec := node.(type) {
 	case *ast.TypeSpec:
@@ -664,7 +672,7 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 	}
 
 	if fieldList != nil {
-		comment := findFieldComment(obj.Pos(), fieldList)
+		comment := findFieldComment(fullPos, fieldList)
 		return &HoverInformation{source: obj, comment: comment}
 	}
 	return &HoverInformation{source: obj, comment: decl.Doc}
