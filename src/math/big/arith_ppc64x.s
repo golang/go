@@ -346,11 +346,161 @@ done:
 	MOVD  R4, c+56(FP)
 	RET
 
+//func shlVU(z, x []Word, s uint) (c Word)
 TEXT ·shlVU(SB), NOSPLIT, $0
-	BR ·shlVU_g(SB)
+	MOVD    z+0(FP), R3
+	MOVD    x+24(FP), R6
+	MOVD    s+48(FP), R9
+	MOVD    z_len+8(FP), R4
+	MOVD    x_len+32(FP), R7
+	CMP     R9, R0          // s==0 copy(z,x)
+	BEQ     zeroshift
+	CMP     R4, R0          // len(z)==0 return
+	BEQ     done
 
+	ADD     $-1, R4, R5     // len(z)-1
+	SUBC    R9, $64, R4     // ŝ=_W-s, we skip & by _W-1 as the caller ensures s < _W(64)
+	SLD     $3, R5, R7
+	ADD     R6, R7, R15     // save starting address &x[len(z)-1]
+	ADD     R3, R7, R16     // save starting address &z[len(z)-1]
+	MOVD    (R6)(R7), R14
+	SRD     R4, R14, R7     // compute x[len(z)-1]>>ŝ into R7
+	CMP     R5, R0          // iterate from i=len(z)-1 to 0
+	BEQ     loopexit        // Already at end?
+	MOVD	0(R15),R10	// x[i]
+shloop:
+	SLD     R9, R10, R10    // x[i]<<s
+	MOVDU   -8(R15), R14
+	SRD     R4, R14, R11    // x[i-1]>>ŝ
+	OR      R11, R10, R10
+	MOVD    R10, 0(R16)     // z[i-1]=x[i]<<s | x[i-1]>>ŝ
+	MOVD	R14, R10	// reuse x[i-1] for next iteration
+	ADD     $-8, R16        // i--
+	CMP     R15, R6         // &x[i-1]>&x[0]?
+	BGT     shloop
+loopexit:
+	MOVD    0(R6), R4
+	SLD     R9, R4, R4
+	MOVD    R4, 0(R3)       // z[0]=x[0]<<s
+	MOVD    R7, c+56(FP)    // store pre-computed x[len(z)-1]>>ŝ into c
+	RET
+
+zeroshift:
+	CMP     R6, R0          // x is null, nothing to copy
+	BEQ     done
+	CMP     R6, R3          // if x is same as z, nothing to copy
+	BEQ     done
+	CMP     R7, R4
+	ISEL    $0, R7, R4, R7  // Take the lower bound of lengths of x,z
+	SLD     $3, R7, R7
+	SUB     R6, R3, R11     // dest - src
+	CMPU    R11, R7, CR2    // < len?
+	BLT     CR2, backward   // there is overlap, copy backwards
+	MOVD    $0, R14
+	// shlVU processes backwards, but added a forward copy option 
+	// since its faster on POWER
+repeat:
+	MOVD    (R6)(R14), R15  // Copy 8 bytes at a time
+	MOVD    R15, (R3)(R14)
+	ADD     $8, R14
+	CMP     R14, R7         // More 8 bytes left?
+	BLT     repeat
+	BR      done
+backward:
+	ADD     $-8,R7, R14
+repeatback:
+	MOVD    (R6)(R14), R15  // copy x into z backwards
+	MOVD    R15, (R3)(R14)  // copy 8 bytes at a time
+	SUB     $8, R14
+	CMP     R14, $-8        // More 8 bytes left?
+	BGT     repeatback
+
+done:
+	MOVD    R0, c+56(FP)    // c=0
+	RET
+
+//func shrVU(z, x []Word, s uint) (c Word)
 TEXT ·shrVU(SB), NOSPLIT, $0
-	BR ·shrVU_g(SB)
+	MOVD    z+0(FP), R3
+	MOVD    x+24(FP), R6
+	MOVD    s+48(FP), R9
+	MOVD    z_len+8(FP), R4
+	MOVD    x_len+32(FP), R7
+
+	CMP     R9, R0          // s==0, copy(z,x)
+	BEQ     zeroshift
+	CMP     R4, R0          // len(z)==0 return
+	BEQ     done
+	SUBC    R9, $64, R5     // ŝ=_W-s, we skip & by _W-1 as the caller ensures s < _W(64)
+
+	MOVD    0(R6), R7
+	SLD     R5, R7, R7      // compute x[0]<<ŝ
+	MOVD    $1, R8          // iterate from i=1 to i<len(z)
+	CMP     R8, R4
+	BGE     loopexit        // Already at end?
+
+	// vectorize if len(z) is >=3, else jump to scalar loop
+	CMP     R4, $3
+	BLT     scalar
+	MTVSRD  R9, VS38        // s
+	VSPLTB  $7, V6, V4
+	MTVSRD  R5, VS39        // ŝ
+	VSPLTB  $7, V7, V2
+	ADD     $-2, R4, R16
+	PCALIGN $16
+loopback:
+	ADD     $-1, R8, R10
+	SLD     $3, R10
+	LXVD2X  (R6)(R10), VS32 // load x[i-1], x[i]
+	SLD     $3, R8, R12
+	LXVD2X  (R6)(R12), VS33 // load x[i], x[i+1]
+
+	VSRD    V0, V4, V3      // x[i-1]>>s, x[i]>>s
+	VSLD    V1, V2, V5      // x[i]<<ŝ, x[i+1]<<ŝ
+	VOR     V3, V5, V5      // Or(|) the two registers together
+	STXVD2X VS37, (R3)(R10) // store into z[i-1] and z[i]
+	ADD     $2, R8          // Done processing 2 entries, i and i+1
+	CMP     R8, R16         // Are there at least a couple of more entries left?
+	BLE     loopback
+	CMP     R8, R4          // Are we at the last element?
+	BEQ     loopexit
+scalar:	
+	ADD     $-1, R8, R10
+	SLD     $3, R10
+	MOVD    (R6)(R10),R11
+	SRD     R9, R11, R11    // x[len(z)-2] >> s
+	SLD     $3, R8, R12
+	MOVD    (R6)(R12), R12
+	SLD     R5, R12, R12    // x[len(z)-1]<<ŝ
+	OR      R12, R11, R11   // x[len(z)-2]>>s | x[len(z)-1]<<ŝ
+	MOVD    R11, (R3)(R10)  // z[len(z)-2]=x[len(z)-2]>>s | x[len(z)-1]<<ŝ
+loopexit:
+	ADD     $-1, R4
+	SLD     $3, R4
+	MOVD    (R6)(R4), R5
+	SRD     R9, R5, R5      // x[len(z)-1]>>s
+	MOVD    R5, (R3)(R4)    // z[len(z)-1]=x[len(z)-1]>>s
+	MOVD    R7, c+56(FP)    // store pre-computed x[0]<<ŝ into c
+	RET
+
+zeroshift:
+	CMP     R6, R0          // x is null, nothing to copy
+	BEQ     done
+	CMP     R6, R3          // if x is same as z, nothing to copy
+	BEQ     done
+	CMP     R7, R4
+	ISEL    $0, R7, R4, R7  // Take the lower bounds of lengths of x, z
+	SLD     $3, R7, R7
+	MOVD    $0, R14
+repeat:
+	MOVD    (R6)(R14), R15  // copy 8 bytes at a time
+	MOVD    R15, (R3)(R14)  // shrVU processes bytes only forwards
+	ADD     $8, R14
+	CMP     R14, R7         // More 8 bytes left?
+	BLT     repeat
+done:
+	MOVD    R0, c+56(FP)
+	RET
 
 // func mulAddVWW(z, x []Word, y, r Word) (c Word)
 TEXT ·mulAddVWW(SB), NOSPLIT, $0
