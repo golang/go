@@ -480,6 +480,9 @@ func (r *Request) multipartReader(allowMixed bool) (*multipart.Reader, error) {
 	if v == "" {
 		return nil, ErrNotMultipart
 	}
+	if r.Body == nil {
+		return nil, errors.New("missing form body")
+	}
 	d, params, err := mime.ParseMediaType(v)
 	if err != nil || !(d == "multipart/form-data" || allowMixed && d == "multipart/mixed") {
 		return nil, ErrNotMultipart
