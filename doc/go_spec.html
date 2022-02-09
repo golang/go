@@ -6254,6 +6254,32 @@ if v == nil {
 </pre>
 
 <p>
+A <a href="#Type_parameters">type parameter</a> or a <a href="#Type_declarations">parameterized type</a>
+may be used as a type in a case. If upon <a href="#Instantiations">instantiation</a> that type turns
+out to duplicate another entry in the switch, the first matching case is chosen.
+</p>
+
+<pre>
+func f[P any](x any) int {
+	switch x.(type) {
+	case P:
+		return 0
+	case string:
+		return 1
+	case []P:
+		return 2
+	case []byte:
+		return 3
+	default:
+		return 4
+	}
+}
+
+var v1 = f[string]("foo")   // v1 == 0
+var v2 = f[byte]([]byte{})  // v2 == 2
+</pre>
+
+<p>
 The type switch guard may be preceded by a simple statement, which
 executes before the guard is evaluated.
 </p>
