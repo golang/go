@@ -82,7 +82,7 @@ func dnsPacketRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 		return dnsmessage.Parser{}, dnsmessage.Header{}, err
 	}
 
-	b = make([]byte, 512) // see RFC 1035
+	b = make([]byte, 1232) // see RFC 6891, https://dnsflagday.net/2020/
 	for {
 		n, err := c.Read(b)
 		if err != nil {
