@@ -818,79 +818,6 @@ Predeclared types, defined types, and type parameters are called <i>named types<
 An alias denotes a named type if the type given in the alias declaration is a named type.
 </p>
 
-<h3 id="Underlying_types">Underlying types</h3>
-
-<p>
-Each type <code>T</code> has an <i>underlying type</i>: If <code>T</code>
-is one of the predeclared boolean, numeric, or string types, or a type literal,
-the corresponding underlying type is <code>T</code> itself.
-Otherwise, <code>T</code>'s underlying type is the underlying type of the
-type to which <code>T</code> refers in its <a href="#Type_declarations">type
-declaration</a>. Accordingly, the underlying type of a type parameter is the
-underlying type of its <a href="#Type_constraints">type constraint</a>, which
-is always an interface.
-</p>
-
-<pre>
-type (
-	A1 = string
-	A2 = A1
-)
-
-type (
-	B1 string
-	B2 B1
-	B3 []B1
-	B4 B3
-)
-
-func f[P any](x P) { … }
-</pre>
-
-<p>
-The underlying type of <code>string</code>, <code>A1</code>, <code>A2</code>, <code>B1</code>,
-and <code>B2</code> is <code>string</code>.
-The underlying type of <code>[]B1</code>, <code>B3</code>, and <code>B4</code> is <code>[]B1</code>.
-The underlying type of <code>P</code> is <code>interface{}</code>.
-</p>
-
-<h3 id="Method_sets">Method sets</h3>
-
-<p>
-The <i>method set</i> of a type determines the methods that can be
-<a href="#Calls">called</a> on an <a href="#Operands">operand</a> of that type.
-Every type has a (possibly empty) method set associated with it:
-</p>
-
-<ul>
-<li>The method set of a <a href="#Type_definitions">defined type</a> <code>T</code> consists of all
-<a href="#Method_declarations">methods</a> declared with receiver type <code>T</code>.
-</li>
-
-<li>
-The method set of a pointer to a defined type <code>T</code>
-(where <code>T</code> is neither a pointer nor an interface)
-is the set of all methods declared with receiver <code>*T</code> or <code>T</code>.
-</li>
-
-<li>The method set of an <a href="#Interface_types">interface type</a> is the intersection
-of the method sets of each type in the interface's <a href="#Interface_types">type set</a>
-(the resulting method set is usually just the set of declared methods in the interface).
-</li>
-</ul>
-
-<p>
-Further rules apply to structs (and pointer to structs) containing embedded fields,
-as described in the section on <a href="#Struct_types">struct types</a>.
-Any other type has an empty method set.
-</p>
-
-<p>
-In a method set, each method must have a
-<a href="#Uniqueness_of_identifiers">unique</a>
-non-<a href="#Blank_identifier">blank</a> <a href="#MethodName">method name</a>.
-</p>
-
 <h3 id="Boolean_types">Boolean types</h3>
 
 <p>
@@ -1748,6 +1675,171 @@ The properties of a type parameter are determined by its
 
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
 
+<h3 id="Underlying_types">Underlying types</h3>
+
+<p>
+Each type <code>T</code> has an <i>underlying type</i>: If <code>T</code>
+is one of the predeclared boolean, numeric, or string types, or a type literal,
+the corresponding underlying type is <code>T</code> itself.
+Otherwise, <code>T</code>'s underlying type is the underlying type of the
+type to which <code>T</code> refers in its <a href="#Type_declarations">type
+declaration</a>. The underlying type of a type parameter is the
+underlying type of its <a href="#Type_constraints">type constraint</a>, which
+is always an interface.
+</p>
+
+<pre>
+type (
+	A1 = string
+	A2 = A1
+)
+
+type (
+	B1 string
+	B2 B1
+	B3 []B1
+	B4 B3
+)
+
+func f[P any](x P) { … }
+</pre>
+
+<p>
+The underlying type of <code>string</code>, <code>A1</code>, <code>A2</code>, <code>B1</code>,
+and <code>B2</code> is <code>string</code>.
+The underlying type of <code>[]B1</code>, <code>B3</code>, and <code>B4</code> is <code>[]B1</code>.
+The underlying type of <code>P</code> is <code>interface{}</code>.
+</p>
+
+<h3 id="Core_types">Core types</h3>
+
+<p>
+Each non-interface type <code>T</code> has a <i>core</i> type, which is the
+<a href="#Underlying_types">underlying type</a> of <code>T</code>.
+</p>
+
+<p>
+An interface <code>T</code> has a core type if one of the following
+conditions is satisfied:
+</p>
+
+<ol>
+<li>
+There is a single type <code>U</code> which is the <a href="#Underlying_types">underlying type</a>
+of all types in the <a href="#Interface_types">type set</a> of <code>T</code>; or
+</li>
+<li>
+the type set of <code>T</code> contains only <a href="#Channel_types">channel types</a>
+with identical element type <code>E</code>, and all directional channels have the same
+direction.
+</li>
+</ol>
+
+<p>
+All other interfaces don't have a core type.
+</p>
+
+<p>
+The core type of an interface is, depending on the condition that is satisfied, either:
+</p>
+
+<ol>
+<li>
+the type <code>U</code>; or
+</li>
+<li>
+the type <code>chan E</code> if <code>T</code> contains only bidirectional
+channels, or the type <code>chan&lt;- E</code> or <code>&lt;-chan E</code>
+depending on the direction of the directional channels present.
+</li>
+</ol>
+
+<p>
+Examples of interfaces with core types:
+</p>
+
+<pre>
+type Celsius float32
+type Kelvin  float32
+
+interface{ int }                          // int
+interface{ Celsius|Kelvin }               // float32
+interface{ ~chan int }                    // chan int
+interface{ ~chan int|~chan&lt;- int }        // chan&lt;- int
+interface{ ~[]*data; String() string }    // []*data
+</pre>
+
+<p>
+Examples of interfaces whithout core types:
+</p>
+
+<pre>
+interface{}                               // no single underlying type
+interface{ Celsius|float64 }              // no single underlying type
+interface{ chan int | chan&lt;- string }     // channels have different element types
+interface{ &lt;-chan int | chan&lt;- int }      // directional channels have different directions
+</pre>
+
+<h3 id="Specific_types">Specific types</h3>
+
+<p>
+An interface specification that contains <a href="#Interface_types">type elements</a>
+defines a (possibly empty) set of <i>specific types</i>.
+Loosely speaking, these are the types <code>T</code> that appear in the
+interface definition in terms of the form <code>T</code>, <code>~T</code>,
+or in unions of such terms.
+</p>
+
+<p>
+More precisely, for a given interface, the set of specific types corresponds to
+the set 𝑅 of representative types of the interface, if 𝑅 is non-empty and finite.
+Otherwise, if 𝑅 is empty or infinite, the interface has <i>no specific types</i>.
+</p>
+
+<p>
+For a given interface, type element or type term, the set 𝑅 of representative types is defined as follows:
+</p>
+
+<ul>
+	<li>For an interface with no type elements, 𝑅 is the (infinite) set of all types.
+	</li>
+
+	<li>For an interface with type elements,
+		𝑅 is the intersection of the representative types of its type elements.
+	</li>
+
+	<li>For a non-interface type term <code>T</code> or a term of the form <code>~T</code>,
+		𝑅 is the set consisting of the type <code>T</code>.
+	</li>
+
+	<li>For a <i>union</i> of terms
+		<code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>,
+		𝑅 is the union of the representative types of the terms.
+	</li>
+</ul>
+
+<p>
+An interface may have specific types even if its <a href="#Interface_types">type set</a>
+is empty.
+</p>
+
+<p>
+Examples of interfaces with their specific types:
+</p>
+
+<pre>
+interface{}                    // no specific types
+interface{ int }               // int
+interface{ ~string }           // string
+interface{ int|~string }       // int, string
+interface{ Celsius|Kelvin }    // Celsius, Kelvin
+interface{ float64|any }       // no specific types (union is all types)
+interface{ int; m() }          // int (but type set is empty because int has no method m)
+interface{ ~int; m() }         // int (but type set is infinite because many integer types have a method m)
+interface{ int; any }          // int
+interface{ int; string }       // no specific types (intersection is empty)
+</pre>
+
 <h3 id="Type_identity">Type identity</h3>
 
 <p>
@@ -1888,7 +1980,7 @@ by a value of type <code>T</code>.
 
 <p>
 Additionally, if <code>x's</code> type <code>V</code> or <code>T</code> are type parameters
-with <a href="#Structure_of_interfaces">specific types</a>, <code>x</code>
+with <a href="#Specific_types">specific types</a>, <code>x</code>
 is assignable to a variable of type <code>T</code> if one of the following conditions applies:
 </p>
 
@@ -1940,7 +2032,7 @@ are representable by values of <code>T</code>'s component type (<code>float32</c
 </ul>
 
 <p>
-If <code>T</code> is a type parameter with <a href="#Structure_of_interfaces">specific types</a>,
+If <code>T</code> is a type parameter with <a href="#Specific_types">specific types</a>,
 <code>x</code> is representable by a value of type <code>T</code> if <code>x</code> is representable
 by a value of each specific type of <code>T</code>.
 </p>
@@ -1972,127 +2064,42 @@ x                   T           x is not representable by a value of T because
 1e1000              float64     1e1000 overflows to IEEE +Inf after rounding
 </pre>
 
-<h3 id="Structure_of_interfaces">Structure of interfaces</h3>
+<h3 id="Method_sets">Method sets</h3>
 
 <p>
-An interface specification which contains <a href="#Interface_types">type elements</a>
-defines a (possibly empty) set of <i>specific types</i>.
-Loosely speaking, these are the types <code>T</code> that appear in the
-interface definition in terms of the form <code>T</code>, <code>~T</code>,
-or in unions of such terms.
-</p>
-
-<p>
-More precisely, for a given interface, the set of specific types corresponds to
-the set 𝑅 of representative types of the interface, if 𝑅 is non-empty and finite.
-Otherwise, if 𝑅 is empty or infinite, the interface has <i>no specific types</i>.
-</p>
-
-<p>
-For a given interface, type element or type term, the set 𝑅 of representative types is defined as follows:
+The <i>method set</i> of a type determines the methods that can be
+<a href="#Calls">called</a> on an <a href="#Operands">operand</a> of that type.
+Every type has a (possibly empty) method set associated with it:
 </p>
 
 <ul>
-	<li>For an interface with no type elements, 𝑅 is the (infinite) set of all types.
-	</li>
+<li>The method set of a <a href="#Type_definitions">defined type</a> <code>T</code> consists of all
+<a href="#Method_declarations">methods</a> declared with receiver type <code>T</code>.
+</li>
 
-	<li>For an interface with type elements,
-		𝑅 is the intersection of the representative types of its type elements.
-	</li>
+<li>
+The method set of a pointer to a defined type <code>T</code>
+(where <code>T</code> is neither a pointer nor an interface)
+is the set of all methods declared with receiver <code>*T</code> or <code>T</code>.
+</li>
 
-	<li>For a non-interface type term <code>T</code> or a term of the form <code>~T</code>,
-		𝑅 is the set consisting of the type <code>T</code>.
-	</li>
-
-	<li>For a <i>union</i> of terms
-		<code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>,
-		𝑅 is the union of the representative types of the terms.
-	</li>
+<li>The method set of an <a href="#Interface_types">interface type</a> is the intersection
+of the method sets of each type in the interface's <a href="#Interface_types">type set</a>
+(the resulting method set is usually just the set of declared methods in the interface).
+</li>
 </ul>
 
 <p>
-An interface may have specific types even if its <a href="#Interface_types">type set</a>
-is empty.
+Further rules apply to structs (and pointer to structs) containing embedded fields,
+as described in the section on <a href="#Struct_types">struct types</a>.
+Any other type has an empty method set.
 </p>
 
 <p>
-Examples of interfaces with their specific types:
+In a method set, each method must have a
+<a href="#Uniqueness_of_identifiers">unique</a>
+non-<a href="#Blank_identifier">blank</a> <a href="#MethodName">method name</a>.
 </p>
-
-<pre>
-type Celsius float32
-type Kelvin  float32
-
-interface{}                    // no specific types
-interface{ int }               // int
-interface{ ~string }           // string
-interface{ int|~string }       // int, string
-interface{ Celsius|Kelvin }    // Celsius, Kelvin
-interface{ float64|any }       // no specific types (union is all types)
-interface{ int; m() }          // int (but type set is empty because int has no method m)
-interface{ ~int; m() }         // int (but type set is infinite because many integer types have a method m)
-interface{ int; any }          // int
-interface{ int; string }       // no specific types (intersection is empty)
-</pre>
-
-<p>
-An interface <code>T</code> has a <i>core type</i> if one of the following
-conditions is satisfied:
-</p>
-
-<ol>
-<li>
-There is a single type <code>U</code> which is the <a href="#Underlying_types">underlying type</a>
-of all types in the <a href="#Interface_types">type set</a> of <code>T</code>; or
-</li>
-<li>
-the type set of <code>T</code> contains only <a href="#Channel_types">channel types</a>
-with identical element type <code>E</code>, and all directional channels have the same
-direction.
-</li>
-</ol>
-
-<p>
-All other interfaces don't have a core type.
-</p>
-
-<p>
-The core type is, depending on the condition that is satisfied, either:
-</p>
-
-<ol>
-<li>
-the type <code>U</code>; or
-</li>
-<li>
-the type <code>chan E</code> if <code>T</code> contains only bidirectional
-channels, or the type <code>chan&lt;- E</code> or <code>&lt;-chan E</code>
-depending on the direction of the directional channels present.
-</li>
-</ol>
-
-<p>
-Examples of interfaces with core types:
-</p>
-
-<pre>
-interface{ int }                          // int
-interface{ Celsius|Kelvin }               // float32
-interface{ ~chan int }                    // chan int
-interface{ ~chan int|~chan&lt;- int }        // chan&lt;- int
-interface{ ~[]*data; String() string }    // []*data
-</pre>
-
-<p>
-Examples of interfaces whithout core types:
-</p>
-
-<pre>
-interface{}                               // no single underlying type
-interface{ Celsius|float64 }              // no single underlying type
-interface{ chan int | chan&lt;- string }     // channels have different element types
-interface{ &lt;-chan int | chan&lt;- int }      // directional channels have different directions
-</pre>
 
 <h2 id="Blocks">Blocks</h2>
 
@@ -3783,7 +3790,7 @@ For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
 For <code>a</code> of <a href="#Type_parameters">type parameter type</a> <code>P</code>:
 </p>
 <ul>
-	<li><code>P</code> must have <a href="#Structure_of_interfaces">specific types</a>.</li>
+	<li><code>P</code> must have <a href="#Specific_types">specific types</a>.</li>
 	<li>The index expression <code>a[x]</code> must be valid for values
 	    of all specific types of <code>P</code>.</li>
 	<li>The element types of all specific types of <code>P</code> must be identical.
@@ -4513,7 +4520,7 @@ min(1.0, 2)    // illegal: default type float64 (for 1.0) doesn't match default 
 <p>
 Constraint type inference infers type arguments by considering type constraints.
 If a type parameter <code>P</code> has a constraint with a
-<a href="#Structure_of_interfaces">core type</a> <code>C</code>,
+<a href="#Core_types">core type</a> <code>C</code>,
 <a href="#Type_unification">unifying</a> <code>P</code> with <code>C</code>
 may infer additional type arguments, either the type argument for <code>P</code>,
 or if that is already known, possibly the type arguments for type parameters
@@ -4774,7 +4781,7 @@ The bitwise logical and shift operators apply to integers only.
 
 <p>
 Excluding shifts, if the operand type is a <a href="#Type_parameters">type parameter</a>,
-it must have <a href="#Structure_of_interfaces">specific types</a>, and the operator must
+it must have <a href="#Specific_types">specific types</a>, and the operator must
 apply to each specific type.
 The operands are represented as values of the type argument that the type parameter
 is <a href="#Instantiations">instantiated</a> with, and the operation is computed
@@ -5314,7 +5321,7 @@ in any of these cases:
 
 <p>
 Additionally, if <code>T</code> or </code><code>x's</code> type <code>V</code> are type
-parameters with <a href="#Structure_of_interfaces">specific types</a>, <code>x</code>
+parameters with <a href="#Specific_types">specific types</a>, <code>x</code>
 can also be converted to type <code>T</code> if one of the following conditions applies:
 </p>
 
@@ -7023,7 +7030,7 @@ cap(s)    [n]T, *[n]T      array length (== n)
 
 <p>
 If the argument type is a <a href="#Type_parameters">type parameter</a> <code>P</code>,
-<code>P</code> must have <a href="#Structure of interfaces">specific types</a>, and
+<code>P</code> must have <a href="#Specific_types">specific types</a>, and
 the call <code>len(e)</code> (or <code>cap(e)</code> respectively) must be valid for
 each specific type of <code>P</code>.
 The result is the length (or capacity, respectively) of the argument whose type
