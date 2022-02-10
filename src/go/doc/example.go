@@ -270,8 +270,22 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	// Use unresolved identifiers to determine the imports used by this
 	// example. The heuristic assumes package names match base import
 	// paths for imports w/o renames (should be good enough most of the time).
-	namedImports := make(map[string]string) // [name]path
-	var blankImports []ast.Spec             // _ imports
+	var namedImports []ast.Spec
+	var blankImports []ast.Spec // _ imports
+
+	// To preserve the blank lines between groups of imports, find the
+	// start position of each group, and assign that position to all
+	// imports from that group.
+	groupStarts := findImportGroupStarts(file.Imports)
+	groupStart := func(s *ast.ImportSpec) token.Pos {
+		for i, start := range groupStarts {
+			if s.Path.ValuePos < start {
+				return groupStarts[i-1]
+			}
+		}
+		return groupStarts[len(groupStarts)-1]
+	}
+
 	for _, s := range file.Imports {
 		p, err := strconv.Unquote(s.Path.Value)
 		if err != nil {
@@ -295,7 +309,12 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			}
 		}
 		if unresolved[n] {
-			namedImports[n] = p
+			// Copy the spec and its path to avoid modifying the original.
+			spec := *s
+			path := *s.Path
+			spec.Path = &path
+			spec.Path.ValuePos = groupStart(&spec)
+			namedImports = append(namedImports, &spec)
 			delete(unresolved, n)
 		}
 	}
@@ -345,14 +364,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 		Lparen: 1, // Need non-zero Lparen and Rparen so that printer
 		Rparen: 1, // treats this as a factored import.
 	}
-	for n, p := range namedImports {
-		s := &ast.ImportSpec{Path: &ast.BasicLit{Value: strconv.Quote(p)}}
-		if path.Base(p) != n {
-			s.Name = ast.NewIdent(n)
-		}
-		importDecl.Specs = append(importDecl.Specs, s)
-	}
-	importDecl.Specs = append(importDecl.Specs, blankImports...)
+	importDecl.Specs = append(namedImports, blankImports...)
 
 	// Synthesize main function.
 	funcDecl := &ast.FuncDecl{
@@ -369,7 +381,6 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	sort.Slice(decls, func(i, j int) bool {
 		return decls[i].Pos() < decls[j].Pos()
 	})
-
 	sort.Slice(comments, func(i, j int) bool {
 		return comments[i].Pos() < comments[j].Pos()
 	})
@@ -380,6 +391,41 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 		Decls:    decls,
 		Comments: comments,
 	}
+}
+
+// findImportGroupStarts finds the start positions of each sequence of import
+// specs that are not separated by a blank line.
+func findImportGroupStarts(imps []*ast.ImportSpec) []token.Pos {
+	startImps := findImportGroupStarts1(imps)
+	groupStarts := make([]token.Pos, len(startImps))
+	for i, imp := range startImps {
+		groupStarts[i] = imp.Pos()
+	}
+	return groupStarts
+}
+
+// Helper for findImportGroupStarts to ease testing.
+func findImportGroupStarts1(origImps []*ast.ImportSpec) []*ast.ImportSpec {
+	// Copy to avoid mutation.
+	imps := make([]*ast.ImportSpec, len(origImps))
+	copy(imps, origImps)
+	// Assume the imports are sorted by position.
+	sort.Slice(imps, func(i, j int) bool { return imps[i].Pos() < imps[j].Pos() })
+	// Assume gofmt has been applied, so there is a blank line between adjacent imps
+	// if and only if they are more than 2 positions apart (newline, tab).
+	var groupStarts []*ast.ImportSpec
+	prevEnd := token.Pos(-2)
+	for _, imp := range imps {
+		if imp.Pos()-prevEnd > 2 {
+			groupStarts = append(groupStarts, imp)
+		}
+		prevEnd = imp.End()
+		// Account for end-of-line comments.
+		if imp.Comment != nil {
+			prevEnd = imp.Comment.End()
+		}
+	}
+	return groupStarts
 }
 
 // playExampleFile takes a whole file example and synthesizes a new *ast.File

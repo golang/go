@@ -522,6 +522,7 @@ func TestExampleEmpty(t *testing.T) {
 }
 
 func formatFile(t *testing.T, fset *token.FileSet, n *ast.File) string {
+	t.Helper()
 	if n == nil {
 		return "<nil>"
 	}
