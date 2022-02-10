@@ -1,0 +1,16 @@
+-- value-hoverdef --
+```go
+type value[T any] struct {
+	val T //@mark(Tparam, "T"),hoverdef("T", Tparam)
+	q   int
+}
+```
+-- Tparam-hoverdef --
+```go
+type value[T any] struct {
+	val T //@mark(Tparam, "T"),hoverdef("T", Tparam)
+	q   int
+}
+```
+
+[`hover.T` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/hover_generics?utm_source=gopls#T)

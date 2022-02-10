@@ -36,20 +36,13 @@ type HoverContext struct {
 	// FullDocumentation is the symbol's full documentation.
 	FullDocumentation string `json:"fullDocumentation"`
 
-	// TODO(rfindley): source is undefined. Either give it a coherent definition,
-	// or split it up into multiple fields.
-	source interface{}
+	// signatureSource is the object or node use to derive the hover signature.
+	//
+	// TODO(rfindley): can we pre-compute the signature, to avoid this indirection?
+	signatureSource interface{}
 
 	// comment is the most relevant comment group associated with the hovered object.
 	comment *ast.CommentGroup
-
-	// typeName contains the identifier name when the identifier is a type declaration.
-	// If it is not empty, the hover will have the prefix "type <typeName> ".
-	typeName string
-
-	// isTypeAlias indicates whether the identifier is a type alias declaration.
-	// If it is true, the hover will have the prefix "type <typeName> = ".
-	isTypeAlias bool
 }
 
 // HoverJSON contains information used by hover. It is also the JSON returned
@@ -274,20 +267,25 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 
 	h := &HoverJSON{HoverContext: *hoverCtx}
 	// Determine the symbol's signature.
-	switch x := h.source.(type) {
+	switch x := h.signatureSource.(type) {
+	case *ast.TypeSpec:
+		x2 := *x
+		// Don't duplicate comments when formatting type specs.
+		x2.Doc = nil
+		x2.Comment = nil
+		var b strings.Builder
+		b.WriteString("type ")
+		if err := format.Node(&b, fset, &x2); err != nil {
+			return nil, err
+		}
+		h.Signature = b.String()
+
 	case ast.Node:
 		var b strings.Builder
 		if err := format.Node(&b, fset, x); err != nil {
 			return nil, err
 		}
 		h.Signature = b.String()
-		if h.typeName != "" {
-			prefix := "type " + h.typeName + " "
-			if h.isTypeAlias {
-				prefix += "= "
-			}
-			h.Signature = prefix + h.Signature
-		}
 
 		// Check if the variable is an integer whose value we can present in a more
 		// user-friendly way, i.e. `var hex = 0xe34e` becomes `var hex = 58190`
@@ -493,12 +491,12 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 			// so pick the first file that has a doc comment.
 			for _, file := range imp.GetSyntax() {
 				if file.Doc != nil {
-					info = &HoverContext{source: obj, comment: file.Doc}
+					info = &HoverContext{signatureSource: obj, comment: file.Doc}
 					break
 				}
 			}
 		}
-		info = &HoverContext{source: node}
+		info = &HoverContext{signatureSource: node}
 	case *ast.GenDecl:
 		switch obj := obj.(type) {
 		case *types.TypeName, *types.Var, *types.Const, *types.Func:
@@ -554,9 +552,9 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 	case *ast.FuncDecl:
 		switch obj.(type) {
 		case *types.Func:
-			info = &HoverContext{source: obj, comment: node.Doc}
+			info = &HoverContext{signatureSource: obj, comment: node.Doc}
 		case *types.Builtin:
-			info = &HoverContext{source: node.Type, comment: node.Doc}
+			info = &HoverContext{signatureSource: node.Type, comment: node.Doc}
 		case *types.Var:
 			// Object is a function param or the field of an anonymous struct
 			// declared with ':='. Skip the first one because only fields
@@ -575,13 +573,13 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 				if comment.Text() == "" {
 					comment = field.Comment
 				}
-				info = &HoverContext{source: obj, comment: comment}
+				info = &HoverContext{signatureSource: obj, comment: comment}
 			}
 		}
 	}
 
 	if info == nil {
-		info = &HoverContext{source: obj}
+		info = &HoverContext{signatureSource: obj}
 	}
 
 	if info.comment != nil {
@@ -629,9 +627,9 @@ func formatGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj type
 	case *ast.TypeSpec:
 		return formatTypeSpec(spec, node), nil
 	case *ast.ValueSpec:
-		return &HoverContext{source: spec, comment: spec.Doc}, nil
+		return &HoverContext{signatureSource: spec, comment: spec.Doc}, nil
 	case *ast.ImportSpec:
-		return &HoverContext{source: spec, comment: spec.Doc}, nil
+		return &HoverContext{signatureSource: spec, comment: spec.Doc}, nil
 	}
 	return nil, errors.Errorf("unable to format spec %v (%T)", spec, spec)
 }
@@ -645,10 +643,8 @@ func formatTypeSpec(spec *ast.TypeSpec, decl *ast.GenDecl) *HoverContext {
 		comment = spec.Comment
 	}
 	return &HoverContext{
-		source:      spec.Type,
-		comment:     comment,
-		typeName:    spec.Name.Name,
-		isTypeAlias: spec.Assign.IsValid(),
+		signatureSource: spec,
+		comment:         comment,
 	}
 }
 
@@ -680,18 +676,18 @@ func formatVar(node ast.Spec, fullPos token.Pos, obj types.Object, decl *ast.Gen
 		// associated values so that we can augment their hover with more information.
 		if _, ok := obj.(*types.Var); ok && spec.Type == nil && len(spec.Values) > 0 {
 			if _, ok := spec.Values[0].(*ast.BasicLit); ok {
-				return &HoverContext{source: spec, comment: comment}
+				return &HoverContext{signatureSource: spec, comment: comment}
 			}
 		}
 
-		return &HoverContext{source: obj, comment: comment}
+		return &HoverContext{signatureSource: obj, comment: comment}
 	}
 
 	if fieldList != nil {
 		comment := findFieldComment(fullPos, fieldList)
-		return &HoverContext{source: obj, comment: comment}
+		return &HoverContext{signatureSource: obj, comment: comment}
 	}
-	return &HoverContext{source: obj, comment: decl.Doc}
+	return &HoverContext{signatureSource: obj, comment: decl.Doc}
 }
 
 // extractFieldList recursively tries to extract a field list.
