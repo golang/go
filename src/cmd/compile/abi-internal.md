@@ -155,7 +155,7 @@ as follows:
 1. Remember I and FP.
 1. If T has zero size, add T to the stack sequence S and return.
 1. Try to register-assign V.
-1. If step 2 failed, reset I and FP to the values from step 1, add T
+1. If step 3 failed, reset I and FP to the values from step 1, add T
    to the stack sequence S, and assign V to this field in S.
 
 Register-assignment of a value V of underlying type T works as follows:
