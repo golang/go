@@ -790,7 +790,7 @@ If a variable has not yet been assigned a value, its value is the
 <p>
 A type determines a set of values together with operations and methods specific
 to those values. A type may be denoted by a <i>type name</i>, if it has one, which must be
-followed by <a href="#Instantiations">type arguments</a> if the type is parameterized.
+followed by <a href="#Instantiations">type arguments</a> if the type is generic.
 A type may also be specified using a <i>type literal</i>, which composes a type
 from existing types.
 </p>
@@ -1662,10 +1662,10 @@ A <i>type parameter</i> is an (unqualified) type name declared in the
 <a href="#Function_declarations">function declaration</a> or
 <a href="#Type_definitions">type definition</a>; or in the receiver specification
 of a <a href="#Method_declarations">method declaration</a> that is associated
-with a parameterized type.
+with a generic type.
 A type parameter acts as a place holder for an (as of yet) unknown type in the declaration;
 the type parameter is replaced with a <i>type argument</i> upon
-<a href="#Instantiations">instantiation</a> of the parameterized function or type.
+<a href="#Instantiations">instantiation</a> of the generic function or type.
 </p>
 
 <p>
@@ -2197,13 +2197,13 @@ Go is lexically scoped using <a href="#Blocks">blocks</a>:
 	<li>The scope of an identifier denoting a method receiver, function parameter,
 	    or result variable is the function body.</li>
 
-	<li>The scope of an identifier denoting a type parameter of a type-parameterized function
+	<li>The scope of an identifier denoting a type parameter of a generic function
 	    or declared by a method receiver is the function body and all parameter lists of the
 	    function.
 	</li>
 
-	<li>The scope of an identifier denoting a type parameter of a parameterized type
-	    begins after the name of the parameterized type and ends at the end
+	<li>The scope of an identifier denoting a type parameter of a generic type
+	    begins after the name of the generic type and ends at the end
 	    of the TypeSpec.</li>
 
 	<li>The scope of a constant or variable identifier declared
@@ -2551,8 +2551,8 @@ func (tz TimeZone) String() string {
 
 <p>
 If the type definition specifies <a href="#Type_parameter_lists">type parameters</a>,
-the type name denotes a <i>parameterized type</i>.
-Parameterized types must be <a href="#Instantiations">instantiated</a> when they
+the type name denotes a <i>generic type</i>.
+Generic types must be <a href="#Instantiations">instantiated</a> when they
 are used.
 </p>
 
@@ -2581,9 +2581,9 @@ func f[T any]() {
 </pre>
 
 <p>
-A parameterized type may also have methods associated with it. In this case,
+A generic type may also have methods associated with it. In this case,
 the method receivers must declare the same number of type parameters as
-present in the parameterized type definition.
+present in the generic type definition.
 </p>
 
 <pre>
@@ -2595,7 +2595,7 @@ func (l *List[T]) Len() int  { … }
 
 <p>
 A type parameter list declares the <a href="#Type_parameters">type parameters</a>
-in a type-parameterized function or type declaration.
+in a generic function or type declaration.
 The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
 except that the type parameter names must all be present and the list is enclosed
 in square brackets rather than parentheses.
@@ -2628,7 +2628,7 @@ has a corresponding (meta-)type which is called its
 </p>
 
 <p>
-A parsing ambiguity arises when the type parameter list for a parameterized type
+A parsing ambiguity arises when the type parameter list for a generic type
 declares a single type parameter with a type constraint of the form <code>*C</code>
 or <code>(C)</code> where <code>C</code> is not a (possibly parenthesized)
 <a href="#Types">type literal</a>:
@@ -2868,8 +2868,8 @@ func IndexRune(s string, r rune) int {
 
 <p>
 If the function declaration specifies <a href="#Type_parameter_lists">type parameters</a>,
-the function name denotes a <i>type-parameterized function</i>.
-Type-parameterized functions must be <a href="#Instantiations">instantiated</a> when they
+the function name denotes a <i>generic function</i>.
+Generic functions must be <a href="#Instantiations">instantiated</a> when they
 are used.
 </p>
 
@@ -2954,7 +2954,7 @@ to the base type <code>Point</code>.
 </p>
 
 <p>
-If the receiver base type is a <a href="#Type_declarations">parameterized type</a>, the
+If the receiver base type is a <a href="#Type_declarations">generic type</a>, the
 receiver specification must declare corresponding type parameters for the method
 to use. This makes the receiver type parameters available to the method.
 </p>
@@ -3008,7 +3008,7 @@ OperandName = identifier | QualifiedIdent .
 </pre>
 
 <p>
-An operand name denoting a <a href="#Function_declarations">type-parameterized function</a>
+An operand name denoting a <a href="#Function_declarations">generic function</a>
 may be followed by a list of <a href="#Instantiations">type arguments</a>; the
 resulting operand is an <a href="#Instantiations">instantiated</a> function.
 </p>
@@ -4083,7 +4083,7 @@ pt.Scale(3.5)     // method call with receiver pt
 </pre>
 
 <p>
-If <code>f</code> denotes a parameterized function, it must be
+If <code>f</code> denotes a generic function, it must be
 <a href="#Instantiations">instantiated</a> before it can be called
 or used as a function value.
 </p>
@@ -4202,14 +4202,14 @@ with the same underlying array.
 <h3 id="Instantiations">Instantiations</h3>
 
 <p>
-A parameterized function or type is <i>instantiated</i> by substituting <i>type arguments</i>
+A generic function or type is <i>instantiated</i> by substituting <i>type arguments</i>
 for the type parameters.
 Instantiation proceeds in two phases:
 </p>
 
 <ol>
 <li>
-Each type argument is substituted for its corresponding type parameter in the parameterized
+Each type argument is substituted for its corresponding type parameter in the generic
 declaration.
 This substitution happens across the entire function or type declaration,
 including the type parameter list itself and any types in that list.
@@ -4223,8 +4223,8 @@ of the corresponding type parameter. Otherwise instantiation fails.
 </ol>
 
 <p>
-Instantiating a type results in a new non-parameterized <a href="#Types">named type</a>;
-instantiating a function produces a new non-parameterized function.
+Instantiating a type results in a new non-generic <a href="#Types">named type</a>;
+instantiating a function produces a new non-generic function.
 </p>
 
 <pre>
@@ -4257,10 +4257,10 @@ the remaining arguments to be inferred. Loosely speaking, type arguments may be 
 </p>
 
 <p>
-Parameterized types, and parameterized functions that are not <a href="#Calls">called</a>,
+Generic types, and generic functions that are not <a href="#Calls">called</a>,
 require a type argument list for instantiation; if the list is partial, all
 remaining type arguments must be inferrable.
-Calls to parameterized functions may provide a (possibly partial) type
+Calls to generic functions may provide a (possibly partial) type
 argument list, or may omit it entirely if the omitted type arguments are
 inferrable from the ordinary (non-type) function arguments.
 </p>
@@ -4429,7 +4429,7 @@ parameters used by <code>T</code>.
 </p>
 
 <p>
-For instance, given the type-parameterized function
+For instance, given the generic function
 </p>
 
 <pre>
@@ -6304,7 +6304,7 @@ if v == nil {
 </pre>
 
 <p>
-A <a href="#Type_parameters">type parameter</a> or a <a href="#Type_declarations">parameterized type</a>
+A <a href="#Type_parameters">type parameter</a> or a <a href="#Type_declarations">generic type</a>
 may be used as a type in a case. If upon <a href="#Instantiations">instantiation</a> that type turns
 out to duplicate another entry in the switch, the first matching case is chosen.
 </p>
