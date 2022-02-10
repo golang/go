@@ -115,7 +115,7 @@ FindCall:
 			node: node,
 		}
 		decl.MappedRange = append(decl.MappedRange, rng)
-		d, err := HoverInfo(ctx, snapshot, pkg, decl.obj, decl.node, nil)
+		d, err := FindHoverContext(ctx, snapshot, pkg, decl.obj, decl.node, nil)
 		if err != nil {
 			return nil, 0, err
 		}
