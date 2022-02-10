@@ -5182,9 +5182,9 @@ func sysmon() {
 				startm(nil, false)
 			}
 		}
-		if atomic.Load(&scavenge.sysmonWake) != 0 {
+		if scavenger.sysmonWake.Load() != 0 {
 			// Kick the scavenger awake if someone requested it.
-			wakeScavenger()
+			scavenger.wake()
 		}
 		// retake P's blocked in syscalls
 		// and preempt long running G's
