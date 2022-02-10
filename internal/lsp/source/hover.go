@@ -63,10 +63,6 @@ type HoverJSON struct {
 	// For example, the "Node" part of "pkg.go.dev/go/ast#Node".
 	LinkAnchor string `json:"linkAnchor"`
 
-	// importPath is the import path for the package containing the given
-	// symbol.
-	importPath string
-
 	// symbolName is the types.Object.Name for the given symbol.
 	symbolName string
 
@@ -88,10 +84,6 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 	rng, err := ident.Range()
 	if err != nil {
 		return nil, err
-	}
-	// See golang/go#36998: don't link to modules matching GOPRIVATE.
-	if snapshot.View().IsGoPrivatePath(h.importPath) {
-		h.LinkPath = ""
 	}
 	hover, err := FormatHover(h, snapshot.View().Options())
 	if err != nil {
@@ -314,23 +306,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 	if obj == nil {
 		return h, nil
 	}
-	switch obj := obj.(type) {
-	case *types.PkgName:
-		h.importPath = obj.Imported().Path()
-		h.LinkPath = h.importPath
-		h.symbolName = obj.Name()
-		if mod, version, ok := moduleAtVersion(h.LinkPath, i); ok {
-			h.LinkPath = strings.Replace(h.LinkPath, mod, mod+"@"+version, 1)
-		}
-		return h, nil
-	}
-	if obj.Parent() == types.Universe {
-		h.importPath = "builtin"
-		h.LinkPath = h.importPath
-		h.LinkAnchor = obj.Name()
-		h.symbolName = h.LinkAnchor
-		return h, nil
-	}
+
 	// Check if the identifier is test-only (and is therefore not part of a
 	// package's API). This is true if the request originated in a test package,
 	// and if the declaration is also found in the same test package.
@@ -339,18 +315,49 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 			return h, nil
 		}
 	}
-	// Don't return links for other unexported types.
-	if !obj.Exported() {
-		return h, nil
+
+	h.symbolName, h.LinkPath, h.LinkAnchor = linkData(obj, i.enclosing)
+
+	// See golang/go#36998: don't link to modules matching GOPRIVATE.
+	//
+	// The path returned by linkData is an import path.
+	if i.Snapshot.View().IsGoPrivatePath(h.LinkPath) {
+		h.LinkPath = ""
+	} else if mod, version, ok := moduleAtVersion(h.LinkPath, i); ok {
+		h.LinkPath = strings.Replace(h.LinkPath, mod, mod+"@"+version, 1)
 	}
-	var recvName string // receiver type name
+
+	return h, nil
+}
+
+// linkData returns the name, import path, and anchor to use in building links
+// to obj.
+//
+// If obj is not visible in documentation, the returned name will be empty.
+func linkData(obj types.Object, enclosing *types.TypeName) (name, importPath, anchor string) {
+	// Package names simply link to the package.
+	if obj, ok := obj.(*types.PkgName); ok {
+		return obj.Name(), obj.Imported().Path(), ""
+	}
+
+	// Builtins link to the special builtin package.
+	if obj.Parent() == types.Universe {
+		return obj.Name(), "builtin", obj.Name()
+	}
+
+	// In all other cases, the object must be exported.
+	if !obj.Exported() {
+		return "", "", ""
+	}
+
+	var recv types.Object // If non-nil, the field or method receiver base.
 
 	switch obj := obj.(type) {
 	case *types.Var:
 		// If the object is a field, and we have an associated selector
 		// composite literal, or struct, we can determine the link.
-		if obj.IsField() && i.enclosing != nil {
-			recvName = i.enclosing.Name()
+		if obj.IsField() && enclosing != nil {
+			recv = enclosing
 		}
 	case *types.Func:
 		typ, ok := obj.Type().(*types.Signature)
@@ -359,7 +366,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 			// *Funcs are Signatures.
 			//
 			// TODO(rfindley): given a 'debug' mode, we should panic here.
-			return nil, fmt.Errorf("BUG: incorrect type %T for *Func", obj.Type())
+			return "", "", ""
 		}
 		if r := typ.Recv(); r != nil {
 			if rtyp, _ := Deref(r.Type()).(*types.Named); rtyp != nil {
@@ -367,38 +374,46 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 				// exported (we may have an interface or struct we can link
 				// to). If not, don't show any link.
 				if !rtyp.Obj().Exported() {
-					if i.enclosing != nil && i.enclosing.Exported() {
-						recvName = i.enclosing.Name()
+					if enclosing != nil {
+						recv = enclosing
 					} else {
-						return h, nil
+						return "", "", ""
 					}
 				} else {
-					recvName = rtyp.Obj().Name()
+					recv = rtyp.Obj()
 				}
 			}
 		}
 	}
-	if obj.Pkg() == nil {
-		event.Log(ctx, fmt.Sprintf("nil package for %s", obj))
-		return h, nil
+
+	if recv != nil && !recv.Exported() {
+		return "", "", ""
 	}
-	h.importPath = obj.Pkg().Path()
-	h.LinkPath = h.importPath
-	if mod, version, ok := moduleAtVersion(h.LinkPath, i); ok {
-		h.LinkPath = strings.Replace(h.LinkPath, mod, mod+"@"+version, 1)
+
+	// Either the object or its receiver must be in the package scope.
+	scopeObj := obj
+	if recv != nil {
+		scopeObj = recv
 	}
-	if recvName != "" {
-		h.LinkAnchor = fmt.Sprintf("%s.%s", recvName, obj.Name())
-		h.symbolName = fmt.Sprintf("(%s.%s).%s", obj.Pkg().Name(), recvName, obj.Name())
-		return h, nil
+	if scopeObj.Pkg() == nil || scopeObj.Pkg().Scope().Lookup(scopeObj.Name()) != scopeObj {
+		return "", "", ""
 	}
-	// For most cases, the link is "package/path#symbol".
-	h.LinkAnchor = obj.Name()
-	h.symbolName = fmt.Sprintf("%s.%s", obj.Pkg().Name(), obj.Name())
-	return h, nil
+
+	importPath = obj.Pkg().Path()
+	if recv != nil {
+		anchor = fmt.Sprintf("%s.%s", recv.Name(), obj.Name())
+		name = fmt.Sprintf("(%s.%s).%s", obj.Pkg().Name(), recv.Name(), obj.Name())
+	} else {
+		// For most cases, the link is "package/path#symbol".
+		anchor = obj.Name()
+		name = fmt.Sprintf("%s.%s", obj.Pkg().Name(), obj.Name())
+	}
+	return name, importPath, anchor
 }
 
 func moduleAtVersion(path string, i *IdentifierInfo) (string, string, bool) {
+	// TODO(rfindley): moduleAtVersion should not be responsible for deciding
+	// whether or not the link target supports module version links.
 	if strings.ToLower(i.Snapshot.View().Options().LinkTarget) != "pkg.go.dev" {
 		return "", "", false
 	}
