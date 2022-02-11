@@ -229,8 +229,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	MOVV	R2, 8(R29)
 	MOVV	R3, 16(R29)
 
+	MOVV	$ret-8(FP), R2 // caller's SP
 	MOVV	R31, m_vdsoPC(R17)
-	MOVV	R29, m_vdsoSP(R17)
+	MOVV	R2, m_vdsoSP(R17)
 
 	MOVV	m_curg(R17), R4
 	MOVV	g, R5
@@ -298,8 +299,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVV	R2, 8(R29)
 	MOVV	R3, 16(R29)
 
+	MOVV	$ret-8(FP), R2 // caller's SP
 	MOVV	R31, m_vdsoPC(R17)
-	MOVV	R29, m_vdsoSP(R17)
+	MOVV	R2, m_vdsoSP(R17)
 
 	MOVV	m_curg(R17), R4
 	MOVV	g, R5

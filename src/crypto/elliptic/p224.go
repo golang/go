@@ -48,6 +48,11 @@ func (curve p224Curve) Params() *CurveParams {
 }
 
 func (curve p224Curve) IsOnCurve(bigX, bigY *big.Int) bool {
+	if bigX.Sign() < 0 || bigX.Cmp(curve.P) >= 0 ||
+		bigY.Sign() < 0 || bigY.Cmp(curve.P) >= 0 {
+		return false
+	}
+
 	var x, y p224FieldElement
 	p224FromBig(&x, bigX)
 	p224FromBig(&y, bigY)
