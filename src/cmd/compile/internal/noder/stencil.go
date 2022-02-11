@@ -1217,8 +1217,14 @@ func (g *genInst) dictPass(info *instInfo) {
 	savef := ir.CurFunc
 	ir.CurFunc = info.fun
 
+	callMap := make(map[ir.Node]bool)
+
 	var edit func(ir.Node) ir.Node
 	edit = func(m ir.Node) ir.Node {
+		if m.Op() == ir.OCALL && m.(*ir.CallExpr).X.Op() == ir.OXDOT {
+			callMap[m.(*ir.CallExpr).X] = true
+		}
+
 		ir.EditChildren(m, edit)
 
 		switch m.Op() {
@@ -1257,10 +1263,17 @@ func (g *genInst) dictPass(info *instInfo) {
 				// dictionary lookups - transformDot() will convert to
 				// the desired direct field access.
 				if isBoundMethod(info.dictInfo, mse) {
+					if callMap[m] {
+						// The OCALL surrounding this XDOT will rewrite the call
+						// to use the method expression closure directly.
+						break
+					}
+					// Convert this method value to a closure.
+					// TODO: use method expression closure.
 					dst := info.dictInfo.shapeToBound[mse.X.Type()]
 					// Implement x.M as a conversion-to-bound-interface
 					//  1) convert x to the bound interface
-					//  2) call M on that interface
+					//  2) select method value M on that interface
 					if src.IsInterface() {
 						// If type arg is an interface (unusual case),
 						// we do a type assert to the type bound.
@@ -1278,6 +1291,25 @@ func (g *genInst) dictPass(info *instInfo) {
 		case ir.OCALL:
 			call := m.(*ir.CallExpr)
 			op := call.X.Op()
+			if op == ir.OXDOT {
+				// This is a call of a method value where the value has a type parameter type.
+				// We transform to a call of the appropriate method expression closure
+				// in the dictionary.
+				// So if x has a type parameter type:
+				//   _ = x.m(a)
+				// Rewrite to:
+				//   _ = methexpr<m>(x, a)
+				se := call.X.(*ir.SelectorExpr)
+				call.SetOp(ir.OCALLFUNC)
+				idx := findMethodExprClosure(info.dictInfo, se)
+				c := getDictionaryEntryAddr(se.Pos(), info.dictParam, info.dictInfo.startMethodExprClosures+idx, info.dictInfo.dictLen)
+				t := typecheck.NewMethodType(se.Type(), se.X.Type())
+				call.X = ir.NewConvExpr(se.Pos(), ir.OCONVNOP, t, c)
+				typed(t, call.X)
+				call.Args.Prepend(se.X)
+				break
+				// TODO: deref case?
+			}
 			if op == ir.OMETHVALUE {
 				// Redo the transformation of OXDOT, now that we
 				// know the method value is being called.
@@ -1955,14 +1987,21 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 		case ir.OXDOT:
 			se := n.(*ir.SelectorExpr)
 			if se.X.Op() == ir.OTYPE && se.X.Type().IsShape() {
+				// Method expression.
 				addMethodExprClosure(info, se)
 				break
 			}
 			if isBoundMethod(info, se) {
-				// TODO: handle these using method expression closures also.
+				if callMap[n] {
+					// Method value called directly. Use method expression closure.
+					addMethodExprClosure(info, se)
+					break
+				}
+				// Method value not called directly. Still doing the old way.
 				infoPrint("  Itab for bound call: %v\n", n)
 				info.itabConvs = append(info.itabConvs, n)
 			}
+
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
 			if !n.(*ir.TypeAssertExpr).Type().IsInterface() && !n.(*ir.TypeAssertExpr).X.Type().IsEmptyInterface() {
 				infoPrint("  Itab for dot type: %v\n", n)
@@ -2046,6 +2085,7 @@ func addMethodExprClosure(info *dictInfo, se *ir.SelectorExpr) {
 			return
 		}
 	}
+	infoPrint("  Method expression closure for %v.%s\n", info.shapeParams[idx], name)
 	info.methodExprClosures = append(info.methodExprClosures, methodExprClosure{idx: idx, name: name})
 }
 
