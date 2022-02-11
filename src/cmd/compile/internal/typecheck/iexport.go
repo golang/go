@@ -621,12 +621,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			break
 		}
 
-		// Sort methods, for consistency with types2.
-		methods := append([]*types.Field(nil), t.Methods().Slice()...)
-		if base.Debug.UnifiedQuirks != 0 {
-			sort.Sort(types.MethodsByName(methods))
-		}
-
+		methods := t.Methods().Slice()
 		w.uint64(uint64(len(methods)))
 		for _, m := range methods {
 			w.pos(m.Pos)
@@ -1050,14 +1045,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
 			} else {
 				embeddeds = append(embeddeds, m)
 			}
-		}
-
-		// Sort methods and embedded types, for consistency with types2.
-		// Note: embedded types may be anonymous, and types2 sorts them
-		// with sort.Stable too.
-		if base.Debug.UnifiedQuirks != 0 {
-			sort.Sort(types.MethodsByName(methods))
-			sort.Stable(types.EmbeddedsByName(embeddeds))
 		}
 
 		w.startType(interfaceType)

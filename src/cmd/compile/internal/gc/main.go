@@ -32,7 +32,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"sort"
 )
 
 // handlePanic ensures that we print out an "internal compiler error" for any panic
@@ -204,17 +203,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// carried out in, and even mundane optimizations like dead code
 	// removal can skew the results (e.g., #43444).
 	pkginit.MakeInit()
-
-	// Stability quirk: sort top-level declarations, so we're not
-	// sensitive to the order that functions are added. In particular,
-	// the order that noder+typecheck add function closures is very
-	// subtle, and not important to reproduce.
-	if base.Debug.UnifiedQuirks != 0 {
-		s := typecheck.Target.Decls
-		sort.SliceStable(s, func(i, j int) bool {
-			return s[i].Pos().Before(s[j].Pos())
-		})
-	}
 
 	// Eliminate some obviously dead code.
 	// Must happen after typechecking.

@@ -227,7 +227,7 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
 	}
 	sym.SetUniq(true)
 
-	if base.Debug.Unified != 0 && base.Debug.UnifiedQuirks == 0 {
+	if base.Debug.Unified != 0 {
 		base.FatalfAt(dot.Pos(), "missing wrapper for %v", meth)
 	}
 

@@ -72,11 +72,7 @@ var localPkgReader *pkgReader
 func unified(noders []*noder) {
 	inline.NewInline = InlineCall
 
-	if !quirksMode() {
-		writeNewExportFunc = writeNewExport
-	} else if base.Flag.G != 0 {
-		base.Errorf("cannot use -G and -d=quirksmode together")
-	}
+	writeNewExportFunc = writeNewExport
 
 	newReadImportFunc = func(data string, pkg1 *types.Pkg, ctxt *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
 		pr := newPkgDecoder(pkg1.Path, data)
