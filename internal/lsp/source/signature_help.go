@@ -120,7 +120,7 @@ FindCall:
 			return nil, 0, err
 		}
 		name = obj.Name()
-		comment = d.comment
+		comment = d.Comment
 	} else {
 		name = "func"
 	}

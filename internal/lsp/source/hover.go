@@ -30,30 +30,33 @@ import (
 // of a given node, for use in various summaries (hover, autocomplete,
 // signature help).
 type HoverContext struct {
-	// Synopsis is a single sentence synopsis of the symbol's documentation.
-	Synopsis string `json:"synopsis"`
-
-	// FullDocumentation is the symbol's full documentation.
-	FullDocumentation string `json:"fullDocumentation"`
-
 	// signatureSource is the object or node use to derive the hover signature.
 	//
 	// TODO(rfindley): can we pre-compute the signature, to avoid this indirection?
 	signatureSource interface{}
 
 	// comment is the most relevant comment group associated with the hovered object.
-	comment *ast.CommentGroup
+	Comment *ast.CommentGroup
 }
 
 // HoverJSON contains information used by hover. It is also the JSON returned
 // for the "structured" hover format
 type HoverJSON struct {
+	// Synopsis is a single sentence synopsis of the symbol's documentation.
+	Synopsis string `json:"synopsis"`
+
+	// FullDocumentation is the symbol's full documentation.
+	FullDocumentation string `json:"fullDocumentation"`
+
 	// Signature is the symbol's signature.
 	Signature string `json:"signature"`
 
 	// SingleLine is a single line describing the symbol.
 	// This is recommended only for use in clients that show a single line for hover.
 	SingleLine string `json:"singleLine"`
+
+	// SymbolName is the types.Object.Name for the given symbol.
+	SymbolName string `json:"symbolName"`
 
 	// LinkPath is the pkg.go.dev link for the given symbol.
 	// For example, the "go/ast" part of "pkg.go.dev/go/ast#Node".
@@ -62,11 +65,6 @@ type HoverJSON struct {
 	// LinkAnchor is the pkg.go.dev link anchor for the given symbol.
 	// For example, the "Node" part of "pkg.go.dev/go/ast#Node".
 	LinkAnchor string `json:"linkAnchor"`
-
-	// symbolName is the types.Object.Name for the given symbol.
-	symbolName string
-
-	HoverContext
 }
 
 func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*protocol.Hover, error) {
@@ -251,15 +249,19 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 	ctx, done := event.Start(ctx, "source.Hover")
 	defer done()
 
-	fset := i.Snapshot.FileSet()
 	hoverCtx, err := FindHoverContext(ctx, i.Snapshot, i.pkg, i.Declaration.obj, i.Declaration.node, i.Declaration.fullDecl)
 	if err != nil {
 		return nil, err
 	}
 
-	h := &HoverJSON{HoverContext: *hoverCtx}
+	h := &HoverJSON{
+		FullDocumentation: hoverCtx.Comment.Text(),
+		Synopsis:          doc.Synopsis(hoverCtx.Comment.Text()),
+	}
+
+	fset := i.Snapshot.FileSet()
 	// Determine the symbol's signature.
-	switch x := h.signatureSource.(type) {
+	switch x := hoverCtx.signatureSource.(type) {
 	case *ast.TypeSpec:
 		x2 := *x
 		// Don't duplicate comments when formatting type specs.
@@ -316,7 +318,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 		}
 	}
 
-	h.symbolName, h.LinkPath, h.LinkAnchor = linkData(obj, i.enclosing)
+	h.SymbolName, h.LinkPath, h.LinkAnchor = linkData(obj, i.enclosing)
 
 	// See golang/go#36998: don't link to modules matching GOPRIVATE.
 	//
@@ -492,7 +494,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 		// The package declaration.
 		for _, f := range pkg.GetSyntax() {
 			if f.Name == pkgNode {
-				info = &HoverContext{comment: f.Doc}
+				info = &HoverContext{Comment: f.Doc}
 			}
 		}
 	case *ast.ImportSpec:
@@ -506,7 +508,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 			// so pick the first file that has a doc comment.
 			for _, file := range imp.GetSyntax() {
 				if file.Doc != nil {
-					info = &HoverContext{signatureSource: obj, comment: file.Doc}
+					info = &HoverContext{signatureSource: obj, Comment: file.Doc}
 					break
 				}
 			}
@@ -567,9 +569,9 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 	case *ast.FuncDecl:
 		switch obj.(type) {
 		case *types.Func:
-			info = &HoverContext{signatureSource: obj, comment: node.Doc}
+			info = &HoverContext{signatureSource: obj, Comment: node.Doc}
 		case *types.Builtin:
-			info = &HoverContext{signatureSource: node.Type, comment: node.Doc}
+			info = &HoverContext{signatureSource: node.Type, Comment: node.Doc}
 		case *types.Var:
 			// Object is a function param or the field of an anonymous struct
 			// declared with ':='. Skip the first one because only fields
@@ -588,18 +590,13 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 				if comment.Text() == "" {
 					comment = field.Comment
 				}
-				info = &HoverContext{signatureSource: obj, comment: comment}
+				info = &HoverContext{signatureSource: obj, Comment: comment}
 			}
 		}
 	}
 
 	if info == nil {
 		info = &HoverContext{signatureSource: obj}
-	}
-
-	if info.comment != nil {
-		info.FullDocumentation = info.comment.Text()
-		info.Synopsis = doc.Synopsis(info.FullDocumentation)
 	}
 
 	return info, nil
@@ -642,9 +639,9 @@ func formatGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj type
 	case *ast.TypeSpec:
 		return formatTypeSpec(spec, node), nil
 	case *ast.ValueSpec:
-		return &HoverContext{signatureSource: spec, comment: spec.Doc}, nil
+		return &HoverContext{signatureSource: spec, Comment: spec.Doc}, nil
 	case *ast.ImportSpec:
-		return &HoverContext{signatureSource: spec, comment: spec.Doc}, nil
+		return &HoverContext{signatureSource: spec, Comment: spec.Doc}, nil
 	}
 	return nil, errors.Errorf("unable to format spec %v (%T)", spec, spec)
 }
@@ -659,7 +656,7 @@ func formatTypeSpec(spec *ast.TypeSpec, decl *ast.GenDecl) *HoverContext {
 	}
 	return &HoverContext{
 		signatureSource: spec,
-		comment:         comment,
+		Comment:         comment,
 	}
 }
 
@@ -691,18 +688,18 @@ func formatVar(node ast.Spec, fullPos token.Pos, obj types.Object, decl *ast.Gen
 		// associated values so that we can augment their hover with more information.
 		if _, ok := obj.(*types.Var); ok && spec.Type == nil && len(spec.Values) > 0 {
 			if _, ok := spec.Values[0].(*ast.BasicLit); ok {
-				return &HoverContext{signatureSource: spec, comment: comment}
+				return &HoverContext{signatureSource: spec, Comment: comment}
 			}
 		}
 
-		return &HoverContext{signatureSource: obj, comment: comment}
+		return &HoverContext{signatureSource: obj, Comment: comment}
 	}
 
 	if fieldList != nil {
 		comment := findFieldComment(fullPos, fieldList)
-		return &HoverContext{signatureSource: obj, comment: comment}
+		return &HoverContext{signatureSource: obj, Comment: comment}
 	}
-	return &HoverContext{signatureSource: obj, comment: decl.Doc}
+	return &HoverContext{signatureSource: obj, Comment: decl.Doc}
 }
 
 // extractFieldList recursively tries to extract a field list.
@@ -806,7 +803,7 @@ func formatLink(h *HoverJSON, options *Options) string {
 	plainLink := BuildLink(options.LinkTarget, h.LinkPath, h.LinkAnchor)
 	switch options.PreferredContentFormat {
 	case protocol.Markdown:
-		return fmt.Sprintf("[`%s` on %s](%s)", h.symbolName, options.LinkTarget, plainLink)
+		return fmt.Sprintf("[`%s` on %s](%s)", h.SymbolName, options.LinkTarget, plainLink)
 	case protocol.PlainText:
 		return ""
 	default:

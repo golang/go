@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/doc"
 	"go/types"
 	"strings"
 
@@ -251,12 +252,13 @@ Suffixes:
 		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))
 		return item, nil
 	}
-	item.Documentation = hover.Synopsis
 	if c.opts.fullDocumentation {
-		item.Documentation = hover.FullDocumentation
+		item.Documentation = hover.Comment.Text()
+	} else {
+		item.Documentation = doc.Synopsis(hover.Comment.Text())
 	}
 	// The desired pattern is `^// Deprecated`, but the prefix has been removed
-	if strings.HasPrefix(hover.FullDocumentation, "Deprecated") {
+	if strings.HasPrefix(hover.Comment.Text(), "Deprecated") {
 		if c.snapshot.View().Options().CompletionTags {
 			item.Tags = []protocol.CompletionItemTag{protocol.ComplDeprecated}
 		} else if c.snapshot.View().Options().CompletionDeprecated {
