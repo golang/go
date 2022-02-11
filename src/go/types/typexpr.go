@@ -487,12 +487,20 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 // and returns the constant length >= 0, or a value < 0
 // to indicate an error (and thus an unknown length).
 func (check *Checker) arrayLength(e ast.Expr) int64 {
-	// If e is an undeclared identifier, the array declaration might be an
-	// attempt at a parameterized type declaration with missing constraint.
-	// Provide a better error message than just "undeclared name: X".
-	if name, _ := e.(*ast.Ident); name != nil && check.lookup(name.Name) == nil {
-		check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Name)
-		return -1
+	// If e is an identifier, the array declaration might be an
+	// attempt at a parameterized type declaration with missing
+	// constraint. Provide an error message that mentions array
+	// length.
+	if name, _ := e.(*ast.Ident); name != nil {
+		obj := check.lookup(name.Name)
+		if obj == nil {
+			check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Name)
+			return -1
+		}
+		if _, ok := obj.(*Const); !ok {
+			check.errorf(name, _InvalidArrayLen, "invalid array length %s", name.Name)
+			return -1
+		}
 	}
 
 	var x operand
