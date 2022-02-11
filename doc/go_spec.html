@@ -1226,11 +1226,15 @@ where a type element is a union of one or more <i>type terms</i>.
 A type term is either a single type or a single underlying type.
 </p>
 
+<h4 id="Basic_interfaces">Basic interfaces</h4>
+
 <p>
 In its most basic form an interface specifies a (possibly empty) list of methods.
 The type set defined by such an interface is the set of types which implement all of
 those methods, and the corresponding <a href="#Method_sets">method set</a> consists
 exactly of the methods specified by the interface.
+Interfaces whose type sets can be defined entirely by a list of methods are called
+<i>basic interfaces.</i>
 </p>
 
 <pre>
@@ -1315,6 +1319,8 @@ they implement the <code>Locker</code> interface as well
 as the <code>File</code> interface.
 </p>
 
+<h4 id="Embedded_interfaces">Embedded interfaces</h4>
+
 <p>
 In a slightly more general form
 an interface <code>T</code> may use a (possibly qualified) interface type
@@ -1359,8 +1365,10 @@ type ReadCloser interface {
 }
 </pre>
 
+<h4 id="Generenal_interfaces">General interfaces</h4>
+
 <p>
-Finally, in their most general form, an interface element may also be an arbitrary type term
+In their most general form, an interface element may also be an arbitrary type term
 <code>T</code>, or a term of the form <code>~T</code> specifying the underlying type <code>T</code>,
 or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>.
 Together with method specifications, these elements enable the precise
@@ -1462,21 +1470,21 @@ interface {
 
 <p>
 Implementation restriction:
-A union with more than one term cannot contain interface types
-with non-empty <a href="#Method_sets">method sets</a> or which
-are or embed the <a href="#Predeclared_identifiers">predeclared identifier</a>
-<code>comparable</code>.
+A union with more than one term cannot contain the
+<a href="#Predeclared_identifiers">predeclared identifier</a> <code>comparable</code>
+or interfaces that specify methods, or embed <code>comparable</code> or interfaces
+that specify methods.
 </p>
 
 <p>
-Interfaces that contain non-interface types, terms of the form <code>~T</code>,
-or unions may only be used as type constraints, or as elements of other interfaces used
-as constraints. They cannot be the types of values or variables, or components of other,
+Interfaces that are not <a href="#Basic_interfaces">basic</a> may only be used as type
+constraints, or as elements of other interfaces used as constraints.
+They cannot be the types of values or variables, or components of other,
 non-interface types.
 </p>
 
 <pre>
-var x Floats                     // illegal: Floats is restricted by float32 and float64
+var x Floats                     // illegal: Floats is not a basic interface
 
 var x interface{} = Floats(nil)  // illegal
 
@@ -1714,7 +1722,7 @@ The underlying type of <code>P</code> is <code>interface{}</code>.
 <h3 id="Core_types">Core types</h3>
 
 <p>
-Each non-interface type <code>T</code> has a <i>core</i> type, which is the
+Each non-interface type <code>T</code> has a <i>core type</i>, which is the same as the
 <a href="#Underlying_types">underlying type</a> of <code>T</code>.
 </p>
 
@@ -2665,9 +2673,9 @@ TypeConstraint = TypeElem .
 </pre>
 
 <p>
-If the constraint is an interface literal containing exactly one embedded type element
-<code>interface{E}</code>, in a type parameter list the enclosing <code>interface{ … }</code>
-may be omitted for convenience:
+If the constraint is an interface literal of the form <code>interface{E}</code> where
+<code>E</code> is an embedded type element (not a method), in a type parameter list
+the enclosing <code>interface{ … }</code> may be omitted for convenience:
 </p>
 
 <pre>
