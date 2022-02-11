@@ -4515,6 +4515,12 @@ Each list is processed in a separate phase:
 </ol>
 
 <p>
+While unification is successful, processing of each list continues until all list elements
+are considered, even if all type arguments are inferred before the last list element has
+been processed.
+</p>
+
+<p>
 Example:
 </p>
 
@@ -4526,6 +4532,13 @@ min(x, 2.0)    // T is int, inferred from typed argument x; 2.0 is assignable to
 min(1.0, 2.0)  // T is float64, inferred from default type for 1.0 and matches default type for 2.0
 min(1.0, 2)    // illegal: default type float64 (for 1.0) doesn't match default type int (for 2)
 </pre>
+
+<p>
+In the example <code>min(1.0, 2)</code>, processing the function argument <code>1.0</code>
+yields the substitution map entry <code>T</code> &RightArrow; <code>float64</code>. Because
+processing continues until all untyped arguments are considered, an error is reported. This
+ensures that type inference does not depend on the order of the untyped arguments.
+</p>
 
 <h4 id="Constraint_type_inference">Constraint type inference</h3>
 
@@ -7268,7 +7281,7 @@ n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
 <p>
 The built-in function <code>delete</code> removes the element with key
 <code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
-type of <code>k</code> must be <a href="#Assignability">assignable</a>
+value <code>k</code> must be <a href="#Assignability">assignable</a>
 to the key type of <code>m</code>.
 </p>
 
