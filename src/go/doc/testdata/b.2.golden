@@ -46,6 +46,9 @@ VARIABLES
 
 
 FUNCTIONS
+	// Associated with comparable type if AllDecls is set. 
+	func ComparableFactory() comparable
+
 	// 
 	func F(x int) int
 
