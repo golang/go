@@ -30,6 +30,10 @@ const (
 	// to be used as a useTCP parameter to exchange
 	useTCPOnly  = true
 	useUDPOrTCP = false
+
+	// Requested DNS packet size.
+	// Value taken from https://dnsflagday.net/2020/.
+	maxDNSPacketSize = 1232
 )
 
 var (
@@ -56,6 +60,19 @@ func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err er
 	if err := b.Question(q); err != nil {
 		return 0, nil, nil, err
 	}
+
+	// Accept packets up to maxDNSPacketSize.  RFC 6891.
+	if err := b.StartAdditionals(); err != nil {
+		return 0, nil, nil, err
+	}
+	var rh dnsmessage.ResourceHeader
+	if err := rh.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false); err != nil {
+		return 0, nil, nil, err
+	}
+	if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
+		return 0, nil, nil, err
+	}
+
 	tcpReq, err = b.Finish()
 	udpReq = tcpReq[2:]
 	l := len(tcpReq) - 2
@@ -82,7 +99,7 @@ func dnsPacketRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 		return dnsmessage.Parser{}, dnsmessage.Header{}, err
 	}
 
-	b = make([]byte, 512) // see RFC 1035
+	b = make([]byte, maxDNSPacketSize)
 	for {
 		n, err := c.Read(b)
 		if err != nil {
