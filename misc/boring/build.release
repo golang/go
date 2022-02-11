@@ -59,9 +59,7 @@ echo >&2
 # Build the release tool in a temporary directory.
 dir=$(mktemp -d)
 trap "rm -rf $dir" EXIT
-export GO111MODULE=on
-export GOBIN="$dir"
-(cd "$dir"; go get golang.org/x/build/cmd/release)
+GOBIN="$dir" go install golang.org/x/build/cmd/release@latest
 
 # Build the release.
 sha() {
