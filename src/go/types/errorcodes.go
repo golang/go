@@ -98,13 +98,10 @@ const (
 	// _InvalidDeclCycle occurs when a declaration cycle is not valid.
 	//
 	// Example:
-	//  import "unsafe"
-	//
-	//  type T struct {
-	//  	a [n]int
+	//  type S struct {
+	//  	S
 	//  }
 	//
-	//  var n = unsafe.Sizeof(T{})
 	_InvalidDeclCycle
 
 	// _InvalidTypeCycle occurs when a cycle in type definitions results in a
