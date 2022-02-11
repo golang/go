@@ -1,5 +1,5 @@
 <!--{
-	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
+	"Title": "The Go Programming Language Specification - Go 1.18 Draft",
 	"Subtitle": "Version of Feb 11, 2022",
 	"Path": "/ref/spec"
 }-->
@@ -1688,25 +1688,6 @@ and a second goroutine receives them, the values are
 received in the order sent.
 </p>
 
-<h3 id="Type_parameters">Type parameters</h3>
-
-<p>
-A <i>type parameter</i> is an (unqualified) type name declared in the
-<a href="#Type_parameter_lists">type parameter list</a> of a
-<a href="#Function_declarations">function declaration</a> or
-<a href="#Type_definitions">type definition</a>; or in the receiver specification
-of a <a href="#Method_declarations">method declaration</a> that is associated
-with a generic type.
-A type parameter acts as a place holder for an (as of yet) unknown type in the declaration;
-the type parameter is replaced with a <i>type argument</i> upon
-<a href="#Instantiations">instantiation</a> of the generic function or type.
-</p>
-
-<p>
-The properties of a type parameter are determined by its
-<a href="#Type_constraints">type constraint</a>.
-</p>
-
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
 
 <h3 id="Underlying_types">Underlying types</h3>
@@ -1790,7 +1771,7 @@ depending on the direction of the directional channels present.
 
 <p>
 By definition, a core type is never a <a href="#Type_definitions">defined type</a>,
-<a href="#Type_parameters">type parameter</a>, or
+<a href="#Type_parameter_lists">type parameter</a>, or
 <a href="#Interface_types">interface type</a>.
 </p>
 
@@ -2047,7 +2028,7 @@ to <code>T</code>.
 <p>
 A <a href="#Constants">constant</a> <code>x</code> is <i>representable</i>
 by a value of type <code>T</code>,
-where <code>T</code> is not a <a href="#Type_parameters">type parameter</a>,
+where <code>T</code> is not a <a href="#Type_parameter_lists">type parameter</a>,
 if one of the following conditions applies:
 </p>
 
@@ -2628,8 +2609,7 @@ func (l *List[T]) Len() int  { … }
 <h3 id="Type_parameter_lists">Type parameter lists</h3>
 
 <p>
-A type parameter list declares the <a href="#Type_parameters">type parameters</a>
-in a generic function or type declaration.
+A type parameter list declares the <i>type parameters</i> of a generic function or type declaration.
 The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
 except that the type parameter names must all be present and the list is enclosed
 in square brackets rather than parentheses.
@@ -2642,9 +2622,11 @@ TypeParamDecl   = IdentifierList TypeConstraint .
 </pre>
 
 <p>
-Each identifier declares a type parameter.
 All non-blank names in the list must be unique.
-Each type parameter is a new and different <a href="#Types">named type</a>.
+Each name declares a type parameter, which is a new and different <a href="#Types">named type</a>
+that acts as a place holder for an (as of yet) unknown type in the declaration.
+The type parameter is replaced with a <i>type argument</i> upon
+<a href="#Instantiations">instantiation</a> of the generic function or type.
 </p>
 
 <pre>
@@ -2685,6 +2667,12 @@ comma:
 type T[P interface{*C}] …
 type T[P *C,] …
 </pre>
+
+<p>
+Type parameters may also be declared by the receiver specification
+of a <a href="#Method_declarations">method declaration</a> associated
+with a generic type.
+</p>
 
 <h4 id="Type_constraints">Type constraints</h4>
 
@@ -3829,7 +3817,7 @@ For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
 </ul>
 
 <p>
-For <code>a</code> of <a href="#Type_parameters">type parameter type</a> <code>P</code>:
+For <code>a</code> of <a href="#Type_parameter_lists">type parameter type</a> <code>P</code>:
 </p>
 <ul>
 	<li><code>P</code> must have <a href="#Specific_types">specific types</a>.</li>
@@ -4023,7 +4011,7 @@ If the indices are out of range at run time, a <a href="#Run_time_panics">run-ti
 
 <p>
 For an expression <code>x</code> of <a href="#Interface_types">interface type</a>,
-but not a <a href="#Type_parameters">type parameter</a>, and a type <code>T</code>,
+but not a <a href="#Type_parameter_lists">type parameter</a>, and a type <code>T</code>,
 the primary expression
 </p>
 
@@ -4840,7 +4828,7 @@ The bitwise logical and shift operators apply to integers only.
 </pre>
 
 <p>
-Excluding shifts, if the operand type is a <a href="#Type_parameters">type parameter</a>,
+Excluding shifts, if the operand type is a <a href="#Type_parameter_lists">type parameter</a>,
 it must have <a href="#Specific_types">specific types</a>, and the operator must
 apply to each specific type.
 The operands are represented as values of the type argument that the type parameter
@@ -5295,7 +5283,7 @@ as for non-constant <code>x</code>.
 </p>
 
 <p>
-Converting a constant to a type that is not a <a href="#Type_parameters">type parameter</a>
+Converting a constant to a type that is not a <a href="#Type_parameter_lists">type parameter</a>
 yields a typed constant.
 </p>
 
@@ -5350,7 +5338,7 @@ in any of these cases:
 	<li>
 	ignoring struct tags (see below),
 	<code>x</code>'s type and <code>T</code> are not
-	<a href="#Type_parameters">type parameters</a> but have
+	<a href="#Type_parameter_lists">type parameters</a> but have
 	<a href="#Type_identity">identical</a> <a href="#Types">underlying types</a>.
 	</li>
 	<li>
@@ -6269,7 +6257,7 @@ switch x.(type) {
 Cases then match actual types <code>T</code> against the dynamic type of the
 expression <code>x</code>. As with type assertions, <code>x</code> must be of
 <a href="#Interface_types">interface type</a>, but not a
-<a href="#Type_parameters">type parameter</a>, and each non-interface type
+<a href="#Type_parameter_lists">type parameter</a>, and each non-interface type
 <code>T</code> listed in a case must implement the type of <code>x</code>.
 The types listed in the cases of a type switch must all be
 <a href="#Type_identity">different</a>.
@@ -6351,7 +6339,7 @@ if v == nil {
 </pre>
 
 <p>
-A <a href="#Type_parameters">type parameter</a> or a <a href="#Type_declarations">generic type</a>
+A <a href="#Type_parameter_lists">type parameter</a> or a <a href="#Type_declarations">generic type</a>
 may be used as a type in a case. If upon <a href="#Instantiations">instantiation</a> that type turns
 out to duplicate another entry in the switch, the first matching case is chosen.
 </p>
@@ -7092,7 +7080,7 @@ cap(s)    [n]T, *[n]T      array length (== n)
 </pre>
 
 <p>
-If the argument type is a <a href="#Type_parameters">type parameter</a> <code>P</code>,
+If the argument type is a <a href="#Type_parameter_lists">type parameter</a> <code>P</code>,
 <code>P</code> must have <a href="#Specific_types">specific types</a>, and
 the call <code>len(e)</code> (or <code>cap(e)</code> respectively) must be valid for
 each specific type of <code>P</code>.
@@ -7316,7 +7304,7 @@ delete(m, k)  // remove element m[k] from map m
 </pre>
 
 <p>
-If the type of <code>m</code> is a <a href="#Type_parameters">type parameter</a>,
+If the type of <code>m</code> is a <a href="#Type_parameter_lists">type parameter</a>,
 it must have <a href="#Specific_types">specific types</a>, all specific types
 must be maps, and they must all have identical key types.
 </p>
