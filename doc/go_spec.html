@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
-	"Subtitle": "Version of Feb 10, 2022",
+	"Subtitle": "Version of Feb 11, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -1205,7 +1205,8 @@ func(n int) func(p *T)
 <p>
 An interface type defines a <i>type set</i>.
 A variable of interface type can store a value of any type that is in the type
-set of the interface. Such a type is said to <i>implement the interface</i>.
+set of the interface. Such a type is said to
+<a href="#Implementing_an_interface">implement the interface</a>.
 The value of an uninitialized variable of interface type is <code>nil</code>.
 </p>
 
@@ -1376,7 +1377,7 @@ definition of an interface's type set as follows:
 </p>
 
 <ul>
-	<li>The type set of the empty interface is the set of all types.
+	<li>The type set of the empty interface is the set of all non-interface types.
 	</li>
 
 	<li>The type set of a non-empty interface is the intersection of the type sets
@@ -1400,6 +1401,10 @@ definition of an interface's type set as follows:
 		is the union of the type sets of the terms.
 	</li>
 </ul>
+
+<p>
+By construction, an interface's type set never contains an interface type.
+</p>
 
 <pre>
 // An interface representing only the type int.
@@ -1518,6 +1523,27 @@ type Bad2 interface {
 	Bad1
 }
 </pre>
+
+<h4 id="Implementing_an_interface">Implementing an interface</h4>
+
+<p>
+A type <code>T</code> implements an interface <code>I</code> if
+</p>
+
+<ul>
+<li>
+	<code>T</code> is not an interface and is an element of the type set of <code>I</code>; or
+</li>
+<li>
+	<code>T</code> is an interface and the type set of <code>T</code> is a subset of the
+	type set of <code>I</code>.
+</li>
+</ul>
+
+<p>
+A value <code>x</code> of type <code>T</code> implements an interface if <code>T</code>
+implements the interface.
+</p>
 
 <h3 id="Map_types">Map types</h3>
 
@@ -1978,7 +2004,7 @@ and at least one of <code>V</code> or <code>T</code> is not a <a href="#Types">n
 </li>
 <li>
 <code>T</code> is an interface type, but not a type parameter, and
-<code>x</code> <a href="#Interface_types">implements</a> <code>T</code>.
+<code>x</code> <a href="#Implementing_an_interface">implements</a> <code>T</code>.
 </li>
 <li>
 <code>x</code> is the predeclared identifier <code>nil</code> and <code>T</code>
@@ -2687,7 +2713,7 @@ type Constraint ~int               // illegal: ~int is not inside a type paramet
 
 <!--
 We should be able to simplify the rules for comparable or delegate some of them
-elsewhere once we have a section that clearly defines how interfaces implement
+elsewhere since we have a section that clearly defines how interfaces implement
 other interfaces based on their type sets. But this should get us going for now.
 -->
 
@@ -4018,7 +4044,7 @@ In this case, <code>T</code> must <a href="#Method_sets">implement</a> the (inte
 otherwise the type assertion is invalid since it is not possible for <code>x</code>
 to store a value of type <code>T</code>.
 If <code>T</code> is an interface type, <code>x.(T)</code> asserts that the dynamic type
-of <code>x</code> implements the interface <code>T</code>.
+of <code>x</code> <a href="#Implementing_an_interface">implements</a> the interface <code>T</code>.
 </p>
 <p>
 If the type assertion holds, the value of the expression is the value
@@ -4290,7 +4316,8 @@ Missing type arguments may be <i>inferred</i> by a series of steps, described be
 Each step attempts to use known information to infer additional type arguments.
 Type inference stops as soon as all type arguments are known.
 After type inference is complete, it is still necessary to substitute all type arguments
-for type parameters and verify that each type argument implements the relevant constraint;
+for type parameters and verify that each type argument
+<a href="#Implementing_an_interface">implements</a> the relevant constraint;
 it is possible for an inferred type argument to fail to implement a constraint, in which
 case instantiation fails.
 </p>
@@ -4344,7 +4371,7 @@ The process stops as soon as <i>M</i> has a type argument for each type paramete
 If an inference step fails, or if <i>M</i> is still missing type arguments after the last step, type inference fails.
 </p>
 
-<h4 id="Type_unification">Type unification</h3>
+<h4 id="Type_unification">Type unification</h4>
 
 <p>
 Type inference is based on <i>type unification</i>. A single unification step
@@ -4421,7 +4448,7 @@ and the type literal <code>[]E</code>, unification compares <code>[]float64</cod
 the substitution map.
 </p>
 
-<h4 id="Function_argument_type_inference">Function argument type inference</h3>
+<h4 id="Function_argument_type_inference">Function argument type inference</h4>
 
 <!-- In this section and the section on constraint type inference we start with examples
 rather than have the examples follow the rules as is customary elsewhere in spec.
@@ -4540,7 +4567,7 @@ processing continues until all untyped arguments are considered, an error is rep
 ensures that type inference does not depend on the order of the untyped arguments.
 </p>
 
-<h4 id="Constraint_type_inference">Constraint type inference</h3>
+<h4 id="Constraint_type_inference">Constraint type inference</h4>
 
 <!--
 	The next paragraph needs to be updated for the new definition of core type:
@@ -4833,7 +4860,7 @@ func dotProduct[F ~float32|~float64](v1, v2 []F) F {
 </pre>
 
 <p>
-the the product <code>x * y</code> and the addition <code>s += x * y</code>
+the product <code>x * y</code> and the addition <code>s += x * y</code>
 are computed with <code>float32</code> or <code>float64</code> precision,
 respectively, depending on the type argument for <code>F</code>.
 </p>
@@ -5079,7 +5106,7 @@ These terms and the result of the comparisons are defined as follows:
 	A value <code>x</code> of non-interface type <code>X</code> and
 	a value <code>t</code> of interface type <code>T</code> are comparable when values
 	of type <code>X</code> are comparable and
-	<code>X</code> implements <code>T</code>.
+	<code>X</code> <a href="#Implementing_an_interface">implements</a> <code>T</code>.
 	They are equal if <code>t</code>'s dynamic type is identical to <code>X</code>
 	and <code>t</code>'s dynamic value is equal to <code>x</code>.
 	</li>
@@ -5412,8 +5439,7 @@ of <code>x</code>.
 <p>
 There is no linguistic mechanism to convert between pointers and integers.
 The package <a href="#Package_unsafe"><code>unsafe</code></a>
-implements this functionality under
-restricted circumstances.
+implements this functionality under restricted circumstances.
 </p>
 
 <h4>Conversions between numeric types</h4>
