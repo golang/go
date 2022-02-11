@@ -33,11 +33,12 @@ import (
 // It does not hold per-package state, because we
 // build packages in parallel, and the builder is shared.
 type Builder struct {
-	WorkDir     string               // the temporary work directory (ends in filepath.Separator)
-	actionCache map[cacheKey]*Action // a cache of already-constructed actions
-	mkdirCache  map[string]bool      // a cache of created directories
-	flagCache   map[[2]string]bool   // a cache of supported compiler flags
-	Print       func(args ...any) (int, error)
+	WorkDir            string                    // the temporary work directory (ends in filepath.Separator)
+	actionCache        map[cacheKey]*Action      // a cache of already-constructed actions
+	mkdirCache         map[string]bool           // a cache of created directories
+	flagCache          map[[2]string]bool        // a cache of supported compiler flags
+	gccCompilerIDCache map[string]cache.ActionID // cache for gccCompilerID
+	Print              func(args ...any) (int, error)
 
 	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
 	NeedError           bool // list needs p.Error

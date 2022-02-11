@@ -17,6 +17,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
+	"cmd/internal/quoted"
 )
 
 // Build IDs
@@ -206,14 +207,20 @@ func (b *Builder) toolID(name string) string {
 // In order to get reproducible builds for released compilers, we
 // detect a released compiler by the absence of "experimental" in the
 // --version output, and in that case we just use the version string.
-func (b *Builder) gccToolID(name, language string) (string, error) {
+//
+// gccToolID also returns the underlying executable for the compiler.
+// The caller assumes that stat of the exe can be used, combined with the id,
+// to detect changes in the underlying compiler. The returned exe can be empty,
+// which means to rely only on the id.
+func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 	key := name + "." + language
 	b.id.Lock()
-	id := b.toolIDCache[key]
+	id = b.toolIDCache[key]
+	exe = b.toolIDCache[key+".exe"]
 	b.id.Unlock()
 
 	if id != "" {
-		return id, nil
+		return id, exe, nil
 	}
 
 	// Invoke the driver with -### to see the subcommands and the
@@ -225,19 +232,19 @@ func (b *Builder) gccToolID(name, language string) (string, error) {
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("%s: %v; output: %q", name, err, out)
+		return "", "", fmt.Errorf("%s: %v; output: %q", name, err, out)
 	}
 
 	version := ""
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
-		if fields := strings.Fields(line); len(fields) > 1 && fields[1] == "version" {
+		if fields := strings.Fields(line); len(fields) > 1 && fields[1] == "version" || len(fields) > 2 && fields[2] == "version" {
 			version = line
 			break
 		}
 	}
 	if version == "" {
-		return "", fmt.Errorf("%s: can not find version number in %q", name, out)
+		return "", "", fmt.Errorf("%s: can not find version number in %q", name, out)
 	}
 
 	if !strings.Contains(version, "experimental") {
@@ -248,20 +255,20 @@ func (b *Builder) gccToolID(name, language string) (string, error) {
 		// a leading space is the compiler proper.
 		compiler := ""
 		for _, line := range lines {
-			if len(line) > 1 && line[0] == ' ' {
+			if strings.HasPrefix(line, " ") && !strings.HasPrefix(line, " (in-process)") {
 				compiler = line
 				break
 			}
 		}
 		if compiler == "" {
-			return "", fmt.Errorf("%s: can not find compilation command in %q", name, out)
+			return "", "", fmt.Errorf("%s: can not find compilation command in %q", name, out)
 		}
 
-		fields := strings.Fields(compiler)
+		fields, _ := quoted.Split(compiler)
 		if len(fields) == 0 {
-			return "", fmt.Errorf("%s: compilation command confusion %q", name, out)
+			return "", "", fmt.Errorf("%s: compilation command confusion %q", name, out)
 		}
-		exe := fields[0]
+		exe = fields[0]
 		if !strings.ContainsAny(exe, `/\`) {
 			if lp, err := exec.LookPath(exe); err == nil {
 				exe = lp
@@ -269,7 +276,7 @@ func (b *Builder) gccToolID(name, language string) (string, error) {
 		}
 		id, err = buildid.ReadFile(exe)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		// If we can't find a build ID, use a hash.
@@ -280,9 +287,10 @@ func (b *Builder) gccToolID(name, language string) (string, error) {
 
 	b.id.Lock()
 	b.toolIDCache[key] = id
+	b.toolIDCache[key+".exe"] = exe
 	b.id.Unlock()
 
-	return id, nil
+	return id, exe, nil
 }
 
 // Check if assembler used by gccgo is GNU as.

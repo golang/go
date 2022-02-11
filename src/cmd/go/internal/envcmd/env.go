@@ -58,6 +58,7 @@ For more about environment variables, see 'go help environment'.
 func init() {
 	CmdEnv.Run = runEnv // break init cycle
 	base.AddChdirFlag(&CmdEnv.Flag)
+	base.AddBuildFlagsNX(&CmdEnv.Flag)
 }
 
 var (
