@@ -1,0 +1,19 @@
+! go vet ./a
+stderr 'fmt.Println call has possible formatting directive'
+
+-- go.work --
+go 1.18
+
+use ./a
+-- a/go.mod --
+module example.com/a
+
+go 1.18
+-- a/a.go --
+package a
+
+import "fmt"
+
+func A() {
+    fmt.Println("%s")
+}
