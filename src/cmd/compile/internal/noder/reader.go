@@ -968,11 +968,7 @@ func (r *reader) funcBody(fn *ir.Func) {
 
 		body := r.stmts()
 		if body == nil {
-			pos := src.NoXPos
-			if quirksMode() {
-				pos = funcParamsEndPos(fn)
-			}
-			body = []ir.Node{typecheck.Stmt(ir.NewBlockStmt(pos, nil))}
+			body = []ir.Node{typecheck.Stmt(ir.NewBlockStmt(src.NoXPos, nil))}
 		}
 		fn.Body = body
 		fn.Endlineno = r.pos()
@@ -1291,18 +1287,6 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 
 	case stmtSwitch:
 		return r.switchStmt(label)
-
-	case stmtTypeDeclHack:
-		// fake "type _ = int" declaration to prevent inlining in quirks mode.
-		assert(quirksMode())
-
-		name := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.BlankNode.Sym())
-		name.SetAlias(true)
-		setType(name, types.Types[types.TINT])
-
-		n := ir.NewDecl(src.NoXPos, ir.ODCLTYPE, name)
-		n.SetTypecheck(1)
-		return n
 	}
 }
 
@@ -1712,22 +1696,15 @@ func (r *reader) funcLit() ir.Node {
 	r.sync(syncFuncLit)
 
 	pos := r.pos()
-	typPos := r.pos()
 	xtype2 := r.signature(types.LocalPkg, nil)
 
 	opos := pos
-	if quirksMode() {
-		opos = r.origPos(pos)
-	}
 
 	fn := ir.NewClosureFunc(opos, r.curfn != nil)
 	clo := fn.OClosure
 	ir.NameClosure(clo, r.curfn)
 
 	setType(fn.Nname, xtype2)
-	if quirksMode() {
-		fn.Nname.Ntype = ir.TypeNodeAt(typPos, xtype2)
-	}
 	typecheck.Func(fn)
 	setType(clo, fn.Type())
 
@@ -1767,23 +1744,6 @@ func (r *reader) op() ir.Op {
 // @@@ Package initialization
 
 func (r *reader) pkgInit(self *types.Pkg, target *ir.Package) {
-	if quirksMode() {
-		for i, n := 0, r.len(); i < n; i++ {
-			// Eagerly register position bases, so their filenames are
-			// assigned stable indices.
-			posBase := r.posBase()
-			_ = base.Ctxt.PosTable.XPos(src.MakePos(posBase, 0, 0))
-		}
-
-		for i, n := 0, r.len(); i < n; i++ {
-			// Eagerly resolve imported objects, so any filenames registered
-			// in the process are assigned stable indices too.
-			_, sym := r.qualifiedIdent()
-			typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
-			assert(sym.Def != nil)
-		}
-	}
-
 	cgoPragmas := make([][]string, r.len())
 	for i := range cgoPragmas {
 		cgoPragmas[i] = r.strings()
@@ -2027,17 +1987,6 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 
 	body := ir.Nodes(r.curfn.Body)
 
-	// Quirk: If deadcode elimination turned a non-empty function into
-	// an empty one, we need to set the position for the empty block
-	// left behind to the inlined position for src.NoXPos, so that
-	// an empty string gets added into the DWARF file name listing at
-	// the appropriate index.
-	if quirksMode() && len(body) == 1 {
-		if block, ok := body[0].(*ir.BlockStmt); ok && len(block.List) == 0 {
-			block.SetPos(r.updatePos(src.NoXPos))
-		}
-	}
-
 	// Quirkish: We need to eagerly prune variables added during
 	// inlining, but removed by deadcode.FuncBody above. Unused
 	// variables will get removed during stack frame layout anyway, but
@@ -2218,8 +2167,8 @@ func (r *reader) importedDef() bool {
 }
 
 func MakeWrappers(target *ir.Package) {
-	// Only unified IR in non-quirks mode emits its own wrappers.
-	if base.Debug.Unified == 0 || quirksMode() {
+	// Only unified IR emits its own wrappers.
+	if base.Debug.Unified == 0 {
 		return
 	}
 

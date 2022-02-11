@@ -39,7 +39,6 @@ type DebugFlags struct {
 	TypeAssert           int    `help:"print information about type assertion inlining"`
 	TypecheckInl         int    `help:"eager typechecking of inline function bodies"`
 	Unified              int    `help:"enable unified IR construction"`
-	UnifiedQuirks        int    `help:"enable unified IR construction's quirks mode"`
 	WB                   int    `help:"print information about write barriers"`
 	ABIWrap              int    `help:"print information about ABI wrapper generation"`
 	MayMoreStack         string `help:"call named function before all stack growth checks"`

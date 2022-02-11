@@ -8,7 +8,6 @@ package noder
 
 import (
 	"fmt"
-	"go/constant"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -33,8 +32,6 @@ type pkgWriter struct {
 
 	linknames  map[types2.Object]string
 	cgoPragmas [][]string
-
-	dups dupTypes
 }
 
 func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
@@ -251,10 +248,6 @@ func (w *writer) typInfo(info typeInfo) {
 // typIdx also reports whether typ is a derived type; that is, whether
 // its identity depends on type parameters.
 func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
-	if quirksMode() {
-		typ = pw.dups.orig(typ)
-	}
-
 	if idx, ok := pw.typsIdx[typ]; ok {
 		return typeInfo{idx: idx, derived: false}
 	}
@@ -999,36 +992,9 @@ func (w *writer) declStmt(decl syntax.Decl) {
 	default:
 		w.p.unexpected("declaration", decl)
 
-	case *syntax.ConstDecl:
-
-	case *syntax.TypeDecl:
-		// Quirk: The legacy inliner doesn't support inlining functions
-		// with type declarations. Unified IR doesn't have any need to
-		// write out type declarations explicitly (they're always looked
-		// up via global index tables instead), so we just write out a
-		// marker so the reader knows to synthesize a fake declaration to
-		// prevent inlining.
-		if quirksMode() {
-			w.code(stmtTypeDeclHack)
-		}
+	case *syntax.ConstDecl, *syntax.TypeDecl:
 
 	case *syntax.VarDecl:
-		values := unpackListExpr(decl.Values)
-
-		// Quirk: When N variables are declared with N initialization
-		// values, we need to decompose that into N interleaved
-		// declarations+initializations, because it leads to different
-		// (albeit semantically equivalent) code generation.
-		if quirksMode() && len(decl.NameList) == len(values) {
-			for i, name := range decl.NameList {
-				w.code(stmtAssign)
-				w.pos(decl)
-				w.exprList(values[i])
-				w.assignList(name)
-			}
-			break
-		}
-
 		w.code(stmtAssign)
 		w.pos(decl)
 		w.exprList(decl.Values)
@@ -1184,21 +1150,8 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 
 		if tv.Value != nil {
-			pos := expr.Pos()
-			if quirksMode() {
-				if obj != nil {
-					// Quirk: IR (and thus iexport) doesn't track position
-					// information for uses of declared objects.
-					pos = syntax.Pos{}
-				} else if tv.Value.Kind() == constant.String {
-					// Quirk: noder.sum picks a particular position for certain
-					// string concatenations.
-					pos = sumPos(expr)
-				}
-			}
-
 			w.code(exprConst)
-			w.pos(pos)
+			w.pos(expr.Pos())
 			w.typ(tv.Type)
 			w.value(tv.Value)
 
@@ -1377,15 +1330,11 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
 
 	w.sync(syncFuncLit)
 	w.pos(expr)
-	w.pos(expr.Type) // for QuirksMode
 	w.signature(sig)
 
 	w.len(len(closureVars))
 	for _, cv := range closureVars {
 		w.pos(cv.pos)
-		if quirksMode() {
-			cv.pos = expr.Body.Rbrace
-		}
 		w.useLocal(cv.pos, cv.obj)
 	}
 
@@ -1538,21 +1487,6 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 			}
 		}
 
-		// Workaround for #46208. For variable declarations that
-		// declare multiple variables and have an explicit type
-		// expression, the type expression is evaluated multiple
-		// times. This affects toolstash -cmp, because iexport is
-		// sensitive to *types.Type pointer identity.
-		if quirksMode() && n.Type != nil {
-			tv, ok := pw.info.Types[n.Type]
-			assert(ok)
-			assert(tv.IsType())
-			for _, name := range n.NameList {
-				obj := pw.info.Defs[name].(*types2.Var)
-				pw.dups.add(obj.Type(), tv.Type)
-			}
-		}
-
 	case *syntax.BlockStmt:
 		if !c.withinFunc {
 			copy := *c
@@ -1621,20 +1555,6 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
 }
 
 func (w *writer) pkgInit(noders []*noder) {
-	if quirksMode() {
-		posBases := posBasesOf(noders)
-		w.len(len(posBases))
-		for _, posBase := range posBases {
-			w.posBase(posBase)
-		}
-
-		objs := importedObjsOf(w.p.curpkg, w.p.info, noders)
-		w.len(len(objs))
-		for _, obj := range objs {
-			w.qualifiedIdent(obj)
-		}
-	}
-
 	w.len(len(w.p.cgoPragmas))
 	for _, cgoPragma := range w.p.cgoPragmas {
 		w.strings(cgoPragma)

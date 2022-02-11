@@ -1826,8 +1826,8 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	}
 	newnam.SetSiggen(true)
 
-	// Except in quirks mode, unified IR creates its own wrappers.
-	if base.Debug.Unified != 0 && base.Debug.UnifiedQuirks == 0 {
+	// Unified IR creates its own wrappers.
+	if base.Debug.Unified != 0 {
 		return lsym
 	}
 
