@@ -1,6 +1,6 @@
 -- argInfer-hoverdef --
 ```go
-func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}](s S₁, e E₂) S₁
+func app(s []int, e int) []int // func[S interface{~[]E}, E interface{}](s S, e E) S
 ```
 -- constrInf-hoverdef --
 ```go
@@ -8,13 +8,13 @@ func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}
 ```
 -- constrInfer-hoverdef --
 ```go
-func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}](s S₁, e E₂) S₁
+func app(s []int, e int) []int // func[S interface{~[]E}, E interface{}](s S, e E) S
 ```
 -- instance-hoverdef --
 ```go
-func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}](s S₁, e E₂) S₁
+func app(s []int, e int) []int // func[S interface{~[]E}, E interface{}](s S, e E) S
 ```
 -- partialInfer-hoverdef --
 ```go
-func app(s []int, e int) []int // func[S₁ interface{~[]E₂}, E₂ interface{}](s S₁, e E₂) S₁
+func app(s []int, e int) []int // func[S interface{~[]E}, E interface{}](s S, e E) S
 ```

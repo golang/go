@@ -5,26 +5,6 @@ type value[T any] struct {
 	Q   int //@mark(valueQfield, "Q"),hoverdef("Q", valueQfield)
 }
 ```
--- valueTparam-hoverdef --
-```go
-type value[T any] struct {
-	val T   //@mark(valueTparam, "T"),hoverdef("T", valueTparam)
-	Q   int //@mark(valueQfield, "Q"),hoverdef("Q", valueQfield)
-}
-```
--- valueQfield-hoverdef --
-```go
-field Q int
-```
-
-\@mark\(valueQfield, \"Q\"\),hoverdef\(\"Q\", valueQfield\)
--- ValueTparam-hoverdef --
-```go
-type Value[T any] struct {
-	val T   //@mark(ValueTparam, "T"),hoverdef("T", ValueTparam)
-	Q   int //@mark(ValueQfield, "Q"),hoverdef("Q", ValueQfield)
-}
-```
 -- ValueQfield-hoverdef --
 ```go
 field Q int
@@ -33,3 +13,33 @@ field Q int
 [`(hover.Value).Q` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/hover_generics?utm_source=gopls#Value.Q)
 
 \@mark\(ValueQfield, \"Q\"\),hoverdef\(\"Q\", ValueQfield\)
+-- ValueTdecl-hoverdef --
+```go
+type parameter T any
+```
+-- ValueTparam-hoverdef --
+```go
+type parameter T any
+```
+-- valueQfield-hoverdef --
+```go
+field Q int
+```
+
+\@mark\(valueQfield, \"Q\"\),hoverdef\(\"Q\", valueQfield\)
+-- valueTdecl-hoverdef --
+```go
+type parameter T any
+```
+-- valueTparam-hoverdef --
+```go
+type parameter T any
+```
+-- Pparam-hoverdef --
+```go
+type parameter P interface{~int|string}
+```
+-- Pvar-hoverdef --
+```go
+type parameter P interface{~int|string}
+```

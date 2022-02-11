@@ -477,6 +477,13 @@ func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signatur
 func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Object, pkgNode ast.Node, fullDecl ast.Decl) (*HoverContext, error) {
 	var info *HoverContext
 
+	// Type parameters get their signature from their declaration object.
+	if _, isTypeName := obj.(*types.TypeName); isTypeName {
+		if _, isTypeParam := obj.Type().(*typeparams.TypeParam); isTypeParam {
+			return &HoverContext{signatureSource: obj}, nil
+		}
+	}
+
 	// This is problematic for a number of reasons. We really need to have a more
 	// general mechanism to validate the coherency of AST with type information,
 	// but absent that we must do our best to ensure that we don't use fullNode
@@ -555,7 +562,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 				}
 			}
 
-			info, err = formatGenDecl(node, spec, fullPos, obj)
+			info, err = hoverGenDecl(node, spec, fullPos, obj)
 			if err != nil {
 				return nil, err
 			}
@@ -563,7 +570,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 	case *ast.TypeSpec:
 		if obj.Parent() == types.Universe {
 			if genDecl, ok := fullDecl.(*ast.GenDecl); ok {
-				info = formatTypeSpec(node, genDecl)
+				info = hoverTypeSpec(node, genDecl)
 			}
 		}
 	case *ast.FuncDecl:
@@ -620,11 +627,11 @@ func isFunctionParam(obj types.Object, node *ast.FuncDecl) bool {
 	return false
 }
 
-// formatGenDecl returns hover information an object declared via spec inside
+// hoverGenDecl returns hover information an object declared via spec inside
 // of the GenDecl node. obj is the type-checked object corresponding to the
 // declaration, but may have been type-checked using a different AST than the
 // given nodes; fullPos is the position of obj in node's AST.
-func formatGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj types.Object) (*HoverContext, error) {
+func hoverGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj types.Object) (*HoverContext, error) {
 	if spec == nil {
 		return nil, errors.Errorf("no spec for node %v at position %v", node, fullPos)
 	}
@@ -632,12 +639,12 @@ func formatGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj type
 	// If we have a field or method.
 	switch obj.(type) {
 	case *types.Var, *types.Const, *types.Func:
-		return formatVar(spec, fullPos, obj, node), nil
+		return hoverVar(spec, fullPos, obj, node), nil
 	}
 	// Handle types.
 	switch spec := spec.(type) {
 	case *ast.TypeSpec:
-		return formatTypeSpec(spec, node), nil
+		return hoverTypeSpec(spec, node), nil
 	case *ast.ValueSpec:
 		return &HoverContext{signatureSource: spec, Comment: spec.Doc}, nil
 	case *ast.ImportSpec:
@@ -646,7 +653,8 @@ func formatGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj type
 	return nil, errors.Errorf("unable to format spec %v (%T)", spec, spec)
 }
 
-func formatTypeSpec(spec *ast.TypeSpec, decl *ast.GenDecl) *HoverContext {
+// TODO(rfindley): rename this function.
+func hoverTypeSpec(spec *ast.TypeSpec, decl *ast.GenDecl) *HoverContext {
 	comment := spec.Doc
 	if comment == nil && decl != nil {
 		comment = decl.Doc
@@ -660,7 +668,7 @@ func formatTypeSpec(spec *ast.TypeSpec, decl *ast.GenDecl) *HoverContext {
 	}
 }
 
-func formatVar(node ast.Spec, fullPos token.Pos, obj types.Object, decl *ast.GenDecl) *HoverContext {
+func hoverVar(node ast.Spec, fullPos token.Pos, obj types.Object, decl *ast.GenDecl) *HoverContext {
 	var fieldList *ast.FieldList
 	switch spec := node.(type) {
 	case *ast.TypeSpec:
