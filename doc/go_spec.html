@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft",
-	"Subtitle": "Version of Feb 11, 2022",
+	"Subtitle": "Version of Feb 14, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -10,6 +10,11 @@
 For the pre-Go1.18 specification without generics support see
 <a href="/doc/go1.17_spec.html">The Go Programming Language Specification</a>.
 </p>
+
+<!-- TODO(gri) remove this before the final release -->
+<p><b>
+[For reviewers: Sections where we know of missing prose are marked like this. The markers will be removed before the release.]
+</b></p>
 
 <h2 id="Introduction">Introduction</h2>
 
@@ -1498,15 +1503,9 @@ type Floatish struct {
 }
 </pre>
 
-<!-- TODO The rule below needs to be generalized to interface elements.
-	  It should be factored out and generalized to other types
-	  such as arrays and structs which are currently missing such a
-	  rule. See also #5069.
--->
-
 <p>
-An interface type <code>T</code> may not embed itself
-or any interface type that embeds <code>T</code>, recursively.
+An interface type <code>T</code> may not embed any type element
+that is, contains, or embeds <code>T</code>, recursively.
 </p>
 
 <pre>
@@ -1521,6 +1520,11 @@ type Bad1 interface {
 }
 type Bad2 interface {
 	Bad1
+}
+
+// illegal: Bad3 cannot embed a union containing Bad3
+type Bad3 interface {
+	~int | ~string | Bad3
 }
 </pre>
 
@@ -1802,6 +1806,10 @@ interface{ &lt;-chan int | chan&lt;- int }      // directional channels have dif
 </pre>
 
 <h3 id="Specific_types">Specific types</h3>
+
+<p><b>
+[The definition of specific types is not quite correct yet.]
+</b></p>
 
 <p>
 An interface specification that contains <a href="#Interface_types">type elements</a>
@@ -3346,7 +3354,9 @@ f.p[i].x()
 
 <h3 id="Selectors">Selectors</h3>
 
-<!-- This is missing rules for x of type parameter type. -->
+<p><b>
+[This section is missing rules for x.f where x's type is a type parameter and f is a field.]
+</b></p>
 
 <p>
 For a <a href="#Primary_expressions">primary expression</a> <code>x</code>
@@ -4557,14 +4567,6 @@ ensures that type inference does not depend on the order of the untyped argument
 
 <h4 id="Constraint_type_inference">Constraint type inference</h4>
 
-<!--
-	The next paragraph needs to be updated for the new definition of core type:
-	The core type of an interface is the single underlying type of its type set,
-	if it exists. But for constraint type inference, if the type set consists of exactly
-	one type, we want to use that one type (which may be a defined type, different from
-	its underlying == core type).
--->
-
 <p>
 Constraint type inference infers type arguments by considering type constraints.
 If a type parameter <code>P</code> has a constraint with a
@@ -4605,13 +4607,24 @@ first one.
 </p>
 
 <p>
+Using the core type of a constraint may lose some information: In the (unlikely) case that
+the constraint's type set contains a single <a href="#Type_definitions">defined type</a>
+<code>N</code>, the corresponding core type is <code>N</code>'s underlying type rather than
+<code>N</code> itself. In this case, constraint type inference may succeed but instantiation
+will fail because the inferred type is not in the type set of the constraint.
+Thus, constraint type inference uses the <i>adjusted core type</i> of
+a constraint: if the type set contains a single type, use that type; otherwise use the
+constraint's core type.
+</p>
+
+<p>
 Generally, constraint type inference proceeds in two phases: Starting with a given
 substitution map <i>M</i>
 </p>
 
 <ol>
 <li>
-For all type parameters with a core type, unify the type parameter with the core
+For all type parameters with an adjusted core type, unify the type parameter with that
 type. If any unification fails, constraint type inference fails.
 </li>
 
@@ -5369,7 +5382,7 @@ in any of these cases:
 </ul>
 
 <p>
-Additionally, if <code>T</code> or </code><code>x's</code> type <code>V</code> are type
+Additionally, if <code>T</code> or <code>x</code>'s type <code>V</code> are type
 parameters with <a href="#Specific_types">specific types</a>, <code>x</code>
 can also be converted to type <code>T</code> if one of the following conditions applies:
 </p>
@@ -7317,7 +7330,9 @@ does not exist, <code>delete</code> is a no-op.
 
 <h3 id="Complex_numbers">Manipulating complex numbers</h3>
 
-<!-- We don't support generic arguments for these operations yet. -->
+<p><b>
+[We don't support generic arguments for these built-ins for Go 1.18.]
+</b></p>
 
 <p>
 Three functions assemble and disassemble complex numbers.
