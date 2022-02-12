@@ -97,6 +97,20 @@ func TestIntJSONEncoding(t *testing.T) {
 	}
 }
 
+
+func TestIntJSONEncodingNil(t *testing.T) {
+	var x *Int
+	b, err := x.MarshalJSON()
+	if err != nil {
+		t.Fatalf("marshaling of nil failed: %s", err)
+	}
+	got := string(b)
+	want := "null"
+	if got != want {
+		t.Fatalf("marshaling of nil failed: got %s want %s", got, want)
+	}
+}
+
 func TestIntXMLEncoding(t *testing.T) {
 	for _, test := range encodingTests {
 		for _, sign := range []string{"", "+", "-"} {
