@@ -27,7 +27,7 @@ import (
 // parameter P ("x" side), but the argument type P must be left alone so
 // that unification resolves the type parameter P to P.
 //
-// For bidirection unification, both sets are provided. This enables
+// For bidirectional unification, both sets are provided. This enables
 // unification to go from argument to parameter type and vice versa.
 // For constraint type inference, we use bidirectional unification
 // where both the x and y type parameters are identical. This is done
