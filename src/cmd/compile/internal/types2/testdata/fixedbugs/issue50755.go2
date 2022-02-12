@@ -1,0 +1,27 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+func f1[M1 map[K1]int, K1 comparable](m1 M1) {}
+
+func f2[M2 map[K2]int, K2 comparable](m2 M2) {
+	f1(m2)
+}
+
+// test case from issue
+
+func Copy[MC ~map[KC]VC, KC comparable, VC any](dst, src MC) {
+	for k, v := range src {
+		dst[k] = v
+	}
+}
+
+func Merge[MM ~map[KM]VM, KM comparable, VM any](ms ...MM) MM {
+	result := MM{}
+	for _, m := range ms {
+		Copy(result, m)
+	}
+	return result
+}
