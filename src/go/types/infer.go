@@ -40,6 +40,13 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		}()
 	}
 
+	if traceInference {
+		check.dump("-- inferA %s ➞ %s", tparams, targs)
+		defer func() {
+			check.dump("=> inferA %s ➞ %s", tparams, result)
+		}()
+	}
+
 	// There must be at least one type parameter, and no more type arguments than type parameters.
 	n := len(tparams)
 	assert(n > 0 && len(targs) <= n)
@@ -402,6 +409,13 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
 func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type) (types []Type, index int) {
 	assert(len(tparams) >= len(targs) && len(targs) > 0)
 
+	if traceInference {
+		check.dump("-- inferB %s ➞ %s", tparams, targs)
+		defer func() {
+			check.dump("=> inferB %s ➞ %s", tparams, types)
+		}()
+	}
+
 	// Setup bidirectional unification between constraints
 	// and the corresponding type arguments (which may be nil!).
 	u := newUnifier(false)
@@ -417,17 +431,11 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 
 	// If a constraint has a core type, unify the corresponding type parameter with it.
 	for _, tpar := range tparams {
-		sbound := coreType(tpar)
-		if sbound != nil {
-			// If the core type is the underlying type of a single
-			// defined type in the constraint, use that defined type instead.
-			if named, _ := tpar.singleType().(*Named); named != nil {
-				sbound = named
-			}
-			if !u.unify(tpar, sbound) {
+		if ctype := adjCoreType(tpar); ctype != nil {
+			if !u.unify(tpar, ctype) {
 				// TODO(gri) improve error message by providing the type arguments
 				//           which we know already
-				check.errorf(posn, _InvalidTypeArg, "%s does not match %s", tpar, sbound)
+				check.errorf(posn, _InvalidTypeArg, "%s does not match %s", tpar, ctype)
 				return nil, 0
 			}
 		}
@@ -522,6 +530,19 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 	}
 
 	return
+}
+
+func adjCoreType(tpar *TypeParam) Type {
+	// If the type parameter embeds a single, possibly named
+	// type, use that one instead of the core type (which is
+	// always the underlying type of that single type).
+	if single := tpar.singleType(); single != nil {
+		if debug {
+			assert(under(single) == coreType(tpar))
+		}
+		return single
+	}
+	return coreType(tpar)
 }
 
 type cycleFinder struct {
