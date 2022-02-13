@@ -21,6 +21,17 @@ func makeSubstMap(tpars []*TypeParam, targs []Type) substMap {
 	return proj
 }
 
+// makeRenameMap is like makeSubstMap, but creates a map used to rename type
+// parameters in from with the type parameters in to.
+func makeRenameMap(from, to []*TypeParam) substMap {
+	assert(len(from) == len(to))
+	proj := make(substMap, len(from))
+	for i, tpar := range from {
+		proj[tpar] = to[i]
+	}
+	return proj
+}
+
 func (m substMap) empty() bool {
 	return len(m) == 0
 }
