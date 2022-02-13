@@ -215,6 +215,8 @@ type Type interface {
 	// It panics if the type's Kind is not Func.
 	// It panics if i is not in the range [0, NumOut()).
 	Out(i int) Type
+	
+	comparable
 
 	common() *rtype
 	uncommon() *uncommonType
