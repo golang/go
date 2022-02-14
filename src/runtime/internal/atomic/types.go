@@ -124,6 +124,28 @@ func (u *Uint8) Or(value uint8) {
 	Or8(&u.value, value)
 }
 
+// Bool is an atomically accessed bool value.
+//
+// A Bool must not be copied.
+type Bool struct {
+	// Inherits noCopy from Uint8.
+	u Uint8
+}
+
+// Load accesses and returns the value atomically.
+func (b *Bool) Load() bool {
+	return b.u.Load() != 0
+}
+
+// Store updates the value atomically.
+func (b *Bool) Store(value bool) {
+	s := uint8(0)
+	if value {
+		s = 1
+	}
+	b.u.Store(s)
+}
+
 // Uint32 is an atomically accessed uint32 value.
 //
 // A Uint32 must not be copied.
@@ -326,6 +348,7 @@ func (u *Uintptr) Add(delta uintptr) uintptr {
 //
 // A Float64 must not be copied.
 type Float64 struct {
+	// Inherits noCopy from Uint64.
 	u Uint64
 }
 
