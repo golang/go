@@ -23,6 +23,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/internal/cgo"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 var ignoreVendor build.ImportMode
@@ -1053,6 +1054,7 @@ func (imp *importer) newPackageInfo(path, dir string) *PackageInfo {
 		errorFunc: imp.conf.TypeChecker.Error,
 		dir:       dir,
 	}
+	typeparams.InitInstanceInfo(&info.Info)
 
 	// Copy the types.Config so we can vary it across PackageInfos.
 	tc := imp.conf.TypeChecker
