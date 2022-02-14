@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft",
-	"Subtitle": "Version of Feb 28, 2022",
+	"Subtitle": "Version of March 7, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -987,7 +987,7 @@ built-in function <a href="#Length_and_capacity"><code>cap(a)</code></a>.
 </p>
 
 <p>
-A new, initialized slice value for a given element type <code>T</code> is
+A new, initialized slice value for a given element type <code>T</code> may be
 made using the built-in function
 <a href="#Making_slices_maps_and_channels"><code>make</code></a>,
 which takes a slice type
@@ -1422,7 +1422,7 @@ interface {
 	~int
 }
 
-// An interface representing all types with underlying type int which implement the String method.
+// An interface representing all types with underlying type int that implement the String method.
 interface {
 	~int
 	String() string
@@ -1455,32 +1455,32 @@ Union elements denote unions of type sets:
 </p>
 
 <pre>
-// The Floats interface represents all floating-point types
+// The Float interface represents all floating-point types
 // (including any named types whose underlying types are
 // either float32 or float64).
-type Floats interface {
+type Float interface {
 	~float32 | ~float64
 }
 </pre>
 
 <p>
-In a union, a term cannot be a type parameter, and the type sets of all
+In a union, a term cannot be a <a href="#Type_parameter_lists">type parameter</a>, and the type sets of all
 non-interface terms must be pairwise disjoint (the pairwise intersection of the type sets must be empty).
 Given a type parameter <code>P</code>:
 </p>
 
 <pre>
 interface {
-	P                 // illegal: the term P is a type parameter
-	int | P           // illegal: the term P is a type parameter
-	~int | MyInt      // illegal: the type sets for ~int and MyInt are not disjoint (~int includes MyInt)
-	float32 | Floats  // overlapping type sets but Floats is an interface
+	P                // illegal: P is a type parameter
+	int | P          // illegal: P is a type parameter
+	~int | MyInt     // illegal: the type sets for ~int and MyInt are not disjoint (~int includes MyInt)
+	float32 | Float  // overlapping type sets but Float is an interface
 }
 </pre>
 
 <p>
 Implementation restriction:
-A union with more than one term cannot contain the
+A union (with more than one term) cannot contain the
 <a href="#Predeclared_identifiers">predeclared identifier</a> <code>comparable</code>
 or interfaces that specify methods, or embed <code>comparable</code> or interfaces
 that specify methods.
@@ -1494,12 +1494,12 @@ non-interface types.
 </p>
 
 <pre>
-var x Floats                     // illegal: Floats is not a basic interface
+var x Float                     // illegal: Float is not a basic interface
 
-var x interface{} = Floats(nil)  // illegal
+var x interface{} = Float(nil)  // illegal
 
 type Floatish struct {
-	f Floats                 // illegal
+	f Float                 // illegal
 }
 </pre>
 
@@ -1545,7 +1545,7 @@ A type <code>T</code> implements an interface <code>I</code> if
 </ul>
 
 <p>
-A value <code>x</code> of type <code>T</code> implements an interface if <code>T</code>
+A value of type <code>T</code> implements an interface if <code>T</code>
 implements the interface.
 </p>
 
@@ -1701,10 +1701,9 @@ Each type <code>T</code> has an <i>underlying type</i>: If <code>T</code>
 is one of the predeclared boolean, numeric, or string types, or a type literal,
 the corresponding underlying type is <code>T</code> itself.
 Otherwise, <code>T</code>'s underlying type is the underlying type of the
-type to which <code>T</code> refers in its <a href="#Type_declarations">type
-declaration</a>. The underlying type of a type parameter is the
-underlying type of its <a href="#Type_constraints">type constraint</a>, which
-is always an interface.
+type to which <code>T</code> refers in its declaration.
+For a type parameter that is the underlying type of its
+<a href="#Type_constraints">type constraint</a>, which is always an interface.
 </p>
 
 <pre>
@@ -1755,7 +1754,7 @@ direction.
 </ol>
 
 <p>
-All other interfaces don't have a core type.
+No other interfaces have a core type.
 </p>
 
 <p>
@@ -1795,7 +1794,7 @@ interface{ ~[]*data; String() string }    // []*data
 </pre>
 
 <p>
-Examples of interfaces whithout core types:
+Examples of interfaces without core types:
 </p>
 
 <pre>
@@ -1973,21 +1972,21 @@ defined type while the latter is a type literal
 <h3 id="Assignability">Assignability</h3>
 
 <p>
-A value <code>x</code> is <i>assignable</i> to a <a href="#Variables">variable</a> of type <code>T</code>
+A value <code>x</code> of type <code>V</code> is <i>assignable</i> to a <a href="#Variables">variable</a> of type <code>T</code>
 ("<code>x</code> is assignable to <code>T</code>") if one of the following conditions applies:
 </p>
 
 <ul>
 <li>
-<code>x</code>'s type is identical to <code>T</code>.
+<code>V</code> and <code>T</code> are identical.
 </li>
 <li>
-<code>x</code>'s type <code>V</code> and <code>T</code> have identical
+<code>V</code> and <code>T</code> have identical
 <a href="#Underlying_types">underlying types</a> and at least one of <code>V</code>
 or <code>T</code> is not a <a href="#Types">named type</a>.
 </li>
 <li>
-<code>x</code>'s type <code>V</code> and <code>T</code> are channel types with
+<code>V</code> and <code>T</code> are channel types with
 identical element types, <code>V</code> is a bidirectional channel,
 and at least one of <code>V</code> or <code>T</code> is not a <a href="#Types">named type</a>.
 </li>
@@ -2220,13 +2219,13 @@ Go is lexically scoped using <a href="#Blocks">blocks</a>:
 	<li>The scope of an identifier denoting a method receiver, function parameter,
 	    or result variable is the function body.</li>
 
-	<li>The scope of an identifier denoting a type parameter of a generic function
+	<li>The scope of an identifier denoting a type parameter of a function
 	    or declared by a method receiver is the function body and all parameter lists of the
 	    function.
 	</li>
 
-	<li>The scope of an identifier denoting a type parameter of a generic type
-	    begins after the name of the generic type and ends at the end
+	<li>The scope of an identifier denoting a type parameter of a type
+	    begins after the name of the type and ends at the end
 	    of the TypeSpec.</li>
 
 	<li>The scope of a constant or variable identifier declared
@@ -2512,7 +2511,7 @@ type (
 
 type TreeNode struct {
 	left, right *TreeNode
-	value *Comparable
+	value any
 }
 
 type Block interface {
@@ -2584,15 +2583,10 @@ type List[T any] struct {
 	next  *List[T]
 	value T
 }
-
-type Tree[T constraints.Ordered] struct {
-	left, right *Tree[T]
-	value       T
-}
 </pre>
 
 <p>
-The given type cannot be a type parameter in a type definition.
+In a type definition the given type cannot be a type parameter.
 </p>
 
 <pre>
@@ -2604,8 +2598,8 @@ func f[T any]() {
 </pre>
 
 <p>
-A generic type may also have methods associated with it. In this case,
-the method receivers must declare the same number of type parameters as
+A generic type may also have <a href="#Method_declarations">methods</a> associated with it.
+In this case, the method receivers must declare the same number of type parameters as
 present in the generic type definition.
 </p>
 
@@ -2899,12 +2893,12 @@ func IndexRune(s string, r rune) int {
 <p>
 If the function declaration specifies <a href="#Type_parameter_lists">type parameters</a>,
 the function name denotes a <i>generic function</i>.
-Generic functions must be <a href="#Instantiations">instantiated</a> when they
-are used.
+A generic function must be <a href="#Instantiations">instantiated</a> before it can be
+called or used as a value.
 </p>
 
 <pre>
-func min[T constraints.Ordered](x, y T) T {
+func min[T ~int|~float64](x, y T) T {
 	if x &lt; y {
 		return x
 	}
@@ -2963,7 +2957,7 @@ the non-blank method and field names must be distinct.
 </p>
 
 <p>
-Given defined type <code>Point</code>, the declarations
+Given defined type <code>Point</code> the declarations
 </p>
 
 <pre>
@@ -3758,7 +3752,7 @@ The following rules apply:
 </p>
 
 <p>
-If <code>a</code> is not a map:
+If <code>a</code> is neither a map nor a type parameter:
 </p>
 <ul>
 	<li>the index <code>x</code> must be an untyped constant or its
@@ -4298,7 +4292,7 @@ inferrable from the ordinary (non-type) function arguments.
 </p>
 
 <pre>
-func min[T constraints.Ordered](x, y T) T { … }
+func min[T ~int|~float64](x, y T) T { … }
 
 f := min                   // illegal: min must be instantiated when used without being called
 minInt := min[int]         // minInt has type func(x, y int) int
@@ -4550,7 +4544,7 @@ Example:
 </p>
 
 <pre>
-func min[T constraints.Ordered](x, y T) T
+func min[T ~int|~float64](x, y T) T
 
 var x int
 min(x, 2.0)    // T is int, inferred from typed argument x; 2.0 is assignable to int
