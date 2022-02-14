@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // Packages creates an SSA program for a set of packages.
@@ -147,6 +148,7 @@ func BuildPackage(tc *types.Config, fset *token.FileSet, pkg *types.Package, fil
 		Scopes:     make(map[ast.Node]*types.Scope),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
+	typeparams.InitInstanceInfo(info)
 	if err := types.NewChecker(tc, fset, pkg, info).Files(files); err != nil {
 		return nil, nil, err
 	}
