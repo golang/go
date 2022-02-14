@@ -8,7 +8,6 @@ package runtime
 
 import (
 	"internal/goarch"
-	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -247,12 +246,10 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 			}
 		})
 	}
-	if goexperiment.PacerRedesign {
-		if workCounter != nil && workDone != 0 {
-			workCounter.Add(workDone)
-			if flushBgCredit {
-				gcFlushBgCredit(workDone)
-			}
+	if workCounter != nil && workDone != 0 {
+		workCounter.Add(workDone)
+		if flushBgCredit {
+			gcFlushBgCredit(workDone)
 		}
 	}
 	return workDone
@@ -701,7 +698,6 @@ func gcFlushBgCredit(scanWork int64) {
 
 // scanstack scans gp's stack, greying all pointers found on the stack.
 //
-// For goexperiment.PacerRedesign:
 // Returns the amount of scan work performed, but doesn't update
 // gcController.stackScanWork or flush any credit. Any background credit produced
 // by this function should be flushed by its caller. scanstack itself can't
@@ -1157,10 +1153,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			if work.markrootNext < work.markrootJobs {
 				job := atomic.Xadd(&work.markrootNext, +1) - 1
 				if job < work.markrootJobs {
-					work := markroot(gcw, job, false)
-					if goexperiment.PacerRedesign {
-						workFlushed += work
-					}
+					workFlushed += markroot(gcw, job, false)
 					continue
 				}
 			}
@@ -1558,19 +1551,6 @@ func gcmarknewobject(span *mspan, obj, size, scanSize uintptr) {
 
 	gcw := &getg().m.p.ptr().gcw
 	gcw.bytesMarked += uint64(size)
-	if !goexperiment.PacerRedesign {
-		// The old pacer counts newly allocated memory toward
-		// heapScanWork because heapScan is continuously updated
-		// throughout the GC cycle with newly allocated memory. However,
-		// these objects are never actually scanned, so we need
-		// to account for them in heapScanWork here, "faking" their work.
-		// Otherwise the pacer will think it's always behind, potentially
-		// by a large margin.
-		//
-		// The new pacer doesn't care about this because it ceases to updated
-		// heapScan once a GC cycle starts, effectively snapshotting it.
-		gcw.heapScanWork += int64(scanSize)
-	}
 }
 
 // gcMarkTinyAllocs greys all active tiny alloc blocks.

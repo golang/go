@@ -79,12 +79,6 @@ type Flags struct {
 	// reflection calls use registers).
 	RegabiArgs bool
 
-	// PacerRedesign enables the new GC pacer in the runtime.
-	//
-	// Details regarding the new pacer may be found at
-	// https://golang.org/design/44167-gc-pacer-redesign
-	PacerRedesign bool
-
 	// HeapMinimum512KiB reduces the minimum heap size to 512 KiB.
 	//
 	// This was originally reduced as part of PacerRedesign, but
