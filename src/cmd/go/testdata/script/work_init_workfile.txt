@@ -1,0 +1,15 @@
+# Test that the workfile flag is used by go work init.
+
+go work init
+exists go.work
+
+go work init -workfile=$GOPATH/src/foo/foo.work
+exists foo/foo.work
+
+cd foo/bar
+! go work init
+stderr 'already exists'
+
+# Create directories to make go.work files in.
+-- foo/dummy.txt --
+-- foo/bar/dummy.txt --

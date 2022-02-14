@@ -46,7 +46,10 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	// make dirs relative to workFile path before adding the paths to
 	// the directory entries
 
-	workFile := filepath.Join(base.Cwd(), "go.work")
+	workFile := modload.WorkFilePath()
+	if workFile == "" {
+		workFile = filepath.Join(base.Cwd(), "go.work")
+	}
 
 	modload.CreateWorkFile(ctx, workFile, args)
 }
