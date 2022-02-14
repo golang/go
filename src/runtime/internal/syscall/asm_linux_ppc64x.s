@@ -16,14 +16,13 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	MOVD	a5+40(FP), R7
 	MOVD	a6+48(FP), R8
 	SYSCALL	R9
+	MOVD	R0, r2+64(FP) // r2 is not used. Always set to 0.
 	BVC	ok
 	MOVD	$-1, R4
 	MOVD	R4, r1+56(FP)
-	MOVD	R0, r2+64(FP)
 	MOVD	R3, errno+72(FP)
 	RET
 ok:
 	MOVD	R3, r1+56(FP)
-	MOVD	R4, r2+64(FP)
 	MOVD	R0, errno+72(FP)
 	RET
