@@ -116,16 +116,6 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 
 			tparams = tparams2
 			params = check.subst(pos, params, renameMap, nil).(*Tuple)
-
-			// If we replaced any type parameters, their replacements may occur in
-			// the resulting inferred type arguments. Make sure we use the original
-			// type parameters in the result.
-			defer func() {
-				unrenameMap := makeRenameMap(tparams2, tparams)
-				for i, res := range result {
-					result[i] = check.subst(pos, res, unrenameMap, nil)
-				}
-			}()
 		}
 	}
 
