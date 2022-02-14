@@ -86,4 +86,8 @@ type Flags struct {
 	// has been broken out to its own experiment that is disabled
 	// by default.
 	HeapMinimum512KiB bool
+
+	// CoverageRedesign enables the new compiler-based code coverage
+	// tooling.
+	CoverageRedesign bool
 }
