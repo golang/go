@@ -4155,6 +4155,11 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	_p_.goidcache++
 	if raceenabled {
 		newg.racectx = racegostart(callerpc)
+		if newg.labels != nil {
+			// See note in proflabel.go on labelSync's role in synchronizing
+			// with the reads in the signal handler.
+			racereleasemergeg(newg, unsafe.Pointer(&labelSync))
+		}
 	}
 	if trace.enabled {
 		traceGoCreate(newg, newg.startpc)

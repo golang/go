@@ -818,6 +818,10 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
 		})
 	}
 
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&labelSync))
+	}
+
 	startTheWorld()
 	return n, ok
 }
