@@ -43,86 +43,68 @@ type syncMarker int
 
 //go:generate stringer -type=syncMarker -trimprefix=sync
 
-// TODO(mdempsky): Cleanup unneeded sync markers.
-
-// TODO(mdempsky): Split these markers into public/stable markers, and
-// private ones. Also, trim unused ones.
 const (
 	_ syncMarker = iota
-	syncNode
+
+	// Public markers (known to go/types importers).
+
+	// Low-level coding markers.
+
+	syncEOF
 	syncBool
 	syncInt64
 	syncUint64
 	syncString
-	syncPos
-	syncPkg
-	syncSym
-	syncSelector
-	syncKind
-	syncType
-	syncTypePkg
-	syncSignature
-	syncParam
-	syncOp
-	syncObject
-	syncExpr
-	syncStmt
-	syncDecl
-	syncConstDecl
-	syncFuncDecl
-	syncTypeDecl
-	syncVarDecl
-	syncPragma
 	syncValue
-	syncEOF
+	syncVal
+	syncRelocs
+	syncReloc
+	syncUseReloc
+
+	// Higher-level object and type markers.
+	syncPublic
+	syncPos
+	syncPosBase
+	syncObject
+	syncObject1
+	syncPkg
+	syncPkgDef
 	syncMethod
-	syncFuncBody
-	syncUse
-	syncUseObj
-	syncObjectIdx
+	syncType
 	syncTypeIdx
-	syncBOF
-	syncEntry
-	syncOpenScope
-	syncCloseScope
-	syncGlobal
-	syncLocal
-	syncDefine
-	syncDefLocal
-	syncUseLocal
-	syncDefGlobal
-	syncUseGlobal
-	syncTypeParams
-	syncUseLabel
-	syncDefLabel
-	syncFuncLit
-	syncCommonFunc
-	syncBodyRef
-	syncLinksymExt
-	syncHack
-	syncSetlineno
-	syncName
-	syncImportDecl
-	syncDeclNames
-	syncDeclName
+	syncTypeParamNames
+	syncSignature
+	syncParams
+	syncParam
+	syncCodeObj
+	syncSym
+	syncLocalIdent
+	syncSelector
+
+	// Private markers (only known to cmd/compile).
+	syncPrivate
+
+	syncFuncExt
+	syncVarExt
+	syncTypeExt
+	syncPragma
+
 	syncExprList
 	syncExprs
-	syncWrapname
-	syncTypeExpr
-	syncTypeExprOrNil
-	syncChanDir
-	syncParams
+	syncExpr
+	syncOp
+	syncFuncLit
+	syncCompLit
+
+	syncDecl
+	syncFuncBody
+	syncOpenScope
+	syncCloseScope
 	syncCloseAnotherScope
-	syncSum
-	syncUnOp
-	syncBinOp
-	syncStructType
-	syncInterfaceType
-	syncPackname
-	syncEmbedded
+	syncDeclNames
+	syncDeclName
+
 	syncStmts
-	syncStmtsFall
-	syncStmtFall
 	syncBlockStmt
 	syncIfStmt
 	syncForStmt
@@ -133,55 +115,11 @@ const (
 	syncSelectStmt
 	syncDecls
 	syncLabeledStmt
-	syncCompLit
-
-	sync1
-	sync2
-	sync3
-	sync4
-
-	syncN
-	syncDefImplicit
-	syncUseName
 	syncUseObjLocal
 	syncAddLocal
-	syncBothSignature
-	syncSetUnderlying
 	syncLinkname
 	syncStmt1
 	syncStmtsEnd
-	syncDeclare
-	syncTopDecls
-	syncTopConstDecl
-	syncTopFuncDecl
-	syncTopTypeDecl
-	syncTopVarDecl
-	syncObject1
-	syncAddBody
 	syncLabel
-	syncFuncExt
-	syncMethExt
 	syncOptLabel
-	syncScalar
-	syncStmtDecls
-	syncDeclLocal
-	syncObjLocal
-	syncObjLocal1
-	syncDeclareLocal
-	syncPublic
-	syncPrivate
-	syncRelocs
-	syncReloc
-	syncUseReloc
-	syncVarExt
-	syncPkgDef
-	syncTypeExt
-	syncVal
-	syncCodeObj
-	syncPosBase
-	syncLocalIdent
-	syncTypeParamNames
-	syncTypeParamBounds
-	syncImplicitTypes
-	syncObjectName
 )
