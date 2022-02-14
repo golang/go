@@ -4,14 +4,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package noder
+package pkgbits
 
 import (
 	"fmt"
 	"strings"
 )
 
-// enableSync controls whether sync markers are written into unified
+// EnableSync controls whether sync markers are written into unified
 // IR's export data format and also whether they're expected when
 // reading them back in. They're inessential to the correct
 // functioning of unified IR, but are helpful during development to
@@ -20,7 +20,7 @@ import (
 // When sync is enabled, writer stack frames will also be included in
 // the export data. Currently, a fixed number of frames are included,
 // controlled by -d=syncframes (default 0).
-const enableSync = true
+const EnableSync = true
 
 // fmtFrames formats a backtrace for reporting reader/writer desyncs.
 func fmtFrames(pcs ...uintptr) []string {
@@ -36,90 +36,90 @@ func fmtFrames(pcs ...uintptr) []string {
 
 type frameVisitor func(file string, line int, name string, offset uintptr)
 
-// syncMarker is an enum type that represents markers that may be
+// SyncMarker is an enum type that represents markers that may be
 // written to export data to ensure the reader and writer stay
 // synchronized.
-type syncMarker int
+type SyncMarker int
 
-//go:generate stringer -type=syncMarker -trimprefix=sync
+//go:generate stringer -type=SyncMarker -trimprefix=Sync
 
 const (
-	_ syncMarker = iota
+	_ SyncMarker = iota
 
 	// Public markers (known to go/types importers).
 
 	// Low-level coding markers.
 
-	syncEOF
-	syncBool
-	syncInt64
-	syncUint64
-	syncString
-	syncValue
-	syncVal
-	syncRelocs
-	syncReloc
-	syncUseReloc
+	SyncEOF
+	SyncBool
+	SyncInt64
+	SyncUint64
+	SyncString
+	SyncValue
+	SyncVal
+	SyncRelocs
+	SyncReloc
+	SyncUseReloc
 
 	// Higher-level object and type markers.
-	syncPublic
-	syncPos
-	syncPosBase
-	syncObject
-	syncObject1
-	syncPkg
-	syncPkgDef
-	syncMethod
-	syncType
-	syncTypeIdx
-	syncTypeParamNames
-	syncSignature
-	syncParams
-	syncParam
-	syncCodeObj
-	syncSym
-	syncLocalIdent
-	syncSelector
+	SyncPublic
+	SyncPos
+	SyncPosBase
+	SyncObject
+	SyncObject1
+	SyncPkg
+	SyncPkgDef
+	SyncMethod
+	SyncType
+	SyncTypeIdx
+	SyncTypeParamNames
+	SyncSignature
+	SyncParams
+	SyncParam
+	SyncCodeObj
+	SyncSym
+	SyncLocalIdent
+	SyncSelector
 
 	// Private markers (only known to cmd/compile).
-	syncPrivate
+	SyncPrivate
 
-	syncFuncExt
-	syncVarExt
-	syncTypeExt
-	syncPragma
+	SyncFuncExt
+	SyncVarExt
+	SyncTypeExt
+	SyncPragma
 
-	syncExprList
-	syncExprs
-	syncExpr
-	syncOp
-	syncFuncLit
-	syncCompLit
+	SyncExprList
+	SyncExprs
+	SyncExpr
+	SyncOp
+	SyncFuncLit
+	SyncCompLit
 
-	syncDecl
-	syncFuncBody
-	syncOpenScope
-	syncCloseScope
-	syncCloseAnotherScope
-	syncDeclNames
-	syncDeclName
+	SyncDecl
+	SyncFuncBody
+	SyncOpenScope
+	SyncCloseScope
+	SyncCloseAnotherScope
+	SyncDeclNames
+	SyncDeclName
 
-	syncStmts
-	syncBlockStmt
-	syncIfStmt
-	syncForStmt
-	syncSwitchStmt
-	syncRangeStmt
-	syncCaseClause
-	syncCommClause
-	syncSelectStmt
-	syncDecls
-	syncLabeledStmt
-	syncUseObjLocal
-	syncAddLocal
-	syncLinkname
-	syncStmt1
-	syncStmtsEnd
-	syncLabel
-	syncOptLabel
+	SyncStmts
+	SyncBlockStmt
+	SyncIfStmt
+	SyncForStmt
+	SyncSwitchStmt
+	SyncRangeStmt
+	SyncCaseClause
+	SyncCommClause
+	SyncSelectStmt
+	SyncDecls
+	SyncLabeledStmt
+	SyncUseObjLocal
+	SyncAddLocal
+	SyncLinkname
+	SyncStmt1
+	SyncStmtsEnd
+	SyncLabel
+	SyncOptLabel
 )

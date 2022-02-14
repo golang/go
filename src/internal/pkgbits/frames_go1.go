@@ -7,7 +7,7 @@
 
 // TODO(mdempsky): Remove after #44505 is resolved
 
-package noder
+package pkgbits
 
 import "runtime"
 
