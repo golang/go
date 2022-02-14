@@ -74,7 +74,7 @@ var validWithTParamsOnly = []string{
 	`package p; type T[P any /* ERROR "expected ']', found any" */ ] struct { P }`,
 	`package p; type T[P comparable /* ERROR "expected ']', found comparable" */ ] struct { P }`,
 	`package p; type T[P comparable /* ERROR "expected ']', found comparable" */ [P]] struct { P }`,
-	`package p; type T[P1, /* ERROR "expected ']', found ','" */ P2 any] struct { P1; f []P2 }`,
+	`package p; type T[P1, /* ERROR "unexpected comma" */ P2 any] struct { P1; f []P2 }`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T any]()()`,
 	`package p; func _(T (P))`,
 	`package p; func f[ /* ERROR "expected '\(', found '\['" */ A, B any](); func _() { _ = f[int, int] }`,
@@ -83,8 +83,8 @@ var validWithTParamsOnly = []string{
 	`package p; func _(p.T[ /* ERROR "missing ',' in parameter list" */ Q])`,
 	`package p; type _[A interface /* ERROR "expected ']', found 'interface'" */ {},] struct{}`,
 	`package p; type _[A interface /* ERROR "expected ']', found 'interface'" */ {}] struct{}`,
-	`package p; type _[A, /* ERROR "expected ']', found ','" */  B any,] struct{}`,
-	`package p; type _[A, /* ERROR "expected ']', found ','" */ B any] struct{}`,
+	`package p; type _[A, /* ERROR "unexpected comma" */  B any,] struct{}`,
+	`package p; type _[A, /* ERROR "unexpected comma" */ B any] struct{}`,
 	`package p; type _[A any /* ERROR "expected ']', found any" */,] struct{}`,
 	`package p; type _[A any /* ERROR "expected ']', found any" */ ]struct{}`,
 	`package p; type _[A any /* ERROR "expected ']', found any" */ ] struct{ A }`,
@@ -95,8 +95,8 @@ var validWithTParamsOnly = []string{
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
 
-	`package p; type _[A, /* ERROR "expected ']', found ','" */ B any] interface { _(a A) B }`,
-	`package p; type _[A, /* ERROR "expected ']', found ','" */ B C[A, B]] interface { _(a A) B }`,
+	`package p; type _[A, /* ERROR "unexpected comma" */ B any] interface { _(a A) B }`,
+	`package p; type _[A, /* ERROR "unexpected comma" */ B C[A, B]] interface { _(a A) B }`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T1, T2 interface{}](x T1) T2`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T1 interface{ m() }, T2, T3 interface{}](x T1, y T3) T2`,
 	`package p; var _ = [ /* ERROR "expected expression" */ ]T[int]{}`,
@@ -193,7 +193,7 @@ var invalids = []string{
 	`package p; func f() { go func() { func() { f(x func /* ERROR "missing ','" */ (){}) } } }`,
 	`package p; func _() (type /* ERROR "found 'type'" */ T)(T)`,
 	`package p; func (type /* ERROR "found 'type'" */ T)(T) _()`,
-	`package p; type _[A+B, /* ERROR "expected ']'" */ ] int`,
+	`package p; type _[A+B, /* ERROR "unexpected comma" */ ] int`,
 
 	// TODO(rfindley): this error should be positioned on the ':'
 	`package p; var a = a[[]int:[ /* ERROR "expected expression" */ ]int];`,
@@ -231,7 +231,7 @@ var invalidNoTParamErrs = []string{
 	`package p; type T[P any /* ERROR "expected ']', found any" */ ] = T0`,
 	`package p; var _ func[ /* ERROR "expected '\(', found '\['" */ T any](T)`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ ]()`,
-	`package p; type _[A, /* ERROR "expected ']', found ','" */] struct{ A }`,
+	`package p; type _[A, /* ERROR "unexpected comma" */] struct{ A }`,
 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ type P, *Q interface{}]()`,
 
 	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
