@@ -310,6 +310,7 @@ var depsRules = `
 	< go/build;
 
 	DEBUG, go/build, go/types, text/scanner
+  < internal/pkgbits
 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
 	< go/importer;
 

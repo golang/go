@@ -5,7 +5,7 @@
 //go:build go1.7
 // +build go1.7
 
-package noder
+package pkgbits
 
 import "runtime"
 

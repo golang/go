@@ -11,10 +11,11 @@ import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"cmd/internal/src"
+	"internal/pkgbits"
 )
 
 type pkgReader2 struct {
-	pkgDecoder
+	pkgbits.PkgDecoder
 
 	ctxt    *types2.Context
 	imports map[string]*types2.Package
@@ -24,39 +25,39 @@ type pkgReader2 struct {
 	typs     []types2.Type
 }
 
-func readPackage2(ctxt *types2.Context, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
+func readPackage2(ctxt *types2.Context, imports map[string]*types2.Package, input pkgbits.PkgDecoder) *types2.Package {
 	pr := pkgReader2{
-		pkgDecoder: input,
+		PkgDecoder: input,
 
 		ctxt:    ctxt,
 		imports: imports,
 
-		posBases: make([]*syntax.PosBase, input.numElems(relocPosBase)),
-		pkgs:     make([]*types2.Package, input.numElems(relocPkg)),
-		typs:     make([]types2.Type, input.numElems(relocType)),
+		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.RelocPosBase)),
+		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.RelocPkg)),
+		typs:     make([]types2.Type, input.NumElems(pkgbits.RelocType)),
 	}
 
-	r := pr.newReader(relocMeta, publicRootIdx, syncPublic)
+	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 	pkg := r.pkg()
-	r.bool() // has init
+	r.Bool() // has init
 
-	for i, n := 0, r.len(); i < n; i++ {
+	for i, n := 0, r.Len(); i < n; i++ {
 		// As if r.obj(), but avoiding the Scope.Lookup call,
 		// to avoid eager loading of imports.
-		r.sync(syncObject)
-		assert(!r.bool())
-		r.p.objIdx(r.reloc(relocObj))
-		assert(r.len() == 0)
+		r.Sync(pkgbits.SyncObject)
+		assert(!r.Bool())
+		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+		assert(r.Len() == 0)
 	}
 
-	r.sync(syncEOF)
+	r.Sync(pkgbits.SyncEOF)
 
 	pkg.MarkComplete()
 	return pkg
 }
 
 type reader2 struct {
-	decoder
+	pkgbits.Decoder
 
 	p *pkgReader2
 
@@ -77,9 +78,9 @@ type reader2TypeBound struct {
 	boundIdx int
 }
 
-func (pr *pkgReader2) newReader(k reloc, idx int, marker syncMarker) *reader2 {
+func (pr *pkgReader2) newReader(k pkgbits.RelocKind, idx int, marker pkgbits.SyncMarker) *reader2 {
 	return &reader2{
-		decoder: pr.newDecoder(k, idx, marker),
+		Decoder: pr.NewDecoder(k, idx, marker),
 		p:       pr,
 	}
 }
@@ -87,20 +88,20 @@ func (pr *pkgReader2) newReader(k reloc, idx int, marker syncMarker) *reader2 {
 // @@@ Positions
 
 func (r *reader2) pos() syntax.Pos {
-	r.sync(syncPos)
-	if !r.bool() {
+	r.Sync(pkgbits.SyncPos)
+	if !r.Bool() {
 		return syntax.Pos{}
 	}
 
 	// TODO(mdempsky): Delta encoding.
 	posBase := r.posBase()
-	line := r.uint()
-	col := r.uint()
+	line := r.Uint()
+	col := r.Uint()
 	return syntax.MakePos(posBase, line, col)
 }
 
 func (r *reader2) posBase() *syntax.PosBase {
-	return r.p.posBaseIdx(r.reloc(relocPosBase))
+	return r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase))
 }
 
 func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
@@ -108,17 +109,17 @@ func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
 		return b
 	}
 
-	r := pr.newReader(relocPosBase, idx, syncPosBase)
+	r := pr.newReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
 	var b *syntax.PosBase
 
-	filename := r.string()
+	filename := r.String()
 
-	if r.bool() {
+	if r.Bool() {
 		b = syntax.NewTrimmedFileBase(filename, true)
 	} else {
 		pos := r.pos()
-		line := r.uint()
-		col := r.uint()
+		line := r.Uint()
+		col := r.Uint()
 		b = syntax.NewLineBase(pos, filename, true, line, col)
 	}
 
@@ -129,8 +130,8 @@ func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
 // @@@ Packages
 
 func (r *reader2) pkg() *types2.Package {
-	r.sync(syncPkg)
-	return r.p.pkgIdx(r.reloc(relocPkg))
+	r.Sync(pkgbits.SyncPkg)
+	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
 }
 
 func (pr *pkgReader2) pkgIdx(idx int) *types2.Package {
@@ -140,33 +141,33 @@ func (pr *pkgReader2) pkgIdx(idx int) *types2.Package {
 		return pkg
 	}
 
-	pkg := pr.newReader(relocPkg, idx, syncPkgDef).doPkg()
+	pkg := pr.newReader(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef).doPkg()
 	pr.pkgs[idx] = pkg
 	return pkg
 }
 
 func (r *reader2) doPkg() *types2.Package {
-	path := r.string()
+	path := r.String()
 	if path == "builtin" {
 		return nil // universe
 	}
 	if path == "" {
-		path = r.p.pkgPath
+		path = r.p.PkgPath()
 	}
 
 	if pkg := r.p.imports[path]; pkg != nil {
 		return pkg
 	}
 
-	name := r.string()
-	height := r.len()
+	name := r.String()
+	height := r.Len()
 
 	pkg := types2.NewPackageHeight(path, name, height)
 	r.p.imports[path] = pkg
 
 	// TODO(mdempsky): The list of imported packages is important for
 	// go/types, but we could probably skip populating it for types2.
-	imports := make([]*types2.Package, r.len())
+	imports := make([]*types2.Package, r.Len())
 	for i := range imports {
 		imports[i] = r.pkg()
 	}
@@ -182,11 +183,11 @@ func (r *reader2) typ() types2.Type {
 }
 
 func (r *reader2) typInfo() typeInfo {
-	r.sync(syncType)
-	if r.bool() {
-		return typeInfo{idx: r.len(), derived: true}
+	r.Sync(pkgbits.SyncType)
+	if r.Bool() {
+		return typeInfo{idx: r.Len(), derived: true}
 	}
-	return typeInfo{idx: r.reloc(relocType), derived: false}
+	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
 }
 
 func (pr *pkgReader2) typIdx(info typeInfo, dict *reader2Dict) types2.Type {
@@ -203,7 +204,7 @@ func (pr *pkgReader2) typIdx(info typeInfo, dict *reader2Dict) types2.Type {
 		return typ
 	}
 
-	r := pr.newReader(relocType, idx, syncTypeIdx)
+	r := pr.newReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
 	r.dict = dict
 
 	typ := r.doTyp()
@@ -219,15 +220,15 @@ func (pr *pkgReader2) typIdx(info typeInfo, dict *reader2Dict) types2.Type {
 }
 
 func (r *reader2) doTyp() (res types2.Type) {
-	switch tag := codeType(r.code(syncType)); tag {
+	switch tag := pkgbits.CodeType(r.Code(pkgbits.SyncType)); tag {
 	default:
 		base.FatalfAt(src.NoXPos, "unhandled type tag: %v", tag)
 		panic("unreachable")
 
-	case typeBasic:
-		return types2.Typ[r.len()]
+	case pkgbits.TypeBasic:
+		return types2.Typ[r.Len()]
 
-	case typeNamed:
+	case pkgbits.TypeNamed:
 		obj, targs := r.obj()
 		name := obj.(*types2.TypeName)
 		if len(targs) != 0 {
@@ -236,41 +237,41 @@ func (r *reader2) doTyp() (res types2.Type) {
 		}
 		return name.Type()
 
-	case typeTypeParam:
-		return r.dict.tparams[r.len()]
+	case pkgbits.TypeTypeParam:
+		return r.dict.tparams[r.Len()]
 
-	case typeArray:
-		len := int64(r.uint64())
+	case pkgbits.TypeArray:
+		len := int64(r.Uint64())
 		return types2.NewArray(r.typ(), len)
-	case typeChan:
-		dir := types2.ChanDir(r.len())
+	case pkgbits.TypeChan:
+		dir := types2.ChanDir(r.Len())
 		return types2.NewChan(dir, r.typ())
-	case typeMap:
+	case pkgbits.TypeMap:
 		return types2.NewMap(r.typ(), r.typ())
-	case typePointer:
+	case pkgbits.TypePointer:
 		return types2.NewPointer(r.typ())
-	case typeSignature:
+	case pkgbits.TypeSignature:
 		return r.signature(nil, nil, nil)
-	case typeSlice:
+	case pkgbits.TypeSlice:
 		return types2.NewSlice(r.typ())
-	case typeStruct:
+	case pkgbits.TypeStruct:
 		return r.structType()
-	case typeInterface:
+	case pkgbits.TypeInterface:
 		return r.interfaceType()
-	case typeUnion:
+	case pkgbits.TypeUnion:
 		return r.unionType()
 	}
 }
 
 func (r *reader2) structType() *types2.Struct {
-	fields := make([]*types2.Var, r.len())
+	fields := make([]*types2.Var, r.Len())
 	var tags []string
 	for i := range fields {
 		pos := r.pos()
 		pkg, name := r.selector()
 		ftyp := r.typ()
-		tag := r.string()
-		embedded := r.bool()
+		tag := r.String()
+		embedded := r.Bool()
 
 		fields[i] = types2.NewField(pos, pkg, name, ftyp, embedded)
 		if tag != "" {
@@ -284,16 +285,16 @@ func (r *reader2) structType() *types2.Struct {
 }
 
 func (r *reader2) unionType() *types2.Union {
-	terms := make([]*types2.Term, r.len())
+	terms := make([]*types2.Term, r.Len())
 	for i := range terms {
-		terms[i] = types2.NewTerm(r.bool(), r.typ())
+		terms[i] = types2.NewTerm(r.Bool(), r.typ())
 	}
 	return types2.NewUnion(terms)
 }
 
 func (r *reader2) interfaceType() *types2.Interface {
-	methods := make([]*types2.Func, r.len())
-	embeddeds := make([]types2.Type, r.len())
+	methods := make([]*types2.Func, r.Len())
+	embeddeds := make([]types2.Type, r.Len())
 
 	for i := range methods {
 		pos := r.pos()
@@ -310,18 +311,18 @@ func (r *reader2) interfaceType() *types2.Interface {
 }
 
 func (r *reader2) signature(recv *types2.Var, rtparams, tparams []*types2.TypeParam) *types2.Signature {
-	r.sync(syncSignature)
+	r.Sync(pkgbits.SyncSignature)
 
 	params := r.params()
 	results := r.params()
-	variadic := r.bool()
+	variadic := r.Bool()
 
 	return types2.NewSignatureType(recv, rtparams, tparams, params, results, variadic)
 }
 
 func (r *reader2) params() *types2.Tuple {
-	r.sync(syncParams)
-	params := make([]*types2.Var, r.len())
+	r.Sync(pkgbits.SyncParams)
+	params := make([]*types2.Var, r.Len())
 	for i := range params {
 		params[i] = r.param()
 	}
@@ -329,7 +330,7 @@ func (r *reader2) params() *types2.Tuple {
 }
 
 func (r *reader2) param() *types2.Var {
-	r.sync(syncParam)
+	r.Sync(pkgbits.SyncParam)
 
 	pos := r.pos()
 	pkg, name := r.localIdent()
@@ -341,14 +342,14 @@ func (r *reader2) param() *types2.Var {
 // @@@ Objects
 
 func (r *reader2) obj() (types2.Object, []types2.Type) {
-	r.sync(syncObject)
+	r.Sync(pkgbits.SyncObject)
 
-	assert(!r.bool())
+	assert(!r.Bool())
 
-	pkg, name := r.p.objIdx(r.reloc(relocObj))
+	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
 	obj := pkg.Scope().Lookup(name)
 
-	targs := make([]types2.Type, r.len())
+	targs := make([]types2.Type, r.Len())
 	for i := range targs {
 		targs[i] = r.typ()
 	}
@@ -357,21 +358,21 @@ func (r *reader2) obj() (types2.Object, []types2.Type) {
 }
 
 func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
-	rname := pr.newReader(relocName, idx, syncObject1)
+	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 
 	objPkg, objName := rname.qualifiedIdent()
 	assert(objName != "")
 
-	tag := codeObj(rname.code(syncCodeObj))
+	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
 
-	if tag == objStub {
+	if tag == pkgbits.ObjStub {
 		assert(objPkg == nil || objPkg == types2.Unsafe)
 		return objPkg, objName
 	}
 
 	dict := pr.objDictIdx(idx)
 
-	r := pr.newReader(relocObj, idx, syncObject1)
+	r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
 	r.dict = dict
 
 	objPkg.Scope().InsertLazy(objName, func() types2.Object {
@@ -379,24 +380,24 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 		default:
 			panic("weird")
 
-		case objAlias:
+		case pkgbits.ObjAlias:
 			pos := r.pos()
 			typ := r.typ()
 			return types2.NewTypeName(pos, objPkg, objName, typ)
 
-		case objConst:
+		case pkgbits.ObjConst:
 			pos := r.pos()
 			typ := r.typ()
-			val := r.value()
+			val := r.Value()
 			return types2.NewConst(pos, objPkg, objName, typ, val)
 
-		case objFunc:
+		case pkgbits.ObjFunc:
 			pos := r.pos()
 			tparams := r.typeParamNames()
 			sig := r.signature(nil, nil, tparams)
 			return types2.NewFunc(pos, objPkg, objName, sig)
 
-		case objType:
+		case pkgbits.ObjType:
 			pos := r.pos()
 
 			return types2.NewTypeNameLazy(pos, objPkg, objName, func(named *types2.Named) (tparams []*types2.TypeParam, underlying types2.Type, methods []*types2.Func) {
@@ -408,7 +409,7 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 				// about it, so maybe we can avoid worrying about that here.
 				underlying = r.typ().Underlying()
 
-				methods = make([]*types2.Func, r.len())
+				methods = make([]*types2.Func, r.Len())
 				for i := range methods {
 					methods[i] = r.method()
 				}
@@ -416,7 +417,7 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 				return
 			})
 
-		case objVar:
+		case pkgbits.ObjVar:
 			pos := r.pos()
 			typ := r.typ()
 			return types2.NewVar(pos, objPkg, objName, typ)
@@ -427,23 +428,23 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 }
 
 func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
-	r := pr.newReader(relocObjDict, idx, syncObject1)
+	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
 	var dict reader2Dict
 
-	if implicits := r.len(); implicits != 0 {
+	if implicits := r.Len(); implicits != 0 {
 		base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
 	}
 
-	dict.bounds = make([]typeInfo, r.len())
+	dict.bounds = make([]typeInfo, r.Len())
 	for i := range dict.bounds {
 		dict.bounds[i] = r.typInfo()
 	}
 
-	dict.derived = make([]derivedInfo, r.len())
+	dict.derived = make([]derivedInfo, r.Len())
 	dict.derivedTypes = make([]types2.Type, len(dict.derived))
 	for i := range dict.derived {
-		dict.derived[i] = derivedInfo{r.reloc(relocType), r.bool()}
+		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
 	}
 
 	// function references follow, but reader2 doesn't need those
@@ -452,7 +453,7 @@ func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
 }
 
 func (r *reader2) typeParamNames() []*types2.TypeParam {
-	r.sync(syncTypeParamNames)
+	r.Sync(pkgbits.SyncTypeParamNames)
 
 	// Note: This code assumes it only processes objects without
 	// implement type parameters. This is currently fine, because
@@ -485,7 +486,7 @@ func (r *reader2) typeParamNames() []*types2.TypeParam {
 }
 
 func (r *reader2) method() *types2.Func {
-	r.sync(syncMethod)
+	r.Sync(pkgbits.SyncMethod)
 	pos := r.pos()
 	pkg, name := r.selector()
 
@@ -496,11 +497,11 @@ func (r *reader2) method() *types2.Func {
 	return types2.NewFunc(pos, pkg, name, sig)
 }
 
-func (r *reader2) qualifiedIdent() (*types2.Package, string) { return r.ident(syncSym) }
-func (r *reader2) localIdent() (*types2.Package, string)     { return r.ident(syncLocalIdent) }
-func (r *reader2) selector() (*types2.Package, string)       { return r.ident(syncSelector) }
+func (r *reader2) qualifiedIdent() (*types2.Package, string) { return r.ident(pkgbits.SyncSym) }
+func (r *reader2) localIdent() (*types2.Package, string)     { return r.ident(pkgbits.SyncLocalIdent) }
+func (r *reader2) selector() (*types2.Package, string)       { return r.ident(pkgbits.SyncSelector) }
 
-func (r *reader2) ident(marker syncMarker) (*types2.Package, string) {
-	r.sync(marker)
-	return r.pkg(), r.string()
+func (r *reader2) ident(marker pkgbits.SyncMarker) (*types2.Package, string) {
+	r.Sync(marker)
+	return r.pkg(), r.String()
 }

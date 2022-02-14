@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"internal/goversion"
+	"internal/pkgbits"
 	"io"
 	"runtime"
 	"sort"
@@ -75,7 +76,7 @@ func unified(noders []*noder) {
 	writeNewExportFunc = writeNewExport
 
 	newReadImportFunc = func(data string, pkg1 *types.Pkg, ctxt *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
-		pr := newPkgDecoder(pkg1.Path, data)
+		pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
 
 		// Read package descriptors for both types2 and compiler backend.
 		readPackage(newPkgReader(pr), pkg1)
@@ -98,10 +99,10 @@ func unified(noders []*noder) {
 
 	typecheck.TypecheckAllowed = true
 
-	localPkgReader = newPkgReader(newPkgDecoder(types.LocalPkg.Path, data))
+	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))
 	readPackage(localPkgReader, types.LocalPkg)
 
-	r := localPkgReader.newReader(relocMeta, privateRootIdx, syncPrivate)
+	r := localPkgReader.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 	r.pkgInit(types.LocalPkg, target)
 
 	// Type-check any top-level assignments. We ignore non-assignments
@@ -162,36 +163,36 @@ func writePkgStub(noders []*noder) string {
 
 	pw.collectDecls(noders)
 
-	publicRootWriter := pw.newWriter(relocMeta, syncPublic)
-	privateRootWriter := pw.newWriter(relocMeta, syncPrivate)
+	publicRootWriter := pw.newWriter(pkgbits.RelocMeta, pkgbits.SyncPublic)
+	privateRootWriter := pw.newWriter(pkgbits.RelocMeta, pkgbits.SyncPrivate)
 
-	assert(publicRootWriter.idx == publicRootIdx)
-	assert(privateRootWriter.idx == privateRootIdx)
+	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
+	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
 
 	{
 		w := publicRootWriter
 		w.pkg(pkg)
-		w.bool(false) // has init; XXX
+		w.Bool(false) // has init; XXX
 
 		scope := pkg.Scope()
 		names := scope.Names()
-		w.len(len(names))
+		w.Len(len(names))
 		for _, name := range scope.Names() {
 			w.obj(scope.Lookup(name), nil)
 		}
 
-		w.sync(syncEOF)
-		w.flush()
+		w.Sync(pkgbits.SyncEOF)
+		w.Flush()
 	}
 
 	{
 		w := privateRootWriter
 		w.pkgInit(noders)
-		w.flush()
+		w.Flush()
 	}
 
 	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
-	pw.dump(&sb)
+	pw.DumpTo(&sb)
 
 	// At this point, we're done with types2. Make sure the package is
 	// garbage collected.
@@ -235,26 +236,26 @@ func freePackage(pkg *types2.Package) {
 }
 
 func readPackage(pr *pkgReader, importpkg *types.Pkg) {
-	r := pr.newReader(relocMeta, publicRootIdx, syncPublic)
+	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
 	pkg := r.pkg()
 	assert(pkg == importpkg)
 
-	if r.bool() {
+	if r.Bool() {
 		sym := pkg.Lookup(".inittask")
 		task := ir.NewNameAt(src.NoXPos, sym)
 		task.Class = ir.PEXTERN
 		sym.Def = task
 	}
 
-	for i, n := 0, r.len(); i < n; i++ {
-		r.sync(syncObject)
-		assert(!r.bool())
-		idx := r.reloc(relocObj)
-		assert(r.len() == 0)
+	for i, n := 0, r.Len(); i < n; i++ {
+		r.Sync(pkgbits.SyncObject)
+		assert(!r.Bool())
+		idx := r.Reloc(pkgbits.RelocObj)
+		assert(r.Len() == 0)
 
-		path, name, code := r.p.peekObj(idx)
-		if code != objStub {
+		path, name, code := r.p.PeekObj(idx)
+		if code != pkgbits.ObjStub {
 			objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil}
 		}
 	}
@@ -262,42 +263,42 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
 
 func writeNewExport(out io.Writer) {
 	l := linker{
-		pw: newPkgEncoder(),
+		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
 
 		pkgs:  make(map[string]int),
 		decls: make(map[*types.Sym]int),
 	}
 
-	publicRootWriter := l.pw.newEncoder(relocMeta, syncPublic)
-	assert(publicRootWriter.idx == publicRootIdx)
+	publicRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
+	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
 
 	var selfPkgIdx int
 
 	{
 		pr := localPkgReader
-		r := pr.newDecoder(relocMeta, publicRootIdx, syncPublic)
+		r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
-		r.sync(syncPkg)
-		selfPkgIdx = l.relocIdx(pr, relocPkg, r.reloc(relocPkg))
+		r.Sync(pkgbits.SyncPkg)
+		selfPkgIdx = l.relocIdx(pr, pkgbits.RelocPkg, r.Reloc(pkgbits.RelocPkg))
 
-		r.bool() // has init
+		r.Bool() // has init
 
-		for i, n := 0, r.len(); i < n; i++ {
-			r.sync(syncObject)
-			assert(!r.bool())
-			idx := r.reloc(relocObj)
-			assert(r.len() == 0)
+		for i, n := 0, r.Len(); i < n; i++ {
+			r.Sync(pkgbits.SyncObject)
+			assert(!r.Bool())
+			idx := r.Reloc(pkgbits.RelocObj)
+			assert(r.Len() == 0)
 
-			xpath, xname, xtag := pr.peekObj(idx)
-			assert(xpath == pr.pkgPath)
-			assert(xtag != objStub)
+			xpath, xname, xtag := pr.PeekObj(idx)
+			assert(xpath == pr.PkgPath())
+			assert(xtag != pkgbits.ObjStub)
 
 			if types.IsExported(xname) {
-				l.relocIdx(pr, relocObj, idx)
+				l.relocIdx(pr, pkgbits.RelocObj, idx)
 			}
 		}
 
-		r.sync(syncEOF)
+		r.Sync(pkgbits.SyncEOF)
 	}
 
 	{
@@ -309,22 +310,22 @@ func writeNewExport(out io.Writer) {
 
 		w := publicRootWriter
 
-		w.sync(syncPkg)
-		w.reloc(relocPkg, selfPkgIdx)
+		w.Sync(pkgbits.SyncPkg)
+		w.Reloc(pkgbits.RelocPkg, selfPkgIdx)
 
-		w.bool(typecheck.Lookup(".inittask").Def != nil)
+		w.Bool(typecheck.Lookup(".inittask").Def != nil)
 
-		w.len(len(idxs))
+		w.Len(len(idxs))
 		for _, idx := range idxs {
-			w.sync(syncObject)
-			w.bool(false)
-			w.reloc(relocObj, idx)
-			w.len(0)
+			w.Sync(pkgbits.SyncObject)
+			w.Bool(false)
+			w.Reloc(pkgbits.RelocObj, idx)
+			w.Len(0)
 		}
 
-		w.sync(syncEOF)
-		w.flush()
+		w.Sync(pkgbits.SyncEOF)
+		w.Flush()
 	}
 
-	l.pw.dump(out)
+	l.pw.DumpTo(out)
 }
