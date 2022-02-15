@@ -30,7 +30,8 @@ cmp stdout go.work.want_print
 go work edit -json -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
 cmp stdout go.work.want_json
 
-go work edit -print -fmt -workfile $GOPATH/src/unformatted
+env GOWORK=$GOPATH/src/unformatted
+go work edit -print -fmt
 cmp stdout formatted
 
 -- m/go.mod --

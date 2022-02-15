@@ -345,8 +345,8 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- https://golang.org/issue/45713 -->
   The <code>go</code> command now supports a "Workspace" mode. If a
   <code>go.work</code> file is found in the working directory or a
-  parent directory, or one is specified using the <code>-workfile</code>
-  flag, it will put the <code>go</code> command into workspace mode.
+  parent directory, or one is specified using the <code>GOWORK</code>
+  environment variable, it will put the <code>go</code> command into workspace mode.
   In workspace mode, the <code>go.work</code> file will be used to
   determine the set of main modules used as the roots for module
   resolution, instead of using the normally-found <code>go.mod</code>

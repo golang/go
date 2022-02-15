@@ -288,16 +288,16 @@ func BinDir() string {
 // operate in workspace mode. It should not be called by other commands,
 // for example 'go mod tidy', that don't operate in workspace mode.
 func InitWorkfile() {
-	switch cfg.WorkFile {
+	switch gowork := cfg.Getenv("GOWORK"); gowork {
 	case "off":
 		workFilePath = ""
 	case "", "auto":
 		workFilePath = findWorkspaceFile(base.Cwd())
 	default:
-		if !filepath.IsAbs(cfg.WorkFile) {
-			base.Fatalf("the path provided to -workfile must be an absolute path")
+		if !filepath.IsAbs(gowork) {
+			base.Fatalf("the path provided to GOWORK must be an absolute path")
 		}
-		workFilePath = cfg.WorkFile
+		workFilePath = gowork
 	}
 }
 
@@ -1109,7 +1109,7 @@ func setDefaultBuildMod() {
 		if inWorkspaceMode() && cfg.BuildMod != "readonly" {
 			base.Fatalf("go: -mod may only be set to readonly when in workspace mode, but it is set to %q"+
 				"\n\tRemove the -mod flag to use the default readonly value,"+
-				"\n\tor set -workfile=off to disable workspace mode.", cfg.BuildMod)
+				"\n\tor set GOWORK=off to disable workspace mode.", cfg.BuildMod)
 		}
 		// Don't override an explicit '-mod=' argument.
 		return

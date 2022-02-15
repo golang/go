@@ -32,7 +32,9 @@ stdout 'example.com/b'
 go list -mod=readonly all
 ! go list -mod=mod all
 stderr '^go: -mod may only be set to readonly when in workspace mode'
-go list -mod=mod -workfile=off all
+env GOWORK=off
+go list -mod=mod all
+env GOWORK=
 
 # Test that duplicates in the use list return an error
 cp go.work go.work.backup
@@ -53,7 +55,9 @@ go run example.com/d
 # This exercises the code that determines which module command-line-arguments
 # belongs to.
 go list ./b/main.go
-go build -n -workfile=off -o foo foo.go
+env GOWORK=off
+go build -n -o foo foo.go
+env GOWORK=
 go build -n -o foo foo.go
 
 -- go.work.dup --

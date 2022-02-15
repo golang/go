@@ -42,7 +42,6 @@ func init() {
 	cmdUse.Run = runUse // break init cycle
 
 	base.AddModCommonFlags(&cmdUse.Flag)
-	base.AddWorkfileFlag(&cmdUse.Flag)
 }
 
 func runUse(ctx context.Context, cmd *base.Command, args []string) {
@@ -53,7 +52,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	gowork = modload.WorkFilePath()
 
 	if gowork == "" {
-		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
+		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
 	workFile, err := modload.ReadWorkFile(gowork)
 	if err != nil {
