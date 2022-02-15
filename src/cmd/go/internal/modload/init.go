@@ -1033,11 +1033,25 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 			for _, r := range modFiles[i].Replace {
 				if replacedByWorkFile[r.Old.Path] {
 					continue
-				} else if prev, ok := replacements[r.Old]; ok && !curModuleReplaces[r.Old] && prev != r.New {
-					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go work edit -replace %v=[override]\" to resolve", r.Old, prev, r.New, r.Old)
+				}
+				var newV module.Version = r.New
+				if WorkFilePath() != "" && newV.Version == "" && !filepath.IsAbs(newV.Path) {
+					// Since we are in a workspace, we may be loading replacements from
+					// multiple go.mod files. Relative paths in those replacement are
+					// relative to the go.mod file, not the workspace, so the same string
+					// may refer to two different paths and different strings may refer to
+					// the same path. Convert them all to be absolute instead.
+					//
+					// (We could do this outside of a workspace too, but it would mean that
+					// replacement paths in error strings needlessly differ from what's in
+					// the go.mod file.)
+					newV.Path = filepath.Join(rootDirs[i], newV.Path)
+				}
+				if prev, ok := replacements[r.Old]; ok && !curModuleReplaces[r.Old] && prev != newV {
+					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go work edit -replace %v=[override]\" to resolve", r.Old, prev, newV, r.Old)
 				}
 				curModuleReplaces[r.Old] = true
-				replacements[r.Old] = r.New
+				replacements[r.Old] = newV
 
 				v, ok := mainModules.highestReplaced[r.Old.Path]
 				if !ok || semver.Compare(r.Old.Version, v) > 0 {
