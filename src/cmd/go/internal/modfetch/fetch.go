@@ -332,7 +332,7 @@ func hashZip(mod module.Version, zipfile, ziphashfile string) (err error) {
 		return err
 	}
 	defer func() {
-		if closeErr := hf.Close(); err != nil {
+		if closeErr := hf.Close(); err == nil && closeErr != nil {
 			err = closeErr
 		}
 	}()
