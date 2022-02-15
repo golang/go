@@ -40,7 +40,8 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 // file by reading from it. The reader must be positioned at the
 // start of the file before calling this function. The hdr result
 // is the string before the export data, either "$$" or "$$B".
-func FindExportData(r *bufio.Reader) (hdr string, err error) {
+//
+func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
 	// Read first line to make sure this is an object file.
 	line, err := r.ReadSlice('\n')
 	if err != nil {
@@ -51,7 +52,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 	if string(line) == "!<arch>\n" {
 		// Archive file. Scan to __.PKGDEF.
 		var name string
-		if name, _, err = readGopackHeader(r); err != nil {
+		if name, size, err = readGopackHeader(r); err != nil {
 			return
 		}
 
@@ -75,6 +76,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 		err = fmt.Errorf("not a Go object file")
 		return
 	}
+	size -= len(line)
 
 	// Skip over object header to export data.
 	// Begins after first line starting with $$.
@@ -83,6 +85,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 			err = fmt.Errorf("can't find export data (%v)", err)
 			return
 		}
+		size -= len(line)
 	}
 	hdr = string(line)
 
