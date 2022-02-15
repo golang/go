@@ -881,7 +881,7 @@ func (f *fakeDNSPacketConn) Close() error {
 func TestIgnoreDNSForgeries(t *testing.T) {
 	c, s := Pipe()
 	go func() {
-		b := make([]byte, maxDNSPacketSize)
+		b := make([]byte, 512)
 		n, err := s.Read(b)
 		if err != nil {
 			t.Error(err)
@@ -2159,60 +2159,5 @@ func TestRootNS(t *testing.T) {
 			records = append(records, fmt.Sprintf("%v", rr))
 		}
 		t.Errorf("records = [%v]; want [%v]", strings.Join(records, " "), want[0])
-	}
-}
-
-// Test that we advertise support for a larger DNS packet size.
-// This isn't a great test as it just tests the dnsmessage package
-// against itself.
-func TestDNSPacketSize(t *testing.T) {
-	fake := fakeDNSServer{
-		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
-			if len(q.Additionals) == 0 {
-				t.Error("missing EDNS record")
-			} else if opt, ok := q.Additionals[0].Body.(*dnsmessage.OPTResource); !ok {
-				t.Errorf("additional record type %T, expected OPTResource", q.Additionals[0])
-			} else if len(opt.Options) != 0 {
-				t.Errorf("found %d Options, expected none", len(opt.Options))
-			} else {
-				got := int(q.Additionals[0].Header.Class)
-				t.Logf("EDNS packet size == %d", got)
-				if got != maxDNSPacketSize {
-					t.Errorf("EDNS packet size == %d, want %d", got, maxDNSPacketSize)
-				}
-			}
-
-			// Hand back a dummy answer to verify that
-			// LookupIPAddr completes.
-			r := dnsmessage.Message{
-				Header: dnsmessage.Header{
-					ID:       q.Header.ID,
-					Response: true,
-					RCode:    dnsmessage.RCodeSuccess,
-				},
-				Questions: q.Questions,
-			}
-			if q.Questions[0].Type == dnsmessage.TypeA {
-				r.Answers = []dnsmessage.Resource{
-					{
-						Header: dnsmessage.ResourceHeader{
-							Name:   q.Questions[0].Name,
-							Type:   dnsmessage.TypeA,
-							Class:  dnsmessage.ClassINET,
-							Length: 4,
-						},
-						Body: &dnsmessage.AResource{
-							A: TestAddr,
-						},
-					},
-				}
-			}
-			return r, nil
-		},
-	}
-
-	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
-	if _, err := r.LookupIPAddr(context.Background(), "go.dev"); err != nil {
-		t.Errorf("lookup failed: %v", err)
 	}
 }
