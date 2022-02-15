@@ -936,6 +936,7 @@ func (s *Session) getGoEnv(ctx context.Context, folder string, goversion int, go
 	for k := range vars {
 		args = append(args, k)
 	}
+	args = append(args, "GOWORK")
 
 	inv := gocommand.Invocation{
 		Verb:       "env",
