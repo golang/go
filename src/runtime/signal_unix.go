@@ -161,7 +161,7 @@ func sigInstallGoHandler(sig uint32) bool {
 		}
 	}
 
-	if GOOS == "linux" && !iscgo && sig == sigPerThreadSyscall {
+	if (GOOS == "linux" || GOOS == "android") && !iscgo && sig == sigPerThreadSyscall {
 		// sigPerThreadSyscall is the same signal used by glibc for
 		// per-thread syscalls on Linux. We use it for the same purpose
 		// in non-cgo binaries.
@@ -623,7 +623,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		return
 	}
 
-	if GOOS == "linux" && sig == sigPerThreadSyscall {
+	if (GOOS == "linux" || GOOS == "android") && sig == sigPerThreadSyscall {
 		// sigPerThreadSyscall is the same signal used by glibc for
 		// per-thread syscalls on Linux. We use it for the same purpose
 		// in non-cgo binaries. Since this signal is not _SigNotify,
