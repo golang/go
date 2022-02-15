@@ -33,6 +33,7 @@ var Fastlog2 = fastlog2
 
 var Atoi = atoi
 var Atoi32 = atoi32
+var ParseByteCount = parseByteCount
 
 var Nanotime = nanotime
 var NetpollBreak = netpollBreak
