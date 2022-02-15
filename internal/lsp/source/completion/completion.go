@@ -485,6 +485,13 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 					qual := types.RelativeTo(pkg.GetTypes())
 					objStr = types.ObjectString(obj, qual)
 				}
+				ans, sel := definition(path, obj, snapshot.FileSet(), pgf.Mapper, fh)
+				if ans != nil {
+					sort.Slice(ans, func(i, j int) bool {
+						return ans[i].Score > ans[j].Score
+					})
+					return ans, sel, nil
+				}
 				return nil, nil, ErrIsDefinition{objStr: objStr}
 			}
 		}

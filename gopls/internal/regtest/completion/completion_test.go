@@ -256,7 +256,7 @@ func compareCompletionResults(want []string, gotItems []protocol.CompletionItem)
 
 	for i, v := range got {
 		if v != want[i] {
-			return fmt.Sprintf("completion results are not the same: got %v, want %v", got, want)
+			return fmt.Sprintf("%d completion result not the same: got %q, want %q", i, v, want[i])
 		}
 	}
 
@@ -543,6 +543,59 @@ func main() {
 		want := "package main\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"math\"\r\n)\r\n\r\nfunc main() {\r\n\tfmt.Println(\"a\")\r\n\tmath.Sqrt(${1:})\r\n}\r\n"
 		if got != want {
 			t.Errorf("unimported completion: got %q, want %q", got, want)
+		}
+	})
+}
+
+func TestDefinition(t *testing.T) {
+	stuff := `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- a_test.go --
+package foo
+func T()
+func TestG()
+func TestM()
+func TestMi()
+func Ben()
+func Fuz()
+func Testx()
+func TestMe(t *testing.T)
+func BenchmarkFoo()
+`
+	// All those parentheses are needed for the completion code to see
+	// later lines as being definitions
+	tests := []struct {
+		pat  string
+		want []string
+	}{
+		{"T", []string{"TestXxx(t *testing.T)", "TestMain(m *testing.M)"}},
+		{"TestM", []string{"TestMain(m *testing.M)", "TestM(t *testing.T)"}},
+		{"TestMi", []string{"TestMi(t *testing.T)"}},
+		{"TestG", []string{"TestG(t *testing.T)"}},
+		{"B", []string{"BenchmarkXxx(b *testing.B)"}},
+		{"BenchmarkFoo", []string{"BenchmarkFoo(b *testing.B)"}},
+		{"F", []string{"FuzzXxx(f *testing.F)"}},
+		{"Testx", nil},
+		{"TestMe", []string{"TestMe"}},
+	}
+	fname := "a_test.go"
+	Run(t, stuff, func(t *testing.T, env *Env) {
+		env.OpenFile(fname)
+		env.Await(env.DoneWithOpen())
+		for _, tst := range tests {
+			pos := env.RegexpSearch(fname, tst.pat)
+			pos.Column += len(tst.pat)
+			completions := env.Completion(fname, pos)
+			result := compareCompletionResults(tst.want, completions.Items)
+			if result != "" {
+				t.Errorf("%s failed: %s:%q", tst.pat, result, tst.want)
+				for i, it := range completions.Items {
+					t.Errorf("%d got %q %q", i, it.Label, it.Detail)
+				}
+			}
 		}
 	})
 }
