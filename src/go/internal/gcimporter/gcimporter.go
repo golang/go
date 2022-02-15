@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"go/token"
 	"go/types"
+	"internal/pkgbits"
 	"io"
 	"os"
 	"path/filepath"
@@ -132,9 +133,9 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 	}
 	defer rc.Close()
 
-	var hdr string
 	buf := bufio.NewReader(rc)
-	if hdr, err = FindExportData(buf); err != nil {
+	hdr, size, err := FindExportData(buf)
+	if err != nil {
 		return
 	}
 
@@ -144,14 +145,32 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 
 	case "$$B\n":
 		var exportFormat byte
-		exportFormat, err = buf.ReadByte()
+		if exportFormat, err = buf.ReadByte(); err != nil {
+			return
+		}
 
-		// The indexed export format starts with an 'i'; the older
-		// binary export format starts with a 'c', 'd', or 'v'
-		// (from "version"). Select appropriate importer.
-		if err == nil && exportFormat == 'i' {
+		// The unified export format starts with a 'u'; the indexed export
+		// format starts with an 'i'; and the older binary export format
+		// starts with a 'c', 'd', or 'v' (from "version"). Select
+		// appropriate importer.
+		switch exportFormat {
+		case 'u':
+			var data []byte
+			var r io.Reader = buf
+			if size >= 0 {
+				r = io.LimitReader(r, int64(size))
+			}
+			if data, err = io.ReadAll(r); err != nil {
+				return
+			}
+			s := string(data)
+			s = s[:strings.LastIndex(s, "\n$$\n")]
+
+			input := pkgbits.NewPkgDecoder(id, s)
+			pkg = readUnifiedPackage(fset, nil, packages, input)
+		case 'i':
 			pkg, err = iImportData(fset, packages, buf, id)
-		} else {
+		default:
 			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
 		}
 
