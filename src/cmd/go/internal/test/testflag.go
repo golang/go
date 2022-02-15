@@ -28,7 +28,6 @@ import (
 
 func init() {
 	work.AddBuildFlags(CmdTest, work.OmitVFlag)
-	base.AddWorkfileFlag(&CmdTest.Flag)
 
 	cf := CmdTest.Flag
 	cf.BoolVar(&testC, "c", false, "")

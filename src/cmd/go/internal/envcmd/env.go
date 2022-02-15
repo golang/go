@@ -154,6 +154,10 @@ func ExtraEnvVars() []cfg.EnvVar {
 	}
 	modload.InitWorkfile()
 	gowork := modload.WorkFilePath()
+	// As a special case, if a user set off explicitly, report that in GOWORK.
+	if cfg.Getenv("GOWORK") == "off" {
+		gowork = "off"
+	}
 	return []cfg.EnvVar{
 		{Name: "GOMOD", Value: gomod},
 		{Name: "GOWORK", Value: gowork},

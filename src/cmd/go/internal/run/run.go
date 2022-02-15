@@ -65,7 +65,6 @@ func init() {
 	CmdRun.Run = runRun // break init loop
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
-	base.AddWorkfileFlag(&CmdRun.Flag)
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 

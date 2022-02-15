@@ -59,7 +59,6 @@ var (
 func init() {
 	cmdWhy.Run = runWhy // break init cycle
 	base.AddModCommonFlags(&cmdWhy.Flag)
-	base.AddWorkfileFlag(&cmdWhy.Flag)
 }
 
 func runWhy(ctx context.Context, cmd *base.Command, args []string) {
