@@ -42,7 +42,7 @@ func loadMimeGlobsFile(filename string) error {
 	for scanner.Scan() {
 		// Each line should be of format: weight:mimetype:*.ext[:morefields...]
 		fields := strings.Split(scanner.Text(), ":")
-		if len(fields) < 3 || len(fields[0]) < 1 || len(fields[2]) < 2 {
+		if len(fields) < 3 || len(fields[0]) < 1 || len(fields[2]) < 3 {
 			continue
 		} else if fields[0][0] == '#' || fields[2][0] != '*' || fields[2][1] != '.' {
 			continue
