@@ -197,6 +197,7 @@ const (
 	CLONE_FILES                      = 0x400
 	CLONE_FS                         = 0x200
 	CLONE_IO                         = 0x80000000
+	CLONE_NEWCGROUP                  = 0x2000000
 	CLONE_NEWIPC                     = 0x8000000
 	CLONE_NEWNET                     = 0x40000000
 	CLONE_NEWNS                      = 0x20000
