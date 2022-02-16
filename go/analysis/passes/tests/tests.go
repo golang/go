@@ -156,7 +156,7 @@ func validateFuzzArgs(pass *analysis.Pass, params *types.Tuple, expr ast.Expr) {
 			if isFuncLit {
 				exprRange = fLit.Type.Params.List[i].Type
 			}
-			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: "+printAcceptedFuzzType())
+			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: "+formatAcceptedFuzzType())
 		}
 	}
 }
