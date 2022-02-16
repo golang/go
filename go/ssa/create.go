@@ -34,7 +34,6 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 
 	h := typeutil.MakeHasher() // protected by methodsMu, in effect
 	prog.methodSets.SetHasher(h)
-	prog.canon.SetHasher(h)
 
 	return prog
 }

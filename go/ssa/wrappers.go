@@ -246,9 +246,11 @@ func makeThunk(prog *Program, sel *types.Selection) *Function {
 		panic(sel)
 	}
 
+	// Canonicalize sel.Recv() to avoid constructing duplicate thunks.
+	canonRecv := prog.canon.Type(sel.Recv())
 	key := selectionKey{
 		kind:     sel.Kind(),
-		recv:     sel.Recv(),
+		recv:     canonRecv,
 		obj:      sel.Obj(),
 		index:    fmt.Sprint(sel.Index()),
 		indirect: sel.Indirect(),
@@ -256,14 +258,6 @@ func makeThunk(prog *Program, sel *types.Selection) *Function {
 
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
-
-	// Canonicalize key.recv to avoid constructing duplicate thunks.
-	canonRecv, ok := prog.canon.At(key.recv).(types.Type)
-	if !ok {
-		canonRecv = key.recv
-		prog.canon.Set(key.recv, canonRecv)
-	}
-	key.recv = canonRecv
 
 	fn, ok := prog.thunks[key]
 	if !ok {

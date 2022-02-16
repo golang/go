@@ -13,9 +13,21 @@ import (
 	"go/types"
 	"io"
 	"os"
+	"sync"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/types/typeutil"
 )
+
+//// Sanity checking utilities
+
+// assert panics with the mesage msg if p is false.
+// Avoid combining with expensive string formatting.
+func assert(p bool, msg string) {
+	if !p {
+		panic(msg)
+	}
+}
 
 //// AST utilities
 
@@ -86,4 +98,37 @@ func makeLen(T types.Type) *Builtin {
 		name: "len",
 		sig:  types.NewSignature(nil, lenParams, lenResults, false),
 	}
+}
+
+// Mapping of a type T to a canonical instance C s.t. types.Indentical(T, C).
+// Thread-safe.
+type canonizer struct {
+	mu    sync.Mutex
+	canon typeutil.Map // map from type to a canonical instance
+}
+
+// Tuple returns a canonical representative of a Tuple of types.
+// Representative of the empty Tuple is nil.
+func (c *canonizer) Tuple(ts []types.Type) *types.Tuple {
+	if len(ts) == 0 {
+		return nil
+	}
+	vars := make([]*types.Var, len(ts))
+	for i, t := range ts {
+		vars[i] = anonVar(t)
+	}
+	tuple := types.NewTuple(vars...)
+	return c.Type(tuple).(*types.Tuple)
+}
+
+// Type returns a canonical representative of type T.
+func (c *canonizer) Type(T types.Type) types.Type {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if r := c.canon.At(T); r != nil {
+		return r.(types.Type)
+	}
+	c.canon.Set(T, T)
+	return T
 }
