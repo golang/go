@@ -40,7 +40,7 @@ func loadMimeGlobsFile(filename string) error {
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		// Each line should be of format: weight:mimetype:*.ext
+		// Each line should be of format: weight:mimetype:*.ext[:morefields...]
 		fields := strings.Split(scanner.Text(), ":")
 		if len(fields) < 3 || len(fields[0]) < 1 || len(fields[2]) < 2 {
 			continue
