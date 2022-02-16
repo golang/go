@@ -44,7 +44,7 @@ func loadMimeGlobsFile(filename string) error {
 		fields := strings.Split(scanner.Text(), ":")
 		if len(fields) < 3 || len(fields[0]) < 1 || len(fields[2]) < 2 {
 			continue
-		} else if fields[0][0] == '#' || fields[2][0] != '*' {
+		} else if fields[0][0] == '#' || fields[2][0] != '*' || fields[2][1] != '.' {
 			continue
 		}
 
