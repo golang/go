@@ -552,6 +552,336 @@ package v
 	mt.assertModuleFoundInDir("example.com/vv", "v", `main/v12$`)
 }
 
+// Tests that go.work files are respected.
+func TestModWorkspace(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+
+	mt := setup(t, `
+-- go.work --
+go 1.18
+
+use (
+	./a
+	./b
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.18
+-- a/a.go --
+package a
+-- b/go.mod --
+module example.com/b
+
+go 1.18
+-- b/b.go --
+package b
+`, "")
+	defer mt.cleanup()
+
+	mt.assertModuleFoundInDir("example.com/a", "a", `main/a$`)
+	mt.assertModuleFoundInDir("example.com/b", "b", `main/b$`)
+	mt.assertScanFinds("example.com/a", "a")
+	mt.assertScanFinds("example.com/b", "b")
+}
+
+// Tests replaces in workspaces. Uses the directory layout in the cmd/go
+// work_replace test. It tests both that replaces in go.work files are
+// respected and that a wildcard replace in go.work overrides a versioned replace
+// in go.mod.
+func TestModWorkspaceReplace(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+
+	mt := setup(t, `
+-- go.work --
+use m
+
+replace example.com/dep => ./dep
+replace example.com/other => ./other2
+
+-- m/go.mod --
+module example.com/m
+
+require example.com/dep v1.0.0
+require example.com/other v1.0.0
+
+replace example.com/other v1.0.0 => ./other
+-- m/m.go --
+package m
+
+import "example.com/dep"
+import "example.com/other"
+
+func F() {
+	dep.G()
+	other.H()
+}
+-- dep/go.mod --
+module example.com/dep
+-- dep/dep.go --
+package dep
+
+func G() {
+}
+-- other/go.mod --
+module example.com/other
+-- other/dep.go --
+package other
+
+func G() {
+}
+-- other2/go.mod --
+module example.com/other
+-- other2/dep.go --
+package other2
+
+func G() {
+}
+`, "")
+	defer mt.cleanup()
+
+	mt.assertScanFinds("example.com/m", "m")
+	mt.assertScanFinds("example.com/dep", "dep")
+	mt.assertModuleFoundInDir("example.com/other", "other2", "main/other2$")
+	mt.assertScanFinds("example.com/other", "other2")
+}
+
+// Tests a case where conflicting replaces are overridden by a replace
+// in the go.work file.
+func TestModWorkspaceReplaceOverride(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+
+	mt := setup(t, `-- go.work --
+use m
+use n
+replace example.com/dep => ./dep3
+-- m/go.mod --
+module example.com/m
+
+require example.com/dep v1.0.0
+replace example.com/dep => ./dep1
+-- m/m.go --
+package m
+
+import "example.com/dep"
+
+func F() {
+	dep.G()
+}
+-- n/go.mod --
+module example.com/n
+
+require example.com/dep v1.0.0
+replace example.com/dep => ./dep2
+-- n/n.go --
+package n
+
+import "example.com/dep"
+
+func F() {
+	dep.G()
+}
+-- dep1/go.mod --
+module example.com/dep
+-- dep1/dep.go --
+package dep
+
+func G() {
+}
+-- dep2/go.mod --
+module example.com/dep
+-- dep2/dep.go --
+package dep
+
+func G() {
+}
+-- dep3/go.mod --
+module example.com/dep
+-- dep3/dep.go --
+package dep
+
+func G() {
+}
+`, "")
+
+	mt.assertScanFinds("example.com/m", "m")
+	mt.assertScanFinds("example.com/n", "n")
+	mt.assertScanFinds("example.com/dep", "dep")
+	mt.assertModuleFoundInDir("example.com/dep", "dep", "main/dep3$")
+}
+
+// Tests that the correct versions of modules are found in
+// workspaces with module pruning. This is based on the
+// cmd/go mod_prune_all script test.
+func TestModWorkspacePrune(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+
+	mt := setup(t, `
+-- go.work --
+go 1.18
+
+use (
+	./a
+	./p
+)
+
+replace example.com/b v1.0.0 => ./b
+replace example.com/q v1.0.0 => ./q1_0_0
+replace example.com/q v1.0.5 => ./q1_0_5
+replace example.com/q v1.1.0 => ./q1_1_0
+replace example.com/r v1.0.0 => ./r
+replace example.com/w v1.0.0 => ./w
+replace example.com/x v1.0.0 => ./x
+replace example.com/y v1.0.0 => ./y
+replace example.com/z v1.0.0 => ./z1_0_0
+replace example.com/z v1.1.0 => ./z1_1_0
+
+-- a/go.mod --
+module example.com/a
+
+go 1.18
+
+require example.com/b v1.0.0
+require example.com/z v1.0.0
+-- a/foo.go --
+package main
+
+import "example.com/b"
+
+func main() {
+	b.B()
+}
+-- b/go.mod --
+module example.com/b
+
+go 1.18
+
+require example.com/q v1.1.0
+-- b/b.go --
+package b
+
+func B() {
+}
+-- p/go.mod --
+module example.com/p
+
+go 1.18
+
+require example.com/q v1.0.0
+
+replace example.com/q v1.0.0 => ../q1_0_0
+replace example.com/q v1.1.0 => ../q1_1_0
+-- p/main.go --
+package main
+
+import "example.com/q"
+
+func main() {
+	q.PrintVersion()
+}
+-- q1_0_0/go.mod --
+module example.com/q
+
+go 1.18
+-- q1_0_0/q.go --
+package q
+
+import "fmt"
+
+func PrintVersion() {
+	fmt.Println("version 1.0.0")
+}
+-- q1_0_5/go.mod --
+module example.com/q
+
+go 1.18
+
+require example.com/r v1.0.0
+-- q1_0_5/q.go --
+package q
+
+import _ "example.com/r"
+-- q1_1_0/go.mod --
+module example.com/q
+
+require example.com/w v1.0.0
+require example.com/z v1.1.0
+
+go 1.18
+-- q1_1_0/q.go --
+package q
+
+import _ "example.com/w"
+import _ "example.com/z"
+
+import "fmt"
+
+func PrintVersion() {
+	fmt.Println("version 1.1.0")
+}
+-- r/go.mod --
+module example.com/r
+
+go 1.18
+
+require example.com/r v1.0.0
+-- r/r.go --
+package r
+-- w/go.mod --
+module example.com/w
+
+go 1.18
+
+require example.com/x v1.0.0
+-- w/w.go --
+package w
+-- w/w_test.go --
+package w
+
+import _ "example.com/x"
+-- x/go.mod --
+module example.com/x
+
+go 1.18
+-- x/x.go --
+package x
+-- x/x_test.go --
+package x
+import _ "example.com/y"
+-- y/go.mod --
+module example.com/y
+
+go 1.18
+-- y/y.go --
+package y
+-- z1_0_0/go.mod --
+module example.com/z
+
+go 1.18
+
+require example.com/q v1.0.5
+-- z1_0_0/z.go --
+package z
+
+import _ "example.com/q"
+-- z1_1_0/go.mod --
+module example.com/z
+
+go 1.18
+-- z1_1_0/z.go --
+package z
+`, "")
+
+	mt.assertScanFinds("example.com/w", "w")
+	mt.assertScanFinds("example.com/q", "q")
+	mt.assertScanFinds("example.com/x", "x")
+	mt.assertScanFinds("example.com/z", "z")
+	mt.assertModuleFoundInDir("example.com/w", "w", "main/w$")
+	mt.assertModuleFoundInDir("example.com/q", "q", "main/q1_1_0$")
+	mt.assertModuleFoundInDir("example.com/x", "x", "main/x$")
+	mt.assertModuleFoundInDir("example.com/z", "z", "main/z1_1_0$")
+}
+
 // Tests that we handle GO111MODULE=on with no go.mod file. See #30855.
 func TestNoMainModule(t *testing.T) {
 	testenv.NeedsGo1Point(t, 12)

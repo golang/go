@@ -207,21 +207,21 @@ func main() {
 		fmt.Printf("using module mode; GOMOD=%s\n", goModFile)
 
 		// Detect whether to use vendor mode or not.
-		mainMod, vendorEnabled, err := gocommand.VendorEnabled(context.Background(), gocommand.Invocation{}, &gocommand.Runner{})
+		vendorEnabled, mainModVendor, err := gocommand.VendorEnabled(context.Background(), gocommand.Invocation{}, &gocommand.Runner{})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to determine if vendoring is enabled: %v", err)
 			os.Exit(1)
 		}
 		if vendorEnabled {
 			// Bind the root directory of the main module.
-			fs.Bind(path.Join("/src", mainMod.Path), gatefs.New(vfs.OS(mainMod.Dir), fsGate), "/", vfs.BindAfter)
+			fs.Bind(path.Join("/src", mainModVendor.Path), gatefs.New(vfs.OS(mainModVendor.Dir), fsGate), "/", vfs.BindAfter)
 
 			// Bind the vendor directory.
 			//
 			// Note that in module mode, vendor directories in locations
 			// other than the main module's root directory are ignored.
 			// See https://golang.org/ref/mod#vendoring.
-			vendorDir := filepath.Join(mainMod.Dir, "vendor")
+			vendorDir := filepath.Join(mainModVendor.Dir, "vendor")
 			fs.Bind("/src", gatefs.New(vfs.OS(vendorDir), fsGate), "/", vfs.BindAfter)
 
 		} else {
