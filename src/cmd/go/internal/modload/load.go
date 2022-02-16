@@ -1675,24 +1675,6 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 
 // load loads an individual package.
 func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
-	if strings.Contains(pkg.path, "@") {
-		// Leave for error during load.
-		return
-	}
-	if build.IsLocalImport(pkg.path) || filepath.IsAbs(pkg.path) {
-		// Leave for error during load.
-		// (Module mode does not allow local imports.)
-		return
-	}
-
-	if search.IsMetaPackage(pkg.path) {
-		pkg.err = &invalidImportError{
-			importPath: pkg.path,
-			err:        fmt.Errorf("%q is not an importable package; see 'go help packages'", pkg.path),
-		}
-		return
-	}
-
 	var mg *ModuleGraph
 	if ld.requirements.pruning == unpruned {
 		var err error
