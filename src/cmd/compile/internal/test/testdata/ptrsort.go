@@ -6,7 +6,7 @@ package main
 import (
 	"fmt"
 
-	"./mysort"
+	"cmd/compile/internal/test/testdata/mysort"
 )
 
 type MyString struct {
