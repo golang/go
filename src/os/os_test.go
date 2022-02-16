@@ -28,6 +28,16 @@ import (
 	"time"
 )
 
+func TestMain(m *testing.M) {
+	if Getenv("GO_OS_TEST_DRAIN_STDIN") == "1" {
+		os.Stdout.Close()
+		io.Copy(io.Discard, os.Stdin)
+		Exit(0)
+	}
+
+	Exit(m.Run())
+}
+
 var dot = []string{
 	"dir_unix.go",
 	"env.go",
@@ -2259,9 +2269,18 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	// Re-exec the test binary itself to emulate "sleep 1".
-	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
-	err := cmd.Start()
+	// Re-exec the test binary to start a process that hangs until stdin is closed.
+	cmd := osexec.Command(Args[0])
+	cmd.Env = append(os.Environ(), "GO_OS_TEST_DRAIN_STDIN=1")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cmd.Start()
 	if err != nil {
 		t.Fatalf("Failed to start test process: %v", err)
 	}
@@ -2270,19 +2289,14 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 		if err := cmd.Wait(); err == nil {
 			t.Errorf("Test process succeeded, but expected to fail")
 		}
+		stdin.Close() // Keep stdin alive until the process has finished dying.
 	}()
 
-	time.Sleep(100 * time.Millisecond)
-	processKiller(cmd.Process)
-}
+	// Wait for the process to be started.
+	// (It will close its stdout when it reaches TestMain.)
+	io.Copy(io.Discard, stdout)
 
-// TestSleep emulates "sleep 1". It is a helper for testKillProcess, so we
-// don't have to rely on an external "sleep" command being available.
-func TestSleep(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping in short mode")
-	}
-	time.Sleep(time.Second)
+	processKiller(cmd.Process)
 }
 
 func TestKillStartProcess(t *testing.T) {
