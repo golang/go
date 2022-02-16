@@ -792,7 +792,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 	file1 := path.Join(r.codeDir, "go.mod")
 	gomod1, err1 := r.code.ReadFile(rev, file1, codehost.MaxGoMod)
 	if err1 != nil && !os.IsNotExist(err1) {
-		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.pathPrefix, file1, rev, err1)
+		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.codeRoot, file1, rev, err1)
 	}
 	mpath1 := modfile.ModulePath(gomod1)
 	found1 := err1 == nil && (isMajor(mpath1, r.pathMajor) || r.canReplaceMismatchedVersionDueToBug(mpath1))
@@ -810,7 +810,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		file2 = path.Join(dir2, "go.mod")
 		gomod2, err2 := r.code.ReadFile(rev, file2, codehost.MaxGoMod)
 		if err2 != nil && !os.IsNotExist(err2) {
-			return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.pathPrefix, file2, rev, err2)
+			return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.codeRoot, file2, rev, err2)
 		}
 		mpath2 := modfile.ModulePath(gomod2)
 		found2 := err2 == nil && isMajor(mpath2, r.pathMajor)
@@ -823,9 +823,9 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		}
 		if err2 == nil {
 			if mpath2 == "" {
-				return "", "", nil, fmt.Errorf("%s/%s is missing module path at revision %s", r.pathPrefix, file2, rev)
+				return "", "", nil, fmt.Errorf("%s/%s is missing module path at revision %s", r.codeRoot, file2, rev)
 			}
-			return "", "", nil, fmt.Errorf("%s/%s has non-...%s module path %q at revision %s", r.pathPrefix, file2, r.pathMajor, mpath2, rev)
+			return "", "", nil, fmt.Errorf("%s/%s has non-...%s module path %q at revision %s", r.codeRoot, file2, r.pathMajor, mpath2, rev)
 		}
 	}
 
