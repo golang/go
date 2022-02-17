@@ -354,15 +354,18 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		// declaration before recursing.
 		n := importtype(pos, sym)
 		t := n.Type()
+
+		// Because of recursion, we need to defer width calculations and
+		// instantiations on intermediate types until the top-level type is
+		// fully constructed. Note that we can have recursion via type
+		// constraints.
+		types.DeferCheckSize()
+		deferDoInst()
 		if tag == 'U' {
 			rparams := r.typeList()
 			t.SetRParams(rparams)
 		}
 
-		// We also need to defer width calculations until
-		// after the underlying type has been assigned.
-		types.DeferCheckSize()
-		deferDoInst()
 		underlying := r.typ()
 		t.SetUnderlying(underlying)
 
