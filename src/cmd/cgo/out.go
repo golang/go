@@ -1604,6 +1604,7 @@ const goStringDef = `
 //go:linkname _cgo_runtime_gostring runtime.gostring
 func _cgo_runtime_gostring(*_Ctype_char) string
 
+// GoString converts the C string p into a Go string.
 func _Cfunc_GoString(p *_Ctype_char) string {
 	return _cgo_runtime_gostring(p)
 }
@@ -1613,6 +1614,7 @@ const goStringNDef = `
 //go:linkname _cgo_runtime_gostringn runtime.gostringn
 func _cgo_runtime_gostringn(*_Ctype_char, int) string
 
+// GoStringN converts the C data p with explicit length l to a Go string.
 func _Cfunc_GoStringN(p *_Ctype_char, l _Ctype_int) string {
 	return _cgo_runtime_gostringn(p, int(l))
 }
@@ -1622,12 +1624,19 @@ const goBytesDef = `
 //go:linkname _cgo_runtime_gobytes runtime.gobytes
 func _cgo_runtime_gobytes(unsafe.Pointer, int) []byte
 
+// GoBytes converts the C data p with explicit length l to a Go []byte.
 func _Cfunc_GoBytes(p unsafe.Pointer, l _Ctype_int) []byte {
 	return _cgo_runtime_gobytes(p, int(l))
 }
 `
 
 const cStringDef = `
+// CString converts the Go string s to a C string.
+//
+// The C string is allocated in the C heap using malloc.
+// It is the caller's responsibility to arrange for it to be
+// freed, such as by calling C.free (be sure to include stdlib.h
+// if C.free is needed).
 func _Cfunc_CString(s string) *_Ctype_char {
 	p := _cgo_cmalloc(uint64(len(s)+1))
 	pp := (*[1<<30]byte)(p)
@@ -1638,6 +1647,12 @@ func _Cfunc_CString(s string) *_Ctype_char {
 `
 
 const cBytesDef = `
+// CBytes converts the Go []byte slice b to a C array.
+//
+// The C array is allocated in the C heap using malloc.
+// It is the caller's responsibility to arrange for it to be
+// freed, such as by calling C.free (be sure to include stdlib.h
+// if C.free is needed).
 func _Cfunc_CBytes(b []byte) unsafe.Pointer {
 	p := _cgo_cmalloc(uint64(len(b)))
 	pp := (*[1<<30]byte)(p)
