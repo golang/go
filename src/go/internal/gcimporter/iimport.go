@@ -181,6 +181,15 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 		p.doDecl(localpkg, name)
 	}
 
+	// SetConstraint can't be called if the constraint type is not yet complete.
+	// When type params are created in the 'P' case of (*importReader).obj(),
+	// the associated constraint type may not be complete due to recursion.
+	// Therefore, we defer calling SetConstraint there, and call it here instead
+	// after all types are complete.
+	for _, d := range p.later {
+		d.t.SetConstraint(d.constraint)
+	}
+
 	for _, typ := range p.interfaceList {
 		typ.Complete()
 	}
@@ -193,6 +202,11 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 	// package was imported completely and without errors
 	localpkg.MarkComplete()
 	return localpkg, nil
+}
+
+type setConstraintArgs struct {
+	t          *types.TypeParam
+	constraint types.Type
 }
 
 type iimporter struct {
@@ -211,6 +225,9 @@ type iimporter struct {
 
 	fake          fakeFileSet
 	interfaceList []*types.Interface
+
+	// Arguments for calls to SetConstraint that are deferred due to recursive types
+	later []setConstraintArgs
 }
 
 func (p *iimporter) doDecl(pkg *types.Package, name string) {
@@ -391,7 +408,11 @@ func (r *importReader) obj(name string) {
 			}
 			iface.MarkImplicit()
 		}
-		t.SetConstraint(constraint)
+		// The constraint type may not be complete, if we
+		// are in the middle of a type recursion involving type
+		// constraints. So, we defer SetConstraint until we have
+		// completely set up all types in ImportData.
+		r.p.later = append(r.p.later, setConstraintArgs{t: t, constraint: constraint})
 
 	case 'V':
 		typ := r.typ()
