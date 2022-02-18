@@ -10,8 +10,11 @@ import (
 	"io"
 	. "runtime"
 	"runtime/debug"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -355,6 +358,100 @@ func TestGoroutineProfileTrivial(t *testing.T) {
 			t.Fatalf("GoroutineProfile not converging")
 		}
 	}
+}
+
+func BenchmarkGoroutineProfile(b *testing.B) {
+	run := func(fn func() bool) func(b *testing.B) {
+		runOne := func(b *testing.B) {
+			latencies := make([]time.Duration, 0, b.N)
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				start := time.Now()
+				ok := fn()
+				if !ok {
+					b.Fatal("goroutine profile failed")
+				}
+				latencies = append(latencies, time.Now().Sub(start))
+			}
+			b.StopTimer()
+
+			// Sort latencies then report percentiles.
+			sort.Slice(latencies, func(i, j int) bool {
+				return latencies[i] < latencies[j]
+			})
+			b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
+			b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
+			b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
+		}
+		return func(b *testing.B) {
+			b.Run("idle", runOne)
+
+			b.Run("loaded", func(b *testing.B) {
+				stop := applyGCLoad(b)
+				runOne(b)
+				// Make sure to stop the timer before we wait! The load created above
+				// is very heavy-weight and not easy to stop, so we could end up
+				// confusing the benchmarking framework for small b.N.
+				b.StopTimer()
+				stop()
+			})
+		}
+	}
+
+	// Measure the cost of counting goroutines
+	b.Run("small-nil", run(func() bool {
+		GoroutineProfile(nil)
+		return true
+	}))
+
+	// Measure the cost with a small set of goroutines
+	n := NumGoroutine()
+	p := make([]StackRecord, 2*n+2*GOMAXPROCS(0))
+	b.Run("small", run(func() bool {
+		_, ok := GoroutineProfile(p)
+		return ok
+	}))
+
+	// Measure the cost with a large set of goroutines
+	ch := make(chan int)
+	var ready, done sync.WaitGroup
+	for i := 0; i < 5000; i++ {
+		ready.Add(1)
+		done.Add(1)
+		go func() { ready.Done(); <-ch; done.Done() }()
+	}
+	ready.Wait()
+
+	// Count goroutines with a large allgs list
+	b.Run("large-nil", run(func() bool {
+		GoroutineProfile(nil)
+		return true
+	}))
+
+	n = NumGoroutine()
+	p = make([]StackRecord, 2*n+2*GOMAXPROCS(0))
+	b.Run("large", run(func() bool {
+		_, ok := GoroutineProfile(p)
+		return ok
+	}))
+
+	close(ch)
+	done.Wait()
+
+	// Count goroutines with a large (but unused) allgs list
+	b.Run("sparse-nil", run(func() bool {
+		GoroutineProfile(nil)
+		return true
+	}))
+
+	// Measure the cost of a large (but unused) allgs list
+	n = NumGoroutine()
+	p = make([]StackRecord, 2*n+2*GOMAXPROCS(0))
+	b.Run("sparse", run(func() bool {
+		_, ok := GoroutineProfile(p)
+		return ok
+	}))
 }
 
 func TestVersion(t *testing.T) {
