@@ -33,9 +33,14 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$432
 	ADD	$LOCAL_REGARGS, RSP, R20
 	CALL	runtime·spillArgs(SB)
 	MOVD	R26, 32(RSP) // outside of moveMakeFuncArgPtrs's arg area
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	R26, R0
+	MOVD	R20, R1
+#else
 	MOVD	R26, 8(RSP)
 	MOVD	R20, 16(RSP)
-	CALL	·moveMakeFuncArgPtrs(SB)
+#endif
+	CALL	·moveMakeFuncArgPtrs<ABIInternal>(SB)
 	MOVD	32(RSP), R26
 	MOVD	R26, 8(RSP)
 	MOVD	$argframe+0(FP), R3
@@ -61,9 +66,14 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$432
 	ADD	$LOCAL_REGARGS, RSP, R20
 	CALL	runtime·spillArgs(SB)
 	MOVD	R26, 32(RSP) // outside of moveMakeFuncArgPtrs's arg area
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	R26, R0
+	MOVD	R20, R1
+#else
 	MOVD	R26, 8(RSP)
 	MOVD	R20, 16(RSP)
-	CALL	·moveMakeFuncArgPtrs(SB)
+#endif
+	CALL	·moveMakeFuncArgPtrs<ABIInternal>(SB)
 	MOVD	32(RSP), R26
 	MOVD	R26, 8(RSP)
 	MOVD	$argframe+0(FP), R3
