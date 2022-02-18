@@ -5053,7 +5053,7 @@ func checkdead() {
 		}
 	}
 
-	unlock(&sched.lock)    // unlock so that GODEBUG=scheddetail=1 doesn't hang
+	unlock(&sched.lock) // unlock so that GODEBUG=scheddetail=1 doesn't hang
 	fatal("all goroutines are asleep - deadlock!")
 }
 

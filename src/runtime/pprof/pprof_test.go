@@ -1389,6 +1389,279 @@ func containsCountsLabels(prof *profile.Profile, countLabels map[int64]map[strin
 	return true
 }
 
+func TestGoroutineProfileConcurrency(t *testing.T) {
+	goroutineProf := Lookup("goroutine")
+
+	profilerCalls := func(s string) int {
+		return strings.Count(s, "\truntime/pprof.runtime_goroutineProfileWithLabels+")
+	}
+
+	includesFinalizer := func(s string) bool {
+		return strings.Contains(s, "runtime.runfinq")
+	}
+
+	// Concurrent calls to the goroutine profiler should not trigger data races
+	// or corruption.
+	t.Run("overlapping profile requests", func(t *testing.T) {
+		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		var wg sync.WaitGroup
+		for i := 0; i < 2; i++ {
+			wg.Add(1)
+			Do(ctx, Labels("i", fmt.Sprint(i)), func(context.Context) {
+				go func() {
+					defer wg.Done()
+					for ctx.Err() == nil {
+						var w bytes.Buffer
+						goroutineProf.WriteTo(&w, 1)
+						prof := w.String()
+						count := profilerCalls(prof)
+						if count >= 2 {
+							t.Logf("prof %d\n%s", count, prof)
+							cancel()
+						}
+					}
+				}()
+			})
+		}
+		wg.Wait()
+	})
+
+	// The finalizer goroutine should not show up in most profiles, since it's
+	// marked as a system goroutine when idle.
+	t.Run("finalizer not present", func(t *testing.T) {
+		var w bytes.Buffer
+		goroutineProf.WriteTo(&w, 1)
+		prof := w.String()
+		if includesFinalizer(prof) {
+			t.Errorf("profile includes finalizer (but finalizer should be marked as system):\n%s", prof)
+		}
+	})
+
+	// The finalizer goroutine should show up when it's running user code.
+	t.Run("finalizer present", func(t *testing.T) {
+		obj := new(byte)
+		ch1, ch2 := make(chan int), make(chan int)
+		defer close(ch2)
+		runtime.SetFinalizer(obj, func(_ interface{}) {
+			close(ch1)
+			<-ch2
+		})
+		obj = nil
+		for i := 10; i >= 0; i-- {
+			select {
+			case <-ch1:
+			default:
+				if i == 0 {
+					t.Fatalf("finalizer did not run")
+				}
+				runtime.GC()
+			}
+		}
+		var w bytes.Buffer
+		goroutineProf.WriteTo(&w, 1)
+		prof := w.String()
+		if !includesFinalizer(prof) {
+			t.Errorf("profile does not include finalizer (and it should be marked as user):\n%s", prof)
+		}
+	})
+
+	// Check that new goroutines only show up in order.
+	testLaunches := func(t *testing.T) {
+		var done sync.WaitGroup
+		defer done.Wait()
+
+		ctx := context.Background()
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		ch := make(chan int)
+		defer close(ch)
+
+		var ready sync.WaitGroup
+
+		// These goroutines all survive until the end of the subtest, so we can
+		// check that a (numbered) goroutine appearing in the profile implies
+		// that all older goroutines also appear in the profile.
+		ready.Add(1)
+		done.Add(1)
+		go func() {
+			defer done.Done()
+			for i := 0; ctx.Err() == nil; i++ {
+				// Use SetGoroutineLabels rather than Do we can always expect an
+				// extra goroutine (this one) with most recent label.
+				SetGoroutineLabels(WithLabels(ctx, Labels(t.Name()+"-loop-i", fmt.Sprint(i))))
+				done.Add(1)
+				go func() {
+					<-ch
+					done.Done()
+				}()
+				for j := 0; j < i; j++ {
+					// Spin for longer and longer as the test goes on. This
+					// goroutine will do O(N^2) work with the number of
+					// goroutines it launches. This should be slow relative to
+					// the work involved in collecting a goroutine profile,
+					// which is O(N) with the high-water mark of the number of
+					// goroutines in this process (in the allgs slice).
+					runtime.Gosched()
+				}
+				if i == 0 {
+					ready.Done()
+				}
+			}
+		}()
+
+		// Short-lived goroutines exercise different code paths (goroutines with
+		// status _Gdead, for instance). This churn doesn't have behavior that
+		// we can test directly, but does help to shake out data races.
+		ready.Add(1)
+		var churn func(i int)
+		churn = func(i int) {
+			SetGoroutineLabels(WithLabels(ctx, Labels(t.Name()+"-churn-i", fmt.Sprint(i))))
+			if i == 0 {
+				ready.Done()
+			}
+			if ctx.Err() == nil {
+				go churn(i + 1)
+			}
+		}
+		go func() {
+			churn(0)
+		}()
+
+		ready.Wait()
+
+		var w [3]bytes.Buffer
+		for i := range w {
+			goroutineProf.WriteTo(&w[i], 0)
+		}
+		for i := range w {
+			p, err := profile.Parse(bytes.NewReader(w[i].Bytes()))
+			if err != nil {
+				t.Errorf("error parsing protobuf profile: %v", err)
+			}
+
+			// High-numbered loop-i goroutines imply that every lower-numbered
+			// loop-i goroutine should be present in the profile too.
+			counts := make(map[string]int)
+			for _, s := range p.Sample {
+				label := s.Label[t.Name()+"-loop-i"]
+				if len(label) > 0 {
+					counts[label[0]]++
+				}
+			}
+			for j, max := 0, len(counts)-1; j <= max; j++ {
+				n := counts[fmt.Sprint(j)]
+				if n == 1 || (n == 2 && j == max) {
+					continue
+				}
+				t.Errorf("profile #%d's goroutines with label loop-i:%d; %d != 1 (or 2 for the last entry, %d)",
+					i+1, j, n, max)
+				t.Logf("counts %v", counts)
+				break
+			}
+		}
+	}
+
+	runs := 100
+	if testing.Short() {
+		runs = 5
+	}
+	for i := 0; i < runs; i++ {
+		// Run multiple times to shake out data races
+		t.Run("goroutine launches", testLaunches)
+	}
+}
+
+func BenchmarkGoroutine(b *testing.B) {
+	withIdle := func(n int, fn func(b *testing.B)) func(b *testing.B) {
+		return func(b *testing.B) {
+			c := make(chan int)
+			var ready, done sync.WaitGroup
+			defer func() {
+				close(c)
+				done.Wait()
+			}()
+
+			for i := 0; i < n; i++ {
+				ready.Add(1)
+				done.Add(1)
+				go func() {
+					ready.Done()
+					<-c
+					done.Done()
+				}()
+			}
+			// Let goroutines block on channel
+			ready.Wait()
+			for i := 0; i < 5; i++ {
+				runtime.Gosched()
+			}
+
+			fn(b)
+		}
+	}
+
+	withChurn := func(fn func(b *testing.B)) func(b *testing.B) {
+		return func(b *testing.B) {
+			ctx := context.Background()
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			var ready sync.WaitGroup
+			ready.Add(1)
+			var count int64
+			var churn func(i int)
+			churn = func(i int) {
+				SetGoroutineLabels(WithLabels(ctx, Labels("churn-i", fmt.Sprint(i))))
+				atomic.AddInt64(&count, 1)
+				if i == 0 {
+					ready.Done()
+				}
+				if ctx.Err() == nil {
+					go churn(i + 1)
+				}
+			}
+			go func() {
+				churn(0)
+			}()
+			ready.Wait()
+
+			fn(b)
+			b.ReportMetric(float64(atomic.LoadInt64(&count))/float64(b.N), "concurrent_launches/op")
+		}
+	}
+
+	benchWriteTo := func(b *testing.B) {
+		goroutineProf := Lookup("goroutine")
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			goroutineProf.WriteTo(io.Discard, 0)
+		}
+		b.StopTimer()
+	}
+
+	benchGoroutineProfile := func(b *testing.B) {
+		p := make([]runtime.StackRecord, 10000)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			runtime.GoroutineProfile(p)
+		}
+		b.StopTimer()
+	}
+
+	// Note that some costs of collecting a goroutine profile depend on the
+	// length of the runtime.allgs slice, which never shrinks. Stay within race
+	// detector's 8k-goroutine limit
+	for _, n := range []int{50, 500, 5000} {
+		b.Run(fmt.Sprintf("Profile.WriteTo idle %d", n), withIdle(n, benchWriteTo))
+		b.Run(fmt.Sprintf("Profile.WriteTo churn %d", n), withIdle(n, withChurn(benchWriteTo)))
+		b.Run(fmt.Sprintf("runtime.GoroutineProfile churn %d", n), withIdle(n, withChurn(benchGoroutineProfile)))
+	}
+}
+
 var emptyCallStackTestRun int64
 
 // Issue 18836.
