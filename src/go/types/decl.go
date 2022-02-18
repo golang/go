@@ -624,7 +624,6 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 	}()
 
 	index := 0
-	var bounds []Type
 	for _, f := range list.List {
 		var bound Type
 		// NOTE: we may be able to assert that f.Type != nil here, but this is not
@@ -642,7 +641,6 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 		} else {
 			bound = Typ[Invalid]
 		}
-		bounds = append(bounds, bound)
 		for i := range f.Names {
 			tparams[index+i].bound = bound
 		}
