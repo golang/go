@@ -17,85 +17,89 @@ import (
 
 //go:linkname syscall_syscall syscall.syscall
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	args := struct{ fn, a1, a2, a3, r1, r2, err uintptr }{fn, a1, a2, a3, r1, r2, err}
 	entersyscall()
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall)), unsafe.Pointer(&fn))
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall)), unsafe.Pointer(&args))
 	exitsyscall()
-	return
+	return args.r1, args.r2, args.err
 }
 func syscall()
 
 //go:linkname syscall_syscallX syscall.syscallX
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	args := struct{ fn, a1, a2, a3, r1, r2, err uintptr }{fn, a1, a2, a3, r1, r2, err}
 	entersyscall()
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallX)), unsafe.Pointer(&fn))
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallX)), unsafe.Pointer(&args))
 	exitsyscall()
-	return
+	return args.r1, args.r2, args.err
 }
 func syscallX()
 
 //go:linkname syscall_syscall6 syscall.syscall6
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	args := struct{ fn, a1, a2, a3, a4, a5, a6, r1, r2, err uintptr }{fn, a1, a2, a3, a4, a5, a6, r1, r2, err}
 	entersyscall()
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6)), unsafe.Pointer(&fn))
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6)), unsafe.Pointer(&args))
 	exitsyscall()
-	return
+	return args.r1, args.r2, args.err
 }
 func syscall6()
 
 //go:linkname syscall_syscall6X syscall.syscall6X
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	args := struct{ fn, a1, a2, a3, a4, a5, a6, r1, r2, err uintptr }{fn, a1, a2, a3, a4, a5, a6, r1, r2, err}
 	entersyscall()
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6X)), unsafe.Pointer(&fn))
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6X)), unsafe.Pointer(&args))
 	exitsyscall()
-	return
+	return args.r1, args.r2, args.err
 }
 func syscall6X()
 
 //go:linkname syscall_syscallPtr syscall.syscallPtr
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	args := struct{ fn, a1, a2, a3, r1, r2, err uintptr }{fn, a1, a2, a3, r1, r2, err}
 	entersyscall()
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallPtr)), unsafe.Pointer(&fn))
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallPtr)), unsafe.Pointer(&args))
 	exitsyscall()
-	return
+	return args.r1, args.r2, args.err
 }
 func syscallPtr()
 
 //go:linkname syscall_rawSyscall syscall.rawSyscall
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall)), unsafe.Pointer(&fn))
-	return
+	args := struct{ fn, a1, a2, a3, r1, r2, err uintptr }{fn, a1, a2, a3, r1, r2, err}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall)), unsafe.Pointer(&args))
+	return args.r1, args.r2, args.err
 }
 
 //go:linkname syscall_rawSyscall6 syscall.rawSyscall6
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6)), unsafe.Pointer(&fn))
-	return
+	args := struct{ fn, a1, a2, a3, a4, a5, a6, r1, r2, err uintptr }{fn, a1, a2, a3, a4, a5, a6, r1, r2, err}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6)), unsafe.Pointer(&args))
+	return args.r1, args.r2, args.err
 }
 
 // syscallNoErr is used in crypto/x509 to call into Security.framework and CF.
 
 //go:linkname crypto_x509_syscall crypto/x509/internal/macos.syscall
 //go:nosplit
-//go:cgo_unsafe_args
 func crypto_x509_syscall(fn, a1, a2, a3, a4, a5 uintptr, f1 float64) (r1 uintptr) {
+	args := struct {
+		fn, a1, a2, a3, a4, a5 uintptr
+		f1                     float64
+		r1                     uintptr
+	}{fn, a1, a2, a3, a4, a5, f1, r1}
 	entersyscall()
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall_x509)), unsafe.Pointer(&fn))
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall_x509)), unsafe.Pointer(&args))
 	exitsyscall()
-	return
+	return args.r1
 }
 func syscall_x509()
 
