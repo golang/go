@@ -65,7 +65,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			Value:  NewConst(obj.Val(), obj.Type()),
 			pkg:    pkg,
 		}
-		pkg.values[obj] = c.Value
+		pkg.objects[obj] = c
 		pkg.Members[name] = c
 
 	case *types.Var:
@@ -76,7 +76,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			typ:    types.NewPointer(obj.Type()), // address
 			pos:    obj.Pos(),
 		}
-		pkg.values[obj] = g
+		pkg.objects[obj] = g
 		pkg.Members[name] = g
 
 	case *types.Func:
@@ -99,7 +99,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			fn.Synthetic = "loaded from gc object file"
 		}
 
-		pkg.values[obj] = fn
+		pkg.objects[obj] = fn
 		if sig.Recv() == nil {
 			pkg.Members[name] = fn // package-level function
 		}
@@ -166,7 +166,7 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 	p := &Package{
 		Prog:    prog,
 		Members: make(map[string]Member),
-		values:  make(map[types.Object]Value),
+		objects: make(map[types.Object]Member),
 		Pkg:     pkg,
 		info:    info,  // transient (CREATE and BUILD phases)
 		files:   files, // transient (CREATE and BUILD phases)

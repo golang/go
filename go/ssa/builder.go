@@ -341,8 +341,10 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			return blank{}
 		}
 		obj := fn.objectOf(e)
-		v := fn.Prog.packageLevelValue(obj) // var (address)
-		if v == nil {
+		var v Value
+		if g := fn.Prog.packageLevelMember(obj); g != nil {
+			v = g.(*Global) // var (address)
+		} else {
 			v = fn.lookup(obj, escaping)
 		}
 		return &address{addr: v, pos: e.Pos(), expr: e}
@@ -684,11 +686,11 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			return nilConst(tv.Type)
 		}
 		// Package-level func or var?
-		if v := fn.Prog.packageLevelValue(obj); v != nil {
-			if _, ok := obj.(*types.Var); ok {
-				return emitLoad(fn, v) // var (address)
+		if v := fn.Prog.packageLevelMember(obj); v != nil {
+			if g, ok := v.(*Global); ok {
+				return emitLoad(fn, g) // var (address)
 			}
-			return v // (func)
+			return v.(*Function) // (func)
 		}
 		// Local var.
 		return emitLoad(fn, fn.lookup(obj, false)) // var (address)
@@ -2225,7 +2227,7 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 	if isBlankIdent(id) {
 		return // discard
 	}
-	fn := pkg.values[pkg.info.Defs[id]].(*Function)
+	fn := pkg.objects[pkg.info.Defs[id]].(*Function)
 	if decl.Recv == nil && id.Name == "init" {
 		var v Call
 		v.Call.Value = fn
@@ -2325,7 +2327,7 @@ func (p *Package) build() {
 			// 1:1 initialization: var x, y = a(), b()
 			var lval lvalue
 			if v := varinit.Lhs[0]; v.Name() != "_" {
-				lval = &address{addr: p.values[v].(*Global), pos: v.Pos()}
+				lval = &address{addr: p.objects[v].(*Global), pos: v.Pos()}
 			} else {
 				lval = blank{}
 			}
@@ -2337,7 +2339,7 @@ func (p *Package) build() {
 				if v.Name() == "_" {
 					continue
 				}
-				emitStore(init, p.values[v].(*Global), emitExtract(init, tuple, i), v.Pos())
+				emitStore(init, p.objects[v].(*Global), emitExtract(init, tuple, i), v.Pos())
 			}
 		}
 	}

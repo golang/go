@@ -118,7 +118,7 @@ func (prog *Program) RuntimeTypes() []types.Type {
 // Panic ensues if there is none.
 //
 func (prog *Program) declaredFunc(obj *types.Func) *Function {
-	if v := prog.packageLevelValue(obj); v != nil {
+	if v := prog.packageLevelMember(obj); v != nil {
 		return v.(*Function)
 	}
 	panic("no concrete method: " + obj.String())

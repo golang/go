@@ -123,7 +123,7 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 				// Don't call Program.Method: avoid creating wrappers.
 				obj := mset.At(i).Obj().(*types.Func)
 				if obj.Pos() == pos {
-					return pkg.values[obj].(*Function)
+					return pkg.objects[obj].(*Function)
 				}
 			}
 		}
@@ -180,14 +180,14 @@ func (prog *Program) Package(obj *types.Package) *Package {
 	return prog.packages[obj]
 }
 
-// packageLevelValue returns the package-level value corresponding to
+// packageLevelMember returns the package-level member corresponding to
 // the specified named object, which may be a package-level const
-// (*Const), var (*Global) or func (*Function) of some package in
+// (*NamedConst), var (*Global) or func (*Function) of some package in
 // prog.  It returns nil if the object is not found.
 //
-func (prog *Program) packageLevelValue(obj types.Object) Value {
+func (prog *Program) packageLevelMember(obj types.Object) Member {
 	if pkg, ok := prog.packages[obj.Pkg()]; ok {
-		return pkg.values[obj]
+		return pkg.objects[obj]
 	}
 	return nil
 }
@@ -199,7 +199,7 @@ func (prog *Program) packageLevelValue(obj types.Object) Value {
 // result's Signature, both in the params/results and in the receiver.
 //
 func (prog *Program) FuncValue(obj *types.Func) *Function {
-	fn, _ := prog.packageLevelValue(obj).(*Function)
+	fn, _ := prog.packageLevelMember(obj).(*Function)
 	return fn
 }
 
@@ -215,8 +215,8 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 		return NewConst(obj.Val(), obj.Type())
 	}
 	// Package-level named constant?
-	if v := prog.packageLevelValue(obj); v != nil {
-		return v.(*Const)
+	if v := prog.packageLevelMember(obj); v != nil {
+		return v.(*NamedConst).Value
 	}
 	return NewConst(obj.Val(), obj.Type())
 }
@@ -285,7 +285,7 @@ func (prog *Program) VarValue(obj *types.Var, pkg *Package, ref []ast.Node) (val
 	}
 
 	// Defining ident of package-level var?
-	if v := prog.packageLevelValue(obj); v != nil {
+	if v := prog.packageLevelMember(obj); v != nil {
 		return v.(*Global), true
 	}
 
