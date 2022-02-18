@@ -188,8 +188,12 @@ ret:
 
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
-TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+TEXT	runtime·racefuncenter<ABIInternal>(SB), NOSPLIT, $0-8
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	R0, R9	// callpc
+#else
 	MOVD	callpc+0(FP), R9
+#endif
 	JMP	racefuncenter<>(SB)
 
 // Common code for racefuncenter
@@ -205,7 +209,7 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 
 // func runtime·racefuncexit()
 // Called from instrumented code.
-TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
+TEXT	runtime·racefuncexit<ABIInternal>(SB), NOSPLIT, $0-0
 	load_g
 	MOVD	g_racectx(g), R0	// race context
 	// void __tsan_func_exit(ThreadState *thr);
