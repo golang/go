@@ -1365,4 +1365,162 @@ const (
 	//  	return i
 	//  }
 	InvalidGo
+
+	// All codes below were added in Go 1.17.
+
+	/* decl */
+
+	// BadDecl occurs when a declaration has invalid syntax.
+	BadDecl
+
+	// RepeatedDecl occurs when an identifier occurs more than once on the left
+	// hand side of a short variable declaration.
+	//
+	// Example:
+	//  func _() {
+	//  	x, y, y := 1, 2, 3
+	//  }
+	RepeatedDecl
+
+	/* unsafe */
+
+	// InvalidUnsafeAdd occurs when unsafe.Add is called with a
+	// length argument that is not of integer type.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var p unsafe.Pointer
+	//  var _ = unsafe.Add(p, float64(1))
+	InvalidUnsafeAdd
+
+	// InvalidUnsafeSlice occurs when unsafe.Slice is called with a
+	// pointer argument that is not of pointer type or a length argument
+	// that is not of integer type, negative, or out of bounds.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(x, 1)
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(&x, float64(1))
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(&x, -1)
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.Slice(&x, uint64(1) << 63)
+	InvalidUnsafeSlice
+
+	// All codes below were added in Go 1.18.
+
+	/* features */
+
+	// UnsupportedFeature occurs when a language feature is used that is not
+	// supported at this Go version.
+	UnsupportedFeature
+
+	/* type params */
+
+	// NotAGenericType occurs when a non-generic type is used where a generic
+	// type is expected: in type or function instantiation.
+	//
+	// Example:
+	//  type T int
+	//
+	//  var _ T[int]
+	NotAGenericType
+
+	// WrongTypeArgCount occurs when a type or function is instantiated with an
+	// incorrent number of type arguments, including when a generic type or
+	// function is used without instantiation.
+	//
+	// Errors inolving failed type inference are assigned other error codes.
+	//
+	// Example:
+	//  type T[p any] int
+	//
+	//  var _ T[int, string]
+	//
+	// Example:
+	//  func f[T any]() {}
+	//
+	//  var x = f
+	WrongTypeArgCount
+
+	// CannotInferTypeArgs occurs when type or function type argument inference
+	// fails to infer all type arguments.
+	//
+	// Example:
+	//  func f[T any]() {}
+	//
+	//  func _() {
+	//  	f()
+	//  }
+	//
+	// Example:
+	//   type N[P, Q any] struct{}
+	//
+	//   var _ N[int]
+	CannotInferTypeArgs
+
+	// InvalidTypeArg occurs when a type argument does not satisfy its
+	// corresponding type parameter constraints.
+	//
+	// Example:
+	//  type T[P ~int] struct{}
+	//
+	//  var _ T[string]
+	InvalidTypeArg // arguments? InferenceFailed
+
+	// InvalidInstanceCycle occurs when an invalid cycle is detected
+	// within the instantiation graph.
+	//
+	// Example:
+	//  func f[T any]() { f[*T]() }
+	InvalidInstanceCycle
+
+	// InvalidUnion occurs when an embedded union or approximation element is
+	// not valid.
+	//
+	// Example:
+	//  type _ interface {
+	//   	~int | interface{ m() }
+	//  }
+	InvalidUnion
+
+	// MisplacedConstraintIface occurs when a constraint-type interface is used
+	// outside of constraint position.
+	//
+	// Example:
+	//   type I interface { ~int }
+	//
+	//   var _ I
+	MisplacedConstraintIface
+
+	// InvalidMethodTypeParams occurs when methods have type parameters.
+	//
+	// It cannot be encountered with an AST parsed using go/parser.
+	InvalidMethodTypeParams
+
+	// MisplacedTypeParam occurs when a type parameter is used in a place where
+	// it is not permitted.
+	//
+	// Example:
+	//  type T[P any] P
+	//
+	// Example:
+	//  type T[P any] struct{ *P }
+	MisplacedTypeParam
 )
