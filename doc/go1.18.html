@@ -250,6 +250,8 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
+
 <p><!-- golang.org/issue/43684 -->
   <code>go</code> <code>get</code> no longer builds or installs packages in
   module-aware mode. <code>go</code> <code>get</code> is now dedicated to
@@ -268,6 +270,8 @@ Do not send CLs removing the interior tags from such phrases.
   <code>GO111MODULE=off</code>), <code>go</code> <code>get</code> still builds
   and installs packages, as before.
 </p>
+
+<h4 id="go-version"><code>go</code> <code>version</code></h4>
 
 <p><!-- golang.org/issue/37475 -->
   The <code>go</code> command now embeds version control information in
@@ -303,6 +307,8 @@ Do not send CLs removing the interior tags from such phrases.
   <code>debug/buildinfo</code> package from <code>go</code> 1.18+.
 </p>
 
+<h4 id="go-mod-download"><code>go</code> <code>mod</code> <code>download</code></h4>
+
 <p><!-- https://golang.org/issue/44435 -->
   If the main module's <code>go.mod</code> file
   specifies <a href="/ref/mod#go-mod-file-go"><code>go</code> <code>1.17</code></a>
@@ -316,6 +322,8 @@ Do not send CLs removing the interior tags from such phrases.
   <code>go</code> <code>mod</code> <code>download</code> <code>all</code>.
 </p>
 
+<h4 id="go-mod-vendor"><code>go</code> <code>mod</code> <code>vendor</code></h4>
+
 <p><!-- https://golang.org/issue/47327 -->
   The <code>go</code> <code>mod</code> <code>vendor</code> subcommand now
   supports a <code>-o</code> flag to set the output directory.
@@ -325,12 +333,16 @@ Do not send CLs removing the interior tags from such phrases.
   third-party tools that need to collect package source code.)
 </p>
 
+<h4 id="go-mod-vendor"><code>go</code> <code>build</code> <code>-asan</code></h4>
+
 <p><!-- CL 298612 -->
   The <code>go</code> <code>build</code> command and related commands
   now support an <code>-asan</code> flag that enables interoperation
   with C (or C++) code compiled with the address sanitizer (C compiler
   option <code>-fsanitize=address</code>).
 </p>
+
+<h4 id="go-mod-tidy"><code>go</code> <code>mod</code> <code>tidy</code></h4>
 
 <p><!-- https://golang.org/issue/47738, CL 344572 -->
   The <code>go</code> <code>mod</code> <code>tidy</code> command now retains
@@ -341,6 +353,8 @@ Do not send CLs removing the interior tags from such phrases.
   change is <em>not</em> conditioned on the <code>go</code> version in the main
   module's <code>go.mod</code> file.
 </p>
+
+<h4 id="go-work"><code>go</code> <code>work</code></h4>
 
 <p><!-- https://golang.org/issue/45713 -->
   The <code>go</code> command now supports a "Workspace" mode. If a
@@ -354,6 +368,8 @@ Do not send CLs removing the interior tags from such phrases.
   <a href="/pkg/cmd/go#hdr-Workspace_maintenance"><code>go work</code></a>
   documentation.
 </p>
+
+<h4 id="go-test"><code>go</code> <code>test</code></h4>
 
 <p><!-- CL 251441 -->
   The <code>go</code> command now supports additional command line
@@ -376,11 +392,28 @@ Do not send CLs removing the interior tags from such phrases.
   </ul>
 </p>
 
+<h4 id="go-build-lines"><code>//go:build</code> lines</h4>
+
 <p><!-- CL 240611 -->
-  TODO: <a href="https://golang.org/cl/240611">https://golang.org/cl/240611</a>: 240611: cmd/fix: add buildtag fix
+Go 1.17 introduced <code>//go:build</code> lines as a more readable way to write build constraints,
+instead of <code>//</code> <code>+build</code> lines.
+As of Go 1.17, <code>gofmt</code> adds <code>//go:build</code> lines
+to match existing <code>+build</code> lines and keeps them in sync,
+while <code>go</code> <code>vet</code> diagnoses when they are out of sync.
 </p>
 
-<h3 id="gofmt"><code>gofmt</code></h3>
+<p>Since the release of Go 1.18 marks the end of support for Go 1.16,
+all supported versions of Go now understand <code>//go:build</code> lines.
+In Go 1.18, <code>go</code> <code>fix</code> now removes the now-obsolete
+<code>//</code> <code>+build</code> lines in modules declaring
+<code>go</code> <code>1.17</code> or later in their <code>go.mod</code> files.
+</p>
+
+<p>
+For more information, see <a href="https://go.dev/design/draft-gobuild">https://go.dev/design/draft-gobuild</a>.
+</p>
+
+<h3 id="gofmt">Gofmt</h3>
 
 <p><!-- https://golang.org/issue/43566 -->
   <code>gofmt</code> now reads and formats input files concurrently, with a
@@ -388,7 +421,7 @@ Do not send CLs removing the interior tags from such phrases.
   multiple CPUs, <code>gofmt</code> should now be significantly faster.
 </p>
 
-<h3 id="vet"><code>vet</code></h3>
+<h3 id="vet">Vet</h3>
 
 <h4 id="vet-generics">Updates for Generics</h4>
 
@@ -510,10 +543,17 @@ Do not send CLs removing the interior tags from such phrases.
   new <code>go</code> command <code>-asan</code> option.
 </p>
 
-<h2 id="build">Build</h2>
+<h2 id="bootstrap">Bootstrap</h2>
 
 <p><!-- CL 369914, CL 370274 -->
-  TODO: <a href="https://golang.org/cl/369914">https://golang.org/cl/369914</a>: for default bootstrap, use Go 1.17 if present, falling back to Go 1.4
+When building a Go release from source and <code>GOROOT_BOOTSTRAP</code>
+is not set, previous versions of Go looked for a Go 1.4 or later bootstrap toolchain
+in the directory <code>$HOME/go1.4</code> (<code>%HOMEDRIVE%%HOMEPATH%\go1.4</code> on Windows).
+Go now looks first for <code>$HOME/go1.17</code> or <code>$HOME/sdk/go1.17</code>
+before falling back to <code>$HOME/go1.4</code>.
+We intend for Go 1.19 to require Go 1.17 or later for bootstrap,
+and this change should make the transition smoother.
+For more details, see <a href="https://go.dev/issue/44505">go.dev/issue/44505</a>.
 </p>
 
 <h2 id="library">Core library</h2>
