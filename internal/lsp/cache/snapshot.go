@@ -425,18 +425,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	//  3. We're using at least Go 1.18.
 	useWorkFile := !needTempMod && s.workspace.moduleSource == goWorkWorkspace && s.view.goversion >= 18
 	if useWorkFile {
-		workURI := uriForSource(s.workspace.root, goWorkWorkspace)
-		workFH, err := s.GetFile(ctx, workURI)
-		if err != nil {
-			return "", nil, cleanup, err
-		}
-		// TODO(rfindley): we should use the last workfile that actually parsed, as
-		// tracked by the workspace.
-		tmpURI, cleanup, err = tempWorkFile(workFH)
-		if err != nil {
-			return "", nil, cleanup, err
-		}
-		inv.WorkFile = tmpURI.Filename()
+		// TODO(#51215): build a temp workfile and set GOWORK in the environment.
 	} else if useTempMod {
 		if modURI == "" {
 			return "", nil, cleanup, fmt.Errorf("no go.mod file found in %s", inv.WorkingDir)
