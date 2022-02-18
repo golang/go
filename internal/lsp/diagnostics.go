@@ -288,7 +288,11 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 		return
 	}
 	for _, cgf := range pkg.CompiledGoFiles() {
-		s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, pkgDiagnostics[cgf.URI])
+		// builtin.go exists only for documentation purposes, and is not valid Go code.
+		// Don't report distracting errors
+		if !snapshot.IsBuiltin(ctx, cgf.URI) {
+			s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, pkgDiagnostics[cgf.URI])
+		}
 	}
 	if includeAnalysis && !pkg.HasListOrParseErrors() {
 		reports, err := source.Analyze(ctx, snapshot, pkg, false)
