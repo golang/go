@@ -93,6 +93,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pos:       obj.Pos(),
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
+			info:      pkg.info,
 		}
 		if syntax == nil {
 			fn.Synthetic = "loaded from gc object file"
@@ -178,6 +179,7 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 		Synthetic: "package initializer",
 		Pkg:       p,
 		Prog:      prog,
+		info:      p.info,
 	}
 	p.Members[p.init.name] = p.init
 

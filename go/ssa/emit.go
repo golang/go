@@ -50,7 +50,7 @@ func emitDebugRef(f *Function, e ast.Expr, v Value, isAddr bool) {
 		if isBlankIdent(id) {
 			return
 		}
-		obj = f.Pkg.objectOf(id)
+		obj = f.objectOf(id)
 		switch obj.(type) {
 		case *types.Nil, *types.Const, *types.Builtin:
 			return

@@ -321,6 +321,7 @@ type Function struct {
 	namedResults []*Alloc                // tuple of named results
 	targets      *targets                // linked stack of branch targets
 	lblocks      map[*ast.Object]*lblock // labelled blocks
+	info         *types.Info             // *types.Info to build from. nil for wrappers.
 }
 
 // BasicBlock represents an SSA basic block.

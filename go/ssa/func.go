@@ -17,6 +17,25 @@ import (
 	"strings"
 )
 
+// Like ObjectOf, but panics instead of returning nil.
+// Only valid during f's create and build phases.
+func (f *Function) objectOf(id *ast.Ident) types.Object {
+	if o := f.info.ObjectOf(id); o != nil {
+		return o
+	}
+	panic(fmt.Sprintf("no types.Object for ast.Ident %s @ %s",
+		id.Name, f.Prog.Fset.Position(id.Pos())))
+}
+
+// Like TypeOf, but panics instead of returning nil.
+// Only valid during f's create and build phases.
+func (f *Function) typeOf(e ast.Expr) types.Type {
+	if T := f.info.TypeOf(e); T != nil {
+		return T
+	}
+	panic(fmt.Sprintf("no type for %T @ %s", e, f.Prog.Fset.Position(e.Pos())))
+}
+
 // Destinations associated with unlabelled for/switch/select stmts.
 // We push/pop one of these as we enter/leave each construct and for
 // each BranchStmt we scan for the innermost target of the right type.
@@ -105,7 +124,7 @@ func (f *Function) startBody() {
 // syntax.  In addition it populates the f.objects mapping.
 //
 // Preconditions:
-// f.startBody() was called.
+// f.startBody() was called. f.info != nil.
 // Postcondition:
 // len(f.Params) == len(f.Signature.Params) + (f.Signature.Recv() ? 1 : 0)
 //
@@ -114,7 +133,7 @@ func (f *Function) createSyntacticParams(recv *ast.FieldList, functype *ast.Func
 	if recv != nil {
 		for _, field := range recv.List {
 			for _, n := range field.Names {
-				f.addSpilledParam(f.Pkg.info.Defs[n])
+				f.addSpilledParam(f.info.Defs[n])
 			}
 			// Anonymous receiver?  No need to spill.
 			if field.Names == nil {
@@ -128,7 +147,7 @@ func (f *Function) createSyntacticParams(recv *ast.FieldList, functype *ast.Func
 		n := len(f.Params) // 1 if has recv, 0 otherwise
 		for _, field := range functype.Params.List {
 			for _, n := range field.Names {
-				f.addSpilledParam(f.Pkg.info.Defs[n])
+				f.addSpilledParam(f.info.Defs[n])
 			}
 			// Anonymous parameter?  No need to spill.
 			if field.Names == nil {
@@ -226,7 +245,9 @@ func (f *Function) finishBody() {
 		lift(f)
 	}
 
+	// clear remaining stateful variables
 	f.namedResults = nil // (used by lifting)
+	f.info = nil
 
 	numberRegisters(f)
 
@@ -287,7 +308,7 @@ func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 }
 
 func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
-	return f.addNamedLocal(f.Pkg.info.Defs[id])
+	return f.addNamedLocal(f.info.Defs[id])
 }
 
 // addLocal creates an anonymous local variable of type typ, adds it

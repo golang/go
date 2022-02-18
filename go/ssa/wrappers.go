@@ -72,6 +72,7 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 		Synthetic: description,
 		Prog:      prog,
 		pos:       obj.Pos(),
+		info:      nil, // info is not set on wrappers.
 	}
 	fn.startBody()
 	fn.addSpilledParam(recv)
@@ -190,6 +191,7 @@ func makeBound(prog *Program, obj *types.Func) *Function {
 			Synthetic: description,
 			Prog:      prog,
 			pos:       obj.Pos(),
+			info:      nil, // info is not set on wrappers.
 		}
 
 		fv := &FreeVar{name: "recv", typ: recvType(obj), parent: fn}
