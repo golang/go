@@ -23,6 +23,7 @@ const (
 	AddImport         Command = "add_import"
 	ApplyFix          Command = "apply_fix"
 	CheckUpgrades     Command = "check_upgrades"
+	EditGoDirective   Command = "edit_go_directive"
 	GCDetails         Command = "gc_details"
 	Generate          Command = "generate"
 	GenerateGoplsMod  Command = "generate_gopls_mod"
@@ -46,6 +47,7 @@ var Commands = []Command{
 	AddImport,
 	ApplyFix,
 	CheckUpgrades,
+	EditGoDirective,
 	GCDetails,
 	Generate,
 	GenerateGoplsMod,
@@ -90,6 +92,12 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.CheckUpgrades(ctx, a0)
+	case "gopls.edit_go_directive":
+		var a0 EditGoDirectiveArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return nil, s.EditGoDirective(ctx, a0)
 	case "gopls.gc_details":
 		var a0 protocol.DocumentURI
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -236,6 +244,18 @@ func NewCheckUpgradesCommand(title string, a0 CheckUpgradesArgs) (protocol.Comma
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.check_upgrades",
+		Arguments: args,
+	}, nil
+}
+
+func NewEditGoDirectiveCommand(title string, a0 EditGoDirectiveArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.edit_go_directive",
 		Arguments: args,
 	}, nil
 }

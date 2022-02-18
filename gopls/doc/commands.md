@@ -84,6 +84,22 @@ Args:
 }
 ```
 
+### **Run go mod edit -go=version**
+Identifier: `gopls.edit_go_directive`
+
+Runs `go mod edit -go=version` for a module.
+
+Args:
+
+```
+{
+	// Any document URI within the relevant module.
+	"URI": string,
+	// The version to pass to `go mod edit -go`.
+	"Version": string,
+}
+```
+
 ### **Toggle gc_details**
 Identifier: `gopls.gc_details`
 

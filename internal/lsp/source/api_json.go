@@ -604,6 +604,12 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t// The go.mod file URI.\n\t\"URI\": string,\n\t// The modules to check.\n\t\"Modules\": []string,\n}",
 		},
 		{
+			Command: "gopls.edit_go_directive",
+			Title:   "Run go mod edit -go=version",
+			Doc:     "Runs `go mod edit -go=version` for a module.",
+			ArgDoc:  "{\n\t// Any document URI within the relevant module.\n\t\"URI\": string,\n\t// The version to pass to `go mod edit -go`.\n\t\"Version\": string,\n}",
+		},
+		{
 			Command: "gopls.gc_details",
 			Title:   "Toggle gc_details",
 			Doc:     "Toggle the calculation of gc annotations.",

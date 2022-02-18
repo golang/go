@@ -261,6 +261,20 @@ func (c *commandHandler) Vendor(ctx context.Context, args command.URIArg) error 
 	})
 }
 
+func (c *commandHandler) EditGoDirective(ctx context.Context, args command.EditGoDirectiveArgs) error {
+	return c.run(ctx, commandConfig{
+		requireSave: true, // if go.mod isn't saved it could cause a problem
+		forURI:      args.URI,
+	}, func(ctx context.Context, deps commandDeps) error {
+		_, err := deps.snapshot.RunGoCommandDirect(ctx, source.Normal, &gocommand.Invocation{
+			Verb:       "mod",
+			Args:       []string{"edit", "-go", args.Version},
+			WorkingDir: filepath.Dir(args.URI.SpanURI().Filename()),
+		})
+		return err
+	})
+}
+
 func (c *commandHandler) RemoveDependency(ctx context.Context, args command.RemoveDependencyArgs) error {
 	return c.run(ctx, commandConfig{
 		progress: "Removing dependency",

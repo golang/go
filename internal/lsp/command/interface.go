@@ -68,6 +68,11 @@ type Interface interface {
 	// Runs `go mod vendor` for a module.
 	Vendor(context.Context, URIArg) error
 
+	// EditGoDirective: Run go mod edit -go=version
+	//
+	// Runs `go mod edit -go=version` for a module.
+	EditGoDirective(context.Context, EditGoDirectiveArgs) error
+
 	// UpdateGoSum: Update go.sum
 	//
 	// Updates the go.sum file for a module.
@@ -202,6 +207,13 @@ type RemoveDependencyArgs struct {
 	// The module path to remove.
 	ModulePath     string
 	OnlyDiagnostic bool
+}
+
+type EditGoDirectiveArgs struct {
+	// Any document URI within the relevant module.
+	URI protocol.DocumentURI
+	// The version to pass to `go mod edit -go`.
+	Version string
 }
 
 type GoGetPackageArgs struct {

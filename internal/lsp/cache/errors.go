@@ -101,6 +101,7 @@ func parseErrorDiagnostics(snapshot *snapshot, pkg *pkg, errList scanner.ErrorLi
 }
 
 var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
+var unsupportedFeatureRe = regexp.MustCompile(`.*require go(\d+\.\d+) or later`)
 
 func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*source.Diagnostic, error) {
 	code, spn, err := typeErrorData(snapshot.FileSet(), pkg, e.primary)
@@ -145,6 +146,14 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*sou
 			return nil, err
 		}
 	}
+	if code == typesinternal.UnsupportedFeature {
+		if match := unsupportedFeatureRe.FindStringSubmatch(e.primary.Msg); match != nil {
+			diag.SuggestedFixes, err = editGoDirectiveQuickFix(snapshot, spn.URI(), match[1])
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	return []*source.Diagnostic{diag}, nil
 }
 
@@ -158,6 +167,22 @@ func goGetQuickFixes(snapshot *snapshot, uri span.URI, pkg string) ([]source.Sug
 		URI:        protocol.URIFromSpanURI(uri),
 		AddRequire: true,
 		Pkg:        pkg,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)}, nil
+}
+
+func editGoDirectiveQuickFix(snapshot *snapshot, uri span.URI, version string) ([]source.SuggestedFix, error) {
+	// Go mod edit only supports module mode.
+	if snapshot.workspaceMode()&moduleMode == 0 {
+		return nil, nil
+	}
+	title := fmt.Sprintf("go mod edit -go=%s", version)
+	cmd, err := command.NewEditGoDirectiveCommand(title, command.EditGoDirectiveArgs{
+		URI:     protocol.URIFromSpanURI(uri),
+		Version: version,
 	})
 	if err != nil {
 		return nil, err
