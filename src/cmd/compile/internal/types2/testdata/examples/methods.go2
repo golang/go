@@ -35,7 +35,7 @@ func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
 // style. In m3 below, int is the name of the local receiver type parameter
 // and it shadows the predeclared identifier int which then cannot be used
 // anymore as expected.
-// This is no different from locally redelaring a predeclared identifier
+// This is no different from locally re-declaring a predeclared identifier
 // and usually should be avoided. There are some notable exceptions; e.g.,
 // sometimes it makes sense to use the identifier "copy" which happens to
 // also be the name of a predeclared built-in function.
