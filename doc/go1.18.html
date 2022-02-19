@@ -137,7 +137,7 @@ Do not send CLs removing the interior tags from such phrases.
     </li>
     <li><!-- https://golang.org/issue/49030 -->
       Embedding a type parameter, or a pointer to a type parameter, as
-      an unnamed field in a struct type is not permitted. Similarly
+      an unnamed field in a struct type is not permitted. Similarly,
       embedding a type parameter in an interface type is not permitted.
       Whether these will ever be permitted is unclear at present.
     </li>
@@ -275,7 +275,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p><!-- golang.org/issue/37475 -->
   The <code>go</code> command now embeds version control information in
-  binaries including the currently checked-out revision, commit time, and a
+  binaries. It includes the currently checked-out revision, commit time, and a
   flag indicating whether edited or untracked files are present. Version
   control information is embedded if the <code>go</code> command is invoked in
   a directory within a Git, Mercurial, Fossil, or Bazaar repository, and the
@@ -285,7 +285,7 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- golang.org/issue/37475 -->
-  Additionally, the <code>go</code> command embeds information about the build
+  Additionally, the <code>go</code> command embeds information about the build,
   including build and tool tags (set with <code>-tags</code>), compiler,
   assembler, and linker flags (like <code>-gcflags</code>), whether cgo was
   enabled, and if it was, the values of the cgo environment variables
@@ -509,7 +509,7 @@ For more information, see <a href="https://go.dev/design/draft-gobuild">https://
 </p>
 
 <p><!-- CL 298611 -->
-  The new compiler <code>-asan</code> option supports the
+  The new <code>-asan</code> compiler option supports the
   new <code>go</code> command <code>-asan</code> option.
 </p>
 
@@ -539,7 +539,7 @@ For more information, see <a href="https://go.dev/design/draft-gobuild">https://
 </p>
 
 <p><!-- CL 298610 -->
-  The new linker <code>-asan</code> option supports the
+  The new <code>-asan</code> linker option supports the
   new <code>go</code> command <code>-asan</code> option.
 </p>
 
@@ -680,8 +680,8 @@ For more details, see <a href="https://go.dev/issue/44505">go.dev/issue/44505</a
     </p>
 
     <p><!-- CL 345570 -->
-      The methods <a href="/pkg/bufio#Reader.Reset"><code>Reader.Reset</code></a> and
-      <a href="/pkg/bufio#Writer.Reset"><code>Writer.Reset</code></a>
+      The <a href="/pkg/bufio#Reader.Reset"><code>Reader.Reset</code></a> and
+      <a href="/pkg/bufio#Writer.Reset"><code>Writer.Reset</code></a> methods
       now use the default buffer size when called on objects with a
       <code>nil</code> buffer.
     </p>
@@ -1043,7 +1043,7 @@ For more details, see <a href="https://go.dev/issue/44505">go.dev/issue/44505</a
 <dl id="os/user"><dt><a href="/pkg/os/user/">os/user</a></dt>
   <dd>
     <p><!-- CL 330753 -->
-      <a href="/pkg/os/user#User.GroupIds"><code>User.GroupIds</code></a>.
+      <a href="/pkg/os/user#User.GroupIds"><code>User.GroupIds</code></a>
       now uses a Go native implementation when cgo is not available.
     </p>
   </dd>
@@ -1056,7 +1056,7 @@ For more details, see <a href="https://go.dev/issue/44505">go.dev/issue/44505</a
       <a href="/pkg/reflect/#Value.SetIterKey"><code>Value.SetIterKey</code></a>
       and <a href="/pkg/reflect/#Value.SetIterValue"><code>Value.SetIterValue</code></a>
       methods set a Value using a map iterator as the source. They are equivalent to
-      <code>Value.Set(iter.Key())</code> and <code>Value.Set(iter.Value())</code> but
+      <code>Value.Set(iter.Key())</code> and <code>Value.Set(iter.Value())</code>, but
       do fewer allocations.
     </p>
 
@@ -1219,7 +1219,7 @@ For more details, see <a href="https://go.dev/issue/44505">go.dev/issue/44505</a
 <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
   <dd>
     <p><!-- CL 356430 -->
-      <code>Wrapper</code> interface has been removed.
+      The <code>Wrapper</code> interface has been removed.
     </p>
   </dd>
 </dl><!-- syscall/js -->
@@ -1291,7 +1291,7 @@ For more details, see <a href="https://go.dev/issue/44505">go.dev/issue/44505</a
 <dl id="unicode/utf8"><dt><a href="/pkg/unicode/utf8/">unicode/utf8</a></dt>
   <dd>
     <p><!-- CL 345571 -->
-      The <a href="/pkg/unicode/utf8/#AppendRune"><code>AppendRune</code></a> function appends the UTF-8 new
+      The new <a href="/pkg/unicode/utf8/#AppendRune"><code>AppendRune</code></a> function appends the UTF-8
       encoding of a <code>rune</code> to a <code>[]byte</code>.
     </p>
   </dd>
