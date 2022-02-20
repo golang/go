@@ -226,6 +226,11 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name:        "/sched/goroutine/running:nanoseconds",
+		Description: "Wall time spent by the current goroutine in the running state.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/sched/goroutines:goroutines",
 		Description: "Count of live goroutines.",
 		Kind:        KindUint64,

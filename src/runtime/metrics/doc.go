@@ -172,6 +172,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 		operating system threads that can execute user-level Go code
 		simultaneously.
 
+	/sched/goroutine/running:nanoseconds
+		Wall time spent by the current goroutine in the running state.
+
 	/sched/goroutines:goroutines
 		Count of live goroutines.
 

@@ -286,6 +286,12 @@ func initMetrics() {
 				out.scalar = uint64(gomaxprocs)
 			},
 		},
+		"/sched/goroutine/running:nanoseconds": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(grunningnanos())
+			},
+		},
 		"/sched/goroutines:goroutines": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
