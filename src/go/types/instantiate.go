@@ -204,7 +204,7 @@ func (check *Checker) implements(V, T Type) error {
 	// If T is comparable, V must be comparable.
 	// Remember as a pending error and report only if we don't have a more specific error.
 	var pending error
-	if Ti.IsComparable() && ((Vi != nil && !Vi.IsComparable()) || (Vi == nil && !Comparable(V))) {
+	if Ti.IsComparable() && !comparable(V, false, nil, nil) {
 		pending = errorf("%s does not implement comparable", V)
 	}
 
