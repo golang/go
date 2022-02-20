@@ -102,11 +102,12 @@ func isGeneric(t Type) bool {
 
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
-	return comparable(T, nil, nil)
+	return comparable(T, true, nil, nil)
 }
 
+// If dynamic is set, non-type parameter interfaces are always comparable.
 // If reportf != nil, it may be used to report why T is not comparable.
-func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})) bool {
+func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
 	if seen[T] {
 		return true
 	}
@@ -124,7 +125,7 @@ func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})
 		return true
 	case *Struct:
 		for _, f := range t.fields {
-			if !comparable(f.typ, seen, nil) {
+			if !comparable(f.typ, dynamic, seen, nil) {
 				if reportf != nil {
 					reportf("struct containing %s cannot be compared", f.typ)
 				}
@@ -133,7 +134,7 @@ func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})
 		}
 		return true
 	case *Array:
-		if !comparable(t.elem, seen, nil) {
+		if !comparable(t.elem, dynamic, seen, nil) {
 			if reportf != nil {
 				reportf("%s cannot be compared", t)
 			}
@@ -141,7 +142,7 @@ func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})
 		}
 		return true
 	case *Interface:
-		return !isTypeParam(T) || t.typeSet().IsComparable(seen)
+		return dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen)
 	}
 	return false
 }

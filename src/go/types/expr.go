@@ -859,7 +859,7 @@ func (check *Checker) incomparableCause(typ Type) string {
 	}
 	// see if we can extract a more specific error
 	var cause string
-	comparable(typ, nil, func(format string, args ...interface{}) {
+	comparable(typ, true, nil, func(format string, args ...interface{}) {
 		cause = check.sprintf(format, args...)
 	})
 	return cause
