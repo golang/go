@@ -6,7 +6,7 @@ To update the .syso files use golang.org/x/build/cmd/racebuild.
 
 race_darwin_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 with https://reviews.llvm.org/D114825 applied and Go 7ccbcc90560468937f02609a43cb39a6e13ff797.
 race_freebsd_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
-race_linux_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+race_linux_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
 race_linux_ppc64le.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
 race_netbsd_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
 race_windows_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
