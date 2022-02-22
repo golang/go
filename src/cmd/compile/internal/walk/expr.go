@@ -1012,9 +1012,6 @@ func usefield(n *ir.SelectorExpr) {
 	if outer.Sym() == nil {
 		base.Errorf("tracked field must be in named struct type")
 	}
-	if !types.IsExported(field.Sym.Name) {
-		base.Errorf("tracked field must be exported (upper case)")
-	}
 
 	sym := reflectdata.TrackSym(outer, field)
 	if ir.CurFunc.FieldTrack == nil {
