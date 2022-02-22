@@ -323,7 +323,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		return typ
 
 	case *ast.InterfaceType:
-		typ := new(Interface)
+		typ := check.newInterface()
 		def.setUnderlying(typ)
 		if def != nil {
 			typ.obj = def.obj
