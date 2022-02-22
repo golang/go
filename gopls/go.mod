@@ -8,10 +8,10 @@ require (
 	github.com/jba/templatecheck v0.6.0
 	github.com/sergi/go-diff v1.1.0
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
-	golang.org/x/tools v0.1.8
+	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
+	golang.org/x/tools v0.1.9
 	honnef.co/go/tools v0.2.2
-	mvdan.cc/gofumpt v0.2.1
+	mvdan.cc/gofumpt v0.3.0
 	mvdan.cc/xurls/v2 v2.3.0
 )
 

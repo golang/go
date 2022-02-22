@@ -23,7 +23,14 @@ func Options(options *source.Options) {
 	}
 	options.URLRegexp = relaxedFullWord
 	options.GofumptFormat = func(ctx context.Context, src []byte) ([]byte, error) {
-		return format.Source(src, format.Options{})
+		return format.Source(src, format.Options{
+			// TODO: fill LangVersion and ModulePath from the current go.mod.
+			// The information is availabe as loaded by go/packages via the
+			// Module type, but it needs to be wired up all the way here.
+			// We likely want to change the GofumptFormat field type to take
+			// extra parameters, to then be used in format.Options.
+			// See https://pkg.go.dev/mvdan.cc/gofumpt@v0.3.0/format#Options.
+		})
 	}
 	updateAnalyzers(options)
 }
