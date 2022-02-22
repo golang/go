@@ -333,15 +333,6 @@ Do not send CLs removing the interior tags from such phrases.
   third-party tools that need to collect package source code.)
 </p>
 
-<h4 id="go-mod-vendor"><code>go</code> <code>build</code> <code>-asan</code></h4>
-
-<p><!-- CL 298612 -->
-  The <code>go</code> <code>build</code> command and related commands
-  now support an <code>-asan</code> flag that enables interoperation
-  with C (or C++) code compiled with the address sanitizer (C compiler
-  option <code>-fsanitize=address</code>).
-</p>
-
 <h4 id="go-mod-tidy"><code>go</code> <code>mod</code> <code>tidy</code></h4>
 
 <p><!-- https://golang.org/issue/47738, CL 344572 -->
@@ -367,6 +358,15 @@ Do not send CLs removing the interior tags from such phrases.
   file to specify the single main module. For more information see the
   <a href="/pkg/cmd/go#hdr-Workspace_maintenance"><code>go work</code></a>
   documentation.
+</p>
+
+<h4 id="go-build-asan"><code>go</code> <code>build</code> <code>-asan</code></h4>
+
+<p><!-- CL 298612 -->
+  The <code>go</code> <code>build</code> command and related commands
+  now support an <code>-asan</code> flag that enables interoperation
+  with C (or C++) code compiled with the address sanitizer (C compiler
+  option <code>-fsanitize=address</code>).
 </p>
 
 <h4 id="go-test"><code>go</code> <code>test</code></h4>
