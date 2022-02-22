@@ -267,6 +267,8 @@ func libfuzzerTraceConstCmp1(uint8, uint8)
 func libfuzzerTraceConstCmp2(uint16, uint16)
 func libfuzzerTraceConstCmp4(uint32, uint32)
 func libfuzzerTraceConstCmp8(uint64, uint64)
+func libfuzzerHookStrCmp(string, string, int)
+func libfuzzerHookEqualFold(string, string, int)
 
 // architecture variants
 var x86HasPOPCNT bool
