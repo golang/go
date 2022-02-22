@@ -91,13 +91,13 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
 //go:linkname crypto_x509_syscall crypto/x509/internal/macos.syscall
 //go:nosplit
 //go:cgo_unsafe_args
-func crypto_x509_syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1 uintptr) {
+func crypto_x509_syscall(fn, a1, a2, a3, a4, a5 uintptr, f1 float64) (r1 uintptr) {
 	entersyscall()
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallNoErr)), unsafe.Pointer(&fn))
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall_x509)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
 }
-func syscallNoErr()
+func syscall_x509()
 
 // The *_trampoline functions convert from the Go calling convention to the C calling convention
 // and then call the underlying libc function.  They are defined in sys_darwin_$ARCH.s.
