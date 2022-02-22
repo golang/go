@@ -406,7 +406,7 @@ var GeneratedAPIJSON = &APIJSON{
 						{
 							Name:    "\"useany\"",
 							Doc:     "check for constraints that could be simplified to \"any\"",
-							Default: "true",
+							Default: "false",
 						},
 						{
 							Name:    "\"fillreturns\"",
@@ -922,9 +922,8 @@ var GeneratedAPIJSON = &APIJSON{
 			Doc:  "checks for unused writes\n\nThe analyzer reports instances of writes to struct fields and\narrays that are never read. Specifically, when a struct object\nor an array is copied, its elements are copied implicitly by\nthe compiler, and any element write to this copy does nothing\nwith the original object.\n\nFor example:\n\n\ttype T struct { x int }\n\tfunc f(input []T) {\n\t\tfor i, v := range input {  // v is a copy\n\t\t\tv.x = i  // unused write to field x\n\t\t}\n\t}\n\nAnother example is about non-pointer receiver:\n\n\ttype T struct { x int }\n\tfunc (t T) f() {  // t is a copy\n\t\tt.x = i  // unused write to field x\n\t}\n",
 		},
 		{
-			Name:    "useany",
-			Doc:     "check for constraints that could be simplified to \"any\"",
-			Default: true,
+			Name: "useany",
+			Doc:  "check for constraints that could be simplified to \"any\"",
 		},
 		{
 			Name:    "fillreturns",

@@ -574,7 +574,7 @@ Another example is about non-pointer receiver:
 
 check for constraints that could be simplified to "any"
 
-**Enabled by default.**
+**Disabled by default. Enable it by setting `"analyses": {"useany": true}`.**
 
 ## **fillreturns**
 

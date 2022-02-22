@@ -694,8 +694,8 @@ func (o *Options) Clone() *Options {
 		ClientOptions:   o.ClientOptions,
 		InternalOptions: o.InternalOptions,
 		Hooks: Hooks{
-			GoDiff:        o.Hooks.GoDiff,
-			ComputeEdits:  o.Hooks.ComputeEdits,
+			GoDiff:        o.GoDiff,
+			ComputeEdits:  o.ComputeEdits,
 			GofumptFormat: o.GofumptFormat,
 			URLRegexp:     o.URLRegexp,
 		},
@@ -1265,7 +1265,7 @@ func defaultAnalyzers() map[string]*Analyzer {
 		testinggoroutine.Analyzer.Name: {Analyzer: testinggoroutine.Analyzer, Enabled: true},
 		unusedparams.Analyzer.Name:     {Analyzer: unusedparams.Analyzer, Enabled: false},
 		unusedwrite.Analyzer.Name:      {Analyzer: unusedwrite.Analyzer, Enabled: false},
-		useany.Analyzer.Name:           {Analyzer: useany.Analyzer, Enabled: true},
+		useany.Analyzer.Name:           {Analyzer: useany.Analyzer, Enabled: false},
 		infertypeargs.Analyzer.Name:    {Analyzer: infertypeargs.Analyzer, Enabled: true},
 
 		// gofmt -s suite:
