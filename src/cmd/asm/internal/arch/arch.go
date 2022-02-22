@@ -9,6 +9,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
 	"cmd/internal/obj/arm64"
+	"cmd/internal/obj/loong64"
 	"cmd/internal/obj/mips"
 	"cmd/internal/obj/ppc64"
 	"cmd/internal/obj/riscv"
@@ -60,6 +61,8 @@ func Set(GOARCH string, shared bool) *Arch {
 		return archArm()
 	case "arm64":
 		return archArm64()
+	case "loong64":
+		return archLoong64(&loong64.Linkloong64)
 	case "mips":
 		return archMips(&mips.Linkmips)
 	case "mipsle":
@@ -499,6 +502,59 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: mipsRegisterNumber,
 		IsJump:         jumpMIPS,
+	}
+}
+
+func archLoong64(linkArch *obj.LinkArch) *Arch {
+	register := make(map[string]int16)
+	// Create maps for easy lookup of instruction names etc.
+	// Note that there is no list of names as there is for x86.
+	for i := loong64.REG_R0; i <= loong64.REG_R31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := loong64.REG_F0; i <= loong64.REG_F31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := loong64.REG_FCSR0; i <= loong64.REG_FCSR31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := loong64.REG_FCC0; i <= loong64.REG_FCC31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	// Pseudo-registers.
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+	// Avoid unintentionally clobbering g using R22.
+	delete(register, "R22")
+	register["g"] = loong64.REG_R22
+	register["RSB"] = loong64.REG_R31
+	registerPrefix := map[string]bool{
+		"F":    true,
+		"FCSR": true,
+		"FCC":  true,
+		"R":    true,
+	}
+
+	instructions := make(map[string]obj.As)
+	for i, s := range obj.Anames {
+		instructions[s] = obj.As(i)
+	}
+	for i, s := range loong64.Anames {
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseLoong64
+		}
+	}
+	// Annoying alias.
+	instructions["JAL"] = loong64.AJAL
+
+	return &Arch{
+		LinkArch:       linkArch,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: registerPrefix,
+		RegisterNumber: loong64RegisterNumber,
+		IsJump:         jumpLoong64,
 	}
 }
 
