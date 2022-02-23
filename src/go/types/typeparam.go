@@ -140,16 +140,6 @@ func (t *TypeParam) iface() *Interface {
 	return ityp
 }
 
-// singleType returns the single type of the type parameter constraint; or nil.
-func (t *TypeParam) singleType() Type {
-	return t.iface().typeSet().singleType()
-}
-
-// hasTerms reports whether the type parameter constraint has specific type terms.
-func (t *TypeParam) hasTerms() bool {
-	return t.iface().typeSet().hasTerms()
-}
-
 // is calls f with the specific type terms of t's constraint and reports whether
 // all calls to f returned true. If there are no specific terms, is
 // returns the result of f(nil).
