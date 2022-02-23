@@ -1238,6 +1238,13 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 		c.methodSetCache[methodSetKey{typ, addressable}] = mset
 	}
 
+	if typ.String() == "*testing.F" && addressable {
+		// is that a sufficient test? (or is more care needed?)
+		if c.fuzz(typ, mset, imp, cb, c.snapshot.FileSet()) {
+			return
+		}
+	}
+
 	for i := 0; i < mset.Len(); i++ {
 		cb(candidate{
 			obj:         mset.At(i).Obj(),

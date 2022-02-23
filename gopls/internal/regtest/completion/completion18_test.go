@@ -54,3 +54,70 @@ func (s SyncMap[XX,string]) g(v UU) {}
 		}
 	})
 }
+func TestFuzzFunc(t *testing.T) {
+	// use the example from the package documentation
+	modfile := `
+-- go.mod --
+module mod.com
+
+go 1.18
+`
+	part0 := `package foo
+import "testing"
+func FuzzNone(f *testing.F) {
+	f.Add(12) // better not find this f.Add
+}
+func FuzzHex(f *testing.F) {
+	for _, seed := range [][]byte{{}, {0}, {9}, {0xa}, {0xf}, {1, 2, 3, 4}} {
+		f.Ad`
+	part1 := `d(seed)
+	}
+	f.F`
+	part2 := `uzz(func(t *testing.T, in []byte) {
+		enc := hex.EncodeToString(in)
+		out, err := hex.DecodeString(enc)
+		if err != nil {
+		  f.Failed()
+		}
+		if !bytes.Equal(in, out) {
+		  t.Fatalf("%v: round trip: %v, %s", in, out, f.Name())
+		}
+	})
+}
+`
+	data := modfile + `-- a_test.go --
+` + part0 + `
+-- b_test.go --
+` + part0 + part1 + `
+-- c_test.go --
+` + part0 + part1 + part2
+
+	tests := []struct {
+		file   string
+		pat    string
+		offset int // from the beginning of pat to what the user just typed
+		want   []string
+	}{
+		{"a_test.go", "f.Ad", 3, []string{"Add"}},
+		{"c_test.go", " f.F", 4, []string{"Failed"}},
+		{"c_test.go", "f.N", 3, []string{"Name"}},
+		{"b_test.go", "f.F", 3, []string{"Fuzz(func(t *testing.T, a []byte)", "Fail", "FailNow",
+			"Failed", "Fatal", "Fatalf"}},
+	}
+	Run(t, data, func(t *testing.T, env *Env) {
+		for _, test := range tests {
+			env.OpenFile(test.file)
+			env.Await(env.DoneWithOpen())
+			pos := env.RegexpSearch(test.file, test.pat)
+			pos.Column += test.offset // character user just typed? will type?
+			completions := env.Completion(test.file, pos)
+			result := compareCompletionResults(test.want, completions.Items)
+			if result != "" {
+				t.Errorf("pat %q %q", test.pat, result)
+				for i, it := range completions.Items {
+					t.Errorf("%d got %q %q", i, it.Label, it.Detail)
+				}
+			}
+		}
+	})
+}
