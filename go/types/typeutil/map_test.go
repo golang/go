@@ -233,6 +233,17 @@ var ME2 = G2[int].M
 
 // ME1Type should have identical type as ME1.
 var ME1Type func(G1[int], G1[int], G2[int])
+
+// Examples from issue #51314
+type Constraint[T any] interface{}
+func Foo[T Constraint[T]]() {}
+func Fn[T1 ~*T2, T2 ~*T1](t1 T1, t2 T2) {}
+
+// Bar and Baz are identical to Foo.
+func Bar[P Constraint[P]]() {}
+func Baz[Q any]() {} // The underlying type of Constraint[P] is any.
+// But Quux is not.
+func Quux[Q interface{ quux() }]() {}
 `
 
 	fset := token.NewFileSet()
@@ -284,6 +295,13 @@ var ME1Type func(G1[int], G1[int], G2[int])
 		ME1     = scope.Lookup("ME1").Type()
 		ME1Type = scope.Lookup("ME1Type").Type()
 		ME2     = scope.Lookup("ME2").Type()
+
+		Constraint = scope.Lookup("Constraint").Type()
+		Foo        = scope.Lookup("Foo").Type()
+		Fn         = scope.Lookup("Fn").Type()
+		Bar        = scope.Lookup("Foo").Type()
+		Baz        = scope.Lookup("Foo").Type()
+		Quux       = scope.Lookup("Quux").Type()
 	)
 
 	tmap := new(typeutil.Map)
@@ -345,6 +363,14 @@ var ME1Type func(G1[int], G1[int], G2[int])
 		{ME1, "ME1", true},
 		{ME1Type, "ME1Type", false},
 		{ME2, "ME2", true},
+
+		// See golang/go#51314: avoid infinite recursion on cyclic type constraints.
+		{Constraint, "Constraint", true},
+		{Foo, "Foo", true},
+		{Fn, "Fn", true},
+		{Bar, "Bar", false},
+		{Baz, "Baz", false},
+		{Quux, "Quux", true},
 	}
 
 	for _, step := range steps {
