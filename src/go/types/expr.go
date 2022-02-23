@@ -1339,6 +1339,10 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// no composite literal type present - use hint (element type of enclosing type)
 			typ = hint
 			base, _ = deref(coreType(typ)) // *T implies &T{}
+			if base == nil {
+				check.errorf(e, _InvalidLit, "invalid composite literal element type %s: no core type", typ)
+				goto Error
+			}
 
 		default:
 			// TODO(gri) provide better error messages depending on context
