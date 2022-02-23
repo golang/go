@@ -18,6 +18,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/progress"
@@ -319,6 +320,9 @@ type Metadata interface {
 
 	// PackagePath is the package path.
 	PackagePath() string
+
+	// ModuleInfo returns the go/packages module information for the given package.
+	ModuleInfo() *packages.Module
 }
 
 // Session represents a single connection from a client.

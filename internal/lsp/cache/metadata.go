@@ -56,6 +56,11 @@ func (m *Metadata) PackagePath() string {
 	return string(m.PkgPath)
 }
 
+// ModuleInfo implements the source.Metadata interface.
+func (m *Metadata) ModuleInfo() *packages.Module {
+	return m.Module
+}
+
 // KnownMetadata is a wrapper around metadata that tracks its validity.
 type KnownMetadata struct {
 	*Metadata

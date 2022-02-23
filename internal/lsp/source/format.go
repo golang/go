@@ -63,8 +63,24 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 
 	// Apply additional formatting, if any is supported. Currently, the only
 	// supported additional formatter is gofumpt.
-	if format := snapshot.View().Options().Hooks.GofumptFormat; snapshot.View().Options().Gofumpt && format != nil {
-		b, err := format(ctx, buf.Bytes())
+	if format := snapshot.View().Options().GofumptFormat; snapshot.View().Options().Gofumpt && format != nil {
+		// gofumpt can customize formatting based on language version and module
+		// path, if available.
+		//
+		// Try to derive this information, but fall-back on the default behavior.
+		//
+		// TODO: under which circumstances can we fail to find module information?
+		// Can this, for example, result in inconsistent formatting across saves,
+		// due to pending calls to packages.Load?
+		var langVersion, modulePath string
+		mds, err := snapshot.MetadataForFile(ctx, fh.URI())
+		if err == nil && len(mds) > 0 {
+			if mi := mds[0].ModuleInfo(); mi != nil {
+				langVersion = mi.GoVersion
+				modulePath = mi.Path
+			}
+		}
+		b, err := format(ctx, langVersion, modulePath, buf.Bytes())
 		if err != nil {
 			return nil, err
 		}

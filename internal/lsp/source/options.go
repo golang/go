@@ -462,11 +462,16 @@ func (u *UserOptions) SetEnvSlice(env []string) {
 // Hooks contains configuration that is provided to the Gopls command by the
 // main package.
 type Hooks struct {
-	LicensesText         string
-	GoDiff               bool
-	ComputeEdits         diff.ComputeEdits
-	URLRegexp            *regexp.Regexp
-	GofumptFormat        func(ctx context.Context, src []byte) ([]byte, error)
+	LicensesText string
+	GoDiff       bool
+	ComputeEdits diff.ComputeEdits
+	URLRegexp    *regexp.Regexp
+
+	// GofumptFormat allows the gopls module to wire-in a call to
+	// gofumpt/format.Source. langVersion and modulePath are used for some
+	// Gofumpt formatting rules -- see the Gofumpt documentation for details.
+	GofumptFormat func(ctx context.Context, langVersion, modulePath string, src []byte) ([]byte, error)
+
 	DefaultAnalyzers     map[string]*Analyzer
 	TypeErrorAnalyzers   map[string]*Analyzer
 	ConvenienceAnalyzers map[string]*Analyzer

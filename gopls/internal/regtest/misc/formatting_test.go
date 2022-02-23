@@ -301,3 +301,69 @@ func main() {
 		}
 	})
 }
+
+func TestGofumptFormatting(t *testing.T) {
+
+	// Exercise some gofumpt formatting rules:
+	//  - No empty lines following an assignment operator
+	//  - Octal integer literals should use the 0o prefix on modules using Go
+	//    1.13 and later. Requires LangVersion to be correctly resolved.
+	//  - std imports must be in a separate group at the top. Requires ModulePath
+	//    to be correctly resolved.
+	const input = `
+-- go.mod --
+module foo
+
+go 1.17
+-- foo.go --
+package foo
+
+import (
+	"foo/bar"
+	"fmt"
+)
+
+const perm = 0755
+
+func foo() {
+	foo :=
+		"bar"
+	fmt.Println(foo, bar.Bar)
+}
+-- foo.go.formatted --
+package foo
+
+import (
+	"fmt"
+
+	"foo/bar"
+)
+
+const perm = 0o755
+
+func foo() {
+	foo := "bar"
+	fmt.Println(foo, bar.Bar)
+}
+-- bar/bar.go --
+package bar
+
+const Bar = 42
+`
+
+	WithOptions(
+		EditorConfig{
+			Settings: map[string]interface{}{
+				"gofumpt": true,
+			},
+		},
+	).Run(t, input, func(t *testing.T, env *Env) {
+		env.OpenFile("foo.go")
+		env.FormatBuffer("foo.go")
+		got := env.Editor.BufferText("foo.go")
+		want := env.ReadWorkspaceFile("foo.go.formatted")
+		if got != want {
+			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
+		}
+	})
+}
