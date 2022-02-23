@@ -590,15 +590,24 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 	return
 }
 
+// adjCoreType returns the core type of tpar unless the
+// type parameter embeds a single, possibly named type,
+// in which case it returns that single type instead.
+// (The core type is always the underlying type of that
+// single type.)
 func adjCoreType(tpar *TypeParam) Type {
-	// If the type parameter embeds a single, possibly named
-	// type, use that one instead of the core type (which is
-	// always the underlying type of that single type).
-	if single := tpar.singleType(); single != nil {
-		if debug {
-			assert(under(single) == coreType(tpar))
+	var single *term
+	if tpar.is(func(t *term) bool {
+		if single == nil && t != nil {
+			single = t
+			return true
 		}
-		return single
+		return false // zero or more than one terms
+	}) {
+		if debug {
+			assert(under(single.typ) == coreType(tpar))
+		}
+		return single.typ
 	}
 	return coreType(tpar)
 }
