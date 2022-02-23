@@ -1141,6 +1141,16 @@ For more details, see <a href="https://go.dev/issue/44505">go.dev/issue/44505</a
   </dd>
 </dl><!-- runtime/debug -->
 
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 324129 -->
+      The CPU profiler now uses per-thread timers on Linux. This increases the
+      maximum CPU usage that a profile can observe, and reduces some forms of
+      bias.
+    </p>
+  </dd>
+</dl><!-- runtime/pprof -->
+
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
     <p><!-- CL 343877 -->
