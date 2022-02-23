@@ -1424,6 +1424,68 @@ func genericTypeName(sym *types.Sym) string {
 	return sym.Name[0:strings.Index(sym.Name, "[")]
 }
 
+// getShapes appends the list of the shape types that are used within type t to
+// listp. The type traversal is simplified for two reasons: (1) we can always stop a
+// type traversal when t.HasShape() is false; and (2) shape types can't appear inside
+// a named type, except for the type args of a generic type. So, the traversal will
+// always stop before we have to deal with recursive types.
+func getShapes(t *types.Type, listp *[]*types.Type) {
+	if !t.HasShape() {
+		return
+	}
+	if t.IsShape() {
+		*listp = append(*listp, t)
+		return
+	}
+
+	if t.Sym() != nil {
+		// A named type can't have shapes in it, except for type args of a
+		// generic type. We will have to deal with this differently once we
+		// alloc local types in generic functions (#47631).
+		for _, rparam := range t.RParams() {
+			getShapes(rparam, listp)
+		}
+		return
+	}
+
+	switch t.Kind() {
+	case types.TARRAY, types.TPTR, types.TSLICE, types.TCHAN:
+		getShapes(t.Elem(), listp)
+
+	case types.TSTRUCT:
+		for _, f := range t.FieldSlice() {
+			getShapes(f.Type, listp)
+		}
+
+	case types.TFUNC:
+		for _, f := range t.Recvs().FieldSlice() {
+			getShapes(f.Type, listp)
+		}
+		for _, f := range t.Params().FieldSlice() {
+			getShapes(f.Type, listp)
+		}
+		for _, f := range t.Results().FieldSlice() {
+			getShapes(f.Type, listp)
+		}
+		for _, f := range t.TParams().FieldSlice() {
+			getShapes(f.Type, listp)
+		}
+
+	case types.TINTER:
+		for _, f := range t.Methods().Slice() {
+			getShapes(f.Type, listp)
+		}
+
+	case types.TMAP:
+		getShapes(t.Key(), listp)
+		getShapes(t.Elem(), listp)
+
+	default:
+		panic(fmt.Sprintf("Bad type in getShapes: %v", t.Kind()))
+	}
+
+}
+
 // Shapify takes a concrete type and a type param index, and returns a GCshape type that can
 // be used in place of the input type and still generate identical code.
 // No methods are added - all methods calls directly on a shape should
@@ -1442,6 +1504,30 @@ func genericTypeName(sym *types.Sym) string {
 //  instantiation.
 func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
 	assert(!t.IsShape())
+	if t.HasShape() {
+		// We are sometimes dealing with types from a shape instantiation
+		// that were constructed from existing shape types, so t may
+		// sometimes have shape types inside it. In that case, we find all
+		// those shape types with getShapes() and replace them with their
+		// underlying type.
+		//
+		// If we don't do this, we may create extra unneeded shape types that
+		// have these other shape types embedded in them. This may lead to
+		// generating extra shape instantiations, and a mismatch between the
+		// instantiations that we used in generating dictionaries and the
+		// instantations that are actually called. (#51303).
+		list := []*types.Type{}
+		getShapes(t, &list)
+		list2 := make([]*types.Type, len(list))
+		for i, shape := range list {
+			list2[i] = shape.Underlying()
+		}
+		ts := Tsubster{
+			Tparams: list,
+			Targs:   list2,
+		}
+		t = ts.Typ(t)
+	}
 	// Map all types with the same underlying type to the same shape.
 	u := t.Underlying()
 
