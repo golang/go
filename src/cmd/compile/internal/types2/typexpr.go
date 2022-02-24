@@ -430,9 +430,13 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	// evaluate arguments
 	targs := check.typeList(xlist)
 	if targs == nil {
-		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
+		def.setUnderlying(Typ[Invalid]) // avoid errors later due to lazy instantiation
 		return Typ[Invalid]
 	}
+
+	// enableTypeTypeInference controls whether to infer missing type arguments
+	// using constraint type inference. See issue #51527.
+	const enableTypeTypeInference = false
 
 	// create the instance
 	ctxt := check.bestContext(nil)
@@ -453,14 +457,15 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	def.setUnderlying(inst)
 
 	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
-		tparams := orig.TypeParams().list()
+		tparams := n.orig.TypeParams().list()
 
-		if len(targs) < len(tparams) {
+		targs := n.targs.list()
+		if enableTypeTypeInference && len(targs) < len(tparams) {
 			// If inference fails, len(inferred) will be 0, and inst.underlying will
 			// be set to Typ[Invalid] in expandNamed.
 			inferred := check.infer(x.Pos(), tparams, targs, nil, nil)
 			if len(inferred) > len(targs) {
-				inst.targs = newTypeList(inferred)
+				n.targs = newTypeList(inferred)
 			}
 		}
 
@@ -473,10 +478,10 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		// and so it must be resolved during type-checking so that we can report
 		// errors.
 		inst.resolve(ctxt)
-		check.recordInstance(x, inst.TypeArgs().list(), inst)
 		// Since check is non-nil, we can still mutate inst. Unpinning the resolver
 		// frees some memory.
 		inst.resolver = nil
+		check.recordInstance(x, inst.TypeArgs().list(), inst)
 
 		if check.validateTArgLen(x.Pos(), inst.tparams.Len(), inst.targs.Len()) {
 			if i, err := check.verify(x.Pos(), inst.tparams.list(), inst.targs.list()); err != nil {

@@ -16,7 +16,7 @@ func G[A, B any](F[A, B]) {
 
 func _() {
 	// TODO(gri) only report one error below (issue #50932)
-	var x F /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [int]
+	var x F /* ERROR got 1 arguments but 2 type parameters */ [int]
 	G(x /* ERROR does not match */)
 }
 
@@ -46,9 +46,9 @@ func NSG[G any](c RSC[G]) {
 	fmt.Println(c)
 }
 
-func MMD[Rc RC /* ERROR cannot infer RG */ /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG] {
+func MMD[Rc RC /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ [Rc, RG] {
 
-	var nFn NFn /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG]
+	var nFn NFn /* ERROR got 2 arguments */ [Rc, RG]
 
 	var empty Rc
 	switch any(empty).(type) {
