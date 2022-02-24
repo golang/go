@@ -135,6 +135,16 @@ Do not send CLs removing the interior tags from such phrases.
       the predeclared functions <code>real</code>, <code>imag</code>, and <code>complex</code>.
       We hope to remove this restriction in Go 1.19.
     </li>
+    <li><!-- https://golang.org/issue/51183 -->
+      The Go compiler currently only supports calling a method <code>m</code> on a value
+      <code>x</code> of type parameter type <code>P</code> if <code>m</code> is explictly
+      declared by <code>P</code>'s constraint interface.
+      Similarly, method values <code>x.m</code> and method expressions
+      <code>P.m</code> also are only supported if <code>m</code> is explicitly
+      declared by <code>P</code>, even though <code>m</code> might be in the method set
+      of <code>P</code> by virtue of the fact that all types in <code>P</code> implement
+      <code>m</code>. We hope to remove this restriction in Go 1.19.
+    </li>
     <li><!-- https://golang.org/issue/49030 -->
       Embedding a type parameter, or a pointer to a type parameter, as
       an unnamed field in a struct type is not permitted. Similarly,
