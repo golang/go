@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package b
 
 import (
-	"a"
-	"fmt"
+	"./a"
 )
 
-func main() {
-	var x a.I[a.JsonRaw]
-
-	fmt.Printf("%v\n", x)
+// InteractionRequest is an incoming request Interaction
+type InteractionRequest[T a.InteractionDataConstraint] struct {
+	a.Interaction[T]
 }

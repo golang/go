@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package p
 
 import (
-	"a"
-	"fmt"
+	"./b"
 )
 
-func main() {
-	var x a.I[a.JsonRaw]
-
-	fmt.Printf("%v\n", x)
+// ResponseWriterMock mocks corde's ResponseWriter interface
+type ResponseWriterMock struct {
+	x b.InteractionRequest[[]byte]
 }
