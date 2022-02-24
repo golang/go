@@ -80,27 +80,6 @@ ok1:
 	MOVV	R0, err+48(FP)	// errno
 	RET
 
-TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
-	MOVV	a1+8(FP), R4
-	MOVV	a2+16(FP), R5
-	MOVV	a3+24(FP), R6
-	MOVV	a4+32(FP), R7
-	MOVV	a5+40(FP), R8
-	MOVV	a6+48(FP), R9
-	MOVV	trap+0(FP), R2	// syscall entry
-	SYSCALL
-	BEQ	R7, ok2
-	MOVV	$-1, R1
-	MOVV	R1, r1+56(FP)	// r1
-	MOVV	R0, r2+64(FP)	// r2
-	MOVV	R2, err+72(FP)	// errno
-	RET
-ok2:
-	MOVV	R2, r1+56(FP)	// r1
-	MOVV	R3, r2+64(FP)	// r2
-	MOVV	R0, err+72(FP)	// errno
-	RET
-
 // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
 TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
 	MOVV	a1+8(FP), R4
