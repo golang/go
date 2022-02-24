@@ -193,66 +193,77 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		switch len(recvList) {
 		case 0:
 			// error reported by resolver
-			recv = NewParam(0, nil, "", Typ[Invalid]) // ignore recv below
+			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
-			check.error(recvList[len(recvList)-1], _BadRecv, "method must have exactly one receiver")
+			check.error(recvList[len(recvList)-1], _InvalidRecv, "method must have exactly one receiver")
 			fallthrough // continue with first receiver
 		case 1:
 			recv = recvList[0]
 		}
+		sig.recv = recv
 
-		// TODO(gri) We should delay rtyp expansion to when we actually need the
-		//           receiver; thus all checks here should be delayed to later.
-		rtyp, _ := deref(recv.typ)
+		// Delay validation of receiver type as it may cause premature expansion
+		// of types the receiver type is dependent on (see issues #51232, #51233).
+		check.later(func() {
+			rtyp, _ := deref(recv.typ)
 
-		// spec: "The receiver type must be of the form T or *T where T is a type name."
-		// (ignore invalid types - error was reported before)
-		if rtyp != Typ[Invalid] {
-			var err string
-			switch T := rtyp.(type) {
-			case *Named:
-				T.resolve(check.bestContext(nil))
-				// The receiver type may be an instantiated type referred to
-				// by an alias (which cannot have receiver parameters for now).
-				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
-					check.errorf(atPos(recv.pos), _InvalidRecv, "cannot define methods on instantiated type %s", recv.typ)
-					break
-				}
-				// spec: "The type denoted by T is called the receiver base type; it must not
-				// be a pointer or interface type and it must be declared in the same package
-				// as the method."
-				if T.obj.pkg != check.pkg {
-					err = "type not defined in this package"
-				} else {
-					// The underlying type of a receiver base type can be a type parameter;
-					// e.g. for methods with a generic receiver T[P] with type T[P any] P.
-					underIs(T, func(u Type) bool {
-						switch u := u.(type) {
-						case *Basic:
-							// unsafe.Pointer is treated like a regular pointer
-							if u.kind == UnsafePointer {
-								err = "unsafe.Pointer"
+			// spec: "The receiver type must be of the form T or *T where T is a type name."
+			// (ignore invalid types - error was reported before)
+			if rtyp != Typ[Invalid] {
+				var err string
+				switch T := rtyp.(type) {
+				case *Named:
+					T.resolve(check.bestContext(nil))
+					// The receiver type may be an instantiated type referred to
+					// by an alias (which cannot have receiver parameters for now).
+					if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+						check.errorf(recv, _InvalidRecv, "cannot define methods on instantiated type %s", recv.typ)
+						break
+					}
+					// spec: "The type denoted by T is called the receiver base type; it must not
+					// be a pointer or interface type and it must be declared in the same package
+					// as the method."
+					if T.obj.pkg != check.pkg {
+						err = "type not defined in this package"
+						if compilerErrorMessages {
+							check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
+							err = ""
+						}
+					} else {
+						// The underlying type of a receiver base type can be a type parameter;
+						// e.g. for methods with a generic receiver T[P] with type T[P any] P.
+						// TODO(gri) Such declarations are currently disallowed.
+						//           Revisit the need for underIs.
+						underIs(T, func(u Type) bool {
+							switch u := u.(type) {
+							case *Basic:
+								// unsafe.Pointer is treated like a regular pointer
+								if u.kind == UnsafePointer {
+									err = "unsafe.Pointer"
+									return false
+								}
+							case *Pointer, *Interface:
+								err = "pointer or interface type"
 								return false
 							}
-						case *Pointer, *Interface:
-							err = "pointer or interface type"
-							return false
-						}
-						return true
-					})
+							return true
+						})
+					}
+				case *Basic:
+					err = "basic or unnamed type"
+					if compilerErrorMessages {
+						check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
+						err = ""
+					}
+				default:
+					check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
 				}
-			case *Basic:
-				err = "basic or unnamed type"
-			default:
-				check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
+				if err != "" {
+					check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", recv.typ, err)
+				}
 			}
-			if err != "" {
-				check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", recv.typ, err)
-				// ok to continue
-			}
-		}
-		sig.recv = recv
+		}).describef(recv, "validate receiver %s", recv)
 	}
 
 	sig.params = NewTuple(params...)
