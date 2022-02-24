@@ -159,7 +159,18 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 		if r.codeDir != "" {
 			v = v[len(r.codeDir)+1:]
 		}
-		if v == "" || v != module.CanonicalVersion(v) || module.IsPseudoVersion(v) {
+		if v == "" || v != semver.Canonical(v) {
+			// Ignore non-canonical tags: Stat rewrites those to canonical
+			// pseudo-versions. Note that we compare against semver.Canonical here
+			// instead of module.CanonicalVersion: revToRev strips "+incompatible"
+			// suffixes before looking up tags, so a tag like "v2.0.0+incompatible"
+			// would not resolve at all. (The Go version string "v2.0.0+incompatible"
+			// refers to the "v2.0.0" version tag, which we handle below.)
+			continue
+		}
+		if module.IsPseudoVersion(v) {
+			// Ignore tags that look like pseudo-versions: Stat rewrites those
+			// unambiguously to the underlying commit, and tagToVersion drops them.
 			continue
 		}
 
@@ -540,23 +551,21 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	// major version and +incompatible constraints. Use that version as the
 	// pseudo-version base so that the pseudo-version sorts higher. Ignore
 	// retracted versions.
-	allowedMajor := func(major string) func(v string) bool {
-		return func(v string) bool {
-			return ((major == "" && canUseIncompatible(v)) || semver.Major(v) == major) && !isRetracted(v)
+	tagAllowed := func(tag string) bool {
+		v, _ := tagToVersion(tag)
+		if v == "" {
+			return false
 		}
+		if !module.MatchPathMajor(v, r.pathMajor) && !canUseIncompatible(v) {
+			return false
+		}
+		return !isRetracted(v)
 	}
 	if pseudoBase == "" {
-		var tag string
-		if r.pseudoMajor != "" || canUseIncompatible("") {
-			tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor(r.pseudoMajor))
-		} else {
-			// Allow either v1 or v0, but not incompatible higher versions.
-			tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor("v1"))
-			if tag == "" {
-				tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor("v0"))
-			}
+		tag, _ := r.code.RecentTag(info.Name, tagPrefix, tagAllowed)
+		if tag != "" {
+			pseudoBase, _ = tagToVersion(tag)
 		}
-		pseudoBase, _ = tagToVersion(tag)
 	}
 
 	return checkCanonical(module.PseudoVersion(r.pseudoMajor, pseudoBase, info.Time, info.Short))
@@ -920,6 +929,10 @@ func (r *codeRepo) retractedVersions() (func(string) bool, error) {
 
 	for i, v := range versions {
 		if strings.HasSuffix(v, "+incompatible") {
+			// We're looking for the latest release tag that may list retractions in a
+			// go.mod file. +incompatible versions necessarily do not, and they start
+			// at major version 2 — which is higher than any version that could
+			// validly contain a go.mod file.
 			versions = versions[:i]
 			break
 		}
