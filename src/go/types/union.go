@@ -132,7 +132,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 				check.softErrorf(tlist[i], _InvalidUnion, "overlapping terms %s and %s", t, terms[j])
 			}
 		}
-	})
+	}).describef(uexpr, "check term validity %s", uexpr)
 
 	return u
 }

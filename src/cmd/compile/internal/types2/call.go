@@ -64,7 +64,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
 	assert(len(targs) == typ.TypeParams().Len())
 
 	if check.conf.Trace {
-		check.trace(pos, "-- instantiating %s with %s", typ, targs)
+		check.trace(pos, "-- instantiating signature %s with %s", typ, targs)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -88,7 +88,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
 		} else {
 			check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
 		}
-	})
+	}).describef(pos, "verify instantiation")
 
 	return inst
 }

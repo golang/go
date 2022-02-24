@@ -170,7 +170,7 @@ func (check *Checker) validVarType(e ast.Expr, typ Type) {
 				}
 			}
 		}
-	})
+	}).describef(e, "check var type %s", typ)
 }
 
 // definedType is like typ but also accepts a type name def.
@@ -353,7 +353,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 				}
 				check.errorf(e.Key, _IncomparableMapKey, "incomparable map key type %s%s", typ.key, why)
 			}
-		})
+		}).describef(e.Key, "check map key %s", typ.key)
 
 		return typ
 
@@ -390,7 +390,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (res Type) {
 	pos := ix.X.Pos()
 	if trace {
-		check.trace(pos, "-- instantiating %s with %s", ix.X, ix.Indices)
+		check.trace(pos, "-- instantiating type %s with %s", ix.X, ix.Indices)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -483,7 +483,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 		}
 
 		check.validType(inst)
-	})
+	}).describef(ix, "resolve instance %s", inst)
 
 	return inst
 }

@@ -1197,7 +1197,7 @@ const (
 //
 func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
 	if trace {
-		check.trace(e.Pos(), "expr %s", e)
+		check.trace(e.Pos(), "-- expr %s", e)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -1305,7 +1305,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				// but before the enclosing scope contents changes (#22992).
 				check.later(func() {
 					check.funcBody(decl, "<function literal>", sig, e.Body, iota)
-				})
+				}).describef(e, "func literal")
 			}
 			x.mode = value
 			x.typ = sig

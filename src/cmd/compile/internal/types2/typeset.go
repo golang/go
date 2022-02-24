@@ -173,7 +173,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			pos = ityp.methods[0].pos
 		}
 
-		check.trace(pos, "type set for %s", ityp)
+		check.trace(pos, "-- type set for %s", ityp)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -248,7 +248,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 					err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
 					check.report(&err)
 				}
-			})
+			}).describef(pos, "duplicate method check for %s", m.name)
 		}
 	}
 
