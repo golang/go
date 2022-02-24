@@ -1,4 +1,4 @@
-// compile
+// errorcheck
 
 // Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -13,19 +13,19 @@ type RC[RG any] interface {
 type Fn[RCT RC[RG], RG any] func(RCT)
 
 type F[RCT RC[RG], RG any] interface {
-	Fn() Fn[RCT]
+	Fn() Fn[RCT] // ERROR "got 1 arguments"
 }
 
 type concreteF[RCT RC[RG], RG any] struct {
-	makeFn func() Fn[RCT]
+	makeFn func() Fn[RCT] // ERROR "got 1 arguments"
 }
 
-func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
+func (c *concreteF[RCT, RG]) Fn() Fn[RCT] { // ERROR "got 1 arguments"
 	return c.makeFn()
 }
 
-func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] {
-	return &concreteF[RCT]{
+func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] { // ERROR "got 1 arguments"
+	return &concreteF[RCT]{ // ERROR "cannot use" "got 1 arguments"
 		makeFn: nil,
 	}
 }

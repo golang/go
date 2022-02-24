@@ -415,9 +415,13 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 	// evaluate arguments
 	targs := check.typeList(ix.Indices)
 	if targs == nil {
-		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
+		def.setUnderlying(Typ[Invalid]) // avoid errors later due to lazy instantiation
 		return Typ[Invalid]
 	}
+
+	// enableTypeTypeInference controls whether to infer missing type arguments
+	// using constraint type inference. See issue #51527.
+	const enableTypeTypeInference = false
 
 	// create the instance
 	ctxt := check.bestContext(nil)
@@ -438,14 +442,15 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 	def.setUnderlying(inst)
 
 	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
-		tparams := orig.TypeParams().list()
+		tparams := n.orig.TypeParams().list()
 
-		if len(targs) < len(tparams) {
+		targs := n.targs.list()
+		if enableTypeTypeInference && len(targs) < len(tparams) {
 			// If inference fails, len(inferred) will be 0, and inst.underlying will
 			// be set to Typ[Invalid] in expandNamed.
 			inferred := check.infer(ix.Orig, tparams, targs, nil, nil)
 			if len(inferred) > len(targs) {
-				inst.targs = newTypeList(inferred)
+				n.targs = newTypeList(inferred)
 			}
 		}
 
