@@ -287,6 +287,20 @@ Do not send CLs removing the interior tags from such phrases.
   and installs packages, as before.
 </p>
 
+<h4 id="go-mod-updates">Automatic <code>go.mod</code> and <code>go.sum</code> updates</h4>
+
+<p><!-- https://go.dev/issue/45551 -->
+  The <code>go</code> <code>mod</code> <code>graph</code>,
+  <code>go</code> <code>mod</code> <code>vendor</code>,
+  <code>go</code> <code>mod</code> <code>verify</code>, and
+  <code>go</code> <code>mod</code> <code>why</code> subcommands
+  no longer automatically update the <code>go.mod</code> and
+  <code>go.sum</code> files.
+  (Those files can be updated explicitly using <code>go</code> <code>get</code>,
+  <code>go</code> <code>mod</code> <code>tidy</code>, or
+  <code>go</code> <code>mod</code> <code>download</code>.)
+</p>
+
 <h4 id="go-version"><code>go</code> <code>version</code></h4>
 
 <p><!-- golang.org/issue/37475 -->
