@@ -194,7 +194,7 @@ func (s *snapshot) buildKey(ctx context.Context, id PackageID, mode source.Parse
 		depKeys = append(depKeys, depHandle.key)
 	}
 	experimentalKey := s.View().Options().ExperimentalPackageCacheKey
-	ph.key = checkPackageKey(ph.m.ID, compiledGoFiles, m.Config, depKeys, mode, experimentalKey)
+	ph.key = checkPackageKey(ph.m.ID, compiledGoFiles, m, depKeys, mode, experimentalKey)
 	return ph, deps, nil
 }
 
@@ -214,15 +214,18 @@ func (s *snapshot) workspaceParseMode(id PackageID) source.ParseMode {
 	return source.ParseExported
 }
 
-func checkPackageKey(id PackageID, pghs []*parseGoHandle, cfg *packages.Config, deps []packageHandleKey, mode source.ParseMode, experimentalKey bool) packageHandleKey {
+func checkPackageKey(id PackageID, pghs []*parseGoHandle, m *KnownMetadata, deps []packageHandleKey, mode source.ParseMode, experimentalKey bool) packageHandleKey {
 	b := bytes.NewBuffer(nil)
 	b.WriteString(string(id))
+	if m.Module != nil {
+		b.WriteString(m.Module.GoVersion) // go version affects type check errors.
+	}
 	if !experimentalKey {
 		// cfg was used to produce the other hashed inputs (package ID, parsed Go
 		// files, and deps). It should not otherwise affect the inputs to the type
 		// checker, so this experiment omits it. This should increase cache hits on
 		// the daemon as cfg contains the environment and working directory.
-		b.WriteString(hashConfig(cfg))
+		b.WriteString(hashConfig(m.Config))
 	}
 	b.WriteByte(byte(mode))
 	for _, dep := range deps {
