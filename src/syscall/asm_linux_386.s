@@ -13,32 +13,6 @@
 // instead of the glibc-specific "CALL 0x10(GS)".
 #define INVOKE_SYSCALL	INT	$0x80
 
-// func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
-TEXT ·Syscall6(SB),NOSPLIT,$0-40
-	CALL	runtime·entersyscall(SB)
-	MOVL	trap+0(FP), AX	// syscall entry
-	MOVL	a1+4(FP), BX
-	MOVL	a2+8(FP), CX
-	MOVL	a3+12(FP), DX
-	MOVL	a4+16(FP), SI
-	MOVL	a5+20(FP), DI
-	MOVL	a6+24(FP), BP
-	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	ok6
-	MOVL	$-1, r1+28(FP)
-	MOVL	$0, r2+32(FP)
-	NEGL	AX
-	MOVL	AX, err+36(FP)
-	CALL	runtime·exitsyscall(SB)
-	RET
-ok6:
-	MOVL	AX, r1+28(FP)
-	MOVL	DX, r2+32(FP)
-	MOVL	$0, err+36(FP)
-	CALL	runtime·exitsyscall(SB)
-	RET
-
 // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
 TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
 	MOVL	trap+0(FP), AX	// syscall entry
