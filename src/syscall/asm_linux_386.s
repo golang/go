@@ -65,28 +65,6 @@ ok6:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-// func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-TEXT ·RawSyscall(SB),NOSPLIT,$0-28
-	MOVL	trap+0(FP), AX	// syscall entry
-	MOVL	a1+4(FP), BX
-	MOVL	a2+8(FP), CX
-	MOVL	a3+12(FP), DX
-	MOVL	$0, SI
-	MOVL	$0, DI
-	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	ok1
-	MOVL	$-1, r1+16(FP)
-	MOVL	$0, r2+20(FP)
-	NEGL	AX
-	MOVL	AX, err+24(FP)
-	RET
-ok1:
-	MOVL	AX, r1+16(FP)
-	MOVL	DX, r2+20(FP)
-	MOVL	$0, err+24(FP)
-	RET
-
 // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
 TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
 	MOVL	trap+0(FP), AX	// syscall entry

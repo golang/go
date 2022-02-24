@@ -97,24 +97,6 @@ ok9:
 	JAL	runtime·exitsyscall(SB)
 	RET
 
-TEXT ·RawSyscall(SB),NOSPLIT,$24-28
-	MOVW	a1+4(FP), R4
-	MOVW	a2+8(FP), R5
-	MOVW	a3+12(FP), R6
-	MOVW	trap+0(FP), R2	// syscall entry
-	SYSCALL
-	BEQ	R7, ok1
-	MOVW	$-1, R1
-	MOVW	R1, r1+16(FP)	// r1
-	MOVW	R0, r2+20(FP)	// r2
-	MOVW	R2, err+24(FP)	// errno
-	RET
-ok1:
-	MOVW	R2, r1+16(FP)	// r1
-	MOVW	R3, r2+20(FP)	// r2
-	MOVW	R0, err+24(FP)	// errno
-	RET
-
 // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
 TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
 	MOVW	a1+4(FP), R4

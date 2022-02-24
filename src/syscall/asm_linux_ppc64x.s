@@ -59,27 +59,6 @@ ok6:
 	BL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 
-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
-	MOVD	a1+8(FP), R3
-	MOVD	a2+16(FP), R4
-	MOVD	a3+24(FP), R5
-	MOVD	R0, R6
-	MOVD	R0, R7
-	MOVD	R0, R8
-	MOVD	trap+0(FP), R9	// syscall entry
-	SYSCALL R9
-	BVC	ok1
-	MOVD	$-1, R4
-	MOVD	R4, r1+32(FP)	// r1
-	MOVD	R0, r2+40(FP)	// r2
-	MOVD	R3, err+48(FP)	// errno
-	RET
-ok1:
-	MOVD	R3, r1+32(FP)	// r1
-	MOVD	R0, r2+40(FP)	// r2
-	MOVD	R0, err+48(FP)	// errno
-	RET
-
 // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
 TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
 	MOVD	a1+8(FP), R3

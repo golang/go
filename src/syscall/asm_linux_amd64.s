@@ -64,26 +64,6 @@ ok6:
 	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 
-// func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
-	MOVQ	a1+8(FP), DI
-	MOVQ	a2+16(FP), SI
-	MOVQ	a3+24(FP), DX
-	MOVQ	trap+0(FP), AX	// syscall entry
-	SYSCALL
-	CMPQ	AX, $0xfffffffffffff001
-	JLS	ok1
-	MOVQ	$-1, r1+32(FP)
-	MOVQ	$0, r2+40(FP)
-	NEGQ	AX
-	MOVQ	AX, err+48(FP)
-	RET
-ok1:
-	MOVQ	AX, r1+32(FP)
-	MOVQ	DX, r2+40(FP)
-	MOVQ	$0, err+48(FP)
-	RET
-
 // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
 TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
 	MOVQ	a1+8(FP), DI
