@@ -16,7 +16,6 @@ import (
 	"unsafe"
 )
 
-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
 // N.B. RawSyscall6 is provided via linkname by runtime/internal/syscall.
@@ -25,6 +24,18 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 // definition.
 
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
+// Pull in entersyscall/exitsyscall for Syscall/Syscall6.
+//
+// Note that this can't be a push linkname because the runtime already has a
+// nameless linkname to export to assembly here and in x/sys. Additionally,
+// entersyscall fetches the caller PC and SP and thus can't have a wrapper
+// inbetween.
+
+//go:linkname runtime_entersyscall runtime.entersyscall
+func runtime_entersyscall()
+//go:linkname runtime_exitsyscall runtime.exitsyscall
+func runtime_exitsyscall()
 
 // N.B. For the Syscall functions below:
 //
@@ -45,6 +56,28 @@ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errn
 //go:linkname RawSyscall
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 	return RawSyscall6(trap, a1, a2, a3, 0, 0, 0)
+}
+
+//go:uintptrkeepalive
+//go:nosplit
+//go:linkname Syscall
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+	runtime_entersyscall()
+	// N.B. Calling RawSyscall here is unsafe with atomic coverage
+	// instrumentation and race mode.
+	//
+	// Coverage instrumentation will add a sync/atomic call to RawSyscall.
+	// Race mode will add race instrumentation to sync/atomic. Race
+	// instrumentation requires a P, which we no longer have.
+	//
+	// RawSyscall6 is fine because it is implemented in assembly and thus
+	// has no coverage instrumentation.
+	//
+	// This is typically not a problem in the runtime because cmd/go avoids
+	// adding coverage instrumentation to the runtime in race mode.
+	r1, r2, err = RawSyscall6(trap, a1, a2, a3, 0, 0, 0)
+	runtime_exitsyscall()
+	return
 }
 
 func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)

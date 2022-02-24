@@ -11,29 +11,6 @@
 // System calls for mips, Linux
 //
 
-// func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-TEXT ·Syscall(SB),NOSPLIT,$0-28
-	JAL	runtime·entersyscall(SB)
-	MOVW	a1+4(FP), R4
-	MOVW	a2+8(FP), R5
-	MOVW	a3+12(FP), R6
-	MOVW	R0, R7
-	MOVW	trap+0(FP), R2	// syscall entry
-	SYSCALL
-	BEQ	R7, ok
-	MOVW	$-1, R1
-	MOVW	R1, r1+16(FP)	// r1
-	MOVW	R0, r2+20(FP)	// r2
-	MOVW	R2, err+24(FP)	// errno
-	JAL	runtime·exitsyscall(SB)
-	RET
-ok:
-	MOVW	R2, r1+16(FP)	// r1
-	MOVW	R3, r2+20(FP)	// r2
-	MOVW	R0, err+24(FP)	// errno
-	JAL	runtime·exitsyscall(SB)
-	RET
-
 // func Syscall6(trap trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 // 5th and 6th arg go at sp+16, sp+20.
 // Note that frame size of 20 means that 24 bytes gets reserved on stack.

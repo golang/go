@@ -3658,7 +3658,7 @@ func reentersyscall(pc, sp uintptr) {
 
 // Standard syscall entry used by the go syscall library and normal cgo calls.
 //
-// This is exported via linkname to assembly in the syscall package.
+// This is exported via linkname to assembly in the syscall package and x/sys.
 //
 //go:nosplit
 //go:linkname entersyscall
