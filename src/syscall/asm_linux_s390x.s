@@ -8,32 +8,6 @@
 // System calls for s390x, Linux
 //
 
-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64)
-TEXT ·Syscall(SB),NOSPLIT,$0-56
-	BL	runtime·entersyscall(SB)
-	MOVD	a1+8(FP), R2
-	MOVD	a2+16(FP), R3
-	MOVD	a3+24(FP), R4
-	MOVD	$0, R5
-	MOVD	$0, R6
-	MOVD	$0, R7
-	MOVD	trap+0(FP), R1	// syscall entry
-	SYSCALL
-	MOVD	$0xfffffffffffff001, R8
-	CMPUBLT	R2, R8, ok
-	MOVD	$-1, r1+32(FP)
-	MOVD	$0, r2+40(FP)
-	NEG	R2, R2
-	MOVD	R2, err+48(FP)	// errno
-	BL	runtime·exitsyscall(SB)
-	RET
-ok:
-	MOVD	R2, r1+32(FP)
-	MOVD	R3, r2+40(FP)
-	MOVD	$0, err+48(FP)	// errno
-	BL	runtime·exitsyscall(SB)
-	RET
-
 // func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	BL	runtime·entersyscall(SB)
