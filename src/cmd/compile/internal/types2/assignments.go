@@ -294,15 +294,14 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
 	return "(" + strings.Join(res, ", ") + ")"
 }
 
-func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
-	measure := func(x int, unit string) string {
-		s := fmt.Sprintf("%d %s", x, unit)
-		if x != 1 {
-			s += "s"
-		}
-		return s
+func measure(x int, unit string) string {
+	if x != 1 {
+		unit += "s"
 	}
+	return fmt.Sprintf("%d %s", x, unit)
+}
 
+func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
 	vars := measure(nvars, "variable")
 	vals := measure(nvals, "value")
 	rhs0 := rhs[0]

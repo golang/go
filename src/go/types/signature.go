@@ -112,7 +112,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
-			sig.rparams = bindTParams(check.declareTypeParams(nil, rparams))
+			tparams := check.declareTypeParams(nil, rparams)
+			sig.rparams = bindTParams(tparams)
 			// Blank identifiers don't get declared, so naive type-checking of the
 			// receiver type expression would fail in Checker.collectParams below,
 			// when Checker.ident cannot resolve the _ to a type.
@@ -122,11 +123,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			// lookup in the scope.
 			for i, p := range rparams {
 				if p.Name == "_" {
-					tpar := sig.rparams.At(i)
 					if check.recvTParamMap == nil {
 						check.recvTParamMap = make(map[*ast.Ident]*TypeParam)
 					}
-					check.recvTParamMap[p] = tpar
+					check.recvTParamMap[p] = tparams[i]
 				}
 			}
 			// determine receiver type to get its type parameters
@@ -142,22 +142,23 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				}
 			}
 			// provide type parameter bounds
-			// - only do this if we have the right number (otherwise an error is reported elsewhere)
-			if sig.RecvTypeParams().Len() == len(recvTParams) {
-				// We have a list of *TypeNames but we need a list of Types.
-				list := make([]Type, sig.RecvTypeParams().Len())
-				for i, t := range sig.RecvTypeParams().list() {
-					list[i] = t
-					check.mono.recordCanon(t, recvTParams[i])
+			if len(tparams) == len(recvTParams) {
+				smap := makeRenameMap(recvTParams, tparams)
+				for i, tpar := range tparams {
+					recvTPar := recvTParams[i]
+					check.mono.recordCanon(tpar, recvTPar)
+					// recvTPar.bound is (possibly) parameterized in the context of the
+					// receiver type declaration. Substitute parameters for the current
+					// context.
+					tpar.bound = check.subst(tpar.obj.pos, recvTPar.bound, smap, nil)
 				}
-				smap := makeSubstMap(recvTParams, list)
-				for i, tpar := range sig.RecvTypeParams().list() {
-					bound := recvTParams[i].bound
-					// bound is (possibly) parameterized in the context of the
-					// receiver type declaration. Substitute parameters for the
-					// current context.
-					tpar.bound = check.subst(tpar.obj.pos, bound, smap, nil)
-				}
+			} else if len(tparams) < len(recvTParams) {
+				// Reporting an error here is a stop-gap measure to avoid crashes in the
+				// compiler when a type parameter/argument cannot be inferred later. It
+				// may lead to follow-on errors (see issues #51339, #51343).
+				// TODO(gri) find a better solution
+				got := measure(len(tparams), "type parameter")
+				check.errorf(recvPar, _BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
 			}
 		}
 	}
