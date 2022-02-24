@@ -373,11 +373,17 @@ func (check *Checker) processDelayed(top int) {
 	// this is a sufficiently bounded process.
 	for i := top; i < len(check.delayed); i++ {
 		a := &check.delayed[i]
-		if check.conf.Trace && a.desc != nil {
-			fmt.Println()
-			check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
+		if check.conf.Trace {
+			if a.desc != nil {
+				check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
+			} else {
+				check.trace(nopos, "-- delayed %p", a.f)
+			}
 		}
 		a.f() // may append to check.delayed
+		if check.conf.Trace {
+			fmt.Println()
+		}
 	}
 	assert(top <= len(check.delayed)) // stack must not have shrunk
 	check.delayed = check.delayed[:top]

@@ -61,7 +61,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
-// unexpanded.
+// unexpanded. check may be nil.
 func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Context) (res Type) {
 	var h string
 	if ctxt != nil {
@@ -103,6 +103,7 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Con
 		// anymore; we need to set tparams to nil.
 		sig.tparams = nil
 		res = sig
+
 	default:
 		// only types and functions can be generic
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))
