@@ -1339,11 +1339,6 @@ const (
 	//  func _() {
 	//  	f()
 	//  }
-	//
-	// Example:
-	//   type N[P, Q any] struct{}
-	//
-	//   var _ N[int]
 	_CannotInferTypeArgs
 
 	// _InvalidTypeArg occurs when a type argument does not satisfy its
