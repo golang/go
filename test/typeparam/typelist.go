@@ -89,7 +89,7 @@ func f1x() {
 }
 */
 
-func f2[A any, B interface{ ~[]A }](_ A, _ B) {}
+func f2[A any, B interface{ []A }](_ A, _ B) {}
 func f2x() {
 	f := f2[byte]
 	f(byte(0), []byte{})
@@ -109,7 +109,7 @@ func f3x() {
 }
 */
 
-func f4[A any, B interface{ ~[]C }, C interface{ ~*A }](_ A, _ B, c C) {}
+func f4[A any, B interface{ []C }, C interface{ *A }](_ A, _ B, c C) {}
 func f4x() {
 	f := f4[int]
 	var x int
@@ -118,11 +118,11 @@ func f4x() {
 }
 
 func f5[A interface {
-	~struct {
+	struct {
 		b B
 		c C
 	}
-}, B any, C interface{ ~*B }](x B) A {
+}, B any, C interface{ *B }](x B) A {
 	panic(0)
 }
 func f5x() {
