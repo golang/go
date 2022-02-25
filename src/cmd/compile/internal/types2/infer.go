@@ -355,7 +355,7 @@ func typeParamsString(list []*TypeParam) string {
 	return b.String()
 }
 
-// IsParameterized reports whether typ contains any of the type parameters of tparams.
+// isParameterized reports whether typ contains any of the type parameters of tparams.
 func isParameterized(tparams []*TypeParam, typ Type) bool {
 	w := tpWalker{
 		seen:    make(map[Type]bool),
