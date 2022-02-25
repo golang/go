@@ -16,7 +16,8 @@ Where `vX.Y.Z` is the desired version.
 
 ### Unstable versions
 
-To update `gopls` to the latest **unstable** version, use:
+To update `gopls` to the latest **unstable** version, use the following
+commands.
 
 ```sh
 # Create an empty go.mod file, only for tracking requirements.
@@ -24,11 +25,8 @@ cd $(mktemp -d)
 go mod init gopls-unstable
 
 # Use 'go get' to add requirements and to ensure they work together.
-go get golang.org/x/tools/gopls@master golang.org/x/tools@master
+go get -d golang.org/x/tools/gopls@master golang.org/x/tools@master
 
-# For go1.17 or older, the above `go get` command will build and
-# install `gopls`. For go1.18+ or tip, run the following command to install
-# using selected versions in go.mod.
 go install golang.org/x/tools/gopls
 ```
 
