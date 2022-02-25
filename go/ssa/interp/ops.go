@@ -137,6 +137,26 @@ func asUint64(x value) uint64 {
 	panic(fmt.Sprintf("cannot convert %T to uint64", x))
 }
 
+// asUnsigned returns the value of x, which must be an integer type, as its equivalent unsigned type,
+// and returns true if x is non-negative.
+func asUnsigned(x value) (value, bool) {
+	switch x := x.(type) {
+	case int:
+		return uint(x), x >= 0
+	case int8:
+		return uint8(x), x >= 0
+	case int16:
+		return uint16(x), x >= 0
+	case int32:
+		return uint32(x), x >= 0
+	case int64:
+		return uint64(x), x >= 0
+	case uint, uint8, uint32, uint64, uintptr:
+		return x, true
+	}
+	panic(fmt.Sprintf("cannot convert %T to unsigned", x))
+}
+
 // zero returns a new "zero" value of the specified type.
 func zero(t types.Type) value {
 	switch t := t.(type) {
@@ -576,7 +596,11 @@ func binop(op token.Token, t types.Type, x, y value) value {
 		}
 
 	case token.SHL:
-		y := asUint64(y)
+		u, ok := asUnsigned(y)
+		if !ok {
+			panic("negative shift amount")
+		}
+		y := asUint64(u)
 		switch x.(type) {
 		case int:
 			return x.(int) << y
@@ -603,7 +627,11 @@ func binop(op token.Token, t types.Type, x, y value) value {
 		}
 
 	case token.SHR:
-		y := asUint64(y)
+		u, ok := asUnsigned(y)
+		if !ok {
+			panic("negative shift amount")
+		}
+		y := asUint64(u)
 		switch x.(type) {
 		case int:
 			return x.(int) >> y

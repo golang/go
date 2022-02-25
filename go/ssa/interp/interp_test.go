@@ -109,6 +109,7 @@ var gorootTestTests = []string{
 var testdataTests = []string{
 	"boundmeth.go",
 	"complit.go",
+	"convert.go",
 	"coverage.go",
 	"defer.go",
 	"fieldprom.go",
