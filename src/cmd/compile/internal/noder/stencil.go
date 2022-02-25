@@ -641,6 +641,11 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 		// over any pointer)
 		recvType := nameNode.Type().Recv().Type
 		recvType = deref(recvType)
+		if recvType.IsFullyInstantiated() {
+			// Get the type of the base generic type, so we get
+			// its original typeparams.
+			recvType = recvType.OrigSym().Def.(*ir.Name).Type()
+		}
 		tparams = recvType.RParams()
 	} else {
 		fields := nameNode.Type().TParams().Fields().Slice()
@@ -657,11 +662,9 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 	s1 := make([]*types.Type, len(shapes))
 	for i, t := range shapes {
 		var tparam *types.Type
-		if tparams[i].Kind() == types.TTYPEPARAM {
-			// Shapes are grouped differently for structural types, so we
-			// pass the type param to Shapify(), so we can distinguish.
-			tparam = tparams[i]
-		}
+		// Shapes are grouped differently for structural types, so we
+		// pass the type param to Shapify(), so we can distinguish.
+		tparam = tparams[i]
 		if !t.IsShape() {
 			s1[i] = typecheck.Shapify(t, i, tparam)
 		} else {
