@@ -459,7 +459,7 @@ const (
 	Noinline                    // func should not be inlined
 	NoCheckPtr                  // func should not be instrumented by checkptr
 	CgoUnsafeArgs               // treat a pointer to one arg as a pointer to them all
-	UintptrKeepAlive            // pointers converted to uintptr must be kept alive (compiler internal only)
+	UintptrKeepAlive            // pointers converted to uintptr must be kept alive
 	UintptrEscapes              // pointers converted to uintptr escape
 
 	// Runtime-only func pragmas.

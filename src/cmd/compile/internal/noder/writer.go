@@ -742,6 +742,22 @@ func (w *writer) funcExt(obj *types2.Func) {
 		if pragma&ir.Noescape != 0 {
 			w.p.errorf(decl, "can only use //go:noescape with external func implementations")
 		}
+		if (pragma&ir.UintptrKeepAlive != 0 && pragma&ir.UintptrEscapes == 0) && pragma&ir.Nosplit == 0 {
+			// Stack growth can't handle uintptr arguments that may
+			// be pointers (as we don't know which are pointers
+			// when creating the stack map). Thus uintptrkeepalive
+			// functions (and all transitive callees) must be
+			// nosplit.
+			//
+			// N.B. uintptrescapes implies uintptrkeepalive but it
+			// is OK since the arguments must escape to the heap.
+			//
+			// TODO(prattmic): Add recursive nosplit check of callees.
+			// TODO(prattmic): Functions with no body (i.e.,
+			// assembly) must also be nosplit, but we can't check
+			// that here.
+			w.p.errorf(decl, "go:uintptrkeepalive requires go:nosplit")
+		}
 	} else {
 		if base.Flag.Complete || decl.Name.Value == "init" {
 			// Linknamed functions are allowed to have no body. Hopefully

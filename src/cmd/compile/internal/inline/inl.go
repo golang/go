@@ -120,6 +120,17 @@ func CanInline(fn *ir.Func) {
 		return
 	}
 
+	// If marked as "go:uintptrkeepalive", don't inline, since the
+	// keep alive information is lost during inlining.
+	//
+	// TODO(prattmic): This is handled on calls during escape analysis,
+	// which is after inlining. Move prior to inlining so the keep-alive is
+	// maintained after inlining.
+	if fn.Pragma&ir.UintptrKeepAlive != 0 {
+		reason = "marked as having a keep-alive uintptr argument"
+		return
+	}
+
 	// If marked as "go:uintptrescapes", don't inline, since the
 	// escape information is lost during inlining.
 	if fn.Pragma&ir.UintptrEscapes != 0 {
