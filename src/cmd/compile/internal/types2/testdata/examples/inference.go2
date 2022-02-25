@@ -78,7 +78,7 @@ func _() {
 	related1(si, "foo" /* ERROR cannot use "foo" */ )
 }
 
-func related2[Elem any, Slice interface{~[]Elem}](e Elem, s Slice) {}
+func related2[Elem any, Slice interface{[]Elem}](e Elem, s Slice) {}
 
 func _() {
 	// related2 can be called with explicit instantiation.
@@ -109,16 +109,8 @@ func _() {
 	related3[int, []int]()
 	related3[byte, List[byte]]()
 
-	// Alternatively, the 2nd type argument can be inferred
-	// from the first one through constraint type inference.
-	related3[int]()
-
-	// The inferred type is the core type of the Slice
-	// type parameter.
-	var _ []int = related3[int]()
-
-	// It is not the defined parameterized type List.
-	type anotherList []float32
-	var _ anotherList = related3[float32]() // valid
-	var _ anotherList = related3 /* ERROR cannot use .* \(value of type List\[float32\]\) as anotherList */ [float32, List[float32]]()
+	// The 2nd type argument cannot be inferred from the first
+	// one because there's two possible choices: []Elem and
+	// List[Elem].
+	related3[int]( /* ERROR cannot infer Slice */ )
 }

@@ -247,6 +247,17 @@ func (d *tparamsList) set(i int, typ Type) {
 	}
 }
 
+// unknowns returns the number of type parameters for which no type has been set yet.
+func (d *tparamsList) unknowns() int {
+	n := 0
+	for _, ti := range d.indices {
+		if ti <= 0 {
+			n++
+		}
+	}
+	return n
+}
+
 // types returns the list of inferred types (via unification) for the type parameters
 // described by d, and an index. If all types were inferred, the returned index is < 0.
 // Otherwise, it is the index of the first type parameter which couldn't be inferred;
@@ -348,8 +359,12 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 	// (see issue #50755 for a test case).
 	if enableCoreTypeUnification && !u.exact {
 		if isTypeParam(x) && !hasName(y) {
+			// Caution: This may not be correct in light of ~ constraints.
+			//          See issue #51376.
+			// TODO(gri) investigate!
+			//
 			// When considering the type parameter for unification
-			// we look at the adjusted core type (adjCoreType).
+			// we look at the adjusted core type (coreTerm).
 			// If the adjusted core type is a named type N; the
 			// corresponding core type is under(N). Since !u.exact
 			// and y doesn't have a name, unification will end up
