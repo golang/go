@@ -7,9 +7,7 @@ package types2
 // A Type represents a type of Go.
 // All types implement the Type interface.
 type Type interface {
-	// Underlying returns the underlying type of a type
-	// w/o following forwarding chains. Only used by
-	// client packages.
+	// Underlying returns the underlying type of a type.
 	Underlying() Type
 
 	// String returns a string representation of a type.
