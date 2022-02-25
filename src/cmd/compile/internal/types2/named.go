@@ -138,7 +138,7 @@ func (t *Named) Method(i int) *Func {
 	})
 }
 
-// instiateMethod instantiates the i'th method for an instantiated receiver.
+// instantiateMethod instantiates the i'th method for an instantiated receiver.
 func (t *Named) instantiateMethod(i int) *Func {
 	assert(t.TypeArgs().Len() > 0) // t must be an instance
 
