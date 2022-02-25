@@ -15,7 +15,7 @@ import (
 
 type Setter[B any] interface {
 	Set(string)
-	~*B
+	*B
 }
 
 // Takes two type parameters where PT = *T

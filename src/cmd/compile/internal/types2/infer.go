@@ -488,21 +488,88 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 		}
 	}
 
-	// If a constraint has a core type, unify the corresponding type parameter with it.
-	for _, tpar := range tparams {
-		if ctype := adjCoreType(tpar); ctype != nil {
-			if !u.unify(tpar, ctype) {
-				// TODO(gri) improve error message by providing the type arguments
-				//           which we know already
-				check.errorf(pos, "%s does not match %s", tpar, ctype)
-				return nil, 0
+	// Repeatedly apply constraint type inference as long as
+	// there are still unknown type arguments and progress is
+	// being made.
+	//
+	// This is an O(n^2) algorithm where n is the number of
+	// type parameters: if there is progress (and iteration
+	// continues), at least one type argument is inferred
+	// per iteration and we have a doubly nested loop.
+	// In practice this is not a problem because the number
+	// of type parameters tends to be very small (< 5 or so).
+	// (It should be possible for unification to efficiently
+	// signal newly inferred type arguments; then the loops
+	// here could handle the respective type parameters only,
+	// but that will come at a cost of extra complexity which
+	// may not be worth it.)
+	for n := u.x.unknowns(); n > 0; {
+		nn := n
+
+		for i, tpar := range tparams {
+			// If there is a core term (i.e., a core type with tilde information)
+			// unify the type parameter with the core type.
+			if core, single := coreTerm(tpar); core != nil {
+				// A type parameter can be unified with its core type in two cases.
+				tx := u.x.at(i)
+				switch {
+				case tx != nil:
+					// The corresponding type argument tx is known.
+					// In this case, if the core type has a tilde, the type argument's underlying
+					// type must match the core type, otherwise the type argument and the core type
+					// must match.
+					// If tx is an external type parameter, don't consider its underlying type
+					// (which is an interface). Core type unification will attempt to unify against
+					// core.typ.
+					// Note also that even with inexact unification we cannot leave away the under
+					// call here because it's possible that both tx and core.typ are named types,
+					// with under(tx) being a (named) basic type matching core.typ. Such cases do
+					// not match with inexact unification.
+					if core.tilde && !isTypeParam(tx) {
+						tx = under(tx)
+					}
+					if !u.unify(tx, core.typ) {
+						// TODO(gri) improve error message by providing the type arguments
+						//           which we know already
+						// Don't use term.String() as it always qualifies types, even if they
+						// are in the current package.
+						tilde := ""
+						if core.tilde {
+							tilde = "~"
+						}
+						check.errorf(pos, "%s does not match %s%s", tpar, tilde, core.typ)
+						return nil, 0
+					}
+
+				case single && !core.tilde:
+					// The corresponding type argument tx is unknown and there's a single
+					// specific type and no tilde.
+					// In this case the type argument must be that single type; set it.
+					u.x.set(i, core.typ)
+
+				default:
+					// Unification is not possible and no progress was made.
+					continue
+				}
+
+				// The number of known type arguments may have changed.
+				nn = u.x.unknowns()
+				if nn == 0 {
+					break // all type arguments are known
+				}
 			}
 		}
+
+		assert(nn <= n)
+		if nn == n {
+			break // no progress
+		}
+		n = nn
 	}
 
 	// u.x.types() now contains the incoming type arguments plus any additional type
-	// arguments which were inferred from core types. The newly inferred non-
-	// nil entries may still contain references to other type parameters.
+	// arguments which were inferred from core terms. The newly inferred non-nil
+	// entries may still contain references to other type parameters.
 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
 	// remaining type parameters by substituting the type parameters in this type list
@@ -591,26 +658,40 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 	return
 }
 
-// adjCoreType returns the core type of tpar unless the
-// type parameter embeds a single, possibly named type,
-// in which case it returns that single type instead.
-// (The core type is always the underlying type of that
-// single type.)
-func adjCoreType(tpar *TypeParam) Type {
-	var single *term
-	if tpar.is(func(t *term) bool {
-		if single == nil && t != nil {
-			single = t
-			return true
+// If the type parameter has a single specific type S, coreTerm returns (S, true).
+// Otherwise, if tpar has a core type T, it returns a term corresponding to that
+// core type and false. In that case, if any term of tpar has a tilde, the core
+// term has a tilde. In all other cases coreTerm returns (nil, false).
+func coreTerm(tpar *TypeParam) (*term, bool) {
+	n := 0
+	var single *term // valid if n == 1
+	var tilde bool
+	tpar.is(func(t *term) bool {
+		if t == nil {
+			assert(n == 0)
+			return false // no terms
 		}
-		return false // zero or more than one terms
-	}) {
+		n++
+		single = t
+		if t.tilde {
+			tilde = true
+		}
+		return true
+	})
+	if n == 1 {
 		if debug {
-			assert(under(single.typ) == coreType(tpar))
+			assert(debug && under(single.typ) == coreType(tpar))
 		}
-		return single.typ
+		return single, true
 	}
-	return coreType(tpar)
+	if typ := coreType(tpar); typ != nil {
+		// A core type is always an underlying type.
+		// If any term of tpar has a tilde, we don't
+		// have a precise core type and we must return
+		// a tilde as well.
+		return &term{tilde, typ}, false
+	}
+	return nil, false
 }
 
 type cycleFinder struct {
