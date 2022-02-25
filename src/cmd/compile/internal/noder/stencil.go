@@ -410,7 +410,8 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	fn, formalParams, formalResults := startClosure(pos, outer, typ)
 
 	// This is the dictionary we want to use.
-	// It may be a constant, or it may be a dictionary acquired from the outer function's dictionary.
+	// It may be a constant, it may be the outer functions's dictionary, or it may be
+	// a subdictionary acquired from the outer function's dictionary.
 	// For the latter, dictVar is a variable in the outer function's scope, set to the subdictionary
 	// read from the outer function's dictionary.
 	var dictVar *ir.Name
@@ -1145,6 +1146,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			newfn.Dcl = append(newfn.Dcl, ldict)
 			as := ir.NewAssignStmt(x.Pos(), ldict, cdict)
 			as.SetTypecheck(1)
+			ldict.Defn = as
 			newfn.Body.Append(as)
 
 			// Create inst info for the instantiated closure. The dict
