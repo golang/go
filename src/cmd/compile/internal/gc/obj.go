@@ -217,6 +217,10 @@ func dumpGlobalConst(n ir.Node) {
 		if ir.ConstOverflow(v, t) {
 			return
 		}
+	} else {
+		// If the type of the constant is an instantiated generic, we need to emit
+		// that type so the linker knows about it. See issue 51245.
+		_ = reflectdata.TypeLinksym(t)
 	}
 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
 }
