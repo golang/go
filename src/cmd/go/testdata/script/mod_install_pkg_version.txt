@@ -106,7 +106,7 @@ stdout '^example.com/cmd v1.0.0$'
 env GO111MODULE=auto
 
 ! go install example.com/cmd/a@v1.0.0 example.com/cmd/b@latest
-stderr '^go: example.com/cmd/b@latest: all arguments must have the same version \(@v1.0.0\)$'
+stderr '^go: example.com/cmd/b@latest: all arguments must refer to packages in the same module at the same version \(@v1.0.0\)$'
 
 
 # 'go install pkg@version' should report an error if the arguments are in
