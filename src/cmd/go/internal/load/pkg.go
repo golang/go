@@ -3001,7 +3001,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 	patterns := make([]string, len(args))
 	for i, arg := range args {
 		if !strings.HasSuffix(arg, "@"+version) {
-			return nil, fmt.Errorf("%s: all arguments must have the same version (@%s)", arg, version)
+			return nil, fmt.Errorf("%s: all arguments must refer to packages in the same module at the same version (@%s)", arg, version)
 		}
 		p := arg[:len(arg)-len(version)-1]
 		switch {
