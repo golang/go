@@ -22,6 +22,15 @@ func main() {
 		},
 		"runtime error: negative shift amount",
 	)
+	wantPanic(
+		func() {
+			const maxInt32 = 1<<31 - 1
+			var idx int64 = maxInt32*2 + 8
+			x := make([]int, 16)
+			_ = x[idx]
+		},
+		"runtime error: runtime error: index out of range [4294967302] with length 16",
+	)
 }
 
 func wantPanic(fn func(), s string) {

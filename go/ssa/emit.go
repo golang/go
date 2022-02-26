@@ -78,7 +78,7 @@ func emitArith(f *Function, op token.Token, x, y Value, t types.Type, pos token.
 		// There is a runtime panic if y is signed and <0. Instead of inserting a check for y<0
 		// and converting to an unsigned value (like the compiler) leave y as is.
 
-		if b, ok := y.Type().Underlying().(*types.Basic); ok && b.Info()&types.IsUntyped != 0 {
+		if isUntyped(y.Type().Underlying()) {
 			// Untyped conversion:
 			// Spec https://go.dev/ref/spec#Operators:
 			// The right operand in a shift expression must have integer type or be an untyped constant

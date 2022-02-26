@@ -279,7 +279,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		}()
 
 	case *ssa.MakeChan:
-		fr.env[instr] = make(chan value, asInt(fr.get(instr.Size)))
+		fr.env[instr] = make(chan value, asInt64(fr.get(instr.Size)))
 
 	case *ssa.Alloc:
 		var addr *value
@@ -294,17 +294,20 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		*addr = zero(deref(instr.Type()))
 
 	case *ssa.MakeSlice:
-		slice := make([]value, asInt(fr.get(instr.Cap)))
+		slice := make([]value, asInt64(fr.get(instr.Cap)))
 		tElt := instr.Type().Underlying().(*types.Slice).Elem()
 		for i := range slice {
 			slice[i] = zero(tElt)
 		}
-		fr.env[instr] = slice[:asInt(fr.get(instr.Len))]
+		fr.env[instr] = slice[:asInt64(fr.get(instr.Len))]
 
 	case *ssa.MakeMap:
-		reserve := 0
+		var reserve int64
 		if instr.Reserve != nil {
-			reserve = asInt(fr.get(instr.Reserve))
+			reserve = asInt64(fr.get(instr.Reserve))
+		}
+		if !fitsInt(reserve, fr.i.sizes) {
+			panic(fmt.Sprintf("ssa.MakeMap.Reserve value %d does not fit in int", reserve))
 		}
 		fr.env[instr] = makeMap(instr.Type().Underlying().(*types.Map).Key(), reserve)
 
@@ -325,15 +328,15 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		idx := fr.get(instr.Index)
 		switch x := x.(type) {
 		case []value:
-			fr.env[instr] = &x[asInt(idx)]
+			fr.env[instr] = &x[asInt64(idx)]
 		case *value: // *array
-			fr.env[instr] = &(*x).(array)[asInt(idx)]
+			fr.env[instr] = &(*x).(array)[asInt64(idx)]
 		default:
 			panic(fmt.Sprintf("unexpected x type in IndexAddr: %T", x))
 		}
 
 	case *ssa.Index:
-		fr.env[instr] = fr.get(instr.X).(array)[asInt(fr.get(instr.Index))]
+		fr.env[instr] = fr.get(instr.X).(array)[asInt64(fr.get(instr.Index))]
 
 	case *ssa.Lookup:
 		fr.env[instr] = lookup(instr, fr.get(instr.X), fr.get(instr.Index))

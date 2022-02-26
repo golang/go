@@ -38,7 +38,7 @@ type hashmap struct {
 
 // makeMap returns an empty initialized map of key type kt,
 // preallocating space for reserve elements.
-func makeMap(kt types.Type, reserve int) value {
+func makeMap(kt types.Type, reserve int64) value {
 	if usesBuiltinMap(kt) {
 		return make(map[value]value, reserve)
 	}

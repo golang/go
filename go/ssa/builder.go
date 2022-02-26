@@ -407,9 +407,13 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		default:
 			panic("unexpected container type in IndexExpr: " + t.String())
 		}
+		index := b.expr(fn, e.Index)
+		if isUntyped(index.Type()) {
+			index = emitConv(fn, index, tInt)
+		}
 		v := &IndexAddr{
 			X:     x,
-			Index: emitConv(fn, b.expr(fn, e.Index), tInt),
+			Index: index,
 		}
 		v.setPos(e.Lbrack)
 		v.setType(et)
@@ -748,9 +752,13 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		switch t := fn.typeOf(e.X).Underlying().(type) {
 		case *types.Array:
 			// Non-addressable array (in a register).
+			index := b.expr(fn, e.Index)
+			if isUntyped(index.Type()) {
+				index = emitConv(fn, index, tInt)
+			}
 			v := &Index{
 				X:     b.expr(fn, e.X),
-				Index: emitConv(fn, b.expr(fn, e.Index), tInt),
+				Index: index,
 			}
 			v.setPos(e.Lbrack)
 			v.setType(t.Elem())
@@ -769,9 +777,13 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 
 		case *types.Basic: // => string
 			// Strings are not addressable.
+			index := b.expr(fn, e.Index)
+			if isUntyped(index.Type()) {
+				index = emitConv(fn, index, tInt)
+			}
 			v := &Lookup{
 				X:     b.expr(fn, e.X),
-				Index: b.expr(fn, e.Index),
+				Index: index,
 			}
 			v.setPos(e.Lbrack)
 			v.setType(tByte)

@@ -123,6 +123,13 @@ var testdataTests = []string{
 	"recover.go",
 	"reflect.go",
 	"static.go",
+	"width32.go",
+}
+
+// Specific GOARCH to use for a test case in go.tools/go/ssa/interp/testdata/.
+// Defaults to amd64 otherwise.
+var testdataArchs = map[string]string{
+	"width32.go": "386",
 }
 
 func run(t *testing.T, input string) bool {
@@ -140,6 +147,9 @@ func run(t *testing.T, input string) bool {
 	ctx.GOROOT = "testdata" // fake goroot
 	ctx.GOOS = "linux"
 	ctx.GOARCH = "amd64"
+	if arch, ok := testdataArchs[filepath.Base(input)]; ok {
+		ctx.GOARCH = arch
+	}
 
 	conf := loader.Config{Build: &ctx}
 	if _, err := conf.FromArgs([]string{input}, true); err != nil {
@@ -180,8 +190,9 @@ func run(t *testing.T, input string) bool {
 
 	interp.CapturedOutput = new(bytes.Buffer)
 
+	sizes := types.SizesFor("gc", ctx.GOARCH)
 	hint = fmt.Sprintf("To trace execution, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -build=C -test -run --interp=T %s\n", input)
-	exitCode := interp.Interpret(mainPkg, 0, &types.StdSizes{WordSize: 8, MaxAlign: 8}, input, []string{})
+	exitCode := interp.Interpret(mainPkg, 0, sizes, input, []string{})
 	if exitCode != 0 {
 		t.Fatalf("interpreting %s: exit code was %d", input, exitCode)
 	}

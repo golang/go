@@ -87,34 +87,46 @@ func constValue(c *ssa.Const) value {
 	panic(fmt.Sprintf("constValue: %s", c))
 }
 
-// asInt converts x, which must be an integer, to an int suitable for
-// use as a slice or array index or operand to make().
-func asInt(x value) int {
+// fitsInt returns true if x fits in type int according to sizes.
+func fitsInt(x int64, sizes types.Sizes) bool {
+	intSize := sizes.Sizeof(types.Typ[types.Int])
+	if intSize < sizes.Sizeof(types.Typ[types.Int64]) {
+		maxInt := int64(1)<<(intSize-1) - 1
+		minInt := -int64(1) << (intSize - 1)
+		return minInt <= x && x <= maxInt
+	}
+	return true
+}
+
+// asInt64 converts x, which must be an integer, to an int64.
+//
+// Callers that need a value directly usable as an int should combine this with fitsInt().
+func asInt64(x value) int64 {
 	switch x := x.(type) {
 	case int:
-		return x
+		return int64(x)
 	case int8:
-		return int(x)
+		return int64(x)
 	case int16:
-		return int(x)
+		return int64(x)
 	case int32:
-		return int(x)
+		return int64(x)
 	case int64:
-		return int(x)
+		return x
 	case uint:
-		return int(x)
+		return int64(x)
 	case uint8:
-		return int(x)
+		return int64(x)
 	case uint16:
-		return int(x)
+		return int64(x)
 	case uint32:
-		return int(x)
+		return int64(x)
 	case uint64:
-		return int(x)
+		return int64(x)
 	case uintptr:
-		return int(x)
+		return int64(x)
 	}
-	panic(fmt.Sprintf("cannot convert %T to int", x))
+	panic(fmt.Sprintf("cannot convert %T to int64", x))
 }
 
 // asUint64 converts x, which must be an unsigned integer, to a uint64
@@ -268,19 +280,19 @@ func slice(x, lo, hi, max value) value {
 		Cap = cap(a)
 	}
 
-	l := 0
+	l := int64(0)
 	if lo != nil {
-		l = asInt(lo)
+		l = asInt64(lo)
 	}
 
-	h := Len
+	h := int64(Len)
 	if hi != nil {
-		h = asInt(hi)
+		h = asInt64(hi)
 	}
 
-	m := Cap
+	m := int64(Cap)
 	if max != nil {
-		m = asInt(max)
+		m = asInt64(max)
 	}
 
 	switch x := x.(type) {
@@ -316,7 +328,7 @@ func lookup(instr *ssa.Lookup, x, idx value) value {
 		}
 		return v
 	case string:
-		return x[asInt(idx)]
+		return x[asInt64(idx)]
 	}
 	panic(fmt.Sprintf("unexpected x type in Lookup: %T", x))
 }
