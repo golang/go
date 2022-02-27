@@ -41,11 +41,19 @@
 # Default is "gcc". Also supported: "clang".
 #
 # CC_FOR_TARGET: Command line to run to compile C code for GOARCH.
-# This is used by cgo.  Default is CC.
+# This is used by cgo. Default is CC.
+#
+# CC_FOR_${GOOS}_${GOARCH}: Command line to run to compile C code for specified ${GOOS} and ${GOARCH}.
+# (for example, CC_FOR_linux_arm)
+# If this is not set, the build will use CC_FOR_TARGET if appropriate, or CC.
 #
 # CXX_FOR_TARGET: Command line to run to compile C++ code for GOARCH.
 # This is used by cgo. Default is CXX, or, if that is not set,
 # "g++" or "clang++".
+#
+# CXX_FOR_${GOOS}_${GOARCH}: Command line to run to compile C++ code for specified ${GOOS} and ${GOARCH}.
+# (for example, CXX_FOR_linux_arm)
+# If this is not set, the build will use CXX_FOR_TARGET if appropriate, or CXX.
 #
 # FC: Command line to run to compile Fortran code for GOARCH.
 # This is used by cgo. Default is "gfortran".
