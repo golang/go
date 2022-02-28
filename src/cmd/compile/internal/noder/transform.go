@@ -1046,13 +1046,7 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
 				kv := l.(*ir.KeyExpr)
 				key := kv.Key
 
-				// Sym might have resolved to name in other top-level
-				// package, because of import dot. Redirect to correct sym
-				// before we do the lookup.
 				s := key.Sym()
-				if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
-					s = typecheck.Lookup(s.Name)
-				}
 				if types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
 					// Exported field names should always have
 					// local pkg. We only need to do this
