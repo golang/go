@@ -41,6 +41,32 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
 	return 0, EOF
 }
 
+func (mr *multiReader) WriteTo(w Writer) (sum int64, err error) {
+	sum, _, err = mr.writeToWithBuffer(w, nil)
+	return
+}
+
+func (mr *multiReader) writeToWithBuffer(w Writer, buf []byte) (sum int64, grownBuf []byte, err error) {
+	for i, r := range mr.readers {
+		var n int64
+		if subMr, ok := r.(*multiReader); ok {
+			n, buf, err = subMr.writeToWithBuffer(w, buf)
+		} else {
+			n, buf, err = copyBuffer(w, r, buf)
+		}
+		sum += n
+		if err != nil {
+			mr.readers = mr.readers[i:] // permit resume / retry after error
+			return sum, buf, err
+		}
+		mr.readers[i] = nil // permit early GC
+	}
+	mr.readers = nil
+	return sum, buf, nil
+}
+
+var _ WriterTo = (*multiReader)(nil)
+
 // MultiReader returns a Reader that's the logical concatenation of
 // the provided input readers. They're read sequentially. Once all
 // inputs have returned EOF, Read will return EOF.  If any of the readers

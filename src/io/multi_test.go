@@ -63,6 +63,29 @@ func TestMultiReader(t *testing.T) {
 	})
 }
 
+func TestMultiReaderAsWriterTo(t *testing.T) {
+	mr := MultiReader(
+		strings.NewReader("foo "),
+		strings.NewReader(""),
+		strings.NewReader("bar"),
+	)
+	mrAsWriterTo, ok := mr.(WriterTo)
+	if !ok {
+		t.Fatalf("expected cast to WriterTo to succeed")
+	}
+	sink := bytes.NewBuffer(nil)
+	n, err := mrAsWriterTo.WriteTo(sink)
+	if err != nil {
+		t.Fatalf("expected no error; got %v", err)
+	}
+	if n != 7 {
+		t.Errorf("expected read 7 bytes; got %d", n)
+	}
+	if result := string(sink.Bytes()); result != "foo bar" {
+		t.Errorf(`expected "foo bar"; got %q`, result)
+	}
+}
+
 func TestMultiWriter(t *testing.T) {
 	sink := new(bytes.Buffer)
 	// Hide bytes.Buffer's WriteString method:
