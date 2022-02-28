@@ -382,7 +382,8 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 // Otherwise, if dst implements the ReaderFrom interface,
 // the copy is implemented by calling dst.ReadFrom(src).
 func Copy(dst Writer, src Reader) (written int64, err error) {
-	return copyBuffer(dst, src, nil)
+	written, _, err = copyBuffer(dst, src, nil)
+	return
 }
 
 // CopyBuffer is identical to Copy except that it stages through the
@@ -396,23 +397,27 @@ func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	if buf != nil && len(buf) == 0 {
 		panic("empty buffer in CopyBuffer")
 	}
-	return copyBuffer(dst, src, buf)
+	written, _, err = copyBuffer(dst, src, buf)
+	return
 }
 
 // copyBuffer is the actual implementation of Copy and CopyBuffer.
 // if buf is nil, one is allocated.
-func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, grownBuf []byte, err error) {
 	// If the reader has a WriteTo method, use it to do the copy.
 	// Avoids an allocation and a copy.
 	if wt, ok := src.(WriterTo); ok {
-		return wt.WriteTo(dst)
+		n, err := wt.WriteTo(dst)
+		return n, buf, err
 	}
 	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
 	if rt, ok := dst.(ReaderFrom); ok {
-		return rt.ReadFrom(src)
+		n, err := rt.ReadFrom(src)
+		return n, buf, err
 	}
 	if buf == nil {
-		size := 32 * 1024
+		const defaultSize = 32 * 1024
+		size := defaultSize
 		if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
 			if l.N < 1 {
 				size = 1
@@ -421,6 +426,11 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 			}
 		}
 		buf = make([]byte, size)
+		// Avoid a case where you first use a really small LimitReader and then
+		// proceed to use a 10 bytes long buffer on your next copy.
+		if size == defaultSize {
+			grownBuf = buf
+		}
 	}
 	for {
 		nr, er := src.Read(buf)
@@ -449,7 +459,7 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 			break
 		}
 	}
-	return written, err
+	return written, grownBuf, err
 }
 
 // LimitReader returns a Reader that reads from r
