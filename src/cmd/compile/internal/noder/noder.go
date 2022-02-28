@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
-	"internal/buildcfg"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,13 +30,7 @@ import (
 func LoadPackage(filenames []string) {
 	base.Timer.Start("fe", "parse")
 
-	// -G=3 and unified expect generics syntax, but -G=0 does not.
-	supportsGenerics := base.Flag.G != 0 || buildcfg.Experiment.Unified
-
-	mode := syntax.CheckBranches
-	if supportsGenerics {
-		mode |= syntax.AllowGenerics
-	}
+	mode := syntax.CheckBranches | syntax.AllowGenerics
 
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
@@ -85,104 +78,8 @@ func LoadPackage(filenames []string) {
 		return
 	}
 
-	if base.Flag.G != 0 {
-		// Use types2 to type-check and possibly generate IR.
-		check2(noders)
-		return
-	}
-
-	for _, p := range noders {
-		p.node()
-		p.file = nil // release memory
-	}
-
-	if base.SyntaxErrors() != 0 {
-		base.ErrorExit()
-	}
-	types.CheckDclstack()
-
-	for _, p := range noders {
-		p.processPragmas()
-	}
-
-	// Typecheck.
-	types.LocalPkg.Height = myheight
-	typecheck.DeclareUniverse()
-	typecheck.TypecheckAllowed = true
-
-	// Process top-level declarations in phases.
-
-	// Phase 1: const, type, and names and types of funcs.
-	//   This will gather all the information about types
-	//   and methods but doesn't depend on any of it.
-	//
-	//   We also defer type alias declarations until phase 2
-	//   to avoid cycles like #18640.
-	//   TODO(gri) Remove this again once we have a fix for #25838.
-	//
-	// Phase 2: Variable assignments.
-	//   To check interface assignments, depends on phase 1.
-
-	// Don't use range--typecheck can add closures to Target.Decls.
-	for phase, name := range []string{"top1", "top2"} {
-		base.Timer.Start("fe", "typecheck", name)
-		for i := 0; i < len(typecheck.Target.Decls); i++ {
-			n := typecheck.Target.Decls[i]
-			op := n.Op()
-
-			// Closure function declarations are typechecked as part of the
-			// closure expression.
-			if fn, ok := n.(*ir.Func); ok && fn.OClosure != nil {
-				continue
-			}
-
-			// We don't actually add ir.ODCL nodes to Target.Decls. Make sure of that.
-			if op == ir.ODCL {
-				base.FatalfAt(n.Pos(), "unexpected top declaration: %v", op)
-			}
-
-			// Identify declarations that should be deferred to the second
-			// iteration.
-			late := op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias()
-
-			if late == (phase == 1) {
-				typecheck.Target.Decls[i] = typecheck.Stmt(n)
-			}
-		}
-	}
-
-	// Phase 3: Type check function bodies.
-	// Don't use range--typecheck can add closures to Target.Decls.
-	base.Timer.Start("fe", "typecheck", "func")
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
-			if base.Flag.W > 1 {
-				s := fmt.Sprintf("\nbefore typecheck %v", fn)
-				ir.Dump(s, fn)
-			}
-			typecheck.FuncBody(fn)
-			if base.Flag.W > 1 {
-				s := fmt.Sprintf("\nafter typecheck %v", fn)
-				ir.Dump(s, fn)
-			}
-		}
-	}
-
-	// Phase 4: Check external declarations.
-	// TODO(mdempsky): This should be handled when type checking their
-	// corresponding ODCL nodes.
-	base.Timer.Start("fe", "typecheck", "externdcls")
-	for i, n := range typecheck.Target.Externs {
-		if n.Op() == ir.ONAME {
-			typecheck.Target.Externs[i] = typecheck.Expr(typecheck.Target.Externs[i])
-		}
-	}
-
-	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
-	// With all user code typechecked, it's now safe to verify unused dot imports.
-	typecheck.CheckMapKeys()
-	CheckDotImports()
-	base.ExitIfErrors()
+	// Use types2 to type-check and generate IR.
+	check2(noders)
 }
 
 func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {

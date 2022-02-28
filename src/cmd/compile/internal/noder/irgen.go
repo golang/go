@@ -6,7 +6,6 @@ package noder
 
 import (
 	"fmt"
-	"os"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/dwarfgen"
@@ -77,10 +76,6 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 func check2(noders []*noder) {
 	m, pkg, info := checkFiles(noders)
 
-	if base.Flag.G < 2 {
-		os.Exit(0)
-	}
-
 	g := irgen{
 		target: typecheck.Target,
 		self:   pkg,
@@ -90,10 +85,6 @@ func check2(noders []*noder) {
 		typs:   make(map[types2.Type]*types.Type),
 	}
 	g.generate(noders)
-
-	if base.Flag.G < 3 {
-		os.Exit(0)
-	}
 }
 
 // Information about sub-dictionary entries in a dictionary
