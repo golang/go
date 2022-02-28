@@ -12,8 +12,6 @@ import (
 // see http://www.jsonrpc.org/specification for details
 
 var (
-	// ErrUnknown should be used for all non coded errors.
-	ErrUnknown = NewError(-32001, "JSON RPC unknown error")
 	// ErrParse is used when invalid JSON was received by the server.
 	ErrParse = NewError(-32700, "JSON RPC parse error")
 	// ErrInvalidRequest is used when the JSON sent is not a valid Request object.
@@ -28,11 +26,13 @@ var (
 	ErrInternal = NewError(-32603, "JSON RPC internal error")
 
 	// The following errors are not part of the json specification, but
-	// compliant extensions specific to this implimentation.
+	// compliant extensions specific to this implementation.
 
 	// ErrServerOverloaded is returned when a message was refused due to a
 	// server being temporarily unable to accept any new messages.
 	ErrServerOverloaded = NewError(-32000, "JSON RPC overloaded")
+	// ErrUnknown should be used for all non coded errors.
+	ErrUnknown = NewError(-32001, "JSON RPC unknown error")
 )
 
 const wireVersion = "2.0"

@@ -15,11 +15,19 @@ import (
 var (
 	// ErrIdleTimeout is returned when serving timed out waiting for new connections.
 	ErrIdleTimeout = errors.New("timed out waiting for new connections")
-	// ErrNotHandled is returned from a handler to indicate it did not handle the
-	// message.
+
+	// ErrNotHandled is returned from a Handler or Preempter to indicate it did
+	// not handle the request.
+	//
+	// If a Handler returns ErrNotHandled, the server replies with
+	// ErrMethodNotFound.
 	ErrNotHandled = errors.New("JSON RPC not handled")
+
 	// ErrAsyncResponse is returned from a handler to indicate it will generate a
 	// response asynchronously.
+	//
+	// ErrAsyncResponse must not be returned for notifications,
+	// which do not receive responses.
 	ErrAsyncResponse = errors.New("JSON RPC asynchronous response")
 )
 
@@ -28,17 +36,33 @@ var (
 // Primarily this is used for cancel handlers or notifications for which out of
 // order processing is not an issue.
 type Preempter interface {
-	// Preempt is invoked for each incoming request before it is queued.
-	// If the request is a call, it must return a value or an error for the reply.
-	// Preempt should not block or start any new messages on the connection.
-	Preempt(ctx context.Context, req *Request) (interface{}, error)
+	// Preempt is invoked for each incoming request before it is queued for handling.
+	//
+	// If Preempt returns ErrNotHandled, the request will be queued,
+	// and eventually passed to a Handle call.
+	//
+	// Otherwise, the result and error are processed as if returned by Handle.
+	//
+	// Preempt must not block. (The Context passed to it is for Values only.)
+	Preempt(ctx context.Context, req *Request) (result interface{}, err error)
 }
 
 // Handler handles messages on a connection.
 type Handler interface {
-	// Handle is invoked for each incoming request.
-	// If the request is a call, it must return a value or an error for the reply.
-	Handle(ctx context.Context, req *Request) (interface{}, error)
+	// Handle is invoked sequentially for each incoming request that has not
+	// already been handled by a Preempter.
+	//
+	// If the Request has a nil ID, Handle must return a nil result,
+	// and any error may be logged but will not be reported to the caller.
+	//
+	// If the Request has a non-nil ID, Handle must return either a
+	// non-nil, JSON-marshalable result, or a non-nil error.
+	//
+	// The Context passed to Handle will be canceled if the
+	// connection is broken or the request is canceled or completed.
+	// (If Handle returns ErrAsyncResponse, ctx will remain uncanceled
+	// until either Cancel or Respond is called for the request's ID.)
+	Handle(ctx context.Context, req *Request) (result interface{}, err error)
 }
 
 type defaultHandler struct{}
@@ -60,15 +84,15 @@ func (f HandlerFunc) Handle(ctx context.Context, req *Request) (interface{}, err
 // async is a small helper for operations with an asynchronous result that you
 // can wait for.
 type async struct {
-	ready  chan struct{} // signals that the operation has completed
-	errBox chan error    // guards the operation result
+	ready    chan struct{} // closed when done
+	firstErr chan error    // 1-buffered; contains either nil or the first non-nil error
 }
 
 func newAsync() *async {
 	var a async
 	a.ready = make(chan struct{})
-	a.errBox = make(chan error, 1)
-	a.errBox <- nil
+	a.firstErr = make(chan error, 1)
+	a.firstErr <- nil
 	return &a
 }
 
@@ -87,15 +111,15 @@ func (a *async) isDone() bool {
 
 func (a *async) wait() error {
 	<-a.ready
-	err := <-a.errBox
-	a.errBox <- err
+	err := <-a.firstErr
+	a.firstErr <- err
 	return err
 }
 
 func (a *async) setError(err error) {
-	storedErr := <-a.errBox
+	storedErr := <-a.firstErr
 	if storedErr == nil {
 		storedErr = err
 	}
-	a.errBox <- storedErr
+	a.firstErr <- storedErr
 }

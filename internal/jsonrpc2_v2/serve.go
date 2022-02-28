@@ -18,17 +18,17 @@ import (
 
 // Listener is implemented by protocols to accept new inbound connections.
 type Listener interface {
-	// Accept an inbound connection to a server.
-	// It must block until an inbound connection is made, or the listener is
-	// shut down.
+	// Accept accepts an inbound connection to a server.
+	// It blocks until either an inbound connection is made, or the listener is closed.
 	Accept(context.Context) (io.ReadWriteCloser, error)
 
-	// Close is used to ask a listener to stop accepting new connections.
+	// Close closes the listener.
+	// Any blocked Accept or Dial operations will unblock and return errors.
 	Close() error
 
 	// Dialer returns a dialer that can be used to connect to this listener
 	// locally.
-	// If a listener does not implement this it will return a nil.
+	// If a listener does not implement this it will return nil.
 	Dialer() Dialer
 }
 

@@ -22,7 +22,8 @@ import (
 // ConnectionOptions itself implements Binder returning itself unmodified, to
 // allow for the simple cases where no per connection information is needed.
 type Binder interface {
-	// Bind is invoked when creating a new connection.
+	// Bind returns the ConnectionOptions to use when establishing the passed-in
+	// Connection.
 	// The connection is not ready to use when Bind is called.
 	Bind(context.Context, *Connection) (ConnectionOptions, error)
 }
@@ -234,10 +235,10 @@ func (a *AsyncCall) Await(ctx context.Context, result interface{}) error {
 	return json.Unmarshal(r.result, result)
 }
 
-// Respond deliverers a response to an incoming Call.
-// It is an error to not call this exactly once for any message for which a
-// handler has previously returned ErrAsyncResponse. It is also an error to
-// call this for any other message.
+// Respond delivers a response to an incoming Call.
+//
+// Respond must be called exactly once for any message for which a handler
+// returns ErrAsyncResponse. It must not be called for any other message.
 func (c *Connection) Respond(id ID, result interface{}, rerr error) error {
 	pending := <-c.incomingBox
 	defer func() { c.incomingBox <- pending }()
