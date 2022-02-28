@@ -60,6 +60,14 @@ var callTests = []invoker{
 		notify{"unblock", "a"},
 		collect{"a", true, false},
 	}},
+	sequence{"concurrent", []invoker{
+		async{"a", "fork", "a"},
+		notify{"unblock", "a"},
+		async{"b", "fork", "b"},
+		notify{"unblock", "b"},
+		collect{"a", true, false},
+		collect{"b", true, false},
+	}},
 }
 
 type binder struct {

@@ -322,8 +322,8 @@ func (c *Connection) readIncoming(ctx context.Context, reader Reader, toQueue ch
 			// cancelled by id
 			if msg.IsCall() {
 				pending := <-c.incomingBox
-				c.incomingBox <- pending
 				pending[msg.ID] = entry
+				c.incomingBox <- pending
 			}
 			// send the message to the incoming queue
 			toQueue <- entry
