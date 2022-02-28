@@ -359,17 +359,17 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 	// (see issue #50755 for a test case).
 	if enableCoreTypeUnification && !u.exact {
 		if isTypeParam(x) && !hasName(y) {
-			// Caution: This may not be correct in light of ~ constraints.
-			//          See issue #51376.
-			// TODO(gri) investigate!
-			//
 			// When considering the type parameter for unification
-			// we look at the adjusted core type (coreTerm).
+			// we look at the adjusted core term (adjusted core type
+			// with tilde information).
 			// If the adjusted core type is a named type N; the
 			// corresponding core type is under(N). Since !u.exact
 			// and y doesn't have a name, unification will end up
 			// comparing under(N) to y, so we can just use the core
-			// type instead. Optimization.
+			// type instead. And we can ignore the tilde because we
+			// already look at the underlying types on both sides
+			// and we have known types on both sides.
+			// Optimization.
 			if cx := coreType(x); cx != nil {
 				if traceInference {
 					u.tracef("core %s ≡ %s", x, y)
