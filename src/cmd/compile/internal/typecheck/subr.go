@@ -22,10 +22,6 @@ func AssignConv(n ir.Node, t *types.Type, context string) ir.Node {
 	return assignconvfn(n, t, func() string { return context })
 }
 
-// DotImportRefs maps idents introduced by importDot back to the
-// ir.PkgName they were dot-imported through.
-var DotImportRefs map[*ir.Ident]*ir.PkgName
-
 // LookupNum looks up the symbol starting with prefix and ending with
 // the decimal n. If prefix is too long, LookupNum panics.
 func LookupNum(prefix string, n int) *types.Sym {

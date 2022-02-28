@@ -145,13 +145,6 @@ func Resolve(n ir.Node) (res ir.Node) {
 	}
 
 	if sym := n.Sym(); sym.Pkg != types.LocalPkg {
-		// We might have an ir.Ident from oldname or importDot.
-		if id, ok := n.(*ir.Ident); ok {
-			if pkgName := DotImportRefs[id]; pkgName != nil {
-				pkgName.Used = true
-			}
-		}
-
 		return expandDecl(n)
 	}
 

@@ -375,13 +375,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 func tcStructLitKey(typ *types.Type, kv *ir.KeyExpr) *ir.StructKeyExpr {
 	key := kv.Key
 
-	// Sym might have resolved to name in other top-level
-	// package, because of import dot. Redirect to correct sym
-	// before we do the lookup.
 	sym := key.Sym()
-	if id, ok := key.(*ir.Ident); ok && DotImportRefs[id] != nil {
-		sym = Lookup(sym.Name)
-	}
 
 	// An OXDOT uses the Sym field to hold
 	// the field to the right of the dot,
