@@ -10,6 +10,8 @@
 // # details see http://www.openssl.org/~appro/cryptogams/.
 // # ====================================================================
 
+//go:build ppc64 || ppc64le
+
 #include "textflag.h"
 
 // SHA512 block routine. See sha512block.go for Go equivalent.
@@ -66,10 +68,6 @@
 #define HEX10	R10
 #define HEX20	R25
 #define HEX30	R26
-#define HEX40	R27
-#define HEX50	R28
-#define HEX60	R29
-#define HEX70	R31
 
 // V0-V7 are A-H
 // V8-V23 are used for the message schedule
@@ -80,6 +78,14 @@
 #define s0	V28
 #define s1	V29
 #define LEMASK	V31	// Permutation control register for little endian
+
+// VPERM is needed on LE to switch the bytes
+
+#ifdef GOARCH_ppc64le
+#define VPERMLE(va,vb,vc,vt) VPERM va, vb, vc, vt
+#else
+#define VPERMLE(va,vb,vc,vt)
+#endif
 
 // 2 copies of each Kt, to fill both doublewords of a vector register
 DATA  ·kcon+0x000(SB)/8, $0x428a2f98d728ae22
@@ -306,15 +312,15 @@ TEXT ·block(SB),0,$128-32
 	MOVWZ	$0x10, HEX10
 	MOVWZ	$0x20, HEX20
 	MOVWZ	$0x30, HEX30
-	MOVWZ	$0x40, HEX40
-	MOVWZ	$0x50, HEX50
-	MOVWZ	$0x60, HEX60
-	MOVWZ	$0x70, HEX70
 
+// Generate the mask used with VPERM for LE
+
+#ifdef GOARCH_ppc64le
 	MOVWZ	$8, IDX
 	LVSL	(IDX)(R0), LEMASK
 	VSPLTISB	$0x0F, KI
 	VXOR	KI, LEMASK, LEMASK
+#endif
 
 	LXVD2X	(CTX)(HEX00), VS32	// v0 = vs32
 	LXVD2X	(CTX)(HEX10), VS34	// v2 = vs34
@@ -333,62 +339,64 @@ loop:
 	LXVD2X	(INP)(R0), VS40	// load v8 (=vs40) in advance
 	ADD	$16, INP
 
-	STVX	V0, (OFFLOAD+HEX00)
-	STVX	V1, (OFFLOAD+HEX10)
-	STVX	V2, (OFFLOAD+HEX20)
-	STVX	V3, (OFFLOAD+HEX30)
-	STVX	V4, (OFFLOAD+HEX40)
-	STVX	V5, (OFFLOAD+HEX50)
-	STVX	V6, (OFFLOAD+HEX60)
-	STVX	V7, (OFFLOAD+HEX70)
+	// Copy V0-V7 to VS24-VS31
+
+	XXLOR	V0, V0, VS24
+	XXLOR	V1, V1, VS25
+	XXLOR	V2, V2, VS26
+	XXLOR	V3, V3, VS27
+	XXLOR	V4, V4, VS28
+	XXLOR	V5, V5, VS29
+	XXLOR	V6, V6, VS30
+	XXLOR	V7, V7, VS31
 
 	VADDUDM	KI, V7, V7	// h+K[i]
 	LVX	(TBL)(IDX), KI
 	ADD	$16, IDX
 
-	VPERM	V8, V8, LEMASK, V8
+	VPERMLE(V8,V8,LEMASK,V8)
 	SHA512ROUND0(V0, V1, V2, V3, V4, V5, V6, V7, V8)
 	LXVD2X	(INP)(R0), VS42	// load v10 (=vs42) in advance
 	ADD	$16, INP, INP
 	VSLDOI	$8, V8, V8, V9
 	SHA512ROUND0(V7, V0, V1, V2, V3, V4, V5, V6, V9)
-	VPERM	V10, V10, LEMASK, V10
+	VPERMLE(V10,V10,LEMASK,V10)
 	SHA512ROUND0(V6, V7, V0, V1, V2, V3, V4, V5, V10)
 	LXVD2X	(INP)(R0), VS44	// load v12 (=vs44) in advance
 	ADD	$16, INP, INP
 	VSLDOI	$8, V10, V10, V11
 	SHA512ROUND0(V5, V6, V7, V0, V1, V2, V3, V4, V11)
-	VPERM	V12, V12, LEMASK, V12
+	VPERMLE(V12,V12,LEMASK,V12)
 	SHA512ROUND0(V4, V5, V6, V7, V0, V1, V2, V3, V12)
 	LXVD2X	(INP)(R0), VS46	// load v14 (=vs46) in advance
 	ADD	$16, INP, INP
 	VSLDOI	$8, V12, V12, V13
 	SHA512ROUND0(V3, V4, V5, V6, V7, V0, V1, V2, V13)
-	VPERM	V14, V14, LEMASK, V14
+	VPERMLE(V14,V14,LEMASK,V14)
 	SHA512ROUND0(V2, V3, V4, V5, V6, V7, V0, V1, V14)
 	LXVD2X	(INP)(R0), VS48	// load v16 (=vs48) in advance
 	ADD	$16, INP, INP
 	VSLDOI	$8, V14, V14, V15
 	SHA512ROUND0(V1, V2, V3, V4, V5, V6, V7, V0, V15)
-	VPERM	V16, V16, LEMASK, V16
+	VPERMLE(V16,V16,LEMASK,V16)
 	SHA512ROUND0(V0, V1, V2, V3, V4, V5, V6, V7, V16)
 	LXVD2X	(INP)(R0), VS50	// load v18 (=vs50) in advance
 	ADD	$16, INP, INP
 	VSLDOI	$8, V16, V16, V17
 	SHA512ROUND0(V7, V0, V1, V2, V3, V4, V5, V6, V17)
-	VPERM	V18, V18, LEMASK, V18
+	VPERMLE(V18,V18,LEMASK,V18)
 	SHA512ROUND0(V6, V7, V0, V1, V2, V3, V4, V5, V18)
 	LXVD2X	(INP)(R0), VS52	// load v20 (=vs52) in advance
 	ADD	$16, INP, INP
 	VSLDOI	$8, V18, V18, V19
 	SHA512ROUND0(V5, V6, V7, V0, V1, V2, V3, V4, V19)
-	VPERM	V20, V20, LEMASK, V20
+	VPERMLE(V20,V20,LEMASK,V20)
 	SHA512ROUND0(V4, V5, V6, V7, V0, V1, V2, V3, V20)
 	LXVD2X	(INP)(R0), VS54	// load v22 (=vs54) in advance
 	ADD	$16, INP, INP
 	VSLDOI	$8, V20, V20, V21
 	SHA512ROUND0(V3, V4, V5, V6, V7, V0, V1, V2, V21)
-	VPERM	V22, V22, LEMASK, V22
+	VPERMLE(V22,V22,LEMASK,V22)
 	SHA512ROUND0(V2, V3, V4, V5, V6, V7, V0, V1, V22)
 	VSLDOI	$8, V22, V22, V23
 	SHA512ROUND1(V1, V2, V3, V4, V5, V6, V7, V0, V23, V8, V9, V17, V22)
@@ -416,31 +424,37 @@ L16_xx:
 
 	BC	0x10, 0, L16_xx		// bdnz
 
-	LVX	(OFFLOAD)(HEX00), V10
-
-	LVX	(OFFLOAD)(HEX10), V11
+	XXLOR	VS24, VS24, V10
+	XXLOR	VS25, VS25, V11
+	XXLOR	VS26, VS26, V12
+	XXLOR	VS27, VS27, V13
+	XXLOR	VS28, VS28, V14
+	XXLOR	VS29, VS29, V15
+	XXLOR	VS30, VS30, V16
+	XXLOR	VS31, VS31, V17
 	VADDUDM	V10, V0, V0
-	LVX	(OFFLOAD)(HEX20), V12
 	VADDUDM	V11, V1, V1
-	LVX	(OFFLOAD)(HEX30), V13
 	VADDUDM	V12, V2, V2
-	LVX	(OFFLOAD)(HEX40), V14
 	VADDUDM	V13, V3, V3
-	LVX	(OFFLOAD)(HEX50), V15
 	VADDUDM	V14, V4, V4
-	LVX	(OFFLOAD)(HEX60), V16
 	VADDUDM	V15, V5, V5
-	LVX	(OFFLOAD)(HEX70), V17
 	VADDUDM	V16, V6, V6
 	VADDUDM	V17, V7, V7
 
 	CMPU	INP, END
 	BLT	loop
 
+#ifdef GOARCH_ppc64le
 	VPERM	V0, V1, KI, V0
 	VPERM	V2, V3, KI, V2
 	VPERM	V4, V5, KI, V4
 	VPERM	V6, V7, KI, V6
+#else
+	VPERM	V1, V0, KI, V0
+	VPERM	V3, V2, KI, V2
+	VPERM	V5, V4, KI, V4
+	VPERM	V7, V6, KI, V6
+#endif
 	STXVD2X	VS32, (CTX+HEX00)	// v0 = vs32
 	STXVD2X	VS34, (CTX+HEX10)	// v2 = vs34
 	STXVD2X	VS36, (CTX+HEX20)	// v4 = vs36
