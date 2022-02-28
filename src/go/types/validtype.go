@@ -79,7 +79,7 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, path []Object) typeIn
 			// would have reported a type cycle and couldn't have been
 			// imported in the first place.
 			assert(t.obj.pkg == check.pkg)
-			t.underlying = Typ[Invalid] // t is in the current package (no race possibilty)
+			t.underlying = Typ[Invalid] // t is in the current package (no race possibility)
 			// Find the starting point of the cycle and report it.
 			for i, tn := range path {
 				if tn == t.obj {

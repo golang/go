@@ -657,7 +657,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 
 				// Compute tsym, the symbol that would normally be used as
 				// the field name when embedding f.Type.
-				// TODO(mdempsky): Check for other occurences of this logic
+				// TODO(mdempsky): Check for other occurrences of this logic
 				// and deduplicate.
 				typ := f.Type
 				if typ.IsPtr() {

@@ -63,7 +63,7 @@ func TestASAN(t *testing.T) {
 					// sanitizer library needs a
 					// symbolizer program and can't find it.
 					const noSymbolizer = "external symbolizer"
-					// Check if -asan option can correctly print where the error occured.
+					// Check if -asan option can correctly print where the error occurred.
 					if tc.errorLocation != "" &&
 						!strings.Contains(out, tc.errorLocation) &&
 						!strings.Contains(out, noSymbolizer) &&
