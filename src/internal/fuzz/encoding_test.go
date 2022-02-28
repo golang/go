@@ -103,6 +103,20 @@ float64(-12.5)
 float32(2.5)`,
 			ok: true,
 		},
+		{
+			in: `go test fuzz v1
+float32(-0)
+float64(-0)
+float32(+Inf)
+float32(-Inf)
+float32(NaN)
+float64(+Inf)
+float64(-Inf)
+float64(NaN)
+math.Float64frombits(9221120237041090560)
+math.Float32frombits(2143289343)`,
+			ok: true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.in, func(t *testing.T) {
