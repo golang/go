@@ -185,7 +185,7 @@ func wrapname(pos src.XPos, x ir.Node) ir.Node {
 			break
 		}
 		fallthrough
-	case ir.ONAME, ir.ONONAME, ir.OPACK:
+	case ir.ONAME, ir.ONONAME:
 		p := ir.NewParenExpr(pos, x)
 		p.SetImplicit(true)
 		return p

@@ -521,7 +521,6 @@ func AnySideEffects(n ir.Node) bool {
 		case ir.ONAME,
 			ir.ONONAME,
 			ir.OTYPE,
-			ir.OPACK,
 			ir.OLITERAL,
 			ir.ONIL,
 			ir.OADD,

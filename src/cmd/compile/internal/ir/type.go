@@ -58,81 +58,6 @@ func (n *miniType) setOTYPE(t *types.Type, self Ntype) {
 func (n *miniType) Sym() *types.Sym { return nil }   // for Format OTYPE
 func (n *miniType) Implicit() bool  { return false } // for Format OTYPE
 
-// A ChanType represents a chan Elem syntax with the direction Dir.
-type ChanType struct {
-	miniType
-	Elem Ntype
-	Dir  types.ChanDir
-}
-
-func NewChanType(pos src.XPos, elem Ntype, dir types.ChanDir) *ChanType {
-	n := &ChanType{Elem: elem, Dir: dir}
-	n.op = OTCHAN
-	n.pos = pos
-	return n
-}
-
-func (n *ChanType) SetOTYPE(t *types.Type) {
-	n.setOTYPE(t, n)
-	n.Elem = nil
-}
-
-// A MapType represents a map[Key]Value type syntax.
-type MapType struct {
-	miniType
-	Key  Ntype
-	Elem Ntype
-}
-
-func NewMapType(pos src.XPos, key, elem Ntype) *MapType {
-	n := &MapType{Key: key, Elem: elem}
-	n.op = OTMAP
-	n.pos = pos
-	return n
-}
-
-func (n *MapType) SetOTYPE(t *types.Type) {
-	n.setOTYPE(t, n)
-	n.Key = nil
-	n.Elem = nil
-}
-
-// A StructType represents a struct { ... } type syntax.
-type StructType struct {
-	miniType
-	Fields []*Field
-}
-
-func NewStructType(pos src.XPos, fields []*Field) *StructType {
-	n := &StructType{Fields: fields}
-	n.op = OTSTRUCT
-	n.pos = pos
-	return n
-}
-
-func (n *StructType) SetOTYPE(t *types.Type) {
-	n.setOTYPE(t, n)
-	n.Fields = nil
-}
-
-// An InterfaceType represents a struct { ... } type syntax.
-type InterfaceType struct {
-	miniType
-	Methods []*Field
-}
-
-func NewInterfaceType(pos src.XPos, methods []*Field) *InterfaceType {
-	n := &InterfaceType{Methods: methods}
-	n.op = OTINTER
-	n.pos = pos
-	return n
-}
-
-func (n *InterfaceType) SetOTYPE(t *types.Type) {
-	n.setOTYPE(t, n)
-	n.Methods = nil
-}
-
 // A FuncType represents a func(Args) Results type syntax.
 type FuncType struct {
 	miniType
@@ -238,47 +163,6 @@ func editFields(list []*Field, edit func(Node) Node) {
 	for _, f := range list {
 		editField(f, edit)
 	}
-}
-
-// A SliceType represents a []Elem type syntax.
-// If DDD is true, it's the ...Elem at the end of a function list.
-type SliceType struct {
-	miniType
-	Elem Ntype
-	DDD  bool
-}
-
-func NewSliceType(pos src.XPos, elem Ntype) *SliceType {
-	n := &SliceType{Elem: elem}
-	n.op = OTSLICE
-	n.pos = pos
-	return n
-}
-
-func (n *SliceType) SetOTYPE(t *types.Type) {
-	n.setOTYPE(t, n)
-	n.Elem = nil
-}
-
-// An ArrayType represents a [Len]Elem type syntax.
-// If Len is nil, the type is a [...]Elem in an array literal.
-type ArrayType struct {
-	miniType
-	Len  Node
-	Elem Ntype
-}
-
-func NewArrayType(pos src.XPos, len Node, elem Ntype) *ArrayType {
-	n := &ArrayType{Len: len, Elem: elem}
-	n.op = OTARRAY
-	n.pos = pos
-	return n
-}
-
-func (n *ArrayType) SetOTYPE(t *types.Type) {
-	n.setOTYPE(t, n)
-	n.Len = nil
-	n.Elem = nil
 }
 
 // A typeNode is a Node wrapper for type t.
