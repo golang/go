@@ -6,13 +6,9 @@
 
 package main
 
-func f(x int, y ...int)	// ok
+func f(x int, y ...int) // ok
 
 func g(x int, y float32) (...)	// ERROR "[.][.][.]"
-
-func h(x, y ...int)		// ERROR "[.][.][.]"
-
-func i(x int, y ...int, z float32)	// ERROR "[.][.][.]"
 
 var x ...int;		// ERROR "[.][.][.]|syntax|type"
 

@@ -18,6 +18,7 @@ import (
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -329,7 +330,11 @@ func methods(t *types.Type) []*typeSig {
 		if f.Type.Recv() == nil {
 			base.Fatalf("receiver with no type on %v method %v %v", mt, f.Sym, f)
 		}
-		if f.Nointerface() {
+		if f.Nointerface() && !t.IsFullyInstantiated() {
+			// Skip creating method wrappers if f is nointerface. But, if
+			// t is an instantiated type, we still have to call
+			// methodWrapper, because methodWrapper generates the actual
+			// generic method on the type as well.
 			continue
 		}
 
@@ -347,6 +352,11 @@ func methods(t *types.Type) []*typeSig {
 			tsym:  methodWrapper(t, f, false),
 			type_: typecheck.NewMethodType(f.Type, t),
 			mtype: typecheck.NewMethodType(f.Type, nil),
+		}
+		if f.Nointerface() {
+			// In the case of a nointerface method on an instantiated
+			// type, don't actually apppend the typeSig.
+			continue
 		}
 		ms = append(ms, sig)
 	}
@@ -836,14 +846,19 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
 	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
 }
 
-// ITabLsym returns the LSym representing the itab for concreate type typ
-// implementing interface iface.
+// ITabLsym returns the LSym representing the itab for concrete type typ implementing
+// interface iface. A dummy tab will be created in the unusual case where typ doesn't
+// implement iface. Normally, this wouldn't happen, because the typechecker would
+// have reported a compile-time error. This situation can only happen when the
+// destination type of a type assert or a type in a type switch is parameterized, so
+// it may sometimes, but not always, be a type that can't implement the specified
+// interface.
 func ITabLsym(typ, iface *types.Type) *obj.LSym {
 	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
 	lsym := s.Linksym()
 
 	if !existed {
-		writeITab(lsym, typ, iface)
+		writeITab(lsym, typ, iface, true)
 	}
 	return lsym
 }
@@ -855,7 +870,7 @@ func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
 	lsym := s.Linksym()
 
 	if !existed {
-		writeITab(lsym, typ, iface)
+		writeITab(lsym, typ, iface, false)
 	}
 
 	n := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
@@ -914,11 +929,12 @@ func hashMightPanic(t *types.Type) bool {
 	}
 }
 
-// formalType replaces byte and rune aliases with real types.
+// formalType replaces predeclared aliases with real types.
 // They've been separate internally to make error messages
 // better, but we have to merge them in the reflect tables.
 func formalType(t *types.Type) *types.Type {
-	if t == types.ByteType || t == types.RuneType {
+	switch t {
+	case types.AnyType, types.ByteType, types.RuneType:
 		return types.Types[t.Kind()]
 	}
 	return t
@@ -947,11 +963,6 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 	if tbase.Kind() == types.TFORW {
 		base.Fatalf("unresolved defined type: %v", tbase)
-	}
-
-	dupok := 0
-	if tbase.Sym() == nil || tbase.HasShape() { // TODO(mdempsky): Probably need DUPOK for instantiated types too.
-		dupok = obj.DUPOK
 	}
 
 	if !NeedEmit(tbase) {
@@ -1186,7 +1197,9 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 
 	ot = dextratypeData(lsym, ot, t)
-	objw.Global(lsym, int32(ot), int16(dupok|obj.RODATA))
+	objw.Global(lsym, int32(ot), int16(obj.DUPOK|obj.RODATA))
+	// Note: DUPOK is required to ensure that we don't end up with more
+	// than one type descriptor for a given type.
 
 	// The linker will leave a table of all the typelinks for
 	// types in the binary, so the runtime can find them.
@@ -1269,9 +1282,10 @@ func WriteRuntimeTypes() {
 	}
 }
 
-// writeITab writes the itab for concrete type typ implementing
-// interface iface.
-func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
+// writeITab writes the itab for concrete type typ implementing interface iface. If
+// allowNonImplement is true, allow the case where typ does not implement iface, and just
+// create a dummy itab with zeroed-out method entries.
+func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 	// TODO(mdempsky): Fix methodWrapper, geneq, and genhash (and maybe
 	// others) to stop clobbering these.
 	oldpos, oldfn := base.Pos, ir.CurFunc
@@ -1297,14 +1311,9 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
 				break
 			}
 		}
-		if sigs[0].Sym.Name == "==" {
-			sigs = sigs[1:]
-			if len(sigs) == 0 {
-				break
-			}
-		}
 	}
-	if len(sigs) != 0 {
+	completeItab := len(sigs) == 0
+	if !allowNonImplement && !completeItab {
 		base.Fatalf("incomplete itab")
 	}
 
@@ -1321,7 +1330,12 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
 	o = objw.Uint32(lsym, o, types.TypeHash(typ)) // copy of type hash
 	o += 4                                        // skip unused field
 	for _, fn := range entries {
-		o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
+		if !completeItab {
+			// If typ doesn't implement iface, make method entries be zero.
+			o = objw.Uintptr(lsym, o, 0)
+		} else {
+			o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
+		}
 	}
 	// Nothing writes static itabs, so they are read only.
 	objw.Global(lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
@@ -1383,6 +1397,9 @@ func WriteBasicTypes() {
 		}
 		writeType(types.NewPtr(types.Types[types.TSTRING]))
 		writeType(types.NewPtr(types.Types[types.TUNSAFEPTR]))
+		if base.Flag.G > 0 {
+			writeType(types.AnyType)
+		}
 
 		// emit type structs for error and func(error) string.
 		// The latter is the type of an auto-generated wrapper.
@@ -1402,6 +1419,9 @@ func WriteBasicTypes() {
 		}
 		if base.Flag.MSan {
 			dimportpath(types.NewPkg("runtime/msan", ""))
+		}
+		if base.Flag.ASan {
+			dimportpath(types.NewPkg("runtime/asan", ""))
 		}
 
 		dimportpath(types.NewPkg("main", ""))
@@ -1788,19 +1808,13 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	// We don't need a dictionary if we are reaching a method (possibly via an
 	// embedded field) which is an interface method.
 	if !types.IsInterfaceMethod(method.Type) {
-		rcvr1 := rcvr
-		if rcvr1.IsPtr() {
-			rcvr1 = rcvr.Elem()
-		}
+		rcvr1 := deref(rcvr)
 		if len(rcvr1.RParams()) > 0 {
 			// If rcvr has rparams, remember method as generic, which
 			// means we need to add a dictionary to the wrapper.
 			generic = true
-			targs := rcvr1.RParams()
-			for _, t := range targs {
-				if t.HasShape() {
-					base.Fatalf("method on type instantiated with shapes targ:%+v rcvr:%+v", t, rcvr)
-				}
+			if rcvr.HasShape() {
+				base.Fatalf("method on type instantiated with shapes, rcvr:%+v", rcvr)
 			}
 		}
 	}
@@ -1817,9 +1831,10 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		return lsym
 	}
 
+	methodrcvr := method.Type.Recv().Type
 	// For generic methods, we need to generate the wrapper even if the receiver
 	// types are identical, because we want to add the dictionary.
-	if !generic && types.Identical(rcvr, method.Type.Recv().Type) {
+	if !generic && types.Identical(rcvr, methodrcvr) {
 		return lsym
 	}
 
@@ -1843,7 +1858,6 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 
 	nthis := ir.AsNode(tfn.Type().Recv().Nname)
 
-	methodrcvr := method.Type.Recv().Type
 	indirect := rcvr.IsPtr() && rcvr.Elem() == methodrcvr
 
 	// generate nil pointer check for better error
@@ -1864,10 +1878,6 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	// the TOC to the appropriate value for that module. But if it returns
 	// directly to the wrapper's caller, nothing will reset it to the correct
 	// value for that function.
-	//
-	// Disable tailcall for RegabiArgs for now. The IR does not connect the
-	// arguments with the OTAILCALL node, and the arguments are not marshaled
-	// correctly.
 	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !generic {
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
 		call.Args = ir.ParamNames(tfn.Type())
@@ -1878,30 +1888,26 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		var call *ir.CallExpr
 
 		if generic && dot.X != nthis {
-			// TODO: for now, we don't try to generate dictionary wrappers for
-			// any methods involving embedded fields, because we're not
-			// generating the needed dictionaries in instantiateMethods.
+			// If there is embedding involved, then we should do the
+			// normal non-generic embedding wrapper below, which calls
+			// the wrapper for the real receiver type using dot as an
+			// argument. There is no need for generic processing (adding
+			// a dictionary) for this wrapper.
 			generic = false
 		}
 
 		if generic {
-			var args []ir.Node
-			var targs []*types.Type
-			if rcvr.IsPtr() {
-				targs = rcvr.Elem().RParams()
-			} else {
-				targs = rcvr.RParams()
-			}
+			targs := deref(rcvr).RParams()
 			// The wrapper for an auto-generated pointer/non-pointer
 			// receiver method should share the same dictionary as the
 			// corresponding original (user-written) method.
 			baseOrig := orig
-			if baseOrig.IsPtr() && !method.Type.Recv().Type.IsPtr() {
+			if baseOrig.IsPtr() && !methodrcvr.IsPtr() {
 				baseOrig = baseOrig.Elem()
-			} else if !baseOrig.IsPtr() && method.Type.Recv().Type.IsPtr() {
+			} else if !baseOrig.IsPtr() && methodrcvr.IsPtr() {
 				baseOrig = types.NewPtr(baseOrig)
 			}
-			args = append(args, getDictionary(ir.MethodSym(baseOrig, method.Sym), targs))
+			args := []ir.Node{getDictionary(ir.MethodSym(baseOrig, method.Sym), targs)}
 			if indirect {
 				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
 			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
@@ -1915,18 +1921,25 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 
 			// Target method uses shaped names.
 			targs2 := make([]*types.Type, len(targs))
+			origRParams := deref(orig).OrigSym().Def.(*ir.Name).Type().RParams()
 			for i, t := range targs {
-				targs2[i] = typecheck.Shapify(t, i)
+				targs2[i] = typecheck.Shapify(t, i, origRParams[i])
 			}
 			targs = targs2
 
-			sym := typecheck.MakeFuncInstSym(ir.MethodSym(methodrcvr, method.Sym), targs, true)
+			sym := typecheck.MakeFuncInstSym(ir.MethodSym(methodrcvr, method.Sym), targs, false, true)
 			if sym.Def == nil {
-				// Currently we make sure that we have all the instantiations
-				// we need by generating them all in ../noder/stencil.go:instantiateMethods
-				// TODO: maybe there's a better, more incremental way to generate
-				// only the instantiations we need?
-				base.Fatalf("instantiation %s not found", sym.Name)
+				// Currently we make sure that we have all the
+				// instantiations we need by generating them all in
+				// ../noder/stencil.go:instantiateMethods
+				// Extra instantiations because of an inlined function
+				// should have been exported, and so available via
+				// Resolve.
+				in := typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
+				if in.Op() == ir.ONONAME {
+					base.Fatalf("instantiation %s not found", sym.Name)
+				}
+				sym = in.Sym()
 			}
 			target := ir.AsNode(sym.Def)
 			call = ir.NewCallExpr(base.Pos, ir.OCALL, target, args)
@@ -1999,6 +2012,34 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	}
 	dot := n.X.(*ir.SelectorExpr)
 	ityp := dot.X.Type()
+	if ityp.HasShape() {
+		// Here we're calling a method on a generic interface. Something like:
+		//
+		// type I[T any] interface { foo() T }
+		// func f[T any](x I[T]) {
+		//     ... = x.foo()
+		// }
+		// f[int](...)
+		// f[string](...)
+		//
+		// In this case, in f we're calling foo on a generic interface.
+		// Which method could that be? Normally we could match the method
+		// both by name and by type. But in this case we don't really know
+		// the type of the method we're calling. It could be func()int
+		// or func()string. So we match on just the function name, instead
+		// of both the name and the type used for the non-generic case below.
+		// TODO: instantiations at least know the shape of the instantiated
+		// type, and the linker could do more complicated matching using
+		// some sort of fuzzy shape matching. For now, only use the name
+		// of the method for matching.
+		r := obj.Addrel(ir.CurFunc.LSym)
+		// We use a separate symbol just to tell the linker the method name.
+		// (The symbol itself is not needed in the final binary.)
+		r.Sym = staticdata.StringSym(src.NoXPos, dot.Sel.Name)
+		r.Type = objabi.R_USEGENERICIFACEMETHOD
+		return
+	}
+
 	tsym := TypeLinksym(ityp)
 	r := obj.Addrel(ir.CurFunc.LSym)
 	r.Sym = tsym
@@ -2006,16 +2047,6 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	// in itab).
 	midx := dot.Offset() / int64(types.PtrSize)
 	r.Add = InterfaceMethodOffset(ityp, midx)
-	r.Type = objabi.R_USEIFACEMETHOD
-}
-
-// MarkUsedIfaceMethodIndex marks that that method number ix (in the AllMethods list)
-// of interface type ityp is used, and should be attached to lsym.
-func MarkUsedIfaceMethodIndex(lsym *obj.LSym, ityp *types.Type, ix int) {
-	tsym := TypeLinksym(ityp)
-	r := obj.Addrel(lsym)
-	r.Sym = tsym
-	r.Add = InterfaceMethodOffset(ityp, int64(ix))
 	r.Type = objabi.R_USEIFACEMETHOD
 }
 
@@ -2033,9 +2064,15 @@ func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
 
 	sym := typecheck.MakeDictSym(gf, targs, true)
 
-	// Initialize the dictionary, if we haven't yet already.
+	// Dictionary should already have been generated by instantiateMethods().
+	// Extra dictionaries needed because of an inlined function should have been
+	// exported, and so available via Resolve.
 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
-		base.Fatalf("Dictionary should have already been generated: %s.%s", sym.Pkg.Path, sym.Name)
+		in := typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
+		if in.Op() == ir.ONONAME {
+			base.Fatalf("Dictionary should have already been generated: %s.%s", sym.Pkg.Path, sym.Name)
+		}
+		sym = in.Sym()
 	}
 
 	// Make (or reuse) a node referencing the dictionary symbol.
@@ -2058,4 +2095,11 @@ func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
 	np.SetType(types.Types[types.TUINTPTR])
 	np.SetTypecheck(1)
 	return np
+}
+
+func deref(t *types.Type) *types.Type {
+	if t.IsPtr() {
+		return t.Elem()
+	}
+	return t
 }

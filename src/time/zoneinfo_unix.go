@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || (darwin && !ios) || dragonfly || freebsd || (linux && !android) || netbsd || openbsd || solaris
-// +build aix darwin,!ios dragonfly freebsd linux,!android netbsd openbsd solaris
 
 // Parse "zoneinfo" time zone file.
 // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.

@@ -68,13 +68,16 @@ and test commands:
 		The default is GOMAXPROCS, normally the number of CPUs available.
 	-race
 		enable data race detection.
-		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
+		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, darwin/arm64, windows/amd64,
 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 	-msan
 		enable interoperation with memory sanitizer.
 		Supported only on linux/amd64, linux/arm64
 		and only with Clang/LLVM as the host C compiler.
 		On linux/arm64, pie build mode will be used.
+	-asan
+		enable interoperation with address sanitizer.
+		Supported only on linux/arm64, linux/amd64.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -87,6 +90,12 @@ and test commands:
 		arguments to pass on each go tool asm invocation.
 	-buildmode mode
 		build mode to use. See 'go help buildmode' for more.
+	-buildvcs
+		Whether to stamp binaries with version control information. By default,
+		version control information is stamped into a binary if the main package
+		and the main module containing it are in the repository containing the
+		current directory (if there is a repository). Use -buildvcs=false to
+		omit version control information.
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags '[pattern=]arg list'
@@ -98,8 +107,8 @@ and test commands:
 		in order to keep output separate from default builds.
 		If using the -race flag, the install suffix is automatically set to race
 		or, if set explicitly, has _race appended to it. Likewise for the -msan
-		flag. Using a -buildmode option that requires non-default compile flags
-		has a similar effect.
+		and -asan flags. Using a -buildmode option that requires non-default compile
+		flags has a similar effect.
 	-ldflags '[pattern=]arg list'
 		arguments to pass on each go tool link invocation.
 	-linkshared
@@ -121,14 +130,6 @@ and test commands:
 		directory, but it is not accessed. When -modfile is specified, an
 		alternate go.sum file is also used: its path is derived from the
 		-modfile flag by trimming the ".mod" extension and appending ".sum".
-  -workfile file
-    in module aware mode, use the given go.work file as a workspace file.
-		By default or when -workfile is "auto", the go command searches for a
-		file named go.work in the current directory and then containing directories
-		until one is found. If a valid go.work file is found, the modules
-		specified will collectively be used as the main modules. If -workfile
-		is "off", or a go.work file is not found in "auto" mode, workspace
-		mode is disabled.
 	-overlay file
 		read a JSON config file that provides an overlay for build operations.
 		The file is a JSON struct with a single field, named 'Replace', that
@@ -153,9 +154,8 @@ and test commands:
 	-trimpath
 		remove all file system paths from the resulting executable.
 		Instead of absolute file system paths, the recorded file names
-		will begin with either "go" (for the standard library),
-		or a module path@version (when using modules),
-		or a plain import path (when using GOPATH).
+		will begin either a module path@version (when using modules),
+		or a plain import path (when using the standard library, or GOPATH).
 	-toolexec 'cmd args'
 		a program to use to invoke toolchain programs like vet and asm.
 		For example, instead of running asm, the go command will run
@@ -209,7 +209,6 @@ func init() {
 
 	AddBuildFlags(CmdBuild, DefaultBuildFlags)
 	AddBuildFlags(CmdInstall, DefaultBuildFlags)
-	base.AddWorkfileFlag(&CmdBuild.Flag)
 }
 
 // Note that flags consulted by other parts of the code
@@ -298,10 +297,12 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
+	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
+	cmd.Flag.BoolVar(&cfg.BuildBuildvcs, "buildvcs", true, "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
@@ -600,6 +601,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	modload.InitWorkfile()
 	BuildInit()
 	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
 	if cfg.ModulesEnabled && !modload.HasModRoot() {

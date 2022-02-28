@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build arm || mips || mipsle || 386
-// +build arm mips mipsle 386
 
 package unix
 

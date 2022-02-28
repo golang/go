@@ -622,10 +622,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil)
 		if params := on.Type().Params().FieldSlice(); len(params) > 0 {
 			t := params[0].Type
-			if !types.Identical(t, n.Type()) {
-				n = ir.NewConvExpr(base.Pos, ir.OCONV, nil, n)
-				n.SetType(t)
-			}
+			n = typecheck.Conv(n, t)
 			r.Args.Append(n)
 		}
 		calls = append(calls, r)

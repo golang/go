@@ -715,19 +715,20 @@ func setup() {
 	synthOnce.Do(func() {
 		fname := types.BuiltinPkg.Lookup
 		nxp := src.NoXPos
-		unsp := types.Types[types.TUNSAFEPTR]
-		ui := types.Types[types.TUINTPTR]
+		bp := types.NewPtr(types.Types[types.TUINT8])
+		it := types.Types[types.TINT]
 		synthSlice = types.NewStruct(types.NoPkg, []*types.Field{
-			types.NewField(nxp, fname("ptr"), unsp),
-			types.NewField(nxp, fname("len"), ui),
-			types.NewField(nxp, fname("cap"), ui),
+			types.NewField(nxp, fname("ptr"), bp),
+			types.NewField(nxp, fname("len"), it),
+			types.NewField(nxp, fname("cap"), it),
 		})
 		types.CalcStructSize(synthSlice)
 		synthString = types.NewStruct(types.NoPkg, []*types.Field{
-			types.NewField(nxp, fname("data"), unsp),
-			types.NewField(nxp, fname("len"), ui),
+			types.NewField(nxp, fname("data"), bp),
+			types.NewField(nxp, fname("len"), it),
 		})
 		types.CalcStructSize(synthString)
+		unsp := types.Types[types.TUNSAFEPTR]
 		synthIface = types.NewStruct(types.NoPkg, []*types.Field{
 			types.NewField(nxp, fname("f1"), unsp),
 			types.NewField(nxp, fname("f2"), unsp),
@@ -780,11 +781,11 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
 }
 
 // ComputePadding returns a list of "post element" padding values in
-// the case where we have a structure being passed in registers. Give
-// a param assignment corresponding to a struct, it returns a list of
-// contaning padding values for each field, e.g. the Kth element in
+// the case where we have a structure being passed in registers. Given
+// a param assignment corresponding to a struct, it returns a list
+// containing padding values for each field, e.g. the Kth element in
 // the list is the amount of padding between field K and the following
-// field. For things that are not struct (or structs without padding)
+// field. For things that are not structs (or structs without padding)
 // it returns a list of zeros. Example:
 //
 // type small struct {
@@ -796,8 +797,8 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
 //
 // For this struct we would return a list [0, 1, 0, 0], meaning that
 // we have one byte of padding after the second field, and no bytes of
-// padding after any of the other fields. Input parameter "storage"
-// is with enough capacity to accommodate padding elements for
+// padding after any of the other fields. Input parameter "storage" is
+// a slice with enough capacity to accommodate padding elements for
 // the architected register set in question.
 func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
 	nr := len(pa.Registers)

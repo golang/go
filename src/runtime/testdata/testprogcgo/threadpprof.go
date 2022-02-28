@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !plan9 && !windows
 // +build !plan9,!windows
 
 package main
@@ -33,8 +34,6 @@ void cpuHogThread() {
 void cpuHogThread2() {
 }
 
-static int cpuHogThreadCount;
-
 struct cgoTracebackArg {
 	uintptr_t  context;
 	uintptr_t  sigContext;
@@ -49,13 +48,6 @@ void pprofCgoThreadTraceback(void* parg) {
 	arg->buf[0] = (uintptr_t)(cpuHogThread) + 0x10;
 	arg->buf[1] = (uintptr_t)(cpuHogThread2) + 0x4;
 	arg->buf[2] = 0;
-	__sync_add_and_fetch(&cpuHogThreadCount, 1);
-}
-
-// getCPUHogThreadCount fetches the number of times we've seen cpuHogThread
-// in the traceback.
-int getCPUHogThreadCount() {
-	return __sync_add_and_fetch(&cpuHogThreadCount, 0);
 }
 
 static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
@@ -73,6 +65,7 @@ void runCPUHogThread(void) {
 import "C"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -107,12 +100,16 @@ func pprofThread() {
 		os.Exit(2)
 	}
 
-	C.runCPUHogThread()
+	// This goroutine may receive a profiling signal while creating the C-owned
+	// thread. If it does, the SetCgoTraceback handler will make the leaf end of
+	// the stack look almost (but not exactly) like the stacks the test case is
+	// trying to find. Attach a profiler label so the test can filter out those
+	// confusing samples.
+	pprof.Do(context.Background(), pprof.Labels("ignore", "ignore"), func(ctx context.Context) {
+		C.runCPUHogThread()
+	})
 
-	t0 := time.Now()
-	for C.getCPUHogThreadCount() < 2 && time.Since(t0) < time.Second {
-		time.Sleep(100 * time.Millisecond)
-	}
+	time.Sleep(1 * time.Second)
 
 	pprof.StopCPUProfile()
 

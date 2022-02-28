@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build 386 || amd64 || s390x || ppc64le
-// +build 386 amd64 s390x ppc64le
 
 package sha256
 

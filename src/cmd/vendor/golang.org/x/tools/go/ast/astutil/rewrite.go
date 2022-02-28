@@ -253,6 +253,10 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
 		a.apply(n, "X", nil, n.X)
 		a.apply(n, "Index", nil, n.Index)
 
+	case *typeparams.IndexListExpr:
+		a.apply(n, "X", nil, n.X)
+		a.applyList(n, "Indices")
+
 	case *ast.SliceExpr:
 		a.apply(n, "X", nil, n.X)
 		a.apply(n, "Low", nil, n.Low)
@@ -439,13 +443,7 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
 		}
 
 	default:
-		if ix := typeparams.GetIndexExprData(n); ix != nil {
-			a.apply(n, "X", nil, ix.X)
-			// *ast.IndexExpr was handled above, so n must be an *ast.MultiIndexExpr.
-			a.applyList(n, "Indices")
-		} else {
-			panic(fmt.Sprintf("Apply: unexpected node type %T", n))
-		}
+		panic(fmt.Sprintf("Apply: unexpected node type %T", n))
 	}
 
 	if a.post != nil && !a.post(&a.cursor) {

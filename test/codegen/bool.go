@@ -27,7 +27,7 @@ func convertNeq0L(x uint32, c bool) bool {
 }
 
 func convertNeq0Q(x uint64, c bool) bool {
-	// amd64:"ANDQ\t[$]1",-"SETB"
+	// amd64:"ANDL\t[$]1",-"SETB"
 	b := x&1 != 0
 	return c && b
 }

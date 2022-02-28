@@ -6,6 +6,7 @@ package sym
 
 import (
 	"cmd/internal/obj"
+	"internal/buildcfg"
 )
 
 const (
@@ -20,6 +21,11 @@ func ABIToVersion(abi obj.ABI) int {
 	case obj.ABI0:
 		return SymVerABI0
 	case obj.ABIInternal:
+		if !buildcfg.Experiment.RegabiWrappers {
+			// If wrappers are not enabled, ABI0 and ABIInternal are actually same
+			// so we normalize everything to ABI0.
+			return SymVerABI0
+		}
 		return SymVerABIInternal
 	}
 	return -1

@@ -12,6 +12,12 @@ import (
 )
 
 func TestCheckPtr(t *testing.T) {
+	// This test requires rebuilding packages with -d=checkptr=1,
+	// so it's somewhat slow.
+	if testing.Short() {
+		t.Skip("skipping test in -short mode")
+	}
+
 	t.Parallel()
 	testenv.MustHaveGoRun(t)
 
@@ -57,6 +63,12 @@ func TestCheckPtr(t *testing.T) {
 }
 
 func TestCheckPtr2(t *testing.T) {
+	// This test requires rebuilding packages with -d=checkptr=2,
+	// so it's somewhat slow.
+	if testing.Short() {
+		t.Skip("skipping test in -short mode")
+	}
+
 	t.Parallel()
 	testenv.MustHaveGoRun(t)
 

@@ -798,6 +798,7 @@ func unescapeString(escaped string) (string, bool) {
 // GOPRIVATE environment variable, as described by 'go help module-private'.
 //
 // It ignores any empty or malformed patterns in the list.
+// Trailing slashes on patterns are ignored.
 func MatchPrefixPatterns(globs, target string) bool {
 	for globs != "" {
 		// Extract next non-empty glob in comma-separated list.
@@ -807,6 +808,7 @@ func MatchPrefixPatterns(globs, target string) bool {
 		} else {
 			glob, globs = globs, ""
 		}
+		glob = strings.TrimSuffix(glob, "/")
 		if glob == "" {
 			continue
 		}

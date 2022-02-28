@@ -309,6 +309,16 @@ func (sb *SymbolBuilder) SetAddr(arch *sys.Arch, off int64, tgt Sym) int64 {
 
 func (sb *SymbolBuilder) AddStringAt(off int64, str string) int64 {
 	strLen := int64(len(str))
+	if off+strLen > int64(len(sb.data)) {
+		panic("attempt to write past end of buffer")
+	}
+	copy(sb.data[off:off+strLen], str)
+	return off + strLen
+}
+
+// AddCStringAt adds str plus a null terminating byte.
+func (sb *SymbolBuilder) AddCStringAt(off int64, str string) int64 {
+	strLen := int64(len(str))
 	if off+strLen+1 > int64(len(sb.data)) {
 		panic("attempt to write past end of buffer")
 	}

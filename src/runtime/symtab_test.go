@@ -250,3 +250,35 @@ func TestFunctionAlignmentTraceback(t *testing.T) {
 		t.Errorf("frames.Next() got %+v want %+v", frame.Func, f)
 	}
 }
+
+func BenchmarkFunc(b *testing.B) {
+	pc, _, _, ok := runtime.Caller(0)
+	if !ok {
+		b.Fatal("failed to look up PC")
+	}
+	f := runtime.FuncForPC(pc)
+	b.Run("Name", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			name := f.Name()
+			if name != "runtime_test.BenchmarkFunc" {
+				b.Fatalf("unexpected name %q", name)
+			}
+		}
+	})
+	b.Run("Entry", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			pc := f.Entry()
+			if pc == 0 {
+				b.Fatal("zero PC")
+			}
+		}
+	})
+	b.Run("FileLine", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			file, line := f.FileLine(pc)
+			if !strings.HasSuffix(file, "symtab_test.go") || line == 0 {
+				b.Fatalf("unexpected file/line %q:%d", file, line)
+			}
+		}
+	})
+}

@@ -160,7 +160,12 @@ func ImportedBody(fn *ir.Func) {
 	IncrementalAddrtaken = false
 	defer func() {
 		if DirtyAddrtaken {
-			ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
+			// We do ComputeAddrTaken on function instantiations, but not
+			// generic functions (since we may not yet know if x in &x[i]
+			// is an array or a slice).
+			if !fn.Type().HasTParam() {
+				ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
+			}
 			DirtyAddrtaken = false
 		}
 		IncrementalAddrtaken = true

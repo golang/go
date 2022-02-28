@@ -26,8 +26,8 @@ func TestImplicitSetConversion(t *testing.T) {
 }
 
 var implementsTests = []struct {
-	x interface{}
-	t interface{}
+	x any
+	t any
 	b bool
 }{
 	{new(*bytes.Buffer), new(io.Reader), true},
@@ -73,8 +73,8 @@ func TestImplements(t *testing.T) {
 }
 
 var assignableTests = []struct {
-	x interface{}
-	t interface{}
+	x any
+	t any
 	b bool
 }{
 	{new(chan int), new(<-chan int), true},
@@ -82,13 +82,13 @@ var assignableTests = []struct {
 	{new(*int), new(IntPtr), true},
 	{new(IntPtr), new(*int), true},
 	{new(IntPtr), new(IntPtr1), false},
-	{new(Ch), new(<-chan interface{}), true},
+	{new(Ch), new(<-chan any), true},
 	// test runs implementsTests too
 }
 
 type IntPtr *int
 type IntPtr1 *int
-type Ch <-chan interface{}
+type Ch <-chan any
 
 func TestAssignableTo(t *testing.T) {
 	for i, tt := range append(assignableTests, implementsTests...) {

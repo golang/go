@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
 
 package os
 
@@ -17,7 +16,7 @@ func sigpipe() // implemented in package runtime
 
 // Close closes the File, rendering it unusable for I/O.
 // On files that support SetDeadline, any pending I/O operations will
-// be canceled and return immediately with an error.
+// be canceled and return immediately with an ErrClosed error.
 // Close will return an error if it has already been called.
 func (f *File) Close() error {
 	if f == nil {

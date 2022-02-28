@@ -6,6 +6,7 @@ package reflect_test
 
 import (
 	. "reflect"
+	"strings"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ type structField struct {
 
 var fieldsTests = []struct {
 	testName string
-	val      interface{}
+	val      any
 	expect   []structField
 }{{
 	testName: "SimpleStruct",
@@ -278,7 +279,7 @@ type RS3 struct {
 	RS1
 }
 
-type M map[string]interface{}
+type M map[string]any
 
 type Rec1 struct {
 	*Rec2
@@ -326,5 +327,23 @@ func TestFields(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Must not panic with nil embedded pointer.
+func TestFieldByIndexErr(t *testing.T) {
+	type A struct {
+		S string
+	}
+	type B struct {
+		*A
+	}
+	v := ValueOf(B{})
+	_, err := v.FieldByIndexErr([]int{0, 0})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "embedded struct field A") {
+		t.Fatal(err)
 	}
 }

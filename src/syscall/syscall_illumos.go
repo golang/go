@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build illumos
-// +build illumos
 
 // Illumos system calls not present on Solaris.
 

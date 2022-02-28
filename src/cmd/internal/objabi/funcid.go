@@ -13,6 +13,7 @@ type FuncFlag uint8
 const (
 	FuncFlag_TOPFRAME = 1 << iota
 	FuncFlag_SPWRITE
+	FuncFlag_ASM
 )
 
 // A FuncID identifies particular functions that need to be treated

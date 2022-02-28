@@ -4,7 +4,6 @@
 
 // Delete the next line to include in the gob package.
 //go:build ignore
-// +build ignore
 
 package gob
 
@@ -119,7 +118,7 @@ type debugger struct {
 // dump prints the next nBytes of the input.
 // It arranges to print the output aligned from call to
 // call, to make it easy to see what has been consumed.
-func (deb *debugger) dump(format string, args ...interface{}) {
+func (deb *debugger) dump(format string, args ...any) {
 	if !dumpBytes {
 		return
 	}

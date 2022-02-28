@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !aix && !darwin && !freebsd && !openbsd && !plan9 && !solaris
-// +build !aix,!darwin,!freebsd,!openbsd,!plan9,!solaris
 
 package runtime
 

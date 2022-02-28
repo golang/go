@@ -26,6 +26,7 @@ import (
 var (
 	BuildA                 bool   // -a flag
 	BuildBuildmode         string // -buildmode flag
+	BuildBuildvcs          bool   // -buildvcs flag
 	BuildContext           = defaultContext()
 	BuildMod               string                  // -mod flag
 	BuildModExplicit       bool                    // whether -mod was set explicitly
@@ -33,6 +34,7 @@ var (
 	BuildI                 bool                    // -i flag
 	BuildLinkshared        bool                    // -linkshared flag
 	BuildMSan              bool                    // -msan flag
+	BuildASan              bool                    // -asan flag
 	BuildN                 bool                    // -n flag
 	BuildO                 string                  // -o flag
 	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
@@ -47,19 +49,24 @@ var (
 	BuildWork              bool // -work flag
 	BuildX                 bool // -x flag
 
-	ModCacheRW       bool   // -modcacherw flag
-	ModFile          string // -modfile flag
-	WorkFile         string // -workfile flag
-	WorkFileExplicit bool   // whether -workfile was set explicitly
+	ModCacheRW bool   // -modcacherw flag
+	ModFile    string // -modfile flag
 
 	CmdName string // "build", "install", "list", "mod tidy", etc.
 
 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
 	DebugTrace       string // -debug-trace flag
+
+	// GoPathError is set when GOPATH is not set. it contains an
+	// explanation why GOPATH is unset.
+	GoPathError string
+
+	GOEXPERIMENT = envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT)
 )
 
 func defaultContext() build.Context {
 	ctxt := build.Default
+
 	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
 
 	ctxt.GOROOT = findGOROOT()
@@ -72,7 +79,7 @@ func defaultContext() build.Context {
 		build.ToolDir = filepath.Join(ctxt.GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
 	}
 
-	ctxt.GOPATH = envOr("GOPATH", ctxt.GOPATH)
+	ctxt.GOPATH = envOr("GOPATH", gopath(ctxt))
 
 	// Override defaults computed in go/build with defaults
 	// from go environment configuration file, if known.
@@ -81,7 +88,7 @@ func defaultContext() build.Context {
 
 	// The experiments flags are based on GOARCH, so they may
 	// need to change.  TODO: This should be cleaned up.
-	buildcfg.UpdateExperiments(ctxt.GOOS, ctxt.GOARCH, envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT))
+	buildcfg.UpdateExperiments(ctxt.GOOS, ctxt.GOARCH, GOEXPERIMENT)
 	ctxt.ToolTags = nil
 	for _, exp := range buildcfg.EnabledExperiments() {
 		ctxt.ToolTags = append(ctxt.ToolTags, "goexperiment."+exp)
@@ -400,4 +407,25 @@ func gopathDir(rel string) string {
 		return ""
 	}
 	return filepath.Join(list[0], rel)
+}
+
+func gopath(ctxt build.Context) string {
+	if len(ctxt.GOPATH) > 0 {
+		return ctxt.GOPATH
+	}
+	env := "HOME"
+	if runtime.GOOS == "windows" {
+		env = "USERPROFILE"
+	} else if runtime.GOOS == "plan9" {
+		env = "home"
+	}
+	if home := os.Getenv(env); home != "" {
+		def := filepath.Join(home, "go")
+		if filepath.Clean(def) == filepath.Clean(runtime.GOROOT()) {
+			GoPathError = "cannot set GOROOT as GOPATH"
+		}
+		return ""
+	}
+	GoPathError = fmt.Sprintf("%s is not set", env)
+	return ""
 }

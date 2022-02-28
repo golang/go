@@ -48,6 +48,9 @@
 #define SYS_sigaltstack		132
 #define SYS_socket		198
 #define SYS_tgkill		131
+#define SYS_timer_create	107
+#define SYS_timer_delete	111
+#define SYS_timer_settime	110
 #define SYS_tkill		130
 #define SYS_write		64
 
@@ -199,6 +202,35 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	MOV	old+16(FP), A2
 	MOV	$SYS_setitimer, A7
 	ECALL
+	RET
+
+// func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVW	clockid+0(FP), A0
+	MOV	sevp+8(FP), A1
+	MOV	timerid+16(FP), A2
+	MOV	$SYS_timer_create, A7
+	ECALL
+	MOVW	A0, ret+24(FP)
+	RET
+
+// func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVW	timerid+0(FP), A0
+	MOVW	flags+4(FP), A1
+	MOV	new+8(FP), A2
+	MOV	old+16(FP), A3
+	MOV	$SYS_timer_settime, A7
+	ECALL
+	MOVW	A0, ret+24(FP)
+	RET
+
+// func timer_delete(timerid int32) int32
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVW	timerid+0(FP), A0
+	MOV	$SYS_timer_delete, A7
+	ECALL
+	MOVW	A0, ret+8(FP)
 	RET
 
 // func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32

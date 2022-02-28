@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && cgo
-// +build linux,cgo
 
 // On systems that use glibc, calling malloc can create a new arena,
 // and creating a new arena can read /sys/devices/system/cpu/online.

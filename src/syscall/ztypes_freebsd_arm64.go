@@ -2,7 +2,6 @@
 // cgo -godefs types_freebsd.go | go run mkpost.go
 
 //go:build arm64 && freebsd
-// +build arm64,freebsd
 
 package syscall
 

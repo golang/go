@@ -8,7 +8,8 @@ type myInt int
 
 // Parameterized type declarations
 
-type T1[P any] P
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+type T1[P any] P // ERROR cannot use a type parameter as RHS in type declaration
 
 type T2[P any] struct {
         f P
@@ -19,7 +20,7 @@ type List[P any] []P
 
 // Alias type declarations cannot have type parameters.
 // Issue #46477 proposses to change that.
-type A1[P any] = /* ERROR cannot be alias */ P
+type A1[P any] = /* ERROR cannot be alias */ struct{}
 
 // Pending clarification of #46477 we disallow aliases
 // of generic types.

@@ -2603,7 +2603,34 @@ pkg runtime/debug, type GCStats struct, Pause []time.Duration
 pkg runtime/debug, type GCStats struct, PauseQuantiles []time.Duration
 pkg runtime/debug, type GCStats struct, PauseTotal time.Duration
 pkg sort, func Reverse(Interface) Interface
-pkg strconv, const IntSize = 64
+pkg strconv (darwin-amd64), const IntSize = 64
+pkg strconv (darwin-amd64-cgo), const IntSize = 64
+pkg strconv (freebsd-386), const IntSize = 32
+pkg strconv (freebsd-386-cgo), const IntSize = 32
+pkg strconv (freebsd-amd64), const IntSize = 64
+pkg strconv (freebsd-amd64-cgo), const IntSize = 64
+pkg strconv (freebsd-arm), const IntSize = 32
+pkg strconv (freebsd-arm-cgo), const IntSize = 32
+pkg strconv (linux-386), const IntSize = 32
+pkg strconv (linux-386-cgo), const IntSize = 32
+pkg strconv (linux-amd64), const IntSize = 64
+pkg strconv (linux-amd64-cgo), const IntSize = 64
+pkg strconv (linux-arm), const IntSize = 32
+pkg strconv (linux-arm-cgo), const IntSize = 32
+pkg strconv (netbsd-386), const IntSize = 32
+pkg strconv (netbsd-386-cgo), const IntSize = 32
+pkg strconv (netbsd-amd64), const IntSize = 64
+pkg strconv (netbsd-amd64-cgo), const IntSize = 64
+pkg strconv (netbsd-arm), const IntSize = 32
+pkg strconv (netbsd-arm-cgo), const IntSize = 32
+pkg strconv (netbsd-arm64), const IntSize = 64
+pkg strconv (netbsd-arm64-cgo), const IntSize = 64
+pkg strconv (openbsd-386), const IntSize = 32
+pkg strconv (openbsd-386-cgo), const IntSize = 32
+pkg strconv (openbsd-amd64), const IntSize = 64
+pkg strconv (openbsd-amd64-cgo), const IntSize = 64
+pkg strconv (windows-386), const IntSize = 32
+pkg strconv (windows-amd64), const IntSize = 64
 pkg strings, func TrimPrefix(string, string) string
 pkg strings, func TrimSuffix(string, string) string
 pkg strings, method (*Reader) WriteTo(io.Writer) (int64, error)
@@ -49366,7 +49393,7 @@ pkg syscall (windows-386), const IP_MULTICAST_TTL = 10
 pkg syscall (windows-386), const IP_TOS = 3
 pkg syscall (windows-386), const IP_TTL = 4
 pkg syscall (windows-386), const ImplementsGetwd = true
-pkg syscall (windows-386), const InvalidHandle = 18446744073709551615
+pkg syscall (windows-386), const InvalidHandle = 4294967295
 pkg syscall (windows-386), const KEY_ALL_ACCESS = 983103
 pkg syscall (windows-386), const KEY_CREATE_LINK = 32
 pkg syscall (windows-386), const KEY_CREATE_SUB_KEY = 4

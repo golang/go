@@ -67,6 +67,9 @@ func (s *StdSizes) Alignof(T Type) int64 {
 	case *Slice, *Interface:
 		// Multiword data structures are effectively structs
 		// in which each element has size WordSize.
+		// Type parameters lead to variable sizes/alignments;
+		// StdSizes.Alignof won't be called for them.
+		assert(!isTypeParam(T))
 		return s.WordSize
 	case *Basic:
 		// Strings are like slices and interfaces.
@@ -151,6 +154,9 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		offsets := s.Offsetsof(t.fields)
 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
 	case *Interface:
+		// Type parameters lead to variable sizes/alignments;
+		// StdSizes.Sizeof won't be called for them.
+		assert(!isTypeParam(T))
 		return s.WordSize * 2
 	case *TypeParam, *Union:
 		unreachable()
@@ -243,7 +249,7 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
 func (conf *Config) offsetof(typ Type, index []int) int64 {
 	var o int64
 	for _, i := range index {
-		s := asStruct(typ)
+		s := under(typ).(*Struct)
 		o += conf.offsetsof(s)[i]
 		typ = s.fields[i].typ
 	}

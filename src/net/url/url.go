@@ -452,20 +452,6 @@ func getScheme(rawURL string) (scheme, path string, err error) {
 	return "", rawURL, nil
 }
 
-// split slices s into two substrings separated by the first occurrence of
-// sep. If cutc is true then sep is excluded from the second substring.
-// If sep does not occur in s then s and the empty string is returned.
-func split(s string, sep byte, cutc bool) (string, string) {
-	i := strings.IndexByte(s, sep)
-	if i < 0 {
-		return s, ""
-	}
-	if cutc {
-		return s[:i], s[i+1:]
-	}
-	return s[:i], s[i:]
-}
-
 // Parse parses a raw url into a URL structure.
 //
 // The url may be relative (a path, without a host) or absolute
@@ -474,7 +460,7 @@ func split(s string, sep byte, cutc bool) (string, string) {
 // error, due to parsing ambiguities.
 func Parse(rawURL string) (*URL, error) {
 	// Cut off #frag
-	u, frag := split(rawURL, '#', true)
+	u, frag, _ := strings.Cut(rawURL, "#")
 	url, err := parse(u, false)
 	if err != nil {
 		return nil, &Error{"parse", u, err}
@@ -534,7 +520,7 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		url.ForceQuery = true
 		rest = rest[:len(rest)-1]
 	} else {
-		rest, url.RawQuery = split(rest, '?', true)
+		rest, url.RawQuery, _ = strings.Cut(rest, "?")
 	}
 
 	if !strings.HasPrefix(rest, "/") {
@@ -553,9 +539,7 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		// RFC 3986, §3.3:
 		// In addition, a URI reference (Section 4.1) may be a relative-path reference,
 		// in which case the first path segment cannot contain a colon (":") character.
-		colon := strings.Index(rest, ":")
-		slash := strings.Index(rest, "/")
-		if colon >= 0 && (slash < 0 || colon < slash) {
+		if segment, _, _ := strings.Cut(rest, "/"); strings.Contains(segment, ":") {
 			// First path segment has colon. Not allowed in relative URL.
 			return nil, errors.New("first path segment in URL cannot contain colon")
 		}
@@ -563,7 +547,10 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 
 	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
 		var authority string
-		authority, rest = split(rest[2:], '/', false)
+		authority, rest = rest[2:], ""
+		if i := strings.Index(authority, "/"); i >= 0 {
+			authority, rest = authority[:i], authority[i:]
+		}
 		url.User, url.Host, err = parseAuthority(authority)
 		if err != nil {
 			return nil, err
@@ -602,7 +589,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		}
 		user = User(userinfo)
 	} else {
-		username, password := split(userinfo, ':', true)
+		username, password, _ := strings.Cut(userinfo, ":")
 		if username, err = unescape(username, encodeUserPassword); err != nil {
 			return nil, "", err
 		}
@@ -840,7 +827,7 @@ func (u *URL) String() string {
 			// it would be mistaken for a scheme name. Such a segment must be
 			// preceded by a dot-segment (e.g., "./this:that") to make a relative-
 			// path reference.
-			if i := strings.IndexByte(path, ':'); i > -1 && strings.IndexByte(path[:i], '/') == -1 {
+			if segment, _, _ := strings.Cut(path, "/"); strings.Contains(segment, ":") {
 				buf.WriteString("./")
 			}
 		}
@@ -933,12 +920,8 @@ func ParseQuery(query string) (Values, error) {
 
 func parseQuery(m Values, query string) (err error) {
 	for query != "" {
-		key := query
-		if i := strings.IndexAny(key, "&"); i >= 0 {
-			key, query = key[:i], key[i+1:]
-		} else {
-			query = ""
-		}
+		var key string
+		key, query, _ = strings.Cut(query, "&")
 		if strings.Contains(key, ";") {
 			err = fmt.Errorf("invalid semicolon separator in query")
 			continue
@@ -946,10 +929,7 @@ func parseQuery(m Values, query string) (err error) {
 		if key == "" {
 			continue
 		}
-		value := ""
-		if i := strings.Index(key, "="); i >= 0 {
-			key, value = key[:i], key[i+1:]
-		}
+		key, value, _ := strings.Cut(key, "=")
 		key, err1 := QueryUnescape(key)
 		if err1 != nil {
 			if err == nil {
@@ -1013,22 +993,16 @@ func resolvePath(base, ref string) string {
 	}
 
 	var (
-		last string
 		elem string
-		i    int
 		dst  strings.Builder
 	)
 	first := true
 	remaining := full
 	// We want to return a leading '/', so write it now.
 	dst.WriteByte('/')
-	for i >= 0 {
-		i = strings.IndexByte(remaining, '/')
-		if i < 0 {
-			last, elem, remaining = remaining, remaining, ""
-		} else {
-			elem, remaining = remaining[:i], remaining[i+1:]
-		}
+	found := true
+	for found {
+		elem, remaining, found = strings.Cut(remaining, "/")
 		if elem == "." {
 			first = false
 			// drop
@@ -1056,7 +1030,7 @@ func resolvePath(base, ref string) string {
 		}
 	}
 
-	if last == "." || last == ".." {
+	if elem == "." || elem == ".." {
 		dst.WriteByte('/')
 	}
 
@@ -1109,7 +1083,7 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 		url.Path = ""
 		return &url
 	}
-	if ref.Path == "" && ref.RawQuery == "" {
+	if ref.Path == "" && !ref.ForceQuery && ref.RawQuery == "" {
 		url.RawQuery = u.RawQuery
 		if ref.Fragment == "" {
 			url.Fragment = u.Fragment

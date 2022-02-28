@@ -34,12 +34,12 @@ package obj
 import (
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
+	"crypto/md5"
 	"fmt"
 	"internal/buildcfg"
 	"log"
 	"math"
 	"sort"
-	"strings"
 )
 
 func Linknew(arch *LinkArch) *Link {
@@ -173,6 +173,14 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 	})
 }
 
+// GCLocalsSym generates a content-addressable sym containing data.
+func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
+	return ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(data)), func(lsym *LSym) {
+		lsym.P = data
+		lsym.Set(AttrContentAddressable, true)
+	})
+}
+
 // Assign index to symbols.
 // asm is set to true if this is called by the assembler (i.e. not the compiler),
 // in which case all the symbols are non-package (for now).
@@ -202,13 +210,14 @@ func (ctxt *Link) NumberSyms() {
 	ctxt.nonpkgdefs = []*LSym{}
 
 	var idx, hashedidx, hashed64idx, nonpkgidx int32
-	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
+	ctxt.traverseSyms(traverseDefs|traversePcdata, func(s *LSym) {
 		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
 		// may reference named symbols whose names are not fully expanded.
 		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
-			if s.Size <= 8 && len(s.R) == 0 && !strings.HasPrefix(s.Name, "type.") {
+			if s.Size <= 8 && len(s.R) == 0 && contentHashSection(s) == 0 {
 				// We can use short hash only for symbols without relocations.
-				// Don't use short hash for type symbols, as they need special handling.
+				// Don't use short hash for symbols that belong in a particular section
+				// or require special handling (such as type symbols).
 				s.PkgIdx = goobj.PkgIdxHashed64
 				s.SymIdx = hashed64idx
 				if hashed64idx != int32(len(ctxt.hashed64defs)) {
@@ -324,13 +333,19 @@ const (
 	traverseDefs traverseFlag = 1 << iota
 	traverseRefs
 	traverseAux
+	traversePcdata
 
-	traverseAll = traverseDefs | traverseRefs | traverseAux
+	traverseAll = traverseDefs | traverseRefs | traverseAux | traversePcdata
 )
 
 // Traverse symbols based on flag, call fn for each symbol.
 func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
-	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
+	fnNoNil := func(s *LSym) {
+		if s != nil {
+			fn(s)
+		}
+	}
+	lists := [][]*LSym{ctxt.Text, ctxt.Data}
 	for _, list := range lists {
 		for _, s := range list {
 			if flag&traverseDefs != 0 {
@@ -338,20 +353,26 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 			}
 			if flag&traverseRefs != 0 {
 				for _, r := range s.R {
-					if r.Sym != nil {
-						fn(r.Sym)
-					}
+					fnNoNil(r.Sym)
 				}
 			}
 			if flag&traverseAux != 0 {
-				if s.Gotype != nil {
-					fn(s.Gotype)
-				}
+				fnNoNil(s.Gotype)
 				if s.Type == objabi.STEXT {
 					f := func(parent *LSym, aux *LSym) {
 						fn(aux)
 					}
 					ctxt.traverseFuncAux(flag, s, f)
+				}
+			}
+			if flag&traversePcdata != 0 && s.Type == objabi.STEXT {
+				fi := s.Func().Pcln
+				fnNoNil(fi.Pcsp)
+				fnNoNil(fi.Pcfile)
+				fnNoNil(fi.Pcline)
+				fnNoNil(fi.Pcinline)
+				for _, d := range fi.Pcdata {
+					fnNoNil(d)
 				}
 			}
 		}
@@ -410,7 +431,7 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 
 // Traverse aux symbols, calling fn for each sym/aux pair.
 func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *LSym)) {
-	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
+	lists := [][]*LSym{ctxt.Text, ctxt.Data}
 	for _, list := range lists {
 		for _, s := range list {
 			if s.Gotype != nil {

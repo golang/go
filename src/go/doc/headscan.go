@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 /*
 	The headscan command extracts comment headings from package files;
@@ -23,10 +22,10 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
-	"internal/lazyregexp"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -37,7 +36,7 @@ var (
 )
 
 // ToHTML in comment.go assigns a (possibly blank) ID to each heading
-var html_h = lazyregexp.New(`<h3 id="[^"]*">`)
+var html_h = regexp.MustCompile(`<h3 id="[^"]*">`)
 
 const html_endh = "</h3>\n"
 
@@ -49,19 +48,14 @@ func isGoFile(fi fs.FileInfo) bool {
 func appendHeadings(list []string, comment string) []string {
 	var buf bytes.Buffer
 	doc.ToHTML(&buf, comment, nil)
-	for s := buf.String(); ; {
+	for s := buf.String(); s != ""; {
 		loc := html_h.FindStringIndex(s)
 		if len(loc) == 0 {
 			break
 		}
-		i := loc[1]
-		j := strings.Index(s, html_endh)
-		if j < 0 {
-			list = append(list, s[i:]) // incorrect HTML
-			break
-		}
-		list = append(list, s[i:j])
-		s = s[j+len(html_endh):]
+		var inner string
+		inner, s, _ = strings.Cut(s[loc[1]:], html_endh)
+		list = append(list, inner)
 	}
 	return list
 }

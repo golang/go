@@ -6,30 +6,13 @@ package cpu_test
 
 import (
 	. "internal/cpu"
+	"internal/godebug"
 	"internal/testenv"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"testing"
 )
-
-func TestMinimalFeatures(t *testing.T) {
-	// TODO: maybe do MustSupportFeatureDectection(t) ?
-	if runtime.GOARCH == "arm64" {
-		switch runtime.GOOS {
-		case "linux", "android", "darwin":
-		default:
-			t.Skipf("%s/%s is not supported", runtime.GOOS, runtime.GOARCH)
-		}
-	}
-
-	for _, o := range Options {
-		if o.Required && !*o.Feature {
-			t.Errorf("%v expected true, got false", o.Name)
-		}
-	}
-}
 
 func MustHaveDebugOptionsSupport(t *testing.T) {
 	if !DebugOptions {
@@ -70,12 +53,12 @@ func TestDisableAllCapabilities(t *testing.T) {
 func TestAllCapabilitiesDisabled(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if os.Getenv("GODEBUG") != "cpu.all=off" {
+	if godebug.Get("cpu.all") != "off" {
 		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
 	}
 
 	for _, o := range Options {
-		want := o.Required
+		want := false
 		if got := *o.Feature; got != want {
 			t.Errorf("%v: expected %v, got %v", o.Name, want, got)
 		}

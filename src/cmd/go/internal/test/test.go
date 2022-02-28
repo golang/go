@@ -31,10 +31,13 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
-	"cmd/internal/str"
+	"cmd/internal/sys"
 	"cmd/internal/test2json"
+
+	"golang.org/x/mod/module"
 )
 
 // Break init loop.
@@ -61,8 +64,8 @@ followed by detailed output for each failed package.
 
 'Go test' recompiles each package along with any files with names matching
 the file pattern "*_test.go".
-These additional files can contain test functions, benchmark functions, and
-example functions. See 'go help testfunc' for more.
+These additional files can contain test functions, benchmark functions, fuzz
+tests and example functions. See 'go help testfunc' for more.
 Each listed package causes the execution of a separate test binary.
 Files whose names begin with "_" (including "_test.go") or "." are ignored.
 
@@ -208,9 +211,10 @@ control the execution of any test:
 	    (for example, -benchtime 100x).
 
 	-count n
-	    Run each test and benchmark n times (default 1).
+	    Run each test, benchmark, and fuzz seed n times (default 1).
 	    If -cpu is set, run n times for each GOMAXPROCS value.
-	    Examples are always run once.
+	    Examples are always run once. -count does not apply to
+	    fuzz tests matched by -fuzz.
 
 	-cover
 	    Enable coverage analysis.
@@ -237,36 +241,67 @@ control the execution of any test:
 	    Sets -cover.
 
 	-cpu 1,2,4
-	    Specify a list of GOMAXPROCS values for which the tests or
-	    benchmarks should be executed. The default is the current value
-	    of GOMAXPROCS.
+	    Specify a list of GOMAXPROCS values for which the tests, benchmarks or
+	    fuzz tests should be executed. The default is the current value
+	    of GOMAXPROCS. -cpu does not apply to fuzz tests matched by -fuzz.
 
 	-failfast
 	    Do not start new tests after the first test failure.
+
+	-fuzz regexp
+	    Run the fuzz test matching the regular expression. When specified,
+	    the command line argument must match exactly one package within the
+	    main module, and regexp must match exactly one fuzz test within
+	    that package. Fuzzing will occur after tests, benchmarks, seed corpora
+	    of other fuzz tests, and examples have completed. See the Fuzzing
+	    section of the testing package documentation for details.
+
+	-fuzztime t
+	    Run enough iterations of the fuzz target during fuzzing to take t,
+	    specified as a time.Duration (for example, -fuzztime 1h30s).
+		The default is to run forever.
+	    The special syntax Nx means to run the fuzz target N times
+	    (for example, -fuzztime 1000x).
+
+	-fuzzminimizetime t
+	    Run enough iterations of the fuzz target during each minimization
+	    attempt to take t, as specified as a time.Duration (for example,
+	    -fuzzminimizetime 30s).
+		The default is 60s.
+	    The special syntax Nx means to run the fuzz target N times
+	    (for example, -fuzzminimizetime 100x).
 
 	-json
 	    Log verbose output and test results in JSON. This presents the
 	    same information as the -v flag in a machine-readable format.
 
 	-list regexp
-	    List tests, benchmarks, or examples matching the regular expression.
-	    No tests, benchmarks or examples will be run. This will only
-	    list top-level tests. No subtest or subbenchmarks will be shown.
+	    List tests, benchmarks, fuzz tests, or examples matching the regular
+	    expression. No tests, benchmarks, fuzz tests, or examples will be run.
+	    This will only list top-level tests. No subtest or subbenchmarks will be
+	    shown.
 
 	-parallel n
-	    Allow parallel execution of test functions that call t.Parallel.
+	    Allow parallel execution of test functions that call t.Parallel, and
+	    fuzz targets that call t.Parallel when running the seed corpus.
 	    The value of this flag is the maximum number of tests to run
-	    simultaneously; by default, it is set to the value of GOMAXPROCS.
+	    simultaneously.
+	    While fuzzing, the value of this flag is the maximum number of
+	    subprocesses that may call the fuzz function simultaneously, regardless of
+	    whether T.Parallel is called.
+	    By default, -parallel is set to the value of GOMAXPROCS.
+	    Setting -parallel to values higher than GOMAXPROCS may cause degraded
+	    performance due to CPU contention, especially when fuzzing.
 	    Note that -parallel only applies within a single test binary.
 	    The 'go test' command may run tests for different packages
 	    in parallel as well, according to the setting of the -p flag
 	    (see 'go help build').
 
 	-run regexp
-	    Run only those tests and examples matching the regular expression.
-	    For tests, the regular expression is split by unbracketed slash (/)
-	    characters into a sequence of regular expressions, and each part
-	    of a test's identifier must match the corresponding element in
+	    Run only those tests, examples, and fuzz tests matching the regular
+	    expression. For tests, the regular expression is split by unbracketed
+	    slash (/) characters into a sequence of regular expressions, and each
+	    part of a test's identifier must match the corresponding element in
 	    the sequence, if any. Note that possible parents of matches are
 	    run too, so that -run=X/Y matches and runs and reports the result
 	    of all tests matching X, even those without sub-tests matching Y,
@@ -279,11 +314,11 @@ control the execution of any test:
 	    exhaustive tests.
 
 	-shuffle off,on,N
-		Randomize the execution order of tests and benchmarks.
-		It is off by default. If -shuffle is set to on, then it will seed
-		the randomizer using the system clock. If -shuffle is set to an
-		integer N, then N will be used as the seed value. In both cases,
-		the seed will be reported for reproducibility.
+	    Randomize the execution order of tests and benchmarks.
+	    It is off by default. If -shuffle is set to on, then it will seed
+	    the randomizer using the system clock. If -shuffle is set to an
+	    integer N, then N will be used as the seed value. In both cases,
+	    the seed will be reported for reproducibility.
 
 	-timeout d
 	    If a test binary runs longer than duration d, panic.
@@ -379,7 +414,11 @@ leave the test binary in pkg.test for use when analyzing the profiles.
 When 'go test' runs a test binary, it does so from within the
 corresponding package's source code directory. Depending on the test,
 it may be necessary to do the same when invoking a generated test
-binary directly.
+binary directly. Because that directory may be located within the
+module cache, which may be read-only and is verified by checksums, the
+test must not write to it or any other directory within the module
+unless explicitly requested by the user (such as with the -fuzz flag,
+which writes failures to testdata/fuzz).
 
 The command-line package list, if present, must appear before any
 flag not known to the go test command. Continuing the example above,
@@ -436,6 +475,10 @@ A benchmark function is one named BenchmarkXxx and should have the signature,
 
 	func BenchmarkXxx(b *testing.B) { ... }
 
+A fuzz test is one named FuzzXxx and should have the signature,
+
+	func FuzzXxx(f *testing.F) { ... }
+
 An example function is similar to a test function but, instead of using
 *testing.T to report success or failure, prints output to os.Stdout.
 If the last comment in the function starts with "Output:" then the output
@@ -475,7 +518,7 @@ Here is another example where the ordering of the output is ignored:
 
 The entire test file is presented as the example when it contains a single
 example function, at least one other function, type, variable, or constant
-declaration, and no test or benchmark functions.
+declaration, and no tests, benchmarks, or fuzz tests.
 
 See the documentation of the testing package for more information.
 `,
@@ -489,6 +532,7 @@ var (
 	testCoverPaths   []string                          // -coverpkg flag
 	testCoverPkgs    []*load.Package                   // -coverpkg flag
 	testCoverProfile string                            // -coverprofile flag
+	testFuzz         string                            // -fuzz flag
 	testJSON         bool                              // -json flag
 	testList         string                            // -list flag
 	testO            string                            // -o flag
@@ -583,8 +627,8 @@ var defaultVetFlags = []string{
 }
 
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
 	pkgArgs, testArgs = testFlags(args)
+	modload.InitWorkfile() // The test command does custom flag processing; initialize workspaces after that.
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -622,6 +666,52 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if testO != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
+	if testFuzz != "" {
+		if !sys.FuzzSupported(cfg.Goos, cfg.Goarch) {
+			base.Fatalf("-fuzz flag is not supported on %s/%s", cfg.Goos, cfg.Goarch)
+		}
+		if len(pkgs) != 1 {
+			base.Fatalf("cannot use -fuzz flag with multiple packages")
+		}
+		if testCoverProfile != "" {
+			base.Fatalf("cannot use -coverprofile flag with -fuzz flag")
+		}
+		if profileFlag := testProfile(); profileFlag != "" {
+			base.Fatalf("cannot use %s flag with -fuzz flag", profileFlag)
+		}
+
+		// Reject the '-fuzz' flag if the package is outside the main module.
+		// Otherwise, if fuzzing identifies a failure it could corrupt checksums in
+		// the module cache (or permanently alter the behavior of std tests for all
+		// users) by writing the failing input to the package's testdata directory.
+		// (See https://golang.org/issue/48495 and test_fuzz_modcache.txt.)
+		mainMods := modload.MainModules
+		if m := pkgs[0].Module; m != nil && m.Path != "" {
+			if !mainMods.Contains(m.Path) {
+				base.Fatalf("cannot use -fuzz flag on package outside the main module")
+			}
+		} else if pkgs[0].Standard && modload.Enabled() {
+			// Because packages in 'std' and 'cmd' are part of the standard library,
+			// they are only treated as part of a module in 'go mod' subcommands and
+			// 'go get'. However, we still don't want to accidentally corrupt their
+			// testdata during fuzzing, nor do we want to fail with surprising errors
+			// if GOROOT isn't writable (as is often the case for Go toolchains
+			// installed through package managers).
+			//
+			// If the user is requesting to fuzz a standard-library package, ensure
+			// that they are in the same module as that package (just like when
+			// fuzzing any other package).
+			if strings.HasPrefix(pkgs[0].ImportPath, "cmd/") {
+				if !mainMods.Contains("cmd") || !mainMods.InGorootSrc(module.Version{Path: "cmd"}) {
+					base.Fatalf("cannot use -fuzz flag on package outside the main module")
+				}
+			} else {
+				if !mainMods.Contains("std") || !mainMods.InGorootSrc(module.Version{Path: "std"}) {
+					base.Fatalf("cannot use -fuzz flag on package outside the main module")
+				}
+			}
+		}
+	}
 	if testProfile() != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use %s flag with multiple packages", testProfile())
 	}
@@ -632,7 +722,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	// to that timeout plus one minute. This is a backup alarm in case
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
-	if testTimeout > 0 {
+	// Don't set this if fuzzing, since it should be able to run
+	// indefinitely.
+	if testTimeout > 0 && testFuzz == "" {
 		testKillTimeout = testTimeout + 1*time.Minute
 	}
 
@@ -782,6 +874,41 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	// Inform the compiler that it should instrument the binary at
+	// build-time when fuzzing is enabled.
+	if testFuzz != "" {
+		// Don't instrument packages which may affect coverage guidance but are
+		// unlikely to be useful. Most of these are used by the testing or
+		// internal/fuzz packages concurrently with fuzzing.
+		var skipInstrumentation = map[string]bool{
+			"context":       true,
+			"internal/fuzz": true,
+			"reflect":       true,
+			"runtime":       true,
+			"sync":          true,
+			"sync/atomic":   true,
+			"syscall":       true,
+			"testing":       true,
+			"time":          true,
+		}
+		for _, p := range load.TestPackageList(ctx, pkgOpts, pkgs) {
+			if !skipInstrumentation[p.ImportPath] {
+				p.Internal.FuzzInstrument = true
+			}
+		}
+	}
+
+	// Collect all the packages imported by the packages being tested.
+	allImports := make(map[*load.Package]bool)
+	for _, p := range pkgs {
+		if p.Error != nil && p.Error.IsImportCycle {
+			continue
+		}
+		for _, p1 := range p.Internal.Imports {
+			allImports[p1] = true
+		}
+	}
+
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
 		// sync/atomic import is inserted by the cover tool. See #18486
@@ -789,7 +916,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			ensureImport(p, "sync/atomic")
 		}
 
-		buildTest, runTest, printTest, err := builderTest(&b, ctx, pkgOpts, p)
+		buildTest, runTest, printTest, err := builderTest(&b, ctx, pkgOpts, p, allImports[p])
 		if err != nil {
 			str := err.Error()
 			str = strings.TrimPrefix(str, "\n")
@@ -856,7 +983,7 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
+func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
@@ -882,6 +1009,16 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 	pmain, ptest, pxtest, err := load.TestPackagesFor(ctx, pkgOpts, p, cover)
 	if err != nil {
 		return nil, nil, nil, err
+	}
+
+	// If imported is true then this package is imported by some
+	// package being tested. Make building the test version of the
+	// package depend on building the non-test version, so that we
+	// only report build errors once. Issue #44624.
+	if imported && ptest != p {
+		buildTest := b.CompileAction(work.ModeBuild, work.ModeBuild, ptest)
+		buildP := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+		buildTest.Deps = append(buildTest.Deps, buildP)
 	}
 
 	// Use last element of import path, not package name.
@@ -1087,6 +1224,8 @@ func declareCoverVars(p *load.Package, files ...string) map[string]*load.CoverVa
 }
 
 var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
+var noFuzzTestsToFuzz = []byte("\ntesting: warning: no fuzz tests to fuzz\n")
+var tooManyFuzzTestsToFuzz = []byte("\ntesting: warning: -fuzz matches more than one fuzz test, won't fuzz\n")
 
 type runCache struct {
 	disableCache bool // cache should be disabled for this run
@@ -1134,10 +1273,10 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 	}
 
 	var buf bytes.Buffer
-	if len(pkgArgs) == 0 || (testBench != "") {
+	if len(pkgArgs) == 0 || testBench != "" || testFuzz != "" {
 		// Stream test output (no buffering) when no package has
 		// been given on the command line (implicit current directory)
-		// or when benchmarking.
+		// or when benchmarking or fuzzing.
 		// No change to stdout.
 	} else {
 		// If we're only running a single package under test or if parallelism is
@@ -1190,7 +1329,12 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
 	}
 	panicArg := "-test.paniconexit0"
-	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, testArgs)
+	fuzzArg := []string{}
+	if testFuzz != "" {
+		fuzzCacheDir := filepath.Join(cache.Default().FuzzDir(), a.Package.ImportPath)
+		fuzzArg = []string{"-test.fuzzcachedir=" + fuzzCacheDir}
+	}
+	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, fuzzArg, testArgs)
 
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
@@ -1283,15 +1427,31 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
 			norun = " [no tests to run]"
 		}
+		if bytes.HasPrefix(out, noFuzzTestsToFuzz[1:]) || bytes.Contains(out, noFuzzTestsToFuzz) {
+			norun = " [no fuzz tests to fuzz]"
+		}
+		if bytes.HasPrefix(out, tooManyFuzzTestsToFuzz[1:]) || bytes.Contains(out, tooManyFuzzTestsToFuzz) {
+			norun = "[-fuzz matches more than one fuzz test, won't fuzz]"
+		}
+		if len(out) > 0 && !bytes.HasSuffix(out, []byte("\n")) {
+			// Ensure that the output ends with a newline before the "ok"
+			// line we're about to print (https://golang.org/issue/49317).
+			cmd.Stdout.Write([]byte("\n"))
+		}
 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
 		c.saveOutput(a)
 	} else {
 		base.SetExitStatus(1)
-		// If there was test output, assume we don't need to print the exit status.
-		// Buf there's no test output, do print the exit status.
 		if len(out) == 0 {
+			// If there was no test output, print the exit status so that the reason
+			// for failure is clear.
 			fmt.Fprintf(cmd.Stdout, "%s\n", err)
+		} else if !bytes.HasSuffix(out, []byte("\n")) {
+			// Otherwise, ensure that the output ends with a newline before the FAIL
+			// line we're about to print (https://golang.org/issue/49317).
+			cmd.Stdout.Write([]byte("\n"))
 		}
+
 		// NOTE(golang.org/issue/37555): test2json reports that a test passes
 		// unless "FAIL" is printed at the beginning of a line. The test may not
 		// actually print that if it panics, exits, or terminates abnormally,
@@ -1719,9 +1879,23 @@ func builderNoTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	return nil
 }
 
-// printExitStatus is the action for printing the exit status
+// printExitStatus is the action for printing the final exit status.
+// If we are running multiple test targets, print a final "FAIL"
+// in case a failure in an early package has already scrolled
+// off of the user's terminal.
+// (See https://golang.org/issue/30507#issuecomment-470593235.)
+//
+// In JSON mode, we need to maintain valid JSON output and
+// we assume that the test output is being parsed by a tool
+// anyway, so the failure will not be missed and would be
+// awkward to try to wedge into the JSON stream.
+//
+// In fuzz mode, we only allow a single package for now
+// (see CL 350156 and https://golang.org/issue/46312),
+// so there is no possibility of scrolling off and no need
+// to print the final status.
 func printExitStatus(b *work.Builder, ctx context.Context, a *work.Action) error {
-	if !testJSON && len(pkgArgs) != 0 {
+	if !testJSON && testFuzz == "" && len(pkgArgs) != 0 {
 		if base.GetExitStatus() != 0 {
 			fmt.Println("FAIL")
 			return nil

@@ -62,7 +62,7 @@ const (
 
 func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
 func (n *miniNode) SetTypecheck(x uint8) {
-	if x > 3 {
+	if x > 2 {
 		panic(fmt.Sprintf("cannot SetTypecheck %d", x))
 	}
 	n.bits.set2(miniTypecheckShift, x)

@@ -226,6 +226,8 @@ type pageAlloc struct {
 	// are currently available. Otherwise one might iterate over unused
 	// ranges.
 	//
+	// Protected by mheapLock.
+	//
 	// TODO(mknyszek): Consider changing the definition of the bitmap
 	// such that 1 means free and 0 means in-use so that summaries and
 	// the bitmaps align better on zero-values.
@@ -261,29 +263,41 @@ type pageAlloc struct {
 	inUse addrRanges
 
 	// scav stores the scavenger state.
-	//
-	// All fields are protected by mheapLock.
 	scav struct {
+		lock mutex
+
 		// inUse is a slice of ranges of address space which have not
 		// yet been looked at by the scavenger.
+		//
+		// Protected by lock.
 		inUse addrRanges
 
 		// gen is the scavenge generation number.
+		//
+		// Protected by lock.
 		gen uint32
 
 		// reservationBytes is how large of a reservation should be made
 		// in bytes of address space for each scavenge iteration.
+		//
+		// Protected by lock.
 		reservationBytes uintptr
 
 		// released is the amount of memory released this generation.
+		//
+		// Updated atomically.
 		released uintptr
 
 		// scavLWM is the lowest (offset) address that the scavenger reached this
 		// scavenge generation.
+		//
+		// Protected by lock.
 		scavLWM offAddr
 
 		// freeHWM is the highest (offset) address of a page that was freed to
 		// the page allocator this scavenge generation.
+		//
+		// Protected by mheapLock.
 		freeHWM offAddr
 	}
 
@@ -864,17 +878,19 @@ Found:
 // Must run on the system stack because p.mheapLock must be held.
 //
 //go:systemstack
-func (p *pageAlloc) free(base, npages uintptr) {
+func (p *pageAlloc) free(base, npages uintptr, scavenged bool) {
 	assertLockHeld(p.mheapLock)
 
 	// If we're freeing pages below the p.searchAddr, update searchAddr.
 	if b := (offAddr{base}); b.lessThan(p.searchAddr) {
 		p.searchAddr = b
 	}
-	// Update the free high watermark for the scavenger.
 	limit := base + npages*pageSize - 1
-	if offLimit := (offAddr{limit}); p.scav.freeHWM.lessThan(offLimit) {
-		p.scav.freeHWM = offLimit
+	if !scavenged {
+		// Update the free high watermark for the scavenger.
+		if offLimit := (offAddr{limit}); p.scav.freeHWM.lessThan(offLimit) {
+			p.scav.freeHWM = offLimit
+		}
 	}
 	if npages == 1 {
 		// Fast path: we're clearing a single bit, and we know exactly

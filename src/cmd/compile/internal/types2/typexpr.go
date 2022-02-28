@@ -28,7 +28,15 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 	switch obj {
 	case nil:
 		if e.Value == "_" {
-			check.error(e, "cannot use _ as value or type")
+			// Blank identifiers are never declared, but the current identifier may
+			// be a placeholder for a receiver type parameter. In this case we can
+			// resolve its type and object from Checker.recvTParamMap.
+			if tpar := check.recvTParamMap[e]; tpar != nil {
+				x.mode = typexpr
+				x.typ = tpar
+			} else {
+				check.error(e, "cannot use _ as value or type")
+			}
 		} else {
 			if check.conf.CompilerErrorMessages {
 				check.errorf(e, "undefined: %s", e.Value)
@@ -38,15 +46,9 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		}
 		return
 	case universeAny, universeComparable:
-		// complain if necessary
 		if !check.allowVersion(check.pkg, 1, 18) {
 			check.errorf(e, "undeclared name: %s (requires version go1.18 or later)", e.Value)
 			return // avoid follow-on errors
-		}
-		if obj == universeAny {
-			// If we allow "any" for general use, this if-statement can be removed (issue #33232).
-			check.softErrorf(e, "cannot use any outside constraint position")
-			// ok to continue
 		}
 	}
 	check.recordUse(e, obj)
@@ -97,6 +99,10 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		x.mode = constant_
 
 	case *TypeName:
+		if check.isBrokenAlias(obj) {
+			check.errorf(e, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
+			return
+		}
 		x.mode = typexpr
 
 	case *Var:
@@ -142,14 +148,19 @@ func (check *Checker) typ(e syntax.Expr) Type {
 func (check *Checker) varType(e syntax.Expr) Type {
 	typ := check.definedType(e, nil)
 
-	// We don't want to call under() (via asInterface) or complete interfaces while we
-	// are in the middle of type-checking parameter declarations that might belong to
-	// interface methods. Delay this check to the end of type-checking.
+	// If we have a type parameter there's nothing to do.
+	if isTypeParam(typ) {
+		return typ
+	}
+
+	// We don't want to call under() or complete interfaces while we are in
+	// the middle of type-checking parameter declarations that might belong
+	// to interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
-		if t := asInterface(typ); t != nil {
+		if t, _ := under(typ).(*Interface); t != nil {
 			pos := syntax.StartPos(e)
 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
-			if tset.IsConstraint() {
+			if !tset.IsMethodSet() {
 				if tset.comparable {
 					check.softErrorf(pos, "interface is (or embeds) comparable")
 				} else {
@@ -204,7 +215,7 @@ func goTypeName(typ Type) string {
 //
 func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 	if check.conf.Trace {
-		check.trace(e0.Pos(), "type %s", e0)
+		check.trace(e0.Pos(), "-- type %s", e0)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -212,8 +223,6 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			if T != nil {
 				// Calling under() here may lead to endless instantiations.
 				// Test case: type T[P any] *T[P]
-				// TODO(gri) investigate if that's a bug or to be expected
-				// (see also analogous comment in Checker.instantiate).
 				under = safeUnderlying(T)
 			}
 			if T == under {
@@ -264,7 +273,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 
 	case *syntax.IndexExpr:
 		if !check.allowVersion(check.pkg, 1, 18) {
-			check.softErrorf(e.Pos(), "type instantiation requires go1.18 or later")
+			check.versionErrorf(e.Pos(), "go1.18", "type instantiation")
 		}
 		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
 
@@ -310,8 +319,16 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 	case *syntax.Operation:
 		if e.Op == syntax.Mul && e.Y == nil {
 			typ := new(Pointer)
+			typ.base = Typ[Invalid] // avoid nil base in invalid recursive type declaration
 			def.setUnderlying(typ)
 			typ.base = check.varType(e.X)
+			// If typ.base is invalid, it's unlikely that *base is particularly
+			// useful - even a valid dereferenciation will lead to an invalid
+			// type again, and in some cases we get unexpected follow-on errors
+			// (e.g., see #49005). Return an invalid type instead.
+			if typ.base == Typ[Invalid] {
+				return Typ[Invalid]
+			}
 			return typ
 		}
 
@@ -325,7 +342,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		return typ
 
 	case *syntax.InterfaceType:
-		typ := new(Interface)
+		typ := check.newInterface()
 		def.setUnderlying(typ)
 		if def != nil {
 			typ.obj = def.obj
@@ -349,7 +366,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		check.later(func() {
 			if !Comparable(typ.key) {
 				var why string
-				if asTypeParam(typ.key) != nil {
+				if isTypeParam(typ.key) {
 					why = " (missing comparable constraint)"
 				}
 				check.errorf(e.Key, "invalid map key type %s%s", typ.key, why)
@@ -389,51 +406,116 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 	return typ
 }
 
-func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def *Named) Type {
+func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *Named) (res Type) {
+	if check.conf.Trace {
+		check.trace(x.Pos(), "-- instantiating %s with %s", x, xlist)
+		check.indent++
+		defer func() {
+			check.indent--
+			// Don't format the underlying here. It will always be nil.
+			check.trace(x.Pos(), "=> %s", res)
+		}()
+	}
+
 	gtyp := check.genericType(x, true)
 	if gtyp == Typ[Invalid] {
 		return gtyp // error already reported
 	}
-	base, _ := gtyp.(*Named)
-	if base == nil {
+
+	orig, _ := gtyp.(*Named)
+	if orig == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
 	}
 
 	// evaluate arguments
-	targs := check.typeList(targsx)
+	targs := check.typeList(xlist)
 	if targs == nil {
 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
 		return Typ[Invalid]
 	}
 
-	// determine argument positions
-	posList := make([]syntax.Pos, len(targs))
-	for i, arg := range targsx {
-		posList[i] = syntax.StartPos(arg)
+	// create the instance
+	ctxt := check.bestContext(nil)
+	h := ctxt.instanceHash(orig, targs)
+	// targs may be incomplete, and require inference. In any case we should de-duplicate.
+	inst, _ := ctxt.lookup(h, orig, targs).(*Named)
+	// If inst is non-nil, we can't just return here. Inst may have been
+	// constructed via recursive substitution, in which case we wouldn't do the
+	// validation below. Ensure that the validation (and resulting errors) runs
+	// for each instantiated type in the source.
+	if inst == nil {
+		// x may be a selector for an imported type; use its start pos rather than x.Pos().
+		tname := NewTypeName(syntax.StartPos(x), orig.obj.pkg, orig.obj.name, nil)
+		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+		inst.targs = newTypeList(targs)
+		inst = ctxt.update(h, orig, targs, inst).(*Named)
+	}
+	def.setUnderlying(inst)
+
+	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
+		tparams := orig.TypeParams().list()
+
+		inferred := targs
+		if len(targs) < len(tparams) {
+			// If inference fails, len(inferred) will be 0, and inst.underlying will
+			// be set to Typ[Invalid] in expandNamed.
+			inferred = check.infer(x.Pos(), tparams, targs, nil, nil)
+			if len(inferred) > len(targs) {
+				inst.targs = newTypeList(inferred)
+			}
+		}
+
+		check.recordInstance(x, inferred, inst)
+		return expandNamed(ctxt, n, x.Pos())
 	}
 
-	typ := check.instantiate(x.Pos(), base, targs, posList)
-	def.setUnderlying(typ)
-
-	// make sure we check instantiation works at least once
-	// and that the resulting type is valid
+	// orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
-		check.validType(typ, nil)
+		// This is an instance from the source, not from recursive substitution,
+		// and so it must be resolved during type-checking so that we can report
+		// errors.
+		inst.resolve(ctxt)
+		// Since check is non-nil, we can still mutate inst. Unpinning the resolver
+		// frees some memory.
+		inst.resolver = nil
+
+		if check.validateTArgLen(x.Pos(), inst.tparams.Len(), inst.targs.Len()) {
+			if i, err := check.verify(x.Pos(), inst.tparams.list(), inst.targs.list()); err != nil {
+				// best position for error reporting
+				pos := x.Pos()
+				if i < len(xlist) {
+					pos = syntax.StartPos(xlist[i])
+				}
+				check.softErrorf(pos, "%s", err)
+			} else {
+				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), xlist)
+			}
+		}
+
+		check.validType(inst)
 	})
 
-	return typ
+	return inst
 }
 
 // arrayLength type-checks the array length expression e
 // and returns the constant length >= 0, or a value < 0
 // to indicate an error (and thus an unknown length).
 func (check *Checker) arrayLength(e syntax.Expr) int64 {
-	// If e is an undeclared identifier, the array declaration might be an
-	// attempt at a parameterized type declaration with missing constraint.
-	// Provide a better error message than just "undeclared name: X".
-	if name, _ := e.(*syntax.Name); name != nil && check.lookup(name.Value) == nil {
-		check.errorf(name, "undeclared name %s for array length", name.Value)
-		return -1
+	// If e is an identifier, the array declaration might be an
+	// attempt at a parameterized type declaration with missing
+	// constraint. Provide an error message that mentions array
+	// length.
+	if name, _ := e.(*syntax.Name); name != nil {
+		obj := check.lookup(name.Value)
+		if obj == nil {
+			check.errorf(name, "undeclared name %s for array length", name.Value)
+			return -1
+		}
+		if _, ok := obj.(*Const); !ok {
+			check.errorf(name, "invalid array length %s", name.Value)
+			return -1
+		}
 	}
 
 	var x operand

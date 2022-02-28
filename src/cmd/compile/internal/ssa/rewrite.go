@@ -415,6 +415,11 @@ func isSameCall(sym interface{}, name string) bool {
 	return fn != nil && fn.String() == name
 }
 
+// canLoadUnaligned reports if the achitecture supports unaligned load operations
+func canLoadUnaligned(c *Config) bool {
+	return c.ctxt.Arch.Alignment == 1
+}
+
 // nlz returns the number of leading zeros.
 func nlz64(x int64) int { return bits.LeadingZeros64(uint64(x)) }
 func nlz32(x int32) int { return bits.LeadingZeros32(uint32(x)) }
@@ -811,7 +816,11 @@ func devirtLECall(v *Value, sym *obj.LSym) *Value {
 	v.Op = OpStaticLECall
 	auxcall := v.Aux.(*AuxCall)
 	auxcall.Fn = sym
-	v.RemoveArg(0)
+	// Remove first arg
+	v.Args[0].Uses--
+	copy(v.Args[0:], v.Args[1:])
+	v.Args[len(v.Args)-1] = nil // aid GC
+	v.Args = v.Args[:len(v.Args)-1]
 	return v
 }
 
@@ -1565,6 +1574,10 @@ func mergePPC64SldiSrw(sld, srw int64) int64 {
 // Convenience function to rotate a 32 bit constant value by another constant.
 func rotateLeft32(v, rotate int64) int64 {
 	return int64(bits.RotateLeft32(uint32(v), int(rotate)))
+}
+
+func rotateRight64(v, rotate int64) int64 {
+	return int64(bits.RotateLeft64(uint64(v), int(-rotate)))
 }
 
 // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.

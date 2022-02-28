@@ -103,6 +103,8 @@ func moveArchLowering1(b []byte, x *[1]byte) {
 	_ = b[1]
 	// amd64:-".*memmove"
 	// arm64:-".*memmove"
+	// ppc64:-".*memmove"
+	// ppc64le:-".*memmove"
 	copy(b, x[:])
 }
 
@@ -110,6 +112,8 @@ func moveArchLowering2(b []byte, x *[2]byte) {
 	_ = b[2]
 	// amd64:-".*memmove"
 	// arm64:-".*memmove"
+	// ppc64:-".*memmove"
+	// ppc64le:-".*memmove"
 	copy(b, x[:])
 }
 
@@ -117,6 +121,8 @@ func moveArchLowering4(b []byte, x *[4]byte) {
 	_ = b[4]
 	// amd64:-".*memmove"
 	// arm64:-".*memmove"
+	// ppc64:-".*memmove"
+	// ppc64le:-".*memmove"
 	copy(b, x[:])
 }
 
@@ -124,6 +130,8 @@ func moveArchLowering8(b []byte, x *[8]byte) {
 	_ = b[8]
 	// amd64:-".*memmove"
 	// arm64:-".*memmove"
+	// ppc64:-".*memmove"
+	// ppc64le:-".*memmove"
 	copy(b, x[:])
 }
 

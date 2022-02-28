@@ -94,7 +94,7 @@ cmp go.mod go.mod.orig
 # packages simultaneously over-upgrades all of the dependencies, and 'go mod
 # tidy' treats "no package can be added" as a terminal state.
 
-go get -d example.net/w@v0.2.0-pre example.net/x@v0.2.0-pre example.net/y@v0.2.0-pre example.net/z@v0.2.0-pre
+go get example.net/w@v0.2.0-pre example.net/x@v0.2.0-pre example.net/y@v0.2.0-pre example.net/z@v0.2.0-pre
 go mod tidy -e
 cmp go.mod go.mod.postget
 go mod tidy -e
@@ -154,7 +154,7 @@ cmp go.mod go.mod.117
 # As in the eager case, for the lazy module the fully-upgraded dependency graph
 # becomes empty, and the empty graph is stable.
 
-go get -d example.net/w@v0.2.0-pre example.net/x@v0.2.0-pre example.net/y@v0.2.0-pre example.net/z@v0.2.0-pre
+go get example.net/w@v0.2.0-pre example.net/x@v0.2.0-pre example.net/y@v0.2.0-pre example.net/z@v0.2.0-pre
 go mod tidy -e
 cmp go.mod go.mod.postget
 go mod tidy -e

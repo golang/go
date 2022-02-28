@@ -60,7 +60,7 @@ func linknew(arch *sys.Arch) *Link {
 
 	AtExit(func() {
 		if nerrors > 0 {
-			ctxt.Out.Close()
+			ctxt.Out.ErrorClose()
 			mayberemoveoutfile()
 		}
 	})

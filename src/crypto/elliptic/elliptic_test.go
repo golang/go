@@ -14,9 +14,8 @@ import (
 
 // genericParamsForCurve returns the dereferenced CurveParams for
 // the specified curve. This is used to avoid the logic for
-// upgrading a curve to it's specific implementation, forcing
-// usage of the generic implementation. This is only relevant
-// for the P224, P256, and P521 curves.
+// upgrading a curve to its specific implementation, forcing
+// usage of the generic implementation.
 func genericParamsForCurve(c Curve) *CurveParams {
 	d := *(c.Params())
 	return &d
@@ -109,6 +108,15 @@ func testInfinity(t *testing.T, curve Curve) {
 	if curve.IsOnCurve(x, y) {
 		t.Errorf("IsOnCurve(∞) == true")
 	}
+
+	if xx, yy := Unmarshal(curve, Marshal(curve, x, y)); xx != nil || yy != nil {
+		t.Errorf("Unmarshal(Marshal(∞)) did not return an error")
+	}
+	// We don't test UnmarshalCompressed(MarshalCompressed(∞)) because there are
+	// two valid points with x = 0.
+	if xx, yy := Unmarshal(curve, []byte{0x00}); xx != nil || yy != nil {
+		t.Errorf("Unmarshal(∞) did not return an error")
+	}
 }
 
 func TestMarshal(t *testing.T) {
@@ -174,6 +182,61 @@ func testUnmarshalToLargeCoordinates(t *testing.T, curve Curve) {
 	}
 }
 
+// TestInvalidCoordinates tests big.Int values that are not valid field elements
+// (negative or bigger than P). They are expected to return false from
+// IsOnCurve, all other behavior is undefined.
+func TestInvalidCoordinates(t *testing.T) {
+	testAllCurves(t, testInvalidCoordinates)
+}
+
+func testInvalidCoordinates(t *testing.T, curve Curve) {
+	checkIsOnCurveFalse := func(name string, x, y *big.Int) {
+		if curve.IsOnCurve(x, y) {
+			t.Errorf("IsOnCurve(%s) unexpectedly returned true", name)
+		}
+	}
+
+	p := curve.Params().P
+	_, x, y, _ := GenerateKey(curve, rand.Reader)
+	xx, yy := new(big.Int), new(big.Int)
+
+	// Check if the sign is getting dropped.
+	xx.Neg(x)
+	checkIsOnCurveFalse("-x, y", xx, y)
+	yy.Neg(y)
+	checkIsOnCurveFalse("x, -y", x, yy)
+
+	// Check if negative values are reduced modulo P.
+	xx.Sub(x, p)
+	checkIsOnCurveFalse("x-P, y", xx, y)
+	yy.Sub(y, p)
+	checkIsOnCurveFalse("x, y-P", x, yy)
+
+	// Check if positive values are reduced modulo P.
+	xx.Add(x, p)
+	checkIsOnCurveFalse("x+P, y", xx, y)
+	yy.Add(y, p)
+	checkIsOnCurveFalse("x, y+P", x, yy)
+
+	// Check if the overflow is dropped.
+	xx.Add(x, new(big.Int).Lsh(big.NewInt(1), 535))
+	checkIsOnCurveFalse("x+2⁵³⁵, y", xx, y)
+	yy.Add(y, new(big.Int).Lsh(big.NewInt(1), 535))
+	checkIsOnCurveFalse("x, y+2⁵³⁵", x, yy)
+
+	// Check if P is treated like zero (if possible).
+	// y^2 = x^3 - 3x + B
+	// y = mod_sqrt(x^3 - 3x + B)
+	// y = mod_sqrt(B) if x = 0
+	// If there is no modsqrt, there is no point with x = 0, can't test x = P.
+	if yy := new(big.Int).ModSqrt(curve.Params().B, p); yy != nil {
+		if !curve.IsOnCurve(big.NewInt(0), yy) {
+			t.Fatal("(0, mod_sqrt(B)) is not on the curve?")
+		}
+		checkIsOnCurveFalse("P, y", p, yy)
+	}
+}
+
 func TestMarshalCompressed(t *testing.T) {
 	t.Run("P-256/03", func(t *testing.T) {
 		data, _ := hex.DecodeString("031e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
@@ -232,6 +295,16 @@ func testMarshalCompressed(t *testing.T, curve Curve, x, y *big.Int, want []byte
 	}
 }
 
+func TestLargeIsOnCurve(t *testing.T) {
+	testAllCurves(t, func(t *testing.T, curve Curve) {
+		large := big.NewInt(1)
+		large.Lsh(large, 1000)
+		if curve.IsOnCurve(large, large) {
+			t.Errorf("(2^1000, 2^1000) is reported on the curve")
+		}
+	})
+}
+
 func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
 	tests := []struct {
 		name  string
@@ -272,5 +345,31 @@ func BenchmarkScalarMult(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			x, y = curve.ScalarMult(x, y, priv)
 		}
+	})
+}
+
+func BenchmarkMarshalUnmarshal(b *testing.B) {
+	benchmarkAllCurves(b, func(b *testing.B, curve Curve) {
+		_, x, y, _ := GenerateKey(curve, rand.Reader)
+		b.Run("Uncompressed", func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				buf := Marshal(curve, x, y)
+				xx, yy := Unmarshal(curve, buf)
+				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
+					b.Error("Unmarshal output different from Marshal input")
+				}
+			}
+		})
+		b.Run("Compressed", func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				buf := Marshal(curve, x, y)
+				xx, yy := Unmarshal(curve, buf)
+				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
+					b.Error("Unmarshal output different from Marshal input")
+				}
+			}
+		})
 	})
 }

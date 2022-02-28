@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/types2"
 	"fmt"
+	"internal/goexperiment"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -107,25 +108,29 @@ func TestImportTestdata(t *testing.T) {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
-	tmpdir := mktmpdir(t)
-	defer os.RemoveAll(tmpdir)
+	testfiles := map[string][]string{
+		"exports.go": {"go/ast", "go/token"},
+	}
+	if !goexperiment.Unified {
+		testfiles["generics.go"] = nil
+	}
 
-	compile(t, "testdata", "exports.go", filepath.Join(tmpdir, "testdata"))
+	for testfile, wantImports := range testfiles {
+		tmpdir := mktmpdir(t)
+		defer os.RemoveAll(tmpdir)
 
-	if pkg := testPath(t, "./testdata/exports", tmpdir); pkg != nil {
-		// The package's Imports list must include all packages
-		// explicitly imported by exports.go, plus all packages
-		// referenced indirectly via exported objects in exports.go.
-		// With the textual export format, the list may also include
-		// additional packages that are not strictly required for
-		// import processing alone (they are exported to err "on
-		// the safe side").
-		// TODO(gri) update the want list to be precise, now that
-		// the textual export data is gone.
-		got := fmt.Sprint(pkg.Imports())
-		for _, want := range []string{"go/ast", "go/token"} {
-			if !strings.Contains(got, want) {
-				t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
+		compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"))
+		path := "./testdata/" + strings.TrimSuffix(testfile, ".go")
+
+		if pkg := testPath(t, path, tmpdir); pkg != nil {
+			// The package's Imports list must include all packages
+			// explicitly imported by testfile, plus all packages
+			// referenced indirectly via exported objects in testfile.
+			got := fmt.Sprint(pkg.Imports())
+			for _, want := range wantImports {
+				if !strings.Contains(got, want) {
+					t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
+				}
 			}
 		}
 	}
@@ -253,7 +258,7 @@ var importedObjectTests = []struct {
 	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string)"},
 
 	// interfaces
-	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key interface{}) interface{}}"},
+	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key any) any}"},
 	{"crypto.Decrypter", "type Decrypter interface{Decrypt(rand io.Reader, msg []byte, opts DecrypterOpts) (plaintext []byte, err error); Public() PublicKey}"},
 	{"encoding.BinaryMarshaler", "type BinaryMarshaler interface{MarshalBinary() (data []byte, err error)}"},
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},

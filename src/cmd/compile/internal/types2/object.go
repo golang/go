@@ -281,7 +281,7 @@ func NewTypeName(pos syntax.Pos, pkg *Package, name string, typ Type) *TypeName 
 func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, load func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
 	obj := NewTypeName(pos, pkg, name, nil)
 
-	resolve := func(_ *Environment, t *Named) (*TypeParamList, Type, []*Func) {
+	resolve := func(_ *Context, t *Named) (*TypeParamList, Type, *methodList) {
 		tparams, underlying, methods := load(t)
 
 		switch underlying.(type) {
@@ -289,7 +289,7 @@ func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, load func(named 
 			panic(fmt.Sprintf("invalid underlying type %T", t.underlying))
 		}
 
-		return bindTParams(tparams), underlying, methods
+		return bindTParams(tparams), underlying, newMethodList(methods)
 	}
 
 	NewNamed(obj, nil, nil).resolver = resolve
@@ -314,6 +314,8 @@ func (obj *TypeName) IsAlias() bool {
 		// are aliases but have the same names (for better error messages).
 		return obj.pkg != nil || t.name != obj.name || t == universeByte || t == universeRune
 	case *Named:
+		return obj != t.obj
+	case *TypeParam:
 		return obj != t.obj
 	default:
 		return true
@@ -363,7 +365,7 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
 // An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object
-	hasPtrRecv bool // only valid for methods that don't have a type yet
+	hasPtrRecv_ bool // only valid for methods that don't have a type yet; use hasPtrRecv() to read
 }
 
 // NewFunc returns a new function with the given signature, representing
@@ -386,7 +388,28 @@ func (obj *Func) FullName() string {
 }
 
 // Scope returns the scope of the function's body block.
+// The result is nil for imported or instantiated functions and methods
+// (but there is also no mechanism to get to an instantiated function).
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+
+// hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+func (obj *Func) hasPtrRecv() bool {
+	// If a method's receiver type is set, use that as the source of truth for the receiver.
+	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
+	// signature. We may reach here before the signature is fully set up: we must explicitly
+	// check if the receiver is set (we cannot just look for non-nil obj.typ).
+	if sig, _ := obj.typ.(*Signature); sig != nil && sig.recv != nil {
+		_, isPtr := deref(sig.recv.typ)
+		return isPtr
+	}
+
+	// If a method's type is not set it may be a method/function that is:
+	// 1) client-supplied (via NewFunc with no signature), or
+	// 2) internally created but not yet type-checked.
+	// For case 1) we can't do anything; the client must know what they are doing.
+	// For case 2) we can use the information gathered by the resolver.
+	return obj.hasPtrRecv_
+}
 
 func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 
@@ -436,6 +459,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	case *TypeName:
 		tname = obj
 		buf.WriteString("type")
+		if isTypeParam(typ) {
+			buf.WriteString(" parameter")
+		}
 
 	case *Var:
 		if obj.isField {
@@ -481,20 +507,32 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	}
 
 	if tname != nil {
-		// We have a type object: Don't print anything more for
-		// basic types since there's no more information (names
-		// are the same; see also comment in TypeName.IsAlias).
-		if _, ok := typ.(*Basic); ok {
+		switch t := typ.(type) {
+		case *Basic:
+			// Don't print anything more for basic types since there's
+			// no more information.
 			return
-		}
-		if named, _ := typ.(*Named); named != nil && named.TypeParams().Len() > 0 {
-			newTypeWriter(buf, qf).tParamList(named.TypeParams().list())
+		case *Named:
+			if t.TypeParams().Len() > 0 {
+				newTypeWriter(buf, qf).tParamList(t.TypeParams().list())
+			}
 		}
 		if tname.IsAlias() {
 			buf.WriteString(" =")
+		} else if t, _ := typ.(*TypeParam); t != nil {
+			typ = t.bound
 		} else {
+			// TODO(gri) should this be fromRHS for *Named?
 			typ = under(typ)
 		}
+	}
+
+	// Special handling for any: because WriteType will format 'any' as 'any',
+	// resulting in the object string `type any = any` rather than `type any =
+	// interface{}`. To avoid this, swap in a different empty interface.
+	if obj == universeAny {
+		assert(Identical(typ, &emptyInterface))
+		typ = &emptyInterface
 	}
 
 	buf.WriteByte(' ')

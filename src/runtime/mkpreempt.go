@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // mkpreempt generates the asyncPreempt functions for each
 // architecture.
@@ -124,14 +123,13 @@ func header(arch string) {
 	if beLe[arch] {
 		base := arch[:len(arch)-1]
 		fmt.Fprintf(out, "//go:build %s || %sle\n", base, base)
-		fmt.Fprintf(out, "// +build %s %sle\n\n", base, base)
 	}
 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
 	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
 }
 
-func p(f string, args ...interface{}) {
+func p(f string, args ...any) {
 	fmted := fmt.Sprintf(f, args...)
 	fmt.Fprintf(out, "\t%s\n", strings.ReplaceAll(fmted, "\n", "\n\t"))
 }
@@ -506,12 +504,12 @@ func genPPC64() {
 }
 
 func genRISCV64() {
-	// X0 (zero), X1 (LR), X2 (SP), X4 (TP), X27 (g), X31 (TMP) are special.
+	// X0 (zero), X1 (LR), X2 (SP), X3 (GP), X4 (TP), X27 (g), X31 (TMP) are special.
 	var l = layout{sp: "X2", stack: 8}
 
-	// Add integer registers (X3, X5-X26, X28-30).
-	for i := 3; i < 31; i++ {
-		if i == 4 || i == 27 {
+	// Add integer registers (X5-X26, X28-30).
+	for i := 5; i < 31; i++ {
+		if i == 27 {
 			continue
 		}
 		reg := fmt.Sprintf("X%d", i)

@@ -17,6 +17,8 @@ import (
 	"unsafe"
 )
 
+const _SYS_DUP3 = 0
+
 // See version list in https://github.com/DragonFlyBSD/DragonFlyBSD/blob/master/sys/sys/param.h
 var (
 	osreldateOnce sync.Once
@@ -96,8 +98,11 @@ func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	p[0], p[1], err = pipe()
-	return
+	r, w, err := pipe()
+	if err == nil {
+		p[0], p[1] = r, w
+	}
+	return err
 }
 
 //sysnb	pipe2(p *[2]_C_int, flags int) (r int, w int, err error)
@@ -109,7 +114,10 @@ func Pipe2(p []int, flags int) (err error) {
 	var pp [2]_C_int
 	// pipe2 on dragonfly takes an fds array as an argument, but still
 	// returns the file descriptors.
-	p[0], p[1], err = pipe2(&pp, flags)
+	r, w, err := pipe2(&pp, flags)
+	if err == nil {
+		p[0], p[1] = r, w
+	}
 	return err
 }
 
@@ -154,11 +162,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		err = e1
 	}
 	return
-}
-
-func setattrlistTimes(path string, times []Timespec) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
 }
 
 /*

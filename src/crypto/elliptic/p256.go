@@ -3,15 +3,14 @@
 // license that can be found in the LICENSE file.
 
 //go:build !amd64 && !arm64
-// +build !amd64,!arm64
 
 package elliptic
 
-// This file contains a constant-time, 32-bit implementation of P256.
+// P-256 is implemented by various different backends, including a generic
+// 32-bit constant-time one in this file, which is used when assembly
+// implementations are not available, or not appropriate for the hardware.
 
-import (
-	"math/big"
-)
+import "math/big"
 
 type p256Curve struct {
 	*CurveParams
@@ -210,6 +209,8 @@ var p256Precomputed = [p256Limbs * 2 * 15 * 2]uint32{
 
 // Field element operations:
 
+const bottom28Bits = 0xfffffff
+
 // nonZeroToAllOnes returns:
 //   0xffffffff for 0 < x <= 2**31
 //   0 for x == 0 or x > 2**31.
@@ -270,6 +271,7 @@ const (
 	two30m2    = 1<<30 - 1<<2
 	two30p13m2 = 1<<30 + 1<<13 - 1<<2
 	two31m2    = 1<<31 - 1<<2
+	two31m3    = 1<<31 - 1<<3
 	two31p24m2 = 1<<31 + 1<<24 - 1<<2
 	two30m27m2 = 1<<30 - 1<<27 - 1<<2
 )

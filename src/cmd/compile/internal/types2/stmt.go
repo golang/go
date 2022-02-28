@@ -28,13 +28,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	sig.scope.pos = body.Pos()
 	sig.scope.end = syntax.EndPos(body)
 
-	// save/restore current context and setup function context
+	// save/restore current environment and set up function environment
 	// (and use 0 indentation at function start)
-	defer func(ctxt context, indent int) {
-		check.context = ctxt
+	defer func(env environment, indent int) {
+		check.environment = env
 		check.indent = indent
-	}(check.context, check.indent)
-	check.context = context{
+	}(check.environment, check.indent)
+	check.environment = environment{
 		decl:  decl,
 		scope: sig.scope,
 		iota:  iota,
@@ -239,7 +239,7 @@ L:
 		}
 		// Order matters: By comparing v against x, error positions are at the case values.
 		res := v // keep original v unchanged
-		check.comparison(&res, x, syntax.Eql)
+		check.comparison(&res, x, syntax.Eql, true)
 		if res.mode == invalid {
 			continue L
 		}
@@ -274,7 +274,8 @@ func (check *Checker) isNil(e syntax.Expr) bool {
 	return false
 }
 
-func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
+// If the type switch expression is invalid, x is nil.
+func (check *Checker) caseTypes(x *operand, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
 	var dummy operand
 L:
 	for _, e := range types {
@@ -305,8 +306,8 @@ L:
 			}
 		}
 		seen[T] = e
-		if T != nil {
-			check.typeAssertion(e.Pos(), x, xtyp, T)
+		if x != nil && T != nil {
+			check.typeAssertion(e, x, T, true)
 		}
 	}
 	return
@@ -347,7 +348,7 @@ L:
 // 		}
 // 		seen[hash] = e
 // 		if T != nil {
-// 			check.typeAssertion(e.Pos(), x, xtyp, T)
+// 			check.typeAssertion(e, x, xtyp, T, true)
 // 		}
 // 	}
 // 	return
@@ -408,27 +409,21 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-		var elem Type
-		if !underIs(ch.typ, func(u Type) bool {
-			uch, _ := u.(*Chan)
-			if uch == nil {
-				check.errorf(s, invalidOp+"cannot send to non-channel %s", &ch)
-				return false
-			}
-			if uch.dir == RecvOnly {
-				check.errorf(s, invalidOp+"cannot send to receive-only channel %s", &ch)
-				return false
-			}
-			if elem != nil && !Identical(uch.elem, elem) {
-				check.errorf(s, invalidOp+"channels of %s must have the same element type", &ch)
-				return false
-			}
-			elem = uch.elem
-			return true
-		}) {
+		u := coreType(ch.typ)
+		if u == nil {
+			check.errorf(s, invalidOp+"cannot send to %s: no core type", &ch)
 			return
 		}
-		check.assignment(&val, elem, "send")
+		uch, _ := u.(*Chan)
+		if uch == nil {
+			check.errorf(s, invalidOp+"cannot send to non-channel %s", &ch)
+			return
+		}
+		if uch.dir == RecvOnly {
+			check.errorf(s, invalidOp+"cannot send to receive-only channel %s", &ch)
+			return
+		}
+		check.assignment(&val, uch.elem, "send")
 
 	case *syntax.AssignStmt:
 		lhs := unpackExpr(s.Lhs)
@@ -443,7 +438,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			if x.mode == invalid {
 				return
 			}
-			if !isNumeric(x.typ) {
+			if !allNumeric(x.typ) {
 				check.errorf(lhs[0], invalidOp+"%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
 				return
 			}
@@ -480,30 +475,28 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.ReturnStmt:
 		res := check.sig.results
+		// Return with implicit results allowed for function with named results.
+		// (If one is named, all are named.)
 		results := unpackExpr(s.Results)
-		if res.Len() > 0 {
-			// function returns results
-			// (if one, say the first, result parameter is named, all of them are named)
-			if len(results) == 0 && res.vars[0].name != "" {
-				// spec: "Implementation restriction: A compiler may disallow an empty expression
-				// list in a "return" statement if a different entity (constant, type, or variable)
-				// with the same name as a result parameter is in scope at the place of the return."
-				for _, obj := range res.vars {
-					if alt := check.lookup(obj.name); alt != nil && alt != obj {
-						var err error_
-						err.errorf(s, "result parameter %s not in scope at return", obj.name)
-						err.errorf(alt, "inner declaration of %s", obj)
-						check.report(&err)
-						// ok to continue
-					}
+		if len(results) == 0 && res.Len() > 0 && res.vars[0].name != "" {
+			// spec: "Implementation restriction: A compiler may disallow an empty expression
+			// list in a "return" statement if a different entity (constant, type, or variable)
+			// with the same name as a result parameter is in scope at the place of the return."
+			for _, obj := range res.vars {
+				if alt := check.lookup(obj.name); alt != nil && alt != obj {
+					var err error_
+					err.errorf(s, "result parameter %s not in scope at return", obj.name)
+					err.errorf(alt, "inner declaration of %s", obj)
+					check.report(&err)
+					// ok to continue
 				}
-			} else {
-				// return has results or result parameters are unnamed
-				check.initVars(res.vars, results, s.Pos())
 			}
-		} else if len(results) > 0 {
-			check.error(results[0], "no result values expected")
-			check.use(results...)
+		} else {
+			var lhs []*Var
+			if res.Len() > 0 {
+				lhs = res.vars
+			}
+			check.initVars(lhs, results, s)
 		}
 
 	case *syntax.BranchStmt:
@@ -556,7 +549,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.simpleStmt(s.Init)
 		var x operand
 		check.expr(&x, s.Cond)
-		if x.mode != invalid && !isBoolean(x.typ) {
+		if x.mode != invalid && !allBoolean(x.typ) {
 			check.error(s.Cond, "non-boolean condition in if statement")
 		}
 		check.stmt(inner, s.Then)
@@ -645,7 +638,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if s.Cond != nil {
 			var x operand
 			check.expr(&x, s.Cond)
-			if x.mode != invalid && !isBoolean(x.typ) {
+			if x.mode != invalid && !allBoolean(x.typ) {
 				check.error(s.Cond, "non-boolean condition in for statement")
 			}
 		}
@@ -654,9 +647,6 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		// declaration, but the post statement must not."
 		if s, _ := s.Post.(*syntax.AssignStmt); s != nil && s.Op == syntax.Def {
 			// The parser already reported an error.
-			// Don't call useLHS here because we want to use the lhs in
-			// this erroneous statement so that we don't get errors about
-			// these lhs variables being declared but not used.
 			check.use(s.Lhs) // avoid follow-up errors
 		}
 		check.stmt(inner, s.Body)
@@ -742,14 +732,17 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	if x.mode == invalid {
 		return
 	}
-	// Caution: We're not using asInterface here because we don't want
-	//          to switch on a suitably constrained type parameter (for
-	//          now).
-	// TODO(gri) Need to revisit this.
-	xtyp, _ := under(x.typ).(*Interface)
-	if xtyp == nil {
-		check.errorf(&x, "%s is not an interface type", &x)
-		return
+
+	// TODO(gri) we may want to permit type switches on type parameter values at some point
+	var sx *operand // switch expression against which cases are compared against; nil if invalid
+	if isTypeParam(x.typ) {
+		check.errorf(&x, "cannot use type switch on type parameter value %s", &x)
+	} else {
+		if _, ok := under(x.typ).(*Interface); ok {
+			sx = &x
+		} else {
+			check.errorf(&x, "%s is not an interface", &x)
+		}
 	}
 
 	check.multipleSwitchDefaults(s.Body)
@@ -767,7 +760,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		}
 		// Check each type in this type switch case.
 		cases := unpackExpr(clause.Cases)
-		T := check.caseTypes(&x, xtyp, cases, seen)
+		T := check.caseTypes(sx, cases, seen)
 		check.openScopeUntil(clause, end, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
@@ -818,38 +811,57 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *syntax.RangeClause) {
 	// scope already opened
 
+	// determine lhs, if any
+	sKey := rclause.Lhs // possibly nil
+	var sValue, sExtra syntax.Expr
+	if p, _ := sKey.(*syntax.ListExpr); p != nil {
+		if len(p.ElemList) < 2 {
+			check.error(s, invalidAST+"invalid lhs in range clause")
+			return
+		}
+		// len(p.ElemList) >= 2
+		sKey = p.ElemList[0]
+		sValue = p.ElemList[1]
+		if len(p.ElemList) > 2 {
+			// delay error reporting until we know more
+			sExtra = p.ElemList[2]
+		}
+	}
+
 	// check expression to iterate over
 	var x operand
 	check.expr(&x, rclause.X)
 
-	// determine lhs, if any
-	sKey := rclause.Lhs // possibly nil
-	var sValue syntax.Expr
-	if p, _ := sKey.(*syntax.ListExpr); p != nil {
-		if len(p.ElemList) != 2 {
-			check.error(s, invalidAST+"invalid lhs in range clause")
-			return
-		}
-		sKey = p.ElemList[0]
-		sValue = p.ElemList[1]
-	}
-
 	// determine key/value types
 	var key, val Type
 	if x.mode != invalid {
-		// Ranging over a type parameter is permitted if it has a structural type.
-		typ := optype(x.typ)
-		if _, ok := typ.(*Chan); ok && sValue != nil {
-			check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
-			// ok to continue
-		}
-		var msg string
-		key, val, msg = rangeKeyVal(typ, isVarName(sKey), isVarName(sValue))
-		if key == nil || msg != "" {
-			if msg != "" {
-				msg = ": " + msg
+		// Ranging over a type parameter is permitted if it has a core type.
+		var cause string
+		u := coreType(x.typ)
+		if t, _ := u.(*Chan); t != nil {
+			if sValue != nil {
+				check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
+				// ok to continue
 			}
-			check.softErrorf(&x, "cannot range over %s%s", &x, msg)
+			if t.dir == SendOnly {
+				cause = "receive from send-only channel"
+			}
+		} else {
+			if sExtra != nil {
+				check.softErrorf(sExtra, "range clause permits at most two iteration variables")
+				// ok to continue
+			}
+			if u == nil {
+				cause = check.sprintf("%s has no core type", x.typ)
+			}
+		}
+		key, val = rangeKeyVal(u)
+		if key == nil || cause != "" {
+			if cause == "" {
+				check.softErrorf(&x, "cannot range over %s", &x)
+			} else {
+				check.softErrorf(&x, "cannot range over %s (%s)", &x, cause)
+			}
 			// ok to continue
 		}
 	}
@@ -930,44 +942,23 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	check.stmt(inner, s.Body)
 }
 
-// isVarName reports whether x is a non-nil, non-blank (_) expression.
-func isVarName(x syntax.Expr) bool {
-	if x == nil {
-		return false
-	}
-	ident, _ := unparen(x).(*syntax.Name)
-	return ident == nil || ident.Value != "_"
-}
-
 // rangeKeyVal returns the key and value type produced by a range clause
-// over an expression of type typ, and possibly an error message. If the
-// range clause is not permitted the returned key is nil or msg is not
-// empty (in that case we still may have a non-nil key type which can be
-// used to reduce the chance for follow-on errors).
-// The wantKey, wantVal, and hasVal flags indicate which of the iteration
-// variables are used or present; this matters if we range over a generic
-// type where not all keys or values are of the same type.
-func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
+// over an expression of type typ. If the range clause is not permitted
+// the results are nil.
+func rangeKeyVal(typ Type) (key, val Type) {
 	switch typ := arrayPtrDeref(typ).(type) {
 	case *Basic:
 		if isString(typ) {
-			return Typ[Int], universeRune, "" // use 'rune' name
+			return Typ[Int], universeRune // use 'rune' name
 		}
 	case *Array:
-		return Typ[Int], typ.elem, ""
+		return Typ[Int], typ.elem
 	case *Slice:
-		return Typ[Int], typ.elem, ""
+		return Typ[Int], typ.elem
 	case *Map:
-		return typ.key, typ.elem, ""
+		return typ.key, typ.elem
 	case *Chan:
-		var msg string
-		if typ.dir == SendOnly {
-			msg = "receive from send-only channel"
-		}
-		return typ.elem, Typ[Invalid], msg
-	case *top:
-		// we have a type parameter with no structural type
-		return nil, nil, "no structural type"
+		return typ.elem, Typ[Invalid]
 	}
-	return nil, nil, ""
+	return
 }

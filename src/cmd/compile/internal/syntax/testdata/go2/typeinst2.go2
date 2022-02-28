@@ -148,31 +148,7 @@ func _[T any](r R2[T, int], p *R2[string, T]) {
 	p.pm()
 }
 
-// An interface can (explicitly) declare at most one type list.
-type _ interface {
-	m0()
-	type int, string, bool
-	type /* ERROR multiple type lists */ float32, float64
-	m1()
-	m2()
-	type /* ERROR multiple type lists */ complex64, complex128
-	type /* ERROR multiple type lists */ rune
-}
-
-// Interface type lists may contain each type at most once.
-// (If there are multiple lists, we assume the author intended
-// for them to be all in a single list, and we report the error
-// as well.)
-type _ interface {
-	type int, int /* ERROR duplicate type int */
-	type /* ERROR multiple type lists */ int /* ERROR duplicate type int */
-}
-
-type _ interface {
-	type struct{f int}, struct{g int}, struct /* ERROR duplicate type */ {f int}
-}
-
-// Interface type lists can contain any type, incl. *Named types.
+// Interface type constraints can contain any type, incl. *Named types.
 // Verify that we use the underlying type to compute the operational type.
 type MyInt int
 func add1[T interface{ ~MyInt }](x T) T {
@@ -184,9 +160,9 @@ func double[T interface{ ~MyInt | ~MyString }](x T) T {
 	return x + x
 }
 
-// Embedding of interfaces with type lists leads to interfaces
-// with type lists that are the intersection of the embedded
-// type lists.
+// Embedding of interfaces with type constraints leads to interfaces
+// with type constraints that are the intersection of the embedded
+// type constraints.
 
 type E0 interface {
 	~int | ~bool | ~string
@@ -246,7 +222,7 @@ var _ = f12[float64]
 
 type I0_ interface {
 	E0
-	type int
+	~int
 }
 
 func f0_[T I0_]()

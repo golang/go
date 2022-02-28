@@ -86,6 +86,18 @@ func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
 }
 
 func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+	assert(g.curDecl == "")
+	// Set g.curDecl to the function name, as context for the type params declared
+	// during types2-to-types1 translation if this is a generic function.
+	g.curDecl = decl.Name.Value
+	obj2 := g.info.Defs[decl.Name]
+	recv := types2.AsSignature(obj2.Type()).Recv()
+	if recv != nil {
+		t2 := deref2(recv.Type())
+		// This is a method, so set g.curDecl to recvTypeName.methName instead.
+		g.curDecl = t2.(*types2.Named).Obj().Name() + "." + g.curDecl
+	}
+
 	fn := ir.NewFunc(g.pos(decl))
 	fn.Nname, _ = g.def(decl.Name)
 	fn.Nname.Func = fn
@@ -121,7 +133,20 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 		g.target.Inits = append(g.target.Inits, fn)
 	}
 
+	saveHaveEmbed := g.haveEmbed
+	saveCurDecl := g.curDecl
+	g.curDecl = ""
 	g.later(func() {
+		defer func(b bool, s string) {
+			// Revert haveEmbed and curDecl back to what they were before
+			// the "later" function.
+			g.haveEmbed = b
+			g.curDecl = s
+		}(g.haveEmbed, g.curDecl)
+
+		// Set haveEmbed and curDecl to what they were for this funcDecl.
+		g.haveEmbed = saveHaveEmbed
+		g.curDecl = saveCurDecl
 		if fn.Type().HasTParam() {
 			g.topFuncIsGeneric = true
 		}
@@ -143,12 +168,20 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 }
 
 func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+	// Set the position for any error messages we might print (e.g. too large types).
+	base.Pos = g.pos(decl)
+	assert(ir.CurFunc != nil || g.curDecl == "")
+	// Set g.curDecl to the type name, as context for the type params declared
+	// during types2-to-types1 translation if this is a generic type.
+	saveCurDecl := g.curDecl
+	g.curDecl = decl.Name.Value
 	if decl.Alias {
 		name, _ := g.def(decl.Name)
 		g.pragmaFlags(decl.Pragma, 0)
 		assert(name.Alias()) // should be set by irgen.obj
 
 		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLTYPE, name))
+		g.curDecl = ""
 		return
 	}
 
@@ -201,13 +234,18 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	}
 	types.ResumeCheckSize()
 
+	g.curDecl = saveCurDecl
 	if otyp, ok := otyp.(*types2.Named); ok && otyp.NumMethods() != 0 {
 		methods := make([]*types.Field, otyp.NumMethods())
 		for i := range methods {
 			m := otyp.Method(i)
+			// Set g.curDecl to recvTypeName.methName, as context for the
+			// method-specific type params in the receiver.
+			g.curDecl = decl.Name.Value + "." + m.Name()
 			meth := g.obj(m)
 			methods[i] = types.NewField(meth.Pos(), g.selector(m), meth.Type())
 			methods[i].Nname = meth
+			g.curDecl = ""
 		}
 		ntyp.Methods().Set(methods)
 	}
@@ -217,6 +255,8 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 
 func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 	pos := g.pos(decl)
+	// Set the position for any error messages we might print (e.g. too large types).
+	base.Pos = pos
 	names := make([]*ir.Name, len(decl.NameList))
 	for i, name := range decl.NameList {
 		names[i], _ = g.def(name)
@@ -224,12 +264,15 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 
 	if decl.Pragma != nil {
 		pragma := decl.Pragma.(*pragmas)
-		// TODO(mdempsky): Plumb noder.importedEmbed through to here.
-		varEmbed(g.makeXPos, names[0], decl, pragma, true)
+		varEmbed(g.makeXPos, names[0], decl, pragma, g.haveEmbed)
 		g.reportUnused(pragma)
 	}
 
+	haveEmbed := g.haveEmbed
 	do := func() {
+		defer func(b bool) { g.haveEmbed = b }(g.haveEmbed)
+
+		g.haveEmbed = haveEmbed
 		values := g.exprList(decl.Values)
 
 		var as2 *ir.AssignListStmt
@@ -252,22 +295,26 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 				} else if ir.CurFunc == nil {
 					name.Defn = as
 				}
-				lhs := []ir.Node{as.X}
-				rhs := []ir.Node{}
-				if as.Y != nil {
-					rhs = []ir.Node{as.Y}
-				}
-				transformAssign(as, lhs, rhs)
-				as.X = lhs[0]
-				if as.Y != nil {
-					as.Y = rhs[0]
+				if !g.delayTransform() {
+					lhs := []ir.Node{as.X}
+					rhs := []ir.Node{}
+					if as.Y != nil {
+						rhs = []ir.Node{as.Y}
+					}
+					transformAssign(as, lhs, rhs)
+					as.X = lhs[0]
+					if as.Y != nil {
+						as.Y = rhs[0]
+					}
 				}
 				as.SetTypecheck(1)
 				out.Append(as)
 			}
 		}
 		if as2 != nil {
-			transformAssign(as2, as2.Lhs, as2.Rhs)
+			if !g.delayTransform() {
+				transformAssign(as2, as2.Lhs, as2.Rhs)
+			}
 			as2.SetTypecheck(1)
 			out.Append(as2)
 		}

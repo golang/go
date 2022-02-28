@@ -13,6 +13,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 	"unsafe"
 )
@@ -265,8 +266,9 @@ func newProfileBuilder(w io.Writer) *profileBuilder {
 }
 
 // addCPUData adds the CPU profiling data to the profile.
-// The data must be a whole number of records,
-// as delivered by the runtime.
+//
+// The data must be a whole number of records, as delivered by the runtime.
+// len(tags) must be equal to the number of records in data.
 func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error {
 	if !b.havePeriod {
 		// first record is period
@@ -281,6 +283,9 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 		b.period = 1e9 / int64(data[2])
 		b.havePeriod = true
 		data = data[3:]
+		// Consume tag slot. Note that there isn't a meaningful tag
+		// value for this record.
+		tags = tags[1:]
 	}
 
 	// Parse CPU samples from the profile.
@@ -305,14 +310,14 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 		if data[0] < 3 || tags != nil && len(tags) < 1 {
 			return fmt.Errorf("malformed profile")
 		}
+		if len(tags) < 1 {
+			return fmt.Errorf("mismatched profile records and tags")
+		}
 		count := data[2]
 		stk := data[3:data[0]]
 		data = data[data[0]:]
-		var tag unsafe.Pointer
-		if tags != nil {
-			tag = tags[0]
-			tags = tags[1:]
-		}
+		tag := tags[0]
+		tags = tags[1:]
 
 		if count == 0 && len(stk) == 1 {
 			// overflow record
@@ -325,6 +330,10 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 			}
 		}
 		b.m.lookup(stk, tag).count += int64(count)
+	}
+
+	if len(tags) != 0 {
+		return fmt.Errorf("mismatched profile records and tags")
 	}
 	return nil
 }
@@ -581,6 +590,9 @@ func (b *profileBuilder) readMapping() {
 	}
 }
 
+var space = []byte(" ")
+var newline = []byte("\n")
+
 func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file, buildID string)) {
 	// $ cat /proc/self/maps
 	// 00400000-0040b000 r-xp 00000000 fc:01 787766                             /bin/cat
@@ -607,37 +619,24 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 	// next removes and returns the next field in the line.
 	// It also removes from line any spaces following the field.
 	next := func() []byte {
-		j := bytes.IndexByte(line, ' ')
-		if j < 0 {
-			f := line
-			line = nil
-			return f
-		}
-		f := line[:j]
-		line = line[j+1:]
-		for len(line) > 0 && line[0] == ' ' {
-			line = line[1:]
-		}
+		var f []byte
+		f, line, _ = bytes.Cut(line, space)
+		line = bytes.TrimLeft(line, " ")
 		return f
 	}
 
 	for len(data) > 0 {
-		i := bytes.IndexByte(data, '\n')
-		if i < 0 {
-			line, data = data, nil
-		} else {
-			line, data = data[:i], data[i+1:]
-		}
+		line, data, _ = bytes.Cut(data, newline)
 		addr := next()
-		i = bytes.IndexByte(addr, '-')
-		if i < 0 {
+		loStr, hiStr, ok := strings.Cut(string(addr), "-")
+		if !ok {
 			continue
 		}
-		lo, err := strconv.ParseUint(string(addr[:i]), 16, 64)
+		lo, err := strconv.ParseUint(loStr, 16, 64)
 		if err != nil {
 			continue
 		}
-		hi, err := strconv.ParseUint(string(addr[i+1:]), 16, 64)
+		hi, err := strconv.ParseUint(hiStr, 16, 64)
 		if err != nil {
 			continue
 		}

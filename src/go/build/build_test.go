@@ -712,7 +712,7 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	// Also don't count instances in suggested "go get" or similar commands
 	// (see https://golang.org/issue/41576). The suggested command typically
 	// follows a semicolon.
-	errStr = strings.SplitN(errStr, ";", 2)[0]
+	errStr, _, _ = strings.Cut(errStr, ";")
 
 	if n := strings.Count(errStr, pkgPath); n != 1 {
 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)

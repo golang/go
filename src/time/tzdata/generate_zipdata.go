@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // This program generates zipdata.go from $GOROOT/lib/time/zoneinfo.zip.
 package main
@@ -72,7 +71,7 @@ func main() {
 	}
 }
 
-func die(format string, args ...interface{}) {
+func die(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)
 }

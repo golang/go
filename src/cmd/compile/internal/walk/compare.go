@@ -5,7 +5,6 @@
 package walk
 
 import (
-	"encoding/binary"
 	"go/constant"
 
 	"cmd/compile/internal/base"
@@ -14,7 +13,6 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/sys"
 )
 
 // The result of walkCompare MUST be assigned back to n, e.g.
@@ -81,7 +79,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	var inline bool
 
 	maxcmpsize := int64(4)
-	unalignedLoad := canMergeLoads()
+	unalignedLoad := ssagen.Arch.LinkArch.CanMergeLoads
 	if unalignedLoad {
 		// Keep this low enough to generate less code than a function call.
 		maxcmpsize = 2 * int64(ssagen.Arch.LinkArch.RegSize)
@@ -311,7 +309,7 @@ func walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		maxRewriteLen := 6
 		// Some architectures can load unaligned byte sequence as 1 word.
 		// So we can cover longer strings with the same amount of code.
-		canCombineLoads := canMergeLoads()
+		canCombineLoads := ssagen.Arch.LinkArch.CanMergeLoads
 		combine64bit := false
 		if canCombineLoads {
 			// Keep this low enough to generate less code than a function call.
@@ -490,19 +488,4 @@ func tracecmpArg(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 	}
 
 	return typecheck.Conv(n, t)
-}
-
-// canMergeLoads reports whether the backend optimization passes for
-// the current architecture can combine adjacent loads into a single
-// larger, possibly unaligned, load. Note that currently the
-// optimizations must be able to handle little endian byte order.
-func canMergeLoads() bool {
-	switch ssagen.Arch.LinkArch.Family {
-	case sys.ARM64, sys.AMD64, sys.I386, sys.S390X:
-		return true
-	case sys.PPC64:
-		// Load combining only supported on ppc64le.
-		return ssagen.Arch.LinkArch.ByteOrder == binary.LittleEndian
-	}
-	return false
 }

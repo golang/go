@@ -16,6 +16,7 @@ import (
 	"cmd/go/internal/modload"
 
 	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 var cmdDownload = &base.Command{
@@ -24,8 +25,11 @@ var cmdDownload = &base.Command{
 	Long: `
 Download downloads the named modules, which can be module patterns selecting
 dependencies of the main module or module queries of the form path@version.
-With no arguments, download applies to all dependencies of the main module
-(equivalent to 'go mod download all').
+
+With no arguments, download applies to the modules needed to build and test
+the packages in the main module: the modules explicitly required by the main
+module if it is at 'go 1.17' or higher, or all transitively-required modules
+if at 'go 1.16' or lower.
 
 The go command will automatically download modules as needed during ordinary
 execution. The "go mod download" command is useful mainly for pre-filling
@@ -66,7 +70,6 @@ func init() {
 	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
 	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 	base.AddModCommonFlags(&cmdDownload.Flag)
-	base.AddWorkfileFlag(&cmdDownload.Flag)
 }
 
 type moduleJSON struct {
@@ -86,29 +89,62 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Check whether modules are enabled and whether we're in a module.
 	modload.ForceUseModules = true
-	if !modload.HasModRoot() && len(args) == 0 {
-		base.Fatalf("go: no modules specified (see 'go help mod download')")
-	}
+	modload.ExplicitWriteGoMod = true
 	haveExplicitArgs := len(args) > 0
-	if !haveExplicitArgs {
-		args = []string{"all"}
-	}
-	if modload.HasModRoot() {
+
+	if modload.HasModRoot() || modload.WorkFilePath() != "" {
 		modload.LoadModFile(ctx) // to fill MainModules
 
-		if len(modload.MainModules.Versions()) != 1 {
-			panic(modload.TODOWorkspaces("Support workspace mode in go mod download"))
-		}
-		mainModule := modload.MainModules.Versions()[0]
+		if haveExplicitArgs {
+			for _, mainModule := range modload.MainModules.Versions() {
+				targetAtUpgrade := mainModule.Path + "@upgrade"
+				targetAtPatch := mainModule.Path + "@patch"
+				for _, arg := range args {
+					switch arg {
+					case mainModule.Path, targetAtUpgrade, targetAtPatch:
+						os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
+					}
+				}
+			}
+		} else if modload.WorkFilePath() != "" {
+			// TODO(#44435): Think about what the correct query is to download the
+			// right set of modules. Also see code review comment at
+			// https://go-review.googlesource.com/c/go/+/359794/comments/ce946a80_6cf53992.
+			args = []string{"all"}
+		} else {
+			mainModule := modload.MainModules.Versions()[0]
+			modFile := modload.MainModules.ModFile(mainModule)
+			if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, modload.ExplicitIndirectVersionV) < 0 {
+				if len(modFile.Require) > 0 {
+					args = []string{"all"}
+				}
+			} else {
+				// As of Go 1.17, the go.mod file explicitly requires every module
+				// that provides any package imported by the main module.
+				// 'go mod download' is typically run before testing packages in the
+				// main module, so by default we shouldn't download the others
+				// (which are presumed irrelevant to the packages in the main module).
+				// See https://golang.org/issue/44435.
+				//
+				// However, we also need to load the full module graph, to ensure that
+				// we have downloaded enough of the module graph to run 'go list all',
+				// 'go mod graph', and similar commands.
+				_ = modload.LoadModGraph(ctx, "")
 
-		targetAtUpgrade := mainModule.Path + "@upgrade"
-		targetAtPatch := mainModule.Path + "@patch"
-		for _, arg := range args {
-			switch arg {
-			case mainModule.Path, targetAtUpgrade, targetAtPatch:
-				os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
+				for _, m := range modFile.Require {
+					args = append(args, m.Mod.Path)
+				}
 			}
 		}
+	}
+
+	if len(args) == 0 {
+		if modload.HasModRoot() {
+			os.Stderr.WriteString("go: no module dependencies to download\n")
+		} else {
+			base.Errorf("go: no modules specified (see 'go help mod download')")
+		}
+		base.Exit()
 	}
 
 	downloadModule := func(m *moduleJSON) {
@@ -149,13 +185,16 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	if !haveExplicitArgs {
 		// 'go mod download' is sometimes run without arguments to pre-populate the
 		// module cache. It may fetch modules that aren't needed to build packages
-		// in the main mdoule. This is usually not intended, so don't save sums for
-		// downloaded modules (golang.org/issue/45332).
-		// TODO(golang.org/issue/45551): For now, in ListModules, save sums needed
-		// to load the build list (same as 1.15 behavior). In the future, report an
-		// error if go.mod or go.sum need to be updated after loading the build
-		// list.
-		modload.DisallowWriteGoMod()
+		// in the main module. This is usually not intended, so don't save sums for
+		// downloaded modules (golang.org/issue/45332). We do still fix
+		// inconsistencies in go.mod though.
+		//
+		// TODO(#45551): In the future, report an error if go.mod or go.sum need to
+		// be updated after loading the build list. This may require setting
+		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
+		if err := modload.WriteGoMod(ctx); err != nil {
+			base.Fatalf("go: %v", err)
+		}
 	}
 
 	for _, info := range infos {
@@ -215,7 +254,9 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	//
 	// Don't save sums for 'go mod download' without arguments; see comment above.
 	if haveExplicitArgs {
-		modload.WriteGoMod(ctx)
+		if err := modload.WriteGoMod(ctx); err != nil {
+			base.Errorf("go: %v", err)
+		}
 	}
 
 	// If there was an error matching some of the requested packages, emit it now

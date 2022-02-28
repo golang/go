@@ -85,6 +85,12 @@ func (ctxt *Link) readImportCfg(file string) {
 				log.Fatalf(`%s:%d: invalid packageshlib: syntax is "packageshlib path=filename"`, file, lineNum)
 			}
 			ctxt.PackageShlib[before] = after
+		case "modinfo":
+			s, err := strconv.Unquote(args)
+			if err != nil {
+				log.Fatalf("%s:%d: invalid modinfo: %v", file, lineNum, err)
+			}
+			addstrdata1(ctxt, "runtime.modinfo="+s)
 		}
 	}
 }

@@ -13,6 +13,8 @@ const (
 	I_STR     = 0x5308
 	I_POP     = 0x5303
 	I_PUSH    = 0x5302
+	I_LINK    = 0x530c
+	I_UNLINK  = 0x530d
 	I_PLINK   = 0x5316
 	I_PUNLINK = 0x5317
 

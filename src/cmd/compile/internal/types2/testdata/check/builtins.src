@@ -15,9 +15,9 @@ func append1() {
 	var x int
 	var s []byte
 	_ = append() // ERROR not enough arguments
-	_ = append("foo" /* ERROR not a slice */ )
-	_ = append(nil /* ERROR not a slice */ , s)
-	_ = append(x /* ERROR not a slice */ , s)
+	_ = append("foo" /* ERROR must be a slice */ )
+	_ = append(nil /* ERROR must be a slice */ , s)
+	_ = append(x /* ERROR must be a slice */ , s)
 	_ = append(s)
 	_ = append(s, nil...)
 	append /* ERROR not used */ (s)
@@ -25,7 +25,7 @@ func append1() {
 	_ = append(s, b)
 	_ = append(s, x /* ERROR cannot use x */ )
 	_ = append(s, s /* ERROR cannot use s */ )
-	_ = append(s... ) /* ERROR not enough arguments */
+	_ = append(s /* ERROR not enough arguments */ ...)
 	_ = append(s, b, s /* ERROR too many arguments */ ... )
 	_ = append(s, 1, 2, 3)
 	_ = append(s, 1, 2, 3, x /* ERROR cannot use x */ , 5, 6, 6)
@@ -77,7 +77,7 @@ func append3() {
 	_ = append(f2())
 	_ = append(f3())
 	_ = append(f5())
-	_ = append(ff /* ERROR not a slice */ ()) // TODO(gri) better error message
+	_ = append(ff /* ERROR must be a slice */ ()) // TODO(gri) better error message
 }
 
 func cap1() {

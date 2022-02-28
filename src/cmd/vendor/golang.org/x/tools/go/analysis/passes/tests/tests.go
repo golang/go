@@ -8,12 +8,15 @@ package tests
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = `check for common mistaken usages of tests and examples
@@ -42,10 +45,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				// Ignore non-functions or functions with receivers.
 				continue
 			}
-
 			switch {
 			case strings.HasPrefix(fn.Name.Name, "Example"):
-				checkExample(pass, fn)
+				checkExampleName(pass, fn)
+				checkExampleOutput(pass, fn, f.Comments)
 			case strings.HasPrefix(fn.Name.Name, "Test"):
 				checkTest(pass, fn, "Test")
 			case strings.HasPrefix(fn.Name.Name, "Benchmark"):
@@ -108,13 +111,68 @@ func lookup(pkg *types.Package, name string) []types.Object {
 	return ret
 }
 
-func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
+// This pattern is taken from /go/src/go/doc/example.go
+var outputRe = regexp.MustCompile(`(?i)^[[:space:]]*(unordered )?output:`)
+
+type commentMetadata struct {
+	isOutput bool
+	pos      token.Pos
+}
+
+func checkExampleOutput(pass *analysis.Pass, fn *ast.FuncDecl, fileComments []*ast.CommentGroup) {
+	commentsInExample := []commentMetadata{}
+	numOutputs := 0
+
+	// Find the comment blocks that are in the example. These comments are
+	// guaranteed to be in order of appearance.
+	for _, cg := range fileComments {
+		if cg.Pos() < fn.Pos() {
+			continue
+		} else if cg.End() > fn.End() {
+			break
+		}
+
+		isOutput := outputRe.MatchString(cg.Text())
+		if isOutput {
+			numOutputs++
+		}
+
+		commentsInExample = append(commentsInExample, commentMetadata{
+			isOutput: isOutput,
+			pos:      cg.Pos(),
+		})
+	}
+
+	// Change message based on whether there are multiple output comment blocks.
+	msg := "output comment block must be the last comment block"
+	if numOutputs > 1 {
+		msg = "there can only be one output comment block per example"
+	}
+
+	for i, cg := range commentsInExample {
+		// Check for output comments that are not the last comment in the example.
+		isLast := (i == len(commentsInExample)-1)
+		if cg.isOutput && !isLast {
+			pass.Report(
+				analysis.Diagnostic{
+					Pos:     cg.pos,
+					Message: msg,
+				},
+			)
+		}
+	}
+}
+
+func checkExampleName(pass *analysis.Pass, fn *ast.FuncDecl) {
 	fnName := fn.Name.Name
 	if params := fn.Type.Params; len(params.List) != 0 {
 		pass.Reportf(fn.Pos(), "%s should be niladic", fnName)
 	}
 	if results := fn.Type.Results; results != nil && len(results.List) != 0 {
 		pass.Reportf(fn.Pos(), "%s should return nothing", fnName)
+	}
+	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
+		pass.Reportf(fn.Pos(), "%s should not have type params", fnName)
 	}
 
 	if fnName == "Example" {
@@ -180,6 +238,12 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
 	// The param must look like a *testing.T or *testing.B.
 	if !isTestParam(fn.Type.Params.List[0].Type, prefix[:1]) {
 		return
+	}
+
+	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
+		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
+		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
+		pass.Reportf(fn.Pos(), "%s has type parameters: it will not be run by go test as a %sXXX function", fn.Name.Name, prefix)
 	}
 
 	if !isTestSuffix(fn.Name.Name[len(prefix):]) {

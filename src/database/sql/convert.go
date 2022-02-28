@@ -104,7 +104,7 @@ func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
 // The statement ds may be nil, if no statement is available.
 //
 // ci must be locked.
-func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.NamedValue, error) {
+func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.NamedValue, error) {
 	nvargs := make([]driver.NamedValue, len(args))
 
 	// -1 means the driver doesn't know how to count the number of
@@ -207,7 +207,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([
 
 // convertAssign is the same as convertAssignRows, but without the optional
 // rows argument.
-func convertAssign(dest, src interface{}) error {
+func convertAssign(dest, src any) error {
 	return convertAssignRows(dest, src, nil)
 }
 
@@ -216,7 +216,7 @@ func convertAssign(dest, src interface{}) error {
 // dest should be a pointer type. If rows is passed in, the rows will
 // be used as the parent for any cursor values converted from a
 // driver.Rows to a *Rows.
-func convertAssignRows(dest, src interface{}, rows *Rows) error {
+func convertAssignRows(dest, src any, rows *Rows) error {
 	// Common cases, without reflect.
 	switch s := src.(type) {
 	case string:
@@ -248,7 +248,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 			}
 			*d = string(s)
 			return nil
-		case *interface{}:
+		case *any:
 			if d == nil {
 				return errNilPtr
 			}
@@ -295,7 +295,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 		}
 	case nil:
 		switch d := dest.(type) {
-		case *interface{}:
+		case *any:
 			if d == nil {
 				return errNilPtr
 			}
@@ -376,7 +376,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 			*d = bv.(bool)
 		}
 		return err
-	case *interface{}:
+	case *any:
 		*d = src
 		return nil
 	}
@@ -386,7 +386,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 	}
 
 	dpv := reflect.ValueOf(dest)
-	if dpv.Kind() != reflect.Ptr {
+	if dpv.Kind() != reflect.Pointer {
 		return errors.New("destination not a pointer")
 	}
 	if dpv.IsNil() {
@@ -419,7 +419,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 	// This also allows scanning into user defined types such as "type Int int64".
 	// For symmetry, also check for string destination types.
 	switch dv.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if src == nil {
 			dv.Set(reflect.Zero(dv.Type()))
 			return nil
@@ -495,7 +495,7 @@ func cloneBytes(b []byte) []byte {
 	return c
 }
 
-func asString(src interface{}) string {
+func asString(src any) string {
 	switch v := src.(type) {
 	case string:
 		return v
@@ -551,7 +551,7 @@ var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
 //
 // This function is mirrored in the database/sql/driver package.
 func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
-	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
+	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Pointer &&
 		rv.IsNil() &&
 		rv.Type().Elem().Implements(valuerReflectType) {
 		return nil, nil

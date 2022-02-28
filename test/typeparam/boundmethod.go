@@ -59,12 +59,13 @@ type Ints interface {
 	~int32 | ~int
 }
 
-type StringInt[T Ints] T
-
-//go:noinline
-func (m StringInt[T]) String() string {
-	return strconv.Itoa(int(m))
-}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// type StringInt[T Ints] T
+//
+// //go:noinline
+// func (m StringInt[T]) String() string {
+// 	return strconv.Itoa(int(m))
+// }
 
 type StringStruct[T Ints] struct {
 	f T
@@ -84,22 +85,23 @@ func main() {
 		panic(fmt.Sprintf("got %s, want %s", got, want))
 	}
 
-	x2 := []StringInt[myint]{StringInt[myint](5), StringInt[myint](7), StringInt[myint](6)}
-
-	// stringify on an instantiated type, whose bound method is associated with
-	// the generic type StringInt[T], which maps directly to T.
-	got2 := stringify(x2)
-	want2 := []string{ "5", "7", "6" }
-	if !reflect.DeepEqual(got2, want2) {
-		panic(fmt.Sprintf("got %s, want %s", got2, want2))
-	}
+	// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+	// x2 := []StringInt[myint]{StringInt[myint](5), StringInt[myint](7), StringInt[myint](6)}
+	//
+	// // stringify on an instantiated type, whose bound method is associated with
+	// // the generic type StringInt[T], which maps directly to T.
+	// got2 := stringify(x2)
+	// want2 := []string{"5", "7", "6"}
+	// if !reflect.DeepEqual(got2, want2) {
+	// 	panic(fmt.Sprintf("got %s, want %s", got2, want2))
+	// }
 
 	// stringify on an instantiated type, whose bound method is associated with
 	// the generic type StringStruct[T], which maps to a struct containing T.
 	x3 := []StringStruct[myint]{StringStruct[myint]{f: 11}, StringStruct[myint]{f: 10}, StringStruct[myint]{f: 9}}
 
 	got3 := stringify(x3)
-	want3 := []string{ "11", "10", "9" }
+	want3 := []string{"11", "10", "9"}
 	if !reflect.DeepEqual(got3, want3) {
 		panic(fmt.Sprintf("got %s, want %s", got3, want3))
 	}

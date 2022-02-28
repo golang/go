@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 //
 //go:build linux
-// +build linux
 
 package bytes_test
 
@@ -66,7 +65,11 @@ func TestIndexByteNearPageBoundary(t *testing.T) {
 
 func TestIndexNearPageBoundary(t *testing.T) {
 	t.Parallel()
-	var q [64]byte
+	q := dangerousSlice(t)
+	if len(q) > 64 {
+		// Only worry about when we're near the end of a page.
+		q = q[len(q)-64:]
+	}
 	b := dangerousSlice(t)
 	if len(b) > 256 {
 		// Only worry about when we're near the end of a page.
@@ -82,4 +85,16 @@ func TestIndexNearPageBoundary(t *testing.T) {
 		}
 		q[j-1] = 0
 	}
+
+	// Test differing alignments and sizes of q which always end on a page boundary.
+	q[len(q)-1] = 1 // difference is only found on the last byte
+	for j := 0; j < len(q); j++ {
+		for i := range b {
+			idx := Index(b[i:], q[j:])
+			if idx != -1 {
+				t.Fatalf("Index(b[%d:], q[%d:])=%d, want -1\n", i, j, idx)
+			}
+		}
+	}
+	q[len(q)-1] = 0
 }

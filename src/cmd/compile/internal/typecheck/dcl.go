@@ -360,8 +360,7 @@ func funcargs(nt *ir.FuncType) {
 		if n.Sym == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
 			n.Sym = LookupNum("~r", i)
-		}
-		if n.Sym.IsBlank() {
+		} else if n.Sym.IsBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
 			// The name must be different from ~r above because if you have
 			//	func f() (_ int)

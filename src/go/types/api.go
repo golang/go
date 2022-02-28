@@ -64,15 +64,12 @@ func (err Error) Error() string {
 
 // An ArgumentError holds an error associated with an argument index.
 type ArgumentError struct {
-	index int
-	error
+	Index int
+	Err   error
 }
 
-// Index returns the positional index of the argument associated with the
-// error.
-func (e ArgumentError) Index() int {
-	return e.index
-}
+func (e *ArgumentError) Error() string { return e.Err.Error() }
+func (e *ArgumentError) Unwrap() error { return e.Err }
 
 // An Importer resolves import paths to Packages.
 //
@@ -115,10 +112,9 @@ type ImporterFrom interface {
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
-	// Environment is the environment used for resolving global
-	// identifiers. If nil, the type checker will initialize this
-	// field with a newly created environment.
-	Environment *Environment
+	// Context is the context used for resolving global identifiers. If nil, the
+	// type checker will initialize this field with a newly created context.
+	Context *Context
 
 	// GoVersion describes the accepted Go language version. The string
 	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
@@ -203,11 +199,19 @@ type Info struct {
 	// qualified identifiers are collected in the Uses map.
 	Types map[ast.Expr]TypeAndValue
 
-	// Inferred maps calls of parameterized functions that use
-	// type inference to the inferred type arguments and signature
-	// of the function called. The recorded "call" expression may be
-	// an *ast.CallExpr (as in f(x)), or an *ast.IndexExpr (s in f[T]).
-	Inferred map[ast.Expr]Inferred
+	// Instances maps identifiers denoting parameterized types or functions to
+	// their type arguments and instantiated type.
+	//
+	// For example, Instances will map the identifier for 'T' in the type
+	// instantiation T[int, string] to the type arguments [int, string] and
+	// resulting instantiated *Named type. Given a parameterized function
+	// func F[A any](A), Instances will map the identifier for 'F' in the call
+	// expression F(int(1)) to the inferred type arguments [int], and resulting
+	// instantiated *Signature.
+	//
+	// Invariant: Instantiating Uses[id].Type() with Instances[id].TypeArgs
+	// results in an equivalent of Instances[id].Type.
+	Instances map[*ast.Ident]Instance
 
 	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
@@ -256,6 +260,7 @@ type Info struct {
 	//
 	//     *ast.File
 	//     *ast.FuncType
+	//     *ast.TypeSpec
 	//     *ast.BlockStmt
 	//     *ast.IfStmt
 	//     *ast.SwitchStmt
@@ -365,11 +370,13 @@ func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }
 
-// Inferred reports the Inferred type arguments and signature
-// for a parameterized function call that uses type inference.
-type Inferred struct {
-	TArgs *TypeList
-	Sig   *Signature
+// Instance reports the type arguments and instantiated type for type and
+// function instantiations. For type instantiations, Type will be of dynamic
+// type *Named. For function instantiations, Type will be of dynamic type
+// *Signature.
+type Instance struct {
+	TypeArgs *TypeList
+	Type     Type
 }
 
 // An Initializer describes a package-level variable, or a list of variables in case
@@ -410,9 +417,15 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 }
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
+// The behavior of AssertableTo is undefined if V is a generalized interface; i.e.,
+// an interface that may only be used as a type constraint in Go code.
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := (*Checker)(nil).assertableTo(V, T)
-	return m == nil
+	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
+	// handling here.
+	if T.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).newAssertableTo(V, T) == nil
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.
@@ -430,8 +443,16 @@ func ConvertibleTo(V, T Type) bool {
 
 // Implements reports whether type V implements interface T.
 func Implements(V Type, T *Interface) bool {
-	f, _ := MissingMethod(V, T, true)
-	return f == nil
+	if T.Empty() {
+		// All types (even Typ[Invalid]) implement the empty interface.
+		return true
+	}
+	// Checker.implements suppresses errors for invalid types, so we need special
+	// handling here.
+	if V.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).implements(V, T) == nil
 }
 
 // Identical reports whether x and y are identical types.

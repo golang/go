@@ -154,10 +154,18 @@ func splice(out int, in int, max int, flags int) (int, error) {
 	return int(n), err
 }
 
-type splicePipe struct {
+type splicePipeFields struct {
 	rfd  int
 	wfd  int
 	data int
+}
+
+type splicePipe struct {
+	splicePipeFields
+
+	// We want to use a finalizer, so ensure that the size is
+	// large enough to not use the tiny allocator.
+	_ [24 - unsafe.Sizeof(splicePipeFields{})%24]byte
 }
 
 // splicePipePool caches pipes to avoid high-frequency construction and destruction of pipe buffers.
@@ -165,7 +173,7 @@ type splicePipe struct {
 // a finalizer for each pipe to close its file descriptors before the actual GC.
 var splicePipePool = sync.Pool{New: newPoolPipe}
 
-func newPoolPipe() interface{} {
+func newPoolPipe() any {
 	// Discard the error which occurred during the creation of pipe buffer,
 	// redirecting the data transmission to the conventional way utilizing read() + write() as a fallback.
 	p := newPipe()
@@ -218,7 +226,7 @@ func newPipe() (sp *splicePipe) {
 		return nil
 	}
 
-	sp = &splicePipe{rfd: fds[0], wfd: fds[1]}
+	sp = &splicePipe{splicePipeFields: splicePipeFields{rfd: fds[0], wfd: fds[1]}}
 
 	if p == nil {
 		p = new(bool)

@@ -176,30 +176,34 @@ var runtimeDecls = [...]struct {
 	{"float64touint64", funcTag, 130},
 	{"float64touint32", funcTag, 131},
 	{"int64tofloat64", funcTag, 132},
-	{"uint64tofloat64", funcTag, 133},
-	{"uint32tofloat64", funcTag, 134},
-	{"complex128div", funcTag, 135},
-	{"getcallerpc", funcTag, 136},
-	{"getcallersp", funcTag, 136},
+	{"int64tofloat32", funcTag, 134},
+	{"uint64tofloat64", funcTag, 135},
+	{"uint64tofloat32", funcTag, 136},
+	{"uint32tofloat64", funcTag, 137},
+	{"complex128div", funcTag, 138},
+	{"getcallerpc", funcTag, 139},
+	{"getcallersp", funcTag, 139},
 	{"racefuncenter", funcTag, 31},
 	{"racefuncexit", funcTag, 9},
 	{"raceread", funcTag, 31},
 	{"racewrite", funcTag, 31},
-	{"racereadrange", funcTag, 137},
-	{"racewriterange", funcTag, 137},
-	{"msanread", funcTag, 137},
-	{"msanwrite", funcTag, 137},
-	{"msanmove", funcTag, 138},
-	{"checkptrAlignment", funcTag, 139},
-	{"checkptrArithmetic", funcTag, 141},
-	{"libfuzzerTraceCmp1", funcTag, 142},
-	{"libfuzzerTraceCmp2", funcTag, 143},
-	{"libfuzzerTraceCmp4", funcTag, 144},
-	{"libfuzzerTraceCmp8", funcTag, 145},
-	{"libfuzzerTraceConstCmp1", funcTag, 142},
-	{"libfuzzerTraceConstCmp2", funcTag, 143},
-	{"libfuzzerTraceConstCmp4", funcTag, 144},
-	{"libfuzzerTraceConstCmp8", funcTag, 145},
+	{"racereadrange", funcTag, 140},
+	{"racewriterange", funcTag, 140},
+	{"msanread", funcTag, 140},
+	{"msanwrite", funcTag, 140},
+	{"msanmove", funcTag, 141},
+	{"asanread", funcTag, 140},
+	{"asanwrite", funcTag, 140},
+	{"checkptrAlignment", funcTag, 142},
+	{"checkptrArithmetic", funcTag, 144},
+	{"libfuzzerTraceCmp1", funcTag, 145},
+	{"libfuzzerTraceCmp2", funcTag, 146},
+	{"libfuzzerTraceCmp4", funcTag, 147},
+	{"libfuzzerTraceCmp8", funcTag, 148},
+	{"libfuzzerTraceConstCmp1", funcTag, 145},
+	{"libfuzzerTraceConstCmp2", funcTag, 146},
+	{"libfuzzerTraceConstCmp4", funcTag, 147},
+	{"libfuzzerTraceConstCmp8", funcTag, 148},
 	{"x86HasPOPCNT", varTag, 6},
 	{"x86HasSSE41", varTag, 6},
 	{"x86HasFMA", varTag, 6},
@@ -222,7 +226,7 @@ func params(tlist ...*types.Type) []*types.Field {
 }
 
 func runtimeTypes() []*types.Type {
-	var typs [146]*types.Type
+	var typs [149]*types.Type
 	typs[0] = types.ByteType
 	typs[1] = types.NewPtr(typs[0])
 	typs[2] = types.Types[types.TANY]
@@ -356,18 +360,21 @@ func runtimeTypes() []*types.Type {
 	typs[130] = newSig(params(typs[20]), params(typs[24]))
 	typs[131] = newSig(params(typs[20]), params(typs[62]))
 	typs[132] = newSig(params(typs[22]), params(typs[20]))
-	typs[133] = newSig(params(typs[24]), params(typs[20]))
-	typs[134] = newSig(params(typs[62]), params(typs[20]))
-	typs[135] = newSig(params(typs[26], typs[26]), params(typs[26]))
-	typs[136] = newSig(nil, params(typs[5]))
-	typs[137] = newSig(params(typs[5], typs[5]), nil)
-	typs[138] = newSig(params(typs[5], typs[5], typs[5]), nil)
-	typs[139] = newSig(params(typs[7], typs[1], typs[5]), nil)
-	typs[140] = types.NewSlice(typs[7])
-	typs[141] = newSig(params(typs[7], typs[140]), nil)
-	typs[142] = newSig(params(typs[66], typs[66]), nil)
-	typs[143] = newSig(params(typs[60], typs[60]), nil)
-	typs[144] = newSig(params(typs[62], typs[62]), nil)
-	typs[145] = newSig(params(typs[24], typs[24]), nil)
+	typs[133] = types.Types[types.TFLOAT32]
+	typs[134] = newSig(params(typs[22]), params(typs[133]))
+	typs[135] = newSig(params(typs[24]), params(typs[20]))
+	typs[136] = newSig(params(typs[24]), params(typs[133]))
+	typs[137] = newSig(params(typs[62]), params(typs[20]))
+	typs[138] = newSig(params(typs[26], typs[26]), params(typs[26]))
+	typs[139] = newSig(nil, params(typs[5]))
+	typs[140] = newSig(params(typs[5], typs[5]), nil)
+	typs[141] = newSig(params(typs[5], typs[5], typs[5]), nil)
+	typs[142] = newSig(params(typs[7], typs[1], typs[5]), nil)
+	typs[143] = types.NewSlice(typs[7])
+	typs[144] = newSig(params(typs[7], typs[143]), nil)
+	typs[145] = newSig(params(typs[66], typs[66]), nil)
+	typs[146] = newSig(params(typs[60], typs[60]), nil)
+	typs[147] = newSig(params(typs[62], typs[62]), nil)
+	typs[148] = newSig(params(typs[24], typs[24]), nil)
 	return typs[:]
 }

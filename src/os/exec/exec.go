@@ -216,7 +216,7 @@ func (c *Cmd) String() string {
 
 // interfaceEqual protects against panics from doing equality tests on
 // two interfaces with non-comparable underlying types.
-func interfaceEqual(a, b interface{}) bool {
+func interfaceEqual(a, b any) bool {
 	defer func() {
 		recover()
 	}()
@@ -748,12 +748,11 @@ func dedupEnvCase(caseInsensitive bool, env []string) []string {
 	out := make([]string, 0, len(env))
 	saw := make(map[string]int, len(env)) // key => index into out
 	for _, kv := range env {
-		eq := strings.Index(kv, "=")
-		if eq < 0 {
+		k, _, ok := strings.Cut(kv, "=")
+		if !ok {
 			out = append(out, kv)
 			continue
 		}
-		k := kv[:eq]
 		if caseInsensitive {
 			k = strings.ToLower(k)
 		}
@@ -775,11 +774,10 @@ func addCriticalEnv(env []string) []string {
 		return env
 	}
 	for _, kv := range env {
-		eq := strings.Index(kv, "=")
-		if eq < 0 {
+		k, _, ok := strings.Cut(kv, "=")
+		if !ok {
 			continue
 		}
-		k := kv[:eq]
 		if strings.EqualFold(k, "SYSTEMROOT") {
 			// We already have it.
 			return env

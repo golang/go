@@ -45,6 +45,8 @@ Flags:
 		Note that before Go 1.5 this option took two separate arguments.
 	-a
 		Disassemble output.
+	-asan
+		Link with C/C++ address sanitizer support.
 	-buildid id
 		Record id as Go toolchain build id.
 	-buildmode mode

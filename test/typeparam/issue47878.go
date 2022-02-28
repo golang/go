@@ -31,6 +31,13 @@ func (s Src4[T]) Next() {
 	_ = (<-s)()
 }
 
+type Src5[T any] func() Src5[T]
+
+func (s Src5[T]) Next() {
+	var x interface{} = s
+	_ = (x.(Src5[T]))()
+}
+
 func main() {
 	var src1 Src1[int]
 	src1.Next()
@@ -43,4 +50,7 @@ func main() {
 
 	var src4 Src4[int]
 	src4.Next()
+
+	var src5 Src5[int]
+	src5.Next()
 }

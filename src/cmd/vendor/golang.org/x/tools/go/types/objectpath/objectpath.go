@@ -23,10 +23,12 @@ package objectpath
 
 import (
 	"fmt"
+	"go/types"
+	"sort"
 	"strconv"
 	"strings"
 
-	"go/types"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // A Path is an opaque name that identifies a types.Object
@@ -57,12 +59,16 @@ type Path string
 // - The only PO operator is Package.Scope.Lookup, which requires an identifier.
 // - The only OT operator is Object.Type,
 //   which we encode as '.' because dot cannot appear in an identifier.
-// - The TT operators are encoded as [EKPRU].
+// - The TT operators are encoded as [EKPRUTC];
+//   one of these (TypeParam) requires an integer operand,
+//   which is encoded as a string of decimal digits.
 // - The TO operators are encoded as [AFMO];
 //   three of these (At,Field,Method) require an integer operand,
 //   which is encoded as a string of decimal digits.
 //   These indices are stable across different representations
 //   of the same package, even source and export data.
+//   The indices used are implementation specific and may not correspond to
+//   the argument to the go/types function.
 //
 // In the example below,
 //
@@ -89,17 +95,19 @@ const (
 	opType = '.' // .Type()		  (Object)
 
 	// type->type operators
-	opElem       = 'E' // .Elem()		(Pointer, Slice, Array, Chan, Map)
-	opKey        = 'K' // .Key()		(Map)
-	opParams     = 'P' // .Params()		(Signature)
-	opResults    = 'R' // .Results()	(Signature)
-	opUnderlying = 'U' // .Underlying()	(Named)
+	opElem       = 'E' // .Elem()		        (Pointer, Slice, Array, Chan, Map)
+	opKey        = 'K' // .Key()		        (Map)
+	opParams     = 'P' // .Params()		      (Signature)
+	opResults    = 'R' // .Results()	      (Signature)
+	opUnderlying = 'U' // .Underlying()	    (Named)
+	opTypeParam  = 'T' // .TypeParams.At(i) (Named, Signature)
+	opConstraint = 'C' // .Constraint()     (TypeParam)
 
 	// type->object operators
-	opAt     = 'A' // .At(i)		(Tuple)
-	opField  = 'F' // .Field(i)		(Struct)
-	opMethod = 'M' // .Method(i)		(Named or Interface; not Struct: "promoted" names are ignored)
-	opObj    = 'O' // .Obj()		(Named)
+	opAt     = 'A' // .At(i)		 (Tuple)
+	opField  = 'F' // .Field(i)	 (Struct)
+	opMethod = 'M' // .Method(i) (Named or Interface; not Struct: "promoted" names are ignored)
+	opObj    = 'O' // .Obj()		 (Named, TypeParam)
 )
 
 // The For function returns the path to an object relative to its package,
@@ -190,10 +198,15 @@ func For(obj types.Object) (Path, error) {
 	// 3. Not a package-level object.
 	//    Reject obviously non-viable cases.
 	switch obj := obj.(type) {
+	case *types.TypeName:
+		if _, ok := obj.Type().(*typeparams.TypeParam); !ok {
+			// With the exception of type parameters, only package-level type names
+			// have a path.
+			return "", fmt.Errorf("no path for %v", obj)
+		}
 	case *types.Const, // Only package-level constants have a path.
-		*types.TypeName, // Only package-level types have a path.
-		*types.Label,    // Labels are function-local.
-		*types.PkgName:  // PkgNames are file-local.
+		*types.Label,   // Labels are function-local.
+		*types.PkgName: // PkgNames are file-local.
 		return "", fmt.Errorf("no path for %v", obj)
 
 	case *types.Var:
@@ -245,6 +258,12 @@ func For(obj types.Object) (Path, error) {
 				return Path(r), nil
 			}
 		} else {
+			if named, _ := T.(*types.Named); named != nil {
+				if r := findTypeParam(obj, typeparams.ForNamed(named), path); r != nil {
+					// generic named type
+					return Path(r), nil
+				}
+			}
 			// defined (named) type
 			if r := find(obj, T.Underlying(), append(path, opUnderlying)); r != nil {
 				return Path(r), nil
@@ -270,8 +289,12 @@ func For(obj types.Object) (Path, error) {
 		// Inspect declared methods of defined types.
 		if T, ok := o.Type().(*types.Named); ok {
 			path = append(path, opType)
-			for i := 0; i < T.NumMethods(); i++ {
-				m := T.Method(i)
+			// Note that method index here is always with respect
+			// to canonical ordering of methods, regardless of how
+			// they appear in the underlying type.
+			canonical := canonicalize(T)
+			for i := 0; i < len(canonical); i++ {
+				m := canonical[i]
 				path2 := appendOpArg(path, opMethod, i)
 				if m == obj {
 					return Path(path2), nil // found declared method
@@ -313,6 +336,9 @@ func find(obj types.Object, T types.Type, path []byte) []byte {
 		}
 		return find(obj, T.Elem(), append(path, opElem))
 	case *types.Signature:
+		if r := findTypeParam(obj, typeparams.ForSignature(T), path); r != nil {
+			return r
+		}
 		if r := find(obj, T.Params(), append(path, opParams)); r != nil {
 			return r
 		}
@@ -353,8 +379,28 @@ func find(obj types.Object, T types.Type, path []byte) []byte {
 			}
 		}
 		return nil
+	case *typeparams.TypeParam:
+		name := T.Obj()
+		if name == obj {
+			return append(path, opObj)
+		}
+		if r := find(obj, T.Constraint(), append(path, opConstraint)); r != nil {
+			return r
+		}
+		return nil
 	}
 	panic(T)
+}
+
+func findTypeParam(obj types.Object, list *typeparams.TypeParamList, path []byte) []byte {
+	for i := 0; i < list.Len(); i++ {
+		tparam := list.At(i)
+		path2 := appendOpArg(path, opTypeParam, i)
+		if r := find(obj, tparam, path2); r != nil {
+			return r
+		}
+	}
+	return nil
 }
 
 // Object returns the object denoted by path p within the package pkg.
@@ -381,10 +427,13 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 	type hasElem interface {
 		Elem() types.Type
 	}
-	// abstraction of *types.{Interface,Named}
-	type hasMethods interface {
-		Method(int) *types.Func
-		NumMethods() int
+	// abstraction of *types.{Named,Signature}
+	type hasTypeParams interface {
+		TypeParams() *typeparams.TypeParamList
+	}
+	// abstraction of *types.{Named,TypeParam}
+	type hasObj interface {
+		Obj() *types.TypeName
 	}
 
 	// The loop state is the pair (t, obj),
@@ -401,7 +450,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 		// Codes [AFM] have an integer operand.
 		var index int
 		switch code {
-		case opAt, opField, opMethod:
+		case opAt, opField, opMethod, opTypeParam:
 			rest := strings.TrimLeft(suffix, "0123456789")
 			numerals := suffix[:len(suffix)-len(rest)]
 			suffix = rest
@@ -466,14 +515,32 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 		case opUnderlying:
 			named, ok := t.(*types.Named)
 			if !ok {
-				return nil, fmt.Errorf("cannot apply %q to %s (got %s, want named)", code, t, t)
+				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want named)", code, t, t)
 			}
 			t = named.Underlying()
+
+		case opTypeParam:
+			hasTypeParams, ok := t.(hasTypeParams) // Named, Signature
+			if !ok {
+				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want named or signature)", code, t, t)
+			}
+			tparams := hasTypeParams.TypeParams()
+			if n := tparams.Len(); index >= n {
+				return nil, fmt.Errorf("tuple index %d out of range [0-%d)", index, n)
+			}
+			t = tparams.At(index)
+
+		case opConstraint:
+			tparam, ok := t.(*typeparams.TypeParam)
+			if !ok {
+				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want type parameter)", code, t, t)
+			}
+			t = tparam.Constraint()
 
 		case opAt:
 			tuple, ok := t.(*types.Tuple)
 			if !ok {
-				return nil, fmt.Errorf("cannot apply %q to %s (got %s, want tuple)", code, t, t)
+				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want tuple)", code, t, t)
 			}
 			if n := tuple.Len(); index >= n {
 				return nil, fmt.Errorf("tuple index %d out of range [0-%d)", index, n)
@@ -495,20 +562,21 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 		case opMethod:
 			hasMethods, ok := t.(hasMethods) // Interface or Named
 			if !ok {
-				return nil, fmt.Errorf("cannot apply %q to %s (got %s, want interface or named)", code, t, t)
+				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want interface or named)", code, t, t)
 			}
-			if n := hasMethods.NumMethods(); index >= n {
+			canonical := canonicalize(hasMethods)
+			if n := len(canonical); index >= n {
 				return nil, fmt.Errorf("method index %d out of range [0-%d)", index, n)
 			}
-			obj = hasMethods.Method(index)
+			obj = canonical[index]
 			t = nil
 
 		case opObj:
-			named, ok := t.(*types.Named)
+			hasObj, ok := t.(hasObj)
 			if !ok {
-				return nil, fmt.Errorf("cannot apply %q to %s (got %s, want named)", code, t, t)
+				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want named or type param)", code, t, t)
 			}
-			obj = named.Obj()
+			obj = hasObj.Obj()
 			t = nil
 
 		default:
@@ -521,4 +589,29 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 	}
 
 	return obj, nil // success
+}
+
+// hasMethods is an abstraction of *types.{Interface,Named}. This is pulled up
+// because it is used by methodOrdering, which is in turn used by both encoding
+// and decoding.
+type hasMethods interface {
+	Method(int) *types.Func
+	NumMethods() int
+}
+
+// canonicalize returns a canonical order for the methods in a hasMethod.
+func canonicalize(hm hasMethods) []*types.Func {
+	count := hm.NumMethods()
+	if count <= 0 {
+		return nil
+	}
+	canon := make([]*types.Func, count)
+	for i := 0; i < count; i++ {
+		canon[i] = hm.Method(i)
+	}
+	less := func(i, j int) bool {
+		return canon[i].Id() < canon[j].Id()
+	}
+	sort.Slice(canon, less)
+	return canon
 }

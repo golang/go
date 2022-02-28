@@ -29,7 +29,7 @@ import (
 //    to a user's type in a scan.
 type ValueConverter interface {
 	// ConvertValue converts a value to a driver Value.
-	ConvertValue(v interface{}) (Value, error)
+	ConvertValue(v any) (Value, error)
 }
 
 // Valuer is the interface providing the Value method.
@@ -60,7 +60,7 @@ var _ ValueConverter = boolType{}
 
 func (boolType) String() string { return "Bool" }
 
-func (boolType) ConvertValue(src interface{}) (Value, error) {
+func (boolType) ConvertValue(src any) (Value, error) {
 	switch s := src.(type) {
 	case bool:
 		return s, nil
@@ -105,7 +105,7 @@ type int32Type struct{}
 
 var _ ValueConverter = int32Type{}
 
-func (int32Type) ConvertValue(v interface{}) (Value, error) {
+func (int32Type) ConvertValue(v any) (Value, error) {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -138,7 +138,7 @@ var String stringType
 
 type stringType struct{}
 
-func (stringType) ConvertValue(v interface{}) (Value, error) {
+func (stringType) ConvertValue(v any) (Value, error) {
 	switch v.(type) {
 	case string, []byte:
 		return v, nil
@@ -152,7 +152,7 @@ type Null struct {
 	Converter ValueConverter
 }
 
-func (n Null) ConvertValue(v interface{}) (Value, error) {
+func (n Null) ConvertValue(v any) (Value, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -165,7 +165,7 @@ type NotNull struct {
 	Converter ValueConverter
 }
 
-func (n NotNull) ConvertValue(v interface{}) (Value, error) {
+func (n NotNull) ConvertValue(v any) (Value, error) {
 	if v == nil {
 		return nil, fmt.Errorf("nil value not allowed")
 	}
@@ -173,7 +173,7 @@ func (n NotNull) ConvertValue(v interface{}) (Value, error) {
 }
 
 // IsValue reports whether v is a valid Value parameter type.
-func IsValue(v interface{}) bool {
+func IsValue(v any) bool {
 	if v == nil {
 		return true
 	}
@@ -188,7 +188,7 @@ func IsValue(v interface{}) bool {
 
 // IsScanValue is equivalent to IsValue.
 // It exists for compatibility.
-func IsScanValue(v interface{}) bool {
+func IsScanValue(v any) bool {
 	return IsValue(v)
 }
 
@@ -225,7 +225,7 @@ var valuerReflectType = reflect.TypeOf((*Valuer)(nil)).Elem()
 //
 // This function is mirrored in the database/sql package.
 func callValuerValue(vr Valuer) (v Value, err error) {
-	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
+	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Pointer &&
 		rv.IsNil() &&
 		rv.Type().Elem().Implements(valuerReflectType) {
 		return nil, nil
@@ -233,7 +233,7 @@ func callValuerValue(vr Valuer) (v Value, err error) {
 	return vr.Value()
 }
 
-func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
+func (defaultConverter) ConvertValue(v any) (Value, error) {
 	if IsValue(v) {
 		return v, nil
 	}
@@ -256,7 +256,7 @@ func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
 
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// indirect pointers
 		if rv.IsNil() {
 			return nil, nil

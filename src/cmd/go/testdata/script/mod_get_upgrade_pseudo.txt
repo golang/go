@@ -10,52 +10,52 @@ env GO111MODULE=on
 # The v0.0.0 pseudo-version is chronologically newer.
 
 # Start at v0.1.1-0.20190429073117-b5426c86b553
-go get -d example.com/pseudoupgrade@b5426c8
+go get example.com/pseudoupgrade@b5426c8
 go list -m -u all
 stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
 
 # 'get -u' should not downgrade to the (lower) tagged version.
-go get -d -u
+go get -u
 go list -m -u all
 stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
 
 # 'get example.com/pseudoupgrade@upgrade' should not downgrade.
-go get -d example.com/pseudoupgrade@upgrade
+go get example.com/pseudoupgrade@upgrade
 go list -m all
 stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
 
 # 'get example.com/pseudoupgrade' should not downgrade.
 # This is equivalent to 'get example.com/pseudoupgrade@upgrade'.
-go get -d example.com/pseudoupgrade
+go get example.com/pseudoupgrade
 go list -m all
 stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
 
 # 'get example.com/pseudoupgrade@latest' should downgrade.
 # @latest should not consider the current version.
-go get -d example.com/pseudoupgrade@latest
+go get example.com/pseudoupgrade@latest
 go list -m all
 stdout '^example.com/pseudoupgrade v0.1.0$'
 
 # We should observe the same behavior with the newer pseudo-version.
-go get -d example.com/pseudoupgrade@v0.0.0-20190430073000-30950c05d534
+go get example.com/pseudoupgrade@v0.0.0-20190430073000-30950c05d534
 
 # 'get -u' should not downgrade to the chronologically older tagged version.
-go get -d -u
+go get -u
 go list -m -u all
 stdout '^example.com/pseudoupgrade v0.0.0-20190430073000-30950c05d534$'
 
 # 'get example.com/pseudoupgrade@upgrade should not downgrade.
-go get -d example.com/pseudoupgrade@upgrade
+go get example.com/pseudoupgrade@upgrade
 go list -m -u all
 stdout '^example.com/pseudoupgrade v0.0.0-20190430073000-30950c05d534$'
 
 # 'get example.com/pseudoupgrade' should not downgrade.
-go get -d example.com/pseudoupgrade
+go get example.com/pseudoupgrade
 go list -m -u all
 stdout '^example.com/pseudoupgrade v0.0.0-20190430073000-30950c05d534$'
 
 # 'get example.com/pseudoupgrade@latest' should downgrade.
-go get -d example.com/pseudoupgrade@latest
+go get example.com/pseudoupgrade@latest
 go list -m -u all
 stdout '^example.com/pseudoupgrade v0.1.0$'
 

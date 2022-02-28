@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (linux && !386 && !amd64 && !arm && !arm64 && !mips64 && !mips64le && !ppc64 && !ppc64le && !riscv64) || !linux
-// +build linux,!386,!amd64,!arm,!arm64,!mips64,!mips64le,!ppc64,!ppc64le,!riscv64 !linux
 
 package runtime
 

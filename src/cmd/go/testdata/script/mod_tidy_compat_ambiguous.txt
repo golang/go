@@ -72,10 +72,9 @@ go 1.17
 
 replace example.net/indirect v0.1.0 => ./indirect
 
-require (
-	example.net/ambiguous/nested v0.1.0 // indirect
-	example.net/indirect v0.1.0
-)
+require example.net/indirect v0.1.0
+
+require example.net/ambiguous/nested v0.1.0 // indirect
 -- all-m.txt --
 example.com/m
 example.net/ambiguous v0.1.0

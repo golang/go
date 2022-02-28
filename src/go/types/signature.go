@@ -5,9 +5,7 @@
 package types
 
 import (
-	"fmt"
 	"go/ast"
-	"go/internal/typeparams"
 	"go/token"
 )
 
@@ -23,7 +21,7 @@ type Signature struct {
 	// We then unpack the *Signature and use the scope for the literal body.
 	rparams  *TypeParamList // receiver type parameters from left to right, or nil
 	tparams  *TypeParamList // type parameters from left to right, or nil
-	scope    *Scope         // function scope, present for package-local signatures
+	scope    *Scope         // function scope for package-local and non-instantiated signatures; nil otherwise
 	recv     *Var           // nil if not a method
 	params   *Tuple         // (incoming) parameters from left to right; or nil
 	results  *Tuple         // (outgoing) results from left to right; or nil
@@ -34,7 +32,18 @@ type Signature struct {
 // and results, either of which may be nil. If variadic is set, the function
 // is variadic, it must have at least one parameter, and the last parameter
 // must be of unnamed slice type.
+//
+// Deprecated: Use NewSignatureType instead which allows for type parameters.
 func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+	return NewSignatureType(recv, nil, nil, params, results, variadic)
+}
+
+// NewSignatureType creates a new function type for the given receiver,
+// receiver type parameters, type parameters, parameters, and results. If
+// variadic is set, params must hold at least one parameter and the last
+// parameter must be of unnamed slice type. If recv is non-nil, typeParams must
+// be empty. If recvTypeParams is non-empty, recv must be non-nil.
+func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params, results *Tuple, variadic bool) *Signature {
 	if variadic {
 		n := params.Len()
 		if n == 0 {
@@ -44,7 +53,20 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 			panic("variadic parameter must be of unnamed slice type")
 		}
 	}
-	return &Signature{recv: recv, params: params, results: results, variadic: variadic}
+	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
+	if len(recvTypeParams) != 0 {
+		if recv == nil {
+			panic("function with receiver type parameters must have a receiver")
+		}
+		sig.rparams = bindTParams(recvTypeParams)
+	}
+	if len(typeParams) != 0 {
+		if recv != nil {
+			panic("function with type parameters cannot have a receiver")
+		}
+		sig.tparams = bindTParams(typeParams)
+	}
+	return sig
 }
 
 // Recv returns the receiver of signature s (if a method), or nil if a
@@ -58,14 +80,8 @@ func (s *Signature) Recv() *Var { return s.recv }
 // TypeParams returns the type parameters of signature s, or nil.
 func (s *Signature) TypeParams() *TypeParamList { return s.tparams }
 
-// SetTypeParams sets the type parameters of signature s.
-func (s *Signature) SetTypeParams(tparams []*TypeParam) { s.tparams = bindTParams(tparams) }
-
 // RecvTypeParams returns the receiver type parameters of signature s, or nil.
 func (s *Signature) RecvTypeParams() *TypeParamList { return s.rparams }
-
-// SetRecvTypeParams sets the receiver type params of signature s.
-func (s *Signature) SetRecvTypeParams(rparams []*TypeParam) { s.rparams = bindTParams(rparams) }
 
 // Params returns the parameters of signature s, or nil.
 func (s *Signature) Params() *Tuple { return s.params }
@@ -90,35 +106,29 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	sig.scope = check.scope
 	defer check.closeScope()
 
-	var recvTyp ast.Expr // rewritten receiver type; valid if != nil
 	if recvPar != nil && len(recvPar.List) > 0 {
 		// collect generic receiver type parameters, if any
 		// - a receiver type parameter is like any other type parameter, except that it is declared implicitly
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
-			// Blank identifiers don't get declared and regular type-checking of the instantiated
-			// parameterized receiver type expression fails in Checker.collectParams of receiver.
-			// Identify blank type parameters and substitute each with a unique new identifier named
-			// "n_" (where n is the parameter index) and which cannot conflict with any user-defined
-			// name.
-			var smap map[*ast.Ident]*ast.Ident // substitution map from "_" to "n_" identifiers
+			tparams := check.declareTypeParams(nil, rparams)
+			sig.rparams = bindTParams(tparams)
+			// Blank identifiers don't get declared, so naive type-checking of the
+			// receiver type expression would fail in Checker.collectParams below,
+			// when Checker.ident cannot resolve the _ to a type.
+			//
+			// Checker.recvTParamMap maps these blank identifiers to their type parameter
+			// types, so that they may be resolved in Checker.ident when they fail
+			// lookup in the scope.
 			for i, p := range rparams {
 				if p.Name == "_" {
-					new := *p
-					new.Name = fmt.Sprintf("%d_", i)
-					rparams[i] = &new // use n_ identifier instead of _ so it can be looked up
-					if smap == nil {
-						smap = make(map[*ast.Ident]*ast.Ident)
+					if check.recvTParamMap == nil {
+						check.recvTParamMap = make(map[*ast.Ident]*TypeParam)
 					}
-					smap[p] = &new
+					check.recvTParamMap[p] = tparams[i]
 				}
 			}
-			if smap != nil {
-				// blank identifiers were found => use rewritten receiver type
-				recvTyp = isubst(recvPar.List[0].Type, smap)
-			}
-			sig.rparams = bindTParams(check.declareTypeParams(nil, rparams))
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds
 			var recvTParams []*TypeParam
@@ -127,26 +137,28 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv, _ := check.genericType(rname, false).(*Named); recv != nil {
+				if recv, _ := check.genericType(rname, nil).(*Named); recv != nil {
 					recvTParams = recv.TypeParams().list()
 				}
 			}
 			// provide type parameter bounds
-			// - only do this if we have the right number (otherwise an error is reported elsewhere)
-			if sig.RecvTypeParams().Len() == len(recvTParams) {
-				// We have a list of *TypeNames but we need a list of Types.
-				list := make([]Type, sig.RecvTypeParams().Len())
-				for i, t := range sig.RecvTypeParams().list() {
-					list[i] = t
+			if len(tparams) == len(recvTParams) {
+				smap := makeRenameMap(recvTParams, tparams)
+				for i, tpar := range tparams {
+					recvTPar := recvTParams[i]
+					check.mono.recordCanon(tpar, recvTPar)
+					// recvTPar.bound is (possibly) parameterized in the context of the
+					// receiver type declaration. Substitute parameters for the current
+					// context.
+					tpar.bound = check.subst(tpar.obj.pos, recvTPar.bound, smap, nil)
 				}
-				smap := makeSubstMap(recvTParams, list)
-				for i, tpar := range sig.RecvTypeParams().list() {
-					bound := recvTParams[i].bound
-					// bound is (possibly) parameterized in the context of the
-					// receiver type declaration. Substitute parameters for the
-					// current context.
-					tpar.bound = check.subst(tpar.obj.pos, bound, smap, nil)
-				}
+			} else if len(tparams) < len(recvTParams) {
+				// Reporting an error here is a stop-gap measure to avoid crashes in the
+				// compiler when a type parameter/argument cannot be inferred later. It
+				// may lead to follow-on errors (see issues #51339, #51343).
+				// TODO(gri) find a better solution
+				got := measure(len(tparams), "type parameter")
+				check.errorf(recvPar, _BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
 			}
 		}
 	}
@@ -157,7 +169,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
 		if recvPar != nil {
-			check.errorf(ftyp.TypeParams, _Todo, "methods cannot have type parameters")
+			check.errorf(ftyp.TypeParams, _InvalidMethodTypeParams, "methods cannot have type parameters")
 		}
 	}
 
@@ -165,9 +177,9 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	// declarations and then squash that scope into the parent scope (and report any redeclarations at
 	// that time).
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
-	recvList, _ := check.collectParams(scope, recvPar, recvTyp, false) // use rewritten receiver type, if any
-	params, variadic := check.collectParams(scope, ftyp.Params, nil, true)
-	results, _ := check.collectParams(scope, ftyp.Results, nil, false)
+	recvList, _ := check.collectParams(scope, recvPar, false)
+	params, variadic := check.collectParams(scope, ftyp.Params, true)
+	results, _ := check.collectParams(scope, ftyp.Results, false)
 	scope.squash(func(obj, alt Object) {
 		check.errorf(obj, _DuplicateDecl, "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
@@ -181,66 +193,77 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		switch len(recvList) {
 		case 0:
 			// error reported by resolver
-			recv = NewParam(0, nil, "", Typ[Invalid]) // ignore recv below
+			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
-			check.error(recvList[len(recvList)-1], _BadRecv, "method must have exactly one receiver")
+			check.error(recvList[len(recvList)-1], _InvalidRecv, "method must have exactly one receiver")
 			fallthrough // continue with first receiver
 		case 1:
 			recv = recvList[0]
 		}
+		sig.recv = recv
 
-		// TODO(gri) We should delay rtyp expansion to when we actually need the
-		//           receiver; thus all checks here should be delayed to later.
-		rtyp, _ := deref(recv.typ)
+		// Delay validation of receiver type as it may cause premature expansion
+		// of types the receiver type is dependent on (see issues #51232, #51233).
+		check.later(func() {
+			rtyp, _ := deref(recv.typ)
 
-		// spec: "The receiver type must be of the form T or *T where T is a type name."
-		// (ignore invalid types - error was reported before)
-		if rtyp != Typ[Invalid] {
-			var err string
-			switch T := rtyp.(type) {
-			case *Named:
-				T.resolve(check.conf.Environment)
-				// The receiver type may be an instantiated type referred to
-				// by an alias (which cannot have receiver parameters for now).
-				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
-					check.errorf(atPos(recv.pos), _Todo, "cannot define methods on instantiated type %s", recv.typ)
-					break
-				}
-				// spec: "The type denoted by T is called the receiver base type; it must not
-				// be a pointer or interface type and it must be declared in the same package
-				// as the method."
-				if T.obj.pkg != check.pkg {
-					err = "type not defined in this package"
-				} else {
-					// The underlying type of a receiver base type can be a type parameter;
-					// e.g. for methods with a generic receiver T[P] with type T[P any] P.
-					underIs(T, func(u Type) bool {
-						switch u := u.(type) {
-						case *Basic:
-							// unsafe.Pointer is treated like a regular pointer
-							if u.kind == UnsafePointer {
-								err = "unsafe.Pointer"
+			// spec: "The receiver type must be of the form T or *T where T is a type name."
+			// (ignore invalid types - error was reported before)
+			if rtyp != Typ[Invalid] {
+				var err string
+				switch T := rtyp.(type) {
+				case *Named:
+					T.resolve(check.bestContext(nil))
+					// The receiver type may be an instantiated type referred to
+					// by an alias (which cannot have receiver parameters for now).
+					if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+						check.errorf(recv, _InvalidRecv, "cannot define methods on instantiated type %s", recv.typ)
+						break
+					}
+					// spec: "The type denoted by T is called the receiver base type; it must not
+					// be a pointer or interface type and it must be declared in the same package
+					// as the method."
+					if T.obj.pkg != check.pkg {
+						err = "type not defined in this package"
+						if compilerErrorMessages {
+							check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
+							err = ""
+						}
+					} else {
+						// The underlying type of a receiver base type can be a type parameter;
+						// e.g. for methods with a generic receiver T[P] with type T[P any] P.
+						// TODO(gri) Such declarations are currently disallowed.
+						//           Revisit the need for underIs.
+						underIs(T, func(u Type) bool {
+							switch u := u.(type) {
+							case *Basic:
+								// unsafe.Pointer is treated like a regular pointer
+								if u.kind == UnsafePointer {
+									err = "unsafe.Pointer"
+									return false
+								}
+							case *Pointer, *Interface:
+								err = "pointer or interface type"
 								return false
 							}
-						case *Pointer, *Interface:
-							err = "pointer or interface type"
-							return false
-						}
-						return true
-					})
+							return true
+						})
+					}
+				case *Basic:
+					err = "basic or unnamed type"
+					if compilerErrorMessages {
+						check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
+						err = ""
+					}
+				default:
+					check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
 				}
-			case *Basic:
-				err = "basic or unnamed type"
-			default:
-				check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
+				if err != "" {
+					check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", recv.typ, err)
+				}
 			}
-			if err != "" {
-				check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", recv.typ, err)
-				// ok to continue
-			}
-		}
-		sig.recv = recv
+		}).describef(recv, "validate receiver %s", recv)
 	}
 
 	sig.params = NewTuple(params...)
@@ -249,8 +272,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 }
 
 // collectParams declares the parameters of list in scope and returns the corresponding
-// variable list. If type0 != nil, it is used instead of the first type in list.
-func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast.Expr, variadicOk bool) (params []*Var, variadic bool) {
+// variable list.
+func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -258,9 +281,6 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast
 	var named, anonymous bool
 	for i, field := range list.List {
 		ftype := field.Type
-		if i == 0 && type0 != nil {
-			ftype = type0
-		}
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
 			ftype = t.Elt
 			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
@@ -309,45 +329,4 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast
 	}
 
 	return
-}
-
-// isubst returns an x with identifiers substituted per the substitution map smap.
-// isubst only handles the case of (valid) method receiver type expressions correctly.
-func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
-	switch n := x.(type) {
-	case *ast.Ident:
-		if alt := smap[n]; alt != nil {
-			return alt
-		}
-	case *ast.StarExpr:
-		X := isubst(n.X, smap)
-		if X != n.X {
-			new := *n
-			new.X = X
-			return &new
-		}
-	case *ast.IndexExpr, *ast.IndexListExpr:
-		ix := typeparams.UnpackIndexExpr(x)
-		var newIndexes []ast.Expr
-		for i, index := range ix.Indices {
-			new := isubst(index, smap)
-			if new != index {
-				if newIndexes == nil {
-					newIndexes = make([]ast.Expr, len(ix.Indices))
-					copy(newIndexes, ix.Indices)
-				}
-				newIndexes[i] = new
-			}
-		}
-		if newIndexes != nil {
-			return typeparams.PackIndexExpr(ix.X, ix.Lbrack, newIndexes, ix.Rbrack)
-		}
-	case *ast.ParenExpr:
-		return isubst(n.X, smap) // no need to keep parentheses
-	default:
-		// Other receiver type expressions are invalid.
-		// It's fine to ignore those here as they will
-		// be checked elsewhere.
-	}
-	return x
 }

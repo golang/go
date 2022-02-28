@@ -28,7 +28,6 @@ import (
 
 func init() {
 	work.AddBuildFlags(CmdTest, work.OmitVFlag)
-	base.AddWorkfileFlag(&CmdTest.Flag)
 
 	cf := CmdTest.Flag
 	cf.BoolVar(&testC, "c", false, "")
@@ -57,6 +56,7 @@ func init() {
 	cf.String("cpu", "", "")
 	cf.StringVar(&testCPUProfile, "cpuprofile", "", "")
 	cf.Bool("failfast", false, "")
+	cf.StringVar(&testFuzz, "fuzz", "", "")
 	cf.StringVar(&testList, "list", "", "")
 	cf.StringVar(&testMemProfile, "memprofile", "", "")
 	cf.String("memprofilerate", "", "")
@@ -67,6 +67,8 @@ func init() {
 	cf.String("run", "", "")
 	cf.Bool("short", false, "")
 	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
+	cf.String("fuzztime", "", "")
+	cf.String("fuzzminimizetime", "", "")
 	cf.StringVar(&testTrace, "trace", "", "")
 	cf.BoolVar(&testV, "v", false, "")
 	cf.Var(&testShuffle, "shuffle", "")
@@ -192,6 +194,7 @@ func (f *vetFlag) Set(value string) error {
 	case strings.Contains(value, " "):
 		return fmt.Errorf("-vet argument is comma-separated list, cannot contain spaces")
 	}
+
 	*f = vetFlag{explicit: true}
 	var single string
 	for _, arg := range strings.Split(value, ",") {
@@ -209,8 +212,15 @@ func (f *vetFlag) Set(value string) error {
 				off:      true,
 			}
 			continue
+		default:
+			if _, ok := passAnalyzersToVet[arg]; !ok {
+				return fmt.Errorf("-vet argument must be a supported analyzer or a distinguished value; found %s", arg)
+			}
+			f.flags = append(f.flags, "-"+arg)
 		}
-		f.flags = append(f.flags, "-"+arg)
+	}
+	if len(f.flags) > 1 && single != "" {
+		return fmt.Errorf("-vet does not accept %q in a list with other analyzers", single)
 	}
 	if len(f.flags) > 1 && single != "" {
 		return fmt.Errorf("-vet does not accept %q in a list with other analyzers", single)

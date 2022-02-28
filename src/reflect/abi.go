@@ -198,7 +198,7 @@ func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
 // complete register-assignment algorithm for the Go ABI.
 func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 	switch t.Kind() {
-	case UnsafePointer, Ptr, Chan, Map, Func:
+	case UnsafePointer, Pointer, Chan, Map, Func:
 		return a.assignIntN(offset, t.size, 1, 0b1)
 	case Bool, Int, Uint, Int8, Uint8, Int16, Uint16, Int32, Uint32, Uintptr:
 		return a.assignIntN(offset, t.size, 1, 0b0)

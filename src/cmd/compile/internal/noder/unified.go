@@ -78,12 +78,12 @@ func unified(noders []*noder) {
 		base.Errorf("cannot use -G and -d=quirksmode together")
 	}
 
-	newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Environment, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+	newReadImportFunc = func(data string, pkg1 *types.Pkg, ctxt *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
 		pr := newPkgDecoder(pkg1.Path, data)
 
 		// Read package descriptors for both types2 and compiler backend.
 		readPackage(newPkgReader(pr), pkg1)
-		pkg2 = readPackage2(env, packages, pr)
+		pkg2 = readPackage2(ctxt, packages, pr)
 		return
 	}
 

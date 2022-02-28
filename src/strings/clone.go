@@ -16,7 +16,12 @@ import (
 // overuse of Clone can make programs use more memory.
 // Clone should typically be used only rarely, and only when
 // profiling indicates that it is needed.
+// For strings of length zero the string "" will be returned
+// and no allocation is made.
 func Clone(s string) string {
+	if len(s) == 0 {
+		return ""
+	}
 	b := make([]byte, len(s))
 	copy(b, s)
 	return *(*string)(unsafe.Pointer(&b))

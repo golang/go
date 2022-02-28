@@ -1184,7 +1184,7 @@ func (c *ctxt7) addpool128(p *obj.Prog, al, ah *obj.Addr) {
 	q := c.newprog()
 	q.As = ADWORD
 	q.To.Type = obj.TYPE_CONST
-	q.To.Offset = al.Offset
+	q.To.Offset = al.Offset // q.Pc is lower than t.Pc, so al.Offset is stored in q.
 
 	t := c.newprog()
 	t.As = ADWORD
@@ -3877,6 +3877,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.opirr(p, p.As)
 
 		d := p.From.Offset
+		if d == 0 {
+			c.ctxt.Diag("zero shifts cannot be handled correctly: %v", p)
+		}
 		s := movcon(d)
 		if s < 0 || s >= 4 {
 			c.ctxt.Diag("bad constant for MOVK: %#x\n%v", uint64(d), p)

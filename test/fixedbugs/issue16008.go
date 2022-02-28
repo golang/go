@@ -37,7 +37,7 @@ type Node struct {
 type MemoryStore struct {
 }
 
-// go:noinline
+//go:noinline
 func setupNodes(n int) (s *MemoryStore, nodeIDs []string) {
 	return
 }

@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -443,6 +444,13 @@ func (o *orderState) edge() {
 	// __libfuzzer_extra_counters.
 	counter := staticinit.StaticName(types.Types[types.TUINT8])
 	counter.SetLibfuzzerExtraCounter(true)
+	// As well as setting SetLibfuzzerExtraCounter, we preemptively set the
+	// symbol type to SLIBFUZZER_EXTRA_COUNTER so that the race detector
+	// instrumentation pass (which does not have access to the flags set by
+	// SetLibfuzzerExtraCounter) knows to ignore them. This information is
+	// lost by the time it reaches the compile step, so SetLibfuzzerExtraCounter
+	// is still necessary.
+	counter.Linksym().Type = objabi.SLIBFUZZER_EXTRA_COUNTER
 
 	// counter += 1
 	incr := ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))

@@ -13,6 +13,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"math/big"
 	"runtime"
 	"strings"
@@ -469,6 +470,9 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 	chains, err := leaf.Verify(opts)
 
 	if test.errorCallback == nil && err != nil {
+		if runtime.GOOS == "windows" && strings.HasSuffix(testenv.Builder(), "-2008") && err.Error() == "x509: certificate signed by unknown authority" {
+			testenv.SkipFlaky(t, 19564)
+		}
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if test.errorCallback != nil {
@@ -534,6 +538,10 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 }
 
 func TestGoVerify(t *testing.T) {
+	// Temporarily enable SHA-1 verification since a number of test chains
+	// require it. TODO(filippo): regenerate test chains.
+	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
+	debugAllowSHA1 = true
 	for _, test := range verifyTests {
 		t.Run(test.name, func(t *testing.T) {
 			testVerify(t, test, false)
@@ -1832,8 +1840,8 @@ func TestLongChain(t *testing.T) {
 }
 
 func TestSystemRootsError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not use (or support) systemRoots")
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		t.Skip("Windows and darwin do not use (or support) systemRoots")
 	}
 
 	defer func(oldSystemRoots *CertPool) { systemRoots = oldSystemRoots }(systemRootsPool())

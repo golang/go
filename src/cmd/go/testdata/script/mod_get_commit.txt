@@ -5,18 +5,18 @@ env GO111MODULE=on
 
 # golang.org/x/text/language@commit should resolve.
 # Because of -d, the compiler should not run.
-go get -d -x golang.org/x/text/language@14c0d48
+go get -x golang.org/x/text/language@14c0d48
 ! stderr 'compile|cp|gccgo .*language\.a$'
 
 # go get should skip build with no Go files in root
-go get -d golang.org/x/text@14c0d48
+go get golang.org/x/text@14c0d48
 
 # dropping -d, we should see a build.
 [short] skip
 
 env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
 
-go get -x golang.org/x/text/language@14c0d48
+go build -x golang.org/x/text/language
 stderr 'compile|cp|gccgo .*language\.a$'
 
 # BUG: after the build, the package should not be stale, as 'go install' would
@@ -24,19 +24,20 @@ stderr 'compile|cp|gccgo .*language\.a$'
 go list -f '{{.Stale}}' golang.org/x/text/language
 stdout ^true
 
-# install after get should not run the compiler again.
+# install after build should not run the compiler again.
 go install -x golang.org/x/text/language
 ! stderr 'compile|cp|gccgo .*language\.a$'
 
-# even with -d, we should see an error for unknown packages.
-! go get -d -x golang.org/x/text/foo@14c0d48
+# we should see an error for unknown packages.
+! go get -x golang.org/x/text/foo@14c0d48
+stderr '^go: module golang.org/x/text@14c0d48 found \(v0.3.0\), but does not contain package golang.org/x/text/foo$'
 
 # get pseudo-version should record that version
-go get -d rsc.io/quote@v0.0.0-20180214005840-23179ee8a569
+go get rsc.io/quote@v0.0.0-20180214005840-23179ee8a569
 grep 'rsc.io/quote v0.0.0-20180214005840-23179ee8a569' go.mod
 
 # but as commit should record as v1.5.1
-go get -d rsc.io/quote@23179ee8
+go get rsc.io/quote@23179ee8
 grep 'rsc.io/quote v1.5.1' go.mod
 
 # go mod edit -require does not interpret commits

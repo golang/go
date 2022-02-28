@@ -226,3 +226,26 @@ func checkMaskedRotate32(a []uint32, r int) {
 	a[i] = bits.RotateLeft32(a[3], 4) & 0xFFF00FFF
 	i++
 }
+
+// combined arithmetic and rotate on arm64
+func checkArithmeticWithRotate(a *[1000]uint64) {
+	// arm64: "AND\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[2] = a[1] & bits.RotateLeft64(a[0], 13)
+	// arm64: "ORR\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[5] = a[4] | bits.RotateLeft64(a[3], 13)
+	// arm64: "EOR\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[8] = a[7] ^ bits.RotateLeft64(a[6], 13)
+	// arm64: "MVN\tR[0-9]+@>51, R[0-9]+"
+	a[10] = ^bits.RotateLeft64(a[9], 13)
+	// arm64: "BIC\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[13] = a[12] &^ bits.RotateLeft64(a[11], 13)
+	// arm64: "EON\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[16] = a[15] ^ ^bits.RotateLeft64(a[14], 13)
+	// arm64: "ORN\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[19] = a[18] | ^bits.RotateLeft64(a[17], 13)
+	// arm64: "TST\tR[0-9]+@>51, R[0-9]+"
+	if a[18]&bits.RotateLeft64(a[19], 13) == 0 {
+		a[20] = 1
+	}
+
+}

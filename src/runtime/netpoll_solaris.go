@@ -158,7 +158,7 @@ func netpollclose(fd uintptr) int32 {
 // this call, port_getn will return one and only one event for that
 // particular descriptor, so this function needs to be called again.
 func netpollupdate(pd *pollDesc, set, clear uint32) {
-	if pd.closing {
+	if pd.info().closing() {
 		return
 	}
 

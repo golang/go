@@ -8,7 +8,7 @@ import (
 	"bytes"
 	cmddwarf "cmd/internal/dwarf"
 	"cmd/internal/objfile"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"debug/dwarf"
 	"internal/testenv"
 	"os"
@@ -68,7 +68,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			if extld == "" {
 				extld = "gcc"
 			}
-			extldArgs, err := str.SplitQuotedFields(extld)
+			extldArgs, err := quoted.Split(extld)
 			if err != nil {
 				t.Fatal(err)
 			}

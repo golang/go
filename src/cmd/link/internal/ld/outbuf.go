@@ -131,6 +131,20 @@ func (out *OutBuf) Close() error {
 	return nil
 }
 
+// ErrorClose closes the output file (if any).
+// It is supposed to be called only at exit on error, so it doesn't do
+// any clean up or buffer flushing, just closes the file.
+func (out *OutBuf) ErrorClose() {
+	if out.isView {
+		panic(viewCloseError)
+	}
+	if out.f == nil {
+		return
+	}
+	out.f.Close() // best effort, ignore error
+	out.f = nil
+}
+
 // isMmapped returns true if the OutBuf is mmaped.
 func (out *OutBuf) isMmapped() bool {
 	return len(out.buf) != 0

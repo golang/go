@@ -291,6 +291,13 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 		<-main_init_done
 	}
 
+	// Check whether the profiler needs to be turned on or off; this route to
+	// run Go code does not use runtime.execute, so bypasses the check there.
+	hz := sched.profilehz
+	if gp.m.profilehz != hz {
+		setThreadCPUProfiler(hz)
+	}
+
 	// Add entry to defer stack in case of panic.
 	restore := true
 	defer unwindm(&restore)
@@ -382,7 +389,7 @@ var racecgosync uint64 // represents possible synchronization in C code
 
 // cgoCheckPointer checks if the argument contains a Go pointer that
 // points to a Go pointer, and panics if it does.
-func cgoCheckPointer(ptr interface{}, arg interface{}) {
+func cgoCheckPointer(ptr any, arg any) {
 	if debug.cgocheck == 0 {
 		return
 	}
@@ -621,7 +628,7 @@ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
 // cgoCheckResult is called to check the result parameter of an
 // exported Go function. It panics if the result is or contains a Go
 // pointer.
-func cgoCheckResult(val interface{}) {
+func cgoCheckResult(val any) {
 	if debug.cgocheck == 0 {
 		return
 	}

@@ -48,8 +48,12 @@ func (t *Ticker) Stop() {
 }
 
 // Reset stops a ticker and resets its period to the specified duration.
-// The next tick will arrive after the new period elapses.
+// The next tick will arrive after the new period elapses. The duration d
+// must be greater than zero; if not, Reset will panic.
 func (t *Ticker) Reset(d Duration) {
+	if d <= 0 {
+		panic("non-positive interval for Ticker.Reset")
+	}
 	if t.r.f == nil {
 		panic("time: Reset called on uninitialized Ticker")
 	}

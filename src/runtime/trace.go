@@ -229,7 +229,7 @@ func StartTrace() error {
 			gp.traceseq = 0
 			gp.tracelastp = getg().m.p
 			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
-			id := trace.stackTab.put([]uintptr{gp.startpc + sys.PCQuantum})
+			id := trace.stackTab.put([]uintptr{startPCforTrace(gp.startpc) + sys.PCQuantum})
 			traceEvent(traceEvGoCreate, -1, uint64(gp.goid), uint64(id), stackID)
 		}
 		if status == _Gwaiting {
@@ -426,6 +426,9 @@ func ReadTrace() []byte {
 		trace.footerWritten = true
 		// Use float64 because (trace.ticksEnd - trace.ticksStart) * 1e9 can overflow int64.
 		freq := float64(trace.ticksEnd-trace.ticksStart) * 1e9 / float64(trace.timeEnd-trace.timeStart) / traceTickDiv
+		if freq <= 0 {
+			throw("trace: ReadTrace got invalid frequency")
+		}
 		trace.lockOwner = nil
 		unlock(&trace.lock)
 		var data []byte
@@ -551,8 +554,15 @@ func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev by
 		bufp.set(buf)
 	}
 
+	// NOTE: ticks might be same after tick division, although the real cputicks is
+	// linear growth.
 	ticks := uint64(cputicks()) / traceTickDiv
 	tickDiff := ticks - buf.lastTicks
+	if tickDiff == 0 {
+		ticks = buf.lastTicks + 1
+		tickDiff = 1
+	}
+
 	buf.lastTicks = ticks
 	narg := byte(len(args))
 	if skip >= 0 {
@@ -653,6 +663,9 @@ func traceFlush(buf traceBufPtr, pid int32) traceBufPtr {
 
 	// initialize the buffer for a new batch
 	ticks := uint64(cputicks()) / traceTickDiv
+	if ticks == bufp.lastTicks {
+		ticks = bufp.lastTicks + 1
+	}
 	bufp.lastTicks = ticks
 	bufp.byte(traceEvBatch | 1<<traceArgCountShift)
 	bufp.varint(uint64(pid))
@@ -1058,7 +1071,7 @@ func traceGoCreate(newg *g, pc uintptr) {
 	newg.traceseq = 0
 	newg.tracelastp = getg().m.p
 	// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
-	id := trace.stackTab.put([]uintptr{pc + sys.PCQuantum})
+	id := trace.stackTab.put([]uintptr{startPCforTrace(pc) + sys.PCQuantum})
 	traceEvent(traceEvGoCreate, 2, uint64(newg.goid), uint64(id))
 }
 
@@ -1230,4 +1243,18 @@ func trace_userLog(id uint64, category, message string) {
 	buf.pos += copy(buf.arr[buf.pos:], message[:slen])
 
 	traceReleaseBuffer(pid)
+}
+
+// the start PC of a goroutine for tracing purposes. If pc is a wrapper,
+// it returns the PC of the wrapped function. Otherwise it returns pc.
+func startPCforTrace(pc uintptr) uintptr {
+	f := findfunc(pc)
+	if !f.valid() {
+		return pc // should not happen, but don't care
+	}
+	w := funcdata(f, _FUNCDATA_WrapInfo)
+	if w == nil {
+		return pc // not a wrapper
+	}
+	return f.datap.textAddr(*(*uint32)(w))
 }

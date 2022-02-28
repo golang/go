@@ -852,3 +852,44 @@ func TestFormatFractionalSecondSeparators(t *testing.T) {
 		}
 	}
 }
+
+// Issue 48685
+func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
+	tests := []struct {
+		s    string
+		want int
+	}{
+		// 9 digits
+		{"2021-09-29T16:04:33.000000000Z", 0},
+		{"2021-09-29T16:04:33.000000001Z", 1},
+		{"2021-09-29T16:04:33.100000000Z", 100_000_000},
+		{"2021-09-29T16:04:33.100000001Z", 100_000_001},
+		{"2021-09-29T16:04:33.999999999Z", 999_999_999},
+		{"2021-09-29T16:04:33.012345678Z", 12_345_678},
+		// 10 digits, truncates
+		{"2021-09-29T16:04:33.0000000000Z", 0},
+		{"2021-09-29T16:04:33.0000000001Z", 0},
+		{"2021-09-29T16:04:33.1000000000Z", 100_000_000},
+		{"2021-09-29T16:04:33.1000000009Z", 100_000_000},
+		{"2021-09-29T16:04:33.9999999999Z", 999_999_999},
+		{"2021-09-29T16:04:33.0123456789Z", 12_345_678},
+		// 11 digits, truncates
+		{"2021-09-29T16:04:33.10000000000Z", 100_000_000},
+		{"2021-09-29T16:04:33.00123456789Z", 1_234_567},
+		// 12 digits, truncates
+		{"2021-09-29T16:04:33.000123456789Z", 123_456},
+		// 15 digits, truncates
+		{"2021-09-29T16:04:33.9999999999999999Z", 999_999_999},
+	}
+
+	for _, tt := range tests {
+		tm, err := Parse(RFC3339, tt.s)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+			continue
+		}
+		if got := tm.Nanosecond(); got != tt.want {
+			t.Errorf("Parse(%q) = got %d, want %d", tt.s, got, tt.want)
+		}
+	}
+}

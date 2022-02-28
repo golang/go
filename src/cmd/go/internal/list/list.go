@@ -23,8 +23,8 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"cmd/go/internal/work"
-	"cmd/internal/str"
 )
 
 var CmdList = &base.Command{
@@ -316,7 +316,6 @@ For more about modules, see https://golang.org/ref/mod.
 func init() {
 	CmdList.Run = runList // break init cycle
 	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
-	base.AddWorkfileFlag(&CmdList.Flag)
 }
 
 var (
@@ -358,9 +357,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	var do func(interface{})
+	var do func(any)
 	if *listJson {
-		do = func(x interface{}) {
+		do = func(x any) {
 			b, err := json.MarshalIndent(x, "", "\t")
 			if err != nil {
 				out.Flush()
@@ -386,7 +385,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
-		do = func(x interface{}) {
+		do = func(x any) {
 			if err := tmpl.Execute(out, x); err != nil {
 				out.Flush()
 				base.Fatalf("%s", err)

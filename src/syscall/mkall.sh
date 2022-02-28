@@ -283,7 +283,7 @@ netbsd_arm64)
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 openbsd_386)
-	GOOSARCH_in="syscall_openbsd1.go syscall_openbsd_$GOARCH.go"
+	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32 -openbsd -libc"
 	mksysctl="./mksysctl_openbsd.pl"

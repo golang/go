@@ -14,10 +14,11 @@ import (
 )
 
 type testCase struct {
-	Name string
-	Fn   func(*ast.File) bool
-	In   string
-	Out  string
+	Name    string
+	Fn      func(*ast.File) bool
+	Version int
+	In      string
+	Out     string
 }
 
 var testCases []testCase
@@ -78,7 +79,16 @@ func TestRewrite(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
-			t.Parallel()
+			if tt.Version == 0 {
+				t.Parallel()
+			} else {
+				old := goVersion
+				goVersion = tt.Version
+				defer func() {
+					goVersion = old
+				}()
+			}
+
 			// Apply fix: should get tt.Out.
 			out, fixed, ok := parseFixPrint(t, tt.Fn, tt.Name, tt.In, true)
 			if !ok {
@@ -91,6 +101,9 @@ func TestRewrite(t *testing.T) {
 				return
 			}
 
+			if tt.Out == "" {
+				tt.Out = tt.In
+			}
 			if out != tt.Out {
 				t.Errorf("incorrect output.\n")
 				if !strings.HasPrefix(tt.Name, "testdata/") {

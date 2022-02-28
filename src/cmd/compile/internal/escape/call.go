@@ -238,6 +238,15 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	fn.SetWrapper(true)
 	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
 	fn.Body = []ir.Node{call}
+	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+		// If the callee is a named function, link to the original callee.
+		x := call.X
+		if x.Op() == ir.ONAME && x.(*ir.Name).Class == ir.PFUNC {
+			fn.WrappedFunc = call.X.(*ir.Name).Func
+		} else if x.Op() == ir.OMETHEXPR && ir.MethodExprFunc(x).Nname != nil {
+			fn.WrappedFunc = ir.MethodExprName(x).Func
+		}
+	}
 
 	clo := fn.OClosure
 	if n.Op() == ir.OGO {
@@ -333,11 +342,32 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
 		}
 	}
 
-	// Peel away any slice lits.
+	// Peel away any slice literals for better escape analyze
+	// them. For example:
+	//
+	//     go F([]int{a, b})
+	//
+	// If F doesn't escape its arguments, then the slice can
+	// be allocated on the new goroutine's stack.
+	//
+	// For variadic functions, the compiler has already rewritten:
+	//
+	//     f(a, b, c)
+	//
+	// to:
+	//
+	//     f([]T{a, b, c}...)
+	//
+	// So we need to look into slice elements to handle uintptr(ptr)
+	// arguments to syscall-like functions correctly.
 	if arg := *argp; arg.Op() == ir.OSLICELIT {
 		list := arg.(*ir.CompLitExpr).List
 		for i := range list {
-			visit(arg.Pos(), &list[i])
+			el := &list[i]
+			if list[i].Op() == ir.OKEY {
+				el = &list[i].(*ir.KeyExpr).Value
+			}
+			visit(arg.Pos(), el)
 		}
 	} else {
 		visit(call.Pos(), argp)

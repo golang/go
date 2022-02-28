@@ -6,18 +6,6 @@
 
 package p
 
-type (
-	// Type lists are processed as unions but an error is reported.
-	// TODO(gri) remove this once the parser doesn't accept type lists anymore.
-	_ interface{
-		type /* ERROR use generalized embedding syntax instead of a type list */ int
-	}
-	_ interface{
-		type /* ERROR use generalized embedding syntax instead of a type list */ int
-		type float32
-	}
-)
-
 type MyInt int
 
 type (
@@ -33,20 +21,20 @@ type (
 	_ interface{int|~ /* ERROR overlapping terms ~int */ int }
 	_ interface{~int|~ /* ERROR overlapping terms ~int */ int }
 	_ interface{~int|MyInt /* ERROR overlapping terms p.MyInt and ~int */ }
-	_ interface{int|interface{}}
+	_ interface{int|any}
 	_ interface{int|~string|union}
 	_ interface{int|~string|interface{int}}
 	_ interface{union|union /* ERROR overlapping terms p.union and p.union */ }
 
 	// For now we do not permit interfaces with methods in unions.
-	_ interface{~ /* ERROR invalid use of ~ */ interface{}}
+	_ interface{~ /* ERROR invalid use of ~ */ any}
 	_ interface{int|interface /* ERROR cannot use .* in union */ { m() }}
 )
 
 type (
 	// Tilde is not permitted on defined types or interfaces.
 	foo int
-	bar interface{}
+	bar any
 	_ interface{foo}
 	_ interface{~ /* ERROR invalid use of ~ */ foo }
 	_ interface{~ /* ERROR invalid use of ~ */ bar }

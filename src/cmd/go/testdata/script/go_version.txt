@@ -1,0 +1,9 @@
+# test that go version doesn't panic on non-go binaries
+# See Issue #49181
+
+[exec:/bin/true] cp /bin/true true
+[exec:C:\windows\system32\help.exe] cp C:\windows\system32\help.exe help.exe
+
+go version -m .
+! stdout .
+! stderr .

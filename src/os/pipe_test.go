@@ -4,7 +4,6 @@
 
 // Test broken pipes on Unix systems.
 //go:build !plan9 && !js
-// +build !plan9,!js
 
 package os_test
 
@@ -151,11 +150,6 @@ func TestStdPipeHelper(t *testing.T) {
 }
 
 func testClosedPipeRace(t *testing.T, read bool) {
-	switch runtime.GOOS {
-	case "freebsd":
-		t.Skip("FreeBSD does not use the poller; issue 19093")
-	}
-
 	limit := 1
 	if !read {
 		// Get the amount we have to write to overload a pipe

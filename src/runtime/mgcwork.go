@@ -77,9 +77,10 @@ type gcWork struct {
 	// into work.bytesMarked by dispose.
 	bytesMarked uint64
 
-	// Scan work performed on this gcWork. This is aggregated into
+	// Heap scan work performed on this gcWork. This is aggregated into
 	// gcController by dispose and may also be flushed by callers.
-	scanWork int64
+	// Other types of scan work are flushed immediately.
+	heapScanWork int64
 
 	// flushedWork indicates that a non-empty work buffer was
 	// flushed to the global work list since the last gcMarkDone
@@ -274,9 +275,9 @@ func (w *gcWork) dispose() {
 		atomic.Xadd64(&work.bytesMarked, int64(w.bytesMarked))
 		w.bytesMarked = 0
 	}
-	if w.scanWork != 0 {
-		atomic.Xaddint64(&gcController.scanWork, w.scanWork)
-		w.scanWork = 0
+	if w.heapScanWork != 0 {
+		gcController.heapScanWork.Add(w.heapScanWork)
+		w.heapScanWork = 0
 	}
 }
 

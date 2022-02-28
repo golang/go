@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build goexperiment.regabireflect && goexperiment.regabiargs
-// +build goexperiment.regabireflect,goexperiment.regabiargs
 
 package reflect_test
 
@@ -34,7 +33,7 @@ func TestMethodValueCallABI(t *testing.T) {
 	// for us, so there isn't a whole lot to do. Let's just
 	// make sure that we can pass register and stack arguments
 	// through. The exact combination is not super important.
-	makeMethodValue := func(method string) (*StructWithMethods, interface{}) {
+	makeMethodValue := func(method string) (*StructWithMethods, any) {
 		s := new(StructWithMethods)
 		v := reflect.ValueOf(s).MethodByName(method)
 		return s, v.Interface()
@@ -257,7 +256,7 @@ func TestReflectMakeFuncCallABI(t *testing.T) {
 	})
 }
 
-var abiCallTestCases = []interface{}{
+var abiCallTestCases = []any{
 	passNone,
 	passInt,
 	passInt8,
@@ -552,7 +551,7 @@ func passStruct10AndSmall(a Struct10, b byte, c uint) (Struct10, byte, uint) {
 	return a, b, c
 }
 
-var abiMakeFuncTestCases = []interface{}{
+var abiMakeFuncTestCases = []any{
 	callArgsNone,
 	callArgsInt,
 	callArgsInt8,

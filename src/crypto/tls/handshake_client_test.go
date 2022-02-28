@@ -97,18 +97,18 @@ func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
 	o.all = append(o.all, data...)
 
 	for {
-		i := bytes.IndexByte(o.line, '\n')
-		if i < 0 {
+		line, next, ok := bytes.Cut(o.line, []byte("\n"))
+		if !ok {
 			break
 		}
 
-		if bytes.Equal([]byte(opensslEndOfHandshake), o.line[:i]) {
+		if bytes.Equal([]byte(opensslEndOfHandshake), line) {
 			o.handshakeComplete <- struct{}{}
 		}
-		if bytes.Equal([]byte(opensslReadKeyUpdate), o.line[:i]) {
+		if bytes.Equal([]byte(opensslReadKeyUpdate), line) {
 			o.readKeyUpdate <- struct{}{}
 		}
-		o.line = o.line[i+1:]
+		o.line = next
 	}
 
 	return len(data), nil
@@ -134,7 +134,7 @@ type clientTest struct {
 	cert []byte
 	// key, if not nil, contains either a *rsa.PrivateKey, ed25519.PrivateKey or
 	// *ecdsa.PrivateKey which is the private key for the reference server.
-	key interface{}
+	key any
 	// extensions, if not nil, contains a list of extension data to be returned
 	// from the ServerHello. The data should be in standard TLS format with
 	// a 2-byte uint16 type, 2-byte data length, followed by the extension data.
@@ -171,7 +171,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 	certPath := tempFile(string(cert))
 	defer os.Remove(certPath)
 
-	var key interface{} = testRSAPrivateKey
+	var key any = testRSAPrivateKey
 	if test.key != nil {
 		key = test.key
 	}

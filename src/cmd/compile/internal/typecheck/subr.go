@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -79,7 +80,7 @@ func markAddrOf(n ir.Node) ir.Node {
 	if IncrementalAddrtaken {
 		// We can only do incremental addrtaken computation when it is ok
 		// to typecheck the argument of the OADDR. That's only safe after the
-		// main typecheck has completed.
+		// main typecheck has completed, and not loading the inlined body.
 		// The argument to OADDR needs to be typechecked because &x[i] takes
 		// the address of x if x is an array, but not if x is a slice.
 		// Note: OuterValue doesn't work correctly until n is typechecked.
@@ -159,7 +160,7 @@ func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
 	case path != nil:
 		// rebuild elided dots
 		for c := len(path) - 1; c >= 0; c-- {
-			dot := ir.NewSelectorExpr(base.Pos, ir.ODOT, n.X, path[c].field.Sym)
+			dot := ir.NewSelectorExpr(n.Pos(), ir.ODOT, n.X, path[c].field.Sym)
 			dot.SetImplicit(true)
 			dot.SetType(path[c].field.Type)
 			n.X = dot
@@ -172,6 +173,8 @@ func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
 	return n
 }
 
+// CalcMethods calculates all the methods (including embedding) of a non-interface
+// type t.
 func CalcMethods(t *types.Type) {
 	if t == nil || t.AllMethods().Len() != 0 {
 		return
@@ -918,14 +921,11 @@ func addTargs(b *bytes.Buffer, targs []*types.Type) {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		// Use NameString(), which includes the package name for the local
-		// package, to make sure that type arguments (including type params),
-		// are uniquely specified.
-		tstring := targ.NameString()
-		// types1 uses "interface {" and types2 uses "interface{" - convert
-		// to consistent types2 format.  Same for "struct {"
-		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
-		tstring = strings.Replace(tstring, "struct {", "struct{", -1)
+		// Make sure that type arguments (including type params), are
+		// uniquely specified. LinkString() eliminates all spaces
+		// and includes the package path (local package path is "" before
+		// linker substitution).
+		tstring := targ.LinkString()
 		b.WriteString(tstring)
 	}
 	b.WriteString("]")
@@ -961,8 +961,8 @@ func makeInstName1(name string, targs []*types.Type, hasBrackets bool) string {
 }
 
 // MakeFuncInstSym makes the unique sym for a stenciled generic function or method,
-// based on the name of the function fnsym and the targs. It replaces any
-// existing bracket type list in the name. MakeInstName asserts that fnsym has
+// based on the name of the function gf and the targs. It replaces any
+// existing bracket type list in the name. MakeInstName asserts that gf has
 // brackets in its name if and only if hasBrackets is true.
 //
 // Names of declared generic functions have no brackets originally, so hasBrackets
@@ -972,8 +972,21 @@ func makeInstName1(name string, targs []*types.Type, hasBrackets bool) string {
 //
 // The standard naming is something like: 'genFn[int,bool]' for functions and
 // '(*genType[int,bool]).methodName' for methods
-func MakeFuncInstSym(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
-	return gf.Pkg.Lookup(makeInstName1(gf.Name, targs, hasBrackets))
+//
+// isMethodNode specifies if the name of a method node is being generated (as opposed
+// to a name of an instantiation of generic function or name of the shape-based
+// function that helps implement a method of an instantiated type). For method nodes
+// on shape types, we prepend "nofunc.", because method nodes for shape types will
+// have no body, and we want to avoid a name conflict with the shape-based function
+// that helps implement the same method for fully-instantiated types. Function names
+// are also created at the end of (*Tsubster).typ1, so we append "nofunc" there as
+// well, as needed.
+func MakeFuncInstSym(gf *types.Sym, targs []*types.Type, isMethodNode, hasBrackets bool) *types.Sym {
+	nm := makeInstName1(gf.Name, targs, hasBrackets)
+	if targs[0].HasShape() && isMethodNode {
+		nm = "nofunc." + nm
+	}
+	return gf.Pkg.Lookup(nm)
 }
 
 func MakeDictSym(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
@@ -987,7 +1000,7 @@ func MakeDictSym(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sy
 		}
 	}
 	name := makeInstName1(gf.Name, targs, hasBrackets)
-	name = ".dict." + name
+	name = fmt.Sprintf("%s.%s", objabi.GlobalDictPrefix, name)
 	return gf.Pkg.Lookup(name)
 }
 
@@ -998,17 +1011,20 @@ func assert(p bool) {
 // List of newly fully-instantiated types who should have their methods generated.
 var instTypeList []*types.Type
 
-// NeedInstType adds a new fully-instantied type to instTypeList.
+// NeedInstType adds a new fully-instantiated type to instTypeList.
 func NeedInstType(t *types.Type) {
 	instTypeList = append(instTypeList, t)
 }
 
-// GetInstTypeList returns the current contents of instTypeList, and sets
-// instTypeList to nil.
+// GetInstTypeList returns the current contents of instTypeList.
 func GetInstTypeList() []*types.Type {
 	r := instTypeList
-	instTypeList = nil
 	return r
+}
+
+// ClearInstTypeList clears the contents of instTypeList.
+func ClearInstTypeList() {
+	instTypeList = nil
 }
 
 // General type substituter, for replacing typeparams with type args.
@@ -1208,7 +1224,7 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		}
 	case types.TFORW:
 		if ts.SubstForwFunc != nil {
-			newt = ts.SubstForwFunc(t)
+			return ts.SubstForwFunc(forw)
 		} else {
 			assert(false)
 		}
@@ -1261,13 +1277,32 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		for i, f := range t.Methods().Slice() {
 			t2 := ts.typ1(f.Type)
 			oldsym := f.Nname.Sym()
-			newsym := MakeFuncInstSym(oldsym, ts.Targs, true)
+
+			// Use the name of the substituted receiver to create the
+			// method name, since the receiver name may have many levels
+			// of nesting (brackets) with type names to be substituted.
+			recvType := t2.Recv().Type
+			var nm string
+			if recvType.IsPtr() {
+				recvType = recvType.Elem()
+				nm = "(*" + recvType.Sym().Name + ")." + f.Sym.Name
+			} else {
+				nm = recvType.Sym().Name + "." + f.Sym.Name
+			}
+			if recvType.RParams()[0].HasShape() {
+				// We add "nofunc" to methods of shape type to avoid
+				// conflict with the name of the shape-based helper
+				// function. See header comment of MakeFuncInstSym.
+				nm = "nofunc." + nm
+			}
+			newsym := oldsym.Pkg.Lookup(nm)
 			var nname *ir.Name
 			if newsym.Def != nil {
 				nname = newsym.Def.(*ir.Name)
 			} else {
 				nname = ir.NewNameAt(f.Pos, newsym)
 				nname.SetType(t2)
+				ir.MarkFunc(nname)
 				newsym.Def = nname
 			}
 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
@@ -1291,9 +1326,9 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 	if t.NumFields() == 0 {
 		if t.HasTParam() || t.HasShape() {
-			// For an empty struct, we need to return a new type,
-			// since it may now be fully instantiated (HasTParam
-			// becomes false).
+			// For an empty struct, we need to return a new type, if
+			// substituting from a generic type or shape type, since it
+			// will change HasTParam/HasShape flags.
 			return types.NewStruct(t.Pkg(), nil)
 		}
 		return t
@@ -1311,9 +1346,6 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 			}
 		}
 		if newfields != nil {
-			// TODO(danscales): make sure this works for the field
-			// names of embedded types (which should keep the name of
-			// the type param, not the instantiated type).
 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
 			newfields[i].Embedded = f.Embedded
 			newfields[i].Note = f.Note
@@ -1355,11 +1387,11 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 // tinter substitutes type params in types of the methods of an interface type.
 func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 	if t.Methods().Len() == 0 {
-		if t.HasTParam() {
-			// For an empty interface, we need to return a new type,
-			// since it may now be fully instantiated (HasTParam
-			// becomes false).
-			return types.NewInterface(t.Pkg(), nil)
+		if t.HasTParam() || t.HasShape() {
+			// For an empty interface, we need to return a new type, if
+			// substituting from a generic type or shape type, since
+			// since it will change HasTParam/HasShape flags.
+			return types.NewInterface(t.Pkg(), nil, false)
 		}
 		return t
 	}
@@ -1380,7 +1412,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 		}
 	}
 	if newfields != nil {
-		return types.NewInterface(t.Pkg(), newfields)
+		return types.NewInterface(t.Pkg(), newfields, t.IsImplicit())
 	}
 	return t
 }
@@ -1400,18 +1432,25 @@ func genericTypeName(sym *types.Sym) string {
 // For now, we only consider two types to have the same shape, if they have exactly
 // the same underlying type or they are both pointer types.
 //
+//  tparam is the associated typeparam. If there is a structural type for
+//  the associated type param (not common), then a pointer type t is mapped to its
+//  underlying type, rather than being merged with other pointers.
+//
 //  Shape types are also distinguished by the index of the type in a type param/arg
 //  list. We need to do this so we can distinguish and substitute properly for two
 //  type params in the same function that have the same shape for a particular
 //  instantiation.
-func Shapify(t *types.Type, index int) *types.Type {
+func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
 	assert(!t.IsShape())
 	// Map all types with the same underlying type to the same shape.
 	u := t.Underlying()
 
 	// All pointers have the same shape.
 	// TODO: Make unsafe.Pointer the same shape as normal pointers.
-	if u.Kind() == types.TPTR {
+	// Note: pointers to arrays are special because of slice-to-array-pointer
+	// conversions. See issue 49295.
+	if u.Kind() == types.TPTR && u.Elem().Kind() != types.TARRAY &&
+		tparam.Bound().StructuralType() == nil {
 		u = types.Types[types.TUINT8].PtrTo()
 	}
 
@@ -1427,6 +1466,7 @@ func Shapify(t *types.Type, index int) *types.Type {
 		return s
 	}
 
+	// LinkString specifies the type uniquely, but has no spaces.
 	nm := fmt.Sprintf("%s_%d", u.LinkString(), index)
 	sym := types.ShapePkg.Lookup(nm)
 	if sym.Def != nil {
@@ -1440,6 +1480,7 @@ func Shapify(t *types.Type, index int) *types.Type {
 	s.SetUnderlying(u)
 	s.SetIsShape(true)
 	s.SetHasShape(true)
+	types.CalcSize(s)
 	name.SetType(s)
 	name.SetTypecheck(1)
 	submap[u] = s

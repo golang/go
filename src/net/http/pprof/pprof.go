@@ -44,7 +44,7 @@
 // The package also exports a handler that serves execution trace data
 // for the "go tool trace" command. To collect a 5-second execution trace:
 //
-//	wget -O trace.out http://localhost:6060/debug/pprof/trace?seconds=5
+//	curl -o trace.out http://localhost:6060/debug/pprof/trace?seconds=5
 //	go tool trace trace.out
 //
 // To view all available profiles, open http://localhost:6060/debug/pprof/

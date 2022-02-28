@@ -4,7 +4,7 @@ cp go.mod go.mod.orig
 # determined by explicit queries to any version other than the explicit one.
 # Otherwise, 'go get -u' could introduce spurious dependencies.
 
-go get -d -u example.net/a@v0.1.0 example.net/b@v0.1.0
+go get -u example.net/a@v0.1.0 example.net/b@v0.1.0
 go list -m all
 stdout '^example.net/a v0.1.0 '
 stdout '^example.net/b v0.1.0 '
@@ -16,7 +16,7 @@ stdout '^example.net/b v0.1.0 '
 
 cp go.mod.orig go.mod
 
-go get -d -u example.net/a@v0.1.0 example.net/b/...@v0.1.0
+go get -u example.net/a@v0.1.0 example.net/b/...@v0.1.0
 go list -m all
 stdout '^example.net/a v0.1.0 '
 stdout '^example.net/b v0.1.0 '

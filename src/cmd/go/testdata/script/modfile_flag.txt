@@ -46,7 +46,7 @@ go list -mod=mod .
 grep rsc.io/quote go.alt.mod
 go build -n -mod=mod .
 go test -n -mod=mod .
-go get -d rsc.io/quote
+go get rsc.io/quote
 
 
 # 'go mod vendor' should work.

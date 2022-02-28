@@ -81,6 +81,11 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 					cr.err = errors.New("malformed chunked encoding")
 					break
 				}
+			} else {
+				if cr.err == io.EOF {
+					cr.err = io.ErrUnexpectedEOF
+				}
+				break
 			}
 			cr.checkEnd = false
 		}
@@ -109,6 +114,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 		// bytes to verify they are "\r\n".
 		if cr.n == 0 && cr.err == nil {
 			cr.checkEnd = true
+		} else if cr.err == io.EOF {
+			cr.err = io.ErrUnexpectedEOF
 		}
 	}
 	return n, cr.err
@@ -152,6 +159,8 @@ func isASCIISpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
+var semi = []byte(";")
+
 // removeChunkExtension removes any chunk-extension from p.
 // For example,
 //     "0" => "0"
@@ -159,14 +168,11 @@ func isASCIISpace(b byte) bool {
 //     "0;token=val" => "0"
 //     `0;token="quoted string"` => "0"
 func removeChunkExtension(p []byte) ([]byte, error) {
-	semi := bytes.IndexByte(p, ';')
-	if semi == -1 {
-		return p, nil
-	}
+	p, _, _ = bytes.Cut(p, semi)
 	// TODO: care about exact syntax of chunk extensions? We're
 	// ignoring and stripping them anyway. For now just never
 	// return an error.
-	return p[:semi], nil
+	return p, nil
 }
 
 // NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP

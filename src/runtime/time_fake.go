@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build faketime && !windows
-// +build faketime,!windows
 
 // Faketime isn't currently supported on Windows. This would require
 // modifying syscall.Write to call syscall.faketimeWrite,
@@ -42,6 +41,10 @@ func time_now() (sec int64, nsec int32, mono int64) {
 	return faketime / 1e9, int32(faketime % 1e9), faketime
 }
 
+// write is like the Unix write system call.
+// We have to avoid write barriers to avoid potential deadlock
+// on write calls.
+//go:nowritebarrierrec
 func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	if !(fd == 1 || fd == 2) {
 		// Do an ordinary write.

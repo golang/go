@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux
-// +build linux
 
 package syscall_test
 
@@ -510,9 +509,7 @@ func mustSupportAmbientCaps(t *testing.T) {
 		buf[i] = byte(b)
 	}
 	ver := string(buf[:])
-	if i := strings.Index(ver, "\x00"); i != -1 {
-		ver = ver[:i]
-	}
+	ver, _, _ = strings.Cut(ver, "\x00")
 	if strings.HasPrefix(ver, "2.") ||
 		strings.HasPrefix(ver, "3.") ||
 		strings.HasPrefix(ver, "4.1.") ||

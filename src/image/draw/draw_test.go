@@ -66,8 +66,25 @@ func (p *slowestRGBA) PixOffset(x, y int) int {
 	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
 }
 
+func convertToSlowestRGBA(m image.Image) *slowestRGBA {
+	if rgba, ok := m.(*image.RGBA); ok {
+		return &slowestRGBA{
+			Pix:    append([]byte(nil), rgba.Pix...),
+			Stride: rgba.Stride,
+			Rect:   rgba.Rect,
+		}
+	}
+	rgba := image.NewRGBA(m.Bounds())
+	Draw(rgba, rgba.Bounds(), m, m.Bounds().Min, Src)
+	return &slowestRGBA{
+		Pix:    rgba.Pix,
+		Stride: rgba.Stride,
+		Rect:   rgba.Rect,
+	}
+}
+
 func init() {
-	var p interface{} = (*slowestRGBA)(nil)
+	var p any = (*slowestRGBA)(nil)
 	if _, ok := p.(RGBA64Image); ok {
 		panic("slowestRGBA should not be an RGBA64Image")
 	}
@@ -138,8 +155,25 @@ func (p *slowerRGBA) PixOffset(x, y int) int {
 	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
 }
 
+func convertToSlowerRGBA(m image.Image) *slowerRGBA {
+	if rgba, ok := m.(*image.RGBA); ok {
+		return &slowerRGBA{
+			Pix:    append([]byte(nil), rgba.Pix...),
+			Stride: rgba.Stride,
+			Rect:   rgba.Rect,
+		}
+	}
+	rgba := image.NewRGBA(m.Bounds())
+	Draw(rgba, rgba.Bounds(), m, m.Bounds().Min, Src)
+	return &slowerRGBA{
+		Pix:    rgba.Pix,
+		Stride: rgba.Stride,
+		Rect:   rgba.Rect,
+	}
+}
+
 func init() {
-	var p interface{} = (*slowerRGBA)(nil)
+	var p any = (*slowerRGBA)(nil)
 	if _, ok := p.(RGBA64Image); !ok {
 		panic("slowerRGBA should be an RGBA64Image")
 	}
@@ -310,6 +344,32 @@ var drawTests = []drawTest{
 	{"grayAlphaSrc", vgradGray(), fillAlpha(192), Src, color.RGBA{102, 102, 102, 192}},
 	{"grayNil", vgradGray(), nil, Over, color.RGBA{136, 136, 136, 255}},
 	{"grayNilSrc", vgradGray(), nil, Src, color.RGBA{136, 136, 136, 255}},
+	// Same again, but with a slowerRGBA source.
+	{"graySlower", convertToSlowerRGBA(vgradGray()), fillAlpha(255),
+		Over, color.RGBA{136, 136, 136, 255}},
+	{"graySrcSlower", convertToSlowerRGBA(vgradGray()), fillAlpha(255),
+		Src, color.RGBA{136, 136, 136, 255}},
+	{"grayAlphaSlower", convertToSlowerRGBA(vgradGray()), fillAlpha(192),
+		Over, color.RGBA{136, 102, 102, 255}},
+	{"grayAlphaSrcSlower", convertToSlowerRGBA(vgradGray()), fillAlpha(192),
+		Src, color.RGBA{102, 102, 102, 192}},
+	{"grayNilSlower", convertToSlowerRGBA(vgradGray()), nil,
+		Over, color.RGBA{136, 136, 136, 255}},
+	{"grayNilSrcSlower", convertToSlowerRGBA(vgradGray()), nil,
+		Src, color.RGBA{136, 136, 136, 255}},
+	// Same again, but with a slowestRGBA source.
+	{"graySlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(255),
+		Over, color.RGBA{136, 136, 136, 255}},
+	{"graySrcSlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(255),
+		Src, color.RGBA{136, 136, 136, 255}},
+	{"grayAlphaSlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(192),
+		Over, color.RGBA{136, 102, 102, 255}},
+	{"grayAlphaSrcSlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(192),
+		Src, color.RGBA{102, 102, 102, 192}},
+	{"grayNilSlowest", convertToSlowestRGBA(vgradGray()), nil,
+		Over, color.RGBA{136, 136, 136, 255}},
+	{"grayNilSrcSlowest", convertToSlowestRGBA(vgradGray()), nil,
+		Src, color.RGBA{136, 136, 136, 255}},
 	// Uniform mask (100%, 75%, nil) and variable CMYK source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
@@ -320,13 +380,32 @@ var drawTests = []drawTest{
 	{"cmykAlphaSrc", vgradMagenta(), fillAlpha(192), Src, color.RGBA{145, 67, 145, 192}},
 	{"cmykNil", vgradMagenta(), nil, Over, color.RGBA{192, 89, 192, 255}},
 	{"cmykNilSrc", vgradMagenta(), nil, Src, color.RGBA{192, 89, 192, 255}},
-	// Variable mask and variable source.
+	// Variable mask and uniform source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
 	// The source pixel is {0, 0, 255, 255}.
 	// The mask pixel's alpha is 102, or 40%.
 	{"generic", fillBlue(255), vgradAlpha(192), Over, color.RGBA{81, 0, 102, 255}},
 	{"genericSrc", fillBlue(255), vgradAlpha(192), Src, color.RGBA{0, 0, 102, 102}},
+	// Same again, but with a slowerRGBA mask.
+	{"genericSlower", fillBlue(255), convertToSlowerRGBA(vgradAlpha(192)),
+		Over, color.RGBA{81, 0, 102, 255}},
+	{"genericSrcSlower", fillBlue(255), convertToSlowerRGBA(vgradAlpha(192)),
+		Src, color.RGBA{0, 0, 102, 102}},
+	// Same again, but with a slowestRGBA mask.
+	{"genericSlowest", fillBlue(255), convertToSlowestRGBA(vgradAlpha(192)),
+		Over, color.RGBA{81, 0, 102, 255}},
+	{"genericSrcSlowest", fillBlue(255), convertToSlowestRGBA(vgradAlpha(192)),
+		Src, color.RGBA{0, 0, 102, 102}},
+	// Variable mask and variable source.
+	// At (x, y) == (8, 8):
+	// The destination pixel is {136, 0, 0, 255}.
+	// The source pixel is:
+	//   - {0, 48, 0, 90}.
+	//   - {136} in Gray-space, which is {136, 136, 136, 255} in RGBA-space.
+	// The mask pixel's alpha is 102, or 40%.
+	{"rgbaVariableMaskOver", vgradGreen(90), vgradAlpha(192), Over, color.RGBA{117, 19, 0, 255}},
+	{"grayVariableMaskOver", vgradGray(), vgradAlpha(192), Over, color.RGBA{136, 54, 54, 255}},
 }
 
 func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) image.Image {
@@ -399,19 +478,9 @@ func TestDraw(t *testing.T) {
 				// result, in terms of final pixel RGBA values.
 				switch i {
 				case 1:
-					d := dst.(*image.RGBA)
-					dst = &slowerRGBA{
-						Pix:    d.Pix,
-						Stride: d.Stride,
-						Rect:   d.Rect,
-					}
+					dst = convertToSlowerRGBA(dst)
 				case 2:
-					d := dst.(*image.RGBA)
-					dst = &slowestRGBA{
-						Pix:    d.Pix,
-						Stride: d.Stride,
-						Rect:   d.Rect,
-					}
+					dst = convertToSlowestRGBA(dst)
 				}
 
 				// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.

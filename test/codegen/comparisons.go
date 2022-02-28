@@ -538,3 +538,81 @@ func CmpToOneU_ex2(a uint8, b uint16, c uint32, d uint64) int {
 	}
 	return 0
 }
+
+// Check that small memequals are replaced with eq instructions
+
+func equalConstString1() bool {
+	a := string("A")
+	b := string("Z")
+	// amd64:-".*memequal"
+	// arm64:-".*memequal"
+	// ppc64:-".*memequal"
+	// ppc64le:-".*memequal"
+	return a == b
+}
+
+func equalVarString1(a string) bool {
+	b := string("Z")
+	// amd64:-".*memequal"
+	// arm64:-".*memequal"
+	// ppc64:-".*memequal"
+	// ppc64le:-".*memequal"
+	return a[:1] == b
+}
+
+func equalConstString2() bool {
+	a := string("AA")
+	b := string("ZZ")
+	// amd64:-".*memequal"
+	// arm64:-".*memequal"
+	// ppc64:-".*memequal"
+	// ppc64le:-".*memequal"
+	return a == b
+}
+
+func equalVarString2(a string) bool {
+	b := string("ZZ")
+	// amd64:-".*memequal"
+	// arm64:-".*memequal"
+	// ppc64:-".*memequal"
+	// ppc64le:-".*memequal"
+	return a[:2] == b
+}
+
+func equalConstString4() bool {
+	a := string("AAAA")
+	b := string("ZZZZ")
+	// amd64:-".*memequal"
+	// arm64:-".*memequal"
+	// ppc64:-".*memequal"
+	// ppc64le:-".*memequal"
+	return a == b
+}
+
+func equalVarString4(a string) bool {
+	b := string("ZZZZ")
+	// amd64:-".*memequal"
+	// arm64:-".*memequal"
+	// ppc64:-".*memequal"
+	// ppc64le:-".*memequal"
+	return a[:4] == b
+}
+
+func equalConstString8() bool {
+	a := string("AAAAAAAA")
+	b := string("ZZZZZZZZ")
+	// amd64:-".*memequal"
+	// arm64:-".*memequal"
+	// ppc64:-".*memequal"
+	// ppc64le:-".*memequal"
+	return a == b
+}
+
+func equalVarString8(a string) bool {
+	b := string("ZZZZZZZZ")
+	// amd64:-".*memequal"
+	// arm64:-".*memequal"
+	// ppc64:-".*memequal"
+	// ppc64le:-".*memequal"
+	return a[:8] == b
+}

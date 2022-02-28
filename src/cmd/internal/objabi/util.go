@@ -13,7 +13,8 @@ import (
 
 const (
 	ElfRelocOffset   = 256
-	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
+	MachoRelocOffset = 2048    // reserve enough space for ELF relocations
+	GlobalDictPrefix = ".dict" // prefix for names of global dictionaries
 )
 
 // HeaderString returns the toolchain configuration string written in

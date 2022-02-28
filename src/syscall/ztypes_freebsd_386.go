@@ -2,7 +2,6 @@
 // cgo -godefs types_freebsd.go | go run mkpost.go
 
 //go:build 386 && freebsd
-// +build 386,freebsd
 
 package syscall
 

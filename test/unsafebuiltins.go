@@ -47,6 +47,11 @@ func main() {
 		// size overflows address space
 		mustPanic(func() { _ = unsafe.Slice(new(uint64), maxUintptr/8) })
 		mustPanic(func() { _ = unsafe.Slice(new(uint64), maxUintptr/8+1) })
+
+		// sliced memory overflows address space
+		last := (*byte)(unsafe.Pointer(^uintptr(0)))
+		_ = unsafe.Slice(last, 1)
+		mustPanic(func() { _ = unsafe.Slice(last, 2) })
 	}
 }
 

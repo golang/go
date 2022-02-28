@@ -342,14 +342,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	NOP F2
 	NOP $4
 
-	CRAND CR1, CR2, CR3             // 4c620a02
-	CRANDN CR1, CR2, CR3            // 4c620902
-	CREQV CR1, CR2, CR3             // 4c620a42
-	CRNAND CR1, CR2, CR3            // 4c6209c2
-	CRNOR CR1, CR2, CR3             // 4c620842
-	CROR CR1, CR2, CR3              // 4c620b82
-	CRORN CR1, CR2, CR3             // 4c620b42
-	CRXOR CR1, CR2, CR3             // 4c620982
+	CRAND CR0GT, CR0EQ, CR0SO       // 4c620a02
+	CRANDN CR0GT, CR0EQ, CR0SO      // 4c620902
+	CREQV CR0GT, CR0EQ, CR0SO       // 4c620a42
+	CRNAND CR0GT, CR0EQ, CR0SO      // 4c6209c2
+	CRNOR CR0GT, CR0EQ, CR0SO       // 4c620842
+	CROR CR0GT, CR0EQ, CR0SO        // 4c620b82
+	CRORN CR0GT, CR0EQ, CR0SO       // 4c620b42
+	CRXOR CR0GT, CR0EQ, CR0SO       // 4c620982
 
 	ISEL $1, R3, R4, R5             // 7ca3205e
 	ISEL $0, R3, R4, R5             // 7ca3201e
@@ -750,5 +750,18 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD CTR, R3                    // 7c6902a6
 	MOVD XER, R3                    // 7c6102a6
 	MOVFL CR3, CR1                  // 4c8c0000
+
+	MOVW CR0, R1			// 7c380026
+	MOVW CR7, R1			// 7c301026
+	MOVW CR, R1			// 7c200026
+
+	MOVW R1, CR			// 7c2ff120
+	MOVFL R1, CR			// 7c2ff120
+	MOVW R1, CR2			// 7c320120
+	MOVFL R1, CR2			// 7c320120
+	MOVFL R1, $255			// 7c2ff120
+	MOVFL R1, $1			// 7c301120
+	MOVFL R1, $128			// 7c380120
+	MOVFL R1, $3			// 7c203120
 
 	RET

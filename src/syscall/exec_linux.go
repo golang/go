@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux
-// +build linux
 
 package syscall
 
@@ -46,7 +45,7 @@ type SysProcAttr struct {
 	// number in the parent process.
 	Foreground   bool
 	Pgid         int            // Child's process group ID if Setpgid.
-	Pdeathsig    Signal         // Signal that the process will get when its parent dies (Linux only)
+	Pdeathsig    Signal         // Signal that the process will get when its parent dies (Linux and FreeBSD only)
 	Cloneflags   uintptr        // Flags for clone calls (Linux only)
 	Unshareflags uintptr        // Flags for unshare calls (Linux only)
 	UidMappings  []SysProcIDMap // User ID mappings for user namespaces.

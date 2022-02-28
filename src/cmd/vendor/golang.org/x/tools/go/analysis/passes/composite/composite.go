@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = `check for unkeyed composite literals
@@ -67,39 +68,59 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// skip whitelisted types
 			return
 		}
-		under := typ.Underlying()
-		for {
-			ptr, ok := under.(*types.Pointer)
-			if !ok {
-				break
+		var structuralTypes []types.Type
+		switch typ := typ.(type) {
+		case *typeparams.TypeParam:
+			terms, err := typeparams.StructuralTerms(typ)
+			if err != nil {
+				return // invalid type
 			}
-			under = ptr.Elem().Underlying()
-		}
-		if _, ok := under.(*types.Struct); !ok {
-			// skip non-struct composite literals
-			return
-		}
-		if isLocalType(pass, typ) {
-			// allow unkeyed locally defined composite literal
-			return
-		}
-
-		// check if the CompositeLit contains an unkeyed field
-		allKeyValue := true
-		for _, e := range cl.Elts {
-			if _, ok := e.(*ast.KeyValueExpr); !ok {
-				allKeyValue = false
-				break
+			for _, term := range terms {
+				structuralTypes = append(structuralTypes, term.Type())
 			}
+		default:
+			structuralTypes = append(structuralTypes, typ)
 		}
-		if allKeyValue {
-			// all the composite literal fields are keyed
+		for _, typ := range structuralTypes {
+			under := deref(typ.Underlying())
+			if _, ok := under.(*types.Struct); !ok {
+				// skip non-struct composite literals
+				continue
+			}
+			if isLocalType(pass, typ) {
+				// allow unkeyed locally defined composite literal
+				continue
+			}
+
+			// check if the CompositeLit contains an unkeyed field
+			allKeyValue := true
+			for _, e := range cl.Elts {
+				if _, ok := e.(*ast.KeyValueExpr); !ok {
+					allKeyValue = false
+					break
+				}
+			}
+			if allKeyValue {
+				// all the composite literal fields are keyed
+				continue
+			}
+
+			pass.ReportRangef(cl, "%s composite literal uses unkeyed fields", typeName)
 			return
 		}
-
-		pass.ReportRangef(cl, "%s composite literal uses unkeyed fields", typeName)
 	})
 	return nil, nil
+}
+
+func deref(typ types.Type) types.Type {
+	for {
+		ptr, ok := typ.(*types.Pointer)
+		if !ok {
+			break
+		}
+		typ = ptr.Elem().Underlying()
+	}
+	return typ
 }
 
 func isLocalType(pass *analysis.Pass, typ types.Type) bool {
@@ -111,6 +132,8 @@ func isLocalType(pass *analysis.Pass, typ types.Type) bool {
 		return isLocalType(pass, x.Elem())
 	case *types.Named:
 		// names in package foo are local to foo_test too
+		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
+	case *typeparams.TypeParam:
 		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
 	}
 	return false

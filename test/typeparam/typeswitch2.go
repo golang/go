@@ -28,4 +28,6 @@ func main() {
 	f[float64](int32(8))
 	f[float64](struct{ a, b float64 }{a: 1, b: 2})
 	f[float64](int8(9))
+	f[int32](int32(7))
+	f[int](int32(7))
 }

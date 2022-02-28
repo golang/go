@@ -227,7 +227,9 @@ func float64toint64(float64) int64
 func float64touint64(float64) uint64
 func float64touint32(float64) uint32
 func int64tofloat64(int64) float64
+func int64tofloat32(int64) float32
 func uint64tofloat64(uint64) float64
+func uint64tofloat32(uint64) float32
 func uint32tofloat64(uint32) float64
 
 func complex128div(num complex128, den complex128) (quo complex128)
@@ -247,6 +249,10 @@ func racewriterange(addr, size uintptr)
 func msanread(addr, size uintptr)
 func msanwrite(addr, size uintptr)
 func msanmove(dst, src, size uintptr)
+
+// address sanitizer
+func asanread(addr, size uintptr)
+func asanwrite(addr, size uintptr)
 
 func checkptrAlignment(unsafe.Pointer, *byte, uintptr)
 func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)

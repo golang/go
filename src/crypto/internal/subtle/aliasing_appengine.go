@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build appengine
-// +build appengine
 
 // Package subtle implements functions that are often useful in cryptographic
 // code but require careful thought to use correctly.

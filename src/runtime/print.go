@@ -293,7 +293,7 @@ func hexdumpWords(p, end uintptr, mark func(uintptr) byte) {
 		// Can we symbolize val?
 		fn := findfunc(val)
 		if fn.valid() {
-			print("<", funcname(fn), "+", hex(val-fn.entry), "> ")
+			print("<", funcname(fn), "+", hex(val-fn.entry()), "> ")
 		}
 	}
 	minhexdigits = 0

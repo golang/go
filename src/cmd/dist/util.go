@@ -72,7 +72,7 @@ func run(dir string, mode int, cmd ...string) string {
 	}
 
 	xcmd := exec.Command(cmd[0], cmd[1:]...)
-	xcmd.Dir = dir
+	setDir(xcmd, dir)
 	var data []byte
 	var err error
 
@@ -172,6 +172,9 @@ func bgwait(wg *sync.WaitGroup) {
 	select {
 	case <-done:
 	case <-dying:
+		// Don't return to the caller, to avoid reporting additional errors
+		// to the user.
+		select {}
 	}
 }
 

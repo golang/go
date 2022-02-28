@@ -34,7 +34,7 @@ var p256MultTests = []scalarMultTest{
 
 func TestP256BaseMult(t *testing.T) {
 	p256 := P256()
-	p256Generic := p256.Params()
+	p256Generic := genericParamsForCurve(p256)
 
 	scalars := make([]*big.Int, 0, len(p224BaseMultTests)+1)
 	for _, e := range p224BaseMultTests {
@@ -60,23 +60,6 @@ func TestP256BaseMult(t *testing.T) {
 
 func TestP256Mult(t *testing.T) {
 	p256 := P256()
-	p256Generic := p256.Params()
-
-	for i, e := range p224BaseMultTests {
-		x, _ := new(big.Int).SetString(e.x, 16)
-		y, _ := new(big.Int).SetString(e.y, 16)
-		k, _ := new(big.Int).SetString(e.k, 10)
-
-		xx, yy := p256.ScalarMult(x, y, k.Bytes())
-		xx2, yy2 := p256Generic.ScalarMult(x, y, k.Bytes())
-		if xx.Cmp(xx2) != 0 || yy.Cmp(yy2) != 0 {
-			t.Errorf("#%d: got (%x, %x), want (%x, %x)", i, xx, yy, xx2, yy2)
-		}
-		if testing.Short() && i > 5 {
-			break
-		}
-	}
-
 	for i, e := range p256MultTests {
 		x, _ := new(big.Int).SetString(e.xIn, 16)
 		y, _ := new(big.Int).SetString(e.yIn, 16)

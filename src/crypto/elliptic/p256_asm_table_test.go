@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 //go:build amd64 || arm64
-// +build amd64 arm64
 
 package elliptic
 
 import (
+	"encoding/binary"
 	"reflect"
 	"testing"
 )
@@ -45,7 +45,12 @@ func TestP256PrecomputedTable(t *testing.T) {
 
 			copy(t1[8:12], basePoint[8:12])
 
-			if got, want := p256Precomputed[i][j*8:(j*8)+8], t1[:8]; !reflect.DeepEqual(got, want) {
+			buf := make([]byte, 8*8)
+			for i, u := range t1[:8] {
+				binary.LittleEndian.PutUint64(buf[i*8:i*8+8], u)
+			}
+			start := i*32*8*8 + j*8*8
+			if got, want := p256Precomputed[start:start+64], string(buf); !reflect.DeepEqual(got, want) {
 				t.Fatalf("Unexpected table entry at [%d][%d:%d]: got %v, want %v", i, j*8, (j*8)+8, got, want)
 			}
 		}

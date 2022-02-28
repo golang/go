@@ -494,7 +494,7 @@ func TestSelectFairness(t *testing.T) {
 func TestChanSendInterface(t *testing.T) {
 	type mt struct{}
 	m := &mt{}
-	c := make(chan interface{}, 1)
+	c := make(chan any, 1)
 	c <- m
 	select {
 	case c <- m:
@@ -624,6 +624,10 @@ func TestShrinkStackDuringBlockedSend(t *testing.T) {
 }
 
 func TestNoShrinkStackWhileParking(t *testing.T) {
+	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
+		testenv.SkipFlaky(t, 49382)
+	}
+
 	// The goal of this test is to trigger a "racy sudog adjustment"
 	// throw. Basically, there's a window between when a goroutine
 	// becomes available for preemption for stack scanning (and thus,

@@ -48,7 +48,15 @@ func NewPkg(path, name string) *Pkg {
 	p := new(Pkg)
 	p.Path = path
 	p.Name = name
-	p.Prefix = objabi.PathToPrefix(path)
+	if path == "go.shape" {
+		// Don't escape "go.shape", since it's not needed (it's a builtin
+		// package), and we don't want escape codes showing up in shape type
+		// names, which also appear in names of function/method
+		// instantiations.
+		p.Prefix = path
+	} else {
+		p.Prefix = objabi.PathToPrefix(path)
+	}
 	p.Syms = make(map[string]*Sym)
 	pkgMap[path] = p
 

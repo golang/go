@@ -8,6 +8,7 @@ import (
 	"context"
 	"internal/itoa"
 	"io"
+	"net/netip"
 	"os"
 	"syscall"
 	"time"
@@ -21,6 +22,20 @@ type TCPAddr struct {
 	IP   IP
 	Port int
 	Zone string // IPv6 scoped addressing zone
+}
+
+// AddrPort returns the TCPAddr a as a netip.AddrPort.
+//
+// If a.Port does not fit in a uint16, it's silently truncated.
+//
+// If a is nil, a zero value is returned.
+func (a *TCPAddr) AddrPort() netip.AddrPort {
+	if a == nil {
+		return netip.AddrPort{}
+	}
+	na, _ := netip.AddrFromSlice(a.IP)
+	na = na.WithZone(a.Zone)
+	return netip.AddrPortFrom(na, uint16(a.Port))
 }
 
 // Network returns the address's network name, "tcp".
@@ -79,6 +94,17 @@ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 		return nil, err
 	}
 	return addrs.forResolve(network, address).(*TCPAddr), nil
+}
+
+// TCPAddrFromAddrPort returns addr as a TCPAddr. If addr.IsValid() is false,
+// then the returned TCPAddr will contain a nil IP field, indicating an
+// address family-agnostic unspecified address.
+func TCPAddrFromAddrPort(addr netip.AddrPort) *TCPAddr {
+	return &TCPAddr{
+		IP:   addr.Addr().AsSlice(),
+		Zone: addr.Addr().Zone(),
+		Port: int(addr.Port()),
+	}
 }
 
 // TCPConn is an implementation of the Conn interface for TCP network

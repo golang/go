@@ -30,41 +30,19 @@ import (
 
 func buildop(ctxt *obj.Link) {}
 
-// jalrToSym replaces p with a set of Progs needed to jump to the Sym in p.
-// lr is the link register to use for the JALR.
-// p must be a CALL, JMP or RET.
-func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *obj.Prog {
-	if p.As != obj.ACALL && p.As != obj.AJMP && p.As != obj.ARET && p.As != obj.ADUFFZERO && p.As != obj.ADUFFCOPY {
-		ctxt.Diag("unexpected Prog in jalrToSym: %v", p)
-		return p
+func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
+	switch p.As {
+	case obj.ACALL, obj.AJMP, obj.ARET, obj.ADUFFZERO, obj.ADUFFCOPY:
+	default:
+		ctxt.Diag("unexpected Prog in jalToSym: %v", p)
+		return
 	}
 
-	// TODO(jsing): Consider using a single JAL instruction and teaching
-	// the linker to provide trampolines for the case where the destination
-	// offset is too large. This would potentially reduce instructions for
-	// the common case, but would require three instructions to go via the
-	// trampoline.
-
-	to := p.To
-
-	p.As = AAUIPC
-	p.Mark |= NEED_PCREL_ITYPE_RELOC
-	p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym})
-	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
-	p.Reg = obj.REG_NONE
-	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-	p = obj.Appendp(p, newprog)
-
-	// Leave Sym only for the CALL reloc in assemble.
-	p.As = AJALR
+	p.As = AJAL
+	p.Mark |= NEED_CALL_RELOC
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = lr
 	p.Reg = obj.REG_NONE
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_TMP
-	p.To.Sym = to.Sym
-
-	return p
 }
 
 // progedit is called individually for each *obj.Prog. It normalizes instruction
@@ -302,14 +280,15 @@ func containsCall(sym *obj.LSym) bool {
 }
 
 // setPCs sets the Pc field in all instructions reachable from p.
-// It uses pc as the initial value.
-func setPCs(p *obj.Prog, pc int64) {
+// It uses pc as the initial value and returns the next available pc.
+func setPCs(p *obj.Prog, pc int64) int64 {
 	for ; p != nil; p = p.Link {
 		p.Pc = pc
 		for _, ins := range instructionsForProg(p) {
 			pc += int64(ins.length())
 		}
 	}
+	return pc
 }
 
 // stackOffset updates Addr offsets based on the current stack size.
@@ -531,7 +510,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case obj.ACALL, obj.ADUFFZERO, obj.ADUFFCOPY:
 			switch p.To.Type {
 			case obj.TYPE_MEM:
-				jalrToSym(ctxt, p, newprog, REG_LR)
+				jalToSym(ctxt, p, REG_LR)
 			}
 
 		case obj.AJMP:
@@ -539,8 +518,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			case obj.TYPE_MEM:
 				switch p.To.Name {
 				case obj.NAME_EXTERN, obj.NAME_STATIC:
-					// JMP to symbol.
-					jalrToSym(ctxt, p, newprog, REG_ZERO)
+					jalToSym(ctxt, p, REG_ZERO)
 				}
 			}
 
@@ -566,7 +544,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if retJMP != nil {
 				p.As = obj.ARET
 				p.To.Sym = retJMP
-				p = jalrToSym(ctxt, p, newprog, REG_ZERO)
+				jalToSym(ctxt, p, REG_ZERO)
 			} else {
 				p.As = AJALR
 				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
@@ -605,17 +583,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
+	var callCount int
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		markRelocs(p)
+		if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+			callCount++
+		}
 	}
+	const callTrampSize = 8 // 2 machine instructions.
+	maxTrampSize := int64(callCount * callTrampSize)
 
 	// Compute instruction addresses.  Once we do that, we need to check for
 	// overextended jumps and branches.  Within each iteration, Pc differences
 	// are always lower bounds (since the program gets monotonically longer,
 	// a fixed point will be reached).  No attempt to handle functions > 2GiB.
 	for {
-		rescan := false
-		setPCs(cursym.Func().Text, 0)
+		big, rescan := false, false
+		maxPC := setPCs(cursym.Func().Text, 0)
+		if maxPC+maxTrampSize > (1 << 20) {
+			big = true
+		}
 
 		for p := cursym.Func().Text; p != nil; p = p.Link {
 			switch p.As {
@@ -640,8 +627,27 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					rescan = true
 				}
 			case AJAL:
+				// Linker will handle the intersymbol case and trampolines.
 				if p.To.Target() == nil {
-					panic("intersymbol jumps should be expressed as AUIPC+JALR")
+					if !big {
+						break
+					}
+					// This function is going to be too large for JALs
+					// to reach trampolines. Replace with AUIPC+JALR.
+					jmp := obj.Appendp(p, newprog)
+					jmp.As = AJALR
+					jmp.From = p.From
+					jmp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+
+					p.As = AAUIPC
+					p.Mark = (p.Mark &^ NEED_CALL_RELOC) | NEED_PCREL_ITYPE_RELOC
+					p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
+					p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+					p.Reg = obj.REG_NONE
+					p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+
+					rescan = true
+					break
 				}
 				offset := p.To.Target().Pc - p.Pc
 				if offset < -(1<<20) || (1<<20) <= offset {
@@ -676,12 +682,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// instructions will break everything--don't do it!
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
-		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
+		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
 			switch p.To.Type {
 			case obj.TYPE_BRANCH:
 				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
 			case obj.TYPE_MEM:
 				panic("unhandled type")
+			}
+
+		case AJAL:
+			// Linker will handle the intersymbol case and trampolines.
+			if p.To.Target() != nil {
+				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
 			}
 
 		case AAUIPC:
@@ -710,6 +722,62 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		return p
 	}
 
+	if ctxt.Flag_maymorestack != "" {
+		// Save LR and REGCTXT
+		const frameSize = 16
+		p = ctxt.StartUnsafePoint(p, newprog)
+		// MOV LR, -16(SP)
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -frameSize}
+		// ADDI $-16, SP
+		p = obj.Appendp(p, newprog)
+		p.As = AADDI
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -frameSize}
+		p.Reg = REG_SP
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
+		p.Spadj = frameSize
+		// MOV REGCTXT, 8(SP)
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_CTXT}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 8}
+
+		// CALL maymorestack
+		p = obj.Appendp(p, newprog)
+		p.As = obj.ACALL
+		p.To.Type = obj.TYPE_BRANCH
+		// See ../x86/obj6.go
+		p.To.Sym = ctxt.LookupABI(ctxt.Flag_maymorestack, cursym.ABI())
+		jalToSym(ctxt, p, REG_X5)
+
+		// Restore LR and REGCTXT
+
+		// MOV 8(SP), REGCTXT
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 8}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_CTXT}
+		// MOV (SP), LR
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+		// ADDI $16, SP
+		p = obj.Appendp(p, newprog)
+		p.As = AADDI
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: frameSize}
+		p.Reg = REG_SP
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
+		p.Spadj = -frameSize
+
+		p = ctxt.EndUnsafePoint(p, newprog, -1)
+	}
+
+	// Jump back to here after morestack returns.
+	startPred := p
+
 	// MOV	g_stackguard(g), X10
 	p = obj.Appendp(p, newprog)
 	p.As = AMOV
@@ -721,6 +789,12 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	}
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_X10
+
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = ctxt.StartUnsafePoint(p, newprog)
 
 	var to_done, to_more *obj.Prog
 
@@ -786,7 +860,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		to_done = p
 	}
 
-	p = ctxt.EmitEntryLiveness(cursym, p, newprog)
+	p = ctxt.EmitEntryStackMap(cursym, p, newprog)
 
 	// CALL runtime.morestack(SB)
 	p = obj.Appendp(p, newprog)
@@ -802,14 +876,16 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	if to_more != nil {
 		to_more.To.SetTarget(p)
 	}
-	p = jalrToSym(ctxt, p, newprog, REG_X5)
+	jalToSym(ctxt, p, REG_X5)
+
+	p = ctxt.EndUnsafePoint(p, newprog, -1)
 
 	// JMP start
 	p = obj.Appendp(p, newprog)
 	p.As = AJAL
 	p.To = obj.Addr{Type: obj.TYPE_BRANCH}
 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
-	p.To.SetTarget(cursym.Func().Text.Link)
+	p.To.SetTarget(startPred.Link)
 
 	// placeholder for to_done's jump target
 	p = obj.Appendp(p, newprog)
@@ -1187,6 +1263,11 @@ func encodeU(ins *instruction) uint32 {
 	return imm<<12 | rd<<7 | enc.opcode
 }
 
+// encodeJImmediate encodes an immediate for a J-type RISC-V instruction.
+func encodeJImmediate(imm uint32) uint32 {
+	return (imm>>20)<<31 | ((imm>>1)&0x3ff)<<21 | ((imm>>11)&0x1)<<20 | ((imm>>12)&0xff)<<12
+}
+
 // encodeJ encodes a J-type RISC-V instruction.
 func encodeJ(ins *instruction) uint32 {
 	imm := immI(ins.as, ins.imm, 21)
@@ -1195,7 +1276,7 @@ func encodeJ(ins *instruction) uint32 {
 	if enc == nil {
 		panic("encodeJ: could not encode instruction")
 	}
-	return (imm>>20)<<31 | ((imm>>1)&0x3ff)<<21 | ((imm>>11)&0x1)<<20 | ((imm>>12)&0xff)<<12 | rd<<7 | enc.opcode
+	return encodeJImmediate(imm) | rd<<7 | enc.opcode
 }
 
 func encodeRawIns(ins *instruction) uint32 {
@@ -1205,6 +1286,16 @@ func encodeRawIns(ins *instruction) uint32 {
 		panic(fmt.Sprintf("immediate %d cannot fit in 32 bits", ins.imm))
 	}
 	return uint32(ins.imm)
+}
+
+func EncodeJImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 21) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 21 bits", imm)
+	}
+	if imm&1 != 0 {
+		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	}
+	return int64(encodeJImmediate(uint32(imm))), nil
 }
 
 func EncodeIImmediate(imm int64) (int64, error) {
@@ -1583,7 +1674,8 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 	}
 
 	// Split into two additions, if possible.
-	if ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
+	// Do not split SP-writing instructions, as otherwise the recorded SP delta may be wrong.
+	if p.Spadj == 0 && ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
 		imm0 := ins.imm / 2
 		imm1 := ins.imm - imm0
 
@@ -2035,17 +2127,18 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
-		case AJALR:
-			if p.To.Sym != nil {
-				// This is a CALL/JMP. We add a relocation only
-				// for linker stack checking. No actual
-				// relocation is needed.
+		case AJAL:
+			if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
 				rel := obj.Addrel(cursym)
 				rel.Off = int32(p.Pc)
 				rel.Siz = 4
 				rel.Sym = p.To.Sym
 				rel.Add = p.To.Offset
-				rel.Type = objabi.R_CALLRISCV
+				rel.Type = objabi.R_RISCV_CALL
+			}
+		case AJALR:
+			if p.To.Sym != nil {
+				ctxt.Diag("%v: unexpected AJALR with to symbol", p)
 			}
 
 		case AAUIPC, AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:

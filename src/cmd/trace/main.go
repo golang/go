@@ -66,7 +66,7 @@ var (
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, usageMessage)
+		fmt.Fprint(os.Stderr, usageMessage)
 		os.Exit(2)
 	}
 	flag.Parse()
@@ -206,7 +206,7 @@ var templMain = template.Must(template.New("").Parse(`
 </html>
 `))
 
-func dief(msg string, args ...interface{}) {
+func dief(msg string, args ...any) {
 	fmt.Fprintf(os.Stderr, msg, args...)
 	os.Exit(1)
 }

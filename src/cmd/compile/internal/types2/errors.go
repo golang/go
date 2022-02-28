@@ -61,9 +61,12 @@ func (err *error_) msg(qf Qualifier) string {
 	for i := range err.desc {
 		p := &err.desc[i]
 		if i > 0 {
-			fmt.Fprintf(&buf, "\n\t%s: ", p.pos)
+			fmt.Fprint(&buf, "\n\t")
+			if p.pos.IsKnown() {
+				fmt.Fprintf(&buf, "%s: ", p.pos)
+			}
 		}
-		buf.WriteString(sprintf(qf, p.format, p.args...))
+		buf.WriteString(sprintf(qf, false, p.format, p.args...))
 	}
 	return buf.String()
 }
@@ -82,7 +85,7 @@ func (err *error_) errorf(at poser, format string, args ...interface{}) {
 	err.desc = append(err.desc, errorDesc{posFor(at), format, args})
 }
 
-func sprintf(qf Qualifier, format string, args ...interface{}) string {
+func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
@@ -95,10 +98,43 @@ func sprintf(qf Qualifier, format string, args ...interface{}) string {
 			arg = a.String()
 		case syntax.Expr:
 			arg = syntax.String(a)
+		case []syntax.Expr:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(syntax.String(x))
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
 		case Object:
 			arg = ObjectString(a, qf)
 		case Type:
-			arg = TypeString(a, qf)
+			arg = typeString(a, qf, debug)
+		case []Type:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(typeString(x, qf, debug))
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
+		case []*TypeParam:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(typeString(x, qf, debug)) // use typeString so we get subscripts when debugging
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
 		}
 		args[i] = arg
 	}
@@ -142,8 +178,13 @@ func (check *Checker) markImports(pkg *Package) {
 	}
 }
 
+// check may be nil.
 func (check *Checker) sprintf(format string, args ...interface{}) string {
-	return sprintf(check.qualifier, format, args...)
+	var qf Qualifier
+	if check != nil {
+		qf = check.qualifier
+	}
+	return sprintf(qf, false, format, args...)
 }
 
 func (check *Checker) report(err *error_) {
@@ -157,13 +198,13 @@ func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{}) 
 	fmt.Printf("%s:\t%s%s\n",
 		pos,
 		strings.Repeat(".  ", check.indent),
-		check.sprintf(format, args...),
+		sprintf(check.qualifier, true, format, args...),
 	)
 }
 
 // dump is only needed for debugging
 func (check *Checker) dump(format string, args ...interface{}) {
-	fmt.Println(check.sprintf(format, args...))
+	fmt.Println(sprintf(check.qualifier, true, format, args...))
 }
 
 func (check *Checker) err(at poser, msg string, soft bool) {
@@ -225,6 +266,16 @@ func (check *Checker) errorf(at poser, format string, args ...interface{}) {
 
 func (check *Checker) softErrorf(at poser, format string, args ...interface{}) {
 	check.err(at, check.sprintf(format, args...), true)
+}
+
+func (check *Checker) versionErrorf(at poser, goVersion string, format string, args ...interface{}) {
+	msg := check.sprintf(format, args...)
+	if check.conf.CompilerErrorMessages {
+		msg = fmt.Sprintf("%s requires %s or later (-lang was set to %s; check go.mod)", msg, goVersion, check.conf.GoVersion)
+	} else {
+		msg = fmt.Sprintf("%s requires %s or later", msg, goVersion)
+	}
+	check.err(at, msg, true)
 }
 
 // posFor reports the left (= start) position of at.

@@ -19,7 +19,7 @@ import (
 func setArch(goarch string) (*arch.Arch, *obj.Link) {
 	buildcfg.GOOS = "linux" // obj can handle this OS for all architectures.
 	buildcfg.GOARCH = goarch
-	architecture := arch.Set(goarch)
+	architecture := arch.Set(goarch, false)
 	if architecture == nil {
 		panic("asm: unrecognized architecture " + goarch)
 	}

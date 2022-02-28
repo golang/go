@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (aix || darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && (!cgo || osusergo)
-// +build aix darwin dragonfly freebsd js,wasm !android,linux netbsd openbsd solaris
-// +build !cgo osusergo
 
 package user
 
@@ -18,19 +16,10 @@ import (
 	"strings"
 )
 
-const (
-	groupFile = "/etc/group"
-	userFile  = "/etc/passwd"
-)
-
-var colon = []byte{':'}
-
-func init() {
-	groupListImplemented = false
-}
+const userFile = "/etc/passwd"
 
 // lineFunc returns a value, an error, or (nil, nil) to skip the row.
-type lineFunc func(line []byte) (v interface{}, err error)
+type lineFunc func(line []byte) (v any, err error)
 
 // readColonFile parses r as an /etc/group or /etc/passwd style file, running
 // fn for each row. readColonFile returns a value, an error, or (nil, nil) if
@@ -38,7 +27,7 @@ type lineFunc func(line []byte) (v interface{}, err error)
 //
 // readCols is the minimum number of colon-separated fields that will be passed
 // to fn; in a long line additional fields may be silently discarded.
-func readColonFile(r io.Reader, fn lineFunc, readCols int) (v interface{}, err error) {
+func readColonFile(r io.Reader, fn lineFunc, readCols int) (v any, err error) {
 	rd := bufio.NewReader(r)
 
 	// Read the file line-by-line.
@@ -109,7 +98,7 @@ func matchGroupIndexValue(value string, idx int) lineFunc {
 		leadColon = ":"
 	}
 	substr := []byte(leadColon + value + ":")
-	return func(line []byte) (v interface{}, err error) {
+	return func(line []byte) (v any, err error) {
 		if !bytes.Contains(line, substr) || bytes.Count(line, colon) < 3 {
 			return
 		}
@@ -156,7 +145,7 @@ func matchUserIndexValue(value string, idx int) lineFunc {
 		leadColon = ":"
 	}
 	substr := []byte(leadColon + value + ":")
-	return func(line []byte) (v interface{}, err error) {
+	return func(line []byte) (v any, err error) {
 		if !bytes.Contains(line, substr) || bytes.Count(line, colon) < 6 {
 			return
 		}
@@ -183,9 +172,7 @@ func matchUserIndexValue(value string, idx int) lineFunc {
 		// say: "It is expected to be a comma separated list of
 		// personal data where the first item is the full name of the
 		// user."
-		if i := strings.Index(u.Name, ","); i >= 0 {
-			u.Name = u.Name[:i]
-		}
+		u.Name, _, _ = strings.Cut(u.Name, ",")
 		return u, nil
 	}
 }

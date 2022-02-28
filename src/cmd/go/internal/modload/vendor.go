@@ -147,7 +147,7 @@ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
 	}
 
 	vendErrors := new(strings.Builder)
-	vendErrorf := func(mod module.Version, format string, args ...interface{}) {
+	vendErrorf := func(mod module.Version, format string, args ...any) {
 		detail := fmt.Sprintf(format, args...)
 		if mod.Version == "" {
 			fmt.Fprintf(vendErrors, "\n\t%s: %s", mod.Path, detail)
@@ -209,7 +209,7 @@ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
 	}
 
 	for _, mod := range vendorReplaced {
-		r, _ := Replacement(mod)
+		r := Replacement(mod)
 		if r == (module.Version{}) {
 			vendErrorf(mod, "is marked as replaced in vendor/modules.txt, but not replaced in go.mod")
 			continue

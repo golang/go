@@ -133,7 +133,7 @@ func TestAppendRune(t *testing.T) {
 			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, m.str)
 		}
 		if buf := AppendRune([]byte("init"), m.r); string(buf) != "init"+m.str {
-			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, "init"+m.str)
+			t.Errorf("AppendRune(init, %#04x) = %s, want %s", m.r, buf, "init"+m.str)
 		}
 	}
 }

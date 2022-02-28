@@ -1383,12 +1383,16 @@ flush:
 // Defined as ABIInternal since the compiler generates ABIInternal
 // calls to it directly and it does not use the stack-based Go ABI.
 TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
+#endif
 	JMP	runtime·goPanicIndex<ABIInternal>(SB)
 TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
+#endif
 	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
 TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
 #ifdef GOEXPERIMENT_regabiargs
@@ -1427,12 +1431,16 @@ TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
 #endif
 	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
 TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
+#endif
 	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
 TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
+#endif
 	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
 #ifdef GOEXPERIMENT_regabiargs
@@ -1489,12 +1497,16 @@ TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
 #endif
 	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
 TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
 TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
+#endif
 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
 TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
 #ifdef GOEXPERIMENT_regabiargs

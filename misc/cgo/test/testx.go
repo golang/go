@@ -113,6 +113,7 @@ typedef struct {
 	int i;
 } Issue38408, *PIssue38408;
 
+extern void cfunc49633(void*); // definition is in test.go
 */
 import "C"
 
@@ -554,3 +555,26 @@ func GoFunc37033(handle C.uintptr_t) {
 // A typedef pointer can be used as the element type.
 // No runtime test; just make sure it compiles.
 var _ C.PIssue38408 = &C.Issue38408{i: 1}
+
+// issue 49633, example use of cgo.Handle with void*
+
+type data49633 struct {
+	msg string
+}
+
+//export GoFunc49633
+func GoFunc49633(context unsafe.Pointer) {
+	h := *(*cgo.Handle)(context)
+	v := h.Value().(*data49633)
+	v.msg = "hello"
+}
+
+func test49633(t *testing.T) {
+	v := &data49633{}
+	h := cgo.NewHandle(v)
+	defer h.Delete()
+	C.cfunc49633(unsafe.Pointer(&h))
+	if v.msg != "hello" {
+		t.Errorf("msg = %q, want 'hello'", v.msg)
+	}
+}

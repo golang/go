@@ -415,15 +415,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
 	CMP	$0, R0
 	BNE	useQPC
 	MOVD	$_INTERRUPT_TIME, R3
-loop:
-	MOVWU	time_hi1(R3), R1
-	MOVWU	time_lo(R3), R0
-	MOVWU	time_hi2(R3), R2
-	CMP	R1, R2
-	BNE	loop
-
-	// wintime = R1:R0, multiply by 100
-	ORR	R1<<32, R0
+	MOVD	time_lo(R3), R0
 	MOVD	$100, R1
 	MUL	R1, R0
 	MOVD	R0, ret+0(FP)

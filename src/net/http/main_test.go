@@ -31,11 +31,8 @@ func interestingGoroutines() (gs []string) {
 	buf := make([]byte, 2<<20)
 	buf = buf[:runtime.Stack(buf, true)]
 	for _, g := range strings.Split(string(buf), "\n\n") {
-		sl := strings.SplitN(g, "\n", 2)
-		if len(sl) != 2 {
-			continue
-		}
-		stack := strings.TrimSpace(sl[1])
+		_, stack, _ := strings.Cut(g, "\n")
+		stack = strings.TrimSpace(stack)
 		if stack == "" ||
 			strings.Contains(stack, "testing.(*M).before.func1") ||
 			strings.Contains(stack, "os/signal.signal_recv") ||
@@ -46,7 +43,7 @@ func interestingGoroutines() (gs []string) {
 			// These only show up with GOTRACEBACK=2; Issue 5005 (comment 28)
 			strings.Contains(stack, "runtime.goexit") ||
 			strings.Contains(stack, "created by runtime.gc") ||
-			strings.Contains(stack, "net/http_test.interestingGoroutines") ||
+			strings.Contains(stack, "interestingGoroutines") ||
 			strings.Contains(stack, "runtime.MHeap_Scavenger") {
 			continue
 		}

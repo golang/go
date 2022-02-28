@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // fastlog2Table contains log2 approximations for 5 binary digits.
 // This is used to implement fastlog2, which is used for heap sampling.

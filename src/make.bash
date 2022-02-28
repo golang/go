@@ -153,7 +153,16 @@ if [ "$1" = "-v" ]; then
 fi
 
 goroot_bootstrap_set=${GOROOT_BOOTSTRAP+"true"}
-export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
+if [ -z "$GOROOT_BOOTSTRAP" ]; then
+	GOROOT_BOOTSTRAP="$HOME/go1.4"
+	for d in sdk/go1.17 go1.17; do
+		if [ -d "$HOME/$d" ]; then
+			GOROOT_BOOTSTRAP="$HOME/$d"
+		fi
+	done
+fi
+export GOROOT_BOOTSTRAP
+
 export GOROOT="$(cd .. && pwd)"
 IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then

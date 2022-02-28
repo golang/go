@@ -106,7 +106,7 @@ var genericOps = []opData{
 
 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
 	// Shift amounts are considered unsigned.
-	// If arg1 is known to be less than the number of bits in arg0,
+	// If arg1 is known to be nonnegative and less than the number of bits in arg0,
 	// then auxInt may be set to 1.
 	// This enables better code generation on some platforms.
 	{name: "Lsh8x8", argLength: 2, aux: "Bool"}, // arg0 << arg1
@@ -616,6 +616,9 @@ var genericOps = []opData{
 	{name: "AtomicAnd32Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                   // *arg0 &= arg1.  arg2=memory.  Returns memory.
 	{name: "AtomicOr8Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
 	{name: "AtomicOr32Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 |= arg1.  arg2=memory.  Returns memory.
+
+	// Publication barrier
+	{name: "PubBarrier", argLength: 1, hasSideEffects: true}, // Do data barrier. arg0=memory.
 
 	// Clobber experiment op
 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable

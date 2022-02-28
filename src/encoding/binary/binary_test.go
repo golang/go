@@ -113,7 +113,7 @@ var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
 var res = []int32{0x01020304, 0x05060708}
 var putbuf = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 
-func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, want interface{}) {
+func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, want any) {
 	if err != nil {
 		t.Errorf("%v %v: %v", dir, order, err)
 		return
@@ -123,13 +123,13 @@ func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, wan
 	}
 }
 
-func testRead(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
+func testRead(t *testing.T, order ByteOrder, b []byte, s1 any) {
 	var s2 Struct
 	err := Read(bytes.NewReader(b), order, &s2)
 	checkResult(t, "Read", order, err, s2, s1)
 }
 
-func testWrite(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
+func testWrite(t *testing.T, order ByteOrder, b []byte, s1 any) {
 	buf := new(bytes.Buffer)
 	err := Write(buf, order, s1)
 	checkResult(t, "Write", order, err, buf.Bytes(), b)
@@ -175,7 +175,7 @@ func TestReadBoolSlice(t *testing.T) {
 }
 
 // Addresses of arrays are easier to manipulate with reflection than are slices.
-var intArrays = []interface{}{
+var intArrays = []any{
 	&[100]int8{},
 	&[100]int16{},
 	&[100]int32{},
@@ -304,7 +304,7 @@ func TestSizeStructCache(t *testing.T) {
 
 	count := func() int {
 		var i int
-		structSize.Range(func(_, _ interface{}) bool {
+		structSize.Range(func(_, _ any) bool {
 			i++
 			return true
 		})
@@ -329,7 +329,7 @@ func TestSizeStructCache(t *testing.T) {
 	}
 
 	testcases := []struct {
-		val  interface{}
+		val  any
 		want int
 	}{
 		{new(foo), 1},
@@ -376,7 +376,7 @@ func TestUnexportedRead(t *testing.T) {
 
 func TestReadErrorMsg(t *testing.T) {
 	var buf bytes.Buffer
-	read := func(data interface{}) {
+	read := func(data any) {
 		err := Read(&buf, LittleEndian, data)
 		want := "binary.Read: invalid type " + reflect.TypeOf(data).String()
 		if err == nil {
@@ -457,7 +457,7 @@ func TestReadInvalidDestination(t *testing.T) {
 }
 
 func testReadInvalidDestination(t *testing.T, order ByteOrder) {
-	destinations := []interface{}{
+	destinations := []any{
 		int8(0),
 		int16(0),
 		int32(0),

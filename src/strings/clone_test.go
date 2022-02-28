@@ -11,9 +11,13 @@ import (
 	"unsafe"
 )
 
+var emptyString string
+
 func TestClone(t *testing.T) {
 	var cloneTests = []string{
 		"",
+		strings.Clone(""),
+		strings.Repeat("a", 42)[:0],
 		"short",
 		strings.Repeat("a", 42),
 	}
@@ -25,8 +29,13 @@ func TestClone(t *testing.T) {
 
 		inputHeader := (*reflect.StringHeader)(unsafe.Pointer(&input))
 		cloneHeader := (*reflect.StringHeader)(unsafe.Pointer(&clone))
-		if inputHeader.Data == cloneHeader.Data {
+		if len(input) != 0 && cloneHeader.Data == inputHeader.Data {
 			t.Errorf("Clone(%q) return value should not reference inputs backing memory.", input)
+		}
+
+		emptyHeader := (*reflect.StringHeader)(unsafe.Pointer(&emptyString))
+		if len(input) == 0 && cloneHeader.Data != emptyHeader.Data {
+			t.Errorf("Clone(%#v) return value should be equal to empty string.", inputHeader)
 		}
 	}
 }

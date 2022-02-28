@@ -12,10 +12,7 @@ import (
 	"cmd/compile/internal/base"
 )
 
-var (
-	memprofilerate int64
-	traceHandler   func(string)
-)
+var traceHandler func(string)
 
 func startProfile() {
 	if base.Flag.CPUProfile != "" {
@@ -29,8 +26,8 @@ func startProfile() {
 		base.AtExit(pprof.StopCPUProfile)
 	}
 	if base.Flag.MemProfile != "" {
-		if memprofilerate != 0 {
-			runtime.MemProfileRate = int(memprofilerate)
+		if base.Flag.MemProfileRate != 0 {
+			runtime.MemProfileRate = base.Flag.MemProfileRate
 		}
 		f, err := os.Create(base.Flag.MemProfile)
 		if err != nil {

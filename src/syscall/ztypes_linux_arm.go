@@ -2,7 +2,6 @@
 // cgo -godefs types_linux.go
 
 //go:build arm && linux
-// +build arm,linux
 
 package syscall
 

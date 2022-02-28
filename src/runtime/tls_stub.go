@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (windows && !amd64) || !windows
-// +build windows,!amd64 !windows
 
 package runtime
 

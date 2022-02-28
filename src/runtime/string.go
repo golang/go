@@ -94,6 +94,9 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
 	if msanenabled {
 		msanread(unsafe.Pointer(ptr), uintptr(n))
 	}
+	if asanenabled {
+		asanread(unsafe.Pointer(ptr), uintptr(n))
+	}
 	if n == 1 {
 		p := unsafe.Pointer(&staticuint64s[*ptr])
 		if goarch.BigEndian {
@@ -158,6 +161,9 @@ func slicebytetostringtmp(ptr *byte, n int) (str string) {
 	if msanenabled && n > 0 {
 		msanread(unsafe.Pointer(ptr), uintptr(n))
 	}
+	if asanenabled && n > 0 {
+		asanread(unsafe.Pointer(ptr), uintptr(n))
+	}
 	stringStructOf(&str).str = unsafe.Pointer(ptr)
 	stringStructOf(&str).len = n
 	return
@@ -208,6 +214,9 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 	}
 	if msanenabled && len(a) > 0 {
 		msanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
+	}
+	if asanenabled && len(a) > 0 {
+		asanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
 	}
 	var dum [4]byte
 	size1 := 0

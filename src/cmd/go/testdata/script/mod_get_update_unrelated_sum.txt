@@ -18,7 +18,7 @@ cmp go.sum.orig go.sum
 # Upgrade a module. This also upgrades rsc.io/quote, and though we didn't load
 # a package from it, we had the sum for its old version, so we need the
 # sum for the new version, too.
-go get -d example.com/upgrade@v0.0.2
+go get example.com/upgrade@v0.0.2
 grep '^rsc.io/quote v1.5.2 ' go.sum
 
 # The upgrade still breaks the build because the new version of quote imports
@@ -34,7 +34,7 @@ cp go.sum.orig go.sum
 # We didn't need a sum for it before (even though we had one), so we won't
 # fetch a new sum.
 go mod edit -replace rsc.io/quote@v1.0.0=./dummy
-go get -d example.com/upgrade@v0.0.2
+go get example.com/upgrade@v0.0.2
 ! grep '^rsc.io/quote v1.5.2 ' go.sum
 cp go.mod.orig go.mod
 cp go.sum.orig go.sum
@@ -43,7 +43,7 @@ cp go.sum.orig go.sum
 # Replace the new version with a directory before upgrading.
 # We can't get a sum for a directory.
 go mod edit -replace rsc.io/quote@v1.5.2=./dummy
-go get -d example.com/upgrade@v0.0.2
+go get example.com/upgrade@v0.0.2
 ! grep '^rsc.io/quote v1.5.2 ' go.sum
 cp go.mod.orig go.mod
 cp go.sum.orig go.sum
@@ -52,7 +52,7 @@ cp go.sum.orig go.sum
 # Replace the new version with a different version.
 # We should get a sum for that version.
 go mod edit -replace rsc.io/quote@v1.5.2=rsc.io/quote@v1.5.1
-go get -d example.com/upgrade@v0.0.2
+go get example.com/upgrade@v0.0.2
 ! grep '^rsc.io/quote v1.5.2 ' go.sum
 grep '^rsc.io/quote v1.5.1 ' go.sum
 cp go.mod.orig go.mod
@@ -63,7 +63,7 @@ cp go.sum.orig go.sum
 # 'go get' should fail when fetching the zip.
 rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
 env GOPROXY=off
-! go get -d example.com/upgrade@v0.0.2
+! go get example.com/upgrade@v0.0.2
 stderr '^go: upgraded rsc.io/quote v1.0.0 => v1.5.2: error finding sum for rsc.io/quote@v1.5.2: module lookup disabled by GOPROXY=off$'
 
 -- go.mod.orig --

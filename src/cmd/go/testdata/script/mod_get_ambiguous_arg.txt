@@ -4,14 +4,14 @@ cp go.mod go.mod.orig
 # If there is no sensible *package* meaning for 'm/p', it should refer
 # to *module* m/p.
 
-go get -d m/p  # @latest
+go get m/p  # @latest
 go list -m all
 stdout '^m/p v0.3.0 '
 ! stdout '^m '
 
 cp go.mod.orig go.mod
 
-go get -d m/p@v0.1.0
+go get m/p@v0.1.0
 go list -m all
 stdout '^m/p v0.1.0 '
 ! stdout '^m '
@@ -22,7 +22,7 @@ stdout '^m/p v0.1.0 '
 # (It only refers to *module* m/p if there is no such package at the
 # requested version.)
 
-go get -d m/p@v0.2.0
+go get m/p@v0.2.0
 go list -m all
 stdout '^m v0.2.0 '
 stdout '^m/p v0.1.0 '  # unchanged from the previous case
@@ -30,7 +30,7 @@ stdout '^m/p v0.1.0 '  # unchanged from the previous case
 # Repeating the above with module m/p already in the module graph does not
 # change its meaning.
 
-go get -d m/p@v0.2.0
+go get m/p@v0.2.0
 go list -m all
 stdout '^m v0.2.0 '
 stdout '^m/p v0.1.0 '

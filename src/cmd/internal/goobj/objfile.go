@@ -19,21 +19,19 @@
 package goobj
 
 import (
-	"bytes"
 	"cmd/internal/bio"
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"internal/unsafeheader"
-	"io"
 	"unsafe"
 )
 
 // New object file format.
 //
 //    Header struct {
-//       Magic       [...]byte   // "\x00go117ld"
+//       Magic       [...]byte   // "\x00go118ld"
 //       Fingerprint [8]byte
 //       Flags       uint32
 //       Offsets     [...]uint32 // byte offset of each block below
@@ -100,7 +98,6 @@ import (
 //    }
 //
 //    Data   [...]byte
-//    Pcdata [...]byte
 //
 //    // blocks only used by tools (objdump, nm)
 //
@@ -204,7 +201,6 @@ const (
 	BlkReloc
 	BlkAux
 	BlkData
-	BlkPcdata
 	BlkRefName
 	BlkEnd
 	NBlk
@@ -219,7 +215,7 @@ type Header struct {
 	Offsets     [NBlk]uint32
 }
 
-const Magic = "\x00go117ld"
+const Magic = "\x00go118ld"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
@@ -304,6 +300,7 @@ const (
 const (
 	SymFlagUsedInIface = 1 << iota
 	SymFlagItab
+	SymFlagDict
 )
 
 // Returns the length of the name of the symbol.
@@ -333,6 +330,7 @@ func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
 func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
+func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
@@ -356,6 +354,8 @@ type SymRef struct {
 	PkgIdx uint32
 	SymIdx uint32
 }
+
+func (s SymRef) IsZero() bool { return s == SymRef{} }
 
 // Hash64
 type Hash64Type [Hash64Size]byte
@@ -592,13 +592,12 @@ type Reader struct {
 	b        []byte // mmapped bytes, if not nil
 	readonly bool   // whether b is backed with read-only memory
 
-	rd    io.ReaderAt
 	start uint32
 	h     Header // keep block offsets
 }
 
 func NewReaderFromBytes(b []byte, readonly bool) *Reader {
-	r := &Reader{b: b, readonly: readonly, rd: bytes.NewReader(b), start: 0}
+	r := &Reader{b: b, readonly: readonly, start: 0}
 	err := r.h.Read(r)
 	if err != nil {
 		return nil

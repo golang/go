@@ -33,6 +33,8 @@ type Timeval struct {
 	_    [4]byte
 }
 
+type Time_t int32
+
 type Rusage struct {
 	Utime    Timeval
 	Stime    Timeval

@@ -105,8 +105,10 @@ func Pipe2(p []int, flags int) error {
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return err
 }
 
@@ -174,11 +176,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		}
 	}
 	return
-}
-
-func setattrlistTimes(path string, times []Timespec) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
 }
 
 func Stat(path string, st *Stat_t) (err error) {

@@ -130,7 +130,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
 
 	var mode Mode
 	if strings.HasSuffix(filename, ".go2") {
-		mode = AllowGenerics | AllowTypeLists
+		mode = AllowGenerics
 	}
 	ParseFile(filename, func(err error) {
 		e, ok := err.(Error)
@@ -154,11 +154,11 @@ func testSyntaxErrors(t *testing.T, filename string) {
 		if found {
 			rx, err := regexp.Compile(pattern)
 			if err != nil {
-				t.Errorf("%s: %v", pos, err)
+				t.Errorf("%s:%s: %v", filename, pos, err)
 				return
 			}
 			if match := rx.MatchString(e.Msg); !match {
-				t.Errorf("%s: %q does not match %q", pos, e.Msg, pattern)
+				t.Errorf("%s:%s: %q does not match %q", filename, pos, e.Msg, pattern)
 				return
 			}
 			// we have a match - eliminate this error

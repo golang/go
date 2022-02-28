@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // Gen generates sais2.go by duplicating functions in sais.go
 // using different input types.

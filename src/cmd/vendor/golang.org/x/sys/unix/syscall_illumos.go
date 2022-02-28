@@ -162,6 +162,14 @@ func (l *Lifreq) GetLifruInt() int {
 	return *(*int)(unsafe.Pointer(&l.Lifru[0]))
 }
 
+func (l *Lifreq) SetLifruUint(d uint) {
+	*(*uint)(unsafe.Pointer(&l.Lifru[0])) = d
+}
+
+func (l *Lifreq) GetLifruUint() uint {
+	return *(*uint)(unsafe.Pointer(&l.Lifru[0]))
+}
+
 func IoctlLifreq(fd int, req uint, l *Lifreq) error {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(l)))
 }

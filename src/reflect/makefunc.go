@@ -107,7 +107,7 @@ func makeMethodValue(op string, v Value) Value {
 	// v.Type returns the actual type of the method value.
 	ftyp := (*funcType)(unsafe.Pointer(v.Type().(*rtype)))
 
-	code := abi.FuncPCABI0(methodValueCall)
+	code := methodValueCallCodePtr()
 
 	// methodValue contains a stack map for use by the runtime
 	_, _, abi := funcLayout(ftyp, nil)
@@ -128,6 +128,10 @@ func makeMethodValue(op string, v Value) Value {
 	methodReceiver(op, fv.rcvr, fv.method)
 
 	return Value{&ftyp.rtype, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
+}
+
+func methodValueCallCodePtr() uintptr {
+	return abi.FuncPCABI0(methodValueCall)
 }
 
 // methodValueCall is an assembly function that is the code half of

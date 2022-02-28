@@ -29,12 +29,12 @@ func main() {
 	buildcfg.Check()
 	GOARCH := buildcfg.GOARCH
 
-	architecture := arch.Set(GOARCH)
+	flags.Parse()
+
+	architecture := arch.Set(GOARCH, *flags.Shared || *flags.Dynlink)
 	if architecture == nil {
 		log.Fatalf("unrecognized architecture %s", GOARCH)
 	}
-
-	flags.Parse()
 
 	ctxt := obj.Linknew(architecture.LinkArch)
 	ctxt.Debugasm = flags.PrintOut
@@ -42,6 +42,7 @@ func main() {
 	ctxt.Flag_dynlink = *flags.Dynlink
 	ctxt.Flag_linkshared = *flags.Linkshared
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+	ctxt.Flag_maymorestack = flags.DebugFlags.MayMoreStack
 	ctxt.IsAsm = true
 	ctxt.Pkgpath = *flags.Importpath
 	switch *flags.Spectre {

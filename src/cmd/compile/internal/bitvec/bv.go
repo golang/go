@@ -128,9 +128,20 @@ func (bv BitVec) IsEmpty() bool {
 	return true
 }
 
+func (bv BitVec) Count() int {
+	n := 0
+	for _, x := range bv.B {
+		n += bits.OnesCount32(x)
+	}
+	return n
+}
+
 func (bv BitVec) Not() {
 	for i, x := range bv.B {
 		bv.B[i] = ^x
+	}
+	if bv.N%wordBits != 0 {
+		bv.B[len(bv.B)-1] &= 1<<uint(bv.N%wordBits) - 1 // clear bits past N in the last word
 	}
 }
 

@@ -43,7 +43,7 @@ stderr '^go: github.com/google/go-cmp: unreachable pattern in GOVCS: "github.com
 # bad GOVCS patterns do not stop commands that do not need to check VCS
 go list
 env GOPROXY=$proxy
-go get -d rsc.io/quote # ok because used proxy
+go get rsc.io/quote # ok because used proxy
 env GOPROXY=direct
 
 # svn is disallowed by default

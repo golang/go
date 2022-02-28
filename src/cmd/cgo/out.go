@@ -135,6 +135,7 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "%s", buf.Bytes())
 		fmt.Fprintf(fgo2, "\n\n")
 	}
+	fmt.Fprintf(fgo2, "//go:notinheap\ntype _Ctype_void_notinheap struct{}\n\n")
 	if *gccgo {
 		fmt.Fprintf(fgo2, "type _Ctype_void byte\n")
 	} else {

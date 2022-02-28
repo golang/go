@@ -2,7 +2,7 @@ package ssa_test
 
 import (
 	cmddwarf "cmd/internal/dwarf"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
@@ -58,7 +58,7 @@ func TestStmtLines(t *testing.T) {
 		if extld == "" {
 			extld = "gcc"
 		}
-		extldArgs, err := str.SplitQuotedFields(extld)
+		extldArgs, err := quoted.Split(extld)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -88,6 +88,9 @@ func TestStmtLines(t *testing.T) {
 		pkgname, _ := e.Val(dwarf.AttrName).(string)
 		if pkgname == "runtime" {
 			continue
+		}
+		if pkgname == "crypto/elliptic/internal/fiat" {
+			continue // golang.org/issue/49372
 		}
 		if e.Val(dwarf.AttrStmtList) == nil {
 			continue

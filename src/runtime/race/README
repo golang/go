@@ -4,12 +4,12 @@ the LLVM project (https://github.com/llvm/llvm-project/tree/main/compiler-rt).
 
 To update the .syso files use golang.org/x/build/cmd/racebuild.
 
-race_darwin_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+race_darwin_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 with https://reviews.llvm.org/D114825 applied and Go 7ccbcc90560468937f02609a43cb39a6e13ff797.
 race_freebsd_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
 race_linux_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
 race_linux_ppc64le.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
 race_netbsd_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
 race_windows_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
 race_linux_arm64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
-race_darwin_arm64.syso built with LLVM 00da38ce2d36c07f12c287dc515d37bb7bc410e9 and Go fe70a3a0fd31441bcbb9932ecab11a6083cf2119.
+race_darwin_arm64.syso built with LLVM 00da38ce2d36c07f12c287dc515d37bb7bc410e9 with https://reviews.llvm.org/D114825 applied and Go 7ccbcc90560468937f02609a43cb39a6e13ff797.
 race_openbsd_amd64.syso built with LLVM fcf6ae2f070eba73074b6ec8d8281e54d29dbeeb and Go 8f2db14cd35bbd674cb2988a508306de6655e425.

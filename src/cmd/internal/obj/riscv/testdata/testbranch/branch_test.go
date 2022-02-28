@@ -32,7 +32,7 @@ func testGoBGTU(a, b int64) bool { return uint64(a) > uint64(b) }
 func testGoBLE(a, b int64) bool  { return a <= b }
 func testGoBLEU(a, b int64) bool { return uint64(a) <= uint64(b) }
 func testGoBLT(a, b int64) bool  { return a < b }
-func testGoBLTZ(a, b int64) bool { return uint64(a) < uint64(b) }
+func testGoBLTU(a, b int64) bool { return uint64(a) < uint64(b) }
 
 func TestBranchCondition(t *testing.T) {
 	tests := []struct {

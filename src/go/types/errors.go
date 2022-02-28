@@ -7,6 +7,7 @@
 package types
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -62,11 +63,18 @@ func (check *Checker) markImports(pkg *Package) {
 	}
 }
 
-func (check *Checker) sprintf(format string, args ...interface{}) string {
-	return sprintf(check.fset, check.qualifier, format, args...)
+// check may be nil.
+func (check *Checker) sprintf(format string, args ...any) string {
+	var fset *token.FileSet
+	var qf Qualifier
+	if check != nil {
+		fset = check.fset
+		qf = check.qualifier
+	}
+	return sprintf(fset, qf, false, format, args...)
 }
 
-func sprintf(fset *token.FileSet, qf Qualifier, format string, args ...interface{}) string {
+func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args ...any) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
@@ -81,27 +89,55 @@ func sprintf(fset *token.FileSet, qf Qualifier, format string, args ...interface
 			}
 		case ast.Expr:
 			arg = ExprString(a)
+		case []ast.Expr:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			writeExprList(&buf, a)
+			buf.WriteByte(']')
+			arg = buf.String()
 		case Object:
 			arg = ObjectString(a, qf)
 		case Type:
-			arg = TypeString(a, qf)
+			arg = typeString(a, qf, debug)
+		case []Type:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(typeString(x, qf, debug))
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
+		case []*TypeParam:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(typeString(x, qf, debug)) // use typeString so we get subscripts when debugging
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
 		}
 		args[i] = arg
 	}
 	return fmt.Sprintf(format, args...)
 }
 
-func (check *Checker) trace(pos token.Pos, format string, args ...interface{}) {
+func (check *Checker) trace(pos token.Pos, format string, args ...any) {
 	fmt.Printf("%s:\t%s%s\n",
 		check.fset.Position(pos),
 		strings.Repeat(".  ", check.indent),
-		check.sprintf(format, args...),
+		sprintf(check.fset, check.qualifier, true, format, args...),
 	)
 }
 
 // dump is only needed for debugging
-func (check *Checker) dump(format string, args ...interface{}) {
-	fmt.Println(check.sprintf(format, args...))
+func (check *Checker) dump(format string, args ...any) {
+	fmt.Println(sprintf(check.fset, check.qualifier, true, format, args...))
 }
 
 func (check *Checker) err(err error) {
@@ -170,7 +206,7 @@ func (check *Checker) newError(at positioner, code errorCode, soft bool, msg str
 }
 
 // newErrorf creates a new Error, but does not handle it.
-func (check *Checker) newErrorf(at positioner, code errorCode, soft bool, format string, args ...interface{}) error {
+func (check *Checker) newErrorf(at positioner, code errorCode, soft bool, format string, args ...any) error {
 	msg := check.sprintf(format, args...)
 	return check.newError(at, code, soft, msg)
 }
@@ -179,23 +215,23 @@ func (check *Checker) error(at positioner, code errorCode, msg string) {
 	check.err(check.newError(at, code, false, msg))
 }
 
-func (check *Checker) errorf(at positioner, code errorCode, format string, args ...interface{}) {
+func (check *Checker) errorf(at positioner, code errorCode, format string, args ...any) {
 	check.error(at, code, check.sprintf(format, args...))
 }
 
-func (check *Checker) softErrorf(at positioner, code errorCode, format string, args ...interface{}) {
+func (check *Checker) softErrorf(at positioner, code errorCode, format string, args ...any) {
 	check.err(check.newErrorf(at, code, true, format, args...))
 }
 
-func (check *Checker) invalidAST(at positioner, format string, args ...interface{}) {
+func (check *Checker) invalidAST(at positioner, format string, args ...any) {
 	check.errorf(at, 0, "invalid AST: "+format, args...)
 }
 
-func (check *Checker) invalidArg(at positioner, code errorCode, format string, args ...interface{}) {
+func (check *Checker) invalidArg(at positioner, code errorCode, format string, args ...any) {
 	check.errorf(at, code, "invalid argument: "+format, args...)
 }
 
-func (check *Checker) invalidOp(at positioner, code errorCode, format string, args ...interface{}) {
+func (check *Checker) invalidOp(at positioner, code errorCode, format string, args ...any) {
 	check.errorf(at, code, "invalid operation: "+format, args...)
 }
 

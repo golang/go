@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build windows
-// +build windows
 
 package registry_test
 
@@ -119,7 +118,7 @@ func equalStringSlice(a, b []string) bool {
 type ValueTest struct {
 	Type     uint32
 	Name     string
-	Value    interface{}
+	Value    any
 	WillFail bool
 }
 

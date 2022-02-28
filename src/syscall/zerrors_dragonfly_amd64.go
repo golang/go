@@ -5,7 +5,6 @@
 // cgo -godefs -- -m64 _const.go
 
 //go:build amd64 && dragonfly
-// +build amd64,dragonfly
 
 package syscall
 

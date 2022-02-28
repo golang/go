@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build amd64 && linux && !goexperiment.regabiargs
-// +build amd64,linux,!goexperiment.regabiargs
 
 package runtime
 

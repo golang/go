@@ -265,10 +265,6 @@ func TestIssue25756(t *testing.T) {
 
 // Test with main using -buildmode=pie with plugin for issue #43228
 func TestIssue25756pie(t *testing.T) {
-	if os.Getenv("GO_BUILDER_NAME") == "darwin-arm64-11_0-toothrot" {
-		t.Skip("broken on darwin/arm64 builder in sharded mode; see issue 46239")
-	}
-
 	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
 	goCmd(t, "build", "-buildmode=pie", "-o", "issue25756pie.exe", "./issue25756/main.go")
 	run(t, "./issue25756pie.exe")
@@ -292,4 +288,32 @@ func TestIssue44956(t *testing.T) {
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p2.so", "./issue44956/plugin2.go")
 	goCmd(t, "build", "-o", "issue44956.exe", "./issue44956/main.go")
 	run(t, "./issue44956.exe")
+}
+
+func TestForkExec(t *testing.T) {
+	// Issue 38824: importing the plugin package causes it hang in forkExec on darwin.
+
+	t.Parallel()
+	goCmd(t, "build", "-o", "forkexec.exe", "./forkexec/main.go")
+
+	var cmd *exec.Cmd
+	done := make(chan int, 1)
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			cmd = exec.Command("./forkexec.exe", "1")
+			err := cmd.Run()
+			if err != nil {
+				t.Errorf("running command failed: %v", err)
+				break
+			}
+		}
+		done <- 1
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Minute):
+		cmd.Process.Kill()
+		t.Fatalf("subprocess hang")
+	}
 }

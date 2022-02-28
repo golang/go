@@ -50,7 +50,7 @@ func nilRegisterNumber(name string, n int16) (int16, bool) {
 
 // Set configures the architecture specified by GOARCH and returns its representation.
 // It returns nil if GOARCH is not recognized.
-func Set(GOARCH string) *Arch {
+func Set(GOARCH string, shared bool) *Arch {
 	switch GOARCH {
 	case "386":
 		return archX86(&x86.Link386)
@@ -73,7 +73,7 @@ func Set(GOARCH string) *Arch {
 	case "ppc64le":
 		return archPPC64(&ppc64.Linkppc64le)
 	case "riscv64":
-		return archRISCV64()
+		return archRISCV64(shared)
 	case "s390x":
 		return archS390x()
 	case "wasm":
@@ -178,6 +178,10 @@ func archX86(linkArch *obj.LinkArch) *Arch {
 	instructions["PSLLDQ"] = x86.APSLLO
 	instructions["PSRLDQ"] = x86.APSRLO
 	instructions["PADDD"] = x86.APADDL
+	// Spellings originally used in CL 97235.
+	instructions["MOVBELL"] = x86.AMOVBEL
+	instructions["MOVBEQQ"] = x86.AMOVBEQ
+	instructions["MOVBEWW"] = x86.AMOVBEW
 
 	return &Arch{
 		LinkArch:       linkArch,
@@ -374,6 +378,9 @@ func archPPC64(linkArch *obj.LinkArch) *Arch {
 	for i := ppc64.REG_MSR; i <= ppc64.REG_CR; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	for i := ppc64.REG_CR0LT; i <= ppc64.REG_CR7SO; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
 	register["CR"] = ppc64.REG_CR
 	register["XER"] = ppc64.REG_XER
 	register["LR"] = ppc64.REG_LR
@@ -534,12 +541,18 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 	}
 }
 
-func archRISCV64() *Arch {
+func archRISCV64(shared bool) *Arch {
 	register := make(map[string]int16)
 
 	// Standard register names.
 	for i := riscv.REG_X0; i <= riscv.REG_X31; i++ {
-		if i == riscv.REG_G {
+		// Disallow X3 in shared mode, as this will likely be used as the
+		// GP register, which could result in problems in non-Go code,
+		// including signal handlers.
+		if shared && i == riscv.REG_GP {
+			continue
+		}
+		if i == riscv.REG_TP || i == riscv.REG_G {
 			continue
 		}
 		name := fmt.Sprintf("X%d", i-riscv.REG_X0)

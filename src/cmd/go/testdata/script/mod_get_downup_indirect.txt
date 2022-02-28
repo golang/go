@@ -25,7 +25,7 @@ cp go.mod go.mod.orig
 go mod tidy
 cmp go.mod.orig go.mod
 
-go get -d example.com/d@v0.1.0
+go get example.com/d@v0.1.0
 go list -m all
 ! stdout '^example.com/b '
 ! stdout '^example.com/c '

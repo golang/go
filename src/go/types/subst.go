@@ -21,6 +21,17 @@ func makeSubstMap(tpars []*TypeParam, targs []Type) substMap {
 	return proj
 }
 
+// makeRenameMap is like makeSubstMap, but creates a map used to rename type
+// parameters in from with the type parameters in to.
+func makeRenameMap(from, to []*TypeParam) substMap {
+	assert(len(from) == len(to))
+	proj := make(substMap, len(from))
+	for i, tpar := range from {
+		proj[tpar] = to[i]
+	}
+	return proj
+}
+
 func (m substMap) empty() bool {
 	return len(m) == 0
 }
@@ -37,8 +48,8 @@ func (m substMap) lookup(tpar *TypeParam) Type {
 // that it doesn't modify the incoming type. If a substitution took place, the
 // result type is different from the incoming type.
 //
-// If the given environment is non-nil, it is used in lieu of check.env.
-func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environment) Type {
+// If the given context is non-nil, it is used in lieu of check.Config.Context
+func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, ctxt *Context) Type {
 	if smap.empty() {
 		return typ
 	}
@@ -56,7 +67,7 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environ
 		pos:   pos,
 		smap:  smap,
 		check: check,
-		env:   check.bestEnv(env),
+		ctxt:  check.bestContext(ctxt),
 	}
 	return subst.typ(typ)
 }
@@ -65,7 +76,7 @@ type subster struct {
 	pos   token.Pos
 	smap  substMap
 	check *Checker // nil if called via Instantiate
-	env   *Environment
+	ctxt  *Context
 }
 
 func (subst *subster) typ(typ Type) Type {
@@ -74,7 +85,7 @@ func (subst *subster) typ(typ Type) Type {
 		// Call typOrNil if it's possible that typ is nil.
 		panic("nil typ")
 
-	case *Basic, *top:
+	case *Basic:
 		// nothing to do
 
 	case *Array:
@@ -91,7 +102,9 @@ func (subst *subster) typ(typ Type) Type {
 
 	case *Struct:
 		if fields, copied := subst.varList(t.fields); copied {
-			return &Struct{fields: fields, tags: t.tags}
+			s := &Struct{fields: fields, tags: t.tags}
+			s.markComplete()
+			return s
 		}
 
 	case *Pointer:
@@ -104,17 +117,29 @@ func (subst *subster) typ(typ Type) Type {
 		return subst.tuple(t)
 
 	case *Signature:
-		// TODO(gri) rethink the recv situation with respect to methods on parameterized types
-		// recv := subst.var_(t.recv) // TODO(gri) this causes a stack overflow - explain
+		// Preserve the receiver: it is handled during *Interface and *Named type
+		// substitution.
+		//
+		// Naively doing the substitution here can lead to an infinite recursion in
+		// the case where the receiver is an interface. For example, consider the
+		// following declaration:
+		//
+		//  type T[A any] struct { f interface{ m() } }
+		//
+		// In this case, the type of f is an interface that is itself the receiver
+		// type of all of its methods. Because we have no type name to break
+		// cycles, substituting in the recv results in an infinite loop of
+		// recv->interface->recv->interface->...
 		recv := t.recv
+
 		params := subst.tuple(t.params)
 		results := subst.tuple(t.results)
-		if recv != t.recv || params != t.params || results != t.results {
+		if params != t.params || results != t.results {
 			return &Signature{
 				rparams: t.rparams,
 				// TODO(rFindley) why can't we nil out tparams here, rather than in instantiate?
-				tparams:  t.tparams,
-				scope:    t.scope,
+				tparams: t.tparams,
+				// instantiated signatures have a nil scope
 				recv:     recv,
 				params:   params,
 				results:  results,
@@ -128,14 +153,31 @@ func (subst *subster) typ(typ Type) Type {
 			// term list substitution may introduce duplicate terms (unlikely but possible).
 			// This is ok; lazy type set computation will determine the actual type set
 			// in normal form.
-			return &Union{terms, nil}
+			return &Union{terms}
 		}
 
 	case *Interface:
 		methods, mcopied := subst.funcList(t.methods)
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		if mcopied || ecopied {
-			iface := &Interface{methods: methods, embeddeds: embeddeds, complete: t.complete}
+			iface := subst.check.newInterface()
+			iface.embeddeds = embeddeds
+			iface.implicit = t.implicit
+			iface.complete = t.complete
+			// If we've changed the interface type, we may need to replace its
+			// receiver if the receiver type is the original interface. Receivers of
+			// *Named type are replaced during named type expansion.
+			//
+			// Notably, it's possible to reach here and not create a new *Interface,
+			// even though the receiver type may be parameterized. For example:
+			//
+			//  type T[P any] interface{ m() }
+			//
+			// In this case the interface will not be substituted here, because its
+			// method signatures do not depend on the type parameter P, but we still
+			// need to create new interface methods to hold the instantiated
+			// receiver. This is handled by expandNamed.
+			iface.methods, _ = replaceRecvType(methods, t, iface)
 			return iface
 		}
 
@@ -154,13 +196,13 @@ func (subst *subster) typ(typ Type) Type {
 
 	case *Named:
 		// dump is for debugging
-		dump := func(string, ...interface{}) {}
+		dump := func(string, ...any) {}
 		if subst.check != nil && trace {
 			subst.check.indent++
 			defer func() {
 				subst.check.indent--
 			}()
-			dump = func(format string, args ...interface{}) {
+			dump = func(format string, args ...any) {
 				subst.check.trace(subst.pos, format, args...)
 			}
 		}
@@ -177,7 +219,9 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		var newTArgs []Type
-		assert(t.targs.Len() == t.orig.TypeParams().Len())
+		if t.targs.Len() != t.orig.TypeParams().Len() {
+			return Typ[Invalid] // error reported elsewhere
+		}
 
 		// already instantiated
 		dump(">>> %s already instantiated", t)
@@ -203,20 +247,19 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		// before creating a new named type, check if we have this one already
-		h := subst.env.typeHash(t.orig, newTArgs)
+		h := subst.ctxt.instanceHash(t.orig, newTArgs)
 		dump(">>> new type hash: %s", h)
-		if named := subst.env.typeForHash(h, nil); named != nil {
+		if named := subst.ctxt.lookup(h, t.orig, newTArgs); named != nil {
 			dump(">>> found %s", named)
 			return named
 		}
 
-		t.orig.resolve(subst.env)
-		// Create a new instance and populate the environment to avoid endless
+		// Create a new instance and populate the context to avoid endless
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
 		// help with debugging.
-		t.orig.resolve(subst.env)
-		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.env)
+		t.orig.resolve(subst.ctxt)
+		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.ctxt)
 
 		// Note that if we were to expose substitution more generally (not just in
 		// the context of a declaration), we'd have to substitute in
@@ -342,6 +385,34 @@ func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
 				copied = true
 			}
 			out[i] = NewTerm(t.tilde, u)
+		}
+	}
+	return
+}
+
+// replaceRecvType updates any function receivers that have type old to have
+// type new. It does not modify the input slice; if modifications are required,
+// the input slice and any affected signatures will be copied before mutating.
+//
+// The resulting out slice contains the updated functions, and copied reports
+// if anything was modified.
+func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
+	out = in
+	for i, method := range in {
+		sig := method.Type().(*Signature)
+		if sig.recv != nil && sig.recv.Type() == old {
+			if !copied {
+				// Allocate a new methods slice before mutating for the first time.
+				// This is defensive, as we may share methods across instantiations of
+				// a given interface type if they do not get substituted.
+				out = make([]*Func, len(in))
+				copy(out, in)
+				copied = true
+			}
+			newsig := *sig
+			sig = &newsig
+			sig.recv = NewVar(sig.recv.pos, sig.recv.pkg, "", new)
+			out[i] = NewFunc(method.pos, method.pkg, method.name, sig)
 		}
 	}
 	return

@@ -8,6 +8,7 @@ import (
 	"context"
 	"internal/nettrace"
 	"internal/singleflight"
+	"net/netip"
 	"sync"
 )
 
@@ -232,6 +233,28 @@ func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]IP, er
 	return ips, nil
 }
 
+// LookupNetIP looks up host using the local resolver.
+// It returns a slice of that host's IP addresses of the type specified by
+// network.
+// The network must be one of "ip", "ip4" or "ip6".
+func (r *Resolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
+	// TODO(bradfitz): make this efficient, making the internal net package
+	// type throughout be netip.Addr and only converting to the net.IP slice
+	// version at the edge. But for now (2021-10-20), this is a wrapper around
+	// the old way.
+	ips, err := r.LookupIP(ctx, network, host)
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]netip.Addr, 0, len(ips))
+	for _, ip := range ips {
+		if a, ok := netip.AddrFromSlice(ip); ok {
+			ret = append(ret, a)
+		}
+	}
+	return ret, nil
+}
+
 // onlyValuesCtx is a context that uses an underlying context
 // for value lookup if the underlying context hasn't yet expired.
 type onlyValuesCtx struct {
@@ -242,7 +265,7 @@ type onlyValuesCtx struct {
 var _ context.Context = (*onlyValuesCtx)(nil)
 
 // Value performs a lookup if the original context hasn't expired.
-func (ovc *onlyValuesCtx) Value(key interface{}) interface{} {
+func (ovc *onlyValuesCtx) Value(key any) any {
 	select {
 	case <-ovc.lookupValues.Done():
 		return nil
@@ -291,7 +314,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 
 	lookupKey := network + "\000" + host
 	dnsWaitGroup.Add(1)
-	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (interface{}, error) {
+	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
 		defer dnsWaitGroup.Done()
 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
 	})
@@ -316,24 +339,45 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 				lookupGroupCancel()
 			}()
 		}
-		err := mapErr(ctx.Err())
+		ctxErr := ctx.Err()
+		err := &DNSError{
+			Err:       mapErr(ctxErr).Error(),
+			Name:      host,
+			IsTimeout: ctxErr == context.DeadlineExceeded,
+		}
 		if trace != nil && trace.DNSDone != nil {
 			trace.DNSDone(nil, false, err)
 		}
 		return nil, err
 	case r := <-ch:
 		lookupGroupCancel()
+		err := r.Err
+		if err != nil {
+			if _, ok := err.(*DNSError); !ok {
+				isTimeout := false
+				if err == context.DeadlineExceeded {
+					isTimeout = true
+				} else if terr, ok := err.(timeout); ok {
+					isTimeout = terr.Timeout()
+				}
+				err = &DNSError{
+					Err:       err.Error(),
+					Name:      host,
+					IsTimeout: isTimeout,
+				}
+			}
+		}
 		if trace != nil && trace.DNSDone != nil {
 			addrs, _ := r.Val.([]IPAddr)
-			trace.DNSDone(ipAddrsEface(addrs), r.Shared, r.Err)
+			trace.DNSDone(ipAddrsEface(addrs), r.Shared, err)
 		}
-		return lookupIPReturn(r.Val, r.Err, r.Shared)
+		return lookupIPReturn(r.Val, err, r.Shared)
 	}
 }
 
 // lookupIPReturn turns the return values from singleflight.Do into
 // the return values from LookupIP.
-func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error) {
+func lookupIPReturn(addrsi any, err error, shared bool) ([]IPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -347,8 +391,8 @@ func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error
 }
 
 // ipAddrsEface returns an empty interface slice of addrs.
-func ipAddrsEface(addrs []IPAddr) []interface{} {
-	s := make([]interface{}, len(addrs))
+func ipAddrsEface(addrs []IPAddr) []any {
+	s := make([]any, len(addrs))
 	for i, v := range addrs {
 		s[i] = v
 	}
@@ -514,9 +558,7 @@ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
 		if mx == nil {
 			continue
 		}
-		// Bypass the hostname validity check for targets which contain only a dot,
-		// as this is used to represent a 'Null' MX record.
-		if mx.Host != "." && !isDomainName(mx.Host) {
+		if !isDomainName(mx.Host) {
 			continue
 		}
 		filteredMX = append(filteredMX, mx)

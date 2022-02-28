@@ -16,7 +16,7 @@ stdout '^sum.golang.org$'
 env GOSUMDB=sum.golang.org
 env GOPROXY=direct
 
-go get -d rsc.io/quote@v1.5.2
+go get rsc.io/quote@v1.5.2
 cp go.sum saved.sum
 
 

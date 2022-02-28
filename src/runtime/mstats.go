@@ -790,7 +790,15 @@ type consistentHeapStats struct {
 //
 // The caller's P must not change between acquire and
 // release. This also means that the caller should not
-// acquire a P or release its P in between.
+// acquire a P or release its P in between. A P also must
+// not acquire a given consistentHeapStats if it hasn't
+// yet released it.
+//
+// nosplit because a stack growth in this function could
+// lead to a stack allocation that could reenter the
+// function.
+//
+//go:nosplit
 func (m *consistentHeapStats) acquire() *heapStatsDelta {
 	if pp := getg().m.p.ptr(); pp != nil {
 		seq := atomic.Xadd(&pp.statsSeq, 1)
@@ -814,6 +822,12 @@ func (m *consistentHeapStats) acquire() *heapStatsDelta {
 // The caller's P must not change between acquire and
 // release. This also means that the caller should not
 // acquire a P or release its P in between.
+//
+// nosplit because a stack growth in this function could
+// lead to a stack allocation that causes another acquire
+// before this operation has completed.
+//
+//go:nosplit
 func (m *consistentHeapStats) release() {
 	if pp := getg().m.p.ptr(); pp != nil {
 		seq := atomic.Xadd(&pp.statsSeq, 1)

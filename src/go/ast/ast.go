@@ -193,14 +193,10 @@ func isDirective(c string) bool {
 // in a signature.
 // Field.Names is nil for unnamed parameters (parameter lists which only contain types)
 // and embedded struct fields. In the latter case, the field name is the type name.
-// Field.Names contains a single name "type" for elements of interface type lists.
-// Types belonging to the same type list share the same "type" identifier which also
-// records the position of that keyword.
-//
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
-	Names   []*Ident      // field/method/(type) parameter names, or type "type"; or nil
-	Type    Expr          // field/method/parameter type, type list type; or nil
+	Names   []*Ident      // field/method/(type) parameter names; or nil
+	Type    Expr          // field/method/parameter type; or nil
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
 }
@@ -228,11 +224,12 @@ func (f *Field) End() token.Pos {
 	return token.NoPos
 }
 
-// A FieldList represents a list of Fields, enclosed by parentheses or braces.
+// A FieldList represents a list of Fields, enclosed by parentheses,
+// curly braces, or square brackets.
 type FieldList struct {
-	Opening token.Pos // position of opening parenthesis/brace, if any
+	Opening token.Pos // position of opening parenthesis/brace/bracket, if any
 	List    []*Field  // field list; or nil
-	Closing token.Pos // position of closing parenthesis/brace, if any
+	Closing token.Pos // position of closing parenthesis/brace/bracket, if any
 }
 
 func (f *FieldList) Pos() token.Pos {
@@ -998,8 +995,6 @@ type (
 		Name *Ident        // function/method name
 		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil for external (non-Go) function
-		// TODO(rFindley) consider storing TParams here, rather than FuncType, as
-		//                they are only valid for declared functions
 	}
 )
 

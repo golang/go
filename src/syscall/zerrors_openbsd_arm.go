@@ -5,7 +5,6 @@
 // cgo -godefs -- _const.go
 
 //go:build arm && openbsd
-// +build arm,openbsd
 
 package syscall
 

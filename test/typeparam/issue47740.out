@@ -1,2 +1,0 @@
-(eq (lit 128) (lit 64))
-(eq (lit true) (lit true))

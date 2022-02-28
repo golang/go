@@ -3,16 +3,22 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
 import (
 	"context"
+	"errors"
 	"syscall"
 	"testing"
 	"time"
 )
+
+func init() {
+	isEADDRINUSE = func(err error) bool {
+		return errors.Is(err, syscall.EADDRINUSE)
+	}
+}
 
 // Issue 16523
 func TestDialContextCancelRace(t *testing.T) {
@@ -25,10 +31,7 @@ func TestDialContextCancelRace(t *testing.T) {
 		testHookCanceledDial = oldTestHookCanceledDial
 	}()
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	listenerDone := make(chan struct{})
 	go func() {
 		defer close(listenerDone)

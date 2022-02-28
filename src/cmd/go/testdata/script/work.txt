@@ -1,8 +1,12 @@
-! go mod initwork doesnotexist
+! go work init doesnotexist
 stderr 'go: creating workspace file: no go.mod file exists in directory doesnotexist'
+go env GOWORK
+! stdout .
 
-go mod initwork ./a ./b
+go work init ./a ./b
 cmp go.work go.work.want
+go env GOWORK
+stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'
 
 ! go run  example.com/b
 stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tcd '$WORK(\\|/)gopath(\\|/)src(\\|/)a'\n\tgo get rsc.io/quote'
@@ -28,9 +32,11 @@ stdout 'example.com/b'
 go list -mod=readonly all
 ! go list -mod=mod all
 stderr '^go: -mod may only be set to readonly when in workspace mode'
-go list -mod=mod -workfile=off all
+env GOWORK=off
+go list -mod=mod all
+env GOWORK=
 
-# Test that duplicates in the directory list return an error
+# Test that duplicates in the use list return an error
 cp go.work go.work.backup
 cp go.work.dup go.work
 ! go run example.com/b
@@ -49,13 +55,15 @@ go run example.com/d
 # This exercises the code that determines which module command-line-arguments
 # belongs to.
 go list ./b/main.go
-go build -n -workfile=off -o foo foo.go
+env GOWORK=off
+go build -n -o foo foo.go
+env GOWORK=
 go build -n -o foo foo.go
 
 -- go.work.dup --
 go 1.18
 
-directory (
+use (
   a
   b
   ../src/a
@@ -63,14 +71,14 @@ directory (
 -- go.work.want --
 go 1.18
 
-directory (
+use (
 	./a
 	./b
 )
 -- go.work.d --
 go 1.18
 
-directory (
+use (
 	a
 	b
 	d
@@ -129,7 +137,7 @@ func main() {
 -- go.work.backwards --
 go 1.18
 
-directory (
+use (
     d
     b
     a

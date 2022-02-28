@@ -203,7 +203,7 @@ var DefaultServer = NewServer()
 
 // Is this type exported or a builtin?
 func isExportedOrBuiltinType(t reflect.Type) bool {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	// PkgPath will be non-empty even for an exported type,
@@ -221,13 +221,13 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 // no suitable methods. It also logs the error using package log.
 // The client accesses each method using a string of the form "Type.Method",
 // where Type is the receiver's concrete type.
-func (server *Server) Register(rcvr interface{}) error {
+func (server *Server) Register(rcvr any) error {
 	return server.register(rcvr, "", false)
 }
 
 // RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
-func (server *Server) RegisterName(name string, rcvr interface{}) error {
+func (server *Server) RegisterName(name string, rcvr any) error {
 	return server.register(rcvr, name, true)
 }
 
@@ -235,7 +235,7 @@ func (server *Server) RegisterName(name string, rcvr interface{}) error {
 // To debug registration, recompile the package with this set to true.
 const logRegisterError = false
 
-func (server *Server) register(rcvr interface{}, name string, useName bool) error {
+func (server *Server) register(rcvr any, name string, useName bool) error {
 	s := new(service)
 	s.typ = reflect.TypeOf(rcvr)
 	s.rcvr = reflect.ValueOf(rcvr)
@@ -262,7 +262,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		str := ""
 
 		// To help the user, see if a pointer receiver would work.
-		method := suitableMethods(reflect.PtrTo(s.typ), false)
+		method := suitableMethods(reflect.PointerTo(s.typ), false)
 		if len(method) != 0 {
 			str = "rpc.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
 		} else {
@@ -307,7 +307,7 @@ func suitableMethods(typ reflect.Type, logErr bool) map[string]*methodType {
 		}
 		// Second arg must be a pointer.
 		replyType := mtype.In(2)
-		if replyType.Kind() != reflect.Ptr {
+		if replyType.Kind() != reflect.Pointer {
 			if logErr {
 				log.Printf("rpc.Register: reply type of method %q is not a pointer: %q\n", mname, replyType)
 			}
@@ -344,7 +344,7 @@ func suitableMethods(typ reflect.Type, logErr bool) map[string]*methodType {
 // contains an error when it is used.
 var invalidRequest = struct{}{}
 
-func (server *Server) sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec ServerCodec, errmsg string) {
+func (server *Server) sendResponse(sending *sync.Mutex, req *Request, reply any, codec ServerCodec, errmsg string) {
 	resp := server.getResponse()
 	// Encode the response header
 	resp.ServiceMethod = req.ServiceMethod
@@ -401,11 +401,11 @@ func (c *gobServerCodec) ReadRequestHeader(r *Request) error {
 	return c.dec.Decode(r)
 }
 
-func (c *gobServerCodec) ReadRequestBody(body interface{}) error {
+func (c *gobServerCodec) ReadRequestBody(body any) error {
 	return c.dec.Decode(body)
 }
 
-func (c *gobServerCodec) WriteResponse(r *Response, body interface{}) (err error) {
+func (c *gobServerCodec) WriteResponse(r *Response, body any) (err error) {
 	if err = c.enc.Encode(r); err != nil {
 		if c.encBuf.Flush() == nil {
 			// Gob couldn't encode the header. Should not happen, so if it does,
@@ -556,7 +556,7 @@ func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *m
 
 	// Decode the argument value.
 	argIsValue := false // if true, need to indirect before calling.
-	if mtype.ArgType.Kind() == reflect.Ptr {
+	if mtype.ArgType.Kind() == reflect.Pointer {
 		argv = reflect.New(mtype.ArgType.Elem())
 	} else {
 		argv = reflect.New(mtype.ArgType)
@@ -636,11 +636,11 @@ func (server *Server) Accept(lis net.Listener) {
 }
 
 // Register publishes the receiver's methods in the DefaultServer.
-func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
+func Register(rcvr any) error { return DefaultServer.Register(rcvr) }
 
 // RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
-func RegisterName(name string, rcvr interface{}) error {
+func RegisterName(name string, rcvr any) error {
 	return DefaultServer.RegisterName(name, rcvr)
 }
 
@@ -654,8 +654,8 @@ func RegisterName(name string, rcvr interface{}) error {
 // See NewClient's comment for information about concurrent access.
 type ServerCodec interface {
 	ReadRequestHeader(*Request) error
-	ReadRequestBody(interface{}) error
-	WriteResponse(*Response, interface{}) error
+	ReadRequestBody(any) error
+	WriteResponse(*Response, any) error
 
 	// Close can be called multiple times and must be idempotent.
 	Close() error

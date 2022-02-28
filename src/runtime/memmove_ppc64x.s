@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ppc64 || ppc64le
-// +build ppc64 ppc64le
 
 #include "textflag.h"
 
@@ -28,10 +27,12 @@
 // number of 32 byte chunks
 #define QWORDS R10
 
-TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	to+0(FP), TGT
 	MOVD	from+8(FP), SRC
 	MOVD	n+16(FP), LEN
+#endif
 
 	// Determine if there are doublewords to
 	// copy so a more efficient move can be done

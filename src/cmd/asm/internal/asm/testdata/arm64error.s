@@ -430,4 +430,6 @@ TEXT errors(SB),$0
 	STP	(R3, R4), 0x1234567(R27)                         // ERROR "REGTMP used in large offset store"
 	LDP	0x1234567(R27), (R3, R4)                         // ERROR "REGTMP used in large offset load"
 	STP	(R26, R27), 700(R2)                              // ERROR "cannot use REGTMP as source"
+	MOVK	$0, R10                                          // ERROR "zero shifts cannot be handled correctly"
+	MOVK	$(0<<32), R10                                    // ERROR "zero shifts cannot be handled correctly"
 	RET

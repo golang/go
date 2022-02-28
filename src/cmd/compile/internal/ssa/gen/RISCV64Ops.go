@@ -29,6 +29,7 @@ const (
 	riscv64REG_CTXT = 20
 	riscv64REG_LR   = 1
 	riscv64REG_SP   = 2
+	riscv64REG_GP   = 3
 	riscv64REG_TP   = 4
 	riscv64REG_TMP  = 31
 	riscv64REG_ZERO = 0
@@ -80,8 +81,8 @@ func init() {
 
 		// Add general purpose registers to gpMask.
 		switch r {
-		// ZERO, TP and TMP are not in any gp mask.
-		case riscv64REG_ZERO, riscv64REG_TP, riscv64REG_TMP:
+		// ZERO, GP, TP and TMP are not in any gp mask.
+		case riscv64REG_ZERO, riscv64REG_GP, riscv64REG_TP, riscv64REG_TMP:
 		case riscv64REG_G:
 			gpgMask |= mask
 			gpspsbgMask |= mask
@@ -240,10 +241,10 @@ func init() {
 		{name: "MOVconvert", argLength: 2, reg: gp11, asm: "MOV"}, // arg0, but converted to int/ptr as appropriate; arg1=mem
 
 		// Calls
-		{name: "CALLstatic", argLength: 1, reg: call, aux: "CallOff", call: true},         // call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
-		{name: "CALLtail", argLength: 1, reg: call, aux: "CallOff", call: true},           // tail call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: callClosure, aux: "CallOff", call: true}, // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: callInter, aux: "CallOff", call: true},     // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: call, aux: "CallOff", call: true},               // call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: 1, reg: call, aux: "CallOff", call: true, tailCall: true}, // tail call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: callClosure, aux: "CallOff", call: true},       // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: callInter, aux: "CallOff", call: true},           // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// duffzero
 		// arg0 = address of memory to zero (in X10, changed as side effect)

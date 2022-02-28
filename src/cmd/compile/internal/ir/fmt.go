@@ -1061,8 +1061,8 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		}
 	}
 
-	if n.Typecheck() != 0 {
-		fmt.Fprintf(w, " tc(%d)", n.Typecheck())
+	if n.Sym() != nil && n.Op() != ONAME && n.Op() != ONONAME && n.Op() != OTYPE {
+		fmt.Fprintf(w, " %+v", n.Sym())
 	}
 
 	// Print Node-specific fields of basic type in header line.
@@ -1131,6 +1131,9 @@ func dumpNodeHeader(w io.Writer, n Node) {
 			fmt.Fprintf(w, " type")
 		}
 		fmt.Fprintf(w, " %+v", n.Type())
+	}
+	if n.Typecheck() != 0 {
+		fmt.Fprintf(w, " tc(%d)", n.Typecheck())
 	}
 
 	if n.Pos().IsKnown() {
@@ -1246,13 +1249,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			dumpNodes(w, fn.Body, depth+1)
 		}
 		return
-	}
-
-	if n.Sym() != nil {
-		fmt.Fprintf(w, " %+v", n.Sym())
-	}
-	if n.Type() != nil {
-		fmt.Fprintf(w, " %+v", n.Type())
 	}
 
 	v := reflect.ValueOf(n).Elem()

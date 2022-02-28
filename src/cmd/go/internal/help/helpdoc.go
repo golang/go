@@ -506,6 +506,8 @@ General-purpose environment variables:
 	GOENV
 		The location of the Go environment configuration file.
 		Cannot be set using 'go env -w'.
+		Setting GOENV=off in the environment disables the use of the
+		default configuration file.
 	GOFLAGS
 		A space-separated list of -flag=value settings to apply
 		to go commands by default, when the given flag is known by
@@ -543,6 +545,14 @@ General-purpose environment variables:
 	GOVCS
 		Lists version control commands that may be used with matching servers.
 		See 'go help vcs'.
+	GOWORK
+		In module aware mode, use the given go.work file as a workspace file.
+		By default or when GOWORK is "auto", the go command searches for a
+		file named go.work in the current directory and then containing directories
+		until one is found. If a valid go.work file is found, the modules
+		specified will collectively be used as the main modules. If GOWORK
+		is "off", or a go.work file is not found in "auto" mode, workspace
+		mode is disabled.
 
 Environment variables for use with cgo:
 
@@ -595,7 +605,7 @@ Architecture-specific environment variables:
 	GOAMD64
 		For GOARCH=amd64, the microarchitecture level for which to compile.
 		Valid values are v1 (default), v2, v3, v4.
-		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
+		See https://golang.org/wiki/MinimumRequirements#amd64
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
@@ -774,6 +784,13 @@ depend on the updated C libraries.
 The go command also caches successful package test results.
 See 'go help test' for details. Running 'go clean -testcache' removes
 all cached test results (but not cached build results).
+
+The go command also caches values used in fuzzing with 'go test -fuzz',
+specifically, values that expanded code coverage when passed to a
+fuzz function. These values are not used for regular building and
+testing, but they're stored in a subdirectory of the build cache.
+Running 'go clean -fuzzcache' removes all cached fuzzing values.
+This may make fuzzing less effective, temporarily.
 
 The GODEBUG environment variable can enable printing of debugging
 information about the state of the cache:

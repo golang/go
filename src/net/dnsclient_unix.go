@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // DNS client: see RFC 1035.
 // Has to be linked into package net for Dial.
@@ -31,6 +30,10 @@ const (
 	// to be used as a useTCP parameter to exchange
 	useTCPOnly  = true
 	useUDPOrTCP = false
+
+	// Maximum DNS packet size.
+	// Value taken from https://dnsflagday.net/2020/.
+	maxDNSPacketSize = 1232
 )
 
 var (
@@ -83,7 +86,7 @@ func dnsPacketRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 		return dnsmessage.Parser{}, dnsmessage.Header{}, err
 	}
 
-	b = make([]byte, 512) // see RFC 1035
+	b = make([]byte, maxDNSPacketSize)
 	for {
 		n, err := c.Read(b)
 		if err != nil {

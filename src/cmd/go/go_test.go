@@ -13,6 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
+	"internal/godebug"
 	"internal/race"
 	"internal/testenv"
 	"io"
@@ -31,7 +32,6 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/robustio"
-	"cmd/go/internal/work"
 	"cmd/internal/sys"
 )
 
@@ -44,9 +44,12 @@ func init() {
 }
 
 var (
-	canRace = false // whether we can run the race detector
-	canCgo  = false // whether we can use cgo
-	canMSan = false // whether we can run the memory sanitizer
+	canRace          = false // whether we can run the race detector
+	canCgo           = false // whether we can use cgo
+	canMSan          = false // whether we can run the memory sanitizer
+	canASan          = false // whether we can run the address sanitizer
+	canFuzz          = false // whether we can search for new fuzz failures
+	fuzzInstrumented = false // whether fuzzing uses instrumentation
 )
 
 var exeSuffix string = func() string {
@@ -130,7 +133,7 @@ func TestMain(m *testing.M) {
 		}
 		gotool, err := testenv.GoTool()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, "locating go tool: ", err)
 			os.Exit(2)
 		}
 
@@ -198,6 +201,7 @@ func TestMain(m *testing.M) {
 		testGOCACHE = strings.TrimSpace(string(out))
 
 		canMSan = canCgo && sys.MSanSupported(runtime.GOOS, runtime.GOARCH)
+		canASan = canCgo && sys.ASanSupported(runtime.GOOS, runtime.GOARCH)
 		canRace = canCgo && sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
 		// The race detector doesn't work on Alpine Linux:
 		// golang.org/issue/14481
@@ -205,6 +209,8 @@ func TestMain(m *testing.M) {
 		if isAlpineLinux() || runtime.Compiler == "gccgo" {
 			canRace = false
 		}
+		canFuzz = sys.FuzzSupported(runtime.GOOS, runtime.GOARCH)
+		fuzzInstrumented = sys.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
 	}
 	// Don't let these environment variables confuse the test.
 	os.Setenv("GOENV", "off")
@@ -1122,11 +1128,11 @@ func TestGoListTest(t *testing.T) {
 	tg.grepStdoutNot(`^testing \[sort.test\]$`, "unexpected test copy of testing")
 	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
 
-	tg.run("list", "-test", "cmd/dist", "cmd/doc")
-	tg.grepStdout(`^cmd/dist$`, "missing cmd/dist")
+	tg.run("list", "-test", "cmd/buildid", "cmd/doc")
+	tg.grepStdout(`^cmd/buildid$`, "missing cmd/buildid")
 	tg.grepStdout(`^cmd/doc$`, "missing cmd/doc")
 	tg.grepStdout(`^cmd/doc\.test$`, "missing cmd/doc test")
-	tg.grepStdoutNot(`^cmd/dist\.test$`, "unexpected cmd/dist test")
+	tg.grepStdoutNot(`^cmd/buildid\.test$`, "unexpected cmd/buildid test")
 	tg.grepStdoutNot(`^testing`, "unexpected testing")
 
 	tg.run("list", "-test", "runtime/cgo")
@@ -1378,7 +1384,7 @@ func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
 		}`)
 	testStr := "test test test test test \n\\ "
 	var buf bytes.Buffer
-	for buf.Len() < work.ArgLengthForResponseFile+1 {
+	for buf.Len() < sys.ExecArgLengthLimit+1 {
 		buf.WriteString(testStr)
 	}
 	tg.run("run", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
@@ -2276,7 +2282,7 @@ func TestUpxCompression(t *testing.T) {
 
 func TestCacheListStale(t *testing.T) {
 	tooSlow(t)
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2299,7 +2305,7 @@ func TestCacheListStale(t *testing.T) {
 func TestCacheCoverage(t *testing.T) {
 	tooSlow(t)
 
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 
@@ -2331,7 +2337,7 @@ func TestIssue22588(t *testing.T) {
 
 func TestIssue22531(t *testing.T) {
 	tooSlow(t)
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2360,7 +2366,7 @@ func TestIssue22531(t *testing.T) {
 
 func TestIssue22596(t *testing.T) {
 	tooSlow(t)
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2390,7 +2396,7 @@ func TestIssue22596(t *testing.T) {
 func TestTestCache(t *testing.T) {
 	tooSlow(t)
 
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)

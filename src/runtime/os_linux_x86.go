@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && (386 || amd64)
-// +build linux
-// +build 386 amd64
 
 package runtime
 

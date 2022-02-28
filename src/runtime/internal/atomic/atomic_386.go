@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build 386
-// +build 386
 
 package atomic
 

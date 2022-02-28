@@ -9,7 +9,7 @@ package main
 import "fmt"
 
 func main() {
-	IsZero[interface{}]("")
+	IsZero[int](0)
 }
 
 func IsZero[T comparable](val T) bool {

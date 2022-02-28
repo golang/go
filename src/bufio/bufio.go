@@ -173,6 +173,10 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 	if n == 0 {
 		return
 	}
+
+	b.lastByte = -1
+	b.lastRuneSize = -1
+
 	remain := n
 	for {
 		skip := b.Buffered()
@@ -240,6 +244,8 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 	}
 
 	// copy as much as we can
+	// Note: if the slice panics here, it is probably because
+	// the underlying reader returned a bad count. See issue 49795.
 	n = copy(p, b.buf[b.r:b.w])
 	b.r += n
 	b.lastByte = int(b.buf[b.r-1])
@@ -266,8 +272,8 @@ func (b *Reader) ReadByte() (byte, error) {
 // UnreadByte unreads the last byte. Only the most recently read byte can be unread.
 //
 // UnreadByte returns an error if the most recent method called on the
-// Reader was not a read operation. Notably, Peek is not considered a
-// read operation.
+// Reader was not a read operation. Notably, Peek, Discard, and WriteTo are not
+// considered read operations.
 func (b *Reader) UnreadByte() error {
 	if b.lastByte < 0 || b.r == 0 && b.w > 0 {
 		return ErrInvalidUnreadByte
@@ -502,6 +508,9 @@ func (b *Reader) ReadString(delim byte) (string, error) {
 // If the underlying reader supports the WriteTo method,
 // this calls the underlying WriteTo without buffering.
 func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
+	b.lastByte = -1
+	b.lastRuneSize = -1
+
 	n, err = b.writeBuf(w)
 	if err != nil {
 		return
@@ -586,6 +595,8 @@ func NewWriterSize(w io.Writer, size int) *Writer {
 }
 
 // NewWriter returns a new Writer whose buffer has the default size.
+// If the argument io.Writer is already a Writer with large enough buffer size,
+// it returns the underlying Writer.
 func NewWriter(w io.Writer) *Writer {
 	return NewWriterSize(w, defaultBufSize)
 }
@@ -738,25 +749,26 @@ func (b *Writer) WriteString(s string) (int, error) {
 }
 
 // ReadFrom implements io.ReaderFrom. If the underlying writer
-// supports the ReadFrom method, and b has no buffered data yet,
-// this calls the underlying ReadFrom without buffering.
+// supports the ReadFrom method, this calls the underlying ReadFrom.
+// If there is buffered data and an underlying ReadFrom, this fills
+// the buffer and writes it before calling ReadFrom.
 func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 	if b.err != nil {
 		return 0, b.err
 	}
-	if b.Buffered() == 0 {
-		if w, ok := b.wr.(io.ReaderFrom); ok {
-			n, err = w.ReadFrom(r)
-			b.err = err
-			return n, err
-		}
-	}
+	readerFrom, readerFromOK := b.wr.(io.ReaderFrom)
 	var m int
 	for {
 		if b.Available() == 0 {
 			if err1 := b.Flush(); err1 != nil {
 				return n, err1
 			}
+		}
+		if readerFromOK && b.Buffered() == 0 {
+			nn, err := readerFrom.ReadFrom(r)
+			b.err = err
+			n += nn
+			return n, err
 		}
 		nr := 0
 		for nr < maxConsecutiveEmptyReads {

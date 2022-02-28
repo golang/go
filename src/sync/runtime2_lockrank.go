@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build goexperiment.staticlockranking
-// +build goexperiment.staticlockranking
 
 package sync
 

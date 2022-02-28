@@ -7,6 +7,7 @@ package time_test
 import (
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"math/rand"
 	"runtime"
 	"strings"
@@ -531,6 +532,10 @@ func TestZeroTimer(t *testing.T) {
 // Test that rapidly moving a timer earlier doesn't cause it to get dropped.
 // Issue 47329.
 func TestTimerModifiedEarlier(t *testing.T) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm" {
+		testenv.SkipFlaky(t, 50470)
+	}
+
 	past := Until(Unix(0, 0))
 	count := 1000
 	fail := 0

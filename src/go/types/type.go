@@ -7,119 +7,118 @@ package types
 // A Type represents a type of Go.
 // All types implement the Type interface.
 type Type interface {
-	// Underlying returns the underlying type of a type
-	// w/o following forwarding chains. Only used by
-	// client packages (here for backward-compatibility).
+	// Underlying returns the underlying type of a type.
 	Underlying() Type
 
 	// String returns a string representation of a type.
 	String() string
 }
 
-// top represents the top of the type lattice.
-// It is the underlying type of a type parameter that
-// can be satisfied by any type (ignoring methods),
-// because its type constraint contains no restrictions
-// besides methods.
-type top struct{}
-
-// theTop is the singleton top type.
-var theTop = &top{}
-
-func (t *top) Underlying() Type { return t }
-func (t *top) String() string   { return TypeString(t, nil) }
-
 // under returns the true expanded underlying type.
 // If it doesn't exist, the result is Typ[Invalid].
 // under must only be called when a type is known
 // to be fully set up.
 func under(t Type) Type {
-	if n := asNamed(t); n != nil {
-		return n.under()
+	if t, _ := t.(*Named); t != nil {
+		return t.under()
 	}
-	return t
+	return t.Underlying()
 }
 
-// optype returns a type's operational type. Except for
-// type parameters, the operational type is the same
-// as the underlying type (as returned by under). For
-// Type parameters, the operational type is the structural
-// type, if any; otherwise it's the top type.
-// The result is never the incoming type parameter.
-func optype(typ Type) Type {
-	if t := asTypeParam(typ); t != nil {
-		// TODO(gri) review accuracy of this comment
-		// If the optype is typ, return the top type as we have
-		// no information. It also prevents infinite recursion
-		// via the asTypeParam converter function. This can happen
-		// for a type parameter list of the form:
-		// (type T interface { type T }).
-		// See also issue #39680.
-		if u := t.structuralType(); u != nil {
-			assert(u != typ) // "naked" type parameters cannot be embedded
-			return u
+// If t is not a type parameter, coreType returns the underlying type.
+// If t is a type parameter, coreType returns the single underlying
+// type of all types in its type set if it exists, or nil otherwise. If the
+// type set contains only unrestricted and restricted channel types (with
+// identical element types), the single underlying type is the restricted
+// channel type if the restrictions are always the same, or nil otherwise.
+func coreType(t Type) Type {
+	tpar, _ := t.(*TypeParam)
+	if tpar == nil {
+		return under(t)
+	}
+
+	var su Type
+	if tpar.underIs(func(u Type) bool {
+		if u == nil {
+			return false
 		}
-		return theTop
+		if su != nil {
+			u = match(su, u)
+			if u == nil {
+				return false
+			}
+		}
+		// su == nil || match(su, u) != nil
+		su = u
+		return true
+	}) {
+		return su
 	}
-	return under(typ)
+	return nil
 }
 
-// Converters
-//
-// A converter must only be called when a type is
-// known to be fully set up. A converter returns
-// a type's operational type (see comment for optype)
-// or nil if the type argument is not of the
-// respective type.
-
-func asBasic(t Type) *Basic {
-	op, _ := optype(t).(*Basic)
-	return op
-}
-
-func asArray(t Type) *Array {
-	op, _ := optype(t).(*Array)
-	return op
-}
-
-func asSlice(t Type) *Slice {
-	op, _ := optype(t).(*Slice)
-	return op
-}
-
-func asStruct(t Type) *Struct {
-	op, _ := optype(t).(*Struct)
-	return op
-}
-
-func asPointer(t Type) *Pointer {
-	op, _ := optype(t).(*Pointer)
-	return op
-}
-
-func asSignature(t Type) *Signature {
-	op, _ := optype(t).(*Signature)
-	return op
-}
-
-// If the argument to asInterface, asNamed, or asTypeParam is of the respective type
-// (possibly after expanding an instance type), these methods return that type.
-// Otherwise the result is nil.
-
-func asInterface(t Type) *Interface {
-	op, _ := optype(t).(*Interface)
-	return op
-}
-
-func asNamed(t Type) *Named {
-	e, _ := t.(*Named)
-	if e != nil {
-		e.resolve(nil)
+// coreString is like coreType but also considers []byte
+// and strings as identical. In this case, if successful and we saw
+// a string, the result is of type (possibly untyped) string.
+func coreString(t Type) Type {
+	tpar, _ := t.(*TypeParam)
+	if tpar == nil {
+		return under(t) // string or untyped string
 	}
-	return e
+
+	var su Type
+	hasString := false
+	if tpar.underIs(func(u Type) bool {
+		if u == nil {
+			return false
+		}
+		if isString(u) {
+			u = NewSlice(universeByte)
+			hasString = true
+		}
+		if su != nil {
+			u = match(su, u)
+			if u == nil {
+				return false
+			}
+		}
+		// su == nil || match(su, u) != nil
+		su = u
+		return true
+	}) {
+		if hasString {
+			return Typ[String]
+		}
+		return su
+	}
+	return nil
 }
 
-func asTypeParam(t Type) *TypeParam {
-	u, _ := under(t).(*TypeParam)
-	return u
+// If x and y are identical, match returns x.
+// If x and y are identical channels but for their direction
+// and one of them is unrestricted, match returns the channel
+// with the restricted direction.
+// In all other cases, match returns nil.
+func match(x, y Type) Type {
+	// Common case: we don't have channels.
+	if Identical(x, y) {
+		return x
+	}
+
+	// We may have channels that differ in direction only.
+	if x, _ := x.(*Chan); x != nil {
+		if y, _ := y.(*Chan); y != nil && Identical(x.elem, y.elem) {
+			// We have channels that differ in direction only.
+			// If there's an unrestricted channel, select the restricted one.
+			switch {
+			case x.dir == SendRecv:
+				return y
+			case y.dir == SendRecv:
+				return x
+			}
+		}
+	}
+
+	// types are different
+	return nil
 }

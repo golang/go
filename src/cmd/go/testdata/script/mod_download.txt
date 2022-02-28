@@ -128,6 +128,50 @@ rm go.sum
 go mod download all
 cmp go.mod.update go.mod
 grep '^rsc.io/sampler v1.3.0 ' go.sum
+
+# https://golang.org/issue/44435: At go 1.17 or higher, 'go mod download'
+# (without arguments) should only download the modules explicitly required in
+# the go.mod file, not (presumed-irrelevant) transitive dependencies.
+#
+# (If the go.mod file is inconsistent, the version downloaded should be the
+# selected version from the broader graph, but the go.mod file will also be
+# updated to list the correct versions. If at some point we change 'go mod
+# download' to stop updating for consistency, then it should fail if the
+# requirements are inconsistent.)
+
+rm go.sum
+cp go.mod.orig go.mod
+go mod edit -go=1.17
+cp go.mod.update go.mod.go117
+go mod edit -go=1.17 go.mod.go117
+
+go clean -modcache
+go mod download
+cmp go.mod go.mod.go117
+
+go list -e -m all
+stdout '^rsc.io/quote v1.5.2$'
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+stdout '^rsc.io/sampler v1.3.0$'
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/sampler/@v/v1.2.1.zip
+exists $GOPATH/pkg/mod/cache/download/rsc.io/sampler/@v/v1.3.0.zip
+stdout '^golang\.org/x/text v0.0.0-20170915032832-14c0d48ead0c$'
+! exists $GOPATH/pkg/mod/cache/download/golang.org/x/text/@v/v0.0.0-20170915032832-14c0d48ead0c.zip
+cmp go.mod go.mod.go117
+
+# However, 'go mod download all' continues to download the selected version
+# of every module reported by 'go list -m all'.
+
+cp go.mod.orig go.mod
+go mod edit -go=1.17
+go clean -modcache
+go mod download all
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/sampler/@v/v1.2.1.zip
+exists $GOPATH/pkg/mod/cache/download/rsc.io/sampler/@v/v1.3.0.zip
+exists $GOPATH/pkg/mod/cache/download/golang.org/x/text/@v/v0.0.0-20170915032832-14c0d48ead0c.zip
+cmp go.mod go.mod.go117
+
 cd ..
 
 # allow go mod download without go.mod
