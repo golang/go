@@ -220,21 +220,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 	ir.SetPos(n.Ntype)
 
-	// Need to handle [...]T arrays specially.
-	if array, ok := n.Ntype.(*ir.ArrayType); ok && array.Elem != nil && array.Len == nil {
-		array.Elem = typecheckNtype(array.Elem)
-		elemType := array.Elem.Type()
-		if elemType == nil {
-			n.SetType(nil)
-			return n
-		}
-		length := typecheckarraylit(elemType, -1, n.List, "array literal")
-		n.SetOp(ir.OARRAYLIT)
-		n.SetType(types.NewArray(elemType, length))
-		n.Ntype = nil
-		return n
-	}
-
 	n.Ntype = typecheckNtype(n.Ntype)
 	t := n.Ntype.Type()
 	if t == nil {
