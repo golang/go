@@ -13,7 +13,7 @@ Usage: $0 [--sudo] [--short] [--version (semver|latest)]
 Args:
   --sudo     run docker with sudo
   --short    run `go test` with `-short`
-  --version  run on the specific tagged Go version (or latest) rather
+  --version  run on the specific tagged govim version (or latest) rather
              than the default branch
 
 Run govim tests against HEAD using local docker.
@@ -71,7 +71,7 @@ trap "rm -f \"${temp_gopls}\"" EXIT
 ${SUDO_IF_NEEDED}docker run --rm -t \
   -v "${tools_dir}:/src/tools" \
   -w "/src/tools/gopls" \
-  golang:latest \
+  golang:rc \
   go build -o $(basename ${temp_gopls})
 
 # Build the test harness. Here we are careful to pass in a very limited build
