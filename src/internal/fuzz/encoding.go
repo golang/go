@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"math"
 	"strconv"
 )
 
@@ -27,8 +28,20 @@ func marshalCorpusFile(vals ...any) []byte {
 	// instead of changing to byte and rune respectively.
 	for _, val := range vals {
 		switch t := val.(type) {
-		case int, int8, int16, int64, uint, uint16, uint32, uint64, float32, float64, bool:
+		case int, int8, int16, int64, uint, uint16, uint32, uint64, bool:
 			fmt.Fprintf(b, "%T(%v)\n", t, t)
+		case float32:
+			if math.IsNaN(float64(t)) && math.Float32bits(t) != math.Float32bits(float32(math.NaN())) {
+				fmt.Fprintf(b, "math.Float32frombits(%v)\n", math.Float32bits(t))
+			} else {
+				fmt.Fprintf(b, "%T(%v)\n", t, t)
+			}
+		case float64:
+			if math.IsNaN(t) && math.Float64bits(t) != math.Float64bits(math.NaN()) {
+				fmt.Fprintf(b, "math.Float64frombits(%v)\n", math.Float64bits(t))
+			} else {
+				fmt.Fprintf(b, "%T(%v)\n", t, t)
+			}
 		case string:
 			fmt.Fprintf(b, "string(%q)\n", t)
 		case rune: // int32
@@ -105,44 +118,78 @@ func parseCorpusValue(line []byte) (any, error) {
 		return []byte(s), nil
 	}
 
-	idType, ok := call.Fun.(*ast.Ident)
-	if !ok {
-		return nil, fmt.Errorf("expected []byte or primitive type")
-	}
-	if idType.Name == "bool" {
-		id, ok := arg.(*ast.Ident)
+	var idType *ast.Ident
+	if selector, ok := call.Fun.(*ast.SelectorExpr); ok {
+		xIdent, ok := selector.X.(*ast.Ident)
+		if !ok || xIdent.Name != "math" {
+			return nil, fmt.Errorf("invalid selector type")
+		}
+		switch selector.Sel.Name {
+		case "Float64frombits":
+			idType = &ast.Ident{Name: "float64-bits"}
+		case "Float32frombits":
+			idType = &ast.Ident{Name: "float32-bits"}
+		default:
+			return nil, fmt.Errorf("invalid selector type")
+		}
+	} else {
+		idType, ok = call.Fun.(*ast.Ident)
 		if !ok {
-			return nil, fmt.Errorf("malformed bool")
+			return nil, fmt.Errorf("expected []byte or primitive type")
 		}
-		if id.Name == "true" {
-			return true, nil
-		} else if id.Name == "false" {
-			return false, nil
-		} else {
-			return nil, fmt.Errorf("true or false required for type bool")
+		if idType.Name == "bool" {
+			id, ok := arg.(*ast.Ident)
+			if !ok {
+				return nil, fmt.Errorf("malformed bool")
+			}
+			if id.Name == "true" {
+				return true, nil
+			} else if id.Name == "false" {
+				return false, nil
+			} else {
+				return nil, fmt.Errorf("true or false required for type bool")
+			}
 		}
 	}
+
 	var (
 		val  string
 		kind token.Token
 	)
 	if op, ok := arg.(*ast.UnaryExpr); ok {
-		// Special case for negative numbers.
-		lit, ok := op.X.(*ast.BasicLit)
-		if !ok || (lit.Kind != token.INT && lit.Kind != token.FLOAT) {
+		switch lit := op.X.(type) {
+		case *ast.BasicLit:
+			if op.Op != token.SUB {
+				return nil, fmt.Errorf("unsupported operation on int/float: %v", op.Op)
+			}
+			// Special case for negative numbers.
+			val = op.Op.String() + lit.Value // e.g. "-" + "124"
+			kind = lit.Kind
+		case *ast.Ident:
+			if lit.Name != "Inf" {
+				return nil, fmt.Errorf("expected operation on int or float type")
+			}
+			if op.Op == token.SUB {
+				val = "-Inf"
+			} else {
+				val = "+Inf"
+			}
+			kind = token.FLOAT
+		default:
 			return nil, fmt.Errorf("expected operation on int or float type")
 		}
-		if op.Op != token.SUB {
-			return nil, fmt.Errorf("unsupported operation on int: %v", op.Op)
-		}
-		val = op.Op.String() + lit.Value // e.g. "-" + "124"
-		kind = lit.Kind
 	} else {
-		lit, ok := arg.(*ast.BasicLit)
-		if !ok {
+		switch lit := arg.(type) {
+		case *ast.BasicLit:
+			val, kind = lit.Value, lit.Kind
+		case *ast.Ident:
+			if lit.Name != "NaN" {
+				return nil, fmt.Errorf("literal value required for primitive type")
+			}
+			val, kind = "NaN", token.FLOAT
+		default:
 			return nil, fmt.Errorf("literal value required for primitive type")
 		}
-		val, kind = lit.Value, lit.Kind
 	}
 
 	switch typ := idType.Name; typ {
@@ -191,6 +238,24 @@ func parseCorpusValue(line []byte) (any, error) {
 			return nil, fmt.Errorf("float or integer literal required for float64 type")
 		}
 		return strconv.ParseFloat(val, 64)
+	case "float32-bits":
+		if kind != token.INT {
+			return nil, fmt.Errorf("integer literal required for math.Float32frombits type")
+		}
+		bits, err := parseUint(val, "uint32")
+		if err != nil {
+			return nil, err
+		}
+		return math.Float32frombits(bits.(uint32)), nil
+	case "float64-bits":
+		if kind != token.FLOAT && kind != token.INT {
+			return nil, fmt.Errorf("integer literal required for math.Float64frombits type")
+		}
+		bits, err := parseUint(val, "uint64")
+		if err != nil {
+			return nil, err
+		}
+		return math.Float64frombits(bits.(uint64)), nil
 	default:
 		return nil, fmt.Errorf("expected []byte or primitive type")
 	}
