@@ -1397,9 +1397,7 @@ func WriteBasicTypes() {
 		}
 		writeType(types.NewPtr(types.Types[types.TSTRING]))
 		writeType(types.NewPtr(types.Types[types.TUNSAFEPTR]))
-		if base.Flag.G > 0 {
-			writeType(types.AnyType)
-		}
+		writeType(types.AnyType)
 
 		// emit type structs for error and func(error) string.
 		// The latter is the type of an auto-generated wrapper.
