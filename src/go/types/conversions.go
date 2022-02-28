@@ -48,10 +48,13 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// have specific types, constant x cannot be
 		// converted.
 		ok = T.(*TypeParam).underIs(func(u Type) bool {
-			// t is nil if there are no specific type terms
+			// u is nil if there are no specific type terms
 			if u == nil {
 				cause = check.sprintf("%s does not contain specific types", T)
 				return false
+			}
+			if isString(x.typ) && isBytesOrRunes(u) {
+				return true
 			}
 			if !constConvertibleTo(u, nil) {
 				cause = check.sprintf("cannot convert %s to %s (in %s)", x, u, T)
