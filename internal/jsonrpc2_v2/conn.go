@@ -28,6 +28,15 @@ type Binder interface {
 	Bind(context.Context, *Connection) (ConnectionOptions, error)
 }
 
+// A BinderFunc implements the Binder interface for a standalone Bind function.
+type BinderFunc func(context.Context, *Connection) (ConnectionOptions, error)
+
+func (f BinderFunc) Bind(ctx context.Context, c *Connection) (ConnectionOptions, error) {
+	return f(ctx, c)
+}
+
+var _ Binder = BinderFunc(nil)
+
 // ConnectionOptions holds the options for new connections.
 type ConnectionOptions struct {
 	// Framer allows control over the message framing and encoding.

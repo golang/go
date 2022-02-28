@@ -47,6 +47,15 @@ type Preempter interface {
 	Preempt(ctx context.Context, req *Request) (result interface{}, err error)
 }
 
+// A PreempterFunc implements the Preempter interface for a standalone Preempt function.
+type PreempterFunc func(ctx context.Context, req *Request) (interface{}, error)
+
+func (f PreempterFunc) Preempt(ctx context.Context, req *Request) (interface{}, error) {
+	return f(ctx, req)
+}
+
+var _ Preempter = PreempterFunc(nil)
+
 // Handler handles messages on a connection.
 type Handler interface {
 	// Handle is invoked sequentially for each incoming request that has not
@@ -75,11 +84,14 @@ func (defaultHandler) Handle(context.Context, *Request) (interface{}, error) {
 	return nil, ErrNotHandled
 }
 
+// A HandlerFunc implements the Handler interface for a standalone Handle function.
 type HandlerFunc func(ctx context.Context, req *Request) (interface{}, error)
 
 func (f HandlerFunc) Handle(ctx context.Context, req *Request) (interface{}, error) {
 	return f(ctx, req)
 }
+
+var _ Handler = HandlerFunc(nil)
 
 // async is a small helper for operations with an asynchronous result that you
 // can wait for.
