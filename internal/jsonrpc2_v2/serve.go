@@ -7,6 +7,7 @@ package jsonrpc2
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"runtime"
 	"strings"
@@ -171,80 +172,121 @@ func isClosingError(err error) bool {
 }
 
 // NewIdleListener wraps a listener with an idle timeout.
-// When there are no active connections for at least the timeout duration a
-// call to accept will fail with ErrIdleTimeout.
+//
+// When there are no active connections for at least the timeout duration,
+// calls to Accept will fail with ErrIdleTimeout.
+//
+// A connection is considered inactive as soon as its Close method is called.
 func NewIdleListener(timeout time.Duration, wrap Listener) Listener {
 	l := &idleListener{
-		timeout:    timeout,
-		wrapped:    wrap,
-		newConns:   make(chan *idleCloser),
-		closed:     make(chan struct{}),
-		wasTimeout: make(chan struct{}),
+		wrapped:   wrap,
+		timeout:   timeout,
+		active:    make(chan int, 1),
+		timedOut:  make(chan struct{}),
+		idleTimer: make(chan *time.Timer, 1),
 	}
-	go l.run()
+	l.idleTimer <- time.AfterFunc(l.timeout, l.timerExpired)
 	return l
 }
 
 type idleListener struct {
-	wrapped    Listener
-	timeout    time.Duration
-	newConns   chan *idleCloser
-	closed     chan struct{}
-	wasTimeout chan struct{}
-	closeOnce  sync.Once
+	wrapped Listener
+	timeout time.Duration
+
+	// Only one of these channels is receivable at any given time.
+	active    chan int         // count of active connections; closed when Close is called if not timed out
+	timedOut  chan struct{}    // closed when the idle timer expires
+	idleTimer chan *time.Timer // holds the timer only when idle
 }
 
-type idleCloser struct {
-	wrapped   io.ReadWriteCloser
-	closed    chan struct{}
-	closeOnce sync.Once
-}
-
-func (c *idleCloser) Read(p []byte) (int, error) {
-	n, err := c.wrapped.Read(p)
-	if err != nil && isClosingError(err) {
-		c.closeOnce.Do(func() { close(c.closed) })
-	}
-	return n, err
-}
-
-func (c *idleCloser) Write(p []byte) (int, error) {
-	// we do not close on write failure, we rely on the wrapped writer to do that
-	// if it is appropriate, which we will detect in the next read.
-	return c.wrapped.Write(p)
-}
-
-func (c *idleCloser) Close() error {
-	// we rely on closing the wrapped stream to signal to the next read that we
-	// are closed, rather than triggering the closed signal directly
-	return c.wrapped.Close()
-}
-
+// Accept accepts an incoming connection.
+//
+// If an incoming connection is accepted concurrent to the listener being closed
+// due to idleness, the new connection is immediately closed.
 func (l *idleListener) Accept(ctx context.Context) (io.ReadWriteCloser, error) {
 	rwc, err := l.wrapped.Accept(ctx)
-	if err != nil {
-		if isClosingError(err) {
-			// underlying listener was closed
-			l.closeOnce.Do(func() { close(l.closed) })
-			// was it closed because of the idle timeout?
-			select {
-			case <-l.wasTimeout:
-				err = ErrIdleTimeout
-			default:
-			}
-		}
+
+	if err != nil && !isClosingError(err) {
 		return nil, err
 	}
-	conn := &idleCloser{
-		wrapped: rwc,
-		closed:  make(chan struct{}),
+
+	select {
+	case n, ok := <-l.active:
+		if err != nil {
+			if ok {
+				l.active <- n
+			}
+			return nil, err
+		}
+		if ok {
+			l.active <- n + 1
+		} else {
+			// l.wrapped.Close Close has been called, but Accept returned a
+			// connection. This race can occur with concurrent Accept and Close calls
+			// with any net.Listener, and it is benign: since the listener was closed
+			// explicitly, it can't have also timed out.
+		}
+		return l.newConn(rwc), nil
+
+	case <-l.timedOut:
+		if err == nil {
+			// Keeping the connection open would leave the listener simultaneously
+			// active and closed due to idleness, which would be contradictory and
+			// confusing. Close the connection and pretend that it never happened.
+			rwc.Close()
+		}
+		return nil, ErrIdleTimeout
+
+	case timer := <-l.idleTimer:
+		if err != nil {
+			// The idle timer hasn't run yet, so err can't be ErrIdleTimeout.
+			// Leave the idle timer as it was and return whatever error we got.
+			l.idleTimer <- timer
+			return nil, err
+		}
+
+		if !timer.Stop() {
+			// Failed to stop the timer — the timer goroutine is in the process of
+			// firing. Send the timer back to the timer goroutine so that it can
+			// safely close the timedOut channel, and then wait for the listener to
+			// actually be closed before we return ErrIdleTimeout.
+			l.idleTimer <- timer
+			rwc.Close()
+			<-l.timedOut
+			return nil, ErrIdleTimeout
+		}
+
+		l.active <- 1
+		return l.newConn(rwc), nil
 	}
-	l.newConns <- conn
-	return conn, err
 }
 
 func (l *idleListener) Close() error {
-	defer l.closeOnce.Do(func() { close(l.closed) })
+	select {
+	case _, ok := <-l.active:
+		if ok {
+			close(l.active)
+		}
+
+	case <-l.timedOut:
+		// Already closed by the timer; take care not to double-close if the caller
+		// only explicitly invokes this Close method once, since the io.Closer
+		// interface explicitly leaves doubled Close calls undefined.
+		return ErrIdleTimeout
+
+	case timer := <-l.idleTimer:
+		if !timer.Stop() {
+			// Couldn't stop the timer. It shouldn't take long to run, so just wait
+			// (so that the Listener is guaranteed to be closed before we return)
+			// and pretend that this call happened afterward.
+			// That way we won't leak any timers or goroutines when Close returns.
+			l.idleTimer <- timer
+			<-l.timedOut
+			return ErrIdleTimeout
+		}
+		close(l.active)
+	}
+
 	return l.wrapped.Close()
 }
 
@@ -252,31 +294,83 @@ func (l *idleListener) Dialer() Dialer {
 	return l.wrapped.Dialer()
 }
 
-func (l *idleListener) run() {
-	var conns []*idleCloser
-	for {
-		var firstClosed chan struct{} // left at nil if there are no active conns
-		var timeout <-chan time.Time  // left at nil if there are  active conns
-		if len(conns) > 0 {
-			firstClosed = conns[0].closed
+func (l *idleListener) timerExpired() {
+	select {
+	case n, ok := <-l.active:
+		if ok {
+			panic(fmt.Sprintf("jsonrpc2: idleListener idle timer fired with %d connections still active", n))
 		} else {
-			timeout = time.After(l.timeout)
+			panic("jsonrpc2: Close finished with idle timer still running")
 		}
-		select {
-		case <-l.closed:
-			// the main listener closed, no need to keep going
-			return
-		case conn := <-l.newConns:
-			// a new conn arrived, add it to the list
-			conns = append(conns, conn)
-		case <-timeout:
-			// we timed out, only happens when there are no active conns
-			// close the underlying listener, and allow the normal closing process to happen
-			close(l.wasTimeout)
-			l.wrapped.Close()
-		case <-firstClosed:
-			// a conn closed, remove it from the active list
-			conns = conns[:copy(conns, conns[1:])]
-		}
+
+	case <-l.timedOut:
+		panic("jsonrpc2: idleListener idle timer fired more than once")
+
+	case <-l.idleTimer:
+		// The timer for this very call!
 	}
+
+	// Close the Listener with all channels still blocked to ensure that this call
+	// to l.wrapped.Close doesn't race with the one in l.Close.
+	defer close(l.timedOut)
+	l.wrapped.Close()
+}
+
+func (l *idleListener) connClosed() {
+	select {
+	case n, ok := <-l.active:
+		if !ok {
+			// l is already closed, so it can't close due to idleness,
+			// and we don't need to track the number of active connections any more.
+			return
+		}
+		n--
+		if n == 0 {
+			l.idleTimer <- time.AfterFunc(l.timeout, l.timerExpired)
+		} else {
+			l.active <- n
+		}
+
+	case <-l.timedOut:
+		panic("jsonrpc2: idleListener idle timer fired before last active connection was closed")
+
+	case <-l.idleTimer:
+		panic("jsonrpc2: idleListener idle timer active before last active connection was closed")
+	}
+}
+
+type idleListenerConn struct {
+	wrapped   io.ReadWriteCloser
+	l         *idleListener
+	closeOnce sync.Once
+}
+
+func (l *idleListener) newConn(rwc io.ReadWriteCloser) *idleListenerConn {
+	c := &idleListenerConn{
+		wrapped: rwc,
+		l:       l,
+	}
+
+	// A caller that forgets to call Close may disrupt the idleListener's
+	// accounting, even though the file descriptor for the underlying connection
+	// may eventually be garbage-collected anyway.
+	//
+	// Set a (best-effort) finalizer to verify that a Close call always occurs.
+	// (We will clear the finalizer explicitly in Close.)
+	runtime.SetFinalizer(c, func(c *idleListenerConn) {
+		panic("jsonrpc2: IdleListener connection became unreachable without a call to Close")
+	})
+
+	return c
+}
+
+func (c *idleListenerConn) Read(p []byte) (int, error)  { return c.wrapped.Read(p) }
+func (c *idleListenerConn) Write(p []byte) (int, error) { return c.wrapped.Write(p) }
+
+func (c *idleListenerConn) Close() error {
+	defer c.closeOnce.Do(func() {
+		c.l.connClosed()
+		runtime.SetFinalizer(c, nil)
+	})
+	return c.wrapped.Close()
 }

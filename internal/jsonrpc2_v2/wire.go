@@ -76,3 +76,11 @@ func NewError(code int64, message string) error {
 func (err *wireError) Error() string {
 	return err.Message
 }
+
+func (err *wireError) Is(other error) bool {
+	w, ok := other.(*wireError)
+	if !ok {
+		return false
+	}
+	return err.Code == w.Code
+}
