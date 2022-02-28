@@ -46,6 +46,26 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p>
+  While we believe that the new language features are well designed
+  and clearly specified, it is possible that we have made mistakes.
+  We want to stress that the <a href="/doc/go1compat">Go 1
+  compatibility guarantee</a> says "If it becomes necessary to address
+  an inconsistency or incompleteness in the specification, resolving
+  the issue could affect the meaning or legality of existing
+  programs. We reserve the right to address such issues, including
+  updating the implementations." It also says "If a compiler or
+  library has a bug that violates the specification, a program that
+  depends on the buggy behavior may break if the bug is fixed. We
+  reserve the right to fix such bugs." In other words, it is possible
+  that there will be code using generics that will work with the 1.18
+  release but break in later releases. We do not plan or expect to
+  make any such change. However, breaking 1.18 programs in future
+  releases may become necessary for reasons that we cannot today
+  foresee. We will minimize any such breakage as much as possible, but
+  we can't guarantee that the breakage will be zero.
+</p>
+
+<p>
   The following is a list of the most visible changes. For a more comprehensive overview, see the
   <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">proposal</a>.
   For details see the <a href="/ref/spec">language spec</a>.
