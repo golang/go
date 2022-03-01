@@ -16,6 +16,7 @@ import (
 	"sort"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/importer"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
@@ -80,7 +81,7 @@ func unified(noders []*noder) {
 
 		// Read package descriptors for both types2 and compiler backend.
 		readPackage(newPkgReader(pr), pkg1)
-		pkg2 = readPackage2(ctxt, packages, pr)
+		pkg2 = importer.ReadPackage(ctxt, packages, pr)
 		return
 	}
 
