@@ -19,39 +19,57 @@ contain that single module. Otherwise, you are working with multiple modules.
 
 ### Multiple modules
 
-As of Jan 2021, if you are working with multiple modules or nested modules, you
-will need to create a "workspace folder" for each module. This means that each
-module has its own scope, and features will not work across modules. We are
-currently working on addressing this limitation--see details about
-[experimental workspace module mode](#workspace-module-experimental)
-below.
+Gopls has several alternatives for working on multiple modules simultaneously,
+described below. Starting with Go 1.18, Go workspaces are the preferred solution.
+
+#### Go workspaces (Go 1.18+)
+
+Starting with Go 1.18, the `go` command has native support for multi-module
+workspaces, via [`go.work`](https://go.dev/ref/mod#workspaces) files. These
+files are recognized by gopls starting with `gopls@v0.8.0`.
+
+The easiest way to work on multiple modules in Go 1.18 and later is therefore
+to create a `go.work` file containing the modules you wish to work on, and set
+your workspace root to the directory containing the `go.work` file.
+
+For example, to work on both modules in this repo (`golang.org/x/tools` and
+`golang.org/x/tools/gopls`), the following suffices:
+
+```
+go work init
+go work use . gopls
+```
+
+...followed by opening up the repo root.
+
+#### Experimental workspace module (Go 1.17 and earlier)
+
+With earlier versions of Go, `gopls` can simulate multi-module workspaces by
+creating a synthetic module requiring the the modules in the workspace root.
+See [the design document](https://github.com/golang/proposal/blob/master/design/37720-gopls-workspaces.md)
+for more information.
+
+This feature is experimental, and will eventually be removed once `go.work`
+files are accepted by all supported Go versions.
+
+You can enable this feature by configuring the
+[experimentalWorkspaceModule](settings.md#experimentalworkspacemodule-bool)
+setting.
+
+#### Multiple workspace folders
+
+If neither of the above solutions work, and your editor allows configuring the
+set of
+["workspace folders"](https://microsoft.github.io/language-server-protocol/specifications/specification-3-17/#workspaceFolder)
+used during your LSP session, you can still work on multiple modules by adding
+a workspace folder at each module root (the locations of `go.mod` files). This
+means that each module has its own scope, and features will not work across
+modules. 
 
 In VS Code, you can create a workspace folder by setting up a
 [multi-root workspace](https://code.visualstudio.com/docs/editor/multi-root-workspaces).
 View the [documentation for your editor plugin](../README.md#editor) to learn how to
 configure a workspace folder in your editor.
-
-#### Workspace module (experimental)
-
-Many `gopls` users would like to work with multiple modules at the same time
-([golang/go#32394](https://github.com/golang/go/issues/32394)), and
-specifically, have features that work across modules. We plan to add support
-for this via a concept called the "workspace module", which is described in
-[this design document](https://github.com/golang/proposal/blob/master/design/37720-gopls-workspaces.md).
-This feature works by creating a temporary module that requires all of your
-workspace modules, meaning all of their dependencies must be compatible.
-
-The workspace module feature is currently available as an opt-in experiment,
-and it will allow you to work with multiple modules without creating workspace
-folders for each module. You can try it out by configuring the
-[experimentalWorkspaceModule](settings.md#experimentalworkspacemodule-bool)
-setting. If you try it and encounter issues, please
-[report them](https://github.com/golang/go/issues/new) so we can address them
-before the feature is enabled by default.
-
-You can follow our progress on the workspace module work by looking at the
-open issues in the
-[gopls/workspace-module milestone](https://github.com/golang/go/milestone/179).
 
 ### GOPATH mode
 
