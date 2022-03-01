@@ -74,6 +74,7 @@ type Connection struct {
 	handler Handler
 
 	onInternalError func(error)
+	onDone          func()
 }
 
 // inFlightState records the state of the incoming and outgoing calls on a
@@ -113,6 +114,9 @@ func (c *Connection) updateInFlight(f func(*inFlightState)) {
 	idle := s.incoming == 0 && len(s.outgoing) == 0 && !s.handlerRunning
 	if idle && (s.closing || s.readErr != nil) && !s.closed {
 		c.closeErr <- c.closer.Close()
+		if c.onDone != nil {
+			c.onDone()
+		}
 		s.closed = true
 	}
 }
@@ -131,8 +135,13 @@ func (o ConnectionOptions) Bind(context.Context, *Connection) (ConnectionOptions
 }
 
 // newConnection creates a new connection and runs it.
+//
 // This is used by the Dial and Serve functions to build the actual connection.
-func newConnection(bindCtx context.Context, rwc io.ReadWriteCloser, binder Binder) (*Connection, error) {
+//
+// The connection is closed automatically (and its resources cleaned up) when
+// the last request has completed after the underlying ReadWriteCloser breaks,
+// but it may be stopped earlier by calling Close (for a clean shutdown).
+func newConnection(bindCtx context.Context, rwc io.ReadWriteCloser, binder Binder, onDone func()) (*Connection, error) {
 	// TODO: Should we create a new event span here?
 	// This will propagate cancellation from ctx; should it?
 	ctx := notDone{bindCtx}
@@ -141,6 +150,7 @@ func newConnection(bindCtx context.Context, rwc io.ReadWriteCloser, binder Binde
 		closer:   rwc,
 		closeErr: make(chan error, 1),
 		writer:   make(chan Writer, 1),
+		onDone:   onDone,
 	}
 
 	options, err := binder.Bind(bindCtx, c)

@@ -54,7 +54,7 @@ func Dial(ctx context.Context, dialer Dialer, binder Binder) (*Connection, error
 	if err != nil {
 		return nil, err
 	}
-	return newConnection(ctx, rwc, binder)
+	return newConnection(ctx, rwc, binder, nil)
 }
 
 // Serve starts a new server listening for incoming connections and returns
@@ -84,25 +84,25 @@ func (s *Server) Wait() error {
 // duration, otherwise it exits only on error.
 func (s *Server) run(ctx context.Context) {
 	defer s.async.done()
-	var activeConns []*Connection
+
+	var activeConns sync.WaitGroup
 	for {
-		// we never close the accepted connection, we rely on the other end
-		// closing or the socket closing itself naturally
+		// We never close the accepted connection — we rely on the other end
+		// closing or the socket closing itself naturally.
 		rwc, err := s.listener.Accept(ctx)
 		if err != nil {
 			if !isClosingError(err) {
 				s.async.setError(err)
 			}
-			// we are done generating new connections for good
+			// We are done generating new connections for good.
 			break
 		}
 
-		// see if any connections were closed while we were waiting
-		activeConns = onlyActive(activeConns)
-
-		// a new inbound connection,
-		conn, err := newConnection(ctx, rwc, s.binder)
+		// A new inbound connection.
+		activeConns.Add(1)
+		_, err = newConnection(ctx, rwc, s.binder, activeConns.Done)
 		if err != nil {
+			activeConns.Done()
 			if !isClosingError(err) {
 				s.async.setError(err)
 				s.listener.Close()
@@ -110,27 +110,8 @@ func (s *Server) run(ctx context.Context) {
 			}
 			continue
 		}
-		activeConns = append(activeConns, conn)
 	}
-
-	// wait for all active conns to finish
-	for _, c := range activeConns {
-		c.Wait()
-	}
-}
-
-func onlyActive(conns []*Connection) []*Connection {
-	i := 0
-	for _, c := range conns {
-		c.updateInFlight(func(s *inFlightState) {
-			if !s.closed {
-				conns[i] = c
-				i++
-			}
-		})
-	}
-	// trim the slice down
-	return conns[:i]
+	activeConns.Wait()
 }
 
 // isClosingError reports if the error occurs normally during the process of
