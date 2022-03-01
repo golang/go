@@ -175,9 +175,25 @@ func (c *Connection) Call(ctx context.Context, method string, params interface{}
 	// are racing the response.
 	// rchan is buffered in case the response arrives without a listener.
 	result.response = make(chan *Response, 1)
-	pending := <-c.outgoingBox
-	pending[result.id] = result.response
-	c.outgoingBox <- pending
+	outgoing, ok := <-c.outgoingBox
+	if !ok {
+		// If the call failed due to (say) an I/O error or broken pipe, attribute it
+		// as such. (If the error is nil, then the connection must have been shut
+		// down cleanly.)
+		err := c.async.wait()
+		if err == nil {
+			err = ErrClientClosing
+		}
+
+		resp, respErr := NewResponse(result.id, nil, err)
+		if respErr != nil {
+			panic(fmt.Errorf("unexpected error from NewResponse: %w", respErr))
+		}
+		result.response <- resp
+		return result
+	}
+	outgoing[result.id] = result.response
+	c.outgoingBox <- outgoing
 	// now we are ready to send
 	if err := c.write(ctx, call); err != nil {
 		// sending failed, we will never get a response, so deliver a fake one
@@ -290,8 +306,19 @@ func (c *Connection) Close() error {
 
 // readIncoming collects inbound messages from the reader and delivers them, either responding
 // to outgoing calls or feeding requests to the queue.
-func (c *Connection) readIncoming(ctx context.Context, reader Reader, toQueue chan<- *incoming) {
-	defer close(toQueue)
+func (c *Connection) readIncoming(ctx context.Context, reader Reader, toQueue chan<- *incoming) (err error) {
+	defer func() {
+		// Retire any outgoing requests that were still in flight.
+		// With the Reader no longer being processed, they necessarily cannot receive a response.
+		outgoing := <-c.outgoingBox
+		close(c.outgoingBox) // Prevent new outgoing requests, which would deadlock.
+		for id, responseBox := range outgoing {
+			responseBox <- &Response{ID: id, Error: err}
+		}
+
+		close(toQueue)
+	}()
+
 	for {
 		// get the next message
 		// no lock is needed, this is the only reader
@@ -301,7 +328,7 @@ func (c *Connection) readIncoming(ctx context.Context, reader Reader, toQueue ch
 			if !isClosingError(err) {
 				c.async.setError(err)
 			}
-			return
+			return err
 		}
 		switch msg := msg.(type) {
 		case *Request:
@@ -340,12 +367,12 @@ func (c *Connection) readIncoming(ctx context.Context, reader Reader, toQueue ch
 }
 
 func (c *Connection) incomingResponse(msg *Response) {
-	pending := <-c.outgoingBox
-	response, ok := pending[msg.ID]
-	if ok {
-		delete(pending, msg.ID)
+	var response chan<- *Response
+	if outgoing, ok := <-c.outgoingBox; ok {
+		response = outgoing[msg.ID]
+		delete(outgoing, msg.ID)
+		c.outgoingBox <- outgoing
 	}
-	c.outgoingBox <- pending
 	if response != nil {
 		response <- msg
 	}
