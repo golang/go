@@ -37,6 +37,10 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 
 	r := strings.NewReader(input)
 
+	var version uint32
+	assert(binary.Read(r, binary.LittleEndian, &version) == nil)
+	assert(version == 0)
+
 	assert(binary.Read(r, binary.LittleEndian, pr.elemEndsEnds[:]) == nil)
 
 	pr.elemEnds = make([]uint32, pr.elemEndsEnds[len(pr.elemEndsEnds)-1])

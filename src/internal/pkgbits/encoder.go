@@ -35,6 +35,8 @@ func (pw *PkgEncoder) DumpTo(out io.Writer) {
 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
 	}
 
+	writeUint32(0) // version
+
 	var sum uint32
 	for _, elems := range &pw.elems {
 		sum += uint32(len(elems))
