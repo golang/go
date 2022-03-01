@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package noder
+package importer
 
 import (
 	"cmd/compile/internal/base"
@@ -14,7 +14,7 @@ import (
 	"internal/pkgbits"
 )
 
-type pkgReader2 struct {
+type pkgReader struct {
 	pkgbits.PkgDecoder
 
 	ctxt    *types2.Context
@@ -25,8 +25,8 @@ type pkgReader2 struct {
 	typs     []types2.Type
 }
 
-func readPackage2(ctxt *types2.Context, imports map[string]*types2.Package, input pkgbits.PkgDecoder) *types2.Package {
-	pr := pkgReader2{
+func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input pkgbits.PkgDecoder) *types2.Package {
+	pr := pkgReader{
 		PkgDecoder: input,
 
 		ctxt:    ctxt,
@@ -56,15 +56,15 @@ func readPackage2(ctxt *types2.Context, imports map[string]*types2.Package, inpu
 	return pkg
 }
 
-type reader2 struct {
+type reader struct {
 	pkgbits.Decoder
 
-	p *pkgReader2
+	p *pkgReader
 
-	dict *reader2Dict
+	dict *readerDict
 }
 
-type reader2Dict struct {
+type readerDict struct {
 	bounds []typeInfo
 
 	tparams []*types2.TypeParam
@@ -73,13 +73,13 @@ type reader2Dict struct {
 	derivedTypes []types2.Type
 }
 
-type reader2TypeBound struct {
+type readerTypeBound struct {
 	derived  bool
 	boundIdx int
 }
 
-func (pr *pkgReader2) newReader(k pkgbits.RelocKind, idx int, marker pkgbits.SyncMarker) *reader2 {
-	return &reader2{
+func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx int, marker pkgbits.SyncMarker) *reader {
+	return &reader{
 		Decoder: pr.NewDecoder(k, idx, marker),
 		p:       pr,
 	}
@@ -87,7 +87,7 @@ func (pr *pkgReader2) newReader(k pkgbits.RelocKind, idx int, marker pkgbits.Syn
 
 // @@@ Positions
 
-func (r *reader2) pos() syntax.Pos {
+func (r *reader) pos() syntax.Pos {
 	r.Sync(pkgbits.SyncPos)
 	if !r.Bool() {
 		return syntax.Pos{}
@@ -100,11 +100,11 @@ func (r *reader2) pos() syntax.Pos {
 	return syntax.MakePos(posBase, line, col)
 }
 
-func (r *reader2) posBase() *syntax.PosBase {
+func (r *reader) posBase() *syntax.PosBase {
 	return r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase))
 }
 
-func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
+func (pr *pkgReader) posBaseIdx(idx int) *syntax.PosBase {
 	if b := pr.posBases[idx]; b != nil {
 		return b
 	}
@@ -129,12 +129,12 @@ func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
 
 // @@@ Packages
 
-func (r *reader2) pkg() *types2.Package {
+func (r *reader) pkg() *types2.Package {
 	r.Sync(pkgbits.SyncPkg)
 	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
 }
 
-func (pr *pkgReader2) pkgIdx(idx int) *types2.Package {
+func (pr *pkgReader) pkgIdx(idx int) *types2.Package {
 	// TODO(mdempsky): Consider using some non-nil pointer to indicate
 	// the universe scope, so we don't need to keep re-reading it.
 	if pkg := pr.pkgs[idx]; pkg != nil {
@@ -146,7 +146,7 @@ func (pr *pkgReader2) pkgIdx(idx int) *types2.Package {
 	return pkg
 }
 
-func (r *reader2) doPkg() *types2.Package {
+func (r *reader) doPkg() *types2.Package {
 	path := r.String()
 	if path == "builtin" {
 		return nil // universe
@@ -178,11 +178,11 @@ func (r *reader2) doPkg() *types2.Package {
 
 // @@@ Types
 
-func (r *reader2) typ() types2.Type {
+func (r *reader) typ() types2.Type {
 	return r.p.typIdx(r.typInfo(), r.dict)
 }
 
-func (r *reader2) typInfo() typeInfo {
+func (r *reader) typInfo() typeInfo {
 	r.Sync(pkgbits.SyncType)
 	if r.Bool() {
 		return typeInfo{idx: r.Len(), derived: true}
@@ -190,7 +190,7 @@ func (r *reader2) typInfo() typeInfo {
 	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
 }
 
-func (pr *pkgReader2) typIdx(info typeInfo, dict *reader2Dict) types2.Type {
+func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types2.Type {
 	idx := info.idx
 	var where *types2.Type
 	if info.derived {
@@ -219,7 +219,7 @@ func (pr *pkgReader2) typIdx(info typeInfo, dict *reader2Dict) types2.Type {
 	return typ
 }
 
-func (r *reader2) doTyp() (res types2.Type) {
+func (r *reader) doTyp() (res types2.Type) {
 	switch tag := pkgbits.CodeType(r.Code(pkgbits.SyncType)); tag {
 	default:
 		base.FatalfAt(src.NoXPos, "unhandled type tag: %v", tag)
@@ -263,7 +263,7 @@ func (r *reader2) doTyp() (res types2.Type) {
 	}
 }
 
-func (r *reader2) structType() *types2.Struct {
+func (r *reader) structType() *types2.Struct {
 	fields := make([]*types2.Var, r.Len())
 	var tags []string
 	for i := range fields {
@@ -284,7 +284,7 @@ func (r *reader2) structType() *types2.Struct {
 	return types2.NewStruct(fields, tags)
 }
 
-func (r *reader2) unionType() *types2.Union {
+func (r *reader) unionType() *types2.Union {
 	terms := make([]*types2.Term, r.Len())
 	for i := range terms {
 		terms[i] = types2.NewTerm(r.Bool(), r.typ())
@@ -292,7 +292,7 @@ func (r *reader2) unionType() *types2.Union {
 	return types2.NewUnion(terms)
 }
 
-func (r *reader2) interfaceType() *types2.Interface {
+func (r *reader) interfaceType() *types2.Interface {
 	methods := make([]*types2.Func, r.Len())
 	embeddeds := make([]types2.Type, r.Len())
 	implicit := len(methods) == 0 && len(embeddeds) == 1 && r.Bool()
@@ -315,7 +315,7 @@ func (r *reader2) interfaceType() *types2.Interface {
 	return iface
 }
 
-func (r *reader2) signature(recv *types2.Var, rtparams, tparams []*types2.TypeParam) *types2.Signature {
+func (r *reader) signature(recv *types2.Var, rtparams, tparams []*types2.TypeParam) *types2.Signature {
 	r.Sync(pkgbits.SyncSignature)
 
 	params := r.params()
@@ -325,7 +325,7 @@ func (r *reader2) signature(recv *types2.Var, rtparams, tparams []*types2.TypePa
 	return types2.NewSignatureType(recv, rtparams, tparams, params, results, variadic)
 }
 
-func (r *reader2) params() *types2.Tuple {
+func (r *reader) params() *types2.Tuple {
 	r.Sync(pkgbits.SyncParams)
 	params := make([]*types2.Var, r.Len())
 	for i := range params {
@@ -334,7 +334,7 @@ func (r *reader2) params() *types2.Tuple {
 	return types2.NewTuple(params...)
 }
 
-func (r *reader2) param() *types2.Var {
+func (r *reader) param() *types2.Var {
 	r.Sync(pkgbits.SyncParam)
 
 	pos := r.pos()
@@ -346,7 +346,7 @@ func (r *reader2) param() *types2.Var {
 
 // @@@ Objects
 
-func (r *reader2) obj() (types2.Object, []types2.Type) {
+func (r *reader) obj() (types2.Object, []types2.Type) {
 	r.Sync(pkgbits.SyncObject)
 
 	assert(!r.Bool())
@@ -362,7 +362,7 @@ func (r *reader2) obj() (types2.Object, []types2.Type) {
 	return obj, targs
 }
 
-func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+func (pr *pkgReader) objIdx(idx int) (*types2.Package, string) {
 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 
 	objPkg, objName := rname.qualifiedIdent()
@@ -432,10 +432,10 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 	return objPkg, objName
 }
 
-func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
+func (pr *pkgReader) objDictIdx(idx int) *readerDict {
 	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
-	var dict reader2Dict
+	var dict readerDict
 
 	if implicits := r.Len(); implicits != 0 {
 		base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
@@ -452,17 +452,17 @@ func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
 		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
 	}
 
-	// function references follow, but reader2 doesn't need those
+	// function references follow, but reader doesn't need those
 
 	return &dict
 }
 
-func (r *reader2) typeParamNames() []*types2.TypeParam {
+func (r *reader) typeParamNames() []*types2.TypeParam {
 	r.Sync(pkgbits.SyncTypeParamNames)
 
 	// Note: This code assumes it only processes objects without
 	// implement type parameters. This is currently fine, because
-	// reader2 is only used to read in exported declarations, which are
+	// reader is only used to read in exported declarations, which are
 	// always package scoped.
 
 	if len(r.dict.bounds) == 0 {
@@ -490,7 +490,7 @@ func (r *reader2) typeParamNames() []*types2.TypeParam {
 	return r.dict.tparams
 }
 
-func (r *reader2) method() *types2.Func {
+func (r *reader) method() *types2.Func {
 	r.Sync(pkgbits.SyncMethod)
 	pos := r.pos()
 	pkg, name := r.selector()
@@ -502,11 +502,11 @@ func (r *reader2) method() *types2.Func {
 	return types2.NewFunc(pos, pkg, name, sig)
 }
 
-func (r *reader2) qualifiedIdent() (*types2.Package, string) { return r.ident(pkgbits.SyncSym) }
-func (r *reader2) localIdent() (*types2.Package, string)     { return r.ident(pkgbits.SyncLocalIdent) }
-func (r *reader2) selector() (*types2.Package, string)       { return r.ident(pkgbits.SyncSelector) }
+func (r *reader) qualifiedIdent() (*types2.Package, string) { return r.ident(pkgbits.SyncSym) }
+func (r *reader) localIdent() (*types2.Package, string)     { return r.ident(pkgbits.SyncLocalIdent) }
+func (r *reader) selector() (*types2.Package, string)       { return r.ident(pkgbits.SyncSelector) }
 
-func (r *reader2) ident(marker pkgbits.SyncMarker) (*types2.Package, string) {
+func (r *reader) ident(marker pkgbits.SyncMarker) (*types2.Package, string) {
 	r.Sync(marker)
 	return r.pkg(), r.String()
 }
