@@ -28,6 +28,7 @@ func TestIdleTimeout(t *testing.T) {
 		panic("TestIdleTimeout deadlocked")
 	})
 	defer timer.Stop()
+
 	ctx := context.Background()
 
 	try := func(d time.Duration) (longEnough bool) {
@@ -149,8 +150,7 @@ func (fakeHandler) Handle(ctx context.Context, req *jsonrpc2.Request) (interface
 
 func TestServe(t *testing.T) {
 	stacktest.NoLeak(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	tests := []struct {
 		name    string
@@ -187,7 +187,6 @@ func TestServe(t *testing.T) {
 }
 
 func newFake(t *testing.T, ctx context.Context, l jsonrpc2.Listener) (*jsonrpc2.Connection, func(), error) {
-	l = jsonrpc2.NewIdleListener(100*time.Millisecond, l)
 	server, err := jsonrpc2.Serve(ctx, l, jsonrpc2.ConnectionOptions{
 		Handler: fakeHandler{},
 	})

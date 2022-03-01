@@ -11,7 +11,6 @@ import (
 	"path"
 	"reflect"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/internal/event/export/eventtest"
 	jsonrpc2 "golang.org/x/tools/internal/jsonrpc2_v2"
@@ -370,8 +369,6 @@ func (h *handler) Handle(ctx context.Context, req *jsonrpc2.Request) (interface{
 			return true, nil
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(time.Second):
-			return nil, fmt.Errorf("wait for %q timed out", name)
 		}
 	case "fork":
 		var name string
@@ -385,8 +382,6 @@ func (h *handler) Handle(ctx context.Context, req *jsonrpc2.Request) (interface{
 				h.conn.Respond(req.ID, true, nil)
 			case <-ctx.Done():
 				h.conn.Respond(req.ID, nil, ctx.Err())
-			case <-time.After(time.Second):
-				h.conn.Respond(req.ID, nil, fmt.Errorf("wait for %q timed out", name))
 			}
 		}()
 		return nil, jsonrpc2.ErrAsyncResponse
