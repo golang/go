@@ -130,6 +130,9 @@ type Snapshot interface {
 	// GoModForFile returns the URI of the go.mod file for the given URI.
 	GoModForFile(uri span.URI) span.URI
 
+	// WorkFile, if non-empty, is the go.work file for the workspace.
+	WorkFile() span.URI
+
 	// ParseWork is used to parse go.work files.
 	ParseWork(ctx context.Context, fh FileHandle) (*ParsedWorkFile, error)
 
@@ -656,6 +659,7 @@ const (
 	OptimizationDetailsError DiagnosticSource = "optimizer details"
 	UpgradeNotification      DiagnosticSource = "upgrade available"
 	TemplateError            DiagnosticSource = "template"
+	WorkFileError            DiagnosticSource = "go.work file"
 )
 
 func AnalyzerErrorKind(name string) DiagnosticSource {

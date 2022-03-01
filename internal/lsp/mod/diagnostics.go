@@ -61,7 +61,7 @@ func DiagnosticsForMod(ctx context.Context, snapshot source.Snapshot, fh source.
 		if !ok || req.Mod.Version == ver {
 			continue
 		}
-		rng, err := lineToRange(pm.Mapper, fh.URI(), req.Syntax.Start, req.Syntax.End)
+		rng, err := source.LineToRange(pm.Mapper, fh.URI(), req.Syntax.Start, req.Syntax.End)
 		if err != nil {
 			return nil, err
 		}

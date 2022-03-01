@@ -162,6 +162,10 @@ func (s *snapshot) ModFiles() []span.URI {
 	return uris
 }
 
+func (s *snapshot) WorkFile() span.URI {
+	return s.workspace.workFile
+}
+
 func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()

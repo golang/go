@@ -796,6 +796,39 @@ use (
 	})
 }
 
+func TestUseGoWorkDiagnosticMissingModule(t *testing.T) {
+	const files = `
+-- go.work --
+go 1.18
+
+use ./foo
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.work")
+		env.Await(
+			env.DiagnosticAtRegexpWithMessage("go.work", "use", "directory ./foo does not contain a module"),
+		)
+		t.Log("bar")
+	})
+}
+
+func TestUseGoWorkDiagnosticSyntaxError(t *testing.T) {
+	const files = `
+-- go.work --
+go 1.18
+
+usa ./foo
+replace
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.work")
+		env.Await(
+			env.DiagnosticAtRegexpWithMessage("go.work", "usa", "unknown directive: usa"),
+			env.DiagnosticAtRegexpWithMessage("go.work", "replace", "usage: replace"),
+		)
+	})
+}
+
 func TestNonWorkspaceFileCreation(t *testing.T) {
 	testenv.NeedsGo1Point(t, 13)
 

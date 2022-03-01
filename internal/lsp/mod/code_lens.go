@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
 )
 
 // LensFuncs returns the supported lensFuncs for go.mod files.
@@ -129,7 +128,7 @@ func moduleStmtRange(fh source.FileHandle, pm *source.ParsedModule) (protocol.Ra
 		return protocol.Range{}, fmt.Errorf("no module statement in %s", fh.URI())
 	}
 	syntax := pm.File.Module.Syntax
-	return lineToRange(pm.Mapper, fh.URI(), syntax.Start, syntax.End)
+	return source.LineToRange(pm.Mapper, fh.URI(), syntax.Start, syntax.End)
 }
 
 // firstRequireRange returns the range for the first "require" in the given
@@ -150,19 +149,5 @@ func firstRequireRange(fh source.FileHandle, pm *source.ParsedModule) (protocol.
 	if start.Byte == 0 || firstRequire.Start.Byte < start.Byte {
 		start, end = firstRequire.Start, firstRequire.End
 	}
-	return lineToRange(pm.Mapper, fh.URI(), start, end)
-}
-
-func lineToRange(m *protocol.ColumnMapper, uri span.URI, start, end modfile.Position) (protocol.Range, error) {
-	line, col, err := m.Converter.ToPosition(start.Byte)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	s := span.NewPoint(line, col, start.Byte)
-	line, col, err = m.Converter.ToPosition(end.Byte)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	e := span.NewPoint(line, col, end.Byte)
-	return m.Range(span.New(uri, s, e))
+	return source.LineToRange(pm.Mapper, fh.URI(), start, end)
 }

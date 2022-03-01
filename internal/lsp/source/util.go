@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
@@ -562,4 +563,19 @@ func Pos(tok *token.File, offset int) (token.Pos, error) {
 func InRange(tok *token.File, pos token.Pos) bool {
 	size := tok.Pos(tok.Size())
 	return int(pos) >= tok.Base() && pos <= size
+}
+
+// LineToRange creates a Range spanning start and end.
+func LineToRange(m *protocol.ColumnMapper, uri span.URI, start, end modfile.Position) (protocol.Range, error) {
+	line, col, err := m.Converter.ToPosition(start.Byte)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	s := span.NewPoint(line, col, start.Byte)
+	line, col, err = m.Converter.ToPosition(end.Byte)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	e := span.NewPoint(line, col, end.Byte)
+	return m.Range(span.New(uri, s, e))
 }

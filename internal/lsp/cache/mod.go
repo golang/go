@@ -73,13 +73,13 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 				if err != nil {
 					return &parseModData{err: err}
 				}
-				parseErrors = []*source.Diagnostic{{
+				parseErrors = append(parseErrors, &source.Diagnostic{
 					URI:      modFH.URI(),
 					Range:    rng,
 					Severity: protocol.SeverityError,
 					Source:   source.ParseError,
 					Message:  mfErr.Err.Error(),
-				}}
+				})
 			}
 		}
 		return &parseModData{
@@ -131,7 +131,7 @@ func (s *snapshot) ParseWork(ctx context.Context, modFH source.FileHandle) (*sou
 
 		contents, err := modFH.Read()
 		if err != nil {
-			return &parseModData{err: err}
+			return &parseWorkData{err: err}
 		}
 		m := &protocol.ColumnMapper{
 			URI:       modFH.URI(),
@@ -144,20 +144,20 @@ func (s *snapshot) ParseWork(ctx context.Context, modFH source.FileHandle) (*sou
 		if parseErr != nil {
 			mfErrList, ok := parseErr.(modfile.ErrorList)
 			if !ok {
-				return &parseModData{err: fmt.Errorf("unexpected parse error type %v", parseErr)}
+				return &parseWorkData{err: fmt.Errorf("unexpected parse error type %v", parseErr)}
 			}
 			for _, mfErr := range mfErrList {
 				rng, err := rangeFromPositions(m, mfErr.Pos, mfErr.Pos)
 				if err != nil {
-					return &parseModData{err: err}
+					return &parseWorkData{err: err}
 				}
-				parseErrors = []*source.Diagnostic{{
+				parseErrors = append(parseErrors, &source.Diagnostic{
 					URI:      modFH.URI(),
 					Range:    rng,
 					Severity: protocol.SeverityError,
 					Source:   source.ParseError,
 					Message:  mfErr.Err.Error(),
-				}}
+				})
 			}
 		}
 		return &parseWorkData{
