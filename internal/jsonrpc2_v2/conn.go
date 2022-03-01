@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync"
 	"sync/atomic"
 
 	"golang.org/x/tools/internal/event"
@@ -45,8 +46,11 @@ type ConnectionOptions struct {
 // Connection is bidirectional; it does not have a designated server or client
 // end.
 type Connection struct {
-	seq         int64 // must only be accessed using atomic operations
-	closer      io.Closer
+	seq int64 // must only be accessed using atomic operations
+
+	closeOnce sync.Once
+	closer    io.Closer
+
 	writerBox   chan Writer
 	outgoingBox chan map[ID]chan<- *Response
 	incomingBox chan map[ID]*incoming
@@ -275,14 +279,13 @@ func (c *Connection) Wait() error {
 // This does not cancel in flight requests, but waits for them to gracefully complete.
 func (c *Connection) Close() error {
 	// close the underlying stream
-	if err := c.closer.Close(); err != nil && !isClosingError(err) {
-		return err
-	}
+	c.closeOnce.Do(func() {
+		if err := c.closer.Close(); err != nil {
+			c.async.setError(err)
+		}
+	})
 	// and then wait for it to cause the connection to close
-	if err := c.Wait(); err != nil && !isClosingError(err) {
-		return err
-	}
-	return nil
+	return c.Wait()
 }
 
 // readIncoming collects inbound messages from the reader and delivers them, either responding
@@ -295,7 +298,9 @@ func (c *Connection) readIncoming(ctx context.Context, reader Reader, toQueue ch
 		msg, n, err := reader.Read(ctx)
 		if err != nil {
 			// The stream failed, we cannot continue
-			c.async.setError(err)
+			if !isClosingError(err) {
+				c.async.setError(err)
+			}
 			return
 		}
 		switch msg := msg.(type) {
@@ -395,7 +400,23 @@ func (c *Connection) manageQueue(ctx context.Context, preempter Preempter, fromR
 }
 
 func (c *Connection) deliverMessages(ctx context.Context, handler Handler, fromQueue <-chan *incoming) {
-	defer c.async.done()
+	defer func() {
+		// Close the underlying ReadWriteCloser if not already closed. We're about
+		// to mark the Connection as done, so we'd better actually be done! 😅
+		//
+		// TODO(bcmills): This is actually a bit premature, since we may have
+		// asynchronous handlers still in flight at this point, but it's at least no
+		// more premature than calling c.async.done at this point (which we were
+		// already doing). This will get a proper fix in https://go.dev/cl/388134.
+		c.closeOnce.Do(func() {
+			if err := c.closer.Close(); err != nil {
+				c.async.setError(err)
+			}
+		})
+
+		c.async.done()
+	}()
+
 	for entry := range fromQueue {
 		// cancel any messages in the queue that we have a pending cancel for
 		var result interface{}
