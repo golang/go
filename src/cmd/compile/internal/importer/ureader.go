@@ -375,12 +375,12 @@ func (pr *pkgReader) objIdx(idx int) (*types2.Package, string) {
 		return objPkg, objName
 	}
 
-	dict := pr.objDictIdx(idx)
-
-	r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
-	r.dict = dict
-
 	objPkg.Scope().InsertLazy(objName, func() types2.Object {
+		dict := pr.objDictIdx(idx)
+
+		r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
+		r.dict = dict
+
 		switch tag {
 		default:
 			panic("weird")
