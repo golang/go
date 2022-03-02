@@ -24641,6 +24641,28 @@ func rewriteValueAMD64_OpAMD64SHLL(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	// match: (SHLL l:(MOVLload [off] {sym} ptr mem) x)
+	// cond: buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)
+	// result: (SHLXLload [off] {sym} ptr x mem)
+	for {
+		l := v_0
+		if l.Op != OpAMD64MOVLload {
+			break
+		}
+		off := auxIntToInt32(l.AuxInt)
+		sym := auxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		x := v_1
+		if !(buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64SHLXLload)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, x, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHLLconst(v *Value) bool {
@@ -24873,6 +24895,28 @@ func rewriteValueAMD64_OpAMD64SHLQ(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64NEGL, t)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (SHLQ l:(MOVQload [off] {sym} ptr mem) x)
+	// cond: buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)
+	// result: (SHLXQload [off] {sym} ptr x mem)
+	for {
+		l := v_0
+		if l.Op != OpAMD64MOVQload {
+			break
+		}
+		off := auxIntToInt32(l.AuxInt)
+		sym := auxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		x := v_1
+		if !(buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64SHLXQload)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, x, mem)
 		return true
 	}
 	return false
@@ -25204,6 +25248,28 @@ func rewriteValueAMD64_OpAMD64SHRL(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	// match: (SHRL l:(MOVLload [off] {sym} ptr mem) x)
+	// cond: buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)
+	// result: (SHRXLload [off] {sym} ptr x mem)
+	for {
+		l := v_0
+		if l.Op != OpAMD64MOVLload {
+			break
+		}
+		off := auxIntToInt32(l.AuxInt)
+		sym := auxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		x := v_1
+		if !(buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64SHRXLload)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, x, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHRLconst(v *Value) bool {
@@ -25424,6 +25490,28 @@ func rewriteValueAMD64_OpAMD64SHRQ(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64NEGL, t)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (SHRQ l:(MOVQload [off] {sym} ptr mem) x)
+	// cond: buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)
+	// result: (SHRXQload [off] {sym} ptr x mem)
+	for {
+		l := v_0
+		if l.Op != OpAMD64MOVQload {
+			break
+		}
+		off := auxIntToInt32(l.AuxInt)
+		sym := auxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		x := v_1
+		if !(buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64SHRXQload)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, x, mem)
 		return true
 	}
 	return false
