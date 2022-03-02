@@ -15,7 +15,9 @@ import (
 	"fmt"
 	"internal/testenv"
 	"math/big"
+	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1909,4 +1911,451 @@ func TestIssue51759(t *testing.T) {
 			t.Fatal("expected error")
 		}
 	})
+}
+
+type trustGraphEdge struct {
+	Issuer         string
+	Subject        string
+	Type           int
+	MutateTemplate func(*Certificate)
+}
+
+type trustGraphDescription struct {
+	Roots []string
+	Leaf  string
+	Graph []trustGraphEdge
+}
+
+func genCertEdge(t *testing.T, subject string, key crypto.Signer, mutateTmpl func(*Certificate), certType int, issuer *Certificate, signer crypto.Signer) *Certificate {
+	t.Helper()
+
+	serial, err := rand.Int(rand.Reader, big.NewInt(100))
+	if err != nil {
+		t.Fatalf("failed to generate test serial: %s", err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: subject},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	if certType == rootCertificate || certType == intermediateCertificate {
+		tmpl.IsCA, tmpl.BasicConstraintsValid = true, true
+		tmpl.KeyUsage = KeyUsageCertSign
+	} else if certType == leafCertificate {
+		tmpl.DNSNames = []string{"localhost"}
+	}
+	if mutateTmpl != nil {
+		mutateTmpl(tmpl)
+	}
+
+	if certType == rootCertificate {
+		issuer = tmpl
+		signer = key
+	}
+
+	d, err := CreateCertificate(rand.Reader, tmpl, issuer, key.Public(), signer)
+	if err != nil {
+		t.Fatalf("failed to generate test cert: %s", err)
+	}
+	c, err := ParseCertificate(d)
+	if err != nil {
+		t.Fatalf("failed to parse test cert: %s", err)
+	}
+	return c
+}
+
+func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPool, *Certificate) {
+	t.Helper()
+
+	certs := map[string]*Certificate{}
+	keys := map[string]crypto.Signer{}
+	roots := []*Certificate{}
+	for _, r := range d.Roots {
+		k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			t.Fatalf("failed to generate test key: %s", err)
+		}
+		root := genCertEdge(t, r, k, nil, rootCertificate, nil, nil)
+		roots = append(roots, root)
+		certs[r] = root
+		keys[r] = k
+	}
+
+	intermediates := []*Certificate{}
+	var leaf *Certificate
+	for _, e := range d.Graph {
+		issuerCert, ok := certs[e.Issuer]
+		if !ok {
+			t.Fatalf("unknown issuer %s", e.Issuer)
+		}
+		issuerKey, ok := keys[e.Issuer]
+		if !ok {
+			t.Fatalf("unknown issuer %s", e.Issuer)
+		}
+
+		k, ok := keys[e.Subject]
+		if !ok {
+			var err error
+			k, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				t.Fatalf("failed to generate test key: %s", err)
+			}
+			keys[e.Subject] = k
+		}
+		cert := genCertEdge(t, e.Subject, k, e.MutateTemplate, e.Type, issuerCert, issuerKey)
+		certs[e.Subject] = cert
+		if e.Subject == d.Leaf {
+			leaf = cert
+		} else {
+			intermediates = append(intermediates, cert)
+		}
+	}
+
+	rootPool, intermediatePool := NewCertPool(), NewCertPool()
+	for i := len(roots) - 1; i >= 0; i-- {
+		rootPool.AddCert(roots[i])
+	}
+	for i := len(intermediates) - 1; i >= 0; i-- {
+		intermediatePool.AddCert(intermediates[i])
+	}
+
+	return rootPool, intermediatePool, leaf
+}
+
+func chainsToStrings(chains [][]*Certificate) []string {
+	chainStrings := []string{}
+	for _, chain := range chains {
+		names := []string{}
+		for _, c := range chain {
+			names = append(names, c.Subject.String())
+		}
+		chainStrings = append(chainStrings, strings.Join(names, " -> "))
+	}
+	sort.Strings(chainStrings)
+	return chainStrings
+}
+
+func TestPathBuilding(t *testing.T) {
+	tests := []struct {
+		name           string
+		graph          trustGraphDescription
+		expectedChains []string
+		expectedErr    string
+	}{
+		{
+			// Build the following graph from RFC 4158, figure 7 (note that in this graph edges represent
+			// certificates where the parent is the issuer and the child is the subject.) For the certificate
+			// C->B, use an unsupported ExtKeyUsage (in this case ExtKeyUsageCodeSigning) which invalidates
+			// the path Trust Anchor -> C -> B -> EE. The remaining valid paths should be:
+			//   * Trust Anchor -> A -> B -> EE
+			//   * Trust Anchor -> C -> A -> B -> EE
+			//
+			//     +---------+
+			//     |  Trust  |
+			//     | Anchor  |
+			//     +---------+
+			//      |       |
+			//      v       v
+			//   +---+    +---+
+			//   | A |<-->| C |
+			//   +---+    +---+
+			//    |         |
+			//    |  +---+  |
+			//    +->| B |<-+
+			//       +---+
+			//         |
+			//         v
+			//       +----+
+			//       | EE |
+			//       +----+
+			name: "bad EKU",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.ExtKeyUsage = []ExtKeyUsage{ExtKeyUsageCodeSigning}
+						},
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=inter c -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+		{
+			// Build the following graph from RFC 4158, figure 7 (note that in this graph edges represent
+			// certificates where the parent is the issuer and the child is the subject.) For the certificate
+			// C->B, use a unconstrained SAN which invalidates the path Trust Anchor -> C -> B -> EE. The
+			// remaining valid paths should be:
+			//   * Trust Anchor -> A -> B -> EE
+			//   * Trust Anchor -> C -> A -> B -> EE
+			//
+			//     +---------+
+			//     |  Trust  |
+			//     | Anchor  |
+			//     +---------+
+			//      |       |
+			//      v       v
+			//   +---+    +---+
+			//   | A |<-->| C |
+			//   +---+    +---+
+			//    |         |
+			//    |  +---+  |
+			//    +->| B |<-+
+			//       +---+
+			//         |
+			//         v
+			//       +----+
+			//       | EE |
+			//       +----+
+			name: "bad EKU",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.PermittedDNSDomains = []string{"good"}
+							t.DNSNames = []string{"bad"}
+						},
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=inter c -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+		{
+			// Build the following graph, we should find both paths:
+			//   * Trust Anchor -> A -> C -> EE
+			//   * Trust Anchor -> A -> B -> C -> EE
+			//
+			//	       +---------+
+			//	       |  Trust  |
+			//	       | Anchor  |
+			//	       +---------+
+			//	            |
+			//	            v
+			//	          +---+
+			//	          | A |
+			//	          +---+
+			//	           | |
+			//	           | +----+
+			//	           |      v
+			//	           |    +---+
+			//	           |    | B |
+			//	           |    +---+
+			//	           |      |
+			//	           |  +---v
+			//	           v  v
+			//            +---+
+			//            | C |
+			//            +---+
+			//              |
+			//              v
+			//            +----+
+			//            | EE |
+			//            +----+
+			name: "all paths",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter c -> CN=inter a -> CN=root",
+				"CN=leaf -> CN=inter c -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+		{
+			// Build the following graph, which contains a cross-signature loop
+			// (A and C cross sign each other). Paths that include the A -> C -> A
+			// (and vice versa) loop should be ignored, resulting in the paths:
+			//   * Trust Anchor -> A -> B -> EE
+			//   * Trust Anchor -> C -> B -> EE
+			//   * Trust Anchor -> A -> C -> B -> EE
+			//   * Trust Anchor -> C -> A -> B -> EE
+			//
+			//     +---------+
+			//     |  Trust  |
+			//     | Anchor  |
+			//     +---------+
+			//      |       |
+			//      v       v
+			//   +---+    +---+
+			//   | A |<-->| C |
+			//   +---+    +---+
+			//    |         |
+			//    |  +---+  |
+			//    +->| B |<-+
+			//       +---+
+			//         |
+			//         v
+			//       +----+
+			//       | EE |
+			//       +----+
+			name: "ignore cross-sig loops",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=inter c -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter c -> CN=inter a -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter c -> CN=root",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			roots, intermediates, leaf := buildTrustGraph(t, tc.graph)
+			chains, err := leaf.Verify(VerifyOptions{
+				Roots:         roots,
+				Intermediates: intermediates,
+			})
+			if err != nil && err.Error() != tc.expectedErr {
+				t.Fatalf("unexpected error: got %q, want %q", err, tc.expectedErr)
+			}
+			gotChains := chainsToStrings(chains)
+			if !reflect.DeepEqual(gotChains, tc.expectedChains) {
+				t.Errorf("unexpected chains returned:\ngot:\n\t%s\nwant:\n\t%s", strings.Join(gotChains, "\n\t"), strings.Join(tc.expectedChains, "\n\t"))
+			}
+		})
+	}
 }
