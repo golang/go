@@ -90,11 +90,20 @@ func init() {
 var gcController gcControllerState
 
 type gcControllerState struct {
-
 	// Initialized from GOGC. GOGC=off means no GC.
 	gcPercent atomic.Int32
 
 	_ uint32 // padding so following 64-bit values are 8-byte aligned
+
+	// memoryLimit is the soft memory limit in bytes.
+	//
+	// Initialized from GOMEMLIMIT. GOMEMLIMIT=off is equivalent to MaxInt64
+	// which means no soft memory limit in practice.
+	//
+	// This is an int64 instead of a uint64 to more easily maintain parity with
+	// the SetMemoryLimit API, which sets a maximum at MaxInt64. This value
+	// should never be negative.
+	memoryLimit atomic.Int64
 
 	// heapMinimum is the minimum heap size at which to trigger GC.
 	// For small heaps, this overrides the usual GOGC*live set rule.
@@ -352,7 +361,7 @@ type gcControllerState struct {
 	_ cpu.CacheLinePad
 }
 
-func (c *gcControllerState) init(gcPercent int32) {
+func (c *gcControllerState) init(gcPercent int32, memoryLimit int64) {
 	c.heapMinimum = defaultHeapMinimum
 
 	c.consMarkController = piController{
@@ -376,8 +385,9 @@ func (c *gcControllerState) init(gcPercent int32) {
 		max: 1000,
 	}
 
-	// This will also compute and set the GC trigger and goal.
 	c.setGCPercent(gcPercent)
+	c.setMemoryLimit(memoryLimit)
+	c.commit()
 }
 
 // startCycle resets the GC controller's state and computes estimates
@@ -1051,10 +1061,8 @@ func (c *gcControllerState) effectiveGrowthRatio() float64 {
 	return egogc
 }
 
-// setGCPercent updates gcPercent and all related pacer state.
+// setGCPercent updates gcPercent. commit must be called after.
 // Returns the old value of gcPercent.
-//
-// Calls gcControllerState.commit.
 //
 // The world must be stopped, or mheap_.lock must be held.
 func (c *gcControllerState) setGCPercent(in int32) int32 {
@@ -1068,8 +1076,6 @@ func (c *gcControllerState) setGCPercent(in int32) int32 {
 	}
 	c.heapMinimum = defaultHeapMinimum * uint64(in) / 100
 	c.gcPercent.Store(in)
-	// Update pacing in response to gcPercent change.
-	c.commit()
 
 	return out
 }
@@ -1080,6 +1086,7 @@ func setGCPercent(in int32) (out int32) {
 	systemstack(func() {
 		lock(&mheap_.lock)
 		out = gcController.setGCPercent(in)
+		gcController.commit()
 		gcPaceSweeper(gcController.trigger)
 		gcPaceScavenger(gcController.heapGoal, gcController.lastHeapGoal)
 		unlock(&mheap_.lock)
@@ -1103,6 +1110,56 @@ func readGOGC() int32 {
 		return n
 	}
 	return 100
+}
+
+// setMemoryLimit updates memoryLimit. commit must be called after
+// Returns the old value of memoryLimit.
+//
+// The world must be stopped, or mheap_.lock must be held.
+func (c *gcControllerState) setMemoryLimit(in int64) int64 {
+	if !c.test {
+		assertWorldStoppedOrLockHeld(&mheap_.lock)
+	}
+
+	out := c.memoryLimit.Load()
+	if in >= 0 {
+		c.memoryLimit.Store(in)
+	}
+
+	return out
+}
+
+//go:linkname setMemoryLimit runtime/debug.setMemoryLimit
+func setMemoryLimit(in int64) (out int64) {
+	// Run on the system stack since we grab the heap lock.
+	systemstack(func() {
+		lock(&mheap_.lock)
+		out = gcController.setMemoryLimit(in)
+		if in < 0 || out == in {
+			// If we're just checking the value or not changing
+			// it, there's no point in doing the rest.
+			unlock(&mheap_.lock)
+			return
+		}
+		gcController.commit()
+		gcPaceSweeper(gcController.trigger)
+		gcPaceScavenger(gcController.heapGoal, gcController.lastHeapGoal)
+		unlock(&mheap_.lock)
+	})
+	return out
+}
+
+func readGOMEMLIMIT() int64 {
+	p := gogetenv("GOMEMLIMIT")
+	if p == "" || p == "off" {
+		return maxInt64
+	}
+	n, ok := parseByteCount(p)
+	if !ok {
+		print("GOMEMLIMIT=", p, "\n")
+		throw("malformed GOMEMLIMIT; see `go doc runtime/debug.SetMemoryLimit`")
+	}
+	return n
 }
 
 type piController struct {
