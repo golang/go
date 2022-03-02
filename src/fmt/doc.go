@@ -124,7 +124,8 @@
 		' '	(space) leave a space for elided sign in numbers (% d);
 			put spaces between bytes printing strings or slices in hex (% x, % X)
 		0	pad with leading zeros rather than spaces;
-			for numbers, this moves the padding after the sign
+			for numbers, this moves the padding after the sign;
+                        ignored for strings, byte slices and byte arrays
 
 	Flags are ignored by verbs that do not expect them.
 	For example there is no alternate decimal format, so %#d and %d
