@@ -829,7 +829,7 @@ An alias denotes a named type if the type given in the alias declaration is a na
 A <i>boolean type</i> represents the set of Boolean truth values
 denoted by the predeclared constants <code>true</code>
 and <code>false</code>. The predeclared boolean type is <code>bool</code>;
-it is a <a href="#Type_definitions">defined type</a>.
+it is a <a href="#Predeclared_identifiers">predeclared type</a>.
 </p>
 
 <h3 id="Numeric_types">Numeric types</h3>
@@ -878,8 +878,8 @@ uintptr  an unsigned integer large enough to store the uninterpreted bits of a p
 </pre>
 
 <p>
-To avoid portability issues all numeric types are <a href="#Type_definitions">defined
-types</a> and thus distinct except
+To avoid portability issues all numeric types are
+<a href="#Predeclared_identifiers">predeclared types</a> and thus distinct except
 <code>byte</code>, which is an <a href="#Alias_declarations">alias</a> for <code>uint8</code>, and
 <code>rune</code>, which is an alias for <code>int32</code>.
 Explicit conversions
@@ -898,7 +898,7 @@ The number of bytes is called the length of the string and is never negative.
 Strings are immutable: once created,
 it is impossible to change the contents of a string.
 The predeclared string type is <code>string</code>;
-it is a <a href="#Type_definitions">defined type</a>.
+it is a <a href="#Predeclared_identifiers">predeclared type</a>.
 </p>
 
 <p>
@@ -3761,8 +3761,9 @@ The following rules apply:
 If <code>a</code> is not a map:
 </p>
 <ul>
-	<li>the index <code>x</code> must be an untyped constant or its
-	    <a href="#Core_types">core type</a> must be an <a href="#Numeric_types">integer</a></li>
+	<li>the index <code>x</code> must be an untyped constant or it must have
+	    <a href="#Specific_types">specific types</a> and all the specific types
+	    are <a href="#Numeric_types">integers</a>.</li>
 	<li>a constant index must be non-negative and
 	    <a href="#Representability">representable</a> by a value of type <code>int</code></li>
 	<li>a constant index that is untyped is given type <code>int</code></li>
@@ -7055,8 +7056,9 @@ they cannot be used as function values.
 <h3 id="Close">Close</h3>
 
 <p>
-For an argument <code>ch</code> with a <a href="#Core_types">core type</a>
-that is a <a href="#Channel_types">channel</a>, the built-in function <code>close</code>
+For an argument <code>ch</code> which has
+<a href="#Specific_types">specific types</a> and all the specific types are
+<a href="#Channel_types">channels</a>, the built-in function <code>close</code>
 records that no more values will be sent on the channel.
 It is an error if <code>ch</code> is a receive-only channel.
 Sending to or closing a closed channel causes a <a href="#Run_time_panics">run-time panic</a>.
