@@ -6,6 +6,7 @@ package x509
 
 import (
 	"bytes"
+	"crypto"
 	"errors"
 	"fmt"
 	"net"
@@ -597,73 +598,101 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		leaf = currentChain[0]
 	}
 
-	if (certType == intermediateCertificate || certType == rootCertificate) &&
-		c.hasNameConstraints() && leaf.hasSANExtension() {
-		err := forEachSAN(leaf.getSANExtension(), func(tag int, data []byte) error {
-			switch tag {
-			case nameTypeEmail:
-				name := string(data)
-				mailbox, ok := parseRFC2821Mailbox(name)
-				if !ok {
-					return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
+	if (len(c.ExtKeyUsage) > 0 || len(c.UnknownExtKeyUsage) > 0) && len(opts.KeyUsages) > 0 {
+		acceptableUsage := false
+		um := make(map[ExtKeyUsage]bool, len(opts.KeyUsages))
+		for _, u := range opts.KeyUsages {
+			um[u] = true
+		}
+		if !um[ExtKeyUsageAny] {
+			for _, u := range c.ExtKeyUsage {
+				if u == ExtKeyUsageAny || um[u] {
+					acceptableUsage = true
+					break
 				}
-
-				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
-					func(parsedName, constraint any) (bool, error) {
-						return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
-					}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
-					return err
-				}
-
-			case nameTypeDNS:
-				name := string(data)
-				if _, ok := domainToReverseLabels(name); !ok {
-					return fmt.Errorf("x509: cannot parse dnsName %q", name)
-				}
-
-				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
-					func(parsedName, constraint any) (bool, error) {
-						return matchDomainConstraint(parsedName.(string), constraint.(string))
-					}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
-					return err
-				}
-
-			case nameTypeURI:
-				name := string(data)
-				uri, err := url.Parse(name)
-				if err != nil {
-					return fmt.Errorf("x509: internal error: URI SAN %q failed to parse", name)
-				}
-
-				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "URI", name, uri,
-					func(parsedName, constraint any) (bool, error) {
-						return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
-					}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
-					return err
-				}
-
-			case nameTypeIP:
-				ip := net.IP(data)
-				if l := len(ip); l != net.IPv4len && l != net.IPv6len {
-					return fmt.Errorf("x509: internal error: IP SAN %x failed to parse", data)
-				}
-
-				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
-					func(parsedName, constraint any) (bool, error) {
-						return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
-					}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
-					return err
-				}
-
-			default:
-				// Unknown SAN types are ignored.
 			}
+			if !acceptableUsage {
+				return CertificateInvalidError{c, IncompatibleUsage, ""}
+			}
+		}
+	}
 
-			return nil
-		})
+	if (certType == intermediateCertificate || certType == rootCertificate) &&
+		c.hasNameConstraints() {
+		toCheck := []*Certificate{}
+		if leaf.hasSANExtension() {
+			toCheck = append(toCheck, leaf)
+		}
+		if c.hasSANExtension() {
+			toCheck = append(toCheck, c)
+		}
+		for _, sanCert := range toCheck {
+			err := forEachSAN(sanCert.getSANExtension(), func(tag int, data []byte) error {
+				switch tag {
+				case nameTypeEmail:
+					name := string(data)
+					mailbox, ok := parseRFC2821Mailbox(name)
+					if !ok {
+						return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
+					}
 
-		if err != nil {
-			return err
+					if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
+						func(parsedName, constraint any) (bool, error) {
+							return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
+						}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
+						return err
+					}
+
+				case nameTypeDNS:
+					name := string(data)
+					if _, ok := domainToReverseLabels(name); !ok {
+						return fmt.Errorf("x509: cannot parse dnsName %q", name)
+					}
+
+					if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
+						func(parsedName, constraint any) (bool, error) {
+							return matchDomainConstraint(parsedName.(string), constraint.(string))
+						}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
+						return err
+					}
+
+				case nameTypeURI:
+					name := string(data)
+					uri, err := url.Parse(name)
+					if err != nil {
+						return fmt.Errorf("x509: internal error: URI SAN %q failed to parse", name)
+					}
+
+					if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "URI", name, uri,
+						func(parsedName, constraint any) (bool, error) {
+							return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
+						}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
+						return err
+					}
+
+				case nameTypeIP:
+					ip := net.IP(data)
+					if l := len(ip); l != net.IPv4len && l != net.IPv6len {
+						return fmt.Errorf("x509: internal error: IP SAN %x failed to parse", data)
+					}
+
+					if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
+						func(parsedName, constraint any) (bool, error) {
+							return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
+						}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
+						return err
+					}
+
+				default:
+					// Unknown SAN types are ignored.
+				}
+
+				return nil
+			})
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -767,6 +796,10 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
+	if len(opts.KeyUsages) == 0 {
+		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+	}
+
 	err = c.isValid(leafCertificate, nil, &opts)
 	if err != nil {
 		return
@@ -779,38 +812,10 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	var candidateChains [][]*Certificate
 	if opts.Roots.contains(c) {
-		candidateChains = append(candidateChains, []*Certificate{c})
-	} else {
-		if candidateChains, err = c.buildChains(nil, []*Certificate{c}, nil, &opts); err != nil {
-			return nil, err
-		}
+		return [][]*Certificate{{c}}, nil
 	}
-
-	keyUsages := opts.KeyUsages
-	if len(keyUsages) == 0 {
-		keyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
-	}
-
-	// If any key usage is acceptable then we're done.
-	for _, usage := range keyUsages {
-		if usage == ExtKeyUsageAny {
-			return candidateChains, nil
-		}
-	}
-
-	for _, candidate := range candidateChains {
-		if checkChainForKeyUsage(candidate, keyUsages) {
-			chains = append(chains, candidate)
-		}
-	}
-
-	if len(chains) == 0 {
-		return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
-	}
-
-	return chains, nil
+	return c.buildChains([]*Certificate{c}, nil, &opts)
 }
 
 func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
@@ -826,15 +831,22 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 // for failed checks due to different intermediates having the same Subject.
 const maxChainSignatureChecks = 100
 
-func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, currentChain []*Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*Certificate, err error) {
+func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	var (
 		hintErr  error
 		hintCert *Certificate
 	)
 
+	type pubKeyEqual interface {
+		Equal(crypto.PublicKey) bool
+	}
+
 	considerCandidate := func(certType int, candidate *Certificate) {
 		for _, cert := range currentChain {
-			if cert.Equal(candidate) {
+			// If a certificate already appeared in the chain we've built, don't
+			// reconsider it. This prevents loops, for isntance those created by
+			// mutual cross-signatures, or other cross-signature bridges oddities.
+			if bytes.Equal(cert.RawSubject, candidate.RawSubject) && cert.PublicKey.(pubKeyEqual).Equal(candidate.PublicKey) {
 				return
 			}
 		}
@@ -865,14 +877,8 @@ func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, curre
 		case rootCertificate:
 			chains = append(chains, appendToFreshChain(currentChain, candidate))
 		case intermediateCertificate:
-			if cache == nil {
-				cache = make(map[*Certificate][][]*Certificate)
-			}
-			childChains, ok := cache[candidate]
-			if !ok {
-				childChains, err = candidate.buildChains(cache, appendToFreshChain(currentChain, candidate), sigChecks, opts)
-				cache[candidate] = childChains
-			}
+			var childChains [][]*Certificate
+			childChains, err = candidate.buildChains(appendToFreshChain(currentChain, candidate), sigChecks, opts)
 			chains = append(chains, childChains...)
 		}
 	}
