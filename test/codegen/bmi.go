@@ -45,3 +45,19 @@ func blsr32(x int32) int32 {
 	// amd64/v3:"BLSRL"
 	return x & (x - 1)
 }
+
+func shlrx64(x []uint64, i int, s uint64) uint64 {
+	// amd64/v3: `SHRXQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+	s = x[i] >> i
+	// amd64/v3: `SHLXQ\t[A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+	s = x[i+1] << s
+	return s
+}
+
+func shlrx32(x []uint32, i int, s uint32) uint32 {
+	// amd64/v3: `SHRXL\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+	s = x[i] >> i
+	// amd64/v3: `SHLXL\t[A-Z]+[0-9]*, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+	s = x[i+1] << s
+	return s
+}

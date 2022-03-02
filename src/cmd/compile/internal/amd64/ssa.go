@@ -280,6 +280,23 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 		p.SetFrom3Reg(v.Args[1].Reg())
 
+	case ssa.OpAMD64SHLXLload, ssa.OpAMD64SHLXQload,
+		ssa.OpAMD64SHRXLload, ssa.OpAMD64SHRXQload:
+		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+		m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
+		ssagen.AddAux(&m, v)
+		p.SetFrom3(m)
+
+	case ssa.OpAMD64SHLXLloadidx1, ssa.OpAMD64SHLXLloadidx4, ssa.OpAMD64SHLXLloadidx8,
+		ssa.OpAMD64SHRXLloadidx1, ssa.OpAMD64SHRXLloadidx4, ssa.OpAMD64SHRXLloadidx8,
+		ssa.OpAMD64SHLXQloadidx1, ssa.OpAMD64SHLXQloadidx8,
+		ssa.OpAMD64SHRXQloadidx1, ssa.OpAMD64SHRXQloadidx8:
+		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[2].Reg())
+		m := obj.Addr{Type: obj.TYPE_MEM}
+		memIdx(&m, v)
+		ssagen.AddAux(&m, v)
+		p.SetFrom3(m)
+
 	case ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU:
 		// Arg[0] (the dividend) is in AX.
 		// Arg[1] (the divisor) can be in any other register.

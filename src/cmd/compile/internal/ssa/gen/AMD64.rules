@@ -2251,3 +2251,6 @@
   && mergePoint(b,x0,x1) != nil
   && clobber(x0, x1, sh)
   => @mergePoint(b,x0,x1) (MOVBEQload [i] {s} p1 mem)
+
+(SHL(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)  => (SHLX(Q|L)load [off] {sym} ptr x mem)
+(SHR(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)  => (SHRX(Q|L)load [off] {sym} ptr x mem)
