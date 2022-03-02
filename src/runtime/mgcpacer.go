@@ -73,15 +73,14 @@ func init() {
 // when to trigger concurrent garbage collection and how much marking
 // work to do in mutator assists and background marking.
 //
-// It uses a feedback control algorithm to adjust the gcController.trigger
-// trigger based on the heap growth and GC CPU utilization each cycle.
-// This algorithm optimizes for heap growth to match GOGC and for CPU
-// utilization between assist and background marking to be 25% of
+// It calculates the ratio between the allocation rate (in terms of CPU
+// time) and the GC scan throughput to determine the heap size at which to
+// trigger a GC cycle such that no GC assists are required to finish on time.
+// This algorithm thus optimizes GC CPU utilization to the dedicated background
+// mark utilization of 25% of GOMAXPROCS by minimizing GC assists.
 // GOMAXPROCS. The high-level design of this algorithm is documented
-// at https://golang.org/s/go15gcpacing.
-//
-// All fields of gcController are used only during a single mark
-// cycle.
+// at https://github.com/golang/proposal/blob/master/design/44167-gc-pacer-redesign.md.
+// See https://golang.org/s/go15gcpacing for additional historical context.
 var gcController gcControllerState
 
 type gcControllerState struct {
