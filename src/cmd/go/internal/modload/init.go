@@ -288,6 +288,11 @@ func BinDir() string {
 // operate in workspace mode. It should not be called by other commands,
 // for example 'go mod tidy', that don't operate in workspace mode.
 func InitWorkfile() {
+	if RootMode == NoRoot {
+		workFilePath = ""
+		return
+	}
+
 	switch gowork := cfg.Getenv("GOWORK"); gowork {
 	case "off":
 		workFilePath = ""
