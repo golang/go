@@ -32,15 +32,17 @@ The easiest way to work on multiple modules in Go 1.18 and later is therefore
 to create a `go.work` file containing the modules you wish to work on, and set
 your workspace root to the directory containing the `go.work` file.
 
-For example, to work on both modules in this repo (`golang.org/x/tools` and
-`golang.org/x/tools/gopls`), the following suffices:
+For example, suppose this repo is checked out into the `$WORK/tools` directory.
+We can work on both `golang.org/x/tools` and `golang.org/x/tools/gopls`
+simultaneously by creating a `go.work` file:
 
 ```
+cd $WORK
 go work init
-go work use . gopls
+go work use tools tools/gopls
 ```
 
-...followed by opening up the repo root.
+...followed by opening the `$WORK` directory in our editor.
 
 #### Experimental workspace module (Go 1.17 and earlier)
 
