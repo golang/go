@@ -739,23 +739,86 @@ func TestFunctionValue(t *testing.T) {
 	assert(t, v.Type().String(), "func()")
 }
 
+func TestGrow(t *testing.T) {
+	v := ValueOf([]int(nil))
+	shouldPanic("reflect.Value.Grow using unaddressable value", func() { v.Grow(0) })
+	v = ValueOf(new([]int)).Elem()
+	v.Grow(0)
+	if !v.IsNil() {
+		t.Errorf("v.Grow(0) should still be nil")
+	}
+	v.Grow(1)
+	if v.Cap() == 0 {
+		t.Errorf("v.Cap = %v, want non-zero", v.Cap())
+	}
+	want := v.UnsafePointer()
+	v.Grow(1)
+	got := v.UnsafePointer()
+	if got != want {
+		t.Errorf("noop v.Grow should not change pointers")
+	}
+
+	t.Run("Append", func(t *testing.T) {
+		var got, want []T
+		v := ValueOf(&got).Elem()
+		appendValue := func(vt T) {
+			v.Grow(1)
+			v.SetLen(v.Len() + 1)
+			v.Index(v.Len() - 1).Set(ValueOf(vt))
+		}
+		for i := 0; i < 10; i++ {
+			vt := T{i, float64(i), strconv.Itoa(i), &i}
+			appendValue(vt)
+			want = append(want, vt)
+		}
+		if !DeepEqual(got, want) {
+			t.Errorf("value mismatch:\ngot  %v\nwant %v", got, want)
+		}
+	})
+
+	t.Run("Rate", func(t *testing.T) {
+		var b []byte
+		v := ValueOf(new([]byte)).Elem()
+		for i := 0; i < 10; i++ {
+			b = append(b[:cap(b)], make([]byte, 1)...)
+			v.SetLen(v.Cap())
+			v.Grow(1)
+			if v.Cap() != cap(b) {
+				t.Errorf("v.Cap = %v, want %v", v.Cap(), cap(b))
+			}
+		}
+	})
+
+	t.Run("ZeroCapacity", func(t *testing.T) {
+		for i := 0; i < 10; i++ {
+			v := ValueOf(new([]byte)).Elem()
+			v.Grow(61)
+			b := v.Bytes()
+			b = b[:cap(b)]
+			for i, c := range b {
+				if c != 0 {
+					t.Fatalf("Value.Bytes[%d] = 0x%02x, want 0x00", i, c)
+				}
+				b[i] = 0xff
+			}
+			runtime.GC()
+		}
+	})
+}
+
 var appendTests = []struct {
 	orig, extra []int
 }{
+	{nil, nil},
+	{[]int{}, nil},
+	{nil, []int{}},
+	{[]int{}, []int{}},
+	{nil, []int{22}},
+	{[]int{}, []int{22}},
+	{make([]int, 2, 4), nil},
+	{make([]int, 2, 4), []int{}},
 	{make([]int, 2, 4), []int{22}},
 	{make([]int, 2, 4), []int{22, 33, 44}},
-}
-
-func sameInts(x, y []int) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for i, xx := range x {
-		if xx != y[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func TestAppend(t *testing.T) {
@@ -769,32 +832,51 @@ func TestAppend(t *testing.T) {
 		}
 		// Convert extra from []int to *SliceValue.
 		e1 := ValueOf(test.extra)
+
 		// Test Append.
-		a0 := ValueOf(test.orig)
-		have0 := Append(a0, e0...).Interface().([]int)
-		if !sameInts(have0, want) {
-			t.Errorf("Append #%d: have %v, want %v (%p %p)", i, have0, want, test.orig, have0)
+		a0 := ValueOf(&test.orig).Elem()
+		have0 := Append(a0, e0...)
+		if have0.CanAddr() {
+			t.Errorf("Append #%d: have slice should not be addressable", i)
+		}
+		if !DeepEqual(have0.Interface(), want) {
+			t.Errorf("Append #%d: have %v, want %v (%p %p)", i, have0, want, test.orig, have0.Interface())
 		}
 		// Check that the orig and extra slices were not modified.
+		if a0.Len() != len(test.orig) {
+			t.Errorf("Append #%d: a0.Len: have %d, want %d", i, a0.Len(), origLen)
+		}
 		if len(test.orig) != origLen {
 			t.Errorf("Append #%d origLen: have %v, want %v", i, len(test.orig), origLen)
 		}
 		if len(test.extra) != extraLen {
 			t.Errorf("Append #%d extraLen: have %v, want %v", i, len(test.extra), extraLen)
 		}
+
 		// Test AppendSlice.
-		a1 := ValueOf(test.orig)
-		have1 := AppendSlice(a1, e1).Interface().([]int)
-		if !sameInts(have1, want) {
+		a1 := ValueOf(&test.orig).Elem()
+		have1 := AppendSlice(a1, e1)
+		if have1.CanAddr() {
+			t.Errorf("AppendSlice #%d: have slice should not be addressable", i)
+		}
+		if !DeepEqual(have1.Interface(), want) {
 			t.Errorf("AppendSlice #%d: have %v, want %v", i, have1, want)
 		}
 		// Check that the orig and extra slices were not modified.
+		if a1.Len() != len(test.orig) {
+			t.Errorf("AppendSlice #%d: a1.Len: have %d, want %d", i, a0.Len(), origLen)
+		}
 		if len(test.orig) != origLen {
 			t.Errorf("AppendSlice #%d origLen: have %v, want %v", i, len(test.orig), origLen)
 		}
 		if len(test.extra) != extraLen {
 			t.Errorf("AppendSlice #%d extraLen: have %v, want %v", i, len(test.extra), extraLen)
 		}
+
+		// Test Append and AppendSlice with unexported value.
+		ax := ValueOf(struct{ x []int }{test.orig}).Field(0)
+		shouldPanic("using unexported field", func() { Append(ax, e0...) })
+		shouldPanic("using unexported field", func() { AppendSlice(ax, e1) })
 	}
 }
 
