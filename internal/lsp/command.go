@@ -266,12 +266,18 @@ func (c *commandHandler) EditGoDirective(ctx context.Context, args command.EditG
 		requireSave: true, // if go.mod isn't saved it could cause a problem
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		_, err := deps.snapshot.RunGoCommandDirect(ctx, source.Normal, &gocommand.Invocation{
-			Verb:       "mod",
-			Args:       []string{"edit", "-go", args.Version},
-			WorkingDir: filepath.Dir(args.URI.SpanURI().Filename()),
-		})
-		return err
+		snapshot, fh, ok, release, err := c.s.beginFileRequest(ctx, args.URI, source.UnknownKind)
+		defer release()
+		if !ok {
+			return err
+		}
+		if err := c.s.runGoModUpdateCommands(ctx, snapshot, fh.URI(), func(invoke func(...string) (*bytes.Buffer, error)) error {
+			_, err := invoke("mod", "edit", "-go", args.Version)
+			return err
+		}); err != nil {
+			return err
+		}
+		return nil
 	})
 }
 
