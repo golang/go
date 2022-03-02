@@ -6,10 +6,12 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -306,6 +308,74 @@ replace gopls.test => ../../gopls.test2`, false},
 				checkState(ctx, t, fs, rel, got, test.finalState)
 			}
 		})
+	}
+}
+
+func workspaceFromTxtar(t *testing.T, files string) (*workspace, func(), error) {
+	ctx := context.Background()
+	dir, err := fake.Tempdir(fake.UnpackTxt(files))
+	if err != nil {
+		return nil, func() {}, err
+	}
+	cleanup := func() {
+		os.RemoveAll(dir)
+	}
+	root := span.URIFromPath(dir)
+
+	fs := &osFileSource{}
+	excludeNothing := func(string) bool { return false }
+	workspace, err := newWorkspace(ctx, root, fs, excludeNothing, false, false)
+	return workspace, cleanup, err
+}
+
+func TestWorkspaceParseError(t *testing.T) {
+	w, cleanup, err := workspaceFromTxtar(t, `
+-- go.work --
+go 1.18
+
+usa ./typo
+-- typo/go.mod --
+module foo
+`)
+	defer cleanup()
+	if err != nil {
+		t.Fatalf("error creating workspace: %v; want no error", err)
+	}
+	w.buildMu.Lock()
+	built, buildErr := w.built, w.buildErr
+	w.buildMu.Unlock()
+	if !built || buildErr == nil {
+		t.Fatalf("built, buildErr: got %v, %v; want true, non-nil", built, buildErr)
+	}
+	var errList modfile.ErrorList
+	if !errors.As(buildErr, &errList) {
+		t.Fatalf("expected error to be an errorlist; got %v", buildErr)
+	}
+	if len(errList) != 1 {
+		t.Fatalf("expected errorList to have one element; got %v elements", len(errList))
+	}
+	parseErr := errList[0]
+	if parseErr.Pos.Line != 3 {
+		t.Fatalf("expected error to be on line 3; got %v", parseErr.Pos.Line)
+	}
+}
+
+func TestWorkspaceMissingModFile(t *testing.T) {
+	w, cleanup, err := workspaceFromTxtar(t, `
+-- go.work --
+go 1.18
+
+use ./missing
+`)
+	defer cleanup()
+	if err != nil {
+		t.Fatalf("error creating workspace: %v; want no error", err)
+	}
+	w.buildMu.Lock()
+	built, buildErr := w.built, w.buildErr
+	w.buildMu.Unlock()
+	if !built || buildErr == nil {
+		t.Fatalf("built, buildErr: got %v, %v; want true, non-nil", built, buildErr)
 	}
 }
 

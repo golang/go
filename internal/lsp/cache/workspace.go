@@ -69,6 +69,9 @@ type workspace struct {
 	// In all modes except for legacy, this is equivalent to modFiles.
 	knownModFiles map[span.URI]struct{}
 
+	// workFile, if nonEmpty, is the go.work file for the workspace.
+	workFile span.URI
+
 	// The workspace module is lazily re-built once after being invalidated.
 	// buildMu+built guards this reconstruction.
 	//
@@ -101,9 +104,6 @@ func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, excl
 	// The user may have a gopls.mod or go.work file that defines their
 	// workspace.
 	if err := loadExplicitWorkspaceFile(ctx, ws, fs); err == nil {
-		if ws.mod == nil {
-			panic("BUG: explicit workspace file was not parsed")
-		}
 		return ws, nil
 	}
 
@@ -150,11 +150,15 @@ func loadExplicitWorkspaceFile(ctx context.Context, ws *workspace, fs source.Fil
 		switch src {
 		case goWorkWorkspace:
 			file, activeModFiles, err = parseGoWork(ctx, ws.root, fh.URI(), contents, fs)
+			ws.workFile = fh.URI()
 		case goplsModWorkspace:
 			file, activeModFiles, err = parseGoplsMod(ws.root, fh.URI(), contents)
 		}
 		if err != nil {
-			return err
+			ws.buildMu.Lock()
+			ws.built = true
+			ws.buildErr = err
+			ws.buildMu.Unlock()
 		}
 		ws.mod = file
 		ws.activeModFiles = activeModFiles
