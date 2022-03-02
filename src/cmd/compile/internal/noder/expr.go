@@ -114,7 +114,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.CallExpr:
 		fun := g.expr(expr.Fun)
-		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
+		return g.callExpr(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
 
 	case *syntax.IndexExpr:
 		args := unpackListExpr(expr.Index)
@@ -204,6 +204,53 @@ func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node)
 	}
 	newt := ts.Typ(typ)
 	return newt
+}
+
+// callExpr creates a call expression (which might be a type conversion, built-in
+// call, or a regular call) and does standard transforms, unless we are in a generic
+// function.
+func (g *irgen) callExpr(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+	n.IsDDD = dots
+	typed(typ, n)
+
+	if fun.Op() == ir.OTYPE {
+		// Actually a type conversion, not a function call.
+		if !g.delayTransform() {
+			return transformConvCall(n)
+		}
+		return n
+	}
+
+	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
+		if !g.delayTransform() {
+			return transformBuiltin(n)
+		}
+		return n
+	}
+
+	// Add information, now that we know that fun is actually being called.
+	switch fun := fun.(type) {
+	case *ir.SelectorExpr:
+		if fun.Op() == ir.OMETHVALUE {
+			op := ir.ODOTMETH
+			if fun.X.Type().IsInterface() {
+				op = ir.ODOTINTER
+			}
+			fun.SetOp(op)
+			// Set the type to include the receiver, since that's what
+			// later parts of the compiler expect
+			fun.SetType(fun.Selection.Type)
+		}
+	}
+
+	// A function instantiation (even if fully concrete) shouldn't be
+	// transformed yet, because we need to add the dictionary during the
+	// transformation.
+	if fun.Op() != ir.OFUNCINST && !g.delayTransform() {
+		transformCall(n)
+	}
+	return n
 }
 
 // selectorExpr resolves the choice of ODOT, ODOTPTR, OMETHVALUE (eventually

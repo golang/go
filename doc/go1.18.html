@@ -84,7 +84,7 @@ Do not send CLs removing the interior tags from such phrases.
   <li>
     The new
     <a href="/ref/spec#Predeclared_identifiers">predeclared identifier</a>
-    <code>comparable</code> is an interface the denotes the set of all types which can be
+    <code>comparable</code> is an interface that denotes the set of all types which can be
     compared using <code>==</code> or <code>!=</code>. It may only be used as (or embedded in)
     a type constraint.
   </li>
@@ -135,9 +135,19 @@ Do not send CLs removing the interior tags from such phrases.
       the predeclared functions <code>real</code>, <code>imag</code>, and <code>complex</code>.
       We hope to remove this restriction in Go 1.19.
     </li>
+    <li><!-- https://golang.org/issue/51183 -->
+      The Go compiler currently only supports calling a method <code>m</code> on a value
+      <code>x</code> of type parameter type <code>P</code> if <code>m</code> is explicitly
+      declared by <code>P</code>'s constraint interface.
+      Similarly, method values <code>x.m</code> and method expressions
+      <code>P.m</code> also are only supported if <code>m</code> is explicitly
+      declared by <code>P</code>, even though <code>m</code> might be in the method set
+      of <code>P</code> by virtue of the fact that all types in <code>P</code> implement
+      <code>m</code>. We hope to remove this restriction in Go 1.19.
+    </li>
     <li><!-- https://golang.org/issue/49030 -->
       Embedding a type parameter, or a pointer to a type parameter, as
-      an unnamed field in a struct type is not permitted. Similarly
+      an unnamed field in a struct type is not permitted. Similarly,
       embedding a type parameter in an interface type is not permitted.
       Whether these will ever be permitted is unclear at present.
     </li>
@@ -182,7 +192,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p><!-- CL 349595 -->
   Go 1.18 introduces the new <code>GOAMD64</code> environment variable, which selects at compile time
-  a mininum target version of the AMD64 architecture. Allowed values are <code>v1</code>,
+  a minimum target version of the AMD64 architecture. Allowed values are <code>v1</code>,
   <code>v2</code>, <code>v3</code>, or <code>v4</code>. Each higher level requires,
   and takes advantage of, additional processor features. A detailed
   description can be found
@@ -197,6 +207,12 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- golang.org/issue/47100, CL 334872 -->
   The 64-bit RISC-V architecture on Linux (the <code>linux/riscv64</code> port)
   now supports the <code>c-archive</code> and <code>c-shared</code> build modes.
+</p>
+
+<h3 id="linux">Linux</h3>
+
+<p><!-- golang.org/issue/45964 -->
+  Go 1.18 requires Linux kernel version 2.6.32 or later.
 </p>
 
 <h3 id="windows">Windows</h3>
@@ -250,6 +266,8 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
+
 <p><!-- golang.org/issue/43684 -->
   <code>go</code> <code>get</code> no longer builds or installs packages in
   module-aware mode. <code>go</code> <code>get</code> is now dedicated to
@@ -269,9 +287,25 @@ Do not send CLs removing the interior tags from such phrases.
   and installs packages, as before.
 </p>
 
+<h4 id="go-mod-updates">Automatic <code>go.mod</code> and <code>go.sum</code> updates</h4>
+
+<p><!-- https://go.dev/issue/45551 -->
+  The <code>go</code> <code>mod</code> <code>graph</code>,
+  <code>go</code> <code>mod</code> <code>vendor</code>,
+  <code>go</code> <code>mod</code> <code>verify</code>, and
+  <code>go</code> <code>mod</code> <code>why</code> subcommands
+  no longer automatically update the <code>go.mod</code> and
+  <code>go.sum</code> files.
+  (Those files can be updated explicitly using <code>go</code> <code>get</code>,
+  <code>go</code> <code>mod</code> <code>tidy</code>, or
+  <code>go</code> <code>mod</code> <code>download</code>.)
+</p>
+
+<h4 id="go-version"><code>go</code> <code>version</code></h4>
+
 <p><!-- golang.org/issue/37475 -->
   The <code>go</code> command now embeds version control information in
-  binaries including the currently checked-out revision, commit time, and a
+  binaries. It includes the currently checked-out revision, commit time, and a
   flag indicating whether edited or untracked files are present. Version
   control information is embedded if the <code>go</code> command is invoked in
   a directory within a Git, Mercurial, Fossil, or Bazaar repository, and the
@@ -281,7 +315,7 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- golang.org/issue/37475 -->
-  Additionally, the <code>go</code> command embeds information about the build
+  Additionally, the <code>go</code> command embeds information about the build,
   including build and tool tags (set with <code>-tags</code>), compiler,
   assembler, and linker flags (like <code>-gcflags</code>), whether cgo was
   enabled, and if it was, the values of the cgo environment variables
@@ -303,6 +337,8 @@ Do not send CLs removing the interior tags from such phrases.
   <code>debug/buildinfo</code> package from <code>go</code> 1.18+.
 </p>
 
+<h4 id="go-mod-download"><code>go</code> <code>mod</code> <code>download</code></h4>
+
 <p><!-- https://golang.org/issue/44435 -->
   If the main module's <code>go.mod</code> file
   specifies <a href="/ref/mod#go-mod-file-go"><code>go</code> <code>1.17</code></a>
@@ -316,6 +352,8 @@ Do not send CLs removing the interior tags from such phrases.
   <code>go</code> <code>mod</code> <code>download</code> <code>all</code>.
 </p>
 
+<h4 id="go-mod-vendor"><code>go</code> <code>mod</code> <code>vendor</code></h4>
+
 <p><!-- https://golang.org/issue/47327 -->
   The <code>go</code> <code>mod</code> <code>vendor</code> subcommand now
   supports a <code>-o</code> flag to set the output directory.
@@ -325,12 +363,7 @@ Do not send CLs removing the interior tags from such phrases.
   third-party tools that need to collect package source code.)
 </p>
 
-<p><!-- CL 298612 -->
-  The <code>go</code> <code>build</code> command and related commands
-  now support an <code>-asan</code> flag that enables interoperation
-  with C (or C++) code compiled with the address sanitizer (C compiler
-  option <code>-fsanitize=address</code>).
-</p>
+<h4 id="go-mod-tidy"><code>go</code> <code>mod</code> <code>tidy</code></h4>
 
 <p><!-- https://golang.org/issue/47738, CL 344572 -->
   The <code>go</code> <code>mod</code> <code>tidy</code> command now retains
@@ -341,6 +374,8 @@ Do not send CLs removing the interior tags from such phrases.
   change is <em>not</em> conditioned on the <code>go</code> version in the main
   module's <code>go.mod</code> file.
 </p>
+
+<h4 id="go-work"><code>go</code> <code>work</code></h4>
 
 <p><!-- https://golang.org/issue/45713 -->
   The <code>go</code> command now supports a "Workspace" mode. If a
@@ -354,6 +389,17 @@ Do not send CLs removing the interior tags from such phrases.
   <a href="/pkg/cmd/go#hdr-Workspace_maintenance"><code>go work</code></a>
   documentation.
 </p>
+
+<h4 id="go-build-asan"><code>go</code> <code>build</code> <code>-asan</code></h4>
+
+<p><!-- CL 298612 -->
+  The <code>go</code> <code>build</code> command and related commands
+  now support an <code>-asan</code> flag that enables interoperation
+  with C (or C++) code compiled with the address sanitizer (C compiler
+  option <code>-fsanitize=address</code>).
+</p>
+
+<h4 id="go-test"><code>go</code> <code>test</code></h4>
 
 <p><!-- CL 251441 -->
   The <code>go</code> command now supports additional command line
@@ -376,11 +422,28 @@ Do not send CLs removing the interior tags from such phrases.
   </ul>
 </p>
 
+<h4 id="go-build-lines"><code>//go:build</code> lines</h4>
+
 <p><!-- CL 240611 -->
-  TODO: <a href="https://golang.org/cl/240611">https://golang.org/cl/240611</a>: 240611: cmd/fix: add buildtag fix
+Go 1.17 introduced <code>//go:build</code> lines as a more readable way to write build constraints,
+instead of <code>//</code> <code>+build</code> lines.
+As of Go 1.17, <code>gofmt</code> adds <code>//go:build</code> lines
+to match existing <code>+build</code> lines and keeps them in sync,
+while <code>go</code> <code>vet</code> diagnoses when they are out of sync.
 </p>
 
-<h3 id="gofmt"><code>gofmt</code></h3>
+<p>Since the release of Go 1.18 marks the end of support for Go 1.16,
+all supported versions of Go now understand <code>//go:build</code> lines.
+In Go 1.18, <code>go</code> <code>fix</code> now removes the now-obsolete
+<code>//</code> <code>+build</code> lines in modules declaring
+<code>go</code> <code>1.17</code> or later in their <code>go.mod</code> files.
+</p>
+
+<p>
+For more information, see <a href="https://go.dev/design/draft-gobuild">https://go.dev/design/draft-gobuild</a>.
+</p>
+
+<h3 id="gofmt">Gofmt</h3>
 
 <p><!-- https://golang.org/issue/43566 -->
   <code>gofmt</code> now reads and formats input files concurrently, with a
@@ -388,7 +451,7 @@ Do not send CLs removing the interior tags from such phrases.
   multiple CPUs, <code>gofmt</code> should now be significantly faster.
 </p>
 
-<h3 id="vet"><code>vet</code></h3>
+<h3 id="vet">Vet</h3>
 
 <h4 id="vet-generics">Updates for Generics</h4>
 
@@ -476,7 +539,7 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- CL 298611 -->
-  The new compiler <code>-asan</code> option supports the
+  The new <code>-asan</code> compiler option supports the
   new <code>go</code> command <code>-asan</code> option.
 </p>
 
@@ -506,14 +569,21 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- CL 298610 -->
-  The new linker <code>-asan</code> option supports the
+  The new <code>-asan</code> linker option supports the
   new <code>go</code> command <code>-asan</code> option.
 </p>
 
-<h2 id="build">Build</h2>
+<h2 id="bootstrap">Bootstrap</h2>
 
 <p><!-- CL 369914, CL 370274 -->
-  TODO: <a href="https://golang.org/cl/369914">https://golang.org/cl/369914</a>: for default bootstrap, use Go 1.17 if present, falling back to Go 1.4
+When building a Go release from source and <code>GOROOT_BOOTSTRAP</code>
+is not set, previous versions of Go looked for a Go 1.4 or later bootstrap toolchain
+in the directory <code>$HOME/go1.4</code> (<code>%HOMEDRIVE%%HOMEPATH%\go1.4</code> on Windows).
+Go now looks first for <code>$HOME/go1.17</code> or <code>$HOME/sdk/go1.17</code>
+before falling back to <code>$HOME/go1.4</code>.
+We intend for Go 1.19 to require Go 1.17 or later for bootstrap,
+and this change should make the transition smoother.
+For more details, see <a href="https://go.dev/issue/44505">go.dev/issue/44505</a>.
 </p>
 
 <h2 id="library">Core library</h2>
@@ -640,8 +710,8 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 345570 -->
-      The methods <a href="/pkg/bufio#Reader.Reset"><code>Reader.Reset</code></a> and
-      <a href="/pkg/bufio#Writer.Reset"><code>Writer.Reset</code></a>
+      The <a href="/pkg/bufio#Reader.Reset"><code>Reader.Reset</code></a> and
+      <a href="/pkg/bufio#Writer.Reset"><code>Writer.Reset</code></a> methods
       now use the default buffer size when called on objects with a
       <code>nil</code> buffer.
     </p>
@@ -1003,7 +1073,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os/user"><dt><a href="/pkg/os/user/">os/user</a></dt>
   <dd>
     <p><!-- CL 330753 -->
-      <a href="/pkg/os/user#User.GroupIds"><code>User.GroupIds</code></a>.
+      <a href="/pkg/os/user#User.GroupIds"><code>User.GroupIds</code></a>
       now uses a Go native implementation when cgo is not available.
     </p>
   </dd>
@@ -1016,7 +1086,7 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/reflect/#Value.SetIterKey"><code>Value.SetIterKey</code></a>
       and <a href="/pkg/reflect/#Value.SetIterValue"><code>Value.SetIterValue</code></a>
       methods set a Value using a map iterator as the source. They are equivalent to
-      <code>Value.Set(iter.Key())</code> and <code>Value.Set(iter.Value())</code> but
+      <code>Value.Set(iter.Key())</code> and <code>Value.Set(iter.Value())</code>, but
       do fewer allocations.
     </p>
 
@@ -1101,6 +1171,16 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- runtime/debug -->
 
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 324129 -->
+      The CPU profiler now uses per-thread timers on Linux. This increases the
+      maximum CPU usage that a profile can observe, and reduces some forms of
+      bias.
+    </p>
+  </dd>
+</dl><!-- runtime/pprof -->
+
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
     <p><!-- CL 343877 -->
@@ -1170,7 +1250,7 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 355570 -->
-      <a href="/pkg/syscall/?GOOS=freebsd#SysProcAttr.Pdeathsig"><code>SysProcAttr.Pdeathsig</code></a>.
+      <a href="/pkg/syscall/?GOOS=freebsd#SysProcAttr.Pdeathsig"><code>SysProcAttr.Pdeathsig</code></a>
       is now supported in FreeBSD.
     </p>
   </dd>
@@ -1179,7 +1259,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
   <dd>
     <p><!-- CL 356430 -->
-      <code>Wrapper</code> interface has been removed.
+      The <code>Wrapper</code> interface has been removed.
     </p>
   </dd>
 </dl><!-- syscall/js -->
@@ -1251,7 +1331,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="unicode/utf8"><dt><a href="/pkg/unicode/utf8/">unicode/utf8</a></dt>
   <dd>
     <p><!-- CL 345571 -->
-      The <a href="/pkg/unicode/utf8/#AppendRune"><code>AppendRune</code></a> function appends the UTF-8 new
+      The new <a href="/pkg/unicode/utf8/#AppendRune"><code>AppendRune</code></a> function appends the UTF-8
       encoding of a <code>rune</code> to a <code>[]byte</code>.
     </p>
   </dd>

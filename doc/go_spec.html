@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft",
-	"Subtitle": "Version of Feb 14, 2022",
+	"Subtitle": "Version of Feb 28, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -2008,7 +2008,7 @@ by a value of type <code>T</code>.
 </ul>
 
 <p>
-Additionally, if <code>x's</code> type <code>V</code> or <code>T</code> are type parameters
+Additionally, if <code>x</code>'s type <code>V</code> or <code>T</code> are type parameters
 with <a href="#Specific_types">specific types</a>, <code>x</code>
 is assignable to a variable of type <code>T</code> if one of the following conditions applies:
 </p>
@@ -7414,7 +7414,7 @@ an explicit call to <code>panic</code> or a <a href="#Run_time_panics">run-time 
 terminates the execution of <code>F</code>.
 Any functions <a href="#Defer_statements">deferred</a> by <code>F</code>
 are then executed as usual.
-Next, any deferred functions run by <code>F's</code> caller are run,
+Next, any deferred functions run by <code>F</code>'s caller are run,
 and so on up to any deferred by the top-level function in the executing goroutine.
 At that point, the program is terminated and the error
 condition is reported, including the value of the argument to <code>panic</code>.

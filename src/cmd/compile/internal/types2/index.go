@@ -182,7 +182,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	}
 
 	if !valid {
-		check.errorf(x, invalidOp+"cannot index %s", x)
+		check.errorf(e.Pos(), invalidOp+"cannot index %s", x)
 		x.mode = invalid
 		return false
 	}

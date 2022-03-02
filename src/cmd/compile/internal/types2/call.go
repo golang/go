@@ -525,7 +525,11 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 	}
 
 	check.exprOrType(x, e.X, false)
-	if x.mode == invalid {
+	switch x.mode {
+	case builtin:
+		check.errorf(e.Pos(), "cannot select on %s", x)
+		goto Error
+	case invalid:
 		goto Error
 	}
 

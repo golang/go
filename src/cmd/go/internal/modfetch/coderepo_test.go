@@ -458,6 +458,54 @@ var codeRepoTests = []codeRepoTest{
 		rev:  "v3.0.0-devel",
 		err:  `resolves to version v0.1.1-0.20220203155313-d59622f6e4d7 (v3.0.0-devel is not a tag)`,
 	},
+
+	// If v2/go.mod exists, then we should prefer to match the "v2"
+	// pseudo-versions to the nested module, and resolve the module in the parent
+	// directory to only compatible versions.
+	//
+	// However (https://go.dev/issue/51324), previous versions of the 'go' command
+	// didn't always do so, so if the user explicitly requests a +incompatible
+	// version (as would be present in an existing go.mod file), we should
+	// continue to allow it.
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/git/v2sub.git",
+		rev:     "80beb17a1603",
+		version: "v0.0.0-20220222205507-80beb17a1603",
+		name:    "80beb17a16036f17a5aedd1bb5bd6d407b3c6dc5",
+		short:   "80beb17a1603",
+		time:    time.Date(2022, 2, 22, 20, 55, 7, 0, time.UTC),
+	},
+	{
+		vcs:  "git",
+		path: "vcs-test.golang.org/git/v2sub.git",
+		rev:  "v2.0.0",
+		err:  `module contains a go.mod file, so module path must match major version ("vcs-test.golang.org/git/v2sub.git/v2")`,
+	},
+	{
+		vcs:  "git",
+		path: "vcs-test.golang.org/git/v2sub.git",
+		rev:  "v2.0.1-0.20220222205507-80beb17a1603",
+		err:  `module contains a go.mod file, so module path must match major version ("vcs-test.golang.org/git/v2sub.git/v2")`,
+	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/git/v2sub.git",
+		rev:     "v2.0.0+incompatible",
+		version: "v2.0.0+incompatible",
+		name:    "5fcd3eaeeb391d399f562fd45a50dac9fc34ae8b",
+		short:   "5fcd3eaeeb39",
+		time:    time.Date(2022, 2, 22, 20, 53, 33, 0, time.UTC),
+	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/git/v2sub.git",
+		rev:     "v2.0.1-0.20220222205507-80beb17a1603+incompatible",
+		version: "v2.0.1-0.20220222205507-80beb17a1603+incompatible",
+		name:    "80beb17a16036f17a5aedd1bb5bd6d407b3c6dc5",
+		short:   "80beb17a1603",
+		time:    time.Date(2022, 2, 22, 20, 55, 7, 0, time.UTC),
+	},
 }
 
 func TestCodeRepo(t *testing.T) {

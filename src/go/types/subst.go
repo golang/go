@@ -160,7 +160,10 @@ func (subst *subster) typ(typ Type) Type {
 		methods, mcopied := subst.funcList(t.methods)
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		if mcopied || ecopied {
-			iface := &Interface{embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
+			iface := subst.check.newInterface()
+			iface.embeddeds = embeddeds
+			iface.implicit = t.implicit
+			iface.complete = t.complete
 			// If we've changed the interface type, we may need to replace its
 			// receiver if the receiver type is the original interface. Receivers of
 			// *Named type are replaced during named type expansion.

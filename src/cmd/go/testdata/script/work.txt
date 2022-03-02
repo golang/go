@@ -4,7 +4,7 @@ go env GOWORK
 ! stdout .
 
 go work init ./a ./b
-cmp go.work go.work.want
+cmpenv go.work go.work.want
 go env GOWORK
 stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'
 
@@ -69,7 +69,7 @@ use (
   ../src/a
 )
 -- go.work.want --
-go 1.18
+go $goversion
 
 use (
 	./a
