@@ -27,6 +27,8 @@ modules will be created.
 Each argument path is added to a use directive in the go.work file. The
 current go version will also be listed in the go.work file.
 
+See the workspaces reference at https://go.dev/ref/mod#workspaces
+for more information.
 `,
 	Run: runInit,
 }
