@@ -84,9 +84,8 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Version string
 	}
 
-See the workspaces design proposal at
-https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
-more information.
+See the workspaces reference at https://go.dev/ref/mod#workspaces
+for more information.
 `,
 }
 
