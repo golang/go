@@ -626,13 +626,14 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.ForStmt:
 		inner |= breakOk | continueOk
-		check.openScope(s, "for")
-		defer check.closeScope()
 
 		if rclause, _ := s.Init.(*syntax.RangeClause); rclause != nil {
 			check.rangeStmt(inner, s, rclause)
 			break
 		}
+
+		check.openScope(s, "for")
+		defer check.closeScope()
 
 		check.simpleStmt(s.Init)
 		if s.Cond != nil {
@@ -809,8 +810,6 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 }
 
 func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *syntax.RangeClause) {
-	// scope already opened
-
 	// determine lhs, if any
 	sKey := rclause.Lhs // possibly nil
 	var sValue, sExtra syntax.Expr
@@ -866,6 +865,11 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 		}
 	}
 
+	// Open the for-statement block scope now, after the range clause.
+	// Iteration variables declared with := need to go in this scope (was issue #51437).
+	check.openScope(s, "range")
+	defer check.closeScope()
+
 	// check assignment to/declaration of iteration variables
 	// (irregular assignment, cannot easily map to existing assignment checks)
 
@@ -874,9 +878,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	rhs := [2]Type{key, val} // key, val may be nil
 
 	if rclause.Def {
-		// short variable declaration; variable scope starts after the range clause
-		// (the for loop opens a new scope, so variables on the lhs never redeclare
-		// previously declared variables)
+		// short variable declaration
 		var vars []*Var
 		for i, lhs := range lhs {
 			if lhs == nil {
@@ -913,12 +915,8 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 
 		// declare variables
 		if len(vars) > 0 {
-			scopePos := syntax.EndPos(rclause.X) // TODO(gri) should this just be s.Body.Pos (spec clarification)?
+			scopePos := s.Body.Pos()
 			for _, obj := range vars {
-				// spec: "The scope of a constant or variable identifier declared inside
-				// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
-				// for short variable declarations) and ends at the end of the innermost
-				// containing block."
 				check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
 			}
 		} else {

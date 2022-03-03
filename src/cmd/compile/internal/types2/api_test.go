@@ -1699,7 +1699,7 @@ func F(){
 	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
 
 	var a []int
-	for i, x := range /*i=undef*/ /*x=var:16*/ a /*i=var:20*/ /*x=var:20*/ { _ = i; _ = x }
+	for i, x := range a /*i=undef*/ /*x=var:16*/ { _ = i; _ = x }
 
 	var i interface{}
 	switch y := i.(type) { /*y=undef*/
