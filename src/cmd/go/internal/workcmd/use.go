@@ -186,5 +186,5 @@ func pathRel(workDir, dir string) (abs, canonical string) {
 
 	// Normalize relative paths to use slashes, so that checked-in go.work
 	// files with relative paths within the repo are platform-independent.
-	return abs, filepath.ToSlash(rel)
+	return abs, modload.ToDirectoryPath(rel)
 }

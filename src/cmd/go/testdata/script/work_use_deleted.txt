@@ -6,13 +6,13 @@ go 1.18
 
 use (
 	.
-	sub
-	sub/dir/deleted
+	./sub
+	./sub/dir/deleted
 )
 -- go.work.want --
 go 1.18
 
-use sub/dir
+use ./sub/dir
 -- sub/README.txt --
 A go.mod file has been deleted from this directory.
 In addition, the entire subdirectory sub/dir/deleted
