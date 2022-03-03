@@ -821,8 +821,6 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 	case *ast.RangeStmt:
 		inner |= breakOk | continueOk
-		check.openScope(s, "for")
-		defer check.closeScope()
 
 		// check expression to iterate over
 		var x operand
@@ -857,6 +855,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 		}
 
+		// Open the for-statement block scope now, after the range clause.
+		// Iteration variables declared with := need to go in this scope (was issue #51437).
+		check.openScope(s, "range")
+		defer check.closeScope()
+
 		// check assignment to/declaration of iteration variables
 		// (irregular assignment, cannot easily map to existing assignment checks)
 
@@ -865,9 +868,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		rhs := [2]Type{key, val} // key, val may be nil
 
 		if s.Tok == token.DEFINE {
-			// short variable declaration; variable scope starts after the range clause
-			// (the for loop opens a new scope, so variables on the lhs never redeclare
-			// previously declared variables)
+			// short variable declaration
 			var vars []*Var
 			for i, lhs := range lhs {
 				if lhs == nil {
@@ -904,12 +905,8 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 			// declare variables
 			if len(vars) > 0 {
-				scopePos := s.X.End()
+				scopePos := s.Body.Pos()
 				for _, obj := range vars {
-					// spec: "The scope of a constant or variable identifier declared inside
-					// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
-					// for short variable declarations) and ends at the end of the innermost
-					// containing block."
 					check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
 				}
 			} else {
