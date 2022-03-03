@@ -31,7 +31,7 @@ grep '^use ["]?'$PWD'["]?$' ../../go.work
 # resulting workspace would contain a duplicate module.
 cp ../../go.work.orig ../../go.work
 ! go work use $PWD .
-stderr '^go: already added "bar/baz" as "'$PWD'"$'
+stderr '^go: already added "\./bar/baz" as "'$PWD'"$'
 cmp ../../go.work ../../go.work.orig
 
 
@@ -43,7 +43,7 @@ go 1.18
 -- go.work.rel --
 go 1.18
 
-use bar/baz
+use ./bar/baz
 -- bar/baz/go.mod --
 module example/bar/baz
 go 1.18

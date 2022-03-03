@@ -14,16 +14,16 @@ use (
 go 1.18
 
 use (
-	foo
-	foo/bar/baz
+	./foo
+	./foo/bar/baz
 )
 -- go.want_work_other --
 go 1.18
 
 use (
-	foo
-	foo/bar/baz
-	other
+	./foo
+	./foo/bar/baz
+	./other
 )
 -- foo/go.mod --
 module foo
