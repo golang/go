@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/internal/lsp/analysis/stubmethods"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, rng protocol.Range) (*analysis.SuggestedFix, error) {
@@ -31,7 +32,7 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 	if err != nil {
 		return nil, fmt.Errorf("getNodes: %w", err)
 	}
-	si := stubmethods.GetStubInfo(pkg.GetTypesInfo(), nodes, pkg.GetTypes(), pos)
+	si := stubmethods.GetStubInfo(pkg.GetTypesInfo(), nodes, pos)
 	if si == nil {
 		return nil, fmt.Errorf("nil interface request")
 	}
@@ -134,7 +135,7 @@ func stubMethods(ctx context.Context, concreteFile *ast.File, si *stubmethods.St
 			_, err = methodsBuffer.Write(printStubMethod(methodData{
 				Method:    m.Name(),
 				Concrete:  getStubReceiver(si),
-				Interface: deduceIfaceName(si.Concrete.Obj().Pkg(), si.Interface.Pkg(), si.Concrete.Obj(), si.Interface),
+				Interface: deduceIfaceName(si.Concrete.Obj().Pkg(), si.Interface.Pkg(), si.Interface),
 				Signature: strings.TrimPrefix(sig, "func"),
 			}))
 			if err != nil {
@@ -159,13 +160,14 @@ func stubErr(ctx context.Context, concreteFile *ast.File, si *stubmethods.StubIn
 }
 
 // getStubReceiver returns the concrete type's name as a method receiver.
-// TODO(marwan-at-work): add type parameters to the receiver when the concrete type
-// is a generic one.
+// It accounts for type parameters if they exist.
 func getStubReceiver(si *stubmethods.StubInfo) string {
-	concrete := si.Concrete.Obj().Name()
+	var concrete string
 	if si.Pointer {
-		concrete = "*" + concrete
+		concrete += "*"
 	}
+	concrete += si.Concrete.Obj().Name()
+	concrete += FormatTypeParams(typeparams.ForNamed(si.Concrete))
 	return concrete
 }
 
@@ -203,7 +205,7 @@ func deducePkgFromTypes(ctx context.Context, snapshot Snapshot, ifaceObj types.O
 	return nil, fmt.Errorf("pkg %q not found", ifaceObj.Pkg().Path())
 }
 
-func deduceIfaceName(concretePkg, ifacePkg *types.Package, concreteObj, ifaceObj types.Object) string {
+func deduceIfaceName(concretePkg, ifacePkg *types.Package, ifaceObj types.Object) string {
 	if concretePkg.Path() == ifacePkg.Path() {
 		return ifaceObj.Name()
 	}

@@ -5,7 +5,6 @@
 package completion
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -65,7 +64,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		x := cand.obj.(*types.TypeName)
 		if named, ok := x.Type().(*types.Named); ok {
 			tp := typeparams.ForNamed(named)
-			label += string(formatTypeParams(tp))
+			label += source.FormatTypeParams(tp)
 			insert = label // maintain invariant above (label == insert)
 		}
 	}
@@ -338,20 +337,4 @@ func (c *completer) wantTypeParams() bool {
 		}
 	}
 	return false
-}
-
-func formatTypeParams(tp *typeparams.TypeParamList) []byte {
-	var buf bytes.Buffer
-	if tp == nil || tp.Len() == 0 {
-		return nil
-	}
-	buf.WriteByte('[')
-	for i := 0; i < tp.Len(); i++ {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-		buf.WriteString(tp.At(i).Obj().Name())
-	}
-	buf.WriteByte(']')
-	return buf.Bytes()
 }

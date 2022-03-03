@@ -60,7 +60,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			endPos = analysisinternal.TypeErrorEndPos(pass.Fset, buf.Bytes(), err.Pos)
 		}
 		path, _ := astutil.PathEnclosingInterval(file, err.Pos, endPos)
-		si := GetStubInfo(pass.TypesInfo, path, pass.Pkg, err.Pos)
+		si := GetStubInfo(pass.TypesInfo, path, err.Pos)
 		if si == nil {
 			continue
 		}
@@ -91,20 +91,20 @@ type StubInfo struct {
 
 // GetStubInfo determines whether the "missing method error"
 // can be used to deduced what the concrete and interface types are.
-func GetStubInfo(ti *types.Info, path []ast.Node, pkg *types.Package, pos token.Pos) *StubInfo {
+func GetStubInfo(ti *types.Info, path []ast.Node, pos token.Pos) *StubInfo {
 	for _, n := range path {
 		switch n := n.(type) {
 		case *ast.ValueSpec:
-			return fromValueSpec(ti, n, pkg, pos)
+			return fromValueSpec(ti, n, pos)
 		case *ast.ReturnStmt:
 			// An error here may not indicate a real error the user should know about, but it may.
 			// Therefore, it would be best to log it out for debugging/reporting purposes instead of ignoring
 			// it. However, event.Log takes a context which is not passed via the analysis package.
 			// TODO(marwan-at-work): properly log this error.
-			si, _ := fromReturnStmt(ti, pos, path, n, pkg)
+			si, _ := fromReturnStmt(ti, pos, path, n)
 			return si
 		case *ast.AssignStmt:
-			return fromAssignStmt(ti, n, pkg, pos)
+			return fromAssignStmt(ti, n, pos)
 		}
 	}
 	return nil
@@ -115,7 +115,7 @@ func GetStubInfo(ti *types.Info, path []ast.Node, pkg *types.Package, pos token.
 //
 // For example, func() io.Writer { return myType{} }
 // would return StubInfo with the interface being io.Writer and the concrete type being myType{}.
-func fromReturnStmt(ti *types.Info, pos token.Pos, path []ast.Node, rs *ast.ReturnStmt, pkg *types.Package) (*StubInfo, error) {
+func fromReturnStmt(ti *types.Info, pos token.Pos, path []ast.Node, rs *ast.ReturnStmt) (*StubInfo, error) {
 	returnIdx := -1
 	for i, r := range rs.Results {
 		if pos >= r.Pos() && pos <= r.End() {
@@ -146,7 +146,7 @@ func fromReturnStmt(ti *types.Info, pos token.Pos, path []ast.Node, rs *ast.Retu
 
 // fromValueSpec returns *StubInfo from a variable declaration such as
 // var x io.Writer = &T{}
-func fromValueSpec(ti *types.Info, vs *ast.ValueSpec, pkg *types.Package, pos token.Pos) *StubInfo {
+func fromValueSpec(ti *types.Info, vs *ast.ValueSpec, pos token.Pos) *StubInfo {
 	var idx int
 	for i, vs := range vs.Values {
 		if pos >= vs.Pos() && pos <= vs.End() {
@@ -182,7 +182,7 @@ func fromValueSpec(ti *types.Info, vs *ast.ValueSpec, pkg *types.Package, pos to
 // fromAssignStmt returns *StubInfo from a variable re-assignment such as
 // var x io.Writer
 // x = &T{}
-func fromAssignStmt(ti *types.Info, as *ast.AssignStmt, pkg *types.Package, pos token.Pos) *StubInfo {
+func fromAssignStmt(ti *types.Info, as *ast.AssignStmt, pos token.Pos) *StubInfo {
 	idx := -1
 	var lhs, rhs ast.Expr
 	// Given a re-assignment interface conversion error,
