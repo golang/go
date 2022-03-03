@@ -16,7 +16,6 @@
 #define SYS_close                 6
 #define SYS_getpid               20
 #define SYS_kill                 37
-#define SYS_pipe		 42
 #define SYS_brk			 45
 #define SYS_fcntl                55
 #define SYS_mmap                 90
@@ -101,14 +100,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	$SYS_read, R1
 	SYSCALL
 	MOVW	R2, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVD	$r+0(FP), R2
-	MOVW	$SYS_pipe, R1
-	SYSCALL
-	MOVW	R2, errno+8(FP)
 	RET
 
 // func pipe2() (r, w int32, errno int32)
@@ -493,21 +484,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVW    fd+0(FP), R2  // fd
 	MOVD    $2, R3  // F_SETFD
 	MOVD    $1, R4  // FD_CLOEXEC
-	MOVW	$SYS_fcntl, R1
-	SYSCALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R2 // fd
-	MOVD	$3, R3	// F_GETFL
-	XOR	R4, R4
-	MOVW	$SYS_fcntl, R1
-	SYSCALL
-	MOVD	$0x800, R4 // O_NONBLOCK
-	OR	R2, R4
-	MOVW	fd+0(FP), R2 // fd
-	MOVD	$4, R3	// F_SETFL
 	MOVW	$SYS_fcntl, R1
 	SYSCALL
 	RET
