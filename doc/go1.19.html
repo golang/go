@@ -59,3 +59,18 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section
 </p>
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 386016 -->
+      The pure Go resolver will now use EDNS(0) to include a suggested
+      maximum reply packet length, permitting reply packets to contain
+      up to 1232 bytes (the previous maximum was 512).
+      In the unlikely event that this causes problems with a local DNS
+      resolver, setting the environment variable
+      <code>GODEBUG=netdns=cgo</code> to use the cgo-based resolver
+      should work.
+      Please report any such problems on <a href="/issue/new">the
+      issue tracker</a>.
+    </p>
+  </dd>
+</dl>
