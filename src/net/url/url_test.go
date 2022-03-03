@@ -2064,72 +2064,62 @@ func BenchmarkPathUnescape(b *testing.B) {
 }
 
 func TestJoinPath(t *testing.T) {
-	type args struct {
-		baseUrl string
-		elem    []string
-	}
 	tests := []struct {
-		name       string
-		args       args
-		wantResult string
-		wantErr    bool
+		base string
+		elem []string
+		out  string
+		err  bool
 	}{
 		{
-			name: "test normal url",
-			args: args{
-				baseUrl: "https://go.googlesource.com",
-				elem:    []string{"go"},
-			},
-			wantResult: "https://go.googlesource.com/go",
-			wantErr:    false,
+			base: "https://go.googlesource.com",
+			elem: []string{"go"},
+			out:  "https://go.googlesource.com/go",
+			err:  false,
 		},
 		{
-			name: "test .. parent url",
-			args: args{
-				baseUrl: "https://go.googlesource.com/a/b/c",
-				elem:    []string{"../../../go"},
-			},
-			wantResult: "https://go.googlesource.com/go",
-			wantErr:    false,
+			base: "https://go.googlesource.com/a/b/c",
+			elem: []string{"../../../go"},
+			out:  "https://go.googlesource.com/go",
+			err:  false,
 		},
 		{
-			name: "test . cul path",
-			args: args{
-				baseUrl: "https://go.googlesource.com/",
-				elem:    []string{"./go"},
-			},
-			wantResult: "https://go.googlesource.com/go",
-			wantErr:    false,
+			base: "https://go.googlesource.com/",
+			elem: []string{"./go"},
+			out:  "https://go.googlesource.com/go",
+			err:  false,
 		},
 		{
-			name: "test multiple Separator",
-			args: args{
-				baseUrl: "https://go.googlesource.com//",
-				elem:    []string{"/go"},
-			},
-			wantResult: "https://go.googlesource.com/go",
-			wantErr:    false,
+			base: "https://go.googlesource.com//",
+			elem: []string{"/go"},
+			out:  "https://go.googlesource.com/go",
+			err:  false,
 		},
 		{
-			name: "test more elems",
-			args: args{
-				baseUrl: "https://go.googlesource.com//",
-				elem:    []string{"/go", "a", "b", "c"},
-			},
-			wantResult: "https://go.googlesource.com/go/a/b/c",
-			wantErr:    false,
+			base: "https://go.googlesource.com//",
+			elem: []string{"/go", "a", "b", "c"},
+			out:  "https://go.googlesource.com/go/a/b/c",
+			err:  false,
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotResult, err := JoinPath(tt.args.baseUrl, tt.args.elem...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("JoinPath() error = %v, wantErr %v", err, tt.wantErr)
-				return
+		if out, err := JoinPath(tt.base, tt.elem...); out != tt.out || (err != nil) != tt.err {
+			wantErr := "nil"
+			if tt.err {
+				wantErr = "non-nil error"
 			}
-			if gotResult != tt.wantResult {
-				t.Errorf("JoinPath() = %v, want %v", gotResult, tt.wantResult)
+			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		}
+		u, err := Parse(tt.base)
+		if err == nil {
+			u = u.JoinPath(tt.elem...)
+		}
+		out := u.String()
+		if out != tt.out || (err != nil) != tt.err {
+			wantErr := "nil"
+			if tt.err {
+				wantErr = "non-nil error"
 			}
-		})
+			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		}
 	}
 }

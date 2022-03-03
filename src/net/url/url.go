@@ -1177,8 +1177,8 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 	return nil
 }
 
-// JoinPath returns a new URL with the provided path elements
-// joined to any existing path and cleaned of any ./ or ../ elements.
+// JoinPath returns a new URL with the provided path elements joined to
+// any existing path and the resulting path cleaned of any ./ or ../ elements.
 func (u *URL) JoinPath(elem ...string) *URL {
 	url := *u
 	if len(elem) > 0 {
@@ -1229,7 +1229,8 @@ func stringContainsCTLByte(s string) bool {
 	return false
 }
 
-// JoinPath concatenates the path elements to the base URL and cleans any ./ or ../ elements from the final URL string.
+// JoinPath returns a string with the provided path elements joined to
+// the existing path of base and the resulting path cleaned of any ./ or ../ elements.
 func JoinPath(base string, elem ...string) (result string, err error) {
 	url, err := Parse(base)
 	if err != nil {
