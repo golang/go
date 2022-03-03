@@ -33,6 +33,9 @@ if the dependency module's version is not already the same as the build
 list's version. Note that Minimal Version Selection guarantees that the
 build list's version of each module is always the same or higher than
 that in each workspace module.
+
+See the workspaces reference at https://go.dev/ref/mod#workspaces
+for more information.
 `,
 	Run: runSync,
 }
