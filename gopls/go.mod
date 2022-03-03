@@ -12,7 +12,7 @@ require (
 	golang.org/x/tools v0.1.9
 	honnef.co/go/tools v0.2.2
 	mvdan.cc/gofumpt v0.3.0
-	mvdan.cc/xurls/v2 v2.3.0
+	mvdan.cc/xurls/v2 v2.4.0
 )
 
 require (
