@@ -55,6 +55,8 @@ func TestFindWorkspaceRoot(t *testing.T) {
 module a
 -- a/x/x.go
 package x
+-- a/x/y/y.go
+package x
 -- b/go.mod --
 module b
 -- b/c/go.mod --
@@ -79,6 +81,7 @@ module fg
 		{"", "", false}, // no module at root, and more than one nested module
 		{"a", "a", false},
 		{"a/x", "a", false},
+		{"a/x/y", "a", false},
 		{"b/c", "b/c", false},
 		{"d", "d/e", false},
 		{"d", "d", true},

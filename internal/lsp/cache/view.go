@@ -832,7 +832,7 @@ func go111moduleForVersion(go111module string, goversion int) go111module {
 // TODO (rFindley): move this to workspace.go
 // TODO (rFindley): simplify this once workspace modules are enabled by default.
 func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSource, excludePath func(string) bool, experimental bool) (span.URI, error) {
-	patterns := []string{"go.mod"}
+	patterns := []string{"go.work", "go.mod"}
 	if experimental {
 		patterns = []string{"go.work", "gopls.mod", "go.mod"}
 	}
@@ -882,7 +882,8 @@ func findRootPattern(ctx context.Context, folder span.URI, basename string, fs s
 		if exists {
 			return span.URIFromPath(dir), nil
 		}
-		next, _ := filepath.Split(dir)
+		// Trailing separators must be trimmed, otherwise filepath.Split is a noop.
+		next, _ := filepath.Split(strings.TrimRight(dir, string(filepath.Separator)))
 		if next == dir {
 			break
 		}

@@ -865,6 +865,55 @@ module example.com/bar/baz
 	})
 }
 
+func TestExpandToGoWork(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+	const workspace = `
+-- moda/a/go.mod --
+module a.com
+
+require b.com v1.2.3
+-- moda/a/a.go --
+package a
+
+import (
+	"b.com/b"
+)
+
+func main() {
+	var x int
+	_ = b.Hello()
+}
+-- modb/go.mod --
+module b.com
+
+require example.com v1.2.3
+-- modb/b/b.go --
+package b
+
+func Hello() int {
+	var x int
+}
+-- go.work --
+go 1.17
+
+use (
+	./moda/a
+	./modb
+)
+`
+	WithOptions(
+		WorkspaceFolders("moda/a"),
+	).Run(t, workspace, func(t *testing.T, env *Env) {
+		env.OpenFile("moda/a/a.go")
+		env.Await(env.DoneWithOpen())
+		location, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		want := "modb/b/b.go"
+		if !strings.HasSuffix(location, want) {
+			t.Errorf("expected %s, got %v", want, location)
+		}
+	})
+}
+
 func TestNonWorkspaceFileCreation(t *testing.T) {
 	testenv.NeedsGo1Point(t, 13)
 
