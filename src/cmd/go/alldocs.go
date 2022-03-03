@@ -1538,7 +1538,7 @@
 //
 // Usage:
 //
-// 	go work use [-r] [moddirs]
+// 	go work use [-r] moddirs
 //
 // Use provides a command-line interface for adding
 // directories, optionally recursively, to a go.work file.
