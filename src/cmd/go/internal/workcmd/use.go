@@ -20,7 +20,7 @@ import (
 )
 
 var cmdUse = &base.Command{
-	UsageLine: "go work use [-r] [moddirs]",
+	UsageLine: "go work use [-r] moddirs",
 	Short:     "add modules to workspace file",
 	Long: `Use provides a command-line interface for adding
 directories, optionally recursively, to a go.work file.
@@ -101,6 +101,9 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 		keepDirs[absDir] = dir
 	}
 
+	if len(args) == 0 {
+		base.Fatalf("go: 'go work use' requires one or more directory arguments")
+	}
 	for _, useDir := range args {
 		if !*useR {
 			lookDir(useDir)
