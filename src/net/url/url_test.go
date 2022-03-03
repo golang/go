@@ -2100,6 +2100,12 @@ func TestJoinPath(t *testing.T) {
 			out:  "https://go.googlesource.com/go/a/b/c",
 			err:  false,
 		},
+		{
+			base: "http://[fe80::1%en0]:8080/",
+			elem: []string{"/go"},
+			out:  "",
+			err:  true,
+		},
 	}
 	for _, tt := range tests {
 		if out, err := JoinPath(tt.base, tt.elem...); out != tt.out || (err != nil) != tt.err {
@@ -2109,17 +2115,18 @@ func TestJoinPath(t *testing.T) {
 			}
 			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
 		}
+		var out string
 		u, err := Parse(tt.base)
 		if err == nil {
 			u = u.JoinPath(tt.elem...)
+			out = u.String()
 		}
-		out := u.String()
 		if out != tt.out || (err != nil) != tt.err {
 			wantErr := "nil"
 			if tt.err {
 				wantErr = "non-nil error"
 			}
-			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+			t.Errorf("Parse(%q).JoinPath(%q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
 		}
 	}
 }
