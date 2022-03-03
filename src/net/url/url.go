@@ -1229,7 +1229,7 @@ func stringContainsCTLByte(s string) bool {
 	return false
 }
 
-// JoinPath returns a string with the provided path elements joined to
+// JoinPath returns a URL string with the provided path elements joined to
 // the existing path of base and the resulting path cleaned of any ./ or ../ elements.
 func JoinPath(base string, elem ...string) (result string, err error) {
 	url, err := Parse(base)
