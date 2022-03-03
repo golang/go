@@ -11,3 +11,5 @@ func Fcntl(fd, cmd, arg uintptr) (uintptr, uintptr) {
 	}
 	return uintptr(r), 0
 }
+
+var SetNonblock = setNonblock

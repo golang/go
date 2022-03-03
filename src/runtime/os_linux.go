@@ -446,9 +446,7 @@ func osyield_no_g() {
 	osyield()
 }
 
-func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)
-func setNonblock(fd int32)
 
 const (
 	_si_max_size    = 128
