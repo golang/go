@@ -1913,6 +1913,9 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	if ctxt.GOOS == "ios" && name == "darwin" {
 		return true
 	}
+	if name == "unix" && unixOS[ctxt.GOOS] {
+		return true
+	}
 
 	// other tags
 	for _, tag := range ctxt.BuildTags {
