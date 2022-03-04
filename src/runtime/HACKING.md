@@ -90,6 +90,9 @@ avoid allocating in perilous situations. By convention, additional
 details are printed before `throw` using `print` or `println` and the
 messages are prefixed with "runtime:".
 
+For unrecoverable errors where user code is expected to be at fault for the
+failure (such as racing map writes), use `fatal`.
+
 For runtime error debugging, it's useful to run with
 `GOTRACEBACK=system` or `GOTRACEBACK=crash`.
 

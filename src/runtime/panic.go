@@ -986,6 +986,15 @@ func sync_throw(s string) {
 	throw(s)
 }
 
+//go:linkname sync_fatal sync.fatal
+func sync_fatal(s string) {
+	fatal(s)
+}
+
+// throw triggers a fatal error that dumps a stack trace and exits.
+//
+// throw should be used for runtime-internal fatal errors where Go itself,
+// rather than user code, may be at fault for the failure.
 //go:nosplit
 func throw(s string) {
 	// Everything throw does should be recursively nosplit so it
@@ -993,12 +1002,23 @@ func throw(s string) {
 	systemstack(func() {
 		print("fatal error: ", s, "\n")
 	})
-	gp := getg()
-	if gp.m.throwing == 0 {
-		gp.m.throwing = 1
-	}
+
 	fatalthrow()
-	*(*int)(nil) = 0 // not reached
+}
+
+// fatal triggers a fatal error that dumps a stack trace and exits.
+//
+// fatal is equivalent to throw, but is used when user code is expected to be
+// at fault for the failure, such as racing map writes.
+//go:nosplit
+func fatal(s string) {
+	// Everything fatal does should be recursively nosplit so it
+	// can be called even when it's unsafe to grow the stack.
+	systemstack(func() {
+		print("fatal error: ", s, "\n")
+	})
+
+	fatalthrow()
 }
 
 // runningPanicDefers is non-zero while running deferred functions for panic.
@@ -1047,8 +1067,13 @@ func fatalthrow() {
 	pc := getcallerpc()
 	sp := getcallersp()
 	gp := getg()
-	// Switch to the system stack to avoid any stack growth, which
-	// may make things worse if the runtime is in a bad state.
+
+	if gp.m.throwing == 0 {
+		gp.m.throwing = 1
+	}
+
+	// Switch to the system stack to avoid any stack growth, which may make
+	// things worse if the runtime is in a bad state.
 	systemstack(func() {
 		startpanic_m()
 
