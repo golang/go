@@ -5,67 +5,41 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
 )
 
-// The setup for this test is mostly cribbed from x/exp/txtar.
+func TestMain(m *testing.M) {
+	if os.Getenv("GO_FILE2FUZZ_TEST_IS_FILE2FUZZ") != "" {
+		main()
+		os.Exit(0)
+	}
 
-var buildBin struct {
+	os.Exit(m.Run())
+}
+
+var f2f struct {
 	once sync.Once
-	name string
+	path string
 	err  error
 }
 
-func binPath(t *testing.T) string {
-	t.Helper()
-	if _, err := exec.LookPath("go"); err != nil {
-		t.Skipf("cannot build file2fuzz binary: %v", err)
-	}
-
-	buildBin.once.Do(func() {
-		exe, err := ioutil.TempFile("", "file2fuzz-*.exe")
-		if err != nil {
-			buildBin.err = err
-			return
-		}
-		exe.Close()
-		buildBin.name = exe.Name()
-
-		cmd := exec.Command("go", "build", "-o", buildBin.name, ".")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			buildBin.err = fmt.Errorf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
-		}
-	})
-
-	if buildBin.err != nil {
-		if runtime.GOOS == "android" {
-			t.Skipf("skipping test after failing to build file2fuzz binary: go_android_exec may have failed to copy needed dependencies (see https://golang.org/issue/37088)")
-		}
-		t.Fatal(buildBin.err)
-	}
-	return buildBin.name
-}
-
-func TestMain(m *testing.M) {
-	os.Exit(m.Run())
-	if buildBin.name != "" {
-		os.Remove(buildBin.name)
-	}
-}
-
 func file2fuzz(t *testing.T, dir string, args []string, stdin string) (string, bool) {
-	t.Helper()
-	cmd := exec.Command(binPath(t), args...)
+	f2f.once.Do(func() {
+		f2f.path, f2f.err = os.Executable()
+	})
+	if f2f.err != nil {
+		t.Fatal(f2f.err)
+	}
+
+	cmd := exec.Command(f2f.path, args...)
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "PWD="+dir, "GO_FILE2FUZZ_TEST_IS_FILE2FUZZ=1")
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
 	}
