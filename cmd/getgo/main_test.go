@@ -13,37 +13,18 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"runtime"
 	"testing"
 )
 
-const (
-	testbin = "testgetgo"
-)
-
-var (
-	exeSuffix string // ".exe" on Windows
-)
-
-func init() {
-	if runtime.GOOS == "windows" {
-		exeSuffix = ".exe"
-	}
-}
-
-// TestMain creates a getgo command for testing purposes and
-// deletes it after the tests have been run.
 func TestMain(m *testing.M) {
+	if os.Getenv("GO_GETGO_TEST_IS_GETGO") != "" {
+		main()
+		os.Exit(0)
+	}
+
 	if os.Getenv("GOGET_INTEGRATION") == "" {
 		fmt.Fprintln(os.Stderr, "main_test: Skipping integration tests with GOGET_INTEGRATION unset")
 		return
-	}
-
-	args := []string{"build", "-tags", testbin, "-o", testbin + exeSuffix}
-	out, err := exec.Command("go", args...).CombinedOutput()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "building %s failed: %v\n%s", testbin, err, out)
-		os.Exit(2)
 	}
 
 	// Don't let these environment variables confuse the test.
@@ -52,11 +33,7 @@ func TestMain(m *testing.M) {
 	os.Unsetenv("GIT_ALLOW_PROTOCOL")
 	os.Unsetenv("PATH")
 
-	r := m.Run()
-
-	os.Remove(testbin + exeSuffix)
-
-	os.Exit(r)
+	os.Exit(m.Run())
 }
 
 func createTmpHome(t *testing.T) string {
@@ -72,12 +49,18 @@ func createTmpHome(t *testing.T) string {
 // doRun runs the test getgo command, recording stdout and stderr and
 // returning exit status.
 func doRun(t *testing.T, args ...string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Helper()
+
+	t.Logf("running getgo %v", args)
 	var stdout, stderr bytes.Buffer
-	t.Logf("running %s %v", testbin, args)
-	cmd := exec.Command("./"+testbin+exeSuffix, args...)
+	cmd := exec.Command(exe, args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	cmd.Env = os.Environ()
+	cmd.Env = append(os.Environ(), "GO_GETGO_TEST_IS_GETGO=1")
 	status := cmd.Run()
 	if stdout.Len() > 0 {
 		t.Log("standard output:")
