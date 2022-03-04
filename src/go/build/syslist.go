@@ -4,9 +4,9 @@
 
 package build
 
-// Past, present, and future known GOOS and GOARCH values.
-// Do not remove from this list, as these are used for go/build filename matching.
-
+// knownOS is the list of past, present, and future known GOOS values.
+// Do not remove from this list, as it is used for filename matching.
+// If you add an entry to this list, look at unixOS, below.
 var knownOS = map[string]bool{
 	"aix":       true,
 	"android":   true,
@@ -26,6 +26,27 @@ var knownOS = map[string]bool{
 	"windows":   true,
 	"zos":       true,
 }
+
+// unixOS is the set of GOOS values matched by the "unix" build tag.
+// This is not used for filename matching.
+// This list also appears in cmd/dist/build.go.
+var unixOS = map[string]bool{
+	"aix":       true,
+	"android":   true,
+	"darwin":    true,
+	"dragonfly": true,
+	"freebsd":   true,
+	"hurd":      true,
+	"illumos":   true,
+	"ios":       true,
+	"linux":     true,
+	"netbsd":    true,
+	"openbsd":   true,
+	"solaris":   true,
+}
+
+// knownArch is the list of past, present, and future known GOARCH values.
+// Do not remove from this list, as it is used for filename matching.
 var knownArch = map[string]bool{
 	"386":         true,
 	"amd64":       true,

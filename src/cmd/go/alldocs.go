@@ -1844,6 +1844,7 @@
 // 	  GOOS environment variable.
 // 	- the target architecture, as spelled by runtime.GOARCH, set with the
 // 	  GOARCH environment variable.
+// 	- "unix", if GOOS is a Unix or Unix-like system.
 // 	- the compiler being used, either "gc" or "gccgo"
 // 	- "cgo", if the cgo command is supported (see CGO_ENABLED in
 // 	  'go help environment').
