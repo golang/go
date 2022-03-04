@@ -10,11 +10,11 @@
 package rand
 
 import (
-	"bufio"
 	"errors"
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -29,7 +29,7 @@ func init() {
 type reader struct {
 	f    io.Reader
 	mu   sync.Mutex
-	used bool // whether this reader has been used
+	used uint32 // Atomic: 0 - never used, 1 - used, but f == nil, 2 - used, and f != nil
 }
 
 // altGetRandom if non-nil specifies an OS-specific function to get
@@ -37,24 +37,11 @@ type reader struct {
 var altGetRandom func([]byte) (ok bool)
 
 // batched returns a function that calls f to populate a []byte by chunking it
-// into subslices of, at most, readMax bytes, buffering min(readMax, 4096)
-// bytes at a time.
+// into subslices of, at most, readMax bytes.
 func batched(f func([]byte) error, readMax int) func([]byte) bool {
-	bufferSize := 4096
-	if bufferSize > readMax {
-		bufferSize = readMax
-	}
-	fullBuffer := make([]byte, bufferSize)
-	var buf []byte
 	return func(out []byte) bool {
-		// First we copy any amount remaining in the buffer.
-		n := copy(out, buf)
-		out, buf = out[n:], buf[n:]
-
-		// Then, if we're requesting more than the buffer size,
-		// generate directly into the output, chunked by readMax.
-		for len(out) >= len(fullBuffer) {
-			read := len(out) - (len(out) % len(fullBuffer))
+		for len(out) > 0 {
+			read := len(out)
 			if read > readMax {
 				read = readMax
 			}
@@ -63,22 +50,6 @@ func batched(f func([]byte) error, readMax int) func([]byte) bool {
 			}
 			out = out[read:]
 		}
-
-		// If there's a partial block left over, fill the buffer,
-		// and copy in the remainder.
-		if len(out) > 0 {
-			if f(fullBuffer[:]) != nil {
-				return false
-			}
-			buf = fullBuffer[:]
-			n = copy(out, buf)
-			out, buf = out[n:], buf[n:]
-		}
-
-		if len(out) > 0 {
-			panic("crypto/rand batching failed to fill buffer")
-		}
-
 		return true
 	}
 }
@@ -88,10 +59,7 @@ func warnBlocked() {
 }
 
 func (r *reader) Read(b []byte) (n int, err error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if !r.used {
-		r.used = true
+	if atomic.CompareAndSwapUint32(&r.used, 0, 1) {
 		// First use of randomness. Start timer to warn about
 		// being blocked on entropy not being available.
 		t := time.AfterFunc(time.Minute, warnBlocked)
@@ -100,14 +68,20 @@ func (r *reader) Read(b []byte) (n int, err error) {
 	if altGetRandom != nil && altGetRandom(b) {
 		return len(b), nil
 	}
-	if r.f == nil {
-		f, err := os.Open(urandomDevice)
-		if err != nil {
-			return 0, err
+	if atomic.LoadUint32(&r.used) != 2 {
+		r.mu.Lock()
+		if r.used != 2 {
+			f, err := os.Open(urandomDevice)
+			if err != nil {
+				r.mu.Unlock()
+				return 0, err
+			}
+			r.f = hideAgainReader{f}
+			atomic.StoreUint32(&r.used, 2)
 		}
-		r.f = bufio.NewReader(hideAgainReader{f})
+		r.mu.Unlock()
 	}
-	return r.f.Read(b)
+	return io.ReadFull(r.f, b)
 }
 
 // hideAgainReader masks EAGAIN reads from /dev/urandom.
