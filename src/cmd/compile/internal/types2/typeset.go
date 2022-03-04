@@ -15,20 +15,25 @@ import (
 // API
 
 // A _TypeSet represents the type set of an interface.
+// Because of existing language restrictions, methods can be "factored out"
+// from the terms. The actual type set is the intersection of the type set
+// implied by the methods and the type set described by the terms and the
+// comparable bit. To test whether a type is included in a type set
+// ("implements" relation), the type must implement all methods _and_ be
+// an element of the type set described by the terms and the comparable bit.
+// If the term list describes the set of all types and comparable is true,
+// only comparable types are meant; in all other cases comparable is false.
 type _TypeSet struct {
-	comparable bool // if set, the interface is or embeds comparable
-	// TODO(gri) consider using a set for the methods for faster lookup
-	methods []*Func  // all methods of the interface; sorted by unique ID
-	terms   termlist // type terms of the type set
+	methods    []*Func  // all methods of the interface; sorted by unique ID
+	terms      termlist // type terms of the type set
+	comparable bool     // invariant: !comparable || terms.isAll()
 }
 
 // IsEmpty reports whether type set s is the empty set.
 func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
 
 // IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
-func (s *_TypeSet) IsAll() bool {
-	return !s.comparable && len(s.methods) == 0 && s.terms.isAll()
-}
+func (s *_TypeSet) IsAll() bool { return s.IsMethodSet() && len(s.methods) == 0 }
 
 // IsMethodSet reports whether the interface t is fully described by its method set.
 func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
@@ -41,13 +46,6 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
 	return s.is(func(t *term) bool {
 		return t != nil && comparable(t.typ, false, seen, nil)
 	})
-}
-
-// TODO(gri) IsTypeSet is not a great name for this predicate. Find a better one.
-
-// IsTypeSet reports whether the type set s is represented by a finite set of underlying types.
-func (s *_TypeSet) IsTypeSet() bool {
-	return !s.comparable && len(s.methods) == 0
 }
 
 // NumMethods returns the number of methods available.
@@ -215,12 +213,12 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 
 	var todo []*Func
 	var seen objset
-	var methods []*Func
+	var allMethods []*Func
 	mpos := make(map[*Func]syntax.Pos) // method specification or method embedding position, for good error messages
 	addMethod := func(pos syntax.Pos, m *Func, explicit bool) {
 		switch other := seen.insert(m); {
 		case other == nil:
-			methods = append(methods, m)
+			allMethods = append(allMethods, m)
 			mpos[m] = pos
 		case explicit:
 			if check == nil {
@@ -259,7 +257,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	}
 
 	// collect embedded elements
-	var allTerms = allTermlist
+	allTerms := allTermlist
+	allComparable := false
 	for i, typ := range ityp.embeddeds {
 		// The embedding position is nil for imported interfaces
 		// and also for interface copies after substitution (but
@@ -268,6 +267,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 		if ityp.embedPos != nil {
 			pos = (*ityp.embedPos)[i]
 		}
+		var comparable bool
 		var terms termlist
 		switch u := under(typ).(type) {
 		case *Interface:
@@ -279,9 +279,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 				check.versionErrorf(pos, "go1.18", "embedding constraint interface %s", typ)
 				continue
 			}
-			if tset.comparable {
-				ityp.tset.comparable = true
-			}
+			comparable = tset.comparable
 			for _, m := range tset.methods {
 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
 			}
@@ -295,6 +293,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			if tset == &invalidTypeSet {
 				continue // ignore invalid unions
 			}
+			assert(!tset.comparable)
+			assert(len(tset.methods) == 0)
 			terms = tset.terms
 		default:
 			if u == Typ[Invalid] {
@@ -306,11 +306,11 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			}
 			terms = termlist{{false, typ}}
 		}
-		// The type set of an interface is the intersection
-		// of the type sets of all its elements.
-		// Intersection cannot produce longer termlists and
-		// thus cannot overflow.
-		allTerms = allTerms.intersect(terms)
+
+		// The type set of an interface is the intersection of the type sets of all its elements.
+		// Due to language restrictions, only embedded interfaces can add methods, they are handled
+		// separately. Here we only need to intersect the term lists and comparable bits.
+		allTerms, allComparable = intersectTermLists(allTerms, allComparable, terms, comparable)
 	}
 	ityp.embedPos = nil // not needed anymore (errors have been reported)
 
@@ -323,13 +323,44 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 		}
 	}
 
-	if methods != nil {
-		sortMethods(methods)
-		ityp.tset.methods = methods
+	ityp.tset.comparable = allComparable
+	if len(allMethods) != 0 {
+		sortMethods(allMethods)
+		ityp.tset.methods = allMethods
 	}
 	ityp.tset.terms = allTerms
 
 	return ityp.tset
+}
+
+// TODO(gri) The intersectTermLists function belongs to the termlist implementation.
+//           The comparable type set may also be best represented as a term (using
+//           a special type).
+
+// intersectTermLists computes the intersection of two term lists and respective comparable bits.
+// xcomp, ycomp are valid only if xterms.isAll() and yterms.isAll() respectively.
+func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool) (termlist, bool) {
+	terms := xterms.intersect(yterms)
+	// If one of xterms or yterms is marked as comparable,
+	// the result must only include comparable types.
+	comp := xcomp || ycomp
+	if comp && !terms.isAll() {
+		// only keep comparable terms
+		i := 0
+		for _, t := range terms {
+			assert(t.typ != nil)
+			if Comparable(t.typ) {
+				terms[i] = t
+				i++
+			}
+		}
+		terms = terms[:i]
+		if !terms.isAll() {
+			comp = false
+		}
+	}
+	assert(!comp || terms.isAll()) // comparable invariant
+	return terms, comp
 }
 
 func sortMethods(list []*Func) {

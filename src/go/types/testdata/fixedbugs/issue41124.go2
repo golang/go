@@ -47,7 +47,7 @@ type _ struct{
 }
 
 type _ struct{
-	I3 // ERROR interface is .* comparable
+	I3 // ERROR interface contains type constraints
 }
 
 // General composite types.
@@ -59,19 +59,19 @@ type (
 	_ []I1 // ERROR interface is .* comparable
 	_ []I2 // ERROR interface contains type constraints
 
-	_ *I3 // ERROR interface is .* comparable
+	_ *I3 // ERROR interface contains type constraints
 	_ map[I1 /* ERROR interface is .* comparable */ ]I2 // ERROR interface contains type constraints
-	_ chan I3 // ERROR interface is .* comparable
+	_ chan I3 // ERROR interface contains type constraints
 	_ func(I1 /* ERROR interface is .* comparable */ )
 	_ func() I2 // ERROR interface contains type constraints
 )
 
 // Other cases.
 
-var _ = [...]I3 /* ERROR interface is .* comparable */ {}
+var _ = [...]I3 /* ERROR interface contains type constraints */ {}
 
 func _(x interface{}) {
-	_ = x.(I3 /* ERROR interface is .* comparable */ )
+	_ = x.(I3 /* ERROR interface contains type constraints */ )
 }
 
 type T1[_ any] struct{}
