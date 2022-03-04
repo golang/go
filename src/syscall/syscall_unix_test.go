@@ -326,33 +326,6 @@ func TestUnixRightsRoundtrip(t *testing.T) {
 	}
 }
 
-func TestRlimit(t *testing.T) {
-	var rlimit, zero syscall.Rlimit
-	if err := syscall.Getrlimit(syscall.RLIMIT_CPU, &rlimit); err != nil {
-		t.Fatalf("Getrlimit: save failed: %v", err)
-	}
-	if zero == rlimit {
-		t.Fatalf("Getrlimit: save failed: got zero value %#v", rlimit)
-	}
-	set := rlimit
-	set.Cur = set.Max - 1
-	if err := syscall.Setrlimit(syscall.RLIMIT_CPU, &set); err != nil {
-		t.Fatalf("Setrlimit: set failed: %#v %v", set, err)
-	}
-	var get syscall.Rlimit
-	if err := syscall.Getrlimit(syscall.RLIMIT_CPU, &get); err != nil {
-		t.Fatalf("Getrlimit: get failed: %v", err)
-	}
-	set = rlimit
-	set.Cur = set.Max - 1
-	if set != get {
-		t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
-	}
-	if err := syscall.Setrlimit(syscall.RLIMIT_CPU, &rlimit); err != nil {
-		t.Fatalf("Setrlimit: restore failed: %#v %v", rlimit, err)
-	}
-}
-
 func TestSeekFailure(t *testing.T) {
 	_, err := syscall.Seek(-1, 0, io.SeekStart)
 	if err == nil {
