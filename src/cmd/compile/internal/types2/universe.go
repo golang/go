@@ -111,7 +111,7 @@ func defPredeclaredTypes() {
 		typ := NewNamed(obj, nil, nil)
 
 		// interface{} // marked as comparable
-		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{true, nil, allTermlist}}
+		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{nil, allTermlist, true}}
 
 		typ.SetUnderlying(ityp)
 		def(obj)
