@@ -25,9 +25,9 @@ func TestTypeSetString(t *testing.T) {
 		"{int; string}": "∅",
 
 		"{comparable}":              "{comparable}",
-		"{comparable; int}":         "{comparable; int}",
-		"{~int; comparable}":        "{comparable; ~int}",
-		"{int|string; comparable}":  "{comparable; int ∪ string}",
+		"{comparable; int}":         "{int}",
+		"{~int; comparable}":        "{~int}",
+		"{int|string; comparable}":  "{int ∪ string}",
 		"{comparable; int; string}": "∅",
 
 		"{m()}":                         "{func (p.T).m()}",
@@ -37,8 +37,8 @@ func TestTypeSetString(t *testing.T) {
 		"{m1(); comparable; m2() int }": "{comparable; func (p.T).m1(); func (p.T).m2() int}",
 		"{comparable; error}":           "{comparable; func (error).Error() string}",
 
-		"{m(); comparable; int|float32|string}": "{comparable; func (p.T).m(); int ∪ float32 ∪ string}",
-		"{m1(); int; m2(); comparable }":        "{comparable; func (p.T).m1(); func (p.T).m2(); int}",
+		"{m(); comparable; int|float32|string}": "{func (p.T).m(); int ∪ float32 ∪ string}",
+		"{m1(); int; m2(); comparable }":        "{func (p.T).m1(); func (p.T).m2(); int}",
 
 		"{E}; type E interface{}":           "𝓤",
 		"{E}; type E interface{int;string}": "∅",
