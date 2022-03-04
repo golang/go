@@ -41,24 +41,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 
 	// Confirm that the cursor is inside a use statement, and then find
 	// the position of the use statement's directory path.
-	var use *modfile.Use
-	var pathStart, pathEnd int
-	for _, u := range pw.File.Use {
-		dep := []byte(u.Path)
-		s, e := u.Syntax.Start.Byte, u.Syntax.End.Byte
-		i := bytes.Index(pw.Mapper.Content[s:e], dep)
-		if i == -1 {
-			// This should not happen.
-			continue
-		}
-		// Shift the start position to the location of the
-		// module directory within the use statement.
-		pathStart, pathEnd = s+i, s+i+len(dep)
-		if token.Pos(pathStart) <= hoverRng.Start && hoverRng.Start <= token.Pos(pathEnd) {
-			use = u
-			break
-		}
-	}
+	use, pathStart, pathEnd := usePath(pw, hoverRng.Start)
 
 	// The cursor position is not on a use statement.
 	if use == nil {
@@ -86,4 +69,23 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 		},
 		Range: rng,
 	}, nil
+}
+
+func usePath(pw *source.ParsedWorkFile, pos token.Pos) (use *modfile.Use, pathStart, pathEnd int) {
+	for _, u := range pw.File.Use {
+		path := []byte(u.Path)
+		s, e := u.Syntax.Start.Byte, u.Syntax.End.Byte
+		i := bytes.Index(pw.Mapper.Content[s:e], path)
+		if i == -1 {
+			// This should not happen.
+			continue
+		}
+		// Shift the start position to the location of the
+		// module directory within the use statement.
+		pathStart, pathEnd = s+i, s+i+len(path)
+		if token.Pos(pathStart) <= pos && pos <= token.Pos(pathEnd) {
+			return u, pathStart, pathEnd
+		}
+	}
+	return nil, 0, 0
 }
