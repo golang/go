@@ -78,7 +78,8 @@ func TestStdLib(t *testing.T) {
 	go func() {
 		defer close(results)
 		for _, dir := range []string{
-			runtime.GOROOT(),
+			filepath.Join(runtime.GOROOT(), "src"),
+			filepath.Join(runtime.GOROOT(), "misc"),
 		} {
 			walkDirs(t, dir, func(filename string) {
 				if skipRx != nil && skipRx.MatchString(filename) {
