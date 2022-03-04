@@ -440,17 +440,15 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
 		tparams := orig.TypeParams().list()
 
-		inferred := targs
 		if len(targs) < len(tparams) {
 			// If inference fails, len(inferred) will be 0, and inst.underlying will
 			// be set to Typ[Invalid] in expandNamed.
-			inferred = check.infer(ix.Orig, tparams, targs, nil, nil)
+			inferred := check.infer(ix.Orig, tparams, targs, nil, nil)
 			if len(inferred) > len(targs) {
 				inst.targs = newTypeList(inferred)
 			}
 		}
 
-		check.recordInstance(ix.Orig, inferred, inst)
 		return expandNamed(ctxt, n, pos)
 	}
 
@@ -463,6 +461,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 		// Since check is non-nil, we can still mutate inst. Unpinning the resolver
 		// frees some memory.
 		inst.resolver = nil
+		check.recordInstance(ix.Orig, inst.TypeArgs().list(), inst)
 
 		if check.validateTArgLen(pos, inst.tparams.Len(), inst.targs.Len()) {
 			if i, err := check.verify(pos, inst.tparams.list(), inst.targs.list()); err != nil {
