@@ -13,6 +13,7 @@ package url
 import (
 	"errors"
 	"fmt"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -1176,6 +1177,17 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 	return nil
 }
 
+// JoinPath returns a new URL with the provided path elements joined to
+// any existing path and the resulting path cleaned of any ./ or ../ elements.
+func (u *URL) JoinPath(elem ...string) *URL {
+	url := *u
+	if len(elem) > 0 {
+		elem = append([]string{u.Path}, elem...)
+		url.setPath(path.Join(elem...))
+	}
+	return &url
+}
+
 // validUserinfo reports whether s is a valid userinfo string per RFC 3986
 // Section 3.2.1:
 //     userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
@@ -1215,4 +1227,15 @@ func stringContainsCTLByte(s string) bool {
 		}
 	}
 	return false
+}
+
+// JoinPath returns a URL string with the provided path elements joined to
+// the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+func JoinPath(base string, elem ...string) (result string, err error) {
+	url, err := Parse(base)
+	if err != nil {
+		return
+	}
+	result = url.JoinPath(elem...).String()
+	return
 }
