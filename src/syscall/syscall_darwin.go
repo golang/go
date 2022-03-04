@@ -17,6 +17,8 @@ import (
 	"unsafe"
 )
 
+var dupTrampoline = abi.FuncPCABI0(libc_dup2_trampoline)
+
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8

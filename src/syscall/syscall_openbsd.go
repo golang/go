@@ -136,6 +136,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
+//sys	dup3(from int, to int, flags int) (err error)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchflags(fd int, flags int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)

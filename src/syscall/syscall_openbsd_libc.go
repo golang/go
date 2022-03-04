@@ -10,6 +10,8 @@ import (
 	"internal/abi"
 )
 
+var dupTrampoline = abi.FuncPCABI0(libc_dup3_trampoline)
+
 func init() {
 	execveOpenBSD = execve
 }
