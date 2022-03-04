@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
 
@@ -85,20 +84,10 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}
 
 	// Get the range to highlight for the hover.
-	line, col, err := pm.Mapper.Converter.ToPosition(startPos)
+	rng, err := source.ByteOffsetsToRange(pm.Mapper, fh.URI(), startPos, endPos)
 	if err != nil {
 		return nil, err
 	}
-	start := span.NewPoint(line, col, startPos)
-
-	line, col, err = pm.Mapper.Converter.ToPosition(endPos)
-	if err != nil {
-		return nil, err
-	}
-	end := span.NewPoint(line, col, endPos)
-
-	spn = span.New(fh.URI(), start, end)
-	rng, err := pm.Mapper.Range(spn)
 	if err != nil {
 		return nil, err
 	}

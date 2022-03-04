@@ -829,6 +829,42 @@ replace
 	})
 }
 
+func TestUseGoWorkHover(t *testing.T) {
+	const files = `
+-- go.work --
+go 1.18
+
+use ./foo
+use (
+	./bar
+	./bar/baz
+)
+-- foo/go.mod --
+module example.com/foo
+-- bar/go.mod --
+module example.com/bar
+-- bar/baz/go.mod --
+module example.com/bar/baz
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.work")
+
+		tcs := map[string]string{
+			`\./foo`:      "example.com/foo",
+			`(?m)\./bar$`: "example.com/bar",
+			`\./bar/baz`:  "example.com/bar/baz",
+		}
+
+		for hoverRE, want := range tcs {
+			pos := env.RegexpSearch("go.work", hoverRE)
+			got, _ := env.Hover("go.work", pos)
+			if got.Value != want {
+				t.Errorf(`hover on %q: got %q, want %q`, hoverRE, got, want)
+			}
+		}
+	})
+}
+
 func TestNonWorkspaceFileCreation(t *testing.T) {
 	testenv.NeedsGo1Point(t, 13)
 

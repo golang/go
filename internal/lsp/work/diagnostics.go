@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -57,19 +58,13 @@ func DiagnosticsForWork(ctx context.Context, snapshot source.Snapshot, fh source
 
 	// Add diagnostic if a directory does not contain a module.
 	var diagnostics []*source.Diagnostic
-	workdir := filepath.Dir(pw.URI.Filename())
 	for _, use := range pw.File.Use {
-		modroot := filepath.FromSlash(use.Path)
-		if !filepath.IsAbs(modroot) {
-			modroot = filepath.Join(workdir, modroot)
-		}
-
 		rng, err := source.LineToRange(pw.Mapper, fh.URI(), use.Syntax.Start, use.Syntax.End)
 		if err != nil {
 			return nil, err
 		}
 
-		modfh, err := snapshot.GetFile(ctx, span.URIFromPath(filepath.Join(modroot, "go.mod")))
+		modfh, err := snapshot.GetFile(ctx, modFileURI(pw, use))
 		if err != nil {
 			return nil, err
 		}
@@ -84,4 +79,15 @@ func DiagnosticsForWork(ctx context.Context, snapshot source.Snapshot, fh source
 		}
 	}
 	return diagnostics, nil
+}
+
+func modFileURI(pw *source.ParsedWorkFile, use *modfile.Use) span.URI {
+	workdir := filepath.Dir(pw.URI.Filename())
+
+	modroot := filepath.FromSlash(use.Path)
+	if !filepath.IsAbs(modroot) {
+		modroot = filepath.Join(workdir, modroot)
+	}
+
+	return span.URIFromPath(filepath.Join(modroot, "go.mod"))
 }

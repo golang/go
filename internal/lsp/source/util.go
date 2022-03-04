@@ -567,15 +567,20 @@ func InRange(tok *token.File, pos token.Pos) bool {
 
 // LineToRange creates a Range spanning start and end.
 func LineToRange(m *protocol.ColumnMapper, uri span.URI, start, end modfile.Position) (protocol.Range, error) {
-	line, col, err := m.Converter.ToPosition(start.Byte)
+	return ByteOffsetsToRange(m, uri, start.Byte, end.Byte)
+}
+
+// ByteOffsetsToRange creates a range spanning start and end.
+func ByteOffsetsToRange(m *protocol.ColumnMapper, uri span.URI, start, end int) (protocol.Range, error) {
+	line, col, err := m.Converter.ToPosition(start)
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	s := span.NewPoint(line, col, start.Byte)
-	line, col, err = m.Converter.ToPosition(end.Byte)
+	s := span.NewPoint(line, col, start)
+	line, col, err = m.Converter.ToPosition(end)
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	e := span.NewPoint(line, col, end.Byte)
+	e := span.NewPoint(line, col, end)
 	return m.Range(span.New(uri, s, e))
 }
