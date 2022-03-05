@@ -341,7 +341,7 @@ func karatsuba(z, x, y nat) {
 	karatsuba(p, xd, yd)
 
 	// save original z2:z0
-	// (ok to use upper half of z since we're done recursing)
+	// (ok to use upper half of z since we're done recurring)
 	r := z[n*4:]
 	copy(r, z[:n*2])
 

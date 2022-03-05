@@ -44,7 +44,7 @@ func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 }
 
 // evalArgs formats the list of arguments into a string. It is equivalent to
-// fmt.Sprint(args...), except that it deferences all pointers.
+// fmt.Sprint(args...), except that it dereferences all pointers.
 func evalArgs(args ...any) string {
 	// Optimization for simple common case of a single string argument.
 	if len(args) == 1 {
@@ -690,7 +690,7 @@ func (e *escaper) escapeTemplateBody(c context, t *template.Template) (context, 
 		return c.eq(c1)
 	}
 	// We need to assume an output context so that recursive template calls
-	// take the fast path out of escapeTree instead of infinitely recursing.
+	// take the fast path out of escapeTree instead of infinitely recurring.
 	// Naively assuming that the input context is the same as the output
 	// works >90% of the time.
 	e.output[t.Name()] = c

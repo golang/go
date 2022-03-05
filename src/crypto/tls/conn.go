@@ -758,7 +758,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 	return nil
 }
 
-// retryReadRecord recurses into readRecordOrCCS to drop a non-advancing record, like
+// retryReadRecord recurs into readRecordOrCCS to drop a non-advancing record, like
 // a warning alert, empty application_data, or a change_cipher_spec in TLS 1.3.
 func (c *Conn) retryReadRecord(expectChangeCipherSpec bool) error {
 	c.retryCount++
