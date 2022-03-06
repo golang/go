@@ -246,6 +246,7 @@ func (f *flagVar) Set(value string) error {
 func TestUserDefined(t *testing.T) {
 	var flags FlagSet
 	flags.Init("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
 	var v flagVar
 	flags.Var(&v, "v", "usage")
 	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
@@ -261,8 +262,8 @@ func TestUserDefined(t *testing.T) {
 }
 
 func TestUserDefinedFunc(t *testing.T) {
-	var flags FlagSet
-	flags.Init("test", ContinueOnError)
+	flags := NewFlagSet("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
 	var ss []string
 	flags.Func("v", "usage", func(s string) error {
 		ss = append(ss, s)
@@ -286,7 +287,8 @@ func TestUserDefinedFunc(t *testing.T) {
 		t.Errorf("usage string not included: %q", usage)
 	}
 	// test Func error
-	flags = *NewFlagSet("test", ContinueOnError)
+	flags = NewFlagSet("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
 	flags.Func("v", "usage", func(s string) error {
 		return fmt.Errorf("test error")
 	})
@@ -335,6 +337,7 @@ func (b *boolFlagVar) IsBoolFlag() bool {
 func TestUserDefinedBool(t *testing.T) {
 	var flags FlagSet
 	flags.Init("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
 	var b boolFlagVar
 	var err error
 	flags.Var(&b, "b", "usage")
