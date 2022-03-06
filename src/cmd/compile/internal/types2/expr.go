@@ -1556,7 +1556,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		return kind
 
 	case *syntax.SelectorExpr:
-		check.selector(x, e)
+		check.selector(x, e, nil)
 
 	case *syntax.IndexExpr:
 		if check.indexExpr(x, e) {

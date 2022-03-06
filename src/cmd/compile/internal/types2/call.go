@@ -423,7 +423,7 @@ var cgoPrefixes = [...]string{
 	"_Cmacro_", // function to evaluate the expanded expression
 }
 
-func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -526,6 +526,12 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 
 	check.exprOrType(x, e.X, false)
 	switch x.mode {
+	case typexpr:
+		// don't crash for "type T T.x" (was issue #51509)
+		if def != nil && x.typ == def {
+			check.cycleError([]Object{def.obj})
+			goto Error
+		}
 	case builtin:
 		check.errorf(e.Pos(), "cannot select on %s", x)
 		goto Error
