@@ -16,6 +16,10 @@ const (
 	unknown branch = iota
 	positive
 	negative
+	// The outedges from a jump table are jumpTable0,
+	// jumpTable0+1, jumpTable0+2, etc. There could be an
+	// arbitrary number so we can't list them all here.
+	jumpTable0
 )
 
 // relation represents the set of possible relations between
@@ -940,20 +944,31 @@ func prove(f *Func) {
 // getBranch returns the range restrictions added by p
 // when reaching b. p is the immediate dominator of b.
 func getBranch(sdom SparseTree, p *Block, b *Block) branch {
-	if p == nil || p.Kind != BlockIf {
+	if p == nil {
 		return unknown
 	}
-	// If p and p.Succs[0] are dominators it means that every path
-	// from entry to b passes through p and p.Succs[0]. We care that
-	// no path from entry to b passes through p.Succs[1]. If p.Succs[0]
-	// has one predecessor then (apart from the degenerate case),
-	// there is no path from entry that can reach b through p.Succs[1].
-	// TODO: how about p->yes->b->yes, i.e. a loop in yes.
-	if sdom.IsAncestorEq(p.Succs[0].b, b) && len(p.Succs[0].b.Preds) == 1 {
-		return positive
-	}
-	if sdom.IsAncestorEq(p.Succs[1].b, b) && len(p.Succs[1].b.Preds) == 1 {
-		return negative
+	switch p.Kind {
+	case BlockIf:
+		// If p and p.Succs[0] are dominators it means that every path
+		// from entry to b passes through p and p.Succs[0]. We care that
+		// no path from entry to b passes through p.Succs[1]. If p.Succs[0]
+		// has one predecessor then (apart from the degenerate case),
+		// there is no path from entry that can reach b through p.Succs[1].
+		// TODO: how about p->yes->b->yes, i.e. a loop in yes.
+		if sdom.IsAncestorEq(p.Succs[0].b, b) && len(p.Succs[0].b.Preds) == 1 {
+			return positive
+		}
+		if sdom.IsAncestorEq(p.Succs[1].b, b) && len(p.Succs[1].b.Preds) == 1 {
+			return negative
+		}
+	case BlockJumpTable:
+		// TODO: this loop can lead to quadratic behavior, as
+		// getBranch can be called len(p.Succs) times.
+		for i, e := range p.Succs {
+			if sdom.IsAncestorEq(e.b, b) && len(e.b.Preds) == 1 {
+				return jumpTable0 + branch(i)
+			}
+		}
 	}
 	return unknown
 }
@@ -984,11 +999,36 @@ func addIndVarRestrictions(ft *factsTable, b *Block, iv indVar) {
 // branching from Block b in direction br.
 func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 	c := b.Controls[0]
-	switch br {
-	case negative:
+	switch {
+	case br == negative:
 		addRestrictions(b, ft, boolean, nil, c, eq)
-	case positive:
+	case br == positive:
 		addRestrictions(b, ft, boolean, nil, c, lt|gt)
+	case br >= jumpTable0:
+		idx := br - jumpTable0
+		val := int64(idx)
+		if v, off := isConstDelta(c); v != nil {
+			// Establish the bound on the underlying value we're switching on,
+			// not on the offset-ed value used as the jump table index.
+			c = v
+			val -= off
+		}
+		old, ok := ft.limits[c.ID]
+		if !ok {
+			old = noLimit
+		}
+		ft.limitStack = append(ft.limitStack, limitFact{c.ID, old})
+		if val < old.min || val > old.max || uint64(val) < old.umin || uint64(val) > old.umax {
+			ft.unsat = true
+			if b.Func.pass.debug > 2 {
+				b.Func.Warnl(b.Pos, "block=%s outedge=%d %s=%d unsat", b, idx, c, val)
+			}
+		} else {
+			ft.limits[c.ID] = limit{val, val, uint64(val), uint64(val)}
+			if b.Func.pass.debug > 2 {
+				b.Func.Warnl(b.Pos, "block=%s outedge=%d %s=%d", b, idx, c, val)
+			}
+		}
 	default:
 		panic("unknown branch")
 	}
@@ -1343,10 +1383,14 @@ func removeBranch(b *Block, branch branch) {
 		// attempt to preserve statement marker.
 		b.Pos = b.Pos.WithIsStmt()
 	}
-	b.Kind = BlockFirst
-	b.ResetControls()
-	if branch == positive {
-		b.swapSuccessors()
+	if branch == positive || branch == negative {
+		b.Kind = BlockFirst
+		b.ResetControls()
+		if branch == positive {
+			b.swapSuccessors()
+		}
+	} else {
+		// TODO: figure out how to remove an entry from a jump table
 	}
 }
 

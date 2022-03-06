@@ -67,6 +67,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 	base.Pos = lno
 
 	s := exprSwitch{
+		pos:      lno,
 		exprname: cond,
 	}
 
@@ -113,6 +114,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 
 // An exprSwitch walks an expression switch.
 type exprSwitch struct {
+	pos      src.XPos
 	exprname ir.Node // value being switched on
 
 	done    ir.Nodes
@@ -183,17 +185,59 @@ func (s *exprSwitch) flush() {
 		}
 		runs = append(runs, cc[start:])
 
-		// Perform two-level binary search.
-		binarySearch(len(runs), &s.done,
-			func(i int) ir.Node {
-				return ir.NewBinaryExpr(base.Pos, ir.OLE, ir.NewUnaryExpr(base.Pos, ir.OLEN, s.exprname), ir.NewInt(runLen(runs[i-1])))
-			},
-			func(i int, nif *ir.IfStmt) {
-				run := runs[i]
-				nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, ir.NewUnaryExpr(base.Pos, ir.OLEN, s.exprname), ir.NewInt(runLen(run)))
-				s.search(run, &nif.Body)
-			},
-		)
+		if len(runs) == 1 {
+			s.search(runs[0], &s.done)
+			return
+		}
+		// We have strings of more than one length. Generate an
+		// outer switch which switches on the length of the string
+		// and an inner switch in each case which resolves all the
+		// strings of the same length. The code looks something like this:
+
+		// goto outerLabel
+		// len5:
+		//   ... search among length 5 strings ...
+		//   goto endLabel
+		// len8:
+		//   ... search among length 8 strings ...
+		//   goto endLabel
+		// ... other lengths ...
+		// outerLabel:
+		// switch len(s) {
+		//   case 5: goto len5
+		//   case 8: goto len8
+		//   ... other lengths ...
+		// }
+		// endLabel:
+
+		outerLabel := typecheck.AutoLabel(".s")
+		endLabel := typecheck.AutoLabel(".s")
+
+		// Jump around all the individual switches for each length.
+		s.done.Append(ir.NewBranchStmt(s.pos, ir.OGOTO, outerLabel))
+
+		var outer exprSwitch
+		outer.exprname = ir.NewUnaryExpr(s.pos, ir.OLEN, s.exprname)
+		outer.exprname.SetType(types.Types[types.TINT])
+
+		for _, run := range runs {
+			// Target label to jump to when we match this length.
+			label := typecheck.AutoLabel(".s")
+
+			// Search within this run of same-length strings.
+			pos := run[0].pos
+			s.done.Append(ir.NewLabelStmt(pos, label))
+			s.search(run, &s.done)
+			s.done.Append(ir.NewBranchStmt(pos, ir.OGOTO, endLabel))
+
+			// Add length case to outer switch.
+			cas := ir.NewBasicLit(pos, constant.MakeInt64(runLen(run)))
+			jmp := ir.NewBranchStmt(pos, ir.OGOTO, label)
+			outer.Add(pos, cas, jmp)
+		}
+		s.done.Append(ir.NewLabelStmt(s.pos, outerLabel))
+		outer.Emit(&s.done)
+		s.done.Append(ir.NewLabelStmt(s.pos, endLabel))
 		return
 	}
 
@@ -278,7 +322,6 @@ func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
 		}
 	}
 	out.Append(jt)
-	// TODO: handle the size portion of string switches using a jump table.
 	return true
 }
 
@@ -587,6 +630,7 @@ func (s *typeSwitch) flush() {
 	}
 	cc = merged
 
+	// TODO: figure out if we could use a jump table using some low bits of the type hashes.
 	binarySearch(len(cc), &s.done,
 		func(i int) ir.Node {
 			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashname, ir.NewInt(int64(cc[i-1].hash)))

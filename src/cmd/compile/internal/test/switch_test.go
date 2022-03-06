@@ -77,6 +77,49 @@ func benchmarkSwitch32(b *testing.B, predictable bool) {
 	sink = n
 }
 
+func BenchmarkSwitchStringPredictable(b *testing.B) {
+	benchmarkSwitchString(b, true)
+}
+func BenchmarkSwitchStringUnpredictable(b *testing.B) {
+	benchmarkSwitchString(b, false)
+}
+func benchmarkSwitchString(b *testing.B, predictable bool) {
+	a := []string{
+		"foo",
+		"foo1",
+		"foo22",
+		"foo333",
+		"foo4444",
+		"foo55555",
+		"foo666666",
+		"foo7777777",
+	}
+	n := 0
+	rng := newRNG()
+	for i := 0; i < b.N; i++ {
+		rng = rng.next(predictable)
+		switch a[rng.value()&7] {
+		case "foo":
+			n += 1
+		case "foo1":
+			n += 2
+		case "foo22":
+			n += 3
+		case "foo333":
+			n += 4
+		case "foo4444":
+			n += 5
+		case "foo55555":
+			n += 6
+		case "foo666666":
+			n += 7
+		case "foo7777777":
+			n += 8
+		}
+	}
+	sink = n
+}
+
 // A simple random number generator used to make switches conditionally predictable.
 type rng uint64
 
