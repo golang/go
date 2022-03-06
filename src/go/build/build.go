@@ -1965,18 +1965,6 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	return true
 }
 
-var knownOS = make(map[string]bool)
-var knownArch = make(map[string]bool)
-
-func init() {
-	for _, v := range strings.Fields(goosList) {
-		knownOS[v] = true
-	}
-	for _, v := range strings.Fields(goarchList) {
-		knownArch[v] = true
-	}
-}
-
 // ToolDir is the directory containing build tools.
 var ToolDir = getToolDir()
 
