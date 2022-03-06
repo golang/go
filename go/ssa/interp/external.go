@@ -12,6 +12,8 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -79,6 +81,7 @@ func init() {
 		"math.Log":                        ext۰math۰Log,
 		"math.Min":                        ext۰math۰Min,
 		"math.NaN":                        ext۰math۰NaN,
+		"math.Sqrt":                       ext۰math۰Sqrt,
 		"os.Exit":                         ext۰os۰Exit,
 		"os.Getenv":                       ext۰os۰Getenv,
 		"reflect.New":                     ext۰reflect۰New,
@@ -93,10 +96,18 @@ func init() {
 		"runtime.Goexit":                  ext۰runtime۰Goexit,
 		"runtime.Gosched":                 ext۰runtime۰Gosched,
 		"runtime.NumCPU":                  ext۰runtime۰NumCPU,
+		"sort.Float64s":                   ext۰sort۰Float64s,
+		"sort.Ints":                       ext۰sort۰Ints,
+		"sort.Strings":                    ext۰sort۰Strings,
+		"strconv.Atoi":                    ext۰strconv۰Atoi,
+		"strconv.Itoa":                    ext۰strconv۰Itoa,
+		"strconv.FormatFloat":             ext۰strconv۰FormatFloat,
 		"strings.Count":                   ext۰strings۰Count,
+		"strings.EqualFold":               ext۰strings۰EqualFold,
 		"strings.Index":                   ext۰strings۰Index,
 		"strings.IndexByte":               ext۰strings۰IndexByte,
 		"strings.Replace":                 ext۰strings۰Replace,
+		"strings.ToLower":                 ext۰strings۰ToLower,
 		"time.Sleep":                      ext۰time۰Sleep,
 		"unicode/utf8.DecodeRuneInString": ext۰unicode۰utf8۰DecodeRuneInString,
 	} {
@@ -179,15 +190,58 @@ func ext۰math۰Log(fr *frame, args []value) value {
 	return math.Log(args[0].(float64))
 }
 
+func ext۰math۰Sqrt(fr *frame, args []value) value {
+	return math.Sqrt(args[0].(float64))
+}
+
 func ext۰runtime۰Breakpoint(fr *frame, args []value) value {
 	runtime.Breakpoint()
 	return nil
+}
+
+func ext۰sort۰Ints(fr *frame, args []value) value {
+	x := args[0].([]value)
+	sort.Slice(x, func(i, j int) bool {
+		return x[i].(int) < x[j].(int)
+	})
+	return nil
+}
+func ext۰sort۰Strings(fr *frame, args []value) value {
+	x := args[0].([]value)
+	sort.Slice(x, func(i, j int) bool {
+		return x[i].(string) < x[j].(string)
+	})
+	return nil
+}
+func ext۰sort۰Float64s(fr *frame, args []value) value {
+	x := args[0].([]value)
+	sort.Slice(x, func(i, j int) bool {
+		return x[i].(float64) < x[j].(float64)
+	})
+	return nil
+}
+
+func ext۰strconv۰Atoi(fr *frame, args []value) value {
+	i, e := strconv.Atoi(args[0].(string))
+	if e != nil {
+		return tuple{i, iface{fr.i.runtimeErrorString, e.Error()}}
+	}
+	return tuple{i, iface{}}
+}
+func ext۰strconv۰Itoa(fr *frame, args []value) value {
+	return strconv.Itoa(args[0].(int))
+}
+func ext۰strconv۰FormatFloat(fr *frame, args []value) value {
+	return strconv.FormatFloat(args[0].(float64), args[1].(byte), args[2].(int), args[3].(int))
 }
 
 func ext۰strings۰Count(fr *frame, args []value) value {
 	return strings.Count(args[0].(string), args[1].(string))
 }
 
+func ext۰strings۰EqualFold(fr *frame, args []value) value {
+	return strings.EqualFold(args[0].(string), args[1].(string))
+}
 func ext۰strings۰IndexByte(fr *frame, args []value) value {
 	return strings.IndexByte(args[0].(string), args[1].(byte))
 }
@@ -203,6 +257,10 @@ func ext۰strings۰Replace(fr *frame, args []value) value {
 	old := args[2].(string)
 	n := args[3].(int)
 	return strings.Replace(s, old, new, n)
+}
+
+func ext۰strings۰ToLower(fr *frame, args []value) value {
+	return strings.ToLower(args[0].(string))
 }
 
 func ext۰runtime۰GOMAXPROCS(fr *frame, args []value) value {
