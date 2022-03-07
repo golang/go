@@ -1999,7 +1999,8 @@ var types2Failures32Bit = setOf(
 )
 
 var g3Failures = setOf(
-	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+	"typeparam/nested.go",     // -G=3 doesn't support function-local types with generics
+	"typeparam/issue51521.go", // -G=3 produces bad panic message and link error
 )
 
 // In all of these cases, -G=0 reports reasonable errors, but either -G=0 or types2
