@@ -927,6 +927,7 @@ var predeclaredTypes = map[string]bool{
 	"any":        true,
 	"bool":       true,
 	"byte":       true,
+	"comparable": true,
 	"complex64":  true,
 	"complex128": true,
 	"error":      true,

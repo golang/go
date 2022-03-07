@@ -177,14 +177,6 @@
 // 		directory, but it is not accessed. When -modfile is specified, an
 // 		alternate go.sum file is also used: its path is derived from the
 // 		-modfile flag by trimming the ".mod" extension and appending ".sum".
-// 	-workfile file
-// 		in module aware mode, use the given go.work file as a workspace file.
-// 		By default or when -workfile is "auto", the go command searches for a
-// 		file named go.work in the current directory and then containing directories
-// 		until one is found. If a valid go.work file is found, the modules
-// 		specified will collectively be used as the main modules. If -workfile
-// 		is "off", or a go.work file is not found in "auto" mode, workspace
-// 		mode is disabled.
 // 	-overlay file
 // 		read a JSON config file that provides an overlay for build operations.
 // 		The file is a JSON struct with a single field, named 'Replace', that
@@ -877,7 +869,10 @@
 // for the go/build package's Context type.
 //
 // The -json flag causes the package data to be printed in JSON format
-// instead of using the template format.
+// instead of using the template format. The JSON flag can optionally be
+// provided with a set of comma-separated required field names to be output.
+// If so, those required fields will always appear in JSON output, but
+// others may be omitted to save work in computing the JSON struct.
 //
 // The -compiled flag causes list to set CompiledGoFiles to the Go source
 // files presented to the compiler. Typically this means that it repeats
@@ -1364,13 +1359,19 @@
 //
 // Workspace maintenance
 //
-// Go workspace provides access to operations on workspaces.
+// Work provides access to operations on workspaces.
 //
 // Note that support for workspaces is built into many other commands, not
 // just 'go work'.
 //
 // See 'go help modules' for information about Go's module system of which
 // workspaces are a part.
+//
+// See https://go.dev/ref/mod#workspaces for an in-depth reference on
+// workspaces.
+//
+// See https://go.dev/doc/tutorial/workspaces for an introductory
+// tutorial on workspaces.
 //
 // A workspace is specified by a go.work file that specifies a set of
 // module directories with the "use" directive. These modules are used as
@@ -1493,9 +1494,8 @@
 // 		Version string
 // 	}
 //
-// See the workspaces design proposal at
-// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
-// more information.
+// See the workspaces reference at https://go.dev/ref/mod#workspaces
+// for more information.
 //
 //
 // Initialize workspace file
@@ -1514,6 +1514,9 @@
 //
 // Each argument path is added to a use directive in the go.work file. The
 // current go version will also be listed in the go.work file.
+//
+// See the workspaces reference at https://go.dev/ref/mod#workspaces
+// for more information.
 //
 //
 // Sync workspace build list to modules
@@ -1538,12 +1541,15 @@
 // build list's version of each module is always the same or higher than
 // that in each workspace module.
 //
+// See the workspaces reference at https://go.dev/ref/mod#workspaces
+// for more information.
+//
 //
 // Add modules to workspace file
 //
 // Usage:
 //
-// 	go work use [-r] [moddirs]
+// 	go work use [-r] moddirs
 //
 // Use provides a command-line interface for adding
 // directories, optionally recursively, to a go.work file.
@@ -1556,6 +1562,9 @@
 // directories, and the use command operates as if each of the directories
 // were specified as arguments: namely, use directives will be added for
 // directories that exist, and removed for directories that do not exist.
+//
+// See the workspaces reference at https://go.dev/ref/mod#workspaces
+// for more information.
 //
 //
 // Compile and run Go program
@@ -2075,6 +2084,14 @@
 // 	GOVCS
 // 		Lists version control commands that may be used with matching servers.
 // 		See 'go help vcs'.
+// 	GOWORK
+// 		In module aware mode, use the given go.work file as a workspace file.
+// 		By default or when GOWORK is "auto", the go command searches for a
+// 		file named go.work in the current directory and then containing directories
+// 		until one is found. If a valid go.work file is found, the modules
+// 		specified will collectively be used as the main modules. If GOWORK
+// 		is "off", or a go.work file is not found in "auto" mode, workspace
+// 		mode is disabled.
 //
 // Environment variables for use with cgo:
 //

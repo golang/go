@@ -88,6 +88,7 @@ var depsRules = `
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
+	< runtime/internal/syscall
 	< runtime/internal/atomic
 	< runtime/internal/math
 	< runtime
@@ -309,6 +310,7 @@ var depsRules = `
 	< go/build;
 
 	DEBUG, go/build, go/types, text/scanner
+  < internal/pkgbits
 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
 	< go/importer;
 

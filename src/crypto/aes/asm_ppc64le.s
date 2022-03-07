@@ -498,3 +498,228 @@ loop_dec:
 
 	RET // blr
 
+// Remove defines from above so they can be defined here
+#undef INP
+#undef OUT
+#undef ROUNDS
+#undef KEY
+#undef TMP
+#undef OUTPERM
+#undef OUTMASK
+#undef OUTHEAD
+#undef OUTTAIL
+
+// CBC encrypt or decrypt
+// R3 src
+// R4 dst
+// R5 len
+// R6 key
+// R7 iv
+// R8 enc=1 dec=0
+// Ported from: aes_p8_cbc_encrypt
+// Register usage:
+// R9: ROUNDS
+// R10: Index
+// V0: initialized to 0
+// V3: initialized to mask
+// V4: IV
+// V5: SRC
+// V6: IV perm mask
+// V7: DST
+// V10: KEY perm mask
+
+#define INP R3
+#define OUT R4
+#define LEN R5
+#define KEY R6
+#define IVP R7
+#define ENC R8
+#define ROUNDS R9
+#define IDX R10
+
+#define RNDKEY0 V0
+#define RNDKEY1 V1
+#define INOUT V2
+#define TMP V3
+
+#define IVEC V4
+#define INPTAIL V5
+#define INPPERM V6
+#define OUTHEAD V7
+#define OUTPERM V8
+#define OUTMASK V9
+#define KEYPERM V10
+
+// Vector loads are done using LVX followed by
+// a VPERM using mask generated from previous
+// LVSL or LVSR instruction, to obtain the correct
+// bytes if address is unaligned.
+
+// Encryption is done with VCIPHER and VCIPHERLAST
+// Decryption is done with VNCIPHER and VNCIPHERLAST
+
+// Encrypt and decypt is done as follows:
+// - INOUT value is initialized in outer loop.
+// - ROUNDS value is adjusted for loop unrolling.
+// - Encryption/decryption is done in loop based on
+// adjusted ROUNDS value.
+// - Final INOUT value is encrypted/decrypted and stored.
+
+// Note: original implementation had an 8X version
+// for decryption which was omitted to avoid the
+// complexity.
+
+TEXT ·cryptBlocksChain(SB), NOSPLIT|NOFRAME, $0
+	MOVD	src+0(FP), INP
+	MOVD	dst+8(FP), OUT
+	MOVD	length+16(FP), LEN
+	MOVD	key+24(FP), KEY
+	MOVD	iv+32(FP), IVP
+	MOVD	enc+40(FP), ENC
+
+	CMPU	LEN, $16                  // cmpldi r5,16
+	BC	14, 0, LR                 // bltlr-
+	CMPW	ENC, $0                   // cmpwi r8,0
+	MOVD	$15, IDX                  // li r10,15
+	VXOR	RNDKEY0, RNDKEY0, RNDKEY0 // vxor v0,v0,v0
+	VSPLTISB	$0xf, TMP         // vspltisb $0xf,v3
+
+	LVX	(IVP)(R0), IVEC                    // lvx v4,r0,r7
+	LVSL	(IVP)(R0), INPPERM                 // lvsl v6,r0,r7
+	LVX	(IVP)(IDX), INPTAIL                // lvx v5,r10,r7
+	VXOR	INPPERM, TMP, INPPERM              // vxor v3, v6, v6
+	VPERM	IVEC, INPTAIL, INPPERM, IVEC       // vperm v4,v4,v5,v6
+	NEG	INP, R11                           // neg r11,r3
+	LVSR	(KEY)(R0), KEYPERM                 // lvsr v10,r0,r6
+	MOVWZ	240(KEY), ROUNDS                   // lwz r9,240(r6)
+	LVSR	(R11)(R0), V6                      // lvsr v6,r0,r11
+	LVX	(INP)(R0), INPTAIL                 // lvx v5,r0,r3
+	ADD	$15, INP                           // addi r3,r3,15
+	VXOR	INPPERM, TMP, INPPERM              // vxor v6, v3, v6
+	LVSL	(OUT)(R0), OUTPERM                 // lvsl v8,r0,r4
+	VSPLTISB	$-1, OUTMASK               // vspltisb v9,-1
+	LVX	(OUT)(R0), OUTHEAD                 // lvx v7,r0,r4
+	VPERM	OUTMASK, RNDKEY0, OUTPERM, OUTMASK // vperm v9,v9,v0,v8
+	VXOR	OUTPERM, TMP, OUTPERM              // vxor v8, v3, v8
+	SRW	$1, ROUNDS                         // rlwinm r9,r9,31,1,31
+
+	MOVD	$16, IDX    // li r10,16
+	ADD	$-1, ROUNDS // addi r9,r9,-1
+	BEQ	Lcbc_dec    // beq
+	PCALIGN	$16
+
+	// Outer loop: initialize encrypted value (INOUT)
+	// Load input (INPTAIL) ivec (IVEC)
+Lcbc_enc:
+	VOR	INPTAIL, INPTAIL, INOUT            // vor v2,v5,v5
+	LVX	(INP)(R0), INPTAIL                 // lvx v5,r0,r3
+	ADD	$16, INP                           // addi r3,r3,16
+	MOVD	ROUNDS, CTR                        // mtctr r9
+	ADD	$-16, LEN                          // addi r5,r5,-16
+	LVX	(KEY)(R0), RNDKEY0                 // lvx v0,r0,r6
+	VPERM	INOUT, INPTAIL, INPPERM, INOUT     // vperm v2,v2,v5,v6
+	LVX	(KEY)(IDX), RNDKEY1                // lvx v1,r10,r6
+	ADD	$16, IDX                           // addi r10,r10,16
+	VPERM	RNDKEY1, RNDKEY0, KEYPERM, RNDKEY0 // vperm v0,v1,v0,v10
+	VXOR	INOUT, RNDKEY0, INOUT              // vxor v2,v2,v0
+	LVX	(KEY)(IDX), RNDKEY0                // lvx v0,r10,r6
+	ADD	$16, IDX                           // addi r10,r10,16
+	VXOR	INOUT, IVEC, INOUT                 // vxor v2,v2,v4
+
+	// Encryption loop of INOUT using RNDKEY0 and RNDKEY1
+Loop_cbc_enc:
+	VPERM	RNDKEY0, RNDKEY1, KEYPERM, RNDKEY1 // vperm v1,v1,v0,v10
+	VCIPHER	INOUT, RNDKEY1, INOUT              // vcipher v2,v2,v1
+	LVX	(KEY)(IDX), RNDKEY1                // lvx v1,r10,r6
+	ADD	$16, IDX                           // addi r10,r10,16
+	VPERM	RNDKEY1, RNDKEY0, KEYPERM, RNDKEY0 // vperm v0,v0,v1,v10
+	VCIPHER	INOUT, RNDKEY0, INOUT              // vcipher v2,v2,v0
+	LVX	(KEY)(IDX), RNDKEY0                // lvx v0,r10,r6
+	ADD	$16, IDX                           // addi r10,r10,16
+	BC	16, 0, Loop_cbc_enc                // bdnz Loop_cbc_enc
+
+	// Encrypt tail values and store INOUT
+	VPERM	RNDKEY0, RNDKEY1, KEYPERM, RNDKEY1 // vperm v1,v1,v0,v10
+	VCIPHER	INOUT, RNDKEY1, INOUT              // vcipher v2,v2,v1
+	LVX	(KEY)(IDX), RNDKEY1                // lvx v1,r10,r6
+	MOVD	$16, IDX                           // li r10,16
+	VPERM	RNDKEY1, RNDKEY0, KEYPERM, RNDKEY0 // vperm v0,v0,v1,v10
+	VCIPHERLAST	INOUT, RNDKEY0, IVEC       // vcipherlast v4,v2,v0
+	CMPU	LEN, $16                           // cmpldi r5,16
+	VPERM	IVEC, IVEC, OUTPERM, TMP           // vperm v3,v4,v4,v8
+	VSEL	OUTHEAD, TMP, OUTMASK, INOUT       // vsel v2,v7,v3,v9
+	VOR	TMP, TMP, OUTHEAD                  // vor v7,v3,v3
+	STVX	INOUT, (OUT)(R0)                   // stvx v2,r0,r4
+	ADD	$16, OUT                           // addi r4,r4,16
+	BGE	Lcbc_enc                           // bge Lcbc_enc
+	BR	Lcbc_done                          // b Lcbc_done
+
+	// Outer loop: initialize decrypted value (INOUT)
+	// Load input (INPTAIL) ivec (IVEC)
+Lcbc_dec:
+	VOR	INPTAIL, INPTAIL, TMP              // vor v3,v5,v5
+	LVX	(INP)(R0), INPTAIL                 // lvx v5,r0,r3
+	ADD	$16, INP                           // addi r3,r3,16
+	MOVD	ROUNDS, CTR                        // mtctr r9
+	ADD	$-16, LEN                          // addi r5,r5,-16
+	LVX	(KEY)(R0), RNDKEY0                 // lvx v0,r0,r6
+	VPERM	TMP, INPTAIL, INPPERM, TMP         // vperm v3,v3,v5,v6
+	LVX	(KEY)(IDX), RNDKEY1                // lvx v1,r10,r6
+	ADD	$16, IDX                           // addi r10,r10,16
+	VPERM	RNDKEY1, RNDKEY0, KEYPERM, RNDKEY0 // vperm v0,v1,v0,v10
+	VXOR	TMP, RNDKEY0, INOUT                // vxor v2,v3,v0
+	LVX	(KEY)(IDX), RNDKEY0                // lvx v0,r10,r6
+	ADD	$16, IDX                           // addi r10,r10,16
+	PCALIGN	$16
+
+	// Decryption loop of INOUT using RNDKEY0 and RNDKEY1
+Loop_cbc_dec:
+	VPERM	RNDKEY0, RNDKEY1, KEYPERM, RNDKEY1 // vperm v1,v0,v1,v10
+	VNCIPHER	INOUT, RNDKEY1, INOUT      // vncipher v2,v2,v1
+	LVX	(KEY)(IDX), RNDKEY1                // lvx v1,r10,r6
+	ADD	$16, IDX                           // addi r10,r10,16
+	VPERM	RNDKEY1, RNDKEY0, KEYPERM, RNDKEY0 // vperm v0,v1,v0,v10
+	VNCIPHER	INOUT, RNDKEY0, INOUT      // vncipher v2,v2,v0
+	LVX	(KEY)(IDX), RNDKEY0                // lvx v0,r10,r6
+	ADD	$16, IDX                           // addi r10,r10,16
+	BC	16, 0, Loop_cbc_dec                // bdnz
+
+	// Decrypt tail values and store INOUT
+	VPERM	RNDKEY0, RNDKEY1, KEYPERM, RNDKEY1 // vperm v1,v0,v1,v10
+	VNCIPHER	INOUT, RNDKEY1, INOUT      // vncipher v2,v2,v1
+	LVX	(KEY)(IDX), RNDKEY1                // lvx v1,r10,r6
+	MOVD	$16, IDX                           // li r10,16
+	VPERM	RNDKEY1, RNDKEY0, KEYPERM, RNDKEY0 // vperm v0,v1,v0,v10
+	VNCIPHERLAST	INOUT, RNDKEY0, INOUT      // vncipherlast v2,v2,v0
+	CMPU	LEN, $16                           // cmpldi r5,16
+	VXOR	INOUT, IVEC, INOUT                 // vxor v2,v2,v4
+	VOR	TMP, TMP, IVEC                     // vor v4,v3,v3
+	VPERM	INOUT, INOUT, OUTPERM, TMP         // vperm v3,v2,v2,v8
+	VSEL	OUTHEAD, TMP, OUTMASK, INOUT       // vsel v2,v7,v3,v9
+	VOR	TMP, TMP, OUTHEAD                  // vor v7,v3,v3
+	STVX	INOUT, (OUT)(R0)                   // stvx v2,r0,r4
+	ADD	$16, OUT                           // addi r4,r4,16
+	BGE	Lcbc_dec                           // bge
+
+Lcbc_done:
+	ADD	$-1, OUT                           // addi r4,r4,-1
+	LVX	(OUT)(R0), INOUT                   // lvx v2,r0,r4
+	VSEL	OUTHEAD, INOUT, OUTMASK, INOUT     // vsel v2,v7,v2,v9
+	STVX	INOUT, (OUT)(R0)                   // stvx v2,r0,r4
+	NEG	IVP, ENC                           // neg r8,r7
+	MOVD	$15, IDX                           // li r10,15
+	VXOR	RNDKEY0, RNDKEY0, RNDKEY0          // vxor v0,v0,v0
+	VSPLTISB	$-1, OUTMASK               // vspltisb v9,-1
+	VSPLTISB	$0xf, TMP                  // vspltisb v3, 0xf
+	LVSR	(ENC)(R0), OUTPERM                 // lvsl v8,r0,r8
+	VPERM	OUTMASK, RNDKEY0, OUTPERM, OUTMASK // vperm v9,v9,v0,v8
+	VXOR	OUTPERM, TMP, OUTPERM              // vxor v9, v3, v9
+	LVX	(IVP)(R0), OUTHEAD                 // lvx v7,r0,r7
+	VPERM	IVEC, IVEC, OUTPERM, IVEC          // vperm v4,v4,v4,v8
+	VSEL	OUTHEAD, IVEC, OUTMASK, INOUT      // vsel v2,v7,v4,v9
+	LVX	(IVP)(IDX), INPTAIL                // lvx v5,r10,r7
+	STVX	INOUT, (IVP)(R0)                   // stvx v2,r0,r7
+	VSEL	IVEC, INPTAIL, OUTMASK, INOUT      // vsel v2,v4,v5,v9
+	STVX	INOUT, (IVP)(IDX)                  // stvx v2,r10,r7
+	RET                                        // bclr 20,lt,0
+

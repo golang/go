@@ -8,21 +8,21 @@ import "strconv"
 
 type any interface{}
 
-func f0[A any, B interface{~*C}, C interface{~*D}, D interface{~*A}](A, B, C, D) {}
+func f0[A any, B interface{*C}, C interface{*D}, D interface{*A}](A, B, C, D) {}
 func _() {
 	f := f0[string]
 	f("a", nil, nil, nil)
 	f0("a", nil, nil, nil)
 }
 
-func f1[A any, B interface{~*A}](A, B) {}
+func f1[A any, B interface{*A}](A, B) {}
 func _() {
 	f := f1[int]
 	f(int(0), new(int))
 	f1(int(0), new(int))
 }
 
-func f2[A any, B interface{~[]A}](A, B) {}
+func f2[A any, B interface{[]A}](A, B) {}
 func _() {
 	f := f2[byte]
 	f(byte(0), []byte{})
@@ -38,7 +38,7 @@ func _() {
 // 	f3(x, &x, &x)
 // }
 
-func f4[A any, B interface{~[]C}, C interface{~*A}](A, B, C) {}
+func f4[A any, B interface{[]C}, C interface{*A}](A, B, C) {}
 func _() {
 	f := f4[int]
 	var x int
@@ -46,7 +46,7 @@ func _() {
 	f4(x, []*int{}, &x)
 }
 
-func f5[A interface{~struct{b B; c C}}, B any, C interface{~*B}](x B) A { panic(0) }
+func f5[A interface{struct{b B; c C}}, B any, C interface{*B}](x B) A { panic(0) }
 func _() {
 	x := f5(1.2)
 	var _ float64 = x.b
@@ -79,7 +79,7 @@ var _ = Double(MySlice{1})
 
 type Setter[B any] interface {
 	Set(string)
-	~*B
+	*B
 }
 
 func FromStrings[T interface{}, PT Setter[T]](s []string) []T {

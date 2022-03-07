@@ -442,6 +442,65 @@ func testPutUint64SmallSliceLengthPanics() (panicked bool) {
 	return false
 }
 
+func TestByteOrder(t *testing.T) {
+	type byteOrder interface {
+		ByteOrder
+		AppendByteOrder
+	}
+	buf := make([]byte, 8)
+	for _, order := range []byteOrder{LittleEndian, BigEndian} {
+		const offset = 3
+		for _, value := range []uint64{
+			0x0000000000000000,
+			0x0123456789abcdef,
+			0xfedcba9876543210,
+			0xffffffffffffffff,
+			0xaaaaaaaaaaaaaaaa,
+			math.Float64bits(math.Pi),
+			math.Float64bits(math.E),
+		} {
+			want16 := uint16(value)
+			order.PutUint16(buf[:2], want16)
+			if got := order.Uint16(buf[:2]); got != want16 {
+				t.Errorf("PutUint16: Uint16 = %v, want %v", got, want16)
+			}
+			buf = order.AppendUint16(buf[:offset], want16)
+			if got := order.Uint16(buf[offset:]); got != want16 {
+				t.Errorf("AppendUint16: Uint16 = %v, want %v", got, want16)
+			}
+			if len(buf) != offset+2 {
+				t.Errorf("AppendUint16: len(buf) = %d, want %d", len(buf), offset+2)
+			}
+
+			want32 := uint32(value)
+			order.PutUint32(buf[:4], want32)
+			if got := order.Uint32(buf[:4]); got != want32 {
+				t.Errorf("PutUint32: Uint32 = %v, want %v", got, want32)
+			}
+			buf = order.AppendUint32(buf[:offset], want32)
+			if got := order.Uint32(buf[offset:]); got != want32 {
+				t.Errorf("AppendUint32: Uint32 = %v, want %v", got, want32)
+			}
+			if len(buf) != offset+4 {
+				t.Errorf("AppendUint32: len(buf) = %d, want %d", len(buf), offset+4)
+			}
+
+			want64 := uint64(value)
+			order.PutUint64(buf[:8], want64)
+			if got := order.Uint64(buf[:8]); got != want64 {
+				t.Errorf("PutUint64: Uint64 = %v, want %v", got, want64)
+			}
+			buf = order.AppendUint64(buf[:offset], want64)
+			if got := order.Uint64(buf[offset:]); got != want64 {
+				t.Errorf("AppendUint64: Uint64 = %v, want %v", got, want64)
+			}
+			if len(buf) != offset+8 {
+				t.Errorf("AppendUint64: len(buf) = %d, want %d", len(buf), offset+8)
+			}
+		}
+	}
+}
+
 func TestEarlyBoundsChecks(t *testing.T) {
 	if testUint64SmallSliceLengthPanics() != true {
 		t.Errorf("binary.LittleEndian.Uint64 expected to panic for small slices, but didn't")
@@ -596,41 +655,84 @@ func BenchmarkWriteSlice1000Int32s(b *testing.B) {
 func BenchmarkPutUint16(b *testing.B) {
 	b.SetBytes(2)
 	for i := 0; i < b.N; i++ {
-		BigEndian.PutUint16(putbuf[:], uint16(i))
+		BigEndian.PutUint16(putbuf[:2], uint16(i))
+	}
+}
+
+func BenchmarkAppendUint16(b *testing.B) {
+	b.SetBytes(2)
+	for i := 0; i < b.N; i++ {
+		putbuf = BigEndian.AppendUint16(putbuf[:0], uint16(i))
 	}
 }
 
 func BenchmarkPutUint32(b *testing.B) {
 	b.SetBytes(4)
 	for i := 0; i < b.N; i++ {
-		BigEndian.PutUint32(putbuf[:], uint32(i))
+		BigEndian.PutUint32(putbuf[:4], uint32(i))
+	}
+}
+
+func BenchmarkAppendUint32(b *testing.B) {
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		putbuf = BigEndian.AppendUint32(putbuf[:0], uint32(i))
 	}
 }
 
 func BenchmarkPutUint64(b *testing.B) {
 	b.SetBytes(8)
 	for i := 0; i < b.N; i++ {
-		BigEndian.PutUint64(putbuf[:], uint64(i))
+		BigEndian.PutUint64(putbuf[:8], uint64(i))
 	}
 }
+
+func BenchmarkAppendUint64(b *testing.B) {
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		putbuf = BigEndian.AppendUint64(putbuf[:0], uint64(i))
+	}
+}
+
 func BenchmarkLittleEndianPutUint16(b *testing.B) {
 	b.SetBytes(2)
 	for i := 0; i < b.N; i++ {
-		LittleEndian.PutUint16(putbuf[:], uint16(i))
+		LittleEndian.PutUint16(putbuf[:2], uint16(i))
+	}
+}
+
+func BenchmarkLittleEndianAppendUint16(b *testing.B) {
+	b.SetBytes(2)
+	for i := 0; i < b.N; i++ {
+		putbuf = LittleEndian.AppendUint16(putbuf[:0], uint16(i))
 	}
 }
 
 func BenchmarkLittleEndianPutUint32(b *testing.B) {
 	b.SetBytes(4)
 	for i := 0; i < b.N; i++ {
-		LittleEndian.PutUint32(putbuf[:], uint32(i))
+		LittleEndian.PutUint32(putbuf[:4], uint32(i))
+	}
+}
+
+func BenchmarkLittleEndianAppendUint32(b *testing.B) {
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		putbuf = LittleEndian.AppendUint32(putbuf[:0], uint32(i))
 	}
 }
 
 func BenchmarkLittleEndianPutUint64(b *testing.B) {
 	b.SetBytes(8)
 	for i := 0; i < b.N; i++ {
-		LittleEndian.PutUint64(putbuf[:], uint64(i))
+		LittleEndian.PutUint64(putbuf[:8], uint64(i))
+	}
+}
+
+func BenchmarkLittleEndianAppendUint64(b *testing.B) {
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		putbuf = LittleEndian.AppendUint64(putbuf[:0], uint64(i))
 	}
 }
 

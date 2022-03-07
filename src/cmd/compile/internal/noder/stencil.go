@@ -410,7 +410,8 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	fn, formalParams, formalResults := startClosure(pos, outer, typ)
 
 	// This is the dictionary we want to use.
-	// It may be a constant, or it may be a dictionary acquired from the outer function's dictionary.
+	// It may be a constant, it may be the outer functions's dictionary, or it may be
+	// a subdictionary acquired from the outer function's dictionary.
 	// For the latter, dictVar is a variable in the outer function's scope, set to the subdictionary
 	// read from the outer function's dictionary.
 	var dictVar *ir.Name
@@ -640,6 +641,11 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 		// over any pointer)
 		recvType := nameNode.Type().Recv().Type
 		recvType = deref(recvType)
+		if recvType.IsFullyInstantiated() {
+			// Get the type of the base generic type, so we get
+			// its original typeparams.
+			recvType = recvType.OrigSym().Def.(*ir.Name).Type()
+		}
 		tparams = recvType.RParams()
 	} else {
 		fields := nameNode.Type().TParams().Fields().Slice()
@@ -656,11 +662,9 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 	s1 := make([]*types.Type, len(shapes))
 	for i, t := range shapes {
 		var tparam *types.Type
-		if tparams[i].Kind() == types.TTYPEPARAM {
-			// Shapes are grouped differently for structural types, so we
-			// pass the type param to Shapify(), so we can distinguish.
-			tparam = tparams[i]
-		}
+		// Shapes are grouped differently for structural types, so we
+		// pass the type param to Shapify(), so we can distinguish.
+		tparam = tparams[i]
 		if !t.IsShape() {
 			s1[i] = typecheck.Shapify(t, i, tparam)
 		} else {
@@ -1055,8 +1059,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// Transform the conversion, now that we know the
 				// type argument.
 				m = transformConvCall(call)
-				// CONVIFACE transformation was already done in noder2
-				assert(m.Op() != ir.OCONVIFACE)
 
 			case ir.OMETHVALUE, ir.OMETHEXPR:
 				// Redo the transformation of OXDOT, now that we
@@ -1076,14 +1078,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			case ir.ONAME:
 				name := call.X.Name()
 				if name.BuiltinOp != ir.OXXX {
-					switch name.BuiltinOp {
-					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
-						// Transform these builtins now that we
-						// know the type of the args.
-						m = transformBuiltin(call)
-					default:
-						base.FatalfAt(call.Pos(), "Unexpected builtin op")
-					}
+					m = transformBuiltin(call)
 				} else {
 					// This is the case of a function value that was a
 					// type parameter (implied to be a function via a
@@ -1154,6 +1149,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			newfn.Dcl = append(newfn.Dcl, ldict)
 			as := ir.NewAssignStmt(x.Pos(), ldict, cdict)
 			as.SetTypecheck(1)
+			ldict.Defn = as
 			newfn.Body.Append(as)
 
 			// Create inst info for the instantiated closure. The dict

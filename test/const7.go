@@ -24,7 +24,7 @@ import (
 // which declares an untyped constant of the given length.
 // testProg compiles this package and checks for the absence or
 // presence of a constant literal error.
-func testProg(dir, name string, G_option, length int, ok bool) {
+func testProg(dir, name string, length int, ok bool) {
 	var buf bytes.Buffer
 
 	fmt.Fprintf(&buf,
@@ -37,7 +37,7 @@ func testProg(dir, name string, G_option, length int, ok bool) {
 		log.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "tool", "compile", fmt.Sprintf("-G=%d", G_option), filename)
+	cmd := exec.Command("go", "tool", "compile", filename)
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 
@@ -70,8 +70,6 @@ func main() {
 	defer os.RemoveAll(dir)
 
 	const limit = 10000 // compiler-internal constant length limit
-	testProg(dir, "x1", 0, limit, true)    // -G=0
-	testProg(dir, "x2", 0, limit+1, false) // -G=0
-	testProg(dir, "x1", 1, limit, true)    // -G=1 (new type checker)
-	testProg(dir, "x2", 1, limit+1, false) // -G=1 (new type checker)
+	testProg(dir, "x1", limit, true)
+	testProg(dir, "x2", limit+1, false)
 }

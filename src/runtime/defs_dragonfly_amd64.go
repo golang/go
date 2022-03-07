@@ -10,7 +10,6 @@ const (
 	_EFAULT = 0xe
 	_EBUSY  = 0x10
 	_EAGAIN = 0x23
-	_ENOSYS = 0x4e
 
 	_O_NONBLOCK = 0x4
 	_O_CLOEXEC  = 0x20000

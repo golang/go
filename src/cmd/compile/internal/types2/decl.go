@@ -569,7 +569,6 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 
 	// Keep track of bounds for later validation.
 	var bound Type
-	var bounds []Type
 	for i, f := range list {
 		// Optimization: Re-use the previous type bound if it hasn't changed.
 		// This also preserves the grouped output of type parameter lists
@@ -584,7 +583,6 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 				check.error(f.Type, "cannot use a type parameter as constraint")
 				bound = Typ[Invalid]
 			}
-			bounds = append(bounds, bound)
 		}
 		tparams[i].bound = bound
 	}

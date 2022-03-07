@@ -459,3 +459,12 @@ func sysargs(argc int32, argv **byte) {
 func signalM(mp *m, sig int) {
 	pthread_kill(pthread(mp.procid), uint32(sig))
 }
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
+}

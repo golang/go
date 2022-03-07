@@ -2552,7 +2552,13 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		case AROTLW:
 			o1 = OP_RLW(OP_RLWNM, uint32(p.To.Reg), uint32(r), uint32(p.From.Reg), 0, 31)
 		default:
-			o1 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
+			if p.As == AOR && p.From.Type == obj.TYPE_CONST && p.From.Offset == 0 {
+				// Compile "OR $0, Rx, Ry" into ori. If Rx == Ry == 0, this is the preferred
+				// hardware no-op. This happens because $0 matches C_REG before C_ZCON.
+				o1 = LOP_IRR(OP_ORI, uint32(p.To.Reg), uint32(r), 0)
+			} else {
+				o1 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
+			}
 		}
 
 	case 7: /* mov r, soreg ==> stw o(r) */

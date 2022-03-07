@@ -427,6 +427,14 @@ func TestGdbBacktrace(t *testing.T) {
 	got, err := testenv.RunWithTimeout(t, exec.Command("gdb", args...))
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
+		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {
+			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=28551
+			testenv.SkipFlaky(t, 43068)
+		}
+		if bytes.Contains(got, []byte("Couldn't get registers: No such process.")) {
+			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086
+			testenv.SkipFlaky(t, 50838)
+		}
 		t.Fatalf("gdb exited with error: %v", err)
 	}
 

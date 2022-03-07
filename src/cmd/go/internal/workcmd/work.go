@@ -12,13 +12,19 @@ import (
 var CmdWork = &base.Command{
 	UsageLine: "go work",
 	Short:     "workspace maintenance",
-	Long: `Go workspace provides access to operations on workspaces.
+	Long: `Work provides access to operations on workspaces.
 
 Note that support for workspaces is built into many other commands, not
 just 'go work'.
 
 See 'go help modules' for information about Go's module system of which
 workspaces are a part.
+
+See https://go.dev/ref/mod#workspaces for an in-depth reference on
+workspaces.
+
+See https://go.dev/doc/tutorial/workspaces for an introductory
+tutorial on workspaces.
 
 A workspace is specified by a go.work file that specifies a set of
 module directories with the "use" directive. These modules are used as

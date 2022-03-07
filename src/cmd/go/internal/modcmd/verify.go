@@ -39,7 +39,6 @@ See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
 
 func init() {
 	base.AddModCommonFlags(&cmdVerify.Flag)
-	base.AddWorkfileFlag(&cmdVerify.Flag)
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {

@@ -32,10 +32,6 @@ import (
 	"unicode"
 )
 
-// CompilerDefaultGLevel is the -G level used by default when not overridden by a
-// command-line flag
-const CompilerDefaultGLevel = 3
-
 var (
 	verbose        = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
 	keep           = flag.Bool("k", false, "keep. keep temporary directory.")
@@ -48,7 +44,6 @@ var (
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
 	force          = flag.Bool("f", false, "ignore expected-failure test lists")
-	generics       = flag.String("G", defaultGLevels, "a comma-separated list of -G compiler flags to test with")
 
 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
@@ -79,22 +74,10 @@ var env = func() (res envVars) {
 	return
 }()
 
-var unifiedEnabled, defaultGLevels = func() (bool, string) {
-	// TODO(mdempsky): This will give false negatives if the unified
-	// experiment is enabled by default, but presumably at that point we
-	// won't need to disable tests for it anymore anyway.
-	enabled := strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
-
-	// Test both -G=0 and -G=3 on the longtest builders, to make sure we
-	// don't accidentally break -G=0 mode until we're ready to remove it
-	// completely. But elsewhere, testing -G=3 alone should be enough.
-	glevels := "3"
-	if strings.Contains(os.Getenv("GO_BUILDER_NAME"), "longtest") {
-		glevels = "0,3"
-	}
-
-	return enabled, glevels
-}()
+// TODO(mdempsky): This will give false negatives if the unified
+// experiment is enabled by default, but presumably at that point we
+// won't need to disable tests for it anymore anyway.
+var unifiedEnabled = strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
 
 // defaultAllCodeGen returns the default value of the -all_codegen
 // flag. By default, we prefer to be fast (returning false), except on
@@ -132,15 +115,6 @@ const maxTests = 5000
 func main() {
 	flag.Parse()
 
-	var glevels []int
-	for _, s := range strings.Split(*generics, ",") {
-		glevel, err := strconv.Atoi(s)
-		if err != nil {
-			log.Fatalf("invalid -G flag: %v", err)
-		}
-		glevels = append(glevels, glevel)
-	}
-
 	findExecCmd()
 
 	// Disable parallelism if printing or if using a simulator.
@@ -165,11 +139,11 @@ func main() {
 			}
 			if fi, err := os.Stat(arg); err == nil && fi.IsDir() {
 				for _, baseGoFile := range goFiles(arg) {
-					tests = append(tests, startTests(arg, baseGoFile, glevels)...)
+					tests = append(tests, startTest(arg, baseGoFile))
 				}
 			} else if strings.HasSuffix(arg, ".go") {
 				dir, file := filepath.Split(arg)
-				tests = append(tests, startTests(dir, file, glevels)...)
+				tests = append(tests, startTest(dir, file))
 			} else {
 				log.Fatalf("can't yet deal with non-directory and non-go file %q", arg)
 			}
@@ -177,7 +151,7 @@ func main() {
 	} else {
 		for _, dir := range dirs {
 			for _, baseGoFile := range goFiles(dir) {
-				tests = append(tests, startTests(dir, baseGoFile, glevels)...)
+				tests = append(tests, startTest(dir, baseGoFile))
 			}
 		}
 	}
@@ -210,8 +184,7 @@ func main() {
 		resCount[status]++
 		dt := fmt.Sprintf("%.3fs", test.dt.Seconds())
 		if status == "FAIL" {
-			fmt.Printf("# go run run.go -G=%v %s\n%s\nFAIL\t%s\t%s\n",
-				test.glevel,
+			fmt.Printf("# go run run.go %s\n%s\nFAIL\t%s\t%s\n",
 				path.Join(test.dir, test.gofile),
 				errStr, test.goFileName(), dt)
 			continue
@@ -330,7 +303,6 @@ type test struct {
 	dir, gofile string
 	donec       chan bool // closed when done
 	dt          time.Duration
-	glevel      int // what -G level this test should use
 
 	src string
 
@@ -345,30 +317,24 @@ type test struct {
 
 // initExpectFail initializes t.expectFail based on the build+test
 // configuration.
-func (t *test) initExpectFail(hasGFlag bool) {
+func (t *test) initExpectFail() {
 	if *force {
 		return
 	}
 
-	var failureSets []map[string]bool
+	failureSets := []map[string]bool{types2Failures}
 
-	if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
-		failureSets = append(failureSets, g0Failures)
+	// Note: gccgo supports more 32-bit architectures than this, but
+	// hopefully the 32-bit failures are fixed before this matters.
+	switch goarch {
+	case "386", "arm", "mips", "mipsle":
+		failureSets = append(failureSets, types2Failures32Bit)
+	}
+
+	if unifiedEnabled {
+		failureSets = append(failureSets, unifiedFailures)
 	} else {
-		failureSets = append(failureSets, types2Failures)
-
-		// Note: gccgo supports more 32-bit architectures than this, but
-		// hopefully the 32-bit failures are fixed before this matters.
-		switch goarch {
-		case "386", "arm", "mips", "mipsle":
-			failureSets = append(failureSets, types2Failures32Bit)
-		}
-
-		if unifiedEnabled {
-			failureSets = append(failureSets, unifiedFailures)
-		} else {
-			failureSets = append(failureSets, g3Failures)
-		}
+		failureSets = append(failureSets, g3Failures)
 	}
 
 	filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
@@ -381,27 +347,22 @@ func (t *test) initExpectFail(hasGFlag bool) {
 	}
 }
 
-func startTests(dir, gofile string, glevels []int) []*test {
-	tests := make([]*test, len(glevels))
-	for i, glevel := range glevels {
-		t := &test{
-			dir:    dir,
-			gofile: gofile,
-			glevel: glevel,
-			donec:  make(chan bool, 1),
-		}
-		if toRun == nil {
-			toRun = make(chan *test, maxTests)
-			go runTests()
-		}
-		select {
-		case toRun <- t:
-		default:
-			panic("toRun buffer size (maxTests) is too small")
-		}
-		tests[i] = t
+func startTest(dir, gofile string) *test {
+	t := &test{
+		dir:    dir,
+		gofile: gofile,
+		donec:  make(chan bool, 1),
 	}
-	return tests
+	if toRun == nil {
+		toRun = make(chan *test, maxTests)
+		go runTests()
+	}
+	select {
+	case toRun <- t:
+	default:
+		panic("toRun buffer size (maxTests) is too small")
+	}
+	return t
 }
 
 // runTests runs tests in parallel, but respecting the order they
@@ -589,15 +550,11 @@ func init() { checkShouldTest() }
 // or else the commands will rebuild any needed packages (like runtime)
 // over and over.
 func (t *test) goGcflags() string {
-	flags := os.Getenv("GO_GCFLAGS")
-	if t.glevel != CompilerDefaultGLevel {
-		flags = fmt.Sprintf("%s -G=%v", flags, t.glevel)
-	}
-	return "-gcflags=all=" + flags
+	return "-gcflags=all=" + os.Getenv("GO_GCFLAGS")
 }
 
 func (t *test) goGcflagsIsEmpty() bool {
-	return "" == os.Getenv("GO_GCFLAGS") && t.glevel == CompilerDefaultGLevel
+	return "" == os.Getenv("GO_GCFLAGS")
 }
 
 var errTimeout = errors.New("command exceeded time limit")
@@ -744,60 +701,7 @@ func (t *test) run() {
 		}
 	}
 
-	type Tool int
-
-	const (
-		_ Tool = iota
-		AsmCheck
-		Build
-		Run
-		Compile
-	)
-
-	// validForGLevel reports whether the current test is valid to run
-	// at the specified -G level. If so, it may update flags as
-	// necessary to test with -G.
-	validForGLevel := func(tool Tool) bool {
-		hasGFlag := false
-		for _, flag := range flags {
-			if strings.Contains(flag, "-G") {
-				hasGFlag = true
-			}
-		}
-
-		// In unified IR mode, run the test regardless of explicit -G flag.
-		if !unifiedEnabled && hasGFlag && t.glevel != CompilerDefaultGLevel {
-			// test provides explicit -G flag already; don't run again
-			if *verbose {
-				fmt.Printf("excl\t%s\n", t.goFileName())
-			}
-			return false
-		}
-
-		t.initExpectFail(hasGFlag)
-
-		switch tool {
-		case Build, Run:
-			// ok; handled in goGcflags
-
-		case Compile:
-			if !hasGFlag {
-				flags = append(flags, fmt.Sprintf("-G=%v", t.glevel))
-			}
-
-		default:
-			if t.glevel != CompilerDefaultGLevel {
-				// we don't know how to add -G for this test yet
-				if *verbose {
-					fmt.Printf("excl\t%s\n", t.goFileName())
-				}
-				return false
-			}
-		}
-
-		return true
-	}
-
+	t.initExpectFail()
 	t.makeTempDir()
 	if !*keep {
 		defer os.RemoveAll(t.tempDir)
@@ -881,10 +785,6 @@ func (t *test) run() {
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
 	case "asmcheck":
-		if !validForGLevel(AsmCheck) {
-			return
-		}
-
 		// Compile Go file and match the generated assembly
 		// against a set of regexps in comments.
 		ops := t.wantedAsmOpcodes(long)
@@ -939,10 +839,6 @@ func (t *test) run() {
 		return
 
 	case "errorcheck":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		// Compile Go file.
 		// Fail if wantError is true and compilation was successful and vice versa.
 		// Match errors produced by gc against errors in comments.
@@ -973,18 +869,10 @@ func (t *test) run() {
 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
 
 	case "compile":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		// Compile Go file.
 		_, t.err = compileFile(runcmd, long, flags)
 
 	case "compiledir":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		// Compile all files in the directory as packages in lexicographic order.
 		longdir := filepath.Join(cwd, t.goDirName())
 		pkgs, err := goDirPackages(longdir, singlefilepkgs)
@@ -1000,10 +888,6 @@ func (t *test) run() {
 		}
 
 	case "errorcheckdir", "errorcheckandrundir":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		flags = append(flags, "-d=panic")
 		// Compile and errorCheck all files in the directory as packages in lexicographic order.
 		// If errorcheckdir and wantError, compilation of the last package must fail.
@@ -1049,10 +933,6 @@ func (t *test) run() {
 		fallthrough
 
 	case "rundir":
-		if !validForGLevel(Run) {
-			return
-		}
-
 		// Compile all files in the directory as packages in lexicographic order.
 		// In case of errorcheckandrundir, ignore failed compilation of the package before the last.
 		// Link as if the last file is the main package, run it.
@@ -1111,10 +991,6 @@ func (t *test) run() {
 		}
 
 	case "runindir":
-		if !validForGLevel(Run) {
-			return
-		}
-
 		// Make a shallow copy of t.goDirName() in its own module and GOPATH, and
 		// run "go run ." in it. The module path (and hence import path prefix) of
 		// the copy is equal to the basename of the source directory.
@@ -1154,10 +1030,6 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "build":
-		if !validForGLevel(Build) {
-			return
-		}
-
 		// Build Go file.
 		_, err := runcmd(goTool(), "build", t.goGcflags(), "-o", "a.exe", long)
 		if err != nil {
@@ -1165,10 +1037,6 @@ func (t *test) run() {
 		}
 
 	case "builddir", "buildrundir":
-		if !validForGLevel(Build) {
-			return
-		}
-
 		// Build an executable from all the .go and .s files in a subdirectory.
 		// Run it and verify its output in the buildrundir case.
 		longdir := filepath.Join(cwd, t.goDirName())
@@ -1248,10 +1116,6 @@ func (t *test) run() {
 		}
 
 	case "buildrun":
-		if !validForGLevel(Build) {
-			return
-		}
-
 		// Build an executable from Go file, then run it, verify its output.
 		// Useful for timeout tests where failure mode is infinite loop.
 		// TODO: not supported on NaCl
@@ -1277,10 +1141,6 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "run":
-		if !validForGLevel(Run) {
-			return
-		}
-
 		// Run Go file if no special go command flags are provided;
 		// otherwise build an executable and run it.
 		// Verify the output.
@@ -1324,10 +1184,6 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "runoutput":
-		if !validForGLevel(Run) {
-			return
-		}
-
 		// Run Go file and write its output into temporary Go file.
 		// Run generated Go file and verify its output.
 		rungatec <- true
@@ -1363,10 +1219,6 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "errorcheckoutput":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		// Run Go file and write its output into temporary Go file.
 		// Compile and errorCheck generated Go file.
 		runInDir = ""

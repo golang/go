@@ -154,6 +154,8 @@ type gcControllerState struct {
 	// For goexperiment.PacerRedesign.
 	consMarkController piController
 
+	_ uint32 // Padding for atomics on 32-bit platforms.
+
 	// heapGoal is the goal heapLive for when next GC ends.
 	// Set to ^uint64(0) if disabled.
 	//
@@ -670,10 +672,31 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) floa
 		currentConsMark := (float64(c.heapLive-c.trigger) * (utilization + idleUtilization)) /
 			(float64(scanWork) * (1 - utilization))
 
-		// Update cons/mark controller.
-		// Period for this is 1 GC cycle.
+		// Update cons/mark controller. The time period for this is 1 GC cycle.
+		//
+		// This use of a PI controller might seem strange. So, here's an explanation:
+		//
+		// currentConsMark represents the consMark we *should've* had to be perfectly
+		// on-target for this cycle. Given that we assume the next GC will be like this
+		// one in the steady-state, it stands to reason that we should just pick that
+		// as our next consMark. In practice, however, currentConsMark is too noisy:
+		// we're going to be wildly off-target in each GC cycle if we do that.
+		//
+		// What we do instead is make a long-term assumption: there is some steady-state
+		// consMark value, but it's obscured by noise. By constantly shooting for this
+		// noisy-but-perfect consMark value, the controller will bounce around a bit,
+		// but its average behavior, in aggregate, should be less noisy and closer to
+		// the true long-term consMark value, provided its tuned to be slightly overdamped.
+		var ok bool
 		oldConsMark := c.consMark
-		c.consMark = c.consMarkController.next(c.consMark, currentConsMark, 1.0)
+		c.consMark, ok = c.consMarkController.next(c.consMark, currentConsMark, 1.0)
+		if !ok {
+			// The error spiraled out of control. This is incredibly unlikely seeing
+			// as this controller is essentially just a smoothing function, but it might
+			// mean that something went very wrong with how currentConsMark was calculated.
+			// Just reset consMark and keep going.
+			c.consMark = 0
+		}
 
 		if debug.gcpacertrace > 0 {
 			printlock()
@@ -681,6 +704,9 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) floa
 			print("pacer: ", int(utilization*100), "% CPU (", int(goal), " exp.) for ")
 			print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.stackScan+c.globalsScan, " B exp.) ")
 			print("in ", c.trigger, " B -> ", c.heapLive, " B (∆goal ", int64(c.heapLive)-int64(c.heapGoal), ", cons/mark ", oldConsMark, ")")
+			if !ok {
+				print("[controller reset]")
+			}
 			println()
 			printunlock()
 		}
@@ -1263,15 +1289,38 @@ type piController struct {
 	// PI controller state.
 
 	errIntegral float64 // Integral of the error from t=0 to now.
+
+	// Error flags.
+	errOverflow   bool // Set if errIntegral ever overflowed.
+	inputOverflow bool // Set if an operation with the input overflowed.
 }
 
-func (c *piController) next(input, setpoint, period float64) float64 {
+// next provides a new sample to the controller.
+//
+// input is the sample, setpoint is the desired point, and period is how much
+// time (in whatever unit makes the most sense) has passed since the last sample.
+//
+// Returns a new value for the variable it's controlling, and whether the operation
+// completed successfully. One reason this might fail is if error has been growing
+// in an unbounded manner, to the point of overflow.
+//
+// In the specific case of an error overflow occurs, the errOverflow field will be
+// set and the rest of the controller's internal state will be fully reset.
+func (c *piController) next(input, setpoint, period float64) (float64, bool) {
 	// Compute the raw output value.
 	prop := c.kp * (setpoint - input)
 	rawOutput := prop + c.errIntegral
 
 	// Clamp rawOutput into output.
 	output := rawOutput
+	if isInf(output) || isNaN(output) {
+		// The input had a large enough magnitude that either it was already
+		// overflowed, or some operation with it overflowed.
+		// Set a flag and reset. That's the safest thing to do.
+		c.reset()
+		c.inputOverflow = true
+		return c.min, false
+	}
 	if output < c.min {
 		output = c.min
 	} else if output > c.max {
@@ -1281,6 +1330,19 @@ func (c *piController) next(input, setpoint, period float64) float64 {
 	// Update the controller's state.
 	if c.ti != 0 && c.tt != 0 {
 		c.errIntegral += (c.kp*period/c.ti)*(setpoint-input) + (period/c.tt)*(output-rawOutput)
+		if isInf(c.errIntegral) || isNaN(c.errIntegral) {
+			// So much error has accumulated that we managed to overflow.
+			// The assumptions around the controller have likely broken down.
+			// Set a flag and reset. That's the safest thing to do.
+			c.reset()
+			c.errOverflow = true
+			return c.min, false
+		}
 	}
-	return output
+	return output, true
+}
+
+// reset resets the controller state, except for controller error flags.
+func (c *piController) reset() {
+	c.errIntegral = 0
 }

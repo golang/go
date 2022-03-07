@@ -543,6 +543,13 @@ func (p *parser) parseArrayType(lbrack token.Pos, len ast.Expr) *ast.ArrayType {
 		}
 		p.exprLev--
 	}
+	if p.tok == token.COMMA {
+		// Trailing commas are accepted in type parameter
+		// lists but not in array type declarations.
+		// Accept for better error handling but complain.
+		p.error(p.pos, "unexpected comma; expecting ]")
+		p.next()
+	}
 	p.expect(token.RBRACK)
 	elt := p.parseType()
 	return &ast.ArrayType{Lbrack: lbrack, Len: len, Elt: elt}
@@ -797,7 +804,7 @@ func (p *parser) parseParamDecl(name *ast.Ident, typeSetsOK bool) (f field) {
 	return
 }
 
-func (p *parser) parseParameterList(name0 *ast.Ident, closing token.Token) (params []*ast.Field) {
+func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing token.Token) (params []*ast.Field) {
 	if p.trace {
 		defer un(trace(p, "ParameterList"))
 	}
@@ -816,8 +823,17 @@ func (p *parser) parseParameterList(name0 *ast.Ident, closing token.Token) (para
 	var named int // number of parameters that have an explicit name and type
 
 	for name0 != nil || p.tok != closing && p.tok != token.EOF {
-		par := p.parseParamDecl(name0, typeSetsOK)
+		var par field
+		if typ0 != nil {
+			if typeSetsOK {
+				typ0 = p.embeddedElem(typ0)
+			}
+			par = field{name0, typ0}
+		} else {
+			par = p.parseParamDecl(name0, typeSetsOK)
+		}
 		name0 = nil // 1st name was consumed if present
+		typ0 = nil  // 1st typ was consumed if present
 		if par.name != nil || par.typ != nil {
 			list = append(list, par)
 			if par.name != nil && par.typ != nil {
@@ -926,7 +942,7 @@ func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.Field
 		opening := p.pos
 		p.next()
 		// [T any](params) syntax
-		list := p.parseParameterList(nil, token.RBRACK)
+		list := p.parseParameterList(nil, nil, token.RBRACK)
 		rbrack := p.expect(token.RBRACK)
 		tparams = &ast.FieldList{Opening: opening, List: list, Closing: rbrack}
 		// Type parameter lists must not be empty.
@@ -940,7 +956,7 @@ func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.Field
 
 	var fields []*ast.Field
 	if p.tok != token.RPAREN {
-		fields = p.parseParameterList(nil, token.RPAREN)
+		fields = p.parseParameterList(nil, nil, token.RPAREN)
 	}
 
 	rparen := p.expect(token.RPAREN)
@@ -1007,7 +1023,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 				//
 				// Interface methods do not have type parameters. We parse them for a
 				// better error message and improved error recovery.
-				_ = p.parseParameterList(name0, token.RBRACK)
+				_ = p.parseParameterList(name0, nil, token.RBRACK)
 				_ = p.expect(token.RBRACK)
 				p.error(lbrack, "interface method must have no type parameters")
 
@@ -1784,7 +1800,12 @@ func (p *parser) tokPrec() (token.Token, int) {
 	return tok, tok.Precedence()
 }
 
-func (p *parser) parseBinaryExpr(x ast.Expr, prec1 int) ast.Expr {
+// parseBinaryExpr parses a (possibly) binary expression.
+// If x is non-nil, it is used as the left operand.
+// If check is true, operands are checked to be valid expressions.
+//
+// TODO(rfindley): parseBinaryExpr has become overloaded. Consider refactoring.
+func (p *parser) parseBinaryExpr(x ast.Expr, prec1 int, check bool) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "BinaryExpr"))
 	}
@@ -1798,9 +1819,30 @@ func (p *parser) parseBinaryExpr(x ast.Expr, prec1 int) ast.Expr {
 			return x
 		}
 		pos := p.expect(op)
-		y := p.parseBinaryExpr(nil, oprec+1)
-		x = &ast.BinaryExpr{X: p.checkExpr(x), OpPos: pos, Op: op, Y: p.checkExpr(y)}
+		y := p.parseBinaryExpr(nil, oprec+1, check)
+		if check {
+			x = p.checkExpr(x)
+			y = p.checkExpr(y)
+		}
+		x = &ast.BinaryExpr{X: x, OpPos: pos, Op: op, Y: y}
 	}
+}
+
+// checkBinaryExpr checks binary expressions that were not already checked by
+// parseBinaryExpr, because the latter was called with check=false.
+func (p *parser) checkBinaryExpr(x ast.Expr) {
+	bx, ok := x.(*ast.BinaryExpr)
+	if !ok {
+		return
+	}
+
+	bx.X = p.checkExpr(bx.X)
+	bx.Y = p.checkExpr(bx.Y)
+
+	// parseBinaryExpr checks x and y for each binary expr in a tree, so we
+	// traverse the tree of binary exprs starting from x.
+	p.checkBinaryExpr(bx.X)
+	p.checkBinaryExpr(bx.Y)
 }
 
 // The result may be a type or even a raw type ([...]int). Callers must
@@ -1811,7 +1853,7 @@ func (p *parser) parseExpr() ast.Expr {
 		defer un(trace(p, "Expression"))
 	}
 
-	return p.parseBinaryExpr(nil, token.LowestPrec+1)
+	return p.parseBinaryExpr(nil, token.LowestPrec+1, true)
 }
 
 func (p *parser) parseRhs() ast.Expr {
@@ -2534,12 +2576,12 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword toke
 	return spec
 }
 
-func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *ast.Ident) {
+func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *ast.Ident, typ0 ast.Expr) {
 	if p.trace {
 		defer un(trace(p, "parseGenericType"))
 	}
 
-	list := p.parseParameterList(name0, token.RBRACK)
+	list := p.parseParameterList(name0, typ0, token.RBRACK)
 	closePos := p.expect(token.RBRACK)
 	spec.TypeParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
 	// Let the type checker decide whether to accept type parameters on aliases:
@@ -2564,31 +2606,85 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 		lbrack := p.pos
 		p.next()
 		if p.tok == token.IDENT {
-			// array type or generic type: [name0...
-			name0 := p.parseIdent()
+			// We may have an array type or a type parameter list.
+			// In either case we expect an expression x (which may
+			// just be a name, or a more complex expression) which
+			// we can analyze further.
+			//
+			// A type parameter list may have a type bound starting
+			// with a "[" as in: P []E. In that case, simply parsing
+			// an expression would lead to an error: P[] is invalid.
+			// But since index or slice expressions are never constant
+			// and thus invalid array length expressions, if we see a
+			// "[" following a name it must be the start of an array
+			// or slice constraint. Only if we don't see a "[" do we
+			// need to parse a full expression.
 
 			// Index or slice expressions are never constant and thus invalid
 			// array length expressions. Thus, if we see a "[" following name
 			// we can safely assume that "[" name starts a type parameter list.
-			var x ast.Expr // x != nil means x is the array length expression
+			var x ast.Expr = p.parseIdent()
 			if p.tok != token.LBRACK {
-				// We may still have either an array type or generic type -- check if
-				// name0 is the entire expr.
+				// To parse the expression starting with name, expand
+				// the call sequence we would get by passing in name
+				// to parser.expr, and pass in name to parsePrimaryExpr.
 				p.exprLev++
-				lhs := p.parsePrimaryExpr(name0)
-				x = p.parseBinaryExpr(lhs, token.LowestPrec+1)
+				lhs := p.parsePrimaryExpr(x)
+				x = p.parseBinaryExpr(lhs, token.LowestPrec+1, false)
 				p.exprLev--
-				if x == name0 && p.tok != token.RBRACK {
-					x = nil
+			}
+
+			// analyze the cases
+			var pname *ast.Ident // pname != nil means pname is the type parameter name
+			var ptype ast.Expr   // ptype != nil means ptype is the type parameter type; pname != nil in this case
+
+			switch t := x.(type) {
+			case *ast.Ident:
+				// Unless we see a "]", we are at the start of a type parameter list.
+				if p.tok != token.RBRACK {
+					// d.Name "[" name ...
+					pname = t
+					// no ptype
+				}
+			case *ast.BinaryExpr:
+				// If we have an expression of the form name*T, and T is a (possibly
+				// parenthesized) type literal or the next token is a comma, we are
+				// at the start of a type parameter list.
+				if name, _ := t.X.(*ast.Ident); name != nil {
+					if t.Op == token.MUL && (isTypeLit(t.Y) || p.tok == token.COMMA) {
+						// d.Name "[" name "*" t.Y
+						// d.Name "[" name "*" t.Y ","
+						// convert t into unary *t.Y
+						pname = name
+						ptype = &ast.StarExpr{Star: t.OpPos, X: t.Y}
+					}
+				}
+				if pname == nil {
+					// A normal binary expression. Since we passed check=false, we must
+					// now check its operands.
+					p.checkBinaryExpr(t)
+				}
+			case *ast.CallExpr:
+				// If we have an expression of the form name(T), and T is a (possibly
+				// parenthesized) type literal or the next token is a comma, we are
+				// at the start of a type parameter list.
+				if name, _ := t.Fun.(*ast.Ident); name != nil {
+					if len(t.Args) == 1 && !t.Ellipsis.IsValid() && (isTypeLit(t.Args[0]) || p.tok == token.COMMA) {
+						// d.Name "[" name "(" t.ArgList[0] ")"
+						// d.Name "[" name "(" t.ArgList[0] ")" ","
+						pname = name
+						ptype = t.Args[0]
+					}
 				}
 			}
 
-			if x == nil {
-				// generic type [T any];
-				p.parseGenericType(spec, lbrack, name0)
+			if pname != nil {
+				// d.Name "[" pname ...
+				// d.Name "[" pname ptype ...
+				// d.Name "[" pname ptype "," ...
+				p.parseGenericType(spec, lbrack, pname, ptype)
 			} else {
-				// array type
-				// TODO(rfindley) should resolve all identifiers in x.
+				// d.Name "[" x ...
 				spec.Type = p.parseArrayType(lbrack, x)
 			}
 		} else {
@@ -2609,6 +2705,21 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	spec.Comment = p.lineComment
 
 	return spec
+}
+
+// isTypeLit reports whether x is a (possibly parenthesized) type literal.
+func isTypeLit(x ast.Expr) bool {
+	switch x := x.(type) {
+	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
+		return true
+	case *ast.StarExpr:
+		// *T may be a pointer dereferenciation.
+		// Only consider *T as type literal if T is a type literal.
+		return isTypeLit(x.X)
+	case *ast.ParenExpr:
+		return isTypeLit(x.X)
+	}
+	return false
 }
 
 func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.GenDecl {

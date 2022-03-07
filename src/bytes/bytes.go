@@ -372,6 +372,8 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 //   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
 //   n == 0: the result is nil (zero subslices)
 //   n < 0: all subslices
+//
+// To split around the first instance of a separator, see Cut.
 func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 
 // SplitAfterN slices s into subslices after each instance of sep and
@@ -389,6 +391,8 @@ func SplitAfterN(s, sep []byte, n int) [][]byte {
 // the subslices between those separators.
 // If sep is empty, Split splits after each UTF-8 sequence.
 // It is equivalent to SplitN with a count of -1.
+//
+// To split around the first instance of a separator, see Cut.
 func Split(s, sep []byte) [][]byte { return genSplit(s, sep, 0, -1) }
 
 // SplitAfter slices s into all subslices after each instance of sep and

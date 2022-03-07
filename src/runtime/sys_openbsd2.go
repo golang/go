@@ -111,10 +111,6 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 }
 func write_trampoline()
 
-func pipe() (r, w int32, errno int32) {
-	return pipe2(0)
-}
-
 func pipe2(flags int32) (r, w int32, errno int32) {
 	var p [2]int32
 	args := struct {
@@ -256,12 +252,6 @@ func exitThread(wait *uint32) {
 //go:nosplit
 func closeonexec(fd int32) {
 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
-}
-
-//go:nosplit
-func setNonblock(fd int32) {
-	flags := fcntl(fd, _F_GETFL, 0)
-	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
 }
 
 // Tell the linker that the libc_* functions are to be found

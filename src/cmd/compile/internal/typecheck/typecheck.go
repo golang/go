@@ -145,13 +145,6 @@ func Resolve(n ir.Node) (res ir.Node) {
 	}
 
 	if sym := n.Sym(); sym.Pkg != types.LocalPkg {
-		// We might have an ir.Ident from oldname or importDot.
-		if id, ok := n.(*ir.Ident); ok {
-			if pkgName := DotImportRefs[id]; pkgName != nil {
-				pkgName.Used = true
-			}
-		}
-
 		return expandDecl(n)
 	}
 
@@ -297,7 +290,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
 	if n.Typecheck() == 1 || n.Typecheck() == 3 {
 		switch n.Op() {
-		case ir.ONAME, ir.OTYPE, ir.OLITERAL, ir.OPACK:
+		case ir.ONAME, ir.OTYPE, ir.OLITERAL:
 			break
 
 		default:
@@ -529,43 +522,14 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		// type already set
 		return n
 
-	case ir.OPACK:
-		n := n.(*ir.PkgName)
-		base.Errorf("use of package %v without selector", n.Sym())
-		n.SetDiag(true)
-		return n
-
 	// types (ODEREF is with exprs)
 	case ir.OTYPE:
 		return n
 
-	case ir.OTSLICE:
-		n := n.(*ir.SliceType)
-		return tcSliceType(n)
-
-	case ir.OTARRAY:
-		n := n.(*ir.ArrayType)
-		return tcArrayType(n)
-
-	case ir.OTMAP:
-		n := n.(*ir.MapType)
-		return tcMapType(n)
-
-	case ir.OTCHAN:
-		n := n.(*ir.ChanType)
-		return tcChanType(n)
-
-	case ir.OTSTRUCT:
-		n := n.(*ir.StructType)
-		return tcStructType(n)
-
-	case ir.OTINTER:
-		n := n.(*ir.InterfaceType)
-		return tcInterfaceType(n)
-
 	case ir.OTFUNC:
 		n := n.(*ir.FuncType)
 		return tcFuncType(n)
+
 	// type or expr
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
@@ -1727,18 +1691,6 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
 	nn.List = l
 	return Expr(nn)
-}
-
-var mapqueue []*ir.MapType
-
-func CheckMapKeys() {
-	for _, n := range mapqueue {
-		k := n.Type().MapType().Key
-		if !k.Broke() && !types.IsComparable(k) {
-			base.ErrorfAt(n.Pos(), "invalid map key type %v", k)
-		}
-	}
-	mapqueue = nil
 }
 
 func typecheckdeftype(n *ir.Name) {

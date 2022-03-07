@@ -10,7 +10,6 @@ const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
 	_ENOMEM = 0xc
-	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -64,6 +63,8 @@ const (
 	_SIGIO     = 0x1d
 	_SIGPWR    = 0x1e
 	_SIGSYS    = 0x1f
+
+	_SIGRTMIN = 0x20
 
 	_FPE_INTDIV = 0x1
 	_FPE_INTOVF = 0x2

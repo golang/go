@@ -113,7 +113,7 @@ func TestScalarSetBytesWithClamping(t *testing.T) {
 	// Generated with libsodium.js 1.0.18 crypto_scalarmult_ed25519_base.
 
 	random := "633d368491364dc9cd4c1bf891b1d59460face1644813240a313e61f2c88216e"
-	s := new(Scalar).SetBytesWithClamping(decodeHex(random))
+	s, _ := new(Scalar).SetBytesWithClamping(decodeHex(random))
 	p := new(Point).ScalarBaseMult(s)
 	want := "1d87a9026fd0126a5736fe1628c95dd419172b5b618457e041c9c861b2494a94"
 	if got := hex.EncodeToString(p.Bytes()); got != want {
@@ -121,7 +121,7 @@ func TestScalarSetBytesWithClamping(t *testing.T) {
 	}
 
 	zero := "0000000000000000000000000000000000000000000000000000000000000000"
-	s = new(Scalar).SetBytesWithClamping(decodeHex(zero))
+	s, _ = new(Scalar).SetBytesWithClamping(decodeHex(zero))
 	p = new(Point).ScalarBaseMult(s)
 	want = "693e47972caf527c7883ad1b39822f026f47db2ab0e1919955b8993aa04411d1"
 	if got := hex.EncodeToString(p.Bytes()); got != want {
@@ -129,7 +129,7 @@ func TestScalarSetBytesWithClamping(t *testing.T) {
 	}
 
 	one := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-	s = new(Scalar).SetBytesWithClamping(decodeHex(one))
+	s, _ = new(Scalar).SetBytesWithClamping(decodeHex(one))
 	p = new(Point).ScalarBaseMult(s)
 	want = "12e9a68b73fd5aacdbcaf3e88c46fea6ebedb1aa84eed1842f07f8edab65e3a7"
 	if got := hex.EncodeToString(p.Bytes()); got != want {

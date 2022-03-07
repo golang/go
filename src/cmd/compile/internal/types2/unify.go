@@ -9,6 +9,7 @@ package types2
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 // The unifier maintains two separate sets of type parameters x and y
@@ -26,7 +27,7 @@ import (
 // parameter P ("x" side), but the argument type P must be left alone so
 // that unification resolves the type parameter P to P.
 //
-// For bidirection unification, both sets are provided. This enables
+// For bidirectional unification, both sets are provided. This enables
 // unification to go from argument to parameter type and vice versa.
 // For constraint type inference, we use bidirectional unification
 // where both the x and y type parameters are identical. This is done
@@ -41,6 +42,19 @@ const (
 	// Whether to panic when unificationDepthLimit is reached. Turn on when
 	// investigating infinite recursion.
 	panicAtUnificationDepthLimit = false
+
+	// If enableCoreTypeUnification is set, unification will consider
+	// the core types, if any, of non-local (unbound) type parameters.
+	enableCoreTypeUnification = true
+
+	// If traceInference is set, unification will print a trace of its operation.
+	// Interpretation of trace:
+	//   x ≡ y    attempt to unify types x and y
+	//   p ➞ y    type parameter p is set to type y (p is inferred to be y)
+	//   p ⇄ q    type parameters p and q match (p is inferred to be q and vice versa)
+	//   x ≢ y    types x and y cannot be unified
+	//   [p, q, ...] ➞ [x, y, ...]    mapping from type parameters to types
+	traceInference = false
 )
 
 // A unifier maintains the current type parameters for x and y
@@ -58,6 +72,7 @@ type unifier struct {
 // exactly. If exact is not set, a named type's underlying type
 // is considered if unification would fail otherwise, and the
 // direction of channels is ignored.
+// TODO(gri) exact is not set anymore by a caller. Consider removing it.
 func newUnifier(exact bool) *unifier {
 	u := &unifier{exact: exact}
 	u.x.unifier = u
@@ -68,6 +83,10 @@ func newUnifier(exact bool) *unifier {
 // unify attempts to unify x and y and reports whether it succeeded.
 func (u *unifier) unify(x, y Type) bool {
 	return u.nify(x, y, nil)
+}
+
+func (u *unifier) tracef(format string, args ...interface{}) {
+	fmt.Println(strings.Repeat(".  ", u.depth) + sprintf(nil, true, format, args...))
 }
 
 // A tparamsList describes a list of type parameters and the types inferred for them.
@@ -121,6 +140,9 @@ func (d *tparamsList) init(tparams []*TypeParam) {
 // If both type parameters already have a type associated with them and they are
 // not joined, join fails and returns false.
 func (u *unifier) join(i, j int) bool {
+	if traceInference {
+		u.tracef("%s ⇄ %s", u.x.tparams[i], u.y.tparams[j])
+	}
 	ti := u.x.indices[i]
 	tj := u.y.indices[j]
 	switch {
@@ -210,6 +232,9 @@ func (d *tparamsList) at(i int) Type {
 func (d *tparamsList) set(i int, typ Type) {
 	assert(typ != nil)
 	u := d.unifier
+	if traceInference {
+		u.tracef("%s ➞ %s", d.tparams[i], typ)
+	}
 	switch ti := d.indices[i]; {
 	case ti < 0:
 		u.types[-ti-1] = typ
@@ -220,6 +245,17 @@ func (d *tparamsList) set(i int, typ Type) {
 	default:
 		panic("type already set")
 	}
+}
+
+// unknowns returns the number of type parameters for which no type has been set yet.
+func (d *tparamsList) unknowns() int {
+	n := 0
+	for _, ti := range d.indices {
+		if ti <= 0 {
+			n++
+		}
+	}
+	return n
 }
 
 // types returns the list of inferred types (via unification) for the type parameters
@@ -247,9 +283,16 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
 // adapted version of Checker.identical. For changes to that
 // code the corresponding changes should be made here.
 // Must not be called directly from outside the unifier.
-func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+	if traceInference {
+		u.tracef("%s ≡ %s", x, y)
+	}
+
 	// Stop gap for cases where unification fails.
 	if u.depth >= unificationDepthLimit {
+		if traceInference {
+			u.tracef("depth %d >= %d", u.depth, unificationDepthLimit)
+		}
 		if panicAtUnificationDepthLimit {
 			panic("unification reached recursion depth limit")
 		}
@@ -258,6 +301,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 	u.depth++
 	defer func() {
 		u.depth--
+		if traceInference && !result {
+			u.tracef("%s ≢ %s", x, y)
+		}
 	}()
 
 	if !u.exact {
@@ -267,8 +313,14 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// (We use !hasName to exclude any type with a name, including
 		// basic types and type parameters; the rest are unamed types.)
 		if nx, _ := x.(*Named); nx != nil && !hasName(y) {
+			if traceInference {
+				u.tracef("under %s ≡ %s", nx, y)
+			}
 			return u.nify(nx.under(), y, p)
 		} else if ny, _ := y.(*Named); ny != nil && !hasName(x) {
+			if traceInference {
+				u.tracef("%s ≡ under %s", x, ny)
+			}
 			return u.nify(x, ny.under(), p)
 		}
 	}
@@ -300,6 +352,39 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// otherwise, infer type from x
 		u.y.set(j, x)
 		return true
+	}
+
+	// If we get here and x or y is a type parameter, they are type parameters
+	// from outside our declaration list. Try to unify their core types, if any
+	// (see issue #50755 for a test case).
+	if enableCoreTypeUnification && !u.exact {
+		if isTypeParam(x) && !hasName(y) {
+			// When considering the type parameter for unification
+			// we look at the adjusted core term (adjusted core type
+			// with tilde information).
+			// If the adjusted core type is a named type N; the
+			// corresponding core type is under(N). Since !u.exact
+			// and y doesn't have a name, unification will end up
+			// comparing under(N) to y, so we can just use the core
+			// type instead. And we can ignore the tilde because we
+			// already look at the underlying types on both sides
+			// and we have known types on both sides.
+			// Optimization.
+			if cx := coreType(x); cx != nil {
+				if traceInference {
+					u.tracef("core %s ≡ %s", x, y)
+				}
+				return u.nify(cx, y, p)
+			}
+		} else if isTypeParam(y) && !hasName(x) {
+			// see comment above
+			if cy := coreType(y); cy != nil {
+				if traceInference {
+					u.tracef("%s ≡ core %s", x, y)
+				}
+				return u.nify(x, cy, p)
+			}
+		}
 	}
 
 	// For type unification, do not shortcut (x == y) for identical
@@ -490,7 +575,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// avoid a crash in case of nil type
 
 	default:
-		panic(fmt.Sprintf("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams))
+		panic(sprintf(nil, true, "u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams))
 	}
 
 	return false

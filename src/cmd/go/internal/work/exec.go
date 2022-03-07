@@ -2013,6 +2013,7 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
 	if reldir := base.ShortPath(dir); reldir != dir {
 		suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
 		suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
+		suffix = strings.ReplaceAll(suffix, "\n\t"+dir, "\n\t"+reldir)
 	}
 	suffix = strings.ReplaceAll(suffix, " "+b.WorkDir, " $WORK")
 

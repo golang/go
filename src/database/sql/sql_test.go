@@ -418,26 +418,31 @@ func TestQueryContextWait(t *testing.T) {
 	defer closeDB(t, db)
 	prepares0 := numPrepares(t, db)
 
-	// TODO(kardianos): convert this from using a timeout to using an explicit
-	// cancel when the query signals that it is "executing" the query.
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
 	// after this and close the rows and return an error.
-	_, err := db.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
-	if err != context.DeadlineExceeded {
+	c, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c.dc.ci.(*fakeConn).waiter = func(c context.Context) {
+		cancel()
+		<-ctx.Done()
+	}
+	_, err = c.QueryContext(ctx, "SELECT|people|age,name|")
+	c.Close()
+	if err != context.Canceled {
 		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
 	}
 
 	// Verify closed rows connection after error condition.
 	waitForFree(t, db, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
-		// TODO(kardianos): if the context timeouts before the db.QueryContext
-		// executes this check may fail. After adjusting how the context
-		// is canceled above revert this back to a Fatal error.
-		t.Logf("executed %d Prepare statements; want 1", prepares)
+		t.Fatalf("executed %d Prepare statements; want 1", prepares)
 	}
 }
 
@@ -455,14 +460,14 @@ func TestTxContextWait(t *testing.T) {
 	}
 	tx.keepConnOnRollback = false
 
-	go func() {
-		time.Sleep(15 * time.Millisecond)
+	tx.dc.ci.(*fakeConn).waiter = func(c context.Context) {
 		cancel()
-	}()
+		<-ctx.Done()
+	}
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
 	// after this and close the rows and return an error.
-	_, err = tx.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
+	_, err = tx.QueryContext(ctx, "SELECT|people|age,name|")
 	if err != context.Canceled {
 		t.Fatalf("expected QueryContext to error with context canceled but returned %v", err)
 	}

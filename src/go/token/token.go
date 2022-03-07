@@ -340,10 +340,13 @@ func IsKeyword(name string) bool {
 // is not a digit. Keywords are not identifiers.
 //
 func IsIdentifier(name string) bool {
+	if name == "" || IsKeyword(name) {
+		return false
+	}
 	for i, c := range name {
 		if !unicode.IsLetter(c) && c != '_' && (i == 0 || !unicode.IsDigit(c)) {
 			return false
 		}
 	}
-	return name != "" && !IsKeyword(name)
+	return true
 }

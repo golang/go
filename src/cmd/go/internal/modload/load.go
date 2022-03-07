@@ -479,7 +479,11 @@ func matchLocalDirs(ctx context.Context, modRoots []string, m *search.Match, rs 
 		}
 		if !found && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
 			m.Dirs = []string{}
-			m.AddError(fmt.Errorf("directory prefix %s outside available modules", base.ShortPath(absDir)))
+			scope := "main module or its selected dependencies"
+			if inWorkspaceMode() {
+				scope = "modules listed in go.work or their selected dependencies"
+			}
+			m.AddError(fmt.Errorf("directory prefix %s does not contain %s", base.ShortPath(absDir), scope))
 			return
 		}
 	}
@@ -601,7 +605,11 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 
 	pkg := pathInModuleCache(ctx, absDir, rs)
 	if pkg == "" {
-		return "", fmt.Errorf("directory %s outside available modules", base.ShortPath(absDir))
+		scope := "main module or its selected dependencies"
+		if inWorkspaceMode() {
+			scope = "modules listed in go.work or their selected dependencies"
+		}
+		return "", fmt.Errorf("directory %s outside %s", base.ShortPath(absDir), scope)
 	}
 	return pkg, nil
 }
@@ -1667,24 +1675,6 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 
 // load loads an individual package.
 func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
-	if strings.Contains(pkg.path, "@") {
-		// Leave for error during load.
-		return
-	}
-	if build.IsLocalImport(pkg.path) || filepath.IsAbs(pkg.path) {
-		// Leave for error during load.
-		// (Module mode does not allow local imports.)
-		return
-	}
-
-	if search.IsMetaPackage(pkg.path) {
-		pkg.err = &invalidImportError{
-			importPath: pkg.path,
-			err:        fmt.Errorf("%q is not an importable package; see 'go help packages'", pkg.path),
-		}
-		return
-	}
-
 	var mg *ModuleGraph
 	if ld.requirements.pruning == unpruned {
 		var err error

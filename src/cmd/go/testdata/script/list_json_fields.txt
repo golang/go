@@ -1,0 +1,52 @@
+# Test using -json flag to specify specific fields.
+
+# Test -json produces "full" output by looking for multiple fields present.
+go list -json .
+stdout '"Name": "a"'
+stdout '"Stale": true'
+# Same thing for -json=true
+go list -json=true .
+stdout '"Name": "a"'
+stdout '"Stale": true'
+
+# Test -json=false produces non-json output.
+go list -json=false
+cmp stdout want-non-json.txt
+
+# Test -json=<field> keeps only that field.
+go list -json=Name
+cmp stdout want-json-name.txt
+
+# Test -json=<field> with multiple fields.
+go list -json=ImportPath,Name,GoFiles,Imports
+cmp stdout want-json-multiple.txt
+
+-- go.mod --
+module example.com/a
+
+go 1.18
+-- a.go --
+package a
+
+import "fmt"
+
+func F() {
+    fmt.Println("hey there")
+}
+-- want-non-json.txt --
+example.com/a
+-- want-json-name.txt --
+{
+	"Name": "a"
+}
+-- want-json-multiple.txt --
+{
+	"ImportPath": "example.com/a",
+	"Name": "a",
+	"GoFiles": [
+		"a.go"
+	],
+	"Imports": [
+		"fmt"
+	]
+}

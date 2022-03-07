@@ -182,9 +182,9 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		return
 
 	case syntax.Recv:
-		u := structuralType(x.typ)
+		u := coreType(x.typ)
 		if u == nil {
-			check.errorf(x, invalidOp+"cannot receive from %s: no structural type", x)
+			check.errorf(x, invalidOp+"cannot receive from %s: no core type", x)
 			x.mode = invalid
 			return
 		}
@@ -899,7 +899,7 @@ func (check *Checker) incomparableCause(typ Type) string {
 	}
 	// see if we can extract a more specific error
 	var cause string
-	comparable(typ, nil, func(format string, args ...interface{}) {
+	comparable(typ, true, nil, func(format string, args ...interface{}) {
 		cause = check.sprintf(format, args...)
 	})
 	return cause
@@ -1359,7 +1359,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		case hint != nil:
 			// no composite literal type present - use hint (element type of enclosing type)
 			typ = hint
-			base, _ = deref(structuralType(typ)) // *T implies &T{}
+			base, _ = deref(coreType(typ)) // *T implies &T{}
+			if base == nil {
+				check.errorf(e, "invalid composite literal element type %s: no core type", typ)
+				goto Error
+			}
 
 		default:
 			// TODO(gri) provide better error messages depending on context
@@ -1367,7 +1371,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			goto Error
 		}
 
-		switch utyp := structuralType(base).(type) {
+		switch utyp := coreType(base).(type) {
 		case *Struct:
 			// Prevent crash if the struct referred to is not yet set up.
 			// See analogous comment for *Array.

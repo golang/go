@@ -24,7 +24,7 @@ go get rsc.io/sampler@v1.3.1
 go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.1
 stdout '^rsc.io/sampler$'
 ! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.0
-stderr 'outside available modules'
+stderr 'outside main module or its selected dependencies'
 
 -- go.mod --
 module x

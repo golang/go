@@ -188,8 +188,12 @@ ret:
 
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
-TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+TEXT	runtime·racefuncenter<ABIInternal>(SB), NOSPLIT, $0-8
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	R0, R9	// callpc
+#else
 	MOVD	callpc+0(FP), R9
+#endif
 	JMP	racefuncenter<>(SB)
 
 // Common code for racefuncenter
@@ -205,7 +209,7 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 
 // func runtime·racefuncexit()
 // Called from instrumented code.
-TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
+TEXT	runtime·racefuncexit<ABIInternal>(SB), NOSPLIT, $0-0
 	load_g
 	MOVD	g_racectx(g), R0	// race context
 	// void __tsan_func_exit(ThreadState *thr);
@@ -392,12 +396,12 @@ racecallatomic_ignore:
 	// Addr is outside the good range.
 	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
 	// An attempt to synchronize on the address would cause crash.
-	MOVD	R9, R20	// remember the original function
+	MOVD	R9, R21	// remember the original function
 	MOVD	$__tsan_go_ignore_sync_begin(SB), R9
 	load_g
 	MOVD	g_racectx(g), R0	// goroutine context
 	BL	racecall<>(SB)
-	MOVD	R20, R9	// restore the original function
+	MOVD	R21, R9	// restore the original function
 	// Call the atomic function.
 	// racecall will call LLVM race code which might clobber R28 (g)
 	load_g
@@ -424,10 +428,12 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
 	JMP	racecall<>(SB)
 
 // Switches SP to g0 stack and calls (R9). Arguments already set.
-TEXT	racecall<>(SB), NOSPLIT, $0-0
+// Clobbers R19, R20.
+TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVD	g_m(g), R10
 	// Switch to g0 stack.
 	MOVD	RSP, R19	// callee-saved, preserved across the CALL
+	MOVD	R30, R20	// callee-saved, preserved across the CALL
 	MOVD	m_g0(R10), R11
 	CMP	R11, g
 	BEQ	call	// already on g0
@@ -436,7 +442,7 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 call:
 	BL	R9
 	MOVD	R19, RSP
-	RET
+	JMP	(R20)
 
 // C->Go callback thunk that allows to call runtime·racesymbolize from C code.
 // Direct Go->C race call has only switched SP, finish g->g0 switch by setting correct g.

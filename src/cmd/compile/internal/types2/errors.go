@@ -124,6 +124,17 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
 			}
 			buf.WriteByte(']')
 			arg = buf.String()
+		case []*TypeParam:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(typeString(x, qf, debug)) // use typeString so we get subscripts when debugging
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
 		}
 		args[i] = arg
 	}

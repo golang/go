@@ -78,7 +78,7 @@ func TestDebugLinesPushback(t *testing.T) {
 			// Unified mangles differently
 			fn = "(*List[int]).PushBack"
 		}
-		testDebugLines(t, "-N -l -G=3", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
+		testDebugLines(t, "-N -l", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
 	}
 }
 
@@ -97,7 +97,7 @@ func TestDebugLinesConvert(t *testing.T) {
 			// Unified mangles differently
 			fn = "G[int]"
 		}
-		testDebugLines(t, "-N -l -G=3", "convertline.go", fn, []int{9, 10, 11}, true)
+		testDebugLines(t, "-N -l", "convertline.go", fn, []int{9, 10, 11}, true)
 	}
 }
 

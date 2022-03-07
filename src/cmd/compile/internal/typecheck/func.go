@@ -302,20 +302,6 @@ func tcFunc(n *ir.Func) {
 	}
 
 	n.Nname = AssignExpr(n.Nname).(*ir.Name)
-	t := n.Nname.Type()
-	if t == nil {
-		return
-	}
-	rcvr := t.Recv()
-	if rcvr != nil && n.Shortname != nil {
-		m := addmethod(n, n.Shortname, t, true, n.Pragma&ir.Nointerface != 0)
-		if m == nil {
-			return
-		}
-
-		n.Nname.SetSym(ir.MethodSym(rcvr.Type, n.Shortname))
-		Declare(n.Nname, ir.PFUNC)
-	}
 }
 
 // tcCall typechecks an OCALL node.

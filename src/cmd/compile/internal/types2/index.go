@@ -182,7 +182,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	}
 
 	if !valid {
-		check.errorf(x, invalidOp+"cannot index %s", x)
+		check.errorf(e.Pos(), invalidOp+"cannot index %s", x)
 		x.mode = invalid
 		return false
 	}
@@ -213,9 +213,9 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch u := structuralString(x.typ).(type) {
+	switch u := coreString(x.typ).(type) {
 	case nil:
-		check.errorf(x, invalidOp+"cannot slice %s: %s has no structural type", x, x.typ)
+		check.errorf(x, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
 		x.mode = invalid
 		return
 

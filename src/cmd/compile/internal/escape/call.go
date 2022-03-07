@@ -238,6 +238,15 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	fn.SetWrapper(true)
 	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
 	fn.Body = []ir.Node{call}
+	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+		// If the callee is a named function, link to the original callee.
+		x := call.X
+		if x.Op() == ir.ONAME && x.(*ir.Name).Class == ir.PFUNC {
+			fn.WrappedFunc = call.X.(*ir.Name).Func
+		} else if x.Op() == ir.OMETHEXPR && ir.MethodExprFunc(x).Nname != nil {
+			fn.WrappedFunc = ir.MethodExprName(x).Func
+		}
+	}
 
 	clo := fn.OClosure
 	if n.Op() == ir.OGO {

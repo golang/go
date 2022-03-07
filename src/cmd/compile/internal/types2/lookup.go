@@ -66,12 +66,12 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 
 	obj, index, indirect = lookupFieldOrMethod(T, addressable, pkg, name, false)
 
-	// If we didn't find anything and if we have a type parameter with a structural constraint,
-	// see if there is a matching field (but not a method, those need to be declared explicitly
-	// in the constraint). If the structural constraint is a named pointer type (see above), we
-	// are ok here because only fields are accepted as results.
+	// If we didn't find anything and if we have a type parameter with a core type,
+	// see if there is a matching field (but not a method, those need to be declared
+	// explicitly in the constraint). If the constraint is a named pointer type (see
+	// above), we are ok here because only fields are accepted as results.
 	if obj == nil && isTypeParam(T) {
-		if t := structuralType(T); t != nil {
+		if t := coreType(T); t != nil {
 			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)
 			if _, ok := obj.(*Var); !ok {
 				obj, index, indirect = nil, nil, false // accept fields (variables) only
@@ -425,16 +425,29 @@ func (check *Checker) funcString(f *Func) string {
 // method required by V and whether it is missing or just has the wrong type.
 // The receiver may be nil if assertableTo is invoked through an exported API call
 // (such as AssertableTo), i.e., when all methods have been type-checked.
-// If the global constant forceStrict is set, assertions that are known to fail
-// are not permitted.
+// TODO(gri) replace calls to this function with calls to newAssertableTo.
 func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Func) {
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
-	if IsInterface(T) && !forceStrict {
+	if IsInterface(T) {
 		return
 	}
+	// TODO(gri) fix this for generalized interfaces
 	return check.missingMethod(T, V, false)
+}
+
+// newAssertableTo reports whether a value of type V can be asserted to have type T.
+// It also implements behavior for interfaces that currently are only permitted
+// in constraint position (we have not yet defined that behavior in the spec).
+func (check *Checker) newAssertableTo(V *Interface, T Type) error {
+	// no static check is required if T is an interface
+	// spec: "If T is an interface type, x.(T) asserts that the
+	//        dynamic type of x implements the interface T."
+	if IsInterface(T) {
+		return nil
+	}
+	return check.implements(T, V)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.

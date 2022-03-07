@@ -42,6 +42,15 @@ func TestFinalizerType(t *testing.T) {
 		{func(x *int) any { return Tintptr(x) }, func(v *int) { finalize(v) }},
 		{func(x *int) any { return (*Tint)(x) }, func(v *Tint) { finalize((*int)(v)) }},
 		{func(x *int) any { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
+		// Test case for argument spill slot.
+		// If the spill slot was not counted for the frame size, it will (incorrectly) choose
+		// call32 as the result has (exactly) 32 bytes. When the argument actually spills,
+		// it clobbers the caller's frame (likely the return PC).
+		{func(x *int) any { return x }, func(v any) [4]int64 {
+			print() // force spill
+			finalize(v.(*int))
+			return [4]int64{}
+		}},
 	}
 
 	for i, tt := range finalizerTests {

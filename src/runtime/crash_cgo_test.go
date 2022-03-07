@@ -234,6 +234,7 @@ func TestCgoCrashTraceback(t *testing.T) {
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "darwin/amd64":
 	case "linux/amd64":
+	case "linux/arm64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -251,6 +252,7 @@ func TestCgoCrashTracebackGo(t *testing.T) {
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "darwin/amd64":
 	case "linux/amd64":
+	case "linux/arm64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -284,7 +286,7 @@ func TestCgoTracebackContextPreemption(t *testing.T) {
 
 func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	t.Parallel()
-	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
+	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le" && runtime.GOARCH != "arm64") {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	testenv.MustHaveGoRun(t)
@@ -626,13 +628,11 @@ func TestSegv(t *testing.T) {
 					// a VDSO call via asmcgocall.
 					testenv.SkipFlaky(t, 50504)
 				}
-				if testenv.Builder() == "linux-mips64le-mengzhuo" && strings.Contains(got, "runtime: unknown pc") {
-					// Runtime sometimes throw "unknown pc" when generating the traceback.
-					// Curiously, that doesn't seem to happen on the linux-mips64le-rtrk
-					// builder.
-					testenv.SkipFlaky(t, 50605)
-				}
 			}
+			if test == "SegvInCgo" && strings.Contains(got, "runtime: unknown pc") {
+				testenv.SkipFlaky(t, 50979)
+			}
+
 			nowant := "runtime: "
 			if strings.Contains(got, nowant) {
 				t.Errorf("unexpectedly saw %q in output", nowant)
