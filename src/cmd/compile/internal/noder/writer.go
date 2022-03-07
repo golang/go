@@ -103,6 +103,10 @@ type writerDict struct {
 	// instantiated with derived types (i.e., that require
 	// sub-dictionaries when called at run time).
 	funcs []objInfo
+
+	// itabs lists itabs that are needed for dynamic type assertions
+	// (including type switches).
+	itabs []itabInfo
 }
 
 type derivedInfo struct {
@@ -118,6 +122,11 @@ type typeInfo struct {
 type objInfo struct {
 	idx       int        // index for the generic function declaration
 	explicits []typeInfo // info for the type arguments
+}
+
+type itabInfo struct {
+	typIdx int      // always a derived type index
+	iface  typeInfo // always a non-empty interface type
 }
 
 func (info objInfo) anyDerived() bool {
@@ -631,6 +640,13 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 		for _, targ := range fn.explicits {
 			w.typInfo(targ)
 		}
+	}
+
+	nitabs := len(dict.itabs)
+	w.Len(nitabs)
+	for _, itab := range dict.itabs {
+		w.Len(itab.typIdx)
+		w.typInfo(itab.iface)
 	}
 
 	assert(len(dict.derived) == nderived)
@@ -1388,10 +1404,7 @@ func (w *writer) exprs(exprs []syntax.Expr) {
 }
 
 func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
-	if iface != nil {
-		_, ok := iface.Underlying().(*types2.Interface)
-		base.Assertf(ok, "%v must be an interface type", iface)
-	}
+	base.Assertf(iface == nil || isInterface(iface), "%v must be nil or an interface type", iface)
 
 	tv, ok := w.p.info.Types[typ]
 	assert(ok)
@@ -1403,8 +1416,40 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
 	}
 
 	assert(tv.IsType())
+	info := w.p.typIdx(tv.Type, w.dict)
+
 	w.pos(typ)
-	w.typ(tv.Type)
+
+	if w.Bool(info.derived && iface != nil && !iface.Underlying().(*types2.Interface).Empty()) {
+		ifaceInfo := w.p.typIdx(iface, w.dict)
+
+		idx := -1
+		for i, itab := range w.dict.itabs {
+			if itab.typIdx == info.idx && itab.iface == ifaceInfo {
+				idx = i
+			}
+		}
+		if idx < 0 {
+			idx = len(w.dict.itabs)
+			w.dict.itabs = append(w.dict.itabs, itabInfo{typIdx: info.idx, iface: ifaceInfo})
+		}
+		w.Len(idx)
+		return
+	}
+
+	w.typInfo(info)
+}
+
+func isInterface(typ types2.Type) bool {
+	if _, ok := typ.(*types2.TypeParam); ok {
+		// typ is a type parameter and may be instantiated as either a
+		// concrete or interface type, so the writer can't depend on
+		// knowing this.
+		base.Fatalf("%v is a type parameter", typ)
+	}
+
+	_, ok := typ.Underlying().(*types2.Interface)
+	return ok
 }
 
 func (w *writer) op(op ir.Op) {

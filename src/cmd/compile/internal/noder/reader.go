@@ -147,6 +147,13 @@ type readerDict struct {
 
 	funcs    []objInfo
 	funcsObj []ir.Node
+
+	itabs []itabInfo2
+}
+
+type itabInfo2 struct {
+	typ  *types.Type
+	lsym *obj.LSym
 }
 
 func setType(n ir.Node, typ *types.Type) {
@@ -743,6 +750,22 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx int, implicits, explicits []
 			targs[j] = r.typInfo()
 		}
 		dict.funcs[i] = objInfo{idx: objIdx, explicits: targs}
+	}
+
+	dict.itabs = make([]itabInfo2, r.Len())
+	for i := range dict.itabs {
+		typ := pr.typIdx(typeInfo{idx: r.Len(), derived: true}, &dict, true)
+		ifaceInfo := r.typInfo()
+
+		var lsym *obj.LSym
+		if typ.IsInterface() {
+			lsym = reflectdata.TypeLinksym(typ)
+		} else {
+			iface := pr.typIdx(ifaceInfo, &dict, true)
+			lsym = reflectdata.ITabLsym(typ, iface)
+		}
+
+		dict.itabs[i] = itabInfo2{typ: typ, lsym: lsym}
 	}
 
 	return &dict
@@ -1438,7 +1461,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 				cases = nil // TODO(mdempsky): Unclear if this matters.
 			}
 			for i := range cases {
-				cases[i] = r.exprType(iface, true)
+				cases[i] = r.exprType(true)
 			}
 		} else {
 			cases = r.exprList()
@@ -1538,7 +1561,7 @@ func (r *reader) expr() (res ir.Node) {
 		return typecheck.Callee(r.obj())
 
 	case exprType:
-		return r.exprType(nil, false)
+		return r.exprType(false)
 
 	case exprConst:
 		pos := r.pos()
@@ -1603,7 +1626,7 @@ func (r *reader) expr() (res ir.Node) {
 	case exprAssert:
 		x := r.expr()
 		pos := r.pos()
-		typ := r.exprType(x.Type(), false)
+		typ := r.exprType(false)
 
 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
 			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
@@ -1753,11 +1776,7 @@ func (r *reader) exprs() []ir.Node {
 	return nodes
 }
 
-func (r *reader) exprType(iface *types.Type, nilOK bool) ir.Node {
-	if iface != nil {
-		base.Assertf(iface.IsInterface(), "%L must be an interface type", iface)
-	}
-
+func (r *reader) exprType(nilOK bool) ir.Node {
 	r.Sync(pkgbits.SyncExprType)
 
 	if nilOK && r.Bool() {
@@ -1765,30 +1784,29 @@ func (r *reader) exprType(iface *types.Type, nilOK bool) ir.Node {
 	}
 
 	pos := r.pos()
-	info := r.typInfo()
-	typ := r.p.typIdx(info, r.dict, true)
 
-	if info.derived {
-		// TODO(mdempsky): Handle with runtime dictionary lookup.
+	var typ *types.Type
+	var lsym *obj.LSym
 
-		var lsym *obj.LSym
+	if r.Bool() {
+		itab := r.dict.itabs[r.Len()]
+		typ, lsym = itab.typ, itab.lsym
+	} else {
+		info := r.typInfo()
+		typ = r.p.typIdx(info, r.dict, true)
 
-		// For assertions from non-empty interfaces to non-interfaces,
-		// we need the ITab instead.
-		if iface != nil && !iface.IsEmptyInterface() && !typ.IsInterface() {
-			lsym = reflectdata.ITabLsym(typ, iface)
-		} else {
-			lsym = reflectdata.TypeLinksym(typ)
+		if !info.derived {
+			// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
+			n := ir.TypeNode(typ)
+			n.SetTypecheck(1)
+			return n
 		}
 
-		ptr := typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
-		return typed(typ, ir.NewDynamicType(pos, ptr))
+		lsym = reflectdata.TypeLinksym(typ)
 	}
 
-	// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
-	n := ir.TypeNode(typ)
-	n.SetTypecheck(1)
-	return n
+	ptr := typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+	return typed(typ, ir.NewDynamicType(pos, ptr))
 }
 
 func (r *reader) op() ir.Op {
