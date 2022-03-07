@@ -245,7 +245,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		n.Len = length
 
 	case types.TMAP:
-		var cs constSet
 		for i3, l := range n.List {
 			ir.SetPos(l)
 			if l.Op() != ir.OKEY {
@@ -259,7 +258,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 			r = pushtype(r, t.Key())
 			r = Expr(r)
 			l.Key = AssignConv(r, t.Key(), "map key")
-			cs.add(base.Pos, l.Key, "key", "map literal")
 
 			r = l.Value
 			r = pushtype(r, t.Elem())

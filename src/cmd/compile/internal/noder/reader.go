@@ -26,12 +26,6 @@ import (
 	"cmd/internal/src"
 )
 
-// TODO(mdempsky): Suppress duplicate type/const errors that can arise
-// during typecheck due to naive type substitution (e.g., see #42758).
-// I anticipate these will be handled as a consequence of adding
-// dictionaries support, so it's probably not important to focus on
-// this until after that's done.
-
 type pkgReader struct {
 	pkgbits.PkgDecoder
 
