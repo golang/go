@@ -7,6 +7,10 @@
 package main
 
 type I interface{ foo() int }
+type J interface {
+	I
+	bar()
+}
 
 type myint int
 
@@ -19,6 +23,7 @@ func (x myfloat) foo() int { return int(x) }
 type myint32 int32
 
 func (x myint32) foo() int { return int(x) }
+func (x myint32) bar()     {}
 
 func f[T I](i I) {
 	switch x := i.(type) {
@@ -35,4 +40,7 @@ func main() {
 	f[myint32](myint32(9))
 	f[myint](myint32(10))
 	f[myint](myfloat(42))
+	f[I](myint(10))
+	f[J](myint(11))
+	f[J](myint32(12))
 }
