@@ -168,7 +168,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	cgocall := x.mode == cgofunc
 
 	// a type parameter may be "called" if all types have the same signature
-	sig, _ := structuralType(x.typ).(*Signature)
+	sig, _ := coreType(x.typ).(*Signature)
 	if sig == nil {
 		check.errorf(x, invalidOp+"cannot call non-function %s", x)
 		x.mode = invalid
@@ -525,7 +525,11 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 	}
 
 	check.exprOrType(x, e.X, false)
-	if x.mode == invalid {
+	switch x.mode {
+	case builtin:
+		check.errorf(e.Pos(), "cannot select on %s", x)
+		goto Error
+	case invalid:
 		goto Error
 	}
 

@@ -319,7 +319,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 //
 // If the hash does not match go.sum (or the sumdb if enabled), hashZip returns
 // an error and does not write ziphashfile.
-func hashZip(mod module.Version, zipfile, ziphashfile string) error {
+func hashZip(mod module.Version, zipfile, ziphashfile string) (err error) {
 	hash, err := dirhash.HashZip(zipfile, dirhash.DefaultHash)
 	if err != nil {
 		return err
@@ -331,16 +331,17 @@ func hashZip(mod module.Version, zipfile, ziphashfile string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if closeErr := hf.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 	if err := hf.Truncate(int64(len(hash))); err != nil {
 		return err
 	}
 	if _, err := hf.WriteAt([]byte(hash), 0); err != nil {
 		return err
 	}
-	if err := hf.Close(); err != nil {
-		return err
-	}
-
 	return nil
 }
 

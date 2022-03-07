@@ -21,6 +21,17 @@ func makeSubstMap(tpars []*TypeParam, targs []Type) substMap {
 	return proj
 }
 
+// makeRenameMap is like makeSubstMap, but creates a map used to rename type
+// parameters in from with the type parameters in to.
+func makeRenameMap(from, to []*TypeParam) substMap {
+	assert(len(from) == len(to))
+	proj := make(substMap, len(from))
+	for i, tpar := range from {
+		proj[tpar] = to[i]
+	}
+	return proj
+}
+
 func (m substMap) empty() bool {
 	return len(m) == 0
 }
@@ -149,7 +160,10 @@ func (subst *subster) typ(typ Type) Type {
 		methods, mcopied := subst.funcList(t.methods)
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		if mcopied || ecopied {
-			iface := &Interface{embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
+			iface := subst.check.newInterface()
+			iface.embeddeds = embeddeds
+			iface.implicit = t.implicit
+			iface.complete = t.complete
 			// If we've changed the interface type, we may need to replace its
 			// receiver if the receiver type is the original interface. Receivers of
 			// *Named type are replaced during named type expansion.

@@ -84,9 +84,8 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Version string
 	}
 
-See the workspaces design proposal at
-https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
-more information.
+See the workspaces reference at https://go.dev/ref/mod#workspaces
+for more information.
 `,
 }
 
@@ -110,8 +109,6 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropUse), "dropuse", "")
 	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "")
-
-	base.AddWorkfileFlag(&cmdEdit.Flag)
 }
 
 func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
@@ -137,7 +134,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if gowork == "" {
-		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
+		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
 
 	anyFlags :=

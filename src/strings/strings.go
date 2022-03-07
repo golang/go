@@ -270,6 +270,8 @@ func genSplit(s, sep string, sepSave, n int) []string {
 //
 // Edge cases for s and sep (for example, empty strings) are handled
 // as described in the documentation for Split.
+//
+// To split around the first instance of a separator, see Cut.
 func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
 
 // SplitAfterN slices s into substrings after each instance of sep and
@@ -296,6 +298,8 @@ func SplitAfterN(s, sep string, n int) []string {
 // and sep are empty, Split returns an empty slice.
 //
 // It is equivalent to SplitN with a count of -1.
+//
+// To split around the first instance of a separator, see Cut.
 func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
 
 // SplitAfter slices s into all substrings after each instance of sep and

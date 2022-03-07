@@ -95,11 +95,11 @@ type rune = int32
 type any = interface{}
 
 // comparable is an interface that is implemented by all comparable types
-// (booleans, numbers, strings, pointers, channels, interfaces,
-// arrays of comparable types, structs whose fields are all comparable types).
+// (booleans, numbers, strings, pointers, channels, arrays of comparable types,
+// structs whose fields are all comparable types).
 // The comparable interface may only be used as a type parameter constraint,
 // not as the type of a variable.
-type comparable comparable
+type comparable interface{ comparable }
 
 // iota is a predeclared identifier representing the untyped integer ordinal
 // number of the current const specification in a (usually parenthesized)

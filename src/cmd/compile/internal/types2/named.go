@@ -72,9 +72,29 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 	}
 	// Ensure that typ is always expanded and sanity-checked.
 	if check != nil {
-		check.defTypes = append(check.defTypes, typ)
+		check.needsCleanup(typ)
 	}
 	return typ
+}
+
+func (t *Named) cleanup() {
+	// Ensure that every defined type created in the course of type-checking has
+	// either non-*Named underlying, or is unresolved.
+	//
+	// This guarantees that we don't leak any types whose underlying is *Named,
+	// because any unresolved instances will lazily compute their underlying by
+	// substituting in the underlying of their origin. The origin must have
+	// either been imported or type-checked and expanded here, and in either case
+	// its underlying will be fully expanded.
+	switch t.underlying.(type) {
+	case nil:
+		if t.resolver == nil {
+			panic("nil underlying")
+		}
+	case *Named:
+		t.under() // t.under may add entries to check.cleaners
+	}
+	t.check = nil
 }
 
 // Obj returns the type name for the declaration defining the named type t. For
@@ -360,11 +380,11 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
 				// that it wasn't substituted. In this case we need to create a new
 				// *Interface before modifying receivers.
 				if iface == n.orig.underlying {
-					iface = &Interface{
-						embeddeds: iface.embeddeds,
-						complete:  iface.complete,
-						implicit:  iface.implicit, // should be false but be conservative
-					}
+					old := iface
+					iface = check.newInterface()
+					iface.embeddeds = old.embeddeds
+					iface.complete = old.complete
+					iface.implicit = old.implicit // should be false but be conservative
 					underlying = iface
 				}
 				iface.methods = methods

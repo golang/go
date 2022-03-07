@@ -40,6 +40,13 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		}()
 	}
 
+	if traceInference {
+		check.dump("-- inferA %s%s ➞ %s", tparams, params, targs)
+		defer func() {
+			check.dump("=> inferA %s ➞ %s", tparams, result)
+		}()
+	}
+
 	// There must be at least one type parameter, and no more type arguments than type parameters.
 	n := len(tparams)
 	assert(n > 0 && len(targs) <= n)
@@ -52,6 +59,64 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		return targs
 	}
 	// len(targs) < n
+
+	const enableTparamRenaming = true
+	if enableTparamRenaming {
+		// For the purpose of type inference we must differentiate type parameters
+		// occurring in explicit type or value function arguments from the type
+		// parameters we are solving for via unification, because they may be the
+		// same in self-recursive calls. For example:
+		//
+		//  func f[P *Q, Q any](p P, q Q) {
+		//    f(p)
+		//  }
+		//
+		// In this example, the fact that the P used in the instantation f[P] has
+		// the same pointer identity as the P we are trying to solve for via
+		// unification is coincidental: there is nothing special about recursive
+		// calls that should cause them to conflate the identity of type arguments
+		// with type parameters. To put it another way: any such self-recursive
+		// call is equivalent to a mutually recursive call, which does not run into
+		// any problems of type parameter identity. For example, the following code
+		// is equivalent to the code above.
+		//
+		//  func f[P interface{*Q}, Q any](p P, q Q) {
+		//    f2(p)
+		//  }
+		//
+		//  func f2[P interface{*Q}, Q any](p P, q Q) {
+		//    f(p)
+		//  }
+		//
+		// We can turn the first example into the second example by renaming type
+		// parameters in the original signature to give them a new identity. As an
+		// optimization, we do this only for self-recursive calls.
+
+		// We can detect if we are in a self-recursive call by comparing the
+		// identity of the first type parameter in the current function with the
+		// first type parameter in tparams. This works because type parameters are
+		// unique to their type parameter list.
+		selfRecursive := check.sig != nil && check.sig.tparams.Len() > 0 && tparams[0] == check.sig.tparams.At(0)
+
+		if selfRecursive {
+			// In self-recursive inference, rename the type parameters with new type
+			// parameters that are the same but for their pointer identity.
+			tparams2 := make([]*TypeParam, len(tparams))
+			for i, tparam := range tparams {
+				tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
+				tparams2[i] = NewTypeParam(tname, nil)
+				tparams2[i].index = tparam.index // == i
+			}
+
+			renameMap := makeRenameMap(tparams, tparams2)
+			for i, tparam := range tparams {
+				tparams2[i].bound = check.subst(posn.Pos(), tparam.bound, renameMap, nil)
+			}
+
+			tparams = tparams2
+			params = check.subst(posn.Pos(), params, renameMap, nil).(*Tuple)
+		}
+	}
 
 	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
 	// If that is the case, permutate params and args such that the arguments with named
@@ -402,6 +467,13 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
 func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type) (types []Type, index int) {
 	assert(len(tparams) >= len(targs) && len(targs) > 0)
 
+	if traceInference {
+		check.dump("-- inferB %s ➞ %s", tparams, targs)
+		defer func() {
+			check.dump("=> inferB %s ➞ %s", tparams, types)
+		}()
+	}
+
 	// Setup bidirectional unification between constraints
 	// and the corresponding type arguments (which may be nil!).
 	u := newUnifier(false)
@@ -415,27 +487,88 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 		}
 	}
 
-	// If a constraint has a structural type, unify the corresponding type parameter with it.
-	for _, tpar := range tparams {
-		sbound := structuralType(tpar)
-		if sbound != nil {
-			// If the structural type is the underlying type of a single
-			// defined type in the constraint, use that defined type instead.
-			if named, _ := tpar.singleType().(*Named); named != nil {
-				sbound = named
-			}
-			if !u.unify(tpar, sbound) {
-				// TODO(gri) improve error message by providing the type arguments
-				//           which we know already
-				check.errorf(posn, _InvalidTypeArg, "%s does not match %s", tpar, sbound)
-				return nil, 0
+	// Repeatedly apply constraint type inference as long as
+	// there are still unknown type arguments and progress is
+	// being made.
+	//
+	// This is an O(n^2) algorithm where n is the number of
+	// type parameters: if there is progress (and iteration
+	// continues), at least one type argument is inferred
+	// per iteration and we have a doubly nested loop.
+	// In practice this is not a problem because the number
+	// of type parameters tends to be very small (< 5 or so).
+	// (It should be possible for unification to efficiently
+	// signal newly inferred type arguments; then the loops
+	// here could handle the respective type parameters only,
+	// but that will come at a cost of extra complexity which
+	// may not be worth it.)
+	for n := u.x.unknowns(); n > 0; {
+		nn := n
+
+		for i, tpar := range tparams {
+			// If there is a core term (i.e., a core type with tilde information)
+			// unify the type parameter with the core type.
+			if core, single := coreTerm(tpar); core != nil {
+				// A type parameter can be unified with its core type in two cases.
+				tx := u.x.at(i)
+				switch {
+				case tx != nil:
+					// The corresponding type argument tx is known.
+					// In this case, if the core type has a tilde, the type argument's underlying
+					// type must match the core type, otherwise the type argument and the core type
+					// must match.
+					// If tx is an external type parameter, don't consider its underlying type
+					// (which is an interface). Core type unification will attempt to unify against
+					// core.typ.
+					// Note also that even with inexact unification we cannot leave away the under
+					// call here because it's possible that both tx and core.typ are named types,
+					// with under(tx) being a (named) basic type matching core.typ. Such cases do
+					// not match with inexact unification.
+					if core.tilde && !isTypeParam(tx) {
+						tx = under(tx)
+					}
+					if !u.unify(tx, core.typ) {
+						// TODO(gri) improve error message by providing the type arguments
+						//           which we know already
+						// Don't use term.String() as it always qualifies types, even if they
+						// are in the current package.
+						tilde := ""
+						if core.tilde {
+							tilde = "~"
+						}
+						check.errorf(posn, _InvalidTypeArg, "%s does not match %s%s", tpar, tilde, core.typ)
+						return nil, 0
+					}
+
+				case single && !core.tilde:
+					// The corresponding type argument tx is unknown and there's a single
+					// specific type and no tilde.
+					// In this case the type argument must be that single type; set it.
+					u.x.set(i, core.typ)
+
+				default:
+					// Unification is not possible and no progress was made.
+					continue
+				}
+
+				// The number of known type arguments may have changed.
+				nn = u.x.unknowns()
+				if nn == 0 {
+					break // all type arguments are known
+				}
 			}
 		}
+
+		assert(nn <= n)
+		if nn == n {
+			break // no progress
+		}
+		n = nn
 	}
 
 	// u.x.types() now contains the incoming type arguments plus any additional type
-	// arguments which were inferred from structural types. The newly inferred non-
-	// nil entries may still contain references to other type parameters.
+	// arguments which were inferred from core terms. The newly inferred non-nil
+	// entries may still contain references to other type parameters.
 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
 	// remaining type parameters by substituting the type parameters in this type list
@@ -503,8 +636,8 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 	}
 
 	// Once nothing changes anymore, we may still have type parameters left;
-	// e.g., a structural constraint *P may match a type parameter Q but we
-	// don't have any type arguments to fill in for *P or Q (issue #45548).
+	// e.g., a constraint with core type *P may match a type parameter Q but
+	// we don't have any type arguments to fill in for *P or Q (issue #45548).
 	// Don't let such inferences escape, instead nil them out.
 	for i, typ := range types {
 		if typ != nil && isParameterized(tparams, typ) {
@@ -522,6 +655,42 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 	}
 
 	return
+}
+
+// If the type parameter has a single specific type S, coreTerm returns (S, true).
+// Otherwise, if tpar has a core type T, it returns a term corresponding to that
+// core type and false. In that case, if any term of tpar has a tilde, the core
+// term has a tilde. In all other cases coreTerm returns (nil, false).
+func coreTerm(tpar *TypeParam) (*term, bool) {
+	n := 0
+	var single *term // valid if n == 1
+	var tilde bool
+	tpar.is(func(t *term) bool {
+		if t == nil {
+			assert(n == 0)
+			return false // no terms
+		}
+		n++
+		single = t
+		if t.tilde {
+			tilde = true
+		}
+		return true
+	})
+	if n == 1 {
+		if debug {
+			assert(debug && under(single.typ) == coreType(tpar))
+		}
+		return single, true
+	}
+	if typ := coreType(tpar); typ != nil {
+		// A core type is always an underlying type.
+		// If any term of tpar has a tilde, we don't
+		// have a precise core type and we must return
+		// a tilde as well.
+		return &term{tilde, typ}, false
+	}
+	return nil, false
 }
 
 type cycleFinder struct {

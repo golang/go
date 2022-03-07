@@ -14,7 +14,7 @@ func _() {
 }
 
 // recursive inference
-type Tr[A any, B ~*C, C ~*D, D ~*A] int
+type Tr[A any, B *C, C *D, D *A] int
 func _() {
 	var x Tr[string]
 	var y Tr[string, ***string, **string, *string]
@@ -25,11 +25,11 @@ func _() {
 }
 
 // other patterns of inference
-type To0[A any, B ~[]A] int
-type To1[A any, B ~struct{a A}] int
-type To2[A any, B ~[][]A] int
-type To3[A any, B ~[3]*A] int
-type To4[A any, B any, C ~struct{a A; b B}] int
+type To0[A any, B []A] int
+type To1[A any, B struct{a A}] int
+type To2[A any, B [][]A] int
+type To3[A any, B [3]*A] int
+type To4[A any, B any, C struct{a A; b B}] int
 func _() {
 	var _ To0[int]
 	var _ To1[int]

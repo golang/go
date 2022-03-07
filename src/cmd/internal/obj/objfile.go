@@ -417,6 +417,7 @@ func contentHashSection(s *LSym) byte {
 		strings.HasSuffix(name, ".arginfo0") ||
 		strings.HasSuffix(name, ".arginfo1") ||
 		strings.HasSuffix(name, ".argliveinfo") ||
+		strings.HasSuffix(name, ".wrapinfo") ||
 		strings.HasSuffix(name, ".args_stackmap") ||
 		strings.HasSuffix(name, ".stkobj") {
 		return 'F' // go.func.* or go.funcrel.*

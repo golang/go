@@ -92,15 +92,6 @@ func (xl termlist) norm() termlist {
 	return rl
 }
 
-// If the type set represented by xl is specified by a single (non-𝓤) term,
-// singleType returns that type. Otherwise it returns nil.
-func (xl termlist) singleType() Type {
-	if nl := xl.norm(); len(nl) == 1 {
-		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
-	}
-	return nil
-}
-
 // union returns the union xl ∪ yl.
 func (xl termlist) union(yl termlist) termlist {
 	return append(xl, yl...).norm()

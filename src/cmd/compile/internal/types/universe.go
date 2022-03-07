@@ -115,10 +115,6 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	AnyType.SetUnderlying(NewInterface(BuiltinPkg, []*Field{}, false))
 	ResumeCheckSize()
 
-	if base.Flag.G == 0 {
-		ComparableType.Sym().Def = nil
-	}
-
 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
 
 	Types[TBLANK] = newType(TBLANK)

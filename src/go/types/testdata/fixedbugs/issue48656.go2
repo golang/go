@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This issue is still open:
-// - the error messages are unclear
-// - unification fails due to stack overflow that is caught
-
 package p
 
 func f[P *Q, Q any](P, Q) {
-	// TODO(gri) these error messages are unclear
-	_ = f /* ERROR P does not match \*Q */ [P]
-	_ = f /* ERROR cannot infer P */ [*P]
+	_ = f[P]
+}
+
+func f2[P /* ERROR instantiation cycle */ *Q, Q any](P, Q) {
+	_ = f2[*P]
 }

@@ -545,6 +545,14 @@ General-purpose environment variables:
 	GOVCS
 		Lists version control commands that may be used with matching servers.
 		See 'go help vcs'.
+	GOWORK
+		In module aware mode, use the given go.work file as a workspace file.
+		By default or when GOWORK is "auto", the go command searches for a
+		file named go.work in the current directory and then containing directories
+		until one is found. If a valid go.work file is found, the modules
+		specified will collectively be used as the main modules. If GOWORK
+		is "off", or a go.work file is not found in "auto" mode, workspace
+		mode is disabled.
 
 Environment variables for use with cgo:
 

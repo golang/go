@@ -220,21 +220,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 	ir.SetPos(n.Ntype)
 
-	// Need to handle [...]T arrays specially.
-	if array, ok := n.Ntype.(*ir.ArrayType); ok && array.Elem != nil && array.Len == nil {
-		array.Elem = typecheckNtype(array.Elem)
-		elemType := array.Elem.Type()
-		if elemType == nil {
-			n.SetType(nil)
-			return n
-		}
-		length := typecheckarraylit(elemType, -1, n.List, "array literal")
-		n.SetOp(ir.OARRAYLIT)
-		n.SetType(types.NewArray(elemType, length))
-		n.Ntype = nil
-		return n
-	}
-
 	n.Ntype = typecheckNtype(n.Ntype)
 	t := n.Ntype.Type()
 	if t == nil {
@@ -375,13 +360,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 func tcStructLitKey(typ *types.Type, kv *ir.KeyExpr) *ir.StructKeyExpr {
 	key := kv.Key
 
-	// Sym might have resolved to name in other top-level
-	// package, because of import dot. Redirect to correct sym
-	// before we do the lookup.
 	sym := key.Sym()
-	if id, ok := key.(*ir.Ident); ok && DotImportRefs[id] != nil {
-		sym = Lookup(sym.Name)
-	}
 
 	// An OXDOT uses the Sym field to hold
 	// the field to the right of the dot,

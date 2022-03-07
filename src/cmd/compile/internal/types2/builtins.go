@@ -82,10 +82,24 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
 		var T Type
-		if s, _ := structuralType(S).(*Slice); s != nil {
+		if s, _ := coreType(S).(*Slice); s != nil {
 			T = s.elem
 		} else {
-			check.errorf(x, invalidArg+"%s is not a slice", x)
+			var cause string
+			switch {
+			case x.isNil():
+				cause = "have untyped nil"
+			case isTypeParam(S):
+				if u := coreType(S); u != nil {
+					cause = check.sprintf("%s has core type %s", x, u)
+				} else {
+					cause = check.sprintf("%s has no core type", x)
+				}
+			default:
+				cause = check.sprintf("have %s", x)
+			}
+			// don't use invalidArg prefix here as it would repeat "argument" in the error message
+			check.errorf(x, "first argument to append must be a slice; %s", cause)
 			return
 		}
 
@@ -101,7 +115,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				if x.mode == invalid {
 					return
 				}
-				if t := structuralString(x.typ); t != nil && isString(t) {
+				if t := coreString(x.typ); t != nil && isString(t) {
 					if check.Types != nil {
 						sig := makeSig(S, S, x.typ)
 						sig.variadic = true
@@ -331,14 +345,14 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Copy:
 		// copy(x, y []T) int
-		dst, _ := structuralType(x.typ).(*Slice)
+		dst, _ := coreType(x.typ).(*Slice)
 
 		var y operand
 		arg(&y, 1)
 		if y.mode == invalid {
 			return
 		}
-		src0 := structuralString(y.typ)
+		src0 := coreString(y.typ)
 		if src0 != nil && isString(src0) {
 			src0 = NewSlice(universeByte)
 		}
@@ -472,13 +486,13 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		var min int // minimum number of arguments
-		switch structuralType(T).(type) {
+		switch coreType(T).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
 			min = 1
 		case nil:
-			check.errorf(arg0, invalidArg+"cannot make %s: no structural type", arg0)
+			check.errorf(arg0, invalidArg+"cannot make %s: no core type", arg0)
 			return
 		default:
 			check.errorf(arg0, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)

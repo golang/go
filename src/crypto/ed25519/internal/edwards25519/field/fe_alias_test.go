@@ -96,19 +96,33 @@ func TestAliasing(t *testing.T) {
 		{name: "Negate", oneArgF: (*Element).Negate},
 		{name: "Set", oneArgF: (*Element).Set},
 		{name: "Square", oneArgF: (*Element).Square},
+		{name: "Pow22523", oneArgF: (*Element).Pow22523},
+		{
+			name: "Mult32",
+			oneArgF: func(v, x *Element) *Element {
+				return v.Mult32(x, 0xffffffff)
+			},
+		},
 		{name: "Multiply", twoArgsF: (*Element).Multiply},
 		{name: "Add", twoArgsF: (*Element).Add},
 		{name: "Subtract", twoArgsF: (*Element).Subtract},
 		{
+			name: "SqrtRatio",
+			twoArgsF: func(v, x, y *Element) *Element {
+				r, _ := v.SqrtRatio(x, y)
+				return r
+			},
+		},
+		{
 			name: "Select0",
 			twoArgsF: func(v, x, y *Element) *Element {
-				return (*Element).Select(v, x, y, 0)
+				return v.Select(x, y, 0)
 			},
 		},
 		{
 			name: "Select1",
 			twoArgsF: func(v, x, y *Element) *Element {
-				return (*Element).Select(v, x, y, 1)
+				return v.Select(x, y, 1)
 			},
 		},
 	} {

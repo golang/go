@@ -31,8 +31,7 @@ import (
 // using a special data structure passed in a register.
 //
 // A method declaration is represented like functions, except f.Sym
-// will be the qualified method name (e.g., "T.m") and
-// f.Func.Shortname is the bare method name (e.g., "m").
+// will be the qualified method name (e.g., "T.m").
 //
 // A method expression (T.M) is represented as an OMETHEXPR node,
 // in which n.Left and n.Right point to the type and method, respectively.
@@ -55,8 +54,6 @@ type Func struct {
 
 	Nname    *Name        // ONAME node
 	OClosure *ClosureExpr // OCLOSURE node
-
-	Shortname *types.Sym
 
 	// Extra entry code for the function. For example, allocate and initialize
 	// memory for escaping parameters.
@@ -133,6 +130,10 @@ type Func struct {
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
 	NWBRCalls *[]SymAndPos
+
+	// For wrapper functions, WrappedFunc point to the original Func.
+	// Currently only used for go/defer wrappers.
+	WrappedFunc *Func
 }
 
 func NewFunc(pos src.XPos) *Func {

@@ -1124,13 +1124,14 @@ func rewriteValueRISCV64_OpEqPtr(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (EqPtr x y)
-	// result: (SEQZ (SUB <x.Type> x y))
+	// result: (SEQZ (SUB <typ.Uintptr> x y))
 	for {
 		x := v_0
 		y := v_1
 		v.reset(OpRISCV64SEQZ)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
+		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, typ.Uintptr)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -2673,13 +2674,14 @@ func rewriteValueRISCV64_OpNeqPtr(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (NeqPtr x y)
-	// result: (SNEZ (SUB <x.Type> x y))
+	// result: (SNEZ (SUB <typ.Uintptr> x y))
 	for {
 		x := v_0
 		y := v_1
 		v.reset(OpRISCV64SNEZ)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
+		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, typ.Uintptr)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true

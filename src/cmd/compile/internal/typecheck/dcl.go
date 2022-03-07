@@ -70,14 +70,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		n.SetFrameOffset(0)
 	}
 
-	if s.Block == types.Block {
-		// functype will print errors about duplicate function arguments.
-		// Don't repeat the error here.
-		if ctxt != ir.PPARAM && ctxt != ir.PPARAMOUT {
-			Redeclared(n.Pos(), s, "in this block")
-		}
-	}
-
 	s.Block = types.Block
 	s.Lastlineno = base.Pos
 	s.Def = n
@@ -101,38 +93,6 @@ func Export(n *ir.Name) {
 	}
 
 	Target.Exports = append(Target.Exports, n)
-}
-
-// Redeclared emits a diagnostic about symbol s being redeclared at pos.
-func Redeclared(pos src.XPos, s *types.Sym, where string) {
-	if !s.Lastlineno.IsKnown() {
-		var pkgName *ir.PkgName
-		if s.Def == nil {
-			for id, pkg := range DotImportRefs {
-				if id.Sym().Name == s.Name {
-					pkgName = pkg
-					break
-				}
-			}
-		} else {
-			pkgName = DotImportRefs[s.Def.(*ir.Ident)]
-		}
-		base.ErrorfAt(pos, "%v redeclared %s\n"+
-			"\t%v: previous declaration during import %q", s, where, base.FmtPos(pkgName.Pos()), pkgName.Pkg.Path)
-	} else {
-		prevPos := s.Lastlineno
-
-		// When an import and a declaration collide in separate files,
-		// present the import as the "redeclared", because the declaration
-		// is visible where the import is, but not vice versa.
-		// See issue 4510.
-		if s.Def == nil {
-			pos, prevPos = prevPos, pos
-		}
-
-		base.ErrorfAt(pos, "%v redeclared %s\n"+
-			"\t%v: previous declaration", s, where, base.FmtPos(prevPos))
-	}
 }
 
 // declare the function proper
@@ -169,90 +129,6 @@ func CheckFuncStack() {
 	if len(funcStack) != 0 {
 		base.Fatalf("funcStack is non-empty: %v", len(funcStack))
 	}
-}
-
-// Add a method, declared as a function.
-// - msym is the method symbol
-// - t is function type (with receiver)
-// Returns a pointer to the existing or added Field; or nil if there's an error.
-func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
-	if msym == nil {
-		base.Fatalf("no method symbol")
-	}
-
-	// get parent type sym
-	rf := t.Recv() // ptr to this structure
-	if rf == nil {
-		base.Errorf("missing receiver")
-		return nil
-	}
-
-	mt := types.ReceiverBaseType(rf.Type)
-	if mt == nil || mt.Sym() == nil {
-		pa := rf.Type
-		t := pa
-		if t != nil && t.IsPtr() {
-			if t.Sym() != nil {
-				base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
-				return nil
-			}
-			t = t.Elem()
-		}
-
-		switch {
-		case t == nil || t.Broke():
-			// rely on typecheck having complained before
-		case t.Sym() == nil:
-			base.Errorf("invalid receiver type %v (%v is not a defined type)", pa, t)
-		case t.IsPtr():
-			base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
-		case t.IsInterface():
-			base.Errorf("invalid receiver type %v (%v is an interface type)", pa, t)
-		default:
-			// Should have picked off all the reasons above,
-			// but just in case, fall back to generic error.
-			base.Errorf("invalid receiver type %v (%L / %L)", pa, pa, t)
-		}
-		return nil
-	}
-
-	if local && mt.Sym().Pkg != types.LocalPkg {
-		base.Errorf("cannot define new methods on non-local type %v", mt)
-		return nil
-	}
-
-	if msym.IsBlank() {
-		return nil
-	}
-
-	if mt.IsStruct() {
-		for _, f := range mt.Fields().Slice() {
-			if f.Sym == msym {
-				base.Errorf("type %v has both field and method named %v", mt, msym)
-				f.SetBroke(true)
-				return nil
-			}
-		}
-	}
-
-	for _, f := range mt.Methods().Slice() {
-		if msym.Name != f.Sym.Name {
-			continue
-		}
-		// types.Identical only checks that incoming and result parameters match,
-		// so explicitly check that the receiver parameters match too.
-		if !types.Identical(t, f.Type) || !types.Identical(t.Recv().Type, f.Type.Recv().Type) {
-			base.Errorf("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
-		}
-		return f
-	}
-
-	f := types.NewField(base.Pos, msym, t)
-	f.Nname = n.Nname
-	f.SetNointerface(nointerface)
-
-	mt.Methods().Append(f)
-	return f
 }
 
 func autoexport(n *ir.Name, ctxt ir.Class) {
@@ -454,13 +330,6 @@ func autotmpname(n int) string {
 		// Give each tmp a different name so that they can be registerized.
 		// Add a preceding . to avoid clashing with legal names.
 		prefix := ".autotmp_%d"
-
-		// In quirks mode, pad out the number to stabilize variable
-		// sorting. This ensures autotmps 8 and 9 sort the same way even
-		// if they get renumbered to 9 and 10, respectively.
-		if base.Debug.UnifiedQuirks != 0 {
-			prefix = ".autotmp_%06d"
-		}
 
 		s = fmt.Sprintf(prefix, n)
 		autotmpnames[n] = s

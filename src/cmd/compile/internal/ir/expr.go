@@ -202,7 +202,10 @@ type CompLitExpr struct {
 	Ntype    Ntype
 	List     Nodes // initialized values
 	Prealloc *Name
-	Len      int64 // backing array length for OSLICELIT
+	// For OSLICELIT, Len is the backing array length.
+	// For OMAPLIT, Len is the number of entries that we've removed from List and
+	// generated explicit mapassign calls for. This is used to inform the map alloc hint.
+	Len int64
 }
 
 func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {

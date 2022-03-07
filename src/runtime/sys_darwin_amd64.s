@@ -831,9 +831,10 @@ ok:
 	POPQ	BP
 	RET
 
-// syscallNoErr is like syscall6 but does not check for errors, and
-// only returns one value, for use with standard C ABI library functions.
-TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
+// syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,
+// takes 5 uintptrs and 1 float64, and only returns one value,
+// for use with standard C ABI functions.
+TEXT runtime·syscall_x509(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	SUBQ	$16, SP
@@ -842,7 +843,7 @@ TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
 	MOVQ	(3*8)(DI), DX // a3
 	MOVQ	(4*8)(DI), CX // a4
 	MOVQ	(5*8)(DI), R8 // a5
-	MOVQ	(6*8)(DI), R9 // a6
+	MOVQ	(6*8)(DI), X0 // f1
 	MOVQ	DI, (SP)
 	MOVQ	(1*8)(DI), DI // a1
 	XORL	AX, AX	      // vararg: say "no float args"

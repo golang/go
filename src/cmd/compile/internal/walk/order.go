@@ -1433,6 +1433,15 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 			typecheck.Stmt(as) // Note: this converts the OINDEX to an OINDEXMAP
 			o.stmt(as)
 		}
+
+		// Remember that we issued these assignments so we can include that count
+		// in the map alloc hint.
+		// We're assuming here that all the keys in the map literal are distinct.
+		// If any are equal, this will be an overcount. Probably not worth accounting
+		// for that, as equal keys in map literals are rare, and at worst we waste
+		// a bit of space.
+		n.Len += int64(len(dynamics))
+
 		return m
 	}
 

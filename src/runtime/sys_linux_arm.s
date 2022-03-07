@@ -23,7 +23,6 @@
 #define SYS_close (SYS_BASE + 6)
 #define SYS_getpid (SYS_BASE + 20)
 #define SYS_kill (SYS_BASE + 37)
-#define SYS_pipe (SYS_BASE + 42)
 #define SYS_clone (SYS_BASE + 120)
 #define SYS_rt_sigreturn (SYS_BASE + 173)
 #define SYS_rt_sigaction (SYS_BASE + 174)
@@ -96,14 +95,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	$SYS_read, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVW	$r+0(FP), R0
-	MOVW	$SYS_pipe, R7
-	SWI	$0
-	MOVW	R0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -713,20 +704,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0	// fd
 	MOVW	$2, R1	// F_SETFD
 	MOVW	$1, R2	// FD_CLOEXEC
-	MOVW	$SYS_fcntl, R7
-	SWI	$0
-	RET
-
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVW	fd+0(FP), R0	// fd
-	MOVW	$3, R1	// F_GETFL
-	MOVW	$0, R2
-	MOVW	$SYS_fcntl, R7
-	SWI	$0
-	ORR	$0x800, R0, R2	// O_NONBLOCK
-	MOVW	fd+0(FP), R0	// fd
-	MOVW	$4, R1	// F_SETFL
 	MOVW	$SYS_fcntl, R7
 	SWI	$0
 	RET

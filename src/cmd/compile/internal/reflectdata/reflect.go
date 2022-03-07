@@ -1424,9 +1424,7 @@ func WriteBasicTypes() {
 		}
 		writeType(types.NewPtr(types.Types[types.TSTRING]))
 		writeType(types.NewPtr(types.Types[types.TUNSAFEPTR]))
-		if base.Flag.G > 0 {
-			writeType(types.AnyType)
-		}
+		writeType(types.AnyType)
 
 		// emit type structs for error and func(error) string.
 		// The latter is the type of an auto-generated wrapper.
@@ -1457,7 +1455,7 @@ func WriteBasicTypes() {
 
 type typeAndStr struct {
 	t       *types.Type
-	short   string // "short" here means NameString
+	short   string // "short" here means TypeSymName
 	regular string
 }
 
@@ -1853,8 +1851,8 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	}
 	newnam.SetSiggen(true)
 
-	// Except in quirks mode, unified IR creates its own wrappers.
-	if base.Debug.Unified != 0 && base.Debug.UnifiedQuirks == 0 {
+	// Unified IR creates its own wrappers.
+	if base.Debug.Unified != 0 {
 		return lsym
 	}
 

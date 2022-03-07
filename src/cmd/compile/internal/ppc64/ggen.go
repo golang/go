@@ -46,10 +46,9 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 }
 
 func ginsnop(pp *objw.Progs) *obj.Prog {
+	// Generate the preferred hardware nop: ori 0,0,0
 	p := pp.Prog(ppc64.AOR)
-	p.From.Type = obj.TYPE_REG
-	p.From.Reg = ppc64.REG_R0
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = ppc64.REG_R0
+	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: ppc64.REG_R0}
 	return p
 }

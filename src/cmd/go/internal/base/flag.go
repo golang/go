@@ -62,13 +62,6 @@ func AddModFlag(flags *flag.FlagSet) {
 	flags.Var(explicitStringFlag{value: &cfg.BuildMod, explicit: &cfg.BuildModExplicit}, "mod", "")
 }
 
-// AddWorkfileFlag adds the workfile flag to the flag set. It enables workspace
-// mode for commands that support it by resetting the cfg.WorkFile variable
-// to "" (equivalent to auto) rather than off.
-func AddWorkfileFlag(flags *flag.FlagSet) {
-	flags.Var(explicitStringFlag{value: &cfg.WorkFile, explicit: &cfg.WorkFileExplicit}, "workfile", "")
-}
-
 // AddModCommonFlags adds the module-related flags common to build commands
 // and 'go mod' subcommands.
 func AddModCommonFlags(flags *flag.FlagSet) {

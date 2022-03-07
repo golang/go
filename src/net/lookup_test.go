@@ -883,21 +883,66 @@ func TestLookupNonLDH(t *testing.T) {
 
 func TestLookupContextCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
-	defer dnsWaitGroup.Wait()
+	testenv.SkipFlakyNet(t)
 
-	ctx, ctxCancel := context.WithCancel(context.Background())
-	ctxCancel()
-	_, err := DefaultResolver.LookupIPAddr(ctx, "google.com")
-	if err.(*DNSError).Err != errCanceled.Error() {
-		testenv.SkipFlakyNet(t)
-		t.Fatal(err)
+	origTestHookLookupIP := testHookLookupIP
+	defer func() {
+		dnsWaitGroup.Wait()
+		testHookLookupIP = origTestHookLookupIP
+	}()
+
+	lookupCtx, cancelLookup := context.WithCancel(context.Background())
+	unblockLookup := make(chan struct{})
+
+	// Set testHookLookupIP to start a new, concurrent call to LookupIPAddr
+	// and cancel the original one, then block until the canceled call has returned
+	// (ensuring that it has performed any synchronous cleanup).
+	testHookLookupIP = func(
+		ctx context.Context,
+		fn func(context.Context, string, string) ([]IPAddr, error),
+		network string,
+		host string,
+	) ([]IPAddr, error) {
+		select {
+		case <-unblockLookup:
+		default:
+			// Start a concurrent LookupIPAddr for the same host while the caller is
+			// still blocked, and sleep a little to give it time to be deduplicated
+			// before we cancel (and unblock) the caller.
+			// (If the timing doesn't quite work out, we'll end up testing sequential
+			// calls instead of concurrent ones, but the test should still pass.)
+			t.Logf("starting concurrent LookupIPAddr")
+			dnsWaitGroup.Add(1)
+			go func() {
+				defer dnsWaitGroup.Done()
+				_, err := DefaultResolver.LookupIPAddr(context.Background(), host)
+				if err != nil {
+					t.Error(err)
+				}
+			}()
+			time.Sleep(1 * time.Millisecond)
+		}
+
+		cancelLookup()
+		<-unblockLookup
+		// If the concurrent lookup above is deduplicated to this one
+		// (as we expect to happen most of the time), it is important
+		// that the original call does not cancel the shared Context.
+		// (See https://go.dev/issue/22724.) Explicitly check for
+		// cancellation now, just in case fn itself doesn't notice it.
+		if err := ctx.Err(); err != nil {
+			t.Logf("testHookLookupIP canceled")
+			return nil, err
+		}
+		t.Logf("testHookLookupIP performing lookup")
+		return fn(ctx, network, host)
 	}
-	ctx = context.Background()
-	_, err = DefaultResolver.LookupIPAddr(ctx, "google.com")
-	if err != nil {
-		testenv.SkipFlakyNet(t)
-		t.Fatal(err)
+
+	_, err := DefaultResolver.LookupIPAddr(lookupCtx, "google.com")
+	if dnsErr, ok := err.(*DNSError); !ok || dnsErr.Err != errCanceled.Error() {
+		t.Errorf("unexpected error from canceled, blocked LookupIPAddr: %v", err)
 	}
+	close(unblockLookup)
 }
 
 // Issue 24330: treat the nil *Resolver like a zero value. Verify nothing

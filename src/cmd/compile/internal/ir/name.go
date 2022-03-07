@@ -48,7 +48,6 @@ type Name struct {
 	Opt       interface{} // for use by escape analysis
 	Embed     *[]Embed    // list of embedded files, for ONAME var
 
-	PkgName *PkgName // real package for import . names
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
 	// For a closure var, the ONAME node of the outer captured variable.
 	// For the case-local variables of a type switch, the type switch guard (OTYPESW).
@@ -535,23 +534,4 @@ const (
 type Embed struct {
 	Pos      src.XPos
 	Patterns []string
-}
-
-// A Pack is an identifier referring to an imported package.
-type PkgName struct {
-	miniNode
-	sym  *types.Sym
-	Pkg  *types.Pkg
-	Used bool
-}
-
-func (p *PkgName) Sym() *types.Sym { return p.sym }
-
-func (*PkgName) CanBeNtype() {}
-
-func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
-	p := &PkgName{sym: sym, Pkg: pkg}
-	p.op = OPACK
-	p.pos = pos
-	return p
 }

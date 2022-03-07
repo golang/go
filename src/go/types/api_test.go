@@ -466,52 +466,54 @@ func TestInstanceInfo(t *testing.T) {
 			`func(float64, *byte, ...[]byte)`,
 		},
 
-		{`package s1; func f[T any, P interface{~*T}](x T) {}; func _(x string) { f(x) }`,
+		{`package s1; func f[T any, P interface{*T}](x T) {}; func _(x string) { f(x) }`,
 			`f`,
 			[]string{`string`, `*string`},
 			`func(x string)`,
 		},
-		{`package s2; func f[T any, P interface{~*T}](x []T) {}; func _(x []int) { f(x) }`,
+		{`package s2; func f[T any, P interface{*T}](x []T) {}; func _(x []int) { f(x) }`,
 			`f`,
 			[]string{`int`, `*int`},
 			`func(x []int)`,
 		},
-		{`package s3; type C[T any] interface{~chan<- T}; func f[T any, P C[T]](x []T) {}; func _(x []int) { f(x) }`,
+		{`package s3; type C[T any] interface{chan<- T}; func f[T any, P C[T]](x []T) {}; func _(x []int) { f(x) }`,
 			`f`,
 			[]string{`int`, `chan<- int`},
 			`func(x []int)`,
 		},
-		{`package s4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T) {}; func _(x []int) { f(x) }`,
+		{`package s4; type C[T any] interface{chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T) {}; func _(x []int) { f(x) }`,
 			`f`,
 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
 			`func(x []int)`,
 		},
 
-		{`package t1; func f[T any, P interface{~*T}]() T { panic(0) }; func _() { _ = f[string] }`,
+		{`package t1; func f[T any, P interface{*T}]() T { panic(0) }; func _() { _ = f[string] }`,
 			`f`,
 			[]string{`string`, `*string`},
 			`func() string`,
 		},
-		{`package t2; func f[T any, P interface{~*T}]() T { panic(0) }; func _() { _ = (f[string]) }`,
+		{`package t2; func f[T any, P interface{*T}]() T { panic(0) }; func _() { _ = (f[string]) }`,
 			`f`,
 			[]string{`string`, `*string`},
 			`func() string`,
 		},
-		{`package t3; type C[T any] interface{~chan<- T}; func f[T any, P C[T]]() []T { return nil }; func _() { _ = f[int] }`,
-			`f`,
-			[]string{`int`, `chan<- int`},
-			`func() []int`,
-		},
-		{`package t4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
+		{`package t3; type C[T any] interface{chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
 			`f`,
 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
 			`func() []int`,
 		},
+		{`package t4; type C[T any] interface{chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = (f[int]) }`,
+			`f`,
+			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+			`func() []int`,
+		},
+
 		{`package i0; import "lib"; func _() { lib.F(42) }`,
 			`F`,
 			[]string{`int`},
 			`func(int)`,
 		},
+
 		{`package type0; type T[P interface{~int}] struct{ x P }; var _ T[int]`,
 			`T`,
 			[]string{`int`},
@@ -1688,7 +1690,7 @@ func F(){
 	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
 
 	var a []int
-	for i, x := range /*i=undef*/ /*x=var:16*/ a /*i=var:20*/ /*x=var:20*/ { _ = i; _ = x }
+	for i, x := range a /*i=undef*/ /*x=var:16*/ { _ = i; _ = x }
 
 	var i interface{}
 	switch y := i.(type) { /*y=undef*/
@@ -2306,27 +2308,27 @@ type Bad Bad // invalid type
 	conf := Config{Error: func(error) {}}
 	pkg, _ := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
 
-	scope := pkg.Scope()
+	lookup := func(tname string) Type { return pkg.Scope().Lookup(tname).Type() }
 	var (
-		EmptyIface   = scope.Lookup("EmptyIface").Type().Underlying().(*Interface)
-		I            = scope.Lookup("I").Type().(*Named)
+		EmptyIface   = lookup("EmptyIface").Underlying().(*Interface)
+		I            = lookup("I").(*Named)
 		II           = I.Underlying().(*Interface)
-		C            = scope.Lookup("C").Type().(*Named)
+		C            = lookup("C").(*Named)
 		CI           = C.Underlying().(*Interface)
-		Integer      = scope.Lookup("Integer").Type().Underlying().(*Interface)
-		EmptyTypeSet = scope.Lookup("EmptyTypeSet").Type().Underlying().(*Interface)
-		N1           = scope.Lookup("N1").Type()
+		Integer      = lookup("Integer").Underlying().(*Interface)
+		EmptyTypeSet = lookup("EmptyTypeSet").Underlying().(*Interface)
+		N1           = lookup("N1")
 		N1p          = NewPointer(N1)
-		N2           = scope.Lookup("N2").Type()
+		N2           = lookup("N2")
 		N2p          = NewPointer(N2)
-		N3           = scope.Lookup("N3").Type()
-		N4           = scope.Lookup("N4").Type()
-		Bad          = scope.Lookup("Bad").Type()
+		N3           = lookup("N3")
+		N4           = lookup("N4")
+		Bad          = lookup("Bad")
 	)
 
 	tests := []struct {
-		t    Type
-		i    *Interface
+		V    Type
+		T    *Interface
 		want bool
 	}{
 		{I, II, true},
@@ -2357,8 +2359,20 @@ type Bad Bad // invalid type
 	}
 
 	for _, test := range tests {
-		if got := Implements(test.t, test.i); got != test.want {
-			t.Errorf("Implements(%s, %s) = %t, want %t", test.t, test.i, got, test.want)
+		if got := Implements(test.V, test.T); got != test.want {
+			t.Errorf("Implements(%s, %s) = %t, want %t", test.V, test.T, got, test.want)
+		}
+
+		// The type assertion x.(T) is valid if T is an interface or if T implements the type of x.
+		// The assertion is never valid if T is a bad type.
+		V := test.T
+		T := test.V
+		want := false
+		if _, ok := T.Underlying().(*Interface); (ok || Implements(T, V)) && T != Bad {
+			want = true
+		}
+		if got := AssertableTo(V, T); got != want {
+			t.Errorf("AssertableTo(%s, %s) = %t, want %t", V, T, got, want)
 		}
 	}
 }

@@ -607,7 +607,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			// Do same for ComparableType as for ErrorType.
 			underlying = types.ComparableType
 		}
-		if base.Flag.G > 0 && underlying == types.AnyType.Underlying() {
+		if underlying == types.AnyType.Underlying() {
 			// Do same for AnyType as for ErrorType.
 			underlying = types.AnyType
 		}
@@ -621,12 +621,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			break
 		}
 
-		// Sort methods, for consistency with types2.
-		methods := append([]*types.Field(nil), t.Methods().Slice()...)
-		if base.Debug.UnifiedQuirks != 0 {
-			sort.Sort(types.MethodsByName(methods))
-		}
-
+		methods := t.Methods().Slice()
 		w.uint64(uint64(len(methods)))
 		for _, m := range methods {
 			w.pos(m.Pos)
@@ -954,7 +949,6 @@ func (w *exportWriter) startType(k itag) {
 func (w *exportWriter) doTyp(t *types.Type) {
 	s := t.Sym()
 	if s != nil && t.OrigSym() != nil {
-		assert(base.Flag.G > 0)
 		// This is an instantiated type - could be a re-instantiation like
 		// Value[T2] or a full instantiation like Value[int].
 		if strings.Index(s.Name, "[") < 0 {
@@ -979,7 +973,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	// type, rather than a defined type with typeparam underlying type, like:
 	// type orderedAbs[T any] T
 	if t.IsTypeParam() && t.Underlying() == t {
-		assert(base.Flag.G > 0)
 		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
@@ -1052,14 +1045,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
 			}
 		}
 
-		// Sort methods and embedded types, for consistency with types2.
-		// Note: embedded types may be anonymous, and types2 sorts them
-		// with sort.Stable too.
-		if base.Debug.UnifiedQuirks != 0 {
-			sort.Sort(types.MethodsByName(methods))
-			sort.Stable(types.EmbeddedsByName(embeddeds))
-		}
-
 		w.startType(interfaceType)
 		w.setPkg(t.Pkg(), true)
 
@@ -1077,7 +1062,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		}
 
 	case types.TUNION:
-		assert(base.Flag.G > 0)
 		// TODO(danscales): possibly put out the tilde bools in more
 		// compact form.
 		w.startType(unionType)

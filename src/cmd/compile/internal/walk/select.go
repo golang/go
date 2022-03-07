@@ -239,21 +239,28 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 
 	// dispatch cases
 	dispatch := func(cond ir.Node, cas *ir.CommClause) {
-		cond = typecheck.Expr(cond)
-		cond = typecheck.DefaultLit(cond, nil)
-
-		r := ir.NewIfStmt(base.Pos, cond, nil, nil)
+		var list ir.Nodes
 
 		if n := cas.Comm; n != nil && n.Op() == ir.OSELRECV2 {
 			n := n.(*ir.AssignListStmt)
 			if !ir.IsBlank(n.Lhs[1]) {
 				x := ir.NewAssignStmt(base.Pos, n.Lhs[1], recvOK)
-				r.Body.Append(typecheck.Stmt(x))
+				list.Append(typecheck.Stmt(x))
 			}
 		}
 
-		r.Body.Append(cas.Body.Take()...)
-		r.Body.Append(ir.NewBranchStmt(base.Pos, ir.OBREAK, nil))
+		list.Append(cas.Body.Take()...)
+		list.Append(ir.NewBranchStmt(base.Pos, ir.OBREAK, nil))
+
+		var r ir.Node
+		if cond != nil {
+			cond = typecheck.Expr(cond)
+			cond = typecheck.DefaultLit(cond, nil)
+			r = ir.NewIfStmt(base.Pos, cond, list, nil)
+		} else {
+			r = ir.NewBlockStmt(base.Pos, list)
+		}
+
 		init = append(init, r)
 	}
 
@@ -263,6 +270,10 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	}
 	for i, cas := range casorder {
 		ir.SetPos(cas)
+		if i == len(casorder)-1 {
+			dispatch(nil, cas)
+			break
+		}
 		dispatch(ir.NewBinaryExpr(base.Pos, ir.OEQ, chosen, ir.NewInt(int64(i))), cas)
 	}
 

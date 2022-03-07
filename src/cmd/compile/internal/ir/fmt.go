@@ -202,7 +202,6 @@ var OpPrec = []int{
 	ONIL:           8,
 	ONONAME:        8,
 	OOFFSETOF:      8,
-	OPACK:          8,
 	OPANIC:         8,
 	OPAREN:         8,
 	OPRINTN:        8,
@@ -213,13 +212,7 @@ var OpPrec = []int{
 	OSTR2BYTES:     8,
 	OSTR2RUNES:     8,
 	OSTRUCTLIT:     8,
-	OTARRAY:        8,
-	OTSLICE:        8,
-	OTCHAN:         8,
 	OTFUNC:         8,
-	OTINTER:        8,
-	OTMAP:          8,
-	OTSTRUCT:       8,
 	OTYPE:          8,
 	OUNSAFEADD:     8,
 	OUNSAFESLICE:   8,
@@ -640,7 +633,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			return
 		}
 		fallthrough
-	case OPACK, ONONAME:
+	case ONONAME:
 		fmt.Fprint(s, n.Sym())
 
 	case OLINKSYMOFFSET:
@@ -653,49 +646,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "%v", n.Type())
-
-	case OTSLICE:
-		n := n.(*SliceType)
-		if n.DDD {
-			fmt.Fprintf(s, "...%v", n.Elem)
-		} else {
-			fmt.Fprintf(s, "[]%v", n.Elem) // happens before typecheck
-		}
-
-	case OTARRAY:
-		n := n.(*ArrayType)
-		if n.Len == nil {
-			fmt.Fprintf(s, "[...]%v", n.Elem)
-		} else {
-			fmt.Fprintf(s, "[%v]%v", n.Len, n.Elem)
-		}
-
-	case OTMAP:
-		n := n.(*MapType)
-		fmt.Fprintf(s, "map[%v]%v", n.Key, n.Elem)
-
-	case OTCHAN:
-		n := n.(*ChanType)
-		switch n.Dir {
-		case types.Crecv:
-			fmt.Fprintf(s, "<-chan %v", n.Elem)
-
-		case types.Csend:
-			fmt.Fprintf(s, "chan<- %v", n.Elem)
-
-		default:
-			if n.Elem != nil && n.Elem.Op() == OTCHAN && n.Elem.(*ChanType).Dir == types.Crecv {
-				fmt.Fprintf(s, "chan (%v)", n.Elem)
-			} else {
-				fmt.Fprintf(s, "chan %v", n.Elem)
-			}
-		}
-
-	case OTSTRUCT:
-		fmt.Fprint(s, "<struct>")
-
-	case OTINTER:
-		fmt.Fprint(s, "<inter>")
 
 	case OTFUNC:
 		fmt.Fprint(s, "<func>")

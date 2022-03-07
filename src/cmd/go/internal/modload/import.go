@@ -248,12 +248,26 @@ func (e *invalidImportError) Unwrap() error {
 // return the module, its root directory, and a list of other modules that
 // lexically could have provided the package but did not.
 func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph) (m module.Version, dir string, altMods []module.Version, err error) {
+	invalidf := func(format string, args ...interface{}) (module.Version, string, []module.Version, error) {
+		return module.Version{}, "", nil, &invalidImportError{
+			importPath: path,
+			err:        fmt.Errorf(format, args...),
+		}
+	}
+
 	if strings.Contains(path, "@") {
-		return module.Version{}, "", nil, fmt.Errorf("import path should not have @version")
+		return invalidf("import path %q should not have @version", path)
 	}
 	if build.IsLocalImport(path) {
-		return module.Version{}, "", nil, fmt.Errorf("relative import not supported")
+		return invalidf("%q is relative, but relative import paths are not supported in module mode", path)
 	}
+	if filepath.IsAbs(path) {
+		return invalidf("%q is not a package path; see 'go help packages'", path)
+	}
+	if search.IsMetaPackage(path) {
+		return invalidf("%q is not an importable package; see 'go help packages'", path)
+	}
+
 	if path == "C" {
 		// There's no directory for import "C".
 		return module.Version{}, "", nil, nil

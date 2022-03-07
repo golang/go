@@ -39,7 +39,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
 		return s.comparable
 	}
 	return s.is(func(t *term) bool {
-		return t != nil && comparable(t.typ, seen, nil)
+		return t != nil && comparable(t.typ, false, seen, nil)
 	})
 }
 
@@ -102,9 +102,6 @@ func (s *_TypeSet) String() string {
 
 // hasTerms reports whether the type set has specific type terms.
 func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
-
-// singleType returns the single type in s if there is exactly one; otherwise the result is nil.
-func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
 
 // subsetOf reports whether s1 ⊆ s2.
 func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }

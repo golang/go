@@ -342,7 +342,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		return typ
 
 	case *syntax.InterfaceType:
-		typ := new(Interface)
+		typ := check.newInterface()
 		def.setUnderlying(typ)
 		if def != nil {
 			typ.obj = def.obj
@@ -502,12 +502,20 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 // and returns the constant length >= 0, or a value < 0
 // to indicate an error (and thus an unknown length).
 func (check *Checker) arrayLength(e syntax.Expr) int64 {
-	// If e is an undeclared identifier, the array declaration might be an
-	// attempt at a parameterized type declaration with missing constraint.
-	// Provide a better error message than just "undeclared name: X".
-	if name, _ := e.(*syntax.Name); name != nil && check.lookup(name.Value) == nil {
-		check.errorf(name, "undeclared name %s for array length", name.Value)
-		return -1
+	// If e is an identifier, the array declaration might be an
+	// attempt at a parameterized type declaration with missing
+	// constraint. Provide an error message that mentions array
+	// length.
+	if name, _ := e.(*syntax.Name); name != nil {
+		obj := check.lookup(name.Value)
+		if obj == nil {
+			check.errorf(name, "undeclared name %s for array length", name.Value)
+			return -1
+		}
+		if _, ok := obj.(*Const); !ok {
+			check.errorf(name, "invalid array length %s", name.Value)
+			return -1
+		}
 	}
 
 	var x operand
