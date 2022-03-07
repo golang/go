@@ -101,7 +101,7 @@ func parseErrorDiagnostics(snapshot *snapshot, pkg *pkg, errList scanner.ErrorLi
 }
 
 var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
-var unsupportedFeatureRe = regexp.MustCompile(`.*require go(\d+\.\d+) or later`)
+var unsupportedFeatureRe = regexp.MustCompile(`.*require.* go(\d+\.\d+) or later`)
 
 func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*source.Diagnostic, error) {
 	code, spn, err := typeErrorData(snapshot.FileSet(), pkg, e.primary)
@@ -146,12 +146,10 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*sou
 			return nil, err
 		}
 	}
-	if code == typesinternal.UnsupportedFeature {
-		if match := unsupportedFeatureRe.FindStringSubmatch(e.primary.Msg); match != nil {
-			diag.SuggestedFixes, err = editGoDirectiveQuickFix(snapshot, spn.URI(), match[1])
-			if err != nil {
-				return nil, err
-			}
+	if match := unsupportedFeatureRe.FindStringSubmatch(e.primary.Msg); match != nil {
+		diag.SuggestedFixes, err = editGoDirectiveQuickFix(snapshot, spn.URI(), match[1])
+		if err != nil {
+			return nil, err
 		}
 	}
 	return []*source.Diagnostic{diag}, nil
