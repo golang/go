@@ -116,6 +116,28 @@ func unified(noders []*noder) {
 		}
 	}
 
+	readBodies(target)
+
+	// Check that nothing snuck past typechecking.
+	for _, n := range target.Decls {
+		if n.Typecheck() == 0 {
+			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
+		}
+
+		// For functions, check that at least their first statement (if
+		// any) was typechecked too.
+		if fn, ok := n.(*ir.Func); ok && len(fn.Body) != 0 {
+			if stmt := fn.Body[0]; stmt.Typecheck() == 0 {
+				base.FatalfAt(stmt.Pos(), "missed typecheck: %v", stmt)
+			}
+		}
+	}
+
+	base.ExitIfErrors() // just in case
+}
+
+// readBodies reads in bodies for any
+func readBodies(target *ir.Package) {
 	// Don't use range--bodyIdx can add closures to todoBodies.
 	for len(todoBodies) > 0 {
 		// The order we expand bodies doesn't matter, so pop from the end
@@ -134,24 +156,6 @@ func unified(noders []*noder) {
 		}
 	}
 	todoBodies = nil
-	todoBodiesDone = true
-
-	// Check that nothing snuck past typechecking.
-	for _, n := range target.Decls {
-		if n.Typecheck() == 0 {
-			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
-		}
-
-		// For functions, check that at least their first statement (if
-		// any) was typechecked too.
-		if fn, ok := n.(*ir.Func); ok && len(fn.Body) != 0 {
-			if stmt := fn.Body[0]; stmt.Typecheck() == 0 {
-				base.FatalfAt(stmt.Pos(), "missed typecheck: %v", stmt)
-			}
-		}
-	}
-
-	base.ExitIfErrors() // just in case
 }
 
 // writePkgStub type checks the given parsed source files,
