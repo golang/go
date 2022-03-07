@@ -305,17 +305,46 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	//
 	// (If the version is +incompatible, then the go.mod file must not exist:
 	// +incompatible is not an ongoing opt-out from semantic import versioning.)
-	var canUseIncompatible func() bool
-	canUseIncompatible = func() bool {
-		var ok bool
-		if r.codeDir == "" && r.pathMajor == "" {
+	incompatibleOk := map[string]bool{}
+	canUseIncompatible := func(v string) bool {
+		if r.codeDir != "" || r.pathMajor != "" {
+			// A non-empty codeDir indicates a module within a subdirectory,
+			// which necessarily has a go.mod file indicating the module boundary.
+			// A non-empty pathMajor indicates a module path with a major-version
+			// suffix, which must match.
+			return false
+		}
+
+		ok, seen := incompatibleOk[""]
+		if !seen {
 			_, errGoMod := r.code.ReadFile(info.Name, "go.mod", codehost.MaxGoMod)
-			if errGoMod != nil {
-				ok = true
+			ok = (errGoMod != nil)
+			incompatibleOk[""] = ok
+		}
+		if !ok {
+			// A go.mod file exists at the repo root.
+			return false
+		}
+
+		// Per https://go.dev/issue/51324, previous versions of the 'go' command
+		// didn't always check for go.mod files in subdirectories, so if the user
+		// requests a +incompatible version explicitly, we should continue to allow
+		// it. Otherwise, if vN/go.mod exists, expect that release tags for that
+		// major version are intended for the vN module.
+		if v != "" && !strings.HasSuffix(statVers, "+incompatible") {
+			major := semver.Major(v)
+			ok, seen = incompatibleOk[major]
+			if !seen {
+				_, errGoModSub := r.code.ReadFile(info.Name, path.Join(major, "go.mod"), codehost.MaxGoMod)
+				ok = (errGoModSub != nil)
+				incompatibleOk[major] = ok
+			}
+			if !ok {
+				return false
 			}
 		}
-		canUseIncompatible = func() bool { return ok }
-		return ok
+
+		return true
 	}
 
 	// checkCanonical verifies that the canonical version v is compatible with the
@@ -367,7 +396,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		base := strings.TrimSuffix(v, "+incompatible")
 		var errIncompatible error
 		if !module.MatchPathMajor(base, r.pathMajor) {
-			if canUseIncompatible() {
+			if canUseIncompatible(base) {
 				v = base + "+incompatible"
 			} else {
 				if r.pathMajor != "" {
@@ -495,7 +524,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		// Save the highest non-retracted canonical tag for the revision.
 		// If we don't find a better match, we'll use it as the canonical version.
 		if tagIsCanonical && semver.Compare(highestCanonical, v) < 0 && !isRetracted(v) {
-			if module.MatchPathMajor(v, r.pathMajor) || canUseIncompatible() {
+			if module.MatchPathMajor(v, r.pathMajor) || canUseIncompatible(v) {
 				highestCanonical = v
 			}
 		}
@@ -513,12 +542,12 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	// retracted versions.
 	allowedMajor := func(major string) func(v string) bool {
 		return func(v string) bool {
-			return (major == "" || semver.Major(v) == major) && !isRetracted(v)
+			return ((major == "" && canUseIncompatible(v)) || semver.Major(v) == major) && !isRetracted(v)
 		}
 	}
 	if pseudoBase == "" {
 		var tag string
-		if r.pseudoMajor != "" || canUseIncompatible() {
+		if r.pseudoMajor != "" || canUseIncompatible("") {
 			tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor(r.pseudoMajor))
 		} else {
 			// Allow either v1 or v0, but not incompatible higher versions.
