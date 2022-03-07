@@ -881,7 +881,7 @@ func (f *fakeDNSPacketConn) Close() error {
 func TestIgnoreDNSForgeries(t *testing.T) {
 	c, s := Pipe()
 	go func() {
-		b := make([]byte, 512)
+		b := make([]byte, maxDNSPacketSize)
 		n, err := s.Read(b)
 		if err != nil {
 			t.Error(err)
