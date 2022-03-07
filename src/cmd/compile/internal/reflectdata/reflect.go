@@ -1819,15 +1819,16 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 
 	newnam := ir.MethodSym(rcvr, method.Sym)
 	lsym := newnam.Linksym()
-	if newnam.Siggen() {
-		return lsym
-	}
-	newnam.SetSiggen(true)
 
 	// Unified IR creates its own wrappers.
 	if base.Debug.Unified != 0 {
 		return lsym
 	}
+
+	if newnam.Siggen() {
+		return lsym
+	}
+	newnam.SetSiggen(true)
 
 	methodrcvr := method.Type.Recv().Type
 	// For generic methods, we need to generate the wrapper even if the receiver

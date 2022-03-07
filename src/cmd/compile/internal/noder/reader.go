@@ -1407,23 +1407,20 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 	init := r.stmt()
 
 	var tag ir.Node
+	var ident *ir.Ident
+	var iface *types.Type
 	if r.Bool() {
 		pos := r.pos()
-		var ident *ir.Ident
 		if r.Bool() {
 			pos := r.pos()
 			sym := typecheck.Lookup(r.String())
 			ident = ir.NewIdent(pos, sym)
 		}
 		x := r.expr()
+		iface = x.Type()
 		tag = ir.NewTypeSwitchGuard(pos, ident, x)
 	} else {
 		tag = r.expr()
-	}
-
-	tswitch, ok := tag.(*ir.TypeSwitchGuard)
-	if ok && tswitch.Tag == nil {
-		tswitch = nil
 	}
 
 	clauses := make([]*ir.CaseClause, r.Len())
@@ -1434,18 +1431,30 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 		r.openScope()
 
 		pos := r.pos()
-		cases := r.exprList()
+		var cases []ir.Node
+		if iface != nil {
+			cases = make([]ir.Node, r.Len())
+			if len(cases) == 0 {
+				cases = nil // TODO(mdempsky): Unclear if this matters.
+			}
+			for i := range cases {
+				cases[i] = r.exprType(iface, true)
+			}
+		} else {
+			cases = r.exprList()
+		}
 
 		clause := ir.NewCaseStmt(pos, cases, nil)
-		if tswitch != nil {
+
+		if ident != nil {
 			pos := r.pos()
 			typ := r.typ()
 
-			name := ir.NewNameAt(pos, tswitch.Tag.Sym())
+			name := ir.NewNameAt(pos, ident.Sym())
 			setType(name, typ)
 			r.addLocal(name, ir.PAUTO)
 			clause.Var = name
-			name.Defn = tswitch
+			name.Defn = tag
 		}
 
 		clause.Body = r.stmts()
@@ -1529,10 +1538,7 @@ func (r *reader) expr() (res ir.Node) {
 		return typecheck.Callee(r.obj())
 
 	case exprType:
-		// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
-		n := ir.TypeNode(r.typ())
-		n.SetTypecheck(1)
-		return n
+		return r.exprType(nil, false)
 
 	case exprConst:
 		pos := r.pos()
@@ -1552,6 +1558,15 @@ func (r *reader) expr() (res ir.Node) {
 		x := r.expr()
 		pos := r.pos()
 		_, sym := r.selector()
+
+		// Method expression with derived receiver type.
+		if x.Op() == ir.ODYNAMICTYPE {
+			// TODO(mdempsky): Handle with runtime dictionary lookup.
+			n := ir.TypeNode(x.Type())
+			n.SetTypecheck(1)
+			x = n
+		}
+
 		n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
 		if n.Op() == ir.OMETHVALUE {
 			wrapper := methodValueWrapper{
@@ -1588,8 +1603,12 @@ func (r *reader) expr() (res ir.Node) {
 	case exprAssert:
 		x := r.expr()
 		pos := r.pos()
-		typ := r.expr().(ir.Ntype)
-		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ))
+		typ := r.exprType(x.Type(), false)
+
+		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
+			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
+		}
+		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.(ir.Ntype)))
 
 	case exprUnaryOp:
 		op := r.op()
@@ -1732,6 +1751,44 @@ func (r *reader) exprs() []ir.Node {
 		nodes[i] = r.expr()
 	}
 	return nodes
+}
+
+func (r *reader) exprType(iface *types.Type, nilOK bool) ir.Node {
+	if iface != nil {
+		base.Assertf(iface.IsInterface(), "%L must be an interface type", iface)
+	}
+
+	r.Sync(pkgbits.SyncExprType)
+
+	if nilOK && r.Bool() {
+		return typecheck.Expr(types.BuiltinPkg.Lookup("nil").Def.(*ir.NilExpr))
+	}
+
+	pos := r.pos()
+	info := r.typInfo()
+	typ := r.p.typIdx(info, r.dict, true)
+
+	if info.derived {
+		// TODO(mdempsky): Handle with runtime dictionary lookup.
+
+		var lsym *obj.LSym
+
+		// For assertions from non-empty interfaces to non-interfaces,
+		// we need the ITab instead.
+		if iface != nil && !iface.IsEmptyInterface() && !typ.IsInterface() {
+			lsym = reflectdata.ITabLsym(typ, iface)
+		} else {
+			lsym = reflectdata.TypeLinksym(typ)
+		}
+
+		ptr := typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+		return typed(typ, ir.NewDynamicType(pos, ptr))
+	}
+
+	// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
+	n := ir.TypeNode(typ)
+	n.SetTypecheck(1)
+	return n
 }
 
 func (r *reader) op() ir.Op {

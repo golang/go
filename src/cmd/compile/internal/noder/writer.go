@@ -1073,7 +1073,12 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 	w.pos(stmt)
 	w.stmt(stmt.Init)
 
+	var iface types2.Type
 	if guard, ok := stmt.Tag.(*syntax.TypeSwitchGuard); w.Bool(ok) {
+		tv, ok := w.p.info.Types[guard.X]
+		assert(ok && tv.IsValue())
+		iface = tv.Type
+
 		w.pos(guard)
 		if tag := guard.Lhs; w.Bool(tag != nil) {
 			w.pos(tag)
@@ -1092,7 +1097,16 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		w.openScope(clause.Pos())
 
 		w.pos(clause)
-		w.exprList(clause.Cases)
+
+		if iface != nil {
+			cases := unpackListExpr(clause.Cases)
+			w.Len(len(cases))
+			for _, cas := range cases {
+				w.exprType(iface, cas, true)
+			}
+		} else {
+			w.exprList(clause.Cases)
+		}
 
 		if obj, ok := w.p.info.Implicits[clause]; ok {
 			// TODO(mdempsky): These pos details are quirkish, but also
@@ -1152,13 +1166,13 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		if tv.IsType() {
 			w.Code(exprType)
-			w.typ(tv.Type)
+			w.exprType(nil, expr, false)
 			return
 		}
 
 		if tv.Value != nil {
 			w.Code(exprConst)
-			w.pos(expr.Pos())
+			w.pos(expr)
 			w.typ(tv.Type)
 			w.Value(tv.Value)
 
@@ -1232,10 +1246,13 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 
 	case *syntax.AssertExpr:
+		tv, ok := w.p.info.Types[expr.X]
+		assert(ok && tv.IsValue())
+
 		w.Code(exprAssert)
 		w.expr(expr.X)
 		w.pos(expr)
-		w.expr(expr.Type)
+		w.exprType(tv.Type, expr.Type, false)
 
 	case *syntax.Operation:
 		if expr.Y == nil {
@@ -1368,6 +1385,26 @@ func (w *writer) exprs(exprs []syntax.Expr) {
 	for _, expr := range exprs {
 		w.expr(expr)
 	}
+}
+
+func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
+	if iface != nil {
+		_, ok := iface.Underlying().(*types2.Interface)
+		base.Assertf(ok, "%v must be an interface type", iface)
+	}
+
+	tv, ok := w.p.info.Types[typ]
+	assert(ok)
+
+	w.Sync(pkgbits.SyncExprType)
+
+	if nilOK && w.Bool(tv.IsNil()) {
+		return
+	}
+
+	assert(tv.IsType())
+	w.pos(typ)
+	w.typ(tv.Type)
 }
 
 func (w *writer) op(op ir.Op) {
