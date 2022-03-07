@@ -11,6 +11,28 @@ import (
 	"unsafe"
 )
 
+// throwType indicates the current type of ongoing throw, which affects the
+// amount of detail printed to stderr. Higher values include more detail.
+type throwType uint32
+
+const (
+	// throwTypeNone means that we are not throwing.
+	throwTypeNone throwType = iota
+
+	// throwTypeUser is a throw due to a problem with the application.
+	//
+	// These throws do not include runtime frames, system goroutines, or
+	// frame metadata.
+	throwTypeUser
+
+	// throwTypeRuntime is a throw due to a problem with Go itself.
+	//
+	// These throws include as much information as possible to aid in
+	// debugging the runtime, including runtime frames, system goroutines,
+	// and frame metadata.
+	throwTypeRuntime
+)
+
 // We have two different ways of doing defers. The older way involves creating a
 // defer record at the time that a defer statement is executing and adding it to a
 // defer chain. This chain is inspected by the deferreturn call at all function
@@ -1003,13 +1025,16 @@ func throw(s string) {
 		print("fatal error: ", s, "\n")
 	})
 
-	fatalthrow()
+	fatalthrow(throwTypeRuntime)
 }
 
 // fatal triggers a fatal error that dumps a stack trace and exits.
 //
 // fatal is equivalent to throw, but is used when user code is expected to be
 // at fault for the failure, such as racing map writes.
+//
+// fatal does not include runtime frames, system goroutines, or frame metadata
+// (fp, sp, pc) in the stack trace unless GOTRACEBACK=system or higher.
 //go:nosplit
 func fatal(s string) {
 	// Everything fatal does should be recursively nosplit so it
@@ -1018,7 +1043,7 @@ func fatal(s string) {
 		print("fatal error: ", s, "\n")
 	})
 
-	fatalthrow()
+	fatalthrow(throwTypeUser)
 }
 
 // runningPanicDefers is non-zero while running deferred functions for panic.
@@ -1063,13 +1088,13 @@ func recovery(gp *g) {
 // process.
 //
 //go:nosplit
-func fatalthrow() {
+func fatalthrow(t throwType) {
 	pc := getcallerpc()
 	sp := getcallersp()
 	gp := getg()
 
-	if gp.m.throwing == 0 {
-		gp.m.throwing = 1
+	if gp.m.throwing == throwTypeNone {
+		gp.m.throwing = t
 	}
 
 	// Switch to the system stack to avoid any stack growth, which may make
@@ -1216,7 +1241,7 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 			print("\n")
 			goroutineheader(gp)
 			traceback(pc, sp, 0, gp)
-		} else if level >= 2 || _g_.m.throwing > 0 {
+		} else if level >= 2 || _g_.m.throwing >= throwTypeRuntime {
 			print("\nruntime stack:\n")
 			traceback(pc, sp, 0, gp)
 		}
@@ -1258,7 +1283,7 @@ func canpanic(gp *g) bool {
 	if gp == nil || gp != mp.curg {
 		return false
 	}
-	if mp.locks != 0 || mp.mallocing != 0 || mp.throwing != 0 || mp.preemptoff != "" || mp.dying != 0 {
+	if mp.locks != 0 || mp.mallocing != 0 || mp.throwing != throwTypeNone || mp.preemptoff != "" || mp.dying != 0 {
 		return false
 	}
 	status := readgstatus(gp)
