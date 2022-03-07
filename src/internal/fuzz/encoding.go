@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"math"
 	"strconv"
+	"unicode/utf8"
 )
 
 // encVersion1 will be the first line of a file with version 1 encoding.
@@ -32,21 +33,60 @@ func marshalCorpusFile(vals ...any) []byte {
 			fmt.Fprintf(b, "%T(%v)\n", t, t)
 		case float32:
 			if math.IsNaN(float64(t)) && math.Float32bits(t) != math.Float32bits(float32(math.NaN())) {
-				fmt.Fprintf(b, "math.Float32frombits(%v)\n", math.Float32bits(t))
+				// We encode unusual NaNs as hex values, because that is how users are
+				// likely to encounter them in literature about floating-point encoding.
+				// This allows us to reproduce fuzz failures that depend on the specific
+				// NaN representation (for float32 there are about 2^24 possibilities!),
+				// not just the fact that the value is *a* NaN.
+				//
+				// Note that the specific value of float32(math.NaN()) can vary based on
+				// whether the architecture represents signaling NaNs using a low bit
+				// (as is common) or a high bit (as commonly implemented on MIPS
+				// hardware before around 2012). We believe that the increase in clarity
+				// from identifying "NaN" with math.NaN() is worth the slight ambiguity
+				// from a platform-dependent value.
+				fmt.Fprintf(b, "math.Float32frombits(0x%x)\n", math.Float32bits(t))
 			} else {
+				// We encode all other values — including the NaN value that is
+				// bitwise-identical to float32(math.Nan()) — using the default
+				// formatting, which is equivalent to strconv.FormatFloat with format
+				// 'g' and can be parsed by strconv.ParseFloat.
+				//
+				// For an ordinary floating-point number this format includes
+				// sufficiently many digits to reconstruct the exact value. For positive
+				// or negative infinity it is the string "+Inf" or "-Inf". For positive
+				// or negative zero it is "0" or "-0". For NaN, it is the string "NaN".
 				fmt.Fprintf(b, "%T(%v)\n", t, t)
 			}
 		case float64:
 			if math.IsNaN(t) && math.Float64bits(t) != math.Float64bits(math.NaN()) {
-				fmt.Fprintf(b, "math.Float64frombits(%v)\n", math.Float64bits(t))
+				fmt.Fprintf(b, "math.Float64frombits(0x%x)\n", math.Float64bits(t))
 			} else {
 				fmt.Fprintf(b, "%T(%v)\n", t, t)
 			}
 		case string:
 			fmt.Fprintf(b, "string(%q)\n", t)
 		case rune: // int32
-			fmt.Fprintf(b, "rune(%q)\n", t)
+			// Although rune and int32 are represented by the same type, only a subset
+			// of valid int32 values can be expressed as rune literals. Notably,
+			// negative numbers, surrogate halves, and values above unicode.MaxRune
+			// have no quoted representation.
+			//
+			// fmt with "%q" (and the corresponding functions in the strconv package)
+			// would quote out-of-range values to the Unicode replacement character
+			// instead of the original value (see https://go.dev/issue/51526), so
+			// they must be treated as int32 instead.
+			//
+			// We arbitrarily draw the line at UTF-8 validity, which biases toward the
+			// "rune" interpretation. (However, we accept either format as input.)
+			if utf8.ValidRune(t) {
+				fmt.Fprintf(b, "rune(%q)\n", t)
+			} else {
+				fmt.Fprintf(b, "int32(%v)\n", t)
+			}
 		case byte: // uint8
+			// For bytes, we arbitrarily prefer the character interpretation.
+			// (Every byte has a valid character encoding.)
 			fmt.Fprintf(b, "byte(%q)\n", t)
 		case []byte: // []uint8
 			fmt.Fprintf(b, "[]byte(%q)\n", t)
@@ -199,6 +239,14 @@ func parseCorpusValue(line []byte) (any, error) {
 		}
 		return strconv.Unquote(val)
 	case "byte", "rune":
+		if kind == token.INT {
+			switch typ {
+			case "rune":
+				return parseInt(val, typ)
+			case "byte":
+				return parseUint(val, typ)
+			}
+		}
 		if kind != token.CHAR {
 			return nil, fmt.Errorf("character literal required for byte/rune types")
 		}
@@ -265,18 +313,24 @@ func parseCorpusValue(line []byte) (any, error) {
 func parseInt(val, typ string) (any, error) {
 	switch typ {
 	case "int":
-		return strconv.Atoi(val)
+		// The int type may be either 32 or 64 bits. If 32, the fuzz tests in the
+		// corpus may include 64-bit values produced by fuzzing runs on 64-bit
+		// architectures. When running those tests, we implicitly wrap the values to
+		// fit in a regular int. (The test case is still “interesting”, even if the
+		// specific values of its inputs are platform-dependent.)
+		i, err := strconv.ParseInt(val, 0, 64)
+		return int(i), err
 	case "int8":
-		i, err := strconv.ParseInt(val, 10, 8)
+		i, err := strconv.ParseInt(val, 0, 8)
 		return int8(i), err
 	case "int16":
-		i, err := strconv.ParseInt(val, 10, 16)
+		i, err := strconv.ParseInt(val, 0, 16)
 		return int16(i), err
-	case "int32":
-		i, err := strconv.ParseInt(val, 10, 32)
+	case "int32", "rune":
+		i, err := strconv.ParseInt(val, 0, 32)
 		return int32(i), err
 	case "int64":
-		return strconv.ParseInt(val, 10, 64)
+		return strconv.ParseInt(val, 0, 64)
 	default:
 		panic("unreachable")
 	}
@@ -286,19 +340,19 @@ func parseInt(val, typ string) (any, error) {
 func parseUint(val, typ string) (any, error) {
 	switch typ {
 	case "uint":
-		i, err := strconv.ParseUint(val, 10, 0)
+		i, err := strconv.ParseUint(val, 0, 64)
 		return uint(i), err
-	case "uint8":
-		i, err := strconv.ParseUint(val, 10, 8)
+	case "uint8", "byte":
+		i, err := strconv.ParseUint(val, 0, 8)
 		return uint8(i), err
 	case "uint16":
-		i, err := strconv.ParseUint(val, 10, 16)
+		i, err := strconv.ParseUint(val, 0, 16)
 		return uint16(i), err
 	case "uint32":
-		i, err := strconv.ParseUint(val, 10, 32)
+		i, err := strconv.ParseUint(val, 0, 32)
 		return uint32(i), err
 	case "uint64":
-		return strconv.ParseUint(val, 10, 64)
+		return strconv.ParseUint(val, 0, 64)
 	default:
 		panic("unreachable")
 	}
