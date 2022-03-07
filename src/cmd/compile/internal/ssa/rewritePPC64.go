@@ -14140,12 +14140,12 @@ func rewriteValuePPC64_OpPrefetchCacheStreamed(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (PrefetchCacheStreamed ptr mem)
-	// result: (DCBT ptr mem [8])
+	// result: (DCBT ptr mem [16])
 	for {
 		ptr := v_0
 		mem := v_1
 		v.reset(OpPPC64DCBT)
-		v.AuxInt = int64ToAuxInt(8)
+		v.AuxInt = int64ToAuxInt(16)
 		v.AddArg2(ptr, mem)
 		return true
 	}
