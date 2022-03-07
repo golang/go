@@ -107,7 +107,7 @@ func (s WaitableServer) Hover(ctx context.Context, _ *protocol.HoverParams) (_ *
 	return &protocol.Hover{}, nil
 }
 
-func (s WaitableServer) Resolve(_ context.Context, item *protocol.CompletionItem) (*protocol.CompletionItem, error) {
+func (s WaitableServer) ResolveCompletionItem(_ context.Context, item *protocol.CompletionItem) (*protocol.CompletionItem, error) {
 	return item, nil
 }
 

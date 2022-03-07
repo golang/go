@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Code generated (see typescript/README.md) DO NOT EDIT.
+
 package protocol
 
-// Package protocol contains data types and code for LSP jsonrpcs
+// Package protocol contains data types and code for LSP json rpcs
 // generated automatically from vscode-languageserver-node
-// commit: f17727af04704c0e2ede73dfdbeb463156e94561
-// last fetched Thu Feb 10 2022 14:34:11 GMT-0700 (Mountain Standard Time)
-
-// Code generated (see typescript/README.md) DO NOT EDIT.
+// commit: 696f9285bf849b73745682fdb1c1feac73eb8772
+// last fetched Fri Mar 04 2022 14:48:10 GMT-0500 (Eastern Standard Time)
 
 import (
 	"context"
@@ -36,6 +36,7 @@ type Server interface {
 	DidChangeWatchedFiles(context.Context, *DidChangeWatchedFilesParams) error
 	DidOpenNotebookDocument(context.Context, *DidOpenNotebookDocumentParams) error
 	DidChangeNotebookDocument(context.Context, *DidChangeNotebookDocumentParams) error
+	DidSaveNotebookDocument(context.Context, *DidSaveNotebookDocumentParams) error
 	DidCloseNotebookDocument(context.Context, *DidCloseNotebookDocumentParams) error
 	SetTrace(context.Context, *SetTraceParams) error
 	LogTrace(context.Context, *LogTraceParams) error
@@ -61,13 +62,16 @@ type Server interface {
 	PrepareTypeHierarchy(context.Context, *TypeHierarchyPrepareParams) ([]TypeHierarchyItem /*TypeHierarchyItem[] | null*/, error)
 	Supertypes(context.Context, *TypeHierarchySupertypesParams) ([]TypeHierarchyItem /*TypeHierarchyItem[] | null*/, error)
 	Subtypes(context.Context, *TypeHierarchySubtypesParams) ([]TypeHierarchyItem /*TypeHierarchyItem[] | null*/, error)
-	InlineValues(context.Context, *InlineValuesParams) ([]InlineValue /*InlineValue[] | null*/, error)
-	InlineValuesRefresh(context.Context) error
+	InlineValue(context.Context, *InlineValueParams) ([]InlineValue /*InlineValue[] | null*/, error)
+	InlineValueRefresh(context.Context) error
+	InlayHint(context.Context, *InlayHintParams) ([]InlayHint /*InlayHint[] | null*/, error)
+	Resolve(context.Context, *InlayHint) (*InlayHint, error)
+	InlayHintRefresh(context.Context) error
 	Initialize(context.Context, *ParamInitialize) (*InitializeResult, error)
 	Shutdown(context.Context) error
 	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit /*TextEdit[] | null*/, error)
 	Completion(context.Context, *CompletionParams) (*CompletionList /*CompletionItem[] | CompletionList | null*/, error)
-	Resolve(context.Context, *CompletionItem) (*CompletionItem, error)
+	ResolveCompletionItem(context.Context, *CompletionItem) (*CompletionItem, error)
 	Hover(context.Context, *HoverParams) (*Hover /*Hover | null*/, error)
 	SignatureHelp(context.Context, *SignatureHelpParams) (*SignatureHelp /*SignatureHelp | null*/, error)
 	Definition(context.Context, *DefinitionParams) (Definition /*Definition | DefinitionLink[] | null*/, error)
@@ -87,7 +91,7 @@ type Server interface {
 	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error)
 	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error)
 	Rename(context.Context, *RenameParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
-	PrepareRename(context.Context, *PrepareRenameParams) (*PrepareRename2Gn /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/, error)
+	PrepareRename(context.Context, *PrepareRenameParams) (*PrepareRename2Gn /*Range | { range: Range; placeholder: string } | { defaultBehavior: boolean } | null*/, error)
 	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{} /* LSPAny | void | float64*/, error)
 	Diagnostic(context.Context, *string) (*string, error)
 	DiagnosticWorkspace(context.Context, *WorkspaceDiagnosticParams) (*WorkspaceDiagnosticReport, error)
@@ -204,6 +208,13 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 			return true, sendParseError(ctx, reply, err)
 		}
 		err := server.DidChangeNotebookDocument(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "notebookDocument/didSave": // notif
+		var params DidSaveNotebookDocumentParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := server.DidSaveNotebookDocument(ctx, &params)
 		return true, reply(ctx, nil, err)
 	case "notebookDocument/didClose": // notif
 		var params DidCloseNotebookDocumentParams
@@ -379,18 +390,38 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		}
 		resp, err := server.Subtypes(ctx, &params)
 		return true, reply(ctx, resp, err)
-	case "textDocument/inlineValues": // req
-		var params InlineValuesParams
+	case "textDocument/inlineValue": // req
+		var params InlineValueParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
 			return true, sendParseError(ctx, reply, err)
 		}
-		resp, err := server.InlineValues(ctx, &params)
+		resp, err := server.InlineValue(ctx, &params)
 		return true, reply(ctx, resp, err)
-	case "workspace/inlineValues/refresh": // req
+	case "workspace/inlineValue/refresh": // req
 		if len(r.Params()) > 0 {
 			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
-		err := server.InlineValuesRefresh(ctx)
+		err := server.InlineValueRefresh(ctx)
+		return true, reply(ctx, nil, err)
+	case "textDocument/inlayHint": // req
+		var params InlayHintParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.InlayHint(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "inlayHint/resolve": // req
+		var params InlayHint
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.Resolve(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "workspace/inlayHint/refresh": // req
+		if len(r.Params()) > 0 {
+			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+		}
+		err := server.InlayHintRefresh(ctx)
 		return true, reply(ctx, nil, err)
 	case "initialize": // req
 		var params ParamInitialize
@@ -426,7 +457,7 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
 			return true, sendParseError(ctx, reply, err)
 		}
-		resp, err := server.Resolve(ctx, &params)
+		resp, err := server.ResolveCompletionItem(ctx, &params)
 		return true, reply(ctx, resp, err)
 	case "textDocument/hover": // req
 		var params HoverParams
@@ -664,6 +695,10 @@ func (s *serverDispatcher) DidChangeNotebookDocument(ctx context.Context, params
 	return s.sender.Notify(ctx, "notebookDocument/didChange", params)
 }
 
+func (s *serverDispatcher) DidSaveNotebookDocument(ctx context.Context, params *DidSaveNotebookDocumentParams) error {
+	return s.sender.Notify(ctx, "notebookDocument/didSave", params)
+}
+
 func (s *serverDispatcher) DidCloseNotebookDocument(ctx context.Context, params *DidCloseNotebookDocumentParams) error {
 	return s.sender.Notify(ctx, "notebookDocument/didClose", params)
 }
@@ -847,16 +882,36 @@ func (s *serverDispatcher) Subtypes(ctx context.Context, params *TypeHierarchySu
 	return result, nil
 }
 
-func (s *serverDispatcher) InlineValues(ctx context.Context, params *InlineValuesParams) ([]InlineValue /*InlineValue[] | null*/, error) {
+func (s *serverDispatcher) InlineValue(ctx context.Context, params *InlineValueParams) ([]InlineValue /*InlineValue[] | null*/, error) {
 	var result []InlineValue /*InlineValue[] | null*/
-	if err := s.sender.Call(ctx, "textDocument/inlineValues", params, &result); err != nil {
+	if err := s.sender.Call(ctx, "textDocument/inlineValue", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *serverDispatcher) InlineValuesRefresh(ctx context.Context) error {
-	return s.sender.Call(ctx, "workspace/inlineValues/refresh", nil, nil)
+func (s *serverDispatcher) InlineValueRefresh(ctx context.Context) error {
+	return s.sender.Call(ctx, "workspace/inlineValue/refresh", nil, nil)
+}
+
+func (s *serverDispatcher) InlayHint(ctx context.Context, params *InlayHintParams) ([]InlayHint /*InlayHint[] | null*/, error) {
+	var result []InlayHint /*InlayHint[] | null*/
+	if err := s.sender.Call(ctx, "textDocument/inlayHint", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) Resolve(ctx context.Context, params *InlayHint) (*InlayHint, error) {
+	var result *InlayHint
+	if err := s.sender.Call(ctx, "inlayHint/resolve", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) InlayHintRefresh(ctx context.Context) error {
+	return s.sender.Call(ctx, "workspace/inlayHint/refresh", nil, nil)
 }
 
 func (s *serverDispatcher) Initialize(ctx context.Context, params *ParamInitialize) (*InitializeResult, error) {
@@ -887,7 +942,7 @@ func (s *serverDispatcher) Completion(ctx context.Context, params *CompletionPar
 	return result, nil
 }
 
-func (s *serverDispatcher) Resolve(ctx context.Context, params *CompletionItem) (*CompletionItem, error) {
+func (s *serverDispatcher) ResolveCompletionItem(ctx context.Context, params *CompletionItem) (*CompletionItem, error) {
 	var result *CompletionItem
 	if err := s.sender.Call(ctx, "completionItem/resolve", params, &result); err != nil {
 		return nil, err
@@ -1043,8 +1098,8 @@ func (s *serverDispatcher) Rename(ctx context.Context, params *RenameParams) (*W
 	return result, nil
 }
 
-func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRenameParams) (*PrepareRename2Gn /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/, error) {
-	var result *PrepareRename2Gn /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/
+func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRenameParams) (*PrepareRename2Gn /*Range | { range: Range; placeholder: string } | { defaultBehavior: boolean } | null*/, error) {
+	var result *PrepareRename2Gn /*Range | { range: Range; placeholder: string } | { defaultBehavior: boolean } | null*/
 	if err := s.sender.Call(ctx, "textDocument/prepareRename", params, &result); err != nil {
 		return nil, err
 	}

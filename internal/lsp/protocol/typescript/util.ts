@@ -15,7 +15,7 @@ export const fnames = [
   `${dir}/${srcDir}/protocol/src/browser/main.ts`, `${dir}${srcDir}/types/src/main.ts`,
   `${dir}${srcDir}/jsonrpc/src/node/main.ts`
 ];
-export const gitHash = 'f17727af04704c0e2ede73dfdbeb463156e94561';
+export const gitHash = '696f9285bf849b73745682fdb1c1feac73eb8772';
 let outFname = 'tsprotocol.go';
 let fda: number, fdb: number, fde: number;  // file descriptors
 
@@ -72,17 +72,17 @@ export function computeHeader(pkgDoc: boolean): string {
 
   `;
   const a =
-    '// Package protocol contains data types and code for LSP jsonrpcs\n' +
+    '// Package protocol contains data types and code for LSP json rpcs\n' +
     '// generated automatically from vscode-languageserver-node\n' +
     `// commit: ${gitHash}\n` +
     `// last fetched ${lastDate}\n`;
   const b = 'package protocol\n';
   const c = '\n// Code generated (see typescript/README.md) DO NOT EDIT.\n\n';
   if (pkgDoc) {
-    return cp + a + b + c;
+    return cp + c + a + b;
   }
   else {
-    return cp + b + a + c;
+    return cp + c+ b + a;
   }
 }
 

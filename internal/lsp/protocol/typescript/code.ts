@@ -596,12 +596,17 @@ function addToProperties(pm: propMap, tn: ts.TypeNode | undefined, prefix = '') 
       addToProperties(pm, ps.type, name);
     });
   } else if (strKind(tn) === 'TypeLiteral') {
-    if (!ts.isTypeLiteralNode(tn)) new Error(`598 ${strKind(tn)}`);
+    if (!ts.isTypeLiteralNode(tn)) new Error(`599 ${strKind(tn)}`);
     tn.forEachChild((child: ts.Node) => {
-      if (!ts.isPropertySignature(child)) throw new Error(`600 ${strKind(child)}`);
-      const name = `${prefix}.${child.name.getText()}`;
-      propMapSet(pm, name, child);
-      addToProperties(pm, child.type, name);
+      if (ts.isPropertySignature(child)) {
+        const name = `${prefix}.${child.name.getText()}`;
+        propMapSet(pm, name, child);
+        addToProperties(pm, child.type, name);
+      } else if (!ts.isIndexSignatureDeclaration(child)) {
+        // ignoring IndexSignatures, seen as relatedDocument in
+        // RelatedFullDocumentDiagnosticReport
+        throw new Error(`608 ${strKind(child)} ${loc(child)}`);
+      }
     });
   }
 }

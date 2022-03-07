@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Code generated (see typescript/README.md) DO NOT EDIT.
+
 package protocol
 
-// Package protocol contains data types and code for LSP jsonrpcs
+// Package protocol contains data types and code for LSP json rpcs
 // generated automatically from vscode-languageserver-node
-// commit: f17727af04704c0e2ede73dfdbeb463156e94561
-// last fetched Thu Feb 10 2022 14:34:11 GMT-0700 (Mountain Standard Time)
-
-// Code generated (see typescript/README.md) DO NOT EDIT.
+// commit: 696f9285bf849b73745682fdb1c1feac73eb8772
+// last fetched Fri Mar 04 2022 14:48:10 GMT-0500 (Eastern Standard Time)
 
 import (
 	"context"

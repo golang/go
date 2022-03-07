@@ -104,6 +104,10 @@ func (s *Server) DidSave(ctx context.Context, params *protocol.DidSaveTextDocume
 	return s.didSave(ctx, params)
 }
 
+func (s *Server) DidSaveNotebookDocument(context.Context, *protocol.DidSaveNotebookDocumentParams) error {
+	return notImplemented("DidSaveNotebookDocument")
+}
+
 func (s *Server) DocumentColor(context.Context, *protocol.DocumentColorParams) ([]protocol.ColorInformation, error) {
 	return nil, notImplemented("DocumentColor")
 }
@@ -156,12 +160,20 @@ func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedPa
 	return s.initialized(ctx, params)
 }
 
-func (s *Server) InlineValues(context.Context, *protocol.InlineValuesParams) ([]protocol.InlineValue, error) {
-	return nil, notImplemented("InlineValues")
+func (s *Server) InlayHint(context.Context, *protocol.InlayHintParams) ([]protocol.InlayHint, error) {
+	return nil, notImplemented("InlayHint")
 }
 
-func (s *Server) InlineValuesRefresh(context.Context) error {
-	return notImplemented("InlineValuesRefresh")
+func (s *Server) InlayHintRefresh(context.Context) error {
+	return notImplemented("InlayHintRefresh")
+}
+
+func (s *Server) InlineValue(context.Context, *protocol.InlineValueParams) ([]protocol.InlineValue, error) {
+	return nil, notImplemented("InlineValue")
+}
+
+func (s *Server) InlineValueRefresh(context.Context) error {
+	return notImplemented("InlineValueRefresh")
 }
 
 func (s *Server) LinkedEditingRange(context.Context, *protocol.LinkedEditingRangeParams) (*protocol.LinkedEditingRanges, error) {
@@ -212,7 +224,7 @@ func (s *Server) Rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	return s.rename(ctx, params)
 }
 
-func (s *Server) Resolve(context.Context, *protocol.CompletionItem) (*protocol.CompletionItem, error) {
+func (s *Server) Resolve(context.Context, *protocol.InlayHint) (*protocol.InlayHint, error) {
 	return nil, notImplemented("Resolve")
 }
 
@@ -222,6 +234,10 @@ func (s *Server) ResolveCodeAction(context.Context, *protocol.CodeAction) (*prot
 
 func (s *Server) ResolveCodeLens(context.Context, *protocol.CodeLens) (*protocol.CodeLens, error) {
 	return nil, notImplemented("ResolveCodeLens")
+}
+
+func (s *Server) ResolveCompletionItem(context.Context, *protocol.CompletionItem) (*protocol.CompletionItem, error) {
+	return nil, notImplemented("ResolveCompletionItem")
 }
 
 func (s *Server) ResolveDocumentLink(context.Context, *protocol.DocumentLink) (*protocol.DocumentLink, error) {

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package protocol contains data types and code for LSP jsonrpcs
-// generated automatically from vscode-languageserver-node
-// commit: f17727af04704c0e2ede73dfdbeb463156e94561
-// last fetched Thu Feb 10 2022 14:34:11 GMT-0700 (Mountain Standard Time)
-package protocol
-
 // Code generated (see typescript/README.md) DO NOT EDIT.
+
+// Package protocol contains data types and code for LSP json rpcs
+// generated automatically from vscode-languageserver-node
+// commit: 696f9285bf849b73745682fdb1c1feac73eb8772
+// last fetched Fri Mar 04 2022 14:48:10 GMT-0500 (Eastern Standard Time)
+package protocol
 
 import "encoding/json"
 
@@ -739,10 +739,6 @@ type CompletionClientCapabilities struct {
 		 * Client supports the preselect property on a completion item.
 		 */
 		PreselectSupport bool `json:"preselectSupport,omitempty"`
-		/**
-		 * Client supports to kee
-		 */
-
 		/**
 		 * Client supports the tag property on a completion item. Clients supporting
 		 * tags have to handle unknown tags gracefully. Clients especially need to
@@ -1478,10 +1474,17 @@ type DidChangeConfigurationParams struct {
 	Settings LSPAny `json:"settings"`
 }
 
-type DidChangeNotebookDocumentParams struct {
+/**
+ * The params sent in a change notebook document notification.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type DidChangeNotebookDocumentParams = struct {
 	/**
 	 * The notebook document that did change. The version number points
-	 * to the version after all provided changes have been applied.
+	 * to the version after all provided changes have been applied. If
+	 * only the text document content of a cell changes the notebook version
+	 * doesn't necessarily have to change.
 	 */
 	NotebookDocument VersionedNotebookDocumentIdentifier `json:"notebookDocument"`
 	/**
@@ -1499,7 +1502,7 @@ type DidChangeNotebookDocumentParams struct {
 	 * - apply the `NotebookChangeEvent`s in a single notification in the order
 	 *   you receive them.
 	 */
-	Changes []NotebookDocumentChangeEvent `json:"changes"`
+	Change NotebookDocumentChangeEvent `json:"change"`
 }
 
 /**
@@ -1572,11 +1575,16 @@ type DidChangeWorkspaceFoldersParams struct {
  *
  * @since 3.17.0 - proposed state
  */
-type DidCloseNotebookDocumentParams struct {
+type DidCloseNotebookDocumentParams = struct {
 	/**
-	 * The notebook document that got opened.
+	 * The notebook document that got closed.
 	 */
 	NotebookDocument NotebookDocumentIdentifier `json:"notebookDocument"`
+	/**
+	 * The text documents that represent the content
+	 * of a notebook cell that got closed.
+	 */
+	CellTextDocuments []TextDocumentIdentifier `json:"cellTextDocuments"`
 }
 
 /**
@@ -1594,11 +1602,16 @@ type DidCloseTextDocumentParams struct {
  *
  * @since 3.17.0 - proposed state
  */
-type DidOpenNotebookDocumentParams struct {
+type DidOpenNotebookDocumentParams = struct {
 	/**
 	 * The notebook document that got opened.
 	 */
 	NotebookDocument NotebookDocument `json:"notebookDocument"`
+	/**
+	 * The text documents that represent the content
+	 * of a notebook cell.
+	 */
+	CellTextDocuments []TextDocumentItem `json:"cellTextDocuments"`
 }
 
 /**
@@ -1609,6 +1622,18 @@ type DidOpenTextDocumentParams struct {
 	 * The document that was opened.
 	 */
 	TextDocument TextDocumentItem `json:"textDocument"`
+}
+
+/**
+ * The params sent in a save notebook document notification.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type DidSaveNotebookDocumentParams = struct {
+	/**
+	 * The notebook document that got saved.
+	 */
+	NotebookDocument NotebookDocumentIdentifier `json:"notebookDocument"`
 }
 
 /**
@@ -1664,6 +1689,15 @@ type DocumentColorRegistrationOptions struct {
  */
 type DocumentDiagnosticParams struct {
 	/**
+	 * An optional token that a server can use to report work done progress.
+	 */
+	WorkDoneToken ProgressToken `json:"workDoneToken,omitempty"`
+	/**
+	 * An optional token that a server can use to report partial results (e.g. streaming) to
+	 * the client.
+	 */
+	PartialResultToken ProgressToken `json:"partialResultToken,omitempty"`
+	/**
 	 * The text document.
 	 */
 	TextDocument TextDocumentIdentifier `json:"textDocument"`
@@ -1675,8 +1709,6 @@ type DocumentDiagnosticParams struct {
 	 * The result id of a previous response if provided.
 	 */
 	PreviousResultID string `json:"previousResultId,omitempty"`
-	WorkDoneProgressParams
-	PartialResultParams
 }
 
 /**
@@ -2103,6 +2135,20 @@ type ExecuteCommandParams struct {
 	WorkDoneProgressParams
 }
 
+type ExecutionSummary = struct {
+	/**
+	 * A strict monotonically increasing value
+	 * indicating the execution order of a cell
+	 * inside a notebook.
+	 */
+	ExecutionOrder uint32 `json:"executionOrder"`
+	/**
+	 * Whether the execution was successful or
+	 * not if known by the client.
+	 */
+	Success bool `json:"success,omitempty"`
+}
+
 type FailureHandlingKind string
 
 /**
@@ -2446,7 +2492,7 @@ type FormattingOptions struct {
  *
  * @since 3.17.0 - proposed state
  */
-type FullDocumentDiagnosticReport struct {
+type FullDocumentDiagnosticReport = struct {
 	/**
 	 * A full document diagnostic report.
 	 */
@@ -2677,6 +2723,195 @@ type InitializedParams struct {
 }
 
 /**
+ * Inlay hint information.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlayHint = struct {
+	/**
+	 * The position of this hint.
+	 */
+	Position *Position `json:"position"`
+	/**
+	 * The label of this hint. A human readable string or an array of
+	 * InlayHintLabelPart label parts.
+	 *
+	 * *Note* that neither the string nor the label part can be empty.
+	 */
+	Label []InlayHintLabelPart/*string | InlayHintLabelPart[]*/ `json:"label"`
+	/**
+	 * The kind of this hint. Can be omitted in which case the client
+	 * should fall back to a reasonable default.
+	 */
+	Kind InlayHintKind `json:"kind,omitempty"`
+	/**
+	 * The tooltip text when you hover over this item.
+	 */
+	Tooltip string/*string | MarkupContent*/ `json:"tooltip,omitempty"`
+	/**
+	 * Render padding before the hint.
+	 *
+	 * Note: Padding should use the editor's background color, not the
+	 * background color of the hint itself. That means padding can be used
+	 * to visually align/separate an inlay hint.
+	 */
+	PaddingLeft bool `json:"paddingLeft,omitempty"`
+	/**
+	 * Render padding after the hint.
+	 *
+	 * Note: Padding should use the editor's background color, not the
+	 * background color of the hint itself. That means padding can be used
+	 * to visually align/separate an inlay hint.
+	 */
+	PaddingRight bool `json:"paddingRight,omitempty"`
+}
+
+/**
+ * Inlay hint client capabilities
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlayHintClientCapabilities = struct {
+	/**
+	 * Whether inlay hints support dynamic registration.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+	/**
+	 * Indicates which properties a client can resolve lazily on a inlay
+	 * hint.
+	 */
+	ResolveSupport struct {
+		/**
+		 * The properties that a client can resolve lazily.
+		 */
+		Properties []string `json:"properties"`
+	} `json:"resolveSupport,omitempty"`
+}
+
+/**
+ * Inlay hint kinds.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlayHintKind float64
+
+/**
+ * An inlay hint label part allows for interactive and composite labels
+ * of inlay hints.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlayHintLabelPart = struct {
+	/**
+	 * The value of this label part.
+	 */
+	Value string `json:"value"`
+	/**
+	 * The tooltip text when you hover over this label part. Depending on
+	 * the client capability `inlayHint.resolveSupport` clients might resolve
+	 * this property late using the resolve request.
+	 */
+	Tooltip string/*string | MarkupContent*/ `json:"tooltip,omitempty"`
+	/**
+	 * An optional source code location that represents this
+	 * label part.
+	 *
+	 * The editor will use this location for the hover and for code navigation
+	 * features: This part will become a clickable link that resolves to the
+	 * definition of the symbol at the given location (not necessarily the
+	 * location itself), it shows the hover that shows at the given location,
+	 * and it shows a context menu with further code navigation commands.
+	 *
+	 * Depending on the client capability `inlayHint.resolveSupport` clients
+	 * might resolve this property late using the resolve request.
+	 */
+	Location *Location `json:"location,omitempty"`
+	/**
+	 * An optional command for this label part.
+	 *
+	 * Depending on the client capability `inlayHint.resolveSupport` clients
+	 * might resolve this property late using the resolve request.
+	 */
+	Command *Command `json:"command,omitempty"`
+}
+
+/**
+ * Inlay hint options used during static registration.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlayHintOptions struct {
+	WorkDoneProgress bool `json:"workDoneProgress,omitempty"`
+	/**
+	 * The server provides support to resolve additional
+	 * information for an inlay hint item.
+	 */
+	ResolveProvider bool `json:"resolveProvider,omitempty"`
+}
+
+/**
+ * A parameter literal used in inlay hints requests.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlayHintParams struct {
+	/**
+	 * An optional token that a server can use to report work done progress.
+	 */
+	WorkDoneToken ProgressToken `json:"workDoneToken,omitempty"`
+	/**
+	 * The text document.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	/**
+	 * The visible document range for which inlay hints should be computed.
+	 */
+	ViewPort Range `json:"viewPort"`
+}
+
+/**
+ * Inlay hint options used during static or dynamic registration.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlayHintRegistrationOptions struct {
+	WorkDoneProgress bool `json:"workDoneProgress,omitempty"`
+	/**
+	 * The server provides support to resolve additional
+	 * information for an inlay hint item.
+	 */
+	ResolveProvider bool `json:"resolveProvider,omitempty"`
+	/**
+	 * A document selector to identify the scope of the registration. If set to null
+	 * the document selector provided on the client side will be used.
+	 */
+	DocumentSelector DocumentSelector/*DocumentSelector | null*/ `json:"documentSelector"`
+	/**
+	 * The id used to register the request. The id can be used to deregister
+	 * the request again. See also Registration#id.
+	 */
+	ID string `json:"id,omitempty"`
+}
+
+/**
+ * Client workspace capabilities specific to inlay hints.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlayHintWorkspaceClientCapabilities = struct {
+	/**
+	 * Whether the client implementation supports a refresh request sent from
+	 * the server to the client.
+	 *
+	 * Note that this event is global and will force the client to refresh all
+	 * inlay hints currently shown. It should be used with absolute care and
+	 * is useful for situation where a server for example detects a project wide
+	 * change that requires such a calculation.
+	 */
+	RefreshSupport bool `json:"refreshSupport,omitempty"`
+}
+
+/**
  * Inline value information can be provided by different means:
  * - directly as a text value (class InlineValueText).
  * - as a name to use for a variable lookup (class InlineValueVariableLookup)
@@ -2688,18 +2923,41 @@ type InitializedParams struct {
 type InlineValue = interface{} /* InlineValueText | InlineValueVariableLookup | InlineValueEvaluatableExpression*/
 
 /**
+ * Client capabilities specific to inline values.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlineValueClientCapabilities = struct {
+	/**
+	 * Whether implementation supports dynamic registration for inline value providers.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+}
+
+/**
+ * @since 3.17.0 - proposed state
+ */
+type InlineValueContext = struct {
+	/**
+	 * The document range where execution has stopped.
+	 * Typically the end position of the range denotes the line where the inline values are shown.
+	 */
+	StoppedLocation *Range `json:"stoppedLocation"`
+}
+
+/**
  * Provide an inline value through an expression evaluation.
  * If only a range is specified, the expression will be extracted from the underlying document.
  * An optional expression can be used to override the extracted expression.
  *
  * @since 3.17.0 - proposed state
  */
-type InlineValueEvaluatableExpression struct {
+type InlineValueEvaluatableExpression = struct {
 	/**
 	 * The document range for which the inline value applies.
 	 * The range is used to extract the evaluatable expression from the underlying document.
 	 */
-	Range Range `json:"range"`
+	Range *Range `json:"range"`
 	/**
 	 * If specified the expression overrides the extracted expression.
 	 */
@@ -2707,15 +2965,65 @@ type InlineValueEvaluatableExpression struct {
 }
 
 /**
+ * Inline value options used during static registration.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlineValueOptions = WorkDoneProgressOptions
+
+/**
+ * A parameter literal used in inline value requests.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlineValueParams struct {
+	/**
+	 * An optional token that a server can use to report work done progress.
+	 */
+	WorkDoneToken ProgressToken `json:"workDoneToken,omitempty"`
+	/**
+	 * The text document.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	/**
+	 * The visible document range for which inline values should be computed.
+	 */
+	ViewPort Range `json:"viewPort"`
+	/**
+	 * Additional information about the context in which inline values were
+	 * requested.
+	 */
+	Context InlineValueContext `json:"context"`
+}
+
+/**
+ * Inline value options used during static or dynamic registration.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type InlineValueRegistrationOptions struct {
+	/**
+	 * A document selector to identify the scope of the registration. If set to null
+	 * the document selector provided on the client side will be used.
+	 */
+	DocumentSelector DocumentSelector/*DocumentSelector | null*/ `json:"documentSelector"`
+	/**
+	 * The id used to register the request. The id can be used to deregister
+	 * the request again. See also Registration#id.
+	 */
+	ID string `json:"id,omitempty"`
+}
+
+/**
  * Provide inline value as text.
  *
  * @since 3.17.0 - proposed state
  */
-type InlineValueText struct {
+type InlineValueText = struct {
 	/**
 	 * The document range for which the inline value applies.
 	 */
-	Range Range `json:"range"`
+	Range *Range `json:"range"`
 	/**
 	 * The text of the inline value.
 	 */
@@ -2729,12 +3037,12 @@ type InlineValueText struct {
  *
  * @since 3.17.0 - proposed state
  */
-type InlineValueVariableLookup struct {
+type InlineValueVariableLookup = struct {
 	/**
 	 * The document range for which the inline value applies.
 	 * The range is used to extract the variable name from the underlying document.
 	 */
-	Range Range `json:"range"`
+	Range *Range `json:"range"`
 	/**
 	 * If specified the name of the variable to look up.
 	 */
@@ -2746,83 +3054,18 @@ type InlineValueVariableLookup struct {
 }
 
 /**
- * Client capabilities specific to inline values.
- *
- * @since 3.17.0 - proposed state
- */
-type InlineValuesClientCapabilities struct {
-	/**
-	 * Whether implementation supports dynamic registration for inline value providers.
-	 */
-	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-}
-
-/**
- * @since 3.17.0 - proposed state
- */
-type InlineValuesContext struct {
-	/**
-	 * The document range where execution has stopped.
-	 * Typically the end position of the range denotes the line where the inline values are shown.
-	 */
-	StoppedLocation Range `json:"stoppedLocation"`
-}
-
-/**
- * Inline values options used during static registration.
- *
- * @since 3.17.0 - proposed state
- */
-type InlineValuesOptions struct {
-	WorkDoneProgressOptions
-}
-
-/**
- * A parameter literal used in inline values requests.
- *
- * @since 3.17.0 - proposed state
- */
-type InlineValuesParams struct {
-	/**
-	 * The text document.
-	 */
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-	/**
-	 * The visible document range for which inline values should be computed.
-	 */
-	ViewPort Range `json:"viewPort"`
-	/**
-	 * Additional information about the context in which inline values were
-	 * requested.
-	 */
-	Context InlineValuesContext `json:"context"`
-	WorkDoneProgressParams
-}
-
-/**
- * Inline value options used during static or dynamic registration.
- *
- * @since 3.17.0 - proposed state
- */
-type InlineValuesRegistrationOptions struct {
-	InlineValuesOptions
-	TextDocumentRegistrationOptions
-	StaticRegistrationOptions
-}
-
-/**
  * Client workspace capabilities specific to inline values.
  *
  * @since 3.17.0 - proposed state
  */
-type InlineValuesWorkspaceClientCapabilities struct {
+type InlineValueWorkspaceClientCapabilities = struct {
 	/**
 	 * Whether the client implementation supports a refresh request sent from the
 	 * server to the client.
 	 *
 	 * Note that this event is global and will force the client to refresh all
 	 * inline values currently shown. It should be used with absolute care and is
-	 * useful for situation where a server for example detect a project wide
+	 * useful for situation where a server for example detects a project wide
 	 * change that requires such a calculation.
 	 */
 	RefreshSupport bool `json:"refreshSupport,omitempty"`
@@ -3147,28 +3390,40 @@ type MonikerRegistrationOptions struct {
 /**
  * A notebook cell.
  *
+ * A cell's document URI must be unique across ALL notebook
+ * cells and can therefore be used to uniquely identify a
+ * notebook cell or the cell's text document.
+ *
  * @since 3.17.0 - proposed state
  */
-type NotebookCell struct {
+type NotebookCell = struct {
 	/**
 	 * The cell's kind
 	 */
 	Kind NotebookCellKind `json:"kind"`
 	/**
-	 * The cell's text represented as a text document.
-	 * The document's content is synced using the
-	 * existing text document sync notifications.
+	 * The URI of the cell's text document
+	 * content.
 	 */
 	Document DocumentURI `json:"document"`
+	/**
+	 * Additional metadata stored with the cell.
+	 */
+	Metadata LSPObject `json:"metadata,omitempty"`
+	/**
+	 * Additional execution summary information
+	 * if supported by the client.
+	 */
+	ExecutionSummary ExecutionSummary `json:"executionSummary,omitempty"`
 }
 
 /**
  * A change describing how to move a `NotebookCell`
- * array from state S' to S''.
+ * array from state S to S'.
  *
  * @since 3.17.0 - proposed state
  */
-type NotebookCellChange struct {
+type NotebookCellArrayChange = struct {
 	/**
 	 * The start oftest of the cell that changed.
 	 */
@@ -3216,7 +3471,7 @@ type NotebookCellTextDocumentFilter = struct {
  *
  * @since 3.17.0 - proposed state
  */
-type NotebookDocument struct {
+type NotebookDocument = struct {
 	/**
 	 * The notebook document's uri.
 	 */
@@ -3231,13 +3486,61 @@ type NotebookDocument struct {
 	 */
 	Version int32 `json:"version"`
 	/**
+	 * Additional metadata stored with the notebook
+	 * document.
+	 */
+	Metadata LSPObject `json:"metadata,omitempty"`
+	/**
 	 * The cells of a notebook.
 	 */
 	Cells []NotebookCell `json:"cells"`
 }
 
-type NotebookDocumentChangeEvent struct {
-	Cells NotebookCellChange `json:"cells"`
+/**
+ * A change event for a notebook document.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type NotebookDocumentChangeEvent = struct {
+	/**
+	 * The changed meta data if any.
+	 */
+	Metadata LSPObject `json:"metadata,omitempty"`
+	/**
+	 * Changes to cells
+	 */
+	Cells struct {
+		/**
+		 * Changes to the cell structure to add or
+		 * remove cells.
+		 */
+		Structure struct {
+			/**
+			 * The change to the cell array.
+			 */
+			Array NotebookCellArrayChange `json:"array"`
+			/**
+			 * Additional opened cell text documents.
+			 */
+			DidOpen []TextDocumentItem `json:"didOpen,omitempty"`
+			/**
+			 * Additional closed cell text documents.
+			 */
+			DidClose []TextDocumentIdentifier `json:"didClose,omitempty"`
+		} `json:"structure,omitempty"`
+		/**
+		 * Changes to notebook cells properties like its
+		 * kind, execution summary or metadata.
+		 */
+		Data []NotebookCell `json:"data,omitempty"`
+		/**
+		 * Changes to the text content of notebook cells.
+		 */
+		TextContent []struct {
+			Document VersionedTextDocumentIdentifier  `json:"document"`
+			Changes  []TextDocumentContentChangeEvent `json:"changes"`
+		} `json:"textContent,omitempty"`
+	} `json:"cells,omitempty"`
 }
 
 /**
@@ -3262,7 +3565,7 @@ type NotebookDocumentFilter = struct {
  *
  * @since 3.17.0 - proposed state
  */
-type NotebookDocumentIdentifier struct {
+type NotebookDocumentIdentifier = struct {
 	/**
 	 * The notebook document's uri.
 	 */
@@ -3557,8 +3860,7 @@ type RelatedFullDocumentDiagnosticReport struct {
 	 *
 	 * @since 3.17.0 - proposed state
 	 */
-	RelatedDocuments map[string]interface{}/*[uri: string ** DocumentUri *]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport;*/ `json:"relatedDocuments,omitempty"`
-	FullDocumentDiagnosticReport
+	RelatedDocuments map[string]interface{} /*[uri: string ** DocumentUri *]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport;*/ `json:"relatedDocuments,omitempty"`
 }
 
 /**
@@ -3576,8 +3878,7 @@ type RelatedUnchangedDocumentDiagnosticReport struct {
 	 *
 	 * @since 3.17.0 - proposed state
 	 */
-	RelatedDocuments map[string]interface{}/*[uri: string ** DocumentUri *]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport;*/ `json:"relatedDocuments,omitempty"`
-	UnchangedDocumentDiagnosticReport
+	RelatedDocuments map[string]interface{} /*[uri: string ** DocumentUri *]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport;*/ `json:"relatedDocuments,omitempty"`
 }
 
 type RenameClientCapabilities struct {
@@ -4138,7 +4439,13 @@ type ServerCapabilities struct {
 	 *
 	 * @since 3.17.0 - proposed state
 	 */
-	InlineValuesProvider interface{}/* bool | InlineValuesOptions | InlineValuesRegistrationOptions*/ `json:"inlineValuesProvider,omitempty"`
+	InlineValueProvider interface{}/* bool | InlineValueOptions | InlineValueRegistrationOptions*/ `json:"inlineValueProvider,omitempty"`
+	/**
+	 * The server provides inlay hints.
+	 *
+	 * @since 3.17.0 - proposed state
+	 */
+	InlayHintProvider interface{}/* bool | InlayHintOptions | InlayHintRegistrationOptions*/ `json:"inlayHintProvider,omitempty"`
 	/**
 	 * Experimental server capabilities.
 	 */
@@ -4641,11 +4948,17 @@ type TextDocumentClientCapabilities struct {
 	 */
 	TypeHierarchy TypeHierarchyClientCapabilities `json:"typeHierarchy,omitempty"`
 	/**
-	 * Capabilities specific to the `textDocument/inlineValues` request.
+	 * Capabilities specific to the `textDocument/inlineValue` request.
 	 *
 	 * @since 3.17.0 - proposed state
 	 */
-	InlineValues InlineValuesClientCapabilities `json:"inlineValues,omitempty"`
+	InlineValue InlineValueClientCapabilities `json:"inlineValue,omitempty"`
+	/**
+	 * Capabilities specific to the `textDocument/inlayHint` request.
+	 *
+	 * @since 3.17.0 - proposed state
+	 */
+	InlayHint InlayHintClientCapabilities `json:"inlayHint,omitempty"`
 }
 
 /**
@@ -4893,7 +5206,7 @@ type TypeDefinitionRegistrationOptions struct {
 /**
  * @since 3.17.0 - proposed state
  */
-type TypeHierarchyClientCapabilities struct {
+type TypeHierarchyClientCapabilities = struct {
 	/**
 	 * Whether implementation supports dynamic registration. If this is set to `true`
 	 * the client supports the new `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
@@ -4905,7 +5218,7 @@ type TypeHierarchyClientCapabilities struct {
 /**
  * @since 3.17.0 - proposed state
  */
-type TypeHierarchyItem struct {
+type TypeHierarchyItem = struct {
 	/**
 	 * The name of this item.
 	 */
@@ -4930,13 +5243,13 @@ type TypeHierarchyItem struct {
 	 * The range enclosing this symbol not including leading/trailing whitespace
 	 * but everything else, e.g. comments and code.
 	 */
-	Range Range `json:"range"`
+	Range *Range `json:"range"`
 	/**
 	 * The range that should be selected and revealed when this symbol is being
 	 * picked, e.g. the name of a function. Must be contained by the
 	 * [`range`](#TypeHierarchyItem.range).
 	 */
-	SelectionRange Range `json:"selectionRange"`
+	SelectionRange *Range `json:"selectionRange"`
 	/**
 	 * A data entry field that is preserved between a type hierarchy prepare and
 	 * supertypes or subtypes requests. It could also be used to identify the
@@ -4951,9 +5264,7 @@ type TypeHierarchyItem struct {
  *
  * @since 3.17.0 - proposed state
  */
-type TypeHierarchyOptions struct {
-	WorkDoneProgressOptions
-}
+type TypeHierarchyOptions = WorkDoneProgressOptions
 
 /**
  * The parameter of a `textDocument/prepareTypeHierarchy` request.
@@ -4961,8 +5272,18 @@ type TypeHierarchyOptions struct {
  * @since 3.17.0 - proposed state
  */
 type TypeHierarchyPrepareParams struct {
-	TextDocumentPositionParams
-	WorkDoneProgressParams
+	/**
+	 * The text document.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	/**
+	 * The position inside the text document.
+	 */
+	Position Position `json:"position"`
+	/**
+	 * An optional token that a server can use to report work done progress.
+	 */
+	WorkDoneToken ProgressToken `json:"workDoneToken,omitempty"`
 }
 
 /**
@@ -4971,9 +5292,16 @@ type TypeHierarchyPrepareParams struct {
  * @since 3.17.0 - proposed state
  */
 type TypeHierarchyRegistrationOptions struct {
-	TextDocumentRegistrationOptions
-	TypeHierarchyOptions
-	StaticRegistrationOptions
+	/**
+	 * A document selector to identify the scope of the registration. If set to null
+	 * the document selector provided on the client side will be used.
+	 */
+	DocumentSelector DocumentSelector/*DocumentSelector | null*/ `json:"documentSelector"`
+	/**
+	 * The id used to register the request. The id can be used to deregister
+	 * the request again. See also Registration#id.
+	 */
+	ID string `json:"id,omitempty"`
 }
 
 /**
@@ -4982,9 +5310,16 @@ type TypeHierarchyRegistrationOptions struct {
  * @since 3.17.0 - proposed state
  */
 type TypeHierarchySubtypesParams struct {
-	Item TypeHierarchyItem `json:"item"`
-	WorkDoneProgressParams
-	PartialResultParams
+	/**
+	 * An optional token that a server can use to report work done progress.
+	 */
+	WorkDoneToken ProgressToken `json:"workDoneToken,omitempty"`
+	/**
+	 * An optional token that a server can use to report partial results (e.g. streaming) to
+	 * the client.
+	 */
+	PartialResultToken ProgressToken     `json:"partialResultToken,omitempty"`
+	Item               TypeHierarchyItem `json:"item"`
 }
 
 /**
@@ -4993,9 +5328,16 @@ type TypeHierarchySubtypesParams struct {
  * @since 3.17.0 - proposed state
  */
 type TypeHierarchySupertypesParams struct {
-	Item TypeHierarchyItem `json:"item"`
-	WorkDoneProgressParams
-	PartialResultParams
+	/**
+	 * An optional token that a server can use to report work done progress.
+	 */
+	WorkDoneToken ProgressToken `json:"workDoneToken,omitempty"`
+	/**
+	 * An optional token that a server can use to report partial results (e.g. streaming) to
+	 * the client.
+	 */
+	PartialResultToken ProgressToken     `json:"partialResultToken,omitempty"`
+	Item               TypeHierarchyItem `json:"item"`
 }
 
 /**
@@ -5011,7 +5353,7 @@ type URI = string
  *
  * @since 3.17.0 - proposed state
  */
-type UnchangedDocumentDiagnosticReport struct {
+type UnchangedDocumentDiagnosticReport = struct {
 	/**
 	 * A document diagnostic report indicating
 	 * no changes to the last result. A server can
@@ -5057,7 +5399,7 @@ type UnregistrationParams struct {
  *
  * @since 3.17.0 - proposed state
  */
-type VersionedNotebookDocumentIdentifier struct {
+type VersionedNotebookDocumentIdentifier = struct {
 	/**
 	 * The version number of this notebook document.
 	 */
@@ -5274,7 +5616,14 @@ type WorkspaceClientCapabilities struct {
 	 *
 	 * @since 3.17.0.
 	 */
-	InlineValues InlineValuesWorkspaceClientCapabilities `json:"inlineValues,omitempty"`
+	InlineValue InlineValueWorkspaceClientCapabilities `json:"inlineValue,omitempty"`
+	/**
+	 * Capabilities specific to the inlay hints requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.17.0.
+	 */
+	InlayHint InlayHintWorkspaceClientCapabilities `json:"inlayHint,omitempty"`
 }
 
 /**
@@ -5284,6 +5633,15 @@ type WorkspaceClientCapabilities struct {
  */
 type WorkspaceDiagnosticParams struct {
 	/**
+	 * An optional token that a server can use to report work done progress.
+	 */
+	WorkDoneToken ProgressToken `json:"workDoneToken,omitempty"`
+	/**
+	 * An optional token that a server can use to report partial results (e.g. streaming) to
+	 * the client.
+	 */
+	PartialResultToken ProgressToken `json:"partialResultToken,omitempty"`
+	/**
 	 * The additional identifier provided during registration.
 	 */
 	Identifier string `json:"identifier,omitempty"`
@@ -5292,8 +5650,6 @@ type WorkspaceDiagnosticParams struct {
 	 * previous result ids.
 	 */
 	PreviousResultIds []PreviousResultID `json:"previousResultIds"`
-	WorkDoneProgressParams
-	PartialResultParams
 }
 
 /**
@@ -5301,7 +5657,7 @@ type WorkspaceDiagnosticParams struct {
  *
  * @since 3.17.0 - proposed state
  */
-type WorkspaceDiagnosticReport struct {
+type WorkspaceDiagnosticReport = struct {
 	Items []WorkspaceDocumentDiagnosticReport `json:"items"`
 }
 
@@ -5330,7 +5686,7 @@ type WorkspaceEdit struct {
 	/**
 	 * Holds changes to existing resources.
 	 */
-	Changes map[DocumentURI][]TextEdit/*[uri: DocumentUri]: TextEdit[];*/ `json:"changes,omitempty"`
+	Changes map[DocumentURI][]TextEdit/*[uri: DocumentUri]: TextEdit[]*/ `json:"changes,omitempty"`
 	/**
 	 * Depending on the client capability `workspace.workspaceEdit.resourceOperations` document changes
 	 * are either an array of `TextDocumentEdit`s to express changes to n different text documents
@@ -5462,7 +5818,6 @@ type WorkspaceFullDocumentDiagnosticReport struct {
 	 * If the document is not marked as open `null` can be provided.
 	 */
 	Version int32/*integer | null*/ `json:"version"`
-	FullDocumentDiagnosticReport
 }
 
 /**
@@ -5476,7 +5831,7 @@ type WorkspaceSymbol struct {
 	 *
 	 * See SymbolInformation#location for more details.
 	 */
-	Location Location/*Location | { uri: DocumentUri; }*/ `json:"location"`
+	Location Location/*Location | { uri: DocumentUri }*/ `json:"location"`
 	/**
 	 * A data entry field that is preserved on a workspace symbol between a
 	 * workspace symbol request and a workspace symbol resolve request.
@@ -5578,7 +5933,6 @@ type WorkspaceUnchangedDocumentDiagnosticReport struct {
 	 * If the document is not marked as open `null` can be provided.
 	 */
 	Version int32/*integer | null*/ `json:"version"`
-	UnchangedDocumentDiagnosticReport
 }
 
 const (
@@ -5837,6 +6191,16 @@ const (
 	 */
 
 	UnknownProtocolVersion InitializeError = 1
+	/**
+	 * An inlay hint that for a type annotation.
+	 */
+
+	Type InlayHintKind = 1
+	/**
+	 * An inlay hint that is for a parameter.
+	 */
+
+	Parameter InlayHintKind = 2
 	/**
 	 * The primary text to be inserted is treated as a plain string.
 	 */
@@ -6134,7 +6498,15 @@ type Workspace3Gn struct {
 	 *
 	 * @since 3.17.0.
 	 */
-	InlineValues InlineValuesWorkspaceClientCapabilities `json:"inlineValues,omitempty"`
+	InlineValue InlineValueWorkspaceClientCapabilities `json:"inlineValue,omitempty"`
+
+	/**
+	 * Capabilities specific to the inlay hints requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.17.0.
+	 */
+	InlayHint InlayHintWorkspaceClientCapabilities `json:"inlayHint,omitempty"`
 
 	/**
 	 * The client has support for workspace folders
@@ -6212,7 +6584,15 @@ type Workspace4Gn struct {
 	 *
 	 * @since 3.17.0.
 	 */
-	InlineValues InlineValuesWorkspaceClientCapabilities `json:"inlineValues,omitempty"`
+	InlineValue InlineValueWorkspaceClientCapabilities `json:"inlineValue,omitempty"`
+
+	/**
+	 * Capabilities specific to the inlay hints requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.17.0.
+	 */
+	InlayHint InlayHintWorkspaceClientCapabilities `json:"inlayHint,omitempty"`
 
 	/**
 	 * The client has support for workspace folders
@@ -6317,7 +6697,15 @@ type Workspace7Gn struct {
 	 *
 	 * @since 3.17.0.
 	 */
-	InlineValues InlineValuesWorkspaceClientCapabilities `json:"inlineValues,omitempty"`
+	InlineValue InlineValueWorkspaceClientCapabilities `json:"inlineValue,omitempty"`
+
+	/**
+	 * Capabilities specific to the inlay hints requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.17.0.
+	 */
+	InlayHint InlayHintWorkspaceClientCapabilities `json:"inlayHint,omitempty"`
 
 	/**
 	 * The client has support for workspace folders
