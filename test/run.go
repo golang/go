@@ -2043,7 +2043,6 @@ var unifiedFailures = setOf(
 	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
 	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
 	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
-	"typeparam/issue50552.go",  // gives missing method for instantiated type
 )
 
 func setOf(keys ...string) map[string]bool {

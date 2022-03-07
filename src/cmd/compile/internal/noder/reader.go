@@ -930,11 +930,6 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
 // constructed.
 var todoBodies []*ir.Func
 
-// todoBodiesDone signals that we constructed all function in todoBodies.
-// This is necessary to prevent reader.addBody adds thing to todoBodies
-// when nested inlining happens.
-var todoBodiesDone = false
-
 func (r *reader) addBody(fn *ir.Func) {
 	pri := pkgReaderIndex{r.p, r.Reloc(pkgbits.RelocBody), r.dict}
 	bodyReader[fn] = pri
@@ -945,7 +940,7 @@ func (r *reader) addBody(fn *ir.Func) {
 		return
 	}
 
-	if r.curfn == nil && !todoBodiesDone {
+	if r.curfn == nil {
 		todoBodies = append(todoBodies, fn)
 		return
 	}
@@ -1973,6 +1968,13 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 	ir.WithFunc(r.curfn, func() {
 		r.curfn.Body = r.stmts()
 		r.curfn.Endlineno = r.pos()
+
+		// TODO(mdempsky): This shouldn't be necessary. Inlining might
+		// read in new function/method declarations, which could
+		// potentially be recursively inlined themselves; but we shouldn't
+		// need to read in the non-inlined bodies for the declarations
+		// themselves. But currently it's an easy fix to #50552.
+		readBodies(typecheck.Target)
 
 		deadcode.Func(r.curfn)
 
