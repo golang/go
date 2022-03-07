@@ -9,6 +9,8 @@ import (
 	"flag"
 	"fmt"
 	"internal/buildcfg"
+	"internal/coverage"
+	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -110,6 +112,7 @@ type CmdFlags struct {
 	MemProfileRate     int          "help:\"set runtime.MemProfileRate to `rate`\""
 	MutexProfile       string       "help:\"write mutex profile to `file`\""
 	NoLocalImports     bool         "help:\"reject local (relative) imports\""
+	CoverageCfg        func(string) "help:\"read coverage configuration from `file`\""
 	Pack               bool         "help:\"write to file.a instead of file.o\""
 	Race               bool         "help:\"enable race detector\""
 	Shared             *bool        "help:\"generate code that can be linked into a shared library\"" // &Ctxt.Flag_shared, set below
@@ -127,10 +130,11 @@ type CmdFlags struct {
 			Patterns map[string][]string
 			Files    map[string]string
 		}
-		ImportDirs   []string          // appended to by -I
-		ImportMap    map[string]string // set by -importcfg
-		PackageFile  map[string]string // set by -importcfg; nil means not in use
-		SpectreIndex bool              // set by -spectre=index or -spectre=all
+		ImportDirs   []string                   // appended to by -I
+		ImportMap    map[string]string          // set by -importcfg
+		PackageFile  map[string]string          // set by -importcfg; nil means not in use
+		CoverageInfo *coverage.CoverFixupConfig // set by -coveragecfg
+		SpectreIndex bool                       // set by -spectre=index or -spectre=all
 		// Whether we are adding any sort of code instrumentation, such as
 		// when the race detector is enabled.
 		Instrumenting bool
@@ -154,6 +158,7 @@ func ParseFlags() {
 	Flag.EmbedCfg = readEmbedCfg
 	Flag.GenDwarfInl = 2
 	Flag.ImportCfg = readImportCfg
+	Flag.CoverageCfg = readCoverageCfg
 	Flag.LinkShared = &Ctxt.Flag_linkshared
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
@@ -428,6 +433,18 @@ func readImportCfg(file string) {
 			Flag.Cfg.PackageFile[before] = after
 		}
 	}
+}
+
+func readCoverageCfg(file string) {
+	var cfg coverage.CoverFixupConfig
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.Fatalf("-coveragecfg: %v", err)
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		log.Fatalf("error reading -coveragecfg file %q: %v", file, err)
+	}
+	Flag.Cfg.CoverageInfo = &cfg
 }
 
 func readEmbedCfg(file string) {

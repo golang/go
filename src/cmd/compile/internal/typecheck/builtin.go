@@ -7,6 +7,21 @@ import (
 	"cmd/internal/src"
 )
 
+// Not inlining this function removes a significant chunk of init code.
+//
+//go:noinline
+func newSig(params, results []*types.Field) *types.Type {
+	return types.NewSignature(types.NoPkg, nil, nil, params, results)
+}
+
+func params(tlist ...*types.Type) []*types.Field {
+	flist := make([]*types.Field, len(tlist))
+	for i, typ := range tlist {
+		flist[i] = types.NewField(src.NoXPos, nil, typ)
+	}
+	return flist
+}
+
 var runtimeDecls = [...]struct {
 	name string
 	tag  int
@@ -210,6 +225,7 @@ var runtimeDecls = [...]struct {
 	{"libfuzzerTraceConstCmp8", funcTag, 149},
 	{"libfuzzerHookStrCmp", funcTag, 150},
 	{"libfuzzerHookEqualFold", funcTag, 150},
+	{"addCovMeta", funcTag, 152},
 	{"x86HasPOPCNT", varTag, 6},
 	{"x86HasSSE41", varTag, 6},
 	{"x86HasFMA", varTag, 6},
@@ -217,23 +233,8 @@ var runtimeDecls = [...]struct {
 	{"arm64HasATOMICS", varTag, 6},
 }
 
-// Not inlining this function removes a significant chunk of init code.
-//
-//go:noinline
-func newSig(params, results []*types.Field) *types.Type {
-	return types.NewSignature(types.NoPkg, nil, nil, params, results)
-}
-
-func params(tlist ...*types.Type) []*types.Field {
-	flist := make([]*types.Field, len(tlist))
-	for i, typ := range tlist {
-		flist[i] = types.NewField(src.NoXPos, nil, typ)
-	}
-	return flist
-}
-
 func runtimeTypes() []*types.Type {
-	var typs [151]*types.Type
+	var typs [153]*types.Type
 	typs[0] = types.ByteType
 	typs[1] = types.NewPtr(typs[0])
 	typs[2] = types.Types[types.TANY]
@@ -385,5 +386,22 @@ func runtimeTypes() []*types.Type {
 	typs[148] = newSig(params(typs[62], typs[62], typs[15]), nil)
 	typs[149] = newSig(params(typs[24], typs[24], typs[15]), nil)
 	typs[150] = newSig(params(typs[28], typs[28], typs[15]), nil)
+	typs[151] = types.NewArray(typs[0], 16)
+	typs[152] = newSig(params(typs[7], typs[62], typs[151], typs[28], typs[15], typs[66], typs[66]), params(typs[62]))
+	return typs[:]
+}
+
+var coverageDecls = [...]struct {
+	name string
+	tag  int
+	typ  int
+}{
+	{"initHook", funcTag, 1},
+}
+
+func coverageTypes() []*types.Type {
+	var typs [2]*types.Type
+	typs[0] = types.Types[types.TBOOL]
+	typs[1] = newSig(params(typs[0]), nil)
 	return typs[:]
 }

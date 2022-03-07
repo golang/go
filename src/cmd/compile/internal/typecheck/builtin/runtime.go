@@ -273,6 +273,8 @@ func libfuzzerTraceConstCmp8(uint64, uint64, int)
 func libfuzzerHookStrCmp(string, string, int)
 func libfuzzerHookEqualFold(string, string, int)
 
+func addCovMeta(p unsafe.Pointer, len uint32, hash [16]byte, pkpath string, pkgId int, cmode uint8, cgran uint8) uint32
+
 // architecture variants
 var x86HasPOPCNT bool
 var x86HasSSE41 bool
