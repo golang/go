@@ -11,11 +11,6 @@ For the pre-Go1.18 specification without generics support see
 <a href="/doc/go1.17_spec.html">The Go Programming Language Specification</a>.
 </p>
 
-<!-- TODO(gri) remove this before the final release -->
-<p><b>
-[For reviewers: Sections where we know of missing prose are marked like this. The markers will be removed before the release.]
-</b></p>
-
 <h2 id="Introduction">Introduction</h2>
 
 <p>
@@ -4230,7 +4225,7 @@ with the same underlying array.
 <p>
 A generic function or type is <i>instantiated</i> by substituting <i>type arguments</i>
 for the type parameters.
-Instantiation proceeds in two phases:
+Instantiation proceeds in two steps:
 </p>
 
 <ol>
@@ -4262,31 +4257,12 @@ type parameter list    type arguments    after substitution
 </pre>
 
 <p>
-Type arguments may be provided explicitly, or they may be partially or completely
-<a href="#Type_inference">inferred</a>.
-A partially provided type argument list cannot be empty; there must be at least the
-first argument.
-</p>
-
-<pre>
-type T[P1 ~int, P2 ~[]P1] struct{ … }
-
-T[]            // illegal: at least the first type argument must be present, even if it could be inferred
-T[int]         // argument for P1 explicitly provided, argument for P2 inferred
-T[int, []int]  // both arguments explicitly provided
-</pre>
-
-<p>
-A partial type argument list specifies a prefix of the full list of type arguments, leaving
-the remaining arguments to be inferred. Loosely speaking, type arguments may be omitted from
-"right to left".
-</p>
-
-<p>
-Generic types, and generic functions that are not <a href="#Calls">called</a>,
-require a type argument list for instantiation; if the list is partial, all
+For a generic function, type arguments may be provided explicitly, or they
+may be partially or completely <a href="#Type_inference">inferred</a>.
+A generic function that is is <i>not</i> <a href="#Calls">called</a> requires a
+type argument list for instantiation; if the list is partial, all
 remaining type arguments must be inferrable.
-Calls to generic functions may provide a (possibly partial) type
+A generic function that is called may provide a (possibly partial) type
 argument list, or may omit it entirely if the omitted type arguments are
 inferrable from the ordinary (non-type) function arguments.
 </p>
@@ -4294,17 +4270,38 @@ inferrable from the ordinary (non-type) function arguments.
 <pre>
 func min[T ~int|~float64](x, y T) T { … }
 
-f := min                   // illegal: min must be instantiated when used without being called
+f := min                   // illegal: min must be instantiated with type arguments when used without being called
 minInt := min[int]         // minInt has type func(x, y int) int
 a := minInt(2, 3)          // a has value 2 of type int
 b := min[float64](2.0, 3)  // b has value 2.0 of type float64
 c := min(b, -1)            // c has value -1.0 of type float64
 </pre>
 
+<p>
+A partial type argument list cannot be empty; at least the first argument must be present.
+The list is a prefix of the full list of type arguments, leaving the remaining arguments
+to be inferred. Loosely speaking, type arguments may be omitted from "right to left".
+</p>
+
+<pre>
+func apply[S ~[]E, E any](s S, f(E) E) S { … }
+
+f0 := apply[]                  // illegal: type argument list cannot be empty
+f1 := apply[[]int]             // type argument for S explicitly provided, type argument for E inferred
+f2 := apply[[]string, string]  // both type arguments explicitly provided
+
+var bytes []byte
+r := apply(bytes, func(byte) byte { … })  // both type arguments inferred from the function arguments
+</pre>
+
+<p>
+For a generic type, all type arguments must always be provided explicitly.
+</p>
+
 <h3 id="Type_inference">Type inference</h3>
 
 <p>
-Missing type arguments may be <i>inferred</i> by a series of steps, described below.
+Missing function type arguments may be <i>inferred</i> by a series of steps, described below.
 Each step attempts to use known information to infer additional type arguments.
 Type inference stops as soon as all type arguments are known.
 After type inference is complete, it is still necessary to substitute all type arguments
