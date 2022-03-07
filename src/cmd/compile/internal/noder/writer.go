@@ -284,10 +284,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		}
 
 	case *types2.Named:
-		// Type aliases can refer to uninstantiated generic types, so we
-		// might see len(TParams) != 0 && len(TArgs) == 0 here.
-		// TODO(mdempsky): Revisit after #46477 is resolved.
-		assert(typ.TypeParams().Len() == typ.TypeArgs().Len() || typ.TypeArgs().Len() == 0)
+		assert(typ.TypeParams().Len() == typ.TypeArgs().Len())
 
 		// TODO(mdempsky): Why do we need to loop here?
 		orig := typ
@@ -1628,15 +1625,6 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		// type parameter bounds.
 		if iface, ok := name.Type().Underlying().(*types2.Interface); ok && !iface.IsMethodSet() {
 			break
-		}
-
-		// Skip aliases to uninstantiated generic types.
-		// TODO(mdempsky): Revisit after #46477 is resolved.
-		if name.IsAlias() {
-			named, ok := name.Type().(*types2.Named)
-			if ok && named.TypeParams().Len() != 0 && named.TypeArgs().Len() == 0 {
-				break
-			}
 		}
 
 		w.Code(declOther)
