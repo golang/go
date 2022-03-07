@@ -295,10 +295,16 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$176
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
+#ifdef GOEXPERIMENT_regabiargs
+	// Restore signum to R0.
+	MOVW	8(RSP), R0
+	// R1 and R2 already contain info and ctx, respectively.
+#else
 	MOVD	R1, 16(RSP)
 	MOVD	R2, 24(RSP)
-	MOVD	$runtime·sigtrampgo(SB), R0
-	BL	(R0)
+#endif
+	MOVD	$runtime·sigtrampgo<ABIInternal>(SB), R3
+	BL	(R3)
 
 	// Restore callee-save registers.
 	RESTORE_R19_TO_R28(8*4)
