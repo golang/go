@@ -447,7 +447,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if frame.pc > f.entry() {
 					print(" +", hex(frame.pc-f.entry()))
 				}
-				if gp.m != nil && gp.m.throwing > 0 && gp == gp.m.curg || level >= 2 {
+				if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
 				}
 				print("\n")
@@ -913,7 +913,7 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 // be printed during a traceback.
 func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool {
 	g := getg()
-	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
+	if g.m.throwing >= throwTypeRuntime && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
 	}
 	return showfuncinfo(f, firstFrame, funcID, childID)

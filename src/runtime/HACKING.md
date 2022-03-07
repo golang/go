@@ -93,8 +93,12 @@ messages are prefixed with "runtime:".
 For unrecoverable errors where user code is expected to be at fault for the
 failure (such as racing map writes), use `fatal`.
 
-For runtime error debugging, it's useful to run with
-`GOTRACEBACK=system` or `GOTRACEBACK=crash`.
+For runtime error debugging, it may be useful to run with `GOTRACEBACK=system`
+or `GOTRACEBACK=crash`. The output of `panic` and `fatal` is as described by
+`GOTRACEBACK`. The output of `throw` always includes runtime frames, metadata
+and all goroutines regardless of `GOTRACEBACK` (i.e., equivalent to
+`GOTRACEBACK=system). Whether `throw` crashes or not is still controlled by
+`GOTRACEBACK`.
 
 Synchronization
 ===============
