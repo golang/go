@@ -615,6 +615,9 @@ func tcSwitchType(n *ir.SwitchStmt) {
 				}
 				continue
 			}
+			if n1.Op() == ir.ODYNAMICTYPE {
+				continue
+			}
 			if n1.Op() != ir.OTYPE {
 				base.ErrorfAt(ncase.Pos(), "%L is not a type", n1)
 				continue
@@ -640,7 +643,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			// Assign the clause variable's type.
 			vt := t
 			if len(ls) == 1 {
-				if ls[0].Op() == ir.OTYPE {
+				if ls[0].Op() == ir.OTYPE || ls[0].Op() == ir.ODYNAMICTYPE {
 					vt = ls[0].Type()
 				} else if !ir.IsNil(ls[0]) {
 					// Invalid single-type case;

@@ -2038,11 +2038,6 @@ var unifiedFailures = setOf(
 	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
 	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
 	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
-	"typeparam/issue50002.go",  // pure stenciling leads to a static type assertion error
-	"typeparam/typeswitch1.go", // duplicate case failure due to stenciling
-	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
-	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
-	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
 )
 
 func setOf(keys ...string) map[string]bool {
