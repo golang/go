@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification - Go 1.18 Draft",
-	"Subtitle": "Version of March 7, 2022",
+	"Subtitle": "Version of March 9, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -761,7 +761,7 @@ type given in its declaration, the type provided in the
 <code>new</code> call or composite literal, or the type of
 an element of a structured variable.
 Variables of interface type also have a distinct <i>dynamic type</i>,
-which is the concrete type of the value assigned to the variable at run time
+which is the (non-interface) type of the value assigned to the variable at run time
 (unless the value is the predeclared identifier <code>nil</code>,
 which has no type).
 The dynamic type may vary during execution but values stored in interface
@@ -1799,70 +1799,6 @@ interface{ chan int | chan&lt;- string }     // channels have different element 
 interface{ &lt;-chan int | chan&lt;- int }      // directional channels have different directions
 </pre>
 
-<h3 id="Specific_types">Specific types</h3>
-
-<p><b>
-[The definition of specific types is not quite correct yet.]
-</b></p>
-
-<p>
-An interface specification that contains <a href="#Interface_types">type elements</a>
-defines a (possibly empty) set of <i>specific types</i>.
-Loosely speaking, these are the types <code>T</code> that appear in the
-interface definition in terms of the form <code>T</code>, <code>~T</code>,
-or in unions of such terms.
-</p>
-
-<p>
-More precisely, for a given interface, the set of specific types corresponds to
-the set 𝑅 of representative types of the interface, if 𝑅 is non-empty and finite.
-Otherwise, if 𝑅 is empty or infinite, the interface has <i>no specific types</i>.
-</p>
-
-<p>
-For a given interface, type element or type term, the set 𝑅 of representative types is defined as follows:
-</p>
-
-<ul>
-	<li>For an interface with no type elements, 𝑅 is the (infinite) set of all types.
-	</li>
-
-	<li>For an interface with type elements,
-		𝑅 is the intersection of the representative types of its type elements.
-	</li>
-
-	<li>For a non-interface type term <code>T</code> or a term of the form <code>~T</code>,
-		𝑅 is the set consisting of the type <code>T</code>.
-	</li>
-
-	<li>For a <i>union</i> of terms
-		<code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>,
-		𝑅 is the union of the representative types of the terms.
-	</li>
-</ul>
-
-<p>
-An interface may have specific types even if its <a href="#Interface_types">type set</a>
-is empty.
-</p>
-
-<p>
-Examples of interfaces with their specific types:
-</p>
-
-<pre>
-interface{}                    // no specific types
-interface{ int }               // int
-interface{ ~string }           // string
-interface{ int|~string }       // int, string
-interface{ Celsius|Kelvin }    // Celsius, Kelvin
-interface{ float64|any }       // no specific types (union is all types)
-interface{ int; m() }          // int (but type set is empty because int has no method m)
-interface{ ~int; m() }         // int (but type set is infinite because many integer types have a method m)
-interface{ int; any }          // int
-interface{ int; string }       // no specific types (intersection is empty)
-</pre>
-
 <h3 id="Type_identity">Type identity</h3>
 
 <p>
@@ -2002,25 +1938,24 @@ by a value of type <code>T</code>.
 </ul>
 
 <p>
-Additionally, if <code>x</code>'s type <code>V</code> or <code>T</code> are type parameters
-with <a href="#Specific_types">specific types</a>, <code>x</code>
+Additionally, if <code>x</code>'s type <code>V</code> or <code>T</code> are type parameters, <code>x</code>
 is assignable to a variable of type <code>T</code> if one of the following conditions applies:
 </p>
 
 <ul>
 <li>
 <code>x</code> is the predeclared identifier <code>nil</code>, <code>T</code> is
-a type parameter, and <code>x</code> is assignable to each specific type of
-<code>T</code>.
+a type parameter, and <code>x</code> is assignable to each type in
+<code>T</code>'s type set.
 </li>
 <li>
 <code>V</code> is not a <a href="#Types">named type</a>, <code>T</code> is
-a type parameter, and <code>x</code> is assignable to each specific type of
-<code>T</code>.
+a type parameter, and <code>x</code> is assignable to each type in
+<code>T</code>'s type set.
 </li>
 <li>
 <code>V</code> is a type parameter and <code>T</code> is not a named type,
-and values of each specific type of <code>V</code> are assignable
+and values of each type in <code>V</code>'s type set are assignable
 to <code>T</code>.
 </li>
 </ul>
@@ -2055,9 +1990,9 @@ are representable by values of <code>T</code>'s component type (<code>float32</c
 </ul>
 
 <p>
-If <code>T</code> is a type parameter with <a href="#Specific_types">specific types</a>,
+If <code>T</code> is a type parameter,
 <code>x</code> is representable by a value of type <code>T</code> if <code>x</code> is representable
-by a value of each specific type of <code>T</code>.
+by a value of each type in <code>T</code>'s type set.
 </p>
 
 <pre>
@@ -2705,7 +2640,7 @@ other interfaces based on their type sets. But this should get us going for now.
 <p>
 The <a href="#Predeclared_identifiers">predeclared</a>
 <a href="#Interface_types">interface type</a> <code>comparable</code>
-denotes the set of all concrete (non-interface) types that are
+denotes the set of all non-interface types that are
 <a href="#Comparison_operators">comparable</a>. Specifically,
 a type <code>T</code> implements <code>comparable</code> if:
 </p>
@@ -3035,6 +2970,14 @@ resulting operand is an <a href="#Instantiations">instantiated</a> function.
 <p>
 The <a href="#Blank_identifier">blank identifier</a> may appear as an
 operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
+</p>
+
+<p>
+Implementation restriction: A compiler need not report an error if an operand's
+type is a <a href="#Type_parameter_lists">type parameter</a> with an empty
+<a href="#Interface_types">type set</a>. Functions with such type parameters
+cannot be <a href="#Instantiations">instantiated</a>; any attempt will lead
+to an error at the instantiation site.
 </p>
 
 <h3 id="Qualified_identifiers">Qualified identifiers</h3>
@@ -3819,20 +3762,19 @@ For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
 For <code>a</code> of <a href="#Type_parameter_lists">type parameter type</a> <code>P</code>:
 </p>
 <ul>
-	<li><code>P</code> must have <a href="#Specific_types">specific types</a>.</li>
 	<li>The index expression <code>a[x]</code> must be valid for values
-	    of all specific types of <code>P</code>.</li>
-	<li>The element types of all specific types of <code>P</code> must be identical.
+	    of all types in <code>P</code>'s type set.</li>
+	<li>The element types of all types in <code>P</code>'s type set must be identical.
 	    In this context, the element type of a string type is <code>byte</code>.</li>
-	<li>If there is a map type among the specific types of <code>P</code>,
-	    all specific types must be map types, and the respective key types
+	<li>If there is a map type in the type set of <code>P</code>,
+	    all types in that type set must be map types, and the respective key types
 	    must be all identical.</li>
 	<li><code>a[x]</code> is the array, slice, or string element at index <code>x</code>,
 	    or the map element with key <code>x</code> of the type argument
 	    that <code>P</code> is instantiated with, and the type of <code>a[x]</code> is
 	    the type of the (identical) element types.</li>
-	<li><code>a[x]</code> may not be assigned to if the specific types of <code>P</code>
-	    include string types.
+	<li><code>a[x]</code> may not be assigned to if <code>P</code>'s type set
+	    includes string types.
 </ul>
 
 <p>
@@ -4728,6 +4670,10 @@ and the other operand is not, the constant is implicitly <a href="#Conversions">
 to the type of the other operand.
 </p>
 
+<p><b>
+[The rules for shifts need adjustments for type parameters. Issue #51182.]
+</b></p>
+
 <p>
 The right operand in a shift expression must have <a href="#Numeric_types">integer type</a>
 or be an untyped constant <a href="#Representability">representable</a> by a
@@ -4832,9 +4778,8 @@ The bitwise logical and shift operators apply to integers only.
 </pre>
 
 <p>
-Excluding shifts, if the operand type is a <a href="#Type_parameter_lists">type parameter</a>,
-it must have <a href="#Specific_types">specific types</a>, and the operator must
-apply to each specific type.
+If the operand type is a <a href="#Type_parameter_lists">type parameter</a>,
+the operator must apply to each type in that type set.
 The operands are represented as values of the type argument that the type parameter
 is <a href="#Instantiations">instantiated</a> with, and the operation is computed
 with the precision of that type argument. For example, given the function:
@@ -4855,11 +4800,6 @@ func dotProduct[F ~float32|~float64](v1, v2 []F) F {
 the product <code>x * y</code> and the addition <code>s += x * y</code>
 are computed with <code>float32</code> or <code>float64</code> precision,
 respectively, depending on the type argument for <code>F</code>.
-</p>
-
-<p>
-For shifts, the <a href="#Core_types">core type</a> of both operands must be
-an integer.
 </p>
 
 <h4 id="Integer_operators">Integer operators</h4>
@@ -5374,23 +5314,23 @@ in any of these cases:
 
 <p>
 Additionally, if <code>T</code> or <code>x</code>'s type <code>V</code> are type
-parameters with <a href="#Specific_types">specific types</a>, <code>x</code>
+parameters, <code>x</code>
 can also be converted to type <code>T</code> if one of the following conditions applies:
 </p>
 
 <ul>
 <li>
 Both <code>V</code> and <code>T</code> are type parameters and a value of each
-specific type of <code>V</code> can be converted to each specific type
-of <code>T</code>.
+type in <code>V</code>'s type set can be converted to each type in <code>T</code>'s
+type set.
 </li>
 <li>
 Only <code>V</code> is a type parameter and a value of each
-specific type of <code>V</code> can be converted to <code>T</code>.
+type in <code>V</code>'s type set can be converted to <code>T</code>.
 </li>
 <li>
 Only <code>T</code> is a type parameter and <code>x</code> can be converted to each
-specific type of <code>T</code>.
+type in <code>T</code>'s type set.
 </li>
 </ul>
 
@@ -7085,9 +7025,8 @@ cap(s)    [n]T, *[n]T      array length (== n)
 
 <p>
 If the argument type is a <a href="#Type_parameter_lists">type parameter</a> <code>P</code>,
-<code>P</code> must have <a href="#Specific_types">specific types</a>, and
 the call <code>len(e)</code> (or <code>cap(e)</code> respectively) must be valid for
-each specific type of <code>P</code>.
+each type in <code>P</code>'s type set.
 The result is the length (or capacity, respectively) of the argument whose type
 corresponds to the type argument with which <code>P</code> was
 <a href="#Instantiations">instantiated</a>.
@@ -7309,8 +7248,7 @@ delete(m, k)  // remove element m[k] from map m
 
 <p>
 If the type of <code>m</code> is a <a href="#Type_parameter_lists">type parameter</a>,
-it must have <a href="#Specific_types">specific types</a>, all specific types
-must be maps, and they must all have identical key types.
+all types in that type set must be maps, and they must all have identical key types.
 </p>
 
 <p>
