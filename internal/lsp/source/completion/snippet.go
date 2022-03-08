@@ -49,7 +49,7 @@ func (c *completer) structFieldSnippet(cand candidate, detail string, snip *snip
 }
 
 // functionCallSnippets calculates the snippet for function calls.
-func (c *completer) functionCallSnippet(name string, params []string, snip *snippet.Builder) {
+func (c *completer) functionCallSnippet(name string, tparams, params []string, snip *snippet.Builder) {
 	// If there is no suffix then we need to reuse existing call parens
 	// "()" if present. If there is an identifier suffix then we always
 	// need to include "()" since we don't overwrite the suffix.
@@ -73,7 +73,26 @@ func (c *completer) functionCallSnippet(name string, params []string, snip *snip
 		}
 	}
 
-	snip.WriteText(name + "(")
+	snip.WriteText(name)
+
+	if len(tparams) > 0 {
+		snip.WriteText("[")
+		if c.opts.placeholders {
+			for i, tp := range tparams {
+				if i > 0 {
+					snip.WriteText(", ")
+				}
+				snip.WritePlaceholder(func(b *snippet.Builder) {
+					b.WriteText(tp)
+				})
+			}
+		} else {
+			snip.WritePlaceholder(nil)
+		}
+		snip.WriteText("]")
+	}
+
+	snip.WriteText("(")
 
 	if c.opts.placeholders {
 		// A placeholder snippet turns "someFun<>" into "someFunc(<*i int*>, *s string*)".

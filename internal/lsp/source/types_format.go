@@ -39,10 +39,10 @@ func FormatType(typ types.Type, qf types.Qualifier) (detail string, kind protoco
 }
 
 type signature struct {
-	name, doc        string
-	params, results  []string
-	variadic         bool
-	needResultParens bool
+	name, doc                   string
+	typeParams, params, results []string
+	variadic                    bool
+	needResultParens            bool
 }
 
 func (s *signature) Format() string {
@@ -73,6 +73,10 @@ func (s *signature) Format() string {
 		b.WriteByte(')')
 	}
 	return b.String()
+}
+
+func (s *signature) TypeParams() []string {
+	return s.typeParams
 }
 
 func (s *signature) Params() []string {
@@ -171,17 +175,17 @@ func formatFieldList(ctx context.Context, snapshot Snapshot, list *ast.FieldList
 // FormatTypeParams turns TypeParamList into its Go representation, such as:
 // [T, Y]. Note that it does not print constraints as this is mainly used for
 // formatting type params in method receivers.
-func FormatTypeParams(tp *typeparams.TypeParamList) string {
-	if tp == nil || tp.Len() == 0 {
+func FormatTypeParams(tparams *typeparams.TypeParamList) string {
+	if tparams == nil || tparams.Len() == 0 {
 		return ""
 	}
 	var buf bytes.Buffer
 	buf.WriteByte('[')
-	for i := 0; i < tp.Len(); i++ {
+	for i := 0; i < tparams.Len(); i++ {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		buf.WriteString(tp.At(i).Obj().Name())
+		buf.WriteString(tparams.At(i).Obj().Name())
 	}
 	buf.WriteByte(']')
 	return buf.String()
@@ -189,6 +193,15 @@ func FormatTypeParams(tp *typeparams.TypeParamList) string {
 
 // NewSignature returns formatted signature for a types.Signature struct.
 func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signature, comment *ast.CommentGroup, qf types.Qualifier) *signature {
+	var tparams []string
+	tpList := typeparams.ForSignature(sig)
+	for i := 0; i < tpList.Len(); i++ {
+		tparam := tpList.At(i)
+		// TODO: is it possible to reuse the logic from FormatVarType here?
+		s := tparam.Obj().Name() + " " + tparam.Constraint().String()
+		tparams = append(tparams, s)
+	}
+
 	params := make([]string, 0, sig.Params().Len())
 	for i := 0; i < sig.Params().Len(); i++ {
 		el := sig.Params().At(i)
@@ -199,6 +212,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 		}
 		params = append(params, p)
 	}
+
 	var needResultParens bool
 	results := make([]string, 0, sig.Results().Len())
 	for i := 0; i < sig.Results().Len(); i++ {
@@ -228,6 +242,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 	}
 	return &signature{
 		doc:              d,
+		typeParams:       tparams,
 		params:           params,
 		results:          results,
 		variadic:         sig.Variadic(),

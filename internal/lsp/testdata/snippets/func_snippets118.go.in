@@ -1,0 +1,19 @@
+// +build go1.18
+//go:build go1.18
+
+package snippets
+
+type SyncMap[K comparable, V any] struct{}
+
+func NewSyncMap[K comparable, V any]() (result *SyncMap[K, V]) { //@item(NewSyncMap, "NewSyncMap", "", "")
+	return
+}
+
+func Identity[P ~int](p P) P { //@item(Identity, "Identity", "", "")
+	return p
+}
+
+func _() {
+	_ = NewSyncM //@snippet(" //", NewSyncMap, "NewSyncMap[${1:}]()", "NewSyncMap[${1:K comparable}, ${2:V any}]()")
+	_ = Identi //@snippet(" //", Identity, "Identity[${1:}](${2:})", "Identity[${1:P ~int}](${2:p P})")
+}

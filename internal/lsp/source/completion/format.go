@@ -130,7 +130,7 @@ Suffixes:
 		case invoke:
 			if sig, ok := funcType.Underlying().(*types.Signature); ok {
 				s := source.NewSignature(ctx, c.snapshot, c.pkg, sig, nil, c.qf)
-				c.functionCallSnippet("", s.Params(), &snip)
+				c.functionCallSnippet("", s.TypeParams(), s.Params(), &snip)
 				if sig.Results().Len() == 1 {
 					funcType = sig.Results().At(0).Type()
 				}
@@ -307,7 +307,7 @@ func (c *completer) formatBuiltin(ctx context.Context, cand candidate) (Completi
 		}
 		item.Detail = "func" + sig.Format()
 		item.snippet = &snippet.Builder{}
-		c.functionCallSnippet(obj.Name(), sig.Params(), item.snippet)
+		c.functionCallSnippet(obj.Name(), sig.TypeParams(), sig.Params(), item.snippet)
 	case *types.TypeName:
 		if types.IsInterface(obj.Type()) {
 			item.Kind = protocol.InterfaceCompletion
