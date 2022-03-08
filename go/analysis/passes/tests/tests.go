@@ -99,6 +99,8 @@ func checkFuzz(pass *analysis.Pass, fn *ast.FuncDecl) {
 // 4. Second argument onwards should be of type []byte, string, bool, byte,
 //	  rune, float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16,
 //	  uint32, uint64
+// 5. func() must not call any *F methods, e.g. (*F).Log, (*F).Error, (*F).Skip
+//    The only *F methods that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
 // Returns the list of parameters to the fuzz function, if they are valid fuzz parameters.
 func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) {
 	ast.Inspect(fn, func(n ast.Node) bool {
@@ -121,7 +123,7 @@ func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) 
 			// Argument should be a function
 			if !argOk {
 				pass.ReportRangef(expr, "argument to Fuzz must be a function")
-				return true
+				return false
 			}
 			// ff Argument function should not return
 			if tSign.Results().Len() != 0 {
@@ -130,12 +132,28 @@ func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) 
 			// ff Argument function should have 1 or more argument
 			if tSign.Params().Len() == 0 {
 				pass.ReportRangef(expr, "fuzz target must have 1 or more argument")
-				return true
+				return false
 			}
 			ok := validateFuzzArgs(pass, tSign.Params(), expr)
 			if ok && params == nil {
 				params = tSign.Params()
 			}
+			// Inspect the function that was passed as an argument to make sure that
+			// there are no calls to *F methods, except for Name and Failed.
+			ast.Inspect(expr, func(n ast.Node) bool {
+				if call, ok := n.(*ast.CallExpr); ok {
+					if !isFuzzTargetDot(pass, call, "") {
+						return true
+					}
+					if !isFuzzTargetDot(pass, call, "Name") && !isFuzzTargetDot(pass, call, "Failed") {
+						pass.ReportRangef(call, "fuzz target must not call any *F methods")
+					}
+				}
+				return true
+			})
+			// We do not need to look at any calls to f.Fuzz inside of a Fuzz call,
+			// since they are not allowed.
+			return false
 		}
 		return true
 	})
@@ -202,7 +220,7 @@ func isFuzzTargetDot(pass *analysis.Pass, call *ast.CallExpr, name string) bool 
 		if !isTestingType(pass.TypesInfo.Types[selExpr.X].Type, "F") {
 			return false
 		}
-		if selExpr.Sel.Name == name {
+		if name == "" || selExpr.Sel.Name == name {
 			return true
 		}
 	}
