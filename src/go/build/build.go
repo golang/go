@@ -35,7 +35,7 @@ type Context struct {
 	GOARCH string // target architecture
 	GOOS   string // target operating system
 	GOROOT string // Go root
-	GOPATH string // Go path
+	GOPATH string // Go paths
 
 	// Dir is the caller's working directory, or the empty string to use
 	// the current directory of the running process. In module mode, this is used
@@ -302,7 +302,9 @@ func defaultContext() Context {
 
 	c.GOARCH = buildcfg.GOARCH
 	c.GOOS = buildcfg.GOOS
-	c.GOROOT = pathpkg.Clean(runtime.GOROOT())
+	if goroot := runtime.GOROOT(); goroot != "" {
+		c.GOROOT = filepath.Clean(goroot)
+	}
 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
 	c.Compiler = runtime.Compiler
 
@@ -672,7 +674,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				}
 				return false
 			}
-			if ctxt.Compiler != "gccgo" && searchVendor(ctxt.GOROOT, true) {
+			if ctxt.Compiler != "gccgo" && ctxt.GOROOT != "" && searchVendor(ctxt.GOROOT, true) {
 				goto Found
 			}
 			for _, root := range gopath {
@@ -706,12 +708,12 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				}
 				tried.goroot = dir
 			}
-		}
-		if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
-			p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
-			p.Goroot = true
-			p.Root = ctxt.GOROOT
-			goto Found
+			if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
+				p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
+				p.Goroot = true
+				p.Root = ctxt.GOROOT
+				goto Found
+			}
 		}
 		for _, root := range gopath {
 			dir := ctxt.joinPath(root, "src", path)
@@ -1082,6 +1084,13 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 		return errNoModules
 	}
 
+	// If ctxt.GOROOT is not set, we don't know which go command to invoke,
+	// and even if we did we might return packages in GOROOT that we wouldn't otherwise find
+	// (because we don't know to search in 'go env GOROOT' otherwise).
+	if ctxt.GOROOT == "" {
+		return errNoModules
+	}
+
 	// Predict whether module aware mode is enabled by checking the value of
 	// GO111MODULE and looking for a go.mod file in the source directory or
 	// one of its parents. Running 'go env GOMOD' in the source directory would
@@ -1119,11 +1128,8 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	}
 
 	// For efficiency, if path is a standard library package, let the usual lookup code handle it.
-	if ctxt.GOROOT != "" {
-		dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
-		if ctxt.isDir(dir) {
-			return errNoModules
-		}
+	if dir := ctxt.joinPath(ctxt.GOROOT, "src", path); ctxt.isDir(dir) {
+		return errNoModules
 	}
 
 	// If GO111MODULE=auto, look to see if there is a go.mod.
@@ -1165,7 +1171,8 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 		}
 	}
 
-	cmd := exec.Command("go", "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
+	goCmd := filepath.Join(ctxt.GOROOT, "bin", "go")
+	cmd := exec.Command(goCmd, "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
 
 	if ctxt.Dir != "" {
 		cmd.Dir = ctxt.Dir

@@ -23,11 +23,11 @@ stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
 
 ! go run -trimpath .
 stdout '^GOROOT $'
-stderr '^package runtime is not in GOROOT \(src'${/}'runtime\)$'
+stderr 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WORK${/}gopath${/}src${/}runtime' \(from \$GOPATH\)\nexit status 1\n\z'
 
 ! go test -trimpath -v .
 stdout '^GOROOT $'
-stdout '^package runtime is not in GOROOT \(src'${/}'runtime\)$'
+stdout 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WORK${/}gopath${/}src${/}runtime' \(from \$GOPATH\)$'
 
 -- go.mod --
 module example
