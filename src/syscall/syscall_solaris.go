@@ -47,20 +47,8 @@ func direntNamlen(buf []byte) (uint64, bool) {
 	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
 }
 
-func pipe() (r uintptr, w uintptr, err uintptr)
-
 func Pipe(p []int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	r0, w0, e1 := pipe()
-	if e1 != 0 {
-		err = Errno(e1)
-	}
-	if err == nil {
-		p[0], p[1] = int(r0), int(w0)
-	}
-	return
+	return Pipe2(p, 0)
 }
 
 //sysnb	pipe2(p *[2]_C_int, flags int) (err error)
