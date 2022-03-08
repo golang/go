@@ -75,6 +75,8 @@ import (
 // either be any string type, an integer, implement json.Unmarshaler, or
 // implement encoding.TextUnmarshaler.
 //
+// If the JSON-encoded data contain a syntax error, Unmarshal returns a SyntaxError.
+//
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
 // skips that field and completes the unmarshaling as best it can.
