@@ -464,6 +464,75 @@ g0:
 	MOVW	R2, ret+16(FP)
 	RET
 
+// func cgodropm()
+// When calling go exported function from C, we register a destructor
+// callback by using pthread_key_create, cgodropm will be invoked
+// when thread exiting.
+TEXT runtime·cgodropm(SB),NOSPLIT|NOFRAME,$0
+	/*
+	 * We still need to save all callee save register as before.
+	 */
+#ifndef GOMIPS64_softfloat
+	ADDV	$(-8*20), R29
+#else
+	ADDV	$(-8*12), R29
+#endif
+	MOVV	R16, (8*1)(R29)
+	MOVV	R17, (8*2)(R29)
+	MOVV	R18, (8*3)(R29)
+	MOVV	R19, (8*4)(R29)
+	MOVV	R20, (8*5)(R29)
+	MOVV	R21, (8*6)(R29)
+	MOVV	R22, (8*7)(R29)
+	MOVV	R23, (8*8)(R29)
+	MOVV	RSB, (8*9)(R29)
+	MOVV	g, (8*10)(R29)
+	MOVV	R31, (8*11)(R29)
+#ifndef GOMIPS64_softfloat
+	MOVD	F24, (8*12)(R29)
+	MOVD	F25, (8*13)(R29)
+	MOVD	F26, (8*14)(R29)
+	MOVD	F27, (8*15)(R29)
+	MOVD	F28, (8*16)(R29)
+	MOVD	F29, (8*27)(R29)
+	MOVD	F30, (8*18)(R29)
+	MOVD	F31, (8*19)(R29)
+#endif
+	// Initialize Go ABI environment
+	// prepare SB register = PC & 0xffffffff00000000
+	BGEZAL	R0, 1(PC)
+	SRLV	$32, R31, RSB
+	SLLV	$32, RSB
+	JAL	runtime·load_g(SB)
+
+	JAL	runtime·dropmCallback(SB)
+
+	MOVV	(8*1)(R29), R16
+	MOVV	(8*2)(R29), R17
+	MOVV	(8*3)(R29), R18
+	MOVV	(8*4)(R29), R19
+	MOVV	(8*5)(R29), R20
+	MOVV	(8*6)(R29), R21
+	MOVV	(8*7)(R29), R22
+	MOVV	(8*8)(R29), R23
+	MOVV	(8*9)(R29), RSB
+	MOVV	(8*10)(R29), g
+	MOVV	(8*11)(R29), R31
+#ifndef GOMIPS64_softfloat
+	MOVD	(8*12)(R29), F24
+	MOVD	(8*13)(R29), F25
+	MOVD	(8*14)(R29), F26
+	MOVD	(8*15)(R29), F27
+	MOVD	(8*16)(R29), F28
+	MOVD	(8*17)(R29), F29
+	MOVD	(8*18)(R29), F30
+	MOVD	(8*19)(R29), F31
+	ADDV	$(8*20), R29
+#else
+	ADDV	$(8*12), R29
+#endif
+	RET
+
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
@@ -562,6 +631,10 @@ havem:
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVV	savedm-8(SP), R3
+	BNE	R3, droppedm
+	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
+	// since cgodropm will dropm when thread is exiting.
+	MOVV	_cgo_pthread_key_created(SB), R3
 	BNE	R3, droppedm
 	MOVV	$runtime·dropm(SB), R4
 	JAL	(R4)

@@ -7,6 +7,7 @@
 #include "tls_arm64.h"
 #include "funcdata.h"
 #include "textflag.h"
+#include "cgo/abi_arm64.h"
 
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// SP = stack; R0 = argc; R1 = argv
@@ -1009,6 +1010,27 @@ nosave:
 	MOVD	R0, ret+16(FP)
 	RET
 
+// func cgodropm()
+// When calling go exported function from C, we register a destructor
+// callback by using pthread_key_create, cgodropm will be invoked
+// when thread exiting.
+TEXT runtime·cgodropm(SB),NOSPLIT|NOFRAME,$0
+	SUB	$(8*20), RSP
+	SAVE_R19_TO_R28(8*0)
+	SAVE_F8_TO_F15(8*10)
+	STP	(R29, R30), (8*18)(RSP)
+
+	// Initialize Go ABI environment
+	BL	runtime·load_g(SB)
+	BL	runtime·dropmCallback(SB)
+
+	RESTORE_R19_TO_R28(8*0)
+	RESTORE_F8_TO_F15(8*14)
+	LDP	(8*18)(RSP), (R29, R30)
+
+	ADD	$(8*20), RSP
+	RET
+
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
@@ -1114,6 +1136,10 @@ havem:
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVD	savedm-8(SP), R6
+	CBNZ	R6, droppedm
+	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
+	// since cgodropm will dropm when thread is exiting.
+	MOVD	_cgo_pthread_key_created(SB), R6
 	CBNZ	R6, droppedm
 	MOVD	$runtime·dropm(SB), R0
 	BL	(R0)

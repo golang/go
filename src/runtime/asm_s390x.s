@@ -559,6 +559,52 @@ g0:
 	MOVW	R2, ret+16(FP)
 	RET
 
+// func cgodropm()
+// When calling go exported function from C, we register a destructor
+// callback by using pthread_key_create, cgodropm will be invoked
+// when thread exiting.
+TEXT runtime·cgodropm(SB),NOSPLIT|NOFRAME,$0
+	// Start with standard C stack frame layout and linkage.
+
+	// Save R6-R15 in the register save area of the calling function.
+	STMG	R6, R15, 48(R15)
+
+	// Allocate 72 bytes on the stack.
+	MOVD	$-72(R15), R15
+
+	// Save F8-F15 in our stack frame.
+	FMOVD	F8, 8(R15)
+	FMOVD	F9, 16(R15)
+	FMOVD	F10, 24(R15)
+	FMOVD	F11, 32(R15)
+	FMOVD	F12, 40(R15)
+	FMOVD	F13, 48(R15)
+	FMOVD	F14, 56(R15)
+	FMOVD	F15, 64(R15)
+
+	// Initialize Go ABI environment.
+	BL	runtime·load_g(SB)
+
+	BL	runtime·dropmCallback(SB)
+
+	FMOVD	8(R15), F8
+	FMOVD	16(R15), F9
+	FMOVD	24(R15), F10
+	FMOVD	32(R15), F11
+	FMOVD	40(R15), F12
+	FMOVD	48(R15), F13
+	FMOVD	56(R15), F14
+	FMOVD	64(R15), F15
+
+	// De-allocate stack frame.
+	MOVD	$72(R15), R15
+
+	// Restore R6-R15.
+	LMG	48(R15), R6, R15
+
+	RET
+
+
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
@@ -657,6 +703,10 @@ havem:
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVD	savedm-8(SP), R6
+	CMPBNE	R6, $0, droppedm
+	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
+	// since cgodropm will dropm when thread is exiting.
+	MOVD	_cgo_pthread_key_created(SB), R6
 	CMPBNE	R6, $0, droppedm
 	MOVD	$runtime·dropm(SB), R3
 	BL	(R3)

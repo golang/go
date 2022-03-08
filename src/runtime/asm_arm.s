@@ -625,6 +625,52 @@ nosave:
 	MOVW	R0, ret+8(FP)
 	RET
 
+// func cgodropm()
+// When calling go exported function from C, we register a destructor
+// callback by using pthread_key_create, cgodropm will be invoked
+// when thread exiting.
+TEXT runtime·cgodropm(SB),NOSPLIT|NOFRAME,$0
+	SUB	$(8*9), R13 // Reserve space for the floating point registers.
+	// Save C callee-save registers R4-R12.
+	MOVM.WP	[R4, R5, R6, R7, R8, R9, g, R11, R12], (R13)
+	// Save the link register R14.
+	MOVW.W	R14, -4(R13)
+
+	// Skip floating point registers on GOARM < 6.
+	MOVB    runtime·goarm(SB), R11
+	CMP $6, R11
+	BLT skipfpsave
+	MOVD	F8, (10*4+8*1)(R13)
+	MOVD	F9, (10*4+8*2)(R13)
+	MOVD	F10, (10*4+8*3)(R13)
+	MOVD	F11, (10*4+8*4)(R13)
+	MOVD	F12, (10*4+8*5)(R13)
+	MOVD	F13, (10*4+8*6)(R13)
+	MOVD	F14, (10*4+8*7)(R13)
+	MOVD	F15, (10*4+8*8)(R13)
+
+skipfpsave:
+	BL	runtime·load_g(SB)
+	BL	runtime·dropmCallback(SB)
+
+	MOVB    runtime·goarm(SB), R11
+	CMP $6, R11
+	BLT skipfprest
+	MOVD	(10*4+8*1)(R13), F8
+	MOVD	(10*4+8*2)(R13), F9
+	MOVD	(10*4+8*3)(R13), F10
+	MOVD	(10*4+8*4)(R13), F11
+	MOVD	(10*4+8*5)(R13), F12
+	MOVD	(10*4+8*6)(R13), F13
+	MOVD	(10*4+8*7)(R13), F14
+	MOVD	(10*4+8*8)(R13), F15
+
+skipfprest:
+	MOVW.P	4(R13), R14
+	MOVM.IAW	(R13), [R4, R5, R6, R7, R8, R9, g, R11, R12]
+	ADD	$(8*9), R13
+	MOVW	R14, R15
+
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT	·cgocallback(SB),NOSPLIT,$12-12
@@ -727,6 +773,11 @@ havem:
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVW	savedm-4(SP), R6
+	CMP	$0, R6
+	B.NE	6(PC)
+	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
+	// since cgodropm will dropm when thread is exiting.
+	MOVW	_cgo_pthread_key_created(SB), R6
 	CMP	$0, R6
 	B.NE	3(PC)
 	MOVW	$runtime·dropm(SB), R0

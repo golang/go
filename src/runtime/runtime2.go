@@ -561,6 +561,7 @@ type m struct {
 	printlock     int8
 	incgo         bool          // m is executing a cgo call
 	isextra       bool          // m is an extra m
+	dropped       bool          // m is mark dropped, only for extra m
 	freeWait      atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
 	fastrand      uint64
 	needextram    bool

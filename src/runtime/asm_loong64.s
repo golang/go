@@ -456,6 +456,57 @@ g0:
 	MOVW	R4, ret+16(FP)
 	RET
 
+// func cgodropm()
+// When calling go exported function from C, we register a destructor
+// callback by using pthread_key_create, cgodropm will be invoked
+// when thread exiting.
+TEXT runtime·cgodropm(SB),NOSPLIT,$0-0
+	ADDV	$(-8*18), R3
+	MOVV	R23, (8*0)(R3)
+	MOVV	R24, (8*1)(R3)
+	MOVV	R25, (8*2)(R3)
+	MOVV	R26, (8*3)(R3)
+	MOVV	R27, (8*4)(R3)
+	MOVV	R28, (8*5)(R3)
+	MOVV	R29, (8*6)(R3)
+	MOVV	R30, (8*7)(R3)
+	MOVV	g, (8*8)(R3)
+	MOVV	R1, (8*9)(R3)
+	MOVD	F24, (8*10)(R3)
+	MOVD	F25, (8*11)(R3)
+	MOVD	F26, (8*12)(R3)
+	MOVD	F27, (8*13)(R3)
+	MOVD	F28, (8*14)(R3)
+	MOVD	F29, (8*15)(R3)
+	MOVD	F30, (8*16)(R3)
+	MOVD	F31, (8*17)(R3)
+
+	// Initialize Go ABI environment
+	JAL	runtime·load_g(SB)
+
+	JAL	runtime·dropmCallback(SB)
+
+	MOVV	(8*0)(R3), R23
+	MOVV	(8*1)(R3), R24
+	MOVV	(8*2)(R3), R25
+	MOVV	(8*3)(R3), R26
+	MOVV	(8*4)(R3), R27
+	MOVV	(8*5)(R3), R28
+	MOVV	(8*6)(R3), R29
+	MOVV	(8*7)(R3), R30
+	MOVV	(8*8)(R3), g
+	MOVV	(8*9)(R3), R1
+	MOVD	(8*10)(R3), F24
+	MOVD	(8*11)(R3), F25
+	MOVD	(8*12)(R3), F26
+	MOVD	(8*13)(R3), F27
+	MOVD	(8*14)(R3), F28
+	MOVD	(8*15)(R3), F29
+	MOVD	(8*16)(R3), F30
+	MOVD	(8*17)(R3), F31
+	ADDV	$(8*18), R3
+	RET
+
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24

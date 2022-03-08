@@ -401,6 +401,9 @@ TEXT runtime·goexit(SB), NOSPLIT|TOPFRAME, $0-0
 	CALL runtime·goexit1(SB) // does not return
 	UNDEF
 
+TEXT runtime·cgodropm(SB), NOSPLIT, $0
+	UNDEF
+
 TEXT runtime·cgocallback(SB), NOSPLIT, $0-24
 	UNDEF
 

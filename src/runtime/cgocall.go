@@ -229,6 +229,9 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	savedpc := gp.syscallpc
 	exitsyscall() // coming out of cgo call
 	gp.m.incgo = false
+	if gp.m.isextra {
+		gp.m.dropped = false
+	}
 
 	osPreemptExtExit(gp.m)
 
@@ -239,6 +242,9 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	// This is enforced by checking incgo in the schedule function.
 
 	gp.m.incgo = true
+	if gp.m.isextra {
+		gp.m.dropped = true
+	}
 
 	if gp.m != checkm {
 		throw("m changed unexpectedly in cgocallbackg")

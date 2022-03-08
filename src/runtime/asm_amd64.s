@@ -910,6 +910,16 @@ nosave:
 GLOBL zeroTLS<>(SB),RODATA,$const_tlsSize
 #endif
 
+// func cgodropm()
+// When calling go exported function from C, we register a destructor
+// callback by using pthread_key_create, cgodropm will be invoked
+// when thread exiting.
+TEXT runtime·cgodropm(SB),NOSPLIT,$0-0
+	PUSH_REGS_HOST_TO_ABI0()
+	CALL	runtime·dropmCallback(SB)
+	POP_REGS_HOST_TO_ABI0()
+	RET
+
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
@@ -1048,6 +1058,11 @@ havem:
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVQ	savedm-8(SP), BX
 	CMPQ	BX, $0
+	JNE	done
+	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
+	// since cgodropm will dropm when thread is exiting.
+	MOVQ	_cgo_pthread_key_created(SB), AX
+	CMPQ	(AX), $0
 	JNE	done
 	MOVQ	$runtime·dropm(SB), AX
 	CALL	AX

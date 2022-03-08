@@ -71,6 +71,27 @@ var _cgo_thread_start = &x_cgo_thread_start
 var x_cgo_sys_thread_create byte
 var _cgo_sys_thread_create = &x_cgo_sys_thread_create
 
+// Indicates whether a dummy thread key has been created or not.
+//
+// When calling go exported function from C, we register a destructor
+// callback, for a dummy thread key, by using pthread_key_create.
+
+//go:cgo_import_static x_cgo_pthread_key_created
+//go:linkname x_cgo_pthread_key_created x_cgo_pthread_key_created
+//go:linkname _cgo_pthread_key_created _cgo_pthread_key_created
+var x_cgo_pthread_key_created byte
+var _cgo_pthread_key_created = &x_cgo_pthread_key_created
+
+// Dropm when g is not nil.
+//
+// This method is invoked when thread is exiting.
+
+//go:cgo_import_static x_cgo_dropm
+//go:linkname x_cgo_dropm x_cgo_dropm
+//go:linkname _cgo_dropm _cgo_dropm
+var x_cgo_dropm byte
+var _cgo_dropm = &x_cgo_dropm
+
 // Notifies that the runtime has been initialized.
 //
 // We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
