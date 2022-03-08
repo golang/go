@@ -37,7 +37,7 @@ func testProg(dir, name string, length int, ok bool) {
 		log.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "tool", "compile", filename)
+	cmd := exec.Command("go", "tool", "compile", "-p=p", filename)
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 

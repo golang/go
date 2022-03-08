@@ -184,7 +184,7 @@ func main() {
 		resCount[status]++
 		dt := fmt.Sprintf("%.3fs", test.dt.Seconds())
 		if status == "FAIL" {
-			fmt.Printf("# go run run.go %s\n%s\nFAIL\t%s\t%s\n",
+			fmt.Printf("# go run run.go -- %s\n%s\nFAIL\t%s\t%s\n",
 				path.Join(test.dir, test.gofile),
 				errStr, test.goFileName(), dt)
 			continue
@@ -254,7 +254,7 @@ func goFiles(dir string) []string {
 type runCmd func(...string) ([]byte, error)
 
 func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, err error) {
-	cmd := []string{goTool(), "tool", "compile", "-e"}
+	cmd := []string{goTool(), "tool", "compile", "-e", "-p=p"}
 	cmd = append(cmd, flags...)
 	if *linkshared {
 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
@@ -263,8 +263,11 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 	return runcmd(cmd...)
 }
 
-func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, names ...string) (out []byte, err error) {
-	cmd := []string{goTool(), "tool", "compile", "-e"}
+func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, pkgname string, names ...string) (out []byte, err error) {
+	if pkgname != "main" {
+		pkgname = strings.TrimSuffix(names[0], ".go")
+	}
+	cmd := []string{goTool(), "tool", "compile", "-e", "-p=" + pkgname}
 	if localImports {
 		// Set relative path for local imports and import search path to current dir.
 		cmd = append(cmd, "-D", ".", "-I", ".")
@@ -415,28 +418,33 @@ func getPackageNameFromSource(fn string) (string, error) {
 	return pkgname[1], nil
 }
 
+type goDirPkg struct {
+	name  string
+	files []string
+}
+
 // If singlefilepkgs is set, each file is considered a separate package
 // even if the package names are the same.
-func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
+func goDirPackages(longdir string, singlefilepkgs bool) ([]*goDirPkg, error) {
 	files, err := goDirFiles(longdir)
 	if err != nil {
 		return nil, err
 	}
-	var pkgs [][]string
-	m := make(map[string]int)
+	var pkgs []*goDirPkg
+	m := make(map[string]*goDirPkg)
 	for _, file := range files {
 		name := file.Name()
 		pkgname, err := getPackageNameFromSource(filepath.Join(longdir, name))
 		if err != nil {
 			log.Fatal(err)
 		}
-		i, ok := m[pkgname]
+		p, ok := m[pkgname]
 		if singlefilepkgs || !ok {
-			i = len(pkgs)
-			pkgs = append(pkgs, nil)
-			m[pkgname] = i
+			p = &goDirPkg{name: pkgname}
+			pkgs = append(pkgs, p)
+			m[pkgname] = p
 		}
-		pkgs[i] = append(pkgs[i], name)
+		p.files = append(p.files, name)
 	}
 	return pkgs, nil
 }
@@ -607,7 +615,6 @@ func (t *test) run() {
 	wantError := false
 	wantAuto := false
 	singlefilepkgs := false
-	setpkgpaths := false
 	localImports := true
 	f, err := splitQuoted(action)
 	if err != nil {
@@ -652,8 +659,6 @@ func (t *test) run() {
 			wantError = false
 		case "-s":
 			singlefilepkgs = true
-		case "-P":
-			setpkgpaths = true
 		case "-n":
 			// Do not set relative path for local imports to current dir,
 			// e.g. do not pass -D . -I . to the compiler.
@@ -843,7 +848,7 @@ func (t *test) run() {
 		// Fail if wantError is true and compilation was successful and vice versa.
 		// Match errors produced by gc against errors in comments.
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
-		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-C", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
@@ -880,8 +885,8 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
-		for _, gofiles := range pkgs {
-			_, t.err = compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+		for _, pkg := range pkgs {
+			_, t.err = compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
 			if t.err != nil {
 				return
 			}
@@ -904,8 +909,8 @@ func (t *test) run() {
 			// Preceding pkg must return an error from compileInDir.
 			errPkg--
 		}
-		for i, gofiles := range pkgs {
-			out, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+		for i, pkg := range pkgs {
+			out, err := compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
 			if i == errPkg {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
@@ -919,7 +924,7 @@ func (t *test) run() {
 				return
 			}
 			var fullshort []string
-			for _, name := range gofiles {
+			for _, name := range pkg.files {
 				fullshort = append(fullshort, filepath.Join(longdir, name), name)
 			}
 			t.err = t.errorCheck(string(out), wantAuto, fullshort...)
@@ -953,18 +958,8 @@ func (t *test) run() {
 			}
 		}
 
-		for i, gofiles := range pkgs {
-			pflags := []string{}
-			pflags = append(pflags, flags...)
-			if setpkgpaths {
-				fp := filepath.Join(longdir, gofiles[0])
-				pkgname, err := getPackageNameFromSource(fp)
-				if err != nil {
-					log.Fatal(err)
-				}
-				pflags = append(pflags, "-p", pkgname)
-			}
-			_, err := compileInDir(runcmd, longdir, pflags, localImports, gofiles...)
+		for i, pkg := range pkgs {
+			_, err := compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
 			// Allow this package compilation fail based on conditions below;
 			// its errors were checked in previous case.
 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
@@ -972,7 +967,7 @@ func (t *test) run() {
 				return
 			}
 			if i == len(pkgs)-1 {
-				err = linkFile(runcmd, gofiles[0], ldflags)
+				err = linkFile(runcmd, pkg.files[0], ldflags)
 				if err != nil {
 					t.err = err
 					return
@@ -1071,7 +1066,7 @@ func (t *test) run() {
 			}
 		}
 		var objs []string
-		cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
+		cmd := []string{goTool(), "tool", "compile", "-p=main", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
 		if len(asms) > 0 {
 			cmd = append(cmd, "-asmhdr", "go_asm.h", "-symabis", "symabis")
 		}
@@ -1156,7 +1151,7 @@ func (t *test) run() {
 			// Because we run lots of trivial test programs,
 			// the time adds up.
 			pkg := filepath.Join(t.tempDir, "pkg.a")
-			if _, err := runcmd(goTool(), "tool", "compile", "-o", pkg, t.goFileName()); err != nil {
+			if _, err := runcmd(goTool(), "tool", "compile", "-p=main", "-o", pkg, t.goFileName()); err != nil {
 				t.err = err
 				return
 			}
@@ -1238,7 +1233,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, tfile)
 		out, err = runcmd(cmdline...)

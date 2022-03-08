@@ -28,9 +28,9 @@ func main() {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	run("go", "tool", "compile", filepath.Join(fb, "bug302.dir", "p.go"))
+	run("go", "tool", "compile", "-p=p", filepath.Join(fb, "bug302.dir", "p.go"))
 	run("go", "tool", "pack", "grc", "pp.a", "p.o")
-	run("go", "tool", "compile", "-I", ".", filepath.Join(fb, "bug302.dir", "main.go"))
+	run("go", "tool", "compile", "-p=main", "-I", ".", filepath.Join(fb, "bug302.dir", "main.go"))
 }
 
 func run(cmd string, args ...string) {

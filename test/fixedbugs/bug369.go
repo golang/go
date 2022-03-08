@@ -29,9 +29,9 @@ func main() {
 		return filepath.Join(tmpDir, name)
 	}
 
-	run("go", "tool", "compile", "-N", "-o", tmp("slow.o"), "pkg.go")
-	run("go", "tool", "compile", "-o", tmp("fast.o"), "pkg.go")
-	run("go", "tool", "compile", "-D", tmpDir, "-o", tmp("main.o"), "main.go")
+	run("go", "tool", "compile", "-p=pkg", "-N", "-o", tmp("slow.o"), "pkg.go")
+	run("go", "tool", "compile", "-p=pkg", "-o", tmp("fast.o"), "pkg.go")
+	run("go", "tool", "compile", "-p=main", "-D", tmpDir, "-o", tmp("main.o"), "main.go")
 	run("go", "tool", "link", "-o", tmp("a.exe"), tmp("main.o"))
 	run(tmp("a.exe"))
 }
