@@ -807,7 +807,7 @@ TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType 
 <p>
 The language <a href="#Predeclared_identifiers">predeclares</a> certain type names.
 Others are introduced with <a href="#Type_declarations">type declarations</a>
-or <a href="#Type_parameter_lists">type parameter lists</a>.
+or <a href="#Type_parameter_declarations">type parameter lists</a>.
 <i>Composite types</i>&mdash;array, struct, pointer, function,
 interface, slice, map, and channel types&mdash;may be constructed using
 type literals.
@@ -1459,7 +1459,7 @@ type Float interface {
 </pre>
 
 <p>
-In a union, a term cannot be a <a href="#Type_parameter_lists">type parameter</a>, and the type sets of all
+In a union, a term cannot be a <a href="#Type_parameter_declarations">type parameter</a>, and the type sets of all
 non-interface terms must be pairwise disjoint (the pairwise intersection of the type sets must be empty).
 Given a type parameter <code>P</code>:
 </p>
@@ -1769,7 +1769,7 @@ depending on the direction of the directional channels present.
 
 <p>
 By definition, a core type is never a <a href="#Type_definitions">defined type</a>,
-<a href="#Type_parameter_lists">type parameter</a>, or
+<a href="#Type_parameter_declarations">type parameter</a>, or
 <a href="#Interface_types">interface type</a>.
 </p>
 
@@ -1965,7 +1965,7 @@ to <code>T</code>.
 <p>
 A <a href="#Constants">constant</a> <code>x</code> is <i>representable</i>
 by a value of type <code>T</code>,
-where <code>T</code> is not a <a href="#Type_parameter_lists">type parameter</a>,
+where <code>T</code> is not a <a href="#Type_parameter_declarations">type parameter</a>,
 if one of the following conditions applies:
 </p>
 
@@ -2105,6 +2105,7 @@ Blocks nest and influence <a href="#Declarations_and_scope">scoping</a>.
 A <i>declaration</i> binds a non-<a href="#Blank_identifier">blank</a> identifier to a
 <a href="#Constant_declarations">constant</a>,
 <a href="#Type_declarations">type</a>,
+<a href="#Type_parameter_declarations">type parameter</a>,
 <a href="#Variable_declarations">variable</a>,
 <a href="#Function_declarations">function</a>,
 <a href="#Labeled_statements">label</a>, or
@@ -2502,7 +2503,7 @@ func (tz TimeZone) String() string {
 </pre>
 
 <p>
-If the type definition specifies <a href="#Type_parameter_lists">type parameters</a>,
+If the type definition specifies <a href="#Type_parameter_declarations">type parameters</a>,
 the type name denotes a <i>generic type</i>.
 Generic types must be <a href="#Instantiations">instantiated</a> when they
 are used.
@@ -2538,7 +2539,7 @@ present in the generic type definition.
 func (l *List[T]) Len() int  { … }
 </pre>
 
-<h3 id="Type_parameter_lists">Type parameter lists</h3>
+<h3 id="Type_parameter_declarations">Type parameter declarations</h3>
 
 <p>
 A type parameter list declares the <i>type parameters</i> of a generic function or type declaration.
@@ -2577,22 +2578,22 @@ has a corresponding (meta-)type which is called its
 
 <p>
 A parsing ambiguity arises when the type parameter list for a generic type
-declares a single type parameter with a type constraint of the form <code>*C</code>
-or <code>(C)</code> where <code>C</code> is not a (possibly parenthesized)
-<a href="#Types">type literal</a>:
+declares a single type parameter <code>P</code> with a constraint <code>C</code>
+such that the text <code>P C</code> forms a valid expression:
 </p>
 
 <pre>
 type T[P *C] …
 type T[P (C)] …
+type T[P *C|Q] …
+…
 </pre>
 
 <p>
-In these rare cases, the type parameter declaration is indistinguishable from
-the expressions <code>P*C</code> or <code>P(C)</code> and the type declaration
-is parsed as an array type declaration.
-To resolve the ambiguity, embed the constraint in an interface or use a trailing
-comma:
+In these rare cases, the type parameter list is indistinguishable from an
+expression and the type declaration is parsed as an array type declaration.
+To resolve the ambiguity, embed the constraint in an
+<a href="#Interface_types">interface</a> or use a trailing comma:
 </p>
 
 <pre>
@@ -2605,6 +2606,11 @@ Type parameters may also be declared by the receiver specification
 of a <a href="#Method_declarations">method declaration</a> associated
 with a generic type.
 </p>
+
+<!--
+This section needs to explain if and what kind of cycles are permitted
+using type parameters in a type parameter list.
+-->
 
 <h4 id="Type_constraints">Type constraints</h4>
 
@@ -2625,10 +2631,10 @@ the enclosing <code>interface{ … }</code> may be omitted for convenience:
 </p>
 
 <pre>
-[T *P]                             // = [T interface{*P}]
-[T ~int]                           // = [T interface{~int}]
-[T int|string]                     // = [T interface{int|string}]
-type Constraint ~int               // illegal: ~int is not inside a type parameter list
+[T []P]                      // = [T interface{[]P}]
+[T ~int]                     // = [T interface{~int}]
+[T int|string]               // = [T interface{int|string}]
+type Constraint ~int         // illegal: ~int is not inside a type parameter list
 </pre>
 
 <!--
@@ -2821,7 +2827,7 @@ func IndexRune(s string, r rune) int {
 </pre>
 
 <p>
-If the function declaration specifies <a href="#Type_parameter_lists">type parameters</a>,
+If the function declaration specifies <a href="#Type_parameter_declarations">type parameters</a>,
 the function name denotes a <i>generic function</i>.
 A generic function must be <a href="#Instantiations">instantiated</a> before it can be
 called or used as a value.
@@ -2911,13 +2917,10 @@ to the base type <code>Point</code>.
 If the receiver base type is a <a href="#Type_declarations">generic type</a>, the
 receiver specification must declare corresponding type parameters for the method
 to use. This makes the receiver type parameters available to the method.
-</p>
-
-<p>
 Syntactically, this type parameter declaration looks like an
-<a href="#Instantiations">instantiation</a> of the receiver base type, except that
-the type arguments are the type parameters being declared, one for each type parameter
-of the receiver base type.
+<a href="#Instantiations">instantiation</a> of the receiver base type: the type
+arguments must be identifiers denoting the type parameters being declared, one
+for each type parameter of the receiver base type.
 The type parameter names do not need to match their corresponding parameter names in the
 receiver base type definition, and all non-blank parameter names must be unique in the
 receiver parameter section and the method signature.
@@ -2931,8 +2934,8 @@ type Pair[A, B any] struct {
 	b B
 }
 
-func (p Pair[A, B]) Swap() Pair[B, A]  { return Pair[B, A]{p.b, p.a} }
-func (p Pair[First, _]) First() First  { return p.a }
+func (p Pair[A, B]) Swap() Pair[B, A]  { … }  // receiver declares A, B
+func (p Pair[First, _]) First() First  { … }  // receiver declares First, corresponds to A in Pair
 </pre>
 
 <h2 id="Expressions">Expressions</h2>
@@ -2974,7 +2977,7 @@ operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
 
 <p>
 Implementation restriction: A compiler need not report an error if an operand's
-type is a <a href="#Type_parameter_lists">type parameter</a> with an empty
+type is a <a href="#Type_parameter_declarations">type parameter</a> with an empty
 <a href="#Interface_types">type set</a>. Functions with such type parameters
 cannot be <a href="#Instantiations">instantiated</a>; any attempt will lead
 to an error at the instantiation site.
@@ -3759,7 +3762,7 @@ For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
 </ul>
 
 <p>
-For <code>a</code> of <a href="#Type_parameter_lists">type parameter type</a> <code>P</code>:
+For <code>a</code> of <a href="#Type_parameter_declarations">type parameter type</a> <code>P</code>:
 </p>
 <ul>
 	<li>The index expression <code>a[x]</code> must be valid for values
@@ -3952,7 +3955,7 @@ If the indices are out of range at run time, a <a href="#Run_time_panics">run-ti
 
 <p>
 For an expression <code>x</code> of <a href="#Interface_types">interface type</a>,
-but not a <a href="#Type_parameter_lists">type parameter</a>, and a type <code>T</code>,
+but not a <a href="#Type_parameter_declarations">type parameter</a>, and a type <code>T</code>,
 the primary expression
 </p>
 
@@ -4180,7 +4183,7 @@ including the type parameter list itself and any types in that list.
 
 <li>
 After substitution, each type argument must <a href="#Interface_types">implement</a>
-the <a href="#Type_parameter_lists">constraint</a> (instantiated, if necessary)
+the <a href="#Type_parameter_declarations">constraint</a> (instantiated, if necessary)
 of the corresponding type parameter. Otherwise instantiation fails.
 </li>
 </ol>
@@ -4193,9 +4196,9 @@ instantiating a function produces a new non-generic function.
 <pre>
 type parameter list    type arguments    after substitution
 
-[P any]                int               [int any]
-[S ~[]E, E any]        []int, int        [[]int ~[]int, int any]
-[P io.Writer]          string            [string io.Writer]         // illegal: string doesn't implement io.Writer
+[P any]                int               int implements any
+[S ~[]E, E any]        []int, int        []int implements ~[]int, int implements any
+[P io.Writer]          string            illegal: string doesn't implement io.Writer
 </pre>
 
 <p>
@@ -4259,7 +4262,7 @@ Type inference is based on
 
 <ul>
 <li>
-	a <a href="#Type_parameter_lists">type parameter list</a>
+	a <a href="#Type_parameter_declarations">type parameter list</a>
 </li>
 <li>
 	a substitution map <i>M</i> initialized with the known type arguments, if any
@@ -4424,9 +4427,8 @@ unresolved type parameters left.
 </p>
 
 <p>
-Function argument type inference can be used when the function has ordinary parameters
-whose types are defined using the function's type parameters. Inference happens in two
-separate phases; each phase operates on a specific list of (parameter, argument) pairs:
+Inference happens in two separate phases; each phase operates on a specific list of
+(parameter, argument) pairs:
 </p>
 
 <ol>
@@ -4778,7 +4780,7 @@ The bitwise logical and shift operators apply to integers only.
 </pre>
 
 <p>
-If the operand type is a <a href="#Type_parameter_lists">type parameter</a>,
+If the operand type is a <a href="#Type_parameter_declarations">type parameter</a>,
 the operator must apply to each type in that type set.
 The operands are represented as values of the type argument that the type parameter
 is <a href="#Instantiations">instantiated</a> with, and the operation is computed
@@ -5227,7 +5229,7 @@ as for non-constant <code>x</code>.
 </p>
 
 <p>
-Converting a constant to a type that is not a <a href="#Type_parameter_lists">type parameter</a>
+Converting a constant to a type that is not a <a href="#Type_parameter_declarations">type parameter</a>
 yields a typed constant.
 </p>
 
@@ -5282,7 +5284,7 @@ in any of these cases:
 	<li>
 	ignoring struct tags (see below),
 	<code>x</code>'s type and <code>T</code> are not
-	<a href="#Type_parameter_lists">type parameters</a> but have
+	<a href="#Type_parameter_declarations">type parameters</a> but have
 	<a href="#Type_identity">identical</a> <a href="#Types">underlying types</a>.
 	</li>
 	<li>
@@ -6201,7 +6203,7 @@ switch x.(type) {
 Cases then match actual types <code>T</code> against the dynamic type of the
 expression <code>x</code>. As with type assertions, <code>x</code> must be of
 <a href="#Interface_types">interface type</a>, but not a
-<a href="#Type_parameter_lists">type parameter</a>, and each non-interface type
+<a href="#Type_parameter_declarations">type parameter</a>, and each non-interface type
 <code>T</code> listed in a case must implement the type of <code>x</code>.
 The types listed in the cases of a type switch must all be
 <a href="#Type_identity">different</a>.
@@ -6283,7 +6285,7 @@ if v == nil {
 </pre>
 
 <p>
-A <a href="#Type_parameter_lists">type parameter</a> or a <a href="#Type_declarations">generic type</a>
+A <a href="#Type_parameter_declarations">type parameter</a> or a <a href="#Type_declarations">generic type</a>
 may be used as a type in a case. If upon <a href="#Instantiations">instantiation</a> that type turns
 out to duplicate another entry in the switch, the first matching case is chosen.
 </p>
@@ -7024,7 +7026,7 @@ cap(s)    [n]T, *[n]T      array length (== n)
 </pre>
 
 <p>
-If the argument type is a <a href="#Type_parameter_lists">type parameter</a> <code>P</code>,
+If the argument type is a <a href="#Type_parameter_declarations">type parameter</a> <code>P</code>,
 the call <code>len(e)</code> (or <code>cap(e)</code> respectively) must be valid for
 each type in <code>P</code>'s type set.
 The result is the length (or capacity, respectively) of the argument whose type
@@ -7247,7 +7249,7 @@ delete(m, k)  // remove element m[k] from map m
 </pre>
 
 <p>
-If the type of <code>m</code> is a <a href="#Type_parameter_lists">type parameter</a>,
+If the type of <code>m</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
 all types in that type set must be maps, and they must all have identical key types.
 </p>
 
