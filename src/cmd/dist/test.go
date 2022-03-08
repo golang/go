@@ -397,7 +397,9 @@ func (t *tester) registerStdTest(pkg string) {
 				"-short=" + short(),
 				t.tags(),
 				t.timeout(timeoutSec),
-				"-gcflags=all=" + gcflags,
+			}
+			if gcflags != "" {
+				args = append(args, "-gcflags=all="+gcflags)
 			}
 			if t.race {
 				args = append(args, "-race")
