@@ -2233,11 +2233,6 @@ var vcsStatusCache par.Cache
 // Note that the GoVersion field is not set here to avoid encoding it twice.
 // It is stored separately in the binary, mostly for historical reasons.
 func (p *Package) setBuildInfo(includeVCS bool) {
-	// TODO: build and vcs information is not embedded for executables in GOROOT.
-	// cmd/dist uses -gcflags=all= -ldflags=all= by default, which means these
-	// executables always appear stale unless the user sets the same flags.
-	// Perhaps it's safe to omit those flags when GO_GCFLAGS and GO_LDFLAGS
-	// are not set?
 	setPkgErrorf := func(format string, args ...any) {
 		if p.Error == nil {
 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
@@ -2313,50 +2308,48 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 	// Add command-line flags relevant to the build.
 	// This is informational, not an exhaustive list.
 	// Please keep the list sorted.
-	if !p.Standard {
-		if cfg.BuildASan {
-			appendSetting("-asan", "true")
+	if cfg.BuildASan {
+		appendSetting("-asan", "true")
+	}
+	if BuildAsmflags.present {
+		appendSetting("-asmflags", BuildAsmflags.String())
+	}
+	appendSetting("-compiler", cfg.BuildContext.Compiler)
+	if gccgoflags := BuildGccgoflags.String(); gccgoflags != "" && cfg.BuildContext.Compiler == "gccgo" {
+		appendSetting("-gccgoflags", gccgoflags)
+	}
+	if gcflags := BuildGcflags.String(); gcflags != "" && cfg.BuildContext.Compiler == "gc" {
+		appendSetting("-gcflags", gcflags)
+	}
+	if ldflags := BuildLdflags.String(); ldflags != "" {
+		appendSetting("-ldflags", ldflags)
+	}
+	if cfg.BuildMSan {
+		appendSetting("-msan", "true")
+	}
+	if cfg.BuildRace {
+		appendSetting("-race", "true")
+	}
+	if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
+		appendSetting("-tags", strings.Join(tags, ","))
+	}
+	cgo := "0"
+	if cfg.BuildContext.CgoEnabled {
+		cgo = "1"
+	}
+	appendSetting("CGO_ENABLED", cgo)
+	if cfg.BuildContext.CgoEnabled {
+		for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
+			appendSetting(name, cfg.Getenv(name))
 		}
-		if BuildAsmflags.present {
-			appendSetting("-asmflags", BuildAsmflags.String())
-		}
-		appendSetting("-compiler", cfg.BuildContext.Compiler)
-		if BuildGccgoflags.present && cfg.BuildContext.Compiler == "gccgo" {
-			appendSetting("-gccgoflags", BuildGccgoflags.String())
-		}
-		if BuildGcflags.present && cfg.BuildContext.Compiler == "gc" {
-			appendSetting("-gcflags", BuildGcflags.String())
-		}
-		if BuildLdflags.present {
-			appendSetting("-ldflags", BuildLdflags.String())
-		}
-		if cfg.BuildMSan {
-			appendSetting("-msan", "true")
-		}
-		if cfg.BuildRace {
-			appendSetting("-race", "true")
-		}
-		if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
-			appendSetting("-tags", strings.Join(tags, ","))
-		}
-		cgo := "0"
-		if cfg.BuildContext.CgoEnabled {
-			cgo = "1"
-		}
-		appendSetting("CGO_ENABLED", cgo)
-		if cfg.BuildContext.CgoEnabled {
-			for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
-				appendSetting(name, cfg.Getenv(name))
-			}
-		}
-		appendSetting("GOARCH", cfg.BuildContext.GOARCH)
-		if cfg.RawGOEXPERIMENT != "" {
-			appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
-		}
-		appendSetting("GOOS", cfg.BuildContext.GOOS)
-		if key, val := cfg.GetArchEnv(); key != "" && val != "" {
-			appendSetting(key, val)
-		}
+	}
+	appendSetting("GOARCH", cfg.BuildContext.GOARCH)
+	if cfg.RawGOEXPERIMENT != "" {
+		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
+	}
+	appendSetting("GOOS", cfg.BuildContext.GOOS)
+	if key, val := cfg.GetArchEnv(); key != "" && val != "" {
+		appendSetting(key, val)
 	}
 
 	// Add VCS status if all conditions are true:
