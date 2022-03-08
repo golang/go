@@ -110,6 +110,10 @@ For complex numbers, the width and precision apply to the two
 components independently and the result is parenthesized, so %f applied
 to 1.2+3.4i produces (1.200000+3.400000i).
 
+When formatting a single integer code point or a rune string (type []rune)
+with %q, invalid Unicode code points are changed to the Unicode replacement
+character, U+FFFD, as in strconv.QuoteRune.
+
 Other flags:
 	+	always print a sign for numeric values;
 		guarantee ASCII-only output for %q (%+q)
