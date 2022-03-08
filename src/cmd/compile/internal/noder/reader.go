@@ -644,6 +644,10 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 		name.Func = ir.NewFunc(r.pos())
 		name.Func.Nname = name
 
+		if r.hasTypeParams() {
+			name.Func.SetDupok(true)
+		}
+
 		rext.funcExt(name)
 		return name
 
@@ -789,6 +793,10 @@ func (r *reader) method(rext *reader) *types.Field {
 
 	name.Func = ir.NewFunc(r.pos())
 	name.Func.Nname = name
+
+	if r.hasTypeParams() {
+		name.Func.SetDupok(true)
+	}
 
 	rext.funcExt(name)
 
