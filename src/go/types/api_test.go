@@ -1432,15 +1432,23 @@ type C struct {
 	c int
 }
 
+type G[P any] struct {
+	p P
+}
+
+func (G[P]) m(P) {}
+
+var Inst G[int]
+
 func (C) g()
 func (*C) h()
 
 func main() {
 	// qualified identifiers
 	var _ lib.T
-        _ = lib.C
-        _ = lib.F
-        _ = lib.V
+	_ = lib.C
+	_ = lib.F
+	_ = lib.V
 	_ = lib.T.M
 
 	// fields
@@ -1456,25 +1464,30 @@ func main() {
 	_ = A{}.c
 	_ = new(A).c
 
+	_ = Inst.p
+	_ = G[string]{}.p
+
 	// methods
-        _ = A{}.f
-        _ = new(A).f
-        _ = A{}.g
-        _ = new(A).g
-        _ = new(A).h
+	_ = A{}.f
+	_ = new(A).f
+	_ = A{}.g
+	_ = new(A).g
+	_ = new(A).h
 
-        _ = B{}.f
-        _ = new(B).f
+	_ = B{}.f
+	_ = new(B).f
 
-        _ = C{}.g
-        _ = new(C).g
-        _ = new(C).h
+	_ = C{}.g
+	_ = new(C).g
+	_ = new(C).h
+	_ = Inst.m
 
 	// method expressions
-        _ = A.f
-        _ = (*A).f
-        _ = B.f
-        _ = (*B).f
+	_ = A.f
+	_ = (*A).f
+	_ = B.f
+	_ = (*B).f
+	_ = G[string].m
 }`
 
 	wantOut := map[string][2]string{
@@ -1488,6 +1501,7 @@ func main() {
 		"new(A).b": {"field (*main.A) b int", "->[0 0]"},
 		"A{}.c":    {"field (main.A) c int", ".[1 0]"},
 		"new(A).c": {"field (*main.A) c int", "->[1 0]"},
+		"Inst.p":   {"field (main.G[int]) p int", ".[0]"},
 
 		"A{}.f":    {"method (main.A) f(int)", "->[0 0]"},
 		"new(A).f": {"method (*main.A) f(int)", "->[0 0]"},
@@ -1499,11 +1513,14 @@ func main() {
 		"C{}.g":    {"method (main.C) g()", ".[0]"},
 		"new(C).g": {"method (*main.C) g()", "->[0]"},
 		"new(C).h": {"method (*main.C) h()", "->[1]"}, // TODO(gri) should this report .[1] ?
+		"Inst.m":   {"method (main.G[int]) m(int)", ".[0]"},
 
-		"A.f":    {"method expr (main.A) f(main.A, int)", "->[0 0]"},
-		"(*A).f": {"method expr (*main.A) f(*main.A, int)", "->[0 0]"},
-		"B.f":    {"method expr (main.B) f(main.B, int)", ".[0]"},
-		"(*B).f": {"method expr (*main.B) f(*main.B, int)", "->[0]"},
+		"A.f":           {"method expr (main.A) f(main.A, int)", "->[0 0]"},
+		"(*A).f":        {"method expr (*main.A) f(*main.A, int)", "->[0 0]"},
+		"B.f":           {"method expr (main.B) f(main.B, int)", ".[0]"},
+		"(*B).f":        {"method expr (*main.B) f(*main.B, int)", "->[0]"},
+		"G[string].m":   {"method expr (main.G[string]) m(main.G[string], string)", ".[0]"},
+		"G[string]{}.p": {"field (main.G[string]) p string", ".[0]"},
 	}
 
 	makePkg("lib", libSrc)
