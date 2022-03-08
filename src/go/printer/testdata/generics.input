@@ -61,3 +61,28 @@ type _ [P * T - T]struct{}
 type _[
 	P *T,
 ] struct{}
+
+// equivalent test cases for potentially ambiguous type parameter lists, except
+// for function declarations there is no ambiguity (issue #51548)
+func _[P *T,]() {}
+func _[P *T, _ any]() {}
+func _[P (*T),]() {}
+func _[P (*T), _ any]() {}
+func _[P (T),]() {}
+func _[P (T), _ any]() {}
+
+func _[P *struct{}] () {}
+func _[P (*struct{})] () {}
+func _[P ([]int)] () {}
+
+func _ [P(T)]() {}
+func _ [P((T))]() {}
+func _ [P * *T]() {}
+func _ [P * T]() {}
+func _ [P(*T)]() {}
+func _ [P(**T)]() {}
+func _ [P * T]() {}
+
+func _[
+	P *T,
+]() {}
