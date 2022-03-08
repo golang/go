@@ -201,6 +201,10 @@ func ParseFlags() {
 		Exit(2)
 	}
 
+	if *Flag.LowerP == "" {
+		log.Fatalf("-p is required")
+	}
+
 	if Flag.LowerO == "" {
 		p := flag.Arg(0)
 		if i := strings.LastIndex(p, "/"); i >= 0 {

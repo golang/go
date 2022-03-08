@@ -267,7 +267,7 @@ func TestDisasmGoobj(t *testing.T) {
 	mustHaveDisasm(t)
 
 	hello := filepath.Join(tmp, "hello.o")
-	args := []string{"tool", "compile", "-o", hello}
+	args := []string{"tool", "compile", "-p=main", "-o", hello}
 	args = append(args, "testdata/fmthello.go")
 	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
 	if err != nil {

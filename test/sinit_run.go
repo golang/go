@@ -25,7 +25,7 @@ func main() {
 	}
 	f.Close()
 
-	cmd := exec.Command("go", "tool", "compile", "-o", f.Name(), "-S", "sinit.go")
+	cmd := exec.Command("go", "tool", "compile", "-p=sinit", "-o", f.Name(), "-S", "sinit.go")
 	out, err := cmd.CombinedOutput()
 	os.Remove(f.Name())
 	if err != nil {
