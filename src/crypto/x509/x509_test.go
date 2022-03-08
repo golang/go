@@ -2631,24 +2631,24 @@ func TestCreateRevocationList(t *testing.T) {
 				return
 			}
 
-			parsedCRL, err := ParseDERCRL(crl)
+			parsedCRL, err := ParseRevocationList(crl)
 			if err != nil {
 				t.Fatalf("Failed to parse generated CRL: %s", err)
 			}
 
 			if tc.template.SignatureAlgorithm != UnknownSignatureAlgorithm &&
-				parsedCRL.SignatureAlgorithm.Algorithm.Equal(signatureAlgorithmDetails[tc.template.SignatureAlgorithm].oid) {
+				parsedCRL.SignatureAlgorithm != tc.template.SignatureAlgorithm {
 				t.Fatalf("SignatureAlgorithm mismatch: got %v; want %v.", parsedCRL.SignatureAlgorithm,
 					tc.template.SignatureAlgorithm)
 			}
 
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.RevokedCertificates, tc.template.RevokedCertificates) {
+			if !reflect.DeepEqual(parsedCRL.RevokedCertificates, tc.template.RevokedCertificates) {
 				t.Fatalf("RevokedCertificates mismatch: got %v; want %v.",
-					parsedCRL.TBSCertList.RevokedCertificates, tc.template.RevokedCertificates)
+					parsedCRL.RevokedCertificates, tc.template.RevokedCertificates)
 			}
 
-			if len(parsedCRL.TBSCertList.Extensions) != 2+len(tc.template.ExtraExtensions) {
-				t.Fatalf("Generated CRL has wrong number of extensions, wanted: %d, got: %d", 2+len(tc.template.ExtraExtensions), len(parsedCRL.TBSCertList.Extensions))
+			if len(parsedCRL.Extensions) != 2+len(tc.template.ExtraExtensions) {
+				t.Fatalf("Generated CRL has wrong number of extensions, wanted: %d, got: %d", 2+len(tc.template.ExtraExtensions), len(parsedCRL.Extensions))
 			}
 			expectedAKI, err := asn1.Marshal(authKeyId{Id: tc.issuer.SubjectKeyId})
 			if err != nil {
@@ -2658,9 +2658,9 @@ func TestCreateRevocationList(t *testing.T) {
 				Id:    oidExtensionAuthorityKeyId,
 				Value: expectedAKI,
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[0], akiExt) {
+			if !reflect.DeepEqual(parsedCRL.Extensions[0], akiExt) {
 				t.Fatalf("Unexpected first extension: got %v, want %v",
-					parsedCRL.TBSCertList.Extensions[0], akiExt)
+					parsedCRL.Extensions[0], akiExt)
 			}
 			expectedNum, err := asn1.Marshal(tc.template.Number)
 			if err != nil {
@@ -2670,18 +2670,18 @@ func TestCreateRevocationList(t *testing.T) {
 				Id:    oidExtensionCRLNumber,
 				Value: expectedNum,
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[1], crlExt) {
+			if !reflect.DeepEqual(parsedCRL.Extensions[1], crlExt) {
 				t.Fatalf("Unexpected second extension: got %v, want %v",
-					parsedCRL.TBSCertList.Extensions[1], crlExt)
+					parsedCRL.Extensions[1], crlExt)
 			}
-			if len(parsedCRL.TBSCertList.Extensions[2:]) == 0 && len(tc.template.ExtraExtensions) == 0 {
+			if len(parsedCRL.Extensions[2:]) == 0 && len(tc.template.ExtraExtensions) == 0 {
 				// If we don't have anything to check return early so we don't
 				// hit a [] != nil false positive below.
 				return
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions) {
+			if !reflect.DeepEqual(parsedCRL.Extensions[2:], tc.template.ExtraExtensions) {
 				t.Fatalf("Extensions mismatch: got %v; want %v.",
-					parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions)
+					parsedCRL.Extensions[2:], tc.template.ExtraExtensions)
 			}
 		})
 	}
@@ -3442,5 +3442,127 @@ func TestDisableSHA1ForCertOnly(t *testing.T) {
 	err = cert.CheckSignature(SHA1WithRSA, ocspTBS, nil)
 	if err != rsa.ErrVerification {
 		t.Errorf("unexpected error: %s", err)
+	}
+}
+
+func TestParseRevocationList(t *testing.T) {
+	derBytes := fromBase64(derCRLBase64)
+	certList, err := ParseRevocationList(derBytes)
+	if err != nil {
+		t.Errorf("error parsing: %s", err)
+		return
+	}
+	numCerts := len(certList.RevokedCertificates)
+	expected := 88
+	if numCerts != expected {
+		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
+	}
+}
+
+func TestRevocationListCheckSignatureFrom(t *testing.T) {
+	goodKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	badKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	tests := []struct {
+		name   string
+		issuer *Certificate
+		err    string
+	}{
+		{
+			name: "valid",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             goodKey.Public(),
+			},
+		},
+		{
+			name: "valid, key usage set",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             goodKey.Public(),
+				KeyUsage:              KeyUsageCRLSign,
+			},
+		},
+		{
+			name: "invalid issuer, wrong key usage",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             goodKey.Public(),
+				KeyUsage:              KeyUsageCertSign,
+			},
+			err: "x509: invalid signature: parent certificate cannot sign this kind of certificate",
+		},
+		{
+			name: "invalid issuer, no basic constraints/ca",
+			issuer: &Certificate{
+				Version:            3,
+				PublicKeyAlgorithm: ECDSA,
+				PublicKey:          goodKey.Public(),
+			},
+			err: "x509: invalid signature: parent certificate cannot sign this kind of certificate",
+		},
+		{
+			name: "invalid issuer, unsupported public key type",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    UnknownPublicKeyAlgorithm,
+				PublicKey:             goodKey.Public(),
+			},
+			err: "x509: cannot verify signature: algorithm unimplemented",
+		},
+		{
+			name: "wrong key",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             badKey.Public(),
+			},
+			err: "x509: ECDSA verification failure",
+		},
+	}
+
+	crlIssuer := &Certificate{
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		PublicKeyAlgorithm:    ECDSA,
+		PublicKey:             goodKey.Public(),
+		KeyUsage:              KeyUsageCRLSign,
+		SubjectKeyId:          []byte{1, 2, 3},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			crlDER, err := CreateRevocationList(rand.Reader, &RevocationList{Number: big.NewInt(1)}, crlIssuer, goodKey)
+			if err != nil {
+				t.Fatalf("failed to generate CRL: %s", err)
+			}
+			crl, err := ParseRevocationList(crlDER)
+			if err != nil {
+				t.Fatalf("failed to parse test CRL: %s", err)
+			}
+			err = crl.CheckSignatureFrom(tc.issuer)
+			if err != nil && err.Error() != tc.err {
+				t.Errorf("unexpected error: got %s, want %s", err, tc.err)
+			} else if err == nil && tc.err != "" {
+				t.Errorf("CheckSignatureFrom did not fail: want %s", tc.err)
+			}
+		})
 	}
 }
