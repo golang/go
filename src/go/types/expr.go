@@ -1588,6 +1588,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case invalid:
 			goto Error
 		case typexpr:
+			check.validVarType(e.X, x.typ)
 			x.typ = &Pointer{base: x.typ}
 		default:
 			var base Type
