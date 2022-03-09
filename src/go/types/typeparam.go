@@ -30,7 +30,8 @@ type TypeParam struct {
 // or Signature type by calling SetTypeParams. Setting a type parameter on more
 // than one type will result in a panic.
 //
-// The constraint argument can be nil, and set later via SetConstraint.
+// The constraint argument can be nil, and set later via SetConstraint. If the
+// constraint is non-nil, it must be fully defined.
 func NewTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	return (*Checker)(nil).newTypeParam(obj, constraint)
 }
@@ -73,8 +74,10 @@ func (t *TypeParam) Constraint() Type {
 
 // SetConstraint sets the type constraint for t.
 //
-// SetConstraint should not be called concurrently, but once SetConstraint
-// returns the receiver t is safe for concurrent use.
+// It must be called by users of NewTypeParam after the bound's underlying is
+// fully defined, and before using the type parameter in any way other than to
+// form other types. Once SetConstraint returns the receiver, t is safe for
+// concurrent use.
 func (t *TypeParam) SetConstraint(bound Type) {
 	if bound == nil {
 		panic("nil constraint")

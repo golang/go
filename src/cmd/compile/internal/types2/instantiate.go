@@ -15,10 +15,10 @@ import (
 
 // Instantiate instantiates the type orig with the given type arguments targs.
 // orig must be a *Named or a *Signature type. If there is no error, the
-// resulting Type is a new, instantiated (not parameterized) type of the same
-// kind (either a *Named or a *Signature). Methods attached to a *Named type
-// are also instantiated, and associated with a new *Func that has the same
-// position as the original method, but nil function scope.
+// resulting Type is an instantiated type of the same kind (either a *Named or
+// a *Signature). Methods attached to a *Named type are also instantiated, and
+// associated with a new *Func that has the same position as the original
+// method, but nil function scope.
 //
 // If ctxt is non-nil, it may be used to de-duplicate the instance against
 // previous instances with the same identity. As a special case, generic
