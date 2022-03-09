@@ -629,7 +629,7 @@ func TestSegv(t *testing.T) {
 					testenv.SkipFlaky(t, 50504)
 				}
 			}
-			if test == "SegvInCgo" && strings.Contains(got, "runtime: unknown pc") {
+			if test == "SegvInCgo" && strings.Contains(got, "unknown pc") {
 				testenv.SkipFlaky(t, 50979)
 			}
 
