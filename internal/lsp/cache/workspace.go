@@ -282,6 +282,7 @@ func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileCh
 		moduleSource:   w.moduleSource,
 		knownModFiles:  make(map[span.URI]struct{}),
 		activeModFiles: make(map[span.URI]struct{}),
+		workFile:       w.workFile,
 		mod:            w.mod,
 		sum:            w.sum,
 		wsDirs:         w.wsDirs,

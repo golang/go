@@ -802,13 +802,28 @@ func TestUseGoWorkDiagnosticMissingModule(t *testing.T) {
 go 1.18
 
 use ./foo
+-- bar/go.mod --
+module example.com/bar
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("go.work")
 		env.Await(
 			env.DiagnosticAtRegexpWithMessage("go.work", "use", "directory ./foo does not contain a module"),
 		)
-		t.Log("bar")
+		// The following tests is a regression test against an issue where we weren't
+		// copying the workFile struct field on workspace when a new one was created in
+		// (*workspace).invalidate. Set the buffer content to a working file so that
+		// invalidate recognizes the workspace to be change and copies over the workspace
+		// struct, and then set the content back to the old contents to make sure
+		// the diagnostic still shows up.
+		env.SetBufferContent("go.work", "go 1.18 \n\n use ./bar\n")
+		env.Await(
+			env.NoDiagnosticAtRegexp("go.work", "use"),
+		)
+		env.SetBufferContent("go.work", "go 1.18 \n\n use ./foo\n")
+		env.Await(
+			env.DiagnosticAtRegexpWithMessage("go.work", "use", "directory ./foo does not contain a module"),
+		)
 	})
 }
 
