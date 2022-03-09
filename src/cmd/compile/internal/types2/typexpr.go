@@ -147,10 +147,16 @@ func (check *Checker) typ(e syntax.Expr) Type {
 // constraint interface.
 func (check *Checker) varType(e syntax.Expr) Type {
 	typ := check.definedType(e, nil)
+	check.validVarType(e, typ)
+	return typ
+}
 
+// validVarType reports an error if typ is a constraint interface.
+// The expression e is used for error reporting, if any.
+func (check *Checker) validVarType(e syntax.Expr, typ Type) {
 	// If we have a type parameter there's nothing to do.
 	if isTypeParam(typ) {
-		return typ
+		return
 	}
 
 	// We don't want to call under() or complete interfaces while we are in
@@ -169,8 +175,6 @@ func (check *Checker) varType(e syntax.Expr) Type {
 			}
 		}
 	})
-
-	return typ
 }
 
 // definedType is like typ but also accepts a type name def.
