@@ -7,6 +7,7 @@ package time_test
 import (
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"os"
 	"reflect"
 	"testing"
@@ -137,7 +138,7 @@ func TestLoadLocationFromTZData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gorootSource, ok := time.GorootZoneSource("../..")
+	gorootSource, ok := time.GorootZoneSource(testenv.GOROOT(t))
 	if !ok {
 		t.Fatal("Failed to locate tzinfo source in GOROOT.")
 	}
