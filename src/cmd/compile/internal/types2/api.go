@@ -204,12 +204,12 @@ type Info struct {
 	// qualified identifiers are collected in the Uses map.
 	Types map[syntax.Expr]TypeAndValue
 
-	// Instances maps identifiers denoting parameterized types or functions to
-	// their type arguments and instantiated type.
+	// Instances maps identifiers denoting generic types or functions to their
+	// type arguments and instantiated type.
 	//
 	// For example, Instances will map the identifier for 'T' in the type
 	// instantiation T[int, string] to the type arguments [int, string] and
-	// resulting instantiated *Named type. Given a parameterized function
+	// resulting instantiated *Named type. Given a generic function
 	// func F[A any](A), Instances will map the identifier for 'F' in the call
 	// expression F(int(1)) to the inferred type arguments [int], and resulting
 	// instantiated *Signature.
