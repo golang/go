@@ -51,6 +51,10 @@ func FuzzFuncSecondArgArrNotAllowed(f *testing.F) {
 	f.Fuzz(func(t *testing.T, i []int) {}) // want "fuzzing arguments can only have the following types: string, bool, float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, \\[\\]byte"
 }
 
+func FuzzFuncConsecutiveArgNotAllowed(f *testing.F) {
+	f.Fuzz(func(t *testing.T, i, j string, k complex64) {}) // want "fuzzing arguments can only have the following types: string, bool, float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, \\[\\]byte"
+}
+
 func FuzzFuncInner(f *testing.F) {
 	innerFunc := func(t *testing.T, i float32) {}
 	f.Fuzz(innerFunc) // ok
