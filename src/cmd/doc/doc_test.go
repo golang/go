@@ -7,6 +7,8 @@ package main
 import (
 	"bytes"
 	"flag"
+	"go/build"
+	"internal/testenv"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,6 +22,12 @@ func TestMain(m *testing.M) {
 	// Clear GOPATH so we don't access the user's own packages in the test.
 	buildCtx.GOPATH = ""
 	testGOPATH = true // force GOPATH mode; module test is in cmd/go/testdata/script/mod_doc.txt
+
+	// Set GOROOT in case runtime.GOROOT is wrong (for example, if the test was
+	// built with -trimpath). dirsInit would identify it using 'go env GOROOT',
+	// but we can't be sure that the 'go' in $PATH is the right one either.
+	buildCtx.GOROOT = testenv.GOROOT(nil)
+	build.Default.GOROOT = testenv.GOROOT(nil)
 
 	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
 	// Normally testdata directories are ignored, but sending it to dirs.scan directly is

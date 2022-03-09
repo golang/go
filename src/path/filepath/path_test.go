@@ -1329,7 +1329,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 	if runtime.GOOS == "ios" {
 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
-	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
+	root, err := filepath.EvalSymlinks(testenv.GOROOT(t) + "/test")
 	if err != nil {
 		t.Fatal(err)
 	}

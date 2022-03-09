@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
@@ -74,12 +75,14 @@ func TestStdLib(t *testing.T) {
 		lines    uint
 	}
 
+	goroot := testenv.GOROOT(t)
+
 	results := make(chan parseResult)
 	go func() {
 		defer close(results)
 		for _, dir := range []string{
-			filepath.Join(runtime.GOROOT(), "src"),
-			filepath.Join(runtime.GOROOT(), "misc"),
+			filepath.Join(goroot, "src"),
+			filepath.Join(goroot, "misc"),
 		} {
 			walkDirs(t, dir, func(filename string) {
 				if skipRx != nil && skipRx.MatchString(filename) {

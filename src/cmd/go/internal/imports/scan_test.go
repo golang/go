@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -18,7 +17,7 @@ import (
 func TestScan(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	imports, testImports, err := ScanDir(filepath.Join(runtime.GOROOT(), "src/encoding/json"), Tags())
+	imports, testImports, err := ScanDir(filepath.Join(testenv.GOROOT(t), "src/encoding/json"), Tags())
 	if err != nil {
 		t.Fatal(err)
 	}
