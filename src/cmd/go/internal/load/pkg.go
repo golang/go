@@ -2333,6 +2333,9 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 	if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
 		appendSetting("-tags", strings.Join(tags, ","))
 	}
+	if cfg.BuildTrimpath {
+		appendSetting("-trimpath", "true")
+	}
 	cgo := "0"
 	if cfg.BuildContext.CgoEnabled {
 		cgo = "1"
