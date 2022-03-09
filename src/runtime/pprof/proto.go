@@ -530,7 +530,7 @@ func (d *pcDeck) reset() {
 // since the stack trace is already fully expanded) and the symbolizeResult
 // to the deck. If it fails the caller needs to flush the deck and retry.
 func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symbolizeFlag) (success bool) {
-	if existing := len(d.pcs); existing > 0 {
+	if existing := len(d.frames); existing > 0 {
 		// 'd.frames' are all expanded from one 'pc' and represent all
 		// inlined functions so we check only the last one.
 		newFrame := frames[0]
