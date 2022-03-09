@@ -1186,6 +1186,13 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 		"GOPATH="+ctxt.GOPATH,
 		"CGO_ENABLED="+cgo,
 	)
+	if cmd.Dir != "" {
+		// If possible, set PWD: if an error occurs and PWD includes a symlink, we
+		// want the error to refer to Dir, not some other name for it.
+		if abs, err := filepath.Abs(cmd.Dir); err == nil {
+			cmd.Env = append(cmd.Env, "PWD="+abs)
+		}
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("go/build: go list %s: %v\n%s\n", path, err, stderr.String())
