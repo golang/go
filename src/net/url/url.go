@@ -363,6 +363,7 @@ type URL struct {
 	Host        string    // host or host:port
 	Path        string    // path (relative paths may omit leading slash)
 	RawPath     string    // encoded path hint (see EscapedPath method)
+	OmitHost    bool      // do not emit empty host (authority)
 	ForceQuery  bool      // append a query ('?') even if RawQuery is empty
 	RawQuery    string    // encoded query values, without '?'
 	Fragment    string    // fragment for references, without '#'
@@ -556,7 +557,12 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else if url.Scheme != "" && strings.HasPrefix(rest, "/") {
+		// OmitHost is set to true when rawURL has an empty host (authority).
+		// See golang.org/issue/46059.
+		url.OmitHost = true
 	}
+
 	// Set Path and, optionally, RawPath.
 	// RawPath is a hint of the encoding of Path. We don't want to set it if
 	// the default escaping of Path is equivalent, to help make sure that people
@@ -806,15 +812,19 @@ func (u *URL) String() string {
 		buf.WriteString(u.Opaque)
 	} else {
 		if u.Scheme != "" || u.Host != "" || u.User != nil {
-			if u.Host != "" || u.Path != "" || u.User != nil {
-				buf.WriteString("//")
-			}
-			if ui := u.User; ui != nil {
-				buf.WriteString(ui.String())
-				buf.WriteByte('@')
-			}
-			if h := u.Host; h != "" {
-				buf.WriteString(escape(h, encodeHost))
+			if u.OmitHost && u.Host == "" && u.User == nil {
+				// omit empty host
+			} else {
+				if u.Host != "" || u.Path != "" || u.User != nil {
+					buf.WriteString("//")
+				}
+				if ui := u.User; ui != nil {
+					buf.WriteString(ui.String())
+					buf.WriteByte('@')
+				}
+				if h := u.Host; h != "" {
+					buf.WriteString(escape(h, encodeHost))
+				}
 			}
 		}
 		path := u.EscapedPath()

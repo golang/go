@@ -163,14 +163,15 @@ var urltests = []URLTest{
 		},
 		"http:%2f%2fwww.google.com/?q=go+language",
 	},
-	// non-authority with path
+	// non-authority with path; see golang.org/issue/46059
 	{
 		"mailto:/webmaster@golang.org",
 		&URL{
-			Scheme: "mailto",
-			Path:   "/webmaster@golang.org",
+			Scheme:   "mailto",
+			Path:     "/webmaster@golang.org",
+			OmitHost: true,
 		},
-		"mailto:///webmaster@golang.org", // unfortunate compromise
+		"",
 	},
 	// non-authority
 	{
@@ -625,8 +626,8 @@ func ufmt(u *URL) string {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, rawfrag=%q, forcequery=%v",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.RawFragment, u.ForceQuery)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, rawfrag=%q, forcequery=%v, omithost=%t",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.RawFragment, u.ForceQuery, u.OmitHost)
 }
 
 func BenchmarkString(b *testing.B) {
