@@ -8,6 +8,11 @@ package main
 
 func main() {}
 
+// Field accesses through type parameters are disabled
+// until we have a more thorough understanding of the
+// implications on the spec. See issue #51576.
+
+/*
 type Sf struct {
 	f int
 }
@@ -138,3 +143,4 @@ func f8[P Int4](p P) {
 }
 
 var _ = f8[*Sf]
+*/
