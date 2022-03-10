@@ -800,6 +800,7 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 	if err != nil {
 		panic(err)
 	}
+	inpHash := sha256.Sum256(mem.valueCopy())
 	if args.Timeout != 0 {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, args.Timeout)
@@ -811,12 +812,22 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 	success, err := ws.minimizeInput(ctx, vals, mem, args)
 	if success {
 		writeToMem(vals, mem)
+		outHash := sha256.Sum256(mem.valueCopy())
 		mem.header().rawInMem = false
 		resp.WroteToMem = true
 		if err != nil {
 			resp.Err = err.Error()
 		} else {
-			resp.CoverageData = coverageSnapshot
+			// If the values didn't change during minimization then coverageSnapshot is likely
+			// a dirty snapshot which represents the very last step of minimization, not the
+			// coverage for the initial input. In that case just return the coverage we were
+			// given initially, since it more accurately represents the coverage map for the
+			// input we are returning.
+			if outHash != inpHash {
+				resp.CoverageData = coverageSnapshot
+			} else {
+				resp.CoverageData = args.KeepCoverage
+			}
 		}
 	}
 	return resp
