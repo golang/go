@@ -665,7 +665,7 @@ func LoadLocation(name string) (*Location, error) {
 			firstErr = err
 		}
 	}
-	if z, err := loadLocation(name, zoneSources); err == nil {
+	if z, err := loadLocation(name, platformZoneSources); err == nil {
 		return z, nil
 	} else if firstErr == nil {
 		firstErr = err
