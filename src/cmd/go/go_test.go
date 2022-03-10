@@ -1631,7 +1631,7 @@ func TestListTemplateContextFunction(t *testing.T) {
 	}{
 		{"GOARCH", runtime.GOARCH},
 		{"GOOS", runtime.GOOS},
-		{"GOROOT", filepath.Clean(runtime.GOROOT())},
+		{"GOROOT", testGOROOT},
 		{"GOPATH", os.Getenv("GOPATH")},
 		{"CgoEnabled", ""},
 		{"UseAllFiles", ""},
