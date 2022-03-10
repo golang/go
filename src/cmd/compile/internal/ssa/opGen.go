@@ -4815,7 +4815,6 @@ var opcodeTable = [...]opInfo{
 		name:         "BSWAPL",
 		argLen:       1,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          x86.ABSWAPL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11506,7 +11505,6 @@ var opcodeTable = [...]opInfo{
 		name:         "BSWAPQ",
 		argLen:       1,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          x86.ABSWAPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11521,7 +11519,6 @@ var opcodeTable = [...]opInfo{
 		name:         "BSWAPL",
 		argLen:       1,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          x86.ABSWAPL,
 		reg: regInfo{
 			inputs: []inputInfo{
