@@ -127,18 +127,7 @@ func FuzzMinCache(f *testing.F) {
 		if bytes.Equal(buf, seed) {
 			return
 		}
-		if n := sum(buf); n < 0 {
-			t.Error("sum cannot be negative")
-		}
 	})
-}
-
-func sum(buf []byte) int {
-	n := 0
-	for _, b := range buf {
-		n += int(b)
-	}
-	return n
 }
 -- check_testdata/check_testdata.go --
 //go:build ignore
