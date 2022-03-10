@@ -7,14 +7,13 @@ stdout 'exclude[/\\]x\.go'
 stdout 'exclude[/\\]x_linux\.go'
 
 # Test edge cases with gofmt.
-# Note that this execs GOROOT/bin/gofmt.
 
-! exec gofmt does-not-exist
+! exec $GOROOT/bin/gofmt does-not-exist
 
-exec gofmt gofmt-dir/no-extension
+exec $GOROOT/bin/gofmt gofmt-dir/no-extension
 stdout 'package x'
 
-exec gofmt gofmt-dir
+exec $GOROOT/bin/gofmt gofmt-dir
 ! stdout 'package x'
 
 -- exclude/empty/x.txt --
