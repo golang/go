@@ -407,7 +407,11 @@ func ext۰reflect۰Value۰Elem(fr *frame, args []value) value {
 	case iface:
 		return makeReflectValue(x.t, x.v)
 	case *value:
-		return makeReflectValue(rV2T(args[0]).t.Underlying().(*types.Pointer).Elem(), *x)
+		var v value
+		if x != nil {
+			v = *x
+		}
+		return makeReflectValue(rV2T(args[0]).t.Underlying().(*types.Pointer).Elem(), v)
 	default:
 		panic(fmt.Sprintf("reflect.(Value).Elem(%T)", x))
 	}

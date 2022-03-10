@@ -11,9 +11,20 @@ type Value struct {
 
 func (Value) String() string
 
-func (Value) Elem() string
+func (Value) Elem() Value
 func (Value) Kind() Kind
 func (Value) Int() int64
+func (Value) IsValid() bool
+func (Value) IsNil() bool
+func (Value) Len() int
+func (Value) Pointer() uintptr
+func (Value) Index(i int) Value
+func (Value) Type() Type
+func (Value) Field(int) Value
+func (Value) MapIndex(Value) Value
+func (Value) MapKeys() []Value
+func (Value) NumField() int
+func (Value) Interface() interface{}
 
 func SliceOf(Type) Type
 

@@ -111,6 +111,7 @@ var testdataTests = []string{
 	"complit.go",
 	"convert.go",
 	"coverage.go",
+	"deepequal.go",
 	"defer.go",
 	"fieldprom.go",
 	"ifaceconv.go",
