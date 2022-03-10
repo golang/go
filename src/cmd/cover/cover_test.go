@@ -570,3 +570,13 @@ func run(c *exec.Cmd, t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func runExpectingError(c *exec.Cmd, t *testing.T) string {
+	t.Helper()
+	t.Log("running", c.Args)
+	out, err := c.CombinedOutput()
+	if err == nil {
+		return fmt.Sprintf("unexpected pass for %+v", c.Args)
+	}
+	return string(out)
+}

@@ -1,0 +1,175 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main_test
+
+import (
+	"encoding/json"
+	"fmt"
+	"internal/coverage"
+	"internal/testenv"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func writeFile(t *testing.T, path string, contents []byte) {
+	if err := os.WriteFile(path, contents, 0666); err != nil {
+		t.Fatalf("os.WriteFile(%s) failed: %v", path, err)
+	}
+}
+
+func writePkgConfig(t *testing.T, outdir, tag, ppath, pname string, gran string) string {
+	incfg := filepath.Join(outdir, tag+"incfg.txt")
+	outcfg := filepath.Join(outdir, "outcfg.txt")
+	p := coverage.CoverPkgConfig{
+		PkgPath:     ppath,
+		PkgName:     pname,
+		Granularity: gran,
+		OutConfig:   outcfg,
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("json.Marshal failed: %v", err)
+	}
+	writeFile(t, incfg, data)
+	return incfg
+}
+
+func runPkgCover(t *testing.T, outdir string, tag string, incfg string, mode string, infiles []string, errExpected bool) ([]string, string, string) {
+	// Write the pkgcfg file.
+	outcfg := filepath.Join(outdir, "outcfg.txt")
+
+	// Form up the arguments and run the tool.
+	outfiles := []string{}
+	for _, inf := range infiles {
+		base := filepath.Base(inf)
+		outfiles = append(outfiles, filepath.Join(outdir, "cov."+base))
+	}
+	ofs := strings.Join(outfiles, string(os.PathListSeparator))
+	args := []string{"-pkgcfg", incfg, "-mode=" + mode, "-var=var" + tag, "-o", ofs}
+	args = append(args, infiles...)
+	cmd := exec.Command(testcover, args...)
+	if errExpected {
+		errmsg := runExpectingError(cmd, t)
+		return nil, "", errmsg
+	} else {
+		run(cmd, t)
+		return outfiles, outcfg, ""
+	}
+}
+
+// Set to true when debugging unit test (to inspect debris, etc).
+// Note that this functionality does not work on windows.
+const debugWorkDir = false
+
+func TestCoverWithCfg(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoRun(t)
+	buildCover(t)
+
+	// Subdir in testdata that has our input files of interest.
+	tpath := filepath.Join("testdata", "pkgcfg")
+
+	// Helper to collect input paths (go files) for a subdir in 'pkgcfg'
+	pfiles := func(subdir string) []string {
+		de, err := os.ReadDir(filepath.Join(tpath, subdir))
+		if err != nil {
+			t.Fatalf("reading subdir %s: %v", subdir, err)
+		}
+		paths := []string{}
+		for _, e := range de {
+			if !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+				continue
+			}
+			paths = append(paths, filepath.Join(tpath, subdir, e.Name()))
+		}
+		return paths
+	}
+
+	dir := t.TempDir()
+	if debugWorkDir {
+		dir = "/tmp/qqq"
+		os.RemoveAll(dir)
+		os.Mkdir(dir, 0777)
+	}
+	instdira := filepath.Join(dir, "insta")
+	if err := os.Mkdir(instdira, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	scenarios := []struct {
+		mode, gran string
+	}{
+		{
+			mode: "count",
+			gran: "perblock",
+		},
+		{
+			mode: "set",
+			gran: "perfunc",
+		},
+		{
+			mode: "regonly",
+			gran: "perblock",
+		},
+	}
+
+	tag := "first"
+	var incfg string
+	for _, scenario := range scenarios {
+		// Instrument package "a", producing a set of instrumented output
+		// files and an 'output config' file to pass on to the compiler.
+		ppath := "cfg/a"
+		pname := "a"
+		mode := scenario.mode
+		gran := scenario.gran
+		incfg = writePkgConfig(t, instdira, tag, ppath, pname, gran)
+		ofs, outcfg, _ := runPkgCover(t, instdira, tag, incfg, mode,
+			pfiles("a"), false)
+		t.Logf("outfiles: %+v\n", ofs)
+
+		// Run the compiler on the files to make sure the result is
+		// buildable.
+		bargs := []string{"tool", "compile", "-p", "a", "-coveragecfg", outcfg}
+		bargs = append(bargs, ofs...)
+		cmd := exec.Command(testenv.GoToolPath(t), bargs...)
+		cmd.Dir = instdira
+		run(cmd, t)
+	}
+
+	// Do some error testing to ensure that various bad options and
+	// combinations are properly rejected.
+
+	// Expect error if config file inaccessible/unreadable.
+	mode := "atomic"
+	errExpected := true
+	_, _, errmsg := runPkgCover(t, instdira, tag, "/not/a/file", mode,
+		pfiles("a"), errExpected)
+	want := "error reading pkgconfig file"
+	if !strings.Contains(errmsg, want) {
+		t.Errorf("'bad config file' test: wanted %s got %s", want, errmsg)
+	}
+
+	// Expect err if config file contains unknown stuff.
+	t.Logf("mangling in config")
+	writeFile(t, incfg, []byte(fmt.Sprintf("blah=foo\n")))
+	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
+		pfiles("a"), errExpected)
+	want = "error reading pkgconfig file"
+	if !strings.Contains(errmsg, want) {
+		t.Errorf("'bad config file' test: wanted %s got %s", want, errmsg)
+	}
+
+	// Expect error on empty config file.
+	t.Logf("writing empty config")
+	writeFile(t, incfg, []byte(fmt.Sprintf("\n")))
+	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
+		pfiles("a"), errExpected)
+	if !strings.Contains(errmsg, want) {
+		t.Errorf("'bad config file' test: wanted %s got %s", want, errmsg)
+	}
+}
