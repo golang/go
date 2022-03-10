@@ -416,8 +416,8 @@ var depsRules = `
 
 	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
 	CRYPTO, FMT, math/big, embed
-	< crypto/rand
 	< crypto/internal/randutil
+	< crypto/rand
 	< crypto/ed25519
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
