@@ -831,6 +831,19 @@ func runInstall(pkg string, ch chan struct{}) {
 		// Define GOMIPS64_value from gomips64.
 		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
 	}
+	if goarch == "ppc64" || goarch == "ppc64le" {
+		// We treat each powerpc version as a superset of functionality.
+		switch goppc64 {
+		case "power10":
+			asmArgs = append(asmArgs, "-D", "GOPPC64_power10")
+			fallthrough
+		case "power9":
+			asmArgs = append(asmArgs, "-D", "GOPPC64_power9")
+			fallthrough
+		default: // This should always be power8.
+			asmArgs = append(asmArgs, "-D", "GOPPC64_power8")
+		}
+	}
 	goasmh := pathf("%s/go_asm.h", workdir)
 	if IsRuntimePackagePath(pkg) {
 		asmArgs = append(asmArgs, "-compiling-runtime")
