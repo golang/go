@@ -12,17 +12,15 @@
 package time
 
 import (
-	"runtime"
 	"syscall"
 )
 
 // Many systems use /usr/share/zoneinfo, Solaris 2 has
 // /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
-var zoneSources = []string{
+var platformZoneSources = []string{
 	"/usr/share/zoneinfo/",
 	"/usr/share/lib/zoneinfo/",
 	"/usr/lib/locale/TZ/",
-	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
 }
 
 func initLocal() {
@@ -57,7 +55,7 @@ func initLocal() {
 				return
 			}
 		} else if tz != "" && tz != "UTC" {
-			if z, err := loadLocation(tz, zoneSources); err == nil {
+			if z, err := loadLocation(tz, platformZoneSources); err == nil {
 				localLoc = *z
 				return
 			}
