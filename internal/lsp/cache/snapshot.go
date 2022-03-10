@@ -413,6 +413,8 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 			}
 		case source.WriteTemporaryModFile:
 			inv.ModFlag = mutableModFlag
+			// -mod must be readonly when using go.work files - see issue #48941
+			inv.Env = append(inv.Env, "GOWORK=off")
 		}
 	}
 
