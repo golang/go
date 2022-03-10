@@ -51,7 +51,6 @@
 // it may have. This information is then used to construct the call graph.
 // For each unresolved call site, vta uses the set of types and functions
 // reaching the node representing the call site to create a set of callees.
-
 package vta
 
 import (
