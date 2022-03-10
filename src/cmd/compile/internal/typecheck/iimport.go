@@ -1374,7 +1374,9 @@ func (r *importReader) node() ir.Node {
 	case ir.OCLOSURE:
 		//println("Importing CLOSURE")
 		pos := r.pos()
+		r.setPkg()
 		typ := r.signature(nil, nil)
+		r.setPkg()
 
 		// All the remaining code below is similar to (*noder).funcLit(), but
 		// with Dcls and ClosureVars lists already set up
