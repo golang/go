@@ -71,6 +71,30 @@ func outgoingLength(req *http.Request) int64 {
 	return -1
 }
 
+// noBodyWriter writes to an underlying writer until it reads
+// the start of the http body. After which the body content will
+// not be written to the underlying writer to avoid any potential
+// memory allocations.
+type noBodyWriter struct {
+	io.Writer
+	bodyStarted bool
+}
+
+func (b *noBodyWriter) Write(p []byte) (n int, err error) {
+	if b.bodyStarted {
+		return len(p), nil
+	}
+	if i := bytes.Index(p, []byte("\r\n\r\n")); i >= 0 {
+		b.bodyStarted = true
+		nn, err := b.Writer.Write(p[:i+4])
+		if err != nil {
+			return nn, err
+		}
+		return len(p), nil
+	}
+	return b.Writer.Write(p)
+}
+
 // DumpRequestOut is like DumpRequest but for outgoing client requests. It
 // includes any headers that the standard http.Transport adds, such as
 // User-Agent.
@@ -117,7 +141,11 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 
 	t := &http.Transport{
 		Dial: func(net, addr string) (net.Conn, error) {
-			return &dumpConn{io.MultiWriter(&buf, pw), dr}, nil
+			var out io.Writer = &buf
+			if dummyBody {
+				out = &noBodyWriter{Writer: out}
+			}
+			return &dumpConn{io.MultiWriter(out, pw), dr}, nil
 		},
 	}
 	defer t.CloseIdleConnections()
@@ -152,19 +180,8 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 		close(quitReadCh)
 		return nil, err
 	}
-	dump := buf.Bytes()
 
-	// If we used a dummy body above, remove it now.
-	// TODO: if the req.ContentLength is large, we allocate memory
-	// unnecessarily just to slice it off here. But this is just
-	// a debug function, so this is acceptable for now. We could
-	// discard the body earlier if this matters.
-	if dummyBody {
-		if i := bytes.Index(dump, []byte("\r\n\r\n")); i >= 0 {
-			dump = dump[:i+4]
-		}
-	}
-	return dump, nil
+	return buf.Bytes(), nil
 }
 
 // delegateReader is a reader that delegates to another reader,
