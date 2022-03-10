@@ -1,21 +1,16 @@
 <!--{
-	"Title": "The Go Programming Language Specification - Go 1.18 Draft",
-	"Subtitle": "Version of March 9, 2022",
+	"Title": "The Go Programming Language Specification",
+	"Subtitle": "Version of March 10, 2022",
 	"Path": "/ref/spec"
 }-->
-
-<h2>Earlier version</h2>
-
-<p>
-For the pre-Go1.18 specification without generics support see
-<a href="/doc/go1.17_spec.html">The Go Programming Language Specification</a>.
-</p>
 
 <h2 id="Introduction">Introduction</h2>
 
 <p>
-This is a reference manual for the Go programming language. For
-more information and other documents, see <a href="/">golang.org</a>.
+This is the reference manual for the Go programming language.
+The pre-Go1.18 version, without generics, can be found
+<a href="/doc/go1.17_spec.html">here</a>.
+For more information and other documents, see <a href="/">golang.org</a>.
 </p>
 
 <p>
@@ -4668,10 +4663,6 @@ and the other operand is not, the constant is implicitly <a href="#Conversions">
 to the type of the other operand.
 </p>
 
-<p><b>
-[The rules for shifts need adjustments for type parameters. Issue #51182.]
-</b></p>
-
 <p>
 The right operand in a shift expression must have <a href="#Numeric_types">integer type</a>
 or be an untyped constant <a href="#Representability">representable</a> by a
@@ -7257,10 +7248,6 @@ does not exist, <code>delete</code> is a no-op.
 
 <h3 id="Complex_numbers">Manipulating complex numbers</h3>
 
-<p><b>
-[We don't support generic arguments for these built-ins for Go 1.18.]
-</b></p>
-
 <p>
 Three functions assemble and disassemble complex numbers.
 The built-in function <code>complex</code> constructs a complex
@@ -7322,6 +7309,10 @@ var im = imag(a)                   // float64
 const c = imag(b)                  // untyped constant -1.4
 _ = imag(3 &lt;&lt; s)                   // illegal: 3 assumes complex type, cannot shift
 </pre>
+
+<p>
+Arguments of type parameter type are not permitted.
+</p>
 
 <h3 id="Handling_panics">Handling panics</h3>
 
