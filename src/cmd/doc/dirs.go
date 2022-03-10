@@ -41,6 +41,17 @@ var dirs Dirs
 // dirsInit starts the scanning of package directories in GOROOT and GOPATH. Any
 // extra paths passed to it are included in the channel.
 func dirsInit(extra ...Dir) {
+	if buildCtx.GOROOT == "" {
+		stdout, err := exec.Command("go", "env", "GOROOT").Output()
+		if err != nil {
+			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+				log.Fatalf("failed to determine GOROOT: $GOROOT is not set and 'go env GOROOT' failed:\n%s", ee.Stderr)
+			}
+			log.Fatalf("failed to determine GOROOT: $GOROOT is not set and could not run 'go env GOROOT':\n\t%s", err)
+		}
+		buildCtx.GOROOT = string(bytes.TrimSpace(stdout))
+	}
+
 	dirs.hist = make([]Dir, 0, 1000)
 	dirs.hist = append(dirs.hist, extra...)
 	dirs.scan = make(chan Dir)
@@ -174,7 +185,7 @@ func findCodeRoots() []Dir {
 		gomod := string(bytes.TrimSpace(stdout))
 
 		usingModules = len(gomod) > 0
-		if usingModules {
+		if usingModules && buildCtx.GOROOT != "" {
 			list = append(list,
 				Dir{dir: filepath.Join(buildCtx.GOROOT, "src"), inModule: true},
 				Dir{importPath: "cmd", dir: filepath.Join(buildCtx.GOROOT, "src", "cmd"), inModule: true})
@@ -190,7 +201,9 @@ func findCodeRoots() []Dir {
 	}
 
 	if !usingModules {
-		list = append(list, Dir{dir: filepath.Join(buildCtx.GOROOT, "src")})
+		if buildCtx.GOROOT != "" {
+			list = append(list, Dir{dir: filepath.Join(buildCtx.GOROOT, "src")})
+		}
 		for _, root := range splitGopath() {
 			list = append(list, Dir{dir: filepath.Join(root, "src")})
 		}
