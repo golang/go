@@ -409,8 +409,8 @@ func (s *sanity) checkFunction(fn *Function) bool {
 		s.errorf("nil Prog")
 	}
 
-	_ = fn.String()            // must not crash
-	_ = fn.RelString(fn.pkg()) // must not crash
+	_ = fn.String()               // must not crash
+	_ = fn.RelString(fn.relPkg()) // must not crash
 
 	// All functions have a package, except delegates (which are
 	// shared across packages, or duplicated as weak symbols in a

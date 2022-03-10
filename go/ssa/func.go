@@ -414,7 +414,7 @@ func (f *Function) RelString(from *types.Package) string {
 
 	// Package-level function?
 	// Prefix with package name for cross-package references only.
-	if p := f.pkg(); p != nil && p != from {
+	if p := f.relPkg(); p != nil && p != from {
 		return fmt.Sprintf("%s.%s", p.Path(), f.name)
 	}
 
@@ -442,9 +442,26 @@ func writeSignature(buf *bytes.Buffer, from *types.Package, name string, sig *ty
 	types.WriteSignature(buf, sig, types.RelativeTo(from))
 }
 
-func (f *Function) pkg() *types.Package {
-	if f.Pkg != nil {
-		return f.Pkg.Pkg
+// declaredPackage returns the package fn is declared in or nil if the
+// function is not declared in a package.
+func (fn *Function) declaredPackage() *Package {
+	switch {
+	case fn.Pkg != nil:
+		return fn.Pkg // non-generic function
+		// generics:
+	// case fn.Origin != nil:
+	// 	return fn.Origin.pkg // instance of a named generic function
+	case fn.parent != nil:
+		return fn.parent.declaredPackage() // instance of an anonymous [generic] function
+	default:
+		return nil // function is not declared in a package, e.g. a wrapper.
+	}
+}
+
+// relPkg returns types.Package fn is printed in relationship to.
+func (fn *Function) relPkg() *types.Package {
+	if p := fn.declaredPackage(); p != nil {
+		return p.Pkg
 	}
 	return nil
 }
@@ -479,7 +496,7 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 		fmt.Fprintf(buf, "# Recover: %s\n", f.Recover)
 	}
 
-	from := f.pkg()
+	from := f.relPkg()
 
 	if f.FreeVars != nil {
 		buf.WriteString("# Free variables:\n")
