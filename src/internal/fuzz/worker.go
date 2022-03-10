@@ -894,7 +894,8 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []any, mem *shar
 			}
 			return true
 		}
-		if keepCoverage != nil && hasCoverageBit(keepCoverage, coverageSnapshot) {
+		// Minimization should preserve coverage bits.
+		if keepCoverage != nil && isCoverageSubset(keepCoverage, coverageSnapshot) {
 			return true
 		}
 		vals[args.Index] = prev
