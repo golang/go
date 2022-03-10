@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -297,36 +298,68 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 
 // extractGoCommandError tries to parse errors that come from the go command
 // and shape them into go.mod diagnostics.
-func (s *snapshot) extractGoCommandErrors(ctx context.Context, goCmdError string) ([]*source.Diagnostic, error) {
-	diagLocations := map[*source.ParsedModule]span.Span{}
-	backupDiagLocations := map[*source.ParsedModule]span.Span{}
-
-	// The go command emits parse errors for completely invalid go.mod files.
-	// Those are reported by our own diagnostics and can be ignored here.
-	// As of writing, we are not aware of any other errors that include
-	// file/position information, so don't even try to find it.
-	if strings.Contains(goCmdError, "errors parsing go.mod") {
-		return nil, nil
+// TODO: rename this to 'load errors'
+func (s *snapshot) extractGoCommandErrors(ctx context.Context, goCmdError error) []*source.Diagnostic {
+	if goCmdError == nil {
+		return nil
 	}
+
+	type locatedErr struct {
+		spn span.Span
+		msg string
+	}
+	diagLocations := map[*source.ParsedModule]locatedErr{}
+	backupDiagLocations := map[*source.ParsedModule]locatedErr{}
+
+	// If moduleErrs is non-nil, go command errors are scoped to specific
+	// modules.
+	var moduleErrs *moduleErrorMap
+	_ = errors.As(goCmdError, &moduleErrs)
 
 	// Match the error against all the mod files in the workspace.
 	for _, uri := range s.ModFiles() {
 		fh, err := s.GetFile(ctx, uri)
 		if err != nil {
-			return nil, err
+			event.Error(ctx, "getting modfile for Go command error", err)
+			continue
 		}
 		pm, err := s.ParseMod(ctx, fh)
 		if err != nil {
-			return nil, err
+			// Parsing errors are reported elsewhere
+			return nil
 		}
-		spn, found, err := s.matchErrorToModule(ctx, pm, goCmdError)
-		if err != nil {
-			return nil, err
-		}
-		if found {
-			diagLocations[pm] = spn
+		var msgs []string // error messages to consider
+		if moduleErrs != nil {
+			if pm.File.Module != nil {
+				for _, mes := range moduleErrs.errs[pm.File.Module.Mod.Path] {
+					msgs = append(msgs, mes.Error())
+				}
+			}
 		} else {
-			backupDiagLocations[pm] = spn
+			msgs = append(msgs, goCmdError.Error())
+		}
+		for _, msg := range msgs {
+			if strings.Contains(goCmdError.Error(), "errors parsing go.mod") {
+				// The go command emits parse errors for completely invalid go.mod files.
+				// Those are reported by our own diagnostics and can be ignored here.
+				// As of writing, we are not aware of any other errors that include
+				// file/position information, so don't even try to find it.
+				continue
+			}
+			spn, found, err := s.matchErrorToModule(ctx, pm, msg)
+			if err != nil {
+				event.Error(ctx, "matching error to module", err)
+				continue
+			}
+			le := locatedErr{
+				spn: spn,
+				msg: msg,
+			}
+			if found {
+				diagLocations[pm] = le
+			} else {
+				backupDiagLocations[pm] = le
+			}
 		}
 	}
 
@@ -336,14 +369,15 @@ func (s *snapshot) extractGoCommandErrors(ctx context.Context, goCmdError string
 	}
 
 	var srcErrs []*source.Diagnostic
-	for pm, spn := range diagLocations {
-		diag, err := s.goCommandDiagnostic(pm, spn, goCmdError)
+	for pm, le := range diagLocations {
+		diag, err := s.goCommandDiagnostic(pm, le.spn, le.msg)
 		if err != nil {
-			return nil, err
+			event.Error(ctx, "building go command diagnostic", err)
+			continue
 		}
 		srcErrs = append(srcErrs, diag)
 	}
-	return srcErrs, nil
+	return srcErrs
 }
 
 var moduleVersionInErrorRe = regexp.MustCompile(`[:\s]([+-._~0-9A-Za-z]+)@([+-._~0-9A-Za-z]+)[:\s]`)

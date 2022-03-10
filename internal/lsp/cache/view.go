@@ -671,7 +671,7 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 		}
 	case err != nil:
 		event.Error(ctx, "initial workspace load failed", err)
-		extractedDiags, _ := s.extractGoCommandErrors(ctx, err.Error())
+		extractedDiags := s.extractGoCommandErrors(ctx, err)
 		criticalErr = &source.CriticalError{
 			MainError: err,
 			DiagList:  append(modDiagnostics, extractedDiags...),

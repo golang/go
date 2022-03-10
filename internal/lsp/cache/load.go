@@ -5,6 +5,7 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -29,9 +30,16 @@ import (
 
 // load calls packages.Load for the given scopes, updating package metadata,
 // import graph, and mapped files with the result.
+//
+// The resulting error may wrap the moduleErrorMap error type, representing
+// errors associated with specific modules.
 func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interface{}) (err error) {
 	var query []string
 	var containsDir bool // for logging
+
+	// Keep track of module query -> module path so that we can later correlate query
+	// errors with errors.
+	moduleQueries := make(map[string]string)
 	for _, scope := range scopes {
 		if !s.shouldLoad(scope) {
 			continue
@@ -66,7 +74,9 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 			case "std", "cmd":
 				query = append(query, string(scope))
 			default:
-				query = append(query, fmt.Sprintf("%s/...", scope))
+				modQuery := fmt.Sprintf("%s/...", scope)
+				query = append(query, modQuery)
+				moduleQueries[modQuery] = string(scope)
 			}
 		case viewLoadScope:
 			// If we are outside of GOPATH, a module, or some other known
@@ -137,7 +147,24 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		}
 		return fmt.Errorf("%v: %w", err, source.PackagesLoadError)
 	}
+
+	moduleErrs := make(map[string][]packages.Error) // module path -> errors
 	for _, pkg := range pkgs {
+		// The Go command returns synthetic list results for module queries that
+		// encountered module errors.
+		//
+		// For example, given a module path a.mod, we'll query for "a.mod/..." and
+		// the go command will return a package named "a.mod/..." holding this
+		// error. Save it for later interpretation.
+		//
+		// See golang/go#50862 for more details.
+		if mod := moduleQueries[pkg.PkgPath]; mod != "" { // a synthetic result for the unloadable module
+			if len(pkg.Errors) > 0 {
+				moduleErrs[mod] = pkg.Errors
+			}
+			continue
+		}
+
 		if !containsDir || s.view.Options().VerboseOutput {
 			event.Log(ctx, "go/packages.Load",
 				tag.Snapshot.Of(s.ID()),
@@ -180,7 +207,33 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	// Rebuild the import graph when the metadata is updated.
 	s.clearAndRebuildImportGraph()
 
+	if len(moduleErrs) > 0 {
+		return &moduleErrorMap{moduleErrs}
+	}
+
 	return nil
+}
+
+type moduleErrorMap struct {
+	errs map[string][]packages.Error // module path -> errors
+}
+
+func (m *moduleErrorMap) Error() string {
+	var paths []string // sort for stability
+	for path, errs := range m.errs {
+		if len(errs) > 0 { // should always be true, but be cautious
+			paths = append(paths, path)
+		}
+	}
+	sort.Strings(paths)
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%d modules have errors:\n", len(paths))
+	for _, path := range paths {
+		fmt.Fprintf(&buf, "\t%s", m.errs[path][0].Msg)
+	}
+
+	return buf.String()
 }
 
 // workspaceLayoutErrors returns a diagnostic for every open file, as well as

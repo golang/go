@@ -705,7 +705,7 @@ use (
 	WithOptions(
 		ProxyFiles(workspaceModuleProxy),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
-		// Initially, the gopls.mod should cause only the a.com module to be
+		// Initially, the go.work should cause only the a.com module to be
 		// loaded. Validate this by jumping to a definition in b.com and ensuring
 		// that we go to the module cache.
 		env.OpenFile("moda/a/a.go")
@@ -726,7 +726,7 @@ use (
 			t.Fatal(err)
 		}
 
-		// Now, modify the gopls.mod file on disk to activate the b.com module in
+		// Now, modify the go.work file on disk to activate the b.com module in
 		// the workspace.
 		env.WriteWorkspaceFile("go.work", `
 go 1.17
@@ -742,26 +742,22 @@ use (
 		env.OpenFile("modb/go.mod")
 		env.Await(env.DoneWithOpen())
 
-		//  TODO(golang/go#50862): the go command drops error messages when using
-		//  go.work, so we need to build our go.mod diagnostics in a different way.
-		if testenv.Go1Point() < 18 {
-			var d protocol.PublishDiagnosticsParams
-			env.Await(
-				OnceMet(
-					env.DiagnosticAtRegexpWithMessage("modb/go.mod", `require example.com v1.2.3`, "has not been downloaded"),
-					ReadDiagnostics("modb/go.mod", &d),
-				),
-			)
-			env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
-			env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
-		}
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexpWithMessage("modb/go.mod", `require example.com v1.2.3`, "has not been downloaded"),
+				ReadDiagnostics("modb/go.mod", &d),
+			),
+		)
+		env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
+		env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
 
 		// Jumping to definition should now go to b.com in the workspace.
 		if err := checkHelloLocation("modb/b/b.go"); err != nil {
 			t.Fatal(err)
 		}
 
-		// Now, let's modify the gopls.mod *overlay* (not on disk), and verify that
+		// Now, let's modify the go.work *overlay* (not on disk), and verify that
 		// this change is only picked up once it is saved.
 		env.OpenFile("go.work")
 		env.Await(env.DoneWithOpen())
@@ -771,21 +767,25 @@ use (
 	./moda/a
 )`)
 
-		// Editing the gopls.mod removes modb from the workspace modules, and so
-		// should clear outstanding diagnostics...
-		env.Await(OnceMet(
-			env.DoneWithChange(),
-			EmptyOrNoDiagnostics("modb/go.mod"),
-		))
-		// ...but does not yet cause a workspace reload, so we should still jump to modb.
+		// Simply modifying the go.work file does not cause a reload, so we should
+		// still jump within the workspace.
+		//
+		// TODO: should editing the go.work above cause modb diagnostics to be
+		// suppressed?
+		env.Await(env.DoneWithChange())
 		if err := checkHelloLocation("modb/b/b.go"); err != nil {
 			t.Fatal(err)
 		}
+
 		// Saving should reload the workspace.
 		env.SaveBufferWithoutActions("go.work")
 		if err := checkHelloLocation("b.com@v1.2.3/b/b.go"); err != nil {
 			t.Fatal(err)
 		}
+
+		// This fails if guarded with a OnceMet(DoneWithSave(), ...), because it is
+		// debounced (and therefore not synchronous with the change).
+		env.Await(EmptyOrNoDiagnostics("modb/go.mod"))
 
 		// Test Formatting.
 		env.SetBufferContent("go.work", `go 1.18

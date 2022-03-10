@@ -1485,14 +1485,14 @@ func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) *source.CriticalErr
 	}
 
 	if err := s.reloadWorkspace(ctx); err != nil {
-		diags, _ := s.extractGoCommandErrors(ctx, err.Error())
+		diags := s.extractGoCommandErrors(ctx, err)
 		return &source.CriticalError{
 			MainError: err,
 			DiagList:  diags,
 		}
 	}
 	if err := s.reloadOrphanedFiles(ctx); err != nil {
-		diags, _ := s.extractGoCommandErrors(ctx, err.Error())
+		diags := s.extractGoCommandErrors(ctx, err)
 		return &source.CriticalError{
 			MainError: err,
 			DiagList:  diags,
