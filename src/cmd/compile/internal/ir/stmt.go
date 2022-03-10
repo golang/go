@@ -362,7 +362,7 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
 	return n
 }
 
-// A SwitchStmt is a switch statement: switch Init; Expr { Cases }.
+// A SwitchStmt is a switch statement: switch Init; Tag { Cases }.
 type SwitchStmt struct {
 	miniStmt
 	Tag      Node

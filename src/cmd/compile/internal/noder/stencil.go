@@ -1179,6 +1179,26 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			subst.g.newInsts = append(subst.g.newInsts, m.(*ir.ClosureExpr).Func)
 			m.(*ir.ClosureExpr).SetInit(subst.list(x.Init()))
 
+		case ir.OSWITCH:
+			m := m.(*ir.SwitchStmt)
+			if m.Tag != nil && m.Tag.Op() == ir.OTYPESW {
+				break // Nothing to do here for type switches.
+			}
+			if m.Tag != nil && !m.Tag.Type().IsInterface() && m.Tag.Type().HasShape() {
+				// To implement a switch on a value that is or has a type parameter, we first convert
+				// that thing we're switching on to an interface{}.
+				m.Tag = assignconvfn(m.Tag, types.Types[types.TINTER])
+			}
+			for _, c := range m.Cases {
+				for i, x := range c.List {
+					// If we have a case that is or has a type parameter, convert that case
+					// to an interface{}.
+					if !x.Type().IsInterface() && x.Type().HasShape() {
+						c.List[i] = assignconvfn(x, types.Types[types.TINTER])
+					}
+				}
+			}
+
 		}
 		return m
 	}
