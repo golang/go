@@ -5,10 +5,25 @@
 package debug_test
 
 import (
+	"bytes"
+	"fmt"
+	"internal/testenv"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	. "runtime/debug"
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	if os.Getenv("GO_RUNTIME_DEBUG_TEST_DUMP_GOROOT") != "" {
+		fmt.Println(runtime.GOROOT())
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
 
 type T int
 
@@ -43,23 +58,64 @@ func TestStack(t *testing.T) {
 	if len(lines) < 6 {
 		t.Fatal("too few lines")
 	}
+
+	// If built with -trimpath, file locations should start with package paths.
+	// Otherwise, file locations should start with a GOROOT/src prefix
+	// (for whatever value of GOROOT is baked into the binary, not the one
+	// that may be set in the environment).
+	fileGoroot := ""
+	if envGoroot := os.Getenv("GOROOT"); envGoroot != "" {
+		// Since GOROOT is set explicitly in the environment, we can't be certain
+		// that it is the same GOROOT value baked into the binary, and we can't
+		// change the value in-process because runtime.GOROOT uses the value from
+		// initial (not current) environment. Spawn a subprocess to determine the
+		// real baked-in GOROOT.
+		t.Logf("found GOROOT %q from environment; checking embedded GOROOT value", envGoroot)
+		testenv.MustHaveExec(t)
+		exe, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command(exe)
+		cmd.Env = append(os.Environ(), "GOROOT=", "GO_RUNTIME_DEBUG_TEST_DUMP_GOROOT=1")
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		fileGoroot = string(bytes.TrimSpace(out))
+	} else {
+		// Since GOROOT is not set in the environment, its value (if any) must come
+		// from the path embedded in the binary.
+		fileGoroot = runtime.GOROOT()
+	}
+	filePrefix := ""
+	if fileGoroot != "" {
+		filePrefix = filepath.ToSlash(fileGoroot) + "/src/"
+	}
+
 	n := 0
-	frame := func(line, code string) {
-		check(t, lines[n], code)
+	frame := func(file, code string) {
+		t.Helper()
+
+		line := lines[n]
+		if !strings.Contains(line, code) {
+			t.Errorf("expected %q in %q", code, line)
+		}
 		n++
-		check(t, lines[n], line)
+
+		line = lines[n]
+
+		wantPrefix := "\t" + filePrefix + file
+		if !strings.HasPrefix(line, wantPrefix) {
+			t.Errorf("in line %q, expected prefix %q", line, wantPrefix)
+		}
 		n++
 	}
 	n++
-	frame("src/runtime/debug/stack.go", "runtime/debug.Stack")
-	frame("src/runtime/debug/stack_test.go", "runtime/debug_test.(*T).ptrmethod")
-	frame("src/runtime/debug/stack_test.go", "runtime/debug_test.T.method")
-	frame("src/runtime/debug/stack_test.go", "runtime/debug_test.TestStack")
-	frame("src/testing/testing.go", "")
-}
 
-func check(t *testing.T, line, has string) {
-	if !strings.Contains(line, has) {
-		t.Errorf("expected %q in %q", has, line)
-	}
+	frame("runtime/debug/stack.go", "runtime/debug.Stack")
+	frame("runtime/debug/stack_test.go", "runtime/debug_test.(*T).ptrmethod")
+	frame("runtime/debug/stack_test.go", "runtime/debug_test.T.method")
+	frame("runtime/debug/stack_test.go", "runtime/debug_test.TestStack")
+	frame("testing/testing.go", "")
 }
