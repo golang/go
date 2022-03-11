@@ -9,6 +9,19 @@ stderr 'with arguments'
 ! go version -v
 stderr 'with arguments'
 
+# Check that 'go version' succeed even when it does not contain Go build info.
+# It should print an error if the file has a known Go binary extension.
+#
+go version empty.txt
+! stdout .
+! stderr .
+go version empty.exe
+stderr 'could not read Go build info'
+go version empty.so
+stderr 'could not read Go build info'
+go version empty.dll
+stderr 'could not read Go build info'
+
 # Neither of the two flags above should be an issue via GOFLAGS.
 env GOFLAGS='-m -v'
 go version
@@ -72,3 +85,8 @@ module m
 -- empty.go --
 package main
 func main(){}
+
+-- empty.txt --
+-- empty.exe --
+-- empty.so --
+-- empty.dll --
