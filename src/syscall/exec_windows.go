@@ -106,7 +106,7 @@ func makeCmdLine(args []string) string {
 		if len(b) > 0 {
 			b = append(b, ' ')
 		}
-		b = appendEscapeArg(b, v)
+		b = append(b, v...)
 	}
 	return string(b)
 }
