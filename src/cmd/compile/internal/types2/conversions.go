@@ -105,7 +105,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		//   (See also the TODO below.)
 		if x.typ == Typ[UntypedNil] {
 			// ok
-		} else if IsInterface(T) && !isTypeParam(T) || constArg && !isConstType(T) {
+		} else if isNonTypeParamInterface(T) || constArg && !isConstType(T) {
 			final = Default(x.typ)
 		} else if x.mode == constant_ && isInteger(x.typ) && allString(T) {
 			final = x.typ

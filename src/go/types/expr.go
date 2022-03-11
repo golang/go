@@ -1081,7 +1081,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 
 	// TODO(gri) make canMix more efficient - called for each binary operation
 	canMix := func(x, y *operand) bool {
-		if IsInterface(x.typ) && !isTypeParam(x.typ) || IsInterface(y.typ) && !isTypeParam(y.typ) {
+		if isNonTypeParamInterface(x.typ) || isNonTypeParamInterface(y.typ) {
 			return true
 		}
 		if allBoolean(x.typ) != allBoolean(y.typ) {
@@ -1468,6 +1468,10 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
 				goto Error
 			}
+			// If the map key type is an interface (but not a type parameter),
+			// the type of a constant key must be considered when checking for
+			// duplicates.
+			keyIsInterface := isNonTypeParamInterface(utyp.key)
 			visited := make(map[any][]Type, len(e.Elts))
 			for _, e := range e.Elts {
 				kv, _ := e.(*ast.KeyValueExpr)
@@ -1482,9 +1486,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				}
 				if x.mode == constant_ {
 					duplicate := false
-					// if the key is of interface type, the type is also significant when checking for duplicates
 					xkey := keyVal(x.val)
-					if IsInterface(utyp.key) {
+					if keyIsInterface {
 						for _, vtyp := range visited[xkey] {
 							if Identical(vtyp, x.typ) {
 								duplicate = true
@@ -1657,6 +1660,10 @@ Error:
 }
 
 func keyVal(x constant.Value) any {
+	// TODO(gri) This function must map 1, 1.0, and 1.0 + 0i to the same (integer) value.
+	//           Same for 1.1 and 1.1 + 0i.
+	//           Otherwise we won't get duplicate key errors for certain type parameter
+	//           key types. See issue #51610.
 	switch x.Kind() {
 	case constant.Bool:
 		return constant.BoolVal(x)

@@ -101,7 +101,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// - Keep untyped nil for untyped nil arguments.
 		// - For constant integer to string conversions, keep the argument type.
 		//   (See also the TODO below.)
-		if IsInterface(T) && !isTypeParam(T) || constArg && !isConstType(T) || x.isNil() {
+		if isNonTypeParamInterface(T) || constArg && !isConstType(T) || x.isNil() {
 			final = Default(x.typ) // default type of untyped nil is untyped nil
 		} else if x.mode == constant_ && isInteger(x.typ) && allString(T) {
 			final = x.typ
