@@ -370,7 +370,10 @@ func findGOROOT() string {
 	if env := Getenv("GOROOT"); env != "" {
 		return filepath.Clean(env)
 	}
-	def := filepath.Clean(runtime.GOROOT())
+	def := ""
+	if r := runtime.GOROOT(); r != "" {
+		def = filepath.Clean(r)
+	}
 	if runtime.Compiler == "gccgo" {
 		// gccgo has no real GOROOT, and it certainly doesn't
 		// depend on the executable's location.

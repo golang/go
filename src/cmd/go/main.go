@@ -142,6 +142,10 @@ func main() {
 		}
 	}
 
+	if cfg.GOROOT == "" {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
+		os.Exit(2)
+	}
 	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
 		os.Exit(2)

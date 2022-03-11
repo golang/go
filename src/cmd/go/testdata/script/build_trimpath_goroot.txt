@@ -8,10 +8,15 @@
 # TODO(#51483): when runtime.GOROOT() returns the empty string,
 # go/build should default to 'go env GOROOT' instead.
 
-[short] skip
-
 env GOROOT=
 env GOROOT_FINAL=
+
+[trimpath] ! go env GOROOT
+[trimpath] stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
+[trimpath] stop
+
+
+[short] skip
 
 go run .
 stdout '^GOROOT '$TESTGO_GOROOT'$'
