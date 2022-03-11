@@ -7116,8 +7116,9 @@ make(T, n)       channel      buffered channel of type T, buffer size n
 
 
 <p>
-Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>
-or an untyped <a href="#Constants">constant</a>.
+Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>,
+have a <a href="#Interface_types">type set</a> containing only integer types,
+or be an untyped <a href="#Constants">constant</a>.
 A constant size argument must be non-negative and <a href="#Representability">representable</a>
 by a value of type <code>int</code>; if it is an untyped constant it is given type <code>int</code>.
 If both <code>n</code> and <code>m</code> are provided and are constant, then
@@ -7154,9 +7155,9 @@ by the arguments overlaps.
 <p>
 The <a href="#Function_types">variadic</a> function <code>append</code>
 appends zero or more values <code>x</code> to a slice <code>s</code>
-and returns the resulting slice.
+and returns the resulting slice of the same type as <code>s</code>.
 The <a href="#Core_types">core type</a> of <code>s</code> must be a slice
-of the form <code>[]E</code>.
+of type <code>[]E</code>.
 The values <code>x</code> are passed to a parameter of type <code>...E</code>
 and the respective <a href="#Passing_arguments_to_..._parameters">parameter
 passing rules</a> apply.
@@ -7166,7 +7167,7 @@ followed by <code>...</code>. This form appends the bytes of the string.
 </p>
 
 <pre class="grammar">
-append(s S, x ...E) S  // E is the element type of the core type of S
+append(s S, x ...E) S  // core type of S is []E
 </pre>
 
 <p>
@@ -7922,11 +7923,17 @@ func Add(ptr Pointer, len IntegerType) Pointer
 func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
 </pre>
 
+<!--
+These conversions also apply to type parameters with suitable core types.
+Determine if we can simply use core type insted of underlying type here,
+of if the general conversion rules take care of this.
+-->
+
 <p>
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
-Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be converted to
-a type of underlying type <code>Pointer</code> and vice versa.
+Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be
+<a href="#Conversions">converted</a> to a type of underlying type <code>Pointer</code> and vice versa.
 The effect of converting between <code>Pointer</code> and <code>uintptr</code> is implementation-defined.
 </p>
 
@@ -7973,7 +7980,8 @@ uintptr(unsafe.Pointer(&amp;x)) % unsafe.Alignof(x) == 0
 
 <p>
 A (variable of) type <code>T</code> has <i>variable size</i> if <code>T</code>
-is a type parameter, or if it is an array or struct type containing elements
+is a <a href="#Type_parameter_declarations">type parameter</a>, or if it is an
+array or struct type containing elements
 or fields of variable size. Otherwise the size is <i>constant</i>.
 Calls to <code>Alignof</code>, <code>Offsetof</code>, and <code>Sizeof</code>
 are compile-time <a href="#Constant_expressions">constant expressions</a> of
