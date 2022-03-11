@@ -87,16 +87,6 @@ func defaultContext() build.Context {
 
 	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
 
-	ctxt.GOROOT = findGOROOT()
-	if runtime.Compiler != "gccgo" {
-		// Note that we must use runtime.GOOS and runtime.GOARCH here,
-		// as the tool directory does not move based on environment
-		// variables. This matches the initialization of ToolDir in
-		// go/build, except for using ctxt.GOROOT rather than
-		// runtime.GOROOT.
-		build.ToolDir = filepath.Join(ctxt.GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
-	}
-
 	// Override defaults computed in go/build with defaults
 	// from go environment configuration file, if known.
 	ctxt.GOPATH = envOr("GOPATH", gopath(ctxt))
@@ -146,8 +136,34 @@ func defaultContext() build.Context {
 }
 
 func init() {
+	SetGOROOT(findGOROOT())
 	BuildToolchainCompiler = func() string { return "missing-compiler" }
 	BuildToolchainLinker = func() string { return "missing-linker" }
+}
+
+func SetGOROOT(goroot string) {
+	BuildContext.GOROOT = goroot
+
+	GOROOT = goroot
+	if goroot == "" {
+		GOROOTbin = ""
+		GOROOTpkg = ""
+		GOROOTsrc = ""
+	} else {
+		GOROOTbin = filepath.Join(goroot, "bin")
+		GOROOTpkg = filepath.Join(goroot, "pkg")
+		GOROOTsrc = filepath.Join(goroot, "src")
+	}
+	GOROOT_FINAL = findGOROOT_FINAL(goroot)
+
+	if runtime.Compiler != "gccgo" && goroot != "" {
+		// Note that we must use runtime.GOOS and runtime.GOARCH here,
+		// as the tool directory does not move based on environment
+		// variables. This matches the initialization of ToolDir in
+		// go/build, except for using BuildContext.GOROOT rather than
+		// runtime.GOROOT.
+		build.ToolDir = filepath.Join(goroot, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
+	}
 }
 
 // Experiment configuration.
@@ -279,12 +295,12 @@ func CanGetenv(key string) bool {
 }
 
 var (
-	GOROOT       = BuildContext.GOROOT
+	GOROOT       string
+	GOROOTbin    string
+	GOROOTpkg    string
+	GOROOTsrc    string
+	GOROOT_FINAL string
 	GOBIN        = Getenv("GOBIN")
-	GOROOTbin    = filepath.Join(GOROOT, "bin")
-	GOROOTpkg    = filepath.Join(GOROOT, "pkg")
-	GOROOTsrc    = filepath.Join(GOROOT, "src")
-	GOROOT_FINAL = findGOROOT_FINAL()
 	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
@@ -386,10 +402,10 @@ func findGOROOT() string {
 	return def
 }
 
-func findGOROOT_FINAL() string {
+func findGOROOT_FINAL(goroot string) string {
 	// $GOROOT_FINAL is only for use during make.bash
 	// so it is not settable using go/env, so we use os.Getenv here.
-	def := GOROOT
+	def := goroot
 	if env := os.Getenv("GOROOT_FINAL"); env != "" {
 		def = filepath.Clean(env)
 	}
