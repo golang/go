@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin || freebsd || openbsd || netbsd
-// +build darwin freebsd openbsd netbsd
+//go:build (darwin && !cgo) || freebsd || openbsd || netbsd
+// +build darwin,!cgo freebsd openbsd netbsd
 
 package fastwalk
 

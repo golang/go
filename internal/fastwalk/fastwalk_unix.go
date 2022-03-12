@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (linux || darwin || freebsd || openbsd || netbsd) && !appengine
-// +build linux darwin freebsd openbsd netbsd
+//go:build (linux || freebsd || openbsd || netbsd || (darwin && !cgo)) && !appengine
+// +build linux freebsd openbsd netbsd darwin,!cgo
 // +build !appengine
 
 package fastwalk
