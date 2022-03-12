@@ -26,7 +26,7 @@
 // are conditions that we expect to be met (or not to be met) at some point
 // after performing the interactions in the test. This is necessary because the
 // LSP is by construction asynchronous: both client and server can send
-// eachother notifications without formal acknowledgement that they have been
+// each other notifications without formal acknowledgement that they have been
 // fully processed.
 //
 // Simple Expectations may be combined to match specific conditions reported by

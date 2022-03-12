@@ -156,7 +156,7 @@ func parsePrintfVerb(f string, prevIdx int) (string, []formatOperand) {
 		case 'w':
 			addVerb(kindError)
 		case '+', '-', '#', ' ', '.', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			// Flag or numeric width/precicision value.
+			// Flag or numeric width/precision value.
 			continue
 		default:
 			// Assume unrecognized rune is a custom fmt.Formatter verb.

@@ -94,7 +94,7 @@ for input_exe need to allow writing.
 	//   IndSym Offset = file offset (within link edit section) of 4-byte indices within symtab.
 	//
 	// Section __TEXT.__symbol_stub1.
-	//   Offset and size (Reserved2) locate and describe a table for thios section.
+	//   Offset and size (Reserved2) locate and describe a table for this section.
 	//   Symbols beginning at IndirectSymIndex (Reserved1) (see LC_DYSYMTAB.IndSymOffset) refer to this table.
 	//   (These table entries are apparently PLTs [Procedure Linkage Table/Trampoline])
 	//

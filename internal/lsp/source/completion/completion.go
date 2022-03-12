@@ -372,7 +372,7 @@ type candidate struct {
 	pathInvokeMask uint16
 
 	// mods contains modifications that should be applied to the
-	// candidate when inserted. For example, "foo" may be insterted as
+	// candidate when inserted. For example, "foo" may be inserted as
 	// "*foo" or "foo()".
 	mods []typeModKind
 
@@ -654,7 +654,7 @@ func (c *completer) collectCompletions(ctx context.Context) error {
 // synthesizes an *ast.Ident to allow completion in the face of
 // certain syntax errors.
 func (c *completer) containingIdent(src []byte) *ast.Ident {
-	// In the normal case, our leaf AST node is the identifer being completed.
+	// In the normal case, our leaf AST node is the identifier being completed.
 	if ident, ok := c.path[0].(*ast.Ident); ok {
 		return ident
 	}
@@ -1981,7 +1981,7 @@ Nodes:
 						inf.assignees = append(inf.assignees, c.pkg.GetTypesInfo().TypeOf(lhs))
 					}
 				} else {
-					// Otherwse, record our single assignee, even if its type is
+					// Otherwise, record our single assignee, even if its type is
 					// not available. We use this info to downrank functions
 					// with the wrong number of result values.
 					inf.assignees = append(inf.assignees, c.pkg.GetTypesInfo().TypeOf(node.Lhs[i]))
@@ -2771,7 +2771,7 @@ func (ci *candidateInference) assigneesMatch(cand *candidate, sig *types.Signatu
 	}
 
 	// Don't prefer completing into func(...interface{}) calls since all
-	// functions wouuld match.
+	// functions would match.
 	if ci.variadicAssignees && len(ci.assignees) == 1 && isEmptyInterface(deslice(ci.assignees[0])) {
 		return false
 	}

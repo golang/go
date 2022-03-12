@@ -690,7 +690,7 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 
 	// Check if the client supports diagnostic related information.
 	o.RelatedInformationSupported = caps.TextDocument.PublishDiagnostics.RelatedInformation
-	// Check if the client completion support incliudes tags (preferred) or deprecation
+	// Check if the client completion support includes tags (preferred) or deprecation
 	if caps.TextDocument.Completion.CompletionItem.TagSupport.ValueSet != nil {
 		o.CompletionTags = true
 	} else if caps.TextDocument.Completion.CompletionItem.DeprecatedSupport {

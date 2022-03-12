@@ -32,7 +32,7 @@ type renamer struct {
 	errors             string
 	from, to           string
 	satisfyConstraints map[satisfy.Constraint]bool
-	packages           map[*types.Package]Package // may include additional packages that are a rdep of pkg
+	packages           map[*types.Package]Package // may include additional packages that are a dep of pkg
 	msets              typeutil.MethodSetCache
 	changeMethods      bool
 }

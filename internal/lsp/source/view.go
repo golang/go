@@ -677,7 +677,7 @@ var (
 // The major version is not included, as that depends on the module path.
 //
 // If workspace module A is dependent on workspace module B, we need our
-// nonexistant version to be greater than the version A mentions.
+// nonexistent version to be greater than the version A mentions.
 // Otherwise, the go command will try to update to that version. Use a very
 // high minor version to make that more likely.
 const workspaceModuleVersion = ".9999999.0-goplsworkspace"

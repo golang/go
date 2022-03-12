@@ -188,8 +188,8 @@ outer:
 				if !ok {
 					return nil, fmt.Errorf("invalid return type: %v", retTyp)
 				}
-				// Find the identifer whose name is most similar to the return type.
-				// If we do not find any identifer that matches the pattern,
+				// Find the identifier whose name is most similar to the return type.
+				// If we do not find any identifier that matches the pattern,
 				// generate a zero value.
 				value := analysisinternal.FindBestMatch(retTyp.String(), idents)
 				if value == nil {

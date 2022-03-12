@@ -116,7 +116,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	return nil, findErr
 }
 
-// ErrNoIdentFound is error returned when no identifer is found at a particular position
+// ErrNoIdentFound is error returned when no identifier is found at a particular position
 var ErrNoIdentFound = errors.New("no identifier found")
 
 func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *ParsedGoFile, pos token.Pos) (*IdentifierInfo, error) {

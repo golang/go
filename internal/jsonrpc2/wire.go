@@ -33,7 +33,7 @@ var (
 	ErrServerOverloaded = NewError(-32000, "JSON RPC overloaded")
 )
 
-// wireRequest is sent to a server to represent a Call or Notify operaton.
+// wireRequest is sent to a server to represent a Call or Notify operation.
 type wireRequest struct {
 	// VersionTag is always encoded as the string "2.0"
 	VersionTag wireVersionTag `json:"jsonrpc"`

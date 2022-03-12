@@ -72,7 +72,7 @@ func (e SimpleExpectation) Check(s State) Verdict {
 	return e.check(s)
 }
 
-// Description returns e.descriptin.
+// Description returns e.description.
 func (e SimpleExpectation) Description() string {
 	return e.description
 }

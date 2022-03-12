@@ -81,7 +81,7 @@ func (n *netDialer) Dial(ctx context.Context) (io.ReadWriteCloser, error) {
 }
 
 // NetPipeListener returns a new Listener that listens using net.Pipe.
-// It is only possibly to connect to it using the Dialier returned by the
+// It is only possibly to connect to it using the Dialer returned by the
 // Dialer method, each call to that method will generate a new pipe the other
 // side of which will be returned from the Accept call.
 func NetPipeListener(ctx context.Context) (Listener, error) {

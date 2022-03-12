@@ -84,7 +84,7 @@ func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandl
 		}, "", pgf.URI.Filename(), pkg.GetTypes().Name(), o.Env)
 	})
 	if err != nil {
-		// if an error occurred, we stil have a decent list we can
+		// if an error occurred, we still have a decent list we can
 		// show to the user through snapshot.CachedImportPaths
 		event.Error(ctx, "imports.GetAllCandidates", err)
 	}

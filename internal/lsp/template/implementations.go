@@ -71,7 +71,7 @@ func Diagnose(f source.VersionedFileHandle) []*source.Diagnostic {
 
 // Definition finds the definitions of the symbol at loc. It
 // does not understand scoping (if any) in templates. This code is
-// for defintions, type definitions, and implementations.
+// for definitions, type definitions, and implementations.
 // Results only for variables and templates.
 func Definition(snapshot source.Snapshot, fh source.VersionedFileHandle, loc protocol.Position) ([]protocol.Location, error) {
 	x, _, err := symAtPosition(fh, loc)

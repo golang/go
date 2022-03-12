@@ -59,8 +59,8 @@ type object struct {
 	//
 	// ssa.Value	for an object allocated by an SSA operation.
 	// types.Type	for an rtype instance object or *rtype-tagged object.
-	// string	for an instrinsic object, e.g. the array behind os.Args.
-	// nil		for an object allocated by an instrinsic.
+	// string	for an intrinsic object, e.g. the array behind os.Args.
+	// nil		for an object allocated by an intrinsic.
 	//		(cgn provides the identity of the intrinsic.)
 	data interface{}
 

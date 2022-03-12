@@ -272,7 +272,7 @@ func (w *workspace) dirs(ctx context.Context, fs source.FileSource) []span.URI {
 // reload of metadata (for example, unsaved changes to a go.mod or go.sum
 // file).
 func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileChange, fs source.FileSource) (_ *workspace, changed, reload bool) {
-	// Prevent races to w.modFile or w.wsDirs below, if wmhas not yet been built.
+	// Prevent races to w.modFile or w.wsDirs below, if w has not yet been built.
 	w.buildMu.Lock()
 	defer w.buildMu.Unlock()
 

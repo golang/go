@@ -145,7 +145,7 @@ func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.
 	return string(content[lineOffset:stmtOffset]), nil
 }
 
-// generateAvailableIdentifier adjusts the new function name until there are no collisons in scope.
+// generateAvailableIdentifier adjusts the new function name until there are no collisions in scope.
 // Possible collisions include other function and variable names. Returns the next index to check for prefix.
 func generateAvailableIdentifier(pos token.Pos, file *ast.File, path []ast.Node, info *types.Info, prefix string, idx int) (string, int) {
 	scopes := CollectScopes(info, path, pos)
@@ -290,7 +290,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 		uninitialized           []types.Object // vars we will need to initialize before the call
 	)
 
-	// Avoid duplicates while traversing vars and uninitialzed.
+	// Avoid duplicates while traversing vars and uninitialized.
 	seenVars := make(map[types.Object]ast.Expr)
 	seenUninitialized := make(map[types.Object]struct{})
 
@@ -523,7 +523,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 
 	// Construct the appropriate call to the extracted function.
 	// We must meet two conditions to use ":=" instead of '='. (1) there must be at least
-	// one variable on the lhs that is uninitailized (non-free) prior to the assignment.
+	// one variable on the lhs that is uninitialized (non-free) prior to the assignment.
 	// (2) all of the initialized (free) variables on the lhs must be able to be redefined.
 	sym := token.ASSIGN
 	canDefineCount := len(uninitialized) + canRedefineCount
@@ -567,7 +567,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 
 	// Create variable declarations for any identifiers that need to be initialized prior to
 	// calling the extracted function. We do not manually initialize variables if every return
-	// value is unitialized. We can use := to initialize the variables in this situation.
+	// value is uninitialized. We can use := to initialize the variables in this situation.
 	var declarations []ast.Stmt
 	if canDefineCount != len(returns) {
 		declarations = initializeVars(uninitialized, retVars, seenUninitialized, seenVars)

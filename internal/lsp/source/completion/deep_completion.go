@@ -19,7 +19,7 @@ const MaxDeepCompletions = 3
 // "deep completion" refers to searching into objects' fields and methods to
 // find more completion candidates.
 type deepCompletionState struct {
-	// enabled indicates wether deep completion is permitted.
+	// enabled indicates whether deep completion is permitted.
 	enabled bool
 
 	// queueClosed is used to disable adding new sub-fields to search queue

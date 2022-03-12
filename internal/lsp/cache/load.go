@@ -364,7 +364,7 @@ func getWorkspaceDir(ctx context.Context, h *memoize.Handle, g *memoize.Generati
 }
 
 // setMetadataLocked extracts metadata from pkg and records it in s. It
-// recurses through pkg.Imports to ensure that metadata exists for all
+// recurs through pkg.Imports to ensure that metadata exists for all
 // dependencies.
 func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, pkg *packages.Package, cfg *packages.Config, query []string, seen map[PackageID]struct{}) (*Metadata, error) {
 	id := PackageID(pkg.ID)
