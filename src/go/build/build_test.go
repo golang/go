@@ -567,6 +567,27 @@ func TestImportVendor(t *testing.T) {
 	}
 }
 
+func BenchmarkImportVendor(b *testing.B) {
+	testenv.MustHaveGoBuild(b) // really must just have source
+
+	b.Setenv("GO111MODULE", "off")
+
+	ctxt := Default
+	wd, err := os.Getwd()
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
+	dir := filepath.Join(ctxt.GOPATH, "src/a/b")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := ctxt.Import("c/d", dir, 0)
+		if err != nil {
+			b.Fatalf("cannot find vendored c/d from testdata src/a/b directory: %v", err)
+		}
+	}
+}
+
 func TestImportVendorFailure(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 
