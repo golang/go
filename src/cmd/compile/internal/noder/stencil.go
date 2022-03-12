@@ -898,7 +898,7 @@ func getDictionaryType(info *instInfo, dictParam *ir.Name, pos src.XPos, i int) 
 		base.Fatalf(fmt.Sprintf("bad dict index %d", i))
 	}
 
-	r := getDictionaryEntry(pos, info.dictParam, i, info.dictInfo.startSubDict)
+	r := getDictionaryEntry(pos, dictParam, i, info.dictInfo.startSubDict)
 	// change type of retrieved dictionary entry to *byte, which is the
 	// standard typing of a *runtime._type in the compiler
 	typed(types.Types[types.TUINT8].PtrTo(), r)
