@@ -227,6 +227,42 @@ func Write(fd int, p []byte) (n int, err error) {
 	return
 }
 
+func Pread(fd int, p []byte, offset int64) (n int, err error) {
+	n, err = pread(fd, p, offset)
+	if race.Enabled {
+		if n > 0 {
+			race.WriteRange(unsafe.Pointer(&p[0]), n)
+		}
+		if err == nil {
+			race.Acquire(unsafe.Pointer(&ioSync))
+		}
+	}
+	if msanenabled && n > 0 {
+		msanWrite(unsafe.Pointer(&p[0]), n)
+	}
+	if asanenabled && n > 0 {
+		asanWrite(unsafe.Pointer(&p[0]), n)
+	}
+	return
+}
+
+func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	n, err = pwrite(fd, p, offset)
+	if race.Enabled && n > 0 {
+		race.ReadRange(unsafe.Pointer(&p[0]), n)
+	}
+	if msanenabled && n > 0 {
+		msanRead(unsafe.Pointer(&p[0]), n)
+	}
+	if asanenabled && n > 0 {
+		asanRead(unsafe.Pointer(&p[0]), n)
+	}
+	return
+}
+
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
 var SocketDisableIPv6 bool
