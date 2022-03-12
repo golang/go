@@ -968,6 +968,9 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	t0 := time.Now()
 	if d := c.server.readHeaderTimeout(); d > 0 {
 		hdrDeadline = t0.Add(d)
+	} else {
+		const headerTimeout = 30 * time.Second
+		hdrDeadline = t0.Add(headerTimeout)
 	}
 	if d := c.server.ReadTimeout; d > 0 {
 		wholeReqDeadline = t0.Add(d)
@@ -1993,7 +1996,6 @@ func (c *conn) serve(ctx context.Context) {
 				return
 			}
 		}
-		c.rwc.SetReadDeadline(time.Time{})
 	}
 }
 
