@@ -81,7 +81,7 @@ func TestShouldTraverse(t *testing.T) {
 			continue
 		}
 		var w walker
-		got := w.shouldTraverse(filepath.Join(dir, tt.dir), fi)
+		got := w.shouldTraverse(filepath.Join(dir, tt.dir, fi.Name()))
 		if got != tt.want {
 			t.Errorf("%d. shouldTraverse(%q, %q) = %v; want %v", i, tt.dir, tt.file, got, tt.want)
 		}
