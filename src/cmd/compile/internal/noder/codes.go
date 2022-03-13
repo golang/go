@@ -29,9 +29,6 @@ const (
 	stmtFor
 	stmtSwitch
 	stmtSelect
-
-	// TODO(mdempsky): Remove after we don't care about toolstash -cmp.
-	stmtTypeDeclHack
 )
 
 type codeExpr int
