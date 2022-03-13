@@ -396,6 +396,9 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
 		// Second call, to report ReadDir error.
 		err = walkDirFn(path, d, err)
 		if err != nil {
+			if err == SkipDir && d.IsDir() {
+				err = nil
+			}
 			return err
 		}
 	}

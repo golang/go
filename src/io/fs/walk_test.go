@@ -8,6 +8,8 @@ import (
 	. "io/fs"
 	"os"
 	pathpkg "path"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"testing/fstest"
 )
@@ -121,4 +123,35 @@ func TestWalkDir(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", errors)
 	}
 	checkMarks(t, true)
+}
+
+func TestIssue51617(t *testing.T) {
+	dir := t.TempDir()
+	for _, sub := range []string{"a", filepath.Join("a", "bad"), filepath.Join("a", "next")} {
+		if err := os.Mkdir(filepath.Join(dir, sub), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bad := filepath.Join(dir, "a", "bad")
+	if err := os.Chmod(bad, 0); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(bad, 0700) // avoid errors on cleanup
+	var saw []string
+	err := WalkDir(os.DirFS(dir), ".", func(path string, d DirEntry, err error) error {
+		if err != nil {
+			return filepath.SkipDir
+		}
+		if d.IsDir() {
+			saw = append(saw, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{".", "a", "a/bad", "a/next"}
+	if !reflect.DeepEqual(saw, want) {
+		t.Errorf("got directories %v, want %v", saw, want)
+	}
 }
