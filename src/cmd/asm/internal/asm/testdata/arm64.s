@@ -241,6 +241,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FADDS	F2, F3, F4                      // 6428221e
 	FADDD	F1, F2                          // 4228611e
 	VDUP	V19.S[0], V17.S4                // 7106044e
+	VTRN1	V3.D2, V2.D2, V20.D2            // 5428c34e
+	VTRN2	V3.D2, V2.D2, V21.D2            // 5568c34e
+	VTRN1	V5.D2, V4.D2, V22.D2            // 9628c54e
+	VTRN2	V5.D2, V4.D2, V23.D2            // 9768c54e
 
 
 // special

@@ -2985,6 +2985,8 @@ func buildop(ctxt *obj.Link) {
 
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
+			oprangeset(AVTRN1, t)
+			oprangeset(AVTRN2, t)
 
 		case AVUXTL:
 			oprangeset(AVUXTL2, t)
@@ -6179,6 +6181,12 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVUADDW, AVUADDW2:
 		return 0x17<<25 | 1<<21 | 1<<12
+
+	case AVTRN1:
+		return 7<<25 | 5<<11
+
+	case AVTRN2:
+		return 7<<25 | 1<<14 | 5<<11
 	}
 
 	c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
