@@ -542,7 +542,7 @@ func switches1() {
 	var y interface{}
 	switch y.(type) {
 	case int:
-		fallthrough /* ERROR "fallthrough statement out of place" */ ; ; ;
+		fallthrough /* ERROR "cannot fallthrough in type switch" */ ; ; ;
 	default:
 	}
 
