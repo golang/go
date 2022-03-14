@@ -95,6 +95,7 @@ const (
 
 	// additional context information
 	finalSwitchCase
+	inTypeSwitch
 )
 
 func (check *Checker) simpleStmt(s syntax.Stmt) {
@@ -370,7 +371,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 	// process collected function literals before scope changes
 	defer check.processDelayed(len(check.delayed))
 
-	inner := ctxt &^ (fallthroughOk | finalSwitchCase)
+	// reset context for statements of inner blocks
+	inner := ctxt &^ (fallthroughOk | finalSwitchCase | inTypeSwitch)
+
 	switch s := s.(type) {
 	case *syntax.EmptyStmt:
 		// ignore
@@ -523,9 +526,14 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			}
 		case syntax.Fallthrough:
 			if ctxt&fallthroughOk == 0 {
-				msg := "fallthrough statement out of place"
-				if ctxt&finalSwitchCase != 0 {
+				var msg string
+				switch {
+				case ctxt&finalSwitchCase != 0:
 					msg = "cannot fallthrough final case in switch"
+				case ctxt&inTypeSwitch != 0:
+					msg = "cannot fallthrough in type switch"
+				default:
+					msg = "fallthrough statement out of place"
 				}
 				check.error(s, msg)
 			}
@@ -572,7 +580,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.simpleStmt(s.Init)
 
 		if g, _ := s.Tag.(*syntax.TypeSwitchGuard); g != nil {
-			check.typeSwitchStmt(inner, s, g)
+			check.typeSwitchStmt(inner|inTypeSwitch, s, g)
 		} else {
 			check.switchStmt(inner, s)
 		}
