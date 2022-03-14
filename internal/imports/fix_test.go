@@ -659,6 +659,37 @@ var _, _, _, _, _ = fmt.Errorf, io.Copy, strings.Contains, renamed_packagea.A, B
 `,
 	},
 
+	// Blank line can be added even when first import of group has comment with quote
+	{
+		name: "new_section_where_trailing_comment_has_quote",
+		in: `package main
+
+import (
+	"context"
+	bar "local.com/bar"
+	baz "local.com/baz"
+	buzz "local.com/buzz"
+	"github.com/golang/snappy" // this is a "typical" import
+)
+
+var _, _, _, _, _ = context.Background, bar.B, baz.B, buzz.B, snappy.ErrCorrupt
+`,
+		out: `package main
+
+import (
+	"context"
+
+	"github.com/golang/snappy" // this is a "typical" import
+
+	bar "local.com/bar"
+	baz "local.com/baz"
+	buzz "local.com/buzz"
+)
+
+var _, _, _, _, _ = context.Background, bar.B, baz.B, buzz.B, snappy.ErrCorrupt
+`,
+	},
+
 	// Non-idempotent comment formatting
 	// golang.org/issue/8035
 	{
