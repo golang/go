@@ -1938,7 +1938,9 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		}
 	}
 	p.Internal.Imports = imports
-	p.collectDeps()
+	if !opts.SuppressDeps {
+		p.collectDeps()
+	}
 	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 {
 		// TODO(bcmills): loading VCS metadata can be fairly slow.
 		// Consider starting this as a background goroutine and retrieving the result
@@ -2679,6 +2681,12 @@ type PackageOpts struct {
 
 	// LoadVCS controls whether we also load version-control metadata for main packages.
 	LoadVCS bool
+
+	// NeedDepsFields is true if the caller does not need Deps and DepsErrors to be populated
+	// on the package. TestPackagesAndErrors examines the  Deps field to determine if the test
+	// variant has an import cycle, so SuppressDeps should not be set if TestPackagesAndErrors
+	// will be called on the package.
+	SuppressDeps bool
 }
 
 // PackagesAndErrors returns the packages named by the command line arguments
