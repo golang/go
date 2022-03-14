@@ -502,7 +502,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		}
 
 		check.brokenAlias(obj)
-		rhs = check.varType(tdecl.Type)
+		rhs = check.typ(tdecl.Type)
 		check.validAlias(obj, rhs)
 		return
 	}
