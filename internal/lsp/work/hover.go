@@ -50,6 +50,9 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 
 	// Get the mod file denoted by the use.
 	modfh, err := snapshot.GetFile(ctx, modFileURI(pw, use))
+	if err != nil {
+		return nil, errors.Errorf("getting modfile handle: %w", err)
+	}
 	pm, err := snapshot.ParseMod(ctx, modfh)
 	if err != nil {
 		return nil, errors.Errorf("getting modfile handle: %w", err)

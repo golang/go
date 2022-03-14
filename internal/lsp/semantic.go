@@ -227,7 +227,6 @@ type encoded struct {
 	pgf               *source.ParsedGoFile
 	rng               *protocol.Range
 	ti                *types.Info
-	types             *types.Package
 	pkg               source.Package
 	fset              *token.FileSet
 	// allowed starting and ending token.Pos, set by init

@@ -150,7 +150,6 @@ type symbolCollector struct {
 	matchers   []matcherFunc
 	symbolizer symbolizer
 
-	seen map[span.URI]bool
 	symbolStore
 }
 

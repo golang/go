@@ -51,16 +51,6 @@ func (r RelativeTo) RelPath(fp string) string {
 	return filepath.ToSlash(fp)
 }
 
-func writeTxtar(txt string, rel RelativeTo) error {
-	files := UnpackTxt(txt)
-	for name, data := range files {
-		if err := WriteFileData(name, data, rel); err != nil {
-			return errors.Errorf("writing to workdir: %w", err)
-		}
-	}
-	return nil
-}
-
 // WriteFileData writes content to the relative path, replacing the special
 // token $SANDBOX_WORKDIR with the relative root given by rel.
 func WriteFileData(path string, content []byte, rel RelativeTo) error {

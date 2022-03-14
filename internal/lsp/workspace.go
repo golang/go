@@ -26,8 +26,6 @@ func (s *Server) didChangeWorkspaceFolders(ctx context.Context, params *protocol
 	return s.addFolders(ctx, event.Added)
 }
 
-var wsIndex int64
-
 func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source.Snapshot, func(), error) {
 	s.stateMu.Lock()
 	state := s.state

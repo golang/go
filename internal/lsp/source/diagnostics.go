@@ -82,12 +82,3 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	}
 	return fh.VersionedFileIdentity(), fileDiags, nil
 }
-
-func isConvenienceAnalyzer(category string) bool {
-	for _, a := range DefaultOptions().ConvenienceAnalyzers {
-		if category == a.Analyzer.Name {
-			return true
-		}
-	}
-	return false
-}
