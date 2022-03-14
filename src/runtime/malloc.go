@@ -434,11 +434,6 @@ func mallocinit() {
 		throw("heapArenaBitmapBytes not a power of 2")
 	}
 
-	// Copy class sizes out for statistics table.
-	for i := range class_to_size {
-		memstats.by_size[i].size = uint32(class_to_size[i])
-	}
-
 	// Check physPageSize.
 	if physPageSize == 0 {
 		// The OS init code failed to fetch the physical page size.
