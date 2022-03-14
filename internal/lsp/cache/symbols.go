@@ -69,7 +69,6 @@ func symbolize(ctx context.Context, snapshot *snapshot, fh source.FileHandle) ([
 
 type symbolWalker struct {
 	curFile    *source.ParsedGoFile
-	pkgName    string
 	curURI     protocol.DocumentURI
 	symbols    []source.Symbol
 	firstError error

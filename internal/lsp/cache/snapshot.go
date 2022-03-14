@@ -803,13 +803,6 @@ func (s *snapshot) isActiveLocked(id PackageID, seen map[PackageID]bool) (active
 	return false
 }
 
-func (s *snapshot) getWorkspacePkgPath(id PackageID) PackagePath {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.workspacePackages[id]
-}
-
 const fileExtensions = "go,mod,sum,work"
 
 func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {

@@ -29,7 +29,6 @@ import (
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
@@ -139,10 +138,6 @@ const (
 	tempModfile
 )
 
-type builtinPackageHandle struct {
-	handle *memoize.Handle
-}
-
 // fileBase holds the common functionality for all files.
 // It is intended to be embedded in the file implementations
 type fileBase struct {
@@ -166,33 +161,6 @@ func (f *fileBase) addURI(uri span.URI) int {
 }
 
 func (v *View) ID() string { return v.id }
-
-// TODO(rfindley): factor this out to use server.tempDir, and consolidate logic with tempModFile.
-func tempWorkFile(workFH source.FileHandle) (tmpURI span.URI, cleanup func(), err error) {
-	filenameHash := hashContents([]byte(workFH.URI().Filename()))
-	tmpMod, err := ioutil.TempFile("", fmt.Sprintf("go.%s.*.work", filenameHash))
-	if err != nil {
-		return "", nil, err
-	}
-	defer tmpMod.Close()
-
-	tmpURI = span.URIFromPath(tmpMod.Name())
-
-	content, err := workFH.Read()
-	if err != nil {
-		return "", nil, err
-	}
-
-	if _, err := tmpMod.Write(content); err != nil {
-		return "", nil, err
-	}
-
-	cleanup = func() {
-		_ = os.Remove(tmpURI.Filename())
-	}
-
-	return tmpURI, cleanup, nil
-}
 
 // tempModFile creates a temporary go.mod file based on the contents of the
 // given go.mod file. It is the caller's responsibility to clean up the files

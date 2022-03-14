@@ -152,21 +152,6 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 	return mth.tidy(ctx, s)
 }
 
-func (s *snapshot) uriToModDecl(ctx context.Context, uri span.URI) (protocol.Range, error) {
-	fh, err := s.GetFile(ctx, uri)
-	if err != nil {
-		return protocol.Range{}, nil
-	}
-	pmf, err := s.ParseMod(ctx, fh)
-	if err != nil {
-		return protocol.Range{}, nil
-	}
-	if pmf.File.Module == nil || pmf.File.Module.Syntax == nil {
-		return protocol.Range{}, nil
-	}
-	return rangeFromPositions(pmf.Mapper, pmf.File.Module.Syntax.Start, pmf.File.Module.Syntax.End)
-}
-
 func (s *snapshot) hashImports(ctx context.Context, wsPackages []*packageHandle) (string, error) {
 	seen := map[string]struct{}{}
 	var imports []string
