@@ -39,9 +39,10 @@ const (
 	// due to implementation issues (e.g., see issues #48619, #48656).
 	unificationDepthLimit = 50
 
-	// Whether to panic when unificationDepthLimit is reached. Turn on when
-	// investigating infinite recursion.
-	panicAtUnificationDepthLimit = false
+	// Whether to panic when unificationDepthLimit is reached.
+	// If disabled, a recursion depth overflow results in a (quiet)
+	// unification failure.
+	panicAtUnificationDepthLimit = true
 
 	// If enableCoreTypeUnification is set, unification will consider
 	// the core types, if any, of non-local (unbound) type parameters.
