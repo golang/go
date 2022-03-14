@@ -48,6 +48,10 @@ var MemclrNoHeapPointers = memclrNoHeapPointers
 
 var LockPartialOrder = lockPartialOrder
 
+var Goyield = goyield
+
+var NeedSysmonWorkaround = needSysmonWorkaround
+
 type LockRank lockRank
 
 func (l LockRank) String() string {

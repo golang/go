@@ -5050,20 +5050,26 @@ func sysmon() {
 	checkdead()
 	unlock(&sched.lock)
 
-	lasttrace := int64(0)
-	idle := 0 // how many cycles in succession we had not wokeup somebody
-	delay := uint32(0)
+	if netpollInited == 0 {
+		netpollGenericInit()
+	}
+	tracedelay := int64(debug.schedtrace) * 1000000
+	nexttrace := int64(maxWhen) // when should we output next schedtrace. much far future if disabled.
+	if tracedelay > 0 {
+		nexttrace = nanotime()
+	}
+	idle := 0         // how many cycles in succession we had not wokeup somebody
+	delay := int64(0) // ns
 
 	for {
 		if idle == 0 { // start with 20us sleep...
-			delay = 20
+			delay = 20 * 1000
 		} else if idle > 50 { // start doubling the sleep after 1ms...
 			delay *= 2
 		}
-		if delay > 10*1000 { // up to 10ms
-			delay = 10 * 1000
+		if delay > 10*1000*1000 { // up to 10ms
+			delay = 10 * 1000 * 1000
 		}
-		usleep(delay)
 
 		// sysmon should not enter deep sleep if schedtrace is enabled so that
 		// it can print that information at the right time.
@@ -5109,7 +5115,7 @@ func sysmon() {
 				}
 				if syscallWake {
 					idle = 0
-					delay = 20
+					delay = 20 * 1000
 				}
 			}
 			unlock(&sched.lock)
@@ -5124,23 +5130,62 @@ func sysmon() {
 		if *cgo_yield != nil {
 			asmcgocall(*cgo_yield, nil)
 		}
-		// poll network if not polled for more than 10ms
-		lastpoll := int64(atomic.Load64(&sched.lastpoll))
-		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
-			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
-			list := netpoll(0) // non-blocking - returns list of goroutines
-			if !list.empty() {
-				// Need to decrement number of idle locked M's
-				// (pretending that one more is running) before injectglist.
-				// Otherwise it can lead to the following situation:
-				// injectglist grabs all P's but before it starts M's to run the P's,
-				// another M returns from syscall, finishes running its G,
-				// observes that there is no work to do and no other running M's
-				// and reports deadlock.
-				incidlelocked(-1)
-				injectglist(&list)
-				incidlelocked(1)
+
+		if delay < 1000*1000 || (GOOS == "netbsd" && needSysmonWorkaround) {
+			// netpoll() will convert (0, 999us] to 1ms on some platforms.
+			// to let retake() happen as often as want, using usleep if delay is less than 1ms.
+			// issue 42515 reports netbsd may sometimes miss netpoll wake-ups, so skip it.
+			usleep(uint32(delay / 1000))
+
+			// non-blocking poll if no other M polling, not polled for more than 2ms and there is any waiter.
+			lastpoll := int64(atomic.Load64(&sched.lastpoll))
+			if lastpoll != 0 && lastpoll+2*1000*1000 < now && atomic.Load(&netpollWaiters) > 0 {
+				atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
+				list := netpoll(0) // non-blocking - returns list of goroutines
+				if !list.empty() {
+					// Need to decrement number of idle locked M's
+					// (pretending that one more is running) before injectglist.
+					// Otherwise it can lead to the following situation:
+					// injectglist grabs all P's but before it starts M's to run the P's,
+					// another M returns from syscall, finishes running its G,
+					// observes that there is no work to do and no other running M's
+					// and reports deadlock.
+					incidlelocked(-1)
+					injectglist(&list)
+					incidlelocked(1)
+				}
 			}
+		} else {
+			// poll network until earliest timer, next retake or next schedtrace, may blocking.
+			sleep := delay
+			pollUntil, _ := timeSleepUntil()
+			if nexttrace < pollUntil {
+				pollUntil = nexttrace
+			}
+			if pollUntil-now < sleep {
+				sleep = pollUntil - now
+			}
+			if sleep < 0 || faketime != 0 {
+				sleep = 0
+			}
+			pollUntil = now + sleep
+
+			// sysmon pretends to be a normal M waiting for timer and IO ready.
+			// so need to decrement number of idle locked M's.
+			incidlelocked(-1)
+			if atomic.Xchg64(&sched.lastpoll, 0) != 0 {
+				atomic.Store64(&sched.pollUntil, uint64(pollUntil))
+				list := netpoll(sleep)
+				atomic.Store64(&sched.pollUntil, 0)
+				atomic.Store64(&sched.lastpoll, uint64(nanotime()))
+				if !list.empty() {
+					injectglist(&list)
+				} else {
+					// may wake up by timer.
+					wakep()
+				}
+			}
+			incidlelocked(1)
 		}
 		if GOOS == "netbsd" && needSysmonWorkaround {
 			// netpoll is responsible for waiting for timer
@@ -5182,8 +5227,8 @@ func sysmon() {
 			injectglist(&list)
 			unlock(&forcegc.lock)
 		}
-		if debug.schedtrace > 0 && lasttrace+int64(debug.schedtrace)*1000000 <= now {
-			lasttrace = now
+		if nexttrace <= now {
+			nexttrace += tracedelay
 			schedtrace(debug.scheddetail > 0)
 		}
 		unlock(&sched.sysmonlock)
