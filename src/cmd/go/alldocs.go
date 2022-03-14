@@ -1599,6 +1599,10 @@
 // cross-compiled programs when a simulator or other execution method is
 // available.
 //
+// By default, 'go run' compiles the binary without generating the information
+// used by debuggers, to reduce build time. To include debugger information in
+// the binary, use 'go build'.
+//
 // The exit status of Run is not the exit status of the compiled binary.
 //
 // For more about build flags, see 'go help build'.
