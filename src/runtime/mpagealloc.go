@@ -309,6 +309,12 @@ type pageAlloc struct {
 	// memory is committed by the pageAlloc for allocation metadata.
 	sysStat *sysMemStat
 
+	// summaryMappedReady is the number of bytes mapped in the Ready state
+	// in the summary structure. Used only for testing currently.
+	//
+	// Protected by mheapLock.
+	summaryMappedReady uintptr
+
 	// Whether or not this struct is being used in tests.
 	test bool
 }
@@ -335,6 +341,9 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
 
 	// Set the mheapLock.
 	p.mheapLock = mheapLock
+
+	// Initialize p.scav.inUse.
+	p.scav.inUse.init(sysStat)
 
 	// Initialize scavenge tracking state.
 	p.scav.scavLWM = maxSearchAddr

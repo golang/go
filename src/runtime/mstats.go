@@ -20,6 +20,9 @@ import (
 // Many of these fields are updated on the fly, while others are only
 // updated when updatememstats is called.
 type mstats struct {
+	// Total virtual memory in the Ready state (see mem.go).
+	mappedReady atomic.Uint64
+
 	// Statistics about malloc heap.
 
 	heapStats consistentHeapStats
@@ -451,6 +454,10 @@ func readmemstats_m(stats *MemStats) {
 	gcWorkBufInUse := uint64(consStats.inWorkBufs)
 	gcProgPtrScalarBitsInUse := uint64(consStats.inPtrScalarBits)
 
+	totalMapped := memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
+		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
+		memstats.other_sys.load() + stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
+
 	// The world is stopped, so the consistent stats (after aggregation)
 	// should be identical to some combination of memstats. In particular:
 	//
@@ -492,14 +499,22 @@ func readmemstats_m(stats *MemStats) {
 		print("runtime: consistent value=", totalFree, "\n")
 		throw("totalFree and consistent stats are not equal")
 	}
+	// Also check that mappedReady lines up with totalMapped - released.
+	// This isn't really the same type of "make sure consistent stats line up" situation,
+	// but this is an opportune time to check.
+	if memstats.mappedReady.Load() != totalMapped-uint64(consStats.released) {
+		print("runtime: mappedReady=", memstats.mappedReady.Load(), "\n")
+		print("runtime: totalMapped=", totalMapped, "\n")
+		print("runtime: released=", uint64(consStats.released), "\n")
+		print("runtime: totalMapped-released=", totalMapped-uint64(consStats.released), "\n")
+		throw("mappedReady and other memstats are not equal")
+	}
 
 	// We've calculated all the values we need. Now, populate stats.
 
 	stats.Alloc = totalAlloc - totalFree
 	stats.TotalAlloc = totalAlloc
-	stats.Sys = memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
-		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
-		memstats.other_sys.load() + stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
+	stats.Sys = totalMapped
 	stats.Mallocs = nMalloc
 	stats.Frees = nFree
 	stats.HeapAlloc = totalAlloc - totalFree
@@ -649,9 +664,6 @@ func (s *sysMemStat) load() uint64 {
 //
 //go:nosplit
 func (s *sysMemStat) add(n int64) {
-	if s == nil {
-		return
-	}
 	val := atomic.Xadd64((*uint64)(s), n)
 	if (n > 0 && int64(val) < n) || (n < 0 && int64(val)+n < n) {
 		print("runtime: val=", val, " n=", n, "\n")

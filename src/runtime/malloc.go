@@ -603,7 +603,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		// particular, this is already how Windows behaves, so
 		// it would simplify things there.
 		if v != nil {
-			sysFree(v, n, nil)
+			sysFreeOS(v, n)
 		}
 		h.arenaHints = hint.next
 		h.arenaHintAlloc.free(unsafe.Pointer(hint))
@@ -664,7 +664,14 @@ mapped:
 		l2 := h.arenas[ri.l1()]
 		if l2 == nil {
 			// Allocate an L2 arena map.
-			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), goarch.PtrSize, nil))
+			//
+			// Use sysAllocOS instead of sysAlloc or persistentalloc because there's no
+			// statistic we can comfortably account for this space in. With this structure,
+			// we rely on demand paging to avoid large overheads, but tracking which memory
+			// is paged in is too expensive. Trying to account for the whole region means
+			// that it will appear like an enormous memory overhead in statistics, even though
+			// it is not.
+			l2 = (*[1 << arenaL2Bits]*heapArena)(sysAllocOS(unsafe.Sizeof(*l2)))
 			if l2 == nil {
 				throw("out of memory allocating heap arena map")
 			}
@@ -741,12 +748,12 @@ retry:
 		// reservation, so we release the whole thing and
 		// re-reserve the aligned sub-region. This may race,
 		// so we may have to try again.
-		sysFree(unsafe.Pointer(p), size+align, nil)
+		sysFreeOS(unsafe.Pointer(p), size+align)
 		p = alignUp(p, align)
 		p2 := sysReserve(unsafe.Pointer(p), size)
 		if p != uintptr(p2) {
 			// Must have raced. Try again.
-			sysFree(p2, size, nil)
+			sysFreeOS(p2, size)
 			if retries++; retries == 100 {
 				throw("failed to allocate aligned heap memory; too many retries")
 			}
@@ -757,11 +764,11 @@ retry:
 	default:
 		// Trim off the unaligned parts.
 		pAligned := alignUp(p, align)
-		sysFree(unsafe.Pointer(p), pAligned-p, nil)
+		sysFreeOS(unsafe.Pointer(p), pAligned-p)
 		end := pAligned + size
 		endLen := (p + size + align) - end
 		if endLen > 0 {
-			sysFree(unsafe.Pointer(end), endLen, nil)
+			sysFreeOS(unsafe.Pointer(end), endLen)
 		}
 		return unsafe.Pointer(pAligned), size
 	}
@@ -1314,6 +1321,7 @@ var persistentChunks *notInHeap
 // Intended for things like function/type/debug-related persistent data.
 // If align is 0, uses default align (currently 8).
 // The returned memory will be zeroed.
+// sysStat must be non-nil.
 //
 // Consider marking persistentalloc'd types go:notinheap.
 func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
@@ -1444,8 +1452,9 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
 	if pEnd := alignUp(l.next-1, physPageSize); pEnd > l.mapped {
 		if l.mapMemory {
 			// Transition from Reserved to Prepared to Ready.
-			sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
-			sysUsed(unsafe.Pointer(l.mapped), pEnd-l.mapped)
+			n := pEnd - l.mapped
+			sysMap(unsafe.Pointer(l.mapped), n, sysStat)
+			sysUsed(unsafe.Pointer(l.mapped), n, n)
 		}
 		l.mapped = pEnd
 	}

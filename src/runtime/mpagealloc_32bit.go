@@ -71,7 +71,8 @@ func (p *pageAlloc) sysInit() {
 	}
 	// There isn't much. Just map it and mark it as used immediately.
 	sysMap(reservation, totalSize, p.sysStat)
-	sysUsed(reservation, totalSize)
+	sysUsed(reservation, totalSize, totalSize)
+	p.summaryMappedReady += totalSize
 
 	// Iterate over the reservation and cut it up into slices.
 	//

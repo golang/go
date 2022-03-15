@@ -40,11 +40,14 @@ import "unsafe"
 // operating system, typically on the order of a hundred kilobytes
 // or a megabyte. This memory is always immediately available for use.
 //
+// sysStat must be non-nil.
+//
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
 func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	sysStat.add(int64(n))
+	memstats.mappedReady.Add(int64(n))
 	return sysAllocOS(n)
 }
 
@@ -54,6 +57,7 @@ func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
 // sysUnused memory region are considered forfeit and the region must not be
 // accessed again until sysUsed is called.
 func sysUnused(v unsafe.Pointer, n uintptr) {
+	memstats.mappedReady.Add(-int64(n))
 	sysUnusedOS(v, n)
 }
 
@@ -62,7 +66,13 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 // may be safely accessed. This is typically a no-op on systems that don't have
 // an explicit commit step and hard over-commit limits, but is critical on
 // Windows, for example.
-func sysUsed(v unsafe.Pointer, n uintptr) {
+//
+// This operation is idempotent for memory already in the Prepared state, so
+// it is safe to refer, with v and n, to a range of memory that includes both
+// Prepared and Ready memory. However, the caller must provide the exact amout
+// of Prepared memory for accounting purposes.
+func sysUsed(v unsafe.Pointer, n, prepared uintptr) {
+	memstats.mappedReady.Add(int64(prepared))
 	sysUsedOS(v, n)
 }
 
@@ -80,18 +90,28 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
 // returns a memory region aligned to the heap allocator's alignment
 // restrictions.
 //
+// sysStat must be non-nil.
+//
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
 func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
 	sysStat.add(-int64(n))
+	memstats.mappedReady.Add(-int64(n))
 	sysFreeOS(v, n)
 }
 
-// sysFault transitions a memory region from Ready or Prepared to Reserved. It
+// sysFault transitions a memory region from Ready to Reserved. It
 // marks a region such that it will always fault if accessed. Used only for
 // debugging the runtime.
+//
+// TODO(mknyszek): Currently it's true that all uses of sysFault transition
+// memory from Ready to Reserved, but this may not be true in the future
+// since on every platform the operation is much more general than that.
+// If a transition from Prepared is ever introduced, create a new function
+// that elides the Ready state accounting.
 func sysFault(v unsafe.Pointer, n uintptr) {
+	memstats.mappedReady.Add(-int64(n))
 	sysFaultOS(v, n)
 }
 
@@ -113,6 +133,8 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 
 // sysMap transitions a memory region from Reserved to Prepared. It ensures the
 // memory region can be efficiently transitioned to Ready.
+//
+// sysStat must be non-nil.
 func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
 	sysStat.add(int64(n))
 	sysMapOS(v, n)

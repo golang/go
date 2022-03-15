@@ -80,7 +80,7 @@ type mheap struct {
 	// access (since that may free the backing store).
 	allspans []*mspan // all spans out there
 
-	// _ uint32 // align uint64 fields on 32-bit for atomics
+	_ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	//
@@ -1278,7 +1278,7 @@ HaveSpan:
 	if scav != 0 {
 		// sysUsed all the pages that are actually available
 		// in the span since some of them might be scavenged.
-		sysUsed(unsafe.Pointer(base), nbytes)
+		sysUsed(unsafe.Pointer(base), nbytes, scav)
 		atomic.Xadd64(&memstats.heap_released, -int64(scav))
 	}
 	// Update stats.
