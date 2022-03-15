@@ -1,0 +1,63 @@
+# Regression test for https://go.dev/issue/51461 and https://go.dev/issue/51483.
+#
+# When built with -trimpath, runtime.GOROOT() returned the bogus string "go"
+# if GOROOT was not set explicitly in the environment.
+# It should instead return the empty string, since we know that we don't
+# have a valid path to return.
+#
+# TODO(#51483): when runtime.GOROOT() returns the empty string,
+# go/build should default to 'go env GOROOT' instead.
+
+[short] skip
+
+env GOROOT=
+env GOROOT_FINAL=
+
+go run .
+stdout '^GOROOT '$TESTGO_GOROOT'$'
+stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
+
+go test -v .
+stdout '^GOROOT '$TESTGO_GOROOT'$'
+stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
+
+! go run -trimpath .
+stdout '^GOROOT $'
+stderr '^package runtime is not in GOROOT \(src'${/}'runtime\)$'
+
+! go test -trimpath -v .
+stdout '^GOROOT $'
+stdout '^package runtime is not in GOROOT \(src'${/}'runtime\)$'
+
+-- go.mod --
+module example
+
+go 1.19
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"go/build"
+	"os"
+	"runtime"
+)
+
+func main() {
+	fmt.Println("GOROOT", runtime.GOROOT())
+
+	p, err := build.Default.Import("runtime", "", build.FindOnly)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println("runtime", p.Dir)
+}
+-- main_test.go --
+package main
+
+import "testing"
+
+func TestMain(*testing.M) {
+	main()
+}
