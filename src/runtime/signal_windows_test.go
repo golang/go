@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -112,18 +111,6 @@ func TestCtrlHandler(t *testing.T) {
 		cmd.Process.Kill()
 		cmd.Wait()
 	}()
-
-	// wait for child to be ready to receive signals
-	if line, err := outReader.ReadString('\n'); err != nil {
-		t.Fatalf("could not read stdout: %v", err)
-	} else if strings.TrimSpace(line) != "ready" {
-		t.Fatalf("unexpected message: %s", line)
-	}
-
-	// gracefully kill pid, this closes the command window
-	if err := exec.Command("taskkill.exe", "/pid", strconv.Itoa(cmd.Process.Pid)).Run(); err != nil {
-		t.Fatalf("failed to kill: %v", err)
-	}
 
 	// check child received, handled SIGTERM
 	if line, err := outReader.ReadString('\n'); err != nil {
