@@ -317,7 +317,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R26
 	B runtime·morestack(SB)
 
-#ifdef GOEXPERIMENT_regabireflect
+#ifdef GOEXPERIMENT_regabiargs
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R20.
 TEXT ·spillArgs(SB),NOSPLIT,$0-0
 	MOVD	R0, (0*8)(R20)

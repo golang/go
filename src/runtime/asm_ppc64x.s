@@ -788,7 +788,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	MOVD	R3, ret+0(FP)
 	RET
 
-#ifdef GOEXPERIMENT_regabireflect
+#ifdef GOEXPERIMENT_regabiargs
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R20.
 TEXT runtime·spillArgs(SB),NOSPLIT,$0-0
 	MOVD    R3, 0(R20)
