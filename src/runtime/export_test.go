@@ -859,6 +859,12 @@ func (a AddrRange) Size() uintptr {
 	return a.addrRange.size()
 }
 
+// testSysStat is the sysStat passed to test versions of various
+// runtime structures. We do actually have to keep track of this
+// because otherwise memstats.mappedReady won't actually line up
+// with other stats in the runtime during tests.
+var testSysStat = &memstats.other_sys
+
 // AddrRanges is a wrapper around addrRanges for testing.
 type AddrRanges struct {
 	addrRanges
@@ -876,7 +882,7 @@ type AddrRanges struct {
 // Add.
 func NewAddrRanges() AddrRanges {
 	r := addrRanges{}
-	r.init(new(sysMemStat))
+	r.init(testSysStat)
 	return AddrRanges{r, true}
 }
 
@@ -900,7 +906,7 @@ func MakeAddrRanges(a ...AddrRange) AddrRanges {
 	return AddrRanges{addrRanges{
 		ranges:     ranges,
 		totalBytes: total,
-		sysStat:    new(sysMemStat),
+		sysStat:    testSysStat,
 	}, false}
 }
 
@@ -959,7 +965,7 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 	p := new(pageAlloc)
 
 	// We've got an entry, so initialize the pageAlloc.
-	p.init(new(mutex), nil)
+	p.init(new(mutex), testSysStat)
 	lockInit(p.mheapLock, lockRankMheap)
 	p.test = true
 
@@ -1027,22 +1033,28 @@ func FreePageAlloc(pp *PageAlloc) {
 	// Free all the mapped space for the summary levels.
 	if pageAlloc64Bit != 0 {
 		for l := 0; l < summaryLevels; l++ {
-			sysFree(unsafe.Pointer(&p.summary[l][0]), uintptr(cap(p.summary[l]))*pallocSumBytes, nil)
+			sysFreeOS(unsafe.Pointer(&p.summary[l][0]), uintptr(cap(p.summary[l]))*pallocSumBytes)
 		}
 	} else {
 		resSize := uintptr(0)
 		for _, s := range p.summary {
 			resSize += uintptr(cap(s)) * pallocSumBytes
 		}
-		sysFree(unsafe.Pointer(&p.summary[0][0]), alignUp(resSize, physPageSize), nil)
+		sysFreeOS(unsafe.Pointer(&p.summary[0][0]), alignUp(resSize, physPageSize))
 	}
+	// Subtract back out whatever we mapped for the summaries.
+	// sysUsed adds to p.sysStat and memstats.mappedReady no matter what
+	// (and in anger should actually be accounted for), and there's no other
+	// way to figure out how much we actually mapped.
+	memstats.mappedReady.Add(-int64(p.summaryMappedReady))
+	testSysStat.add(-int64(p.summaryMappedReady))
 
 	// Free the mapped space for chunks.
 	for i := range p.chunks {
 		if x := p.chunks[i]; x != nil {
 			p.chunks[i] = nil
 			// This memory comes from sysAlloc and will always be page-aligned.
-			sysFree(unsafe.Pointer(x), unsafe.Sizeof(*p.chunks[0]), nil)
+			sysFree(unsafe.Pointer(x), unsafe.Sizeof(*p.chunks[0]), testSysStat)
 		}
 	}
 }
