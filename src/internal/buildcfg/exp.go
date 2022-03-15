@@ -54,7 +54,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
 
 	baseline = goexperiment.Flags{
 		RegabiWrappers: regabiSupported,
-		RegabiReflect:  regabiSupported,
 		RegabiArgs:     regabiSupported,
 		PacerRedesign:  true,
 	}
@@ -81,7 +80,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
 		// do the right thing.
 		names["regabi"] = func(v bool) {
 			flags.RegabiWrappers = v
-			flags.RegabiReflect = v
 			flags.RegabiArgs = v
 		}
 
@@ -113,17 +111,15 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
 	// regabi is always enabled on amd64.
 	if goarch == "amd64" {
 		flags.RegabiWrappers = true
-		flags.RegabiReflect = true
 		flags.RegabiArgs = true
 	}
 	// regabi is only supported on amd64, arm64, ppc64 and ppc64le.
 	if !regabiSupported {
-		flags.RegabiReflect = false
 		flags.RegabiArgs = false
 	}
 	// Check regabi dependencies.
-	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiReflect) {
-		err = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect")
+	if flags.RegabiArgs && !flags.RegabiWrappers {
+		err = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers")
 	}
 	return
 }

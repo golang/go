@@ -72,11 +72,6 @@ type Flags struct {
 	// ABI0 and ABIInternal functions. Without this, the ABIs are
 	// assumed to be identical so cross-ABI calls are direct.
 	RegabiWrappers bool
-	// RegabiReflect enables the register-passing paths in
-	// reflection calls. This is also gated by intArgRegs in
-	// reflect and runtime (which are disabled by default) so it
-	// can be used in targeted tests.
-	RegabiReflect bool
 	// RegabiArgs enables register arguments/results in all
 	// compiled Go functions.
 	//
