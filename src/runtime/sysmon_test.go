@@ -113,10 +113,18 @@ func TestSysmonReadyNetpollWaitersASAP(t *testing.T) {
 	if runtime.GOOS == "netbsd" && runtime.NeedSysmonWorkaround {
 		t.Skip("netbsd 9.2 earlier")
 	}
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no sysmon on wasm yet")
+	}
+
+	// sysmon may starve if host load is too high.
+	np := runtime.GOMAXPROCS(0)
+	if np >= runtime.NumCPU() {
+		t.Skip("host load may be too high to run sysmon.")
+	}
 
 	srv := &busysrv{}
 	srv.startListening()
-	np := runtime.GOMAXPROCS(0)
 	for i := 0; i < np*5; i++ {
 		go srv.busy()
 	}

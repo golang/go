@@ -170,6 +170,9 @@ func main() {
 		systemstack(func() {
 			newm(sysmon, nil, -1)
 		})
+		if netpollInited == 0 {
+			netpollGenericInit()
+		}
 	}
 
 	// Lock the main goroutine onto this, the main OS thread,
@@ -5050,9 +5053,6 @@ func sysmon() {
 	checkdead()
 	unlock(&sched.lock)
 
-	if netpollInited == 0 {
-		netpollGenericInit()
-	}
 	tracedelay := int64(debug.schedtrace) * 1000000
 	nexttrace := int64(maxWhen) // when should we output next schedtrace. much far future if disabled.
 	if tracedelay > 0 {
