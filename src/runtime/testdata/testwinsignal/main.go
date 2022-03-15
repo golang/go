@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -10,6 +11,11 @@ import (
 )
 
 func main() {
+	go func() {
+		io.Copy(io.Discard, os.Stdin)
+		log.Fatal("stdin is closed; terminating")
+	}()
+
 	// register to receive all signals
 	c := make(chan os.Signal, 1)
 	signal.Notify(c)
@@ -31,15 +37,9 @@ func main() {
 		log.Fatal("post message failed: ", err)
 	}
 
-	// check if we receive syscall.SIGTERM
-	select {
-	case sig := <-c:
-		// prentend to take some time handling the signal
-		time.Sleep(time.Second)
-		// print signal name, "terminated" makes the test succeed
-		fmt.Println(sig)
-
-	case <-time.After(time.Second):
-		log.Fatal("timed out waiting for signal")
-	}
+	sig := <-c
+	// pretend to take some time handling the signal
+	time.Sleep(time.Second)
+	// print signal name, "terminated" makes the test succeed
+	fmt.Println(sig)
 }
