@@ -10,9 +10,11 @@ import (
 )
 
 func main() {
+	// register to receive all signals
 	c := make(chan os.Signal, 1)
 	signal.Notify(c)
 
+	// get console window handle
 	kernel32 := syscall.NewLazyDLL("kernel32.dll")
 	getConsoleWindow := kernel32.NewProc("GetConsoleWindow")
 	hwnd, _, err := getConsoleWindow.Call()
@@ -20,6 +22,7 @@ func main() {
 		log.Fatal("no associated console: ", err)
 	}
 
+	// close console window
 	const _WM_CLOSE = 0x0010
 	user32 := syscall.NewLazyDLL("user32.dll")
 	postMessage := user32.NewProc("PostMessageW")
@@ -28,8 +31,15 @@ func main() {
 		log.Fatal("post message failed: ", err)
 	}
 
-	sig := <-c
+	// check if we receive syscall.SIGTERM
+	select {
+	case sig := <-c:
+		// prentend to take some time handling the signal
+		time.Sleep(time.Second)
+		// print signal name, "terminated" makes the test succeed
+		fmt.Println(sig)
 
-	time.Sleep(time.Second)
-	fmt.Println(sig)
+	case <-time.After(time.Second):
+		log.Fatal("timed out waiting for signal")
+	}
 }
