@@ -209,7 +209,7 @@ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
 	// require being more consistent about when we use native vs UNIX
 	// file paths.
 	const dollarGOROOT = "$GOROOT"
-	if strings.HasPrefix(filename, dollarGOROOT) {
+	if buildcfg.GOROOT != "" && strings.HasPrefix(filename, dollarGOROOT) {
 		filename = buildcfg.GOROOT + filename[len(dollarGOROOT):]
 	}
 
