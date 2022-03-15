@@ -100,7 +100,9 @@ Loop:
 		}
 		ast.Inspect(n, f)
 		if add == nil {
-			return true
+			// looks like f.Fuzz without a preceding f.Add.
+			// let the regular completion handle it.
+			return false
 		}
 
 		lbl := "Fuzz(func(t *testing.T"
