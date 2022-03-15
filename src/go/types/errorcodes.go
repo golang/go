@@ -98,13 +98,10 @@ const (
 	// _InvalidDeclCycle occurs when a declaration cycle is not valid.
 	//
 	// Example:
-	//  import "unsafe"
-	//
-	//  type T struct {
-	//  	a [n]int
+	//  type S struct {
+	//  	S
 	//  }
 	//
-	//  var n = unsafe.Sizeof(T{})
 	_InvalidDeclCycle
 
 	// _InvalidTypeCycle occurs when a cycle in type definitions results in a
@@ -1342,11 +1339,6 @@ const (
 	//  func _() {
 	//  	f()
 	//  }
-	//
-	// Example:
-	//   type N[P, Q any] struct{}
-	//
-	//   var _ N[int]
 	_CannotInferTypeArgs
 
 	// _InvalidTypeArg occurs when a type argument does not satisfy its

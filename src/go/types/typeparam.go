@@ -30,11 +30,13 @@ type TypeParam struct {
 // or Signature type by calling SetTypeParams. Setting a type parameter on more
 // than one type will result in a panic.
 //
-// The constraint argument can be nil, and set later via SetConstraint.
+// The constraint argument can be nil, and set later via SetConstraint. If the
+// constraint is non-nil, it must be fully defined.
 func NewTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	return (*Checker)(nil).newTypeParam(obj, constraint)
 }
 
+// check may be nil
 func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	// Always increment lastID, even if it is not used.
 	id := nextID()
@@ -49,9 +51,7 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	// iface may mutate typ.bound, so we must ensure that iface() is called
 	// at least once before the resulting TypeParam escapes.
 	if check != nil {
-		check.later(func() {
-			typ.iface()
-		})
+		check.needsCleanup(typ)
 	} else if constraint != nil {
 		typ.iface()
 	}
@@ -74,8 +74,10 @@ func (t *TypeParam) Constraint() Type {
 
 // SetConstraint sets the type constraint for t.
 //
-// SetConstraint should not be called concurrently, but once SetConstraint
-// returns the receiver t is safe for concurrent use.
+// It must be called by users of NewTypeParam after the bound's underlying is
+// fully defined, and before using the type parameter in any way other than to
+// form other types. Once SetConstraint returns the receiver, t is safe for
+// concurrent use.
 func (t *TypeParam) SetConstraint(bound Type) {
 	if bound == nil {
 		panic("nil constraint")
@@ -95,9 +97,12 @@ func (t *TypeParam) String() string { return TypeString(t, nil) }
 // ----------------------------------------------------------------------------
 // Implementation
 
+func (t *TypeParam) cleanup() {
+	t.iface()
+	t.check = nil
+}
+
 // iface returns the constraint interface of t.
-// TODO(gri) If we make tparamIsIface the default, this should be renamed to under
-//           (similar to Named.under).
 func (t *TypeParam) iface() *Interface {
 	bound := t.bound
 
@@ -136,16 +141,6 @@ func (t *TypeParam) iface() *Interface {
 	}
 
 	return ityp
-}
-
-// singleType returns the single type of the type parameter constraint; or nil.
-func (t *TypeParam) singleType() Type {
-	return t.iface().typeSet().singleType()
-}
-
-// hasTerms reports whether the type parameter constraint has specific type terms.
-func (t *TypeParam) hasTerms() bool {
-	return t.iface().typeSet().hasTerms()
 }
 
 // is calls f with the specific type terms of t's constraint and reports whether

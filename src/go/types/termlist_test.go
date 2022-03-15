@@ -106,35 +106,6 @@ func TestTermlistNorm(t *testing.T) {
 	}
 }
 
-func TestTermlistSingleType(t *testing.T) {
-	// helper to deal with nil types
-	tstring := func(typ Type) string {
-		if typ == nil {
-			return "nil"
-		}
-		return typ.String()
-	}
-
-	for test, want := range map[string]string{
-		"∅":                 "nil",
-		"𝓤":                 "nil",
-		"int":               "int",
-		"myInt":             "myInt",
-		"~int":              "int",
-		"~int ∪ string":     "nil",
-		"~int ∪ myInt":      "int",
-		"∅ ∪ int":           "int",
-		"∅ ∪ ~int":          "int",
-		"∅ ∪ ~int ∪ string": "nil",
-	} {
-		xl := maketl(test)
-		got := tstring(xl.singleType())
-		if got != want {
-			t.Errorf("(%v).singleType() == %v; want %v", test, got, want)
-		}
-	}
-}
-
 func TestTermlistUnion(t *testing.T) {
 	for _, test := range []struct {
 		xl, yl, want string

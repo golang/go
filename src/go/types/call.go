@@ -171,7 +171,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	cgocall := x.mode == cgofunc
 
 	// a type parameter may be "called" if all types have the same signature
-	sig, _ := structuralType(x.typ).(*Signature)
+	sig, _ := coreType(x.typ).(*Signature)
 	if sig == nil {
 		check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
 		x.mode = invalid
@@ -429,7 +429,7 @@ var cgoPrefixes = [...]string{
 	"_Cmacro_", // function to evaluate the expanded expression
 }
 
-func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -527,7 +527,18 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	}
 
 	check.exprOrType(x, e.X, false)
-	if x.mode == invalid {
+	switch x.mode {
+	case typexpr:
+		// don't crash for "type T T.x" (was issue #51509)
+		if def != nil && x.typ == def {
+			check.cycleError([]Object{def.obj})
+			goto Error
+		}
+	case builtin:
+		// types2 uses the position of '.' for the error
+		check.errorf(e.Sel, _UncalledBuiltin, "cannot select on %s", x)
+		goto Error
+	case invalid:
 		goto Error
 	}
 

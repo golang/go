@@ -27,13 +27,14 @@ modules will be created.
 Each argument path is added to a use directive in the go.work file. The
 current go version will also be listed in the go.work file.
 
+See the workspaces reference at https://go.dev/ref/mod#workspaces
+for more information.
 `,
 	Run: runInit,
 }
 
 func init() {
 	base.AddModCommonFlags(&cmdInit.Flag)
-	base.AddWorkfileFlag(&cmdInit.Flag)
 }
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
@@ -41,12 +42,10 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 
 	modload.ForceUseModules = true
 
-	// TODO(matloob): support using the -workfile path
-	// To do that properly, we'll have to make the module directories
-	// make dirs relative to workFile path before adding the paths to
-	// the directory entries
-
-	workFile := filepath.Join(base.Cwd(), "go.work")
+	workFile := modload.WorkFilePath()
+	if workFile == "" {
+		workFile = filepath.Join(base.Cwd(), "go.work")
+	}
 
 	modload.CreateWorkFile(ctx, workFile, args)
 }

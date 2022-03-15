@@ -298,7 +298,7 @@ func _[T interface {~int|~float64}]() {
 
 // It is possible to create composite literals of type parameter
 // type as long as it's possible to create a composite literal
-// of the structural type of the type parameter's constraint.
+// of the core type of the type parameter's constraint.
 func _[P interface{ ~[]int }]() P {
 	return P{}
 	return P{1, 2, 3}
@@ -313,7 +313,7 @@ func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
 }
 
 // This is a degenerate case with a singleton type set, but we can create
-// composite literals even if the structural type is a defined type.
+// composite literals even if the core type is a defined type.
 type MyInts []int
 
 func _[P MyInts]() P {

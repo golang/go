@@ -72,18 +72,38 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 	}
 	// Ensure that typ is always expanded and sanity-checked.
 	if check != nil {
-		check.defTypes = append(check.defTypes, typ)
+		check.needsCleanup(typ)
 	}
 	return typ
 }
 
+func (t *Named) cleanup() {
+	// Ensure that every defined type created in the course of type-checking has
+	// either non-*Named underlying, or is unresolved.
+	//
+	// This guarantees that we don't leak any types whose underlying is *Named,
+	// because any unresolved instances will lazily compute their underlying by
+	// substituting in the underlying of their origin. The origin must have
+	// either been imported or type-checked and expanded here, and in either case
+	// its underlying will be fully expanded.
+	switch t.underlying.(type) {
+	case nil:
+		if t.resolver == nil {
+			panic("nil underlying")
+		}
+	case *Named:
+		t.under() // t.under may add entries to check.cleaners
+	}
+	t.check = nil
+}
+
 // Obj returns the type name for the declaration defining the named type t. For
-// instantiated types, this is the type name of the base type.
+// instantiated types, this is same as the type name of the origin type.
 func (t *Named) Obj() *TypeName {
 	return t.orig.obj // for non-instances this is the same as t.obj
 }
 
-// Origin returns the parameterized type from which the named type t is
+// Origin returns the generic type from which the named type t is
 // instantiated. If t is not an instantiated type, the result is t.
 func (t *Named) Origin() *Named { return t.orig }
 
@@ -91,7 +111,7 @@ func (t *Named) Origin() *Named { return t.orig }
 //           between parameterized instantiated and non-instantiated types.
 
 // TypeParams returns the type parameters of the named type t, or nil.
-// The result is non-nil for an (originally) parameterized type even if it is instantiated.
+// The result is non-nil for an (originally) generic type even if it is instantiated.
 func (t *Named) TypeParams() *TypeParamList { return t.resolve(nil).tparams }
 
 // SetTypeParams sets the type parameters of the named type t.
@@ -104,7 +124,11 @@ func (t *Named) SetTypeParams(tparams []*TypeParam) {
 // TypeArgs returns the type arguments used to instantiate the named type t.
 func (t *Named) TypeArgs() *TypeList { return t.targs }
 
-// NumMethods returns the number of explicit methods whose receiver is named type t.
+// NumMethods returns the number of explicit methods defined for t.
+//
+// For an ordinary or instantiated type t, the receiver base type of these
+// methods will be the named type t. For an uninstantiated generic type t, each
+// method receiver will be instantiated with its receiver type parameters.
 func (t *Named) NumMethods() int { return t.resolve(nil).methods.Len() }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
@@ -362,11 +386,11 @@ func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParam
 				// that it wasn't substituted. In this case we need to create a new
 				// *Interface before modifying receivers.
 				if iface == n.orig.underlying {
-					iface = &Interface{
-						embeddeds: iface.embeddeds,
-						complete:  iface.complete,
-						implicit:  iface.implicit, // should be false but be conservative
-					}
+					old := iface
+					iface = check.newInterface()
+					iface.embeddeds = old.embeddeds
+					iface.complete = old.complete
+					iface.implicit = old.implicit // should be false but be conservative
 					underlying = iface
 				}
 				iface.methods = methods

@@ -1338,10 +1338,10 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 	w.typ(tv.Type)
 
 	typ := tv.Type
-	if ptr, ok := types2.StructuralType(typ).(*types2.Pointer); ok {
+	if ptr, ok := types2.CoreType(typ).(*types2.Pointer); ok {
 		typ = ptr.Elem()
 	}
-	str, isStruct := types2.StructuralType(typ).(*types2.Struct)
+	str, isStruct := types2.CoreType(typ).(*types2.Struct)
 
 	w.len(len(lit.ElemList))
 	for i, elem := range lit.ElemList {

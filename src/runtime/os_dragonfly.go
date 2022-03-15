@@ -324,3 +324,12 @@ func raise(sig uint32) {
 func signalM(mp *m, sig int) {
 	lwp_kill(-1, int32(mp.procid), sig)
 }
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
+}

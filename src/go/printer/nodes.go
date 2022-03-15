@@ -319,9 +319,17 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 	}
 }
 
-func (p *printer) parameters(fields *ast.FieldList, isTypeParam bool) {
+type paramMode int
+
+const (
+	funcParam paramMode = iota
+	funcTParam
+	typeTParam
+)
+
+func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
 	openTok, closeTok := token.LPAREN, token.RPAREN
-	if isTypeParam {
+	if mode != funcParam {
 		openTok, closeTok = token.LBRACK, token.RBRACK
 	}
 	p.print(fields.Opening, openTok)
@@ -367,26 +375,54 @@ func (p *printer) parameters(fields *ast.FieldList, isTypeParam bool) {
 			p.expr(stripParensAlways(par.Type))
 			prevLine = parLineEnd
 		}
+
 		// if the closing ")" is on a separate line from the last parameter,
 		// print an additional "," and line break
 		if closing := p.lineFor(fields.Closing); 0 < prevLine && prevLine < closing {
 			p.print(token.COMMA)
 			p.linebreak(closing, 0, ignore, true)
+		} else if mode == typeTParam && fields.NumFields() == 1 {
+			// Otherwise, if we are in a type parameter list that could be confused
+			// with the constant array length expression [P*C], print a comma so that
+			// parsing is unambiguous.
+			//
+			// Note that while ParenExprs can also be ambiguous (issue #49482), the
+			// printed type is never parenthesized (stripParensAlways is used above).
+			if t, _ := fields.List[0].Type.(*ast.StarExpr); t != nil && !isTypeLit(t.X) {
+				p.print(token.COMMA)
+			}
 		}
+
 		// unindent if we indented
 		if ws == ignore {
 			p.print(unindent)
 		}
 	}
+
 	p.print(fields.Closing, closeTok)
+}
+
+// isTypeLit reports whether x is a (possibly parenthesized) type literal.
+func isTypeLit(x ast.Expr) bool {
+	switch x := x.(type) {
+	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
+		return true
+	case *ast.StarExpr:
+		// *T may be a pointer dereferenciation.
+		// Only consider *T as type literal if T is a type literal.
+		return isTypeLit(x.X)
+	case *ast.ParenExpr:
+		return isTypeLit(x.X)
+	}
+	return false
 }
 
 func (p *printer) signature(sig *ast.FuncType) {
 	if sig.TypeParams != nil {
-		p.parameters(sig.TypeParams, true)
+		p.parameters(sig.TypeParams, funcTParam)
 	}
 	if sig.Params != nil {
-		p.parameters(sig.Params, false)
+		p.parameters(sig.Params, funcParam)
 	} else {
 		p.print(token.LPAREN, token.RPAREN)
 	}
@@ -400,7 +436,7 @@ func (p *printer) signature(sig *ast.FuncType) {
 			p.expr(stripParensAlways(res.List[0].Type))
 			return
 		}
-		p.parameters(res, false)
+		p.parameters(res, funcParam)
 	}
 }
 
@@ -1611,7 +1647,7 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 		p.setComment(s.Doc)
 		p.expr(s.Name)
 		if s.TypeParams != nil {
-			p.parameters(s.TypeParams, true)
+			p.parameters(s.TypeParams, typeTParam)
 		}
 		if n == 1 {
 			p.print(blank)
@@ -1801,7 +1837,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 	// FUNC is emitted).
 	startCol := p.out.Column - len("func ")
 	if d.Recv != nil {
-		p.parameters(d.Recv, false) // method: print receiver
+		p.parameters(d.Recv, funcParam) // method: print receiver
 		p.print(blank)
 	}
 	p.expr(d.Name)

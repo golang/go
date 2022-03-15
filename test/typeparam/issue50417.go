@@ -8,6 +8,11 @@ package main
 
 func main() {}
 
+// Field accesses through type parameters are disabled
+// until we have a more thorough understanding of the
+// implications on the spec. See issue #51576.
+
+/*
 type Sf struct {
 	f int
 }
@@ -57,7 +62,7 @@ func f2[P interface {
 
 var _ = f2[Sfm]
 
-// special case: structural type is a named pointer type
+// special case: core type is a named pointer type
 
 type PSfm *Sfm
 
@@ -68,7 +73,7 @@ func f3[P interface{ PSfm }](p P) {
 
 var _ = f3[PSfm]
 
-// special case: structural type is an unnamed pointer type
+// special case: core type is an unnamed pointer type
 
 func f4[P interface{ *Sfm }](p P) {
 	_ = p.f
@@ -138,3 +143,4 @@ func f8[P Int4](p P) {
 }
 
 var _ = f8[*Sf]
+*/

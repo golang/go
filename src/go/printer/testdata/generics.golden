@@ -38,3 +38,55 @@ func _() {
 // type constraint literals with elided interfaces
 func _[P ~int, Q int | string]()	{}
 func _[P struct{ f int }, Q *P]()	{}
+
+// various potentially ambiguous type parameter lists (issue #49482)
+type _[P *T,] struct{}
+type _[P *T, _ any] struct{}
+type _[P *T,] struct{}
+type _[P *T, _ any] struct{}
+type _[P T] struct{}
+type _[P T, _ any] struct{}
+
+type _[P *struct{}] struct{}
+type _[P *struct{}] struct{}
+type _[P []int] struct{}
+
+// array type declarations
+type _ [P(T)]struct{}
+type _ [P((T))]struct{}
+type _ [P * *T]struct{}
+type _ [P * T]struct{}
+type _ [P(*T)]struct{}
+type _ [P(**T)]struct{}
+type _ [P * T]struct{}
+type _ [P*T - T]struct{}
+
+type _[
+	P *T,
+] struct{}
+
+// equivalent test cases for potentially ambiguous type parameter lists, except
+// for function declarations there is no ambiguity (issue #51548)
+func _[P *T]()		{}
+func _[P *T, _ any]()	{}
+func _[P *T]()		{}
+func _[P *T, _ any]()	{}
+func _[P T]()		{}
+func _[P T, _ any]()	{}
+
+func _[P *struct{}]()	{}
+func _[P *struct{}]()	{}
+func _[P []int]()	{}
+
+func _[P T]()	{}
+func _[P T]()	{}
+func _[P **T]()	{}
+func _[P *T]()	{}
+func _[P *T]()	{}
+func _[P **T]()	{}
+func _[P *T]()	{}
+
+func _[
+	P *T,
+]() {
+}

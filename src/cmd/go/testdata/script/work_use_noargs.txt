@@ -1,0 +1,11 @@
+# For now, 'go work use' requires arguments.
+# (Eventually, we may may it implicitly behave like 'go work use .'.
+
+! go work use
+stderr '^go: ''go work use'' requires one or more directory arguments'
+
+! go work use -r
+stderr '^go: ''go work use'' requires one or more directory arguments'
+
+-- go.work --
+go 1.18

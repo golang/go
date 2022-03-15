@@ -8,8 +8,14 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/atomic"
+	"runtime/internal/syscall"
 	"unsafe"
 )
+
+// sigPerThreadSyscall is the same signal (SIGSETXID) used by glibc for
+// per-thread syscalls on Linux. We use it for the same purpose in non-cgo
+// binaries.
+const sigPerThreadSyscall = _SIGRTMIN + 1
 
 type mOS struct {
 	// profileTimer holds the ID of the POSIX interval timer for profiling CPU
@@ -21,6 +27,10 @@ type mOS struct {
 	// are in signal handling code, access to that field uses atomic operations.
 	profileTimer      int32
 	profileTimerValid uint32
+
+	// needPerThreadSyscall indicates that a per-thread syscall is required
+	// for doAllThreadsSyscall.
+	needPerThreadSyscall atomic.Uint8
 }
 
 //go:noescape
@@ -663,4 +673,206 @@ func setThreadCPUProfiler(hz int32) {
 
 	mp.profileTimer = timerid
 	atomic.Store(&mp.profileTimerValid, 1)
+}
+
+// perThreadSyscallArgs contains the system call number, arguments, and
+// expected return values for a system call to be executed on all threads.
+type perThreadSyscallArgs struct {
+	trap uintptr
+	a1   uintptr
+	a2   uintptr
+	a3   uintptr
+	a4   uintptr
+	a5   uintptr
+	a6   uintptr
+	r1   uintptr
+	r2   uintptr
+}
+
+// perThreadSyscall is the system call to execute for the ongoing
+// doAllThreadsSyscall.
+//
+// perThreadSyscall may only be written while mp.needPerThreadSyscall == 0 on
+// all Ms.
+var perThreadSyscall perThreadSyscallArgs
+
+// syscall_runtime_doAllThreadsSyscall and executes a specified system call on
+// all Ms.
+//
+// The system call is expected to succeed and return the same value on every
+// thread. If any threads do not match, the runtime throws.
+//
+//go:linkname syscall_runtime_doAllThreadsSyscall syscall.runtime_doAllThreadsSyscall
+//go:uintptrescapes
+func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	if iscgo {
+		// In cgo, we are not aware of threads created in C, so this approach will not work.
+		panic("doAllThreadsSyscall not supported with cgo enabled")
+	}
+
+	// STW to guarantee that user goroutines see an atomic change to thread
+	// state. Without STW, goroutines could migrate Ms while change is in
+	// progress and e.g., see state old -> new -> old -> new.
+	//
+	// N.B. Internally, this function does not depend on STW to
+	// successfully change every thread. It is only needed for user
+	// expectations, per above.
+	stopTheWorld("doAllThreadsSyscall")
+
+	// This function depends on several properties:
+	//
+	// 1. All OS threads that already exist are associated with an M in
+	//    allm. i.e., we won't miss any pre-existing threads.
+	// 2. All Ms listed in allm will eventually have an OS thread exist.
+	//    i.e., they will set procid and be able to receive signals.
+	// 3. OS threads created after we read allm will clone from a thread
+	//    that has executed the system call. i.e., they inherit the
+	//    modified state.
+	//
+	// We achieve these through different mechanisms:
+	//
+	// 1. Addition of new Ms to allm in allocm happens before clone of its
+	//    OS thread later in newm.
+	// 2. newm does acquirem to avoid being preempted, ensuring that new Ms
+	//    created in allocm will eventually reach OS thread clone later in
+	//    newm.
+	// 3. We take allocmLock for write here to prevent allocation of new Ms
+	//    while this function runs. Per (1), this prevents clone of OS
+	//    threads that are not yet in allm.
+	allocmLock.lock()
+
+	// Disable preemption, preventing us from changing Ms, as we handle
+	// this M specially.
+	//
+	// N.B. STW and lock() above do this as well, this is added for extra
+	// clarity.
+	acquirem()
+
+	// N.B. allocmLock also prevents concurrent execution of this function,
+	// serializing use of perThreadSyscall, mp.needPerThreadSyscall, and
+	// ensuring all threads execute system calls from multiple calls in the
+	// same order.
+
+	r1, r2, errno := syscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
+		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
+		r2 = 0
+	}
+	if errno != 0 {
+		releasem(getg().m)
+		allocmLock.unlock()
+		startTheWorld()
+		return r1, r2, errno
+	}
+
+	perThreadSyscall = perThreadSyscallArgs{
+		trap: trap,
+		a1:   a1,
+		a2:   a2,
+		a3:   a3,
+		a4:   a4,
+		a5:   a5,
+		a6:   a6,
+		r1:   r1,
+		r2:   r2,
+	}
+
+	// Wait for all threads to start.
+	//
+	// As described above, some Ms have been added to allm prior to
+	// allocmLock, but not yet completed OS clone and set procid.
+	//
+	// At minimum we must wait for a thread to set procid before we can
+	// send it a signal.
+	//
+	// We take this one step further and wait for all threads to start
+	// before sending any signals. This prevents system calls from getting
+	// applied twice: once in the parent and once in the child, like so:
+	//
+	//          A                     B                  C
+	//                         add C to allm
+	// doAllThreadsSyscall
+	//   allocmLock.lock()
+	//   signal B
+	//                         <receive signal>
+	//                         execute syscall
+	//                         <signal return>
+	//                         clone C
+	//                                             <thread start>
+	//                                             set procid
+	//   signal C
+	//                                             <receive signal>
+	//                                             execute syscall
+	//                                             <signal return>
+	//
+	// In this case, thread C inherited the syscall-modified state from
+	// thread B and did not need to execute the syscall, but did anyway
+	// because doAllThreadsSyscall could not be sure whether it was
+	// required.
+	//
+	// Some system calls may not be idempotent, so we ensure each thread
+	// executes the system call exactly once.
+	for mp := allm; mp != nil; mp = mp.alllink {
+		for atomic.Load64(&mp.procid) == 0 {
+			// Thread is starting.
+			osyield()
+		}
+	}
+
+	// Signal every other thread, where they will execute perThreadSyscall
+	// from the signal handler.
+	gp := getg()
+	tid := gp.m.procid
+	for mp := allm; mp != nil; mp = mp.alllink {
+		if atomic.Load64(&mp.procid) == tid {
+			// Our thread already performed the syscall.
+			continue
+		}
+		mp.needPerThreadSyscall.Store(1)
+		signalM(mp, sigPerThreadSyscall)
+	}
+
+	// Wait for all threads to complete.
+	for mp := allm; mp != nil; mp = mp.alllink {
+		if mp.procid == tid {
+			continue
+		}
+		for mp.needPerThreadSyscall.Load() != 0 {
+			osyield()
+		}
+	}
+
+	perThreadSyscall = perThreadSyscallArgs{}
+
+	releasem(getg().m)
+	allocmLock.unlock()
+	startTheWorld()
+
+	return r1, r2, errno
+}
+
+// runPerThreadSyscall runs perThreadSyscall for this M if required.
+//
+// This function throws if the system call returns with anything other than the
+// expected values.
+//go:nosplit
+func runPerThreadSyscall() {
+	gp := getg()
+	if gp.m.needPerThreadSyscall.Load() == 0 {
+		return
+	}
+
+	args := perThreadSyscall
+	r1, r2, errno := syscall.Syscall6(args.trap, args.a1, args.a2, args.a3, args.a4, args.a5, args.a6)
+	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
+		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
+		r2 = 0
+	}
+	if errno != 0 || r1 != args.r1 || r2 != args.r2 {
+		print("trap:", args.trap, ", a123456=[", args.a1, ",", args.a2, ",", args.a3, ",", args.a4, ",", args.a5, ",", args.a6, "]\n")
+		print("results: got {r1=", r1, ",r2=", r2, ",errno=", errno, "}, want {r1=", args.r1, ",r2=", args.r2, ",errno=0\n")
+		throw("AllThreadsSyscall6 results differ between threads; runtime corrupted")
+	}
+
+	gp.m.needPerThreadSyscall.Store(0)
 }

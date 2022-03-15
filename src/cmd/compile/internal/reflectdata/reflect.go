@@ -1457,7 +1457,7 @@ func WriteBasicTypes() {
 
 type typeAndStr struct {
 	t       *types.Type
-	short   string // "short" here means NameString
+	short   string // "short" here means TypeSymName
 	regular string
 }
 

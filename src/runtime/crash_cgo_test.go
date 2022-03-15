@@ -626,13 +626,11 @@ func TestSegv(t *testing.T) {
 					// a VDSO call via asmcgocall.
 					testenv.SkipFlaky(t, 50504)
 				}
-				if testenv.Builder() == "linux-mips64le-mengzhuo" && strings.Contains(got, "runtime: unknown pc") {
-					// Runtime sometimes throw "unknown pc" when generating the traceback.
-					// Curiously, that doesn't seem to happen on the linux-mips64le-rtrk
-					// builder.
-					testenv.SkipFlaky(t, 50605)
-				}
 			}
+			if test == "SegvInCgo" && strings.Contains(got, "runtime: unknown pc") {
+				testenv.SkipFlaky(t, 50979)
+			}
+
 			nowant := "runtime: "
 			if strings.Contains(got, nowant) {
 				t.Errorf("unexpectedly saw %q in output", nowant)

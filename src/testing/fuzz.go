@@ -227,6 +227,9 @@ func (f *F) Fuzz(ff any) {
 	if fnType.NumIn() < 2 || fnType.In(0) != reflect.TypeOf((*T)(nil)) {
 		panic("testing: fuzz target must receive at least two arguments, where the first argument is a *T")
 	}
+	if fnType.NumOut() != 0 {
+		panic("testing: fuzz target must not return a value")
+	}
 
 	// Save the types of the function to compare against the corpus.
 	var types []reflect.Type

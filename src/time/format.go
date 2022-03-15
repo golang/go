@@ -914,6 +914,7 @@ func skip(value, prefix string) (string, error) {
 // field immediately after the seconds field, even if the layout does not
 // signify its presence. In that case either a comma or a decimal point
 // followed by a maximal series of digits is parsed as a fractional second.
+// Fractional seconds are truncated to nanosecond precision.
 //
 // Elements omitted from the layout are assumed to be zero or, when
 // zero is impossible, one, so parsing "3:04pm" returns the time

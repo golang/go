@@ -13,6 +13,10 @@ cd src
 go env GOWORK
 stdout 'go.work'
 
+env GOWORK='off'
+go env GOWORK
+stdout 'off'
+
 ! go env -w GOWORK=off
 stderr '^go: GOWORK cannot be modified$'
 

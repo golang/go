@@ -65,6 +65,8 @@ const (
 	_SIGPWR    = 0x1e
 	_SIGSYS    = 0x1f
 
+	_SIGRTMIN = 0x20
+
 	_FPE_INTDIV = 0x1
 	_FPE_INTOVF = 0x2
 	_FPE_FLTDIV = 0x3

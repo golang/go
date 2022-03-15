@@ -606,6 +606,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		} else if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
+			if e, ok := err.(nothingWrittenError); ok {
+				err = e.error
+			}
 			if e, ok := err.(transportReadFromServerError); ok {
 				err = e.err
 			}
@@ -2032,6 +2035,9 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 	}
 
 	if _, ok := err.(transportReadFromServerError); ok {
+		if pc.nwrite == startBytesWritten {
+			return nothingWrittenError{err}
+		}
 		// Don't decorate
 		return err
 	}

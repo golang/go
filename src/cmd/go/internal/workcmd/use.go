@@ -10,14 +10,17 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"context"
+	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 )
 
 var cmdUse = &base.Command{
-	UsageLine: "go work use [-r] [moddirs]",
+	UsageLine: "go work use [-r] moddirs",
 	Short:     "add modules to workspace file",
 	Long: `Use provides a command-line interface for adding
 directories, optionally recursively, to a go.work file.
@@ -30,6 +33,9 @@ The -r flag searches recursively for modules in the argument
 directories, and the use command operates as if each of the directories
 were specified as arguments: namely, use directives will be added for
 directories that exist, and removed for directories that do not exist.
+
+See the workspaces reference at https://go.dev/ref/mod#workspaces
+for more information.
 `,
 }
 
@@ -39,7 +45,6 @@ func init() {
 	cmdUse.Run = runUse // break init cycle
 
 	base.AddModCommonFlags(&cmdUse.Flag)
-	base.AddWorkfileFlag(&cmdUse.Flag)
 }
 
 func runUse(ctx context.Context, cmd *base.Command, args []string) {
@@ -50,50 +55,40 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	gowork = modload.WorkFilePath()
 
 	if gowork == "" {
-		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
+		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
 	workFile, err := modload.ReadWorkFile(gowork)
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
+	workDir := filepath.Dir(gowork) // Absolute, since gowork itself is absolute.
 
 	haveDirs := make(map[string][]string) // absolute → original(s)
 	for _, use := range workFile.Use {
-		var absDir string
+		var abs string
 		if filepath.IsAbs(use.Path) {
-			absDir = filepath.Clean(use.Path)
+			abs = filepath.Clean(use.Path)
 		} else {
-			absDir = filepath.Join(filepath.Dir(gowork), use.Path)
+			abs = filepath.Join(workDir, use.Path)
 		}
-		haveDirs[absDir] = append(haveDirs[absDir], use.Path)
+		haveDirs[abs] = append(haveDirs[abs], use.Path)
 	}
 
-	addDirs := make(map[string]bool)
-	removeDirs := make(map[string]bool)
+	// keepDirs maps each absolute path to keep to the literal string to use for
+	// that path (either an absolute or a relative path), or the empty string if
+	// all entries for the absolute path should be removed.
+	keepDirs := make(map[string]string)
+
+	// lookDir updates the entry in keepDirs for the directory dir,
+	// which is either absolute or relative to the current working directory
+	// (not necessarily the directory containing the workfile).
 	lookDir := func(dir string) {
-		// If the path is absolute, try to keep it absolute. If it's relative,
-		// make it relative to the go.work file rather than the working directory.
-		absDir := dir
-		if !filepath.IsAbs(dir) {
-			absDir = filepath.Join(base.Cwd(), dir)
-			rel, err := filepath.Rel(filepath.Dir(gowork), absDir)
-			if err == nil {
-				// Normalize relative paths to use slashes, so that checked-in go.work
-				// files with relative paths within the repo are platform-independent.
-				dir = filepath.ToSlash(rel)
-			} else {
-				// The path can't be made relative to the go.work file,
-				// so it must be kept absolute instead.
-				dir = absDir
-			}
-		}
+		absDir, dir := pathRel(workDir, dir)
 
 		fi, err := os.Stat(filepath.Join(absDir, "go.mod"))
 		if err != nil {
 			if os.IsNotExist(err) {
-				for _, origDir := range haveDirs[absDir] {
-					removeDirs[origDir] = true
-				}
+				keepDirs[absDir] = ""
 				return
 			}
 			base.Errorf("go: %v", err)
@@ -103,31 +98,99 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 			base.Errorf("go: %v is not regular", filepath.Join(dir, "go.mod"))
 		}
 
-		if len(haveDirs[absDir]) == 0 {
-			addDirs[dir] = true
+		if dup := keepDirs[absDir]; dup != "" && dup != dir {
+			base.Errorf(`go: already added "%s" as "%s"`, dir, dup)
 		}
+		keepDirs[absDir] = dir
 	}
 
+	if len(args) == 0 {
+		base.Fatalf("go: 'go work use' requires one or more directory arguments")
+	}
 	for _, useDir := range args {
-		if *useR {
-			fsys.Walk(useDir, func(path string, info fs.FileInfo, err error) error {
-				if !info.IsDir() {
-					return nil
-				}
-				lookDir(path)
-				return nil
-			})
+		if !*useR {
+			lookDir(useDir)
 			continue
 		}
-		lookDir(useDir)
+
+		// Add or remove entries for any subdirectories that still exist.
+		err := fsys.Walk(useDir, func(path string, info fs.FileInfo, err error) error {
+			if !info.IsDir() {
+				if info.Mode()&fs.ModeSymlink != 0 {
+					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+					}
+				}
+				return nil
+			}
+			lookDir(path)
+			return nil
+		})
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			base.Errorf("go: %v", err)
+		}
+
+		// Remove entries for subdirectories that no longer exist.
+		// Because they don't exist, they will be skipped by Walk.
+		absArg, _ := pathRel(workDir, useDir)
+		for absDir, _ := range haveDirs {
+			if str.HasFilePathPrefix(absDir, absArg) {
+				if _, ok := keepDirs[absDir]; !ok {
+					keepDirs[absDir] = "" // Mark for deletion.
+				}
+			}
+		}
 	}
 
-	for dir := range removeDirs {
-		workFile.DropUse(dir)
-	}
-	for dir := range addDirs {
-		workFile.AddUse(dir, "")
+	base.ExitIfErrors()
+
+	for absDir, keepDir := range keepDirs {
+		nKept := 0
+		for _, dir := range haveDirs[absDir] {
+			if dir == keepDir { // (note that dir is always non-empty)
+				nKept++
+			} else {
+				workFile.DropUse(dir)
+			}
+		}
+		if keepDir != "" && nKept != 1 {
+			// If we kept more than one copy, delete them all.
+			// We'll recreate a unique copy with AddUse.
+			if nKept > 1 {
+				workFile.DropUse(keepDir)
+			}
+			workFile.AddUse(keepDir, "")
+		}
 	}
 	modload.UpdateWorkFile(workFile)
 	modload.WriteWorkFile(gowork, workFile)
+}
+
+// pathRel returns the absolute and canonical forms of dir for use in a
+// go.work file located in directory workDir.
+//
+// If dir is relative, it is intepreted relative to base.Cwd()
+// and its canonical form is relative to workDir if possible.
+// If dir is absolute or cannot be made relative to workDir,
+// its canonical form is absolute.
+//
+// Canonical absolute paths are clean.
+// Canonical relative paths are clean and slash-separated.
+func pathRel(workDir, dir string) (abs, canonical string) {
+	if filepath.IsAbs(dir) {
+		abs = filepath.Clean(dir)
+		return abs, abs
+	}
+
+	abs = filepath.Join(base.Cwd(), dir)
+	rel, err := filepath.Rel(workDir, abs)
+	if err != nil {
+		// The path can't be made relative to the go.work file,
+		// so it must be kept absolute instead.
+		return abs, abs
+	}
+
+	// Normalize relative paths to use slashes, so that checked-in go.work
+	// files with relative paths within the repo are platform-independent.
+	return abs, modload.ToDirectoryPath(rel)
 }

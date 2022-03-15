@@ -802,7 +802,7 @@ var latestVersionIgnoringRetractionsCache par.Cache // path → queryLatestVersi
 // an absolute path or a relative path starting with a '.' or '..'
 // path component.
 func ToDirectoryPath(path string) string {
-	if modfile.IsDirectoryPath(path) {
+	if path == "." || modfile.IsDirectoryPath(path) {
 		return path
 	}
 	// The path is not a relative path or an absolute path, so make it relative

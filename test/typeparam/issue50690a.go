@@ -29,34 +29,47 @@ func Sum[T Numeric](args ...T) T {
 
 // Ledger is an identifiable, financial record.
 type Ledger[T ~string, K Numeric] struct {
-
 	// ID identifies the ledger.
-	ID T
+	ID_ T
 
 	// Amounts is a list of monies associated with this ledger.
-	Amounts []K
+	Amounts_ []K
 
 	// SumFn is a function that can be used to sum the amounts
 	// in this ledger.
-	SumFn func(...K) K
+	SumFn_ func(...K) K
 }
+
+// Field accesses through type parameters are disabled
+// until we have a more thorough understanding of the
+// implications on the spec. See issue #51576.
+// Use accessor methods instead.
+
+func (l Ledger[T, _]) ID() T               { return l.ID_ }
+func (l Ledger[_, K]) Amounts() []K        { return l.Amounts_ }
+func (l Ledger[_, K]) SumFn() func(...K) K { return l.SumFn_ }
 
 func PrintLedger[
 	T ~string,
 	K Numeric,
-	L ~struct {
-		ID      T
-		Amounts []K
-		SumFn   func(...K) K
+	L interface {
+		~struct {
+			ID_      T
+			Amounts_ []K
+			SumFn_   func(...K) K
+		}
+		ID() T
+		Amounts() []K
+		SumFn() func(...K) K
 	},
 ](l L) {
-	fmt.Printf("%s has a sum of %v\n", l.ID, l.SumFn(l.Amounts...))
+	fmt.Printf("%s has a sum of %v\n", l.ID(), l.SumFn()(l.Amounts()...))
 }
 
 func main() {
 	PrintLedger(Ledger[string, int]{
-		ID:      "fake",
-		Amounts: []int{1, 2, 3},
-		SumFn:   Sum[int],
+		ID_:      "fake",
+		Amounts_: []int{1, 2, 3},
+		SumFn_:   Sum[int],
 	})
 }

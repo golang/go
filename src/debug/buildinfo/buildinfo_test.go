@@ -212,12 +212,10 @@ func TestReadFile(t *testing.T) {
 					} else {
 						if tc.wantErr != "" {
 							t.Fatalf("unexpected success; want error containing %q", tc.wantErr)
-						} else if got, err := info.MarshalText(); err != nil {
-							t.Fatalf("unexpected error marshaling BuildInfo: %v", err)
-						} else if got := cleanOutputForComparison(string(got)); got != tc.want {
-							if got != tc.want {
-								t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
-							}
+						}
+						got := info.String()
+						if clean := cleanOutputForComparison(string(got)); got != tc.want && clean != tc.want {
+							t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
 						}
 					}
 				})

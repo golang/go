@@ -38,6 +38,12 @@ TYPES
 	// 
 	func (x *T) M()
 
+	// Should only appear if AllDecls is set. 
+	type comparable struct{}	// overrides a predeclared type comparable
+
+	// Associated with comparable type if AllDecls is set. 
+	func ComparableFactory() comparable
+
 	// 
 	type notExported int
 

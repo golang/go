@@ -147,10 +147,16 @@ func (check *Checker) typ(e syntax.Expr) Type {
 // constraint interface.
 func (check *Checker) varType(e syntax.Expr) Type {
 	typ := check.definedType(e, nil)
+	check.validVarType(e, typ)
+	return typ
+}
 
+// validVarType reports an error if typ is a constraint interface.
+// The expression e is used for error reporting, if any.
+func (check *Checker) validVarType(e syntax.Expr, typ Type) {
 	// If we have a type parameter there's nothing to do.
 	if isTypeParam(typ) {
-		return typ
+		return
 	}
 
 	// We don't want to call under() or complete interfaces while we are in
@@ -169,8 +175,6 @@ func (check *Checker) varType(e syntax.Expr) Type {
 			}
 		}
 	})
-
-	return typ
 }
 
 // definedType is like typ but also accepts a type name def.
@@ -256,7 +260,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 
 	case *syntax.SelectorExpr:
 		var x operand
-		check.selector(&x, e)
+		check.selector(&x, e, def)
 
 		switch x.mode {
 		case typexpr:
@@ -342,7 +346,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		return typ
 
 	case *syntax.InterfaceType:
-		typ := new(Interface)
+		typ := check.newInterface()
 		def.setUnderlying(typ)
 		if def != nil {
 			typ.obj = def.obj
@@ -430,9 +434,13 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	// evaluate arguments
 	targs := check.typeList(xlist)
 	if targs == nil {
-		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
+		def.setUnderlying(Typ[Invalid]) // avoid errors later due to lazy instantiation
 		return Typ[Invalid]
 	}
+
+	// enableTypeTypeInference controls whether to infer missing type arguments
+	// using constraint type inference. See issue #51527.
+	const enableTypeTypeInference = false
 
 	// create the instance
 	ctxt := check.bestContext(nil)
@@ -453,19 +461,18 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	def.setUnderlying(inst)
 
 	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
-		tparams := orig.TypeParams().list()
+		tparams := n.orig.TypeParams().list()
 
-		inferred := targs
-		if len(targs) < len(tparams) {
+		targs := n.targs.list()
+		if enableTypeTypeInference && len(targs) < len(tparams) {
 			// If inference fails, len(inferred) will be 0, and inst.underlying will
 			// be set to Typ[Invalid] in expandNamed.
-			inferred = check.infer(x.Pos(), tparams, targs, nil, nil)
+			inferred := check.infer(x.Pos(), tparams, targs, nil, nil)
 			if len(inferred) > len(targs) {
-				inst.targs = newTypeList(inferred)
+				n.targs = newTypeList(inferred)
 			}
 		}
 
-		check.recordInstance(x, inferred, inst)
 		return expandNamed(ctxt, n, x.Pos())
 	}
 
@@ -478,6 +485,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		// Since check is non-nil, we can still mutate inst. Unpinning the resolver
 		// frees some memory.
 		inst.resolver = nil
+		check.recordInstance(x, inst.TypeArgs().list(), inst)
 
 		if check.validateTArgLen(x.Pos(), inst.tparams.Len(), inst.targs.Len()) {
 			if i, err := check.verify(x.Pos(), inst.tparams.list(), inst.targs.list()); err != nil {
@@ -502,12 +510,20 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 // and returns the constant length >= 0, or a value < 0
 // to indicate an error (and thus an unknown length).
 func (check *Checker) arrayLength(e syntax.Expr) int64 {
-	// If e is an undeclared identifier, the array declaration might be an
-	// attempt at a parameterized type declaration with missing constraint.
-	// Provide a better error message than just "undeclared name: X".
-	if name, _ := e.(*syntax.Name); name != nil && check.lookup(name.Value) == nil {
-		check.errorf(name, "undeclared name %s for array length", name.Value)
-		return -1
+	// If e is an identifier, the array declaration might be an
+	// attempt at a parameterized type declaration with missing
+	// constraint. Provide an error message that mentions array
+	// length.
+	if name, _ := e.(*syntax.Name); name != nil {
+		obj := check.lookup(name.Value)
+		if obj == nil {
+			check.errorf(name, "undeclared name %s for array length", name.Value)
+			return -1
+		}
+		if _, ok := obj.(*Const); !ok {
+			check.errorf(name, "invalid array length %s", name.Value)
+			return -1
+		}
 	}
 
 	var x operand
