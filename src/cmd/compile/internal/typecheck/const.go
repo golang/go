@@ -734,35 +734,40 @@ func IndexConst(n ir.Node) int64 {
 	return ir.IntVal(types.Types[types.TINT], v)
 }
 
+// callOrChan reports whether n is a call or channel operation.
+func callOrChan(n ir.Node) bool {
+	switch n.Op() {
+	case ir.OAPPEND,
+		ir.OCALL,
+		ir.OCALLFUNC,
+		ir.OCALLINTER,
+		ir.OCALLMETH,
+		ir.OCAP,
+		ir.OCLOSE,
+		ir.OCOMPLEX,
+		ir.OCOPY,
+		ir.ODELETE,
+		ir.OIMAG,
+		ir.OLEN,
+		ir.OMAKE,
+		ir.ONEW,
+		ir.OPANIC,
+		ir.OPRINT,
+		ir.OPRINTN,
+		ir.OREAL,
+		ir.ORECOVER,
+		ir.ORECV,
+		ir.OUNSAFEADD,
+		ir.OUNSAFESLICE:
+		return true
+	}
+	return false
+}
+
 // anyCallOrChan reports whether n contains any calls or channel operations.
 func anyCallOrChan(n ir.Node) bool {
 	return ir.Any(n, func(n ir.Node) bool {
-		switch n.Op() {
-		case ir.OAPPEND,
-			ir.OCALL,
-			ir.OCALLFUNC,
-			ir.OCALLINTER,
-			ir.OCALLMETH,
-			ir.OCAP,
-			ir.OCLOSE,
-			ir.OCOMPLEX,
-			ir.OCOPY,
-			ir.ODELETE,
-			ir.OIMAG,
-			ir.OLEN,
-			ir.OMAKE,
-			ir.ONEW,
-			ir.OPANIC,
-			ir.OPRINT,
-			ir.OPRINTN,
-			ir.OREAL,
-			ir.ORECOVER,
-			ir.ORECV,
-			ir.OUNSAFEADD,
-			ir.OUNSAFESLICE:
-			return true
-		}
-		return false
+		return callOrChan(n)
 	})
 }
 

@@ -867,6 +867,42 @@ func typecheckargs(n ir.InitNode) {
 	RewriteMultiValueCall(n, list[0])
 }
 
+// RewriteNonNameCall replaces non-Name call expressions with temps,
+// rewriting f()(...) to t0 := f(); t0(...).
+func RewriteNonNameCall(n *ir.CallExpr) {
+	np := &n.X
+	if inst, ok := (*np).(*ir.InstExpr); ok && inst.Op() == ir.OFUNCINST {
+		np = &inst.X
+	}
+	if dot, ok := (*np).(*ir.SelectorExpr); ok && (dot.Op() == ir.ODOTMETH || dot.Op() == ir.ODOTINTER || dot.Op() == ir.OMETHVALUE) {
+		np = &dot.X // peel away method selector
+	}
+
+	// Check for side effects in the callee expression.
+	// We explicitly special case new(T) though, because it doesn't have
+	// observable side effects, and keeping it in place allows better escape analysis.
+	if !ir.Any(*np, func(n ir.Node) bool { return n.Op() != ir.ONEW && callOrChan(n) }) {
+		return
+	}
+
+	// See comment (1) in RewriteMultiValueCall.
+	static := ir.CurFunc == nil
+	if static {
+		ir.CurFunc = InitTodoFunc
+	}
+
+	tmp := Temp((*np).Type())
+	as := ir.NewAssignStmt(base.Pos, tmp, *np)
+	as.Def = true
+	*np = tmp
+
+	if static {
+		ir.CurFunc = nil
+	}
+
+	n.PtrInit().Append(Stmt(as))
+}
+
 // RewriteMultiValueCall rewrites multi-valued f() to use temporaries,
 // so the backend wouldn't need to worry about tuple-valued expressions.
 func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
@@ -874,7 +910,7 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	// be executed during the generated init function. However,
 	// init.go hasn't yet created it. Instead, associate the
 	// temporary variables with  InitTodoFunc for now, and init.go
-	// will reassociate them later when it's appropriate.
+	// will reassociate them later when it's appropriate. (1)
 	static := ir.CurFunc == nil
 	if static {
 		ir.CurFunc = InitTodoFunc
