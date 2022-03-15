@@ -1,0 +1,24 @@
+-- R-rename --
+//go:build go1.18
+// +build go1.18
+
+package generics
+
+type R string //@rename("T", "R")
+
+type C interface {
+	R | ~int //@rename("T", "S")
+}
+
+-- S-rename --
+//go:build go1.18
+// +build go1.18
+
+package generics
+
+type S string //@rename("T", "R")
+
+type C interface {
+	S | ~int //@rename("T", "S")
+}
+

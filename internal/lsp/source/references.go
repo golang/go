@@ -109,10 +109,13 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 		searchPkgs = append(searchPkgs, qo.pkg)
 		for _, pkg := range searchPkgs {
 			for ident, obj := range pkg.GetTypesInfo().Uses {
-				if obj != qo.obj {
-					// If ident is not a use of qo.obj, skip it, with one exception: uses
-					// of an embedded field can be considered references of the embedded
-					// type name.
+				// For instantiated objects (as in methods or fields on instantiated
+				// types), we may not have pointer-identical objects but still want to
+				// consider them references.
+				if !equalOrigin(obj, qo.obj) {
+					// If ident is not a use of qo.obj, skip it, with one exception:
+					// uses of an embedded field can be considered references of the
+					// embedded type name
 					if !includeEmbeddedRefs {
 						continue
 					}
@@ -165,6 +168,13 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 	}
 
 	return references, nil
+}
+
+// equalOrigin reports whether obj1 and obj2 have equivalent origin object.
+// This may be the case even if obj1 != obj2, if one or both of them is
+// instantiated.
+func equalOrigin(obj1, obj2 types.Object) bool {
+	return obj1.Pkg() == obj2.Pkg() && obj1.Pos() == obj2.Pos() && obj1.Name() == obj2.Name()
 }
 
 // interfaceReferences returns the references to the interfaces implemented by

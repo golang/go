@@ -1,0 +1,12 @@
+-- bar-rename --
+//go:build go1.18
+// +build go1.18
+
+package generics
+
+type bar[P any] int //@rename("foo","bar")
+
+var x struct{ bar[int] }
+
+var _ = x.bar
+
