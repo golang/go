@@ -231,7 +231,9 @@ func (s *snapshot) config(ctx context.Context, inv *gocommand.Invocation) *packa
 			packages.NeedImports |
 			packages.NeedDeps |
 			packages.NeedTypesSizes |
-			packages.NeedModule,
+			packages.NeedModule |
+			packages.LoadMode(packagesinternal.DepsErrors) |
+			packages.LoadMode(packagesinternal.ForTest),
 		Fset:    s.FileSet(),
 		Overlay: s.buildOverlay(),
 		ParseFile: func(*token.FileSet, string, []byte) (*ast.File, error) {

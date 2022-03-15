@@ -71,6 +71,13 @@ const (
 	// NeedTypesSizes adds TypesSizes.
 	NeedTypesSizes
 
+	// needInternalDepsErrors adds the internal deps errors field for use by gopls.
+	needInternalDepsErrors
+
+	// needInternalForTest adds the internal forTest field.
+	// Tests must also be set on the context for this field to be populated.
+	needInternalForTest
+
 	// typecheckCgo enables full support for type checking cgo. Requires Go 1.15+.
 	// Modifies CompiledGoFiles and Types, and has no effect on its own.
 	typecheckCgo
@@ -403,6 +410,8 @@ func init() {
 		config.(*Config).modFlag = value
 	}
 	packagesinternal.TypecheckCgo = int(typecheckCgo)
+	packagesinternal.DepsErrors = int(needInternalDepsErrors)
+	packagesinternal.ForTest = int(needInternalForTest)
 }
 
 // An Error describes a problem with a package's metadata, syntax, or types.

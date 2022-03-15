@@ -446,7 +446,11 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 
 	// Run "go list" for complete
 	// information on the specified packages.
-	buf, err := state.invokeGo("list", golistargs(state.cfg, words)...)
+	goVersion, err := state.getGoVersion()
+	if err != nil {
+		return nil, err
+	}
+	buf, err := state.invokeGo("list", golistargs(state.cfg, words, goVersion)...)
 	if err != nil {
 		return nil, err
 	}
@@ -809,10 +813,70 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 	return res
 }
 
-func golistargs(cfg *Config, words []string) []string {
+func jsonFlag(cfg *Config, goVersion int) string {
+	if goVersion < 19 {
+		return "-json"
+	}
+	var fields []string
+	added := make(map[string]bool)
+	addFields := func(fs ...string) {
+		for _, f := range fs {
+			if !added[f] {
+				added[f] = true
+				fields = append(fields, f)
+			}
+		}
+	}
+	addFields("Name", "ImportPath", "Error") // These fields are always needed
+	if cfg.Mode&NeedFiles != 0 || cfg.Mode&NeedTypes != 0 {
+		addFields("Dir", "GoFiles", "IgnoredGoFiles", "IgnoredOtherFiles", "CFiles",
+			"CgoFiles", "CXXFiles", "MFiles", "HFiles", "FFiles", "SFiles",
+			"SwigFiles", "SwigCXXFiles", "SysoFiles")
+		if cfg.Tests {
+			addFields("TestGoFiles", "XTestGoFiles")
+		}
+	}
+	if cfg.Mode&NeedTypes != 0 {
+		// CompiledGoFiles seems to be required for the test case TestCgoNoSyntax,
+		// even when -compiled isn't passed in.
+		// TODO(#52435): Should we make the test ask for -compiled, or automatically
+		// request CompiledGoFiles in certain circumstances?
+		addFields("Dir", "CompiledGoFiles")
+	}
+	if cfg.Mode&NeedCompiledGoFiles != 0 {
+		addFields("Dir", "CompiledGoFiles", "Export")
+	}
+	if cfg.Mode&NeedImports != 0 {
+		// When imports are requested, DepOnly is used to distinguish between packages
+		// explicitly requested and transitive imports of those packages.
+		addFields("DepOnly", "Imports", "ImportMap")
+		if cfg.Tests {
+			addFields("TestImports", "XTestImports")
+		}
+	}
+	if cfg.Mode&NeedDeps != 0 {
+		addFields("DepOnly")
+	}
+	if usesExportData(cfg) {
+		// Request Dir in the unlikely case Export is not absolute.
+		addFields("Dir", "Export")
+	}
+	if cfg.Mode&needInternalForTest != 0 {
+		addFields("ForTest")
+	}
+	if cfg.Mode&needInternalDepsErrors != 0 {
+		addFields("DepsErrors")
+	}
+	if cfg.Mode&NeedModule != 0 {
+		addFields("Module")
+	}
+	return "-json=" + strings.Join(fields, ",")
+}
+
+func golistargs(cfg *Config, words []string, goVersion int) []string {
 	const findFlags = NeedImports | NeedTypes | NeedSyntax | NeedTypesInfo
 	fullargs := []string{
-		"-e", "-json",
+		"-e", jsonFlag(cfg, goVersion),
 		fmt.Sprintf("-compiled=%t", cfg.Mode&(NeedCompiledGoFiles|NeedSyntax|NeedTypes|NeedTypesInfo|NeedTypesSizes) != 0),
 		fmt.Sprintf("-test=%t", cfg.Tests),
 		fmt.Sprintf("-export=%t", usesExportData(cfg)),

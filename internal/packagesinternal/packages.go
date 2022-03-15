@@ -23,6 +23,8 @@ var GetGoCmdRunner = func(config interface{}) *gocommand.Runner { return nil }
 var SetGoCmdRunner = func(config interface{}, runner *gocommand.Runner) {}
 
 var TypecheckCgo int
+var DepsErrors int // must be set as a LoadMode to call GetDepsErrors
+var ForTest int    // must be set as a LoadMode to call GetForTest
 
 var SetModFlag = func(config interface{}, value string) {}
 var SetModFile = func(config interface{}, value string) {}
