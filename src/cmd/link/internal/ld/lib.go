@@ -390,7 +390,9 @@ func libinit(ctxt *Link) {
 		suffix = "asan"
 	}
 
-	Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
+	if buildcfg.GOROOT != "" {
+		Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
+	}
 
 	mayberemoveoutfile()
 
