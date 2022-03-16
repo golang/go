@@ -379,7 +379,7 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 func (h Hasher) hashTuple(tuple *types.Tuple) uint32 {
 	// See go/types.identicalTypes for rationale.
 	n := tuple.Len()
-	var hash uint32 = 9137 + 2*uint32(n)
+	hash := 9137 + 2*uint32(n)
 	for i := 0; i < n; i++ {
 		hash += 3 * h.Hash(tuple.At(i).Type())
 	}
@@ -398,7 +398,7 @@ func (h Hasher) hashUnion(t *typeparams.Union) uint32 {
 }
 
 func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
-	var hash uint32 = 9157 + 2*uint32(len(terms))
+	hash := 9157 + 2*uint32(len(terms))
 	for _, term := range terms {
 		// term order is not significant.
 		termHash := h.Hash(term.Type())
@@ -416,14 +416,16 @@ func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
 // If h.sigTParams is set and contains t, then we are in the process of hashing
 // a signature, and the hash value of t must depend only on t's index and
 // constraint: signatures are considered identical modulo type parameter
-// renaming.
+// renaming. To avoid infinite recursion, we only hash the type parameter
+// index, and rely on types.Identical to handle signatures where constraints
+// are not identical.
 //
 // Otherwise the hash of t depends only on t's pointer identity.
 func (h Hasher) hashTypeParam(t *typeparams.TypeParam) uint32 {
 	if h.sigTParams != nil {
 		i := t.Index()
 		if i >= 0 && i < h.sigTParams.Len() && t == h.sigTParams.At(i) {
-			return 9173 + 2*h.Hash(t.Constraint()) + 3*uint32(i)
+			return 9173 + 3*uint32(i)
 		}
 	}
 	return h.hashPtr(t.Obj())
