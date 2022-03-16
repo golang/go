@@ -1271,7 +1271,7 @@ func (c *GCController) StartCycle(stackSize, globalsSize uint64, scannableFrac f
 	c.globalsScan = globalsSize
 	c.heapLive = c.trigger
 	c.heapScan += uint64(float64(c.trigger-c.heapMarked) * scannableFrac)
-	c.startCycle(0, gomaxprocs)
+	c.startCycle(0, gomaxprocs, gcTrigger{kind: gcTriggerHeap})
 }
 
 func (c *GCController) AssistWorkPerByte() float64 {
@@ -1316,6 +1316,22 @@ func (c *GCController) EndCycle(bytesMarked uint64, assistTime, elapsed int64, g
 	c.endCycle(elapsed, gomaxprocs, false)
 	c.resetLive(bytesMarked)
 	c.commit()
+}
+
+func (c *GCController) AddIdleMarkWorker() bool {
+	return c.addIdleMarkWorker()
+}
+
+func (c *GCController) NeedIdleMarkWorker() bool {
+	return c.needIdleMarkWorker()
+}
+
+func (c *GCController) RemoveIdleMarkWorker() {
+	c.removeIdleMarkWorker()
+}
+
+func (c *GCController) SetMaxIdleMarkWorkers(max int32) {
+	c.setMaxIdleMarkWorkers(max)
 }
 
 var escapeSink any
