@@ -78,6 +78,7 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 }
 
 func (t *Named) cleanup() {
+	assert(t.orig.orig == t.orig)
 	// Ensure that every defined type created in the course of type-checking has
 	// either non-*Named underlying, or is unresolved.
 	//
