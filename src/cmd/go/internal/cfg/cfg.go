@@ -22,6 +22,26 @@ import (
 	"cmd/go/internal/fsys"
 )
 
+// Global build parameters (used during package load)
+var (
+	Goos   = envOr("GOOS", build.Default.GOOS)
+	Goarch = envOr("GOARCH", build.Default.GOARCH)
+
+	ExeSuffix = exeSuffix()
+
+	// ModulesEnabled specifies whether the go command is running
+	// in module-aware mode (as opposed to GOPATH mode).
+	// It is equal to modload.Enabled, but not all packages can import modload.
+	ModulesEnabled bool
+)
+
+func exeSuffix() string {
+	if Goos == "windows" {
+		return ".exe"
+	}
+	return ""
+}
+
 // These are general "build flags" used by build and other commands.
 var (
 	BuildA                 bool   // -a flag
@@ -60,8 +80,6 @@ var (
 	// GoPathError is set when GOPATH is not set. it contains an
 	// explanation why GOPATH is unset.
 	GoPathError string
-
-	GOEXPERIMENT = envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT)
 )
 
 func defaultContext() build.Context {
@@ -79,20 +97,15 @@ func defaultContext() build.Context {
 		build.ToolDir = filepath.Join(ctxt.GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
 	}
 
-	ctxt.GOPATH = envOr("GOPATH", gopath(ctxt))
-
 	// Override defaults computed in go/build with defaults
 	// from go environment configuration file, if known.
-	ctxt.GOOS = envOr("GOOS", ctxt.GOOS)
-	ctxt.GOARCH = envOr("GOARCH", ctxt.GOARCH)
+	ctxt.GOPATH = envOr("GOPATH", gopath(ctxt))
+	ctxt.GOOS = Goos
+	ctxt.GOARCH = Goarch
 
-	// The experiments flags are based on GOARCH, so they may
-	// need to change.  TODO: This should be cleaned up.
-	buildcfg.UpdateExperiments(ctxt.GOOS, ctxt.GOARCH, GOEXPERIMENT)
+	// ToolTags are based on GOEXPERIMENT, which we will parse and
+	// initialize later.
 	ctxt.ToolTags = nil
-	for _, exp := range buildcfg.EnabledExperiments() {
-		ctxt.ToolTags = append(ctxt.ToolTags, "goexperiment."+exp)
-	}
 
 	// The go/build rule for whether cgo is enabled is:
 	//	1. If $CGO_ENABLED is set, respect it.
@@ -137,6 +150,33 @@ func init() {
 	BuildToolchainLinker = func() string { return "missing-linker" }
 }
 
+// Experiment configuration.
+var (
+	// RawGOEXPERIMENT is the GOEXPERIMENT value set by the user.
+	RawGOEXPERIMENT = envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT)
+	// CleanGOEXPERIMENT is the minimal GOEXPERIMENT value needed to reproduce the
+	// experiments enabled by RawGOEXPERIMENT.
+	CleanGOEXPERIMENT = RawGOEXPERIMENT
+
+	Experiment    *buildcfg.ExperimentFlags
+	ExperimentErr error
+)
+
+func init() {
+	Experiment, ExperimentErr = buildcfg.ParseGOEXPERIMENT(Goos, Goarch, RawGOEXPERIMENT)
+	if ExperimentErr != nil {
+		return
+	}
+
+	// GOEXPERIMENT is valid, so convert it to canonical form.
+	CleanGOEXPERIMENT = Experiment.String()
+
+	// Add build tags based on the experiments in effect.
+	for _, exp := range Experiment.Enabled() {
+		BuildContext.ToolTags = append(BuildContext.ToolTags, "goexperiment."+exp)
+	}
+}
+
 // An EnvVar is an environment variable Name=Value.
 type EnvVar struct {
 	Name  string
@@ -150,26 +190,6 @@ var OrigEnv []string
 // User binaries (during go test or go run) are run with OrigEnv,
 // not CmdEnv.
 var CmdEnv []EnvVar
-
-// Global build parameters (used during package load)
-var (
-	Goarch = BuildContext.GOARCH
-	Goos   = BuildContext.GOOS
-
-	ExeSuffix = exeSuffix()
-
-	// ModulesEnabled specifies whether the go command is running
-	// in module-aware mode (as opposed to GOPATH mode).
-	// It is equal to modload.Enabled, but not all packages can import modload.
-	ModulesEnabled bool
-)
-
-func exeSuffix() string {
-	if Goos == "windows" {
-		return ".exe"
-	}
-	return ""
-}
 
 var envCache struct {
 	once sync.Once
