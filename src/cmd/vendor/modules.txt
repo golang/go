@@ -1,4 +1,4 @@
-# github.com/google/pprof v0.0.0-20211104044539-f987b9c94b31
+# github.com/google/pprof v0.0.0-20220314021825-5bba342933ea
 ## explicit; go 1.14
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
@@ -12,7 +12,6 @@ github.com/google/pprof/internal/symbolizer
 github.com/google/pprof/internal/symbolz
 github.com/google/pprof/internal/transport
 github.com/google/pprof/profile
-github.com/google/pprof/third_party/d3
 github.com/google/pprof/third_party/d3flamegraph
 github.com/google/pprof/third_party/svgpan
 # github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d

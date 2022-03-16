@@ -98,7 +98,7 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	// Recognize first argument as an executable or buildid override.
 	if len(args) > 1 {
 		arg0 := args[0]
-		if file, err := o.Obj.Open(arg0, 0, ^uint64(0), 0); err == nil {
+		if file, err := o.Obj.Open(arg0, 0, ^uint64(0), 0, ""); err == nil {
 			file.Close()
 			execName = arg0
 			args = args[1:]
