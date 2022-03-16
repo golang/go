@@ -212,7 +212,6 @@ func (*Type) CanBeAnSSAAux() {}
 
 const (
 	typeNotInHeap  = 1 << iota // type cannot be heap allocated
-	typeBroke                  // broken type definition
 	typeNoalg                  // suppress hash and eq algorithm generation
 	typeDeferwidth             // width computation has been deferred and type is on deferredTypeStack
 	typeRecur
@@ -222,7 +221,7 @@ const (
 )
 
 func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
-func (t *Type) Broke() bool      { return t.flags&typeBroke != 0 }
+func (t *Type) Broke() bool      { return false }
 func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
 func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
 func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
@@ -231,7 +230,7 @@ func (t *Type) IsShape() bool    { return t.flags&typeIsShape != 0 }
 func (t *Type) HasShape() bool   { return t.flags&typeHasShape != 0 }
 
 func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
-func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
+func (t *Type) SetBroke(b bool)      { base.Assertf(!b, "SetBroke") }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
