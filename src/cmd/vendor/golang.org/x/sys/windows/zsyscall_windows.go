@@ -226,6 +226,7 @@ var (
 	procFreeLibrary                                          = modkernel32.NewProc("FreeLibrary")
 	procGenerateConsoleCtrlEvent                             = modkernel32.NewProc("GenerateConsoleCtrlEvent")
 	procGetACP                                               = modkernel32.NewProc("GetACP")
+	procGetActiveProcessorCount                              = modkernel32.NewProc("GetActiveProcessorCount")
 	procGetCommTimeouts                                      = modkernel32.NewProc("GetCommTimeouts")
 	procGetCommandLineW                                      = modkernel32.NewProc("GetCommandLineW")
 	procGetComputerNameExW                                   = modkernel32.NewProc("GetComputerNameExW")
@@ -251,6 +252,7 @@ var (
 	procGetLogicalDriveStringsW                              = modkernel32.NewProc("GetLogicalDriveStringsW")
 	procGetLogicalDrives                                     = modkernel32.NewProc("GetLogicalDrives")
 	procGetLongPathNameW                                     = modkernel32.NewProc("GetLongPathNameW")
+	procGetMaximumProcessorCount                             = modkernel32.NewProc("GetMaximumProcessorCount")
 	procGetModuleFileNameW                                   = modkernel32.NewProc("GetModuleFileNameW")
 	procGetModuleHandleExW                                   = modkernel32.NewProc("GetModuleHandleExW")
 	procGetNamedPipeHandleStateW                             = modkernel32.NewProc("GetNamedPipeHandleStateW")
@@ -1967,6 +1969,12 @@ func GetACP() (acp uint32) {
 	return
 }
 
+func GetActiveProcessorCount(groupNumber uint16) (ret uint32) {
+	r0, _, _ := syscall.Syscall(procGetActiveProcessorCount.Addr(), 1, uintptr(groupNumber), 0, 0)
+	ret = uint32(r0)
+	return
+}
+
 func GetCommTimeouts(handle Handle, timeouts *CommTimeouts) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetCommTimeouts.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(timeouts)), 0)
 	if r1 == 0 {
@@ -2166,6 +2174,12 @@ func GetLongPathName(path *uint16, buf *uint16, buflen uint32) (n uint32, err er
 	if n == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func GetMaximumProcessorCount(groupNumber uint16) (ret uint32) {
+	r0, _, _ := syscall.Syscall(procGetMaximumProcessorCount.Addr(), 1, uintptr(groupNumber), 0, 0)
+	ret = uint32(r0)
 	return
 }
 
@@ -2747,7 +2761,7 @@ func ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree 
 	return
 }
 
-func ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
+func readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
 	var _p0 *byte
 	if len(buf) > 0 {
 		_p0 = &buf[0]
@@ -3189,7 +3203,7 @@ func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, 
 	return
 }
 
-func WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
+func writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
 	var _p0 *byte
 	if len(buf) > 0 {
 		_p0 = &buf[0]

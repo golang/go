@@ -309,6 +309,8 @@ const (
 	RTC_EPOCH_SET                    = 0x8008700e
 	RTC_IRQP_READ                    = 0x4008700b
 	RTC_IRQP_SET                     = 0x8008700c
+	RTC_PARAM_GET                    = 0x80187013
+	RTC_PARAM_SET                    = 0x80187014
 	RTC_PIE_OFF                      = 0x20007006
 	RTC_PIE_ON                       = 0x20007005
 	RTC_PLL_GET                      = 0x40207011
@@ -386,6 +388,7 @@ const (
 	SO_RCVTIMEO                      = 0x12
 	SO_RCVTIMEO_NEW                  = 0x42
 	SO_RCVTIMEO_OLD                  = 0x12
+	SO_RESERVE_MEM                   = 0x49
 	SO_REUSEADDR                     = 0x2
 	SO_REUSEPORT                     = 0xf
 	SO_RXQ_OVFL                      = 0x28
