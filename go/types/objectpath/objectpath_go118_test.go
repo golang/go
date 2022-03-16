@@ -34,7 +34,7 @@ func (N) M1()
 
 type A = T[int, N]
 
-func F[FP0, FP1 any](FP0, FP1) {}
+func F[FP0 any, FP1 interface{ M() }](FP0, FP1) {}
 `},
 	}
 	paths := []pathTest{
@@ -45,6 +45,8 @@ func F[FP0, FP1 any](FP0, FP1) {}
 		{"b", "T.T0O", "type parameter TP0 any", ""},
 		{"b", "T.T1O", "type parameter TP1 interface{M0(); M1()}", ""},
 		{"b", "T.T1CM0", "func (interface).M0()", ""},
+		{"b", "F.T0O", "type parameter FP0 any", ""},
+		{"b", "F.T1CM0", "func (interface).M()", ""},
 		// Obj of an instance is the generic declaration.
 		{"b", "A.O", "type b.T[TP0 any, TP1 interface{M0(); M1()}] struct{}", ""},
 		{"b", "A.M0", "func (b.T[int, b.N]).M()", ""},
@@ -88,6 +90,47 @@ func F[FP0, FP1 any](FP0, FP1) {}
 		if err.Error() != test.wantErr {
 			t.Errorf("Object(%s) error was %q, want %q", test.obj, err, test.wantErr)
 			continue
+		}
+	}
+}
+
+func TestGenericPaths_Issue51717(t *testing.T) {
+	pkgs := map[string]map[string]string{
+		"p": {"p.go": `
+package p
+
+type S struct{}
+
+func (_ S) M() {
+	// The go vet stackoverflow crash disappears when the following line is removed
+	panic("")
+}
+
+func F[WL interface{ N(item W) WL }, W any]() {
+}
+
+func main() {}
+`},
+	}
+	paths := []pathTest{
+		{"p", "F.T0CM0.RA0", "var  WL", ""},
+		{"p", "F.T0CM0.RA0.CM0", "func (interface).N(item W) WL", ""},
+
+		// Finding S.M0 reproduced the infinite recursion reported in #51717,
+		// because F is searched before S.
+		{"p", "S.M0", "func (p.S).M()", ""},
+	}
+
+	conf := loader.Config{Build: buildutil.FakeContext(pkgs)}
+	conf.Import("p")
+	prog, err := conf.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, test := range paths {
+		if err := testPath(prog, test); err != nil {
+			t.Error(err)
 		}
 	}
 }
