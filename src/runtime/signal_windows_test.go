@@ -25,6 +25,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 		t.Skip("this test can only run on windows/amd64")
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
 	testprog.Lock()
 	defer testprog.Unlock()
@@ -149,6 +150,7 @@ func TestLibraryCtrlHandler(t *testing.T) {
 		t.Skip("this test can only run on windows/amd64")
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
 	testprog.Lock()
 	defer testprog.Unlock()
