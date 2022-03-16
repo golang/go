@@ -648,7 +648,6 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			} else {
 				// Clause variable is broken; prevent typechecking.
 				nvar.SetTypecheck(1)
-				nvar.SetWalkdef(1)
 			}
 			ncase.Var = nvar
 		}

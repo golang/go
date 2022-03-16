@@ -439,7 +439,6 @@ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
 	for _, cv := range fn.ClosureVars {
 		cv.SetType(cv.Canonical().Type())
 		cv.SetTypecheck(1)
-		cv.SetWalkdef(1)
 	}
 
 	if g.topFuncIsGeneric {

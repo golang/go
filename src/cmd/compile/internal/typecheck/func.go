@@ -295,7 +295,13 @@ func tcFunc(n *ir.Func) {
 		defer tracePrint("tcFunc", n)(nil)
 	}
 
-	n.Nname = AssignExpr(n.Nname).(*ir.Name)
+	if name := n.Nname; name.Typecheck() == 0 {
+		if name.Ntype != nil {
+			name.Ntype = typecheckNtype(name.Ntype)
+			name.SetType(name.Ntype.Type())
+		}
+		name.SetTypecheck(1)
+	}
 }
 
 // tcCall typechecks an OCALL node.

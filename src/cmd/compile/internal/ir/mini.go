@@ -55,9 +55,8 @@ func (n *miniNode) Esc() uint16       { return n.esc }
 func (n *miniNode) SetEsc(x uint16)   { n.esc = x }
 
 const (
-	miniWalkdefShift   = 0 // TODO(mdempsky): Move to Name.flags.
-	miniTypecheckShift = 2
-	miniWalked         = 1 << 5 // to prevent/catch re-walking
+	miniTypecheckShift = 0
+	miniWalked         = 1 << 2 // to prevent/catch re-walking
 )
 
 func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
