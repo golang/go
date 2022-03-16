@@ -31,7 +31,6 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
-	"internal/buildcfg"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -200,26 +199,9 @@ func asGoVersion(s string) string {
 	return ""
 }
 
-// excludedForUnifiedBuild lists files that cannot be tested
-// when using the unified build's export data.
-// TODO(gri) enable as soon as the unified build supports this.
-var excludedForUnifiedBuild = map[string]bool{
-	"issue47818.go2": true,
-	"issue49705.go2": true,
-}
-
 func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
-	}
-
-	if buildcfg.Experiment.Unified {
-		for _, f := range filenames {
-			if excludedForUnifiedBuild[filepath.Base(f)] {
-				t.Logf("%s cannot be tested with unified build - skipped", f)
-				return
-			}
-		}
 	}
 
 	if strings.HasSuffix(filenames[0], ".go1") {
