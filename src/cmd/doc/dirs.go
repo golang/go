@@ -58,6 +58,14 @@ func dirsInit(extra ...Dir) {
 	go dirs.walk(codeRoots())
 }
 
+// goCmd returns the "go" command path corresponding to buildCtx.GOROOT.
+func goCmd() string {
+	if buildCtx.GOROOT == "" {
+		return "go"
+	}
+	return filepath.Join(buildCtx.GOROOT, "bin", "go")
+}
+
 // Reset puts the scan back at the beginning.
 func (d *Dirs) Reset() {
 	d.offset = 0
@@ -181,7 +189,7 @@ func findCodeRoots() []Dir {
 	if !testGOPATH {
 		// Check for use of modules by 'go env GOMOD',
 		// which reports a go.mod file path if modules are enabled.
-		stdout, _ := exec.Command("go", "env", "GOMOD").Output()
+		stdout, _ := exec.Command(goCmd(), "env", "GOMOD").Output()
 		gomod := string(bytes.TrimSpace(stdout))
 
 		usingModules = len(gomod) > 0
@@ -230,7 +238,7 @@ func findCodeRoots() []Dir {
 		return list
 	}
 
-	cmd := exec.Command("go", "list", "-m", "-f={{.Path}}\t{{.Dir}}", "all")
+	cmd := exec.Command(goCmd(), "list", "-m", "-f={{.Path}}\t{{.Dir}}", "all")
 	cmd.Stderr = os.Stderr
 	out, _ := cmd.Output()
 	for _, line := range strings.Split(string(out), "\n") {
@@ -259,7 +267,7 @@ func vendorEnabled() (*moduleJSON, bool, error) {
 		return nil, false, err
 	}
 
-	stdout, _ := exec.Command("go", "env", "GOFLAGS").Output()
+	stdout, _ := exec.Command(goCmd(), "env", "GOFLAGS").Output()
 	goflags := string(bytes.TrimSpace(stdout))
 	matches := modFlagRegexp.FindStringSubmatch(goflags)
 	var modFlag string
@@ -293,7 +301,7 @@ func getMainModuleAnd114() (*moduleJSON, bool, error) {
 {{.GoVersion}}
 {{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}
 `
-	cmd := exec.Command("go", "list", "-m", "-f", format)
+	cmd := exec.Command(goCmd(), "list", "-m", "-f", format)
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.Output()
 	if err != nil {
