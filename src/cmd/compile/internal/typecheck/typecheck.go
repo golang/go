@@ -1686,41 +1686,6 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 	return Expr(nn)
 }
 
-func typecheckdeftype(n *ir.Name) {
-	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckdeftype", n)(nil)
-	}
-
-	t := types.NewNamed(n)
-	if n.Curfn != nil {
-		t.SetVargen()
-	}
-
-	if n.Pragma()&ir.NotInHeap != 0 {
-		t.SetNotInHeap(true)
-	}
-
-	n.SetType(t)
-	n.SetTypecheck(1)
-	n.SetWalkdef(1)
-
-	types.DeferCheckSize()
-	errorsBefore := base.Errors()
-	n.Ntype = typecheckNtype(n.Ntype)
-	if underlying := n.Ntype.Type(); underlying != nil {
-		t.SetUnderlying(underlying)
-	} else {
-		n.SetDiag(true)
-		n.SetType(nil)
-	}
-	if t.Kind() == types.TFORW && base.Errors() > errorsBefore {
-		// Something went wrong during type-checking,
-		// but it was reported. Silence future errors.
-		t.SetBroke(true)
-	}
-	types.ResumeCheckSize()
-}
-
 func typecheckdef(n *ir.Name) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckdef", n)(nil)
@@ -1741,15 +1706,7 @@ func typecheckdef(n *ir.Name) {
 	}
 
 	lno := ir.SetPos(n)
-	typecheckdefstack = append(typecheckdefstack, n)
 	if n.Walkdef() == 2 {
-		base.FlushErrors()
-		fmt.Printf("typecheckdef loop:")
-		for i := len(typecheckdefstack) - 1; i >= 0; i-- {
-			n := typecheckdefstack[i]
-			fmt.Printf(" %v", n.Sym())
-		}
-		fmt.Printf("\n")
 		base.Fatalf("typecheckdef loop")
 	}
 
@@ -1759,126 +1716,25 @@ func typecheckdef(n *ir.Name) {
 	default:
 		base.Fatalf("typecheckdef %v", n.Op())
 
-	case ir.OLITERAL:
-		if n.Ntype != nil {
-			n.Ntype = typecheckNtype(n.Ntype)
-			n.SetType(n.Ntype.Type())
-			n.Ntype = nil
-			if n.Type() == nil {
-				n.SetDiag(true)
-				goto ret
-			}
-		}
-
-		e := n.Defn
-		n.Defn = nil
-		if e == nil {
-			ir.Dump("typecheckdef nil defn", n)
-			base.ErrorfAt(n.Pos(), "xxx")
-		}
-
-		e = Expr(e)
-		if e.Type() == nil {
-			goto ret
-		}
-		if !ir.IsConstNode(e) {
-			if !e.Diag() {
-				if e.Op() == ir.ONIL {
-					base.ErrorfAt(n.Pos(), "const initializer cannot be nil")
-				} else {
-					base.ErrorfAt(n.Pos(), "const initializer %v is not a constant", e)
-				}
-				e.SetDiag(true)
-			}
-			goto ret
-		}
-
-		t := n.Type()
-		if t != nil {
-			if !ir.OKForConst[t.Kind()] {
-				base.ErrorfAt(n.Pos(), "invalid constant type %v", t)
-				goto ret
-			}
-
-			if !e.Type().IsUntyped() && !types.Identical(t, e.Type()) {
-				base.ErrorfAt(n.Pos(), "cannot use %L as type %v in const initializer", e, t)
-				goto ret
-			}
-
-			e = convlit(e, t)
-		}
-
-		n.SetType(e.Type())
-		if n.Type() != nil {
-			n.SetVal(e.Val())
-		}
-
 	case ir.ONAME:
+		if n.BuiltinOp != 0 { // like OPRINTN
+			base.Assertf(n.Ntype == nil, "unexpected Ntype: %+v", n)
+			break
+		}
+
+		base.Assertf(n.Class == ir.PFUNC, "expected PFUNC: %+v", n)
+
 		if n.Ntype != nil {
 			n.Ntype = typecheckNtype(n.Ntype)
 			n.SetType(n.Ntype.Type())
-			if n.Type() == nil {
-				n.SetDiag(true)
-				goto ret
-			}
 		}
 
 		if n.Type() != nil {
 			break
 		}
-		if n.Defn == nil {
-			if n.BuiltinOp != 0 { // like OPRINTN
-				break
-			}
-			if base.Errors() > 0 {
-				// Can have undefined variables in x := foo
-				// that make x have an n.name.Defn == nil.
-				// If there are other errors anyway, don't
-				// bother adding to the noise.
-				break
-			}
 
-			base.Fatalf("var without type, init: %v", n.Sym())
-		}
-
-		if n.Defn.Op() == ir.ONAME {
-			n.Defn = Expr(n.Defn)
-			n.SetType(n.Defn.Type())
-			break
-		}
-
-		n.Defn = Stmt(n.Defn) // fills in n.Type
-
-	case ir.OTYPE:
-		if n.Alias() {
-			// Type alias declaration: Simply use the rhs type - no need
-			// to create a new type.
-			// If we have a syntax error, name.Ntype may be nil.
-			if n.Ntype != nil {
-				n.Ntype = typecheckNtype(n.Ntype)
-				n.SetType(n.Ntype.Type())
-				if n.Type() == nil {
-					n.SetDiag(true)
-					goto ret
-				}
-			}
-			break
-		}
-
-		// regular type declaration
-		typecheckdeftype(n)
+		base.Fatalf("missing type: %v", n)
 	}
-
-ret:
-	if n.Op() != ir.OLITERAL && n.Type() != nil && n.Type().IsUntyped() {
-		base.Fatalf("got %v for %v", n.Type(), n)
-	}
-	last := len(typecheckdefstack) - 1
-	if typecheckdefstack[last] != n {
-		base.Fatalf("typecheckdefstack mismatch")
-	}
-	typecheckdefstack[last] = nil
-	typecheckdefstack = typecheckdefstack[:last]
 
 	base.Pos = lno
 	n.SetWalkdef(1)
