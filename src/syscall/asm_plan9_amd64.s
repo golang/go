@@ -38,7 +38,7 @@ TEXT	·Syscall(SB),NOSPLIT,$168-64
 	MOVQ	$128, sysargs1-152(SP)
 	MOVQ	$SYS_ERRSTR, BP
 	SYSCALL
-	CALL	runtime·exitsyscall<ABIInternal>(SB)
+	CALL	runtime·exitsyscall(SB) // call via ABI wrapper, ensuring ABIInternal fixed registers are set
 	MOVQ	sysargs-160(SP), AX
 	MOVQ	AX, errbuf-168(SP)
 	CALL	runtime·gostring(SB)
@@ -46,7 +46,7 @@ TEXT	·Syscall(SB),NOSPLIT,$168-64
 	JMP	copyresult3
 
 ok3:
-	CALL	runtime·exitsyscall<ABIInternal>(SB)
+	CALL	runtime·exitsyscall(SB) // call via ABI wrapper, ensuring ABIInternal fixed registers are set
 	LEAQ	·emptystring(SB), SI
 
 copyresult3:
@@ -83,7 +83,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
 	MOVQ	$128, sysargs1-152(SP)
 	MOVQ	$SYS_ERRSTR, BP
 	SYSCALL
-	CALL	runtime·exitsyscall<ABIInternal>(SB)
+	CALL	runtime·exitsyscall(SB) // call via ABI wrapper, ensuring ABIInternal fixed registers are set
 	MOVQ	sysargs-160(SP), AX
 	MOVQ	AX, errbuf-168(SP)
 	CALL	runtime·gostring(SB)
@@ -91,7 +91,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
 	JMP	copyresult4
 
 ok4:
-	CALL	runtime·exitsyscall<ABIInternal>(SB)
+	CALL	runtime·exitsyscall(SB) // call via ABI wrapper, ensuring ABIInternal fixed registers are set
 	LEAQ	·emptystring(SB), SI
 
 copyresult4:
