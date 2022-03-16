@@ -7,7 +7,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/goexperiment"
 	"runtime/internal/math"
 	"unsafe"
 )
@@ -434,4 +433,4 @@ func sigpanic0()
 // registers the system supports.
 //
 // Protected by finlock.
-var intArgRegs = abi.IntArgRegs * (goexperiment.RegabiArgsInt | goarch.IsAmd64)
+var intArgRegs = abi.IntArgRegs
