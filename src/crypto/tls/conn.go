@@ -115,6 +115,9 @@ type Conn struct {
 	// in Conn.Write.
 	activeCall int32
 
+	// tmpReader avoids allocations of atLeastReader for Conn.Read
+	tmpReader atLeastReader
+
 	tmp [16]byte
 }
 
@@ -793,6 +796,11 @@ func (r *atLeastReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// release an underlying reader to be GCed
+func (r *atLeastReader) release() {
+	r.R = nil
+}
+
 // readFromUntil reads from r into c.rawInput until c.rawInput contains
 // at least n bytes or else returns an error.
 func (c *Conn) readFromUntil(r io.Reader, n int) error {
@@ -804,7 +812,11 @@ func (c *Conn) readFromUntil(r io.Reader, n int) error {
 	// attempt to fetch it so that it can be used in (*Conn).Read to
 	// "predict" closeNotify alerts.
 	c.rawInput.Grow(needs + bytes.MinRead)
-	_, err := c.rawInput.ReadFrom(&atLeastReader{r, int64(needs)})
+
+	c.tmpReader = atLeastReader{r, int64(needs)}
+	defer c.tmpReader.release()
+
+	_, err := c.rawInput.ReadFrom(&c.tmpReader)
 	return err
 }
 
