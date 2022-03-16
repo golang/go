@@ -7,7 +7,6 @@ package typecheck
 import (
 	"go/constant"
 
-	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -107,9 +106,6 @@ func InitUniverse() {
 	nnil := NodNil()
 	nnil.(*ir.NilExpr).SetSym(s)
 	s.Def = nnil
-
-	s = types.BuiltinPkg.Lookup("iota")
-	s.Def = ir.NewIota(base.Pos, s)
 
 	// initialize okfor
 	for et := types.Kind(0); et < types.NTYPE; et++ {
