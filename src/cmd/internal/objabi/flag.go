@@ -99,11 +99,11 @@ func (versionFlag) Set(s string) error {
 	if s == "goexperiment" {
 		// test/run.go uses this to discover the full set of
 		// experiment tags. Report everything.
-		p = " X:" + strings.Join(buildcfg.AllExperiments(), ",")
+		p = " X:" + strings.Join(buildcfg.Experiment.All(), ",")
 	} else {
-		// If the enabled experiments differ from the defaults,
+		// If the enabled experiments differ from the baseline,
 		// include that difference.
-		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+		if goexperiment := buildcfg.Experiment.String(); goexperiment != "" {
 			p = " X:" + goexperiment
 		}
 	}

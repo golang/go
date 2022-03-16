@@ -2334,8 +2334,8 @@ func (p *Package) setBuildInfo() {
 			}
 		}
 		appendSetting("GOARCH", cfg.BuildContext.GOARCH)
-		if cfg.GOEXPERIMENT != "" {
-			appendSetting("GOEXPERIMENT", cfg.GOEXPERIMENT)
+		if cfg.RawGOEXPERIMENT != "" {
+			appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
 		}
 		appendSetting("GOOS", cfg.BuildContext.GOOS)
 		if key, val := cfg.GetArchEnv(); key != "" && val != "" {

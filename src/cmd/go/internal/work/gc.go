@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"internal/buildcfg"
 	"io"
 	"log"
 	"os"
@@ -245,7 +244,7 @@ CheckFlags:
 	}
 
 	// TODO: Test and delete these conditions.
-	if buildcfg.Experiment.FieldTrack || buildcfg.Experiment.PreemptibleLoops {
+	if cfg.ExperimentErr != nil || cfg.Experiment.FieldTrack || cfg.Experiment.PreemptibleLoops {
 		canDashC = false
 	}
 

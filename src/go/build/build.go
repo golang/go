@@ -311,7 +311,7 @@ func defaultContext() Context {
 	// used for compiling alternative files for the experiment. This allows
 	// changes for the experiment, like extra struct fields in the runtime,
 	// without affecting the base non-experiment code at all.
-	for _, exp := range buildcfg.EnabledExperiments() {
+	for _, exp := range buildcfg.Experiment.Enabled() {
 		c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
 	}
 	defaultToolTags = append([]string{}, c.ToolTags...) // our own private copy

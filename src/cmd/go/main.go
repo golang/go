@@ -190,6 +190,9 @@ func invoke(cmd *base.Command, args []string) {
 	// 'go env' handles checking the build config
 	if cmd != envcmd.CmdEnv {
 		buildcfg.Check()
+		if cfg.ExperimentErr != nil {
+			base.Fatalf("go: %v", cfg.ExperimentErr)
+		}
 	}
 
 	// Set environment (GOOS, GOARCH, etc) explicitly.

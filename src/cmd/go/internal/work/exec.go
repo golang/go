@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"internal/buildcfg"
 	exec "internal/execabs"
 	"internal/lazyregexp"
 	"io"
@@ -320,8 +319,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
-			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
+		if cfg.CleanGOEXPERIMENT != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
 		}
 
 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
@@ -1301,8 +1300,8 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
-			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
+		if cfg.CleanGOEXPERIMENT != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
 		}
 
 		// The linker writes source file paths that say GOROOT_FINAL, but

@@ -124,7 +124,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	addstrdata1(ctxt, "internal/buildcfg.defaultGOROOT="+final)
 
 	buildVersion := buildcfg.Version
-	if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+	if goexperiment := buildcfg.Experiment.String(); goexperiment != "" {
 		buildVersion += " X:" + goexperiment
 	}
 	addstrdata1(ctxt, "runtime.buildVersion="+buildVersion)
