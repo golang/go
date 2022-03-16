@@ -973,6 +973,12 @@ var IsIntrinsicCall = func(*CallExpr) bool { return false }
 // lvalue expression is for OSLICE and OAPPEND optimizations, and it
 // is correct in those settings.
 func SameSafeExpr(l Node, r Node) bool {
+	for l.Op() == OCONVNOP {
+		l = l.(*ConvExpr).X
+	}
+	for r.Op() == OCONVNOP {
+		r = r.(*ConvExpr).X
+	}
 	if l.Op() != r.Op() || !types.Identical(l.Type(), r.Type()) {
 		return false
 	}
@@ -994,11 +1000,6 @@ func SameSafeExpr(l Node, r Node) bool {
 	case ONOT, OBITNOT, OPLUS, ONEG:
 		l := l.(*UnaryExpr)
 		r := r.(*UnaryExpr)
-		return SameSafeExpr(l.X, r.X)
-
-	case OCONVNOP:
-		l := l.(*ConvExpr)
-		r := r.(*ConvExpr)
 		return SameSafeExpr(l.X, r.X)
 
 	case OCONV:
