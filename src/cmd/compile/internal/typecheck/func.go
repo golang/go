@@ -241,12 +241,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
 		base.FatalfAt(fn.Pos(), "underlying closure func already typechecked: %v", fn)
 	}
 
-	// Set current associated iota value, so iota can be used inside
-	// function in ConstSpec, see issue #22344
-	if x := getIotaValue(); x >= 0 {
-		fn.Iota = x
-	}
-
 	ir.NameClosure(clo, ir.CurFunc)
 	Func(fn)
 

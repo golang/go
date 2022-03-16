@@ -153,13 +153,6 @@ func Resolve(n ir.Node) (res ir.Node) {
 		return n
 	}
 
-	if r.Op() == ir.OIOTA {
-		if x := getIotaValue(); x >= 0 {
-			return ir.NewInt(x)
-		}
-		return n
-	}
-
 	return r
 }
 
@@ -2150,22 +2143,6 @@ func CheckReturn(fn *ir.Func) {
 			base.ErrorfAt(fn.Endlineno, "missing return at end of function")
 		}
 	}
-}
-
-// getIotaValue returns the current value for "iota",
-// or -1 if not within a ConstSpec.
-func getIotaValue() int64 {
-	if i := len(typecheckdefstack); i > 0 {
-		if x := typecheckdefstack[i-1]; x.Op() == ir.OLITERAL {
-			return x.Iota()
-		}
-	}
-
-	if ir.CurFunc != nil && ir.CurFunc.Iota >= 0 {
-		return ir.CurFunc.Iota
-	}
-
-	return -1
 }
 
 // curpkg returns the current package, based on Curfn.
