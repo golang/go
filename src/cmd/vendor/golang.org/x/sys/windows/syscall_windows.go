@@ -186,8 +186,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	GetNamedPipeInfo(pipe Handle, flags *uint32, outSize *uint32, inSize *uint32, maxInstances *uint32) (err error)
 //sys	GetNamedPipeHandleState(pipe Handle, state *uint32, curInstances *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32, userName *uint16, maxUserNameSize uint32) (err error) = GetNamedPipeHandleStateW
 //sys	SetNamedPipeHandleState(pipe Handle, state *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32) (err error) = SetNamedPipeHandleState
-//sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
-//sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+//sys	readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = ReadFile
+//sys	writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = WriteFile
 //sys	GetOverlappedResult(handle Handle, overlapped *Overlapped, done *uint32, wait bool) (err error)
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
@@ -363,6 +363,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	SetProcessWorkingSetSizeEx(hProcess Handle, dwMinimumWorkingSetSize uintptr, dwMaximumWorkingSetSize uintptr, flags uint32) (err error)
 //sys	GetCommTimeouts(handle Handle, timeouts *CommTimeouts) (err error)
 //sys	SetCommTimeouts(handle Handle, timeouts *CommTimeouts) (err error)
+//sys	GetActiveProcessorCount(groupNumber uint16) (ret uint32)
+//sys	GetMaximumProcessorCount(groupNumber uint16) (ret uint32)
 
 // Volume Management Functions
 //sys	DefineDosDevice(flags uint32, deviceName *uint16, targetPath *uint16) (err error) = DefineDosDeviceW
@@ -547,12 +549,6 @@ func Read(fd Handle, p []byte) (n int, err error) {
 		}
 		return 0, e
 	}
-	if raceenabled {
-		if done > 0 {
-			raceWriteRange(unsafe.Pointer(&p[0]), int(done))
-		}
-		raceAcquire(unsafe.Pointer(&ioSync))
-	}
 	return int(done), nil
 }
 
@@ -565,10 +561,29 @@ func Write(fd Handle, p []byte) (n int, err error) {
 	if e != nil {
 		return 0, e
 	}
-	if raceenabled && done > 0 {
-		raceReadRange(unsafe.Pointer(&p[0]), int(done))
-	}
 	return int(done), nil
+}
+
+func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+	err := readFile(fd, p, done, overlapped)
+	if raceenabled {
+		if *done > 0 {
+			raceWriteRange(unsafe.Pointer(&p[0]), int(*done))
+		}
+		raceAcquire(unsafe.Pointer(&ioSync))
+	}
+	return err
+}
+
+func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	err := writeFile(fd, p, done, overlapped)
+	if raceenabled && *done > 0 {
+		raceReadRange(unsafe.Pointer(&p[0]), int(*done))
+	}
+	return err
 }
 
 var ioSync int64
