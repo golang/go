@@ -127,8 +127,6 @@ const (
 // marks variables that escape the local frame.
 // rewrites n.Op to be more specific in some cases.
 
-var typecheckdefstack []*ir.Name
-
 // Resolve resolves an ONONAME node to a definition, if any. If n is not an ONONAME node,
 // Resolve returns n unchanged. If n is an ONONAME node and not in the same package,
 // then n.Sym() is resolved using import data. Otherwise, Resolve returns
@@ -458,10 +456,6 @@ func indexlit(n ir.Node) ir.Node {
 
 // typecheck1 should ONLY be called from typecheck.
 func typecheck1(n ir.Node, top int) ir.Node {
-	if n, ok := n.(*ir.Name); ok {
-		typecheckdef(n)
-	}
-
 	switch n.Op() {
 	default:
 		ir.Dump("typecheck", n)
@@ -1684,60 +1678,6 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
 	nn.List = l
 	return Expr(nn)
-}
-
-func typecheckdef(n *ir.Name) {
-	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckdef", n)(nil)
-	}
-
-	if n.Walkdef() == 1 {
-		return
-	}
-
-	if n.Type() != nil { // builtin
-		// Mark as Walkdef so that if n.SetType(nil) is called later, we
-		// won't try walking again.
-		if got := n.Walkdef(); got != 0 {
-			base.Fatalf("unexpected walkdef: %v", got)
-		}
-		n.SetWalkdef(1)
-		return
-	}
-
-	lno := ir.SetPos(n)
-	if n.Walkdef() == 2 {
-		base.Fatalf("typecheckdef loop")
-	}
-
-	n.SetWalkdef(2)
-
-	switch n.Op() {
-	default:
-		base.Fatalf("typecheckdef %v", n.Op())
-
-	case ir.ONAME:
-		if n.BuiltinOp != 0 { // like OPRINTN
-			base.Assertf(n.Ntype == nil, "unexpected Ntype: %+v", n)
-			break
-		}
-
-		base.Assertf(n.Class == ir.PFUNC, "expected PFUNC: %+v", n)
-
-		if n.Ntype != nil {
-			n.Ntype = typecheckNtype(n.Ntype)
-			n.SetType(n.Ntype.Type())
-		}
-
-		if n.Type() != nil {
-			break
-		}
-
-		base.Fatalf("missing type: %v", n)
-	}
-
-	base.Pos = lno
-	n.SetWalkdef(1)
 }
 
 func checkmake(t *types.Type, arg string, np *ir.Node) bool {

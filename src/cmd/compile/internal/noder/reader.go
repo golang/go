@@ -155,7 +155,6 @@ func setType(n ir.Node, typ *types.Type) {
 	n.SetTypecheck(1)
 
 	if name, ok := n.(*ir.Name); ok {
-		name.SetWalkdef(1)
 		name.Ntype = ir.TypeNode(name.Type())
 	}
 }
