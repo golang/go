@@ -672,7 +672,7 @@ func gcStart(trigger gcTrigger) {
 
 	// Assists and workers can start the moment we start
 	// the world.
-	gcController.startCycle(now, int(gomaxprocs))
+	gcController.startCycle(now, int(gomaxprocs), trigger)
 	work.heapGoal = gcController.heapGoal
 
 	// In STW mode, disable scheduling of user Gs. This may also
@@ -1297,9 +1297,9 @@ func gcBgMarkWorker() {
 			casgstatus(gp, _Gwaiting, _Grunning)
 		})
 
-		// Account for time.
+		// Account for time and mark us as stopped.
 		duration := nanotime() - startTime
-		gcController.logWorkTime(pp.gcMarkWorkerMode, duration)
+		gcController.markWorkerStop(pp.gcMarkWorkerMode, duration)
 		if pp.gcMarkWorkerMode == gcMarkWorkerFractionalMode {
 			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
 		}
