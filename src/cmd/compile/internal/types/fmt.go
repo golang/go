@@ -145,10 +145,6 @@ func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
 		b.WriteString(q)
 		b.WriteByte('.')
 		switch mode {
-		case fmtTypeIDName:
-			// If name is a generic instantiation, it might have local package placeholders
-			// in it. Replace those placeholders with the package name. See issue 49547.
-			name = strings.Replace(name, LocalPkg.Prefix, q, -1)
 		case fmtTypeIDHash:
 			// If name is a generic instantiation, don't hash the instantiating types.
 			// This isn't great, but it is safe. If we hash the instantiating types, then
@@ -261,24 +257,13 @@ func (t *Type) String() string {
 	return tconv(t, 0, fmtGo)
 }
 
-// LinkString returns an unexpanded string description of t, suitable
-// for use in link symbols. "Unexpanded" here means that the
-// description uses `"".` to qualify identifiers from the current
-// package, and "expansion" refers to the renaming step performed by
-// the linker to replace these qualifiers with proper `path/to/pkg.`
-// qualifiers.
+// LinkString returns a string description of t, suitable for use in
+// link symbols.
 //
-// After expansion, the description corresponds to type identity. That
-// is, for any pair of types t1 and t2, Identical(t1, t2) and
-// expand(t1.LinkString()) == expand(t2.LinkString()) report the same
-// value.
-//
-// Within a single compilation unit, LinkString always returns the
-// same unexpanded description for identical types. Thus it's safe to
-// use as a map key to implement a type-identity-keyed map. However,
-// make sure all LinkString calls used for this purpose happen within
-// the same compile process; the string keys are not stable across
-// multiple processes.
+// The description corresponds to type identity. That is, for any pair
+// of types t1 and t2, Identical(t1, t2) == (t1.LinkString() ==
+// t2.LinkString()) is true. Thus it's safe to use as a map key to
+// implement a type-identity-keyed map.
 func (t *Type) LinkString() string {
 	return tconv(t, 0, fmtTypeID)
 }

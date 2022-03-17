@@ -44,7 +44,7 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
 	}
 	basename := filepath.Base(filename)
 	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", outname, filename)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p", strings.TrimSuffix(outname, ".o"), "-o", outname, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {

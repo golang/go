@@ -335,7 +335,7 @@ func load_op_no_merge(p, q *int) {
 
 // Make sure offsets are folded into loads and stores.
 func offsets_fold(_, a [20]byte) (b [20]byte) {
-	// arm64:`MOVD\t""\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD\tR[0-9]+, ""\.b\+[0-9]+\(FP\)`
+	// arm64:`MOVD\tcommand-line-arguments\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD\tR[0-9]+, command-line-arguments\.b\+[0-9]+\(FP\)`
 	b = a
 	return
 }

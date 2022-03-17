@@ -82,7 +82,6 @@ func unified(noders []*noder) {
 	base.Flag.Lang = fmt.Sprintf("go1.%d", goversion.Version)
 	types.ParseLangFlag()
 
-	assert(types.LocalPkg.Path == "")
 	types.LocalPkg.Height = 0 // reset so pkgReader.pkgIdx doesn't complain
 	target := typecheck.Target
 
