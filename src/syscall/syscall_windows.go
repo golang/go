@@ -8,6 +8,7 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/bytealg"
 	"internal/itoa"
 	"internal/oserror"
 	"internal/race"
@@ -39,10 +40,8 @@ func StringToUTF16(s string) []uint16 {
 // s, with a terminating NUL added. If s contains a NUL byte at any
 // location, it returns (nil, EINVAL).
 func UTF16FromString(s string) ([]uint16, error) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == 0 {
-			return nil, EINVAL
-		}
+	if bytealg.IndexByteString(s, 0) != -1 {
+		return nil, EINVAL
 	}
 	return utf16.Encode([]rune(s + "\x00")), nil
 }
