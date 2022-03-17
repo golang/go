@@ -1,10 +1,12 @@
+// -lang=go1.12
+
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Check Go language version-specific errors.
 
-package go1_12 // go1.12
+package p
 
 // numeric literals
 const (

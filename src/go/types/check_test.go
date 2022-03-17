@@ -23,6 +23,7 @@
 package types_test
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -185,18 +186,42 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 	}
 }
 
-// goVersionRx matches a Go version string using '_', e.g. "go1_12".
-var goVersionRx = regexp.MustCompile(`^go[1-9][0-9]*_(0|[1-9][0-9]*)$`)
+// parseFlags parses flags from the first line of the given source
+// (from src if present, or by reading from the file) if the line
+// starts with "//" (line comment) followed by "-" (possiby with
+// spaces between). Otherwise the line is ignored.
+func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
+	// If there is no src, read from the file.
+	const maxLen = 256
+	if len(src) == 0 {
+		f, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
 
-// asGoVersion returns a regular Go language version string
-// if s is a Go version string using '_' rather than '.' to
-// separate the major and minor version numbers (e.g. "go1_12").
-// Otherwise it returns the empty string.
-func asGoVersion(s string) string {
-	if goVersionRx.MatchString(s) {
-		return strings.Replace(s, "_", ".", 1)
+		var buf [maxLen]byte
+		n, err := f.Read(buf[:])
+		if err != nil {
+			return err
+		}
+		src = buf[:n]
 	}
-	return ""
+
+	// we must have a line comment that starts with a "-"
+	const prefix = "//"
+	if !bytes.HasPrefix(src, []byte(prefix)) {
+		return nil // first line is not a line comment
+	}
+	src = src[len(prefix):]
+	if i := bytes.Index(src, []byte("-")); i < 0 || len(bytes.TrimSpace(src[:i])) != 0 {
+		return nil // comment doesn't start with a "-"
+	}
+	end := bytes.Index(src, []byte("\n"))
+	if end < 0 || end > maxLen {
+		return fmt.Errorf("flags comment line too long")
+	}
+
+	return flags.Parse(strings.Fields(string(src[:end])))
 }
 
 func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
@@ -204,6 +229,15 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 		t.Fatal("no source files")
 	}
 
+	var conf Config
+	conf.Sizes = sizes
+	flags := flag.NewFlagSet("", flag.PanicOnError)
+	flags.StringVar(&conf.GoVersion, "lang", "", "")
+	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO(gri) remove this or use flag mechanism to set mode if still needed
 	if strings.HasSuffix(filenames[0], ".go1") {
 		// TODO(rfindley): re-enable this test by using GoVersion.
 		t.Skip("type params are enabled")
@@ -222,12 +256,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 		pkgName = files[0].Name.Name
 	}
 
-	// if no Go version is given, consider the package name
-	goVersion := *goVersion
-	if goVersion == "" {
-		goVersion = asGoVersion(pkgName)
-	}
-
 	listErrors := manual && !*verifyErrors
 	if listErrors && len(errlist) > 0 {
 		t.Errorf("--- %s:", pkgName)
@@ -237,10 +265,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	}
 
 	// typecheck and collect typechecker errors
-	var conf Config
-	conf.Sizes = sizes
-	conf.GoVersion = goVersion
-
 	// special case for importC.src
 	if len(filenames) == 1 {
 		if strings.HasSuffix(filenames[0], "importC.src") {
