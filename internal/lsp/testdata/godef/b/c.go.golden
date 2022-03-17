@@ -43,9 +43,9 @@ godef/b/b.go:28:2-4: defined here as ```go
 field F1 int
 ```
 
-[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)
-
 \@mark\(S1F1, \"F1\"\)
+
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)
 -- S1F1-definition-json --
 {
 	"span": {
@@ -61,7 +61,7 @@ field F1 int
 			"offset": 608
 		}
 	},
-	"description": "```go\nfield F1 int\n```\n\n[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)\n\n\\@mark\\(S1F1, \\\"F1\\\"\\)"
+	"description": "```go\nfield F1 int\n```\n\n\\@mark\\(S1F1, \\\"F1\\\"\\)\n\n[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)"
 }
 
 -- S1F1-hoverdef --
@@ -69,6 +69,6 @@ field F1 int
 field F1 int
 ```
 
-[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)
-
 \@mark\(S1F1, \"F1\"\)
+
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)

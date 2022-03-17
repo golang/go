@@ -3,41 +3,41 @@
 func (a.I).B()
 ```
 
-[`(a.I).B` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#I.B)
-
 \@mark\(AB, \"B\"\)
+
+[`(a.I).B` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#I.B)
 -- AField-hoverdef --
 ```go
 field Field int
 ```
 
-[`(a.S).Field` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#S.Field)
-
 \@mark\(AField, \"Field\"\)
+
+[`(a.S).Field` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#S.Field)
 -- AField2-hoverdef --
 ```go
 field Field2 int
 ```
 
-[`(a.R).Field2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#R.Field2)
-
 \@mark\(AField2, \"Field2\"\)
+
+[`(a.R).Field2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#R.Field2)
 -- AGoodbye-hoverdef --
 ```go
 func (a.H).Goodbye()
 ```
 
-[`(a.H).Goodbye` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#H.Goodbye)
-
 \@mark\(AGoodbye, \"Goodbye\"\)
+
+[`(a.H).Goodbye` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#H.Goodbye)
 -- AHello-hoverdef --
 ```go
 func (a.J).Hello()
 ```
 
-[`(a.J).Hello` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#J.Hello)
-
 \@mark\(AHello, \"Hello\"\)
+
+[`(a.J).Hello` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#J.Hello)
 -- AHey-hoverdef --
 ```go
 func (a.R).Hey()
@@ -85,9 +85,9 @@ godef/a/a.go:26:6-7: defined here as ```go
 type A string
 ```
 
-[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)
-
 \@mark\(AString, \"A\"\)
+
+[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)
 -- AString-definition-json --
 {
 	"span": {
@@ -103,7 +103,7 @@ type A string
 			"offset": 468
 		}
 	},
-	"description": "```go\ntype A string\n```\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)\n\n\\@mark\\(AString, \\\"A\\\"\\)"
+	"description": "```go\ntype A string\n```\n\n\\@mark\\(AString, \\\"A\\\"\\)\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)"
 }
 
 -- AString-hoverdef --
@@ -111,9 +111,9 @@ type A string
 type A string
 ```
 
-[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)
-
 \@mark\(AString, \"A\"\)
+
+[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#A)
 -- AStuff-definition --
 godef/a/a.go:28:6-12: defined here as ```go
 func a.AStuff()
@@ -189,9 +189,9 @@ godef/b/b.go:28:2-4: defined here as ```go
 field F1 int
 ```
 
-[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)
-
 \@mark\(S1F1, \"F1\"\)
+
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)
 -- S1F1-definition-json --
 {
 	"span": {
@@ -207,7 +207,7 @@ field F1 int
 			"offset": 608
 		}
 	},
-	"description": "```go\nfield F1 int\n```\n\n[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)\n\n\\@mark\\(S1F1, \\\"F1\\\"\\)"
+	"description": "```go\nfield F1 int\n```\n\n\\@mark\\(S1F1, \\\"F1\\\"\\)\n\n[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)"
 }
 
 -- S1F1-hoverdef --
@@ -215,17 +215,17 @@ field F1 int
 field F1 int
 ```
 
-[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)
-
 \@mark\(S1F1, \"F1\"\)
+
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)
 -- S1S2-definition --
 godef/b/b.go:29:2-4: defined here as ```go
 field S2 S2
 ```
 
-[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.S2)
-
 \@godef\(\"S2\", S2\),mark\(S1S2, \"S2\"\)
+
+[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.S2)
 -- S1S2-definition-json --
 {
 	"span": {
@@ -241,7 +241,7 @@ field S2 S2
 			"offset": 640
 		}
 	},
-	"description": "```go\nfield S2 S2\n```\n\n[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.S2)\n\n\\@godef\\(\\\"S2\\\", S2\\),mark\\(S1S2, \\\"S2\\\"\\)"
+	"description": "```go\nfield S2 S2\n```\n\n\\@godef\\(\\\"S2\\\", S2\\),mark\\(S1S2, \\\"S2\\\"\\)\n\n[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.S2)"
 }
 
 -- S1S2-hoverdef --
@@ -249,9 +249,9 @@ field S2 S2
 field S2 S2
 ```
 
-[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.S2)
-
 \@godef\(\"S2\", S2\),mark\(S1S2, \"S2\"\)
+
+[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.S2)
 -- S2-definition --
 godef/b/b.go:34:6-8: defined here as ```go
 type S2 struct {
@@ -295,9 +295,9 @@ godef/b/b.go:35:2-4: defined here as ```go
 field F1 string
 ```
 
-[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F1)
-
 \@mark\(S2F1, \"F1\"\)
+
+[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F1)
 -- S2F1-definition-json --
 {
 	"span": {
@@ -313,7 +313,7 @@ field F1 string
 			"offset": 783
 		}
 	},
-	"description": "```go\nfield F1 string\n```\n\n[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F1)\n\n\\@mark\\(S2F1, \\\"F1\\\"\\)"
+	"description": "```go\nfield F1 string\n```\n\n\\@mark\\(S2F1, \\\"F1\\\"\\)\n\n[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F1)"
 }
 
 -- S2F1-hoverdef --
@@ -321,17 +321,17 @@ field F1 string
 field F1 string
 ```
 
-[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F1)
-
 \@mark\(S2F1, \"F1\"\)
+
+[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F1)
 -- S2F2-definition --
 godef/b/b.go:36:2-4: defined here as ```go
 field F2 int
 ```
 
-[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F2)
-
 \@mark\(S2F2, \"F2\"\)
+
+[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F2)
 -- S2F2-definition-json --
 {
 	"span": {
@@ -347,7 +347,7 @@ field F2 int
 			"offset": 816
 		}
 	},
-	"description": "```go\nfield F2 int\n```\n\n[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F2)\n\n\\@mark\\(S2F2, \\\"F2\\\"\\)"
+	"description": "```go\nfield F2 int\n```\n\n\\@mark\\(S2F2, \\\"F2\\\"\\)\n\n[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F2)"
 }
 
 -- S2F2-hoverdef --
@@ -355,9 +355,9 @@ field F2 int
 field F2 int
 ```
 
-[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F2)
-
 \@mark\(S2F2, \"F2\"\)
+
+[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S2.F2)
 -- aAlias-definition --
 godef/b/b.go:25:6-12: defined here as ```go
 type aAlias = a.A
@@ -393,9 +393,9 @@ godef/b/b.go:57:7-8: defined here as ```go
 const X untyped int = 0
 ```
 
-[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#X)
-
 \@mark\(bX, \"X\"\),godef\(\"X\", bX\)
+
+[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#X)
 -- bX-definition-json --
 {
 	"span": {
@@ -411,7 +411,7 @@ const X untyped int = 0
 			"offset": 1250
 		}
 	},
-	"description": "```go\nconst X untyped int = 0\n```\n\n[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#X)\n\n\\@mark\\(bX, \\\"X\\\"\\),godef\\(\\\"X\\\", bX\\)"
+	"description": "```go\nconst X untyped int = 0\n```\n\n\\@mark\\(bX, \\\"X\\\"\\),godef\\(\\\"X\\\", bX\\)\n\n[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#X)"
 }
 
 -- bX-hoverdef --
@@ -419,9 +419,9 @@ const X untyped int = 0
 const X untyped int = 0
 ```
 
-[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#X)
-
 \@mark\(bX, \"X\"\),godef\(\"X\", bX\)
+
+[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#X)
 -- myFoo-definition --
 godef/b/b.go:4:2-7: defined here as ```go
 package myFoo ("golang.org/x/tools/internal/lsp/foo")

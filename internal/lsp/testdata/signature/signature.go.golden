@@ -54,7 +54,7 @@ The make built-in function allocates and initializes an object of type slice, ma
 myFunc(foo int) string
 
 -- panic(v interface{})-signature --
-panic(v interface{})
+panic(v any)
 
 The panic built-in function stops normal execution of the current goroutine.
 

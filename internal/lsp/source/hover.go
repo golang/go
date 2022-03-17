@@ -773,7 +773,7 @@ func FormatHover(h *HoverJSON, options *Options) (string, error) {
 	doc := formatDoc(h, options)
 
 	var b strings.Builder
-	parts := []string{signature, link, doc}
+	parts := []string{signature, doc, link}
 	for i, el := range parts {
 		if el != "" {
 			b.WriteString(el)

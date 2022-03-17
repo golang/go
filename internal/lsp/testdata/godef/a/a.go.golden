@@ -3,17 +3,17 @@
 func (*sync.Mutex).Lock()
 ```
 
-[`(sync.Mutex).Lock` on pkg.go.dev](https://pkg.go.dev/sync?utm_source=gopls#Mutex.Lock)
-
 Lock locks m\.
+
+[`(sync.Mutex).Lock` on pkg.go.dev](https://pkg.go.dev/sync?utm_source=gopls#Mutex.Lock)
 -- Name-hoverdef --
 ```go
 func (*types.object).Name() string
 ```
 
-[`(types.TypeName).Name` on pkg.go.dev](https://pkg.go.dev/go/types?utm_source=gopls#TypeName.Name)
-
 Name returns the object\'s \(package\-local, unqualified\) name\.
+
+[`(types.TypeName).Name` on pkg.go.dev](https://pkg.go.dev/go/types?utm_source=gopls#TypeName.Name)
 -- Random-definition --
 godef/a/random.go:3:6-12: defined here as ```go
 func Random() int
@@ -159,17 +159,17 @@ Constant block\.
 func(t Type, size ...IntegerType) Type
 ```
 
-[`make` on pkg.go.dev](https://pkg.go.dev/builtin?utm_source=gopls#make)
-
 The make built\-in function allocates and initializes an object of type slice, map, or chan \(only\)\.
+
+[`make` on pkg.go.dev](https://pkg.go.dev/builtin?utm_source=gopls#make)
 -- string-hoverdef --
 ```go
 type string string
 ```
 
-[`string` on pkg.go.dev](https://pkg.go.dev/builtin?utm_source=gopls#string)
-
 string is the set of all strings of 8\-bit bytes, conventionally but not necessarily representing UTF\-8\-encoded text\.
+
+[`string` on pkg.go.dev](https://pkg.go.dev/builtin?utm_source=gopls#string)
 -- typesImport-hoverdef --
 ```go
 package types ("go/types")
