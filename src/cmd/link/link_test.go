@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"cmd/internal/sys"
 	"debug/macho"
+	"internal/buildcfg"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -1076,6 +1077,10 @@ func TestUnlinkableObj(t *testing.T) {
 	// Test that the linker emits an error with unlinkable object.
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
+
+	if buildcfg.Experiment.Unified {
+		t.Skip("TODO(mdempsky): Fix ICE when importing unlinkable objects for GOEXPERIMENT=unified")
+	}
 
 	tmpdir := t.TempDir()
 

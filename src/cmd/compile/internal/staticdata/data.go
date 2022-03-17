@@ -266,6 +266,14 @@ func WriteFuncSyms() {
 	for _, nam := range funcsyms {
 		s := nam.Sym()
 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
+
+		// While compiling package runtime, we might try to create
+		// funcsyms for functions from both types.LocalPkg and
+		// ir.Pkgs.Runtime.
+		if base.Flag.CompilingRuntime && sf.OnList() {
+			continue
+		}
+
 		// Function values must always reference ABIInternal
 		// entry points.
 		target := s.Linksym()

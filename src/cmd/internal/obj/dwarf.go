@@ -408,15 +408,7 @@ func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
 	if myimportpath == "" || varSym.Local() {
 		return
 	}
-	var varname string
-	if varSym.Pkg == "_" {
-		// The frontend uses package "_" to mark symbols that should not
-		// be referenced by index, e.g. linkname'd symbols.
-		varname = varSym.Name
-	} else {
-		// Convert "".<name> into a fully qualified package.sym name.
-		varname = objabi.PathToPrefix(myimportpath) + varSym.Name[len(`""`):]
-	}
+	varname := varSym.Name
 	dieSymName := dwarf.InfoPrefix + varname
 	dieSym := ctxt.LookupInit(dieSymName, func(s *LSym) {
 		s.Type = objabi.SDWARFVAR

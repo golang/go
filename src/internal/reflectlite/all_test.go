@@ -974,8 +974,8 @@ var nameTests = []nameTest{
 		F()
 	})(nil), ""},
 	{(*TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678)(nil), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
-	{(*B[A])(nil), "B[reflectlite_test.A]"},
-	{(*B[B[A]])(nil), "B[reflectlite_test.B[reflectlite_test.A]]"},
+	{(*B[A])(nil), "B[internal/reflectlite_test.A]"},
+	{(*B[B[A]])(nil), "B[internal/reflectlite_test.B[internal/reflectlite_test.A]]"},
 }
 
 func TestNames(t *testing.T) {

@@ -171,6 +171,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	if s.OnList() {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
+	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
@@ -223,9 +224,6 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 		}
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
-	}
-	if strings.HasPrefix(s.Name, "\"\"."+StaticNamePref) {
-		s.Set(AttrStatic, true)
 	}
 }
 

@@ -17,7 +17,6 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 )
 
 // SymABIs records information provided by the assembler about symbol
@@ -25,33 +24,27 @@ import (
 type SymABIs struct {
 	defs map[string]obj.ABI
 	refs map[string]obj.ABISet
-
-	localPrefix string
 }
 
-func NewSymABIs(myimportpath string) *SymABIs {
-	var localPrefix string
-	if myimportpath != "" {
-		localPrefix = objabi.PathToPrefix(myimportpath) + "."
-	}
-
+func NewSymABIs() *SymABIs {
 	return &SymABIs{
-		defs:        make(map[string]obj.ABI),
-		refs:        make(map[string]obj.ABISet),
-		localPrefix: localPrefix,
+		defs: make(map[string]obj.ABI),
+		refs: make(map[string]obj.ABISet),
 	}
 }
 
 // canonicalize returns the canonical name used for a linker symbol in
 // s's maps. Symbols in this package may be written either as "".X or
 // with the package's import path already in the symbol. This rewrites
-// both to `"".`, which matches compiler-generated linker symbol names.
+// both to use the full path, which matches compiler-generated linker
+// symbol names.
 func (s *SymABIs) canonicalize(linksym string) string {
-	// If the symbol is already prefixed with localPrefix,
-	// rewrite it to start with "" so it matches the
-	// compiler's internal symbol names.
-	if s.localPrefix != "" && strings.HasPrefix(linksym, s.localPrefix) {
-		return `"".` + linksym[len(s.localPrefix):]
+	// If the symbol is already prefixed with "", rewrite it to start
+	// with LocalPkg.Prefix.
+	//
+	// TODO(mdempsky): Have cmd/asm stop writing out symbols like this.
+	if strings.HasPrefix(linksym, `"".`) {
+		return types.LocalPkg.Prefix + linksym[2:]
 	}
 	return linksym
 }
@@ -140,13 +133,12 @@ func (s *SymABIs) GenABIWrappers() {
 			continue
 		}
 		sym := nam.Sym()
-		var symName string
-		if sym.Linkname != "" {
-			symName = s.canonicalize(sym.Linkname)
-		} else {
-			// These names will already be canonical.
+
+		symName := sym.Linkname
+		if symName == "" {
 			symName = sym.Pkg.Prefix + "." + sym.Name
 		}
+		symName = s.canonicalize(symName)
 
 		// Apply definitions.
 		defABI, hasDefABI := s.defs[symName]

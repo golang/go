@@ -411,14 +411,8 @@ func dimportpath(p *types.Pkg) {
 		return
 	}
 
-	str := p.Path
-	if p == types.LocalPkg {
-		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
-		str = base.Ctxt.Pkgpath
-	}
-
 	s := base.Ctxt.Lookup("type..importpath." + p.Prefix + ".")
-	ot := dnameData(s, 0, str, "", nil, false)
+	ot := dnameData(s, 0, p.Path, "", nil, false)
 	objw.Global(s, int32(ot), obj.DUPOK|obj.RODATA)
 	s.Set(obj.AttrContentAddressable, true)
 	p.Pathsym = s

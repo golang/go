@@ -224,6 +224,7 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
 	case types2.Unsafe:
 		w.String("unsafe")
 	default:
+		// TODO(mdempsky): Write out pkg.Path() for curpkg too.
 		var path string
 		if pkg != w.p.curpkg {
 			path = pkg.Path()

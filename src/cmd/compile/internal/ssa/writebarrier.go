@@ -392,6 +392,14 @@ func (f *Func) computeZeroMap() map[ID]ZeroRegion {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if mem, ok := IsNewObject(v); ok {
+				// While compiling package runtime itself, we might see user
+				// calls to newobject, which will have result type
+				// unsafe.Pointer instead. We can't easily infer how large the
+				// allocated memory is, so just skip it.
+				if types.LocalPkg.Path == "runtime" && v.Type.IsUnsafePtr() {
+					continue
+				}
+
 				nptr := v.Type.Elem().Size() / ptrSize
 				if nptr > 64 {
 					nptr = 64
