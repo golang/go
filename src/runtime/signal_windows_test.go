@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -92,13 +91,16 @@ func TestCtrlHandler(t *testing.T) {
 
 	// run test program
 	cmd = exec.Command(exe)
+	var stdout bytes.Buffer
 	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	outPipe, err := cmd.StdoutPipe()
+	inPipe, err := cmd.StdinPipe()
 	if err != nil {
-		t.Fatalf("Failed to create stdout pipe: %v", err)
+		t.Fatalf("Failed to create stdin pipe: %v", err)
 	}
-	outReader := bufio.NewReader(outPipe)
+	// keep inPipe alive until the end of the test
+	defer inPipe.Close()
 
 	// in a new command window
 	const _CREATE_NEW_CONSOLE = 0x00000010
@@ -114,28 +116,14 @@ func TestCtrlHandler(t *testing.T) {
 		cmd.Wait()
 	}()
 
-	// wait for child to be ready to receive signals
-	if line, err := outReader.ReadString('\n'); err != nil {
-		t.Fatalf("could not read stdout: %v", err)
-	} else if strings.TrimSpace(line) != "ready" {
-		t.Fatalf("unexpected message: %s", line)
-	}
-
-	// gracefully kill pid, this closes the command window
-	if err := exec.Command("taskkill.exe", "/pid", strconv.Itoa(cmd.Process.Pid)).Run(); err != nil {
-		t.Fatalf("failed to kill: %v", err)
-	}
-
-	// check child received, handled SIGTERM
-	if line, err := outReader.ReadString('\n'); err != nil {
-		t.Fatalf("could not read stdout: %v", err)
-	} else if expected, got := syscall.SIGTERM.String(), strings.TrimSpace(line); expected != got {
-		t.Fatalf("Expected '%s' got: %s", expected, got)
-	}
-
 	// check child exited gracefully, did not timeout
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
+	}
+
+	// check child received, handled SIGTERM
+	if expected, got := syscall.SIGTERM.String(), strings.TrimSpace(stdout.String()); expected != got {
+		t.Fatalf("Expected '%s' got: %s", expected, got)
 	}
 }
 
