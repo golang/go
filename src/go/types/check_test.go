@@ -233,6 +233,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	conf.Sizes = sizes
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
 		t.Fatal(err)
 	}
@@ -265,17 +266,10 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	}
 
 	// typecheck and collect typechecker errors
-	// special case for importC.src
-	if len(filenames) == 1 {
-		if strings.HasSuffix(filenames[0], "importC.src") {
-			conf.FakeImportC = true
-		}
-	}
-
-	conf.Importer = imp
 	if imp == nil {
-		conf.Importer = importer.Default()
+		imp = importer.Default()
 	}
+	conf.Importer = imp
 	conf.Error = func(err error) {
 		if *haltOnError {
 			defer panic(err)
