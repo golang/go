@@ -85,13 +85,14 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	lookDir := func(dir string) {
 		absDir, dir := pathRel(workDir, dir)
 
-		fi, err := os.Stat(filepath.Join(absDir, "go.mod"))
+		fi, err := fsys.Stat(filepath.Join(absDir, "go.mod"))
 		if err != nil {
 			if os.IsNotExist(err) {
 				keepDirs[absDir] = ""
-				return
+			} else {
+				base.Errorf("go: %v", err)
 			}
-			base.Errorf("go: %v", err)
+			return
 		}
 
 		if !fi.Mode().IsRegular() {
@@ -109,7 +110,11 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	for _, useDir := range args {
 		if !*useR {
-			lookDir(useDir)
+			if target, err := fsys.Stat(useDir); err == nil && !target.IsDir() {
+				base.Errorf(`go: argument "%s" is not a directory`, useDir)
+			} else {
+				lookDir(useDir)
+			}
 			continue
 		}
 
