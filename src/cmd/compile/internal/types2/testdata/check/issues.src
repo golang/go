@@ -1,8 +1,10 @@
+// -lang=go1.17
+
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package go1_17 // don't permit non-interface elements in interfaces
+package p // don't permit non-interface elements in interfaces
 
 import (
 	"fmt"

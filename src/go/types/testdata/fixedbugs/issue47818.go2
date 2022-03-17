@@ -1,3 +1,5 @@
+// -lang=go1.17
+
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -6,7 +8,7 @@
 // needs to report any operations that are not permitted
 // before Go 1.18.
 
-package go1_17
+package p
 
 type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
 
