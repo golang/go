@@ -301,27 +301,27 @@ func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileCh
 	// we need to either re-read it if it exists or walk the filesystem if it
 	// has been deleted. go.work should override the gopls.mod if both exist.
 	changed, reload = handleWorkspaceFileChanges(ctx, result, changes, fs)
-	// Next, handle go.mod changes that could affect our workspace. If we're
-	// reading our tracked modules from the gopls.mod, there's nothing to do
-	// here.
-	if result.moduleSource != goplsModWorkspace && result.moduleSource != goWorkWorkspace {
-		for uri, change := range changes {
-			// Otherwise, we only care about go.mod files in the workspace directory.
-			if change.isUnchanged || !isGoMod(uri) || !source.InDir(result.root.Filename(), uri.Filename()) {
-				continue
+	// Next, handle go.mod changes that could affect our workspace.
+	for uri, change := range changes {
+		// Otherwise, we only care about go.mod files in the workspace directory.
+		if change.isUnchanged || !isGoMod(uri) || !source.InDir(result.root.Filename(), uri.Filename()) {
+			continue
+		}
+		changed = true
+		active := result.moduleSource != legacyWorkspace || source.CompareURI(modURI(w.root), uri) == 0
+		reload = reload || (active && change.fileHandle.Saved())
+		// Don't mess with the list of mod files if using go.work or gopls.mod.
+		if result.moduleSource == goplsModWorkspace || result.moduleSource == goWorkWorkspace {
+			continue
+		}
+		if change.exists {
+			result.knownModFiles[uri] = struct{}{}
+			if active {
+				result.activeModFiles[uri] = struct{}{}
 			}
-			changed = true
-			active := result.moduleSource != legacyWorkspace || source.CompareURI(modURI(w.root), uri) == 0
-			reload = reload || (active && change.fileHandle.Saved())
-			if change.exists {
-				result.knownModFiles[uri] = struct{}{}
-				if active {
-					result.activeModFiles[uri] = struct{}{}
-				}
-			} else {
-				delete(result.knownModFiles, uri)
-				delete(result.activeModFiles, uri)
-			}
+		} else {
+			delete(result.knownModFiles, uri)
+			delete(result.activeModFiles, uri)
 		}
 	}
 

@@ -2199,7 +2199,41 @@ package main
 func F[T any](_ T) {
 }
 `
-	Run(t, files, func(t *testing.T, env *Env) { // Create a new workspace-level directory and empty file.
+	Run(t, files, func(_ *testing.T, env *Env) { // Create a new workspace-level directory and empty file.
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexpWithMessage("main.go", `T any`, "type parameters require"),
+				ReadDiagnostics("main.go", &d),
+			),
+		)
+
+		env.ApplyQuickFixes("main.go", d.Diagnostics)
+
+		env.Await(
+			EmptyDiagnostics("main.go"),
+		)
+	})
+}
+
+func TestEditGoDirectiveWorkspace(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.16
+-- go.work --
+go 1.18
+
+use .
+-- main.go --
+package main
+
+func F[T any](_ T) {
+}
+`
+	Run(t, files, func(_ *testing.T, env *Env) { // Create a new workspace-level directory and empty file.
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
