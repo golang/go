@@ -135,13 +135,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		t.Fatal(err)
 	}
 
-	// TODO(gri) remove this or use flag mechanism to set mode if still needed
-	var mode syntax.Mode
-	if strings.HasSuffix(filenames[0], ".go2") || manual {
-		mode |= syntax.AllowGenerics | syntax.AllowMethodTypeParams
-	}
-	// parse files and collect parser errors
-	files, errlist := parseFiles(t, filenames, mode)
+	files, errlist := parseFiles(t, filenames, syntax.AllowGenerics|syntax.AllowMethodTypeParams)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
@@ -271,7 +265,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 //
 // 	go test -run Manual -- foo.go bar.go
 //
-// If no source arguments are provided, the file testdata/manual.go2
+// If no source arguments are provided, the file testdata/manual.go
 // is used instead.
 // Provide the -verify flag to verify errors against ERROR comments
 // in the input files rather than having a list of errors reported.
@@ -282,7 +276,7 @@ func TestManual(t *testing.T) {
 
 	filenames := flag.Args()
 	if len(filenames) == 0 {
-		filenames = []string{filepath.FromSlash("testdata/manual.go2")}
+		filenames = []string{filepath.FromSlash("testdata/manual.go")}
 	}
 
 	info, err := os.Stat(filenames[0])
