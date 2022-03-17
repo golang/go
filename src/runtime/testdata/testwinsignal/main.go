@@ -11,6 +11,8 @@ import (
 )
 
 func main() {
+	// ensure that this process terminates when the test times out,
+	// even if the expected signal never arrives
 	go func() {
 		io.Copy(io.Discard, os.Stdin)
 		log.Fatal("stdin is closed; terminating")
