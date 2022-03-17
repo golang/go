@@ -291,11 +291,12 @@ func (p *Parsed) TokenSize(t Token) (int, error) {
 	return ans, nil
 }
 
-// RuneCount counts runes in a line
+// RuneCount counts runes in line l, from col s to e
+// (e==0 for end of line. called only for multiline tokens)
 func (p *Parsed) RuneCount(l, s, e uint32) uint32 {
 	start := p.nls[l] + 1 + int(s)
-	end := int(e)
-	if e == 0 || int(e) >= p.nls[l+1] {
+	end := p.nls[l] + 1 + int(e)
+	if e == 0 || end > p.nls[l+1] {
 		end = p.nls[l+1]
 	}
 	return uint32(utf8.RuneCount(p.buf[start:end]))
