@@ -28,7 +28,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/importer"
-	"go/internal/typeparams"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -244,13 +243,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 		t.Skip("type params are enabled")
 	}
 
-	mode := parser.AllErrors
-	if !strings.HasSuffix(filenames[0], ".go2") && !manual {
-		mode |= typeparams.DisallowParsing
-	}
-
-	// parse files and collect parser errors
-	files, errlist := parseFiles(t, filenames, srcs, mode)
+	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
@@ -325,7 +318,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 //
 // 	go test -run Manual -- foo.go bar.go
 //
-// If no source arguments are provided, the file testdata/manual.go2
+// If no source arguments are provided, the file testdata/manual.go
 // is used instead.
 // Provide the -verify flag to verify errors against ERROR comments
 // in the input files rather than having a list of errors reported.
@@ -336,7 +329,7 @@ func TestManual(t *testing.T) {
 
 	filenames := flag.Args()
 	if len(filenames) == 0 {
-		filenames = []string{filepath.FromSlash("testdata/manual.go2")}
+		filenames = []string{filepath.FromSlash("testdata/manual.go")}
 	}
 
 	info, err := os.Stat(filenames[0])
