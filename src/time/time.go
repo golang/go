@@ -824,7 +824,7 @@ func (d Duration) Abs() Duration {
 	case d == minDuration:
 		return maxDuration
 	default:
-		return -1 * d
+		return -d
 	}
 }
 
