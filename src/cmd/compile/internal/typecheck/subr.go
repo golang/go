@@ -1532,7 +1532,7 @@ func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
 	// Note: pointers to arrays are special because of slice-to-array-pointer
 	// conversions. See issue 49295.
 	if u.Kind() == types.TPTR && u.Elem().Kind() != types.TARRAY &&
-		tparam.Bound().StructuralType() == nil {
+		tparam.Bound().StructuralType() == nil && !u.Elem().NotInHeap() {
 		u = types.Types[types.TUINT8].PtrTo()
 	}
 
