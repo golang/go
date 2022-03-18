@@ -28,11 +28,9 @@
 #define QWORDS R10
 
 TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	to+0(FP), TGT
-	MOVD	from+8(FP), SRC
-	MOVD	n+16(FP), LEN
-#endif
+	// R3 = TGT = to
+	// R4 = SRC = from
+	// R5 = LEN = n
 
 	// Determine if there are doublewords to
 	// copy so a more efficient move can be done
