@@ -475,7 +475,10 @@ type Hooks struct {
 	// ComputeEdits is used to compute edits between file versions.
 	ComputeEdits diff.ComputeEdits
 
-	// URLRegexp is used to find urls in comments and strings.
+	// URLRegexp is used to find potential URLs in comments/strings.
+	//
+	// Not all matches are shown to the user: if the matched URL is not detected
+	// as valid, it will be skipped.
 	URLRegexp *regexp.Regexp
 
 	// GofumptFormat allows the gopls module to wire-in a call to

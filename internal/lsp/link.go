@@ -185,6 +185,14 @@ func moduleAtVersion(target string, pkg source.Package) (string, string, bool) {
 	return modpath, version, true
 }
 
+// acceptedSchemes controls the schemes that URLs must have to be shown to the
+// user. Other schemes can't be opened by LSP clients, so linkifying them is
+// distracting. See golang/go#43990.
+var acceptedSchemes = map[string]bool{
+	"http":  true,
+	"https": true,
+}
+
 func findLinksInString(ctx context.Context, snapshot source.Snapshot, src string, pos token.Pos, m *protocol.ColumnMapper, fileKind source.FileKind) ([]protocol.DocumentLink, error) {
 	var links []protocol.DocumentLink
 	for _, index := range snapshot.View().Options().URLRegexp.FindAllIndex([]byte(src), -1) {
@@ -204,6 +212,9 @@ func findLinksInString(ctx context.Context, snapshot source.Snapshot, src string
 		// If the URL has no scheme, use https.
 		if linkURL.Scheme == "" {
 			linkURL.Scheme = "https"
+		}
+		if !acceptedSchemes[linkURL.Scheme] {
+			continue
 		}
 		l, err := toProtocolLink(snapshot, m, linkURL.String(), startPos, endPos, fileKind)
 		if err != nil {
