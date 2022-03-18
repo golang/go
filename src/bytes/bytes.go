@@ -909,7 +909,11 @@ func containsRune(s string, r rune) bool {
 // Trim returns a subslice of s by slicing off all leading and
 // trailing UTF-8-encoded code points contained in cutset.
 func Trim(s []byte, cutset string) []byte {
-	if len(s) == 0 || cutset == "" {
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	if cutset == "" {
 		return s
 	}
 	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
@@ -924,7 +928,11 @@ func Trim(s []byte, cutset string) []byte {
 // TrimLeft returns a subslice of s by slicing off all leading
 // UTF-8-encoded code points contained in cutset.
 func TrimLeft(s []byte, cutset string) []byte {
-	if len(s) == 0 || cutset == "" {
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	if cutset == "" {
 		return s
 	}
 	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
@@ -940,6 +948,10 @@ func trimLeftByte(s []byte, c byte) []byte {
 	for len(s) > 0 && s[0] == c {
 		s = s[1:]
 	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
 	return s
 }
 
@@ -949,6 +961,10 @@ func trimLeftASCII(s []byte, as *asciiSet) []byte {
 			break
 		}
 		s = s[1:]
+	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
 	}
 	return s
 }
@@ -963,6 +979,10 @@ func trimLeftUnicode(s []byte, cutset string) []byte {
 			break
 		}
 		s = s[n:]
+	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
 	}
 	return s
 }
