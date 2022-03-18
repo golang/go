@@ -505,10 +505,13 @@ func parseGoWork(ctx context.Context, root, uri span.URI, contents []byte, fs so
 	if err != nil {
 		return nil, nil, err
 	}
-	if workFile.Go.Version != "" {
-		if err := modFile.AddGoStmt(workFile.Go.Version); err != nil {
-			return nil, nil, err
-		}
+
+	// Require a go directive, per the spec.
+	if workFile.Go == nil || workFile.Go.Version == "" {
+		return nil, nil, fmt.Errorf("go.work has missing or incomplete go directive")
+	}
+	if err := modFile.AddGoStmt(workFile.Go.Version); err != nil {
+		return nil, nil, err
 	}
 
 	return modFile, modFiles, nil
