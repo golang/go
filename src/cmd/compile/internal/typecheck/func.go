@@ -360,9 +360,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	l = n.X
 	if l.Op() == ir.OTYPE {
 		if n.IsDDD {
-			if !l.Type().Broke() {
-				base.Errorf("invalid use of ... in type conversion to %v", l.Type())
-			}
+			base.Errorf("invalid use of ... in type conversion to %v", l.Type())
 			n.SetDiag(true)
 		}
 

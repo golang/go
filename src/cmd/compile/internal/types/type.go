@@ -221,7 +221,6 @@ const (
 )
 
 func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
-func (t *Type) Broke() bool      { return false }
 func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
 func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
 func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
@@ -1785,9 +1784,6 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.NotInHeap() {
 		t.SetNotInHeap(true)
 	}
-	if underlying.Broke() {
-		t.SetBroke(true)
-	}
 	if underlying.HasTParam() {
 		t.SetHasTParam(true)
 	}
@@ -1970,9 +1966,6 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 	funargs := func(fields []*Field, funarg Funarg) *Type {
 		s := NewStruct(NoPkg, fields)
 		s.StructType().Funarg = funarg
-		if s.Broke() {
-			t.SetBroke(true)
-		}
 		return s
 	}
 
@@ -2082,10 +2075,6 @@ func IsReflexive(t *Type) bool {
 // Can this type be stored directly in an interface word?
 // Yes, if the representation is a single pointer.
 func IsDirectIface(t *Type) bool {
-	if t.Broke() {
-		return false
-	}
-
 	switch t.Kind() {
 	case TPTR:
 		// Pointers to notinheap types must be stored indirectly. See issue 42076.
