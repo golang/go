@@ -37,6 +37,15 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	var query []string
 	var containsDir bool // for logging
 
+	// Unless the context was canceled, set "shouldLoad" to false for all
+	// of the metadata we attempted to load.
+	defer func() {
+		if errors.Is(err, context.Canceled) {
+			return
+		}
+		s.clearShouldLoad(scopes...)
+	}()
+
 	// Keep track of module query -> module path so that we can later correlate query
 	// errors with errors.
 	moduleQueries := make(map[string]string)
@@ -44,14 +53,6 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		if !s.shouldLoad(scope) {
 			continue
 		}
-		// Unless the context was canceled, set "shouldLoad" to false for all
-		// of the metadata we attempted to load.
-		defer func() {
-			if errors.Is(err, context.Canceled) {
-				return
-			}
-			s.clearShouldLoad(scope)
-		}()
 		switch scope := scope.(type) {
 		case PackagePath:
 			if source.IsCommandLineArguments(string(scope)) {
@@ -196,7 +197,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		}
 		// TODO: once metadata is immutable, we shouldn't have to lock here.
 		s.mu.Lock()
-		err := s.setMetadataLocked(ctx, PackagePath(pkg.PkgPath), pkg, cfg, query, updates, nil)
+		err := s.computeMetadataUpdates(ctx, PackagePath(pkg.PkgPath), pkg, cfg, query, updates, nil)
 		s.mu.Unlock()
 		if err != nil {
 			return err
@@ -438,10 +439,10 @@ func getWorkspaceDir(ctx context.Context, h *memoize.Handle, g *memoize.Generati
 	return span.URIFromPath(v.(*workspaceDirData).dir), nil
 }
 
-// setMetadataLocked extracts metadata from pkg and records it in s. It
-// recurs through pkg.Imports to ensure that metadata exists for all
-// dependencies.
-func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, pkg *packages.Package, cfg *packages.Config, query []string, updates map[PackageID]*KnownMetadata, path []PackageID) error {
+// computeMetadataUpdates populates the updates map with metadata updates to
+// apply, based on the given pkg. It recurs through pkg.Imports to ensure that
+// metadata exists for all dependencies.
+func (s *snapshot) computeMetadataUpdates(ctx context.Context, pkgPath PackagePath, pkg *packages.Package, cfg *packages.Config, query []string, updates map[PackageID]*KnownMetadata, path []PackageID) error {
 	id := PackageID(pkg.ID)
 	if new := updates[id]; new != nil {
 		return nil
@@ -532,7 +533,7 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, p
 			continue
 		}
 		if s.noValidMetadataForIDLocked(importID) {
-			if err := s.setMetadataLocked(ctx, importPkgPath, importPkg, cfg, query, updates, append(path, id)); err != nil {
+			if err := s.computeMetadataUpdates(ctx, importPkgPath, importPkg, cfg, query, updates, append(path, id)); err != nil {
 				event.Error(ctx, "error in dependency", err)
 			}
 		}

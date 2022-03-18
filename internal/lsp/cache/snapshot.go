@@ -1191,10 +1191,12 @@ func (s *snapshot) shouldLoad(scope interface{}) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	g := s.meta
+
 	switch scope := scope.(type) {
 	case PackagePath:
 		var meta *KnownMetadata
-		for _, m := range s.meta.metadata {
+		for _, m := range g.metadata {
 			if m.PkgPath != scope {
 				continue
 			}
@@ -1206,12 +1208,12 @@ func (s *snapshot) shouldLoad(scope interface{}) bool {
 		return false
 	case fileURI:
 		uri := span.URI(scope)
-		ids := s.meta.ids[uri]
+		ids := g.ids[uri]
 		if len(ids) == 0 {
 			return true
 		}
 		for _, id := range ids {
-			m, ok := s.meta.metadata[id]
+			m, ok := g.metadata[id]
 			if !ok || m.ShouldLoad {
 				return true
 			}
@@ -1222,34 +1224,40 @@ func (s *snapshot) shouldLoad(scope interface{}) bool {
 	}
 }
 
-func (s *snapshot) clearShouldLoad(scope interface{}) {
+func (s *snapshot) clearShouldLoad(scopes ...interface{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	switch scope := scope.(type) {
-	case PackagePath:
-		var meta *KnownMetadata
-		for _, m := range s.meta.metadata {
-			if m.PkgPath == scope {
-				meta = m
+	g := s.meta
+
+	var updates map[PackageID]*KnownMetadata
+	markLoaded := func(m *KnownMetadata) {
+		if updates == nil {
+			updates = make(map[PackageID]*KnownMetadata)
+		}
+		next := *m
+		next.ShouldLoad = false
+		updates[next.ID] = &next
+	}
+	for _, scope := range scopes {
+		switch scope := scope.(type) {
+		case PackagePath:
+			for _, m := range g.metadata {
+				if m.PkgPath == scope {
+					markLoaded(m)
+				}
 			}
-		}
-		if meta == nil {
-			return
-		}
-		meta.ShouldLoad = false
-	case fileURI:
-		uri := span.URI(scope)
-		ids := s.meta.ids[uri]
-		if len(ids) == 0 {
-			return
-		}
-		for _, id := range ids {
-			if m, ok := s.meta.metadata[id]; ok {
-				m.ShouldLoad = false
+		case fileURI:
+			uri := span.URI(scope)
+			ids := g.ids[uri]
+			for _, id := range ids {
+				if m, ok := g.metadata[id]; ok {
+					markLoaded(m)
+				}
 			}
 		}
 	}
+	s.meta = g.Clone(updates)
 }
 
 // noValidMetadataForURILocked reports whether there is any valid metadata for
