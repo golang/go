@@ -2234,7 +2234,7 @@ func dwarfcompress(ctxt *Link) {
 				compressedSegName = ".zdebug_" + ldr.SymSect(s).Name[len(".debug_"):]
 			}
 			sect := addsection(ctxt.loader, ctxt.Arch, &Segdwarf, compressedSegName, 04)
-			sect.Align = 1
+			sect.Align = int32(ctxt.Arch.Alignment)
 			sect.Length = uint64(len(z.compressed))
 			sect.Compressed = true
 			newSym := ldr.MakeSymbolBuilder(compressedSegName)
