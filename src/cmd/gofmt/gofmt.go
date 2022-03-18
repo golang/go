@@ -347,7 +347,12 @@ func readFile(filename string, info fs.FileInfo, in io.Reader) ([]byte, error) {
 	// stop to avoid corrupting it.)
 	src := make([]byte, size+1)
 	n, err := io.ReadFull(in, src)
-	if err != nil && err != io.ErrUnexpectedEOF {
+	switch err {
+	case nil, io.EOF, io.ErrUnexpectedEOF:
+		// io.ReadFull returns io.EOF (for an empty file) or io.ErrUnexpectedEOF
+		// (for a non-empty file) if the file was changed unexpectedly. Continue
+		// with comparing file sizes in those cases.
+	default:
 		return nil, err
 	}
 	if n < size {

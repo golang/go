@@ -16,6 +16,10 @@ stdout 'package x'
 exec $GOROOT/bin/gofmt gofmt-dir
 ! stdout 'package x'
 
+! exec $GOROOT/bin/gofmt empty.go nopackage.go
+stderr -count=1 'empty\.go:1:1: expected .package., found .EOF.'
+stderr -count=1 'nopackage\.go:1:1: expected .package., found not'
+
 -- exclude/empty/x.txt --
 -- exclude/ignore/_x.go --
 package x
@@ -29,3 +33,6 @@ package x
 package x
 -- gofmt-dir/no-extension --
 package x
+-- empty.go --
+-- nopackage.go --
+not the proper start to a Go file
