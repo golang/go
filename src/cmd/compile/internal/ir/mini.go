@@ -67,7 +67,6 @@ func (n *miniNode) SetTypecheck(x uint8) {
 	n.bits.set2(miniTypecheckShift, x)
 }
 
-func (n *miniNode) Diag() bool     { return false }
 func (n *miniNode) SetDiag(x bool) { base.AssertfAt(!x, n.Pos(), "SetDiag") }
 
 func (n *miniNode) Walked() bool     { return n.bits&miniWalked != 0 }
