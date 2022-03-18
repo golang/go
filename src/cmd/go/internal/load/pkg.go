@@ -193,6 +193,18 @@ func (p *Package) Desc() string {
 	return p.ImportPath
 }
 
+// IsTestOnly reports whether p is a test-only package.
+//
+// A “test-only” package is one that:
+// 	- is a test-only variant of an ordinary package, or
+// 	- is a synthesized "main" package for a test binary, or
+// 	- contains only _test.go files.
+func (p *Package) IsTestOnly() bool {
+	return p.ForTest != "" ||
+		p.Internal.TestmainGo != nil ||
+		len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 && len(p.GoFiles)+len(p.CgoFiles) == 0
+}
+
 type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build             *build.Package
@@ -1926,8 +1938,12 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	}
 	p.Internal.Imports = imports
 	p.collectDeps()
-	if p.Error == nil && p.Name == "main" && len(p.DepsErrors) == 0 {
-		p.setBuildInfo()
+	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 {
+		// TODO(bcmills): loading VCS metadata can be fairly slow.
+		// Consider starting this as a background goroutine and retrieving the result
+		// asynchronously when we're actually ready to build the package, or when we
+		// actually need to evaluate whether the package's metadata is stale.
+		p.setBuildInfo(opts.LoadVCS)
 	}
 
 	// unsafe is a fake package.
@@ -2216,7 +2232,7 @@ var vcsStatusCache par.Cache
 //
 // Note that the GoVersion field is not set here to avoid encoding it twice.
 // It is stored separately in the binary, mostly for historical reasons.
-func (p *Package) setBuildInfo() {
+func (p *Package) setBuildInfo(includeVCS bool) {
 	// TODO: build and vcs information is not embedded for executables in GOROOT.
 	// cmd/dist uses -gcflags=all= -ldflags=all= by default, which means these
 	// executables always appear stale unless the user sets the same flags.
@@ -2346,8 +2362,8 @@ func (p *Package) setBuildInfo() {
 	// Add VCS status if all conditions are true:
 	//
 	// - -buildvcs is enabled.
-	// - p is contained within a main module (there may be multiple main modules
-	//   in a workspace, but local replacements don't count).
+	// - p is a non-test contained within a main module (there may be multiple
+	//   main modules in a workspace, but local replacements don't count).
 	// - Both the current directory and p's module's root directory are contained
 	//   in the same local repository.
 	// - We know the VCS commands needed to get the status.
@@ -2359,7 +2375,7 @@ func (p *Package) setBuildInfo() {
 	var vcsCmd *vcs.Cmd
 	var err error
 	const allowNesting = true
-	if cfg.BuildBuildvcs && p.Module != nil && p.Module.Version == "" && !p.Standard {
+	if includeVCS && p.Module != nil && p.Module.Version == "" && !p.Standard && !p.IsTestOnly() {
 		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			setVCSError(err)
@@ -2648,6 +2664,9 @@ type PackageOpts struct {
 	// are not be matched, and their dependencies may not be loaded. A warning
 	// may be printed for non-literal arguments that match no main packages.
 	MainOnly bool
+
+	// LoadVCS controls whether we also load version-control metadata for main packages.
+	LoadVCS bool
 }
 
 // PackagesAndErrors returns the packages named by the command line arguments

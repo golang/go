@@ -368,9 +368,9 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	if err != nil && pmain.Error == nil {
 		pmain.Error = &PackageError{Err: err}
 	}
-	if data != nil {
-		pmain.Internal.TestmainGo = &data
-	}
+	// Set TestmainGo even if it is empty: the presence of a TestmainGo
+	// indicates that this package is, in fact, a test main.
+	pmain.Internal.TestmainGo = &data
 
 	return pmain, ptest, pxtest
 }
