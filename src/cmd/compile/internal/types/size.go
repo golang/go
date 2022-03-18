@@ -303,10 +303,6 @@ func findTypeLoop(t *Type, path *[]*Type) bool {
 }
 
 func reportTypeLoop(t *Type) {
-	if t.Broke() {
-		return
-	}
-
 	var l []*Type
 	if !findTypeLoop(t, &l) {
 		base.Fatalf("failed to find type loop for: %v", t)
@@ -362,18 +358,8 @@ func CalcSize(t *Type) {
 	}
 
 	if CalcSizeDisabled {
-		if t.Broke() {
-			// break infinite recursion from Fatal call below
-			return
-		}
 		t.SetBroke(true)
 		base.Fatalf("width not calculated: %v", t)
-	}
-
-	// break infinite recursion if the broken recursive type
-	// is referenced again
-	if t.Broke() && t.width == 0 {
-		return
 	}
 
 	// defer CheckSize calls until after we're done

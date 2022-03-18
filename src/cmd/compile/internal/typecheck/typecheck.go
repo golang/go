@@ -413,10 +413,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 		}
 
 	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
-		if !n.Type().Broke() {
-			base.Errorf("type %v is not an expression", n.Type())
-			n.SetDiag(true)
-		}
+		base.Errorf("type %v is not an expression", n.Type())
+		n.SetDiag(true)
 
 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
 		if !n.Diag() {
@@ -1296,10 +1294,6 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 
 	lno := base.Pos
 	defer func() { base.Pos = lno }()
-
-	if tstruct.Broke() {
-		return
-	}
 
 	var n ir.Node
 	if len(nl) == 1 {

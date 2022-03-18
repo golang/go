@@ -40,9 +40,6 @@ const (
 // If it returns ANOEQ, it also returns the component type of t that
 // makes it incomparable.
 func AlgType(t *Type) (AlgKind, *Type) {
-	if t.Broke() {
-		return AMEM, nil
-	}
 	if t.Noalg() {
 		return ANOEQ, t
 	}
