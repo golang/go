@@ -135,9 +135,6 @@ func NodNil() ir.Node {
 // modifies the tree with missing field names.
 func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
 	n.X = typecheck(n.X, ctxType|ctxExpr)
-	if n.X.Diag() {
-		n.SetDiag(true)
-	}
 	t := n.X.Type()
 	if t == nil {
 		return n

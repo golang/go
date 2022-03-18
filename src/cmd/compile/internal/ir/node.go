@@ -46,7 +46,6 @@ type Node interface {
 	// Storage for analysis passes.
 	Esc() uint16
 	SetEsc(x uint16)
-	Diag() bool
 	SetDiag(x bool)
 
 	// Typecheck values:

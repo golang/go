@@ -198,16 +198,14 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		return n
 	}
 
-	if !n.Diag() {
-		if explicit {
-			base.Errorf("cannot convert %L to type %v", n, t)
-		} else if context != nil {
-			base.Errorf("cannot use %L as type %v in %s", n, t, context())
-		} else {
-			base.Errorf("cannot use %L as type %v", n, t)
-		}
-		n.SetDiag(true)
+	if explicit {
+		base.Errorf("cannot convert %L to type %v", n, t)
+	} else if context != nil {
+		base.Errorf("cannot use %L as type %v in %s", n, t, context())
+	} else {
+		base.Errorf("cannot use %L as type %v", n, t)
 	}
+	n.SetDiag(true)
 
 	n.SetType(nil)
 	return n

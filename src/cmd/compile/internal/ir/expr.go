@@ -242,7 +242,6 @@ func NewConstExpr(val constant.Value, orig Node) Node {
 	n.orig = orig
 	n.SetType(orig.Type())
 	n.SetTypecheck(orig.Typecheck())
-	n.SetDiag(orig.Diag())
 	return n
 }
 
