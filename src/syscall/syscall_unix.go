@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"internal/bytealg"
 	"internal/itoa"
 	"internal/oserror"
 	"internal/race"
@@ -34,10 +35,8 @@ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errn
 
 // clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
 func clen(n []byte) int {
-	for i := 0; i < len(n); i++ {
-		if n[i] == 0 {
-			return i
-		}
+	if i := bytealg.IndexByte(n, 0); i != -1 {
+		return i
 	}
 	return len(n)
 }
