@@ -15,7 +15,7 @@ func init() {
 	diffCPUTimeImpl = diffCPUTimeRUsage
 }
 
-func diffCPUTimeRUsage(f func()) time.Duration {
+func diffCPUTimeRUsage(f func()) (user, system time.Duration) {
 	ok := true
 	var before, after syscall.Rusage
 
@@ -32,8 +32,10 @@ func diffCPUTimeRUsage(f func()) time.Duration {
 	}
 
 	if !ok {
-		return 0
+		return 0, 0
 	}
 
-	return time.Duration((after.Utime.Nano() + after.Stime.Nano()) - (before.Utime.Nano() + before.Stime.Nano()))
+	user = time.Duration(after.Utime.Nano() - before.Utime.Nano())
+	system = time.Duration(after.Stime.Nano() - before.Stime.Nano())
+	return user, system
 }
