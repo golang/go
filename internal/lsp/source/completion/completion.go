@@ -2695,6 +2695,10 @@ func considerTypeConversion(from, to types.Type, path []types.Object) bool {
 		return false
 	}
 
+	if _, ok := from.(*typeparams.TypeParam); ok {
+		return false
+	}
+
 	if !types.ConvertibleTo(from, to) {
 		return false
 	}

@@ -23,3 +23,11 @@ type s[a int | string] struct{}
 func _() {
 	s[]{} //@rank("]", int, float64)
 }
+
+func returnTP[A int | float64](a A) A { //@item(returnTP, "returnTP", "something", "func")
+	return a
+}
+
+func _() {
+	var _ int = returnTP //@snippet(" //", returnTP, "returnTP[${1:}](${2:})", "returnTP[${1:A int|float64}](${2:a A})")
+}
