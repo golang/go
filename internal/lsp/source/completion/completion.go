@@ -2002,46 +2002,8 @@ Nodes:
 					break Nodes
 				}
 
-				if tv, ok := c.pkg.GetTypesInfo().Types[node.Fun]; ok {
-					if sig, ok := tv.Type.(*types.Signature); ok {
-						numParams := sig.Params().Len()
-						if numParams == 0 {
-							return inf
-						}
-
-						exprIdx := exprAtPos(c.pos, node.Args)
-
-						// If we have one or zero arg expressions, we may be
-						// completing to a function call that returns multiple
-						// values, in turn getting passed in to the surrounding
-						// call. Record the assignees so we can favor function
-						// calls that return matching values.
-						if len(node.Args) <= 1 && exprIdx == 0 {
-							for i := 0; i < sig.Params().Len(); i++ {
-								inf.assignees = append(inf.assignees, sig.Params().At(i).Type())
-							}
-
-							// Record that we may be completing into variadic parameters.
-							inf.variadicAssignees = sig.Variadic()
-						}
-
-						// Make sure not to run past the end of expected parameters.
-						if exprIdx >= numParams {
-							inf.objType = sig.Params().At(numParams - 1).Type()
-						} else {
-							inf.objType = sig.Params().At(exprIdx).Type()
-						}
-
-						if sig.Variadic() && exprIdx >= (numParams-1) {
-							// If we are completing a variadic param, deslice the variadic type.
-							inf.objType = deslice(inf.objType)
-							// Record whether we are completing the initial variadic param.
-							inf.variadic = exprIdx == numParams-1 && len(node.Args) <= numParams
-
-							// Check if we can infer object kind from printf verb.
-							inf.objKind |= printfArgKind(c.pkg.GetTypesInfo(), node, exprIdx)
-						}
-					}
+				if sig, _ := c.pkg.GetTypesInfo().Types[node.Fun].Type.(*types.Signature); sig != nil {
+					inf = c.expectedCallParamType(inf, node, sig)
 				}
 
 				if funIdent, ok := node.Fun.(*ast.Ident); ok {
@@ -2174,6 +2136,55 @@ Nodes:
 				return inf
 			}
 		}
+	}
+
+	return inf
+}
+
+func (c *completer) expectedCallParamType(inf candidateInference, node *ast.CallExpr, sig *types.Signature) candidateInference {
+	numParams := sig.Params().Len()
+	if numParams == 0 {
+		return inf
+	}
+
+	exprIdx := exprAtPos(c.pos, node.Args)
+
+	// If we have one or zero arg expressions, we may be
+	// completing to a function call that returns multiple
+	// values, in turn getting passed in to the surrounding
+	// call. Record the assignees so we can favor function
+	// calls that return matching values.
+	if len(node.Args) <= 1 && exprIdx == 0 {
+		for i := 0; i < sig.Params().Len(); i++ {
+			inf.assignees = append(inf.assignees, sig.Params().At(i).Type())
+		}
+
+		// Record that we may be completing into variadic parameters.
+		inf.variadicAssignees = sig.Variadic()
+	}
+
+	// Make sure not to run past the end of expected parameters.
+	if exprIdx >= numParams {
+		inf.objType = sig.Params().At(numParams - 1).Type()
+	} else {
+		inf.objType = sig.Params().At(exprIdx).Type()
+	}
+
+	if sig.Variadic() && exprIdx >= (numParams-1) {
+		// If we are completing a variadic param, deslice the variadic type.
+		inf.objType = deslice(inf.objType)
+		// Record whether we are completing the initial variadic param.
+		inf.variadic = exprIdx == numParams-1 && len(node.Args) <= numParams
+
+		// Check if we can infer object kind from printf verb.
+		inf.objKind |= printfArgKind(c.pkg.GetTypesInfo(), node, exprIdx)
+	}
+
+	// If our expected type is an uninstantiated generic type param,
+	// swap to the constraint which will do a decent job filtering
+	// candidates.
+	if tp, _ := inf.objType.(*typeparams.TypeParam); tp != nil {
+		inf.objType = tp.Constraint()
 	}
 
 	return inf
