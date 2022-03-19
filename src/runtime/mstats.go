@@ -31,9 +31,11 @@ type mstats struct {
 	//
 	// Like MemStats, heap_sys and heap_inuse do not count memory
 	// in manually-managed spans.
-	heap_sys      sysMemStat // virtual address space obtained from system for GC'd heap
-	heap_inuse    uint64     // bytes in mSpanInUse spans
-	heap_released uint64     // bytes released to the OS
+	heap_sys      sysMemStat    // virtual address space obtained from system for GC'd heap
+	heap_inuse    uint64        // bytes in mSpanInUse spans
+	heap_released uint64        // bytes released to the OS
+	totalAlloc    atomic.Uint64 // total bytes allocated
+	totalFree     atomic.Uint64 // total bytes freed
 
 	// Statistics about stacks.
 	stacks_sys sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
@@ -452,9 +454,11 @@ func readmemstats_m(stats *MemStats) {
 	// The world is stopped, so the consistent stats (after aggregation)
 	// should be identical to some combination of memstats. In particular:
 	//
-	// * heap_inuse == inHeap
-	// * heap_released == released
-	// * heap_sys - heap_released == committed - inStacks - inWorkBufs - inPtrScalarBits
+	// * memstats.heap_inuse == inHeap
+	// * memstats.heap_released == released
+	// * memstats.heap_sys - memstats.heap_released == committed - inStacks - inWorkBufs - inPtrScalarBits
+	// * memstats.totalAlloc == totalAlloc
+	// * memstats.totalFree == totalFree
 	//
 	// Check if that's actually true.
 	//
@@ -477,6 +481,16 @@ func readmemstats_m(stats *MemStats) {
 		print("runtime: global value=", globalRetained, "\n")
 		print("runtime: consistent value=", consRetained, "\n")
 		throw("measures of the retained heap are not equal")
+	}
+	if memstats.totalAlloc.Load() != totalAlloc {
+		print("runtime: totalAlloc=", memstats.totalAlloc.Load(), "\n")
+		print("runtime: consistent value=", totalAlloc, "\n")
+		throw("totalAlloc and consistent stats are not equal")
+	}
+	if memstats.totalFree.Load() != totalFree {
+		print("runtime: totalFree=", memstats.totalFree.Load(), "\n")
+		print("runtime: consistent value=", totalFree, "\n")
+		throw("totalFree and consistent stats are not equal")
 	}
 
 	// We've calculated all the values we need. Now, populate stats.
