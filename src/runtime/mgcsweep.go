@@ -666,6 +666,9 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			stats := memstats.heapStats.acquire()
 			atomic.Xadduintptr(&stats.smallFreeCount[spc.sizeclass()], uintptr(nfreed))
 			memstats.heapStats.release()
+
+			// Count the frees in the inconsistent, internal stats.
+			memstats.totalFree.Add(int64(nfreed) * int64(s.elemsize))
 		}
 		if !preserve {
 			// The caller may not have removed this span from whatever
@@ -710,10 +713,16 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
+
+			// Count the free in the consistent, external stats.
 			stats := memstats.heapStats.acquire()
 			atomic.Xadduintptr(&stats.largeFreeCount, 1)
 			atomic.Xadduintptr(&stats.largeFree, size)
 			memstats.heapStats.release()
+
+			// Count the free in the inconsistent, internal stats.
+			memstats.totalFree.Add(int64(size))
+
 			return true
 		}
 

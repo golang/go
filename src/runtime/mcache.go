@@ -169,8 +169,12 @@ func (c *mcache) refill(spc spanClass) {
 		}
 		memstats.heapStats.release()
 
+		// Count the allocs in inconsistent, internal stats.
+		bytesAllocated := int64(slotsUsed * s.elemsize)
+		memstats.totalAlloc.Add(bytesAllocated)
+
 		// Update heapLive and flush scanAlloc.
-		gcController.update(int64(slotsUsed*s.elemsize), int64(c.scanAlloc))
+		gcController.update(bytesAllocated, int64(c.scanAlloc))
 		c.scanAlloc = 0
 
 		// Clear the second allocCount just to be safe.
@@ -217,10 +221,15 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
 	if s == nil {
 		throw("out of memory")
 	}
+
+	// Count the alloc in consistent, external stats.
 	stats := memstats.heapStats.acquire()
 	atomic.Xadduintptr(&stats.largeAlloc, npages*pageSize)
 	atomic.Xadduintptr(&stats.largeAllocCount, 1)
 	memstats.heapStats.release()
+
+	// Count the alloc in inconsistent, internal stats.
+	memstats.totalAlloc.Add(int64(npages * pageSize))
 
 	// Update heapLive.
 	gcController.update(int64(s.npages*pageSize), 0)
@@ -241,12 +250,17 @@ func (c *mcache) releaseAll() {
 	for i := range c.alloc {
 		s := c.alloc[i]
 		if s != &emptymspan {
+			slotsUsed := uintptr(s.allocCount) - uintptr(s.allocCountBeforeCache)
+			s.allocCountBeforeCache = 0
+
 			// Adjust smallAllocCount for whatever was allocated.
 			stats := memstats.heapStats.acquire()
-			slotsUsed := uintptr(s.allocCount) - uintptr(s.allocCountBeforeCache)
 			atomic.Xadduintptr(&stats.smallAllocCount[spanClass(i).sizeclass()], slotsUsed)
 			memstats.heapStats.release()
-			s.allocCountBeforeCache = 0
+
+			// Adjust the actual allocs in inconsistent, internal stats.
+			// We assumed earlier that the full span gets allocated.
+			memstats.totalAlloc.Add(int64(slotsUsed * s.elemsize))
 
 			// Release the span to the mcentral.
 			mheap_.central[i].mcentral.uncacheSpan(s)
