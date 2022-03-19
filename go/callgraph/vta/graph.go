@@ -640,7 +640,7 @@ func addReturnFlows(b *builder, r *ssa.Return, site ssa.Value) {
 
 // addInFlowEdge adds s -> d to g if d is node that can have an inflow, i.e., a node
 // that represents an interface or an unresolved function value. Otherwise, there
-// is no interesting type flow so the edge is ommited.
+// is no interesting type flow so the edge is omitted.
 func (b *builder) addInFlowEdge(s, d node) {
 	if hasInFlow(d) {
 		b.graph.addEdge(b.representative(s), b.representative(d))

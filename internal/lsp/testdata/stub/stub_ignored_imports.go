@@ -8,7 +8,7 @@ import (
 
 // This file tests that dot-imports and underscore imports
 // are properly ignored and that a new import is added to
-// refernece method types
+// reference method types
 
 var (
 	_ Reader

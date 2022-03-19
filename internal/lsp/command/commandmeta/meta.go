@@ -148,7 +148,7 @@ func (l *fieldLoader) loadField(pkg *packages.Package, obj *types.Var, doc, tag 
 		JSONTag: reflect.StructTag(tag).Get("json"),
 	}
 	under := fld.Type.Underlying()
-	// Quick-and-dirty handling for various underyling types.
+	// Quick-and-dirty handling for various underlying types.
 	switch p := under.(type) {
 	case *types.Pointer:
 		under = p.Elem().Underlying()

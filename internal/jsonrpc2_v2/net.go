@@ -21,7 +21,7 @@ type NetListenOptions struct {
 	NetDialer       net.Dialer
 }
 
-// NetListener returns a new Listener that listents on a socket using the net package.
+// NetListener returns a new Listener that listens on a socket using the net package.
 func NetListener(ctx context.Context, network, address string, options NetListenOptions) (Listener, error) {
 	ln, err := options.NetListenConfig.Listen(ctx, network, address)
 	if err != nil {
@@ -83,7 +83,7 @@ func (n *netDialer) Dial(ctx context.Context) (io.ReadWriteCloser, error) {
 // NetPipeListener returns a new Listener that listens using net.Pipe.
 // It is only possibly to connect to it using the Dialier returned by the
 // Dialer method, each call to that method will generate a new pipe the other
-// side of which will be returnd from the Accept call.
+// side of which will be returned from the Accept call.
 func NetPipeListener(ctx context.Context) (Listener, error) {
 	return &netPiper{
 		done:   make(chan struct{}),

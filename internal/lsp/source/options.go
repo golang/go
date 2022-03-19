@@ -329,7 +329,7 @@ type CompletionOptions struct {
 	// candidates.
 	Matcher Matcher `status:"advanced"`
 
-	// ExperimentalPostfixCompletions enables artifical method snippets
+	// ExperimentalPostfixCompletions enables artificial method snippets
 	// such as "someSlice.sort!".
 	ExperimentalPostfixCompletions bool `status:"experimental"`
 }

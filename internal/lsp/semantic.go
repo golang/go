@@ -378,7 +378,7 @@ func (e *encoded) inspector(n ast.Node) bool {
 	case *ast.IncDecStmt:
 		e.token(x.TokPos, len(x.Tok.String()), tokOperator, nil)
 	case *ast.IndexExpr:
-	case *typeparams.IndexListExpr: // accomodate generics
+	case *typeparams.IndexListExpr: // accommodate generics
 	case *ast.InterfaceType:
 		e.token(x.Interface, len("interface"), tokKeyword, nil)
 	case *ast.KeyValueExpr:

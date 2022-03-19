@@ -49,8 +49,8 @@ func Baz(a *A) (I, I, interface{}, interface{}) {
 
 // Without canon approach, one of Pointer(*A) -> Local(t0) and Pointer(*A) -> Local(t2) edges is
 // missing in the graph string representation. The original graph has both of the edges but the
-// source node Pointer(*A) is not the same; two occurences of Pointer(*A) are considered separate
-// nodes. Since they have the same string representation, one edge gets overriden by the other
+// source node Pointer(*A) is not the same; two occurrences of Pointer(*A) are considered separate
+// nodes. Since they have the same string representation, one edge gets overridden by the other
 // during the graph stringification, instead of being joined together as in below.
 
 // WANT:

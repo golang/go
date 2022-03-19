@@ -61,7 +61,7 @@ func hasInFlow(n node) bool {
 
 // hasInitialTypes check if a node can have initial types.
 // Returns true iff `n` is not a panic or recover node as
-// those are artifical.
+// those are artificial.
 func hasInitialTypes(n node) bool {
 	switch n.(type) {
 	case panicArg, recoverReturn:

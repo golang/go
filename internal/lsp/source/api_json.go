@@ -158,7 +158,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name:      "experimentalPostfixCompletions",
 				Type:      "bool",
-				Doc:       "experimentalPostfixCompletions enables artifical method snippets\nsuch as \"someSlice.sort!\".\n",
+				Doc:       "experimentalPostfixCompletions enables artificial method snippets\nsuch as \"someSlice.sort!\".\n",
 				Default:   "true",
 				Status:    "experimental",
 				Hierarchy: "ui.completion",

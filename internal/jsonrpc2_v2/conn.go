@@ -347,7 +347,7 @@ func (c *Connection) incomingResponse(msg *Response) {
 	}
 }
 
-// manageQueue reads incoming requests, attempts to proccess them with the preempter, or queue them
+// manageQueue reads incoming requests, attempts to process them with the preempter, or queue them
 // up for normal handling.
 func (c *Connection) manageQueue(ctx context.Context, preempter Preempter, fromRead <-chan *incoming, toDeliver chan<- *incoming) {
 	defer close(toDeliver)

@@ -254,7 +254,7 @@ Default: `"Fuzzy"`.
 
 **This setting is experimental and may be deleted.**
 
-experimentalPostfixCompletions enables artifical method snippets
+experimentalPostfixCompletions enables artificial method snippets
 such as "someSlice.sort!".
 
 Default: `true`.

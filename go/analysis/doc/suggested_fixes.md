@@ -93,7 +93,7 @@ Singlechecker and multichecker have the ```-fix``` flag, which will automaticall
 apply all fixes suggested by their analysis or analyses. This is intended to
 be used primarily by refactoring tools, because in general, like diagnostics,
 suggested fixes will need to be examined by a human who can decide whether
-they are relevent.
+they are relevant.
 
 ### gopls
 

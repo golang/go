@@ -133,7 +133,7 @@ func resolve(c ssa.CallInstruction, types propTypeMap, cache methodCache) []*ssa
 }
 
 // propFunc returns the functions modeled with the propagation type `p`
-// assigned to call site `c`. If no such funciton exists, nil is returned.
+// assigned to call site `c`. If no such function exists, nil is returned.
 func propFunc(p propType, c ssa.CallInstruction, cache methodCache) []*ssa.Function {
 	if p.f != nil {
 		return []*ssa.Function{p.f}

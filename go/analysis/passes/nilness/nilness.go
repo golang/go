@@ -342,7 +342,7 @@ func eq(b *ssa.BasicBlock) (op *ssa.BinOp, tsucc, fsucc *ssa.BasicBlock) {
 // ChangeInterface, have transitive nilness, such that if you know the
 // underlying value is nil, you also know the value itself is nil, and vice
 // versa. This operation allows callers to match on any of the related values
-// in analyses, rather than just the one form of the value that happend to
+// in analyses, rather than just the one form of the value that happened to
 // appear in a comparison.
 //
 // This work must be in addition to unwrapping values within nilnessOf because

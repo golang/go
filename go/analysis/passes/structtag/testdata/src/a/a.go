@@ -124,7 +124,7 @@ type UnexpectedSpacetest struct {
 	Q int `foo:" doesn't care "`
 }
 
-// Nested fiels can be shadowed by fields further up. For example,
+// Nested fields can be shadowed by fields further up. For example,
 // ShadowingAnonJSON replaces the json:"a" field in AnonymousJSONField.
 // However, if the two conflicting fields appear at the same level like in
 // DuplicateWithAnotherPackage, we should error.
