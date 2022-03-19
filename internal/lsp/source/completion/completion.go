@@ -29,6 +29,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/typeparams"
 	errors "golang.org/x/xerrors"
 )
 
@@ -2093,6 +2094,25 @@ Nodes:
 						inf.objType = t.Key()
 					case *types.Slice, *types.Array:
 						inf.objType = types.Typ[types.UntypedInt]
+					case *types.Signature:
+						if tp := typeparams.ForSignature(t); tp.Len() > 0 {
+							inf.objType = tp.At(0).Constraint()
+							inf.typeName.wantTypeName = true
+						}
+					}
+				}
+			}
+			return inf
+		case *typeparams.IndexListExpr:
+			if node.Lbrack < c.pos && c.pos <= node.Rbrack {
+				if tv, ok := c.pkg.GetTypesInfo().Types[node.X]; ok {
+					switch t := tv.Type.Underlying().(type) {
+					case *types.Signature:
+						paramIdx := exprAtPos(c.pos, node.Indices)
+						if tp := typeparams.ForSignature(t); paramIdx < tp.Len() {
+							inf.objType = tp.At(paramIdx).Constraint()
+							inf.typeName.wantTypeName = true
+						}
 					}
 				}
 			}
