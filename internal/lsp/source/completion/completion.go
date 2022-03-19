@@ -1388,39 +1388,61 @@ func (c *completer) lexical(ctx context.Context) error {
 		}
 	}
 
-	if t := c.inference.objType; t != nil {
-		t = source.Deref(t)
-
-		// If we have an expected type and it is _not_ a named type,
-		// handle it specially. Non-named types like "[]int" will never be
-		// considered via a lexical search, so we need to directly inject
-		// them.
-		if _, named := t.(*types.Named); !named {
-			// If our expected type is "[]int", this will add a literal
-			// candidate of "[]int{}".
-			c.literal(ctx, t, nil)
-
-			if _, isBasic := t.(*types.Basic); !isBasic {
-				// If we expect a non-basic type name (e.g. "[]int"), hack up
-				// a named type whose name is literally "[]int". This allows
-				// us to reuse our object based completion machinery.
-				fakeNamedType := candidate{
-					obj:   types.NewTypeName(token.NoPos, nil, types.TypeString(t, c.qf), t),
-					score: stdScore,
-				}
-				// Make sure the type name matches before considering
-				// candidate. This cuts down on useless candidates.
-				if c.matchingTypeName(&fakeNamedType) {
-					c.deepState.enqueue(fakeNamedType)
-				}
+	if c.inference.typeName.isTypeParam {
+		// If we are completing a type param, offer each structural type.
+		// This ensures we suggest "[]int" and "[]float64" for a constraint
+		// with type union "[]int | []float64".
+		if t, _ := c.inference.objType.(*types.Interface); t != nil {
+			terms, _ := typeparams.InterfaceTermSet(t)
+			for _, term := range terms {
+				c.injectType(ctx, term.Type())
 			}
 		}
+	} else {
+		c.injectType(ctx, c.inference.objType)
 	}
 
 	// Add keyword completion items appropriate in the current context.
 	c.addKeywordCompletions()
 
 	return nil
+}
+
+// injectInferredType manufacters candidates based on the given type.
+// For example, if the type is "[]int", this method makes sure you get
+// candidates "[]int{}" and "[]int" (the latter applies when
+// completing a type name).
+func (c *completer) injectType(ctx context.Context, t types.Type) {
+	if t == nil {
+		return
+	}
+
+	t = source.Deref(t)
+
+	// If we have an expected type and it is _not_ a named type,
+	// handle it specially. Non-named types like "[]int" will never be
+	// considered via a lexical search, so we need to directly inject
+	// them.
+	if _, named := t.(*types.Named); !named {
+		// If our expected type is "[]int", this will add a literal
+		// candidate of "[]int{}".
+		c.literal(ctx, t, nil)
+
+		if _, isBasic := t.(*types.Basic); !isBasic {
+			// If we expect a non-basic type name (e.g. "[]int"), hack up
+			// a named type whose name is literally "[]int". This allows
+			// us to reuse our object based completion machinery.
+			fakeNamedType := candidate{
+				obj:   types.NewTypeName(token.NoPos, nil, types.TypeString(t, c.qf), t),
+				score: stdScore,
+			}
+			// Make sure the type name matches before considering
+			// candidate. This cuts down on useless candidates.
+			if c.matchingTypeName(&fakeNamedType) {
+				c.deepState.enqueue(fakeNamedType)
+			}
+		}
+	}
 }
 
 func (c *completer) unimportedPackages(ctx context.Context, seen map[string]struct{}) error {
@@ -1906,6 +1928,9 @@ type typeNameInference struct {
 	// compLitType is true if we are completing a composite literal type
 	// name, e.g "foo<>{}".
 	compLitType bool
+
+	// isTypeParam is true if we are completing a type instantiation parameter
+	isTypeParam bool
 }
 
 // expectedCandidate returns information about the expected candidate
@@ -2094,11 +2119,12 @@ Nodes:
 						inf.objType = t.Key()
 					case *types.Slice, *types.Array:
 						inf.objType = types.Typ[types.UntypedInt]
-					case *types.Signature:
-						if tp := typeparams.ForSignature(t); tp.Len() > 0 {
-							inf.objType = tp.At(0).Constraint()
-							inf.typeName.wantTypeName = true
-						}
+					}
+
+					if ct := expectedConstraint(tv.Type, 0); ct != nil {
+						inf.objType = ct
+						inf.typeName.wantTypeName = true
+						inf.typeName.isTypeParam = true
 					}
 				}
 			}
@@ -2106,13 +2132,10 @@ Nodes:
 		case *typeparams.IndexListExpr:
 			if node.Lbrack < c.pos && c.pos <= node.Rbrack {
 				if tv, ok := c.pkg.GetTypesInfo().Types[node.X]; ok {
-					switch t := tv.Type.Underlying().(type) {
-					case *types.Signature:
-						paramIdx := exprAtPos(c.pos, node.Indices)
-						if tp := typeparams.ForSignature(t); paramIdx < tp.Len() {
-							inf.objType = tp.At(paramIdx).Constraint()
-							inf.typeName.wantTypeName = true
-						}
+					if ct := expectedConstraint(tv.Type, exprAtPos(c.pos, node.Indices)); ct != nil {
+						inf.objType = ct
+						inf.typeName.wantTypeName = true
+						inf.typeName.isTypeParam = true
 					}
 				}
 			}
@@ -2155,6 +2178,19 @@ Nodes:
 	}
 
 	return inf
+}
+
+func expectedConstraint(t types.Type, idx int) types.Type {
+	var tp *typeparams.TypeParamList
+	if named, _ := t.(*types.Named); named != nil {
+		tp = typeparams.ForNamed(named)
+	} else if sig, _ := t.Underlying().(*types.Signature); sig != nil {
+		tp = typeparams.ForSignature(sig)
+	}
+	if tp == nil || idx >= tp.Len() {
+		return nil
+	}
+	return tp.At(idx).Constraint()
 }
 
 // objChain decomposes e into a chain of objects if possible. For
