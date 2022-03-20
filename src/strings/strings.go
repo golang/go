@@ -244,6 +244,9 @@ func genSplit(s, sep string, sepSave, n int) []string {
 		n = Count(s, sep) + 1
 	}
 
+	if n > len(s)+1 {
+		n = len(s) + 1
+	}
 	a := make([]string, n)
 	n--
 	i := 0
