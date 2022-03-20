@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
@@ -54,7 +55,13 @@ func addGoEnvToInitializeRequestV2(ctx context.Context, req *jsonrpc2_v2.Request
 	if err != nil {
 		return err
 	}
+	// We don't want to propagate GOWORK unless explicitly set since that could mess with
+	// path inference during cmd/go invocations, see golang/go#51825.
+	_, goworkSet := os.LookupEnv("GOWORK")
 	for govar, value := range goenv {
+		if govar == "GOWORK" && !goworkSet {
+			continue
+		}
 		env[govar] = value
 	}
 	opts["env"] = env
