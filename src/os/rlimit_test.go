@@ -11,8 +11,8 @@ import (
 )
 
 func TestOpenFileLimit(t *testing.T) {
-	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skip("broken on openbsd/arm and openbsd/arm64 builder - go.dev/issue/51713")
+	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" || runtime.GOARCH == "mips64") {
+		t.Skip("broken on openbsd/arm, openbsd/arm64, openbsd/mips64 builder - go.dev/issue/51713")
 	}
 
 	// For open file count,
