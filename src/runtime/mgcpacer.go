@@ -66,6 +66,12 @@ const (
 	// scannableStackSizeSlack is the bytes of stack space allocated or freed
 	// that can accumulate on a P before updating gcController.stackSize.
 	scannableStackSizeSlack = 8 << 10
+
+	// memoryLimitHeapGoalHeadroom is the amount of headroom the pacer gives to
+	// the heap goal when operating in the memory-limited regime. That is,
+	// it'll reduce the heap goal by this many extra bytes off of the base
+	// calculation.
+	memoryLimitHeapGoalHeadroom = 1 << 20
 )
 
 func init() {
@@ -416,9 +422,10 @@ func (c *gcControllerState) init(gcPercent int32, memoryLimit int64) {
 	c.setGCPercent(gcPercent)
 	c.setMemoryLimit(memoryLimit)
 	c.commit(true) // No sweep phase in the first GC cycle.
-
 	// N.B. Don't bother calling traceHeapGoal. Tracing is never enabled at
 	// initialization time.
+	// N.B. No need to call revise; there's no GC enabled during
+	// initialization.
 }
 
 // startCycle resets the GC controller's state and computes estimates
@@ -955,30 +962,149 @@ func (c *gcControllerState) heapGoal() uint64 {
 func (c *gcControllerState) heapGoalInternal() (goal, minTrigger uint64) {
 	// Start with the goal calculated for gcPercent.
 	goal = c.gcPercentHeapGoal.Load()
-	sweepDistTrigger := c.sweepDistMinTrigger.Load()
 
-	// Don't set a goal below the minimum heap size or the minimum
-	// trigger determined at commit time.
-	minGoal := c.heapMinimum
-	if sweepDistTrigger > minGoal {
-		minGoal = sweepDistTrigger
+	// Check if the memory-limit-based goal is smaller, and if so, pick that.
+	if newGoal := c.memoryLimitHeapGoal(); go119MemoryLimitSupport && newGoal < goal {
+		goal = newGoal
+	} else {
+		// We're not limited by the memory limit goal, so perform a series of
+		// adjustments that might move the goal forward in a variety of circumstances.
+
+		sweepDistTrigger := c.sweepDistMinTrigger.Load()
+		if sweepDistTrigger > goal {
+			// Set the goal to maintain a minimum sweep distance since
+			// the last call to commit. Note that we never want to do this
+			// if we're in the memory limit regime, because it could push
+			// the goal up.
+			goal = sweepDistTrigger
+		}
+		// Since we ignore the sweep distance trigger in the memory
+		// limit regime, we need to ensure we don't propagate it to
+		// the trigger, because it could cause a violation of the
+		// invariant that the trigger < goal.
+		minTrigger = sweepDistTrigger
+
+		// Ensure that the heap goal is at least a little larger than
+		// the point at which we triggered. This may not be the case if GC
+		// start is delayed or if the allocation that pushed gcController.heapLive
+		// over trigger is large or if the trigger is really close to
+		// GOGC. Assist is proportional to this distance, so enforce a
+		// minimum distance, even if it means going over the GOGC goal
+		// by a tiny bit.
+		//
+		// Ignore this if we're in the memory limit regime: we'd prefer to
+		// have the GC respond hard about how close we are to the goal than to
+		// push the goal back in such a manner that it could cause us to exceed
+		// the memory limit.
+		const minRunway = 64 << 10
+		if c.triggered != ^uint64(0) && goal < c.triggered+minRunway {
+			goal = c.triggered + minRunway
+		}
 	}
-	if goal < minGoal {
-		goal = minGoal
+	return
+}
+
+// memoryLimitHeapGoal returns a heap goal derived from memoryLimit.
+func (c *gcControllerState) memoryLimitHeapGoal() uint64 {
+	// Start by pulling out some values we'll need. Be careful about overflow.
+	var heapFree, heapAlloc, mappedReady uint64
+	for {
+		heapFree = c.heapFree.load()                         // Free and unscavenged memory.
+		heapAlloc = c.totalAlloc.Load() - c.totalFree.Load() // Heap object bytes in use.
+		mappedReady = c.mappedReady.Load()                   // Total unreleased mapped memory.
+		if heapFree+heapAlloc <= mappedReady {
+			break
+		}
+		// It is impossible for total unreleased mapped memory to exceed heap memory, but
+		// because these stats are updated independently, we may observe a partial update
+		// including only some values. Thus, we appear to break the invariant. However,
+		// this condition is necessarily transient, so just try again. In the case of a
+		// persistent accounting error, we'll deadlock here.
 	}
 
-	// Ensure that the heap goal is at least a little larger than
-	// the point at which we triggered. This may not be the case if GC
-	// start is delayed or if the allocation that pushed gcController.heapLive
-	// over trigger is large or if the trigger is really close to
-	// GOGC. Assist is proportional to this distance, so enforce a
-	// minimum distance, even if it means going over the GOGC goal
-	// by a tiny bit.
-	const minRunway = 64 << 10
-	if c.triggered != ^uint64(0) && goal < c.triggered+minRunway {
-		goal = c.triggered + minRunway
+	// Below we compute a goal from memoryLimit. There are a few things to be aware of.
+	// Firstly, the memoryLimit does not easily compare to the heap goal: the former
+	// is total mapped memory by the runtime that hasn't been released, while the latter is
+	// only heap object memory. Intuitively, the way we convert from one to the other is to
+	// subtract everything from memoryLimit that both contributes to the memory limit (so,
+	// ignore scavenged memory) and doesn't contain heap objects. This isn't quite what
+	// lines up with reality, but it's a good starting point.
+	//
+	// In practice this computation looks like the following:
+	//
+	//    memoryLimit - ((mappedReady - heapFree - heapAlloc) + max(mappedReady - memoryLimit, 0)) - memoryLimitHeapGoalHeadroom
+	//                    ^1                                    ^2                                   ^3
+	//
+	// Let's break this down.
+	//
+	// The first term (marker 1) is everything that contributes to the memory limit and isn't
+	// or couldn't become heap objects. It represents, broadly speaking, non-heap overheads.
+	// One oddity you may have noticed is that we also subtract out heapFree, i.e. unscavenged
+	// memory that may contain heap objects in the future.
+	//
+	// Let's take a step back. In an ideal world, this term would look something like just
+	// the heap goal. That is, we "reserve" enough space for the heap to grow to the heap
+	// goal, and subtract out everything else. This is of course impossible; the defintion
+	// is circular! However, this impossible definition contains a key insight: the amount
+	// we're *going* to use matters just as much as whatever we're currently using.
+	//
+	// Consider if the heap shrinks to 1/10th its size, leaving behind lots of free and
+	// unscavenged memory. mappedReady - heapAlloc will be quite large, because of that free
+	// and unscavenged memory, pushing the goal down significantly.
+	//
+	// heapFree is also safe to exclude from the memory limit because in the steady-state, it's
+	// just a pool of memory for future heap allocations, and making new allocations from heapFree
+	// memory doesn't increase overall memory use. In transient states, the scavenger and the
+	// allocator actively manage the pool of heapFree memory to maintain the memory limit.
+	//
+	// The second term (marker 2) is the amount of memory we've exceeded the limit by, and is
+	// intended to help recover from such a situation. By pushing the heap goal down, we also
+	// push the trigger down, triggering and finishing a GC sooner in order to make room for
+	// other memory sources. Note that since we're effectively reducing the heap goal by X bytes,
+	// we're actually giving more than X bytes of headroom back, because the heap goal is in
+	// terms of heap objects, but it takes more than X bytes (e.g. due to fragmentation) to store
+	// X bytes worth of objects.
+	//
+	// The third term (marker 3) subtracts an additional memoryLimitHeapGoalHeadroom bytes from the
+	// heap goal. As the name implies, this is to provide additional headroom in the face of pacing
+	// inaccuracies. This is a fixed number of bytes because these inaccuracies disproportionately
+	// affect small heaps: as heaps get smaller, the pacer's inputs get fuzzier. Shorter GC cycles
+	// and less GC work means noisy external factors like the OS scheduler have a greater impact.
+
+	memoryLimit := uint64(c.memoryLimit.Load())
+
+	// Compute term 1.
+	nonHeapMemory := mappedReady - heapFree - heapAlloc
+
+	// Compute term 2.
+	var overage uint64
+	if mappedReady > memoryLimit {
+		overage = mappedReady - memoryLimit
 	}
-	return goal, sweepDistTrigger
+
+	if nonHeapMemory+overage >= memoryLimit {
+		// We're at a point where non-heap memory exceeds the memory limit on its own.
+		// There's honestly not much we can do here but just trigger GCs continuously
+		// and let the CPU limiter reign that in. Something has to give at this point.
+		// Set it to heapMarked, the lowest possible goal.
+		return c.heapMarked
+	}
+
+	// Compute the goal.
+	goal := memoryLimit - (nonHeapMemory + overage)
+
+	// Apply some headroom to the goal to account for pacing inaccuracies.
+	// Be careful about small limits.
+	if goal < memoryLimitHeapGoalHeadroom || goal-memoryLimitHeapGoalHeadroom < memoryLimitHeapGoalHeadroom {
+		goal = memoryLimitHeapGoalHeadroom
+	} else {
+		goal = goal - memoryLimitHeapGoalHeadroom
+	}
+	// Don't let us go below the live heap. A heap goal below the live heap doesn't make sense.
+	if goal < c.heapMarked {
+		goal = c.heapMarked
+	}
+	return goal
 }
 
 const (
@@ -1013,6 +1139,19 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	goal, minTrigger := c.heapGoalInternal()
 
 	// Invariant: the trigger must always be less than the heap goal.
+	//
+	// Note that the memory limit sets a hard maximum on our heap goal,
+	// but the live heap may grow beyond it.
+
+	if c.heapMarked >= goal {
+		// The goal should never be smaller than heapMarked, but let's be
+		// defensive about it. The only reasonable trigger here is one that
+		// causes a continuous GC cycle at heapMarked, but respect the goal
+		// if it came out as smaller than that.
+		return goal, goal
+	}
+
+	// Below this point, c.heapMarked < goal.
 
 	// heapMarked is our absolute minumum, and it's possible the trigger
 	// bound we get from heapGoalinternal is less than that.
@@ -1084,6 +1223,9 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 // This depends on gcPercent, gcController.heapMarked, and
 // gcController.heapLive. These must be up to date.
 //
+// Callers must call gcControllerState.revise after calling this
+// function if the GC is enabled.
+//
 // mheap_.lock must be held or the world must be stopped.
 func (c *gcControllerState) commit(isSweepDone bool) {
 	if !c.test {
@@ -1107,6 +1249,11 @@ func (c *gcControllerState) commit(isSweepDone bool) {
 	gcPercentHeapGoal := ^uint64(0)
 	if gcPercent := c.gcPercent.Load(); gcPercent >= 0 {
 		gcPercentHeapGoal = c.heapMarked + (c.heapMarked+atomic.Load64(&c.stackScan)+atomic.Load64(&c.globalsScan))*uint64(gcPercent)/100
+	}
+	// Apply the minimum heap size here. It's defined in terms of gcPercent
+	// and is only updated by functions that call commit.
+	if gcPercentHeapGoal < c.heapMinimum {
+		gcPercentHeapGoal = c.heapMinimum
 	}
 	c.gcPercentHeapGoal.Store(gcPercentHeapGoal)
 
@@ -1134,33 +1281,6 @@ func (c *gcControllerState) commit(isSweepDone bool) {
 	// this way, assuming that the cons/mark ratio is correct, we make that
 	// division a reality.
 	c.runway.Store(uint64((c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) * float64(c.lastHeapScan+c.stackScan+c.globalsScan)))
-
-	// Update mark pacing.
-	if gcphase != _GCoff {
-		c.revise()
-	}
-}
-
-// effectiveGrowthRatio returns the current effective heap growth
-// ratio (GOGC/100) based on heapMarked from the previous GC and
-// heapGoal for the current GC.
-//
-// This may differ from gcPercent/100 because of various upper and
-// lower bounds on gcPercent. For example, if the heap is smaller than
-// heapMinimum, this can be higher than gcPercent/100.
-//
-// mheap_.lock must be held or the world must be stopped.
-func (c *gcControllerState) effectiveGrowthRatio() float64 {
-	if !c.test {
-		assertWorldStoppedOrLockHeld(&mheap_.lock)
-	}
-	heapGoal := c.heapGoal()
-	egogc := float64(heapGoal-c.heapMarked) / float64(c.heapMarked)
-	if egogc < 0 {
-		// Shouldn't happen, but just in case.
-		egogc = 0
-	}
-	return egogc
 }
 
 // setGCPercent updates gcPercent. commit must be called after.
@@ -1419,6 +1539,11 @@ func gcControllerCommit() {
 	assertWorldStoppedOrLockHeld(&mheap_.lock)
 
 	gcController.commit(isSweepDone())
+
+	// Update mark pacing.
+	if gcphase != _GCoff {
+		gcController.revise()
+	}
 
 	// TODO(mknyszek): This isn't really accurate any longer because the heap
 	// goal is computed dynamically. Still useful to snapshot, but not as useful.
