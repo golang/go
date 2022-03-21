@@ -114,13 +114,13 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 		info, err := os.Stat(absArg)
 		if err != nil {
 			if os.IsNotExist(err) {
-				base.Errorf("go: %v directory not found", absArg)
+				base.Errorf("go: directory %v does not exist", absArg)
 			} else {
 				base.Errorf("go: %v", err)
 			}
 			continue
 		} else if !info.IsDir() {
-			base.Errorf("go: %s not a directory", absArg)
+			base.Errorf("go: %s is not a directory", absArg)
 			continue
 		}
 
