@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
@@ -202,7 +203,7 @@ func ParseFlags() {
 	}
 
 	if *Flag.LowerP == "" {
-		log.Fatalf("-p is required")
+		*Flag.LowerP = obj.UnlinkablePkg
 	}
 
 	if Flag.LowerO == "" {
