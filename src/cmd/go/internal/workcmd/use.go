@@ -113,6 +113,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 
 		info, err := os.Stat(absArg)
 		if err != nil {
+			// Errors raised from os.Stat are formatted to be more user-friendly.
 			if os.IsNotExist(err) {
 				base.Errorf("go: directory %v does not exist", absArg)
 			} else {
