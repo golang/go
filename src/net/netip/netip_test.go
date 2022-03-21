@@ -1757,7 +1757,7 @@ func TestPrefixOverlaps(t *testing.T) {
 		{pfx("1::1/128"), pfx("2::2/128"), false},
 		{pfx("0100::0/8"), pfx("::1/128"), false},
 
-		// IPv4-mapped IPv6 should not overlap with IPv4.
+		// IPv4-mapped IPv6 addresses should not overlap with IPv4.
 		{PrefixFrom(AddrFrom16(mustIP("1.2.0.0").As16()), 16), pfx("1.2.3.0/24"), false},
 
 		// Invalid prefixes
