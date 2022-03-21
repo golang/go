@@ -1108,10 +1108,10 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		forw = NewIncompleteNamedType(t.Pos(), newsym)
 		//println("Creating new type by sub", newsym.Name, forw.HasTParam())
 		forw.SetRParams(neededTargs)
-		// Copy the OrigSym from the re-instantiated type (which is the sym of
+		// Copy the OrigType from the re-instantiated type (which is the sym of
 		// the base generic type).
-		assert(t.OrigSym() != nil)
-		forw.SetOrigSym(t.OrigSym())
+		assert(t.OrigType() != nil)
+		forw.SetOrigType(t.OrigType())
 	}
 
 	var newt *types.Type
