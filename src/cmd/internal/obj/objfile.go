@@ -23,6 +23,8 @@ import (
 	"strings"
 )
 
+const UnlinkablePkg = "<unlinkable>" // invalid package path, used when compiled without -p flag
+
 // Entry point of writing new object file.
 func WriteObjFile(ctxt *Link, b *bio.Writer) {
 
@@ -44,6 +46,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	flags := uint32(0)
 	if ctxt.Flag_shared {
 		flags |= goobj.ObjFlagShared
+	}
+	if w.pkgpath == UnlinkablePkg {
+		flags |= goobj.ObjFlagUnlinkable
 	}
 	if w.pkgpath == "" {
 		flags |= goobj.ObjFlagNeedNameExpansion

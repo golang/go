@@ -1059,3 +1059,31 @@ func TestLargeReloc(t *testing.T) {
 		}
 	}
 }
+
+func TestUnlinkableObj(t *testing.T) {
+	// Test that the linker emits an error with unlinkable object.
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	src := filepath.Join(tmpdir, "x.go")
+	obj := filepath.Join(tmpdir, "x.o")
+	err := ioutil.WriteFile(src, []byte("package main\nfunc main() {}\n"), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src) // without -p
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", obj)
+	out, err = cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("link did not fail")
+	}
+	if !bytes.Contains(out, []byte("unlinkable object")) {
+		t.Errorf("did not see expected error message. out:\n%s", out)
+	}
+}
