@@ -435,6 +435,8 @@ func readmemstats_m(stats *MemStats) {
 		memstats.buckhash_sys.load() + memstats.gcMiscSys.load() + memstats.other_sys.load() +
 		stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
 
+	heapGoal := gcController.heapGoal()
+
 	// The world is stopped, so the consistent stats (after aggregation)
 	// should be identical to some combination of memstats. In particular:
 	//
@@ -530,7 +532,7 @@ func readmemstats_m(stats *MemStats) {
 	// at a more granular level in the runtime.
 	stats.GCSys = memstats.gcMiscSys.load() + gcWorkBufInUse + gcProgPtrScalarBitsInUse
 	stats.OtherSys = memstats.other_sys.load()
-	stats.NextGC = gcController.heapGoal
+	stats.NextGC = heapGoal
 	stats.LastGC = memstats.last_gc_unix
 	stats.PauseTotalNs = memstats.pause_total_ns
 	stats.PauseNs = memstats.pause_ns

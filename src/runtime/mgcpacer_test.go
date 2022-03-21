@@ -300,11 +300,9 @@ func TestGcPacer(t *testing.T) {
 					// room because we're probably going to be triggering early.
 					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.925, 1.025)
 					// Next, let's make sure there's some minimum distance between the goal
-					// and the trigger.
-					//
-					// TODO(mknyszek): This is not quite intentional. For small heaps we should
-					// be within 5%.
-					assertInRange(t, "runway", c[n-1].runway(), 32<<10, 64<<10)
+					// and the trigger. It should be proportional to the runway (hence the
+					// trigger ratio check, instead of a check against the runway).
+					assertInRange(t, "trigger ratio", c[n-1].triggerRatio(), 0.925, 0.975)
 				}
 				if n > 25 {
 					// Double-check that GC utilization looks OK.
@@ -529,7 +527,7 @@ func TestGcPacer(t *testing.T) {
 					cycle:         i + 1,
 					heapLive:      c.HeapMarked(),
 					heapScannable: int64(float64(int64(c.HeapMarked())-bytesAllocatedBlackLast) * cycle.scannableFrac),
-					heapTrigger:   c.Trigger(),
+					heapTrigger:   c.Triggered(),
 					heapPeak:      c.HeapLive(),
 					heapGoal:      c.HeapGoal(),
 					gcUtilization: float64(assistTime)/(float64(gcDuration)*float64(e.nCores)) + GCBackgroundUtilization,
