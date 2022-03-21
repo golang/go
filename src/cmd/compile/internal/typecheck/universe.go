@@ -91,14 +91,12 @@ func InitUniverse() {
 
 	s = Lookup("_")
 	types.BlankSym = s
-	s.Block = -100
 	s.Def = NewName(s)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 	ir.BlankNode = ir.AsNode(s.Def)
 	ir.BlankNode.SetTypecheck(1)
 
 	s = types.BuiltinPkg.Lookup("_")
-	s.Block = -100
 	s.Def = NewName(s)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 
@@ -222,6 +220,5 @@ func DeclareUniverse() {
 		}
 
 		s1.Def = s.Def
-		s1.Block = s.Block
 	}
 }

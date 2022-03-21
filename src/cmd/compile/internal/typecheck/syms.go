@@ -67,7 +67,6 @@ func Lookup(name string) *types.Sym {
 // but does not make them visible to user code.
 func InitRuntime() {
 	base.Timer.Start("fe", "loadsys")
-	types.Block = 1
 
 	typs := runtimeTypes()
 	for _, d := range &runtimeDecls {
