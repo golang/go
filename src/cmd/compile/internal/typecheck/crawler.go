@@ -66,9 +66,9 @@ func (p *crawler) markObject(n *ir.Name) {
 // inline bodies may be needed. For instantiated generic types, it visits the base
 // generic type, which has the relevant methods.
 func (p *crawler) markType(t *types.Type) {
-	if t.OrigSym() != nil {
+	if orig := t.OrigType(); orig != nil {
 		// Convert to the base generic type.
-		t = t.OrigSym().Def.Type()
+		t = orig
 	}
 	if p.marked[t] {
 		return
@@ -154,9 +154,9 @@ func (p *crawler) markEmbed(t *types.Type) {
 		t = t.Elem()
 	}
 
-	if t.OrigSym() != nil {
+	if orig := t.OrigType(); orig != nil {
 		// Convert to the base generic type.
-		t = t.OrigSym().Def.Type()
+		t = orig
 	}
 
 	if p.embedded[t] {
@@ -194,9 +194,9 @@ func (p *crawler) markGeneric(t *types.Type) {
 	if t.IsPtr() {
 		t = t.Elem()
 	}
-	if t.OrigSym() != nil {
+	if orig := t.OrigType(); orig != nil {
 		// Convert to the base generic type.
-		t = t.OrigSym().Def.Type()
+		t = orig
 	}
 	if p.generic[t] {
 		return
@@ -229,7 +229,7 @@ func (p *crawler) checkForFullyInst(t *types.Type) {
 		// them available for import, and so will not need
 		// another round of method and dictionary
 		// instantiation after inlining.
-		baseType := t.OrigSym().Def.(*ir.Name).Type()
+		baseType := t.OrigType()
 		shapes := make([]*types.Type, len(t.RParams()))
 		for i, t1 := range t.RParams() {
 			shapes[i] = Shapify(t1, i, baseType.RParams()[i])
