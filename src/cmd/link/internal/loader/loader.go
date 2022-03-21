@@ -2083,6 +2083,10 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
 		objidx:       uint32(len(l.objs)),
 	}
 
+	if r.Unlinkable() {
+		log.Fatalf("link: unlinkable object (from package %s) - compiler requires -p flag", lib.Pkg)
+	}
+
 	// Autolib
 	lib.Autolib = append(lib.Autolib, r.Autolib()...)
 
