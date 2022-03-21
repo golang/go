@@ -109,6 +109,21 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: 'go work use' requires one or more directory arguments")
 	}
 	for _, useDir := range args {
+		absArg, _ := pathRel(workDir, useDir)
+
+		info, err := os.Stat(absArg)
+		if err != nil {
+			if os.IsNotExist(err) {
+				base.Errorf("go: %v directory not found", absArg)
+			} else {
+				base.Errorf("go: %v", err)
+			}
+			continue
+		} else if !info.IsDir() {
+			base.Errorf("go: %s not a directory", absArg)
+			continue
+		}
+
 		if !*useR {
 			if target, err := fsys.Stat(useDir); err == nil && !target.IsDir() {
 				base.Errorf(`go: argument "%s" is not a directory`, useDir)
@@ -119,7 +134,11 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		// Add or remove entries for any subdirectories that still exist.
-		err := fsys.Walk(useDir, func(path string, info fs.FileInfo, err error) error {
+		err = fsys.Walk(useDir, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
 			if !info.IsDir() {
 				if info.Mode()&fs.ModeSymlink != 0 {
 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
@@ -137,7 +156,6 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 
 		// Remove entries for subdirectories that no longer exist.
 		// Because they don't exist, they will be skipped by Walk.
-		absArg, _ := pathRel(workDir, useDir)
 		for absDir, _ := range haveDirs {
 			if str.HasFilePathPrefix(absDir, absArg) {
 				if _, ok := keepDirs[absDir]; !ok {

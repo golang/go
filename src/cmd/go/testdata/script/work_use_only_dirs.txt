@@ -1,0 +1,17 @@
+! go work use foo bar baz
+
+stderr '^go: '$WORK'[/\\]gopath[/\\]src[/\\]foo not a directory'
+stderr '^go: '$WORK'[/\\]gopath[/\\]src[/\\]baz directory not found'
+cmp go.work go.work_want
+
+! go work use -r qux
+stderr '^go: '$WORK'[/\\]gopath[/\\]src[/\\]qux not a directory'
+
+-- go.work --
+go 1.18
+-- go.work_want --
+go 1.18
+-- foo --
+-- qux --
+-- bar/go.mod --
+module bar
