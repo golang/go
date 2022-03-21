@@ -70,8 +70,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		n.SetFrameOffset(0)
 	}
 
-	s.Block = types.Block
-	s.Lastlineno = base.Pos
 	s.Def = n
 	n.Class = ctxt
 	if ctxt == ir.PFUNC {
