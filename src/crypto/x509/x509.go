@@ -184,13 +184,13 @@ const (
 
 	MD2WithRSA  // Unsupported.
 	MD5WithRSA  // Only supported for signing, not verification.
-	SHA1WithRSA // Only supported for signing, not verification.
+	SHA1WithRSA // Only supported for signing, and verification of CRLs, CSRs, and OCSP responses.
 	SHA256WithRSA
 	SHA384WithRSA
 	SHA512WithRSA
 	DSAWithSHA1   // Unsupported.
 	DSAWithSHA256 // Unsupported.
-	ECDSAWithSHA1 // Only supported for signing, not verification.
+	ECDSAWithSHA1 // Only supported for signing, and verification of CRLs, CSRs, and OCSP responses.
 	ECDSAWithSHA256
 	ECDSAWithSHA384
 	ECDSAWithSHA512
@@ -770,7 +770,7 @@ func (c *Certificate) hasSANExtension() bool {
 }
 
 // CheckSignatureFrom verifies that the signature on c is a valid signature
-// from parent.
+// from parent. SHA1WithRSA and ECDSAWithSHA1 signatures are not supported.
 func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
 	// RFC 5280, 4.2.1.9:
 	// "If the basic constraints extension is not present in a version 3
@@ -792,13 +792,13 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
 
 	// TODO(agl): don't ignore the path length constraint.
 
-	return parent.CheckSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature)
+	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, debugAllowSHA1)
 }
 
 // CheckSignature verifies that signature is a valid signature over signed from
 // c's public key.
 func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) error {
-	return checkSignature(algo, signed, signature, c.PublicKey)
+	return checkSignature(algo, signed, signature, c.PublicKey, true)
 }
 
 func (c *Certificate) hasNameConstraints() bool {
@@ -818,9 +818,9 @@ func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm, 
 	return fmt.Errorf("x509: signature algorithm specifies an %s public key, but have public key of type %T", expectedPubKeyAlgo.String(), pubKey)
 }
 
-// CheckSignature verifies that signature is a valid signature over signed from
+// checkSignature verifies that signature is a valid signature over signed from
 // a crypto.PublicKey.
-func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
+func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey, allowSHA1 bool) (err error) {
 	var hashType crypto.Hash
 	var pubKeyAlgo PublicKeyAlgorithm
 
@@ -839,7 +839,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 	case crypto.MD5:
 		return InsecureAlgorithmError(algo)
 	case crypto.SHA1:
-		if !debugAllowSHA1 {
+		if !allowSHA1 {
 			return InsecureAlgorithmError(algo)
 		}
 		fallthrough
@@ -1599,11 +1599,11 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	// Check the signature to ensure the crypto.Signer behaved correctly.
 	sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm)
 	switch sigAlg {
-	case MD5WithRSA, SHA1WithRSA, ECDSAWithSHA1:
+	case MD5WithRSA:
 		// We skip the check if the signature algorithm is only supported for
 		// signing, not verification.
 	default:
-		if err := checkSignature(sigAlg, c.Raw, signature, key.Public()); err != nil {
+		if err := checkSignature(sigAlg, c.Raw, signature, key.Public(), true); err != nil {
 			return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
 		}
 	}
@@ -2082,7 +2082,7 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 
 // CheckSignature reports whether the signature on c is valid.
 func (c *CertificateRequest) CheckSignature() error {
-	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey)
+	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey, true)
 }
 
 // RevocationList contains the fields used to create an X.509 v2 Certificate
