@@ -1196,10 +1196,17 @@ func writeType(t *types.Type) *obj.LSym {
 		}
 	}
 
-	ot = dextratypeData(lsym, ot, t)
-	objw.Global(lsym, int32(ot), int16(obj.DUPOK|obj.RODATA))
 	// Note: DUPOK is required to ensure that we don't end up with more
-	// than one type descriptor for a given type.
+	// than one type descriptor for a given type, if the type descriptor
+	// can be defined in multiple packages, that is, unnamed types and
+	// instantiated types.
+	dupok := 0
+	if tbase.Sym() == nil || tbase.IsFullyInstantiated() {
+		dupok = obj.DUPOK
+	}
+
+	ot = dextratypeData(lsym, ot, t)
+	objw.Global(lsym, int32(ot), int16(dupok|obj.RODATA))
 
 	// The linker will leave a table of all the typelinks for
 	// types in the binary, so the runtime can find them.
