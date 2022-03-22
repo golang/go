@@ -774,9 +774,6 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 	}
 	i := 0
 	for _, im := range iface.AllMethods().Slice() {
-		if im.Broke() {
-			continue
-		}
 		for i < len(tms) && tms[i].Sym != im.Sym {
 			i++
 		}

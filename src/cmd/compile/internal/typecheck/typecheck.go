@@ -1135,7 +1135,7 @@ func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 	}
 
 	if f1 != nil {
-		if dostrcmp > 1 || f1.Broke() {
+		if dostrcmp > 1 {
 			// Already in the process of diagnosing an error.
 			return f1
 		}
