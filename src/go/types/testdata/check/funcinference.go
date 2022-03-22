@@ -85,7 +85,7 @@ type Setter[B any] interface {
 func FromStrings[T interface{}, PT Setter[T]](s []string) []T {
 	result := make([]T, len(s))
 	for i, v := range s {
-		// The type of &result[i] is *T which is in the type list
+		// The type of &result[i] is *T which is in the type set
 		// of Setter, so we can convert it to PT.
 		p := PT(&result[i])
 		// PT has a Set method.

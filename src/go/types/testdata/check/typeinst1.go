@@ -169,11 +169,13 @@ type _ interface {
 }
 
 type _ interface {
-	~struct{f int} | ~struct{g int} | ~ /* ERROR overlapping terms */ struct {f int}
+	~struct{f int} | ~struct{g int} | ~ /* ERROR overlapping terms */ struct{f int}
 }
 
 // Interface term lists can contain any type, incl. *Named types.
-// Verify that we use the underlying type to compute the operational type.
+// Verify that we use the underlying type(s) of the type(s) in the
+// term list when determining if an operation is permitted.
+
 type MyInt int
 func add1[T interface{MyInt}](x T) T {
 	return x + 1
@@ -271,10 +273,10 @@ func gg[T any]() {}
 func hh[T ~int]() {}
 
 func _[T none]() {
-        _ = ff[int /* ERROR cannot implement none \(empty type set\) */ ]
-        _ = ff[T]  // pathological but ok because T's type set is empty, too
-        _ = gg[int]
-        _ = gg[T]
+	_ = ff[int /* ERROR cannot implement none \(empty type set\) */ ]
+	_ = ff[T]  // pathological but ok because T's type set is empty, too
+	_ = gg[int]
+	_ = gg[T]
 	_ = hh[int]
 	_ = hh[T]
 }

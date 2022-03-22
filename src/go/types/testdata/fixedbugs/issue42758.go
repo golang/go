@@ -22,7 +22,7 @@ type constraint interface {
 
 func _[T constraint](x interface{}){
 	switch x.(type) {
-	case T: // ok to use a type parameter even if type list contains int
+	case T: // ok to use a type parameter even if type set contains int
 	case int:
 	}
 }
