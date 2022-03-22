@@ -903,12 +903,6 @@ func tcRecoverFP(n *ir.CallExpr) ir.Node {
 
 // tcUnsafeAdd typechecks an OUNSAFEADD node.
 func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
-	if !types.AllowsGoVersion(curpkg(), 1, 17) {
-		base.ErrorfVers("go1.17", "unsafe.Add")
-		n.SetType(nil)
-		return n
-	}
-
 	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
 	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
 	if n.X.Type() == nil || n.Y.Type() == nil {
@@ -925,12 +919,6 @@ func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
 
 // tcUnsafeSlice typechecks an OUNSAFESLICE node.
 func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
-	if !types.AllowsGoVersion(curpkg(), 1, 17) {
-		base.ErrorfVers("go1.17", "unsafe.Slice")
-		n.SetType(nil)
-		return n
-	}
-
 	n.X = Expr(n.X)
 	n.Y = Expr(n.Y)
 	if n.X.Type() == nil || n.Y.Type() == nil {

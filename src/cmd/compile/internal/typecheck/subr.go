@@ -585,9 +585,6 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	// They must have same element type.
 	if src.IsSlice() && dst.IsPtr() && dst.Elem().IsArray() &&
 		types.Identical(src.Elem(), dst.Elem().Elem()) {
-		if !types.AllowsGoVersion(curpkg(), 1, 17) {
-			return ir.OXXX, ":\n\tconversion of slices to array pointers only supported as of -lang=go1.17"
-		}
 		return ir.OSLICE2ARRPTR, ""
 	}
 
