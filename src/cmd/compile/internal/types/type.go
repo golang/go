@@ -229,7 +229,6 @@ func (t *Type) IsShape() bool    { return t.flags&typeIsShape != 0 }
 func (t *Type) HasShape() bool   { return t.flags&typeHasShape != 0 }
 
 func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
-func (t *Type) SetBroke(b bool)      { base.Assertf(!b, "SetBroke") }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
@@ -796,7 +795,7 @@ func NewField(pos src.XPos, sym *Sym, typ *Type) *Field {
 		Offset: BADWIDTH,
 	}
 	if typ == nil {
-		f.SetBroke(true)
+		base.Fatalf("typ is nil")
 	}
 	return f
 }
@@ -1855,7 +1854,7 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
 		}
 	}
 	if anyBroke(methods) {
-		t.SetBroke(true)
+		base.Fatalf("type contain broken method: %v", methods)
 	}
 	t.extra.(*Interface).pkg = pkg
 	t.extra.(*Interface).implicit = implicit
@@ -1996,7 +1995,7 @@ func NewStruct(pkg *Pkg, fields []*Field) *Type {
 	t := newType(TSTRUCT)
 	t.SetFields(fields)
 	if anyBroke(fields) {
-		t.SetBroke(true)
+		base.Fatalf("struct contains broken field: %v", fields)
 	}
 	t.extra.(*Struct).pkg = pkg
 	if fieldsHasTParam(fields) {
