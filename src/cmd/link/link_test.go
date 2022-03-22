@@ -1069,6 +1069,7 @@ func TestUnlinkableObj(t *testing.T) {
 
 	src := filepath.Join(tmpdir, "x.go")
 	obj := filepath.Join(tmpdir, "x.o")
+	exe := filepath.Join(tmpdir, "x.exe")
 	err := ioutil.WriteFile(src, []byte("package main\nfunc main() {}\n"), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
@@ -1078,7 +1079,7 @@ func TestUnlinkableObj(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compile failed: %v. output:\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", obj)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-o", exe, obj)
 	out, err = cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("link did not fail")
