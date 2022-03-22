@@ -102,10 +102,15 @@ func (srv *busysrv) expect(bucket int, percent float64) bool {
 }
 
 func (srv *busysrv) printf(ffn func(format string, args ...interface{})) {
-	ffn("dialed %d times within %v\n", srv.bucketTotal, srv.end.Sub(srv.start))
-	ffn("timeBucket\tcount\tpercent\n")
-	for ms, cnt := range srv.bucket {
-		ffn("[%2d,%2d)ms\t%d\t%.2f%%\n", ms, ms+1, cnt, float64(cnt)/float64(srv.bucketTotal)*100.0)
+	ffn("dialed %d times within %v", srv.bucketTotal, srv.end.Sub(srv.start))
+	ffn("timeBucket\tcount\tpercent")
+	for bucket, cnt := range srv.bucket {
+		percent := float64(cnt) / float64(srv.bucketTotal) * 100.0
+		if bucket == len(srv.bucket)-1 {
+			ffn("[%2d, ~)ms\t%d\t%.2f%%", bucket, cnt, percent)
+		} else {
+			ffn("[%2d,%2d)ms\t%d\t%.2f%%", bucket, bucket+1, cnt, percent)
+		}
 	}
 }
 
@@ -115,6 +120,10 @@ func TestSysmonReadyNetpollWaitersASAP(t *testing.T) {
 	}
 	if runtime.GOARCH == "wasm" {
 		t.Skip("no sysmon on wasm yet")
+	}
+	if runtime.GOOS == "openbsd" {
+		// usleep(20us) actually slept 20ms. see issue #17712.
+		t.Skip("sysmon may oversleep on openbsd.")
 	}
 
 	// sysmon may starve if host load is too high.
@@ -134,8 +143,13 @@ func TestSysmonReadyNetpollWaitersASAP(t *testing.T) {
 	srv.stop()
 	time.Sleep(time.Millisecond * 100)
 
-	// expect more than 80% dialings accomplished within 2ms.
-	if !srv.expect(2, 80.0) {
+	// expect more than 80% dialings accomplished within 2ms in general.
+	// but android emulator may be slow, so more patience needed.
+	bucket, percent := 2, 80.0
+	if runtime.GOOS == "android" {
+		bucket = 9
+	}
+	if !srv.expect(bucket, percent) {
 		t.Fail()
 	}
 	srv.printf(t.Logf)
