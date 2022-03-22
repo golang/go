@@ -1297,7 +1297,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 			// instead of BinOp(EQL, tag, b.expr(cond))
 			// followed by If.  Don't forget conversions
 			// though.
-			cond := emitCompare(fn, token.EQL, tag, b.expr(fn, cond), token.NoPos)
+			cond := emitCompare(fn, token.EQL, tag, b.expr(fn, cond), cond.Pos())
 			emitIf(fn, cond, body, nextCond)
 			fn.currentBlock = nextCond
 		}
@@ -1375,7 +1375,6 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 	// 	...SD...
 	// 	goto done
 	// .done:
-
 	if s.Init != nil {
 		b.stmt(fn, s.Init)
 	}
@@ -1408,7 +1407,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			casetype = fn.typeOf(cond)
 			var condv Value
 			if casetype == tUntypedNil {
-				condv = emitCompare(fn, token.EQL, x, nilConst(x.Type()), token.NoPos)
+				condv = emitCompare(fn, token.EQL, x, nilConst(x.Type()), cond.Pos())
 				ti = x
 			} else {
 				yok := emitTypeTest(fn, x, casetype, cc.Case)
