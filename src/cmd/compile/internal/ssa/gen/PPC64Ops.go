@@ -139,10 +139,14 @@ func init() {
 		// tls = buildReg("R13")
 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+		xergp       = regInfo{inputs: []regMask{xer}, outputs: []regMask{gp}, clobbers: xer}
 		gp11cxer    = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
+		gp11xer     = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp, xer}}
 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
 		gp21a0      = regInfo{inputs: []regMask{gp, gp | sp | sb}, outputs: []regMask{gp}}
 		gp21cxer    = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
+		gp21xer     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, xer}, clobbers: xer}
+		gp2xer1xer  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, xer}, outputs: []regMask{gp, xer}, clobbers: xer}
 		gp31        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
 		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
@@ -222,6 +226,16 @@ func init() {
 		{name: "CLRLSLDI", argLength: 1, reg: gp11, asm: "CLRLSLDI", aux: "Int32"}, //
 
 		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true}, // arg0 + arg1 + carry, returns (sum, carry)
+
+		// Operations which consume or generate the CA (xer)
+		{name: "ADDC", argLength: 2, reg: gp21xer, asm: "ADDC", commutative: true, typ: "(UInt64, UInt64)"},    // arg0 + arg1 -> out, CA
+		{name: "SUBC", argLength: 2, reg: gp21xer, asm: "SUBC", typ: "(UInt64, UInt64)"},                       // arg0 - arg1 -> out, CA
+		{name: "ADDCconst", argLength: 1, reg: gp11xer, asm: "ADDC", typ: "(UInt64, UInt64)", aux: "Int64"},    // arg0 + imm16 -> out, CA
+		{name: "SUBCconst", argLength: 1, reg: gp11xer, asm: "SUBC", typ: "(UInt64, UInt64)", aux: "Int64"},    // imm16 - arg0 -> out, CA
+		{name: "ADDE", argLength: 3, reg: gp2xer1xer, asm: "ADDE", typ: "(UInt64, UInt64)", commutative: true}, // arg0 + arg1 + CA (arg2) -> out, CA
+		{name: "SUBE", argLength: 3, reg: gp2xer1xer, asm: "SUBE", typ: "(UInt64, UInt64)"},                    // arg0 - arg1 - CA (arg2) -> out, CA
+		{name: "ADDZEzero", argLength: 1, reg: xergp, asm: "ADDZE", typ: "UInt64"},                             // CA (arg0) + $0 -> out
+		{name: "SUBZEzero", argLength: 1, reg: xergp, asm: "SUBZE", typ: "UInt64"},                             // $0 - CA (arg0) -> out
 
 		{name: "SRADconst", argLength: 1, reg: gp11cxer, asm: "SRAD", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
 		{name: "SRAWconst", argLength: 1, reg: gp11cxer, asm: "SRAW", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width

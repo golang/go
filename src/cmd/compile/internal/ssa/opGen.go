@@ -1911,6 +1911,14 @@ const (
 	OpPPC64CLRLSLWI
 	OpPPC64CLRLSLDI
 	OpPPC64LoweredAdd64Carry
+	OpPPC64ADDC
+	OpPPC64SUBC
+	OpPPC64ADDCconst
+	OpPPC64SUBCconst
+	OpPPC64ADDE
+	OpPPC64SUBE
+	OpPPC64ADDZEzero
+	OpPPC64SUBZEzero
 	OpPPC64SRADconst
 	OpPPC64SRAWconst
 	OpPPC64SRDconst
@@ -25575,6 +25583,132 @@ var opcodeTable = [...]opInfo{
 			outputs: []outputInfo{
 				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:        "ADDC",
+		argLen:      2,
+		commutative: true,
+		asm:         ppc64.AADDC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			clobbers: 9223372036854775808, // XER
+			outputs: []outputInfo{
+				{1, 9223372036854775808}, // XER
+				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "SUBC",
+		argLen: 2,
+		asm:    ppc64.ASUBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			clobbers: 9223372036854775808, // XER
+			outputs: []outputInfo{
+				{1, 9223372036854775808}, // XER
+				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:    "ADDCconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     ppc64.AADDC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{1, 9223372036854775808}, // XER
+				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:    "SUBCconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     ppc64.ASUBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{1, 9223372036854775808}, // XER
+				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:        "ADDE",
+		argLen:      3,
+		commutative: true,
+		asm:         ppc64.AADDE,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 9223372036854775808}, // XER
+				{0, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			clobbers: 9223372036854775808, // XER
+			outputs: []outputInfo{
+				{1, 9223372036854775808}, // XER
+				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "SUBE",
+		argLen: 3,
+		asm:    ppc64.ASUBE,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 9223372036854775808}, // XER
+				{0, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			clobbers: 9223372036854775808, // XER
+			outputs: []outputInfo{
+				{1, 9223372036854775808}, // XER
+				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "ADDZEzero",
+		argLen: 1,
+		asm:    ppc64.AADDZE,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372036854775808}, // XER
+			},
+			clobbers: 9223372036854775808, // XER
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "SUBZEzero",
+		argLen: 1,
+		asm:    ppc64.ASUBZE,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372036854775808}, // XER
+			},
+			clobbers: 9223372036854775808, // XER
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
