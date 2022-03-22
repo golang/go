@@ -54,6 +54,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		switch p.As {
 		case AADDI, ASLTI, ASLTIU, AANDI, AORI, AXORI, ASLLI, ASRLI, ASRAI,
 			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA,
+			ABCLR, ABINV, ABSET, ABEXT, ABCLRI, ABINVI, ABSETI, ABEXTI,
 			AMUL, AMULH, AMULHU, AMULHSU, AMULW, ADIV, ADIVU, ADIVW, ADIVUW,
 			AREM, AREMU, AREMW, AREMUW:
 			p.Reg = p.To.Reg
@@ -82,6 +83,14 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = ASRLI
 		case ASRA:
 			p.As = ASRAI
+		case ABCLR:
+			p.As = ABCLRI
+		case ABINV:
+			p.As = ABINVI
+		case ABSET:
+			p.As = ABSETI
+		case ABEXT:
+			p.As = ABEXTI
 		}
 	}
 
@@ -1382,6 +1391,10 @@ var encodings = [ALAST & obj.AMask]encoding{
 	ASLLI & obj.AMask:  iIEncoding,
 	ASRLI & obj.AMask:  iIEncoding,
 	ASRAI & obj.AMask:  iIEncoding,
+	ABCLRI & obj.AMask: iIEncoding,
+	ABEXTI & obj.AMask: iIEncoding,
+	ABINVI & obj.AMask: iIEncoding,
+	ABSETI & obj.AMask: iIEncoding,
 	ALUI & obj.AMask:   uEncoding,
 	AAUIPC & obj.AMask: uEncoding,
 	AADD & obj.AMask:   rIIIEncoding,
@@ -1394,6 +1407,10 @@ var encodings = [ALAST & obj.AMask]encoding{
 	ASRL & obj.AMask:   rIIIEncoding,
 	ASUB & obj.AMask:   rIIIEncoding,
 	ASRA & obj.AMask:   rIIIEncoding,
+	ABCLR & obj.AMask:  rIIIEncoding,
+	ABEXT & obj.AMask:  rIIIEncoding,
+	ABINV & obj.AMask:  rIIIEncoding,
+	ABSET & obj.AMask:  rIIIEncoding,
 
 	// 2.5: Control Transfer Instructions
 	AJAL & obj.AMask:  jEncoding,

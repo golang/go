@@ -289,6 +289,24 @@ start:
 	EBREAK						// 73001000
 	SBREAK						// 73001000
 
+	// Zbs Instructions
+	BCLR	X1, X7, X15				// b3971348
+	BEXT	X1, X7, X15				// b3d71348
+	BINV	X1, X7, X15				// b3971368
+	BSET	X1, X7, X15				// b3971328
+	BCLRI	$33, X7, X15				// 9397134a
+	BEXTI	$33, X7, X15				// 93d7134a
+	BINVI	$33, X7, X15				// 9397136a
+	BSETI	$33, X7, X15				// 9397132a
+	BCLR	X1, X7					// b3931348
+	BEXT	X1, X7					// b3d31348
+	BINV	X1, X7					// b3931368
+	BSET	X1, X7					// b3931328
+	BCLRI	$33, X7					// 9393134a
+	BEXTI	$33, X7					// 93d3134a
+	BINVI	$33, X7					// 9393136a
+	BSETI	$33, X7					// 9393132a
+
 	// Arbitrary bytes (entered in little-endian mode)
 	WORD	$0x12345678	// WORD $305419896	// 78563412
 	WORD	$0x9abcdef0	// WORD $2596069104	// f0debc9a

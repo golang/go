@@ -579,6 +579,16 @@ const (
 	AHFENCEGVMA
 	AHFENCEVVMA
 
+	// Zbs Instructions
+	ABCLR
+	ABCLRI
+	ABEXT
+	ABEXTI
+	ABINV
+	ABINVI
+	ABSET
+	ABSETI
+
 	// The escape hatch. Inserts a single 32-bit word.
 	AWORD
 
