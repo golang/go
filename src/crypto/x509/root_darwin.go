@@ -12,8 +12,8 @@ import (
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	certs := macOS.CFArrayCreateMutable()
 	defer macOS.ReleaseCFArray(certs)
-	leaf := macOS.SecCertificateCreateWithData(c.Raw)
-	if leaf == 0 {
+	leaf, err := macOS.SecCertificateCreateWithData(c.Raw)
+	if err != nil {
 		return nil, errors.New("invalid leaf certificate")
 	}
 	macOS.CFArrayAppendValue(certs, leaf)
@@ -23,8 +23,8 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 			if err != nil {
 				return nil, err
 			}
-			sc := macOS.SecCertificateCreateWithData(c.Raw)
-			if sc != 0 {
+			sc, err := macOS.SecCertificateCreateWithData(c.Raw)
+			if err == nil {
 				macOS.CFArrayAppendValue(certs, sc)
 			}
 		}
