@@ -80,7 +80,7 @@ func expandiface(t *Type) {
 		switch prev := seen[m.Sym]; {
 		case prev == nil:
 			seen[m.Sym] = m
-		case AllowsGoVersion(t.Pkg(), 1, 14) && !explicit && Identical(m.Type, prev.Type):
+		case !explicit && Identical(m.Type, prev.Type):
 			return
 		default:
 			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
@@ -127,17 +127,14 @@ func expandiface(t *Type) {
 		}
 
 		// In 1.18, embedded types can be anything. In Go 1.17, we disallow
-		// embedding anything other than interfaces.
+		// embedding anything other than interfaces. This requirement was caught
+		// by types2 already, so allow non-interface here.
 		if !m.Type.IsInterface() {
-			if AllowsGoVersion(t.Pkg(), 1, 18) {
-				continue
-			}
-			base.FatalfAt(m.Pos, "interface contains embedded non-interface, non-union %v", m.Type)
+			continue
 		}
 
 		// Embedded interface: duplicate all methods
-		// (including broken ones, if any) and add to t's
-		// method set.
+		// and add to t's method set.
 		for _, t1 := range m.Type.AllMethods().Slice() {
 			f := NewField(m.Pos, t1.Sym, t1.Type)
 			addMethod(f, false)
