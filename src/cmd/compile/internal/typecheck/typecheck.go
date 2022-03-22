@@ -45,17 +45,6 @@ func Callee(n ir.Node) ir.Node {
 	return typecheck(n, ctxExpr|ctxCallee)
 }
 
-func FuncBody(n *ir.Func) {
-	ir.CurFunc = n
-	errorsBefore := base.Errors()
-	Stmts(n.Body)
-	CheckUnused(n)
-	CheckReturn(n)
-	if ir.IsBlank(n.Nname) || base.Errors() > errorsBefore {
-		n.Body = nil // blank function or type errors; do not compile
-	}
-}
-
 var importlist []*ir.Func
 
 // AllImportedBodies reads in the bodies of all imported functions and typechecks
