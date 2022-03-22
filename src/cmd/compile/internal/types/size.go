@@ -132,15 +132,7 @@ func expandiface(t *Type) {
 			if AllowsGoVersion(t.Pkg(), 1, 18) {
 				continue
 			}
-			base.ErrorfAt(m.Pos, "interface contains embedded non-interface, non-union %v", m.Type)
-			m.SetBroke(true)
-			t.SetBroke(true)
-			// Add to fields so that error messages
-			// include the broken embedded type when
-			// printing t.
-			// TODO(mdempsky): Revisit this.
-			methods = append(methods, m)
-			continue
+			base.FatalfAt(m.Pos, "interface contains embedded non-interface, non-union %v", m.Type)
 		}
 
 		// Embedded interface: duplicate all methods
@@ -268,7 +260,6 @@ func CalcSize(t *Type) {
 	}
 
 	if CalcSizeDisabled {
-		t.SetBroke(true)
 		base.Fatalf("width not calculated: %v", t)
 	}
 

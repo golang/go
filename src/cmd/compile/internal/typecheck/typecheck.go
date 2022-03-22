@@ -404,31 +404,16 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	// this code a bit, especially the final case.
 	switch {
 	case top&(ctxStmt|ctxExpr) == ctxExpr && !isExpr && n.Op() != ir.OTYPE && !isMulti:
-		base.Errorf("%v used as value", n)
-		n.SetDiag(true)
-		if t != nil {
-			n.SetType(nil)
-		}
+		base.Fatalf("%v used as value", n)
 
 	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
-		base.Errorf("type %v is not an expression", n.Type())
-		n.SetDiag(true)
+		base.Fatalf("type %v is not an expression", n.Type())
 
 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
-		base.Errorf("%v evaluated but not used", n)
-		n.SetDiag(true)
-		n.SetType(nil)
+		base.Fatalf("%v evaluated but not used", n)
 
 	case top&(ctxType|ctxExpr) == ctxType && n.Op() != ir.OTYPE && n.Op() != ir.ONONAME && (t != nil || n.Op() == ir.ONAME):
-		base.Errorf("%v is not a type", n)
-		if t != nil {
-			if n.Op() == ir.ONAME {
-				t.SetBroke(true)
-			} else {
-				n.SetType(nil)
-			}
-		}
-
+		base.Fatalf("%v is not a type", n)
 	}
 
 	base.Pos = lno
