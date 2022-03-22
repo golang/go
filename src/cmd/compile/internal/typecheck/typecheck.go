@@ -454,10 +454,8 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.ONONAME:
 		// Note: adderrorname looks for this string and
 		// adds context about the outer expression
-		base.ErrorfAt(n.Pos(), "undefined: %v", n.Sym())
-		n.SetDiag(true)
-		n.SetType(nil)
-		return n
+		base.FatalfAt(n.Pos(), "undefined: %v", n.Sym())
+		panic("unreachable")
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
@@ -828,8 +826,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OTYPESW:
 		n := n.(*ir.TypeSwitchGuard)
-		base.Errorf("use of .(type) outside type switch")
-		n.SetDiag(true)
+		base.Fatalf("use of .(type) outside type switch")
 		return n
 
 	case ir.ODCLFUNC:
@@ -1374,7 +1371,7 @@ notenough:
 			base.Errorf("not enough arguments to %v%s", op, details)
 		}
 		if n != nil {
-			n.SetDiag(true)
+			base.Fatalf("invalid call")
 		}
 	}
 	return
@@ -1521,13 +1518,7 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
 			elt.Key = Expr(elt.Key)
 			key = IndexConst(elt.Key)
 			if key < 0 {
-				if key == -2 {
-					base.Errorf("index too large")
-				} else {
-					base.Errorf("index must be non-negative integer constant")
-				}
-				elt.Key.SetDiag(true)
-				key = -(1 << 30) // stay negative for a while
+				base.Fatalf("invalid index: %v", elt.Key)
 			}
 			kv = elt
 			r = elt.Value
