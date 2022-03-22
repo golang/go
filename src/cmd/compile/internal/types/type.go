@@ -521,16 +521,13 @@ type Field struct {
 
 const (
 	fieldIsDDD = 1 << iota // field is ... argument
-	fieldBroke             // broken field definition
 	fieldNointerface
 )
 
 func (f *Field) IsDDD() bool       { return f.flags&fieldIsDDD != 0 }
-func (f *Field) Broke() bool       { return f.flags&fieldBroke != 0 }
 func (f *Field) Nointerface() bool { return f.flags&fieldNointerface != 0 }
 
 func (f *Field) SetIsDDD(b bool)       { f.flags.set(fieldIsDDD, b) }
-func (f *Field) SetBroke(b bool)       { f.flags.set(fieldBroke, b) }
 func (f *Field) SetNointerface(b bool) { f.flags.set(fieldNointerface, b) }
 
 // End returns the offset of the first byte immediately after this field.
