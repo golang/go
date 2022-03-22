@@ -1,5 +1,7 @@
 # Go internal ABI specification
 
+Self-link: [go.dev/s/regabi](https://go.dev/s/regabi)
+
 This document describes Go’s internal application binary interface
 (ABI), known as ABIInternal.
 Go's ABI defines the layout of data in memory and the conventions for
