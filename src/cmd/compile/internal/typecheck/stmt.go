@@ -315,8 +315,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 
 	// The syntax made sure it was a call, so this must be
 	// a conversion.
-	n.SetDiag(true)
-	base.ErrorfAt(n.Pos(), "%s requires function call, not conversion", what)
+	base.FatalfAt(n.Pos(), "%s requires function call, not conversion", what)
 }
 
 // tcIf typechecks an OIF node.

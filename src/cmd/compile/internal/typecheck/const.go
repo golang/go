@@ -98,10 +98,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		}
 		n = ir.Copy(n)
 		if t == nil {
-			base.Errorf("use of untyped nil")
-			n.SetDiag(true)
-			n.SetType(nil)
-			return n
+			base.Fatalf("use of untyped nil")
 		}
 
 		if !t.HasNil() {
@@ -199,13 +196,12 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 	}
 
 	if explicit {
-		base.Errorf("cannot convert %L to type %v", n, t)
+		base.Fatalf("cannot convert %L to type %v", n, t)
 	} else if context != nil {
-		base.Errorf("cannot use %L as type %v in %s", n, t, context())
+		base.Fatalf("cannot use %L as type %v in %s", n, t, context())
 	} else {
-		base.Errorf("cannot use %L as type %v", n, t)
+		base.Fatalf("cannot use %L as type %v", n, t)
 	}
-	n.SetDiag(true)
 
 	n.SetType(nil)
 	return n
