@@ -1853,9 +1853,6 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
 			break
 		}
 	}
-	if anyBroke(methods) {
-		base.Fatalf("type contain broken method: %v", methods)
-	}
 	t.extra.(*Interface).pkg = pkg
 	t.extra.(*Interface).implicit = implicit
 	return t
@@ -1994,9 +1991,6 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 func NewStruct(pkg *Pkg, fields []*Field) *Type {
 	t := newType(TSTRUCT)
 	t.SetFields(fields)
-	if anyBroke(fields) {
-		base.Fatalf("struct contains broken field: %v", fields)
-	}
 	t.extra.(*Struct).pkg = pkg
 	if fieldsHasTParam(fields) {
 		t.SetHasTParam(true)
@@ -2005,15 +1999,6 @@ func NewStruct(pkg *Pkg, fields []*Field) *Type {
 		t.SetHasShape(true)
 	}
 	return t
-}
-
-func anyBroke(fields []*Field) bool {
-	for _, f := range fields {
-		if f.Broke() {
-			return true
-		}
-	}
-	return false
 }
 
 var (
