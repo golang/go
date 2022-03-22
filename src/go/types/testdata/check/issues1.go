@@ -31,12 +31,12 @@ type C[T any] interface {
 
 // using type bound C
 func _[T C[T]](x *T) {
-	x.m  /* ERROR x\.m undefined */ ()
+	x.m /* ERROR x\.m undefined */ ()
 }
 
 // using an interface literal as bound
 func _[T interface{ m() }](x *T) {
-	x.m  /* ERROR x\.m undefined */ ()
+	x.m /* ERROR x\.m undefined */ ()
 }
 
 func f2[_ interface{ m1(); m2() }]() {}
@@ -51,9 +51,8 @@ func _() {
 }
 
 // When a type parameter is used as an argument to instantiate a parameterized
-// type with a type set constraint, all of the type argument's types in its
-// bound, but at least one (!), must be in the type set of the bound of the
-// corresponding parameterized type's type parameter.
+// type, the type argument's type set must be a subset of the instantiated type
+// parameter's type set.
 type T1[P interface{~uint}] struct{}
 
 func _[P any]() {
@@ -150,7 +149,7 @@ type inf2[T any] struct{ inf2 /* ERROR illegal cycle */ [T] }
 // The implementation of conversions T(x) between integers and floating-point
 // numbers checks that both T and x have either integer or floating-point
 // type. When the type of T or x is a type parameter, the respective simple
-// predicate disjunction in the implementation was wrong because if a term list
+// predicate disjunction in the implementation was wrong because if a type set
 // contains both an integer and a floating-point type, the type parameter is
 // neither an integer or a floating-point number.
 func convert[T1, T2 interface{~int | ~uint | ~float32}](v T1) T2 {
@@ -183,14 +182,12 @@ func _[T interface{}, PT interface{~*T}] (x T) PT {
     return &x
 }
 
-// Indexing of generic types containing type parameters in their term list:
+// Indexing of type parameters containing type parameters in their constraint terms:
 func at[T interface{ ~[]E }, E interface{}](x T, i int) E {
         return x[i]
 }
 
-// A generic type inside a function acts like a named type. Its underlying
-// type is itself, its "operational type" is defined by the term list in
-// the tybe bound, if any.
+// Conversion of a local type to a type parameter.
 func _[T interface{~int}](x T) {
 	type myint int
 	var _ int = int(x)
@@ -198,19 +195,19 @@ func _[T interface{~int}](x T) {
 	var _ T = T(myint(42))
 }
 
-// Indexing a generic type with an array type bound checks length.
+// Indexing a type parameter with an array type bound checks length.
 // (Example by mdempsky@.)
 func _[T interface { ~[10]int }](x T) {
 	_ = x[9] // ok
 	_ = x[20 /* ERROR out of bounds */ ]
 }
 
-// Pointer indirection of a generic type.
+// Pointer indirection of a type parameter.
 func _[T interface{ ~*int }](p T) int {
 	return *p
 }
 
-// Channel sends and receives on generic types.
+// Channel sends and receives on type parameters.
 func _[T interface{ ~chan int }](ch T) int {
 	ch <- 0
 	return <- ch
@@ -229,11 +226,11 @@ func _[T interface{ func()|F1|F2 }](f T) {
 	go f()
 }
 
-// We must compare against the underlying type of term list entries
-// when checking if a constraint is satisfied by a type. The under-
-// lying type of each term list entry must be computed after the
-// interface has been instantiated as its typelist may contain a
-// type parameter that was substituted with a defined type.
+// We must compare against the (possibly underlying) types of term list
+// elements when checking if a constraint is satisfied by a type.
+// The underlying type of each term must be computed after the
+// interface has been instantiated as its constraint may contain
+// a type parameter that was substituted with a defined type.
 // Test case from an (originally) failing example.
 
 type sliceOf[E any] interface{ ~[]E }
