@@ -131,11 +131,16 @@ func x509_SecTrustCreateWithCertificates_trampoline()
 
 //go:cgo_import_dynamic x509_SecCertificateCreateWithData SecCertificateCreateWithData "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
-func SecCertificateCreateWithData(b []byte) CFRef {
+func SecCertificateCreateWithData(b []byte) (CFRef, error) {
 	data := BytesToCFData(b)
+	defer CFRelease(data)
 	ret := syscall(abi.FuncPCABI0(x509_SecCertificateCreateWithData_trampoline), kCFAllocatorDefault, uintptr(data), 0, 0, 0, 0)
-	CFRelease(data)
-	return CFRef(ret)
+	// Returns NULL if the data passed in the data parameter is not a valid
+	// DER-encoded X.509 certificate.
+	if ret == 0 {
+		return 0, errors.New("SecCertificateCreateWithData: invalid certificate")
+	}
+	return CFRef(ret), nil
 }
 func x509_SecCertificateCreateWithData_trampoline()
 
