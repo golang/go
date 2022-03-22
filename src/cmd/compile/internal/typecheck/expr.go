@@ -58,10 +58,6 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 		base.Errorf("invalid operation: %v (shift count type %v, must be integer)", n, r.Type())
 		return l, r, nil
 	}
-	if t.IsSigned() && !types.AllowsGoVersion(curpkg(), 1, 13) {
-		base.ErrorfVers("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type())
-		return l, r, nil
-	}
 	t = l.Type()
 	if t != nil && t.Kind() != types.TIDEAL && !t.IsInteger() {
 		base.Errorf("invalid operation: %v (shift of type %v)", n, t)
