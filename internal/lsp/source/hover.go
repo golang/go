@@ -32,7 +32,8 @@ import (
 type HoverContext struct {
 	// signatureSource is the object or node use to derive the hover signature.
 	//
-	// TODO(rfindley): can we pre-compute the signature, to avoid this indirection?
+	// It may also hold a precomputed string.
+	// TODO(rfindley): pre-compute all signatures to avoid this indirection.
 	signatureSource interface{}
 
 	// comment is the most relevant comment group associated with the hovered object.
@@ -262,6 +263,9 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 	fset := i.Snapshot.FileSet()
 	// Determine the symbol's signature.
 	switch x := hoverCtx.signatureSource.(type) {
+	case string:
+		h.Signature = x // a pre-computed signature
+
 	case *ast.TypeSpec:
 		x2 := *x
 		// Don't duplicate comments when formatting type specs.
@@ -578,7 +582,18 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 		case *types.Func:
 			info = &HoverContext{signatureSource: obj, Comment: node.Doc}
 		case *types.Builtin:
-			info = &HoverContext{signatureSource: node.Type, Comment: node.Doc}
+			info = &HoverContext{Comment: node.Doc}
+			if sig, err := NewBuiltinSignature(ctx, s, obj.Name()); err == nil {
+				info.signatureSource = "func " + sig.name + sig.Format()
+			} else {
+				// Fall back on the object as a signature source.
+
+				// TODO(rfindley): refactor so that we can report bugs from the source
+				// package.
+
+				// debug.Bug(ctx, "invalid builtin hover", "did not find builtin signature: %v", err)
+				info.signatureSource = obj
+			}
 		case *types.Var:
 			// Object is a function param or the field of an anonymous struct
 			// declared with ':='. Skip the first one because only fields

@@ -156,7 +156,7 @@ const h untyped int = 2
 Constant block\.
 -- make-hoverdef --
 ```go
-func(t Type, size ...IntegerType) Type
+func make(t Type, size ...int) Type
 ```
 
 The make built\-in function allocates and initializes an object of type slice, map, or chan \(only\)\.
