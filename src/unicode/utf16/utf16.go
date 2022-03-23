@@ -31,6 +31,19 @@ func IsSurrogate(r rune) bool {
 	return surr1 <= r && r < surr3
 }
 
+// RuneLen returns the number of 16-bit words required to encode the rune.
+// It returns -1 if the rune is not a valid value to encode in UTF-16.
+func RuneLen(r rune) int {
+	switch {
+	case 0 <= r && r < surr1, surr3 <= r && r < surrSelf:
+		return 1
+	case surrSelf <= r && r <= maxRune:
+		return 2
+	default:
+		return -1
+	}
+}
+
 // DecodeRune returns the UTF-16 decoding of a surrogate pair.
 // If the pair is not a valid UTF-16 surrogate pair, DecodeRune returns
 // the Unicode replacement code point U+FFFD.
