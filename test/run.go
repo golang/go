@@ -263,14 +263,13 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 	return runcmd(cmd...)
 }
 
-func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, pkgname string, names ...string) (out []byte, err error) {
-	if pkgname != "main" {
-		pkgname = strings.TrimSuffix(names[0], ".go")
-	}
-	cmd := []string{goTool(), "tool", "compile", "-e", "-p=" + pkgname}
-	if localImports {
-		// Set relative path for local imports and import search path to current dir.
-		cmd = append(cmd, "-D", ".", "-I", ".")
+func compileInDir(runcmd runCmd, dir string, flags []string, pkgname string, names ...string) (out []byte, err error) {
+	cmd := []string{goTool(), "tool", "compile", "-e", "-D", "test", "-I", "."}
+	if pkgname == "main" {
+		cmd = append(cmd, "-p=main")
+	} else {
+		pkgname = path.Join("test", strings.TrimSuffix(names[0], ".go"))
+		cmd = append(cmd, "-o", pkgname+".a", "-p", pkgname)
 	}
 	cmd = append(cmd, flags...)
 	if *linkshared {
@@ -615,7 +614,6 @@ func (t *test) run() {
 	wantError := false
 	wantAuto := false
 	singlefilepkgs := false
-	localImports := true
 	f, err := splitQuoted(action)
 	if err != nil {
 		t.err = fmt.Errorf("invalid test recipe: %v", err)
@@ -659,12 +657,6 @@ func (t *test) run() {
 			wantError = false
 		case "-s":
 			singlefilepkgs = true
-		case "-n":
-			// Do not set relative path for local imports to current dir,
-			// e.g. do not pass -D . -I . to the compiler.
-			// Used in fixedbugs/bug345.go to allow compilation and import of local pkg.
-			// See golang.org/issue/25635
-			localImports = false
 		case "-t": // timeout in seconds
 			args = args[1:]
 			var err error
@@ -886,7 +878,7 @@ func (t *test) run() {
 			return
 		}
 		for _, pkg := range pkgs {
-			_, t.err = compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
+			_, t.err = compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
 			if t.err != nil {
 				return
 			}
@@ -910,7 +902,7 @@ func (t *test) run() {
 			errPkg--
 		}
 		for i, pkg := range pkgs {
-			out, err := compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
+			out, err := compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
 			if i == errPkg {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
@@ -959,7 +951,7 @@ func (t *test) run() {
 		}
 
 		for i, pkg := range pkgs {
-			_, err := compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
+			_, err := compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
 			// Allow this package compilation fail based on conditions below;
 			// its errors were checked in previous case.
 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
@@ -1282,6 +1274,10 @@ func (t *test) makeTempDir() {
 	}
 	if *keep {
 		log.Printf("Temporary directory is %s", t.tempDir)
+	}
+	err = os.Mkdir(filepath.Join(t.tempDir, "test"), 0o755)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
