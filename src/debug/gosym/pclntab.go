@@ -627,6 +627,10 @@ func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 		filetab := f.pcfile()
 		linetab := f.pcln()
 		if t.version == ver116 || t.version == ver118 {
+			if f.cuOffset() == ^uint32(0) {
+				// skip functions without compilation unit (not real function, or linker generated)
+				continue
+			}
 			cutab = t.cutab[f.cuOffset()*4:]
 		}
 		pc := t.findFileLine(entry, filetab, linetab, int32(filenum), int32(line), cutab)
