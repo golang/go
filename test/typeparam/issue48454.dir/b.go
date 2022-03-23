@@ -4,7 +4,7 @@
 
 package b
 
-import "a"
+import "./a"
 
 type Session struct {
 	privateField a.Val[string]

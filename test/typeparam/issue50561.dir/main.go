@@ -5,7 +5,7 @@
 package main
 
 import (
-	"diameter"
+	"./diameter"
 )
 
 func main() {

@@ -4,7 +4,7 @@
 
 package main
 
-import "a"
+import "./a"
 
 // Testing inlining of functions that refer to instantiated exported and non-exported
 // generic types.

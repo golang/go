@@ -4,7 +4,7 @@
 
 package main
 
-import "p"
+import "./p"
 
 func main() {
 	_ = p.MarshalFuncV1[int](func(int) ([]byte, error) { return nil, nil })
