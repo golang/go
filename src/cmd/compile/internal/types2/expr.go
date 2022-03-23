@@ -1429,7 +1429,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					}
 					check.expr(x, e)
 					if i >= len(fields) {
-						check.error(x, "too many values in struct literal")
+						check.errorf(x, "too many values in %s{…}", base)
 						break // cannot continue
 					}
 					// i < len(fields)
@@ -1442,7 +1442,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					check.assignment(x, etyp, "struct literal")
 				}
 				if len(e.ElemList) < len(fields) {
-					check.error(e.Rbrace, "too few values in struct literal")
+					check.errorf(e.Rbrace, "too few values in %s{…}", base)
 					// ok to continue
 				}
 			}
