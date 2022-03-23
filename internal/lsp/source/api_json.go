@@ -434,6 +434,11 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
+							Name:    "\"unusedvariable\"",
+							Doc:     "check for unused variables\n\nThe unusedvariable analyzer suggests fixes for unused variables errors.\n",
+							Default: "false",
+						},
+						{
 							Name:    "\"fillstruct\"",
 							Doc:     "note incomplete struct initializations\n\nThis analyzer provides diagnostics for any struct literals that do not have\nany fields initialized. Because the suggested fix for this analysis is\nexpensive to compute, callers should compute it separately, using the\nSuggestedFix function below.\n",
 							Default: "true",
@@ -1012,6 +1017,10 @@ var GeneratedAPIJSON = &APIJSON{
 			Name:    "undeclaredname",
 			Doc:     "suggested fixes for \"undeclared name: <>\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: <>\". It will either insert a new statement,\nsuch as:\n\n\"<> := \"\n\nor a new function declaration, such as:\n\nfunc <>(inferred parameters) {\n\tpanic(\"implement me!\")\n}\n",
 			Default: true,
+		},
+		{
+			Name: "unusedvariable",
+			Doc:  "check for unused variables\n\nThe unusedvariable analyzer suggests fixes for unused variables errors.\n",
 		},
 		{
 			Name:    "fillstruct",

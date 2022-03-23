@@ -1,0 +1,59 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package a
+
+import (
+	"fmt"
+	"os"
+)
+
+type A struct {
+	b int
+}
+
+func singleAssignment() {
+	if 1 == 1 {
+	}
+
+	panic("I should survive")
+}
+
+func noOtherStmtsInBlock() {
+}
+
+func partOfMultiAssignment() {
+	_, err := os.Open("file") // want `f declared but not used`
+	panic(err)
+}
+
+func sideEffects(cBool chan bool, cInt chan int) {
+	<-c            // want `b declared but not used`
+	fmt.Sprint("") // want `s declared but not used`
+	A{             // want `a declared but not used`
+		b: func() int {
+			return 1
+		}(),
+	}
+	A{<-cInt}          // want `c declared but not used`
+	fInt() + <-cInt    // want `d declared but not used`
+	fBool() && <-cBool // want `e declared but not used`
+	map[int]int{       // want `f declared but not used`
+		fInt(): <-cInt,
+	}
+	[]int{<-cInt}       // want `g declared but not used`
+	func(s string) {}() // want `i declared but not used`
+}
+
+func commentAbove() {
+	// v is a variable
+}
+
+func fBool() bool {
+	return true
+}
+
+func fInt() int {
+	return 1
+}

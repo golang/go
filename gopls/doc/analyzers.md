@@ -657,6 +657,15 @@ func <>(inferred parameters) {
 
 **Enabled by default.**
 
+## **unusedvariable**
+
+check for unused variables
+
+The unusedvariable analyzer suggests fixes for unused variables errors.
+
+
+**Disabled by default. Enable it by setting `"analyses": {"unusedvariable": true}`.**
+
 ## **fillstruct**
 
 note incomplete struct initializations

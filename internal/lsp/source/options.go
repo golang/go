@@ -61,6 +61,7 @@ import (
 	"golang.org/x/tools/internal/lsp/analysis/stubmethods"
 	"golang.org/x/tools/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/internal/lsp/analysis/unusedparams"
+	"golang.org/x/tools/internal/lsp/analysis/unusedvariable"
 	"golang.org/x/tools/internal/lsp/analysis/useany"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/diff"
@@ -800,6 +801,9 @@ func (o *Options) enableAllExperimentMaps() {
 	if _, ok := o.Analyses[unusedparams.Analyzer.Name]; !ok {
 		o.Analyses[unusedparams.Analyzer.Name] = true
 	}
+	if _, ok := o.Analyses[unusedvariable.Analyzer.Name]; !ok {
+		o.Analyses[unusedvariable.Analyzer.Name] = true
+	}
 }
 
 func (o *Options) set(name string, value interface{}, seen map[string]struct{}) OptionResult {
@@ -1269,6 +1273,10 @@ func typeErrorAnalyzers() map[string]*Analyzer {
 			Analyzer: undeclaredname.Analyzer,
 			Fix:      UndeclaredName,
 			Enabled:  true,
+		},
+		unusedvariable.Analyzer.Name: {
+			Analyzer: unusedvariable.Analyzer,
+			Enabled:  false,
 		},
 	}
 }
