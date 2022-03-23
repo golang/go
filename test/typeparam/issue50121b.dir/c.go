@@ -5,7 +5,7 @@
 package c
 
 import (
-	"b"
+	"./b"
 )
 
 func BuildInt() int {

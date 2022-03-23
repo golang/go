@@ -4,7 +4,7 @@
 
 package main
 
-import "a"
+import "./a"
 
 type R[T any] struct {
 	F T

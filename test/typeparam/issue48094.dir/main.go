@@ -4,7 +4,7 @@
 
 package main
 
-import "a"
+import "./a"
 
 func main() {
 	if a.F[int64]() != 8 {

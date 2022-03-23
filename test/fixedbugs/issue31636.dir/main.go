@@ -9,11 +9,11 @@ package main
 // 1.13. For 1.14, we will move to a variant of lexicographic ordering
 // which will require a change to the test output of this test.
 import (
-	_ "c"
+	_ "./c"
 
-	_ "b"
+	_ "./b"
 
-	_ "a"
+	_ "./a"
 )
 
 func main() {
