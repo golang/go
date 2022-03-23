@@ -22,7 +22,7 @@ type PkgDecoder struct {
 
 	elemEndsEnds [numRelocs]uint32
 	elemEnds     []uint32
-	elemData     string
+	elemData     string // last 8 bytes are fingerprint
 }
 
 func (pr *PkgDecoder) PkgPath() string { return pr.pkgPath }
@@ -50,7 +50,7 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 	assert(err == nil)
 
 	pr.elemData = input[pos:]
-	assert(len(pr.elemData) == int(pr.elemEnds[len(pr.elemEnds)-1]))
+	assert(len(pr.elemData)-8 == int(pr.elemEnds[len(pr.elemEnds)-1]))
 
 	return pr
 }
@@ -65,6 +65,12 @@ func (pr *PkgDecoder) NumElems(k RelocKind) int {
 
 func (pr *PkgDecoder) TotalElems() int {
 	return len(pr.elemEnds)
+}
+
+func (pr *PkgDecoder) Fingerprint() [8]byte {
+	var fp [8]byte
+	copy(fp[:], pr.elemData[len(pr.elemData)-8:])
+	return fp
 }
 
 func (pr *PkgDecoder) AbsIdx(k RelocKind, idx int) int {
