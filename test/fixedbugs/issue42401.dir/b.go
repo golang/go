@@ -5,11 +5,12 @@
 package main
 
 import (
-	"./a"
 	_ "unsafe"
+
+	"./a"
 )
 
-//go:linkname s a.s
+//go:linkname s test/a.s
 var s string
 
 func main() {
