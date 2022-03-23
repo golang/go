@@ -1,4 +1,4 @@
-// +build !nacl,!js,!windows,gc
+// +build !nacl,!js,gc
 // run
 
 // Copyright 2011 The Go Authors. All rights reserved.
@@ -29,10 +29,12 @@ func main() {
 		return filepath.Join(tmpDir, name)
 	}
 
-	run("go", "tool", "compile", "-p=pkg", "-N", "-o", tmp("slow.o"), "pkg.go")
-	run("go", "tool", "compile", "-p=pkg", "-o", tmp("fast.o"), "pkg.go")
-	run("go", "tool", "compile", "-p=main", "-D", tmpDir, "-o", tmp("main.o"), "main.go")
-	run("go", "tool", "link", "-o", tmp("a.exe"), tmp("main.o"))
+	check(os.Mkdir(tmp("test"), 0777))
+
+	run("go", "tool", "compile", "-p=test/slow", "-N", "-o", tmp("test/slow.o"), "pkg.go")
+	run("go", "tool", "compile", "-p=test/fast", "-o", tmp("test/fast.o"), "pkg.go")
+	run("go", "tool", "compile", "-p=main", "-D", "test", "-I", tmpDir, "-o", tmp("main.o"), "main.go")
+	run("go", "tool", "link", "-L", tmpDir, "-o", tmp("a.exe"), tmp("main.o"))
 	run(tmp("a.exe"))
 }
 
