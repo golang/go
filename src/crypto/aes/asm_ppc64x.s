@@ -79,14 +79,6 @@ GLOBL ·rcon(SB), RODATA, $80
 	VPERM	VS, VS, ESPERM, TMP2 \
 	STXVD2X	TMP2, (RA+RB)
 
-#define P8_STXV(VS,RA,RB) \
-	XXPERMDI	VS, VS, $2, TMP2 \
-	STXVD2X		TMP2, (RA+RB)
-
-#define P8_LXV(RA,RB,VT) \
-	LXVD2X		(RA+RB), VT \
-	XXPERMDI	VT, VT, $2, VT
-
 #define LXSDX_BE(RA,RB,VT) \
 	LXSDX	(RA+RB), VT \
 	VPERM	VT, VT, ESPERM, VT
@@ -96,12 +88,6 @@ GLOBL ·rcon(SB), RODATA, $80
 
 #define P8_STXVB16X(VS,RA,RB) \
 	STXVD2X	VS, (RA+RB)
-
-#define P8_STXV(VS,RA,RB) \
-	STXVD2X	VS, (RA+RB)
-
-#define P8_LXV(RA,RB,VT) \
-	LXVD2X	(RA+RB), VT
 
 #define LXSDX_BE(RA,RB,VT) \
 	LXSDX	(RA+RB), VT
@@ -149,8 +135,8 @@ loop128:
 	// Key schedule (Round 1 to 8)
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5         Rotate-n-splat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(IN0, R0, OUTENC)
-	P8_STXV(IN0, R0, OUTDEC)
+	STXVD2X	IN0, (R0+OUTENC)
+	STXVD2X	IN0, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
@@ -169,8 +155,8 @@ loop128:
 	// Key schedule (Round 9)
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5   Rotate-n-spat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(IN0, R0, OUTENC)
-	P8_STXV(IN0, R0, OUTDEC)
+	STXVD2X	IN0, (R0+OUTENC)
+	STXVD2X	IN0, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
@@ -186,8 +172,8 @@ loop128:
 
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5   Rotate-n-splat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(IN0, R0, OUTENC)
-	P8_STXV(IN0, R0, OUTDEC)
+	STXVD2X	IN0, (R0+OUTENC)
+	STXVD2X	IN0, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
@@ -199,16 +185,16 @@ loop128:
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
-	P8_STXV(IN0, R0, OUTENC)
-	P8_STXV(IN0, R0, OUTDEC)
+	STXVD2X	IN0, (R0+OUTENC)
+	STXVD2X	IN0, (R0+OUTDEC)
 
 	RET
 
 l192:
 	LXSDX_BE(INP, R0, IN1)                   // Load next 8 bytes into upper half of VSR in BE order.
 	MOVD	$4, CNT                          // li 7,4
-	P8_STXV(IN0, R0, OUTENC)
-	P8_STXV(IN0, R0, OUTDEC)
+	STXVD2X	IN0, (R0+OUTENC)
+	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
 	VSPLTISB	$8, KEY                  // vspltisb 3,8
@@ -238,8 +224,8 @@ loop192:
 
 	VPERM	IN1, IN1, MASK, KEY              // vperm 3,2,2,5
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(STAGE, R0, OUTENC)
-	P8_STXV(STAGE, R0, OUTDEC)
+	STXVD2X	STAGE, (R0+OUTENC)
+	STXVD2X	STAGE, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
@@ -247,8 +233,8 @@ loop192:
 	VSLDOI	$8, IN0, IN1, STAGE              // vsldoi 7,1,2,8
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
-	P8_STXV(STAGE, R0, OUTENC)
-	P8_STXV(STAGE, R0, OUTDEC)
+	STXVD2X	STAGE, (R0+OUTENC)
+	STXVD2X	STAGE, (R0+OUTDEC)
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
@@ -262,8 +248,8 @@ loop192:
 	VXOR	IN1, TMP, IN1                    // vxor 2,2,6
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
 	VXOR	IN1, KEY, IN1                    // vxor 2,2,3
-	P8_STXV(IN0, R0, OUTENC)
-	P8_STXV(IN0, R0, OUTDEC)
+	STXVD2X	IN0, (R0+OUTENC)
+	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
 	BC	0x10, 0, loop192                 // bdnz .Loop192
@@ -273,8 +259,8 @@ loop192:
 l256:
 	P8_LXVB16X(INP, R0, IN1)
 	MOVD	$7, CNT                          // li 7,7
-	P8_STXV(IN0, R0, OUTENC)
-	P8_STXV(IN0, R0, OUTDEC)
+	STXVD2X	IN0, (R0+OUTENC)
+	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
 	MOVD	CNT, CTR                         // mtctr 7
@@ -282,8 +268,8 @@ l256:
 loop256:
 	VPERM	IN1, IN1, MASK, KEY              // vperm 3,2,2,5
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(IN1, R0, OUTENC)
-	P8_STXV(IN1, R0, OUTDEC)
+	STXVD2X	IN1, (R0+OUTENC)
+	STXVD2X	IN1, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
@@ -295,8 +281,8 @@ loop256:
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VADDUWM	RCON, RCON, RCON                 // vadduwm 4,4,4
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
-	P8_STXV(IN0, R0, OUTENC)
-	P8_STXV(IN0, R0, OUTDEC)
+	STXVD2X	IN0, (R0+OUTENC)
+	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
 	BC	0x12, 0, done                    // bdz .Ldone
@@ -347,24 +333,24 @@ TEXT ·encryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	// V1, V2 will hold keys, V0 is a temp.
 	// At completion, V2 will hold the ciphertext.
 	// Load xk[0:3] and xor with text
-	P8_LXV(R0, R5, V1)
+	LXVD2X	(R0+R5), V1
 	VXOR	V0, V1, V0
 
 	// Load xk[4:11] and cipher
-	P8_LXV(R6, R5, V1)
-	P8_LXV(R7, R5, V2)
+	LXVD2X	(R6+R5), V1
+	LXVD2X	(R7+R5), V2
 	VCIPHER	V0, V1, V0
 	VCIPHER	V0, V2, V0
 
 	// Load xk[12:19] and cipher
-	P8_LXV(R8, R5, V1)
-	P8_LXV(R9, R5, V2)
+	LXVD2X	(R8+R5), V1
+	LXVD2X	(R9+R5), V2
 	VCIPHER	V0, V1, V0
 	VCIPHER	V0, V2, V0
 
 	// Load xk[20:27] and cipher
-	P8_LXV(R10, R5, V1)
-	P8_LXV(R11, R5, V2)
+	LXVD2X	(R10+R5), V1
+	LXVD2X	(R11+R5), V2
 	VCIPHER	V0, V1, V0
 	VCIPHER	V0, V2, V0
 
@@ -372,28 +358,28 @@ TEXT ·encryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	ADD	$112, R5
 
 	// Load xk[28:35] and cipher
-	P8_LXV(R0, R5, V1)
-	P8_LXV(R6, R5, V2)
+	LXVD2X	(R0+R5), V1
+	LXVD2X	(R6+R5), V2
 	VCIPHER	V0, V1, V0
 	VCIPHER	V0, V2, V0
 
 	// Load xk[36:43] and cipher
-	P8_LXV(R7, R5, V1)
-	P8_LXV(R8, R5, V2)
+	LXVD2X	(R7+R5), V1
+	LXVD2X	(R8+R5), V2
 	BEQ	CR1, Ldec_tail // Key size 10?
 	VCIPHER	V0, V1, V0
 	VCIPHER	V0, V2, V0
 
 	// Load xk[44:51] and cipher
-	P8_LXV(R9, R5, V1)
-	P8_LXV(R10, R5, V2)
+	LXVD2X	(R9+R5), V1
+	LXVD2X	(R10+R5), V2
 	BEQ	CR2, Ldec_tail // Key size 12?
 	VCIPHER	V0, V1, V0
 	VCIPHER	V0, V2, V0
 
 	// Load xk[52:59] and cipher
-	P8_LXV(R11, R5, V1)
-	P8_LXV(R12, R5, V2)
+	LXVD2X	(R11+R5), V1
+	LXVD2X	(R12+R5), V2
 	BNE	CR3, Linvalid_key_len // Not key size 14?
 	// Fallthrough to final cipher
 
@@ -442,24 +428,24 @@ TEXT ·decryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	// V1, V2 will hold keys, V0 is a temp.
 	// At completion, V2 will hold the text.
 	// Load xk[0:3] and xor with ciphertext
-	P8_LXV(R0, R5, V1)
+	LXVD2X	(R0+R5), V1
 	VXOR	V0, V1, V0
 
 	// Load xk[4:11] and cipher
-	P8_LXV(R6, R5, V1)
-	P8_LXV(R7, R5, V2)
+	LXVD2X	(R6+R5), V1
+	LXVD2X	(R7+R5), V2
 	VNCIPHER	V0, V1, V0
 	VNCIPHER	V0, V2, V0
 
 	// Load xk[12:19] and cipher
-	P8_LXV(R8, R5, V1)
-	P8_LXV(R9, R5, V2)
+	LXVD2X	(R8+R5), V1
+	LXVD2X	(R9+R5), V2
 	VNCIPHER	V0, V1, V0
 	VNCIPHER	V0, V2, V0
 
 	// Load xk[20:27] and cipher
-	P8_LXV(R10, R5, V1)
-	P8_LXV(R11, R5, V2)
+	LXVD2X	(R10+R5), V1
+	LXVD2X	(R11+R5), V2
 	VNCIPHER	V0, V1, V0
 	VNCIPHER	V0, V2, V0
 
@@ -467,28 +453,28 @@ TEXT ·decryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	ADD	$112, R5
 
 	// Load xk[28:35] and cipher
-	P8_LXV(R0, R5, V1)
-	P8_LXV(R6, R5, V2)
+	LXVD2X	(R0+R5), V1
+	LXVD2X	(R6+R5), V2
 	VNCIPHER	V0, V1, V0
 	VNCIPHER	V0, V2, V0
 
 	// Load xk[36:43] and cipher
-	P8_LXV(R7, R5, V1)
-	P8_LXV(R8, R5, V2)
+	LXVD2X	(R7+R5), V1
+	LXVD2X	(R8+R5), V2
 	BEQ	CR1, Ldec_tail // Key size 10?
 	VNCIPHER	V0, V1, V0
 	VNCIPHER	V0, V2, V0
 
 	// Load xk[44:51] and cipher
-	P8_LXV(R9, R5, V1)
-	P8_LXV(R10, R5, V2)
+	LXVD2X	(R9+R5), V1
+	LXVD2X	(R10+R5), V2
 	BEQ	CR2, Ldec_tail // Key size 12?
 	VNCIPHER	V0, V1, V0
 	VNCIPHER	V0, V2, V0
 
 	// Load xk[52:59] and cipher
-	P8_LXV(R11, R5, V1)
-	P8_LXV(R12, R5, V2)
+	LXVD2X	(R11+R5), V1
+	LXVD2X	(R12+R5), V2
 	BNE	CR3, Linvalid_key_len // Not key size 14?
 	// Fallthrough to final cipher
 
@@ -597,26 +583,26 @@ Lcbc_enc:
 	ADD	$16, INP                           // addi r3,r3,16
 	MOVD	ROUNDS, CTR                        // mtctr r9
 	ADD	$-16, LEN                          // addi r5,r5,-16
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load first xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load first xkey
 	ADD	$16, IDX                           // addi r10,r10,16
 	VXOR	INOUT, RNDKEY0, INOUT              // vxor v2,v2,v0
 	VXOR	INOUT, IVEC, INOUT                 // vxor v2,v2,v4
 
 	// Encryption loop of INOUT using RNDKEY0
 Loop_cbc_enc:
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load next xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load next xkey
 	VCIPHER	INOUT, RNDKEY0, INOUT              // vcipher v2,v2,v1
 	ADD	$16, IDX                           // addi r10,r10,16
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load next xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load next xkey
 	VCIPHER	INOUT, RNDKEY0, INOUT              // vcipher v2,v2,v1
 	ADD	$16, IDX                           // addi r10,r10,16
 	BDNZ Loop_cbc_enc
 
 	// Encrypt tail values and store INOUT
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load next xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load next xkey
 	VCIPHER	INOUT, RNDKEY0, INOUT              // vcipher v2,v2,v1
 	ADD	$16, IDX                           // addi r10,r10,16
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load final xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load final xkey
 	VCIPHERLAST	INOUT, RNDKEY0, IVEC       // vcipherlast v4,v2,v0
 	MOVD	$0, IDX                            // reset key index for next block
 	CMPU	LEN, $16                           // cmpldi r5,16
@@ -632,26 +618,26 @@ Lcbc_dec:
 	ADD	$16, INP                           // addi r3,r3,16
 	MOVD	ROUNDS, CTR                        // mtctr r9
 	ADD	$-16, LEN                          // addi r5,r5,-16
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load first xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load first xkey
 	ADD	$16, IDX                           // addi r10,r10,16
 	VXOR	TMP, RNDKEY0, INOUT                // vxor v2,v3,v0
 	PCALIGN	$16
 
 	// Decryption loop of INOUT using RNDKEY0
 Loop_cbc_dec:
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load next xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load next xkey
 	ADD	$16, IDX                           // addi r10,r10,16
 	VNCIPHER	INOUT, RNDKEY0, INOUT      // vncipher v2,v2,v1
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load next xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load next xkey
 	ADD	$16, IDX                           // addi r10,r10,16
 	VNCIPHER	INOUT, RNDKEY0, INOUT      // vncipher v2,v2,v0
 	BDNZ Loop_cbc_dec
 
 	// Decrypt tail values and store INOUT
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load next xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load next xkey
 	ADD	$16, IDX                           // addi r10,r10,16
 	VNCIPHER	INOUT, RNDKEY0, INOUT      // vncipher v2,v2,v1
-	P8_LXV(KEY, IDX, RNDKEY0)                  // load final xkey
+	LXVD2X	(KEY+IDX), RNDKEY0                 // load final xkey
 	MOVD	$0, IDX                            // li r10,0
 	VNCIPHERLAST	INOUT, RNDKEY0, INOUT      // vncipherlast v2,v2,v0
 	CMPU	LEN, $16                           // cmpldi r5,16
