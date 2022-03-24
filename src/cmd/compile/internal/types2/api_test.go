@@ -2288,6 +2288,103 @@ func TestInstanceIdentity(t *testing.T) {
 	}
 }
 
+// TestInstantiatedObjects verifies properties of instantiated objects.
+func TestInstantiatedObjects(t *testing.T) {
+	const src = `
+package p
+
+type T[P any] struct {
+	field P
+}
+
+func (recv *T[Q]) concreteMethod() {}
+
+type FT[P any] func(ftp P) (ftrp P)
+
+func F[P any](fp P) (frp P){ return }
+
+type I[P any] interface {
+	interfaceMethod(P)
+}
+
+var (
+	t T[int]
+	ft FT[int]
+	f = F[int]
+	i I[int]
+)
+`
+	info := &Info{
+		Defs: make(map[*syntax.Name]Object),
+	}
+	f, err := parseSrc("p.go", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conf := Config{}
+	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lookup := func(name string) Type { return pkg.Scope().Lookup(name).Type() }
+	tests := []struct {
+		ident string
+		obj   Object
+	}{
+		{"field", lookup("t").Underlying().(*Struct).Field(0)},
+		{"concreteMethod", lookup("t").(*Named).Method(0)},
+		{"recv", lookup("t").(*Named).Method(0).Type().(*Signature).Recv()},
+		{"ftp", lookup("ft").Underlying().(*Signature).Params().At(0)},
+		{"ftrp", lookup("ft").Underlying().(*Signature).Results().At(0)},
+		{"fp", lookup("f").(*Signature).Params().At(0)},
+		{"frp", lookup("f").(*Signature).Results().At(0)},
+		{"interfaceMethod", lookup("i").Underlying().(*Interface).Method(0)},
+	}
+
+	// Collect all identifiers by name.
+	idents := make(map[string][]*syntax.Name)
+	syntax.Inspect(f, func(n syntax.Node) bool {
+		if id, ok := n.(*syntax.Name); ok {
+			idents[id.Value] = append(idents[id.Value], id)
+		}
+		return true
+	})
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.ident, func(t *testing.T) {
+			if got := len(idents[test.ident]); got != 1 {
+				t.Fatalf("found %d identifiers named %s, want 1", got, test.ident)
+			}
+			ident := idents[test.ident][0]
+			def := info.Defs[ident]
+			if def == test.obj {
+				t.Fatalf("info.Defs[%s] contains the test object", test.ident)
+			}
+			if def.Pkg() != test.obj.Pkg() {
+				t.Errorf("Pkg() = %v, want %v", def.Pkg(), test.obj.Pkg())
+			}
+			if def.Name() != test.obj.Name() {
+				t.Errorf("Name() = %v, want %v", def.Name(), test.obj.Name())
+			}
+			if def.Pos() != test.obj.Pos() {
+				t.Errorf("Pos() = %v, want %v", def.Pos(), test.obj.Pos())
+			}
+			if def.Parent() != test.obj.Parent() {
+				t.Fatalf("Parent() = %v, want %v", def.Parent(), test.obj.Parent())
+			}
+			if def.Exported() != test.obj.Exported() {
+				t.Fatalf("Exported() = %v, want %v", def.Exported(), test.obj.Exported())
+			}
+			if def.Id() != test.obj.Id() {
+				t.Fatalf("Id() = %v, want %v", def.Id(), test.obj.Id())
+			}
+			// String and Type are expected to differ.
+		})
+	}
+}
+
 func TestImplements(t *testing.T) {
 	const src = `
 package p
