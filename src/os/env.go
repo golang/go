@@ -96,12 +96,21 @@ func getShellName(s string) (string, int) {
 }
 
 // Getenv retrieves the value of the environment variable named by the key.
-// It returns the value, which will be empty if the variable is not present.
+// It returns the value, if there is a value on env, otherwise it will return
+// from defaultValue first args, if defaultValue not exist, return empty string.
 // To distinguish between an empty value and an unset value, use LookupEnv.
-func Getenv(key string) string {
+func Getenv(key string, defaultValue ...string) string {
 	testlog.Getenv(key)
 	v, _ := syscall.Getenv(key)
-	return v
+	if v != "" {
+		return v
+	}
+	
+	if len(defaultValue) > 0 {
+		return defaultValue[0]
+	}
+	
+ 	return ""
 }
 
 // LookupEnv retrieves the value of the environment variable named
