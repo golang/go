@@ -820,7 +820,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		var filters []string
 		for _, ifilter := range ifilters {
 			filter := fmt.Sprint(ifilter)
-			if filter[0] != '+' && filter[0] != '-' {
+			if filter == "" || (filter[0] != '+' && filter[0] != '-') {
 				result.errorf("invalid filter %q, must start with + or -", filter)
 				return result
 			}
