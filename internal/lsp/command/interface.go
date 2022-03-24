@@ -350,35 +350,35 @@ type StackEntry struct {
 type Vuln struct {
 	// ID is the vulnerability ID (osv.Entry.ID).
 	// https://ossf.github.io/osv-schema/#id-modified-fields
-	ID string `json:"id,omitempty"`
+	ID string
 	// Details is the description of the vulnerability (osv.Entry.Details).
 	// https://ossf.github.io/osv-schema/#summary-details-fields
-	Details string `json:"details,omitempty"`
+	Details string `json:",omitempty"`
 	// Aliases are alternative IDs of the vulnerability.
 	// https://ossf.github.io/osv-schema/#aliases-field
-	Aliases []string `json:"aliases,omitempty"`
+	Aliases []string `json:",omitempty"`
 
 	// Symbol is the name of the detected vulnerable function or method.
-	Symbol string `json:"symbol,omitempty"`
+	Symbol string `json:",omitempty"`
 	// PkgPath is the package path of the detected Symbol.
-	PkgPath string `json:"pkg_path,omitempty"`
+	PkgPath string `json:",omitempty"`
 	// ModPath is the module path corresponding to PkgPath.
 	// TODO: how do we specify standard library's vulnerability?
-	ModPath string `json:"mod_path,omitempty"`
+	ModPath string `json:",omitempty"`
 
 	// URL is the URL for more info about the information.
 	// Either the database specific URL or the one of the URLs
 	// included in osv.Entry.References.
-	URL string `json:"url,omitempty"`
+	URL string `json:",omitempty"`
 
 	// Current is the current module version.
-	CurrentVersion string `json:"current_version,omitempty"`
+	CurrentVersion string `json:",omitempty"`
 
 	// Fixed is the minimum module version that contains the fix.
-	FixedVersion string `json:"fixed_version,omitempty"`
+	FixedVersion string `json:",omitempty"`
 
 	// Example call stacks.
-	CallStacks []CallStack `json:"call_stacks,omitempty"`
+	CallStacks []CallStack `json:",omitempty"`
 
 	// TODO: import graph & module graph.
 }

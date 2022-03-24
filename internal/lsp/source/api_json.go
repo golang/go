@@ -670,7 +670,7 @@ var GeneratedAPIJSON = &APIJSON{
 			Title:     "Run vulncheck (experimental)",
 			Doc:       "Run vulnerability check (`govulncheck`).",
 			ArgDoc:    "{\n\t// Dir is the directory from which vulncheck will run from.\n\t\"Dir\": string,\n\t// Package pattern. E.g. \"\", \".\", \"./...\".\n\t\"Pattern\": string,\n}",
-			ResultDoc: "{\n\t\"Vuln\": []{\n\t\t\"id\": string,\n\t\t\"details\": string,\n\t\t\"aliases\": []string,\n\t\t\"symbol\": string,\n\t\t\"pkg_path\": string,\n\t\t\"mod_path\": string,\n\t\t\"url\": string,\n\t\t\"current_version\": string,\n\t\t\"fixed_version\": string,\n\t\t\"call_stacks\": [][]golang.org/x/tools/internal/lsp/command.StackEntry,\n\t},\n}",
+			ResultDoc: "{\n\t\"Vuln\": []{\n\t\t\"ID\": string,\n\t\t\"Details\": string,\n\t\t\"Aliases\": []string,\n\t\t\"Symbol\": string,\n\t\t\"PkgPath\": string,\n\t\t\"ModPath\": string,\n\t\t\"URL\": string,\n\t\t\"CurrentVersion\": string,\n\t\t\"FixedVersion\": string,\n\t\t\"CallStacks\": [][]golang.org/x/tools/internal/lsp/command.StackEntry,\n\t},\n}",
 		},
 		{
 			Command:   "gopls.start_debugging",

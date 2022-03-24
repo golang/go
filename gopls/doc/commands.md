@@ -286,16 +286,16 @@ Result:
 ```
 {
 	"Vuln": []{
-		"id": string,
-		"details": string,
-		"aliases": []string,
-		"symbol": string,
-		"pkg_path": string,
-		"mod_path": string,
-		"url": string,
-		"current_version": string,
-		"fixed_version": string,
-		"call_stacks": [][]golang.org/x/tools/internal/lsp/command.StackEntry,
+		"ID": string,
+		"Details": string,
+		"Aliases": []string,
+		"Symbol": string,
+		"PkgPath": string,
+		"ModPath": string,
+		"URL": string,
+		"CurrentVersion": string,
+		"FixedVersion": string,
+		"CallStacks": [][]golang.org/x/tools/internal/lsp/command.StackEntry,
 	},
 }
 ```
