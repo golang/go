@@ -307,3 +307,73 @@ type DebuggingResult struct {
 	// will be empty.
 	URLs []string
 }
+
+type VulncheckArgs struct {
+	// Dir is the directory from which vulncheck will run from.
+	Dir protocol.DocumentURI
+
+	// Package pattern. E.g. "", ".", "./...".
+	Pattern string
+
+	// TODO: Flag []string (flags accepted by govulncheck, e.g., -tests)
+	// TODO: Format string (json, text)
+}
+
+type VulncheckResult struct {
+	Vuln []Vuln
+
+	// TODO: Text string format output?
+}
+
+// CallStack models a trace of function calls starting
+// with a client function or method and ending with a
+// call to a vulnerable symbol.
+type CallStack []StackEntry
+
+// StackEntry models an element of a call stack.
+type StackEntry struct {
+	// See golang.org/x/exp/vulncheck.StackEntry.
+
+	// User-friendly representation of function/method names.
+	// e.g. package.funcName, package.(recvType).methodName, ...
+	Name string
+	URI  protocol.DocumentURI
+	Pos  protocol.Position // Start position. (0-based. Column is always 0)
+}
+
+// Vuln models an osv.Entry and representative call stacks.
+type Vuln struct {
+	// ID is the vulnerability ID (osv.Entry.ID).
+	// https://ossf.github.io/osv-schema/#id-modified-fields
+	ID string `json:"id,omitempty"`
+	// Details is the description of the vulnerability (osv.Entry.Details).
+	// https://ossf.github.io/osv-schema/#summary-details-fields
+	Details string `json:"details,omitempty"`
+	// Aliases are alternative IDs of the vulnerability.
+	// https://ossf.github.io/osv-schema/#aliases-field
+	Aliases []string `json:"aliases,omitempty"`
+
+	// Symbol is the name of the detected vulnerable function or method.
+	Symbol string `json:"symbol,omitempty"`
+	// PkgPath is the package path of the detected Symbol.
+	PkgPath string `json:"pkg_path,omitempty"`
+	// ModPath is the module path corresponding to PkgPath.
+	// TODO: how do we specify standard library's vulnerability?
+	ModPath string `json:"mod_path,omitempty"`
+
+	// URL is the URL for more info about the information.
+	// Either the database specific URL or the one of the URLs
+	// included in osv.Entry.References.
+	URL string `json:"url,omitempty"`
+
+	// Current is the current module version.
+	CurrentVersion string `json:"current_version,omitempty"`
+
+	// Fixed is the minimum module version that contains the fix.
+	FixedVersion string `json:"fixed_version,omitempty"`
+
+	// Example call stacks.
+	CallStacks []CallStack `json:"call_stacks,omitempty"`
+
+	// TODO: import graph & module graph.
+}

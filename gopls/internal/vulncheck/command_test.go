@@ -123,15 +123,15 @@ type report struct {
 func toReport(v Vuln) report {
 	var r = report{Vuln: v}
 	for _, s := range v.CallStacks {
-		r.CallStacksStr = append(r.CallStacksStr, s.String())
+		r.CallStacksStr = append(r.CallStacksStr, CallStackString(s))
 	}
 	return r
 }
 
-func (callstack CallStack) String() string {
+func CallStackString(callstack CallStack) string {
 	var b bytes.Buffer
 	for _, entry := range callstack {
-		fname := filepath.Base(entry.URI.Filename())
+		fname := filepath.Base(entry.URI.SpanURI().Filename())
 		fmt.Fprintf(&b, "%v (%v:%d)\n", entry.Name, fname, entry.Pos.Line)
 	}
 	return b.String()

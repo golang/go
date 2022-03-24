@@ -14,7 +14,6 @@ import (
 
 	"golang.org/x/exp/vulncheck"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/vuln/osv"
 )
 
@@ -107,11 +106,11 @@ func href(vuln *osv.Entry) string {
 	return fmt.Sprintf("https://pkg.go.dev/vuln/%s", vuln.ID)
 }
 
-func filenameToURI(pos *token.Position) span.URI {
+func filenameToURI(pos *token.Position) protocol.DocumentURI {
 	if pos == nil || pos.Filename == "" {
 		return ""
 	}
-	return span.URIFromPath(pos.Filename)
+	return protocol.URIFromPath(pos.Filename)
 }
 
 func posToPosition(pos *token.Position) (p protocol.Position) {
