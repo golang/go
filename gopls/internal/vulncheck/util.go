@@ -12,9 +12,9 @@ import (
 	"go/token"
 	"strings"
 
-	"golang.org/x/exp/vulncheck"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/vuln/osv"
+	"golang.org/x/vuln/vulncheck"
 )
 
 // fixedVersion returns the semantic version of the module

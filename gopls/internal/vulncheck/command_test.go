@@ -18,7 +18,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"golang.org/x/exp/vulncheck"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/fake"
@@ -26,6 +25,7 @@ import (
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/vuln/client"
 	"golang.org/x/vuln/osv"
+	"golang.org/x/vuln/vulncheck"
 )
 
 func TestCmd_Run(t *testing.T) {

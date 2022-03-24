@@ -4,7 +4,7 @@
 
 // Package vulncheck provides an analysis command
 // that runs vulnerability analysis using data from
-// golang.org/x/exp/vulncheck.
+// golang.org/x/vuln/vulncheck.
 // This package requires go1.18 or newer.
 package vulncheck
 
