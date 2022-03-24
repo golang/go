@@ -194,7 +194,7 @@ func (t *Named) instantiateMethod(i int) *Func {
 	}
 
 	sig.recv = substVar(origSig.recv, rtyp)
-	return NewFunc(origm.pos, origm.pkg, origm.name, sig)
+	return substFunc(origm, sig)
 }
 
 // SetUnderlying sets the underlying type and marks t as complete.
