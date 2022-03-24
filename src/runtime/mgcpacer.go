@@ -287,7 +287,7 @@ type gcControllerState struct {
 	//
 	// The top int32 is the maximum number of idle mark workers allowed to
 	// execute concurrently. Normally, this number is just gomaxprocs. However,
-	// during periodic GC cycles it is set to 1 because the system is idle
+	// during periodic GC cycles it is set to 0 because the system is idle
 	// anyway; there's no need to go full blast on all of GOMAXPROCS.
 	//
 	// The maximum number of idle mark workers is used to prevent new workers
@@ -296,17 +296,22 @@ type gcControllerState struct {
 	// transiently exceed the maximum. This could happen if the maximum changes
 	// just after a GC ends, and an M with no P.
 	//
-	// Note that the maximum may not be zero because idle-priority mark workers
-	// are vital to GC progress. Consider a situation in which goroutines
-	// block on the GC (such as via runtime.GOMAXPROCS) and only fractional
-	// mark workers are scheduled (e.g. GOMAXPROCS=1). Without idle-priority
-	// mark workers, the last running M might skip scheduling a fractional
-	// mark worker if its utilization goal is met, such that once it goes to
-	// sleep (because there's nothing to do), there will be nothing else to
-	// spin up a new M for the fractional worker in the future, stalling GC
-	// progress and causing a deadlock. However, idle-priority workers will
-	// *always* run when there is nothing left to do, ensuring the GC makes
-	// progress.
+	// Note that if we have no dedicated mark workers, we set this value to
+	// 1 in this case we only have fractional GC workers which aren't scheduled
+	// strictly enough to ensure GC progress. As a result, idle-priority mark
+	// workers are vital to GC progress in these situations.
+	//
+	// For example, consider a situation in which goroutines block on the GC
+	// (such as via runtime.GOMAXPROCS) and only fractional mark workers are
+	// scheduled (e.g. GOMAXPROCS=1). Without idle-priority mark workers, the
+	// last running M might skip scheduling a fractional mark worker if its
+	// utilization goal is met, such that once it goes to sleep (because there's
+	// nothing to do), there will be nothing else to spin up a new M for the
+	// fractional worker in the future, stalling GC progress and causing a
+	// deadlock. However, idle-priority workers will *always* run when there is
+	// nothing left to do, ensuring the GC makes progress.
+	//
+	// See github.com/golang/go/issues/44163 for more details.
 	idleMarkWorkers atomic.Uint64
 
 	// assistWorkPerByte is the ratio of scan work to allocated
@@ -430,11 +435,19 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	}
 
 	if trigger.kind == gcTriggerTime {
-		// During a periodic GC cycle, avoid having more than
-		// one idle mark worker running at a time. We need to have
-		// at least one to ensure the GC makes progress, but more than
-		// one is unnecessary.
-		c.setMaxIdleMarkWorkers(1)
+		// During a periodic GC cycle, reduce the number of idle mark workers
+		// required. However, we need at least one dedicated mark worker or
+		// idle GC worker to ensure GC progress in some scenarios (see comment
+		// on maxIdleMarkWorkers).
+		if c.dedicatedMarkWorkersNeeded > 0 {
+			c.setMaxIdleMarkWorkers(0)
+		} else {
+			// TODO(mknyszek): The fundamental reason why we need this is because
+			// we can't count on the fractional mark worker to get scheduled.
+			// Fix that by ensuring it gets scheduled according to its quota even
+			// if the rest of the application is idle.
+			c.setMaxIdleMarkWorkers(1)
+		}
 	} else {
 		// N.B. gomaxprocs and dedicatedMarkWorkersNeeded is guaranteed not to
 		// change during a GC cycle.
