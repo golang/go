@@ -296,131 +296,189 @@ done:
 
 // func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 TEXT ·encryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
-	// Load the arguments inside the registers
-	MOVD	nr+0(FP), BLK_ROUNDS
-	MOVD	xk+8(FP), BLK_KEY
-	MOVD	dst+16(FP), BLK_OUT
-	MOVD	src+24(FP), BLK_INP
+	MOVD	nr+0(FP), R6   // Round count/Key size
+	MOVD	xk+8(FP), R5   // Key pointer
+	MOVD	dst+16(FP), R3 // Dest pointer
+	MOVD	src+24(FP), R4 // Src pointer
+	MOVD	$·rcon(SB), R7
+	LVX	(R7), ESPERM   // Permute value for P8_ macros.
 
-	MOVD	$15, BLK_IDX             // li 7,15
+	// Set CR{1,2,3}EQ to hold the key size information.
+	CMPU	R6, $10, CR1
+	CMPU	R6, $12, CR2
+	CMPU	R6, $14, CR3
 
-	LVX	(BLK_INP)(R0), ZERO        // lvx 0,0,3
-	NEG	BLK_OUT, R11               // neg 11,4
-	LVX	(BLK_INP)(BLK_IDX), IN0    // lvx 1,7,3
-	LVSL	(BLK_INP)(R0), IN1         // lvsl 2,0,3
-	VSPLTISB	$0x0f, RCON        // vspltisb 4,0x0f
-	LVSR	(R11)(R0), KEY             // lvsr 3,0,11
-	VXOR	IN1, RCON, IN1             // vxor 2,2,4
-	MOVD	$16, BLK_IDX               // li 7,16
-	VPERM	ZERO, IN0, IN1, ZERO       // vperm 0,0,1,2
-	LVX	(BLK_KEY)(R0), IN0         // lvx 1,0,5
-	LVSR	(BLK_KEY)(R0), MASK        // lvsr 5,0,5
-	SRW	$1, BLK_ROUNDS, BLK_ROUNDS // srwi 6,6,1
-	LVX	(BLK_KEY)(BLK_IDX), IN1    // lvx 2,7,5
-	ADD	$16, BLK_IDX, BLK_IDX      // addi 7,7,16
-	SUB	$1, BLK_ROUNDS, BLK_ROUNDS // subi 6,6,1
-	VPERM	IN1, IN0, MASK, IN0        // vperm 1,2,1,5
+	MOVD	$16, R6
+	MOVD	$32, R7
+	MOVD	$48, R8
+	MOVD	$64, R9
+	MOVD	$80, R10
+	MOVD	$96, R11
+	MOVD	$112, R12
 
-	VXOR	ZERO, IN0, ZERO         // vxor 0,0,1
-	LVX	(BLK_KEY)(BLK_IDX), IN0 // lvx 1,7,5
-	ADD	$16, BLK_IDX, BLK_IDX   // addi 7,7,16
-	MOVD	BLK_ROUNDS, CTR         // mtctr 6
+	// Load text in BE order
+	P8_LXVB16X(R4, R0, V0)
 
-loop_enc:
-	VPERM	IN0, IN1, MASK, IN1     // vperm 2,1,2,5
-	VCIPHER	ZERO, IN1, ZERO         // vcipher 0,0,2
-	LVX	(BLK_KEY)(BLK_IDX), IN1 // lvx 2,7,5
-	ADD	$16, BLK_IDX, BLK_IDX   // addi 7,7,16
-	VPERM	IN1, IN0, MASK, IN0     // vperm 1,2,1,5
-	VCIPHER	ZERO, IN0, ZERO         // vcipher 0,0,1
-	LVX	(BLK_KEY)(BLK_IDX), IN0 // lvx 1,7,5
-	ADD	$16, BLK_IDX, BLK_IDX   // addi 7,7,16
-	BC	0x10, 0, loop_enc       // bdnz .Loop_enc
+	// V1, V2 will hold keys, V0 is a temp.
+	// At completion, V2 will hold the ciphertext.
+	// Load xk[0:3] and xor with text
+	P8_LXV(R0, R5, V1)
+	VXOR	V0, V1, V0
 
-	VPERM	IN0, IN1, MASK, IN1     // vperm 2,1,2,5
-	VCIPHER	ZERO, IN1, ZERO         // vcipher 0,0,2
-	LVX	(BLK_KEY)(BLK_IDX), IN1 // lvx 2,7,5
-	VPERM	IN1, IN0, MASK, IN0     // vperm 1,2,1,5
-	VCIPHERLAST	ZERO, IN0, ZERO // vcipherlast 0,0,1
+	// Load xk[4:11] and cipher
+	P8_LXV(R6, R5, V1)
+	P8_LXV(R7, R5, V2)
+	VCIPHER	V0, V1, V0
+	VCIPHER	V0, V2, V0
 
-	VSPLTISB	$-1, IN1         // vspltisb 2,-1
-	VXOR	IN0, IN0, IN0            // vxor 1,1,1
-	MOVD	$15, BLK_IDX             // li 7,15
-	VPERM	IN1, IN0, KEY, IN1       // vperm 2,2,1,3
-	VXOR	KEY, RCON, KEY           // vxor 3,3,4
-	LVX	(BLK_OUT)(R0), IN0       // lvx 1,0,4
-	VPERM	ZERO, ZERO, KEY, ZERO    // vperm 0,0,0,3
-	VSEL	IN0, ZERO, IN1, IN0      // vsel 1,1,0,2
-	LVX	(BLK_OUT)(BLK_IDX), RCON // lvx 4,7,4
-	STVX	IN0, (BLK_OUT+R0)        // stvx 1,0,4
-	VSEL	ZERO, RCON, IN1, ZERO    // vsel 0,0,4,2
-	STVX	ZERO, (BLK_OUT+BLK_IDX)  // stvx 0,7,4
+	// Load xk[12:19] and cipher
+	P8_LXV(R8, R5, V1)
+	P8_LXV(R9, R5, V2)
+	VCIPHER	V0, V1, V0
+	VCIPHER	V0, V2, V0
 
-	RET // blr
+	// Load xk[20:27] and cipher
+	P8_LXV(R10, R5, V1)
+	P8_LXV(R11, R5, V2)
+	VCIPHER	V0, V1, V0
+	VCIPHER	V0, V2, V0
+
+	// Increment xk pointer to reuse constant offsets in R6-R12.
+	ADD	$112, R5
+
+	// Load xk[28:35] and cipher
+	P8_LXV(R0, R5, V1)
+	P8_LXV(R6, R5, V2)
+	VCIPHER	V0, V1, V0
+	VCIPHER	V0, V2, V0
+
+	// Load xk[36:43] and cipher
+	P8_LXV(R7, R5, V1)
+	P8_LXV(R8, R5, V2)
+	BEQ	CR1, Ldec_tail // Key size 10?
+	VCIPHER	V0, V1, V0
+	VCIPHER	V0, V2, V0
+
+	// Load xk[44:51] and cipher
+	P8_LXV(R9, R5, V1)
+	P8_LXV(R10, R5, V2)
+	BEQ	CR2, Ldec_tail // Key size 12?
+	VCIPHER	V0, V1, V0
+	VCIPHER	V0, V2, V0
+
+	// Load xk[52:59] and cipher
+	P8_LXV(R11, R5, V1)
+	P8_LXV(R12, R5, V2)
+	BNE	CR3, Linvalid_key_len // Not key size 14?
+	// Fallthrough to final cipher
+
+Ldec_tail:
+	// Cipher last two keys such that key information is
+	// cleared from V1 and V2.
+	VCIPHER		V0, V1, V1
+	VCIPHERLAST	V1, V2, V2
+
+	// Store the result in BE order.
+	P8_STXVB16X(V2, R3, R0)
+	RET
+
+Linvalid_key_len:
+	// Segfault, this should never happen. Only 3 keys sizes are created/used.
+	MOVD	R0, 0(R0)
+	RET
 
 // func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 TEXT ·decryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
-	// Load the arguments inside the registers
-	MOVD	nr+0(FP), BLK_ROUNDS
-	MOVD	xk+8(FP), BLK_KEY
-	MOVD	dst+16(FP), BLK_OUT
-	MOVD	src+24(FP), BLK_INP
+	MOVD	nr+0(FP), R6   // Round count/Key size
+	MOVD	xk+8(FP), R5   // Key pointer
+	MOVD	dst+16(FP), R3 // Dest pointer
+	MOVD	src+24(FP), R4 // Src pointer
+	MOVD	$·rcon(SB), R7
+	LVX	(R7), ESPERM   // Permute value for P8_ macros.
 
-	MOVD	$15, BLK_IDX             // li 7,15
+	// Set CR{1,2,3}EQ to hold the key size information.
+	CMPU	R6, $10, CR1
+	CMPU	R6, $12, CR2
+	CMPU	R6, $14, CR3
 
-	LVX	(BLK_INP)(R0), ZERO        // lvx 0,0,3
-	NEG	BLK_OUT, R11               // neg 11,4
-	LVX	(BLK_INP)(BLK_IDX), IN0    // lvx 1,7,3
-	LVSL	(BLK_INP)(R0), IN1         // lvsl 2,0,3
-	VSPLTISB	$0x0f, RCON        // vspltisb 4,0x0f
-	LVSR	(R11)(R0), KEY             // lvsr 3,0,11
-	VXOR	IN1, RCON, IN1             // vxor 2,2,4
-	MOVD	$16, BLK_IDX               // li 7,16
-	VPERM	ZERO, IN0, IN1, ZERO       // vperm 0,0,1,2
-	LVX	(BLK_KEY)(R0), IN0         // lvx 1,0,5
-	LVSR	(BLK_KEY)(R0), MASK        // lvsr 5,0,5
-	SRW	$1, BLK_ROUNDS, BLK_ROUNDS // srwi 6,6,1
-	LVX	(BLK_KEY)(BLK_IDX), IN1    // lvx 2,7,5
-	ADD	$16, BLK_IDX, BLK_IDX      // addi 7,7,16
-	SUB	$1, BLK_ROUNDS, BLK_ROUNDS // subi 6,6,1
-	VPERM	IN1, IN0, MASK, IN0        // vperm 1,2,1,5
+	MOVD	$16, R6
+	MOVD	$32, R7
+	MOVD	$48, R8
+	MOVD	$64, R9
+	MOVD	$80, R10
+	MOVD	$96, R11
+	MOVD	$112, R12
 
-	VXOR	ZERO, IN0, ZERO         // vxor 0,0,1
-	LVX	(BLK_KEY)(BLK_IDX), IN0 // lvx 1,7,5
-	ADD	$16, BLK_IDX, BLK_IDX   // addi 7,7,16
-	MOVD	BLK_ROUNDS, CTR         // mtctr 6
+	// Load text in BE order
+	P8_LXVB16X(R4, R0, V0)
 
-loop_dec:
-	VPERM	IN0, IN1, MASK, IN1     // vperm 2,1,2,5
-	VNCIPHER	ZERO, IN1, ZERO // vncipher 0,0,2
-	LVX	(BLK_KEY)(BLK_IDX), IN1 // lvx 2,7,5
-	ADD	$16, BLK_IDX, BLK_IDX   // addi 7,7,16
-	VPERM	IN1, IN0, MASK, IN0     // vperm 1,2,1,5
-	VNCIPHER	ZERO, IN0, ZERO // vncipher 0,0,1
-	LVX	(BLK_KEY)(BLK_IDX), IN0 // lvx 1,7,5
-	ADD	$16, BLK_IDX, BLK_IDX   // addi 7,7,16
-	BC	0x10, 0, loop_dec       // bdnz .Loop_dec
+	// V1, V2 will hold keys, V0 is a temp.
+	// At completion, V2 will hold the text.
+	// Load xk[0:3] and xor with ciphertext
+	P8_LXV(R0, R5, V1)
+	VXOR	V0, V1, V0
 
-	VPERM	IN0, IN1, MASK, IN1     // vperm 2,1,2,5
-	VNCIPHER	ZERO, IN1, ZERO // vncipher 0,0,2
-	LVX	(BLK_KEY)(BLK_IDX), IN1 // lvx 2,7,5
-	VPERM	IN1, IN0, MASK, IN0     // vperm 1,2,1,5
-	VNCIPHERLAST	ZERO, IN0, ZERO // vncipherlast 0,0,1
+	// Load xk[4:11] and cipher
+	P8_LXV(R6, R5, V1)
+	P8_LXV(R7, R5, V2)
+	VNCIPHER	V0, V1, V0
+	VNCIPHER	V0, V2, V0
 
-	VSPLTISB	$-1, IN1         // vspltisb 2,-1
-	VXOR	IN0, IN0, IN0            // vxor 1,1,1
-	MOVD	$15, BLK_IDX             // li 7,15
-	VPERM	IN1, IN0, KEY, IN1       // vperm 2,2,1,3
-	VXOR	KEY, RCON, KEY           // vxor 3,3,4
-	LVX	(BLK_OUT)(R0), IN0       // lvx 1,0,4
-	VPERM	ZERO, ZERO, KEY, ZERO    // vperm 0,0,0,3
-	VSEL	IN0, ZERO, IN1, IN0      // vsel 1,1,0,2
-	LVX	(BLK_OUT)(BLK_IDX), RCON // lvx 4,7,4
-	STVX	IN0, (BLK_OUT+R0)        // stvx 1,0,4
-	VSEL	ZERO, RCON, IN1, ZERO    // vsel 0,0,4,2
-	STVX	ZERO, (BLK_OUT+BLK_IDX)  // stvx 0,7,4
+	// Load xk[12:19] and cipher
+	P8_LXV(R8, R5, V1)
+	P8_LXV(R9, R5, V2)
+	VNCIPHER	V0, V1, V0
+	VNCIPHER	V0, V2, V0
 
-	RET // blr
+	// Load xk[20:27] and cipher
+	P8_LXV(R10, R5, V1)
+	P8_LXV(R11, R5, V2)
+	VNCIPHER	V0, V1, V0
+	VNCIPHER	V0, V2, V0
+
+	// Increment xk pointer to reuse constant offsets in R6-R12.
+	ADD	$112, R5
+
+	// Load xk[28:35] and cipher
+	P8_LXV(R0, R5, V1)
+	P8_LXV(R6, R5, V2)
+	VNCIPHER	V0, V1, V0
+	VNCIPHER	V0, V2, V0
+
+	// Load xk[36:43] and cipher
+	P8_LXV(R7, R5, V1)
+	P8_LXV(R8, R5, V2)
+	BEQ	CR1, Ldec_tail // Key size 10?
+	VNCIPHER	V0, V1, V0
+	VNCIPHER	V0, V2, V0
+
+	// Load xk[44:51] and cipher
+	P8_LXV(R9, R5, V1)
+	P8_LXV(R10, R5, V2)
+	BEQ	CR2, Ldec_tail // Key size 12?
+	VNCIPHER	V0, V1, V0
+	VNCIPHER	V0, V2, V0
+
+	// Load xk[52:59] and cipher
+	P8_LXV(R11, R5, V1)
+	P8_LXV(R12, R5, V2)
+	BNE	CR3, Linvalid_key_len // Not key size 14?
+	// Fallthrough to final cipher
+
+Ldec_tail:
+	// Cipher last two keys such that key information is
+	// cleared from V1 and V2.
+	VNCIPHER	V0, V1, V1
+	VNCIPHERLAST	V1, V2, V2
+
+	// Store the result in BE order.
+	P8_STXVB16X(V2, R3, R0)
+	RET
+
+Linvalid_key_len:
+	// Segfault, this should never happen. Only 3 keys sizes are created/used.
+	MOVD	R0, 0(R0)
+	RET
 
 // Remove defines from above so they can be defined here
 #undef INP
