@@ -252,7 +252,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 
 // FormatVarType formats a *types.Var, accounting for type aliases.
 // To do this, it looks in the AST of the file in which the object is declared.
-// On any errors, it always fallbacks back to types.TypeString.
+// On any errors, it always falls back to types.TypeString.
 func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, obj *types.Var, qf types.Qualifier) string {
 	pkg, err := FindPackageFromPos(ctx, snapshot, obj.Pos())
 	if err != nil {
@@ -304,10 +304,13 @@ func qualifyExpr(expr ast.Expr, srcpkg, pkg Package, clonedInfo map[token.Pos]*t
 		switch n := n.(type) {
 		case *ast.ArrayType, *ast.ChanType, *ast.Ellipsis,
 			*ast.FuncType, *ast.MapType, *ast.ParenExpr,
-			*ast.StarExpr, *ast.StructType:
+			*ast.StarExpr, *ast.StructType, *ast.FieldList, *ast.Field:
 			// These are the only types that are cloned by cloneExpr below,
 			// so these are the only types that we can traverse and potentially
 			// modify. This is not an ideal approach, but it works for now.
+
+			// TODO(rFindley): can we eliminate this filtering entirely? This caused
+			// bugs in the past (golang/go#50539)
 			return true
 		case *ast.SelectorExpr:
 			// We may need to change any selectors in which the X is a package

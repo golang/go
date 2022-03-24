@@ -63,7 +63,7 @@ func _() {
 }
 
 func _() {
-	HandleFunc //@item(httpHandleFunc, "HandleFunc", "func(pattern string, handler func(ResponseWriter, *Request))", "func")
+	HandleFunc //@item(httpHandleFunc, "HandleFunc", "func(pattern string, handler func(http.ResponseWriter, *http.Request))", "func")
 	HandlerFunc //@item(httpHandlerFunc, "HandlerFunc", "func(http.ResponseWriter, *http.Request)", "type")
 
 	http.HandleFunc //@rank(" //", httpHandleFunc, httpHandlerFunc)
