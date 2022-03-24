@@ -445,3 +445,13 @@ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func,
 
 	return fn
 }
+
+// IsFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
+func IsFuncPCIntrinsic(n *CallExpr) bool {
+	if n.Op() != OCALLFUNC || n.X.Op() != ONAME {
+		return false
+	}
+	fn := n.X.(*Name).Sym()
+	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
+		fn.Pkg.Path == "internal/abi"
+}

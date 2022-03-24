@@ -549,7 +549,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		directClosureCall(n)
 	}
 
-	if isFuncPCIntrinsic(n) {
+	if ir.IsFuncPCIntrinsic(n) {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function, rewrite
 		// it to the address of the function of the ABI fn is defined.
 		name := n.X.(*ir.Name).Sym().Name

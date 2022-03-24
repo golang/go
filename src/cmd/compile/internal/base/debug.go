@@ -47,6 +47,7 @@ type DebugFlags struct {
 	Shapify               int    `help:"print information about shaping recursive types"`
 	Slice                 int    `help:"print information about slice compilation"`
 	SoftFloat             int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
+	StaticCopy            int    `help:"print information about missed static copies" concurrent:"ok"`
 	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
 	TypeAssert            int    `help:"print information about type assertion inlining"`
 	WB                    int    `help:"print information about write barriers"`

@@ -42,6 +42,11 @@ type Schedule struct {
 
 	Plans map[ir.Node]*Plan
 	Temps map[ir.Node]*ir.Name
+
+	// seenMutation tracks whether we've seen an initialization
+	// expression that may have modified other package-scope variables
+	// within this package.
+	seenMutation bool
 }
 
 func (s *Schedule) append(n ir.Node) {
@@ -80,26 +85,57 @@ func recordFuncForVar(v *ir.Name, fn *ir.Func) {
 	MapInitToVar[fn] = v
 }
 
+// allBlank reports whether every node in exprs is blank.
+func allBlank(exprs []ir.Node) bool {
+	for _, expr := range exprs {
+		if !ir.IsBlank(expr) {
+			return false
+		}
+	}
+	return true
+}
+
 // tryStaticInit attempts to statically execute an initialization
 // statement and reports whether it succeeded.
-func (s *Schedule) tryStaticInit(nn ir.Node) bool {
-	// Only worry about simple "l = r" assignments. Multiple
-	// variable/expression OAS2 assignments have already been
-	// replaced by multiple simple OAS assignments, and the other
-	// OAS2* assignments mostly necessitate dynamic execution
-	// anyway.
-	if nn.Op() != ir.OAS {
+func (s *Schedule) tryStaticInit(n ir.Node) bool {
+	var lhs []ir.Node
+	var rhs ir.Node
+
+	switch n.Op() {
+	default:
+		base.FatalfAt(n.Pos(), "unexpected initialization statement: %v", n)
+	case ir.OAS:
+		n := n.(*ir.AssignStmt)
+		lhs, rhs = []ir.Node{n.X}, n.Y
+	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+		n := n.(*ir.AssignListStmt)
+		if len(n.Lhs) < 2 || len(n.Rhs) != 1 {
+			base.FatalfAt(n.Pos(), "unexpected shape for %v: %v", n.Op(), n)
+		}
+		lhs, rhs = n.Lhs, n.Rhs[0]
+	case ir.OCALLFUNC:
+		return false // outlined map init call; no mutations
+	}
+
+	if !s.seenMutation {
+		s.seenMutation = mayModifyPkgVar(rhs)
+	}
+
+	if allBlank(lhs) && !AnySideEffects(rhs) {
+		return true // discard
+	}
+
+	// Only worry about simple "l = r" assignments. The OAS2*
+	// assignments mostly necessitate dynamic execution anyway.
+	if len(lhs) > 1 {
 		return false
 	}
-	n := nn.(*ir.AssignStmt)
-	if ir.IsBlank(n.X) && !AnySideEffects(n.Y) {
-		// Discard.
-		return true
-	}
+
 	lno := ir.SetPos(n)
 	defer func() { base.Pos = lno }()
-	nam := n.X.(*ir.Name)
-	return s.StaticAssign(nam, 0, n.Y, nam.Type())
+
+	nam := lhs[0].(*ir.Name)
+	return s.StaticAssign(nam, 0, rhs, nam.Type())
 }
 
 // like staticassign but we are copying an already
@@ -132,6 +168,15 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 	if r == nil {
 		// types2.InitOrder doesn't include default initializers.
 		base.Fatalf("unexpected initializer: %v", rn.Defn)
+	}
+
+	// Variable may have been reassigned by a user-written function call
+	// that was invoked to initialize another global variable (#51913).
+	if s.seenMutation {
+		if base.Debug.StaticCopy != 0 {
+			base.WarnfAt(l.Pos(), "skipping static copy of %v+%v with %v", l, loff, r)
+		}
+		return false
 	}
 
 	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
@@ -828,6 +873,43 @@ func isSideEffect(n ir.Node) bool {
 // AnySideEffects reports whether n contains any operations that could have observable side effects.
 func AnySideEffects(n ir.Node) bool {
 	return ir.Any(n, isSideEffect)
+}
+
+// mayModifyPkgVar reports whether expression n may modify any
+// package-scope variables declared within the current package.
+func mayModifyPkgVar(n ir.Node) bool {
+	// safeLHS reports whether the assigned-to variable lhs is either a
+	// local variable or a global from another package.
+	safeLHS := func(lhs ir.Node) bool {
+		v, ok := ir.OuterValue(lhs).(*ir.Name)
+		return ok && v.Op() == ir.ONAME && !(v.Class == ir.PEXTERN && v.Sym().Pkg == types.LocalPkg)
+	}
+
+	return ir.Any(n, func(n ir.Node) bool {
+		switch n.Op() {
+		case ir.OCALLFUNC, ir.OCALLINTER:
+			return !ir.IsFuncPCIntrinsic(n.(*ir.CallExpr))
+
+		case ir.OAPPEND, ir.OCLEAR, ir.OCOPY:
+			return true // could mutate a global array
+
+		case ir.OAS:
+			n := n.(*ir.AssignStmt)
+			if !safeLHS(n.X) {
+				return true
+			}
+
+		case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+			n := n.(*ir.AssignListStmt)
+			for _, lhs := range n.Lhs {
+				if !safeLHS(lhs) {
+					return true
+				}
+			}
+		}
+
+		return false
+	})
 }
 
 // canRepeat reports whether executing n multiple times has the same effect as
