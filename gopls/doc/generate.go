@@ -434,7 +434,7 @@ func structDoc(fields []*commandmeta.Field, level int) string {
 				fmt.Fprintf(&b, "%s\t// %s\n", indent, line)
 			}
 		}
-		tag := fld.JSONTag
+		tag := strings.Split(fld.JSONTag, ",")[0]
 		if tag == "" {
 			tag = fld.Name
 		}
