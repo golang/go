@@ -273,6 +273,7 @@ func (app *Application) featureCommands() []tool.Application {
 		&symbols{app: app},
 		newWorkspace(app),
 		&workspaceSymbol{app: app},
+		&vulncheck{app: app},
 	}
 }
 

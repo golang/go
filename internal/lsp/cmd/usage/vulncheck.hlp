@@ -1,0 +1,9 @@
+run experimental vulncheck analysis (experimental: under development)
+
+Usage:
+  gopls [flags] vulncheck
+
+	WARNING: this command is experimental.
+
+	Example:
+	$ gopls vulncheck <packages>
