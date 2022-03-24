@@ -32,7 +32,10 @@ import (
 	"io"
 )
 
-const zlibDeflate = 8
+const (
+	zlibDeflate   = 8
+	zlibMaxWindow = 7
+)
 
 var (
 	// ErrChecksum is returned when reading ZLIB data that has an invalid checksum.
@@ -143,7 +146,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 		return z.err
 	}
 	h := uint(z.scratch[0])<<8 | uint(z.scratch[1])
-	if (z.scratch[0]&0x0f != zlibDeflate) || (h%31 != 0) {
+	if (z.scratch[0]&0x0f != zlibDeflate) || (z.scratch[0]>>4 > zlibMaxWindow) || (h%31 != 0) {
 		z.err = ErrHeader
 		return z.err
 	}
