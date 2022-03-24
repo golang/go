@@ -10,6 +10,7 @@ package hooks // import "golang.org/x/tools/gopls/internal/hooks"
 import (
 	"context"
 
+	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/internal/lsp/source"
 	"mvdan.cc/gofumpt/format"
 	"mvdan.cc/xurls/v2"
@@ -28,4 +29,6 @@ func Options(options *source.Options) {
 		})
 	}
 	updateAnalyzers(options)
+
+	options.Govulncheck = vulncheck.Govulncheck
 }

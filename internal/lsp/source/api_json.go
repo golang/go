@@ -666,6 +666,13 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t// The test file containing the tests to run.\n\t\"URI\": string,\n\t// Specific test names to run, e.g. TestFoo.\n\t\"Tests\": []string,\n\t// Specific benchmarks to run, e.g. BenchmarkFoo.\n\t\"Benchmarks\": []string,\n}",
 		},
 		{
+			Command:   "gopls.run_vulncheck_exp",
+			Title:     "Run vulncheck (experimental)",
+			Doc:       "Run vulnerability check (`govulncheck`).",
+			ArgDoc:    "{\n\t// Dir is the directory from which vulncheck will run from.\n\t\"Dir\": string,\n\t// Package pattern. E.g. \"\", \".\", \"./...\".\n\t\"Pattern\": string,\n}",
+			ResultDoc: "{\n\t\"Vuln\": []{\n\t\t\"id\": string,\n\t\t\"details\": string,\n\t\t\"aliases\": []string,\n\t\t\"symbol\": string,\n\t\t\"pkg_path\": string,\n\t\t\"mod_path\": string,\n\t\t\"url\": string,\n\t\t\"current_version\": string,\n\t\t\"fixed_version\": string,\n\t\t\"call_stacks\": [][]golang.org/x/tools/internal/lsp/command.StackEntry,\n\t},\n}",
+		},
+		{
 			Command:   "gopls.start_debugging",
 			Title:     "Start the gopls debug server",
 			Doc:       "Start the gopls debug server if it isn't running, and return the debug\naddress.",

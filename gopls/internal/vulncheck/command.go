@@ -5,21 +5,55 @@
 //go:build go1.18
 // +build go1.18
 
-// Package vulncheck provides an analysis command
-// that runs vulnerability analysis using data from
-// golang.org/x/exp/vulncheck.
-// This package requires go1.18 or newer.
 package vulncheck
 
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"golang.org/x/exp/vulncheck"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/vuln/client"
 )
+
+func init() {
+	Govulncheck = govulncheck
+}
+
+func govulncheck(ctx context.Context, cfg *packages.Config, args command.VulncheckArgs) (res command.VulncheckResult, _ error) {
+	if args.Pattern == "" {
+		args.Pattern = "."
+	}
+
+	dbClient, err := client.NewClient(findGOVULNDB(cfg), client.Options{HTTPCache: defaultCache()})
+	if err != nil {
+		return res, err
+	}
+
+	c := cmd{Client: dbClient}
+	vulns, err := c.Run(ctx, cfg, args.Pattern)
+	if err != nil {
+		return res, err
+	}
+
+	res.Vuln = vulns
+	return res, err
+}
+
+func findGOVULNDB(cfg *packages.Config) []string {
+	for _, kv := range cfg.Env {
+		if strings.HasPrefix(kv, "GOVULNDB=") {
+			return strings.Split(kv[len("GOVULNDB="):], ",")
+		}
+	}
+	if GOVULNDB := os.Getenv("GOVULNDB"); GOVULNDB != "" {
+		return strings.Split(GOVULNDB, ",")
+	}
+	return []string{"https://storage.googleapis.com/go-vulndb"}
+}
 
 type Vuln = command.Vuln
 type CallStack = command.CallStack

@@ -18,6 +18,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/command"
@@ -780,4 +781,36 @@ func (c *commandHandler) StartDebugging(ctx context.Context, args command.Debugg
 	}
 	result.URLs = []string{"http://" + listenedAddr}
 	return result, nil
+}
+
+func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.VulncheckArgs) (result command.VulncheckResult, _ error) {
+	err := c.run(ctx, commandConfig{
+		progress:    "Running vulncheck",
+		requireSave: true,
+		forURI:      args.Dir, // Will dir work?
+	}, func(ctx context.Context, deps commandDeps) error {
+		view := deps.snapshot.View()
+		opts := view.Options()
+		if opts == nil || opts.Hooks.Govulncheck == nil {
+			return errors.New("vulncheck feature is not available")
+		}
+
+		buildFlags := opts.BuildFlags // XXX: is session.Options equivalent to view.Options?
+		var viewEnv []string
+		if e := opts.EnvSlice(); e != nil {
+			viewEnv = append(os.Environ(), e...)
+		}
+		cfg := &packages.Config{
+			Context:    ctx,
+			Tests:      true, // TODO(hyangah): add a field in args.
+			BuildFlags: buildFlags,
+			Env:        viewEnv,
+			Dir:        view.Folder().Filename(),
+			// TODO(hyangah): configure overlay
+		}
+		var err error
+		result, err = opts.Hooks.Govulncheck(ctx, cfg, args)
+		return err
+	})
+	return result, err
 }

@@ -143,6 +143,11 @@ type Interface interface {
 	// Start the gopls debug server if it isn't running, and return the debug
 	// address.
 	StartDebugging(context.Context, DebuggingArgs) (DebuggingResult, error)
+
+	// RunVulncheckExp: Run vulncheck (experimental)
+	//
+	// Run vulnerability check (`govulncheck`).
+	RunVulncheckExp(context.Context, VulncheckArgs) (VulncheckResult, error)
 }
 
 type RunTestsArgs struct {

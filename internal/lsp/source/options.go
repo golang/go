@@ -47,6 +47,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/analysis/fillreturns"
 	"golang.org/x/tools/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/internal/lsp/analysis/infertypeargs"
@@ -476,6 +477,9 @@ type Hooks struct {
 	TypeErrorAnalyzers   map[string]*Analyzer
 	ConvenienceAnalyzers map[string]*Analyzer
 	StaticcheckAnalyzers map[string]*Analyzer
+
+	// Govulncheck is the implementation of the Govulncheck gopls command.
+	Govulncheck func(context.Context, *packages.Config, command.VulncheckArgs) (command.VulncheckResult, error)
 }
 
 // InternalOptions contains settings that are not intended for use by the
@@ -703,6 +707,7 @@ func (o *Options) Clone() *Options {
 			ComputeEdits:  o.ComputeEdits,
 			GofumptFormat: o.GofumptFormat,
 			URLRegexp:     o.URLRegexp,
+			Govulncheck:   o.Govulncheck,
 		},
 		ServerOptions: o.ServerOptions,
 		UserOptions:   o.UserOptions,
