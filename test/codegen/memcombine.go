@@ -76,7 +76,7 @@ func load_be64(b []byte) uint64 {
 
 func load_be64_idx(b []byte, idx int) uint64 {
 	// amd64/v1,amd64/v2:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
-	// amd64/v3: `MOVBEQ`
+	// amd64/v3: `MOVBEQ\t\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), [A-Z]+[0-9]*`
 	// s390x:`MOVD\s\(.*\)\(.*\*1\),`
 	// arm64:`REV`,`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[WHB]`,-`REVW`,-`REV16W`
 	// ppc64le:`MOVDBR`,-`MOV[BHW]Z`
@@ -94,7 +94,7 @@ func load_be32(b []byte) uint32 {
 
 func load_be32_idx(b []byte, idx int) uint32 {
 	// amd64/v1,amd64/v2:`BSWAPL`,-`MOV[BW]`,-`OR`
-	// amd64/v3: `MOVBEL`
+	// amd64/v3: `MOVBEL\t\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), [A-Z]+[0-9]*`
 	// s390x:`MOVWZ\s\(.*\)\(.*\*1\),`
 	// arm64:`REVW`,`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[HB]`,-`REV16W`
 	// ppc64le:`MOVWBR`,-`MOV[BH]Z`
@@ -421,7 +421,7 @@ func store_be64(b []byte, x uint64) {
 
 func store_be64_idx(b []byte, x uint64, idx int) {
 	// amd64/v1,amd64/v2:`BSWAPQ`,-`SHR.`
-	// amd64/v3:`MOVBEQ`
+	// amd64/v3:`MOVBEQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
 	// arm64:`REV`,`MOVD\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BHW]`,-`REV16W`,-`REVW`
 	// ppc64le:`MOVDBR`
 	// s390x:`MOVD\s.*\(.*\)\(.*\*1\)$`,-`SRW\s`,-`SRD\s`
@@ -451,7 +451,7 @@ func store_be32_load(b, x *[8]byte) {
 
 func store_be32_idx(b []byte, x uint32, idx int) {
 	// amd64/v1,amd64/v2:`BSWAPL`,-`SHR.`
-	// amd64/v3:`MOVBEL`
+	// amd64/v3:`MOVBEL\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BH]`,-`REV16W`
 	// ppc64le:`MOVWBR`
 	// s390x:`MOVW\s.*\(.*\)\(.*\*1\)$`,-`SRW\s`,-`SRD\s`
@@ -469,7 +469,7 @@ func store_be16(b []byte, x uint16) {
 
 func store_be16_idx(b []byte, x uint16, idx int) {
 	// amd64/v1,amd64/v2:`ROLW\s\$8`,-`SHR.`
-	// amd64/v3: `MOVBEW`
+	// amd64/v3:`MOVBEW\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
 	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,`REV16W`,-`MOVB`
 	// ppc64le:`MOVHBR`
 	// s390x:`MOVH\s.*\(.*\)\(.*\*1\)$`,-`SRW\s`,-`SRD\s`
