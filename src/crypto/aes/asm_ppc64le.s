@@ -22,13 +22,14 @@
 
 #include "textflag.h"
 
-// For set{En,De}cryptKeyAsm
+// For expandKeyAsm
 #define INP     R3
 #define BITS    R4
-#define OUT     R5
+#define OUTENC  R5 // Pointer to next expanded encrypt key
 #define PTR     R6
 #define CNT     R7
 #define ROUNDS  R8
+#define OUTDEC  R9  // Pointer to next expanded decrypt key
 #define TEMP    R19
 #define ZERO    V0
 #define IN0     V1
@@ -87,31 +88,13 @@ GLOBL ·rcon(SB), RODATA, $80
 	LXSDX	(RA+RB), VT \
 	VPERM	VT, VT, ESPERM, VT
 
-// func setEncryptKeyAsm(key *byte, keylen int, enc *uint32) int
-TEXT ·setEncryptKeyAsm(SB), NOSPLIT|NOFRAME, $0
+// func setEncryptKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+TEXT ·expandKeyAsm(SB), NOSPLIT|NOFRAME, $0
 	// Load the arguments inside the registers
-	MOVD	key+0(FP), INP
-	MOVD	keylen+8(FP), BITS
-	MOVD	enc+16(FP), OUT
-	JMP	·doEncryptKeyAsm(SB)
-
-// This text is used both setEncryptKeyAsm and setDecryptKeyAsm
-TEXT ·doEncryptKeyAsm(SB), NOSPLIT|NOFRAME, $0
-	// Do not change R10 since it's storing the LR value in setDecryptKeyAsm
-
-	// Check arguments
-	MOVD	$-1, PTR               // li    6,-1       exit code to -1 (255)
-	CMPU	INP, $0                // cmpldi r3,0      input key pointer set?
-	BC	0x0E, 2, enc_key_abort // beq-  .Lenc_key_abort
-	CMPU	OUT, $0                // cmpldi r5,0      output key pointer set?
-	BC	0x0E, 2, enc_key_abort // beq-  .Lenc_key_abort
-	MOVD	$-2, PTR               // li    6,-2       exit code to -2 (254)
-	CMPW	BITS, $128             // cmpwi 4,128      greater or equal to 128
-	BC	0x0E, 0, enc_key_abort // blt-  .Lenc_key_abort
-	CMPW	BITS, $256             // cmpwi 4,256      lesser or equal to 256
-	BC	0x0E, 1, enc_key_abort // bgt-  .Lenc_key_abort
-	ANDCC	$0x3f, BITS, TEMP      // andi. 0,4,0x3f   multiple of 64
-	BC	0x06, 2, enc_key_abort // bne-  .Lenc_key_abort
+	MOVD	nr+0(FP), ROUNDS
+	MOVD	key+8(FP), INP
+	MOVD	enc+16(FP), OUTENC
+	MOVD	dec+24(FP), OUTDEC
 
 	MOVD	$·rcon(SB), PTR // PTR point to rcon addr
 	LVX	(PTR), ESPERM
@@ -120,27 +103,34 @@ TEXT ·doEncryptKeyAsm(SB), NOSPLIT|NOFRAME, $0
 	// Get key from memory and write aligned into VR
 	P8_LXVB16X(INP, R0, IN0)
 	ADD	$0x10, INP, INP
-	MOVD	$0x20, R8          // li    8,0x20     R8 = 32
+	MOVD	$0x20, TEMP
 
-	CMPW	BITS, $192         // cmpwi 4,192      Key size == 192?
+	CMPW	ROUNDS, $12
 	LVX	(PTR)(R0), RCON    // lvx   4,0,6      Load first 16 bytes into RCON
-	LVX	(PTR)(R8), MASK    // lvx   5,8,6
+	LVX	(PTR)(TEMP), MASK
 	ADD	$0x10, PTR, PTR    // addi  6,6,0x10   PTR to next 16 bytes of RCON
 	MOVD	$8, CNT            // li    7,8        CNT = 8
 	VXOR	ZERO, ZERO, ZERO   // vxor  0,0,0      Zero to be zero :)
 	MOVD	CNT, CTR           // mtctr 7          Set the counter to 8 (rounds)
 
-	BLT	loop128      // blt   .Loop128
-	BEQ	l192         // beq   .L192
-	JMP	l256         // b     .L256
+	// The expanded decrypt key is the expanded encrypt key stored in reverse order.
+	// Move OUTDEC to the last key location, and store in descending order.
+	ADD	$160, OUTDEC, OUTDEC
+	BLT	loop128
+	ADD	$32, OUTDEC, OUTDEC
+	BEQ	l192
+	ADD	$32, OUTDEC, OUTDEC
+	JMP	l256
 
 loop128:
 	// Key schedule (Round 1 to 8)
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5         Rotate-n-splat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(IN0, R0, OUT)
+	P8_STXV(IN0, R0, OUTENC)
+	P8_STXV(IN0, R0, OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	ADD	$16, OUT, OUT                    // addi 5,5,16       Point to the next round
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 
 	VXOR	IN0, TMP, IN0       // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP // vsldoi 6,0,6,12
@@ -156,9 +146,11 @@ loop128:
 	// Key schedule (Round 9)
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5   Rotate-n-spat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(IN0, R0, OUT)
+	P8_STXV(IN0, R0, OUTENC)
+	P8_STXV(IN0, R0, OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	ADD	$16, OUT, OUT                    // addi 5,5,16
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 
 	// Key schedule (Round 10)
 	VXOR	IN0, TMP, IN0       // vxor 1,1,6
@@ -171,9 +163,11 @@ loop128:
 
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5   Rotate-n-splat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(IN0, R0, OUT)
+	P8_STXV(IN0, R0, OUTENC)
+	P8_STXV(IN0, R0, OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	ADD	$16, OUT, OUT                    // addi 5,5,16
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 
 	// Key schedule (Round 11)
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
@@ -182,18 +176,18 @@ loop128:
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
-	P8_STXV(IN0, R0, OUT)
+	P8_STXV(IN0, R0, OUTENC)
+	P8_STXV(IN0, R0, OUTDEC)
 
-	ADD	$0x50, OUT, OUT // addi  5,5,0x50
-
-	MOVD	$10, ROUNDS // li    8,10
-	JMP	done        // b     .Ldone
+	RET
 
 l192:
 	LXSDX_BE(INP, R0, IN1)                   // Load next 8 bytes into upper half of VSR in BE order.
 	MOVD	$4, CNT                          // li 7,4
-	P8_STXV(IN0, R0, OUT)
-	ADD	$16, OUT, OUT                    // addi 5,5,16
+	P8_STXV(IN0, R0, OUTENC)
+	P8_STXV(IN0, R0, OUTDEC)
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 	VSPLTISB	$8, KEY                  // vspltisb 3,8
 	MOVD	CNT, CTR                         // mtctr 7
 	VSUBUBM	MASK, KEY, MASK                  // vsububm 5,5,3
@@ -221,18 +215,22 @@ loop192:
 
 	VPERM	IN1, IN1, MASK, KEY              // vperm 3,2,2,5
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(STAGE, R0, OUT)
+	P8_STXV(STAGE, R0, OUTENC)
+	P8_STXV(STAGE, R0, OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	ADD	$16, OUT, OUT                    // addi 5,5,16
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 
 	VSLDOI	$8, IN0, IN1, STAGE              // vsldoi 7,1,2,8
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
-	P8_STXV(STAGE, R0, OUT)
+	P8_STXV(STAGE, R0, OUTENC)
+	P8_STXV(STAGE, R0, OUTDEC)
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
-	ADD	$16, OUT, OUT                    // addi 5,5,16
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 
 	VSPLTW	$3, IN0, TMP                     // vspltw 6,1,3
 	VXOR	TMP, IN1, TMP                    // vxor 6,6,2
@@ -241,28 +239,31 @@ loop192:
 	VXOR	IN1, TMP, IN1                    // vxor 2,2,6
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
 	VXOR	IN1, KEY, IN1                    // vxor 2,2,3
-	P8_STXV(IN0, R0, OUT)
-	ADD	$16, OUT, OUT                    // addi 5,5,16
+	P8_STXV(IN0, R0, OUTENC)
+	P8_STXV(IN0, R0, OUTDEC)
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 	BC	0x10, 0, loop192                 // bdnz .Loop192
 
-	MOVD	$12, ROUNDS     // li 8,12
-	ADD	$0x20, OUT, OUT // addi 5,5,0x20
-	BR	done            // b .Ldone
+	RET
 
 l256:
 	P8_LXVB16X(INP, R0, IN1)
 	MOVD	$7, CNT                          // li 7,7
-	MOVD	$14, ROUNDS                      // li 8,14
-	P8_STXV(IN0, R0, OUT)
-	ADD	$16, OUT, OUT                    // addi 5,5,16
+	P8_STXV(IN0, R0, OUTENC)
+	P8_STXV(IN0, R0, OUTDEC)
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 	MOVD	CNT, CTR                         // mtctr 7
 
 loop256:
 	VPERM	IN1, IN1, MASK, KEY              // vperm 3,2,2,5
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	P8_STXV(IN1, R0, OUT)
+	P8_STXV(IN1, R0, OUTENC)
+	P8_STXV(IN1, R0, OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	ADD	$16, OUT, OUT                    // addi 5,5,16
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
@@ -271,8 +272,10 @@ loop256:
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VADDUWM	RCON, RCON, RCON                 // vadduwm 4,4,4
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
-	P8_STXV(IN0, R0, OUT)
-	ADD	$16, OUT, OUT                    // addi 5,5,16
+	P8_STXV(IN0, R0, OUTENC)
+	P8_STXV(IN0, R0, OUTDEC)
+	ADD	$16, OUTENC, OUTENC
+	ADD	$-16, OUTDEC, OUTDEC
 	BC	0x12, 0, done                    // bdz .Ldone
 
 	VSPLTW	$3, IN0, KEY        // vspltw 3,1,3
@@ -289,71 +292,16 @@ loop256:
 	JMP	loop256       // b .Loop256
 
 done:
-	MOVD	$0, PTR                    // li    6,0    set PTR to 0 (exit code 0)
-	MOVW	ROUNDS, 0(OUT)             // stw   8,0(5)
+	RET
 
-enc_key_abort:
-	MOVD	PTR, INP        // mr    3,6    set exit code with PTR value
-	MOVD	INP, ret+24(FP) // Put return value into the FP
-	RET                  // blr
-
-// func setDecryptKeyAsm(key *byte, keylen int, dec *uint32) int
-TEXT ·setDecryptKeyAsm(SB), NOSPLIT|NOFRAME, $0
-	// Load the arguments inside the registers
-	MOVD	key+0(FP), INP
-	MOVD	keylen+8(FP), BITS
-	MOVD	dec+16(FP), OUT
-
-	MOVD	LR, R10              // mflr 10
-	CALL	·doEncryptKeyAsm(SB)
-	MOVD	R10, LR              // mtlr 10
-
-	CMPW	INP, $0                // cmpwi 3,0  exit 0 = ok
-	BC	0x06, 2, dec_key_abort // bne- .Ldec_key_abort
-
-	// doEncryptKeyAsm set ROUNDS (R8) with the proper value for each mode
-	SLW	$4, ROUNDS, CNT    // slwi 7,8,4
-	SUB	$240, OUT, INP     // subi 3,5,240
-	SRW	$1, ROUNDS, ROUNDS // srwi 8,8,1
-	ADD	R7, INP, OUT       // add 5,3,7
-	MOVD	ROUNDS, CTR        // mtctr 8
-
-	// dec_key will invert the key sequence in order to be used for decrypt
-dec_key:
-	MOVWZ	0(INP), TEMP     // lwz 0, 0(3)
-	MOVWZ	4(INP), R6       // lwz 6, 4(3)
-	MOVWZ	8(INP), R7       // lwz 7, 8(3)
-	MOVWZ	12(INP), R8      // lwz 8, 12(3)
-	ADD	$16, INP, INP    // addi 3,3,16
-	MOVWZ	0(OUT), R9       // lwz 9, 0(5)
-	MOVWZ	4(OUT), R10      // lwz 10,4(5)
-	MOVWZ	8(OUT), R11      // lwz 11,8(5)
-	MOVWZ	12(OUT), R12     // lwz 12,12(5)
-	MOVW	TEMP, 0(OUT)     // stw 0, 0(5)
-	MOVW	R6, 4(OUT)       // stw 6, 4(5)
-	MOVW	R7, 8(OUT)       // stw 7, 8(5)
-	MOVW	R8, 12(OUT)      // stw 8, 12(5)
-	SUB	$16, OUT, OUT    // subi 5,5,16
-	MOVW	R9, -16(INP)     // stw 9, -16(3)
-	MOVW	R10, -12(INP)    // stw 10,-12(3)
-	MOVW	R11, -8(INP)     // stw 11,-8(3)
-	MOVW	R12, -4(INP)     // stw 12,-4(3)
-	BC	0x10, 0, dec_key // bdnz .Ldeckey
-
-	XOR	R3, R3, R3 // xor 3,3,3      Clean R3
-
-dec_key_abort:
-	MOVD	R3, ret+24(FP) // Put return value into the FP
-	RET                 // blr
-
-// func encryptBlockAsm(dst, src *byte, enc *uint32)
+// func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 TEXT ·encryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	// Load the arguments inside the registers
-	MOVD	dst+0(FP), BLK_OUT
-	MOVD	src+8(FP), BLK_INP
-	MOVD	enc+16(FP), BLK_KEY
+	MOVD	nr+0(FP), BLK_ROUNDS
+	MOVD	xk+8(FP), BLK_KEY
+	MOVD	dst+16(FP), BLK_OUT
+	MOVD	src+24(FP), BLK_INP
 
-	MOVWZ	240(BLK_KEY), BLK_ROUNDS // lwz 6,240(5)
 	MOVD	$15, BLK_IDX             // li 7,15
 
 	LVX	(BLK_INP)(R0), ZERO        // lvx 0,0,3
@@ -410,14 +358,14 @@ loop_enc:
 
 	RET // blr
 
-// func decryptBlockAsm(dst, src *byte, dec *uint32)
+// func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 TEXT ·decryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	// Load the arguments inside the registers
-	MOVD	dst+0(FP), BLK_OUT
-	MOVD	src+8(FP), BLK_INP
-	MOVD	dec+16(FP), BLK_KEY
+	MOVD	nr+0(FP), BLK_ROUNDS
+	MOVD	xk+8(FP), BLK_KEY
+	MOVD	dst+16(FP), BLK_OUT
+	MOVD	src+24(FP), BLK_INP
 
-	MOVWZ	240(BLK_KEY), BLK_ROUNDS // lwz 6,240(5)
 	MOVD	$15, BLK_IDX             // li 7,15
 
 	LVX	(BLK_INP)(R0), ZERO        // lvx 0,0,3
@@ -476,7 +424,7 @@ loop_dec:
 
 // Remove defines from above so they can be defined here
 #undef INP
-#undef OUT
+#undef OUTENC
 #undef ROUNDS
 #undef KEY
 #undef TMP
@@ -545,6 +493,7 @@ loop_dec:
 // for decryption which was omitted to avoid the
 // complexity.
 
+// func cryptBlocksChain(src, dst *byte, length int, key *uint32, iv *byte, enc int, nr int)
 TEXT ·cryptBlocksChain(SB), NOSPLIT|NOFRAME, $0
 	MOVD	src+0(FP), INP
 	MOVD	dst+8(FP), OUT
@@ -552,6 +501,7 @@ TEXT ·cryptBlocksChain(SB), NOSPLIT|NOFRAME, $0
 	MOVD	key+24(FP), KEY
 	MOVD	iv+32(FP), IVP
 	MOVD	enc+40(FP), ENC
+	MOVD	nr+48(FP), ROUNDS
 
 	CMPU	LEN, $16                  // cmpldi r5,16
 	BC	14, 0, LR                 // bltlr-
@@ -567,7 +517,6 @@ TEXT ·cryptBlocksChain(SB), NOSPLIT|NOFRAME, $0
 	VPERM	IVEC, INPTAIL, INPPERM, IVEC       // vperm v4,v4,v5,v6
 	NEG	INP, R11                           // neg r11,r3
 	LVSR	(KEY)(R0), KEYPERM                 // lvsr v10,r0,r6
-	MOVWZ	240(KEY), ROUNDS                   // lwz r9,240(r6)
 	LVSR	(R11)(R0), V6                      // lvsr v6,r0,r11
 	LVX	(INP)(R0), INPTAIL                 // lvx v5,r0,r3
 	ADD	$15, INP                           // addi r3,r3,15
