@@ -29,46 +29,46 @@ import (
 // later.
 var localPkgReader *pkgReader
 
-// unified construct the local package's IR from syntax's AST.
+// unified constructs the local package's Internal Representation (IR)
+// from its syntax tree (AST).
 //
 // The pipeline contains 2 steps:
 //
-//  1. Generate package export data "stub".
+//  1. Generate the export data "stub".
 //
-//  2. Generate package IR from package export data.
+//  2. Generate the IR from the export data above.
 //
 // The package data "stub" at step (1) contains everything from the local package,
-// but nothing that have been imported. When we're actually writing out export data
-// to the output files (see writeNewExport function), we run the "linker", which does
-// a few things:
+// but nothing that has been imported. When we're actually writing out export data
+// to the output files (see writeNewExport), we run the "linker", which:
 //
-//   - Updates compiler extensions data (e.g., inlining cost, escape analysis results).
+//   - Updates compiler extensions data (e.g. inlining cost, escape analysis results).
 //
 //   - Handles re-exporting any transitive dependencies.
 //
-//   - Prunes out any unnecessary details (e.g., non-inlineable functions, because any
+//   - Prunes out any unnecessary details (e.g. non-inlineable functions, because any
 //     downstream importers only care about inlinable functions).
 //
-// The source files are typechecked twice, once before writing export data
-// using types2 checker, once after read export data using gc/typecheck.
-// This duplication of work will go away once we always use types2 checker,
-// we can remove the gc/typecheck pass. The reason it is still here:
+// The source files are typechecked twice: once before writing the export data
+// using types2, and again after reading the export data using gc/typecheck.
+// The duplication of work will go away once we only use the types2 type checker,
+// removing the gc/typecheck step. For now, it is kept because:
 //
-//   - It reduces engineering costs in maintaining a fork of typecheck
-//     (e.g., no need to backport fixes like CL 327651).
+//   - It reduces the engineering costs in maintaining a fork of typecheck
+//     (e.g. no need to backport fixes like CL 327651).
 //
 //   - It makes it easier to pass toolstash -cmp.
 //
-//   - Historically, we would always re-run the typechecker after import, even though
-//     we know the imported data is valid. It's not ideal, but also not causing any
-//     problem either.
+//   - Historically, we would always re-run the typechecker after importing a package,
+//     even though we know the imported data is valid. It's not ideal, but it's
+//     not causing any problems either.
 //
-//   - There's still transformation that being done during gc/typecheck, like rewriting
-//     multi-valued function call, or transform ir.OINDEX -> ir.OINDEXMAP.
+//   - gc/typecheck is still in charge of some transformations, such as rewriting
+//     multi-valued function calls or transforming ir.OINDEX to ir.OINDEXMAP.
 //
-// Using syntax+types2 tree, which already has a complete representation of generics,
-// the unified IR has the full typed AST for doing introspection during step (1).
-// In other words, we have all necessary information to build the generic IR form
+// Using the syntax tree with types2, which has a complete representation of generics,
+// the unified IR has the full typed AST needed for introspection during step (1).
+// In other words, we have all the necessary information to build the generic IR form
 // (see writer.captureVars for an example).
 func unified(noders []*noder) {
 	inline.NewInline = InlineCall
