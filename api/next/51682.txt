@@ -1,0 +1,2 @@
+pkg go/types, method (*Func) Origin() *Func #51682
+pkg go/types, method (*Var) Origin() *Var #51682
