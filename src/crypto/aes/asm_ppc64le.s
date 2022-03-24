@@ -43,6 +43,10 @@
 #define OUTHEAD V10
 #define OUTTAIL V11
 
+// For P9 instruction emulation
+#define ESPERM  V21  // Endian swapping permute into BE
+#define TMP2    V22  // Temporary for P8_STXVB16X/P8_STXV
+
 // For {en,de}cryptBlockAsm
 #define BLK_INP    R3
 #define BLK_OUT    R4
@@ -50,15 +54,38 @@
 #define BLK_ROUNDS R6
 #define BLK_IDX    R7
 
-DATA ·rcon+0x00(SB)/8, $0x0100000001000000 // RCON
-DATA ·rcon+0x08(SB)/8, $0x0100000001000000 // RCON
-DATA ·rcon+0x10(SB)/8, $0x1b0000001b000000
-DATA ·rcon+0x18(SB)/8, $0x1b0000001b000000
-DATA ·rcon+0x20(SB)/8, $0x0d0e0f0c0d0e0f0c // MASK
-DATA ·rcon+0x28(SB)/8, $0x0d0e0f0c0d0e0f0c // MASK
-DATA ·rcon+0x30(SB)/8, $0x0000000000000000
-DATA ·rcon+0x38(SB)/8, $0x0000000000000000
-GLOBL ·rcon(SB), RODATA, $64
+DATA ·rcon+0x00(SB)/8, $0x0f0e0d0c0b0a0908 // Permute for vector doubleword endian swap
+DATA ·rcon+0x08(SB)/8, $0x0706050403020100
+DATA ·rcon+0x10(SB)/8, $0x0100000001000000 // RCON
+DATA ·rcon+0x18(SB)/8, $0x0100000001000000 // RCON
+DATA ·rcon+0x20(SB)/8, $0x1b0000001b000000
+DATA ·rcon+0x28(SB)/8, $0x1b0000001b000000
+DATA ·rcon+0x30(SB)/8, $0x0d0e0f0c0d0e0f0c // MASK
+DATA ·rcon+0x38(SB)/8, $0x0d0e0f0c0d0e0f0c // MASK
+DATA ·rcon+0x40(SB)/8, $0x0000000000000000
+DATA ·rcon+0x48(SB)/8, $0x0000000000000000
+GLOBL ·rcon(SB), RODATA, $80
+
+// Emulate unaligned BE vector load/stores on LE targets
+#define P8_LXVB16X(RA,RB,VT) \
+	LXVD2X	(RA+RB), VT \
+	VPERM	VT, VT, ESPERM, VT
+
+#define P8_STXVB16X(VS,RA,RB) \
+	VPERM	VS, VS, ESPERM, TMP2 \
+	STXVD2X	TMP2, (RA+RB)
+
+#define P8_STXV(VS,RA,RB) \
+	XXPERMDI	VS, VS, $2, TMP2 \
+	STXVD2X		TMP2, (RA+RB)
+
+#define P8_LXV(RA,RB,VT) \
+	LXVD2X		(RA+RB), VT \
+	XXPERMDI	VT, VT, $2, VT
+
+#define LXSDX_BE(RA,RB,VT) \
+	LXSDX	(RA+RB), VT \
+	VPERM	VT, VT, ESPERM, VT
 
 // func setEncryptKeyAsm(key *byte, keylen int, enc *uint32) int
 TEXT ·setEncryptKeyAsm(SB), NOSPLIT|NOFRAME, $0
@@ -87,45 +114,32 @@ TEXT ·doEncryptKeyAsm(SB), NOSPLIT|NOFRAME, $0
 	BC	0x06, 2, enc_key_abort // bne-  .Lenc_key_abort
 
 	MOVD	$·rcon(SB), PTR // PTR point to rcon addr
+	LVX	(PTR), ESPERM
+	ADD	$0x10, PTR
 
 	// Get key from memory and write aligned into VR
-	NEG	INP, R9            // neg   9,3        R9 is ~INP + 1
-	LVX	(INP)(R0), IN0     // lvx   1,0,3      Load key inside IN0
-	ADD	$15, INP, INP      // addi  3,3,15     Add 15B to INP addr
-	LVSR	(R9)(R0), KEY      // lvsr  3,0,9
+	P8_LXVB16X(INP, R0, IN0)
+	ADD	$0x10, INP, INP
 	MOVD	$0x20, R8          // li    8,0x20     R8 = 32
+
 	CMPW	BITS, $192         // cmpwi 4,192      Key size == 192?
-	LVX	(INP)(R0), IN1     // lvx   2,0,3
-	VSPLTISB	$0x0f, MASK// vspltisb 5,0x0f  0x0f0f0f0f... mask
 	LVX	(PTR)(R0), RCON    // lvx   4,0,6      Load first 16 bytes into RCON
-	VXOR	KEY, MASK, KEY     // vxor  3,3,5      Adjust for byte swap
 	LVX	(PTR)(R8), MASK    // lvx   5,8,6
 	ADD	$0x10, PTR, PTR    // addi  6,6,0x10   PTR to next 16 bytes of RCON
-	VPERM	IN0, IN1, KEY, IN0 // vperm 1,1,2,3    Align
 	MOVD	$8, CNT            // li    7,8        CNT = 8
 	VXOR	ZERO, ZERO, ZERO   // vxor  0,0,0      Zero to be zero :)
 	MOVD	CNT, CTR           // mtctr 7          Set the counter to 8 (rounds)
 
-	LVSL	(OUT)(R0), OUTPERM              // lvsl  8,0,5
-	VSPLTISB	$-1, OUTMASK                    // vspltisb      9,-1
-	LVX	(OUT)(R0), OUTHEAD              // lvx   10,0,5
-	VPERM	OUTMASK, ZERO, OUTPERM, OUTMASK // vperm 9,9,0,8
-
 	BLT	loop128      // blt   .Loop128
-	ADD	$8, INP, INP // addi  3,3,8
 	BEQ	l192         // beq   .L192
-	ADD	$8, INP, INP // addi  3,3,8
 	JMP	l256         // b     .L256
 
 loop128:
 	// Key schedule (Round 1 to 8)
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5         Rotate-n-splat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	VPERM	IN0, IN0, OUTPERM, OUTTAIL       // vperm 11,1,1,8    Rotate
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
+	P8_STXV(IN0, R0, OUT)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5        Write to output
 	ADD	$16, OUT, OUT                    // addi 5,5,16       Point to the next round
 
 	VXOR	IN0, TMP, IN0       // vxor 1,1,6
@@ -142,11 +156,8 @@ loop128:
 	// Key schedule (Round 9)
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5   Rotate-n-spat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	VPERM	IN0, IN0, OUTPERM, OUTTAIL       // vperm 11,1,1,8  Rotate
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
+	P8_STXV(IN0, R0, OUT)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5   Round 9
 	ADD	$16, OUT, OUT                    // addi 5,5,16
 
 	// Key schedule (Round 10)
@@ -160,11 +171,8 @@ loop128:
 
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5   Rotate-n-splat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	VPERM	IN0, IN0, OUTPERM, OUTTAIL       // vperm 11,1,1,8  Rotate
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
+	P8_STXV(IN0, R0, OUT)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5    Round 10
 	ADD	$16, OUT, OUT                    // addi 5,5,16
 
 	// Key schedule (Round 11)
@@ -174,26 +182,18 @@ loop128:
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
-	VPERM	IN0, IN0, OUTPERM, OUTTAIL       // vperm 11,1,1,8
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5  Round 11
+	P8_STXV(IN0, R0, OUT)
 
-	ADD	$15, OUT, INP   // addi  3,5,15
 	ADD	$0x50, OUT, OUT // addi  5,5,0x50
 
 	MOVD	$10, ROUNDS // li    8,10
 	JMP	done        // b     .Ldone
 
 l192:
-	LVX	(INP)(R0), TMP                   // lvx 6,0,3
+	LXSDX_BE(INP, R0, IN1)                   // Load next 8 bytes into upper half of VSR in BE order.
 	MOVD	$4, CNT                          // li 7,4
-	VPERM	IN0, IN0, OUTPERM, OUTTAIL       // vperm 11,1,1,8
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5
+	P8_STXV(IN0, R0, OUT)
 	ADD	$16, OUT, OUT                    // addi 5,5,16
-	VPERM	IN1, TMP, KEY, IN1               // vperm 2,2,6,3
 	VSPLTISB	$8, KEY                  // vspltisb 3,8
 	MOVD	CNT, CTR                         // mtctr 7
 	VSUBUBM	MASK, KEY, MASK                  // vsububm 5,5,3
@@ -221,23 +221,17 @@ loop192:
 
 	VPERM	IN1, IN1, MASK, KEY              // vperm 3,2,2,5
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	VPERM	STAGE, STAGE, OUTPERM, OUTTAIL   // vperm 11,7,7,8
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
+	P8_STXV(STAGE, R0, OUT)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5
 	ADD	$16, OUT, OUT                    // addi 5,5,16
 
 	VSLDOI	$8, IN0, IN1, STAGE              // vsldoi 7,1,2,8
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
-	VPERM	STAGE, STAGE, OUTPERM, OUTTAIL   // vperm 11,7,7,8
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
+	P8_STXV(STAGE, R0, OUT)
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5
 	ADD	$16, OUT, OUT                    // addi 5,5,16
 
 	VSPLTW	$3, IN0, TMP                     // vspltw 6,1,3
@@ -247,11 +241,7 @@ loop192:
 	VXOR	IN1, TMP, IN1                    // vxor 2,2,6
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
 	VXOR	IN1, KEY, IN1                    // vxor 2,2,3
-	VPERM	IN0, IN0, OUTPERM, OUTTAIL       // vperm 11,1,1,8
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5
-	ADD	$15, OUT, INP                    // addi 3,5,15
+	P8_STXV(IN0, R0, OUT)
 	ADD	$16, OUT, OUT                    // addi 5,5,16
 	BC	0x10, 0, loop192                 // bdnz .Loop192
 
@@ -260,25 +250,18 @@ loop192:
 	BR	done            // b .Ldone
 
 l256:
-	LVX	(INP)(R0), TMP                   // lvx 6,0,3
+	P8_LXVB16X(INP, R0, IN1)
 	MOVD	$7, CNT                          // li 7,7
 	MOVD	$14, ROUNDS                      // li 8,14
-	VPERM	IN0, IN0, OUTPERM, OUTTAIL       // vperm 11,1,1,8
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5
+	P8_STXV(IN0, R0, OUT)
 	ADD	$16, OUT, OUT                    // addi 5,5,16
-	VPERM	IN1, TMP, KEY, IN1               // vperm 2,2,6,3
 	MOVD	CNT, CTR                         // mtctr 7
 
 loop256:
 	VPERM	IN1, IN1, MASK, KEY              // vperm 3,2,2,5
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
-	VPERM	IN1, IN1, OUTPERM, OUTTAIL       // vperm 11,2,2,8
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
+	P8_STXV(IN1, R0, OUT)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5
 	ADD	$16, OUT, OUT                    // addi 5,5,16
 
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
@@ -288,11 +271,7 @@ loop256:
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VADDUWM	RCON, RCON, RCON                 // vadduwm 4,4,4
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
-	VPERM	IN0, IN0, OUTPERM, OUTTAIL       // vperm 11,1,1,8
-	VSEL	OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VOR	OUTTAIL, OUTTAIL, OUTHEAD        // vor 10,11,11
-	STVX	STAGE, (OUT+R0)                  // stvx 7,0,5
-	ADD	$15, OUT, INP                    // addi 3,5,15
+	P8_STXV(IN0, R0, OUT)
 	ADD	$16, OUT, OUT                    // addi 5,5,16
 	BC	0x12, 0, done                    // bdz .Ldone
 
@@ -310,9 +289,6 @@ loop256:
 	JMP	loop256       // b .Loop256
 
 done:
-	LVX	(INP)(R0), IN1             // lvx   2,0,3
-	VSEL	OUTHEAD, IN1, OUTMASK, IN1 // vsel 2,10,2,9
-	STVX	IN1, (INP+R0)              // stvx  2,0,3
 	MOVD	$0, PTR                    // li    6,0    set PTR to 0 (exit code 0)
 	MOVW	ROUNDS, 0(OUT)             // stw   8,0(5)
 
