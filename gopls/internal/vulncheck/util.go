@@ -40,8 +40,12 @@ func fixedVersion(info *osv.Entry) string {
 	return fixed
 }
 
+const maxNumCallStacks = 64
+
 func toCallStacks(src []vulncheck.CallStack) []CallStack {
-	// vulncheck.CallStack
+	if len(src) > maxNumCallStacks {
+		src = src[:maxNumCallStacks]
+	}
 	var dest []CallStack
 	for _, s := range src {
 		dest = append(dest, toCallStack(s))
