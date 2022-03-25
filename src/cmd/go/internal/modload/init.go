@@ -6,12 +6,18 @@ package modload
 
 import (
 	"bytes"
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
+	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/modconv"
+	"cmd/go/internal/modfetch"
+	"cmd/go/internal/search"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"go/build"
-	"internal/lazyregexp"
 	"io/ioutil"
 	"os"
 	"path"
@@ -20,13 +26,7 @@ import (
 	"strings"
 	"sync"
 
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/fsys"
-	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/modconv"
-	"cmd/go/internal/modfetch"
-	"cmd/go/internal/search"
+	"internal/lazyregexp"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -409,6 +409,10 @@ func Init() {
 			if !mustUseModules {
 				return
 			}
+		} else if os.Getenv("GOMOD") != "" && filepath.Join(modRoot, "go.mod") != filepath.Join(modRoot, os.Getenv("GOMOD")) {
+			// if GOMOD is set and does not point to module file, error as they must use -modfile
+			// see golang.org/issue/51217
+			base.Fatalf("go: GOMOD cannot be used to set the module file. use -modfile")
 		} else {
 			modRoots = []string{modRoot}
 		}
@@ -1420,9 +1424,7 @@ Run 'go help mod init' for more information.
 	return "", fmt.Errorf(msg, dir, reason)
 }
 
-var (
-	importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
-)
+var importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
 
 func findImportComment(file string) string {
 	data, err := os.ReadFile(file)
