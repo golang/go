@@ -243,7 +243,7 @@ func (q *P521Point) Select(p1, p2 *P521Point, cond int) *P521Point {
 }
 
 // ScalarMult sets p = scalar * q, and returns p.
-func (p *P521Point) ScalarMult(q *P521Point, scalar []byte) *P521Point {
+func (p *P521Point) ScalarMult(q *P521Point, scalar []byte) (*P521Point, error) {
 	// table holds the first 16 multiples of q. The explicit newP521Point calls
 	// get inlined, letting the allocations live on the stack.
 	var table = [16]*P521Point{
@@ -284,5 +284,11 @@ func (p *P521Point) ScalarMult(q *P521Point, scalar []byte) *P521Point {
 		p.Add(p, t)
 	}
 
-	return p
+	return p, nil
+}
+
+// ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
+// returns p.
+func (p *P521Point) ScalarBaseMult(scalar []byte) (*P521Point, error) {
+	return p.ScalarMult(NewP521Generator(), scalar)
 }

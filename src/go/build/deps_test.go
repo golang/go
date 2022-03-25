@@ -402,7 +402,7 @@ var depsRules = `
 	crypto/internal/boring/syso,
 	encoding/binary,
 	golang.org/x/sys/cpu,
-	hash
+	hash, embed
 	< crypto
 	< crypto/subtle
 	< crypto/internal/subtle

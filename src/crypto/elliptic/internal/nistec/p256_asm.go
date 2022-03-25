@@ -12,34 +12,155 @@
 
 //go:build amd64 || arm64
 
-package elliptic
+package nistec
 
 import (
 	_ "embed"
-	"math/big"
+	"errors"
+	"math/bits"
 )
-
-//go:generate go run -tags=tablegen gen_p256_table.go
 
 //go:embed p256_asm_table.bin
 var p256Precomputed string
 
-type p256Curve struct {
-	*CurveParams
-}
-
-type p256Point struct {
+// P256Point is a P-256 point. The zero value is NOT valid.
+type P256Point struct {
 	xyz [12]uint64
 }
 
-func init() {
-	initP256Arch = func() {
-		p256 = p256Curve{&p256Params}
+// NewP256Point returns a new P256Point representing the point at infinity point.
+func NewP256Point() *P256Point {
+	return &P256Point{[12]uint64{
+		0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe,
+		0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe,
+		0, 0, 0, 0,
+	}}
+}
+
+// NewP256Generator returns a new P256Point set to the canonical generator.
+func NewP256Generator() *P256Point {
+	return &P256Point{[12]uint64{
+		0x79e730d418a9143c, 0x75ba95fc5fedb601, 0x79fb732b77622510, 0x18905f76a53755c6,
+		0xddf25357ce95560a, 0x8b4ab8e4ba19e45c, 0xd2e88688dd21f325, 0x8571ff1825885d85,
+		0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe,
+	}}
+}
+
+// Set sets p = q and returns p.
+func (p *P256Point) Set(q *P256Point) *P256Point {
+	p.xyz = q.xyz
+	return p
+}
+
+const p256ElementLength = 32
+const p256UncompressedLength = 1 + 2*p256ElementLength
+const p256CompressedLength = 1 + p256ElementLength
+
+// SetBytes sets p to the compressed, uncompressed, or infinity value encoded in
+// b, as specified in SEC 1, Version 2.0, Section 2.3.4. If the point is not on
+// the curve, it returns nil and an error, and the receiver is unchanged.
+// Otherwise, it returns p.
+func (p *P256Point) SetBytes(b []byte) (*P256Point, error) {
+	switch {
+	// Point at infinity.
+	case len(b) == 1 && b[0] == 0:
+		return p.Set(NewP256Point()), nil
+
+	// Uncompressed form.
+	case len(b) == p256UncompressedLength && b[0] == 4:
+		var r P256Point
+		p256BigToLittle(r.xyz[0:4], b[1:33])
+		p256BigToLittle(r.xyz[4:8], b[33:65])
+		if p256LessThanP(r.xyz[0:4]) == 0 || p256LessThanP(r.xyz[4:8]) == 0 {
+			return nil, errors.New("invalid P256 element encoding")
+		}
+		p256Mul(r.xyz[0:4], r.xyz[0:4], rr[:])
+		p256Mul(r.xyz[4:8], r.xyz[4:8], rr[:])
+		if err := p256CheckOnCurve(r.xyz[0:4], r.xyz[4:8]); err != nil {
+			return nil, err
+		}
+		// This sets r's Z value to 1, in the Montgomery domain.
+		r.xyz[8] = 0x0000000000000001
+		r.xyz[9] = 0xffffffff00000000
+		r.xyz[10] = 0xffffffffffffffff
+		r.xyz[11] = 0x00000000fffffffe
+		return p.Set(&r), nil
+
+	// Compressed form.
+	case len(b) == p256CompressedLength && (b[0] == 2 || b[0] == 3):
+		return nil, errors.New("unimplemented") // TODO(filippo)
+
+	default:
+		return nil, errors.New("invalid P256 point encoding")
 	}
 }
 
-func (curve p256Curve) Params() *CurveParams {
-	return curve.CurveParams
+func p256CheckOnCurve(x, y []uint64) error {
+	// x³ - 3x + b
+	x3 := make([]uint64, 4)
+	p256Sqr(x3, x, 1)
+	p256Mul(x3, x3, x)
+
+	threeX := make([]uint64, 4)
+	p256Add(threeX, x, x)
+	p256Add(threeX, threeX, x)
+	p256NegCond(threeX, 1)
+
+	p256B := []uint64{0xd89cdf6229c4bddf, 0xacf005cd78843090,
+		0xe5a220abf7212ed6, 0xdc30061d04874834}
+
+	p256Add(x3, x3, threeX)
+	p256Add(x3, x3, p256B)
+
+	// y² = x³ - 3x + b
+	y2 := make([]uint64, 4)
+	p256Sqr(y2, y, 1)
+
+	diff := (x3[0] ^ y2[0]) | (x3[1] ^ y2[1]) |
+		(x3[2] ^ y2[2]) | (x3[3] ^ y2[3])
+	if uint64IsZero(diff) != 1 {
+		return errors.New("P256 point not on curve")
+	}
+	return nil
+}
+
+var p256P = []uint64{0xffffffffffffffff, 0x00000000ffffffff,
+	0x0000000000000000, 0xffffffff00000001}
+
+// p256LessThanP returns 1 if x < p, and 0 otherwise.
+func p256LessThanP(x []uint64) int {
+	var b uint64
+	_, b = bits.Sub64(x[0], p256P[0], b)
+	_, b = bits.Sub64(x[1], p256P[1], b)
+	_, b = bits.Sub64(x[2], p256P[2], b)
+	_, b = bits.Sub64(x[3], p256P[3], b)
+	return int(b)
+}
+
+func p256Add(res, x, y []uint64) {
+	var c, b uint64
+	t1 := make([]uint64, 4)
+	t1[0], c = bits.Add64(x[0], y[0], 0)
+	t1[1], c = bits.Add64(x[1], y[1], c)
+	t1[2], c = bits.Add64(x[2], y[2], c)
+	t1[3], c = bits.Add64(x[3], y[3], c)
+	t2 := make([]uint64, 4)
+	t2[0], b = bits.Sub64(t1[0], p256P[0], 0)
+	t2[1], b = bits.Sub64(t1[1], p256P[1], b)
+	t2[2], b = bits.Sub64(t1[2], p256P[2], b)
+	t2[3], b = bits.Sub64(t1[3], p256P[3], b)
+	// Three options:
+	//   - a+b < p
+	//     then c is 0, b is 1, and t1 is correct
+	//   - p <= a+b < 2^256
+	//     then c is 0, b is 0, and t2 is correct
+	//   - 2^256 <= a+b
+	//     then c is 1, b is 1, and t2 is correct
+	t2Mask := (c ^ b) - 1
+	res[0] = (t1[0] & ^t2Mask) | (t2[0] & t2Mask)
+	res[1] = (t1[1] & ^t2Mask) | (t2[1] & t2Mask)
+	res[2] = (t1[2] & ^t2Mask) | (t2[2] & t2Mask)
+	res[3] = (t1[3] & ^t2Mask) | (t2[3] & t2Mask)
 }
 
 // Functions implemented in p256_asm_*64.s
@@ -114,15 +235,10 @@ func p256PointAddAsm(res, in1, in2 []uint64) int
 //go:noescape
 func p256PointDoubleAsm(res, in []uint64)
 
-func (curve p256Curve) Inverse(k *big.Int) *big.Int {
-	if k.Sign() < 0 {
-		// This should never happen.
-		k = new(big.Int).Neg(k)
-	}
-
-	if k.Cmp(p256Params.N) >= 0 {
-		// This should never happen.
-		k = new(big.Int).Mod(k, p256Params.N)
+func P256OrdInverse(k []byte) ([]byte, error) {
+	// TODO: test for values p <= x < 2^256.
+	if len(k) != 32 {
+		return nil, errors.New("invalid scalar length")
 	}
 
 	// table will store precomputed powers of x.
@@ -139,7 +255,7 @@ func (curve p256Curve) Inverse(k *big.Int) *big.Int {
 		t       = table[4*8 : 4*9]
 	)
 
-	fromBig(x[:], k)
+	p256BigToLittle(x, k)
 	// This code operates in the Montgomery domain where R = 2^256 mod n
 	// and n is the order of the scalar field. (See initP256 for the
 	// value.) Elements in the Montgomery domain take the form a×R and
@@ -198,30 +314,7 @@ func (curve p256Curve) Inverse(k *big.Int) *big.Int {
 
 	xOut := make([]byte, 32)
 	p256LittleToBig(xOut, x)
-	return new(big.Int).SetBytes(xOut)
-}
-
-// fromBig converts a *big.Int into a format used by this code.
-func fromBig(out []uint64, big *big.Int) {
-	for i := range out {
-		out[i] = 0
-	}
-
-	for i, v := range big.Bits() {
-		out[i] = uint64(v)
-	}
-}
-
-// p256GetScalar endian-swaps the big-endian scalar value from in and writes it
-// to out. If the scalar is equal or greater than the order of the group, it's
-// reduced modulo that order.
-func p256GetScalar(out []uint64, in []byte) {
-	n := new(big.Int).SetBytes(in)
-
-	if n.Cmp(p256Params.N) >= 0 {
-		n.Mod(n, p256Params.N)
-	}
-	fromBig(out, n)
+	return xOut, nil
 }
 
 // p256Mul operates in a Montgomery domain with R = 2^256 mod p, where p is the
@@ -229,71 +322,54 @@ func p256GetScalar(out []uint64, in []byte) {
 // R×R mod p. See comment in Inverse about how this is used.
 var rr = []uint64{0x0000000000000003, 0xfffffffbffffffff, 0xfffffffffffffffe, 0x00000004fffffffd}
 
-func maybeReduceModP(in *big.Int) *big.Int {
-	if in.Cmp(p256Params.P) < 0 {
-		return in
-	}
-	return new(big.Int).Mod(in, p256Params.P)
-}
-
-func (curve p256Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
-	scalarReversed := make([]uint64, 4)
-	var r1, r2 p256Point
-	p256GetScalar(scalarReversed, baseScalar)
-	r1IsInfinity := scalarIsZero(scalarReversed)
-	r1.p256BaseMult(scalarReversed)
-
-	p256GetScalar(scalarReversed, scalar)
-	r2IsInfinity := scalarIsZero(scalarReversed)
-	fromBig(r2.xyz[0:4], maybeReduceModP(bigX))
-	fromBig(r2.xyz[4:8], maybeReduceModP(bigY))
-	p256Mul(r2.xyz[0:4], r2.xyz[0:4], rr[:])
-	p256Mul(r2.xyz[4:8], r2.xyz[4:8], rr[:])
-
-	// This sets r2's Z value to 1, in the Montgomery domain.
-	r2.xyz[8] = 0x0000000000000001
-	r2.xyz[9] = 0xffffffff00000000
-	r2.xyz[10] = 0xffffffffffffffff
-	r2.xyz[11] = 0x00000000fffffffe
-
-	r2.p256ScalarMult(scalarReversed)
-
-	var sum, double p256Point
+// Add sets q = p1 + p2, and returns q. The points may overlap.
+func (q *P256Point) Add(r1, r2 *P256Point) *P256Point {
+	var sum, double P256Point
+	r1IsInfinity := r1.isInfinity()
+	r2IsInfinity := r2.isInfinity()
 	pointsEqual := p256PointAddAsm(sum.xyz[:], r1.xyz[:], r2.xyz[:])
 	p256PointDoubleAsm(double.xyz[:], r1.xyz[:])
-	sum.CopyConditional(&double, pointsEqual)
-	sum.CopyConditional(&r1, r2IsInfinity)
-	sum.CopyConditional(&r2, r1IsInfinity)
-
-	return sum.p256PointToAffine()
+	sum.Select(&double, &sum, pointsEqual)
+	sum.Select(r1, &sum, r2IsInfinity)
+	sum.Select(r2, &sum, r1IsInfinity)
+	return q.Set(&sum)
 }
 
-func (curve p256Curve) ScalarBaseMult(scalar []byte) (x, y *big.Int) {
-	scalarReversed := make([]uint64, 4)
-	p256GetScalar(scalarReversed, scalar)
+// Double sets q = p + p, and returns q. The points may overlap.
+func (q *P256Point) Double(p *P256Point) *P256Point {
+	var double P256Point
+	p256PointDoubleAsm(double.xyz[:], p.xyz[:])
+	return q.Set(&double)
+}
 
-	var r p256Point
+// ScalarBaseMult sets r = scalar * generator, where scalar is a 32-byte big
+// endian value, and returns r. If scalar is not 32 bytes long, ScalarBaseMult
+// returns an error and the receiver is unchanged.
+func (r *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
+	// TODO: test for values p <= x < 2^256.
+	if len(scalar) != 32 {
+		return nil, errors.New("invalid scalar length")
+	}
+	scalarReversed := make([]uint64, 4)
+	p256BigToLittle(scalarReversed, scalar)
+
 	r.p256BaseMult(scalarReversed)
-	return r.p256PointToAffine()
+	return r, nil
 }
 
-func (curve p256Curve) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y *big.Int) {
+// ScalarMult sets r = scalar * q, where scalar is a 32-byte big endian value,
+// and returns r. If scalar is not 32 bytes long, ScalarBaseMult returns an
+// error and the receiver is unchanged.
+func (r *P256Point) ScalarMult(q *P256Point, scalar []byte) (*P256Point, error) {
+	// TODO: test for values p <= x < 2^256.
+	if len(scalar) != 32 {
+		return nil, errors.New("invalid scalar length")
+	}
 	scalarReversed := make([]uint64, 4)
-	p256GetScalar(scalarReversed, scalar)
+	p256BigToLittle(scalarReversed, scalar)
 
-	var r p256Point
-	fromBig(r.xyz[0:4], maybeReduceModP(bigX))
-	fromBig(r.xyz[4:8], maybeReduceModP(bigY))
-	p256Mul(r.xyz[0:4], r.xyz[0:4], rr[:])
-	p256Mul(r.xyz[4:8], r.xyz[4:8], rr[:])
-	// This sets r2's Z value to 1, in the Montgomery domain.
-	r.xyz[8] = 0x0000000000000001
-	r.xyz[9] = 0xffffffff00000000
-	r.xyz[10] = 0xffffffffffffffff
-	r.xyz[11] = 0x00000000fffffffe
-
-	r.p256ScalarMult(scalarReversed)
-	return r.p256PointToAffine()
+	r.Set(q).p256ScalarMult(scalarReversed)
+	return r, nil
 }
 
 // uint64IsZero returns 1 if x is zero and zero otherwise.
@@ -308,13 +384,27 @@ func uint64IsZero(x uint64) int {
 	return int(x & 1)
 }
 
-// scalarIsZero returns 1 if scalar represents the zero value, and zero
-// otherwise.
-func scalarIsZero(scalar []uint64) int {
-	return uint64IsZero(scalar[0] | scalar[1] | scalar[2] | scalar[3])
+// isInfinity returns 1 if p is the point at infinity and 0 otherwise.
+func (p *P256Point) isInfinity() int {
+	return uint64IsZero(p.xyz[8] | p.xyz[9] | p.xyz[10] | p.xyz[11])
 }
 
-func (p *p256Point) p256PointToAffine() (x, y *big.Int) {
+// Bytes returns the uncompressed or infinity encoding of p, as specified in
+// SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the point at
+// infinity is shorter than all other encodings.
+func (p *P256Point) Bytes() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [p256UncompressedLength]byte
+	return p.bytes(&out)
+}
+
+func (p *P256Point) bytes(out *[p256UncompressedLength]byte) []byte {
+	// The proper representation of the point at infinity is a single zero byte.
+	if p.isInfinity() == 1 {
+		return out[:1]
+	}
+
 	zInv := make([]uint64, 4)
 	zInvSq := make([]uint64, 4)
 	p256Inverse(zInv, p.xyz[8:12])
@@ -327,23 +417,17 @@ func (p *p256Point) p256PointToAffine() (x, y *big.Int) {
 	p256FromMont(zInvSq, zInvSq)
 	p256FromMont(zInv, zInv)
 
-	xOut := make([]byte, 32)
-	yOut := make([]byte, 32)
-	p256LittleToBig(xOut, zInvSq)
-	p256LittleToBig(yOut, zInv)
+	out[0] = 4 // Uncompressed form.
+	p256LittleToBig(out[1:33], zInvSq)
+	p256LittleToBig(out[33:65], zInv)
 
-	return new(big.Int).SetBytes(xOut), new(big.Int).SetBytes(yOut)
+	return out[:]
 }
 
-// CopyConditional copies overwrites p with src if v == 1, and leaves p
-// unchanged if v == 0.
-func (p *p256Point) CopyConditional(src *p256Point, v int) {
-	pMask := uint64(v) - 1
-	srcMask := ^pMask
-
-	for i, n := range p.xyz {
-		p.xyz[i] = (n & pMask) | (src.xyz[i] & srcMask)
-	}
+// Select sets q to p1 if cond == 1, and to p2 if cond == 0.
+func (q *P256Point) Select(p1, p2 *P256Point, cond int) *P256Point {
+	p256MovCond(q.xyz[:], p1.xyz[:], p2.xyz[:], cond)
+	return q
 }
 
 // p256Inverse sets out to in^-1 mod p.
@@ -395,7 +479,7 @@ func p256Inverse(out, in []uint64) {
 	p256Mul(out, out, in)
 }
 
-func (p *p256Point) p256StorePoint(r *[16 * 4 * 3]uint64, index int) {
+func (p *P256Point) p256StorePoint(r *[16 * 4 * 3]uint64, index int) {
 	copy(r[index*12:], p.xyz[:])
 }
 
@@ -415,7 +499,7 @@ func boothW6(in uint) (int, int) {
 	return int(d), int(s & 1)
 }
 
-func (p *p256Point) p256BaseMult(scalar []uint64) {
+func (p *P256Point) p256BaseMult(scalar []uint64) {
 	wvalue := (scalar[0] << 1) & 0x7f
 	sel, sign := boothW6(uint(wvalue))
 	p256SelectBase(&p.xyz, p256Precomputed, sel)
@@ -427,7 +511,7 @@ func (p *p256Point) p256BaseMult(scalar []uint64) {
 	p.xyz[10] = 0xffffffffffffffff
 	p.xyz[11] = 0x00000000fffffffe
 
-	var t0 p256Point
+	var t0 P256Point
 	// (This is one, in the Montgomery domain.)
 	t0.xyz[8] = 0x0000000000000001
 	t0.xyz[9] = 0xffffffff00000000
@@ -449,13 +533,16 @@ func (p *p256Point) p256BaseMult(scalar []uint64) {
 		p256PointAddAffineAsm(p.xyz[0:12], p.xyz[0:12], t0.xyz[0:8], sign, sel, zero)
 		zero |= sel
 	}
+
+	// If the whole scalar was zero, set to the point at infinity.
+	p256MovCond(p.xyz[:], NewP256Point().xyz[:], p.xyz[:], uint64IsZero(uint64(zero)))
 }
 
-func (p *p256Point) p256ScalarMult(scalar []uint64) {
+func (p *P256Point) p256ScalarMult(scalar []uint64) {
 	// precomp is a table of precomputed points that stores powers of p
 	// from p^1 to p^16.
 	var precomp [16 * 4 * 3]uint64
-	var t0, t1, t2, t3 p256Point
+	var t0, t1, t2, t3 P256Point
 
 	// Prepare the table
 	p.p256StorePoint(&precomp, 0) // 1

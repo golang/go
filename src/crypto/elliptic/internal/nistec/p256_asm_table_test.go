@@ -4,7 +4,7 @@
 
 //go:build amd64 || arm64
 
-package elliptic
+package nistec
 
 import (
 	"encoding/binary"
