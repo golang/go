@@ -701,7 +701,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	// apparent when we first created the instantiation of the generic function.
 	// We can't handle this if we actually do the inlining, since we want to know
 	// all interface conversions immediately after stenciling. So, we avoid
-	// inlining in this case. See #49309.
+	// inlining in this case. See #49309. (1)
 	if !fn.Type().HasShape() {
 		for _, arg := range n.Args {
 			if arg.Type().HasShape() {
@@ -711,6 +711,23 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 				}
 				return n
 			}
+		}
+	} else {
+		// Don't inline a function fn that has shape parameters, but is passed no shape arg.
+		// See comments (1) above, and issue #51909
+		inlineable := false
+		for _, arg := range n.Args {
+			if arg.Type().HasShape() {
+				inlineable = true
+				break
+			}
+		}
+		if !inlineable {
+			if logopt.Enabled() {
+				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+					fmt.Sprintf("inlining shape function %v with no shape args", ir.FuncName(fn)))
+			}
+			return n
 		}
 	}
 
