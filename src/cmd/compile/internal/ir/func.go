@@ -368,7 +368,9 @@ func NewClosureFunc(pos src.XPos, hidden bool) *Func {
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 
-	fn.OClosure = NewClosureExpr(pos, fn)
+	fn.OClosure = &ClosureExpr{Func: fn}
+	fn.OClosure.op = OCLOSURE
+	fn.OClosure.pos = pos
 
 	return fn
 }
