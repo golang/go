@@ -93,7 +93,10 @@ func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run command
 		deps.snapshot, deps.fh, ok, release, err = c.s.beginFileRequest(ctx, cfg.forURI, source.UnknownKind)
 		defer release()
 		if !ok {
-			return err
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("invalid file URL: %v", cfg.forURI)
 		}
 	}
 	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
