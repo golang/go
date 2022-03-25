@@ -176,7 +176,7 @@ func P224() Curve {
 // Multiple invocations of this function will return the same value, so it can
 // be used for equality checks and switch statements.
 //
-// ScalarMult and ScalarBaseMult are implemented using constant-time algorithms.
+// The cryptographic operations are implemented using constant-time algorithms.
 func P256() Curve {
 	initonce.Do(initAll)
 	return p256

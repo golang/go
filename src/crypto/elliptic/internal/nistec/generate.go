@@ -29,9 +29,10 @@ var curves = []struct {
 		Params:  elliptic.P224().Params(),
 	},
 	{
-		P:       "P256",
-		Element: "fiat.P256Element",
-		Params:  elliptic.P256().Params(),
+		P:         "P256",
+		Element:   "fiat.P256Element",
+		Params:    elliptic.P256().Params(),
+		BuildTags: "!amd64 && !arm64",
 	},
 	{
 		P:       "P384",
@@ -329,7 +330,7 @@ func (q *{{.P}}Point) Select(p1, p2 *{{.P}}Point, cond int) *{{.P}}Point {
 }
 
 // ScalarMult sets p = scalar * q, and returns p.
-func (p *{{.P}}Point) ScalarMult(q *{{.P}}Point, scalar []byte) *{{.P}}Point {
+func (p *{{.P}}Point) ScalarMult(q *{{.P}}Point, scalar []byte) (*{{.P}}Point, error) {
 	// table holds the first 16 multiples of q. The explicit new{{.P}}Point calls
 	// get inlined, letting the allocations live on the stack.
 	var table = [16]*{{.P}}Point{
@@ -370,6 +371,12 @@ func (p *{{.P}}Point) ScalarMult(q *{{.P}}Point, scalar []byte) *{{.P}}Point {
 		p.Add(p, t)
 	}
 
-	return p
+	return p, nil
+}
+
+// ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
+// returns p.
+func (p *{{.P}}Point) ScalarBaseMult(scalar []byte) (*{{.P}}Point, error) {
+	return p.ScalarMult(New{{.P}}Generator(), scalar)
 }
 `

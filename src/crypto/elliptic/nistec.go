@@ -12,8 +12,7 @@ import (
 )
 
 var p224 = &nistCurve[*nistec.P224Point]{
-	newPoint:     nistec.NewP224Point,
-	newGenerator: nistec.NewP224Generator,
+	newPoint: nistec.NewP224Point,
 }
 
 func initP224() {
@@ -29,18 +28,16 @@ func initP224() {
 	}
 }
 
-var p256Params CurveParams
-
-var p256 Curve = &nistCurve[*nistec.P256Point]{
-	params:       &p256Params,
-	newPoint:     nistec.NewP256Point,
-	newGenerator: nistec.NewP256Generator,
+type p256Curve struct {
+	nistCurve[*nistec.P256Point]
 }
 
-var initP256Arch func()
+var p256 = &p256Curve{nistCurve[*nistec.P256Point]{
+	newPoint: nistec.NewP256Point,
+}}
 
 func initP256() {
-	p256Params = CurveParams{
+	p256.params = &CurveParams{
 		Name:    "P-256",
 		BitSize: 256,
 		// FIPS 186-4, section D.1.2.3
@@ -50,18 +47,10 @@ func initP256() {
 		Gx: bigFromHex("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"),
 		Gy: bigFromHex("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"),
 	}
-
-	// P-256 is implemented by various different backends, including a generic
-	// 32-bit constant-time one in internal/nistec, which is used when assembly
-	// implementations are not available, or not appropriate for the hardware.
-	if initP256Arch != nil {
-		initP256Arch()
-	}
 }
 
 var p384 = &nistCurve[*nistec.P384Point]{
-	newPoint:     nistec.NewP384Point,
-	newGenerator: nistec.NewP384Generator,
+	newPoint: nistec.NewP384Point,
 }
 
 func initP384() {
@@ -83,8 +72,7 @@ func initP384() {
 }
 
 var p521 = &nistCurve[*nistec.P521Point]{
-	newPoint:     nistec.NewP521Point,
-	newGenerator: nistec.NewP521Generator,
+	newPoint: nistec.NewP521Point,
 }
 
 func initP521() {
@@ -121,9 +109,8 @@ func initP521() {
 // Encoding and decoding is 1/1000th of the runtime of a scalar multiplication,
 // so the overhead is acceptable.
 type nistCurve[Point nistPoint[Point]] struct {
-	newPoint     func() Point
-	newGenerator func() Point
-	params       *CurveParams
+	newPoint func() Point
+	params   *CurveParams
 }
 
 // nistPoint is a generic constraint for the nistec Point types.
@@ -132,7 +119,8 @@ type nistPoint[T any] interface {
 	SetBytes([]byte) (T, error)
 	Add(T, T) T
 	Double(T) T
-	ScalarMult(T, []byte) T
+	ScalarMult(T, []byte) (T, error)
+	ScalarBaseMult([]byte) (T, error)
 }
 
 func (curve *nistCurve[Point]) Params() *CurveParams {
@@ -223,17 +211,61 @@ func (curve *nistCurve[Point]) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	return curve.pointToAffine(p.Double(p))
 }
 
+// normalizeScalar brings the scalar within the byte size of the order of the
+// curve, as expected by the nistec scalar multiplication functions.
+func (curve *nistCurve[Point]) normalizeScalar(scalar []byte) []byte {
+	byteSize := (curve.params.N.BitLen() + 7) / 8
+	if len(scalar) == byteSize {
+		return scalar
+	}
+	s := new(big.Int).SetBytes(scalar)
+	if len(scalar) > byteSize {
+		s.Mod(s, curve.params.N)
+	}
+	out := make([]byte, byteSize)
+	return s.FillBytes(out)
+}
+
 func (curve *nistCurve[Point]) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
 	p, err := curve.pointFromAffine(Bx, By)
 	if err != nil {
 		return curve.randomPoint()
 	}
-	return curve.pointToAffine(p.ScalarMult(p, scalar))
+	scalar = curve.normalizeScalar(scalar)
+	p, err = p.ScalarMult(p, scalar)
+	if err != nil {
+		panic("elliptic: nistec rejected normalized scalar")
+	}
+	return curve.pointToAffine(p)
 }
 
 func (curve *nistCurve[Point]) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int) {
-	p := curve.newGenerator()
-	return curve.pointToAffine(p.ScalarMult(p, scalar))
+	scalar = curve.normalizeScalar(scalar)
+	p, err := curve.newPoint().ScalarBaseMult(scalar)
+	if err != nil {
+		panic("elliptic: nistec rejected normalized scalar")
+	}
+	return curve.pointToAffine(p)
+}
+
+// CombinedMult returns [s1]G + [s2]P where G is the generator. It's used
+// through an interface upgrade in crypto/ecdsa.
+func (curve *nistCurve[Point]) CombinedMult(Px, Py *big.Int, s1, s2 []byte) (x, y *big.Int) {
+	s1 = curve.normalizeScalar(s1)
+	q, err := curve.newPoint().ScalarBaseMult(s1)
+	if err != nil {
+		panic("elliptic: nistec rejected normalized scalar")
+	}
+	p, err := curve.pointFromAffine(Px, Py)
+	if err != nil {
+		return curve.randomPoint()
+	}
+	s2 = curve.normalizeScalar(s2)
+	p, err = p.ScalarMult(p, s2)
+	if err != nil {
+		panic("elliptic: nistec rejected normalized scalar")
+	}
+	return curve.pointToAffine(p.Add(p, q))
 }
 
 func bigFromDecimal(s string) *big.Int {

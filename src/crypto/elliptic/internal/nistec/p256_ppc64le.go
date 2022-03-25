@@ -1,23 +1,22 @@
-// Copyright 2016 The Go Authors. All rights reserved.
+// Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build s390x
+//go:build ignore
 
 package elliptic
 
 import (
 	"crypto/subtle"
-	"internal/cpu"
+	"encoding/binary"
 	"math/big"
-	"unsafe"
 )
 
-const (
-	offsetS390xHasVX  = unsafe.Offsetof(cpu.S390X.HasVX)
-	offsetS390xHasVE1 = unsafe.Offsetof(cpu.S390X.HasVXE)
-)
-
+// This was ported from the s390x implementation for ppc64le.
+// Some hints are included here for changes that should be
+// in the big endian ppc64 implementation, however more
+// investigation and testing is needed for the ppc64 big
+// endian version to work.
 type p256CurveFast struct {
 	*CurveParams
 }
@@ -30,30 +29,10 @@ type p256Point struct {
 
 var p256PreFast *[37][64]p256Point
 
-//go:noescape
-func p256MulInternalTrampolineSetup()
-
-//go:noescape
-func p256SqrInternalTrampolineSetup()
-
-//go:noescape
-func p256MulInternalVX()
-
-//go:noescape
-func p256MulInternalVMSL()
-
-//go:noescape
-func p256SqrInternalVX()
-
-//go:noescape
-func p256SqrInternalVMSL()
-
 func init() {
-	if cpu.S390X.HasVX {
-		initP256Arch = func() {
-			p256 = p256CurveFast{&p256Params}
-			initTable()
-		}
+	initP256Arch = func() {
+		p256 = p256CurveFast{&p256Params}
+		initTable()
 	}
 }
 
@@ -61,18 +40,15 @@ func (curve p256CurveFast) Params() *CurveParams {
 	return curve.CurveParams
 }
 
-// Functions implemented in p256_asm_s390x.s
+// Functions implemented in p256_asm_ppc64le.s
 // Montgomery multiplication modulo P256
 //
-//go:noescape
-func p256SqrAsm(res, in1 []byte)
-
 //go:noescape
 func p256MulAsm(res, in1, in2 []byte)
 
 // Montgomery square modulo P256
 func p256Sqr(res, in []byte) {
-	p256SqrAsm(res, in)
+	p256MulAsm(res, in, in)
 }
 
 // Montgomery multiplication by 1
@@ -98,114 +74,35 @@ func p256Select(point *p256Point, table []p256Point, idx int)
 //go:noescape
 func p256SelectBase(point *p256Point, table []p256Point, idx int)
 
-// Montgomery multiplication modulo Ord(G)
-//
-//go:noescape
-func p256OrdMul(res, in1, in2 []byte)
-
-// Montgomery square modulo Ord(G), repeated n times
-func p256OrdSqr(res, in []byte, n int) {
-	copy(res, in)
-	for i := 0; i < n; i += 1 {
-		p256OrdMul(res, res, res)
-	}
-}
-
 // Point add with P2 being affine point
 // If sign == 1 -> P2 = -P2
 // If sel == 0 -> P3 = P1
 // if zero == 0 -> P3 = P2
 //
 //go:noescape
-func p256PointAddAffineAsm(P3, P1, P2 *p256Point, sign, sel, zero int)
-
-// Point add
-//
-//go:noescape
-func p256PointAddAsm(P3, P1, P2 *p256Point) int
+func p256PointAddAffineAsm(res, in1, in2 *p256Point, sign, sel, zero int)
 
 //go:noescape
-func p256PointDoubleAsm(P3, P1 *p256Point)
+func p256PointAddAsm(res, in1, in2 *p256Point) int
 
-func (curve p256CurveFast) Inverse(k *big.Int) *big.Int {
-	if k.Cmp(p256Params.N) >= 0 {
-		// This should never happen.
-		reducedK := new(big.Int).Mod(k, p256Params.N)
-		k = reducedK
-	}
+//go:noescape
+func p256PointDoubleAsm(res, in *p256Point)
 
-	// table will store precomputed powers of x. The 32 bytes at index
-	// i store x^(i+1).
-	var table [15][32]byte
-
-	x := fromBig(k)
-	// This code operates in the Montgomery domain where R = 2^256 mod n
-	// and n is the order of the scalar field. (See initP256 for the
-	// value.) Elements in the Montgomery domain take the form a×R and
-	// multiplication of x and y in the calculates (x × y × R^-1) mod n. RR
-	// is R×R mod n thus the Montgomery multiplication x and RR gives x×R,
-	// i.e. converts x into the Montgomery domain. Stored in BigEndian form
-	RR := []byte{0x66, 0xe1, 0x2d, 0x94, 0xf3, 0xd9, 0x56, 0x20, 0x28, 0x45, 0xb2, 0x39, 0x2b, 0x6b, 0xec, 0x59,
-		0x46, 0x99, 0x79, 0x9c, 0x49, 0xbd, 0x6f, 0xa6, 0x83, 0x24, 0x4c, 0x95, 0xbe, 0x79, 0xee, 0xa2}
-
-	p256OrdMul(table[0][:], x, RR)
-
-	// Prepare the table, no need in constant time access, because the
-	// power is not a secret. (Entry 0 is never used.)
-	for i := 2; i < 16; i += 2 {
-		p256OrdSqr(table[i-1][:], table[(i/2)-1][:], 1)
-		p256OrdMul(table[i][:], table[i-1][:], table[0][:])
-	}
-
-	copy(x, table[14][:]) // f
-
-	p256OrdSqr(x[0:32], x[0:32], 4)
-	p256OrdMul(x[0:32], x[0:32], table[14][:]) // ff
-	t := make([]byte, 32)
-	copy(t, x)
-
-	p256OrdSqr(x, x, 8)
-	p256OrdMul(x, x, t) // ffff
-	copy(t, x)
-
-	p256OrdSqr(x, x, 16)
-	p256OrdMul(x, x, t) // ffffffff
-	copy(t, x)
-
-	p256OrdSqr(x, x, 64) // ffffffff0000000000000000
-	p256OrdMul(x, x, t)  // ffffffff00000000ffffffff
-	p256OrdSqr(x, x, 32) // ffffffff00000000ffffffff00000000
-	p256OrdMul(x, x, t)  // ffffffff00000000ffffffffffffffff
-
-	// Remaining 32 windows
-	expLo := [32]byte{0xb, 0xc, 0xe, 0x6, 0xf, 0xa, 0xa, 0xd, 0xa, 0x7, 0x1, 0x7, 0x9, 0xe, 0x8, 0x4,
-		0xf, 0x3, 0xb, 0x9, 0xc, 0xa, 0xc, 0x2, 0xf, 0xc, 0x6, 0x3, 0x2, 0x5, 0x4, 0xf}
-	for i := 0; i < 32; i++ {
-		p256OrdSqr(x, x, 4)
-		p256OrdMul(x, x, table[expLo[i]-1][:])
-	}
-
-	// Multiplying by one in the Montgomery domain converts a Montgomery
-	// value out of the domain.
-	one := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
-	p256OrdMul(x, x, one)
-
-	return new(big.Int).SetBytes(x)
-}
-
-// fromBig converts a *big.Int into a format used by this code.
+// The result should be a slice in LE order, but the slice
+// from big.Bytes is in BE order.
+// TODO: For big endian implementation, do not reverse bytes.
 func fromBig(big *big.Int) []byte {
 	// This could be done a lot more efficiently...
 	res := big.Bytes()
-	if 32 == len(res) {
-		return res
-	}
 	t := make([]byte, 32)
-	offset := 32 - len(res)
-	for i := len(res) - 1; i >= 0; i-- {
-		t[i+offset] = res[i]
+	if len(res) < 32 {
+		copy(t[32-len(res):], res)
+	} else if len(res) == 32 {
+		copy(t, res)
+	} else {
+		copy(t, res[len(res)-32:])
 	}
+	p256ReverseBytes(t, t)
 	return t
 }
 
@@ -223,12 +120,12 @@ func p256GetMultiplier(in []byte) []byte {
 // p256MulAsm operates in a Montgomery domain with R = 2^256 mod p, where p is the
 // underlying field of the curve. (See initP256 for the value.) Thus rr here is
 // R×R mod p. See comment in Inverse about how this is used.
-var rr = []byte{0x00, 0x00, 0x00, 0x04, 0xff, 0xff, 0xff, 0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
-	0xff, 0xff, 0xff, 0xfb, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03}
+// TODO: For big endian implementation, the bytes in these slices should be in reverse order,
+// as found in the s390x implementation.
+var rr = []byte{0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0, 0xff, 0xff, 0xff, 0xff, 0xfb, 0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd, 0xff, 0xff, 0xff, 0x04, 0x00, 0x00, 0x00}
 
 // (This is one, in the Montgomery domain.)
-var one = []byte{0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
+var one = []byte{0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00}
 
 func maybeReduceModP(in *big.Int) *big.Int {
 	if in.Cmp(p256Params.P) < 0 {
@@ -237,8 +134,28 @@ func maybeReduceModP(in *big.Int) *big.Int {
 	return new(big.Int).Mod(in, p256Params.P)
 }
 
+// p256ReverseBytes copies the first 32 bytes from in to res in reverse order.
+func p256ReverseBytes(res, in []byte) {
+	// remove bounds check
+	in = in[:32]
+	res = res[:32]
+
+	// Load in reverse order
+	a := binary.BigEndian.Uint64(in[0:])
+	b := binary.BigEndian.Uint64(in[8:])
+	c := binary.BigEndian.Uint64(in[16:])
+	d := binary.BigEndian.Uint64(in[24:])
+
+	// Store in normal order
+	binary.LittleEndian.PutUint64(res[0:], d)
+	binary.LittleEndian.PutUint64(res[8:], c)
+	binary.LittleEndian.PutUint64(res[16:], b)
+	binary.LittleEndian.PutUint64(res[24:], a)
+}
+
 func (curve p256CurveFast) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
 	var r1, r2 p256Point
+
 	scalarReduced := p256GetMultiplier(baseScalar)
 	r1IsInfinity := scalarIsZero(scalarReduced)
 	r1.p256BaseMult(scalarReduced)
@@ -251,7 +168,7 @@ func (curve p256CurveFast) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar 
 
 	scalarReduced = p256GetMultiplier(scalar)
 	r2IsInfinity := scalarIsZero(scalarReduced)
-	r2.p256ScalarMult(p256GetMultiplier(scalar))
+	r2.p256ScalarMult(scalarReduced)
 
 	var sum, double p256Point
 	pointsEqual := p256PointAddAsm(&sum, &r1, &r2)
@@ -264,24 +181,26 @@ func (curve p256CurveFast) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar 
 
 func (curve p256CurveFast) ScalarBaseMult(scalar []byte) (x, y *big.Int) {
 	var r p256Point
-	r.p256BaseMult(p256GetMultiplier(scalar))
+	reducedScalar := p256GetMultiplier(scalar)
+	r.p256BaseMult(reducedScalar)
 	return r.p256PointToAffine()
 }
 
 func (curve p256CurveFast) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y *big.Int) {
+	scalarReduced := p256GetMultiplier(scalar)
 	var r p256Point
 	copy(r.x[:], fromBig(maybeReduceModP(bigX)))
 	copy(r.y[:], fromBig(maybeReduceModP(bigY)))
 	copy(r.z[:], one)
 	p256MulAsm(r.x[:], r.x[:], rr[:])
 	p256MulAsm(r.y[:], r.y[:], rr[:])
-	r.p256ScalarMult(p256GetMultiplier(scalar))
+	r.p256ScalarMult(scalarReduced)
 	return r.p256PointToAffine()
 }
 
-// scalarIsZero returns 1 if scalar represents the zero value, and zero
-// otherwise.
 func scalarIsZero(scalar []byte) int {
+	// If any byte is not zero, return 0.
+	// Check for -0.... since that appears to compare to 0.
 	b := byte(0)
 	for _, s := range scalar {
 		b |= s
@@ -303,7 +222,14 @@ func (p *p256Point) p256PointToAffine() (x, y *big.Int) {
 	p256FromMont(zInvSq, zInvSq)
 	p256FromMont(zInv, zInv)
 
-	return new(big.Int).SetBytes(zInvSq), new(big.Int).SetBytes(zInv)
+	// SetBytes expects a slice in big endian order,
+	// since ppc64le is little endian, reverse the bytes.
+	// TODO: For big endian, bytes don't need to be reversed.
+	p256ReverseBytes(zInvSq, zInvSq)
+	p256ReverseBytes(zInv, zInv)
+	rx := new(big.Int).SetBytes(zInvSq)
+	ry := new(big.Int).SetBytes(zInv)
+	return rx, ry
 }
 
 // p256Inverse sets out to in^-1 mod p.
@@ -391,6 +317,14 @@ func boothW5(in uint) (int, int) {
 	return int(d), int(s & 1)
 }
 
+func boothW6(in uint) (int, int) {
+	var s uint = ^((in >> 6) - 1)
+	var d uint = (1 << 7) - in - 1
+	d = (d & s) | (in & (^s))
+	d = (d >> 1) + (d & 1)
+	return int(d), int(s & 1)
+}
+
 func boothW7(in uint) (int, int) {
 	var s uint = ^((in >> 7) - 1)
 	var d uint = (1 << 8) - in - 1
@@ -400,14 +334,17 @@ func boothW7(in uint) (int, int) {
 }
 
 func initTable() {
-	p256PreFast = new([37][64]p256Point) //z coordinate not used
+	p256PreFast = new([37][64]p256Point)
+
+	// TODO: For big endian, these slices should be in reverse byte order,
+	// as found in the s390x implementation.
 	basePoint := p256Point{
-		x: [32]byte{0x18, 0x90, 0x5f, 0x76, 0xa5, 0x37, 0x55, 0xc6, 0x79, 0xfb, 0x73, 0x2b, 0x77, 0x62, 0x25, 0x10,
-			0x75, 0xba, 0x95, 0xfc, 0x5f, 0xed, 0xb6, 0x01, 0x79, 0xe7, 0x30, 0xd4, 0x18, 0xa9, 0x14, 0x3c}, //(p256.x*2^256)%p
-		y: [32]byte{0x85, 0x71, 0xff, 0x18, 0x25, 0x88, 0x5d, 0x85, 0xd2, 0xe8, 0x86, 0x88, 0xdd, 0x21, 0xf3, 0x25,
-			0x8b, 0x4a, 0xb8, 0xe4, 0xba, 0x19, 0xe4, 0x5c, 0xdd, 0xf2, 0x53, 0x57, 0xce, 0x95, 0x56, 0x0a}, //(p256.y*2^256)%p
-		z: [32]byte{0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-			0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, //(p256.z*2^256)%p
+		x: [32]byte{0x3c, 0x14, 0xa9, 0x18, 0xd4, 0x30, 0xe7, 0x79, 0x01, 0xb6, 0xed, 0x5f, 0xfc, 0x95, 0xba, 0x75,
+			0x10, 0x25, 0x62, 0x77, 0x2b, 0x73, 0xfb, 0x79, 0xc6, 0x55, 0x37, 0xa5, 0x76, 0x5f, 0x90, 0x18}, //(p256.x*2^256)%p
+		y: [32]byte{0x0a, 0x56, 0x95, 0xce, 0x57, 0x53, 0xf2, 0xdd, 0x5c, 0xe4, 0x19, 0xba, 0xe4, 0xb8, 0x4a, 0x8b,
+			0x25, 0xf3, 0x21, 0xdd, 0x88, 0x86, 0xe8, 0xd2, 0x85, 0x5d, 0x88, 0x25, 0x18, 0xff, 0x71, 0x85}, //(p256.y*2^256)%p
+		z: [32]byte{0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00}, //(p256.z*2^256)%p
 	}
 
 	t1 := new(p256Point)
@@ -448,7 +385,8 @@ func initTable() {
 }
 
 func (p *p256Point) p256BaseMult(scalar []byte) {
-	wvalue := (uint(scalar[31]) << 1) & 0xff
+	// TODO: For big endian, the index should be 31 not 0.
+	wvalue := (uint(scalar[0]) << 1) & 0xff
 	sel, sign := boothW7(uint(wvalue))
 	p256SelectBase(p, p256PreFast[0][:], sel)
 	p256NegCond(p, sign)
@@ -460,12 +398,13 @@ func (p *p256Point) p256BaseMult(scalar []byte) {
 
 	index := uint(6)
 	zero := sel
-
 	for i := 1; i < 37; i++ {
+		// TODO: For big endian, use the same index values as found
+		// in the  s390x implementation.
 		if index < 247 {
-			wvalue = ((uint(scalar[31-index/8]) >> (index % 8)) + (uint(scalar[31-index/8-1]) << (8 - (index % 8)))) & 0xff
+			wvalue = ((uint(scalar[index/8]) >> (index % 8)) + (uint(scalar[index/8+1]) << (8 - (index % 8)))) & 0xff
 		} else {
-			wvalue = (uint(scalar[31-index/8]) >> (index % 8)) & 0xff
+			wvalue = (uint(scalar[index/8]) >> (index % 8)) & 0xff
 		}
 		index += 7
 		sel, sign = boothW7(uint(wvalue))
@@ -481,50 +420,50 @@ func (p *p256Point) p256ScalarMult(scalar []byte) {
 	var precomp [16]p256Point
 	var t0, t1, t2, t3 p256Point
 
-	// Prepare the table
 	*&precomp[0] = *p
-
 	p256PointDoubleAsm(&t0, p)
 	p256PointDoubleAsm(&t1, &t0)
 	p256PointDoubleAsm(&t2, &t1)
 	p256PointDoubleAsm(&t3, &t2)
-	*&precomp[1] = t0  // 2
-	*&precomp[3] = t1  // 4
-	*&precomp[7] = t2  // 8
-	*&precomp[15] = t3 // 16
+	*&precomp[1] = t0
+	*&precomp[3] = t1
+	*&precomp[7] = t2
+	*&precomp[15] = t3
 
 	p256PointAddAsm(&t0, &t0, p)
 	p256PointAddAsm(&t1, &t1, p)
 	p256PointAddAsm(&t2, &t2, p)
-	*&precomp[2] = t0 // 3
-	*&precomp[4] = t1 // 5
-	*&precomp[8] = t2 // 9
+
+	*&precomp[2] = t0
+	*&precomp[4] = t1
+	*&precomp[8] = t2
 
 	p256PointDoubleAsm(&t0, &t0)
 	p256PointDoubleAsm(&t1, &t1)
-	*&precomp[5] = t0 // 6
-	*&precomp[9] = t1 // 10
+	*&precomp[5] = t0
+	*&precomp[9] = t1
 
 	p256PointAddAsm(&t2, &t0, p)
 	p256PointAddAsm(&t1, &t1, p)
-	*&precomp[6] = t2  // 7
-	*&precomp[10] = t1 // 11
+	*&precomp[6] = t2
+	*&precomp[10] = t1
 
 	p256PointDoubleAsm(&t0, &t0)
 	p256PointDoubleAsm(&t2, &t2)
-	*&precomp[11] = t0 // 12
-	*&precomp[13] = t2 // 14
+	*&precomp[11] = t0
+	*&precomp[13] = t2
 
 	p256PointAddAsm(&t0, &t0, p)
 	p256PointAddAsm(&t2, &t2, p)
-	*&precomp[12] = t0 // 13
-	*&precomp[14] = t2 // 15
+	*&precomp[12] = t0
+	*&precomp[14] = t2
 
 	// Start scanning the window from top bit
 	index := uint(254)
 	var sel, sign int
 
-	wvalue := (uint(scalar[31-index/8]) >> (index % 8)) & 0x3f
+	// TODO: For big endian, use index found in s390x implementation.
+	wvalue := (uint(scalar[index/8]) >> (index % 8)) & 0x3f
 	sel, _ = boothW5(uint(wvalue))
 	p256Select(p, precomp[:], sel)
 	zero := sel
@@ -537,10 +476,11 @@ func (p *p256Point) p256ScalarMult(scalar []byte) {
 		p256PointDoubleAsm(p, p)
 		p256PointDoubleAsm(p, p)
 
+		// TODO: For big endian, use index values as found in s390x implementation.
 		if index < 247 {
-			wvalue = ((uint(scalar[31-index/8]) >> (index % 8)) + (uint(scalar[31-index/8-1]) << (8 - (index % 8)))) & 0x3f
+			wvalue = ((uint(scalar[index/8]) >> (index % 8)) + (uint(scalar[index/8+1]) << (8 - (index % 8)))) & 0x3f
 		} else {
-			wvalue = (uint(scalar[31-index/8]) >> (index % 8)) & 0x3f
+			wvalue = (uint(scalar[index/8]) >> (index % 8)) & 0x3f
 		}
 
 		sel, sign = boothW5(uint(wvalue))
@@ -559,7 +499,8 @@ func (p *p256Point) p256ScalarMult(scalar []byte) {
 	p256PointDoubleAsm(p, p)
 	p256PointDoubleAsm(p, p)
 
-	wvalue = (uint(scalar[31]) << 1) & 0x3f
+	// TODO: Use index for big endian as found in s390x implementation.
+	wvalue = (uint(scalar[0]) << 1) & 0x3f
 	sel, sign = boothW5(uint(wvalue))
 
 	p256Select(&t0, precomp[:], sel)
