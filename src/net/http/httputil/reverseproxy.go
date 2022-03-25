@@ -14,7 +14,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
@@ -93,13 +92,6 @@ type ReverseProxy struct {
 	// If nil, the default is to log the provided error and return
 	// a 502 Status Bad Gateway response.
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
-
-	// Forward103Responses optionaly forwards 103 responses to the
-	// client.
-	//
-	// This option is supported only if the underlying transport
-	// supports ClientTrace.Got1xxResponse.
-	Forward103Responses bool
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -315,28 +307,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	var headerSet bool
-	if p.Forward103Responses {
-		trace := &httptrace.ClientTrace{
-			Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
-				if http.StatusEarlyHints != code {
-					return nil
-				}
-
-				h := rw.Header()
-				if headerSet {
-					for k, _ := range h {
-						h.Del(k)
-					}
-				}
-				copyHeader(rw.Header(), http.Header(header))
-				rw.WriteHeader(http.StatusEarlyHints)
-
-				return nil
-			},
-		}
-		outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace))
-	}
 	res, err := transport.RoundTrip(outreq)
 	if err != nil {
 		p.getErrorHandler()(rw, outreq, err)
@@ -362,14 +332,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	h := rw.Header()
-	if headerSet {
-		for k, _ := range h {
-			h.Del(k)
-		}
-	}
-
-	copyHeader(h, res.Header)
+	copyHeader(rw.Header(), res.Header)
 
 	// The "Trailer" header isn't included in the Transport's response,
 	// at least for *http.Transport. Build it up from Trailer.
