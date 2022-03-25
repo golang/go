@@ -98,8 +98,8 @@ type ResponseWriter interface {
 	// Handlers can set HTTP trailers.
 	//
 	// Changing the header map after a call to WriteHeader (or
-	// Write) has no effect unless the modified headers are
-	// trailers.
+	// Write) has no effect unless the HTTP status code was of the
+	// 1xx class or the modified headers are trailers.
 	//
 	// There are two ways to set Trailers. The preferred way is to
 	// predeclare in the headers which trailers you will later
@@ -151,18 +151,15 @@ type ResponseWriter interface {
 	// be written.
 	//
 	// Informational headers (status in the 1xx range) can be sent multiple
-	// times before sending the final header.
-	//
-	// If the status code is 103, the current content of the header
-	// map will be sent immediatly as early hints for the client.
+	// times before sending the final header. The header map is not cleared
+	// when a status in the 1xx range is used.
 	//
 	// When request by the client, the server automatically sends the
 	// 100-continue response header when the Request.Body is read.
+	// Passing the 100 status code to WriteHeader panics.
 	//
-	// Response headers may be buffered. In some cases (as when using
-	// Resource Hints or Preload Link headers), sending headers to the
-	// client while the response is being generated can improve performance.
-	// To do so, use the Flusher interface.
+	// Response headers may be buffered. Use the Flusher interface
+	// to send them immediately.
 	WriteHeader(statusCode int)
 }
 
@@ -432,7 +429,7 @@ type response struct {
 	req              *Request // request for this response
 	reqBody          io.ReadCloser
 	cancelCtx        context.CancelFunc // when ServeHTTP exits
-	wroteHeader      bool               // response is not 1xx and header has been (logically) written
+	wroteHeader      bool               // a non-1xx header has been (logically) written
 	wroteContinue    bool               // 100 Continue response was written
 	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
 	wantsClose       bool               // HTTP request has Connection "close"
@@ -1119,7 +1116,7 @@ func checkWriteHeaderCode(code int) {
 	// no equivalent bogus thing we can realistically send in HTTP/2,
 	// so we'll consistently panic instead and help people find their bugs
 	// early. (We can't return an error from WriteHeader even if we wanted to.)
-	if code < 100 || code > 999 {
+	if code <= 100 || code > 999 {
 		panic(fmt.Sprintf("invalid WriteHeader code %v", code))
 	}
 }
@@ -1159,15 +1156,9 @@ func (w *response) WriteHeader(code int) {
 	// Handle informational headers, except 100 (Continue) which is handled automatically
 	if code > 100 && code < 200 {
 		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
-		if code == 103 {
-			// Per RFC 8297 we must not clear the current header map
-			w.handlerHeader.Write(w.conn.bufw)
 
-			w.conn.bufw.Write(crlf)
-			w.conn.bufw.Flush()
-
-			return
-		}
+		// Per RFC 8297 we must not clear the current header map
+		w.handlerHeader.Write(w.conn.bufw)
 		w.conn.bufw.Write(crlf)
 
 		return
