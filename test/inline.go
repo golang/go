@@ -11,7 +11,6 @@ package foo
 
 import (
 	"runtime"
-	"time"
 	"unsafe"
 )
 
@@ -314,21 +313,21 @@ func select1(x, y chan bool) int { // ERROR "can inline select1" "x does not esc
 	}
 }
 
-func select2(x chan bool) { // ERROR "can inline select2" "x does not escape"
+func select2(x, y chan bool) { // ERROR "can inline select2" "x does not escape" "y does not escape"
 loop: // test that labeled select can be inlined.
 	select {
 	case <-x:
 		break loop
-	case <-time.After(time.Second): // ERROR "inlining call to time.After"
+	case <-y:
 	}
 }
 
-func inlineSelect2(x, y chan bool) { // ERROR "x does not escape" "y does not escape"
+func inlineSelect2(x, y chan bool) { // ERROR "can inline inlineSelect2" ERROR "x does not escape" "y does not escape"
 loop:
 	for i := 0; i < 5; i++ {
 		if i == 3 {
 			break loop
 		}
-		select2(x) // ERROR "inlining call to select2" "inlining call to time.After"
+		select2(x, y) // ERROR "inlining call to select2"
 	}
 }
