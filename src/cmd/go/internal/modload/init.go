@@ -6,18 +6,12 @@ package modload
 
 import (
 	"bytes"
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/fsys"
-	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/modconv"
-	"cmd/go/internal/modfetch"
-	"cmd/go/internal/search"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"go/build"
+	"internal/lazyregexp"
 	"io/ioutil"
 	"os"
 	"path"
@@ -26,7 +20,13 @@ import (
 	"strings"
 	"sync"
 
-	"internal/lazyregexp"
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
+	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/modconv"
+	"cmd/go/internal/modfetch"
+	"cmd/go/internal/search"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -1424,7 +1424,9 @@ Run 'go help mod init' for more information.
 	return "", fmt.Errorf(msg, dir, reason)
 }
 
-var importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
+var (
+	importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
+)
 
 func findImportComment(file string) string {
 	data, err := os.ReadFile(file)
