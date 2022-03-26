@@ -1240,6 +1240,30 @@ func TestDurationRound(t *testing.T) {
 	}
 }
 
+var durationAbsTests = []struct {
+	d    Duration
+	want Duration
+}{
+	{0, 0},
+	{1, 1},
+	{-1, 1},
+	{1 * Minute, 1 * Minute},
+	{-1 * Minute, 1 * Minute},
+	{minDuration, maxDuration},
+	{minDuration + 1, maxDuration},
+	{minDuration + 2, maxDuration - 1},
+	{maxDuration, maxDuration},
+	{maxDuration - 1, maxDuration - 1},
+}
+
+func TestDurationAbs(t *testing.T) {
+	for _, tt := range durationAbsTests {
+		if got := tt.d.Abs(); got != tt.want {
+			t.Errorf("Duration(%s).Abs() = %s; want: %s", tt.d, got, tt.want)
+		}
+	}
+}
+
 var defaultLocTests = []struct {
 	name string
 	f    func(t1, t2 Time) bool
