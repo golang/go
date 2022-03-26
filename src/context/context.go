@@ -286,7 +286,7 @@ func propagateCancel(parent Context, child canceler) {
 }
 
 // &cancelCtxKey is the key that a cancelCtx returns itself for.
-var cancelCtxKey int
+var cancelCtxKey = new(int)
 
 // parentCancelCtx returns the underlying *cancelCtx for parent.
 // It does this by looking up parent.Value(&cancelCtxKey) to find
@@ -299,7 +299,7 @@ func parentCancelCtx(parent Context) (*cancelCtx, bool) {
 	if done == closedchan || done == nil {
 		return nil, false
 	}
-	p, ok := parent.Value(&cancelCtxKey).(*cancelCtx)
+	p, ok := parent.Value(cancelCtxKey).(*cancelCtx)
 	if !ok {
 		return nil, false
 	}
@@ -349,7 +349,7 @@ type cancelCtx struct {
 }
 
 func (c *cancelCtx) Value(key any) any {
-	if key == &cancelCtxKey {
+	if key == cancelCtxKey {
 		return c
 	}
 	return value(c.Context, key)
@@ -575,12 +575,12 @@ func value(c Context, key any) any {
 			}
 			c = ctx.Context
 		case *cancelCtx:
-			if key == &cancelCtxKey {
+			if key == cancelCtxKey {
 				return c
 			}
 			c = ctx.Context
 		case *timerCtx:
-			if key == &cancelCtxKey {
+			if key == cancelCtxKey {
 				return &ctx.cancelCtx
 			}
 			c = ctx.Context
