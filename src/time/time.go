@@ -815,6 +815,19 @@ func (d Duration) Round(m Duration) Duration {
 	return maxDuration // overflow
 }
 
+// Abs returns the absolute value of d.
+// As a special case, math.MinInt64 is converted to math.MaxInt64.
+func (d Duration) Abs() Duration {
+	switch {
+	case d >= 0:
+		return d
+	case d == minDuration:
+		return maxDuration
+	default:
+		return -d
+	}
+}
+
 // Add returns the time t+d.
 func (t Time) Add(d Duration) Time {
 	dsec := int64(d / 1e9)
