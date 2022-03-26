@@ -1237,7 +1237,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				desired.clobber(j.regs)
 				desired.add(v.Args[j.idx].ID, pickReg(j.regs))
 			}
-			if opcodeTable[v.Op].resultInArg0 {
+			if opcodeTable[v.Op].resultInArg0 || v.Op == OpAMD64ADDQconst || v.Op == OpAMD64ADDLconst || v.Op == OpSelect0 {
 				if opcodeTable[v.Op].commutative {
 					desired.addList(v.Args[1].ID, prefs)
 				}
@@ -1598,11 +1598,13 @@ func (s *regAllocState) regalloc(f *Func) {
 							}
 						}
 					}
-					for _, r := range dinfo[idx].out {
-						if r != noRegister && (mask&^s.used)>>r&1 != 0 {
-							// Desired register is allowed and unused.
-							mask = regMask(1) << r
-							break
+					if out.idx == 0 { // desired registers only apply to the first element of a tuple result
+						for _, r := range dinfo[idx].out {
+							if r != noRegister && (mask&^s.used)>>r&1 != 0 {
+								// Desired register is allowed and unused.
+								mask = regMask(1) << r
+								break
+							}
 						}
 					}
 					// Avoid registers we're saving for other values.
@@ -2581,7 +2583,12 @@ func (s *regAllocState) computeLive() {
 					desired.add(v.Args[j.idx].ID, pickReg(j.regs))
 				}
 				// Set desired register of input 0 if this is a 2-operand instruction.
-				if opcodeTable[v.Op].resultInArg0 {
+				if opcodeTable[v.Op].resultInArg0 || v.Op == OpAMD64ADDQconst || v.Op == OpAMD64ADDLconst || v.Op == OpSelect0 {
+					// ADDQconst is added here because we want to treat it as resultInArg0 for
+					// the purposes of desired registers, even though it is not an absolute requirement.
+					// This is because we'd rather implement it as ADDQ instead of LEAQ.
+					// Same for ADDLconst
+					// Select0 is added here to propagate the desired register to the tuple-generating instruction.
 					if opcodeTable[v.Op].commutative {
 						desired.addList(v.Args[1].ID, prefs)
 					}
@@ -2706,6 +2713,8 @@ type desiredStateEntry struct {
 	ID ID
 	// Registers it would like to be in, in priority order.
 	// Unused slots are filled with noRegister.
+	// For opcodes that return tuples, we track desired registers only
+	// for the first element of the tuple.
 	regs [4]register
 }
 
