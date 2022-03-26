@@ -1100,16 +1100,18 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 		sh.Flags |= uint64(elf.SHF_TLS)
 		sh.Type = uint32(elf.SHT_NOBITS)
 	}
+	if linkmode != LinkExternal {
+		sh.Addr = sect.Vaddr
+	}
+
 	if strings.HasPrefix(sect.Name, ".debug") || strings.HasPrefix(sect.Name, ".zdebug") {
 		sh.Flags = 0
+		sh.Addr = 0
 		if sect.Compressed {
 			sh.Flags |= uint64(elf.SHF_COMPRESSED)
 		}
 	}
 
-	if linkmode != LinkExternal {
-		sh.Addr = sect.Vaddr
-	}
 	sh.Addralign = uint64(sect.Align)
 	sh.Size = sect.Length
 	if sect.Name != ".tbss" {

@@ -469,3 +469,31 @@ func TestPIESize(t *testing.T) {
 		})
 	}
 }
+
+func TestIssue51939(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+	td := t.TempDir()
+	goFile := filepath.Join(td, "issue51939.go")
+	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	outFile := filepath.Join(td, "issue51939.exe")
+	goTool := testenv.GoToolPath(t)
+	cmd := exec.Command(goTool, "build", "-o", outFile, goFile)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	ef, err := elf.Open(outFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, s := range ef.Sections {
+		if s.Flags&elf.SHF_ALLOC == 0 && s.Addr != 0 {
+			t.Errorf("section %s should not allocated with addr %x", s.Name, s.Addr)
+		}
+	}
+}
