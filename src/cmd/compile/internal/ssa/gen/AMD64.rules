@@ -2073,7 +2073,7 @@
 	(CMPXCHGLlock [off1+off2] {sym} ptr old new_ mem)
 
 // We don't need the conditional move if we know the arg of BSF is not zero.
-(CMOVQEQ x _ (Select1 (BSFQ (ORQconst [c] _)))) && c != 0 => x
+(CMOVQEQ x _ (Select1 (BS(F|R)Q (ORQconst [c] _)))) && c != 0 => x
 // Extension is unnecessary for trailing zeros.
 (BSFQ (ORQconst <t> [1<<8] (MOVBQZX x))) => (BSFQ (ORQconst <t> [1<<8] x))
 (BSFQ (ORQconst <t> [1<<16] (MOVWQZX x))) => (BSFQ (ORQconst <t> [1<<16] x))
