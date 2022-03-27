@@ -72,7 +72,9 @@ type Type interface {
 
 	// NumMethod returns the number of methods accessible using Method.
 	//
-	// Note that NumMethod counts unexported methods only for interface types.
+	// For a non-interface type, it returns the number of exported methods.
+	//
+	// For an interface type, it returns the number of exported and unexported methods.
 	NumMethod() int
 
 	// Name returns the type's name within its package for a defined type.
