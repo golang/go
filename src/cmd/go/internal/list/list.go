@@ -193,6 +193,8 @@ and the BuildID field to the build ID of the compiled package.
 
 The -find flag causes list to identify the named packages but not
 resolve their dependencies: the Imports and Deps lists will be empty.
+With the -find flag, the -deps, -test and -export commands cannot be
+used.
 
 The -test flag causes list to report not only the named packages
 but also their test binaries (for packages with tests), to convey to
@@ -591,6 +593,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	if *listFind && *listTest {
 		base.Fatalf("go list -test cannot be used with -find")
+	}
+	if *listFind && *listExport {
+		base.Fatalf("go list -export cannot be used with -find")
 	}
 
 	pkgOpts := load.PackageOpts{
