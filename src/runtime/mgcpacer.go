@@ -981,6 +981,27 @@ func (c *gcControllerState) heapGoalInternal() (goal, minTrigger uint64) {
 	return goal, sweepDistTrigger
 }
 
+const (
+	// These constants determine the bounds on the GC trigger as a fraction
+	// of heap bytes allocated between the start of a GC (heapLive == heapMarked)
+	// and the end of a GC (heapLive == heapGoal).
+	//
+	// The constants are obscured in this way for efficiency. The denominator
+	// of the fraction is always a power-of-two for a quick division, so that
+	// the numerator is a single constant integer multiplication.
+	triggerRatioDen = 64
+
+	// The minimum trigger constant was chosen empirically: given a sufficiently
+	// fast/scalable allocator with 48 Ps that could drive the trigger ratio
+	// to <0.05, this constant causes applications to retain the same peak
+	// RSS compared to not having this allocator.
+	minTriggerRatioNum = 45 // ~0.7
+
+	// The maximum trigger constant is chosen somewhat arbitrarily, but the
+	// current constant has served us well over the years.
+	maxTriggerRatioNum = 61 // ~0.95
+)
+
 // trigger returns the current point at which a GC should trigger along with
 // the heap goal.
 //
@@ -1006,25 +1027,21 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	// increase in RSS. By capping us at a point >0, we're essentially
 	// saying that we're OK using more CPU during the GC to prevent
 	// this growth in RSS.
-	//
-	// The current constant was chosen empirically: given a sufficiently
-	// fast/scalable allocator with 48 Ps that could drive the trigger ratio
-	// to <0.05, this constant causes applications to retain the same peak
-	// RSS compared to not having this allocator.
-	if triggerBound := uint64(0.7*float64(goal-c.heapMarked)) + c.heapMarked; minTrigger < triggerBound {
-		minTrigger = triggerBound
+	triggerLowerBound := uint64(((goal-c.heapMarked)/triggerRatioDen)*minTriggerRatioNum) + c.heapMarked
+	if minTrigger < triggerLowerBound {
+		minTrigger = triggerLowerBound
 	}
 
-	// For small heaps, set the max trigger point at 95% of the way from the
-	// live heap to the heap goal. This ensures we always have *some* headroom
-	// when the GC actually starts. For larger heaps, set the max trigger point
-	// at the goal, minus the minimum heap size.
+	// For small heaps, set the max trigger point at maxTriggerRatio of the way
+	// from the live heap to the heap goal. This ensures we always have *some*
+	// headroom when the GC actually starts. For larger heaps, set the max trigger
+	// point at the goal, minus the minimum heap size.
 	//
 	// This choice follows from the fact that the minimum heap size is chosen
 	// to reflect the costs of a GC with no work to do. With a large heap but
 	// very little scan work to perform, this gives us exactly as much runway
 	// as we would need, in the worst case.
-	maxTrigger := uint64(0.95*float64(goal-c.heapMarked)) + c.heapMarked
+	maxTrigger := uint64(((goal-c.heapMarked)/triggerRatioDen)*maxTriggerRatioNum) + c.heapMarked
 	if goal > defaultHeapMinimum && goal-defaultHeapMinimum > maxTrigger {
 		maxTrigger = goal - defaultHeapMinimum
 	}
