@@ -173,7 +173,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		// We have a method with name f.Names[0].
 		name := f.Names[0]
 		if name.Name == "_" {
-			check.errorf(name, _BlankIfaceMethod, "invalid method name _")
+			check.errorf(name, _BlankIfaceMethod, "methods must have a unique non-blank name")
 			continue // ignore
 		}
 
