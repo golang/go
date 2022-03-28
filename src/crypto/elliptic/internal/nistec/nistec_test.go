@@ -6,7 +6,9 @@ package nistec_test
 
 import (
 	"bytes"
+	"crypto/elliptic"
 	"crypto/elliptic/internal/nistec"
+	"math/big"
 	"math/rand"
 	"os"
 	"strings"
@@ -90,27 +92,27 @@ type nistPoint[T any] interface {
 
 func TestEquivalents(t *testing.T) {
 	t.Run("P224", func(t *testing.T) {
-		testEquivalents(t, nistec.NewP224Point, nistec.NewP224Generator)
+		testEquivalents(t, nistec.NewP224Point, nistec.NewP224Generator, elliptic.P224())
 	})
 	t.Run("P256", func(t *testing.T) {
-		testEquivalents(t, nistec.NewP256Point, nistec.NewP256Generator)
+		testEquivalents(t, nistec.NewP256Point, nistec.NewP256Generator, elliptic.P256())
 	})
 	t.Run("P384", func(t *testing.T) {
-		testEquivalents(t, nistec.NewP384Point, nistec.NewP384Generator)
+		testEquivalents(t, nistec.NewP384Point, nistec.NewP384Generator, elliptic.P384())
 	})
 	t.Run("P521", func(t *testing.T) {
-		testEquivalents(t, nistec.NewP521Point, nistec.NewP521Generator)
+		testEquivalents(t, nistec.NewP521Point, nistec.NewP521Generator, elliptic.P521())
 	})
 }
 
-func testEquivalents[P nistPoint[P]](t *testing.T, newPoint, newGenerator func() P) {
+func testEquivalents[P nistPoint[P]](t *testing.T, newPoint, newGenerator func() P, c elliptic.Curve) {
 	p := newGenerator()
 
-	// This assumes the base and scalar fields have the same byte size, which
-	// they do for these curves.
-	elementSize := len(p.Bytes()) / 2
+	elementSize := (c.Params().BitSize + 7) / 8
 	two := make([]byte, elementSize)
 	two[len(two)-1] = 2
+	nPlusTwo := make([]byte, elementSize)
+	new(big.Int).Add(c.Params().N, big.NewInt(2)).FillBytes(nPlusTwo)
 
 	p1 := newPoint().Double(p)
 	p2 := newPoint().Add(p, p)
@@ -119,6 +121,14 @@ func testEquivalents[P nistPoint[P]](t *testing.T, newPoint, newGenerator func()
 		t.Fatal(err)
 	}
 	p4, err := newPoint().ScalarBaseMult(two)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p5, err := newPoint().ScalarMult(p, nPlusTwo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p6, err := newPoint().ScalarBaseMult(nPlusTwo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,6 +141,12 @@ func testEquivalents[P nistPoint[P]](t *testing.T, newPoint, newGenerator func()
 	}
 	if !bytes.Equal(p1.Bytes(), p4.Bytes()) {
 		t.Error("G+G != [2]G")
+	}
+	if !bytes.Equal(p1.Bytes(), p5.Bytes()) {
+		t.Error("P+P != [N+2]P")
+	}
+	if !bytes.Equal(p1.Bytes(), p6.Bytes()) {
+		t.Error("G+G != [N+2]G")
 	}
 }
 
