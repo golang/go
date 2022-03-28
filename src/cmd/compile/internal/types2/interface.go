@@ -132,11 +132,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 		// We have a method with name f.Name.
 		name := f.Name.Value
 		if name == "_" {
-			if check.conf.CompilerErrorMessages {
-				check.error(f.Name, "methods must have a unique non-blank name")
-			} else {
-				check.error(f.Name, "invalid method name _")
-			}
+			check.error(f.Name, "methods must have a unique non-blank name")
 			continue // ignore
 		}
 
