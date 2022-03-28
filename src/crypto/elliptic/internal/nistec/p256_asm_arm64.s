@@ -64,14 +64,22 @@ GLOBL p256ord<>(SB), 8, $32
 GLOBL p256one<>(SB), 8, $32
 
 /* ---------------------------------------*/
-// func p256LittleToBig(res []byte, in []uint64)
+// func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
+TEXT ·p256OrdLittleToBig(SB),NOSPLIT,$0
+	JMP	·p256BigToLittle(SB)
+/* ---------------------------------------*/
+// func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
+TEXT ·p256OrdBigToLittle(SB),NOSPLIT,$0
+	JMP	·p256BigToLittle(SB)
+/* ---------------------------------------*/
+// func p256LittleToBig(res *[32]byte, in *p256Element)
 TEXT ·p256LittleToBig(SB),NOSPLIT,$0
 	JMP	·p256BigToLittle(SB)
 /* ---------------------------------------*/
-// func p256BigToLittle(res []uint64, in []byte)
+// func p256BigToLittle(res *p256Element, in *[32]byte)
 TEXT ·p256BigToLittle(SB),NOSPLIT,$0
 	MOVD	res+0(FP), res_ptr
-	MOVD	in+24(FP), a_ptr
+	MOVD	in+8(FP), a_ptr
 
 	LDP	0*16(a_ptr), (acc0, acc1)
 	LDP	1*16(a_ptr), (acc2, acc3)
@@ -85,13 +93,13 @@ TEXT ·p256BigToLittle(SB),NOSPLIT,$0
 	STP	(acc1, acc0), 1*16(res_ptr)
 	RET
 /* ---------------------------------------*/
-// func p256MovCond(res, a, b []uint64, cond int)
+// func p256MovCond(res, a, b *P256Point, cond int)
 // If cond == 0 res=b, else res=a
 TEXT ·p256MovCond(SB),NOSPLIT,$0
 	MOVD	res+0(FP), res_ptr
-	MOVD	a+24(FP), a_ptr
-	MOVD	b+48(FP), b_ptr
-	MOVD	cond+72(FP), R3
+	MOVD	a+8(FP), a_ptr
+	MOVD	b+16(FP), b_ptr
+	MOVD	cond+24(FP), R3
 
 	CMP	$0, R3
 	// Two remarks:
@@ -131,10 +139,10 @@ TEXT ·p256MovCond(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-// func p256NegCond(val []uint64, cond int)
+// func p256NegCond(val *p256Element, cond int)
 TEXT ·p256NegCond(SB),NOSPLIT,$0
 	MOVD	val+0(FP), a_ptr
-	MOVD	cond+24(FP), hlp0
+	MOVD	cond+8(FP), hlp0
 	MOVD	a_ptr, res_ptr
 	// acc = poly
 	MOVD	$-1, acc0
@@ -161,11 +169,11 @@ TEXT ·p256NegCond(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-// func p256Sqr(res, in []uint64, n int)
+// func p256Sqr(res, in *p256Element, n int)
 TEXT ·p256Sqr(SB),NOSPLIT,$0
 	MOVD	res+0(FP), res_ptr
-	MOVD	in+24(FP), a_ptr
-	MOVD	n+48(FP), b_ptr
+	MOVD	in+8(FP), a_ptr
+	MOVD	n+16(FP), b_ptr
 
 	MOVD	p256const0<>(SB), const0
 	MOVD	p256const1<>(SB), const1
@@ -186,11 +194,11 @@ sqrLoop:
 	STP	(y2, y3), 1*16(res_ptr)
 	RET
 /* ---------------------------------------*/
-// func p256Mul(res, in1, in2 []uint64)
+// func p256Mul(res, in1, in2 *p256Element)
 TEXT ·p256Mul(SB),NOSPLIT,$0
 	MOVD	res+0(FP), res_ptr
-	MOVD	in1+24(FP), a_ptr
-	MOVD	in2+48(FP), b_ptr
+	MOVD	in1+8(FP), a_ptr
+	MOVD	in2+16(FP), b_ptr
 
 	MOVD	p256const0<>(SB), const0
 	MOVD	p256const1<>(SB), const1
@@ -207,10 +215,10 @@ TEXT ·p256Mul(SB),NOSPLIT,$0
 	STP	(y2, y3), 1*16(res_ptr)
 	RET
 /* ---------------------------------------*/
-// func p256FromMont(res, in []uint64)
+// func p256FromMont(res, in *p256Element)
 TEXT ·p256FromMont(SB),NOSPLIT,$0
 	MOVD	res+0(FP), res_ptr
-	MOVD	in+24(FP), a_ptr
+	MOVD	in+8(FP), a_ptr
 
 	MOVD	p256const0<>(SB), const0
 	MOVD	p256const1<>(SB), const1
@@ -266,14 +274,11 @@ TEXT ·p256FromMont(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-// Constant time point access to arbitrary point table.
-// Indexed from 1 to 15, with -1 offset
-// (index 0 is implicitly point at infinity)
-// func p256Select(point, table []uint64, idx int)
+// func p256Select(res *P256Point, table *p256Table, idx int)
 TEXT ·p256Select(SB),NOSPLIT,$0
-	MOVD	idx+48(FP), const0
-	MOVD	table+24(FP), b_ptr
-	MOVD	point+0(FP), res_ptr
+	MOVD	idx+16(FP), const0
+	MOVD	table+8(FP), b_ptr
+	MOVD	res+0(FP), res_ptr
 
 	EOR	x0, x0, x0
 	EOR	x1, x1, x1
@@ -323,12 +328,11 @@ loop_select:
 	STP	(t2, t3), 5*16(res_ptr)
 	RET
 /* ---------------------------------------*/
-// Constant time point access to base point table.
-// func p256SelectBase(point *[12]uint64, table string, idx int)
-TEXT ·p256SelectBase(SB),NOSPLIT,$0
-	MOVD	idx+24(FP), t0
-	MOVD	table_base+8(FP), t1
-	MOVD	point+0(FP), res_ptr
+// func p256SelectAffine(res *p256AffinePoint, table *p256AffineTable, idx int)
+TEXT ·p256SelectAffine(SB),NOSPLIT,$0
+	MOVD	idx+16(FP), t0
+	MOVD	table+8(FP), t1
+	MOVD	res+0(FP), res_ptr
 
 	EOR	x0, x0, x0
 	EOR	x1, x1, x1
@@ -366,10 +370,10 @@ loop_select:
 	STP	(y2, y3), 3*16(res_ptr)
 	RET
 /* ---------------------------------------*/
-// func p256OrdSqr(res, in []uint64, n int)
+// func p256OrdSqr(res, in *p256OrdElement, n int)
 TEXT ·p256OrdSqr(SB),NOSPLIT,$0
-	MOVD	in+24(FP), a_ptr
-	MOVD	n+48(FP), b_ptr
+	MOVD	in+8(FP), a_ptr
+	MOVD	n+16(FP), b_ptr
 
 	MOVD	p256ordK0<>(SB), hlp1
 	LDP	p256ord<>+0x00(SB), (const0, const1)
@@ -565,10 +569,10 @@ ordSqrLoop:
 
 	RET
 /* ---------------------------------------*/
-// func p256OrdMul(res, in1, in2 []uint64)
+// func p256OrdMul(res, in1, in2 *p256OrdElement)
 TEXT ·p256OrdMul(SB),NOSPLIT,$0
-	MOVD	in1+24(FP), a_ptr
-	MOVD	in2+48(FP), b_ptr
+	MOVD	in1+8(FP), a_ptr
+	MOVD	in2+16(FP), b_ptr
 
 	MOVD	p256ordK0<>(SB), hlp1
 	LDP	p256ord<>+0x00(SB), (const0, const1)
@@ -1091,13 +1095,13 @@ TEXT p256MulInternal<>(SB),NOSPLIT,$0
 #define u1(off) (32*10 + 8 + off)(RSP)
 #define u2(off) (32*11 + 8 + off)(RSP)
 
-// func p256PointAddAffineAsm(res, in1, in2 []uint64, sign, sel, zero int)
-TEXT ·p256PointAddAffineAsm(SB),0,$264-96
-	MOVD	in1+24(FP), a_ptr
-	MOVD	in2+48(FP), b_ptr
-	MOVD	sign+72(FP), hlp0
-	MOVD	sel+80(FP), hlp1
-	MOVD	zero+88(FP), t2
+// func p256PointAddAffineAsm(res, in1 *P256Point, in2 *p256AffinePoint, sign, sel, zero int)
+TEXT ·p256PointAddAffineAsm(SB),0,$264-48
+	MOVD	in1+8(FP), a_ptr
+	MOVD	in2+16(FP), b_ptr
+	MOVD	sign+24(FP), hlp0
+	MOVD	sel+32(FP), hlp1
+	MOVD	zero+40(FP), t2
 
 	MOVD	$1, t0
 	CMP	$0, t2
@@ -1288,10 +1292,10 @@ TEXT ·p256PointAddAffineAsm(SB),0,$264-96
 #define zsqr(off) (32*2 + 8 + off)(RSP)
 #define tmp(off)  (32*3 + 8 + off)(RSP)
 
-//func p256PointDoubleAsm(res, in []uint64)
-TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$136-48
+//func p256PointDoubleAsm(res, in *P256Point)
+TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$136-16
 	MOVD	res+0(FP), res_ptr
-	MOVD	in+24(FP), a_ptr
+	MOVD	in+8(FP), a_ptr
 
 	MOVD	p256const0<>(SB), const0
 	MOVD	p256const1<>(SB), const1
@@ -1388,12 +1392,12 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$136-48
 #define x3out(off) (off)(b_ptr)
 #define y3out(off) (off + 32)(b_ptr)
 #define z3out(off) (off + 64)(b_ptr)
-//func p256PointAddAsm(res, in1, in2 []uint64) int
-TEXT ·p256PointAddAsm(SB),0,$392-80
+// func p256PointAddAsm(res, in1, in2 *P256Point) int
+TEXT ·p256PointAddAsm(SB),0,$392-32
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
 	// Move input to stack in order to free registers
-	MOVD	in1+24(FP), a_ptr
-	MOVD	in2+48(FP), b_ptr
+	MOVD	in1+8(FP), a_ptr
+	MOVD	in2+16(FP), b_ptr
 
 	MOVD	p256const0<>(SB), const0
 	MOVD	p256const1<>(SB), const1
@@ -1524,6 +1528,6 @@ TEXT ·p256PointAddAsm(SB),0,$392-80
 	STx(y3out)
 
 	MOVD	hlp1, R0
-	MOVD	R0, ret+72(FP)
+	MOVD	R0, ret+24(FP)
 
 	RET
