@@ -365,7 +365,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 	v, ok := constant.Int64Val(x.val)
 	assert(ok)
 	if max >= 0 && v >= max {
-		check.invalidArg(&x, _InvalidIndex, "index %s is out of bounds", &x)
+		check.invalidArg(&x, _InvalidIndex, "index %s out of bounds [0:%d]", x.val.String(), max)
 		return
 	}
 
