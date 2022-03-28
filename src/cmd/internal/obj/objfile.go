@@ -173,6 +173,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	h.Offsets[goobj.BlkReloc] = w.Offset()
 	for _, list := range lists {
 		for _, s := range list {
+			sort.Sort(relocByOff(s.R)) // some platforms (e.g. PE) requires relocations in address order
 			for i := range s.R {
 				w.Reloc(&s.R[i])
 			}
