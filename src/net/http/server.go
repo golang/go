@@ -147,19 +147,15 @@ type ResponseWriter interface {
 	// send error codes or informational responses.
 	//
 	// The provided code must be a valid HTTP 1xx-5xx status code.
-	// Only one header with a status code not in the 1xx range may
-	// be written.
+	// Any number of 1xx headers may be written, followed by at most
+	// one 2xx-5xx header. 1xx headers are sent immediately, but 2xx-5xx
+	// headers may be buffered. Use the Flusher interface to send
+	// buffered data. The header map is cleared when 2xx-5xx headers are
+	// sent, but not with 1xx headers.
 	//
-	// Informational headers (status in the 1xx range) can be sent multiple
-	// times before sending the final header. The header map is not cleared
-	// when a status in the 1xx range is used.
-	//
-	// When request by the client, the server automatically sends the
-	// 100-continue response header when the Request.Body is read.
-	// Passing the 100 status code to WriteHeader panics.
-	//
-	// Response headers may be buffered. Use the Flusher interface
-	// to send them immediately.
+	// The server will automatically send a 100 (Continue) header
+	// on the first read from the request body if the request has
+	// an "Expect: 100-continue" header.
 	WriteHeader(statusCode int)
 }
 
@@ -906,21 +902,29 @@ type expectContinueReader struct {
 	sawEOF     atomicBool
 }
 
+func writeContinue(w *response) {
+	if w.wroteContinue || !w.canWriteContinue.isSet() || w.conn.hijacked() {
+		return
+	}
+
+	w.wroteContinue = true
+	w.writeContinueMu.Lock()
+	defer w.writeContinueMu.Unlock()
+	if !w.canWriteContinue.isSet() {
+		return
+	}
+
+	w.conn.bufw.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
+	w.conn.bufw.Flush()
+	w.canWriteContinue.setFalse()
+}
+
 func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 	if ecr.closed.isSet() {
 		return 0, ErrBodyReadAfterClose
 	}
-	w := ecr.resp
-	if !w.wroteContinue && w.canWriteContinue.isSet() && !w.conn.hijacked() {
-		w.wroteContinue = true
-		w.writeContinueMu.Lock()
-		if w.canWriteContinue.isSet() {
-			w.conn.bufw.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
-			w.conn.bufw.Flush()
-			w.canWriteContinue.setFalse()
-		}
-		w.writeContinueMu.Unlock()
-	}
+
+	writeContinue(ecr.resp)
 	n, err = ecr.readCloser.Read(p)
 	if err == io.EOF {
 		ecr.sawEOF.setTrue()
@@ -1116,7 +1120,7 @@ func checkWriteHeaderCode(code int) {
 	// no equivalent bogus thing we can realistically send in HTTP/2,
 	// so we'll consistently panic instead and help people find their bugs
 	// early. (We can't return an error from WriteHeader even if we wanted to.)
-	if code <= 100 || code > 999 {
+	if code < 100 || code > 999 {
 		panic(fmt.Sprintf("invalid WriteHeader code %v", code))
 	}
 }
@@ -1154,12 +1158,19 @@ func (w *response) WriteHeader(code int) {
 	checkWriteHeaderCode(code)
 
 	// Handle informational headers, except 100 (Continue) which is handled automatically
-	if code > 100 && code < 200 {
+	if code >= 100 && code < 200 {
+		if code == 100 {
+			writeContinue(w)
+
+			return
+		}
+
 		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
 
 		// Per RFC 8297 we must not clear the current header map
 		w.handlerHeader.Write(w.conn.bufw)
 		w.conn.bufw.Write(crlf)
+		w.conn.bufw.Flush()
 
 		return
 	}
