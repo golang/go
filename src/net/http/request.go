@@ -1128,7 +1128,9 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
 // underlying reader when its Close method is called.
 //
 // MaxBytesReader prevents clients from accidentally or maliciously
-// sending a large request and wasting server resources.
+// sending a large request and wasting server resources. If possible,
+// it tells the ResponseWriter to close the connection after the limit
+// has been reached.
 func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
 	if n < 0 { // Treat negative limits as equivalent to 0.
 		n = 0
