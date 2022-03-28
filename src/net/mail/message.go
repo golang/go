@@ -79,7 +79,7 @@ func buildDateLayouts() {
 	years := [...]string{"2006", "06"} // year = 4*DIGIT / 2*DIGIT
 	seconds := [...]string{":05", ""}  // second
 	// "-0700 (MST)" is not in RFC 5322, but is common.
-	zones := [...]string{"-0700", "MST"} // zone = (("+" / "-") 4DIGIT) / "GMT" / ...
+	zones := [...]string{"-0700", "MST", "UT"} // zone = (("+" / "-") 4DIGIT) / "UT" / "GMT" / ...
 
 	for _, dow := range dows {
 		for _, day := range days {
