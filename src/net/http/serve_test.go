@@ -3035,6 +3035,13 @@ func testRequestBodyLimit(t *testing.T, h2 bool) {
 		if n != limit {
 			t.Errorf("io.Copy = %d, want %d", n, limit)
 		}
+		mbErr, ok := err.(*MaxBytesError)
+		if !ok {
+			t.Errorf("expected MaxBytesError, got %T", err)
+		}
+		if mbErr.Limit != limit {
+			t.Errorf("MaxBytesError.Limit = %d, want %d", mbErr.Limit, limit)
+		}
 	}))
 	defer cst.close()
 
