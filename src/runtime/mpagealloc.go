@@ -83,11 +83,16 @@ const (
 	pallocChunksL1Shift = pallocChunksL2Bits
 )
 
-// Maximum searchAddr value, which indicates that the heap has no free space.
+// maxSearchAddr returns the maximum searchAddr value, which indicates
+// that the heap has no free space.
 //
-// We alias maxOffAddr just to make it clear that this is the maximum address
+// This function exists just to make it clear that this is the maximum address
 // for the page allocator's search space. See maxOffAddr for details.
-var maxSearchAddr = maxOffAddr
+//
+// It's a function (rather than a variable) because it needs to be
+// usable before package runtime's dynamic initialization is complete.
+// See #51913 for details.
+func maxSearchAddr() offAddr { return maxOffAddr }
 
 // Global chunk index.
 //
@@ -319,7 +324,7 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
 	p.sysInit()
 
 	// Start with the searchAddr in a state indicating there's no free memory.
-	p.searchAddr = maxSearchAddr
+	p.searchAddr = maxSearchAddr()
 
 	// Set the mheapLock.
 	p.mheapLock = mheapLock
@@ -745,7 +750,7 @@ nextLevel:
 		}
 		if l == 0 {
 			// We're at level zero, so that means we've exhausted our search.
-			return 0, maxSearchAddr
+			return 0, maxSearchAddr()
 		}
 
 		// We're not at level zero, and we exhausted the level we were looking in.
@@ -839,7 +844,7 @@ func (p *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
 			// exhausted. Otherwise, the heap still might have free
 			// space in it, just not enough contiguous space to
 			// accommodate npages.
-			p.searchAddr = maxSearchAddr
+			p.searchAddr = maxSearchAddr()
 		}
 		return 0, 0
 	}
