@@ -14,6 +14,8 @@ type tstAux struct {
 	s string
 }
 
+func (*tstAux) CanBeAnSSAAux() {}
+
 // This tests for a bug found when partitioning, but not sorting by the Aux value.
 func TestCSEAuxPartitionBug(t *testing.T) {
 	c := testConfig(t)

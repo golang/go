@@ -28,6 +28,9 @@ var v7 = S{}
 // Test that #define'd type is fully defined
 var _ = issue38649{X: 0}
 
+// Test that prefixes do not cause duplicate field names.
+var _ = Issue48396{Fd: 1, Bpf_fd: 2}
+
 func main() {
 	pass := true
 

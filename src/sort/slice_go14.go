@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !go1.8
 // +build !go1.8
 
 package sort
@@ -10,7 +11,7 @@ import "reflect"
 
 var reflectValueOf = reflect.ValueOf
 
-func reflectSwapper(x interface{}) func(int, int) {
+func reflectSwapper(x any) func(int, int) {
 	v := reflectValueOf(x)
 	tmp := reflect.New(v.Type().Elem()).Elem()
 	return func(i, j int) {

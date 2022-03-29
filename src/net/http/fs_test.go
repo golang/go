@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net"
@@ -379,11 +378,7 @@ func mustRemoveAll(dir string) {
 
 func TestFileServerImplicitLeadingSlash(t *testing.T) {
 	defer afterTest(t)
-	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer mustRemoveAll(tempDir)
+	tempDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
@@ -593,7 +588,7 @@ func TestServeIndexHtml(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				b, err := ioutil.ReadAll(res.Body)
+				b, err := io.ReadAll(res.Body)
 				if err != nil {
 					t.Fatal("reading Body:", err)
 				}
@@ -663,7 +658,7 @@ type fakeFileInfo struct {
 }
 
 func (f *fakeFileInfo) Name() string       { return f.basename }
-func (f *fakeFileInfo) Sys() interface{}   { return nil }
+func (f *fakeFileInfo) Sys() any           { return nil }
 func (f *fakeFileInfo) ModTime() time.Time { return f.modtime }
 func (f *fakeFileInfo) IsDir() bool        { return f.dir }
 func (f *fakeFileInfo) Size() int64        { return int64(len(f.contents)) }
@@ -1249,10 +1244,19 @@ func TestLinuxSendfileChild(*testing.T) {
 	}
 }
 
-// Issue 18984: tests that requests for paths beyond files return not-found errors
+// Issues 18984, 49552: tests that requests for paths beyond files return not-found errors
 func TestFileServerNotDirError(t *testing.T) {
 	defer afterTest(t)
-	ts := httptest.NewServer(FileServer(Dir("testdata")))
+	t.Run("Dir", func(t *testing.T) {
+		testFileServerNotDirError(t, func(path string) FileSystem { return Dir(path) })
+	})
+	t.Run("FS", func(t *testing.T) {
+		testFileServerNotDirError(t, func(path string) FileSystem { return FS(os.DirFS(path)) })
+	})
+}
+
+func testFileServerNotDirError(t *testing.T, newfs func(string) FileSystem) {
+	ts := httptest.NewServer(FileServer(newfs("testdata")))
 	defer ts.Close()
 
 	res, err := Get(ts.URL + "/index.html/not-a-file")
@@ -1264,22 +1268,24 @@ func TestFileServerNotDirError(t *testing.T) {
 		t.Errorf("StatusCode = %v; want 404", res.StatusCode)
 	}
 
-	test := func(name string, dir Dir) {
+	test := func(name string, fsys FileSystem) {
 		t.Run(name, func(t *testing.T) {
-			_, err = dir.Open("/index.html/not-a-file")
+			_, err = fsys.Open("/index.html/not-a-file")
 			if err == nil {
 				t.Fatal("err == nil; want != nil")
 			}
-			if !os.IsNotExist(err) {
-				t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("err = %v; errors.Is(err, fs.ErrNotExist) = %v; want true", err,
+					errors.Is(err, fs.ErrNotExist))
 			}
 
-			_, err = dir.Open("/index.html/not-a-dir/not-a-file")
+			_, err = fsys.Open("/index.html/not-a-dir/not-a-file")
 			if err == nil {
 				t.Fatal("err == nil; want != nil")
 			}
-			if !os.IsNotExist(err) {
-				t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("err = %v; errors.Is(err, fs.ErrNotExist) = %v; want true", err,
+					errors.Is(err, fs.ErrNotExist))
 			}
 		})
 	}
@@ -1289,8 +1295,8 @@ func TestFileServerNotDirError(t *testing.T) {
 		t.Fatal("get abs path:", err)
 	}
 
-	test("RelativePath", Dir("testdata"))
-	test("AbsolutePath", Dir(absPath))
+	test("RelativePath", newfs("testdata"))
+	test("AbsolutePath", newfs(absPath))
 }
 
 func TestFileServerCleanPath(t *testing.T) {

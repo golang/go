@@ -76,6 +76,10 @@ nog:
 	MOVD	$0, R0  // crash (not reached)
 	MOVD	R0, (R8)
 
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	·netbsdMstart0(SB)
+	RET // not reached
+
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	SVC	$SYS_sched_yield
 	RET
@@ -150,17 +154,6 @@ ok:
 	MOVW	R0, ret+24(FP)
 	RET
 
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	ADD	$8, RSP, R0
-	MOVW	$0, R1
-	SVC	$SYS_pipe2
-	BCC	pipeok
-	NEG	R0, R0
-pipeok:
-	MOVW	R0, errno+8(FP)
-	RET
-
 // func pipe2(flags int32) (r, w int32, errno int32)
 TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 	ADD	$16, RSP, R0
@@ -220,8 +213,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	SVC	$SYS___setitimer50
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW	$CLOCK_REALTIME, R0	// arg 1 - clock_id
 	MOVD	$8(RSP), R1		// arg 2 - tp
 	SVC	$SYS___clock_gettime50
@@ -275,8 +268,8 @@ fail:
 TEXT sigreturn_tramp<>(SB),NOSPLIT,$-8
 	MOVD	g, R0
 	SVC	$SYS_setcontext
-	MOVD	$0x4242, R0		// Something failed, return magic number
-	SVC	$SYS_exit
+	MOVD	$0, R0
+	MOVD	R0, (R0)		// crash
 
 TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVW	sig+0(FP), R0		// arg 1 - signum
@@ -460,18 +453,5 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	$F_SETFD, R1
 	MOVW	$FD_CLOEXEC, R2
-	SVC	$SYS_fcntl
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVD	$F_GETFL, R1		// arg 2 - cmd
-	MOVD	$0, R2			// arg 3
-	SVC	$SYS_fcntl
-	MOVD	$O_NONBLOCK, R2
-	EOR	R0, R2			// arg 3 - flags
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVD	$F_SETFL, R1		// arg 2 - cmd
 	SVC	$SYS_fcntl
 	RET

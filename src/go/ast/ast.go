@@ -193,11 +193,10 @@ func isDirective(c string) bool {
 // in a signature.
 // Field.Names is nil for unnamed parameters (parameter lists which only contain types)
 // and embedded struct fields. In the latter case, the field name is the type name.
-//
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
-	Names   []*Ident      // field/method/parameter names; or nil
-	Type    Expr          // field/method/parameter type
+	Names   []*Ident      // field/method/(type) parameter names; or nil
+	Type    Expr          // field/method/parameter type; or nil
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
 }
@@ -206,21 +205,31 @@ func (f *Field) Pos() token.Pos {
 	if len(f.Names) > 0 {
 		return f.Names[0].Pos()
 	}
-	return f.Type.Pos()
+	if f.Type != nil {
+		return f.Type.Pos()
+	}
+	return token.NoPos
 }
 
 func (f *Field) End() token.Pos {
 	if f.Tag != nil {
 		return f.Tag.End()
 	}
-	return f.Type.End()
+	if f.Type != nil {
+		return f.Type.End()
+	}
+	if len(f.Names) > 0 {
+		return f.Names[len(f.Names)-1].End()
+	}
+	return token.NoPos
 }
 
-// A FieldList represents a list of Fields, enclosed by parentheses or braces.
+// A FieldList represents a list of Fields, enclosed by parentheses,
+// curly braces, or square brackets.
 type FieldList struct {
-	Opening token.Pos // position of opening parenthesis/brace, if any
+	Opening token.Pos // position of opening parenthesis/brace/bracket, if any
 	List    []*Field  // field list; or nil
-	Closing token.Pos // position of closing parenthesis/brace, if any
+	Closing token.Pos // position of closing parenthesis/brace/bracket, if any
 }
 
 func (f *FieldList) Pos() token.Pos {
@@ -290,12 +299,6 @@ type (
 	}
 
 	// A BasicLit node represents a literal of basic type.
-	//
-	// Note that for the CHAR and STRING kinds, the literal is stored
-	// with its quotes. For example, for a double-quoted STRING, the
-	// first and the last rune in the Value field will be ". The
-	// Unquote and UnquoteChar functions in the strconv package can be
-	// used to unquote STRING and CHAR values, respectively.
 	BasicLit struct {
 		ValuePos token.Pos   // literal position
 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
@@ -336,6 +339,15 @@ type (
 		Lbrack token.Pos // position of "["
 		Index  Expr      // index expression
 		Rbrack token.Pos // position of "]"
+	}
+
+	// An IndexListExpr node represents an expression followed by multiple
+	// indices.
+	IndexListExpr struct {
+		X       Expr      // expression
+		Lbrack  token.Pos // position of "["
+		Indices []Expr    // index expressions
+		Rbrack  token.Pos // position of "]"
 	}
 
 	// A SliceExpr node represents an expression followed by slice indices.
@@ -436,16 +448,17 @@ type (
 
 	// A FuncType node represents a function type.
 	FuncType struct {
-		Func    token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
-		Params  *FieldList // (incoming) parameters; non-nil
-		Results *FieldList // (outgoing) results; or nil
+		Func       token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
+		TypeParams *FieldList // type parameters; or nil
+		Params     *FieldList // (incoming) parameters; non-nil
+		Results    *FieldList // (outgoing) results; or nil
 	}
 
 	// An InterfaceType node represents an interface type.
 	InterfaceType struct {
 		Interface  token.Pos  // position of "interface" keyword
-		Methods    *FieldList // list of methods
-		Incomplete bool       // true if (source) methods are missing in the Methods list
+		Methods    *FieldList // list of embedded interfaces, methods, or types
+		Incomplete bool       // true if (source) methods or types are missing in the Methods list
 	}
 
 	// A MapType node represents a map type.
@@ -480,6 +493,7 @@ func (x *CompositeLit) Pos() token.Pos {
 func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
 func (x *SelectorExpr) Pos() token.Pos   { return x.X.Pos() }
 func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
+func (x *IndexListExpr) Pos() token.Pos  { return x.X.Pos() }
 func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
 func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
 func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
@@ -513,6 +527,7 @@ func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
 func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
 func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
 func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
+func (x *IndexListExpr) End() token.Pos  { return x.Rbrack + 1 }
 func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
 func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
 func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
@@ -544,6 +559,7 @@ func (*CompositeLit) exprNode()   {}
 func (*ParenExpr) exprNode()      {}
 func (*SelectorExpr) exprNode()   {}
 func (*IndexExpr) exprNode()      {}
+func (*IndexListExpr) exprNode()  {}
 func (*SliceExpr) exprNode()      {}
 func (*TypeAssertExpr) exprNode() {}
 func (*CallExpr) exprNode()       {}
@@ -896,11 +912,12 @@ type (
 
 	// A TypeSpec node represents a type declaration (TypeSpec production).
 	TypeSpec struct {
-		Doc     *CommentGroup // associated documentation; or nil
-		Name    *Ident        // type name
-		Assign  token.Pos     // position of '=', if any
-		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
-		Comment *CommentGroup // line comments; or nil
+		Doc        *CommentGroup // associated documentation; or nil
+		Name       *Ident        // type name
+		TypeParams *FieldList    // type parameters; or nil
+		Assign     token.Pos     // position of '=', if any
+		Type       Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+		Comment    *CommentGroup // line comments; or nil
 	}
 )
 
@@ -965,7 +982,7 @@ type (
 	GenDecl struct {
 		Doc    *CommentGroup // associated documentation; or nil
 		TokPos token.Pos     // position of Tok
-		Tok    token.Token   // IMPORT, CONST, TYPE, VAR
+		Tok    token.Token   // IMPORT, CONST, TYPE, or VAR
 		Lparen token.Pos     // position of '(', if any
 		Specs  []Spec
 		Rparen token.Pos // position of ')', if any
@@ -976,7 +993,7 @@ type (
 		Doc  *CommentGroup // associated documentation; or nil
 		Recv *FieldList    // receiver (methods); or nil (functions)
 		Name *Ident        // function/method name
-		Type *FuncType     // function signature: parameters, results, and position of "func" keyword
+		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil for external (non-Go) function
 	}
 )

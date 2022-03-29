@@ -2,6 +2,7 @@ package ssa_test
 
 import (
 	cmddwarf "cmd/internal/dwarf"
+	"cmd/internal/quoted"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
@@ -57,7 +58,11 @@ func TestStmtLines(t *testing.T) {
 		if extld == "" {
 			extld = "gcc"
 		}
-		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+		extldArgs, err := quoted.Split(extld)
+		if err != nil {
+			t.Fatal(err)
+		}
+		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extldArgs)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,6 +88,9 @@ func TestStmtLines(t *testing.T) {
 		pkgname, _ := e.Val(dwarf.AttrName).(string)
 		if pkgname == "runtime" {
 			continue
+		}
+		if pkgname == "crypto/elliptic/internal/fiat" {
+			continue // golang.org/issue/49372
 		}
 		if e.Val(dwarf.AttrStmtList) == nil {
 			continue
@@ -117,6 +125,7 @@ func TestStmtLines(t *testing.T) {
 	} else if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
 		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
 	}
+	t.Logf("Saw %d out of %d lines without statement marks", len(nonStmtLines), len(lines))
 	if testing.Verbose() {
 		sort.Slice(nonStmtLines, func(i, j int) bool {
 			if nonStmtLines[i].File != nonStmtLines[j].File {

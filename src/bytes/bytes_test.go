@@ -1251,7 +1251,9 @@ var trimTests = []TrimTest{
 	{"TrimLeft", "abba", "ab", ""},
 	{"TrimRight", "abba", "ab", ""},
 	{"TrimLeft", "abba", "a", "bba"},
+	{"TrimLeft", "abba", "b", "abba"},
 	{"TrimRight", "abba", "a", "abb"},
+	{"TrimRight", "abba", "b", "abba"},
 	{"Trim", "<tag>", "<>", "tag"},
 	{"Trim", "* listitem", " *", "listitem"},
 	{"Trim", `"quote"`, `"`, "quote"},
@@ -1276,24 +1278,69 @@ var trimTests = []TrimTest{
 	{"TrimSuffix", "aabb", "b", "aab"},
 }
 
+type TrimNilTest struct {
+	f   string
+	in  []byte
+	arg string
+	out []byte
+}
+
+var trimNilTests = []TrimNilTest{
+	{"Trim", nil, "", nil},
+	{"Trim", []byte{}, "", nil},
+	{"Trim", []byte{'a'}, "a", nil},
+	{"Trim", []byte{'a', 'a'}, "a", nil},
+	{"Trim", []byte{'a'}, "ab", nil},
+	{"Trim", []byte{'a', 'b'}, "ab", nil},
+	{"Trim", []byte("☺"), "☺", nil},
+	{"TrimLeft", nil, "", nil},
+	{"TrimLeft", []byte{}, "", nil},
+	{"TrimLeft", []byte{'a'}, "a", nil},
+	{"TrimLeft", []byte{'a', 'a'}, "a", nil},
+	{"TrimLeft", []byte{'a'}, "ab", nil},
+	{"TrimLeft", []byte{'a', 'b'}, "ab", nil},
+	{"TrimLeft", []byte("☺"), "☺", nil},
+	{"TrimRight", nil, "", nil},
+	{"TrimRight", []byte{}, "", []byte{}},
+	{"TrimRight", []byte{'a'}, "a", []byte{}},
+	{"TrimRight", []byte{'a', 'a'}, "a", []byte{}},
+	{"TrimRight", []byte{'a'}, "ab", []byte{}},
+	{"TrimRight", []byte{'a', 'b'}, "ab", []byte{}},
+	{"TrimRight", []byte("☺"), "☺", []byte{}},
+	{"TrimPrefix", nil, "", nil},
+	{"TrimPrefix", []byte{}, "", []byte{}},
+	{"TrimPrefix", []byte{'a'}, "a", []byte{}},
+	{"TrimPrefix", []byte("☺"), "☺", []byte{}},
+	{"TrimSuffix", nil, "", nil},
+	{"TrimSuffix", []byte{}, "", []byte{}},
+	{"TrimSuffix", []byte{'a'}, "a", []byte{}},
+	{"TrimSuffix", []byte("☺"), "☺", []byte{}},
+}
+
 func TestTrim(t *testing.T) {
-	for _, tc := range trimTests {
-		name := tc.f
-		var f func([]byte, string) []byte
-		var fb func([]byte, []byte) []byte
+	toFn := func(name string) (func([]byte, string) []byte, func([]byte, []byte) []byte) {
 		switch name {
 		case "Trim":
-			f = Trim
+			return Trim, nil
 		case "TrimLeft":
-			f = TrimLeft
+			return TrimLeft, nil
 		case "TrimRight":
-			f = TrimRight
+			return TrimRight, nil
 		case "TrimPrefix":
-			fb = TrimPrefix
+			return nil, TrimPrefix
 		case "TrimSuffix":
-			fb = TrimSuffix
+			return nil, TrimSuffix
 		default:
 			t.Errorf("Undefined trim function %s", name)
+			return nil, nil
+		}
+	}
+
+	for _, tc := range trimTests {
+		name := tc.f
+		f, fb := toFn(name)
+		if f == nil && fb == nil {
+			continue
 		}
 		var actual string
 		if f != nil {
@@ -1303,6 +1350,36 @@ func TestTrim(t *testing.T) {
 		}
 		if actual != tc.out {
 			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
+		}
+	}
+
+	for _, tc := range trimNilTests {
+		name := tc.f
+		f, fb := toFn(name)
+		if f == nil && fb == nil {
+			continue
+		}
+		var actual []byte
+		if f != nil {
+			actual = f(tc.in, tc.arg)
+		} else {
+			actual = fb(tc.in, []byte(tc.arg))
+		}
+		report := func(s []byte) string {
+			if s == nil {
+				return "nil"
+			} else {
+				return fmt.Sprintf("%q", s)
+			}
+		}
+		if len(actual) != 0 {
+			t.Errorf("%s(%s, %q) returned non-empty value", name, report(tc.in), tc.arg)
+		} else {
+			actualNil := actual == nil
+			outNil := tc.out == nil
+			if actualNil != outNil {
+				t.Errorf("%s(%s, %q) got nil %t; want nil %t", name, report(tc.in), tc.arg, actualNil, outNil)
+			}
 		}
 	}
 }
@@ -1561,6 +1638,29 @@ func TestEqualFold(t *testing.T) {
 		}
 		if out := EqualFold([]byte(tt.t), []byte(tt.s)); out != tt.out {
 			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.t, tt.s, out, tt.out)
+		}
+	}
+}
+
+var cutTests = []struct {
+	s, sep        string
+	before, after string
+	found         bool
+}{
+	{"abc", "b", "a", "c", true},
+	{"abc", "a", "", "bc", true},
+	{"abc", "c", "ab", "", true},
+	{"abc", "abc", "", "", true},
+	{"abc", "", "", "abc", true},
+	{"abc", "d", "abc", "", false},
+	{"", "d", "", "", false},
+	{"", "", "", "", true},
+}
+
+func TestCut(t *testing.T) {
+	for _, tt := range cutTests {
+		if before, after, found := Cut([]byte(tt.s), []byte(tt.sep)); string(before) != tt.before || string(after) != tt.after || found != tt.found {
+			t.Errorf("Cut(%q, %q) = %q, %q, %v, want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
 		}
 	}
 }
@@ -1960,6 +2060,13 @@ func BenchmarkTrimASCII(b *testing.B) {
 				}
 			})
 		}
+	}
+}
+
+func BenchmarkTrimByte(b *testing.B) {
+	x := []byte("  the quick brown fox   ")
+	for i := 0; i < b.N; i++ {
+		Trim(x, " ")
 	}
 }
 

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux openbsd
-// +build mips64 mips64le
+//go:build (linux || openbsd) && (mips64 || mips64le)
 
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -67,7 +67,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	// functions are correctly handled. This smashes
 	// the stack frame but we're not going back there
 	// anyway.
-	sp := c.sp() - sys.PtrSize
+	sp := c.sp() - goarch.PtrSize
 	c.set_sp(sp)
 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
 
@@ -79,7 +79,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	}
 
 	// In case we are panicking from external C code
-	sigpanicPC := uint64(funcPC(sigpanic))
+	sigpanicPC := uint64(abi.FuncPCABIInternal(sigpanic))
 	c.set_r28(sigpanicPC >> 32 << 32) // RSB register
 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
 	c.set_pc(sigpanicPC)

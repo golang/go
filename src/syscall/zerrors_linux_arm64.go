@@ -4,7 +4,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- _const.go
 
-// +build arm64,linux
+//go:build arm64 && linux
 
 package syscall
 

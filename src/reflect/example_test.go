@@ -14,7 +14,7 @@ import (
 )
 
 func ExampleKind() {
-	for _, v := range []interface{}{"hi", 42, func() {}} {
+	for _, v := range []any{"hi", 42, func() {}} {
 		switch v := reflect.ValueOf(v); v.Kind() {
 		case reflect.String:
 			fmt.Println(v.String())
@@ -45,7 +45,7 @@ func ExampleMakeFunc() {
 	// When the function is invoked, reflect turns the arguments
 	// into Values, calls swap, and then turns swap's result slice
 	// into the values returned by the new function.
-	makeSwap := func(fptr interface{}) {
+	makeSwap := func(fptr any) {
 		// fptr is a pointer to a function.
 		// Obtain the function value itself (likely nil) as a reflect.Value
 		// so that we can query its type and then set the value.
@@ -165,4 +165,32 @@ func ExampleStructOf() {
 	// value: &{Height:0.4 Age:2}
 	// json:  {"height":0.4,"age":2}
 	// value: &{Height:1.5 Age:10}
+}
+
+func ExampleValue_FieldByIndex() {
+	// This example shows a case in which the name of a promoted field
+	// is hidden by another field: FieldByName will not work, so
+	// FieldByIndex must be used instead.
+	type user struct {
+		firstName string
+		lastName  string
+	}
+
+	type data struct {
+		user
+		firstName string
+		lastName  string
+	}
+
+	u := data{
+		user:      user{"Embedded John", "Embedded Doe"},
+		firstName: "John",
+		lastName:  "Doe",
+	}
+
+	s := reflect.ValueOf(u).FieldByIndex([]int{0, 1})
+	fmt.Println("embedded last name:", s)
+
+	// Output:
+	// embedded last name: Embedded Doe
 }

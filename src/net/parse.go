@@ -172,32 +172,6 @@ func xtoi2(s string, e byte) (byte, bool) {
 	return byte(n), ok && ei == 2
 }
 
-// Convert integer to decimal string.
-func itoa(val int) string {
-	if val < 0 {
-		return "-" + uitoa(uint(-val))
-	}
-	return uitoa(uint(val))
-}
-
-// Convert unsigned integer to decimal string.
-func uitoa(val uint) string {
-	if val == 0 { // avoid string allocation
-		return "0"
-	}
-	var buf [20]byte // big enough for 64bit value base 10
-	i := len(buf) - 1
-	for val >= 10 {
-		q := val / 10
-		buf[i] = byte('0' + val - q*10)
-		i--
-		val = q
-	}
-	// val < 10
-	buf[i] = byte('0' + val)
-	return string(buf[i:])
-}
-
 // Convert i to a hexadecimal string. Leading zeros are not printed.
 func appendHex(dst []byte, i uint32) []byte {
 	if i == 0 {
@@ -232,6 +206,16 @@ func last(s string, b byte) int {
 		}
 	}
 	return i
+}
+
+// hasUpperCase tells whether the given string contains at least one upper-case.
+func hasUpperCase(s string) bool {
+	for i := range s {
+		if 'A' <= s[i] && s[i] <= 'Z' {
+			return true
+		}
+	}
+	return false
 }
 
 // lowerASCIIBytes makes x ASCII lowercase in-place.
@@ -356,27 +340,4 @@ func readFull(r io.Reader) (all []byte, err error) {
 			return nil, err
 		}
 	}
-}
-
-// goDebugString returns the value of the named GODEBUG key.
-// GODEBUG is of the form "key=val,key2=val2"
-func goDebugString(key string) string {
-	s := os.Getenv("GODEBUG")
-	for i := 0; i < len(s)-len(key)-1; i++ {
-		if i > 0 && s[i-1] != ',' {
-			continue
-		}
-		afterKey := s[i+len(key):]
-		if afterKey[0] != '=' || s[i:i+len(key)] != key {
-			continue
-		}
-		val := afterKey[1:]
-		for i, b := range val {
-			if b == ',' {
-				return val[:i]
-			}
-		}
-		return val
-	}
-	return ""
 }

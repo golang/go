@@ -870,7 +870,7 @@ TEXT ·p256FromMont(SB), NOSPLIT, $0-48
  *                                                                *Mi obra de arte de siglo XXI @vpaprots
  *
  *
- * First group is special, doesnt get the two inputs:
+ * First group is special, doesn't get the two inputs:
  *                                             +--------+--------+<-+
  *                                     +-------|  ADD2  |  ADD1  |--|-----+
  *                                     |       +--------+--------+  |     |

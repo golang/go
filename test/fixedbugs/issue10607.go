@@ -1,4 +1,4 @@
-// +build linux,!ppc64,!riscv64,gc
+// +build linux,!ppc64,gc
 // run
 
 // Copyright 2015 The Go Authors. All rights reserved.
@@ -7,9 +7,6 @@
 
 // Test that a -B option is passed through when using both internal
 // and external linking mode.
-
-// TODO(jsing): Re-enable on riscv64 when it has support for external
-// linking - see golang.org/issue/36739
 
 package main
 

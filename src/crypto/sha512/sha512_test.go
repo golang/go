@@ -788,7 +788,7 @@ func TestMarshalMismatch(t *testing.T) {
 			}
 
 			if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err == nil {
-				t.Errorf("i=%d, j=%d: got no error , expected one: %v", i, j, err)
+				t.Errorf("i=%d, j=%d: got no error, expected one: %v", i, j, err)
 			}
 		}
 	}
@@ -835,7 +835,7 @@ func TestBlockGeneric(t *testing.T) {
 // Tests for unmarshaling hashes that have hashed a large amount of data
 // The initial hash generation is omitted from the test, because it takes a long time.
 // The test contains some already-generated states, and their expected sums
-// Tests a problem that is outlined in Github issue #29541
+// Tests a problem that is outlined in GitHub issue #29541
 // The problem is triggered when an amount of data has been hashed for which
 // the data length has a 1 in the 32nd bit. When casted to int, this changes
 // the sign of the value, and causes the modulus operation to return a
@@ -885,6 +885,20 @@ func TestLargeHashes(t *testing.T) {
 		if fmt.Sprintf("%x", sum) != test.sum {
 			t.Errorf("test %d sum mismatch: expect %s got %x", i, test.sum, sum)
 		}
+	}
+}
+
+func TestAllocations(t *testing.T) {
+	in := []byte("hello, world!")
+	out := make([]byte, 0, Size)
+	h := New()
+	n := int(testing.AllocsPerRun(10, func() {
+		h.Reset()
+		h.Write(in)
+		out = h.Sum(out[:0])
+	}))
+	if n > 0 {
+		t.Errorf("allocs = %d, want 0", n)
 	}
 }
 

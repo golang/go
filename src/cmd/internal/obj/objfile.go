@@ -23,6 +23,8 @@ import (
 	"strings"
 )
 
+const UnlinkablePkg = "<unlinkable>" // invalid package path, used when compiled without -p flag
+
 // Entry point of writing new object file.
 func WriteObjFile(ctxt *Link, b *bio.Writer) {
 
@@ -44,6 +46,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	flags := uint32(0)
 	if ctxt.Flag_shared {
 		flags |= goobj.ObjFlagShared
+	}
+	if w.pkgpath == UnlinkablePkg {
+		flags |= goobj.ObjFlagUnlinkable
 	}
 	if w.pkgpath == "" {
 		flags |= goobj.ObjFlagNeedNameExpansion
@@ -168,6 +173,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	h.Offsets[goobj.BlkReloc] = w.Offset()
 	for _, list := range lists {
 		for _, s := range list {
+			sort.Sort(relocByOff(s.R)) // some platforms (e.g. PE) requires relocations in address order
 			for i := range s.R {
 				w.Reloc(&s.R[i])
 			}
@@ -189,25 +195,6 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 			w.Bytes(s.P)
 			if file := s.File(); file != nil {
 				w.writeFile(ctxt, file)
-			}
-		}
-	}
-
-	// Pcdata
-	h.Offsets[goobj.BlkPcdata] = w.Offset()
-	for _, s := range ctxt.Text { // iteration order must match genFuncInfoSyms
-		// Because of the phase order, it's possible that we try to write an invalid
-		// object file, and the Pcln variables haven't been filled in. As such, we
-		// need to check that Pcsp exists, and assume the other pcln variables exist
-		// as well. Tests like test/fixedbugs/issue22200.go demonstrate this issue.
-		if fn := s.Func(); fn != nil && fn.Pcln.Pcsp != nil {
-			pc := &fn.Pcln
-			w.Bytes(pc.Pcsp.P)
-			w.Bytes(pc.Pcfile.P)
-			w.Bytes(pc.Pcline.P)
-			w.Bytes(pc.Pcinline.P)
-			for i := range pc.Pcdata {
-				w.Bytes(pc.Pcdata[i].P)
 			}
 		}
 	}
@@ -330,9 +317,6 @@ func (w *writer) Sym(s *LSym) {
 	if s.ReflectMethod() {
 		flag |= goobj.SymFlagReflectMethod
 	}
-	if s.TopFrame() {
-		flag |= goobj.SymFlagTopFrame
-	}
 	if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
 		flag |= goobj.SymFlagGoType
 	}
@@ -343,6 +327,9 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(s.Name, "go.itab.") && s.Type == objabi.SRODATA {
 		flag2 |= goobj.SymFlagItab
 	}
+	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], ".") && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath)+1:], objabi.GlobalDictPrefix) {
+		flag2 |= goobj.SymFlagDict
+	}
 	name := s.Name
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
@@ -351,14 +338,29 @@ func (w *writer) Sym(s *LSym) {
 	if fn := s.Func(); fn != nil {
 		align = uint32(fn.Align)
 	}
-	if s.ContentAddressable() {
-		// We generally assume data symbols are natually aligned,
-		// except for strings. If we dedup a string symbol and a
-		// non-string symbol with the same content, we should keep
+	if s.ContentAddressable() && s.Size != 0 {
+		// We generally assume data symbols are natually aligned
+		// (e.g. integer constants), except for strings and a few
+		// compiler-emitted funcdata. If we dedup a string symbol and
+		// a non-string symbol with the same content, we should keep
 		// the largest alignment.
 		// TODO: maybe the compiler could set the alignment for all
 		// data symbols more carefully.
-		if s.Size != 0 && !strings.HasPrefix(s.Name, "go.string.") {
+		switch {
+		case strings.HasPrefix(s.Name, "go.string."),
+			strings.HasPrefix(name, "type..namedata."),
+			strings.HasPrefix(name, "type..importpath."),
+			strings.HasPrefix(name, "runtime.gcbits."),
+			strings.HasSuffix(name, ".opendefer"),
+			strings.HasSuffix(name, ".arginfo0"),
+			strings.HasSuffix(name, ".arginfo1"),
+			strings.HasSuffix(name, ".argliveinfo"):
+			// These are just bytes, or varints.
+			align = 1
+		case strings.HasPrefix(name, "gclocals·"):
+			// It has 32-bit fields.
+			align = 4
+		default:
 			switch {
 			case w.ctxt.Arch.PtrSize == 8 && s.Size%8 == 0:
 				align = 8
@@ -366,8 +368,9 @@ func (w *writer) Sym(s *LSym) {
 				align = 4
 			case s.Size%2 == 0:
 				align = 2
+			default:
+				align = 1
 			}
-			// don't bother setting align to 1.
 		}
 	}
 	if s.Size > cutoff {
@@ -386,7 +389,7 @@ func (w *writer) Sym(s *LSym) {
 
 func (w *writer) Hash64(s *LSym) {
 	if !s.ContentAddressable() || len(s.R) != 0 {
-		panic("Hash of non-content-addresable symbol")
+		panic("Hash of non-content-addressable symbol")
 	}
 	b := contentHash64(s)
 	w.Bytes(b[:])
@@ -394,13 +397,47 @@ func (w *writer) Hash64(s *LSym) {
 
 func (w *writer) Hash(s *LSym) {
 	if !s.ContentAddressable() {
-		panic("Hash of non-content-addresable symbol")
+		panic("Hash of non-content-addressable symbol")
 	}
 	b := w.contentHash(s)
 	w.Bytes(b[:])
 }
 
+// contentHashSection returns a mnemonic for s's section.
+// The goal is to prevent content-addressability from moving symbols between sections.
+// contentHashSection only distinguishes between sets of sections for which this matters.
+// Allowing flexibility increases the effectiveness of content-addressibility.
+// But in some cases, such as doing addressing based on a base symbol,
+// we need to ensure that a symbol is always in a prticular section.
+// Some of these conditions are duplicated in cmd/link/internal/ld.(*Link).symtab.
+// TODO: instead of duplicating them, have the compiler decide where symbols go.
+func contentHashSection(s *LSym) byte {
+	name := s.Name
+	if s.IsPcdata() {
+		return 'P'
+	}
+	if strings.HasPrefix(name, "gcargs.") ||
+		strings.HasPrefix(name, "gclocals.") ||
+		strings.HasPrefix(name, "gclocals·") ||
+		strings.HasSuffix(name, ".opendefer") ||
+		strings.HasSuffix(name, ".arginfo0") ||
+		strings.HasSuffix(name, ".arginfo1") ||
+		strings.HasSuffix(name, ".argliveinfo") ||
+		strings.HasSuffix(name, ".wrapinfo") ||
+		strings.HasSuffix(name, ".args_stackmap") ||
+		strings.HasSuffix(name, ".stkobj") {
+		return 'F' // go.func.* or go.funcrel.*
+	}
+	if strings.HasPrefix(name, "type.") {
+		return 'T'
+	}
+	return 0
+}
+
 func contentHash64(s *LSym) goobj.Hash64Type {
+	if contentHashSection(s) != 0 {
+		panic("short hash of non-default-section sym " + s.Name)
+	}
 	var b goobj.Hash64Type
 	copy(b[:], s.P)
 	return b
@@ -435,15 +472,10 @@ func (w *writer) contentHash(s *LSym) goobj.HashType {
 	// In this case, if the smaller symbol is alive, the larger is not kept unless
 	// needed.
 	binary.LittleEndian.PutUint64(tmp[:8], uint64(s.Size))
-	h.Write(tmp[:8])
+	// Some symbols require being in separate sections.
+	tmp[8] = contentHashSection(s)
+	h.Write(tmp[:9])
 
-	// Don't dedup type symbols with others, as they are in a different
-	// section.
-	if strings.HasPrefix(s.Name, "type.") {
-		h.Write([]byte{'T'})
-	} else {
-		h.Write([]byte{0})
-	}
 	// The compiler trims trailing zeros _sometimes_. We just do
 	// it always.
 	h.Write(bytes.TrimRight(s.P, "\x00"))
@@ -455,6 +487,11 @@ func (w *writer) contentHash(s *LSym) goobj.HashType {
 		binary.LittleEndian.PutUint64(tmp[6:14], uint64(r.Add))
 		h.Write(tmp[:])
 		rs := r.Sym
+		if rs == nil {
+			fmt.Printf("symbol: %s\n", s)
+			fmt.Printf("relocation: %#v\n", r)
+			panic("nil symbol target in relocation")
+		}
 		switch rs.PkgIdx {
 		case goobj.PkgIdxHashed64:
 			h.Write([]byte{0})
@@ -501,7 +538,7 @@ func (w *writer) Reloc(r *Reloc) {
 	var o goobj.Reloc
 	o.SetOff(r.Off)
 	o.SetSiz(r.Siz)
-	o.SetType(uint8(r.Type))
+	o.SetType(uint16(r.Type))
 	o.SetAdd(r.Add)
 	o.SetSym(makeSymRef(r.Sym))
 	o.Write(w.Writer)
@@ -655,16 +692,6 @@ func nAuxSym(s *LSym) int {
 func genFuncInfoSyms(ctxt *Link) {
 	infosyms := make([]*LSym, 0, len(ctxt.Text))
 	hashedsyms := make([]*LSym, 0, 4*len(ctxt.Text))
-	preparePcSym := func(s *LSym) *LSym {
-		if s == nil {
-			return s
-		}
-		s.PkgIdx = goobj.PkgIdxHashed
-		s.SymIdx = int32(len(hashedsyms) + len(ctxt.hasheddefs))
-		s.Set(AttrIndexed, true)
-		hashedsyms = append(hashedsyms, s)
-		return s
-	}
 	var b bytes.Buffer
 	symidx := int32(len(ctxt.defs))
 	for _, s := range ctxt.Text {
@@ -673,23 +700,12 @@ func genFuncInfoSyms(ctxt *Link) {
 			continue
 		}
 		o := goobj.FuncInfo{
-			Args:   uint32(fn.Args),
-			Locals: uint32(fn.Locals),
-			FuncID: objabi.FuncID(fn.FuncID),
+			Args:     uint32(fn.Args),
+			Locals:   uint32(fn.Locals),
+			FuncID:   fn.FuncID,
+			FuncFlag: fn.FuncFlag,
 		}
 		pc := &fn.Pcln
-		o.Pcsp = makeSymRef(preparePcSym(pc.Pcsp))
-		o.Pcfile = makeSymRef(preparePcSym(pc.Pcfile))
-		o.Pcline = makeSymRef(preparePcSym(pc.Pcline))
-		o.Pcinline = makeSymRef(preparePcSym(pc.Pcinline))
-		o.Pcdata = make([]goobj.SymRef, len(pc.Pcdata))
-		for i, pcSym := range pc.Pcdata {
-			o.Pcdata[i] = makeSymRef(preparePcSym(pcSym))
-		}
-		o.Funcdataoff = make([]uint32, len(pc.Funcdataoff))
-		for i, x := range pc.Funcdataoff {
-			o.Funcdataoff[i] = uint32(x)
-		}
 		i := 0
 		o.File = make([]goobj.CUFileIndex, len(pc.UsedFiles))
 		for f := range pc.UsedFiles {
@@ -788,13 +804,16 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	if s.NoSplit() {
 		fmt.Fprintf(ctxt.Bso, "nosplit ")
 	}
-	if s.TopFrame() {
+	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
 		fmt.Fprintf(ctxt.Bso, "topframe ")
+	}
+	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_ASM != 0 {
+		fmt.Fprintf(ctxt.Bso, "asm ")
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 	if s.Type == objabi.STEXT {
 		fn := s.Func()
-		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID))
+		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x align=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID), uint64(fn.Align))
 		if s.Leaf() {
 			fmt.Fprintf(ctxt.Bso, " leaf")
 		}

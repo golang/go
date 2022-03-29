@@ -51,6 +51,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
 	"golang.org/x/tools/go/analysis/internal/facts"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // A Config describes a compilation unit to be analyzed.
@@ -97,7 +98,7 @@ func Main(analyzers ...*analysis.Analyzer) {
 
 Usage of %[1]s:
 	%.16[1]s unit.cfg	# execute analysis specified by config file
-	%.16[1]s help    	# general help
+	%.16[1]s help    	# general help, including listing analyzers and flags
 	%.16[1]s help name	# help on specific analyzer and its flags
 `, progname)
 		os.Exit(1)
@@ -233,6 +234,8 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		Scopes:     make(map[ast.Node]*types.Scope),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
+	typeparams.InitInstanceInfo(info)
+
 	pkg, err := tc.Check(cfg.ImportPath, fset, files, info)
 	if err != nil {
 		if cfg.SucceedOnTypecheckFailure {

@@ -76,7 +76,7 @@ const (
 // See MarshalIndent for an example.
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
-func Marshal(v interface{}) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	var b bytes.Buffer
 	if err := NewEncoder(&b).Encode(v); err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ type MarshalerAttr interface {
 // MarshalIndent works like Marshal, but each XML element begins on a new
 // indented line that starts with prefix and is followed by one or more
 // copies of indent according to the nesting depth.
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
 	enc.Indent(prefix, indent)
@@ -158,7 +158,7 @@ func (enc *Encoder) Indent(prefix, indent string) {
 // of Go values to XML.
 //
 // Encode calls Flush before returning.
-func (enc *Encoder) Encode(v interface{}) error {
+func (enc *Encoder) Encode(v any) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil)
 	if err != nil {
 		return err
@@ -173,7 +173,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 // of Go values to XML.
 //
 // EncodeElement calls Flush before returning.
-func (enc *Encoder) EncodeElement(v interface{}, start StartElement) error {
+func (enc *Encoder) EncodeElement(v any, start StartElement) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start)
 	if err != nil {
 		return err
@@ -420,7 +420,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	// Drill into interfaces and pointers.
 	// This can turn into an infinite loop given a cyclic chain,
 	// but it matches the Go 1 behavior.
-	for val.Kind() == reflect.Interface || val.Kind() == reflect.Ptr {
+	for val.Kind() == reflect.Interface || val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil
 		}
@@ -494,6 +494,10 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	}
 	if start.Name.Local == "" {
 		name := typ.Name()
+		if i := strings.IndexByte(name, '['); i >= 0 {
+			// Truncate generic instantiation name. See issue 48318.
+			name = name[:i]
+		}
 		if name == "" {
 			return &UnsupportedTypeError{typ}
 		}
@@ -508,7 +512,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		}
 		fv := finfo.value(val, dontInitNilPointers)
 
-		if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
+		if finfo.flags&fOmitEmpty != 0 && (!fv.IsValid() || isEmptyValue(fv)) {
 			continue
 		}
 
@@ -599,7 +603,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 
 	// Dereference or skip nil pointer, interface values.
 	switch val.Kind() {
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Pointer, reflect.Interface:
 		if val.IsNil() {
 			return nil
 		}
@@ -793,7 +797,7 @@ var ddBytes = []byte("--")
 // This can turn into an infinite loop given a cyclic chain,
 // but it matches the Go 1 behavior.
 func indirect(vf reflect.Value) reflect.Value {
-	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Ptr {
+	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Pointer {
 		if vf.IsNil() {
 			return vf
 		}
@@ -942,7 +946,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				return err
 			}
 			if len(finfo.parents) > len(s.stack) {
-				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
+				if vf.Kind() != reflect.Pointer && vf.Kind() != reflect.Interface || !vf.IsNil() {
 					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
 						return err
 					}
@@ -1051,7 +1055,7 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return v.IsNil()
 	}
 	return false

@@ -2495,30 +2495,30 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVAPS X11, (BX)                        // 440f291b
 	MOVAPS X2, (R11)                        // 410f2913
 	MOVAPS X11, (R11)                       // 450f291b
-	MOVBEWW DX, (BX)                        // 660f38f113
-	MOVBEWW R11, (BX)                       // 66440f38f11b
-	MOVBEWW DX, (R11)                       // 66410f38f113
-	MOVBEWW R11, (R11)                      // 66450f38f11b
-	MOVBEWW (BX), DX                        // 660f38f013
-	MOVBEWW (R11), DX                       // 66410f38f013
-	MOVBEWW (BX), R11                       // 66440f38f01b
-	MOVBEWW (R11), R11                      // 66450f38f01b
-	MOVBELL DX, (BX)                        // 0f38f113
-	MOVBELL R11, (BX)                       // 440f38f11b
-	MOVBELL DX, (R11)                       // 410f38f113
-	MOVBELL R11, (R11)                      // 450f38f11b
-	MOVBELL (BX), DX                        // 0f38f013
-	MOVBELL (R11), DX                       // 410f38f013
-	MOVBELL (BX), R11                       // 440f38f01b
-	MOVBELL (R11), R11                      // 450f38f01b
-	MOVBEQQ DX, (BX)                        // 480f38f113
-	MOVBEQQ R11, (BX)                       // 4c0f38f11b
-	MOVBEQQ DX, (R11)                       // 490f38f113
-	MOVBEQQ R11, (R11)                      // 4d0f38f11b
-	MOVBEQQ (BX), DX                        // 480f38f013
-	MOVBEQQ (R11), DX                       // 490f38f013
-	MOVBEQQ (BX), R11                       // 4c0f38f01b
-	MOVBEQQ (R11), R11                      // 4d0f38f01b
+	MOVBEW DX, (BX)                         // 660f38f113
+	MOVBEW R11, (BX)                        // 66440f38f11b
+	MOVBEW DX, (R11)                        // 66410f38f113
+	MOVBEW R11, (R11)                       // 66450f38f11b
+	MOVBEW (BX), DX                         // 660f38f013
+	MOVBEW (R11), DX                        // 66410f38f013
+	MOVBEW (BX), R11                        // 66440f38f01b
+	MOVBEW (R11), R11                       // 66450f38f01b
+	MOVBEL DX, (BX)                         // 0f38f113
+	MOVBEL R11, (BX)                        // 440f38f11b
+	MOVBEL DX, (R11)                        // 410f38f113
+	MOVBEL R11, (R11)                       // 450f38f11b
+	MOVBEL (BX), DX                         // 0f38f013
+	MOVBEL (R11), DX                        // 410f38f013
+	MOVBEL (BX), R11                        // 440f38f01b
+	MOVBEL (R11), R11                       // 450f38f01b
+	MOVBEQ DX, (BX)                         // 480f38f113
+	MOVBEQ R11, (BX)                        // 4c0f38f11b
+	MOVBEQ DX, (R11)                        // 490f38f113
+	MOVBEQ R11, (R11)                       // 4d0f38f11b
+	MOVBEQ (BX), DX                         // 480f38f013
+	MOVBEQ (R11), DX                        // 490f38f013
+	MOVBEQ (BX), R11                        // 4c0f38f01b
+	MOVBEQ (R11), R11                       // 4d0f38f01b
 	MOVQ (BX), M2                           // 0f6e13 or 0f6f13 or 480f6e13
 	MOVQ (R11), M2                          // 410f6e13 or 410f6f13 or 490f6e13
 	MOVQ DX, M2                             // 0f6ed2 or 480f6ed2

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
+//go:build !js
 
 package net
 
@@ -92,53 +92,35 @@ func TestDialTimeout(t *testing.T) {
 	}
 }
 
-var dialTimeoutMaxDurationTests = []struct {
-	timeout time.Duration
-	delta   time.Duration // for deadline
-}{
-	// Large timeouts that will overflow an int64 unix nanos.
-	{1<<63 - 1, 0},
-	{0, 1<<63 - 1},
-}
-
 func TestDialTimeoutMaxDuration(t *testing.T) {
-	if runtime.GOOS == "openbsd" {
-		testenv.SkipFlaky(t, 15157)
-	}
+	ln := newLocalListener(t, "tcp")
+	defer func() {
+		if err := ln.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-
-	for i, tt := range dialTimeoutMaxDurationTests {
-		ch := make(chan error)
-		max := time.NewTimer(250 * time.Millisecond)
-		defer max.Stop()
-		go func() {
+	for _, tt := range []struct {
+		timeout time.Duration
+		delta   time.Duration // for deadline
+	}{
+		// Large timeouts that will overflow an int64 unix nanos.
+		{1<<63 - 1, 0},
+		{0, 1<<63 - 1},
+	} {
+		t.Run(fmt.Sprintf("timeout=%s/delta=%s", tt.timeout, tt.delta), func(t *testing.T) {
 			d := Dialer{Timeout: tt.timeout}
 			if tt.delta != 0 {
 				d.Deadline = time.Now().Add(tt.delta)
 			}
 			c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
-			if err == nil {
-				c.Close()
-			}
-			ch <- err
-		}()
-
-		select {
-		case <-max.C:
-			t.Fatalf("#%d: Dial didn't return in an expected time", i)
-		case err := <-ch:
-			if perr := parseDialError(err); perr != nil {
-				t.Error(perr)
-			}
 			if err != nil {
-				t.Errorf("#%d: %v", i, err)
+				t.Fatal(err)
 			}
-		}
+			if err := c.Close(); err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
 
@@ -162,10 +144,7 @@ func TestAcceptTimeout(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	var wg sync.WaitGroup
@@ -218,10 +197,7 @@ func TestAcceptTimeoutMustReturn(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	max := time.NewTimer(time.Second)
@@ -264,10 +240,7 @@ func TestAcceptTimeoutMustNotReturn(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	max := time.NewTimer(100 * time.Millisecond)
@@ -317,10 +290,7 @@ func TestReadTimeout(t *testing.T) {
 		c.Write([]byte("READ TIMEOUT TEST"))
 		defer c.Close()
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -369,10 +339,7 @@ func TestReadTimeoutMustNotReturn(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -436,10 +403,7 @@ func TestReadFromTimeout(t *testing.T) {
 			c.WriteTo([]byte("READFROM TIMEOUT TEST"), dst)
 		}
 	}
-	ls, err := newLocalPacketServer("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalPacketServer(t, "udp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -499,10 +463,7 @@ var writeTimeoutTests = []struct {
 func TestWriteTimeout(t *testing.T) {
 	t.Parallel()
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	for i, tt := range writeTimeoutTests {
@@ -547,10 +508,7 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -599,24 +557,10 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 	}
 }
 
-var writeToTimeoutTests = []struct {
-	timeout time.Duration
-	xerrs   [2]error // expected errors in transition
-}{
-	// Tests that write deadlines work, even if there's buffer
-	// space available to write.
-	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
-
-	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
-}
-
 func TestWriteToTimeout(t *testing.T) {
 	t.Parallel()
 
-	c1, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
 
 	host, _, err := SplitHostPort(c1.LocalAddr().String())
@@ -624,47 +568,116 @@ func TestWriteToTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, tt := range writeToTimeoutTests {
-		c2, err := ListenPacket(c1.LocalAddr().Network(), JoinHostPort(host, "0"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer c2.Close()
+	timeouts := []time.Duration{
+		-5 * time.Second,
+		10 * time.Millisecond,
+	}
 
-		if err := c2.SetWriteDeadline(time.Now().Add(tt.timeout)); err != nil {
-			t.Fatalf("#%d: %v", i, err)
-		}
-		for j, xerr := range tt.xerrs {
-			for {
+	for _, timeout := range timeouts {
+		t.Run(fmt.Sprint(timeout), func(t *testing.T) {
+			c2, err := ListenPacket(c1.LocalAddr().Network(), JoinHostPort(host, "0"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c2.Close()
+
+			if err := c2.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
+				t.Fatalf("SetWriteDeadline: %v", err)
+			}
+			backoff := 1 * time.Millisecond
+			nDeadlineExceeded := 0
+			for j := 0; nDeadlineExceeded < 2; j++ {
 				n, err := c2.WriteTo([]byte("WRITETO TIMEOUT TEST"), c1.LocalAddr())
-				if xerr != nil {
-					if perr := parseWriteError(err); perr != nil {
-						t.Errorf("#%d/%d: %v", i, j, perr)
-					}
-					if !isDeadlineExceeded(err) {
-						t.Fatalf("#%d/%d: %v", i, j, err)
-					}
-				}
-				if err == nil {
-					time.Sleep(tt.timeout / 3)
+				t.Logf("#%d: WriteTo: %d, %v", j, n, err)
+				if err == nil && timeout >= 0 && nDeadlineExceeded == 0 {
+					// If the timeout is nonnegative, some number of WriteTo calls may
+					// succeed before the timeout takes effect.
+					t.Logf("WriteTo succeeded; sleeping %v", timeout/3)
+					time.Sleep(timeout / 3)
 					continue
 				}
-				if n != 0 {
-					t.Fatalf("#%d/%d: wrote %d; want 0", i, j, n)
+				if isENOBUFS(err) {
+					t.Logf("WriteTo: %v", err)
+					// We're looking for a deadline exceeded error, but if the kernel's
+					// network buffers are saturated we may see ENOBUFS instead (see
+					// https://go.dev/issue/49930). Give it some time to unsaturate.
+					time.Sleep(backoff)
+					backoff *= 2
+					continue
 				}
-				break
+				if perr := parseWriteError(err); perr != nil {
+					t.Errorf("failed to parse error: %v", perr)
+				}
+				if !isDeadlineExceeded(err) {
+					t.Errorf("error is not 'deadline exceeded'")
+				}
+				if n != 0 {
+					t.Errorf("unexpectedly wrote %d bytes", n)
+				}
+				if !t.Failed() {
+					t.Logf("WriteTo timed out as expected")
+				}
+				nDeadlineExceeded++
 			}
-		}
+		})
 	}
 }
 
-func TestReadTimeoutFluctuation(t *testing.T) {
-	t.Parallel()
+const (
+	// minDynamicTimeout is the minimum timeout to attempt for
+	// tests that automatically increase timeouts until success.
+	//
+	// Lower values may allow tests to succeed more quickly if the value is close
+	// to the true minimum, but may require more iterations (and waste more time
+	// and CPU power on failed attempts) if the timeout is too low.
+	minDynamicTimeout = 1 * time.Millisecond
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
+	// maxDynamicTimeout is the maximum timeout to attempt for
+	// tests that automatically increase timeouts until succeess.
+	//
+	// This should be a strict upper bound on the latency required to hit a
+	// timeout accurately, even on a slow or heavily-loaded machine. If a test
+	// would increase the timeout beyond this value, the test fails.
+	maxDynamicTimeout = 4 * time.Second
+)
+
+// timeoutUpperBound returns the maximum time that we expect a timeout of
+// duration d to take to return the caller.
+func timeoutUpperBound(d time.Duration) time.Duration {
+	switch runtime.GOOS {
+	case "openbsd", "netbsd":
+		// NetBSD and OpenBSD seem to be unable to reliably hit deadlines even when
+		// the absolute durations are long.
+		// In https://build.golang.org/log/c34f8685d020b98377dd4988cd38f0c5bd72267e,
+		// we observed that an openbsd-amd64-68 builder took 4.090948779s for a
+		// 2.983020682s timeout (37.1% overhead).
+		// (See https://go.dev/issue/50189 for further detail.)
+		// Give them lots of slop to compensate.
+		return d * 3 / 2
 	}
+	// Other platforms seem to hit their deadlines more reliably,
+	// at least when they are long enough to cover scheduling jitter.
+	return d * 11 / 10
+}
+
+// nextTimeout returns the next timeout to try after an operation took the given
+// actual duration with a timeout shorter than that duration.
+func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
+	if actual >= maxDynamicTimeout {
+		return maxDynamicTimeout, false
+	}
+	// Since the previous attempt took actual, we can't expect to beat that
+	// duration by any significant margin. Try the next attempt with an arbitrary
+	// factor above that, so that our growth curve is at least exponential.
+	next = actual * 5 / 4
+	if next > maxDynamicTimeout {
+		return maxDynamicTimeout, true
+	}
+	return next, true
+}
+
+func TestReadTimeoutFluctuation(t *testing.T) {
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -673,31 +686,54 @@ func TestReadTimeoutFluctuation(t *testing.T) {
 	}
 	defer c.Close()
 
-	max := time.NewTimer(time.Second)
-	defer max.Stop()
-	ch := make(chan error)
-	go timeoutReceiver(c, 100*time.Millisecond, 50*time.Millisecond, 250*time.Millisecond, ch)
+	d := minDynamicTimeout
+	b := make([]byte, 256)
+	for {
+		t.Logf("SetReadDeadline(+%v)", d)
+		t0 := time.Now()
+		deadline := t0.Add(d)
+		if err = c.SetReadDeadline(deadline); err != nil {
+			t.Fatalf("SetReadDeadline(%v): %v", deadline, err)
+		}
+		var n int
+		n, err = c.Read(b)
+		t1 := time.Now()
 
-	select {
-	case <-max.C:
-		t.Fatal("Read took over 1s; expected 0.1s")
-	case err := <-ch:
+		if n != 0 || err == nil || !err.(Error).Timeout() {
+			t.Errorf("Read did not return (0, timeout): (%d, %v)", n, err)
+		}
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
 		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
+			t.Errorf("Read error is not DeadlineExceeded: %v", err)
 		}
+
+		actual := t1.Sub(t0)
+		if t1.Before(deadline) {
+			t.Errorf("Read took %s; expected at least %s", actual, d)
+		}
+		if t.Failed() {
+			return
+		}
+		if want := timeoutUpperBound(d); actual > want {
+			next, ok := nextTimeout(actual)
+			if !ok {
+				t.Fatalf("Read took %s; expected at most %v", actual, want)
+			}
+			// Maybe this machine is too slow to reliably schedule goroutines within
+			// the requested duration. Increase the timeout and try again.
+			t.Logf("Read took %s (expected %s); trying with longer timeout", actual, d)
+			d = next
+			continue
+		}
+
+		break
 	}
 }
 
 func TestReadFromTimeoutFluctuation(t *testing.T) {
-	t.Parallel()
-
-	c1, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
 
 	c2, err := Dial(c1.LocalAddr().Network(), c1.LocalAddr().String())
@@ -706,36 +742,59 @@ func TestReadFromTimeoutFluctuation(t *testing.T) {
 	}
 	defer c2.Close()
 
-	max := time.NewTimer(time.Second)
-	defer max.Stop()
-	ch := make(chan error)
-	go timeoutPacketReceiver(c2.(PacketConn), 100*time.Millisecond, 50*time.Millisecond, 250*time.Millisecond, ch)
+	d := minDynamicTimeout
+	b := make([]byte, 256)
+	for {
+		t.Logf("SetReadDeadline(+%v)", d)
+		t0 := time.Now()
+		deadline := t0.Add(d)
+		if err = c2.SetReadDeadline(deadline); err != nil {
+			t.Fatalf("SetReadDeadline(%v): %v", deadline, err)
+		}
+		var n int
+		n, _, err = c2.(PacketConn).ReadFrom(b)
+		t1 := time.Now()
 
-	select {
-	case <-max.C:
-		t.Fatal("ReadFrom took over 1s; expected 0.1s")
-	case err := <-ch:
+		if n != 0 || err == nil || !err.(Error).Timeout() {
+			t.Errorf("ReadFrom did not return (0, timeout): (%d, %v)", n, err)
+		}
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
 		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
+			t.Errorf("ReadFrom error is not DeadlineExceeded: %v", err)
 		}
+
+		actual := t1.Sub(t0)
+		if t1.Before(deadline) {
+			t.Errorf("ReadFrom took %s; expected at least %s", actual, d)
+		}
+		if t.Failed() {
+			return
+		}
+		if want := timeoutUpperBound(d); actual > want {
+			next, ok := nextTimeout(actual)
+			if !ok {
+				t.Fatalf("ReadFrom took %s; expected at most %s", actual, want)
+			}
+			// Maybe this machine is too slow to reliably schedule goroutines within
+			// the requested duration. Increase the timeout and try again.
+			t.Logf("ReadFrom took %s (expected %s); trying with longer timeout", actual, d)
+			d = next
+			continue
+		}
+
+		break
 	}
 }
 
 func TestWriteTimeoutFluctuation(t *testing.T) {
-	t.Parallel()
-
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -744,25 +803,67 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 	}
 	defer c.Close()
 
-	d := time.Second
-	if iOS() {
-		d = 3 * time.Second // see golang.org/issue/10775
-	}
-	max := time.NewTimer(d)
-	defer max.Stop()
-	ch := make(chan error)
-	go timeoutTransmitter(c, 100*time.Millisecond, 50*time.Millisecond, 250*time.Millisecond, ch)
+	d := minDynamicTimeout
+	for {
+		t.Logf("SetWriteDeadline(+%v)", d)
+		t0 := time.Now()
+		deadline := t0.Add(d)
+		if err = c.SetWriteDeadline(deadline); err != nil {
+			t.Fatalf("SetWriteDeadline(%v): %v", deadline, err)
+		}
+		var n int64
+		for {
+			var dn int
+			dn, err = c.Write([]byte("TIMEOUT TRANSMITTER"))
+			n += int64(dn)
+			if err != nil {
+				break
+			}
+		}
+		t1 := time.Now()
 
-	select {
-	case <-max.C:
-		t.Fatalf("Write took over %v; expected 0.1s", d)
-	case err := <-ch:
+		if err == nil || !err.(Error).Timeout() {
+			t.Fatalf("Write did not return (any, timeout): (%d, %v)", n, err)
+		}
 		if perr := parseWriteError(err); perr != nil {
 			t.Error(perr)
 		}
 		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
+			t.Errorf("Write error is not DeadlineExceeded: %v", err)
 		}
+
+		actual := t1.Sub(t0)
+		if t1.Before(deadline) {
+			t.Errorf("Write took %s; expected at least %s", actual, d)
+		}
+		if t.Failed() {
+			return
+		}
+		if want := timeoutUpperBound(d); actual > want {
+			if n > 0 {
+				// SetWriteDeadline specifies a time “after which I/O operations fail
+				// instead of blocking”. However, the kernel's send buffer is not yet
+				// full, we may be able to write some arbitrary (but finite) number of
+				// bytes to it without blocking.
+				t.Logf("Wrote %d bytes into send buffer; retrying until buffer is full", n)
+				if d <= maxDynamicTimeout/2 {
+					// We don't know how long the actual write loop would have taken if
+					// the buffer were full, so just guess and double the duration so that
+					// the next attempt can make twice as much progress toward filling it.
+					d *= 2
+				}
+			} else if next, ok := nextTimeout(actual); !ok {
+				t.Fatalf("Write took %s; expected at most %s", actual, want)
+			} else {
+				// Maybe this machine is too slow to reliably schedule goroutines within
+				// the requested duration. Increase the timeout and try again.
+				t.Logf("Write took %s (expected %s); trying with longer timeout", actual, d)
+				d = next
+			}
+			continue
+		}
+
+		break
 	}
 }
 
@@ -818,10 +919,7 @@ func testVariousDeadlines(t *testing.T) {
 			c.Close()
 		}
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -859,35 +957,23 @@ func testVariousDeadlines(t *testing.T) {
 			name := fmt.Sprintf("%v %d/%d", timeout, run, numRuns)
 			t.Log(name)
 
-			tooSlow := time.NewTimer(5 * time.Second)
-			defer tooSlow.Stop()
-
 			c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			ch := make(chan result, 1)
-			go func() {
-				t0 := time.Now()
-				if err := c.SetDeadline(t0.Add(timeout)); err != nil {
-					t.Error(err)
-				}
-				n, err := io.Copy(io.Discard, c)
-				dt := time.Since(t0)
-				c.Close()
-				ch <- result{n, err, dt}
-			}()
+			t0 := time.Now()
+			if err := c.SetDeadline(t0.Add(timeout)); err != nil {
+				t.Error(err)
+			}
+			n, err := io.Copy(io.Discard, c)
+			dt := time.Since(t0)
+			c.Close()
 
-			select {
-			case res := <-ch:
-				if nerr, ok := res.err.(Error); ok && nerr.Timeout() {
-					t.Logf("%v: good timeout after %v; %d bytes", name, res.d, res.n)
-				} else {
-					t.Fatalf("%v: Copy = %d, %v; want timeout", name, res.n, res.err)
-				}
-			case <-tooSlow.C:
-				t.Fatalf("%v: client stuck in Dial+Copy", name)
+			if nerr, ok := err.(Error); ok && nerr.Timeout() {
+				t.Logf("%v: good timeout after %v; %d bytes", name, dt, n)
+			} else {
+				t.Fatalf("%v: Copy = %d, %v; want timeout", name, n, err)
 			}
 		}
 	}
@@ -953,10 +1039,7 @@ func TestReadWriteProlongedTimeout(t *testing.T) {
 		}()
 		wg.Wait()
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -983,10 +1066,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 		N = 50
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -1036,10 +1116,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 
 // Issue 35367.
 func TestConcurrentSetDeadline(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	const goroutines = 8
@@ -1048,6 +1125,7 @@ func TestConcurrentSetDeadline(t *testing.T) {
 
 	var c [conns]Conn
 	for i := 0; i < conns; i++ {
+		var err error
 		c[i], err = Dial(ln.Addr().Network(), ln.Addr().String())
 		if err != nil {
 			t.Fatal(err)

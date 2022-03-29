@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 	"sort"
 	"strconv"
@@ -19,11 +20,11 @@ import (
 type declInfo struct {
 	file      *Scope        // scope of file containing this declaration
 	lhs       []*Var        // lhs of n:1 variable declarations, or nil
-	typ       ast.Expr      // type, or nil
-	init      ast.Expr      // init/orig expression, or nil
+	vtyp      ast.Expr      // type, or nil (for const and var declarations only)
+	init      ast.Expr      // init/orig expression, or nil (for const and var declarations only)
 	inherited bool          // if set, the init expression is inherited from a previous constant declaration
+	tdecl     *ast.TypeSpec // type declaration, or nil
 	fdecl     *ast.FuncDecl // func declaration, or nil
-	alias     bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
 	deps map[Object]bool // lazily initialized
@@ -130,7 +131,7 @@ func (check *Checker) filename(fileNo int) string {
 	return fmt.Sprintf("file[%d]", fileNo)
 }
 
-func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
+func (check *Checker) importPackage(at positioner, path, dir string) *Package {
 	// If we already have a package for the given (path, dir)
 	// pair, use it instead of doing a full import.
 	// Checker.impMap only caches packages that are marked Complete
@@ -170,7 +171,7 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 			imp = nil // create fake package below
 		}
 		if err != nil {
-			check.errorf(atPos(pos), _BrokenImport, "could not import %s (%s)", path, err)
+			check.errorf(at, _BrokenImport, "could not import %s (%s)", path, err)
 			if imp == nil {
 				// create a new fake package
 				// come up with a sensible package name (heuristic)
@@ -191,7 +192,11 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 	// package should be complete or marked fake, but be cautious
 	if imp.complete || imp.fake {
 		check.impMap[key] = imp
-		check.pkgCnt[imp.name]++
+		// Once we've formatted an error message once, keep the pkgPathMap
+		// up-to-date on subsequent imports.
+		if check.pkgPathMap != nil {
+			check.markImports(imp)
+		}
 		return imp
 	}
 
@@ -216,7 +221,13 @@ func (check *Checker) collectObjects() {
 		pkgImports[imp] = true
 	}
 
-	var methods []*Func // list of methods with non-blank _ names
+	type methodInfo struct {
+		obj  *Func      // method
+		ptr  bool       // true if pointer receiver
+		recv *ast.Ident // receiver type name
+	}
+	var methods []methodInfo // collected methods with valid receivers and non-blank _ names
+	var fileScopes []*Scope
 	for fileNo, file := range check.files {
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
@@ -230,6 +241,7 @@ func (check *Checker) collectObjects() {
 			pos, end = token.Pos(f.Base()), token.Pos(f.Base()+f.Size())
 		}
 		fileScope := NewScope(check.pkg.scope, pos, end, check.filename(fileNo))
+		fileScopes = append(fileScopes, fileScope)
 		check.recordScope(file, fileScope)
 
 		// determine file directory, necessary to resolve imports
@@ -247,17 +259,9 @@ func (check *Checker) collectObjects() {
 					return
 				}
 
-				imp := check.importPackage(d.spec.Path.Pos(), path, fileDir)
+				imp := check.importPackage(d.spec.Path, path, fileDir)
 				if imp == nil {
 					return
-				}
-
-				// add package to list of explicit imports
-				// (this functionality is provided as a convenience
-				// for clients; it is not needed for type-checking)
-				if !pkgImports[imp] {
-					pkgImports[imp] = true
-					pkg.imports = append(pkg.imports, imp)
 				}
 
 				// local name overrides imported package name
@@ -269,50 +273,67 @@ func (check *Checker) collectObjects() {
 						check.errorf(d.spec.Name, _ImportCRenamed, `cannot rename import "C"`)
 						return
 					}
-					if name == "init" {
-						check.errorf(d.spec.Name, _InvalidInitDecl, "cannot declare init - must be func")
-						return
-					}
 				}
 
-				obj := NewPkgName(d.spec.Pos(), pkg, name, imp)
+				if name == "init" {
+					check.errorf(d.spec, _InvalidInitDecl, "cannot import package as init - init must be a func")
+					return
+				}
+
+				// add package to list of explicit imports
+				// (this functionality is provided as a convenience
+				// for clients; it is not needed for type-checking)
+				if !pkgImports[imp] {
+					pkgImports[imp] = true
+					pkg.imports = append(pkg.imports, imp)
+				}
+
+				pkgName := NewPkgName(d.spec.Pos(), pkg, name, imp)
 				if d.spec.Name != nil {
 					// in a dot-import, the dot represents the package
-					check.recordDef(d.spec.Name, obj)
+					check.recordDef(d.spec.Name, pkgName)
 				} else {
-					check.recordImplicit(d.spec, obj)
+					check.recordImplicit(d.spec, pkgName)
 				}
 
 				if path == "C" {
 					// match cmd/compile (not prescribed by spec)
-					obj.used = true
+					pkgName.used = true
 				}
 
 				// add import to file scope
+				check.imports = append(check.imports, pkgName)
 				if name == "." {
+					// dot-import
+					if check.dotImportMap == nil {
+						check.dotImportMap = make(map[dotImportKey]*PkgName)
+					}
 					// merge imported scope with file scope
-					for _, obj := range imp.scope.elems {
+					for name, obj := range imp.scope.elems {
+						// Note: Avoid eager resolve(name, obj) here, so we only
+						// resolve dot-imported objects as needed.
+
 						// A package scope may contain non-exported objects,
 						// do not import them!
-						if obj.Exported() {
+						if token.IsExported(name) {
 							// declare dot-imported object
 							// (Do not use check.declare because it modifies the object
 							// via Object.setScopePos, which leads to a race condition;
 							// the object may be imported into more than one file scope
 							// concurrently. See issue #32154.)
-							if alt := fileScope.Insert(obj); alt != nil {
-								check.errorf(d.spec.Name, _DuplicateDecl, "%s redeclared in this block", obj.Name())
+							if alt := fileScope.Lookup(name); alt != nil {
+								check.errorf(d.spec.Name, _DuplicateDecl, "%s redeclared in this block", alt.Name())
 								check.reportAltDecl(alt)
+							} else {
+								fileScope.insert(name, obj)
+								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
 							}
 						}
 					}
-					// add position to set of dot-import positions for this file
-					// (this is only needed for "imported but not used" errors)
-					check.addUnusedDotImport(fileScope, imp, d.spec)
 				} else {
 					// declare imported package object in file scope
 					// (no need to provide s.Name since we called check.recordDef earlier)
-					check.declare(fileScope, nil, obj, token.NoPos)
+					check.declare(fileScope, nil, pkgName, token.NoPos)
 				}
 			case constDecl:
 				// declare all constants
@@ -324,7 +345,7 @@ func (check *Checker) collectObjects() {
 						init = d.init[i]
 					}
 
-					d := &declInfo{file: fileScope, typ: d.typ, init: init, inherited: d.inherited}
+					d := &declInfo{file: fileScope, vtyp: d.typ, init: init, inherited: d.inherited}
 					check.declarePkgObj(name, obj, d)
 				}
 
@@ -339,7 +360,7 @@ func (check *Checker) collectObjects() {
 					// The lhs elements are only set up after the for loop below,
 					// but that's ok because declareVar only collects the declInfo
 					// for a later phase.
-					d1 = &declInfo{file: fileScope, lhs: lhs, typ: d.spec.Type, init: d.spec.Values[0]}
+					d1 = &declInfo{file: fileScope, lhs: lhs, vtyp: d.spec.Type, init: d.spec.Values[0]}
 				}
 
 				// declare all variables
@@ -354,26 +375,48 @@ func (check *Checker) collectObjects() {
 						if i < len(d.spec.Values) {
 							init = d.spec.Values[i]
 						}
-						di = &declInfo{file: fileScope, typ: d.spec.Type, init: init}
+						di = &declInfo{file: fileScope, vtyp: d.spec.Type, init: init}
 					}
 
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
+				if d.spec.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) {
+					check.softErrorf(d.spec.TypeParams.List[0], _UnsupportedFeature, "type parameters require go1.18 or later")
+				}
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
-				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, typ: d.spec.Type, alias: d.spec.Assign.IsValid()})
+				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
 			case funcDecl:
-				info := &declInfo{file: fileScope, fdecl: d.decl}
 				name := d.decl.Name.Name
 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
-				if d.decl.Recv == nil {
+				hasTParamError := false // avoid duplicate type parameter errors
+				if d.decl.Recv.NumFields() == 0 {
 					// regular function
+					if d.decl.Recv != nil {
+						check.error(d.decl.Recv, _BadRecv, "method is missing receiver")
+						// treat as function
+					}
+					if name == "init" || (name == "main" && check.pkg.name == "main") {
+						code := _InvalidInitDecl
+						if name == "main" {
+							code = _InvalidMainDecl
+						}
+						if d.decl.Type.TypeParams.NumFields() != 0 {
+							check.softErrorf(d.decl.Type.TypeParams.List[0], code, "func %s must have no type parameters", name)
+							hasTParamError = true
+						}
+						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
+							// TODO(rFindley) Should this be a hard error?
+							check.softErrorf(d.decl, code, "func %s must have no arguments and no return values", name)
+						}
+					}
 					if name == "init" {
 						// don't declare init functions in the package scope - they are invisible
 						obj.parent = pkg.scope
 						check.recordDef(d.decl.Name, obj)
 						// init functions must have a body
 						if d.decl.Body == nil {
+							// TODO(gri) make this error message consistent with the others above
 							check.softErrorf(obj, _MissingInitBody, "missing function body")
 						}
 					} else {
@@ -381,14 +424,25 @@ func (check *Checker) collectObjects() {
 					}
 				} else {
 					// method
-					// (Methods with blank _ names are never found; no need to collect
-					// them for later type association. They will still be type-checked
-					// with all the other functions.)
-					if name != "_" {
-						methods = append(methods, obj)
+
+					// TODO(rFindley) earlier versions of this code checked that methods
+					//                have no type parameters, but this is checked later
+					//                when type checking the function type. Confirm that
+					//                we don't need to check tparams here.
+
+					ptr, recv, _ := check.unpackRecv(d.decl.Recv.List[0].Type, false)
+					// (Methods with invalid receiver cannot be associated to a type, and
+					// methods with blank _ names are never found; no need to collect any
+					// of them. They will still be type-checked with all the other functions.)
+					if recv != nil && name != "_" {
+						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
 					check.recordDef(d.decl.Name, obj)
 				}
+				if d.decl.Type.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+					check.softErrorf(d.decl.Type.TypeParams.List[0], _UnsupportedFeature, "type parameters require go1.18 or later")
+				}
+				info := &declInfo{file: fileScope, fdecl: d.decl}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
 				// receiver is invalid); also we need their fdecl info when associating
@@ -400,9 +454,10 @@ func (check *Checker) collectObjects() {
 	}
 
 	// verify that objects in package and file scopes have different names
-	for _, scope := range check.pkg.scope.children /* file scopes */ {
-		for _, obj := range scope.elems {
-			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
+	for _, scope := range fileScopes {
+		for name, obj := range scope.elems {
+			if alt := pkg.scope.Lookup(name); alt != nil {
+				obj = resolve(name, obj)
 				if pkg, ok := obj.(*PkgName); ok {
 					check.errorf(alt, _DuplicateDecl, "%s already declared through import of %s", alt.Name(), pkg.Imported())
 					check.reportAltDecl(pkg)
@@ -423,31 +478,86 @@ func (check *Checker) collectObjects() {
 		return // nothing to do
 	}
 	check.methods = make(map[*TypeName][]*Func)
-	for _, f := range methods {
-		fdecl := check.objMap[f].fdecl
-		if list := fdecl.Recv.List; len(list) > 0 {
-			// f is a method.
-			// Determine the receiver base type and associate f with it.
-			ptr, base := check.resolveBaseTypeName(list[0].Type)
-			if base != nil {
-				f.hasPtrRecv = ptr
-				check.methods[base] = append(check.methods[base], f)
+	for i := range methods {
+		m := &methods[i]
+		// Determine the receiver base type and associate m with it.
+		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
+		if base != nil {
+			m.obj.hasPtrRecv_ = ptr
+			check.methods[base] = append(check.methods[base], m.obj)
+		}
+	}
+}
+
+// unpackRecv unpacks a receiver type and returns its components: ptr indicates whether
+// rtyp is a pointer receiver, rname is the receiver type name, and tparams are its
+// type parameters, if any. The type parameters are only unpacked if unpackParams is
+// set. If rname is nil, the receiver is unusable (i.e., the source has a bug which we
+// cannot easily work around).
+func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
+L: // unpack receiver type
+	// This accepts invalid receivers such as ***T and does not
+	// work for other invalid receivers, but we don't care. The
+	// validity of receiver expressions is checked elsewhere.
+	for {
+		switch t := rtyp.(type) {
+		case *ast.ParenExpr:
+			rtyp = t.X
+		case *ast.StarExpr:
+			ptr = true
+			rtyp = t.X
+		default:
+			break L
+		}
+	}
+
+	// unpack type parameters, if any
+	switch rtyp.(type) {
+	case *ast.IndexExpr, *ast.IndexListExpr:
+		ix := typeparams.UnpackIndexExpr(rtyp)
+		rtyp = ix.X
+		if unpackParams {
+			for _, arg := range ix.Indices {
+				var par *ast.Ident
+				switch arg := arg.(type) {
+				case *ast.Ident:
+					par = arg
+				case *ast.BadExpr:
+					// ignore - error already reported by parser
+				case nil:
+					check.invalidAST(ix.Orig, "parameterized receiver contains nil parameters")
+				default:
+					check.errorf(arg, _BadDecl, "receiver type parameter %s must be an identifier", arg)
+				}
+				if par == nil {
+					par = &ast.Ident{NamePos: arg.Pos(), Name: "_"}
+				}
+				tparams = append(tparams, par)
 			}
 		}
 	}
+
+	// unpack receiver name
+	if name, _ := rtyp.(*ast.Ident); name != nil {
+		rname = name
+	}
+
+	return
 }
 
 // resolveBaseTypeName returns the non-alias base type name for typ, and whether
 // there was a pointer indirection to get to it. The base type name must be declared
 // in package scope, and there can be at most one pointer indirection. If no such type
 // name exists, the returned base is nil.
-func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeName) {
+func (check *Checker) resolveBaseTypeName(seenPtr bool, name *ast.Ident) (ptr bool, base *TypeName) {
 	// Algorithm: Starting from a type expression, which may be a name,
 	// we follow that type through alias declarations until we reach a
 	// non-alias type name. If we encounter anything but pointer types or
 	// parentheses we're done. If we encounter more than one pointer type
 	// we're done.
+	ptr = seenPtr
 	var seen map[*TypeName]bool
+	var typ ast.Expr = name
 	for {
 		typ = unparen(typ)
 
@@ -487,13 +597,13 @@ func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeNam
 
 		// we're done if tdecl defined tname as a new type
 		// (rather than an alias)
-		tdecl := check.objMap[tname] // must exist for objects in package scope
-		if !tdecl.alias {
+		tdecl := check.objMap[tname].tdecl // must exist for objects in package scope
+		if !tdecl.Assign.IsValid() {
 			return ptr, tname
 		}
 
 		// otherwise, continue resolving
-		typ = tdecl.typ
+		typ = tdecl.Type
 		if seen == nil {
 			seen = make(map[*TypeName]bool)
 		}
@@ -515,29 +625,35 @@ func (check *Checker) packageObjects() {
 	// add new methods to already type-checked types (from a prior Checker.Files call)
 	for _, obj := range objList {
 		if obj, _ := obj.(*TypeName); obj != nil && obj.typ != nil {
-			check.addMethodDecls(obj)
+			check.collectMethods(obj)
 		}
 	}
 
-	// We process non-alias declarations first, in order to avoid situations where
-	// the type of an alias declaration is needed before it is available. In general
-	// this is still not enough, as it is possible to create sufficiently convoluted
-	// recursive type definitions that will cause a type alias to be needed before it
-	// is available (see issue #25838 for examples).
-	// As an aside, the cmd/compiler suffers from the same problem (#25838).
+	// We process non-alias type declarations first, followed by alias declarations,
+	// and then everything else. This appears to avoid most situations where the type
+	// of an alias is needed before it is available.
+	// There may still be cases where this is not good enough (see also issue #25838).
+	// In those cases Checker.ident will report an error ("invalid use of type alias").
 	var aliasList []*TypeName
-	// phase 1
+	var othersList []Object // everything that's not a type
+	// phase 1: non-alias type declarations
 	for _, obj := range objList {
-		// If we have a type alias, collect it for the 2nd phase.
-		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].alias {
-			aliasList = append(aliasList, tname)
-			continue
+		if tname, _ := obj.(*TypeName); tname != nil {
+			if check.objMap[tname].tdecl.Assign.IsValid() {
+				aliasList = append(aliasList, tname)
+			} else {
+				check.objDecl(obj, nil)
+			}
+		} else {
+			othersList = append(othersList, obj)
 		}
-
+	}
+	// phase 2: alias type declarations
+	for _, obj := range aliasList {
 		check.objDecl(obj, nil)
 	}
-	// phase 2
-	for _, obj := range aliasList {
+	// phase 3: all other declarations
+	for _, obj := range othersList {
 		check.objDecl(obj, nil)
 	}
 
@@ -566,39 +682,30 @@ func (check *Checker) unusedImports() {
 	// any of its exported identifiers. To import a package solely for its side-effects
 	// (initialization), use the blank identifier as explicit package name."
 
-	// check use of regular imported packages
-	for _, scope := range check.pkg.scope.children /* file scopes */ {
-		for _, obj := range scope.elems {
-			if obj, ok := obj.(*PkgName); ok {
-				// Unused "blank imports" are automatically ignored
-				// since _ identifiers are not entered into scopes.
-				if !obj.used {
-					path := obj.imported.path
-					base := pkgName(path)
-					if obj.name == base {
-						check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
-					} else {
-						check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
-					}
-				}
-			}
-		}
-	}
-
-	// check use of dot-imported packages
-	for _, unusedDotImports := range check.unusedDotImports {
-		for pkg, pos := range unusedDotImports {
-			check.softErrorf(pos, _UnusedImport, "%q imported but not used", pkg.path)
+	for _, obj := range check.imports {
+		if !obj.used && obj.name != "_" {
+			check.errorUnusedPkg(obj)
 		}
 	}
 }
 
-// pkgName returns the package name (last element) of an import path.
-func pkgName(path string) string {
-	if i := strings.LastIndex(path, "/"); i >= 0 {
-		path = path[i+1:]
+func (check *Checker) errorUnusedPkg(obj *PkgName) {
+	// If the package was imported with a name other than the final
+	// import path element, show it explicitly in the error message.
+	// Note that this handles both renamed imports and imports of
+	// packages containing unconventional package declarations.
+	// Note that this uses / always, even on Windows, because Go import
+	// paths always use forward slashes.
+	path := obj.imported.path
+	elem := path
+	if i := strings.LastIndex(elem, "/"); i >= 0 {
+		elem = elem[i+1:]
 	}
-	return path
+	if obj.name == "" || obj.name == "." || obj.name == elem {
+		check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
+	} else {
+		check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
+	}
 }
 
 // dir makes a good-faith attempt to return the directory

@@ -8,7 +8,7 @@ cp go.mod go.mod.orig
 # From a clean slate, 'go get' currently does the same thing as 'go mod tidy':
 # it resolves the package from the module with the longest matching prefix.
 
-go get -d example.net/ambiguous/nested/pkg@v0.1.0
+go get example.net/ambiguous/nested/pkg@v0.1.0
 go list -m all
 stdout '^example.net/ambiguous/nested v0.1.0$'
 ! stdout '^example.net/ambiguous '
@@ -21,7 +21,7 @@ stdout '^example.net/ambiguous/nested v0.1.0$'
 cp go.mod.orig go.mod
 go mod edit -require=example.net/ambiguous@v0.1.0
 
-go get -d example.net/ambiguous/nested/pkg@v0.1.0
+go get example.net/ambiguous/nested/pkg@v0.1.0
 go list -m all
 stdout '^example.net/ambiguous v0.1.0$'
 ! stdout '^example.net/ambiguous/nested '
@@ -30,7 +30,7 @@ stdout '^example.net/ambiguous v0.1.0$'
 # The user should be able to make the command unambiguous by explicitly
 # upgrading the conflicting module...
 
-go get -d example.net/ambiguous@v0.2.0 example.net/ambiguous/nested/pkg@v0.1.0
+go get example.net/ambiguous@v0.2.0 example.net/ambiguous/nested/pkg@v0.1.0
 go list -m all
 stdout '^example.net/ambiguous/nested v0.1.0$'
 stdout '^example.net/ambiguous v0.2.0$'
@@ -41,7 +41,7 @@ stdout '^example.net/ambiguous v0.2.0$'
 cp go.mod.orig go.mod
 go mod edit -require=example.net/ambiguous@v0.1.0
 
-go get -d example.net/ambiguous/nested/pkg@v0.1.0 example.net/ambiguous/nested@none
+go get example.net/ambiguous/nested/pkg@v0.1.0 example.net/ambiguous/nested@none
 go list -m all
 ! stdout '^example.net/ambiguous/nested '
 stdout '^example.net/ambiguous v0.1.0$'
@@ -53,7 +53,7 @@ stdout '^example.net/ambiguous v0.1.0$'
 cp go.mod.orig go.mod
 go mod edit -require=example.net/ambiguous@v0.1.0
 
-go get -d example.net/ambiguous@none example.net/ambiguous/nested/pkg@v0.1.0
+go get example.net/ambiguous@none example.net/ambiguous/nested/pkg@v0.1.0
 go list -m all
 stdout '^example.net/ambiguous/nested v0.1.0$'
 ! stdout '^example.net/ambiguous '
@@ -66,7 +66,7 @@ stdout '^example.net/ambiguous/nested v0.1.0$'
 
 cp go.mod.orig go.mod
 
-go get -d example.net/ambiguous/nested/pkg/...@v0.1.0
+go get example.net/ambiguous/nested/pkg/...@v0.1.0
 go list -m all
 stdout '^example.net/ambiguous/nested v0.1.0$'
 ! stdout '^example.net/ambiguous '
@@ -75,7 +75,7 @@ stdout '^example.net/ambiguous/nested v0.1.0$'
 cp go.mod.orig go.mod
 go mod edit -require=example.net/ambiguous@v0.1.0
 
-go get -d example.net/ambiguous/nested/pkg/...@v0.1.0
+go get example.net/ambiguous/nested/pkg/...@v0.1.0
 go list -m all
 ! stdout '^example.net/ambiguous/nested '
 stdout '^example.net/ambiguous v0.1.0$'

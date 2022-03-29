@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package syscall_test
 
@@ -78,26 +78,30 @@ func TestFcntlFlock(t *testing.T) {
 	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "" {
 		// parent
-		tempDir, err := os.MkdirTemp("", "TestFcntlFlock")
-		if err != nil {
-			t.Fatalf("Failed to create temp dir: %v", err)
-		}
+		tempDir := t.TempDir()
 		name := filepath.Join(tempDir, "TestFcntlFlock")
 		fd, err := syscall.Open(name, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0)
 		if err != nil {
 			t.Fatalf("Open failed: %v", err)
 		}
-		defer os.RemoveAll(tempDir)
-		defer syscall.Close(fd)
-		if err := syscall.Ftruncate(fd, 1<<20); err != nil {
+		// f takes ownership of fd, and will close it.
+		//
+		// N.B. This defer is also necessary to keep f alive
+		// while we use its fd, preventing its finalizer from
+		// executing.
+		f := os.NewFile(uintptr(fd), name)
+		defer f.Close()
+
+		if err := syscall.Ftruncate(int(f.Fd()), 1<<20); err != nil {
 			t.Fatalf("Ftruncate(1<<20) failed: %v", err)
 		}
-		if err := syscall.FcntlFlock(uintptr(fd), syscall.F_SETLK, &flock); err != nil {
+		if err := syscall.FcntlFlock(f.Fd(), syscall.F_SETLK, &flock); err != nil {
 			t.Fatalf("FcntlFlock(F_SETLK) failed: %v", err)
 		}
+
 		cmd := exec.Command(os.Args[0], "-test.run=^TestFcntlFlock$")
 		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
-		cmd.ExtraFiles = []*os.File{os.NewFile(uintptr(fd), name)}
+		cmd.ExtraFiles = []*os.File{f}
 		out, err := cmd.CombinedOutput()
 		if len(out) > 0 || err != nil {
 			t.Fatalf("child process: %q, %v", out, err)
@@ -156,18 +160,12 @@ func TestPassFD(t *testing.T) {
 
 	}
 
-	tempDir, err := os.MkdirTemp("", "TestPassFD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	fds, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_STREAM, 0)
 	if err != nil {
 		t.Fatalf("Socketpair: %v", err)
 	}
-	defer syscall.Close(fds[0])
-	defer syscall.Close(fds[1])
 	writeFile := os.NewFile(uintptr(fds[0]), "child-writes")
 	readFile := os.NewFile(uintptr(fds[1]), "parent-reads")
 	defer writeFile.Close()
@@ -261,6 +259,10 @@ func passFDChild() {
 		fmt.Printf("TempFile: %v", err)
 		return
 	}
+	// N.B. This defer is also necessary to keep f alive
+	// while we use its fd, preventing its finalizer from
+	// executing.
+	defer f.Close()
 
 	f.Write([]byte("Hello from child process!\n"))
 	f.Seek(0, io.SeekStart)
@@ -321,46 +323,6 @@ func TestUnixRightsRoundtrip(t *testing.T) {
 				}
 			}
 		}
-	}
-}
-
-func TestRlimit(t *testing.T) {
-	var rlimit, zero syscall.Rlimit
-	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit)
-	if err != nil {
-		t.Fatalf("Getrlimit: save failed: %v", err)
-	}
-	if zero == rlimit {
-		t.Fatalf("Getrlimit: save failed: got zero value %#v", rlimit)
-	}
-	set := rlimit
-	set.Cur = set.Max - 1
-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && set.Cur > 4096 {
-		// rlim_min for RLIMIT_NOFILE should be equal to
-		// or lower than kern.maxfilesperproc, which on
-		// some machines are 4096. See #40564.
-		set.Cur = 4096
-	}
-	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &set)
-	if err != nil {
-		t.Fatalf("Setrlimit: set failed: %#v %v", set, err)
-	}
-	var get syscall.Rlimit
-	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &get)
-	if err != nil {
-		t.Fatalf("Getrlimit: get failed: %v", err)
-	}
-	set = rlimit
-	set.Cur = set.Max - 1
-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && set.Cur > 4096 {
-		set.Cur = 4096
-	}
-	if set != get {
-		t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
-	}
-	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit)
-	if err != nil {
-		t.Fatalf("Setrlimit: restore failed: %#v %v", rlimit, err)
 	}
 }
 

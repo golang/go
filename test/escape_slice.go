@@ -101,12 +101,16 @@ func slice11() {
 	_ = s
 }
 
+func slice12(x []int) *[1]int { // ERROR "leaking param: x to result ~r0 level=0$"
+	return (*[1]int)(x)
+}
+
 func envForDir(dir string) []string { // ERROR "dir does not escape"
 	env := os.Environ()
 	return mergeEnvLists([]string{"PWD=" + dir}, env) // ERROR ".PWD=. \+ dir escapes to heap" "\[\]string{...} does not escape"
 }
 
-func mergeEnvLists(in, out []string) []string { // ERROR "leaking param content: in" "leaking param content: out" "leaking param: out to result ~r2 level=0"
+func mergeEnvLists(in, out []string) []string { // ERROR "leaking param content: in" "leaking param content: out" "leaking param: out to result ~r0 level=0"
 NextVar:
 	for _, inkv := range in {
 		k := strings.SplitAfterN(inkv, "=", 2)[0]

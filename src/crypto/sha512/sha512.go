@@ -337,31 +337,31 @@ func Sum512(data []byte) [Size]byte {
 }
 
 // Sum384 returns the SHA384 checksum of the data.
-func Sum384(data []byte) (sum384 [Size384]byte) {
+func Sum384(data []byte) [Size384]byte {
 	d := digest{function: crypto.SHA384}
 	d.Reset()
 	d.Write(data)
 	sum := d.checkSum()
-	copy(sum384[:], sum[:Size384])
-	return
+	ap := (*[Size384]byte)(sum[:])
+	return *ap
 }
 
 // Sum512_224 returns the Sum512/224 checksum of the data.
-func Sum512_224(data []byte) (sum224 [Size224]byte) {
+func Sum512_224(data []byte) [Size224]byte {
 	d := digest{function: crypto.SHA512_224}
 	d.Reset()
 	d.Write(data)
 	sum := d.checkSum()
-	copy(sum224[:], sum[:Size224])
-	return
+	ap := (*[Size224]byte)(sum[:])
+	return *ap
 }
 
 // Sum512_256 returns the Sum512/256 checksum of the data.
-func Sum512_256(data []byte) (sum256 [Size256]byte) {
+func Sum512_256(data []byte) [Size256]byte {
 	d := digest{function: crypto.SHA512_256}
 	d.Reset()
 	d.Write(data)
 	sum := d.checkSum()
-	copy(sum256[:], sum[:Size256])
-	return
+	ap := (*[Size256]byte)(sum[:])
+	return *ap
 }

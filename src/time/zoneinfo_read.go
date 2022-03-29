@@ -247,8 +247,8 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 		// This also avoids a panic later when we add and then use a fake transition (golang.org/issue/29437).
 		return nil, badData
 	}
-	zone := make([]zone, nzone)
-	for i := range zone {
+	zones := make([]zone, nzone)
+	for i := range zones {
 		var ok bool
 		var n uint32
 		if n, ok = zonedata.big4(); !ok {
@@ -257,22 +257,22 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 		if uint32(int(n)) != n {
 			return nil, badData
 		}
-		zone[i].offset = int(int32(n))
+		zones[i].offset = int(int32(n))
 		var b byte
 		if b, ok = zonedata.byte(); !ok {
 			return nil, badData
 		}
-		zone[i].isDST = b != 0
+		zones[i].isDST = b != 0
 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
 			return nil, badData
 		}
-		zone[i].name = byteString(abbrev[b:])
+		zones[i].name = byteString(abbrev[b:])
 		if runtime.GOOS == "aix" && len(name) > 8 && (name[:8] == "Etc/GMT+" || name[:8] == "Etc/GMT-") {
 			// There is a bug with AIX 7.2 TL 0 with files in Etc,
 			// GMT+1 will return GMT-1 instead of GMT+1 or -01.
 			if name != "Etc/GMT+0" {
 				// GMT+0 is OK
-				zone[i].name = name[4:]
+				zones[i].name = name[4:]
 			}
 		}
 	}
@@ -295,7 +295,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 			}
 		}
 		tx[i].when = n
-		if int(txzones[i]) >= len(zone) {
+		if int(txzones[i]) >= len(zones) {
 			return nil, badData
 		}
 		tx[i].index = txzones[i]
@@ -314,7 +314,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 	}
 
 	// Committed to succeed.
-	l := &Location{zone: zone, tx: tx, name: name, extend: extend}
+	l := &Location{zone: zones, tx: tx, name: name, extend: extend}
 
 	// Fill in the cache with information about right now,
 	// since that will be the most common lookup.
@@ -323,31 +323,41 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
 			l.cacheStart = tx[i].when
 			l.cacheEnd = omega
-			zoneIdx := tx[i].index
+			l.cacheZone = &l.zone[tx[i].index]
 			if i+1 < len(tx) {
 				l.cacheEnd = tx[i+1].when
 			} else if l.extend != "" {
 				// If we're at the end of the known zone transitions,
 				// try the extend string.
-				if name, _, estart, eend, ok := tzset(l.extend, l.cacheEnd, sec); ok {
+				if name, offset, estart, eend, isDST, ok := tzset(l.extend, l.cacheEnd, sec); ok {
 					l.cacheStart = estart
 					l.cacheEnd = eend
-					// Find the zone that is returned by tzset,
-					// the last transition is not always the correct zone.
-					for i, z := range l.zone {
-						if z.name == name {
-							zoneIdx = uint8(i)
-							break
+					// Find the zone that is returned by tzset to avoid allocation if possible.
+					if zoneIdx := findZone(l.zone, name, offset, isDST); zoneIdx != -1 {
+						l.cacheZone = &l.zone[zoneIdx]
+					} else {
+						l.cacheZone = &zone{
+							name:   name,
+							offset: offset,
+							isDST:  isDST,
 						}
 					}
 				}
 			}
-			l.cacheZone = &l.zone[zoneIdx]
 			break
 		}
 	}
 
 	return l, nil
+}
+
+func findZone(zones []zone, name string, offset int, isDST bool) int {
+	for i, z := range zones {
+		if z.name == name && z.offset == offset && z.isDST == isDST {
+			return i
+		}
+	}
+	return -1
 }
 
 // loadTzinfoFromDirOrZip returns the contents of the file with the given name
@@ -518,7 +528,7 @@ func loadTzinfo(name string, source string) ([]byte, error) {
 // and parsed is returned as a Location.
 func loadLocation(name string, sources []string) (z *Location, firstErr error) {
 	for _, source := range sources {
-		var zoneData, err = loadTzinfo(name, source)
+		zoneData, err := loadTzinfo(name, source)
 		if err == nil {
 			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
 				return z, nil
@@ -529,9 +539,20 @@ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
 		}
 	}
 	if loadFromEmbeddedTZData != nil {
-		zonedata, err := loadFromEmbeddedTZData(name)
+		zoneData, err := loadFromEmbeddedTZData(name)
 		if err == nil {
-			if z, err = LoadLocationFromTZData(name, []byte(zonedata)); err == nil {
+			if z, err = LoadLocationFromTZData(name, []byte(zoneData)); err == nil {
+				return z, nil
+			}
+		}
+		if firstErr == nil && err != syscall.ENOENT {
+			firstErr = err
+		}
+	}
+	if source, ok := gorootZoneSource(runtime.GOROOT()); ok {
+		zoneData, err := loadTzinfo(name, source)
+		if err == nil {
+			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
 				return z, nil
 			}
 		}

@@ -121,6 +121,7 @@
 (Com(64|32|16|8) x) => (NOR (MOVVconst [0]) x)
 
 (Sqrt ...) => (SQRTD ...)
+(Sqrt32 ...) => (SQRTF ...)
 
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB ...) => (AND ...)
@@ -133,7 +134,7 @@
 (Const(64|32|16|8) [val]) => (MOVVconst [int64(val)])
 (Const(32|64)F [val]) => (MOV(F|D)const [float64(val)])
 (ConstNil) => (MOVVconst [0])
-(ConstBool [b]) => (MOVVconst [int64(b2i(b))])
+(ConstBool [t]) => (MOVVconst [int64(b2i(t))])
 
 (Slicemask <t> x) => (SRAVconst (NEGV <t> x) [63])
 
@@ -378,6 +379,7 @@
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
+(TailCall ...) => (CALLtail ...)
 
 // atomic intrinsics
 (AtomicLoad(8|32|64) ...) => (LoweredAtomicLoad(8|32|64) ...)
@@ -558,6 +560,10 @@
 // MOVVnop doesn't emit instruction, only for ensuring the type.
 (MOVVreg x) && x.Uses == 1 => (MOVVnop x)
 
+// TODO: we should be able to get rid of MOVVnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVVnop (MOVVconst [c])) => (MOVVconst [c])
+
 // fold constant into arithmatic ops
 (ADDV x (MOVVconst [c])) && is32Bit(c) => (ADDVconst [c] x)
 (SUBV x (MOVVconst [c])) && is32Bit(c) => (SUBVconst [c] x)
@@ -676,3 +682,9 @@
 (GTZ (MOVVconst [c]) yes no) && c <= 0 => (First no yes)
 (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
+
+// fold readonly sym load
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read8(sym, int64(off)))])
+(MOVHload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVVload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])

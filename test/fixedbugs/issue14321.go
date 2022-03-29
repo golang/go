@@ -30,4 +30,4 @@ type C struct {
 var _ = C.F // ERROR "ambiguous"
 var _ = C.G // ERROR "ambiguous"
 var _ = C.H // ERROR "ambiguous"
-var _ = C.I // ERROR "no method .*I.*"
+var _ = C.I // ERROR "no method .*I.*|C.I undefined"

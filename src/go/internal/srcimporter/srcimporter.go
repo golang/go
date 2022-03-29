@@ -13,9 +13,9 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	exec "internal/execabs"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -30,7 +30,7 @@ type Importer struct {
 	packages map[string]*types.Package
 }
 
-// NewImporter returns a new Importer for the given context, file set, and map
+// New returns a new Importer for the given context, file set, and map
 // of packages. The context is used to resolve import paths to package paths,
 // and identifying the files belonging to the package. If the context provides
 // non-nil file system functions, they are used instead of the regular package
@@ -205,7 +205,11 @@ func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	args := []string{"go", "tool", "cgo", "-objdir", tmpdir}
+	goCmd := "go"
+	if p.ctxt.GOROOT != "" {
+		goCmd = filepath.Join(p.ctxt.GOROOT, "bin", "go")
+	}
+	args := []string{goCmd, "tool", "cgo", "-objdir", tmpdir}
 	if bp.Goroot {
 		switch bp.ImportPath {
 		case "runtime/cgo":

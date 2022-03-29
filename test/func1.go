@@ -14,6 +14,6 @@ func f1(a int) (int, float32) {
 }
 
 
-func f2(a int) (a int, b float32) { // ERROR "duplicate argument a|definition"
+func f2(a int) (a int, b float32) { // ERROR "duplicate argument a|definition|redeclared"
 	return 8, 8.0
 }

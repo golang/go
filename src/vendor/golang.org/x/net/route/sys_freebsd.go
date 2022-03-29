@@ -134,9 +134,6 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 		} else {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11
 		}
-		if rel >= 1102000 { // see https://github.com/freebsd/freebsd/commit/027c7f4d66ff8d8c4a46c3665a5ee7d6d8462034#diff-ad4e5b7f1449ea3fc87bc97280de145b
-			align = wordSize
-		}
 	}
 	rtm.parse = rtm.parseRouteMessage
 	ifm.parse = ifm.parseInterfaceMessage

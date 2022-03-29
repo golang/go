@@ -86,7 +86,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			}
 
 			if !fi.IsDir() {
-				if fi.Mode()&fs.ModeSymlink != 0 && want {
+				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.Pattern(), "...") {
 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
@@ -131,9 +131,10 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	}
 
 	if cfg.BuildMod == "vendor" {
-		if HasModRoot() {
-			walkPkgs(ModRoot(), targetPrefix, pruneGoMod|pruneVendor)
-			walkPkgs(filepath.Join(ModRoot(), "vendor"), "", pruneVendor)
+		mod := MainModules.mustGetSingleMainModule()
+		if modRoot := MainModules.ModRoot(mod); modRoot != "" {
+			walkPkgs(modRoot, MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
+			walkPkgs(filepath.Join(modRoot, "vendor"), "", pruneVendor)
 		}
 		return
 	}
@@ -147,12 +148,12 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			root, modPrefix string
 			isLocal         bool
 		)
-		if mod == Target {
-			if !HasModRoot() {
+		if MainModules.Contains(mod.Path) {
+			if MainModules.ModRoot(mod) == "" {
 				continue // If there is no main module, we can't search in it.
 			}
-			root = ModRoot()
-			modPrefix = targetPrefix
+			root = MainModules.ModRoot(mod)
+			modPrefix = MainModules.PathPrefix(mod)
 			isLocal = true
 		} else {
 			var err error
@@ -187,7 +188,7 @@ func MatchInModule(ctx context.Context, pattern string, m module.Version, tags m
 		matchPackages(ctx, match, tags, includeStd, nil)
 	}
 
-	LoadModFile(ctx)
+	LoadModFile(ctx) // Sets Target, needed by fetch and matchPackages.
 
 	if !match.IsLiteral() {
 		matchPackages(ctx, match, tags, omitStd, []module.Version{m})

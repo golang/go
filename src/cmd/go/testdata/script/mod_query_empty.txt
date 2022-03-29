@@ -7,14 +7,14 @@ go mod download example.com/join@v1.1.0
 # reading that version should cause 'go get' to fail.
 env GOPROXY=file:///$WORK/badproxy
 cp go.mod.orig go.mod
-! go get -d example.com/join/subpkg
-stderr 'go get: example.com/join/subpkg@v0.0.0-20190624000000-123456abcdef: .*'
+! go get example.com/join/subpkg
+stderr 'go: example.com/join/subpkg@v0.0.0-20190624000000-123456abcdef: .*'
 
 # If @v/list is empty, the 'go' command should still try to resolve
 # other module paths.
 env GOPROXY=file:///$WORK/emptysub
 cp go.mod.orig go.mod
-go get -d example.com/join/subpkg
+go get example.com/join/subpkg
 go list -m example.com/join/...
 ! stdout 'example.com/join/subpkg'
 stdout 'example.com/join v1.1.0'
@@ -23,7 +23,7 @@ stdout 'example.com/join v1.1.0'
 # that version is treated as nonexistent.
 env GOPROXY=file:///$WORK/notfound
 cp go.mod.orig go.mod
-go get -d example.com/join/subpkg
+go get example.com/join/subpkg
 go list -m example.com/join/...
 ! stdout 'example.com/join/subpkg'
 stdout 'example.com/join v1.1.0'
@@ -39,8 +39,8 @@ stdout 'example.com/join v1.1.0'
 env GOPROXY=file:///$WORK/gatekeeper
 chmod 0000 $WORK/gatekeeper/example.com/join/subpkg/@latest
 cp go.mod.orig go.mod
-! go get -d example.com/join/subpkg
-stderr 'go get: module example.com/join/subpkg: (invalid response from proxy ".+": invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
+! go get example.com/join/subpkg
+stderr 'go: module example.com/join/subpkg: (invalid response from proxy ".+": invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
 
 -- go.mod.orig --
 module example.com/othermodule

@@ -56,6 +56,7 @@ type fakeConnector struct {
 	name string
 
 	waiter func(context.Context)
+	closed bool
 }
 
 func (c *fakeConnector) Connect(context.Context) (driver.Conn, error) {
@@ -66,6 +67,14 @@ func (c *fakeConnector) Connect(context.Context) (driver.Conn, error) {
 
 func (c *fakeConnector) Driver() driver.Driver {
 	return fdriver
+}
+
+func (c *fakeConnector) Close() error {
+	if c.closed {
+		return errors.New("fakedb: connector is closed")
+	}
+	c.closed = true
+	return nil
 }
 
 type fakeDriverCtx struct {
@@ -87,6 +96,19 @@ type fakeDB struct {
 	allowAny bool
 }
 
+type fakeError struct {
+	Message string
+	Wrapped error
+}
+
+func (err fakeError) Error() string {
+	return err.Message
+}
+
+func (err fakeError) Unwrap() error {
+	return err.Wrapped
+}
+
 type table struct {
 	mu      sync.Mutex
 	colname []string
@@ -104,7 +126,7 @@ func (t *table) columnIndex(name string) int {
 }
 
 type row struct {
-	cols []interface{} // must be same size as its table colname + coltype
+	cols []any // must be same size as its table colname + coltype
 }
 
 type memToucher interface {
@@ -176,10 +198,10 @@ type fakeStmt struct {
 
 	closed bool
 
-	colName      []string      // used by CREATE, INSERT, SELECT (selected columns)
-	colType      []string      // used by CREATE
-	colValue     []interface{} // used by INSERT (mix of strings and "?" for bound params)
-	placeholders int           // used by INSERT/SELECT: number of ? params
+	colName      []string // used by CREATE, INSERT, SELECT (selected columns)
+	colType      []string // used by CREATE
+	colValue     []any    // used by INSERT (mix of strings and "?" for bound params)
+	placeholders int      // used by INSERT/SELECT: number of ? params
 
 	whereCol []boundCol // used by SELECT (all placeholders)
 
@@ -359,7 +381,7 @@ func (c *fakeConn) isDirtyAndMark() bool {
 
 func (c *fakeConn) Begin() (driver.Tx, error) {
 	if c.isBad() {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Wrapped: driver.ErrBadConn}
 	}
 	if c.currTx != nil {
 		return nil, errors.New("fakedb: already in a transaction")
@@ -392,7 +414,7 @@ func (c *fakeConn) ResetSession(ctx context.Context) error {
 	c.dirtySession = false
 	c.currTx = nil
 	if c.isBad() {
-		return driver.ErrBadConn
+		return fakeError{Message: "Reset Session: bad conn", Wrapped: driver.ErrBadConn}
 	}
 	return nil
 }
@@ -482,7 +504,7 @@ func (c *fakeConn) QueryContext(ctx context.Context, query string, args []driver
 	return nil, driver.ErrSkip
 }
 
-func errf(msg string, args ...interface{}) error {
+func errf(msg string, args ...any) error {
 	return errors.New("fakedb: " + fmt.Sprintf(msg, args...))
 }
 
@@ -564,7 +586,7 @@ func (c *fakeConn) prepareInsert(ctx context.Context, stmt *fakeStmt, parts []st
 		stmt.colName = append(stmt.colName, column)
 
 		if !strings.HasPrefix(value, "?") {
-			var subsetVal interface{}
+			var subsetVal any
 			// Convert to driver subset type
 			switch ctype {
 			case "string":
@@ -620,7 +642,7 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 	}
 
 	if c.stickyBad || (hookPrepareBadConn != nil && hookPrepareBadConn()) {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Message: "Preapre: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 
 	c.touchMem()
@@ -654,6 +676,9 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 
 		if c.waiter != nil {
 			c.waiter(ctx)
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 		}
 
 		if stmt.wait > 0 {
@@ -747,7 +772,7 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	}
 
 	if s.c.stickyBad || (hookExecBadConn != nil && hookExecBadConn()) {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Message: "Exec: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 	if s.c.isDirtyAndMark() {
 		return nil, errFakeConnSessionDirty
@@ -807,9 +832,9 @@ func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.R
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	var cols []interface{}
+	var cols []any
 	if doInsert {
-		cols = make([]interface{}, len(t.colname))
+		cols = make([]any, len(t.colname))
 	}
 	argPos := 0
 	for n, colname := range s.colName {
@@ -817,7 +842,7 @@ func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.R
 		if colidx == -1 {
 			return nil, fmt.Errorf("fakedb: column %q doesn't exist or dropped since prepared statement was created", colname)
 		}
-		var val interface{}
+		var val any
 		if strvalue, ok := s.colValue[n].(string); ok && strings.HasPrefix(strvalue, "?") {
 			if strvalue == "?" {
 				val = args[argPos].Value
@@ -861,7 +886,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 	}
 
 	if s.c.stickyBad || (hookQueryBadConn != nil && hookQueryBadConn()) {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Message: "Query: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 	if s.c.isDirtyAndMark() {
 		return nil, errFakeConnSessionDirty
@@ -906,21 +931,21 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				parentMem: s.c,
 				posRow:    -1,
 				rows: [][]*row{
-					[]*row{
+					{
 						{
-							cols: []interface{}{
+							cols: []any{
 								txStatus,
 							},
 						},
 					},
 				},
 				cols: [][]string{
-					[]string{
+					{
 						"tx_status",
 					},
 				},
 				colType: [][]string{
-					[]string{
+					{
 						"string",
 					},
 				},
@@ -958,7 +983,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 					// lazy hack to avoid sprintf %v on a []byte
 					tcol = string(bs)
 				}
-				var argValue interface{}
+				var argValue any
 				if wcol.Placeholder == "?" {
 					argValue = args[wcol.Ordinal-1].Value
 				} else {
@@ -974,7 +999,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 					continue rows
 				}
 			}
-			mrow := &row{cols: make([]interface{}, len(s.colName))}
+			mrow := &row{cols: make([]any, len(s.colName))}
 			for seli, name := range s.colName {
 				mrow.cols[seli] = trow.cols[colIdx[name]]
 			}
@@ -1022,7 +1047,7 @@ var hookCommitBadConn func() bool
 func (tx *fakeTx) Commit() error {
 	tx.c.currTx = nil
 	if hookCommitBadConn != nil && hookCommitBadConn() {
-		return driver.ErrBadConn
+		return fakeError{Message: "Commit: Hook Bad Conn", Wrapped: driver.ErrBadConn}
 	}
 	tx.c.touchMem()
 	return nil
@@ -1034,7 +1059,7 @@ var hookRollbackBadConn func() bool
 func (tx *fakeTx) Rollback() error {
 	tx.c.currTx = nil
 	if hookRollbackBadConn != nil && hookRollbackBadConn() {
-		return driver.ErrBadConn
+		return fakeError{Message: "Rollback: Hook Bad Conn", Wrapped: driver.ErrBadConn}
 	}
 	tx.c.touchMem()
 	return nil
@@ -1152,7 +1177,7 @@ func (rc *rowsCursor) NextResultSet() error {
 //
 type fakeDriverString struct{}
 
-func (fakeDriverString) ConvertValue(v interface{}) (driver.Value, error) {
+func (fakeDriverString) ConvertValue(v any) (driver.Value, error) {
 	switch c := v.(type) {
 	case string, []byte:
 		return v, nil
@@ -1167,7 +1192,7 @@ func (fakeDriverString) ConvertValue(v interface{}) (driver.Value, error) {
 
 type anyTypeConverter struct{}
 
-func (anyTypeConverter) ConvertValue(v interface{}) (driver.Value, error) {
+func (anyTypeConverter) ConvertValue(v any) (driver.Value, error) {
 	return v, nil
 }
 
@@ -1177,9 +1202,11 @@ func converterForType(typ string) driver.ValueConverter {
 		return driver.Bool
 	case "nullbool":
 		return driver.Null{Converter: driver.Bool}
+	case "byte", "int16":
+		return driver.NotNull{Converter: driver.DefaultParameterConverter}
 	case "int32":
 		return driver.Int32
-	case "nullint32":
+	case "nullbyte", "nullint32", "nullint16":
 		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "string":
 		return driver.NotNull{Converter: fakeDriverString{}}
@@ -1213,6 +1240,10 @@ func colTypeToReflectType(typ string) reflect.Type {
 		return reflect.TypeOf(false)
 	case "nullbool":
 		return reflect.TypeOf(NullBool{})
+	case "int16":
+		return reflect.TypeOf(int16(0))
+	case "nullint16":
+		return reflect.TypeOf(NullInt16{})
 	case "int32":
 		return reflect.TypeOf(int32(0))
 	case "nullint32":
@@ -1232,7 +1263,7 @@ func colTypeToReflectType(typ string) reflect.Type {
 	case "datetime":
 		return reflect.TypeOf(time.Time{})
 	case "any":
-		return reflect.TypeOf(new(interface{})).Elem()
+		return reflect.TypeOf(new(any)).Elem()
 	}
 	panic("invalid fakedb column type of " + typ)
 }

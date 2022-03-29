@@ -33,14 +33,14 @@ func TestMemStats(t *testing.T) {
 	st := new(MemStats)
 	ReadMemStats(st)
 
-	nz := func(x interface{}) error {
+	nz := func(x any) error {
 		if x != reflect.Zero(reflect.TypeOf(x)).Interface() {
 			return nil
 		}
 		return fmt.Errorf("zero value")
 	}
-	le := func(thresh float64) func(interface{}) error {
-		return func(x interface{}) error {
+	le := func(thresh float64) func(any) error {
+		return func(x any) error {
 			// These sanity tests aren't necessarily valid
 			// with high -test.count values, so only run
 			// them once.
@@ -54,8 +54,8 @@ func TestMemStats(t *testing.T) {
 			return fmt.Errorf("insanely high value (overflow?); want <= %v", thresh)
 		}
 	}
-	eq := func(x interface{}) func(interface{}) error {
-		return func(y interface{}) error {
+	eq := func(x any) func(any) error {
+		return func(y any) error {
 			if x == y {
 				return nil
 			}
@@ -64,7 +64,7 @@ func TestMemStats(t *testing.T) {
 	}
 	// Of the uint fields, HeapReleased, HeapIdle can be 0.
 	// PauseTotalNs can be 0 if timer resolution is poor.
-	fields := map[string][]func(interface{}) error{
+	fields := map[string][]func(any) error{
 		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
 		"Lookups": {eq(uint64(0))}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
 		"HeapAlloc": {nz, le(1e10)}, "HeapSys": {nz, le(1e10)}, "HeapIdle": {le(1e10)},
@@ -154,6 +154,9 @@ func TestStringConcatenationAllocs(t *testing.T) {
 }
 
 func TestTinyAlloc(t *testing.T) {
+	if runtime.Raceenabled {
+		t.Skip("tinyalloc suppressed when running in race mode")
+	}
 	const N = 16
 	var v [N]unsafe.Pointer
 	for i := range v {
@@ -182,6 +185,9 @@ type obj12 struct {
 }
 
 func TestTinyAllocIssue37262(t *testing.T) {
+	if runtime.Raceenabled {
+		t.Skip("tinyalloc suppressed when running in race mode")
+	}
 	// Try to cause an alignment access fault
 	// by atomically accessing the first 64-bit
 	// value of a tiny-allocated object.
@@ -191,6 +197,10 @@ func TestTinyAllocIssue37262(t *testing.T) {
 	// and again to make sure we finish the sweep phase.
 	runtime.GC()
 	runtime.GC()
+
+	// Disable preemption so we stay on one P's tiny allocator and
+	// nothing else allocates from it.
+	runtime.Acquirem()
 
 	// Make 1-byte allocations until we get a fresh tiny slot.
 	aligned := false
@@ -202,6 +212,7 @@ func TestTinyAllocIssue37262(t *testing.T) {
 		}
 	}
 	if !aligned {
+		runtime.Releasem()
 		t.Fatal("unable to get a fresh tiny slot")
 	}
 
@@ -223,6 +234,8 @@ func TestTinyAllocIssue37262(t *testing.T) {
 	tinyByteSink = nil
 	tinyUint32Sink = nil
 	tinyObj12Sink = nil
+
+	runtime.Releasem()
 }
 
 func TestPageCacheLeak(t *testing.T) {

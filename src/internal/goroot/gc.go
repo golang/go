@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build gc
+//go:build gc
 
 package goroot
 
 import (
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"

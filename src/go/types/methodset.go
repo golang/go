@@ -63,7 +63,7 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
 var emptyMethodSet MethodSet
 
 // Note: NewMethodSet is intended for external use only as it
-//       requires interfaces to be complete. If may be used
+//       requires interfaces to be complete. It may be used
 //       internally if LookupFieldOrMethod completed the same
 //       interfaces beforehand.
 
@@ -72,6 +72,9 @@ var emptyMethodSet MethodSet
 func NewMethodSet(T Type) *MethodSet {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 	//          This function and lookupFieldOrMethod should be kept in sync.
+
+	// TODO(rfindley) confirm that this code is in sync with lookupFieldOrMethod
+	//                with respect to type params.
 
 	// method set up to the current depth, allocated lazily
 	var base methodSet
@@ -122,13 +125,12 @@ func NewMethodSet(T Type) *MethodSet {
 				}
 				seen[named] = true
 
-				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
-
-				// continue with underlying type
-				typ = named.underlying
+				for i := 0; i < named.NumMethods(); i++ {
+					mset = mset.addOne(named.Method(i), concat(e.index, i), e.indirect, e.multiples)
+				}
 			}
 
-			switch t := typ.(type) {
+			switch t := under(typ).(type) {
 			case *Struct:
 				for i, f := range t.fields {
 					if fset == nil {
@@ -150,7 +152,7 @@ func NewMethodSet(T Type) *MethodSet {
 				}
 
 			case *Interface:
-				mset = mset.add(t.allMethods, e.index, true, e.multiples)
+				mset = mset.add(t.typeSet().methods, e.index, true, e.multiples)
 			}
 		}
 
@@ -180,12 +182,7 @@ func NewMethodSet(T Type) *MethodSet {
 			}
 		}
 
-		// It's ok to call consolidateMultiples with a nil *Checker because
-		// MethodSets are not used internally (outside debug mode). When used
-		// externally, interfaces are expected to be completed and then we do
-		// not need a *Checker to complete them when (indirectly) calling
-		// Checker.identical via consolidateMultiples.
-		current = (*Checker)(nil).consolidateMultiples(next)
+		current = consolidateMultiples(next)
 	}
 
 	if len(base) == 0 {
@@ -219,42 +216,28 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 	if len(list) == 0 {
 		return s
 	}
-	if s == nil {
-		s = make(methodSet)
-	}
 	for i, f := range list {
-		key := f.Id()
-		// if f is not in the set, add it
-		if !multiples {
-			// TODO(gri) A found method may not be added because it's not in the method set
-			// (!indirect && ptrRecv(f)). A 2nd method on the same level may be in the method
-			// set and may not collide with the first one, thus leading to a false positive.
-			// Is that possible? Investigate.
-			if _, found := s[key]; !found && (indirect || !ptrRecv(f)) {
-				s[key] = &Selection{MethodVal, nil, f, concat(index, i), indirect}
-				continue
-			}
-		}
-		s[key] = nil // collision
+		s = s.addOne(f, concat(index, i), indirect, multiples)
 	}
 	return s
 }
 
-// ptrRecv reports whether the receiver is of the form *T.
-func ptrRecv(f *Func) bool {
-	// If a method's receiver type is set, use that as the source of truth for the receiver.
-	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
-	// signature. We may reach here before the signature is fully set up: we must explicitly
-	// check if the receiver is set (we cannot just look for non-nil f.typ).
-	if sig, _ := f.typ.(*Signature); sig != nil && sig.recv != nil {
-		_, isPtr := deref(sig.recv.typ)
-		return isPtr
+func (s methodSet) addOne(f *Func, index []int, indirect bool, multiples bool) methodSet {
+	if s == nil {
+		s = make(methodSet)
 	}
-
-	// If a method's type is not set it may be a method/function that is:
-	// 1) client-supplied (via NewFunc with no signature), or
-	// 2) internally created but not yet type-checked.
-	// For case 1) we can't do anything; the client must know what they are doing.
-	// For case 2) we can use the information gathered by the resolver.
-	return f.hasPtrRecv
+	key := f.Id()
+	// if f is not in the set, add it
+	if !multiples {
+		// TODO(gri) A found method may not be added because it's not in the method set
+		// (!indirect && f.hasPtrRecv()). A 2nd method on the same level may be in the method
+		// set and may not collide with the first one, thus leading to a false positive.
+		// Is that possible? Investigate.
+		if _, found := s[key]; !found && (indirect || !f.hasPtrRecv()) {
+			s[key] = &Selection{MethodVal, nil, f, index, indirect}
+			return s
+		}
+	}
+	s[key] = nil // collision
+	return s
 }

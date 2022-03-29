@@ -62,11 +62,6 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	/*
-	 * Set specific keys.
-	 */
-	setg_gcc((void*)ts.g);
-
 	// On NetBSD, a new thread inherits the signal stack of the
 	// creating thread. That confuses minit, so we remove that
 	// signal stack here before calling the regular mstart. It's
@@ -78,6 +73,6 @@ threadentry(void *v)
 	ss.ss_flags = SS_DISABLE;
 	sigaltstack(&ss, nil);
 
-	crosscall_amd64(ts.fn);
+	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }

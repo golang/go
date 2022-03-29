@@ -31,17 +31,17 @@ exec ./print_trimpath_two_files$GOEXE
 stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
 stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]other.go
 
-go build -overlay overlay.json -o main_cgo_replace$GOEXE ./cgo_hello_replace
-exec ./main_cgo_replace$GOEXE
-stdout '^hello cgo\r?\n'
+[cgo] go build -overlay overlay.json -o main_cgo_replace$GOEXE ./cgo_hello_replace
+[cgo] exec ./main_cgo_replace$GOEXE
+[cgo] stdout '^hello cgo\r?\n'
 
-go build -overlay overlay.json -o main_cgo_quote$GOEXE ./cgo_hello_quote
-exec ./main_cgo_quote$GOEXE
-stdout '^hello cgo\r?\n'
+[cgo] go build -overlay overlay.json -o main_cgo_quote$GOEXE ./cgo_hello_quote
+[cgo] exec ./main_cgo_quote$GOEXE
+[cgo] stdout '^hello cgo\r?\n'
 
-go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
-exec ./main_cgo_angle$GOEXE
-stdout '^hello cgo\r?\n'
+[cgo] go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
+[cgo] exec ./main_cgo_angle$GOEXE
+[cgo] stdout '^hello cgo\r?\n'
 
 go build -overlay overlay.json -o main_call_asm$GOEXE ./call_asm
 exec ./main_call_asm$GOEXE
@@ -55,11 +55,11 @@ cp overlay/test_cache_different.go overlay/test_cache.go
 go list -overlay overlay.json -f '{{.Stale}}' ./test_cache
 stdout '^true$'
 
-go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
-cp stdout compiled_cgo_sources.txt
-go run ../print_line_comments.go compiled_cgo_sources.txt
-stdout $GOPATH[/\\]src[/\\]m[/\\]cgo_hello_replace[/\\]cgo_hello_replace.go
-! stdout $GOPATH[/\\]src[/\\]m[/\\]overlay[/\\]hello.c
+[cgo] go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
+[cgo] cp stdout compiled_cgo_sources.txt
+[cgo] go run ../print_line_comments.go compiled_cgo_sources.txt
+[cgo] stdout $GOPATH[/\\]src[/\\]m[/\\]cgo_hello_replace[/\\]cgo_hello_replace.go
+[cgo] ! stdout $GOPATH[/\\]src[/\\]m[/\\]overlay[/\\]hello.c
 
 # Run same tests but with gccgo.
 env GO111MODULE=off
@@ -238,7 +238,7 @@ void say_hello();
 
 void say_hello() { puts("hello cgo\n"); fflush(stdout); }
 -- m/overlay/asm_gc.s --
-// +build !gccgo
+// +build gc
 
 TEXT ·foo(SB),0,$0
 	RET

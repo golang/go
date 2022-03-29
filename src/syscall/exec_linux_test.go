@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
+//go:build linux
 
 package syscall_test
 
@@ -110,14 +110,6 @@ func checkUserNS(t *testing.T) {
 			t.Skip("kernel doesn't support user namespaces")
 		}
 	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
 }
 
 func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
@@ -198,14 +190,6 @@ func TestUnshare(t *testing.T) {
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
-	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
 	path := "/proc/net/dev"
@@ -317,6 +301,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		"uid=0(root) gid=0(root) groups=0(root),65534",
 		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
 		"uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                               // CentOS with SELinux context, see https://golang.org/issue/34547
+		"uid=0(root) gid=0(root) groups=0(root),65534(nobody) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                 // Fedora with SElinux context, see https://golang.org/issue/46752
 	}
 	for _, e := range expected {
 		if strOut == e {
@@ -524,9 +509,7 @@ func mustSupportAmbientCaps(t *testing.T) {
 		buf[i] = byte(b)
 	}
 	ver := string(buf[:])
-	if i := strings.Index(ver, "\x00"); i != -1 {
-		ver = ver[:i]
-	}
+	ver, _, _ = strings.Cut(ver, "\x00")
 	if strings.HasPrefix(ver, "2.") ||
 		strings.HasPrefix(ver, "3.") ||
 		strings.HasPrefix(ver, "4.1.") ||

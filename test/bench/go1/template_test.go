@@ -9,7 +9,7 @@ package go1
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 	"text/template"
@@ -63,7 +63,7 @@ func init() {
 }
 
 func tmplexec() {
-	if err := tmpl.Execute(ioutil.Discard, &jsondata); err != nil {
+	if err := tmpl.Execute(io.Discard, &jsondata); err != nil {
 		panic(err)
 	}
 }

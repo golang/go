@@ -9,7 +9,8 @@
 
 // +build !aix
 // +build !darwin !arm64
-// Address space starts at 1<<32 on AIX and on darwin/arm64, so dummy is too far.
+// +build !windows !arm64
+// Address space starts at 1<<32 on AIX and on darwin/arm64 and on windows/arm64, so dummy is too far.
 
 package main
 

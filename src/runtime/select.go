@@ -7,6 +7,7 @@ package runtime
 // This file contains the implementation of Go select statements.
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -15,15 +16,15 @@ const debugSelect = false
 
 // Select case descriptor.
 // Known to compiler.
-// Changes here must also be made in src/cmd/internal/gc/select.go's scasetype.
+// Changes here must also be made in src/cmd/compile/internal/walk/select.go's scasetype.
 type scase struct {
 	c    *hchan         // chan
 	elem unsafe.Pointer // data element
 }
 
 var (
-	chansendpc = funcPC(chansend)
-	chanrecvpc = funcPC(chanrecv)
+	chansendpc = abi.FuncPCABIInternal(chansend)
+	chanrecvpc = abi.FuncPCABIInternal(chanrecv)
 )
 
 func selectsetpc(pc *uintptr) {
@@ -405,6 +406,13 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 			msanwrite(cas.elem, c.elemtype.size)
 		}
 	}
+	if asanenabled {
+		if casi < nsends {
+			asanread(cas.elem, c.elemtype.size)
+		} else if cas.elem != nil {
+			asanwrite(cas.elem, c.elemtype.size)
+		}
+	}
 
 	selunlock(scases, lockorder)
 	goto retc
@@ -419,6 +427,9 @@ bufrecv:
 	}
 	if msanenabled && cas.elem != nil {
 		msanwrite(cas.elem, c.elemtype.size)
+	}
+	if asanenabled && cas.elem != nil {
+		asanwrite(cas.elem, c.elemtype.size)
 	}
 	recvOK = true
 	qp = chanbuf(c, c.recvx)
@@ -442,6 +453,9 @@ bufsend:
 	}
 	if msanenabled {
 		msanread(cas.elem, c.elemtype.size)
+	}
+	if asanenabled {
+		asanread(cas.elem, c.elemtype.size)
 	}
 	typedmemmove(c.elemtype, chanbuf(c, c.sendx), cas.elem)
 	c.sendx++
@@ -480,6 +494,9 @@ send:
 	}
 	if msanenabled {
 		msanread(cas.elem, c.elemtype.size)
+	}
+	if asanenabled {
+		asanread(cas.elem, c.elemtype.size)
 	}
 	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
 	if debugSelect {

@@ -11,4 +11,4 @@ For asking questions, see:
 
 * [Stack Overflow](https://stackoverflow.com/questions/tagged/go) with questions tagged "go"
 
-* **IRC** channel #go-nuts on Freenode
+* **IRC** channel #go-nuts on Libera

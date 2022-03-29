@@ -1,0 +1,58 @@
+package metrics
+
+import "sync"
+
+type Metric1[T comparable] struct {
+	mu sync.Mutex
+	m  map[T]int
+}
+
+func (m *Metric1[T]) Add(v T) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.m == nil {
+		m.m = make(map[T]int)
+	}
+	m[v]++
+}
+
+type key2[T1, T2 comparable] struct {
+	f1 T1
+	f2 T2
+}
+
+type Metric2[T1, T2 cmp2] struct {
+	mu sync.Mutex
+	m  map[key2[T1, T2]]int
+}
+
+func (m *Metric2[T1, T2]) Add(v1 T1, v2 T2) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.m == nil {
+		m.m = make(map[key2[T1, T2]]int)
+	}
+	m[key[T1, T2]{v1, v2}]++
+}
+
+type key3[T1, T2, T3 comparable] struct {
+	f1 T1
+	f2 T2
+	f3 T3
+}
+
+type Metric3[T1, T2, T3 comparable] struct {
+	mu sync.Mutex
+	m  map[key3[T1, T2, T3]]int
+}
+
+func (m *Metric3[T1, T2, T3]) Add(v1 T1, v2 T2, v3 T3) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.m == nil {
+		m.m = make(map[key3]int)
+	}
+	m[key[T1, T2, T3]{v1, v2, v3}]++
+}
+
+// Repeat for the maximum number of permitted arguments.

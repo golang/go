@@ -7,8 +7,8 @@ package work
 import (
 	"bytes"
 	"fmt"
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -204,7 +204,7 @@ func (b *Builder) toolID(name string) string {
 // In order to get reproducible builds for released compilers, we
 // detect a released compiler by the absence of "experimental" in the
 // --version output, and in that case we just use the version string.
-func (b *Builder) gccgoToolID(name, language string) (string, error) {
+func (b *Builder) gccToolID(name, language string) (string, error) {
 	key := name + "." + language
 	b.id.Lock()
 	id := b.toolIDCache[key]
@@ -570,6 +570,8 @@ func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string)
 			b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
 		}
 		if !cfg.BuildN {
+			b.output.Lock()
+			defer b.output.Unlock()
 			b.Print(string(stdout))
 		}
 	}
@@ -578,6 +580,8 @@ func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string)
 
 // flushOutput flushes the output being queued in a.
 func (b *Builder) flushOutput(a *Action) {
+	b.output.Lock()
+	defer b.output.Unlock()
 	b.Print(string(a.output))
 	a.output = nil
 }

@@ -6,10 +6,10 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goarch"
 	"math"
 	"reflect"
 	"runtime"
-	"runtime/internal/sys"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,7 +21,7 @@ func TestHmapSize(t *testing.T) {
 	// The structure of hmap is defined in runtime/map.go
 	// and in cmd/compile/internal/gc/reflect.go and must be in sync.
 	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
-	var hmapSize = uintptr(8 + 5*sys.PtrSize)
+	var hmapSize = uintptr(8 + 5*goarch.PtrSize)
 	if runtime.RuntimeHmapSize != hmapSize {
 		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
 	}
@@ -473,7 +473,7 @@ func TestMapNanGrowIterator(t *testing.T) {
 	nan := math.NaN()
 	const nBuckets = 16
 	// To fill nBuckets buckets takes LOAD * nBuckets keys.
-	nKeys := int(nBuckets * *runtime.HashLoad)
+	nKeys := int(nBuckets * runtime.HashLoad)
 
 	// Get map to full point with nan keys.
 	for i := 0; i < nKeys; i++ {
@@ -1050,7 +1050,7 @@ func BenchmarkMapDelete(b *testing.B) {
 func TestDeferDeleteSlow(t *testing.T) {
 	ks := []complex128{0, 1, 2, 3}
 
-	m := make(map[interface{}]int)
+	m := make(map[any]int)
 	for i, k := range ks {
 		m[k] = i
 	}
@@ -1193,14 +1193,14 @@ func TestMapInterfaceKey(t *testing.T) {
 		c64  complex64
 		c128 complex128
 		s    string
-		i0   interface{}
+		i0   any
 		i1   interface {
 			String() string
 		}
 		a [4]string
 	}
 
-	m := map[interface{}]bool{}
+	m := map[any]bool{}
 	// Put a bunch of data in m, so that a bad hash is likely to
 	// lead to a bad bucket, which will lead to a missed lookup.
 	for i := 0; i < 1000; i++ {

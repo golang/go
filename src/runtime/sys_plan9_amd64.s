@@ -88,13 +88,13 @@ TEXT runtime·nsec(SB),NOSPLIT,$0
 	MOVQ	AX, ret+8(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$8-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$8-12
 	CALL	runtime·nanotime1(SB)
 	MOVQ	0(SP), AX
 
 	// generated code for
-	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%1000000000 }
 	// adapted to reduce duplication
 	MOVQ	AX, CX
 	MOVQ	$1360296554856532783, AX
@@ -251,3 +251,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$16-16
 	MOVQ	0(SP), AX
 	MOVQ	AX, ret_base+0(FP)
 	RET
+
+// never called on this platform
+TEXT ·sigpanictramp(SB),NOSPLIT,$0-0
+	UNDEF

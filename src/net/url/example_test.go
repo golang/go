@@ -12,6 +12,46 @@ import (
 	"strings"
 )
 
+func ExamplePathEscape() {
+	path := url.PathEscape("my/cool+blog&about,stuff")
+	fmt.Println(path)
+
+	// Output:
+	// my%2Fcool+blog&about%2Cstuff
+}
+
+func ExamplePathUnescape() {
+	escapedPath := "my%2Fcool+blog&about%2Cstuff"
+	path, err := url.PathUnescape(escapedPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(path)
+
+	// Output:
+	// my/cool+blog&about,stuff
+}
+
+func ExampleQueryEscape() {
+	query := url.QueryEscape("my/cool+blog&about,stuff")
+	fmt.Println(query)
+
+	// Output:
+	// my%2Fcool%2Bblog%26about%2Cstuff
+}
+
+func ExampleQueryUnescape() {
+	escapedQuery := "my%2Fcool%2Bblog%26about%2Cstuff"
+	query, err := url.QueryUnescape(escapedQuery)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(query)
+
+	// Output:
+	// my/cool+blog&about,stuff
+}
+
 func ExampleValues() {
 	v := url.Values{}
 	v.Set("name", "Ava")
@@ -26,6 +66,84 @@ func ExampleValues() {
 	// Ava
 	// Jess
 	// [Jess Sarah Zoe]
+}
+
+func ExampleValues_Add() {
+	v := url.Values{}
+	v.Add("cat sounds", "meow")
+	v.Add("cat sounds", "mew")
+	v.Add("cat sounds", "mau")
+	fmt.Println(v["cat sounds"])
+
+	// Output:
+	// [meow mew mau]
+}
+
+func ExampleValues_Del() {
+	v := url.Values{}
+	v.Add("cat sounds", "meow")
+	v.Add("cat sounds", "mew")
+	v.Add("cat sounds", "mau")
+	fmt.Println(v["cat sounds"])
+
+	v.Del("cat sounds")
+	fmt.Println(v["cat sounds"])
+
+	// Output:
+	// [meow mew mau]
+	// []
+}
+
+func ExampleValues_Encode() {
+	v := url.Values{}
+	v.Add("cat sounds", "meow")
+	v.Add("cat sounds", "mew/")
+	v.Add("cat sounds", "mau$")
+	fmt.Println(v.Encode())
+
+	// Output:
+	// cat+sounds=meow&cat+sounds=mew%2F&cat+sounds=mau%24
+}
+
+func ExampleValues_Get() {
+	v := url.Values{}
+	v.Add("cat sounds", "meow")
+	v.Add("cat sounds", "mew")
+	v.Add("cat sounds", "mau")
+	fmt.Printf("%q\n", v.Get("cat sounds"))
+	fmt.Printf("%q\n", v.Get("dog sounds"))
+
+	// Output:
+	// "meow"
+	// ""
+}
+
+func ExampleValues_Has() {
+	v := url.Values{}
+	v.Add("cat sounds", "meow")
+	v.Add("cat sounds", "mew")
+	v.Add("cat sounds", "mau")
+	fmt.Println(v.Has("cat sounds"))
+	fmt.Println(v.Has("dog sounds"))
+
+	// Output:
+	// true
+	// false
+}
+
+func ExampleValues_Set() {
+	v := url.Values{}
+	v.Add("cat sounds", "meow")
+	v.Add("cat sounds", "mew")
+	v.Add("cat sounds", "mau")
+	fmt.Println(v["cat sounds"])
+
+	v.Set("cat sounds", "meow")
+	fmt.Println(v["cat sounds"])
+
+	// Output:
+	// [meow mew mau]
+	// [meow]
 }
 
 func ExampleURL() {
@@ -72,13 +190,13 @@ func ExampleURL_ResolveReference() {
 }
 
 func ExampleParseQuery() {
-	m, err := url.ParseQuery(`x=1&y=2&y=3;z`)
+	m, err := url.ParseQuery(`x=1&y=2&y=3`)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(toJSON(m))
 	// Output:
-	// {"x":["1"], "y":["2", "3"], "z":[""]}
+	// {"x":["1"], "y":["2", "3"]}
 }
 
 func ExampleURL_EscapedPath() {
@@ -247,7 +365,7 @@ func ExampleURL_RequestURI() {
 	// Output: /path?foo=bar
 }
 
-func toJSON(m interface{}) string {
+func toJSON(m any) string {
 	js, err := json.Marshal(m)
 	if err != nil {
 		log.Fatal(err)

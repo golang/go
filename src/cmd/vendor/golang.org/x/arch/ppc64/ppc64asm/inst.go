@@ -10,10 +10,11 @@ import (
 )
 
 type Inst struct {
-	Op   Op     // Opcode mnemonic
-	Enc  uint32 // Raw encoding bits
-	Len  int    // Length of encoding in bytes.
-	Args Args   // Instruction arguments, in Power ISA manual order.
+	Op        Op     // Opcode mnemonic
+	Enc       uint32 // Raw encoding bits (if Len == 8, this is the prefix word)
+	Len       int    // Length of encoding in bytes.
+	SuffixEnc uint32 // Raw encoding bits of second word (if Len == 8)
+	Args      Args   // Instruction arguments, in Power ISA manual order.
 }
 
 func (i Inst) String() string {
@@ -50,9 +51,9 @@ type Arg interface {
 }
 
 // An Args holds the instruction arguments.
-// If an instruction has fewer than 4 arguments,
+// If an instruction has fewer than 6 arguments,
 // the final elements in the array are nil.
-type Args [5]Arg
+type Args [6]Arg
 
 // A Reg is a single register. The zero value means R0, not the absence of a register.
 // It also includes special registers.
@@ -220,6 +221,14 @@ const (
 	VS61
 	VS62
 	VS63
+	A0 // MMA registers.  These are effectively shadow registers of four adjacent VSR's [An*4,An*4+3]
+	A1
+	A2
+	A3
+	A4
+	A5
+	A6
+	A7
 )
 
 func (Reg) IsArg() {}
@@ -233,6 +242,8 @@ func (r Reg) String() string {
 		return fmt.Sprintf("v%d", int(r-V0))
 	case VS0 <= r && r <= VS63:
 		return fmt.Sprintf("vs%d", int(r-VS0))
+	case A0 <= r && r <= A7:
+		return fmt.Sprintf("a%d", int(r-A0))
 	default:
 		return fmt.Sprintf("Reg(%d)", int(r))
 	}
@@ -328,7 +339,7 @@ func (l Label) String() string {
 }
 
 // Imm represents an immediate number.
-type Imm int32
+type Imm int64
 
 func (Imm) IsArg() {}
 func (i Imm) String() string {
@@ -336,7 +347,7 @@ func (i Imm) String() string {
 }
 
 // Offset represents a memory offset immediate.
-type Offset int32
+type Offset int64
 
 func (Offset) IsArg() {}
 func (o Offset) String() string {

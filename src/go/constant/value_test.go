@@ -143,9 +143,9 @@ func testNumbers(t *testing.T, kind token.Token, tests []string) {
 		if a[1] == "?" {
 			y = MakeUnknown()
 		} else {
-			if i := strings.Index(a[1], "/"); i >= 0 && kind == token.FLOAT {
-				n := MakeFromLiteral(a[1][:i], token.INT, 0)
-				d := MakeFromLiteral(a[1][i+1:], token.INT, 0)
+			if ns, ds, ok := strings.Cut(a[1], "/"); ok && kind == token.FLOAT {
+				n := MakeFromLiteral(ns, token.INT, 0)
+				d := MakeFromLiteral(ds, token.INT, 0)
 				y = BinaryOp(n, token.QUO, d)
 			} else {
 				y = MakeFromLiteral(a[1], kind, 0)
@@ -454,10 +454,10 @@ func val(lit string) Value {
 		return MakeBool(false)
 	}
 
-	if i := strings.IndexByte(lit, '/'); i >= 0 {
+	if as, bs, ok := strings.Cut(lit, "/"); ok {
 		// assume fraction
-		a := MakeFromLiteral(lit[:i], token.INT, 0)
-		b := MakeFromLiteral(lit[i+1:], token.INT, 0)
+		a := MakeFromLiteral(as, token.INT, 0)
+		b := MakeFromLiteral(bs, token.INT, 0)
 		return BinaryOp(a, token.QUO, b)
 	}
 
@@ -659,10 +659,10 @@ func TestMakeFloat64(t *testing.T) {
 
 type makeTestCase struct {
 	kind      Kind
-	arg, want interface{}
+	arg, want any
 }
 
-func dup(k Kind, x interface{}) makeTestCase { return makeTestCase{k, x, x} }
+func dup(k Kind, x any) makeTestCase { return makeTestCase{k, x, x} }
 
 func TestMake(t *testing.T) {
 	for _, test := range []makeTestCase{
@@ -704,5 +704,26 @@ func BenchmarkStringAdd(b *testing.B) {
 				b.Fatalf("bad string %d != %d", n, int64(b.N)*int64(size)*100)
 			}
 		})
+	}
+}
+
+var bitLenTests = []struct {
+	val  int64
+	want int
+}{
+	{0, 0},
+	{1, 1},
+	{-16, 5},
+	{1 << 61, 62},
+	{1 << 62, 63},
+	{-1 << 62, 63},
+	{-1 << 63, 64},
+}
+
+func TestBitLen(t *testing.T) {
+	for _, test := range bitLenTests {
+		if got := BitLen(MakeInt64(test.val)); got != test.want {
+			t.Errorf("%v: got %v, want %v", test.val, got, test.want)
+		}
 	}
 }

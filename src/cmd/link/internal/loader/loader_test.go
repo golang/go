@@ -237,7 +237,8 @@ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
 type addFunc func(l *Loader, s Sym, s2 Sym) Sym
 
 func mkReloc(l *Loader, typ objabi.RelocType, off int32, siz uint8, add int64, sym Sym) Reloc {
-	r := Reloc{&goobj.Reloc{}, l.extReader, l, typ}
+	r := Reloc{&goobj.Reloc{}, l.extReader, l}
+	r.SetType(typ)
 	r.SetOff(off)
 	r.SetSiz(siz)
 	r.SetAdd(add)

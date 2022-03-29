@@ -360,7 +360,7 @@ var readSetCookiesTests = []struct {
 	// Header{"Set-Cookie": {"ASP.NET_SessionId=foo; path=/; HttpOnly, .ASPXAUTH=7E3AA; expires=Wed, 07-Mar-2012 14:25:06 GMT; path=/; HttpOnly"}},
 }
 
-func toJSON(v interface{}) string {
+func toJSON(v any) string {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Sprintf("%#v", v)
@@ -526,6 +526,31 @@ func TestCookieSanitizePath(t *testing.T) {
 
 	if got, sub := logbuf.String(), "dropping invalid bytes"; !strings.Contains(got, sub) {
 		t.Errorf("Expected substring %q in log output. Got:\n%s", sub, got)
+	}
+}
+
+func TestCookieValid(t *testing.T) {
+	tests := []struct {
+		cookie *Cookie
+		valid  bool
+	}{
+		{nil, false},
+		{&Cookie{Name: ""}, false},
+		{&Cookie{Name: "invalid-expires"}, false},
+		{&Cookie{Name: "invalid-value", Value: "foo\"bar"}, false},
+		{&Cookie{Name: "invalid-path", Path: "/foo;bar/"}, false},
+		{&Cookie{Name: "invalid-domain", Domain: "example.com:80"}, false},
+		{&Cookie{Name: "valid", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0)}, true},
+	}
+
+	for _, tt := range tests {
+		err := tt.cookie.Valid()
+		if err != nil && tt.valid {
+			t.Errorf("%#v.Valid() returned error %v; want nil", tt.cookie, err)
+		}
+		if err == nil && !tt.valid {
+			t.Errorf("%#v.Valid() returned nil; want error", tt.cookie)
+		}
 	}
 }
 

@@ -5,7 +5,7 @@
 // This file is used with build tag timetzdata to embed tzdata into
 // the binary.
 
-// +build timetzdata
+//go:build timetzdata
 
 package time
 

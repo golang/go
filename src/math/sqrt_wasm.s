@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-TEXT ·Sqrt(SB),NOSPLIT,$0
+TEXT ·archSqrt(SB),NOSPLIT,$0
 	Get SP
 	F64Load x+0(FP)
 	F64Sqrt

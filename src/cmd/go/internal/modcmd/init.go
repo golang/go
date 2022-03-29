@@ -13,7 +13,7 @@ import (
 )
 
 var cmdInit = &base.Command{
-	UsageLine: "go mod init [module]",
+	UsageLine: "go mod init [module-path]",
 	Short:     "initialize new module in current directory",
 	Long: `
 Init initializes and writes a new go.mod file in the current directory, in
@@ -27,6 +27,8 @@ Gopkg.lock), and the current directory (if in GOPATH).
 
 If a configuration file for a vendoring tool is present, init will attempt to
 import module requirements from it.
+
+See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
 `,
 	Run: runInit,
 }
@@ -37,7 +39,7 @@ func init() {
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 1 {
-		base.Fatalf("go mod init: too many arguments")
+		base.Fatalf("go: 'go mod init' accepts at most one argument")
 	}
 	var modPath string
 	if len(args) == 1 {

@@ -38,7 +38,7 @@ GLOBL ·tanxadd<> + 0(SB), RODATA, $8
 
 TEXT	·tanAsm(SB), NOSPLIT, $0-16
 	FMOVD	x+0(FP), F0
-	//specail case Tan(±0) = ±0
+	//special case Tan(±0) = ±0
 	FMOVD   $(0.0), F1
 	FCMPU   F0, F1
 	BEQ     atanIsZero

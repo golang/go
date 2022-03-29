@@ -6,7 +6,7 @@
 # 'go get foo@requested' should resolve the requested version,
 # not error out on the (unrelated) latest one.
 
-go get -d example.net/a/p@v0.2.0
+go get example.net/a/p@v0.2.0
 
 -- go.mod --
 module example

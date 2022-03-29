@@ -62,12 +62,12 @@ readlines:
 		}
 		linesRead++
 		trimmedLine := strings.TrimRight(line, "\r\n")
-		split := strings.SplitN(trimmedLine, "=", 2)
-		if len(split) != 2 {
-			t.Fatalf("Unexpected %d parts from invalid line number %v: %q; existing map=%v",
-				len(split), linesRead, line, m)
+		k, v, ok := strings.Cut(trimmedLine, "=")
+		if !ok {
+			t.Fatalf("Unexpected response from invalid line number %v: %q; existing map=%v",
+				linesRead, line, m)
 		}
-		m[split[0]] = split[1]
+		m[k] = v
 	}
 
 	for key, expected := range expectedMap {

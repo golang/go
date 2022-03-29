@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package syscall_test
 
@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -166,11 +165,13 @@ func TestPgid(t *testing.T) {
 
 func TestForeground(t *testing.T) {
 	signal.Ignore(syscall.SIGTTIN, syscall.SIGTTOU)
+	defer signal.Reset()
 
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
 		t.Skipf("Can't test Foreground. Couldn't open /dev/tty: %s", err)
 	}
+	defer tty.Close()
 
 	// This should really be pid_t, however _C_int (aka int32) is generally
 	// equivalent.
@@ -211,12 +212,68 @@ func TestForeground(t *testing.T) {
 
 	cmd.Stop()
 
-	errno = syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+	// This call fails on darwin/arm64. The failure doesn't matter, though.
+	// This is just best effort.
+	syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+}
+
+func TestForegroundSignal(t *testing.T) {
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		t.Skipf("couldn't open /dev/tty: %s", err)
+	}
+	defer tty.Close()
+
+	// This should really be pid_t, however _C_int (aka int32) is generally
+	// equivalent.
+	fpgrp := int32(0)
+
+	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
 	if errno != 0 {
-		t.Fatalf("TIOCSPGRP failed with error code: %s", errno)
+		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
 	}
 
-	signal.Reset()
+	if fpgrp == 0 {
+		t.Fatalf("Foreground process group is zero")
+	}
+
+	defer func() {
+		signal.Ignore(syscall.SIGTTIN, syscall.SIGTTOU)
+		syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+		signal.Reset()
+	}()
+
+	ch1 := make(chan os.Signal, 1)
+	ch2 := make(chan bool)
+
+	signal.Notify(ch1, syscall.SIGTTIN, syscall.SIGTTOU)
+	defer signal.Stop(ch1)
+
+	cmd := create(t)
+
+	go func() {
+		cmd.proc.SysProcAttr = &syscall.SysProcAttr{
+			Ctty:       int(tty.Fd()),
+			Foreground: true,
+		}
+		cmd.Start()
+		cmd.Stop()
+		close(ch2)
+	}()
+
+	timer := time.NewTimer(30 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case sig := <-ch1:
+			t.Errorf("unexpected signal %v", sig)
+		case <-ch2:
+			// Success.
+			return
+		case <-timer.C:
+			t.Fatal("timed out waiting for child process")
+		}
+	}
 }
 
 // Test a couple of cases that SysProcAttr can't handle. Issue 29458.
@@ -269,7 +326,6 @@ func TestExecHelper(t *testing.T) {
 	// We don't have to worry about restoring these values.
 	// We are in a child process that only runs this test,
 	// and we are going to call syscall.Exec anyhow.
-	runtime.GOMAXPROCS(50)
 	os.Setenv("GO_WANT_HELPER_PROCESS", "3")
 
 	stop := time.Now().Add(time.Second)

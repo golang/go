@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !plan9
+//go:build !plan9
 
 package lockedfile
 
@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"os"
 
-	"cmd/go/internal/fsys"
 	"cmd/go/internal/lockedfile/internal/filelock"
 )
 
@@ -20,7 +19,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
 	// calls for Linux and Windows anyway, so it's simpler to use that approach
 	// consistently.
 
-	f, err := fsys.OpenFile(name, flag&^os.O_TRUNC, perm)
+	f, err := os.OpenFile(name, flag&^os.O_TRUNC, perm)
 	if err != nil {
 		return nil, err
 	}

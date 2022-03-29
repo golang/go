@@ -430,6 +430,20 @@ func TestSectionReader_Size(t *testing.T) {
 	}
 }
 
+func TestSectionReader_Max(t *testing.T) {
+	r := strings.NewReader("abcdef")
+	const maxint64 = 1<<63 - 1
+	sr := NewSectionReader(r, 3, maxint64)
+	n, err := sr.Read(make([]byte, 3))
+	if n != 3 || err != nil {
+		t.Errorf("Read = %v %v, want 3, nil", n, err)
+	}
+	n, err = sr.Read(make([]byte, 3))
+	if n != 0 || err != EOF {
+		t.Errorf("Read = %v, %v, want 0, EOF", n, err)
+	}
+}
+
 // largeWriter returns an invalid count that is larger than the number
 // of bytes provided (issue 39978).
 type largeWriter struct {

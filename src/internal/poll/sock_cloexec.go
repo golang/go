@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements sysSocket and accept for platforms that
-// provide a fast path for setting SetNonblock and CloseOnExec.
+// This file implements accept for platforms that provide a fast path for
+// setting SetNonblock and CloseOnExec.
 
-// +build dragonfly freebsd illumos linux netbsd openbsd
+//go:build dragonfly || freebsd || illumos || linux || netbsd || openbsd
 
 package poll
 

@@ -4,6 +4,8 @@
 
 #include "textflag.h"
 
+// See memclrNoHeapPointers Go doc for important implementation constraints.
+
 // void runtime·memclrNoHeapPointers(void*, uintptr)
 TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
 	MOV	ptr+0(FP), T1

@@ -2,25 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ppc64 ppc64le
+//go:build ppc64 || ppc64le
 
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
-	MOVD	b_base+0(FP), R3	// R3 = byte array pointer
-	MOVD	b_len+8(FP), R4		// R4 = length
-	MOVBZ	c+24(FP), R5		// R5 = byte
-	MOVD	$ret+32(FP), R14	// R14 = &ret
+TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
+	// R3 = byte array pointer
+	// R4 = length
+	MOVD	R6, R5		// R5 = byte
 	BR	indexbytebody<>(SB)
 
-TEXT ·IndexByteString(SB),NOSPLIT|NOFRAME,$0-32
-	MOVD	s_base+0(FP), R3  // R3 = string
-	MOVD	s_len+8(FP), R4	  // R4 = length
-	MOVBZ	c+16(FP), R5	  // R5 = byte
-	MOVD	$ret+24(FP), R14  // R14 = &ret
+TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
+	// R3 = string
+	// R4 = length
+	// R5 = byte
 	BR	indexbytebody<>(SB)
 
+// R3 = addr of string
+// R4 = len of string
+// R5 = byte to find
+// On exit:
+// R3 = return value
 TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R3,R17		// Save base address for calculating the index later.
 	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
@@ -184,8 +187,7 @@ tail:
 	BNE	    CR6,found_qw_align
 
 notfound:
-	MOVD	$-1,R3
-	MOVD	R3,(R14)
+	MOVD	$-1, R3
 	RET
 
 found:
@@ -227,8 +229,7 @@ found:
 	ADD	R8,R11,R3	// Calculate byte address
 
 return:
-	SUB	R17,R3
-	MOVD	R3,(R14)
+	SUB	R17, R3
 	RET
 
 found_qw_align:

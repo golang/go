@@ -135,6 +135,13 @@ func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64)
 	s.writeAddr(ctxt, off, siz, rsym, roff, objabi.R_ADDR)
 }
 
+// WriteWeakAddr writes an address of size siz into s at offset off.
+// rsym and roff specify the relocation for the address.
+// This is a weak reference.
+func (s *LSym) WriteWeakAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
+	s.writeAddr(ctxt, off, siz, rsym, roff, objabi.R_WEAKADDR)
+}
+
 // WriteCURelativeAddr writes a pointer-sized address into s at offset off.
 // rsym and roff specify the relocation for the address which will be
 // resolved by the linker to an offset from the DW_AT_low_pc attribute of

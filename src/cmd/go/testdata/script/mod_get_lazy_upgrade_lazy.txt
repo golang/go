@@ -1,0 +1,68 @@
+# Check that 'go get -u' will upgrade a dependency (direct or indirect)
+# when the main module and the dependency are both lazy.
+# Verifies #47768.
+
+# Check that go.mod is tidy, and an upgrade is available.
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
+
+go list -m -u example.com/lazyupgrade
+stdout '^example.com/lazyupgrade v0.1.0 \[v0.1.1\] => ./lazyupgrade@v0.1.0$'
+
+# 'go get -u' on a package that directly imports the dependency should upgrade.
+go get -u ./usedirect
+go list -m example.com/lazyupgrade
+stdout '^example.com/lazyupgrade v0.1.1 => ./lazyupgrade@v0.1.1$'
+cp go.mod.orig go.mod
+
+# 'go get -u' on a package that indirectly imports the dependency should upgrade.
+go get -u ./useindirect
+go list -m example.com/lazyupgrade
+stdout '^example.com/lazyupgrade v0.1.1 => ./lazyupgrade@v0.1.1$'
+
+-- go.mod --
+module use
+
+go 1.17
+
+require (
+	direct v0.0.0
+	example.com/lazyupgrade v0.1.0
+)
+
+replace (
+	direct => ./direct
+	example.com/lazyupgrade v0.1.0 => ./lazyupgrade@v0.1.0
+	example.com/lazyupgrade v0.1.1 => ./lazyupgrade@v0.1.1
+)
+-- usedirect/usedirect.go --
+package use
+
+import _ "example.com/lazyupgrade"
+-- useindirect/useindirect.go --
+package use
+
+import _ "direct"
+-- direct/go.mod --
+module direct
+
+go 1.17
+
+require example.com/lazyupgrade v0.1.0
+-- direct/direct.go --
+package direct
+
+import _ "example.com/lazyupgrade"
+-- lazyupgrade@v0.1.0/go.mod --
+module example.com/lazyupgrade
+
+go 1.17
+-- lazyupgrade@v0.1.0/lazyupgrade.go --
+package lazyupgrade
+-- lazyupgrade@v0.1.1/go.mod --
+module example.com/lazyupgrade
+
+go 1.17
+-- lazyupgrade@v0.1.1/lazyupgrade.go --
+package lazyupgrade

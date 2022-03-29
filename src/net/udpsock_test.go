@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
+//go:build !js
 
 package net
 
 import (
+	"errors"
 	"internal/testenv"
+	"os"
 	"reflect"
 	"runtime"
 	"testing"
@@ -283,10 +285,7 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 			t.Log(err)
 			continue
 		}
-		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&packetListener{PacketConn: c1}).newLocalServer()
 		defer ls.teardown()
 		ch := make(chan error, 1)
 		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, ch) }
@@ -331,10 +330,7 @@ func TestUDPZeroBytePayload(t *testing.T) {
 		testenv.SkipFlaky(t, 29225)
 	}
 
-	c, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := newLocalPacketListener(t, "udp")
 	defer c.Close()
 
 	for _, genericRead := range []bool{false, true} {
@@ -367,10 +363,7 @@ func TestUDPZeroByteBuffer(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	c, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := newLocalPacketListener(t, "udp")
 	defer c.Close()
 
 	b := []byte("UDP ZERO BYTE BUFFER TEST")
@@ -404,10 +397,7 @@ func TestUDPReadSizeError(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	c1, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
 
 	c2, err := Dial("udp", c1.LocalAddr().String())
@@ -425,22 +415,210 @@ func TestUDPReadSizeError(t *testing.T) {
 		if n != len(b1) {
 			t.Errorf("got %d; want %d", n, len(b1))
 		}
-		c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		b2 := make([]byte, len(b1)-1)
 		if genericRead {
 			n, err = c1.(Conn).Read(b2)
 		} else {
 			n, _, err = c1.ReadFrom(b2)
 		}
-		switch err {
-		case nil: // ReadFrom succeeds
-		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
-				t.Fatal(err)
-			}
+		if err != nil && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
+			t.Fatal(err)
 		}
 		if n != len(b1)-1 {
 			t.Fatalf("got %d; want %d", n, len(b1)-1)
 		}
+	}
+}
+
+// TestUDPReadTimeout verifies that ReadFromUDP with timeout returns an error
+// without data or an address.
+func TestUDPReadTimeout(t *testing.T) {
+	la, err := ResolveUDPAddr("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := ListenUDP("udp4", la)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	c.SetDeadline(time.Now())
+	b := make([]byte, 1)
+	n, addr, err := c.ReadFromUDP(b)
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Errorf("ReadFromUDP got err %v want os.ErrDeadlineExceeded", err)
+	}
+	if n != 0 {
+		t.Errorf("ReadFromUDP got n %d want 0", n)
+	}
+	if addr != nil {
+		t.Errorf("ReadFromUDP got addr %+#v want nil", addr)
+	}
+}
+
+func TestAllocs(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		// Plan9 wasn't optimized.
+		t.Skipf("skipping on %v", runtime.GOOS)
+	}
+	builder := os.Getenv("GO_BUILDER_NAME")
+	switch builder {
+	case "linux-amd64-noopt":
+		// Optimizations are required to remove the allocs.
+		t.Skipf("skipping on %v", builder)
+	}
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	addr := conn.LocalAddr()
+	addrPort := addr.(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		_, _, err := conn.WriteMsgUDPAddrPort(buf, nil, addrPort)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, _, _, err = conn.ReadMsgUDPAddrPort(buf, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := int(allocs); got != 0 {
+		t.Errorf("WriteMsgUDPAddrPort/ReadMsgUDPAddrPort allocated %d objects", got)
+	}
+
+	allocs = testing.AllocsPerRun(1000, func() {
+		_, err := conn.WriteToUDPAddrPort(buf, addrPort)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDPAddrPort(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := int(allocs); got != 0 {
+		t.Errorf("WriteToUDPAddrPort/ReadFromUDPAddrPort allocated %d objects", got)
+	}
+
+	allocs = testing.AllocsPerRun(1000, func() {
+		_, err := conn.WriteTo(buf, addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDP(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := int(allocs); got != 1 {
+		t.Errorf("WriteTo/ReadFromUDP allocated %d objects", got)
+	}
+}
+
+func BenchmarkReadWriteMsgUDPAddrPort(b *testing.B) {
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer conn.Close()
+	addr := conn.LocalAddr().(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, _, err := conn.WriteMsgUDPAddrPort(buf, nil, addr)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, _, _, _, err = conn.ReadMsgUDPAddrPort(buf, nil)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkWriteToReadFromUDP(b *testing.B) {
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer conn.Close()
+	addr := conn.LocalAddr()
+	buf := make([]byte, 8)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := conn.WriteTo(buf, addr)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDP(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkWriteToReadFromUDPAddrPort(b *testing.B) {
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer conn.Close()
+	addr := conn.LocalAddr().(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := conn.WriteToUDPAddrPort(buf, addr)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDPAddrPort(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func TestUDPIPVersionReadMsg(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping on %v", runtime.GOOS)
+	}
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	daddr := conn.LocalAddr().(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+	_, err = conn.WriteToUDPAddrPort(buf, daddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, saddr, err := conn.ReadMsgUDPAddrPort(buf, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !saddr.Addr().Is4() {
+		t.Error("returned AddrPort is not IPv4")
+	}
+	_, err = conn.WriteToUDPAddrPort(buf, daddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, soldaddr, err := conn.ReadMsgUDP(buf, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(soldaddr.IP) != 4 {
+		t.Error("returned UDPAddr is not IPv4")
 	}
 }

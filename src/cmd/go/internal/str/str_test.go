@@ -4,7 +4,9 @@
 
 package str
 
-import "testing"
+import (
+	"testing"
+)
 
 var foldDupTests = []struct {
 	list   []string

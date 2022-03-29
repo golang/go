@@ -695,7 +695,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			err = SyntaxError{"data truncated"}
 			return
 		}
-		var result interface{}
+		var result any
 		if !t.isCompound && t.class == ClassUniversal {
 			innerBytes := bytes[offset : offset+t.length]
 			switch t.tag {
@@ -914,7 +914,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		structType := fieldType
 
 		for i := 0; i < structType.NumField(); i++ {
-			if structType.Field(i).PkgPath != "" {
+			if !structType.Field(i).IsExported() {
 				err = StructuralError{"struct contains unexported fields"}
 				return
 			}
@@ -1067,6 +1067,15 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //	set         causes a SET, rather than a SEQUENCE type to be expected
 //	tag:x       specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
 //
+// When decoding an ASN.1 value with an IMPLICIT tag into a string field,
+// Unmarshal will default to a PrintableString, which doesn't support
+// characters such as '@' and '&'. To force other encodings, use the following
+// tags:
+//
+//	ia5     causes strings to be unmarshaled as ASN.1 IA5String values
+//	numeric causes strings to be unmarshaled as ASN.1 NumericString values
+//	utf8    causes strings to be unmarshaled as ASN.1 UTF8String values
+//
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.
 //
@@ -1077,7 +1086,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // Other ASN.1 types are not supported; if it encounters them,
 // Unmarshal returns a parse error.
-func Unmarshal(b []byte, val interface{}) (rest []byte, err error) {
+func Unmarshal(b []byte, val any) (rest []byte, err error) {
 	return UnmarshalWithParams(b, val, "")
 }
 
@@ -1092,7 +1101,7 @@ func (e *invalidUnmarshalError) Error() string {
 		return "asn1: Unmarshal recipient value is nil"
 	}
 
-	if e.Type.Kind() != reflect.Ptr {
+	if e.Type.Kind() != reflect.Pointer {
 		return "asn1: Unmarshal recipient value is non-pointer " + e.Type.String()
 	}
 	return "asn1: Unmarshal recipient value is nil " + e.Type.String()
@@ -1100,9 +1109,9 @@ func (e *invalidUnmarshalError) Error() string {
 
 // UnmarshalWithParams allows field parameters to be specified for the
 // top-level element. The form of the params is the same as the field tags.
-func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err error) {
+func UnmarshalWithParams(b []byte, val any, params string) (rest []byte, err error) {
 	v := reflect.ValueOf(val)
-	if v.Kind() != reflect.Ptr || v.IsNil() {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return nil, &invalidUnmarshalError{reflect.TypeOf(val)}
 	}
 	offset, err := parseField(v.Elem(), b, 0, parseFieldParameters(params))

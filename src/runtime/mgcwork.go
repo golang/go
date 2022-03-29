@@ -5,8 +5,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -77,9 +77,10 @@ type gcWork struct {
 	// into work.bytesMarked by dispose.
 	bytesMarked uint64
 
-	// Scan work performed on this gcWork. This is aggregated into
+	// Heap scan work performed on this gcWork. This is aggregated into
 	// gcController by dispose and may also be flushed by callers.
-	scanWork int64
+	// Other types of scan work are flushed immediately.
+	heapScanWork int64
 
 	// flushedWork indicates that a non-empty work buffer was
 	// flushed to the global work list since the last gcMarkDone
@@ -147,9 +148,7 @@ func (w *gcWork) put(obj uintptr) {
 //go:nowritebarrierrec
 func (w *gcWork) putFast(obj uintptr) bool {
 	wbuf := w.wbuf1
-	if wbuf == nil {
-		return false
-	} else if wbuf.nobj == len(wbuf.obj) {
+	if wbuf == nil || wbuf.nobj == len(wbuf.obj) {
 		return false
 	}
 
@@ -229,10 +228,7 @@ func (w *gcWork) tryGet() uintptr {
 //go:nowritebarrierrec
 func (w *gcWork) tryGetFast() uintptr {
 	wbuf := w.wbuf1
-	if wbuf == nil {
-		return 0
-	}
-	if wbuf.nobj == 0 {
+	if wbuf == nil || wbuf.nobj == 0 {
 		return 0
 	}
 
@@ -274,9 +270,9 @@ func (w *gcWork) dispose() {
 		atomic.Xadd64(&work.bytesMarked, int64(w.bytesMarked))
 		w.bytesMarked = 0
 	}
-	if w.scanWork != 0 {
-		atomic.Xaddint64(&gcController.scanWork, w.scanWork)
-		w.scanWork = 0
+	if w.heapScanWork != 0 {
+		gcController.heapScanWork.Add(w.heapScanWork)
+		w.heapScanWork = 0
 	}
 }
 
@@ -322,7 +318,7 @@ type workbufhdr struct {
 type workbuf struct {
 	workbufhdr
 	// account for the above fields
-	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / sys.PtrSize]uintptr
+	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / goarch.PtrSize]uintptr
 }
 
 // workbuf factory routines. These funcs are used to manage the
@@ -398,7 +394,7 @@ func getempty() *workbuf {
 }
 
 // putempty puts a workbuf onto the work.empty list.
-// Upon entry this go routine owns b. The lfstack.push relinquishes ownership.
+// Upon entry this goroutine owns b. The lfstack.push relinquishes ownership.
 //go:nowritebarrier
 func putempty(b *workbuf) {
 	b.checkempty()

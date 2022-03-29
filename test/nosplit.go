@@ -21,6 +21,8 @@ import (
 	"strings"
 )
 
+const debug = false
+
 var tests = `
 # These are test cases for the linker analysis that detects chains of
 # nosplit functions that would cause a stack overflow.
@@ -33,8 +35,8 @@ var tests = `
 # The body is assembly code, with some shorthands.
 # The shorthand 'call x' stands for CALL x(SB).
 # The shorthand 'callind' stands for 'CALL R0', where R0 is a register.
-# Each test case must define a function named main, and it must be first.
-# That is, a line beginning "main " indicates the start of a new test case.
+# Each test case must define a function named start, and it must be first.
+# That is, a line beginning "start " indicates the start of a new test case.
 # Within a stanza, ; can be used instead of \n to separate lines.
 #
 # After the function definition, the test case ends with an optional
@@ -46,41 +48,41 @@ var tests = `
 # that are only 32-bit aligned.
 
 # Ordinary function should work
-main 0
+start 0
 
 # Large frame marked nosplit is always wrong.
-main 10000 nosplit
+start 10000 nosplit
 REJECT
 
 # Calling a large frame is okay.
-main 0 call big
+start 0 call big
 big 10000
 
 # But not if the frame is nosplit.
-main 0 call big
+start 0 call big
 big 10000 nosplit
 REJECT
 
 # Recursion is okay.
-main 0 call main
+start 0 call start
 
 # Recursive nosplit runs out of space.
-main 0 nosplit call main
+start 0 nosplit call start
 REJECT
 
 # Chains of ordinary functions okay.
-main 0 call f1
+start 0 call f1
 f1 80 call f2
 f2 80
 
 # Chains of nosplit must fit in the stack limit, 128 bytes.
-main 0 call f1
+start 0 call f1
 f1 80 nosplit call f2
 f2 80 nosplit
 REJECT
 
 # Larger chains.
-main 0 call f1
+start 0 call f1
 f1 16 call f2
 f2 16 call f3
 f3 16 call f4
@@ -91,7 +93,7 @@ f7 16 call f8
 f8 16 call end
 end 1000
 
-main 0 call f1
+start 0 call f1
 f1 16 nosplit call f2
 f2 16 nosplit call f3
 f3 16 nosplit call f4
@@ -106,27 +108,27 @@ REJECT
 # Test cases near the 128-byte limit.
 
 # Ordinary stack split frame is always okay.
-main 112
-main 116
-main 120
-main 124
-main 128
-main 132
-main 136
+start 112
+start 116
+start 120
+start 124
+start 128
+start 132
+start 136
 
 # A nosplit leaf can use the whole 128-CallSize bytes available on entry.
 # (CallSize is 32 on ppc64, 8 on amd64 for frame pointer.)
-main 96 nosplit
-main 100 nosplit; REJECT ppc64 ppc64le
-main 104 nosplit; REJECT ppc64 ppc64le arm64
-main 108 nosplit; REJECT ppc64 ppc64le
-main 112 nosplit; REJECT ppc64 ppc64le arm64
-main 116 nosplit; REJECT ppc64 ppc64le
-main 120 nosplit; REJECT ppc64 ppc64le amd64 arm64
-main 124 nosplit; REJECT ppc64 ppc64le amd64
-main 128 nosplit; REJECT
-main 132 nosplit; REJECT
-main 136 nosplit; REJECT
+start 96 nosplit
+start 100 nosplit; REJECT ppc64 ppc64le
+start 104 nosplit; REJECT ppc64 ppc64le arm64
+start 108 nosplit; REJECT ppc64 ppc64le
+start 112 nosplit; REJECT ppc64 ppc64le arm64
+start 116 nosplit; REJECT ppc64 ppc64le
+start 120 nosplit; REJECT ppc64 ppc64le amd64 arm64
+start 124 nosplit; REJECT ppc64 ppc64le amd64
+start 128 nosplit; REJECT
+start 132 nosplit; REJECT
+start 136 nosplit; REJECT
 
 # Calling a nosplit function from a nosplit function requires
 # having room for the saved caller PC and the called frame.
@@ -134,55 +136,55 @@ main 136 nosplit; REJECT
 # Because arm64 doesn't save LR in the leaf, it gets an extra 8 bytes.
 # ppc64 doesn't save LR in the leaf, but CallSize is 32, so it gets 24 bytes.
 # Because AMD64 uses frame pointer, it has 8 fewer bytes.
-main 96 nosplit call f; f 0 nosplit
-main 100 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
-main 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le arm64
-main 108 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
-main 112 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
-main 116 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
-main 120 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
-main 124 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 386
-main 128 nosplit call f; f 0 nosplit; REJECT
-main 132 nosplit call f; f 0 nosplit; REJECT
-main 136 nosplit call f; f 0 nosplit; REJECT
+start 96 nosplit call f; f 0 nosplit
+start 100 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+start 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le arm64
+start 108 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+start 112 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
+start 116 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
+start 120 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
+start 124 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 386
+start 128 nosplit call f; f 0 nosplit; REJECT
+start 132 nosplit call f; f 0 nosplit; REJECT
+start 136 nosplit call f; f 0 nosplit; REJECT
 
 # Calling a splitting function from a nosplit function requires
 # having room for the saved caller PC of the call but also the
 # saved caller PC for the call to morestack.
 # Architectures differ in the same way as before.
-main 96 nosplit call f; f 0 call f
-main 100 nosplit call f; f 0 call f; REJECT ppc64 ppc64le
-main 104 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
-main 108 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
-main 112 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
-main 116 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
-main 120 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386 arm64
-main 124 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386
-main 128 nosplit call f; f 0 call f; REJECT
-main 132 nosplit call f; f 0 call f; REJECT
-main 136 nosplit call f; f 0 call f; REJECT
+start 96 nosplit call f; f 0 call f
+start 100 nosplit call f; f 0 call f; REJECT ppc64 ppc64le
+start 104 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
+start 108 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+start 112 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
+start 116 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+start 120 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386 arm64
+start 124 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386
+start 128 nosplit call f; f 0 call f; REJECT
+start 132 nosplit call f; f 0 call f; REJECT
+start 136 nosplit call f; f 0 call f; REJECT
 
 # Indirect calls are assumed to be splitting functions.
-main 96 nosplit callind
-main 100 nosplit callind; REJECT ppc64 ppc64le
-main 104 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
-main 108 nosplit callind; REJECT ppc64 ppc64le amd64
-main 112 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
-main 116 nosplit callind; REJECT ppc64 ppc64le amd64
-main 120 nosplit callind; REJECT ppc64 ppc64le amd64 386 arm64
-main 124 nosplit callind; REJECT ppc64 ppc64le amd64 386
-main 128 nosplit callind; REJECT
-main 132 nosplit callind; REJECT
-main 136 nosplit callind; REJECT
+start 96 nosplit callind
+start 100 nosplit callind; REJECT ppc64 ppc64le
+start 104 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
+start 108 nosplit callind; REJECT ppc64 ppc64le amd64
+start 112 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
+start 116 nosplit callind; REJECT ppc64 ppc64le amd64
+start 120 nosplit callind; REJECT ppc64 ppc64le amd64 386 arm64
+start 124 nosplit callind; REJECT ppc64 ppc64le amd64 386
+start 128 nosplit callind; REJECT
+start 132 nosplit callind; REJECT
+start 136 nosplit callind; REJECT
 
 # Issue 7623
-main 0 call f; f 112
-main 0 call f; f 116
-main 0 call f; f 120
-main 0 call f; f 124
-main 0 call f; f 128
-main 0 call f; f 132
-main 0 call f; f 136
+start 0 call f; f 112
+start 0 call f; f 116
+start 0 call f; f 120
+start 0 call f; f 124
+start 0 call f; f 128
+start 0 call f; f 132
+start 0 call f; f 136
 `
 
 var (
@@ -197,17 +199,6 @@ func main() {
 	goarch := os.Getenv("GOARCH")
 	if goarch == "" {
 		goarch = runtime.GOARCH
-	}
-
-	version, err := exec.Command("go", "tool", "compile", "-V").Output()
-	if err != nil {
-		bug()
-		fmt.Printf("running go tool compile -V: %v\n", err)
-		return
-	}
-	if s := string(version); goarch == "amd64" && strings.Contains(s, "X:") && !strings.Contains(s, "framepointer") {
-		// Skip this test if framepointer is NOT enabled on AMD64
-		return
 	}
 
 	dir, err := ioutil.TempDir("", "go-test-nosplit")
@@ -231,7 +222,7 @@ func main() {
 TestCases:
 	for len(tests) > 0 {
 		var stanza string
-		i := strings.Index(tests, "\nmain ")
+		i := strings.Index(tests, "\nstart ")
 		if i < 0 {
 			stanza, tests = tests, ""
 		} else {
@@ -293,6 +284,14 @@ TestCases:
 			fmt.Fprintf(&buf, "#define REGISTER AX\n")
 		}
 
+		// Since all of the functions we're generating are
+		// ABI0, first enter ABI0 via a splittable function
+		// and then go to the chain we're testing. This way we
+		// don't have to account for ABI wrappers in the chain.
+		fmt.Fprintf(&gobuf, "func main0()\n")
+		fmt.Fprintf(&gobuf, "func main() { main0() }\n")
+		fmt.Fprintf(&buf, "TEXT ·main0(SB),0,$0-0\n\tCALL ·start(SB)\n")
+
 		for _, line := range strings.Split(lines, "\n") {
 			line = strings.TrimSpace(line)
 			if line == "" {
@@ -344,6 +343,12 @@ TestCases:
 				fmt.Fprintf(&gobuf, "func %s()\n", name)
 				fmt.Fprintf(&buf, "TEXT ·%s(SB)%s,$%d-0\n\t%s\n\tRET\n\n", name, nosplit, size, body)
 			}
+		}
+
+		if debug {
+			fmt.Printf("===\n%s\n", strings.TrimSpace(stanza))
+			fmt.Printf("-- main.go --\n%s", gobuf.String())
+			fmt.Printf("-- asm.s --\n%s", buf.String())
 		}
 
 		if err := ioutil.WriteFile(filepath.Join(dir, "asm.s"), buf.Bytes(), 0666); err != nil {

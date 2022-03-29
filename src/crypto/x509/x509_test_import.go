@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 // This file is run by the x509 tests to ensure that a program with minimal
 // imports can sign certificates without errors resulting from missing hash

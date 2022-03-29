@@ -23,12 +23,15 @@ import (
 // return value evaluates to non-nil during execution, execution terminates and
 // Execute returns that error.
 //
+// Errors returned by Execute wrap the underlying error; call errors.As to
+// uncover them.
+//
 // When template execution invokes a function with an argument list, that list
 // must be assignable to the function's parameter types. Functions meant to
 // apply to arguments of arbitrary type can use parameters of type interface{} or
 // of type reflect.Value. Similarly, functions meant to return a result of arbitrary
 // type can return interface{} or reflect.Value.
-type FuncMap map[string]interface{}
+type FuncMap map[string]any
 
 // builtins returns the FuncMap.
 // It is not a global variable so the linker can dead code eliminate
@@ -136,18 +139,18 @@ func goodName(name string) bool {
 }
 
 // findFunction looks for a function in the template, and global map.
-func findFunction(name string, tmpl *Template) (reflect.Value, bool) {
+func findFunction(name string, tmpl *Template) (v reflect.Value, isBuiltin, ok bool) {
 	if tmpl != nil && tmpl.common != nil {
 		tmpl.muFuncs.RLock()
 		defer tmpl.muFuncs.RUnlock()
 		if fn := tmpl.execFuncs[name]; fn.IsValid() {
-			return fn, true
+			return fn, false, true
 		}
 	}
 	if fn := builtinFuncs()[name]; fn.IsValid() {
-		return fn, true
+		return fn, true, true
 	}
-	return reflect.Value{}, false
+	return reflect.Value{}, false, false
 }
 
 // prepareArg checks if value can be used as an argument of type argType, and
@@ -344,7 +347,7 @@ func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
 
 		var err error
 		if argv[i], err = prepareArg(arg, argType); err != nil {
-			return reflect.Value{}, fmt.Errorf("arg %d: %s", i, err)
+			return reflect.Value{}, fmt.Errorf("arg %d: %w", i, err)
 		}
 	}
 	return safeCall(fn, argv)
@@ -379,31 +382,13 @@ func truth(arg reflect.Value) bool {
 // and computes the Boolean AND of its arguments, returning
 // the first false argument it encounters, or the last argument.
 func and(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
-	if !truth(arg0) {
-		return arg0
-	}
-	for i := range args {
-		arg0 = args[i]
-		if !truth(arg0) {
-			break
-		}
-	}
-	return arg0
+	panic("unreachable") // implemented as a special case in evalCall
 }
 
 // or computes the Boolean OR of its arguments, returning
 // the first true argument it encounters, or the last argument.
 func or(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
-	if truth(arg0) {
-		return arg0
-	}
-	for i := range args {
-		arg0 = args[i]
-		if truth(arg0) {
-			break
-		}
-	}
-	return arg0
+	panic("unreachable") // implemented as a special case in evalCall
 }
 
 // not returns the Boolean negation of its argument.
@@ -475,7 +460,9 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case k1 == uintKind && k2 == intKind:
 				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
 			default:
-				return false, errBadComparison
+				if arg1 != zero && arg != zero {
+					return false, errBadComparison
+				}
 			}
 		} else {
 			switch k1 {
@@ -492,7 +479,7 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case uintKind:
 				truth = arg1.Uint() == arg.Uint()
 			default:
-				if arg == zero {
+				if arg == zero || arg1 == zero {
 					truth = arg1 == arg
 				} else {
 					if t2 := arg.Type(); !t2.Comparable() {
@@ -640,7 +627,7 @@ func HTMLEscapeString(s string) string {
 
 // HTMLEscaper returns the escaped HTML equivalent of the textual
 // representation of its arguments.
-func HTMLEscaper(args ...interface{}) string {
+func HTMLEscaper(args ...any) string {
 	return HTMLEscapeString(evalArgs(args))
 }
 
@@ -731,13 +718,13 @@ func jsIsSpecial(r rune) bool {
 
 // JSEscaper returns the escaped JavaScript equivalent of the textual
 // representation of its arguments.
-func JSEscaper(args ...interface{}) string {
+func JSEscaper(args ...any) string {
 	return JSEscapeString(evalArgs(args))
 }
 
 // URLQueryEscaper returns the escaped value of the textual representation of
 // its arguments in a form suitable for embedding in a URL query.
-func URLQueryEscaper(args ...interface{}) string {
+func URLQueryEscaper(args ...any) string {
 	return url.QueryEscape(evalArgs(args))
 }
 
@@ -746,7 +733,7 @@ func URLQueryEscaper(args ...interface{}) string {
 // except that each argument is indirected (if a pointer), as required,
 // using the same rules as the default string evaluation during template
 // execution.
-func evalArgs(args []interface{}) string {
+func evalArgs(args []any) string {
 	ok := false
 	var s string
 	// Fast path for simple common case.

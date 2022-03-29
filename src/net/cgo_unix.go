@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo,!netgo
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build cgo && !netgo && (aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris)
 
 package net
 
@@ -321,7 +320,7 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
 			break
 		}
 	}
-	return []string{absDomainName(b)}, nil
+	return []string{absDomainName(string(b))}, nil
 }
 
 func cgoReverseLookup(result chan<- reverseLookupResult, addr string, sa *C.struct_sockaddr, salen C.socklen_t) {

@@ -17,10 +17,10 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 
 ! go list -m all
-stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
 
 ! go list -m -f '{{.Dir}}' all
-stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
 
 # An explicit -mod=mod should force the vendor directory to be ignored.
 env GOFLAGS=-mod=mod
@@ -66,7 +66,7 @@ stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
 stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
 stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
 stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
-stderr '\n\nrun .go mod vendor. to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory$'
+stderr '^\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor$'
 
 # Module-specific subcommands should continue to load the full module graph.
 go mod graph
@@ -105,10 +105,10 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 # ...but 'go list -m' should continue to fail, this time without
 # referring to a -mod default that the user didn't set.
 ! go list -m all
-stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
 
 ! go list -m -f '{{.Dir}}' all
-stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
 
 
 # 'go mod init' should work if there is already a GOPATH-mode vendor directory
@@ -135,7 +135,7 @@ stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
 stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
 stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
 stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
-stderr '\n\nrun .go mod vendor. to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory$'
+stderr '^\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor$'
 
 # If -mod=vendor is set, limited consistency checks should apply even when
 # the go version is 1.13 or earlier.
@@ -151,7 +151,7 @@ cp $WORK/modules-bad-1.13.txt vendor/modules.txt
 ! go list -mod=vendor -f {{.Dir}} -tags tools all
 stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
 stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but vendor/modules.txt indicates example.com/printversion@v1.1.0$'
-stderr '\n\nrun .go mod vendor. to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory$'
+stderr '^\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor$'
 
 # If the go version is still 1.13, 'go mod vendor' should write a
 # matching vendor/modules.txt containing the corrected 1.13 data.
@@ -177,7 +177,7 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 
 # 'go get' should update from the network or module cache,
 # even if a vendor directory is present.
-go get -d example.com/version@v1.1.0
+go get example.com/version@v1.1.0
 ! go list -f {{.Dir}} -tags tools all
 stderr '^go: inconsistent vendoring'
 

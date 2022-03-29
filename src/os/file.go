@@ -44,11 +44,13 @@ import (
 	"errors"
 	"internal/poll"
 	"internal/testlog"
+	"internal/unsafeheader"
 	"io"
 	"io/fs"
 	"runtime"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 // Name returns the name of the file as presented to Open.
@@ -107,7 +109,7 @@ func (e *LinkError) Unwrap() error {
 	return e.Err
 }
 
-// Read reads up to len(b) bytes from the File.
+// Read reads up to len(b) bytes from the File and stores them in b.
 // It returns the number of bytes read and any error encountered.
 // At end of file, Read returns 0, io.EOF.
 func (f *File) Read(b []byte) (n int, err error) {
@@ -164,7 +166,7 @@ type onlyWriter struct {
 	io.Writer
 }
 
-// Write writes len(b) bytes to the File.
+// Write writes len(b) bytes from b to the File.
 // It returns the number of bytes written and an error, if any.
 // Write returns a non-nil error when n != len(b).
 func (f *File) Write(b []byte) (n int, err error) {
@@ -246,7 +248,12 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 // WriteString is like Write, but writes the contents of string s rather than
 // a slice of bytes.
 func (f *File) WriteString(s string) (n int, err error) {
-	return f.Write([]byte(s))
+	var b []byte
+	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
+	hdr.Data = (*unsafeheader.String)(unsafe.Pointer(&s)).Data
+	hdr.Cap = len(s)
+	hdr.Len = len(s)
+	return f.Write(b)
 }
 
 // Mkdir creates a new directory with the specified name and permission
@@ -616,19 +623,43 @@ func isWindowsNulName(name string) bool {
 // the /prefix tree, then using DirFS does not stop the access any more than using
 // os.Open does. DirFS is therefore not a general substitute for a chroot-style security
 // mechanism when the directory tree contains arbitrary content.
+//
+// The result implements fs.StatFS.
 func DirFS(dir string) fs.FS {
 	return dirFS(dir)
+}
+
+func containsAny(s, chars string) bool {
+	for i := 0; i < len(s); i++ {
+		for j := 0; j < len(chars); j++ {
+			if s[i] == chars[j] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 type dirFS string
 
 func (dir dirFS) Open(name string) (fs.File, error) {
-	if !fs.ValidPath(name) {
+	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
 		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
 	}
 	f, err := Open(string(dir) + "/" + name)
 	if err != nil {
 		return nil, err // nil fs.File
+	}
+	return f, nil
+}
+
+func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
+	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
+		return nil, &PathError{Op: "stat", Path: name, Err: ErrInvalid}
+	}
+	f, err := Stat(string(dir) + "/" + name)
+	if err != nil {
+		return nil, err
 	}
 	return f, nil
 }

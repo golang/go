@@ -18,7 +18,7 @@ package cgosotest
 #cgo solaris LDFLAGS: -L. -lcgosotest
 #cgo netbsd LDFLAGS: -L. libcgosotest.so
 #cgo darwin LDFLAGS: -L. libcgosotest.dylib
-#cgo windows LDFLAGS: -L. libcgosotest.dll
+#cgo windows LDFLAGS: -L. libcgosotest.a
 #cgo aix LDFLAGS: -L. -l cgosotest
 
 #include "cgoso_c.h"

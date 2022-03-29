@@ -7,6 +7,7 @@
 package net
 
 import (
+	"internal/itoa"
 	"syscall"
 	"time"
 )
@@ -17,7 +18,7 @@ func setNoDelay(fd *netFD, noDelay bool) error {
 
 // Set keep alive period.
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
-	cmd := "keepalive " + itoa(int(d/time.Millisecond))
+	cmd := "keepalive " + itoa.Itoa(int(d/time.Millisecond))
 	_, e := fd.ctl.WriteAt([]byte(cmd), 0)
 	return e
 }

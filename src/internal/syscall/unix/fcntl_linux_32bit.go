@@ -5,7 +5,7 @@
 // On 32-bit Linux systems, use SYS_FCNTL64.
 // If you change the build tags here, see syscall/flock_linux_32bit.go.
 
-// +build linux,386 linux,arm linux,mips linux,mipsle
+//go:build (linux && 386) || (linux && arm) || (linux && mips) || (linux && mipsle)
 
 package unix
 

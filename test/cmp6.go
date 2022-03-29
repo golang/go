@@ -63,16 +63,16 @@ func main() {
 	use(a3 == a3) // ERROR "invalid operation|invalid comparison"
 
 	// Comparison of structs should have a good message
-	use(t3 == t3) // ERROR "struct|expected"
-	use(t4 == t4) // ERROR "cannot be compared|non-comparable"
+	use(t3 == t3) // ERROR "struct|expected|cannot compare"
+	use(t4 == t4) // ERROR "cannot be compared|non-comparable|cannot compare"
 
 	// Slices, functions, and maps too.
 	var x []int
 	var f func()
 	var m map[int]int
-	use(x == x) // ERROR "slice can only be compared to nil"
-	use(f == f) // ERROR "func can only be compared to nil"
-	use(m == m) // ERROR "map can only be compared to nil"
+	use(x == x) // ERROR "slice can only be compared to nil|cannot compare"
+	use(f == f) // ERROR "func can only be compared to nil|cannot compare"
+	use(m == m) // ERROR "map can only be compared to nil|cannot compare"
 
 	// Comparison with interface that cannot return true
 	// (would panic).

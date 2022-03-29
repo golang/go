@@ -1,7 +1,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_linux.go
 
-// +build ppc64,linux
+//go:build ppc64 && linux
 
 package syscall
 

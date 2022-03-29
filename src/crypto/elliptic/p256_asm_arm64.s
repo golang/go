@@ -324,10 +324,10 @@ loop_select:
 	RET
 /* ---------------------------------------*/
 // Constant time point access to base point table.
-// func p256SelectBase(point, table []uint64, idx int)
+// func p256SelectBase(point *[12]uint64, table string, idx int)
 TEXT ·p256SelectBase(SB),NOSPLIT,$0
-	MOVD	idx+48(FP), t0
-	MOVD	table+24(FP), t1
+	MOVD	idx+24(FP), t0
+	MOVD	table_base+8(FP), t1
 	MOVD	point+0(FP), res_ptr
 
 	EOR	x0, x0, x0

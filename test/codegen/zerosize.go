@@ -12,14 +12,14 @@ package codegen
 
 func zeroSize() {
 	c := make(chan struct{})
-	// amd64:`MOVQ\t\$0, ""\.s\+32\(SP\)`
+	// amd64:`MOVQ\t\$0, ""\.s\+56\(SP\)`
 	var s *int
-	g(&s) // force s to be a stack object
+	// force s to be a stack object, also use some (fixed) stack space
+	g(&s, 1, 2, 3, 4, 5)
 
-	// amd64:`LEAQ\t""\..*\+31\(SP\)`
+	// amd64:`LEAQ\t""\..*\+55\(SP\)`
 	c <- struct{}{}
 }
 
 //go:noinline
-func g(p **int) {
-}
+func g(**int, int, int, int, int, int) {}

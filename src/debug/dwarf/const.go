@@ -427,7 +427,7 @@ const (
 	lneSetDiscriminator = 4
 )
 
-// Line table directory directory and file name entry formats.
+// Line table directory and file name entry formats.
 // These are new in DWARF 5.
 const (
 	lnctPath           = 0x01

@@ -2,39 +2,36 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ppc64 ppc64le
+//go:build ppc64 || ppc64le
 
 #include "go_asm.h"
 #include "textflag.h"
 
 // memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
-	MOVD    a+0(FP), R3
-	MOVD    b+8(FP), R4
-	MOVD    size+16(FP), R5
-	MOVD    $ret+24(FP), R10
-
+TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+	// R3 = a
+	// R4 = b
+	// R5 = size
 	BR	memeqbody<>(SB)
 
 // memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT|NOFRAME,$0-17
-	MOVD	a+0(FP), R3
-	MOVD	b+8(FP), R4
+TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
+	// R3 = a
+	// R4 = b
 	CMP	R3, R4
 	BEQ	eq
 	MOVD	8(R11), R5    // compiler stores size at offset 8 in the closure
-	MOVD    $ret+16(FP), R10
 	BR	memeqbody<>(SB)
 eq:
 	MOVD	$1, R3
-	MOVB	R3, ret+16(FP)
 	RET
 
 // Do an efficient memequal for ppc64
 // R3 = s1
 // R4 = s2
 // R5 = len
-// R10 = addr of return value (byte)
+// On exit:
+// R3 = return value
 TEXT memeqbody<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD    R5,CTR
 	CMP     R5,$8		// only optimize >=8
@@ -93,10 +90,9 @@ simple:
 	BNE	noteq
 	BR	equal
 noteq:
-	MOVB    $0, (R10)
+	MOVD	$0, R3
 	RET
 equal:
 	MOVD	$1, R3
-	MOVB	R3, (R10)
 	RET
 

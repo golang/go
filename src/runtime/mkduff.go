@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 // runtime·duffzero is a Duff's device for zeroing memory.
 // The compiler jumps to computed addresses within
@@ -62,15 +62,15 @@ func gen(arch string, tags, zero, copy func(io.Writer)) {
 func notags(w io.Writer) { fmt.Fprintln(w) }
 
 func zeroAMD64(w io.Writer) {
-	// X0: zero
+	// X15: zero
 	// DI: ptr to memory to be zeroed
 	// DI is updated as a side effect.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0")
 	for i := 0; i < 16; i++ {
-		fmt.Fprintln(w, "\tMOVUPS\tX0,(DI)")
-		fmt.Fprintln(w, "\tMOVUPS\tX0,16(DI)")
-		fmt.Fprintln(w, "\tMOVUPS\tX0,32(DI)")
-		fmt.Fprintln(w, "\tMOVUPS\tX0,48(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,16(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,32(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX15,48(DI)")
 		fmt.Fprintln(w, "\tLEAQ\t64(DI),DI") // We use lea instead of add, to avoid clobbering flags
 		fmt.Fprintln(w)
 	}
@@ -84,7 +84,7 @@ func copyAMD64(w io.Writer) {
 	//
 	// This is equivalent to a sequence of MOVSQ but
 	// for some reason that is 3.5x slower than this code.
-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT, $0-0")
 	for i := 0; i < 64; i++ {
 		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
 		fmt.Fprintln(w, "\tADDQ\t$16, SI")
@@ -153,7 +153,7 @@ func zeroARM64(w io.Writer) {
 	// ZR: always zero
 	// R20: ptr to memory to be zeroed
 	// On return, R20 points to the last zeroed dword.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 63; i++ {
 		fmt.Fprintln(w, "\tSTP.P\t(ZR, ZR), 16(R20)")
 	}
@@ -166,7 +166,7 @@ func copyARM64(w io.Writer) {
 	// R21: ptr to destination memory
 	// R26, R27 (aka REGTMP): scratch space
 	// R20 and R21 are updated as a side effect
-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
 
 	for i := 0; i < 64; i++ {
 		fmt.Fprintln(w, "\tLDP.P\t16(R20), (R26, R27)")
@@ -178,7 +178,7 @@ func copyARM64(w io.Writer) {
 
 func tagsPPC64x(w io.Writer) {
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "// +build ppc64 ppc64le")
+	fmt.Fprintln(w, "//go:build ppc64 || ppc64le")
 	fmt.Fprintln(w)
 }
 
@@ -186,22 +186,26 @@ func zeroPPC64x(w io.Writer) {
 	// R0: always zero
 	// R3 (aka REGRT1): ptr to memory to be zeroed - 8
 	// On return, R3 points to the last zeroed dword.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVDU\tR0, 8(R3)")
+		fmt.Fprintln(w, "\tMOVDU\tR0, 8(R20)")
 	}
 	fmt.Fprintln(w, "\tRET")
 }
 
 func copyPPC64x(w io.Writer) {
 	// duffcopy is not used on PPC64.
-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
-	fmt.Fprintln(w, "\tUNDEF")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
+	for i := 0; i < 128; i++ {
+		fmt.Fprintln(w, "\tMOVDU\t8(R20), R5")
+		fmt.Fprintln(w, "\tMOVDU\tR5, 8(R21)")
+	}
+	fmt.Fprintln(w, "\tRET")
 }
 
 func tagsMIPS64x(w io.Writer) {
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "// +build mips64 mips64le")
+	fmt.Fprintln(w, "//go:build mips64 || mips64le")
 	fmt.Fprintln(w)
 }
 
@@ -231,26 +235,26 @@ func copyMIPS64x(w io.Writer) {
 
 func zeroRISCV64(w io.Writer) {
 	// ZERO: always zero
-	// X10: ptr to memory to be zeroed
-	// X10 is updated as a side effect.
+	// X25: ptr to memory to be zeroed
+	// X25 is updated as a side effect.
 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOV\tZERO, (X10)")
-		fmt.Fprintln(w, "\tADD\t$8, X10")
+		fmt.Fprintln(w, "\tMOV\tZERO, (X25)")
+		fmt.Fprintln(w, "\tADD\t$8, X25")
 	}
 	fmt.Fprintln(w, "\tRET")
 }
 
 func copyRISCV64(w io.Writer) {
-	// X10: ptr to source memory
-	// X11: ptr to destination memory
-	// X10 and X11 are updated as a side effect
+	// X24: ptr to source memory
+	// X25: ptr to destination memory
+	// X24 and X25 are updated as a side effect
 	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOV\t(X10), X31")
-		fmt.Fprintln(w, "\tADD\t$8, X10")
-		fmt.Fprintln(w, "\tMOV\tX31, (X11)")
-		fmt.Fprintln(w, "\tADD\t$8, X11")
+		fmt.Fprintln(w, "\tMOV\t(X24), X31")
+		fmt.Fprintln(w, "\tADD\t$8, X24")
+		fmt.Fprintln(w, "\tMOV\tX31, (X25)")
+		fmt.Fprintln(w, "\tADD\t$8, X25")
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")

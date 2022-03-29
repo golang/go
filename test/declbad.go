@@ -23,13 +23,13 @@ func main() {
 	{
 		// change of type for f
 		i, f, s := f3()
-		f, g, t := f3() // ERROR "redeclared|cannot assign|incompatible"
+		f, g, t := f3() // ERROR "redeclared|cannot assign|incompatible|cannot use"
 		_, _, _, _, _ = i, f, s, g, t
 	}
 	{
 		// change of type for i
 		i, f, s := f3()
-		j, i, t := f3() // ERROR "redeclared|cannot assign|incompatible"
+		j, i, t := f3() // ERROR "redeclared|cannot assign|incompatible|cannot use"
 		_, _, _, _, _ = i, f, s, j, t
 	}
 	{

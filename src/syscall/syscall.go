@@ -26,6 +26,8 @@
 //
 package syscall
 
+import "internal/bytealg"
+
 //go:generate go run ./mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
 
 // StringByteSlice converts a string to a NUL-terminated []byte,
@@ -45,10 +47,8 @@ func StringByteSlice(s string) []byte {
 // containing the text of s. If s contains a NUL byte at any
 // location, it returns (nil, EINVAL).
 func ByteSliceFromString(s string) ([]byte, error) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == 0 {
-			return nil, EINVAL
-		}
+	if bytealg.IndexByteString(s, 0) != -1 {
+		return nil, EINVAL
 	}
 	a := make([]byte, len(s)+1)
 	copy(a, s)

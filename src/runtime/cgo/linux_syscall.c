@@ -32,7 +32,7 @@ typedef struct {
 
 #define SET_RETVAL(fn) \
   uintptr_t ret = (uintptr_t) fn ; \
-  if (ret == -1) {                 \
+  if (ret == (uintptr_t) -1) {	   \
     x->retval = (uintptr_t) errno; \
   } else                           \
     x->retval = ret

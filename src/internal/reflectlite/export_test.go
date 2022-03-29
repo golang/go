@@ -81,7 +81,7 @@ func Zero(typ Type) Value {
 //	var i interface{} = (v's underlying value)
 // It panics if the Value was obtained by accessing
 // unexported struct fields.
-func ToInterface(v Value) (i interface{}) {
+func ToInterface(v Value) (i any) {
 	return valueInterface(v)
 }
 

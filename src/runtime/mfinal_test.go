@@ -34,14 +34,23 @@ func TestFinalizerType(t *testing.T) {
 	}
 
 	var finalizerTests = []struct {
-		convert   func(*int) interface{}
-		finalizer interface{}
+		convert   func(*int) any
+		finalizer any
 	}{
-		{func(x *int) interface{} { return x }, func(v *int) { finalize(v) }},
-		{func(x *int) interface{} { return Tintptr(x) }, func(v Tintptr) { finalize(v) }},
-		{func(x *int) interface{} { return Tintptr(x) }, func(v *int) { finalize(v) }},
-		{func(x *int) interface{} { return (*Tint)(x) }, func(v *Tint) { finalize((*int)(v)) }},
-		{func(x *int) interface{} { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
+		{func(x *int) any { return x }, func(v *int) { finalize(v) }},
+		{func(x *int) any { return Tintptr(x) }, func(v Tintptr) { finalize(v) }},
+		{func(x *int) any { return Tintptr(x) }, func(v *int) { finalize(v) }},
+		{func(x *int) any { return (*Tint)(x) }, func(v *Tint) { finalize((*int)(v)) }},
+		{func(x *int) any { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
+		// Test case for argument spill slot.
+		// If the spill slot was not counted for the frame size, it will (incorrectly) choose
+		// call32 as the result has (exactly) 32 bytes. When the argument actually spills,
+		// it clobbers the caller's frame (likely the return PC).
+		{func(x *int) any { return x }, func(v any) [4]int64 {
+			print() // force spill
+			finalize(v.(*int))
+			return [4]int64{}
+		}},
 	}
 
 	for i, tt := range finalizerTests {
@@ -85,7 +94,7 @@ func TestFinalizerInterfaceBig(t *testing.T) {
 	go func() {
 		v := &bigValue{0xDEADBEEFDEADBEEF, true, "It matters not how strait the gate"}
 		old := *v
-		runtime.SetFinalizer(v, func(v interface{}) {
+		runtime.SetFinalizer(v, func(v any) {
 			i, ok := v.(*bigValue)
 			if !ok {
 				t.Errorf("finalizer called with type %T, want *bigValue", v)

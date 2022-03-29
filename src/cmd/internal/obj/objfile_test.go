@@ -111,7 +111,7 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
 		t.Fatalf("failed to write source file: %v\n", err)
 	}
 	obj := filepath.Join(tmpdir, "p.o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", obj, src)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("did not fail\noutput: %s", out)

@@ -18,6 +18,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1383,7 +1384,7 @@ func TestCipherSuites(t *testing.T) {
 		}
 	}
 
-	cipherSuiteByID := func(id uint16) *CipherSuite {
+	CipherSuiteByID := func(id uint16) *CipherSuite {
 		for _, c := range CipherSuites() {
 			if c.ID == id {
 				return c
@@ -1398,15 +1399,12 @@ func TestCipherSuites(t *testing.T) {
 	}
 
 	for _, c := range cipherSuites {
-		cc := cipherSuiteByID(c.id)
+		cc := CipherSuiteByID(c.id)
 		if cc == nil {
 			t.Errorf("%#04x: no CipherSuite entry", c.id)
 			continue
 		}
 
-		if defaultOff := c.flags&suiteDefaultOff != 0; defaultOff != cc.Insecure {
-			t.Errorf("%#04x: Insecure %v, expected %v", c.id, cc.Insecure, defaultOff)
-		}
 		if tls12Only := c.flags&suiteTLS12 != 0; tls12Only && len(cc.SupportedVersions) != 1 {
 			t.Errorf("%#04x: suite is TLS 1.2 only, but SupportedVersions is %v", c.id, cc.SupportedVersions)
 		} else if !tls12Only && len(cc.SupportedVersions) != 3 {
@@ -1418,7 +1416,7 @@ func TestCipherSuites(t *testing.T) {
 		}
 	}
 	for _, c := range cipherSuitesTLS13 {
-		cc := cipherSuiteByID(c.id)
+		cc := CipherSuiteByID(c.id)
 		if cc == nil {
 			t.Errorf("%#04x: no CipherSuite entry", c.id)
 			continue
@@ -1438,6 +1436,143 @@ func TestCipherSuites(t *testing.T) {
 
 	if got := CipherSuiteName(0xabc); got != "0x0ABC" {
 		t.Errorf("unexpected fallback CipherSuiteName: got %q, expected 0x0ABC", got)
+	}
+
+	if len(cipherSuitesPreferenceOrder) != len(cipherSuites) {
+		t.Errorf("cipherSuitesPreferenceOrder is not the same size as cipherSuites")
+	}
+	if len(cipherSuitesPreferenceOrderNoAES) != len(cipherSuitesPreferenceOrder) {
+		t.Errorf("cipherSuitesPreferenceOrderNoAES is not the same size as cipherSuitesPreferenceOrder")
+	}
+
+	// Check that disabled suites are at the end of the preference lists, and
+	// that they are marked insecure.
+	for i, id := range disabledCipherSuites {
+		offset := len(cipherSuitesPreferenceOrder) - len(disabledCipherSuites)
+		if cipherSuitesPreferenceOrder[offset+i] != id {
+			t.Errorf("disabledCipherSuites[%d]: not at the end of cipherSuitesPreferenceOrder", i)
+		}
+		if cipherSuitesPreferenceOrderNoAES[offset+i] != id {
+			t.Errorf("disabledCipherSuites[%d]: not at the end of cipherSuitesPreferenceOrderNoAES", i)
+		}
+		c := CipherSuiteByID(id)
+		if c == nil {
+			t.Errorf("%#04x: no CipherSuite entry", id)
+			continue
+		}
+		if !c.Insecure {
+			t.Errorf("%#04x: disabled by default but not marked insecure", id)
+		}
+	}
+
+	for i, prefOrder := range [][]uint16{cipherSuitesPreferenceOrder, cipherSuitesPreferenceOrderNoAES} {
+		// Check that insecure and HTTP/2 bad cipher suites are at the end of
+		// the preference lists.
+		var sawInsecure, sawBad bool
+		for _, id := range prefOrder {
+			c := CipherSuiteByID(id)
+			if c == nil {
+				t.Errorf("%#04x: no CipherSuite entry", id)
+				continue
+			}
+
+			if c.Insecure {
+				sawInsecure = true
+			} else if sawInsecure {
+				t.Errorf("%#04x: secure suite after insecure one(s)", id)
+			}
+
+			if http2isBadCipher(id) {
+				sawBad = true
+			} else if sawBad {
+				t.Errorf("%#04x: non-bad suite after bad HTTP/2 one(s)", id)
+			}
+		}
+
+		// Check that the list is sorted according to the documented criteria.
+		isBetter := func(a, b int) bool {
+			aSuite, bSuite := cipherSuiteByID(prefOrder[a]), cipherSuiteByID(prefOrder[b])
+			aName, bName := CipherSuiteName(prefOrder[a]), CipherSuiteName(prefOrder[b])
+			// * < RC4
+			if !strings.Contains(aName, "RC4") && strings.Contains(bName, "RC4") {
+				return true
+			} else if strings.Contains(aName, "RC4") && !strings.Contains(bName, "RC4") {
+				return false
+			}
+			// * < CBC_SHA256
+			if !strings.Contains(aName, "CBC_SHA256") && strings.Contains(bName, "CBC_SHA256") {
+				return true
+			} else if strings.Contains(aName, "CBC_SHA256") && !strings.Contains(bName, "CBC_SHA256") {
+				return false
+			}
+			// * < 3DES
+			if !strings.Contains(aName, "3DES") && strings.Contains(bName, "3DES") {
+				return true
+			} else if strings.Contains(aName, "3DES") && !strings.Contains(bName, "3DES") {
+				return false
+			}
+			// ECDHE < *
+			if aSuite.flags&suiteECDHE != 0 && bSuite.flags&suiteECDHE == 0 {
+				return true
+			} else if aSuite.flags&suiteECDHE == 0 && bSuite.flags&suiteECDHE != 0 {
+				return false
+			}
+			// AEAD < CBC
+			if aSuite.aead != nil && bSuite.aead == nil {
+				return true
+			} else if aSuite.aead == nil && bSuite.aead != nil {
+				return false
+			}
+			// AES < ChaCha20
+			if strings.Contains(aName, "AES") && strings.Contains(bName, "CHACHA20") {
+				return i == 0 // true for cipherSuitesPreferenceOrder
+			} else if strings.Contains(aName, "CHACHA20") && strings.Contains(bName, "AES") {
+				return i != 0 // true for cipherSuitesPreferenceOrderNoAES
+			}
+			// AES-128 < AES-256
+			if strings.Contains(aName, "AES_128") && strings.Contains(bName, "AES_256") {
+				return true
+			} else if strings.Contains(aName, "AES_256") && strings.Contains(bName, "AES_128") {
+				return false
+			}
+			// ECDSA < RSA
+			if aSuite.flags&suiteECSign != 0 && bSuite.flags&suiteECSign == 0 {
+				return true
+			} else if aSuite.flags&suiteECSign == 0 && bSuite.flags&suiteECSign != 0 {
+				return false
+			}
+			t.Fatalf("two ciphersuites are equal by all criteria: %v and %v", aName, bName)
+			panic("unreachable")
+		}
+		if !sort.SliceIsSorted(prefOrder, isBetter) {
+			t.Error("preference order is not sorted according to the rules")
+		}
+	}
+}
+
+// http2isBadCipher is copied from net/http.
+// TODO: if it ends up exposed somewhere, use that instead.
+func http2isBadCipher(cipher uint16) bool {
+	switch cipher {
+	case TLS_RSA_WITH_RC4_128_SHA,
+		TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+		TLS_RSA_WITH_AES_128_CBC_SHA,
+		TLS_RSA_WITH_AES_256_CBC_SHA,
+		TLS_RSA_WITH_AES_128_CBC_SHA256,
+		TLS_RSA_WITH_AES_128_GCM_SHA256,
+		TLS_RSA_WITH_AES_256_GCM_SHA384,
+		TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+		TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+		TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+		TLS_ECDHE_RSA_WITH_RC4_128_SHA,
+		TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+		TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+		TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+		TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+		TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
+		return true
+	default:
+		return false
 	}
 }
 

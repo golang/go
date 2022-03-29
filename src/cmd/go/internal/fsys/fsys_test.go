@@ -1,11 +1,11 @@
 package fsys
 
 import (
-	"cmd/go/internal/txtar"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"internal/testenv"
+	"internal/txtar"
 	"io"
 	"io/fs"
 	"os"

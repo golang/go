@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build dragonfly || freebsd || linux || netbsd || openbsd
 // +build dragonfly freebsd linux netbsd openbsd
 
 package main
@@ -69,11 +70,7 @@ func TestSectionsWithSameName(t *testing.T) {
 		t.Skipf("can't find objcopy: %v", err)
 	}
 
-	dir, err := ioutil.TempDir("", "go-link-TestSectionsWithSameName")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	gopath := filepath.Join(dir, "GOPATH")
 	env := append(os.Environ(), "GOPATH="+gopath)
@@ -143,11 +140,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "go-link-TestMinusRSymsWithSameName")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	gopath := filepath.Join(dir, "GOPATH")
 	env := append(os.Environ(), "GOPATH="+gopath)
@@ -208,6 +201,61 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	}
 }
 
+func TestMergeNoteSections(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	expected := 1
+
+	switch runtime.GOOS {
+	case "linux", "freebsd", "dragonfly":
+	case "openbsd", "netbsd":
+		// These OSes require independent segment
+		expected = 2
+	default:
+		t.Skip("We should only test on elf output.")
+	}
+	t.Parallel()
+
+	goFile := filepath.Join(t.TempDir(), "notes.go")
+	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	outFile := filepath.Join(t.TempDir(), "notes.exe")
+	goTool := testenv.GoToolPath(t)
+	// sha1sum of "gopher"
+	id := "0xf4e8cd51ce8bae2996dc3b74639cdeaa1f7fee5f"
+	cmd := exec.Command(goTool, "build", "-o", outFile, "-ldflags",
+		"-B "+id, goFile)
+	cmd.Dir = t.TempDir()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	ef, err := elf.Open(outFile)
+	if err != nil {
+		t.Fatalf("open elf file failed:%v", err)
+	}
+	defer ef.Close()
+	sec := ef.Section(".note.gnu.build-id")
+	if sec == nil {
+		t.Fatalf("can't find gnu build id")
+	}
+
+	sec = ef.Section(".note.go.buildid")
+	if sec == nil {
+		t.Fatalf("can't find go build id")
+	}
+	cnt := 0
+	for _, ph := range ef.Progs {
+		if ph.Type == elf.PT_NOTE {
+			cnt += 1
+		}
+	}
+	if cnt != expected {
+		t.Fatalf("want %d PT_NOTE segment, got %d", expected, cnt)
+	}
+}
+
 const pieSourceTemplate = `
 package main
 
@@ -226,6 +274,12 @@ func main() {
 
 func TestPIESize(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	// We don't want to test -linkmode=external if cgo is not supported.
+	// On some systems -buildmode=pie implies -linkmode=external, so just
+	// always skip the test if cgo is not supported.
+	testenv.MustHaveCGO(t)
+
 	if !sys.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
 		t.Skip("-buildmode=pie not supported")
 	}
@@ -264,11 +318,7 @@ func TestPIESize(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			dir, err := ioutil.TempDir("", "go-link-"+name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(dir)
+			dir := t.TempDir()
 
 			writeGo(t, dir)
 
@@ -405,6 +455,9 @@ func TestPIESize(t *testing.T) {
 			extraexe := extrasize(elfexe)
 			extrapie := extrasize(elfpie)
 
+			if sizepie < sizeexe || sizepie-extrapie < sizeexe-extraexe {
+				return
+			}
 			diffReal := (sizepie - extrapie) - (sizeexe - extraexe)
 			diffExpected := (textpie + dynpie) - (textexe + dynexe)
 

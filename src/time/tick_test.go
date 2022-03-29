@@ -15,10 +15,11 @@ func TestTicker(t *testing.T) {
 	// We want to test that a ticker takes as much time as expected.
 	// Since we don't want the test to run for too long, we don't
 	// want to use lengthy times. This makes the test inherently flaky.
-	// So only report an error if it fails five times in a row.
+	// Start with a short time, but try again with a long one if the
+	// first test fails.
 
-	count := 10
-	delta := 20 * Millisecond
+	baseCount := 10
+	baseDelta := 20 * Millisecond
 
 	// On Darwin ARM64 the tick frequency seems limited. Issue 35692.
 	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
@@ -27,8 +28,8 @@ func TestTicker(t *testing.T) {
 		// Since tick frequency is limited on Darwin ARM64, use even
 		// number to give the ticks more time to let the test pass.
 		// See CL 220638.
-		count = 6
-		delta = 100 * Millisecond
+		baseCount = 6
+		baseDelta = 100 * Millisecond
 	}
 
 	var errs []string
@@ -38,7 +39,17 @@ func TestTicker(t *testing.T) {
 		}
 	}
 
-	for i := 0; i < 5; i++ {
+	for _, test := range []struct {
+		count int
+		delta Duration
+	}{{
+		count: baseCount,
+		delta: baseDelta,
+	}, {
+		count: 8,
+		delta: 1 * Second,
+	}} {
+		count, delta := test.count, test.delta
 		ticker := NewTicker(delta)
 		t0 := Now()
 		for i := 0; i < count/2; i++ {
@@ -52,9 +63,14 @@ func TestTicker(t *testing.T) {
 		t1 := Now()
 		dt := t1.Sub(t0)
 		target := 3 * delta * Duration(count/2)
-		slop := target * 2 / 10
+		slop := target * 3 / 10
 		if dt < target-slop || dt > target+slop {
-			errs = append(errs, fmt.Sprintf("%d %s ticks took %s, expected [%s,%s]", count, delta, dt, target-slop, target+slop))
+			errs = append(errs, fmt.Sprintf("%d %s ticks then %d %s ticks took %s, expected [%s,%s]", count/2, delta, count/2, delta*2, dt, target-slop, target+slop))
+			if dt > target+slop {
+				// System may be overloaded; sleep a bit
+				// in the hopes it will recover.
+				Sleep(Second / 2)
+			}
 			continue
 		}
 		// Now test that the ticker stopped.
@@ -116,6 +132,17 @@ func TestNewTickerLtZeroDuration(t *testing.T) {
 		}
 	}()
 	NewTicker(-1)
+}
+
+// Test that Ticker.Reset panics when given a duration less than zero.
+func TestTickerResetLtZeroDuration(t *testing.T) {
+	defer func() {
+		if err := recover(); err == nil {
+			t.Errorf("Ticker.Reset(0) should have panicked")
+		}
+	}()
+	tk := NewTicker(Second)
+	tk.Reset(0)
 }
 
 func BenchmarkTicker(b *testing.B) {

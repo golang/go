@@ -16,7 +16,6 @@
 #define SYS_close                 6
 #define SYS_getpid               20
 #define SYS_kill                 37
-#define SYS_pipe		 42
 #define SYS_brk			 45
 #define SYS_fcntl                55
 #define SYS_mmap                 90
@@ -39,6 +38,9 @@
 #define SYS_epoll_create        249
 #define SYS_epoll_ctl           250
 #define SYS_epoll_wait          251
+#define SYS_timer_create        254
+#define SYS_timer_settime       255
+#define SYS_timer_delete        258
 #define SYS_clock_gettime       260
 #define SYS_pipe2		325
 #define SYS_epoll_create1       327
@@ -98,14 +100,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	$SYS_read, R1
 	SYSCALL
 	MOVW	R2, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVD	$r+0(FP), R2
-	MOVW	$SYS_pipe, R1
-	SYSCALL
-	MOVW	R2, errno+8(FP)
 	RET
 
 // func pipe2() (r, w int32, errno int32)
@@ -185,6 +179,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	SYSCALL
 	RET
 
+TEXT runtime·timer_create(SB),NOSPLIT|NOFRAME,$0-28
+	MOVW	clockid+0(FP), R2
+	MOVD	sevp+8(FP), R3
+	MOVD	timerid+16(FP), R4
+	MOVW	$SYS_timer_create, R1
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT|NOFRAME,$0-28
+	MOVW	timerid+0(FP), R2
+	MOVW	flags+4(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
+	MOVW	$SYS_timer_settime, R1
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT|NOFRAME,$0-12
+	MOVW	timerid+0(FP), R2
+	MOVW	$SYS_timer_delete, R1
+	SYSCALL
+	MOVW	R2, ret+8(FP)
+	RET
+
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	addr+0(FP), R2
 	MOVD	n+8(FP), R3
@@ -194,8 +214,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R2, ret+24(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$16
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$16
 	MOVW	$0, R2 // CLOCK_REALTIME
 	MOVD	$tp-16(SP), R3
 	MOVW	$SYS_clock_gettime, R1
@@ -464,21 +484,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVW    fd+0(FP), R2  // fd
 	MOVD    $2, R3  // F_SETFD
 	MOVD    $1, R4  // FD_CLOEXEC
-	MOVW	$SYS_fcntl, R1
-	SYSCALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R2 // fd
-	MOVD	$3, R3	// F_GETFL
-	XOR	R4, R4
-	MOVW	$SYS_fcntl, R1
-	SYSCALL
-	MOVD	$0x800, R4 // O_NONBLOCK
-	OR	R2, R4
-	MOVW	fd+0(FP), R2 // fd
-	MOVD	$4, R3	// F_SETFL
 	MOVW	$SYS_fcntl, R1
 	SYSCALL
 	RET

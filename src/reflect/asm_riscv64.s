@@ -9,14 +9,15 @@
 // See the comment on the declaration of makeFuncStub in makefunc.go
 // for more details.
 // No arg size here, runtime pulls arg map out of the func value.
-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
 	NO_LOCAL_POINTERS
 	MOV	CTXT, 8(SP)
 	MOV	$argframe+0(FP), T0
 	MOV	T0, 16(SP)
-	ADD	$32, SP, T1
+	ADD	$40, SP, T1
 	MOV	T1, 24(SP)
-	MOVB	ZERO, 32(SP)
+	MOV	ZERO, 32(SP)
+	MOVB	ZERO, 40(SP)
 	CALL	·callReflect(SB)
 	RET
 
@@ -24,13 +25,14 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
 // See the comment on the declaration of methodValueCall in makefunc.go
 // for more details.
 // No arg size here; runtime pulls arg map out of the func value.
-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
 	NO_LOCAL_POINTERS
 	MOV	CTXT, 8(SP)
 	MOV	$argframe+0(FP), T0
 	MOV	T0, 16(SP)
-	ADD	$32, SP, T1
+	ADD	$40, SP, T1
 	MOV	T1, 24(SP)
-	MOVB	ZERO, 32(SP)
+	MOV	ZERO, 32(SP)
+	MOVB	ZERO, 40(SP)
 	CALL	·callMethod(SB)
 	RET

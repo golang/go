@@ -11,7 +11,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/itoa"
+	"unsafe"
+)
 
 func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
 
@@ -158,6 +161,25 @@ func Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error) 
 	return openat(dirfd, path, flags|O_LARGEFILE, mode)
 }
 
+func Pipe(p []int) error {
+	return Pipe2(p, 0)
+}
+
+//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) error {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var pp [2]_C_int
+	err := pipe2(&pp, flags)
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
+	return err
+}
+
 //sys	readlinkat(dirfd int, path string, buf []byte) (n int, err error)
 
 func Readlink(path string, buf []byte) (n int, err error) {
@@ -201,18 +223,7 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 	if len(ts) != 2 {
 		return EINVAL
 	}
-	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
-	if err != ENOSYS {
-		return err
-	}
-	// If the utimensat syscall isn't available (utimensat was added to Linux
-	// in 2.6.22, Released, 8 July 2007) then fall back to utimes
-	var tv [2]Timeval
-	for i := 0; i < 2; i++ {
-		tv[i].Sec = ts[i].Sec
-		tv[i].Usec = ts[i].Nsec / 1000
-	}
-	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 }
 
 func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
@@ -225,7 +236,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 func Futimes(fd int, tv []Timeval) (err error) {
 	// Believe it or not, this is the best we can do on Linux
 	// (and is what glibc does).
-	return Utimes("/proc/self/fd/"+itoa(fd), tv)
+	return Utimes("/proc/self/fd/"+itoa.Itoa(fd), tv)
 }
 
 const ImplementsGetwd = true
@@ -242,6 +253,13 @@ func Getwd() (wd string, err error) {
 	if n < 1 || n > len(buf) || buf[n-1] != 0 {
 		return "", EINVAL
 	}
+	// In some cases, Linux can return a path that starts with the
+	// "(unreachable)" prefix, which can potentially be a valid relative
+	// path. To work around that, return ENOENT if path is not absolute.
+	if buf[0] != '/' {
+		return "", ENOENT
+	}
+
 	return string(buf[0 : n-1]), nil
 }
 
@@ -384,9 +402,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
 }
 
@@ -399,9 +415,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
 }
 
@@ -452,9 +466,7 @@ func (sa *SockaddrLinklayer) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	sa.raw.Hatype = sa.Hatype
 	sa.raw.Pkttype = sa.Pkttype
 	sa.raw.Halen = sa.Halen
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrLinklayer, nil
 }
 
@@ -493,9 +505,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		sa.Hatype = pp.Hatype
 		sa.Pkttype = pp.Pkttype
 		sa.Halen = pp.Halen
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_UNIX:
@@ -528,9 +538,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_INET6:
@@ -539,9 +547,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
 		sa.ZoneId = pp.Scope_id
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
@@ -550,7 +556,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
-	nfd, err = accept(fd, &rsa, &len)
+	nfd, err = accept4(fd, &rsa, &len, 0)
 	if err != nil {
 		return
 	}
@@ -641,10 +647,9 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
 	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
 }
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
 	var msg Msghdr
-	var rsa RawSockaddrAny
-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+	msg.Name = (*byte)(unsafe.Pointer(rsa))
 	msg.Namelen = uint32(SizeofSockaddrAny)
 	var iov Iovec
 	if len(p) > 0 {
@@ -675,28 +680,10 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	}
 	oobn = int(msg.Controllen)
 	recvflags = int(msg.Flags)
-	// source address is only specified if the socket is unconnected
-	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(&rsa)
-	}
 	return
 }
 
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
-	_, err = SendmsgN(fd, p, oob, to, flags)
-	return
-}
-
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
-	var ptr unsafe.Pointer
-	var salen _Socklen
-	if to != nil {
-		var err error
-		ptr, salen, err = to.sockaddr()
-		if err != nil {
-			return 0, err
-		}
-	}
+func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
 	var msg Msghdr
 	msg.Name = (*byte)(ptr)
 	msg.Namelen = uint32(salen)
@@ -978,62 +965,11 @@ func Getpgrp() (pid int) {
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tv *Timeval) (err error)
 
-// allThreadsCaller holds the input and output state for performing a
-// allThreadsSyscall that needs to synchronize all OS thread state. Linux
-// generally does not always support this natively, so we have to
-// manipulate the runtime to fix things up.
-type allThreadsCaller struct {
-	// arguments
-	trap, a1, a2, a3, a4, a5, a6 uintptr
-
-	// return values (only set by 0th invocation)
-	r1, r2 uintptr
-
-	// err is the error code
-	err Errno
-}
-
-// doSyscall is a callback for executing a syscall on the current m
-// (OS thread).
-//go:nosplit
-//go:norace
-func (pc *allThreadsCaller) doSyscall(initial bool) bool {
-	r1, r2, err := RawSyscall(pc.trap, pc.a1, pc.a2, pc.a3)
-	if initial {
-		pc.r1 = r1
-		pc.r2 = r2
-		pc.err = err
-	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
-		print("trap:", pc.trap, ", a123=[", pc.a1, ",", pc.a2, ",", pc.a3, "]\n")
-		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
-		panic("AllThreadsSyscall results differ between threads; runtime corrupted")
-	}
-	return err == 0
-}
-
-// doSyscall6 is a callback for executing a syscall6 on the current m
-// (OS thread).
-//go:nosplit
-//go:norace
-func (pc *allThreadsCaller) doSyscall6(initial bool) bool {
-	r1, r2, err := RawSyscall6(pc.trap, pc.a1, pc.a2, pc.a3, pc.a4, pc.a5, pc.a6)
-	if initial {
-		pc.r1 = r1
-		pc.r2 = r2
-		pc.err = err
-	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
-		print("trap:", pc.trap, ", a123456=[", pc.a1, ",", pc.a2, ",", pc.a3, ",", pc.a4, ",", pc.a5, ",", pc.a6, "]\n")
-		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
-		panic("AllThreadsSyscall6 results differ between threads; runtime corrupted")
-	}
-	return err == 0
-}
-
-// Provided by runtime.syscall_runtime_doAllThreadsSyscall which
-// serializes the world and invokes the fn on each OS thread (what the
-// runtime refers to as m's). Once this function returns, all threads
-// are in sync.
-func runtime_doAllThreadsSyscall(fn func(bool) bool)
+// Provided by runtime.syscall_runtime_doAllThreadsSyscall which stops the
+// world and invokes the syscall on each OS thread. Once this function returns,
+// all threads are in sync.
+//go:uintptrescapes
+func runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 
 // AllThreadsSyscall performs a syscall on each OS thread of the Go
 // runtime. It first invokes the syscall on one thread. Should that
@@ -1055,17 +991,8 @@ func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 	if cgo_libc_setegid != nil {
 		return minus1, minus1, ENOTSUP
 	}
-	pc := &allThreadsCaller{
-		trap: trap,
-		a1:   a1,
-		a2:   a2,
-		a3:   a3,
-	}
-	runtime_doAllThreadsSyscall(pc.doSyscall)
-	r1 = pc.r1
-	r2 = pc.r2
-	err = pc.err
-	return
+	r1, r2, errno := runtime_doAllThreadsSyscall(trap, a1, a2, a3, 0, 0, 0)
+	return r1, r2, Errno(errno)
 }
 
 // AllThreadsSyscall6 is like AllThreadsSyscall, but extended to six
@@ -1075,20 +1002,8 @@ func AllThreadsSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, e
 	if cgo_libc_setegid != nil {
 		return minus1, minus1, ENOTSUP
 	}
-	pc := &allThreadsCaller{
-		trap: trap,
-		a1:   a1,
-		a2:   a2,
-		a3:   a3,
-		a4:   a4,
-		a5:   a5,
-		a6:   a6,
-	}
-	runtime_doAllThreadsSyscall(pc.doSyscall6)
-	r1 = pc.r1
-	r2 = pc.r2
-	err = pc.err
-	return
+	r1, r2, errno := runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6)
+	return r1, r2, Errno(errno)
 }
 
 // linked by runtime.cgocall.go

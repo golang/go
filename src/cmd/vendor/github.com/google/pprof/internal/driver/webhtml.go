@@ -17,13 +17,11 @@ package driver
 import (
 	"html/template"
 
-	"github.com/google/pprof/third_party/d3"
 	"github.com/google/pprof/third_party/d3flamegraph"
 )
 
 // addTemplates adds a set of template definitions to templates.
 func addTemplates(templates *template.Template) {
-	template.Must(templates.Parse(`{{define "d3script"}}` + d3.JSSource + `{{end}}`))
 	template.Must(templates.Parse(`{{define "d3flamegraphscript"}}` + d3flamegraph.JSSource + `{{end}}`))
 	template.Must(templates.Parse(`{{define "d3flamegraphcss"}}` + d3flamegraph.CSSSource + `{{end}}`))
 	template.Must(templates.Parse(`
@@ -62,6 +60,7 @@ a {
 .header .title h1 {
   font-size: 1.75em;
   margin-right: 1rem;
+  margin-bottom: 4px;
 }
 .header .title a {
   color: #212121;
@@ -130,6 +129,10 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.menu-name a {
+  text-decoration: none;
+  color: #212121;
 }
 .submenu {
   display: none;
@@ -366,6 +369,12 @@ table tr td {
           {{if .UserConfig}}<span class="menu-delete-btn" data-config={{.Name}}>🗙</span>{{end}}
         </a>
       {{end}}
+    </div>
+  </div>
+
+  <div id="download" class="menu-item">
+    <div class="menu-name">
+      <a href="./download">Download</a>
     </div>
   </div>
 
@@ -1318,40 +1327,29 @@ function viewer(baseUrl, nodes) {
   </div>
   {{template "script" .}}
   <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
-  <script>{{template "d3script" .}}</script>
   <script>{{template "d3flamegraphscript" .}}</script>
   <script>
     var data = {{.FlameGraph}};
 
     var width = document.getElementById('chart').clientWidth;
 
-    var flameGraph = d3.flamegraph()
+    var flameGraph = flamegraph()
       .width(width)
       .cellHeight(18)
       .minFrameSize(1)
       .transitionDuration(750)
-      .transitionEase(d3.easeCubic)
       .inverted(true)
       .sort(true)
       .title('')
       .tooltip(false)
-      .details(document.getElementById('flamegraphdetails'));
+      .setDetailsElement(document.getElementById('flamegraphdetails'));
 
     // <full name> (percentage, value)
     flameGraph.label((d) => d.data.f + ' (' + d.data.p + ', ' + d.data.l + ')');
 
-    (function(flameGraph) {
-      var oldColorMapper = flameGraph.color();
-      function colorMapper(d) {
-        // Hack to force default color mapper to use 'warm' color scheme by not passing libtype
-        const { data, highlight } = d;
-        return oldColorMapper({ data: { n: data.n }, highlight });
-      }
+    flameGraph.setColorHue('warm');
 
-      flameGraph.color(colorMapper);
-    }(flameGraph));
-
-    d3.select('#chart')
+    select('#chart')
       .datum(data)
       .call(flameGraph);
 

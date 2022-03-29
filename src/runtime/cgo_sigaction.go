@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Support for memory sanitizer. See runtime/cgo/sigaction.go.
+// Support for sanitizers. See runtime/cgo/sigaction.go.
 
-// +build linux,amd64 freebsd,amd64 linux,arm64
+//go:build (linux && amd64) || (freebsd && amd64) || (linux && arm64) || (linux && ppc64le)
 
 package runtime
 
@@ -27,7 +27,9 @@ func sigaction(sig uint32, new, old *sigactiont) {
 	if msanenabled && new != nil {
 		msanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
 	}
-
+	if asanenabled && new != nil {
+		asanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
+	}
 	if _cgo_sigaction == nil || inForkedChild {
 		sysSigaction(sig, new, old)
 	} else {
@@ -78,6 +80,9 @@ func sigaction(sig uint32, new, old *sigactiont) {
 
 	if msanenabled && old != nil {
 		msanread(unsafe.Pointer(old), unsafe.Sizeof(*old))
+	}
+	if asanenabled && old != nil {
+		asanread(unsafe.Pointer(old), unsafe.Sizeof(*old))
 	}
 }
 

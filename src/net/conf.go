@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package net
 
 import (
 	"internal/bytealg"
+	"internal/godebug"
 	"os"
 	"runtime"
 	"sync"
@@ -286,7 +287,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 //    cgo+2   // same, but debug level 2
 // etc.
 func goDebugNetDNS() (dnsMode string, debugLevel int) {
-	goDebug := goDebugString("netdns")
+	goDebug := godebug.Get("netdns")
 	parsePart := func(s string) {
 		if s == "" {
 			return

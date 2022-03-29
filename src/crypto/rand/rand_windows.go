@@ -8,8 +8,8 @@
 package rand
 
 import (
+	"internal/syscall/windows"
 	"os"
-	"syscall"
 )
 
 func init() { Reader = &rngReader{} }
@@ -24,7 +24,7 @@ func (r *rngReader) Read(b []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	err = syscall.RtlGenRandom(&b[0], inputLen)
+	err = windows.RtlGenRandom(b)
 	if err != nil {
 		return 0, os.NewSyscallError("RtlGenRandom", err)
 	}

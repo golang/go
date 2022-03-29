@@ -7,6 +7,9 @@ package main
 import (
 	"bytes"
 	"flag"
+	"go/build"
+	"internal/testenv"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,6 +22,12 @@ func TestMain(m *testing.M) {
 	// Clear GOPATH so we don't access the user's own packages in the test.
 	buildCtx.GOPATH = ""
 	testGOPATH = true // force GOPATH mode; module test is in cmd/go/testdata/script/mod_doc.txt
+
+	// Set GOROOT in case runtime.GOROOT is wrong (for example, if the test was
+	// built with -trimpath). dirsInit would identify it using 'go env GOROOT',
+	// but we can't be sure that the 'go' in $PATH is the right one either.
+	buildCtx.GOROOT = testenv.GOROOT(nil)
+	build.Default.GOROOT = testenv.GOROOT(nil)
 
 	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
 	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
@@ -125,6 +134,9 @@ var tests = []test{
 			`func MultiLineFunc\(x interface{ ... }\) \(r struct{ ... }\)`, // Multi line function.
 			`var LongLine = newLongLine\(("someArgument[1-4]", ){4}...\)`,  // Long list of arguments.
 			`type T1 = T2`,                                                 // Type alias
+			`type SimpleConstraint interface{ ... }`,
+			`type TildeConstraint interface{ ... }`,
+			`type StructConstraint interface{ ... }`,
 		},
 		[]string{
 			`const internalConstant = 2`,       // No internal constants.
@@ -199,6 +211,9 @@ var tests = []test{
 			`Comment about exported method`,
 			`type T1 = T2`,
 			`type T2 int`,
+			`type SimpleConstraint interface {`,
+			`type TildeConstraint interface {`,
+			`type StructConstraint interface {`,
 		},
 		[]string{
 			`constThree`,
@@ -579,7 +594,7 @@ var tests = []test{
 		[]string{
 			`Comment about exported interface`, // Include comment.
 			`type ExportedInterface interface`, // Interface definition.
-			`Comment before exported method.*\n.*ExportedMethod\(\)` +
+			`Comment before exported method.\n.*//\n.*//	// Code block showing how to use ExportedMethod\n.*//	func DoSomething\(\) error {\n.*//		ExportedMethod\(\)\n.*//		return nil\n.*//	}\n.*//.*\n.*ExportedMethod\(\)` +
 				`.*Comment on line with exported method`,
 			`io.Reader.*Comment on line with embedded Reader`,
 			`error.*Comment on line with embedded error`,
@@ -599,8 +614,7 @@ var tests = []test{
 		[]string{
 			`Comment about exported interface`, // Include comment.
 			`type ExportedInterface interface`, // Interface definition.
-			`Comment before exported method.*\n.*ExportedMethod\(\)` +
-				`.*Comment on line with exported method`,
+			`Comment before exported method.\n.*//\n.*//	// Code block showing how to use ExportedMethod\n.*//	func DoSomething\(\) error {\n.*//		ExportedMethod\(\)\n.*//		return nil\n.*//	}\n.*//.*\n.*ExportedMethod\(\)` + `.*Comment on line with exported method`,
 			`unexportedMethod\(\).*Comment on line with unexported method`,
 			`io.Reader.*Comment on line with embedded Reader`,
 			`error.*Comment on line with embedded error`,
@@ -615,7 +629,7 @@ var tests = []test{
 		"interface method",
 		[]string{p, `ExportedInterface.ExportedMethod`},
 		[]string{
-			`Comment before exported method.*\n.*ExportedMethod\(\)` +
+			`Comment before exported method.\n.*//\n.*//	// Code block showing how to use ExportedMethod\n.*//	func DoSomething\(\) error {\n.*//		ExportedMethod\(\)\n.*//		return nil\n.*//	}\n.*//.*\n.*ExportedMethod\(\)` +
 				`.*Comment on line with exported method`,
 		},
 		[]string{
@@ -823,12 +837,18 @@ var tests = []test{
 
 func TestDoc(t *testing.T) {
 	maybeSkip(t)
+	defer log.SetOutput(log.Writer())
 	for _, test := range tests {
 		var b bytes.Buffer
 		var flagSet flag.FlagSet
+		var logbuf bytes.Buffer
+		log.SetOutput(&logbuf)
 		err := do(&b, &flagSet, test.args)
 		if err != nil {
 			t.Fatalf("%s %v: %s\n", test.name, test.args, err)
+		}
+		if logbuf.Len() > 0 {
+			t.Errorf("%s %v: unexpected log messages:\n%s", test.name, test.args, logbuf.Bytes())
 		}
 		output := b.Bytes()
 		failed := false

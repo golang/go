@@ -9,6 +9,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "cgo/abi_amd64.h"
 
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVQ addr+0(FP), DI
@@ -99,21 +100,6 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	JCC	2(PC)
 	NEGQ	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVL	$42, AX
-	SYSCALL
-	JCC	ok
-	MOVL	$0, r+0(FP)
-	MOVL	$0, w+4(FP)
-	MOVL	AX, errno+8(FP)
-	RET
-ok:
-	MOVL	AX, r+0(FP)
-	MOVL	DX, w+4(FP)
-	MOVL	$0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -237,28 +223,38 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$72
-	// Save callee-saved C registers, since the caller may be a C signal handler.
-	MOVQ	BX, bx-8(SP)
-	MOVQ	BP, bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
-	MOVQ	R12, r12-24(SP)
-	MOVQ	R13, r13-32(SP)
-	MOVQ	R14, r14-40(SP)
-	MOVQ	R15, r15-48(SP)
-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
-	// modify them.
+// Called using C ABI.
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
 
-	MOVQ	DX, ctx-56(SP)
-	MOVQ	SI, info-64(SP)
-	MOVQ	DI, signum-72(SP)
-	CALL	runtime·sigtrampgo(SB)
+	// Call into the Go signal handler
+	NOP	SP		// disable vet stack checking
+        ADJSP   $24
+	MOVQ	DI, 0(SP)	// sig
+	MOVQ	SI, 8(SP)	// info
+	MOVQ	DX, 16(SP)	// ctx
+	CALL	·sigtrampgo(SB)
+	ADJSP	$-24
 
-	MOVQ	r15-48(SP), R15
-	MOVQ	r14-40(SP), R14
-	MOVQ	r13-32(SP), R13
-	MOVQ	r12-24(SP), R12
-	MOVQ	bp-16(SP),  BP
-	MOVQ	bx-8(SP),   BX
+        POP_REGS_HOST_TO_ABI0()
+	RET
+
+// Called using C ABI.
+TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
+
+	// Call into the Go signal handler
+	NOP	SP		// disable vet stack checking
+	ADJSP	$24
+	MOVL	DI, 0(SP)	// sig
+	MOVQ	SI, 8(SP)	// info
+	MOVQ	DX, 16(SP)	// ctx
+	CALL	·sigprofNonGo(SB)
+	ADJSP	$-24
+
+	POP_REGS_HOST_TO_ABI0()
 	RET
 
 // Used instead of sigtramp in programs that use cgo.
@@ -328,12 +324,12 @@ sigtrampnog:
 	JNZ	sigtramp  // Skip stack trace if already locked.
 
 	// Jump to the traceback function in runtime/cgo.
-	// It will call back to sigprofNonGo, which will ignore the
-	// arguments passed in registers.
+	// It will call back to sigprofNonGo, via sigprofNonGoWrapper, to convert
+	// the arguments to the Go calling convention.
 	// First three arguments to traceback function are in registers already.
 	MOVQ	runtime·cgoTraceback(SB), CX
 	MOVQ	$runtime·sigprofCallers(SB), R8
-	MOVQ	$runtime·sigprofNonGo(SB), R9
+	MOVQ	$runtime·sigprofNonGoWrapper<>(SB), R9
 	MOVQ	_cgo_callers(SB), AX
 	JMP	AX
 
@@ -477,21 +473,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVQ	$2, SI		// F_SETFD
 	MOVQ	$1, DX		// FD_CLOEXEC
 	MOVL	$92, AX		// fcntl
-	SYSCALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVL    fd+0(FP), DI  // fd
-	MOVQ    $3, SI  // F_GETFL
-	MOVQ    $0, DX
-	MOVL	$92, AX // fcntl
-	SYSCALL
-	MOVL	fd+0(FP), DI // fd
-	MOVQ	$4, SI // F_SETFL
-	MOVQ	$4, DX // O_NONBLOCK
-	ORL	AX, DX
-	MOVL	$92, AX // fcntl
 	SYSCALL
 	RET
 

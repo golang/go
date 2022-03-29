@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,7 +35,7 @@ func requireOvercommit(t *testing.T) {
 
 	overcommit.Once.Do(func() {
 		var out []byte
-		out, overcommit.err = ioutil.ReadFile("/proc/sys/vm/overcommit_memory")
+		out, overcommit.err = os.ReadFile("/proc/sys/vm/overcommit_memory")
 		if overcommit.err != nil {
 			return
 		}
@@ -219,6 +218,23 @@ func compilerVersion() (version, error) {
 	return compiler.version, compiler.err
 }
 
+// compilerSupportsLocation reports whether the compiler should be
+// able to provide file/line information in backtraces.
+func compilerSupportsLocation() bool {
+	compiler, err := compilerVersion()
+	if err != nil {
+		return false
+	}
+	switch compiler.name {
+	case "gcc":
+		return compiler.major >= 10
+	case "clang":
+		return true
+	default:
+		return false
+	}
+}
+
 type compilerCheck struct {
 	once sync.Once
 	err  error
@@ -268,6 +284,11 @@ func configure(sanitizer string) *config {
 			c.ldFlags = append(c.ldFlags, "-fPIC", "-static-libtsan")
 		}
 
+	case "address":
+		c.goFlags = append(c.goFlags, "-asan")
+		// Set the debug mode to print the C stack trace.
+		c.cFlags = append(c.cFlags, "-g")
+
 	default:
 		panic(fmt.Sprintf("unrecognized sanitizer: %q", sanitizer))
 	}
@@ -313,14 +334,14 @@ int main() {
 `)
 
 func (c *config) checkCSanitizer() (skip bool, err error) {
-	dir, err := ioutil.TempDir("", c.sanitizer)
+	dir, err := os.MkdirTemp("", c.sanitizer)
 	if err != nil {
 		return false, fmt.Errorf("failed to create temp directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
 	src := filepath.Join(dir, "return0.c")
-	if err := ioutil.WriteFile(src, cMain, 0600); err != nil {
+	if err := os.WriteFile(src, cMain, 0600); err != nil {
 		return false, fmt.Errorf("failed to write C source file: %v", err)
 	}
 
@@ -345,7 +366,7 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
 		if os.IsNotExist(err) {
 			return true, fmt.Errorf("%#q failed to produce executable: %v", strings.Join(cmd.Args, " "), err)
 		}
-		snippet := bytes.SplitN(out, []byte{'\n'}, 2)[0]
+		snippet, _, _ := bytes.Cut(out, []byte("\n"))
 		return true, fmt.Errorf("%#q generated broken executable: %v\n%s", strings.Join(cmd.Args, " "), err, snippet)
 	}
 
@@ -418,7 +439,7 @@ func (d *tempDir) Join(name string) string {
 
 func newTempDir(t *testing.T) *tempDir {
 	t.Helper()
-	dir, err := ioutil.TempDir("", filepath.Dir(t.Name()))
+	dir, err := os.MkdirTemp("", filepath.Dir(t.Name()))
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -439,4 +460,26 @@ func hangProneCmd(name string, arg ...string) *exec.Cmd {
 		Pdeathsig: syscall.SIGKILL,
 	}
 	return cmd
+}
+
+// mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
+// because the internal pacakage can't be used here.
+func mSanSupported(goos, goarch string) bool {
+	switch goos {
+	case "linux":
+		return goarch == "amd64" || goarch == "arm64"
+	default:
+		return false
+	}
+}
+
+// aSanSupported is a copy of the function cmd/internal/sys.ASanSupported,
+// because the internal pacakage can't be used here.
+func aSanSupported(goos, goarch string) bool {
+	switch goos {
+	case "linux":
+		return goarch == "amd64" || goarch == "arm64"
+	default:
+		return false
+	}
 }

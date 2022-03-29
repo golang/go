@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package syscall
 
@@ -491,14 +491,14 @@ func Pipe(fd []int) error {
 	return ENOSYS
 }
 
-func fsCall(name string, args ...interface{}) (js.Value, error) {
+func fsCall(name string, args ...any) (js.Value, error) {
 	type callResult struct {
 		val js.Value
 		err error
 	}
 
 	c := make(chan callResult, 1)
-	f := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	f := js.FuncOf(func(this js.Value, args []js.Value) any {
 		var res callResult
 
 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments

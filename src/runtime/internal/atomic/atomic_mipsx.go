@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build mips mipsle
+//go:build mips || mipsle
 
 // Export some functions via linkname to assembly in sync/atomic.
 //go:linkname Xadd64

@@ -11,14 +11,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
-	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
+	"cmd/internal/sys"
 )
 
 func init() {
@@ -53,19 +51,14 @@ See also: go fix, go vet.
 func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 	printed := false
 	gofmt := gofmtPath()
-	procs := runtime.GOMAXPROCS(0)
-	var wg sync.WaitGroup
-	wg.Add(procs)
-	fileC := make(chan string, 2*procs)
-	for i := 0; i < procs; i++ {
-		go func() {
-			defer wg.Done()
-			for file := range fileC {
-				base.Run(str.StringList(gofmt, "-l", "-w", file))
-			}
-		}()
-	}
-	for _, pkg := range load.PackagesAndErrors(ctx, args) {
+
+	gofmtArgs := []string{gofmt, "-l", "-w"}
+	gofmtArgLen := len(gofmt) + len(" -l -w")
+
+	baseGofmtArgs := len(gofmtArgs)
+	baseGofmtArgLen := gofmtArgLen
+
+	for _, pkg := range load.PackagesAndErrors(ctx, load.PackageOpts{}, args) {
 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
 			if !printed {
 				fmt.Fprintf(os.Stderr, "go: not formatting packages in dependency modules\n")
@@ -75,7 +68,8 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if pkg.Error != nil {
 			var nogo *load.NoGoError
-			if errors.As(pkg.Error, &nogo) && len(pkg.InternalAllGoFiles()) > 0 {
+			var embed *load.EmbedError
+			if (errors.As(pkg.Error, &nogo) || errors.As(pkg.Error, &embed)) && len(pkg.InternalAllGoFiles()) > 0 {
 				// Skip this error, as we will format
 				// all files regardless.
 			} else {
@@ -88,11 +82,18 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 		// not to packages in subdirectories.
 		files := base.RelPaths(pkg.InternalAllGoFiles())
 		for _, file := range files {
-			fileC <- file
+			gofmtArgs = append(gofmtArgs, file)
+			gofmtArgLen += 1 + len(file) // plus separator
+			if gofmtArgLen >= sys.ExecArgLengthLimit {
+				base.Run(gofmtArgs)
+				gofmtArgs = gofmtArgs[:baseGofmtArgs]
+				gofmtArgLen = baseGofmtArgLen
+			}
 		}
 	}
-	close(fileC)
-	wg.Wait()
+	if len(gofmtArgs) > baseGofmtArgs {
+		base.Run(gofmtArgs)
+	}
 }
 
 func gofmtPath() string {

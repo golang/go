@@ -13,6 +13,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"log"
 	"math/rand"
@@ -20,7 +21,6 @@ import (
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
-	"os"
 	"path"
 	"runtime"
 	"sort"
@@ -333,7 +333,7 @@ func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 const bufferBeforeChunkingSize = 2048
 
 // chunkWriter writes to a response's conn buffer, and is the writer
-// wrapped by the response.bufw buffered writer.
+// wrapped by the response.w buffered writer.
 //
 // chunkWriter also is responsible for finalizing the Header, including
 // conditionally setting the Content-Type and setting a Content-Length
@@ -494,8 +494,8 @@ type response struct {
 // prior to the headers being written. If the set of trailers is fixed
 // or known before the header is written, the normal Go trailers mechanism
 // is preferred:
-//    https://golang.org/pkg/net/http/#ResponseWriter
-//    https://golang.org/pkg/net/http/#example_ResponseWriter_trailers
+//    https://pkg.go.dev/net/http#ResponseWriter
+//    https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 const TrailerPrefix = "Trailer:"
 
 // finalTrailers is called after the Handler exits and returns a non-nil
@@ -577,36 +577,16 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 		return io.CopyBuffer(writerOnly{w}, src, buf)
 	}
 
-	// sendfile path:
-
-	// Do not start actually writing response until src is readable.
-	// If body length is <= sniffLen, sendfile/splice path will do
-	// little anyway. This small read also satisfies sniffing the
-	// body in case Content-Type is missing.
-	nr, er := src.Read(buf[:sniffLen])
-	atEOF := errors.Is(er, io.EOF)
-	n += int64(nr)
-
-	if nr > 0 {
-		// Write the small amount read normally.
-		nw, ew := w.Write(buf[:nr])
-		if ew != nil {
-			err = ew
-		} else if nr != nw {
-			err = io.ErrShortWrite
+	// Copy the first sniffLen bytes before switching to ReadFrom.
+	// This ensures we don't start writing the response before the
+	// source is available (see golang.org/issue/5660) and provides
+	// enough bytes to perform Content-Type sniffing when required.
+	if !w.cw.wroteHeader {
+		n0, err := io.CopyBuffer(writerOnly{w}, io.LimitReader(src, sniffLen), buf)
+		n += n0
+		if err != nil || n0 < sniffLen {
+			return n, err
 		}
-	}
-	if err == nil && er != nil && !atEOF {
-		err = er
-	}
-
-	// Do not send StatusOK in the error case where nothing has been written.
-	if err == nil && !w.wroteHeader {
-		w.WriteHeader(StatusOK) // nr == 0, no error (or EOF)
-	}
-
-	if err != nil || atEOF {
-		return n, err
 	}
 
 	w.w.Flush()  // get rid of any previous writes
@@ -620,7 +600,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 		return n, err
 	}
 
-	n0, err := io.Copy(writerOnly{w}, src)
+	n0, err := io.CopyBuffer(writerOnly{w}, src, buf)
 	n += n0
 	return n, err
 }
@@ -818,7 +798,7 @@ var (
 )
 
 var copyBufPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		b := make([]byte, 32*1024)
 		return &b
 	},
@@ -883,6 +863,28 @@ func (srv *Server) maxHeaderBytes() int {
 
 func (srv *Server) initialReadLimitSize() int64 {
 	return int64(srv.maxHeaderBytes()) + 4096 // bufio slop
+}
+
+// tlsHandshakeTimeout returns the time limit permitted for the TLS
+// handshake, or zero for unlimited.
+//
+// It returns the minimum of any positive ReadHeaderTimeout,
+// ReadTimeout, or WriteTimeout.
+func (srv *Server) tlsHandshakeTimeout() time.Duration {
+	var ret time.Duration
+	for _, v := range [...]time.Duration{
+		srv.ReadHeaderTimeout,
+		srv.ReadTimeout,
+		srv.WriteTimeout,
+	} {
+		if v <= 0 {
+			continue
+		}
+		if ret == 0 || v < ret {
+			ret = v
+		}
+	}
+	return ret
 }
 
 // wrapper around io.ReadCloser which on first read, sends an
@@ -964,14 +966,14 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		hdrDeadline      time.Time // or zero if none
 	)
 	t0 := time.Now()
-	if d := c.server.readHeaderTimeout(); d != 0 {
+	if d := c.server.readHeaderTimeout(); d > 0 {
 		hdrDeadline = t0.Add(d)
 	}
-	if d := c.server.ReadTimeout; d != 0 {
+	if d := c.server.ReadTimeout; d > 0 {
 		wholeReqDeadline = t0.Add(d)
 	}
 	c.rwc.SetReadDeadline(hdrDeadline)
-	if d := c.server.WriteTimeout; d != 0 {
+	if d := c.server.WriteTimeout; d > 0 {
 		defer func() {
 			c.rwc.SetWriteDeadline(time.Now().Add(d))
 		}()
@@ -983,7 +985,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
 		c.bufr.Discard(numLeadingCRorLF(peek))
 	}
-	req, err := readRequest(c.bufr, keepHostHeader)
+	req, err := readRequest(c.bufr)
 	if err != nil {
 		if c.r.hitReadLimit() {
 			return nil, errTooLarge
@@ -1002,9 +1004,6 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	isH2Upgrade := req.isH2Upgrade()
 	if req.ProtoAtLeast(1, 1) && (!haveHost || len(hosts) == 0) && !isH2Upgrade && req.Method != "CONNECT" {
 		return nil, badRequestError("missing required Host header")
-	}
-	if len(hosts) > 1 {
-		return nil, badRequestError("too many Host headers")
 	}
 	if len(hosts) == 1 && !httpguts.ValidHostHeader(hosts[0]) {
 		return nil, badRequestError("malformed Host header")
@@ -1427,11 +1426,11 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		hasCL = false
 	}
 
-	if w.req.Method == "HEAD" || !bodyAllowedForStatus(code) {
-		// do nothing
-	} else if code == StatusNoContent {
+	if w.req.Method == "HEAD" || !bodyAllowedForStatus(code) || code == StatusNoContent {
+		// Response has no body.
 		delHeader("Transfer-Encoding")
 	} else if hasCL {
+		// Content-Length has been provided, so no chunking is to be done.
 		delHeader("Transfer-Encoding")
 	} else if w.req.ProtoAtLeast(1, 1) {
 		// HTTP/1.1 or greater: Transfer-Encoding has been set to identity, and no
@@ -1442,6 +1441,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		if hasTE && te == "identity" {
 			cw.chunking = false
 			w.closeAfterReply = true
+			delHeader("Transfer-Encoding")
 		} else {
 			// HTTP/1.1 or greater: use chunked transfer encoding
 			// to avoid closing the connection at EOF.
@@ -1552,12 +1552,12 @@ func (w *response) bodyAllowed() bool {
 // The Writers are wired together like:
 //
 // 1. *response (the ResponseWriter) ->
-// 2. (*response).w, a *bufio.Writer of bufferBeforeChunkingSize bytes
+// 2. (*response).w, a *bufio.Writer of bufferBeforeChunkingSize bytes ->
 // 3. chunkWriter.Writer (whose writeHeader finalizes Content-Length/Type)
-//    and which writes the chunk headers, if needed.
-// 4. conn.buf, a bufio.Writer of default (4kB) bytes, writing to ->
+//    and which writes the chunk headers, if needed ->
+// 4. conn.bufw, a *bufio.Writer of default (4kB) bytes, writing to ->
 // 5. checkConnErrorWriter{c}, which notes any non-nil error on Write
-//    and populates c.werr with it if so. but otherwise writes to:
+//    and populates c.werr with it if so, but otherwise writes to ->
 // 6. the rwc, the net.Conn.
 //
 // TODO(bradfitz): short-circuit some of the buffering when the
@@ -1817,6 +1817,7 @@ func isCommonNetReadError(err error) bool {
 func (c *conn) serve(ctx context.Context) {
 	c.remoteAddr = c.rwc.RemoteAddr().String()
 	ctx = context.WithValue(ctx, LocalAddrContextKey, c.rwc.LocalAddr())
+	var inFlightResponse *response
 	defer func() {
 		if err := recover(); err != nil && err != ErrAbortHandler {
 			const size = 64 << 10
@@ -1824,20 +1825,27 @@ func (c *conn) serve(ctx context.Context) {
 			buf = buf[:runtime.Stack(buf, false)]
 			c.server.logf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
 		}
+		if inFlightResponse != nil {
+			inFlightResponse.cancelCtx()
+		}
 		if !c.hijacked() {
+			if inFlightResponse != nil {
+				inFlightResponse.conn.r.abortPendingRead()
+				inFlightResponse.reqBody.Close()
+			}
 			c.close()
 			c.setState(c.rwc, StateClosed, runHooks)
 		}
 	}()
 
 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
-		if d := c.server.ReadTimeout; d != 0 {
-			c.rwc.SetReadDeadline(time.Now().Add(d))
+		tlsTO := c.server.tlsHandshakeTimeout()
+		if tlsTO > 0 {
+			dl := time.Now().Add(tlsTO)
+			c.rwc.SetReadDeadline(dl)
+			c.rwc.SetWriteDeadline(dl)
 		}
-		if d := c.server.WriteTimeout; d != 0 {
-			c.rwc.SetWriteDeadline(time.Now().Add(d))
-		}
-		if err := tlsConn.Handshake(); err != nil {
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
 			// If the handshake failed due to the client not speaking
 			// TLS, assume they're speaking plaintext HTTP and write a
 			// 400 response on the TLS conn's underlying net.Conn.
@@ -1848,6 +1856,11 @@ func (c *conn) serve(ctx context.Context) {
 			}
 			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), err)
 			return
+		}
+		// Restore Conn-level deadlines.
+		if tlsTO > 0 {
+			c.rwc.SetReadDeadline(time.Time{})
+			c.rwc.SetWriteDeadline(time.Time{})
 		}
 		c.tlsState = new(tls.ConnectionState)
 		*c.tlsState = tlsConn.ConnectionState()
@@ -1949,7 +1962,9 @@ func (c *conn) serve(ctx context.Context) {
 		// in parallel even if their responses need to be serialized.
 		// But we're not going to implement HTTP pipelining because it
 		// was never deployed in the wild and the answer is HTTP/2.
+		inFlightResponse = w
 		serverHandler{c.server}.ServeHTTP(w, w.req)
+		inFlightResponse = nil
 		w.cancelCtx()
 		if c.hijacked() {
 			return
@@ -2295,7 +2310,7 @@ func cleanPath(p string) string {
 // stripHostPort returns h without any trailing ":<port>".
 func stripHostPort(h string) string {
 	// If no port on host, return unchanged
-	if strings.IndexByte(h, ':') == -1 {
+	if !strings.Contains(h, ":") {
 		return h
 	}
 	host, _, err := net.SplitHostPort(h)
@@ -2407,9 +2422,8 @@ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
 
 	if path != r.URL.Path {
 		_, pattern = mux.handler(host, path)
-		url := *r.URL
-		url.Path = path
-		return RedirectHandler(url.String(), StatusMovedPermanently), pattern
+		u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
+		return RedirectHandler(u.String(), StatusMovedPermanently), pattern
 	}
 
 	return mux.handler(host, r.URL.Path)
@@ -2567,7 +2581,8 @@ type Server struct {
 	TLSConfig *tls.Config
 
 	// ReadTimeout is the maximum duration for reading the entire
-	// request, including the body.
+	// request, including the body. A zero or negative value means
+	// there will be no timeout.
 	//
 	// Because ReadTimeout does not let Handlers make per-request
 	// decisions on each request body's acceptable deadline or
@@ -2587,6 +2602,7 @@ type Server struct {
 	// writes of the response. It is reset whenever a new
 	// request's header is read. Like ReadTimeout, it does not
 	// let Handlers make decisions on a per-request basis.
+	// A zero or negative value means there will be no timeout.
 	WriteTimeout time.Duration
 
 	// IdleTimeout is the maximum amount of time to wait for the
@@ -2638,7 +2654,7 @@ type Server struct {
 	// value.
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
 
-	inShutdown atomicBool // true when when server is in shutdown
+	inShutdown atomicBool // true when server is in shutdown
 
 	disableKeepAlives int32     // accessed atomically.
 	nextProtoOnce     sync.Once // guards setupHTTP2_* init
@@ -2884,7 +2900,49 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 	if req.RequestURI == "*" && req.Method == "OPTIONS" {
 		handler = globalOptionsHandler{}
 	}
+
+	if req.URL != nil && strings.Contains(req.URL.RawQuery, ";") {
+		var allowQuerySemicolonsInUse int32
+		req = req.WithContext(context.WithValue(req.Context(), silenceSemWarnContextKey, func() {
+			atomic.StoreInt32(&allowQuerySemicolonsInUse, 1)
+		}))
+		defer func() {
+			if atomic.LoadInt32(&allowQuerySemicolonsInUse) == 0 {
+				sh.srv.logf("http: URL query contains semicolon, which is no longer a supported separator; parts of the query may be stripped when parsed; see golang.org/issue/25192")
+			}
+		}()
+	}
+
 	handler.ServeHTTP(rw, req)
+}
+
+var silenceSemWarnContextKey = &contextKey{"silence-semicolons"}
+
+// AllowQuerySemicolons returns a handler that serves requests by converting any
+// unescaped semicolons in the URL query to ampersands, and invoking the handler h.
+//
+// This restores the pre-Go 1.17 behavior of splitting query parameters on both
+// semicolons and ampersands. (See golang.org/issue/25192). Note that this
+// behavior doesn't match that of many proxies, and the mismatch can lead to
+// security issues.
+//
+// AllowQuerySemicolons should be invoked before Request.ParseForm is called.
+func AllowQuerySemicolons(h Handler) Handler {
+	return HandlerFunc(func(w ResponseWriter, r *Request) {
+		if silenceSemicolonsWarning, ok := r.Context().Value(silenceSemWarnContextKey).(func()); ok {
+			silenceSemicolonsWarning()
+		}
+		if strings.Contains(r.URL.RawQuery, ";") {
+			r2 := new(Request)
+			*r2 = *r
+			r2.URL = new(url.URL)
+			*r2.URL = *r.URL
+			r2.URL.RawQuery = strings.ReplaceAll(r.URL.RawQuery, ";", "&")
+			h.ServeHTTP(w, r2)
+		} else {
+			h.ServeHTTP(w, r)
+		}
+	})
 }
 
 // ListenAndServe listens on the TCP network address srv.Addr and then
@@ -3132,7 +3190,7 @@ func (srv *Server) SetKeepAlivesEnabled(v bool) {
 	// TODO: Issue 26303: close HTTP/2 conns as soon as they become idle.
 }
 
-func (s *Server) logf(format string, args ...interface{}) {
+func (s *Server) logf(format string, args ...any) {
 	if s.ErrorLog != nil {
 		s.ErrorLog.Printf(format, args...)
 	} else {
@@ -3143,7 +3201,7 @@ func (s *Server) logf(format string, args ...interface{}) {
 // logf prints to the ErrorLog of the *Server associated with request r
 // via ServerContextKey. If there's no associated server, or if ErrorLog
 // is nil, logging is done via the log package's standard logger.
-func logf(r *Request, format string, args ...interface{}) {
+func logf(r *Request, format string, args ...any) {
 	s, _ := r.Context().Value(ServerContextKey).(*Server)
 	if s != nil && s.ErrorLog != nil {
 		s.ErrorLog.Printf(format, args...)
@@ -3239,7 +3297,7 @@ func (srv *Server) onceSetNextProtoDefaults_Serve() {
 // configured otherwise. (by setting srv.TLSNextProto non-nil)
 // It must only be called via srv.nextProtoOnce (use srv.setupHTTP2_*).
 func (srv *Server) onceSetNextProtoDefaults() {
-	if omitBundledHTTP2 || strings.Contains(os.Getenv("GODEBUG"), "http2server=0") {
+	if omitBundledHTTP2 || godebug.Get("http2server") == "0" {
 		return
 	}
 	// Enable HTTP/2 by default if the user hasn't otherwise
@@ -3306,7 +3364,7 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		h:   make(Header),
 		req: r,
 	}
-	panicChan := make(chan interface{}, 1)
+	panicChan := make(chan any, 1)
 	go func() {
 		defer func() {
 			if p := recover(); p != nil {
@@ -3334,9 +3392,15 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	case <-ctx.Done():
 		tw.mu.Lock()
 		defer tw.mu.Unlock()
-		w.WriteHeader(StatusServiceUnavailable)
-		io.WriteString(w, h.errorBody())
-		tw.timedOut = true
+		switch err := ctx.Err(); err {
+		case context.DeadlineExceeded:
+			w.WriteHeader(StatusServiceUnavailable)
+			io.WriteString(w, h.errorBody())
+			tw.err = ErrHandlerTimeout
+		default:
+			w.WriteHeader(StatusServiceUnavailable)
+			tw.err = err
+		}
 	}
 }
 
@@ -3347,7 +3411,7 @@ type timeoutWriter struct {
 	req  *Request
 
 	mu          sync.Mutex
-	timedOut    bool
+	err         error
 	wroteHeader bool
 	code        int
 }
@@ -3367,8 +3431,8 @@ func (tw *timeoutWriter) Header() Header { return tw.h }
 func (tw *timeoutWriter) Write(p []byte) (int, error) {
 	tw.mu.Lock()
 	defer tw.mu.Unlock()
-	if tw.timedOut {
-		return 0, ErrHandlerTimeout
+	if tw.err != nil {
+		return 0, tw.err
 	}
 	if !tw.wroteHeader {
 		tw.writeHeaderLocked(StatusOK)
@@ -3380,7 +3444,7 @@ func (tw *timeoutWriter) writeHeaderLocked(code int) {
 	checkWriteHeaderCode(code)
 
 	switch {
-	case tw.timedOut:
+	case tw.err != nil:
 		return
 	case tw.wroteHeader:
 		if tw.req != nil {
@@ -3546,4 +3610,13 @@ func tlsRecordHeaderLooksLikeHTTP(hdr [5]byte) bool {
 		return true
 	}
 	return false
+}
+
+// MaxBytesHandler returns a Handler that runs h with its ResponseWriter and Request.Body wrapped by a MaxBytesReader.
+func MaxBytesHandler(h Handler, n int64) Handler {
+	return HandlerFunc(func(w ResponseWriter, r *Request) {
+		r2 := *r
+		r2.Body = MaxBytesReader(w, r.Body, n)
+		h.ServeHTTP(w, &r2)
+	})
 }

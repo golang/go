@@ -2,16 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package elliptic implements several standard elliptic curves over prime
-// fields.
+// Package elliptic implements the standard NIST P-224, P-256, P-384, and P-521
+// elliptic curves over prime fields.
 package elliptic
-
-// This package operates, internally, on Jacobian coordinates. For a given
-// (x, y) position on the curve, the Jacobian coordinates are (x1, y1, z1)
-// where x = x1/z1² and y = y1/z1³. The greatest speedups come when the whole
-// calculation can be performed within the transform (as in ScalarMult and
-// ScalarBaseMult). But even for Add and Double, it's faster to apply and
-// reverse the transform than to operate in affine coordinates.
 
 import (
 	"io"
@@ -21,9 +14,12 @@ import (
 
 // A Curve represents a short-form Weierstrass curve with a=-3.
 //
-// Note that the point at infinity (0, 0) is not considered on the curve, and
-// although it can be returned by Add, Double, ScalarMult, or ScalarBaseMult, it
-// can't be marshaled or unmarshaled, and IsOnCurve will return false for it.
+// The behavior of Add, Double, and ScalarMult when the input is not a point on
+// the curve is undefined.
+//
+// Note that the conventional point at infinity (0, 0) is not considered on the
+// curve, although it can be returned by Add, Double, ScalarMult, or
+// ScalarBaseMult (but not the Unmarshal or UnmarshalCompressed functions).
 type Curve interface {
 	// Params returns the parameters for the curve.
 	Params() *CurveParams
@@ -38,6 +34,15 @@ type Curve interface {
 	// ScalarBaseMult returns k*G, where G is the base point of the group
 	// and k is an integer in big-endian form.
 	ScalarBaseMult(k []byte) (x, y *big.Int)
+}
+
+func matchesSpecificCurve(params *CurveParams, available ...Curve) (Curve, bool) {
+	for _, c := range available {
+		if params == c.Params() {
+			return c, true
+		}
+	}
+	return nil, false
 }
 
 // CurveParams contains the parameters of an elliptic curve and also provides
@@ -55,6 +60,13 @@ func (curve *CurveParams) Params() *CurveParams {
 	return curve
 }
 
+// CurveParams operates, internally, on Jacobian coordinates. For a given
+// (x, y) position on the curve, the Jacobian coordinates are (x1, y1, z1)
+// where x = x1/z1² and y = y1/z1³. The greatest speedups come when the whole
+// calculation can be performed within the transform (as in ScalarMult and
+// ScalarBaseMult). But even for Add and Double, it's faster to apply and
+// reverse the transform than to operate in affine coordinates.
+
 // polynomial returns x³ - 3x + b.
 func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 	x3 := new(big.Int).Mul(x, x)
@@ -71,6 +83,17 @@ func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 }
 
 func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
+	// If there is a dedicated constant-time implementation for this curve operation,
+	// use that instead of the generic one.
+	if specific, ok := matchesSpecificCurve(curve, p224, p384, p521); ok {
+		return specific.IsOnCurve(x, y)
+	}
+
+	if x.Sign() < 0 || x.Cmp(curve.P) >= 0 ||
+		y.Sign() < 0 || y.Cmp(curve.P) >= 0 {
+		return false
+	}
+
 	// y² = x³ - 3x + b
 	y2 := new(big.Int).Mul(y, y)
 	y2.Mod(y2, curve.P)
@@ -108,6 +131,12 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
 }
 
 func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+	// If there is a dedicated constant-time implementation for this curve operation,
+	// use that instead of the generic one.
+	if specific, ok := matchesSpecificCurve(curve, p224, p384, p521); ok {
+		return specific.Add(x1, y1, x2, y2)
+	}
+
 	z1 := zForAffine(x1, y1)
 	z2 := zForAffine(x2, y2)
 	return curve.affineFromJacobian(curve.addJacobian(x1, y1, z1, x2, y2, z2))
@@ -192,6 +221,12 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
 }
 
 func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+	// If there is a dedicated constant-time implementation for this curve operation,
+	// use that instead of the generic one.
+	if specific, ok := matchesSpecificCurve(curve, p224, p384, p521); ok {
+		return specific.Double(x1, y1)
+	}
+
 	z1 := zForAffine(x1, y1)
 	return curve.affineFromJacobian(curve.doubleJacobian(x1, y1, z1))
 }
@@ -258,6 +293,12 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 }
 
 func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
+	// If there is a dedicated constant-time implementation for this curve operation,
+	// use that instead of the generic one.
+	if specific, ok := matchesSpecificCurve(curve, p224, p256, p384, p521); ok {
+		return specific.ScalarMult(Bx, By, k)
+	}
+
 	Bz := new(big.Int).SetInt64(1)
 	x, y, z := new(big.Int), new(big.Int), new(big.Int)
 
@@ -275,6 +316,12 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
 }
 
 func (curve *CurveParams) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
+	// If there is a dedicated constant-time implementation for this curve operation,
+	// use that instead of the generic one.
+	if specific, ok := matchesSpecificCurve(curve, p224, p256, p384, p521); ok {
+		return specific.ScalarBaseMult(k)
+	}
+
 	return curve.ScalarMult(curve.Gx, curve.Gy, k)
 }
 
@@ -311,7 +358,8 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
 }
 
 // Marshal converts a point on the curve into the uncompressed form specified in
-// section 4.3.6 of ANSI X9.62.
+// SEC 1, Version 2.0, Section 2.3.3. If the point is not on the curve (or is
+// the conventional point at infinity), the behavior is undefined.
 func Marshal(curve Curve, x, y *big.Int) []byte {
 	byteLen := (curve.Params().BitSize + 7) / 8
 
@@ -325,7 +373,8 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 }
 
 // MarshalCompressed converts a point on the curve into the compressed form
-// specified in section 4.3.6 of ANSI X9.62.
+// specified in SEC 1, Version 2.0, Section 2.3.3. If the point is not on the
+// curve (or is the conventional point at infinity), the behavior is undefined.
 func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
 	byteLen := (curve.Params().BitSize + 7) / 8
 	compressed := make([]byte, 1+byteLen)
@@ -334,9 +383,9 @@ func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
 	return compressed
 }
 
-// Unmarshal converts a point, serialized by Marshal, into an x, y pair.
-// It is an error if the point is not in uncompressed form or is not on the curve.
-// On error, x = nil.
+// Unmarshal converts a point, serialized by Marshal, into an x, y pair. It is
+// an error if the point is not in uncompressed form, is not on the curve, or is
+// the point at infinity. On error, x = nil.
 func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	byteLen := (curve.Params().BitSize + 7) / 8
 	if len(data) != 1+2*byteLen {
@@ -357,9 +406,9 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	return
 }
 
-// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into an x, y pair.
-// It is an error if the point is not in compressed form or is not on the curve.
-// On error, x = nil.
+// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into
+// an x, y pair. It is an error if the point is not in compressed form, is not
+// on the curve, or is the point at infinity. On error, x = nil.
 func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
 	byteLen := (curve.Params().BitSize + 7) / 8
 	if len(data) != 1+byteLen {
@@ -389,8 +438,6 @@ func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
 }
 
 var initonce sync.Once
-var p384 *CurveParams
-var p521 *CurveParams
 
 func initAll() {
 	initP224()
@@ -399,26 +446,16 @@ func initAll() {
 	initP521()
 }
 
-func initP384() {
-	// See FIPS 186-3, section D.2.4
-	p384 = &CurveParams{Name: "P-384"}
-	p384.P, _ = new(big.Int).SetString("39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319", 10)
-	p384.N, _ = new(big.Int).SetString("39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643", 10)
-	p384.B, _ = new(big.Int).SetString("b3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aef", 16)
-	p384.Gx, _ = new(big.Int).SetString("aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7", 16)
-	p384.Gy, _ = new(big.Int).SetString("3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f", 16)
-	p384.BitSize = 384
-}
-
-func initP521() {
-	// See FIPS 186-3, section D.2.5
-	p521 = &CurveParams{Name: "P-521"}
-	p521.P, _ = new(big.Int).SetString("6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151", 10)
-	p521.N, _ = new(big.Int).SetString("6864797660130609714981900799081393217269435300143305409394463459185543183397655394245057746333217197532963996371363321113864768612440380340372808892707005449", 10)
-	p521.B, _ = new(big.Int).SetString("051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00", 16)
-	p521.Gx, _ = new(big.Int).SetString("c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66", 16)
-	p521.Gy, _ = new(big.Int).SetString("11839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650", 16)
-	p521.BitSize = 521
+// P224 returns a Curve which implements NIST P-224 (FIPS 186-3, section D.2.2),
+// also known as secp224r1. The CurveParams.Name of this Curve is "P-224".
+//
+// Multiple invocations of this function will return the same value, so it can
+// be used for equality checks and switch statements.
+//
+// The cryptographic operations are implemented using constant-time algorithms.
+func P224() Curve {
+	initonce.Do(initAll)
+	return p224
 }
 
 // P256 returns a Curve which implements NIST P-256 (FIPS 186-3, section D.2.3),
@@ -428,7 +465,7 @@ func initP521() {
 // Multiple invocations of this function will return the same value, so it can
 // be used for equality checks and switch statements.
 //
-// The cryptographic operations are implemented using constant-time algorithms.
+// ScalarMult and ScalarBaseMult are implemented using constant-time algorithms.
 func P256() Curve {
 	initonce.Do(initAll)
 	return p256
@@ -440,7 +477,7 @@ func P256() Curve {
 // Multiple invocations of this function will return the same value, so it can
 // be used for equality checks and switch statements.
 //
-// The cryptographic operations do not use constant-time algorithms.
+// The cryptographic operations are implemented using constant-time algorithms.
 func P384() Curve {
 	initonce.Do(initAll)
 	return p384
@@ -452,7 +489,7 @@ func P384() Curve {
 // Multiple invocations of this function will return the same value, so it can
 // be used for equality checks and switch statements.
 //
-// The cryptographic operations do not use constant-time algorithms.
+// The cryptographic operations are implemented using constant-time algorithms.
 func P521() Curve {
 	initonce.Do(initAll)
 	return p521

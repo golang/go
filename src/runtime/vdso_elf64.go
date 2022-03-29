@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build amd64 arm64 mips64 mips64le ppc64 ppc64le
+//go:build linux && (amd64 || arm64 || mips64 || mips64le || ppc64 || ppc64le || riscv64)
 
 package runtime
 

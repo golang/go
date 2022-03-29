@@ -22,7 +22,7 @@ import (
 // otherwise it returns an error. If src == nil, readSource returns
 // the result of reading the file specified by filename.
 //
-func readSource(filename string, src interface{}) ([]byte, error) {
+func readSource(filename string, src any) ([]byte, error) {
 	if src != nil {
 		switch s := src.(type) {
 		case string:
@@ -49,13 +49,14 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 type Mode uint
 
 const (
-	PackageClauseOnly Mode             = 1 << iota // stop parsing after package clause
-	ImportsOnly                                    // stop parsing after import declarations
-	ParseComments                                  // parse comments and add them to AST
-	Trace                                          // print a trace of parsed productions
-	DeclarationErrors                              // report declaration errors
-	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
-	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
+	PackageClauseOnly    Mode             = 1 << iota // stop parsing after package clause
+	ImportsOnly                                       // stop parsing after import declarations
+	ParseComments                                     // parse comments and add them to AST
+	Trace                                             // print a trace of parsed productions
+	DeclarationErrors                                 // report declaration errors
+	SpuriousErrors                                    // same as AllErrors, for backward-compatibility
+	SkipObjectResolution                              // don't resolve identifiers to objects - see ParseFile
+	AllErrors            = SpuriousErrors             // report all errors (not just the first 10 on different lines)
 )
 
 // ParseFile parses the source code of a single Go source file and returns
@@ -68,8 +69,12 @@ const (
 // If src == nil, ParseFile parses the file specified by filename.
 //
 // The mode parameter controls the amount of source text parsed and other
-// optional parser functionality. Position information is recorded in the
-// file set fset, which must not be nil.
+// optional parser functionality. If the SkipObjectResolution mode bit is set,
+// the object resolution phase of parsing will be skipped, causing File.Scope,
+// File.Unresolved, and all Ident.Obj fields to be nil.
+//
+// Position information is recorded in the file set fset, which must not be
+// nil.
 //
 // If the source couldn't be read, the returned AST is nil and the error
 // indicates the specific failure. If the source was read but syntax
@@ -77,7 +82,7 @@ const (
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
 //
-func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode) (f *ast.File, err error) {
+func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast.File, err error) {
 	if fset == nil {
 		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
 	}
@@ -183,7 +188,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, m
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
 //
-func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode Mode) (expr ast.Expr, err error) {
+func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (expr ast.Expr, err error) {
 	if fset == nil {
 		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
 	}
@@ -208,15 +213,7 @@ func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode M
 
 	// parse expr
 	p.init(fset, filename, text, mode)
-	// Set up pkg-level scopes to avoid nil-pointer errors.
-	// This is not needed for a correct expression x as the
-	// parser will be ok with a nil topScope, but be cautious
-	// in case of an erroneous x.
-	p.openScope()
-	p.pkgScope = p.topScope
 	expr = p.parseRhsOrType()
-	p.closeScope()
-	assert(p.topScope == nil, "unbalanced scopes")
 
 	// If a semicolon was inserted, consume it;
 	// report an error if there's more tokens.

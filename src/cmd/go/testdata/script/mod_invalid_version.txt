@@ -19,7 +19,7 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@14c0d48ead0c
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 \(replaced by \./\..\): parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "14c0d48ead0c" invalid: must be of the form v1.2.3'
+stderr 'go: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ..[/\\]go.mod: '$WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "14c0d48ead0c" invalid: must be of the form v1.2.3'
 cd ..
 go list -m golang.org/x/text
 stdout 'golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'
@@ -37,7 +37,7 @@ stderr 'golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: invalid ve
 
 # However, arguments to 'go get' can name packages above the root.
 cp go.mod.orig go.mod
-go get -d golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
+go get golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
 go list -m golang.org/x/text/...
 stdout 'golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
 ! stdout 'golang.org/x/text/unicode'
@@ -47,30 +47,30 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v2.1.1-0.20170915032832-14c0d48ead0c
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
+stderr 'go: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ..[/\\]go.mod: '$WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
 cd ..
 ! go list -m golang.org/x/text
-stderr $WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
+stderr $WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
 
 # A pseudo-version with fewer than 12 digits of SHA-1 prefix is invalid.
 cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(expected 14c0d48ead0c\)'
 cd ..
 ! go list -m golang.org/x/text
-stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
+stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(expected 14c0d48ead0c\)'
 
 # A pseudo-version with more than 12 digits of SHA-1 prefix is invalid.
 cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(expected 14c0d48ead0c\)'
 cd ..
 ! go list -m golang.org/x/text
-stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
+stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(expected 14c0d48ead0c\)'
 
 # A pseudo-version that does not match the commit timestamp is invalid.
 cp go.mod.orig go.mod
@@ -141,10 +141,10 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v1.999999.0
 go mod edit -replace golang.org/x/text@v1.999999.0=golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
 cd outside
-! go get -d golang.org/x/text@upgrade
+! go get golang.org/x/text@upgrade
 stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.999999.0: reading golang.org/x/text/go.mod at revision v1.999999.0: unknown revision v1.999999.0'
 cd ..
-go get -d golang.org/x/text@upgrade
+go get golang.org/x/text@upgrade
 go list -m golang.org/x/text
 stdout 'golang.org/x/text v1.999999.0 => golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
 
@@ -194,10 +194,10 @@ cp go.mod.orig go.mod
 go mod edit -require github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d+incompatible
 cd outside
 ! go list -m github.com/pierrec/lz4
-stderr 'go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr '^go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 cd ..
 ! go list -m github.com/pierrec/lz4
-stderr 'github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr '^go: github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 
 # A +incompatible pseudo-version is valid for a revision of the module
 # that lacks a go.mod file.
@@ -214,15 +214,15 @@ stdout 'github.com/pierrec/lz4 v2.0.4-0.20180826165652-dbe9298ce099\+incompatibl
 # to the equivalent +incompatible version, not a pseudo-version with a different
 # major version.
 cp go.mod.orig go.mod
-go get -d github.com/pierrec/lz4@v2.0.5
+go get github.com/pierrec/lz4@v2.0.5
 go list -m github.com/pierrec/lz4
 stdout 'github.com/pierrec/lz4 v2.0.5\+incompatible'
 
 # 'go get' for a mismatched major version with a go.mod file should error out,
 # not resolve to a pseudo-version with a different major version.
 cp go.mod.orig go.mod
-! go get -d github.com/pierrec/lz4@v2.0.8
-stderr 'go get: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so major version must be compatible: should be v0 or v1, not v2'
+! go get github.com/pierrec/lz4@v2.0.8
+stderr 'go: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 
 # An invalid +incompatible suffix for a canonical version should error out,
 # not resolve to a pseudo-version.
@@ -233,10 +233,10 @@ cp go.mod.orig go.mod
 go mod edit -require github.com/pierrec/lz4@v2.0.8+incompatible
 cd outside
 ! go list -m github.com/pierrec/lz4
-stderr 'github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr '^go: github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 cd ..
 ! go list -m github.com/pierrec/lz4
-stderr 'github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+stderr '^go: github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: module contains a go.mod file, so module path must match major version \("github.com/pierrec/lz4/v2"\)$'
 
 -- go.mod.orig --
 module example.com

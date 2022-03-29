@@ -15,7 +15,7 @@ import (
 
 // (1) Conversion of a *T1 to Pointer to *T2.
 
-func convert(p *float64) *uint64 { // ERROR "leaking param: p to result ~r1 level=0$"
+func convert(p *float64) *uint64 { // ERROR "leaking param: p to result ~r0 level=0$"
 	return (*uint64)(unsafe.Pointer(p))
 }
 
@@ -39,12 +39,12 @@ func arithMask() unsafe.Pointer {
 // (5) Conversion of the result of reflect.Value.Pointer or
 // reflect.Value.UnsafeAddr from uintptr to Pointer.
 
-// BAD: should be "leaking param: p to result ~r1 level=0$"
+// BAD: should be "leaking param: p to result ~r0 level=0$"
 func valuePointer(p *int) unsafe.Pointer { // ERROR "leaking param: p$"
 	return unsafe.Pointer(reflect.ValueOf(p).Pointer())
 }
 
-// BAD: should be "leaking param: p to result ~r1 level=0$"
+// BAD: should be "leaking param: p to result ~r0 level=0$"
 func valueUnsafeAddr(p *int) unsafe.Pointer { // ERROR "leaking param: p$"
 	return unsafe.Pointer(reflect.ValueOf(p).Elem().UnsafeAddr())
 }
@@ -52,11 +52,11 @@ func valueUnsafeAddr(p *int) unsafe.Pointer { // ERROR "leaking param: p$"
 // (6) Conversion of a reflect.SliceHeader or reflect.StringHeader
 // Data field to or from Pointer.
 
-func fromSliceData(s []int) unsafe.Pointer { // ERROR "leaking param: s to result ~r1 level=0$"
+func fromSliceData(s []int) unsafe.Pointer { // ERROR "leaking param: s to result ~r0 level=0$"
 	return unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&s)).Data)
 }
 
-func fromStringData(s string) unsafe.Pointer { // ERROR "leaking param: s to result ~r1 level=0$"
+func fromStringData(s string) unsafe.Pointer { // ERROR "leaking param: s to result ~r0 level=0$"
 	return unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
 }
 

@@ -12,6 +12,7 @@ package cgotest
 
 import (
 	"runtime"
+	"runtime/cgo"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -26,7 +27,6 @@ import (
 extern void doAdd(int, int);
 
 // issue 1328
-extern void BackIntoGo(void);
 void IntoC(void);
 
 // issue 1560
@@ -38,11 +38,7 @@ long long mysleep(int seconds);
 long long twoSleep(int);
 
 // issue 3775
-void lockOSThreadCallback(void);
-inline static void lockOSThreadC(void)
-{
-        lockOSThreadCallback();
-}
+void lockOSThreadC(void);
 int usleep(unsigned usec);
 
 // issue 4054 part 2 - part 1 in test.go
@@ -81,21 +77,9 @@ extern void f7665(void);
 
 #include <stdint.h>
 
-void issue7978cb(void);
-
 // use ugly atomic variable sync since that doesn't require calling back into
 // Go code or OS dependencies
-static void issue7978c(uint32_t *sync) {
-	while(__atomic_load_n(sync, __ATOMIC_SEQ_CST) != 0)
-		;
-	__atomic_add_fetch(sync, 1, __ATOMIC_SEQ_CST);
-	while(__atomic_load_n(sync, __ATOMIC_SEQ_CST) != 2)
-		;
-	issue7978cb();
-	__atomic_add_fetch(sync, 1, __ATOMIC_SEQ_CST);
-	while(__atomic_load_n(sync, __ATOMIC_SEQ_CST) != 6)
-		;
-}
+void issue7978c(uint32_t *sync);
 
 // issue 8331 part 2 - part 1 in test.go
 // A typedef of an unnamed struct is the same struct when
@@ -129,6 +113,7 @@ typedef struct {
 	int i;
 } Issue38408, *PIssue38408;
 
+extern void cfunc49633(void*); // definition is in test.go
 */
 import "C"
 
@@ -428,9 +413,6 @@ func test6907Go(t *testing.T) {
 
 // issue 7665
 
-//export f7665
-func f7665() {}
-
 var bad7665 unsafe.Pointer = C.f7665
 var good7665 uintptr = uintptr(C.f7665)
 
@@ -558,7 +540,41 @@ func test31891(t *testing.T) {
 	C.callIssue31891()
 }
 
+// issue 37033, check if cgo.Handle works properly
+
+var issue37033 = 42
+
+//export GoFunc37033
+func GoFunc37033(handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	ch := h.Value().(chan int)
+	ch <- issue37033
+}
+
 // issue 38408
 // A typedef pointer can be used as the element type.
 // No runtime test; just make sure it compiles.
 var _ C.PIssue38408 = &C.Issue38408{i: 1}
+
+// issue 49633, example use of cgo.Handle with void*
+
+type data49633 struct {
+	msg string
+}
+
+//export GoFunc49633
+func GoFunc49633(context unsafe.Pointer) {
+	h := *(*cgo.Handle)(context)
+	v := h.Value().(*data49633)
+	v.msg = "hello"
+}
+
+func test49633(t *testing.T) {
+	v := &data49633{}
+	h := cgo.NewHandle(v)
+	defer h.Delete()
+	C.cfunc49633(unsafe.Pointer(&h))
+	if v.msg != "hello" {
+		t.Errorf("msg = %q, want 'hello'", v.msg)
+	}
+}

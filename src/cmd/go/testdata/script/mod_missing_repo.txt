@@ -9,7 +9,7 @@ env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 
-! go get -d vcs-test.golang.org/go/missingrepo/missingrepo-git
+! go mod download vcs-test.golang.org/go/missingrepo/missingrepo-git@latest
 stderr 'vcs-test.golang.org/go/missingrepo/missingrepo-git: git ls-remote .*: exit status .*'
 
-go get -d vcs-test.golang.org/go/missingrepo/missingrepo-git/notmissing
+go mod download vcs-test.golang.org/go/missingrepo/missingrepo-git/notmissing@latest

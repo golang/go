@@ -51,6 +51,12 @@ func assertableTo(v, t types.Type) *types.Func {
 	if V == nil || T == nil {
 		return nil
 	}
+
+	// Mitigations for interface comparisons and generics.
+	// TODO(https://github.com/golang/go/issues/50658): Support more precise conclusion.
+	if isParameterized(V) || isParameterized(T) {
+		return nil
+	}
 	if f, wrongType := types.MissingMethod(V, T, false); wrongType {
 		return f
 	}

@@ -6,8 +6,8 @@ package runtime
 
 import (
 	"internal/cpu"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -82,7 +82,7 @@ func (b *spanSet) push(s *mspan) {
 retry:
 	if top < spineLen {
 		spine := atomic.Loadp(unsafe.Pointer(&b.spine))
-		blockp := add(spine, sys.PtrSize*top)
+		blockp := add(spine, goarch.PtrSize*top)
 		block = (*spanSetBlock)(atomic.Loadp(blockp))
 	} else {
 		// Add a new block to the spine, potentially growing
@@ -102,11 +102,11 @@ retry:
 			if newCap == 0 {
 				newCap = spanSetInitSpineCap
 			}
-			newSpine := persistentalloc(newCap*sys.PtrSize, cpu.CacheLineSize, &memstats.gcMiscSys)
+			newSpine := persistentalloc(newCap*goarch.PtrSize, cpu.CacheLineSize, &memstats.gcMiscSys)
 			if b.spineCap != 0 {
 				// Blocks are allocated off-heap, so
 				// no write barriers.
-				memmove(newSpine, b.spine, b.spineCap*sys.PtrSize)
+				memmove(newSpine, b.spine, b.spineCap*goarch.PtrSize)
 			}
 			// Spine is allocated off-heap, so no write barrier.
 			atomic.StorepNoWB(unsafe.Pointer(&b.spine), newSpine)
@@ -124,7 +124,7 @@ retry:
 		block = spanSetBlockPool.alloc()
 
 		// Add it to the spine.
-		blockp := add(b.spine, sys.PtrSize*top)
+		blockp := add(b.spine, goarch.PtrSize*top)
 		// Blocks are allocated off-heap, so no write barrier.
 		atomic.StorepNoWB(blockp, unsafe.Pointer(block))
 		atomic.Storeuintptr(&b.spineLen, spineLen+1)
@@ -181,7 +181,7 @@ claimLoop:
 	// grows monotonically and we've already verified it, we'll definitely
 	// be reading from a valid block.
 	spine := atomic.Loadp(unsafe.Pointer(&b.spine))
-	blockp := add(spine, sys.PtrSize*uintptr(top))
+	blockp := add(spine, goarch.PtrSize*uintptr(top))
 
 	// Given that the spine length is correct, we know we will never
 	// see a nil block here, since the length is always updated after
@@ -241,7 +241,7 @@ func (b *spanSet) reset() {
 		// since it may be pushed into again. In order to avoid leaking
 		// memory since we're going to reset the head and tail, clean
 		// up such a block now, if it exists.
-		blockp := (**spanSetBlock)(add(b.spine, sys.PtrSize*uintptr(top)))
+		blockp := (**spanSetBlock)(add(b.spine, goarch.PtrSize*uintptr(top)))
 		block := *blockp
 		if block != nil {
 			// Sanity check the popped value.

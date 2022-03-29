@@ -12,6 +12,7 @@ import (
 	"io"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -45,7 +46,7 @@ type T struct {
 	MSI      map[string]int
 	MSIone   map[string]int // one element, for deterministic output
 	MSIEmpty map[string]int
-	MXI      map[interface{}]int
+	MXI      map[any]int
 	MII      map[int]int
 	MI32S    map[int32]string
 	MI64S    map[int64]string
@@ -55,11 +56,11 @@ type T struct {
 	MUI8S    map[uint8]string
 	SMSI     []map[string]int
 	// Empty interfaces; used to see if we can dig inside one.
-	Empty0 interface{} // nil
-	Empty1 interface{}
-	Empty2 interface{}
-	Empty3 interface{}
-	Empty4 interface{}
+	Empty0 any // nil
+	Empty1 any
+	Empty2 any
+	Empty3 any
+	Empty4 any
 	// Non-empty interfaces.
 	NonEmptyInterface         I
 	NonEmptyInterfacePtS      *I
@@ -137,7 +138,7 @@ var tVal = &T{
 	SB:     []bool{true, false},
 	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
 	MSIone: map[string]int{"one": 1},
-	MXI:    map[interface{}]int{"one": 1},
+	MXI:    map[any]int{"one": 1},
 	MII:    map[int]int{1: 1},
 	MI32S:  map[int32]string{1: "one", 2: "two"},
 	MI64S:  map[int64]string{2: "i642", 3: "i643"},
@@ -208,7 +209,7 @@ func (t *T) Method2(a uint16, b string) string {
 	return fmt.Sprintf("Method2: %d %s", a, b)
 }
 
-func (t *T) Method3(v interface{}) string {
+func (t *T) Method3(v any) string {
 	return fmt.Sprintf("Method3: %v", v)
 }
 
@@ -248,7 +249,7 @@ func (u *U) TrueFalse(b bool) string {
 	return ""
 }
 
-func typeOf(arg interface{}) string {
+func typeOf(arg any) string {
 	return fmt.Sprintf("%T", arg)
 }
 
@@ -256,7 +257,7 @@ type execTest struct {
 	name   string
 	input  string
 	output string
-	data   interface{}
+	data   any
 	ok     bool
 }
 
@@ -389,7 +390,7 @@ var execTests = []execTest{
 	{".VariadicFuncInt", "{{call .VariadicFuncInt 33 `he` `llo`}}", "33=<he+llo>", tVal, true},
 	{"if .BinaryFunc call", "{{ if .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{end}}", "[1=2]", tVal, true},
 	{"if not .BinaryFunc call", "{{ if not .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{else}}No{{end}}", "No", tVal, true},
-	{"Interface Call", `{{stringer .S}}`, "foozle", map[string]interface{}{"S": bytes.NewBufferString("foozle")}, true},
+	{"Interface Call", `{{stringer .S}}`, "foozle", map[string]any{"S": bytes.NewBufferString("foozle")}, true},
 	{".ErrFunc", "{{call .ErrFunc}}", "bla", tVal, true},
 	{"call nil", "{{call nil}}", "", tVal, false},
 
@@ -480,8 +481,19 @@ var execTests = []execTest{
 	{"not", "{{not true}} {{not false}}", "false true", nil, true},
 	{"and", "{{and false 0}} {{and 1 0}} {{and 0 true}} {{and 1 1}}", "false 0 0 1", nil, true},
 	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 true}} {{or 1 1}}", "0 1 true 1", nil, true},
+	{"or short-circuit", "{{or 0 1 (die)}}", "1", nil, true},
+	{"and short-circuit", "{{and 1 0 (die)}}", "0", nil, true},
+	{"or short-circuit2", "{{or 0 0 (die)}}", "", nil, false},
+	{"and short-circuit2", "{{and 1 1 (die)}}", "", nil, false},
+	{"and pipe-true", "{{1 | and 1}}", "1", nil, true},
+	{"and pipe-false", "{{0 | and 1}}", "0", nil, true},
+	{"or pipe-true", "{{1 | or 0}}", "1", nil, true},
+	{"or pipe-false", "{{0 | or 0}}", "0", nil, true},
+	{"and undef", "{{and 1 .Unknown}}", "<no value>", nil, true},
+	{"or undef", "{{or 0 .Unknown}}", "<no value>", nil, true},
 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
+	{"boolean if pipe", "{{if true | not | and 1}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
 
 	// Indexing.
 	{"slice[0]", "{{index .SI 0}}", "3", tVal, true},
@@ -563,6 +575,8 @@ var execTests = []execTest{
 	{"range empty no else", "{{range .SIEmpty}}-{{.}}-{{end}}", "", tVal, true},
 	{"range []int else", "{{range .SI}}-{{.}}-{{else}}EMPTY{{end}}", "-3--4--5-", tVal, true},
 	{"range empty else", "{{range .SIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"range []int break else", "{{range .SI}}-{{.}}-{{break}}NOTREACHED{{else}}EMPTY{{end}}", "-3-", tVal, true},
+	{"range []int continue else", "{{range .SI}}-{{.}}-{{continue}}NOTREACHED{{else}}EMPTY{{end}}", "-3--4--5-", tVal, true},
 	{"range []bool", "{{range .SB}}-{{.}}-{{end}}", "-true--false-", tVal, true},
 	{"range []int method", "{{range .SI | .MAdd .I}}-{{.}}-{{end}}", "-20--21--22-", tVal, true},
 	{"range map", "{{range .MSI}}-{{.}}-{{end}}", "-1--3--2-", tVal, true},
@@ -734,7 +748,7 @@ func add(args ...int) int {
 	return sum
 }
 
-func echo(arg interface{}) interface{} {
+func echo(arg any) any {
 	return arg
 }
 
@@ -753,7 +767,7 @@ func stringer(s fmt.Stringer) string {
 	return s.String()
 }
 
-func mapOfThree() interface{} {
+func mapOfThree() any {
 	return map[string]int{"three": 3}
 }
 
@@ -763,6 +777,7 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
 		"add":         add,
 		"count":       count,
 		"dddArg":      dddArg,
+		"die":         func() bool { panic("die") },
 		"echo":        echo,
 		"makemap":     makemap,
 		"mapOfThree":  mapOfThree,
@@ -899,6 +914,28 @@ func TestExecError(t *testing.T) {
 	got := err.Error()
 	if got != want {
 		t.Errorf("expected\n%q\ngot\n%q", want, got)
+	}
+}
+
+type CustomError struct{}
+
+func (*CustomError) Error() string { return "heyo !" }
+
+// Check that a custom error can be returned.
+func TestExecError_CustomError(t *testing.T) {
+	failingFunc := func() (string, error) {
+		return "", &CustomError{}
+	}
+	tmpl := Must(New("top").Funcs(FuncMap{
+		"err": failingFunc,
+	}).Parse("{{ err }}"))
+
+	var b bytes.Buffer
+	err := tmpl.Execute(&b, nil)
+
+	var e *CustomError
+	if !errors.As(err, &e) {
+		t.Fatalf("expected custom error; got %s", err)
 	}
 }
 
@@ -1178,8 +1215,11 @@ var cmpTests = []cmpTest{
 	{"eq .Ptr .NilPtr", "false", true},
 	{"eq .NilPtr .NilPtr", "true", true},
 	{"eq .Iface1 .Iface1", "true", true},
-	{"eq .Iface1 .Iface2", "false", true},
-	{"eq .Iface2 .Iface2", "true", true},
+	{"eq .Iface1 .NilIface", "false", true},
+	{"eq .NilIface .NilIface", "true", true},
+	{"eq .NilIface .Iface1", "false", true},
+	{"eq .NilIface 0", "false", true},
+	{"eq 0 .NilIface", "false", true},
 	// Errors
 	{"eq `xy` 1", "", false},       // Different types.
 	{"eq 2 2.0", "", false},        // Different types.
@@ -1194,12 +1234,12 @@ var cmpTests = []cmpTest{
 func TestComparison(t *testing.T) {
 	b := new(bytes.Buffer)
 	var cmpStruct = struct {
-		Uthree, Ufour  uint
-		NegOne, Three  int
-		Ptr, NilPtr    *int
-		Map            map[int]int
-		V1, V2         V
-		Iface1, Iface2 fmt.Stringer
+		Uthree, Ufour    uint
+		NegOne, Three    int
+		Ptr, NilPtr      *int
+		Map              map[int]int
+		V1, V2           V
+		Iface1, NilIface fmt.Stringer
 	}{
 		Uthree: 3,
 		Ufour:  4,
@@ -1428,7 +1468,7 @@ func TestBlock(t *testing.T) {
 func TestEvalFieldErrors(t *testing.T) {
 	tests := []struct {
 		name, src string
-		value     interface{}
+		value     any
 		want      string
 	}{
 		{
@@ -1571,7 +1611,7 @@ func TestInterfaceValues(t *testing.T) {
 	for _, tt := range tests {
 		tmpl := Must(New("tmpl").Parse(tt.text))
 		var buf bytes.Buffer
-		err := tmpl.Execute(&buf, map[string]interface{}{
+		err := tmpl.Execute(&buf, map[string]any{
 			"PlusOne": func(n int) int {
 				return n + 1
 			},
@@ -1600,7 +1640,7 @@ func TestInterfaceValues(t *testing.T) {
 
 // Check that panics during calls are recovered and returned as errors.
 func TestExecutePanicDuringCall(t *testing.T) {
-	funcs := map[string]interface{}{
+	funcs := map[string]any{
 		"doPanic": func() string {
 			panic("custom panic string")
 		},
@@ -1608,7 +1648,7 @@ func TestExecutePanicDuringCall(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		data    interface{}
+		data    any
 		wantErr string
 	}{
 		{
@@ -1708,5 +1748,65 @@ func TestIssue43065(t *testing.T) {
 		t.Error("expected err got nil")
 	} else if !strings.Contains(err.Error(), "range over send-only channel") {
 		t.Errorf("%s", err)
+	}
+}
+
+// Issue 39807: data race in html/template & text/template
+func TestIssue39807(t *testing.T) {
+	var wg sync.WaitGroup
+
+	tplFoo, err := New("foo").Parse(`{{ template "bar" . }}`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tplBar, err := New("bar").Parse("bar")
+	if err != nil {
+		t.Error(err)
+	}
+
+	gofuncs := 10
+	numTemplates := 10
+
+	for i := 1; i <= gofuncs; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numTemplates; j++ {
+				_, err := tplFoo.AddParseTree(tplBar.Name(), tplBar.Tree)
+				if err != nil {
+					t.Error(err)
+				}
+				err = tplFoo.Execute(io.Discard, nil)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+// Issue 48215: embedded nil pointer causes panic.
+// Fixed by adding FieldByIndexErr to the reflect package.
+func TestIssue48215(t *testing.T) {
+	type A struct {
+		S string
+	}
+	type B struct {
+		*A
+	}
+	tmpl, err := New("").Parse(`{{ .S }}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tmpl.Execute(io.Discard, B{})
+	// We expect an error, not a panic.
+	if err == nil {
+		t.Fatal("did not get error for nil embedded struct")
+	}
+	if !strings.Contains(err.Error(), "reflect: indirection through nil pointer to embedded struct field A") {
+		t.Fatal(err)
 	}
 }

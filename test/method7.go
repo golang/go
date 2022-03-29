@@ -25,6 +25,11 @@ type T int
 
 func (T) m2() { got += " m2()" }
 
+type Outer struct{ *Inner }
+type Inner struct{ s string }
+
+func (i Inner) M() string { return i.s }
+
 func main() {
 	// method expressions with named receiver types
 	I.m(S{})
@@ -51,5 +56,12 @@ func main() {
 
 	if got != want {
 		panic("got" + got + ", want" + want)
+	}
+
+	h := (*Outer).M
+	got := h(&Outer{&Inner{"hello"}})
+	want := "hello"
+	if got != want {
+		panic("got " + got + ", want " + want)
 	}
 }

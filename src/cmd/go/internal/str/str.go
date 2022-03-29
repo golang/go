@@ -14,7 +14,7 @@ import (
 
 // StringList flattens its arguments into a single []string.
 // Each argument in args must have type string or []string.
-func StringList(args ...interface{}) []string {
+func StringList(args ...any) []string {
 	var x []string
 	for _, arg := range args {
 		switch arg := arg.(type) {
@@ -108,48 +108,4 @@ func Uniq(ss *[]string) {
 		}
 	}
 	*ss = uniq
-}
-
-func isSpaceByte(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
-}
-
-// SplitQuotedFields splits s into a list of fields,
-// allowing single or double quotes around elements.
-// There is no unescaping or other processing within
-// quoted fields.
-func SplitQuotedFields(s string) ([]string, error) {
-	// Split fields allowing '' or "" around elements.
-	// Quotes further inside the string do not count.
-	var f []string
-	for len(s) > 0 {
-		for len(s) > 0 && isSpaceByte(s[0]) {
-			s = s[1:]
-		}
-		if len(s) == 0 {
-			break
-		}
-		// Accepted quoted string. No unescaping inside.
-		if s[0] == '"' || s[0] == '\'' {
-			quote := s[0]
-			s = s[1:]
-			i := 0
-			for i < len(s) && s[i] != quote {
-				i++
-			}
-			if i >= len(s) {
-				return nil, fmt.Errorf("unterminated %c string", quote)
-			}
-			f = append(f, s[:i])
-			s = s[i+1:]
-			continue
-		}
-		i := 0
-		for i < len(s) && !isSpaceByte(s[i]) {
-			i++
-		}
-		f = append(f, s[:i])
-		s = s[i:]
-	}
-	return f, nil
 }

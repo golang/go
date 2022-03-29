@@ -49,3 +49,17 @@ func HasFilePathPrefix(s, prefix string) bool {
 		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
 	}
 }
+
+// TrimFilePathPrefix returns s without the leading path elements in prefix.
+// If s does not start with prefix (HasFilePathPrefix with the same arguments
+// returns false), TrimFilePathPrefix returns s. If s equals prefix,
+// TrimFilePathPrefix returns "".
+func TrimFilePathPrefix(s, prefix string) string {
+	if !HasFilePathPrefix(s, prefix) {
+		return s
+	}
+	if len(s) == len(prefix) {
+		return ""
+	}
+	return s[len(prefix)+1:]
+}

@@ -22,6 +22,8 @@
 // as shorthands for vMAJOR.0.0 and vMAJOR.MINOR.0.
 package semver
 
+import "sort"
+
 // parsed returns the parsed form of a semantic version string.
 type parsed struct {
 	major      string
@@ -30,7 +32,6 @@ type parsed struct {
 	short      string
 	prerelease string
 	build      string
-	err        string
 }
 
 // IsValid reports whether v is a valid semantic version string.
@@ -150,14 +151,30 @@ func Max(v, w string) string {
 	return w
 }
 
+// ByVersion implements sort.Interface for sorting semantic version strings.
+type ByVersion []string
+
+func (vs ByVersion) Len() int      { return len(vs) }
+func (vs ByVersion) Swap(i, j int) { vs[i], vs[j] = vs[j], vs[i] }
+func (vs ByVersion) Less(i, j int) bool {
+	cmp := Compare(vs[i], vs[j])
+	if cmp != 0 {
+		return cmp < 0
+	}
+	return vs[i] < vs[j]
+}
+
+// Sort sorts a list of semantic version strings using ByVersion.
+func Sort(list []string) {
+	sort.Sort(ByVersion(list))
+}
+
 func parse(v string) (p parsed, ok bool) {
 	if v == "" || v[0] != 'v' {
-		p.err = "missing v prefix"
 		return
 	}
 	p.major, v, ok = parseInt(v[1:])
 	if !ok {
-		p.err = "bad major version"
 		return
 	}
 	if v == "" {
@@ -167,13 +184,11 @@ func parse(v string) (p parsed, ok bool) {
 		return
 	}
 	if v[0] != '.' {
-		p.err = "bad minor prefix"
 		ok = false
 		return
 	}
 	p.minor, v, ok = parseInt(v[1:])
 	if !ok {
-		p.err = "bad minor version"
 		return
 	}
 	if v == "" {
@@ -182,31 +197,26 @@ func parse(v string) (p parsed, ok bool) {
 		return
 	}
 	if v[0] != '.' {
-		p.err = "bad patch prefix"
 		ok = false
 		return
 	}
 	p.patch, v, ok = parseInt(v[1:])
 	if !ok {
-		p.err = "bad patch version"
 		return
 	}
 	if len(v) > 0 && v[0] == '-' {
 		p.prerelease, v, ok = parsePrerelease(v)
 		if !ok {
-			p.err = "bad prerelease"
 			return
 		}
 	}
 	if len(v) > 0 && v[0] == '+' {
 		p.build, v, ok = parseBuild(v)
 		if !ok {
-			p.err = "bad build"
 			return
 		}
 	}
 	if v != "" {
-		p.err = "junk on end"
 		ok = false
 		return
 	}

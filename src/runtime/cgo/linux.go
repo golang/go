@@ -5,7 +5,7 @@
 // Linux system call wrappers that provide POSIX semantics through the
 // corresponding cgo->libc (nptl) wrappers for various system calls.
 
-// +build linux
+//go:build linux
 
 package cgo
 

@@ -31,8 +31,7 @@ type Pkg struct {
 	// height of their imported packages.
 	Height int
 
-	Imported bool // export data of this package was parsed
-	Direct   bool // imported directly
+	Direct bool // imported directly
 }
 
 // NewPkg returns a new Pkg for the given package path and name.
@@ -49,7 +48,15 @@ func NewPkg(path, name string) *Pkg {
 	p := new(Pkg)
 	p.Path = path
 	p.Name = name
-	p.Prefix = objabi.PathToPrefix(path)
+	if path == "go.shape" {
+		// Don't escape "go.shape", since it's not needed (it's a builtin
+		// package), and we don't want escape codes showing up in shape type
+		// names, which also appear in names of function/method
+		// instantiations.
+		p.Prefix = path
+	} else {
+		p.Prefix = objabi.PathToPrefix(path)
+	}
 	p.Syms = make(map[string]*Sym)
 	pkgMap[path] = p
 
@@ -84,9 +91,6 @@ func (pkg *Pkg) Lookup(name string) *Sym {
 	return s
 }
 
-// List of .inittask entries in imported packages, in source code order.
-var InitSyms []*Sym
-
 // LookupOK looks up name in pkg and reports whether it previously existed.
 func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 	// TODO(gri) remove this check in favor of specialized lookup
@@ -100,9 +104,6 @@ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 	s = &Sym{
 		Name: name,
 		Pkg:  pkg,
-	}
-	if name == ".inittask" {
-		InitSyms = append(InitSyms, s)
 	}
 	pkg.Syms[name] = s
 	return s, false

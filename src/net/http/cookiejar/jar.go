@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/internal/ascii"
 	"net/url"
 	"sort"
 	"strings"
@@ -296,7 +297,6 @@ func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
 // host name.
 func canonicalHost(host string) (string, error) {
 	var err error
-	host = strings.ToLower(host)
 	if hasPort(host) {
 		host, _, err = net.SplitHostPort(host)
 		if err != nil {
@@ -307,7 +307,13 @@ func canonicalHost(host string) (string, error) {
 		// Strip trailing dot from fully qualified domain names.
 		host = host[:len(host)-1]
 	}
-	return toASCII(host)
+	encoded, err := toASCII(host)
+	if err != nil {
+		return "", err
+	}
+	// We know this is ascii, no need to check.
+	lower, _ := ascii.ToLower(encoded)
+	return lower, nil
 }
 
 // hasPort reports whether host contains a port number. host may be a host
@@ -469,7 +475,12 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 		// both are illegal.
 		return "", false, errMalformedDomain
 	}
-	domain = strings.ToLower(domain)
+
+	domain, isASCII := ascii.ToLower(domain)
+	if !isASCII {
+		// Received non-ASCII domain, e.g. "perché.com" instead of "xn--perch-fsa.com"
+		return "", false, errMalformedDomain
+	}
 
 	if domain[len(domain)-1] == '.' {
 		// We received stuff like "Domain=www.example.com.".

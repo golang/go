@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build race
+//go:build race
 
 // This program is used to verify the race detector
 // by running the tests and parsing their output.
@@ -187,7 +187,7 @@ func runTests(t *testing.T) ([]byte, error) {
 func TestIssue8102(t *testing.T) {
 	// If this compiles with -race, the test passes.
 	type S struct {
-		x interface{}
+		x any
 		i int
 	}
 	c := make(chan int)

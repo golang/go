@@ -5,7 +5,7 @@ go list -m all
 stdout '^example.net/a v0.1.0 '
 stdout '^example.net/b v0.1.0 '
 
-go get -d -u=patch example.net/a@v0.2.0
+go get -u=patch example.net/a@v0.2.0
 go list -m all
 stdout '^example.net/a v0.2.0 '
 stdout '^example.net/b v0.1.1 '  # not v0.1.2, which requires …/a v0.3.0.

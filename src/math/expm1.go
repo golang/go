@@ -121,7 +121,12 @@ package math
 //	Expm1(-Inf) = -1
 //	Expm1(NaN) = NaN
 // Very large values overflow to -1 or +Inf.
-func Expm1(x float64) float64
+func Expm1(x float64) float64 {
+	if haveArchExpm1 {
+		return archExpm1(x)
+	}
+	return expm1(x)
+}
 
 func expm1(x float64) float64 {
 	const (

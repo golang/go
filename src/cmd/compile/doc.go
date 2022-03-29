@@ -44,6 +44,8 @@ Flags:
 		Print compiler version and exit.
 	-asmhdr file
 		Write assembly header to file.
+	-asan
+		Insert calls to C/C++ address sanitizer.
 	-buildid id
 		Record id as the build id in the export metadata.
 	-blockprofile file
@@ -83,7 +85,8 @@ Flags:
 		Without this flag, the -o output is a combination of both
 		linker and compiler input.
 	-m
-		Print optimization decisions.
+		Print optimization decisions. Higher values or repetition
+		produce more detail.
 	-memprofile file
 		Write memory profile for the compilation to file.
 	-memprofilerate rate

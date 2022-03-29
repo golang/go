@@ -37,7 +37,7 @@ type MapFile struct {
 	Data    []byte      // file content
 	Mode    fs.FileMode // FileInfo.Mode
 	ModTime time.Time   // FileInfo.ModTime
-	Sys     interface{} // FileInfo.Sys
+	Sys     any         // FileInfo.Sys
 }
 
 var _ fs.FS = MapFS(nil)
@@ -66,7 +66,9 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 		for fname, f := range fsys {
 			i := strings.Index(fname, "/")
 			if i < 0 {
-				list = append(list, mapFileInfo{fname, f})
+				if fname != "." {
+					list = append(list, mapFileInfo{fname, f})
+				}
 			} else {
 				need[fname[:i]] = true
 			}
@@ -154,7 +156,7 @@ func (i *mapFileInfo) Mode() fs.FileMode          { return i.f.Mode }
 func (i *mapFileInfo) Type() fs.FileMode          { return i.f.Mode.Type() }
 func (i *mapFileInfo) ModTime() time.Time         { return i.f.ModTime }
 func (i *mapFileInfo) IsDir() bool                { return i.f.Mode&fs.ModeDir != 0 }
-func (i *mapFileInfo) Sys() interface{}           { return i.f.Sys }
+func (i *mapFileInfo) Sys() any                   { return i.f.Sys }
 func (i *mapFileInfo) Info() (fs.FileInfo, error) { return i, nil }
 
 // An openMapFile is a regular (non-directory) fs.File open for reading.
@@ -223,11 +225,11 @@ func (d *mapDir) Read(b []byte) (int, error) {
 
 func (d *mapDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	n := len(d.entry) - d.offset
-	if count > 0 && n > count {
-		n = count
-	}
 	if n == 0 && count > 0 {
 		return nil, io.EOF
+	}
+	if count > 0 && n > count {
+		n = count
 	}
 	list := make([]fs.DirEntry, n)
 	for i := range list {

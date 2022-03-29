@@ -1,4 +1,4 @@
-# This test checks error messages for non-existant packages in module mode.
+# This test checks error messages for non-existent packages in module mode.
 # Veries golang.org/issue/35414
 env GO111MODULE=on
 cd $WORK

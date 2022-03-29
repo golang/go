@@ -10,7 +10,12 @@ package math
 // Special cases are:
 //	Modf(±Inf) = ±Inf, NaN
 //	Modf(NaN) = NaN, NaN
-func Modf(f float64) (int float64, frac float64)
+func Modf(f float64) (int float64, frac float64) {
+	if haveArchModf {
+		return archModf(f)
+	}
+	return modf(f)
+}
 
 func modf(f float64) (int float64, frac float64) {
 	if f < 1 {

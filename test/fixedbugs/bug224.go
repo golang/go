@@ -6,5 +6,5 @@
 
 package main
 
-type T T		// ERROR "recursive"
+type T T		// ERROR "recursive|cycle"
 

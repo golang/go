@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64,!arm64
+//go:build !amd64 && !arm64
 
 package elliptic
 
-// This file contains a constant-time, 32-bit implementation of P256.
+// P-256 is implemented by various different backends, including a generic
+// 32-bit constant-time one in this file, which is used when assembly
+// implementations are not available, or not appropriate for the hardware.
 
-import (
-	"math/big"
-)
+import "math/big"
 
 type p256Curve struct {
 	*CurveParams
@@ -209,6 +209,8 @@ var p256Precomputed = [p256Limbs * 2 * 15 * 2]uint32{
 
 // Field element operations:
 
+const bottom28Bits = 0xfffffff
+
 // nonZeroToAllOnes returns:
 //   0xffffffff for 0 < x <= 2**31
 //   0 for x == 0 or x > 2**31.
@@ -269,6 +271,7 @@ const (
 	two30m2    = 1<<30 - 1<<2
 	two30p13m2 = 1<<30 + 1<<13 - 1<<2
 	two31m2    = 1<<31 - 1<<2
+	two31m3    = 1<<31 - 1<<3
 	two31p24m2 = 1<<31 + 1<<24 - 1<<2
 	two30m27m2 = 1<<30 - 1<<27 - 1<<2
 )
@@ -326,7 +329,7 @@ func p256ReduceDegree(out *[p256Limbs]uint32, tmp [17]uint64) {
 	var tmp2 [18]uint32
 	var carry, x, xMask uint32
 
-	// tmp contains 64-bit words with the same 29,28,29-bit positions as an
+	// tmp contains 64-bit words with the same 29,28,29-bit positions as a
 	// field element. So the top of an element of tmp might overlap with
 	// another element two positions down. The following loop eliminates
 	// this overlap.

@@ -1,0 +1,13 @@
+# GOPATH: Set up
+env GO111MODULE=off
+
+# GOPATH: Fetch with insecure, should error
+! go get -insecure test
+stderr 'go: -insecure flag is no longer supported; use GOINSECURE instead'
+
+# Modules: Set up
+env GO111MODULE=on
+
+# Modules: Fetch with insecure, should error
+! go get -insecure test
+stderr 'go: -insecure flag is no longer supported; use GOINSECURE instead'

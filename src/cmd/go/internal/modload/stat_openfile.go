@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm plan9
+//go:build (js && wasm) || plan9
 
 // On plan9, per http://9p.io/magic/man2html/2/access: “Since file permissions
 // are checked by the server and group information is not known to the client,

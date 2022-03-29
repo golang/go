@@ -86,7 +86,7 @@ func (p *ErrorList) RemoveMultiples() {
 			i++
 		}
 	}
-	(*p) = (*p)[0:i]
+	*p = (*p)[0:i]
 }
 
 // An ErrorList implements the error interface.

@@ -222,11 +222,19 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 			err = machoUpdateLoadCommand(reader, linkseg, linkoffset, &macho.SymtabCmd{}, "Symoff", "Stroff")
 		case macho.LoadCmdDysymtab:
 			err = machoUpdateLoadCommand(reader, linkseg, linkoffset, &macho.DysymtabCmd{}, "Tocoffset", "Modtaboff", "Extrefsymoff", "Indirectsymoff", "Extreloff", "Locreloff")
-		case LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS, LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS:
+		case LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS, LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS,
+			LC_DYLD_EXPORTS_TRIE, LC_DYLD_CHAINED_FIXUPS:
 			err = machoUpdateLoadCommand(reader, linkseg, linkoffset, &linkEditDataCmd{}, "DataOff")
 		case LC_ENCRYPTION_INFO, LC_ENCRYPTION_INFO_64:
 			err = machoUpdateLoadCommand(reader, linkseg, linkoffset, &encryptionInfoCmd{}, "CryptOff")
-		case macho.LoadCmdDylib, macho.LoadCmdThread, macho.LoadCmdUnixThread, LC_PREBOUND_DYLIB, LC_UUID, LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_SOURCE_VERSION, LC_MAIN, LC_LOAD_DYLINKER, LC_LOAD_WEAK_DYLIB, LC_REEXPORT_DYLIB, LC_RPATH, LC_ID_DYLIB, LC_SYMSEG, LC_LOADFVMLIB, LC_IDFVMLIB, LC_IDENT, LC_FVMFILE, LC_PREPAGE, LC_ID_DYLINKER, LC_ROUTINES, LC_SUB_FRAMEWORK, LC_SUB_UMBRELLA, LC_SUB_CLIENT, LC_SUB_LIBRARY, LC_TWOLEVEL_HINTS, LC_PREBIND_CKSUM, LC_ROUTINES_64, LC_LAZY_LOAD_DYLIB, LC_LOAD_UPWARD_DYLIB, LC_DYLD_ENVIRONMENT, LC_LINKER_OPTION, LC_LINKER_OPTIMIZATION_HINT, LC_VERSION_MIN_TVOS, LC_VERSION_MIN_WATCHOS, LC_VERSION_NOTE, LC_BUILD_VERSION:
+		case macho.LoadCmdDylib, macho.LoadCmdThread, macho.LoadCmdUnixThread,
+			LC_PREBOUND_DYLIB, LC_UUID, LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_SOURCE_VERSION,
+			LC_MAIN, LC_LOAD_DYLINKER, LC_LOAD_WEAK_DYLIB, LC_REEXPORT_DYLIB, LC_RPATH, LC_ID_DYLIB,
+			LC_SYMSEG, LC_LOADFVMLIB, LC_IDFVMLIB, LC_IDENT, LC_FVMFILE, LC_PREPAGE, LC_ID_DYLINKER,
+			LC_ROUTINES, LC_SUB_FRAMEWORK, LC_SUB_UMBRELLA, LC_SUB_CLIENT, LC_SUB_LIBRARY, LC_TWOLEVEL_HINTS,
+			LC_PREBIND_CKSUM, LC_ROUTINES_64, LC_LAZY_LOAD_DYLIB, LC_LOAD_UPWARD_DYLIB, LC_DYLD_ENVIRONMENT,
+			LC_LINKER_OPTION, LC_LINKER_OPTIMIZATION_HINT, LC_VERSION_MIN_TVOS, LC_VERSION_MIN_WATCHOS,
+			LC_VERSION_NOTE, LC_BUILD_VERSION:
 			// Nothing to update
 		default:
 			err = fmt.Errorf("unknown load command 0x%x (%s)", int(cmd.Cmd), cmd.Cmd)
@@ -394,7 +402,7 @@ func machoUpdateDwarfHeader(r *loadCmdReader, compressedSects []*macho.Section, 
 	// We want the DWARF segment to be considered non-loadable, so
 	// force vmaddr and vmsize to zero. In addition, set the initial
 	// protection to zero so as to make the dynamic loader happy,
-	// since otherwise it may complain that that the vm size and file
+	// since otherwise it may complain that the vm size and file
 	// size don't match for the segment. See issues 21647 and 32673
 	// for more context. Also useful to refer to the Apple dynamic
 	// loader source, specifically ImageLoaderMachO::sniffLoadCommands

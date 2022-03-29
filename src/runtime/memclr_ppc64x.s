@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ppc64 ppc64le
+//go:build ppc64 || ppc64le
 
 #include "textflag.h"
 
+// See memclrNoHeapPointers Go doc for important implementation constraints.
+
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
-TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT|NOFRAME, $0-16
-	MOVD ptr+0(FP), R3
-	MOVD n+8(FP), R4
+TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-16
+	// R3 = ptr
+	// R4 = n
 
 	// Determine if there are doublewords to clear
 check:

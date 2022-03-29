@@ -2,7 +2,7 @@
 // Run go generate from src/runtime to update.
 // See mkduff.go for comments.
 
-// +build mips64 mips64le
+//go:build mips64 || mips64le
 
 #include "textflag.h"
 

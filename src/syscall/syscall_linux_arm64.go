@@ -6,12 +6,6 @@ package syscall
 
 import "unsafe"
 
-// archHonorsR2 captures the fact that r2 is honored by the
-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
-// syscall(trap, ...).  Not all architectures define r2 in their
-// ABI. See "man syscall".
-const archHonorsR2 = true
-
 const _SYS_setgroups = SYS_SETGROUPS
 
 func EpollCreate(size int) (fd int, err error) {
@@ -34,15 +28,14 @@ func EpollCreate(size int) (fd int, err error) {
 //sysnb	getrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Getuid() (uid int)
 //sys	Listen(s int, n int) (err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
 //sysnb	setrlimit(resource int, rlim *Rlimit) (err error)
-//sysnb	Setreuid(ruid int, euid int) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 
@@ -61,7 +54,6 @@ func Lstat(path string, stat *Stat_t) (err error) {
 //sys	Statfs(path string, buf *Statfs_t) (err error)
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error) = SYS_SYNC_FILE_RANGE2
 //sys	Truncate(path string, length int64) (err error)
-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
 //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
 //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
 //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
@@ -144,30 +136,6 @@ func utimes(path string, tv *[2]Timeval) (err error) {
 		NsecToTimespec(TimevalToNsec(tv[1])),
 	}
 	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
-}
-
-func Pipe(p []int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	var pp [2]_C_int
-	err = pipe2(&pp, 0)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-}
-
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
-
-func Pipe2(p []int, flags int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	var pp [2]_C_int
-	err = pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
 }
 
 // Getrlimit prefers the prlimit64 system call. See issue 38604.

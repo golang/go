@@ -182,7 +182,7 @@ func buildHuffmanNode(t *huffmanTree, codes []huffmanCode, level uint32) (nodeIn
 
 		// If this function was called recursively then we know that
 		// len(codes) >= 2 because, otherwise, we would have hit the
-		// "leaf node" case, below, and not recursed.
+		// "leaf node" case, below, and not recurred.
 		//
 		// However, for the initial call it's possible that len(codes)
 		// is zero or one. Both cases are invalid because a zero length

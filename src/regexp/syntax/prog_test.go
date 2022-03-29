@@ -89,6 +89,21 @@ var compileTests = []struct {
   2	anynotnl -> 3
   3	match
 `},
+	{"(?:|a)+", `  0	fail
+  1	nop -> 4
+  2	rune1 "a" -> 4
+  3*	alt -> 1, 2
+  4	alt -> 3, 5
+  5	match
+`},
+	{"(?:|a)*", `  0	fail
+  1	nop -> 4
+  2	rune1 "a" -> 4
+  3	alt -> 1, 2
+  4	alt -> 3, 6
+  5*	alt -> 3, 6
+  6	match
+`},
 }
 
 func TestCompile(t *testing.T) {

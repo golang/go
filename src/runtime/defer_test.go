@@ -370,7 +370,7 @@ func g2() {
 	defer ap.method2()
 	defer ap.method1()
 	ff1(ap, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-	// Try to get the stack to be be moved by growing it too large, so
+	// Try to get the stack to be moved by growing it too large, so
 	// existing stack-allocated defer becomes invalid.
 	rec1(2000)
 }
@@ -409,4 +409,110 @@ func rec1(max int) {
 	if max > 0 {
 		rec1(max - 1)
 	}
+}
+
+func TestIssue43921(t *testing.T) {
+	defer func() {
+		expect(t, 1, recover())
+	}()
+	func() {
+		// Prevent open-coded defers
+		for {
+			defer func() {}()
+			break
+		}
+
+		defer func() {
+			defer func() {
+				expect(t, 4, recover())
+			}()
+			panic(4)
+		}()
+		panic(1)
+
+	}()
+}
+
+func expect(t *testing.T, n int, err any) {
+	if n != err {
+		t.Fatalf("have %v, want %v", err, n)
+	}
+}
+
+func TestIssue43920(t *testing.T) {
+	var steps int
+
+	defer func() {
+		expect(t, 1, recover())
+	}()
+	defer func() {
+		defer func() {
+			defer func() {
+				expect(t, 5, recover())
+			}()
+			defer panic(5)
+			func() {
+				panic(4)
+			}()
+		}()
+		defer func() {
+			expect(t, 3, recover())
+		}()
+		defer panic(3)
+	}()
+	func() {
+		defer step(t, &steps, 1)
+		panic(1)
+	}()
+}
+
+func step(t *testing.T, steps *int, want int) {
+	*steps++
+	if *steps != want {
+		t.Fatalf("have %v, want %v", *steps, want)
+	}
+}
+
+func TestIssue43941(t *testing.T) {
+	var steps int = 7
+	defer func() {
+		step(t, &steps, 14)
+		expect(t, 4, recover())
+	}()
+	func() {
+		func() {
+			defer func() {
+				defer func() {
+					expect(t, 3, recover())
+				}()
+				defer panic(3)
+				panic(2)
+			}()
+			defer func() {
+				expect(t, 1, recover())
+			}()
+			defer panic(1)
+		}()
+		defer func() {}()
+		defer func() {}()
+		defer step(t, &steps, 10)
+		defer step(t, &steps, 9)
+		step(t, &steps, 8)
+	}()
+	func() {
+		defer step(t, &steps, 13)
+		defer step(t, &steps, 12)
+		func() {
+			defer step(t, &steps, 11)
+			panic(4)
+		}()
+
+		// Code below isn't executed,
+		// but removing it breaks the test case.
+		defer func() {}()
+		defer panic(-1)
+		defer step(t, &steps, -1)
+		defer step(t, &steps, -1)
+		defer func() {}()
+	}()
 }

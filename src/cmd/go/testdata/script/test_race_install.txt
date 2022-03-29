@@ -15,4 +15,4 @@ go 1.16
 -- pkg/pkg.go --
 package p
 -- stderr.txt --
-go test: -i flag is deprecated
+go: -i flag is deprecated

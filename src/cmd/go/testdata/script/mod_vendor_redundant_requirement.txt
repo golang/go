@@ -1,0 +1,29 @@
+# 'go list -mod=vendor' should succeed even when go.mod contains redundant
+# requirements. Verifies #47565.
+go list -mod=vendor
+
+-- go.mod --
+module m
+
+go 1.17
+
+require example.com/m v0.0.0
+require example.com/m v0.0.0
+
+replace example.com/m v0.0.0 => ./m
+-- m/go.mod --
+module example.com/m
+
+go 1.17
+-- m/m.go --
+package m
+-- use.go --
+package use
+
+import _ "example.com/m"
+-- vendor/example.com/m/m.go --
+package m
+-- vendor/modules.txt --
+# example.com/m v0.0.0 => ./m
+## explicit; go 1.17
+example.com/m

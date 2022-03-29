@@ -142,6 +142,8 @@
 (Round       x) => (FIDBR [1] x)
 (FMA     x y z) => (FMADD z x y)
 
+(Sqrt32    ...) => (FSQRTS ...)
+
 // Atomic loads and stores.
 // The SYNC instruction (fast-BCR-serialization) prevents store-load
 // reordering. Other sequences of memory operations (load-load,
@@ -384,13 +386,13 @@
 
 // MVC for other moves. Use up to 4 instructions (sizes up to 1024 bytes).
 (Move [s] dst src mem) && s > 0 && s <= 256 && logLargeCopy(v, s) =>
-	(MVC [makeValAndOff32(int32(s), 0)] dst src mem)
+	(MVC [makeValAndOff(int32(s), 0)] dst src mem)
 (Move [s] dst src mem) && s > 256 && s <= 512 && logLargeCopy(v, s) =>
-	(MVC [makeValAndOff32(int32(s)-256, 256)] dst src (MVC [makeValAndOff32(256, 0)] dst src mem))
+	(MVC [makeValAndOff(int32(s)-256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))
 (Move [s] dst src mem) && s > 512 && s <= 768 && logLargeCopy(v, s) =>
-	(MVC [makeValAndOff32(int32(s)-512, 512)] dst src (MVC [makeValAndOff32(256, 256)] dst src (MVC [makeValAndOff32(256, 0)] dst src mem)))
+	(MVC [makeValAndOff(int32(s)-512, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem)))
 (Move [s] dst src mem) && s > 768 && s <= 1024 && logLargeCopy(v, s) =>
-	(MVC [makeValAndOff32(int32(s)-768, 768)] dst src (MVC [makeValAndOff32(256, 512)] dst src (MVC [makeValAndOff32(256, 256)] dst src (MVC [makeValAndOff32(256, 0)] dst src mem))))
+	(MVC [makeValAndOff(int32(s)-768, 768)] dst src (MVC [makeValAndOff(256, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))))
 
 // Move more than 1024 bytes using a loop.
 (Move [s] dst src mem) && s > 1024 && logLargeCopy(v, s) =>
@@ -403,20 +405,20 @@
 (Zero [4] destptr mem) => (MOVWstoreconst [0] destptr mem)
 (Zero [8] destptr mem) => (MOVDstoreconst [0] destptr mem)
 (Zero [3] destptr mem) =>
-	(MOVBstoreconst [makeValAndOff32(0,2)] destptr
+	(MOVBstoreconst [makeValAndOff(0,2)] destptr
 		(MOVHstoreconst [0] destptr mem))
 (Zero [5] destptr mem) =>
-	(MOVBstoreconst [makeValAndOff32(0,4)] destptr
+	(MOVBstoreconst [makeValAndOff(0,4)] destptr
 		(MOVWstoreconst [0] destptr mem))
 (Zero [6] destptr mem) =>
-	(MOVHstoreconst [makeValAndOff32(0,4)] destptr
+	(MOVHstoreconst [makeValAndOff(0,4)] destptr
 		(MOVWstoreconst [0] destptr mem))
 (Zero [7] destptr mem) =>
-	(MOVWstoreconst [makeValAndOff32(0,3)] destptr
+	(MOVWstoreconst [makeValAndOff(0,3)] destptr
 		(MOVWstoreconst [0] destptr mem))
 
 (Zero [s] destptr mem) && s > 0 && s <= 1024 =>
-	(CLEAR [makeValAndOff32(int32(s), 0)] destptr mem)
+	(CLEAR [makeValAndOff(int32(s), 0)] destptr mem)
 
 // Zero more than 1024 bytes using a loop.
 (Zero [s] destptr mem) && s > 1024 =>
@@ -426,12 +428,13 @@
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const(32|64)F ...) => (FMOV(S|D)const ...)
 (ConstNil) => (MOVDconst [0])
-(ConstBool [b]) => (MOVDconst [b2i(b)])
+(ConstBool [t]) => (MOVDconst [b2i(t)])
 
 // Lowering calls
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
+(TailCall ...) => (CALLtail ...)
 
 // Miscellaneous
 (IsNonNil p) => (LOCGR {s390x.NotEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPconst p [0]))
@@ -785,7 +788,7 @@
   => (RISBGZ x {s390x.NewRotateParams(r.Start, r.Start, -r.Start&63)})
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
 
 // Use sign/zero extend instead of RISBGZ.
 (RISBGZ x {r}) && r == s390x.NewRotateParams(56, 63, 0) => (MOVBZreg x)
@@ -946,22 +949,22 @@
 
 // Fold constants into stores.
 (MOVDstore [off] {sym} ptr (MOVDconst [c]) mem) && is16Bit(c) && isU12Bit(int64(off)) && ptr.Op != OpSB =>
-	(MOVDstoreconst [makeValAndOff32(int32(c),off)] {sym} ptr mem)
+	(MOVDstoreconst [makeValAndOff(int32(c),off)] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOVDconst [c]) mem) && is16Bit(c) && isU12Bit(int64(off)) && ptr.Op != OpSB =>
-	(MOVWstoreconst [makeValAndOff32(int32(c),off)] {sym} ptr mem)
+	(MOVWstoreconst [makeValAndOff(int32(c),off)] {sym} ptr mem)
 (MOVHstore [off] {sym} ptr (MOVDconst [c]) mem) && isU12Bit(int64(off)) && ptr.Op != OpSB =>
-	(MOVHstoreconst [makeValAndOff32(int32(int16(c)),off)] {sym} ptr mem)
+	(MOVHstoreconst [makeValAndOff(int32(int16(c)),off)] {sym} ptr mem)
 (MOVBstore [off] {sym} ptr (MOVDconst [c]) mem) && is20Bit(int64(off)) && ptr.Op != OpSB =>
-	(MOVBstoreconst [makeValAndOff32(int32(int8(c)),off)] {sym} ptr mem)
+	(MOVBstoreconst [makeValAndOff(int32(int8(c)),off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
-(MOVDstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(sc.Off()+int64(off)) =>
+(MOVDstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(sc.Off64()+int64(off)) =>
 	(MOVDstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVWstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(sc.Off()+int64(off)) =>
+(MOVWstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(sc.Off64()+int64(off)) =>
 	(MOVWstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVHstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(sc.Off()+int64(off)) =>
+(MOVHstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(sc.Off64()+int64(off)) =>
 	(MOVHstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVBstoreconst [sc] {s} (ADDconst [off] ptr) mem) && is20Bit(sc.Off()+int64(off)) =>
+(MOVBstoreconst [sc] {s} (ADDconst [off] ptr) mem) && is20Bit(sc.Off64()+int64(off)) =>
 	(MOVBstoreconst [sc.addOffset32(off)] {s} ptr mem)
 
 // Merge address calculations into loads and stores.
@@ -1304,19 +1307,19 @@
   && x.Uses == 1
   && a.Off() + 1 == c.Off()
   && clobber(x)
-  => (MOVHstoreconst [makeValAndOff32(c.Val32()&0xff | a.Val32()<<8, a.Off32())] {s} p mem)
+  => (MOVHstoreconst [makeValAndOff(c.Val()&0xff | a.Val()<<8, a.Off())] {s} p mem)
 (MOVHstoreconst [c] {s} p x:(MOVHstoreconst [a] {s} p mem))
   && p.Op != OpSB
   && x.Uses == 1
   && a.Off() + 2 == c.Off()
   && clobber(x)
-  => (MOVWstore [a.Off32()] {s} p (MOVDconst [int64(c.Val32()&0xffff | a.Val32()<<16)]) mem)
+  => (MOVWstore [a.Off()] {s} p (MOVDconst [int64(c.Val()&0xffff | a.Val()<<16)]) mem)
 (MOVWstoreconst [c] {s} p x:(MOVWstoreconst [a] {s} p mem))
   && p.Op != OpSB
   && x.Uses == 1
   && a.Off() + 4 == c.Off()
   && clobber(x)
-  => (MOVDstore [a.Off32()] {s} p (MOVDconst [c.Val()&0xffffffff | a.Val()<<32]) mem)
+  => (MOVDstore [a.Off()] {s} p (MOVDconst [c.Val64()&0xffffffff | a.Val64()<<32]) mem)
 
 // Combine stores into larger (unaligned) stores.
 // It doesn't work on global data (based on SB) because stores with relative addressing
@@ -1419,6 +1422,16 @@
   && x.Uses == 1
   && clobber(x)
   => (MOVDBRstore [i-4] {s} p w0 mem)
+
+(MOVBstore [7] {s} p1 (SRDconst w)
+  x1:(MOVHBRstore [5] {s} p1 (SRDconst w)
+  x2:(MOVWBRstore [1] {s} p1 (SRDconst w)
+  x3:(MOVBstore [0] {s} p1 w mem))))
+  && x1.Uses == 1
+  && x2.Uses == 1
+  && x3.Uses == 1
+  && clobber(x1, x2, x3)
+  => (MOVDBRstore {s} p1 w mem)
 
 // Combining byte loads into larger (unaligned) loads.
 

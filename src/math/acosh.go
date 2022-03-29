@@ -39,7 +39,12 @@ package math
 //	Acosh(+Inf) = +Inf
 //	Acosh(x) = NaN if x < 1
 //	Acosh(NaN) = NaN
-func Acosh(x float64) float64
+func Acosh(x float64) float64 {
+	if haveArchAcosh {
+		return archAcosh(x)
+	}
+	return acosh(x)
+}
 
 func acosh(x float64) float64 {
 	const Large = 1 << 28 // 2**28

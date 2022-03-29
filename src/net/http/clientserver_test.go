@@ -81,7 +81,7 @@ func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
 	}
 }
 
-func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {
+func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...any) *clientServerTest {
 	if h2 {
 		CondSkipHTTP2(t)
 	}
@@ -189,7 +189,7 @@ type h12Compare struct {
 	ReqFunc            reqFunc                           // optional
 	CheckResponse      func(proto string, res *Response) // optional
 	EarlyCheckResponse func(proto string, res *Response) // optional; pre-normalize
-	Opts               []interface{}
+	Opts               []any
 }
 
 func (tt h12Compare) reqFunc() reqFunc {
@@ -441,7 +441,7 @@ func TestH12_AutoGzip(t *testing.T) {
 
 func TestH12_AutoGzip_Disabled(t *testing.T) {
 	h12Compare{
-		Opts: []interface{}{
+		Opts: []any{
 			func(tr *Transport) { tr.DisableCompression = true },
 		},
 		Handler: func(w ResponseWriter, r *Request) {
@@ -1168,7 +1168,7 @@ func TestInterruptWithPanic_ErrAbortHandler_h1(t *testing.T) {
 func TestInterruptWithPanic_ErrAbortHandler_h2(t *testing.T) {
 	testInterruptWithPanic(t, h2Mode, ErrAbortHandler)
 }
-func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
+func testInterruptWithPanic(t *testing.T, h2 bool, panicValue any) {
 	setParallel(t)
 	const msg = "hello"
 	defer afterTest(t)
@@ -1518,7 +1518,7 @@ func TestBidiStreamReverseProxy(t *testing.T) {
 	}))
 	defer proxy.close()
 
-	bodyRes := make(chan interface{}, 1) // error or hash.Hash
+	bodyRes := make(chan any, 1) // error or hash.Hash
 	pr, pw := io.Pipe()
 	req, _ := NewRequest("PUT", proxy.ts.URL, pr)
 	const size = 4 << 20
@@ -1581,4 +1581,38 @@ func TestH12_WebSocketUpgrade(t *testing.T) {
 			res.Proto = "HTTP/IGNORE" // skip later checks that Proto must be 1.1 vs 2.0
 		},
 	}.run(t)
+}
+
+func TestIdentityTransferEncoding_h1(t *testing.T) { testIdentityTransferEncoding(t, h1Mode) }
+func TestIdentityTransferEncoding_h2(t *testing.T) { testIdentityTransferEncoding(t, h2Mode) }
+
+func testIdentityTransferEncoding(t *testing.T, h2 bool) {
+	setParallel(t)
+	defer afterTest(t)
+
+	const body = "body"
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		gotBody, _ := io.ReadAll(r.Body)
+		if got, want := string(gotBody), body; got != want {
+			t.Errorf("got request body = %q; want %q", got, want)
+		}
+		w.Header().Set("Transfer-Encoding", "identity")
+		w.WriteHeader(StatusOK)
+		w.(Flusher).Flush()
+		io.WriteString(w, body)
+	}))
+	defer cst.close()
+	req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader(body))
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	gotBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(gotBody), body; got != want {
+		t.Errorf("got response body = %q; want %q", got, want)
+	}
 }

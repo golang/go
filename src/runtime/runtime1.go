@@ -6,8 +6,8 @@ package runtime
 
 import (
 	"internal/bytealg"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -55,7 +55,7 @@ var (
 // nosplit for use in linux startup sysargs
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
-	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*sys.PtrSize))
+	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*goarch.PtrSize))
 }
 
 func args(c int32, v **byte) {
@@ -190,10 +190,10 @@ func check() {
 	if unsafe.Sizeof(j) != 8 {
 		throw("bad j")
 	}
-	if unsafe.Sizeof(k) != sys.PtrSize {
+	if unsafe.Sizeof(k) != goarch.PtrSize {
 		throw("bad k")
 	}
-	if unsafe.Sizeof(l) != sys.PtrSize {
+	if unsafe.Sizeof(l) != goarch.PtrSize {
 		throw("bad l")
 	}
 	if unsafe.Sizeof(x1) != 1 {
@@ -310,12 +310,12 @@ var debug struct {
 	gctrace            int32
 	invalidptr         int32
 	madvdontneed       int32 // for Linux; issue 28466
-	scavenge           int32
 	scavtrace          int32
 	scheddetail        int32
 	schedtrace         int32
 	tracebackancestors int32
 	asyncpreemptoff    int32
+	harddecommit       int32
 
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
@@ -339,13 +339,13 @@ var dbgvars = []dbgVar{
 	{"invalidptr", &debug.invalidptr},
 	{"madvdontneed", &debug.madvdontneed},
 	{"sbrk", &debug.sbrk},
-	{"scavenge", &debug.scavenge},
 	{"scavtrace", &debug.scavtrace},
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
 	{"tracebackancestors", &debug.tracebackancestors},
 	{"asyncpreemptoff", &debug.asyncpreemptoff},
 	{"inittrace", &debug.inittrace},
+	{"harddecommit", &debug.harddecommit},
 }
 
 func parsedebugvars() {

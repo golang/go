@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define WIN64_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <process.h>
 #include <stdlib.h>
@@ -12,10 +12,12 @@
 #include "libcgo_windows.h"
 
 static void threadentry(void*);
+static void (*setg_gcc)(void*);
 
 void
-x_cgo_init(G *g)
+x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
+	setg_gcc = setg;
 }
 
 
@@ -46,10 +48,8 @@ threadentry(void *v)
 	 */
 	asm volatile (
 	  "movq %0, %%gs:0x28\n"	// MOVL tls0, 0x28(GS)
-	  "movq %%gs:0x28, %%rax\n" // MOVQ 0x28(GS), tmp
-	  "movq %1, 0(%%rax)\n" // MOVQ g, 0(GS)
-	  :: "r"(ts.tls), "r"(ts.g) : "%rax"
+	  :: "r"(ts.tls)
 	);
 
-	crosscall_amd64(ts.fn);
+	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
 }

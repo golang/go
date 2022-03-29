@@ -7,8 +7,8 @@ cp go.mod go.mod.orig
 # example.net/b@patch refers to the patch for the version of b that was selected
 # at the start of 'go get', not the version after applying other changes.
 
-! go get -d example.net/a@v0.2.0 example.net/b@patch
-stderr '^go get: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
+! go get example.net/a@v0.2.0 example.net/b@patch
+stderr '^go: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
 cmp go.mod go.mod.orig
 
 
@@ -18,8 +18,8 @@ cmp go.mod go.mod.orig
 #
 # TODO(#42360): Reconsider the change in defaults.
 
-! go get -d -u=patch example.net/a@v0.2.0 example.net/b
-stderr '^go get: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
+! go get -u=patch example.net/a@v0.2.0 example.net/b
+stderr '^go: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
 cmp go.mod go.mod.orig
 
 
@@ -27,7 +27,7 @@ cmp go.mod go.mod.orig
 # applying other version changes, not the versions that were selected at the start.
 # However, it should not patch versions determined by explicit arguments.
 
-go get -d -u=patch example.net/a@v0.2.0
+go get -u=patch example.net/a@v0.2.0
 go list -m all
 stdout '^example.net/a v0.2.0 '
 stdout '^example.net/b v0.2.1 '
@@ -38,7 +38,7 @@ stdout '^example.net/b v0.2.1 '
 
 cp go.mod.orig go.mod
 ! go get -u=patch all
-stderr '^go get: example.net/a@v0.1.1 \(matching all@patch\) requires example.net/b@v0.2.0, not example.net/b@v0.1.1 \(matching all@patch\)$'
+stderr '^go: example.net/a@v0.1.1 \(matching all@patch\) requires example.net/b@v0.2.0, not example.net/b@v0.1.1 \(matching all@patch\)$'
 cmp go.mod go.mod.orig
 
 

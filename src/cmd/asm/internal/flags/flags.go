@@ -28,15 +28,23 @@ var (
 	CompilingRuntime = flag.Bool("compiling-runtime", false, "source to be compiled is part of the Go runtime")
 )
 
+var DebugFlags struct {
+	MayMoreStack string `help:"call named function before all stack growth checks"`
+	PCTab        string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+}
+
 var (
 	D        MultiFlag
 	I        MultiFlag
 	PrintOut int
+	DebugV   bool
 )
 
 func init() {
 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
 	flag.Var(&I, "I", "include directory; can be set multiple times")
+	flag.BoolVar(&DebugV, "v", false, "print debug output")
+	flag.Var(objabi.NewDebugFlag(&DebugFlags, nil), "d", "enable debugging settings; try -d help")
 	objabi.AddVersionFlag() // -V
 	objabi.Flagcount("S", "print assembly and machine code", &PrintOut)
 }

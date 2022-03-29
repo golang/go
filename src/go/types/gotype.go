@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 // Build this command explicitly: go build gotype.go
 
@@ -179,7 +179,7 @@ func report(err error) {
 }
 
 // parse may be called concurrently
-func parse(filename string, src interface{}) (*ast.File, error) {
+func parse(filename string, src any) (*ast.File, error) {
 	if *verbose {
 		fmt.Println(filename)
 	}

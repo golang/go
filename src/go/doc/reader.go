@@ -5,11 +5,13 @@
 package doc
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"internal/lazyregexp"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // ----------------------------------------------------------------------------
@@ -22,8 +24,8 @@ import (
 //
 type methodSet map[string]*Func
 
-// recvString returns a string representation of recv of the
-// form "T", "*T", or "BADRECV" (if not a proper receiver type).
+// recvString returns a string representation of recv of the form "T", "*T",
+// "T[A, ...]", "*T[A, ...]" or "BADRECV" (if not a proper receiver type).
 //
 func recvString(recv ast.Expr) string {
 	switch t := recv.(type) {
@@ -31,8 +33,32 @@ func recvString(recv ast.Expr) string {
 		return t.Name
 	case *ast.StarExpr:
 		return "*" + recvString(t.X)
+	case *ast.IndexExpr:
+		// Generic type with one parameter.
+		return fmt.Sprintf("%s[%s]", recvString(t.X), recvParam(t.Index))
+	case *ast.IndexListExpr:
+		// Generic type with multiple parameters.
+		if len(t.Indices) > 0 {
+			var b strings.Builder
+			b.WriteString(recvString(t.X))
+			b.WriteByte('[')
+			b.WriteString(recvParam(t.Indices[0]))
+			for _, e := range t.Indices[1:] {
+				b.WriteString(", ")
+				b.WriteString(recvParam(e))
+			}
+			b.WriteByte(']')
+			return b.String()
+		}
 	}
 	return "BADRECV"
+}
+
+func recvParam(p ast.Expr) string {
+	if id, ok := p.(*ast.Ident); ok {
+		return id.Name
+	}
+	return "BADPARAM"
 }
 
 // set creates the corresponding Func for f and adds it to mset.
@@ -101,6 +127,10 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
 	switch t := x.(type) {
 	case *ast.Ident:
 		return t.Name, false
+	case *ast.IndexExpr:
+		return baseTypeName(t.X)
+	case *ast.IndexListExpr:
+		return baseTypeName(t.X)
 	case *ast.SelectorExpr:
 		if _, ok := t.X.(*ast.Ident); ok {
 			// only possible for qualified type names;
@@ -112,7 +142,7 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
 	case *ast.StarExpr:
 		return baseTypeName(t.X)
 	}
-	return
+	return "", false
 }
 
 // An embeddedSet describes a set of embedded types.
@@ -163,9 +193,9 @@ type reader struct {
 	types     map[string]*namedType
 	funcs     methodSet
 
-	// support for package-local error type declarations
-	errorDecl bool                 // if set, type "error" was declared locally
-	fixlist   []*ast.InterfaceType // list of interfaces containing anonymous field "error"
+	// support for package-local shadowing of predeclared types
+	shadowedPredecl map[string]bool
+	fixmap          map[string][]*ast.InterfaceType
 }
 
 func (r *reader) isVisible(name string) bool {
@@ -224,8 +254,11 @@ func (r *reader) readDoc(comment *ast.CommentGroup) {
 	r.doc += "\n" + text
 }
 
-func (r *reader) remember(typ *ast.InterfaceType) {
-	r.fixlist = append(r.fixlist, typ)
+func (r *reader) remember(predecl string, typ *ast.InterfaceType) {
+	if r.fixmap == nil {
+		r.fixmap = make(map[string][]*ast.InterfaceType)
+	}
+	r.fixmap[predecl] = append(r.fixmap[predecl], typ)
 }
 
 func specNames(specs []ast.Spec) []string {
@@ -418,6 +451,11 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 				factoryType = t.Elt
 			}
 			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) && !r.isPredeclared(n) {
+				if lookupTypeParam(n, fun.Type.TypeParams) != nil {
+					// Issue #49477: don't associate fun with its type parameter result.
+					// A type parameter is not a defined type.
+					continue
+				}
 				if t := r.lookupType(n); t != nil {
 					typ = t
 					numResultTypes++
@@ -437,6 +475,22 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 
 	// just an ordinary function
 	r.funcs.set(fun, r.mode&PreserveAST != 0)
+}
+
+// lookupTypeParam searches for type parameters named name within the tparams
+// field list, returning the relevant identifier if found, or nil if not.
+func lookupTypeParam(name string, tparams *ast.FieldList) *ast.Ident {
+	if tparams == nil {
+		return nil
+	}
+	for _, field := range tparams.List {
+		for _, id := range field.Names {
+			if id.Name == name {
+				return id
+			}
+		}
+	}
+	return nil
 }
 
 var (
@@ -679,10 +733,11 @@ func (r *reader) computeMethodSets() {
 		}
 	}
 
-	// if error was declared locally, don't treat it as exported field anymore
-	if r.errorDecl {
-		for _, ityp := range r.fixlist {
-			removeErrorField(ityp)
+	// For any predeclared names that are declared locally, don't treat them as
+	// exported fields anymore.
+	for predecl := range r.shadowedPredecl {
+		for _, ityp := range r.fixmap[predecl] {
+			removeAnonymousField(predecl, ityp)
 		}
 	}
 }
@@ -869,8 +924,10 @@ func IsPredeclared(s string) bool {
 }
 
 var predeclaredTypes = map[string]bool{
+	"any":        true,
 	"bool":       true,
 	"byte":       true,
+	"comparable": true,
 	"complex64":  true,
 	"complex128": true,
 	"error":      true,

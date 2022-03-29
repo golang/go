@@ -44,13 +44,13 @@ type Example struct {
 //     identifiers from other packages (or predeclared identifiers, such as
 //     "int") and the test file does not include a dot import.
 //   - The entire test file is the example: the file contains exactly one
-//     example function, zero test or benchmark functions, and at least one
-//     top-level function, type, variable, or constant declaration other
-//     than the example function.
+//     example function, zero test, fuzz test, or benchmark function, and at
+//     least one top-level function, type, variable, or constant declaration
+//     other than the example function.
 func Examples(testFiles ...*ast.File) []*Example {
 	var list []*Example
 	for _, file := range testFiles {
-		hasTests := false // file contains tests or benchmarks
+		hasTests := false // file contains tests, fuzz test, or benchmarks
 		numDecl := 0      // number of non-import declarations in the file
 		var flist []*Example
 		for _, decl := range file.Decls {
@@ -64,7 +64,7 @@ func Examples(testFiles ...*ast.File) []*Example {
 			}
 			numDecl++
 			name := f.Name.Name
-			if isTest(name, "Test") || isTest(name, "Benchmark") {
+			if isTest(name, "Test") || isTest(name, "Benchmark") || isTest(name, "Fuzz") {
 				hasTests = true
 				continue
 			}
@@ -133,9 +133,9 @@ func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output strin
 	return "", false, false // no suitable comment found
 }
 
-// isTest tells whether name looks like a test, example, or benchmark.
-// It is a Test (say) if there is a character after Test that is not a
-// lower-case letter. (We don't want Testiness.)
+// isTest tells whether name looks like a test, example, fuzz test, or
+// benchmark. It is a Test (say) if there is a character after Test that is not
+// a lower-case letter. (We don't want Testiness.)
 func isTest(name, prefix string) bool {
 	if !strings.HasPrefix(name, prefix) {
 		return false
@@ -237,7 +237,10 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 				}
 			}
 
-			ast.Inspect(d.Body, inspectFunc)
+			// Functions might not have a body. See #42706.
+			if d.Body != nil {
+				ast.Inspect(d.Body, inspectFunc)
+			}
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
 				switch s := spec.(type) {

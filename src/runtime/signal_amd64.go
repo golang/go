@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build amd64 && (darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris)
 
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -65,18 +65,21 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	pc := uintptr(c.rip())
 	sp := uintptr(c.rsp())
 
+	// In case we are panicking from external code, we need to initialize
+	// Go special registers. We inject sigpanic0 (instead of sigpanic),
+	// which takes care of that.
 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
-		c.pushCall(funcPC(sigpanic), pc)
+		c.pushCall(abi.FuncPCABI0(sigpanic0), pc)
 	} else {
 		// Not safe to push the call. Just clobber the frame.
-		c.set_rip(uint64(funcPC(sigpanic)))
+		c.set_rip(uint64(abi.FuncPCABI0(sigpanic0)))
 	}
 }
 
 func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
 	// Make it look like we called target at resumePC.
 	sp := uintptr(c.rsp())
-	sp -= sys.PtrSize
+	sp -= goarch.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
 	c.set_rsp(uint64(sp))
 	c.set_rip(uint64(targetPC))

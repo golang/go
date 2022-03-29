@@ -66,7 +66,7 @@ func TestNonGoExecs(t *testing.T) {
 		"internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
 	}
 	for _, f := range testfiles {
-		exepath := filepath.Join(runtime.GOROOT(), "src", f)
+		exepath := filepath.Join(testenv.GOROOT(t), "src", f)
 		if strings.HasSuffix(f, ".base64") {
 			tf, err := obscuretestdata.DecodeToTempFile(exepath)
 			if err != nil {

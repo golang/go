@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 // +build darwin dragonfly freebsd netbsd openbsd
 
 // Package route provides basic functions for the manipulation of
@@ -107,17 +108,28 @@ const (
 // an interface index or a set of interface flags. In most cases, zero
 // means a wildcard.
 func FetchRIB(af int, typ RIBType, arg int) ([]byte, error) {
-	mib := [6]int32{sysCTL_NET, sysAF_ROUTE, 0, int32(af), int32(typ), int32(arg)}
-	n := uintptr(0)
-	if err := sysctl(mib[:], nil, &n, nil, 0); err != nil {
-		return nil, os.NewSyscallError("sysctl", err)
+	try := 0
+	for {
+		try++
+		mib := [6]int32{sysCTL_NET, sysAF_ROUTE, 0, int32(af), int32(typ), int32(arg)}
+		n := uintptr(0)
+		if err := sysctl(mib[:], nil, &n, nil, 0); err != nil {
+			return nil, os.NewSyscallError("sysctl", err)
+		}
+		if n == 0 {
+			return nil, nil
+		}
+		b := make([]byte, n)
+		if err := sysctl(mib[:], &b[0], &n, nil, 0); err != nil {
+			// If the sysctl failed because the data got larger
+			// between the two sysctl calls, try a few times
+			// before failing. (golang.org/issue/45736).
+			const maxTries = 3
+			if err == syscall.ENOMEM && try < maxTries {
+				continue
+			}
+			return nil, os.NewSyscallError("sysctl", err)
+		}
+		return b[:n], nil
 	}
-	if n == 0 {
-		return nil, nil
-	}
-	b := make([]byte, n)
-	if err := sysctl(mib[:], &b[0], &n, nil, 0); err != nil {
-		return nil, os.NewSyscallError("sysctl", err)
-	}
-	return b[:n], nil
 }

@@ -12,10 +12,9 @@ if(! test -f ../bin/go){
 
 eval `{../bin/go env}
 
-GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
-            # to be under $GOPATH, then some tests below will fail
-GOBIN = () # Issue 14340
-GOFLAGS = ()
-GO111MODULE = ()
+GOPATH=/nonexist-gopath
+GOBIN=() # Issue 14340
+GOFLAGS=()
+GO111MODULE=()
 
 exec ../bin/go tool dist test -rebuild $*

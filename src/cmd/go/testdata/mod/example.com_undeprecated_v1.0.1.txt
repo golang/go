@@ -1,0 +1,14 @@
+-- .info --
+{"Version":"v1.0.1"}
+-- .mod --
+// no longer deprecated
+module example.com/undeprecated
+
+go 1.17
+-- go.mod --
+// no longer deprecated
+module example.com/undeprecated
+
+go 1.17
+-- undeprecated.go --
+package undeprecated

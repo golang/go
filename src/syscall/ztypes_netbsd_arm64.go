@@ -1,7 +1,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_netbsd.go
 
-// +build arm64,netbsd
+//go:build arm64 && netbsd
 
 package syscall
 

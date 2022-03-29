@@ -65,6 +65,14 @@ func testHelper(t *T) {
 		t.Helper()
 		t.Error("9")
 	})
+
+	// Check that helper-ness propagates up through subtests
+	// to helpers above. See https://golang.org/issue/44887.
+	helperSubCallingHelper(t, "11")
+
+	// Check that helper-ness propagates up through panic/recover.
+	// See https://golang.org/issue/31154.
+	recoverHelper(t, "12")
 }
 
 func parallelTestHelper(t *T) {
@@ -77,4 +85,28 @@ func parallelTestHelper(t *T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func helperSubCallingHelper(t *T, msg string) {
+	t.Helper()
+	t.Run("sub2", func(t *T) {
+		t.Helper()
+		t.Fatal(msg)
+	})
+}
+
+func recoverHelper(t *T, msg string) {
+	t.Helper()
+	defer func() {
+		t.Helper()
+		if err := recover(); err != nil {
+			t.Errorf("recover %s", err)
+		}
+	}()
+	doPanic(t, msg)
+}
+
+func doPanic(t *T, msg string) {
+	t.Helper()
+	panic(msg)
 }

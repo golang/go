@@ -11,7 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -81,10 +81,8 @@ func crawl(url string, sourceURL string) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	var frag string
-	if i := strings.Index(url, "#"); i >= 0 {
-		frag = url[i+1:]
-		url = url[:i]
+	if u, frag, ok := strings.Cut(url, "#"); ok {
+		url = u
 		if frag != "" {
 			uf := urlFrag{url, frag}
 			neededFrags[uf] = append(neededFrags[uf], sourceURL)
@@ -144,7 +142,7 @@ func doCrawl(url string) error {
 	if res.StatusCode != 200 {
 		return errors.New(res.Status)
 	}
-	slurp, err := ioutil.ReadAll(res.Body)
+	slurp, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		log.Fatalf("Error reading %s body: %v", url, err)

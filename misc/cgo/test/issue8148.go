@@ -10,14 +10,7 @@ package cgotest
 
 /*
 typedef struct { int i; } T;
-
-int issue8148Callback(T*);
-
-static int get() {
-	T t;
-	t.i = 42;
-	return issue8148Callback(&t);
-}
+int get8148(void);
 */
 import "C"
 
@@ -27,5 +20,5 @@ func issue8148Callback(t *C.T) C.int {
 }
 
 func Issue8148() int {
-	return int(C.get())
+	return int(C.get8148())
 }

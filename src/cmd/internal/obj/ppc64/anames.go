@@ -42,6 +42,8 @@ var Anames = []string{
 	"BNE",
 	"BVC",
 	"BVS",
+	"BDNZ",
+	"BDZ",
 	"CMP",
 	"CMPU",
 	"CMPEQB",
@@ -613,5 +615,6 @@ var Anames = []string{
 	"XVCVSXWSP",
 	"XVCVUXDSP",
 	"XVCVUXWSP",
+	"PNOP",
 	"LAST",
 }

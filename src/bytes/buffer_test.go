@@ -6,6 +6,7 @@ package bytes_test
 
 import (
 	. "bytes"
+	"fmt"
 	"io"
 	"math/rand"
 	"testing"
@@ -387,6 +388,16 @@ func TestRuneIO(t *testing.T) {
 	}
 }
 
+func TestWriteInvalidRune(t *testing.T) {
+	// Invalid runes, including negative ones, should be written as
+	// utf8.RuneError.
+	for _, r := range []rune{-1, utf8.MaxRune + 1} {
+		var buf Buffer
+		buf.WriteRune(r)
+		check(t, fmt.Sprintf("TestWriteInvalidRune (%d)", r), &buf, "\uFFFD")
+	}
+}
+
 func TestNext(t *testing.T) {
 	b := []byte{0, 1, 2, 3, 4}
 	tmp := make([]byte, 5)
@@ -659,5 +670,20 @@ func BenchmarkBufferFullSmallReads(b *testing.B) {
 			b.Read(buf[:1])
 			b.Write(buf[:1])
 		}
+	}
+}
+
+func BenchmarkBufferWriteBlock(b *testing.B) {
+	block := make([]byte, 1024)
+	for _, n := range []int{1 << 12, 1 << 16, 1 << 20} {
+		b.Run(fmt.Sprintf("N%d", n), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				var bb Buffer
+				for bb.Len() < n {
+					bb.Write(block)
+				}
+			}
+		})
 	}
 }

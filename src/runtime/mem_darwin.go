@@ -66,6 +66,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
 		throw("runtime: out of memory")
 	}
 	if p != v || err != 0 {
+		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
 		throw("runtime: cannot map pages in arena address space")
 	}
 }

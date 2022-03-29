@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd !android,linux netbsd openbsd solaris
-// +build cgo,!osusergo
+//go:build (aix || darwin || dragonfly || freebsd || (!android && linux) || netbsd || openbsd || solaris) && cgo && !osusergo
 
 package user
 
@@ -123,9 +122,7 @@ func buildUser(pwd *C.struct_passwd) *User {
 	// say: "It is expected to be a comma separated list of
 	// personal data where the first item is the full name of the
 	// user."
-	if i := strings.Index(u.Name, ","); i >= 0 {
-		u.Name = u.Name[:i]
-	}
+	u.Name, _, _ = strings.Cut(u.Name, ",")
 	return u
 }
 

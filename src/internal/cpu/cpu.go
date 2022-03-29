@@ -36,7 +36,7 @@ var X86 struct {
 	HasOSXSAVE   bool
 	HasPCLMULQDQ bool
 	HasPOPCNT    bool
-	HasSSE2      bool
+	HasRDTSCP    bool
 	HasSSE3      bool
 	HasSSSE3     bool
 	HasSSE41     bool
@@ -136,7 +136,6 @@ type option struct {
 	Feature   *bool
 	Specified bool // whether feature value was specified in GODEBUG
 	Enable    bool // whether feature should be enabled
-	Required  bool // whether feature is mandatory and can not be disabled
 }
 
 // processOptions enables or disables CPU feature values based on the parsed env string.
@@ -179,7 +178,7 @@ field:
 		if key == "all" {
 			for i := range options {
 				options[i].Specified = true
-				options[i].Enable = enable || options[i].Required
+				options[i].Enable = enable
 			}
 			continue field
 		}
@@ -202,11 +201,6 @@ field:
 
 		if o.Enable && !*o.Feature {
 			print("GODEBUG: can not enable \"", o.Name, "\", missing CPU support\n")
-			continue
-		}
-
-		if !o.Enable && o.Required {
-			print("GODEBUG: can not disable \"", o.Name, "\", required CPU feature\n")
 			continue
 		}
 

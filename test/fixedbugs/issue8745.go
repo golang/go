@@ -9,5 +9,5 @@
 package p
 
 func f(s string) {
-	var _ float64 = s[2] // ERROR "cannot use.*type byte.*as type float64"
+	var _ float64 = s[2] // ERROR "cannot use.*type byte.*as type float64|cannot use .* as float64 value"
 }

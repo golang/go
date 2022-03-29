@@ -4,7 +4,7 @@
 
 // Go checksum database lookup
 
-// +build !cmd_go_bootstrap
+//go:build !cmd_go_bootstrap
 
 package modfetch
 
@@ -33,7 +33,7 @@ import (
 
 // useSumDB reports whether to use the Go checksum database for the given module.
 func useSumDB(mod module.Version) bool {
-	return cfg.GOSUMDB != "off" && !cfg.Insecure && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
+	return cfg.GOSUMDB != "off" && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
 }
 
 // lookupSumDB returns the Go checksum database's go.sum lines for the given module,
@@ -184,7 +184,7 @@ func (c *dbClient) initBase() {
 		}
 	})
 	if errors.Is(err, fs.ErrNotExist) {
-		// No proxies, or all proxies failed (with 404, 410, or were were allowed
+		// No proxies, or all proxies failed (with 404, 410, or were allowed
 		// to fall back), or we reached an explicit "direct" or "off".
 		c.base = c.direct
 	} else if err != nil {
@@ -200,7 +200,8 @@ func (c *dbClient) ReadConfig(file string) (data []byte, err error) {
 	}
 
 	if cfg.SumdbDir == "" {
-		return nil, errors.New("could not locate sumdb file: missing $GOPATH")
+		return nil, fmt.Errorf("could not locate sumdb file: missing $GOPATH: %s",
+			cfg.GoPathError)
 	}
 	targ := filepath.Join(cfg.SumdbDir, file)
 	data, err = lockedfile.Read(targ)
@@ -219,7 +220,8 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 		return fmt.Errorf("cannot write key")
 	}
 	if cfg.SumdbDir == "" {
-		return errors.New("could not locate sumdb file: missing $GOPATH")
+		return fmt.Errorf("could not locate sumdb file: missing $GOPATH: %s",
+			cfg.GoPathError)
 	}
 	targ := filepath.Join(cfg.SumdbDir, file)
 	os.MkdirAll(filepath.Dir(targ), 0777)

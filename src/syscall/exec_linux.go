@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
+//go:build linux
 
 package syscall
 
 import (
+	"internal/itoa"
 	"runtime"
 	"unsafe"
 )
@@ -44,7 +45,7 @@ type SysProcAttr struct {
 	// number in the parent process.
 	Foreground   bool
 	Pgid         int            // Child's process group ID if Setpgid.
-	Pdeathsig    Signal         // Signal that the process will get when its parent dies (Linux only)
+	Pdeathsig    Signal         // Signal that the process will get when its parent dies (Linux and FreeBSD only)
 	Cloneflags   uintptr        // Flags for clone calls (Linux only)
 	Unshareflags uintptr        // Flags for unshare calls (Linux only)
 	UidMappings  []SysProcIDMap // User ID mappings for user namespaces.
@@ -207,18 +208,12 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 	}
 
-	var hasRawVforkSyscall bool
-	switch runtime.GOARCH {
-	case "amd64", "arm64", "ppc64", "riscv64", "s390x":
-		hasRawVforkSyscall = true
-	}
-
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
 	locked = true
 	switch {
-	case hasRawVforkSyscall && (sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0):
+	case sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0:
 		r1, err1 = rawVforkSyscall(SYS_CLONE, uintptr(SIGCHLD|CLONE_VFORK|CLONE_VM)|sys.Cloneflags)
 	case runtime.GOARCH == "s390x":
 		r1, _, err1 = RawSyscall6(SYS_CLONE, 0, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0)
@@ -236,8 +231,6 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	}
 
 	// Fork succeeded, now in child.
-
-	runtime_AfterForkInChild()
 
 	// Enable the "keep capabilities" flag to set ambient capabilities later.
 	if len(sys.AmbientCaps) > 0 {
@@ -297,6 +290,10 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			goto childerror
 		}
 	}
+
+	// Restore the signal mask. We do this after TIOCSPGRP to avoid
+	// having the kernel send a SIGTTOU signal to the process group.
+	runtime_AfterForkInChild()
 
 	// Unshare
 	if sys.Unshareflags != 0 {
@@ -450,13 +447,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
 		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
-		if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
-			_, _, err1 = RawSyscall(_SYS_dup, uintptr(pipe), uintptr(nextfd), 0)
-			if err1 != 0 {
-				goto childerror
-			}
-			RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
-		} else if err1 != 0 {
+		if err1 != 0 {
 			goto childerror
 		}
 		pipe = nextfd
@@ -468,13 +459,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 				nextfd++
 			}
 			_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
-			if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
-				_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
-				if err1 != 0 {
-					goto childerror
-				}
-				RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
-			} else if err1 != 0 {
+			if err1 != 0 {
 				goto childerror
 			}
 			fd[i] = nextfd
@@ -499,7 +484,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 		// The new fd is created NOT close-on-exec,
 		// which is exactly what we want.
-		_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(i), 0)
+		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(i), 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -555,25 +540,13 @@ childerror:
 
 // Try to open a pipe with O_CLOEXEC set on both file descriptors.
 func forkExecPipe(p []int) (err error) {
-	err = Pipe2(p, O_CLOEXEC)
-	// pipe2 was added in 2.6.27 and our minimum requirement is 2.6.23, so it
-	// might not be implemented.
-	if err == ENOSYS {
-		if err = Pipe(p); err != nil {
-			return
-		}
-		if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != nil {
-			return
-		}
-		_, err = fcntl(p[1], F_SETFD, FD_CLOEXEC)
-	}
-	return
+	return Pipe2(p, O_CLOEXEC)
 }
 
 func formatIDMappings(idMap []SysProcIDMap) []byte {
 	var data []byte
 	for _, im := range idMap {
-		data = append(data, []byte(itoa(im.ContainerID)+" "+itoa(im.HostID)+" "+itoa(im.Size)+"\n")...)
+		data = append(data, []byte(itoa.Itoa(im.ContainerID)+" "+itoa.Itoa(im.HostID)+" "+itoa.Itoa(im.Size)+"\n")...)
 	}
 	return data
 }
@@ -602,7 +575,7 @@ func writeIDMappings(path string, idMap []SysProcIDMap) error {
 // This is needed since kernel 3.19, because you can't write gid_map without
 // disabling setgroups() system call.
 func writeSetgroups(pid int, enable bool) error {
-	sgf := "/proc/" + itoa(pid) + "/setgroups"
+	sgf := "/proc/" + itoa.Itoa(pid) + "/setgroups"
 	fd, err := Open(sgf, O_RDWR, 0)
 	if err != nil {
 		return err
@@ -627,7 +600,7 @@ func writeSetgroups(pid int, enable bool) error {
 // for a process and it is called from the parent process.
 func writeUidGidMappings(pid int, sys *SysProcAttr) error {
 	if sys.UidMappings != nil {
-		uidf := "/proc/" + itoa(pid) + "/uid_map"
+		uidf := "/proc/" + itoa.Itoa(pid) + "/uid_map"
 		if err := writeIDMappings(uidf, sys.UidMappings); err != nil {
 			return err
 		}
@@ -638,7 +611,7 @@ func writeUidGidMappings(pid int, sys *SysProcAttr) error {
 		if err := writeSetgroups(pid, sys.GidMappingsEnableSetgroups); err != nil && err != ENOENT {
 			return err
 		}
-		gidf := "/proc/" + itoa(pid) + "/gid_map"
+		gidf := "/proc/" + itoa.Itoa(pid) + "/gid_map"
 		if err := writeIDMappings(gidf, sys.GidMappings); err != nil {
 			return err
 		}

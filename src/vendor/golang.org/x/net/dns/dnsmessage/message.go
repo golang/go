@@ -125,14 +125,14 @@ func (o OpCode) GoString() string {
 // An RCode is a DNS response status code.
 type RCode uint16
 
+// Header.RCode values.
 const (
-	// Message.Rcode
-	RCodeSuccess        RCode = 0
-	RCodeFormatError    RCode = 1
-	RCodeServerFailure  RCode = 2
-	RCodeNameError      RCode = 3
-	RCodeNotImplemented RCode = 4
-	RCodeRefused        RCode = 5
+	RCodeSuccess        RCode = 0 // NoError
+	RCodeFormatError    RCode = 1 // FormErr
+	RCodeServerFailure  RCode = 2 // ServFail
+	RCodeNameError      RCode = 3 // NXDomain
+	RCodeNotImplemented RCode = 4 // NotImp
+	RCodeRefused        RCode = 5 // Refused
 )
 
 var rCodeNames = map[RCode]string{
@@ -1023,6 +1023,24 @@ func (p *Parser) OPTResource() (OPTResource, error) {
 	return r, nil
 }
 
+// UnknownResource parses a single UnknownResource.
+//
+// One of the XXXHeader methods must have been called before calling this
+// method.
+func (p *Parser) UnknownResource() (UnknownResource, error) {
+	if !p.resHeaderValid {
+		return UnknownResource{}, ErrNotStarted
+	}
+	r, err := unpackUnknownResource(p.resHeader.Type, p.msg, p.off, p.resHeader.Length)
+	if err != nil {
+		return UnknownResource{}, err
+	}
+	p.off += int(p.resHeader.Length)
+	p.resHeaderValid = false
+	p.index++
+	return r, nil
+}
+
 // Unpack parses a full Message.
 func (m *Message) Unpack(msg []byte) error {
 	var p Parser
@@ -1189,8 +1207,8 @@ type Builder struct {
 //
 // The DNS message is appended to the provided initial buffer buf (which may be
 // nil) as it is built. The final message is returned by the (*Builder).Finish
-// method, which may return the same underlying array if there was sufficient
-// capacity in the slice.
+// method, which includes buf[:len(buf)] and may return the same underlying
+// array if there was sufficient capacity in the slice.
 func NewBuilder(buf []byte, h Header) Builder {
 	if buf == nil {
 		buf = make([]byte, 0, packStartingCap)
@@ -1557,6 +1575,30 @@ func (b *Builder) OPTResource(h ResourceHeader, r OPTResource) error {
 	return nil
 }
 
+// UnknownResource adds a single UnknownResource.
+func (b *Builder) UnknownResource(h ResourceHeader, r UnknownResource) error {
+	if err := b.checkResourceSection(); err != nil {
+		return err
+	}
+	h.Type = r.realType()
+	msg, lenOff, err := h.pack(b.msg, b.compression, b.start)
+	if err != nil {
+		return &nestedError{"ResourceHeader", err}
+	}
+	preLen := len(msg)
+	if msg, err = r.pack(msg, b.compression, b.start); err != nil {
+		return &nestedError{"UnknownResource body", err}
+	}
+	if err := h.fixLen(msg, lenOff, preLen); err != nil {
+		return err
+	}
+	if err := b.incrementSectionCount(); err != nil {
+		return err
+	}
+	b.msg = msg
+	return nil
+}
+
 // Finish ends message building and generates a binary message.
 func (b *Builder) Finish() ([]byte, error) {
 	if b.section < sectionHeader {
@@ -1671,7 +1713,7 @@ const (
 
 // SetEDNS0 configures h for EDNS(0).
 //
-// The provided extRCode must be an extedned RCode.
+// The provided extRCode must be an extended RCode.
 func (h *ResourceHeader) SetEDNS0(udpPayloadLen int, extRCode RCode, dnssecOK bool) error {
 	h.Name = Name{Data: [nameLen]byte{'.'}, Length: 1} // RFC 6891 section 6.1.2
 	h.Type = TypeOPT
@@ -1838,7 +1880,7 @@ const nameLen = 255
 // A Name is a non-encoded domain name. It is used instead of strings to avoid
 // allocations.
 type Name struct {
-	Data   [nameLen]byte
+	Data   [nameLen]byte // 255 bytes
 	Length uint8
 }
 
@@ -2135,12 +2177,14 @@ func unpackResourceBody(msg []byte, off int, hdr ResourceHeader) (ResourceBody, 
 		rb, err = unpackOPTResource(msg, off, hdr.Length)
 		r = &rb
 		name = "OPT"
+	default:
+		var rb UnknownResource
+		rb, err = unpackUnknownResource(hdr.Type, msg, off, hdr.Length)
+		r = &rb
+		name = "Unknown"
 	}
 	if err != nil {
 		return nil, off, &nestedError{name + " record", err}
-	}
-	if r == nil {
-		return nil, off, errors.New("invalid resource type: " + hdr.Type.String())
 	}
 	return r, off + int(hdr.Length), nil
 }
@@ -2584,4 +2628,37 @@ func unpackOPTResource(msg []byte, off int, length uint16) (OPTResource, error) 
 		opts = append(opts, o)
 	}
 	return OPTResource{opts}, nil
+}
+
+// An UnknownResource is a catch-all container for unknown record types.
+type UnknownResource struct {
+	Type Type
+	Data []byte
+}
+
+func (r *UnknownResource) realType() Type {
+	return r.Type
+}
+
+// pack appends the wire format of the UnknownResource to msg.
+func (r *UnknownResource) pack(msg []byte, compression map[string]int, compressionOff int) ([]byte, error) {
+	return packBytes(msg, r.Data[:]), nil
+}
+
+// GoString implements fmt.GoStringer.GoString.
+func (r *UnknownResource) GoString() string {
+	return "dnsmessage.UnknownResource{" +
+		"Type: " + r.Type.GoString() + ", " +
+		"Data: []byte{" + printByteSlice(r.Data) + "}}"
+}
+
+func unpackUnknownResource(recordType Type, msg []byte, off int, length uint16) (UnknownResource, error) {
+	parsed := UnknownResource{
+		Type: recordType,
+		Data: make([]byte, length),
+	}
+	if _, err := unpackBytes(msg, off, parsed.Data); err != nil {
+		return UnknownResource{}, err
+	}
+	return parsed, nil
 }

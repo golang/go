@@ -21,6 +21,7 @@ import (
 )
 
 func TestGcSys(t *testing.T) {
+	t.Skip("skipping known-flaky test; golang.org/issue/37331")
 	if os.Getenv("GOGC") == "off" {
 		t.Skip("skipping test; GOGC=off in environment")
 	}
@@ -135,7 +136,7 @@ func TestGcLastTime(t *testing.T) {
 	}
 }
 
-var hugeSink interface{}
+var hugeSink any
 
 func TestHugeGCInfo(t *testing.T) {
 	// The test ensures that compiler can chew these huge types even on weakest machines.
@@ -195,11 +196,116 @@ func TestPeriodicGC(t *testing.T) {
 
 func TestGcZombieReporting(t *testing.T) {
 	// This test is somewhat sensitive to how the allocator works.
-	got := runTestProg(t, "testprog", "GCZombie")
+	// Pointers in zombies slice may cross-span, thus we
+	// add invalidptr=0 for avoiding the badPointer check.
+	// See issue https://golang.org/issues/49613/
+	got := runTestProg(t, "testprog", "GCZombie", "GODEBUG=invalidptr=0")
 	want := "found pointer to free object"
 	if !strings.Contains(got, want) {
 		t.Fatalf("expected %q in output, but got %q", want, got)
 	}
+}
+
+func TestGCTestMoveStackOnNextCall(t *testing.T) {
+	t.Parallel()
+	var onStack int
+	// GCTestMoveStackOnNextCall can fail in rare cases if there's
+	// a preemption. This won't happen many times in quick
+	// succession, so just retry a few times.
+	for retry := 0; retry < 5; retry++ {
+		runtime.GCTestMoveStackOnNextCall()
+		if moveStackCheck(t, &onStack, uintptr(unsafe.Pointer(&onStack))) {
+			// Passed.
+			return
+		}
+	}
+	t.Fatal("stack did not move")
+}
+
+// This must not be inlined because the point is to force a stack
+// growth check and move the stack.
+//
+//go:noinline
+func moveStackCheck(t *testing.T, new *int, old uintptr) bool {
+	// new should have been updated by the stack move;
+	// old should not have.
+
+	// Capture new's value before doing anything that could
+	// further move the stack.
+	new2 := uintptr(unsafe.Pointer(new))
+
+	t.Logf("old stack pointer %x, new stack pointer %x", old, new2)
+	if new2 == old {
+		// Check that we didn't screw up the test's escape analysis.
+		if cls := runtime.GCTestPointerClass(unsafe.Pointer(new)); cls != "stack" {
+			t.Fatalf("test bug: new (%#x) should be a stack pointer, not %s", new2, cls)
+		}
+		// This was a real failure.
+		return false
+	}
+	return true
+}
+
+func TestGCTestMoveStackRepeatedly(t *testing.T) {
+	// Move the stack repeatedly to make sure we're not doubling
+	// it each time.
+	for i := 0; i < 100; i++ {
+		runtime.GCTestMoveStackOnNextCall()
+		moveStack1(false)
+	}
+}
+
+//go:noinline
+func moveStack1(x bool) {
+	// Make sure this function doesn't get auto-nosplit.
+	if x {
+		println("x")
+	}
+}
+
+func TestGCTestIsReachable(t *testing.T) {
+	var all, half []unsafe.Pointer
+	var want uint64
+	for i := 0; i < 16; i++ {
+		// The tiny allocator muddies things, so we use a
+		// scannable type.
+		p := unsafe.Pointer(new(*int))
+		all = append(all, p)
+		if i%2 == 0 {
+			half = append(half, p)
+			want |= 1 << i
+		}
+	}
+
+	got := runtime.GCTestIsReachable(all...)
+	if want != got {
+		t.Fatalf("did not get expected reachable set; want %b, got %b", want, got)
+	}
+	runtime.KeepAlive(half)
+}
+
+var pointerClassSink *int
+var pointerClassData = 42
+
+func TestGCTestPointerClass(t *testing.T) {
+	t.Parallel()
+	check := func(p unsafe.Pointer, want string) {
+		t.Helper()
+		got := runtime.GCTestPointerClass(p)
+		if got != want {
+			// Convert the pointer to a uintptr to avoid
+			// escaping it.
+			t.Errorf("for %#x, want class %s, got %s", uintptr(p), want, got)
+		}
+	}
+	var onStack int
+	var notOnStack int
+	pointerClassSink = &notOnStack
+	check(unsafe.Pointer(&onStack), "stack")
+	check(unsafe.Pointer(&notOnStack), "heap")
+	check(unsafe.Pointer(&pointerClassSink), "bss")
+	check(unsafe.Pointer(&pointerClassData), "data")
+	check(nil, "other")
 }
 
 func BenchmarkSetTypePtr(b *testing.B) {
@@ -351,11 +457,11 @@ func BenchmarkSetTypeNode1024Slice(b *testing.B) {
 	benchSetType(b, make([]Node1024, 32))
 }
 
-func benchSetType(b *testing.B, x interface{}) {
+func benchSetType(b *testing.B, x any) {
 	v := reflect.ValueOf(x)
 	t := v.Type()
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		b.SetBytes(int64(t.Elem().Size()))
 	case reflect.Slice:
 		b.SetBytes(int64(t.Elem().Size()) * int64(v.Len()))
@@ -417,7 +523,7 @@ func TestPrintGC(t *testing.T) {
 	close(done)
 }
 
-func testTypeSwitch(x interface{}) error {
+func testTypeSwitch(x any) error {
 	switch y := x.(type) {
 	case nil:
 		// ok
@@ -427,14 +533,14 @@ func testTypeSwitch(x interface{}) error {
 	return nil
 }
 
-func testAssert(x interface{}) error {
+func testAssert(x any) error {
 	if y, ok := x.(error); ok {
 		return y
 	}
 	return nil
 }
 
-func testAssertVar(x interface{}) error {
+func testAssertVar(x any) error {
 	var y, ok = x.(error)
 	if ok {
 		return y
@@ -445,7 +551,7 @@ func testAssertVar(x interface{}) error {
 var a bool
 
 //go:noinline
-func testIfaceEqual(x interface{}) {
+func testIfaceEqual(x any) {
 	if x == "abc" {
 		a = true
 	}

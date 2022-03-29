@@ -17,13 +17,14 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"log"
 	"net"
 	"net/http/httptrace"
+	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -41,10 +42,10 @@ import (
 // $no_proxy) environment variables.
 var DefaultTransport RoundTripper = &Transport{
 	Proxy: ProxyFromEnvironment,
-	DialContext: (&net.Dialer{
+	DialContext: defaultTransportDialContext(&net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
-	}).DialContext,
+	}),
 	ForceAttemptHTTP2:     true,
 	MaxIdleConns:          100,
 	IdleConnTimeout:       90 * time.Second,
@@ -359,7 +360,7 @@ func (t *Transport) hasCustomTLSDialer() bool {
 // It must be called via t.nextProtoOnce.Do.
 func (t *Transport) onceSetNextProtoDefaults() {
 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
-	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
+	if godebug.Get("http2client") == "0" {
 		return
 	}
 
@@ -426,6 +427,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 //
 // The environment values may be either a complete URL or a
 // "host[:port]", in which case the "http" scheme is assumed.
+// The schemes "http", "https", and "socks5" are supported.
 // An error is returned if the value is a different form.
 //
 // A nil URL and nil error are returned if no proxy is defined in the
@@ -604,6 +606,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		} else if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
+			if e, ok := err.(nothingWrittenError); ok {
+				err = e.error
+			}
 			if e, ok := err.(transportReadFromServerError); ok {
 				err = e.err
 			}
@@ -786,10 +791,12 @@ func (t *Transport) CancelRequest(req *Request) {
 // Cancel an in-flight request, recording the error value.
 // Returns whether the request was canceled.
 func (t *Transport) cancelRequest(key cancelKey, err error) bool {
+	// This function must not return until the cancel func has completed.
+	// See: https://golang.org/issue/34658
 	t.reqMu.Lock()
+	defer t.reqMu.Unlock()
 	cancel := t.reqCanceler[key]
 	delete(t.reqCanceler, key)
-	t.reqMu.Unlock()
 	if cancel != nil {
 		cancel(err)
 	}
@@ -1185,7 +1192,7 @@ type wantConn struct {
 
 	// hooks for testing to know when dials are done
 	// beforeDial is called in the getConn goroutine when the dial is queued.
-	// afterDial is called when the dial is completed or cancelled.
+	// afterDial is called when the dial is completed or canceled.
 	beforeDial func()
 	afterDial  func()
 
@@ -1373,7 +1380,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 			trace.GotConn(httptrace.GotConnInfo{Conn: w.pc.conn, Reused: w.pc.isReused()})
 		}
 		if w.err != nil {
-			// If the request has been cancelled, that's probably
+			// If the request has been canceled, that's probably
 			// what caused w.err; if so, prefer to return the
 			// cancellation error (see golang.org/issue/16049).
 			select {
@@ -1435,7 +1442,7 @@ func (t *Transport) queueForDial(w *wantConn) {
 
 // dialConnFor dials on behalf of w and delivers the result to w.
 // dialConnFor has received permission to dial w.cm and is counted in t.connCount[w.cm.key()].
-// If the dial is cancelled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
+// If the dial is canceled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
 func (t *Transport) dialConnFor(w *wantConn) {
 	defer w.afterDial()
 
@@ -1505,7 +1512,7 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 // Add TLS to a persistent connection, i.e. negotiate a TLS session. If pconn is already a TLS
 // tunnel, this function establishes a nested TLS session inside the encrypted channel.
 // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
-func (pconn *persistConn) addTLS(name string, trace *httptrace.ClientTrace) error {
+func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptrace.ClientTrace) error {
 	// Initiate TLS and check remote host name against certificate.
 	cfg := cloneTLSConfig(pconn.t.TLSClientConfig)
 	if cfg.ServerName == "" {
@@ -1527,7 +1534,7 @@ func (pconn *persistConn) addTLS(name string, trace *httptrace.ClientTrace) erro
 		if trace != nil && trace.TLSHandshakeStart != nil {
 			trace.TLSHandshakeStart()
 		}
-		err := tlsConn.Handshake()
+		err := tlsConn.HandshakeContext(ctx)
 		if timer != nil {
 			timer.Stop()
 		}
@@ -1583,7 +1590,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			if trace != nil && trace.TLSHandshakeStart != nil {
 				trace.TLSHandshakeStart()
 			}
-			if err := tc.Handshake(); err != nil {
+			if err := tc.HandshakeContext(ctx); err != nil {
 				go pconn.conn.Close()
 				if trace != nil && trace.TLSHandshakeDone != nil {
 					trace.TLSHandshakeDone(tls.ConnectionState{}, err)
@@ -1607,7 +1614,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			if firstTLSHost, _, err = net.SplitHostPort(cm.addr()); err != nil {
 				return nil, wrapErr(err)
 			}
-			if err = pconn.addTLS(firstTLSHost, trace); err != nil {
+			if err = pconn.addTLS(ctx, firstTLSHost, trace); err != nil {
 				return nil, wrapErr(err)
 			}
 		}
@@ -1711,17 +1718,17 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			return nil, err
 		}
 		if resp.StatusCode != 200 {
-			f := strings.SplitN(resp.Status, " ", 2)
+			_, text, ok := strings.Cut(resp.Status, " ")
 			conn.Close()
-			if len(f) < 2 {
+			if !ok {
 				return nil, errors.New("unknown status code")
 			}
-			return nil, errors.New(f[1])
+			return nil, errors.New(text)
 		}
 	}
 
 	if cm.proxyURL != nil && cm.targetScheme == "https" {
-		if err := pconn.addTLS(cm.tlsHost(), trace); err != nil {
+		if err := pconn.addTLS(ctx, cm.tlsHost(), trace); err != nil {
 			return nil, err
 		}
 	}
@@ -2028,6 +2035,9 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 	}
 
 	if _, ok := err.(transportReadFromServerError); ok {
+		if pc.nwrite == startBytesWritten {
+			return nothingWrittenError{err}
+		}
 		// Don't decorate
 		return err
 	}
@@ -2183,7 +2193,7 @@ func (pc *persistConn) readLoop() {
 		}
 
 		resp.Body = body
-		if rc.addedGzip && strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
+		if rc.addedGzip && ascii.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
 			resp.Body = &gzipReader{body: body}
 			resp.Header.Del("Content-Encoding")
 			resp.Header.Del("Content-Length")
@@ -2477,7 +2487,7 @@ type requestAndChan struct {
 	callerGone <-chan struct{} // closed when roundTrip caller has returned
 }
 
-// A writeRequest is sent by the readLoop's goroutine to the
+// A writeRequest is sent by the caller's goroutine to the
 // writeLoop's goroutine to write a request while the read loop
 // concurrently waits on both the write response and the server's
 // reply.
@@ -2664,8 +2674,8 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 // a t.Logf func. See export_test.go's Request.WithT method.
 type tLogKey struct{}
 
-func (tr *transportRequest) logf(format string, args ...interface{}) {
-	if logf, ok := tr.Request.Context().Value(tLogKey{}).(func(string, ...interface{})); ok {
+func (tr *transportRequest) logf(format string, args ...any) {
+	if logf, ok := tr.Request.Context().Value(tLogKey{}).(func(string, ...any)); ok {
 		logf(time.Now().Format(time.RFC3339Nano)+": "+format, args...)
 	}
 }

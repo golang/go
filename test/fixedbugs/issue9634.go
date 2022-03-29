@@ -14,5 +14,5 @@ func main() {
 		t []int
 		u int
 	}{}
-	_ = append(s, 0) // ERROR "must be a slice|must be slice"
+	_ = append(s, 0) // ERROR "must be a slice|must be slice|not a slice"
 }

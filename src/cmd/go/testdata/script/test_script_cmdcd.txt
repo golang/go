@@ -1,0 +1,13 @@
+# Tests that after a cd command, where usually the UNIX path separator is used,
+# a match against $PWD does not fail on Windows.
+
+cd $WORK/a/b/c/pkg
+
+go list -find -f {{.Root}}
+stdout $PWD
+
+-- $WORK/a/b/c/pkg/go.mod --
+module pkg
+
+-- $WORK/a/b/c/pkg/pkg.go --
+package pkg

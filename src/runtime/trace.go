@@ -13,6 +13,7 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -53,8 +54,8 @@ const (
 	traceEvGoSysBlock        = 30 // syscall blocks [timestamp]
 	traceEvGoWaiting         = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
 	traceEvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
-	traceEvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
-	traceEvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
+	traceEvHeapAlloc         = 33 // gcController.heapLive change [timestamp, heap_alloc]
+	traceEvHeapGoal          = 34 // gcController.heapGoal (formerly next_gc) change [timestamp, heap goal in bytes]
 	traceEvTimerGoroutine    = 35 // not currently used; previously denoted timer goroutine [timer goroutine id]
 	traceEvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
 	traceEvString            = 37 // string dictionary entry [ID, length, string]
@@ -85,7 +86,7 @@ const (
 	// and ppc64le.
 	// Tracing won't work reliably for architectures where cputicks is emulated
 	// by nanotime, so the value doesn't matter for those architectures.
-	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64)
+	traceTickDiv = 16 + 48*(goarch.Is386|goarch.IsAmd64)
 	// Maximum number of PCs in a single stack trace.
 	// Since events contain only stack id rather than whole stack trace,
 	// we can allow quite large values here.
@@ -221,13 +222,14 @@ func StartTrace() error {
 	stackID := traceStackID(mp, stkBuf, 2)
 	releasem(mp)
 
-	for _, gp := range allgs {
+	// World is stopped, no need to lock.
+	forEachGRace(func(gp *g) {
 		status := readgstatus(gp)
 		if status != _Gdead {
 			gp.traceseq = 0
 			gp.tracelastp = getg().m.p
 			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
-			id := trace.stackTab.put([]uintptr{gp.startpc + sys.PCQuantum})
+			id := trace.stackTab.put([]uintptr{startPCforTrace(gp.startpc) + sys.PCQuantum})
 			traceEvent(traceEvGoCreate, -1, uint64(gp.goid), uint64(id), stackID)
 		}
 		if status == _Gwaiting {
@@ -241,7 +243,7 @@ func StartTrace() error {
 		} else {
 			gp.sysblocktraced = false
 		}
-	}
+	})
 	traceProcStart()
 	traceGoStart()
 	// Note: ticksStart needs to be set after we emit traceEvGoInSyscall events.
@@ -424,6 +426,9 @@ func ReadTrace() []byte {
 		trace.footerWritten = true
 		// Use float64 because (trace.ticksEnd - trace.ticksStart) * 1e9 can overflow int64.
 		freq := float64(trace.ticksEnd-trace.ticksStart) * 1e9 / float64(trace.timeEnd-trace.timeStart) / traceTickDiv
+		if freq <= 0 {
+			throw("trace: ReadTrace got invalid frequency")
+		}
 		trace.lockOwner = nil
 		unlock(&trace.lock)
 		var data []byte
@@ -549,8 +554,15 @@ func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev by
 		bufp.set(buf)
 	}
 
+	// NOTE: ticks might be same after tick division, although the real cputicks is
+	// linear growth.
 	ticks := uint64(cputicks()) / traceTickDiv
 	tickDiff := ticks - buf.lastTicks
+	if tickDiff == 0 {
+		ticks = buf.lastTicks + 1
+		tickDiff = 1
+	}
+
 	buf.lastTicks = ticks
 	narg := byte(len(args))
 	if skip >= 0 {
@@ -651,6 +663,9 @@ func traceFlush(buf traceBufPtr, pid int32) traceBufPtr {
 
 	// initialize the buffer for a new batch
 	ticks := uint64(cputicks()) / traceTickDiv
+	if ticks == bufp.lastTicks {
+		ticks = bufp.lastTicks + 1
+	}
 	bufp.lastTicks = ticks
 	bufp.byte(traceEvBatch | 1<<traceArgCountShift)
 	bufp.varint(uint64(pid))
@@ -828,7 +843,7 @@ Search:
 
 // newStack allocates a new stack of size n.
 func (tab *traceStackTable) newStack(n int) *traceStack {
-	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*sys.PtrSize))
+	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*goarch.PtrSize))
 }
 
 // allFrames returns all of the Frames corresponding to pcs.
@@ -928,7 +943,7 @@ type traceAlloc struct {
 //go:notinheap
 type traceAllocBlock struct {
 	next traceAllocBlockPtr
-	data [64<<10 - sys.PtrSize]byte
+	data [64<<10 - goarch.PtrSize]byte
 }
 
 // TODO: Since traceAllocBlock is now go:notinheap, this isn't necessary.
@@ -939,7 +954,7 @@ func (p *traceAllocBlockPtr) set(x *traceAllocBlock) { *p = traceAllocBlockPtr(u
 
 // alloc allocates n-byte block.
 func (a *traceAlloc) alloc(n uintptr) unsafe.Pointer {
-	n = alignUp(n, sys.PtrSize)
+	n = alignUp(n, goarch.PtrSize)
 	if a.head == 0 || a.off+n > uintptr(len(a.head.ptr().data)) {
 		if n > uintptr(len(a.head.ptr().data)) {
 			throw("trace: alloc too large")
@@ -1056,7 +1071,7 @@ func traceGoCreate(newg *g, pc uintptr) {
 	newg.traceseq = 0
 	newg.tracelastp = getg().m.p
 	// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
-	id := trace.stackTab.put([]uintptr{pc + sys.PCQuantum})
+	id := trace.stackTab.put([]uintptr{startPCforTrace(pc) + sys.PCQuantum})
 	traceEvent(traceEvGoCreate, 2, uint64(newg.goid), uint64(id))
 }
 
@@ -1143,15 +1158,15 @@ func traceGoSysBlock(pp *p) {
 }
 
 func traceHeapAlloc() {
-	traceEvent(traceEvHeapAlloc, -1, memstats.heap_live)
+	traceEvent(traceEvHeapAlloc, -1, gcController.heapLive)
 }
 
-func traceNextGC() {
-	if nextGC := atomic.Load64(&memstats.next_gc); nextGC == ^uint64(0) {
+func traceHeapGoal() {
+	if heapGoal := atomic.Load64(&gcController.heapGoal); heapGoal == ^uint64(0) {
 		// Heap-based triggering is disabled.
-		traceEvent(traceEvNextGC, -1, 0)
+		traceEvent(traceEvHeapGoal, -1, 0)
 	} else {
-		traceEvent(traceEvNextGC, -1, nextGC)
+		traceEvent(traceEvHeapGoal, -1, heapGoal)
 	}
 }
 
@@ -1228,4 +1243,18 @@ func trace_userLog(id uint64, category, message string) {
 	buf.pos += copy(buf.arr[buf.pos:], message[:slen])
 
 	traceReleaseBuffer(pid)
+}
+
+// the start PC of a goroutine for tracing purposes. If pc is a wrapper,
+// it returns the PC of the wrapped function. Otherwise it returns pc.
+func startPCforTrace(pc uintptr) uintptr {
+	f := findfunc(pc)
+	if !f.valid() {
+		return pc // should not happen, but don't care
+	}
+	w := funcdata(f, _FUNCDATA_WrapInfo)
+	if w == nil {
+		return pc // not a wrapper
+	}
+	return f.datap.textAddr(*(*uint32)(w))
 }

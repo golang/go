@@ -20,7 +20,6 @@
 #define SYS_close (SYS_BASE + 6)
 #define SYS_getpid (SYS_BASE + 20)
 #define SYS_kill (SYS_BASE + 37)
-#define SYS_pipe (SYS_BASE + 42)
 #define SYS_sigaltstack (SYS_BASE + 53)
 #define SYS_munmap (SYS_BASE + 73)
 #define SYS_madvise (SYS_BASE + 75)
@@ -121,23 +120,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	SWI $0
 	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVW	$SYS_pipe, R7
-	SWI	$0
-	BCC	ok
-	MOVW	$0, R1
-	MOVW	R1, r+0(FP)
-	MOVW	R1, w+4(FP)
-	MOVW	R0, errno+8(FP)
-	RET
-ok:
-	MOVW	R0, r+0(FP)
-	MOVW	R1, w+4(FP)
-	MOVW	$0, R1
-	MOVW	R1, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -412,20 +394,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW $1, R2	// FD_CLOEXEC
 	MOVW $SYS_fcntl, R7
 	SWI $0
-	RET
-
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVW	fd+0(FP), R0	// fd
-	MOVW	$3, R1	// F_GETFL
-	MOVW	$0, R2
-	MOVW	$SYS_fcntl, R7
-	SWI	$0
-	ORR	$0x4, R0, R2	// O_NONBLOCK
-	MOVW	fd+0(FP), R0	// fd
-	MOVW	$4, R1	// F_SETFL
-	MOVW	$SYS_fcntl, R7
-	SWI	$0
 	RET
 
 // TODO: this is only valid for ARMv7+

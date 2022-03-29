@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build mips mipsle
+//go:build linux && (mips || mipsle)
 
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -77,7 +77,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 
 	// In case we are panicking from external C code
 	c.set_r30(uint32(uintptr(unsafe.Pointer(gp))))
-	c.set_pc(uint32(funcPC(sigpanic)))
+	c.set_pc(uint32(abi.FuncPCABIInternal(sigpanic)))
 }
 
 func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {

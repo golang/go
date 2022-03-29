@@ -4,6 +4,10 @@
 
 package ssa
 
+import (
+	"math/bits"
+)
+
 // Code to compute lowest common ancestors in the dominator tree.
 // https://en.wikipedia.org/wiki/Lowest_common_ancestor
 // https://en.wikipedia.org/wiki/Range_minimum_query#Solution_using_constant_time_and_linearithmic_space
@@ -79,7 +83,7 @@ func makeLCArange(f *Func) *lcaRange {
 	}
 
 	// Compute fast range-minimum query data structure
-	var rangeMin [][]ID
+	rangeMin := make([][]ID, 0, bits.Len64(uint64(len(tour))))
 	rangeMin = append(rangeMin, tour) // 1-size windows are just the tour itself.
 	for logS, s := 1, 2; s < len(tour); logS, s = logS+1, s*2 {
 		r := make([]ID, len(tour)-s+1)

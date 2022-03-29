@@ -13,7 +13,6 @@ const (
 	_ETIMEDOUT   = 0x91
 	_EWOULDBLOCK = 0xb
 	_EINPROGRESS = 0x96
-	_ENOSYS      = 0x59
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1

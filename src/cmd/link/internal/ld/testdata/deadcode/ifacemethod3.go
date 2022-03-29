@@ -14,7 +14,7 @@ type S int
 
 func (s S) M() { println("S.M") }
 
-type I interface { M() }
+type I interface{ M() }
 
 type T float64
 

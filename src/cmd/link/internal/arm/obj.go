@@ -45,6 +45,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Minalign:   minAlign,
 		Dwarfregsp: dwarfRegSP,
 		Dwarfreglr: dwarfRegLR,
+		TrampLimit: 0x1c00000, // 24-bit signed offset * 4, leave room for PLT etc.
 
 		Plan9Magic: 0x647,
 

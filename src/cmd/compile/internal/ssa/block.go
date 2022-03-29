@@ -52,7 +52,7 @@ type Block struct {
 	Controls [2]*Value
 
 	// Auxiliary info for the block. Its value depends on the Kind.
-	Aux    interface{}
+	Aux    Aux
 	AuxInt int64
 
 	// The unordered set of Values that define the operation of this block.
@@ -279,7 +279,8 @@ func (b *Block) AddEdgeTo(c *Block) {
 
 // removePred removes the ith input edge from b.
 // It is the responsibility of the caller to remove
-// the corresponding successor edge.
+// the corresponding successor edge, and adjust any
+// phi values by calling b.removePhiArg(v, i).
 func (b *Block) removePred(i int) {
 	n := len(b.Preds) - 1
 	if i != n {
@@ -322,6 +323,28 @@ func (b *Block) swapSuccessors() {
 	b.Likely *= -1
 }
 
+// removePhiArg removes the ith arg from phi.
+// It must be called after calling b.removePred(i) to
+// adjust the corresponding phi value of the block:
+//
+// b.removePred(i)
+// for _, v := range b.Values {
+//     if v.Op != OpPhi {
+//         continue
+//     }
+//     b.removeArg(v, i)
+// }
+func (b *Block) removePhiArg(phi *Value, i int) {
+	n := len(b.Preds)
+	if numPhiArgs := len(phi.Args); numPhiArgs-1 != n {
+		b.Fatalf("inconsistent state, num predecessors: %d, num phi args: %d", n, numPhiArgs)
+	}
+	phi.Args[i].Uses--
+	phi.Args[i] = phi.Args[n]
+	phi.Args[n] = nil
+	phi.Args = phi.Args[:n]
+}
+
 // LackingPos indicates whether b is a block whose position should be inherited
 // from its successors.  This is true if all the values within it have unreliable positions
 // and if it is "plain", meaning that there is no control flow that is also very likely
@@ -356,6 +379,22 @@ func (b *Block) AuxIntString() string {
 	case "": // no aux int type
 		return ""
 	}
+}
+
+// likelyBranch reports whether block b is the likely branch of all of its predecessors.
+func (b *Block) likelyBranch() bool {
+	if len(b.Preds) == 0 {
+		return false
+	}
+	for _, e := range b.Preds {
+		p := e.b
+		if len(p.Succs) == 1 || len(p.Succs) == 2 && (p.Likely == BranchLikely && p.Succs[0].b == b ||
+			p.Likely == BranchUnlikely && p.Succs[1].b == b) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }

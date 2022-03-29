@@ -150,7 +150,7 @@ type Context interface {
 	// 		u, ok := ctx.Value(userKey).(*User)
 	// 		return u, ok
 	// 	}
-	Value(key interface{}) interface{}
+	Value(key any) any
 }
 
 // Canceled is the error returned by Context.Err when the context is canceled.
@@ -182,7 +182,7 @@ func (*emptyCtx) Err() error {
 	return nil
 }
 
-func (*emptyCtx) Value(key interface{}) interface{} {
+func (*emptyCtx) Value(key any) any {
 	return nil
 }
 
@@ -303,10 +303,8 @@ func parentCancelCtx(parent Context) (*cancelCtx, bool) {
 	if !ok {
 		return nil, false
 	}
-	p.mu.Lock()
-	ok = p.done == done
-	p.mu.Unlock()
-	if !ok {
+	pdone, _ := p.done.Load().(chan struct{})
+	if pdone != done {
 		return nil, false
 	}
 	return p, true
@@ -345,26 +343,31 @@ type cancelCtx struct {
 	Context
 
 	mu       sync.Mutex            // protects following fields
-	done     chan struct{}         // created lazily, closed by first cancel call
+	done     atomic.Value          // of chan struct{}, created lazily, closed by first cancel call
 	children map[canceler]struct{} // set to nil by the first cancel call
 	err      error                 // set to non-nil by the first cancel call
 }
 
-func (c *cancelCtx) Value(key interface{}) interface{} {
+func (c *cancelCtx) Value(key any) any {
 	if key == &cancelCtxKey {
 		return c
 	}
-	return c.Context.Value(key)
+	return value(c.Context, key)
 }
 
 func (c *cancelCtx) Done() <-chan struct{} {
-	c.mu.Lock()
-	if c.done == nil {
-		c.done = make(chan struct{})
+	d := c.done.Load()
+	if d != nil {
+		return d.(chan struct{})
 	}
-	d := c.done
-	c.mu.Unlock()
-	return d
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	d = c.done.Load()
+	if d == nil {
+		d = make(chan struct{})
+		c.done.Store(d)
+	}
+	return d.(chan struct{})
 }
 
 func (c *cancelCtx) Err() error {
@@ -401,10 +404,11 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 		return // already canceled
 	}
 	c.err = err
-	if c.done == nil {
-		c.done = closedchan
+	d, _ := c.done.Load().(chan struct{})
+	if d == nil {
+		c.done.Store(closedchan)
 	} else {
-		close(c.done)
+		close(d)
 	}
 	for child := range c.children {
 		// NOTE: acquiring the child's lock while holding parent's lock.
@@ -516,7 +520,7 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 // interface{}, context keys often have concrete type
 // struct{}. Alternatively, exported context key variables' static
 // type should be a pointer or interface.
-func WithValue(parent Context, key, val interface{}) Context {
+func WithValue(parent Context, key, val any) Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
@@ -533,13 +537,13 @@ func WithValue(parent Context, key, val interface{}) Context {
 // delegates all other calls to the embedded Context.
 type valueCtx struct {
 	Context
-	key, val interface{}
+	key, val any
 }
 
 // stringify tries a bit to stringify v, without using fmt, since we don't
 // want context depending on the unicode tables. This is only used by
 // *valueCtx.String().
-func stringify(v interface{}) string {
+func stringify(v any) string {
 	switch s := v.(type) {
 	case stringer:
 		return s.String()
@@ -555,9 +559,35 @@ func (c *valueCtx) String() string {
 		", val " + stringify(c.val) + ")"
 }
 
-func (c *valueCtx) Value(key interface{}) interface{} {
+func (c *valueCtx) Value(key any) any {
 	if c.key == key {
 		return c.val
 	}
-	return c.Context.Value(key)
+	return value(c.Context, key)
+}
+
+func value(c Context, key any) any {
+	for {
+		switch ctx := c.(type) {
+		case *valueCtx:
+			if key == ctx.key {
+				return ctx.val
+			}
+			c = ctx.Context
+		case *cancelCtx:
+			if key == &cancelCtxKey {
+				return c
+			}
+			c = ctx.Context
+		case *timerCtx:
+			if key == &cancelCtxKey {
+				return &ctx.cancelCtx
+			}
+			c = ctx.Context
+		case *emptyCtx:
+			return nil
+		default:
+			return c.Value(key)
+		}
+	}
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 // This program generates zipdata.go from $GOROOT/lib/time/zoneinfo.zip.
 package main
@@ -30,8 +30,8 @@ const header = `// Copyright 2020 The Go Authors. All rights reserved.
 
 // For more information, see
 // https://www.iana.org/time-zones
-// ftp://ftp.iana.org/tz/code/tz-link.htm
-// http://tools.ietf.org/html/rfc6557
+// ftp://ftp.iana.org/tz/code/tz-link.html
+// https://datatracker.ietf.org/doc/html/rfc6557
 
 package tzdata
 
@@ -71,7 +71,7 @@ func main() {
 	}
 }
 
-func die(format string, args ...interface{}) {
+func die(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)
 }

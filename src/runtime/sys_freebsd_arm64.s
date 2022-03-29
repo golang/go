@@ -133,18 +133,6 @@ ok:
 	MOVW	R0, ret+8(FP)
 	RET
 
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVD	$r+0(FP), R0
-	MOVW	$0, R1
-	MOVD	$SYS_pipe2, R8
-	SVC
-	BCC	ok
-	NEG	R0, R0
-ok:
-	MOVW	R0, errno+8(FP)
-	RET
-
 // func pipe2(flags int32) (r, w int32, errno int32)
 TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 	MOVD	$r+8(FP), R0
@@ -489,20 +477,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$F_SETFD, R1
 	MOVD	$FD_CLOEXEC, R2
 	MOVD	$SYS_fcntl, R8
-	SVC
-	RET
-
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVW	fd+0(FP), R0
-	MOVD	$F_GETFL, R1
-	MOVD	$0, R2
-	MOVD	$SYS_fcntl, R8
-	SVC
-	ORR	$O_NONBLOCK, R0, R2
-	MOVW	fd+0(FP), R0
-	MOVW	$F_SETFL, R1
-	MOVW	$SYS_fcntl, R7
 	SVC
 	RET
 

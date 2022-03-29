@@ -1,0 +1,57 @@
+# https://golang.org/issue/46142: 'go mod tidy' should error out if the version
+# in the go.mod file is newer than the most recent supported version.
+
+cp go.mod go.mod.orig
+
+
+# If the go.mod file specifies an unsupported Go version, 'go mod tidy' should
+# refuse to edit it: we don't know what a tidy go.mod file for that version
+# would look like.
+
+! go mod tidy
+stderr 'go: go.mod file indicates go 2000.0, but maximum version supported by tidy is '$goversion'$'
+cmp go.mod go.mod.orig
+
+
+# The -e flag should push past the error and edit the file anyway,
+# but preserve the too-high version.
+
+cp go.mod.orig go.mod
+go mod tidy -e
+stderr 'go: go.mod file indicates go 2000.0, but maximum version supported by tidy is '$goversion'$'
+cmp go.mod go.mod.tidy
+
+
+# Explicitly switching to a supported version should suppress the error completely.
+
+cp go.mod.orig go.mod
+go mod tidy -go=1.17
+! stderr 'maximum supported version'
+go mod edit -go=1.17 go.mod.tidy
+cmp go.mod go.mod.tidy
+
+
+-- go.mod --
+module example.net/from/the/future
+
+go 2000.0
+
+replace example.net/m v0.0.0 => ./m
+-- go.mod.tidy --
+module example.net/from/the/future
+
+go 2000.0
+
+replace example.net/m v0.0.0 => ./m
+
+require example.net/m v0.0.0
+-- x.go --
+package x
+
+import "example.net/m"
+-- m/go.mod --
+module example.net/m
+
+go 1.17
+-- m/m.go --
+package m

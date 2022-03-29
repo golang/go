@@ -66,7 +66,7 @@ import (
 type ParseError struct {
 	StartLine int   // Line where the record starts
 	Line      int   // Line where the error occurred
-	Column    int   // Column (rune index) where the error occurred
+	Column    int   // Column (1-based byte index) where the error occurred
 	Err       error // The actual error
 }
 
@@ -162,6 +162,10 @@ type Reader struct {
 	// The i'th field ends at offset fieldIndexes[i] in recordBuffer.
 	fieldIndexes []int
 
+	// fieldPositions is an index of field positions for the
+	// last record returned by Read.
+	fieldPositions []position
+
 	// lastRecord is a record cache and only used when ReuseRecord == true.
 	lastRecord []string
 }
@@ -190,6 +194,25 @@ func (r *Reader) Read() (record []string, err error) {
 		record, err = r.readRecord(nil)
 	}
 	return record, err
+}
+
+// FieldPos returns the line and column corresponding to
+// the start of the field with the given index in the slice most recently
+// returned by Read. Numbering of lines and columns starts at 1;
+// columns are counted in bytes, not runes.
+//
+// If this is called with an out-of-bounds index, it panics.
+func (r *Reader) FieldPos(field int) (line, column int) {
+	if field < 0 || field >= len(r.fieldPositions) {
+		panic("out of range index passed to FieldPos")
+	}
+	p := &r.fieldPositions[field]
+	return p.line, p.col
+}
+
+// pos holds the position of a field in the current line.
+type position struct {
+	line, col int
 }
 
 // ReadAll reads all the remaining records from r.
@@ -260,7 +283,7 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 	}
 
 	// Read line (automatically skipping past empty lines and any comments).
-	var line, fullLine []byte
+	var line []byte
 	var errRead error
 	for errRead == nil {
 		line, errRead = r.readLine()
@@ -272,7 +295,6 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 			line = nil
 			continue // Skip empty lines
 		}
-		fullLine = line
 		break
 	}
 	if errRead == io.EOF {
@@ -286,10 +308,20 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 	recLine := r.numLine // Starting line for record
 	r.recordBuffer = r.recordBuffer[:0]
 	r.fieldIndexes = r.fieldIndexes[:0]
+	r.fieldPositions = r.fieldPositions[:0]
+	pos := position{line: r.numLine, col: 1}
 parseField:
 	for {
 		if r.TrimLeadingSpace {
-			line = bytes.TrimLeftFunc(line, unicode.IsSpace)
+			i := bytes.IndexFunc(line, func(r rune) bool {
+				return !unicode.IsSpace(r)
+			})
+			if i < 0 {
+				i = len(line)
+				pos.col -= lengthNL(line)
+			}
+			line = line[i:]
+			pos.col += i
 		}
 		if len(line) == 0 || line[0] != '"' {
 			// Non-quoted string field
@@ -303,48 +335,56 @@ parseField:
 			// Check to make sure a quote does not appear in field.
 			if !r.LazyQuotes {
 				if j := bytes.IndexByte(field, '"'); j >= 0 {
-					col := utf8.RuneCount(fullLine[:len(fullLine)-len(line[j:])])
+					col := pos.col + j
 					err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrBareQuote}
 					break parseField
 				}
 			}
 			r.recordBuffer = append(r.recordBuffer, field...)
 			r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
+			r.fieldPositions = append(r.fieldPositions, pos)
 			if i >= 0 {
 				line = line[i+commaLen:]
+				pos.col += i + commaLen
 				continue parseField
 			}
 			break parseField
 		} else {
 			// Quoted string field
+			fieldPos := pos
 			line = line[quoteLen:]
+			pos.col += quoteLen
 			for {
 				i := bytes.IndexByte(line, '"')
 				if i >= 0 {
 					// Hit next quote.
 					r.recordBuffer = append(r.recordBuffer, line[:i]...)
 					line = line[i+quoteLen:]
+					pos.col += i + quoteLen
 					switch rn := nextRune(line); {
 					case rn == '"':
 						// `""` sequence (append quote).
 						r.recordBuffer = append(r.recordBuffer, '"')
 						line = line[quoteLen:]
+						pos.col += quoteLen
 					case rn == r.Comma:
 						// `",` sequence (end of field).
 						line = line[commaLen:]
+						pos.col += commaLen
 						r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
+						r.fieldPositions = append(r.fieldPositions, fieldPos)
 						continue parseField
 					case lengthNL(line) == len(line):
 						// `"\n` sequence (end of line).
 						r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
+						r.fieldPositions = append(r.fieldPositions, fieldPos)
 						break parseField
 					case r.LazyQuotes:
 						// `"` sequence (bare quote).
 						r.recordBuffer = append(r.recordBuffer, '"')
 					default:
 						// `"*` sequence (invalid non-escaped quote).
-						col := utf8.RuneCount(fullLine[:len(fullLine)-len(line)-quoteLen])
-						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
+						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: pos.col - quoteLen, Err: ErrQuote}
 						break parseField
 					}
 				} else if len(line) > 0 {
@@ -353,19 +393,23 @@ parseField:
 					if errRead != nil {
 						break parseField
 					}
+					pos.col += len(line)
 					line, errRead = r.readLine()
+					if len(line) > 0 {
+						pos.line++
+						pos.col = 1
+					}
 					if errRead == io.EOF {
 						errRead = nil
 					}
-					fullLine = line
 				} else {
 					// Abrupt end of file (EOF or error).
 					if !r.LazyQuotes && errRead == nil {
-						col := utf8.RuneCount(fullLine)
-						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
+						err = &ParseError{StartLine: recLine, Line: pos.line, Column: pos.col, Err: ErrQuote}
 						break parseField
 					}
 					r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
+					r.fieldPositions = append(r.fieldPositions, fieldPos)
 					break parseField
 				}
 			}
@@ -392,7 +436,12 @@ parseField:
 	// Check or update the expected fields per record.
 	if r.FieldsPerRecord > 0 {
 		if len(dst) != r.FieldsPerRecord && err == nil {
-			err = &ParseError{StartLine: recLine, Line: recLine, Err: ErrFieldCount}
+			err = &ParseError{
+				StartLine: recLine,
+				Line:      recLine,
+				Column:    1,
+				Err:       ErrFieldCount,
+			}
 		}
 	} else if r.FieldsPerRecord == 0 {
 		r.FieldsPerRecord = len(dst)

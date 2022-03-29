@@ -246,6 +246,14 @@ func (r Rectangle) At(x, y int) color.Color {
 	return color.Transparent
 }
 
+// RGBA64At implements the RGBA64Image interface.
+func (r Rectangle) RGBA64At(x, y int) color.RGBA64 {
+	if (Point{x, y}).In(r) {
+		return color.RGBA64{0xffff, 0xffff, 0xffff, 0xffff}
+	}
+	return color.RGBA64{}
+}
+
 // Bounds implements the Image interface.
 func (r Rectangle) Bounds() Rectangle {
 	return r

@@ -217,7 +217,7 @@ final_fold:
 	// V2 and XOR the intermediate result, T2(x),  with the value in V1.
 	// The final result is in the rightmost word of V2.
 
-	VUPLLF  V2 , V2
+	VUPLLF  V2, V2
 	VGFMAG  CONST_CRC_POLY, V2, V1, V2
 
 done:

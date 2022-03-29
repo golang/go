@@ -4,6 +4,8 @@
 
 #include "textflag.h"
 
+// See memclrNoHeapPointers Go doc for important implementation constraints.
+
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), DI

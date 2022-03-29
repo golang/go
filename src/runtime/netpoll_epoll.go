@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
+//go:build linux
 
 package runtime
 
@@ -168,10 +168,7 @@ retry:
 		}
 		if mode != 0 {
 			pd := *(**pollDesc)(unsafe.Pointer(&ev.data))
-			pd.everr = false
-			if ev.events == _EPOLLERR {
-				pd.everr = true
-			}
+			pd.setEventErr(ev.events == _EPOLLERR)
 			netpollready(&toRun, pd, mode)
 		}
 	}

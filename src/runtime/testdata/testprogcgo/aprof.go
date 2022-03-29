@@ -7,10 +7,13 @@ package main
 // Test that SIGPROF received in C code does not crash the process
 // looking for the C code's func pointer.
 
-// The test fails when the function is the first C function.
-// The exported functions are the first C functions, so we use that.
+// This is a regression test for issue 14599, where profiling fails when the
+// function is the first C function. Exported functions are the first C
+// functions, so we use an exported function. Exported functions are created in
+// lexicographical order of source files, so this file is named aprof.go to
+// ensure its function is first.
 
-// extern void GoNop();
+// extern void CallGoNop();
 import "C"
 
 import (
@@ -38,7 +41,7 @@ func CgoCCodeSIGPROF() {
 					break
 				}
 			}
-			C.GoNop()
+			C.CallGoNop()
 		}
 		c <- true
 	}()

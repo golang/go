@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
+//go:build !js
 
 package net
 
@@ -553,10 +553,7 @@ third:
 }
 
 func TestCloseError(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
 	if err != nil {
@@ -664,10 +661,7 @@ func TestAcceptError(t *testing.T) {
 			c.Close()
 		}
 	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := newLocalServer(t, "tcp")
 	if err := ls.buildup(handler); err != nil {
 		ls.teardown()
 		t.Fatal(err)
@@ -773,10 +767,7 @@ func TestFileError(t *testing.T) {
 		t.Error("should fail")
 	}
 
-	ln, err = newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln = newLocalListener(t, "tcp")
 
 	for i := 0; i < 3; i++ {
 		f, err := ln.(*TCPListener).File()

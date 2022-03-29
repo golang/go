@@ -32,10 +32,10 @@ package ld
 
 import (
 	"cmd/internal/bio"
-	"cmd/internal/objabi"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"os"
 )
@@ -124,6 +124,10 @@ func hostArchive(ctxt *Link, name string) {
 
 			libgcc := sym.Library{Pkg: "libgcc"}
 			h := ldobj(ctxt, f, &libgcc, l, pname, name)
+			if h.ld == nil {
+				Errorf(nil, "%s unrecognized object file at offset %d", name, off)
+				continue
+			}
 			f.MustSeek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
 		}
@@ -170,7 +174,7 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
 
 		// For Mach-O and PE/386 files we strip a leading
 		// underscore from the symbol name.
-		if objabi.GOOS == "darwin" || objabi.GOOS == "ios" || (objabi.GOOS == "windows" && objabi.GOARCH == "386") {
+		if buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" || (buildcfg.GOOS == "windows" && buildcfg.GOARCH == "386") {
 			if name[0] == '_' && len(name) > 1 {
 				name = name[1:]
 			}

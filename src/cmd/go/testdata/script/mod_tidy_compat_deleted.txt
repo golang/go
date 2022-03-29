@@ -1,0 +1,128 @@
+# https://golang.org/issue/46141: 'go mod tidy' for a Go 1.17 module should by
+# default preserve enough checksums for the module to be used by Go 1.16.
+#
+# We don't have a copy of Go 1.16 handy, but we can simulate it by editing the
+# 'go' version in the go.mod file to 1.16, without actually updating the
+# requirements to match.
+
+[short] skip
+
+env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+
+
+# For this module, the "deleted" dependency contains an imported package, but
+# Go 1.16 selects a higher version (in which that package has been deleted).
+
+cp go.mod go.mod.orig
+
+! go mod tidy
+
+stderr '^example\.com/m imports\n\texample\.net/deleted loaded from example\.net/deleted@v0\.1\.0,\n\tbut go 1\.16 would fail to locate it in example\.net/deleted@v0\.2\.0\n\n'
+
+stderr '\n\nTo upgrade to the versions selected by go 1.16, leaving some packages unresolved:\n\tgo mod tidy -e -go=1\.16 && go mod tidy -e -go=1\.17\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+
+
+# The suggested 'go mod tidy -e' command should proceed anyway.
+
+go mod tidy -e
+cmp go.mod go.mod.tidy
+
+
+# In 'go 1.16' mode we should error out in the way we claimed.
+
+cd 116-outside
+! go list -deps -f $MODFMT example.com/m
+stderr '^\.\.[/\\]m\.go:4:2: no required module provides package example\.net/deleted; to add it:\n\tgo get example\.net/deleted$'
+cd ..
+
+go mod edit -go=1.16
+! go list -deps -f $MODFMT example.com/m
+stderr '^go: updates to go\.mod needed; to update it:\n\tgo mod tidy$'
+
+! go mod tidy
+stderr '^example\.com/m imports\n\texample\.net/deleted: module example\.net/deleted@latest found \(v0\.2\.0, replaced by \./d2\), but does not contain package example\.net/deleted$'
+
+
+-- go.mod --
+module example.com/m
+
+go 1.17
+
+replace (
+	example.net/deleted v0.1.0 => ./d1
+	example.net/deleted v0.2.0 => ./d2
+	example.net/lazy v0.1.0 => ./lazy
+	example.net/pruned v0.1.0 => ./pruned
+)
+
+require (
+	example.net/deleted v0.1.0
+	example.net/deleted v0.1.0 // redundant
+	example.net/lazy v0.1.0
+)
+-- go.mod.tidy --
+module example.com/m
+
+go 1.17
+
+replace (
+	example.net/deleted v0.1.0 => ./d1
+	example.net/deleted v0.2.0 => ./d2
+	example.net/lazy v0.1.0 => ./lazy
+	example.net/pruned v0.1.0 => ./pruned
+)
+
+require (
+	example.net/deleted v0.1.0
+	example.net/lazy v0.1.0
+)
+-- 116-outside/go.mod --
+module outside
+
+go 1.16
+
+replace (
+	example.com/m => ../
+	example.net/deleted v0.1.0 => ../d1
+	example.net/deleted v0.2.0 => ../d2
+	example.net/lazy v0.1.0 => ../lazy
+	example.net/pruned v0.1.0 => ../pruned
+)
+
+require example.com/m v0.1.0
+-- m.go --
+package m
+
+import (
+	_ "example.net/deleted"
+	_ "example.net/lazy"
+)
+
+-- d1/go.mod --
+module example.net/deleted
+
+go 1.17
+-- d1/deleted.go --
+package deleted
+-- d2/go.mod --
+module example.net/deleted
+
+go 1.17
+-- d2/README --
+There is no longer a Go package here.
+
+-- lazy/go.mod --
+module example.net/lazy
+
+go 1.17
+
+require example.net/pruned v0.1.0
+-- lazy/lazy.go --
+package lazy
+
+-- pruned/go.mod --
+module example.net/pruned
+
+go 1.17
+
+require example.net/deleted v0.2.0

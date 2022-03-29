@@ -13,7 +13,12 @@ package math
 //	Frexp(±0) = ±0, 0
 //	Frexp(±Inf) = ±Inf, 0
 //	Frexp(NaN) = NaN, 0
-func Frexp(f float64) (frac float64, exp int)
+func Frexp(f float64) (frac float64, exp int) {
+	if haveArchFrexp {
+		return archFrexp(f)
+	}
+	return frexp(f)
+}
 
 func frexp(f float64) (frac float64, exp int) {
 	// special cases

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 // Package js gives access to the WebAssembly host environment when using the js/wasm architecture.
 // Its API is based on JavaScript semantics.
@@ -27,12 +27,6 @@ type ref uint64
 // nanHead are the upper 32 bits of a ref which are set if the value is not encoded as an IEEE 754 number (see above).
 const nanHead = 0x7FF80000
 
-// Wrapper is implemented by types that are backed by a JavaScript value.
-type Wrapper interface {
-	// JSValue returns a JavaScript value associated with an object.
-	JSValue() Value
-}
-
 // Value represents a JavaScript value. The zero value is the JavaScript value "undefined".
 // Values can be checked for equality with the Equal method.
 type Value struct {
@@ -49,11 +43,6 @@ const (
 	typeFlagSymbol
 	typeFlagFunction
 )
-
-// JSValue implements Wrapper interface.
-func (v Value) JSValue() Value {
-	return v
-}
 
 func makeValue(r ref) Value {
 	var gcPtr *ref
@@ -159,12 +148,12 @@ func Global() Value {
 //  | map[string]interface{} | new object             |
 //
 // Panics if x is not one of the expected types.
-func ValueOf(x interface{}) Value {
+func ValueOf(x any) Value {
 	switch x := x.(type) {
-	case Value: // should precede Wrapper to avoid a loop
+	case Value:
 		return x
-	case Wrapper:
-		return x.JSValue()
+	case Func:
+		return x.Value
 	case nil:
 		return valueNull
 	case bool:
@@ -203,13 +192,13 @@ func ValueOf(x interface{}) Value {
 		return floatValue(x)
 	case string:
 		return makeValue(stringVal(x))
-	case []interface{}:
+	case []any:
 		a := arrayConstructor.New(len(x))
 		for i, s := range x {
 			a.SetIndex(i, s)
 		}
 		return a
-	case map[string]interface{}:
+	case map[string]any:
 		o := objectConstructor.New()
 		for k, v := range x {
 			o.Set(k, v)
@@ -307,7 +296,7 @@ func valueGet(v ref, p string) ref
 
 // Set sets the JavaScript property p of value v to ValueOf(x).
 // It panics if v is not a JavaScript object.
-func (v Value) Set(p string, x interface{}) {
+func (v Value) Set(p string, x any) {
 	if vType := v.Type(); !vType.isObject() {
 		panic(&ValueError{"Value.Set", vType})
 	}
@@ -346,7 +335,7 @@ func valueIndex(v ref, i int) ref
 
 // SetIndex sets the JavaScript index i of value v to ValueOf(x).
 // It panics if v is not a JavaScript object.
-func (v Value) SetIndex(i int, x interface{}) {
+func (v Value) SetIndex(i int, x any) {
 	if vType := v.Type(); !vType.isObject() {
 		panic(&ValueError{"Value.SetIndex", vType})
 	}
@@ -358,7 +347,7 @@ func (v Value) SetIndex(i int, x interface{}) {
 
 func valueSetIndex(v ref, i int, x ref)
 
-func makeArgs(args []interface{}) ([]Value, []ref) {
+func makeArgs(args []any) ([]Value, []ref) {
 	argVals := make([]Value, len(args))
 	argRefs := make([]ref, len(args))
 	for i, arg := range args {
@@ -385,7 +374,7 @@ func valueLength(v ref) int
 // Call does a JavaScript call to the method m of value v with the given arguments.
 // It panics if v has no method m.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
-func (v Value) Call(m string, args ...interface{}) Value {
+func (v Value) Call(m string, args ...any) Value {
 	argVals, argRefs := makeArgs(args)
 	res, ok := valueCall(v.ref, m, argRefs)
 	runtime.KeepAlive(v)
@@ -407,7 +396,7 @@ func valueCall(v ref, m string, args []ref) (ref, bool)
 // Invoke does a JavaScript call of the value v with the given arguments.
 // It panics if v is not a JavaScript function.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
-func (v Value) Invoke(args ...interface{}) Value {
+func (v Value) Invoke(args ...any) Value {
 	argVals, argRefs := makeArgs(args)
 	res, ok := valueInvoke(v.ref, argRefs)
 	runtime.KeepAlive(v)
@@ -426,7 +415,7 @@ func valueInvoke(v ref, args []ref) (ref, bool)
 // New uses JavaScript's "new" operator with value v as constructor and the given arguments.
 // It panics if v is not a JavaScript function.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
-func (v Value) New(args ...interface{}) Value {
+func (v Value) New(args ...any) Value {
 	argVals, argRefs := makeArgs(args)
 	res, ok := valueNew(v.ref, argRefs)
 	runtime.KeepAlive(v)

@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -71,9 +72,9 @@ func ExampleFileMode() {
 	}
 }
 
-func ExampleIsNotExist() {
+func ExampleErrNotExist() {
 	filename := "a-nonexistent-file"
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
+	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
 		fmt.Println("file does not exist")
 	}
 	// Output:
@@ -236,6 +237,28 @@ func ExampleReadFile() {
 
 func ExampleWriteFile() {
 	err := os.WriteFile("testdata/hello", []byte("Hello, Gophers!"), 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdir() {
+	err := os.Mkdir("testdir", 0750)
+	if err != nil && !os.IsExist(err) {
+		log.Fatal(err)
+	}
+	err = os.WriteFile("testdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdirAll() {
+	err := os.MkdirAll("test/subdir", 0750)
+	if err != nil && !os.IsExist(err) {
+		log.Fatal(err)
+	}
+	err = os.WriteFile("test/subdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -35,7 +35,8 @@ func Unwrap(err error) error {
 //	func (m MyError) Is(target error) bool { return target == fs.ErrExist }
 //
 // then Is(MyError{}, fs.ErrExist) returns true. See syscall.Errno.Is for
-// an example in the standard library.
+// an example in the standard library. An Is method should only shallowly
+// compare err and the target and not call Unwrap on either.
 func Is(err, target error) bool {
 	if target == nil {
 		return err == target
@@ -58,7 +59,7 @@ func Is(err, target error) bool {
 	}
 }
 
-// As finds the first error in err's chain that matches target, and if so, sets
+// As finds the first error in err's chain that matches target, and if one is found, sets
 // target to that error value and returns true. Otherwise, it returns false.
 //
 // The chain consists of err itself followed by the sequence of errors obtained by
@@ -74,7 +75,7 @@ func Is(err, target error) bool {
 //
 // As panics if target is not a non-nil pointer to either a type that implements
 // error, or to any interface type.
-func As(err error, target interface{}) bool {
+func As(err error, target any) bool {
 	if target == nil {
 		panic("errors: target cannot be nil")
 	}
@@ -83,16 +84,16 @@ func As(err error, target interface{}) bool {
 	if typ.Kind() != reflectlite.Ptr || val.IsNil() {
 		panic("errors: target must be a non-nil pointer")
 	}
-	if e := typ.Elem(); e.Kind() != reflectlite.Interface && !e.Implements(errorType) {
+	targetType := typ.Elem()
+	if targetType.Kind() != reflectlite.Interface && !targetType.Implements(errorType) {
 		panic("errors: *target must be interface or implement error")
 	}
-	targetType := typ.Elem()
 	for err != nil {
 		if reflectlite.TypeOf(err).AssignableTo(targetType) {
 			val.Elem().Set(reflectlite.ValueOf(err))
 			return true
 		}
-		if x, ok := err.(interface{ As(interface{}) bool }); ok && x.As(target) {
+		if x, ok := err.(interface{ As(any) bool }); ok && x.As(target) {
 			return true
 		}
 		err = Unwrap(err)

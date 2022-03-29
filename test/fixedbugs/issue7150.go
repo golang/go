@@ -9,7 +9,7 @@
 package main
 
 func main() {
-	_ = [0]int{-1: 50}              // ERROR "index must be non-negative integer constant|index expression is negative"
+	_ = [0]int{-1: 50}              // ERROR "index must be non-negative integer constant|index expression is negative|must not be negative"
 	_ = [0]int{0: 0}                // ERROR "index 0 out of bounds \[0:0\]|out of range"
 	_ = [0]int{5: 25}               // ERROR "index 5 out of bounds \[0:0\]|out of range"
 	_ = [10]int{2: 10, 15: 30}      // ERROR "index 15 out of bounds \[0:10\]|out of range"

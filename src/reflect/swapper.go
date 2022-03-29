@@ -5,6 +5,7 @@
 package reflect
 
 import (
+	"internal/goarch"
 	"internal/unsafeheader"
 	"unsafe"
 )
@@ -13,7 +14,7 @@ import (
 // slice.
 //
 // Swapper panics if the provided interface is not a slice.
-func Swapper(slice interface{}) func(i, j int) {
+func Swapper(slice any) func(i, j int) {
 	v := ValueOf(slice)
 	if v.Kind() != Slice {
 		panic(&ValueError{Method: "Swapper", Kind: v.Kind()})
@@ -36,7 +37,7 @@ func Swapper(slice interface{}) func(i, j int) {
 
 	// Some common & small cases, without using memmove:
 	if hasPtr {
-		if size == ptrSize {
+		if size == goarch.PtrSize {
 			ps := *(*[]unsafe.Pointer)(v.ptr)
 			return func(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
 		}

@@ -627,7 +627,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			}
 		case trace.EvHeapAlloc:
 			ctx.heapStats.heapAlloc = ev.Args[0]
-		case trace.EvNextGC:
+		case trace.EvHeapGoal:
 			ctx.heapStats.nextGC = ev.Args[0]
 		}
 		if setGStateErr != nil {
@@ -1054,7 +1054,7 @@ func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
 			cname = colorLightGrey
 		}
 	}
-	var arg interface{}
+	var arg any
 	if ev.Type == trace.EvProcStart {
 		type Arg struct {
 			ThreadID uint64

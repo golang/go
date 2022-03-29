@@ -29,27 +29,42 @@ const (
 	defaultNM = "nm"
 )
 
-// addr2LinerNM is a connection to an nm command for obtaining address
+// addr2LinerNM is a connection to an nm command for obtaining symbol
 // information from a binary.
 type addr2LinerNM struct {
-	m []symbolInfo // Sorted list of addresses from binary.
+	m []symbolInfo // Sorted list of symbol addresses from binary.
 }
 
 type symbolInfo struct {
 	address uint64
+	size    uint64
 	name    string
+	symType string
 }
 
-//  newAddr2LinerNM starts the given nm command reporting information about the
-// given executable file. If file is a shared library, base should be
-// the address at which it was mapped in the program under
-// consideration.
+// isData returns if the symbol has a known data object symbol type.
+func (s *symbolInfo) isData() bool {
+	// The following symbol types are taken from https://linux.die.net/man/1/nm:
+	// Lowercase letter means local symbol, uppercase denotes a global symbol.
+	// - b or B: the symbol is in the uninitialized data section, e.g. .bss;
+	// - d or D: the symbol is in the initialized data section;
+	// - r or R: the symbol is in a read only data section;
+	// - v or V: the symbol is a weak object;
+	// - W: the symbol is a weak symbol that has not been specifically tagged as a
+	//      weak object symbol. Experiments with some binaries, showed these to be
+	//      mostly data objects.
+	return strings.ContainsAny(s.symType, "bBdDrRvVW")
+}
+
+// newAddr2LinerNM starts the given nm command reporting information about the
+// given executable file. If file is a shared library, base should be the
+// address at which it was mapped in the program under consideration.
 func newAddr2LinerNM(cmd, file string, base uint64) (*addr2LinerNM, error) {
 	if cmd == "" {
 		cmd = defaultNM
 	}
 	var b bytes.Buffer
-	c := exec.Command(cmd, "-n", file)
+	c := exec.Command(cmd, "--numeric-sort", "--print-size", "--format=posix", file)
 	c.Stdout = &b
 	if err := c.Run(); err != nil {
 		return nil, err
@@ -74,17 +89,23 @@ func parseAddr2LinerNM(base uint64, nm io.Reader) (*addr2LinerNM, error) {
 			return nil, err
 		}
 		line = strings.TrimSpace(line)
-		fields := strings.SplitN(line, " ", 3)
-		if len(fields) != 3 {
+		fields := strings.Split(line, " ")
+		if len(fields) != 4 {
 			continue
 		}
-		address, err := strconv.ParseUint(fields[0], 16, 64)
+		address, err := strconv.ParseUint(fields[2], 16, 64)
+		if err != nil {
+			continue
+		}
+		size, err := strconv.ParseUint(fields[3], 16, 64)
 		if err != nil {
 			continue
 		}
 		a.m = append(a.m, symbolInfo{
 			address: address + base,
-			name:    fields[2],
+			size:    size,
+			name:    fields[0],
+			symType: fields[1],
 		})
 	}
 
@@ -94,7 +115,7 @@ func parseAddr2LinerNM(base uint64, nm io.Reader) (*addr2LinerNM, error) {
 // addrInfo returns the stack frame information for a specific program
 // address. It returns nil if the address could not be identified.
 func (a *addr2LinerNM) addrInfo(addr uint64) ([]plugin.Frame, error) {
-	if len(a.m) == 0 || addr < a.m[0].address || addr > a.m[len(a.m)-1].address {
+	if len(a.m) == 0 || addr < a.m[0].address || addr >= (a.m[len(a.m)-1].address+a.m[len(a.m)-1].size) {
 		return nil, nil
 	}
 
@@ -113,12 +134,11 @@ func (a *addr2LinerNM) addrInfo(addr uint64) ([]plugin.Frame, error) {
 		}
 	}
 
-	// Address is between a.m[low] and a.m[high].
-	// Pick low, as it represents [low, high).
-	f := []plugin.Frame{
-		{
-			Func: a.m[low].name,
-		},
+	// Address is between a.m[low] and a.m[high]. Pick low, as it represents
+	// [low, high). For data symbols, we use a strict check that the address is in
+	// the [start, start + size) range of a.m[low].
+	if a.m[low].isData() && addr >= (a.m[low].address+a.m[low].size) {
+		return nil, nil
 	}
-	return f, nil
+	return []plugin.Frame{{Func: a.m[low].name}}, nil
 }

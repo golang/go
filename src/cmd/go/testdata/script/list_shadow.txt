@@ -15,7 +15,7 @@ stdout '^\(.*gopath(\\|/)src(\\|/)shadow(\\|/)root2(\\|/)src(\\|/)foo\) \('$WORK
 
 # The error for go install should mention the conflicting directory.
 ! go install -n ./shadow/root2/src/foo
-stderr 'go install: no install location for '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root2(\\|/)src(\\|/)foo: hidden by '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root1(\\|/)src(\\|/)foo'
+stderr 'go: no install location for '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root2(\\|/)src(\\|/)foo: hidden by '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root1(\\|/)src(\\|/)foo'
 
 -- shadow/root1/src/foo/foo.go --
 package foo

@@ -35,6 +35,7 @@ import (
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
 )
 
@@ -465,9 +466,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = c.newprog()
 				q.As = AJMP
 				q.Pos = p.Pos
-				q.To.Type = obj.TYPE_MEM
-				q.To.Offset = 0
-				q.To.Reg = REGLINK
+				if retSym != nil { // retjmp
+					q.To.Type = obj.TYPE_BRANCH
+					q.To.Name = obj.NAME_EXTERN
+					q.To.Sym = retSym
+				} else {
+					q.To.Type = obj.TYPE_MEM
+					q.To.Reg = REGLINK
+					q.To.Offset = 0
+				}
 				q.Mark |= BRANCH
 				q.Spadj = +autosize
 
@@ -534,6 +541,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.As = mov
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGSP
+			}
+		}
+
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
+			f := c.cursym.Func()
+			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+				if ctxt.Debugvlog || !ctxt.IsAsm {
+					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
+					if !ctxt.IsAsm {
+						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+						ctxt.DiagFlush()
+						log.Fatalf("bad SPWRITE")
+					}
+				}
 			}
 		}
 	}
@@ -632,17 +654,91 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 }
 
 func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
-	var mov, add, sub obj.As
+	var mov, add obj.As
 
 	if c.ctxt.Arch.Family == sys.MIPS64 {
 		add = AADDV
 		mov = AMOVV
-		sub = ASUBVU
 	} else {
 		add = AADDU
 		mov = AMOVW
-		sub = ASUBU
 	}
+
+	if c.ctxt.Flag_maymorestack != "" {
+		// Save LR and REGCTXT.
+		frameSize := 2 * c.ctxt.Arch.PtrSize
+
+		p = c.ctxt.StartUnsafePoint(p, c.newprog)
+
+		// MOV	REGLINK, -8/-16(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGLINK
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = int64(-frameSize)
+		p.To.Reg = REGSP
+
+		// MOV	REGCTXT, -4/-8(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGCTXT
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = -int64(c.ctxt.Arch.PtrSize)
+		p.To.Reg = REGSP
+
+		// ADD	$-8/$-16, SP
+		p = obj.Appendp(p, c.newprog)
+		p.As = add
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(-frameSize)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGSP
+		p.Spadj = int32(frameSize)
+
+		// JAL	maymorestack
+		p = obj.Appendp(p, c.newprog)
+		p.As = AJAL
+		p.To.Type = obj.TYPE_BRANCH
+		// See ../x86/obj6.go
+		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
+		p.Mark |= BRANCH
+
+		// Restore LR and REGCTXT.
+
+		// MOV	0(SP), REGLINK
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_MEM
+		p.From.Offset = 0
+		p.From.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGLINK
+
+		// MOV	4/8(SP), REGCTXT
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_MEM
+		p.From.Offset = int64(c.ctxt.Arch.PtrSize)
+		p.From.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGCTXT
+
+		// ADD	$8/$16, SP
+		p = obj.Appendp(p, c.newprog)
+		p.As = add
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(frameSize)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGSP
+		p.Spadj = int32(-frameSize)
+
+		p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+	}
+
+	// Jump back to here after morestack returns.
+	startPred := p
 
 	// MOV	g_stackguard(g), R1
 	p = obj.Appendp(p, c.newprog)
@@ -675,80 +771,48 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.Reg = REG_R1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R1
-	} else if framesize <= objabi.StackBig {
+	} else {
 		// large stack: SP-framesize < stackguard-StackSmall
+		offset := int64(framesize) - objabi.StackSmall
+		if framesize > objabi.StackBig {
+			// Such a large stack we need to protect against underflow.
+			// The runtime guarantees SP > objabi.StackBig, but
+			// framesize is large enough that SP-framesize may
+			// underflow, causing a direct comparison with the
+			// stack guard to incorrectly succeed. We explicitly
+			// guard against underflow.
+			//
+			//	SGTU	$(framesize-StackSmall), SP, R2
+			//	BNE	R2, label-of-call-to-morestack
+
+			p = obj.Appendp(p, c.newprog)
+			p.As = ASGTU
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = offset
+			p.Reg = REGSP
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REG_R2
+
+			p = obj.Appendp(p, c.newprog)
+			q = p
+			p.As = ABNE
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = REG_R2
+			p.To.Type = obj.TYPE_BRANCH
+			p.Mark |= BRANCH
+		}
+
+		// Check against the stack guard. We've ensured this won't underflow.
 		//	ADD	$-(framesize-StackSmall), SP, R2
 		//	SGTU	R2, stackguard, R1
 		p = obj.Appendp(p, c.newprog)
 
 		p.As = add
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
+		p.From.Offset = -offset
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = ASGTU
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R2
-		p.Reg = REG_R1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R1
-	} else {
-		// Such a large stack we need to protect against wraparound.
-		// If SP is close to zero:
-		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
-		//
-		// Preemption sets stackguard to StackPreempt, a very large value.
-		// That breaks the math above, so we have to check for that explicitly.
-		//	// stackguard is R1
-		//	MOV	$StackPreempt, R2
-		//	BEQ	R1, R2, label-of-call-to-morestack
-		//	ADD	$StackGuard, SP, R2
-		//	SUB	R1, R2
-		//	MOV	$(framesize+(StackGuard-StackSmall)), R1
-		//	SGTU	R2, R1, R1
-		p = obj.Appendp(p, c.newprog)
-
-		p.As = mov
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = objabi.StackPreempt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R2
-
-		p = obj.Appendp(p, c.newprog)
-		q = p
-		p.As = ABEQ
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R1
-		p.Reg = REG_R2
-		p.To.Type = obj.TYPE_BRANCH
-		p.Mark |= BRANCH
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = add
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(objabi.StackGuard)
-		p.Reg = REGSP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R2
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = sub
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R2
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = mov
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + int64(objabi.StackGuard) - objabi.StackSmall
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R1
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ASGTU
@@ -805,7 +869,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 	p.As = AJMP
 	p.To.Type = obj.TYPE_BRANCH
-	p.To.SetTarget(c.cursym.Func().Text.Link)
+	p.To.SetTarget(startPred.Link)
+	startPred.Link.Mark |= LABEL
 	p.Mark |= BRANCH
 
 	// placeholder for q1's jump target

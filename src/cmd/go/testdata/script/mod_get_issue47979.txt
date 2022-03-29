@@ -1,0 +1,117 @@
+# Regression test for https://golang.org/issue/47979:
+#
+# An argument to 'go get' that results in an upgrade to a different existing
+# root should be allowed, and should not panic the 'go' command.
+
+cp go.mod go.mod.orig
+
+
+# Transitive upgrades from upgraded roots should not prevent
+# 'go get -u' from performing upgrades.
+
+cp go.mod.orig go.mod
+go get -u .
+cmp go.mod go.mod.want
+
+
+# 'go get' of a specific version should allow upgrades of
+# every dependency (transitively) required by that version,
+# including dependencies that are pulled into the module
+# graph by upgrading other root requirements
+# (in this case, example.net/indirect).
+
+cp go.mod.orig go.mod
+go get example.net/a@v0.2.0
+cmp go.mod go.mod.want
+
+
+-- go.mod --
+module golang.org/issue47979
+
+go 1.17
+
+replace (
+	example.net/a v0.1.0 => ./a1
+	example.net/a v0.2.0 => ./a2
+	example.net/indirect v0.1.0 => ./indirect1
+	example.net/indirect v0.2.0 => ./indirect2
+	example.net/other v0.1.0 => ./other
+	example.net/other v0.2.0 => ./other
+)
+
+require (
+	example.net/a v0.1.0
+	example.net/other v0.1.0
+)
+
+require example.net/indirect v0.1.0 // indirect
+-- go.mod.want --
+module golang.org/issue47979
+
+go 1.17
+
+replace (
+	example.net/a v0.1.0 => ./a1
+	example.net/a v0.2.0 => ./a2
+	example.net/indirect v0.1.0 => ./indirect1
+	example.net/indirect v0.2.0 => ./indirect2
+	example.net/other v0.1.0 => ./other
+	example.net/other v0.2.0 => ./other
+)
+
+require (
+	example.net/a v0.2.0
+	example.net/other v0.2.0
+)
+
+require example.net/indirect v0.2.0 // indirect
+-- issue.go --
+package issue
+
+import _ "example.net/a"
+-- useother/useother.go --
+package useother
+
+import _ "example.net/other"
+-- a1/go.mod --
+module example.net/a
+
+go 1.17
+
+require example.net/indirect v0.1.0
+-- a1/a.go --
+package a
+-- a2/go.mod --
+module example.net/a
+
+go 1.17
+
+require example.net/indirect v0.2.0
+-- a2/a.go --
+package a
+
+import "example.net/indirect"
+-- indirect1/go.mod --
+module example.net/indirect
+
+go 1.17
+
+require example.net/other v0.1.0
+-- indirect1/indirect.go --
+package indirect
+-- indirect2/go.mod --
+module example.net/indirect
+
+go 1.17
+
+require example.net/other v0.2.0
+-- indirect2/indirect.go --
+package indirect
+
+import "example.net/other"
+-- other/go.mod --
+module example.net/other
+
+go 1.17
+-- other/other.go --
+package other

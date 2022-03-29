@@ -1,6 +1,6 @@
 env GO111MODULE=on
 
-! go get -d example.com/invalidpath/v1
+! go get example.com/invalidpath/v1
 ! go install .
 
 -- go.mod --

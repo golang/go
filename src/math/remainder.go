@@ -34,7 +34,12 @@ package math
 //	Remainder(x, 0) = NaN
 //	Remainder(x, ±Inf) = x
 //	Remainder(x, NaN) = NaN
-func Remainder(x, y float64) float64
+func Remainder(x, y float64) float64 {
+	if haveArchRemainder {
+		return archRemainder(x, y)
+	}
+	return remainder(x, y)
+}
 
 func remainder(x, y float64) float64 {
 	const (

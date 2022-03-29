@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goos"
 	"math/rand"
 	. "runtime"
 	"testing"
@@ -145,12 +146,6 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			min:       m,
 			max:       PallocChunkPages,
 			want:      BitRange{0, 0},
-		}
-		tests["StartFree"+suffix] = test{
-			alloc: []BitRange{{uint(m), PallocChunkPages - uint(m)}},
-			min:   m,
-			max:   PallocChunkPages,
-			want:  BitRange{0, uint(m)},
 		}
 		tests["StartFree"+suffix] = test{
 			alloc: []BitRange{{uint(m), PallocChunkPages - uint(m)}},
@@ -414,7 +409,9 @@ func TestPageAllocScavenge(t *testing.T) {
 			},
 		},
 	}
-	if PageAlloc64Bit != 0 {
+	// Disable these tests on iOS since we have a small address space.
+	// See #46860.
+	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
 		tests["ScavAllVeryDiscontiguous"] = setup{
 			beforeAlloc: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:          {},
@@ -436,12 +433,12 @@ func TestPageAllocScavenge(t *testing.T) {
 	}
 	for name, v := range tests {
 		v := v
-		runTest := func(t *testing.T, mayUnlock bool) {
+		t.Run(name, func(t *testing.T) {
 			b := NewPageAlloc(v.beforeAlloc, v.beforeScav)
 			defer FreePageAlloc(b)
 
 			for iter, h := range v.expect {
-				if got := b.Scavenge(h.request, mayUnlock); got != h.expect {
+				if got := b.Scavenge(h.request); got != h.expect {
 					t.Fatalf("bad scavenge #%d: want %d, got %d", iter+1, h.expect, got)
 				}
 			}
@@ -449,12 +446,6 @@ func TestPageAllocScavenge(t *testing.T) {
 			defer FreePageAlloc(want)
 
 			checkPageAlloc(t, want, b)
-		}
-		t.Run(name, func(t *testing.T) {
-			runTest(t, false)
-		})
-		t.Run(name+"MayUnlock", func(t *testing.T) {
-			runTest(t, true)
 		})
 	}
 }

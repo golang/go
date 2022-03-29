@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"internal/abi"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io"
@@ -287,7 +288,7 @@ func TestCallbackInAnotherThread(t *testing.T) {
 }
 
 type cbFunc struct {
-	goFunc interface{}
+	goFunc any
 }
 
 func (f cbFunc) cName(cdecl bool) string {
@@ -388,6 +389,118 @@ var cbFuncs = []cbFunc{
 	{func(i1, i2, i3, i4, i5 uint8Pair) uintptr {
 		return uintptr(i1.x + i1.y + i2.x + i2.y + i3.x + i3.y + i4.x + i4.y + i5.x + i5.y)
 	}},
+	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint32) uintptr {
+		runtime.GC()
+		return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+	}},
+}
+
+//go:registerparams
+func sum2(i1, i2 uintptr) uintptr {
+	return i1 + i2
+}
+
+//go:registerparams
+func sum3(i1, i2, i3 uintptr) uintptr {
+	return i1 + i2 + i3
+}
+
+//go:registerparams
+func sum4(i1, i2, i3, i4 uintptr) uintptr {
+	return i1 + i2 + i3 + i4
+}
+
+//go:registerparams
+func sum5(i1, i2, i3, i4, i5 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5
+}
+
+//go:registerparams
+func sum6(i1, i2, i3, i4, i5, i6 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6
+}
+
+//go:registerparams
+func sum7(i1, i2, i3, i4, i5, i6, i7 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6 + i7
+}
+
+//go:registerparams
+func sum8(i1, i2, i3, i4, i5, i6, i7, i8 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8
+}
+
+//go:registerparams
+func sum9(i1, i2, i3, i4, i5, i6, i7, i8, i9 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9
+}
+
+//go:registerparams
+func sum10(i1, i2, i3, i4, i5, i6, i7, i8, i9, i10 uintptr) uintptr {
+	return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9 + i10
+}
+
+//go:registerparams
+func sum9uint8(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint8) uintptr {
+	return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+}
+
+//go:registerparams
+func sum9uint16(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint16) uintptr {
+	return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+}
+
+//go:registerparams
+func sum9int8(i1, i2, i3, i4, i5, i6, i7, i8, i9 int8) uintptr {
+	return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+}
+
+//go:registerparams
+func sum5mix(i1 int8, i2 int16, i3 int32, i4, i5 uintptr) uintptr {
+	return uintptr(i1) + uintptr(i2) + uintptr(i3) + i4 + i5
+}
+
+//go:registerparams
+func sum5andPair(i1, i2, i3, i4, i5 uint8Pair) uintptr {
+	return uintptr(i1.x + i1.y + i2.x + i2.y + i3.x + i3.y + i4.x + i4.y + i5.x + i5.y)
+}
+
+// This test forces a GC. The idea is to have enough arguments
+// that insufficient spill slots allocated (according to the ABI)
+// may cause compiler-generated spills to clobber the return PC.
+// Then, the GC stack scanning will catch that.
+//go:registerparams
+func sum9andGC(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint32) uintptr {
+	runtime.GC()
+	return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+}
+
+// TODO(register args): Remove this once we switch to using the register
+// calling convention by default, since this is redundant with the existing
+// tests.
+var cbFuncsRegABI = []cbFunc{
+	{sum2},
+	{sum3},
+	{sum4},
+	{sum5},
+	{sum6},
+	{sum7},
+	{sum8},
+	{sum9},
+	{sum10},
+	{sum9uint8},
+	{sum9uint16},
+	{sum9int8},
+	{sum5mix},
+	{sum5andPair},
+	{sum9andGC},
+}
+
+func getCallbackTestFuncs() []cbFunc {
+	if regs := runtime.SetIntArgRegs(-1); regs > 0 {
+		return cbFuncsRegABI
+	}
+	return cbFuncs
 }
 
 type cbDLL struct {
@@ -406,7 +519,7 @@ func (d *cbDLL) makeSrc(t *testing.T, path string) {
 #include <stdint.h>
 typedef struct { uint8_t x, y; } uint8Pair_t;
 `)
-	for _, cbf := range cbFuncs {
+	for _, cbf := range getCallbackTestFuncs() {
 		cbf.cSrc(f, false)
 		cbf.cSrc(f, true)
 	}
@@ -445,18 +558,17 @@ func TestStdcallAndCDeclCallbacks(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("skipping test: gcc is missing")
 	}
-	tmp, err := os.MkdirTemp("", "TestCDeclCallback")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
+
+	oldRegs := runtime.SetIntArgRegs(abi.IntArgRegs)
+	defer runtime.SetIntArgRegs(oldRegs)
 
 	for _, dll := range cbDLLs {
 		t.Run(dll.name, func(t *testing.T) {
 			dllPath := dll.build(t, tmp)
 			dll := syscall.MustLoadDLL(dllPath)
 			defer dll.Release()
-			for _, cbf := range cbFuncs {
+			for _, cbf := range getCallbackTestFuncs() {
 				t.Run(cbf.cName(false), func(t *testing.T) {
 					stdcall := syscall.NewCallback(cbf.goFunc)
 					cbf.testOne(t, dll, false, stdcall)
@@ -516,6 +628,9 @@ func TestOutputDebugString(t *testing.T) {
 }
 
 func TestRaiseException(t *testing.T) {
+	if testenv.Builder() == "windows-amd64-2012" {
+		testenv.SkipFlaky(t, 49681)
+	}
 	o := runTestProg(t, "testprog", "RaiseException")
 	if strings.Contains(o, "RaiseException should not return") {
 		t.Fatalf("RaiseException did not crash program: %v", o)
@@ -601,14 +716,10 @@ uintptr_t cfunc(callback f, uintptr_t n) {
    return r;
 }
 `
-	tmpdir, err := os.MkdirTemp("", "TestReturnAfterStackGrowInCallback")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	srcname := "mydll.c"
-	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -651,6 +762,63 @@ uintptr_t cfunc(callback f, uintptr_t n) {
 	}
 }
 
+func TestSyscallN(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
+	}
+
+	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
+		arglen := arglen
+		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
+			t.Parallel()
+			args := make([]string, arglen)
+			rets := make([]string, arglen+1)
+			params := make([]uintptr, arglen)
+			for i := range args {
+				args[i] = fmt.Sprintf("int a%d", i)
+				rets[i] = fmt.Sprintf("(a%d == %d)", i, i)
+				params[i] = uintptr(i)
+			}
+			rets[arglen] = "1" // for arglen == 0
+
+			src := fmt.Sprintf(`
+		#include <stdint.h>
+		#include <windows.h>
+		int cfunc(%s) { return %s; }`, strings.Join(args, ", "), strings.Join(rets, " && "))
+
+			tmpdir := t.TempDir()
+
+			srcname := "mydll.c"
+			err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			outname := "mydll.dll"
+			cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+			cmd.Dir = tmpdir
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("failed to build dll: %v\n%s", err, out)
+			}
+			dllpath := filepath.Join(tmpdir, outname)
+
+			dll := syscall.MustLoadDLL(dllpath)
+			defer dll.Release()
+
+			proc := dll.MustFindProc("cfunc")
+
+			// proc.Call() will call SyscallN() internally.
+			r, _, err := proc.Call(params...)
+			if r != 1 {
+				t.Errorf("got %d want 1 (err=%v)", r, err)
+			}
+		})
+	}
+}
+
 func TestFloatArgs(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("skipping test: gcc is missing")
@@ -670,14 +838,10 @@ uintptr_t cfunc(uintptr_t a, double b, float c, double d) {
 	return 0;
 }
 `
-	tmpdir, err := os.MkdirTemp("", "TestFloatArgs")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	srcname := "mydll.c"
-	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -732,14 +896,10 @@ double cfuncDouble(uintptr_t a, double b, float c, double d) {
 	return 0;
 }
 `
-	tmpdir, err := os.MkdirTemp("", "TestFloatReturn")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	srcname := "mydll.c"
-	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -947,16 +1107,7 @@ func TestDLLPreloadMitigation(t *testing.T) {
 		t.Skip("skipping test: gcc is missing")
 	}
 
-	tmpdir, err := os.MkdirTemp("", "TestDLLPreloadMitigation")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer func() {
-		err := os.RemoveAll(tmpdir)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	tmpdir := t.TempDir()
 
 	dir0, err := os.Getwd()
 	if err != nil {
@@ -1034,11 +1185,7 @@ func TestBigStackCallbackSyscall(t *testing.T) {
 		t.Fatal("Abs failed: ", err)
 	}
 
-	tmpdir, err := os.MkdirTemp("", "TestBigStackCallback")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	outname := "mydll.dll"
 	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
@@ -1183,14 +1330,10 @@ func BenchmarkOsYield(b *testing.B) {
 }
 
 func BenchmarkRunningGoProgram(b *testing.B) {
-	tmpdir, err := os.MkdirTemp("", "BenchmarkRunningGoProgram")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := b.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err = os.WriteFile(src, []byte(benchmarkRunningGoProgram), 0666)
+	err := os.WriteFile(src, []byte(benchmarkRunningGoProgram), 0666)
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -19,4 +19,4 @@ go test github.com/clsung/go-vendor-issue-14613/vendor_test.go
 # test with imported and not used
 go test -i github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go
 ! go test github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go
-stderr 'imported and not used:'
+stderr 'imported and not used'

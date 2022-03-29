@@ -17,10 +17,9 @@ type Builder struct {
 	buf  []byte
 }
 
-// noescape hides a pointer from escape analysis.  noescape is
-// the identity function but escape analysis doesn't think the
-// output depends on the input. noescape is inlined and currently
-// compiles down to zero instructions.
+// noescape hides a pointer from escape analysis. It is the identity function
+// but escape analysis doesn't think the output depends on the input.
+// noescape is inlined and currently compiles down to zero instructions.
 // USE CAREFULLY!
 // This was copied from the runtime; see issues 23382 and 7921.
 //go:nosplit
@@ -103,7 +102,8 @@ func (b *Builder) WriteByte(c byte) error {
 // It returns the length of r and a nil error.
 func (b *Builder) WriteRune(r rune) (int, error) {
 	b.copyCheck()
-	if r < utf8.RuneSelf {
+	// Compare as uint32 to correctly handle negative runes.
+	if uint32(r) < utf8.RuneSelf {
 		b.buf = append(b.buf, byte(r))
 		return 1, nil
 	}

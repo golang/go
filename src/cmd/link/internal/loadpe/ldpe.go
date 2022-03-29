@@ -115,6 +115,24 @@ const (
 	IMAGE_REL_THUMB_BRANCH24         = 0x0014
 	IMAGE_REL_THUMB_BLX23            = 0x0015
 	IMAGE_REL_ARM_PAIR               = 0x0016
+	IMAGE_REL_ARM64_ABSOLUTE         = 0x0000
+	IMAGE_REL_ARM64_ADDR32           = 0x0001
+	IMAGE_REL_ARM64_ADDR32NB         = 0x0002
+	IMAGE_REL_ARM64_BRANCH26         = 0x0003
+	IMAGE_REL_ARM64_PAGEBASE_REL21   = 0x0004
+	IMAGE_REL_ARM64_REL21            = 0x0005
+	IMAGE_REL_ARM64_PAGEOFFSET_12A   = 0x0006
+	IMAGE_REL_ARM64_PAGEOFFSET_12L   = 0x0007
+	IMAGE_REL_ARM64_SECREL           = 0x0008
+	IMAGE_REL_ARM64_SECREL_LOW12A    = 0x0009
+	IMAGE_REL_ARM64_SECREL_HIGH12A   = 0x000A
+	IMAGE_REL_ARM64_SECREL_LOW12L    = 0x000B
+	IMAGE_REL_ARM64_TOKEN            = 0x000C
+	IMAGE_REL_ARM64_SECTION          = 0x000D
+	IMAGE_REL_ARM64_ADDR64           = 0x000E
+	IMAGE_REL_ARM64_BRANCH19         = 0x000F
+	IMAGE_REL_ARM64_BRANCH14         = 0x0010
+	IMAGE_REL_ARM64_REL32            = 0x0011
 )
 
 // TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld, ideally in debug/pe.
@@ -160,11 +178,7 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
 // If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
 // returned as rsrc.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc []loader.Sym, err error) {
-	lookup := func(name string, version int) (*loader.SymbolBuilder, loader.Sym) {
-		s := l.LookupOrCreateSym(name, version)
-		sb := l.MakeSymbolUpdater(s)
-		return sb, s
-	}
+	lookup := l.LookupOrCreateCgoExport
 	sectsyms := make(map[*pe.Section]loader.Sym)
 	sectdata := make(map[*pe.Section][]byte)
 
@@ -196,7 +210,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.Name)
-		bld, s := lookup(name, localSymVersion)
+		s := lookup(name, localSymVersion)
+		bld := l.MakeSymbolUpdater(s)
 
 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
@@ -254,7 +269,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
-			_, gosym, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
+			_, gosym, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -318,6 +333,17 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 				case IMAGE_REL_ARM_BRANCH24:
 					rType = objabi.R_CALLARM
+
+					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+				}
+
+			case sys.ARM64:
+				switch r.Type {
+				default:
+					return nil, nil, fmt.Errorf("%s: %v: unknown ARM64 relocation type %v", pn, sectsyms[rsect], r.Type)
+
+				case IMAGE_REL_ARM64_ADDR32, IMAGE_REL_ARM64_ADDR32NB:
+					rType = objabi.R_ADDR
 
 					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 				}
@@ -385,7 +411,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			}
 		}
 
-		bld, s, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
+		bld, s, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
 		if err != nil {
 			return nil, nil, err
 		}

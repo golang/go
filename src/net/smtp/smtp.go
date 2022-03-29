@@ -105,7 +105,7 @@ func (c *Client) Hello(localName string) error {
 }
 
 // cmd is a convenience function that sends a command and returns the response
-func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
+func (c *Client) cmd(expectCode int, format string, args ...any) (int, string, error) {
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
@@ -136,12 +136,8 @@ func (c *Client) ehlo() error {
 	if len(extList) > 1 {
 		extList = extList[1:]
 		for _, line := range extList {
-			args := strings.SplitN(line, " ", 2)
-			if len(args) > 1 {
-				ext[args[0]] = args[1]
-			} else {
-				ext[args[0]] = ""
-			}
+			k, v, _ := strings.Cut(line, " ")
+			ext[k] = v
 		}
 	}
 	if mechs, ok := ext["AUTH"]; ok {

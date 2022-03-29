@@ -27,7 +27,7 @@ func main() {
 	}
 	f.Close()
 
-	out := run("go", "tool", "compile", "-o", f.Name(), "-S", "a.go")
+	out := run("go", "tool", "compile", "-p=p", "-o", f.Name(), "-S", "a.go")
 	os.Remove(f.Name())
 
 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.

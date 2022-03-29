@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -21,6 +20,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -56,7 +56,7 @@ func runWithEnv(t *testing.T, msg string, env []string, args ...string) {
 // t.Fatalf if the command fails.
 func goCmd(t *testing.T, args ...string) string {
 	newargs := []string{args[0]}
-	if *testX {
+	if *testX && args[0] != "env" {
 		newargs = append(newargs, "-x")
 	}
 	newargs = append(newargs, args[1:]...)
@@ -90,7 +90,7 @@ func goCmd(t *testing.T, args ...string) string {
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
-	workDir, err := ioutil.TempDir("", "shared_test")
+	workDir, err := os.MkdirTemp("", "shared_test")
 	if err != nil {
 		return 0, err
 	}
@@ -177,7 +177,7 @@ func cloneTestdataModule(gopath string) (string, error) {
 	if err := overlayDir(modRoot, "testdata"); err != nil {
 		return "", err
 	}
-	if err := ioutil.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module testshared\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module testshared\n"), 0644); err != nil {
 		return "", err
 	}
 	return modRoot, nil
@@ -318,7 +318,7 @@ func TestShlibnameFiles(t *testing.T) {
 	}
 	for _, pkg := range pkgs {
 		shlibnamefile := filepath.Join(gorootInstallDir, pkg+".shlibname")
-		contentsb, err := ioutil.ReadFile(shlibnamefile)
+		contentsb, err := os.ReadFile(shlibnamefile)
 		if err != nil {
 			t.Errorf("error reading shlibnamefile for %s: %v", pkg, err)
 			continue
@@ -462,7 +462,9 @@ func TestTrivialExecutable(t *testing.T) {
 	run(t, "trivial executable", "../../bin/trivial")
 	AssertIsLinkedTo(t, "../../bin/trivial", soname)
 	AssertHasRPath(t, "../../bin/trivial", gorootInstallDir)
-	checkSize(t, "../../bin/trivial", 100000) // it is 19K on linux/amd64, 100K should be enough
+	// It is 19K on linux/amd64, with separate-code in binutils ld and 64k being most common alignment
+	// 4*64k should be enough, but this might need revision eventually.
+	checkSize(t, "../../bin/trivial", 256000)
 }
 
 // Build a trivial program in PIE mode that links against the shared runtime and check it runs.
@@ -471,7 +473,9 @@ func TestTrivialExecutablePIE(t *testing.T) {
 	run(t, "trivial executable", "./trivial.pie")
 	AssertIsLinkedTo(t, "./trivial.pie", soname)
 	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
-	checkSize(t, "./trivial.pie", 100000) // it is 19K on linux/amd64, 100K should be enough
+	// It is 19K on linux/amd64, with separate-code in binutils ld and 64k being most common alignment
+	// 4*64k should be enough, but this might need revision eventually.
+	checkSize(t, "./trivial.pie", 256000)
 }
 
 // Check that the file size does not exceed a limit.
@@ -695,7 +699,15 @@ func requireGccgo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s -dumpversion failed: %v\n%s", gccgoPath, err, output)
 	}
-	if string(output) < "5" {
+	dot := bytes.Index(output, []byte{'.'})
+	if dot > 0 {
+		output = output[:dot]
+	}
+	major, err := strconv.Atoi(string(output))
+	if err != nil {
+		t.Skipf("can't parse gccgo version number %s", output)
+	}
+	if major < 5 {
 		t.Skipf("gccgo too old (%s)", strings.TrimSpace(string(output)))
 	}
 
@@ -791,7 +803,7 @@ func resetFileStamps() {
 // It also sets the time of the file, so that we can see if it is rewritten.
 func touch(t *testing.T, path string) (cleanup func()) {
 	t.Helper()
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -837,14 +849,14 @@ func touch(t *testing.T, path string) (cleanup func()) {
 	// user-writable.
 	perm := fi.Mode().Perm() | 0200
 
-	if err := ioutil.WriteFile(path, data, perm); err != nil {
+	if err := os.WriteFile(path, data, perm); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, nearlyNew, nearlyNew); err != nil {
 		t.Fatal(err)
 	}
 	return func() {
-		if err := ioutil.WriteFile(path, old, perm); err != nil {
+		if err := os.WriteFile(path, old, perm); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1034,7 +1046,7 @@ func TestGlobal(t *testing.T) {
 // Run a test using -linkshared of an installed shared package.
 // Issue 26400.
 func TestTestInstalledShared(t *testing.T) {
-	goCmd(nil, "test", "-linkshared", "-test.short", "sync/atomic")
+	goCmd(t, "test", "-linkshared", "-test.short", "sync/atomic")
 }
 
 // Test generated pointer method with -linkshared.
@@ -1046,8 +1058,8 @@ func TestGeneratedMethod(t *testing.T) {
 // Test use of shared library struct with generated hash function.
 // Issue 30768.
 func TestGeneratedHash(t *testing.T) {
-	goCmd(nil, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
-	goCmd(nil, "test", "-linkshared", "./issue30768")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
+	goCmd(t, "test", "-linkshared", "./issue30768")
 }
 
 // Test that packages can be added not in dependency order (here a depends on b, and a adds
@@ -1062,4 +1074,20 @@ func TestGCData(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./gcdata/p")
 	goCmd(t, "build", "-linkshared", "./gcdata/main")
 	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
+}
+
+// Test that we don't decode type symbols from shared libraries (which has no data,
+// causing panic). See issue 44031.
+func TestIssue44031(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/a")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/b")
+	goCmd(t, "run", "-linkshared", "./issue44031/main")
+}
+
+// Test that we use a variable from shared libraries (which implement an
+// interface in shared libraries.). A weak reference is used in the itab
+// in main process. It can cause unreacheble panic. See issue 47873.
+func TestIssue47873(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
+	goCmd(t, "run", "-linkshared", "./issue47837/main")
 }

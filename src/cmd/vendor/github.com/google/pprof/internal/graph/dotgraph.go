@@ -126,7 +126,7 @@ func (b *builder) addLegend() {
 		return
 	}
 	title := labels[0]
-	fmt.Fprintf(b, `subgraph cluster_L { "%s" [shape=box fontsize=16`, title)
+	fmt.Fprintf(b, `subgraph cluster_L { "%s" [shape=box fontsize=16`, escapeForDot(title))
 	fmt.Fprintf(b, ` label="%s\l"`, strings.Join(escapeAllForDot(labels), `\l`))
 	if b.config.LegendURL != "" {
 		fmt.Fprintf(b, ` URL="%s" target="_blank"`, b.config.LegendURL)
@@ -322,8 +322,8 @@ func (b *builder) addEdge(edge *Edge, from, to int, hasNodelets bool) {
 }
 
 // dotColor returns a color for the given score (between -1.0 and
-// 1.0), with -1.0 colored red, 0.0 colored grey, and 1.0 colored
-// green. If isBackground is true, then a light (low-saturation)
+// 1.0), with -1.0 colored green, 0.0 colored grey, and 1.0 colored
+// red. If isBackground is true, then a light (low-saturation)
 // color is returned (suitable for use as a background color);
 // otherwise, a darker color is returned (suitable for use as a
 // foreground color).
@@ -485,7 +485,7 @@ func escapeAllForDot(in []string) []string {
 
 // escapeForDot escapes double quotes and backslashes, and replaces Graphviz's
 // "center" character (\n) with a left-justified character.
-// See https://graphviz.org/doc/info/attrs.html#k:escString for more info.
+// See https://graphviz.org/docs/attr-types/escString/ for more info.
 func escapeForDot(str string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(str, `\`, `\\`), `"`, `\"`), "\n", `\l`)
 }

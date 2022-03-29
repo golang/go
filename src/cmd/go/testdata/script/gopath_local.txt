@@ -22,7 +22,7 @@ stdout '^sub\.Hello'
 # Explicit source files listed on the command line should not install without
 # GOBIN set, since individual source files aren't part of the containing GOPATH.
 ! go install testdata/local/easy.go
-stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
+stderr '^go: no install location for \.go files listed on command line \(GOBIN not set\)$'
 
 [windows] stop  # Windows does not allow the ridiculous directory name we're about to use.
 
@@ -58,7 +58,7 @@ stdout '^sub\.Hello'
 # Explicit source files listed on the command line should not install without
 # GOBIN set, since individual source files aren't part of the containing GOPATH.
 ! go install testdata/$BAD_DIR_NAME/easy.go
-stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
+stderr '^go: no install location for \.go files listed on command line \(GOBIN not set\)$'
 
 -- testdata/local/easy.go --
 package main

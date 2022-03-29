@@ -155,7 +155,7 @@ import (
 // handle them. Passing cyclic structures to Marshal will result in
 // an error.
 //
-func Marshal(v interface{}) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	e := newEncodeState()
 
 	err := e.marshal(v, encOpts{escapeHTML: true})
@@ -172,7 +172,7 @@ func Marshal(v interface{}) ([]byte, error) {
 // MarshalIndent is like Marshal but applies Indent to format the output.
 // Each JSON element in the output will begin on a new line beginning with prefix
 // followed by one or more copies of indent according to the indentation nesting.
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	b, err := Marshal(v)
 	if err != nil {
 		return nil, err
@@ -294,7 +294,7 @@ type encodeState struct {
 	// startDetectingCyclesAfter, so that we skip the work if we're within a
 	// reasonable amount of nested pointers deep.
 	ptrLevel uint
-	ptrSeen  map[interface{}]struct{}
+	ptrSeen  map[any]struct{}
 }
 
 const startDetectingCyclesAfter = 1000
@@ -311,7 +311,7 @@ func newEncodeState() *encodeState {
 		e.ptrLevel = 0
 		return e
 	}
-	return &encodeState{ptrSeen: make(map[interface{}]struct{})}
+	return &encodeState{ptrSeen: make(map[any]struct{})}
 }
 
 // jsonError is an error wrapper type for internal use only.
@@ -319,7 +319,7 @@ func newEncodeState() *encodeState {
 // can distinguish intentional panics from this package.
 type jsonError struct{ error }
 
-func (e *encodeState) marshal(v interface{}, opts encOpts) (err error) {
+func (e *encodeState) marshal(v any, opts encOpts) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if je, ok := r.(jsonError); ok {
@@ -350,7 +350,7 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return v.IsNil()
 	}
 	return false
@@ -419,13 +419,13 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
 	// Marshaler with a value receiver, then we're better off taking
 	// the address of the value - otherwise we end up with an
 	// allocation as we cast the value to an interface.
-	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(marshalerType) {
+	if t.Kind() != reflect.Pointer && allowAddr && reflect.PointerTo(t).Implements(marshalerType) {
 		return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, false))
 	}
 	if t.Implements(marshalerType) {
 		return marshalerEncoder
 	}
-	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(textMarshalerType) {
+	if t.Kind() != reflect.Pointer && allowAddr && reflect.PointerTo(t).Implements(textMarshalerType) {
 		return newCondAddrEncoder(addrTextMarshalerEncoder, newTypeEncoder(t, false))
 	}
 	if t.Implements(textMarshalerType) {
@@ -455,7 +455,7 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
 		return newSliceEncoder(t)
 	case reflect.Array:
 		return newArrayEncoder(t)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return newPtrEncoder(t)
 	default:
 		return unsupportedTypeEncoder
@@ -467,7 +467,7 @@ func invalidValueEncoder(e *encodeState, v reflect.Value, _ encOpts) {
 }
 
 func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	if v.Kind() == reflect.Ptr && v.IsNil() {
+	if v.Kind() == reflect.Pointer && v.IsNil() {
 		e.WriteString("null")
 		return
 	}
@@ -504,7 +504,7 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	if v.Kind() == reflect.Ptr && v.IsNil() {
+	if v.Kind() == reflect.Pointer && v.IsNil() {
 		e.WriteString("null")
 		return
 	}
@@ -738,7 +738,7 @@ FieldLoop:
 		// Find the nested struct field by following f.index.
 		fv := v
 		for _, i := range f.index {
-			if fv.Kind() == reflect.Ptr {
+			if fv.Kind() == reflect.Pointer {
 				if fv.IsNil() {
 					continue FieldLoop
 				}
@@ -784,7 +784,7 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
 		// We're a large number of nested ptrEncoder.encode calls deep;
 		// start checking if we've run into a pointer cycle.
-		ptr := v.Pointer()
+		ptr := v.UnsafePointer()
 		if _, ok := e.ptrSeen[ptr]; ok {
 			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type())})
 		}
@@ -794,23 +794,24 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	e.WriteByte('{')
 
 	// Extract and sort the keys.
-	keys := v.MapKeys()
-	sv := make([]reflectWithString, len(keys))
-	for i, v := range keys {
-		sv[i].v = v
+	sv := make([]reflectWithString, v.Len())
+	mi := v.MapRange()
+	for i := 0; mi.Next(); i++ {
+		sv[i].k = mi.Key()
+		sv[i].v = mi.Value()
 		if err := sv[i].resolve(); err != nil {
 			e.error(fmt.Errorf("json: encoding error for type %q: %q", v.Type().String(), err.Error()))
 		}
 	}
-	sort.Slice(sv, func(i, j int) bool { return sv[i].s < sv[j].s })
+	sort.Slice(sv, func(i, j int) bool { return sv[i].ks < sv[j].ks })
 
 	for i, kv := range sv {
 		if i > 0 {
 			e.WriteByte(',')
 		}
-		e.string(kv.s, opts.escapeHTML)
+		e.string(kv.ks, opts.escapeHTML)
 		e.WriteByte(':')
-		me.elemEnc(e, v.MapIndex(kv.v), opts)
+		me.elemEnc(e, kv.v, opts)
 	}
 	e.WriteByte('}')
 	e.ptrLevel--
@@ -876,9 +877,9 @@ func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		// Here we use a struct to memorize the pointer to the first element of the slice
 		// and its length.
 		ptr := struct {
-			ptr uintptr
+			ptr interface{} // always an unsafe.Pointer, but avoids a dependency on package unsafe
 			len int
-		}{v.Pointer(), v.Len()}
+		}{v.UnsafePointer(), v.Len()}
 		if _, ok := e.ptrSeen[ptr]; ok {
 			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type())})
 		}
@@ -892,7 +893,7 @@ func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 func newSliceEncoder(t reflect.Type) encoderFunc {
 	// Byte slices get special treatment; arrays don't.
 	if t.Elem().Kind() == reflect.Uint8 {
-		p := reflect.PtrTo(t.Elem())
+		p := reflect.PointerTo(t.Elem())
 		if !p.Implements(marshalerType) && !p.Implements(textMarshalerType) {
 			return encodeByteSlice
 		}
@@ -988,7 +989,7 @@ func isValidTag(s string) bool {
 
 func typeByIndex(t reflect.Type, index []int) reflect.Type {
 	for _, i := range index {
-		if t.Kind() == reflect.Ptr {
+		if t.Kind() == reflect.Pointer {
 			t = t.Elem()
 		}
 		t = t.Field(i).Type
@@ -997,29 +998,30 @@ func typeByIndex(t reflect.Type, index []int) reflect.Type {
 }
 
 type reflectWithString struct {
-	v reflect.Value
-	s string
+	k  reflect.Value
+	v  reflect.Value
+	ks string
 }
 
 func (w *reflectWithString) resolve() error {
-	if w.v.Kind() == reflect.String {
-		w.s = w.v.String()
+	if w.k.Kind() == reflect.String {
+		w.ks = w.k.String()
 		return nil
 	}
-	if tm, ok := w.v.Interface().(encoding.TextMarshaler); ok {
-		if w.v.Kind() == reflect.Ptr && w.v.IsNil() {
+	if tm, ok := w.k.Interface().(encoding.TextMarshaler); ok {
+		if w.k.Kind() == reflect.Pointer && w.k.IsNil() {
 			return nil
 		}
 		buf, err := tm.MarshalText()
-		w.s = string(buf)
+		w.ks = string(buf)
 		return err
 	}
-	switch w.v.Kind() {
+	switch w.k.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		w.s = strconv.FormatInt(w.v.Int(), 10)
+		w.ks = strconv.FormatInt(w.k.Int(), 10)
 		return nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		w.s = strconv.FormatUint(w.v.Uint(), 10)
+		w.ks = strconv.FormatUint(w.k.Uint(), 10)
 		return nil
 	}
 	panic("unexpected map key type")
@@ -1239,19 +1241,18 @@ func typeFields(t reflect.Type) structFields {
 			// Scan f.typ for fields to include.
 			for i := 0; i < f.typ.NumField(); i++ {
 				sf := f.typ.Field(i)
-				isUnexported := sf.PkgPath != ""
 				if sf.Anonymous {
 					t := sf.Type
-					if t.Kind() == reflect.Ptr {
+					if t.Kind() == reflect.Pointer {
 						t = t.Elem()
 					}
-					if isUnexported && t.Kind() != reflect.Struct {
+					if !sf.IsExported() && t.Kind() != reflect.Struct {
 						// Ignore embedded fields of unexported non-struct types.
 						continue
 					}
 					// Do not ignore embedded fields of unexported struct types
 					// since they may have exported fields.
-				} else if isUnexported {
+				} else if !sf.IsExported() {
 					// Ignore unexported non-embedded fields.
 					continue
 				}
@@ -1268,7 +1269,7 @@ func typeFields(t reflect.Type) structFields {
 				index[len(f.index)] = i
 
 				ft := sf.Type
-				if ft.Name() == "" && ft.Kind() == reflect.Ptr {
+				if ft.Name() == "" && ft.Kind() == reflect.Pointer {
 					// Follow pointer.
 					ft = ft.Elem()
 				}

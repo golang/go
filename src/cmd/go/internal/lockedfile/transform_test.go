@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // js does not support inter-process file locking.
-// +build !js
+//go:build !js
 
 package lockedfile_test
 

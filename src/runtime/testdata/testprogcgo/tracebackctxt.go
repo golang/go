@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The __attribute__((weak)) used below doesn't seem to work on Windows.
-
 package main
 
 // Test the context argument to SetCgoTraceback.
@@ -14,20 +12,24 @@ package main
 extern void C1(void);
 extern void C2(void);
 extern void tcContext(void*);
+extern void tcContextSimple(void*);
 extern void tcTraceback(void*);
 extern void tcSymbolizer(void*);
 extern int getContextCount(void);
+extern void TracebackContextPreemptionCallGo(int);
 */
 import "C"
 
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"unsafe"
 )
 
 func init() {
 	register("TracebackContext", TracebackContext)
+	register("TracebackContextPreemption", TracebackContextPreemption)
 }
 
 var tracebackOK bool
@@ -104,4 +106,31 @@ wantLoop:
 		fmt.Printf("at bottom contextCount == %d, expected 2\n", got)
 		tracebackOK = false
 	}
+}
+
+// Issue 47441.
+func TracebackContextPreemption() {
+	runtime.SetCgoTraceback(0, unsafe.Pointer(C.tcTraceback), unsafe.Pointer(C.tcContextSimple), unsafe.Pointer(C.tcSymbolizer))
+
+	const funcs = 10
+	const calls = 1e5
+	var wg sync.WaitGroup
+	for i := 0; i < funcs; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < calls; j++ {
+				C.TracebackContextPreemptionCallGo(C.int(i*calls + j))
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	fmt.Println("OK")
+}
+
+//export TracebackContextPreemptionGoFunction
+func TracebackContextPreemptionGoFunction(i C.int) {
+	// Do some busy work.
+	fmt.Sprintf("%d\n", i)
 }

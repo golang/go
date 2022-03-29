@@ -4,8 +4,8 @@
 
 #include "textflag.h"
 
-// func Hypot(p, q float64) float64
-TEXT ·Hypot(SB),NOSPLIT,$0
+// func archHypot(p, q float64) float64
+TEXT ·archHypot(SB),NOSPLIT,$0
 // test bits for not-finite
 	MOVL    p_hi+4(FP), AX   // high word p
 	ANDL    $0x7ff00000, AX

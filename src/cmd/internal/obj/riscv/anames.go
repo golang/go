@@ -236,6 +236,8 @@ var Anames = []string{
 	"BLEZ",
 	"BLTZ",
 	"BNEZ",
+	"FABSD",
+	"FABSS",
 	"FNEGD",
 	"FNEGS",
 	"FNED",

@@ -58,7 +58,7 @@ import (
 // in this package. This is used, for example, when a user selects a cursor
 // such as "select cursor(select * from my_table) from dual". If the Rows
 // from the select is closed, the cursor Rows will also be closed.
-type Value interface{}
+type Value any
 
 // NamedValue holds both the value name and value.
 type NamedValue struct {
@@ -115,6 +115,9 @@ type DriverContext interface {
 // DriverContext's OpenConnector method, to allow drivers
 // access to context and to avoid repeated parsing of driver
 // configuration.
+//
+// If a Connector implements io.Closer, the sql package's DB.Close
+// method will call Close and return error (if any).
 type Connector interface {
 	// Connect returns a connection to the database.
 	// Connect may return a cached connection (one previously
@@ -153,6 +156,9 @@ var ErrSkip = errors.New("driver: skip fast-path; continue as if unimplemented")
 // if there's a possibility that the database server might have
 // performed the operation. Even if the server sends back an error,
 // you shouldn't return ErrBadConn.
+//
+// Errors will be checked using errors.Is. An error may
+// wrap ErrBadConn or implement the Is(error) bool method.
 var ErrBadConn = errors.New("driver: bad connection")
 
 // Pinger is an optional interface that may be implemented by a Conn.

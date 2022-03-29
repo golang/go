@@ -8,6 +8,7 @@ package cookiejar
 
 import (
 	"fmt"
+	"net/http/internal/ascii"
 	"strings"
 	"unicode/utf8"
 )
@@ -133,12 +134,12 @@ const acePrefix = "xn--"
 // toASCII("bücher.example.com") is "xn--bcher-kva.example.com", and
 // toASCII("golang") is "golang".
 func toASCII(s string) (string, error) {
-	if ascii(s) {
+	if ascii.Is(s) {
 		return s, nil
 	}
 	labels := strings.Split(s, ".")
 	for i, label := range labels {
-		if !ascii(label) {
+		if !ascii.Is(label) {
 			a, err := encode(acePrefix, label)
 			if err != nil {
 				return "", err
@@ -147,13 +148,4 @@ func toASCII(s string) (string, error) {
 		}
 	}
 	return strings.Join(labels, "."), nil
-}
-
-func ascii(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] >= utf8.RuneSelf {
-			return false
-		}
-	}
-	return true
 }

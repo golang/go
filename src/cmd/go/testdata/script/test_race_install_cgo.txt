@@ -2,8 +2,6 @@
 
 [!race] skip
 
-[!darwin] ! stale cmd/cgo  # The darwin builders are spuriously stale; see #33598.
-
 env GOBIN=$WORK/bin
 go install m/mtime m/sametime
 

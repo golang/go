@@ -266,7 +266,7 @@ func (l *dlogger) hex(x uint64) *dlogger {
 }
 
 //go:nosplit
-func (l *dlogger) p(x interface{}) *dlogger {
+func (l *dlogger) p(x any) *dlogger {
 	if !dlogEnabled {
 		return l
 	}
@@ -802,7 +802,7 @@ func printDebugLog() {
 // pc is a return PC that must first be converted to a call PC.
 func printDebugLogPC(pc uintptr, returnPC bool) {
 	fn := findfunc(pc)
-	if returnPC && (!fn.valid() || pc > fn.entry) {
+	if returnPC && (!fn.valid() || pc > fn.entry()) {
 		// TODO(austin): Don't back up if the previous frame
 		// was a sigpanic.
 		pc--
@@ -814,7 +814,7 @@ func printDebugLogPC(pc uintptr, returnPC bool) {
 	} else {
 		name := funcname(fn)
 		file, line := funcline(fn, pc)
-		print(" [", name, "+", hex(pc-fn.entry),
+		print(" [", name, "+", hex(pc-fn.entry()),
 			" ", file, ":", line, "]")
 	}
 }

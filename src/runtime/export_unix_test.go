@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package runtime
 
 import "unsafe"
 
 var NonblockingPipe = nonblockingPipe
-var SetNonblock = setNonblock
 var Closeonexec = closeonexec
 
 func sigismember(mask *sigset, i int) bool {

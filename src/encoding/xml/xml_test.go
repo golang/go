@@ -33,30 +33,90 @@ func (t *toks) Token() (Token, error) {
 
 func TestDecodeEOF(t *testing.T) {
 	start := StartElement{Name: Name{Local: "test"}}
-	t.Run("EarlyEOF", func(t *testing.T) {
-		d := NewTokenDecoder(&toks{earlyEOF: true, t: []Token{
-			start,
-			start.End(),
-		}})
-		err := d.Decode(&struct {
-			XMLName Name `xml:"test"`
-		}{})
-		if err != nil {
-			t.Error(err)
+	tests := []struct {
+		name   string
+		tokens []Token
+		ok     bool
+	}{
+		{
+			name: "OK",
+			tokens: []Token{
+				start,
+				start.End(),
+			},
+			ok: true,
+		},
+		{
+			name: "Malformed",
+			tokens: []Token{
+				start,
+				StartElement{Name: Name{Local: "bad"}},
+				start.End(),
+			},
+			ok: false,
+		},
+	}
+	for _, tc := range tests {
+		for _, eof := range []bool{true, false} {
+			name := fmt.Sprintf("%s/earlyEOF=%v", tc.name, eof)
+			t.Run(name, func(t *testing.T) {
+				d := NewTokenDecoder(&toks{
+					earlyEOF: eof,
+					t:        tc.tokens,
+				})
+				err := d.Decode(&struct {
+					XMLName Name `xml:"test"`
+				}{})
+				if tc.ok && err != nil {
+					t.Fatalf("d.Decode: expected nil error, got %v", err)
+				}
+				if _, ok := err.(*SyntaxError); !tc.ok && !ok {
+					t.Errorf("d.Decode: expected syntax error, got %v", err)
+				}
+			})
 		}
-	})
-	t.Run("LateEOF", func(t *testing.T) {
-		d := NewTokenDecoder(&toks{t: []Token{
-			start,
-			start.End(),
-		}})
-		err := d.Decode(&struct {
-			XMLName Name `xml:"test"`
-		}{})
-		if err != nil {
-			t.Error(err)
+	}
+}
+
+type toksNil struct {
+	returnEOF bool
+	t         []Token
+}
+
+func (t *toksNil) Token() (Token, error) {
+	if len(t.t) == 0 {
+		if !t.returnEOF {
+			// Return nil, nil before returning an EOF. It's legal, but
+			// discouraged.
+			t.returnEOF = true
+			return nil, nil
 		}
-	})
+		return nil, io.EOF
+	}
+	var tok Token
+	tok, t.t = t.t[0], t.t[1:]
+	return tok, nil
+}
+
+func TestDecodeNilToken(t *testing.T) {
+	for _, strict := range []bool{true, false} {
+		name := fmt.Sprintf("Strict=%v", strict)
+		t.Run(name, func(t *testing.T) {
+			start := StartElement{Name: Name{Local: "test"}}
+			bad := StartElement{Name: Name{Local: "bad"}}
+			d := NewTokenDecoder(&toksNil{
+				// Malformed
+				t: []Token{start, bad, start.End()},
+			})
+			d.Strict = strict
+			err := d.Decode(&struct {
+				XMLName Name `xml:"test"`
+			}{})
+			if _, ok := err.(*SyntaxError); !ok {
+				t.Errorf("d.Decode: expected syntax error, got %v", err)
+			}
+		})
+	}
 }
 
 const testInput = `
@@ -442,6 +502,45 @@ func TestSyntax(t *testing.T) {
 	}
 }
 
+func TestInputLinePos(t *testing.T) {
+	testInput := `<root>
+<?pi
+ ?>  <elt
+att
+=
+"val">
+<![CDATA[
+]]><!--
+
+--></elt>
+</root>`
+	linePos := [][]int{
+		{1, 7},
+		{2, 1},
+		{3, 4},
+		{3, 6},
+		{6, 7},
+		{7, 1},
+		{8, 4},
+		{10, 4},
+		{10, 10},
+		{11, 1},
+		{11, 8},
+	}
+	dec := NewDecoder(strings.NewReader(testInput))
+	for _, want := range linePos {
+		if _, err := dec.Token(); err != nil {
+			t.Errorf("Unexpected error: %v", err)
+			continue
+		}
+
+		gotLine, gotCol := dec.InputPos()
+		if gotLine != want[0] || gotCol != want[1] {
+			t.Errorf("dec.InputPos() = %d,%d, want %d,%d", gotLine, gotCol, want[0], want[1])
+		}
+	}
+}
+
 type allScalars struct {
 	True1     bool
 	True2     bool
@@ -613,6 +712,19 @@ func TestCopyTokenStartElement(t *testing.T) {
 	}
 }
 
+func TestCopyTokenComment(t *testing.T) {
+	data := []byte("<!-- some comment -->")
+	var tok1 Token = Comment(data)
+	tok2 := CopyToken(tok1)
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Comment) != Comment")
+	}
+	data[1] = 'o'
+	if reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Comment) uses same buffer.")
+	}
+}
+
 func TestSyntaxErrorLineNum(t *testing.T) {
 	testInput := "<P>Foo<P>\n\n<P>Bar</>\n"
 	d := NewDecoder(strings.NewReader(testInput))
@@ -742,11 +854,11 @@ var directivesWithCommentsInput = `
 
 var directivesWithCommentsTokens = []Token{
 	CharData("\n"),
-	Directive(`DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
+	Directive(`DOCTYPE [ <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
 	CharData("\n"),
-	Directive(`DOCTYPE [<!ENTITY go "Golang">]`),
+	Directive(`DOCTYPE [<!ENTITY go "Golang"> ]`),
 	CharData("\n"),
-	Directive(`DOCTYPE <!-> <!>    [<!ENTITY go "Golang">]`),
+	Directive(`DOCTYPE <!-> <!>       [<!ENTITY go "Golang"> ]`),
 	CharData("\n"),
 }
 
@@ -880,7 +992,7 @@ func (m mapper) Token() (Token, error) {
 }
 
 func TestNewTokenDecoderIdempotent(t *testing.T) {
-	d := NewDecoder(strings.NewReader(`<br/>`))
+	d := NewDecoder(strings.NewReader(`<br>`))
 	d2 := NewTokenDecoder(d)
 	if d != d2 {
 		t.Error("NewTokenDecoder did not detect underlying Decoder")
@@ -942,4 +1054,213 @@ func TestTokenUnmarshaler(t *testing.T) {
 
 	d := NewTokenDecoder(tokReader{})
 	d.Decode(&Failure{})
+}
+
+func testRoundTrip(t *testing.T, input string) {
+	d := NewDecoder(strings.NewReader(input))
+	var tokens []Token
+	var buf bytes.Buffer
+	e := NewEncoder(&buf)
+	for {
+		tok, err := d.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("invalid input: %v", err)
+		}
+		if err := e.EncodeToken(tok); err != nil {
+			t.Fatalf("failed to re-encode input: %v", err)
+		}
+		tokens = append(tokens, CopyToken(tok))
+	}
+	if err := e.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	d = NewDecoder(&buf)
+	for {
+		tok, err := d.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("failed to decode output: %v", err)
+		}
+		if len(tokens) == 0 {
+			t.Fatalf("unexpected token: %#v", tok)
+		}
+		a, b := tokens[0], tok
+		if !reflect.DeepEqual(a, b) {
+			t.Fatalf("token mismatch: %#v vs %#v", a, b)
+		}
+		tokens = tokens[1:]
+	}
+	if len(tokens) > 0 {
+		t.Fatalf("lost tokens: %#v", tokens)
+	}
+}
+
+func TestRoundTrip(t *testing.T) {
+	tests := map[string]string{
+		"leading colon":          `<::Test ::foo="bar"><:::Hello></:::Hello><Hello></Hello></::Test>`,
+		"trailing colon":         `<foo abc:="x"></foo>`,
+		"double colon":           `<x:y:foo></x:y:foo>`,
+		"comments in directives": `<!ENTITY x<!<!-- c1 [ " -->--x --> > <e></e> <!DOCTYPE xxx [ x<!-- c2 " -->--x ]>`,
+	}
+	for name, input := range tests {
+		t.Run(name, func(t *testing.T) { testRoundTrip(t, input) })
+	}
+}
+
+func TestParseErrors(t *testing.T) {
+	withDefaultHeader := func(s string) string {
+		return `<?xml version="1.0" encoding="UTF-8"?>` + s
+	}
+	tests := []struct {
+		src string
+		err string
+	}{
+		{withDefaultHeader(`</foo>`), `unexpected end element </foo>`},
+		{withDefaultHeader(`<x:foo></y:foo>`), `element <foo> in space x closed by </foo> in space y`},
+		{withDefaultHeader(`<? not ok ?>`), `expected target name after <?`},
+		{withDefaultHeader(`<!- not ok -->`), `invalid sequence <!- not part of <!--`},
+		{withDefaultHeader(`<!-? not ok -->`), `invalid sequence <!- not part of <!--`},
+		{withDefaultHeader(`<![not ok]>`), `invalid <![ sequence`},
+		{withDefaultHeader("\xf1"), `invalid UTF-8`},
+
+		// Header-related errors.
+		{`<?xml version="1.1" encoding="UTF-8"?>`, `unsupported version "1.1"; only version 1.0 is supported`},
+
+		// Cases below are for "no errors".
+		{withDefaultHeader(`<?ok?>`), ``},
+		{withDefaultHeader(`<?ok version="ok"?>`), ``},
+	}
+
+	for _, test := range tests {
+		d := NewDecoder(strings.NewReader(test.src))
+		var err error
+		for {
+			_, err = d.Token()
+			if err != nil {
+				break
+			}
+		}
+		if test.err == "" {
+			if err != io.EOF {
+				t.Errorf("parse %s: have %q error, expected none", test.src, err)
+			}
+			continue
+		}
+		if err == nil || err == io.EOF {
+			t.Errorf("parse %s: have no error, expected a non-nil error", test.src)
+			continue
+		}
+		if !strings.Contains(err.Error(), test.err) {
+			t.Errorf("parse %s: can't find %q error sudbstring\nerror: %q", test.src, test.err, err)
+			continue
+		}
+	}
+}
+
+const testInputHTMLAutoClose = `<?xml version="1.0" encoding="UTF-8"?>
+<br>
+<br/><br/>
+<br><br>
+<br></br>
+<BR>
+<BR/><BR/>
+<Br></Br>
+<BR><span id="test">abc</span><br/><br/>`
+
+func BenchmarkHTMLAutoClose(b *testing.B) {
+	b.RunParallel(func(p *testing.PB) {
+		for p.Next() {
+			d := NewDecoder(strings.NewReader(testInputHTMLAutoClose))
+			d.Strict = false
+			d.AutoClose = HTMLAutoClose
+			d.Entity = HTMLEntity
+			for {
+				_, err := d.Token()
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					b.Fatalf("unexpected error: %v", err)
+				}
+			}
+		}
+	})
+}
+
+func TestHTMLAutoClose(t *testing.T) {
+	wantTokens := []Token{
+		ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		CharData("\n"),
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		CharData("\n"),
+		StartElement{Name{"", "Br"}, []Attr{}},
+		EndElement{Name{"", "Br"}},
+		CharData("\n"),
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		StartElement{Name{"", "span"}, []Attr{{Name: Name{"", "id"}, Value: "test"}}},
+		CharData("abc"),
+		EndElement{Name{"", "span"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+	}
+
+	d := NewDecoder(strings.NewReader(testInputHTMLAutoClose))
+	d.Strict = false
+	d.AutoClose = HTMLAutoClose
+	d.Entity = HTMLEntity
+	var haveTokens []Token
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatalf("unexpected error: %v", err)
+		}
+		haveTokens = append(haveTokens, CopyToken(tok))
+	}
+	if len(haveTokens) != len(wantTokens) {
+		t.Errorf("tokens count mismatch: have %d, want %d", len(haveTokens), len(wantTokens))
+	}
+	for i, want := range wantTokens {
+		if i >= len(haveTokens) {
+			t.Errorf("token[%d] expected %#v, have no token", i, want)
+		} else {
+			have := haveTokens[i]
+			if !reflect.DeepEqual(have, want) {
+				t.Errorf("token[%d] mismatch:\nhave: %#v\nwant: %#v", i, have, want)
+			}
+		}
+	}
 }

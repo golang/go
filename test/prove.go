@@ -629,6 +629,22 @@ func trans3(a, b []int, i int) {
 	_ = b[i] // ERROR "Proved IsInBounds$"
 }
 
+func trans4(b []byte, x int) {
+	// Issue #42603: slice len/cap transitive relations.
+	switch x {
+	case 0:
+		if len(b) < 20 {
+			return
+		}
+		_ = b[:2] // ERROR "Proved IsSliceInBounds$"
+	case 1:
+		if len(b) < 40 {
+			return
+		}
+		_ = b[:2] // ERROR "Proved IsSliceInBounds$"
+	}
+}
+
 // Derived from nat.cmp
 func natcmp(x, y []uint) (r int) {
 	m := len(x)
@@ -997,7 +1013,7 @@ func sh64noopt(n int64) int64 {
 // opt, an earlier pass, has already replaced it.
 // The fix for this issue allows prove to zero a right shift that was added as
 // part of the less-than-optimal reqwrite. That change by prove then allows
-// lateopt to clean up all the unneccesary parts of the original division
+// lateopt to clean up all the unnecessary parts of the original division
 // replacement. See issue #36159.
 func divShiftClean(n int) int {
 	if n < 0 {

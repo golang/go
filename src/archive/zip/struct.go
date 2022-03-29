@@ -42,7 +42,7 @@ const (
 	directoryHeaderLen       = 46         // + filename + extra + comment
 	directoryEndLen          = 22         // + comment
 	dataDescriptorLen        = 16         // four uint32: descriptor signature, crc32, compressed size, size
-	dataDescriptor64Len      = 24         // descriptor with 8 byte sizes
+	dataDescriptor64Len      = 24         // two uint32: signature, crc32 | two uint64: compressed size, size
 	directory64LocLen        = 20         //
 	directory64EndLen        = 56         // + extra
 
@@ -163,7 +163,7 @@ func (fi headerFileInfo) ModTime() time.Time {
 }
 func (fi headerFileInfo) Mode() fs.FileMode { return fi.fh.Mode() }
 func (fi headerFileInfo) Type() fs.FileMode { return fi.fh.Mode().Type() }
-func (fi headerFileInfo) Sys() interface{}  { return fi.fh }
+func (fi headerFileInfo) Sys() any          { return fi.fh }
 
 func (fi headerFileInfo) Info() (fs.FileInfo, error) { return fi, nil }
 
@@ -315,6 +315,10 @@ func (h *FileHeader) isZip64() bool {
 	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
 }
 
+func (f *FileHeader) hasDataDescriptor() bool {
+	return f.Flags&0x8 != 0
+}
+
 func msdosModeToFileMode(m uint32) (mode fs.FileMode) {
 	if m&msdosDir != 0 {
 		mode = fs.ModeDir | 0777
@@ -341,11 +345,9 @@ func fileModeToUnixMode(mode fs.FileMode) uint32 {
 	case fs.ModeSocket:
 		m = s_IFSOCK
 	case fs.ModeDevice:
-		if mode&fs.ModeCharDevice != 0 {
-			m = s_IFCHR
-		} else {
-			m = s_IFBLK
-		}
+		m = s_IFBLK
+	case fs.ModeDevice | fs.ModeCharDevice:
+		m = s_IFCHR
 	}
 	if mode&fs.ModeSetuid != 0 {
 		m |= s_ISUID

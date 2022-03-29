@@ -44,7 +44,7 @@ func valueToStringImpl(val reflect.Value) string {
 		} else {
 			return "false"
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		v := val
 		str = typ.String() + "("
 		if v.IsNil() {

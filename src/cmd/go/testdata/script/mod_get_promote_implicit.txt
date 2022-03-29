@@ -6,18 +6,22 @@ cp go.mod.orig go.mod
 go list -m indirect-with-pkg
 stdout '^indirect-with-pkg v1.0.0 => ./indirect-with-pkg$'
 ! go list ./use-indirect
-stderr '^go: m/use-indirect: package indirect-with-pkg imported from implicitly required module; try ''go get -d m/use-indirect'' to add missing requirements$'
+stderr '^package m/use-indirect imports indirect-with-pkg from implicitly required module; to add missing requirements, run:\n\tgo get indirect-with-pkg@v1.0.0$'
 
-# We can promote the implicit requirement by getting the importing package,
-# as hinted.
-go get -d m/use-indirect
+# We can promote the implicit requirement by getting the importing package.
+# NOTE: the hint recommends getting the imported package (tested below) since
+# it's more obvious and doesn't require -d. However, that adds an '// indirect'
+# comment on the requirement.
+go get m/use-indirect
 cmp go.mod go.mod.use
 cp go.mod.orig go.mod
 
 # We can also promote implicit requirements using 'go get' on them, or their
 # packages. This gives us "// indirect" requirements, since 'go get' doesn't
 # know they're needed by the main module. See #43131 for the rationale.
-go get -d indirect-with-pkg indirect-without-pkg
+# The hint above recommends this because it's more obvious usage and doesn't
+# require the -d flag.
+go get indirect-with-pkg indirect-without-pkg
 cmp go.mod go.mod.indirect
 
 -- go.mod.orig --

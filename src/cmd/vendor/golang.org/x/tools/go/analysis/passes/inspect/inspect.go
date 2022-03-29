@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package inspect defines an Analyzer that provides an AST inspector
-// (golang.org/x/tools/go/ast/inspect.Inspect) for the syntax trees of a
-// package. It is only a building block for other analyzers.
+// (golang.org/x/tools/go/ast/inspector.Inspector) for the syntax trees
+// of a package. It is only a building block for other analyzers.
 //
 // Example of use in another analysis:
 //

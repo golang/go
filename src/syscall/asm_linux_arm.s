@@ -154,6 +154,27 @@ ok1:
 	MOVW	R0, err+24(FP)
 	RET
 
+// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
+	MOVW	trap+0(FP), R7	// syscall entry
+	MOVW	a1+4(FP), R0
+	MOVW	$0, R1
+	MOVW	$0, R2
+	SWI	$0
+	MOVW	$0xfffff001, R1
+	CMP	R1, R0
+	BLS	ok
+	MOVW	$-1, R1
+	MOVW	R1, r1+8(FP)
+	RSB	$0, R0, R0
+	MOVW	R0, err+12(FP)
+	RET
+ok:
+	MOVW	R0, r1+8(FP)
+	MOVW	$0, R0
+	MOVW	R0, err+12(FP)
+	RET
+
 // func rawSyscallNoError(trap uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr);
 TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-24
 	MOVW	trap+0(FP), R7	// syscall entry

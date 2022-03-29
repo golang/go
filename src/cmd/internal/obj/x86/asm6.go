@@ -36,13 +36,13 @@ import (
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"strings"
 )
 
 var (
 	plan9privates *obj.LSym
-	deferreturn   *obj.LSym
 )
 
 // Instruction layout.
@@ -1735,9 +1735,9 @@ var optab =
 	{ASTRL, yincq, Px, opBytes{0x0f, 0x00, 01}},
 	{ASTRQ, yincq, Pw, opBytes{0x0f, 0x00, 01}},
 	{AXSETBV, ynone, Pm, opBytes{0x01, 0xd1, 0}},
-	{AMOVBEWW, ymovbe, Pq, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
-	{AMOVBELL, ymovbe, Pm, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
-	{AMOVBEQQ, ymovbe, Pw, opBytes{0x0f, 0x38, 0xf0, 0, 0x0f, 0x38, 0xf1, 0}},
+	{AMOVBEW, ymovbe, Pq, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+	{AMOVBEL, ymovbe, Pm, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+	{AMOVBEQ, ymovbe, Pw, opBytes{0x0f, 0x38, 0xf0, 0, 0x0f, 0x38, 0xf1, 0}},
 	{ANOPW, ydivl, Pe, opBytes{0x0f, 0x1f, 00}},
 	{ANOPL, ydivl, Px, opBytes{0x0f, 0x1f, 00}},
 	{ASLDTW, yincq, Pe, opBytes{0x0f, 0x00, 00}},
@@ -1887,7 +1887,7 @@ func lookForJCC(p *obj.Prog) *obj.Prog {
 func fusedJump(p *obj.Prog) (bool, uint8) {
 	var fusedSize uint8
 
-	// The first instruction in a macro fused pair may be preceeded by the LOCK prefix,
+	// The first instruction in a macro fused pair may be preceded by the LOCK prefix,
 	// or possibly an XACQUIRE/XRELEASE prefix followed by a LOCK prefix. If it is, we
 	// need to be careful to insert any padding before the locks rather than directly after them.
 
@@ -2035,6 +2035,11 @@ type nopPad struct {
 }
 
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline && ctxt.Arch.Family == sys.I386 {
+		ctxt.Diag("-spectre=ret not supported on 386")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	pjc := makePjcCtx(ctxt)
 
 	if s.P != nil {
@@ -2169,7 +2174,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		n++
-		if n > 20 {
+		if n > 1000 {
 			ctxt.Diag("span must be looping")
 			log.Fatalf("loop")
 		}
@@ -2460,7 +2465,7 @@ func instinit(ctxt *obj.Link) {
 	}
 }
 
-var isAndroid = objabi.GOOS == "android"
+var isAndroid = buildcfg.GOOS == "android"
 
 func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
@@ -5306,7 +5311,7 @@ bad:
 		}
 	}
 
-	ctxt.Diag("invalid instruction: %v", p)
+	ctxt.Diag("%s: invalid instruction: %v", cursym.Name, p)
 }
 
 // byteswapreg returns a byte-addressable register (AX, BX, CX, DX)

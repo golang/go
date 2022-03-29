@@ -204,12 +204,17 @@ func runCmd(args ...string) ([]byte, error) {
 	return removeUTF8BOM(out), nil
 }
 
-func netshSpeaksEnglish(t *testing.T) bool {
+func checkNetsh(t *testing.T) {
 	out, err := runCmd("netsh", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return bytes.Contains(out, []byte("The following commands are available:"))
+	if bytes.Contains(out, []byte("The following helper DLL cannot be loaded")) {
+		t.Skipf("powershell failure:\n%s", err)
+	}
+	if !bytes.Contains(out, []byte("The following commands are available:")) {
+		t.Skipf("powershell does not speak English:\n%s", out)
+	}
 }
 
 func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
@@ -256,9 +261,7 @@ func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
 }
 
 func TestInterfacesWithNetsh(t *testing.T) {
-	if !netshSpeaksEnglish(t) {
-		t.Skip("English version of netsh required for this test")
-	}
+	checkNetsh(t)
 
 	toString := func(name string, isup bool) string {
 		if isup {
@@ -427,9 +430,7 @@ func netshInterfaceIPv6ShowAddress(name string, netshOutput []byte) []string {
 }
 
 func TestInterfaceAddrsWithNetsh(t *testing.T) {
-	if !netshSpeaksEnglish(t) {
-		t.Skip("English version of netsh required for this test")
-	}
+	checkNetsh(t)
 
 	outIPV4, err := runCmd("netsh", "interface", "ipv4", "show", "address")
 	if err != nil {

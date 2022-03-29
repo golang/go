@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build dragonfly freebsd linux
+//go:build dragonfly || freebsd || linux
 
 package runtime
 
@@ -238,7 +238,7 @@ func notetsleepg(n *note, ns int64) bool {
 	return ok
 }
 
-func beforeIdle(int64) (*g, bool) {
+func beforeIdle(int64, int64) (*g, bool) {
 	return nil, false
 }
 

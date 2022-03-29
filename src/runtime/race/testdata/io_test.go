@@ -17,7 +17,7 @@ import (
 
 func TestNoRaceIOFile(t *testing.T) {
 	x := 0
-	path, _ := os.MkdirTemp("", "race_test")
+	path := t.TempDir()
 	fname := filepath.Join(path, "data")
 	go func() {
 		x = 42

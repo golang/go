@@ -7,7 +7,6 @@ package errorstest
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,7 +24,7 @@ func check(t *testing.T, file string) {
 	t.Run(file, func(t *testing.T) {
 		t.Parallel()
 
-		contents, err := ioutil.ReadFile(path(file))
+		contents, err := os.ReadFile(path(file))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -37,13 +36,13 @@ func check(t *testing.T, file string) {
 				continue
 			}
 
-			frags := bytes.SplitAfterN(line, []byte("ERROR HERE: "), 2)
-			if len(frags) == 1 {
+			_, frag, ok := bytes.Cut(line, []byte("ERROR HERE: "))
+			if !ok {
 				continue
 			}
-			re, err := regexp.Compile(string(frags[1]))
+			re, err := regexp.Compile(fmt.Sprintf(":%d:.*%s", i+1, frag))
 			if err != nil {
-				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frags[1])
+				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frag)
 				continue
 			}
 			errors = append(errors, re)
@@ -56,7 +55,7 @@ func check(t *testing.T, file string) {
 }
 
 func expect(t *testing.T, file string, errors []*regexp.Regexp) {
-	dir, err := ioutil.TempDir("", filepath.Base(t.Name()))
+	dir, err := os.MkdirTemp("", filepath.Base(t.Name()))
 	if err != nil {
 		t.Fatal(err)
 	}

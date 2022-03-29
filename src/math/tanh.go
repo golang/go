@@ -71,7 +71,12 @@ var tanhQ = [...]float64{
 //	Tanh(±0) = ±0
 //	Tanh(±Inf) = ±1
 //	Tanh(NaN) = NaN
-func Tanh(x float64) float64
+func Tanh(x float64) float64 {
+	if haveArchTanh {
+		return archTanh(x)
+	}
+	return tanh(x)
+}
 
 func tanh(x float64) float64 {
 	const MAXLOG = 8.8029691931113054295988e+01 // log(2**127)

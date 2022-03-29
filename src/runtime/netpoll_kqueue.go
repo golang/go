@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd netbsd openbsd
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 
 package runtime
 
@@ -179,10 +179,7 @@ retry:
 		}
 		if mode != 0 {
 			pd := (*pollDesc)(unsafe.Pointer(ev.udata))
-			pd.everr = false
-			if ev.flags == _EV_ERROR {
-				pd.everr = true
-			}
+			pd.setEventErr(ev.flags == _EV_ERROR)
 			netpollready(&toRun, pd, mode)
 		}
 	}

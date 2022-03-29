@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The standard GNU/Linux sigset type on big-endian 64-bit machines.
+// The standard Linux sigset type on big-endian 64-bit machines.
 
-// +build linux
-// +build ppc64 s390x
+//go:build linux && (ppc64 || s390x)
 
 package runtime
 

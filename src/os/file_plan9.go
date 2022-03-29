@@ -139,7 +139,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 
 // Close closes the File, rendering it unusable for I/O.
 // On files that support SetDeadline, any pending I/O operations will
-// be canceled and return immediately with an error.
+// be canceled and return immediately with an ErrClosed error.
 // Close will return an error if it has already been called.
 func (f *File) Close() error {
 	if err := f.checkValid("close"); err != nil {
@@ -440,6 +440,8 @@ func Link(oldname, newname string) error {
 }
 
 // Symlink creates newname as a symbolic link to oldname.
+// On Windows, a symlink to a non-existent oldname creates a file symlink;
+// if oldname is later created as a directory the symlink will not work.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
 	return &LinkError{"symlink", oldname, newname, syscall.EPLAN9}

@@ -2,20 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package time
 
 import (
-	"runtime"
 	"syscall/js"
 )
 
-var zoneSources = []string{
+var platformZoneSources = []string{
 	"/usr/share/zoneinfo/",
 	"/usr/share/lib/zoneinfo/",
 	"/usr/lib/locale/TZ/",
-	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
 }
 
 func initLocal() {

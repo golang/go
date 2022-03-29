@@ -1,0 +1,24 @@
+[short] skip
+
+cd $WORK/gopath/src/foo
+go test -list=. -overlay=overlay.json .
+stdout 'TestBar'
+
+-- go.mod --
+module test.pkg
+-- foo/foo_test.go --
+package foo
+
+import "testing"
+
+func TestFoo(t *testing.T) { }
+-- tmp/bar_test.go --
+package foo
+
+import "testing"
+
+func TestBar(t *testing.T) {
+	t.Fatal("dummy failure")
+}
+-- foo/overlay.json --
+{"Replace": {"foo_test.go": "../tmp/bar_test.go"}}

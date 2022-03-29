@@ -138,6 +138,8 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 		select {
 		case dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"):
 		case <-quitReadCh:
+			// Ensure delegateReader.Read doesn't block forever if we get an error.
+			close(dr.c)
 		}
 	}()
 
@@ -146,7 +148,8 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	req.Body = save
 	if err != nil {
 		pw.Close()
-		quitReadCh <- struct{}{}
+		dr.err = err
+		close(quitReadCh)
 		return nil, err
 	}
 	dump := buf.Bytes()
@@ -167,13 +170,17 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 // delegateReader is a reader that delegates to another reader,
 // once it arrives on a channel.
 type delegateReader struct {
-	c chan io.Reader
-	r io.Reader // nil until received from c
+	c   chan io.Reader
+	err error     // only used if r is nil and c is closed.
+	r   io.Reader // nil until received from c
 }
 
 func (r *delegateReader) Read(p []byte) (int, error) {
 	if r.r == nil {
-		r.r = <-r.c
+		var ok bool
+		if r.r, ok = <-r.c; !ok {
+			return 0, r.err
+		}
 	}
 	return r.r.Read(p)
 }
@@ -285,7 +292,7 @@ func DumpRequest(req *http.Request, body bool) ([]byte, error) {
 // can detect that the lack of body was intentional.
 var errNoBody = errors.New("sentinel error value")
 
-// failureToReadBody is a io.ReadCloser that just returns errNoBody on
+// failureToReadBody is an io.ReadCloser that just returns errNoBody on
 // Read. It's swapped in when we don't actually want to consume
 // the body, but need a non-nil one, and want to distinguish the
 // error from reading the dummy body.
