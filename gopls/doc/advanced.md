@@ -44,42 +44,26 @@ editor.
 
 ## Working with generic code
 
-Gopls has beta support for editing generic Go code, as defined by the type
-parameters proposal ([golang/go#43651](https://golang.org/issues/43651)) and
-type set addendum ([golang/go#45346](https://golang.org/issues/45346)).
-
-To enable this support, you need to **build gopls with a version of Go that
-supports generics**. The easiest way to do this is by installing the Go 1.18 Beta
-as described at
-[Tutorial: Getting started with generics#prerequisites](https://go.dev/doc/tutorial/generics),
-and then using this Go version to build gopls:
+Gopls has support for editing generic Go code. To enable this support, you need
+to **install gopls using Go 1.18 or later**. The easiest way to do this is by
+[installing Go 1.18+](https://go.dev/dl) and then using this Go version to
+install gopls:
 
 ```
-$ go1.18beta2 install golang.org/x/tools/gopls@latest
+$ go install golang.org/x/tools/gopls@latest
 ```
 
-When using the Go 1.18, it is strongly recommended that you install the latest
-version of `gopls`, or the latest **unstable** version as
-[described above](#installing-unreleased-versions).
+It is strongly recommended that you install the latest version of `gopls`, or
+the latest **unstable** version as [described above](#installing-unreleased-versions).
+We're still working on improving our generics support.
 
-You also need to make `gopls` select the beta version of `go` (in `<GOROOT>/go/bin`
-where GOROOT is the location reported by `go1.18beta2 env GOROOT`) by adding
-it to your `PATH` or by configuring your editor.
-
-The `gopls` built with these instructions understands generic code. To actually
-run the generic code you develop, you must also use the beta version of the Go
-compiler. For example:
-
-```
-$ go1.18beta2 run .
-```
+The `gopls` built with these instructions understands generic code. See the
+[generics tutorial](https://go.dev/doc/tutorial/generics) for more information
+on how to use generics in Go!
 
 ### Known issues
 
   * [`staticcheck`](https://github.com/golang/tools/blob/master/gopls/doc/settings.md#staticcheck-bool)
     on generic code is not supported yet.
-
-please follow the [v0.8.0](https://github.com/golang/go/milestone/244) milestone
-to see the list of go1.18-related known issues and our progress.
 
 [Go project]: https://go.googlesource.com/go
