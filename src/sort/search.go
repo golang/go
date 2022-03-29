@@ -72,6 +72,47 @@ func Search(n int, f func(int) bool) int {
 	return i
 }
 
+// Find uses binary search to find and return the smallest index i in [0, n)
+// at which cmp(i) <= 0. If there is no such index i, Find returns i = n.
+// The found result is true if i < n and cmp(i) == 0.
+// Find calls cmp(i) only for i in the range [0, n).
+//
+// To permit binary search, Find requires that cmp(i) > 0 for a leading
+// prefix of the range, cmp(i) == 0 in the middle, and cmp(i) < 0 for
+// the final suffix of the range. (Each subrange could be empty.)
+// The usual way to establish this condition is to interpret cmp(i)
+// as a comparison of a desired target value t against entry i in an
+// underlying indexed data structure x, returning <0, 0, and >0
+// when t < x[i], t == x[i], and t > x[i], respectively.
+//
+// For example, to look for a particular string in a sorted, random-access
+// list of strings:
+//    i, found := sort.Find(x.Len(), func(i int) int {
+//        return strings.Compare(target, x.At(i))
+//    })
+//    if found {
+//        fmt.Printf("found %s at entry %d\n", target, i)
+//    } else {
+//        fmt.Printf("%s not found, would insert at %d", target, i)
+//    }
+func Find(n int, cmp func(int) int) (i int, found bool) {
+	// The invariants here are similar to the ones in Search.
+	// Define cmp(-1) > 0 and cmp(n) <= 0
+	// Invariant: cmp(i-1) > 0, cmp(j) <= 0
+	i, j := 0, n
+	for i < j {
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		// i ≤ h < j
+		if cmp(h) > 0 {
+			i = h + 1 // preserves cmp(i-1) > 0
+		} else {
+			j = h // preserves cmp(j) <= 0
+		}
+	}
+	// i == j, cmp(i-1) > 0 and cmp(j) <= 0
+	return i, i < n && cmp(i) == 0
+}
+
 // Convenience wrappers for common cases.
 
 // SearchInts searches for x in a sorted slice of ints and returns the index
