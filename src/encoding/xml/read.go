@@ -747,12 +747,12 @@ Loop:
 }
 
 // Skip reads tokens until it has consumed the end element
-// matching the most recent start element already consumed.
-// It recurs if it encounters a start element, so it can be used to
-// skip nested structures.
+// matching the most recent start element already consumed,
+// skipping nested structures.
 // It returns nil if it finds an end element matching the start
 // element; otherwise it returns an error describing the problem.
 func (d *Decoder) Skip() error {
+	var depth int64
 	for {
 		tok, err := d.Token()
 		if err != nil {
@@ -760,11 +760,12 @@ func (d *Decoder) Skip() error {
 		}
 		switch tok.(type) {
 		case StartElement:
-			if err := d.Skip(); err != nil {
-				return err
-			}
+			depth++
 		case EndElement:
-			return nil
+			if depth == 0 {
+				return nil
+			}
+			depth--
 		}
 	}
 }
