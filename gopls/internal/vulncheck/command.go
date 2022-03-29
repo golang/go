@@ -121,6 +121,9 @@ func toVulns(pkgs []*packages.Package, callstacks map[*vulncheck.Vuln][]vulnchec
 
 	var vulns []Vuln
 	for v, trace := range callstacks {
+		if len(trace) == 0 {
+			continue
+		}
 		vuln := Vuln{
 			ID:             v.OSV.ID,
 			Details:        v.OSV.Details,
