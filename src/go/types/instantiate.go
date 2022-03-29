@@ -24,7 +24,8 @@ import (
 // previous instances with the same identity. As a special case, generic
 // *Signature origin types are only considered identical if they are pointer
 // equivalent, so that instantiating distinct (but possibly identical)
-// signatures will yield different instances.
+// signatures will yield different instances. The use of a shared context does
+// not guarantee that identical instances are deduplicated in all cases.
 //
 // If validate is set, Instantiate verifies that the number of type arguments
 // and parameters match, and that the type arguments satisfy their
