@@ -1290,6 +1290,8 @@ func (p Prefix) IsSingleIP() bool { return p.bits != 0 && int(p.bits) == p.ip.Bi
 // ParsePrefix parses s as an IP address prefix.
 // The string can be in the form "192.168.1.0/24" or "2001:db8::/32",
 // the CIDR notation defined in RFC 4632 and RFC 4291.
+// IPv6 zones are not permitted in prefixes, and an error will be returned if a
+// zone is present.
 //
 // Note that masked address bits are not zeroed. Use Masked for that.
 func ParsePrefix(s string) (Prefix, error) {
@@ -1301,6 +1303,11 @@ func ParsePrefix(s string) (Prefix, error) {
 	if err != nil {
 		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): " + err.Error())
 	}
+	// IPv6 zones are not allowed: https://go.dev/issue/51899
+	if ip.Is6() && ip.z != z6noz {
+		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): IPv6 zones cannot be present in a prefix")
+	}
+
 	bitsStr := s[i+1:]
 	bits, err := strconv.Atoi(bitsStr)
 	if err != nil {

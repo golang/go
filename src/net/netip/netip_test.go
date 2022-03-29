@@ -421,8 +421,8 @@ func TestPrefixMarshalTextString(t *testing.T) {
 		{mustPrefix("1.2.3.4/24"), "1.2.3.4/24"},
 		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"},
 		{mustPrefix("::ffff:c000:0280/96"), "::ffff:192.0.2.128/96"},
-		{mustPrefix("::ffff:c000:0280%eth0/37"), "::ffff:192.0.2.128/37"}, // Zone should be stripped
 		{mustPrefix("::ffff:192.168.140.255/8"), "::ffff:192.168.140.255/8"},
+		{PrefixFrom(mustIP("::ffff:c000:0280").WithZone("eth0"), 37), "::ffff:192.0.2.128/37"}, // Zone should be stripped
 	}
 	for i, tt := range tests {
 		if got := tt.in.String(); got != tt.want {
@@ -448,7 +448,7 @@ func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
 		{mustPrefix("1.2.3.4/24"), 4 + 1},
 		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), 16 + 1},
 		{mustPrefix("::ffff:c000:0280/96"), 16 + 1},
-		{mustPrefix("::ffff:c000:0280%eth0/37"), 16 + 1}, // Zone should be stripped
+		{PrefixFrom(mustIP("::ffff:c000:0280").WithZone("eth0"), 37), 16 + 1}, // Zone should be stripped
 	}
 	tests = append(tests,
 		testCase{PrefixFrom(tests[0].prefix.Addr(), 33), tests[0].wantSize},
@@ -901,25 +901,25 @@ func TestPrefixMasking(t *testing.T) {
 			{
 				ip:   mustIP(fmt.Sprintf("2001:db8::1%s", zone)),
 				bits: 32,
-				p:    mustPrefix(fmt.Sprintf("2001:db8::%s/32", zone)),
+				p:    mustPrefix("2001:db8::/32"),
 				ok:   true,
 			},
 			{
 				ip:   mustIP(fmt.Sprintf("fe80::dead:beef:dead:beef%s", zone)),
 				bits: 96,
-				p:    mustPrefix(fmt.Sprintf("fe80::dead:beef:0:0%s/96", zone)),
+				p:    mustPrefix("fe80::dead:beef:0:0/96"),
 				ok:   true,
 			},
 			{
 				ip:   mustIP(fmt.Sprintf("aaaa::%s", zone)),
 				bits: 4,
-				p:    mustPrefix(fmt.Sprintf("a000::%s/4", zone)),
+				p:    mustPrefix("a000::/4"),
 				ok:   true,
 			},
 			{
 				ip:   mustIP(fmt.Sprintf("::%s", zone)),
 				bits: 63,
-				p:    mustPrefix(fmt.Sprintf("::%s/63", zone)),
+				p:    mustPrefix("::/63"),
 				ok:   true,
 			},
 		}
@@ -1044,26 +1044,6 @@ func TestPrefixMarshalUnmarshal(t *testing.T) {
 				t.Errorf("Marshal = %q; want %q", back, orig)
 			}
 		})
-	}
-}
-
-func TestPrefixMarshalUnmarshalZone(t *testing.T) {
-	orig := `"fe80::1cc0:3e8c:119f:c2e1%ens18/128"`
-	unzoned := `"fe80::1cc0:3e8c:119f:c2e1/128"`
-
-	var p Prefix
-	if err := json.Unmarshal([]byte(orig), &p); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
-
-	pb, err := json.Marshal(p)
-	if err != nil {
-		t.Fatalf("failed to marshal: %v", err)
-	}
-
-	back := string(pb)
-	if back != unzoned {
-		t.Errorf("Marshal = %q; want %q", back, unzoned)
 	}
 }
 
@@ -1222,14 +1202,6 @@ func TestPrefix(t *testing.T) {
 			contains:    mustIPs("2001:db8::1"),
 			notContains: mustIPs("fe80::1"),
 		},
-		{
-			prefix:      "::%0/00/80",
-			ip:          mustIP("::"),
-			bits:        80,
-			str:         "::/80",
-			contains:    mustIPs("::"),
-			notContains: mustIPs("ff::%0/00", "ff::%1/23", "::%0/00", "::%1/23"),
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.prefix, func(t *testing.T) {
@@ -1347,6 +1319,15 @@ func TestParsePrefixError(t *testing.T) {
 		{
 			prefix: "2001::/129",
 			errstr: "out of range",
+		},
+		// Zones are not allowed: https://go.dev/issue/51899
+		{
+			prefix: "1.1.1.0%a/24",
+			errstr: "unexpected character",
+		},
+		{
+			prefix: "2001:db8::%a/32",
+			errstr: "zones cannot be present",
 		},
 	}
 	for _, test := range tests {

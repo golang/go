@@ -160,9 +160,9 @@ func TestPrefixContains(t *testing.T) {
 		{mustPrefix("::1/127"), mustIP("::2"), false},
 		{mustPrefix("::1/128"), mustIP("::1"), true},
 		{mustPrefix("::1/127"), mustIP("::2"), false},
-		// zones support
-		{mustPrefix("::1%a/128"), mustIP("::1"), true},    // prefix zones are stripped...
-		{mustPrefix("::1%a/128"), mustIP("::1%a"), false}, // but ip zones are not
+		// Zones ignored: https://go.dev/issue/51899
+		{Prefix{mustIP("1.2.3.4").WithZone("a"), 32}, mustIP("1.2.3.4"), true},
+		{Prefix{mustIP("::1").WithZone("a"), 128}, mustIP("::1"), true},
 		// invalid IP
 		{mustPrefix("::1/0"), Addr{}, false},
 		{mustPrefix("1.2.3.4/0"), Addr{}, false},
