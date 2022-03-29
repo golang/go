@@ -5,8 +5,10 @@
 package xml
 
 import (
+	"bytes"
 	"io"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1078,4 +1080,20 @@ func TestUnmarshalWhitespaceAttrs(t *testing.T) {
 	if v != want {
 		t.Fatalf("whitespace attrs: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
 	}
+}
+
+func TestCVE202230633(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("causes memory exhaustion on js/wasm")
+	}
+	defer func() {
+		p := recover()
+		if p != nil {
+			t.Fatal("Unmarshal panicked")
+		}
+	}()
+	var example struct {
+		Things []string
+	}
+	Unmarshal(bytes.Repeat([]byte("<a>"), 17_000_000), &example)
 }
