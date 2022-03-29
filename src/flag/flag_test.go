@@ -432,6 +432,25 @@ func TestHelp(t *testing.T) {
 	}
 }
 
+// zeroPanicker is a flag.Value whose String method panics if its dontPanic
+// field is false.
+type zeroPanicker struct {
+	dontPanic bool
+	v         string
+}
+
+func (f *zeroPanicker) Set(s string) error {
+	f.v = s
+	return nil
+}
+
+func (f *zeroPanicker) String() string {
+	if !f.dontPanic {
+		panic("panic!")
+	}
+	return f.v
+}
+
 const defaultOutput = `  -A	for bootstrapping, allow 'any' type
   -Alongflagname
     	disable bounds checking
@@ -452,10 +471,19 @@ const defaultOutput = `  -A	for bootstrapping, allow 'any' type
     	a non-zero int (default 27)
   -O	a flag
     	multiline help string (default true)
+  -V list
+    	a list of strings (default [a b])
   -Z int
     	an int that defaults to zero
+  -ZP0 value
+    	a flag whose String method panics when it is zero
+  -ZP1 value
+    	a flag whose String method panics when it is zero
   -maxT timeout
     	set timeout for dial
+
+panic calling String method on zero flag_test.zeroPanicker for flag ZP0: panic!
+panic calling String method on zero flag_test.zeroPanicker for flag ZP1: panic!
 `
 
 func TestPrintDefaults(t *testing.T) {
@@ -472,12 +500,15 @@ func TestPrintDefaults(t *testing.T) {
 	fs.String("M", "", "a multiline\nhelp\nstring")
 	fs.Int("N", 27, "a non-zero int")
 	fs.Bool("O", true, "a flag\nmultiline help string")
+	fs.Var(&flagVar{"a", "b"}, "V", "a `list` of strings")
 	fs.Int("Z", 0, "an int that defaults to zero")
+	fs.Var(&zeroPanicker{true, ""}, "ZP0", "a flag whose String method panics when it is zero")
+	fs.Var(&zeroPanicker{true, "something"}, "ZP1", "a flag whose String method panics when it is zero")
 	fs.Duration("maxT", 0, "set `timeout` for dial")
 	fs.PrintDefaults()
 	got := buf.String()
 	if got != defaultOutput {
-		t.Errorf("got %q want %q\n", got, defaultOutput)
+		t.Errorf("got:\n%q\nwant:\n%q", got, defaultOutput)
 	}
 }
 
