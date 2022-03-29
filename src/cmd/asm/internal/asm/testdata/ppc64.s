@@ -751,17 +751,23 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD XER, R3                    // 7c6102a6
 	MOVFL CR3, CR1                  // 4c8c0000
 
-	MOVW CR0, R1			// 7c380026
-	MOVW CR7, R1			// 7c301026
-	MOVW CR, R1			// 7c200026
+	MOVW CR0, R1                    // 7c380026
+	MOVW CR7, R1                    // 7c301026
+	MOVW CR, R1                     // 7c200026
 
-	MOVW R1, CR			// 7c2ff120
-	MOVFL R1, CR			// 7c2ff120
-	MOVW R1, CR2			// 7c320120
-	MOVFL R1, CR2			// 7c320120
-	MOVFL R1, $255			// 7c2ff120
-	MOVFL R1, $1			// 7c301120
-	MOVFL R1, $128			// 7c380120
-	MOVFL R1, $3			// 7c203120
+	MOVW R1, CR                     // 7c2ff120
+	MOVFL R1, CR                    // 7c2ff120
+	MOVW R1, CR2                    // 7c320120
+	MOVFL R1, CR2                   // 7c320120
+	MOVFL R1, $255                  // 7c2ff120
+	MOVFL R1, $1                    // 7c301120
+	MOVFL R1, $128                  // 7c380120
+	MOVFL R1, $3                    // 7c203120
+
+	// Verify supported bdnz/bdz encodings.
+	BC 16,0,0(PC)                   // BC $16,R0,0(PC) // 42000000
+	BDNZ 0(PC)                      // 42000000
+	BDZ 0(PC)                       // 42400000
+	BC 18,0,0(PC)                   // BC $18,R0,0(PC) // 42400000
 
 	RET

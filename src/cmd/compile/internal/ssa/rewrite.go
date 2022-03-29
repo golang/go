@@ -40,6 +40,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 	var states map[string]bool
 	for {
 		change := false
+		deadChange := false
 		for _, b := range f.Blocks {
 			var b0 *Block
 			if debug > 1 {
@@ -73,7 +74,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 						// Not quite a deadcode pass, because it does not handle cycles.
 						// But it should help Uses==1 rules to fire.
 						v.reset(OpInvalid)
-						change = true
+						deadChange = true
 					}
 					// No point rewriting values which aren't used.
 					continue
@@ -145,15 +146,16 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 				}
 			}
 		}
-		if !change {
+		if !change && !deadChange {
 			break
 		}
 		iters++
-		if iters > 1000 || debug >= 2 {
+		if (iters > 1000 || debug >= 2) && change {
 			// We've done a suspiciously large number of rewrites (or we're in debug mode).
 			// As of Sep 2021, 90% of rewrites complete in 4 iterations or fewer
 			// and the maximum value encountered during make.bash is 12.
 			// Start checking for cycles. (This is too expensive to do routinely.)
+			// Note: we avoid this path for deadChange-only iterations, to fix #51639.
 			if states == nil {
 				states = make(map[string]bool)
 			}

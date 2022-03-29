@@ -55,7 +55,7 @@ func main() {}
 		t.Fatalf("failed to write main.go: %v\n", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "main.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "main.go")
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -100,7 +100,7 @@ func TestIssue28429(t *testing.T) {
 
 	// Compile a main package.
 	write("main.go", "package main; func main() {}")
-	runGo("tool", "compile", "-p", "main", "main.go")
+	runGo("tool", "compile", "-p=main", "main.go")
 	runGo("tool", "pack", "c", "main.a", "main.o")
 
 	// Add an extra section with a short, non-.o name.
@@ -236,7 +236,7 @@ void foo() {
 
 	// Compile, assemble and pack the Go and C code.
 	runGo("tool", "asm", "-gensymabis", "-o", "symabis", "x.s")
-	runGo("tool", "compile", "-symabis", "symabis", "-p", "main", "-o", "x1.o", "main.go")
+	runGo("tool", "compile", "-symabis", "symabis", "-p=main", "-o", "x1.o", "main.go")
 	runGo("tool", "asm", "-o", "x2.o", "x.s")
 	run(cc, append(cflags, "-c", "-o", "x3.o", "x.c")...)
 	runGo("tool", "pack", "c", "x.a", "x1.o", "x2.o", "x3.o")
@@ -431,7 +431,7 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 	}
 
 	obj := filepath.Join(tmpdir, "blah.o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=blah", "-o", obj, src)
 	cmd.Env = append(os.Environ(), "GOARCH=386", "GOOS=android")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
@@ -765,13 +765,13 @@ func TestIndexMismatch(t *testing.T) {
 	exe := filepath.Join(tmpdir, "main.exe")
 
 	// Build a program with main package importing package a.
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, aSrc)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=a", "-o", aObj, aSrc)
 	t.Log(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", mObj, mSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "-I", tmpdir, "-o", mObj, mSrc)
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -786,7 +786,7 @@ func TestIndexMismatch(t *testing.T) {
 
 	// Now, overwrite a.o with the object of b.go. This should
 	// result in an index mismatch.
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, bSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=a", "-o", aObj, bSrc)
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -1057,5 +1057,62 @@ func TestLargeReloc(t *testing.T) {
 		if err != nil {
 			t.Fatalf("build failed: %v. output:\n%s", err, out)
 		}
+	}
+}
+
+func TestUnlinkableObj(t *testing.T) {
+	// Test that the linker emits an error with unlinkable object.
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	xSrc := filepath.Join(tmpdir, "x.go")
+	pSrc := filepath.Join(tmpdir, "p.go")
+	xObj := filepath.Join(tmpdir, "x.o")
+	pObj := filepath.Join(tmpdir, "p.o")
+	exe := filepath.Join(tmpdir, "x.exe")
+	err := ioutil.WriteFile(xSrc, []byte("package main\nimport _ \"p\"\nfunc main() {}\n"), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	err = ioutil.WriteFile(pSrc, []byte("package p\n"), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", pObj, pSrc) // without -p
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-p=main", "-o", xObj, xSrc)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile x.go failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, xObj)
+	out, err = cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("link did not fail")
+	}
+	if !bytes.Contains(out, []byte("unlinkable object")) {
+		t.Errorf("did not see expected error message. out:\n%s", out)
+	}
+
+	// It is okay to omit -p for (only) main package.
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", pObj, pSrc)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", xObj, xSrc) // without -p
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, xObj)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("link failed: %v. output:\n%s", err, out)
 	}
 }

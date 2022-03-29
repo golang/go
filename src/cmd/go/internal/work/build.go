@@ -371,7 +371,7 @@ func oneMainPkg(pkgs []*load.Package) []*load.Package {
 
 var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
-var runtimeVersion = runtime.Version()
+var RuntimeVersion = runtime.Version()
 
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
@@ -379,7 +379,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	var b Builder
 	b.Init()
 
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: cfg.BuildBuildvcs}, args)
 	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
@@ -603,7 +603,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 
 	modload.InitWorkfile()
 	BuildInit()
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: cfg.BuildBuildvcs}, args)
 	if cfg.ModulesEnabled && !modload.HasModRoot() {
 		haveErrors := false
 		allMissingErrors := true

@@ -18,14 +18,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"internal/txtar"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
-
-	"golang.org/x/tools/txtar"
 )
 
 func usage() {

@@ -111,7 +111,7 @@ rm $GOBIN/d$GOEXE
 go list -x ./...
 stdout -count=3 '^example.com'
 stderr -count=1 '^git status'
-stderr -count=1 '^git show'
+stderr -count=1 '^git -c log.showsignature=false show'
 
 -- $WORK/fakebin/git --
 #!/bin/sh

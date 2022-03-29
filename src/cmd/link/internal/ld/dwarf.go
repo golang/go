@@ -2227,11 +2227,18 @@ func dwarfcompress(ctxt *Link) {
 			newDwarfp = append(newDwarfp, ds)
 			Segdwarf.Sections = append(Segdwarf.Sections, ldr.SymSect(s))
 		} else {
-			compressedSegName := ".zdebug_" + ldr.SymSect(s).Name[len(".debug_"):]
+			var compressedSegName string
+			if ctxt.IsELF {
+				compressedSegName = ldr.SymSect(s).Name
+			} else {
+				compressedSegName = ".zdebug_" + ldr.SymSect(s).Name[len(".debug_"):]
+			}
 			sect := addsection(ctxt.loader, ctxt.Arch, &Segdwarf, compressedSegName, 04)
-			sect.Align = 1
+			sect.Align = int32(ctxt.Arch.Alignment)
 			sect.Length = uint64(len(z.compressed))
-			newSym := ldr.CreateSymForUpdate(compressedSegName, 0)
+			sect.Compressed = true
+			newSym := ldr.MakeSymbolBuilder(compressedSegName)
+			ldr.SetAttrReachable(s, true)
 			newSym.SetData(z.compressed)
 			newSym.SetSize(int64(len(z.compressed)))
 			ldr.SetSymSect(newSym.Sym(), sect)

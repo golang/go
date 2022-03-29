@@ -226,7 +226,7 @@ func s15a8(x *[15]int64) [15]int64 {
 }
 
 func testLogOpt(t *testing.T, flag, src, outfile string) (string, error) {
-	run := []string{testenv.GoToolPath(t), "tool", "compile", flag, "-o", outfile, src}
+	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=p", flag, "-o", outfile, src}
 	t.Log(run)
 	cmd := exec.Command(run[0], run[1:]...)
 	out, err := cmd.CombinedOutput()
@@ -236,7 +236,7 @@ func testLogOpt(t *testing.T, flag, src, outfile string) (string, error) {
 
 func testLogOptDir(t *testing.T, dir, flag, src, outfile string) (string, error) {
 	// Notice the specified import path "x"
-	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p", "x", flag, "-o", outfile, src}
+	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=x", flag, "-o", outfile, src}
 	t.Log(run)
 	cmd := exec.Command(run[0], run[1:]...)
 	cmd.Dir = dir
@@ -247,7 +247,7 @@ func testLogOptDir(t *testing.T, dir, flag, src, outfile string) (string, error)
 
 func testCopy(t *testing.T, dir, goarch, goos, src, outfile string) (string, error) {
 	// Notice the specified import path "x"
-	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p", "x", "-json=0,file://log/opt", "-o", outfile, src}
+	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=x", "-json=0,file://log/opt", "-o", outfile, src}
 	t.Log(run)
 	cmd := exec.Command(run[0], run[1:]...)
 	cmd.Dir = dir

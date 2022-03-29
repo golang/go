@@ -362,13 +362,14 @@ const (
 	BI_LT  = 0
 	BI_GT  = 1
 	BI_EQ  = 2
-	BI_OVF = 3
+	BI_FU  = 3
 )
 
 // Common values for the BO field.
 
 const (
 	BO_BCTR    = 16 // decrement ctr, branch on ctr != 0
+	BO_NOTBCTR = 18 // decrement ctr, branch on ctr == 0
 	BO_BCR     = 12 // branch on cr value
 	BO_BCRBCTR = 8  // decrement ctr, branch on ctr != 0 and cr value
 	BO_NOTBCR  = 4  // branch on not cr value
@@ -480,9 +481,11 @@ const (
 	ABGT
 	ABLE // not GT = L/E/U
 	ABLT
-	ABNE // not EQ = L/G/U
-	ABVC // Unordered-clear
-	ABVS // Unordered-set
+	ABNE  // not EQ = L/G/U
+	ABVC  // Branch if float not unordered (also branch on not summary overflow)
+	ABVS  // Branch if float unordered (also branch on summary overflow)
+	ABDNZ // Decrement CTR, and branch if CTR != 0
+	ABDZ  // Decrement CTR, and branch if CTR == 0
 	ACMP
 	ACMPU
 	ACMPEQB

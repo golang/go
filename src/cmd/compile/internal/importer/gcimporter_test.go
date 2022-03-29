@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/types2"
 	"fmt"
+	"go/build"
 	"internal/goexperiment"
 	"internal/testenv"
 	"os"
@@ -18,6 +19,11 @@ import (
 	"testing"
 	"time"
 )
+
+func TestMain(m *testing.M) {
+	build.Default.GOROOT = testenv.GOROOT(nil)
+	os.Exit(m.Run())
+}
 
 // skipSpecialPlatforms causes the test to be skipped for platforms where
 // builders (build.golang.org) don't have access to compiled packages for
@@ -38,7 +44,7 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
 	}
 	basename := filepath.Base(filename)
 	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", outname, filename)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", outname, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -62,7 +68,7 @@ func testPath(t *testing.T, path, srcDir string) *types2.Package {
 const maxTime = 30 * time.Second
 
 func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
-	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
+	dirname := filepath.Join(testenv.GOROOT(t), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
 	list, err := os.ReadDir(dirname)
 	if err != nil {
 		t.Fatalf("testDir(%s): %s", dirname, err)

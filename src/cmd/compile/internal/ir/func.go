@@ -50,7 +50,6 @@ import (
 type Func struct {
 	miniNode
 	Body Nodes
-	Iota int64
 
 	Nname    *Name        // ONAME node
 	OClosure *ClosureExpr // OCLOSURE node
@@ -140,7 +139,6 @@ func NewFunc(pos src.XPos) *Func {
 	f := new(Func)
 	f.pos = pos
 	f.op = ODCLFUNC
-	f.Iota = -1
 	// Most functions are ABIInternal. The importer or symabis
 	// pass may override this.
 	f.ABI = obj.ABIInternal
@@ -370,7 +368,9 @@ func NewClosureFunc(pos src.XPos, hidden bool) *Func {
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 
-	fn.OClosure = NewClosureExpr(pos, fn)
+	fn.OClosure = &ClosureExpr{Func: fn}
+	fn.OClosure.op = OCLOSURE
+	fn.OClosure.pos = pos
 
 	return fn
 }

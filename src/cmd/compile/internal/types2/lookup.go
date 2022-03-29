@@ -70,7 +70,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// see if there is a matching field (but not a method, those need to be declared
 	// explicitly in the constraint). If the constraint is a named pointer type (see
 	// above), we are ok here because only fields are accepted as results.
-	if obj == nil && isTypeParam(T) {
+	const enableTParamFieldLookup = false // see issue #51576
+	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
 		if t := coreType(T); t != nil {
 			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)
 			if _, ok := obj.(*Var); !ok {

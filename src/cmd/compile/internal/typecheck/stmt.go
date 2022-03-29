@@ -309,16 +309,13 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 
 	// type is broken or missing, most likely a method call on a broken type
 	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
-	if n.Call.Type() == nil || n.Call.Type().Broke() {
+	if n.Call.Type() == nil {
 		return
 	}
 
-	if !n.Diag() {
-		// The syntax made sure it was a call, so this must be
-		// a conversion.
-		n.SetDiag(true)
-		base.ErrorfAt(n.Pos(), "%s requires function call, not conversion", what)
-	}
+	// The syntax made sure it was a call, so this must be
+	// a conversion.
+	base.FatalfAt(n.Pos(), "%s requires function call, not conversion", what)
 }
 
 // tcIf typechecks an OIF node.
@@ -519,7 +516,6 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 	}
 
 	var defCase ir.Node
-	var cs constSet
 	for _, ncase := range n.Cases {
 		ls := ncase.List
 		if len(ls) == 0 { // default:
@@ -553,16 +549,6 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 						base.ErrorfAt(ncase.Pos(), "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type())
 					}
 				}
-			}
-
-			// Don't check for duplicate bools. Although the spec allows it,
-			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
-			// (2) it would disallow useful things like
-			//       case GOARCH == "arm" && GOARM == "5":
-			//       case GOARCH == "arm":
-			//     which would both evaluate to false for non-ARM compiles.
-			if !n1.Type().IsBoolean() {
-				cs.add(ncase.Pos(), n1, "case", "switch")
 			}
 		}
 
@@ -615,12 +601,15 @@ func tcSwitchType(n *ir.SwitchStmt) {
 				}
 				continue
 			}
+			if n1.Op() == ir.ODYNAMICTYPE {
+				continue
+			}
 			if n1.Op() != ir.OTYPE {
 				base.ErrorfAt(ncase.Pos(), "%L is not a type", n1)
 				continue
 			}
-			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) && !missing.Broke() {
-				if have != nil && !have.Broke() {
+			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) {
+				if have != nil {
 					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
 						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", guard.X, n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else if ptr != 0 {
@@ -640,7 +629,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			// Assign the clause variable's type.
 			vt := t
 			if len(ls) == 1 {
-				if ls[0].Op() == ir.OTYPE {
+				if ls[0].Op() == ir.OTYPE || ls[0].Op() == ir.ODYNAMICTYPE {
 					vt = ls[0].Type()
 				} else if !ir.IsNil(ls[0]) {
 					// Invalid single-type case;
@@ -656,7 +645,6 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			} else {
 				// Clause variable is broken; prevent typechecking.
 				nvar.SetTypecheck(1)
-				nvar.SetWalkdef(1)
 			}
 			ncase.Var = nvar
 		}

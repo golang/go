@@ -58,10 +58,6 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 		base.Errorf("invalid operation: %v (shift count type %v, must be integer)", n, r.Type())
 		return l, r, nil
 	}
-	if t.IsSigned() && !types.AllowsGoVersion(curpkg(), 1, 13) {
-		base.ErrorfVers("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type())
-		return l, r, nil
-	}
 	t = l.Type()
 	if t != nil && t.Kind() != types.TIDEAL && !t.IsInteger() {
 		base.Errorf("invalid operation: %v (shift of type %v)", n, t)
@@ -245,7 +241,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		n.Len = length
 
 	case types.TMAP:
-		var cs constSet
 		for i3, l := range n.List {
 			ir.SetPos(l)
 			if l.Op() != ir.OKEY {
@@ -259,7 +254,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 			r = pushtype(r, t.Key())
 			r = Expr(r)
 			l.Key = AssignConv(r, t.Key(), "map key")
-			cs.add(base.Pos, l.Key, "key", "map literal")
 
 			r = l.Value
 			r = pushtype(r, t.Elem())
@@ -415,13 +409,7 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 	}
 	op, why := Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
 	if op == ir.OXXX {
-		if !n.Diag() && !n.Type().Broke() && !n.X.Diag() {
-			base.Errorf("cannot convert %L to type %v%s", n.X, n.Type(), why)
-			n.SetDiag(true)
-		}
-		n.SetOp(ir.OCONV)
-		n.SetType(nil)
-		return n
+		base.Fatalf("cannot convert %L to type %v%s", n.X, n.Type(), why)
 	}
 
 	n.SetOp(op)

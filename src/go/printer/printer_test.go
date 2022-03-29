@@ -6,12 +6,12 @@ package printer
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"internal/diff"
 	"io"
 	"os"
 	"path/filepath"
@@ -87,37 +87,13 @@ func lineAt(text []byte, offs int) []byte {
 	return text[offs:i]
 }
 
-// diff compares a and b.
-func diff(aname, bname string, a, b []byte) error {
+// checkEqual compares a and b.
+func checkEqual(aname, bname string, a, b []byte) error {
 	if bytes.Equal(a, b) {
 		return nil
 	}
 
-	var buf bytes.Buffer // holding long error message
-	// compare lengths
-	if len(a) != len(b) {
-		fmt.Fprintf(&buf, "\nlength changed: len(%s) = %d, len(%s) = %d", aname, len(a), bname, len(b))
-	}
-
-	// compare contents
-	line := 1
-	offs := 0
-	for i := 0; i < len(a) && i < len(b); i++ {
-		ch := a[i]
-		if ch != b[i] {
-			fmt.Fprintf(&buf, "\n%s:%d:%d: %s", aname, line, i-offs+1, lineAt(a, offs))
-			fmt.Fprintf(&buf, "\n%s:%d:%d: %s", bname, line, i-offs+1, lineAt(b, offs))
-			fmt.Fprintf(&buf, "\n\n")
-			break
-		}
-		if ch == '\n' {
-			line++
-			offs = i + 1
-		}
-	}
-
-	fmt.Fprintf(&buf, "\n%s:\n%s\n%s:\n%s", aname, a, bname, b)
-	return errors.New(buf.String())
+	return fmt.Errorf("diff %s %s\n%s", aname, bname, diff.Diff(aname, a, bname, b))
 }
 
 func runcheck(t *testing.T, source, golden string, mode checkMode) {
@@ -149,7 +125,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 	}
 
 	// formatted source and golden must be the same
-	if err := diff(source, golden, res, gld); err != nil {
+	if err := checkEqual(source, golden, res, gld); err != nil {
 		t.Error(err)
 		return
 	}
@@ -163,7 +139,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 			t.Error(err)
 			return
 		}
-		if err := diff(golden, fmt.Sprintf("format(%s)", golden), gld, res); err != nil {
+		if err := checkEqual(golden, fmt.Sprintf("format(%s)", golden), gld, res); err != nil {
 			t.Errorf("golden is not idempotent: %s", err)
 		}
 	}

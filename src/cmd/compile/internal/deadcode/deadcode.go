@@ -163,4 +163,5 @@ func markHiddenClosureDead(n ir.Node) {
 	if clo.Func.IsHiddenClosure() {
 		clo.Func.SetIsDeadcodeClosure(true)
 	}
+	ir.VisitList(clo.Func.Body, markHiddenClosureDead)
 }

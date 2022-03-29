@@ -948,7 +948,7 @@ func (w *exportWriter) startType(k itag) {
 
 func (w *exportWriter) doTyp(t *types.Type) {
 	s := t.Sym()
-	if s != nil && t.OrigSym() != nil {
+	if s != nil && t.OrigType() != nil {
 		// This is an instantiated type - could be a re-instantiation like
 		// Value[T2] or a full instantiation like Value[int].
 		if strings.Index(s.Name, "[") < 0 {
@@ -964,7 +964,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		// types or existing typeparams from the function/method header.
 		w.typeList(t.RParams())
 		// Export a reference to the base type.
-		baseType := t.OrigSym().Def.(*ir.Name).Type()
+		baseType := t.OrigType()
 		w.typ(baseType)
 		return
 	}
@@ -1835,7 +1835,10 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.ClosureExpr)
 		w.op(ir.OCLOSURE)
 		w.pos(n.Pos())
+		old := w.currPkg
+		w.setPkg(n.Type().Pkg(), true)
 		w.signature(n.Type())
+		w.setPkg(old, true)
 
 		// Write out id for the Outer of each conditional variable. The
 		// conditional variable itself for this closure will be re-created

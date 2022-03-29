@@ -28,4 +28,6 @@ func main() {
 	f[float64](int8(9))
 	f[int32](int32(7))
 	f[int](int32(7))
+	f[any](int(10))
+	f[interface{ M() }](int(11))
 }

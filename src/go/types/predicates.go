@@ -87,6 +87,11 @@ func IsInterface(t Type) bool {
 	return ok
 }
 
+// isNonTypeParamInterface reports whether t is an interface type but not a type parameter.
+func isNonTypeParamInterface(t Type) bool {
+	return !isTypeParam(t) && IsInterface(t)
+}
+
 // isTypeParam reports whether t is a type parameter.
 func isTypeParam(t Type) bool {
 	_, ok := t.(*TypeParam)

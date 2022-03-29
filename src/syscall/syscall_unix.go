@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"internal/bytealg"
 	"internal/itoa"
 	"internal/oserror"
 	"internal/race"
@@ -34,10 +35,8 @@ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errn
 
 // clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
 func clen(n []byte) int {
-	for i := 0; i < len(n); i++ {
-		if n[i] == 0 {
-			return i
-		}
+	if i := bytealg.IndexByte(n, 0); i != -1 {
+		return i
 	}
 	return len(n)
 }
@@ -215,6 +214,42 @@ func Write(fd int, p []byte) (n int, err error) {
 	} else {
 		n, err = write(fd, p)
 	}
+	if race.Enabled && n > 0 {
+		race.ReadRange(unsafe.Pointer(&p[0]), n)
+	}
+	if msanenabled && n > 0 {
+		msanRead(unsafe.Pointer(&p[0]), n)
+	}
+	if asanenabled && n > 0 {
+		asanRead(unsafe.Pointer(&p[0]), n)
+	}
+	return
+}
+
+func Pread(fd int, p []byte, offset int64) (n int, err error) {
+	n, err = pread(fd, p, offset)
+	if race.Enabled {
+		if n > 0 {
+			race.WriteRange(unsafe.Pointer(&p[0]), n)
+		}
+		if err == nil {
+			race.Acquire(unsafe.Pointer(&ioSync))
+		}
+	}
+	if msanenabled && n > 0 {
+		msanWrite(unsafe.Pointer(&p[0]), n)
+	}
+	if asanenabled && n > 0 {
+		asanWrite(unsafe.Pointer(&p[0]), n)
+	}
+	return
+}
+
+func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	n, err = pwrite(fd, p, offset)
 	if race.Enabled && n > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), n)
 	}

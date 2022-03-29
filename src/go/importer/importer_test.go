@@ -5,15 +5,20 @@
 package importer
 
 import (
+	"go/build"
 	"go/token"
 	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	build.Default.GOROOT = testenv.GOROOT(nil)
+	os.Exit(m.Run())
+}
 
 func TestForCompiler(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
@@ -49,7 +54,7 @@ func TestForCompiler(t *testing.T) {
 		// https://github.com/golang/go#28995
 		mathBigInt := pkg.Scope().Lookup("Int")
 		posn := fset.Position(mathBigInt.Pos()) // "$GOROOT/src/math/big/int.go:25:1"
-		filename := strings.Replace(posn.Filename, "$GOROOT", runtime.GOROOT(), 1)
+		filename := strings.Replace(posn.Filename, "$GOROOT", testenv.GOROOT(t), 1)
 		data, err := os.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("can't read file containing declaration of math/big.Int: %v", err)

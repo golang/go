@@ -103,25 +103,27 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 
 				if !Identical(u, t.typ) {
 					check.errorf(tlist[i], _InvalidUnion, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
-					continue // don't report another error for t
+					continue
 				}
 			}
 
 			// Stand-alone embedded interfaces are ok and are handled by the single-type case
 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
-			// here, we must have at least two terms in the union.
-			if f != nil && !f.typeSet().IsTypeSet() {
+			// here, we must have at least two terms in the syntactic term list (but not necessarily
+			// in the term list of the union's type set).
+			if f != nil {
+				tset := f.typeSet()
 				switch {
-				case f.typeSet().NumMethods() != 0:
+				case tset.NumMethods() != 0:
 					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s contains methods)", t, t)
+					continue
 				case t.typ == universeComparable.Type():
 					check.error(tlist[i], _InvalidUnion, "cannot use comparable in union")
-				case f.typeSet().comparable:
+					continue
+				case tset.comparable:
 					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s embeds comparable)", t, t)
-				default:
-					panic("not a type set but no methods and not comparable")
+					continue
 				}
-				continue // don't report another error for t
 			}
 
 			// Report overlapping (non-disjoint) terms such as
@@ -130,7 +132,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 				check.softErrorf(tlist[i], _InvalidUnion, "overlapping terms %s and %s", t, terms[j])
 			}
 		}
-	})
+	}).describef(uexpr, "check term validity %s", uexpr)
 
 	return u
 }

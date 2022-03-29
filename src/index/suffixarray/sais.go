@@ -656,7 +656,7 @@ func recurse_32(sa, oldTmp []int32, numLMS, maxID int) {
 	dst, saTmp, text := sa[:numLMS], sa[numLMS:len(sa)-numLMS], sa[len(sa)-numLMS:]
 
 	// Set up temporary space for recursive call.
-	// We must pass sais_32 a tmp buffer wiith at least maxID entries.
+	// We must pass sais_32 a tmp buffer with at least maxID entries.
 	//
 	// The subproblem is guaranteed to have length at most len(sa)/2,
 	// so that sa can hold both the subproblem and its suffix array.

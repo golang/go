@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -153,7 +152,7 @@ func TestAllDependencies(t *testing.T) {
 	// module version specified in GOROOT/src/cmd/go.mod.
 	bundleDir := t.TempDir()
 	r := runner{
-		Dir: filepath.Join(runtime.GOROOT(), "src/cmd"),
+		Dir: filepath.Join(testenv.GOROOT(t), "src/cmd"),
 		Env: append(os.Environ(), modcacheEnv...),
 	}
 	r.run(t, goBin, "build", "-mod=readonly", "-o", bundleDir, "golang.org/x/tools/cmd/bundle")
@@ -183,9 +182,9 @@ func TestAllDependencies(t *testing.T) {
 				}
 			}()
 
-			rel, err := filepath.Rel(runtime.GOROOT(), m.Dir)
+			rel, err := filepath.Rel(testenv.GOROOT(t), m.Dir)
 			if err != nil {
-				t.Fatalf("filepath.Rel(%q, %q): %v", runtime.GOROOT(), m.Dir, err)
+				t.Fatalf("filepath.Rel(%q, %q): %v", testenv.GOROOT(t), m.Dir, err)
 			}
 			r := runner{
 				Dir: filepath.Join(gorootCopyDir, rel),
@@ -252,22 +251,22 @@ func packagePattern(modulePath string) string {
 func makeGOROOTCopy(t *testing.T) string {
 	t.Helper()
 	gorootCopyDir := t.TempDir()
-	err := filepath.Walk(runtime.GOROOT(), func(src string, info os.FileInfo, err error) error {
+	err := filepath.Walk(testenv.GOROOT(t), func(src string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() && src == filepath.Join(runtime.GOROOT(), ".git") {
+		if info.IsDir() && src == filepath.Join(testenv.GOROOT(t), ".git") {
 			return filepath.SkipDir
 		}
 
-		rel, err := filepath.Rel(runtime.GOROOT(), src)
+		rel, err := filepath.Rel(testenv.GOROOT(t), src)
 		if err != nil {
-			return fmt.Errorf("filepath.Rel(%q, %q): %v", runtime.GOROOT(), src, err)
+			return fmt.Errorf("filepath.Rel(%q, %q): %v", testenv.GOROOT(t), src, err)
 		}
 		dst := filepath.Join(gorootCopyDir, rel)
 
-		if info.IsDir() && (src == filepath.Join(runtime.GOROOT(), "bin") ||
-			src == filepath.Join(runtime.GOROOT(), "pkg")) {
+		if info.IsDir() && (src == filepath.Join(testenv.GOROOT(t), "bin") ||
+			src == filepath.Join(testenv.GOROOT(t), "pkg")) {
 			// If the OS supports symlinks, use them instead
 			// of copying the bin and pkg directories.
 			if err := os.Symlink(src, dst); err == nil {
@@ -435,14 +434,14 @@ func findGorootModules(t *testing.T) []gorootModule {
 	goBin := testenv.GoToolPath(t)
 
 	goroot.once.Do(func() {
-		goroot.err = filepath.WalkDir(runtime.GOROOT(), func(path string, info fs.DirEntry, err error) error {
+		goroot.err = filepath.WalkDir(testenv.GOROOT(t), func(path string, info fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 			if info.IsDir() && (info.Name() == "vendor" || info.Name() == "testdata") {
 				return filepath.SkipDir
 			}
-			if info.IsDir() && path == filepath.Join(runtime.GOROOT(), "pkg") {
+			if info.IsDir() && path == filepath.Join(testenv.GOROOT(t), "pkg") {
 				// GOROOT/pkg contains generated artifacts, not source code.
 				//
 				// In https://golang.org/issue/37929 it was observed to somehow contain

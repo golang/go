@@ -19,10 +19,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	}
 
 	if trace {
-		check.trace(body.Pos(), "--- %s: %s", name, sig)
-		defer func() {
-			check.trace(body.End(), "--- <end>")
-		}()
+		check.trace(body.Pos(), "-- %s: %s", name, sig)
 	}
 
 	// set function scope extent
@@ -96,6 +93,7 @@ const (
 
 	// additional context information
 	finalSwitchCase
+	inTypeSwitch
 )
 
 func (check *Checker) simpleStmt(s ast.Stmt) {
@@ -375,7 +373,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	// process collected function literals before scope changes
 	defer check.processDelayed(len(check.delayed))
 
-	inner := ctxt &^ (fallthroughOk | finalSwitchCase)
+	// reset context for statements of inner blocks
+	inner := ctxt &^ (fallthroughOk | finalSwitchCase | inTypeSwitch)
+
 	switch s := s.(type) {
 	case *ast.BadStmt, *ast.EmptyStmt:
 		// ignore
@@ -541,12 +541,16 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 		case token.FALLTHROUGH:
 			if ctxt&fallthroughOk == 0 {
-				msg := "fallthrough statement out of place"
-				code := _MisplacedFallthrough
-				if ctxt&finalSwitchCase != 0 {
+				var msg string
+				switch {
+				case ctxt&finalSwitchCase != 0:
 					msg = "cannot fallthrough final case in switch"
+				case ctxt&inTypeSwitch != 0:
+					msg = "cannot fallthrough in type switch"
+				default:
+					msg = "fallthrough statement out of place"
 				}
-				check.error(s, code, msg)
+				check.error(s, _MisplacedFallthrough, msg)
 			}
 		default:
 			check.invalidAST(s, "branch statement: %s", s.Tok)
@@ -627,7 +631,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 	case *ast.TypeSwitchStmt:
-		inner |= breakOk
+		inner |= breakOk | inTypeSwitch
 		check.openScope(s, "type switch")
 		defer check.closeScope()
 

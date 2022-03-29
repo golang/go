@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"debug/elf"
 	"debug/macho"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -117,9 +118,12 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 		var err error
 		disasm, err = cmd.StdoutPipe()
 		if err != nil {
-			t.Skipf("can't run test due to missing objdump: %s", err)
+			t.Fatal(err)
 		}
 		if err := cmd.Start(); err != nil {
+			if errors.Is(err, exec.ErrNotFound) {
+				t.Skipf("can't run test due to missing objdump: %s", err)
+			}
 			t.Fatal(err)
 		}
 		re = regexp.MustCompile(`^\s*([0-9a-f]+):\s*((?:[0-9a-f][0-9a-f] )+)\s*([a-z0-9]+)`)

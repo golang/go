@@ -62,8 +62,8 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, path []Object) typeIn
 
 	case *Named:
 		// Don't report a 2nd error if we already know the type is invalid
-		// (e.g., if a cycle was detected earlier, via under).
-		if t.underlying == Typ[Invalid] {
+		// Note: ensure that t.orig is fully resolved by calling Underlying().
+		if t.Underlying() == Typ[Invalid] {
 			check.infoMap[t] = invalid
 			return invalid
 		}

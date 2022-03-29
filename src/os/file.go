@@ -623,6 +623,8 @@ func isWindowsNulName(name string) bool {
 // the /prefix tree, then using DirFS does not stop the access any more than using
 // os.Open does. DirFS is therefore not a general substitute for a chroot-style security
 // mechanism when the directory tree contains arbitrary content.
+//
+// The result implements fs.StatFS.
 func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }

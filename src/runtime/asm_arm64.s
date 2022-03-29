@@ -150,11 +150,7 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R0, R26				// context
-#else
-	MOVD	fn+0(FP), R26			// context
-#endif
 
 	// Save caller state in g->sched
 	MOVD	RSP, R0
@@ -175,11 +171,7 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	(g_sched+gobuf_sp)(g), R0
 	MOVD	R0, RSP	// sp = m->g0->sched.sp
 	MOVD	(g_sched+gobuf_bp)(g), R29
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R3, R0				// arg = g
-#else
-	MOVD	R3, -8(RSP)			// arg = g
-#endif
 	MOVD	$0, -16(RSP)			// dummy LR
 	SUB	$16, RSP
 	MOVD	0(R26), R4			// code pointer
@@ -317,7 +309,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R26
 	B runtime·morestack(SB)
 
-#ifdef GOEXPERIMENT_regabireflect
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R20.
 TEXT ·spillArgs(SB),NOSPLIT,$0-0
 	MOVD	R0, (0*8)(R20)
@@ -389,13 +380,6 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
 	FMOVD	(30*8)(R20), F14
 	FMOVD	(31*8)(R20), F15
 	RET
-#else
-TEXT ·spillArgs(SB),NOSPLIT,$0-0
-	RET
-
-TEXT ·unspillArgs(SB),NOSPLIT,$0-0
-	RET
-#endif
 
 // reflectcall: call a function with the given argument list
 // func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
@@ -536,11 +520,6 @@ CALLFN(·call1073741824, 1073741824)
 TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	p+0(FP), R0
-	MOVD	h+8(FP), R1
-	MOVD	$ret+16(FP), R2
-#endif
 	MOVD	$runtime·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
@@ -554,11 +533,7 @@ TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	AESMC	V0.B16, V0.B16
 	AESE	V2.B16, V0.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V0.D[0], R0
-#else
-	VST1	[V0.D1], (R2)
-#endif
 	RET
 noaes:
 	B	runtime·memhash32Fallback<ABIInternal>(SB)
@@ -567,11 +542,6 @@ noaes:
 TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	p+0(FP), R0
-	MOVD	h+8(FP), R1
-	MOVD	$ret+16(FP), R2
-#endif
 	MOVD	$runtime·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
@@ -585,11 +555,7 @@ TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	AESMC	V0.B16, V0.B16
 	AESE	V2.B16, V0.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V0.D[0], R0
-#else
-	VST1	[V0.D1], (R2)
-#endif
 	RET
 noaes:
 	B	runtime·memhash64Fallback<ABIInternal>(SB)
@@ -598,12 +564,6 @@ noaes:
 TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	p+0(FP), R0
-	MOVD	h+8(FP), R1
-	MOVD	s+16(FP), R2
-	MOVD	$ret+24(FP), R8
-#endif
 	B	aeshashbody<>(SB)
 noaes:
 	B	runtime·memhashFallback<ABIInternal>(SB)
@@ -612,14 +572,7 @@ noaes:
 TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
-#ifdef GOEXPERIMENT_regabiargs
 	LDP	(R0), (R0, R2)	// string data / length
-#else
-	MOVD	p+0(FP), R10	// string pointer
-	LDP	(R10), (R0, R2)	// string data / length
-	MOVD	h+8(FP), R1
-	MOVD	$ret+16(FP), R8	// return adddress
-#endif
 	B	aeshashbody<>(SB)
 noaes:
 	B	runtime·strhashFallback<ABIInternal>(SB)
@@ -627,11 +580,7 @@ noaes:
 // R0: data
 // R1: seed data
 // R2: length
-#ifdef GOEXPERIMENT_regabiargs
 // At return, R0 = return value
-#else
-// R8: address to put return value
-#endif
 TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
 	VEOR	V30.B16, V30.B16, V30.B16
 	VMOV	R1, V30.D[0]
@@ -676,19 +625,11 @@ done:
 	AESMC	V2.B16, V2.B16
 	AESE	V0.B16, V2.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V2.D[0], R0
-#else
-	VST1	[V2.D1], (R8)
-#endif
 	RET
 
 aes0:
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V0.D[0], R0
-#else
-	VST1	[V0.D1], (R8)
-#endif
 	RET
 
 aes16:
@@ -718,11 +659,8 @@ aes17to32:
 	AESE	V1.B16, V3.B16
 
 	VEOR	V3.B16, V2.B16, V2.B16
-#ifdef GOEXPERIMENT_regabiargs
+
 	VMOV	V2.D[0], R0
-#else
-	VST1	[V2.D1], (R8)
-#endif
 	RET
 
 aes33to64:
@@ -765,11 +703,7 @@ aes33to64:
 	VEOR	V7.B16, V5.B16, V5.B16
 	VEOR	V5.B16, V4.B16, V4.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V4.D[0], R0
-#else
-	VST1	[V4.D1], (R8)
-#endif
 	RET
 
 aes65to128:
@@ -844,11 +778,7 @@ aes65to128:
 	VEOR	V11.B16, V9.B16, V9.B16
 	VEOR	V9.B16, V8.B16, V8.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V8.D[0], R0
-#else
-	VST1	[V8.D1], (R8)
-#endif
 	RET
 
 aes129plus:
@@ -967,11 +897,7 @@ aesloop:
 	VEOR	V4.B16, V6.B16, V4.B16
 	VEOR	V4.B16, V0.B16, V0.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V0.D[0], R0
-#else
-	VST1	[V0.D1], (R8)
-#endif
 	RET
 
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
@@ -1383,137 +1309,58 @@ flush:
 // Defined as ABIInternal since the compiler generates ABIInternal
 // calls to it directly and it does not use the stack-based Go ABI.
 TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicIndex<ABIInternal>(SB)
 TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
 TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
 TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
 TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
 TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
 TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
 TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
 TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
 TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
 TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
 TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
 TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
 TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
 TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)

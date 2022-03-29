@@ -286,7 +286,7 @@ func (op Token) Precedence() int {
 var keywords map[string]Token
 
 func init() {
-	keywords = make(map[string]Token)
+	keywords = make(map[string]Token, keyword_end-(keyword_beg+1))
 	for i := keyword_beg + 1; i < keyword_end; i++ {
 		keywords[tokens[i]] = i
 	}

@@ -74,7 +74,14 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOCACHE", Value: cache.DefaultDir()},
 		{Name: "GOENV", Value: envFile},
 		{Name: "GOEXE", Value: cfg.ExeSuffix},
-		{Name: "GOEXPERIMENT", Value: buildcfg.GOEXPERIMENT()},
+
+		// List the raw value of GOEXPERIMENT, not the cleaned one.
+		// The set of default experiments may change from one release
+		// to the next, so a GOEXPERIMENT setting that is redundant
+		// with the current toolchain might actually be relevant with
+		// a different version (for example, when bisecting a regression).
+		{Name: "GOEXPERIMENT", Value: cfg.RawGOEXPERIMENT},
+
 		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
@@ -222,6 +229,9 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	buildcfg.Check()
+	if cfg.ExperimentErr != nil {
+		base.Fatalf("go: %v", cfg.ExperimentErr)
+	}
 
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
@@ -374,9 +384,9 @@ func checkBuildConfig(add map[string]string, del map[string]bool) error {
 		}
 	}
 
-	goexperiment, okGOEXPERIMENT := get("GOEXPERIMENT", buildcfg.GOEXPERIMENT(), "")
+	goexperiment, okGOEXPERIMENT := get("GOEXPERIMENT", cfg.RawGOEXPERIMENT, buildcfg.DefaultGOEXPERIMENT)
 	if okGOEXPERIMENT {
-		if _, _, err := buildcfg.ParseGOEXPERIMENT(goos, goarch, goexperiment); err != nil {
+		if _, err := buildcfg.ParseGOEXPERIMENT(goos, goarch, goexperiment); err != nil {
 			return err
 		}
 	}

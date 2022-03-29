@@ -958,6 +958,9 @@ type nameTest struct {
 	want string
 }
 
+type A struct{}
+type B[T any] struct{}
+
 var nameTests = []nameTest{
 	{(*int32)(nil), "int32"},
 	{(*D1)(nil), "D1"},
@@ -971,6 +974,8 @@ var nameTests = []nameTest{
 		F()
 	})(nil), ""},
 	{(*TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678)(nil), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
+	{(*B[A])(nil), "B[reflectlite_test.A]"},
+	{(*B[B[A]])(nil), "B[reflectlite_test.B[reflectlite_test.A]]"},
 }
 
 func TestNames(t *testing.T) {

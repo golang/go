@@ -5,7 +5,7 @@
 package b
 
 import (
-	"a"
+	"./a"
 )
 
 var IntBuilder = a.Builder[int]{}

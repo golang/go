@@ -1223,10 +1223,17 @@ func writeType(t *types.Type) *obj.LSym {
 		}
 	}
 
-	ot = dextratypeData(lsym, ot, t)
-	objw.Global(lsym, int32(ot), int16(obj.DUPOK|obj.RODATA))
 	// Note: DUPOK is required to ensure that we don't end up with more
-	// than one type descriptor for a given type.
+	// than one type descriptor for a given type, if the type descriptor
+	// can be defined in multiple packages, that is, unnamed types and
+	// instantiated types.
+	dupok := 0
+	if tbase.Sym() == nil || tbase.IsFullyInstantiated() {
+		dupok = obj.DUPOK
+	}
+
+	ot = dextratypeData(lsym, ot, t)
+	objw.Global(lsym, int32(ot), int16(dupok|obj.RODATA))
 
 	// The linker will leave a table of all the typelinks for
 	// types in the binary, so the runtime can find them.
@@ -1846,15 +1853,16 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 
 	newnam := ir.MethodSym(rcvr, method.Sym)
 	lsym := newnam.Linksym()
-	if newnam.Siggen() {
-		return lsym
-	}
-	newnam.SetSiggen(true)
 
 	// Unified IR creates its own wrappers.
 	if base.Debug.Unified != 0 {
 		return lsym
 	}
+
+	if newnam.Siggen() {
+		return lsym
+	}
+	newnam.SetSiggen(true)
 
 	methodrcvr := method.Type.Recv().Type
 	// For generic methods, we need to generate the wrapper even if the receiver
@@ -1946,7 +1954,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 
 			// Target method uses shaped names.
 			targs2 := make([]*types.Type, len(targs))
-			origRParams := deref(orig).OrigSym().Def.(*ir.Name).Type().RParams()
+			origRParams := deref(orig).OrigType().RParams()
 			for i, t := range targs {
 				targs2[i] = typecheck.Shapify(t, i, origRParams[i])
 			}

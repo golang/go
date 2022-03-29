@@ -171,7 +171,6 @@ func (g *irgen) objFinish(name *ir.Name, class ir.Class, typ *types.Type) {
 	}
 
 	name.SetTypecheck(1)
-	name.SetWalkdef(1)
 
 	if ir.IsBlank(name) {
 		return

@@ -7,7 +7,6 @@ package netip
 import (
 	"internal/testenv"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -17,12 +16,8 @@ import (
 func TestInlining(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
-	var exe string
-	if runtime.GOOS == "windows" {
-		exe = ".exe"
-	}
 	out, err := exec.Command(
-		filepath.Join(runtime.GOROOT(), "bin", "go"+exe),
+		testenv.GoToolPath(t),
 		"build",
 		"--gcflags=-m",
 		"net/netip").CombinedOutput()

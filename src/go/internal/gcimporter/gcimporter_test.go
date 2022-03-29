@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"go/ast"
+	"go/build"
 	"go/importer"
 	"go/parser"
 	"go/token"
@@ -25,6 +26,11 @@ import (
 
 	. "go/internal/gcimporter"
 )
+
+func TestMain(m *testing.M) {
+	build.Default.GOROOT = testenv.GOROOT(nil)
+	os.Exit(m.Run())
+}
 
 // skipSpecialPlatforms causes the test to be skipped for platforms where
 // builders (build.golang.org) don't have access to compiled packages for
@@ -45,7 +51,7 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
 	}
 	basename := filepath.Base(filename)
 	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", outname, filename)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", outname, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -72,7 +78,7 @@ const maxTime = 30 * time.Second
 var pkgExts = [...]string{".a", ".o"} // keep in sync with gcimporter.go
 
 func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
-	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
+	dirname := filepath.Join(testenv.GOROOT(t), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
 	list, err := os.ReadDir(dirname)
 	if err != nil {
 		t.Fatalf("testDir(%s): %s", dirname, err)
@@ -162,7 +168,7 @@ func TestImportTypeparamTests(t *testing.T) {
 
 	// Check go files in test/typeparam, except those that fail for a known
 	// reason.
-	rootDir := filepath.Join(runtime.GOROOT(), "test", "typeparam")
+	rootDir := filepath.Join(testenv.GOROOT(t), "test", "typeparam")
 	list, err := os.ReadDir(rootDir)
 	if err != nil {
 		t.Fatal(err)

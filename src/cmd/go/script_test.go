@@ -15,12 +15,14 @@ import (
 	"fmt"
 	"go/build"
 	"internal/testenv"
+	"internal/txtar"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,8 +35,6 @@ import (
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/work"
 	"cmd/internal/sys"
-
-	"golang.org/x/tools/txtar"
 )
 
 var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
@@ -188,6 +188,7 @@ func (ts *testScript) setup() {
 		"goversion=" + goVersion(ts),
 		":=" + string(os.PathListSeparator),
 		"/=" + string(os.PathSeparator),
+		"CMDGO_TEST_RUN_MAIN=true",
 	}
 	if !testenv.HasExternalNetwork() {
 		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
@@ -373,6 +374,17 @@ Script:
 				ok = testenv.HasSymlink()
 			case "case-sensitive":
 				ok = isCaseSensitive(ts.t)
+			case "trimpath":
+				if info, _ := debug.ReadBuildInfo(); info == nil {
+					ts.fatalf("missing build info")
+				} else {
+					for _, s := range info.Settings {
+						if s.Key == "-trimpath" && s.Value == "true" {
+							ok = true
+							break
+						}
+					}
+				}
 			default:
 				if strings.HasPrefix(cond.tag, "exec:") {
 					prog := cond.tag[len("exec:"):]

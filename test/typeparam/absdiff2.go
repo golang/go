@@ -23,15 +23,16 @@ type Numeric interface {
 
 // numericAbs matches a struct containing a numeric type that has an Abs method.
 type numericAbs[T Numeric] interface {
-	~struct{ Value T }
+	~struct{ Value_ T }
 	Abs() T
+	Value() T
 }
 
 // absDifference computes the absolute value of the difference of
 // a and b, where the absolute value is determined by the Abs method.
 func absDifference[T Numeric, U numericAbs[T]](a, b U) T {
-	d := a.Value - b.Value
-	dt := U{Value: d}
+	d := a.Value() - b.Value()
+	dt := U{Value_: d}
 	return dt.Abs()
 }
 
@@ -50,20 +51,29 @@ type Complex interface {
 // orderedAbs is a helper type that defines an Abs method for
 // a struct containing an ordered numeric type.
 type orderedAbs[T orderedNumeric] struct {
-	Value T
+	Value_ T
 }
 
 func (a orderedAbs[T]) Abs() T {
-	if a.Value < 0 {
-		return -a.Value
+	if a.Value_ < 0 {
+		return -a.Value_
 	}
-	return a.Value
+	return a.Value_
+}
+
+// Field accesses through type parameters are disabled
+// until we have a more thorough understanding of the
+// implications on the spec. See issue #51576.
+// Use accessor method instead.
+
+func (a orderedAbs[T]) Value() T {
+	return a.Value_
 }
 
 // complexAbs is a helper type that defines an Abs method for
 // a struct containing a complex type.
 type complexAbs[T Complex] struct {
-	Value T
+	Value_ T
 }
 
 func realimag(x any) (re, im float64) {
@@ -82,11 +92,15 @@ func realimag(x any) (re, im float64) {
 
 func (a complexAbs[T]) Abs() T {
 	// TODO use direct conversion instead of realimag once #50937 is fixed
-	r, i := realimag(a.Value)
+	r, i := realimag(a.Value_)
 	// r := float64(real(a.Value))
 	// i := float64(imag(a.Value))
 	d := math.Sqrt(r*r + i*i)
 	return T(complex(d, 0))
+}
+
+func (a complexAbs[T]) Value() T {
+	return a.Value_
 }
 
 // OrderedAbsDifference returns the absolute value of the difference

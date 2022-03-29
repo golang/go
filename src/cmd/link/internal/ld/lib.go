@@ -390,7 +390,9 @@ func libinit(ctxt *Link) {
 		suffix = "asan"
 	}
 
-	Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
+	if buildcfg.GOROOT != "" {
+		Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
+	}
 
 	mayberemoveoutfile()
 
@@ -1478,7 +1480,7 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, unusedArguments)
 	}
 
-	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
+	const compressDWARF = "-Wl,--compress-debug-sections=zlib"
 	if ctxt.compressDWARF && linkerFlagSupported(ctxt.Arch, argv[0], altLinker, compressDWARF) {
 		argv = append(argv, compressDWARF)
 	}

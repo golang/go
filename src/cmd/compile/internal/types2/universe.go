@@ -97,7 +97,7 @@ func defPredeclaredTypes() {
 		err := NewFunc(nopos, nil, "Error", sig)
 
 		// interface{ Error() string }
-		ityp := &Interface{obj: obj, methods: []*Func{err}, complete: true}
+		ityp := &Interface{methods: []*Func{err}, complete: true}
 		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
 
 		typ.SetUnderlying(ityp)
@@ -111,7 +111,7 @@ func defPredeclaredTypes() {
 		typ := NewNamed(obj, nil, nil)
 
 		// interface{} // marked as comparable
-		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{true, nil, allTermlist}}
+		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
 
 		typ.SetUnderlying(ityp)
 		def(obj)

@@ -47,6 +47,7 @@ setlocal
 :nolocal
 
 set GOENV=off
+set GOWORK=off
 set GOBUILDFAIL=0
 set GOFLAGS=
 set GO111MODULE=

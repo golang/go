@@ -16,7 +16,6 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 )
 
 func roundFloat(v constant.Value, sz int64) constant.Value {
@@ -99,10 +98,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		}
 		n = ir.Copy(n)
 		if t == nil {
-			base.Errorf("use of untyped nil")
-			n.SetDiag(true)
-			n.SetType(nil)
-			return n
+			base.Fatalf("use of untyped nil")
 		}
 
 		if !t.HasNil() {
@@ -199,18 +195,14 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		return n
 	}
 
-	if !n.Diag() {
-		if !t.Broke() {
-			if explicit {
-				base.Errorf("cannot convert %L to type %v", n, t)
-			} else if context != nil {
-				base.Errorf("cannot use %L as type %v in %s", n, t, context())
-			} else {
-				base.Errorf("cannot use %L as type %v", n, t)
-			}
-		}
-		n.SetDiag(true)
+	if explicit {
+		base.Fatalf("cannot convert %L to type %v", n, t)
+	} else if context != nil {
+		base.Fatalf("cannot use %L as type %v in %s", n, t, context())
+	} else {
+		base.Fatalf("cannot use %L as type %v", n, t)
 	}
+
 	n.SetType(nil)
 	return n
 }
@@ -771,94 +763,6 @@ func anyCallOrChan(n ir.Node) bool {
 		}
 		return false
 	})
-}
-
-// A constSet represents a set of Go constant expressions.
-type constSet struct {
-	m map[constSetKey]src.XPos
-}
-
-type constSetKey struct {
-	typ *types.Type
-	val interface{}
-}
-
-// add adds constant expression n to s. If a constant expression of
-// equal value and identical type has already been added, then add
-// reports an error about the duplicate value.
-//
-// pos provides position information for where expression n occurred
-// (in case n does not have its own position information). what and
-// where are used in the error message.
-//
-// n must not be an untyped constant.
-func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
-	if conv := n; conv.Op() == ir.OCONVIFACE {
-		conv := conv.(*ir.ConvExpr)
-		if conv.Implicit() {
-			n = conv.X
-		}
-	}
-
-	if !ir.IsConstNode(n) || n.Type() == nil {
-		return
-	}
-	if n.Type().IsUntyped() {
-		base.Fatalf("%v is untyped", n)
-	}
-
-	// Consts are only duplicates if they have the same value and
-	// identical types.
-	//
-	// In general, we have to use types.Identical to test type
-	// identity, because == gives false negatives for anonymous
-	// types and the byte/uint8 and rune/int32 builtin type
-	// aliases.  However, this is not a problem here, because
-	// constant expressions are always untyped or have a named
-	// type, and we explicitly handle the builtin type aliases
-	// below.
-	//
-	// This approach may need to be revisited though if we fix
-	// #21866 by treating all type aliases like byte/uint8 and
-	// rune/int32.
-
-	typ := n.Type()
-	switch typ {
-	case types.ByteType:
-		typ = types.Types[types.TUINT8]
-	case types.RuneType:
-		typ = types.Types[types.TINT32]
-	}
-	k := constSetKey{typ, ir.ConstValue(n)}
-
-	if ir.HasUniquePos(n) {
-		pos = n.Pos()
-	}
-
-	if s.m == nil {
-		s.m = make(map[constSetKey]src.XPos)
-	}
-
-	if prevPos, isDup := s.m[k]; isDup {
-		base.ErrorfAt(pos, "duplicate %s %s in %s\n\tprevious %s at %v",
-			what, nodeAndVal(n), where,
-			what, base.FmtPos(prevPos))
-	} else {
-		s.m[k] = pos
-	}
-}
-
-// nodeAndVal reports both an expression and its constant value, if
-// the latter is non-obvious.
-//
-// TODO(mdempsky): This could probably be a fmt.go flag.
-func nodeAndVal(n ir.Node) string {
-	show := fmt.Sprint(n)
-	val := ir.ConstValue(n)
-	if s := fmt.Sprintf("%#v", val); show != s {
-		show += " (value " + s + ")"
-	}
-	return show
 }
 
 // evalunsafe evaluates a package unsafe operation and returns the result.

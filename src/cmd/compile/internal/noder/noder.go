@@ -472,7 +472,7 @@ func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {
 		return errors.New("go:embed cannot apply to var without type")
 	case withinFunc:
 		return errors.New("go:embed cannot apply to var inside func")
-	case !types.AllowsGoVersion(types.LocalPkg, 1, 16):
+	case !types.AllowsGoVersion(1, 16):
 		return fmt.Errorf("go:embed requires go1.16 or later (-lang was set to %s; check go.mod)", base.Flag.Lang)
 
 	default:

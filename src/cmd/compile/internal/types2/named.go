@@ -78,6 +78,7 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 }
 
 func (t *Named) cleanup() {
+	assert(t.orig.orig == t.orig)
 	// Ensure that every defined type created in the course of type-checking has
 	// either non-*Named underlying, or is unresolved.
 	//
@@ -98,10 +99,10 @@ func (t *Named) cleanup() {
 }
 
 // Obj returns the type name for the declaration defining the named type t. For
-// instantiated types, this is the type name of the base type.
+// instantiated types, this is same as the type name of the origin type.
 func (t *Named) Obj() *TypeName { return t.orig.obj } // for non-instances this is the same as t.obj
 
-// Origin returns the parameterized type from which the named type t is
+// Origin returns the generic type from which the named type t is
 // instantiated. If t is not an instantiated type, the result is t.
 func (t *Named) Origin() *Named { return t.orig }
 
@@ -109,7 +110,7 @@ func (t *Named) Origin() *Named { return t.orig }
 //           between parameterized instantiated and non-instantiated types.
 
 // TypeParams returns the type parameters of the named type t, or nil.
-// The result is non-nil for an (originally) parameterized type even if it is instantiated.
+// The result is non-nil for an (originally) generic type even if it is instantiated.
 func (t *Named) TypeParams() *TypeParamList { return t.resolve(nil).tparams }
 
 // SetTypeParams sets the type parameters of the named type t.
@@ -122,7 +123,11 @@ func (t *Named) SetTypeParams(tparams []*TypeParam) {
 // TypeArgs returns the type arguments used to instantiate the named type t.
 func (t *Named) TypeArgs() *TypeList { return t.targs }
 
-// NumMethods returns the number of explicit methods whose receiver is named type t.
+// NumMethods returns the number of explicit methods defined for t.
+//
+// For an ordinary or instantiated type t, the receiver base type of these
+// methods will be the named type t. For an uninstantiated generic type t, each
+// method receiver will be instantiated with its receiver type parameters.
 func (t *Named) NumMethods() int { return t.resolve(nil).methods.Len() }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
@@ -133,7 +138,7 @@ func (t *Named) Method(i int) *Func {
 	})
 }
 
-// instiateMethod instantiates the i'th method for an instantiated receiver.
+// instantiateMethod instantiates the i'th method for an instantiated receiver.
 func (t *Named) instantiateMethod(i int) *Func {
 	assert(t.TypeArgs().Len() > 0) // t must be an instance
 
@@ -350,10 +355,18 @@ func (check *Checker) bestContext(ctxt *Context) *Context {
 // expandNamed ensures that the underlying type of n is instantiated.
 // The underlying type will be Typ[Invalid] if there was an error.
 func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypeParamList, underlying Type, methods *methodList) {
+	check := n.check
+	if check != nil && check.conf.Trace {
+		check.trace(instPos, "-- expandNamed %s", n)
+		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(instPos, "=> %s (tparams = %s, under = %s)", n, tparams.list(), underlying)
+		}()
+	}
+
 	n.orig.resolve(ctxt)
 	assert(n.orig.underlying != nil)
-
-	check := n.check
 
 	if _, unexpanded := n.orig.underlying.(*Named); unexpanded {
 		// We should only get an unexpanded underlying here during type checking

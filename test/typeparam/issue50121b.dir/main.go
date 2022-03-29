@@ -1,7 +1,7 @@
 package main
 
 import (
-	"d"
+	"./d"
 	"fmt"
 )
 

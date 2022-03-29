@@ -148,9 +148,7 @@ func (w *gcWork) put(obj uintptr) {
 //go:nowritebarrierrec
 func (w *gcWork) putFast(obj uintptr) bool {
 	wbuf := w.wbuf1
-	if wbuf == nil {
-		return false
-	} else if wbuf.nobj == len(wbuf.obj) {
+	if wbuf == nil || wbuf.nobj == len(wbuf.obj) {
 		return false
 	}
 
@@ -230,10 +228,7 @@ func (w *gcWork) tryGet() uintptr {
 //go:nowritebarrierrec
 func (w *gcWork) tryGetFast() uintptr {
 	wbuf := w.wbuf1
-	if wbuf == nil {
-		return 0
-	}
-	if wbuf.nobj == 0 {
+	if wbuf == nil || wbuf.nobj == 0 {
 		return 0
 	}
 

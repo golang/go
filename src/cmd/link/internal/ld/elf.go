@@ -1102,6 +1102,9 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 	}
 	if strings.HasPrefix(sect.Name, ".debug") || strings.HasPrefix(sect.Name, ".zdebug") {
 		sh.Flags = 0
+		if sect.Compressed {
+			sh.Flags |= uint64(elf.SHF_COMPRESSED)
+		}
 	}
 
 	if linkmode != LinkExternal {
@@ -2255,7 +2258,7 @@ func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.S
 
 		dil := ldr.SymDynimplib(s)
 
-		if target.Arch.Family == sys.AMD64 && !cgoeDynamic && dil != "" && !seenlib[dil] {
+		if !cgoeDynamic && dil != "" && !seenlib[dil] {
 			du := ldr.MakeSymbolUpdater(syms.Dynamic)
 			Elfwritedynent(target.Arch, du, elf.DT_NEEDED, uint64(dstru.Addstring(dil)))
 			seenlib[dil] = true

@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
@@ -57,7 +58,7 @@ type CmdFlags struct {
 	E CountFlag    "help:\"debug symbol export\""
 	I func(string) "help:\"add `directory` to import search path\""
 	K CountFlag    "help:\"debug missing line numbers\""
-	L CountFlag    "help:\"show full file names in error messages\""
+	L CountFlag    "help:\"also show actual source file names in error messages for positions affected by //line directives\""
 	N CountFlag    "help:\"disable optimizations\""
 	S CountFlag    "help:\"print assembly listing\""
 	// V is added by objabi.AddVersionFlag
@@ -199,6 +200,10 @@ func ParseFlags() {
 	if Flag.GoVersion != "" && Flag.GoVersion != runtime.Version() {
 		fmt.Printf("compile: version %q does not match go tool version %q\n", runtime.Version(), Flag.GoVersion)
 		Exit(2)
+	}
+
+	if *Flag.LowerP == "" {
+		*Flag.LowerP = obj.UnlinkablePkg
 	}
 
 	if Flag.LowerO == "" {

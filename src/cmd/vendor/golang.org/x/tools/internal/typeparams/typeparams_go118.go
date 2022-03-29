@@ -140,6 +140,11 @@ func GetInstances(info *types.Info) map[*ast.Ident]Instance {
 // Context is an alias for types.Context.
 type Context = types.Context
 
+// NewContext calls types.NewContext.
+func NewContext() *Context {
+	return types.NewContext()
+}
+
 // Instantiate calls types.Instantiate.
 func Instantiate(ctxt *Context, typ types.Type, targs []types.Type, validate bool) (types.Type, error) {
 	return types.Instantiate(ctxt, typ, targs, validate)

@@ -44,7 +44,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 				x.mode = invalid
 				return
 			}
-		} else if T == nil || IsInterface(T) && !isTypeParam(T) {
+		} else if T == nil || isNonTypeParamInterface(T) {
 			target = Default(x.typ)
 		}
 		newType, val, code := check.implicitTypeAndValue(x, target)

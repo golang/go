@@ -23,8 +23,8 @@ const _SYS_setgroups = SYS_SETGROUPS
 //sys	Lchown(path string, uid int, gid int) (err error)
 //sys	Listen(s int, n int) (err error)
 //sys	Pause() (err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)

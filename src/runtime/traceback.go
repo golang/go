@@ -113,7 +113,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	f := findfunc(frame.pc)
 	if !f.valid() {
 		if callback != nil || printing {
-			print("runtime: unknown pc ", hex(frame.pc), "\n")
+			print("runtime: g ", gp.goid, ": unknown pc ", hex(frame.pc), "\n")
 			tracebackHexdump(gp.stack, &frame, 0)
 		}
 		if callback != nil {
@@ -247,7 +247,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					doPrint = false
 				}
 				if callback != nil || doPrint {
-					print("runtime: unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
+					print("runtime: g ", gp.goid, ": unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
 					tracebackHexdump(gp.stack, &frame, lrPtr)
 				}
 				if callback != nil {

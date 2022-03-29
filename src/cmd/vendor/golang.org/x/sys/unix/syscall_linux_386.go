@@ -35,8 +35,8 @@ func setTimeval(sec, usec int64) Timeval {
 //sys	Iopl(level int) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	setfsgid(gid int) (prev int, err error) = SYS_SETFSGID32
@@ -172,14 +172,6 @@ const (
 	_RECVMMSG    = 19
 	_SENDMMSG    = 20
 )
-
-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
-	fd, e := socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
-	if e != 0 {
-		err = e
-	}
-	return
-}
 
 func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
 	fd, e := socketcall(_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)

@@ -415,8 +415,8 @@ func (t *Tree) action() (n Node) {
 //	{{break}}
 // Break keyword is past.
 func (t *Tree) breakControl(pos Pos, line int) Node {
-	if token := t.next(); token.typ != itemRightDelim {
-		t.unexpected(token, "in {{break}}")
+	if token := t.nextNonSpace(); token.typ != itemRightDelim {
+		t.unexpected(token, "{{break}}")
 	}
 	if t.rangeDepth == 0 {
 		t.errorf("{{break}} outside {{range}}")
@@ -428,8 +428,8 @@ func (t *Tree) breakControl(pos Pos, line int) Node {
 //	{{continue}}
 // Continue keyword is past.
 func (t *Tree) continueControl(pos Pos, line int) Node {
-	if token := t.next(); token.typ != itemRightDelim {
-		t.unexpected(token, "in {{continue}}")
+	if token := t.nextNonSpace(); token.typ != itemRightDelim {
+		t.unexpected(token, "{{continue}}")
 	}
 	if t.rangeDepth == 0 {
 		t.errorf("{{continue}} outside {{range}}")

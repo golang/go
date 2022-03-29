@@ -26,7 +26,7 @@ import (
 
 const (
 	riscv64REG_G    = 27
-	riscv64REG_CTXT = 20
+	riscv64REG_CTXT = 26
 	riscv64REG_LR   = 1
 	riscv64REG_SP   = 2
 	riscv64REG_GP   = 3
@@ -115,7 +115,7 @@ func init() {
 		panic("Too many RISCV64 registers")
 	}
 
-	regCtxt := regNamed["X20"]
+	regCtxt := regNamed["X26"]
 	callerSave := gpMask | fpMask | regNamed["g"]
 
 	var (
@@ -241,13 +241,13 @@ func init() {
 		{name: "MOVconvert", argLength: 2, reg: gp11, asm: "MOV"}, // arg0, but converted to int/ptr as appropriate; arg1=mem
 
 		// Calls
-		{name: "CALLstatic", argLength: 1, reg: call, aux: "CallOff", call: true},               // call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
-		{name: "CALLtail", argLength: 1, reg: call, aux: "CallOff", call: true, tailCall: true}, // tail call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: callClosure, aux: "CallOff", call: true},       // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: callInter, aux: "CallOff", call: true},           // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: -1, reg: call, aux: "CallOff", call: true},               // call static function aux.(*gc.Sym). last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: call, aux: "CallOff", call: true, tailCall: true}, // tail call static function aux.(*gc.Sym). last arg=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: callClosure, aux: "CallOff", call: true},       // call function via closure. arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: callInter, aux: "CallOff", call: true},           // call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// duffzero
-		// arg0 = address of memory to zero (in X10, changed as side effect)
+		// arg0 = address of memory to zero (in X25, changed as side effect)
 		// arg1 = mem
 		// auxint = offset into duffzero code to start executing
 		// X1 (link register) changed because of function call
@@ -257,16 +257,16 @@ func init() {
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{regNamed["X10"]},
-				clobbers: regNamed["X1"] | regNamed["X10"],
+				inputs:   []regMask{regNamed["X25"]},
+				clobbers: regNamed["X1"] | regNamed["X25"],
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
 
 		// duffcopy
-		// arg0 = address of dst memory (in X11, changed as side effect)
-		// arg1 = address of src memory (in X10, changed as side effect)
+		// arg0 = address of dst memory (in X25, changed as side effect)
+		// arg1 = address of src memory (in X24, changed as side effect)
 		// arg2 = mem
 		// auxint = offset into duffcopy code to start executing
 		// X1 (link register) changed because of function call
@@ -276,8 +276,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{regNamed["X11"], regNamed["X10"]},
-				clobbers: regNamed["X1"] | regNamed["X10"] | regNamed["X11"],
+				inputs:   []regMask{regNamed["X25"], regNamed["X24"]},
+				clobbers: regNamed["X1"] | regNamed["X24"] | regNamed["X25"],
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
@@ -477,5 +477,9 @@ func init() {
 		gpregmask:       gpMask,
 		fpregmask:       fpMask,
 		framepointerreg: -1, // not used
+		// Integer parameters passed in register X10-X17, X8-X9, X18-X23
+		ParamIntRegNames: "X10 X11 X12 X13 X14 X15 X16 X17 X8 X9 X18 X19 X20 X21 X22 X23",
+		// Float parameters passed in register F10-F17, F8-F9, F18-F23
+		ParamFloatRegNames: "F10 F11 F12 F13 F14 F15 F16 F17 F8 F9 F18 F19 F20 F21 F22 F23",
 	})
 }

@@ -5191,6 +5191,29 @@ func rewriteValueAMD64_OpAMD64CMOVQEQ(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
+	// match: (CMOVQEQ x _ (Select1 (BSRQ (ORQconst [c] _))))
+	// cond: c != 0
+	// result: x
+	for {
+		x := v_0
+		if v_2.Op != OpSelect1 {
+			break
+		}
+		v_2_0 := v_2.Args[0]
+		if v_2_0.Op != OpAMD64BSRQ {
+			break
+		}
+		v_2_0_0 := v_2_0.Args[0]
+		if v_2_0_0.Op != OpAMD64ORQconst {
+			break
+		}
+		c := auxIntToInt32(v_2_0_0.AuxInt)
+		if !(c != 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64CMOVQGE(v *Value) bool {

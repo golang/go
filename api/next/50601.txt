@@ -1,0 +1,5 @@
+pkg encoding/binary, type AppendByteOrder interface { AppendUint16, AppendUint32, AppendUint64, String } #50601
+pkg encoding/binary, type AppendByteOrder interface, AppendUint16([]uint8, uint16) []uint8 #50601
+pkg encoding/binary, type AppendByteOrder interface, AppendUint32([]uint8, uint32) []uint8 #50601
+pkg encoding/binary, type AppendByteOrder interface, AppendUint64([]uint8, uint64) []uint8 #50601
+pkg encoding/binary, type AppendByteOrder interface, String() string #50601

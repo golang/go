@@ -2778,10 +2778,29 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
 	}
 
 	var buf bytes.Buffer
-	buf.Write([]byte("ZLIB"))
-	var sizeBytes [8]byte
-	binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
-	buf.Write(sizeBytes[:])
+	if ctxt.IsELF {
+		switch ctxt.Arch.PtrSize {
+		case 8:
+			binary.Write(&buf, ctxt.Arch.ByteOrder, elf.Chdr64{
+				Type:      uint32(elf.COMPRESS_ZLIB),
+				Size:      uint64(total),
+				Addralign: uint64(ctxt.Arch.Alignment),
+			})
+		case 4:
+			binary.Write(&buf, ctxt.Arch.ByteOrder, elf.Chdr32{
+				Type:      uint32(elf.COMPRESS_ZLIB),
+				Size:      uint32(total),
+				Addralign: uint32(ctxt.Arch.Alignment),
+			})
+		default:
+			log.Fatalf("can't compress header size:%d", ctxt.Arch.PtrSize)
+		}
+	} else {
+		buf.Write([]byte("ZLIB"))
+		var sizeBytes [8]byte
+		binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
+		buf.Write(sizeBytes[:])
+	}
 
 	var relocbuf []byte // temporary buffer for applying relocations
 

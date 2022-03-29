@@ -7807,3 +7807,12 @@ func TestIssue50208(t *testing.T) {
 		t.Errorf("name of type parameter mismatched, want:%s, got:%s", want2, got)
 	}
 }
+
+func TestNegativeKindString(t *testing.T) {
+	x := -1
+	s := Kind(x).String()
+	want := "kind-1"
+	if s != want {
+		t.Fatalf("Kind(-1).String() = %q, want %q", s, want)
+	}
+}

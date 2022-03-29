@@ -47,20 +47,23 @@ func direntNamlen(buf []byte) (uint64, bool) {
 	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
 }
 
-func pipe() (r uintptr, w uintptr, err uintptr)
-
 func Pipe(p []int) (err error) {
+	return Pipe2(p, 0)
+}
+
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) error {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	r0, w0, e1 := pipe()
-	if e1 != 0 {
-		err = Errno(e1)
-	}
+	var pp [2]_C_int
+	err := pipe2(&pp, flags)
 	if err == nil {
-		p[0], p[1] = int(r0), int(w0)
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
 	}
-	return
+	return err
 }
 
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
@@ -418,6 +421,7 @@ func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags i
 //sys	Getppid() (ppid int)
 //sys	Getpriority(which int, who int) (n int, err error)
 //sysnb	Getrlimit(which int, lim *Rlimit) (err error)
+//sysnb	Getrusage(who int, rusage *Rusage) (err error)
 //sysnb	Gettimeofday(tv *Timeval) (err error)
 //sysnb	Getuid() (uid int)
 //sys	Kill(pid int, signum Signal) (err error)
@@ -430,8 +434,8 @@ func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags i
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Rename(from string, to string) (err error)

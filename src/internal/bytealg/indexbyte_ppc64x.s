@@ -8,28 +8,22 @@
 #include "textflag.h"
 
 TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	b_base+0(FP), R3	// R3 = byte array pointer
-	MOVD	b_len+8(FP), R4		// R4 = length
-	MOVBZ	c+24(FP), R5		// R5 = byte
-	MOVD	$ret+32(FP), R14	// R14 = &ret
-#else
-	MOVD	R6, R5
-#endif
+	// R3 = byte array pointer
+	// R4 = length
+	MOVD	R6, R5		// R5 = byte
 	BR	indexbytebody<>(SB)
 
 TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	s_base+0(FP), R3  // R3 = string
-	MOVD	s_len+8(FP), R4	  // R4 = length
-	MOVBZ	c+16(FP), R5	  // R5 = byte
-	MOVD	$ret+24(FP), R14  // R14 = &ret
-#endif
+	// R3 = string
+	// R4 = length
+	// R5 = byte
 	BR	indexbytebody<>(SB)
+
 // R3 = addr of string
 // R4 = len of string
 // R5 = byte to find
-// R14 = addr of return value when not regabi
+// On exit:
+// R3 = return value
 TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R3,R17		// Save base address for calculating the index later.
 	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
@@ -193,10 +187,7 @@ tail:
 	BNE	    CR6,found_qw_align
 
 notfound:
-	MOVD	$-1,R3
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R3,(R14)
-#endif
+	MOVD	$-1, R3
 	RET
 
 found:
@@ -238,10 +229,7 @@ found:
 	ADD	R8,R11,R3	// Calculate byte address
 
 return:
-	SUB	R17,R3
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R3,(R14)
-#endif
+	SUB	R17, R3
 	RET
 
 found_qw_align:

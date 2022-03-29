@@ -79,10 +79,10 @@ func main() {
 			Package:    "slices",
 			Imports:    "import \"constraints\"\n",
 			FuncSuffix: "Ordered",
-			TypeParam:  "[Elem constraints.Ordered]",
+			TypeParam:  "[E constraints.Ordered]",
 			ExtraParam: "",
 			ExtraArg:   "",
-			DataType:   "[]Elem",
+			DataType:   "[]E",
 			Funcs: template.FuncMap{
 				"Less": func(name, i, j string) string {
 					return fmt.Sprintf("(%s[%s] < %s[%s])", name, i, name, j)
@@ -98,10 +98,10 @@ func main() {
 			Path:       "zsortanyfunc.go",
 			Package:    "slices",
 			FuncSuffix: "LessFunc",
-			TypeParam:  "[Elem any]",
-			ExtraParam: ", less func(a, b Elem) bool",
+			TypeParam:  "[E any]",
+			ExtraParam: ", less func(a, b E) bool",
 			ExtraArg:   ", less",
-			DataType:   "[]Elem",
+			DataType:   "[]E",
 			Funcs: template.FuncMap{
 				"Less": func(name, i, j string) string {
 					return fmt.Sprintf("less(%s[%s], %s[%s])", name, i, name, j)

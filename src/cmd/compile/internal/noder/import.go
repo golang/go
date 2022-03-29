@@ -369,16 +369,8 @@ func addFingerprint(path string, f *os.File, end int64) error {
 	}
 
 	copy(fingerprint[:], buf[:])
+	base.Ctxt.AddImport(path, fingerprint)
 
-	// assume files move (get installed) so don't record the full path
-	if base.Flag.Cfg.PackageFile != nil {
-		// If using a packageFile map, assume path_ can be recorded directly.
-		base.Ctxt.AddImport(path, fingerprint)
-	} else {
-		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
-		file := f.Name()
-		base.Ctxt.AddImport(file[len(file)-len(path)-len(".a"):], fingerprint)
-	}
 	return nil
 }
 

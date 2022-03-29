@@ -125,13 +125,13 @@ const (
 	REG_A7   = REG_X17
 	REG_S2   = REG_X18
 	REG_S3   = REG_X19
-	REG_S4   = REG_X20 // aka REG_CTXT
+	REG_S4   = REG_X20
 	REG_S5   = REG_X21
 	REG_S6   = REG_X22
 	REG_S7   = REG_X23
 	REG_S8   = REG_X24
 	REG_S9   = REG_X25
-	REG_S10  = REG_X26
+	REG_S10  = REG_X26 // aka REG_CTXT
 	REG_S11  = REG_X27 // aka REG_G
 	REG_T3   = REG_X28
 	REG_T4   = REG_X29
@@ -139,8 +139,8 @@ const (
 	REG_T6   = REG_X31 // aka REG_TMP
 
 	// Go runtime register names.
+	REG_CTXT = REG_S10 // Context for closures.
 	REG_G    = REG_S11 // G pointer.
-	REG_CTXT = REG_S4  // Context for closures.
 	REG_LR   = REG_RA  // Link register.
 	REG_TMP  = REG_T6  // Reserved for assembler use.
 

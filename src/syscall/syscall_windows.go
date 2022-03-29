@@ -8,6 +8,7 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/bytealg"
 	"internal/itoa"
 	"internal/oserror"
 	"internal/race"
@@ -39,10 +40,8 @@ func StringToUTF16(s string) []uint16 {
 // s, with a terminating NUL added. If s contains a NUL byte at any
 // location, it returns (nil, EINVAL).
 func UTF16FromString(s string) ([]uint16, error) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == 0 {
-			return nil, EINVAL
-		}
+	if bytealg.IndexByteString(s, 0) != -1 {
+		return nil, EINVAL
 	}
 	return utf16.Encode([]rune(s + "\x00")), nil
 }
@@ -202,8 +201,8 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
 //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
-//sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
-//sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+//sys	readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = ReadFile
+//sys	writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = WriteFile
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
 //sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
@@ -385,40 +384,50 @@ func Read(fd Handle, p []byte) (n int, err error) {
 		}
 		return 0, e
 	}
-	if race.Enabled {
-		if done > 0 {
-			race.WriteRange(unsafe.Pointer(&p[0]), int(done))
-		}
-		race.Acquire(unsafe.Pointer(&ioSync))
-	}
-	if msanenabled && done > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), int(done))
-	}
-	if asanenabled && done > 0 {
-		asanWrite(unsafe.Pointer(&p[0]), int(done))
-	}
 	return int(done), nil
 }
 
 func Write(fd Handle, p []byte) (n int, err error) {
-	if race.Enabled {
-		race.ReleaseMerge(unsafe.Pointer(&ioSync))
-	}
 	var done uint32
 	e := WriteFile(fd, p, &done, nil)
 	if e != nil {
 		return 0, e
 	}
-	if race.Enabled && done > 0 {
-		race.ReadRange(unsafe.Pointer(&p[0]), int(done))
-	}
-	if msanenabled && done > 0 {
-		msanRead(unsafe.Pointer(&p[0]), int(done))
-	}
-	if asanenabled && done > 0 {
-		asanRead(unsafe.Pointer(&p[0]), int(done))
-	}
 	return int(done), nil
+}
+
+func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+	err := readFile(fd, p, done, overlapped)
+	if race.Enabled {
+		if *done > 0 {
+			race.WriteRange(unsafe.Pointer(&p[0]), int(*done))
+		}
+		race.Acquire(unsafe.Pointer(&ioSync))
+	}
+	if msanenabled && *done > 0 {
+		msanWrite(unsafe.Pointer(&p[0]), int(*done))
+	}
+	if asanenabled && *done > 0 {
+		asanWrite(unsafe.Pointer(&p[0]), int(*done))
+	}
+	return err
+}
+
+func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	err := writeFile(fd, p, done, overlapped)
+	if race.Enabled && *done > 0 {
+		race.ReadRange(unsafe.Pointer(&p[0]), int(*done))
+	}
+	if msanenabled && *done > 0 {
+		msanRead(unsafe.Pointer(&p[0]), int(*done))
+	}
+	if asanenabled && *done > 0 {
+		asanRead(unsafe.Pointer(&p[0]), int(*done))
+	}
+	return err
 }
 
 var ioSync int64

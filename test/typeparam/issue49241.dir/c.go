@@ -4,14 +4,14 @@
 
 package c
 
-import "a"
+import "./a"
 
 //go:noinline
-func F() interface {} {
+func F() interface{} {
 	return a.T[int]{}
 }
 
 //go:noinline
 func G() interface{} {
-	return struct{X,Y a.U}{}
+	return struct{ X, Y a.U }{}
 }

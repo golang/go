@@ -976,12 +976,41 @@ func packagefile(pkg string) string {
 	return pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, pkg)
 }
 
+// unixOS is the set of GOOS values matched by the "unix" build tag.
+// This is the same list as in go/build/syslist.go.
+var unixOS = map[string]bool{
+	"aix":       true,
+	"android":   true,
+	"darwin":    true,
+	"dragonfly": true,
+	"freebsd":   true,
+	"hurd":      true,
+	"illumos":   true,
+	"ios":       true,
+	"linux":     true,
+	"netbsd":    true,
+	"openbsd":   true,
+	"solaris":   true,
+}
+
 // matchtag reports whether the tag matches this build.
 func matchtag(tag string) bool {
-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
-		(goos == "android" && tag == "linux") ||
-		(goos == "illumos" && tag == "solaris") ||
-		(goos == "ios" && tag == "darwin")
+	switch tag {
+	case "gc", "cmd_go_bootstrap", "go1.1":
+		return true
+	case "linux":
+		return goos == "linux" || goos == "android"
+	case "solaris":
+		return goos == "solaris" || goos == "illumos"
+	case "darwin":
+		return goos == "darwin" || goos == "ios"
+	case goos, goarch:
+		return true
+	case "unix":
+		return unixOS[goos]
+	default:
+		return false
+	}
 }
 
 // shouldbuild reports whether we should build this file.
@@ -1502,8 +1531,19 @@ func goInstall(goBinary string, args ...string) {
 	goCmd(goBinary, "install", args...)
 }
 
+func appendCompilerFlags(args []string) []string {
+	if gogcflags != "" {
+		args = append(args, "-gcflags=all="+gogcflags)
+	}
+	if goldflags != "" {
+		args = append(args, "-ldflags=all="+goldflags)
+	}
+	return args
+}
+
 func goCmd(goBinary string, cmd string, args ...string) {
-	goCmd := []string{goBinary, cmd, "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
+	goCmd := []string{goBinary, cmd}
+	goCmd = appendCompilerFlags(goCmd)
 	if vflag > 0 {
 		goCmd = append(goCmd, "-v")
 	}
@@ -1517,12 +1557,11 @@ func goCmd(goBinary string, cmd string, args ...string) {
 }
 
 func checkNotStale(goBinary string, targets ...string) {
-	out := run(workdir, CheckExit,
-		append([]string{
-			goBinary,
-			"list", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags,
-			"-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}",
-		}, targets...)...)
+	goCmd := []string{goBinary, "list"}
+	goCmd = appendCompilerFlags(goCmd)
+	goCmd = append(goCmd, "-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}")
+
+	out := run(workdir, CheckExit, append(goCmd, targets...)...)
 	if strings.Contains(out, "\tSTALE ") {
 		os.Setenv("GODEBUG", "gocachehash=1")
 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {

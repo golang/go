@@ -480,6 +480,9 @@ func (r *Request) multipartReader(allowMixed bool) (*multipart.Reader, error) {
 	if v == "" {
 		return nil, ErrNotMultipart
 	}
+	if r.Body == nil {
+		return nil, errors.New("missing form body")
+	}
 	d, params, err := mime.ParseMediaType(v)
 	if err != nil || !(d == "multipart/form-data" || allowMixed && d == "multipart/mixed") {
 		return nil, ErrNotMultipart
@@ -969,11 +972,13 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 // Basic Authentication with the provided username and password.
 //
 // With HTTP Basic Authentication the provided username and password
-// are not encrypted.
+// are not encrypted. It should generally only be used in an HTTPS
+// request.
 //
-// Some protocols may impose additional requirements on pre-escaping the
-// username and password. For instance, when used with OAuth2, both arguments
-// must be URL encoded first with url.QueryEscape.
+// The username may not contain a colon. Some protocols may impose
+// additional requirements on pre-escaping the username and
+// password. For instance, when used with OAuth2, both arguments must
+// be URL encoded first with url.QueryEscape.
 func (r *Request) SetBasicAuth(username, password string) {
 	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 }
