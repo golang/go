@@ -12,11 +12,12 @@ import (
 	"sync"
 )
 
-// An Context is an opaque type checking context. It may be used to share
+// A Context is an opaque type checking context. It may be used to share
 // identical type instances across type-checked packages or calls to
-// Instantiate.
+// Instantiate. Contexts are safe for concurrent use.
 //
-// It is safe for concurrent use.
+// The use of a shared context does not guarantee that identical instances are
+// deduplicated in all cases.
 type Context struct {
 	mu        sync.Mutex
 	typeMap   map[string][]ctxtEntry // type hash -> instances entries
