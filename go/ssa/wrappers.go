@@ -22,6 +22,7 @@ package ssa
 import (
 	"fmt"
 
+	"go/token"
 	"go/types"
 )
 
@@ -112,7 +113,7 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 	// Load) in preference to value extraction (Field possibly
 	// preceded by Load).
 
-	v = emitImplicitSelections(fn, v, indices[:len(indices)-1])
+	v = emitImplicitSelections(fn, v, indices[:len(indices)-1], token.NoPos)
 
 	// Invariant: v is a pointer, either
 	//   value of implicit *C field, or

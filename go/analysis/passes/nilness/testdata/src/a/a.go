@@ -181,3 +181,16 @@ func f11(a interface{}) {
 		return
 	}
 }
+
+type Y struct {
+	innerY
+}
+
+type innerY struct {
+	value int
+}
+
+func f12() {
+	var d *Y
+	print(d.value) // want "nil dereference in field selection"
+}

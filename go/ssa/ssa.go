@@ -795,7 +795,8 @@ type Slice struct {
 // Type() returns a (possibly named) *types.Pointer.
 //
 // Pos() returns the position of the ast.SelectorExpr.Sel for the
-// field, if explicit in the source.
+// field, if explicit in the source. For implicit selections, returns
+// the position of the inducing explicit selection.
 //
 // Example printed form:
 // 	t1 = &t0.name [#1]
@@ -813,7 +814,9 @@ type FieldAddr struct {
 // package-local identifiers and permit compact representations.
 //
 // Pos() returns the position of the ast.SelectorExpr.Sel for the
-// field, if explicit in the source.
+// field, if explicit in the source. For implicit selections, returns
+// the position of the inducing explicit selection.
+
 //
 // Example printed form:
 // 	t1 = t0.name [#1]

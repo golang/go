@@ -741,7 +741,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			indices := sel.Index()
 			last := len(indices) - 1
 			v := b.expr(fn, e.X)
-			v = emitImplicitSelections(fn, v, indices[:last])
+			v = emitImplicitSelections(fn, v, indices[:last], e.Pos())
 			v = emitFieldSelection(fn, v, indices[last], false, e.Sel)
 			return v
 		}
@@ -832,7 +832,8 @@ func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, se
 	}
 
 	last := len(sel.Index()) - 1
-	v = emitImplicitSelections(fn, v, sel.Index()[:last])
+	// The position of implicit selection is the position of the inducing receiver expression.
+	v = emitImplicitSelections(fn, v, sel.Index()[:last], e.Pos())
 	if !wantAddr && isPointer(v.Type()) {
 		v = emitLoad(fn, v)
 	}

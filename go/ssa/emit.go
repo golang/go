@@ -373,7 +373,7 @@ func emitTailCall(f *Function, call *Call) {
 // a field; if it is the value of a struct, the result will be the
 // value of a field.
 //
-func emitImplicitSelections(f *Function, v Value, indices []int) Value {
+func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) Value {
 	for _, index := range indices {
 		fld := deref(v.Type()).Underlying().(*types.Struct).Field(index)
 
@@ -382,6 +382,7 @@ func emitImplicitSelections(f *Function, v Value, indices []int) Value {
 				X:     v,
 				Field: index,
 			}
+			instr.setPos(pos)
 			instr.setType(types.NewPointer(fld.Type()))
 			v = f.emit(instr)
 			// Load the field's value iff indirectly embedded.
@@ -393,6 +394,7 @@ func emitImplicitSelections(f *Function, v Value, indices []int) Value {
 				X:     v,
 				Field: index,
 			}
+			instr.setPos(pos)
 			instr.setType(fld.Type())
 			v = f.emit(instr)
 		}
