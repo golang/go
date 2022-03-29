@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"go/constant"
-	"internal/buildcfg"
 	"io"
 	"io/ioutil"
 	"os"
@@ -236,15 +235,9 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
 	// except for the types package, which is protected separately.
 	// Reusing funcsymsmu to also cover this package lookup
 	// avoids a general, broader, expensive package lookup mutex.
-	// Note NeedFuncSym also does package look-up of func sym names,
-	// but that it is only called serially, from the front end.
 	funcsymsmu.Lock()
 	sf, existed := s.Pkg.LookupOK(ir.FuncSymName(s))
-	// Don't export s·f when compiling for dynamic linking.
-	// When dynamically linking, the necessary function
-	// symbols will be created explicitly with NeedFuncSym.
-	// See the NeedFuncSym comment for details.
-	if !base.Ctxt.Flag_dynlink && !existed {
+	if !existed {
 		funcsyms = append(funcsyms, n)
 	}
 	funcsymsmu.Unlock()
@@ -257,48 +250,6 @@ func GlobalLinksym(n *ir.Name) *obj.LSym {
 		base.Fatalf("expected global variable: %v", n)
 	}
 	return n.Linksym()
-}
-
-// NeedFuncSym ensures that fn·f is exported, if needed.
-// It is only used with -dynlink.
-// When not compiling for dynamic linking,
-// the funcsyms are created as needed by
-// the packages that use them.
-// Normally we emit the fn·f stubs as DUPOK syms,
-// but DUPOK doesn't work across shared library boundaries.
-// So instead, when dynamic linking, we only create
-// the fn·f stubs in fn's package.
-func NeedFuncSym(fn *ir.Func) {
-	if base.Ctxt.InParallel {
-		// The append below probably just needs to lock
-		// funcsymsmu, like in FuncSym.
-		base.Fatalf("NeedFuncSym must be called in serial")
-	}
-	if fn.ABI != obj.ABIInternal && buildcfg.Experiment.RegabiWrappers {
-		// Function values must always reference ABIInternal
-		// entry points, so it doesn't make sense to create a
-		// funcsym for other ABIs.
-		//
-		// (If we're not using ABI wrappers, it doesn't matter.)
-		base.Fatalf("expected ABIInternal: %v has %v", fn.Nname, fn.ABI)
-	}
-	if ir.IsBlank(fn.Nname) {
-		// Blank functions aren't unique, so we can't make a
-		// funcsym for them.
-		base.Fatalf("NeedFuncSym called for _")
-	}
-	if !base.Ctxt.Flag_dynlink {
-		return
-	}
-	s := fn.Nname.Sym()
-	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") ||
-		(base.Ctxt.Pkgpath == "internal/abi" && (s.Name == "FuncPCABI0" || s.Name == "FuncPCABIInternal")) {
-		// runtime.getg(), getclosureptr(), getcallerpc(), getcallersp(),
-		// and internal/abi.FuncPCABIxxx() are not real functions and so
-		// do not get funcsyms.
-		return
-	}
-	funcsyms = append(funcsyms, fn.Nname)
 }
 
 func WriteFuncSyms() {
