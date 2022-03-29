@@ -1,7 +1,7 @@
 package main
 
 import (
-	"a"
+	"./a"
 )
 
 func main() {

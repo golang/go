@@ -5,7 +5,7 @@
 package main
 
 import (
-	"a"
+	"./a"
 	"context"
 	"fmt"
 	"runtime"

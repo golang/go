@@ -7,7 +7,6 @@ package types
 import (
 	"cmd/compile/internal/base"
 	"cmd/internal/obj"
-	"cmd/internal/src"
 	"unicode"
 	"unicode/utf8"
 )
@@ -32,14 +31,15 @@ type Sym struct {
 	Pkg  *Pkg
 	Name string // object name
 
-	// Def, Block, and Lastlineno are saved and restored by Pushdcl/Popdcl.
-
 	// The unique ONAME, OTYPE, OPACK, or OLITERAL node that this symbol is
 	// bound to within the current scope. (Most parts of the compiler should
 	// prefer passing the Node directly, rather than relying on this field.)
-	Def        Object
-	Block      int32    // blocknumber to catch redeclaration
-	Lastlineno src.XPos // last declaration for diagnostic
+	//
+	// Def is saved and restored by Pushdcl/Popdcl.
+	//
+	// Deprecated: New code should avoid depending on Sym.Def. Add
+	// mdempsky@ as a reviewer for any CLs involving Sym.Def.
+	Def Object
 
 	flags bitset8
 }

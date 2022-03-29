@@ -1,6 +1,6 @@
 package main
 
-import "a"
+import "./a"
 
 func Do[T any](doer a.Doer[T]) {
 	doer.Do()

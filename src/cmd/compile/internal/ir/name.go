@@ -166,14 +166,6 @@ func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
 	return newNameAt(pos, ONAME, sym)
 }
 
-// NewIota returns a new OIOTA Node.
-func NewIota(pos src.XPos, sym *types.Sym) *Name {
-	if sym == nil {
-		base.Fatalf("NewIota nil")
-	}
-	return newNameAt(pos, OIOTA, sym)
-}
-
 // NewDeclNameAt returns a new Name associated with symbol s at position pos.
 // The caller is responsible for setting Curfn.
 func NewDeclNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
@@ -223,15 +215,6 @@ func (n *Name) SetOffset(x int64) {
 }
 func (n *Name) FrameOffset() int64     { return n.Offset_ }
 func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
-func (n *Name) Iota() int64            { return n.Offset_ }
-func (n *Name) SetIota(x int64)        { n.Offset_ = x }
-func (n *Name) Walkdef() uint8         { return n.bits.get2(miniWalkdefShift) }
-func (n *Name) SetWalkdef(x uint8) {
-	if x > 3 {
-		panic(fmt.Sprintf("cannot SetWalkdef %d", x))
-	}
-	n.bits.set2(miniWalkdefShift, x)
-}
 
 func (n *Name) Linksym() *obj.LSym               { return n.sym.Linksym() }
 func (n *Name) LinksymABI(abi obj.ABI) *obj.LSym { return n.sym.LinksymABI(abi) }

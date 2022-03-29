@@ -1329,7 +1329,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 	if runtime.GOOS == "ios" {
 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
-	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
+	root, err := filepath.EvalSymlinks(testenv.GOROOT(t) + "/test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1524,5 +1524,40 @@ func TestEvalSymlinksAboveRootChdir(t *testing.T) {
 		t.Errorf("EvalSymlinks(%q) = %q does not end with %q", check, resolved, wantSuffix)
 	} else {
 		t.Logf("EvalSymlinks(%q) = %q", check, resolved)
+	}
+}
+
+func TestIssue51617(t *testing.T) {
+	dir := t.TempDir()
+	for _, sub := range []string{"a", filepath.Join("a", "bad"), filepath.Join("a", "next")} {
+		if err := os.Mkdir(filepath.Join(dir, sub), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bad := filepath.Join(dir, "a", "bad")
+	if err := os.Chmod(bad, 0); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(bad, 0700) // avoid errors on cleanup
+	var saw []string
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return filepath.SkipDir
+		}
+		if d.IsDir() {
+			rel, err := filepath.Rel(dir, path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			saw = append(saw, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{".", "a", filepath.Join("a", "bad"), filepath.Join("a", "next")}
+	if !reflect.DeepEqual(saw, want) {
+		t.Errorf("got directories %v, want %v", saw, want)
 	}
 }

@@ -455,6 +455,9 @@ func TestPIESize(t *testing.T) {
 			extraexe := extrasize(elfexe)
 			extrapie := extrasize(elfpie)
 
+			if sizepie < sizeexe || sizepie-extrapie < sizeexe-extraexe {
+				return
+			}
 			diffReal := (sizepie - extrapie) - (sizeexe - extraexe)
 			diffExpected := (textpie + dynpie) - (textexe + dynexe)
 

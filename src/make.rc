@@ -48,6 +48,7 @@ if(~ $1 -v) {
 }
 
 GOENV=off
+GOWORK=off
 GOFLAGS=()
 GO111MODULE=()
 GOROOT = `{cd .. && pwd}

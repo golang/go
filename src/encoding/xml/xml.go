@@ -10,9 +10,6 @@ package xml
 //    Annotated XML spec: https://www.xml.com/axml/testaxml.htm
 //    XML name spaces: https://www.w3.org/TR/REC-xml-names/
 
-// TODO(rsc):
-//	Test error handling.
-
 import (
 	"bufio"
 	"bytes"
@@ -219,6 +216,7 @@ type Decoder struct {
 	ns             map[string]string
 	err            error
 	line           int
+	linestart      int64
 	offset         int64
 	unmarshalDepth int
 }
@@ -499,7 +497,7 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		return false
 	case s.name.Space != name.Space:
 		d.err = d.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
-			"closed by </" + name.Local + "> in space " + name.Space)
+			" closed by </" + name.Local + "> in space " + name.Space)
 		return false
 	}
 
@@ -523,12 +521,11 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
 	if d.stk == nil || d.stk.kind != stkStart {
 		return nil, false
 	}
-	name := strings.ToLower(d.stk.name.Local)
 	for _, s := range d.AutoClose {
-		if strings.ToLower(s) == name {
+		if strings.EqualFold(s, d.stk.name.Local) {
 			// This one should be auto closed if t doesn't close it.
 			et, ok := t.(EndElement)
-			if !ok || et.Name.Local != name {
+			if !ok || !strings.EqualFold(et.Name.Local, d.stk.name.Local) {
 				return EndElement{d.stk.name}, true
 			}
 			break
@@ -923,6 +920,7 @@ func (d *Decoder) getc() (b byte, ok bool) {
 	}
 	if b == '\n' {
 		d.line++
+		d.linestart = d.offset + 1
 	}
 	d.offset++
 	return b, true
@@ -933,6 +931,13 @@ func (d *Decoder) getc() (b byte, ok bool) {
 // and the beginning of the next token.
 func (d *Decoder) InputOffset() int64 {
 	return d.offset
+}
+
+// InputPos retuns the line of the current decoder position and the 1 based
+// input position of the line. The position gives the location of the end of the
+// most recently returned token.
+func (d *Decoder) InputPos() (line, column int) {
+	return d.line, int(d.offset-d.linestart) + 1
 }
 
 // Return saved offset.

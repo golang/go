@@ -260,6 +260,10 @@ var parseTests = []parseTest{
 	{"newline in pipeline", "{{\n\"x\"\n|\nprintf\n}}", noError, `{{"x" | printf}}`},
 	{"newline in comment", "{{/*\nhello\n*/}}", noError, ""},
 	{"newline in comment", "{{-\n/*\nhello\n*/\n-}}", noError, ""},
+	{"spaces around continue", "{{range .SI}}{{.}}{{ continue }}{{end}}", noError,
+		`{{range .SI}}{{.}}{{continue}}{{end}}`},
+	{"spaces around break", "{{range .SI}}{{.}}{{ break }}{{end}}", noError,
+		`{{range .SI}}{{.}}{{break}}{{end}}`},
 
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},

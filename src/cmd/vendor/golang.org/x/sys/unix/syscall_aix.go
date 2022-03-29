@@ -215,18 +215,12 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	return
 }
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
 	// Recvmsg not implemented on AIX
-	sa := new(SockaddrUnix)
-	return -1, -1, -1, sa, ENOSYS
+	return -1, -1, -1, ENOSYS
 }
 
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
-	_, err = SendmsgN(fd, p, oob, to, flags)
-	return
-}
-
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
 	// SendmsgN not implemented on AIX
 	return -1, ENOSYS
 }
@@ -458,8 +452,8 @@ func Fsync(fd int) error {
 //sys	Listen(s int, n int) (err error)
 //sys	lstat(path string, stat *Stat_t) (err error)
 //sys	Pause() (err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = pread64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = pwrite64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = pread64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = pwrite64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
 //sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
@@ -519,8 +513,10 @@ func Pipe(p []int) (err error) {
 	}
 	var pp [2]_C_int
 	err = pipe(&pp)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return
 }
 

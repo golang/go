@@ -6,20 +6,20 @@
 
 package main
 
-import "reflect"
+import "fmt"
 
 func f[T any](i interface{}) {
 	switch x := i.(type) {
 	case T:
-		println("T", x)
+		fmt.Println("T", x)
 	case int:
-		println("int", x)
+		fmt.Println("int", x)
 	case int32, int16:
-		println("int32/int16", reflect.ValueOf(x).Int())
+		fmt.Println("int32/int16", x)
 	case struct{ a, b T }:
-		println("struct{T,T}", x.a, x.b)
+		fmt.Println("struct{T,T}", x.a, x.b)
 	default:
-		println("other", reflect.ValueOf(x).Int())
+		fmt.Println("other", x)
 	}
 }
 func main() {
@@ -30,4 +30,6 @@ func main() {
 	f[float64](int8(9))
 	f[int32](int32(7))
 	f[int](int32(7))
+	f[any](int(10))
+	f[interface{ M() }](int(11))
 }

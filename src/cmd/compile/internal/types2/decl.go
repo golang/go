@@ -502,7 +502,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		}
 
 		check.brokenAlias(obj)
-		rhs = check.varType(tdecl.Type)
+		rhs = check.typ(tdecl.Type)
 		check.validAlias(obj, rhs)
 		return
 	}
@@ -716,7 +716,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
 		check.later(func() {
 			check.funcBody(decl, obj.name, sig, fdecl.Body, nil)
-		})
+		}).describef(obj, "func %s", obj.name)
 	}
 }
 

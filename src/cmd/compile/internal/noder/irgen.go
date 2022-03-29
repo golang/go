@@ -99,8 +99,8 @@ type subDictInfo struct {
 }
 
 // dictInfo is the dictionary format for an instantiation of a generic function with
-// particular shapes. shapeParams, derivedTypes, subDictCalls, and itabConvs describe
-// the actual dictionary entries in order, and the remaining fields are other info
+// particular shapes. shapeParams, derivedTypes, subDictCalls, itabConvs, and methodExprClosures
+// describe the actual dictionary entries in order, and the remaining fields are other info
 // needed in doing dictionary processing during compilation.
 type dictInfo struct {
 	// Types substituted for the type parameters, which are shape types.
@@ -114,6 +114,11 @@ type dictInfo struct {
 	// Nodes in the instantiation that are a conversion from a typeparam/derived
 	// type to a specific interface.
 	itabConvs []ir.Node
+	// Method expression closures. For a generic type T with method M(arg1, arg2) res,
+	// these closures are func(rcvr T, arg1, arg2) res.
+	// These closures capture no variables, they are just the generic version of ·f symbols
+	// that live in the dictionary instead of in the readonly globals section.
+	methodExprClosures []methodExprClosure
 
 	// Mapping from each shape type that substitutes a type param, to its
 	// type bound (which is also substituted with shapes if it is parameterized)
@@ -123,9 +128,15 @@ type dictInfo struct {
 	// HasShape type, to the interface type we're switching from.
 	type2switchType map[ir.Node]*types.Type
 
-	startSubDict  int // Start of dict entries for subdictionaries
-	startItabConv int // Start of dict entries for itab conversions
-	dictLen       int // Total number of entries in dictionary
+	startSubDict            int // Start of dict entries for subdictionaries
+	startItabConv           int // Start of dict entries for itab conversions
+	startMethodExprClosures int // Start of dict entries for closures for method expressions
+	dictLen                 int // Total number of entries in dictionary
+}
+
+type methodExprClosure struct {
+	idx  int    // index in list of shape parameters
+	name string // method name
 }
 
 // instInfo is information gathered on an shape instantiation of a function.
@@ -182,7 +193,7 @@ type genInst struct {
 	instInfoMap map[*types.Sym]*instInfo
 
 	// Dictionary syms which we need to finish, by writing out any itabconv
-	// entries.
+	// or method expression closure entries.
 	dictSymsToFinalize []*delayInfo
 
 	// New instantiations created during this round of buildInstantiations().

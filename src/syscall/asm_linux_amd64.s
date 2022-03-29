@@ -17,7 +17,7 @@
 // would pass 4th arg in CX, not R10.
 
 TEXT ·Syscall(SB),NOSPLIT,$0-56
-	CALL	runtime·entersyscall(SB)
+	CALL	runtime·entersyscall<ABIInternal>(SB)
 	MOVQ	a1+8(FP), DI
 	MOVQ	a2+16(FP), SI
 	MOVQ	a3+24(FP), DX
@@ -29,18 +29,18 @@ TEXT ·Syscall(SB),NOSPLIT,$0-56
 	MOVQ	$0, r2+40(FP)
 	NEGQ	AX
 	MOVQ	AX, err+48(FP)
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 ok:
 	MOVQ	AX, r1+32(FP)
 	MOVQ	DX, r2+40(FP)
 	MOVQ	$0, err+48(FP)
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 
 // func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 TEXT ·Syscall6(SB),NOSPLIT,$0-80
-	CALL	runtime·entersyscall(SB)
+	CALL	runtime·entersyscall<ABIInternal>(SB)
 	MOVQ	a1+8(FP), DI
 	MOVQ	a2+16(FP), SI
 	MOVQ	a3+24(FP), DX
@@ -55,13 +55,13 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	MOVQ	$0, r2+64(FP)
 	NEGQ	AX
 	MOVQ	AX, err+72(FP)
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 ok6:
 	MOVQ	AX, r1+56(FP)
 	MOVQ	DX, r2+64(FP)
 	MOVQ	$0, err+72(FP)
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 
 // func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)

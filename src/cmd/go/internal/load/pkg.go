@@ -193,6 +193,18 @@ func (p *Package) Desc() string {
 	return p.ImportPath
 }
 
+// IsTestOnly reports whether p is a test-only package.
+//
+// A “test-only” package is one that:
+// 	- is a test-only variant of an ordinary package, or
+// 	- is a synthesized "main" package for a test binary, or
+// 	- contains only _test.go files.
+func (p *Package) IsTestOnly() bool {
+	return p.ForTest != "" ||
+		p.Internal.TestmainGo != nil ||
+		len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 && len(p.GoFiles)+len(p.CgoFiles) == 0
+}
+
 type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build             *build.Package
@@ -1932,8 +1944,12 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	}
 	p.Internal.Imports = imports
 	p.collectDeps()
-	if p.Error == nil && p.Name == "main" && len(p.DepsErrors) == 0 {
-		p.setBuildInfo()
+	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 {
+		// TODO(bcmills): loading VCS metadata can be fairly slow.
+		// Consider starting this as a background goroutine and retrieving the result
+		// asynchronously when we're actually ready to build the package, or when we
+		// actually need to evaluate whether the package's metadata is stale.
+		p.setBuildInfo(opts.LoadVCS)
 	}
 
 	// unsafe is a fake package.
@@ -2222,12 +2238,7 @@ var vcsStatusCache par.Cache
 //
 // Note that the GoVersion field is not set here to avoid encoding it twice.
 // It is stored separately in the binary, mostly for historical reasons.
-func (p *Package) setBuildInfo() {
-	// TODO: build and vcs information is not embedded for executables in GOROOT.
-	// cmd/dist uses -gcflags=all= -ldflags=all= by default, which means these
-	// executables always appear stale unless the user sets the same flags.
-	// Perhaps it's safe to omit those flags when GO_GCFLAGS and GO_LDFLAGS
-	// are not set?
+func (p *Package) setBuildInfo(includeVCS bool) {
 	setPkgErrorf := func(format string, args ...any) {
 		if p.Error == nil {
 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
@@ -2303,57 +2314,58 @@ func (p *Package) setBuildInfo() {
 	// Add command-line flags relevant to the build.
 	// This is informational, not an exhaustive list.
 	// Please keep the list sorted.
-	if !p.Standard {
-		if cfg.BuildASan {
-			appendSetting("-asan", "true")
+	if cfg.BuildASan {
+		appendSetting("-asan", "true")
+	}
+	if BuildAsmflags.present {
+		appendSetting("-asmflags", BuildAsmflags.String())
+	}
+	appendSetting("-compiler", cfg.BuildContext.Compiler)
+	if gccgoflags := BuildGccgoflags.String(); gccgoflags != "" && cfg.BuildContext.Compiler == "gccgo" {
+		appendSetting("-gccgoflags", gccgoflags)
+	}
+	if gcflags := BuildGcflags.String(); gcflags != "" && cfg.BuildContext.Compiler == "gc" {
+		appendSetting("-gcflags", gcflags)
+	}
+	if ldflags := BuildLdflags.String(); ldflags != "" {
+		appendSetting("-ldflags", ldflags)
+	}
+	if cfg.BuildMSan {
+		appendSetting("-msan", "true")
+	}
+	if cfg.BuildRace {
+		appendSetting("-race", "true")
+	}
+	if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
+		appendSetting("-tags", strings.Join(tags, ","))
+	}
+	if cfg.BuildTrimpath {
+		appendSetting("-trimpath", "true")
+	}
+	cgo := "0"
+	if cfg.BuildContext.CgoEnabled {
+		cgo = "1"
+	}
+	appendSetting("CGO_ENABLED", cgo)
+	if cfg.BuildContext.CgoEnabled {
+		for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
+			appendSetting(name, cfg.Getenv(name))
 		}
-		if BuildAsmflags.present {
-			appendSetting("-asmflags", BuildAsmflags.String())
-		}
-		appendSetting("-compiler", cfg.BuildContext.Compiler)
-		if BuildGccgoflags.present && cfg.BuildContext.Compiler == "gccgo" {
-			appendSetting("-gccgoflags", BuildGccgoflags.String())
-		}
-		if BuildGcflags.present && cfg.BuildContext.Compiler == "gc" {
-			appendSetting("-gcflags", BuildGcflags.String())
-		}
-		if BuildLdflags.present {
-			appendSetting("-ldflags", BuildLdflags.String())
-		}
-		if cfg.BuildMSan {
-			appendSetting("-msan", "true")
-		}
-		if cfg.BuildRace {
-			appendSetting("-race", "true")
-		}
-		if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
-			appendSetting("-tags", strings.Join(tags, ","))
-		}
-		cgo := "0"
-		if cfg.BuildContext.CgoEnabled {
-			cgo = "1"
-		}
-		appendSetting("CGO_ENABLED", cgo)
-		if cfg.BuildContext.CgoEnabled {
-			for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
-				appendSetting(name, cfg.Getenv(name))
-			}
-		}
-		appendSetting("GOARCH", cfg.BuildContext.GOARCH)
-		if cfg.GOEXPERIMENT != "" {
-			appendSetting("GOEXPERIMENT", cfg.GOEXPERIMENT)
-		}
-		appendSetting("GOOS", cfg.BuildContext.GOOS)
-		if key, val := cfg.GetArchEnv(); key != "" && val != "" {
-			appendSetting(key, val)
-		}
+	}
+	appendSetting("GOARCH", cfg.BuildContext.GOARCH)
+	if cfg.RawGOEXPERIMENT != "" {
+		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
+	}
+	appendSetting("GOOS", cfg.BuildContext.GOOS)
+	if key, val := cfg.GetArchEnv(); key != "" && val != "" {
+		appendSetting(key, val)
 	}
 
 	// Add VCS status if all conditions are true:
 	//
 	// - -buildvcs is enabled.
-	// - p is contained within a main module (there may be multiple main modules
-	//   in a workspace, but local replacements don't count).
+	// - p is a non-test contained within a main module (there may be multiple
+	//   main modules in a workspace, but local replacements don't count).
 	// - Both the current directory and p's module's root directory are contained
 	//   in the same local repository.
 	// - We know the VCS commands needed to get the status.
@@ -2365,7 +2377,7 @@ func (p *Package) setBuildInfo() {
 	var vcsCmd *vcs.Cmd
 	var err error
 	const allowNesting = true
-	if cfg.BuildBuildvcs && p.Module != nil && p.Module.Version == "" && !p.Standard {
+	if includeVCS && p.Module != nil && p.Module.Version == "" && !p.Standard && !p.IsTestOnly() {
 		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			setVCSError(err)
@@ -2654,6 +2666,9 @@ type PackageOpts struct {
 	// are not be matched, and their dependencies may not be loaded. A warning
 	// may be printed for non-literal arguments that match no main packages.
 	MainOnly bool
+
+	// LoadVCS controls whether we also load version-control metadata for main packages.
+	LoadVCS bool
 }
 
 // PackagesAndErrors returns the packages named by the command line arguments
@@ -3007,7 +3022,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 	patterns := make([]string, len(args))
 	for i, arg := range args {
 		if !strings.HasSuffix(arg, "@"+version) {
-			return nil, fmt.Errorf("%s: all arguments must have the same version (@%s)", arg, version)
+			return nil, fmt.Errorf("%s: all arguments must refer to packages in the same module at the same version (@%s)", arg, version)
 		}
 		p := arg[:len(arg)-len(version)-1]
 		switch {

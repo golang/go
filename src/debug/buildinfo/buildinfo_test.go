@@ -66,7 +66,7 @@ func TestReadFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		outPath := filepath.Join(dir, path.Base(t.Name()))
-		cmd := exec.Command("go", "build", "-o="+outPath)
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath)
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOOS="+goos, "GOARCH="+goarch)
 		stderr := &bytes.Buffer{}
@@ -89,7 +89,7 @@ func TestReadFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		outPath := filepath.Join(gopathDir, path.Base(t.Name()))
-		cmd := exec.Command("go", "build", "-o="+outPath)
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath)
 		cmd.Dir = pkgDir
 		cmd.Env = append(os.Environ(), "GO111MODULE=off", "GOPATH="+gopathDir, "GOOS="+goos, "GOARCH="+goarch)
 		stderr := &bytes.Buffer{}

@@ -4,7 +4,7 @@
 
 package b
 
-import "a"
+import "./a"
 
 type (
 	lA[P any]               [10]P

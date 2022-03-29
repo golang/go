@@ -103,6 +103,10 @@ type writerDict struct {
 	// instantiated with derived types (i.e., that require
 	// sub-dictionaries when called at run time).
 	funcs []objInfo
+
+	// itabs lists itabs that are needed for dynamic type assertions
+	// (including type switches).
+	itabs []itabInfo
 }
 
 type derivedInfo struct {
@@ -118,6 +122,11 @@ type typeInfo struct {
 type objInfo struct {
 	idx       int        // index for the generic function declaration
 	explicits []typeInfo // info for the type arguments
+}
+
+type itabInfo struct {
+	typIdx int      // always a derived type index
+	iface  typeInfo // always a non-empty interface type
 }
 
 func (info objInfo) anyDerived() bool {
@@ -284,10 +293,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		}
 
 	case *types2.Named:
-		// Type aliases can refer to uninstantiated generic types, so we
-		// might see len(TParams) != 0 && len(TArgs) == 0 here.
-		// TODO(mdempsky): Revisit after #46477 is resolved.
-		assert(typ.TypeParams().Len() == typ.TypeArgs().Len() || typ.TypeArgs().Len() == 0)
+		assert(typ.TypeParams().Len() == typ.TypeArgs().Len())
 
 		// TODO(mdempsky): Why do we need to loop here?
 		orig := typ
@@ -634,6 +640,13 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 		for _, targ := range fn.explicits {
 			w.typInfo(targ)
 		}
+	}
+
+	nitabs := len(dict.itabs)
+	w.Len(nitabs)
+	for _, itab := range dict.itabs {
+		w.Len(itab.typIdx)
+		w.typInfo(itab.iface)
 	}
 
 	assert(len(dict.derived) == nderived)
@@ -1076,7 +1089,12 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 	w.pos(stmt)
 	w.stmt(stmt.Init)
 
+	var iface types2.Type
 	if guard, ok := stmt.Tag.(*syntax.TypeSwitchGuard); w.Bool(ok) {
+		tv, ok := w.p.info.Types[guard.X]
+		assert(ok && tv.IsValue())
+		iface = tv.Type
+
 		w.pos(guard)
 		if tag := guard.Lhs; w.Bool(tag != nil) {
 			w.pos(tag)
@@ -1095,7 +1113,16 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		w.openScope(clause.Pos())
 
 		w.pos(clause)
-		w.exprList(clause.Cases)
+
+		if iface != nil {
+			cases := unpackListExpr(clause.Cases)
+			w.Len(len(cases))
+			for _, cas := range cases {
+				w.exprType(iface, cas, true)
+			}
+		} else {
+			w.exprList(clause.Cases)
+		}
 
 		if obj, ok := w.p.info.Implicits[clause]; ok {
 			// TODO(mdempsky): These pos details are quirkish, but also
@@ -1155,13 +1182,13 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		if tv.IsType() {
 			w.Code(exprType)
-			w.typ(tv.Type)
+			w.exprType(nil, expr, false)
 			return
 		}
 
 		if tv.Value != nil {
 			w.Code(exprConst)
-			w.pos(expr.Pos())
+			w.pos(expr)
 			w.typ(tv.Type)
 			w.Value(tv.Value)
 
@@ -1235,10 +1262,13 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 
 	case *syntax.AssertExpr:
+		tv, ok := w.p.info.Types[expr.X]
+		assert(ok && tv.IsValue())
+
 		w.Code(exprAssert)
 		w.expr(expr.X)
 		w.pos(expr)
-		w.expr(expr.Type)
+		w.exprType(tv.Type, expr.Type, false)
 
 	case *syntax.Operation:
 		if expr.Y == nil {
@@ -1371,6 +1401,55 @@ func (w *writer) exprs(exprs []syntax.Expr) {
 	for _, expr := range exprs {
 		w.expr(expr)
 	}
+}
+
+func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
+	base.Assertf(iface == nil || isInterface(iface), "%v must be nil or an interface type", iface)
+
+	tv, ok := w.p.info.Types[typ]
+	assert(ok)
+
+	w.Sync(pkgbits.SyncExprType)
+
+	if nilOK && w.Bool(tv.IsNil()) {
+		return
+	}
+
+	assert(tv.IsType())
+	info := w.p.typIdx(tv.Type, w.dict)
+
+	w.pos(typ)
+
+	if w.Bool(info.derived && iface != nil && !iface.Underlying().(*types2.Interface).Empty()) {
+		ifaceInfo := w.p.typIdx(iface, w.dict)
+
+		idx := -1
+		for i, itab := range w.dict.itabs {
+			if itab.typIdx == info.idx && itab.iface == ifaceInfo {
+				idx = i
+			}
+		}
+		if idx < 0 {
+			idx = len(w.dict.itabs)
+			w.dict.itabs = append(w.dict.itabs, itabInfo{typIdx: info.idx, iface: ifaceInfo})
+		}
+		w.Len(idx)
+		return
+	}
+
+	w.typInfo(info)
+}
+
+func isInterface(typ types2.Type) bool {
+	if _, ok := typ.(*types2.TypeParam); ok {
+		// typ is a type parameter and may be instantiated as either a
+		// concrete or interface type, so the writer can't depend on
+		// knowing this.
+		base.Fatalf("%v is a type parameter", typ)
+	}
+
+	_, ok := typ.Underlying().(*types2.Interface)
+	return ok
 }
 
 func (w *writer) op(op ir.Op) {
@@ -1628,15 +1707,6 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		// type parameter bounds.
 		if iface, ok := name.Type().Underlying().(*types2.Interface); ok && !iface.IsMethodSet() {
 			break
-		}
-
-		// Skip aliases to uninstantiated generic types.
-		// TODO(mdempsky): Revisit after #46477 is resolved.
-		if name.IsAlias() {
-			named, ok := name.Type().(*types2.Named)
-			if ok && named.TypeParams().Len() != 0 && named.TypeArgs().Len() == 0 {
-				break
-			}
 		}
 
 		w.Code(declOther)

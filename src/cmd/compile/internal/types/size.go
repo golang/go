@@ -5,8 +5,6 @@
 package types
 
 import (
-	"bytes"
-	"fmt"
 	"sort"
 
 	"cmd/compile/internal/base"
@@ -82,7 +80,7 @@ func expandiface(t *Type) {
 		switch prev := seen[m.Sym]; {
 		case prev == nil:
 			seen[m.Sym] = m
-		case AllowsGoVersion(t.Pkg(), 1, 14) && !explicit && Identical(m.Type, prev.Type):
+		case !explicit && Identical(m.Type, prev.Type):
 			return
 		default:
 			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
@@ -129,25 +127,14 @@ func expandiface(t *Type) {
 		}
 
 		// In 1.18, embedded types can be anything. In Go 1.17, we disallow
-		// embedding anything other than interfaces.
+		// embedding anything other than interfaces. This requirement was caught
+		// by types2 already, so allow non-interface here.
 		if !m.Type.IsInterface() {
-			if AllowsGoVersion(t.Pkg(), 1, 18) {
-				continue
-			}
-			base.ErrorfAt(m.Pos, "interface contains embedded non-interface, non-union %v", m.Type)
-			m.SetBroke(true)
-			t.SetBroke(true)
-			// Add to fields so that error messages
-			// include the broken embedded type when
-			// printing t.
-			// TODO(mdempsky): Revisit this.
-			methods = append(methods, m)
 			continue
 		}
 
 		// Embedded interface: duplicate all methods
-		// (including broken ones, if any) and add to t's
-		// method set.
+		// and add to t's method set.
 		for _, t1 := range m.Type.AllMethods().Slice() {
 			f := NewField(m.Pos, t1.Sym, t1.Type)
 			addMethod(f, false)
@@ -239,98 +226,6 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 	return o
 }
 
-// findTypeLoop searches for an invalid type declaration loop involving
-// type t and reports whether one is found. If so, path contains the
-// loop.
-//
-// path points to a slice used for tracking the sequence of types
-// visited. Using a pointer to a slice allows the slice capacity to
-// grow and limit reallocations.
-func findTypeLoop(t *Type, path *[]*Type) bool {
-	// We implement a simple DFS loop-finding algorithm. This
-	// could be faster, but type cycles are rare.
-
-	if t.Sym() != nil {
-		// Declared type. Check for loops and otherwise
-		// recurse on the type expression used in the type
-		// declaration.
-
-		// Type imported from package, so it can't be part of
-		// a type loop (otherwise that package should have
-		// failed to compile).
-		if t.Sym().Pkg != LocalPkg {
-			return false
-		}
-
-		for i, x := range *path {
-			if x == t {
-				*path = (*path)[i:]
-				return true
-			}
-		}
-
-		*path = append(*path, t)
-		if findTypeLoop(t.Obj().(TypeObject).TypeDefn(), path) {
-			return true
-		}
-		*path = (*path)[:len(*path)-1]
-	} else {
-		// Anonymous type. Recurse on contained types.
-
-		switch t.Kind() {
-		case TARRAY:
-			if findTypeLoop(t.Elem(), path) {
-				return true
-			}
-		case TSTRUCT:
-			for _, f := range t.Fields().Slice() {
-				if findTypeLoop(f.Type, path) {
-					return true
-				}
-			}
-		case TINTER:
-			for _, m := range t.Methods().Slice() {
-				if m.Type.IsInterface() { // embedded interface
-					if findTypeLoop(m.Type, path) {
-						return true
-					}
-				}
-			}
-		}
-	}
-
-	return false
-}
-
-func reportTypeLoop(t *Type) {
-	if t.Broke() {
-		return
-	}
-
-	var l []*Type
-	if !findTypeLoop(t, &l) {
-		base.Fatalf("failed to find type loop for: %v", t)
-	}
-
-	// Rotate loop so that the earliest type declaration is first.
-	i := 0
-	for j, t := range l[1:] {
-		if typePos(t).Before(typePos(l[i])) {
-			i = j + 1
-		}
-	}
-	l = append(l[i:], l[:i]...)
-
-	var msg bytes.Buffer
-	fmt.Fprintf(&msg, "invalid recursive type %v\n", l[0])
-	for _, t := range l {
-		fmt.Fprintf(&msg, "\t%v: %v refers to\n", base.FmtPos(typePos(t)), t)
-		t.SetBroke(true)
-	}
-	fmt.Fprintf(&msg, "\t%v: %v", base.FmtPos(typePos(l[0])), l[0])
-	base.ErrorfAt(typePos(l[0]), msg.String())
-}
-
 // CalcSize calculates and stores the size and alignment for t.
 // If CalcSizeDisabled is set, and the size/alignment
 // have not already been calculated, it calls Fatal.
@@ -351,9 +246,9 @@ func CalcSize(t *Type) {
 	}
 
 	if t.width == -2 {
-		reportTypeLoop(t)
 		t.width = 0
 		t.align = 1
+		base.Fatalf("invalid recursive type %v", t)
 		return
 	}
 
@@ -362,18 +257,7 @@ func CalcSize(t *Type) {
 	}
 
 	if CalcSizeDisabled {
-		if t.Broke() {
-			// break infinite recursion from Fatal call below
-			return
-		}
-		t.SetBroke(true)
 		base.Fatalf("width not calculated: %v", t)
-	}
-
-	// break infinite recursion if the broken recursive type
-	// is referenced again
-	if t.Broke() && t.width == 0 {
-		return
 	}
 
 	// defer CheckSize calls until after we're done
@@ -474,7 +358,7 @@ func CalcSize(t *Type) {
 		CheckSize(t.Key())
 
 	case TFORW: // should have been filled in
-		reportTypeLoop(t)
+		base.Fatalf("invalid recursive type %v", t)
 		w = 1 // anything will do
 
 	case TANY:

@@ -8,6 +8,7 @@ package pkgbits
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/binary"
 	"go/constant"
 	"io"
@@ -30,7 +31,10 @@ func NewPkgEncoder(syncFrames int) PkgEncoder {
 	}
 }
 
-func (pw *PkgEncoder) DumpTo(out io.Writer) {
+func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
+	h := md5.New()
+	out := io.MultiWriter(out0, h)
+
 	writeUint32 := func(x uint32) {
 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
 	}
@@ -57,6 +61,12 @@ func (pw *PkgEncoder) DumpTo(out io.Writer) {
 			assert(err == nil)
 		}
 	}
+
+	copy(fingerprint[:], h.Sum(nil))
+	_, err := out0.Write(fingerprint[:])
+	assert(err == nil)
+
+	return
 }
 
 func (pw *PkgEncoder) StringIdx(s string) int {

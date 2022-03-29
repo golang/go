@@ -303,3 +303,31 @@ func conv2(v uint64) uint64 { // ERROR "can inline conv2"
 func conv1(v uint64) uint64 { // ERROR "can inline conv1"
 	return uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(v)))))))))))
 }
+
+func select1(x, y chan bool) int { // ERROR "can inline select1" "x does not escape" "y does not escape"
+	select {
+	case <-x:
+		return 1
+	case <-y:
+		return 2
+	}
+}
+
+func select2(x, y chan bool) { // ERROR "can inline select2" "x does not escape" "y does not escape"
+loop: // test that labeled select can be inlined.
+	select {
+	case <-x:
+		break loop
+	case <-y:
+	}
+}
+
+func inlineSelect2(x, y chan bool) { // ERROR "can inline inlineSelect2" ERROR "x does not escape" "y does not escape"
+loop:
+	for i := 0; i < 5; i++ {
+		if i == 3 {
+			break loop
+		}
+		select2(x, y) // ERROR "inlining call to select2"
+	}
+}

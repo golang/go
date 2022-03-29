@@ -804,7 +804,9 @@ func gorootFinal() string {
 func expandGoroot(s string) string {
 	const n = len("$GOROOT")
 	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
-		return filepath.ToSlash(filepath.Join(gorootFinal(), s[n:]))
+		if final := gorootFinal(); final != "" {
+			return filepath.ToSlash(filepath.Join(final, s[n:]))
+		}
 	}
 	return s
 }

@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"internal/buildcfg"
 	exec "internal/execabs"
 	"internal/lazyregexp"
 	"io"
@@ -320,8 +319,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
-			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
+		if cfg.CleanGOEXPERIMENT != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
 		}
 
 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
@@ -560,7 +559,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		return nil
 	}
 
-	if err := allowInstall(a); err != nil {
+	if err := AllowInstall(a); err != nil {
 		return err
 	}
 
@@ -1301,8 +1300,8 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
-			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
+		if cfg.CleanGOEXPERIMENT != "" {
+			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
 		}
 
 		// The linker writes source file paths that say GOROOT_FINAL, but
@@ -1346,7 +1345,7 @@ func (b *Builder) link(ctx context.Context, a *Action) (err error) {
 		return err
 	}
 
-	if err := allowInstall(a); err != nil {
+	if err := AllowInstall(a); err != nil {
 		return err
 	}
 
@@ -1527,7 +1526,7 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 }
 
 func (b *Builder) installShlibname(ctx context.Context, a *Action) error {
-	if err := allowInstall(a); err != nil {
+	if err := AllowInstall(a); err != nil {
 		return err
 	}
 
@@ -1581,7 +1580,7 @@ func (b *Builder) linkShared(ctx context.Context, a *Action) (err error) {
 	}
 	defer b.flushOutput(a)
 
-	if err := allowInstall(a); err != nil {
+	if err := AllowInstall(a); err != nil {
 		return err
 	}
 
@@ -1652,7 +1651,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 		if !a.buggyInstall && !b.IsCmdList {
 			if cfg.BuildN {
 				b.Showcmd("", "touch %s", a.Target)
-			} else if err := allowInstall(a); err == nil {
+			} else if err := AllowInstall(a); err == nil {
 				now := time.Now()
 				os.Chtimes(a.Target, now, now)
 			}
@@ -1666,7 +1665,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 		a.built = a1.built
 		return nil
 	}
-	if err := allowInstall(a); err != nil {
+	if err := AllowInstall(a); err != nil {
 		return err
 	}
 
@@ -1698,12 +1697,12 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 	return b.moveOrCopyFile(a.Target, a1.built, perm, false)
 }
 
-// allowInstall returns a non-nil error if this invocation of the go command is
+// AllowInstall returns a non-nil error if this invocation of the go command is
 // allowed to install a.Target.
 //
-// (The build of cmd/go running under its own test is forbidden from installing
-// to its original GOROOT.)
-var allowInstall = func(*Action) error { return nil }
+// The build of cmd/go running under its own test is forbidden from installing
+// to its original GOROOT. The var is exported so it can be set by TestMain.
+var AllowInstall = func(*Action) error { return nil }
 
 // cleanup removes a's object dir to keep the amount of
 // on-disk garbage down in a large build. On an operating system
@@ -1868,7 +1867,7 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
 		return nil
 	}
 
-	if err := allowInstall(a); err != nil {
+	if err := AllowInstall(a); err != nil {
 		return err
 	}
 

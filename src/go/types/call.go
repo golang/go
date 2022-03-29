@@ -65,7 +65,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs 
 	assert(len(targs) == typ.TypeParams().Len())
 
 	if trace {
-		check.trace(pos, "-- instantiating %s with %s", typ, targs)
+		check.trace(pos, "-- instantiating signature %s with %s", typ, targs)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -89,7 +89,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs 
 		} else {
 			check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
 		}
-	})
+	}).describef(atPos(pos), "verify instantiation")
 
 	return inst
 }
@@ -429,7 +429,7 @@ var cgoPrefixes = [...]string{
 	"_Cmacro_", // function to evaluate the expanded expression
 }
 
-func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -528,6 +528,12 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 	check.exprOrType(x, e.X, false)
 	switch x.mode {
+	case typexpr:
+		// don't crash for "type T T.x" (was issue #51509)
+		if def != nil && x.typ == def {
+			check.cycleError([]Object{def.obj})
+			goto Error
+		}
 	case builtin:
 		// types2 uses the position of '.' for the error
 		check.errorf(e.Sel, _UncalledBuiltin, "cannot select on %s", x)

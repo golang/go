@@ -5,8 +5,8 @@
 package main
 
 import (
-	"b"
-	"c"
+	"./b"
+	"./c"
 )
 
 func main() {

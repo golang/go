@@ -114,11 +114,11 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 		// the Fields to represent the receiver's method set.
 		if recv := fn.Type().Recv(); recv != nil {
 			typ := types.ReceiverBaseType(recv.Type)
-			if typ.OrigSym() != nil {
+			if orig := typ.OrigType(); orig != nil {
 				// For a generic method, we mark the methods on the
 				// base generic type, since those are the methods
 				// that will be stenciled.
-				typ = typ.OrigSym().Def.Type()
+				typ = orig
 			}
 			meth := typecheck.Lookdot1(fn, typecheck.Lookup(decl.Name.Value), typ, typ.Methods(), 0)
 			meth.SetNointerface(true)

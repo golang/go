@@ -1918,7 +1918,11 @@
 // (x & ac) >> sc
 (SRLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, sc)
 	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
-
+// merge ANDconst and ubfx into ubfx
+(ANDconst [c] (UBFX [bfc] x)) && isARM64BFMask(0, c, 0) =>
+	(UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0)))] x)
+(UBFX [bfc] (ANDconst [c] x)) && isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb() + bfc.getARM64BFwidth() <= arm64BFWidth(c, 0) =>
+	(UBFX [bfc] x)
 // merge ubfx and zerso-extension into ubfx
 (MOVWUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (UBFX [bfc] x)
 (MOVHUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (UBFX [bfc] x)

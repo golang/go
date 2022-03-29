@@ -188,10 +188,43 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Running with %d workers", tc.workers)
 
-			var cpuTime time.Duration
+			var userTime, systemTime time.Duration
 			matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.cpuHog1"}, avoidFunctions())
-			p := testCPUProfile(t, matches, func(dur time.Duration) {
-				cpuTime = diffCPUTime(t, func() {
+			acceptProfile := func(t *testing.T, p *profile.Profile) bool {
+				if !matches(t, p) {
+					return false
+				}
+
+				ok := true
+				for i, unit := range []string{"count", "nanoseconds"} {
+					if have, want := p.SampleType[i].Unit, unit; have != want {
+						t.Logf("pN SampleType[%d]; %q != %q", i, have, want)
+						ok = false
+					}
+				}
+
+				// cpuHog1 called below is the primary source of CPU
+				// load, but there may be some background work by the
+				// runtime. Since the OS rusage measurement will
+				// include all work done by the process, also compare
+				// against all samples in our profile.
+				var value time.Duration
+				for _, sample := range p.Sample {
+					value += time.Duration(sample.Value[1]) * time.Nanosecond
+				}
+
+				totalTime := userTime + systemTime
+				t.Logf("compare %s user + %s system = %s vs %s", userTime, systemTime, totalTime, value)
+				if err := compare(totalTime, value, maxDiff); err != nil {
+					t.Logf("compare got %v want nil", err)
+					ok = false
+				}
+
+				return ok
+			}
+
+			testCPUProfile(t, acceptProfile, func(dur time.Duration) {
+				userTime, systemTime = diffCPUTime(t, func() {
 					var wg sync.WaitGroup
 					var once sync.Once
 					for i := 0; i < tc.workers; i++ {
@@ -206,27 +239,6 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 					wg.Wait()
 				})
 			})
-
-			for i, unit := range []string{"count", "nanoseconds"} {
-				if have, want := p.SampleType[i].Unit, unit; have != want {
-					t.Errorf("pN SampleType[%d]; %q != %q", i, have, want)
-				}
-			}
-
-			// cpuHog1 called above is the primary source of CPU
-			// load, but there may be some background work by the
-			// runtime. Since the OS rusage measurement will
-			// include all work done by the process, also compare
-			// against all samples in our profile.
-			var value time.Duration
-			for _, sample := range p.Sample {
-				value += time.Duration(sample.Value[1]) * time.Nanosecond
-			}
-
-			t.Logf("compare %s vs %s", cpuTime, value)
-			if err := compare(cpuTime, value, maxDiff); err != nil {
-				t.Errorf("compare got %v want nil", err)
-			}
 		})
 	}
 }
@@ -476,14 +488,14 @@ func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Dura
 	return nil
 }
 
-var diffCPUTimeImpl func(f func()) time.Duration
+var diffCPUTimeImpl func(f func()) (user, system time.Duration)
 
-func diffCPUTime(t *testing.T, f func()) time.Duration {
+func diffCPUTime(t *testing.T, f func()) (user, system time.Duration) {
 	if fn := diffCPUTimeImpl; fn != nil {
 		return fn(f)
 	}
 	t.Fatalf("cannot measure CPU time on GOOS=%s GOARCH=%s", runtime.GOOS, runtime.GOARCH)
-	return 0
+	return 0, 0
 }
 
 func contains(slice []string, s string) bool {
@@ -809,9 +821,9 @@ func TestBlockProfile(t *testing.T) {
 			},
 			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
-#	0x[0-9a-f]+	runtime\.chanrecv1\+0x[0-9a-f]+	.*/src/runtime/chan.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.blockChanRecv\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime\.chanrecv1\+0x[0-9a-f]+	.*runtime/chan.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.blockChanRecv\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{
 			name: "chan send",
@@ -823,9 +835,9 @@ func TestBlockProfile(t *testing.T) {
 			},
 			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
-#	0x[0-9a-f]+	runtime\.chansend1\+0x[0-9a-f]+	.*/src/runtime/chan.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.blockChanSend\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime\.chansend1\+0x[0-9a-f]+	.*runtime/chan.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.blockChanSend\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{
 			name: "chan close",
@@ -837,9 +849,9 @@ func TestBlockProfile(t *testing.T) {
 			},
 			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
-#	0x[0-9a-f]+	runtime\.chanrecv1\+0x[0-9a-f]+	.*/src/runtime/chan.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.blockChanClose\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime\.chanrecv1\+0x[0-9a-f]+	.*runtime/chan.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.blockChanClose\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{
 			name: "select recv async",
@@ -851,9 +863,9 @@ func TestBlockProfile(t *testing.T) {
 			},
 			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
-#	0x[0-9a-f]+	runtime\.selectgo\+0x[0-9a-f]+	.*/src/runtime/select.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.blockSelectRecvAsync\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime\.selectgo\+0x[0-9a-f]+	.*runtime/select.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.blockSelectRecvAsync\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{
 			name: "select send sync",
@@ -865,9 +877,9 @@ func TestBlockProfile(t *testing.T) {
 			},
 			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
-#	0x[0-9a-f]+	runtime\.selectgo\+0x[0-9a-f]+	.*/src/runtime/select.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.blockSelectSendSync\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime\.selectgo\+0x[0-9a-f]+	.*runtime/select.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.blockSelectSendSync\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{
 			name: "mutex",
@@ -879,9 +891,9 @@ func TestBlockProfile(t *testing.T) {
 			},
 			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
-#	0x[0-9a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9a-f]+	.*/src/sync/mutex\.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.blockMutex\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9a-f]+	.*sync/mutex\.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.blockMutex\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{
 			name: "cond",
@@ -893,9 +905,9 @@ func TestBlockProfile(t *testing.T) {
 			},
 			re: `
 [0-9]+ [0-9]+ @( 0x[[:xdigit:]]+)+
-#	0x[0-9a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9a-f]+	.*/src/sync/cond\.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.blockCond\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9a-f]+	.*sync/cond\.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.blockCond\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9a-f]+	.*runtime/pprof/pprof_test.go:[0-9]+
 `},
 	}
 

@@ -185,6 +185,11 @@ func GetInstances(info *types.Info) map[*ast.Ident]Instance { return nil }
 // this Go version.
 type Context struct{}
 
+// NewContext returns a placeholder Context instance.
+func NewContext() *Context {
+	return &Context{}
+}
+
 // Instantiate is unsupported on this Go version, and panics.
 func Instantiate(ctxt *Context, typ types.Type, targs []types.Type, validate bool) (types.Type, error) {
 	unsupported()

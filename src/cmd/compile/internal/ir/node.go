@@ -46,8 +46,6 @@ type Node interface {
 	// Storage for analysis passes.
 	Esc() uint16
 	SetEsc(x uint16)
-	Diag() bool
-	SetDiag(x bool)
 
 	// Typecheck values:
 	//  0 means the node is not typechecked
@@ -240,7 +238,6 @@ const (
 	ORECV        // <-X
 	ORUNESTR     // Type(X) (Type is string, X is rune)
 	OSELRECV2    // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
-	OIOTA        // iota
 	OREAL        // real(X)
 	OIMAG        // imag(X)
 	OCOMPLEX     // complex(X, Y)

@@ -286,7 +286,7 @@ func withUnexpiredValuesPreserved(lookupCtx context.Context) context.Context {
 // It returns a slice of that host's IPv4 and IPv6 addresses.
 func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IPAddr, error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
-	// parseIP, for example, does accept empty strings.
+	// parseIPZone, for example, does accept empty strings.
 	if host == "" {
 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}

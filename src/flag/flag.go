@@ -3,71 +3,72 @@
 // license that can be found in the LICENSE file.
 
 /*
-	Package flag implements command-line flag parsing.
+Package flag implements command-line flag parsing.
 
-	Usage
+Usage
 
-	Define flags using flag.String(), Bool(), Int(), etc.
+Define flags using flag.String(), Bool(), Int(), etc.
 
-	This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
-		import "flag"
-		var nFlag = flag.Int("n", 1234, "help message for flag n")
-	If you like, you can bind the flag to a variable using the Var() functions.
-		var flagvar int
-		func init() {
-			flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
-		}
-	Or you can create custom flags that satisfy the Value interface (with
-	pointer receivers) and couple them to flag parsing by
-		flag.Var(&flagVal, "name", "help message for flagname")
-	For such flags, the default value is just the initial value of the variable.
+This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
+	import "flag"
+	var nFlag = flag.Int("n", 1234, "help message for flag n")
+If you like, you can bind the flag to a variable using the Var() functions.
+	var flagvar int
+	func init() {
+		flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
+	}
+Or you can create custom flags that satisfy the Value interface (with
+pointer receivers) and couple them to flag parsing by
+	flag.Var(&flagVal, "name", "help message for flagname")
+For such flags, the default value is just the initial value of the variable.
 
-	After all flags are defined, call
-		flag.Parse()
-	to parse the command line into the defined flags.
+After all flags are defined, call
+	flag.Parse()
+to parse the command line into the defined flags.
 
-	Flags may then be used directly. If you're using the flags themselves,
-	they are all pointers; if you bind to variables, they're values.
-		fmt.Println("ip has value ", *ip)
-		fmt.Println("flagvar has value ", flagvar)
+Flags may then be used directly. If you're using the flags themselves,
+they are all pointers; if you bind to variables, they're values.
+	fmt.Println("ip has value ", *ip)
+	fmt.Println("flagvar has value ", flagvar)
 
-	After parsing, the arguments following the flags are available as the
-	slice flag.Args() or individually as flag.Arg(i).
-	The arguments are indexed from 0 through flag.NArg()-1.
+After parsing, the arguments following the flags are available as the
+slice flag.Args() or individually as flag.Arg(i).
+The arguments are indexed from 0 through flag.NArg()-1.
 
-	Command line flag syntax
+Command line flag syntax
 
-	The following forms are permitted:
+The following forms are permitted:
 
-		-flag
-		-flag=x
-		-flag x  // non-boolean flags only
-	One or two minus signs may be used; they are equivalent.
-	The last form is not permitted for boolean flags because the
-	meaning of the command
-		cmd -x *
-	where * is a Unix shell wildcard, will change if there is a file
-	called 0, false, etc. You must use the -flag=false form to turn
-	off a boolean flag.
+	-flag
+	-flag=x
+	-flag x  // non-boolean flags only
+One or two minus signs may be used; they are equivalent.
+The last form is not permitted for boolean flags because the
+meaning of the command
+	cmd -x *
+where * is a Unix shell wildcard, will change if there is a file
+called 0, false, etc. You must use the -flag=false form to turn
+off a boolean flag.
 
-	Flag parsing stops just before the first non-flag argument
-	("-" is a non-flag argument) or after the terminator "--".
+Flag parsing stops just before the first non-flag argument
+("-" is a non-flag argument) or after the terminator "--".
 
-	Integer flags accept 1234, 0664, 0x1234 and may be negative.
-	Boolean flags may be:
-		1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
-	Duration flags accept any input valid for time.ParseDuration.
+Integer flags accept 1234, 0664, 0x1234 and may be negative.
+Boolean flags may be:
+	1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
+Duration flags accept any input valid for time.ParseDuration.
 
-	The default set of command-line flags is controlled by
-	top-level functions.  The FlagSet type allows one to define
-	independent sets of flags, such as to implement subcommands
-	in a command-line interface. The methods of FlagSet are
-	analogous to the top-level functions for the command-line
-	flag set.
+The default set of command-line flags is controlled by
+top-level functions.  The FlagSet type allows one to define
+independent sets of flags, such as to implement subcommands
+in a command-line interface. The methods of FlagSet are
+analogous to the top-level functions for the command-line
+flag set.
 */
 package flag
 
 import (
+	"encoding"
 	"errors"
 	"fmt"
 	"io"
@@ -278,6 +279,43 @@ func (d *durationValue) Get() any { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
+// -- encoding.TextUnmarshaler Value
+type textValue struct{ p encoding.TextUnmarshaler }
+
+func newTextValue(val encoding.TextMarshaler, p encoding.TextUnmarshaler) textValue {
+	ptrVal := reflect.ValueOf(p)
+	if ptrVal.Kind() != reflect.Ptr {
+		panic("variable value type must be a pointer")
+	}
+	defVal := reflect.ValueOf(val)
+	if defVal.Kind() == reflect.Ptr {
+		defVal = defVal.Elem()
+	}
+	if defVal.Type() != ptrVal.Type().Elem() {
+		panic(fmt.Sprintf("default type does not match variable type: %v != %v", defVal.Type(), ptrVal.Type().Elem()))
+	}
+	ptrVal.Elem().Set(defVal)
+	return textValue{p}
+}
+
+func (v textValue) Set(s string) error {
+	return v.p.UnmarshalText([]byte(s))
+}
+
+func (v textValue) Get() interface{} {
+	return v.p
+}
+
+func (v textValue) String() string {
+	if m, ok := v.p.(encoding.TextMarshaler); ok {
+		if b, err := m.MarshalText(); err == nil {
+			return string(b)
+		}
+	}
+	return ""
+}
+
+// -- func Value
 type funcValue func(string) error
 
 func (f funcValue) Set(s string) error { return f(s) }
@@ -836,6 +874,24 @@ func (f *FlagSet) Duration(name string, value time.Duration, usage string) *time
 // The flag accepts a value acceptable to time.ParseDuration.
 func Duration(name string, value time.Duration, usage string) *time.Duration {
 	return CommandLine.Duration(name, value, usage)
+}
+
+// TextVar defines a flag with a specified name, default value, and usage string.
+// The argument p must be a pointer to a variable that will hold the value
+// of the flag, and p must implement encoding.TextUnmarshaler.
+// If the flag is used, the flag value will be passed to p's UnmarshalText method.
+// The type of the default value must be the same as the type of p.
+func (f *FlagSet) TextVar(p encoding.TextUnmarshaler, name string, value encoding.TextMarshaler, usage string) {
+	f.Var(newTextValue(value, p), name, usage)
+}
+
+// TextVar defines a flag with a specified name, default value, and usage string.
+// The argument p must be a pointer to a variable that will hold the value
+// of the flag, and p must implement encoding.TextUnmarshaler.
+// If the flag is used, the flag value will be passed to p's UnmarshalText method.
+// The type of the default value must be the same as the type of p.
+func TextVar(p encoding.TextUnmarshaler, name string, value encoding.TextMarshaler, usage string) {
+	CommandLine.Var(newTextValue(value, p), name, usage)
 }
 
 // Func defines a flag with the specified name and usage string.

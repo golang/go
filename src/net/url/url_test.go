@@ -163,14 +163,15 @@ var urltests = []URLTest{
 		},
 		"http:%2f%2fwww.google.com/?q=go+language",
 	},
-	// non-authority with path
+	// non-authority with path; see golang.org/issue/46059
 	{
 		"mailto:/webmaster@golang.org",
 		&URL{
-			Scheme: "mailto",
-			Path:   "/webmaster@golang.org",
+			Scheme:   "mailto",
+			Path:     "/webmaster@golang.org",
+			OmitHost: true,
 		},
-		"mailto:///webmaster@golang.org", // unfortunate compromise
+		"",
 	},
 	// non-authority
 	{
@@ -625,8 +626,8 @@ func ufmt(u *URL) string {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, rawfrag=%q, forcequery=%v",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.RawFragment, u.ForceQuery)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, rawfrag=%q, forcequery=%v, omithost=%t",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.RawFragment, u.ForceQuery, u.OmitHost)
 }
 
 func BenchmarkString(b *testing.B) {
@@ -2060,5 +2061,61 @@ func BenchmarkPathUnescape(b *testing.B) {
 			}
 
 		})
+	}
+}
+
+func TestJoinPath(t *testing.T) {
+	tests := []struct {
+		base string
+		elem []string
+		out  string
+	}{
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/a/b/c",
+			elem: []string{"../../../go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/",
+			elem: []string{"./go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com//",
+			elem: []string{"/go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com//",
+			elem: []string{"/go", "a", "b", "c"},
+			out:  "https://go.googlesource.com/go/a/b/c",
+		},
+		{
+			base: "http://[fe80::1%en0]:8080/",
+			elem: []string{"/go"},
+		},
+	}
+	for _, tt := range tests {
+		wantErr := "nil"
+		if tt.out == "" {
+			wantErr = "non-nil error"
+		}
+		if out, err := JoinPath(tt.base, tt.elem...); out != tt.out || (err == nil) != (tt.out != "") {
+			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		}
+		var out string
+		u, err := Parse(tt.base)
+		if err == nil {
+			u = u.JoinPath(tt.elem...)
+			out = u.String()
+		}
+		if out != tt.out || (err == nil) != (tt.out != "") {
+			t.Errorf("Parse(%q).JoinPath(%q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		}
 	}
 }

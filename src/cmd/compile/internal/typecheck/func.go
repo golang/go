@@ -241,12 +241,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
 		base.FatalfAt(fn.Pos(), "underlying closure func already typechecked: %v", fn)
 	}
 
-	// Set current associated iota value, so iota can be used inside
-	// function in ConstSpec, see issue #22344
-	if x := getIotaValue(); x >= 0 {
-		fn.Iota = x
-	}
-
 	ir.NameClosure(clo, ir.CurFunc)
 	Func(fn)
 
@@ -301,16 +295,19 @@ func tcFunc(n *ir.Func) {
 		defer tracePrint("tcFunc", n)(nil)
 	}
 
-	n.Nname = AssignExpr(n.Nname).(*ir.Name)
+	if name := n.Nname; name.Typecheck() == 0 {
+		if name.Ntype != nil {
+			name.Ntype = typecheckNtype(name.Ntype)
+			name.SetType(name.Ntype.Type())
+		}
+		name.SetTypecheck(1)
+	}
 }
 
 // tcCall typechecks an OCALL node.
 func tcCall(n *ir.CallExpr, top int) ir.Node {
 	Stmts(n.Init()) // imported rewritten f(g()) calls (#30907)
 	n.X = typecheck(n.X, ctxExpr|ctxType|ctxCallee)
-	if n.X.Diag() {
-		n.SetDiag(true)
-	}
 
 	l := n.X
 
@@ -360,10 +357,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	l = n.X
 	if l.Op() == ir.OTYPE {
 		if n.IsDDD {
-			if !l.Type().Broke() {
-				base.Errorf("invalid use of ... in type conversion to %v", l.Type())
-			}
-			n.SetDiag(true)
+			base.Fatalf("invalid use of ... in type conversion to %v", l.Type())
 		}
 
 		// pick off before type-checking arguments
@@ -909,12 +903,6 @@ func tcRecoverFP(n *ir.CallExpr) ir.Node {
 
 // tcUnsafeAdd typechecks an OUNSAFEADD node.
 func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
-	if !types.AllowsGoVersion(curpkg(), 1, 17) {
-		base.ErrorfVers("go1.17", "unsafe.Add")
-		n.SetType(nil)
-		return n
-	}
-
 	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
 	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
 	if n.X.Type() == nil || n.Y.Type() == nil {
@@ -931,12 +919,6 @@ func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
 
 // tcUnsafeSlice typechecks an OUNSAFESLICE node.
 func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
-	if !types.AllowsGoVersion(curpkg(), 1, 17) {
-		base.ErrorfVers("go1.17", "unsafe.Slice")
-		n.SetType(nil)
-		return n
-	}
-
 	n.X = Expr(n.X)
 	n.Y = Expr(n.Y)
 	if n.X.Type() == nil || n.Y.Type() == nil {

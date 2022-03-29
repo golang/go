@@ -75,8 +75,7 @@ func (a Aux) Sym() Sym { return a.l.resolve(a.r, a.Aux.Sym()) }
 type oReader struct {
 	*goobj.Reader
 	unit         *sym.CompilationUnit
-	version      int    // version of static symbol
-	flags        uint32 // read from object file
+	version      int // version of static symbol
 	pkgprefix    string
 	syms         []Sym    // Sym's global index, indexed by local index
 	pkg          []uint32 // indices of referenced package by PkgIdx (index into loader.objs array)
@@ -262,8 +261,6 @@ type Loader struct {
 
 	flags uint32
 
-	hasUnknownPkgPath bool // if any Go object has unknown package path
-
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
 
 	elfsetstring elfsetstringFunc
@@ -362,7 +359,7 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	l.start[r] = i
 	l.objs = append(l.objs, objIdx{r, i})
 	if r.NeedNameExpansion() && !r.FromAssembly() {
-		l.hasUnknownPkgPath = true
+		panic("object compiled without -p")
 	}
 	return i
 }
@@ -2076,13 +2073,16 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
 		Reader:       r,
 		unit:         unit,
 		version:      localSymVersion,
-		flags:        r.Flags(),
 		pkgprefix:    pkgprefix,
 		syms:         make([]Sym, ndef+nhashed64def+nhasheddef+r.NNonpkgdef()+r.NNonpkgref()),
 		ndef:         ndef,
 		nhasheddef:   nhasheddef,
 		nhashed64def: nhashed64def,
 		objidx:       uint32(len(l.objs)),
+	}
+
+	if r.Unlinkable() {
+		log.Fatalf("link: unlinkable object (from package %s) - compiler requires -p flag", lib.Pkg)
 	}
 
 	// Autolib
@@ -2124,16 +2124,6 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 	case hashedDef:
 		start = uint32(r.ndef + r.nhashed64def)
 		end = uint32(r.ndef + r.nhashed64def + r.nhasheddef)
-		if l.hasUnknownPkgPath {
-			// The content hash depends on symbol name expansion. If any package is
-			// built without fully expanded names, the content hash is unreliable.
-			// Treat them as named symbols.
-			// This is rare.
-			// (We don't need to do this for hashed64Def case, as there the hash
-			// function is simply the identity function, which doesn't depend on
-			// name expansion.)
-			kind = nonPkgDef
-		}
 	case nonPkgDef:
 		start = uint32(r.ndef + r.nhashed64def + r.nhasheddef)
 		end = uint32(r.ndef + r.nhashed64def + r.nhasheddef + r.NNonpkgdef())

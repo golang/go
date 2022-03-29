@@ -824,6 +824,9 @@ func prove(f *Func) {
 					}
 					lensVars[b] = append(lensVars[b], v)
 				}
+			case OpCtz64, OpCtz32, OpCtz16, OpCtz8, OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
+				ft.update(b, v, ft.zero, signed, gt|eq)
+				// TODO: we could also do <= 64/32/16/8, if that helped.
 			}
 		}
 	}
@@ -1372,7 +1375,9 @@ func isNonNegative(v *Value) bool {
 	case OpStringLen, OpSliceLen, OpSliceCap,
 		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64,
 		OpZeroExt8to32, OpZeroExt16to32, OpZeroExt8to16,
-		OpCtz64, OpCtz32, OpCtz16, OpCtz8:
+		OpCtz64, OpCtz32, OpCtz16, OpCtz8,
+		OpCtz64NonZero, OpCtz32NonZero, OpCtz16NonZero, OpCtz8NonZero,
+		OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
 		return true
 
 	case OpRsh64Ux64, OpRsh32Ux64:

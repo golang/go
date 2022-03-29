@@ -358,8 +358,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 			return true
 		}
 
-	case ir.OSELECT,
-		ir.OGO,
+	case ir.OGO,
 		ir.ODEFER,
 		ir.ODCLTYPE, // can't print yet
 		ir.OTAILCALL:
@@ -1310,7 +1309,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	ir.EditChildren(m, subst.edit)
 
 	if subst.newclofn == nil {
-		// Translate any label on FOR, RANGE loops or SWITCH
+		// Translate any label on FOR, RANGE loops, SWITCH or SELECT
 		switch m.Op() {
 		case ir.OFOR:
 			m := m.(*ir.ForStmt)
@@ -1326,8 +1325,12 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 			m := m.(*ir.SwitchStmt)
 			m.Label = translateLabel(m.Label)
 			return m
-		}
 
+		case ir.OSELECT:
+			m := m.(*ir.SelectStmt)
+			m.Label = translateLabel(m.Label)
+			return m
+		}
 	}
 
 	switch m := m.(type) {

@@ -218,6 +218,15 @@ func (t *tester) run() {
 		}
 	}
 
+	if err := t.maybeLogMetadata(); err != nil {
+		t.failed = true
+		if t.keepGoing {
+			log.Printf("Failed logging metadata: %v", err)
+		} else {
+			fatalf("Failed logging metadata: %v", err)
+		}
+	}
+
 	for _, dt := range t.tests {
 		if !t.shouldRunTest(dt.name) {
 			t.partial = true
@@ -266,6 +275,22 @@ func (t *tester) shouldRunTest(name string) bool {
 		}
 	}
 	return false
+}
+
+func (t *tester) maybeLogMetadata() error {
+	if t.compileOnly {
+		// We need to run a subprocess to log metadata. Don't do that
+		// on compile-only runs.
+		return nil
+	}
+	t.out("Test execution environment.")
+	// Helper binary to print system metadata (CPU model, etc). This is a
+	// separate binary from dist so it need not build with the bootstrap
+	// toolchain.
+	//
+	// TODO(prattmic): If we split dist bootstrap and dist test then this
+	// could be simplified to directly use internal/sysinfo here.
+	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), "go", []string{"run", "."}).Run()
 }
 
 // short returns a -short flag value to use with 'go test'
@@ -372,7 +397,9 @@ func (t *tester) registerStdTest(pkg string) {
 				"-short=" + short(),
 				t.tags(),
 				t.timeout(timeoutSec),
-				"-gcflags=all=" + gcflags,
+			}
+			if gcflags != "" {
+				args = append(args, "-gcflags=all="+gcflags)
 			}
 			if t.race {
 				args = append(args, "-race")

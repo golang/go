@@ -1101,7 +1101,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 
 	// TODO(gri) make canMix more efficient - called for each binary operation
 	canMix := func(x, y *operand) bool {
-		if IsInterface(x.typ) && !isTypeParam(x.typ) || IsInterface(y.typ) && !isTypeParam(y.typ) {
+		if isNonTypeParamInterface(x.typ) || isNonTypeParamInterface(y.typ) {
 			return true
 		}
 		if allBoolean(x.typ) != allBoolean(y.typ) {
@@ -1214,7 +1214,7 @@ const (
 //
 func (check *Checker) rawExpr(x *operand, e syntax.Expr, hint Type, allowGeneric bool) exprKind {
 	if check.conf.Trace {
-		check.trace(e.Pos(), "expr %s", e)
+		check.trace(e.Pos(), "-- expr %s", e)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -1328,7 +1328,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				// but before the enclosing scope contents changes (#22992).
 				check.later(func() {
 					check.funcBody(decl, "<function literal>", sig, e.Body, iota)
-				})
+				}).describef(e, "func literal")
 			}
 			x.mode = value
 			x.typ = sig
@@ -1429,7 +1429,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					}
 					check.expr(x, e)
 					if i >= len(fields) {
-						check.error(x, "too many values in struct literal")
+						check.errorf(x, "too many values in %s{…}", base)
 						break // cannot continue
 					}
 					// i < len(fields)
@@ -1442,7 +1442,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					check.assignment(x, etyp, "struct literal")
 				}
 				if len(e.ElemList) < len(fields) {
-					check.error(e.Rbrace, "too few values in struct literal")
+					check.errorf(e.Rbrace, "too few values in %s{…}", base)
 					// ok to continue
 				}
 			}
@@ -1491,6 +1491,10 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				check.error(e, "illegal cycle in type declaration")
 				goto Error
 			}
+			// If the map key type is an interface (but not a type parameter),
+			// the type of a constant key must be considered when checking for
+			// duplicates.
+			keyIsInterface := isNonTypeParamInterface(utyp.key)
 			visited := make(map[interface{}][]Type, len(e.ElemList))
 			for _, e := range e.ElemList {
 				kv, _ := e.(*syntax.KeyValueExpr)
@@ -1505,9 +1509,8 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				}
 				if x.mode == constant_ {
 					duplicate := false
-					// if the key is of interface type, the type is also significant when checking for duplicates
 					xkey := keyVal(x.val)
-					if IsInterface(utyp.key) {
+					if keyIsInterface {
 						for _, vtyp := range visited[xkey] {
 							if Identical(vtyp, x.typ) {
 								duplicate = true
@@ -1556,7 +1559,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		return kind
 
 	case *syntax.SelectorExpr:
-		check.selector(x, e)
+		check.selector(x, e, nil)
 
 	case *syntax.IndexExpr:
 		if check.indexExpr(x, e) {
@@ -1642,6 +1645,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				case invalid:
 					goto Error
 				case typexpr:
+					check.validVarType(e.X, x.typ)
 					x.typ = &Pointer{base: x.typ}
 				default:
 					var base Type
@@ -1713,6 +1717,10 @@ Error:
 }
 
 func keyVal(x constant.Value) interface{} {
+	// TODO(gri) This function must map 1, 1.0, and 1.0 + 0i to the same (integer) value.
+	//           Same for 1.1 and 1.1 + 0i.
+	//           Otherwise we won't get duplicate key errors for certain type parameter
+	//           key types. See issue #51610.
 	switch x.Kind() {
 	case constant.Bool:
 		return constant.BoolVal(x)

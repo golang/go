@@ -24,19 +24,9 @@ type lang struct {
 // any language version is supported.
 var langWant lang
 
-// AllowsGoVersion reports whether a particular package
-// is allowed to use Go version major.minor.
-// We assume the imported packages have all been checked,
-// so we only have to check the local package against the -lang flag.
-func AllowsGoVersion(pkg *Pkg, major, minor int) bool {
-	if pkg == nil {
-		// TODO(mdempsky): Set Pkg for local types earlier.
-		pkg = LocalPkg
-	}
-	if pkg != LocalPkg {
-		// Assume imported packages passed type-checking.
-		return true
-	}
+// AllowsGoVersion reports whether local package is allowed
+// to use Go version major.minor.
+func AllowsGoVersion(major, minor int) bool {
 	if langWant.major == 0 && langWant.minor == 0 {
 		return true
 	}

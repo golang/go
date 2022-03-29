@@ -10,10 +10,8 @@
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD ptr+0(FP), R3
-	MOVD n+8(FP), R4
-#endif
+	// R3 = ptr
+	// R4 = n
 
 	// Determine if there are doublewords to clear
 check:

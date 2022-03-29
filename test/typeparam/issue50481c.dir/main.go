@@ -8,7 +8,7 @@
 package main
 
 import (
-	"a"
+	"./a"
 	"fmt"
 )
 

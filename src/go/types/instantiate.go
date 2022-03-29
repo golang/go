@@ -15,10 +15,10 @@ import (
 
 // Instantiate instantiates the type orig with the given type arguments targs.
 // orig must be a *Named or a *Signature type. If there is no error, the
-// resulting Type is a new, instantiated (not parameterized) type of the same
-// kind (either a *Named or a *Signature). Methods attached to a *Named type
-// are also instantiated, and associated with a new *Func that has the same
-// position as the original method, but nil function scope.
+// resulting Type is an instantiated type of the same kind (either a *Named or
+// a *Signature). Methods attached to a *Named type are also instantiated, and
+// associated with a new *Func that has the same position as the original
+// method, but nil function scope.
 //
 // If ctxt is non-nil, it may be used to de-duplicate the instance against
 // previous instances with the same identity. As a special case, generic
@@ -61,7 +61,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
-// unexpanded.
+// unexpanded. check may be nil.
 func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Context) (res Type) {
 	var h string
 	if ctxt != nil {
@@ -103,6 +103,7 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Con
 		// anymore; we need to set tparams to nil.
 		sig.tparams = nil
 		res = sig
+
 	default:
 		// only types and functions can be generic
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))

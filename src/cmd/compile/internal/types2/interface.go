@@ -12,7 +12,6 @@ import "cmd/compile/internal/syntax"
 // An Interface represents an interface type.
 type Interface struct {
 	check     *Checker      // for error reporting; nil once type set is computed
-	obj       *TypeName     // corresponding declared object; or nil (for better error messages)
 	methods   []*Func       // ordered list of explicitly declared methods
 	embeddeds []Type        // ordered list of explicitly embedded elements
 	embedPos  *[]syntax.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space

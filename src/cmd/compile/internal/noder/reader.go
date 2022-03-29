@@ -26,12 +26,6 @@ import (
 	"cmd/internal/src"
 )
 
-// TODO(mdempsky): Suppress duplicate type/const errors that can arise
-// during typecheck due to naive type substitution (e.g., see #42758).
-// I anticipate these will be handled as a consequence of adding
-// dictionaries support, so it's probably not important to focus on
-// this until after that's done.
-
 type pkgReader struct {
 	pkgbits.PkgDecoder
 
@@ -147,6 +141,13 @@ type readerDict struct {
 
 	funcs    []objInfo
 	funcsObj []ir.Node
+
+	itabs []itabInfo2
+}
+
+type itabInfo2 struct {
+	typ  *types.Type
+	lsym *obj.LSym
 }
 
 func setType(n ir.Node, typ *types.Type) {
@@ -154,7 +155,6 @@ func setType(n ir.Node, typ *types.Type) {
 	n.SetTypecheck(1)
 
 	if name, ok := n.(*ir.Name); ok {
-		name.SetWalkdef(1)
 		name.Ntype = ir.TypeNode(name.Type())
 	}
 }
@@ -209,7 +209,7 @@ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
 	// require being more consistent about when we use native vs UNIX
 	// file paths.
 	const dollarGOROOT = "$GOROOT"
-	if strings.HasPrefix(filename, dollarGOROOT) {
+	if buildcfg.GOROOT != "" && strings.HasPrefix(filename, dollarGOROOT) {
 		filename = buildcfg.GOROOT + filename[len(dollarGOROOT):]
 	}
 
@@ -643,6 +643,10 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 		name.Func = ir.NewFunc(r.pos())
 		name.Func.Nname = name
 
+		if r.hasTypeParams() {
+			name.Func.SetDupok(true)
+		}
+
 		rext.funcExt(name)
 		return name
 
@@ -745,6 +749,22 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx int, implicits, explicits []
 		dict.funcs[i] = objInfo{idx: objIdx, explicits: targs}
 	}
 
+	dict.itabs = make([]itabInfo2, r.Len())
+	for i := range dict.itabs {
+		typ := pr.typIdx(typeInfo{idx: r.Len(), derived: true}, &dict, true)
+		ifaceInfo := r.typInfo()
+
+		var lsym *obj.LSym
+		if typ.IsInterface() {
+			lsym = reflectdata.TypeLinksym(typ)
+		} else {
+			iface := pr.typIdx(ifaceInfo, &dict, true)
+			lsym = reflectdata.ITabLsym(typ, iface)
+		}
+
+		dict.itabs[i] = itabInfo2{typ: typ, lsym: lsym}
+	}
+
 	return &dict
 }
 
@@ -772,6 +792,10 @@ func (r *reader) method(rext *reader) *types.Field {
 
 	name.Func = ir.NewFunc(r.pos())
 	name.Func.Nname = name
+
+	if r.hasTypeParams() {
+		name.Func.SetDupok(true)
+	}
 
 	rext.funcExt(name)
 
@@ -930,11 +954,6 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
 // constructed.
 var todoBodies []*ir.Func
 
-// todoBodiesDone signals that we constructed all function in todoBodies.
-// This is necessary to prevent reader.addBody adds thing to todoBodies
-// when nested inlining happens.
-var todoBodiesDone = false
-
 func (r *reader) addBody(fn *ir.Func) {
 	pri := pkgReaderIndex{r.p, r.Reloc(pkgbits.RelocBody), r.dict}
 	bodyReader[fn] = pri
@@ -945,7 +964,7 @@ func (r *reader) addBody(fn *ir.Func) {
 		return
 	}
 
-	if r.curfn == nil && !todoBodiesDone {
+	if r.curfn == nil {
 		todoBodies = append(todoBodies, fn)
 		return
 	}
@@ -1412,23 +1431,20 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 	init := r.stmt()
 
 	var tag ir.Node
+	var ident *ir.Ident
+	var iface *types.Type
 	if r.Bool() {
 		pos := r.pos()
-		var ident *ir.Ident
 		if r.Bool() {
 			pos := r.pos()
 			sym := typecheck.Lookup(r.String())
 			ident = ir.NewIdent(pos, sym)
 		}
 		x := r.expr()
+		iface = x.Type()
 		tag = ir.NewTypeSwitchGuard(pos, ident, x)
 	} else {
 		tag = r.expr()
-	}
-
-	tswitch, ok := tag.(*ir.TypeSwitchGuard)
-	if ok && tswitch.Tag == nil {
-		tswitch = nil
 	}
 
 	clauses := make([]*ir.CaseClause, r.Len())
@@ -1439,18 +1455,30 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 		r.openScope()
 
 		pos := r.pos()
-		cases := r.exprList()
+		var cases []ir.Node
+		if iface != nil {
+			cases = make([]ir.Node, r.Len())
+			if len(cases) == 0 {
+				cases = nil // TODO(mdempsky): Unclear if this matters.
+			}
+			for i := range cases {
+				cases[i] = r.exprType(true)
+			}
+		} else {
+			cases = r.exprList()
+		}
 
 		clause := ir.NewCaseStmt(pos, cases, nil)
-		if tswitch != nil {
+
+		if ident != nil {
 			pos := r.pos()
 			typ := r.typ()
 
-			name := ir.NewNameAt(pos, tswitch.Tag.Sym())
+			name := ir.NewNameAt(pos, ident.Sym())
 			setType(name, typ)
 			r.addLocal(name, ir.PAUTO)
 			clause.Var = name
-			name.Defn = tswitch
+			name.Defn = tag
 		}
 
 		clause.Body = r.stmts()
@@ -1534,10 +1562,7 @@ func (r *reader) expr() (res ir.Node) {
 		return typecheck.Callee(r.obj())
 
 	case exprType:
-		// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
-		n := ir.TypeNode(r.typ())
-		n.SetTypecheck(1)
-		return n
+		return r.exprType(false)
 
 	case exprConst:
 		pos := r.pos()
@@ -1557,6 +1582,15 @@ func (r *reader) expr() (res ir.Node) {
 		x := r.expr()
 		pos := r.pos()
 		_, sym := r.selector()
+
+		// Method expression with derived receiver type.
+		if x.Op() == ir.ODYNAMICTYPE {
+			// TODO(mdempsky): Handle with runtime dictionary lookup.
+			n := ir.TypeNode(x.Type())
+			n.SetTypecheck(1)
+			x = n
+		}
+
 		n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
 		if n.Op() == ir.OMETHVALUE {
 			wrapper := methodValueWrapper{
@@ -1593,8 +1627,12 @@ func (r *reader) expr() (res ir.Node) {
 	case exprAssert:
 		x := r.expr()
 		pos := r.pos()
-		typ := r.expr().(ir.Ntype)
-		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ))
+		typ := r.exprType(false)
+
+		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
+			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
+		}
+		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.(ir.Ntype)))
 
 	case exprUnaryOp:
 		op := r.op()
@@ -1637,6 +1675,20 @@ func (r *reader) expr() (res ir.Node) {
 		typ := r.typ()
 		pos := r.pos()
 		x := r.expr()
+
+		// TODO(mdempsky): Stop constructing expressions of untyped type.
+		x = typecheck.DefaultLit(x, typ)
+
+		if op, why := typecheck.Convertop(x.Op() == ir.OLITERAL, x.Type(), typ); op == ir.OXXX {
+			// types2 ensured that x is convertable to typ under standard Go
+			// semantics, but cmd/compile also disallows some conversions
+			// involving //go:notinheap.
+			//
+			// TODO(mdempsky): This can be removed after #46731 is implemented.
+			base.ErrorfAt(pos, "cannot convert %L to type %v%v", x, typ, why)
+			base.ErrorExit() // harsh, but prevents constructing invalid IR
+		}
+
 		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, typ, x))
 	}
 }
@@ -1737,6 +1789,39 @@ func (r *reader) exprs() []ir.Node {
 		nodes[i] = r.expr()
 	}
 	return nodes
+}
+
+func (r *reader) exprType(nilOK bool) ir.Node {
+	r.Sync(pkgbits.SyncExprType)
+
+	if nilOK && r.Bool() {
+		return typecheck.Expr(types.BuiltinPkg.Lookup("nil").Def.(*ir.NilExpr))
+	}
+
+	pos := r.pos()
+
+	var typ *types.Type
+	var lsym *obj.LSym
+
+	if r.Bool() {
+		itab := r.dict.itabs[r.Len()]
+		typ, lsym = itab.typ, itab.lsym
+	} else {
+		info := r.typInfo()
+		typ = r.p.typIdx(info, r.dict, true)
+
+		if !info.derived {
+			// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
+			n := ir.TypeNode(typ)
+			n.SetTypecheck(1)
+			return n
+		}
+
+		lsym = reflectdata.TypeLinksym(typ)
+	}
+
+	ptr := typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+	return typed(typ, ir.NewDynamicType(pos, ptr))
 }
 
 func (r *reader) op() ir.Op {
@@ -1973,6 +2058,13 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 	ir.WithFunc(r.curfn, func() {
 		r.curfn.Body = r.stmts()
 		r.curfn.Endlineno = r.pos()
+
+		// TODO(mdempsky): This shouldn't be necessary. Inlining might
+		// read in new function/method declarations, which could
+		// potentially be recursively inlined themselves; but we shouldn't
+		// need to read in the non-inlined bodies for the declarations
+		// themselves. But currently it's an easy fix to #50552.
+		readBodies(typecheck.Target)
 
 		deadcode.Func(r.curfn)
 

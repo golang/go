@@ -135,9 +135,6 @@ func NodNil() ir.Node {
 // modifies the tree with missing field names.
 func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
 	n.X = typecheck(n.X, ctxType|ctxExpr)
-	if n.X.Diag() {
-		n.SetDiag(true)
-	}
 	t := n.X.Type()
 	if t == nil {
 		return n
@@ -291,7 +288,7 @@ var dotlist = make([]dlist, 10)
 
 // Convert node n for assignment to type t.
 func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
-	if n == nil || n.Type() == nil || n.Type().Broke() {
+	if n == nil || n.Type() == nil {
 		return n
 	}
 
@@ -393,11 +390,6 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
 			return ir.OCONVIFACE, ""
 		}
 		if implements(src, dst, &missing, &have, &ptr) {
-			return ir.OCONVIFACE, ""
-		}
-
-		// we'll have complained about this method anyway, suppress spurious messages.
-		if have != nil && have.Sym == missing.Sym && (have.Type.Broke() || missing.Type.Broke()) {
 			return ir.OCONVIFACE, ""
 		}
 
@@ -593,9 +585,6 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	// They must have same element type.
 	if src.IsSlice() && dst.IsPtr() && dst.Elem().IsArray() &&
 		types.Identical(src.Elem(), dst.Elem().Elem()) {
-		if !types.AllowsGoVersion(curpkg(), 1, 17) {
-			return ir.OXXX, ":\n\tconversion of slices to array pointers only supported as of -lang=go1.17"
-		}
 		return ir.OSLICE2ARRPTR, ""
 	}
 
@@ -785,9 +774,6 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 	}
 	i := 0
 	for _, im := range iface.AllMethods().Slice() {
-		if im.Broke() {
-			continue
-		}
 		for i < len(tms) && tms[i].Sym != im.Sym {
 			i++
 		}
@@ -1116,10 +1102,10 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		forw = NewIncompleteNamedType(t.Pos(), newsym)
 		//println("Creating new type by sub", newsym.Name, forw.HasTParam())
 		forw.SetRParams(neededTargs)
-		// Copy the OrigSym from the re-instantiated type (which is the sym of
+		// Copy the OrigType from the re-instantiated type (which is the sym of
 		// the base generic type).
-		assert(t.OrigSym() != nil)
-		forw.SetOrigSym(t.OrigSym())
+		assert(t.OrigType() != nil)
+		forw.SetOrigType(t.OrigType())
 	}
 
 	var newt *types.Type
@@ -1532,13 +1518,10 @@ func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
 	// Note: pointers to arrays are special because of slice-to-array-pointer
 	// conversions. See issue 49295.
 	if u.Kind() == types.TPTR && u.Elem().Kind() != types.TARRAY &&
-		tparam.Bound().StructuralType() == nil {
+		tparam.Bound().StructuralType() == nil && !u.Elem().NotInHeap() {
 		u = types.Types[types.TUINT8].PtrTo()
 	}
 
-	if shapeMap == nil {
-		shapeMap = map[int]map[*types.Type]*types.Type{}
-	}
 	submap := shapeMap[index]
 	if submap == nil {
 		submap = map[*types.Type]*types.Type{}
@@ -1569,4 +1552,4 @@ func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
 	return s
 }
 
-var shapeMap map[int]map[*types.Type]*types.Type
+var shapeMap = map[int]map[*types.Type]*types.Type{}

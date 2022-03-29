@@ -855,7 +855,7 @@ func parseCertificate(der []byte) (*Certificate, error) {
 	}
 	// we ignore the presence of negative serial numbers because
 	// of their prevalence, despite them being invalid
-	// TODO(rolandshoemaker): revist this decision, there are currently
+	// TODO(rolandshoemaker): revisit this decision, there are currently
 	// only 10 trusted certificates with negative serial numbers
 	// according to censys.io.
 	cert.SerialNumber = serial

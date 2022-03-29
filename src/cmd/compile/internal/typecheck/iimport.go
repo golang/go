@@ -761,7 +761,7 @@ func (p *iimporter) typAt(off uint64) *types.Type {
 		// No need to calc sizes for re-instantiated generic types, and
 		// they are not necessarily resolved until the top-level type is
 		// defined (because of recursive types).
-		if t.OrigSym() == nil || !t.HasTParam() {
+		if t.OrigType() == nil || !t.HasTParam() {
 			types.CheckSize(t)
 		}
 		p.typCache[off] = t
@@ -1374,7 +1374,9 @@ func (r *importReader) node() ir.Node {
 	case ir.OCLOSURE:
 		//println("Importing CLOSURE")
 		pos := r.pos()
+		r.setPkg()
 		typ := r.signature(nil, nil)
+		r.setPkg()
 
 		// All the remaining code below is similar to (*noder).funcLit(), but
 		// with Dcls and ClosureVars lists already set up
@@ -1480,7 +1482,7 @@ func (r *importReader) node() ir.Node {
 					} else {
 						genType := types.ReceiverBaseType(n1.X.Type())
 						if genType.IsInstantiatedGeneric() {
-							genType = genType.OrigSym().Def.Type()
+							genType = genType.OrigType()
 						}
 						m = Lookdot1(n1, sel, genType, genType.Methods(), 1)
 					}
@@ -1911,7 +1913,7 @@ func Instantiate(pos src.XPos, baseType *types.Type, targs []*types.Type) *types
 
 	t := NewIncompleteNamedType(baseType.Pos(), instSym)
 	t.SetRParams(targs)
-	t.SetOrigSym(baseSym)
+	t.SetOrigType(baseType)
 
 	// baseType may still be TFORW or its methods may not be fully filled in
 	// (since we are in the middle of importing it). So, delay call to
@@ -1936,7 +1938,7 @@ func resumeDoInst() {
 		for len(deferredInstStack) > 0 {
 			t := deferredInstStack[0]
 			deferredInstStack = deferredInstStack[1:]
-			substInstType(t, t.OrigSym().Def.(*ir.Name).Type(), t.RParams())
+			substInstType(t, t.OrigType(), t.RParams())
 		}
 	}
 	deferInst--
@@ -1948,7 +1950,7 @@ func resumeDoInst() {
 // instantiations of mutually recursive types.
 func doInst(t *types.Type) *types.Type {
 	assert(t.Kind() == types.TFORW)
-	return Instantiate(t.Pos(), t.OrigSym().Def.(*ir.Name).Type(), t.RParams())
+	return Instantiate(t.Pos(), t.OrigType(), t.RParams())
 }
 
 // substInstType completes the instantiation of a generic type by doing a

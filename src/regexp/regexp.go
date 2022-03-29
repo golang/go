@@ -793,11 +793,12 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 				accept = false
 			}
 			var width int
-			// TODO: use step()
 			if b == nil {
-				_, width = utf8.DecodeRuneInString(s[pos:end])
+				is := inputString{str: s}
+				_, width = is.step(pos)
 			} else {
-				_, width = utf8.DecodeRune(b[pos:end])
+				ib := inputBytes{str: b}
+				_, width = ib.step(pos)
 			}
 			if width > 0 {
 				pos += width

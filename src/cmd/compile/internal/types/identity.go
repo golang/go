@@ -39,7 +39,7 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
 	if t1 == t2 {
 		return true
 	}
-	if t1 == nil || t2 == nil || t1.kind != t2.kind || t1.Broke() || t2.Broke() {
+	if t1 == nil || t2 == nil || t1.kind != t2.kind {
 		return false
 	}
 	if t1.sym != nil || t2.sym != nil {

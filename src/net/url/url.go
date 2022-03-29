@@ -13,6 +13,7 @@ package url
 import (
 	"errors"
 	"fmt"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -362,6 +363,7 @@ type URL struct {
 	Host        string    // host or host:port
 	Path        string    // path (relative paths may omit leading slash)
 	RawPath     string    // encoded path hint (see EscapedPath method)
+	OmitHost    bool      // do not emit empty host (authority)
 	ForceQuery  bool      // append a query ('?') even if RawQuery is empty
 	RawQuery    string    // encoded query values, without '?'
 	Fragment    string    // fragment for references, without '#'
@@ -555,7 +557,12 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else if url.Scheme != "" && strings.HasPrefix(rest, "/") {
+		// OmitHost is set to true when rawURL has an empty host (authority).
+		// See golang.org/issue/46059.
+		url.OmitHost = true
 	}
+
 	// Set Path and, optionally, RawPath.
 	// RawPath is a hint of the encoding of Path. We don't want to set it if
 	// the default escaping of Path is equivalent, to help make sure that people
@@ -805,15 +812,19 @@ func (u *URL) String() string {
 		buf.WriteString(u.Opaque)
 	} else {
 		if u.Scheme != "" || u.Host != "" || u.User != nil {
-			if u.Host != "" || u.Path != "" || u.User != nil {
-				buf.WriteString("//")
-			}
-			if ui := u.User; ui != nil {
-				buf.WriteString(ui.String())
-				buf.WriteByte('@')
-			}
-			if h := u.Host; h != "" {
-				buf.WriteString(escape(h, encodeHost))
+			if u.OmitHost && u.Host == "" && u.User == nil {
+				// omit empty host
+			} else {
+				if u.Host != "" || u.Path != "" || u.User != nil {
+					buf.WriteString("//")
+				}
+				if ui := u.User; ui != nil {
+					buf.WriteString(ui.String())
+					buf.WriteByte('@')
+				}
+				if h := u.Host; h != "" {
+					buf.WriteString(escape(h, encodeHost))
+				}
 			}
 		}
 		path := u.EscapedPath()
@@ -1176,6 +1187,17 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 	return nil
 }
 
+// JoinPath returns a new URL with the provided path elements joined to
+// any existing path and the resulting path cleaned of any ./ or ../ elements.
+func (u *URL) JoinPath(elem ...string) *URL {
+	url := *u
+	if len(elem) > 0 {
+		elem = append([]string{u.Path}, elem...)
+		url.setPath(path.Join(elem...))
+	}
+	return &url
+}
+
 // validUserinfo reports whether s is a valid userinfo string per RFC 3986
 // Section 3.2.1:
 //     userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
@@ -1215,4 +1237,15 @@ func stringContainsCTLByte(s string) bool {
 		}
 	}
 	return false
+}
+
+// JoinPath returns a URL string with the provided path elements joined to
+// the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+func JoinPath(base string, elem ...string) (result string, err error) {
+	url, err := Parse(base)
+	if err != nil {
+		return
+	}
+	result = url.JoinPath(elem...).String()
+	return
 }

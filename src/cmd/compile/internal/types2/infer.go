@@ -355,7 +355,7 @@ func typeParamsString(list []*TypeParam) string {
 	return b.String()
 }
 
-// IsParameterized reports whether typ contains any of the type parameters of tparams.
+// isParameterized reports whether typ contains any of the type parameters of tparams.
 func isParameterized(tparams []*TypeParam, typ Type) bool {
 	w := tpWalker{
 		seen:    make(map[Type]bool),
@@ -739,8 +739,6 @@ func (w *cycleFinder) typ(typ Type) {
 	//      in signatures where they are handled explicitly.
 
 	case *Signature:
-		// There are no "method types" so we should never see a recv.
-		assert(t.recv == nil)
 		if t.params != nil {
 			w.varList(t.params.vars)
 		}
