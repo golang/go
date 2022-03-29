@@ -488,7 +488,7 @@ func Set(name, value string) error {
 
 // isZeroValue determines whether the string represents the zero
 // value for a flag.
-func isZeroValue(flag *Flag, value string) bool {
+func isZeroValue(flag *Flag, value string) (ok bool, err error) {
 	// Build a zero value of the flag's Value type, and see if the
 	// result of calling its String method equals the value passed in.
 	// This works unless the Value type is itself an interface type.
@@ -499,7 +499,18 @@ func isZeroValue(flag *Flag, value string) bool {
 	} else {
 		z = reflect.Zero(typ)
 	}
-	return value == z.Interface().(Value).String()
+	// Catch panics calling the String method, which shouldn't prevent the
+	// usage message from being printed, but that we should report to the
+	// user so that they know to fix their code.
+	defer func() {
+		if e := recover(); e != nil {
+			if typ.Kind() == reflect.Pointer {
+				typ = typ.Elem()
+			}
+			err = fmt.Errorf("panic calling String method on zero %v for flag %s: %v", typ, flag.Name, e)
+		}
+	}()
+	return value == z.Interface().(Value).String(), nil
 }
 
 // UnquoteUsage extracts a back-quoted name from the usage
@@ -545,6 +556,7 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 // default values of all defined command-line flags in the set. See the
 // documentation for the global function PrintDefaults for more information.
 func (f *FlagSet) PrintDefaults() {
+	var isZeroValueErrs []error
 	f.VisitAll(func(flag *Flag) {
 		var b strings.Builder
 		fmt.Fprintf(&b, "  -%s", flag.Name) // Two spaces before -; see next two comments.
@@ -564,7 +576,11 @@ func (f *FlagSet) PrintDefaults() {
 		}
 		b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
 
-		if !isZeroValue(flag, flag.DefValue) {
+		// Print the default value only if it differs to the zero value
+		// for this flag type.
+		if isZero, err := isZeroValue(flag, flag.DefValue); err != nil {
+			isZeroValueErrs = append(isZeroValueErrs, err)
+		} else if !isZero {
 			if _, ok := flag.Value.(*stringValue); ok {
 				// put quotes on the value
 				fmt.Fprintf(&b, " (default %q)", flag.DefValue)
@@ -574,6 +590,15 @@ func (f *FlagSet) PrintDefaults() {
 		}
 		fmt.Fprint(f.Output(), b.String(), "\n")
 	})
+	// If calling String on any zero flag.Values triggered a panic, print
+	// the messages after the full set of defaults so that the programmer
+	// knows to fix the panic.
+	if errs := isZeroValueErrs; len(errs) > 0 {
+		fmt.Fprintln(f.Output())
+		for _, err := range errs {
+			fmt.Fprintln(f.Output(), err)
+		}
+	}
 }
 
 // PrintDefaults prints, to standard error unless configured otherwise,
