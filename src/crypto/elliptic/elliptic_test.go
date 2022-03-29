@@ -364,8 +364,8 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 		b.Run("Compressed", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				buf := Marshal(curve, x, y)
-				xx, yy := Unmarshal(curve, buf)
+				buf := MarshalCompressed(curve, x, y)
+				xx, yy := UnmarshalCompressed(curve, buf)
 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
 					b.Error("Unmarshal output different from Marshal input")
 				}
