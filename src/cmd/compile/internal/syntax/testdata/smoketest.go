@@ -28,12 +28,6 @@ func _[P interface{}]()
 func _[P B]()
 func _[P B[P]]()
 
-// in methods
-func (T) _[P any]()
-func (T) _[P interface{}]()
-func (T) _[P B]()
-func (T) _[P B[P]]()
-
 // type instantiations
 type _ T[int]
 

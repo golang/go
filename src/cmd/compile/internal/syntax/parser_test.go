@@ -38,20 +38,6 @@ func TestVerify(t *testing.T) {
 	verifyPrint(t, *src_, ast)
 }
 
-func TestParseGo2(t *testing.T) {
-	dir := filepath.Join(testdata, "go2")
-	list, err := ioutil.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, fi := range list {
-		name := fi.Name()
-		if !fi.IsDir() && !strings.HasPrefix(name, ".") {
-			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics|AllowMethodTypeParams)
-		}
-	}
-}
-
 func TestStdLib(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")

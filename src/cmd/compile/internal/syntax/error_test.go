@@ -129,7 +129,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
 	defer f.Close()
 
 	var mode Mode
-	if strings.HasSuffix(filename, ".go2") {
+	if !strings.HasSuffix(filename, ".go117") {
 		mode = AllowGenerics
 	}
 	ParseFile(filename, func(err error) {
