@@ -7096,7 +7096,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		if e.curfn.ABI == obj.ABIInternal && base.Flag.N != 0 {
 			ssa.BuildFuncDebugNoOptimized(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
 		} else {
-			ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
+			ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists, StackOffset, debugInfo)
 		}
 		bstart := s.bstart
 		idToIdx := make([]int, f.NumBlocks())
