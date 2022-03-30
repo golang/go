@@ -733,7 +733,7 @@ var debugAllowSHA1 = godebug.Get("x509sha1") == "1"
 //
 // To temporarily restore support for SHA-1 signatures, include the value
 // "x509sha1=1" in the GODEBUG environment variable. Note that this option will
-// be removed in Go 1.19.
+// be removed in a future release.
 type InsecureAlgorithmError SignatureAlgorithm
 
 func (e InsecureAlgorithmError) Error() string {
