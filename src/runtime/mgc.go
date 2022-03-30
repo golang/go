@@ -159,7 +159,7 @@ func gcinit() {
 	// Initialize GC pacer state.
 	// Use the environment variable GOGC for the initial gcPercent value.
 	// Use the environment variable GOMEMLIMIT for the initial memoryLimit value.
-	gcController.init(readGOGC(), maxInt64)
+	gcController.init(readGOGC(), readGOMEMLIMIT())
 
 	work.startSema = 1
 	work.markDoneSema = 1

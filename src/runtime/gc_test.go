@@ -904,3 +904,31 @@ func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {
 	*n--
 	countpwg(n, ready, teardown)
 }
+
+func TestMemoryLimit(t *testing.T) {
+	if testing.Short() {
+		t.Skip("stress test that takes time to run")
+	}
+	if runtime.NumCPU() < 4 {
+		t.Skip("want at least 4 CPUs for this test")
+	}
+	got := runTestProg(t, "testprog", "GCMemoryLimit")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestMemoryLimitNoGCPercent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("stress test that takes time to run")
+	}
+	if runtime.NumCPU() < 4 {
+		t.Skip("want at least 4 CPUs for this test")
+	}
+	got := runTestProg(t, "testprog", "GCMemoryLimitNoGCPercent")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
