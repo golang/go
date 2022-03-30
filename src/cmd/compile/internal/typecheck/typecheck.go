@@ -488,7 +488,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OASOP:
 		n := n.(*ir.AssignOpStmt)
 		n.X, n.Y = Expr(n.X), Expr(n.Y)
-		checkassign(n, n.X)
+		checkassign(n.X)
 		if n.IncDec && !okforarith[n.X.Type().Kind()] {
 			base.Errorf("invalid operation: %v (non-numeric type %v)", n, n.X.Type())
 			return n
@@ -1562,7 +1562,7 @@ func checklvalue(n ir.Node, verb string) {
 	}
 }
 
-func checkassign(stmt ir.Node, n ir.Node) {
+func checkassign(n ir.Node) {
 	// have already complained about n being invalid
 	if n.Type() == nil {
 		if base.Errors() == 0 {
