@@ -6,7 +6,6 @@ package elliptic
 
 import (
 	"crypto/elliptic/internal/nistec"
-	"crypto/rand"
 	"errors"
 	"math/big"
 )
@@ -173,31 +172,14 @@ func (curve *nistCurve[Point]) pointToAffine(p Point) (x, y *big.Int) {
 	return x, y
 }
 
-// randomPoint returns a random point on the curve. It's used when Add,
-// Double, or ScalarMult are fed a point not on the curve, which is undefined
-// behavior. Originally, we used to do the math on it anyway (which allows
-// invalid curve attacks) and relied on the caller and Unmarshal to avoid this
-// happening in the first place. Now, we just can't construct a nistec Point
-// for an invalid pair of coordinates, because that API is safer. If we panic,
-// we risk introducing a DoS. If we return nil, we risk a panic. If we return
-// the input, ecdsa.Verify might fail open. The safest course seems to be to
-// return a valid, random point, which hopefully won't help the attacker.
-func (curve *nistCurve[Point]) randomPoint() (x, y *big.Int) {
-	_, x, y, err := GenerateKey(curve, rand.Reader)
-	if err != nil {
-		panic("crypto/elliptic: failed to generate random point")
-	}
-	return x, y
-}
-
 func (curve *nistCurve[Point]) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	p1, err := curve.pointFromAffine(x1, y1)
 	if err != nil {
-		return curve.randomPoint()
+		panic("crypto/elliptic: Add was called on an invalid point")
 	}
 	p2, err := curve.pointFromAffine(x2, y2)
 	if err != nil {
-		return curve.randomPoint()
+		panic("crypto/elliptic: Add was called on an invalid point")
 	}
 	return curve.pointToAffine(p1.Add(p1, p2))
 }
@@ -205,7 +187,7 @@ func (curve *nistCurve[Point]) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int)
 func (curve *nistCurve[Point]) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	p, err := curve.pointFromAffine(x1, y1)
 	if err != nil {
-		return curve.randomPoint()
+		panic("crypto/elliptic: Double was called on an invalid point")
 	}
 	return curve.pointToAffine(p.Double(p))
 }
@@ -228,12 +210,12 @@ func (curve *nistCurve[Point]) normalizeScalar(scalar []byte) []byte {
 func (curve *nistCurve[Point]) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
 	p, err := curve.pointFromAffine(Bx, By)
 	if err != nil {
-		return curve.randomPoint()
+		panic("crypto/elliptic: ScalarMult was called on an invalid point")
 	}
 	scalar = curve.normalizeScalar(scalar)
 	p, err = p.ScalarMult(p, scalar)
 	if err != nil {
-		panic("elliptic: nistec rejected normalized scalar")
+		panic("crypto/elliptic: nistec rejected normalized scalar")
 	}
 	return curve.pointToAffine(p)
 }
@@ -242,7 +224,7 @@ func (curve *nistCurve[Point]) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int
 	scalar = curve.normalizeScalar(scalar)
 	p, err := curve.newPoint().ScalarBaseMult(scalar)
 	if err != nil {
-		panic("elliptic: nistec rejected normalized scalar")
+		panic("crypto/elliptic: nistec rejected normalized scalar")
 	}
 	return curve.pointToAffine(p)
 }
@@ -253,16 +235,16 @@ func (curve *nistCurve[Point]) CombinedMult(Px, Py *big.Int, s1, s2 []byte) (x, 
 	s1 = curve.normalizeScalar(s1)
 	q, err := curve.newPoint().ScalarBaseMult(s1)
 	if err != nil {
-		panic("elliptic: nistec rejected normalized scalar")
+		panic("crypto/elliptic: nistec rejected normalized scalar")
 	}
 	p, err := curve.pointFromAffine(Px, Py)
 	if err != nil {
-		return curve.randomPoint()
+		panic("crypto/elliptic: CombinedMult was called on an invalid point")
 	}
 	s2 = curve.normalizeScalar(s2)
 	p, err = p.ScalarMult(p, s2)
 	if err != nil {
-		panic("elliptic: nistec rejected normalized scalar")
+		panic("crypto/elliptic: nistec rejected normalized scalar")
 	}
 	return curve.pointToAffine(p.Add(p, q))
 }
@@ -299,7 +281,7 @@ func (curve *nistCurve[Point]) UnmarshalCompressed(data []byte) (x, y *big.Int) 
 func bigFromDecimal(s string) *big.Int {
 	b, ok := new(big.Int).SetString(s, 10)
 	if !ok {
-		panic("invalid encoding")
+		panic("crypto/elliptic: internal error: invalid encoding")
 	}
 	return b
 }
@@ -307,7 +289,7 @@ func bigFromDecimal(s string) *big.Int {
 func bigFromHex(s string) *big.Int {
 	b, ok := new(big.Int).SetString(s, 16)
 	if !ok {
-		panic("invalid encoding")
+		panic("crypto/elliptic: internal error: invalid encoding")
 	}
 	return b
 }

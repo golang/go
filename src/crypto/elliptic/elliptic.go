@@ -72,6 +72,8 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
 // SEC 1, Version 2.0, Section 2.3.3. If the point is not on the curve (or is
 // the conventional point at infinity), the behavior is undefined.
 func Marshal(curve Curve, x, y *big.Int) []byte {
+	panicIfNotOnCurve(curve, x, y)
+
 	byteLen := (curve.Params().BitSize + 7) / 8
 
 	ret := make([]byte, 1+2*byteLen)
@@ -87,6 +89,7 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 // specified in SEC 1, Version 2.0, Section 2.3.3. If the point is not on the
 // curve (or is the conventional point at infinity), the behavior is undefined.
 func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
+	panicIfNotOnCurve(curve, x, y)
 	byteLen := (curve.Params().BitSize + 7) / 8
 	compressed := make([]byte, 1+byteLen)
 	compressed[0] = byte(y.Bit(0)) | 2
@@ -166,6 +169,18 @@ func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
 		return nil, nil
 	}
 	return
+}
+
+func panicIfNotOnCurve(curve Curve, x, y *big.Int) {
+	// (0, 0) is the point at infinity by convention. It's ok to operate on it,
+	// although IsOnCurve is documented to return false for it. See Issue 37294.
+	if x.Sign() == 0 && y.Sign() == 0 {
+		return
+	}
+
+	if !curve.IsOnCurve(x, y) {
+		panic("crypto/elliptic: attempted operation on invalid point")
+	}
 }
 
 var initonce sync.Once
