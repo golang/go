@@ -1157,14 +1157,8 @@ func (w *response) WriteHeader(code int) {
 	}
 	checkWriteHeaderCode(code)
 
-	// Handle informational headers, except 100 (Continue) which is handled automatically
+	// Handle informational headers
 	if code >= 100 && code < 200 {
-		if code == 100 {
-			writeContinue(w)
-
-			return
-		}
-
 		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
 
 		// Per RFC 8297 we must not clear the current header map
