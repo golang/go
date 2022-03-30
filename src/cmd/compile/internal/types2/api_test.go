@@ -26,7 +26,7 @@ const brokenPkg = "package broken_"
 
 func parseSrc(path, src string) (*syntax.File, error) {
 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics|syntax.AllowMethodTypeParams)
+	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
 }
 
 func pkgFor(path, source string, info *Info) (*Package, error) {
@@ -436,36 +436,6 @@ type T[P any] []P
 		{`package p4; func f[A, B any](A, *B, ...[]B) {}; func _() { f(1.2, new(byte)) }`,
 			[]testInst{{`f`, []string{`float64`, `byte`}, `func(float64, *byte, ...[]byte)`}},
 		},
-		// we don't know how to translate these but we can type-check them
-		{`package q0; type T struct{}; func (T) m[P any](P) {}; func _(x T) { x.m(42) }`,
-			[]testInst{{`m`, []string{`int`}, `func(int)`}},
-		},
-		{`package q1; type T struct{}; func (T) m[P any](P) P { panic(0) }; func _(x T) { x.m(42) }`,
-			[]testInst{{`m`, []string{`int`}, `func(int) int`}},
-		},
-		{`package q2; type T struct{}; func (T) m[P any](...P) P { panic(0) }; func _(x T) { x.m(42) }`,
-			[]testInst{{`m`, []string{`int`}, `func(...int) int`}},
-		},
-		{`package q3; type T struct{}; func (T) m[A, B, C any](A, *B, []C) {}; func _(x T) { x.m(1.2, new(string), []byte{}) }`,
-			[]testInst{{`m`, []string{`float64`, `string`, `byte`}, `func(float64, *string, []byte)`}},
-		},
-		{`package q4; type T struct{}; func (T) m[A, B any](A, *B, ...[]B) {}; func _(x T) { x.m(1.2, new(byte)) }`,
-			[]testInst{{`m`, []string{`float64`, `byte`}, `func(float64, *byte, ...[]byte)`}},
-		},
-
-		{`package r0; type T[P1 any] struct{}; func (_ T[P2]) m[Q any](Q) {}; func _[P3 any](x T[P3]) { x.m(42) }`,
-			[]testInst{
-				{`T`, []string{`P2`}, `struct{}`},
-				{`T`, []string{`P3`}, `struct{}`},
-				{`m`, []string{`int`}, `func(int)`},
-			},
-		},
-		// TODO(gri) record method type parameters in syntax.FuncType so we can check this
-		// {`package r1; type T interface{ m[P any](P) }; func _(x T) { x.m(4.2) }`,
-		// 	`x.m`,
-		// 	[]string{`float64`},
-		// 	`func(float64)`,
-		// },
 
 		{`package s1; func f[T any, P interface{*T}](x T) {}; func _(x string) { f(x) }`,
 			[]testInst{{`f`, []string{`string`, `*string`}, `func(x string)`}},

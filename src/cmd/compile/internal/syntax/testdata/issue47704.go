@@ -4,7 +4,6 @@
 
 package p
 
-// error messages for parser in generic mode
 func _() {
 	_ = m[] // ERROR expecting operand
 	_ = m[x,]
