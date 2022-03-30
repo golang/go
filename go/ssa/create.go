@@ -95,6 +95,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			Prog:      pkg.Prog,
 			info:      pkg.info,
 		}
+		pkg.created.Add(fn)
 		if syntax == nil {
 			fn.Synthetic = "loaded from gc object file"
 		}
@@ -152,6 +153,19 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	}
 }
 
+// creator tracks functions that have finished their CREATE phases.
+//
+// All Functions belong to the same Program. May have differing packages.
+//
+// creators are not thread-safe.
+type creator []*Function
+
+func (c *creator) Add(fn *Function) {
+	*c = append(*c, fn)
+}
+func (c *creator) At(i int) *Function { return (*c)[i] }
+func (c *creator) Len() int           { return len(*c) }
+
 // CreatePackage constructs and returns an SSA Package from the
 // specified type-checked, error-free file ASTs, and populates its
 // Members mapping.
@@ -182,6 +196,7 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 		info:      p.info,
 	}
 	p.Members[p.init.name] = p.init
+	p.created.Add(p.init)
 
 	// CREATE phase.
 	// Allocate all package members: vars, funcs, consts and types.

@@ -28,6 +28,21 @@ package ssa
 // mutated during the CREATE phase, but during the BUILD phase they
 // remain constant.  The sole exception is Prog.methodSets and its
 // related maps, which are protected by a dedicated mutex.
+//
+// Happens-before:
+//
+// The happens-before constraints (with X<Y denoting X happens-before Y) are:
+// - CREATE fn < fn.startBody() < fn.finishBody() < fn.built
+//   for any function fn.
+// - anon.parent.startBody() < CREATE anon, and
+//   anon.finishBody() < anon.parent().finishBody() < anon.built < fn.built
+//   for an anonymous function anon (i.e. anon.parent() != nil).
+// - CREATE fn.Pkg < CREATE fn
+//   for a declared function fn (i.e. fn.Pkg != nil)
+// - fn.built < BUILD pkg done
+//   for any function fn created during the CREATE or BUILD phase of a package
+//   pkg. This includes declared and synthetic functions.
+//
 
 import (
 	"fmt"
@@ -68,7 +83,12 @@ var (
 
 // builder holds state associated with the package currently being built.
 // Its methods contain all the logic for AST-to-SSA conversion.
-type builder struct{}
+type builder struct {
+	// Invariant: 0 <= rtypes <= finished <= created.Len()
+	created  *creator // functions created during building
+	finished int      // Invariant: create[i].built holds for i in [0,finished)
+	rtypes   int      // Invariant: all of the runtime types for create[i] have been added for i in [0,rtypes)
+}
 
 // cond emits to fn code to evaluate boolean condition e and jump
 // to t or f depending on its value, performing various simplifications.
@@ -558,7 +578,10 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			info:      fn.info,
 		}
 		fn.AnonFuncs = append(fn.AnonFuncs, fn2)
-		b.buildFunction(fn2)
+		b.created.Add(fn2)
+		b.buildFunctionBody(fn2)
+		// fn2 is not done BUILDing. fn2.referrers can still be updated.
+		// fn2 is done BUILDing after fn.finishBody().
 		if fn2.FreeVars == nil {
 			return fn2
 		}
@@ -713,7 +736,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		case types.MethodExpr:
 			// (*T).f or T.f, the method f from the method-set of type T.
 			// The result is a "thunk".
-			return emitConv(fn, makeThunk(fn.Prog, sel), tv.Type)
+			return emitConv(fn, makeThunk(fn.Prog, sel, b.created), tv.Type)
 
 		case types.MethodVal:
 			// e.f where e is an expression and f is a method.
@@ -730,7 +753,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 				emitTypeAssert(fn, v, rt, token.NoPos)
 			}
 			c := &MakeClosure{
-				Fn:       makeBound(fn.Prog, obj),
+				Fn:       makeBound(fn.Prog, obj, b.created),
 				Bindings: []Value{v},
 			}
 			c.setPos(e.Sel.Pos())
@@ -2170,10 +2193,21 @@ start:
 
 // buildFunction builds SSA code for the body of function fn.  Idempotent.
 func (b *builder) buildFunction(fn *Function) {
+	if !fn.built {
+		assert(fn.parent == nil, "anonymous functions should not be built by buildFunction()")
+		b.buildFunctionBody(fn)
+		fn.done()
+	}
+}
+
+// buildFunctionBody builds SSA code for the body of function fn.
+//
+// fn is not done building until fn.done() is called.
+func (b *builder) buildFunctionBody(fn *Function) {
+	// TODO(taking): see if this check is reachable.
 	if fn.Blocks != nil {
 		return // building already started
 	}
-
 	var recvField *ast.FieldList
 	var body *ast.BlockStmt
 	var functype *ast.FuncType
@@ -2231,22 +2265,47 @@ func (b *builder) buildFunction(fn *Function) {
 	fn.finishBody()
 }
 
-// buildFuncDecl builds SSA code for the function or method declared
-// by decl in package pkg.
+// buildCreated does the BUILD phase for each function created by builder that is not yet BUILT.
+// Functions are built using buildFunction.
 //
-func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
-	id := decl.Name
-	if isBlankIdent(id) {
-		return // discard
+// May add types that require runtime type information to builder.
+//
+func (b *builder) buildCreated() {
+	for ; b.finished < b.created.Len(); b.finished++ {
+		fn := b.created.At(b.finished)
+		b.buildFunction(fn)
 	}
-	fn := pkg.objects[pkg.info.Defs[id]].(*Function)
-	if decl.Recv == nil && id.Name == "init" {
-		var v Call
-		v.Call.Value = fn
-		v.setType(types.NewTuple())
-		pkg.init.emit(&v)
+}
+
+// Adds any needed runtime type information for the created functions.
+//
+// May add newly CREATEd functions that may need to be built or runtime type information.
+//
+// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
+//
+func (b *builder) needsRuntimeTypes() {
+	if b.created.Len() == 0 {
+		return
 	}
-	b.buildFunction(fn)
+	prog := b.created.At(0).Prog
+
+	var rtypes []types.Type
+	for ; b.rtypes < b.finished; b.rtypes++ {
+		fn := b.created.At(b.rtypes)
+		rtypes = append(rtypes, mayNeedRuntimeTypes(fn)...)
+	}
+
+	// Calling prog.needMethodsOf(T) on a basic type T is a no-op.
+	// Filter out the basic types to reduce acquiring prog.methodsMu.
+	rtypes = nonbasicTypes(rtypes)
+
+	for _, T := range rtypes {
+		prog.needMethodsOf(T, b.created)
+	}
+}
+
+func (b *builder) done() bool {
+	return b.rtypes >= b.created.Len()
 }
 
 // Build calls Package.Build for each package in prog.
@@ -2293,12 +2352,14 @@ func (p *Package) build() {
 	// that would require package creation in topological order.
 	for name, mem := range p.Members {
 		if ast.IsExported(name) {
-			p.Prog.needMethodsOf(mem.Type())
+			p.Prog.needMethodsOf(mem.Type(), &p.created)
 		}
 	}
 	if p.Prog.mode&LogSource != 0 {
 		defer logStack("build %s", p)()
 	}
+
+	b := builder{created: &p.created}
 	init := p.init
 	init.startBody()
 
@@ -2327,8 +2388,6 @@ func (p *Package) build() {
 		}
 	}
 
-	var b builder
-
 	// Initialize package-level vars in correct order.
 	for _, varinit := range p.info.InitOrder {
 		if init.Prog.mode&LogSource != 0 {
@@ -2356,13 +2415,18 @@ func (p *Package) build() {
 		}
 	}
 
-	// Build all package-level functions, init functions
-	// and methods, including unreachable/blank ones.
-	// We build them in source order, but it's not significant.
+	// Call all of the declared init() functions in source order.
 	for _, file := range p.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
-				b.buildFuncDecl(p, decl)
+				id := decl.Name
+				if !isBlankIdent(id) && id.Name == "init" && decl.Recv == nil {
+					fn := p.objects[p.info.Defs[id]].(*Function)
+					var v Call
+					v.Call.Value = fn
+					v.setType(types.NewTuple())
+					p.init.emit(&v)
+				}
 			}
 		}
 	}
@@ -2374,8 +2438,28 @@ func (p *Package) build() {
 	}
 	init.emit(new(Return))
 	init.finishBody()
+	init.done()
 
-	p.info = nil // We no longer need ASTs or go/types deductions.
+	// Build all CREATEd functions and add runtime types.
+	// These Functions include package-level functions, init functions, methods, and synthetic (including unreachable/blank ones).
+	// Builds any functions CREATEd while building this package.
+	//
+	// Initially the created functions for the package are:
+	//   [init, decl0, ... , declN]
+	// Where decl0, ..., declN are declared functions in source order, but it's not significant.
+	//
+	// As these are built, more functions (function literals, wrappers, etc.) can be CREATEd.
+	// Iterate until we reach a fixed point.
+	//
+	// Wait for init() to be BUILT as that cannot be built by buildFunction().
+	//
+	for !b.done() {
+		b.buildCreated()      // build any CREATEd and not BUILT function. May add runtime types.
+		b.needsRuntimeTypes() // Add all of the runtime type information. May CREATE Functions.
+	}
+
+	p.info = nil    // We no longer need ASTs or go/types deductions.
+	p.created = nil // We no longer need created functions.
 
 	if p.Prog.mode&SanityCheckFunctions != 0 {
 		sanityCheckPackage(p)

@@ -58,6 +58,7 @@ type Package struct {
 	ninit     int32       // number of init functions
 	info      *types.Info // package type information
 	files     []*ast.File // package ASTs
+	created   creator     // members created as a result of building this package (includes declared functions, wrappers)
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,
@@ -313,6 +314,7 @@ type Function struct {
 	Recover   *BasicBlock   // optional; control transfers here after recovered panic
 	AnonFuncs []*Function   // anonymous functions directly beneath this one
 	referrers []Instruction // referring instructions (iff Parent() != nil)
+	built     bool          // function has completed both CREATE and BUILD phase.
 
 	// The following fields are set transiently during building,
 	// then cleared.

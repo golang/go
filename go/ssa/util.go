@@ -106,6 +106,24 @@ func makeLen(T types.Type) *Builtin {
 	}
 }
 
+// nonbasicTypes returns a list containing all of the types T in ts that are non-basic.
+func nonbasicTypes(ts []types.Type) []types.Type {
+	if len(ts) == 0 {
+		return nil
+	}
+	added := make(map[types.Type]bool) // additionally filter duplicates
+	var filtered []types.Type
+	for _, T := range ts {
+		if _, basic := T.(*types.Basic); !basic {
+			if !added[T] {
+				added[T] = true
+				filtered = append(filtered, T)
+			}
+		}
+	}
+	return filtered
+}
+
 // Mapping of a type T to a canonical instance C s.t. types.Indentical(T, C).
 // Thread-safe.
 type canonizer struct {

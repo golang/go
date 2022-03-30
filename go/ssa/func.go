@@ -207,7 +207,22 @@ func buildReferrers(f *Function) {
 	}
 }
 
-// finishBody() finalizes the function after SSA code generation of its body.
+// mayNeedRuntimeTypes returns all of the types in the body of fn that might need runtime types.
+func mayNeedRuntimeTypes(fn *Function) []types.Type {
+	var ts []types.Type
+	for _, bb := range fn.Blocks {
+		for _, instr := range bb.Instrs {
+			if mi, ok := instr.(*MakeInterface); ok {
+				ts = append(ts, mi.X.Type())
+			}
+		}
+	}
+	return ts
+}
+
+// finishBody() finalizes the contents of the function after SSA code generation of its body.
+//
+// The function is not done being built until done() is called.
 func (f *Function) finishBody() {
 	f.objects = nil
 	f.currentBlock = nil
@@ -250,16 +265,31 @@ func (f *Function) finishBody() {
 	f.info = nil
 
 	numberRegisters(f)
+}
 
-	if f.Prog.mode&PrintFunctions != 0 {
-		printMu.Lock()
-		f.WriteTo(os.Stdout)
-		printMu.Unlock()
-	}
+// After this, function is done with BUILD phase.
+func (f *Function) done() {
+	assert(f.parent == nil, "done called on an anonymous function")
 
-	if f.Prog.mode&SanityCheckFunctions != 0 {
-		mustSanityCheck(f, nil)
+	var visit func(*Function)
+	visit = func(f *Function) {
+		for _, anon := range f.AnonFuncs {
+			visit(anon) // anon is done building before f.
+		}
+
+		f.built = true // function is done with BUILD phase
+
+		if f.Prog.mode&PrintFunctions != 0 {
+			printMu.Lock()
+			f.WriteTo(os.Stdout)
+			printMu.Unlock()
+		}
+
+		if f.Prog.mode&SanityCheckFunctions != 0 {
+			mustSanityCheck(f, nil)
+		}
 	}
+	visit(f)
 }
 
 // removeNilBlocks eliminates nils from f.Blocks and updates each
