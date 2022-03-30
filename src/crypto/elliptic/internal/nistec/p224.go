@@ -82,30 +82,53 @@ func (p *P224Point) SetBytes(b []byte) (*P224Point, error) {
 		p.z.One()
 		return p, nil
 
-	// Compressed form
-	case len(b) == 1+p224ElementLength && b[0] == 0:
-		return nil, errors.New("unimplemented") // TODO(filippo)
+	// Compressed form.
+	case len(b) == 1+p224ElementLength && (b[0] == 2 || b[0] == 3):
+		x, err := new(fiat.P224Element).SetBytes(b[1:])
+		if err != nil {
+			return nil, err
+		}
+
+		// y² = x³ - 3x + b
+		y := p224Polynomial(new(fiat.P224Element), x)
+		if !p224Sqrt(y, y) {
+			return nil, errors.New("invalid P224 compressed point encoding")
+		}
+
+		// Select the positive or negative root, as indicated by the least
+		// significant bit, based on the encoding type byte.
+		otherRoot := new(fiat.P224Element)
+		otherRoot.Sub(otherRoot, y)
+		cond := y.Bytes()[p224ElementLength-1]&1 ^ b[0]&1
+		y.Select(otherRoot, y, int(cond))
+
+		p.x.Set(x)
+		p.y.Set(y)
+		p.z.One()
+		return p, nil
 
 	default:
 		return nil, errors.New("invalid P224 point encoding")
 	}
 }
 
-func p224CheckOnCurve(x, y *fiat.P224Element) error {
-	// x³ - 3x + b.
-	x3 := new(fiat.P224Element).Square(x)
-	x3.Mul(x3, x)
+// p224Polynomial sets y2 to x³ - 3x + b, and returns y2.
+func p224Polynomial(y2, x *fiat.P224Element) *fiat.P224Element {
+	y2.Square(x)
+	y2.Mul(y2, x)
 
 	threeX := new(fiat.P224Element).Add(x, x)
 	threeX.Add(threeX, x)
 
-	x3.Sub(x3, threeX)
-	x3.Add(x3, p224B)
+	y2.Sub(y2, threeX)
+	return y2.Add(y2, p224B)
+}
 
+func p224CheckOnCurve(x, y *fiat.P224Element) error {
 	// y² = x³ - 3x + b
-	y2 := new(fiat.P224Element).Square(y)
-
-	if x3.Equal(y2) != 1 {
+	rhs := p224Polynomial(new(fiat.P224Element), x)
+	lhs := new(fiat.P224Element).Square(y)
+	if rhs.Equal(lhs) != 1 {
 		return errors.New("P224 point not on curve")
 	}
 	return nil
@@ -117,22 +140,49 @@ func p224CheckOnCurve(x, y *fiat.P224Element) error {
 func (p *P224Point) Bytes() []byte {
 	// This function is outlined to make the allocations inline in the caller
 	// rather than happen on the heap.
-	var out [133]byte
+	var out [1 + 2*p224ElementLength]byte
 	return p.bytes(&out)
 }
 
-func (p *P224Point) bytes(out *[133]byte) []byte {
+func (p *P224Point) bytes(out *[1 + 2*p224ElementLength]byte) []byte {
 	if p.z.IsZero() == 1 {
 		return append(out[:0], 0)
 	}
 
 	zinv := new(fiat.P224Element).Invert(p.z)
-	xx := new(fiat.P224Element).Mul(p.x, zinv)
-	yy := new(fiat.P224Element).Mul(p.y, zinv)
+	x := new(fiat.P224Element).Mul(p.x, zinv)
+	y := new(fiat.P224Element).Mul(p.y, zinv)
 
 	buf := append(out[:0], 4)
-	buf = append(buf, xx.Bytes()...)
-	buf = append(buf, yy.Bytes()...)
+	buf = append(buf, x.Bytes()...)
+	buf = append(buf, y.Bytes()...)
+	return buf
+}
+
+// BytesCompressed returns the compressed or infinity encoding of p, as
+// specified in SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the
+// point at infinity is shorter than all other encodings.
+func (p *P224Point) BytesCompressed() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [1 + p224ElementLength]byte
+	return p.bytesCompressed(&out)
+}
+
+func (p *P224Point) bytesCompressed(out *[1 + p224ElementLength]byte) []byte {
+	if p.z.IsZero() == 1 {
+		return append(out[:0], 0)
+	}
+
+	zinv := new(fiat.P224Element).Invert(p.z)
+	x := new(fiat.P224Element).Mul(p.x, zinv)
+	y := new(fiat.P224Element).Mul(p.y, zinv)
+
+	// Encode the sign of the y coordinate (indicated by the least significant
+	// bit) as the encoding type (2 or 3).
+	buf := append(out[:0], 2)
+	buf[0] |= y.Bytes()[p224ElementLength-1] & 1
+	buf = append(buf, x.Bytes()...)
 	return buf
 }
 
@@ -362,4 +412,17 @@ func (p *P224Point) ScalarBaseMult(scalar []byte) (*P224Point, error) {
 	}
 
 	return p, nil
+}
+
+// p224Sqrt sets e to a square root of x. If x is not a square, p224Sqrt returns
+// false and e is unchanged. e and x can overlap.
+func p224Sqrt(e, x *fiat.P224Element) (isSquare bool) {
+	candidate := new(fiat.P224Element)
+	p224SqrtCandidate(candidate, x)
+	square := new(fiat.P224Element).Square(candidate)
+	if square.Equal(x) != 1 {
+		return false
+	}
+	e.Set(candidate)
+	return true
 }

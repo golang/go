@@ -163,14 +163,13 @@ func (curve *nistCurve[Point]) pointFromAffine(x, y *big.Int) (p Point, err erro
 func (curve *nistCurve[Point]) pointToAffine(p Point) (x, y *big.Int) {
 	out := p.Bytes()
 	if len(out) == 1 && out[0] == 0 {
-		// This is the correct encoding of the point at infinity, which
-		// Unmarshal does not support. See Issue 37294.
+		// This is the encoding of the point at infinity, which the affine
+		// coordinates API represents as (0, 0) by convention.
 		return new(big.Int), new(big.Int)
 	}
-	x, y = Unmarshal(curve, out)
-	if x == nil {
-		panic("crypto/elliptic: internal error: Unmarshal rejected a valid point encoding")
-	}
+	byteLen := (curve.params.BitSize + 7) / 8
+	x = new(big.Int).SetBytes(out[1 : 1+byteLen])
+	y = new(big.Int).SetBytes(out[1+byteLen:])
 	return x, y
 }
 
@@ -266,6 +265,35 @@ func (curve *nistCurve[Point]) CombinedMult(Px, Py *big.Int, s1, s2 []byte) (x, 
 		panic("elliptic: nistec rejected normalized scalar")
 	}
 	return curve.pointToAffine(p.Add(p, q))
+}
+
+func (curve *nistCurve[Point]) Unmarshal(data []byte) (x, y *big.Int) {
+	if len(data) == 0 || data[0] != 4 {
+		return nil, nil
+	}
+	// Use SetBytes to check that data encodes a valid point.
+	_, err := curve.newPoint().SetBytes(data)
+	if err != nil {
+		return nil, nil
+	}
+	// We don't use pointToAffine because it involves an expensive field
+	// inversion to convert from Jacobian to affine coordinates, which we
+	// already have.
+	byteLen := (curve.params.BitSize + 7) / 8
+	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
+	y = new(big.Int).SetBytes(data[1+byteLen:])
+	return x, y
+}
+
+func (curve *nistCurve[Point]) UnmarshalCompressed(data []byte) (x, y *big.Int) {
+	if len(data) == 0 || (data[0] != 2 && data[0] != 3) {
+		return nil, nil
+	}
+	p, err := curve.newPoint().SetBytes(data)
+	if err != nil {
+		return nil, nil
+	}
+	return curve.pointToAffine(p)
 }
 
 func bigFromDecimal(s string) *big.Int {

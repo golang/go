@@ -30,6 +30,10 @@ func TestAllocations(t *testing.T) {
 			if _, err := nistec.NewP224Point().SetBytes(out); err != nil {
 				t.Fatal(err)
 			}
+			out = p.BytesCompressed()
+			if _, err := p.SetBytes(out); err != nil {
+				t.Fatal(err)
+			}
 		}); allocs > 0 {
 			t.Errorf("expected zero allocations, got %0.1f", allocs)
 		}
@@ -43,6 +47,10 @@ func TestAllocations(t *testing.T) {
 			p.ScalarMult(p, scalar)
 			out := p.Bytes()
 			if _, err := nistec.NewP256Point().SetBytes(out); err != nil {
+				t.Fatal(err)
+			}
+			out = p.BytesCompressed()
+			if _, err := p.SetBytes(out); err != nil {
 				t.Fatal(err)
 			}
 		}); allocs > 0 {
@@ -60,6 +68,10 @@ func TestAllocations(t *testing.T) {
 			if _, err := nistec.NewP384Point().SetBytes(out); err != nil {
 				t.Fatal(err)
 			}
+			out = p.BytesCompressed()
+			if _, err := p.SetBytes(out); err != nil {
+				t.Fatal(err)
+			}
 		}); allocs > 0 {
 			t.Errorf("expected zero allocations, got %0.1f", allocs)
 		}
@@ -73,6 +85,10 @@ func TestAllocations(t *testing.T) {
 			p.ScalarMult(p, scalar)
 			out := p.Bytes()
 			if _, err := nistec.NewP521Point().SetBytes(out); err != nil {
+				t.Fatal(err)
+			}
+			out = p.BytesCompressed()
+			if _, err := p.SetBytes(out); err != nil {
 				t.Fatal(err)
 			}
 		}); allocs > 0 {

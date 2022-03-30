@@ -6,13 +6,21 @@
 
 package main
 
+// Running this generator requires addchain v0.4.0, which can be installed with
+//
+//   go install github.com/mmcloughlin/addchain/cmd/addchain@v0.4.0
+//
+
 import (
 	"bytes"
 	"crypto/elliptic"
 	"fmt"
 	"go/format"
+	"io"
 	"log"
+	"math/big"
 	"os"
+	"os/exec"
 	"strings"
 	"text/template"
 )
@@ -49,6 +57,18 @@ var curves = []struct {
 func main() {
 	t := template.Must(template.New("tmplNISTEC").Parse(tmplNISTEC))
 
+	tmplAddchainFile, err := os.CreateTemp("", "addchain-template")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmplAddchainFile.Name())
+	if _, err := io.WriteString(tmplAddchainFile, tmplAddchain); err != nil {
+		log.Fatal(err)
+	}
+	if err := tmplAddchainFile.Close(); err != nil {
+		log.Fatal(err)
+	}
+
 	for _, c := range curves {
 		p := strings.ToLower(c.P)
 		elementLen := (c.Params.BitSize + 7) / 8
@@ -60,6 +80,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer f.Close()
 		buf := &bytes.Buffer{}
 		if err := t.Execute(buf, map[string]interface{}{
 			"P": c.P, "p": p, "B": B, "G": G,
@@ -75,7 +96,43 @@ func main() {
 		if _, err := f.Write(out); err != nil {
 			log.Fatal(err)
 		}
-		if err := f.Close(); err != nil {
+
+		// If p = 3 mod 4, implement modular square root by exponentiation.
+		mod4 := new(big.Int).Mod(c.Params.P, big.NewInt(4))
+		if mod4.Cmp(big.NewInt(3)) != 0 {
+			continue
+		}
+
+		exp := new(big.Int).Add(c.Params.P, big.NewInt(1))
+		exp.Div(exp, big.NewInt(4))
+
+		tmp, err := os.CreateTemp("", "addchain-"+p)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer os.Remove(tmp.Name())
+		cmd := exec.Command("addchain", "search", fmt.Sprintf("%d", exp))
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = tmp
+		if err := cmd.Run(); err != nil {
+			log.Fatal(err)
+		}
+		if err := tmp.Close(); err != nil {
+			log.Fatal(err)
+		}
+		cmd = exec.Command("addchain", "gen", "-tmpl", tmplAddchainFile.Name(), tmp.Name())
+		cmd.Stderr = os.Stderr
+		out, err = cmd.Output()
+		if err != nil {
+			log.Fatal(err)
+		}
+		out = bytes.Replace(out, []byte("Element"), []byte(c.Element), -1)
+		out = bytes.Replace(out, []byte("sqrtCandidate"), []byte(p+"SqrtCandidate"), -1)
+		out, err = format.Source(out)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if _, err := f.Write(out); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -169,30 +226,53 @@ func (p *{{.P}}Point) SetBytes(b []byte) (*{{.P}}Point, error) {
 		p.z.One()
 		return p, nil
 
-	// Compressed form
-	case len(b) == 1+{{.p}}ElementLength && b[0] == 0:
-		return nil, errors.New("unimplemented") // TODO(filippo)
+	// Compressed form.
+	case len(b) == 1+{{.p}}ElementLength && (b[0] == 2 || b[0] == 3):
+		x, err := new({{.Element}}).SetBytes(b[1:])
+		if err != nil {
+			return nil, err
+		}
+
+		// y² = x³ - 3x + b
+		y := {{.p}}Polynomial(new({{.Element}}), x)
+		if !{{.p}}Sqrt(y, y) {
+			return nil, errors.New("invalid {{.P}} compressed point encoding")
+		}
+
+		// Select the positive or negative root, as indicated by the least
+		// significant bit, based on the encoding type byte.
+		otherRoot := new({{.Element}})
+		otherRoot.Sub(otherRoot, y)
+		cond := y.Bytes()[{{.p}}ElementLength-1]&1 ^ b[0]&1
+		y.Select(otherRoot, y, int(cond))
+
+		p.x.Set(x)
+		p.y.Set(y)
+		p.z.One()
+		return p, nil
 
 	default:
 		return nil, errors.New("invalid {{.P}} point encoding")
 	}
 }
 
-func {{.p}}CheckOnCurve(x, y *{{.Element}}) error {
-	// x³ - 3x + b.
-	x3 := new({{.Element}}).Square(x)
-	x3.Mul(x3, x)
+// {{.p}}Polynomial sets y2 to x³ - 3x + b, and returns y2.
+func {{.p}}Polynomial(y2, x *{{.Element}}) *{{.Element}} {
+	y2.Square(x)
+	y2.Mul(y2, x)
 
 	threeX := new({{.Element}}).Add(x, x)
 	threeX.Add(threeX, x)
 
-	x3.Sub(x3, threeX)
-	x3.Add(x3, {{.p}}B)
+	y2.Sub(y2, threeX)
+	return y2.Add(y2, {{.p}}B)
+}
 
+func {{.p}}CheckOnCurve(x, y *{{.Element}}) error {
 	// y² = x³ - 3x + b
-	y2 := new({{.Element}}).Square(y)
-
-	if x3.Equal(y2) != 1 {
+	rhs := {{.p}}Polynomial(new({{.Element}}), x)
+	lhs := new({{.Element}}).Square(y)
+	if rhs.Equal(lhs) != 1 {
 		return errors.New("{{.P}} point not on curve")
 	}
 	return nil
@@ -204,22 +284,49 @@ func {{.p}}CheckOnCurve(x, y *{{.Element}}) error {
 func (p *{{.P}}Point) Bytes() []byte {
 	// This function is outlined to make the allocations inline in the caller
 	// rather than happen on the heap.
-	var out [133]byte
+	var out [1+2*{{.p}}ElementLength]byte
 	return p.bytes(&out)
 }
 
-func (p *{{.P}}Point) bytes(out *[133]byte) []byte {
+func (p *{{.P}}Point) bytes(out *[1+2*{{.p}}ElementLength]byte) []byte {
 	if p.z.IsZero() == 1 {
 		return append(out[:0], 0)
 	}
 
 	zinv := new({{.Element}}).Invert(p.z)
-	xx := new({{.Element}}).Mul(p.x, zinv)
-	yy := new({{.Element}}).Mul(p.y, zinv)
+	x := new({{.Element}}).Mul(p.x, zinv)
+	y := new({{.Element}}).Mul(p.y, zinv)
 
 	buf := append(out[:0], 4)
-	buf = append(buf, xx.Bytes()...)
-	buf = append(buf, yy.Bytes()...)
+	buf = append(buf, x.Bytes()...)
+	buf = append(buf, y.Bytes()...)
+	return buf
+}
+
+// BytesCompressed returns the compressed or infinity encoding of p, as
+// specified in SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the
+// point at infinity is shorter than all other encodings.
+func (p *{{.P}}Point) BytesCompressed() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [1 + {{.p}}ElementLength]byte
+	return p.bytesCompressed(&out)
+}
+
+func (p *{{.P}}Point) bytesCompressed(out *[1 + {{.p}}ElementLength]byte) []byte {
+	if p.z.IsZero() == 1 {
+		return append(out[:0], 0)
+	}
+
+	zinv := new({{.Element}}).Invert(p.z)
+	x := new({{.Element}}).Mul(p.x, zinv)
+	y := new({{.Element}}).Mul(p.y, zinv)
+
+	// Encode the sign of the y coordinate (indicated by the least significant
+	// bit) as the encoding type (2 or 3).
+	buf := append(out[:0], 2)
+	buf[0] |= y.Bytes()[{{.p}}ElementLength-1] & 1
+	buf = append(buf, x.Bytes()...)
 	return buf
 }
 
@@ -449,5 +556,57 @@ func (p *{{.P}}Point) ScalarBaseMult(scalar []byte) (*{{.P}}Point, error) {
 	}
 
 	return p, nil
+}
+
+// {{.p}}Sqrt sets e to a square root of x. If x is not a square, {{.p}}Sqrt returns
+// false and e is unchanged. e and x can overlap.
+func {{.p}}Sqrt(e, x *{{ .Element }}) (isSquare bool) {
+	candidate := new({{ .Element }})
+	{{.p}}SqrtCandidate(candidate, x)
+	square := new({{ .Element }}).Square(candidate)
+	if square.Equal(x) != 1 {
+		return false
+	}
+	e.Set(candidate)
+	return true
+}
+`
+
+const tmplAddchain = `
+// sqrtCandidate sets z to a square root candidate for x. z and x must not overlap.
+func sqrtCandidate(z, x *Element) {
+	// Since p = 3 mod 4, exponentiation by (p + 1) / 4 yields a square root candidate.
+	//
+	// The sequence of {{ .Ops.Adds }} multiplications and {{ .Ops.Doubles }} squarings is derived from the
+	// following addition chain generated with {{ .Meta.Module }} {{ .Meta.ReleaseTag }}.
+	//
+	{{- range lines (format .Script) }}
+	//	{{ . }}
+	{{- end }}
+	//
+
+	{{- range .Program.Temporaries }}
+	var {{ . }} = new(Element)
+	{{- end }}
+	{{ range $i := .Program.Instructions -}}
+	{{- with add $i.Op }}
+	{{ $i.Output }}.Mul({{ .X }}, {{ .Y }})
+	{{- end -}}
+
+	{{- with double $i.Op }}
+	{{ $i.Output }}.Square({{ .X }})
+	{{- end -}}
+
+	{{- with shift $i.Op -}}
+	{{- $first := 0 -}}
+	{{- if ne $i.Output.Identifier .X.Identifier }}
+	{{ $i.Output }}.Square({{ .X }})
+	{{- $first = 1 -}}
+	{{- end }}
+	for s := {{ $first }}; s < {{ .S }}; s++ {
+		{{ $i.Output }}.Square({{ $i.Output }})
+	}
+	{{- end -}}
+	{{- end }}
 }
 `

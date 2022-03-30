@@ -94,10 +94,26 @@ func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
 	return compressed
 }
 
+// unmarshaler is implemented by curves with their own constant-time Unmarshal.
+//
+// There isn't an equivalent interface for Marshal/MarshalCompressed because
+// that doesn't involve any mathematical operations, only FillBytes and Bit.
+type unmarshaler interface {
+	Unmarshal([]byte) (x, y *big.Int)
+	UnmarshalCompressed([]byte) (x, y *big.Int)
+}
+
+// Assert that the known curves implement unmarshaler.
+var _ = []unmarshaler{p224, p256, p384, p521}
+
 // Unmarshal converts a point, serialized by Marshal, into an x, y pair. It is
 // an error if the point is not in uncompressed form, is not on the curve, or is
 // the point at infinity. On error, x = nil.
 func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
+	if c, ok := curve.(unmarshaler); ok {
+		return c.Unmarshal(data)
+	}
+
 	byteLen := (curve.Params().BitSize + 7) / 8
 	if len(data) != 1+2*byteLen {
 		return nil, nil
@@ -121,6 +137,10 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 // an x, y pair. It is an error if the point is not in compressed form, is not
 // on the curve, or is the point at infinity. On error, x = nil.
 func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
+	if c, ok := curve.(unmarshaler); ok {
+		return c.UnmarshalCompressed(data)
+	}
+
 	byteLen := (curve.Params().BitSize + 7) / 8
 	if len(data) != 1+byteLen {
 		return nil, nil
