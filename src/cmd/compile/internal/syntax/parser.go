@@ -1725,20 +1725,6 @@ func (p *parser) methodDecl() *Field {
 	f.pos = p.pos()
 	name := p.name()
 
-	// accept potential name list but complain
-	// TODO(gri) We probably don't need this special check anymore.
-	//           Nobody writes this kind of code. It's from ancient
-	//           Go beginnings.
-	hasNameList := false
-	for p.got(_Comma) {
-		p.name()
-		hasNameList = true
-	}
-	if hasNameList {
-		p.syntaxError("name list not allowed in interface type")
-		// already progressed, no need to advance
-	}
-
 	const context = "interface method"
 
 	switch p.tok {
