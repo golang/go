@@ -44,9 +44,9 @@ type (
 type (
 	_[T interface{ *T } ] struct{}        // ok
 	_[T interface{ int | *T } ] struct{}  // ok
-	_[T interface{ T /* ERROR cannot embed a type parameter */ } ] struct{}
-	_[T interface{ ~T /* ERROR cannot embed a type parameter */ } ] struct{}
-	_[T interface{ int|T /* ERROR cannot embed a type parameter */ }] struct{}
+	_[T interface{ T /* ERROR term cannot be a type parameter */ } ] struct{}
+	_[T interface{ ~T /* ERROR type in term ~T cannot be a type parameter */ } ] struct{}
+	_[T interface{ int|T /* ERROR term cannot be a type parameter */ }] struct{}
 )
 
 // Multiple embedded union elements are intersected. The order in which they
