@@ -731,3 +731,39 @@ func TestCgoImportsIgnored(t *testing.T) {
 		}
 	}
 }
+
+// Issue #52053. Check that if there is a file x_GOOS_GOARCH.go that both
+// GOOS and GOARCH show up in the Package.AllTags field. We test both the
+// case where the file matches and where the file does not match.
+// The latter case used to fail, incorrectly omitting GOOS.
+func TestAllTags(t *testing.T) {
+	ctxt := Default
+	ctxt.GOARCH = "arm"
+	ctxt.GOOS = "netbsd"
+	p, err := ctxt.ImportDir("testdata/alltags", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"arm", "netbsd"}
+	if !reflect.DeepEqual(p.AllTags, want) {
+		t.Errorf("AllTags = %v, want %v", p.AllTags, want)
+	}
+	wantFiles := []string{"alltags.go", "x_netbsd_arm.go"}
+	if !reflect.DeepEqual(p.GoFiles, wantFiles) {
+		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
+	}
+
+	ctxt.GOARCH = "amd64"
+	ctxt.GOOS = "linux"
+	p, err = ctxt.ImportDir("testdata/alltags", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(p.AllTags, want) {
+		t.Errorf("AllTags = %v, want %v", p.AllTags, want)
+	}
+	wantFiles = []string{"alltags.go"}
+	if !reflect.DeepEqual(p.GoFiles, wantFiles) {
+		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
+	}
+}
