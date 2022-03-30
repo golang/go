@@ -923,6 +923,11 @@ func init() {
 		{name: "TZCNTQ", argLength: 1, reg: gp11, asm: "TZCNTQ", clobberFlags: true},
 		{name: "TZCNTL", argLength: 1, reg: gp11, asm: "TZCNTL", clobberFlags: true},
 
+		// CPUID feature: LZCNT.
+		// count the number of leading zero bits.
+		{name: "LZCNTQ", argLength: 1, reg: gp11, asm: "LZCNTQ", typ: "UInt64", clobberFlags: true},
+		{name: "LZCNTL", argLength: 1, reg: gp11, asm: "LZCNTL", typ: "UInt32", clobberFlags: true},
+
 		// CPUID feature: MOVBE
 		// MOVBEWload does not satisfy zero extended, so only use MOVBEWstore
 		{name: "MOVBEWstore", argLength: 3, reg: gpstore, asm: "MOVBEW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem

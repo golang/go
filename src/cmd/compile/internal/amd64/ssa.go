@@ -1125,7 +1125,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpAMD64POPCNTQ, ssa.OpAMD64POPCNTL,
-		ssa.OpAMD64TZCNTQ, ssa.OpAMD64TZCNTL:
+		ssa.OpAMD64TZCNTQ, ssa.OpAMD64TZCNTL,
+		ssa.OpAMD64LZCNTQ, ssa.OpAMD64LZCNTL:
 		if v.Args[0].Reg() != v.Reg() {
 			// POPCNT/TZCNT/LZCNT have a false dependency on the destination register on Intel cpus.
 			// TZCNT/LZCNT problem affects pre-Skylake models. See discussion at https://gcc.gnu.org/bugzilla/show_bug.cgi?id=62011#c7.

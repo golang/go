@@ -242,6 +242,7 @@ var featureToOpcodes = map[string][]string{
 	"sse41":  {"roundsd"},
 	"fma":    {"vfmadd231sd"},
 	"movbe":  {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
+	"lzcnt":  {"lzcntq", "lzcntl", "lzcnt"},
 }
 
 // Test to use POPCNT instruction, if available
