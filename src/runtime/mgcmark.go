@@ -596,7 +596,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	if _p_.gcAssistTime > gcAssistTimeSlack {
 		assistTime := gcController.assistTime.Add(_p_.gcAssistTime)
 		_p_.gcAssistTime = 0
-		gcCPULimiter.update(assistTime, now)
+		gcCPULimiter.update(assistTime+mheap_.pages.scav.assistTime.Load(), now)
 	}
 }
 

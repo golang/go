@@ -80,7 +80,7 @@ type mheap struct {
 	// access (since that may free the backing store).
 	allspans []*mspan // all spans out there
 
-	_ uint32 // align uint64 fields on 32-bit for atomics
+	// _ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	//
@@ -107,13 +107,6 @@ type mheap struct {
 	sweepPagesPerByte  float64       // proportional sweep ratio; written with lock, read without
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
 	// compiler can't 8-byte align fields.
-
-	// scavengeGoal is the amount of total retained heap memory (measured by
-	// heapRetained) that the runtime will try to maintain by returning memory
-	// to the OS.
-	//
-	// Accessed atomically.
-	scavengeGoal uint64
 
 	// Page reclaimer state
 
@@ -1204,25 +1197,6 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 
 	unlock(&h.lock)
 
-	if growth > 0 {
-		// We just caused a heap growth, so scavenge down what will soon be used.
-		// By scavenging inline we deal with the failure to allocate out of
-		// memory fragments by scavenging the memory fragments that are least
-		// likely to be re-used.
-		scavengeGoal := atomic.Load64(&h.scavengeGoal)
-		if retained := heapRetained(); retained+uint64(growth) > scavengeGoal {
-			// The scavenging algorithm requires the heap lock to be dropped so it
-			// can acquire it only sparingly. This is a potentially expensive operation
-			// so it frees up other goroutines to allocate in the meanwhile. In fact,
-			// they can make use of the growth we just created.
-			todo := growth
-			if overage := uintptr(retained + uint64(growth) - scavengeGoal); todo > overage {
-				todo = overage
-			}
-			h.pages.scavenge(todo)
-		}
-	}
-
 HaveSpan:
 	// At this point, both s != nil and base != 0, and the heap
 	// lock is no longer held. Initialize the span.
@@ -1272,6 +1246,60 @@ HaveSpan:
 		// initialized, and atomically checking the state in
 		// any situation where a pointer is suspect.
 		s.state.set(mSpanInUse)
+	}
+
+	// Decide if we need to scavenge in response to what we just allocated.
+	// Specifically, we track the maximum amount of memory to scavenge of all
+	// the alternatives below, assuming that the maximum satisfies *all*
+	// conditions we check (e.g. if we need to scavenge X to satisfy the
+	// memory limit and Y to satisfy heap-growth scavenging, and Y > X, then
+	// it's fine to pick Y, because the memory limit is still satisfied).
+	//
+	// It's fine to do this after allocating because we expect any scavenged
+	// pages not to get touched until we return. Simultaneously, it's important
+	// to do this before calling sysUsed because that may commit address space.
+	bytesToScavenge := uintptr(0)
+	if limit := gcController.memoryLimit.Load(); go119MemoryLimitSupport && !gcCPULimiter.limiting() {
+		// Assist with scavenging to maintain the memory limit by the amount
+		// that we expect to page in.
+		inuse := gcController.mappedReady.Load()
+		// Be careful about overflow, especially with uintptrs. Even on 32-bit platforms
+		// someone can set a really big memory limit that isn't maxInt64.
+		if uint64(scav)+inuse > uint64(limit) {
+			bytesToScavenge = uintptr(uint64(scav) + inuse - uint64(limit))
+		}
+	}
+	if goal := scavenge.gcPercentGoal.Load(); goal != ^uint64(0) && growth > 0 {
+		// We just caused a heap growth, so scavenge down what will soon be used.
+		// By scavenging inline we deal with the failure to allocate out of
+		// memory fragments by scavenging the memory fragments that are least
+		// likely to be re-used.
+		//
+		// Only bother with this because we're not using a memory limit. We don't
+		// care about heap growths as long as we're under the memory limit, and the
+		// previous check for scaving already handles that.
+		if retained := heapRetained(); retained+uint64(growth) > goal {
+			// The scavenging algorithm requires the heap lock to be dropped so it
+			// can acquire it only sparingly. This is a potentially expensive operation
+			// so it frees up other goroutines to allocate in the meanwhile. In fact,
+			// they can make use of the growth we just created.
+			todo := growth
+			if overage := uintptr(retained + uint64(growth) - goal); todo > overage {
+				todo = overage
+			}
+			if todo > bytesToScavenge {
+				bytesToScavenge = todo
+			}
+		}
+	}
+	if bytesToScavenge > 0 {
+		// Measure how long we spent scavenging and add that measurement to the assist
+		// time so we can track it for the GC CPU limiter.
+		start := nanotime()
+		h.pages.scavenge(bytesToScavenge)
+		now := nanotime()
+		assistTime := h.pages.scav.assistTime.Add(now - start)
+		gcCPULimiter.update(gcController.assistTime.Load()+assistTime, now)
 	}
 
 	// Commit and account for any scavenged memory that the span now owns.

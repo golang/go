@@ -17,7 +17,10 @@
 // scavenger's primary goal is to bring the estimated heap RSS of the
 // application down to a goal.
 //
-// That goal is defined as:
+// Before we consider what this looks like, we need to split the world into two
+// halves. One in which a memory limit is not set, and one in which it is.
+//
+// For the former, the goal is defined as:
 //   (retainExtraPercent+100) / 100 * (heapGoal / lastHeapGoal) * lastHeapInUse
 //
 // Essentially, we wish to have the application's RSS track the heap goal, but
@@ -41,11 +44,22 @@
 // that there's more unscavenged memory to allocate out of, since each allocation
 // out of scavenged memory incurs a potentially expensive page fault.
 //
-// The goal is updated after each GC and the scavenger's pacing parameters
-// (which live in mheap_) are updated to match. The pacing parameters work much
-// like the background sweeping parameters. The parameters define a line whose
-// horizontal axis is time and vertical axis is estimated heap RSS, and the
-// scavenger attempts to stay below that line at all times.
+// If a memory limit is set, then we wish to pick a scavenge goal that maintains
+// that memory limit. For that, we look at total memory that has been committed
+// (memstats.mappedReady) and try to bring that down below the limit. In this case,
+// we want to give buffer space in the *opposite* direction. When the application
+// is close to the limit, we want to make sure we push harder to keep it under, so
+// if we target below the memory limit, we ensure that the background scavenger is
+// giving the situation the urgency it deserves.
+//
+// In this case, the goal is defined as:
+//    (100-reduceExtraPercent) / 100 * memoryLimit
+//
+// We compute both of these goals, and check whether either of them have been met.
+// The background scavenger continues operating as long as either one of the goals
+// has not been met.
+//
+// The goals are updated after each GC.
 //
 // The synchronous heap-growth scavenging happens whenever the heap grows in
 // size, for some definition of heap-growth. The intuition behind this is that
@@ -71,12 +85,24 @@ const (
 
 	// retainExtraPercent represents the amount of memory over the heap goal
 	// that the scavenger should keep as a buffer space for the allocator.
+	// This constant is used when we do not have a memory limit set.
 	//
 	// The purpose of maintaining this overhead is to have a greater pool of
 	// unscavenged memory available for allocation (since using scavenged memory
 	// incurs an additional cost), to account for heap fragmentation and
 	// the ever-changing layout of the heap.
 	retainExtraPercent = 10
+
+	// reduceExtraPercent represents the amount of memory under the limit
+	// that the scavenger should target. For example, 5 means we target 95%
+	// of the limit.
+	//
+	// The purpose of shooting lower than the limit is to ensure that, once
+	// close to the limit, the scavenger is working hard to maintain it. If
+	// we have a memory limit set but are far away from it, there's no harm
+	// in leaving up to 100-retainExtraPercent live, and it's more efficient
+	// anyway, for the same reasons that retainExtraPercent exists.
+	reduceExtraPercent = 5
 
 	// maxPagesPerPhysPage is the maximum number of supported runtime pages per
 	// physical page, based on maxPhysPageSize.
@@ -117,28 +143,51 @@ func heapRetained() uint64 {
 // Must be called whenever GC pacing is updated.
 //
 // mheap_.lock must be held or the world must be stopped.
-func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
+func gcPaceScavenger(memoryLimit int64, heapGoal, lastHeapGoal uint64) {
 	assertWorldStoppedOrLockHeld(&mheap_.lock)
+
+	// As described at the top of this file, there are two scavenge goals here: one
+	// for gcPercent and one for memoryLimit. Let's handle the latter first because
+	// it's simpler.
+
+	// We want to target retaining (100-reduceExtraPercent)% of the heap.
+	memoryLimitGoal := uint64(float64(memoryLimit) * (100.0 - reduceExtraPercent))
+
+	// mappedReady is comparable to memoryLimit, and represents how much total memory
+	// the Go runtime has committed now (estimated).
+	mappedReady := gcController.mappedReady.Load()
+
+	// If we're below the goal already indicate that we don't need the background
+	// scavenger for the memory limit. This may seems worrisome at first, but note
+	// that the allocator will assist the background scavenger in the face of a memory
+	// limit, so we'll be safe even if we stop the scavenger when we shouldn't have.
+	if mappedReady <= memoryLimitGoal {
+		scavenge.memoryLimitGoal.Store(^uint64(0))
+	} else {
+		scavenge.memoryLimitGoal.Store(memoryLimitGoal)
+	}
+
+	// Now handle the gcPercent goal.
 
 	// If we're called before the first GC completed, disable scavenging.
 	// We never scavenge before the 2nd GC cycle anyway (we don't have enough
 	// information about the heap yet) so this is fine, and avoids a fault
 	// or garbage data later.
 	if lastHeapGoal == 0 {
-		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
+		scavenge.gcPercentGoal.Store(^uint64(0))
 		return
 	}
 	// Compute our scavenging goal.
 	goalRatio := float64(heapGoal) / float64(lastHeapGoal)
-	retainedGoal := uint64(float64(memstats.lastHeapInUse) * goalRatio)
+	gcPercentGoal := uint64(float64(memstats.lastHeapInUse) * goalRatio)
 	// Add retainExtraPercent overhead to retainedGoal. This calculation
 	// looks strange but the purpose is to arrive at an integer division
 	// (e.g. if retainExtraPercent = 12.5, then we get a divisor of 8)
 	// that also avoids the overflow from a multiplication.
-	retainedGoal += retainedGoal / (1.0 / (retainExtraPercent / 100.0))
+	gcPercentGoal += gcPercentGoal / (1.0 / (retainExtraPercent / 100.0))
 	// Align it to a physical page boundary to make the following calculations
 	// a bit more exact.
-	retainedGoal = (retainedGoal + uint64(physPageSize) - 1) &^ (uint64(physPageSize) - 1)
+	gcPercentGoal = (gcPercentGoal + uint64(physPageSize) - 1) &^ (uint64(physPageSize) - 1)
 
 	// Represents where we are now in the heap's contribution to RSS in bytes.
 	//
@@ -151,16 +200,32 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
 	// where physPageSize > pageSize the calculations below will not be exact.
 	// Generally this is OK since we'll be off by at most one regular
 	// physical page.
-	retainedNow := heapRetained()
+	heapRetainedNow := heapRetained()
 
-	// If we're already below our goal, or within one page of our goal, then disable
-	// the background scavenger. We disable the background scavenger if there's
-	// less than one physical page of work to do because it's not worth it.
-	if retainedNow <= retainedGoal || retainedNow-retainedGoal < uint64(physPageSize) {
-		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
-		return
+	// If we're already below our goal, or within one page of our goal, then indicate
+	// that we don't need the background scavenger for maintaining a memory overhead
+	// proportional to the heap goal.
+	if heapRetainedNow <= gcPercentGoal || heapRetainedNow-gcPercentGoal < uint64(physPageSize) {
+		scavenge.gcPercentGoal.Store(^uint64(0))
+	} else {
+		scavenge.gcPercentGoal.Store(gcPercentGoal)
 	}
-	atomic.Store64(&mheap_.scavengeGoal, retainedGoal)
+}
+
+var scavenge struct {
+	// gcPercentGoal is the amount of retained heap memory (measured by
+	// heapRetained) that the runtime will try to maintain by returning
+	// memory to the OS. This goal is derived from gcController.gcPercent
+	// by choosing to retain enough memory to allocate heap memory up to
+	// the heap goal.
+	gcPercentGoal atomic.Uint64
+
+	// memoryLimitGoal is the amount of memory retained by the runtime (
+	// measured by gcController.mappedReady) that the runtime will try to
+	// maintain by returning memory to the OS. This goal is derived from
+	// gcController.memoryLimit by choosing to target the memory limit or
+	// some lower target to keep the scavenger working.
+	memoryLimitGoal atomic.Uint64
 }
 
 const (
@@ -307,7 +372,9 @@ func (s *scavengerState) init() {
 	if s.shouldStop == nil {
 		s.shouldStop = func() bool {
 			// If background scavenging is disabled or if there's no work to do just stop.
-			return heapRetained() <= atomic.Load64(&mheap_.scavengeGoal)
+			return heapRetained() <= scavenge.gcPercentGoal.Load() &&
+				(!go119MemoryLimitSupport ||
+					gcController.mappedReady.Load() <= scavenge.memoryLimitGoal.Load())
 		}
 	}
 	if s.gomaxprocs == nil {
