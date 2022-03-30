@@ -452,6 +452,16 @@ Default: `false`.
 
 <!-- END User: DO NOT MANUALLY EDIT THIS SECTION -->
 
+#### **newDiff** *string*
+
+newDiff enables the new diff implementation. If this is "both",
+for now both diffs will be run and statistics will be generateted in
+a file in $TMPDIR. This is a risky setting; help in trying it
+is appreciated. If it is "old" the old implementation is used,
+and if it is "new", just the new implementation is used.
+
+Default: 'old'.
+
 ## Code Lenses
 
 These are the code lenses that `gopls` currently supports. They can be enabled

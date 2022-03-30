@@ -11,6 +11,7 @@ import (
 	"context"
 
 	"golang.org/x/tools/gopls/internal/vulncheck"
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/source"
 	"mvdan.cc/gofumpt/format"
 	"mvdan.cc/xurls/v2"
@@ -19,7 +20,14 @@ import (
 func Options(options *source.Options) {
 	options.LicensesText = licensesText
 	if options.GoDiff {
-		options.ComputeEdits = ComputeEdits
+		switch options.NewDiff {
+		case "old":
+			options.ComputeEdits = ComputeEdits
+		case "new":
+			options.ComputeEdits = diff.NComputeEdits
+		default:
+			options.ComputeEdits = BothDiffs
+		}
 	}
 	options.URLRegexp = xurls.Relaxed()
 	options.GofumptFormat = func(ctx context.Context, langVersion, modulePath string, src []byte) ([]byte, error) {

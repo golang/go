@@ -265,6 +265,7 @@ func DefaultOptions(o *source.Options) {
 	o.HierarchicalDocumentSymbolSupport = true
 	o.ExperimentalWorkspaceModule = true
 	o.SemanticTokens = true
+	o.InternalOptions.NewDiff = "both"
 }
 
 func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*testing.T, *Data)) {

@@ -477,7 +477,7 @@ type Hooks struct {
 	// LicensesText holds third party licenses for software used by gopls.
 	LicensesText string
 
-	// TODO(rfindley): is this even necessary?
+	// GoDiff is used in gopls/hooks to get Myers' diff
 	GoDiff bool
 
 	// Whether staticcheck is supported.
@@ -562,6 +562,13 @@ type InternalOptions struct {
 	// on the server.
 	// This option applies only during initialization.
 	ShowBugReports bool
+
+	// NewDiff controls the choice of the new diff implementation.
+	// It can be 'new', 'checked', or 'old' which is the default.
+	// 'checked' computes diffs with both algorithms, checks
+	// that the new algorithm has worked, and write some summary
+	// statistics to a file in os.TmpDir()
+	NewDiff string
 }
 
 type ImportShortcut string
@@ -1058,6 +1065,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "allExperiments":
 		// This setting should be handled before all of the other options are
 		// processed, so do nothing here.
+
+	case "newDiff":
+		result.setString(&o.NewDiff)
 
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":
