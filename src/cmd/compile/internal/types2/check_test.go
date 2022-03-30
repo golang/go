@@ -135,7 +135,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		t.Fatal(err)
 	}
 
-	files, errlist := parseFiles(t, filenames, syntax.AllowGenerics|syntax.AllowMethodTypeParams)
+	files, errlist := parseFiles(t, filenames, 0)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {

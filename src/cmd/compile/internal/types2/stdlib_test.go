@@ -220,7 +220,7 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	var files []*syntax.File
 	for _, filename := range filenames {
 		errh := func(err error) { t.Error(err) }
-		file, err := syntax.ParseFile(filename, errh, nil, syntax.AllowGenerics)
+		file, err := syntax.ParseFile(filename, errh, nil, 0)
 		if err != nil {
 			return
 		}

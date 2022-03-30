@@ -159,7 +159,7 @@ func TestBuiltinSignatures(t *testing.T) {
 
 func parseGenericSrc(path, src string) (*syntax.File, error) {
 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics)
+	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
 }
 
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
