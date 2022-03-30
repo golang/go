@@ -330,7 +330,7 @@ func TestTypesInfo(t *testing.T) {
 
 		// issue 47243
 		{`package issue47243_a; var x int32; var _ = x << 3`, `3`, `untyped int`},
-		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `uint`}, // issue 47410: should be untyped float
+		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `untyped float`},
 		{`package issue47243_c; var x int32; var _ = 1 << x`, `1 << x`, `int`},
 		{`package issue47243_d; var x int32; var _ = 1 << x`, `1`, `int`},
 		{`package issue47243_e; var x int32; var _ = 1 << 2`, `1`, `untyped int`},
