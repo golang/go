@@ -82,30 +82,53 @@ func (p *P521Point) SetBytes(b []byte) (*P521Point, error) {
 		p.z.One()
 		return p, nil
 
-	// Compressed form
-	case len(b) == 1+p521ElementLength && b[0] == 0:
-		return nil, errors.New("unimplemented") // TODO(filippo)
+	// Compressed form.
+	case len(b) == 1+p521ElementLength && (b[0] == 2 || b[0] == 3):
+		x, err := new(fiat.P521Element).SetBytes(b[1:])
+		if err != nil {
+			return nil, err
+		}
+
+		// y² = x³ - 3x + b
+		y := p521Polynomial(new(fiat.P521Element), x)
+		if !p521Sqrt(y, y) {
+			return nil, errors.New("invalid P521 compressed point encoding")
+		}
+
+		// Select the positive or negative root, as indicated by the least
+		// significant bit, based on the encoding type byte.
+		otherRoot := new(fiat.P521Element)
+		otherRoot.Sub(otherRoot, y)
+		cond := y.Bytes()[p521ElementLength-1]&1 ^ b[0]&1
+		y.Select(otherRoot, y, int(cond))
+
+		p.x.Set(x)
+		p.y.Set(y)
+		p.z.One()
+		return p, nil
 
 	default:
 		return nil, errors.New("invalid P521 point encoding")
 	}
 }
 
-func p521CheckOnCurve(x, y *fiat.P521Element) error {
-	// x³ - 3x + b.
-	x3 := new(fiat.P521Element).Square(x)
-	x3.Mul(x3, x)
+// p521Polynomial sets y2 to x³ - 3x + b, and returns y2.
+func p521Polynomial(y2, x *fiat.P521Element) *fiat.P521Element {
+	y2.Square(x)
+	y2.Mul(y2, x)
 
 	threeX := new(fiat.P521Element).Add(x, x)
 	threeX.Add(threeX, x)
 
-	x3.Sub(x3, threeX)
-	x3.Add(x3, p521B)
+	y2.Sub(y2, threeX)
+	return y2.Add(y2, p521B)
+}
 
+func p521CheckOnCurve(x, y *fiat.P521Element) error {
 	// y² = x³ - 3x + b
-	y2 := new(fiat.P521Element).Square(y)
-
-	if x3.Equal(y2) != 1 {
+	rhs := p521Polynomial(new(fiat.P521Element), x)
+	lhs := new(fiat.P521Element).Square(y)
+	if rhs.Equal(lhs) != 1 {
 		return errors.New("P521 point not on curve")
 	}
 	return nil
@@ -117,22 +140,49 @@ func p521CheckOnCurve(x, y *fiat.P521Element) error {
 func (p *P521Point) Bytes() []byte {
 	// This function is outlined to make the allocations inline in the caller
 	// rather than happen on the heap.
-	var out [133]byte
+	var out [1 + 2*p521ElementLength]byte
 	return p.bytes(&out)
 }
 
-func (p *P521Point) bytes(out *[133]byte) []byte {
+func (p *P521Point) bytes(out *[1 + 2*p521ElementLength]byte) []byte {
 	if p.z.IsZero() == 1 {
 		return append(out[:0], 0)
 	}
 
 	zinv := new(fiat.P521Element).Invert(p.z)
-	xx := new(fiat.P521Element).Mul(p.x, zinv)
-	yy := new(fiat.P521Element).Mul(p.y, zinv)
+	x := new(fiat.P521Element).Mul(p.x, zinv)
+	y := new(fiat.P521Element).Mul(p.y, zinv)
 
 	buf := append(out[:0], 4)
-	buf = append(buf, xx.Bytes()...)
-	buf = append(buf, yy.Bytes()...)
+	buf = append(buf, x.Bytes()...)
+	buf = append(buf, y.Bytes()...)
+	return buf
+}
+
+// BytesCompressed returns the compressed or infinity encoding of p, as
+// specified in SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the
+// point at infinity is shorter than all other encodings.
+func (p *P521Point) BytesCompressed() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [1 + p521ElementLength]byte
+	return p.bytesCompressed(&out)
+}
+
+func (p *P521Point) bytesCompressed(out *[1 + p521ElementLength]byte) []byte {
+	if p.z.IsZero() == 1 {
+		return append(out[:0], 0)
+	}
+
+	zinv := new(fiat.P521Element).Invert(p.z)
+	x := new(fiat.P521Element).Mul(p.x, zinv)
+	y := new(fiat.P521Element).Mul(p.y, zinv)
+
+	// Encode the sign of the y coordinate (indicated by the least significant
+	// bit) as the encoding type (2 or 3).
+	buf := append(out[:0], 2)
+	buf[0] |= y.Bytes()[p521ElementLength-1] & 1
+	buf = append(buf, x.Bytes()...)
 	return buf
 }
 
@@ -362,4 +412,33 @@ func (p *P521Point) ScalarBaseMult(scalar []byte) (*P521Point, error) {
 	}
 
 	return p, nil
+}
+
+// p521Sqrt sets e to a square root of x. If x is not a square, p521Sqrt returns
+// false and e is unchanged. e and x can overlap.
+func p521Sqrt(e, x *fiat.P521Element) (isSquare bool) {
+	candidate := new(fiat.P521Element)
+	p521SqrtCandidate(candidate, x)
+	square := new(fiat.P521Element).Square(candidate)
+	if square.Equal(x) != 1 {
+		return false
+	}
+	e.Set(candidate)
+	return true
+}
+
+// p521SqrtCandidate sets z to a square root candidate for x. z and x must not overlap.
+func p521SqrtCandidate(z, x *fiat.P521Element) {
+	// Since p = 3 mod 4, exponentiation by (p + 1) / 4 yields a square root candidate.
+	//
+	// The sequence of 0 multiplications and 519 squarings is derived from the
+	// following addition chain generated with github.com/mmcloughlin/addchain v0.4.0.
+	//
+	//	return  1 << 519
+	//
+
+	z.Square(x)
+	for s := 1; s < 519; s++ {
+		z.Square(z)
+	}
 }

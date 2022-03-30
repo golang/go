@@ -84,30 +84,53 @@ func (p *P256Point) SetBytes(b []byte) (*P256Point, error) {
 		p.z.One()
 		return p, nil
 
-	// Compressed form
-	case len(b) == 1+p256ElementLength && b[0] == 0:
-		return nil, errors.New("unimplemented") // TODO(filippo)
+	// Compressed form.
+	case len(b) == 1+p256ElementLength && (b[0] == 2 || b[0] == 3):
+		x, err := new(fiat.P256Element).SetBytes(b[1:])
+		if err != nil {
+			return nil, err
+		}
+
+		// y² = x³ - 3x + b
+		y := p256Polynomial(new(fiat.P256Element), x)
+		if !p256Sqrt(y, y) {
+			return nil, errors.New("invalid P256 compressed point encoding")
+		}
+
+		// Select the positive or negative root, as indicated by the least
+		// significant bit, based on the encoding type byte.
+		otherRoot := new(fiat.P256Element)
+		otherRoot.Sub(otherRoot, y)
+		cond := y.Bytes()[p256ElementLength-1]&1 ^ b[0]&1
+		y.Select(otherRoot, y, int(cond))
+
+		p.x.Set(x)
+		p.y.Set(y)
+		p.z.One()
+		return p, nil
 
 	default:
 		return nil, errors.New("invalid P256 point encoding")
 	}
 }
 
-func p256CheckOnCurve(x, y *fiat.P256Element) error {
-	// x³ - 3x + b.
-	x3 := new(fiat.P256Element).Square(x)
-	x3.Mul(x3, x)
+// p256Polynomial sets y2 to x³ - 3x + b, and returns y2.
+func p256Polynomial(y2, x *fiat.P256Element) *fiat.P256Element {
+	y2.Square(x)
+	y2.Mul(y2, x)
 
 	threeX := new(fiat.P256Element).Add(x, x)
 	threeX.Add(threeX, x)
 
-	x3.Sub(x3, threeX)
-	x3.Add(x3, p256B)
+	y2.Sub(y2, threeX)
+	return y2.Add(y2, p256B)
+}
 
+func p256CheckOnCurve(x, y *fiat.P256Element) error {
 	// y² = x³ - 3x + b
-	y2 := new(fiat.P256Element).Square(y)
-
-	if x3.Equal(y2) != 1 {
+	rhs := p256Polynomial(new(fiat.P256Element), x)
+	lhs := new(fiat.P256Element).Square(y)
+	if rhs.Equal(lhs) != 1 {
 		return errors.New("P256 point not on curve")
 	}
 	return nil
@@ -119,22 +142,49 @@ func p256CheckOnCurve(x, y *fiat.P256Element) error {
 func (p *P256Point) Bytes() []byte {
 	// This function is outlined to make the allocations inline in the caller
 	// rather than happen on the heap.
-	var out [133]byte
+	var out [1 + 2*p256ElementLength]byte
 	return p.bytes(&out)
 }
 
-func (p *P256Point) bytes(out *[133]byte) []byte {
+func (p *P256Point) bytes(out *[1 + 2*p256ElementLength]byte) []byte {
 	if p.z.IsZero() == 1 {
 		return append(out[:0], 0)
 	}
 
 	zinv := new(fiat.P256Element).Invert(p.z)
-	xx := new(fiat.P256Element).Mul(p.x, zinv)
-	yy := new(fiat.P256Element).Mul(p.y, zinv)
+	x := new(fiat.P256Element).Mul(p.x, zinv)
+	y := new(fiat.P256Element).Mul(p.y, zinv)
 
 	buf := append(out[:0], 4)
-	buf = append(buf, xx.Bytes()...)
-	buf = append(buf, yy.Bytes()...)
+	buf = append(buf, x.Bytes()...)
+	buf = append(buf, y.Bytes()...)
+	return buf
+}
+
+// BytesCompressed returns the compressed or infinity encoding of p, as
+// specified in SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the
+// point at infinity is shorter than all other encodings.
+func (p *P256Point) BytesCompressed() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [1 + p256ElementLength]byte
+	return p.bytesCompressed(&out)
+}
+
+func (p *P256Point) bytesCompressed(out *[1 + p256ElementLength]byte) []byte {
+	if p.z.IsZero() == 1 {
+		return append(out[:0], 0)
+	}
+
+	zinv := new(fiat.P256Element).Invert(p.z)
+	x := new(fiat.P256Element).Mul(p.x, zinv)
+	y := new(fiat.P256Element).Mul(p.y, zinv)
+
+	// Encode the sign of the y coordinate (indicated by the least significant
+	// bit) as the encoding type (2 or 3).
+	buf := append(out[:0], 2)
+	buf[0] |= y.Bytes()[p256ElementLength-1] & 1
+	buf = append(buf, x.Bytes()...)
 	return buf
 }
 
@@ -364,4 +414,71 @@ func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 	}
 
 	return p, nil
+}
+
+// p256Sqrt sets e to a square root of x. If x is not a square, p256Sqrt returns
+// false and e is unchanged. e and x can overlap.
+func p256Sqrt(e, x *fiat.P256Element) (isSquare bool) {
+	candidate := new(fiat.P256Element)
+	p256SqrtCandidate(candidate, x)
+	square := new(fiat.P256Element).Square(candidate)
+	if square.Equal(x) != 1 {
+		return false
+	}
+	e.Set(candidate)
+	return true
+}
+
+// p256SqrtCandidate sets z to a square root candidate for x. z and x must not overlap.
+func p256SqrtCandidate(z, x *fiat.P256Element) {
+	// Since p = 3 mod 4, exponentiation by (p + 1) / 4 yields a square root candidate.
+	//
+	// The sequence of 7 multiplications and 253 squarings is derived from the
+	// following addition chain generated with github.com/mmcloughlin/addchain v0.4.0.
+	//
+	//	_10       = 2*1
+	//	_11       = 1 + _10
+	//	_1100     = _11 << 2
+	//	_1111     = _11 + _1100
+	//	_11110000 = _1111 << 4
+	//	_11111111 = _1111 + _11110000
+	//	x16       = _11111111 << 8 + _11111111
+	//	x32       = x16 << 16 + x16
+	//	return      ((x32 << 32 + 1) << 96 + 1) << 94
+	//
+	var t0 = new(fiat.P256Element)
+
+	z.Square(x)
+	z.Mul(x, z)
+	t0.Square(z)
+	for s := 1; s < 2; s++ {
+		t0.Square(t0)
+	}
+	z.Mul(z, t0)
+	t0.Square(z)
+	for s := 1; s < 4; s++ {
+		t0.Square(t0)
+	}
+	z.Mul(z, t0)
+	t0.Square(z)
+	for s := 1; s < 8; s++ {
+		t0.Square(t0)
+	}
+	z.Mul(z, t0)
+	t0.Square(z)
+	for s := 1; s < 16; s++ {
+		t0.Square(t0)
+	}
+	z.Mul(z, t0)
+	for s := 0; s < 32; s++ {
+		z.Square(z)
+	}
+	z.Mul(x, z)
+	for s := 0; s < 96; s++ {
+		z.Square(z)
+	}
+	z.Mul(x, z)
+	for s := 0; s < 94; s++ {
+		z.Square(z)
+	}
 }

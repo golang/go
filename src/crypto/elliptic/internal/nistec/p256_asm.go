@@ -76,6 +76,12 @@ const p256CompressedLength = 1 + p256ElementLength
 // the curve, it returns nil and an error, and the receiver is unchanged.
 // Otherwise, it returns p.
 func (p *P256Point) SetBytes(b []byte) (*P256Point, error) {
+	// p256Mul operates in the Montgomery domain with R = 2²⁵⁶ mod p. Thus rr
+	// here is R in the Montgomery domain, or R×R mod p. See comment in
+	// P256OrdInverse about how this is used.
+	rr := p256Element{0x0000000000000003, 0xfffffffbffffffff,
+		0xfffffffffffffffe, 0x00000004fffffffd}
+
 	switch {
 	// Point at infinity.
 	case len(b) == 1 && b[0] == 0:
@@ -89,11 +95,6 @@ func (p *P256Point) SetBytes(b []byte) (*P256Point, error) {
 		if p256LessThanP(&r.x) == 0 || p256LessThanP(&r.y) == 0 {
 			return nil, errors.New("invalid P256 element encoding")
 		}
-		// p256Mul operates in the Montgomery domain with R = 2²⁵⁶ mod p. Thus rr
-		// here is R in the Montgomery domain, or R×R mod p. See comment in
-		// P256OrdInverse about how this is used.
-		rr := p256Element{0x0000000000000003, 0xfffffffbffffffff,
-			0xfffffffffffffffe, 0x00000004fffffffd}
 		p256Mul(&r.x, &r.x, &rr)
 		p256Mul(&r.y, &r.y, &rr)
 		if err := p256CheckOnCurve(&r.x, &r.y); err != nil {
@@ -104,15 +105,36 @@ func (p *P256Point) SetBytes(b []byte) (*P256Point, error) {
 
 	// Compressed form.
 	case len(b) == p256CompressedLength && (b[0] == 2 || b[0] == 3):
-		return nil, errors.New("unimplemented") // TODO(filippo)
+		var r P256Point
+		p256BigToLittle(&r.x, (*[32]byte)(b[1:33]))
+		if p256LessThanP(&r.x) == 0 {
+			return nil, errors.New("invalid P256 element encoding")
+		}
+		p256Mul(&r.x, &r.x, &rr)
+
+		// y² = x³ - 3x + b
+		p256Polynomial(&r.y, &r.x)
+		if !p256Sqrt(&r.y, &r.y) {
+			return nil, errors.New("invalid P256 compressed point encoding")
+		}
+
+		// Select the positive or negative root, as indicated by the least
+		// significant bit, based on the encoding type byte.
+		yy := new(p256Element)
+		p256FromMont(yy, &r.y)
+		cond := int(yy[0]&1) ^ int(b[0]&1)
+		p256NegCond(&r.y, cond)
+
+		r.z = p256One
+		return p.Set(&r), nil
 
 	default:
 		return nil, errors.New("invalid P256 point encoding")
 	}
 }
 
-func p256CheckOnCurve(x, y *p256Element) error {
-	// x³ - 3x + b
+// p256Polynomial sets y2 to x³ - 3x + b, and returns y2.
+func p256Polynomial(y2, x *p256Element) *p256Element {
 	x3 := new(p256Element)
 	p256Sqr(x3, x, 1)
 	p256Mul(x3, x3, x)
@@ -128,11 +150,16 @@ func p256CheckOnCurve(x, y *p256Element) error {
 	p256Add(x3, x3, threeX)
 	p256Add(x3, x3, p256B)
 
-	// y² = x³ - 3x + b
-	y2 := new(p256Element)
-	p256Sqr(y2, y, 1)
+	*y2 = *x3
+	return y2
+}
 
-	if p256Equal(y2, x3) != 1 {
+func p256CheckOnCurve(x, y *p256Element) error {
+	// y² = x³ - 3x + b
+	rhs := p256Polynomial(new(p256Element), x)
+	lhs := new(p256Element)
+	p256Sqr(lhs, y, 1)
+	if p256Equal(lhs, rhs) != 1 {
 		return errors.New("P256 point not on curve")
 	}
 	return nil
@@ -175,6 +202,50 @@ func p256Add(res, x, y *p256Element) {
 	res[1] = (t1[1] & ^t2Mask) | (t2[1] & t2Mask)
 	res[2] = (t1[2] & ^t2Mask) | (t2[2] & t2Mask)
 	res[3] = (t1[3] & ^t2Mask) | (t2[3] & t2Mask)
+}
+
+// p256Sqrt sets e to a square root of x. If x is not a square, p256Sqrt returns
+// false and e is unchanged. e and x can overlap.
+func p256Sqrt(e, x *p256Element) (isSquare bool) {
+	t0, t1 := new(p256Element), new(p256Element)
+
+	// Since p = 3 mod 4, exponentiation by (p + 1) / 4 yields a square root candidate.
+	//
+	// The sequence of 7 multiplications and 253 squarings is derived from the
+	// following addition chain generated with github.com/mmcloughlin/addchain v0.4.0.
+	//
+	//	_10       = 2*1
+	//	_11       = 1 + _10
+	//	_1100     = _11 << 2
+	//	_1111     = _11 + _1100
+	//	_11110000 = _1111 << 4
+	//	_11111111 = _1111 + _11110000
+	//	x16       = _11111111 << 8 + _11111111
+	//	x32       = x16 << 16 + x16
+	//	return      ((x32 << 32 + 1) << 96 + 1) << 94
+	//
+	p256Sqr(t0, x, 1)
+	p256Mul(t0, x, t0)
+	p256Sqr(t1, t0, 2)
+	p256Mul(t0, t0, t1)
+	p256Sqr(t1, t0, 4)
+	p256Mul(t0, t0, t1)
+	p256Sqr(t1, t0, 8)
+	p256Mul(t0, t0, t1)
+	p256Sqr(t1, t0, 16)
+	p256Mul(t0, t0, t1)
+	p256Sqr(t0, t0, 32)
+	p256Mul(t0, x, t0)
+	p256Sqr(t0, t0, 96)
+	p256Mul(t0, x, t0)
+	p256Sqr(t0, t0, 94)
+
+	p256Sqr(t1, t0, 1)
+	if p256Equal(t1, x) != 1 {
+		return false
+	}
+	*e = *t0
+	return true
 }
 
 // The following assembly functions are implemented in p256_asm_*.s
@@ -463,24 +534,53 @@ func (p *P256Point) Bytes() []byte {
 func (p *P256Point) bytes(out *[p256UncompressedLength]byte) []byte {
 	// The proper representation of the point at infinity is a single zero byte.
 	if p.isInfinity() == 1 {
-		return out[:1]
+		return append(out[:0], 0)
 	}
 
-	zInv := new(p256Element)
-	zInvSq := new(p256Element)
-	p256Inverse(zInv, &p.z)
-	p256Sqr(zInvSq, zInv, 1)
-	p256Mul(zInv, zInv, zInvSq)
-
-	p256Mul(zInvSq, &p.x, zInvSq)
-	p256Mul(zInv, &p.y, zInv)
-
-	p256FromMont(zInvSq, zInvSq)
-	p256FromMont(zInv, zInv)
+	x, y := new(p256Element), new(p256Element)
+	p.affineFromMont(x, y)
 
 	out[0] = 4 // Uncompressed form.
-	p256LittleToBig((*[32]byte)(out[1:33]), zInvSq)
-	p256LittleToBig((*[32]byte)(out[33:65]), zInv)
+	p256LittleToBig((*[32]byte)(out[1:33]), x)
+	p256LittleToBig((*[32]byte)(out[33:65]), y)
+
+	return out[:]
+}
+
+// affineFromMont sets (x, y) to the affine coordinates of p, converted out of the
+// Montgomery domain.
+func (p *P256Point) affineFromMont(x, y *p256Element) {
+	p256Inverse(y, &p.z)
+	p256Sqr(x, y, 1)
+	p256Mul(y, y, x)
+
+	p256Mul(x, &p.x, x)
+	p256Mul(y, &p.y, y)
+
+	p256FromMont(x, x)
+	p256FromMont(y, y)
+}
+
+// BytesCompressed returns the compressed or infinity encoding of p, as
+// specified in SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the
+// point at infinity is shorter than all other encodings.
+func (p *P256Point) BytesCompressed() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [p256CompressedLength]byte
+	return p.bytesCompressed(&out)
+}
+
+func (p *P256Point) bytesCompressed(out *[p256CompressedLength]byte) []byte {
+	if p.isInfinity() == 1 {
+		return append(out[:0], 0)
+	}
+
+	x, y := new(p256Element), new(p256Element)
+	p.affineFromMont(x, y)
+
+	out[0] = 2 | byte(y[0]&1)
+	p256LittleToBig((*[32]byte)(out[1:33]), x)
 
 	return out[:]
 }

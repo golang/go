@@ -82,30 +82,53 @@ func (p *P384Point) SetBytes(b []byte) (*P384Point, error) {
 		p.z.One()
 		return p, nil
 
-	// Compressed form
-	case len(b) == 1+p384ElementLength && b[0] == 0:
-		return nil, errors.New("unimplemented") // TODO(filippo)
+	// Compressed form.
+	case len(b) == 1+p384ElementLength && (b[0] == 2 || b[0] == 3):
+		x, err := new(fiat.P384Element).SetBytes(b[1:])
+		if err != nil {
+			return nil, err
+		}
+
+		// y² = x³ - 3x + b
+		y := p384Polynomial(new(fiat.P384Element), x)
+		if !p384Sqrt(y, y) {
+			return nil, errors.New("invalid P384 compressed point encoding")
+		}
+
+		// Select the positive or negative root, as indicated by the least
+		// significant bit, based on the encoding type byte.
+		otherRoot := new(fiat.P384Element)
+		otherRoot.Sub(otherRoot, y)
+		cond := y.Bytes()[p384ElementLength-1]&1 ^ b[0]&1
+		y.Select(otherRoot, y, int(cond))
+
+		p.x.Set(x)
+		p.y.Set(y)
+		p.z.One()
+		return p, nil
 
 	default:
 		return nil, errors.New("invalid P384 point encoding")
 	}
 }
 
-func p384CheckOnCurve(x, y *fiat.P384Element) error {
-	// x³ - 3x + b.
-	x3 := new(fiat.P384Element).Square(x)
-	x3.Mul(x3, x)
+// p384Polynomial sets y2 to x³ - 3x + b, and returns y2.
+func p384Polynomial(y2, x *fiat.P384Element) *fiat.P384Element {
+	y2.Square(x)
+	y2.Mul(y2, x)
 
 	threeX := new(fiat.P384Element).Add(x, x)
 	threeX.Add(threeX, x)
 
-	x3.Sub(x3, threeX)
-	x3.Add(x3, p384B)
+	y2.Sub(y2, threeX)
+	return y2.Add(y2, p384B)
+}
 
+func p384CheckOnCurve(x, y *fiat.P384Element) error {
 	// y² = x³ - 3x + b
-	y2 := new(fiat.P384Element).Square(y)
-
-	if x3.Equal(y2) != 1 {
+	rhs := p384Polynomial(new(fiat.P384Element), x)
+	lhs := new(fiat.P384Element).Square(y)
+	if rhs.Equal(lhs) != 1 {
 		return errors.New("P384 point not on curve")
 	}
 	return nil
@@ -117,22 +140,49 @@ func p384CheckOnCurve(x, y *fiat.P384Element) error {
 func (p *P384Point) Bytes() []byte {
 	// This function is outlined to make the allocations inline in the caller
 	// rather than happen on the heap.
-	var out [133]byte
+	var out [1 + 2*p384ElementLength]byte
 	return p.bytes(&out)
 }
 
-func (p *P384Point) bytes(out *[133]byte) []byte {
+func (p *P384Point) bytes(out *[1 + 2*p384ElementLength]byte) []byte {
 	if p.z.IsZero() == 1 {
 		return append(out[:0], 0)
 	}
 
 	zinv := new(fiat.P384Element).Invert(p.z)
-	xx := new(fiat.P384Element).Mul(p.x, zinv)
-	yy := new(fiat.P384Element).Mul(p.y, zinv)
+	x := new(fiat.P384Element).Mul(p.x, zinv)
+	y := new(fiat.P384Element).Mul(p.y, zinv)
 
 	buf := append(out[:0], 4)
-	buf = append(buf, xx.Bytes()...)
-	buf = append(buf, yy.Bytes()...)
+	buf = append(buf, x.Bytes()...)
+	buf = append(buf, y.Bytes()...)
+	return buf
+}
+
+// BytesCompressed returns the compressed or infinity encoding of p, as
+// specified in SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the
+// point at infinity is shorter than all other encodings.
+func (p *P384Point) BytesCompressed() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [1 + p384ElementLength]byte
+	return p.bytesCompressed(&out)
+}
+
+func (p *P384Point) bytesCompressed(out *[1 + p384ElementLength]byte) []byte {
+	if p.z.IsZero() == 1 {
+		return append(out[:0], 0)
+	}
+
+	zinv := new(fiat.P384Element).Invert(p.z)
+	x := new(fiat.P384Element).Mul(p.x, zinv)
+	y := new(fiat.P384Element).Mul(p.y, zinv)
+
+	// Encode the sign of the y coordinate (indicated by the least significant
+	// bit) as the encoding type (2 or 3).
+	buf := append(out[:0], 2)
+	buf[0] |= y.Bytes()[p384ElementLength-1] & 1
+	buf = append(buf, x.Bytes()...)
 	return buf
 }
 
@@ -362,4 +412,104 @@ func (p *P384Point) ScalarBaseMult(scalar []byte) (*P384Point, error) {
 	}
 
 	return p, nil
+}
+
+// p384Sqrt sets e to a square root of x. If x is not a square, p384Sqrt returns
+// false and e is unchanged. e and x can overlap.
+func p384Sqrt(e, x *fiat.P384Element) (isSquare bool) {
+	candidate := new(fiat.P384Element)
+	p384SqrtCandidate(candidate, x)
+	square := new(fiat.P384Element).Square(candidate)
+	if square.Equal(x) != 1 {
+		return false
+	}
+	e.Set(candidate)
+	return true
+}
+
+// p384SqrtCandidate sets z to a square root candidate for x. z and x must not overlap.
+func p384SqrtCandidate(z, x *fiat.P384Element) {
+	// Since p = 3 mod 4, exponentiation by (p + 1) / 4 yields a square root candidate.
+	//
+	// The sequence of 14 multiplications and 381 squarings is derived from the
+	// following addition chain generated with github.com/mmcloughlin/addchain v0.4.0.
+	//
+	//	_10      = 2*1
+	//	_11      = 1 + _10
+	//	_110     = 2*_11
+	//	_111     = 1 + _110
+	//	_111000  = _111 << 3
+	//	_111111  = _111 + _111000
+	//	_1111110 = 2*_111111
+	//	_1111111 = 1 + _1111110
+	//	x12      = _1111110 << 5 + _111111
+	//	x24      = x12 << 12 + x12
+	//	x31      = x24 << 7 + _1111111
+	//	x32      = 2*x31 + 1
+	//	x63      = x32 << 31 + x31
+	//	x126     = x63 << 63 + x63
+	//	x252     = x126 << 126 + x126
+	//	x255     = x252 << 3 + _111
+	//	return     ((x255 << 33 + x32) << 64 + 1) << 30
+	//
+	var t0 = new(fiat.P384Element)
+	var t1 = new(fiat.P384Element)
+	var t2 = new(fiat.P384Element)
+
+	z.Square(x)
+	z.Mul(x, z)
+	z.Square(z)
+	t0.Mul(x, z)
+	z.Square(t0)
+	for s := 1; s < 3; s++ {
+		z.Square(z)
+	}
+	t1.Mul(t0, z)
+	t2.Square(t1)
+	z.Mul(x, t2)
+	for s := 0; s < 5; s++ {
+		t2.Square(t2)
+	}
+	t1.Mul(t1, t2)
+	t2.Square(t1)
+	for s := 1; s < 12; s++ {
+		t2.Square(t2)
+	}
+	t1.Mul(t1, t2)
+	for s := 0; s < 7; s++ {
+		t1.Square(t1)
+	}
+	t1.Mul(z, t1)
+	z.Square(t1)
+	z.Mul(x, z)
+	t2.Square(z)
+	for s := 1; s < 31; s++ {
+		t2.Square(t2)
+	}
+	t1.Mul(t1, t2)
+	t2.Square(t1)
+	for s := 1; s < 63; s++ {
+		t2.Square(t2)
+	}
+	t1.Mul(t1, t2)
+	t2.Square(t1)
+	for s := 1; s < 126; s++ {
+		t2.Square(t2)
+	}
+	t1.Mul(t1, t2)
+	for s := 0; s < 3; s++ {
+		t1.Square(t1)
+	}
+	t0.Mul(t0, t1)
+	for s := 0; s < 33; s++ {
+		t0.Square(t0)
+	}
+	z.Mul(z, t0)
+	for s := 0; s < 64; s++ {
+		z.Square(z)
+	}
+	z.Mul(x, z)
+	for s := 0; s < 30; s++ {
+		z.Square(z)
+	}
 }
