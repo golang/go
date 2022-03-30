@@ -235,6 +235,11 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 		t.Fatal(err)
 	}
 
+	if manual && *goVersion != "" {
+		// goVersion overrides -lang for manual tests.
+		conf.GoVersion = *goVersion
+	}
+
 	// TODO(gri) remove this or use flag mechanism to set mode if still needed
 	if strings.HasSuffix(filenames[0], ".go1") {
 		// TODO(rfindley): re-enable this test by using GoVersion.
