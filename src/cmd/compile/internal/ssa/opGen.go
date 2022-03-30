@@ -1043,6 +1043,7 @@ const (
 	OpAMD64BLSRL
 	OpAMD64TZCNTQ
 	OpAMD64TZCNTL
+	OpAMD64MOVBEWstore
 	OpAMD64MOVBELload
 	OpAMD64MOVBELstore
 	OpAMD64MOVBEQload
@@ -13788,6 +13789,20 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:           "MOVBEWstore",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AMOVBEW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},

@@ -226,6 +226,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64MOVBELstore(v)
 	case OpAMD64MOVBEQstore:
 		return rewriteValueAMD64_OpAMD64MOVBEQstore(v)
+	case OpAMD64MOVBEWstore:
+		return rewriteValueAMD64_OpAMD64MOVBEWstore(v)
 	case OpAMD64MOVBQSX:
 		return rewriteValueAMD64_OpAMD64MOVBQSX(v)
 	case OpAMD64MOVBQSXload:
@@ -9542,6 +9544,34 @@ func rewriteValueAMD64_OpAMD64MOVBEQstore(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64MOVBEWstore(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MOVBEWstore [i] {s} p x:(ROLWconst [8] w) mem)
+	// cond: x.Uses == 1
+	// result: (MOVWstore [i] {s} p w mem)
+	for {
+		i := auxIntToInt32(v.AuxInt)
+		s := auxToSym(v.Aux)
+		p := v_0
+		x := v_1
+		if x.Op != OpAMD64ROLWconst || auxIntToInt8(x.AuxInt) != 8 {
+			break
+		}
+		w := x.Args[0]
+		mem := v_2
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64MOVWstore)
+		v.AuxInt = int32ToAuxInt(i)
+		v.Aux = symToAux(s)
+		v.AddArg3(p, w, mem)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14464,6 +14494,28 @@ func rewriteValueAMD64_OpAMD64MOVWstore(v *Value) bool {
 		v0.Aux = symToAux(s2)
 		v0.AddArg2(p2, mem)
 		v.AddArg3(p, v0, mem)
+		return true
+	}
+	// match: (MOVWstore [i] {s} p x:(ROLWconst [8] w) mem)
+	// cond: x.Uses == 1 && buildcfg.GOAMD64 >= 3
+	// result: (MOVBEWstore [i] {s} p w mem)
+	for {
+		i := auxIntToInt32(v.AuxInt)
+		s := auxToSym(v.Aux)
+		p := v_0
+		x := v_1
+		if x.Op != OpAMD64ROLWconst || auxIntToInt8(x.AuxInt) != 8 {
+			break
+		}
+		w := x.Args[0]
+		mem := v_2
+		if !(x.Uses == 1 && buildcfg.GOAMD64 >= 3) {
+			break
+		}
+		v.reset(OpAMD64MOVBEWstore)
+		v.AuxInt = int32ToAuxInt(i)
+		v.Aux = symToAux(s)
+		v.AddArg3(p, w, mem)
 		return true
 	}
 	return false

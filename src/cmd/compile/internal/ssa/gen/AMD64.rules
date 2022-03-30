@@ -2225,6 +2225,8 @@
 (BSWAP(Q|L) x:(MOV(Q|L)load [i] {s} p mem))    && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)load [i] {s} p mem)
 (BSWAP(Q|L) (MOVBE(Q|L)load [i] {s} p m))    => (MOV(Q|L)load [i] {s} p m)
 (MOVBE(Q|L)store [i] {s} p (BSWAP(Q|L) x) m) => (MOV(Q|L)store [i] {s} p x m)
+(MOVWstore [i] {s} p x:(ROLWconst [8] w) mem)   && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBEWstore [i] {s} p w mem)
+(MOVBEWstore [i] {s} p x:(ROLWconst [8] w) mem) && x.Uses == 1 => (MOVWstore [i] {s} p w mem)
 
 (ORQ                   x0:(MOVBELload [i0] {s} p mem)
     sh:(SHLQconst [32] x1:(MOVBELload [i1] {s} p mem)))
