@@ -1,3 +1,4 @@
+env GOWORK=off
 env GO111MODULE=on
 
 # golang.org/issue/32917 and golang.org/issue/28459: 'go build' and 'go test'
