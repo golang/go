@@ -472,7 +472,7 @@ func isEmptyFuncDecl(dcl Decl) bool {
 //
 // list = [ f { sep f } [sep] ] close .
 //
-func (p *parser) list(sep, close token, f func() bool) Pos {
+func (p *parser) list(context string, sep, close token, f func() bool) Pos {
 	if debug && (sep != _Comma && sep != _Semi || close != _Rparen && close != _Rbrace && close != _Rbrack) {
 		panic("invalid sep or close argument for list")
 	}
@@ -482,7 +482,7 @@ func (p *parser) list(sep, close token, f func() bool) Pos {
 		done = f()
 		// sep is optional before close
 		if !p.got(sep) && p.tok != close {
-			p.syntaxError(fmt.Sprintf("expecting %s or %s", tokstring(sep), tokstring(close)))
+			p.syntaxError(fmt.Sprintf("in %s; possibly missing %s or %s", context, tokstring(sep), tokstring(close)))
 			p.advance(_Rparen, _Rbrack, _Rbrace)
 			if p.tok != close {
 				// position could be better but we had an error so we don't care
@@ -502,7 +502,7 @@ func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
 		g := new(Group)
 		p.clearPragma()
 		p.next() // must consume "(" after calling clearPragma!
-		p.list(_Semi, _Rparen, func() bool {
+		p.list("grouped declaration", _Semi, _Rparen, func() bool {
 			if x := f(g); x != nil {
 				list = append(list, x)
 			}
@@ -1233,7 +1233,7 @@ func (p *parser) complitexpr() *CompositeLit {
 
 	p.xnest++
 	p.want(_Lbrace)
-	x.Rbrace = p.list(_Comma, _Rbrace, func() bool {
+	x.Rbrace = p.list("composite literal", _Comma, _Rbrace, func() bool {
 		// value
 		e := p.bare_complitexpr()
 		if p.tok == _Colon {
@@ -1477,7 +1477,7 @@ func (p *parser) structType() *StructType {
 
 	p.want(_Struct)
 	p.want(_Lbrace)
-	p.list(_Semi, _Rbrace, func() bool {
+	p.list("struct type", _Semi, _Rbrace, func() bool {
 		p.fieldDecl(typ)
 		return false
 	})
@@ -1497,7 +1497,7 @@ func (p *parser) interfaceType() *InterfaceType {
 
 	p.want(_Interface)
 	p.want(_Lbrace)
-	p.list(_Semi, _Rbrace, func() bool {
+	p.list("interface type", _Semi, _Rbrace, func() bool {
 		switch p.tok {
 		case _Name:
 			f := p.methodDecl()
@@ -1980,7 +1980,7 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 
 	var named int // number of parameters that have an explicit name and type
 	var typed int // number of parameters that have an explicit type
-	end := p.list(_Comma, close, func() bool {
+	end := p.list("parameter list", _Comma, close, func() bool {
 		var par *Field
 		if typ != nil {
 			if debug && name == nil {
@@ -2660,7 +2660,7 @@ func (p *parser) argList() (list []Expr, hasDots bool) {
 	}
 
 	p.xnest++
-	p.list(_Comma, _Rparen, func() bool {
+	p.list("argument list", _Comma, _Rparen, func() bool {
 		list = append(list, p.expr())
 		hasDots = p.got(_DotDotDot)
 		return hasDots
