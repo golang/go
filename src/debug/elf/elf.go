@@ -384,6 +384,7 @@ const (
 	EM_RISCV         Machine = 243 /* RISC-V */
 	EM_LANAI         Machine = 244 /* Lanai 32-bit processor */
 	EM_BPF           Machine = 247 /* Linux BPF – in-kernel virtual machine */
+	EM_LOONGARCH     Machine = 258 /* LoongArch */
 
 	/* Non-standard or deprecated. */
 	EM_486         Machine = 6      /* Intel i486. */
@@ -575,6 +576,7 @@ var machineStrings = []intName{
 	{243, "EM_RISCV"},
 	{244, "EM_LANAI"},
 	{247, "EM_BPF"},
+	{258, "EM_LOONGARCH"},
 
 	/* Non-standard or deprecated. */
 	{6, "EM_486"},
@@ -2149,6 +2151,118 @@ var rmipsStrings = []intName{
 
 func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, false) }
 func (i R_MIPS) GoString() string { return stringName(uint32(i), rmipsStrings, true) }
+
+// Relocation types for LARCH.
+type R_LARCH int
+
+const (
+	R_LARCH_NONE                       R_LARCH = 0
+	R_LARCH_32                         R_LARCH = 1
+	R_LARCH_64                         R_LARCH = 2
+	R_LARCH_RELATIVE                   R_LARCH = 3
+	R_LARCH_COPY                       R_LARCH = 4
+	R_LARCH_JUMP_SLOT                  R_LARCH = 5
+	R_LARCH_TLS_DTPMOD32               R_LARCH = 6
+	R_LARCH_TLS_DTPMOD64               R_LARCH = 7
+	R_LARCH_TLS_DTPREL32               R_LARCH = 8
+	R_LARCH_TLS_DTPREL64               R_LARCH = 9
+	R_LARCH_TLS_TPREL32                R_LARCH = 10
+	R_LARCH_TLS_TPREL64                R_LARCH = 11
+	R_LARCH_IRELATIVE                  R_LARCH = 12
+	R_LARCH_MARK_LA                    R_LARCH = 20
+	R_LARCH_MARK_PCREL                 R_LARCH = 21
+	R_LARCH_SOP_PUSH_PCREL             R_LARCH = 22
+	R_LARCH_SOP_PUSH_ABSOLUTE          R_LARCH = 23
+	R_LARCH_SOP_PUSH_DUP               R_LARCH = 24
+	R_LARCH_SOP_PUSH_GPREL             R_LARCH = 25
+	R_LARCH_SOP_PUSH_TLS_TPREL         R_LARCH = 26
+	R_LARCH_SOP_PUSH_TLS_GOT           R_LARCH = 27
+	R_LARCH_SOP_PUSH_TLS_GD            R_LARCH = 28
+	R_LARCH_SOP_PUSH_PLT_PCREL         R_LARCH = 29
+	R_LARCH_SOP_ASSERT                 R_LARCH = 30
+	R_LARCH_SOP_NOT                    R_LARCH = 31
+	R_LARCH_SOP_SUB                    R_LARCH = 32
+	R_LARCH_SOP_SL                     R_LARCH = 33
+	R_LARCH_SOP_SR                     R_LARCH = 34
+	R_LARCH_SOP_ADD                    R_LARCH = 35
+	R_LARCH_SOP_AND                    R_LARCH = 36
+	R_LARCH_SOP_IF_ELSE                R_LARCH = 37
+	R_LARCH_SOP_POP_32_S_10_5          R_LARCH = 38
+	R_LARCH_SOP_POP_32_U_10_12         R_LARCH = 39
+	R_LARCH_SOP_POP_32_S_10_12         R_LARCH = 40
+	R_LARCH_SOP_POP_32_S_10_16         R_LARCH = 41
+	R_LARCH_SOP_POP_32_S_10_16_S2      R_LARCH = 42
+	R_LARCH_SOP_POP_32_S_5_20          R_LARCH = 43
+	R_LARCH_SOP_POP_32_S_0_5_10_16_S2  R_LARCH = 44
+	R_LARCH_SOP_POP_32_S_0_10_10_16_S2 R_LARCH = 45
+	R_LARCH_SOP_POP_32_U               R_LARCH = 46
+	R_LARCH_ADD8                       R_LARCH = 47
+	R_LARCH_ADD16                      R_LARCH = 48
+	R_LARCH_ADD24                      R_LARCH = 49
+	R_LARCH_ADD32                      R_LARCH = 50
+	R_LARCH_ADD64                      R_LARCH = 51
+	R_LARCH_SUB8                       R_LARCH = 52
+	R_LARCH_SUB16                      R_LARCH = 53
+	R_LARCH_SUB24                      R_LARCH = 54
+	R_LARCH_SUB32                      R_LARCH = 55
+	R_LARCH_SUB64                      R_LARCH = 56
+)
+
+var rlarchStrings = []intName{
+	{0, "R_LARCH_NONE"},
+	{1, "R_LARCH_32"},
+	{2, "R_LARCH_64"},
+	{3, "R_LARCH_RELATIVE"},
+	{4, "R_LARCH_COPY"},
+	{5, "R_LARCH_JUMP_SLOT"},
+	{6, "R_LARCH_TLS_DTPMOD32"},
+	{7, "R_LARCH_TLS_DTPMOD64"},
+	{8, "R_LARCH_TLS_DTPREL32"},
+	{9, "R_LARCH_TLS_DTPREL64"},
+	{10, "R_LARCH_TLS_TPREL32"},
+	{11, "R_LARCH_TLS_TPREL64"},
+	{12, "R_LARCH_IRELATIVE"},
+	{20, "R_LARCH_MARK_LA"},
+	{21, "R_LARCH_MARK_PCREL"},
+	{22, "R_LARCH_SOP_PUSH_PCREL"},
+	{23, "R_LARCH_SOP_PUSH_ABSOLUTE"},
+	{24, "R_LARCH_SOP_PUSH_DUP"},
+	{25, "R_LARCH_SOP_PUSH_GPREL"},
+	{26, "R_LARCH_SOP_PUSH_TLS_TPREL"},
+	{27, "R_LARCH_SOP_PUSH_TLS_GOT"},
+	{28, "R_LARCH_SOP_PUSH_TLS_GD"},
+	{29, "R_LARCH_SOP_PUSH_PLT_PCREL"},
+	{30, "R_LARCH_SOP_ASSERT"},
+	{31, "R_LARCH_SOP_NOT"},
+	{32, "R_LARCH_SOP_SUB"},
+	{33, "R_LARCH_SOP_SL"},
+	{34, "R_LARCH_SOP_SR"},
+	{35, "R_LARCH_SOP_ADD"},
+	{36, "R_LARCH_SOP_AND"},
+	{37, "R_LARCH_SOP_IF_ELSE"},
+	{38, "R_LARCH_SOP_POP_32_S_10_5"},
+	{39, "R_LARCH_SOP_POP_32_U_10_12"},
+	{40, "R_LARCH_SOP_POP_32_S_10_12"},
+	{41, "R_LARCH_SOP_POP_32_S_10_16"},
+	{42, "R_LARCH_SOP_POP_32_S_10_16_S2"},
+	{43, "R_LARCH_SOP_POP_32_S_5_20"},
+	{44, "R_LARCH_SOP_POP_32_S_0_5_10_16_S2"},
+	{45, "R_LARCH_SOP_POP_32_S_0_10_10_16_S2"},
+	{46, "R_LARCH_SOP_POP_32_U"},
+	{47, "R_LARCH_ADD8"},
+	{48, "R_LARCH_ADD16"},
+	{49, "R_LARCH_ADD24"},
+	{50, "R_LARCH_ADD32"},
+	{51, "R_LARCH_ADD64"},
+	{52, "R_LARCH_SUB8"},
+	{53, "R_LARCH_SUB16"},
+	{54, "R_LARCH_SUB24"},
+	{55, "R_LARCH_SUB32"},
+	{56, "R_LARCH_SUB64"},
+}
+
+func (i R_LARCH) String() string   { return stringName(uint32(i), rlarchStrings, false) }
+func (i R_LARCH) GoString() string { return stringName(uint32(i), rlarchStrings, true) }
 
 // Relocation types for PowerPC.
 //
