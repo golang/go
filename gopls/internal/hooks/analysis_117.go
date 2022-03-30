@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !go1.15
-// +build !go1.15
+//go:build !go1.17
+// +build !go1.17
 
 package hooks
 
 import "golang.org/x/tools/internal/lsp/source"
 
-func updateAnalyzers(_ *source.Options) {}
+func updateAnalyzers(options *source.Options) {
+	options.StaticcheckSupported = false
+}

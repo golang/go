@@ -1265,7 +1265,11 @@ func main() {
 `
 
 	WithOptions(
-		EditorConfig{EnableStaticcheck: true},
+		EditorConfig{
+			Settings: map[string]interface{}{
+				"staticcheck": true,
+			},
+		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		var d protocol.PublishDiagnosticsParams

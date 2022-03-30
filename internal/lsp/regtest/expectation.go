@@ -152,12 +152,12 @@ func NoShowMessage() SimpleExpectation {
 	}
 }
 
-// ShownMessage asserts that the editor has received a ShownMessage with the
-// given title.
-func ShownMessage(title string) SimpleExpectation {
+// ShownMessage asserts that the editor has received a ShowMessageRequest
+// containing the given substring.
+func ShownMessage(containing string) SimpleExpectation {
 	check := func(s State) Verdict {
 		for _, m := range s.showMessage {
-			if strings.Contains(m.Message, title) {
+			if strings.Contains(m.Message, containing) {
 				return Met
 			}
 		}

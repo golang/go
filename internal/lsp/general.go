@@ -412,33 +412,23 @@ func (s *Server) eventuallyShowMessage(ctx context.Context, msg *protocol.ShowMe
 
 func (s *Server) handleOptionResults(ctx context.Context, results source.OptionResults) error {
 	for _, result := range results {
-		if result.Error != nil {
-			msg := &protocol.ShowMessageParams{
+		var msg *protocol.ShowMessageParams
+		switch result.Error.(type) {
+		case nil:
+			// nothing to do
+		case *source.SoftError:
+			msg = &protocol.ShowMessageParams{
+				Type:    protocol.Warning,
+				Message: result.Error.Error(),
+			}
+		default:
+			msg = &protocol.ShowMessageParams{
 				Type:    protocol.Error,
 				Message: result.Error.Error(),
 			}
-			if err := s.eventuallyShowMessage(ctx, msg); err != nil {
-				return err
-			}
 		}
-		switch result.State {
-		case source.OptionUnexpected:
-			msg := &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: fmt.Sprintf("unexpected gopls setting %q", result.Name),
-			}
+		if msg != nil {
 			if err := s.eventuallyShowMessage(ctx, msg); err != nil {
-				return err
-			}
-		case source.OptionDeprecated:
-			msg := fmt.Sprintf("gopls setting %q is deprecated", result.Name)
-			if result.Replacement != "" {
-				msg = fmt.Sprintf("%s, use %q instead", msg, result.Replacement)
-			}
-			if err := s.eventuallyShowMessage(ctx, &protocol.ShowMessageParams{
-				Type:    protocol.Warning,
-				Message: msg,
-			}); err != nil {
 				return err
 			}
 		}

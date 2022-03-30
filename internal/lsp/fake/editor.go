@@ -101,9 +101,6 @@ type EditorConfig struct {
 	// To explicitly send no workspace folders, use an empty (non-nil) slice.
 	WorkspaceFolders []string
 
-	// EnableStaticcheck enables staticcheck analyzers.
-	EnableStaticcheck bool
-
 	// AllExperiments sets the "allExperiments" configuration, which enables
 	// all of gopls's opt-in settings.
 	AllExperiments bool
@@ -257,9 +254,6 @@ func (e *Editor) configuration() map[string]interface{} {
 	}
 	if e.Config.SymbolStyle != nil {
 		config["symbolStyle"] = *e.Config.SymbolStyle
-	}
-	if e.Config.EnableStaticcheck {
-		config["staticcheck"] = true
 	}
 	if e.Config.AllExperiments {
 		config["allExperiments"] = true

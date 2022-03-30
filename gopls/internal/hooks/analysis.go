@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.15
-// +build go1.15
+//go:build go1.17
+// +build go1.17
 
 package hooks
 
@@ -18,6 +18,8 @@ import (
 )
 
 func updateAnalyzers(options *source.Options) {
+	options.StaticcheckSupported = true
+
 	mapSeverity := func(severity lint.Severity) protocol.DiagnosticSeverity {
 		switch severity {
 		case lint.SeverityError:

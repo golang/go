@@ -10,6 +10,7 @@ import (
 	"io"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -463,10 +464,20 @@ func (u *UserOptions) SetEnvSlice(env []string) {
 // Hooks contains configuration that is provided to the Gopls command by the
 // main package.
 type Hooks struct {
+	// LicensesText holds third party licenses for software used by gopls.
 	LicensesText string
-	GoDiff       bool
+
+	// TODO(rfindley): is this even necessary?
+	GoDiff bool
+
+	// Whether staticcheck is supported.
+	StaticcheckSupported bool
+
+	// ComputeEdits is used to compute edits between file versions.
 	ComputeEdits diff.ComputeEdits
-	URLRegexp    *regexp.Regexp
+
+	// URLRegexp is used to find urls in comments and strings.
+	URLRegexp *regexp.Regexp
 
 	// GofumptFormat allows the gopls module to wire-in a call to
 	// gofumpt/format.Source. langVersion and modulePath are used for some
@@ -615,9 +626,6 @@ type OptionResult struct {
 	Name  string
 	Value interface{}
 	Error error
-
-	State       OptionState
-	Replacement string
 }
 
 type OptionState int
@@ -703,11 +711,12 @@ func (o *Options) Clone() *Options {
 		ClientOptions:   o.ClientOptions,
 		InternalOptions: o.InternalOptions,
 		Hooks: Hooks{
-			GoDiff:        o.GoDiff,
-			ComputeEdits:  o.ComputeEdits,
-			GofumptFormat: o.GofumptFormat,
-			URLRegexp:     o.URLRegexp,
-			Govulncheck:   o.Govulncheck,
+			GoDiff:               o.GoDiff,
+			StaticcheckSupported: o.StaticcheckSupported,
+			ComputeEdits:         o.ComputeEdits,
+			GofumptFormat:        o.GofumptFormat,
+			URLRegexp:            o.URLRegexp,
+			Govulncheck:          o.Govulncheck,
 		},
 		ServerOptions: o.ServerOptions,
 		UserOptions:   o.UserOptions,
@@ -915,12 +924,19 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		// codelens is deprecated, but still works for now.
 		// TODO(rstambler): Remove this for the gopls/v0.7.0 release.
 		if name == "codelens" {
-			result.State = OptionDeprecated
-			result.Replacement = "codelenses"
+			result.deprecated("codelenses")
 		}
 
 	case "staticcheck":
-		result.setBool(&o.Staticcheck)
+		if v, ok := result.asBool(); ok {
+			o.Staticcheck = v
+			if v && !o.StaticcheckSupported {
+				// Warn if the user is trying to enable staticcheck, but staticcheck is
+				// unsupported.
+				result.Error = fmt.Errorf("applying setting %q: staticcheck is not supported at %s\n"+
+					"\trebuild gopls with a more recent version of Go", result.Name, runtime.Version())
+			}
+		}
 
 	case "local":
 		result.setString(&o.Local)
@@ -946,11 +962,11 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "experimentalPostfixCompletions":
 		result.setBool(&o.ExperimentalPostfixCompletions)
 
-	case "experimentalWorkspaceModule":
+	case "experimentalWorkspaceModule": // TODO(rfindley): suggest go.work on go1.18+
 		result.setBool(&o.ExperimentalWorkspaceModule)
 
-	case "experimentalTemplateSupport": // remove after June 2022
-		result.State = OptionDeprecated
+	case "experimentalTemplateSupport": // TODO(pjw): remove after June 2022
+		result.deprecated("")
 
 	case "templateExtensions":
 		if iexts, ok := value.([]interface{}); ok {
@@ -968,8 +984,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.errorf(fmt.Sprintf("unexpected type %T not []string", value))
 	case "experimentalDiagnosticsDelay", "diagnosticsDelay":
 		if name == "experimentalDiagnosticsDelay" {
-			result.State = OptionDeprecated
-			result.Replacement = "diagnosticsDelay"
+			result.deprecated("diagnosticsDelay")
 		}
 		result.setDuration(&o.DiagnosticsDelay)
 
@@ -994,48 +1009,41 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":
-		result.State = OptionDeprecated
-		result.Replacement = "analyses"
+		result.deprecated("analyses")
 
 	case "disableDeepCompletion":
-		result.State = OptionDeprecated
-		result.Replacement = "deepCompletion"
+		result.deprecated("deepCompletion")
 
 	case "disableFuzzyMatching":
-		result.State = OptionDeprecated
-		result.Replacement = "fuzzyMatching"
+		result.deprecated("fuzzyMatching")
 
 	case "wantCompletionDocumentation":
-		result.State = OptionDeprecated
-		result.Replacement = "completionDocumentation"
+		result.deprecated("completionDocumentation")
 
 	case "wantUnimportedCompletions":
-		result.State = OptionDeprecated
-		result.Replacement = "completeUnimported"
+		result.deprecated("completeUnimported")
 
 	case "fuzzyMatching":
-		result.State = OptionDeprecated
-		result.Replacement = "matcher"
+		result.deprecated("matcher")
 
 	case "caseSensitiveCompletion":
-		result.State = OptionDeprecated
-		result.Replacement = "matcher"
+		result.deprecated("matcher")
 
 	// Deprecated settings.
 	case "wantSuggestedFixes":
-		result.State = OptionDeprecated
+		result.deprecated("")
 
 	case "noIncrementalSync":
-		result.State = OptionDeprecated
+		result.deprecated("")
 
 	case "watchFileChanges":
-		result.State = OptionDeprecated
+		result.deprecated("")
 
 	case "go-diff":
-		result.State = OptionDeprecated
+		result.deprecated("")
 
 	default:
-		result.State = OptionUnexpected
+		result.unexpected()
 	}
 	return result
 }
@@ -1043,6 +1051,27 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 func (r *OptionResult) errorf(msg string, values ...interface{}) {
 	prefix := fmt.Sprintf("parsing setting %q: ", r.Name)
 	r.Error = errors.Errorf(prefix+msg, values...)
+}
+
+// A SoftError is an error that does not affect the functionality of gopls.
+type SoftError struct {
+	msg string
+}
+
+func (e *SoftError) Error() string {
+	return e.msg
+}
+
+func (r *OptionResult) deprecated(replacement string) {
+	msg := fmt.Sprintf("gopls setting %q is deprecated", r.Name)
+	if replacement != "" {
+		msg = fmt.Sprintf("%s, use %q instead", msg, replacement)
+	}
+	r.Error = &SoftError{msg}
+}
+
+func (r *OptionResult) unexpected() {
+	r.Error = fmt.Errorf("unexpected gopls setting %q", r.Name)
 }
 
 func (r *OptionResult) asBool() (bool, bool) {
