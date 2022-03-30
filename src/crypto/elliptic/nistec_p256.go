@@ -23,7 +23,7 @@ func (c p256Curve) Inverse(k *big.Int) *big.Int {
 	scalar := k.FillBytes(make([]byte, 32))
 	inverse, err := nistec.P256OrdInverse(scalar)
 	if err != nil {
-		panic("elliptic: nistec rejected normalized scalar")
+		panic("crypto/elliptic: nistec rejected normalized scalar")
 	}
 	return new(big.Int).SetBytes(inverse)
 }

@@ -61,7 +61,13 @@ func TestOffCurve(t *testing.T) {
 		if curve.IsOnCurve(x, y) {
 			t.Errorf("point off curve is claimed to be on the curve")
 		}
-		b := Marshal(curve, x, y)
+
+		byteLen := (curve.Params().BitSize + 7) / 8
+		b := make([]byte, 1+2*byteLen)
+		b[0] = 4 // uncompressed point
+		x.FillBytes(b[1 : 1+byteLen])
+		y.FillBytes(b[1+byteLen : 1+2*byteLen])
+
 		x1, y1 := Unmarshal(curve, b)
 		if x1 != nil || y1 != nil {
 			t.Errorf("unmarshaling a point not on the curve succeeded")

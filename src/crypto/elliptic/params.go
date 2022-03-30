@@ -97,6 +97,8 @@ func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	if specific, ok := matchesSpecificCurve(curve); ok {
 		return specific.Add(x1, y1, x2, y2)
 	}
+	panicIfNotOnCurve(curve, x1, y1)
+	panicIfNotOnCurve(curve, x2, y2)
 
 	z1 := zForAffine(x1, y1)
 	z2 := zForAffine(x2, y2)
@@ -187,6 +189,7 @@ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	if specific, ok := matchesSpecificCurve(curve); ok {
 		return specific.Double(x1, y1)
 	}
+	panicIfNotOnCurve(curve, x1, y1)
 
 	z1 := zForAffine(x1, y1)
 	return curve.affineFromJacobian(curve.doubleJacobian(x1, y1, z1))
@@ -259,6 +262,7 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
 	if specific, ok := matchesSpecificCurve(curve); ok {
 		return specific.ScalarMult(Bx, By, k)
 	}
+	panicIfNotOnCurve(curve, Bx, By)
 
 	Bz := new(big.Int).SetInt64(1)
 	x, y, z := new(big.Int), new(big.Int), new(big.Int)
