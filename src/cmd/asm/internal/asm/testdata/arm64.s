@@ -1627,4 +1627,6 @@ again:
 	MSR	R13, ZCR_EL1                       // 0d1218d5
 	MRS	ZCR_EL1, R23                       // 171238d5
 	MSR	R17, ZCR_EL1                       // 111218d5
+	SYS	$32768, R1                         // 018008d5
+	SYS	$32768                             // 1f8008d5
 	END
