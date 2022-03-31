@@ -89,6 +89,18 @@ Do not send CLs removing the interior tags from such phrases.
       Please report any such problems on <a href="/issue/new">the
       issue tracker</a>.
     </p>
+
+    <p><!-- CL 396877 -->
+      When a net package function or method returns an "I/O timeout"
+      error, the error will now satisfy <code>errors.Is(err,
+      context.Canceled)</code>.  When a net package function returns
+      an "operation was canceled" error, the error will now satisfy
+      <code>errors.Is(err, context.DeadlineExceeded)</code>.
+      These changes are intended to make it easier for code to test
+      for cases in which a context cancelation or timeout causes a net
+      package function or method to return an error, while preserving
+      backward compatibility for error messages.
+    </p>
   </dd>
 </dl><!-- net -->
 
