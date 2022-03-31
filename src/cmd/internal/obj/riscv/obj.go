@@ -1806,6 +1806,11 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 	ins := instructionForProg(p)
 	inss := []*instruction{ins}
 
+	if p.Reg != 0 {
+		p.Ctxt.Diag("%v: illegal MOV instruction", p)
+		return nil
+	}
+
 	switch {
 	case p.From.Type == obj.TYPE_CONST && p.To.Type == obj.TYPE_REG:
 		// Handle constant to register moves.
