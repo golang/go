@@ -1189,11 +1189,18 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 
 // JoinPath returns a new URL with the provided path elements joined to
 // any existing path and the resulting path cleaned of any ./ or ../ elements.
+// Any sequences of multiple / characters will be reduced to a single /.
 func (u *URL) JoinPath(elem ...string) *URL {
 	url := *u
 	if len(elem) > 0 {
 		elem = append([]string{u.Path}, elem...)
-		url.setPath(path.Join(elem...))
+		p := path.Join(elem...)
+		// path.Join will remove any trailing slashes.
+		// Preserve at least one.
+		if strings.HasSuffix(elem[len(elem)-1], "/") && !strings.HasSuffix(p, "/") {
+			p += "/"
+		}
+		url.setPath(p)
 	}
 	return &url
 }
