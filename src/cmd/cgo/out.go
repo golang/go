@@ -1399,6 +1399,19 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 	case *ast.ChanType:
 		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoChan")}
 	case *ast.Ident:
+		goTypesFixup := func(r *Type) *Type {
+			if r.Size == 0 { // int or uint
+				rr := new(Type)
+				*rr = *r
+				rr.Size = p.IntSize
+				rr.Align = p.IntSize
+				r = rr
+			}
+			if r.Align > p.PtrSize {
+				r.Align = p.PtrSize
+			}
+			return r
+		}
 		// Look up the type in the top level declarations.
 		// TODO: Handle types defined within a function.
 		for _, d := range p.Decl {
@@ -1417,6 +1430,17 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			}
 		}
 		if def := typedef[t.Name]; def != nil {
+			if defgo, ok := def.Go.(*ast.Ident); ok {
+				switch defgo.Name {
+				case "complex64", "complex128":
+					// MSVC does not support the _Complex keyword
+					// nor the complex macro.
+					// Use GoComplex64 and GoComplex128 instead,
+					// which are typedef-ed to a compatible type.
+					// See go.dev/issues/36233.
+					return goTypesFixup(goTypes[defgo.Name])
+				}
+			}
 			return def
 		}
 		if t.Name == "uintptr" {
@@ -1430,17 +1454,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
 		}
 		if r, ok := goTypes[t.Name]; ok {
-			if r.Size == 0 { // int or uint
-				rr := new(Type)
-				*rr = *r
-				rr.Size = p.IntSize
-				rr.Align = p.IntSize
-				r = rr
-			}
-			if r.Align > p.PtrSize {
-				r.Align = p.PtrSize
-			}
-			return r
+			return goTypesFixup(r)
 		}
 		error_(e.Pos(), "unrecognized Go type %s", t.Name)
 		return &Type{Size: 4, Align: 4, C: c("int")}
@@ -1895,8 +1909,14 @@ typedef GoUintGOINTBITS GoUint;
 typedef size_t GoUintptr;
 typedef float GoFloat32;
 typedef double GoFloat64;
+#ifdef _MSC_VER
+#include <complex.h>
+typedef _Fcomplex GoComplex64;
+typedef _Dcomplex GoComplex128;
+#else
 typedef float _Complex GoComplex64;
 typedef double _Complex GoComplex128;
+#endif
 
 /*
   static assertion to make sure the file is being used on architecture
