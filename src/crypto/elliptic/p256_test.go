@@ -136,3 +136,17 @@ func TestP256CombinedMult(t *testing.T) {
 		t.Errorf("1×G + (-1)×G = (%d, %d), should be ∞", x, y)
 	}
 }
+
+func TestIssue52075(t *testing.T) {
+	Gx, Gy := P256().Params().Gx, P256().Params().Gy
+	scalar := make([]byte, 33)
+	scalar[32] = 1
+	x, y := P256().ScalarBaseMult(scalar)
+	if x.Cmp(Gx) != 0 || y.Cmp(Gy) != 0 {
+		t.Errorf("unexpected output (%v,%v)", x, y)
+	}
+	x, y = P256().ScalarMult(Gx, Gy, scalar)
+	if x.Cmp(Gx) != 0 || y.Cmp(Gy) != 0 {
+		t.Errorf("unexpected output (%v,%v)", x, y)
+	}
+}
