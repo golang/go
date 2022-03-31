@@ -413,15 +413,20 @@ var (
 	errMissingAddress = errors.New("missing address")
 
 	// For both read and write operations.
-	errCanceled         = errors.New("operation was canceled")
+	errCanceled         = canceledError{}
 	ErrWriteToConnected = errors.New("use of WriteTo with pre-connected connection")
 )
 
+// canceledError lets us return the same error string we have always
+// returned, while still being Is context.Canceled.
+type canceledError struct{}
+
+func (canceledError) Error() string { return "operation was canceled" }
+
+func (canceledError) Is(err error) bool { return err == context.Canceled }
+
 // mapErr maps from the context errors to the historical internal net
 // error values.
-//
-// TODO(bradfitz): get rid of this after adjusting tests and making
-// context.DeadlineExceeded implement net.Error?
 func mapErr(err error) error {
 	switch err {
 	case context.Canceled:
@@ -580,10 +585,12 @@ func (e InvalidAddrError) Temporary() bool { return false }
 // errTimeout exists to return the historical "i/o timeout" string
 // for context.DeadlineExceeded. See mapErr.
 // It is also used when Dialer.Deadline is exceeded.
+// error.Is(errTimeout, context.DeadlineExceeded) returns true.
 //
 // TODO(iant): We could consider changing this to os.ErrDeadlineExceeded
-// in the future, but note that that would conflict with the TODO
-// at mapErr that suggests changing it to context.DeadlineExceeded.
+// in the future, if we make
+//   errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
+// return true.
 var errTimeout error = &timeoutError{}
 
 type timeoutError struct{}
@@ -591,6 +598,10 @@ type timeoutError struct{}
 func (e *timeoutError) Error() string   { return "i/o timeout" }
 func (e *timeoutError) Timeout() bool   { return true }
 func (e *timeoutError) Temporary() bool { return true }
+
+func (e *timeoutError) Is(err error) bool {
+	return err == context.DeadlineExceeded
+}
 
 // DNSConfigError represents an error reading the machine's DNS configuration.
 // (No longer used; kept for compatibility.)

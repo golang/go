@@ -795,3 +795,12 @@ func parseLookupPortError(nestedErr error) error {
 	}
 	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
 }
+
+func TestContextError(t *testing.T) {
+	if !errors.Is(errCanceled, context.Canceled) {
+		t.Error("errCanceled is not context.Canceled")
+	}
+	if !errors.Is(errTimeout, context.DeadlineExceeded) {
+		t.Error("errTimeout is not context.DeadlineExceeded")
+	}
+}
