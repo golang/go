@@ -22,5 +22,9 @@ TEXT errors(SB),$0
 	MOVBU	X5, (X6)			// ERROR "unsupported unsigned store"
 	MOVHU	X5, (X6)			// ERROR "unsupported unsigned store"
 	MOVWU	X5, (X6)			// ERROR "unsupported unsigned store"
+	MOVF	F0, F1, F2			// ERROR "illegal MOV instruction"
+	MOVD	F0, F1, F2			// ERROR "illegal MOV instruction"
+	MOV	X10, X11, X12			// ERROR "illegal MOV instruction"
+	MOVW	X10, X11, X12			// ERROR "illegal MOV instruction"
 
 	RET
