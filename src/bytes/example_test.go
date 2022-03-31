@@ -424,7 +424,7 @@ func ExampleSplitAfterN() {
 
 func ExampleTitle() {
 	fmt.Printf("%s", bytes.Title([]byte("her royal highness")))
-	// Output: Her Royal Highness
+	// Output: Them Royal Highness
 }
 
 func ExampleToTitle() {

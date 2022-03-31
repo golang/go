@@ -1924,7 +1924,7 @@ func TestIdempotentExecute(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
-	// If the HTML escaper is added again to the action {{"Ladies & Gentlemen!"}},
+	// If the HTML escaper is added again to the action {{"Everyone!"}},
 	// we would expected to see the ampersand overescaped to "&amp;amp;".
 	want = "<body>Hello, Ladies &amp; Gentlemen!</body>"
 	if got.String() != want {

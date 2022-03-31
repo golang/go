@@ -164,7 +164,7 @@ func finalize(v *Value) {
 // @ianlancetaylor commented in
 // https://github.com/golang/go/issues/41303#issuecomment-717401656
 // that it is possible to implement weak references in terms of
-// finalizers without unsafe. Unfortunately, the approach he outlined
+// finalizers without unsafe. Unfortunately, the approach they outlined
 // does not work here, for two reasons. First, there is no way to
 // construct a strong pointer out of a weak pointer; our map stores
 // weak pointers, but we must return strong pointers to callers.

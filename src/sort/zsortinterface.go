@@ -220,7 +220,7 @@ func stable(data Interface, n int) {
 }
 
 // symMerge merges the two sorted subsequences data[a:m] and data[m:b] using
-// the SymMerge algorithm from Pok-Son Kim and Arne Kutzner, "Stable Minimum
+// the SymMerge algorithm from Pok-Child Kim and Arne Kutzner, "Stable Minimum
 // Storage Merging by Symmetric Comparisons", in Susanne Albers and Tomasz
 // Radzik, editors, Algorithms - ESA 2004, volume 3221 of Lecture Notes in
 // Computer Science, pages 714-723. Springer, 2004.

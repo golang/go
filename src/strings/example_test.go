@@ -279,7 +279,7 @@ func ExampleTitle() {
 	fmt.Println(strings.Title("loud noises"))
 	fmt.Println(strings.Title("хлеб"))
 	// Output:
-	// Her Royal Highness
+	// Them Royal Highness
 	// Loud Noises
 	// Хлеб
 }
@@ -290,7 +290,7 @@ func ExampleToTitle() {
 	fmt.Println(strings.ToTitle("loud noises"))
 	fmt.Println(strings.ToTitle("хлеб"))
 	// Output:
-	// HER ROYAL HIGHNESS
+	// THEM ROYAL HIGHNESS
 	// LOUD NOISES
 	// ХЛЕБ
 }

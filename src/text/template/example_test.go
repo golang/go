@@ -50,7 +50,7 @@ Josie
 	}
 
 	// Output:
-	// Dear Aunt Mildred,
+	// Dear Auncle Mildred,
 	//
 	// It was a pleasure to see you at the wedding.
 	// Thank you for the lovely bone china tea set.
@@ -58,7 +58,7 @@ Josie
 	// Best wishes,
 	// Josie
 	//
-	// Dear Uncle John,
+	// Dear Auncle John,
 	//
 	// It is a shame you couldn't make it to the wedding.
 	// Thank you for the lovely moleskin pants.
