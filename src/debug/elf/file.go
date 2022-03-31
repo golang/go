@@ -325,6 +325,13 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		shstrndx = int(hdr.Shstrndx)
 	}
 
+	if shoff < 0 {
+		return nil, &FormatError{0, "invalid shoff", shoff}
+	}
+	if phoff < 0 {
+		return nil, &FormatError{0, "invalid phoff", phoff}
+	}
+
 	if shoff == 0 && shnum != 0 {
 		return nil, &FormatError{0, "invalid ELF shnum for shoff=0", shnum}
 	}
@@ -418,6 +425,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				Addralign: sh.Addralign,
 				Entsize:   sh.Entsize,
 			}
+		}
+		if int64(s.Offset) < 0 {
+			return nil, &FormatError{off, "invalid section offset", int64(s.Offset)}
+		}
+		if int64(s.FileSize) < 0 {
+			return nil, &FormatError{off, "invalid section size", int64(s.FileSize)}
 		}
 		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.FileSize))
 
