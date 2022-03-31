@@ -90,4 +90,14 @@ Do not send CLs removing the interior tags from such phrases.
       issue tracker</a>.
     </p>
   </dd>
-</dl>
+</dl><!-- net -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 397255 -->
+      <a href="/pkg/strconv/#strconv.Quote"><code>strconv.Quote</code></a>
+      and related functions now quote the rune 007F as <code>\x7f</code>,
+      not <code>\u007f</code>.
+    </p>
+  </dd>
+</dl><!-- strconv -->

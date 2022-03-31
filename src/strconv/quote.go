@@ -99,7 +99,7 @@ func appendEscapedRune(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly bo
 		buf = append(buf, `\v`...)
 	default:
 		switch {
-		case r < ' ':
+		case r < ' ' || r == 0x7f:
 			buf = append(buf, `\x`...)
 			buf = append(buf, lowerhex[byte(r)>>4])
 			buf = append(buf, lowerhex[byte(r)&0xF])
