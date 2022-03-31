@@ -76,6 +76,19 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section
 </p>
+
+<dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
+  <dd>
+    <p><!-- CL 396795 -->
+      <code>Draw</code> with the <code>Src</code> operator preserves
+      non-premultiplied-alpha colors when destination and source images are
+      both <code>*image.NRGBA</code> (or both <code>*image.NRGBA64</code>).
+      This reverts a behavior change accidentally introduced by a Go 1.18
+      library optimization, to match the behavior in Go 1.17 and earlier.
+    </p>
+  </dd>
+</dl><!-- image/draw -->
+
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 386016 -->

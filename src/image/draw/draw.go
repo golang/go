@@ -121,6 +121,11 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 
 	// Fast paths for special cases. If none of them apply, then we fall back
 	// to general but slower implementations.
+	//
+	// For NRGBA and NRGBA64 image types, the code paths aren't just faster.
+	// They also avoid the information loss that would otherwise occur from
+	// converting non-alpha-premultiplied color to and from alpha-premultiplied
+	// color. See TestDrawSrcNonpremultiplied.
 	switch dst0 := dst.(type) {
 	case *image.RGBA:
 		if op == Over {
@@ -181,7 +186,10 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 					drawFillSrc(dst0, r, sr, sg, sb, sa)
 					return
 				case *image.RGBA:
-					drawCopySrc(dst0, r, src0, sp)
+					d0 := dst0.PixOffset(r.Min.X, r.Min.Y)
+					s0 := src0.PixOffset(sp.X, sp.Y)
+					drawCopySrc(
+						dst0.Pix[d0:], dst0.Stride, r, src0.Pix[s0:], src0.Stride, sp, 4*r.Dx())
 					return
 				case *image.NRGBA:
 					drawNRGBASrc(dst0, r, src0, sp)
@@ -219,6 +227,26 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 				return
 			} else if !processBackward(dst, r, src, sp) {
 				drawPaletted(dst0, r, src, sp, false)
+				return
+			}
+		}
+	case *image.NRGBA:
+		if op == Src && mask == nil {
+			if src0, ok := src.(*image.NRGBA); ok {
+				d0 := dst0.PixOffset(r.Min.X, r.Min.Y)
+				s0 := src0.PixOffset(sp.X, sp.Y)
+				drawCopySrc(
+					dst0.Pix[d0:], dst0.Stride, r, src0.Pix[s0:], src0.Stride, sp, 4*r.Dx())
+				return
+			}
+		}
+	case *image.NRGBA64:
+		if op == Src && mask == nil {
+			if src0, ok := src.(*image.NRGBA64); ok {
+				d0 := dst0.PixOffset(r.Min.X, r.Min.Y)
+				s0 := src0.PixOffset(sp.X, sp.Y)
+				drawCopySrc(
+					dst0.Pix[d0:], dst0.Stride, r, src0.Pix[s0:], src0.Stride, sp, 8*r.Dx())
 				return
 			}
 		}
@@ -449,27 +477,28 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 	}
 }
 
-func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
-	n, dy := 4*r.Dx(), r.Dy()
-	d0 := dst.PixOffset(r.Min.X, r.Min.Y)
-	s0 := src.PixOffset(sp.X, sp.Y)
-	var ddelta, sdelta int
-	if r.Min.Y <= sp.Y {
-		ddelta = dst.Stride
-		sdelta = src.Stride
-	} else {
+// drawCopySrc copies bytes to dstPix from srcPix. These arguments roughly
+// correspond to the Pix fields of the image package's concrete image.Image
+// implementations, but are offset (dstPix is dst.Pix[dpOffset:] not dst.Pix).
+func drawCopySrc(
+	dstPix []byte, dstStride int, r image.Rectangle,
+	srcPix []byte, srcStride int, sp image.Point,
+	bytesPerRow int) {
+
+	d0, s0, ddelta, sdelta, dy := 0, 0, dstStride, srcStride, r.Dy()
+	if r.Min.Y > sp.Y {
 		// If the source start point is higher than the destination start
 		// point, then we compose the rows in bottom-up order instead of
 		// top-down. Unlike the drawCopyOver function, we don't have to check
 		// the x coordinates because the built-in copy function can handle
 		// overlapping slices.
-		d0 += (dy - 1) * dst.Stride
-		s0 += (dy - 1) * src.Stride
-		ddelta = -dst.Stride
-		sdelta = -src.Stride
+		d0 = (dy - 1) * dstStride
+		s0 = (dy - 1) * srcStride
+		ddelta = -dstStride
+		sdelta = -srcStride
 	}
 	for ; dy > 0; dy-- {
-		copy(dst.Pix[d0:d0+n], src.Pix[s0:s0+n])
+		copy(dstPix[d0:d0+bytesPerRow], srcPix[s0:s0+bytesPerRow])
 		d0 += ddelta
 		s0 += sdelta
 	}

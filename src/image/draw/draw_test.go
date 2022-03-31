@@ -622,6 +622,70 @@ func TestFill(t *testing.T) {
 	}
 }
 
+func TestDrawSrcNonpremultiplied(t *testing.T) {
+	var (
+		opaqueGray       = color.NRGBA{0x99, 0x99, 0x99, 0xff}
+		transparentBlue  = color.NRGBA{0x00, 0x00, 0xff, 0x00}
+		transparentGreen = color.NRGBA{0x00, 0xff, 0x00, 0x00}
+		transparentRed   = color.NRGBA{0xff, 0x00, 0x00, 0x00}
+
+		opaqueGray64        = color.NRGBA64{0x9999, 0x9999, 0x9999, 0xffff}
+		transparentPurple64 = color.NRGBA64{0xfedc, 0x0000, 0x7654, 0x0000}
+	)
+
+	// dst and src are 1x3 images but the dr rectangle (and hence the overlap)
+	// is only 1x2. The Draw call should affect dst's pixels at (1, 10) and (2,
+	// 10) but the pixel at (0, 10) should be untouched.
+	//
+	// The src image is entirely transparent (and the Draw operator is Src) so
+	// the two touched pixels should be set to transparent colors.
+	//
+	// In general, Go's color.Color type (and specifically the Color.RGBA
+	// method) works in premultiplied alpha, where there's no difference
+	// between "transparent blue" and "transparent red". It's all "just
+	// transparent" and canonically "transparent black" (all zeroes).
+	//
+	// However, since the operator is Src (so the pixels are 'copied', not
+	// 'blended') and both dst and src images are *image.NRGBA (N stands for
+	// Non-premultiplied alpha which *does* distinguish "transparent blue" and
+	// "transparent red"), we prefer that this distinction carries through and
+	// dst's touched pixels should be transparent blue and transparent green,
+	// not just transparent black.
+	{
+		dst := image.NewNRGBA(image.Rect(0, 10, 3, 11))
+		dst.SetNRGBA(0, 10, opaqueGray)
+		src := image.NewNRGBA(image.Rect(1, 20, 4, 21))
+		src.SetNRGBA(1, 20, transparentBlue)
+		src.SetNRGBA(2, 20, transparentGreen)
+		src.SetNRGBA(3, 20, transparentRed)
+
+		dr := image.Rect(1, 10, 3, 11)
+		Draw(dst, dr, src, image.Point{1, 20}, Src)
+
+		if got, want := dst.At(0, 10), opaqueGray; got != want {
+			t.Errorf("At(0, 10):\ngot  %#v\nwant %#v", got, want)
+		}
+		if got, want := dst.At(1, 10), transparentBlue; got != want {
+			t.Errorf("At(1, 10):\ngot  %#v\nwant %#v", got, want)
+		}
+		if got, want := dst.At(2, 10), transparentGreen; got != want {
+			t.Errorf("At(2, 10):\ngot  %#v\nwant %#v", got, want)
+		}
+	}
+
+	// Check image.NRGBA64 (not image.NRGBA) similarly.
+	{
+		dst := image.NewNRGBA64(image.Rect(0, 0, 1, 1))
+		dst.SetNRGBA64(0, 0, opaqueGray64)
+		src := image.NewNRGBA64(image.Rect(0, 0, 1, 1))
+		src.SetNRGBA64(0, 0, transparentPurple64)
+		Draw(dst, dst.Bounds(), src, image.Point{0, 0}, Src)
+		if got, want := dst.At(0, 0), transparentPurple64; got != want {
+			t.Errorf("At(0, 0):\ngot  %#v\nwant %#v", got, want)
+		}
+	}
+}
+
 // TestFloydSteinbergCheckerboard tests that the result of Floyd-Steinberg
 // error diffusion of a uniform 50% gray source image with a black-and-white
 // palette is a checkerboard pattern.
