@@ -6,6 +6,7 @@ package pe
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 )
 
@@ -17,6 +18,13 @@ type testpoint struct {
 }
 
 func TestReadCOFFSymbolAuxInfo(t *testing.T) {
+
+	switch runtime.GOARCH {
+	case "mips", "mips64", "ppc64", "s390x":
+		t.Skipf("Skipping on %s (big endian) until issue #52079 fixed",
+			runtime.GOARCH)
+	}
+
 	testpoints := map[int]testpoint{
 		39: testpoint{
 			name:   ".rdata$.refptr.__native_startup_lock",
