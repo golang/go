@@ -34,7 +34,7 @@ func FuzzParseBuildInfoRoundTrip(f *testing.F) {
 	f.Add(strip(`
 		go	1.18
 		path	example.com/m
-		mod	example.com/m	(devel)	
+		mod	example.com/m	(devel)
 		build	-compiler=gc
 		`))
 

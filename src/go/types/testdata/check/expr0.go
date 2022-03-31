@@ -4,7 +4,7 @@
 
 // unary expressions
 
-package expr0 
+package expr0
 
 type mybool bool
 

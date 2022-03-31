@@ -89,7 +89,7 @@ string("has extra newline")`,
 			desc: "trailing spaces",
 			in: `go test fuzz v1
 string("extra")
-[]byte("spacing")  
+[]byte("spacing")
     `,
 			want: `go test fuzz v1
 string("extra")

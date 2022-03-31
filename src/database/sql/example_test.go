@@ -97,7 +97,7 @@ from
 ;
 
 -- Second result set.
-select 
+select
 	ur.user, ur.role
 from
 	user_roles as ur

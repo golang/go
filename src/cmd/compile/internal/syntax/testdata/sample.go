@@ -21,7 +21,7 @@ package p
 //  ERROR foo
 
 // This is a valid error comment; it applies to the
-// immediately following token. 
+// immediately following token.
 import "math" /* ERROR unexpected comma */ ,
 
 // If there are multiple /*-style error comments before

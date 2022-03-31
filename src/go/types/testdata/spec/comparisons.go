@@ -40,7 +40,7 @@ func _() {
 	_ = m /* ERROR map can only be compared to nil */ == m
 	_ = c == c
 
-	_ = b /* ERROR mismatched types */ == nil 
+	_ = b /* ERROR mismatched types */ == nil
 	_ = a /* ERROR mismatched types */ == nil
 	_ = l == nil
 	_ = s /* ERROR mismatched types */ == nil

@@ -12,19 +12,19 @@ import (
 var matchPatternTests = `
 	pattern ...
 	match foo
-	
+
 	pattern net
 	match net
 	not net/http
-	
+
 	pattern net/http
 	match net/http
 	not net
-	
+
 	pattern net...
 	match net net/http netchan
 	not not/http not/net/http
-	
+
 	# Special cases. Quoting docs:
 
 	# First, /... at the end of the pattern can match an empty string,
@@ -43,23 +43,23 @@ var matchPatternTests = `
 	pattern ./...
 	match ./vendor ./mycode/vendor
 	not ./vendor/foo ./mycode/vendor/foo
-	
+
 	pattern ./vendor/...
 	match ./vendor/foo ./vendor/foo/vendor
 	not ./vendor/foo/vendor/bar
-	
+
 	pattern mycode/vendor/...
 	match mycode/vendor mycode/vendor/foo mycode/vendor/foo/vendor
 	not mycode/vendor/foo/vendor/bar
-	
+
 	pattern x/vendor/y
 	match x/vendor/y
 	not x/vendor
-	
+
 	pattern x/vendor/y/...
 	match x/vendor/y x/vendor/y/z x/vendor/y/vendor x/vendor/y/z/vendor
 	not x/vendor/y/vendor/z
-	
+
 	pattern .../vendor/...
 	match x/vendor/y x/vendor/y/z x/vendor/y/vendor x/vendor/y/z/vendor
 `
@@ -73,14 +73,14 @@ func TestMatchPattern(t *testing.T) {
 var treeCanMatchPatternTests = `
 	pattern ...
 	match foo
-	
+
 	pattern net
 	match net
 	not net/http
-	
+
 	pattern net/http
 	match net net/http
-	
+
 	pattern net...
 	match net netchan net/http
 	not not/http not/net/http
@@ -88,18 +88,18 @@ var treeCanMatchPatternTests = `
 	pattern net/...
 	match net net/http
 	not not/http netchan
-	
+
 	pattern abc.../def
 	match abcxyz
 	not xyzabc
-	
+
 	pattern x/y/z/...
 	match x x/y x/y/z x/y/z/w
-	
+
 	pattern x/y/z
 	match x x/y x/y/z
 	not x/y/z/w
-	
+
 	pattern x/.../y/z
 	match x/a/b/c
 	not y/x/a/b/c
