@@ -644,6 +644,19 @@ replace a.com => %s/moda/a
 	})
 }
 
+// TestBadGoWork exercises the panic from golang/vscode-go#2121.
+func TestBadGoWork(t *testing.T) {
+	const files = `
+-- go.work --
+use ./bar
+-- bar/go.mod --
+module example.com/bar
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.work")
+	})
+}
+
 func TestUseGoWork(t *testing.T) {
 	// This test validates certain functionality related to using a go.work
 	// file to specify workspace modules.
