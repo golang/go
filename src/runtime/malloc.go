@@ -413,7 +413,12 @@ func mallocinit() {
 	mheap_.init()
 	mcache0 = allocmcache()
 	lockInit(&gcBitsArenas.lock, lockRankGcBitsArenas)
-	lockInit(&proflock, lockRankProf)
+	lockInit(&profInsertLock, lockRankProfInsert)
+	lockInit(&profBlockLock, lockRankProfBlock)
+	lockInit(&profMemActiveLock, lockRankProfMemActive)
+	for i := range profMemFutureLock {
+		lockInit(&profMemFutureLock[i], lockRankProfMemFuture)
+	}
 	lockInit(&globalAlloc.mutex, lockRankGlobalAlloc)
 
 	// Create initial arena growth hints.
