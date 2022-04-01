@@ -101,7 +101,7 @@ const (
 
 // heapRetained returns an estimate of the current heap RSS.
 func heapRetained() uint64 {
-	return memstats.heapInUse.load() + memstats.heapFree.load()
+	return gcController.heapInUse.load() + gcController.heapFree.load()
 }
 
 // gcPaceScavenger updates the scavenger's pacing, particularly
@@ -611,8 +611,8 @@ func printScavTrace(gen uint32, released uintptr, forced bool) {
 	printlock()
 	print("scav ", gen, " ",
 		released>>10, " KiB work, ",
-		memstats.heapReleased.load()>>10, " KiB total, ",
-		(memstats.heapInUse.load()*100)/heapRetained(), "% util",
+		gcController.heapReleased.load()>>10, " KiB total, ",
+		(gcController.heapInUse.load()*100)/heapRetained(), "% util",
 	)
 	if forced {
 		print(" (forced)")
@@ -913,8 +913,8 @@ func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr 
 		// Update global accounting only when not in test, otherwise
 		// the runtime's accounting will be wrong.
 		nbytes := int64(npages) * pageSize
-		memstats.heapReleased.add(nbytes)
-		memstats.heapFree.add(-nbytes)
+		gcController.heapReleased.add(nbytes)
+		gcController.heapFree.add(-nbytes)
 
 		// Update consistent accounting too.
 		stats := memstats.heapStats.acquire()

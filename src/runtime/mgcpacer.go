@@ -355,6 +355,20 @@ type gcControllerState struct {
 	// If this is zero, no fractional workers are needed.
 	fractionalUtilizationGoal float64
 
+	// These memory stats are effectively duplicates of fields from
+	// memstats.heapStats but are updated atomically or with the world
+	// stopped and don't provide the same consistency guarantees.
+	//
+	// Because the runtime is responsible for managing a memory limit, it's
+	// useful to couple these stats more tightly to the gcController, which
+	// is intimately connected to how that memory limit is maintained.
+	heapInUse    sysMemStat    // bytes in mSpanInUse spans
+	heapReleased sysMemStat    // bytes released to the OS
+	heapFree     sysMemStat    // bytes not in any span, but not released to the OS
+	totalAlloc   atomic.Uint64 // total bytes allocated
+	totalFree    atomic.Uint64 // total bytes freed
+	mappedReady  atomic.Uint64 // total virtual memory in the Ready state (see mem.go).
+
 	// test indicates that this is a test-only copy of gcControllerState.
 	test bool
 

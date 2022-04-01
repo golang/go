@@ -566,7 +566,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 
 	// First, try the arena pre-reservation.
 	// Newly-used mappings are considered released.
-	v = h.arena.alloc(n, heapArenaBytes, &memstats.heapReleased)
+	v = h.arena.alloc(n, heapArenaBytes, &gcController.heapReleased)
 	if v != nil {
 		size = n
 		goto mapped

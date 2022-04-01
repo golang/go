@@ -47,7 +47,7 @@ import "unsafe"
 //go:nosplit
 func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	sysStat.add(int64(n))
-	memstats.mappedReady.Add(int64(n))
+	gcController.mappedReady.Add(int64(n))
 	return sysAllocOS(n)
 }
 
@@ -57,7 +57,7 @@ func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
 // sysUnused memory region are considered forfeit and the region must not be
 // accessed again until sysUsed is called.
 func sysUnused(v unsafe.Pointer, n uintptr) {
-	memstats.mappedReady.Add(-int64(n))
+	gcController.mappedReady.Add(-int64(n))
 	sysUnusedOS(v, n)
 }
 
@@ -72,7 +72,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 // Prepared and Ready memory. However, the caller must provide the exact amout
 // of Prepared memory for accounting purposes.
 func sysUsed(v unsafe.Pointer, n, prepared uintptr) {
-	memstats.mappedReady.Add(int64(prepared))
+	gcController.mappedReady.Add(int64(prepared))
 	sysUsedOS(v, n)
 }
 
@@ -97,7 +97,7 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
 //go:nosplit
 func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
 	sysStat.add(-int64(n))
-	memstats.mappedReady.Add(-int64(n))
+	gcController.mappedReady.Add(-int64(n))
 	sysFreeOS(v, n)
 }
 
@@ -111,7 +111,7 @@ func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
 // If a transition from Prepared is ever introduced, create a new function
 // that elides the Ready state accounting.
 func sysFault(v unsafe.Pointer, n uintptr) {
-	memstats.mappedReady.Add(-int64(n))
+	gcController.mappedReady.Add(-int64(n))
 	sysFaultOS(v, n)
 }
 

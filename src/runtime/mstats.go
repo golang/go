@@ -12,33 +12,9 @@ import (
 	"unsafe"
 )
 
-// Statistics.
-//
-// For detailed descriptions see the documentation for MemStats.
-// Fields that differ from MemStats are further documented here.
-//
-// Many of these fields are updated on the fly, while others are only
-// updated when updatememstats is called.
 type mstats struct {
-	// Total virtual memory in the Ready state (see mem.go).
-	mappedReady atomic.Uint64
-
 	// Statistics about malloc heap.
-
 	heapStats consistentHeapStats
-
-	// These stats are effectively duplicates of fields from heapStats
-	// but are updated atomically or with the world stopped and don't
-	// provide the same consistency guarantees. They are used internally
-	// by the runtime.
-	//
-	// Like MemStats, heapInUse does not count memory in manually-managed
-	// spans.
-	heapInUse    sysMemStat    // bytes in mSpanInUse spans
-	heapReleased sysMemStat    // bytes released to the OS
-	heapFree     sysMemStat    // bytes not in any span, but not released to the OS
-	totalAlloc   atomic.Uint64 // total bytes allocated
-	totalFree    atomic.Uint64 // total bytes freed
 
 	// Statistics about stacks.
 	stacks_sys sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
@@ -454,7 +430,7 @@ func readmemstats_m(stats *MemStats) {
 	gcWorkBufInUse := uint64(consStats.inWorkBufs)
 	gcProgPtrScalarBitsInUse := uint64(consStats.inPtrScalarBits)
 
-	totalMapped := memstats.heapInUse.load() + memstats.heapFree.load() + memstats.heapReleased.load() +
+	totalMapped := gcController.heapInUse.load() + gcController.heapFree.load() + gcController.heapReleased.load() +
 		memstats.stacks_sys.load() + memstats.mspan_sys.load() + memstats.mcache_sys.load() +
 		memstats.buckhash_sys.load() + memstats.gcMiscSys.load() + memstats.other_sys.load() +
 		stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
@@ -473,38 +449,38 @@ func readmemstats_m(stats *MemStats) {
 	// TODO(mknyszek): Maybe don't throw here. It would be bad if a
 	// bug in otherwise benign accounting caused the whole application
 	// to crash.
-	if memstats.heapInUse.load() != uint64(consStats.inHeap) {
-		print("runtime: heapInUse=", memstats.heapInUse.load(), "\n")
+	if gcController.heapInUse.load() != uint64(consStats.inHeap) {
+		print("runtime: heapInUse=", gcController.heapInUse.load(), "\n")
 		print("runtime: consistent value=", consStats.inHeap, "\n")
 		throw("heapInUse and consistent stats are not equal")
 	}
-	if memstats.heapReleased.load() != uint64(consStats.released) {
-		print("runtime: heapReleased=", memstats.heapReleased.load(), "\n")
+	if gcController.heapReleased.load() != uint64(consStats.released) {
+		print("runtime: heapReleased=", gcController.heapReleased.load(), "\n")
 		print("runtime: consistent value=", consStats.released, "\n")
 		throw("heapReleased and consistent stats are not equal")
 	}
-	heapRetained := memstats.heapInUse.load() + memstats.heapFree.load()
+	heapRetained := gcController.heapInUse.load() + gcController.heapFree.load()
 	consRetained := uint64(consStats.committed - consStats.inStacks - consStats.inWorkBufs - consStats.inPtrScalarBits)
 	if heapRetained != consRetained {
 		print("runtime: global value=", heapRetained, "\n")
 		print("runtime: consistent value=", consRetained, "\n")
 		throw("measures of the retained heap are not equal")
 	}
-	if memstats.totalAlloc.Load() != totalAlloc {
-		print("runtime: totalAlloc=", memstats.totalAlloc.Load(), "\n")
+	if gcController.totalAlloc.Load() != totalAlloc {
+		print("runtime: totalAlloc=", gcController.totalAlloc.Load(), "\n")
 		print("runtime: consistent value=", totalAlloc, "\n")
 		throw("totalAlloc and consistent stats are not equal")
 	}
-	if memstats.totalFree.Load() != totalFree {
-		print("runtime: totalFree=", memstats.totalFree.Load(), "\n")
+	if gcController.totalFree.Load() != totalFree {
+		print("runtime: totalFree=", gcController.totalFree.Load(), "\n")
 		print("runtime: consistent value=", totalFree, "\n")
 		throw("totalFree and consistent stats are not equal")
 	}
 	// Also check that mappedReady lines up with totalMapped - released.
 	// This isn't really the same type of "make sure consistent stats line up" situation,
 	// but this is an opportune time to check.
-	if memstats.mappedReady.Load() != totalMapped-uint64(consStats.released) {
-		print("runtime: mappedReady=", memstats.mappedReady.Load(), "\n")
+	if gcController.mappedReady.Load() != totalMapped-uint64(consStats.released) {
+		print("runtime: mappedReady=", gcController.mappedReady.Load(), "\n")
 		print("runtime: totalMapped=", totalMapped, "\n")
 		print("runtime: released=", uint64(consStats.released), "\n")
 		print("runtime: totalMapped-released=", totalMapped-uint64(consStats.released), "\n")
@@ -519,7 +495,7 @@ func readmemstats_m(stats *MemStats) {
 	stats.Mallocs = nMalloc
 	stats.Frees = nFree
 	stats.HeapAlloc = totalAlloc - totalFree
-	stats.HeapSys = memstats.heapInUse.load() + memstats.heapFree.load() + memstats.heapReleased.load()
+	stats.HeapSys = gcController.heapInUse.load() + gcController.heapFree.load() + gcController.heapReleased.load()
 	// By definition, HeapIdle is memory that was mapped
 	// for the heap but is not currently used to hold heap
 	// objects. It also specifically is memory that can be
@@ -536,9 +512,9 @@ func readmemstats_m(stats *MemStats) {
 	// HeapIdle = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse - heapInUse
 	//
 	// => HeapIdle = HeapSys - heapInUse = heapFree + heapReleased
-	stats.HeapIdle = memstats.heapFree.load() + memstats.heapReleased.load()
-	stats.HeapInuse = memstats.heapInUse.load()
-	stats.HeapReleased = memstats.heapReleased.load()
+	stats.HeapIdle = gcController.heapFree.load() + gcController.heapReleased.load()
+	stats.HeapInuse = gcController.heapInUse.load()
+	stats.HeapReleased = gcController.heapReleased.load()
 	stats.HeapObjects = nMalloc - nFree
 	stats.StackInuse = stackInUse
 	// memstats.stacks_sys is only memory mapped directly for OS stacks.

@@ -171,7 +171,7 @@ func (c *mcache) refill(spc spanClass) {
 
 		// Count the allocs in inconsistent, internal stats.
 		bytesAllocated := int64(slotsUsed * s.elemsize)
-		memstats.totalAlloc.Add(bytesAllocated)
+		gcController.totalAlloc.Add(bytesAllocated)
 
 		// Update heapLive and flush scanAlloc.
 		gcController.update(bytesAllocated, int64(c.scanAlloc))
@@ -229,7 +229,7 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
 	memstats.heapStats.release()
 
 	// Count the alloc in inconsistent, internal stats.
-	memstats.totalAlloc.Add(int64(npages * pageSize))
+	gcController.totalAlloc.Add(int64(npages * pageSize))
 
 	// Update heapLive.
 	gcController.update(int64(s.npages*pageSize), 0)
@@ -260,7 +260,7 @@ func (c *mcache) releaseAll() {
 
 			// Adjust the actual allocs in inconsistent, internal stats.
 			// We assumed earlier that the full span gets allocated.
-			memstats.totalAlloc.Add(int64(slotsUsed * s.elemsize))
+			gcController.totalAlloc.Add(int64(slotsUsed * s.elemsize))
 
 			// Release the span to the mcentral.
 			mheap_.central[i].mcentral.uncacheSpan(s)
