@@ -24,26 +24,20 @@ set GOBIN=
 set GOFLAGS=
 set GO111MODULE=
 
-rem TODO avoid rebuild if possible
-
-if x%1==x--no-rebuild goto norebuild
-echo ##### Building packages and commands.
-..\bin\go install -a -v std cmd
-if errorlevel 1 goto fail
-echo.
-:norebuild
-
 :: get CGO_ENABLED
 ..\bin\go env > env.bat
 if errorlevel 1 goto fail
 call env.bat
 del env.bat
-echo.
 
+if x%1==x--no-rebuild goto norebuild
+..\bin\go tool dist test --rebuild
+if errorlevel 1 goto fail
+goto end
+
+:norebuild
 ..\bin\go tool dist test
 if errorlevel 1 goto fail
-echo.
-
 goto end
 
 :fail
