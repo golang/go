@@ -982,8 +982,8 @@ func gcMarkTermination() {
 		throw("gc done but gcphase != _GCoff")
 	}
 
-	// Record heap_inuse for scavenger.
-	memstats.last_heap_inuse = memstats.heap_inuse
+	// Record heapInUse for scavenger.
+	memstats.lastHeapInUse = memstats.heapInUse.load()
 
 	// Update GC trigger and pacing for the next cycle.
 	gcController.commit()

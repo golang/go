@@ -32,13 +32,13 @@ type mstats struct {
 	// provide the same consistency guarantees. They are used internally
 	// by the runtime.
 	//
-	// Like MemStats, heap_sys and heap_inuse do not count memory
-	// in manually-managed spans.
-	heap_sys      sysMemStat    // virtual address space obtained from system for GC'd heap
-	heap_inuse    uint64        // bytes in mSpanInUse spans
-	heap_released uint64        // bytes released to the OS
-	totalAlloc    atomic.Uint64 // total bytes allocated
-	totalFree     atomic.Uint64 // total bytes freed
+	// Like MemStats, heapInUse does not count memory in manually-managed
+	// spans.
+	heapInUse    sysMemStat    // bytes in mSpanInUse spans
+	heapReleased sysMemStat    // bytes released to the OS
+	heapFree     sysMemStat    // bytes not in any span, but not released to the OS
+	totalAlloc   atomic.Uint64 // total bytes allocated
+	totalFree    atomic.Uint64 // total bytes freed
 
 	// Statistics about stacks.
 	stacks_sys sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
@@ -66,7 +66,7 @@ type mstats struct {
 	gc_cpu_fraction float64 // fraction of CPU time used by GC
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
-	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
+	lastHeapInUse    uint64 // heapInUse at mark termination of the previous GC
 
 	enablegc bool
 
@@ -454,16 +454,17 @@ func readmemstats_m(stats *MemStats) {
 	gcWorkBufInUse := uint64(consStats.inWorkBufs)
 	gcProgPtrScalarBitsInUse := uint64(consStats.inPtrScalarBits)
 
-	totalMapped := memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
-		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
-		memstats.other_sys.load() + stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
+	totalMapped := memstats.heapInUse.load() + memstats.heapFree.load() + memstats.heapReleased.load() +
+		memstats.stacks_sys.load() + memstats.mspan_sys.load() + memstats.mcache_sys.load() +
+		memstats.buckhash_sys.load() + memstats.gcMiscSys.load() + memstats.other_sys.load() +
+		stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
 
 	// The world is stopped, so the consistent stats (after aggregation)
 	// should be identical to some combination of memstats. In particular:
 	//
-	// * memstats.heap_inuse == inHeap
-	// * memstats.heap_released == released
-	// * memstats.heap_sys - memstats.heap_released == committed - inStacks - inWorkBufs - inPtrScalarBits
+	// * memstats.heapInUse == inHeap
+	// * memstats.heapReleased == released
+	// * memstats.heapInUse + memstats.heapFree == committed - inStacks - inWorkBufs - inPtrScalarBits
 	// * memstats.totalAlloc == totalAlloc
 	// * memstats.totalFree == totalFree
 	//
@@ -472,20 +473,20 @@ func readmemstats_m(stats *MemStats) {
 	// TODO(mknyszek): Maybe don't throw here. It would be bad if a
 	// bug in otherwise benign accounting caused the whole application
 	// to crash.
-	if memstats.heap_inuse != uint64(consStats.inHeap) {
-		print("runtime: heap_inuse=", memstats.heap_inuse, "\n")
+	if memstats.heapInUse.load() != uint64(consStats.inHeap) {
+		print("runtime: heapInUse=", memstats.heapInUse.load(), "\n")
 		print("runtime: consistent value=", consStats.inHeap, "\n")
-		throw("heap_inuse and consistent stats are not equal")
+		throw("heapInUse and consistent stats are not equal")
 	}
-	if memstats.heap_released != uint64(consStats.released) {
-		print("runtime: heap_released=", memstats.heap_released, "\n")
+	if memstats.heapReleased.load() != uint64(consStats.released) {
+		print("runtime: heapReleased=", memstats.heapReleased.load(), "\n")
 		print("runtime: consistent value=", consStats.released, "\n")
-		throw("heap_released and consistent stats are not equal")
+		throw("heapReleased and consistent stats are not equal")
 	}
-	globalRetained := memstats.heap_sys.load() - memstats.heap_released
+	heapRetained := memstats.heapInUse.load() + memstats.heapFree.load()
 	consRetained := uint64(consStats.committed - consStats.inStacks - consStats.inWorkBufs - consStats.inPtrScalarBits)
-	if globalRetained != consRetained {
-		print("runtime: global value=", globalRetained, "\n")
+	if heapRetained != consRetained {
+		print("runtime: global value=", heapRetained, "\n")
 		print("runtime: consistent value=", consRetained, "\n")
 		throw("measures of the retained heap are not equal")
 	}
@@ -518,7 +519,7 @@ func readmemstats_m(stats *MemStats) {
 	stats.Mallocs = nMalloc
 	stats.Frees = nFree
 	stats.HeapAlloc = totalAlloc - totalFree
-	stats.HeapSys = memstats.heap_sys.load()
+	stats.HeapSys = memstats.heapInUse.load() + memstats.heapFree.load() + memstats.heapReleased.load()
 	// By definition, HeapIdle is memory that was mapped
 	// for the heap but is not currently used to hold heap
 	// objects. It also specifically is memory that can be
@@ -526,18 +527,18 @@ func readmemstats_m(stats *MemStats) {
 	// is subtracted out of HeapSys before it makes that
 	// transition. Put another way:
 	//
-	// heap_sys = bytes allocated from the OS for the heap - bytes ultimately used for non-heap purposes
-	// heap_idle = bytes allocated from the OS for the heap - bytes ultimately used for any purpose
+	// HeapSys = bytes allocated from the OS for the heap - bytes ultimately used for non-heap purposes
+	// HeapIdle = bytes allocated from the OS for the heap - bytes ultimately used for any purpose
 	//
 	// or
 	//
-	// heap_sys = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse
-	// heap_idle = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse - heap_inuse
+	// HeapSys = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse
+	// HeapIdle = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse - heapInUse
 	//
-	// => heap_idle = heap_sys - heap_inuse
-	stats.HeapIdle = memstats.heap_sys.load() - memstats.heap_inuse
-	stats.HeapInuse = memstats.heap_inuse
-	stats.HeapReleased = memstats.heap_released
+	// => HeapIdle = HeapSys - heapInUse = heapFree + heapReleased
+	stats.HeapIdle = memstats.heapFree.load() + memstats.heapReleased.load()
+	stats.HeapInuse = memstats.heapInUse.load()
+	stats.HeapReleased = memstats.heapReleased.load()
 	stats.HeapObjects = nMalloc - nFree
 	stats.StackInuse = stackInUse
 	// memstats.stacks_sys is only memory mapped directly for OS stacks.

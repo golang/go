@@ -18,7 +18,7 @@
 // application down to a goal.
 //
 // That goal is defined as:
-//   (retainExtraPercent+100) / 100 * (heapGoal / lastHeapGoal) * last_heap_inuse
+//   (retainExtraPercent+100) / 100 * (heapGoal / lastHeapGoal) * lastHeapInUse
 //
 // Essentially, we wish to have the application's RSS track the heap goal, but
 // the heap goal is defined in terms of bytes of objects, rather than pages like
@@ -26,7 +26,7 @@
 // spans. heapGoal / lastHeapGoal defines the ratio between the current heap goal
 // and the last heap goal, which tells us by how much the heap is growing and
 // shrinking. We estimate what the heap will grow to in terms of pages by taking
-// this ratio and multiplying it by heap_inuse at the end of the last GC, which
+// this ratio and multiplying it by heapInUse at the end of the last GC, which
 // allows us to account for this additional fragmentation. Note that this
 // procedure makes the assumption that the degree of fragmentation won't change
 // dramatically over the next GC cycle. Overestimating the amount of
@@ -101,7 +101,7 @@ const (
 
 // heapRetained returns an estimate of the current heap RSS.
 func heapRetained() uint64 {
-	return memstats.heap_sys.load() - atomic.Load64(&memstats.heap_released)
+	return memstats.heapInUse.load() + memstats.heapFree.load()
 }
 
 // gcPaceScavenger updates the scavenger's pacing, particularly
@@ -130,7 +130,7 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
 	}
 	// Compute our scavenging goal.
 	goalRatio := float64(heapGoal) / float64(lastHeapGoal)
-	retainedGoal := uint64(float64(memstats.last_heap_inuse) * goalRatio)
+	retainedGoal := uint64(float64(memstats.lastHeapInUse) * goalRatio)
 	// Add retainExtraPercent overhead to retainedGoal. This calculation
 	// looks strange but the purpose is to arrive at an integer division
 	// (e.g. if retainExtraPercent = 12.5, then we get a divisor of 8)
@@ -143,11 +143,11 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
 	// Represents where we are now in the heap's contribution to RSS in bytes.
 	//
 	// Guaranteed to always be a multiple of physPageSize on systems where
-	// physPageSize <= pageSize since we map heap_sys at a rate larger than
+	// physPageSize <= pageSize since we map new heap memory at a size larger than
 	// any physPageSize and released memory in multiples of the physPageSize.
 	//
-	// However, certain functions recategorize heap_sys as other stats (e.g.
-	// stack_sys) and this happens in multiples of pageSize, so on systems
+	// However, certain functions recategorize heap memory as other stats (e.g.
+	// stacks) and this happens in multiples of pageSize, so on systems
 	// where physPageSize > pageSize the calculations below will not be exact.
 	// Generally this is OK since we'll be off by at most one regular
 	// physical page.
@@ -611,8 +611,8 @@ func printScavTrace(gen uint32, released uintptr, forced bool) {
 	printlock()
 	print("scav ", gen, " ",
 		released>>10, " KiB work, ",
-		atomic.Load64(&memstats.heap_released)>>10, " KiB total, ",
-		(atomic.Load64(&memstats.heap_inuse)*100)/heapRetained(), "% util",
+		memstats.heapReleased.load()>>10, " KiB total, ",
+		(memstats.heapInUse.load()*100)/heapRetained(), "% util",
 	)
 	if forced {
 		print(" (forced)")
@@ -913,7 +913,8 @@ func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr 
 		// Update global accounting only when not in test, otherwise
 		// the runtime's accounting will be wrong.
 		nbytes := int64(npages) * pageSize
-		atomic.Xadd64(&memstats.heap_released, nbytes)
+		memstats.heapReleased.add(nbytes)
+		memstats.heapFree.add(-nbytes)
 
 		// Update consistent accounting too.
 		stats := memstats.heapStats.acquire()
