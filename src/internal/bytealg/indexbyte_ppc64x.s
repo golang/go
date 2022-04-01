@@ -11,17 +11,20 @@ TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
 	// R3 = byte array pointer
 	// R4 = length
 	MOVD	R6, R5		// R5 = byte
+	MOVBZ	internal∕cpu·PPC64+const_offsetPPC64HasPOWER9(SB), R16
 	BR	indexbytebody<>(SB)
 
 TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
 	// R3 = string
 	// R4 = length
 	// R5 = byte
+	MOVBZ	internal∕cpu·PPC64+const_offsetPPC64HasPOWER9(SB), R16
 	BR	indexbytebody<>(SB)
 
 // R3 = addr of string
 // R4 = len of string
 // R5 = byte to find
+// R16 = 1 if running on a POWER9 system, 0 otherwise
 // On exit:
 // R3 = return value
 TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
@@ -29,12 +32,11 @@ TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
 	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
 	RLDIMI	$8,R5,$48,R5	// Replicating the byte across the register.
 	ADD	R4,R3,R7	// Last acceptable address in R7.
-	DCBT	(R8)		// Prepare cache line.
 
 	RLDIMI	$16,R5,$32,R5
 	CMPU	R4,$32		// Check if it's a small string (≤32 bytes). Those will be processed differently.
 	MOVD	$-1,R9
-	WORD	$0x54661EB8	// Calculate padding in R6 (rlwinm r6,r3,3,26,28).
+	RLWNM	$3,R3,$26,$28,R6	// shift amount for mask (r3&0x7)*8
 	RLDIMI	$32,R5,$0,R5
 	MOVD	R7,R10		// Save last acceptable address in R10 for later.
 	ADD	$-1,R7,R7
@@ -43,8 +45,77 @@ TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
 #else
 	SRD	R6,R9,R9	// Same for Big Endian
 #endif
-	BLE	small_string	// Jump to the small string case if it's ≤32 bytes.
+	BLT	small_string	// Jump to the small string case if it's <32 bytes.
+	CMP	R16,$1		// optimize for power8 v power9
+	BNE	power8
+	VSPLTISB	$3,V10	// Use V10 as control for VBPERMQ
+	MTVRD	R5,V1
+	LVSL	(R0+R0),V11	// set up the permute vector such that V10 has {0x78, .., 0x8, 0x0}
+	VSLB	V11,V10,V10	// to extract the first bit of match result into GPR
+	VSPLTB	$7,V1,V1	// Replicate byte across V1
+	CMP	R4,$64
+	MOVD	$16,R11
+	MOVD	R3,R8
+	BLT	cmp32
+	MOVD	$32,R12
+	MOVD	$48,R6
 
+loop64:
+	LXVB16X	(R0)(R8),V2	// scan 64 bytes at a time
+	VCMPEQUBCC	V2,V1,V6
+	BNE	CR6,foundat0	// match found at R8, jump out
+
+	LXVB16X	(R8)(R11),V2
+	VCMPEQUBCC	V2,V1,V6
+	BNE	CR6,foundat1	// match found at R8+16 bytes, jump out
+
+	LXVB16X	(R8)(R12),V2
+	VCMPEQUBCC	V2,V1,V6
+	BNE	CR6,foundat2	// match found at R8+32 bytes, jump out
+
+	LXVB16X	(R8)(R6),V2
+	VCMPEQUBCC	V2,V1,V6
+	BNE	CR6,foundat3	// match found at R8+48 bytes, jump out
+	ADD	$64,R8
+	ADD	$-64,R4
+	CMP	R4,$64		// >=64 bytes left to scan?
+	BGE	loop64
+	CMP	R4,$32
+	BLT	rem		// jump to rem if there are < 32 bytes left
+cmp32:
+	LXVB16X	(R0)(R8),V2	// 32-63 bytes left
+	VCMPEQUBCC	V2,V1,V6
+	BNE	CR6,foundat0	// match found at R8
+
+	LXVB16X	(R11)(R8),V2
+	VCMPEQUBCC	V2,V1,V6
+	BNE	CR6,foundat1	// match found at R8+16
+
+	ADD	$32,R8
+	ADD	$-32,R4
+rem:
+	RLDICR	$0,R8,$60,R8	// align address to reuse code for tail end processing
+	BR	small_string
+
+foundat3:
+	ADD	$16,R8
+foundat2:
+	ADD	$16,R8
+foundat1:
+	ADD	$16,R8
+foundat0:
+	// Compress the result into a single doubleword and
+	// move it to a GPR for the final calculation.
+	VBPERMQ	V6,V10,V6
+	MFVRD	V6,R3
+	// count leading zeroes upto the match that ends up in low 16 bits
+	// in both endian modes, compute index by subtracting the number by 16
+	CNTLZW	R3,R11
+	ADD	$-16,R11
+	ADD	R8,R11,R3	// Calculate byte address
+	SUB	R17,R3
+	RET
+power8:
 	// If we are 64-byte aligned, branch to qw_align just to get the auxiliary values
 	// in V0, V1 and V10, then branch to the preloop.
 	ANDCC	$63,R3,R11
@@ -54,7 +125,6 @@ TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	0(R8),R12	// Load one doubleword from the aligned address in R8.
 	CMPB	R12,R5,R3	// Check for a match.
 	AND	R9,R3,R3	// Mask bytes below s_base
-	RLDICL	$0,R7,$61,R6	// length-1
 	RLDICR	$0,R7,$60,R7	// Last doubleword in R7
 	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation
 	BNE	CR7,done
@@ -252,8 +322,13 @@ found_qw_align:
 	CMPU	  R11,R4
 	BLT	  return
 	BR	  notfound
+	PCALIGN	  $16
 
 done:
+	ADD	$-1,R10,R6
+	// Offset of last index for the final
+	// doubleword comparison
+	RLDICL	$0,R6,$61,R6
 	// At this point, R3 has 0xFF in the same position as the byte we are
 	// looking for in the doubleword. Use that to calculate the exact index
 	// of the byte.
@@ -273,6 +348,7 @@ done:
 	BR	notfound
 
 small_string:
+	// process string of length < 32 bytes
 	// We unroll this loop for better performance.
 	CMPU	R4,$0		// Check for length=0
 	BEQ	notfound
@@ -281,7 +357,6 @@ small_string:
 	CMPB	R12,R5,R3	// Check for a match.
 	AND	R9,R3,R3	// Mask bytes below s_base.
 	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation.
-	RLDICL	$0,R7,$61,R6	// length-1
 	RLDICR	$0,R7,$60,R7	// Last doubleword in R7.
 	CMPU	R8,R7
 	BNE	CR7,done
