@@ -187,6 +187,7 @@ type Pointer *ArbitraryType
 // The size does not include any memory possibly referenced by x.
 // For instance, if x is a slice, Sizeof returns the size of the slice
 // descriptor, not the size of the memory referenced by the slice.
+// For a struct, the size includes any padding introduced by field alignment.
 // The return value of Sizeof is a Go constant.
 func Sizeof(x ArbitraryType) uintptr
 
