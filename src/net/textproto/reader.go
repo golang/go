@@ -28,7 +28,6 @@ type Reader struct {
 // should be reading from an io.LimitReader or similar Reader to bound
 // the size of responses.
 func NewReader(r *bufio.Reader) *Reader {
-	commonHeaderOnce.Do(initCommonHeader)
 	return &Reader{R: r}
 }
 
@@ -579,8 +578,6 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
 // If s contains a space or invalid header field bytes, it is
 // returned without modifications.
 func CanonicalMIMEHeaderKey(s string) string {
-	commonHeaderOnce.Do(initCommonHeader)
-
 	// Quick check for canonical encoding.
 	upper := true
 	for i := 0; i < len(s); i++ {
@@ -642,6 +639,7 @@ func canonicalMIMEHeaderKey(a []byte) string {
 		a[i] = c
 		upper = c == '-' // for next time
 	}
+	commonHeaderOnce.Do(initCommonHeader)
 	// The compiler recognizes m[string(byteSlice)] as a special
 	// case, so a copy of a's bytes into a new string does not
 	// happen in this map lookup:
