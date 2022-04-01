@@ -13,8 +13,8 @@
 	/*⇒1,variable,[definition]*/a           = /*⇒3,namespace,[]*/fmt./*⇒5,function,[]*/Print
 	/*⇒1,variable,[definition]*/b  []/*⇒6,type,[defaultLibrary]*/string = []/*⇒6,type,[defaultLibrary]*/string{/*⇒5,string,[]*/"foo"}
 	/*⇒2,variable,[definition]*/c1 /*⇒4,keyword,[]*/chan /*⇒3,type,[defaultLibrary]*/int
-	/*⇒2,variable,[definition]*/c2 <-/*⇒4,keyword,[]*/chan /*⇒3,type,[defaultLibrary]*/int
-	/*⇒2,variable,[definition]*/c3 = /*⇒4,function,[defaultLibrary]*/make([]/*⇒4,keyword,[]*/chan<- /*⇒3,type,[defaultLibrary]*/int)
+	/*⇒2,variable,[definition]*/c2 /*⇒2,operator,[]*/<-/*⇒4,keyword,[]*/chan /*⇒3,type,[defaultLibrary]*/int
+	/*⇒2,variable,[definition]*/c3 = /*⇒4,function,[defaultLibrary]*/make([]/*⇒4,keyword,[]*/chan/*⇒2,operator,[]*/<- /*⇒3,type,[defaultLibrary]*/int)
 	/*⇒1,variable,[definition]*/b  = /*⇒1,type,[]*/A{/*⇒1,variable,[]*/X: /*⇒2,number,[]*/23}
 	/*⇒1,variable,[definition]*/m  /*⇒3,keyword,[]*/map[/*⇒4,type,[defaultLibrary]*/bool][/*⇒1,number,[]*/3]/*⇒1,operator,[]*/*/*⇒7,type,[defaultLibrary]*/float64
 )

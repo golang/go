@@ -32,3 +32,7 @@ type CC struct {
 }
 type D func(aa AA) (BB error)
 type E func(AA) BB
+
+var a chan<- chan int
+var b chan<- <-chan int
+var c <-chan <-chan int

@@ -328,12 +328,17 @@ func (e *encoded) inspector(n ast.Node) bool {
 		e.token(x.Case, len(iam), tokKeyword, nil)
 	case *ast.ChanType:
 		// chan | chan <- | <- chan
-		if x.Arrow == token.NoPos || x.Arrow != x.Begin {
+		switch {
+		case x.Arrow == token.NoPos:
 			e.token(x.Begin, len("chan"), tokKeyword, nil)
-			break
+		case x.Arrow == x.Begin:
+			e.token(x.Arrow, 2, tokOperator, nil)
+			pos := e.findKeyword("chan", x.Begin+2, x.Value.Pos())
+			e.token(pos, len("chan"), tokKeyword, nil)
+		case x.Arrow != x.Begin:
+			e.token(x.Begin, len("chan"), tokKeyword, nil)
+			e.token(x.Arrow, 2, tokOperator, nil)
 		}
-		pos := e.findKeyword("chan", x.Begin+2, x.Value.Pos())
-		e.token(pos, len("chan"), tokKeyword, nil)
 	case *ast.CommClause:
 		iam := len("case")
 		if x.Comm == nil {

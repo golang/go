@@ -34,3 +34,7 @@
 /*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/D /*⇒4,keyword,[]*/func(/*⇒2,parameter,[definition]*/aa /*⇒2,type,[]*/AA) (/*⇒2,parameter,[definition]*/BB /*⇒5,type,[]*/error)
 /*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/E /*⇒4,keyword,[]*/func(/*⇒2,type,[]*/AA) /*⇒2,type,[]*/BB
 
+/*⇒3,keyword,[]*/var /*⇒1,variable,[definition]*/a /*⇒4,keyword,[]*/chan/*⇒2,operator,[]*/<- /*⇒4,keyword,[]*/chan /*⇒3,type,[defaultLibrary]*/int
+/*⇒3,keyword,[]*/var /*⇒1,variable,[definition]*/b /*⇒4,keyword,[]*/chan/*⇒2,operator,[]*/<- /*⇒2,operator,[]*/<-/*⇒4,keyword,[]*/chan /*⇒3,type,[defaultLibrary]*/int
+/*⇒3,keyword,[]*/var /*⇒1,variable,[definition]*/c /*⇒2,operator,[]*/<-/*⇒4,keyword,[]*/chan /*⇒2,operator,[]*/<-/*⇒4,keyword,[]*/chan /*⇒3,type,[defaultLibrary]*/int
+

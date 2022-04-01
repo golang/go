@@ -27,7 +27,9 @@ func (r *runner) SemanticTokens(t *testing.T, spn span.Span) {
 		t.Errorf("want(%d-%d) != got(%d-%d) for %s", len(want), len(lwant), len(got), len(lgot), r.Normalize(filename))
 		for i := 0; i < len(lwant) && i < len(lgot); i++ {
 			if lwant[i] != lgot[i] {
-				t.Errorf("line %d:\nwant%q\ngot %q\n", i, lwant[i], lgot[i])
+				// This is the line number in the golden file.
+				// It is one larger than the line number in the source file.
+				t.Errorf("line %d:\nwant%q\ngot %q\n", i+2, lwant[i], lgot[i])
 			}
 		}
 	}
