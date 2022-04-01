@@ -7,7 +7,7 @@
 // Package protocol contains data types and code for LSP json rpcs
 // generated automatically from vscode-languageserver-node
 // commit: 696f9285bf849b73745682fdb1c1feac73eb8772
-// last fetched Fri Mar 04 2022 14:48:10 GMT-0500 (Eastern Standard Time)
+// last fetched Fri Apr 01 2022 10:53:41 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 import "encoding/json"

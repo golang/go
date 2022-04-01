@@ -1259,7 +1259,10 @@ function goReq(side: side, m: string) {
   }`;
   if (b != '' && b != 'void') {
     case2 = `resp, err := ${side.name}.${nm}(ctx${arg2})
-    return true, reply(ctx, resp, err)`;
+    if err != nil {
+      return true, reply(ctx, nil, err)
+    }
+    return true, reply(ctx, resp, nil)`;
   } else {  // response is nil
     case2 = `err := ${side.name}.${nm}(ctx${arg2})
     return true, reply(ctx, nil, err)`;

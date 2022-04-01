@@ -9,7 +9,7 @@ package protocol
 // Package protocol contains data types and code for LSP json rpcs
 // generated automatically from vscode-languageserver-node
 // commit: 696f9285bf849b73745682fdb1c1feac73eb8772
-// last fetched Fri Mar 04 2022 14:48:10 GMT-0500 (Eastern Standard Time)
+// last fetched Fri Apr 01 2022 10:53:41 GMT-0400 (Eastern Daylight Time)
 
 import (
 	"context"
@@ -77,14 +77,20 @@ func clientDispatch(ctx context.Context, client Client, reply jsonrpc2.Replier, 
 			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
 		resp, err := client.WorkspaceFolders(ctx)
-		return true, reply(ctx, resp, err)
+		if err != nil {
+			return true, reply(ctx, nil, err)
+		}
+		return true, reply(ctx, resp, nil)
 	case "workspace/configuration": // req
 		var params ParamConfiguration
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
 			return true, sendParseError(ctx, reply, err)
 		}
 		resp, err := client.Configuration(ctx, &params)
-		return true, reply(ctx, resp, err)
+		if err != nil {
+			return true, reply(ctx, nil, err)
+		}
+		return true, reply(ctx, resp, nil)
 	case "window/workDoneProgress/create": // req
 		var params WorkDoneProgressCreateParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -98,7 +104,10 @@ func clientDispatch(ctx context.Context, client Client, reply jsonrpc2.Replier, 
 			return true, sendParseError(ctx, reply, err)
 		}
 		resp, err := client.ShowDocument(ctx, &params)
-		return true, reply(ctx, resp, err)
+		if err != nil {
+			return true, reply(ctx, nil, err)
+		}
+		return true, reply(ctx, resp, nil)
 	case "client/registerCapability": // req
 		var params RegistrationParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -119,14 +128,20 @@ func clientDispatch(ctx context.Context, client Client, reply jsonrpc2.Replier, 
 			return true, sendParseError(ctx, reply, err)
 		}
 		resp, err := client.ShowMessageRequest(ctx, &params)
-		return true, reply(ctx, resp, err)
+		if err != nil {
+			return true, reply(ctx, nil, err)
+		}
+		return true, reply(ctx, resp, nil)
 	case "workspace/applyEdit": // req
 		var params ApplyWorkspaceEditParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
 			return true, sendParseError(ctx, reply, err)
 		}
 		resp, err := client.ApplyEdit(ctx, &params)
-		return true, reply(ctx, resp, err)
+		if err != nil {
+			return true, reply(ctx, nil, err)
+		}
+		return true, reply(ctx, resp, nil)
 
 	default:
 		return false, nil
