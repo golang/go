@@ -1125,6 +1125,17 @@ func BenchmarkSelectProdCons(b *testing.B) {
 	}
 }
 
+func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
+	count := b.N
+	ch := make(chan struct{}, count)
+	for i := 0; i < count; i++ {
+		ch <- struct{}{}
+	}
+	close(ch)
+	for range ch {
+	}
+}
+
 func BenchmarkChanCreation(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
