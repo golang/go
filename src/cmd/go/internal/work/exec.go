@@ -303,7 +303,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 			fmt.Fprintf(h, "fuzz %q\n", fuzzFlags)
 		}
 	}
-	fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo)
+	if p.Internal.BuildInfo != "" {
+		fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo)
+	}
 
 	// Configuration specific to compiler toolchain.
 	switch cfg.BuildToolchainName {
