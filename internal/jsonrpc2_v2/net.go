@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"time"
 )
 
 // This file contains implementations of the transport primitives that use the standard network
@@ -36,7 +35,7 @@ type netListener struct {
 }
 
 // Accept blocks waiting for an incoming connection to the listener.
-func (l *netListener) Accept(ctx context.Context) (io.ReadWriteCloser, error) {
+func (l *netListener) Accept(context.Context) (io.ReadWriteCloser, error) {
 	return l.net.Accept()
 }
 
@@ -56,9 +55,7 @@ func (l *netListener) Close() error {
 
 // Dialer returns a dialer that can be used to connect to the listener.
 func (l *netListener) Dialer() Dialer {
-	return NetDialer(l.net.Addr().Network(), l.net.Addr().String(), net.Dialer{
-		Timeout: 5 * time.Second,
-	})
+	return NetDialer(l.net.Addr().Network(), l.net.Addr().String(), net.Dialer{})
 }
 
 // NetDialer returns a Dialer using the supplied standard network dialer.
@@ -98,15 +95,19 @@ type netPiper struct {
 }
 
 // Accept blocks waiting for an incoming connection to the listener.
-func (l *netPiper) Accept(ctx context.Context) (io.ReadWriteCloser, error) {
-	// block until we have a listener, or are closed or cancelled
+func (l *netPiper) Accept(context.Context) (io.ReadWriteCloser, error) {
+	// Block until the pipe is dialed or the listener is closed,
+	// preferring the latter if already closed at the start of Accept.
+	select {
+	case <-l.done:
+		return nil, errClosed
+	default:
+	}
 	select {
 	case rwc := <-l.dialed:
 		return rwc, nil
 	case <-l.done:
-		return nil, io.EOF
-	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, errClosed
 	}
 }
 
@@ -124,6 +125,14 @@ func (l *netPiper) Dialer() Dialer {
 
 func (l *netPiper) Dial(ctx context.Context) (io.ReadWriteCloser, error) {
 	client, server := net.Pipe()
-	l.dialed <- server
-	return client, nil
+
+	select {
+	case l.dialed <- server:
+		return client, nil
+
+	case <-l.done:
+		client.Close()
+		server.Close()
+		return nil, errClosed
+	}
 }

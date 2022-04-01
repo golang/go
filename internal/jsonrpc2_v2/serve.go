@@ -105,6 +105,8 @@ func (s *Server) run(ctx context.Context) {
 		if err != nil {
 			if !isClosingError(err) {
 				s.async.setError(err)
+				s.listener.Close()
+				break
 			}
 			continue
 		}
@@ -120,10 +122,12 @@ func (s *Server) run(ctx context.Context) {
 func onlyActive(conns []*Connection) []*Connection {
 	i := 0
 	for _, c := range conns {
-		if !c.async.isDone() {
-			conns[i] = c
-			i++
-		}
+		c.updateInFlight(func(s *inFlightState) {
+			if !s.closed {
+				conns[i] = c
+				i++
+			}
+		})
 	}
 	// trim the slice down
 	return conns[:i]
@@ -151,10 +155,7 @@ func isClosingError(err error) bool {
 		return true
 	}
 
-	// Per https://github.com/golang/go/issues/4373, this error string should not
-	// change. This is not ideal, but since the worst that could happen here is
-	// some superfluous logging, it is acceptable.
-	if err.Error() == "use of closed network connection" {
+	if isErrClosed(err) {
 		return true
 	}
 
