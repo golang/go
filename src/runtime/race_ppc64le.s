@@ -442,6 +442,9 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	BEQ	call			// already on g0
 	MOVD	(g_sched+gobuf_sp)(R10), R1 // switch R1
 call:
+	// prepare frame for C ABI
+	SUB	$32, R1			// create frame for callee saving LR, CR, R2 etc.
+	RLDCR   $0, R1, $~15, R1	// align SP to 16 bytes
 	MOVD	R8, CTR			// R8 = caller addr
 	MOVD	R8, R12			// expected by PPC64 ABI
 	BL	(CTR)
