@@ -1279,12 +1279,12 @@ HaveSpan:
 		// sysUsed all the pages that are actually available
 		// in the span since some of them might be scavenged.
 		sysUsed(unsafe.Pointer(base), nbytes, scav)
-		memstats.heapReleased.add(-int64(scav))
+		gcController.heapReleased.add(-int64(scav))
 	}
 	// Update stats.
-	memstats.heapFree.add(-int64(nbytes - scav))
+	gcController.heapFree.add(-int64(nbytes - scav))
 	if typ == spanAllocHeap {
-		memstats.heapInUse.add(int64(nbytes))
+		gcController.heapInUse.add(int64(nbytes))
 	}
 	// Update consistent stats.
 	stats := memstats.heapStats.acquire()
@@ -1356,7 +1356,7 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 		// current arena, so we have to request the full ask.
 		av, asize := h.sysAlloc(ask)
 		if av == nil {
-			inUse := memstats.heapFree.load() + memstats.heapReleased.load() + memstats.heapInUse.load()
+			inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
 			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", inUse, " in use)\n")
 			return 0, false
 		}
@@ -1373,7 +1373,7 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 				// Transition this space from Reserved to Prepared and mark it
 				// as released since we'll be able to start using it after updating
 				// the page allocator and releasing the lock at any time.
-				sysMap(unsafe.Pointer(h.curArena.base), size, &memstats.heapReleased)
+				sysMap(unsafe.Pointer(h.curArena.base), size, &gcController.heapReleased)
 				// Update stats.
 				stats := memstats.heapStats.acquire()
 				atomic.Xaddint64(&stats.released, int64(size))
@@ -1404,7 +1404,7 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 	// The allocation is always aligned to the heap arena
 	// size which is always > physPageSize, so its safe to
 	// just add directly to heapReleased.
-	sysMap(unsafe.Pointer(v), nBase-v, &memstats.heapReleased)
+	sysMap(unsafe.Pointer(v), nBase-v, &gcController.heapReleased)
 
 	// The memory just allocated counts as both released
 	// and idle, even though it's not yet backed by spans.
@@ -1484,9 +1484,9 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 	//
 	// Mirrors the code in allocSpan.
 	nbytes := s.npages * pageSize
-	memstats.heapFree.add(int64(nbytes))
+	gcController.heapFree.add(int64(nbytes))
 	if typ == spanAllocHeap {
-		memstats.heapInUse.add(-int64(nbytes))
+		gcController.heapInUse.add(-int64(nbytes))
 	}
 	// Update consistent stats.
 	stats := memstats.heapStats.acquire()

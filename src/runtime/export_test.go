@@ -1046,7 +1046,7 @@ func FreePageAlloc(pp *PageAlloc) {
 	// sysUsed adds to p.sysStat and memstats.mappedReady no matter what
 	// (and in anger should actually be accounted for), and there's no other
 	// way to figure out how much we actually mapped.
-	memstats.mappedReady.Add(-int64(p.summaryMappedReady))
+	gcController.mappedReady.Add(-int64(p.summaryMappedReady))
 	testSysStat.add(-int64(p.summaryMappedReady))
 
 	// Free the mapped space for chunks.

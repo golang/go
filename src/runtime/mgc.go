@@ -983,7 +983,7 @@ func gcMarkTermination() {
 	}
 
 	// Record heapInUse for scavenger.
-	memstats.lastHeapInUse = memstats.heapInUse.load()
+	memstats.lastHeapInUse = gcController.heapInUse.load()
 
 	// Update GC trigger and pacing for the next cycle.
 	gcController.commit()
