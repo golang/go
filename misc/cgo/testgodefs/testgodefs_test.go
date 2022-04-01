@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -58,8 +59,31 @@ func TestGoDefs(t *testing.T) {
 			t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
 		}
 
-		if err := os.WriteFile(filepath.Join(dir, fp+"_defs.go"), out, 0644); err != nil {
+		fn := fp + "_defs.go"
+		if err := os.WriteFile(filepath.Join(dir, fn), out, 0644); err != nil {
 			t.Fatal(err)
+		}
+
+		// Verify that command line arguments are not rewritten in the generated comment,
+		// see go.dev/issue/52063
+		hasGeneratedByComment := false
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			cgoExe := "cgo"
+			if runtime.GOOS == "windows" {
+				cgoExe = "cgo.exe"
+			}
+			if !strings.HasPrefix(line, "// "+cgoExe+" -godefs") {
+				continue
+			}
+			if want := "// " + cgoExe + " " + strings.Join(cmd.Args[3:], " "); line != want {
+				t.Errorf("%s: got generated comment %q, want %q", fn, line, want)
+			}
+			hasGeneratedByComment = true
+			break
+		}
+
+		if !hasGeneratedByComment {
+			t.Errorf("%s: comment with generating cgo -godefs command not found", fn)
 		}
 	}
 

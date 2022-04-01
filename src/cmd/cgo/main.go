@@ -291,6 +291,10 @@ func main() {
 		usage()
 	}
 
+	// Save original command line arguments for the godefs generated comment. Relative file
+	// paths in os.Args will be rewritten to absolute file paths in the loop below.
+	osArgs := make([]string, len(os.Args))
+	copy(osArgs, os.Args[:])
 	goFiles := args[i:]
 
 	for _, arg := range args[:i] {
@@ -390,7 +394,7 @@ func main() {
 		p.PackagePath = f.Package
 		p.Record(f)
 		if *godefs {
-			os.Stdout.WriteString(p.godefs(f))
+			os.Stdout.WriteString(p.godefs(f, osArgs))
 		} else {
 			p.writeOutput(f, input)
 		}
