@@ -51,7 +51,8 @@ var tests = `
 start 0
 
 # Large frame marked nosplit is always wrong.
-start 10000 nosplit
+# Frame is so large it overflows cmd/link's int16.
+start 100000 nosplit
 REJECT
 
 # Calling a large frame is okay.
