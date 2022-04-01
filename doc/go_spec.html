@@ -529,6 +529,7 @@ escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `
 'aa'         // illegal: too many characters
 '\xa'        // illegal: too few hexadecimal digits
 '\0'         // illegal: too few octal digits
+'\400'       // illegal: octal value over 255
 '\uDFFF'     // illegal: surrogate half
 '\U00110000' // illegal: invalid Unicode code point
 </pre>
