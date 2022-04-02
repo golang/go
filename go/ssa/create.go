@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // NewProgram returns a new SSA Program.
@@ -24,12 +25,15 @@ import (
 //
 func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	prog := &Program{
-		Fset:     fset,
-		imported: make(map[string]*Package),
-		packages: make(map[*types.Package]*Package),
-		thunks:   make(map[selectionKey]*Function),
-		bounds:   make(map[*types.Func]*Function),
-		mode:     mode,
+		Fset:      fset,
+		imported:  make(map[string]*Package),
+		packages:  make(map[*types.Package]*Package),
+		thunks:    make(map[selectionKey]*Function),
+		bounds:    make(map[*types.Func]*Function),
+		mode:      mode,
+		canon:     newCanonizer(),
+		ctxt:      typeparams.NewContext(),
+		instances: make(map[*Function]*instanceSet),
 	}
 
 	h := typeutil.MakeHasher() // protected by methodsMu, in effect
@@ -85,19 +89,38 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pkg.ninit++
 			name = fmt.Sprintf("init#%d", pkg.ninit)
 		}
+
+		// Collect type parameters if this is a generic function/method.
+		var tparams []*typeparams.TypeParam
+		for i, rtparams := 0, typeparams.RecvTypeParams(sig); i < rtparams.Len(); i++ {
+			tparams = append(tparams, rtparams.At(i))
+		}
+		for i, sigparams := 0, typeparams.ForSignature(sig); i < sigparams.Len(); i++ {
+			tparams = append(tparams, sigparams.At(i))
+		}
+
 		fn := &Function{
-			name:      name,
-			object:    obj,
-			Signature: sig,
-			syntax:    syntax,
-			pos:       obj.Pos(),
-			Pkg:       pkg,
-			Prog:      pkg.Prog,
-			info:      pkg.info,
+			name:        name,
+			object:      obj,
+			Signature:   sig,
+			syntax:      syntax,
+			pos:         obj.Pos(),
+			Pkg:         pkg,
+			Prog:        pkg.Prog,
+			info:        pkg.info,
+			_TypeParams: tparams,
 		}
 		pkg.created.Add(fn)
 		if syntax == nil {
 			fn.Synthetic = "loaded from gc object file"
+		}
+		if len(tparams) > 0 {
+			fn.Prog.createInstanceSet(fn)
+		}
+		if len(tparams) > 0 && syntax != nil {
+			fn.Synthetic = "generic function"
+			// TODO(taking): Allow for the function to be built once type params are supported.
+			fn.syntax = nil // Treating as an external function temporarily.
 		}
 
 		pkg.objects[obj] = fn

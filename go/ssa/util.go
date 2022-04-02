@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 //// Sanity checking utilities
@@ -124,25 +125,48 @@ func nonbasicTypes(ts []types.Type) []types.Type {
 	return filtered
 }
 
+// isGeneric returns true if a package-level member is generic.
+func isGeneric(m Member) bool {
+	switch m := m.(type) {
+	case *NamedConst, *Global:
+		return false
+	case *Type:
+		// lifted from types.isGeneric.
+		named, _ := m.Type().(*types.Named)
+		return named != nil && named.Obj() != nil && typeparams.NamedTypeArgs(named) == nil && typeparams.ForNamed(named) != nil
+	case *Function:
+		return len(m._TypeParams) != len(m._TypeArgs)
+	default:
+		panic("unreachable")
+	}
+}
+
 // Mapping of a type T to a canonical instance C s.t. types.Indentical(T, C).
 // Thread-safe.
 type canonizer struct {
 	mu    sync.Mutex
-	canon typeutil.Map // map from type to a canonical instance
+	types typeutil.Map // map from type to a canonical instance
+	lists typeListMap  // map from a list of types to a canonical instance
 }
 
-// Tuple returns a canonical representative of a Tuple of types.
-// Representative of the empty Tuple is nil.
-func (c *canonizer) Tuple(ts []types.Type) *types.Tuple {
+func newCanonizer() *canonizer {
+	c := &canonizer{}
+	h := typeutil.MakeHasher()
+	c.types.SetHasher(h)
+	c.lists.hasher = h
+	return c
+}
+
+// List returns a canonical representative of a list of types.
+// Representative of the empty list is nil.
+func (c *canonizer) List(ts []types.Type) *typeList {
 	if len(ts) == 0 {
 		return nil
 	}
-	vars := make([]*types.Var, len(ts))
-	for i, t := range ts {
-		vars[i] = anonVar(t)
-	}
-	tuple := types.NewTuple(vars...)
-	return c.Type(tuple).(*types.Tuple)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.lists.rep(ts)
 }
 
 // Type returns a canonical representative of type T.
@@ -150,9 +174,74 @@ func (c *canonizer) Type(T types.Type) types.Type {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if r := c.canon.At(T); r != nil {
+	if r := c.types.At(T); r != nil {
 		return r.(types.Type)
 	}
-	c.canon.Set(T, T)
+	c.types.Set(T, T)
 	return T
+}
+
+// A type for representating an canonized list of types.
+type typeList []types.Type
+
+func (l *typeList) identical(ts []types.Type) bool {
+	if l == nil {
+		return len(ts) == 0
+	}
+	n := len(*l)
+	if len(ts) != n {
+		return false
+	}
+	for i, left := range *l {
+		right := ts[i]
+		if !types.Identical(left, right) {
+			return false
+		}
+	}
+	return true
+}
+
+type typeListMap struct {
+	hasher  typeutil.Hasher
+	buckets map[uint32][]*typeList
+}
+
+// rep returns a canonical representative of a slice of types.
+func (m *typeListMap) rep(ts []types.Type) *typeList {
+	if m == nil || len(ts) == 0 {
+		return nil
+	}
+
+	if m.buckets == nil {
+		m.buckets = make(map[uint32][]*typeList)
+	}
+
+	h := m.hash(ts)
+	bucket := m.buckets[h]
+	for _, l := range bucket {
+		if l.identical(ts) {
+			return l
+		}
+	}
+
+	// not present. create a representative.
+	cp := make(typeList, len(ts))
+	copy(cp, ts)
+	rep := &cp
+
+	m.buckets[h] = append(bucket, rep)
+	return rep
+}
+
+func (m *typeListMap) hash(ts []types.Type) uint32 {
+	if m == nil {
+		return 0
+	}
+	// Some smallish prime far away from typeutil.Hash.
+	n := len(ts)
+	h := uint32(13619) + 2*uint32(n)
+	for i := 0; i < n; i++ {
+		h += 3 * m.hasher.Hash(ts[i])
+	}
+	return h
 }

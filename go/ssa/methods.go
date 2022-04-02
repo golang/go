@@ -57,13 +57,13 @@ func (prog *Program) LookupMethod(T types.Type, pkg *types.Package, name string)
 	return prog.MethodValue(sel)
 }
 
-// methodSet contains the (concrete) methods of a non-interface type.
+// methodSet contains the (concrete) methods of a concrete type (non-interface, non-parameterized).
 type methodSet struct {
 	mapping  map[string]*Function // populated lazily
 	complete bool                 // mapping contains all methods
 }
 
-// Precondition: !isInterface(T).
+// Precondition: T is a concrete type, e.g. !isInterface(T) and not parameterized.
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 func (prog *Program) createMethodSet(T types.Type) *methodSet {
 	mset, ok := prog.methodSets.At(T).(*methodSet)
@@ -126,7 +126,10 @@ func (prog *Program) RuntimeTypes() []types.Type {
 //
 func (prog *Program) declaredFunc(obj *types.Func) *Function {
 	if v := prog.packageLevelMember(obj); v != nil {
-		return v.(*Function)
+		fn := v.(*Function)
+		// TODO(taking): Removed restriction once generics are supported.
+		assert(len(fn._TypeParams) == len(fn._TypeArgs), "ssa does not yet support calling generic functions. See https://github.com/golang/go/issues/48525")
+		return fn
 	}
 	panic("no concrete method: " + obj.String())
 }
@@ -142,6 +145,7 @@ func (prog *Program) declaredFunc(obj *types.Func) *Function {
 // Adds any created functions to cr.
 //
 // Precondition: T is not a method signature (*Signature with Recv()!=nil).
+// Precondition: T is not parameterized.
 //
 // Thread-safe.  (Called via emitConv from multiple builder goroutines.)
 //

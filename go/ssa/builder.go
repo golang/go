@@ -2213,6 +2213,7 @@ func (b *builder) buildFunctionBody(fn *Function) {
 	var functype *ast.FuncType
 	switch n := fn.syntax.(type) {
 	case nil:
+		// TODO(taking): Temporarily this can be the body of a generic function.
 		return // not a Go source function.  (Synthetic, or from object file.)
 	case *ast.FuncDecl:
 		functype = n.Type
@@ -2351,7 +2352,7 @@ func (p *Package) build() {
 	// TODO(adonovan): ideally belongs in memberFromObject, but
 	// that would require package creation in topological order.
 	for name, mem := range p.Members {
-		if ast.IsExported(name) {
+		if ast.IsExported(name) && !isGeneric(mem) {
 			p.Prog.needMethodsOf(mem.Type(), &p.created)
 		}
 	}

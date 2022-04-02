@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // A Program is a partial or complete Go program converted to SSA form.
@@ -26,13 +27,15 @@ type Program struct {
 	mode       BuilderMode                 // set of mode bits for SSA construction
 	MethodSets typeutil.MethodSetCache     // cache of type-checker's method-sets
 
-	canon canonizer // type canonicalization map
+	canon *canonizer          // type canonicalization map
+	ctxt  *typeparams.Context // cache for type checking instantiations
 
 	methodsMu    sync.Mutex                 // guards the following maps:
 	methodSets   typeutil.Map               // maps type to its concrete methodSet
 	runtimeTypes typeutil.Map               // types for which rtypes are needed
 	bounds       map[*types.Func]*Function  // bounds for curried x.Method closures
 	thunks       map[selectionKey]*Function // thunks for T.Method expressions
+	instances    map[*Function]*instanceSet // instances of generic functions
 }
 
 // A Package is a single analyzed Go package containing Members for
@@ -316,6 +319,10 @@ type Function struct {
 	referrers []Instruction // referring instructions (iff Parent() != nil)
 	built     bool          // function has completed both CREATE and BUILD phase.
 
+	_Origin     *Function               // the origin function if this the instantiation of a generic function. nil if Parent() != nil.
+	_TypeParams []*typeparams.TypeParam // the type paramaters of this function. len(TypeParams) == len(_TypeArgs) => runtime function
+	_TypeArgs   []types.Type            // type arguments for for an instantiation. len(_TypeArgs) != 0 => instantiation
+
 	// The following fields are set transiently during building,
 	// then cleared.
 	currentBlock *BasicBlock             // where to emit code
@@ -324,6 +331,7 @@ type Function struct {
 	targets      *targets                // linked stack of branch targets
 	lblocks      map[*ast.Object]*lblock // labelled blocks
 	info         *types.Info             // *types.Info to build from. nil for wrappers.
+	subst        *subster                // type substitution cache
 }
 
 // BasicBlock represents an SSA basic block.

@@ -419,7 +419,8 @@ func (s *sanity) checkFunction(fn *Function) bool {
 		if strings.HasPrefix(fn.Synthetic, "wrapper ") ||
 			strings.HasPrefix(fn.Synthetic, "bound ") ||
 			strings.HasPrefix(fn.Synthetic, "thunk ") ||
-			strings.HasSuffix(fn.name, "Error") {
+			strings.HasSuffix(fn.name, "Error") ||
+			strings.HasPrefix(fn.Synthetic, "instantiation") {
 			// ok
 		} else {
 			s.errorf("nil Pkg")

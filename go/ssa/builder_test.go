@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func isEmpty(f *ssa.Function) bool { return f.Blocks == nil }
@@ -496,5 +497,67 @@ func h(error)
 	if phis != 1 {
 		g.WriteTo(os.Stderr)
 		t.Errorf("expected a single Phi (for the range index), got %d", phis)
+	}
+}
+
+// TestGenericDecls ensures that *unused* generic types, methods and functions
+// signatures can be built.
+//
+// TODO(taking): Add calls from non-generic functions to instantiations of generic functions.
+// TODO(taking): Add globals with types that are instantiations of generic functions.
+func TestGenericDecls(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("TestGenericDecls only works with type parameters enabled.")
+	}
+	const input = `
+package p
+
+import "unsafe"
+
+type Pointer[T any] struct {
+	v unsafe.Pointer
+}
+
+func (x *Pointer[T]) Load() *T {
+	return (*T)(LoadPointer(&x.v))
+}
+
+func Load[T any](x *Pointer[T]) *T {
+	return x.Load()
+}
+
+func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
+`
+	// The SSA members for this package should look something like this:
+	//          func  LoadPointer func(addr *unsafe.Pointer) (val unsafe.Pointer)
+	//      type  Pointer     struct{v unsafe.Pointer}
+	//        method (*Pointer[T any]) Load() *T
+	//      func  init        func()
+	//      var   init$guard  bool
+
+	// Parse
+	var conf loader.Config
+	f, err := conf.ParseFile("<input>", input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	conf.CreateFromFiles("p", f)
+
+	// Load
+	lprog, err := conf.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Create and build SSA
+	prog := ssautil.CreateProgram(lprog, 0)
+	p := prog.Package(lprog.Package("p").Pkg)
+	p.Build()
+
+	if load := p.Func("Load"); typeparams.ForSignature(load.Signature).Len() != 1 {
+		t.Errorf("expected a single type param T for Load got %q", load.Signature)
+	}
+	if ptr := p.Type("Pointer"); typeparams.ForNamed(ptr.Type().(*types.Named)).Len() != 1 {
+		t.Errorf("expected a single type param T for Pointer got %q", ptr.Type())
 	}
 }

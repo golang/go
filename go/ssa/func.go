@@ -263,6 +263,7 @@ func (f *Function) finishBody() {
 	// clear remaining stateful variables
 	f.namedResults = nil // (used by lifting)
 	f.info = nil
+	f.subst = nil
 
 	numberRegisters(f)
 }
