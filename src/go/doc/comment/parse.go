@@ -174,6 +174,152 @@ type DocLink struct {
 
 func (*DocLink) text() {}
 
+// A Parser is a doc comment parser.
+// The fields in the struct can be filled in before calling Parse
+// in order to customize the details of the parsing process.
+type Parser struct {
+	// Words is a map of Go identifier words that
+	// should be italicized and potentially linked.
+	// If Words[w] is the empty string, then the word w
+	// is only italicized. Otherwise it is linked, using
+	// Words[w] as the link target.
+	// Words corresponds to the [go/doc.ToHTML] words parameter.
+	Words map[string]string
+
+	// LookupPackage resolves a package name to an import path.
+	//
+	// If LookupPackage(name) returns ok == true, then [name]
+	// (or [name.Sym] or [name.Sym.Method])
+	// is considered a documentation link to importPath's package docs.
+	// It is valid to return "", true, in which case name is considered
+	// to refer to the current package.
+	//
+	// If LookupPackage(name) returns ok == false,
+	// then [name] (or [name.Sym] or [name.Sym.Method])
+	// will not be considered a documentation link,
+	// except in the case where name is the full (but single-element) import path
+	// of a package in the standard library, such as in [math] or [io.Reader].
+	// LookupPackage is still called for such names,
+	// in order to permit references to imports of other packages
+	// with the same package names.
+	//
+	// Setting LookupPackage to nil is equivalent to setting it to
+	// a function that always returns "", false.
+	LookupPackage func(name string) (importPath string, ok bool)
+
+	// LookupSym reports whether a symbol name or method name
+	// exists in the current package.
+	//
+	// If LookupSym("", "Name") returns true, then [Name]
+	// is considered a documentation link for a const, func, type, or var.
+	//
+	// Similarly, if LookupSym("Recv", "Name") returns true,
+	// then [Recv.Name] is considered a documentation link for
+	// type Recv's method Name.
+	//
+	// Setting LookupSym to nil is equivalent to setting it to a function
+	// that always returns false.
+	LookupSym func(recv, name string) (ok bool)
+}
+
+// parseDoc is parsing state for a single doc comment.
+type parseDoc struct {
+	*Parser
+	*Doc
+	links     map[string]*LinkDef
+	lines     []string
+	lookupSym func(recv, name string) bool
+}
+
+// Parse parses the doc comment text and returns the *Doc form.
+// Comment markers (/* // and */) in the text must have already been removed.
+func (p *Parser) Parse(text string) *Doc {
+	lines := unindent(strings.Split(text, "\n"))
+	d := &parseDoc{
+		Parser:    p,
+		Doc:       new(Doc),
+		links:     make(map[string]*LinkDef),
+		lines:     lines,
+		lookupSym: func(recv, name string) bool { return false },
+	}
+	if p.LookupSym != nil {
+		d.lookupSym = p.LookupSym
+	}
+
+	// First pass: break into block structure and collect known links.
+	// The text is all recorded as Plain for now.
+	// TODO: Break into actual block structure.
+	for len(lines) > 0 {
+		line := lines[0]
+		if line != "" {
+			var b Block
+			b, lines = d.paragraph(lines)
+			d.Content = append(d.Content, b)
+		} else {
+			lines = lines[1:]
+		}
+	}
+
+	// Second pass: interpret all the Plain text now that we know the links.
+	// TODO: Actually interpret the plain text.
+
+	return d.Doc
+}
+
+// unindent removes any common space/tab prefix
+// from each line in lines, returning a copy of lines in which
+// those prefixes have been trimmed from each line.
+func unindent(lines []string) []string {
+	// Trim leading and trailing blank lines.
+	for len(lines) > 0 && isBlank(lines[0]) {
+		lines = lines[1:]
+	}
+	for len(lines) > 0 && isBlank(lines[len(lines)-1]) {
+		lines = lines[:len(lines)-1]
+	}
+	if len(lines) == 0 {
+		return nil
+	}
+
+	// Compute and remove common indentation.
+	prefix := leadingSpace(lines[0])
+	for _, line := range lines[1:] {
+		if !isBlank(line) {
+			prefix = commonPrefix(prefix, leadingSpace(line))
+		}
+	}
+
+	out := make([]string, len(lines))
+	for i, line := range lines {
+		line = strings.TrimPrefix(line, prefix)
+		if strings.TrimSpace(line) == "" {
+			line = ""
+		}
+		out[i] = line
+	}
+	for len(out) > 0 && out[0] == "" {
+		out = out[1:]
+	}
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
+	}
+	return out
+}
+
+// isBlank reports whether s is a blank line.
+func isBlank(s string) bool {
+	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
+}
+
+// commonPrefix returns the longest common prefix of a and b.
+func commonPrefix(a, b string) string {
+	i := 0
+	for i < len(a) && i < len(b) && a[i] == b[i] {
+		i++
+	}
+	return a[0:i]
+}
+
 // leadingSpace returns the longest prefix of s consisting of spaces and tabs.
 func leadingSpace(s string) string {
 	i := 0
@@ -232,6 +378,27 @@ func isOldHeading(line string, all []string, off int) bool {
 	}
 
 	return true
+}
+
+// parargraph returns a paragraph block built from the
+// unindented text at the start of lines, along with the remainder of the lines.
+// If there is no unindented text at the start of lines,
+// then paragraph returns a nil Block.
+func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
+	// TODO: Paragraph should be interrupted by any indented line,
+	// which is either a list or a code block,
+	// and of course by a blank line.
+	// It should not be interrupted by a # line - headings must stand alone.
+	i := 0
+	for i < len(lines) && lines[i] != "" {
+		i++
+	}
+	lines, rest = lines[:i], lines[i:]
+	if len(lines) == 0 {
+		return nil, rest
+	}
+
+	return &Paragraph{Text: []Text{Plain(strings.Join(lines, "\n"))}}, rest
 }
 
 // autoURL checks whether s begins with a URL that should be hyperlinked.
