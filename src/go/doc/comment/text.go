@@ -86,12 +86,12 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
 
 	case *Paragraph:
 		out.WriteString(p.prefix)
-		p.text(out, x.Text)
+		p.text(out, "", x.Text)
 
 	case *Heading:
 		out.WriteString(p.prefix)
 		out.WriteString("# ")
-		p.text(out, x.Text)
+		p.text(out, "", x.Text)
 
 	case *Code:
 		text := x.Text
@@ -104,12 +104,38 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
 			}
 			writeNL(out)
 		}
+
+	case *List:
+		loose := x.BlankBetween()
+		for i, item := range x.Items {
+			if i > 0 && loose {
+				out.WriteString(p.prefix)
+				writeNL(out)
+			}
+			out.WriteString(p.prefix)
+			out.WriteString(" ")
+			if item.Number == "" {
+				out.WriteString(" - ")
+			} else {
+				out.WriteString(item.Number)
+				out.WriteString(". ")
+			}
+			for i, blk := range item.Content {
+				const fourSpace = "    "
+				if i > 0 {
+					writeNL(out)
+					out.WriteString(p.prefix)
+					out.WriteString(fourSpace)
+				}
+				p.text(out, fourSpace, blk.(*Paragraph).Text)
+			}
+		}
 	}
 }
 
 // text prints the text sequence x to out.
 // TODO: Wrap lines.
-func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
+func (p *textPrinter) text(out *bytes.Buffer, indent string, x []Text) {
 	p.oneLongLine(&p.long, x)
 	words := strings.Fields(p.long.String())
 	p.long.Reset()
@@ -118,11 +144,12 @@ func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
 	if p.width < 0 {
 		seq = []int{0, len(words)} // one long line
 	} else {
-		seq = wrap(words, p.width)
+		seq = wrap(words, p.width-utf8.RuneCountInString(indent))
 	}
 	for i := 0; i+1 < len(seq); i++ {
 		if i > 0 {
 			out.WriteString(p.prefix)
+			out.WriteString(indent)
 		}
 		for j, w := range words[seq[i]:seq[i+1]] {
 			if j > 0 {

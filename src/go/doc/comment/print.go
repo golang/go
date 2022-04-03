@@ -225,6 +225,29 @@ func (p *commentPrinter) block(out *bytes.Buffer, x Block) {
 			}
 			out.WriteString("\n")
 		}
+
+	case *List:
+		loose := x.BlankBetween()
+		for i, item := range x.Items {
+			if i > 0 && loose {
+				out.WriteString("\n")
+			}
+			out.WriteString(" ")
+			if item.Number == "" {
+				out.WriteString(" - ")
+			} else {
+				out.WriteString(item.Number)
+				out.WriteString(". ")
+			}
+			for i, blk := range item.Content {
+				const fourSpace = "    "
+				if i > 0 {
+					out.WriteString("\n" + fourSpace)
+				}
+				p.text(out, fourSpace, blk.(*Paragraph).Text)
+				out.WriteString("\n")
+			}
+		}
 	}
 }
 
