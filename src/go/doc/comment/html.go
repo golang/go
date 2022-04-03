@@ -51,6 +51,11 @@ func (p *htmlPrinter) block(out *bytes.Buffer, x Block) {
 		out.WriteString("</h")
 		out.WriteString(h)
 		out.WriteString(">\n")
+
+	case *Code:
+		out.WriteString("<pre>")
+		p.escape(out, x.Text)
+		out.WriteString("</pre>\n")
 	}
 }
 

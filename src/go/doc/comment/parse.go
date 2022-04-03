@@ -309,6 +309,9 @@ func (p *Parser) Parse(text string) *Doc {
 		case line == "":
 			// emit nothing
 
+		case isIndented(line):
+			b, lines = d.code(lines)
+
 		case (len(lines) == 1 || lines[1] == "") && !didHeading && isOldHeading(line, all, len(all)-n):
 			b = d.oldHeading(line)
 			didHeading = true
@@ -473,17 +476,51 @@ func (d *parseDoc) heading(line string) Block {
 	return &Heading{Text: []Text{Plain(strings.TrimSpace(line[1:]))}}
 }
 
+// code returns a code block built from the indented text
+// at the start of lines, along with the remainder of the lines.
+// If there is no indented text at the start, or if the indented
+// text consists only of empty lines, code returns a nil Block.
+func (d *parseDoc) code(lines []string) (b Block, rest []string) {
+	lines, rest = indented(lines)
+	body := unindent(lines)
+	if len(body) == 0 {
+		return nil, rest
+	}
+	body = append(body, "") // to get final \n from Join
+	return &Code{Text: strings.Join(body, "\n")}, rest
+}
+
+// isIndented reports whether the line is indented,
+// meaning it starts with a space or tab.
+func isIndented(line string) bool {
+	return line != "" && (line[0] == ' ' || line[0] == '\t')
+}
+
+// indented splits lines into an initial indented section
+// and the remaining lines, returning the two halves.
+func indented(lines []string) (indented, rest []string) {
+	// Blank lines mid-run are OK, but not at the end.
+	i := 0
+	for i < len(lines) && (isIndented(lines[i]) || lines[i] == "") {
+		i++
+	}
+	for i > 0 && lines[i-1] == "" {
+		i--
+	}
+	return lines[:i], lines[i:]
+}
+
 // paragraph returns a paragraph block built from the
 // unindented text at the start of lines, along with the remainder of the lines.
 // If there is no unindented text at the start of lines,
 // then paragraph returns a nil Block.
 func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
-	// TODO: Paragraph should be interrupted by any indented line,
+	// Paragraph is interrupted by any indented line,
 	// which is either a list or a code block,
 	// and of course by a blank line.
-	// It should not be interrupted by a # line - headings must stand alone.
+	// It is not interrupted by a # line - headings must stand alone.
 	i := 0
-	for i < len(lines) && lines[i] != "" {
+	for i < len(lines) && lines[i] != "" && !isIndented(lines[i]) {
 		i++
 	}
 	lines, rest = lines[:i], lines[i:]

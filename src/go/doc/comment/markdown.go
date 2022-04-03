@@ -54,6 +54,18 @@ func (p *mdPrinter) block(out *bytes.Buffer, x Block) {
 			out.WriteString("}")
 		}
 		out.WriteString("\n")
+
+	case *Code:
+		md := x.Text
+		for md != "" {
+			var line string
+			line, md, _ = strings.Cut(md, "\n")
+			if line != "" {
+				out.WriteString("\t")
+				out.WriteString(line)
+			}
+			out.WriteString("\n")
+		}
 	}
 }
 

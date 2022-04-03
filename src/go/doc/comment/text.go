@@ -15,18 +15,23 @@ import (
 // A textPrinter holds the state needed for printing a Doc as plain text.
 type textPrinter struct {
 	*Printer
-	long   strings.Builder
-	prefix string
-	width  int
+	long       strings.Builder
+	prefix     string
+	codePrefix string
+	width      int
 }
 
 // Text returns a textual formatting of the Doc.
 // See the [Printer] documentation for ways to customize the text output.
 func (p *Printer) Text(d *Doc) []byte {
 	tp := &textPrinter{
-		Printer: p,
-		prefix:  p.TextPrefix,
-		width:   p.TextWidth,
+		Printer:    p,
+		prefix:     p.TextPrefix,
+		codePrefix: p.TextCodePrefix,
+		width:      p.TextWidth,
+	}
+	if tp.codePrefix == "" {
+		tp.codePrefix = p.TextPrefix + "\t"
 	}
 	if tp.width == 0 {
 		tp.width = 80 - utf8.RuneCountInString(tp.prefix)
@@ -35,6 +40,7 @@ func (p *Printer) Text(d *Doc) []byte {
 	var out bytes.Buffer
 	for i, x := range d.Content {
 		if i > 0 && blankBefore(x) {
+			out.WriteString(tp.prefix)
 			writeNL(&out)
 		}
 		tp.block(&out, x)
@@ -86,6 +92,18 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
 		out.WriteString(p.prefix)
 		out.WriteString("# ")
 		p.text(out, x.Text)
+
+	case *Code:
+		text := x.Text
+		for text != "" {
+			var line string
+			line, text, _ = strings.Cut(text, "\n")
+			if line != "" {
+				out.WriteString(p.codePrefix)
+				out.WriteString(line)
+			}
+			writeNL(out)
+		}
 	}
 }
 
