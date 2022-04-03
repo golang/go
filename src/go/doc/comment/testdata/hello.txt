@@ -1,0 +1,16 @@
+-- input --
+Hello,
+world
+
+This is
+a test.
+-- dump --
+Doc
+	Paragraph
+		Plain
+			"Hello,\n"
+			"world"
+	Paragraph
+		Plain
+			"This is\n"
+			"a test."
