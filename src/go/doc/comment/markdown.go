@@ -66,6 +66,29 @@ func (p *mdPrinter) block(out *bytes.Buffer, x Block) {
 			}
 			out.WriteString("\n")
 		}
+
+	case *List:
+		loose := x.BlankBetween()
+		for i, item := range x.Items {
+			if i > 0 && loose {
+				out.WriteString("\n")
+			}
+			if n := item.Number; n != "" {
+				out.WriteString(" ")
+				out.WriteString(n)
+				out.WriteString(". ")
+			} else {
+				out.WriteString("  - ") // SP SP - SP
+			}
+			for i, blk := range item.Content {
+				const fourSpace = "    "
+				if i > 0 {
+					out.WriteString("\n" + fourSpace)
+				}
+				p.text(out, blk.(*Paragraph).Text)
+				out.WriteString("\n")
+			}
+		}
 	}
 }
 

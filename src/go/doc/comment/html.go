@@ -13,6 +13,7 @@ import (
 // An htmlPrinter holds the state needed for printing a Doc as HTML.
 type htmlPrinter struct {
 	*Printer
+	tight bool
 }
 
 // HTML returns an HTML formatting of the Doc.
@@ -33,7 +34,9 @@ func (p *htmlPrinter) block(out *bytes.Buffer, x Block) {
 		fmt.Fprintf(out, "?%T", x)
 
 	case *Paragraph:
-		out.WriteString("<p>")
+		if !p.tight {
+			out.WriteString("<p>")
+		}
 		p.text(out, x.Text)
 		out.WriteString("\n")
 
@@ -56,7 +59,50 @@ func (p *htmlPrinter) block(out *bytes.Buffer, x Block) {
 		out.WriteString("<pre>")
 		p.escape(out, x.Text)
 		out.WriteString("</pre>\n")
+
+	case *List:
+		kind := "ol>\n"
+		if x.Items[0].Number == "" {
+			kind = "ul>\n"
+		}
+		out.WriteString("<")
+		out.WriteString(kind)
+		next := "1"
+		for _, item := range x.Items {
+			out.WriteString("<li")
+			if n := item.Number; n != "" {
+				if n != next {
+					out.WriteString(` value="`)
+					out.WriteString(n)
+					out.WriteString(`"`)
+					next = n
+				}
+				next = inc(next)
+			}
+			out.WriteString(">")
+			p.tight = !x.BlankBetween()
+			for _, blk := range item.Content {
+				p.block(out, blk)
+			}
+			p.tight = false
+		}
+		out.WriteString("</")
+		out.WriteString(kind)
 	}
+}
+
+// inc increments the decimal string s.
+// For example, inc("1199") == "1200".
+func inc(s string) string {
+	b := []byte(s)
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] < '9' {
+			b[i]++
+			return string(b)
+		}
+		b[i] = '0'
+	}
+	return "1" + string(b)
 }
 
 // text prints the text sequence x to out.

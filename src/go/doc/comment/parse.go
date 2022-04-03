@@ -309,6 +309,10 @@ func (p *Parser) Parse(text string) *Doc {
 		case line == "":
 			// emit nothing
 
+		case isList(line):
+			prevWasBlank := len(lines) < len(all) && all[len(all)-len(lines)-1] == ""
+			b, lines = d.list(lines, prevWasBlank)
+
 		case isIndented(line):
 			b, lines = d.code(lines)
 
@@ -573,6 +577,93 @@ func parseLink(line string) (*LinkDef, bool) {
 	// about the characters beyond the :// as we are
 	// when extracting inline URLs from text.
 	return &LinkDef{Text: text, URL: url}, true
+}
+
+// list returns a list built from the indented text at the start of lines,
+// using forceBlankBefore as the value of the List's ForceBlankBefore field.
+// The caller is responsible for ensuring that the first line of lines
+// satisfies isList.
+// list returns the *List as a Block along with the remaining lines.
+func (d *parseDoc) list(lines []string, forceBlankBefore bool) (b Block, rest []string) {
+	lines, rest = indented(lines)
+
+	num, _, _ := listMarker(lines[0])
+	var (
+		list *List = &List{ForceBlankBefore: forceBlankBefore}
+		item *ListItem
+		text []string
+	)
+	flush := func() {
+		if item != nil {
+			if para, _ := d.paragraph(text); para != nil {
+				item.Content = append(item.Content, para)
+			}
+		}
+		text = nil
+	}
+
+	for _, line := range lines {
+		if n, after, ok := listMarker(line); ok && (n != "") == (num != "") {
+			// start new list item
+			flush()
+
+			item = &ListItem{Number: n}
+			list.Items = append(list.Items, item)
+			line = after
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			list.ForceBlankBetween = true
+			flush()
+			continue
+		}
+		text = append(text, strings.TrimSpace(line))
+	}
+	flush()
+	return list, rest
+}
+
+// listMarker parses the line as an indented line beginning with a list marker.
+// If it can do that, it returns the numeric marker ("" for a bullet list),
+// the rest of the line, and ok == true.
+// Otherwise, it returns "", "", false.
+func listMarker(line string) (num, rest string, ok bool) {
+	if !isIndented(line) {
+		return "", "", false
+	}
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return "", "", false
+	}
+
+	// Can we find a marker?
+	if r, n := utf8.DecodeRuneInString(line); r == '•' || r == '*' || r == '+' || r == '-' {
+		num, rest = "", line[n:]
+	} else if '0' <= line[0] && line[0] <= '9' {
+		n := 1
+		for n < len(line) && '0' <= line[n] && line[n] <= '9' {
+			n++
+		}
+		if n >= len(line) || (line[n] != '.' && line[n] != ')') {
+			return "", "", false
+		}
+		num, rest = line[:n], line[n+1:]
+	} else {
+		return "", "", false
+	}
+
+	if !isIndented(rest) || strings.TrimSpace(rest) == "" {
+		return "", "", false
+	}
+
+	return num, rest, true
+}
+
+// isList reports whether the line is the first line of a list,
+// meaning is indented and starts with a list marker.
+func isList(line string) bool {
+	_, _, ok := listMarker(line)
+	return ok
 }
 
 // parseLinkedText parses text that is allowed to contain explicit links,
