@@ -30,8 +30,6 @@ Hello, world
 
 This is a test.
 -- text --
-Hello,
-world
+Hello, world
 
-This is
-a test.
+This is a test.

@@ -6,6 +6,7 @@ package comment
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"internal/diff"
 	"internal/txtar"
@@ -20,6 +21,10 @@ func TestTestdata(t *testing.T) {
 		t.Fatalf("no testdata")
 	}
 	var p Parser
+	p.Words = map[string]string{
+		"italicword": "",
+		"linkedword": "https://example.com/linkedword",
+	}
 
 	stripDollars := func(b []byte) []byte {
 		// Remove trailing $ on lines.
@@ -30,9 +35,16 @@ func TestTestdata(t *testing.T) {
 	}
 	for _, file := range files {
 		t.Run(filepath.Base(file), func(t *testing.T) {
+			var pr Printer
 			a, err := txtar.ParseFile(file)
 			if err != nil {
 				t.Fatal(err)
+			}
+			if len(a.Comment) > 0 {
+				err := json.Unmarshal(a.Comment, &pr)
+				if err != nil {
+					t.Fatalf("unmarshalling top json: %v", err)
+				}
 			}
 			if len(a.Files) < 1 || a.Files[0].Name != "input" {
 				t.Fatalf("first file is not %q", "input")
@@ -44,7 +56,6 @@ func TestTestdata(t *testing.T) {
 					want = want[:len(want)-1]
 				}
 				var out []byte
-				var pr Printer
 				switch f.Name {
 				default:
 					t.Fatalf("unknown output file %q", f.Name)

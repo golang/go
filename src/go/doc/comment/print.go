@@ -103,6 +103,10 @@ func (p *commentPrinter) text(out *bytes.Buffer, indent string, x []Text) {
 		switch t := t.(type) {
 		case Plain:
 			p.indent(out, indent, string(t))
+		case Italic:
+			p.indent(out, indent, string(t))
+		case *Link:
+			p.text(out, indent, t.Text)
 		}
 	}
 }
