@@ -44,11 +44,20 @@ func TestTestdata(t *testing.T) {
 					want = want[:len(want)-1]
 				}
 				var out []byte
+				var pr Printer
 				switch f.Name {
 				default:
 					t.Fatalf("unknown output file %q", f.Name)
 				case "dump":
 					out = dump(d)
+				case "gofmt":
+					out = pr.Comment(d)
+				case "html":
+					out = pr.HTML(d)
+				case "markdown":
+					out = pr.Markdown(d)
+				case "text":
+					out = pr.Text(d)
 				}
 				if string(out) != string(want) {
 					t.Errorf("%s: %s", file, diff.Diff(f.Name, want, "have", out))

@@ -1,9 +1,9 @@
 -- input --
-Hello,
-world
+	Hello,
+	world
 
-This is
-a test.
+	This is
+	a test.
 -- dump --
 Doc
 	Paragraph
@@ -14,3 +14,24 @@ Doc
 		Plain
 			"This is\n"
 			"a test."
+-- gofmt --
+Hello,
+world
+
+This is
+a test.
+-- html --
+<p>Hello,
+world
+<p>This is
+a test.
+-- markdown --
+Hello, world
+
+This is a test.
+-- text --
+Hello,
+world
+
+This is
+a test.
