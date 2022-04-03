@@ -23,9 +23,12 @@ And https://example.com/)baz{foo}.
 [And https://example.com/].
 
 -- text --
-URLs with punctuation are hard. We don't want to consume the end-of-sentence punctuation.
+URLs with punctuation are hard. We don't want to consume the end-of-sentence
+punctuation.
 
-For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries). And https://example.com/[foo]/bar{. And https://example.com/(foo)/bar! And https://example.com/{foo}/bar{. And https://example.com/)baz{foo}.
+For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries).
+And https://example.com/[foo]/bar{. And https://example.com/(foo)/bar! And
+https://example.com/{foo}/bar{. And https://example.com/)baz{foo}.
 
 [And https://example.com/].
 

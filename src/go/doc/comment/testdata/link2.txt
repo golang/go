@@ -15,7 +15,9 @@ https://☺ is not a link.
 https://:80 is not a link.
 
 -- text --
-The Go home page is https://go.dev/. It used to be https://golang.org. https:// is not a link. Nor is https:// https://☺ is not a link. https://:80 is not a link.
+The Go home page is https://go.dev/. It used to be https://golang.org. https://
+is not a link. Nor is https:// https://☺ is not a link. https://:80 is not a
+link.
 
 -- markdown --
 The Go home page is [https://go.dev/](https://go.dev/). It used to be [https://golang.org](https://golang.org). https:// is not a link. Nor is https:// https://☺ is not a link. https://:80 is not a link.

@@ -1,0 +1,12 @@
+-- input --
+Doubled single quotes like `` and '' turn into Unicode double quotes,
+but single quotes ` and ' do not.
+-- gofmt --
+Doubled single quotes like “ and ” turn into Unicode double quotes,
+but single quotes ` and ' do not.
+-- text --
+Doubled single quotes like “ and ” turn into Unicode double quotes, but single
+quotes ` and ' do not.
+-- html --
+<p>Doubled single quotes like “ and ” turn into Unicode double quotes,
+but single quotes ` and &apos; do not.
