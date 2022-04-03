@@ -303,7 +303,9 @@ func (p *Parser) Parse(text string) *Doc {
 		if line != "" {
 			var b Block
 			b, lines = d.paragraph(lines)
-			d.Content = append(d.Content, b)
+			if b != nil {
+				d.Content = append(d.Content, b)
+			}
 		} else {
 			lines = lines[1:]
 		}
@@ -434,7 +436,7 @@ func isOldHeading(line string, all []string, off int) bool {
 	return true
 }
 
-// parargraph returns a paragraph block built from the
+// paragraph returns a paragraph block built from the
 // unindented text at the start of lines, along with the remainder of the lines.
 // If there is no unindented text at the start of lines,
 // then paragraph returns a nil Block.
@@ -452,7 +454,51 @@ func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
 		return nil, rest
 	}
 
+	// Is this a block of known links? Handle.
+	var defs []*LinkDef
+	for _, line := range lines {
+		def, ok := parseLink(line)
+		if !ok {
+			goto NoDefs
+		}
+		defs = append(defs, def)
+	}
+	for _, def := range defs {
+		d.Links = append(d.Links, def)
+		if d.links[def.Text] == nil {
+			d.links[def.Text] = def
+		}
+	}
+	return nil, rest
+NoDefs:
+
 	return &Paragraph{Text: []Text{Plain(strings.Join(lines, "\n"))}}, rest
+}
+
+// parseLink parses a single link definition line:
+//	[text]: url
+// It returns the link definition and whether the line was well formed.
+func parseLink(line string) (*LinkDef, bool) {
+	if line == "" || line[0] != '[' {
+		return nil, false
+	}
+	i := strings.Index(line, "]:")
+	if i < 0 || i+3 >= len(line) || (line[i+2] != ' ' && line[i+2] != '\t') {
+		return nil, false
+	}
+
+	text := line[1:i]
+	url := strings.TrimSpace(line[i+3:])
+	j := strings.Index(url, "://")
+	if j < 0 || !isScheme(url[:j]) {
+		return nil, false
+	}
+
+	// Line has right form and has valid scheme://.
+	// That's good enough for us - we are not as picky
+	// about the characters beyond the :// as we are
+	// when extracting inline URLs from text.
+	return &LinkDef{Text: text, URL: url}, true
 }
 
 // parseLinkedText parses text that is allowed to contain explicit links,
