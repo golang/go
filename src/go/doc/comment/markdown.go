@@ -13,13 +13,17 @@ import (
 // An mdPrinter holds the state needed for printing a Doc as Markdown.
 type mdPrinter struct {
 	*Printer
-	raw bytes.Buffer
+	headingPrefix string
+	raw           bytes.Buffer
 }
 
 // Markdown returns a Markdown formatting of the Doc.
 // See the [Printer] documentation for ways to customize the Markdown output.
 func (p *Printer) Markdown(d *Doc) []byte {
-	mp := &mdPrinter{Printer: p}
+	mp := &mdPrinter{
+		Printer:       p,
+		headingPrefix: strings.Repeat("#", p.headingLevel()) + " ",
+	}
 
 	var out bytes.Buffer
 	for i, x := range d.Content {
@@ -39,6 +43,16 @@ func (p *mdPrinter) block(out *bytes.Buffer, x Block) {
 
 	case *Paragraph:
 		p.text(out, x.Text)
+		out.WriteString("\n")
+
+	case *Heading:
+		out.WriteString(p.headingPrefix)
+		p.text(out, x.Text)
+		if id := p.headingID(x); id != "" {
+			out.WriteString(" {#")
+			out.WriteString(id)
+			out.WriteString("}")
+		}
 		out.WriteString("\n")
 	}
 }

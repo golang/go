@@ -55,6 +55,20 @@ type Printer struct {
 	TextWidth int
 }
 
+func (p *Printer) headingLevel() int {
+	if p.HeadingLevel <= 0 {
+		return 3
+	}
+	return p.HeadingLevel
+}
+
+func (p *Printer) headingID(h *Heading) string {
+	if p.HeadingID == nil {
+		return h.DefaultID()
+	}
+	return p.HeadingID(h)
+}
+
 func (p *Printer) docLinkURL(link *DocLink) string {
 	if p.DocLinkURL != nil {
 		return p.DocLinkURL(link)
@@ -101,6 +115,35 @@ func (l *DocLink) DefaultURL(baseURL string) string {
 		return "#" + l.Recv + "." + l.Name
 	}
 	return "#" + l.Name
+}
+
+// DefaultID returns the default anchor ID for the heading h.
+//
+// The default anchor ID is constructed by converting every
+// rune that is not alphanumeric ASCII to an underscore
+// and then adding the prefix “hdr-”.
+// For example, if the heading text is “Go Doc Comments”,
+// the default ID is “hdr-Go_Doc_Comments”.
+func (h *Heading) DefaultID() string {
+	// Note: The “hdr-” prefix is important to avoid DOM clobbering attacks.
+	// See https://pkg.go.dev/github.com/google/safehtml#Identifier.
+	var out strings.Builder
+	var p textPrinter
+	p.oneLongLine(&out, h.Text)
+	s := strings.TrimSpace(out.String())
+	if s == "" {
+		return ""
+	}
+	out.Reset()
+	out.WriteString("hdr-")
+	for _, r := range s {
+		if r < 0x80 && isIdentASCII(byte(r)) {
+			out.WriteByte(byte(r))
+		} else {
+			out.WriteByte('_')
+		}
+	}
+	return out.String()
 }
 
 type commentPrinter struct {
@@ -163,6 +206,11 @@ func (p *commentPrinter) block(out *bytes.Buffer, x Block) {
 		fmt.Fprintf(out, "?%T", x)
 
 	case *Paragraph:
+		p.text(out, "", x.Text)
+		out.WriteString("\n")
+
+	case *Heading:
+		out.WriteString("# ")
 		p.text(out, "", x.Text)
 		out.WriteString("\n")
 	}

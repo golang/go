@@ -7,6 +7,7 @@ package comment
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 )
 
 // An htmlPrinter holds the state needed for printing a Doc as HTML.
@@ -35,6 +36,21 @@ func (p *htmlPrinter) block(out *bytes.Buffer, x Block) {
 		out.WriteString("<p>")
 		p.text(out, x.Text)
 		out.WriteString("\n")
+
+	case *Heading:
+		out.WriteString("<h")
+		h := strconv.Itoa(p.headingLevel())
+		out.WriteString(h)
+		if id := p.headingID(x); id != "" {
+			out.WriteString(` id="`)
+			p.escape(out, id)
+			out.WriteString(`"`)
+		}
+		out.WriteString(">")
+		p.text(out, x.Text)
+		out.WriteString("</h")
+		out.WriteString(h)
+		out.WriteString(">\n")
 	}
 }
 
