@@ -298,15 +298,34 @@ func (p *Parser) Parse(text string) *Doc {
 	// First pass: break into block structure and collect known links.
 	// The text is all recorded as Plain for now.
 	// TODO: Break into actual block structure.
+	didHeading := false
+	all := lines
 	for len(lines) > 0 {
 		line := lines[0]
-		if line != "" {
-			var b Block
+		n := len(lines)
+		var b Block
+
+		switch {
+		case line == "":
+			// emit nothing
+
+		case (len(lines) == 1 || lines[1] == "") && !didHeading && isOldHeading(line, all, len(all)-n):
+			b = d.oldHeading(line)
+			didHeading = true
+
+		case (len(lines) == 1 || lines[1] == "") && isHeading(line):
+			b = d.heading(line)
+			didHeading = true
+
+		default:
 			b, lines = d.paragraph(lines)
-			if b != nil {
-				d.Content = append(d.Content, b)
-			}
-		} else {
+			didHeading = false
+		}
+
+		if b != nil {
+			d.Content = append(d.Content, b)
+		}
+		if len(lines) == n {
 			lines = lines[1:]
 		}
 	}
@@ -434,6 +453,24 @@ func isOldHeading(line string, all []string, off int) bool {
 	}
 
 	return true
+}
+
+// oldHeading returns the *Heading for the given old-style section heading line.
+func (d *parseDoc) oldHeading(line string) Block {
+	return &Heading{Text: []Text{Plain(strings.TrimSpace(line))}}
+}
+
+// isHeading reports whether line is a new-style section heading.
+func isHeading(line string) bool {
+	return len(line) >= 2 &&
+		line[0] == '#' &&
+		(line[1] == ' ' || line[1] == '\t') &&
+		strings.TrimSpace(line) != "#"
+}
+
+// heading returns the *Heading for the given new-style section heading line.
+func (d *parseDoc) heading(line string) Block {
+	return &Heading{Text: []Text{Plain(strings.TrimSpace(line[1:]))}}
 }
 
 // paragraph returns a paragraph block built from the

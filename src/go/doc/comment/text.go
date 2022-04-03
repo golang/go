@@ -15,7 +15,7 @@ import (
 // A textPrinter holds the state needed for printing a Doc as plain text.
 type textPrinter struct {
 	*Printer
-	long   bytes.Buffer
+	long   strings.Builder
 	prefix string
 	width  int
 }
@@ -81,6 +81,11 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
 	case *Paragraph:
 		out.WriteString(p.prefix)
 		p.text(out, x.Text)
+
+	case *Heading:
+		out.WriteString(p.prefix)
+		out.WriteString("# ")
+		p.text(out, x.Text)
 	}
 }
 
@@ -114,7 +119,7 @@ func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
 // oneLongLine prints the text sequence x to out as one long line,
 // without worrying about line wrapping.
 // Explicit links have the [ ] dropped to improve readability.
-func (p *textPrinter) oneLongLine(out *bytes.Buffer, x []Text) {
+func (p *textPrinter) oneLongLine(out *strings.Builder, x []Text) {
 	for _, t := range x {
 		switch t := t.(type) {
 		case Plain:
