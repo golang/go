@@ -121,6 +121,29 @@ func (p *Printer) Comment(d *Doc) []byte {
 		cp.block(&out, x)
 	}
 
+	// Print one block containing all the link definitions that were used,
+	// and then a second block containing all the unused ones.
+	// This makes it easy to clean up the unused ones: gofmt and
+	// delete the final block. And it's a nice visual signal without
+	// affecting the way the comment formats for users.
+	for i := 0; i < 2; i++ {
+		used := i == 0
+		first := true
+		for _, def := range d.Links {
+			if def.Used == used {
+				if first {
+					out.WriteString("\n")
+					first = false
+				}
+				out.WriteString("[")
+				out.WriteString(def.Text)
+				out.WriteString("]: ")
+				out.WriteString(def.URL)
+				out.WriteString("\n")
+			}
+		}
+	}
+
 	return out.Bytes()
 }
 
@@ -154,7 +177,13 @@ func (p *commentPrinter) text(out *bytes.Buffer, indent string, x []Text) {
 		case Italic:
 			p.indent(out, indent, string(t))
 		case *Link:
-			p.text(out, indent, t.Text)
+			if t.Auto {
+				p.text(out, indent, t.Text)
+			} else {
+				out.WriteString("[")
+				p.text(out, indent, t.Text)
+				out.WriteString("]")
+			}
 		case *DocLink:
 			out.WriteString("[")
 			p.text(out, indent, t.Text)
