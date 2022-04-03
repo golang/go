@@ -44,6 +44,16 @@ func (p *htmlPrinter) text(out *bytes.Buffer, x []Text) {
 		switch t := t.(type) {
 		case Plain:
 			p.escape(out, string(t))
+		case Italic:
+			out.WriteString("<i>")
+			p.escape(out, string(t))
+			out.WriteString("</i>")
+		case *Link:
+			out.WriteString(`<a href="`)
+			p.escape(out, t.URL)
+			out.WriteString(`">`)
+			p.text(out, t.Text)
+			out.WriteString("</a>")
 		}
 	}
 }

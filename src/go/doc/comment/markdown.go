@@ -77,6 +77,16 @@ func (p *mdPrinter) rawText(out *bytes.Buffer, x []Text) {
 		switch t := t.(type) {
 		case Plain:
 			p.escape(out, string(t))
+		case Italic:
+			out.WriteString("*")
+			p.escape(out, string(t))
+			out.WriteString("*")
+		case *Link:
+			out.WriteString("[")
+			p.rawText(out, t.Text)
+			out.WriteString("](")
+			out.WriteString(t.URL)
+			out.WriteString(")")
 		}
 	}
 }

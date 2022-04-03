@@ -261,7 +261,12 @@ func (p *Parser) Parse(text string) *Doc {
 	}
 
 	// Second pass: interpret all the Plain text now that we know the links.
-	// TODO: Actually interpret the plain text.
+	for _, b := range d.Content {
+		switch b := b.(type) {
+		case *Paragraph:
+			b.Text = d.parseText(string(b.Text[0].(Plain)))
+		}
+	}
 
 	return d.Doc
 }
@@ -399,6 +404,74 @@ func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
 	}
 
 	return &Paragraph{Text: []Text{Plain(strings.Join(lines, "\n"))}}, rest
+}
+
+// parseText parses s as text and returns the parsed Text elements.
+func (d *parseDoc) parseText(s string) []Text {
+	var out []Text
+	var w strings.Builder
+	wrote := 0
+	writeUntil := func(i int) {
+		w.WriteString(s[wrote:i])
+		wrote = i
+	}
+	flush := func(i int) {
+		writeUntil(i)
+		if w.Len() > 0 {
+			out = append(out, Plain(w.String()))
+			w.Reset()
+		}
+	}
+	for i := 0; i < len(s); {
+		t := s[i:]
+		const autoLink = true
+		if autoLink {
+			if url, ok := autoURL(t); ok {
+				flush(i)
+				// Note: The old comment parser would look up the URL in words
+				// and replace the target with words[URL] if it was non-empty.
+				// That would allow creating links that display as one URL but
+				// when clicked go to a different URL. Not sure what the point
+				// of that is, so we're not doing that lookup here.
+				out = append(out, &Link{Auto: true, Text: []Text{Plain(url)}, URL: url})
+				i += len(url)
+				wrote = i
+				continue
+			}
+			if id, ok := ident(t); ok {
+				url, italics := d.Words[id]
+				if !italics {
+					i += len(id)
+					continue
+				}
+				flush(i)
+				if url == "" {
+					out = append(out, Italic(id))
+				} else {
+					out = append(out, &Link{Auto: true, Text: []Text{Italic(id)}, URL: url})
+				}
+				i += len(id)
+				wrote = i
+				continue
+			}
+		}
+		switch {
+		case strings.HasPrefix(t, "``"):
+			writeUntil(i)
+			w.WriteRune('“')
+			i += 2
+			wrote = i
+		case strings.HasPrefix(t, "''"):
+			writeUntil(i)
+			w.WriteRune('”')
+			i += 2
+			wrote = i
+		default:
+			i++
+		}
+	}
+	flush(len(s))
+	return out
 }
 
 // autoURL checks whether s begins with a URL that should be hyperlinked.

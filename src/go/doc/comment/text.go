@@ -7,11 +7,13 @@ package comment
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 // A textPrinter holds the state needed for printing a Doc as plain text.
 type textPrinter struct {
 	*Printer
+	long bytes.Buffer
 }
 
 // Text returns a textual formatting of the Doc.
@@ -59,11 +61,23 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
 // text prints the text sequence x to out.
 // TODO: Wrap lines.
 func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
+	p.oneLongLine(&p.long, x)
+	out.WriteString(strings.ReplaceAll(p.long.String(), "\n", " "))
+	p.long.Reset()
+	writeNL(out)
+}
+
+// oneLongLine prints the text sequence x to out as one long line,
+// without worrying about line wrapping.
+func (p *textPrinter) oneLongLine(out *bytes.Buffer, x []Text) {
 	for _, t := range x {
 		switch t := t.(type) {
 		case Plain:
 			out.WriteString(string(t))
+		case Italic:
+			out.WriteString(string(t))
+		case *Link:
+			p.oneLongLine(out, t.Text)
 		}
 	}
-	writeNL(out)
 }
