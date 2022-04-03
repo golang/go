@@ -179,9 +179,12 @@ func createParams(fn *Function, start int) {
 // EXCLUSIVE_LOCKS_ACQUIRED(meth.Prog.methodsMu)
 //
 func makeBound(prog *Program, obj *types.Func, cr *creator) *Function {
+	targs := receiverTypeArgs(obj)
+	key := boundsKey{obj, prog.canon.List(targs)}
+
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
-	fn, ok := prog.bounds[obj]
+	fn, ok := prog.bounds[key]
 	if !ok {
 		description := fmt.Sprintf("bound method wrapper for %s", obj)
 		if prog.mode&LogSource != 0 {
@@ -218,7 +221,7 @@ func makeBound(prog *Program, obj *types.Func, cr *creator) *Function {
 		fn.finishBody()
 		fn.done()
 
-		prog.bounds[obj] = fn
+		prog.bounds[key] = fn
 	}
 	return fn
 }
@@ -288,4 +291,10 @@ type selectionKey struct {
 	obj      types.Object
 	index    string
 	indirect bool
+}
+
+// boundsKey is a unique for the object and a type instantiation.
+type boundsKey struct {
+	obj  types.Object // t.meth
+	inst *typeList    // canonical type instantiation list.
 }

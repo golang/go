@@ -141,6 +141,31 @@ func isGeneric(m Member) bool {
 	}
 }
 
+// receiverTypeArgs returns the type arguments to a function's reciever.
+// Returns an empty list if obj does not have a reciever or its reciever does not have type arguments.
+func receiverTypeArgs(obj *types.Func) []types.Type {
+	rtype := recvType(obj)
+	if rtype == nil {
+		return nil
+	}
+	if isPointer(rtype) {
+		rtype = rtype.(*types.Pointer).Elem()
+	}
+	named, ok := rtype.(*types.Named)
+	if !ok {
+		return nil
+	}
+	ts := typeparams.NamedTypeArgs(named)
+	if ts.Len() == 0 {
+		return nil
+	}
+	targs := make([]types.Type, ts.Len())
+	for i := 0; i < ts.Len(); i++ {
+		targs[i] = ts.At(i)
+	}
+	return targs
+}
+
 // Mapping of a type T to a canonical instance C s.t. types.Indentical(T, C).
 // Thread-safe.
 type canonizer struct {
