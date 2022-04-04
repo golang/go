@@ -348,6 +348,9 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 	if n < 0 {
 		n = Count(s, sep) + 1
 	}
+	if n > len(s)+1 {
+		n = len(s) + 1
+	}
 
 	a := make([][]byte, n)
 	n--
