@@ -7,11 +7,13 @@ package ssa_test
 import (
 	"bytes"
 	"go/ast"
+	"go/build"
 	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -559,5 +561,69 @@ func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
 	}
 	if ptr := p.Type("Pointer"); typeparams.ForNamed(ptr.Type().(*types.Named)).Len() != 1 {
 		t.Errorf("expected a single type param T for Pointer got %q", ptr.Type())
+	}
+}
+
+// TestTypeparamTest builds SSA over compilable examples in $GOROOT/test/typeparam/*.go.
+
+func TestTypeparamTest(t *testing.T) {
+	if !typeparams.Enabled {
+		return
+	}
+
+	// Tests use a fake goroot to stub out standard libraries with delcarations in
+	// testdata/src. Decreases runtime from ~80s to ~1s.
+
+	dir := filepath.Join(build.Default.GOROOT, "test", "typeparam")
+
+	// Collect all of the .go files in
+	list, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range list {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			continue // Consider standalone go files.
+		}
+		input := filepath.Join(dir, entry.Name())
+		t.Run(entry.Name(), func(t *testing.T) {
+			src, err := os.ReadFile(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Only build test files that can be compiled, or compiled and run.
+			if !bytes.HasPrefix(src, []byte("// run")) && !bytes.HasPrefix(src, []byte("// compile")) {
+				t.Skipf("not detected as a run test")
+			}
+
+			t.Logf("Input: %s\n", input)
+
+			ctx := build.Default    // copy
+			ctx.GOROOT = "testdata" // fake goroot. Makes tests ~1s. tests take ~80s.
+
+			reportErr := func(err error) {
+				t.Error(err)
+			}
+			conf := loader.Config{Build: &ctx, TypeChecker: types.Config{Error: reportErr}}
+			if _, err := conf.FromArgs([]string{input}, true); err != nil {
+				t.Fatalf("FromArgs(%s) failed: %s", input, err)
+			}
+
+			iprog, err := conf.Load()
+			if iprog != nil {
+				for _, pkg := range iprog.Created {
+					for i, e := range pkg.Errors {
+						t.Errorf("Loading pkg %s error[%d]=%s", pkg, i, e)
+					}
+				}
+			}
+			if err != nil {
+				t.Fatalf("conf.Load(%s) failed: %s", input, err)
+			}
+
+			prog := ssautil.CreateProgram(iprog, ssa.SanityCheckFunctions)
+			prog.Build()
+		})
 	}
 }

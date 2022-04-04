@@ -52,6 +52,8 @@ import (
 	"go/types"
 	"os"
 	"sync"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 type opaqueType struct {
@@ -717,7 +719,11 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			if g, ok := v.(*Global); ok {
 				return emitLoad(fn, g) // var (address)
 			}
-			return v.(*Function) // (func)
+			callee := v.(*Function) // (func)
+			if len(callee._TypeParams) > 0 {
+				callee = fn.Prog.needsInstance(callee, fn.instanceArgs(e), b.created)
+			}
+			return callee
 		}
 		// Local var.
 		return emitLoad(fn, fn.lookup(obj, false)) // var (address)
@@ -771,7 +777,18 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 
 		panic("unexpected expression-relative selector")
 
+	case *typeparams.IndexListExpr:
+		if ident, ok := e.X.(*ast.Ident); ok {
+			// IndexListExpr is an instantiation. It will be handled by the *Ident case.
+			return b.expr(fn, ident)
+		}
 	case *ast.IndexExpr:
+		if ident, ok := e.X.(*ast.Ident); ok {
+			if _, ok := typeparams.GetInstances(fn.info)[ident]; ok {
+				// If the IndexExpr is an instantiation, it will be handled by the *Ident case.
+				return b.expr(fn, ident)
+			}
+		}
 		switch t := fn.typeOf(e.X).Underlying().(type) {
 		case *types.Array:
 			// Non-addressable array (in a register).
@@ -885,7 +902,11 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 				c.Method = obj
 			} else {
 				// "Call"-mode call.
-				c.Value = fn.Prog.declaredFunc(obj)
+				callee := fn.Prog.originFunc(obj)
+				if len(callee._TypeParams) > 0 {
+					callee = fn.Prog.needsInstance(callee, receiverTypeArgs(obj), b.created)
+				}
+				c.Value = callee
 				c.Args = append(c.Args, v)
 			}
 			return

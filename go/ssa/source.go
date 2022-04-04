@@ -14,6 +14,8 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // EnclosingFunction returns the function that contains the syntax
@@ -190,6 +192,12 @@ func (prog *Program) packageLevelMember(obj types.Object) Member {
 		return pkg.objects[obj]
 	}
 	return nil
+}
+
+// originFunc returns the package-level generic function that is the
+// origin of obj. If returns nil if the generic function is not found.
+func (prog *Program) originFunc(obj *types.Func) *Function {
+	return prog.declaredFunc(typeparams.OriginMethod(obj))
 }
 
 // FuncValue returns the concrete Function denoted by the source-level

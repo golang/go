@@ -17,5 +17,4 @@ func Load[T any](x *Pointer[T]) *T {
 
 func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
 
-// TODO(taking): Add calls from non-generic functions to instantiations of generic functions.
-// TODO(taking): Add globals with types that are instantiations of generic functions.
+var G Pointer[int]

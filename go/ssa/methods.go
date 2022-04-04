@@ -90,7 +90,11 @@ func (prog *Program) addMethod(mset *methodSet, sel *types.Selection, cr *creato
 		if needsPromotion || needsIndirection {
 			fn = makeWrapper(prog, sel, cr)
 		} else {
-			fn = prog.declaredFunc(obj)
+			fn = prog.originFunc(obj)
+			if len(fn._TypeParams) > 0 { // instantiate
+				targs := receiverTypeArgs(obj)
+				fn = prog.instances[fn].lookupOrCreate(targs, cr)
+			}
 		}
 		if fn.Signature.Recv() == nil {
 			panic(fn) // missing receiver
@@ -126,10 +130,7 @@ func (prog *Program) RuntimeTypes() []types.Type {
 //
 func (prog *Program) declaredFunc(obj *types.Func) *Function {
 	if v := prog.packageLevelMember(obj); v != nil {
-		fn := v.(*Function)
-		// TODO(taking): Removed restriction once generics are supported.
-		assert(len(fn._TypeParams) == len(fn._TypeArgs), "ssa does not yet support calling generic functions. See https://github.com/golang/go/issues/48525")
-		return fn
+		return v.(*Function)
 	}
 	panic("no concrete method: " + obj.String())
 }

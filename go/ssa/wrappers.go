@@ -125,7 +125,11 @@ func makeWrapper(prog *Program, sel *types.Selection, cr *creator) *Function {
 		if !isPointer(r) {
 			v = emitLoad(fn, v)
 		}
-		c.Call.Value = prog.declaredFunc(obj)
+		callee := prog.originFunc(obj)
+		if len(callee._TypeParams) > 0 {
+			prog.instances[callee].lookupOrCreate(receiverTypeArgs(obj), cr)
+		}
+		c.Call.Value = callee
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
 		c.Call.Method = obj
@@ -208,7 +212,11 @@ func makeBound(prog *Program, obj *types.Func, cr *creator) *Function {
 		var c Call
 
 		if !isInterface(recvType(obj)) { // concrete
-			c.Call.Value = prog.declaredFunc(obj)
+			callee := prog.originFunc(obj)
+			if len(callee._TypeParams) > 0 {
+				callee = prog.instances[callee].lookupOrCreate(targs, cr)
+			}
+			c.Call.Value = callee
 			c.Call.Args = []Value{fv}
 		} else {
 			c.Call.Value = fv

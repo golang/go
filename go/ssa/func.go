@@ -15,6 +15,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // Like ObjectOf, but panics instead of returning nil.
@@ -34,6 +36,20 @@ func (f *Function) typeOf(e ast.Expr) types.Type {
 		return T
 	}
 	panic(fmt.Sprintf("no type for %T @ %s", e, f.Prog.Fset.Position(e.Pos())))
+}
+
+// instanceArgs returns the Instance[id].TypeArgs within the context of fn.
+func (fn *Function) instanceArgs(id *ast.Ident) []types.Type {
+	targList := typeparams.GetInstances(fn.info)[id].TypeArgs
+	if targList == nil {
+		return nil
+	}
+
+	targs := make([]types.Type, targList.Len())
+	for i, n := 0, targList.Len(); i < n; i++ {
+		targs[i] = targList.At(i)
+	}
+	return targs
 }
 
 // Destinations associated with unlabelled for/switch/select stmts.
