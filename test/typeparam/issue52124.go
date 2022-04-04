@@ -7,3 +7,9 @@
 package p
 
 type I interface{ any | int }
+
+var (
+	X I = 42
+	Y I = "xxx"
+	Z I = true
+)
