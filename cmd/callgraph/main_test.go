@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -34,8 +35,8 @@ func init() {
 }
 
 func TestCallgraph(t *testing.T) {
-	if b := os.Getenv("GO_BUILDER_NAME"); b == "windows-arm64-10" {
-		t.Skipf("skipping due to suspected file corruption bug on %s builder (https://go.dev/issue/50706)", b)
+	if runtime.GOOS == "windows" && runtime.GOARCH == "arm64" {
+		t.Skipf("skipping due to suspected file corruption bug on windows/arm64 (https://go.dev/issue/50706)")
 	}
 
 	testenv.NeedsTool(t, "go")
