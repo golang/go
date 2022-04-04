@@ -686,11 +686,11 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		default:
 			panic("unreachable")
 		}
-		if e.High != nil {
-			high = b.expr(fn, e.High)
-		}
 		if e.Low != nil {
 			low = b.expr(fn, e.Low)
+		}
+		if e.High != nil {
+			high = b.expr(fn, e.High)
 		}
 		if e.Slice3 {
 			max = b.expr(fn, e.Max)

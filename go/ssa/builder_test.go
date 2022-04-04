@@ -6,6 +6,7 @@ package ssa_test
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/build"
 	"go/importer"
@@ -624,6 +625,70 @@ func TestTypeparamTest(t *testing.T) {
 
 			prog := ssautil.CreateProgram(iprog, ssa.SanityCheckFunctions)
 			prog.Build()
+		})
+	}
+}
+
+// TestOrderOfOperations ensures order of operations are as intended.
+func TestOrderOfOperations(t *testing.T) {
+	// Testing for the order of operations within an expression is done
+	// by collecting the sequence of direct function calls within a *Function.
+	// Callees are all external functions so they cannot be safely re-ordered by ssa.
+	const input = `
+package p
+
+func a() int
+func b() int
+func c() int
+
+func slice(s []int) []int { return s[a():b()] }
+func sliceMax(s []int) []int { return s[a():b():c()] }
+
+`
+
+	// Parse
+	var conf loader.Config
+	f, err := conf.ParseFile("<input>", input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	conf.CreateFromFiles("p", f)
+
+	// Load
+	lprog, err := conf.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Create and build SSA
+	prog := ssautil.CreateProgram(lprog, 0)
+	p := prog.Package(lprog.Package("p").Pkg)
+	p.Build()
+
+	for _, item := range []struct {
+		fn   string
+		want string // sequence of calls within the function.
+	}{
+		{"sliceMax", "[a() b() c()]"},
+		{"slice", "[a() b()]"},
+	} {
+		fn := p.Func(item.fn)
+		want := item.want
+		t.Run(item.fn, func(t *testing.T) {
+			t.Parallel()
+
+			var calls []string
+			for _, b := range fn.Blocks {
+				for _, instr := range b.Instrs {
+					if call, ok := instr.(ssa.CallInstruction); ok {
+						calls = append(calls, call.String())
+					}
+				}
+			}
+			if got := fmt.Sprint(calls); got != want {
+				fn.WriteTo(os.Stderr)
+				t.Errorf("Expected sequence of function calls in %s was %s. got %s", fn, want, got)
+			}
 		})
 	}
 }
