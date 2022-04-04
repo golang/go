@@ -70,6 +70,18 @@ start 0 call start
 start 0 nosplit call start
 REJECT
 
+# Non-trivial recursion runs out of space.
+start 0 call f1
+f1 0 nosplit call f2
+f2 0 nosplit call f1
+REJECT
+# Same but cycle starts below nosplit entry.
+start 0 call f1
+f1 0 nosplit call f2
+f2 0 nosplit call f3
+f3 0 nosplit call f2
+REJECT
+
 # Chains of ordinary functions okay.
 start 0 call f1
 f1 80 call f2
@@ -103,6 +115,14 @@ f6 16 nosplit call f7
 f7 16 nosplit call f8
 f8 16 nosplit call end
 end 1000
+REJECT
+
+# Two paths both go over the stack limit.
+start 0 call f1
+f1 80 nosplit call f2 call f3
+f2 40 nosplit call f4
+f3 96 nosplit
+f4 40 nosplit
 REJECT
 
 # Test cases near the 128-byte limit.
