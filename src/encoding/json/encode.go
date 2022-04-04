@@ -1239,6 +1239,8 @@ func typeFields(t reflect.Type) structFields {
 
 			// Scan f.typ for fields to include.
 			for i := 0; i < f.typ.NumField(); i++ {
+				var spread bool
+
 				sf := f.typ.Field(i)
 				if sf.Anonymous {
 					t := sf.Type
@@ -1259,6 +1261,18 @@ func typeFields(t reflect.Type) structFields {
 				if tag == "-" {
 					continue
 				}
+				if tag == "..." {
+					t := sf.Type
+					spread = true
+					if t.Kind() == reflect.Pointer {
+						t = t.Elem()
+					}
+					if !sf.IsExported() && t.Kind() != reflect.Struct {
+						// Ignore embedded fields of unexported non-struct types.
+						continue
+					}
+				}
+
 				name, opts := parseTag(tag)
 				if !isValidTag(name) {
 					name = ""
@@ -1287,7 +1301,7 @@ func typeFields(t reflect.Type) structFields {
 				}
 
 				// Record found field and index sequence.
-				if name != "" || !sf.Anonymous || ft.Kind() != reflect.Struct {
+				if !spread && (name != "" || !sf.Anonymous || ft.Kind() != reflect.Struct) {
 					tagged := name != ""
 					if name == "" {
 						name = sf.Name

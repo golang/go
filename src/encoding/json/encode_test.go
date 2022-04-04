@@ -1201,3 +1201,72 @@ func TestMarshalerError(t *testing.T) {
 		}
 	}
 }
+
+func TestMarshalSpread(t *testing.T) {
+	type base[T any] struct {
+		Name      string
+		Free      T `json:"..."`
+		CreatedAt time.Time
+	}
+
+	type additional struct {
+		Age     int
+		IsValid bool
+	}
+
+	now := time.Now()
+
+	tests := []struct{
+		name string
+		in any
+		want string
+	}{
+		{
+			name: "ok",
+			in: base[additional]{
+				Name: "Foo",
+				Free: additional{
+					Age: 20,
+				}
+				CreatedAt: now,
+			},
+			want: fmt.Sprintf(`{"Name":"Foo","Age":20,"IsValid":false,"CreatedAt":"%s"}`, now.String()),
+		},
+		{
+			name: "ok ptr",
+			in: base[*additional]{
+				Name: "Foo",
+				Free: &additional{
+					Age: 40,
+					IsValid: true,
+				},
+				CreatedAt: now,
+			}
+			want: fmt.Sprintf(`{"Name":"Foo","Age":40,"IsValid":true,"CreatedAt":"%s"}`, now.String()),
+		},
+		{
+			name: "ok ignored",
+			in: base[string]{
+				Name: "Foo",
+				Free: "ignored...",
+				CreatedAt: now,
+			}
+			want: fmt.Sprintf(`{"Name":"Foo","CreatedAt":"%s"}`, now.String()),
+		},
+	}
+
+	for _, tt := range tests{
+		tt := tt
+		b, err := Marshal(tt.in)
+		if ok := (err == nil); ok != tt.ok {
+			if err != nil {
+				t.Errorf("test %d, unexpected failure: %v", i, err)
+			} else {
+				t.Errorf("test %d, unexpected success", i)
+			}
+		}
+		if got := string(b); got != tt.want {
+			t.Errorf("test %d, Marshal(%#v) = %q, want %q", i, tt.in, got, tt.want)
+		}
+	}
+}
