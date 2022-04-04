@@ -442,7 +442,19 @@ func (r *reader) doTyp() *types.Type {
 		return r.structType()
 	case pkgbits.TypeInterface:
 		return r.interfaceType()
+	case pkgbits.TypeUnion:
+		return r.unionType()
 	}
+}
+
+func (r *reader) unionType() *types.Type {
+	terms := make([]*types.Type, r.Len())
+	tildes := make([]bool, len(terms))
+	for i := range terms {
+		tildes[i] = r.Bool()
+		terms[i] = r.typ()
+	}
+	return types.NewUnion(terms, tildes)
 }
 
 func (r *reader) interfaceType() *types.Type {
