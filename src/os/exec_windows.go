@@ -47,14 +47,13 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 
 func (p *Process) signal(sig Signal) error {
 	handle := atomic.LoadUintptr(&p.handle)
+	if handle == uintptr(syscall.InvalidHandle) {
+		return syscall.EINVAL
+	}
 	if p.done() {
 		return ErrProcessDone
 	}
-	s, ok := sig.(syscall.Signal)
-	if !ok {
-		return syscall.EWINDOWS
-	}
-	if s == syscall.SIGKILL {
+	if sig == Kill {
 		var terminationHandle syscall.Handle
 		e := syscall.DuplicateHandle(^syscall.Handle(0), syscall.Handle(handle), ^syscall.Handle(0), &terminationHandle, syscall.PROCESS_TERMINATE, false, 0)
 		if e != nil {
@@ -62,17 +61,11 @@ func (p *Process) signal(sig Signal) error {
 		}
 		runtime.KeepAlive(p)
 		defer syscall.CloseHandle(terminationHandle)
-		e = syscall.TerminateProcess(terminationHandle, 1)
+		e = syscall.TerminateProcess(syscall.Handle(terminationHandle), 1)
 		return NewSyscallError("TerminateProcess", e)
 	}
-	if s == syscall.SIGINT {
-		e := windows.GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, uint32(p.Pid))
-		if e != nil {
-			return NewSyscallError("GenerateConsoleCtrlEvent", e)
-		}
-		return nil
-	}
-	return syscall.EWINDOWS
+	// TODO(rsc): Handle Interrupt too?
+	return syscall.Errno(syscall.EWINDOWS)
 }
 
 func (p *Process) release() error {
