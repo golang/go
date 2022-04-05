@@ -1719,7 +1719,7 @@ func (t *goimportTest) assertProcessEquals(module, file string, contents []byte,
 		t.Fatalf("Process() = %v", err)
 	}
 	if string(buf) != want {
-		t.Errorf("Got:\n%s\nWant:\n%s", buf, want)
+		t.Errorf("Got:\n'%s'\nWant:\n'%s'", buf, want) // 's show empty lines
 	}
 }
 
@@ -1746,8 +1746,100 @@ const Y = bar.X
 	}.processTest(t, "foo.com", "test/t.go", nil, nil, want)
 }
 
+func TestPanicAstutils(t *testing.T) {
+	t.Skip("panic in ast/astutil/imports.go, should be PostionFor(,false) at lines 273, 274, at least")
+	const input = `package main
+//line mah.go:600
+
+import (
+"foo.com/a.thing"
+"foo.com/surprise"
+"foo.com/v1"
+"foo.com/other/v2"
+"foo.com/other/v3"
+)
+`
+
+	const want = `package main
+
+//line mah.go:600
+
+import (
+	"foo.com/a.thing"
+	"foo.com/go-thing"
+	gow "foo.com/go-wrong"
+	v2 "foo.com/other/v2"
+	"foo.com/other/v3"
+	bar "foo.com/surprise"
+	v1 "foo.com/v1"
+)
+
+`
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+			Files: fm{
+				"test/t.go": input,
+			},
+		},
+	}.processTest(t, "foo.com", "test/t.go", nil, nil, want)
+}
+
+// without PositionFor in sortImports this test panics
+func TestPanic51916(t *testing.T) {
+	const input = `package main
+//line mah.go:600
+
+import (
+"foo.com/a.thing"
+"foo.com/surprise"
+"foo.com/v1"
+"foo.com/other/v2"
+"foo.com/other/v3"
+"foo.com/go-thing"
+"foo.com/go-wrong"
+)
+
+var _ = []interface{}{bar.X, v1.Y, a.A, v2.V2, other.V3, thing.Thing, gow.Wrong}`
+
+	const want = `package main
+
+//line mah.go:600
+
+import (
+	"foo.com/a.thing"
+	"foo.com/go-thing"
+	gow "foo.com/go-wrong"
+	v2 "foo.com/other/v2"
+	"foo.com/other/v3"
+	bar "foo.com/surprise"
+	v1 "foo.com/v1"
+)
+
+var _ = []interface{}{bar.X, v1.Y, a.A, v2.V2, other.V3, thing.Thing, gow.Wrong}
+`
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+			Files: fm{
+				"a.thing/a.go":  "package a \n const A = 1",
+				"surprise/x.go": "package bar \n const X = 1",
+				"v1/x.go":       "package v1 \n const Y = 1",
+				"other/v2/y.go": "package v2 \n const V2 = 1",
+				"other/v3/z.go": "package other \n const V3 = 1",
+				"go-thing/b.go": "package thing \n const Thing = 1",
+				"go-wrong/b.go": "package gow \n const Wrong = 1",
+				"test/t.go":     input,
+			},
+		},
+	}.processTest(t, "foo.com", "test/t.go", nil, nil, want)
+}
+
 // Tests that an existing import with badly mismatched path/name has its name
 // correctly added. See #28645 and #29041.
+// and check that //line directives are ignored (#51916)
 func TestAddNameToMismatchedImport(t *testing.T) {
 	const input = `package main
 
