@@ -1,0 +1,8 @@
+-- input --
+We use [io.Reader] a lot, and also a few map[io.Reader]string.
+
+Never [io.Reader]int or Slice[io.Reader] though.
+-- markdown --
+We use [io.Reader](/io#Reader) a lot, and also a few map\[io.Reader]string.
+
+Never \[io.Reader]int or Slice\[io.Reader] though.

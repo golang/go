@@ -54,6 +54,17 @@ func (p *htmlPrinter) text(out *bytes.Buffer, x []Text) {
 			out.WriteString(`">`)
 			p.text(out, t.Text)
 			out.WriteString("</a>")
+		case *DocLink:
+			url := p.docLinkURL(t)
+			if url != "" {
+				out.WriteString(`<a href="`)
+				p.escape(out, url)
+				out.WriteString(`">`)
+			}
+			p.text(out, t.Text)
+			if url != "" {
+				out.WriteString("</a>")
+			}
 		}
 	}
 }

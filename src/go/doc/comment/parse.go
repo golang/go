@@ -5,6 +5,7 @@
 package comment
 
 import (
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -27,7 +28,7 @@ type LinkDef struct {
 }
 
 // A Block is block-level content in a doc comment,
-// one of *[Code], *[Heading], *[List], or *[Paragraph].
+// one of [*Code], [*Heading], [*List], or [*Paragraph].
 type Block interface {
 	block()
 }
@@ -131,7 +132,7 @@ type Code struct {
 func (*Code) block() {}
 
 // A Text is text-level content in a doc comment,
-// one of [Plain], [Italic], *[Link], or *[DocLink].
+// one of [Plain], [Italic], [*Link], or [*DocLink].
 type Text interface {
 	text()
 }
@@ -231,6 +232,54 @@ type parseDoc struct {
 	lookupSym func(recv, name string) bool
 }
 
+// lookupPkg is called to look up the pkg in [pkg], [pkg.Name], and [pkg.Name.Recv].
+// If pkg has a slash, it is assumed to be the full import path and is returned with ok = true.
+//
+// Otherwise, pkg is probably a simple package name like "rand" (not "crypto/rand" or "math/rand").
+// d.LookupPackage provides a way for the caller to allow resolving such names with reference
+// to the imports in the surrounding package.
+//
+// There is one collision between these two cases: single-element standard library names
+// like "math" are full import paths but don't contain slashes. We let d.LookupPackage have
+// the first chance to resolve it, in case there's a different package imported as math,
+// and otherwise we refer to a built-in list of single-element standard library package names.
+func (d *parseDoc) lookupPkg(pkg string) (importPath string, ok bool) {
+	if strings.Contains(pkg, "/") { // assume a full import path
+		if validImportPath(pkg) {
+			return pkg, true
+		}
+		return "", false
+	}
+	if d.LookupPackage != nil {
+		// Give LookupPackage a chance.
+		if path, ok := d.LookupPackage(pkg); ok {
+			return path, true
+		}
+	}
+	return DefaultLookupPackage(pkg)
+}
+
+func isStdPkg(path string) bool {
+	// TODO(rsc): Use sort.Find.
+	i := sort.Search(len(stdPkgs), func(i int) bool { return stdPkgs[i] >= path })
+	return i < len(stdPkgs) && stdPkgs[i] == path
+}
+
+// DefaultLookupPackage is the default package lookup
+// function, used when [Parser].LookupPackage is nil.
+// It recognizes names of the packages from the standard
+// library with single-element import paths, such as math,
+// which would otherwise be impossible to name.
+//
+// Note that the go/doc package provides a more sophisticated
+// lookup based on the imports used in the current package.
+func DefaultLookupPackage(name string) (importPath string, ok bool) {
+	if isStdPkg(name) {
+		return name, true
+	}
+	return "", false
+}
+
 // Parse parses the doc comment text and returns the *Doc form.
 // Comment markers (/* // and */) in the text must have already been removed.
 func (p *Parser) Parse(text string) *Doc {
@@ -264,7 +313,7 @@ func (p *Parser) Parse(text string) *Doc {
 	for _, b := range d.Content {
 		switch b := b.(type) {
 		case *Paragraph:
-			b.Text = d.parseText(string(b.Text[0].(Plain)))
+			b.Text = d.parseLinkedText(string(b.Text[0].(Plain)))
 		}
 	}
 
@@ -406,9 +455,131 @@ func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
 	return &Paragraph{Text: []Text{Plain(strings.Join(lines, "\n"))}}, rest
 }
 
-// parseText parses s as text and returns the parsed Text elements.
-func (d *parseDoc) parseText(s string) []Text {
+// parseLinkedText parses text that is allowed to contain explicit links,
+// such as [math.Sin] or [Go home page], into a slice of Text items.
+//
+// A “pkg” is only assumed to be a full import path if it starts with
+// a domain name (a path element with a dot) or is one of the packages
+// from the standard library (“[os]”, “[encoding/json]”, and so on).
+// To avoid problems with maps, generics, and array types, doc links
+// must be both preceded and followed by punctuation, spaces, tabs,
+// or the start or end of a line. An example problem would be treating
+// map[ast.Expr]TypeAndValue as containing a link.
+func (d *parseDoc) parseLinkedText(text string) []Text {
 	var out []Text
+	wrote := 0
+	flush := func(i int) {
+		if wrote < i {
+			out = d.parseText(out, text[wrote:i], true)
+			wrote = i
+		}
+	}
+
+	start := -1
+	var buf []byte
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if c == '\n' || c == '\t' {
+			c = ' '
+		}
+		switch c {
+		case '[':
+			start = i
+		case ']':
+			if start >= 0 {
+				if def, ok := d.links[string(buf)]; ok {
+					def.Used = true
+					flush(start)
+					out = append(out, &Link{
+						Text: d.parseText(nil, text[start+1:i], false),
+						URL:  def.URL,
+					})
+					wrote = i + 1
+				} else if link, ok := d.docLink(text[start+1:i], text[:start], text[i+1:]); ok {
+					flush(start)
+					link.Text = d.parseText(nil, text[start+1:i], false)
+					out = append(out, link)
+					wrote = i + 1
+				}
+			}
+			start = -1
+			buf = buf[:0]
+		}
+		if start >= 0 && i != start {
+			buf = append(buf, c)
+		}
+	}
+
+	flush(len(text))
+	return out
+}
+
+// docLink parses text, which was found inside [ ] brackets,
+// as a doc link if possible, returning the DocLink and ok == true
+// or else nil, false.
+// The before and after strings are the text before the [ and after the ]
+// on the same line. Doc links must be preceded and followed by
+// punctuation, spaces, tabs, or the start or end of a line.
+func (d *parseDoc) docLink(text, before, after string) (link *DocLink, ok bool) {
+	if before != "" {
+		r, _ := utf8.DecodeLastRuneInString(before)
+		if !unicode.IsPunct(r) && r != ' ' && r != '\t' && r != '\n' {
+			return nil, false
+		}
+	}
+	if after != "" {
+		r, _ := utf8.DecodeRuneInString(after)
+		if !unicode.IsPunct(r) && r != ' ' && r != '\t' && r != '\n' {
+			return nil, false
+		}
+	}
+	if strings.HasPrefix(text, "*") {
+		text = text[1:]
+	}
+	pkg, name, ok := splitDocName(text)
+	var recv string
+	if ok {
+		pkg, recv, _ = splitDocName(pkg)
+	}
+	if pkg != "" {
+		if pkg, ok = d.lookupPkg(pkg); !ok {
+			return nil, false
+		}
+	} else {
+		if ok = d.lookupSym(recv, name); !ok {
+			return nil, false
+		}
+	}
+	link = &DocLink{
+		ImportPath: pkg,
+		Recv:       recv,
+		Name:       name,
+	}
+	return link, true
+}
+
+// If text is of the form before.Name, where Name is a capitalized Go identifier,
+// then splitDocName returns before, name, true.
+// Otherwise it returns text, "", false.
+func splitDocName(text string) (before, name string, foundDot bool) {
+	i := strings.LastIndex(text, ".")
+	name = text[i+1:]
+	if !isName(name) {
+		return text, "", false
+	}
+	if i >= 0 {
+		before = text[:i]
+	}
+	return before, name, true
+}
+
+// parseText parses s as text and returns the result of appending
+// those parsed Text elements to out.
+// parseText does not handle explicit links like [math.Sin] or [Go home page]:
+// those are handled by parseLinkedText.
+// If autoLink is true, then parseText recognizes URLs and words from d.Words
+// and converts those to links as appropriate.
+func (d *parseDoc) parseText(out []Text, s string, autoLink bool) []Text {
 	var w strings.Builder
 	wrote := 0
 	writeUntil := func(i int) {
@@ -424,7 +595,6 @@ func (d *parseDoc) parseText(s string) []Text {
 	}
 	for i := 0; i < len(s); {
 		t := s[i:]
-		const autoLink = true
 		if autoLink {
 			if url, ok := autoURL(t); ok {
 				flush(i)
@@ -692,11 +862,76 @@ func ident(s string) (id string, ok bool) {
 
 // isIdentASCII reports whether c is an ASCII identifier byte.
 func isIdentASCII(c byte) bool {
+	// mask is a 128-bit bitmap with 1s for allowed bytes,
+	// so that the byte c can be tested with a shift and an and.
+	// If c > 128, then 1<<c and 1<<(c-64) will both be zero,
+	// and this function will return false.
 	const mask = 0 |
 		(1<<26-1)<<'A' |
 		(1<<26-1)<<'a' |
 		(1<<10-1)<<'0' |
 		1<<'_'
+
+	return ((uint64(1)<<c)&(mask&(1<<64-1)) |
+		(uint64(1)<<(c-64))&(mask>>64)) != 0
+}
+
+// validImportPath reports whether path is a valid import path.
+// It is a lightly edited copy of golang.org/x/mod/module.CheckImportPath.
+func validImportPath(path string) bool {
+	if !utf8.ValidString(path) {
+		return false
+	}
+	if path == "" {
+		return false
+	}
+	if path[0] == '-' {
+		return false
+	}
+	if strings.Contains(path, "//") {
+		return false
+	}
+	if path[len(path)-1] == '/' {
+		return false
+	}
+	elemStart := 0
+	for i, r := range path {
+		if r == '/' {
+			if !validImportPathElem(path[elemStart:i]) {
+				return false
+			}
+			elemStart = i + 1
+		}
+	}
+	return validImportPathElem(path[elemStart:])
+}
+
+func validImportPathElem(elem string) bool {
+	if elem == "" || elem[0] == '.' || elem[len(elem)-1] == '.' {
+		return false
+	}
+	for i := 0; i < len(elem); i++ {
+		if !importPathOK(elem[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func importPathOK(c byte) bool {
+	// mask is a 128-bit bitmap with 1s for allowed bytes,
+	// so that the byte c can be tested with a shift and an and.
+	// If c > 128, then 1<<c and 1<<(c-64) will both be zero,
+	// and this function will return false.
+	const mask = 0 |
+		(1<<26-1)<<'A' |
+		(1<<26-1)<<'a' |
+		(1<<10-1)<<'0' |
+		1<<'-' |
+		1<<'.' |
+		1<<'~' |
+		1<<'_' |
+		1<<'+'
 
 	return ((uint64(1)<<c)&(mask&(1<<64-1)) |
 		(uint64(1)<<(c-64))&(mask>>64)) != 0

@@ -7,6 +7,7 @@ package comment
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 // An mdPrinter holds the state needed for printing a Doc as Markdown.
@@ -87,6 +88,19 @@ func (p *mdPrinter) rawText(out *bytes.Buffer, x []Text) {
 			out.WriteString("](")
 			out.WriteString(t.URL)
 			out.WriteString(")")
+		case *DocLink:
+			url := p.docLinkURL(t)
+			if url != "" {
+				out.WriteString("[")
+			}
+			p.rawText(out, t.Text)
+			if url != "" {
+				out.WriteString("](")
+				url = strings.ReplaceAll(url, "(", "%28")
+				url = strings.ReplaceAll(url, ")", "%29")
+				out.WriteString(url)
+				out.WriteString(")")
+			}
 		}
 	}
 }

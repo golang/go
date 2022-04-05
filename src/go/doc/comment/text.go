@@ -69,6 +69,7 @@ func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
 
 // oneLongLine prints the text sequence x to out as one long line,
 // without worrying about line wrapping.
+// Explicit links have the [ ] dropped to improve readability.
 func (p *textPrinter) oneLongLine(out *bytes.Buffer, x []Text) {
 	for _, t := range x {
 		switch t := t.(type) {
@@ -77,6 +78,8 @@ func (p *textPrinter) oneLongLine(out *bytes.Buffer, x []Text) {
 		case Italic:
 			out.WriteString(string(t))
 		case *Link:
+			p.oneLongLine(out, t.Text)
+		case *DocLink:
 			p.oneLongLine(out, t.Text)
 		}
 	}
