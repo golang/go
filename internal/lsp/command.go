@@ -808,7 +808,7 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 			Tests:      true, // TODO(hyangah): add a field in args.
 			BuildFlags: buildFlags,
 			Env:        viewEnv,
-			Dir:        view.Folder().Filename(),
+			Dir:        args.Dir.SpanURI().Filename(),
 			// TODO(hyangah): configure overlay
 		}
 		var err error
