@@ -25,6 +25,20 @@ func TestTestdata(t *testing.T) {
 		"italicword": "",
 		"linkedword": "https://example.com/linkedword",
 	}
+	p.LookupPackage = func(name string) (importPath string, ok bool) {
+		if name == "comment" {
+			return "go/doc/comment", true
+		}
+		return DefaultLookupPackage(name)
+	}
+	p.LookupSym = func(recv, name string) (ok bool) {
+		if recv == "Parser" && name == "Parse" ||
+			recv == "" && name == "Doc" ||
+			recv == "" && name == "NoURL" {
+			return true
+		}
+		return false
+	}
 
 	stripDollars := func(b []byte) []byte {
 		// Remove trailing $ on lines.

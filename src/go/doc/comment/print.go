@@ -55,6 +55,54 @@ type Printer struct {
 	TextWidth int
 }
 
+func (p *Printer) docLinkURL(link *DocLink) string {
+	if p.DocLinkURL != nil {
+		return p.DocLinkURL(link)
+	}
+	return link.DefaultURL(p.DocLinkBaseURL)
+}
+
+// DefaultURL constructs and returns the documentation URL for l,
+// using baseURL as a prefix for links to other packages.
+//
+// The possible forms returned by DefaultURL are:
+//   - baseURL/ImportPath, for a link to another package
+//   - baseURL/ImportPath#Name, for a link to a const, func, type, or var in another package
+//   - baseURL/ImportPath#Recv.Name, for a link to a method in another package
+//   - #Name, for a link to a const, func, type, or var in this package
+//   - #Recv.Name, for a link to a method in this package
+//
+// If baseURL ends in a trailing slash, then DefaultURL inserts
+// a slash between ImportPath and # in the anchored forms.
+// For example, here are some baseURL values and URLs they can generate:
+//
+//	"/pkg/" → "/pkg/math/#Sqrt"
+//	"/pkg"  → "/pkg/math#Sqrt"
+//	"/"     → "/math/#Sqrt"
+//	""      → "/math#Sqrt"
+func (l *DocLink) DefaultURL(baseURL string) string {
+	if l.ImportPath != "" {
+		slash := ""
+		if strings.HasSuffix(baseURL, "/") {
+			slash = "/"
+		} else {
+			baseURL += "/"
+		}
+		switch {
+		case l.Name == "":
+			return baseURL + l.ImportPath + slash
+		case l.Recv != "":
+			return baseURL + l.ImportPath + slash + "#" + l.Recv + "." + l.Name
+		default:
+			return baseURL + l.ImportPath + slash + "#" + l.Name
+		}
+	}
+	if l.Recv != "" {
+		return "#" + l.Recv + "." + l.Name
+	}
+	return "#" + l.Name
+}
+
 type commentPrinter struct {
 	*Printer
 	headingPrefix string
@@ -107,6 +155,10 @@ func (p *commentPrinter) text(out *bytes.Buffer, indent string, x []Text) {
 			p.indent(out, indent, string(t))
 		case *Link:
 			p.text(out, indent, t.Text)
+		case *DocLink:
+			out.WriteString("[")
+			p.text(out, indent, t.Text)
+			out.WriteString("]")
 		}
 	}
 }

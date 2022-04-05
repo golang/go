@@ -1,3 +1,5 @@
+pkg go/doc/comment, func DefaultLookupPackage(string) (string, bool) #51082
+pkg go/doc/comment, method (*DocLink) DefaultURL(string) string #51082
 pkg go/doc/comment, method (*List) BlankBefore() bool #51082
 pkg go/doc/comment, method (*List) BlankBetween() bool #51082
 pkg go/doc/comment, method (*Parser) Parse(string) *Doc #51082
