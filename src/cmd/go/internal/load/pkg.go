@@ -686,6 +686,9 @@ func LoadImport(ctx context.Context, opts PackageOpts, path, srcDir string, pare
 }
 
 func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+	ctx, span := trace.StartSpan(ctx, "modload.loadImport "+path)
+	defer span.Done()
+
 	if path == "" {
 		panic("LoadImport called with empty package path")
 	}
@@ -801,6 +804,9 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 // loadPackageData returns a boolean, loaded, which is true if this is the
 // first time the package was loaded. Callers may preload imports in this case.
 func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoot string, parentIsStd bool, mode int) (bp *build.Package, loaded bool, err error) {
+	ctx, span := trace.StartSpan(ctx, "load.loadPackageData "+path)
+	defer span.Done()
+
 	if path == "" {
 		panic("loadPackageData called with empty package path")
 	}

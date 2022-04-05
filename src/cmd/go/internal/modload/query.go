@@ -74,6 +74,9 @@ import (
 // If path is the path of the main module and the query is "latest",
 // Query returns Target.Version as the version.
 func Query(ctx context.Context, path, query, current string, allowed AllowedFunc) (*modfetch.RevInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "modload.Query "+path)
+	defer span.Done()
+
 	var info *modfetch.RevInfo
 	err := modfetch.TryProxies(func(proxy string) (err error) {
 		info, err = queryProxy(ctx, proxy, path, query, current, allowed)
