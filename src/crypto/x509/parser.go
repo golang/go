@@ -941,10 +941,10 @@ func parseCertificate(der []byte) (*Certificate, error) {
 	}
 
 	if cert.Version > 1 {
-		if !tbs.SkipOptionalASN1(cryptobyte_asn1.Tag(1).Constructed().ContextSpecific()) {
+		if !tbs.SkipOptionalASN1(cryptobyte_asn1.Tag(1).ContextSpecific()) {
 			return nil, errors.New("x509: malformed issuerUniqueID")
 		}
-		if !tbs.SkipOptionalASN1(cryptobyte_asn1.Tag(2).Constructed().ContextSpecific()) {
+		if !tbs.SkipOptionalASN1(cryptobyte_asn1.Tag(2).ContextSpecific()) {
 			return nil, errors.New("x509: malformed subjectUniqueID")
 		}
 		if cert.Version == 3 {

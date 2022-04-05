@@ -223,6 +223,29 @@ func TestStatError(t *testing.T) {
 	}
 }
 
+func TestStatSymlinkLoop(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	defer chtmpdir(t)()
+
+	err := os.Symlink("x", "y")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove("y")
+
+	err = os.Symlink("y", "x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove("x")
+
+	_, err = os.Stat("x")
+	if _, ok := err.(*fs.PathError); !ok {
+		t.Errorf("expected *PathError, got %T: %v\n", err, err)
+	}
+}
+
 func TestFstat(t *testing.T) {
 	path := sfdir + "/" + sfname
 	file, err1 := Open(path)

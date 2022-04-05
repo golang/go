@@ -17,7 +17,6 @@ import (
 // If an error occurred, x.mode is set to invalid.
 // For the meaning of def, see Checker.definedType, below.
 // If wantType is set, the identifier e is expected to denote a type.
-//
 func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType bool) {
 	x.mode = invalid
 	x.expr = e
@@ -181,7 +180,6 @@ func (check *Checker) validVarType(e syntax.Expr, typ Type) {
 // If def != nil, e is the type specification for the defined type def, declared
 // in a type declaration, and def.underlying will be set to the type of e before
 // any components of e are type-checked.
-//
 func (check *Checker) definedType(e syntax.Expr, def *Named) Type {
 	typ := check.typInternal(e, def)
 	assert(isTyped(typ))
@@ -216,7 +214,6 @@ func goTypeName(typ Type) string {
 
 // typInternal drives type checking of types.
 // Must only be called by definedType or genericType.
-//
 func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 	if check.conf.Trace {
 		check.trace(e0.Pos(), "-- type %s", e0)

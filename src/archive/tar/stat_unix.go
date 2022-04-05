@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || linux || darwin || dragonfly || freebsd || openbsd || netbsd || solaris
+//go:build unix
 
 package tar
 

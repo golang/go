@@ -194,8 +194,8 @@ func (S0) m4() (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { ret
 
 // interfaces may not have any blank methods
 type BlankI interface {
-	_ /* ERROR "invalid method name" */ ()
-	_ /* ERROR "invalid method name" */ (float32) int
+	_ /* ERROR "methods must have a unique non-blank name" */ ()
+	_ /* ERROR "methods must have a unique non-blank name" */ (float32) int
 	m()
 }
 

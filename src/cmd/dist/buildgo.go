@@ -97,7 +97,7 @@ func mkzosarch(dir, file string) {
 // mkzcgo writes zcgo.go for the go/build package:
 //
 //	package build
-//  var cgoEnabled = map[string]bool{}
+//	var cgoEnabled = map[string]bool{}
 //
 // It is invoked to write go/build/zcgo.go.
 func mkzcgo(dir, file string) {

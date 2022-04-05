@@ -319,16 +319,16 @@ type arenaHint struct {
 // mSpanManual, or mSpanFree. Transitions between these states are
 // constrained as follows:
 //
-// * A span may transition from free to in-use or manual during any GC
-//   phase.
+//  * A span may transition from free to in-use or manual during any GC
+//    phase.
 //
-// * During sweeping (gcphase == _GCoff), a span may transition from
-//   in-use to free (as a result of sweeping) or manual to free (as a
-//   result of stacks being freed).
+//  * During sweeping (gcphase == _GCoff), a span may transition from
+//    in-use to free (as a result of sweeping) or manual to free (as a
+//    result of stacks being freed).
 //
-// * During GC (gcphase != _GCoff), a span *must not* transition from
-//   manual or in-use to free. Because concurrent GC may read a pointer
-//   and then look up its span, the span state must be monotonic.
+//  * During GC (gcphase != _GCoff), a span *must not* transition from
+//    manual or in-use to free. Because concurrent GC may read a pointer
+//    and then look up its span, the span state must be monotonic.
 //
 // Setting mspan.state to mSpanInUse or mSpanManual must be done
 // atomically and only after all other span fields are valid.
@@ -1706,7 +1706,7 @@ func spanHasNoSpecials(s *mspan) {
 // offset & next, which this routine will fill in.
 // Returns true if the special was successfully added, false otherwise.
 // (The add will fail only if a record with the same p and s->kind
-//  already exists.)
+// already exists.)
 func addspecial(p unsafe.Pointer, s *special) bool {
 	span := spanOfHeap(uintptr(p))
 	if span == nil {

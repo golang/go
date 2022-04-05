@@ -2924,30 +2924,15 @@ func TestCreateCertificateBrokenSigner(t *testing.T) {
 }
 
 func TestCreateCertificateLegacy(t *testing.T) {
-	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("Failed to generate ECDSA key: %s", err)
+	sigAlg := MD5WithRSA
+	template := &Certificate{
+		SerialNumber:       big.NewInt(10),
+		DNSNames:           []string{"example.com"},
+		SignatureAlgorithm: sigAlg,
 	}
-
-	for _, sigAlg := range []SignatureAlgorithm{
-		MD5WithRSA, SHA1WithRSA, ECDSAWithSHA1,
-	} {
-		template := &Certificate{
-			SerialNumber:       big.NewInt(10),
-			DNSNames:           []string{"example.com"},
-			SignatureAlgorithm: sigAlg,
-		}
-		var k crypto.Signer
-		switch sigAlg {
-		case MD5WithRSA, SHA1WithRSA:
-			k = testPrivateKey
-		case ECDSAWithSHA1:
-			k = ecdsaPriv
-		}
-		_, err := CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
-		if err != nil {
-			t.Fatalf("CreateCertificate failed when SignatureAlgorithm = %v: %s", sigAlg, err)
-		}
+	_, err := CreateCertificate(rand.Reader, template, template, testPrivateKey.Public(), &brokenSigner{testPrivateKey.Public()})
+	if err != nil {
+		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = %v: %s", sigAlg, err)
 	}
 }
 
@@ -3346,5 +3331,116 @@ func TestLargeOID(t *testing.T) {
 	_, err := ParseCertificate(b.Bytes)
 	if err != nil {
 		t.Fatalf("ParseCertificate to failed to parse certificate with large OID: %s", err)
+	}
+}
+
+const uniqueIDPEM = `-----BEGIN CERTIFICATE-----
+MIIFsDCCBJigAwIBAgIIrOyC1ydafZMwDQYJKoZIhvcNAQEFBQAwgY4xgYswgYgG
+A1UEAx6BgABNAGkAYwByAG8AcwBvAGYAdAAgAEYAbwByAGUAZgByAG8AbgB0ACAA
+VABNAEcAIABIAFQAVABQAFMAIABJAG4AcwBwAGUAYwB0AGkAbwBuACAAQwBlAHIA
+dABpAGYAaQBjAGEAdABpAG8AbgAgAEEAdQB0AGgAbwByAGkAdAB5MB4XDTE0MDEx
+ODAwNDEwMFoXDTE1MTExNTA5Mzc1NlowgZYxCzAJBgNVBAYTAklEMRAwDgYDVQQI
+EwdqYWthcnRhMRIwEAYDVQQHEwlJbmRvbmVzaWExHDAaBgNVBAoTE3N0aG9ub3Jl
+aG90ZWxyZXNvcnQxHDAaBgNVBAsTE3N0aG9ub3JlaG90ZWxyZXNvcnQxJTAjBgNV
+BAMTHG1haWwuc3Rob25vcmVob3RlbHJlc29ydC5jb20wggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQCvuu0qpI+Ko2X84Twkf84cRD/rgp6vpgc5Ebejx/D4
+PEVON5edZkazrMGocK/oQqIlRxx/lefponN/chlGcllcVVPWTuFjs8k+Aat6T1qp
+4iXxZekAqX+U4XZMIGJD3PckPL6G2RQSlF7/LhGCsRNRdKpMWSTbou2Ma39g52Kf
+gsl3SK/GwLiWpxpcSkNQD1hugguEIsQYLxbeNwpcheXZtxbBGguPzQ7rH8c5vuKU
+BkMOzaiNKLzHbBdFSrua8KWwCJg76Vdq/q36O9GlW6YgG3i+A4pCJjXWerI1lWwX
+Ktk5V+SvUHGey1bkDuZKJ6myMk2pGrrPWCT7jP7WskChAgMBAAGBCQBCr1dgEleo
+cKOCAfswggH3MIHDBgNVHREEgbswgbiCHG1haWwuc3Rob25vcmVob3RlbHJlc29y
+dC5jb22CIGFzaGNoc3ZyLnN0aG9ub3JlaG90ZWxyZXNvcnQuY29tgiRBdXRvRGlz
+Y292ZXIuc3Rob25vcmVob3RlbHJlc29ydC5jb22CHEF1dG9EaXNjb3Zlci5ob3Rl
+bHJlc29ydC5jb22CCEFTSENIU1ZSghdzdGhvbm9yZWhvdGVscmVzb3J0LmNvbYIP
+aG90ZWxyZXNvcnQuY29tMCEGCSsGAQQBgjcUAgQUHhIAVwBlAGIAUwBlAHIAdgBl
+AHIwHQYDVR0OBBYEFMAC3UR4FwAdGekbhMgnd6lMejtbMAsGA1UdDwQEAwIFoDAT
+BgNVHSUEDDAKBggrBgEFBQcDATAJBgNVHRMEAjAAMIG/BgNVHQEEgbcwgbSAFGfF
+6xihk+gJJ5TfwvtWe1UFnHLQoYGRMIGOMYGLMIGIBgNVBAMegYAATQBpAGMAcgBv
+AHMAbwBmAHQAIABGAG8AcgBlAGYAcgBvAG4AdAAgAFQATQBHACAASABUAFQAUABT
+ACAASQBuAHMAcABlAGMAdABpAG8AbgAgAEMAZQByAHQAaQBmAGkAYwBhAHQAaQBv
+AG4AIABBAHUAdABoAG8AcgBpAHQAeYIIcKhXEmBXr0IwDQYJKoZIhvcNAQEFBQAD
+ggEBABlSxyCMr3+ANr+WmPSjyN5YCJBgnS0IFCwJAzIYP87bcTye/U8eQ2+E6PqG
+Q7Huj7nfHEw9qnGo+HNyPp1ad3KORzXDb54c6xEoi+DeuPzYHPbn4c3hlH49I0aQ
+eWW2w4RslSWpLvO6Y7Lboyz2/Thk/s2kd4RHxkkWpH2ltPqJuYYg3X6oM5+gIFHJ
+WGnh+ojZ5clKvS5yXh3Wkj78M6sb32KfcBk0Hx6NkCYPt60ODYmWtvqwtw6r73u5
+TnTYWRNvo2svX69TriL+CkHY9O1Hkwf2It5zHl3gNiKTJVaak8AuEz/CKWZneovt
+yYLwhUhg3PX5Co1VKYE+9TxloiE=
+-----END CERTIFICATE-----`
+
+func TestParseUniqueID(t *testing.T) {
+	b, _ := pem.Decode([]byte(uniqueIDPEM))
+	if b == nil {
+		t.Fatalf("couldn't decode test certificate")
+	}
+	cert, err := ParseCertificate(b.Bytes)
+	if err != nil {
+		t.Fatalf("ParseCertificate to failed to parse certificate with unique identifier id: %s", err)
+	}
+	if len(cert.Extensions) != 7 {
+		t.Fatalf("unexpected number of extensions (probably because the extension section was not parsed): got %d, want 7", len(cert.Extensions))
+	}
+}
+
+func TestDisableSHA1ForCertOnly(t *testing.T) {
+	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
+	debugAllowSHA1 = false
+
+	tmpl := &Certificate{
+		SerialNumber:          big.NewInt(1),
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		SignatureAlgorithm:    SHA1WithRSA,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		KeyUsage:              KeyUsageCertSign | KeyUsageCRLSign,
+	}
+	certDER, err := CreateCertificate(rand.Reader, tmpl, tmpl, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("failed to generate test cert: %s", err)
+	}
+	cert, err := ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("failed to parse test cert: %s", err)
+	}
+
+	err = cert.CheckSignatureFrom(cert)
+	if err == nil {
+		t.Error("expected CheckSignatureFrom to fail")
+	} else if _, ok := err.(InsecureAlgorithmError); !ok {
+		t.Errorf("expected InsecureAlgorithmError error, got %T", err)
+	}
+
+	crlDER, err := CreateRevocationList(rand.Reader, &RevocationList{
+		SignatureAlgorithm: SHA1WithRSA,
+		Number:             big.NewInt(1),
+		ThisUpdate:         time.Now().Add(-time.Hour),
+		NextUpdate:         time.Now().Add(time.Hour),
+	}, cert, rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("failed to generate test CRL: %s", err)
+	}
+	// TODO(rolandshoemaker): this should be ParseRevocationList once it lands
+	crl, err := ParseCRL(crlDER)
+	if err != nil {
+		t.Fatalf("failed to parse test CRL: %s", err)
+	}
+
+	if err = cert.CheckCRLSignature(crl); err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	// This is an unrelated OCSP response, which will fail signature verification
+	// but shouldn't return a InsecureAlgorithmError, since SHA1 should be allowed
+	// for OCSP.
+	ocspTBSHex := "30819fa2160414884451ff502a695e2d88f421bad90cf2cecbea7c180f32303133303631383037323434335a30743072304a300906052b0e03021a0500041448b60d38238df8456e4ee5843ea394111802979f0414884451ff502a695e2d88f421bad90cf2cecbea7c021100f78b13b946fc9635d8ab49de9d2148218000180f32303133303631383037323434335aa011180f32303133303632323037323434335a"
+	ocspTBS, err := hex.DecodeString(ocspTBSHex)
+	if err != nil {
+		t.Fatalf("failed to decode OCSP response TBS hex: %s", err)
+	}
+
+	err = cert.CheckSignature(SHA1WithRSA, ocspTBS, nil)
+	if err != rsa.ErrVerification {
+		t.Errorf("unexpected error: %s", err)
 	}
 }

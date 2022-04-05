@@ -368,11 +368,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 	v, ok := constant.Int64Val(x.val)
 	assert(ok)
 	if max >= 0 && v >= max {
-		if check.conf.CompilerErrorMessages {
-			check.errorf(&x, invalidArg+"array index %s out of bounds [0:%d]", x.val.String(), max)
-		} else {
-			check.errorf(&x, invalidArg+"index %s is out of bounds", &x)
-		}
+		check.errorf(&x, invalidArg+"index %s out of bounds [0:%d]", x.val.String(), max)
 		return
 	}
 

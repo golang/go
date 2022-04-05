@@ -136,9 +136,20 @@ GLOBL bad_cpu_msg<>(SB), RODATA, $84
 #define NEED_EXT_FEATURES_CX V4_EXT_FEATURES_CX
 #define NEED_EXT_FEATURES_BX V4_EXT_FEATURES_BX
 
-// Downgrading v4 OS checks on Darwin for now, see CL 285572.
+// Darwin requires a different approach to check AVX512 support, see CL 285572.
 #ifdef GOOS_darwin
 #define NEED_OS_SUPPORT_AX V3_OS_SUPPORT_AX
+// These values are from:
+// https://github.com/apple/darwin-xnu/blob/xnu-4570.1.46/osfmk/i386/cpu_capabilities.h
+#define commpage64_base_address         0x00007fffffe00000
+#define commpage64_cpu_capabilities64   (commpage64_base_address+0x010)
+#define commpage64_version              (commpage64_base_address+0x01E)
+#define hasAVX512F                      0x0000004000000000
+#define hasAVX512CD                     0x0000008000000000
+#define hasAVX512DQ                     0x0000010000000000
+#define hasAVX512BW                     0x0000020000000000
+#define hasAVX512VL                     0x0000100000000000
+#define NEED_DARWIN_SUPPORT             (hasAVX512F | hasAVX512DQ | hasAVX512CD | hasAVX512BW | hasAVX512VL)
 #else
 #define NEED_OS_SUPPORT_AX V4_OS_SUPPORT_AX
 #endif
@@ -308,6 +319,18 @@ ok:
 	XGETBV
 	ANDL	$NEED_OS_SUPPORT_AX, AX
 	CMPL	AX, $NEED_OS_SUPPORT_AX
+	JNE	bad_cpu
+#endif
+
+#ifdef NEED_DARWIN_SUPPORT
+	MOVQ	$commpage64_version, BX
+	CMPW	(BX), $13  // cpu_capabilities64 undefined in versions < 13
+	JL	bad_cpu
+	MOVQ	$commpage64_cpu_capabilities64, BX
+	MOVQ	(BX), BX
+	MOVQ	$NEED_DARWIN_SUPPORT, CX
+	ANDQ	CX, BX
+	CMPQ	BX, CX
 	JNE	bad_cpu
 #endif
 

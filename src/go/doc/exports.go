@@ -13,7 +13,6 @@ import (
 
 // filterIdentList removes unexported names from list in place
 // and returns the resulting list.
-//
 func filterIdentList(list []*ast.Ident) []*ast.Ident {
 	j := 0
 	for _, x := range list {
@@ -69,7 +68,6 @@ func updateIdentList(list []*ast.Ident) (hasExported bool) {
 }
 
 // hasExportedName reports whether list contains any exported names.
-//
 func hasExportedName(list []*ast.Ident) bool {
 	for _, x := range list {
 		if x.IsExported() {
@@ -106,7 +104,6 @@ func removeAnonymousField(name string, ityp *ast.InterfaceType) {
 // in place and reports whether fields were removed. Anonymous fields are
 // recorded with the parent type. filterType is called with the types of
 // all remaining fields.
-//
 func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp *ast.InterfaceType) (removedFields bool) {
 	if fields == nil {
 		return
@@ -159,7 +156,6 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp 
 }
 
 // filterParamList applies filterType to each parameter type in fields.
-//
 func (r *reader) filterParamList(fields *ast.FieldList) {
 	if fields != nil {
 		for _, f := range fields.List {
@@ -171,7 +167,6 @@ func (r *reader) filterParamList(fields *ast.FieldList) {
 // filterType strips any unexported struct fields or method types from typ
 // in place. If fields (or methods) have been removed, the corresponding
 // struct or interface type has the Incomplete field set to true.
-//
 func (r *reader) filterType(parent *namedType, typ ast.Expr) {
 	switch t := typ.(type) {
 	case *ast.Ident:
@@ -255,7 +250,6 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
 // copyConstType returns a copy of typ with position pos.
 // typ must be a valid constant type.
 // In practice, only (possibly qualified) identifiers are possible.
-//
 func copyConstType(typ ast.Expr, pos token.Pos) ast.Expr {
 	switch typ := typ.(type) {
 	case *ast.Ident:
@@ -318,7 +312,6 @@ func (r *reader) filterDecl(decl ast.Decl) bool {
 }
 
 // fileExports removes unexported declarations from src in place.
-//
 func (r *reader) fileExports(src *ast.File) {
 	j := 0
 	for _, d := range src.Decls {

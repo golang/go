@@ -462,7 +462,6 @@ func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.Comm
 // 	  or Foo (with a "bar" suffix).
 //
 // Examples with malformed names are not associated with anything.
-//
 func classifyExamples(p *Package, examples []*Example) {
 	if len(examples) == 0 {
 		return

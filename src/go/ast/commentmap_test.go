@@ -73,7 +73,6 @@ func f3() {
 
 // res maps a key of the form "line number: node type"
 // to the associated comments' text.
-//
 var res = map[string]string{
 	" 5: *ast.File":       "the very first comment\npackage p\n",
 	" 5: *ast.Ident":      " the name is p\n",

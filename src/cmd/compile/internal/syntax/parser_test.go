@@ -27,29 +27,15 @@ var (
 )
 
 func TestParse(t *testing.T) {
-	ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
+	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
 }
 
 func TestVerify(t *testing.T) {
-	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
+	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
 	if err != nil {
 		return // error already reported
 	}
 	verifyPrint(t, *src_, ast)
-}
-
-func TestParseGo2(t *testing.T) {
-	dir := filepath.Join(testdata, "go2")
-	list, err := ioutil.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, fi := range list {
-		name := fi.Name()
-		if !fi.IsDir() && !strings.HasPrefix(name, ".") {
-			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics|AllowMethodTypeParams)
-		}
-	}
 }
 
 func TestStdLib(t *testing.T) {
@@ -94,7 +80,7 @@ func TestStdLib(t *testing.T) {
 				if debug {
 					fmt.Printf("parsing %s\n", filename)
 				}
-				ast, err := ParseFile(filename, nil, nil, AllowGenerics)
+				ast, err := ParseFile(filename, nil, nil, 0)
 				if err != nil {
 					t.Error(err)
 					return

@@ -614,25 +614,7 @@ func (ctxt *Link) loadlib() {
 				*flagLibGCC = ctxt.findLibPathCmd("--print-file-name=libcompiler_rt.a", "libcompiler_rt")
 			}
 			if ctxt.HeadType == objabi.Hwindows {
-				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				// Link libmsvcrt.a to resolve '__acrt_iob_func' symbol
-				// (see https://golang.org/issue/23649 for details).
-				if p := ctxt.findLibPath("libmsvcrt.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				// TODO: maybe do something similar to peimporteddlls to collect all lib names
-				// and try link them all to final exe just like libmingwex.a and libmingw32.a:
-				/*
-					for:
-					#cgo windows LDFLAGS: -lmsvcrt -lm
-					import:
-					libmsvcrt.a libm.a
-				*/
+				loadWindowsHostArchives(ctxt)
 			}
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
@@ -646,6 +628,67 @@ func (ctxt *Link) loadlib() {
 	importcycles()
 
 	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
+}
+
+// loadWindowsHostArchives loads in host archives and objects when
+// doing internal linking on windows. Older toolchains seem to require
+// just a single pass through the various archives, but some modern
+// toolchains when linking a C program with mingw pass library paths
+// multiple times to the linker, e.g. "... -lmingwex -lmingw32 ...
+// -lmingwex -lmingw32 ...". To accommodate this behavior, we make two
+// passes over the host archives below.
+func loadWindowsHostArchives(ctxt *Link) {
+	any := true
+	for i := 0; any && i < 2; i++ {
+		// Link crt2.o (if present) to resolve "atexit" when
+		// using LLVM-based compilers.
+		isunresolved := symbolsAreUnresolved(ctxt, []string{"atexit"})
+		if isunresolved[0] {
+			if p := ctxt.findLibPath("crt2.o"); p != "none" {
+				hostObject(ctxt, "crt2", p)
+			}
+		}
+		if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
+			hostArchive(ctxt, p)
+		}
+		if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
+			hostArchive(ctxt, p)
+		}
+		// Link libmsvcrt.a to resolve '__acrt_iob_func' symbol
+		// (see https://golang.org/issue/23649 for details).
+		if p := ctxt.findLibPath("libmsvcrt.a"); p != "none" {
+			hostArchive(ctxt, p)
+		}
+		any = false
+		undefs := ctxt.loader.UndefinedRelocTargets(1)
+		if len(undefs) > 0 {
+			any = true
+		}
+	}
+	// If needed, create the __CTOR_LIST__ and __DTOR_LIST__
+	// symbols (referenced by some of the mingw support library
+	// routines). Creation of these symbols is normally done by the
+	// linker if not already present.
+	want := []string{"__CTOR_LIST__", "__DTOR_LIST__"}
+	isunresolved := symbolsAreUnresolved(ctxt, want)
+	for k, w := range want {
+		if isunresolved[k] {
+			sb := ctxt.loader.CreateSymForUpdate(w, 0)
+			sb.SetType(sym.SDATA)
+			sb.AddUint64(ctxt.Arch, 0)
+			sb.SetReachable(true)
+			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
+		}
+	}
+	// TODO: maybe do something similar to peimporteddlls to collect
+	// all lib names and try link them all to final exe just like
+	// libmingwex.a and libmingw32.a:
+	/*
+		for:
+		#cgo windows LDFLAGS: -lmsvcrt -lm
+		import:
+		libmsvcrt.a libm.a
+	*/
 }
 
 // loadcgodirectives reads the previously discovered cgo directives, creating
@@ -1311,13 +1354,52 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Wl,-bbigtoc")
 	}
 
-	// Enable ASLR on Windows.
-	addASLRargs := func(argv []string) []string {
-		// Enable ASLR.
-		argv = append(argv, "-Wl,--dynamicbase")
+	// Enable/disable ASLR on Windows.
+	addASLRargs := func(argv []string, val bool) []string {
+		// Old/ancient versions of GCC support "--dynamicbase" and
+		// "--high-entropy-va" but don't enable it by default. In
+		// addition, they don't accept "--disable-dynamicbase" or
+		// "--no-dynamicbase", so the only way to disable ASLR is to
+		// not pass any flags at all.
+		//
+		// More modern versions of GCC (and also clang) enable ASLR
+		// by default. With these compilers, however you can turn it
+		// off if you want using "--disable-dynamicbase" or
+		// "--no-dynamicbase".
+		//
+		// The strategy below is to try using "--disable-dynamicbase";
+		// if this succeeds, then assume we're working with more
+		// modern compilers and act accordingly. If it fails, assume
+		// an ancient compiler with ancient defaults.
+		var dbopt string
+		var heopt string
+		dbon := "--dynamicbase"
+		heon := "--high-entropy-va"
+		dboff := "--disable-dynamicbase"
+		heoff := "--disable-high-entropy-va"
+		if val {
+			dbopt = dbon
+			heopt = heon
+		} else {
+			// Test to see whether "--disable-dynamicbase" works.
+			newer := linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,"+dboff)
+			if newer {
+				// Newer compiler, which supports both on/off options.
+				dbopt = dboff
+				heopt = heoff
+			} else {
+				// older toolchain: we have to say nothing in order to
+				// get a no-ASLR binary.
+				dbopt = ""
+				heopt = ""
+			}
+		}
+		if dbopt != "" {
+			argv = append(argv, "-Wl,"+dbopt)
+		}
 		// enable high-entropy ASLR on 64-bit.
-		if ctxt.Arch.PtrSize >= 8 {
-			argv = append(argv, "-Wl,--high-entropy-va")
+		if ctxt.Arch.PtrSize >= 8 && heopt != "" {
+			argv = append(argv, "-Wl,"+heopt)
 		}
 		return argv
 	}
@@ -1334,7 +1416,7 @@ func (ctxt *Link) hostlink() {
 		switch ctxt.HeadType {
 		case objabi.Hdarwin, objabi.Haix:
 		case objabi.Hwindows:
-			argv = addASLRargs(argv)
+			argv = addASLRargs(argv, *flagAslr)
 		default:
 			// ELF.
 			if ctxt.UseRelro() {
@@ -1351,9 +1433,7 @@ func (ctxt *Link) hostlink() {
 			}
 			argv = append(argv, "-shared")
 			if ctxt.HeadType == objabi.Hwindows {
-				if *flagAslr {
-					argv = addASLRargs(argv)
-				}
+				argv = addASLRargs(argv, *flagAslr)
 			} else {
 				// Pass -z nodelete to mark the shared library as
 				// non-closeable: a dlclose will do nothing.
@@ -1999,6 +2079,59 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	addImports(ctxt, lib, pn)
 	return nil
+}
+
+// symbolsAreUnresolved scans through the loader's list of unresolved
+// symbols and checks to see whether any of them match the names of the
+// symbols in 'want'. Return value is a list of bools, with list[K] set
+// to true if there is an unresolved reference to the symbol in want[K].
+func symbolsAreUnresolved(ctxt *Link, want []string) []bool {
+	returnAllUndefs := -1
+	undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+	seen := make(map[loader.Sym]struct{})
+	rval := make([]bool, len(want))
+	wantm := make(map[string]int)
+	for k, w := range want {
+		wantm[w] = k
+	}
+	count := 0
+	for _, s := range undefs {
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		if k, ok := wantm[ctxt.loader.SymName(s)]; ok {
+			rval[k] = true
+			count++
+			if count == len(want) {
+				return rval
+			}
+		}
+	}
+	return rval
+}
+
+// hostObject reads a single host object file (compare to "hostArchive").
+// This is used as part of internal linking when we need to pull in
+// files such as "crt?.o".
+func hostObject(ctxt *Link, objname string, path string) {
+	if ctxt.Debugvlog > 1 {
+		ctxt.Logf("hostObject(%s)\n", path)
+	}
+	objlib := sym.Library{
+		Pkg: objname,
+	}
+	f, err := bio.Open(path)
+	if err != nil {
+		Exitf("cannot open host object %q file %s: %v", objname, path, err)
+	}
+	defer f.Close()
+	h := ldobj(ctxt, f, &objlib, 0, path, path)
+	if h.ld == nil {
+		Exitf("unrecognized object file format in %s", path)
+	}
+	f.MustSeek(h.off, 0)
+	h.ld(ctxt, f, h.pkg, h.length, h.pn)
 }
 
 func checkFingerprint(lib *sym.Library, libfp goobj.FingerprintType, src string, srcfp goobj.FingerprintType) {

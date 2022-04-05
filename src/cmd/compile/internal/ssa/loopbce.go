@@ -66,18 +66,18 @@ func parseIndVar(ind *Value) (min, inc, nxt *Value) {
 //
 // Look for variables and blocks that satisfy the following
 //
-// loop:
-//   ind = (Phi min nxt),
-//   if ind < max
-//     then goto enter_loop
-//     else goto exit_loop
+//  loop:
+//    ind = (Phi min nxt),
+//    if ind < max
+//      then goto enter_loop
+//      else goto exit_loop
 //
-//   enter_loop:
-//	do something
-//      nxt = inc + ind
-//	goto loop
+//    enter_loop:
+// 	do something
+//       nxt = inc + ind
+// 	goto loop
 //
-// exit_loop:
+//  exit_loop:
 //
 //
 // TODO: handle 32 bit operations

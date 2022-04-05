@@ -70,9 +70,9 @@ type Value interface {
 const prec = 512
 
 // TODO(gri) Consider storing "error" information in an unknownVal so clients
-//           can provide better error messages. For instance, if a number is
-//           too large (incl. infinity), that could be recorded in unknownVal.
-//           See also #20583 and #42695 for use cases.
+// can provide better error messages. For instance, if a number is
+// too large (incl. infinity), that could be recorded in unknownVal.
+// See also #20583 and #42695 for use cases.
 
 // Representation of values:
 //
@@ -578,7 +578,6 @@ func Float64Val(x Value) (float64, bool) {
 //    Int                int64 or *big.Int
 //    Float              *big.Float or *big.Rat
 //    everything else    nil
-//
 func Val(x Value) any {
 	switch x := x.(type) {
 	case boolVal:
@@ -609,7 +608,6 @@ func Val(x Value) any {
 //    *big.Float       Float
 //    *big.Rat         Float
 //    anything else    Unknown
-//
 func Make(x any) Value {
 	switch x := x.(type) {
 	case bool:
@@ -945,7 +943,6 @@ func is63bit(x int64) bool {
 // The operation must be defined for the operand.
 // If prec > 0 it specifies the ^ (xor) result size in bits.
 // If y is Unknown, the result is Unknown.
-//
 func UnaryOp(op token.Token, y Value, prec uint) Value {
 	switch op {
 	case token.ADD:
@@ -1035,7 +1032,6 @@ func ord(x Value) int {
 // smallest complexity for two values x and y. If one of them is
 // numeric, both of them must be numeric. If one of them is Unknown
 // or invalid (say, nil) both results are that value.
-//
 func match(x, y Value) (_, _ Value) {
 	switch ox, oy := ord(x), ord(y); {
 	case ox < oy:
@@ -1092,7 +1088,6 @@ func match0(x, y Value) (_, _ Value) {
 // To force integer division of Int operands, use op == token.QUO_ASSIGN
 // instead of token.QUO; the result is guaranteed to be Int in this case.
 // Division by zero leads to a run-time panic.
-//
 func BinaryOp(x_ Value, op token.Token, y_ Value) Value {
 	x, y := match(x_, y_)
 
@@ -1272,7 +1267,6 @@ func quo(x, y Value) Value { return BinaryOp(x, token.QUO, y) }
 // Shift returns the result of the shift expression x op s
 // with op == token.SHL or token.SHR (<< or >>). x must be
 // an Int or an Unknown. If x is Unknown, the result is x.
-//
 func Shift(x Value, op token.Token, s uint) Value {
 	switch x := x.(type) {
 	case unknownVal:
@@ -1328,7 +1322,6 @@ func cmpZero(x int, op token.Token) bool {
 // The comparison must be defined for the operands.
 // If one of the operands is Unknown, the result is
 // false.
-//
 func Compare(x_ Value, op token.Token, y_ Value) bool {
 	x, y := match(x_, y_)
 

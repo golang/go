@@ -59,7 +59,6 @@ var (
 // is very slight but negative, so the alignment is disabled by
 // setting MaxLoopPad = 0. The code is here for reference and
 // for future experiments.
-//
 const (
 	loopAlign  = 16
 	maxLoopPad = 0
@@ -4167,7 +4166,6 @@ func (ab *AsmBuf) asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uint8) 
 //	REG_X15 => 15
 //	REG_R9  => 9
 //	REG_AX  => 0
-//
 func regIndex(r int16) int {
 	lower3bits := reg[r]
 	high4bit := regrex[r] & Rxr << 1

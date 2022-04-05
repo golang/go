@@ -11,11 +11,11 @@ import "cmd/internal/src"
 //
 // Search for basic blocks that look like
 //
-// bb0            bb0
-//  | \          /   \
-//  | bb1  or  bb1   bb2    <- trivial if/else blocks
-//  | /          \   /
-// bb2            bb3
+//  bb0            bb0
+//   | \          /   \
+//   | bb1  or  bb1   bb2    <- trivial if/else blocks
+//   | /          \   /
+//  bb2            bb3
 //
 // where the intermediate blocks are mostly empty (with no side-effects);
 // rewrite Phis in the postdominator as CondSelects.

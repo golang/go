@@ -83,7 +83,6 @@ const (
 //	%v	Go syntax: Name for symbols in the local package, PkgName.Name for imported symbols.
 //	%+v	Debug syntax: always include PkgName. prefix even for local names.
 //	%S	Short syntax: Name only, no matter what.
-//
 func (s *Sym) Format(f fmt.State, verb rune) {
 	mode := fmtGo
 	switch verb {
@@ -241,7 +240,6 @@ var fmtBufferPool = sync.Pool{
 //	%L	Go syntax for underlying type if t is named
 //	%S	short Go syntax: drop leading "func" in function type
 //	%-S	special case for method receiver symbol
-//
 func (t *Type) Format(s fmt.State, verb rune) {
 	mode := fmtGo
 	switch verb {

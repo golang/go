@@ -38,7 +38,6 @@ type option struct {
 //		The operation returns the zero value for the map type's element.
 //	"missingkey=error"
 //		Execution stops immediately with an error.
-//
 func (t *Template) Option(opt ...string) *Template {
 	t.init()
 	for _, s := range opt {

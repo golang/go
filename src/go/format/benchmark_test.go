@@ -31,7 +31,6 @@ var debug = flag.Bool("debug", false, "write .src files containing formatting in
 // 	0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
 // 	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
 // 	...
-//
 func array1(buf *bytes.Buffer, n int) {
 	buf.WriteString("var _ = [...]byte{\n")
 	for i := 0; i < n; {

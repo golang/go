@@ -78,7 +78,6 @@ func p224CmovznzU64(out1 *uint64, arg1 p224Uint1, arg2 uint64, arg3 uint64) {
 // Postconditions:
 //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg2)) mod m
 //   0 ≤ eval out1 < m
-//
 func p224Mul(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement, arg2 *p224MontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]
@@ -383,7 +382,6 @@ func p224Mul(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainF
 // Postconditions:
 //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg1)) mod m
 //   0 ≤ eval out1 < m
-//
 func p224Square(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]
@@ -689,7 +687,6 @@ func p224Square(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDoma
 // Postconditions:
 //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) + eval (from_montgomery arg2)) mod m
 //   0 ≤ eval out1 < m
-//
 func p224Add(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement, arg2 *p224MontgomeryDomainFieldElement) {
 	var x1 uint64
 	var x2 uint64
@@ -739,7 +736,6 @@ func p224Add(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainF
 // Postconditions:
 //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) - eval (from_montgomery arg2)) mod m
 //   0 ≤ eval out1 < m
-//
 func p224Sub(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement, arg2 *p224MontgomeryDomainFieldElement) {
 	var x1 uint64
 	var x2 uint64
@@ -777,7 +773,6 @@ func p224Sub(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainF
 // Postconditions:
 //   eval (from_montgomery out1) mod m = 1 mod m
 //   0 ≤ eval out1 < m
-//
 func p224SetOne(out1 *p224MontgomeryDomainFieldElement) {
 	out1[0] = 0xffffffff00000000
 	out1[1] = 0xffffffffffffffff
@@ -792,7 +787,6 @@ func p224SetOne(out1 *p224MontgomeryDomainFieldElement) {
 // Postconditions:
 //   eval out1 mod m = (eval arg1 * ((2^64)⁻¹ mod m)^4) mod m
 //   0 ≤ eval out1 < m
-//
 func p224FromMontgomery(out1 *p224NonMontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement) {
 	x1 := arg1[0]
 	var x2 uint64
@@ -970,7 +964,6 @@ func p224FromMontgomery(out1 *p224NonMontgomeryDomainFieldElement, arg1 *p224Mon
 // Postconditions:
 //   eval (from_montgomery out1) mod m = eval arg1 mod m
 //   0 ≤ eval out1 < m
-//
 func p224ToMontgomery(out1 *p224MontgomeryDomainFieldElement, arg1 *p224NonMontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]

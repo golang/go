@@ -549,9 +549,7 @@ func TestNotTemporaryRead(t *testing.T) {
 		if runtime.GOOS == "plan9" {
 			return
 		}
-		// TODO: during an open development cycle, try making this a failure
-		// and see whether it causes the test to become flaky anywhere else.
-		return
+		t.Fatal("Read unexpectedly returned io.EOF after socket was abruptly closed")
 	}
 	if ne, ok := err.(Error); !ok {
 		t.Errorf("Read error does not implement net.Error: %v", err)

@@ -206,62 +206,48 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// Delay validation of receiver type as it may cause premature expansion
 		// of types the receiver type is dependent on (see issues #51232, #51233).
 		check.later(func() {
-			rtyp, _ := deref(recv.typ)
-
 			// spec: "The receiver type must be of the form T or *T where T is a type name."
-			// (ignore invalid types - error was reported before)
-			if rtyp != Typ[Invalid] {
-				var err string
-				switch T := rtyp.(type) {
-				case *Named:
-					T.resolve(check.bestContext(nil))
-					// The receiver type may be an instantiated type referred to
-					// by an alias (which cannot have receiver parameters for now).
-					if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
-						check.errorf(recv, _InvalidRecv, "cannot define methods on instantiated type %s", recv.typ)
-						break
-					}
-					// spec: "The type denoted by T is called the receiver base type; it must not
-					// be a pointer or interface type and it must be declared in the same package
-					// as the method."
-					if T.obj.pkg != check.pkg {
-						err = "type not defined in this package"
-						if compilerErrorMessages {
-							check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
-							err = ""
-						}
-					} else {
-						// The underlying type of a receiver base type can be a type parameter;
-						// e.g. for methods with a generic receiver T[P] with type T[P any] P.
-						// TODO(gri) Such declarations are currently disallowed.
-						//           Revisit the need for underIs.
-						underIs(T, func(u Type) bool {
-							switch u := u.(type) {
-							case *Basic:
-								// unsafe.Pointer is treated like a regular pointer
-								if u.kind == UnsafePointer {
-									err = "unsafe.Pointer"
-									return false
-								}
-							case *Pointer, *Interface:
-								err = "pointer or interface type"
-								return false
-							}
-							return true
-						})
-					}
+			rtyp, _ := deref(recv.typ)
+			if rtyp == Typ[Invalid] {
+				return // error was reported before
+			}
+			// spec: "The type denoted by T is called the receiver base type; it must not
+			// be a pointer or interface type and it must be declared in the same package
+			// as the method."
+			switch T := rtyp.(type) {
+			case *Named:
+				T.resolve(check.bestContext(nil))
+				// The receiver type may be an instantiated type referred to
+				// by an alias (which cannot have receiver parameters for now).
+				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+					check.errorf(recv, _InvalidRecv, "cannot define new methods on instantiated type %s", rtyp)
+					break
+				}
+				if T.obj.pkg != check.pkg {
+					check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+					break
+				}
+				var cause string
+				switch u := T.under().(type) {
 				case *Basic:
-					err = "basic or unnamed type"
-					if compilerErrorMessages {
-						check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
-						err = ""
+					// unsafe.Pointer is treated like a regular pointer
+					if u.kind == UnsafePointer {
+						cause = "unsafe.Pointer"
 					}
-				default:
-					check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
+				case *Pointer, *Interface:
+					cause = "pointer or interface type"
+				case *TypeParam:
+					// The underlying type of a receiver base type cannot be a
+					// type parameter: "type T[P any] P" is not a valid declaration.
+					unreachable()
 				}
-				if err != "" {
-					check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", recv.typ, err)
+				if cause != "" {
+					check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
 				}
+			case *Basic:
+				check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+			default:
+				check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
 			}
 		}).describef(recv, "validate receiver %s", recv)
 	}

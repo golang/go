@@ -389,31 +389,6 @@ func _[T any] (x T) {
         m(S1[T]{x})
 }
 
-// type parameters in methods (generalization)
-
-// Type Parameter lists are not allowed on methods, and are not produced by
-// go/parser. The test cases below are preserved for consistency with types2,
-// which produces an error but stores type parameters.
-// type R0 struct{}
-
-// func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T) {}
-// func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() {} // scope of type parameters starts at "func"
-
-// type R1[A, B any] struct{}
-
-// func (_ R1[A, B]) m0(A, B)
-// func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T  { panic(0) }
-// func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
-// func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B) {}
-
-// func _() {
-//         var r R1[int, string]
-//         r.m1[rune](42, "foo", 'a')
-//         r.m1[rune](42, "foo", 1.2 /* ERROR cannot use .* as rune .* \(truncated\) */)
-//         r.m1(42, "foo", 1.2) // using type inference
-//         var _ float64 = r.m1(42, "foo", 1.2)
-// }
-
 type I1[A any] interface {
         m1(A)
 }

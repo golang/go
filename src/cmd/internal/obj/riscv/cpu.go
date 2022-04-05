@@ -276,15 +276,11 @@ const (
 )
 
 // RISC-V mnemonics, as defined in the "opcodes" and "opcodes-pseudo" files
-// from:
-//
-//    https://github.com/riscv/riscv-opcodes
+// at https://github.com/riscv/riscv-opcodes.
 //
 // As well as some pseudo-mnemonics (e.g. MOV) used only in the assembler.
 //
-// See also "The RISC-V Instruction Set Manual" at:
-//
-//    https://riscv.org/specifications/
+// See also "The RISC-V Instruction Set Manual" at https://riscv.org/specifications/.
 //
 // If you modify this table, you MUST run 'go generate' to regenerate anames.go!
 const (

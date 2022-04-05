@@ -60,7 +60,6 @@ func (pos Position) String() string {
 //
 // Use GoTokens to configure the Scanner such that it accepts all Go
 // literal tokens including Go identifiers. Comments will be skipped.
-//
 const (
 	ScanIdents     = 1 << -Ident
 	ScanInts       = 1 << -Int

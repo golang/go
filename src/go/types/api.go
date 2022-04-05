@@ -280,7 +280,6 @@ type Info struct {
 
 // TypeOf returns the type of expression e, or nil if not found.
 // Precondition: the Types, Uses and Defs maps are populated.
-//
 func (info *Info) TypeOf(e ast.Expr) Type {
 	if t, ok := info.Types[e]; ok {
 		return t.Type
@@ -300,7 +299,6 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // it defines, not the type (*TypeName) it uses.
 //
 // Precondition: the Uses and Defs maps are populated.
-//
 func (info *Info) ObjectOf(id *ast.Ident) Object {
 	if obj := info.Defs[id]; obj != nil {
 		return obj

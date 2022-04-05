@@ -549,30 +549,31 @@ func elfMipsAbiFlags(sh *ElfShdr, startva uint64, resoff uint64) int {
 	return n
 }
 
-//typedef struct
-//{
-//  /* Version of flags structure.  */
-//  uint16_t version;
-//  /* The level of the ISA: 1-5, 32, 64.  */
-//  uint8_t isa_level;
-//  /* The revision of ISA: 0 for MIPS V and below, 1-n otherwise.  */
-//  uint8_t isa_rev;
-//  /* The size of general purpose registers.  */
-//  uint8_t gpr_size;
-//  /* The size of co-processor 1 registers.  */
-//  uint8_t cpr1_size;
-//  /* The size of co-processor 2 registers.  */
-//  uint8_t cpr2_size;
-//  /* The floating-point ABI.  */
-//  uint8_t fp_abi;
-//  /* Processor-specific extension.  */
-//  uint32_t isa_ext;
-//  /* Mask of ASEs used.  */
-//  uint32_t ases;
-//  /* Mask of general flags.  */
-//  uint32_t flags1;
-//  uint32_t flags2;
-//} Elf_Internal_ABIFlags_v0;
+// Layout is given by this C definition:
+//  typedef struct
+//  {
+//    /* Version of flags structure.  */
+//    uint16_t version;
+//    /* The level of the ISA: 1-5, 32, 64.  */
+//    uint8_t isa_level;
+//    /* The revision of ISA: 0 for MIPS V and below, 1-n otherwise.  */
+//    uint8_t isa_rev;
+//    /* The size of general purpose registers.  */
+//    uint8_t gpr_size;
+//    /* The size of co-processor 1 registers.  */
+//    uint8_t cpr1_size;
+//    /* The size of co-processor 2 registers.  */
+//    uint8_t cpr2_size;
+//    /* The floating-point ABI.  */
+//    uint8_t fp_abi;
+//    /* Processor-specific extension.  */
+//    uint32_t isa_ext;
+//    /* Mask of ASEs used.  */
+//    uint32_t ases;
+//    /* Mask of general flags.  */
+//    uint32_t flags1;
+//    uint32_t flags2;
+//  } Elf_Internal_ABIFlags_v0;
 func elfWriteMipsAbiFlags(ctxt *Link) int {
 	sh := elfshname(".MIPS.abiflags")
 	ctxt.Out.SeekSet(int64(sh.Off))
@@ -1100,16 +1101,18 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 		sh.Flags |= uint64(elf.SHF_TLS)
 		sh.Type = uint32(elf.SHT_NOBITS)
 	}
+	if linkmode != LinkExternal {
+		sh.Addr = sect.Vaddr
+	}
+
 	if strings.HasPrefix(sect.Name, ".debug") || strings.HasPrefix(sect.Name, ".zdebug") {
 		sh.Flags = 0
+		sh.Addr = 0
 		if sect.Compressed {
 			sh.Flags |= uint64(elf.SHF_COMPRESSED)
 		}
 	}
 
-	if linkmode != LinkExternal {
-		sh.Addr = sect.Vaddr
-	}
 	sh.Addralign = uint64(sect.Align)
 	sh.Size = sect.Length
 	if sect.Name != ".tbss" {

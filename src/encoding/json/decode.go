@@ -92,7 +92,6 @@ import (
 // invalid UTF-16 surrogate pairs are not treated as an error.
 // Instead, they are replaced by the Unicode replacement
 // character U+FFFD.
-//
 func Unmarshal(data []byte, v any) error {
 	// Check for well-formedness.
 	// Avoids filling out half a data structure

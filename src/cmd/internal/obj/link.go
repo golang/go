@@ -94,6 +94,12 @@ import (
 //			type = TYPE_SCONST
 //			val = string
 //
+//	<symbolic constant name>
+//		Special symbolic constants for ARM64, such as conditional flags, tlbi_op and so on.
+//		Encoding:
+//			type = TYPE_SPECIAL
+//			offset = The constant value corresponding to this symbol
+//
 //	<register name>
 //		Any register: integer, floating point, control, segment, and so on.
 //		If looking for specific register kind, must check type and reg value range.
@@ -236,6 +242,7 @@ const (
 	TYPE_REGREG2
 	TYPE_INDIR
 	TYPE_REGLIST
+	TYPE_SPECIAL
 )
 
 func (a *Addr) Target() *Prog {

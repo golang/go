@@ -105,20 +105,20 @@ func load_be32_idx(b []byte, idx int) {
 	sink32 = binary.BigEndian.Uint32(b[idx:])
 }
 
-func load_be16(b []byte) {
+func load_be16(b []byte) uint16 {
 	// amd64:`ROLW\s\$8`,-`MOVB`,-`OR`
 	// arm64:`REV16W`,`MOVHU\s\(R[0-9]+\),`,-`MOVB`
 	// ppc64le:`MOVHBR`
 	// s390x:`MOVHZ\s\(.*\),`,-`OR`,-`ORW`,-`SLD`,-`SLW`
-	sink16 = binary.BigEndian.Uint16(b)
+	return binary.BigEndian.Uint16(b)
 }
 
-func load_be16_idx(b []byte, idx int) {
+func load_be16_idx(b []byte, idx int) uint16 {
 	// amd64:`ROLW\s\$8`,-`MOVB`,-`OR`
 	// arm64:`REV16W`,`MOVHU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOVB`
 	// ppc64le:`MOVHBR`
 	// s390x:`MOVHZ\s\(.*\)\(.*\*1\),`,-`OR`,-`ORW`,-`SLD`,-`SLW`
-	sink16 = binary.BigEndian.Uint16(b[idx:])
+	return binary.BigEndian.Uint16(b[idx:])
 }
 
 func load_le_byte2_uint16(s []byte) uint16 {
@@ -463,7 +463,8 @@ func store_be32_idx(b []byte, idx int) {
 }
 
 func store_be16(b []byte) {
-	// amd64:`ROLW\s\$8`,-`SHR.`
+	// amd64/v1,amd64/v2:`ROLW\s\$8`,-`SHR.`
+	// amd64/v3:`MOVBEW`,-`ROLW`
 	// arm64:`MOVH`,`REV16W`,-`MOVB`
 	// ppc64le:`MOVHBR`
 	// s390x:`MOVH\s.*\(.*\)$`,-`SRW\s`,-`SRD\s`
@@ -471,7 +472,8 @@ func store_be16(b []byte) {
 }
 
 func store_be16_idx(b []byte, idx int) {
-	// amd64:`ROLW\s\$8`,-`SHR.`
+	// amd64/v1,amd64/v2:`ROLW\s\$8`,-`SHR.`
+	// amd64/v3: `MOVBEW`
 	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,`REV16W`,-`MOVB`
 	// ppc64le:`MOVHBR`
 	// s390x:`MOVH\s.*\(.*\)\(.*\*1\)$`,-`SRW\s`,-`SRD\s`
@@ -511,7 +513,8 @@ func store_le_byte_8(b []byte, val uint64) {
 func store_be_byte_2(b []byte, val uint16) {
 	_ = b[2]
 	// arm64:`REV16W`,`MOVH\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`
-	// amd64:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
+	// amd64/v1,amd64/v2:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
+	// amd64/v3: `MOVBEW`
 	b[1], b[2] = byte(val>>8), byte(val)
 }
 

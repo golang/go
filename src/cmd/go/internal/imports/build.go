@@ -66,7 +66,6 @@ func isGoBuildComment(line []byte) bool {
 // the purpose of satisfying build tags, in order to estimate
 // (conservatively) whether a file could ever possibly be used
 // in any build.
-//
 func ShouldBuild(content []byte, tags map[string]bool) bool {
 	// Identify leading run of // comments and blank lines,
 	// which must be followed by a blank line.

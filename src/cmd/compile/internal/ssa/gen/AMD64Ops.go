@@ -141,11 +141,13 @@ func init() {
 		readflags = regInfo{inputs: nil, outputs: gponly}
 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
 
-		gpload      = regInfo{inputs: []regMask{gpspsbg, 0}, outputs: gponly}
-		gp21load    = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: gponly}
-		gploadidx   = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}, outputs: gponly}
-		gp21loadidx = regInfo{inputs: []regMask{gp, gpspsbg, gpsp, 0}, outputs: gponly}
-		gp21pax     = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
+		gpload         = regInfo{inputs: []regMask{gpspsbg, 0}, outputs: gponly}
+		gp21load       = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: gponly}
+		gploadidx      = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}, outputs: gponly}
+		gp21loadidx    = regInfo{inputs: []regMask{gp, gpspsbg, gpsp, 0}, outputs: gponly}
+		gp21pax        = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
+		gp21shxload    = regInfo{inputs: []regMask{gpspsbg, gp, 0}, outputs: gponly}
+		gp21shxloadidx = regInfo{inputs: []regMask{gpspsbg, gpsp, gp, 0}, outputs: gponly}
 
 		gpstore         = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}}
 		gpstoreconst    = regInfo{inputs: []regMask{gpspsbg, 0}}
@@ -577,8 +579,8 @@ func init() {
 		{name: "CMOVWGTF", argLength: 3, reg: gp21, asm: "CMOVWHI", resultInArg0: true},
 		{name: "CMOVWGEF", argLength: 3, reg: gp21, asm: "CMOVWCC", resultInArg0: true},
 
-		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
-		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
+		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true}, // arg0 swap bytes
+		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true}, // arg0 swap bytes
 
 		// POPCNT instructions aren't guaranteed to be on the target platform (they are SSE4).
 		// Any use must be preceded by a successful check of runtime.x86HasPOPCNT.
@@ -923,11 +925,35 @@ func init() {
 		{name: "TZCNTQ", argLength: 1, reg: gp11, asm: "TZCNTQ", clobberFlags: true},
 		{name: "TZCNTL", argLength: 1, reg: gp11, asm: "TZCNTL", clobberFlags: true},
 
+		// CPUID feature: LZCNT.
+		// count the number of leading zero bits.
+		{name: "LZCNTQ", argLength: 1, reg: gp11, asm: "LZCNTQ", typ: "UInt64", clobberFlags: true},
+		{name: "LZCNTL", argLength: 1, reg: gp11, asm: "LZCNTL", typ: "UInt32", clobberFlags: true},
+
 		// CPUID feature: MOVBE
+		// MOVBEWload does not satisfy zero extended, so only use MOVBEWstore
+		{name: "MOVBEWstore", argLength: 3, reg: gpstore, asm: "MOVBEW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
 		{name: "MOVBELload", argLength: 2, reg: gpload, asm: "MOVBEL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"}, // load and swap 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
 		{name: "MOVBELstore", argLength: 3, reg: gpstore, asm: "MOVBEL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
 		{name: "MOVBEQload", argLength: 2, reg: gpload, asm: "MOVBEQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"}, // load and swap 8 bytes from arg0+auxint+aux. arg1=mem
 		{name: "MOVBEQstore", argLength: 3, reg: gpstore, asm: "MOVBEQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+
+		// CPUID feature: BMI2.
+		{name: "SHLXLload", argLength: 3, reg: gp21shxload, asm: "SHLXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 32
+		{name: "SHLXQload", argLength: 3, reg: gp21shxload, asm: "SHLXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 64
+		{name: "SHRXLload", argLength: 3, reg: gp21shxload, asm: "SHRXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
+		{name: "SHRXQload", argLength: 3, reg: gp21shxload, asm: "SHRXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
+
+		{name: "SHLXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+1*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
+		{name: "SHLXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+4*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
+		{name: "SHLXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+8*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
+		{name: "SHLXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHLXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+1*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 64
+		{name: "SHLXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHLXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+8*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 64
+		{name: "SHRXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHRXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SHRXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SHRXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+4*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SHRXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHRXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SHRXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHRXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
+		{name: "SHRXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHRXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
 	}
 
 	var AMD64blocks = []blockData{

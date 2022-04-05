@@ -36,7 +36,6 @@ const (
 //	p.x         FieldVal      T       x      int        {0}       true
 //	p.m         MethodVal     *T      m      func()     {1, 0}    true
 //	T.m         MethodExpr    T       m      func(T)    {1, 0}    false
-//
 type Selection struct {
 	kind     SelectionKind
 	recv     Type   // type of x
@@ -115,7 +114,6 @@ func (s *Selection) String() string { return SelectionString(s, nil) }
 //	"field (T) f int"
 //	"method (T) f(X) Y"
 //	"method expr (T) f(X) Y"
-//
 func SelectionString(s *Selection, qf Qualifier) string {
 	var k string
 	switch s.kind {

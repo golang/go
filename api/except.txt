@@ -505,3 +505,5 @@ pkg unicode, const Version = "6.3.0"
 pkg unicode, const Version = "7.0.0"
 pkg unicode, const Version = "8.0.0"
 pkg unicode, const Version = "9.0.0"
+pkg html/template, method (*Template) Funcs(FuncMap) *Template
+pkg html/template, type FuncMap map[string]interface{}

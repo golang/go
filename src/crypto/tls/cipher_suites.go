@@ -269,7 +269,6 @@ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
 //
 //       The relative order of ECDSA and RSA cipher suites doesn't matter,
 //       as they depend on the certificate. Pick one to get a stable order.
-//
 var cipherSuitesPreferenceOrder = []uint16{
 	// AEADs w/ ECDHE
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,

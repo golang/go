@@ -13,7 +13,7 @@ import (
 
 // AEAD is a cipher mode providing authenticated encryption with associated
 // data. For a description of the methodology, see
-//	https://en.wikipedia.org/wiki/Authenticated_encryption
+// https://en.wikipedia.org/wiki/Authenticated_encryption.
 type AEAD interface {
 	// NonceSize returns the size of the nonce that must be passed to Seal
 	// and Open.

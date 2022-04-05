@@ -490,7 +490,6 @@ func isCaseSensitive(t *testing.T) bool {
 // Keep list and the implementations below sorted by name.
 //
 // NOTE: If you make changes here, update testdata/script/README too!
-//
 var scriptCmds = map[string]func(*testScript, simpleStatus, []string){
 	"addcrlf": (*testScript).cmdAddcrlf,
 	"cc":      (*testScript).cmdCc,
@@ -1373,7 +1372,9 @@ type command struct {
 // parse parses a single line as a list of space-separated arguments
 // subject to environment variable expansion (but not resplitting).
 // Single quotes around text disable splitting and expansion.
-// To embed a single quote, double it: 'Don''t communicate by sharing memory.'
+// To embed a single quote, double it:
+//
+//	'Don''t communicate by sharing memory.'
 func (ts *testScript) parse(line string) command {
 	ts.line = line
 

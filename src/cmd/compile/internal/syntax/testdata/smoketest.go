@@ -28,12 +28,6 @@ func _[P interface{}]()
 func _[P B]()
 func _[P B[P]]()
 
-// in methods
-func (T) _[P any]()
-func (T) _[P interface{}]()
-func (T) _[P B]()
-func (T) _[P B[P]]()
-
 // type instantiations
 type _ T[int]
 
@@ -44,18 +38,18 @@ var _ = T[int]{}
 type _ struct{ T[int] }
 
 // interfaces
-type _ interface{
+type _ interface {
 	m()
 	~int
 }
 
-type _ interface{
+type _ interface {
 	~int | ~float | ~string
 	~complex128
 	underlying(underlying underlying) underlying
 }
 
-type _ interface{
+type _ interface {
 	T
 	T[int]
 }
@@ -64,20 +58,16 @@ type _ interface{
 func _(T[P], T[P1, P2])
 func _(a [N]T)
 
-type _ struct{
+type _ struct {
 	T[P]
 	T[P1, P2]
-	f [N]
+	f[N]
 }
-type _ interface{
+type _ interface {
 	m()
 
-	// generic methods - disabled for now
-	// m[] /* ERROR empty type parameter list */ ()
-	// m[ /* ERROR cannot have type parameters */ P any](P)
-
 	// instantiated types
-	// T[] /* ERROR empty type argument list */ 
+	T[ /* ERROR empty type argument list */ ]
 	T[P]
 	T[P1, P2]
 }

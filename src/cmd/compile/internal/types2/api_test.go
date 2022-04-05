@@ -26,7 +26,7 @@ const brokenPkg = "package broken_"
 
 func parseSrc(path, src string) (*syntax.File, error) {
 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics|syntax.AllowMethodTypeParams)
+	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
 }
 
 func pkgFor(path, source string, info *Info) (*Package, error) {
@@ -436,36 +436,6 @@ type T[P any] []P
 		{`package p4; func f[A, B any](A, *B, ...[]B) {}; func _() { f(1.2, new(byte)) }`,
 			[]testInst{{`f`, []string{`float64`, `byte`}, `func(float64, *byte, ...[]byte)`}},
 		},
-		// we don't know how to translate these but we can type-check them
-		{`package q0; type T struct{}; func (T) m[P any](P) {}; func _(x T) { x.m(42) }`,
-			[]testInst{{`m`, []string{`int`}, `func(int)`}},
-		},
-		{`package q1; type T struct{}; func (T) m[P any](P) P { panic(0) }; func _(x T) { x.m(42) }`,
-			[]testInst{{`m`, []string{`int`}, `func(int) int`}},
-		},
-		{`package q2; type T struct{}; func (T) m[P any](...P) P { panic(0) }; func _(x T) { x.m(42) }`,
-			[]testInst{{`m`, []string{`int`}, `func(...int) int`}},
-		},
-		{`package q3; type T struct{}; func (T) m[A, B, C any](A, *B, []C) {}; func _(x T) { x.m(1.2, new(string), []byte{}) }`,
-			[]testInst{{`m`, []string{`float64`, `string`, `byte`}, `func(float64, *string, []byte)`}},
-		},
-		{`package q4; type T struct{}; func (T) m[A, B any](A, *B, ...[]B) {}; func _(x T) { x.m(1.2, new(byte)) }`,
-			[]testInst{{`m`, []string{`float64`, `byte`}, `func(float64, *byte, ...[]byte)`}},
-		},
-
-		{`package r0; type T[P1 any] struct{}; func (_ T[P2]) m[Q any](Q) {}; func _[P3 any](x T[P3]) { x.m(42) }`,
-			[]testInst{
-				{`T`, []string{`P2`}, `struct{}`},
-				{`T`, []string{`P3`}, `struct{}`},
-				{`m`, []string{`int`}, `func(int)`},
-			},
-		},
-		// TODO(gri) record method type parameters in syntax.FuncType so we can check this
-		// {`package r1; type T interface{ m[P any](P) }; func _(x T) { x.m(4.2) }`,
-		// 	`x.m`,
-		// 	[]string{`float64`},
-		// 	`func(float64)`,
-		// },
 
 		{`package s1; func f[T any, P interface{*T}](x T) {}; func _(x string) { f(x) }`,
 			[]testInst{{`f`, []string{`string`, `*string`}, `func(x string)`}},
@@ -2302,6 +2272,103 @@ func TestInstanceIdentity(t *testing.T) {
 	b := imports["b"].Scope().Lookup("B")
 	if !Identical(a.Type(), b.Type()) {
 		t.Errorf("mismatching types: a.A: %s, b.B: %s", a.Type(), b.Type())
+	}
+}
+
+// TestInstantiatedObjects verifies properties of instantiated objects.
+func TestInstantiatedObjects(t *testing.T) {
+	const src = `
+package p
+
+type T[P any] struct {
+	field P
+}
+
+func (recv *T[Q]) concreteMethod() {}
+
+type FT[P any] func(ftp P) (ftrp P)
+
+func F[P any](fp P) (frp P){ return }
+
+type I[P any] interface {
+	interfaceMethod(P)
+}
+
+var (
+	t T[int]
+	ft FT[int]
+	f = F[int]
+	i I[int]
+)
+`
+	info := &Info{
+		Defs: make(map[*syntax.Name]Object),
+	}
+	f, err := parseSrc("p.go", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conf := Config{}
+	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lookup := func(name string) Type { return pkg.Scope().Lookup(name).Type() }
+	tests := []struct {
+		ident string
+		obj   Object
+	}{
+		{"field", lookup("t").Underlying().(*Struct).Field(0)},
+		{"concreteMethod", lookup("t").(*Named).Method(0)},
+		{"recv", lookup("t").(*Named).Method(0).Type().(*Signature).Recv()},
+		{"ftp", lookup("ft").Underlying().(*Signature).Params().At(0)},
+		{"ftrp", lookup("ft").Underlying().(*Signature).Results().At(0)},
+		{"fp", lookup("f").(*Signature).Params().At(0)},
+		{"frp", lookup("f").(*Signature).Results().At(0)},
+		{"interfaceMethod", lookup("i").Underlying().(*Interface).Method(0)},
+	}
+
+	// Collect all identifiers by name.
+	idents := make(map[string][]*syntax.Name)
+	syntax.Inspect(f, func(n syntax.Node) bool {
+		if id, ok := n.(*syntax.Name); ok {
+			idents[id.Value] = append(idents[id.Value], id)
+		}
+		return true
+	})
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.ident, func(t *testing.T) {
+			if got := len(idents[test.ident]); got != 1 {
+				t.Fatalf("found %d identifiers named %s, want 1", got, test.ident)
+			}
+			ident := idents[test.ident][0]
+			def := info.Defs[ident]
+			if def == test.obj {
+				t.Fatalf("info.Defs[%s] contains the test object", test.ident)
+			}
+			if def.Pkg() != test.obj.Pkg() {
+				t.Errorf("Pkg() = %v, want %v", def.Pkg(), test.obj.Pkg())
+			}
+			if def.Name() != test.obj.Name() {
+				t.Errorf("Name() = %v, want %v", def.Name(), test.obj.Name())
+			}
+			if def.Pos() != test.obj.Pos() {
+				t.Errorf("Pos() = %v, want %v", def.Pos(), test.obj.Pos())
+			}
+			if def.Parent() != test.obj.Parent() {
+				t.Fatalf("Parent() = %v, want %v", def.Parent(), test.obj.Parent())
+			}
+			if def.Exported() != test.obj.Exported() {
+				t.Fatalf("Exported() = %v, want %v", def.Exported(), test.obj.Exported())
+			}
+			if def.Id() != test.obj.Id() {
+				t.Fatalf("Id() = %v, want %v", def.Id(), test.obj.Id())
+			}
+			// String and Type are expected to differ.
+		})
 	}
 }
 

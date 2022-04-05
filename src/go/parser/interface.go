@@ -21,7 +21,6 @@ import (
 // If src != nil, readSource converts src to a []byte if possible;
 // otherwise it returns an error. If src == nil, readSource returns
 // the result of reading the file specified by filename.
-//
 func readSource(filename string, src any) ([]byte, error) {
 	if src != nil {
 		switch s := src.(type) {
@@ -45,7 +44,6 @@ func readSource(filename string, src any) ([]byte, error) {
 // A Mode value is a set of flags (or 0).
 // They control the amount of source code parsed and other optional
 // parser functionality.
-//
 type Mode uint
 
 const (
@@ -81,7 +79,6 @@ const (
 // errors were found, the result is a partial AST (with ast.Bad* nodes
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
-//
 func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast.File, err error) {
 	if fset == nil {
 		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
@@ -136,7 +133,6 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
 // If the directory couldn't be read, a nil map and the respective error are
 // returned. If a parse error occurred, a non-nil but incomplete map and the
 // first error encountered are returned.
-//
 func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
 	list, err := os.ReadDir(path)
 	if err != nil {
@@ -187,7 +183,6 @@ func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, m
 // errors were found, the result is a partial AST (with ast.Bad* nodes
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
-//
 func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (expr ast.Expr, err error) {
 	if fset == nil {
 		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
@@ -232,7 +227,6 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (ex
 // If syntax errors were found, the result is a partial AST (with ast.Bad* nodes
 // representing the fragments of erroneous source code). Multiple errors are
 // returned via a scanner.ErrorList which is sorted by source position.
-//
 func ParseExpr(x string) (ast.Expr, error) {
 	return ParseExprFrom(token.NewFileSet(), "", []byte(x), 0)
 }

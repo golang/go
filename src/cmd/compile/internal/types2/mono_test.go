@@ -16,7 +16,7 @@ import (
 
 func checkMono(t *testing.T, body string) error {
 	src := "package x; import `unsafe`; var _ unsafe.Pointer;\n" + body
-	file, err := syntax.Parse(syntax.NewFileBase("x.go"), strings.NewReader(src), nil, nil, syntax.AllowGenerics)
+	file, err := syntax.Parse(syntax.NewFileBase("x.go"), strings.NewReader(src), nil, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

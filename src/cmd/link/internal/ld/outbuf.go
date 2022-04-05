@@ -30,12 +30,12 @@ const outbufMode = 0775
 // any system calls to read the value.
 //
 // Third, it also mmaps the output file (if available). The intended usage is:
-// - Mmap the output file
-// - Write the content
-// - possibly apply any edits in the output buffer
-// - possibly write more content to the file. These writes take place in a heap
-//   backed buffer that will get synced to disk.
-// - Munmap the output file
+//  - Mmap the output file
+//  - Write the content
+//  - possibly apply any edits in the output buffer
+//  - possibly write more content to the file. These writes take place in a heap
+//    backed buffer that will get synced to disk.
+//  - Munmap the output file
 //
 // And finally, it provides a mechanism by which you can multithread the
 // writing of output files. This mechanism is accomplished by copying a OutBuf,

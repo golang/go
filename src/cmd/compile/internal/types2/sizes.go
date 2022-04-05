@@ -39,7 +39,6 @@ type Sizes interface {
 //	  types are naturally aligned with a maximum alignment MaxAlign.
 //
 // *StdSizes implements Sizes.
-//
 type StdSizes struct {
 	WordSize int64 // word size in bytes - must be >= 4 (32bits)
 	MaxAlign int64 // maximum alignment in bytes - must be >= 1

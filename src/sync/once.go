@@ -38,7 +38,6 @@ type Once struct {
 //
 // If f panics, Do considers it to have returned; future calls of Do return
 // without calling f.
-//
 func (o *Once) Do(f func()) {
 	// Note: Here is an incorrect implementation of Do:
 	//

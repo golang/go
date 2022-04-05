@@ -125,15 +125,14 @@ func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 
 // Lower copy(a, b) to a memmove call or a runtime call.
 //
-// init {
-//   n := len(a)
-//   if n > len(b) { n = len(b) }
-//   if a.ptr != b.ptr { memmove(a.ptr, b.ptr, n*sizeof(elem(a))) }
-// }
-// n;
+//	init {
+//	  n := len(a)
+//	  if n > len(b) { n = len(b) }
+//	  if a.ptr != b.ptr { memmove(a.ptr, b.ptr, n*sizeof(elem(a))) }
+//	}
+//	n;
 //
 // Also works if b is a string.
-//
 func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 	if n.X.Type().Elem().HasPointers() {
 		ir.CurFunc.SetWBPos(n.Pos())

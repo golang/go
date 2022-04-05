@@ -312,8 +312,8 @@ type test struct {
 	err     error
 
 	// expectFail indicates whether the (overall) test recipe is
-	// expected to fail under the current test configuration (e.g., -G=3
-	// or GOEXPERIMENT=unified).
+	// expected to fail under the current test configuration (e.g.,
+	// GOEXPERIMENT=unified).
 	expectFail bool
 }
 
@@ -336,7 +336,7 @@ func (t *test) initExpectFail() {
 	if unifiedEnabled {
 		failureSets = append(failureSets, unifiedFailures)
 	} else {
-		failureSets = append(failureSets, g3Failures)
+		failureSets = append(failureSets, go118Failures)
 	}
 
 	filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
@@ -1961,25 +1961,21 @@ func overlayDir(dstRoot, srcRoot string) error {
 	})
 }
 
-// The following is temporary scaffolding to get types2 typechecker
-// up and running against the existing test cases. The explicitly
-// listed files don't pass yet, usually because the error messages
-// are slightly different (this list is not complete). Any errorcheck
-// tests that require output from analysis phases past initial type-
-// checking are also excluded since these phases are not running yet.
-// We can get rid of this code once types2 is fully plugged in.
+// The following sets of files are excluded from testing depending on configuration.
+// The types2Failures(32Bit) files pass with the 1.17 compiler but don't pass with
+// the 1.18 compiler using the new types2 type checker, or pass with sub-optimal
+// error(s).
 
-// List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
-// Temporary scaffolding until we pass all the tests at which point this map can be removed.
+// List of files that the compiler cannot errorcheck with the new typechecker (types2).
 var types2Failures = setOf(
 	"notinheap.go",            // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
 	"shift1.go",               // types2 reports two new errors which are probably not right
 	"fixedbugs/issue10700.go", // types2 should give hint about ptr to interface
 	"fixedbugs/issue18331.go", // missing error about misuse of //go:noescape (irgen needs code from noder)
 	"fixedbugs/issue18419.go", // types2 reports no field or method member, but should say unexported
-	"fixedbugs/issue20233.go", // types2 reports two instead of one error (pref: -G=0)
-	"fixedbugs/issue20245.go", // types2 reports two instead of one error (pref: -G=0)
-	"fixedbugs/issue28268.go", // types2 reports follow-on errors (pref: -G=0)
+	"fixedbugs/issue20233.go", // types2 reports two instead of one error (preference: 1.17 compiler)
+	"fixedbugs/issue20245.go", // types2 reports two instead of one error (preference: 1.17 compiler)
+	"fixedbugs/issue28268.go", // types2 reports follow-on errors (preference: 1.17 compiler)
 	"fixedbugs/issue31053.go", // types2 reports "unknown field" instead of "cannot refer to unexported field"
 )
 
@@ -1989,15 +1985,16 @@ var types2Failures32Bit = setOf(
 	"fixedbugs/issue23305.go", // large untyped int passed to println (32-bit)
 )
 
-var g3Failures = setOf(
-	"typeparam/nested.go",     // -G=3 doesn't support function-local types with generics
-	"typeparam/issue51521.go", // -G=3 produces bad panic message and link error
+var go118Failures = setOf(
+	"typeparam/nested.go",     // 1.18 compiler doesn't support function-local types with generics
+	"typeparam/issue51521.go", // 1.18 compiler produces bad panic message and link error
 )
 
-// In all of these cases, -G=0 reports reasonable errors, but either -G=0 or types2
-// report extra errors, so we can't match correctly on both. We now set the patterns
-// to match correctly on all the types2 errors.
-var g0Failures = setOf(
+// In all of these cases, the 1.17 compiler reports reasonable errors, but either the
+// 1.17 or 1.18 compiler report extra errors, so we can't match correctly on both. We
+// now set the patterns to match correctly on all the 1.18 errors.
+// This list remains here just as a reference and for comparison - these files all pass.
+var _ = setOf(
 	"import1.go",      // types2 reports extra errors
 	"initializerr.go", // types2 reports extra error
 	"typecheck.go",    // types2 reports extra error at function call

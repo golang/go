@@ -8,21 +8,21 @@ package ssa
 // of an If block can be derived from its predecessor If block, in
 // some such cases, we can redirect the predecessor If block to the
 // corresponding successor block directly. For example:
-// p:
-//   v11 = Less64 <bool> v10 v8
-//   If v11 goto b else u
-// b: <- p ...
-//   v17 = Leq64 <bool> v10 v8
-//   If v17 goto s else o
+//  p:
+//    v11 = Less64 <bool> v10 v8
+//    If v11 goto b else u
+//  b: <- p ...
+//    v17 = Leq64 <bool> v10 v8
+//    If v17 goto s else o
 // We can redirect p to s directly.
 //
 // The implementation here borrows the framework of the prove pass.
-// 1, Traverse all blocks of function f to find If blocks.
-// 2,   For any If block b, traverse all its predecessors to find If blocks.
-// 3,     For any If block predecessor p, update relationship p->b.
-// 4,     Traverse all successors of b.
-// 5,       For any successor s of b, try to update relationship b->s, if a
-//          contradiction is found then redirect p to another successor of b.
+//  1, Traverse all blocks of function f to find If blocks.
+//  2,   For any If block b, traverse all its predecessors to find If blocks.
+//  3,     For any If block predecessor p, update relationship p->b.
+//  4,     Traverse all successors of b.
+//  5,       For any successor s of b, try to update relationship b->s, if a
+//           contradiction is found then redirect p to another successor of b.
 func fuseBranchRedirect(f *Func) bool {
 	ft := newFactsTable(f)
 	ft.checkpoint()

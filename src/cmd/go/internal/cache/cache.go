@@ -47,7 +47,6 @@ type Cache struct {
 // to share a cache directory (for example, if the directory were stored
 // in a network file system). File locking is notoriously unreliable in
 // network file systems and may not suffice to protect the cache.
-//
 func Open(dir string) (*Cache, error) {
 	info, err := os.Stat(dir)
 	if err != nil {

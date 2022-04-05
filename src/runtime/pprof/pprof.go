@@ -130,7 +130,6 @@ import (
 // The CPU profile is not available as a Profile. It has a special API,
 // the StartCPUProfile and StopCPUProfile functions, because it streams
 // output to a writer during profiling.
-//
 type Profile struct {
 	name  string
 	mu    sync.Mutex
@@ -276,7 +275,6 @@ func (p *Profile) Count() int {
 //
 // Passing skip=0 begins the stack trace at the call to Add inside rpc.NewClient.
 // Passing skip=1 begins the stack trace at the call to NewClient inside mypkg.Run.
-//
 func (p *Profile) Add(value any, skip int) {
 	if p.name == "" {
 		panic("pprof: use of uninitialized Profile")

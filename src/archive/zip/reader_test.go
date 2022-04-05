@@ -865,7 +865,6 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //
 // It's here in hex for the same reason as rZipBytes above: to avoid
 // problems with on-disk virus scanners or other zip processors.
-//
 func biggestZipBytes() []byte {
 	s := `
 0000000 50 4b 03 04 14 00 08 00 08 00 00 00 00 00 00 00

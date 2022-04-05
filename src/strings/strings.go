@@ -244,6 +244,9 @@ func genSplit(s, sep string, sepSave, n int) []string {
 		n = Count(s, sep) + 1
 	}
 
+	if n > len(s)+1 {
+		n = len(s) + 1
+	}
 	a := make([]string, n)
 	n--
 	i := 0
@@ -1038,8 +1041,10 @@ func ReplaceAll(s, old, new string) string {
 }
 
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
-// are equal under Unicode case-folding, which is a more general
+// are equal under simple Unicode case-folding, which is a more general
 // form of case-insensitivity.
+//
+// EqualFold(s, t) is equivalent to Tolower(s) == Tolower(t).
 func EqualFold(s, t string) bool {
 	for s != "" && t != "" {
 		// Extract first rune from each string.

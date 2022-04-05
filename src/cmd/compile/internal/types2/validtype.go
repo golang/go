@@ -141,8 +141,8 @@ func (env *tparamEnv) push(typ *Named) *tparamEnv {
 }
 
 // TODO(gri) Alternative implementation:
-//           We may not need to build a stack of environments to
-//           look up the type arguments for type parameters. The
-//           same information should be available via the path:
-//           We should be able to just walk the path backwards
-//           and find the type arguments in the instance objects.
+// We may not need to build a stack of environments to
+// look up the type arguments for type parameters. The
+// same information should be available via the path:
+// We should be able to just walk the path backwards
+// and find the type arguments in the instance objects.

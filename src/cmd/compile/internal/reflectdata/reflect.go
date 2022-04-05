@@ -667,10 +667,10 @@ var kinds = []int{
 // tflag is documented in reflect/type.go.
 //
 // tflag values must be kept in sync with copies in:
-//	cmd/compile/internal/reflectdata/reflect.go
-//	cmd/link/internal/ld/decodesym.go
-//	reflect/type.go
-//	runtime/type.go
+//	- cmd/compile/internal/reflectdata/reflect.go
+//	- cmd/link/internal/ld/decodesym.go
+//	- reflect/type.go
+//	- runtime/type.go
 const (
 	tflagUncommon      = 1 << 0
 	tflagExtraStar     = 1 << 1
@@ -1527,7 +1527,6 @@ func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 // use bitmaps for objects up to 64 kB in size.
 //
 // Also known to reflect/type.go.
-//
 const maxPtrmaskBytes = 2048
 
 // GCSym returns a data symbol containing GC information for type t, along

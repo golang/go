@@ -11,6 +11,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "cgo/abi_arm64.h"
 
 #define CLOCK_REALTIME	$0
 #define	CLOCK_MONOTONIC	$3
@@ -18,30 +19,13 @@
 // mstart_stub is the first function executed on a new thread started by pthread_create.
 // It just does some low-level setup and then calls mstart.
 // Note: called with the C calling convention.
-TEXT runtime·mstart_stub(SB),NOSPLIT,$160
+TEXT runtime·mstart_stub(SB),NOSPLIT,$144
 	// R0 points to the m.
 	// We are already on m's g0 stack.
 
 	// Save callee-save registers.
-	MOVD	R19, 8(RSP)
-	MOVD	R20, 16(RSP)
-	MOVD	R21, 24(RSP)
-	MOVD	R22, 32(RSP)
-	MOVD	R23, 40(RSP)
-	MOVD	R24, 48(RSP)
-	MOVD	R25, 56(RSP)
-	MOVD	R26, 64(RSP)
-	MOVD	R27, 72(RSP)
-	MOVD	g, 80(RSP)
-	MOVD	R29, 88(RSP)
-	FMOVD	F8, 96(RSP)
-	FMOVD	F9, 104(RSP)
-	FMOVD	F10, 112(RSP)
-	FMOVD	F11, 120(RSP)
-	FMOVD	F12, 128(RSP)
-	FMOVD	F13, 136(RSP)
-	FMOVD	F14, 144(RSP)
-	FMOVD	F15, 152(RSP)
+	SAVE_R19_TO_R28(8)
+	SAVE_F8_TO_F15(88)
 
 	MOVD    m_g0(R0), g
 	BL	runtime·save_g(SB)
@@ -49,25 +33,8 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$160
 	BL	runtime·mstart(SB)
 
 	// Restore callee-save registers.
-	MOVD	8(RSP), R19
-	MOVD	16(RSP), R20
-	MOVD	24(RSP), R21
-	MOVD	32(RSP), R22
-	MOVD	40(RSP), R23
-	MOVD	48(RSP), R24
-	MOVD	56(RSP), R25
-	MOVD	64(RSP), R26
-	MOVD	72(RSP), R27
-	MOVD	80(RSP), g
-	MOVD	88(RSP), R29
-	FMOVD	96(RSP), F8
-	FMOVD	104(RSP), F9
-	FMOVD	112(RSP), F10
-	FMOVD	120(RSP), F11
-	FMOVD	128(RSP), F12
-	FMOVD	136(RSP), F13
-	FMOVD	144(RSP), F14
-	FMOVD	152(RSP), F15
+	RESTORE_R19_TO_R28(8)
+	RESTORE_F8_TO_F15(88)
 
 	// Go is all done with this OS thread.
 	// Tell pthread everything is ok (we never join with this thread, so
@@ -87,25 +54,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 TEXT runtime·sigtramp(SB),NOSPLIT,$192
 	// Save callee-save registers in the case of signal forwarding.
 	// Please refer to https://golang.org/issue/31827 .
-	MOVD	R19, 8*4(RSP)
-	MOVD	R20, 8*5(RSP)
-	MOVD	R21, 8*6(RSP)
-	MOVD	R22, 8*7(RSP)
-	MOVD	R23, 8*8(RSP)
-	MOVD	R24, 8*9(RSP)
-	MOVD	R25, 8*10(RSP)
-	MOVD	R26, 8*11(RSP)
-	MOVD	R27, 8*12(RSP)
-	MOVD	g, 8*13(RSP)
-	MOVD	R29, 8*14(RSP)
-	FMOVD	F8, 8*15(RSP)
-	FMOVD	F9, 8*16(RSP)
-	FMOVD	F10, 8*17(RSP)
-	FMOVD	F11, 8*18(RSP)
-	FMOVD	F12, 8*19(RSP)
-	FMOVD	F13, 8*20(RSP)
-	FMOVD	F14, 8*21(RSP)
-	FMOVD	F15, 8*22(RSP)
+	SAVE_R19_TO_R28(8*4)
+	SAVE_F8_TO_F15(8*14)
 
 	// If called from an external code context, g will not be set.
 	// Save R0, since runtime·load_g will clobber it.
@@ -117,25 +67,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
 	BL	runtime·sigtrampgo(SB)
 
 	// Restore callee-save registers.
-	MOVD	8*4(RSP), R19
-	MOVD	8*5(RSP), R20
-	MOVD	8*6(RSP), R21
-	MOVD	8*7(RSP), R22
-	MOVD	8*8(RSP), R23
-	MOVD	8*9(RSP), R24
-	MOVD	8*10(RSP), R25
-	MOVD	8*11(RSP), R26
-	MOVD	8*12(RSP), R27
-	MOVD	8*13(RSP), g
-	MOVD	8*14(RSP), R29
-	FMOVD	8*15(RSP), F8
-	FMOVD	8*16(RSP), F9
-	FMOVD	8*17(RSP), F10
-	FMOVD	8*18(RSP), F11
-	FMOVD	8*19(RSP), F12
-	FMOVD	8*20(RSP), F13
-	FMOVD	8*21(RSP), F14
-	FMOVD	8*22(RSP), F15
+	RESTORE_R19_TO_R28(8*4)
+	RESTORE_F8_TO_F15(8*14)
 
 	RET
 

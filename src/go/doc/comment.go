@@ -28,8 +28,11 @@ var (
 	unicodeQuoteReplacer = strings.NewReplacer("``", ulquo, "''", urquo)
 )
 
-// Escape comment text for HTML. If nice is set,
-// also turn `` into &ldquo; and '' into &rdquo;.
+// Escape comment text for HTML. If nice is set, also replace:
+//
+//	`` -> &ldquo;
+//	'' -> &rdquo;
+//
 func commentEscape(w io.Writer, text string, nice bool) {
 	if nice {
 		// In the first pass, we convert `` and '' into their unicode equivalents.
@@ -93,8 +96,10 @@ var (
 // into a link). Go identifiers that appear in the words map are italicized; if
 // the corresponding map value is not the empty string, it is considered a URL
 // and the word is converted into a link. If nice is set, the remaining text's
-// appearance is improved where it makes sense (e.g., `` is turned into &ldquo;
-// and '' into &rdquo;).
+// appearance is improved where it makes sense, such as replacing:
+//
+//	`` -> &ldquo;
+//	'' -> &rdquo;
 func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
 	for {
 		m := matchRx.FindStringSubmatchIndex(line)

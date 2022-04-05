@@ -4496,9 +4496,6 @@ func InitTables() {
 		sys.ARM64)
 	addF("math/bits", "Reverse",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			if s.config.PtrSize == 4 {
-				return s.newValue1(ssa.OpBitRev32, types.Types[types.TINT], args[0])
-			}
 			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
 		},
 		sys.ARM64)

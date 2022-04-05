@@ -16,7 +16,6 @@ import (
 	"sort"
 
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/importer"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
@@ -34,38 +33,38 @@ var localPkgReader *pkgReader
 //
 // The pipeline contains 2 steps:
 //
-// (1) Generate package export data "stub".
+//  1) Generate package export data "stub".
 //
-// (2) Generate package IR from package export data.
+//  2) Generate package IR from package export data.
 //
 // The package data "stub" at step (1) contains everything from the local package,
 // but nothing that have been imported. When we're actually writing out export data
 // to the output files (see writeNewExport function), we run the "linker", which does
 // a few things:
 //
-// + Updates compiler extensions data (e.g., inlining cost, escape analysis results).
+//  + Updates compiler extensions data (e.g., inlining cost, escape analysis results).
 //
-// + Handles re-exporting any transitive dependencies.
+//  + Handles re-exporting any transitive dependencies.
 //
-// + Prunes out any unnecessary details (e.g., non-inlineable functions, because any
-//   downstream importers only care about inlinable functions).
+//  + Prunes out any unnecessary details (e.g., non-inlineable functions, because any
+//    downstream importers only care about inlinable functions).
 //
 // The source files are typechecked twice, once before writing export data
 // using types2 checker, once after read export data using gc/typecheck.
 // This duplication of work will go away once we always use types2 checker,
 // we can remove the gc/typecheck pass. The reason it is still here:
 //
-// + It reduces engineering costs in maintaining a fork of typecheck
-//   (e.g., no need to backport fixes like CL 327651).
+//  + It reduces engineering costs in maintaining a fork of typecheck
+//    (e.g., no need to backport fixes like CL 327651).
 //
-// + It makes it easier to pass toolstash -cmp.
+//  + It makes it easier to pass toolstash -cmp.
 //
-// + Historically, we would always re-run the typechecker after import, even though
-//   we know the imported data is valid. It's not ideal, but also not causing any
-//   problem either.
+//  + Historically, we would always re-run the typechecker after import, even though
+//    we know the imported data is valid. It's not ideal, but also not causing any
+//    problem either.
 //
-// + There's still transformation that being done during gc/typecheck, like rewriting
-//   multi-valued function call, or transform ir.OINDEX -> ir.OINDEXMAP.
+//  + There's still transformation that being done during gc/typecheck, like rewriting
+//    multi-valued function call, or transform ir.OINDEX -> ir.OINDEXMAP.
 //
 // Using syntax+types2 tree, which already has a complete representation of generics,
 // the unified IR has the full typed AST for doing introspection during step (1).
@@ -73,17 +72,6 @@ var localPkgReader *pkgReader
 // (see writer.captureVars for an example).
 func unified(noders []*noder) {
 	inline.NewInline = InlineCall
-
-	writeNewExportFunc = writeNewExport
-
-	newReadImportFunc = func(data string, pkg1 *types.Pkg, ctxt *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
-		pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
-
-		// Read package descriptors for both types2 and compiler backend.
-		readPackage(newPkgReader(pr), pkg1)
-		pkg2 = importer.ReadPackage(ctxt, packages, pr)
-		return
-	}
 
 	data := writePkgStub(noders)
 
@@ -266,7 +254,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
 	}
 }
 
-func writeNewExport(out io.Writer) {
+func writeUnifiedExport(out io.Writer) {
 	l := linker{
 		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
 
@@ -332,5 +320,5 @@ func writeNewExport(out io.Writer) {
 		w.Flush()
 	}
 
-	l.pw.DumpTo(out)
+	base.Ctxt.Fingerprint = l.pw.DumpTo(out)
 }

@@ -329,9 +329,8 @@ func init[P /* ERROR func init must have no type parameters */ any]() {}
 type T struct {}
 
 func (T) m1() {}
-// The type checker accepts method type parameters if configured accordingly.
-func (T) m2[_ any]() {}
-func (T) m3[P any]() {}
+func (T) m2[ /* ERROR method must have no type parameters */ _ any]() {}
+func (T) m3[ /* ERROR method must have no type parameters */ P any]() {}
 
 // type inference across parameterized types
 
@@ -388,28 +387,6 @@ func _() {
 func _[T any] (x T) {
         m := S1[T].m
         m(S1[T]{x})
-}
-
-// type parameters in methods (generalization)
-
-type R0 struct{}
-
-func (R0) _[T any](x T) {}
-func (R0 /* ERROR invalid receiver */ ) _[R0 any]() {} // scope of type parameters starts at "func"
-
-type R1[A, B any] struct{}
-
-func (_ R1[A, B]) m0(A, B)
-func (_ R1[A, B]) m1[T any](A, B, T) T { panic(0) }
-func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
-func (_ R1[A, B]) _[A /* ERROR redeclared */ any](B) {}
-
-func _() {
-        var r R1[int, string]
-        r.m1[rune](42, "foo", 'a')
-        r.m1[rune](42, "foo", 1.2 /* ERROR cannot use .* as rune .* \(truncated\) */)
-        r.m1(42, "foo", 1.2) // using type inference
-        var _ float64 = r.m1(42, "foo", 1.2)
 }
 
 type I1[A any] interface {

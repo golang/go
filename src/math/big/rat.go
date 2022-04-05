@@ -392,7 +392,6 @@ func (z *Rat) Inv(x *Rat) *Rat {
 //	-1 if x <  0
 //	 0 if x == 0
 //	+1 if x >  0
-//
 func (x *Rat) Sign() int {
 	return x.a.Sign()
 }
@@ -482,7 +481,6 @@ func (z *Int) scaleDenom(x *Int, f nat) {
 //   -1 if x <  y
 //    0 if x == y
 //   +1 if x >  y
-//
 func (x *Rat) Cmp(y *Rat) int {
 	var a, b Int
 	a.scaleDenom(&x.a, y.b.abs)
