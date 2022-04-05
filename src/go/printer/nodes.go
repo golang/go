@@ -38,13 +38,12 @@ import (
 // printed.
 //
 // TODO(gri): linebreak may add too many lines if the next statement at "line"
-//            is preceded by comments because the computation of n assumes
-//            the current position before the comment and the target position
-//            after the comment. Thus, after interspersing such comments, the
-//            space taken up by them is not considered to reduce the number of
-//            linebreaks. At the moment there is no easy way to know about
-//            future (not yet interspersed) comments in this function.
-//
+// is preceded by comments because the computation of n assumes
+// the current position before the comment and the target position
+// after the comment. Thus, after interspersing such comments, the
+// space taken up by them is not considered to reduce the number of
+// linebreaks. At the moment there is no easy way to know about
+// future (not yet interspersed) comments in this function.
 func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (nbreaks int) {
 	n := nlimit(line - p.pos.Line)
 	if n < min {
@@ -125,7 +124,7 @@ const filteredMsg = "contains filtered or unexported fields"
 // expressions.
 //
 // TODO(gri) Consider rewriting this to be independent of []ast.Expr
-//           so that we can use the algorithm for any kind of list
+// so that we can use the algorithm for any kind of list
 //           (e.g., pass list via a channel over which to range).
 func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exprListMode, next0 token.Pos, isIncomplete bool) {
 	if len(list) == 0 {
@@ -745,7 +744,6 @@ func reduceDepth(depth int) int {
 //	3) If there are no level 4 operators or no level 5 operators, then the
 //	   cutoff is 6 (always use spaces) in Normal mode
 //	   and 4 (never use spaces) in Compact mode.
-//
 func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int) {
 	prec := x.Op.Precedence()
 	if prec < prec1 {
@@ -1259,7 +1257,6 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 // indentList reports whether an expression list would look better if it
 // were indented wholesale (starting with the very first element, rather
 // than starting at the first line break).
-//
 func (p *printer) indentList(list []ast.Expr) bool {
 	// Heuristic: indentList reports whether there are more than one multi-
 	// line element in the list, or if there is any element that is not
@@ -1503,7 +1500,6 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 //	-  V          -  V          true      column must be kept
 //	-  -          -  -          false
 //	-  V          V  -          false     V is moved into T column
-//
 func keepTypeColumn(specs []ast.Spec) []bool {
 	m := make([]bool, len(specs))
 
@@ -1614,7 +1610,6 @@ func sanitizeImportPath(lit *ast.BasicLit) *ast.BasicLit {
 // The parameter n is the number of specs in the group. If doIndent is set,
 // multi-line identifier lists in the spec are indented when the first
 // linebreak is encountered.
-//
 func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
@@ -1710,7 +1705,6 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 // The result is <= maxSize if the node fits on one line with at
 // most maxSize chars and the formatted output doesn't contain
 // any control chars. Otherwise, the result is > maxSize.
-//
 func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	// nodeSize invokes the printer, which may invoke nodeSize
 	// recursively. For deep composite literal nests, this can
@@ -1784,7 +1778,6 @@ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
 // the block is printed on the current line, without line breaks, spaced from the header
 // by sep. Otherwise the block's opening "{" is printed on the current line, followed by
 // lines for the block's statements and its closing "}".
-//
 func (p *printer) funcBody(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
 	if b == nil {
 		return

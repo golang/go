@@ -1567,7 +1567,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("src/origin/origin.go", `package origin
-		// #cgo !darwin LDFLAGS: -Wl,-rpath,$ORIGIN
+		// #cgo !darwin,!windows LDFLAGS: -Wl,-rpath,$ORIGIN
 		// void f(void) {}
 		import "C"
 		func f() { C.f() }`)

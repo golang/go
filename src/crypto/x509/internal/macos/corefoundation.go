@@ -37,9 +37,12 @@ func CFDataToSlice(data CFRef) []byte {
 }
 
 // CFStringToString returns a Go string representation of the passed
-// in CFString.
+// in CFString, or an empty string if it's invalid.
 func CFStringToString(ref CFRef) string {
-	data := CFStringCreateExternalRepresentation(ref)
+	data, err := CFStringCreateExternalRepresentation(ref)
+	if err != nil {
+		return ""
+	}
 	b := CFDataToSlice(data)
 	CFRelease(data)
 	return string(b)
@@ -186,9 +189,12 @@ func x509_CFErrorCopyDescription_trampoline()
 
 //go:cgo_import_dynamic x509_CFStringCreateExternalRepresentation CFStringCreateExternalRepresentation "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 
-func CFStringCreateExternalRepresentation(strRef CFRef) CFRef {
+func CFStringCreateExternalRepresentation(strRef CFRef) (CFRef, error) {
 	ret := syscall(abi.FuncPCABI0(x509_CFStringCreateExternalRepresentation_trampoline), kCFAllocatorDefault, uintptr(strRef), kCFStringEncodingUTF8, 0, 0, 0)
-	return CFRef(ret)
+	if ret == 0 {
+		return 0, errors.New("string can't be represented as UTF-8")
+	}
+	return CFRef(ret), nil
 }
 func x509_CFStringCreateExternalRepresentation_trampoline()
 

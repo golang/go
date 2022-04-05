@@ -145,7 +145,6 @@ type posetNode struct {
 //       I  extra
 //           /  \
 //          J    K
-//
 type poset struct {
 	lastidx   uint32            // last generated dense index
 	flags     uint8             // internal flags

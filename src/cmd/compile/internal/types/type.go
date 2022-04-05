@@ -1121,9 +1121,9 @@ func (t *Type) SimpleString() string {
 }
 
 // Cmp is a comparison between values a and b.
-// -1 if a < b
-//  0 if a == b
-//  1 if a > b
+//  -1 if a < b
+//   0 if a == b
+//   1 if a > b
 type Cmp int8
 
 const (

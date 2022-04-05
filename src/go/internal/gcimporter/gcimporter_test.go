@@ -125,10 +125,14 @@ func TestImportTestdata(t *testing.T) {
 	}
 
 	testfiles := map[string][]string{
-		"exports.go": {"go/ast", "go/token"},
+		"exports.go":  {"go/ast", "go/token"},
+		"generics.go": nil,
 	}
-	if !goexperiment.Unified {
-		testfiles["generics.go"] = nil
+	if goexperiment.Unified {
+		// TODO(mdempsky): Fix test below to flatten the transitive
+		// Package.Imports graph. Unified IR is more precise about
+		// recreating the package import graph.
+		testfiles["exports.go"] = []string{"go/ast"}
 	}
 
 	for testfile, wantImports := range testfiles {
@@ -153,11 +157,6 @@ func TestImportTestdata(t *testing.T) {
 }
 
 func TestImportTypeparamTests(t *testing.T) {
-	// This test doesn't yet work with the unified export format.
-	if goexperiment.Unified {
-		t.Skip("unified export data format is currently unsupported")
-	}
-
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
@@ -460,6 +459,14 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 		return // not an interface
 	}
 
+	// The unified IR importer always sets interface method receiver
+	// parameters to point to the Interface type, rather than the Named.
+	// See #49906.
+	var want types.Type = named
+	if goexperiment.Unified {
+		want = iface
+	}
+
 	// check explicitly declared methods
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		m := iface.ExplicitMethod(i)
@@ -468,8 +475,8 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 			t.Errorf("%s: missing receiver type", m)
 			continue
 		}
-		if recv.Type() != named {
-			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
+		if recv.Type() != want {
+			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), want)
 		}
 	}
 

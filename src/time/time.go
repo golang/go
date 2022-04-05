@@ -123,7 +123,6 @@ import (
 // to t == u, since t.Equal uses the most accurate comparison available and
 // correctly handles the case when only one of its arguments has a monotonic
 // clock reading.
-//
 type Time struct {
 	// wall and ext encode the wall time seconds, wall time nanoseconds,
 	// and optional monotonic clock reading in nanoseconds.
@@ -603,7 +602,6 @@ const (
 // To convert an integer number of units to a Duration, multiply:
 //	seconds := 10
 //	fmt.Print(time.Duration(seconds)*time.Second) // prints 10s
-//
 const (
 	Nanosecond  Duration = 1
 	Microsecond          = 1000 * Nanosecond

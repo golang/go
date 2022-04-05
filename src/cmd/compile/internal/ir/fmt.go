@@ -105,7 +105,6 @@ func (o Op) GoString() string {
 //
 //	%v	Go syntax ("+", "<-", "print")
 //	%+v	Debug syntax ("ADD", "RECV", "PRINT")
-//
 func (o Op) Format(s fmt.State, verb rune) {
 	switch verb {
 	default:
@@ -129,7 +128,6 @@ func (o Op) Format(s fmt.State, verb rune) {
 //	%v	Go syntax
 //	%L	Go syntax followed by " (type T)" if type is known.
 //	%+v	Debug syntax, as in Dump.
-//
 func fmtNode(n Node, s fmt.State, verb rune) {
 	// %+v prints Dump.
 	// Otherwise we print Go syntax.
@@ -926,7 +924,6 @@ func ellipsisIf(b bool) string {
 //	%v	Go syntax, semicolon-separated
 //	%.v	Go syntax, comma-separated
 //	%+v	Debug syntax, as in DumpList.
-//
 func (l Nodes) Format(s fmt.State, verb rune) {
 	if s.Flag('+') && verb == 'v' {
 		// %+v is DumpList output

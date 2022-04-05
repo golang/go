@@ -442,7 +442,19 @@ func (r *reader) doTyp() *types.Type {
 		return r.structType()
 	case pkgbits.TypeInterface:
 		return r.interfaceType()
+	case pkgbits.TypeUnion:
+		return r.unionType()
 	}
+}
+
+func (r *reader) unionType() *types.Type {
+	terms := make([]*types.Type, r.Len())
+	tildes := make([]bool, len(terms))
+	for i := range terms {
+		tildes[i] = r.Bool()
+		terms[i] = r.typ()
+	}
+	return types.NewUnion(terms, tildes)
 }
 
 func (r *reader) interfaceType() *types.Type {
@@ -576,10 +588,6 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 		}
 		if pri, ok := objReader[sym]; ok {
 			return pri.pr.objIdx(pri.idx, nil, explicits)
-		}
-		if haveLegacyImports {
-			assert(len(explicits) == 0)
-			return typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
 		}
 		base.Fatalf("unresolved stub: %v", sym)
 	}
@@ -1960,12 +1968,6 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 
 	pri, ok := bodyReader[fn]
 	if !ok {
-		// Assume it's an imported function or something that we don't
-		// have access to in quirks mode.
-		if haveLegacyImports {
-			return nil
-		}
-
 		base.FatalfAt(call.Pos(), "missing function body for call to %v", fn)
 	}
 

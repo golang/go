@@ -16,7 +16,6 @@ import (
 // reports whether the call is valid, with *x holding the result;
 // but x.expr is not set. If the call is invalid, the result is
 // false, and *x is undefined.
-//
 func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ bool) {
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]

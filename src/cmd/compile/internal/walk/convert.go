@@ -411,7 +411,7 @@ func soleComponent(init *ir.Nodes, n ir.Node) ir.Node {
 				// Treat blank fields as the zero value as the Go language requires.
 				n = typecheck.Temp(n.Type().Field(0).Type)
 				appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n, nil))
-				return n
+				continue
 			}
 			n = typecheck.Expr(ir.NewSelectorExpr(n.Pos(), ir.OXDOT, n, n.Type().Field(0).Sym))
 		case n.Type().IsArray():

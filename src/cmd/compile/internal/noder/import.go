@@ -8,10 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"internal/buildcfg"
+	"internal/pkgbits"
 	"os"
 	pathpkg "path"
 	"runtime"
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -27,22 +27,6 @@ import (
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 )
-
-// haveLegacyImports records whether we've imported any packages
-// without a new export data section. This is useful for experimenting
-// with new export data format designs, when you need to support
-// existing tests that manually compile files with inconsistent
-// compiler flags.
-var haveLegacyImports = false
-
-// newReadImportFunc is an extension hook for experimenting with new
-// export data formats. If a new export data payload was written out
-// for an imported package by overloading writeNewExportFunc, then
-// that payload will be mapped into memory and passed to
-// newReadImportFunc.
-var newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
-	panic("unexpected new export data payload")
-}
 
 type gcimports struct {
 	ctxt     *types2.Context
@@ -220,7 +204,7 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 	}
 	defer f.Close()
 
-	r, end, newsize, err := findExportData(f)
+	r, end, err := findExportData(f)
 	if err != nil {
 		return
 	}
@@ -229,41 +213,40 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 		fmt.Printf("importing %s (%s)\n", path, f.Name())
 	}
 
-	if newsize != 0 {
-		// We have unified IR data. Map it, and feed to the importers.
-		end -= newsize
-		var data string
-		data, err = base.MapFile(r.File(), end, newsize)
-		if err != nil {
-			return
+	c, err := r.ReadByte()
+	if err != nil {
+		return
+	}
+
+	pos := r.Offset()
+
+	// Map export data section into memory as a single large
+	// string. This reduces heap fragmentation and allows returning
+	// individual substrings very efficiently.
+	var data string
+	data, err = base.MapFile(r.File(), pos, end-pos)
+	if err != nil {
+		return
+	}
+
+	switch c {
+	case 'u':
+		if !buildcfg.Experiment.Unified {
+			base.Fatalf("unexpected export data format")
 		}
 
-		pkg2, err = newReadImportFunc(data, pkg1, env, packages)
-	} else {
-		// We only have old data. Oh well, fall back to the legacy importers.
-		haveLegacyImports = true
+		// TODO(mdempsky): This seems a bit clunky.
+		data = strings.TrimSuffix(data, "\n$$\n")
 
-		var c byte
-		switch c, err = r.ReadByte(); {
-		case err != nil:
-			return
+		pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
 
-		case c != 'i':
-			// Indexed format is distinguished by an 'i' byte,
-			// whereas previous export formats started with 'c', 'd', or 'v'.
-			err = fmt.Errorf("unexpected package format byte: %v", c)
-			return
-		}
+		// Read package descriptors for both types2 and compiler backend.
+		readPackage(newPkgReader(pr), pkg1)
+		pkg2 = importer.ReadPackage(env, packages, pr)
 
-		pos := r.Offset()
-
-		// Map string (and data) section into memory as a single large
-		// string. This reduces heap fragmentation and allows
-		// returning individual substrings very efficiently.
-		var data string
-		data, err = base.MapFile(r.File(), pos, end-pos)
-		if err != nil {
-			return
+	case 'i':
+		if buildcfg.Experiment.Unified {
+			base.Fatalf("unexpected export data format")
 		}
 
 		typecheck.ReadImports(pkg1, data)
@@ -274,6 +257,12 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 				return
 			}
 		}
+
+	default:
+		// Indexed format is distinguished by an 'i' byte,
+		// whereas previous export formats started with 'c', 'd', or 'v'.
+		err = fmt.Errorf("unexpected package format byte: %v", c)
+		return
 	}
 
 	err = addFingerprint(path, f, end)
@@ -283,7 +272,7 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 // findExportData returns a *bio.Reader positioned at the start of the
 // binary export data section, and a file offset for where to stop
 // reading.
-func findExportData(f *os.File) (r *bio.Reader, end, newsize int64, err error) {
+func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
 	r = bio.NewReader(f)
 
 	// check object header
@@ -326,14 +315,6 @@ func findExportData(f *os.File) (r *bio.Reader, end, newsize int64, err error) {
 
 	// process header lines
 	for !strings.HasPrefix(line, "$$") {
-		if strings.HasPrefix(line, "newexportsize ") {
-			fields := strings.Fields(line)
-			newsize, err = strconv.ParseInt(fields[1], 10, 64)
-			if err != nil {
-				return
-			}
-		}
-
 		line, err = r.ReadString('\n')
 		if err != nil {
 			return

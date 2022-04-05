@@ -147,7 +147,7 @@ import (
 // remove the deletion barrier, we'll have to work out a new way to
 // handle the profile logging.
 
-// typedmemmove copies a value of type t to dst from src.
+// typedmemmove copies a value of type typ to dst from src.
 // Must be nosplit, see #16026.
 //
 // TODO: Perfect for go:nosplitrec since we can't have a safe point

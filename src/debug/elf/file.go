@@ -325,6 +325,13 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		shstrndx = int(hdr.Shstrndx)
 	}
 
+	if shoff < 0 {
+		return nil, &FormatError{0, "invalid shoff", shoff}
+	}
+	if phoff < 0 {
+		return nil, &FormatError{0, "invalid phoff", phoff}
+	}
+
 	if shoff == 0 && shnum != 0 {
 		return nil, &FormatError{0, "invalid ELF shnum for shoff=0", shnum}
 	}
@@ -418,6 +425,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				Addralign: sh.Addralign,
 				Entsize:   sh.Entsize,
 			}
+		}
+		if int64(s.Offset) < 0 {
+			return nil, &FormatError{off, "invalid section offset", int64(s.Offset)}
+		}
+		if int64(s.FileSize) < 0 {
+			return nil, &FormatError{off, "invalid section size", int64(s.FileSize)}
 		}
 		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.FileSize))
 
@@ -620,6 +633,8 @@ func (f *File) applyRelocations(dst []byte, rels []byte) error {
 		return f.applyRelocationsMIPS(dst, rels)
 	case f.Class == ELFCLASS64 && f.Machine == EM_MIPS:
 		return f.applyRelocationsMIPS64(dst, rels)
+	case f.Class == ELFCLASS64 && f.Machine == EM_LOONGARCH:
+		return f.applyRelocationsLOONG64(dst, rels)
 	case f.Class == ELFCLASS64 && f.Machine == EM_RISCV:
 		return f.applyRelocationsRISCV64(dst, rels)
 	case f.Class == ELFCLASS64 && f.Machine == EM_S390:
@@ -982,6 +997,54 @@ func (f *File) applyRelocationsMIPS64(dst []byte, rels []byte) error {
 			val64 := sym.Value + uint64(rela.Addend)
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_MIPS_32:
+			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+				continue
+			}
+			val32 := uint32(sym.Value) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+		}
+	}
+
+	return nil
+}
+
+func (f *File) applyRelocationsLOONG64(dst []byte, rels []byte) error {
+	// 24 is the size of Rela64.
+	if len(rels)%24 != 0 {
+		return errors.New("length of relocation section is not a multiple of 24")
+	}
+
+	symbols, _, err := f.getSymbols(SHT_SYMTAB)
+	if err != nil {
+		return err
+	}
+
+	b := bytes.NewReader(rels)
+	var rela Rela64
+
+	for b.Len() > 0 {
+		binary.Read(b, f.ByteOrder, &rela)
+		var symNo uint64
+		var t R_LARCH
+		symNo = rela.Info >> 32
+		t = R_LARCH(rela.Info & 0xffff)
+
+		if symNo == 0 || symNo > uint64(len(symbols)) {
+			continue
+		}
+		sym := &symbols[symNo-1]
+		if !canApplyRelocation(sym) {
+			continue
+		}
+
+		switch t {
+		case R_LARCH_64:
+			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+				continue
+			}
+			val64 := sym.Value + uint64(rela.Addend)
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+		case R_LARCH_32:
 			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}

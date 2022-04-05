@@ -47,7 +47,7 @@ func TestTypeSetString(t *testing.T) {
 		// parse
 		errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
 		src := "package p; type T interface" + body
-		file, err := syntax.Parse(nil, strings.NewReader(src), errh, nil, syntax.AllowGenerics)
+		file, err := syntax.Parse(nil, strings.NewReader(src), errh, nil, 0)
 		if err != nil {
 			t.Fatalf("%s: %v (invalid test case)", body, err)
 		}

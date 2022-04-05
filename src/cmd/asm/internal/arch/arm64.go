@@ -12,6 +12,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
 	"errors"
+	"fmt"
 )
 
 var arm64LS = map[string]uint8{
@@ -52,7 +53,35 @@ func jumpArm64(word string) bool {
 	return arm64Jump[word]
 }
 
-// IsARM64CMP reports whether the op (as defined by an arm.A* constant) is
+var arm64SpecialOperand map[string]arm64.SpecialOperand
+
+// GetARM64SpecialOperand returns the internal representation of a special operand.
+func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
+	if arm64SpecialOperand == nil {
+		// Generate the mapping automatically when the first time the function is called.
+		arm64SpecialOperand = map[string]arm64.SpecialOperand{}
+		for opd := arm64.SPOP_BEGIN; opd < arm64.SPOP_END; opd++ {
+			s := fmt.Sprintf("%s", opd)
+			arm64SpecialOperand[s] = opd
+		}
+
+		// Handle some special cases.
+		specialMapping := map[string]arm64.SpecialOperand{
+			// The internal representation of CS(CC) and HS(LO) are the same.
+			"CS": arm64.SPOP_HS,
+			"CC": arm64.SPOP_LO,
+		}
+		for s, opd := range specialMapping {
+			arm64SpecialOperand[s] = opd
+		}
+	}
+	if opd, ok := arm64SpecialOperand[name]; ok {
+		return opd
+	}
+	return arm64.SPOP_END
+}
+
+// IsARM64CMP reports whether the op (as defined by an arm64.A* constant) is
 // one of the comparison instructions that require special handling.
 func IsARM64CMP(op obj.As) bool {
 	switch op {

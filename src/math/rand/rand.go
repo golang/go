@@ -366,7 +366,6 @@ func Read(p []byte) (n int, err error) { return globalRand.Read(p) }
 // adjust the output using:
 //
 //  sample = NormFloat64() * desiredStdDev + desiredMean
-//
 func NormFloat64() float64 { return globalRand.NormFloat64() }
 
 // ExpFloat64 returns an exponentially distributed float64 in the range
@@ -376,7 +375,6 @@ func NormFloat64() float64 { return globalRand.NormFloat64() }
 // callers can adjust the output using:
 //
 //  sample = ExpFloat64() / desiredRateParameter
-//
 func ExpFloat64() float64 { return globalRand.ExpFloat64() }
 
 type lockedSource struct {

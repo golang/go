@@ -38,6 +38,9 @@ func cmdtest() {
 	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
 		"run only those tests matching the regular expression; empty means to run all. "+
 			"Special exception: if the string begins with '!', the match is inverted.")
+	flag.BoolVar(&t.msan, "msan", false, "run in memory sanitizer builder mode")
+	flag.BoolVar(&t.asan, "asan", false, "run in address sanitizer builder mode")
+
 	xflagparse(-1) // any number of args
 	if noRebuild {
 		t.rebuild = false
@@ -49,6 +52,8 @@ func cmdtest() {
 // tester executes cmdtest.
 type tester struct {
 	race        bool
+	msan        bool
+	asan        bool
 	listMode    bool
 	rebuild     bool
 	failed      bool
@@ -403,6 +408,12 @@ func (t *tester) registerStdTest(pkg string) {
 			}
 			if t.race {
 				args = append(args, "-race")
+			}
+			if t.msan {
+				args = append(args, "-msan")
+			}
+			if t.asan {
+				args = append(args, "-asan")
 			}
 			if t.compileOnly {
 				args = append(args, "-run=^$")

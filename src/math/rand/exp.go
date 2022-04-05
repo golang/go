@@ -27,7 +27,6 @@ const (
 // callers can adjust the output using:
 //
 //  sample = ExpFloat64() / desiredRateParameter
-//
 func (r *Rand) ExpFloat64() float64 {
 	for {
 		j := r.Uint32()

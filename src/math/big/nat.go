@@ -31,7 +31,6 @@ import (
 // During arithmetic operations, denormalized values may occur but are
 // always normalized before returning the final result. The normalized
 // representation of 0 is the empty or nil slice (length = 0).
-//
 type nat []Word
 
 var (
@@ -363,10 +362,11 @@ func karatsuba(z, x, y nat) {
 }
 
 // alias reports whether x and y share the same base array.
+//
 // Note: alias assumes that the capacity of underlying arrays
-//       is never changed for nat values; i.e. that there are
-//       no 3-operand slice expressions in this code (or worse,
-//       reflect-based operations to the same effect).
+// is never changed for nat values; i.e. that there are
+// no 3-operand slice expressions in this code (or worse,
+// reflect-based operations to the same effect).
 func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }

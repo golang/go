@@ -4,15 +4,14 @@
 
 package p
 
-// error messages for parser in non-generic mode
 func _() {
-	_ = m[]   // ERROR expecting operand
-	_ = m[x,] // ERROR unexpected comma, expecting \: or \]
+	_ = m[] // ERROR expecting operand
+	_ = m[x,]
 	_ = m[x /* ERROR unexpected a */ a b c d]
 }
 
 // test case from the issue
 func f(m map[int]int) int {
-	return m[0 // ERROR expecting \: or \]
+	return m[0 // ERROR expecting comma, \: or \]
 		]
 }

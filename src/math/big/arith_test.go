@@ -510,7 +510,7 @@ func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
 }
 
 // TODO(gri) mulAddVWW and divWVW are symmetric operations but
-//           their signature is not symmetric. Try to unify.
+// their signature is not symmetric. Try to unify.
 
 type funWVW func(z []Word, xn Word, x []Word, y Word) (r Word)
 type argWVW struct {

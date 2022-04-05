@@ -21,9 +21,8 @@ const useConstraintTypeInference = true
 // If successful, infer returns the complete list of type arguments, one for each type parameter.
 // Otherwise the result is nil and appropriate errors will be reported.
 //
-// Inference proceeds as follows:
+// Inference proceeds as follows. Starting with given type arguments:
 //
-//   Starting with given type arguments
 //   1) apply FTI (function type inference) with typed arguments,
 //   2) apply CTI (constraint type inference),
 //   3) apply FTI with untyped function arguments,

@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/types2"
 	"fmt"
 	"go/build"
+	"internal/pkgbits"
 	"io"
 	"io/ioutil"
 	"os"
@@ -27,7 +28,6 @@ var pkgExts = [...]string{".a", ".o"}
 // the build.Default build.Context). A relative srcDir is interpreted
 // relative to the current working directory.
 // If no file was found, an empty filename is returned.
-//
 func FindPkg(path, srcDir string) (filename, id string) {
 	if path == "" {
 		return
@@ -83,7 +83,6 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // Import imports a gc-generated package given its import path and srcDir, adds
 // the corresponding package object to the packages map, and returns the object.
 // The packages map must contain all packages already imported.
-//
 func Import(packages map[string]*types2.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types2.Package, err error) {
 	var rc io.ReadCloser
 	var id string
@@ -134,9 +133,9 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 	}
 	defer rc.Close()
 
-	var hdr string
 	buf := bufio.NewReader(rc)
-	if hdr, err = FindExportData(buf); err != nil {
+	hdr, size, err := FindExportData(buf)
+	if err != nil {
 		return
 	}
 
@@ -146,17 +145,33 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 
 	case "$$B\n":
 		var data []byte
-		data, err = ioutil.ReadAll(buf)
+		var r io.Reader = buf
+		if size >= 0 {
+			r = io.LimitReader(r, int64(size))
+		}
+		data, err = ioutil.ReadAll(r)
 		if err != nil {
 			break
 		}
 
+		if len(data) == 0 {
+			err = fmt.Errorf("import %q: missing export data", path)
+			break
+		}
+		exportFormat := data[0]
+		s := string(data[1:])
+
 		// The indexed export format starts with an 'i'; the older
 		// binary export format starts with a 'c', 'd', or 'v'
 		// (from "version"). Select appropriate importer.
-		if len(data) > 0 && data[0] == 'i' {
-			pkg, err = ImportData(packages, string(data[1:]), id)
-		} else {
+		switch exportFormat {
+		case 'u':
+			s = s[:strings.Index(s, "\n$$\n")]
+			input := pkgbits.NewPkgDecoder(id, s)
+			pkg = ReadPackage(nil, packages, input)
+		case 'i':
+			pkg, err = ImportData(packages, s, id)
+		default:
 			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
 		}
 

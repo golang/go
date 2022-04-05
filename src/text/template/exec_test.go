@@ -1220,15 +1220,19 @@ var cmpTests = []cmpTest{
 	{"eq .NilIface .Iface1", "false", true},
 	{"eq .NilIface 0", "false", true},
 	{"eq 0 .NilIface", "false", true},
+	{"eq .Map .Map", "true", true},        // Uncomparable types but nil is OK.
+	{"eq .Map nil", "true", true},         // Uncomparable types but nil is OK.
+	{"eq nil .Map", "true", true},         // Uncomparable types but nil is OK.
+	{"eq .Map .NonNilMap", "false", true}, // Uncomparable types but nil is OK.
 	// Errors
-	{"eq `xy` 1", "", false},       // Different types.
-	{"eq 2 2.0", "", false},        // Different types.
-	{"lt true true", "", false},    // Unordered types.
-	{"lt 1+0i 1+0i", "", false},    // Unordered types.
-	{"eq .Ptr 1", "", false},       // Incompatible types.
-	{"eq .Ptr .NegOne", "", false}, // Incompatible types.
-	{"eq .Map .Map", "", false},    // Uncomparable types.
-	{"eq .Map .V1", "", false},     // Uncomparable types.
+	{"eq `xy` 1", "", false},                // Different types.
+	{"eq 2 2.0", "", false},                 // Different types.
+	{"lt true true", "", false},             // Unordered types.
+	{"lt 1+0i 1+0i", "", false},             // Unordered types.
+	{"eq .Ptr 1", "", false},                // Incompatible types.
+	{"eq .Ptr .NegOne", "", false},          // Incompatible types.
+	{"eq .Map .V1", "", false},              // Uncomparable types.
+	{"eq .NonNilMap .NonNilMap", "", false}, // Uncomparable types.
 }
 
 func TestComparison(t *testing.T) {
@@ -1237,16 +1241,18 @@ func TestComparison(t *testing.T) {
 		Uthree, Ufour    uint
 		NegOne, Three    int
 		Ptr, NilPtr      *int
+		NonNilMap        map[int]int
 		Map              map[int]int
 		V1, V2           V
 		Iface1, NilIface fmt.Stringer
 	}{
-		Uthree: 3,
-		Ufour:  4,
-		NegOne: -1,
-		Three:  3,
-		Ptr:    new(int),
-		Iface1: b,
+		Uthree:    3,
+		Ufour:     4,
+		NegOne:    -1,
+		Three:     3,
+		Ptr:       new(int),
+		NonNilMap: make(map[int]int),
+		Iface1:    b,
 	}
 	for _, test := range cmpTests {
 		text := fmt.Sprintf("{{if %s}}true{{else}}false{{end}}", test.expr)

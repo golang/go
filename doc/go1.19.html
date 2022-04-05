@@ -34,6 +34,23 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section, or delete if not needed
 </p>
+
+<h4 id="go-unix">New <code>unix</code> build constraint</h4>
+
+<p><!-- CL 389934 -->
+  The build constraint <code>unix</code> is now recognized
+  in <code>//go:build</code> lines. The constraint is satisfied
+  if the target operating system, also known as <code>GOOS</code>, is
+  a Unix or Unix-like system. For the 1.19 release it is satisfied
+  if <code>GOOS</code> is one of
+  <code>aix</code>, <code>android</code>, <code>darwin</code>,
+  <code>dragonfly</code>, <code>freebsd</code>, <code>hurd</code>,
+  <code>illumos</code>, <code>ios</code>, <code>linux</code>,
+  <code>netbsd</code>, <code>openbsd</code>, or <code>solaris</code>.
+  In future releases the <code>unix</code> constraint may match
+  additional newly supported operating systems.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 <p>
   TODO: complete this section, or delete if not needed
@@ -72,5 +89,27 @@ Do not send CLs removing the interior tags from such phrases.
       Please report any such problems on <a href="/issue/new">the
       issue tracker</a>.
     </p>
+
+    <p><!-- CL 396877 -->
+      When a net package function or method returns an "I/O timeout"
+      error, the error will now satisfy <code>errors.Is(err,
+      context.Canceled)</code>.  When a net package function returns
+      an "operation was canceled" error, the error will now satisfy
+      <code>errors.Is(err, context.DeadlineExceeded)</code>.
+      These changes are intended to make it easier for code to test
+      for cases in which a context cancelation or timeout causes a net
+      package function or method to return an error, while preserving
+      backward compatibility for error messages.
+    </p>
   </dd>
-</dl>
+</dl><!-- net -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 397255 -->
+      <a href="/pkg/strconv/#strconv.Quote"><code>strconv.Quote</code></a>
+      and related functions now quote the rune 007F as <code>\x7f</code>,
+      not <code>\u007f</code>.
+    </p>
+  </dd>
+</dl><!-- strconv -->

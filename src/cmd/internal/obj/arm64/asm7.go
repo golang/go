@@ -838,13 +838,16 @@ var optab = []Optab{
 	{AMSR, C_REG, C_NONE, C_NONE, C_SPR, 36, 4, 0, 0, 0},
 	{AMOVD, C_VCON, C_NONE, C_NONE, C_SPR, 37, 4, 0, 0, 0},
 	{AMSR, C_VCON, C_NONE, C_NONE, C_SPR, 37, 4, 0, 0, 0},
-	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_SPR, 91, 4, 0, 0, 0},
+	{AMSR, C_VCON, C_NONE, C_NONE, C_SPOP, 37, 4, 0, 0, 0},
+	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_SPOP, 91, 4, 0, 0, 0},
 	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_LCON, 91, 4, 0, 0, 0},
 	{ADMB, C_VCON, C_NONE, C_NONE, C_NONE, 51, 4, 0, 0, 0},
 	{AHINT, C_VCON, C_NONE, C_NONE, C_NONE, 52, 4, 0, 0, 0},
 	{ASYS, C_VCON, C_NONE, C_NONE, C_NONE, 50, 4, 0, 0, 0},
-	{ASYS, C_VCON, C_REG, C_NONE, C_NONE, 50, 4, 0, 0, 0},
+	{ASYS, C_VCON, C_NONE, C_NONE, C_REG, 50, 4, 0, 0, 0},
 	{ASYSL, C_VCON, C_NONE, C_NONE, C_REG, 50, 4, 0, 0, 0},
+	{ATLBI, C_SPOP, C_NONE, C_NONE, C_NONE, 107, 4, 0, 0, 0},
+	{ATLBI, C_SPOP, C_NONE, C_NONE, C_REG, 107, 4, 0, 0, 0},
 
 	/* encryption instructions */
 	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, 29, 4, 0, 0, 0}, // for compatibility with old code
@@ -873,40 +876,157 @@ var optab = []Optab{
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0},
 }
 
-/*
- * valid pstate field values, and value to use in instruction
- */
+// Valid pstate field values, and value to use in instruction.
+// Doesn't include special registers.
 var pstatefield = []struct {
-	reg int16
+	opd SpecialOperand
 	enc uint32
 }{
-	{REG_SPSel, 0<<16 | 4<<12 | 5<<5},
-	{REG_DAIFSet, 3<<16 | 4<<12 | 6<<5},
-	{REG_DAIFClr, 3<<16 | 4<<12 | 7<<5},
+	{SPOP_DAIFSet, 3<<16 | 4<<12 | 6<<5},
+	{SPOP_DAIFClr, 3<<16 | 4<<12 | 7<<5},
 }
 
-var prfopfield = []struct {
-	reg int16
-	enc uint32
+var prfopfield = map[SpecialOperand]uint32{
+	SPOP_PLDL1KEEP: 0,
+	SPOP_PLDL1STRM: 1,
+	SPOP_PLDL2KEEP: 2,
+	SPOP_PLDL2STRM: 3,
+	SPOP_PLDL3KEEP: 4,
+	SPOP_PLDL3STRM: 5,
+	SPOP_PLIL1KEEP: 8,
+	SPOP_PLIL1STRM: 9,
+	SPOP_PLIL2KEEP: 10,
+	SPOP_PLIL2STRM: 11,
+	SPOP_PLIL3KEEP: 12,
+	SPOP_PLIL3STRM: 13,
+	SPOP_PSTL1KEEP: 16,
+	SPOP_PSTL1STRM: 17,
+	SPOP_PSTL2KEEP: 18,
+	SPOP_PSTL2STRM: 19,
+	SPOP_PSTL3KEEP: 20,
+	SPOP_PSTL3STRM: 21,
+}
+
+// sysInstFields helps convert SYS alias instructions to SYS instructions.
+// For example, the format of TLBI is: TLBI <tlbi_op>{, <Xt>}.
+// It's equivalent to: SYS #<op1>, C8, <Cm>, #<op2>{, <Xt>}.
+// The field hasOperand2 indicates whether Xt is required. It helps to check
+// some combinations that may be undefined, such as TLBI VMALLE1IS, R0.
+var sysInstFields = map[SpecialOperand]struct {
+	op1         uint8
+	cn          uint8
+	cm          uint8
+	op2         uint8
+	hasOperand2 bool
 }{
-	{REG_PLDL1KEEP, 0},
-	{REG_PLDL1STRM, 1},
-	{REG_PLDL2KEEP, 2},
-	{REG_PLDL2STRM, 3},
-	{REG_PLDL3KEEP, 4},
-	{REG_PLDL3STRM, 5},
-	{REG_PLIL1KEEP, 8},
-	{REG_PLIL1STRM, 9},
-	{REG_PLIL2KEEP, 10},
-	{REG_PLIL2STRM, 11},
-	{REG_PLIL3KEEP, 12},
-	{REG_PLIL3STRM, 13},
-	{REG_PSTL1KEEP, 16},
-	{REG_PSTL1STRM, 17},
-	{REG_PSTL2KEEP, 18},
-	{REG_PSTL2STRM, 19},
-	{REG_PSTL3KEEP, 20},
-	{REG_PSTL3STRM, 21},
+	// TLBI
+	SPOP_VMALLE1IS:    {0, 8, 3, 0, false},
+	SPOP_VAE1IS:       {0, 8, 3, 1, true},
+	SPOP_ASIDE1IS:     {0, 8, 3, 2, true},
+	SPOP_VAAE1IS:      {0, 8, 3, 3, true},
+	SPOP_VALE1IS:      {0, 8, 3, 5, true},
+	SPOP_VAALE1IS:     {0, 8, 3, 7, true},
+	SPOP_VMALLE1:      {0, 8, 7, 0, false},
+	SPOP_VAE1:         {0, 8, 7, 1, true},
+	SPOP_ASIDE1:       {0, 8, 7, 2, true},
+	SPOP_VAAE1:        {0, 8, 7, 3, true},
+	SPOP_VALE1:        {0, 8, 7, 5, true},
+	SPOP_VAALE1:       {0, 8, 7, 7, true},
+	SPOP_IPAS2E1IS:    {4, 8, 0, 1, true},
+	SPOP_IPAS2LE1IS:   {4, 8, 0, 5, true},
+	SPOP_ALLE2IS:      {4, 8, 3, 0, false},
+	SPOP_VAE2IS:       {4, 8, 3, 1, true},
+	SPOP_ALLE1IS:      {4, 8, 3, 4, false},
+	SPOP_VALE2IS:      {4, 8, 3, 5, true},
+	SPOP_VMALLS12E1IS: {4, 8, 3, 6, false},
+	SPOP_IPAS2E1:      {4, 8, 4, 1, true},
+	SPOP_IPAS2LE1:     {4, 8, 4, 5, true},
+	SPOP_ALLE2:        {4, 8, 7, 0, false},
+	SPOP_VAE2:         {4, 8, 7, 1, true},
+	SPOP_ALLE1:        {4, 8, 7, 4, false},
+	SPOP_VALE2:        {4, 8, 7, 5, true},
+	SPOP_VMALLS12E1:   {4, 8, 7, 6, false},
+	SPOP_ALLE3IS:      {6, 8, 3, 0, false},
+	SPOP_VAE3IS:       {6, 8, 3, 1, true},
+	SPOP_VALE3IS:      {6, 8, 3, 5, true},
+	SPOP_ALLE3:        {6, 8, 7, 0, false},
+	SPOP_VAE3:         {6, 8, 7, 1, true},
+	SPOP_VALE3:        {6, 8, 7, 5, true},
+	SPOP_VMALLE1OS:    {0, 8, 1, 0, false},
+	SPOP_VAE1OS:       {0, 8, 1, 1, true},
+	SPOP_ASIDE1OS:     {0, 8, 1, 2, true},
+	SPOP_VAAE1OS:      {0, 8, 1, 3, true},
+	SPOP_VALE1OS:      {0, 8, 1, 5, true},
+	SPOP_VAALE1OS:     {0, 8, 1, 7, true},
+	SPOP_RVAE1IS:      {0, 8, 2, 1, true},
+	SPOP_RVAAE1IS:     {0, 8, 2, 3, true},
+	SPOP_RVALE1IS:     {0, 8, 2, 5, true},
+	SPOP_RVAALE1IS:    {0, 8, 2, 7, true},
+	SPOP_RVAE1OS:      {0, 8, 5, 1, true},
+	SPOP_RVAAE1OS:     {0, 8, 5, 3, true},
+	SPOP_RVALE1OS:     {0, 8, 5, 5, true},
+	SPOP_RVAALE1OS:    {0, 8, 5, 7, true},
+	SPOP_RVAE1:        {0, 8, 6, 1, true},
+	SPOP_RVAAE1:       {0, 8, 6, 3, true},
+	SPOP_RVALE1:       {0, 8, 6, 5, true},
+	SPOP_RVAALE1:      {0, 8, 6, 7, true},
+	SPOP_RIPAS2E1IS:   {4, 8, 0, 2, true},
+	SPOP_RIPAS2LE1IS:  {4, 8, 0, 6, true},
+	SPOP_ALLE2OS:      {4, 8, 1, 0, false},
+	SPOP_VAE2OS:       {4, 8, 1, 1, true},
+	SPOP_ALLE1OS:      {4, 8, 1, 4, false},
+	SPOP_VALE2OS:      {4, 8, 1, 5, true},
+	SPOP_VMALLS12E1OS: {4, 8, 1, 6, false},
+	SPOP_RVAE2IS:      {4, 8, 2, 1, true},
+	SPOP_RVALE2IS:     {4, 8, 2, 5, true},
+	SPOP_IPAS2E1OS:    {4, 8, 4, 0, true},
+	SPOP_RIPAS2E1:     {4, 8, 4, 2, true},
+	SPOP_RIPAS2E1OS:   {4, 8, 4, 3, true},
+	SPOP_IPAS2LE1OS:   {4, 8, 4, 4, true},
+	SPOP_RIPAS2LE1:    {4, 8, 4, 6, true},
+	SPOP_RIPAS2LE1OS:  {4, 8, 4, 7, true},
+	SPOP_RVAE2OS:      {4, 8, 5, 1, true},
+	SPOP_RVALE2OS:     {4, 8, 5, 5, true},
+	SPOP_RVAE2:        {4, 8, 6, 1, true},
+	SPOP_RVALE2:       {4, 8, 6, 5, true},
+	SPOP_ALLE3OS:      {6, 8, 1, 0, false},
+	SPOP_VAE3OS:       {6, 8, 1, 1, true},
+	SPOP_VALE3OS:      {6, 8, 1, 5, true},
+	SPOP_RVAE3IS:      {6, 8, 2, 1, true},
+	SPOP_RVALE3IS:     {6, 8, 2, 5, true},
+	SPOP_RVAE3OS:      {6, 8, 5, 1, true},
+	SPOP_RVALE3OS:     {6, 8, 5, 5, true},
+	SPOP_RVAE3:        {6, 8, 6, 1, true},
+	SPOP_RVALE3:       {6, 8, 6, 5, true},
+	// DC
+	SPOP_IVAC:    {0, 7, 6, 1, true},
+	SPOP_ISW:     {0, 7, 6, 2, true},
+	SPOP_CSW:     {0, 7, 10, 2, true},
+	SPOP_CISW:    {0, 7, 14, 2, true},
+	SPOP_ZVA:     {3, 7, 4, 1, true},
+	SPOP_CVAC:    {3, 7, 10, 1, true},
+	SPOP_CVAU:    {3, 7, 11, 1, true},
+	SPOP_CIVAC:   {3, 7, 14, 1, true},
+	SPOP_IGVAC:   {0, 7, 6, 3, true},
+	SPOP_IGSW:    {0, 7, 6, 4, true},
+	SPOP_IGDVAC:  {0, 7, 6, 5, true},
+	SPOP_IGDSW:   {0, 7, 6, 6, true},
+	SPOP_CGSW:    {0, 7, 10, 4, true},
+	SPOP_CGDSW:   {0, 7, 10, 6, true},
+	SPOP_CIGSW:   {0, 7, 14, 4, true},
+	SPOP_CIGDSW:  {0, 7, 14, 6, true},
+	SPOP_GVA:     {3, 7, 4, 3, true},
+	SPOP_GZVA:    {3, 7, 4, 4, true},
+	SPOP_CGVAC:   {3, 7, 10, 3, true},
+	SPOP_CGDVAC:  {3, 7, 10, 5, true},
+	SPOP_CGVAP:   {3, 7, 12, 3, true},
+	SPOP_CGDVAP:  {3, 7, 12, 5, true},
+	SPOP_CGVADP:  {3, 7, 13, 3, true},
+	SPOP_CGDVADP: {3, 7, 13, 5, true},
+	SPOP_CIGVAC:  {3, 7, 14, 3, true},
+	SPOP_CIGDVAC: {3, 7, 14, 5, true},
+	SPOP_CVAP:    {3, 7, 12, 1, true},
+	SPOP_CVADP:   {3, 7, 13, 1, true},
 }
 
 // Used for padinng NOOP instruction
@@ -1676,8 +1796,6 @@ func rclass(r int16) int {
 		return C_FREG
 	case REG_V0 <= r && r <= REG_V31:
 		return C_VREG
-	case COND_EQ <= r && r <= COND_NV:
-		return C_COND
 	case r == REGSP:
 		return C_RSP
 	case r >= REG_ARNG && r < REG_ELEM:
@@ -1953,8 +2071,14 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 
 	case obj.TYPE_BRANCH:
 		return C_SBRA
-	}
 
+	case obj.TYPE_SPECIAL:
+		opd := SpecialOperand(a.Offset)
+		if SPOP_EQ <= opd && opd <= SPOP_NV {
+			return C_COND
+		}
+		return C_SPOP
+	}
 	return C_GOK
 }
 
@@ -2868,9 +2992,10 @@ func buildop(ctxt *obj.Link) {
 
 		case ASYS:
 			oprangeset(AAT, t)
-			oprangeset(ADC, t)
 			oprangeset(AIC, t)
-			oprangeset(ATLBI, t)
+
+		case ATLBI:
+			oprangeset(ADC, t)
 
 		case ASYSL, AHINT:
 			break
@@ -3526,12 +3651,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 18: /* csel cond,Rn,Rm,Rd; cinc/cinv/cneg cond,Rn,Rd; cset cond,Rd */
 		o1 = c.oprrr(p, p.As)
 
-		cond := int(p.From.Reg)
-		// AL and NV are not allowed for CINC/CINV/CNEG/CSET/CSETM instructions
-		if cond < COND_EQ || cond > COND_NV || (cond == COND_AL || cond == COND_NV) && p.From3Type() == obj.TYPE_NONE {
+		cond := SpecialOperand(p.From.Offset)
+		if cond < SPOP_EQ || cond > SPOP_NV || (cond == SPOP_AL || cond == SPOP_NV) && p.From3Type() == obj.TYPE_NONE {
 			c.ctxt.Diag("invalid condition: %v", p)
 		} else {
-			cond -= COND_EQ
+			cond -= SPOP_EQ
 		}
 
 		r := int(p.Reg)
@@ -3554,11 +3678,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 19: /* CCMN cond, (Rm|uimm5),Rn, uimm4 -> ccmn Rn,Rm,uimm4,cond */
 		nzcv := int(p.To.Offset)
 
-		cond := int(p.From.Reg)
-		if cond < COND_EQ || cond > COND_NV {
+		cond := SpecialOperand(p.From.Offset)
+		if cond < SPOP_EQ || cond > SPOP_NV {
 			c.ctxt.Diag("invalid condition\n%v", p)
 		} else {
-			cond -= COND_EQ
+			cond -= SPOP_EQ
 		}
 		var rf int
 		if p.GetFrom3().Type == obj.TYPE_REG {
@@ -3919,10 +4043,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.opirr(p, AMSR)
 		o1 |= uint32((p.From.Offset & 0xF) << 8) /* Crm */
 		v := uint32(0)
-		for i := 0; i < len(pstatefield); i++ {
-			if pstatefield[i].reg == p.To.Reg {
-				v = pstatefield[i].enc
-				break
+		// PSTATEfield can be special registers and special operands.
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SPSel {
+			v = 0<<16 | 4<<12 | 5<<5
+		} else if p.To.Type == obj.TYPE_SPECIAL {
+			opd := SpecialOperand(p.To.Offset)
+			for _, pf := range pstatefield {
+				if pf.opd == opd {
+					v = pf.enc
+					break
+				}
 			}
 		}
 
@@ -4133,8 +4263,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(p.From.Offset)
 		if p.To.Type == obj.TYPE_REG {
 			o1 |= uint32(p.To.Reg & 31)
-		} else if p.Reg != 0 {
-			o1 |= uint32(p.Reg & 31)
 		} else {
 			o1 |= 0x1F
 		}
@@ -4220,11 +4348,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 57: /* floating point conditional compare */
 		o1 = c.oprrr(p, p.As)
 
-		cond := int(p.From.Reg)
-		if cond < COND_EQ || cond > COND_NV {
+		cond := SpecialOperand(p.From.Offset)
+		if cond < SPOP_EQ || cond > SPOP_NV {
 			c.ctxt.Diag("invalid condition\n%v", p)
 		} else {
-			cond -= COND_EQ
+			cond -= SPOP_EQ
 		}
 
 		nzcv := int(p.To.Offset)
@@ -4976,22 +5104,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 91: /* prfm imm(Rn), <prfop | $imm5> */
 		imm := uint32(p.From.Offset)
 		r := p.From.Reg
-		v := uint32(0xff)
+		var v uint32
+		var ok bool
 		if p.To.Type == obj.TYPE_CONST {
 			v = uint32(p.To.Offset)
-			if v > 31 {
-				c.ctxt.Diag("illegal prefetch operation\n%v", p)
-			}
+			ok = v <= 31
 		} else {
-			for i := 0; i < len(prfopfield); i++ {
-				if prfopfield[i].reg == p.To.Reg {
-					v = prfopfield[i].enc
-					break
-				}
-			}
-			if v == 0xff {
-				c.ctxt.Diag("illegal prefetch operation:\n%v", p)
-			}
+			v, ok = prfopfield[SpecialOperand(p.To.Offset)]
+		}
+		if !ok {
+			c.ctxt.Diag("illegal prefetch operation:\n%v", p)
 		}
 
 		o1 = c.opirr(p, p.As)
@@ -5514,6 +5636,26 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
 		o1 |= enc | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+
+	case 107: /* tlbi, dc */
+		op, ok := sysInstFields[SpecialOperand(p.From.Offset)]
+		if !ok || (p.As == ATLBI && op.cn != 8) || (p.As == ADC && op.cn != 7) {
+			c.ctxt.Diag("illegal argument: %v\n", p)
+			break
+		}
+		o1 = c.opirr(p, p.As)
+		if op.hasOperand2 {
+			if p.To.Reg == 0 {
+				c.ctxt.Diag("missing register at operand 2: %v\n", p)
+			}
+			o1 |= uint32(p.To.Reg & 0x1F)
+		} else {
+			if p.To.Reg != 0 || p.Reg != 0 {
+				c.ctxt.Diag("extraneous register at operand 2: %v\n", p)
+			}
+			o1 |= uint32(0x1F)
+		}
+		o1 |= uint32(SYSARG4(int(op.op1), int(op.cn), int(op.cm), int(op.op2)))
 	}
 	out[0] = o1
 	out[1] = o2

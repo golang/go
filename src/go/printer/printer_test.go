@@ -212,7 +212,6 @@ func TestFiles(t *testing.T) {
 // TestLineComments, using a simple test case, checks that consecutive line
 // comments are properly terminated with a newline even if the AST position
 // information is incorrect.
-//
 func TestLineComments(t *testing.T) {
 	const src = `// comment 1
 	// comment 2

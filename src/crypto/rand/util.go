@@ -5,6 +5,7 @@
 package rand
 
 import (
+	"crypto/internal/randutil"
 	"errors"
 	"io"
 	"math/big"
@@ -16,6 +17,8 @@ func Prime(rand io.Reader, bits int) (*big.Int, error) {
 	if bits < 2 {
 		return nil, errors.New("crypto/rand: prime size must be at least 2-bit")
 	}
+
+	randutil.MaybeReadByte(rand)
 
 	b := uint(bits % 8)
 	if b == 0 {

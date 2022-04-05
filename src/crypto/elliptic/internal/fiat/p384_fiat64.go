@@ -78,7 +78,6 @@ func p384CmovznzU64(out1 *uint64, arg1 p384Uint1, arg2 uint64, arg3 uint64) {
 // Postconditions:
 //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg2)) mod m
 //   0 ≤ eval out1 < m
-//
 func p384Mul(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement, arg2 *p384MontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]
@@ -783,7 +782,6 @@ func p384Mul(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainF
 // Postconditions:
 //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg1)) mod m
 //   0 ≤ eval out1 < m
-//
 func p384Square(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]
@@ -1489,7 +1487,6 @@ func p384Square(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDoma
 // Postconditions:
 //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) + eval (from_montgomery arg2)) mod m
 //   0 ≤ eval out1 < m
-//
 func p384Add(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement, arg2 *p384MontgomeryDomainFieldElement) {
 	var x1 uint64
 	var x2 uint64
@@ -1557,7 +1554,6 @@ func p384Add(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainF
 // Postconditions:
 //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) - eval (from_montgomery arg2)) mod m
 //   0 ≤ eval out1 < m
-//
 func p384Sub(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement, arg2 *p384MontgomeryDomainFieldElement) {
 	var x1 uint64
 	var x2 uint64
@@ -1609,7 +1605,6 @@ func p384Sub(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainF
 // Postconditions:
 //   eval (from_montgomery out1) mod m = 1 mod m
 //   0 ≤ eval out1 < m
-//
 func p384SetOne(out1 *p384MontgomeryDomainFieldElement) {
 	out1[0] = 0xffffffff00000001
 	out1[1] = 0xffffffff
@@ -1626,7 +1621,6 @@ func p384SetOne(out1 *p384MontgomeryDomainFieldElement) {
 // Postconditions:
 //   eval out1 mod m = (eval arg1 * ((2^64)⁻¹ mod m)^6) mod m
 //   0 ≤ eval out1 < m
-//
 func p384FromMontgomery(out1 *p384NonMontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement) {
 	x1 := arg1[0]
 	var x2 uint64
@@ -2096,7 +2090,6 @@ func p384FromMontgomery(out1 *p384NonMontgomeryDomainFieldElement, arg1 *p384Mon
 // Postconditions:
 //   eval (from_montgomery out1) mod m = eval arg1 mod m
 //   0 ≤ eval out1 < m
-//
 func p384ToMontgomery(out1 *p384MontgomeryDomainFieldElement, arg1 *p384NonMontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]

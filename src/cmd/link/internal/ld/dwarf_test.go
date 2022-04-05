@@ -1469,7 +1469,6 @@ func TestIssue42484(t *testing.T) {
 //     i1:0:1 f1:1:1 ~r0:2:2 ~r1:3:2
 //
 // where each chunk above is of the form NAME:ORDER:INOUTCLASSIFICATION
-//
 func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {
 	// Values in the returned map are of the form <order>:<varparam>
 	// where order is the order within the child DIE list of the

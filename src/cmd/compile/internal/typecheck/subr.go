@@ -1476,14 +1476,14 @@ func getShapes(t *types.Type, listp *[]*types.Type) {
 // For now, we only consider two types to have the same shape, if they have exactly
 // the same underlying type or they are both pointer types.
 //
-//  tparam is the associated typeparam - it must be TTYPEPARAM type. If there is a
-//  structural type for the associated type param (not common), then a pointer type t
-//  is mapped to its underlying type, rather than being merged with other pointers.
+// tparam is the associated typeparam - it must be TTYPEPARAM type. If there is a
+// structural type for the associated type param (not common), then a pointer type t
+// is mapped to its underlying type, rather than being merged with other pointers.
 //
-//  Shape types are also distinguished by the index of the type in a type param/arg
-//  list. We need to do this so we can distinguish and substitute properly for two
-//  type params in the same function that have the same shape for a particular
-//  instantiation.
+// Shape types are also distinguished by the index of the type in a type param/arg
+// list. We need to do this so we can distinguish and substitute properly for two
+// type params in the same function that have the same shape for a particular
+// instantiation.
 func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
 	assert(!t.IsShape())
 	if t.HasShape() {

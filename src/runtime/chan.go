@@ -594,10 +594,10 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 
 // recv processes a receive operation on a full channel c.
 // There are 2 parts:
-// 1) The value sent by the sender sg is put into the channel
-//    and the sender is woken up to go on its merry way.
-// 2) The value received by the receiver (the current G) is
-//    written to ep.
+//  1) The value sent by the sender sg is put into the channel
+//     and the sender is woken up to go on its merry way.
+//  2) The value received by the receiver (the current G) is
+//     written to ep.
 // For synchronous channels, both values are the same.
 // For asynchronous channels, the receiver gets its data from
 // the channel buffer and the sender's data is put in the
@@ -683,7 +683,6 @@ func chanparkcommit(gp *g, chanLock unsafe.Pointer) bool {
 //	} else {
 //		... bar
 //	}
-//
 func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
 	return chansend(c, elem, false, getcallerpc())
 }
@@ -704,7 +703,6 @@ func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
 //	} else {
 //		... bar
 //	}
-//
 func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected, received bool) {
 	return chanrecv(c, elem, false)
 }

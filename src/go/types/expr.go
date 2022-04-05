@@ -934,28 +934,28 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 				return
 			}
 		}
-	}
-
-	// Check that RHS is otherwise at least of integer type.
-	switch {
-	case allInteger(y.typ):
-		if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
-			check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
+	} else {
+		// Check that RHS is otherwise at least of integer type.
+		switch {
+		case allInteger(y.typ):
+			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+				check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
+				x.mode = invalid
+				return
+			}
+		case isUntyped(y.typ):
+			// This is incorrect, but preserves pre-existing behavior.
+			// See also bug #47410.
+			check.convertUntyped(y, Typ[Uint])
+			if y.mode == invalid {
+				x.mode = invalid
+				return
+			}
+		default:
+			check.invalidOp(y, _InvalidShiftCount, "shift count %s must be integer", y)
 			x.mode = invalid
 			return
 		}
-	case isUntyped(y.typ):
-		// This is incorrect, but preserves pre-existing behavior.
-		// See also bug #47410.
-		check.convertUntyped(y, Typ[Uint])
-		if y.mode == invalid {
-			x.mode = invalid
-			return
-		}
-	default:
-		check.invalidOp(y, _InvalidShiftCount, "shift count %s must be integer", y)
-		x.mode = invalid
-		return
 	}
 
 	if x.mode == constant_ {
@@ -1194,7 +1194,6 @@ const (
 // If hint != nil, it is the type of a composite literal element.
 // If allowGeneric is set, the operand type may be an uninstantiated
 // parameterized type or function value.
-//
 func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
 	if trace {
 		check.trace(e.Pos(), "-- expr %s", e)
@@ -1242,7 +1241,6 @@ func (check *Checker) nonGeneric(x *operand) {
 
 // exprInternal contains the core of type checking of expressions.
 // Must only be called by rawExpr.
-//
 func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	// make sure x has a valid state in case of bailout
 	// (was issue 5770)
@@ -1707,7 +1705,6 @@ func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch b
 // expr typechecks expression e and initializes x with the expression value.
 // The result must be a single value.
 // If an error occurred, x.mode is set to invalid.
-//
 func (check *Checker) expr(x *operand, e ast.Expr) {
 	check.rawExpr(x, e, nil, false)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
@@ -1723,7 +1720,6 @@ func (check *Checker) multiExpr(x *operand, e ast.Expr) {
 // exprWithHint typechecks expression e and initializes x with the expression value;
 // hint is the type of a composite literal element.
 // If an error occurred, x.mode is set to invalid.
-//
 func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 	assert(hint != nil)
 	check.rawExpr(x, e, hint, false)
@@ -1735,7 +1731,6 @@ func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 // If allowGeneric is set, the operand type may be an uninstantiated parameterized type or function
 // value.
 // If an error occurred, x.mode is set to invalid.
-//
 func (check *Checker) exprOrType(x *operand, e ast.Expr, allowGeneric bool) {
 	check.rawExpr(x, e, nil, allowGeneric)
 	check.exclude(x, 1<<novalue)

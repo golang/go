@@ -441,8 +441,8 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 // unpack unpacks a *syntax.ListExpr into a list of syntax.Expr.
 // Helper introduced for the go/types -> types2 port.
 // TODO(gri) Should find a more efficient solution that doesn't
-//           require introduction of a new slice for simple
-//           expressions.
+// require introduction of a new slice for simple
+// expressions.
 func unpackExpr(x syntax.Expr) []syntax.Expr {
 	if x, _ := x.(*syntax.ListExpr); x != nil {
 		return x.ElemList

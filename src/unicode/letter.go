@@ -334,7 +334,6 @@ type foldPair struct {
 //	SimpleFold('1') = '1'
 //
 //	SimpleFold(-2) = -2
-//
 func SimpleFold(r rune) rune {
 	if r < 0 || r > MaxRune {
 		return r

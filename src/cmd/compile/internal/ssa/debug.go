@@ -428,7 +428,6 @@ func (sc *slotCanonicalizer) canonSlot(idx SlKeyIdx) LocalSlot {
 // This function examines the live OpArg{Int,Float}Reg values and
 // synthesizes new (dead) values for the non-live params or the
 // non-live pieces of partially live params.
-//
 func PopulateABIInRegArgOps(f *Func) {
 	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type.FuncType())
 

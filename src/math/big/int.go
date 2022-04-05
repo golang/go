@@ -34,7 +34,6 @@ var intOne = &Int{false, natOne}
 //	-1 if x <  0
 //	 0 if x == 0
 //	+1 if x >  0
-//
 func (x *Int) Sign() int {
 	if len(x.abs) == 0 {
 		return 0
@@ -234,7 +233,6 @@ func (z *Int) Rem(x, y *Int) *Int {
 //
 // (See Daan Leijen, ``Division and Modulus for Computer Scientists''.)
 // See DivMod for Euclidean division and modulus (unlike Go).
-//
 func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
 	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
 	z.neg, r.neg = len(z.abs) > 0 && x.neg != y.neg, len(r.abs) > 0 && x.neg // 0 has no sign
@@ -292,7 +290,6 @@ func (z *Int) Mod(x, y *Int) *Int {
 // Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
 // ACM press.)
 // See QuoRem for T-division and modulus (like Go).
-//
 func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
 	y0 := y // save y
 	if z == y || alias(z.abs, y.abs) {
@@ -316,7 +313,6 @@ func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
 //   -1 if x <  y
 //    0 if x == y
 //   +1 if x >  y
-//
 func (x *Int) Cmp(y *Int) (r int) {
 	// x cmp y == x cmp y
 	// x cmp (-y) == x
@@ -343,7 +339,6 @@ func (x *Int) Cmp(y *Int) (r int) {
 //   -1 if |x| <  |y|
 //    0 if |x| == |y|
 //   +1 if |x| >  |y|
-//
 func (x *Int) CmpAbs(y *Int) int {
 	return x.abs.cmp(y.abs)
 }
@@ -420,7 +415,6 @@ func (x *Int) IsUint64() bool {
 // Incorrect placement of underscores is reported as an error if there
 // are no other errors. If base != 0, underscores are not recognized
 // and act like any other character that is not a valid digit.
-//
 func (z *Int) SetString(s string, base int) (*Int, bool) {
 	return z.setFromScanner(strings.NewReader(s), base)
 }

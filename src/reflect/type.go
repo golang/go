@@ -72,7 +72,9 @@ type Type interface {
 
 	// NumMethod returns the number of methods accessible using Method.
 	//
-	// Note that NumMethod counts unexported methods only for interface types.
+	// For a non-interface type, it returns the number of exported methods.
+	//
+	// For an interface type, it returns the number of exported and unexported methods.
 	NumMethod() int
 
 	// Name returns the type's name within its package for a defined type.
@@ -1267,7 +1269,7 @@ func (t *structType) Field(i int) (f StructField) {
 }
 
 // TODO(gri): Should there be an error/bool indicator if the index
-//            is wrong for FieldByIndex?
+// is wrong for FieldByIndex?
 
 // FieldByIndex returns the nested field corresponding to index.
 func (t *structType) FieldByIndex(index []int) (f StructField) {
@@ -3051,7 +3053,7 @@ type layoutKey struct {
 type layoutType struct {
 	t         *rtype
 	framePool *sync.Pool
-	abi       abiDesc
+	abid      abiDesc
 }
 
 var layoutCache sync.Map // map[layoutKey]layoutType
@@ -3063,7 +3065,7 @@ var layoutCache sync.Map // map[layoutKey]layoutType
 // The returned type exists only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program. We also fill in
 // the name for possible debugging use.
-func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Pool, abi abiDesc) {
+func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Pool, abid abiDesc) {
 	if t.Kind() != Func {
 		panic("reflect: funcLayout of non-func type " + t.String())
 	}
@@ -3073,11 +3075,11 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
 	k := layoutKey{t, rcvr}
 	if lti, ok := layoutCache.Load(k); ok {
 		lt := lti.(layoutType)
-		return lt.t, lt.framePool, lt.abi
+		return lt.t, lt.framePool, lt.abid
 	}
 
 	// Compute the ABI layout.
-	abi = newAbiDesc(t, rcvr)
+	abid = newAbiDesc(t, rcvr)
 
 	// build dummy rtype holding gc program
 	x := &rtype{
@@ -3086,11 +3088,11 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
 		// reflectcall's frame, not in the allocated frame.
 		// TODO(mknyszek): Remove this comment when register
 		// spill space in the frame is no longer required.
-		size:    align(abi.retOffset+abi.ret.stackBytes, goarch.PtrSize),
-		ptrdata: uintptr(abi.stackPtrs.n) * goarch.PtrSize,
+		size:    align(abid.retOffset+abid.ret.stackBytes, goarch.PtrSize),
+		ptrdata: uintptr(abid.stackPtrs.n) * goarch.PtrSize,
 	}
-	if abi.stackPtrs.n > 0 {
-		x.gcdata = &abi.stackPtrs.data[0]
+	if abid.stackPtrs.n > 0 {
+		x.gcdata = &abid.stackPtrs.data[0]
 	}
 
 	var s string
@@ -3108,10 +3110,10 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
 	lti, _ := layoutCache.LoadOrStore(k, layoutType{
 		t:         x,
 		framePool: framePool,
-		abi:       abi,
+		abid:      abid,
 	})
 	lt := lti.(layoutType)
-	return lt.t, lt.framePool, lt.abi
+	return lt.t, lt.framePool, lt.abid
 }
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.

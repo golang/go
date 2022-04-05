@@ -62,7 +62,6 @@ import (
 //
 // At time of writing, re2-exhaustive.txt is 59 MB but compresses to 385 kB,
 // so we store re2-exhaustive.txt.bz2 in the repository and decompress it on the fly.
-//
 func TestRE2Search(t *testing.T) {
 	testRE2(t, "testdata/re2-search.txt")
 }

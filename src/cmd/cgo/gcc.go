@@ -119,7 +119,6 @@ func (p *Package) addToFlag(flag string, args []string) {
 // Would be parsed as:
 //
 //     []string{"a", "b:c d", "ef", `g"`}
-//
 func splitQuoted(s string) (r []string, err error) {
 	var args []string
 	arg := make([]rune, len(s))

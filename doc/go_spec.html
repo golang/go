@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 10, 2022",
+	"Subtitle": "Version of March 30, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -529,6 +529,7 @@ escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `
 'aa'         // illegal: too many characters
 '\xa'        // illegal: too few hexadecimal digits
 '\0'         // illegal: too few octal digits
+'\400'       // illegal: octal value over 255
 '\uDFFF'     // illegal: surrogate half
 '\U00110000' // illegal: invalid Unicode code point
 </pre>
@@ -1454,7 +1455,8 @@ type Float interface {
 </pre>
 
 <p>
-In a union, a term cannot be a <a href="#Type_parameter_declarations">type parameter</a>, and the type sets of all
+The type <code>T</code> in a term of the form <code>T</code> or <code>~T</code> cannot
+be a <a href="#Type_parameter_declarations">type parameter</a>, and the type sets of all
 non-interface terms must be pairwise disjoint (the pairwise intersection of the type sets must be empty).
 Given a type parameter <code>P</code>:
 </p>
@@ -1462,7 +1464,7 @@ Given a type parameter <code>P</code>:
 <pre>
 interface {
 	P                // illegal: P is a type parameter
-	int | P          // illegal: P is a type parameter
+	int | ~P         // illegal: P is a type parameter
 	~int | MyInt     // illegal: the type sets for ~int and MyInt are not disjoint (~int includes MyInt)
 	float32 | Float  // overlapping type sets but Float is an interface
 }
@@ -1878,7 +1880,7 @@ A4, func(int, float64) *[]string, and A5
 B0 and C0
 D0[int, string] and E0
 []int and []int
-struct{ a, b *T5 } and struct{ a, b *T5 }
+struct{ a, b *B5 } and struct{ a, b *B5 }
 func(x int, y float64) *[]string, func(int, float64) (result *[]string), and A5
 </pre>
 
@@ -4195,7 +4197,7 @@ type parameter list    type arguments    after substitution
 <p>
 For a generic function, type arguments may be provided explicitly, or they
 may be partially or completely <a href="#Type_inference">inferred</a>.
-A generic function that is is <i>not</i> <a href="#Calls">called</a> requires a
+A generic function that is <i>not</i> <a href="#Calls">called</a> requires a
 type argument list for instantiation; if the list is partial, all
 remaining type arguments must be inferrable.
 A generic function that is called may provide a (possibly partial) type

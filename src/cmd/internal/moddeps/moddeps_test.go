@@ -55,7 +55,7 @@ func TestAllDependencies(t *testing.T) {
 				// dependencies are vendored. If any imported package is missing,
 				// 'go list -deps' will fail when attempting to load it.
 				cmd := exec.Command(goBin, "list", "-mod=vendor", "-deps", "./...")
-				cmd.Env = append(os.Environ(), "GO111MODULE=on")
+				cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 				cmd.Dir = m.Dir
 				cmd.Stderr = new(strings.Builder)
 				_, err := cmd.Output()
@@ -69,7 +69,7 @@ func TestAllDependencies(t *testing.T) {
 			// There is no vendor directory, so the module must have no dependencies.
 			// Check that the list of active modules contains only the main module.
 			cmd := exec.Command(goBin, "list", "-mod=readonly", "-m", "all")
-			cmd.Env = append(os.Environ(), "GO111MODULE=on")
+			cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 			cmd.Dir = m.Dir
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()
@@ -197,6 +197,7 @@ func TestAllDependencies(t *testing.T) {
 					// Add GOROOTcopy/bin and bundleDir to front of PATH.
 					"PATH="+filepath.Join(gorootCopyDir, "bin")+string(filepath.ListSeparator)+
 						bundleDir+string(filepath.ListSeparator)+os.Getenv("PATH"),
+					"GOWORK=off",
 				),
 			}
 			goBinCopy := filepath.Join(gorootCopyDir, "bin", "go")
@@ -463,7 +464,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 			// Use 'go list' to describe the module contained in this directory (but
 			// not its dependencies).
 			cmd := exec.Command(goBin, "list", "-json", "-m")
-			cmd.Env = append(os.Environ(), "GO111MODULE=on")
+			cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 			cmd.Dir = dir
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()

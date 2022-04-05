@@ -316,34 +316,6 @@ func chomp(s string) string {
 	return strings.TrimRight(s, " \t\r\n")
 }
 
-func branchtag(branch string) (tag string, precise bool) {
-	log := run(goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", "master.."+branch)
-	tag = branch
-	for row, line := range strings.Split(log, "\n") {
-		// Each line is either blank, or looks like
-		//	  (tag: refs/tags/go1.4rc2, refs/remotes/origin/release-branch.go1.4, refs/heads/release-branch.go1.4)
-		// We need to find an element starting with refs/tags/.
-		const s = " refs/tags/"
-		i := strings.Index(line, s)
-		if i < 0 {
-			continue
-		}
-		// Trim off known prefix.
-		line = line[i+len(s):]
-		// The tag name ends at a comma or paren.
-		j := strings.IndexAny(line, ",)")
-		if j < 0 {
-			continue // malformed line; ignore it
-		}
-		tag = line[:j]
-		if row == 0 {
-			precise = true // tag denotes HEAD
-		}
-		break
-	}
-	return
-}
-
 // findgoversion determines the Go version to use in the version string.
 func findgoversion() string {
 	// The $GOROOT/VERSION file takes priority, for distributions
@@ -395,42 +367,26 @@ func findgoversion() string {
 	}
 
 	// Otherwise, use Git.
-	// What is the current branch?
-	branch := chomp(run(goroot, CheckExit, "git", "rev-parse", "--abbrev-ref", "HEAD"))
-
-	// What are the tags along the current branch?
-	tag := "devel"
-	precise := false
-
-	// If we're on a release branch, use the closest matching tag
-	// that is on the release branch (and not on the master branch).
-	if strings.HasPrefix(branch, "release-branch.") {
-		tag, precise = branchtag(branch)
+	//
+	// Include 1.x base version, hash, and date in the version.
+	//
+	// Note that we lightly parse internal/goversion/goversion.go to
+	// obtain the base version. We can't just import the package,
+	// because cmd/dist is built with a bootstrap GOROOT which could
+	// be an entirely different version of Go, like 1.4. We assume
+	// that the file contains "const Version = <Integer>".
+	goversionSource := readfile(pathf("%s/src/internal/goversion/goversion.go", goroot))
+	m := regexp.MustCompile(`(?m)^const Version = (\d+)`).FindStringSubmatch(goversionSource)
+	if m == nil {
+		fatalf("internal/goversion/goversion.go does not contain 'const Version = ...'")
 	}
-
-	if !precise {
-		// Tag does not point at HEAD; add 1.x base version, hash, and date to version.
-		//
-		// Note that we lightly parse internal/goversion/goversion.go to
-		// obtain the base version. We can't just import the package,
-		// because cmd/dist is built with a bootstrap GOROOT which could
-		// be an entirely different version of Go, like 1.4. We assume
-		// that the file contains "const Version = <Integer>".
-
-		goversionSource := readfile(pathf("%s/src/internal/goversion/goversion.go", goroot))
-		m := regexp.MustCompile(`(?m)^const Version = (\d+)`).FindStringSubmatch(goversionSource)
-		if m == nil {
-			fatalf("internal/goversion/goversion.go does not contain 'const Version = ...'")
-		}
-		tag += fmt.Sprintf(" go1.%s-", m[1])
-
-		tag += chomp(run(goroot, CheckExit, "git", "log", "-n", "1", "--format=format:%h %cd", "HEAD"))
-	}
+	version := fmt.Sprintf("devel go1.%s-", m[1])
+	version += chomp(run(goroot, CheckExit, "git", "log", "-n", "1", "--format=format:%h %cd", "HEAD"))
 
 	// Cache version.
-	writefile(tag, path, 0)
+	writefile(version, path, 0)
 
-	return tag
+	return version
 }
 
 // isGitRepo reports whether the working directory is inside a Git repository.
@@ -776,6 +732,8 @@ func runInstall(pkg string, ch chan struct{}) {
 			pathf("%s/src/runtime/funcdata.h", goroot), 0)
 		copyfile(pathf("%s/pkg/include/asm_ppc64x.h", goroot),
 			pathf("%s/src/runtime/asm_ppc64x.h", goroot), 0)
+		copyfile(pathf("%s/pkg/include/asm_amd64.h", goroot),
+			pathf("%s/src/runtime/asm_amd64.h", goroot), 0)
 	}
 
 	// Generate any missing files; regenerate existing ones.

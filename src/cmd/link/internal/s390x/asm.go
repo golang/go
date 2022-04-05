@@ -43,10 +43,10 @@ import (
 // moduledata linked list at initialization time. This is only done if the runtime
 // is in a different module.
 //
-// <go.link.addmoduledata>:
-// 	larl  %r2, <local.moduledata>
-// 	jg    <runtime.addmoduledata@plt>
-//	undef
+//	<go.link.addmoduledata>:
+//		larl  %r2, <local.moduledata>
+//		jg    <runtime.addmoduledata@plt>
+//		undef
 //
 // The job of appending the moduledata is delegated to runtime.addmoduledata.
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {

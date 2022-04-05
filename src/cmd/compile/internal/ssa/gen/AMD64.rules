@@ -98,10 +98,14 @@
 // However, for zero-extended values, we can cheat a bit, and calculate
 // BSR(x<<1 + 1), which is guaranteed to be non-zero, and which conveniently
 // places the index of the highest set bit where we want it.
-(BitLen64 <t> x) => (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
-(BitLen32 x) => (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
-(BitLen16 x) => (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
-(BitLen8  x) => (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
+// For GOAMD64>=3, BitLen can be calculated by OperandSize - LZCNT(x).
+(BitLen64 <t> x) && buildcfg.GOAMD64 < 3 => (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
+(BitLen32 x) && buildcfg.GOAMD64 <  3 => (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
+(BitLen16 x) && buildcfg.GOAMD64 <  3 => (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
+(BitLen8  x) && buildcfg.GOAMD64 <  3 => (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
+(BitLen64 <t> x)        && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-64] (LZCNTQ x)))
+// Use 64-bit version to allow const-fold remove unnecessary arithmetic.
+(BitLen(32|16|8) <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL x)))
 
 (Bswap(64|32) ...) => (BSWAP(Q|L) ...)
 
@@ -2225,6 +2229,8 @@
 (BSWAP(Q|L) x:(MOV(Q|L)load [i] {s} p mem))    && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)load [i] {s} p mem)
 (BSWAP(Q|L) (MOVBE(Q|L)load [i] {s} p m))    => (MOV(Q|L)load [i] {s} p m)
 (MOVBE(Q|L)store [i] {s} p (BSWAP(Q|L) x) m) => (MOV(Q|L)store [i] {s} p x m)
+(MOVWstore [i] {s} p x:(ROLWconst [8] w) mem)   && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBEWstore [i] {s} p w mem)
+(MOVBEWstore [i] {s} p x:(ROLWconst [8] w) mem) && x.Uses == 1 => (MOVWstore [i] {s} p w mem)
 
 (ORQ                   x0:(MOVBELload [i0] {s} p mem)
     sh:(SHLQconst [32] x1:(MOVBELload [i1] {s} p mem)))
@@ -2245,3 +2251,6 @@
   && mergePoint(b,x0,x1) != nil
   && clobber(x0, x1, sh)
   => @mergePoint(b,x0,x1) (MOVBEQload [i] {s} p1 mem)
+
+(SHL(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)  => (SHLX(Q|L)load [off] {sym} ptr x mem)
+(SHR(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)  => (SHRX(Q|L)load [off] {sym} ptr x mem)

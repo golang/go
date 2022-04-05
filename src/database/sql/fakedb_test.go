@@ -510,7 +510,7 @@ func errf(msg string, args ...any) error {
 
 // parts are table|selectCol1,selectCol2|whereCol=?,whereCol2=?
 // (note that where columns must always contain ? marks,
-//  just a limitation for fakedb)
+// just a limitation for fakedb)
 func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
 	if len(parts) != 3 {
 		stmt.Close()
@@ -1174,7 +1174,6 @@ func (rc *rowsCursor) NextResultSet() error {
 // This could be surprising behavior to retroactively apply to
 // driver.String now that Go1 is out, but this is convenient for
 // our TestPointerParamsAndScans.
-//
 type fakeDriverString struct{}
 
 func (fakeDriverString) ConvertValue(v any) (driver.Value, error) {

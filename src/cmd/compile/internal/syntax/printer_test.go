@@ -18,7 +18,7 @@ func TestPrint(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
+	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
 
 	if ast != nil {
 		Fprint(testOut(), ast, LineForm)
@@ -117,7 +117,7 @@ var stringTests = [][2]string{
 
 func TestPrintString(t *testing.T) {
 	for _, test := range stringTests {
-		ast, err := Parse(nil, strings.NewReader(test[0]), nil, nil, AllowGenerics)
+		ast, err := Parse(nil, strings.NewReader(test[0]), nil, nil, 0)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -237,7 +237,7 @@ var exprTests = [][2]string{
 func TestShortString(t *testing.T) {
 	for _, test := range exprTests {
 		src := "package p; var _ = " + test[0]
-		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics)
+		ast, err := Parse(nil, strings.NewReader(src), nil, nil, 0)
 		if err != nil {
 			t.Errorf("%s: %s", test[0], err)
 			continue
