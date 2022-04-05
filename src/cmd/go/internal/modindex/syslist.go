@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package build
+// This file is a lightly modified copy go/build/syslist_test.go.
+
+package modindex
 
 // knownOS is the list of past, present, and future known GOOS values.
 // Do not remove from this list, as it is used for filename matching.
