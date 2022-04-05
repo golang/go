@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/mmap"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -242,6 +243,24 @@ func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
 		return nil, entry, &entryNotFoundError{Err: errors.New("bad checksum")}
 	}
 	return data, entry, nil
+}
+
+// GetMmap looks up the action ID in the cache and returns
+// the corresponding output bytes.
+// GetMmap should only be used for data that can be expected to fit in memory.
+func (c *Cache) GetMmap(id ActionID) ([]byte, Entry, error) {
+	entry, err := c.Get(id)
+	if err != nil {
+		return nil, entry, err
+	}
+	md, err := mmap.Mmap(c.OutputFile(entry.OutputID))
+	if err != nil {
+		return nil, Entry{}, err
+	}
+	if int64(len(md.Data)) != entry.Size {
+		return nil, Entry{}, &entryNotFoundError{Err: errors.New("file incomplete")}
+	}
+	return md.Data, entry, nil
 }
 
 // OutputFile returns the name of the cache file storing output with the given OutputID.

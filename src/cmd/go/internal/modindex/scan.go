@@ -15,24 +15,45 @@ import (
 	"strings"
 )
 
+// moduleWalkErr returns filepath.SkipDir if the directory isn't relevant
+// when indexing a module or generating a filehash, ErrNotIndexed,
+// if the module shouldn't be indexed, and nil otherwise.
+func moduleWalkErr(modroot string, path string, info fs.FileInfo, err error) error {
+	if err != nil {
+		return err
+	}
+	// stop at module boundaries
+	if info.IsDir() && path != modroot {
+		if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+			return filepath.SkipDir
+		}
+	}
+	if info.Mode()&fs.ModeSymlink != 0 {
+		if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+			// return an error to make the module hash invalid.
+			// Symlink directories in modules are tricky, so we won't index
+			// modules that contain them.
+			// TODO(matloob): perhaps don't return this error if the symlink leads to
+			// a directory with a go.mod file.
+			return ErrNotIndexed
+		}
+	}
+	return nil
+}
+
 // indexModule indexes the module at the given directory and returns its
-// encoded representation.
+// encoded representation. It returns ErrNotIndexed if the module can't
+// be indexed because it contains symlinks.
 func indexModule(modroot string) ([]byte, error) {
 	var packages []*rawPackage
 	err := fsys.Walk(modroot, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
+		if err := moduleWalkErr(modroot, path, info, err); err != nil {
 			return err
 		}
+
 		if !info.IsDir() {
 			return nil
 		}
-		// stop at module boundaries
-		if modroot != path {
-			if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
-				return filepath.SkipDir
-			}
-		}
-		// TODO(matloob): what do we do about symlinks
 		rel, err := filepath.Rel(modroot, path)
 		if err != nil {
 			panic(err)
@@ -43,7 +64,7 @@ func indexModule(modroot string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return encodeModule(packages)
+	return encodeModule(packages), nil
 }
 
 // rawPackage holds the information from each package that's needed to
