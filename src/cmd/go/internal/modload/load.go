@@ -116,6 +116,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modindex"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
@@ -1401,7 +1402,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 				//
 				// In some sense, we can think of this as ‘upgraded the module providing
 				// pkg.path from "none" to a version higher than "none"’.
-				if _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
+				if _, _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
 					changed = true
 					break
 				}
@@ -1612,7 +1613,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 			// If the main module is tidy and the package is in "all" — or if we're
 			// lucky — we can identify all of its imports without actually loading the
 			// full module graph.
-			m, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
+			m, _, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
 			if err != nil {
 				var missing *ImportMissingError
 				if errors.As(err, &missing) && ld.ResolveMissingImports {
@@ -1699,7 +1700,8 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 		}
 	}
 
-	pkg.mod, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
+	var modroot string
+	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
 	if pkg.dir == "" {
 		return
 	}
@@ -1729,7 +1731,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 		// We can't scan standard packages for gccgo.
 	} else {
 		var err error
-		imports, testImports, err = scanDir(pkg.dir, ld.Tags)
+		imports, testImports, err = scanDir(modroot, pkg.dir, ld.Tags)
 		if err != nil {
 			pkg.err = err
 			return
@@ -1958,7 +1960,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 		pkg := pkg
 		ld.work.Add(func() {
-			mod, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
+			mod, _, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
 			if mod != pkg.mod {
 				mismatches := <-mismatchMu
 				mismatches[pkg] = mismatch{mod: mod, err: err}
@@ -2099,8 +2101,16 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 // during "go vendor", we look into "// +build appengine" files and
 // may see these legacy imports. We drop them so that the module
 // search does not look for modules to try to satisfy them.
-func scanDir(dir string, tags map[string]bool) (imports_, testImports []string, err error) {
+func scanDir(modroot string, dir string, tags map[string]bool) (imports_, testImports []string, err error) {
+	if mi, mierr := modindex.Get(modroot); mierr == nil {
+		imports_, testImports, err = mi.ScanDir(mi.RelPath(dir), tags)
+		goto Happy
+	} else if !errors.Is(mierr, modindex.ErrNotIndexed) {
+		return nil, nil, mierr
+	}
+
 	imports_, testImports, err = imports.ScanDir(dir, tags)
+Happy:
 
 	filter := func(x []string) []string {
 		w := 0

@@ -20,7 +20,7 @@ import (
 // if the module shouldn't be indexed, and nil otherwise.
 func moduleWalkErr(modroot string, path string, info fs.FileInfo, err error) error {
 	if err != nil {
-		return err
+		return ErrNotIndexed
 	}
 	// stop at module boundaries
 	if info.IsDir() && path != modroot {
