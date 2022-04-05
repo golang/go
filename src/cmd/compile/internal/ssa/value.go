@@ -148,21 +148,22 @@ func (v *Value) LongString() string {
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
 	}
-	var r []Location
-	if v.Block != nil {
-		r = v.Block.Func.RegAlloc
+	if v.Block == nil {
+		return s
 	}
+	r := v.Block.Func.RegAlloc
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].String()
 	}
+	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
+		s += " tmp=" + reg.String()
+	}
 	var names []string
-	if v.Block != nil {
-		for name, values := range v.Block.Func.NamedValues {
-			for _, value := range values {
-				if value == v {
-					names = append(names, name.String())
-					break // drop duplicates.
-				}
+	for name, values := range v.Block.Func.NamedValues {
+		for _, value := range values {
+			if value == v {
+				names = append(names, name.String())
+				break // drop duplicates.
 			}
 		}
 	}
@@ -486,6 +487,15 @@ func (v *Value) Reg1() int16 {
 		v.Fatalf("nil second register for value: %s\n%s\n", v.LongString(), v.Block.Func)
 	}
 	return reg.(*Register).objNum
+}
+
+// RegTmp returns the temporary register assigned to v, in cmd/internal/obj/$ARCH numbering.
+func (v *Value) RegTmp() int16 {
+	reg := v.Block.Func.tempRegs[v.ID]
+	if reg == nil {
+		v.Fatalf("nil tmp register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.objNum
 }
 
 func (v *Value) RegName() string {

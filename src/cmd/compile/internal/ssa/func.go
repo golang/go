@@ -46,6 +46,9 @@ type Func struct {
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
 
+	// temporary registers allocated to rare instructions
+	tempRegs map[ID]*Register
+
 	// map from LocalSlot to set of Values that we want to store in that slot.
 	NamedValues map[LocalSlot][]*Value
 	// Names is a copy of NamedValues.Keys. We keep a separate list
