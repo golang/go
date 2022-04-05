@@ -47,10 +47,6 @@ if(~ $1 -v) {
 	shift
 }
 
-GOENV=off
-GOWORK=off
-GOFLAGS=()
-GO111MODULE=()
 GOROOT = `{cd .. && pwd}
 goroot_bootstrap_set = 'true'
 if(! ~ $#GOROOT_BOOTSTRAP 1){
@@ -88,7 +84,7 @@ if(~ $GOROOT_BOOTSTRAP $GOROOT){
 echo 'Building Go cmd/dist using '^$GOROOT_BOOTSTRAP
 if(~ $#vflag 1)
 	echo cmd/dist
-GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GOEXPERIMENT='' GO111MODULE=off $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
+GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GOEXPERIMENT='' GO111MODULE=off GOENV=off GOFLAGS='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
 
 eval `{./cmd/dist/dist env -9}
 if(~ $#vflag 1)
