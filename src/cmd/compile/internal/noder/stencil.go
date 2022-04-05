@@ -417,6 +417,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	var dictAssign *ir.AssignStmt
 	if outer != nil {
 		dictVar = ir.NewNameAt(pos, typecheck.LookupNum(typecheck.LocalDictName, g.dnum))
+		dictVar.SetSym(outer.Sym().Pkg.Lookup(dictVar.Sym().Name))
 		g.dnum++
 		dictVar.Class = ir.PAUTO
 		typed(types.Types[types.TUINTPTR], dictVar)
@@ -431,6 +432,9 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	var rcvrAssign ir.Node
 	if rcvrValue != nil {
 		rcvrVar = ir.NewNameAt(pos, typecheck.LookupNum(".rcvr", g.dnum))
+		if outer != nil {
+			rcvrVar.SetSym(outer.Sym().Pkg.Lookup(rcvrVar.Sym().Name))
+		}
 		g.dnum++
 		typed(rcvrValue.Type(), rcvrVar)
 		rcvrAssign = ir.NewAssignStmt(pos, rcvrVar, rcvrValue)
@@ -2222,6 +2226,9 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
 	for i := 0; i < typ.NumParams(); i++ {
 		t := typ.Params().Field(i).Type
 		arg := ir.NewNameAt(pos, typecheck.LookupNum("a", i))
+		if outer != nil {
+			arg.SetSym(outer.Sym().Pkg.Lookup(arg.Sym().Name))
+		}
 		arg.Class = ir.PPARAM
 		typed(t, arg)
 		arg.Curfn = fn
@@ -2234,6 +2241,9 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
 	for i := 0; i < typ.NumResults(); i++ {
 		t := typ.Results().Field(i).Type
 		result := ir.NewNameAt(pos, typecheck.LookupNum("r", i)) // TODO: names not needed?
+		if outer != nil {
+			result.SetSym(outer.Sym().Pkg.Lookup(result.Sym().Name))
+		}
 		result.Class = ir.PPARAMOUT
 		typed(t, result)
 		result.Curfn = fn
