@@ -7,7 +7,7 @@
 package nistec
 
 import (
-	"crypto/elliptic/internal/fiat"
+	"crypto/internal/nistec/fiat"
 	"crypto/subtle"
 	"errors"
 	"sync"

@@ -7,7 +7,7 @@
 package elliptic
 
 import (
-	"crypto/elliptic/internal/nistec"
+	"crypto/internal/nistec"
 	"math/big"
 )
 
