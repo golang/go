@@ -5,7 +5,7 @@
 package fiat_test
 
 import (
-	"crypto/elliptic/internal/fiat"
+	"crypto/internal/nistec/fiat"
 	"testing"
 )
 

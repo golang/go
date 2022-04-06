@@ -151,7 +151,7 @@ const tmplNISTEC = `// Copyright 2022 The Go Authors. All rights reserved.
 package nistec
 
 import (
-	"crypto/elliptic/internal/fiat"
+	"crypto/internal/nistec/fiat"
 	"crypto/subtle"
 	"errors"
 	"sync"
