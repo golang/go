@@ -1654,6 +1654,34 @@ import f "fmt"
 `,
 		unchanged: true,
 	},
+	// this test panics without PositionFor in DeleteNamedImport
+	{
+		name:       "import.44",
+		pkg:        "foo.com/other/v3",
+		renamedPkg: "",
+		in: `package main
+//line mah.go:600
+
+import (
+"foo.com/a.thing"
+"foo.com/surprise"
+"foo.com/v1"
+"foo.com/other/v2"
+"foo.com/other/v3"
+)
+`,
+		out: `package main
+
+//line mah.go:600
+
+import (
+	"foo.com/a.thing"
+	"foo.com/other/v2"
+	"foo.com/surprise"
+	"foo.com/v1"
+)
+`,
+	},
 }
 
 func TestDeleteImport(t *testing.T) {

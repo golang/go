@@ -270,8 +270,8 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 			}
 			if j > 0 {
 				lastImpspec := gen.Specs[j-1].(*ast.ImportSpec)
-				lastLine := fset.Position(lastImpspec.Path.ValuePos).Line
-				line := fset.Position(impspec.Path.ValuePos).Line
+				lastLine := fset.PositionFor(lastImpspec.Path.ValuePos, false).Line
+				line := fset.PositionFor(impspec.Path.ValuePos, false).Line
 
 				// We deleted an entry but now there may be
 				// a blank line-sized hole where the import was.
