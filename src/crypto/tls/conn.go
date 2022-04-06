@@ -1403,18 +1403,18 @@ func (c *Conn) HandshakeContext(ctx context.Context) error {
 }
 
 func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
-	handshakeCtx, cancel := context.WithCancel(ctx)
-	// Note: defer this before starting the "interrupter" goroutine
-	// so that we can tell the difference between the input being canceled and
-	// this cancellation. In the former case, we need to close the connection.
-	defer cancel()
-
 	// Start the "interrupter" goroutine, if this context might be canceled.
 	// (The background context cannot).
 	//
 	// The interrupter goroutine waits for the input context to be done and
 	// closes the connection if this happens before the function returns.
 	if ctx.Done() != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		// Note: defer this before starting the "interrupter" goroutine
+		// so that we can tell the difference between the input being canceled and
+		// this cancellation. In the former case, we need to close the connection.
+		defer cancel()
 		done := make(chan struct{})
 		interruptRes := make(chan error, 1)
 		defer func() {
@@ -1449,7 +1449,7 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 	c.in.Lock()
 	defer c.in.Unlock()
 
-	c.handshakeErr = c.handshakeFn(handshakeCtx)
+	c.handshakeErr = c.handshakeFn(ctx)
 	if c.handshakeErr == nil {
 		c.handshakes++
 	} else {
