@@ -219,7 +219,7 @@
 // The Skip method of *T can be used in a fuzz target if the input is invalid,
 // but should not be considered a failing input. For example:
 //
-//     func FuzzJSONMarshalling(f *testing.F) {
+//     func FuzzJSONMarshaling(f *testing.F) {
 //         f.Fuzz(func(t *testing.T, b []byte) {
 //             var v interface{}
 //             if err := json.Unmarshal(b, &v); err != nil {

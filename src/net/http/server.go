@@ -1721,7 +1721,7 @@ type closeWriter interface {
 var _ closeWriter = (*net.TCPConn)(nil)
 
 // closeWrite flushes any outstanding data and sends a FIN packet (if
-// client is connected via TCP), signalling that we're done. We then
+// client is connected via TCP), signaling that we're done. We then
 // pause for a bit, hoping the client processes it before any
 // subsequent RST.
 //

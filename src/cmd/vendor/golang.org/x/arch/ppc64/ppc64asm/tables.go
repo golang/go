@@ -4037,9 +4037,9 @@ var instFormats = [...]instFormat{
 		[6]*argField{ap_VecReg_6_10, ap_VecReg_16_20}},
 	{XSADDSP, 0xfc0007f800000000, 0xf000000000000000, 0x0, // VSX Scalar Add Single-Precision XX3-form (xsaddsp XT,XA,XB)
 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20}},
-	{XSCVDPSPN, 0xfc0007fc00000000, 0xf000042c00000000, 0x1f000000000000, // VSX Scalar Convert Scalar Single-Precision to Vector Single-Precision format Non-signalling XX2-form (xscvdpspn XT,XB)
+	{XSCVDPSPN, 0xfc0007fc00000000, 0xf000042c00000000, 0x1f000000000000, // VSX Scalar Convert Scalar Single-Precision to Vector Single-Precision format Non-signaling XX2-form (xscvdpspn XT,XB)
 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
-	{XSCVSPDPN, 0xfc0007fc00000000, 0xf000052c00000000, 0x1f000000000000, // VSX Scalar Convert Single-Precision to Double-Precision format Non-signalling XX2-form (xscvspdpn XT,XB)
+	{XSCVSPDPN, 0xfc0007fc00000000, 0xf000052c00000000, 0x1f000000000000, // VSX Scalar Convert Single-Precision to Double-Precision format Non-signaling XX2-form (xscvspdpn XT,XB)
 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
 	{XSCVSXDSP, 0xfc0007fc00000000, 0xf00004e000000000, 0x1f000000000000, // VSX Scalar Convert with round Signed Doubleword to Single-Precision format XX2-form (xscvsxdsp XT,XB)
 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
