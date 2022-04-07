@@ -40,7 +40,7 @@ type Seed struct {
 //	var h Hash
 //	h.SetSeed(seed)
 //	h.Write(b)
-//	return h.Sum()
+//	return h.Sum64()
 func Bytes(seed Seed, b []byte) uint64 {
 	state := seed.s
 	if state == 0 {
@@ -66,7 +66,7 @@ func Bytes(seed Seed, b []byte) uint64 {
 //	var h Hash
 //	h.SetSeed(seed)
 //	h.WriteString(s)
-//	return h.Sum()
+//	return h.Sum64()
 func String(seed Seed, s string) uint64 {
 	state := seed.s
 	if state == 0 {
