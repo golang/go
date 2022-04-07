@@ -596,6 +596,9 @@ func testServeFileNotModified(t *testing.T, h2 bool) {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
+	if g, e := resp.StatusCode, StatusNotModified; g != e {
+		t.Errorf("status mismatch: got %d, want %d", g, e)
+	}
 	if g, e := resp.ContentLength, int64(-1); g != e {
 		t.Errorf("Content-Length mismatch: got %d, want %d", g, e)
 	}
