@@ -138,11 +138,13 @@
 // 	-buildmode mode
 // 		build mode to use. See 'go help buildmode' for more.
 // 	-buildvcs
-// 		Whether to stamp binaries with version control information. By default,
-// 		version control information is stamped into a binary if the main package
-// 		and the main module containing it are in the repository containing the
-// 		current directory (if there is a repository). Use -buildvcs=false to
-// 		omit version control information.
+// 		Whether to stamp binaries with version control information
+// 		("true", "false", or "auto"). By default ("auto"), version control
+// 		information is stamped into a binary if the main package, the main module
+// 		containing it, and the current directory are all in the same repository.
+// 		Use -buildvcs=false to always omit version control information, or
+// 		-buildvcs=true to error out if version control information is available but
+// 		cannot be included due to a missing tool or ambiguous directory structure.
 // 	-compiler name
 // 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 // 	-gccgoflags '[pattern=]arg list'
