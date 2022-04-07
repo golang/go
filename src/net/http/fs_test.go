@@ -595,7 +595,14 @@ func testServeFileNotModified(t *testing.T, h2 bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	b, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
+	if err != nil {
+		t.Fatal("reading Body:", err)
+	}
+	if len(b) != 0 {
+		t.Errorf("non-empty body")
+	}
 	if g, e := resp.StatusCode, StatusNotModified; g != e {
 		t.Errorf("status mismatch: got %d, want %d", g, e)
 	}
