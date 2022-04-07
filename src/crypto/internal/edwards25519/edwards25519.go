@@ -5,7 +5,7 @@
 package edwards25519
 
 import (
-	"crypto/ed25519/internal/edwards25519/field"
+	"crypto/internal/edwards25519/field"
 	"errors"
 )
 
@@ -147,9 +147,8 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
 	//      (*field.Element).SetBytes docs) and
 	//   2) the ones where the x-coordinate is zero and the sign bit is set.
 	//
-	// This is consistent with crypto/ed25519/internal/edwards25519. Read more
-	// at https://hdevalence.ca/blog/2020-10-04-its-25519am, specifically the
-	// "Canonical A, R" section.
+	// Read more at https://hdevalence.ca/blog/2020-10-04-its-25519am,
+	// specifically the "Canonical A, R" section.
 
 	y, err := new(field.Element).SetBytes(x)
 	if err != nil {

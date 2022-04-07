@@ -5,7 +5,7 @@
 package edwards25519
 
 import (
-	"crypto/ed25519/internal/edwards25519/field"
+	"crypto/internal/edwards25519/field"
 	"encoding/hex"
 	"os"
 	"reflect"
