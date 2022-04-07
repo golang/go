@@ -5,6 +5,8 @@
 [short] skip
 [!exec:git] skip
 
+env GOFLAGS=-buildvcs  # override default -buildvcs=auto in GOFLAGS, as a user might
+
 exec git init
 
 # The test binaries should not have VCS settings stamped.
