@@ -1262,6 +1262,7 @@ const Raceenabled = raceenabled
 const (
 	GCBackgroundUtilization = gcBackgroundUtilization
 	GCGoalUtilization       = gcGoalUtilization
+	DefaultHeapMinimum      = defaultHeapMinimum
 )
 
 type GCController struct {

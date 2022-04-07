@@ -984,19 +984,19 @@ func (c *gcControllerState) commit() {
 		minTrigger = triggerBound
 	}
 
-	// For small heaps, set the max trigger point at 95% of the heap goal.
-	// This ensures we always have *some* headroom when the GC actually starts.
-	// For larger heaps, set the max trigger point at the goal, minus the
-	// minimum heap size.
+	// For small heaps, set the max trigger point at 95% of the way from the
+	// live heap to the heap goal. This ensures we always have *some* headroom
+	// when the GC actually starts. For larger heaps, set the max trigger point
+	// at the goal, minus the minimum heap size.
+	//
 	// This choice follows from the fact that the minimum heap size is chosen
 	// to reflect the costs of a GC with no work to do. With a large heap but
 	// very little scan work to perform, this gives us exactly as much runway
 	// as we would need, in the worst case.
-	maxRunway := uint64(0.95 * float64(goal-c.heapMarked))
-	if largeHeapMaxRunway := goal - c.heapMinimum; goal > c.heapMinimum && maxRunway < largeHeapMaxRunway {
-		maxRunway = largeHeapMaxRunway
+	maxTrigger := uint64(0.95*float64(goal-c.heapMarked)) + c.heapMarked
+	if goal > defaultHeapMinimum && goal-defaultHeapMinimum > maxTrigger {
+		maxTrigger = goal - defaultHeapMinimum
 	}
-	maxTrigger := maxRunway + c.heapMarked
 	if maxTrigger < minTrigger {
 		maxTrigger = minTrigger
 	}
