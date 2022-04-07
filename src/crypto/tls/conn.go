@@ -1403,11 +1403,18 @@ func (c *Conn) HandshakeContext(ctx context.Context) error {
 }
 
 func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
-	handshakeCtx, cancel := context.WithCancel(ctx)
-	// Note: defer this before starting the "interrupter" goroutine
-	// so that we can tell the difference between the input being canceled and
-	// this cancellation. In the former case, we need to close the connection.
-	defer cancel()
+	var handshakeCtx context.Context
+
+	if c.isClient && (c.config == nil || c.config.GetClientCertificate == nil) {
+		handshakeCtx = ctx
+	} else {
+		var cancel context.CancelFunc
+		handshakeCtx, cancel = context.WithCancel(ctx)
+		// Note: defer this before starting the "interrupter" goroutine
+		// so that we can tell the difference between the input being canceled and
+		// this cancellation. In the former case, we need to close the connection.
+		defer cancel()
+	}
 
 	// Start the "interrupter" goroutine, if this context might be canceled.
 	// (The background context cannot).
