@@ -8,7 +8,9 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/ecdh"
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -22,8 +24,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"golang.org/x/crypto/curve25519"
 )
 
 func testClientHello(t *testing.T, serverConfig *Config, m handshakeMessage) {
@@ -1909,6 +1909,7 @@ func TestAESCipherReorderingTLS13(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			hasAESGCMHardwareSupport = tc.serverHasAESGCM
+			pk, _ := ecdh.X25519().GenerateKey(rand.Reader)
 			hs := &serverHandshakeStateTLS13{
 				c: &Conn{
 					config: &Config{},
@@ -1918,7 +1919,7 @@ func TestAESCipherReorderingTLS13(t *testing.T) {
 					cipherSuites:       tc.clientCiphers,
 					supportedVersions:  []uint16{VersionTLS13},
 					compressionMethods: []uint8{compressionNone},
-					keyShares:          []keyShare{{group: X25519, data: curve25519.Basepoint}},
+					keyShares:          []keyShare{{group: X25519, data: pk.PublicKey().Bytes()}},
 				},
 			}
 

@@ -479,6 +479,30 @@ func (p *P256Point) affineFromMont(x, y *p256Element) {
 	p256FromMont(y, y)
 }
 
+// BytesX returns the encoding of the x-coordinate of p, as specified in SEC 1,
+// Version 2.0, Section 2.3.5, or an error if p is the point at infinity.
+func (p *P256Point) BytesX() ([]byte, error) {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [p256ElementLength]byte
+	return p.bytesX(&out)
+}
+
+func (p *P256Point) bytesX(out *[p256ElementLength]byte) ([]byte, error) {
+	if p.isInfinity() == 1 {
+		return nil, errors.New("P256 point is the point at infinity")
+	}
+
+	x := new(p256Element)
+	p256Inverse(x, &p.z)
+	p256Sqr(x, x, 1)
+	p256Mul(x, &p.x, x)
+	p256FromMont(x, x)
+	p256LittleToBig((*[32]byte)(out[:]), x)
+
+	return out[:], nil
+}
+
 // BytesCompressed returns the compressed or infinity encoding of p, as
 // specified in SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the
 // point at infinity is shorter than all other encodings.

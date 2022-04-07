@@ -159,6 +159,26 @@ func (p *P224Point) bytes(out *[1 + 2*p224ElementLength]byte) []byte {
 	return buf
 }
 
+// BytesX returns the encoding of the x-coordinate of p, as specified in SEC 1,
+// Version 2.0, Section 2.3.5, or an error if p is the point at infinity.
+func (p *P224Point) BytesX() ([]byte, error) {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [p224ElementLength]byte
+	return p.bytesX(&out)
+}
+
+func (p *P224Point) bytesX(out *[p224ElementLength]byte) ([]byte, error) {
+	if p.z.IsZero() == 1 {
+		return nil, errors.New("P224 point is the point at infinity")
+	}
+
+	zinv := new(fiat.P224Element).Invert(p.z)
+	x := new(fiat.P224Element).Mul(p.x, zinv)
+
+	return append(out[:0], x.Bytes()...), nil
+}
+
 // BytesCompressed returns the compressed or infinity encoding of p, as
 // specified in SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the
 // point at infinity is shorter than all other encodings.
