@@ -55,6 +55,9 @@ func init() {
 }
 
 func TestFixImports(t *testing.T) {
+	if os.Getenv("GO_BUILDER_NAME") == "plan9-arm" {
+		t.Skipf("skipping test that times out on plan9-arm; see https://go.dev/issue/50775")
+	}
 	testenv.NeedsTool(t, "go")
 
 	defer func() {
