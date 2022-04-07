@@ -547,7 +547,7 @@ func RecordFlags(flags ...string) {
 		fmt.Fprintf(&cmd, " -%s=%v", f.Name, getter.Get())
 	}
 
-	// Adds flag to producer string singalling whether regabi is turned on or
+	// Adds flag to producer string signaling whether regabi is turned on or
 	// off.
 	// Once regabi is turned on across the board and the relative GOEXPERIMENT
 	// knobs no longer exist this code should be removed.

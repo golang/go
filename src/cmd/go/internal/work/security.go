@@ -171,7 +171,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	// Note that any wildcards in -Wl need to exclude comma,
 	// since -Wl splits its argument at commas and passes
 	// them all to the linker uninterpreted. Allowing comma
-	// in a wildcard would allow tunnelling arbitrary additional
+	// in a wildcard would allow tunneling arbitrary additional
 	// linker arguments through one of these.
 	re(`-Wl,--(no-)?allow-multiple-definition`),
 	re(`-Wl,--(no-)?allow-shlib-undefined`),

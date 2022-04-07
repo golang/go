@@ -2564,7 +2564,7 @@ func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
 	}
 }
 
-// TestClientHandshakeContextCancellation tests that cancelling
+// TestClientHandshakeContextCancellation tests that canceling
 // the context given to the client side conn.HandshakeContext
 // interrupts the in-progress handshake.
 func TestClientHandshakeContextCancellation(t *testing.T) {
