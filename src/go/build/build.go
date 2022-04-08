@@ -1380,7 +1380,6 @@ type fileInfo struct {
 	parseErr error
 	imports  []fileImport
 	embeds   []fileEmbed
-	embedErr error
 }
 
 type fileImport struct {
