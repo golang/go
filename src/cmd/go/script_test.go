@@ -175,7 +175,7 @@ func (ts *testScript) setup() {
 		"GOPROXY=" + proxyURL,
 		"GOPRIVATE=",
 		"GOROOT=" + testGOROOT,
-		"GOROOT_FINAL=" + os.Getenv("GOROOT_FINAL"), // causes spurious rebuilds and breaks the "stale" built-in if not propagated
+		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
 		"GOTRACEBACK=system",
 		"TESTGO_GOROOT=" + testGOROOT,
 		"GOSUMDB=" + testSumDBVerifierKey,
@@ -385,6 +385,8 @@ Script:
 						}
 					}
 				}
+			case "mismatched-goroot":
+				ok = testGOROOT_FINAL != "" && testGOROOT_FINAL != testGOROOT
 			default:
 				if strings.HasPrefix(cond.tag, "exec:") {
 					prog := cond.tag[len("exec:"):]
