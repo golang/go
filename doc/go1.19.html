@@ -32,7 +32,27 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 <h3 id="go-command">Go command</h3>
 <p>
-  TODO: complete this section, or delete if not needed
+  TODO: complete this section.
+</p>
+
+<!-- https://go.dev/issue/51461 -->
+<p>
+  Passing the <code>-trimpath</code> flag to <code>go</code> commands now
+  causes <code>runtime.GOROOT()</code> in the resulting binary to return the
+  empty string instead of the string <code>"go"</code>.
+</p>
+<p>
+  The <code>-trimpath</code> flag, if set, is now included in the build settings
+  stamped into Go binaries by <code>go</code> <code>build</code>, and can be
+  examined using
+  <a href="https://pkg.go.dev/cmd/go#hdr-Print_Go_version"><code>go</code> <code>version</code> <code>-m</code></a>
+  or <a href="https://pkg.go.dev/runtime/debug#ReadBuildInfo"><code>debug.ReadBuildInfo</code></a>.
+</p>
+<p>
+  <code>go</code> <code>generate</code> now sets the <code>GOROOT</code>
+  environment variable explicitly in the generator's environment, so that
+  generators can locate the correct <code>GOROOT</code> even if built
+  with <code>-trimpath</code>.
 </p>
 
 <h4 id="go-unix">New <code>unix</code> build constraint</h4>
