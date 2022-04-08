@@ -20565,6 +20565,28 @@ func rewriteValueAMD64_OpAMD64SARXL(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	// match: (SARXL l:(MOVLload [off] {sym} ptr mem) x)
+	// cond: canMergeLoad(v, l) && clobber(l)
+	// result: (SARXLload [off] {sym} ptr x mem)
+	for {
+		l := v_0
+		if l.Op != OpAMD64MOVLload {
+			break
+		}
+		off := auxIntToInt32(l.AuxInt)
+		sym := auxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		x := v_1
+		if !(canMergeLoad(v, l) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64SARXLload)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, x, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SARXQ(v *Value) bool {
@@ -20759,6 +20781,28 @@ func rewriteValueAMD64_OpAMD64SARXQ(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64NEGL, t)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (SARXQ l:(MOVQload [off] {sym} ptr mem) x)
+	// cond: canMergeLoad(v, l) && clobber(l)
+	// result: (SARXQload [off] {sym} ptr x mem)
+	for {
+		l := v_0
+		if l.Op != OpAMD64MOVQload {
+			break
+		}
+		off := auxIntToInt32(l.AuxInt)
+		sym := auxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		x := v_1
+		if !(canMergeLoad(v, l) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64SARXQload)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, x, mem)
 		return true
 	}
 	return false

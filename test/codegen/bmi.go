@@ -56,6 +56,22 @@ func sarx32(x, y int32) int32 {
 	return x >> y
 }
 
+func sarx64_load(x []int64, i int) int64 {
+	// amd64/v3: `SARXQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+	s := x[i] >> (i & 63)
+	// amd64/v3: `SARXQ\t[A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+	s = x[i+1] >> (s & 63)
+	return s
+}
+
+func sarx32_load(x []int32, i int) int32 {
+	// amd64/v3: `SARXL\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+	s := x[i] >> (i & 63)
+	// amd64/v3: `SARXL\t[A-Z]+[0-9]*, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+	s = x[i+1] >> (s & 63)
+	return s
+}
+
 func shlrx64(x []uint64, i int, s uint64) uint64 {
 	// amd64/v3: `SHRXQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
 	s = x[i] >> i

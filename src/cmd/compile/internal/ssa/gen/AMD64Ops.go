@@ -956,11 +956,18 @@ func init() {
 		{name: "SARXQ", argLength: 2, reg: gp21, asm: "SARXQ"}, // signed arg0 >> arg1, shift amount is mod 64
 		{name: "SARXL", argLength: 2, reg: gp21, asm: "SARXL"}, // signed int32(arg0) >> arg1, shift amount is mod 32
 
+		{name: "SARXLload", argLength: 3, reg: gp21shxload, asm: "SARXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
+		{name: "SARXQload", argLength: 3, reg: gp21shxload, asm: "SARXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
 		{name: "SHLXLload", argLength: 3, reg: gp21shxload, asm: "SHLXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 32
 		{name: "SHLXQload", argLength: 3, reg: gp21shxload, asm: "SHLXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 64
 		{name: "SHRXLload", argLength: 3, reg: gp21shxload, asm: "SHRXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
 		{name: "SHRXQload", argLength: 3, reg: gp21shxload, asm: "SHRXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
 
+		{name: "SARXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SARXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+4*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SARXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SARXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SARXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
+		{name: "SARXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SARXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
 		{name: "SHLXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+1*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
 		{name: "SHLXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+4*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
 		{name: "SHLXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+8*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
