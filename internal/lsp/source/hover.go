@@ -405,6 +405,12 @@ func linkData(obj types.Object, enclosing *types.TypeName) (name, importPath, an
 		return "", "", ""
 	}
 
+	// golang/go#52211: somehow we get here with a nil obj.Pkg
+	// TODO: allow using debug.Bug here, to catch this bug.
+	if obj.Pkg() == nil {
+		return "", "", ""
+	}
+
 	importPath = obj.Pkg().Path()
 	if recv != nil {
 		anchor = fmt.Sprintf("%s.%s", recv.Name(), obj.Name())
