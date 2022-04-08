@@ -902,29 +902,21 @@ type expectContinueReader struct {
 	sawEOF     atomicBool
 }
 
-func writeContinue(w *response) {
-	if w.wroteContinue || !w.canWriteContinue.isSet() || w.conn.hijacked() {
-		return
-	}
-
-	w.wroteContinue = true
-	w.writeContinueMu.Lock()
-	defer w.writeContinueMu.Unlock()
-	if !w.canWriteContinue.isSet() {
-		return
-	}
-
-	w.conn.bufw.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
-	w.conn.bufw.Flush()
-	w.canWriteContinue.setFalse()
-}
-
 func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 	if ecr.closed.isSet() {
 		return 0, ErrBodyReadAfterClose
 	}
-
-	writeContinue(ecr.resp)
+	w := ecr.resp
+	if !w.wroteContinue && w.canWriteContinue.isSet() && !w.conn.hijacked() {
+		w.wroteContinue = true
+		w.writeContinueMu.Lock()
+		if w.canWriteContinue.isSet() {
+			w.conn.bufw.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
+			w.conn.bufw.Flush()
+			w.canWriteContinue.setFalse()
+		}
+		w.writeContinueMu.Unlock()
+	}
 	n, err = ecr.readCloser.Read(p)
 	if err == io.EOF {
 		ecr.sawEOF.setTrue()
