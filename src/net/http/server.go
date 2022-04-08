@@ -1151,6 +1151,13 @@ func (w *response) WriteHeader(code int) {
 
 	// Handle informational headers
 	if code >= 100 && code < 200 {
+		// Prevent a potential race with an automatically-sent 100 Continue triggered by Request.Body.Read()
+		if code == 100 && w.canWriteContinue.isSet() {
+			w.writeContinueMu.Lock()
+			w.canWriteContinue.setFalse()
+			w.writeContinueMu.Unlock()
+		}
+
 		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
 
 		// Per RFC 8297 we must not clear the current header map
