@@ -542,6 +542,9 @@
 //		The line number of the directive in the source file.
 //	$GOPACKAGE
 //		The name of the package of the file containing the directive.
+//	$GOROOT
+//		The GOROOT directory for the 'go' command that invoked the
+//		generator, containing the Go toolchain and standard library.
 //	$DOLLAR
 //		A dollar sign.
 //
