@@ -382,6 +382,10 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64SARW(v)
 	case OpAMD64SARWconst:
 		return rewriteValueAMD64_OpAMD64SARWconst(v)
+	case OpAMD64SARXL:
+		return rewriteValueAMD64_OpAMD64SARXL(v)
+	case OpAMD64SARXQ:
+		return rewriteValueAMD64_OpAMD64SARXQ(v)
 	case OpAMD64SBBLcarrymask:
 		return rewriteValueAMD64_OpAMD64SBBLcarrymask(v)
 	case OpAMD64SBBQ:
@@ -19844,6 +19848,19 @@ func rewriteValueAMD64_OpAMD64SARL(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	// match: (SARL x y)
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (SARXL x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GOAMD64 >= 3) {
+			break
+		}
+		v.reset(OpAMD64SARXL)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SARL x (MOVQconst [c]))
 	// result: (SARLconst [int8(c&31)] x)
 	for {
@@ -20066,6 +20083,19 @@ func rewriteValueAMD64_OpAMD64SARQ(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	// match: (SARQ x y)
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (SARXQ x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GOAMD64 >= 3) {
+			break
+		}
+		v.reset(OpAMD64SARXQ)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SARQ x (MOVQconst [c]))
 	// result: (SARQconst [int8(c&63)] x)
 	for {
@@ -20337,6 +20367,398 @@ func rewriteValueAMD64_OpAMD64SARWconst(v *Value) bool {
 		d := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpAMD64MOVQconst)
 		v.AuxInt = int64ToAuxInt(int64(int16(d)) >> uint64(c))
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SARXL(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (SARXL x (MOVQconst [c]))
+	// result: (SARLconst [int8(c&31)] x)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpAMD64SARLconst)
+		v.AuxInt = int8ToAuxInt(int8(c & 31))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SARXL x (MOVLconst [c]))
+	// result: (SARLconst [int8(c&31)] x)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		v.reset(OpAMD64SARLconst)
+		v.AuxInt = int8ToAuxInt(int8(c & 31))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SARXL x (ADDQconst [c] y))
+	// cond: c & 31 == 0
+	// result: (SARXL x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ADDQconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		y := v_1.Args[0]
+		if !(c&31 == 0) {
+			break
+		}
+		v.reset(OpAMD64SARXL)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (SARXL x (NEGQ <t> (ADDQconst [c] y)))
+	// cond: c & 31 == 0
+	// result: (SARXL x (NEGQ <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64NEGQ {
+			break
+		}
+		t := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64ADDQconst {
+			break
+		}
+		c := auxIntToInt32(v_1_0.AuxInt)
+		y := v_1_0.Args[0]
+		if !(c&31 == 0) {
+			break
+		}
+		v.reset(OpAMD64SARXL)
+		v0 := b.NewValue0(v.Pos, OpAMD64NEGQ, t)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (SARXL x (ANDQconst [c] y))
+	// cond: c & 31 == 31
+	// result: (SARXL x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ANDQconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		y := v_1.Args[0]
+		if !(c&31 == 31) {
+			break
+		}
+		v.reset(OpAMD64SARXL)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (SARXL x (NEGQ <t> (ANDQconst [c] y)))
+	// cond: c & 31 == 31
+	// result: (SARXL x (NEGQ <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64NEGQ {
+			break
+		}
+		t := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64ANDQconst {
+			break
+		}
+		c := auxIntToInt32(v_1_0.AuxInt)
+		y := v_1_0.Args[0]
+		if !(c&31 == 31) {
+			break
+		}
+		v.reset(OpAMD64SARXL)
+		v0 := b.NewValue0(v.Pos, OpAMD64NEGQ, t)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (SARXL x (ADDLconst [c] y))
+	// cond: c & 31 == 0
+	// result: (SARXL x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ADDLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		y := v_1.Args[0]
+		if !(c&31 == 0) {
+			break
+		}
+		v.reset(OpAMD64SARXL)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (SARXL x (NEGL <t> (ADDLconst [c] y)))
+	// cond: c & 31 == 0
+	// result: (SARXL x (NEGL <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64NEGL {
+			break
+		}
+		t := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64ADDLconst {
+			break
+		}
+		c := auxIntToInt32(v_1_0.AuxInt)
+		y := v_1_0.Args[0]
+		if !(c&31 == 0) {
+			break
+		}
+		v.reset(OpAMD64SARXL)
+		v0 := b.NewValue0(v.Pos, OpAMD64NEGL, t)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (SARXL x (ANDLconst [c] y))
+	// cond: c & 31 == 31
+	// result: (SARXL x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ANDLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		y := v_1.Args[0]
+		if !(c&31 == 31) {
+			break
+		}
+		v.reset(OpAMD64SARXL)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (SARXL x (NEGL <t> (ANDLconst [c] y)))
+	// cond: c & 31 == 31
+	// result: (SARXL x (NEGL <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64NEGL {
+			break
+		}
+		t := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64ANDLconst {
+			break
+		}
+		c := auxIntToInt32(v_1_0.AuxInt)
+		y := v_1_0.Args[0]
+		if !(c&31 == 31) {
+			break
+		}
+		v.reset(OpAMD64SARXL)
+		v0 := b.NewValue0(v.Pos, OpAMD64NEGL, t)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SARXQ(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (SARXQ x (MOVQconst [c]))
+	// result: (SARQconst [int8(c&63)] x)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpAMD64SARQconst)
+		v.AuxInt = int8ToAuxInt(int8(c & 63))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SARXQ x (MOVLconst [c]))
+	// result: (SARQconst [int8(c&63)] x)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		v.reset(OpAMD64SARQconst)
+		v.AuxInt = int8ToAuxInt(int8(c & 63))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SARXQ x (ADDQconst [c] y))
+	// cond: c & 63 == 0
+	// result: (SARXQ x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ADDQconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		y := v_1.Args[0]
+		if !(c&63 == 0) {
+			break
+		}
+		v.reset(OpAMD64SARXQ)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (SARXQ x (NEGQ <t> (ADDQconst [c] y)))
+	// cond: c & 63 == 0
+	// result: (SARXQ x (NEGQ <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64NEGQ {
+			break
+		}
+		t := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64ADDQconst {
+			break
+		}
+		c := auxIntToInt32(v_1_0.AuxInt)
+		y := v_1_0.Args[0]
+		if !(c&63 == 0) {
+			break
+		}
+		v.reset(OpAMD64SARXQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64NEGQ, t)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (SARXQ x (ANDQconst [c] y))
+	// cond: c & 63 == 63
+	// result: (SARXQ x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ANDQconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		y := v_1.Args[0]
+		if !(c&63 == 63) {
+			break
+		}
+		v.reset(OpAMD64SARXQ)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (SARXQ x (NEGQ <t> (ANDQconst [c] y)))
+	// cond: c & 63 == 63
+	// result: (SARXQ x (NEGQ <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64NEGQ {
+			break
+		}
+		t := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64ANDQconst {
+			break
+		}
+		c := auxIntToInt32(v_1_0.AuxInt)
+		y := v_1_0.Args[0]
+		if !(c&63 == 63) {
+			break
+		}
+		v.reset(OpAMD64SARXQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64NEGQ, t)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (SARXQ x (ADDLconst [c] y))
+	// cond: c & 63 == 0
+	// result: (SARXQ x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ADDLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		y := v_1.Args[0]
+		if !(c&63 == 0) {
+			break
+		}
+		v.reset(OpAMD64SARXQ)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (SARXQ x (NEGL <t> (ADDLconst [c] y)))
+	// cond: c & 63 == 0
+	// result: (SARXQ x (NEGL <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64NEGL {
+			break
+		}
+		t := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64ADDLconst {
+			break
+		}
+		c := auxIntToInt32(v_1_0.AuxInt)
+		y := v_1_0.Args[0]
+		if !(c&63 == 0) {
+			break
+		}
+		v.reset(OpAMD64SARXQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64NEGL, t)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (SARXQ x (ANDLconst [c] y))
+	// cond: c & 63 == 63
+	// result: (SARXQ x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ANDLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		y := v_1.Args[0]
+		if !(c&63 == 63) {
+			break
+		}
+		v.reset(OpAMD64SARXQ)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (SARXQ x (NEGL <t> (ANDLconst [c] y)))
+	// cond: c & 63 == 63
+	// result: (SARXQ x (NEGL <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64NEGL {
+			break
+		}
+		t := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64ANDLconst {
+			break
+		}
+		c := auxIntToInt32(v_1_0.AuxInt)
+		y := v_1_0.Args[0]
+		if !(c&63 == 63) {
+			break
+		}
+		v.reset(OpAMD64SARXQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64NEGL, t)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
 		return true
 	}
 	return false

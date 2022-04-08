@@ -206,6 +206,9 @@
 (Rsh16x(64|32|16|8) x y) && shiftIsBounded(v) => (SARW x y)
 (Rsh8x(64|32|16|8) x y)  && shiftIsBounded(v) => (SARB x y)
 
+// Prefer SARX instruction because it has less register restriction on the shift input.
+(SAR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SARX(Q|L) x y)
+
 // Lowering integer comparisons
 (Less(64|32|16|8)      x y) => (SETL  (CMP(Q|L|W|B)     x y))
 (Less(64|32|16|8)U     x y) => (SETB  (CMP(Q|L|W|B)     x y))
@@ -803,28 +806,29 @@
 (SARL x (MOV(Q|L)const [c])) => (SARLconst [int8(c&31)] x)
 (SARW x (MOV(Q|L)const [c])) => (SARWconst [int8(min(int64(c)&31,15))] x)
 (SARB x (MOV(Q|L)const [c])) => (SARBconst [int8(min(int64(c)&31,7))] x)
-
+(SARXQ x (MOV(Q|L)const [c])) => (SARQconst [int8(c&63)] x)
+(SARXL x (MOV(Q|L)const [c])) => (SARLconst [int8(c&31)] x)
 
 // Operations which don't affect the low 6/5 bits of the shift amount are NOPs.
-((SHLQ|SHRQ|SARQ) x (ADDQconst [c] y)) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ) x y)
-((SHLQ|SHRQ|SARQ) x (NEGQ <t> (ADDQconst [c] y))) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ) x (NEGQ <t> y))
-((SHLQ|SHRQ|SARQ) x (ANDQconst [c] y)) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ) x y)
-((SHLQ|SHRQ|SARQ) x (NEGQ <t> (ANDQconst [c] y))) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ) x (NEGQ <t> y))
+((SHLQ|SHRQ|SARQ|SARXQ) x (ADDQconst [c] y)) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ|SARXQ) x y)
+((SHLQ|SHRQ|SARQ|SARXQ) x (NEGQ <t> (ADDQconst [c] y))) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ|SARXQ) x (NEGQ <t> y))
+((SHLQ|SHRQ|SARQ|SARXQ) x (ANDQconst [c] y)) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ|SARXQ) x y)
+((SHLQ|SHRQ|SARQ|SARXQ) x (NEGQ <t> (ANDQconst [c] y))) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ|SARXQ) x (NEGQ <t> y))
 
-((SHLL|SHRL|SARL) x (ADDQconst [c] y)) && c & 31 == 0  => ((SHLL|SHRL|SARL) x y)
-((SHLL|SHRL|SARL) x (NEGQ <t> (ADDQconst [c] y))) && c & 31 == 0  => ((SHLL|SHRL|SARL) x (NEGQ <t> y))
-((SHLL|SHRL|SARL) x (ANDQconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL) x y)
-((SHLL|SHRL|SARL) x (NEGQ <t> (ANDQconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL) x (NEGQ <t> y))
+((SHLL|SHRL|SARL|SARXL) x (ADDQconst [c] y)) && c & 31 == 0  => ((SHLL|SHRL|SARL|SARXL) x y)
+((SHLL|SHRL|SARL|SARXL) x (NEGQ <t> (ADDQconst [c] y))) && c & 31 == 0  => ((SHLL|SHRL|SARL|SARXL) x (NEGQ <t> y))
+((SHLL|SHRL|SARL|SARXL) x (ANDQconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL|SARXL) x y)
+((SHLL|SHRL|SARL|SARXL) x (NEGQ <t> (ANDQconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL|SARXL) x (NEGQ <t> y))
 
-((SHLQ|SHRQ|SARQ) x (ADDLconst [c] y)) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ) x y)
-((SHLQ|SHRQ|SARQ) x (NEGL <t> (ADDLconst [c] y))) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ) x (NEGL <t> y))
-((SHLQ|SHRQ|SARQ) x (ANDLconst [c] y)) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ) x y)
-((SHLQ|SHRQ|SARQ) x (NEGL <t> (ANDLconst [c] y))) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ) x (NEGL <t> y))
+((SHLQ|SHRQ|SARQ|SARXQ) x (ADDLconst [c] y)) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ|SARXQ) x y)
+((SHLQ|SHRQ|SARQ|SARXQ) x (NEGL <t> (ADDLconst [c] y))) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ|SARXQ) x (NEGL <t> y))
+((SHLQ|SHRQ|SARQ|SARXQ) x (ANDLconst [c] y)) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ|SARXQ) x y)
+((SHLQ|SHRQ|SARQ|SARXQ) x (NEGL <t> (ANDLconst [c] y))) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ|SARXQ) x (NEGL <t> y))
 
-((SHLL|SHRL|SARL) x (ADDLconst [c] y)) && c & 31 == 0  => ((SHLL|SHRL|SARL) x y)
-((SHLL|SHRL|SARL) x (NEGL <t> (ADDLconst [c] y))) && c & 31 == 0  => ((SHLL|SHRL|SARL) x (NEGL <t> y))
-((SHLL|SHRL|SARL) x (ANDLconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL) x y)
-((SHLL|SHRL|SARL) x (NEGL <t> (ANDLconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL) x (NEGL <t> y))
+((SHLL|SHRL|SARL|SARXL) x (ADDLconst [c] y)) && c & 31 == 0  => ((SHLL|SHRL|SARL|SARXL) x y)
+((SHLL|SHRL|SARL|SARXL) x (NEGL <t> (ADDLconst [c] y))) && c & 31 == 0  => ((SHLL|SHRL|SARL|SARXL) x (NEGL <t> y))
+((SHLL|SHRL|SARL|SARXL) x (ANDLconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL|SARXL) x y)
+((SHLL|SHRL|SARL|SARXL) x (NEGL <t> (ANDLconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL|SARXL) x (NEGL <t> y))
 
 // Constant rotate instructions
 ((ADDQ|ORQ|XORQ) (SHLQconst x [c]) (SHRQconst x [d])) && d==64-c => (ROLQconst x [c])

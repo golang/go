@@ -46,6 +46,16 @@ func blsr32(x int32) int32 {
 	return x & (x - 1)
 }
 
+func sarx64(x, y int64) int64 {
+	// amd64/v3:"SARXQ"
+	return x >> y
+}
+
+func sarx32(x, y int32) int32 {
+	// amd64/v3:"SARXL"
+	return x >> y
+}
+
 func shlrx64(x []uint64, i int, s uint64) uint64 {
 	// amd64/v3: `SHRXQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
 	s = x[i] >> i

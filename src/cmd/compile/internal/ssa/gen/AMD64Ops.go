@@ -953,6 +953,9 @@ func init() {
 		{name: "MOVBEQstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVBEQ", scale: 8, aux: "SymOff", symEffect: "Write"},                    // swap and store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
 
 		// CPUID feature: BMI2.
+		{name: "SARXQ", argLength: 2, reg: gp21, asm: "SARXQ"}, // signed arg0 >> arg1, shift amount is mod 64
+		{name: "SARXL", argLength: 2, reg: gp21, asm: "SARXL"}, // signed int32(arg0) >> arg1, shift amount is mod 32
+
 		{name: "SHLXLload", argLength: 3, reg: gp21shxload, asm: "SHLXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 32
 		{name: "SHLXQload", argLength: 3, reg: gp21shxload, asm: "SHLXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 64
 		{name: "SHRXLload", argLength: 3, reg: gp21shxload, asm: "SHRXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
