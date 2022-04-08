@@ -359,7 +359,6 @@ func (r *Request) WithContext(ctx context.Context) *Request {
 	r2 := new(Request)
 	*r2 = *r
 	r2.ctx = ctx
-	r2.URL = cloneURL(r.URL) // legacy behavior; TODO: try to remove. Issue 23544
 	return r2
 }
 
