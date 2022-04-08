@@ -309,3 +309,33 @@ func TestCallersDeferNilFuncPanicWithLoop(t *testing.T) {
 	// function exit, rather than at the defer statement.
 	state = 2
 }
+
+// issue #51988
+// Func.Endlineno was lost when instantiating generic functions, leading to incorrect
+// stack trace positions.
+func TestCallersEndlineno(t *testing.T) {
+	testNormalEndlineno(t)
+	testGenericEndlineno[int](t)
+}
+
+func testNormalEndlineno(t *testing.T) {
+	defer testCallerLine(t, callerLine(t, 0)+1)
+}
+
+func testGenericEndlineno[_ any](t *testing.T) {
+	defer testCallerLine(t, callerLine(t, 0)+1)
+}
+
+func testCallerLine(t *testing.T, want int) {
+	if have := callerLine(t, 1); have != want {
+		t.Errorf("callerLine(1) returned %d, but want %d\n", have, want)
+	}
+}
+
+func callerLine(t *testing.T, skip int) int {
+	_, _, line, ok := runtime.Caller(skip + 1)
+	if !ok {
+		t.Fatalf("runtime.Caller(%d) failed", skip+1)
+	}
+	return line
+}
