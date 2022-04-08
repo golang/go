@@ -40,6 +40,7 @@ func LoadPackage(filenames []string) {
 		noders[i] = &p
 	}
 
+	// Move the entire syntax processing logic into a separate goroutine to avoid blocking on the "sem".
 	go func() {
 		for i, filename := range filenames {
 			filename := filename
