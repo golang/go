@@ -494,7 +494,7 @@ func (r BenchmarkResult) MemString() string {
 // benchmarkName returns full name of benchmark including procs suffix.
 func benchmarkName(name string, n int) string {
 	if n != 1 {
-		return fmt.Sprintf("%s-%d", name, n)
+		return fmt.Sprintf("%s-%d(procs)", name, n)
 	}
 	return name
 }
