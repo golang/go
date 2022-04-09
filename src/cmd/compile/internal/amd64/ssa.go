@@ -282,7 +282,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 		p.SetFrom3Reg(v.Args[1].Reg())
 
-	case ssa.OpAMD64SARXL, ssa.OpAMD64SARXQ:
+	case ssa.OpAMD64SARXL, ssa.OpAMD64SARXQ,
+		ssa.OpAMD64SHLXL, ssa.OpAMD64SHLXQ,
+		ssa.OpAMD64SHRXL, ssa.OpAMD64SHRXQ:
 		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
 		p.SetFrom3Reg(v.Args[0].Reg())
 
