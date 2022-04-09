@@ -1064,6 +1064,10 @@ const (
 	OpAMD64MOVBEQstoreidx8
 	OpAMD64SARXQ
 	OpAMD64SARXL
+	OpAMD64SHLXQ
+	OpAMD64SHLXL
+	OpAMD64SHRXQ
+	OpAMD64SHRXL
 	OpAMD64SARXLload
 	OpAMD64SARXQload
 	OpAMD64SHLXLload
@@ -14144,6 +14148,62 @@ var opcodeTable = [...]opInfo{
 		name:   "SARXL",
 		argLen: 2,
 		asm:    x86.ASARXL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "SHLXQ",
+		argLen: 2,
+		asm:    x86.ASHLXQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "SHLXL",
+		argLen: 2,
+		asm:    x86.ASHLXL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "SHRXQ",
+		argLen: 2,
+		asm:    x86.ASHRXQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "SHRXL",
+		argLen: 2,
+		asm:    x86.ASHRXL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15

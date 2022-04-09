@@ -72,7 +72,23 @@ func sarx32_load(x []int32, i int) int32 {
 	return s
 }
 
-func shlrx64(x []uint64, i int, s uint64) uint64 {
+func shlrx64(x, y uint64) uint64 {
+	// amd64/v3:"SHRXQ"
+	s := x >> y
+	// amd64/v3:"SHLXQ"
+	s = s << y
+	return s
+}
+
+func shlrx32(x, y uint32) uint32 {
+	// amd64/v3:"SHRXL"
+	s := x >> y
+	// amd64/v3:"SHLXL"
+	s = s << y
+	return s
+}
+
+func shlrx64_load(x []uint64, i int, s uint64) uint64 {
 	// amd64/v3: `SHRXQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
 	s = x[i] >> i
 	// amd64/v3: `SHLXQ\t[A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
@@ -80,7 +96,7 @@ func shlrx64(x []uint64, i int, s uint64) uint64 {
 	return s
 }
 
-func shlrx32(x []uint32, i int, s uint32) uint32 {
+func shlrx32_load(x []uint32, i int, s uint32) uint32 {
 	// amd64/v3: `SHRXL\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
 	s = x[i] >> i
 	// amd64/v3: `SHLXL\t[A-Z]+[0-9]*, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`

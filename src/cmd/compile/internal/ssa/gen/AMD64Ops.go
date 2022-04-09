@@ -955,6 +955,10 @@ func init() {
 		// CPUID feature: BMI2.
 		{name: "SARXQ", argLength: 2, reg: gp21, asm: "SARXQ"}, // signed arg0 >> arg1, shift amount is mod 64
 		{name: "SARXL", argLength: 2, reg: gp21, asm: "SARXL"}, // signed int32(arg0) >> arg1, shift amount is mod 32
+		{name: "SHLXQ", argLength: 2, reg: gp21, asm: "SHLXQ"}, // arg0 << arg1, shift amount is mod 64
+		{name: "SHLXL", argLength: 2, reg: gp21, asm: "SHLXL"}, // arg0 << arg1, shift amount is mod 32
+		{name: "SHRXQ", argLength: 2, reg: gp21, asm: "SHRXQ"}, // unsigned arg0 >> arg1, shift amount is mod 64
+		{name: "SHRXL", argLength: 2, reg: gp21, asm: "SHRXL"}, // unsigned uint32(arg0) >> arg1, shift amount is mod 32
 
 		{name: "SARXLload", argLength: 3, reg: gp21shxload, asm: "SARXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
 		{name: "SARXQload", argLength: 3, reg: gp21shxload, asm: "SARXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
