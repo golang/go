@@ -12,3 +12,10 @@ TEXT ·testvmovq(SB), NOSPLIT, $0-16
 	MOVD    R0, r1+0(FP)
 	MOVD    R1, r2+8(FP)
 	RET
+
+// testmovk() uint64
+TEXT ·testmovk(SB), NOSPLIT, $0-8
+	MOVD	$0, R0
+	MOVK	$(40000<<48), R0
+	MOVD	R0, ret+0(FP)
+	RET
