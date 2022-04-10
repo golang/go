@@ -561,3 +561,149 @@ func TestScavenger(t *testing.T) {
 	// Clean up.
 	s.Stop()
 }
+
+func TestScavengeIndex(t *testing.T) {
+	setup := func(t *testing.T) (func(ChunkIdx, uint), func(uintptr, uintptr)) {
+		t.Helper()
+
+		// Pick some reasonable bounds. We don't need a huge range just to test.
+		si := NewScavengeIndex(BaseChunkIdx, BaseChunkIdx+64)
+		find := func(want ChunkIdx, wantOffset uint) {
+			t.Helper()
+
+			got, gotOffset := si.Find()
+			if want != got {
+				t.Errorf("find: wanted chunk index %d, got %d", want, got)
+			}
+			if want != got {
+				t.Errorf("find: wanted page offset %d, got %d", wantOffset, gotOffset)
+			}
+			if t.Failed() {
+				t.FailNow()
+			}
+			si.Clear(got)
+		}
+		mark := func(base, limit uintptr) {
+			t.Helper()
+
+			si.Mark(base, limit)
+		}
+		return find, mark
+	}
+	t.Run("Uninitialized", func(t *testing.T) {
+		find, _ := setup(t)
+		find(0, 0)
+	})
+	t.Run("OnePage", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 3), PageBase(BaseChunkIdx, 4))
+		find(BaseChunkIdx, 3)
+		find(0, 0)
+	})
+	t.Run("FirstPage", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx, 1))
+		find(BaseChunkIdx, 0)
+		find(0, 0)
+	})
+	t.Run("SeveralPages", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 9), PageBase(BaseChunkIdx, 14))
+		find(BaseChunkIdx, 13)
+		find(0, 0)
+	})
+	t.Run("WholeChunk", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+		find(BaseChunkIdx, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("LastPage", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, PallocChunkPages-1), PageBase(BaseChunkIdx+1, 0))
+		find(BaseChunkIdx, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("TwoChunks", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 128), PageBase(BaseChunkIdx+1, 128))
+		find(BaseChunkIdx+1, 127)
+		find(BaseChunkIdx, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("TwoChunksOffset", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx+7, 128), PageBase(BaseChunkIdx+8, 129))
+		find(BaseChunkIdx+8, 128)
+		find(BaseChunkIdx+7, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("SevenChunksOffset", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx+6, 11), PageBase(BaseChunkIdx+13, 15))
+		find(BaseChunkIdx+13, 14)
+		for i := BaseChunkIdx + 12; i >= BaseChunkIdx+6; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("ThirtyTwoChunks", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+		for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("ThirtyTwoChunksOffset", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx+3, 0), PageBase(BaseChunkIdx+35, 0))
+		for i := BaseChunkIdx + 34; i >= BaseChunkIdx+3; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("Mark", func(t *testing.T) {
+		find, mark := setup(t)
+		for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
+			mark(PageBase(i, 0), PageBase(i+1, 0))
+		}
+		for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("MarkInterleaved", func(t *testing.T) {
+		find, mark := setup(t)
+		for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
+			mark(PageBase(i, 0), PageBase(i+1, 0))
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("MarkIdempotentOneChunk", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+		find(BaseChunkIdx, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("MarkIdempotentThirtyTwoChunks", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+		for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("MarkIdempotentThirtyTwoChunksOffset", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+31, 0))
+		mark(PageBase(BaseChunkIdx+5, 0), PageBase(BaseChunkIdx+36, 0))
+		for i := BaseChunkIdx + 35; i >= BaseChunkIdx+4; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+}

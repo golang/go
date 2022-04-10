@@ -398,11 +398,15 @@ func sweepone() uintptr {
 		// between sweep done and sweep termination (e.g. not enough
 		// allocations to trigger a GC) which would be nice to fill in
 		// with scavenging work.
-		systemstack(func() {
-			lock(&mheap_.lock)
-			mheap_.pages.scavengeStartGen()
-			unlock(&mheap_.lock)
-		})
+		if debug.scavtrace > 0 {
+			systemstack(func() {
+				lock(&mheap_.lock)
+				released := atomic.Loaduintptr(&mheap_.pages.scav.released)
+				printScavTrace(released, false)
+				atomic.Storeuintptr(&mheap_.pages.scav.released, 0)
+				unlock(&mheap_.lock)
+			})
+		}
 		scavenger.ready()
 	}
 

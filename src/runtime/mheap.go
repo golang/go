@@ -62,7 +62,10 @@ const (
 type mheap struct {
 	// lock must only be acquired on the system stack, otherwise a g
 	// could self-deadlock if its stack grows with the lock held.
-	lock  mutex
+	lock mutex
+
+	_ uint32 // 8-byte align pages so its alignment is consistent with tests.
+
 	pages pageAlloc // page allocation data structure
 
 	sweepgen uint32 // sweep generation, see comment in mspan; written during STW
@@ -1548,22 +1551,12 @@ func (h *mheap) scavengeAll() {
 	gp := getg()
 	gp.m.mallocing++
 
-	lock(&h.lock)
-	// Start a new scavenge generation so we have a chance to walk
-	// over the whole heap.
-	h.pages.scavengeStartGen()
-	unlock(&h.lock)
-
 	released := h.pages.scavenge(^uintptr(0))
-
-	lock(&h.pages.scav.lock)
-	gen := h.pages.scav.gen
-	unlock(&h.pages.scav.lock)
 
 	gp.m.mallocing--
 
 	if debug.scavtrace > 0 {
-		printScavTrace(gen, released, true)
+		printScavTrace(released, true)
 	}
 }
 
