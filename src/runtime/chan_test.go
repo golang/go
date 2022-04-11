@@ -1132,6 +1132,8 @@ func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
 		ch <- struct{}{}
 	}
 	close(ch)
+
+	b.ResetTimer()
 	for range ch {
 	}
 }
