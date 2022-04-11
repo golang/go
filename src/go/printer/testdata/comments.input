@@ -691,6 +691,12 @@ func _() {
 	}
 }
 
+//extern foo
+func foo() {}
+
+//export bar
+func bar() {}
+
 // Print line directives correctly.
 
 // The following is a legal line directive.

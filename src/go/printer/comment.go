@@ -111,8 +111,10 @@ func formatDocComment(list []*ast.Comment) []*ast.Comment {
 // This code is also in go/ast.
 func isDirective(c string) bool {
 	// "//line " is a line directive.
+	// "//extern " is for gccgo.
+	// "//export " is for cgo.
 	// (The // has been removed.)
-	if strings.HasPrefix(c, "line ") {
+	if strings.HasPrefix(c, "line ") || strings.HasPrefix(c, "extern ") || strings.HasPrefix(c, "export ") {
 		return true
 	}
 
