@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -54,6 +56,21 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 		return nil, err
 	}
 	options.ForClientCapabilities(params.Capabilities)
+
+	if options.ShowBugReports {
+		// Report the next bug that occurs on the server.
+		bugCh := bug.Notify()
+		go func() {
+			b := <-bugCh
+			msg := &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: fmt.Sprintf("A bug occurred on the server: %s\nLocation:%s", b.Description, b.Key),
+			}
+			if err := s.eventuallyShowMessage(context.Background(), msg); err != nil {
+				log.Printf("error showing bug: %v", err)
+			}
+		}()
+	}
 
 	folders := params.WorkspaceFolders
 	if len(folders) == 0 {
