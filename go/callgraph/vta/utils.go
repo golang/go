@@ -85,32 +85,52 @@ func isFunction(t types.Type) bool {
 // pointer to interface and if yes, returns the interface type.
 // Otherwise, returns nil.
 func interfaceUnderPtr(t types.Type) types.Type {
-	p, ok := t.Underlying().(*types.Pointer)
-	if !ok {
-		return nil
-	}
+	seen := make(map[types.Type]bool)
+	var visit func(types.Type) types.Type
+	visit = func(t types.Type) types.Type {
+		if seen[t] {
+			return nil
+		}
+		seen[t] = true
 
-	if isInterface(p.Elem()) {
-		return p.Elem()
-	}
+		p, ok := t.Underlying().(*types.Pointer)
+		if !ok {
+			return nil
+		}
 
-	return interfaceUnderPtr(p.Elem())
+		if isInterface(p.Elem()) {
+			return p.Elem()
+		}
+
+		return visit(p.Elem())
+	}
+	return visit(t)
 }
 
 // functionUnderPtr checks if type `t` is a potentially nested
 // pointer to function type and if yes, returns the function type.
 // Otherwise, returns nil.
 func functionUnderPtr(t types.Type) types.Type {
-	p, ok := t.Underlying().(*types.Pointer)
-	if !ok {
-		return nil
-	}
+	seen := make(map[types.Type]bool)
+	var visit func(types.Type) types.Type
+	visit = func(t types.Type) types.Type {
+		if seen[t] {
+			return nil
+		}
+		seen[t] = true
 
-	if isFunction(p.Elem()) {
-		return p.Elem()
-	}
+		p, ok := t.Underlying().(*types.Pointer)
+		if !ok {
+			return nil
+		}
 
-	return functionUnderPtr(p.Elem())
+		if isFunction(p.Elem()) {
+			return p.Elem()
+		}
+
+		return visit(p.Elem())
+	}
+	return visit(t)
 }
 
 // sliceArrayElem returns the element type of type `t` that is

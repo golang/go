@@ -24,6 +24,7 @@ func TestVTACallGraph(t *testing.T) {
 		"testdata/src/callgraph_collections.go",
 		"testdata/src/callgraph_fields.go",
 		"testdata/src/callgraph_field_funcs.go",
+		"testdata/src/callgraph_recursive_types.go",
 	} {
 		t.Run(file, func(t *testing.T) {
 			prog, want, err := testProg(file)
