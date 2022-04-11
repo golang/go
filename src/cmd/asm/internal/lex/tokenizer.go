@@ -109,7 +109,7 @@ func (t *Tokenizer) Next() ScanToken {
 		}
 		text := s.TokenText()
 		t.line += strings.Count(text, "\n")
-		// TODO: Use constraint.IsGoBuild once it exists.
+		// TODO: Use constraint.IsGoBuild once #44505 fixed.
 		if strings.HasPrefix(text, "//go:build") {
 			t.tok = BuildComment
 			break
