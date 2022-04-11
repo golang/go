@@ -18,7 +18,7 @@ import (
 	"strings"
 	"unicode"
 
-	"golang.org/x/tools/internal/lsp/debug"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/safetoken"
@@ -86,7 +86,13 @@ func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, pgf 
 		return nil, err
 	}
 	if offset > tok.Size() {
-		debug.Bug(ctx, "out of bounds cursor", "cursor offset (%d) out of bounds for %s (size: %d)", offset, pgf.URI, tok.Size())
+		// internal bug: we should never get an offset that exceeds the size of our
+		// file.
+		bug.Report("out of bounds cursor", bug.Data{
+			"offset": offset,
+			"URI":    pgf.URI,
+			"size":   tok.Size(),
+		})
 		return nil, fmt.Errorf("cursor out of bounds")
 	}
 	cursor := tok.Pos(offset)

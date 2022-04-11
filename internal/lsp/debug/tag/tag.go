@@ -43,10 +43,6 @@ var (
 	ClientID     = keys.NewString("client_id", "")
 
 	Level = keys.NewInt("level", "The logging level")
-
-	// Bug tracks occurrences of known bugs in the server.
-	Bug      = keys.NewString("bug", "A bug has occurred")
-	Callsite = keys.NewString("callsite", "gopls function call site")
 )
 
 var (

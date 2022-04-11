@@ -21,7 +21,6 @@ import (
 	"path/filepath"
 	"runtime"
 	rpprof "runtime/pprof"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,6 +34,7 @@ import (
 	"golang.org/x/tools/internal/event/export/prometheus"
 	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug/log"
 	"golang.org/x/tools/internal/lsp/debug/tag"
@@ -77,45 +77,10 @@ type State struct {
 	mu      sync.Mutex
 	clients []*Client
 	servers []*Server
-
-	// bugs maps bug description -> formatted event
-	bugs map[string]string
 }
 
-func Bug(ctx context.Context, desc, format string, args ...interface{}) {
-	labels := []label.Label{tag.Bug.Of(desc)}
-	_, file, line, ok := runtime.Caller(1)
-	if ok {
-		labels = append(labels, tag.Callsite.Of(fmt.Sprintf("%s:%d", file, line)))
-	}
-	msg := fmt.Sprintf(format, args...)
-	event.Log(ctx, msg, labels...)
-}
-
-type bug struct {
-	Description, Event string
-}
-
-func (st *State) Bugs() []bug {
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	var bugs []bug
-	for k, v := range st.bugs {
-		bugs = append(bugs, bug{k, v})
-	}
-	sort.Slice(bugs, func(i, j int) bool {
-		return bugs[i].Description < bugs[j].Description
-	})
-	return bugs
-}
-
-func (st *State) recordBug(description, event string) {
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	if st.bugs == nil {
-		st.bugs = make(map[string]string)
-	}
-	st.bugs[description] = event
+func (st *State) Bugs() []bug.Bug {
+	return bug.List()
 }
 
 // Caches returns the set of Cache objects currently being served.
@@ -502,6 +467,12 @@ func (i *Instance) Serve(ctx context.Context, addr string) (string, error) {
 		mux.HandleFunc("/file/", render(FileTmpl, i.getFile))
 		mux.HandleFunc("/info", render(InfoTmpl, i.getInfo))
 		mux.HandleFunc("/memory", render(MemoryTmpl, getMemory))
+
+		mux.HandleFunc("/_makeabug", func(w http.ResponseWriter, r *http.Request) {
+			bug.Report("bug here", nil)
+			http.Error(w, "made a bug", http.StatusOK)
+		})
+
 		if err := http.Serve(listener, mux); err != nil {
 			event.Error(ctx, "Debug server failed", err)
 			return
@@ -676,9 +647,6 @@ func makeInstanceExporter(i *Instance) event.Exporter {
 				}
 			}
 		}
-		if b := tag.Bug.Get(ev); b != "" {
-			i.State.recordBug(b, fmt.Sprintf("%v", ev))
-		}
 		return ctx
 	}
 	// StdTrace must be above export.Spans below (by convention, export
@@ -809,8 +777,8 @@ var MainTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 <ul>{{range .State.Clients}}<li>{{template "clientlink" .Session.ID}}</li>{{end}}</ul>
 <h2>Servers</h2>
 <ul>{{range .State.Servers}}<li>{{template "serverlink" .ID}}</li>{{end}}</ul>
-<h2>Known bugs encountered</h2>
-<dl>{{range .State.Bugs}}<dt>{{.Description}}</dt><dd>{{.Event}}</dd>{{end}}</dl>
+<h2>Bug reports</h2>
+<dl>{{range .State.Bugs}}<dt>{{.Key}}</dt><dd>{{.Description}}</dd>{{end}}</dl>
 {{end}}
 `))
 

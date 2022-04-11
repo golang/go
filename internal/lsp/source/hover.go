@@ -22,6 +22,7 @@ import (
 
 	"golang.org/x/text/unicode/runenames"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/typeparams"
@@ -407,8 +408,11 @@ func linkData(obj types.Object, enclosing *types.TypeName) (name, importPath, an
 	}
 
 	// golang/go#52211: somehow we get here with a nil obj.Pkg
-	// TODO: allow using debug.Bug here, to catch this bug.
 	if obj.Pkg() == nil {
+		bug.Report("object with nil pkg", bug.Data{
+			"name": obj.Name(),
+			"type": fmt.Sprintf("%T", obj),
+		})
 		return "", "", ""
 	}
 
@@ -598,11 +602,9 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 				info.signatureSource = "func " + sig.name + sig.Format()
 			} else {
 				// Fall back on the object as a signature source.
-
-				// TODO(rfindley): refactor so that we can report bugs from the source
-				// package.
-
-				// debug.Bug(ctx, "invalid builtin hover", "did not find builtin signature: %v", err)
+				bug.Report("invalid builtin hover", bug.Data{
+					"err": err.Error(),
+				})
 				info.signatureSource = obj
 			}
 		case *types.Var:

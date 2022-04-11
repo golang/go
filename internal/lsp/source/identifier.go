@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/span"
@@ -98,6 +99,9 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	for _, pkg := range pkgs {
 		pgf, err := pkg.File(fh.URI())
 		if err != nil {
+			// We shouldn't get a package from PackagesForFile that doesn't actually
+			// contain the file.
+			bug.Report("missing package file", bug.Data{"pkg": pkg.ID(), "file": fh.URI()})
 			return nil, err
 		}
 		spn, err := pgf.Mapper.PointSpan(pos)
