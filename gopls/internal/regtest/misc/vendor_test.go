@@ -5,7 +5,6 @@
 package misc
 
 import (
-	"runtime"
 	"testing"
 
 	. "golang.org/x/tools/internal/lsp/regtest"
@@ -27,9 +26,16 @@ var Goodbye error
 
 func TestInconsistentVendoring(t *testing.T) {
 	testenv.NeedsGo1Point(t, 14)
-	if runtime.GOOS == "windows" {
-		t.Skipf("skipping test due to flakiness on Windows: https://golang.org/issue/49646")
-	}
+
+	// TODO(golang/go#49646): delete this comment once this test is stable.
+	//
+	// In golang/go#49646, this test is reported as flaky on Windows. We believe
+	// this is due to file contention from go mod vendor that should be resolved.
+	// If this test proves to still be flaky, skip it.
+	//
+	// if runtime.GOOS == "windows" {
+	// 	t.Skipf("skipping test due to flakiness on Windows: https://golang.org/issue/49646")
+	// }
 
 	const pkgThatUsesVendoring = `
 -- go.mod --

@@ -256,11 +256,19 @@ func (c *commandHandler) Vendor(ctx context.Context, args command.URIArg) error 
 		progress:    "Running go mod vendor",
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		_, err := deps.snapshot.RunGoCommandDirect(ctx, source.Normal|source.AllowNetwork, &gocommand.Invocation{
+		// Use RunGoCommandPiped here so that we don't compete with any other go
+		// command invocations. go mod vendor deletes modules.txt before recreating
+		// it, and therefore can run into file locking issues on Windows if that
+		// file is in use by another process, such as go list.
+		//
+		// If golang/go#44119 is resolved, go mod vendor will instead modify
+		// modules.txt in-place. In that case we could theoretically allow this
+		// command to run concurrently.
+		err := deps.snapshot.RunGoCommandPiped(ctx, source.Normal|source.AllowNetwork, &gocommand.Invocation{
 			Verb:       "mod",
 			Args:       []string{"vendor"},
 			WorkingDir: filepath.Dir(args.URI.SpanURI().Filename()),
-		})
+		}, &bytes.Buffer{}, &bytes.Buffer{})
 		return err
 	})
 }
