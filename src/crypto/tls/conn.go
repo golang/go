@@ -1403,6 +1403,16 @@ func (c *Conn) HandshakeContext(ctx context.Context) error {
 }
 
 func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
+	c.handshakeMutex.Lock()
+	defer c.handshakeMutex.Unlock()
+
+	if err := c.handshakeErr; err != nil {
+		return err
+	}
+	if c.handshakeComplete() {
+		return nil
+	}
+
 	handshakeCtx, cancel := context.WithCancel(ctx)
 	// Note: defer this before starting the "interrupter" goroutine
 	// so that we can tell the difference between the input being canceled and
@@ -1434,16 +1444,6 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 				interruptRes <- nil
 			}
 		}()
-	}
-
-	c.handshakeMutex.Lock()
-	defer c.handshakeMutex.Unlock()
-
-	if err := c.handshakeErr; err != nil {
-		return err
-	}
-	if c.handshakeComplete() {
-		return nil
 	}
 
 	c.in.Lock()
