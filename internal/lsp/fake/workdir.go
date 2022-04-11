@@ -88,7 +88,29 @@ type Workdir struct {
 	watchers  []func(context.Context, []FileEvent)
 
 	fileMu sync.Mutex
-	files  map[string]string
+	// File identities we know about, for the purpose of detecting changes.
+	//
+	// Since files is only used for detecting _changes_, we are tolerant of
+	// fileIDs that may have hash and mtime coming from different states of the
+	// file: if either are out of sync, then the next poll should detect a
+	// discrepancy. It is OK if we detect too many changes, but not OK if we miss
+	// changes.
+	//
+	// For that matter, this mechanism for detecting changes can still be flaky
+	// on platforms where mtime is very coarse (such as older versions of WSL).
+	// It would be much better to use a proper fs event library, but we can't
+	// currently import those into x/tools.
+	//
+	// TODO(golang/go#52284): replace this polling mechanism with a
+	// cross-platform library for filesystem notifications.
+	files map[string]fileID
+}
+
+// fileID is a file identity for the purposes of detecting on-disk
+// modifications.
+type fileID struct {
+	hash  string
+	mtime time.Time
 }
 
 // NewWorkdir writes the txtar-encoded file data in txt to dir, and returns a
@@ -102,11 +124,28 @@ func hashFile(data []byte) string {
 }
 
 func (w *Workdir) writeInitialFiles(files map[string][]byte) error {
-	w.files = map[string]string{}
+	w.files = map[string]fileID{}
 	for name, data := range files {
-		w.files[name] = hashFile(data)
 		if err := WriteFileData(name, data, w.RelativeTo); err != nil {
 			return errors.Errorf("writing to workdir: %w", err)
+		}
+		fp := w.AbsPath(name)
+
+		// We need the mtime of the file just written for the purposes of tracking
+		// file identity. Calling Stat here could theoretically return an mtime
+		// that is inconsistent with the file contents represented by the hash, but
+		// since we "own" this file we assume that the mtime is correct.
+		//
+		// Furthermore, see the documentation for Workdir.files for why mismatches
+		// between identifiers are considered to be benign.
+		fi, err := os.Stat(fp)
+		if err != nil {
+			return errors.Errorf("reading file info: %v", err)
+		}
+
+		w.files[name] = fileID{
+			hash:  hashFile(data),
+			mtime: fi.ModTime(),
 		}
 	}
 	return nil
@@ -283,9 +322,9 @@ func (w *Workdir) writeFile(ctx context.Context, path, content string) (FileEven
 }
 
 // listFiles lists files in the given directory, returning a map of relative
-// path to modification time.
-func (w *Workdir) listFiles(dir string) (map[string]string, error) {
-	files := make(map[string]string)
+// path to contents and modification time.
+func (w *Workdir) listFiles(dir string) (map[string]fileID, error) {
+	files := make(map[string]fileID)
 	absDir := w.AbsPath(dir)
 	if err := filepath.Walk(absDir, func(fp string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -295,11 +334,18 @@ func (w *Workdir) listFiles(dir string) (map[string]string, error) {
 			return nil
 		}
 		path := w.RelPath(fp)
+
 		data, err := ioutil.ReadFile(fp)
 		if err != nil {
 			return err
 		}
-		files[path] = hashFile(data)
+		// The content returned by ioutil.ReadFile could be inconsistent with
+		// info.ModTime(), due to a subsequent modification. See the documentation
+		// for w.files for why we consider this to be benign.
+		files[path] = fileID{
+			hash:  hashFile(data),
+			mtime: info.ModTime(),
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -330,14 +376,14 @@ func (w *Workdir) pollFiles() ([]FileEvent, error) {
 	}
 	var evts []FileEvent
 	// Check which files have been added or modified.
-	for path, hash := range files {
-		oldhash, ok := w.files[path]
+	for path, id := range files {
+		oldID, ok := w.files[path]
 		delete(w.files, path)
 		var typ protocol.FileChangeType
 		switch {
 		case !ok:
 			typ = protocol.Created
-		case oldhash != hash:
+		case oldID != id:
 			typ = protocol.Changed
 		default:
 			continue
