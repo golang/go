@@ -210,6 +210,9 @@ func (b *batch) walkFunc(fn *ir.Func) {
 		switch n.Op() {
 		case ir.OLABEL:
 			n := n.(*ir.LabelStmt)
+			if n.Label.IsBlank() {
+				break
+			}
 			if e.labels == nil {
 				e.labels = make(map[*types.Sym]labelState)
 			}
