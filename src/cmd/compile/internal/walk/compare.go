@@ -186,18 +186,19 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			expr = ir.NewLogicalExpr(base.Pos, andor, expr, a)
 		}
 	}
+	and := func(cond ir.Node) {
+		if expr == nil {
+			expr = cond
+		} else {
+			expr = ir.NewLogicalExpr(base.Pos, andor, expr, cond)
+		}
+	}
 	cmpl = safeExpr(cmpl, init)
 	cmpr = safeExpr(cmpr, init)
 	if t.IsStruct() {
-		for _, f := range t.Fields().Slice() {
-			sym := f.Sym
-			if sym.IsBlank() {
-				continue
-			}
-			compare(
-				ir.NewSelectorExpr(base.Pos, ir.OXDOT, cmpl, sym),
-				ir.NewSelectorExpr(base.Pos, ir.OXDOT, cmpr, sym),
-			)
+		flatConds := reflectdata.EqStruct(t, n.Op(), cmpl, cmpr)
+		for _, cond := range flatConds {
+			and(cond)
 		}
 	} else {
 		step := int64(1)

@@ -532,81 +532,7 @@ func geneq(t *types.Type) *obj.LSym {
 		}
 
 	case types.TSTRUCT:
-		// Build a list of conditions to satisfy.
-		// The conditions are a list-of-lists. Conditions are reorderable
-		// within each inner list. The outer lists must be evaluated in order.
-		var conds [][]ir.Node
-		conds = append(conds, []ir.Node{})
-		and := func(n ir.Node) {
-			i := len(conds) - 1
-			conds[i] = append(conds[i], n)
-		}
-
-		// Walk the struct using memequal for runs of AMEM
-		// and calling specific equality tests for the others.
-		for i, fields := 0, t.FieldSlice(); i < len(fields); {
-			f := fields[i]
-
-			// Skip blank-named fields.
-			if f.Sym.IsBlank() {
-				i++
-				continue
-			}
-
-			// Compare non-memory fields with field equality.
-			if !isRegularMemory(f.Type) {
-				if eqCanPanic(f.Type) {
-					// Enforce ordering by starting a new set of reorderable conditions.
-					conds = append(conds, []ir.Node{})
-				}
-				p := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym)
-				q := ir.NewSelectorExpr(base.Pos, ir.OXDOT, nq, f.Sym)
-				switch {
-				case f.Type.IsString():
-					eqlen, eqmem := EqString(p, q)
-					and(eqlen)
-					and(eqmem)
-				default:
-					and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
-				}
-				if eqCanPanic(f.Type) {
-					// Also enforce ordering after something that can panic.
-					conds = append(conds, []ir.Node{})
-				}
-				i++
-				continue
-			}
-
-			// Find maximal length run of memory-only fields.
-			size, next := memrun(t, i)
-
-			// TODO(rsc): All the calls to newname are wrong for
-			// cross-package unexported fields.
-			if s := fields[i:next]; len(s) <= 2 {
-				// Two or fewer fields: use plain field equality.
-				for _, f := range s {
-					and(eqfield(np, nq, f.Sym))
-				}
-			} else {
-				// More than two fields: use memequal.
-				and(eqmem(np, nq, f.Sym, size))
-			}
-			i = next
-		}
-
-		// Sort conditions to put runtime calls last.
-		// Preserve the rest of the ordering.
-		var flatConds []ir.Node
-		for _, c := range conds {
-			isCall := func(n ir.Node) bool {
-				return n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC
-			}
-			sort.SliceStable(c, func(i, j int) bool {
-				return !isCall(c[i]) && isCall(c[j])
-			})
-			flatConds = append(flatConds, c...)
-		}
-
+		flatConds := EqStruct(t, ir.OEQ, np, nq)
 		if len(flatConds) == 0 {
 			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
 		} else {
@@ -683,10 +609,10 @@ func anyCall(fn *ir.Func) bool {
 // eqfield returns the node
 //
 //	p.field == q.field
-func eqfield(p ir.Node, q ir.Node, field *types.Sym) ir.Node {
+func eqfield(p ir.Node, q ir.Node, op ir.Op, field *types.Sym) ir.Node {
 	nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)
 	ny := ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)
-	ne := ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny)
+	ne := ir.NewBinaryExpr(base.Pos, op, nx, ny)
 	return ne
 }
 
@@ -756,6 +682,93 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
 	cmp.SetType(types.Types[types.TBOOL])
 	return cmp, call
+}
+
+func EqStruct(t *types.Type, op ir.Op, np, nq ir.Node) []ir.Node {
+	// Build a list of conditions to satisfy.
+	// The conditions are a list-of-lists. Conditions are reorderable
+	// within each inner list. The outer lists must be evaluated in order.
+	var conds [][]ir.Node
+	conds = append(conds, []ir.Node{})
+	and := func(n ir.Node) {
+		i := len(conds) - 1
+		conds[i] = append(conds[i], n)
+	}
+
+	// Walk the struct using memequal for runs of AMEM
+	// and calling specific equality tests for the others.
+	for i, fields := 0, t.FieldSlice(); i < len(fields); {
+		f := fields[i]
+
+		// Skip blank-named fields.
+		if f.Sym.IsBlank() {
+			i++
+			continue
+		}
+
+		// Compare non-memory fields with field equality.
+		if !isRegularMemory(f.Type) {
+			if eqCanPanic(f.Type) {
+				// Enforce ordering by starting a new set of reorderable conditions.
+				conds = append(conds, []ir.Node{})
+			}
+			p := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym)
+			q := ir.NewSelectorExpr(base.Pos, ir.OXDOT, nq, f.Sym)
+			switch {
+			case f.Type.IsString():
+				eqlen, eqmem := EqString(p, q)
+				var callmem ir.Node = eqmem
+				if op != ir.OEQ {
+					eqlen.SetOp(op)
+					callmem = ir.NewUnaryExpr(base.Pos, ir.ONOT, eqmem)
+				}
+				and(eqlen)
+				and(callmem)
+			default:
+				and(ir.NewBinaryExpr(base.Pos, op, p, q))
+			}
+			if eqCanPanic(f.Type) {
+				// Also enforce ordering after something that can panic.
+				conds = append(conds, []ir.Node{})
+			}
+			i++
+			continue
+		}
+
+		// Find maximal length run of memory-only fields.
+		size, next := memrun(t, i)
+
+		// TODO(rsc): All the calls to newname are wrong for
+		// cross-package unexported fields.
+		if s := fields[i:next]; len(s) <= 2 {
+			// Two or fewer fields: use plain field equality.
+			for _, f := range s {
+				and(eqfield(np, nq, op, f.Sym))
+			}
+		} else {
+			// More than two fields: use memequal.
+			cc := eqmem(np, nq, f.Sym, size)
+			if op != ir.OEQ {
+				cc = ir.NewUnaryExpr(base.Pos, ir.ONOT, cc)
+			}
+			and(cc)
+		}
+		i = next
+	}
+
+	// Sort conditions to put runtime calls last.
+	// Preserve the rest of the ordering.
+	var flatConds []ir.Node
+	for _, c := range conds {
+		isCall := func(n ir.Node) bool {
+			return n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC
+		}
+		sort.SliceStable(c, func(i, j int) bool {
+			return !isCall(c[i]) && isCall(c[j])
+		})
+		flatConds = append(flatConds, c...)
+	}
+	return flatConds
 }
 
 // eqmem returns the node
