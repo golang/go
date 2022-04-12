@@ -16,7 +16,6 @@ import (
 // An lvalue represents an assignable location that may appear on the
 // left-hand side of an assignment.  This is a generalization of a
 // pointer to permit updates to elements of maps.
-//
 type lvalue interface {
 	store(fn *Function, v Value) // stores v into the location
 	load(fn *Function) Value     // loads the contents of the location
@@ -60,7 +59,6 @@ func (a *address) typ() types.Type {
 // element of a map or string.  These locations are not addressable
 // since pointers cannot be formed from them, but they do support
 // load(), and in the case of maps, store().
-//
 type element struct {
 	m, k Value      // map or string
 	t    types.Type // map element type or string byte type
@@ -97,7 +95,6 @@ func (e *element) typ() types.Type {
 
 // A blank is a dummy variable whose name is "_".
 // It is not reified: loads are illegal and stores are ignored.
-//
 type blank struct{}
 
 func (bl blank) load(fn *Function) Value {

@@ -18,7 +18,6 @@ import "golang.org/x/tools/go/ssa"
 // synthetic wrappers.
 //
 // Precondition: all packages are built.
-//
 func AllFunctions(prog *ssa.Program) map[*ssa.Function]bool {
 	visit := visitor{
 		prog: prog,

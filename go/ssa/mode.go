@@ -15,9 +15,8 @@ import (
 //
 // *BuilderMode satisfies the flag.Value interface.  Example:
 //
-// 	var mode = ssa.BuilderMode(0)
-// 	func init() { flag.Var(&mode, "build", ssa.BuilderModeDoc) }
-//
+//	var mode = ssa.BuilderMode(0)
+//	func init() { flag.Var(&mode, "build", ssa.BuilderModeDoc) }
 type BuilderMode uint
 
 const (

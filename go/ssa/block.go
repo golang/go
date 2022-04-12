@@ -19,14 +19,12 @@ func (b *BasicBlock) Parent() *Function { return b.parent }
 
 // String returns a human-readable label of this block.
 // It is not guaranteed unique within the function.
-//
 func (b *BasicBlock) String() string {
 	return fmt.Sprintf("%d", b.Index)
 }
 
 // emit appends an instruction to the current basic block.
 // If the instruction defines a Value, it is returned.
-//
 func (b *BasicBlock) emit(i Instruction) Value {
 	i.setBlock(b)
 	b.Instrs = append(b.Instrs, i)
@@ -63,7 +61,6 @@ func (b *BasicBlock) phis() []Instruction {
 
 // replacePred replaces all occurrences of p in b's predecessor list with q.
 // Ordinarily there should be at most one.
-//
 func (b *BasicBlock) replacePred(p, q *BasicBlock) {
 	for i, pred := range b.Preds {
 		if pred == p {
@@ -74,7 +71,6 @@ func (b *BasicBlock) replacePred(p, q *BasicBlock) {
 
 // replaceSucc replaces all occurrences of p in b's successor list with q.
 // Ordinarily there should be at most one.
-//
 func (b *BasicBlock) replaceSucc(p, q *BasicBlock) {
 	for i, succ := range b.Succs {
 		if succ == p {
@@ -86,7 +82,6 @@ func (b *BasicBlock) replaceSucc(p, q *BasicBlock) {
 // removePred removes all occurrences of p in b's
 // predecessor list and φ-nodes.
 // Ordinarily there should be at most one.
-//
 func (b *BasicBlock) removePred(p *BasicBlock) {
 	phis := b.phis()
 

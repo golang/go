@@ -41,60 +41,60 @@
 //
 // The primary interfaces of this package are:
 //
-//    - Member: a named member of a Go package.
-//    - Value: an expression that yields a value.
-//    - Instruction: a statement that consumes values and performs computation.
-//    - Node: a Value or Instruction (emphasizing its membership in the SSA value graph)
+//   - Member: a named member of a Go package.
+//   - Value: an expression that yields a value.
+//   - Instruction: a statement that consumes values and performs computation.
+//   - Node: a Value or Instruction (emphasizing its membership in the SSA value graph)
 //
 // A computation that yields a result implements both the Value and
 // Instruction interfaces.  The following table shows for each
 // concrete type which of these interfaces it implements.
 //
-//                      Value?          Instruction?      Member?
-//   *Alloc                ✔               ✔
-//   *BinOp                ✔               ✔
-//   *Builtin              ✔
-//   *Call                 ✔               ✔
-//   *ChangeInterface      ✔               ✔
-//   *ChangeType           ✔               ✔
-//   *Const                ✔
-//   *Convert              ✔               ✔
-//   *DebugRef                             ✔
-//   *Defer                                ✔
-//   *Extract              ✔               ✔
-//   *Field                ✔               ✔
-//   *FieldAddr            ✔               ✔
-//   *FreeVar              ✔
-//   *Function             ✔                               ✔ (func)
-//   *Global               ✔                               ✔ (var)
-//   *Go                                   ✔
-//   *If                                   ✔
-//   *Index                ✔               ✔
-//   *IndexAddr            ✔               ✔
-//   *Jump                                 ✔
-//   *Lookup               ✔               ✔
-//   *MakeChan             ✔               ✔
-//   *MakeClosure          ✔               ✔
-//   *MakeInterface        ✔               ✔
-//   *MakeMap              ✔               ✔
-//   *MakeSlice            ✔               ✔
-//   *MapUpdate                            ✔
-//   *NamedConst                                           ✔ (const)
-//   *Next                 ✔               ✔
-//   *Panic                                ✔
-//   *Parameter            ✔
-//   *Phi                  ✔               ✔
-//   *Range                ✔               ✔
-//   *Return                               ✔
-//   *RunDefers                            ✔
-//   *Select               ✔               ✔
-//   *Send                                 ✔
-//   *Slice                ✔               ✔
-//   *SliceToArrayPointer  ✔               ✔
-//   *Store                                ✔
-//   *Type                                                 ✔ (type)
-//   *TypeAssert           ✔               ✔
-//   *UnOp                 ✔               ✔
+//	                   Value?          Instruction?      Member?
+//	*Alloc                ✔               ✔
+//	*BinOp                ✔               ✔
+//	*Builtin              ✔
+//	*Call                 ✔               ✔
+//	*ChangeInterface      ✔               ✔
+//	*ChangeType           ✔               ✔
+//	*Const                ✔
+//	*Convert              ✔               ✔
+//	*DebugRef                             ✔
+//	*Defer                                ✔
+//	*Extract              ✔               ✔
+//	*Field                ✔               ✔
+//	*FieldAddr            ✔               ✔
+//	*FreeVar              ✔
+//	*Function             ✔                               ✔ (func)
+//	*Global               ✔                               ✔ (var)
+//	*Go                                   ✔
+//	*If                                   ✔
+//	*Index                ✔               ✔
+//	*IndexAddr            ✔               ✔
+//	*Jump                                 ✔
+//	*Lookup               ✔               ✔
+//	*MakeChan             ✔               ✔
+//	*MakeClosure          ✔               ✔
+//	*MakeInterface        ✔               ✔
+//	*MakeMap              ✔               ✔
+//	*MakeSlice            ✔               ✔
+//	*MapUpdate                            ✔
+//	*NamedConst                                           ✔ (const)
+//	*Next                 ✔               ✔
+//	*Panic                                ✔
+//	*Parameter            ✔
+//	*Phi                  ✔               ✔
+//	*Range                ✔               ✔
+//	*Return                               ✔
+//	*RunDefers                            ✔
+//	*Select               ✔               ✔
+//	*Send                                 ✔
+//	*Slice                ✔               ✔
+//	*SliceToArrayPointer  ✔               ✔
+//	*Store                                ✔
+//	*Type                                                 ✔ (type)
+//	*TypeAssert           ✔               ✔
+//	*UnOp                 ✔               ✔
 //
 // Other key types in this package include: Program, Package, Function
 // and BasicBlock.
@@ -122,5 +122,4 @@
 // of trying to determine corresponding elements across the four
 // domains of source locations, ast.Nodes, types.Objects,
 // ssa.Values/Instructions.
-//
 package ssa // import "golang.org/x/tools/go/ssa"

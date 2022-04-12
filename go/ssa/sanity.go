@@ -30,7 +30,6 @@ type sanity struct {
 //
 // Sanity-checking is intended to facilitate the debugging of code
 // transformation passes.
-//
 func sanityCheck(fn *Function, reporter io.Writer) bool {
 	if reporter == nil {
 		reporter = os.Stderr
@@ -40,7 +39,6 @@ func sanityCheck(fn *Function, reporter io.Writer) bool {
 
 // mustSanityCheck is like sanityCheck but panics instead of returning
 // a negative result.
-//
 func mustSanityCheck(fn *Function, reporter io.Writer) {
 	if !sanityCheck(fn, reporter) {
 		fn.WriteTo(os.Stderr)

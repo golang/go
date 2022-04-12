@@ -55,7 +55,6 @@ func (insts *instanceSet) list() []*Function {
 // Precondition: fn is a package level declaration (function or method).
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodMu)
-//
 func (prog *Program) createInstanceSet(fn *Function) {
 	assert(len(fn._TypeParams) > 0 && len(fn._TypeArgs) == 0, "Can only create instance sets for generic functions")
 
@@ -88,7 +87,6 @@ func (prog *Program) needsInstance(fn *Function, targs []types.Type, cr *creator
 
 // lookupOrCreate returns the instantiation of insts.fn using targs.
 // If the instantiation is reported, this is added to cr.
-//
 func (insts *instanceSet) lookupOrCreate(targs []types.Type, cr *creator) *Function {
 	if insts.instances == nil {
 		insts.instances = make(map[*typeList]*Function)
@@ -116,7 +114,6 @@ func (insts *instanceSet) lookupOrCreate(targs []types.Type, cr *creator) *Funct
 // createInstance returns an CREATEd instantiation of fn using targs.
 //
 // Function is added to cr.
-//
 func createInstance(fn *Function, targs []types.Type, info *types.Info, syntax ast.Node, cr *creator) *Function {
 	prog := fn.Prog
 	var sig *types.Signature

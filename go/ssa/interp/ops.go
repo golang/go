@@ -336,7 +336,6 @@ func lookup(instr *ssa.Lookup, x, idx value) value {
 // binop implements all arithmetic and logical binary operators for
 // numeric datatypes and strings.  Both operands must have identical
 // dynamic type.
-//
 func binop(op token.Token, t types.Type, x, y value) value {
 	switch op {
 	case token.ADD:
@@ -810,7 +809,6 @@ func binop(op token.Token, t types.Type, x, y value) value {
 // appropriate for type t.
 // If t is a reference type, at most one of x or y may be a nil value
 // of that type.
-//
 func eqnil(t types.Type, x, y value) bool {
 	switch t.Underlying().(type) {
 	case *types.Map, *types.Signature, *types.Slice:
@@ -919,7 +917,6 @@ func unop(instr *ssa.UnOp, x value) value {
 // typeAssert checks whether dynamic type of itf is instr.AssertedType.
 // It returns the extracted value on success, and panics on failure,
 // unless instr.CommaOk, in which case it always returns a "value,ok" tuple.
-//
 func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 	var v value
 	err := ""
@@ -956,7 +953,6 @@ func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 // failure if "BUG" appears in the combined stdout/stderr output, even
 // if it exits zero.  This is a global variable shared by all
 // interpreters in the same process.)
-//
 var CapturedOutput *bytes.Buffer
 var capturedOutputMu sync.Mutex
 
@@ -1129,10 +1125,11 @@ func rangeIter(x value, t types.Type) iter {
 
 // widen widens a basic typed value x to the widest type of its
 // category, one of:
-//   bool, int64, uint64, float64, complex128, string.
+//
+//	bool, int64, uint64, float64, complex128, string.
+//
 // This is inefficient but reduces the size of the cross-product of
 // cases we have to consider.
-//
 func widen(x value) value {
 	switch y := x.(type) {
 	case bool, int64, uint64, float64, complex128, string, unsafe.Pointer:
@@ -1166,7 +1163,6 @@ func widen(x value) value {
 // conv converts the value x of type t_src to type t_dst and returns
 // the result.
 // Possible cases are described with the ssa.Convert operator.
-//
 func conv(t_dst, t_src types.Type, x value) value {
 	ut_src := t_src.Underlying()
 	ut_dst := t_dst.Underlying()
@@ -1425,7 +1421,6 @@ func sliceToArrayPointer(t_dst, t_src types.Type, x value) value {
 // checkInterface checks that the method set of x implements the
 // interface itype.
 // On success it returns "", on failure, an error message.
-//
 func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
 	if meth, _ := types.MissingMethod(x.t, itype, true); meth != nil {
 		return fmt.Sprintf("interface conversion: %v is not %v: missing method %s",

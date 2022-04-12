@@ -48,7 +48,6 @@ func main() {
 // Build and run the ssadump.go program if you want a standalone tool
 // with similar functionality. It is located at
 // golang.org/x/tools/cmd/ssadump.
-//
 func Example_buildPackage() {
 	// Replace interface{} with any for this test.
 	ssa.SetNormalizeAnyForTesting(true)
