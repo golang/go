@@ -471,7 +471,7 @@ func CompareURI(left, right span.URI) int {
 //
 // Copied and slightly adjusted from go/src/cmd/go/internal/search/search.go.
 func InDir(dir, path string) bool {
-	if inDirLex(dir, path) {
+	if InDirLex(dir, path) {
 		return true
 	}
 	if !honorSymlinks {
@@ -481,18 +481,18 @@ func InDir(dir, path string) bool {
 	if err != nil || xpath == path {
 		xpath = ""
 	} else {
-		if inDirLex(dir, xpath) {
+		if InDirLex(dir, xpath) {
 			return true
 		}
 	}
 
 	xdir, err := filepath.EvalSymlinks(dir)
 	if err == nil && xdir != dir {
-		if inDirLex(xdir, path) {
+		if InDirLex(xdir, path) {
 			return true
 		}
 		if xpath != "" {
-			if inDirLex(xdir, xpath) {
+			if InDirLex(xdir, xpath) {
 				return true
 			}
 		}
@@ -500,11 +500,11 @@ func InDir(dir, path string) bool {
 	return false
 }
 
-// inDirLex is like inDir but only checks the lexical form of the file names.
+// InDirLex is like inDir but only checks the lexical form of the file names.
 // It does not consider symbolic links.
 //
 // Copied from go/src/cmd/go/internal/search/search.go.
-func inDirLex(dir, path string) bool {
+func InDirLex(dir, path string) bool {
 	pv := strings.ToUpper(filepath.VolumeName(path))
 	dv := strings.ToUpper(filepath.VolumeName(dir))
 	path = path[len(pv):]

@@ -768,6 +768,8 @@ func (s *snapshot) isActiveLocked(id PackageID, seen map[PackageID]bool) (active
 			return true
 		}
 	}
+	// TODO(rfindley): it looks incorrect that we don't also check GoFiles here.
+	// If a CGo file is open, we want to consider the package active.
 	for _, dep := range m.Deps {
 		if s.isActiveLocked(dep, seen) {
 			return true
@@ -1289,11 +1291,11 @@ func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
 func (s *snapshot) noValidMetadataForID(id PackageID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.noValidMetadataForIDLocked(id)
+	return noValidMetadataForID(s.meta, id)
 }
 
-func (s *snapshot) noValidMetadataForIDLocked(id PackageID) bool {
-	m := s.meta.metadata[id]
+func noValidMetadataForID(g *metadataGraph, id PackageID) bool {
+	m := g.metadata[id]
 	return m == nil || !m.Valid
 }
 
@@ -1789,8 +1791,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 
+	// Compute invalidations based on file changes.
 	changedPkgFiles := map[PackageID]bool{} // packages whose file set may have changed
 	anyImportDeleted := false
+	anyFileOpenedOrClosed := false
 	for uri, change := range changes {
 		// Maybe reinitialize the view if we see a change in the vendor
 		// directory.
@@ -1800,6 +1804,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 		// The original FileHandle for this URI is cached on the snapshot.
 		originalFH := s.files[uri]
+		var originalOpen, newOpen bool
+		_, originalOpen = originalFH.(*overlay)
+		_, newOpen = change.fileHandle.(*overlay)
+		anyFileOpenedOrClosed = originalOpen != newOpen
 
 		// If uri is a Go file, check if it has changed in a way that would
 		// invalidate metadata. Note that we can't use s.view.FileKind here,
@@ -1903,6 +1911,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		newGen.Inherit(v.handle)
 		result.packages[k] = v
 	}
+
 	// Copy the package analysis information.
 	for k, v := range s.actions {
 		if _, ok := idsToInvalidate[k.pkg.id]; ok {
@@ -1988,13 +1997,19 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 
+	// Update metadata, if necessary.
 	if len(metadataUpdates) > 0 {
 		result.meta = s.meta.Clone(metadataUpdates)
-		result.workspacePackages = computeWorkspacePackages(result.meta)
 	} else {
 		// No metadata changes. Since metadata is only updated by cloning, it is
 		// safe to re-use the existing metadata here.
 		result.meta = s.meta
+	}
+
+	// Update workspace packages, if necessary.
+	if result.meta != s.meta || anyFileOpenedOrClosed {
+		result.workspacePackages = computeWorkspacePackagesLocked(result, result.meta)
+	} else {
 		result.workspacePackages = s.workspacePackages
 	}
 

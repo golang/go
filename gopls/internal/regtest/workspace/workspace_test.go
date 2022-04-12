@@ -1305,3 +1305,67 @@ func (Server) Foo() {}
 		_, _ = env.GoToDefinition("other_test.go", env.RegexpSearch("other_test.go", "Server"))
 	})
 }
+
+// Test for golang/go#48929.
+func TestClearNonWorkspaceDiagnostics(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // uses go.work
+
+	const ws = `
+-- go.work --
+go 1.18
+
+use (
+        ./b
+)
+-- a/go.mod --
+module a
+
+go 1.17
+-- a/main.go --
+package main
+
+func main() {
+   var V string
+}
+-- b/go.mod --
+module b
+
+go 1.17
+-- b/main.go --
+package b
+
+import (
+        _ "fmt"
+)
+`
+	Run(t, ws, func(t *testing.T, env *Env) {
+		env.OpenFile("b/main.go")
+		env.Await(
+			OnceMet(
+				env.DoneWithOpen(),
+				NoDiagnostics("a/main.go"),
+			),
+		)
+		env.OpenFile("a/main.go")
+		env.Await(
+			OnceMet(
+				env.DoneWithOpen(),
+				env.DiagnosticAtRegexpWithMessage("a/main.go", "V", "declared but not used"),
+			),
+		)
+		env.CloseBuffer("a/main.go")
+
+		// Make an arbitrary edit because gopls explicitly diagnoses a/main.go
+		// whenever it is "changed".
+		//
+		// TODO(rfindley): it should not be necessary to make another edit here.
+		// Gopls should be smart enough to avoid diagnosing a.
+		env.RegexpReplace("b/main.go", "package b", "package b // a package")
+		env.Await(
+			OnceMet(
+				env.DoneWithChange(),
+				EmptyDiagnostics("a/main.go"),
+			),
+		)
+	})
+}

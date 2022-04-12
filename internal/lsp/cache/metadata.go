@@ -67,13 +67,6 @@ type Metadata struct {
 	// TODO(rfindley): this can probably just be a method, since it is derived
 	// from other fields.
 	IsIntermediateTestVariant bool
-
-	// HasWorkspaceFiles reports whether m contains any files that are considered
-	// part of the workspace.
-	//
-	// TODO(golang/go#48929): this should be a property of the workspace
-	// (the go.work file), not a constant.
-	HasWorkspaceFiles bool
 }
 
 // Name implements the source.Metadata interface.

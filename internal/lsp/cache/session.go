@@ -323,6 +323,8 @@ func bestViewForURI(uri span.URI, views []*View) *View {
 		if longest != nil && len(longest.Folder()) > len(view.Folder()) {
 			continue
 		}
+		// TODO(rfindley): this should consider the workspace layout (i.e.
+		// go.work).
 		if view.contains(uri) {
 			longest = view
 		}

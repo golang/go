@@ -66,6 +66,8 @@ func (d diagnosticSource) String() string {
 		return "FromTypeChecking"
 	case orphanedSource:
 		return "FromOrphans"
+	case workSource:
+		return "FromGoWork"
 	default:
 		return fmt.Sprintf("From?%d?", d)
 	}

@@ -613,7 +613,7 @@ func NoDiagnostics(name string) Expectation {
 	}
 	return SimpleExpectation{
 		check:       check,
-		description: "no diagnostics",
+		description: fmt.Sprintf("no diagnostics for %q", name),
 	}
 }
 
