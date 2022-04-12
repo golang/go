@@ -18,30 +18,27 @@ env GOCACHE=$WORK/gocache
 exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinCache -test.fuzztime=1000x
 go run check_cache/check_cache.go $GOCACHE/fuzz/FuzzMinCache
 
-go test -c -fuzz=.  # Build using shared build cache for speed.
-env GOCACHE=$WORK/gocache
-
 # Test that minimization occurs for a crash that appears while minimizing a
 # newly found interesting input. There must be only one worker for this test to
 # be flaky like we want.
-! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.run=FuzzMinimizerCrashInMinimization -test.fuzztime=10000x -test.parallel=1
+! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.run=XXX -test.fuzztime=10000x -test.parallel=1
 ! stdout '^ok'
 stdout -count=1 'got the minimum size!'
-stdout -count=1 'flaky failure'
+stdout -count=1 'bad input'
 stdout FAIL
 # Check that the input written to testdata will reproduce the error, and is the
 # smallest possible.
-go run check_testdata/check_testdata.go FuzzMinimizerCrashInMinimization 50
+go run check_testdata/check_testdata.go FuzzMinimizerCrashInMinimization 1
 
 # Test that a nonrecoverable error that occurs while minimizing an interesting
 # input is reported correctly.
-! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerNonrecoverableCrashInMinimization -test.run=FuzzMinimizerNonrecoverableCrashInMinimization -test.fuzztime=10000x -test.parallel=1
+! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerNonrecoverableCrashInMinimization -test.run=XXX -test.fuzztime=10000x -test.parallel=1
 ! stdout '^ok'
 stdout -count=1 'fuzzing process hung or terminated unexpectedly while minimizing'
 stdout -count=1 'EOF'
 stdout FAIL
 # Check that the input written to testdata will reproduce the error.
-go run check_testdata/check_testdata.go FuzzMinimizerNonrecoverableCrashInMinimization 100
+go run check_testdata/check_testdata.go FuzzMinimizerNonrecoverableCrashInMinimization 1
 
 -- go.mod --
 module fuzz
@@ -65,57 +62,34 @@ package fuzz
 
 import (
 	"bytes"
-	"io"
 	"os"
-	"strings"
 	"testing"
-	"unicode/utf8"
 )
 
 func FuzzMinimizerCrashInMinimization(f *testing.F) {
-	seed := strings.Repeat("A", 1000)
+	seed := bytes.Repeat([]byte{255}, 100)
 	f.Add(seed)
-	i := 3
-	f.Fuzz(func(t *testing.T, s string) {
-		if len(s) < 50 || len(s) > 1100 {
-			// Make sure that b is large enough that it can be minimized
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if bytes.Equal(seed, b) {
 			return
 		}
-		if s != seed {
-			// This should hit a new edge, and the interesting input
-			// should attempt minimization
-			Y(io.Discard, s)
-		}
-		if i > 0 {
-			// Don't let it fail right away.
-			i--
-		} else if utf8.RuneCountInString(s) == len(s) && len(s) <= 100 {
-			// Make sure this only fails if the number of bytes in the
-			// marshaled string is the same as the unmarshaled string,
-			// so that we can check the length of the testdata file.
-			t.Error("flaky failure")
-			if len(s) == 50 {
-				t.Error("got the minimum size!")
-			}
+		t.Error("bad input")
+		if len(b) == 1 {
+			t.Error("got the minimum size!")
 		}
 	})
 }
 
+var fuzzing bool
+
 func FuzzMinimizerNonrecoverableCrashInMinimization(f *testing.F) {
-	seed := strings.Repeat("A", 1000)
+	seed := bytes.Repeat([]byte{255}, 100)
 	f.Add(seed)
-	i := 3
-	f.Fuzz(func(t *testing.T, s string) {
-		if len(s) < 50 || len(s) > 1100 {
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if bytes.Equal(seed, b) {
 			return
-		}
-		if s != seed {
-			Y(io.Discard, s)
-		}
-		if i > 0 {
-			i--
-		} else if utf8.RuneCountInString(s) == len(s) && len(s) <= 100 {
-			os.Exit(19)
+		} else if len(b) == 1 {
+			os.Exit(1)
 		}
 	})
 }
@@ -138,10 +112,12 @@ func FuzzMinCache(f *testing.F) {
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 )
 
@@ -165,21 +141,35 @@ func main() {
 		os.Exit(1)
 	}
 
-	fname := files[0].Name()
-	contents, err := ioutil.ReadFile(filepath.Join(dir, fname))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	for _, f := range files {
+		data, err := ioutil.ReadFile(filepath.Join(dir, f.Name()))
+		if err != nil {
+			panic(err)
+		}
+		var containsVal bool
+		for _, line := range bytes.Split(data, []byte("\n")) {
+			m := valRe.FindSubmatch(line)
+			if m == nil {
+				continue
+			}
+			containsVal = true
+			s, err := strconv.Unquote(string(m[1]))
+			if err != nil {
+				panic(err)
+			}
+			if len(s) != wantLen {
+				fmt.Fprintf(os.Stderr, "expect length %d, got %d (%q)\n", wantLen, len(s), line)
+				os.Exit(1)
+			}
+		}
+		if !containsVal {
+			fmt.Fprintln(os.Stderr, "corpus file contained no values")
+			os.Exit(1)
+		}
 	}
-	contentsLen := len(contents) - len(`go test fuzz v1
-string("")
-`)
-	if got, want := contentsLen, wantLen; got > want {
-		fmt.Fprintf(os.Stderr, "expect length <= %d, got %d\n", want, got)
-		os.Exit(1)
-	}
-	fmt.Fprintf(os.Stderr, "%s\n", contents)
 }
+
+var valRe = regexp.MustCompile(`^\[\]byte\(([^)]+)\)$`)
 
 -- check_cache/check_cache.go --
 //go:build ignore
