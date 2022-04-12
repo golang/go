@@ -32,13 +32,13 @@ func isReferenceNode(n node) bool {
 
 // hasInFlow checks if a concrete type can flow to node `n`.
 // Returns yes iff the type of `n` satisfies one the following:
-//  1) is an interface
-//  2) is a (nested) pointer to interface (needed for, say,
+//  1. is an interface
+//  2. is a (nested) pointer to interface (needed for, say,
 //     slice elements of nested pointers to interface type)
-//  3) is a function type (needed for higher-order type flow)
-//  4) is a (nested) pointer to function (needed for, say,
+//  3. is a function type (needed for higher-order type flow)
+//  4. is a (nested) pointer to function (needed for, say,
 //     slice elements of nested pointers to function type)
-//  5) is a global Recover or Panic node
+//  5. is a global Recover or Panic node
 func hasInFlow(n node) bool {
 	if _, ok := n.(panicArg); ok {
 		return true

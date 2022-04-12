@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package vta computes the call graph of a Go program using the Variable
-// Type Analysis (VTA) algorithm originally described in ``Practical Virtual
+// Type Analysis (VTA) algorithm originally described in “Practical Virtual
 // Method Call Resolution for Java," Vijay Sundaresan, Laurie Hendren,
 // Chrislain Razafimahefa, Raja Vallée-Rai, Patrick Lam, Etienne Gagnon, and
 // Charles Godin.
@@ -18,22 +18,23 @@
 //
 // A type propagation is a directed, labeled graph. A node can represent
 // one of the following:
-//  - A field of a struct type.
-//  - A local (SSA) variable of a method/function.
-//  - All pointers to a non-interface type.
-//  - The return value of a method.
-//  - All elements in an array.
-//  - All elements in a slice.
-//  - All elements in a map.
-//  - All elements in a channel.
-//  - A global variable.
+//   - A field of a struct type.
+//   - A local (SSA) variable of a method/function.
+//   - All pointers to a non-interface type.
+//   - The return value of a method.
+//   - All elements in an array.
+//   - All elements in a slice.
+//   - All elements in a map.
+//   - All elements in a channel.
+//   - A global variable.
+//
 // In addition, the implementation used in this package introduces
 // a few Go specific kinds of nodes:
-//  - (De)references of nested pointers to interfaces are modeled
-//    as a unique nestedPtrInterface node in the type propagation graph.
-//  - Each function literal is represented as a function node whose
-//    internal value is the (SSA) representation of the function. This
-//    is done to precisely infer flow of higher-order functions.
+//   - (De)references of nested pointers to interfaces are modeled
+//     as a unique nestedPtrInterface node in the type propagation graph.
+//   - Each function literal is represented as a function node whose
+//     internal value is the (SSA) representation of the function. This
+//     is done to precisely infer flow of higher-order functions.
 //
 // Edges in the graph represent flow of types (and function literals) through
 // the program. That is, the model 1) typing constraints that are induced by

@@ -9,7 +9,9 @@ package trie
 // will be stored for the key.
 //
 // Collision functions must be idempotent:
-//   collision(x, x) == x for all x.
+//
+//	collision(x, x) == x for all x.
+//
 // Collisions functions may be applied whenever a value is inserted
 // or two maps are merged, or intersected.
 type Collision func(lhs interface{}, rhs interface{}) interface{}
@@ -72,7 +74,8 @@ func (b *Builder) Empty() Map { return Map{b.Scope(), b.empty} }
 // in the current scope and handle collisions using the collision function c.
 //
 // This is roughly corresponds to updating a map[uint64]interface{} by:
-//   if _, ok := m[k]; ok { m[k] = c(m[k], v} else { m[k] = v}
+//
+//	if _, ok := m[k]; ok { m[k] = c(m[k], v} else { m[k] = v}
 //
 // An insertion or update happened whenever Insert(m, ...) != m .
 func (b *Builder) InsertWith(c Collision, m Map, k uint64, v interface{}) Map {
@@ -85,7 +88,8 @@ func (b *Builder) InsertWith(c Collision, m Map, k uint64, v interface{}) Map {
 //
 // If there was a previous value mapped by key, keep the previously mapped value.
 // This is roughly corresponds to updating a map[uint64]interface{} by:
-//   if _, ok := m[k]; ok { m[k] = val }
+//
+//	if _, ok := m[k]; ok { m[k] = val }
 //
 // This is equivalent to b.Merge(m, b.Create({k: v})).
 func (b *Builder) Insert(m Map, k uint64, v interface{}) Map {
@@ -94,7 +98,8 @@ func (b *Builder) Insert(m Map, k uint64, v interface{}) Map {
 
 // Updates a (key, value) in the map. This is roughly corresponds to
 // updating a map[uint64]interface{} by:
-//   m[key] = val
+//
+//	m[key] = val
 func (b *Builder) Update(m Map, key uint64, val interface{}) Map {
 	return b.InsertWith(TakeRhs, m, key, val)
 }
@@ -148,14 +153,17 @@ func (b *Builder) Remove(m Map, k uint64) Map {
 
 // Intersect Maps lhs and rhs and returns a map with all of the keys in
 // both lhs and rhs and the value comes from lhs, i.e.
-//   {(k, lhs[k]) | k in lhs, k in rhs}.
+//
+//	{(k, lhs[k]) | k in lhs, k in rhs}.
 func (b *Builder) Intersect(lhs, rhs Map) Map {
 	return b.IntersectWith(TakeLhs, lhs, rhs)
 }
 
 // IntersectWith take lhs and rhs and returns the intersection
 // with the value coming from the collision function, i.e.
-//   {(k, c(lhs[k], rhs[k]) ) | k in lhs, k in rhs}.
+//
+//	{(k, c(lhs[k], rhs[k]) ) | k in lhs, k in rhs}.
+//
 // The elements of the resulting map are always { <k, c(lhs[k], rhs[k]) > }
 // for each key k that a key in both lhs and rhs.
 func (b *Builder) IntersectWith(c Collision, lhs, rhs Map) Map {
@@ -261,7 +269,9 @@ func (b *Builder) mkLeaf(k key, v interface{}) *leaf {
 }
 
 // mkBranch returns the hash-consed representative of the tuple
-//   (prefix, branch, left, right)
+//
+//	(prefix, branch, left, right)
+//
 // in the current scope.
 func (b *Builder) mkBranch(p prefix, bp bitpos, left node, right node) *branch {
 	br := &branch{

@@ -123,7 +123,8 @@ func sccEqual(sccs1 []string, sccs2 []string) bool {
 
 // isRevTopSorted checks if sccs of `g` are sorted in reverse
 // topological order:
-//  for every edge x -> y in g, nodeToScc[x] > nodeToScc[y]
+//
+//	for every edge x -> y in g, nodeToScc[x] > nodeToScc[y]
 func isRevTopSorted(g vtaGraph, nodeToScc map[node]int) bool {
 	for n, succs := range g {
 		for s := range succs {
@@ -148,39 +149,39 @@ func setName(f *ssa.Function, name string) {
 // parentheses contain node types and F nodes stand for function
 // nodes whose content is function named F:
 //
-//  no-cycles:
-//	t0 (A) -> t1 (B) -> t2 (C)
+//	 no-cycles:
+//		t0 (A) -> t1 (B) -> t2 (C)
 //
-//  trivial-cycle:
-//      <--------    <--------
-//      |       |    |       |
-//      t0 (A) ->    t1 (B) ->
+//	 trivial-cycle:
+//	     <--------    <--------
+//	     |       |    |       |
+//	     t0 (A) ->    t1 (B) ->
 //
-//  circle-cycle:
-//	t0 (A) -> t1 (A) -> t2 (B)
-//      |                   |
-//      <--------------------
+//	 circle-cycle:
+//		t0 (A) -> t1 (A) -> t2 (B)
+//	     |                   |
+//	     <--------------------
 //
-//  fully-connected:
-//	t0 (A) <-> t1 (B)
-//           \    /
-//            t2(C)
+//	 fully-connected:
+//		t0 (A) <-> t1 (B)
+//	          \    /
+//	           t2(C)
 //
-//  subsumed-scc:
-//	t0 (A) -> t1 (B) -> t2(B) -> t3 (A)
-//      |          |         |        |
-//      |          <---------         |
-//      <-----------------------------
+//	 subsumed-scc:
+//		t0 (A) -> t1 (B) -> t2(B) -> t3 (A)
+//	     |          |         |        |
+//	     |          <---------         |
+//	     <-----------------------------
 //
-//  more-realistic:
-//      <--------
-//      |        |
-//      t0 (A) -->
-//                            ---------->
-//                           |           |
-//      t1 (A) -> t2 (B) -> F1 -> F2 -> F3 -> F4
-//       |        |          |           |
-//        <-------           <------------
+//	 more-realistic:
+//	     <--------
+//	     |        |
+//	     t0 (A) -->
+//	                           ---------->
+//	                          |           |
+//	     t1 (A) -> t2 (B) -> F1 -> F2 -> F3 -> F4
+//	      |        |          |           |
+//	       <-------           <------------
 func testSuite() map[string]vtaGraph {
 	a := newNamedType("A")
 	b := newNamedType("B")

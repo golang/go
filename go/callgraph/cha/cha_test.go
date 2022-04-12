@@ -47,7 +47,6 @@ func expectation(f *ast.File) (string, token.Pos) {
 // TestCHA runs CHA on each file in inputs, prints the dynamic edges of
 // the call graph, and compares it with the golden results embedded in
 // the WANT comment at the end of the file.
-//
 func TestCHA(t *testing.T) {
 	for _, filename := range inputs {
 		content, err := ioutil.ReadFile(filename)

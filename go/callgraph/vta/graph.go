@@ -175,9 +175,10 @@ func (f function) String() string {
 // We merge such constructs into a single node for simplicity and without
 // much precision sacrifice as such variables are rare in practice. Both
 // a and b would be represented as the same PtrInterface(I) node in:
-//   type I interface
-//   var a ***I
-//   var b **I
+//
+//	type I interface
+//	var a ***I
+//	var b **I
 type nestedPtrInterface struct {
 	typ types.Type
 }
@@ -195,8 +196,9 @@ func (l nestedPtrInterface) String() string {
 // constructs into a single node for simplicity and without much precision
 // sacrifice as such variables are rare in practice. Both a and b would be
 // represented as the same PtrFunction(func()) node in:
-//   var a *func()
-//   var b **func()
+//
+//	var a *func()
+//	var b **func()
 type nestedPtrFunction struct {
 	typ types.Type
 }
@@ -441,7 +443,9 @@ func (b *builder) send(s *ssa.Send) {
 }
 
 // selekt generates flows for select statement
-//   a = select blocking/nonblocking [c_1 <- t_1, c_2 <- t_2, ..., <- o_1, <- o_2, ...]
+//
+//	a = select blocking/nonblocking [c_1 <- t_1, c_2 <- t_2, ..., <- o_1, <- o_2, ...]
+//
 // between receiving channel registers c_i and corresponding input register t_i. Further,
 // flows are generated between o_i and a[2 + i]. Note that a is a tuple register of type
 // <int, bool, r_1, r_2, ...> where the type of r_i is the element type of channel o_i.
@@ -544,8 +548,9 @@ func (b *builder) closure(c *ssa.MakeClosure) {
 // panic creates a flow from arguments to panic instructions to return
 // registers of all recover statements in the program. Introduces a
 // global panic node Panic and
-//  1) for every panic statement p: add p -> Panic
-//  2) for every recover statement r: add Panic -> r (handled in call)
+//  1. for every panic statement p: add p -> Panic
+//  2. for every recover statement r: add Panic -> r (handled in call)
+//
 // TODO(zpavlinovic): improve precision by explicitly modeling how panic
 // values flow from callees to callers and into deferred recover instructions.
 func (b *builder) panic(p *ssa.Panic) {

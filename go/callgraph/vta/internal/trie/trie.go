@@ -10,8 +10,10 @@
 // environment abstract domains in program analysis).
 //
 // This implementation closely follows the paper:
-//   C. Okasaki and A. Gill, “Fast mergeable integer maps,” in ACM SIGPLAN
-//   Workshop on ML, September 1998, pp. 77–86.
+//
+//	C. Okasaki and A. Gill, “Fast mergeable integer maps,” in ACM SIGPLAN
+//	Workshop on ML, September 1998, pp. 77–86.
+//
 // Each Map is immutable and can be read from concurrently. The map does not
 // guarantee that the value pointed to by the interface{} value is not updated
 // concurrently.
@@ -36,9 +38,9 @@ import (
 // Maps are immutable and can be read from concurrently.
 //
 // Notes on concurrency:
-// - A Map value itself is an interface and assignments to a Map value can race.
-// - Map does not guarantee that the value pointed to by the interface{} value
-//   is not updated concurrently.
+//   - A Map value itself is an interface and assignments to a Map value can race.
+//   - Map does not guarantee that the value pointed to by the interface{} value
+//     is not updated concurrently.
 type Map struct {
 	s Scope
 	n node

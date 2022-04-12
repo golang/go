@@ -11,7 +11,6 @@ import "golang.org/x/tools/go/ssa"
 
 // CalleesOf returns a new set containing all direct callees of the
 // caller node.
-//
 func CalleesOf(caller *Node) map[*Node]bool {
 	callees := make(map[*Node]bool)
 	for _, e := range caller.Out {
@@ -24,7 +23,6 @@ func CalleesOf(caller *Node) map[*Node]bool {
 // The edge function is called for each edge in postorder.  If it
 // returns non-nil, visitation stops and GraphVisitEdges returns that
 // value.
-//
 func GraphVisitEdges(g *Graph, edge func(*Edge) error) error {
 	seen := make(map[*Node]bool)
 	var visit func(n *Node) error
@@ -54,7 +52,6 @@ func GraphVisitEdges(g *Graph, edge func(*Edge) error) error {
 // ending at some node for which isEnd() returns true.  On success,
 // PathSearch returns the path as an ordered list of edges; on
 // failure, it returns nil.
-//
 func PathSearch(start *Node, isEnd func(*Node) bool) []*Edge {
 	stack := make([]*Edge, 0, 32)
 	seen := make(map[*Node]bool)
@@ -82,7 +79,6 @@ func PathSearch(start *Node, isEnd func(*Node) bool) []*Edge {
 // synthetic functions (except g.Root and package initializers),
 // preserving the topology.  In effect, calls to synthetic wrappers
 // are "inlined".
-//
 func (g *Graph) DeleteSyntheticNodes() {
 	// Measurements on the standard library and go.tools show that
 	// resulting graph has ~15% fewer nodes and 4-8% fewer edges

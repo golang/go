@@ -51,7 +51,6 @@ func expectation(f *ast.File) (string, token.Pos) {
 // The results string consists of two parts: the set of dynamic call
 // edges, "f --> g", one per line, and the set of reachable functions,
 // one per line.  Each set is sorted.
-//
 func TestRTA(t *testing.T) {
 	for _, filename := range inputs {
 		content, err := ioutil.ReadFile(filename)

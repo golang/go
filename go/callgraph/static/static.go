@@ -14,7 +14,6 @@ import (
 
 // CallGraph computes the call graph of the specified program
 // considering only static calls.
-//
 func CallGraph(prog *ssa.Program) *callgraph.Graph {
 	cg := callgraph.New(nil) // TODO(adonovan) eliminate concept of rooted callgraph
 
