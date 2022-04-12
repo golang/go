@@ -30,5 +30,5 @@ if ! git log --format=%B -n 1 | grep "\[$TARGET\] "; then
     exit 1
 fi
 
-git codereview mail -r katie@golang.org,roland@golang.org,filippo@golang.org -trybot -trust HEAD
+git codereview mail -trybot HEAD
 cd - && git worktree remove "$WORKTREE"
