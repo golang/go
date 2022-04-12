@@ -525,8 +525,14 @@ func Goexit() {
 // Used when crashing with panicking.
 func preprintpanics(p *_panic) {
 	defer func() {
-		if recover() != nil {
-			throw("panic while printing panic value")
+		text := "panic while printing panic value"
+		switch r := recover().(type) {
+		case nil:
+			// nothing to do
+		case string:
+			throw(text + ": " + r)
+		default:
+			throw(text + ": type " + efaceOf(&r)._type.string())
 		}
 	}()
 	for p != nil {
