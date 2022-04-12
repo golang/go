@@ -8,6 +8,7 @@ import (
 	"go/constant"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/compare"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssagen"
@@ -178,7 +179,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		andor = ir.OOROR
 	}
 	var expr ir.Node
-	compare := func(el, er ir.Node) {
+	comp := func(el, er ir.Node) {
 		a := ir.NewBinaryExpr(base.Pos, n.Op(), el, er)
 		if expr == nil {
 			expr = a
@@ -196,7 +197,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	cmpl = safeExpr(cmpl, init)
 	cmpr = safeExpr(cmpr, init)
 	if t.IsStruct() {
-		flatConds := reflectdata.EqStruct(t, n.Op(), cmpl, cmpr)
+		flatConds := compare.Struct(t, n.Op(), cmpl, cmpr)
 		for _, cond := range flatConds {
 			and(cond)
 		}
@@ -222,7 +223,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 				step = 1
 			}
 			if step == 1 {
-				compare(
+				comp(
 					ir.NewIndexExpr(base.Pos, cmpl, ir.NewInt(i)),
 					ir.NewIndexExpr(base.Pos, cmpr, ir.NewInt(i)),
 				)
@@ -250,7 +251,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 					rb = ir.NewBinaryExpr(base.Pos, ir.OLSH, rb, ir.NewInt(8*t.Elem().Size()*offset))
 					cmprw = ir.NewBinaryExpr(base.Pos, ir.OOR, cmprw, rb)
 				}
-				compare(cmplw, cmprw)
+				comp(cmplw, cmprw)
 				i += step
 				remains -= step * t.Elem().Size()
 			}
@@ -271,7 +272,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 func walkCompareInterface(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	n.Y = cheapExpr(n.Y, init)
 	n.X = cheapExpr(n.X, init)
-	eqtab, eqdata := reflectdata.EqInterface(n.X, n.Y)
+	eqtab, eqdata := compare.EqInterface(n.X, n.Y)
 	var cmp ir.Node
 	if n.Op() == ir.OEQ {
 		cmp = ir.NewLogicalExpr(base.Pos, ir.OANDAND, eqtab, eqdata)
@@ -385,7 +386,7 @@ func walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		// prepare for rewrite below
 		n.X = cheapExpr(n.X, init)
 		n.Y = cheapExpr(n.Y, init)
-		eqlen, eqmem := reflectdata.EqString(n.X, n.Y)
+		eqlen, eqmem := compare.EqString(n.X, n.Y)
 		// quick check of len before full compare for == or !=.
 		// memequal then tests equality up to length len.
 		if n.Op() == ir.OEQ {
