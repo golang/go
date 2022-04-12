@@ -8,7 +8,9 @@
 // The stress utility is intended for catching sporadic failures.
 // It runs a given process in parallel in a loop and collects any failures.
 // Usage:
-// 	$ stress ./fmt.test -test.run=TestSometing -test.cpu=10
+//
+//	$ stress ./fmt.test -test.run=TestSometing -test.cpu=10
+//
 // You can also specify a number of parallel processes with -p flag;
 // instruct the utility to not kill hanged processes for gdb attach;
 // or specify the failure output you are looking for (if you want to

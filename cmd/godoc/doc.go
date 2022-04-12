@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 /*
-
 Godoc extracts and generates documentation for Go programs.
 
 It runs as a web server and presents the documentation as a

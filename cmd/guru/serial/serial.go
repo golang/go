@@ -8,20 +8,20 @@
 // This table shows the types of objects in the result stream for each
 // query type.
 //
-//      Query      Result stream
-//      -----      -------------
-//      callees    Callees
-//      callers    Caller ...
-//      callstack  CallStack
-//      definition Definition
-//      describe   Describe
-//      freevars   FreeVar ...
-//      implements Implements
-//      peers      Peers
-//      pointsto   PointsTo ...
-//      referrers  ReferrersInitial ReferrersPackage ...
-//      what       What
-//      whicherrs  WhichErrs
+//	Query      Result stream
+//	-----      -------------
+//	callees    Callees
+//	callers    Caller ...
+//	callstack  CallStack
+//	definition Definition
+//	describe   Describe
+//	freevars   FreeVar ...
+//	implements Implements
+//	peers      Peers
+//	pointsto   PointsTo ...
+//	referrers  ReferrersInitial ReferrersPackage ...
+//	what       What
+//	whicherrs  WhichErrs
 //
 // All 'pos' strings in the output are of the form "file:line:col",
 // where line is the 1-based line number and col is the 1-based byte index.
@@ -113,7 +113,6 @@ type FreeVar struct {
 // It describes the queried type, the set of named non-empty interface
 // types to which it is assignable, and the set of named/*named types
 // (concrete or non-empty interface) which may be assigned to it.
-//
 type Implements struct {
 	T                 ImplementsType   `json:"type,omitempty"`    // the queried type
 	AssignableTo      []ImplementsType `json:"to,omitempty"`      // types assignable to T
@@ -161,14 +160,13 @@ type What struct {
 //
 // A "label" is an object that may be pointed to by a pointer, map,
 // channel, 'func', slice or interface.  Labels include:
-//    - functions
-//    - globals
-//    - arrays created by literals (e.g. []byte("foo")) and conversions ([]byte(s))
-//    - stack- and heap-allocated variables (including composite literals)
-//    - arrays allocated by append()
-//    - channels, maps and arrays created by make()
-//    - and their subelements, e.g. "alloc.y[*].z"
-//
+//   - functions
+//   - globals
+//   - arrays created by literals (e.g. []byte("foo")) and conversions ([]byte(s))
+//   - stack- and heap-allocated variables (including composite literals)
+//   - arrays allocated by append()
+//   - channels, maps and arrays created by make()
+//   - and their subelements, e.g. "alloc.y[*].z"
 type PointsToLabel struct {
 	Pos  string `json:"pos"`  // location of syntax that allocated the object
 	Desc string `json:"desc"` // description of the label
@@ -183,7 +181,6 @@ type PointsToLabel struct {
 // concrete type that is a pointer, the PTS entry describes the labels
 // it may point to.  The same is true for reflect.Values, except the
 // dynamic types needn't be concrete.
-//
 type PointsTo struct {
 	Type    string          `json:"type"`              // (concrete) type of the pointer
 	NamePos string          `json:"namepos,omitempty"` // location of type defn, if Named

@@ -12,14 +12,14 @@
 //	toolstash [-n] [-v] [-t] go run x.go
 //	toolstash [-n] [-v] [-t] [-cmp] compile x.go
 //
-// The toolstash command manages a ``stashed'' copy of the Go toolchain
+// The toolstash command manages a “stashed” copy of the Go toolchain
 // kept in $GOROOT/pkg/toolstash. In this case, the toolchain means the
 // tools available with the 'go tool' command as well as the go, godoc, and gofmt
 // binaries.
 //
-// The command ``toolstash save'', typically run when the toolchain is known to be working,
+// The command “toolstash save”, typically run when the toolchain is known to be working,
 // copies the toolchain from its installed location to the toolstash directory.
-// Its inverse, ``toolchain restore'', typically run when the toolchain is known to be broken,
+// Its inverse, “toolchain restore”, typically run when the toolchain is known to be broken,
 // copies the toolchain from the toolstash directory back to the installed locations.
 // If additional arguments are given, the save or restore applies only to the named tools.
 // Otherwise, it applies to all tools.
@@ -39,7 +39,7 @@
 // The -t flag causes toolstash to print the time elapsed during while the
 // command ran.
 //
-// Comparing
+// # Comparing
 //
 // The -cmp flag causes toolstash to run both the installed and the stashed
 // copy of an assembler or compiler and check that they produce identical
@@ -65,7 +65,7 @@
 //	go tool dist install cmd/compile # install compiler only
 //	toolstash -cmp compile x.go
 //
-// Go Command Integration
+// # Go Command Integration
 //
 // The go command accepts a -toolexec flag that specifies a program
 // to use to run the build tools.
@@ -97,7 +97,7 @@
 //	# If not, restore, in order to keep working on Go code.
 //	toolstash restore
 //
-// Version Skew
+// # Version Skew
 //
 // The Go tools write the current Go version to object files, and (outside
 // release branches) that version includes the hash and time stamp
@@ -118,9 +118,8 @@
 //	echo devel >$GOROOT/VERSION
 //
 // The version can be arbitrary text, but to pass all.bash's API check, it must
-// contain the substring ``devel''. The VERSION file must be created before
+// contain the substring “devel”. The VERSION file must be created before
 // building either version of the toolchain.
-//
 package main // import "golang.org/x/tools/cmd/toolstash"
 
 import (

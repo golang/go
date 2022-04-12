@@ -6,7 +6,6 @@
 // +build !js,!nacl,!plan9,!solaris,!windows
 
 /*
-
 Splitdwarf uncompresses and copies the DWARF segment of a Mach-O
 executable into the "dSYM" file expected by lldb and ports of gdb
 on OSX.
@@ -17,7 +16,6 @@ Unless a dSYM file name is provided on the command line,
 splitdwarf will place it where the OSX tools expect it, in
 "<osxMachoFile>.dSYM/Contents/Resources/DWARF/<osxMachoFile>",
 creating directories as necessary.
-
 */
 package main // import "golang.org/x/tools/cmd/splitdwarf"
 

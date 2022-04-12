@@ -7,7 +7,8 @@
 // directory for the 'git' command as the first command-line argument.
 //
 // Example GOAUTH usage:
-// 	export GOAUTH="gitauth $HOME"
+//
+//	export GOAUTH="gitauth $HOME"
 //
 // See https://git-scm.com/docs/gitcredentials or run 'man gitcredentials' for
 // information on how to configure 'git credential'.

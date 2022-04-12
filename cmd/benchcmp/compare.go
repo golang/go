@@ -109,8 +109,8 @@ func (x ByParseOrder) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x ByParseOrder) Less(i, j int) bool { return x[i].Before.Ord < x[j].Before.Ord }
 
 // lessByDelta provides lexicographic ordering:
-//   * largest delta by magnitude
-//   * alphabetic by name
+//   - largest delta by magnitude
+//   - alphabetic by name
 func lessByDelta(i, j BenchCmp, calcDelta func(BenchCmp) Delta) bool {
 	iDelta, jDelta := calcDelta(i).mag(), calcDelta(j).mag()
 	if iDelta != jDelta {

@@ -368,9 +368,8 @@ func main() {
 //
 // GOMOD is documented at https://golang.org/cmd/go/#hdr-Environment_variables:
 //
-// 	The absolute path to the go.mod of the main module,
-// 	or the empty string if not using modules.
-//
+//	The absolute path to the go.mod of the main module,
+//	or the empty string if not using modules.
 func goMod() (string, error) {
 	out, err := exec.Command("go", "env", "-json", "GOMOD").Output()
 	if ee := (*exec.ExitError)(nil); xerrors.As(err, &ee) {
@@ -483,7 +482,6 @@ func buildList(goMod string) ([]mod, error) {
 // workspaces are bound at their roots, but scales poorly in the
 // general case. It should be replaced by a more direct solution
 // for determining whether a package is third party or not.
-//
 type moduleFS struct{ vfs.FileSystem }
 
 func (moduleFS) RootType(path string) vfs.RootType {

@@ -28,7 +28,6 @@ import (
 // Depending on where the resulting function abstraction will go,
 // these might be interesting.  Perhaps group the results into three
 // bands.
-//
 func freevars(q *Query) error {
 	lconf := loader.Config{Build: q.Build}
 	allowErrors(&lconf)

@@ -18,7 +18,6 @@ import (
 
 // The callers function reports the possible callers of the function
 // immediately enclosing the specified source location.
-//
 func callers(q *Query) error {
 	lconf := loader.Config{Build: q.Build}
 

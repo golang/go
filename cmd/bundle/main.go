@@ -21,8 +21,8 @@
 //
 // By default, bundle writes the bundled code to standard output.
 // If the -o argument is given, bundle writes to the named file
-// and also includes a ``//go:generate'' comment giving the exact
-// command line used, for regenerating the file with ``go generate.''
+// and also includes a “//go:generate” comment giving the exact
+// command line used, for regenerating the file with “go generate.”
 //
 // Bundle customizes its output for inclusion in a particular package, the destination package.
 // By default bundle assumes the destination is the package in the current directory,
@@ -47,7 +47,7 @@
 // process. The -import option, which may be repeated, specifies that
 // an import of "old" should be rewritten to import "new" instead.
 //
-// Example
+// # Example
 //
 // Bundle archive/zip for inclusion in cmd/dist:
 //
@@ -68,7 +68,6 @@
 // Update all bundles in the standard library:
 //
 //	go generate -run bundle std
-//
 package main
 
 import (

@@ -212,7 +212,6 @@ func pkgContainsFile(bp *build.Package, filename string) byte {
 // If needExact, it must identify a single AST subtree;
 // this is appropriate for queries that allow fairly arbitrary syntax,
 // e.g. "describe".
-//
 func parseQueryPos(lprog *loader.Program, pos string, needExact bool) (*queryPos, error) {
 	filename, startOffset, endOffset, err := parsePos(pos)
 	if err != nil {
@@ -331,16 +330,15 @@ func deref(typ types.Type) types.Type {
 // where location is derived from pos.
 //
 // pos must be one of:
-//    - a token.Pos, denoting a position
-//    - an ast.Node, denoting an interval
-//    - anything with a Pos() method:
-//         ssa.Member, ssa.Value, ssa.Instruction, types.Object, pointer.Label, etc.
-//    - a QueryPos, denoting the extent of the user's query.
-//    - nil, meaning no position at all.
+//   - a token.Pos, denoting a position
+//   - an ast.Node, denoting an interval
+//   - anything with a Pos() method:
+//     ssa.Member, ssa.Value, ssa.Instruction, types.Object, pointer.Label, etc.
+//   - a QueryPos, denoting the extent of the user's query.
+//   - nil, meaning no position at all.
 //
 // The output format is is compatible with the 'gnu'
 // compilation-error-regexp in Emacs' compilation mode.
-//
 func fprintf(w io.Writer, fset *token.FileSet, pos interface{}, format string, args ...interface{}) {
 	var start, end token.Pos
 	switch pos := pos.(type) {

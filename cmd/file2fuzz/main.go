@@ -17,7 +17,6 @@
 // argument is specified it may be a file path or an existing directory, if there are
 // multiple inputs specified it must be a directory. If a directory is provided
 // the name of the file will be the SHA-256 hash of its contents.
-//
 package main
 
 import (

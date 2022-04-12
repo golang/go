@@ -60,21 +60,20 @@
 // today they write only the profile for the last benchmark executed.
 //
 // The default memory profiling rate is one profile sample per 512 kB
-// allocated (see ``go doc runtime.MemProfileRate'').
+// allocated (see “go doc runtime.MemProfileRate”).
 // Lowering the rate (for example, -memprofilerate 64000) produces
 // a more fine-grained and therefore accurate profile, but it also incurs
 // execution cost. For benchmark comparisons, never use timings
 // obtained with a low -memprofilerate option.
 //
-// Example
+// # Example
 //
 // Assuming the base version of the compiler has been saved with
-// ``toolstash save,'' this sequence compares the old and new compiler:
+// “toolstash save,” this sequence compares the old and new compiler:
 //
 //	compilebench -count 10 -compile $(toolstash -n compile) >old.txt
 //	compilebench -count 10 >new.txt
 //	benchstat old.txt new.txt
-//
 package main
 
 import (

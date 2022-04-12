@@ -24,7 +24,6 @@ import (
 // It is intended to be a very low-latency query callable from GUI
 // tools, e.g. to populate a menu of options of slower queries about
 // the selected location.
-//
 func what(q *Query) error {
 	qpos, err := fastQueryPos(q.Build, q.Pos)
 	if err != nil {
@@ -170,7 +169,6 @@ func what(q *Query) error {
 //
 // TODO(adonovan): what about _test.go files that are not part of the
 // package?
-//
 func guessImportPath(filename string, buildContext *build.Context) (srcdir, importPath string, err error) {
 	absFile, err := filepath.Abs(filename)
 	if err != nil {

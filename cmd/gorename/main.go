@@ -8,7 +8,6 @@
 // Run with -help for usage information, or view the Usage constant in
 // package golang.org/x/tools/refactor/rename, which contains most of
 // the implementation.
-//
 package main // import "golang.org/x/tools/cmd/gorename"
 
 import (

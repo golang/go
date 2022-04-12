@@ -7,7 +7,8 @@
 // It expects the location of the file as the first command-line argument.
 //
 // Example GOAUTH usage:
-// 	export GOAUTH="netrcauth $HOME/.netrc"
+//
+//	export GOAUTH="netrcauth $HOME/.netrc"
 //
 // See https://www.gnu.org/software/inetutils/manual/html_node/The-_002enetrc-file.html
 // or run 'man 5 netrc' for a description of the .netrc file format.

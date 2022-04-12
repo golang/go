@@ -31,10 +31,9 @@ var debug = false // Keeps the rewritten files around if set.
 // Run this shell script, but do it in Go so it can be run by "go test".
 //
 //	replace the word LINE with the line number < testdata/test.go > testdata/test_line.go
-// 	go build -o ./testcover
-// 	./testcover -mode=count -var=CoverTest -o ./testdata/test_cover.go testdata/test_line.go
+//	go build -o ./testcover
+//	./testcover -mode=count -var=CoverTest -o ./testdata/test_cover.go testdata/test_line.go
 //	go run ./testdata/main.go ./testdata/test.go
-//
 func TestCover(t *testing.T) {
 	testenv.NeedsTool(t, "go")
 

@@ -18,7 +18,6 @@
 //
 //	present2md your.article
 //	present2md -w *.article
-//
 package main
 
 import (

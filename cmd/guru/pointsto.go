@@ -25,7 +25,6 @@ import (
 // reflect.Type expression) and their points-to sets.
 //
 // All printed sets are sorted to ensure determinism.
-//
 func pointsto(q *Query) error {
 	lconf := loader.Config{Build: q.Build}
 
@@ -113,7 +112,6 @@ func pointsto(q *Query) error {
 // ssaValueForIdent returns the ssa.Value for the ast.Ident whose path
 // to the root of the AST is path.  isAddr reports whether the
 // ssa.Value is the address denoted by the ast.Ident, not its value.
-//
 func ssaValueForIdent(prog *ssa.Program, qinfo *loader.PackageInfo, obj types.Object, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
 	switch obj := obj.(type) {
 	case *types.Var:
@@ -138,7 +136,6 @@ func ssaValueForIdent(prog *ssa.Program, qinfo *loader.PackageInfo, obj types.Ob
 
 // ssaValueForExpr returns the ssa.Value of the non-ast.Ident
 // expression whose path to the root of the AST is path.
-//
 func ssaValueForExpr(prog *ssa.Program, qinfo *loader.PackageInfo, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
 	pkg := prog.Package(qinfo.Pkg)
 	pkg.SetDebugMode(true)

@@ -18,6 +18,7 @@ For instance, it does not probe inside && and || expressions, and can
 be mildly confused by single statements with multiple function literals.
 
 For usage information, please see:
+
 	go help testflag
 	go tool cover -help
 */

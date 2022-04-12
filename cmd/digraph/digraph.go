@@ -69,11 +69,12 @@ Using digraph with existing Go tools:
 	$ go list -m all | digraph nodes # Operate on the Go package graph.
 
 Show the transitive closure of imports of the digraph tool itself:
+
 	$ go list -f '{{.ImportPath}} {{join .Imports " "}}' ... | digraph forward golang.org/x/tools/cmd/digraph
 
 Show which clothes (see above) must be donned before a jacket:
-	$ digraph reverse jacket
 
+	$ digraph reverse jacket
 */
 package main // import "golang.org/x/tools/cmd/digraph"
 
@@ -546,9 +547,8 @@ func digraph(cmd string, args []string) error {
 // spaces, but Go-style double-quoted string literals are also supported.
 // (This approximates the behaviour of the Bourne shell.)
 //
-//   `one "two three"` -> ["one" "two three"]
-//   `a"\n"b` -> ["a\nb"]
-//
+//	`one "two three"` -> ["one" "two three"]
+//	`a"\n"b` -> ["a\nb"]
 func split(line string) ([]string, error) {
 	var (
 		words   []string
@@ -605,7 +605,6 @@ func split(line string) ([]string, error) {
 // its length is returned.
 //
 // TODO(adonovan): move this into a strconv-like utility package.
-//
 func quotedLength(input string) (n int, ok bool) {
 	var offset int
 

@@ -1564,10 +1564,10 @@ func (s *genstate) emitParamChecks(f *funcdef, b *bytes.Buffer, pidx int, value 
 
 // emitDeferChecks creates code like
 //
-//     defer func(...args...) {
-//       check arg
-//       check param
-//     }(...)
+//	defer func(...args...) {
+//	  check arg
+//	  check param
+//	}(...)
 //
 // where we randomly choose to either pass a param through to the
 // function literal, or have the param captured by the closure, then

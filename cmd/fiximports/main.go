@@ -6,8 +6,7 @@
 // import path for packages that have an "import comment" as defined by
 // https://golang.org/s/go14customimport.
 //
-//
-// Background
+// # Background
 //
 // The Go 1 custom import path mechanism lets the maintainer of a
 // package give it a stable name by which clients may import and "go
@@ -28,15 +27,14 @@
 // does not match the path of the enclosing package relative to
 // GOPATH/src:
 //
-//      $ grep ^package $GOPATH/src/github.com/bob/vanity/foo/foo.go
-// 	package foo // import "vanity.com/foo"
+//	     $ grep ^package $GOPATH/src/github.com/bob/vanity/foo/foo.go
+//		package foo // import "vanity.com/foo"
 //
 // The error from "go build" indicates that the package canonically
 // known as "vanity.com/foo" is locally installed under the
 // non-canonical name "github.com/bob/vanity/foo".
 //
-//
-// Usage
+// # Usage
 //
 // When a package that you depend on introduces a custom import comment,
 // and your workspace imports it by the non-canonical name, your build
@@ -66,7 +64,6 @@
 //
 // To see the changes fiximports would make without applying them, use
 // the -n flag.
-//
 package main
 
 import (

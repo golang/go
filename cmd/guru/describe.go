@@ -26,7 +26,6 @@ import (
 // - its syntactic category
 // - the definition of its referent (for identifiers) [now redundant]
 // - its type, fields, and methods (for an expression or type expression)
-//
 func describe(q *Query) error {
 	lconf := loader.Config{Build: q.Build}
 	allowErrors(&lconf)
@@ -106,15 +105,15 @@ const (
 )
 
 // findInterestingNode classifies the syntax node denoted by path as one of:
-//    - an expression, part of an expression or a reference to a constant
-//      or variable;
-//    - a type, part of a type, or a reference to a named type;
-//    - a statement, part of a statement, or a label referring to a statement;
-//    - part of a package declaration or import spec.
-//    - none of the above.
+//   - an expression, part of an expression or a reference to a constant
+//     or variable;
+//   - a type, part of a type, or a reference to a named type;
+//   - a statement, part of a statement, or a label referring to a statement;
+//   - part of a package declaration or import spec.
+//   - none of the above.
+//
 // and returns the most "interesting" associated node, which may be
 // the same node, an ancestor or a descendent.
-//
 func findInterestingNode(pkginfo *loader.PackageInfo, path []ast.Node) ([]ast.Node, action) {
 	// TODO(adonovan): integrate with go/types/stdlib_test.go and
 	// apply this to every AST node we can find to make sure it

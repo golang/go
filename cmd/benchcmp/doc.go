@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 /*
-
 Deprecated: benchcmp is deprecated in favor of benchstat: golang.org/x/perf/cmd/benchstat
 
 The benchcmp command displays performance changes between benchmarks.
@@ -34,6 +33,5 @@ in a format like this:
 
 	benchmark           old bytes     new bytes     delta
 	BenchmarkConcat     80            48            -40.00%
-
 */
 package main // import "golang.org/x/tools/cmd/benchcmp"

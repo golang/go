@@ -617,7 +617,6 @@ func findObject(fset *token.FileSet, info *types.Info, objposn token.Position) t
 
 // same reports whether x and y are identical, or both are PkgNames
 // that import the same Package.
-//
 func sameObj(x, y types.Object) bool {
 	if x == y {
 		return true

@@ -62,7 +62,6 @@
 //		(uncompiled) source code (not yet implemented)
 //
 // If no -s argument is provided, godex will try to find a matching source.
-//
 package main // import "golang.org/x/tools/cmd/godex"
 
 // BUG(gri): support for -s=source is not yet implemented

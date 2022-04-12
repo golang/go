@@ -37,7 +37,6 @@ func parseOctothorpDecimal(s string) int {
 //
 // (Numbers without a '#' prefix are reserved for future use,
 // e.g. to indicate line/column positions.)
-//
 func parsePos(pos string) (filename string, startOffset, endOffset int, err error) {
 	if pos == "" {
 		err = fmt.Errorf("no source position specified")
@@ -71,7 +70,6 @@ func parsePos(pos string) (filename string, startOffset, endOffset int, err erro
 // fileOffsetToPos translates the specified file-relative byte offsets
 // into token.Pos form.  It returns an error if the file was not found
 // or the offsets were out of bounds.
-//
 func fileOffsetToPos(file *token.File, startOffset, endOffset int) (start, end token.Pos, err error) {
 	// Range check [start..end], inclusive of both end-points.
 
@@ -94,7 +92,6 @@ func fileOffsetToPos(file *token.File, startOffset, endOffset int) (start, end t
 
 // sameFile returns true if x and y have the same basename and denote
 // the same file.
-//
 func sameFile(x, y string) bool {
 	if filepath.Base(x) == filepath.Base(y) { // (optimisation)
 		if xi, err := os.Stat(x); err == nil {

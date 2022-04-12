@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 /*
-
 Goyacc is a version of yacc for Go.
 It is written in Go and generates parsers written in Go.
 
@@ -65,6 +64,5 @@ goyacc sets the prefix, by default yy, that begins the names of
 symbols, including types, the parser, and the lexer, generated and
 referenced by yacc's generated code.  Setting it to distinct values
 allows multiple grammars to be placed in a single package.
-
 */
 package main

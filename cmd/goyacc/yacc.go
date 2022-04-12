@@ -742,9 +742,7 @@ outer:
 	}
 }
 
-//
 // allocate enough room to hold another production
-//
 func moreprod() {
 	n := len(prdptr)
 	if nprod >= n {
@@ -763,10 +761,8 @@ func moreprod() {
 	}
 }
 
-//
 // define s to be a terminal if nt==0
 // or a nonterminal if nt==1
-//
 func defin(nt int, s string) int {
 	val := 0
 	if nt != 0 {
@@ -1007,9 +1003,7 @@ func getword(c rune) {
 	ungetrune(finput, c)
 }
 
-//
 // determine the type of a symbol
-//
 func fdtype(t int) int {
 	var v int
 	var s string
@@ -1049,9 +1043,7 @@ func chfind(t int, s string) int {
 	return defin(t, s)
 }
 
-//
 // copy the union declaration to the output, and the define file if present
-//
 func cpyunion() {
 
 	if !lflag {
@@ -1086,10 +1078,8 @@ out:
 	fmt.Fprintf(ftable, "\n\n")
 }
 
-//
 // saves code between %{ and %}
 // adds an import for __fmt__ the first time
-//
 func cpycode() {
 	lno := lineno
 
@@ -1122,11 +1112,9 @@ func cpycode() {
 	errorf("eof before %%}")
 }
 
-//
 // emits code saved up from between %{ and %}
 // called by cpycode
 // adds an import for __yyfmt__ after the package clause
-//
 func emitcode(code []rune, lineno int) {
 	for i, line := range lines(code) {
 		writecode(line)
@@ -1140,9 +1128,7 @@ func emitcode(code []rune, lineno int) {
 	}
 }
 
-//
 // does this line look like a package clause?  not perfect: might be confused by early comments.
-//
 func isPackageClause(line []rune) bool {
 	line = skipspace(line)
 
@@ -1184,9 +1170,7 @@ func isPackageClause(line []rune) bool {
 	return false
 }
 
-//
 // skip initial spaces
-//
 func skipspace(line []rune) []rune {
 	for len(line) > 0 {
 		if line[0] != ' ' && line[0] != '\t' {
@@ -1197,9 +1181,7 @@ func skipspace(line []rune) []rune {
 	return line
 }
 
-//
 // break code into lines
-//
 func lines(code []rune) [][]rune {
 	l := make([][]rune, 0, 100)
 	for len(code) > 0 {
@@ -1216,19 +1198,15 @@ func lines(code []rune) [][]rune {
 	return l
 }
 
-//
 // writes code to ftable
-//
 func writecode(code []rune) {
 	for _, r := range code {
 		ftable.WriteRune(r)
 	}
 }
 
-//
 // skip over comments
 // skipcom is called after reading a '/'
-//
 func skipcom() int {
 	c := getrune(finput)
 	if c == '/' {
@@ -1268,9 +1246,7 @@ l1:
 	return nl
 }
 
-//
 // copy action to the next ; or closing }
-//
 func cpyact(curprod []int, max int) {
 
 	if !lflag {
@@ -1488,9 +1464,7 @@ func openup() {
 
 }
 
-//
 // return a pointer to the name of symbol i
-//
 func symnam(i int) string {
 	var s string
 
@@ -1502,20 +1476,16 @@ func symnam(i int) string {
 	return s
 }
 
-//
 // set elements 0 through n-1 to c
-//
 func aryfil(v []int, n, c int) {
 	for i := 0; i < n; i++ {
 		v[i] = c
 	}
 }
 
-//
 // compute an array with the beginnings of productions yielding given nonterminals
 // The array pres points to these lists
 // the array pyield has the lists: the total size is only NPROD+1
-//
 func cpres() {
 	pres = make([][][]int, nnonter+1)
 	curres := make([][]int, nprod)
@@ -1553,10 +1523,8 @@ func cpres() {
 	}
 }
 
-//
 // mark nonterminals which derive the empty string
 // also, look for nonterminals which don't derive any token strings
-//
 func cempty() {
 	var i, p, np int
 	var prd []int
@@ -1639,9 +1607,7 @@ again:
 	}
 }
 
-//
 // compute an array with the first of nonterminals
-//
 func cpfir() {
 	var s, n, p, np, ch, i int
 	var curres [][]int
@@ -1707,9 +1673,7 @@ func cpfir() {
 	}
 }
 
-//
 // generate the states
-//
 func stagen() {
 	// initialize
 	nstate = 0
@@ -1799,9 +1763,7 @@ func stagen() {
 	}
 }
 
-//
 // generate the closure of state i
-//
 func closure(i int) {
 	zzclose++
 
@@ -1931,9 +1893,7 @@ func closure(i int) {
 	}
 }
 
-//
 // sorts last state,and sees if it equals earlier ones. returns state number
-//
 func state(c int) int {
 	zzstate++
 	p1 := pstate[nstate]
@@ -2046,9 +2006,7 @@ func putitem(p Pitem, set Lkset) {
 	pstate[nstate+1] = j
 }
 
-//
 // creates output string for item pointed to by pp
-//
 func writem(pp Pitem) string {
 	var i int
 
@@ -2082,9 +2040,7 @@ func writem(pp Pitem) string {
 	return q
 }
 
-//
 // pack state i from temp1 into amem
-//
 func apack(p []int, n int) int {
 	//
 	// we don't need to worry about checking because
@@ -2149,9 +2105,7 @@ nextk:
 	return 0
 }
 
-//
 // print the output for the states
-//
 func output() {
 	var c, u, v int
 
@@ -2240,12 +2194,10 @@ func output() {
 	fmt.Fprintf(ftable, "const %sPrivate = %v\n", prefix, PRIVATE)
 }
 
-//
 // decide a shift/reduce conflict by precedence.
 // r is a rule number, t a token number
 // the conflict is in state s
 // temp1[t] is changed to reflect the action
-//
 func precftn(r, t, s int) {
 	action := NOASC
 
@@ -2276,10 +2228,8 @@ func precftn(r, t, s int) {
 	}
 }
 
-//
 // output state i
 // temp1 has the actions, lastred the default
-//
 func addActions(act []int, i int) []int {
 	var p, p1 int
 
@@ -2368,9 +2318,7 @@ func addActions(act []int, i int) []int {
 	return act
 }
 
-//
 // writes state i
-//
 func wrstate(i int) {
 	var j0, j1, u int
 	var pp, qq int
@@ -2440,9 +2388,7 @@ func wrstate(i int) {
 	}
 }
 
-//
 // output the gotos for the nontermninals
-//
 func go2out() {
 	for i := 1; i <= nnonter; i++ {
 		go2gen(i)
@@ -2505,9 +2451,7 @@ func go2out() {
 	}
 }
 
-//
 // output the gotos for nonterminal c
-//
 func go2gen(c int) {
 	var i, cc, p, q int
 
@@ -2559,12 +2503,10 @@ func go2gen(c int) {
 	}
 }
 
-//
 // in order to free up the mem and amem arrays for the optimizer,
 // and still be able to output yyr1, etc., after the sizes of
 // the action array is known, we hide the nonterminals
 // derived by productions in levprd.
-//
 func hideprod() {
 	nred := 0
 	levprd[0] = 0
@@ -2678,9 +2620,7 @@ func callopt() {
 	osummary()
 }
 
-//
 // finds the next i
-//
 func nxti() int {
 	max := 0
 	maxi := 0
@@ -2817,10 +2757,8 @@ nextn:
 	errorf("Error; failure to place state %v", i)
 }
 
-//
 // this version is for limbo
 // write out the optimized parser
-//
 func aoutput() {
 	ftable.WriteRune('\n')
 	fmt.Fprintf(ftable, "const %sLast = %v\n", prefix, maxa+1)
@@ -2829,9 +2767,7 @@ func aoutput() {
 	arout("Pgo", pgo, nnonter+1)
 }
 
-//
 // put out other arrays, copy the parsers
-//
 func others() {
 	var i, j int
 
@@ -3066,9 +3002,7 @@ func arout(s string, v []int, n int) {
 	arrayOutColumns(s, v[:n], 10, true)
 }
 
-//
 // output the summary on y.output
-//
 func summary() {
 	if foutput != nil {
 		fmt.Fprintf(foutput, "\n%v terminals, %v nonterminals\n", ntokens, nnonter+1)
@@ -3096,9 +3030,7 @@ func summary() {
 	}
 }
 
-//
 // write optimizer summary
-//
 func osummary() {
 	if foutput == nil {
 		return
@@ -3115,9 +3047,7 @@ func osummary() {
 	fmt.Fprintf(foutput, "maximum spread: %v, maximum offset: %v\n", maxspr, maxoff)
 }
 
-//
 // copies and protects "'s in q
-//
 func chcopy(q string) string {
 	s := ""
 	i := 0
@@ -3142,10 +3072,8 @@ func setbit(set Lkset, bit int) { set[bit>>5] |= (1 << uint(bit&31)) }
 
 func mkset() Lkset { return make([]int, tbitset) }
 
-//
 // set a to the union of a and b
 // return 1 if b is not a subset of a, 0 otherwise
-//
 func setunion(a, b []int) int {
 	sub := 0
 	for i := 0; i < tbitset; i++ {
@@ -3173,9 +3101,7 @@ func prlook(p Lkset) {
 	fmt.Fprintf(foutput, "}")
 }
 
-//
 // utility routines
-//
 var peekrune rune
 
 func isdigit(c rune) bool { return c >= '0' && c <= '9' }
@@ -3184,10 +3110,8 @@ func isword(c rune) bool {
 	return c >= 0xa0 || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-//
 // return 1 if 2 arrays are equal
 // return 0 if not equal
-//
 func aryeq(a []int, b []int) int {
 	n := len(a)
 	if len(b) != n {
@@ -3252,9 +3176,7 @@ func create(s string) *bufio.Writer {
 	return bufio.NewWriter(fo)
 }
 
-//
 // write out error comment
-//
 func lerrorf(lineno int, s string, v ...interface{}) {
 	nerrors++
 	fmt.Fprintf(stderr, s, v...)

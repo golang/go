@@ -300,7 +300,6 @@ var slashslash = []byte("//")
 // whitespace and line comments.  Any +build directives must appear
 // within this region.  This approach is more reliable than using
 // go/printer to print a modified AST containing comments.
-//
 func initialComments(content []byte) []byte {
 	// Derived from go/build.Context.shouldBuild.
 	end := 0
@@ -453,7 +452,7 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) ast.Stmt {
 //	S1
 //	if cond {
 //		S2
-// 	}
+//	}
 //	S3
 //
 // counters will be added before S1 and before S3. The block containing S2
