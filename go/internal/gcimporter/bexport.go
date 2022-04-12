@@ -35,16 +35,18 @@ import (
 const debugFormat = false // default: false
 
 // Current export format version. Increase with each format change.
+//
 // Note: The latest binary (non-indexed) export format is at version 6.
-//       This exporter is still at level 4, but it doesn't matter since
-//       the binary importer can handle older versions just fine.
-// 6: package height (CL 105038) -- NOT IMPLEMENTED HERE
-// 5: improved position encoding efficiency (issue 20080, CL 41619) -- NOT IMPLEMEMTED HERE
-// 4: type name objects support type aliases, uses aliasTag
-// 3: Go1.8 encoding (same as version 2, aliasTag defined but never used)
-// 2: removed unused bool in ODCL export (compiler only)
-// 1: header format change (more regular), export package for _ struct fields
-// 0: Go1.7 encoding
+// This exporter is still at level 4, but it doesn't matter since
+// the binary importer can handle older versions just fine.
+//
+//	6: package height (CL 105038) -- NOT IMPLEMENTED HERE
+//	5: improved position encoding efficiency (issue 20080, CL 41619) -- NOT IMPLEMENTED HERE
+//	4: type name objects support type aliases, uses aliasTag
+//	3: Go1.8 encoding (same as version 2, aliasTag defined but never used)
+//	2: removed unused bool in ODCL export (compiler only)
+//	1: header format change (more regular), export package for _ struct fields
+//	0: Go1.7 encoding
 const exportVersion = 4
 
 // trackAllTypes enables cycle tracking for all types, not just named
