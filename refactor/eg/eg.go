@@ -157,7 +157,6 @@ type Transformer struct {
 // a single-file package containing "before" and "after" functions as
 // described in the package documentation.
 // tmplInfo is the type information for tmplFile.
-//
 func NewTransformer(fset *token.FileSet, tmplPkg *types.Package, tmplFile *ast.File, tmplInfo *types.Info, verbose bool) (*Transformer, error) {
 	// Check the template.
 	beforeSig := funcSig(tmplPkg, "before")

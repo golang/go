@@ -9,7 +9,7 @@ By changing the exporter used, you can create projects for multiple build
 systems from the same description, and run the same tests on them in many
 cases.
 
-Example
+# Example
 
 As an example of packagestest use, consider the following test that runs
 the 'go list' command on the specified modules:
@@ -60,7 +60,6 @@ Running the test with verbose output will print:
 	        main_test.go:36: 'go list gopher.example/...' with Modules mode layout:
 	            gopher.example/repoa/a
 	            gopher.example/repob/b
-
 */
 package packagestest
 
@@ -452,17 +451,19 @@ func copyFile(dest, source string, perm os.FileMode) error {
 
 // GroupFilesByModules attempts to map directories to the modules within each directory.
 // This function assumes that the folder is structured in the following way:
-// - dir
-//   - primarymod
-//     - .go files
-//		 - packages
-//		 - go.mod (optional)
-//	 - modules
-// 		 - repoa
-//		   - mod1
-//	       - .go files
-//			   -  packages
-//		  	 - go.mod (optional)
+//
+//	dir/
+//		primarymod/
+//			*.go files
+//			packages
+//			go.mod (optional)
+//		modules/
+//			repoa/
+//				mod1/
+//					*.go files
+//					packages
+//					go.mod (optional)
+//
 // It scans the directory tree anchored at root and adds a Copy writer to the
 // map for every file found.
 // This is to enable the common case in tests where you have a full copy of the

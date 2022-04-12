@@ -55,7 +55,6 @@ func (s *handlerServer) registerWithMux(mux *http.ServeMux) {
 // directory, PageInfo.PAst and PageInfo.PDoc are nil. If there are no sub-
 // directories, PageInfo.Dirs is nil. If an error occurred, PageInfo.Err is
 // set to the respective error but the error is not logged.
-//
 func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, goos, goarch string) *PageInfo {
 	info := &PageInfo{Dirname: abspath, Mode: mode}
 
@@ -411,7 +410,6 @@ func (p *Presentation) GetPageInfoMode(r *http.Request) PageInfoMode {
 // (as is the convention for packages). This is sufficient
 // to resolve package identifiers without doing an actual
 // import. It never returns an error.
-//
 func poorMansImporter(imports map[string]*ast.Object, path string) (*ast.Object, error) {
 	pkg := imports[path]
 	if pkg == nil {
@@ -498,7 +496,6 @@ func addNames(names map[string]bool, decl ast.Decl) {
 // which correctly updates each package file's comment list.
 // (The ast.PackageExports signature is frozen, hence the local
 // implementation).
-//
 func packageExports(fset *token.FileSet, pkg *ast.Package) {
 	for _, src := range pkg.Files {
 		cmap := ast.NewCommentMap(fset, src, src.Comments)
@@ -621,7 +618,6 @@ func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abs
 
 // formatGoSource HTML-escapes Go source text and writes it to w,
 // decorating it with the specified analysis links.
-//
 func formatGoSource(buf *bytes.Buffer, text []byte, links []analysis.Link, pattern string, selection Selection) {
 	// Emit to a temp buffer so that we can add line anchors at the end.
 	saved, buf := buf, new(bytes.Buffer)

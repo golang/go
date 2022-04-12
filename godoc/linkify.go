@@ -26,7 +26,6 @@ import (
 // not being declared), are wrapped with HTML links pointing
 // to the respective declaration, if possible. Comments are
 // formatted the same way as with FormatText.
-//
 func LinkifyText(w io.Writer, text []byte, n ast.Node) {
 	links := linksFor(n)
 
@@ -75,7 +74,6 @@ func LinkifyText(w io.Writer, text []byte, n ast.Node) {
 
 // A link describes the (HTML) link information for an identifier.
 // The zero value of a link represents "no link".
-//
 type link struct {
 	path, name string // package path, identifier name
 	isVal      bool   // identifier is defined in a const or var declaration
@@ -83,7 +81,6 @@ type link struct {
 
 // linksFor returns the list of links for the identifiers used
 // by node in the same order as they appear in the source.
-//
 func linksFor(node ast.Node) (links []link) {
 	// linkMap tracks link information for each ast.Ident node. Entries may
 	// be created out of source order (for example, when we visit a parent

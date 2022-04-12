@@ -39,7 +39,6 @@
 // ERRORS: for each locus of a frontend (scanner/parser/type) error, the
 // location is highlighted in red and hover text provides the compiler
 // error message.
-//
 package analysis // import "golang.org/x/tools/godoc/analysis"
 
 import (
@@ -160,7 +159,6 @@ func (res *Result) Status() string {
 // HTML link markup for the specified godoc file URL.  Thread-safe.
 // Callers must not mutate the elements.
 // It returns "zero" if no data is available.
-//
 func (res *Result) FileInfo(url string) (fi FileInfo) {
 	return res.fileInfo(url).get()
 }
@@ -185,7 +183,6 @@ func (res *Result) pkgInfo(importPath string) *pkgInfo {
 // type info for the specified package.  Thread-safe.
 // Callers must not mutate its fields.
 // PackageInfo returns "zero" if no data is available.
-//
 func (res *Result) PackageInfo(importPath string) PackageInfo {
 	return res.pkgInfo(importPath).get()
 }

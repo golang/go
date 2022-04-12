@@ -77,7 +77,6 @@ func (tr *Transformer) transformItem(rv reflect.Value) (reflect.Value, bool, map
 // available in info.
 //
 // Derived from rewriteFile in $GOROOT/src/cmd/gofmt/rewrite.go.
-//
 func (tr *Transformer) Transform(info *types.Info, pkg *types.Package, file *ast.File) int {
 	if !tr.seenInfos[info] {
 		tr.seenInfos[info] = true

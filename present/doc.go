@@ -7,7 +7,7 @@ Package present implements parsing and rendering of present files,
 which can be slide presentations as in golang.org/x/tools/cmd/present
 or articles as in golang.org/x/blog (the Go blog).
 
-File Format
+# File Format
 
 Present files begin with a header giving the title of the document
 and other metadata, which looks like:
@@ -26,7 +26,9 @@ If the "# " prefix is missing, the file uses
 legacy present markup, described below.
 
 The date line may be written without a time:
+
 	2 Jan 2006
+
 In this case, the time will be interpreted as 10am UTC on that date.
 
 The tags line is a comma-separated list of tags that may be used to categorize
@@ -82,7 +84,7 @@ with a dot, as in:
 Other than the commands, the text in a section is interpreted
 either as Markdown or as legacy present markup.
 
-Markdown Syntax
+# Markdown Syntax
 
 Markdown typically means the generic name for a family of similar markup languages.
 The specific variant used in present is CommonMark.
@@ -138,7 +140,7 @@ Example:
 
 	Visit [the Go home page](https://golang.org/).
 
-Legacy Present Syntax
+# Legacy Present Syntax
 
 Compared to Markdown,
 in legacy present
@@ -201,7 +203,7 @@ marker quotes the marker character.
 Links can be included in any text with the form [[url][label]], or
 [[url]] to use the URL itself as the label.
 
-Command Invocations
+# Command Invocations
 
 A number of special commands are available through invocations
 in the input text. Each such invocation contains a period as the
@@ -224,38 +226,55 @@ a file name followed by an optional address that specifies what
 section of the file to display. The address syntax is similar in
 its simplest form to that of ed, but comes from sam and is more
 general. See
+
 	https://plan9.io/sys/doc/sam/sam.html Table II
+
 for full details. The displayed block is always rounded out to a
 full line at both ends.
 
 If no pattern is present, the entire file is displayed.
 
 Any line in the program that ends with the four characters
+
 	OMIT
+
 is deleted from the source before inclusion, making it easy
 to write things like
+
 	.code test.go /START OMIT/,/END OMIT/
+
 to find snippets like this
+
 	tedious_code = boring_function()
 	// START OMIT
 	interesting_code = fascinating_function()
 	// END OMIT
+
 and see only this:
+
 	interesting_code = fascinating_function()
 
 Also, inside the displayed text a line that ends
+
 	// HL
+
 will be highlighted in the display. A highlighting mark may have a
 suffix word, such as
+
 	// HLxxx
+
 Such highlights are enabled only if the code invocation ends with
 "HL" followed by the word:
+
 	.code test.go /^type Foo/,/^}/ HLxxx
 
 The .code function may take one or more flags immediately preceding
 the filename. This command shows test.go in an editable text area:
+
 	.code -edit test.go
+
 This command shows test.go with line numbers:
+
 	.code -numbers test.go
 
 play:
@@ -333,7 +352,7 @@ It is your responsibility to make sure the included HTML is valid and safe.
 
 	.html file.html
 
-Presenter Notes
+# Presenter Notes
 
 Lines that begin with ": " are treated as presenter notes,
 in both Markdown and legacy present syntax.
@@ -347,7 +366,7 @@ window, except that presenter notes are only visible in the second window.
 
 Notes may appear anywhere within the slide text. For example:
 
-	* Title of slide
+	## Title of slide
 
 	Some text.
 
@@ -356,6 +375,5 @@ Notes may appear anywhere within the slide text. For example:
 	Some more text.
 
 	: Presenter notes (subsequent paragraph(s))
-
 */
 package present // import "golang.org/x/tools/present"

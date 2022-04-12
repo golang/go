@@ -27,7 +27,6 @@ import (
 //
 // A wildcard appearing more than once in the pattern must
 // consistently match the same tree.
-//
 func (tr *Transformer) matchExpr(x, y ast.Expr) bool {
 	if x == nil && y == nil {
 		return true

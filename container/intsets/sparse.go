@@ -10,7 +10,6 @@
 // space-efficient than equivalent operations on sets based on the Go
 // map type.  The IsEmpty, Min, Max, Clear and TakeMin operations
 // require constant time.
-//
 package intsets // import "golang.org/x/tools/container/intsets"
 
 // TODO(adonovan):
@@ -37,7 +36,6 @@ import (
 //
 // Sparse sets must be copied using the Copy method, not by assigning
 // a Sparse value.
-//
 type Sparse struct {
 	// An uninitialized Sparse represents an empty set.
 	// An empty set may also be represented by
@@ -105,7 +103,6 @@ func ntz(x word) int {
 // is the Euclidean remainder.
 //
 // A block may only be empty transiently.
-//
 type block struct {
 	offset     int                 // offset mod bitsPerBlock == 0
 	bits       [wordsPerBlock]word // contains at least one set bit
@@ -122,7 +119,6 @@ func wordMask(i uint) (w uint, mask word) {
 
 // insert sets the block b's ith bit and
 // returns true if it was not already set.
-//
 func (b *block) insert(i uint) bool {
 	w, mask := wordMask(i)
 	if b.bits[w]&mask == 0 {
@@ -135,7 +131,6 @@ func (b *block) insert(i uint) bool {
 // remove clears the block's ith bit and
 // returns true if the bit was previously set.
 // NB: may leave the block empty.
-//
 func (b *block) remove(i uint) bool {
 	w, mask := wordMask(i)
 	if b.bits[w]&mask != 0 {
@@ -238,7 +233,6 @@ func (b *block) forEach(f func(int)) {
 
 // offsetAndBitIndex returns the offset of the block that would
 // contain x and the bit index of x within that block.
-//
 func offsetAndBitIndex(x int) (int, uint) {
 	mod := x % bitsPerBlock
 	if mod < 0 {
@@ -438,9 +432,8 @@ func (s *Sparse) Clear() {
 //
 // This method may be used for iteration over a worklist like so:
 //
-// 	var x int
-// 	for worklist.TakeMin(&x) { use(x) }
-//
+//	var x int
+//	for worklist.TakeMin(&x) { use(x) }
 func (s *Sparse) TakeMin(p *int) bool {
 	if s.IsEmpty() {
 		return false
@@ -466,7 +459,6 @@ func (s *Sparse) Has(x int) bool {
 // f must not mutate s.  Consequently, forEach is not safe to expose
 // to clients.  In any case, using "range s.AppendTo()" allows more
 // natural control flow with continue/break/return.
-//
 func (s *Sparse) forEach(f func(int)) {
 	for b := s.first(); b != &none; b = s.next(b) {
 		b.forEach(f)
@@ -1021,11 +1013,11 @@ func (s *Sparse) String() string {
 // preceded by a digit, appears if the sum is non-integral.
 //
 // Examples:
-//              {}.BitString() =      "0"
-//           {4,5}.BitString() = "110000"
-//            {-3}.BitString() =      "0.001"
-//      {-3,0,4,5}.BitString() = "110001.001"
 //
+//	        {}.BitString() =      "0"
+//	     {4,5}.BitString() = "110000"
+//	      {-3}.BitString() =      "0.001"
+//	{-3,0,4,5}.BitString() = "110001.001"
 func (s *Sparse) BitString() string {
 	if s.IsEmpty() {
 		return "0"
@@ -1060,7 +1052,6 @@ func (s *Sparse) BitString() string {
 
 // GoString returns a string showing the internal representation of
 // the set s.
-//
 func (s *Sparse) GoString() string {
 	var buf bytes.Buffer
 	for b := s.first(); b != &none; b = s.next(b) {

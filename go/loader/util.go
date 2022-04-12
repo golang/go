@@ -27,7 +27,6 @@ var ioLimit = make(chan bool, 10)
 //
 // I/O is done via ctxt, which may specify a virtual file system.
 // displayPath is used to transform the filenames attached to the ASTs.
-//
 func parseFiles(fset *token.FileSet, ctxt *build.Context, displayPath func(string) string, dir string, files []string, mode parser.Mode) ([]*ast.File, []error) {
 	if displayPath == nil {
 		displayPath = func(path string) string { return path }

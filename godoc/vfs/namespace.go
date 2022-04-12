@@ -97,7 +97,6 @@ const debugNS = false
 // mount table entries always have old == "/src/pkg").  The 'old' field is
 // useful to callers, because they receive just a []mountedFS and not any
 // other indication of which mount point was found.
-//
 type NameSpace map[string][]mountedFS
 
 // A mountedFS handles requests for path by replacing
@@ -294,7 +293,6 @@ var startTime = time.Now()
 // to find that subdirectory, because we've mounted d:\Work1 and d:\Work2
 // there.  So if we don't see "src" in the directory listing for c:\Go, we add an
 // entry for it before returning.
-//
 func (ns NameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 	path = ns.clean(path)
 

@@ -22,7 +22,6 @@ import (
 
 // Conventional name for directories containing test data.
 // Excluded from directory trees.
-//
 const testdataDirName = "testdata"
 
 type Directory struct {
@@ -217,7 +216,6 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 // provided for maxDepth, nodes at larger depths are pruned as well; they
 // are assumed to contain package files even if their contents are not known
 // (i.e., in this case the tree may contain directories w/o any package files).
-//
 func (c *Corpus) newDirectory(root string, maxDepth int) *Directory {
 	// The root could be a symbolic link so use Stat not Lstat.
 	d, err := c.fs.Stat(root)
@@ -300,7 +298,6 @@ func (dir *Directory) lookup(path string) *Directory {
 
 // DirEntry describes a directory entry. The Depth and Height values
 // are useful for presenting an entry in an indented fashion.
-//
 type DirEntry struct {
 	Depth    int          // >= 0
 	Height   int          // = DirList.MaxHeight - Depth, > 0
@@ -331,7 +328,6 @@ func hasThirdParty(list []DirEntry) bool {
 // If skipRoot is set, the root directory itself is excluded from the list.
 // If filter is set, only the directory entries whose paths match the filter
 // are included.
-//
 func (dir *Directory) listing(skipRoot bool, filter func(string) bool) *DirList {
 	if dir == nil {
 		return nil

@@ -20,36 +20,35 @@
 // be called any number of times.  Finally, these are followed by a
 // call to Load() to actually load and type-check the program.
 //
-//      var conf loader.Config
+//	var conf loader.Config
 //
-//      // Use the command-line arguments to specify
-//      // a set of initial packages to load from source.
-//      // See FromArgsUsage for help.
-//      rest, err := conf.FromArgs(os.Args[1:], wantTests)
+//	// Use the command-line arguments to specify
+//	// a set of initial packages to load from source.
+//	// See FromArgsUsage for help.
+//	rest, err := conf.FromArgs(os.Args[1:], wantTests)
 //
-//      // Parse the specified files and create an ad hoc package with path "foo".
-//      // All files must have the same 'package' declaration.
-//      conf.CreateFromFilenames("foo", "foo.go", "bar.go")
+//	// Parse the specified files and create an ad hoc package with path "foo".
+//	// All files must have the same 'package' declaration.
+//	conf.CreateFromFilenames("foo", "foo.go", "bar.go")
 //
-//      // Create an ad hoc package with path "foo" from
-//      // the specified already-parsed files.
-//      // All ASTs must have the same 'package' declaration.
-//      conf.CreateFromFiles("foo", parsedFiles)
+//	// Create an ad hoc package with path "foo" from
+//	// the specified already-parsed files.
+//	// All ASTs must have the same 'package' declaration.
+//	conf.CreateFromFiles("foo", parsedFiles)
 //
-//      // Add "runtime" to the set of packages to be loaded.
-//      conf.Import("runtime")
+//	// Add "runtime" to the set of packages to be loaded.
+//	conf.Import("runtime")
 //
-//      // Adds "fmt" and "fmt_test" to the set of packages
-//      // to be loaded.  "fmt" will include *_test.go files.
-//      conf.ImportWithTests("fmt")
+//	// Adds "fmt" and "fmt_test" to the set of packages
+//	// to be loaded.  "fmt" will include *_test.go files.
+//	conf.ImportWithTests("fmt")
 //
-//      // Finally, load all the packages specified by the configuration.
-//      prog, err := conf.Load()
+//	// Finally, load all the packages specified by the configuration.
+//	prog, err := conf.Load()
 //
 // See examples_test.go for examples of API usage.
 //
-//
-// CONCEPTS AND TERMINOLOGY
+// # CONCEPTS AND TERMINOLOGY
 //
 // The WORKSPACE is the set of packages accessible to the loader.  The
 // workspace is defined by Config.Build, a *build.Context.  The
@@ -92,7 +91,6 @@
 // The INITIAL packages are those specified in the configuration.  A
 // DEPENDENCY is a package loaded to satisfy an import in an initial
 // package or another dependency.
-//
 package loader
 
 // IMPLEMENTATION NOTES

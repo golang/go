@@ -25,7 +25,6 @@ import (
 
 // A Segment describes a text segment [start, end).
 // The zero value of a Segment is a ready-to-use empty segment.
-//
 type Segment struct {
 	start, end int
 }
@@ -36,12 +35,10 @@ func (seg *Segment) isEmpty() bool { return seg.start >= seg.end }
 // Repeated calls to a selection return consecutive, non-overlapping,
 // non-empty segments, followed by an infinite sequence of empty
 // segments. The first empty segment marks the end of the selection.
-//
 type Selection func() Segment
 
 // A LinkWriter writes some start or end "tag" to w for the text offset offs.
 // It is called by FormatSelections at the start or end of each link segment.
-//
 type LinkWriter func(w io.Writer, offs int, start bool)
 
 // A SegmentWriter formats a text according to selections and writes it to w.
@@ -49,7 +46,6 @@ type LinkWriter func(w io.Writer, offs int, start bool)
 // to FormatSelections overlap with the text segment: If the n'th bit is set
 // in selections, the n'th selection provided to FormatSelections is overlapping
 // with the text.
-//
 type SegmentWriter func(w io.Writer, text []byte, selections int)
 
 // FormatSelections takes a text and writes it to w using link and segment
@@ -58,7 +54,6 @@ type SegmentWriter func(w io.Writer, text []byte, selections int)
 // consecutive segments of text overlapped by the same selections as specified
 // by selections. The link writer lw may be nil, in which case the links
 // Selection is ignored.
-//
 func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, sw SegmentWriter, selections ...Selection) {
 	// If we have a link writer, make the links
 	// selection the last entry in selections
@@ -144,7 +139,6 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, 
 
 // A merger merges a slice of Selections and produces a sequence of
 // consecutive segment change events through repeated next() calls.
-//
 type merger struct {
 	selections []Selection
 	segments   []Segment // segments[i] is the next segment of selections[i]
@@ -169,7 +163,6 @@ func newMerger(selections []Selection) *merger {
 // to which the segment belongs, offs is the segment start or end offset
 // as determined by the start value. If there are no more segment changes,
 // next returns an index value < 0.
-//
 func (m *merger) next() (index, offs int, start bool) {
 	// find the next smallest offset where a segment starts or ends
 	offs = infinity
@@ -233,7 +226,6 @@ func lineSelection(text []byte) Selection {
 
 // tokenSelection returns, as a selection, the sequence of
 // consecutive occurrences of token sel in the Go src text.
-//
 func tokenSelection(src []byte, sel token.Token) Selection {
 	var s scanner.Scanner
 	fset := token.NewFileSet()
@@ -257,7 +249,6 @@ func tokenSelection(src []byte, sel token.Token) Selection {
 
 // makeSelection is a helper function to make a Selection from a slice of pairs.
 // Pairs describing empty segments are ignored.
-//
 func makeSelection(matches [][]int) Selection {
 	i := 0
 	return func() Segment {
@@ -306,7 +297,6 @@ func RangeSelection(str string) Selection {
 // bit 0: comments
 // bit 1: highlights
 // bit 2: selections
-//
 var startTags = [][]byte{
 	/* 000 */ []byte(``),
 	/* 001 */ []byte(`<span class="comment">`),
@@ -336,16 +326,15 @@ func selectionTag(w io.Writer, text []byte, selections int) {
 // Consecutive text segments are wrapped in HTML spans (with tags as
 // defined by startTags and endTag) as follows:
 //
-//	- if line >= 0, line number (ln) spans are inserted before each line,
-//	  starting with the value of line
-//	- if the text is Go source, comments get the "comment" span class
-//	- each occurrence of the regular expression pattern gets the "highlight"
-//	  span class
-//	- text segments covered by selection get the "selection" span class
+//   - if line >= 0, line number (ln) spans are inserted before each line,
+//     starting with the value of line
+//   - if the text is Go source, comments get the "comment" span class
+//   - each occurrence of the regular expression pattern gets the "highlight"
+//     span class
+//   - text segments covered by selection get the "selection" span class
 //
 // Comments, highlights, and selections may overlap arbitrarily; the respective
 // HTML span classes are specified in the startTags variable.
-//
 func FormatText(w io.Writer, text []byte, line int, goSource bool, pattern string, selection Selection) {
 	var comments, highlights Selection
 	if goSource {

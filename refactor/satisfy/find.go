@@ -14,7 +14,6 @@
 // functionality will become part of the type-checker in due course,
 // since it is computing it anyway, and it is robust for ill-typed
 // inputs, which this package is not.
-//
 package satisfy // import "golang.org/x/tools/refactor/satisfy"
 
 // NOTES:
@@ -69,7 +68,6 @@ type Constraint struct {
 // that is checked during compilation of a package.  Refactoring tools
 // will need to preserve at least this part of the relation to ensure
 // continued compilation.
-//
 type Finder struct {
 	Result    map[Constraint]bool
 	msetcache typeutil.MethodSetCache
@@ -88,7 +86,6 @@ type Finder struct {
 // The package must be free of type errors, and
 // info.{Defs,Uses,Selections,Types} must have been populated by the
 // type-checker.
-//
 func (f *Finder) Find(info *types.Info, files []*ast.File) {
 	if f.Result == nil {
 		f.Result = make(map[Constraint]bool)
@@ -276,7 +273,6 @@ func (f *Finder) valueSpec(spec *ast.ValueSpec) {
 // explicit conversions and comparisons between two types, unless the
 // types are uninteresting (e.g. lhs is a concrete type, or the empty
 // interface; rhs has no methods).
-//
 func (f *Finder) assign(lhs, rhs types.Type) {
 	if types.Identical(lhs, rhs) {
 		return

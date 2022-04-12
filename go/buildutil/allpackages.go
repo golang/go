@@ -28,7 +28,6 @@ import (
 //
 // All I/O is done via the build.Context file system interface,
 // which must be concurrency-safe.
-//
 func AllPackages(ctxt *build.Context) []string {
 	var list []string
 	ForEachPackage(ctxt, func(pkg string, _ error) {
@@ -48,7 +47,6 @@ func AllPackages(ctxt *build.Context) []string {
 //
 // All I/O is done via the build.Context file system interface,
 // which must be concurrency-safe.
-//
 func ForEachPackage(ctxt *build.Context, found func(importPath string, err error)) {
 	ch := make(chan item)
 
@@ -127,19 +125,18 @@ func allPackages(ctxt *build.Context, root string, ch chan<- item) {
 // ExpandPatterns returns the set of packages matched by patterns,
 // which may have the following forms:
 //
-//		golang.org/x/tools/cmd/guru     # a single package
-//		golang.org/x/tools/...          # all packages beneath dir
-//		...                             # the entire workspace.
+//	golang.org/x/tools/cmd/guru     # a single package
+//	golang.org/x/tools/...          # all packages beneath dir
+//	...                             # the entire workspace.
 //
 // Order is significant: a pattern preceded by '-' removes matching
 // packages from the set.  For example, these patterns match all encoding
 // packages except encoding/xml:
 //
-// 	encoding/... -encoding/xml
+//	encoding/... -encoding/xml
 //
 // A trailing slash in a pattern is ignored.  (Path components of Go
 // package names are separated by slash, not the platform's path separator.)
-//
 func ExpandPatterns(ctxt *build.Context, patterns []string) map[string]bool {
 	// TODO(adonovan): support other features of 'go list':
 	// - "std"/"cmd"/"all" meta-packages

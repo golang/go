@@ -41,24 +41,27 @@ const (
 // call the Mark method to add the marker to the global set.
 // You can register the "mark" method to override these in your own call to
 // Expect. The bound Mark function is usable directly in your method map, so
-//    exported.Expect(map[string]interface{}{"mark": exported.Mark})
+//
+//	exported.Expect(map[string]interface{}{"mark": exported.Mark})
+//
 // replicates the built in behavior.
 //
-// Method invocation
+// # Method invocation
 //
 // When invoking a method the expressions in the parameter list need to be
 // converted to values to be passed to the method.
 // There are a very limited set of types the arguments are allowed to be.
-//   expect.Note : passed the Note instance being evaluated.
-//   string : can be supplied either a string literal or an identifier.
-//   int : can only be supplied an integer literal.
-//   *regexp.Regexp : can only be supplied a regular expression literal
-//   token.Pos : has a file position calculated as described below.
-//   token.Position : has a file position calculated as described below.
-//   expect.Range: has a start and end position as described below.
-//   interface{} : will be passed any value
 //
-// Position calculation
+//	expect.Note : passed the Note instance being evaluated.
+//	string : can be supplied either a string literal or an identifier.
+//	int : can only be supplied an integer literal.
+//	*regexp.Regexp : can only be supplied a regular expression literal
+//	token.Pos : has a file position calculated as described below.
+//	token.Position : has a file position calculated as described below.
+//	expect.Range: has a start and end position as described below.
+//	interface{} : will be passed any value
+//
+// # Position calculation
 //
 // There is some extra handling when a parameter is being coerced into a
 // token.Pos, token.Position or Range type argument.

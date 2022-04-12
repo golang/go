@@ -222,7 +222,7 @@ func NeedsGoPackagesEnv(t Testing, env []string) {
 	NeedsGoPackages(t)
 }
 
-// NeedsGoBuild skips t if the current system can't build programs with ``go build''
+// NeedsGoBuild skips t if the current system can't build programs with “go build”
 // and then run them with os.StartProcess or exec.Command.
 // android, and darwin/arm systems don't have the userspace go build needs to run,
 // and js/wasm doesn't support running subprocesses.

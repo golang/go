@@ -8,7 +8,6 @@ import "time"
 
 // A Throttle permits throttling of a goroutine by
 // calling the Throttle method repeatedly.
-//
 type Throttle struct {
 	f  float64       // f = (1-r)/r for 0 < r < 1
 	dt time.Duration // minimum run time slice; >= 0
@@ -27,7 +26,6 @@ type Throttle struct {
 // approx. 60% of the time, and sleeps approx. 40% of the time.
 // Values of r < 0 or r > 1 are clamped down to values between 0 and 1.
 // Values of dt < 0 are set to 0.
-//
 func NewThrottle(r float64, dt time.Duration) *Throttle {
 	var f float64
 	switch {
@@ -49,7 +47,6 @@ func NewThrottle(r float64, dt time.Duration) *Throttle {
 // accumulated run (tr) and sleep times (ts) approximates the value 1/(1-r)
 // where r is the throttle value. Throttle returns immediately (w/o sleeping)
 // if less than tm ns have passed since the last call to Throttle.
-//
 func (p *Throttle) Throttle() {
 	if p.f < 0 {
 		select {} // always sleep

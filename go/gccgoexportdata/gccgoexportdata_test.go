@@ -18,12 +18,12 @@ import (
 //
 // The testdata/{short,long}.a ELF archive files were produced by:
 //
-//   $ echo 'package foo; func F()' > foo.go
-//   $ gccgo -c -fgo-pkgpath blah foo.go
-//   $ objcopy -j .go_export foo.o foo.gox
-//   $ ar q short.a foo.gox
-//   $ objcopy -j .go_export foo.o name-longer-than-16-bytes.gox
-//   $ ar q long.a name-longer-than-16-bytes.gox
+//	$ echo 'package foo; func F()' > foo.go
+//	$ gccgo -c -fgo-pkgpath blah foo.go
+//	$ objcopy -j .go_export foo.o foo.gox
+//	$ ar q short.a foo.gox
+//	$ objcopy -j .go_export foo.o name-longer-than-16-bytes.gox
+//	$ ar q long.a name-longer-than-16-bytes.gox
 //
 // The file long.a contains an archive string table.
 //

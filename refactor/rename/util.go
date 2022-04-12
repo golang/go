@@ -83,7 +83,6 @@ func isDigit(ch rune) bool {
 
 // sameFile returns true if x and y have the same basename and denote
 // the same file.
-//
 func sameFile(x, y string) bool {
 	if runtime.GOOS == "windows" {
 		x = filepath.ToSlash(x)

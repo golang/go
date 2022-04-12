@@ -1079,7 +1079,6 @@ func (ld *loader) parseFile(filename string) (*ast.File, error) {
 //
 // Because files are scanned in parallel, the token.Pos
 // positions of the resulting ast.Files are not ordered.
-//
 func (ld *loader) parseFiles(filenames []string) ([]*ast.File, []error) {
 	var wg sync.WaitGroup
 	n := len(filenames)
@@ -1123,7 +1122,6 @@ func (ld *loader) parseFiles(filenames []string) ([]*ast.File, []error) {
 
 // sameFile returns true if x and y have the same basename and denote
 // the same file.
-//
 func sameFile(x, y string) bool {
 	if x == y {
 		// It could be the case that y doesn't exist.

@@ -16,20 +16,19 @@ The interpretation of the notes depends on the application.
 For example, the test suite for a static checking tool might
 use a @diag note to indicate an expected diagnostic:
 
-   fmt.Printf("%s", 1) //@ diag("%s wants a string, got int")
+	fmt.Printf("%s", 1) //@ diag("%s wants a string, got int")
 
 By contrast, the test suite for a source code navigation tool
 might use notes to indicate the positions of features of
 interest, the actions to be performed by the test,
 and their expected outcomes:
 
-   var x = 1 //@ x_decl
-   ...
-   print(x) //@ definition("x", x_decl)
-   print(x) //@ typeof("x", "int")
+	var x = 1 //@ x_decl
+	...
+	print(x) //@ definition("x", x_decl)
+	print(x) //@ typeof("x", "int")
 
-
-Note comment syntax
+# Note comment syntax
 
 Note comments always start with the special marker @, which must be the
 very first character after the comment opening pair, so //@ or /*@ with no

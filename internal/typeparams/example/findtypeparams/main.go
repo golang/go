@@ -36,7 +36,7 @@ func MakePair[L, R Constraint](l L, r R) Pair[L, R] {
 //!-input
 `
 
-//!+print
+// !+print
 func PrintTypeParams(fset *token.FileSet, file *ast.File) error {
 	conf := types.Config{Importer: importer.Default()}
 	info := &types.Info{

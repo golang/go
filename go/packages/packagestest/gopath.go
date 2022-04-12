@@ -12,26 +12,33 @@ import (
 // GOPATH is the exporter that produces GOPATH layouts.
 // Each "module" is put in it's own GOPATH entry to help test complex cases.
 // Given the two files
-//     golang.org/repoa#a/a.go
-//     golang.org/repob#b/b.go
+//
+//	golang.org/repoa#a/a.go
+//	golang.org/repob#b/b.go
+//
 // You would get the directory layout
-//     /sometemporarydirectory
-//     ├── repoa
-//     │   └── src
-//     │       └── golang.org
-//     │           └── repoa
-//     │               └── a
-//     │                   └── a.go
-//     └── repob
-//         └── src
-//             └── golang.org
-//                 └── repob
-//                     └── b
-//                         └── b.go
+//
+//	/sometemporarydirectory
+//	├── repoa
+//	│   └── src
+//	│       └── golang.org
+//	│           └── repoa
+//	│               └── a
+//	│                   └── a.go
+//	└── repob
+//	    └── src
+//	        └── golang.org
+//	            └── repob
+//	                └── b
+//	                    └── b.go
+//
 // GOPATH would be set to
-//     /sometemporarydirectory/repoa;/sometemporarydirectory/repob
+//
+//	/sometemporarydirectory/repoa;/sometemporarydirectory/repob
+//
 // and the working directory would be
-//     /sometemporarydirectory/repoa/src
+//
+//	/sometemporarydirectory/repoa/src
 var GOPATH = gopath{}
 
 func init() {

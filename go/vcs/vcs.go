@@ -11,7 +11,6 @@
 // for developers who want to write tools with similar semantics.
 // It needs to be manually kept in sync with upstream when changes are
 // made to cmd/go/internal/get; see https://golang.org/issue/11490.
-//
 package vcs // import "golang.org/x/tools/go/vcs"
 
 import (

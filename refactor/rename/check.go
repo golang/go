@@ -206,7 +206,6 @@ func (r *renamer) checkInLocalScope(from types.Object) {
 //
 // Removing the old name (and all references to it) is always safe, and
 // requires no checks.
-//
 func (r *renamer) checkInLexicalScope(from types.Object, info *loader.PackageInfo) {
 	b := from.Parent() // the block defining the 'from' object
 	if b != nil {
@@ -568,13 +567,14 @@ func (r *renamer) selectionConflict(from types.Object, delta int, syntax *ast.Se
 
 // checkMethod performs safety checks for renaming a method.
 // There are three hazards:
-// - declaration conflicts
-// - selection ambiguity/changes
-// - entailed renamings of assignable concrete/interface types.
-//   We reject renamings initiated at concrete methods if it would
-//   change the assignability relation.  For renamings of abstract
-//   methods, we rename all methods transitively coupled to it via
-//   assignability.
+//   - declaration conflicts
+//   - selection ambiguity/changes
+//   - entailed renamings of assignable concrete/interface types.
+//
+// We reject renamings initiated at concrete methods if it would
+// change the assignability relation.  For renamings of abstract
+// methods, we rename all methods transitively coupled to it via
+// assignability.
 func (r *renamer) checkMethod(from *types.Func) {
 	// e.g. error.Error
 	if from.Pkg() == nil {

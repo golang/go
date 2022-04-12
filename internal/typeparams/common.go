@@ -121,15 +121,15 @@ func OriginMethod(fn *types.Func) *types.Func {
 //
 // For example, consider the following type declarations:
 //
-//  type Interface[T any] interface {
-//  	Accept(T)
-//  }
+//	type Interface[T any] interface {
+//		Accept(T)
+//	}
 //
-//  type Container[T any] struct {
-//  	Element T
-//  }
+//	type Container[T any] struct {
+//		Element T
+//	}
 //
-//  func (c Container[T]) Accept(t T) { c.Element = t }
+//	func (c Container[T]) Accept(t T) { c.Element = t }
 //
 // In this case, GenericAssignableTo reports that instantiations of Container
 // are assignable to the corresponding instantiation of Interface.

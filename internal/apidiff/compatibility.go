@@ -138,13 +138,13 @@ func unexportedMethod(t *types.Interface) *types.Func {
 }
 
 // We need to check three things for structs:
-// 1. The set of exported fields must be compatible. This ensures that keyed struct
-//    literals continue to compile. (There is no compatibility guarantee for unkeyed
-//    struct literals.)
-// 2. The set of exported *selectable* fields must be compatible. This includes the exported
-//    fields of all embedded structs. This ensures that selections continue to compile.
-// 3. If the old struct is comparable, so must the new one be. This ensures that equality
-//    expressions and uses of struct values as map keys continue to compile.
+//  1. The set of exported fields must be compatible. This ensures that keyed struct
+//     literals continue to compile. (There is no compatibility guarantee for unkeyed
+//     struct literals.)
+//  2. The set of exported *selectable* fields must be compatible. This includes the exported
+//     fields of all embedded structs. This ensures that selections continue to compile.
+//  3. If the old struct is comparable, so must the new one be. This ensures that equality
+//     expressions and uses of struct values as map keys continue to compile.
 //
 // An unexported embedded struct can't appear in a struct literal outside the
 // package, so it doesn't have to be present, or have the same name, in the new

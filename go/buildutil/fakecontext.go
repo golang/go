@@ -30,7 +30,6 @@ import (
 // /go/src/ including, for instance, "math" and "math/big".
 // ReadDir("/go/src/math/big") would return all the files in the
 // "math/big" package.
-//
 func FakeContext(pkgs map[string]map[string]string) *build.Context {
 	clean := func(filename string) string {
 		f := path.Clean(filepath.ToSlash(filename))

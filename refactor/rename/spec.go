@@ -31,7 +31,6 @@ import (
 //
 // It is populated from an -offset flag or -from query;
 // see Usage for the allowed -from query forms.
-//
 type spec struct {
 	// pkg is the package containing the position
 	// specified by the -from or -offset flag.
@@ -413,7 +412,6 @@ func typeSwitchVar(info *types.Info, path []ast.Node) types.Object {
 // spec.fromName matching the spec.  On success, the result has exactly
 // one element unless spec.searchFor!="", in which case it has at least one
 // element.
-//
 func findObjects(info *loader.PackageInfo, spec *spec) ([]types.Object, error) {
 	if spec.pkgMember == "" {
 		if spec.searchFor == "" {
@@ -572,6 +570,7 @@ func ambiguityError(fset *token.FileSet, objects []types.Object) error {
 }
 
 // Matches cgo generated comment as well as the proposed standard:
+//
 //	https://golang.org/s/generatedcode
 var generatedRx = regexp.MustCompile(`// .*DO NOT EDIT\.?`)
 

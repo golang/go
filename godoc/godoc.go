@@ -41,8 +41,8 @@ const builtinPkgPath = "builtin"
 // FuncMap defines template functions used in godoc templates.
 //
 // Convention: template function names ending in "_html" or "_url" produce
-//             HTML- or URL-escaped strings; all other function results may
-//             require explicit escaping in the template.
+// HTML- or URL-escaped strings; all other function results may
+// require explicit escaping in the template.
 func (p *Presentation) FuncMap() template.FuncMap {
 	p.initFuncMapOnce.Do(p.initFuncMap)
 	return p.funcMap

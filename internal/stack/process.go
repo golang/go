@@ -96,7 +96,7 @@ func (s *Summary) addGoroutine(gr Goroutine) {
 	s.Calls[index].merge(gr)
 }
 
-//TODO: do we want other grouping strategies?
+// TODO: do we want other grouping strategies?
 func (c *Call) merge(gr Goroutine) {
 	for i := range c.Groups {
 		canditate := &c.Groups[i]

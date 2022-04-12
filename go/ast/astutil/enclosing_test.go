@@ -40,7 +40,6 @@ func pathToString(path []ast.Node) string {
 // findInterval parses input and returns the [start, end) positions of
 // the first occurrence of substr in input.  f==nil indicates failure;
 // an error has already been reported in that case.
-//
 func findInterval(t *testing.T, fset *token.FileSet, input, substr string) (f *ast.File, start, end token.Pos) {
 	f, err := parser.ParseFile(fset, "<input>", input, 0)
 	if err != nil {

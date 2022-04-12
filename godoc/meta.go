@@ -43,7 +43,6 @@ func (m *Metadata) FilePath() string { return m.filePath }
 // extractMetadata extracts the Metadata from a byte slice.
 // It returns the Metadata value and the remaining data.
 // If no metadata is present the original byte slice is returned.
-//
 func extractMetadata(b []byte) (meta Metadata, tail []byte, err error) {
 	tail = b
 	if !bytes.HasPrefix(b, jsonStart) {
@@ -121,7 +120,6 @@ func (c *Corpus) updateMetadata() {
 
 // MetadataFor returns the *Metadata for a given relative path or nil if none
 // exists.
-//
 func (c *Corpus) MetadataFor(relpath string) *Metadata {
 	if m, _ := c.docMetadata.Get(); m != nil {
 		meta := m.(map[string]*Metadata)
@@ -142,7 +140,6 @@ func (c *Corpus) MetadataFor(relpath string) *Metadata {
 
 // refreshMetadata sends a signal to update DocMetadata. If a refresh is in
 // progress the metadata will be refreshed again afterward.
-//
 func (c *Corpus) refreshMetadata() {
 	select {
 	case c.refreshMetadataSignal <- true:

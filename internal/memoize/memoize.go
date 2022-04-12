@@ -7,7 +7,6 @@
 //
 // To use this package, build a store and use it to acquire handles with the
 // Bind method.
-//
 package memoize
 
 import (

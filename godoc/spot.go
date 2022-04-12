@@ -13,9 +13,8 @@ package godoc
 //
 // The following encoding is used:
 //
-//   bits    32   4    1       0
-//   value    [lori|kind|isIndex]
-//
+//	bits    32   4    1       0
+//	value    [lori|kind|isIndex]
 type SpotInfo uint32
 
 // SpotKind describes whether an identifier is declared (and what kind of

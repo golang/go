@@ -22,7 +22,6 @@ import (
 // version-skew problems described in the documentation of this package,
 // or to control the FileSet or access the imports map populated during
 // package loading.
-//
 func NewImporter(fset *token.FileSet, imports map[string]*types.Package) types.ImporterFrom {
 	return importer{fset, imports}
 }

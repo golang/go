@@ -1359,7 +1359,6 @@ type FileLines struct {
 // LookupRegexp returns the number of matches and the matches where a regular
 // expression r is found in the full text index. At most n matches are
 // returned (thus found <= n).
-//
 func (x *Index) LookupRegexp(r *regexp.Regexp, n int) (found int, result []FileLines) {
 	if x.suffixes == nil || n <= 0 {
 		return
@@ -1431,7 +1430,6 @@ func (c *Corpus) invalidateIndex() {
 
 // feedDirnames feeds the directory names of all directories
 // under the file system given by root to channel c.
-//
 func (c *Corpus) feedDirnames(ch chan<- string) {
 	if dir, _ := c.fsTree.Get(); dir != nil {
 		for d := range dir.(*Directory).iter(false) {
@@ -1442,7 +1440,6 @@ func (c *Corpus) feedDirnames(ch chan<- string) {
 
 // fsDirnames() returns a channel sending all directory names
 // of all the file systems under godoc's observation.
-//
 func (c *Corpus) fsDirnames() <-chan string {
 	ch := make(chan string, 256) // buffered for fewer context switches
 	go func() {

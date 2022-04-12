@@ -96,6 +96,7 @@ func checkFile(toolsDir, filename string) (bool, error) {
 
 // Copied from golang.org/x/tools/internal/lsp/source/util.go.
 // Matches cgo generated comment as well as the proposed standard:
+//
 //	https://golang.org/s/generatedcode
 var generatedRx = regexp.MustCompile(`// .*DO NOT EDIT\.?`)
 

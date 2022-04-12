@@ -22,8 +22,11 @@ func AddImport(fset *token.FileSet, f *ast.File, path string) (added bool) {
 // If name is not empty, it is used to rename the import.
 //
 // For example, calling
+//
 //	AddNamedImport(fset, f, "pathpkg", "path")
+//
 // adds
+//
 //	import pathpkg "path"
 func AddNamedImport(fset *token.FileSet, f *ast.File, name, path string) (added bool) {
 	if imports(f, name, path) {

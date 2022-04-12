@@ -20,7 +20,8 @@ const TagsFlagDoc = "a list of `build tags` to consider satisfied during the bui
 // See $GOROOT/src/cmd/go/doc.go for description of 'go build -tags' flag.
 //
 // Example:
-// 	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
+//
+//	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
 type TagsFlag []string
 
 func (v *TagsFlag) Set(s string) error {

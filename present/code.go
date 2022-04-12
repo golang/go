@@ -56,7 +56,9 @@ var (
 )
 
 // parseCode parses a code present directive. Its syntax:
-//   .code [-numbers] [-edit] <filename> [address] [highlight]
+//
+//	.code [-numbers] [-edit] <filename> [address] [highlight]
+//
 // The directive may also be ".play" if the snippet is executable.
 func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Elem, error) {
 	cmd = strings.TrimSpace(cmd)

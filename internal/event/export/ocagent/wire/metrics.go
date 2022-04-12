@@ -71,9 +71,12 @@ type PointInt64Value struct {
 // OpenCensus service can correctly determine the underlying value type.
 // This custom MarshalJSON exists because,
 // by default *Point is JSON marshalled as:
-//     {"value": {"int64Value": 1}}
+//
+//	{"value": {"int64Value": 1}}
+//
 // but it should be marshalled as:
-//     {"int64Value": 1}
+//
+//	{"int64Value": 1}
 func (p *Point) MarshalJSON() ([]byte, error) {
 	if p == nil {
 		return []byte("null"), nil
@@ -158,9 +161,12 @@ type bucketOptionsExplicitAlias BucketOptionsExplicit
 // OpenCensus service can correctly determine the underlying value type.
 // This custom MarshalJSON exists because,
 // by default BucketOptionsExplicit is JSON marshalled as:
-//     {"bounds":[1,2,3]}
+//
+//	{"bounds":[1,2,3]}
+//
 // but it should be marshalled as:
-//     {"explicit":{"bounds":[1,2,3]}}
+//
+//	{"explicit":{"bounds":[1,2,3]}}
 func (be *BucketOptionsExplicit) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		Explicit *bucketOptionsExplicitAlias `json:"explicit,omitempty"`

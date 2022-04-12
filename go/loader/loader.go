@@ -179,7 +179,6 @@ type Program struct {
 // for a single package.
 //
 // Not mutated once exposed via the API.
-//
 type PackageInfo struct {
 	Pkg                   *types.Package
 	Importable            bool        // true if 'import "Pkg.Path()"' would resolve to this
@@ -217,7 +216,6 @@ func (conf *Config) fset() *token.FileSet {
 // src specifies the parser input as a string, []byte, or io.Reader, and
 // filename is its apparent name.  If src is nil, the contents of
 // filename are read from the file system.
-//
 func (conf *Config) ParseFile(filename string, src interface{}) (*ast.File, error) {
 	// TODO(adonovan): use conf.build() etc like parseFiles does.
 	return parser.ParseFile(conf.fset(), filename, src, conf.ParserMode)
@@ -262,7 +260,6 @@ A '--' argument terminates the list of packages.
 //
 // Only superficial errors are reported at this stage; errors dependent
 // on I/O are detected during Load.
-//
 func (conf *Config) FromArgs(args []string, xtest bool) ([]string, error) {
 	var rest []string
 	for i, arg := range args {
@@ -300,14 +297,12 @@ func (conf *Config) FromArgs(args []string, xtest bool) ([]string, error) {
 // CreateFromFilenames is a convenience function that adds
 // a conf.CreatePkgs entry to create a package of the specified *.go
 // files.
-//
 func (conf *Config) CreateFromFilenames(path string, filenames ...string) {
 	conf.CreatePkgs = append(conf.CreatePkgs, PkgSpec{Path: path, Filenames: filenames})
 }
 
 // CreateFromFiles is a convenience function that adds a conf.CreatePkgs
 // entry to create package of the specified path and parsed files.
-//
 func (conf *Config) CreateFromFiles(path string, files ...*ast.File) {
 	conf.CreatePkgs = append(conf.CreatePkgs, PkgSpec{Path: path, Files: files})
 }
@@ -321,12 +316,10 @@ func (conf *Config) CreateFromFiles(path string, files ...*ast.File) {
 // In addition, if any *_test.go files contain a "package x_test"
 // declaration, an additional package comprising just those files will
 // be added to CreatePkgs.
-//
 func (conf *Config) ImportWithTests(path string) { conf.addImport(path, true) }
 
 // Import is a convenience function that adds path to ImportPkgs, the
 // set of initial packages that will be imported from source.
-//
 func (conf *Config) Import(path string) { conf.addImport(path, false) }
 
 func (conf *Config) addImport(path string, tests bool) {
@@ -345,7 +338,6 @@ func (conf *Config) addImport(path string, tests bool) {
 // exact is defined as for astutil.PathEnclosingInterval.
 //
 // The zero value is returned if not found.
-//
 func (prog *Program) PathEnclosingInterval(start, end token.Pos) (pkg *PackageInfo, path []ast.Node, exact bool) {
 	for _, info := range prog.AllPackages {
 		for _, f := range info.Files {
@@ -368,7 +360,6 @@ func (prog *Program) PathEnclosingInterval(start, end token.Pos) (pkg *PackageIn
 
 // InitialPackages returns a new slice containing the set of initial
 // packages (Created + Imported) in unspecified order.
-//
 func (prog *Program) InitialPackages() []*PackageInfo {
 	infos := make([]*PackageInfo, 0, len(prog.Created)+len(prog.Imported))
 	infos = append(infos, prog.Created...)
@@ -435,7 +426,6 @@ type findpkgValue struct {
 // Upon completion, exactly one of info and err is non-nil:
 // info on successful creation of a package, err otherwise.
 // A successful package may still contain type errors.
-//
 type importInfo struct {
 	path     string        // import path
 	info     *PackageInfo  // results of typechecking (including errors)
@@ -475,7 +465,6 @@ type importError struct {
 // false, Load will fail if any package had an error.
 //
 // It is an error if no packages were loaded.
-//
 func (conf *Config) Load() (*Program, error) {
 	// Create a simple default error handler for parse/type errors.
 	if conf.TypeChecker.Error == nil {
@@ -732,10 +721,10 @@ func (conf *Config) build() *build.Context {
 // errors that were encountered.
 //
 // 'which' indicates which files to include:
-//    'g': include non-test *.go source files (GoFiles + processed CgoFiles)
-//    't': include in-package *_test.go source files (TestGoFiles)
-//    'x': include external *_test.go source files. (XTestGoFiles)
 //
+//	'g': include non-test *.go source files (GoFiles + processed CgoFiles)
+//	't': include in-package *_test.go source files (TestGoFiles)
+//	'x': include external *_test.go source files. (XTestGoFiles)
 func (conf *Config) parsePackageFiles(bp *build.Package, which rune) ([]*ast.File, []error) {
 	if bp.ImportPath == "unsafe" {
 		return nil, nil
@@ -776,7 +765,6 @@ func (conf *Config) parsePackageFiles(bp *build.Package, which rune) ([]*ast.Fil
 // in the package's PackageInfo).
 //
 // Idempotent.
-//
 func (imp *importer) doImport(from *PackageInfo, to string) (*types.Package, error) {
 	if to == "C" {
 		// This should be unreachable, but ad hoc packages are
@@ -868,7 +856,6 @@ func (imp *importer) findPackage(importPath, fromDir string, mode build.ImportMo
 //
 // fromDir is the directory containing the import declaration that
 // caused these imports.
-//
 func (imp *importer) importAll(fromPath, fromDir string, imports map[string]bool, mode build.ImportMode) (infos []*PackageInfo, errors []importError) {
 	if fromPath != "" {
 		// We're loading a set of imports.
@@ -951,7 +938,6 @@ func (imp *importer) findPath(from, to string) []string {
 // caller must call awaitCompletion() before accessing its info field.
 //
 // startLoad is concurrency-safe and idempotent.
-//
 func (imp *importer) startLoad(bp *build.Package) *importInfo {
 	path := bp.ImportPath
 	imp.importedMu.Lock()
@@ -995,7 +981,6 @@ func (imp *importer) load(bp *build.Package) *PackageInfo {
 //
 // cycleCheck determines whether the imports within files create
 // dependency edges that should be checked for potential cycles.
-//
 func (imp *importer) addFiles(info *PackageInfo, files []*ast.File, cycleCheck bool) {
 	// Ensure the dependencies are loaded, in parallel.
 	var fromPath string
