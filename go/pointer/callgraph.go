@@ -39,7 +39,6 @@ func (n *cgnode) String() string {
 // it is implicitly context-sensitive.
 // callsites never represent calls to built-ins;
 // they are handled as intrinsics.
-//
 type callsite struct {
 	targets nodeid              // pts(·) contains objects for dynamically called functions
 	instr   ssa.CallInstruction // the call instruction; nil for synthetic/intrinsic

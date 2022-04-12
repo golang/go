@@ -174,14 +174,14 @@ import (
 // peLabel have identical points-to solutions.
 //
 // The numbers are allocated consecutively like so:
-// 	0	not a pointer
+//
+//	0	not a pointer
 //	1..N-1	addrConstraints (equals the constraint's .src field, hence sparse)
 //	...	offsetAddr constraints
 //	...	SCCs (with indirect nodes or multiple inputs)
 //
 // Each PE label denotes a set of pointers containing a single addr, a
 // single offsetAddr, or some set of other PE labels.
-//
 type peLabel int
 
 type hvn struct {
@@ -212,7 +212,6 @@ type onodeid uint32
 // the source, i.e. against the flow of values: they are dependencies.
 // Implicit edges are used for SCC computation, but not for gathering
 // incoming labels.
-//
 type onode struct {
 	rep onodeid // index of representative of SCC in offline constraint graph
 
@@ -244,7 +243,6 @@ func (h *hvn) ref(id onodeid) onodeid {
 
 // hvn computes pointer-equivalence labels (peLabels) using the Hash-based
 // Value Numbering (HVN) algorithm described in Hardekopf & Lin, SAS'07.
-//
 func (a *analysis) hvn() {
 	start("HVN")
 
@@ -455,28 +453,27 @@ func (c *invokeConstraint) presolve(h *hvn) {
 // markIndirectNodes marks as indirect nodes whose points-to relations
 // are not entirely captured by the offline graph, including:
 //
-//    (a) All address-taken nodes (including the following nodes within
-//        the same object).  This is described in the paper.
+//	(a) All address-taken nodes (including the following nodes within
+//	    the same object).  This is described in the paper.
 //
 // The most subtle cause of indirect nodes is the generation of
 // store-with-offset constraints since the offline graph doesn't
 // represent them.  A global audit of constraint generation reveals the
 // following uses of store-with-offset:
 //
-//    (b) genDynamicCall, for P-blocks of dynamically called functions,
-//        to which dynamic copy edges will be added to them during
-//        solving: from storeConstraint for standalone functions,
-//        and from invokeConstraint for methods.
-//        All such P-blocks must be marked indirect.
-//    (c) MakeUpdate, to update the value part of a map object.
-//        All MakeMap objects's value parts must be marked indirect.
-//    (d) copyElems, to update the destination array.
-//        All array elements must be marked indirect.
+//	(b) genDynamicCall, for P-blocks of dynamically called functions,
+//	    to which dynamic copy edges will be added to them during
+//	    solving: from storeConstraint for standalone functions,
+//	    and from invokeConstraint for methods.
+//	    All such P-blocks must be marked indirect.
+//	(c) MakeUpdate, to update the value part of a map object.
+//	    All MakeMap objects's value parts must be marked indirect.
+//	(d) copyElems, to update the destination array.
+//	    All array elements must be marked indirect.
 //
 // Not all indirect marking happens here.  ref() nodes are marked
 // indirect at construction, and each constraint's presolve() method may
 // mark additional nodes.
-//
 func (h *hvn) markIndirectNodes() {
 	// (a) all address-taken nodes, plus all nodes following them
 	//     within the same object, since these may be indirectly
@@ -761,7 +758,6 @@ func (h *hvn) coalesce(x, y onodeid) {
 // labels assigned by the hvn, and uses it to simplify the main
 // constraint graph, eliminating non-pointer nodes and duplicate
 // constraints.
-//
 func (h *hvn) simplify() {
 	// canon maps each peLabel to its canonical main node.
 	canon := make([]nodeid, h.label)

@@ -91,7 +91,6 @@ func (a *analysis) solve() {
 // and adds them to the graph, ensuring
 // that new constraints are applied to pre-existing labels and
 // that pre-existing constraints are applied to new labels.
-//
 func (a *analysis) processNewConstraints() {
 	// Take the slice of new constraints.
 	// (May grow during call to solveConstraints.)
@@ -151,7 +150,6 @@ func (a *analysis) processNewConstraints() {
 // solveConstraints applies each resolution rule attached to node n to
 // the set of labels delta.  It may generate new constraints in
 // a.constraints.
-//
 func (a *analysis) solveConstraints(n *node, delta *nodeset) {
 	if delta.IsEmpty() {
 		return
@@ -199,7 +197,6 @@ func (a *analysis) addWork(id nodeid) {
 //
 // The size of the copy is implicitly 1.
 // It returns true if pts(dst) changed.
-//
 func (a *analysis) onlineCopy(dst, src nodeid) bool {
 	if dst != src {
 		if nsrc := a.nodes[src]; nsrc.solve.copyTo.add(dst) {
@@ -221,7 +218,6 @@ func (a *analysis) onlineCopy(dst, src nodeid) bool {
 //
 // TODO(adonovan): now that we support a.copy() during solving, we
 // could eliminate onlineCopyN, but it's much slower.  Investigate.
-//
 func (a *analysis) onlineCopyN(dst, src nodeid, sizeof uint32) uint32 {
 	for i := uint32(0); i < sizeof; i++ {
 		if a.onlineCopy(dst, src) {

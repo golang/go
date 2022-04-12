@@ -159,7 +159,6 @@ func init() {
 
 // findIntrinsic returns the constraint generation function for an
 // intrinsic function fn, or nil if the function should be handled normally.
-//
 func (a *analysis) findIntrinsic(fn *ssa.Function) intrinsic {
 	// Consult the *Function-keyed cache.
 	// A cached nil indicates a normal non-intrinsic function.
@@ -220,7 +219,6 @@ func (a *analysis) isReflect(fn *ssa.Function) bool {
 //
 // We sometimes violate condition #3 if the function creates only
 // non-function labels, as the control-flow graph is still sound.
-//
 func ext۰NoEffect(a *analysis, cgn *cgnode) {}
 
 func ext۰NotYetImplemented(a *analysis, cgn *cgnode) {

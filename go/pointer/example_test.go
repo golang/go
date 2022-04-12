@@ -19,7 +19,6 @@ import (
 // obtain a conservative call-graph of a Go program.
 // It also shows how to compute the points-to set of a variable,
 // in this case, (C).f's ch parameter.
-//
 func Example() {
 	const myprog = `
 package main

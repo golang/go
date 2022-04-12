@@ -1943,14 +1943,13 @@ func ext۰reflect۰rtype۰Method(a *analysis, cgn *cgnode) {
 // types they create to ensure termination of the algorithm in cases
 // where the output of a type constructor flows to its input, e.g.
 //
-// 	func f(t reflect.Type) {
-// 		f(reflect.PtrTo(t))
-// 	}
+//	func f(t reflect.Type) {
+//		f(reflect.PtrTo(t))
+//	}
 //
 // It does this by limiting the type height to k, but this still leaves
 // a potentially exponential (4^k) number of of types that may be
 // enumerated in pathological cases.
-//
 func typeHeight(T types.Type) int {
 	switch T := T.(type) {
 	case *types.Chan:

@@ -69,60 +69,59 @@ var inputs = []string{
 //
 // @calls f -> g
 //
-//   A 'calls' expectation asserts that edge (f, g) appears in the
-//   callgraph.  f and g are notated as per Function.String(), which
-//   may contain spaces (e.g. promoted method in anon struct).
+//	A 'calls' expectation asserts that edge (f, g) appears in the
+//	callgraph.  f and g are notated as per Function.String(), which
+//	may contain spaces (e.g. promoted method in anon struct).
 //
 // @pointsto a | b | c
 //
-//   A 'pointsto' expectation asserts that the points-to set of its
-//   operand contains exactly the set of labels {a,b,c} notated as per
-//   labelString.
+//	A 'pointsto' expectation asserts that the points-to set of its
+//	operand contains exactly the set of labels {a,b,c} notated as per
+//	labelString.
 //
-//   A 'pointsto' expectation must appear on the same line as a
-//   print(x) statement; the expectation's operand is x.
+//	A 'pointsto' expectation must appear on the same line as a
+//	print(x) statement; the expectation's operand is x.
 //
-//   If one of the strings is "...", the expectation asserts that the
-//   points-to set at least the other labels.
+//	If one of the strings is "...", the expectation asserts that the
+//	points-to set at least the other labels.
 //
-//   We use '|' because label names may contain spaces, e.g.  methods
-//   of anonymous structs.
+//	We use '|' because label names may contain spaces, e.g.  methods
+//	of anonymous structs.
 //
-//   From a theoretical perspective, concrete types in interfaces are
-//   labels too, but they are represented differently and so have a
-//   different expectation, @types, below.
+//	From a theoretical perspective, concrete types in interfaces are
+//	labels too, but they are represented differently and so have a
+//	different expectation, @types, below.
 //
 // @types t | u | v
 //
-//   A 'types' expectation asserts that the set of possible dynamic
-//   types of its interface operand is exactly {t,u,v}, notated per
-//   go/types.Type.String(). In other words, it asserts that the type
-//   component of the interface may point to that set of concrete type
-//   literals.  It also works for reflect.Value, though the types
-//   needn't be concrete in that case.
+//	A 'types' expectation asserts that the set of possible dynamic
+//	types of its interface operand is exactly {t,u,v}, notated per
+//	go/types.Type.String(). In other words, it asserts that the type
+//	component of the interface may point to that set of concrete type
+//	literals.  It also works for reflect.Value, though the types
+//	needn't be concrete in that case.
 //
-//   A 'types' expectation must appear on the same line as a
-//   print(x) statement; the expectation's operand is x.
+//	A 'types' expectation must appear on the same line as a
+//	print(x) statement; the expectation's operand is x.
 //
-//   If one of the strings is "...", the expectation asserts that the
-//   interface's type may point to at least the other types.
+//	If one of the strings is "...", the expectation asserts that the
+//	interface's type may point to at least the other types.
 //
-//   We use '|' because type names may contain spaces.
+//	We use '|' because type names may contain spaces.
 //
 // @warning "regexp"
 //
-//   A 'warning' expectation asserts that the analysis issues a
-//   warning that matches the regular expression within the string
-//   literal.
+//	A 'warning' expectation asserts that the analysis issues a
+//	warning that matches the regular expression within the string
+//	literal.
 //
 // @line id
 //
-//   A line directive associates the name "id" with the current
-//   file:line.  The string form of labels will use this id instead of
-//   a file:line, making @pointsto expectations more robust against
-//   perturbations in the source file.
-//   (NB, anon functions still include line numbers.)
-//
+//	A line directive associates the name "id" with the current
+//	file:line.  The string form of labels will use this id instead of
+//	a file:line, making @pointsto expectations more robust against
+//	perturbations in the source file.
+//	(NB, anon functions still include line numbers.)
 type expectation struct {
 	kind     string // "pointsto" | "pointstoquery" | "types" | "calls" | "warning"
 	filepath string

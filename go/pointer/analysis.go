@@ -46,7 +46,6 @@ const (
 //
 // (Note: most variables called 'obj' are not *objects but nodeids
 // such that a.nodes[obj].obj != nil.)
-//
 type object struct {
 	// flags is a bitset of the node type (ot*) flags defined above.
 	flags uint32
@@ -82,7 +81,6 @@ type nodeid uint32
 //
 // Nodes that are pointed-to locations ("labels") have an enclosing
 // object (see analysis.enclosingObject).
-//
 type node struct {
 	// If non-nil, this node is the start of an object
 	// (addressable memory location).
@@ -215,7 +213,6 @@ func (a *analysis) computeTrackBits() {
 //
 // Pointer analysis of a transitively closed well-typed program should
 // always succeed.  An error can occur only due to an internal bug.
-//
 func Analyze(config *Config) (result *Result, err error) {
 	if config.Mains == nil {
 		return nil, fmt.Errorf("no main/test packages to analyze (check $GOROOT/$GOPATH)")
@@ -361,7 +358,6 @@ func Analyze(config *Config) (result *Result, err error) {
 
 // callEdge is called for each edge in the callgraph.
 // calleeid is the callee's object node (has otFunction flag).
-//
 func (a *analysis) callEdge(caller *cgnode, site *callsite, calleeid nodeid) {
 	obj := a.nodes[calleeid].obj
 	if obj.flags&otFunction == 0 {
@@ -394,7 +390,6 @@ func (a *analysis) callEdge(caller *cgnode, site *callsite, calleeid nodeid) {
 // It only dumps the nodes that existed before solving.  The order in
 // which solver-created nodes are created depends on pre-solver
 // optimization, so we can't include them in the cross-check.
-//
 func (a *analysis) dumpSolution(filename string, N int) {
 	f, err := os.Create(filename)
 	if err != nil {
@@ -422,7 +417,6 @@ func (a *analysis) dumpSolution(filename string, N int) {
 // showCounts logs the size of the constraint system.  A typical
 // optimized distribution is 65% copy, 13% load, 11% addr, 5%
 // offsetAddr, 4% store, 2% others.
-//
 func (a *analysis) showCounts() {
 	if a.log != nil {
 		counts := make(map[reflect.Type]int)

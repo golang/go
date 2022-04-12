@@ -27,7 +27,6 @@ import "fmt"
 //
 // Renumbering makes the PTA log inscrutable.  To aid debugging, later
 // phases (e.g. HVN) must not rely on it having occurred.
-//
 func (a *analysis) renumber() {
 	if a.log != nil {
 		fmt.Fprintf(a.log, "\n\n==== Renumbering\n\n")
