@@ -465,6 +465,9 @@ type DiagnosticExpectation struct {
 
 	// path is the scratch workdir-relative path to the file being asserted on.
 	path string
+
+	// optionally, the diagnostic source
+	source string
 }
 
 // Check implements the Expectation interface.
@@ -488,6 +491,9 @@ func (e DiagnosticExpectation) Check(s State) Verdict {
 			if !strings.Contains(d.Message, e.message) {
 				continue
 			}
+		}
+		if e.source != "" && e.source != d.Source {
+			continue
 		}
 		found = true
 		break
@@ -514,6 +520,9 @@ func (e DiagnosticExpectation) Description() string {
 	}
 	if e.message != "" {
 		desc += fmt.Sprintf(" with message %q", e.message)
+	}
+	if e.source != "" {
+		desc += fmt.Sprintf(" from source %q", e.source)
 	}
 	return desc
 }
@@ -617,6 +626,14 @@ func (e *Env) DiagnosticAtRegexpWithMessage(name, re, msg string) DiagnosticExpe
 	e.T.Helper()
 	pos := e.RegexpSearch(name, re)
 	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true, message: msg}
+}
+
+// DiagnosticAtRegexpFromSource expects a diagnostic at the first position
+// matching re, from the given source.
+func (e *Env) DiagnosticAtRegexpFromSource(name, re, source string) DiagnosticExpectation {
+	e.T.Helper()
+	pos := e.RegexpSearch(name, re)
+	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true, source: source}
 }
 
 // DiagnosticAt asserts that there is a diagnostic entry at the position
