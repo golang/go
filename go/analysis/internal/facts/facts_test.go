@@ -215,15 +215,15 @@ type pkgLookups struct {
 // testEncodeDecode tests fact encoding and decoding and simulates how package facts
 // are passed during analysis. It operates on a group of Go file contents. Then
 // for each <package, []lookup> in tests it does the following:
-//  1) loads and type checks the package,
-//  2) calls facts.Decode to loads the facts exported by its imports,
-//  3) exports a myFact Fact for all of package level objects,
-//  4) For each lookup for the current package:
-//  4.a) lookup the types.Object for an Go source expression in the curent package
-//       (or confirms one is not expected want=="no object"),
-//  4.b) finds a Fact for the object (or confirms one is not expected want=="no fact"),
-//  4.c) compares the content of the Fact to want.
-//  5) encodes the Facts of the package.
+//  1. loads and type checks the package,
+//  2. calls facts.Decode to loads the facts exported by its imports,
+//  3. exports a myFact Fact for all of package level objects,
+//  4. For each lookup for the current package:
+//     4.a) lookup the types.Object for an Go source expression in the curent package
+//     (or confirms one is not expected want=="no object"),
+//     4.b) finds a Fact for the object (or confirms one is not expected want=="no fact"),
+//     4.c) compares the content of the Fact to want.
+//  5. encodes the Facts of the package.
 //
 // Note: tests are not independent test cases; order matters (as does a package being
 // skipped). It changes what Facts can be imported.

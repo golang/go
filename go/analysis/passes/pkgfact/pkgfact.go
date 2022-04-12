@@ -10,14 +10,14 @@
 // Each key/value pair comes from a top-level constant declaration
 // whose name starts and ends with "_".  For example:
 //
-//      package p
+//	package p
 //
-// 	const _greeting_  = "hello"
-// 	const _audience_  = "world"
+//	const _greeting_  = "hello"
+//	const _audience_  = "world"
 //
 // the pkgfact analysis output for package p would be:
 //
-//   {"greeting": "hello", "audience": "world"}.
+//	{"greeting": "hello", "audience": "world"}.
 //
 // In addition, the analysis reports a diagnostic at each import
 // showing which key/value pairs it contributes.

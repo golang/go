@@ -41,7 +41,7 @@ Another example is about non-pointer receiver:
 `
 
 // Analyzer reports instances of writes to struct fields and arrays
-//that are never read.
+// that are never read.
 var Analyzer = &analysis.Analyzer{
 	Name:     "unusedwrite",
 	Doc:      Doc,

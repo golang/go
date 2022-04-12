@@ -120,7 +120,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 // the block, we should complain about it but don't.
 // - A variable declared inside a function literal can falsely be identified
 // as shadowing a variable in the outer function.
-//
 type span struct {
 	min token.Pos
 	max token.Pos

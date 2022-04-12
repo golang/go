@@ -10,8 +10,8 @@
 // It serves as a model for the behavior of the cmd/vet tool in $GOROOT.
 // Being based on the unitchecker driver, it must be run by go vet:
 //
-//   $ go build -o unitchecker main.go
-//   $ go vet -vettool=unitchecker my/project/...
+//	$ go build -o unitchecker main.go
+//	$ go vet -vettool=unitchecker my/project/...
 //
 // For a checker also capable of running standalone, use multichecker.
 package main
