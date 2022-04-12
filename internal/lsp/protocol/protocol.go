@@ -134,7 +134,11 @@ func ClientHandlerV2(client Client) jsonrpc2_v2.Handler {
 			resErr error
 		)
 		replier := func(_ context.Context, res interface{}, err error) error {
-			result, resErr = res, err
+			if err != nil {
+				resErr = err
+				return nil
+			}
+			result = res
 			return nil
 		}
 		_, err := clientDispatch(ctx, client, replier, req1)
@@ -179,7 +183,11 @@ func ServerHandlerV2(server Server) jsonrpc2_v2.Handler {
 			resErr error
 		)
 		replier := func(_ context.Context, res interface{}, err error) error {
-			result, resErr = res, err
+			if err != nil {
+				resErr = err
+				return nil
+			}
+			result = res
 			return nil
 		}
 		_, err := serverDispatch(ctx, server, replier, req1)
