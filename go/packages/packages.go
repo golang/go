@@ -1234,6 +1234,11 @@ func (ld *loader) loadFromExportData(lpkg *loaderPackage) (*types.Package, error
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %v", lpkg.ExportFile, err)
 	}
+	if _, ok := view["go.shape"]; ok {
+		// Account for the pseudopackage "go.shape" that gets
+		// created by generic code.
+		viewLen++
+	}
 	if viewLen != len(view) {
 		log.Panicf("golang.org/x/tools/go/packages: unexpected new packages during load of %s", lpkg.PkgPath)
 	}
