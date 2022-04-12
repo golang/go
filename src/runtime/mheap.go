@@ -238,7 +238,7 @@ type heapArena struct {
 	// Modifications are protected by mheap.lock. Reads can be
 	// performed without locking, but ONLY from indexes that are
 	// known to contain in-use or stack spans. This means there
-	// must not be a safe-point between establishing that an
+	// must be a safe-point between establishing that an
 	// address is live and looking it up in the spans array.
 	spans [pagesPerArena]*mspan
 
