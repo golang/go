@@ -49,20 +49,20 @@ func (tracker *Tracker) SetSupportsWorkDoneProgress(b bool) {
 // non-nil. In this case, cancel is called when the work done
 //
 // Example:
-//  func Generate(ctx) (err error) {
-//    ctx, cancel := context.WithCancel(ctx)
-//    defer cancel()
-//    work := s.progress.start(ctx, "generate", "running go generate", cancel)
-//    defer func() {
-//      if err != nil {
-//        work.end(ctx, fmt.Sprintf("generate failed: %v", err))
-//      } else {
-//        work.end(ctx, "done")
-//      }
-//    }()
-//    // Do the work...
-//  }
 //
+//	func Generate(ctx) (err error) {
+//	  ctx, cancel := context.WithCancel(ctx)
+//	  defer cancel()
+//	  work := s.progress.start(ctx, "generate", "running go generate", cancel)
+//	  defer func() {
+//	    if err != nil {
+//	      work.end(ctx, fmt.Sprintf("generate failed: %v", err))
+//	    } else {
+//	      work.end(ctx, "done")
+//	    }
+//	  }()
+//	  // Do the work...
+//	}
 func (t *Tracker) Start(ctx context.Context, title, message string, token protocol.ProgressToken, cancel func()) *WorkDone {
 	wd := &WorkDone{
 		ctx:    xcontext.Detach(ctx),

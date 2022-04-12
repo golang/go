@@ -24,19 +24,17 @@ func (c *completer) addStatementCandidates() {
 
 // addAssignAppend offers a completion candidate of the form:
 //
-//     someSlice = append(someSlice, )
+//	someSlice = append(someSlice, )
 //
-// It will offer the "append" completion in two situations:
+// It will offer the "append" completion in either of two situations:
 //
-// 1. Position is in RHS of assign, prefix matches "append", and
-//    corresponding LHS object is a slice. For example,
-//    "foo = ap<>" completes to "foo = append(foo, )".
+//  1. Position is in RHS of assign, prefix matches "append", and
+//     corresponding LHS object is a slice. For example,
+//     "foo = ap<>" completes to "foo = append(foo, )".
 //
-// Or
-//
-// 2. Prefix is an ident or selector in an *ast.ExprStmt (i.e.
-//    beginning of statement), and our best matching candidate is a
-//    slice. For example: "foo.ba" completes to "foo.bar = append(foo.bar, )".
+//  2. Prefix is an ident or selector in an *ast.ExprStmt (i.e.
+//     beginning of statement), and our best matching candidate is a
+//     slice. For example: "foo.ba" completes to "foo.bar = append(foo.bar, )".
 func (c *completer) addAssignAppend() {
 	if len(c.path) < 3 {
 		return
@@ -164,15 +162,15 @@ func (c *completer) topCandidate() *CompletionItem {
 
 // addErrCheck offers a completion candidate of the form:
 //
-//     if err != nil {
-//       return nil, err
-//     }
+//	if err != nil {
+//	  return nil, err
+//	}
 //
 // In the case of test functions, it offers a completion candidate of the form:
 //
-//     if err != nil {
-//       t.Fatal(err)
-//     }
+//	if err != nil {
+//	  t.Fatal(err)
+//	}
 //
 // The position must be in a function that returns an error, and the
 // statement preceding the position must be an assignment where the

@@ -778,11 +778,11 @@ func fixSrc(f *ast.File, tok *token.File, src []byte) (newSrc []byte) {
 // fixMissingCurlies adds in curly braces for block statements that
 // are missing curly braces. For example:
 //
-//   if foo
+//	if foo
 //
 // becomes
 //
-//   if foo {}
+//	if foo {}
 func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *token.File, src []byte) []byte {
 	// If the "{" is already in the source code, there isn't anything to
 	// fix since we aren't missing curlies.
@@ -875,23 +875,22 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 // "case" and "default" keywords as inside the switch statement. For
 // example:
 //
-//   switch {
-//   def<>
-//   }
+//	switch {
+//	def<>
+//	}
 //
 // gets parsed like:
 //
-//   switch {
-//   }
+//	switch {
+//	}
 //
 // Later we manually pull out the "def" token, but we need to detect
 // that our "<>" position is inside the switch block. To do that we
 // move the curly brace so it looks like:
 //
-//   switch {
+//	switch {
 //
-//   }
-//
+//	}
 func fixEmptySwitch(body *ast.BlockStmt, tok *token.File, src []byte) {
 	// We only care about empty switch statements.
 	if len(body.List) > 0 || !body.Rbrace.IsValid() {
@@ -921,9 +920,10 @@ func fixEmptySwitch(body *ast.BlockStmt, tok *token.File, src []byte) {
 // fixDanglingSelector inserts real "_" selector expressions in place
 // of phantom "_" selectors. For example:
 //
-// func _() {
-//   x.<>
-// }
+//	func _() {
+//		x.<>
+//	}
+//
 // var x struct { i int }
 //
 // To fix completion at "<>", we insert a real "_" after the "." so the

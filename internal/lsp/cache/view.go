@@ -557,9 +557,11 @@ func (s *snapshot) IgnoredFile(uri span.URI) bool {
 	return false
 }
 
-// checkIgnored implements go list's exclusion rules. go help list:
-// 		Directory and file names that begin with "." or "_" are ignored
-// 		by the go tool, as are directories named "testdata".
+// checkIgnored implements go list's exclusion rules.
+// Quoting “go help list”:
+//
+//	Directory and file names that begin with "." or "_" are ignored
+//	by the go tool, as are directories named "testdata".
 func checkIgnored(suffix string) bool {
 	for _, component := range strings.Split(suffix, string(filepath.Separator)) {
 		if len(component) == 0 {
@@ -796,6 +798,7 @@ func go111moduleForVersion(go111module string, goversion int) go111module {
 //   - Then, a parent directory containing a go.mod file.
 //   - Then, a child directory containing a go.mod file, if there is exactly
 //     one (non-experimental only).
+//
 // Otherwise, it returns folder.
 // TODO (rFindley): move this to workspace.go
 // TODO (rFindley): simplify this once workspace modules are enabled by default.

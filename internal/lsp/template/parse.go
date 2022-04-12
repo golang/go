@@ -154,7 +154,8 @@ func parseBuffer(buf []byte) *Parsed {
 
 // FindLiteralBefore locates the first preceding string literal
 // returning its position and length in buf
-// or returns -1 if there is none. Assume "", rather than ``, for now
+// or returns -1 if there is none.
+// Assume double-quoted string rather than backquoted string for now.
 func (p *Parsed) FindLiteralBefore(pos int) (int, int) {
 	left, right := -1, -1
 	for i := pos - 1; i >= 0; i-- {

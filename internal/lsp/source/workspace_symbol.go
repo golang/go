@@ -38,8 +38,8 @@ const maxSymbols = 100
 //
 // The workspace symbol method is defined in the spec as follows:
 //
-//   The workspace symbol request is sent from the client to the server to
-//   list project-wide symbols matching the query string.
+//	The workspace symbol request is sent from the client to the server to
+//	list project-wide symbols matching the query string.
 //
 // It is unclear what "project-wide" means here, but given the parameters of
 // workspace/symbol do not include any workspace identifier, then it has to be
@@ -140,11 +140,11 @@ func packageSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 // match a given query.
 //
 // How we match symbols is parameterized by two interfaces:
-//  * A matcherFunc determines how well a string symbol matches a query. It
-//    returns a non-negative score indicating the quality of the match. A score
-//    of zero indicates no match.
-//  * A symbolizer determines how we extract the symbol for an object. This
-//    enables the 'symbolStyle' configuration option.
+//   - A matcherFunc determines how well a string symbol matches a query. It
+//     returns a non-negative score indicating the quality of the match. A score
+//     of zero indicates no match.
+//   - A symbolizer determines how we extract the symbol for an object. This
+//     enables the 'symbolStyle' configuration option.
 type symbolCollector struct {
 	// These types parameterize the symbol-matching pass.
 	matchers   []matcherFunc
@@ -213,9 +213,10 @@ func newFuzzyMatcher(query string) matcherFunc {
 // of all field queries.
 //
 // Special characters:
-//   ^  match exact prefix
-//   $  match exact suffix
-//   '  match exact
+//
+//	^  match exact prefix
+//	$  match exact suffix
+//	'  match exact
 //
 // In all three of these special queries, matches are 'smart-cased', meaning
 // they are case sensitive if the symbol query contains any upper-case

@@ -369,8 +369,7 @@ func spanToRange(pkg *pkg, spn span.Span) (protocol.Range, error) {
 // It works only on errors whose message is prefixed by colon,
 // followed by a space (": "). For example:
 //
-//   attributes.go:13:1: expected 'package', found 'type'
-//
+//	attributes.go:13:1: expected 'package', found 'type'
 func parseGoListError(input, wd string) span.Span {
 	input = strings.TrimSpace(input)
 	msgIndex := strings.Index(input, ": ")

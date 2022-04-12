@@ -5,7 +5,6 @@
 // Benchmark results:
 //
 // BenchmarkMatcher-12    	 1000000	      1615 ns/op	  30.95 MB/s	       0 B/op	       0 allocs/op
-//
 package fuzzy_test
 
 import (

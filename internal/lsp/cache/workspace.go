@@ -50,10 +50,10 @@ func (s workspaceSource) String() string {
 // gopls.mod file, to provide support for multi-module workspaces.
 //
 // Specifically, it provides:
-//  - the set of modules contained within in the workspace root considered to
-//    be 'active'
-//  - the workspace modfile, to be used for the go command `-modfile` flag
-//  - the set of workspace directories
+//   - the set of modules contained within in the workspace root considered to
+//     be 'active'
+//   - the workspace modfile, to be used for the go command `-modfile` flag
+//   - the set of workspace directories
 //
 // This type is immutable (or rather, idempotent), so that it may be shared
 // across multiple snapshots.

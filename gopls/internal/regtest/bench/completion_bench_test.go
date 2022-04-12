@@ -91,10 +91,11 @@ func endPosInBuffer(env *Env, name string) fake.Pos {
 // Benchmark completion at a specified file and location. When no CLI options
 // are specified, this test is skipped.
 // To Run (from x/tools/gopls) against the dummy function above:
-// 	go test -v ./internal/regtest/bench -run=TestBenchmarkConfiguredCompletion
-// 	-completion_workdir="$HOME/Developer/tools"
-// 	-completion_file="gopls/internal/regtest/completion_bench_test.go"
-// 	-completion_regexp="dummyCompletionFunction.*fmt\.Printf\(\"%s\", s(\))"
+//
+//	go test -v ./internal/regtest/bench -run=TestBenchmarkConfiguredCompletion
+//	-completion_workdir="$HOME/Developer/tools"
+//	-completion_file="gopls/internal/regtest/completion_bench_test.go"
+//	-completion_regexp="dummyCompletionFunction.*fmt\.Printf\(\"%s\", s(\))"
 func TestBenchmarkConfiguredCompletion(t *testing.T) {
 	benchmarkCompletion(completionOptions, t)
 }

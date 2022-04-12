@@ -214,8 +214,9 @@ func lspName(methodName string) string {
 // Initialisms are grouped as a single word.
 //
 // For example:
-//  "RunTests" -> []string{"Run", "Tests"}
-//  "GCDetails" -> []string{"GC", "Details"}
+//
+//	"RunTests" -> []string{"Run", "Tests"}
+//	"GCDetails" -> []string{"GC", "Details"}
 func splitCamel(s string) []string {
 	var words []string
 	for len(s) > 0 {

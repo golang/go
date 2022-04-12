@@ -220,8 +220,9 @@ func Vuln() {
 `
 
 // testClient contains the following test vulnerabilities
-//   golang.org/amod/avuln.{VulnData.Vuln1, vulnData.Vuln2}
-//   golang.org/bmod/bvuln.{Vuln}
+//
+//	golang.org/amod/avuln.{VulnData.Vuln1, vulnData.Vuln2}
+//	golang.org/bmod/bvuln.{Vuln}
 var testClient1 = &mockClient{
 	ret: map[string][]*osv.Entry{
 		"golang.org/amod": {

@@ -343,9 +343,11 @@ func qualifyExpr(expr ast.Expr, srcpkg, pkg Package, clonedInfo map[token.Pos]*t
 // cloneExpr only clones expressions that appear in the parameters or return
 // values of a function declaration. The original expression may be returned
 // to the caller in 2 cases:
-//    (1) The expression has no pointer fields.
-//    (2) The expression cannot appear in an *ast.FuncType, making it
-//        unnecessary to clone.
+//
+//  1. The expression has no pointer fields.
+//  2. The expression cannot appear in an *ast.FuncType, making it
+//     unnecessary to clone.
+//
 // This function also keeps track of selector expressions in which the X is a
 // package name and marks them in a map along with their type information, so
 // that this information can be used when rewriting the expression.

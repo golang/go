@@ -359,9 +359,9 @@ var moduleVersionInErrorRe = regexp.MustCompile(`[:\s]([+-._~0-9A-Za-z]+)@([+-._
 // matchErrorToModule matches a go command error message to a go.mod file.
 // Some examples:
 //
-//    example.com@v1.2.2: reading example.com/@v/v1.2.2.mod: no such file or directory
-//    go: github.com/cockroachdb/apd/v2@v2.0.72: reading github.com/cockroachdb/apd/go.mod at revision v2.0.72: unknown revision v2.0.72
-//    go: example.com@v1.2.3 requires\n\trandom.org@v1.2.3: parsing go.mod:\n\tmodule declares its path as: bob.org\n\tbut was required as: random.org
+//	example.com@v1.2.2: reading example.com/@v/v1.2.2.mod: no such file or directory
+//	go: github.com/cockroachdb/apd/v2@v2.0.72: reading github.com/cockroachdb/apd/go.mod at revision v2.0.72: unknown revision v2.0.72
+//	go: example.com@v1.2.3 requires\n\trandom.org@v1.2.3: parsing go.mod:\n\tmodule declares its path as: bob.org\n\tbut was required as: random.org
 //
 // It returns the location of a reference to the one of the modules and true
 // if one exists. If none is found it returns a fallback location and false.

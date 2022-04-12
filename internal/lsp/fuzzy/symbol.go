@@ -10,21 +10,22 @@ import (
 
 // SymbolMatcher implements a fuzzy matching algorithm optimized for Go symbols
 // of the form:
-//  example.com/path/to/package.object.field
+//
+//	example.com/path/to/package.object.field
 //
 // Knowing that we are matching symbols like this allows us to make the
 // following optimizations:
-//  - We can incorporate right-to-left relevance directly into the score
-//    calculation.
-//  - We can match from right to left, discarding leading bytes if the input is
-//    too long.
-//  - We just take the right-most match without losing too much precision. This
-//    allows us to use an O(n) algorithm.
-//  - We can operate directly on chunked strings; in many cases we will
-//    be storing the package path and/or package name separately from the
-//    symbol or identifiers, so doing this avoids allocating strings.
-//  - We can return the index of the right-most match, allowing us to trim
-//    irrelevant qualification.
+//   - We can incorporate right-to-left relevance directly into the score
+//     calculation.
+//   - We can match from right to left, discarding leading bytes if the input is
+//     too long.
+//   - We just take the right-most match without losing too much precision. This
+//     allows us to use an O(n) algorithm.
+//   - We can operate directly on chunked strings; in many cases we will
+//     be storing the package path and/or package name separately from the
+//     symbol or identifiers, so doing this avoids allocating strings.
+//   - We can return the index of the right-most match, allowing us to trim
+//     irrelevant qualification.
 //
 // This implementation is experimental, serving as a reference fast algorithm
 // to compare to the fuzzy algorithm implemented by Matcher.

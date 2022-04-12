@@ -178,7 +178,8 @@ func validateConfig(config SandboxConfig) error {
 // splitModuleVersionPath extracts module information from files stored in the
 // directory structure modulePath@version/suffix.
 // For example:
-//  splitModuleVersionPath("mod.com@v1.2.3/package") = ("mod.com", "v1.2.3", "package")
+//
+//	splitModuleVersionPath("mod.com@v1.2.3/package") = ("mod.com", "v1.2.3", "package")
 func splitModuleVersionPath(path string) (modulePath, version, suffix string) {
 	parts := strings.Split(path, "/")
 	var modulePathParts []string

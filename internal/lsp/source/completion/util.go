@@ -259,8 +259,8 @@ func fieldsAccessible(s *types.Struct, p *types.Package) bool {
 // prevStmt returns the statement that precedes the statement containing pos.
 // For example:
 //
-//     foo := 1
-//     bar(1 + 2<>)
+//	foo := 1
+//	bar(1 + 2<>)
 //
 // If "<>" is pos, prevStmt returns "foo := 1"
 func prevStmt(pos token.Pos, path []ast.Node) ast.Stmt {

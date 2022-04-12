@@ -159,6 +159,7 @@ func posToMappedRange(snapshot Snapshot, pkg Package, pos, end token.Pos) (Mappe
 }
 
 // Matches cgo generated comment as well as the proposed standard:
+//
 //	https://golang.org/s/generatedcode
 var generatedRx = regexp.MustCompile(`// .*DO NOT EDIT\.?`)
 

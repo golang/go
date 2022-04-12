@@ -145,7 +145,8 @@ func NewEditor(sandbox *Sandbox, config EditorConfig) *Editor {
 // editor.
 //
 // It returns the editor, so that it may be called as follows:
-//   editor, err := NewEditor(s).Connect(ctx, conn)
+//
+//	editor, err := NewEditor(s).Connect(ctx, conn)
 func (e *Editor) Connect(ctx context.Context, conn jsonrpc2.Conn, hooks ClientHooks) (*Editor, error) {
 	e.serverConn = conn
 	e.Server = protocol.ServerDispatcher(conn)
@@ -633,6 +634,7 @@ func (e *Editor) RegexpRange(bufName, re string) (Pos, Pos, error) {
 // bufName. For convenience, RegexpSearch supports the following two modes:
 //  1. If re has no subgroups, return the position of the match for re itself.
 //  2. If re has one subgroup, return the position of the first subgroup.
+//
 // It returns an error re is invalid, has more than one subgroup, or doesn't
 // match the buffer.
 func (e *Editor) RegexpSearch(bufName, re string) (Pos, error) {

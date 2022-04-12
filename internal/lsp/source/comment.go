@@ -91,7 +91,7 @@ var (
 )
 
 // commentEscape escapes comment text for markdown. If nice is set,
-// also turn `` into “; and '' into ”;.
+// also turn double ` and ' into “ and ”.
 func commentEscape(w io.Writer, text string, nice bool) {
 	if nice {
 		text = convertQuotes(text)

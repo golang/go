@@ -6,11 +6,11 @@
 //
 // See https://microsoft.github.io/language-server-protocol/specification#textDocuments
 // for a description of LSP positions. Notably:
-//  - Positions are specified by a 0-based line count and 0-based utf-16
-//    character offset.
-//  - Positions are line-ending agnostic: there is no way to specify \r|\n or
-//    \n|. Instead the former maps to the end of the current line, and the
-//    latter to the start of the next line.
+//   - Positions are specified by a 0-based line count and 0-based utf-16
+//     character offset.
+//   - Positions are line-ending agnostic: there is no way to specify \r|\n or
+//     \n|. Instead the former maps to the end of the current line, and the
+//     latter to the start of the next line.
 package lsppos
 
 import (

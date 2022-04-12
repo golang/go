@@ -144,9 +144,9 @@ var (
 // is the path to a workspace root, and -didchange_file is the
 // workspace-relative path to a file to modify. e.g.:
 //
-//  go test -run=TestBenchmarkDidChange \
-//   -didchange_dir=path/to/kubernetes \
-//   -didchange_file=pkg/util/hash/hash.go
+//	go test -run=TestBenchmarkDidChange \
+//	 -didchange_dir=path/to/kubernetes \
+//	 -didchange_file=pkg/util/hash/hash.go
 func TestBenchmarkDidChange(t *testing.T) {
 	if *benchDir == "" {
 		t.Skip("-didchange_dir is not set")
