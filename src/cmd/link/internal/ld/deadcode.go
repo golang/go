@@ -350,7 +350,7 @@ func deadcode(ctxt *Link) {
 		// in the last pass.
 		rem := d.markableMethods[:0]
 		for _, m := range d.markableMethods {
-			if (d.reflectSeen && m.isExported()) || d.ifaceMethod[m.m] {
+			if (d.reflectSeen && (m.isExported() || d.dynlink)) || d.ifaceMethod[m.m] {
 				d.markMethod(m)
 			} else {
 				rem = append(rem, m)
