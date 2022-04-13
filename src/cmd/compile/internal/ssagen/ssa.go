@@ -5535,13 +5535,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	}
 	off = types.Rnd(off, int64(types.RegSize))
 
-	// Accumulate results types and offsets
-	offR := off
-	for _, t := range results {
-		offR = types.Rnd(offR, t.Alignment())
-		offR += t.Size()
-	}
-
 	// Issue call
 	var call *ssa.Value
 	aux := ssa.StaticAuxCall(fn, s.f.ABIDefault.ABIAnalyzeTypes(nil, callArgTypes, results))
