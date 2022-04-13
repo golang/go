@@ -51,7 +51,7 @@ func p256GetScalar(out *[32]byte, in []byte) {
 	n := new(big.Int).SetBytes(in)
 	var scalarBytes []byte
 
-	if n.Cmp(p256Params.N) >= 0 {
+	if n.Cmp(p256Params.N) >= 0 || len(in) > len(out) {
 		n.Mod(n, p256Params.N)
 		scalarBytes = n.Bytes()
 	} else {

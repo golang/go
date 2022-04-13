@@ -283,6 +283,12 @@ func TestMethod2(t *testing.T) {
 	run(t, "./method2.exe")
 }
 
+func TestMethod3(t *testing.T) {
+	goCmd(t, "build", "-buildmode=plugin", "-o", "method3.so", "./method3/plugin.go")
+	goCmd(t, "build", "-o", "method3.exe", "./method3/main.go")
+	run(t, "./method3.exe")
+}
+
 func TestIssue44956(t *testing.T) {
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p1.so", "./issue44956/plugin1.go")
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p2.so", "./issue44956/plugin2.go")

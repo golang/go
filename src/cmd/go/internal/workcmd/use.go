@@ -12,7 +12,6 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -85,13 +84,14 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	lookDir := func(dir string) {
 		absDir, dir := pathRel(workDir, dir)
 
-		fi, err := os.Stat(filepath.Join(absDir, "go.mod"))
+		fi, err := fsys.Stat(filepath.Join(absDir, "go.mod"))
 		if err != nil {
 			if os.IsNotExist(err) {
 				keepDirs[absDir] = ""
-				return
+			} else {
+				base.Errorf("go: %v", err)
 			}
-			base.Errorf("go: %v", err)
+			return
 		}
 
 		if !fi.Mode().IsRegular() {
@@ -108,13 +108,33 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: 'go work use' requires one or more directory arguments")
 	}
 	for _, useDir := range args {
+		absArg, _ := pathRel(workDir, useDir)
+
+		info, err := fsys.Stat(absArg)
+		if err != nil {
+			// Errors raised from os.Stat are formatted to be more user-friendly.
+			if os.IsNotExist(err) {
+				base.Errorf("go: directory %v does not exist", absArg)
+			} else {
+				base.Errorf("go: %v", err)
+			}
+			continue
+		} else if !info.IsDir() {
+			base.Errorf("go: %s is not a directory", absArg)
+			continue
+		}
+
 		if !*useR {
 			lookDir(useDir)
 			continue
 		}
 
 		// Add or remove entries for any subdirectories that still exist.
-		err := fsys.Walk(useDir, func(path string, info fs.FileInfo, err error) error {
+		fsys.Walk(useDir, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
 			if !info.IsDir() {
 				if info.Mode()&fs.ModeSymlink != 0 {
 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
@@ -126,13 +146,9 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 			lookDir(path)
 			return nil
 		})
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			base.Errorf("go: %v", err)
-		}
 
 		// Remove entries for subdirectories that no longer exist.
 		// Because they don't exist, they will be skipped by Walk.
-		absArg, _ := pathRel(workDir, useDir)
 		for absDir, _ := range haveDirs {
 			if str.HasFilePathPrefix(absDir, absArg) {
 				if _, ok := keepDirs[absDir]; !ok {

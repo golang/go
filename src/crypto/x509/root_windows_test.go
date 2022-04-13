@@ -7,7 +7,11 @@ package x509_test
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"internal/testenv"
+	"net"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -17,10 +21,19 @@ func TestPlatformVerifier(t *testing.T) {
 		t.Skip()
 	}
 
-	getChain := func(host string) []*x509.Certificate {
+	getChain := func(t *testing.T, host string) []*x509.Certificate {
 		t.Helper()
 		c, err := tls.Dial("tcp", host+":443", &tls.Config{InsecureSkipVerify: true})
 		if err != nil {
+			// From https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2,
+			// matching the error string observed in https://go.dev/issue/52094.
+			const WSATRY_AGAIN syscall.Errno = 11002
+			var errDNS *net.DNSError
+			if strings.HasSuffix(host, ".badssl.com") && errors.As(err, &errDNS) && strings.HasSuffix(errDNS.Err, WSATRY_AGAIN.Error()) {
+				t.Log(err)
+				testenv.SkipFlaky(t, 52094)
+			}
+
 			t.Fatalf("tls connection failed: %s", err)
 		}
 		return c.ConnectionState().PeerCertificates
@@ -74,7 +87,7 @@ func TestPlatformVerifier(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			chain := getChain(tc.host)
+			chain := getChain(t, tc.host)
 			var opts x509.VerifyOptions
 			if len(chain) > 1 {
 				opts.Intermediates = x509.NewCertPool()

@@ -192,7 +192,7 @@ func (t *Named) instantiateMethod(i int) *Func {
 		rtyp = t
 	}
 
-	sig.recv = NewParam(origSig.recv.pos, origSig.recv.pkg, origSig.recv.name, rtyp)
+	sig.recv = substVar(origSig.recv, rtyp)
 	return NewFunc(origm.pos, origm.pkg, origm.name, sig)
 }
 
