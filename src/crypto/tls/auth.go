@@ -79,7 +79,7 @@ var signaturePadding = []byte{
 // certificate keys in TLS 1.3. See RFC 8446, Section 4.4.3.
 func signedMessage(sigHash crypto.Hash, context string, transcript hash.Hash) []byte {
 	if sigHash == directSigning {
-		b := make([]byte, 0, len(signaturePadding) + len(context) + sigHash.Size())
+		b := make([]byte, 0, len(signaturePadding) + len(context) + transcript.Size())
 		b = append(b, signaturePadding...)
 		b = append(b, context...)
 		return transcript.Sum(b)
