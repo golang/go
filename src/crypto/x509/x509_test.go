@@ -3568,3 +3568,27 @@ func TestRevocationListCheckSignatureFrom(t *testing.T) {
 		})
 	}
 }
+
+func TestOmitEmptyExtensions(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: ":)",
+		},
+		NotAfter:  time.Now().Add(time.Hour),
+		NotBefore: time.Now().Add(-time.Hour),
+	}
+	der, err := CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	emptyExtSeq := []byte{0xA3, 0x02, 0x30, 0x00}
+	if bytes.Contains(der, emptyExtSeq) {
+		t.Error("DER encoding contains the an empty extensions SEQUENCE")
+	}
+}
