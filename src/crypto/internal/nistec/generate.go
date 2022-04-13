@@ -40,7 +40,7 @@ var curves = []struct {
 		P:         "P256",
 		Element:   "fiat.P256Element",
 		Params:    elliptic.P256().Params(),
-		BuildTags: "!amd64 && !arm64",
+		BuildTags: "!amd64 && !arm64 && !ppc64le",
 	},
 	{
 		P:       "P384",
