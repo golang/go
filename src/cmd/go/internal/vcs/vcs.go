@@ -307,15 +307,25 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
 	}
 	uncommitted := len(out) > 0
 
-	// "git status" works for empty repositories, but "git show" does not.
-	// Assume there are no commits in the repo when "git show" fails with
+	// Assume there are no commits in the repo when "git rev-list" fails with
 	// uncommitted files and skip tagging revision / committime.
 	var rev string
 	var commitTime time.Time
-	out, err = vcsGit.runOutputVerboseOnly(rootDir, "-c log.showsignature=false show -s --format=%H:%ct")
+
+	// Consider using --no-commit-header in the future, introduced in git 2.33
+	// https://github.com/git/git/commit/d1c5ae78ce1260c94c9e626b83dc0901e6843178
+	out, err = vcsGit.runOutputVerboseOnly(rootDir, "rev-list -n 1 --all --format=%H:%ct")
+
+	// "git rev-list" does not print if the repo is not initialized.
+	initialized := len(out) > 0
+
 	if err != nil && !uncommitted {
 		return Status{}, err
-	} else if err == nil {
+	} else if err == nil && initialized {
+		// Strip leading commit header.
+		if i := bytes.IndexByte(out, '\n'); i > 0 {
+			out = out[i+1:]
+		}
 		rev, commitTime, err = parseRevTime(out)
 		if err != nil {
 			return Status{}, err
