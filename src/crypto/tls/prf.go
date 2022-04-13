@@ -192,7 +192,7 @@ func (h finishedHash) Sum() []byte {
 		return h.client.Sum(nil)
 	}
 
-	out := make([]byte, 0, md5.Size+sha1.Size)
+	out := make([]byte, 0, md5.Size+h.client.Size())
 	out = h.clientMD5.Sum(out)
 	return h.client.Sum(out)
 }
