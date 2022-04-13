@@ -917,7 +917,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 	// doesn't change during the collection. So, check the finalizer goroutine
 	// in particular.
 	n = int(gcount())
-	if fingRunning {
+	if fingStatus.Load()&fingRunningFinalizer != 0 {
 		n++
 	}
 

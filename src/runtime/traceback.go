@@ -1051,7 +1051,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 			// always consider it a user goroutine.
 			return false
 		}
-		return !fingRunning
+		return fingStatus.Load()&fingRunningFinalizer == 0
 	}
 	return hasPrefix(funcname(f), "runtime.")
 }
