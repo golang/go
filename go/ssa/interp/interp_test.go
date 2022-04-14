@@ -124,6 +124,8 @@ var testdataTests = []string{
 	"reflect.go",
 	"static.go",
 	"width32.go",
+
+	"fixedbugs/issue52342.go",
 }
 
 // Specific GOARCH to use for a test case in go.tools/go/ssa/interp/testdata/.

@@ -1026,8 +1026,7 @@ func (b *builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 
 // assignOp emits to fn code to perform loc <op>= val.
 func (b *builder) assignOp(fn *Function, loc lvalue, val Value, op token.Token, pos token.Pos) {
-	oldv := loc.load(fn)
-	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, val, oldv.Type()), loc.typ(), pos))
+	loc.store(fn, emitArith(fn, op, loc.load(fn), val, loc.typ(), pos))
 }
 
 // localValueSpec emits to fn code to define all of the vars in the
