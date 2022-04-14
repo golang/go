@@ -2301,3 +2301,7 @@
 (SARX(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && canMergeLoad(v, l) && clobber(l) => (SARX(Q|L)load [off] {sym} ptr x mem)
 (SHLX(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && canMergeLoad(v, l) && clobber(l) => (SHLX(Q|L)load [off] {sym} ptr x mem)
 (SHRX(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && canMergeLoad(v, l) && clobber(l) => (SHRX(Q|L)load [off] {sym} ptr x mem)
+
+((SHL|SHR|SAR)XQload [off] {sym} ptr (MOVQconst [c]) mem) => ((SHL|SHR|SAR)Qconst [int8(c&63)] (MOVQload [off] {sym} ptr mem))
+((SHL|SHR|SAR)XQload [off] {sym} ptr (MOVLconst [c]) mem) => ((SHL|SHR|SAR)Qconst [int8(c&63)] (MOVQload [off] {sym} ptr mem))
+((SHL|SHR|SAR)XLload [off] {sym} ptr (MOVLconst [c]) mem) => ((SHL|SHR|SAR)Lconst [int8(c&31)] (MOVLload [off] {sym} ptr mem))
