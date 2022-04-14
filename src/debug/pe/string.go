@@ -44,8 +44,29 @@ func readStringTable(fh *FileHeader, r io.ReadSeeker) (StringTable, error) {
 		return nil, nil
 	}
 	l -= 4
-	buf := make([]byte, l)
-	_, err = io.ReadFull(r, buf)
+
+	// If the string table is large, the file may be corrupt.
+	// Read in chunks to avoid crashing due to out of memory.
+	const chunk = 10 << 20 // 10M
+	var buf []byte
+	if l < chunk {
+		buf = make([]byte, l)
+		_, err = io.ReadFull(r, buf)
+	} else {
+		for l > 0 {
+			n := l
+			if n > chunk {
+				n = chunk
+			}
+			buf1 := make([]byte, n)
+			_, err = io.ReadFull(r, buf1)
+			if err != nil {
+				break
+			}
+			buf = append(buf, buf1...)
+			l -= n
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("fail to read string table: %v", err)
 	}
