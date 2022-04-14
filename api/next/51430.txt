@@ -1,0 +1,5 @@
+pkg runtime/coverage, func EmitMetaDataToDir(string) error #51430
+pkg runtime/coverage, func EmitMetaDataToWriter(io.Writer) error #51430
+pkg runtime/coverage, func EmitCounterDataToDir(string) error #51430
+pkg runtime/coverage, func EmitCounterDataToWriter(io.Writer) error #51430
+pkg runtime/coverage, func ClearCoverageCounters() error #51430

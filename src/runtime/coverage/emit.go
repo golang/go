@@ -335,6 +335,14 @@ func emitCounterDataToDirectory(outdir string) error {
 	return nil
 }
 
+// emitMetaData emits counter data for this coverage run to an io.Writer.
+func (s *emitState) emitCounterDataToWriter(w io.Writer) error {
+	if err := s.emitCounterDataFile(finalHash, w); err != nil {
+		return err
+	}
+	return nil
+}
+
 // openMetaFile determines whether we need to emit a meta-data output
 // file, or whether we can reuse the existing file in the coverage out
 // dir. It updates mfname/mftmp/mf fields in 's', returning an error
@@ -470,9 +478,28 @@ func (s *emitState) NumFuncs() (int, error) {
 
 			// We found a function that was executed.
 			nCtrs := sd[i]
+
+			// Check to make sure that we have at least one live
+			// counter. See the implementation note in ClearCoverageCounters
+			// for a description of why this is needed.
+			isLive := false
+			st := i + coverage.FirstCtrOffset
+			counters := sd[st : st+int(nCtrs)]
+			for i := 0; i < len(counters); i++ {
+				if counters[i] != 0 {
+					isLive = true
+					break
+				}
+			}
+			if !isLive {
+				// Skip this function.
+				i += coverage.FirstCtrOffset + int(nCtrs) - 1
+				continue
+			}
+
 			totalFuncs++
 
-			// Skip over this function.
+			// Move to the next function.
 			i += coverage.FirstCtrOffset + int(nCtrs) - 1
 		}
 	}
@@ -500,6 +527,22 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 			funcId := sd[i+coverage.FuncIdOffset]
 			cst := i + coverage.FirstCtrOffset
 			counters := sd[cst : cst+int(nCtrs)]
+
+			// Check to make sure that we have at least one live
+			// counter. See the implementation note in ClearCoverageCounters
+			// for a description of why this is needed.
+			isLive := false
+			for i := 0; i < len(counters); i++ {
+				if counters[i] != 0 {
+					isLive = true
+					break
+				}
+			}
+			if !isLive {
+				// Skip this function.
+				i += coverage.FirstCtrOffset + int(nCtrs) - 1
+				continue
+			}
 
 			if s.debug {
 				if pkgId != dpkg {
