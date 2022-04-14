@@ -389,3 +389,32 @@ func TestPathJoin(t *testing.T) {
 		}
 	}
 }
+
+func TestPathLineReaderMalformed(t *testing.T) {
+	// This test case drawn from issue #52354. What's happening
+	// here is that the stmtList attribute in the compilation
+	// unit is malformed (negative).
+	var aranges, frame, pubnames, ranges, str []byte
+	abbrev := []byte{0x10, 0x20, 0x20, 0x20, 0x21, 0x20, 0x10, 0x21, 0x61,
+		0x0, 0x0, 0xff, 0x20, 0xff, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+		0x20, 0x20, 0x20, 0x20, 0x20, 0x20}
+	info := []byte{0x0, 0x0, 0x0, 0x9, 0x0, 0x2, 0x0, 0x0, 0x0, 0x0,
+		0x20, 0x10, 0x10}
+	line := []byte{0x20}
+	Data0, err := New(abbrev, aranges, frame, info, line, pubnames, ranges, str)
+	if err != nil {
+		t.Fatalf("error unexpected: %v", err)
+	}
+	Reader0 := Data0.Reader()
+	Entry0, err := Reader0.Next()
+	if err != nil {
+		t.Fatalf("error unexpected: %v", err)
+	}
+	LineReader0, err := Data0.LineReader(Entry0)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if LineReader0 != nil {
+		t.Fatalf("expected nil line reader")
+	}
+}
