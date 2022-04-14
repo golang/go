@@ -126,7 +126,7 @@ func makeWrapper(prog *Program, sel *types.Selection, cr *creator) *Function {
 		}
 		callee := prog.originFunc(obj)
 		if len(callee._TypeParams) > 0 {
-			prog.instances[callee].lookupOrCreate(receiverTypeArgs(obj), cr)
+			callee = prog.instances[callee].lookupOrCreate(receiverTypeArgs(obj), cr)
 		}
 		c.Call.Value = callee
 		c.Call.Args = append(c.Call.Args, v)
