@@ -96,6 +96,13 @@ func (b *Builder) String() string {
 	return b.sb.String()
 }
 
+// Clone returns a copy of b.
+func (b *Builder) Clone() *Builder {
+	var clone Builder
+	clone.sb.WriteString(b.String())
+	return &clone
+}
+
 // nextTabStop returns the next tab stop index for a new placeholder.
 func (b *Builder) nextTabStop() int {
 	// Tab stops start from 1, so increment before returning.

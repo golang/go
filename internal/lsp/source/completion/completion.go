@@ -221,6 +221,12 @@ type completer struct {
 	// startTime is when we started processing this completion request. It does
 	// not include any time the request spent in the queue.
 	startTime time.Time
+
+	// scopes contains all scopes defined by nodes in our path,
+	// including nil values for nodes that don't defined a scope. It
+	// also includes our package scope and the universal scope at the
+	// end.
+	scopes []*types.Scope
 }
 
 // funcInfo holds info about a function object.
@@ -497,6 +503,10 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		}
 	}
 
+	// Collect all surrounding scopes, innermost first.
+	scopes := source.CollectScopes(pkg.GetTypesInfo(), path, pos)
+	scopes = append(scopes, pkg.GetTypes().Scope(), types.Universe)
+
 	opts := snapshot.View().Options()
 	c := &completer{
 		pkg:      pkg,
@@ -533,6 +543,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		methodSetCache: make(map[methodSetKey]*types.MethodSet),
 		mapper:         pgf.Mapper,
 		startTime:      startTime,
+		scopes:         scopes,
 	}
 
 	var cancel context.CancelFunc
@@ -1267,9 +1278,6 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 
 // lexical finds completions in the lexical environment.
 func (c *completer) lexical(ctx context.Context) error {
-	scopes := source.CollectScopes(c.pkg.GetTypesInfo(), c.path, c.pos)
-	scopes = append(scopes, c.pkg.GetTypes().Scope(), types.Universe)
-
 	var (
 		builtinIota = types.Universe.Lookup("iota")
 		builtinNil  = types.Universe.Lookup("nil")
@@ -1286,7 +1294,7 @@ func (c *completer) lexical(ctx context.Context) error {
 	seen := make(map[string]struct{})
 
 	// Process scopes innermost first.
-	for i, scope := range scopes {
+	for i, scope := range c.scopes {
 		if scope == nil {
 			continue
 		}
@@ -1407,10 +1415,11 @@ func (c *completer) lexical(ctx context.Context) error {
 	return nil
 }
 
-// injectInferredType manufacters candidates based on the given type.
-// For example, if the type is "[]int", this method makes sure you get
-// candidates "[]int{}" and "[]int" (the latter applies when
-// completing a type name).
+// injectType manufacters candidates based on the given type. This is
+// intended for types not discoverable via lexical search, such as
+// composite and/or generic types. For example, if the type is "[]int",
+// this method makes sure you get candidates "[]int{}" and "[]int"
+// (the latter applies when completing a type name).
 func (c *completer) injectType(ctx context.Context, t types.Type) {
 	if t == nil {
 		return
@@ -1418,11 +1427,12 @@ func (c *completer) injectType(ctx context.Context, t types.Type) {
 
 	t = source.Deref(t)
 
-	// If we have an expected type and it is _not_ a named type,
-	// handle it specially. Non-named types like "[]int" will never be
+	// If we have an expected type and it is _not_ a named type, handle
+	// it specially. Non-named types like "[]int" will never be
 	// considered via a lexical search, so we need to directly inject
-	// them.
-	if _, named := t.(*types.Named); !named {
+	// them. Also allow generic types since lexical search does not
+	// infer instantiated versions of them.
+	if named, _ := t.(*types.Named); named == nil || typeparams.ForNamed(named).Len() > 0 {
 		// If our expected type is "[]int", this will add a literal
 		// candidate of "[]int{}".
 		c.literal(ctx, t, nil)
@@ -2989,4 +2999,14 @@ func candKind(candType types.Type) objKind {
 	}
 
 	return kind
+}
+
+// innermostScope returns the innermost scope for c.pos.
+func (c *completer) innermostScope() *types.Scope {
+	for _, s := range c.scopes {
+		if s != nil {
+			return s
+		}
+	}
+	return nil
 }

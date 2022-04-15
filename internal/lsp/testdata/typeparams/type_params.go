@@ -24,6 +24,19 @@ func _() {
 	s[]{} //@rank("]", int, float64)
 }
 
+func takesGeneric[a int | string](s[a]) {
+	"s[a]{}" //@item(tpInScopeLit, "s[a]{}", "", "var")
+	takesGeneric() //@rank(")", tpInScopeLit),snippet(")", tpInScopeLit, "s[a]{\\}", "s[a]{\\}")
+}
+
+func _() {
+	s[int]{} //@item(tpInstLit, "s[int]{}", "", "var")
+	takesGeneric[int]() //@rank(")", tpInstLit),snippet(")", tpInstLit, "s[int]{\\}", "s[int]{\\}")
+
+	"s[...]{}" //@item(tpUninstLit, "s[...]{}", "", "var")
+	takesGeneric() //@rank(")", tpUninstLit),snippet(")", tpUninstLit, "s[${1:}]{\\}", "s[${1:a}]{\\}")
+}
+
 func returnTP[A int | float64](a A) A { //@item(returnTP, "returnTP", "something", "func")
 	return a
 }
