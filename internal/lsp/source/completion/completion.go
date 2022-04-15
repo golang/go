@@ -2002,7 +2002,22 @@ Nodes:
 					break Nodes
 				}
 
-				if sig, _ := c.pkg.GetTypesInfo().Types[node.Fun].Type.(*types.Signature); sig != nil {
+				sig, _ := c.pkg.GetTypesInfo().Types[node.Fun].Type.(*types.Signature)
+
+				if sig != nil && typeparams.ForSignature(sig).Len() > 0 {
+					// If we are completing a generic func call, re-check the call expression.
+					// This allows type param inference to work in cases like:
+					//
+					// func foo[T any](T) {}
+					// foo[int](<>) // <- get "int" completions instead of "T"
+					//
+					// TODO: remove this after https://go.dev/issue/52503
+					info := &types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
+					types.CheckExpr(c.snapshot.FileSet(), c.pkg.GetTypes(), node.Fun.Pos(), node.Fun, info)
+					sig, _ = info.Types[node.Fun].Type.(*types.Signature)
+				}
+
+				if sig != nil {
 					inf = c.expectedCallParamType(inf, node, sig)
 				}
 

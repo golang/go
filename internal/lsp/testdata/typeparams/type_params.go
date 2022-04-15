@@ -32,6 +32,6 @@ func _() {
 	var _ int = returnTP //@snippet(" //", returnTP, "returnTP[${1:}](${2:})", "returnTP[${1:A int|float64}](${2:a A})")
 
 	var aa int //@item(tpInt, "aa", "int", "var")
-	var ab string //@item(tpString, "ab", "string", "var")
-	returnTP[int](a) //@rank(")", tpInt, tpString)
+	var ab float64 //@item(tpFloat, "ab", "float64", "var")
+	returnTP[int](a) //@rank(")", tpInt, tpFloat)
 }
