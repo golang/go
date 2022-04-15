@@ -30,12 +30,13 @@ type Program struct {
 	canon *canonizer          // type canonicalization map
 	ctxt  *typeparams.Context // cache for type checking instantiations
 
-	methodsMu    sync.Mutex                 // guards the following maps:
-	methodSets   typeutil.Map               // maps type to its concrete methodSet
-	runtimeTypes typeutil.Map               // types for which rtypes are needed
-	bounds       map[boundsKey]*Function    // bounds for curried x.Method closures
-	thunks       map[selectionKey]*Function // thunks for T.Method expressions
-	instances    map[*Function]*instanceSet // instances of generic functions
+	methodsMu     sync.Mutex                 // guards the following maps:
+	methodSets    typeutil.Map               // maps type to its concrete methodSet
+	runtimeTypes  typeutil.Map               // types for which rtypes are needed
+	bounds        map[boundsKey]*Function    // bounds for curried x.Method closures
+	thunks        map[selectionKey]*Function // thunks for T.Method expressions
+	instances     map[*Function]*instanceSet // instances of generic functions
+	parameterized tpWalker                   // determines whether a type is parameterized.
 }
 
 // A Package is a single analyzed Go package containing Members for

@@ -9,11 +9,13 @@ package ssa
 import (
 	"fmt"
 	"go/types"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // MethodValue returns the Function implementing method sel, building
 // wrapper methods on demand.  It returns nil if sel denotes an
-// abstract (interface) method.
+// abstract (interface or parameterized) method.
 //
 // Precondition: sel.Kind() == MethodVal.
 //
@@ -26,17 +28,26 @@ func (prog *Program) MethodValue(sel *types.Selection) *Function {
 	}
 	T := sel.Recv()
 	if isInterface(T) {
-		return nil // abstract method
+		return nil // abstract method (interface)
 	}
 	if prog.mode&LogSource != 0 {
 		defer logStack("MethodValue %s %v", T, sel)()
 	}
 
+	var m *Function
 	b := builder{created: &creator{}}
+
 	prog.methodsMu.Lock()
-	m := prog.addMethod(prog.createMethodSet(T), sel, b.created)
+	// Checks whether a type param is reachable from T.
+	// This is an expensive check. May need to be optimized later.
+	if !prog.parameterized.isParameterized(T) {
+		m = prog.addMethod(prog.createMethodSet(T), sel, b.created)
+	}
 	prog.methodsMu.Unlock()
 
+	if m == nil {
+		return nil // abstract method (generic)
+	}
 	for !b.done() {
 		b.buildCreated()
 		b.needsRuntimeTypes()
@@ -64,6 +75,11 @@ type methodSet struct {
 // Precondition: T is a concrete type, e.g. !isInterface(T) and not parameterized.
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 func (prog *Program) createMethodSet(T types.Type) *methodSet {
+	if prog.mode&SanityCheckFunctions != 0 {
+		if isInterface(T) || prog.parameterized.isParameterized(T) {
+			panic("type is interface or parameterized")
+		}
+	}
 	mset, ok := prog.methodSets.At(T).(*methodSet)
 	if !ok {
 		mset = &methodSet{mapping: make(map[string]*Function)}
@@ -73,6 +89,7 @@ func (prog *Program) createMethodSet(T types.Type) *methodSet {
 }
 
 // Adds any created functions to cr.
+// Precondition: T is a concrete type, e.g. !isInterface(T) and not parameterized.
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 func (prog *Program) addMethod(mset *methodSet, sel *types.Selection, cr *creator) *Function {
 	if sel.Kind() == types.MethodExpr {
@@ -144,7 +161,7 @@ func (prog *Program) declaredFunc(obj *types.Func) *Function {
 // Precondition: T is not a method signature (*Signature with Recv()!=nil).
 // Precondition: T is not parameterized.
 //
-// Thread-safe.  (Called via emitConv from multiple builder goroutines.)
+// Thread-safe.  (Called via Package.build from multiple builder goroutines.)
 //
 // TODO(adonovan): make this faster.  It accounts for 20% of SSA build time.
 //
@@ -156,6 +173,7 @@ func (prog *Program) needMethodsOf(T types.Type, cr *creator) {
 }
 
 // Precondition: T is not a method signature (*Signature with Recv()!=nil).
+// Precondition: T is not parameterized.
 // Recursive case: skip => don't create methods for T.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
@@ -240,6 +258,12 @@ func (prog *Program) needMethods(T types.Type, skip bool, cr *creator) {
 		for i, n := 0, t.Len(); i < n; i++ {
 			prog.needMethods(t.At(i).Type(), false, cr)
 		}
+
+	case *typeparams.TypeParam:
+		panic(T) // type parameters are always abstract.
+
+	case *typeparams.Union:
+		// nop
 
 	default:
 		panic(T)

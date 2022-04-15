@@ -24,15 +24,16 @@ import (
 // mode controls diagnostics and checking during SSA construction.
 func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	prog := &Program{
-		Fset:      fset,
-		imported:  make(map[string]*Package),
-		packages:  make(map[*types.Package]*Package),
-		thunks:    make(map[selectionKey]*Function),
-		bounds:    make(map[boundsKey]*Function),
-		mode:      mode,
-		canon:     newCanonizer(),
-		ctxt:      typeparams.NewContext(),
-		instances: make(map[*Function]*instanceSet),
+		Fset:          fset,
+		imported:      make(map[string]*Package),
+		packages:      make(map[*types.Package]*Package),
+		thunks:        make(map[selectionKey]*Function),
+		bounds:        make(map[boundsKey]*Function),
+		mode:          mode,
+		canon:         newCanonizer(),
+		ctxt:          typeparams.NewContext(),
+		instances:     make(map[*Function]*instanceSet),
+		parameterized: tpWalker{seen: make(map[types.Type]bool)},
 	}
 
 	h := typeutil.MakeHasher() // protected by methodsMu, in effect
