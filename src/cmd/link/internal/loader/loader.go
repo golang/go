@@ -2351,6 +2351,10 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	// need to access the old symbol content.)
 	l.objSyms[symIdx] = objSym{l.extReader.objidx, uint32(pi)}
 	l.extReader.syms = append(l.extReader.syms, symIdx)
+
+	// Some attributes were encoded in the object file. Copy them over.
+	l.SetAttrDuplicateOK(symIdx, r.Sym(li).Dupok())
+	l.SetAttrShared(symIdx, r.Shared())
 }
 
 // Copy the payload of symbol src to dst. Both src and dst must be external
@@ -2369,31 +2373,6 @@ func (l *Loader) CopySym(src, dst Sym) {
 	l.payloads[l.extIndex(dst)] = l.payloads[l.extIndex(src)]
 	l.SetSymPkg(dst, l.SymPkg(src))
 	// TODO: other attributes?
-}
-
-// CopyAttributes copies over all of the attributes of symbol 'src' to
-// symbol 'dst'.
-func (l *Loader) CopyAttributes(src Sym, dst Sym) {
-	l.SetAttrReachable(dst, l.AttrReachable(src))
-	l.SetAttrOnList(dst, l.AttrOnList(src))
-	l.SetAttrLocal(dst, l.AttrLocal(src))
-	l.SetAttrNotInSymbolTable(dst, l.AttrNotInSymbolTable(src))
-	if l.IsExternal(dst) {
-		l.SetAttrVisibilityHidden(dst, l.AttrVisibilityHidden(src))
-		l.SetAttrDuplicateOK(dst, l.AttrDuplicateOK(src))
-		l.SetAttrShared(dst, l.AttrShared(src))
-		l.SetAttrExternal(dst, l.AttrExternal(src))
-	} else {
-		// Some attributes are modifiable only for external symbols.
-		// In such cases, don't try to transfer over the attribute
-		// from the source even if there is a clash. This comes up
-		// when copying attributes from a dupOK ABI wrapper symbol to
-		// the real target symbol (which may not be marked dupOK).
-	}
-	l.SetAttrSpecial(dst, l.AttrSpecial(src))
-	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
-	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))
-	l.SetAttrReadOnly(dst, l.AttrReadOnly(src))
 }
 
 // CreateExtSym creates a new external symbol with the specified name
