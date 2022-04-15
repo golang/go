@@ -602,11 +602,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 	for _, test := range tests {
 		commonName := "test.example.com"
 		template := Certificate{
-			// SerialNumber is negative to ensure that negative
-			// values are parsed. This is due to the prevalence of
-			// buggy code that produces certificates with negative
-			// serial numbers.
-			SerialNumber: big.NewInt(-1),
+			SerialNumber: big.NewInt(1),
 			Subject: pkix.Name{
 				CommonName:   commonName,
 				Organization: []string{"Σ Acme Co"},
@@ -3623,6 +3619,43 @@ func TestCreateCertificateLongSerial(t *testing.T) {
 	serialBytes = serialBytes[:20]
 	tmpl.SerialNumber = big.NewInt(0).SetBytes(serialBytes)
 
+	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
+	}
+}
+
+var negativeSerialCert = `-----BEGIN CERTIFICATE-----
+MIIBBTCBraADAgECAgH/MAoGCCqGSM49BAMCMA0xCzAJBgNVBAMTAjopMB4XDTIy
+MDQxNDIzNTYwNFoXDTIyMDQxNTAxNTYwNFowDTELMAkGA1UEAxMCOikwWTATBgcq
+hkjOPQIBBggqhkjOPQMBBwNCAAQ9ezsIsj+q17K87z/PXE/rfGRN72P/Wyn5d6oo
+5M0ZbSatuntMvfKdX79CQxXAxN4oXk3Aov4jVSG12AcDI8ShMAoGCCqGSM49BAMC
+A0cAMEQCIBzfBU5eMPT6m5lsR6cXaJILpAaiD9YxOl4v6dT3rzEjAiBHmjnHmAss
+RqUAyJKFzqZxOlK2q4j2IYnuj5+LrLGbQA==
+-----END CERTIFICATE-----`
+
+func TestParseNegativeSerial(t *testing.T) {
+	pemBlock, _ := pem.Decode([]byte(negativeSerialCert))
+	_, err := ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %s", err)
+	}
+}
+
+func TestCreateNegativeSerial(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: big.NewInt(-1),
+		Subject: pkix.Name{
+			CommonName: ":)",
+		},
+		NotAfter:  time.Now().Add(time.Hour),
+		NotBefore: time.Now().Add(-time.Hour),
+	}
+	expectedErr := "x509: serial number must be positive"
 	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
 	if err == nil || err.Error() != expectedErr {
 		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
