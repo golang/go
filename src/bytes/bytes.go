@@ -30,7 +30,7 @@ func Compare(a, b []byte) int {
 // explode splits s into a slice of UTF-8 sequences, one per Unicode code point (still slices of bytes),
 // up to a maximum of n byte slices. Invalid UTF-8 sequences are chopped into individual bytes.
 func explode(s []byte, n int) [][]byte {
-	if n <= 0 {
+	if n <= 0 || n > len(s) {
 		n = len(s)
 	}
 	a := make([][]byte, n)
