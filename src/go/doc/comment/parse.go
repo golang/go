@@ -1063,7 +1063,7 @@ func ident(s string) (id string, ok bool) {
 			}
 			break
 		}
-		r, nr := utf8.DecodeRuneInString(s)
+		r, nr := utf8.DecodeRuneInString(s[n:])
 		if unicode.IsLetter(r) {
 			n += nr
 			continue
