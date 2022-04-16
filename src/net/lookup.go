@@ -10,6 +10,8 @@ import (
 	"internal/singleflight"
 	"net/netip"
 	"sync"
+
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 // protocols contains minimal mappings between internet protocol
@@ -665,3 +667,227 @@ func (r *Resolver) LookupAddr(ctx context.Context, addr string) ([]string, error
 // method receives DNS records which contain invalid DNS names. This may be returned alongside
 // results which have had the malformed records filtered out.
 var errMalformedDNSRecordsDetail = "DNS response contained records which contain invalid names"
+
+// dial makes a new connection to the provided server (which must be
+// an IP address) with the provided network type, using either r.Dial
+// (if both r and r.Dial are non-nil) or else Dialer.DialContext.
+func (r *Resolver) dial(ctx context.Context, network, server string) (Conn, error) {
+	// Calling Dial here is scary -- we have to be sure not to
+	// dial a name that will require a DNS lookup, or Dial will
+	// call back here to translate it. The DNS config parser has
+	// already checked that all the cfg.servers are IP
+	// addresses, which Dial will use without a DNS lookup.
+	var c Conn
+	var err error
+	if r != nil && r.Dial != nil {
+		c, err = r.Dial(ctx, network, server)
+	} else {
+		var d Dialer
+		c, err = d.DialContext(ctx, network, server)
+	}
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	return c, nil
+}
+
+// goLookupSRV returns the SRV records for a target name, built either
+// from its component service ("sip"), protocol ("tcp"), and name
+// ("example.com."), or from name directly (if service and proto are
+// both empty).
+//
+// In either case, the returned target name ("_sip._tcp.example.com.")
+// is also returned on success.
+//
+// The records are sorted by weight.
+func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string) (target string, srvs []*SRV, err error) {
+	if service == "" && proto == "" {
+		target = name
+	} else {
+		target = "_" + service + "._" + proto + "." + name
+	}
+	p, server, err := r.lookup(ctx, target, dnsmessage.TypeSRV)
+	if err != nil {
+		return "", nil, err
+	}
+	var cname dnsmessage.Name
+	for {
+		h, err := p.AnswerHeader()
+		if err == dnsmessage.ErrSectionDone {
+			break
+		}
+		if err != nil {
+			return "", nil, &DNSError{
+				Err:    "cannot unmarshal DNS message",
+				Name:   name,
+				Server: server,
+			}
+		}
+		if h.Type != dnsmessage.TypeSRV {
+			if err := p.SkipAnswer(); err != nil {
+				return "", nil, &DNSError{
+					Err:    "cannot unmarshal DNS message",
+					Name:   name,
+					Server: server,
+				}
+			}
+			continue
+		}
+		if cname.Length == 0 && h.Name.Length != 0 {
+			cname = h.Name
+		}
+		srv, err := p.SRVResource()
+		if err != nil {
+			return "", nil, &DNSError{
+				Err:    "cannot unmarshal DNS message",
+				Name:   name,
+				Server: server,
+			}
+		}
+		srvs = append(srvs, &SRV{Target: srv.Target.String(), Port: srv.Port, Priority: srv.Priority, Weight: srv.Weight})
+	}
+	byPriorityWeight(srvs).sort()
+	return cname.String(), srvs, nil
+}
+
+// goLookupMX returns the MX records for name.
+func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeMX)
+	if err != nil {
+		return nil, err
+	}
+	var mxs []*MX
+	for {
+		h, err := p.AnswerHeader()
+		if err == dnsmessage.ErrSectionDone {
+			break
+		}
+		if err != nil {
+			return nil, &DNSError{
+				Err:    "cannot unmarshal DNS message",
+				Name:   name,
+				Server: server,
+			}
+		}
+		if h.Type != dnsmessage.TypeMX {
+			if err := p.SkipAnswer(); err != nil {
+				return nil, &DNSError{
+					Err:    "cannot unmarshal DNS message",
+					Name:   name,
+					Server: server,
+				}
+			}
+			continue
+		}
+		mx, err := p.MXResource()
+		if err != nil {
+			return nil, &DNSError{
+				Err:    "cannot unmarshal DNS message",
+				Name:   name,
+				Server: server,
+			}
+		}
+		mxs = append(mxs, &MX{Host: mx.MX.String(), Pref: mx.Pref})
+
+	}
+	byPref(mxs).sort()
+	return mxs, nil
+}
+
+// goLookupNS returns the NS records for name.
+func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeNS)
+	if err != nil {
+		return nil, err
+	}
+	var nss []*NS
+	for {
+		h, err := p.AnswerHeader()
+		if err == dnsmessage.ErrSectionDone {
+			break
+		}
+		if err != nil {
+			return nil, &DNSError{
+				Err:    "cannot unmarshal DNS message",
+				Name:   name,
+				Server: server,
+			}
+		}
+		if h.Type != dnsmessage.TypeNS {
+			if err := p.SkipAnswer(); err != nil {
+				return nil, &DNSError{
+					Err:    "cannot unmarshal DNS message",
+					Name:   name,
+					Server: server,
+				}
+			}
+			continue
+		}
+		ns, err := p.NSResource()
+		if err != nil {
+			return nil, &DNSError{
+				Err:    "cannot unmarshal DNS message",
+				Name:   name,
+				Server: server,
+			}
+		}
+		nss = append(nss, &NS{Host: ns.NS.String()})
+	}
+	return nss, nil
+}
+
+// goLookupTXT returns the TXT records from name.
+func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, error) {
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeTXT)
+	if err != nil {
+		return nil, err
+	}
+	var txts []string
+	for {
+		h, err := p.AnswerHeader()
+		if err == dnsmessage.ErrSectionDone {
+			break
+		}
+		if err != nil {
+			return nil, &DNSError{
+				Err:    "cannot unmarshal DNS message",
+				Name:   name,
+				Server: server,
+			}
+		}
+		if h.Type != dnsmessage.TypeTXT {
+			if err := p.SkipAnswer(); err != nil {
+				return nil, &DNSError{
+					Err:    "cannot unmarshal DNS message",
+					Name:   name,
+					Server: server,
+				}
+			}
+			continue
+		}
+		txt, err := p.TXTResource()
+		if err != nil {
+			return nil, &DNSError{
+				Err:    "cannot unmarshal DNS message",
+				Name:   name,
+				Server: server,
+			}
+		}
+		// Multiple strings in one TXT record need to be
+		// concatenated without separator to be consistent
+		// with previous Go resolver.
+		n := 0
+		for _, s := range txt.TXT {
+			n += len(s)
+		}
+		txtJoin := make([]byte, 0, n)
+		for _, s := range txt.TXT {
+			txtJoin = append(txtJoin, s...)
+		}
+		if len(txts) == 0 {
+			txts = make([]string, 0, 1)
+		}
+		txts = append(txts, string(txtJoin))
+	}
+	return txts, nil
+}

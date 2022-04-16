@@ -11,8 +11,6 @@ import (
 	"internal/bytealg"
 	"sync"
 	"syscall"
-
-	"golang.org/x/net/dns/dnsmessage"
 )
 
 var onceReadProtocols sync.Once
@@ -53,26 +51,6 @@ func readProtocols() {
 func lookupProtocol(_ context.Context, name string) (int, error) {
 	onceReadProtocols.Do(readProtocols)
 	return lookupProtocolMap(name)
-}
-
-func (r *Resolver) dial(ctx context.Context, network, server string) (Conn, error) {
-	// Calling Dial here is scary -- we have to be sure not to
-	// dial a name that will require a DNS lookup, or Dial will
-	// call back here to translate it. The DNS config parser has
-	// already checked that all the cfg.servers are IP
-	// addresses, which Dial will use without a DNS lookup.
-	var c Conn
-	var err error
-	if r != nil && r.Dial != nil {
-		c, err = r.Dial(ctx, network, server)
-	} else {
-		var d Dialer
-		c, err = d.DialContext(ctx, network, server)
-	}
-	if err != nil {
-		return nil, mapErr(err)
-	}
-	return c, nil
 }
 
 func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
@@ -129,194 +107,19 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 }
 
 func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
-	var target string
-	if service == "" && proto == "" {
-		target = name
-	} else {
-		target = "_" + service + "._" + proto + "." + name
-	}
-	p, server, err := r.lookup(ctx, target, dnsmessage.TypeSRV)
-	if err != nil {
-		return "", nil, err
-	}
-	var srvs []*SRV
-	var cname dnsmessage.Name
-	for {
-		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
-			break
-		}
-		if err != nil {
-			return "", nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
-		}
-		if h.Type != dnsmessage.TypeSRV {
-			if err := p.SkipAnswer(); err != nil {
-				return "", nil, &DNSError{
-					Err:    "cannot unmarshal DNS message",
-					Name:   name,
-					Server: server,
-				}
-			}
-			continue
-		}
-		if cname.Length == 0 && h.Name.Length != 0 {
-			cname = h.Name
-		}
-		srv, err := p.SRVResource()
-		if err != nil {
-			return "", nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
-		}
-		srvs = append(srvs, &SRV{Target: srv.Target.String(), Port: srv.Port, Priority: srv.Priority, Weight: srv.Weight})
-	}
-	byPriorityWeight(srvs).sort()
-	return cname.String(), srvs, nil
+	return r.goLookupSRV(ctx, service, proto, name)
 }
 
 func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeMX)
-	if err != nil {
-		return nil, err
-	}
-	var mxs []*MX
-	for {
-		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
-			break
-		}
-		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
-		}
-		if h.Type != dnsmessage.TypeMX {
-			if err := p.SkipAnswer(); err != nil {
-				return nil, &DNSError{
-					Err:    "cannot unmarshal DNS message",
-					Name:   name,
-					Server: server,
-				}
-			}
-			continue
-		}
-		mx, err := p.MXResource()
-		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
-		}
-		mxs = append(mxs, &MX{Host: mx.MX.String(), Pref: mx.Pref})
-
-	}
-	byPref(mxs).sort()
-	return mxs, nil
+	return r.goLookupMX(ctx, name)
 }
 
 func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeNS)
-	if err != nil {
-		return nil, err
-	}
-	var nss []*NS
-	for {
-		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
-			break
-		}
-		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
-		}
-		if h.Type != dnsmessage.TypeNS {
-			if err := p.SkipAnswer(); err != nil {
-				return nil, &DNSError{
-					Err:    "cannot unmarshal DNS message",
-					Name:   name,
-					Server: server,
-				}
-			}
-			continue
-		}
-		ns, err := p.NSResource()
-		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
-		}
-		nss = append(nss, &NS{Host: ns.NS.String()})
-	}
-	return nss, nil
+	return r.goLookupNS(ctx, name)
 }
 
 func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeTXT)
-	if err != nil {
-		return nil, err
-	}
-	var txts []string
-	for {
-		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
-			break
-		}
-		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
-		}
-		if h.Type != dnsmessage.TypeTXT {
-			if err := p.SkipAnswer(); err != nil {
-				return nil, &DNSError{
-					Err:    "cannot unmarshal DNS message",
-					Name:   name,
-					Server: server,
-				}
-			}
-			continue
-		}
-		txt, err := p.TXTResource()
-		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
-		}
-		// Multiple strings in one TXT record need to be
-		// concatenated without separator to be consistent
-		// with previous Go resolver.
-		n := 0
-		for _, s := range txt.TXT {
-			n += len(s)
-		}
-		txtJoin := make([]byte, 0, n)
-		for _, s := range txt.TXT {
-			txtJoin = append(txtJoin, s...)
-		}
-		if len(txts) == 0 {
-			txts = make([]string, 0, 1)
-		}
-		txts = append(txts, string(txtJoin))
-	}
-	return txts, nil
+	return r.goLookupTXT(ctx, name)
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
