@@ -2465,12 +2465,17 @@ func (v Value) TrySend(x Value) bool {
 
 // Type returns v's type.
 func (v Value) Type() Type {
-	f := v.flag
-	if f == 0 {
+	if v.flag != 0 && v.flag&flagMethod == 0 {
+		return v.typ
+	}
+	return v.typeSlow()
+}
+
+func (v Value) typeSlow() Type {
+	if v.flag == 0 {
 		panic(&ValueError{"reflect.Value.Type", Invalid})
 	}
-	if f&flagMethod == 0 {
-		// Easy case
+	if v.flag&flagMethod == 0 {
 		return v.typ
 	}
 
