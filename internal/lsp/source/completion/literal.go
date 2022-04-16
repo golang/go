@@ -186,12 +186,18 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 	var (
 		paramNames     = make([]string, sig.Params().Len())
 		paramNameCount = make(map[string]int)
+		hasTypeParams  bool
 	)
 	for i := 0; i < sig.Params().Len(); i++ {
 		var (
 			p    = sig.Params().At(i)
 			name = p.Name()
 		)
+
+		if tp, _ := p.Type().(*typeparams.TypeParam); tp != nil && !c.typeParamInScope(tp) {
+			hasTypeParams = true
+		}
+
 		if name == "" {
 			// If the param has no name in the signature, guess a name based
 			// on the type. Use an empty qualifier to ignore the package.
@@ -219,6 +225,14 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 	}
 
 	for i := 0; i < sig.Params().Len(); i++ {
+		if hasTypeParams && !c.opts.placeholders {
+			// If there are type params in the args then the user must
+			// choose the concrete types. If placeholders are disabled just
+			// drop them between the parens and let them fill things in.
+			snip.WritePlaceholder(nil)
+			break
+		}
+
 		if i > 0 {
 			snip.WriteText(", ")
 		}
@@ -254,7 +268,14 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 			if sig.Variadic() && i == sig.Params().Len()-1 {
 				typeStr = strings.Replace(typeStr, "[]", "...", 1)
 			}
-			snip.WriteText(typeStr)
+
+			if tp, _ := p.Type().(*typeparams.TypeParam); tp != nil && !c.typeParamInScope(tp) {
+				snip.WritePlaceholder(func(snip *snippet.Builder) {
+					snip.WriteText(typeStr)
+				})
+			} else {
+				snip.WriteText(typeStr)
+			}
 		}
 	}
 	snip.WriteText(")")
@@ -267,10 +288,24 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 	resultsNeedParens := results.Len() > 1 ||
 		results.Len() == 1 && results.At(0).Name() != ""
 
+	var resultHasTypeParams bool
+	for i := 0; i < results.Len(); i++ {
+		if tp, _ := results.At(i).Type().(*typeparams.TypeParam); tp != nil && !c.typeParamInScope(tp) {
+			resultHasTypeParams = true
+		}
+	}
+
 	if resultsNeedParens {
 		snip.WriteText("(")
 	}
 	for i := 0; i < results.Len(); i++ {
+		if resultHasTypeParams && !c.opts.placeholders {
+			// Leave an empty tabstop if placeholders are disabled and there
+			// are type args that need specificying.
+			snip.WritePlaceholder(nil)
+			break
+		}
+
 		if i > 0 {
 			snip.WriteText(", ")
 		}
@@ -278,7 +313,15 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 		if name := r.Name(); name != "" {
 			snip.WriteText(name + " ")
 		}
-		snip.WriteText(source.FormatVarType(ctx, c.snapshot, c.pkg, r, c.qf))
+
+		text := source.FormatVarType(ctx, c.snapshot, c.pkg, r, c.qf)
+		if tp, _ := r.Type().(*typeparams.TypeParam); tp != nil && !c.typeParamInScope(tp) {
+			snip.WritePlaceholder(func(snip *snippet.Builder) {
+				snip.WriteText(text)
+			})
+		} else {
+			snip.WriteText(text)
+		}
 	}
 	if resultsNeedParens {
 		snip.WriteText(")")

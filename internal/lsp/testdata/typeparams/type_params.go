@@ -48,3 +48,13 @@ func _() {
 	var ab float64 //@item(tpFloat, "ab", "float64", "var")
 	returnTP[int](a) //@rank(")", tpInt, tpFloat)
 }
+
+func takesFunc[T any](func(T) T) {
+	var _ func(t T) T = f //@snippet(" //", tpLitFunc, "func(t T) T {$0\\}", "func(t T) T {$0\\}")
+}
+
+func _() {
+	_ = "func(...) {}" //@item(tpLitFunc, "func(...) {}", "", "var")
+	takesFunc() //@snippet(")", tpLitFunc, "func(${1:}) ${2:} {$0\\}", "func(${1:t} ${2:T}) ${3:T} {$0\\}")
+	takesFunc[int]() //@snippet(")", tpLitFunc, "func(i int) int {$0\\}", "func(${1:i} int) int {$0\\}")
+}
