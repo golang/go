@@ -97,10 +97,6 @@ func (c rfc1423Algo) deriveKey(password, salt []byte) []byte {
 
 // IsEncryptedPEMBlock returns whether the PEM block is password encrypted
 // according to RFC 1423.
-//
-// Deprecated: Legacy PEM encryption as specified in RFC 1423 is insecure by
-// design. Since it does not authenticate the ciphertext, it is vulnerable to
-// padding oracle attacks that can let an attacker recover the plaintext.
 func IsEncryptedPEMBlock(b *pem.Block) bool {
 	_, ok := b.Headers["DEK-Info"]
 	return ok
@@ -117,10 +113,6 @@ var IncorrectPasswordError = errors.New("x509: decryption password incorrect")
 // of deficiencies in the format, it's not always possible to detect an
 // incorrect password. In these cases no error will be returned but the
 // decrypted DER bytes will be random noise.
-//
-// Deprecated: Legacy PEM encryption as specified in RFC 1423 is insecure by
-// design. Since it does not authenticate the ciphertext, it is vulnerable to
-// padding oracle attacks that can let an attacker recover the plaintext.
 func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	dek, ok := b.Headers["DEK-Info"]
 	if !ok {
@@ -168,7 +160,7 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	// If we detect a bad padding, we assume it is an invalid password.
 	dlen := len(data)
 	if dlen == 0 || dlen%ciph.blockSize != 0 {
-		return nil, errors.New("x509: invalid padding")
+		return nil, IncorrectPasswordError
 	}
 	last := int(data[dlen-1])
 	if dlen < last {
@@ -188,10 +180,6 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 // EncryptPEMBlock returns a PEM block of the specified type holding the
 // given DER encoded data encrypted with the specified algorithm and
 // password according to RFC 1423.
-//
-// Deprecated: Legacy PEM encryption as specified in RFC 1423 is insecure by
-// design. Since it does not authenticate the ciphertext, it is vulnerable to
-// padding oracle attacks that can let an attacker recover the plaintext.
 func EncryptPEMBlock(rand io.Reader, blockType string, data, password []byte, alg PEMCipher) (*pem.Block, error) {
 	ciph := cipherByKey(alg)
 	if ciph == nil {
