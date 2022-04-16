@@ -1504,6 +1504,10 @@ func TestMap(t *testing.T) {
 	if m != nil {
 		t.Errorf("mv.Set(nil) failed")
 	}
+
+	type S string
+	shouldPanic("not assignable", func() { mv.MapIndex(ValueOf(S("key"))) })
+	shouldPanic("not assignable", func() { mv.SetMapIndex(ValueOf(S("key")), ValueOf(0)) })
 }
 
 func TestNilMap(t *testing.T) {
@@ -7265,11 +7269,14 @@ func BenchmarkNew(b *testing.B) {
 
 func BenchmarkMap(b *testing.B) {
 	type V *int
+	type S string
 	value := ValueOf((V)(nil))
 	stringKeys := []string{}
 	mapOfStrings := map[string]V{}
 	uint64Keys := []uint64{}
 	mapOfUint64s := map[uint64]V{}
+	userStringKeys := []S{}
+	mapOfUserStrings := map[S]V{}
 	for i := 0; i < 100; i++ {
 		stringKey := fmt.Sprintf("key%d", i)
 		stringKeys = append(stringKeys, stringKey)
@@ -7278,6 +7285,10 @@ func BenchmarkMap(b *testing.B) {
 		uint64Key := uint64(i)
 		uint64Keys = append(uint64Keys, uint64Key)
 		mapOfUint64s[uint64Key] = nil
+
+		userStringKey := S(fmt.Sprintf("key%d", i))
+		userStringKeys = append(userStringKeys, userStringKey)
+		mapOfUserStrings[userStringKey] = nil
 	}
 
 	tests := []struct {
@@ -7286,6 +7297,7 @@ func BenchmarkMap(b *testing.B) {
 	}{
 		{"StringKeys", ValueOf(mapOfStrings), ValueOf(stringKeys), value},
 		{"Uint64Keys", ValueOf(mapOfUint64s), ValueOf(uint64Keys), value},
+		{"UserStringKeys", ValueOf(mapOfUserStrings), ValueOf(userStringKeys), value},
 	}
 
 	for _, tt := range tests {
