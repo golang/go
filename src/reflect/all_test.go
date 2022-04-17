@@ -370,9 +370,11 @@ func TestMapIterSet(t *testing.T) {
 			e.SetIterValue(iter)
 		}
 	}))
-	// Making a *MapIter allocates. This should be the only allocation.
-	if got != 1 {
-		t.Errorf("wanted 1 alloc, got %d", got)
+	// Calling MapRange should not allocate even though it returns a *MapIter.
+	// The function is inlineable, so if the local usage does not escape
+	// the *MapIter, it can remain stack allocated.
+	if got != 0 {
+		t.Errorf("wanted 0 alloc, got %d", got)
 	}
 }
 
