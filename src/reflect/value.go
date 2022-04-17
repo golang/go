@@ -281,14 +281,31 @@ func (v Value) Addr() Value {
 // Bool returns v's underlying value.
 // It panics if v's kind is not Bool.
 func (v Value) Bool() bool {
-	v.mustBe(Bool)
+	// panicNotBool is split out to keep Bool inlineable.
+	if v.kind() != Bool {
+		v.panicNotBool()
+	}
 	return *(*bool)(v.ptr)
 }
+
+func (v Value) panicNotBool() {
+	v.mustBe(Bool)
+}
+
+var bytesType = TypeOf(([]byte)(nil)).(*rtype)
 
 // Bytes returns v's underlying value.
 // It panics if v's underlying value is not a slice of bytes or
 // an addressable array of bytes.
 func (v Value) Bytes() []byte {
+	// bytesSlow is split out to keep Bytes inlineable for unnamed []byte.
+	if v.typ == bytesType {
+		return *(*[]byte)(v.ptr)
+	}
+	return v.bytesSlow()
+}
+
+func (v Value) bytesSlow() []byte {
 	switch v.kind() {
 	case Slice:
 		if v.typ.Elem().Kind() != Uint8 {
@@ -1129,15 +1146,20 @@ func funcName(f func([]Value) []Value) string {
 // Cap returns v's capacity.
 // It panics if v's Kind is not Array, Chan, or Slice.
 func (v Value) Cap() int {
+	// capNonSlice is split out to keep Cap inlineable for slice kinds.
+	if v.kind() == Slice {
+		return (*unsafeheader.Slice)(v.ptr).Cap
+	}
+	return v.capNonSlice()
+}
+
+func (v Value) capNonSlice() int {
 	k := v.kind()
 	switch k {
 	case Array:
 		return v.typ.Len()
 	case Chan:
 		return chancap(v.pointer())
-	case Slice:
-		// Slice is always bigger than a word; assume flagIndir.
-		return (*unsafeheader.Slice)(v.ptr).Cap
 	}
 	panic(&ValueError{"reflect.Value.Cap", v.kind()})
 }
@@ -1580,8 +1602,15 @@ func (v Value) Kind() Kind {
 // Len returns v's length.
 // It panics if v's Kind is not Array, Chan, Map, Slice, or String.
 func (v Value) Len() int {
-	k := v.kind()
-	switch k {
+	// lenNonSlice is split out to keep Len inlineable for slice kinds.
+	if v.kind() == Slice {
+		return (*unsafeheader.Slice)(v.ptr).Len
+	}
+	return v.lenNonSlice()
+}
+
+func (v Value) lenNonSlice() int {
+	switch k := v.kind(); k {
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(v.typ))
 		return int(tt.len)
@@ -1589,9 +1618,6 @@ func (v Value) Len() int {
 		return chanlen(v.pointer())
 	case Map:
 		return maplen(v.pointer())
-	case Slice:
-		// Slice is bigger than a word; assume flagIndir.
-		return (*unsafeheader.Slice)(v.ptr).Len
 	case String:
 		// String is bigger than a word; assume flagIndir.
 		return (*unsafeheader.String)(v.ptr).Len
@@ -2441,11 +2467,16 @@ func (v Value) Slice3(i, j, k int) Value {
 // The fmt package treats Values specially. It does not call their String
 // method implicitly but instead prints the concrete values they hold.
 func (v Value) String() string {
-	switch k := v.kind(); k {
-	case Invalid:
-		return "<invalid Value>"
-	case String:
+	// stringNonString is split out to keep String inlineable for string kinds.
+	if v.kind() == String {
 		return *(*string)(v.ptr)
+	}
+	return v.stringNonString()
+}
+
+func (v Value) stringNonString() string {
+	if v.kind() == Invalid {
+		return "<invalid Value>"
 	}
 	// If you call String on a reflect.Value of other type, it's better to
 	// print something than to panic. Useful in debugging.
