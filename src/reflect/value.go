@@ -3056,9 +3056,10 @@ func NewAt(typ Type, p unsafe.Pointer) Value {
 	return Value{t.ptrTo(), p, fl}
 }
 
-// assignTo returns a value v that can be assigned directly to typ.
-// It panics if v is not assignable to typ.
-// For a conversion to an interface type, target is a suggested scratch space to use.
+// assignTo returns a value v that can be assigned directly to dst.
+// It panics if v is not assignable to dst.
+// For a conversion to an interface type, target, if not nil,
+// is a suggested scratch space to use.
 // target must be initialized memory (or nil).
 func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {
 	if v.flag&flagMethod != 0 {
@@ -3074,9 +3075,6 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 		return Value{dst, v.ptr, fl}
 
 	case implements(dst, v.typ):
-		if target == nil {
-			target = unsafe_New(dst)
-		}
 		if v.Kind() == Interface && v.IsNil() {
 			// A nil ReadWriter passed to nil Reader is OK,
 			// but using ifaceE2I below will panic.
@@ -3084,6 +3082,9 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 			return Value{dst, nil, flag(Interface)}
 		}
 		x := valueInterface(v, false)
+		if target == nil {
+			target = unsafe_New(dst)
+		}
 		if dst.NumMethod() == 0 {
 			*(*any)(target) = x
 		} else {
