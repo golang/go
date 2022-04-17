@@ -7823,3 +7823,93 @@ func TestNegativeKindString(t *testing.T) {
 		t.Fatalf("Kind(-1).String() = %q, want %q", s, want)
 	}
 }
+
+type (
+	namedBool  bool
+	namedBytes []byte
+)
+
+var sourceAll = struct {
+	Bool         Value
+	String       Value
+	Bytes        Value
+	NamedBytes   Value
+	BytesArray   Value
+	SliceAny     Value
+	MapStringAny Value
+}{
+	Bool:         ValueOf(new(bool)).Elem(),
+	String:       ValueOf(new(string)).Elem(),
+	Bytes:        ValueOf(new([]byte)).Elem(),
+	NamedBytes:   ValueOf(new(namedBytes)).Elem(),
+	BytesArray:   ValueOf(new([32]byte)).Elem(),
+	SliceAny:     ValueOf(new([]any)).Elem(),
+	MapStringAny: ValueOf(new(map[string]any)).Elem(),
+}
+
+var sinkAll struct {
+	RawBool   bool
+	RawString string
+	RawBytes  []byte
+	RawInt    int
+}
+
+func BenchmarkBool(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawBool = sourceAll.Bool.Bool()
+	}
+}
+
+func BenchmarkString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawString = sourceAll.String.String()
+	}
+}
+
+func BenchmarkBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawBytes = sourceAll.Bytes.Bytes()
+	}
+}
+
+func BenchmarkNamedBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawBytes = sourceAll.NamedBytes.Bytes()
+	}
+}
+
+func BenchmarkBytesArray(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawBytes = sourceAll.BytesArray.Bytes()
+	}
+}
+
+func BenchmarkSliceLen(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.SliceAny.Len()
+	}
+}
+
+func BenchmarkMapLen(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.MapStringAny.Len()
+	}
+}
+
+func BenchmarkStringLen(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.String.Len()
+	}
+}
+
+func BenchmarkArrayLen(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.BytesArray.Len()
+	}
+}
+
+func BenchmarkSliceCap(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.SliceAny.Cap()
+	}
+}
