@@ -24714,6 +24714,20 @@ func rewriteValuegeneric_OpXor16(v *Value) bool {
 		}
 		break
 	}
+	// match: (Xor16 (Const16 [-1]) x)
+	// result: (Com16 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst16 || auxIntToInt16(v_0.AuxInt) != -1 {
+				continue
+			}
+			x := v_1
+			v.reset(OpCom16)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
 	// match: (Xor16 x (Xor16 x y))
 	// result: y
 	for {
@@ -24841,6 +24855,20 @@ func rewriteValuegeneric_OpXor32(v *Value) bool {
 			}
 			x := v_1
 			v.copyOf(x)
+			return true
+		}
+		break
+	}
+	// match: (Xor32 (Const32 [-1]) x)
+	// result: (Com32 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst32 || auxIntToInt32(v_0.AuxInt) != -1 {
+				continue
+			}
+			x := v_1
+			v.reset(OpCom32)
+			v.AddArg(x)
 			return true
 		}
 		break
@@ -24976,6 +25004,20 @@ func rewriteValuegeneric_OpXor64(v *Value) bool {
 		}
 		break
 	}
+	// match: (Xor64 (Const64 [-1]) x)
+	// result: (Com64 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst64 || auxIntToInt64(v_0.AuxInt) != -1 {
+				continue
+			}
+			x := v_1
+			v.reset(OpCom64)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
 	// match: (Xor64 x (Xor64 x y))
 	// result: y
 	for {
@@ -25103,6 +25145,20 @@ func rewriteValuegeneric_OpXor8(v *Value) bool {
 			}
 			x := v_1
 			v.copyOf(x)
+			return true
+		}
+		break
+	}
+	// match: (Xor8 (Const8 [-1]) x)
+	// result: (Com8 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst8 || auxIntToInt8(v_0.AuxInt) != -1 {
+				continue
+			}
+			x := v_1
+			v.reset(OpCom8)
+			v.AddArg(x)
 			return true
 		}
 		break
