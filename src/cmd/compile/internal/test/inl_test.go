@@ -136,6 +136,7 @@ func TestIntendedInlining(t *testing.T) {
 			"Value.CanSet",
 			"Value.CanInterface",
 			"Value.IsValid",
+			"Value.MapRange",
 			"Value.pointer",
 			"add",
 			"align",
