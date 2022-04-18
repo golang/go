@@ -37,11 +37,6 @@ Do not send CLs removing the interior tags from such phrases.
 
 <!-- https://go.dev/issue/51461 -->
 <p>
-  Passing the <code>-trimpath</code> flag to <code>go</code> commands now
-  causes <code>runtime.GOROOT()</code> in the resulting binary to return the
-  empty string instead of the string <code>"go"</code>.
-</p>
-<p>
   The <code>-trimpath</code> flag, if set, is now included in the build settings
   stamped into Go binaries by <code>go</code> <code>build</code>, and can be
   examined using
@@ -136,6 +131,17 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- net -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51461 -->
+      The <code>GOROOT</code> function now returns the empty string
+      (instead of <code>"go"</code>) when the binary was built with
+      the <code>-trimpath</code> flag set and the <code>GOROOT</code>
+      variable is not set in the process environment.
+    </p>
+  </dd>
+</dl><!-- runtime -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
