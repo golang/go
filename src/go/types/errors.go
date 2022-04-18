@@ -25,6 +25,64 @@ func unreachable() {
 	panic("unreachable")
 }
 
+// An error_ represents a type-checking error.
+// To report an error_, call Checker.report.
+type error_ struct {
+	desc []errorDesc
+	code errorCode
+	soft bool // TODO(gri) eventually determine this from an error code
+}
+
+// An errorDesc describes part of a type-checking error.
+type errorDesc struct {
+	posn   positioner
+	format string
+	args   []interface{}
+}
+
+func (err *error_) empty() bool {
+	return err.desc == nil
+}
+
+func (err *error_) pos() token.Pos {
+	if err.empty() {
+		return token.NoPos
+	}
+	return err.desc[0].posn.Pos()
+}
+
+func (err *error_) msg(fset *token.FileSet, qf Qualifier) string {
+	if err.empty() {
+		return "no error"
+	}
+	var buf bytes.Buffer
+	for i := range err.desc {
+		p := &err.desc[i]
+		if i > 0 {
+			fmt.Fprint(&buf, "\n\t")
+			if p.posn.Pos().IsValid() {
+				fmt.Fprintf(&buf, "%s: ", fset.Position(p.posn.Pos()))
+			}
+		}
+		buf.WriteString(sprintf(fset, qf, false, p.format, p.args...))
+	}
+	return buf.String()
+}
+
+// String is for testing.
+func (err *error_) String() string {
+	if err.empty() {
+		return "no error"
+	}
+	return fmt.Sprintf("%d: %s", err.pos(), err.msg(nil, nil))
+}
+
+// errorf adds formatted error information to err.
+// It may be called multiple times to provide additional information.
+func (err *error_) errorf(at token.Pos, format string, args ...interface{}) {
+	err.desc = append(err.desc, errorDesc{atPos(at), format, args})
+}
+
 func (check *Checker) qualifier(pkg *Package) string {
 	// Qualify the package unless it's the package being type-checked.
 	if pkg != check.pkg {
@@ -141,8 +199,22 @@ func (check *Checker) dump(format string, args ...any) {
 
 // Report records the error pointed to by errp, setting check.firstError if
 // necessary.
-func (check *Checker) report(errp *Error) {
-	e := *errp
+func (check *Checker) report(errp *error_) {
+	if errp.empty() {
+		panic("empty error details")
+	}
+
+	span := spanOf(errp.desc[0].posn)
+	e := Error{
+		Fset:       check.fset,
+		Pos:        span.pos,
+		Msg:        errp.msg(check.fset, check.qualifier),
+		Soft:       errp.soft,
+		go116code:  errp.code,
+		go116start: span.start,
+		go116end:   span.end,
+	}
+
 	// Cheap trick: Don't report errors with messages containing
 	// "invalid operand" or "invalid type" as those tend to be
 	// follow-on errors which don't add useful information. Only
@@ -183,35 +255,26 @@ func (check *Checker) report(errp *Error) {
 	f(err)
 }
 
-func (check *Checker) newError(at positioner, code errorCode, soft bool, msg string) *Error {
-	span := spanOf(at)
-	return &Error{
-		Fset:       check.fset,
-		Pos:        span.pos,
-		Msg:        msg,
-		Soft:       soft,
-		go116code:  code,
-		go116start: span.start,
-		go116end:   span.end,
+// newErrorf creates a new error_ for later reporting with check.report.
+func newErrorf(at positioner, code errorCode, format string, args ...any) *error_ {
+	return &error_{
+		desc: []errorDesc{{at, format, args}},
+		code: code,
 	}
 }
 
-// newErrorf creates a new Error, but does not handle it.
-func (check *Checker) newErrorf(at positioner, code errorCode, soft bool, format string, args ...any) *Error {
-	msg := check.sprintf(format, args...)
-	return check.newError(at, code, soft, msg)
-}
-
 func (check *Checker) error(at positioner, code errorCode, msg string) {
-	check.report(check.newError(at, code, false, msg))
+	check.report(newErrorf(at, code, msg))
 }
 
 func (check *Checker) errorf(at positioner, code errorCode, format string, args ...any) {
-	check.error(at, code, check.sprintf(format, args...))
+	check.report(newErrorf(at, code, format, args...))
 }
 
 func (check *Checker) softErrorf(at positioner, code errorCode, format string, args ...any) {
-	check.report(check.newErrorf(at, code, true, format, args...))
+	err := newErrorf(at, code, format, args...)
+	err.soft = true
+	check.report(err)
 }
 
 func (check *Checker) invalidAST(at positioner, format string, args ...any) {
