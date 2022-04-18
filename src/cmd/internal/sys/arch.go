@@ -56,6 +56,18 @@ type Arch struct {
 	// CanJumpTable reports whether the backend can handle
 	// compiling a jump table.
 	CanJumpTable bool
+
+	// HasLR indicates that this architecture uses a link register
+	// for calls.
+	HasLR bool
+
+	// FixedFrameSize is the smallest possible offset from the
+	// hardware stack pointer to a local variable on the stack.
+	// Architectures that use a link register save its value on
+	// the stack in the function prologue and so always have a
+	// pointer between the hardware stack pointer and the local
+	// variable area.
+	FixedFrameSize int64
 }
 
 // InFamily reports whether a is a member of any of the specified
@@ -70,103 +82,121 @@ func (a *Arch) InFamily(xs ...ArchFamily) bool {
 }
 
 var Arch386 = &Arch{
-	Name:          "386",
-	Family:        I386,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       4,
-	RegSize:       4,
-	MinLC:         1,
-	Alignment:     1,
-	CanMergeLoads: true,
+	Name:           "386",
+	Family:         I386,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        4,
+	RegSize:        4,
+	MinLC:          1,
+	Alignment:      1,
+	CanMergeLoads:  true,
+	HasLR:          false,
+	FixedFrameSize: 0,
 }
 
 var ArchAMD64 = &Arch{
-	Name:          "amd64",
-	Family:        AMD64,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       8,
-	RegSize:       8,
-	MinLC:         1,
-	Alignment:     1,
-	CanMergeLoads: true,
-	CanJumpTable:  true,
+	Name:           "amd64",
+	Family:         AMD64,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        8,
+	RegSize:        8,
+	MinLC:          1,
+	Alignment:      1,
+	CanMergeLoads:  true,
+	CanJumpTable:   true,
+	HasLR:          false,
+	FixedFrameSize: 0,
 }
 
 var ArchARM = &Arch{
-	Name:          "arm",
-	Family:        ARM,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       4,
-	RegSize:       4,
-	MinLC:         4,
-	Alignment:     4, // TODO: just for arm5?
-	CanMergeLoads: false,
+	Name:           "arm",
+	Family:         ARM,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        4,
+	RegSize:        4,
+	MinLC:          4,
+	Alignment:      4, // TODO: just for arm5?
+	CanMergeLoads:  false,
+	HasLR:          true,
+	FixedFrameSize: 4, // LR
 }
 
 var ArchARM64 = &Arch{
-	Name:          "arm64",
-	Family:        ARM64,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       8,
-	RegSize:       8,
-	MinLC:         4,
-	Alignment:     1,
-	CanMergeLoads: true,
+	Name:           "arm64",
+	Family:         ARM64,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        8,
+	RegSize:        8,
+	MinLC:          4,
+	Alignment:      1,
+	CanMergeLoads:  true,
+	HasLR:          true,
+	FixedFrameSize: 8, // LR
 }
 
 var ArchLoong64 = &Arch{
-	Name:          "loong64",
-	Family:        Loong64,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       8,
-	RegSize:       8,
-	MinLC:         4,
-	Alignment:     8, // Unaligned accesses are not guaranteed to be fast
-	CanMergeLoads: false,
+	Name:           "loong64",
+	Family:         Loong64,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        8,
+	RegSize:        8,
+	MinLC:          4,
+	Alignment:      8, // Unaligned accesses are not guaranteed to be fast
+	CanMergeLoads:  false,
+	HasLR:          true,
+	FixedFrameSize: 8, // LR
 }
 
 var ArchMIPS = &Arch{
-	Name:          "mips",
-	Family:        MIPS,
-	ByteOrder:     binary.BigEndian,
-	PtrSize:       4,
-	RegSize:       4,
-	MinLC:         4,
-	Alignment:     4,
-	CanMergeLoads: false,
+	Name:           "mips",
+	Family:         MIPS,
+	ByteOrder:      binary.BigEndian,
+	PtrSize:        4,
+	RegSize:        4,
+	MinLC:          4,
+	Alignment:      4,
+	CanMergeLoads:  false,
+	HasLR:          true,
+	FixedFrameSize: 4, // LR
 }
 
 var ArchMIPSLE = &Arch{
-	Name:          "mipsle",
-	Family:        MIPS,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       4,
-	RegSize:       4,
-	MinLC:         4,
-	Alignment:     4,
-	CanMergeLoads: false,
+	Name:           "mipsle",
+	Family:         MIPS,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        4,
+	RegSize:        4,
+	MinLC:          4,
+	Alignment:      4,
+	CanMergeLoads:  false,
+	HasLR:          true,
+	FixedFrameSize: 4, // LR
 }
 
 var ArchMIPS64 = &Arch{
-	Name:          "mips64",
-	Family:        MIPS64,
-	ByteOrder:     binary.BigEndian,
-	PtrSize:       8,
-	RegSize:       8,
-	MinLC:         4,
-	Alignment:     8,
-	CanMergeLoads: false,
+	Name:           "mips64",
+	Family:         MIPS64,
+	ByteOrder:      binary.BigEndian,
+	PtrSize:        8,
+	RegSize:        8,
+	MinLC:          4,
+	Alignment:      8,
+	CanMergeLoads:  false,
+	HasLR:          true,
+	FixedFrameSize: 8, // LR
 }
 
 var ArchMIPS64LE = &Arch{
-	Name:          "mips64le",
-	Family:        MIPS64,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       8,
-	RegSize:       8,
-	MinLC:         4,
-	Alignment:     8,
-	CanMergeLoads: false,
+	Name:           "mips64le",
+	Family:         MIPS64,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        8,
+	RegSize:        8,
+	MinLC:          4,
+	Alignment:      8,
+	CanMergeLoads:  false,
+	HasLR:          true,
+	FixedFrameSize: 8, // LR
 }
 
 var ArchPPC64 = &Arch{
@@ -178,50 +208,62 @@ var ArchPPC64 = &Arch{
 	MinLC:         4,
 	Alignment:     1,
 	CanMergeLoads: false,
+	HasLR:         true,
+	// PIC code on ppc64le requires 32 bytes of stack, and it's
+	// easier to just use that much stack always.
+	FixedFrameSize: 4 * 8,
 }
 
 var ArchPPC64LE = &Arch{
-	Name:          "ppc64le",
-	Family:        PPC64,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       8,
-	RegSize:       8,
-	MinLC:         4,
-	Alignment:     1,
-	CanMergeLoads: true,
+	Name:           "ppc64le",
+	Family:         PPC64,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        8,
+	RegSize:        8,
+	MinLC:          4,
+	Alignment:      1,
+	CanMergeLoads:  true,
+	HasLR:          true,
+	FixedFrameSize: 4 * 8,
 }
 
 var ArchRISCV64 = &Arch{
-	Name:          "riscv64",
-	Family:        RISCV64,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       8,
-	RegSize:       8,
-	MinLC:         4,
-	Alignment:     8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
-	CanMergeLoads: false,
+	Name:           "riscv64",
+	Family:         RISCV64,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        8,
+	RegSize:        8,
+	MinLC:          4,
+	Alignment:      8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
+	CanMergeLoads:  false,
+	HasLR:          true,
+	FixedFrameSize: 8, // LR
 }
 
 var ArchS390X = &Arch{
-	Name:          "s390x",
-	Family:        S390X,
-	ByteOrder:     binary.BigEndian,
-	PtrSize:       8,
-	RegSize:       8,
-	MinLC:         2,
-	Alignment:     1,
-	CanMergeLoads: true,
+	Name:           "s390x",
+	Family:         S390X,
+	ByteOrder:      binary.BigEndian,
+	PtrSize:        8,
+	RegSize:        8,
+	MinLC:          2,
+	Alignment:      1,
+	CanMergeLoads:  true,
+	HasLR:          true,
+	FixedFrameSize: 8, // LR
 }
 
 var ArchWasm = &Arch{
-	Name:          "wasm",
-	Family:        Wasm,
-	ByteOrder:     binary.LittleEndian,
-	PtrSize:       8,
-	RegSize:       8,
-	MinLC:         1,
-	Alignment:     1,
-	CanMergeLoads: false,
+	Name:           "wasm",
+	Family:         Wasm,
+	ByteOrder:      binary.LittleEndian,
+	PtrSize:        8,
+	RegSize:        8,
+	MinLC:          1,
+	Alignment:      1,
+	CanMergeLoads:  false,
+	HasLR:          false,
+	FixedFrameSize: 0,
 }
 
 var Archs = [...]*Arch{

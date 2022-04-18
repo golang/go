@@ -2349,12 +2349,8 @@ type chain struct {
 	limit int // limit on entry to sym
 }
 
-func haslinkregister(ctxt *Link) bool {
-	return ctxt.FixedFrameSize() != 0
-}
-
 func callsize(ctxt *Link) int {
-	if haslinkregister(ctxt) {
+	if ctxt.Arch.HasLR {
 		return 0
 	}
 	return ctxt.Arch.RegSize
@@ -2554,7 +2550,7 @@ func (sc *stkChk) print(ch *chain, limit int) {
 		}
 	} else {
 		sc.print(ch.up, ch.limit+callsize(ctxt))
-		if !haslinkregister(ctxt) {
+		if !ctxt.Arch.HasLR {
 			fmt.Printf("\t%d\ton entry to %s\n", ch.limit, name)
 		}
 	}
