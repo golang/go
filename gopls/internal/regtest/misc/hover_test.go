@@ -5,6 +5,7 @@
 package misc
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -138,5 +139,85 @@ package main
 		env.OpenFile("main.go")
 		env.EditBuffer("main.go", fake.NewEdit(0, 0, 1, 0, "package main\nfunc main() {\nconst x = `\nfoo\n`\n}"))
 		env.Editor.Hover(env.Ctx, "main.go", env.RegexpSearch("main.go", "foo"))
+	})
+}
+
+func TestHoverImport(t *testing.T) {
+	// For Go.13 and earlier versions, Go will try to download imported but missing packages. This behavior breaks the
+	// workspace as Go fails to download non-existent package "mod.com/lib4"
+	testenv.NeedsGo1Point(t, 14)
+	const packageDoc1 = "Package lib1 hover documentation"
+	const packageDoc2 = "Package lib2 hover documentation"
+	tests := []struct {
+		hoverPackage string
+		want         string
+	}{
+		{
+			"mod.com/lib1",
+			packageDoc1,
+		},
+		{
+			"mod.com/lib2",
+			packageDoc2,
+		},
+		{
+			"mod.com/lib3",
+			"",
+		},
+	}
+	source := fmt.Sprintf(`
+-- go.mod --
+module mod.com
+
+go 1.12
+-- lib1/a.go --
+// %s
+package lib1
+
+const C = 1
+
+-- lib1/b.go --
+package lib1
+
+const D = 1
+
+-- lib2/a.go --
+// %s
+package lib2
+
+const E = 1
+
+-- lib3/a.go --
+package lib3
+
+const F = 1
+
+-- main.go --
+package main
+
+import (
+	"mod.com/lib1"
+	"mod.com/lib2"
+	"mod.com/lib3"
+	"mod.com/lib4"
+)
+
+func main() {
+	println("Hello")
+}
+	`, packageDoc1, packageDoc2)
+	Run(t, source, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		for _, test := range tests {
+			got, _ := env.Hover("main.go", env.RegexpSearch("main.go", test.hoverPackage))
+			if !strings.Contains(got.Value, test.want) {
+				t.Errorf("Hover: got:\n%q\nwant:\n%q", got.Value, test.want)
+			}
+		}
+
+		got, _ := env.Hover("main.go", env.RegexpSearch("main.go", "mod.com/lib4"))
+		if got != nil {
+			t.Errorf("Hover: got:\n%q\nwant:\n%v", got.Value, nil)
+		}
 	})
 }

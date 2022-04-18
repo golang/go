@@ -510,21 +510,25 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 		}
 	case *ast.ImportSpec:
 		// Try to find the package documentation for an imported package.
-		if pkgName, ok := obj.(*types.PkgName); ok {
-			imp, err := pkg.GetImport(pkgName.Imported().Path())
-			if err != nil {
-				return nil, err
-			}
-			// Assume that only one file will contain package documentation,
-			// so pick the first file that has a doc comment.
-			for _, file := range imp.GetSyntax() {
-				if file.Doc != nil {
-					info = &HoverContext{signatureSource: obj, Comment: file.Doc}
-					break
+		pkgPath, err := strconv.Unquote(node.Path.Value)
+		if err != nil {
+			return nil, err
+		}
+		imp, err := pkg.GetImport(pkgPath)
+		if err != nil {
+			return nil, err
+		}
+		// Assume that only one file will contain package documentation,
+		// so pick the first file that has a doc comment.
+		for _, file := range imp.GetSyntax() {
+			if file.Doc != nil {
+				info = &HoverContext{Comment: file.Doc}
+				if file.Name != nil {
+					info.signatureSource = "package " + file.Name.Name
 				}
+				break
 			}
 		}
-		info = &HoverContext{signatureSource: node}
 	case *ast.GenDecl:
 		switch obj := obj.(type) {
 		case *types.TypeName, *types.Var, *types.Const, *types.Func:
