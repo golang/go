@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/syscall"
 	"unsafe"
@@ -234,18 +235,18 @@ func sysargs(argc int32, argv **byte) {
 		n++
 
 		// now argv+n is auxv
-		auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+		auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
 		if sysauxv(auxv[:]) != 0 {
 			return
 		}
 	} else {
-		args := unsafe.Pointer(persistentalloc(sys.PtrSize*4, 0, &memstats.other_sys))
+		args := unsafe.Pointer(persistentalloc(goarch.PtrSize)*4, 0, &memstats.other_sys))
 		// argv pointer
-		*(**byte)(args) = (*byte)(add(args, sys.PtrSize*1))
+		*(**byte)(args) = (*byte)(add(args, goarch.PtrSize)*1))
 		// argv data
-		*(**byte)(add(args, sys.PtrSize*1)) = (*byte)(nil) // end argv TODO: READ FROM /proc/
-		*(**byte)(add(args, sys.PtrSize*2)) = (*byte)(nil) // end envp TODO: READ FROM /proc/
-		*(**byte)(add(args, sys.PtrSize*3)) = (*byte)(nil) // end auxv TODO: READ FROM /proc/
+		*(**byte)(add(args, goarch.PtrSize)*1)) = (*byte)(nil) // end argv TODO: READ FROM /proc/
+		*(**byte)(add(args, goarch.PtrSize)*2)) = (*byte)(nil) // end envp TODO: READ FROM /proc/
+		*(**byte)(add(args, goarch.PtrSize)*3)) = (*byte)(nil) // end auxv TODO: READ FROM /proc/
 		argc = 0
 		argv = (**byte)(args)
 
