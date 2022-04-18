@@ -534,6 +534,23 @@ func rewriteValuegeneric_OpAdd16(v *Value) bool {
 		}
 		break
 	}
+	// match: (Add16 (Com16 x) x)
+	// result: (Const16 [-1])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCom16 {
+				continue
+			}
+			x := v_0.Args[0]
+			if x != v_1 {
+				continue
+			}
+			v.reset(OpConst16)
+			v.AuxInt = int16ToAuxInt(-1)
+			return true
+		}
+		break
+	}
 	// match: (Add16 (Const16 [1]) (Com16 x))
 	// result: (Neg16 x)
 	for {
@@ -790,6 +807,23 @@ func rewriteValuegeneric_OpAdd32(v *Value) bool {
 			y := v_1.Args[0]
 			v.reset(OpSub32)
 			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	// match: (Add32 (Com32 x) x)
+	// result: (Const32 [-1])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCom32 {
+				continue
+			}
+			x := v_0.Args[0]
+			if x != v_1 {
+				continue
+			}
+			v.reset(OpConst32)
+			v.AuxInt = int32ToAuxInt(-1)
 			return true
 		}
 		break
@@ -1081,6 +1115,23 @@ func rewriteValuegeneric_OpAdd64(v *Value) bool {
 		}
 		break
 	}
+	// match: (Add64 (Com64 x) x)
+	// result: (Const64 [-1])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCom64 {
+				continue
+			}
+			x := v_0.Args[0]
+			if x != v_1 {
+				continue
+			}
+			v.reset(OpConst64)
+			v.AuxInt = int64ToAuxInt(-1)
+			return true
+		}
+		break
+	}
 	// match: (Add64 (Const64 [1]) (Com64 x))
 	// result: (Neg64 x)
 	for {
@@ -1364,6 +1415,23 @@ func rewriteValuegeneric_OpAdd8(v *Value) bool {
 			y := v_1.Args[0]
 			v.reset(OpSub8)
 			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	// match: (Add8 (Com8 x) x)
+	// result: (Const8 [-1])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCom8 {
+				continue
+			}
+			x := v_0.Args[0]
+			if x != v_1 {
+				continue
+			}
+			v.reset(OpConst8)
+			v.AuxInt = int8ToAuxInt(-1)
 			return true
 		}
 		break
@@ -23122,6 +23190,34 @@ func rewriteValuegeneric_OpSub16(v *Value) bool {
 		v.AuxInt = int16ToAuxInt(0)
 		return true
 	}
+	// match: (Sub16 (Neg16 x) (Com16 x))
+	// result: (Const16 [1])
+	for {
+		if v_0.Op != OpNeg16 {
+			break
+		}
+		x := v_0.Args[0]
+		if v_1.Op != OpCom16 || x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConst16)
+		v.AuxInt = int16ToAuxInt(1)
+		return true
+	}
+	// match: (Sub16 (Com16 x) (Neg16 x))
+	// result: (Const16 [-1])
+	for {
+		if v_0.Op != OpCom16 {
+			break
+		}
+		x := v_0.Args[0]
+		if v_1.Op != OpNeg16 || x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConst16)
+		v.AuxInt = int16ToAuxInt(-1)
+		return true
+	}
 	// match: (Sub16 (Add16 x y) x)
 	// result: y
 	for {
@@ -23435,6 +23531,34 @@ func rewriteValuegeneric_OpSub32(v *Value) bool {
 		}
 		v.reset(OpConst32)
 		v.AuxInt = int32ToAuxInt(0)
+		return true
+	}
+	// match: (Sub32 (Neg32 x) (Com32 x))
+	// result: (Const32 [1])
+	for {
+		if v_0.Op != OpNeg32 {
+			break
+		}
+		x := v_0.Args[0]
+		if v_1.Op != OpCom32 || x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(1)
+		return true
+	}
+	// match: (Sub32 (Com32 x) (Neg32 x))
+	// result: (Const32 [-1])
+	for {
+		if v_0.Op != OpCom32 {
+			break
+		}
+		x := v_0.Args[0]
+		if v_1.Op != OpNeg32 || x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(-1)
 		return true
 	}
 	// match: (Sub32 (Add32 x y) x)
@@ -23776,6 +23900,34 @@ func rewriteValuegeneric_OpSub64(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
+	// match: (Sub64 (Neg64 x) (Com64 x))
+	// result: (Const64 [1])
+	for {
+		if v_0.Op != OpNeg64 {
+			break
+		}
+		x := v_0.Args[0]
+		if v_1.Op != OpCom64 || x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(1)
+		return true
+	}
+	// match: (Sub64 (Com64 x) (Neg64 x))
+	// result: (Const64 [-1])
+	for {
+		if v_0.Op != OpCom64 {
+			break
+		}
+		x := v_0.Args[0]
+		if v_1.Op != OpNeg64 || x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(-1)
+		return true
+	}
 	// match: (Sub64 (Add64 x y) x)
 	// result: y
 	for {
@@ -24113,6 +24265,34 @@ func rewriteValuegeneric_OpSub8(v *Value) bool {
 		}
 		v.reset(OpConst8)
 		v.AuxInt = int8ToAuxInt(0)
+		return true
+	}
+	// match: (Sub8 (Neg8 x) (Com8 x))
+	// result: (Const8 [1])
+	for {
+		if v_0.Op != OpNeg8 {
+			break
+		}
+		x := v_0.Args[0]
+		if v_1.Op != OpCom8 || x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConst8)
+		v.AuxInt = int8ToAuxInt(1)
+		return true
+	}
+	// match: (Sub8 (Com8 x) (Neg8 x))
+	// result: (Const8 [-1])
+	for {
+		if v_0.Op != OpCom8 {
+			break
+		}
+		x := v_0.Args[0]
+		if v_1.Op != OpNeg8 || x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConst8)
+		v.AuxInt = int8ToAuxInt(-1)
 		return true
 	}
 	// match: (Sub8 (Add8 x y) x)
