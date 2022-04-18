@@ -170,26 +170,24 @@ func (e *ValueError) Error() string {
 	return "reflect: call of " + e.Method + " on " + e.Kind.String() + " Value"
 }
 
-// methodName returns the name of the calling method,
-// assumed to be two stack frames above.
-func methodName() string {
-	pc, _, _, _ := runtime.Caller(2)
-	f := runtime.FuncForPC(pc)
-	if f == nil {
-		return "unknown method"
+// valueMethodName returns the name of the exported calling method on Value.
+func valueMethodName() string {
+	var pc [5]uintptr
+	n := runtime.Callers(1, pc[:])
+	frames := runtime.CallersFrames(pc[:n])
+	var frame runtime.Frame
+	for more := true; more; {
+		const prefix = "reflect.Value."
+		frame, more = frames.Next()
+		name := frame.Function
+		if len(name) > len(prefix) && name[:len(prefix)] == prefix {
+			methodName := name[len(prefix):]
+			if len(methodName) > 0 && 'A' <= methodName[0] && methodName[0] <= 'Z' {
+				return name
+			}
+		}
 	}
-	return f.Name()
-}
-
-// methodNameSkip is like methodName, but skips another stack frame.
-// This is a separate function so that reflect.flag.mustBe will be inlined.
-func methodNameSkip() string {
-	pc, _, _, _ := runtime.Caller(3)
-	f := runtime.FuncForPC(pc)
-	if f == nil {
-		return "unknown method"
-	}
-	return f.Name()
+	return "unknown method"
 }
 
 // emptyInterface is the header for an interface{} value.
@@ -220,7 +218,7 @@ type nonEmptyInterface struct {
 func (f flag) mustBe(expected Kind) {
 	// TODO(mvdan): use f.kind() again once mid-stack inlining gets better
 	if Kind(f&flagKindMask) != expected {
-		panic(&ValueError{methodName(), f.kind()})
+		panic(&ValueError{valueMethodName(), f.kind()})
 	}
 }
 
@@ -234,10 +232,10 @@ func (f flag) mustBeExported() {
 
 func (f flag) mustBeExportedSlow() {
 	if f == 0 {
-		panic(&ValueError{methodNameSkip(), Invalid})
+		panic(&ValueError{valueMethodName(), Invalid})
 	}
 	if f&flagRO != 0 {
-		panic("reflect: " + methodNameSkip() + " using value obtained using unexported field")
+		panic("reflect: " + valueMethodName() + " using value obtained using unexported field")
 	}
 }
 
@@ -252,14 +250,14 @@ func (f flag) mustBeAssignable() {
 
 func (f flag) mustBeAssignableSlow() {
 	if f == 0 {
-		panic(&ValueError{methodNameSkip(), Invalid})
+		panic(&ValueError{valueMethodName(), Invalid})
 	}
 	// Assignable if addressable and not read-only.
 	if f&flagRO != 0 {
-		panic("reflect: " + methodNameSkip() + " using value obtained using unexported field")
+		panic("reflect: " + valueMethodName() + " using value obtained using unexported field")
 	}
 	if f&flagAddr == 0 {
-		panic("reflect: " + methodNameSkip() + " using unaddressable value")
+		panic("reflect: " + valueMethodName() + " using unaddressable value")
 	}
 }
 
