@@ -108,6 +108,15 @@ errors is discouraged.
 
 **Enabled by default.**
 
+## **embed**
+
+check for //go:embed directive import
+
+This analyzer checks that the embed package is imported when source code contains //go:embed comment directives.
+The embed package must be imported for //go:embed directives to function.import _ "embed".
+
+**Enabled by default.**
+
 ## **errorsas**
 
 report passing non-pointer or non-error values to errors.As

@@ -269,6 +269,11 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
+							Name:    "\"embed\"",
+							Doc:     "check for //go:embed directive import\n\nThis analyzer checks that the embed package is imported when source code contains //go:embed comment directives.\nThe embed package must be imported for //go:embed directives to function.import _ \"embed\".",
+							Default: "true",
+						},
+						{
 							Name:    "\"errorsas\"",
 							Doc:     "report passing non-pointer or non-error values to errors.As\n\nThe errorsas analysis reports calls to errors.As where the type\nof the second argument is not a pointer to a type implementing error.",
 							Default: "true",
@@ -802,6 +807,11 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "deepequalerrors",
 			Doc:     "check for calls of reflect.DeepEqual on error values\n\nThe deepequalerrors checker looks for calls of the form:\n\n    reflect.DeepEqual(err1, err2)\n\nwhere err1 and err2 are errors. Using reflect.DeepEqual to compare\nerrors is discouraged.",
+			Default: true,
+		},
+		{
+			Name:    "embed",
+			Doc:     "check for //go:embed directive import\n\nThis analyzer checks that the embed package is imported when source code contains //go:embed comment directives.\nThe embed package must be imported for //go:embed directives to function.import _ \"embed\".",
 			Default: true,
 		},
 		{

@@ -49,6 +49,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/analysis/embeddirective"
 	"golang.org/x/tools/internal/lsp/analysis/fillreturns"
 	"golang.org/x/tools/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/internal/lsp/analysis/infertypeargs"
@@ -1308,6 +1309,7 @@ func defaultAnalyzers() map[string]*Analyzer {
 		unusedwrite.Analyzer.Name:      {Analyzer: unusedwrite.Analyzer, Enabled: false},
 		useany.Analyzer.Name:           {Analyzer: useany.Analyzer, Enabled: false},
 		infertypeargs.Analyzer.Name:    {Analyzer: infertypeargs.Analyzer, Enabled: true},
+		embeddirective.Analyzer.Name:   {Analyzer: embeddirective.Analyzer, Enabled: true},
 
 		// gofmt -s suite:
 		simplifycompositelit.Analyzer.Name: {

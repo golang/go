@@ -249,7 +249,8 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 // directory using golang.org/x/tools/go/packages, runs the analysis on
 // them, and checks that each analysis emits the expected diagnostics
 // and facts specified by the contents of '// want ...' comments in the
-// package's source files.
+// package's source files. It treats a comment of the form
+// "//...// want..." or "/*...// want... */" as if it starts at 'want'
 //
 // An expectation of a Diagnostic is specified by a string literal
 // containing a regular expression that must match the diagnostic
