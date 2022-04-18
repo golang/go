@@ -19,7 +19,21 @@ import (
 	"unsafe"
 )
 
-const maxCPUProfStack = 64
+const (
+	maxCPUProfStack = 64
+
+	// profBufWordCount is the size of the CPU profile buffer's storage for the
+	// header and stack of each sample, measured in 64-bit words. Every sample
+	// has a required header of two words. With a small additional header (a
+	// word or two) and stacks at the profiler's maximum length of 64 frames,
+	// that capacity can support 1900 samples or 19 thread-seconds at a 100 Hz
+	// sample rate, at a cost of 1 MiB.
+	profBufWordCount = 1 << 17
+	// profBufTagCount is the size of the CPU profile buffer's storage for the
+	// goroutine tags associated with each sample. A capacity of 1<<14 means
+	// room for 16k samples, or 160 thread-seconds at a 100 Hz sample rate.
+	profBufTagCount = 1 << 14
+)
 
 type cpuProfile struct {
 	lock mutex
@@ -70,7 +84,7 @@ func SetCPUProfileRate(hz int) {
 		}
 
 		cpuprof.on = true
-		cpuprof.log = newProfBuf(1, 1<<17, 1<<14)
+		cpuprof.log = newProfBuf(1, profBufWordCount, profBufTagCount)
 		hdr := [1]uint64{uint64(hz)}
 		cpuprof.log.write(nil, nanotime(), hdr[:], nil)
 		setcpuprofilerate(int32(hz))
@@ -93,6 +107,7 @@ func SetCPUProfileRate(hz int) {
 func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
 	// Simple cas-lock to coordinate with setcpuprofilerate.
 	for !atomic.Cas(&prof.signalLock, 0, 1) {
+		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
 		osyield()
 	}
 
@@ -125,8 +140,11 @@ func (p *cpuProfile) addNonGo(stk []uintptr) {
 	// Simple cas-lock to coordinate with SetCPUProfileRate.
 	// (Other calls to add or addNonGo should be blocked out
 	// by the fact that only one SIGPROF can be handled by the
-	// process at a time. If not, this lock will serialize those too.)
+	// process at a time. If not, this lock will serialize those too.
+	// The use of timer_create(2) on Linux to request process-targeted
+	// signals may have changed this.)
 	for !atomic.Cas(&prof.signalLock, 0, 1) {
+		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
 		osyield()
 	}
 

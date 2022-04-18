@@ -4595,6 +4595,12 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			tagPtr = &gp.m.curg.labels
 		}
 		cpuprof.add(tagPtr, stk[:n])
+
+		var pp *p
+		if gp != nil && gp.m != nil {
+			pp = gp.m.p.ptr()
+		}
+		traceCPUSample(gp, pp, stk[:n])
 	}
 	getg().m.mallocing--
 }
