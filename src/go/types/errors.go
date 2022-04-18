@@ -8,7 +8,6 @@ package types
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -140,36 +139,32 @@ func (check *Checker) dump(format string, args ...any) {
 	fmt.Println(sprintf(check.fset, check.qualifier, true, format, args...))
 }
 
-func (check *Checker) err(err error) {
-	if err == nil {
-		return
-	}
-	var e Error
-	isInternal := errors.As(err, &e)
+// Report records the error pointed to by errp, setting check.firstError if
+// necessary.
+func (check *Checker) report(errp *Error) {
+	e := *errp
 	// Cheap trick: Don't report errors with messages containing
 	// "invalid operand" or "invalid type" as those tend to be
 	// follow-on errors which don't add useful information. Only
 	// exclude them if these strings are not at the beginning,
 	// and only if we have at least one error already reported.
-	isInvalidErr := isInternal && (strings.Index(e.Msg, "invalid operand") > 0 || strings.Index(e.Msg, "invalid type") > 0)
+	isInvalidErr := strings.Index(e.Msg, "invalid operand") > 0 || strings.Index(e.Msg, "invalid type") > 0
 	if check.firstErr != nil && isInvalidErr {
 		return
 	}
 
-	if isInternal {
-		e.Msg = stripAnnotations(e.Msg)
-		if check.errpos != nil {
-			// If we have an internal error and the errpos override is set, use it to
-			// augment our error positioning.
-			// TODO(rFindley) we may also want to augment the error message and refer
-			// to the position (pos) in the original expression.
-			span := spanOf(check.errpos)
-			e.Pos = span.pos
-			e.go116start = span.start
-			e.go116end = span.end
-		}
-		err = e
+	e.Msg = stripAnnotations(e.Msg)
+	if check.errpos != nil {
+		// If we have an internal error and the errpos override is set, use it to
+		// augment our error positioning.
+		// TODO(rFindley) we may also want to augment the error message and refer
+		// to the position (pos) in the original expression.
+		span := spanOf(check.errpos)
+		e.Pos = span.pos
+		e.go116start = span.start
+		e.go116end = span.end
 	}
+	err := e
 
 	if check.firstErr == nil {
 		check.firstErr = err
@@ -178,10 +173,6 @@ func (check *Checker) err(err error) {
 	if trace {
 		pos := e.Pos
 		msg := e.Msg
-		if !isInternal {
-			msg = err.Error()
-			pos = token.NoPos
-		}
 		check.trace(pos, "ERROR: %s", msg)
 	}
 
@@ -192,9 +183,9 @@ func (check *Checker) err(err error) {
 	f(err)
 }
 
-func (check *Checker) newError(at positioner, code errorCode, soft bool, msg string) error {
+func (check *Checker) newError(at positioner, code errorCode, soft bool, msg string) *Error {
 	span := spanOf(at)
-	return Error{
+	return &Error{
 		Fset:       check.fset,
 		Pos:        span.pos,
 		Msg:        msg,
@@ -206,13 +197,13 @@ func (check *Checker) newError(at positioner, code errorCode, soft bool, msg str
 }
 
 // newErrorf creates a new Error, but does not handle it.
-func (check *Checker) newErrorf(at positioner, code errorCode, soft bool, format string, args ...any) error {
+func (check *Checker) newErrorf(at positioner, code errorCode, soft bool, format string, args ...any) *Error {
 	msg := check.sprintf(format, args...)
 	return check.newError(at, code, soft, msg)
 }
 
 func (check *Checker) error(at positioner, code errorCode, msg string) {
-	check.err(check.newError(at, code, false, msg))
+	check.report(check.newError(at, code, false, msg))
 }
 
 func (check *Checker) errorf(at positioner, code errorCode, format string, args ...any) {
@@ -220,7 +211,7 @@ func (check *Checker) errorf(at positioner, code errorCode, format string, args 
 }
 
 func (check *Checker) softErrorf(at positioner, code errorCode, format string, args ...any) {
-	check.err(check.newErrorf(at, code, true, format, args...))
+	check.report(check.newErrorf(at, code, true, format, args...))
 }
 
 func (check *Checker) invalidAST(at positioner, format string, args ...any) {
