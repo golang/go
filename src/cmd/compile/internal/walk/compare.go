@@ -197,9 +197,16 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	cmpl = safeExpr(cmpl, init)
 	cmpr = safeExpr(cmpr, init)
 	if t.IsStruct() {
-		flatConds := compare.Struct(t, n.Op(), cmpl, cmpr)
-		for _, cond := range flatConds {
-			and(cond)
+		conds := compare.EqStruct(t, cmpl, cmpr)
+		if n.Op() == ir.OEQ {
+			for _, cond := range conds {
+				and(cond)
+			}
+		} else {
+			for _, cond := range conds {
+				notCond := ir.NewUnaryExpr(base.Pos, ir.ONOT, cond)
+				and(notCond)
+			}
 		}
 	} else {
 		step := int64(1)

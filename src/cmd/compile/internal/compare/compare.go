@@ -73,11 +73,12 @@ func EqCanPanic(t *types.Type) bool {
 	}
 }
 
-// Struct compares two structs np and nq using the provided op.
-func Struct(t *types.Type, op ir.Op, np, nq ir.Node) []ir.Node {
-	// Build a list of conditions to satisfy.
-	// The conditions are a list-of-lists. Conditions are reorderable
-	// within each inner list. The outer lists must be evaluated in order.
+// EqStruct compares two structs np and nq for equality.
+// It works by building a list of boolean conditions to satisfy.
+// The conditions are a list-of-lists. Conditions are reorderable
+// within each inner list. The outer lists must be evaluated in order.
+// Conditions must be properly short circuited by the caller.
+func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 	var conds [][]ir.Node
 	conds = append(conds, []ir.Node{})
 	and := func(n ir.Node) {
@@ -108,14 +109,14 @@ func Struct(t *types.Type, op ir.Op, np, nq ir.Node) []ir.Node {
 			case f.Type.IsString():
 				eqlen, eqmem := EqString(p, q)
 				var callmem ir.Node = eqmem
-				if op != ir.OEQ {
-					eqlen.SetOp(op)
-					callmem = ir.NewUnaryExpr(base.Pos, ir.ONOT, eqmem)
-				}
+				// if op != ir.OEQ {
+				// 	eqlen.SetOp(op)
+				// 	callmem = ir.NewUnaryExpr(base.Pos, ir.ONOT, eqmem)
+				// }
 				and(eqlen)
 				and(callmem)
 			default:
-				and(ir.NewBinaryExpr(base.Pos, op, p, q))
+				and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
 			}
 			if EqCanPanic(f.Type) {
 				// Also enforce ordering after something that can panic.
@@ -133,14 +134,11 @@ func Struct(t *types.Type, op ir.Op, np, nq ir.Node) []ir.Node {
 		if s := fields[i:next]; len(s) <= 2 {
 			// Two or fewer fields: use plain field equality.
 			for _, f := range s {
-				and(eqfield(np, nq, op, f.Sym))
+				and(eqfield(np, nq, ir.OEQ, f.Sym))
 			}
 		} else {
 			// More than two fields: use memequal.
 			cc := eqmem(np, nq, f.Sym, size)
-			if op != ir.OEQ {
-				cc = ir.NewUnaryExpr(base.Pos, ir.ONOT, cc)
-			}
 			and(cc)
 		}
 		i = next

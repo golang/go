@@ -505,7 +505,7 @@ func geneq(t *types.Type) *obj.LSym {
 		}
 
 	case types.TSTRUCT:
-		flatConds := compare.Struct(t, ir.OEQ, np, nq)
+		flatConds := compare.EqStruct(t, np, nq)
 		if len(flatConds) == 0 {
 			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
 		} else {
