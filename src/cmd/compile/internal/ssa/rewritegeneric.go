@@ -1690,6 +1690,23 @@ func rewriteValuegeneric_OpAnd16(v *Value) bool {
 		}
 		break
 	}
+	// match: (And16 (Com16 x) x)
+	// result: (Const16 [0])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCom16 {
+				continue
+			}
+			x := v_0.Args[0]
+			if x != v_1 {
+				continue
+			}
+			v.reset(OpConst16)
+			v.AuxInt = int16ToAuxInt(0)
+			return true
+		}
+		break
+	}
 	// match: (And16 x (And16 x y))
 	// result: (And16 x y)
 	for {
@@ -1880,6 +1897,23 @@ func rewriteValuegeneric_OpAnd32(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpConst32 || auxIntToInt32(v_0.AuxInt) != 0 {
+				continue
+			}
+			v.reset(OpConst32)
+			v.AuxInt = int32ToAuxInt(0)
+			return true
+		}
+		break
+	}
+	// match: (And32 (Com32 x) x)
+	// result: (Const32 [0])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCom32 {
+				continue
+			}
+			x := v_0.Args[0]
+			if x != v_1 {
 				continue
 			}
 			v.reset(OpConst32)
@@ -2086,6 +2120,23 @@ func rewriteValuegeneric_OpAnd64(v *Value) bool {
 		}
 		break
 	}
+	// match: (And64 (Com64 x) x)
+	// result: (Const64 [0])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCom64 {
+				continue
+			}
+			x := v_0.Args[0]
+			if x != v_1 {
+				continue
+			}
+			v.reset(OpConst64)
+			v.AuxInt = int64ToAuxInt(0)
+			return true
+		}
+		break
+	}
 	// match: (And64 x (And64 x y))
 	// result: (And64 x y)
 	for {
@@ -2276,6 +2327,23 @@ func rewriteValuegeneric_OpAnd8(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpConst8 || auxIntToInt8(v_0.AuxInt) != 0 {
+				continue
+			}
+			v.reset(OpConst8)
+			v.AuxInt = int8ToAuxInt(0)
+			return true
+		}
+		break
+	}
+	// match: (And8 (Com8 x) x)
+	// result: (Const8 [0])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCom8 {
+				continue
+			}
+			x := v_0.Args[0]
+			if x != v_1 {
 				continue
 			}
 			v.reset(OpConst8)
