@@ -240,13 +240,13 @@ func sysargs(argc int32, argv **byte) {
 			return
 		}
 	} else {
-		args := unsafe.Pointer(persistentalloc(goarch.PtrSize)*4, 0, &memstats.other_sys))
+		args := unsafe.Pointer(persistentalloc(goarch.PtrSize)*4, 0, &memstats.other_sys)
 		// argv pointer
-		*(**byte)(args) = (*byte)(add(args, goarch.PtrSize)*1))
+		*(**byte)(args) = (*byte)(add(args, goarch.PtrSize) * 1)
 		// argv data
-		*(**byte)(add(args, goarch.PtrSize)*1)) = (*byte)(nil) // end argv TODO: READ FROM /proc/
-		*(**byte)(add(args, goarch.PtrSize)*2)) = (*byte)(nil) // end envp TODO: READ FROM /proc/
-		*(**byte)(add(args, goarch.PtrSize)*3)) = (*byte)(nil) // end auxv TODO: READ FROM /proc/
+		*(**byte)(add(args, goarch.PtrSize) * 1) = (*byte)(nil) // end argv TODO: READ FROM /proc/
+		*(**byte)(add(args, goarch.PtrSize) * 2) = (*byte)(nil) // end envp TODO: READ FROM /proc/
+		*(**byte)(add(args, goarch.PtrSize) * 3) = (*byte)(nil) // end auxv TODO: READ FROM /proc/
 		argc = 0
 		argv = (**byte)(args)
 
