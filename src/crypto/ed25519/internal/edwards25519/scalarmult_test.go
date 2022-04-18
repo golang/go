@@ -184,26 +184,26 @@ func TestVarTimeDoubleBaseMultMatchesBaseMult(t *testing.T) {
 
 // Benchmarks.
 
-func BenchmarkScalarBaseMult(t *testing.B) {
+func BenchmarkScalarBaseMult(b *testing.B) {
 	var p Point
 
-	for i := 0; i < t.N; i++ {
+	for i := 0; i < b.N; i++ {
 		p.ScalarBaseMult(&dalekScalar)
 	}
 }
 
-func BenchmarkScalarMult(t *testing.B) {
+func BenchmarkScalarMult(b *testing.B) {
 	var p Point
 
-	for i := 0; i < t.N; i++ {
+	for i := 0; i < b.N; i++ {
 		p.ScalarMult(&dalekScalar, B)
 	}
 }
 
-func BenchmarkVarTimeDoubleScalarBaseMult(t *testing.B) {
+func BenchmarkVarTimeDoubleScalarBaseMult(b *testing.B) {
 	var p Point
 
-	for i := 0; i < t.N; i++ {
+	for i := 0; i < b.N; i++ {
 		p.VarTimeDoubleScalarBaseMult(&dalekScalar, B, &dalekScalar)
 	}
 }
