@@ -76,16 +76,16 @@ type methodSet map[string]*ssa.Function
 
 // State shared between all interpreted goroutines.
 type interpreter struct {
-	osArgs             []value              // the value of os.Args
-	prog               *ssa.Program         // the SSA program
-	globals            map[ssa.Value]*value // addresses of global variables (immutable)
-	mode               Mode                 // interpreter options
-	reflectPackage     *ssa.Package         // the fake reflect package
-	errorMethods       methodSet            // the method set of reflect.error, which implements the error interface.
-	rtypeMethods       methodSet            // the method set of rtype, which implements the reflect.Type interface.
-	runtimeErrorString types.Type           // the runtime.errorString type
-	sizes              types.Sizes          // the effective type-sizing function
-	goroutines         int32                // atomically updated
+	osArgs             []value                // the value of os.Args
+	prog               *ssa.Program           // the SSA program
+	globals            map[*ssa.Global]*value // addresses of global variables (immutable)
+	mode               Mode                   // interpreter options
+	reflectPackage     *ssa.Package           // the fake reflect package
+	errorMethods       methodSet              // the method set of reflect.error, which implements the error interface.
+	rtypeMethods       methodSet              // the method set of rtype, which implements the reflect.Type interface.
+	runtimeErrorString types.Type             // the runtime.errorString type
+	sizes              types.Sizes            // the effective type-sizing function
+	goroutines         int32                  // atomically updated
 }
 
 type deferred struct {
@@ -640,7 +640,7 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename string, args []string) (exitCode int) {
 	i := &interpreter{
 		prog:       mainpkg.Prog,
-		globals:    make(map[ssa.Value]*value),
+		globals:    make(map[*ssa.Global]*value),
 		mode:       mode,
 		sizes:      sizes,
 		goroutines: 1,
