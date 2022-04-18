@@ -414,9 +414,9 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 //
 // The behavior of AssertableTo is undefined in two cases:
-//  - if V is a generalized interface; i.e., an interface that may only be used
-//    as a type constraint in Go code
-//  - if T is an uninstantiated generic type
+//   - if V is a generalized interface; i.e., an interface that may only be used
+//     as a type constraint in Go code
+//   - if T is an uninstantiated generic type
 func AssertableTo(V *Interface, T Type) bool {
 	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
 	// handling here.
