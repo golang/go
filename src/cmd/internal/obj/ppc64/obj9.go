@@ -614,7 +614,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if !p.From.Sym.NoFrame() {
 				// If there is a stack frame at all, it includes
 				// space to save the LR.
-				autosize += int32(c.ctxt.FixedFrameSize())
+				autosize += int32(c.ctxt.Arch.FixedFrameSize)
 			}
 
 			if p.Mark&LEAF != 0 && autosize < objabi.StackSmall {
@@ -811,7 +811,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(autosize) + c.ctxt.FixedFrameSize()
+				q.From.Offset = int64(autosize) + c.ctxt.Arch.FixedFrameSize
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R24
@@ -831,7 +831,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = c.ctxt.FixedFrameSize()
+				q.From.Offset = c.ctxt.Arch.FixedFrameSize
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R25
@@ -1066,7 +1066,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
 
 		// Save LR and REGCTXT
-		frameSize := 8 + c.ctxt.FixedFrameSize()
+		frameSize := 8 + c.ctxt.Arch.FixedFrameSize
 
 		// MOVD LR, REGTMP
 		p = obj.Appendp(p, c.newprog)

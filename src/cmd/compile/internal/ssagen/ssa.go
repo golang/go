@@ -5102,7 +5102,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	} else {
 		// Store arguments to stack, including defer/go arguments and receiver for method calls.
 		// These are written in SP-offset order.
-		argStart := base.Ctxt.FixedFrameSize()
+		argStart := base.Ctxt.Arch.FixedFrameSize
 		// Defer/go args.
 		if k != callNormal && k != callTail {
 			// Write closure (arg to newproc/deferproc).
@@ -5606,7 +5606,7 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
 func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args ...*ssa.Value) []*ssa.Value {
 	s.prevCall = nil
 	// Write args to the stack
-	off := base.Ctxt.FixedFrameSize()
+	off := base.Ctxt.Arch.FixedFrameSize
 	var callArgs []*ssa.Value
 	var callArgTypes []*types.Type
 
@@ -5633,7 +5633,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		b := s.endBlock()
 		b.Kind = ssa.BlockExit
 		b.SetControl(call)
-		call.AuxInt = off - base.Ctxt.FixedFrameSize()
+		call.AuxInt = off - base.Ctxt.Arch.FixedFrameSize
 		if len(results) > 0 {
 			s.Fatalf("panic call can't have results")
 		}

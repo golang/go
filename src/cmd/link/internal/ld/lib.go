@@ -2471,7 +2471,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
 		}
 		// Raise limit to allow frame.
 		locals := info.Locals()
-		limit = objabi.StackLimit + int(locals) + int(ctxt.FixedFrameSize())
+		limit = objabi.StackLimit + int(locals) + int(ctxt.Arch.FixedFrameSize)
 	}
 
 	// Walk through sp adjustments in function, consuming relocs.

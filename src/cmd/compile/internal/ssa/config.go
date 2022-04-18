@@ -332,8 +332,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.floatParamRegs = nil // no FP registers in softfloat mode
 	}
 
-	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
-	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
+	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.Arch.FixedFrameSize)
+	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.Arch.FixedFrameSize)
 
 	// On Plan 9, floating point operations are not allowed in note handler.
 	if buildcfg.GOOS == "plan9" {

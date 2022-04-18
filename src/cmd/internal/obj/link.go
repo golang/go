@@ -984,14 +984,6 @@ func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 	return last
 }
 
-// The smallest possible offset from the hardware stack pointer to a local
-// variable on the stack. Architectures that use a link register save its value
-// on the stack in the function prologue and so always have a pointer between
-// the hardware stack pointer and the local variable area.
-func (ctxt *Link) FixedFrameSize() int64 {
-	return ctxt.Arch.FixedFrameSize
-}
-
 // LinkArch is the definition of a single architecture.
 type LinkArch struct {
 	*sys.Arch
