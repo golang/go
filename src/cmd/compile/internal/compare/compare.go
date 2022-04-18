@@ -75,10 +75,11 @@ func EqCanPanic(t *types.Type) bool {
 
 // EqStruct compares two structs np and nq for equality.
 // It works by building a list of boolean conditions to satisfy.
-// The conditions are a list-of-lists. Conditions are reorderable
-// within each inner list. The outer lists must be evaluated in order.
-// Conditions must be properly short circuited by the caller.
+// Conditions must be evaluated in the returned order and
+// properly short circuited by the caller.
 func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
+	// The conditions are a list-of-lists. Conditions are reorderable
+	// within each inner list. The outer lists must be evaluated in order.
 	var conds [][]ir.Node
 	conds = append(conds, []ir.Node{})
 	and := func(n ir.Node) {
@@ -108,13 +109,8 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 			switch {
 			case f.Type.IsString():
 				eqlen, eqmem := EqString(p, q)
-				var callmem ir.Node = eqmem
-				// if op != ir.OEQ {
-				// 	eqlen.SetOp(op)
-				// 	callmem = ir.NewUnaryExpr(base.Pos, ir.ONOT, eqmem)
-				// }
 				and(eqlen)
-				and(callmem)
+				and(eqmem)
 			default:
 				and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
 			}
