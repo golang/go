@@ -24,7 +24,8 @@ type (
 	_ interface{int|any}
 	_ interface{int|~string|union}
 	_ interface{int|~string|interface{int}}
-	_ interface{union|union /* ERROR overlapping terms p.union and p.union */ }
+	_ interface{union|int}   // interfaces (here: union) are ignored when checking for overlap
+	_ interface{union|union} // ditto
 
 	// For now we do not permit interfaces with methods in unions.
 	_ interface{~ /* ERROR invalid use of ~ */ any}

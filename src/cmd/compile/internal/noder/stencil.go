@@ -193,8 +193,7 @@ func (g *genInst) scanForGenCalls(decl ir.Node) {
 			targs := deref(meth.Type().Recv().Type).RParams()
 
 			t := meth.X.Type()
-			baseSym := deref(t).OrigSym()
-			baseType := baseSym.Def.(*ir.Name).Type()
+			baseType := deref(t).OrigType()
 			var gf *ir.Name
 			for _, m := range baseType.Methods().Slice() {
 				if meth.Sel == m.Sym {
@@ -348,7 +347,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 			// actually generic, so no need to build a closure.
 			return x
 		}
-		baseType := recv.OrigSym().Def.Type()
+		baseType := recv.OrigType()
 		var gf *ir.Name
 		for _, m := range baseType.Methods().Slice() {
 			if se.Sel == m.Sym {
@@ -543,8 +542,7 @@ func (g *genInst) instantiateMethods() {
 			typecheck.NeedRuntimeType(typ)
 			// Lookup the method on the base generic type, since methods may
 			// not be set on imported instantiated types.
-			baseSym := typ.OrigSym()
-			baseType := baseSym.Def.(*ir.Name).Type()
+			baseType := typ.OrigType()
 			for j, _ := range typ.Methods().Slice() {
 				if baseType.Methods().Slice()[j].Nointerface() {
 					typ.Methods().Slice()[j].SetNointerface(true)
@@ -644,7 +642,7 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 		if recvType.IsFullyInstantiated() {
 			// Get the type of the base generic type, so we get
 			// its original typeparams.
-			recvType = recvType.OrigSym().Def.(*ir.Name).Type()
+			recvType = recvType.OrigType()
 		}
 		tparams = recvType.RParams()
 	} else {
@@ -898,7 +896,7 @@ func getDictionaryType(info *instInfo, dictParam *ir.Name, pos src.XPos, i int) 
 		base.Fatalf(fmt.Sprintf("bad dict index %d", i))
 	}
 
-	r := getDictionaryEntry(pos, info.dictParam, i, info.dictInfo.startSubDict)
+	r := getDictionaryEntry(pos, dictParam, i, info.dictInfo.startSubDict)
 	// change type of retrieved dictionary entry to *byte, which is the
 	// standard typing of a *runtime._type in the compiler
 	typed(types.Types[types.TUINT8].PtrTo(), r)
@@ -1628,7 +1626,7 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
 					// instantiated type, so we need a
 					// sub-dictionary.
 					targs := recvType.RParams()
-					genRecvType := recvType.OrigSym().Def.Type()
+					genRecvType := recvType.OrigType()
 					nameNode = typecheck.Lookdot1(call.X, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
 					sym = g.getDictionarySym(nameNode, targs, true)
 				} else {
@@ -1707,7 +1705,7 @@ func (g *genInst) getSymForMethodCall(se *ir.SelectorExpr, subst *typecheck.Tsub
 	// also give the receiver type. For method expressions with embedded types, we
 	// need to look at the type of the selection to get the final receiver type.
 	recvType := deref(se.Selection.Type.Recv().Type)
-	genRecvType := recvType.OrigSym().Def.Type()
+	genRecvType := recvType.OrigType()
 	nameNode := typecheck.Lookdot1(se, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
 	subtargs := recvType.RParams()
 	s2targs := make([]*types.Type, len(subtargs))

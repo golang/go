@@ -88,122 +88,96 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	// pemStart begins with a newline. However, at the very beginning of
 	// the byte array, we'll accept the start string without it.
 	rest = data
-	if bytes.HasPrefix(data, pemStart[1:]) {
-		rest = rest[len(pemStart)-1 : len(data)]
-	} else if _, after, ok := bytes.Cut(data, pemStart); ok {
-		rest = after
-	} else {
-		return nil, data
-	}
-
-	typeLine, rest := getLine(rest)
-	if !bytes.HasSuffix(typeLine, pemEndOfLine) {
-		return decodeError(data, rest)
-	}
-	typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)]
-
-	p = &Block{
-		Headers: make(map[string]string),
-		Type:    string(typeLine),
-	}
-
 	for {
-		// This loop terminates because getLine's second result is
-		// always smaller than its argument.
-		if len(rest) == 0 {
+		if bytes.HasPrefix(rest, pemStart[1:]) {
+			rest = rest[len(pemStart)-1:]
+		} else if _, after, ok := bytes.Cut(rest, pemStart); ok {
+			rest = after
+		} else {
 			return nil, data
 		}
-		line, next := getLine(rest)
 
-		key, val, ok := bytes.Cut(line, colon)
-		if !ok {
-			break
+		var typeLine []byte
+		typeLine, rest = getLine(rest)
+		if !bytes.HasSuffix(typeLine, pemEndOfLine) {
+			continue
+		}
+		typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)]
+
+		p = &Block{
+			Headers: make(map[string]string),
+			Type:    string(typeLine),
 		}
 
-		// TODO(agl): need to cope with values that spread across lines.
-		key = bytes.TrimSpace(key)
-		val = bytes.TrimSpace(val)
-		p.Headers[string(key)] = string(val)
-		rest = next
+		for {
+			// This loop terminates because getLine's second result is
+			// always smaller than its argument.
+			if len(rest) == 0 {
+				return nil, data
+			}
+			line, next := getLine(rest)
+
+			key, val, ok := bytes.Cut(line, colon)
+			if !ok {
+				break
+			}
+
+			// TODO(agl): need to cope with values that spread across lines.
+			key = bytes.TrimSpace(key)
+			val = bytes.TrimSpace(val)
+			p.Headers[string(key)] = string(val)
+			rest = next
+		}
+
+		var endIndex, endTrailerIndex int
+
+		// If there were no headers, the END line might occur
+		// immediately, without a leading newline.
+		if len(p.Headers) == 0 && bytes.HasPrefix(rest, pemEnd[1:]) {
+			endIndex = 0
+			endTrailerIndex = len(pemEnd) - 1
+		} else {
+			endIndex = bytes.Index(rest, pemEnd)
+			endTrailerIndex = endIndex + len(pemEnd)
+		}
+
+		if endIndex < 0 {
+			continue
+		}
+
+		// After the "-----" of the ending line, there should be the same type
+		// and then a final five dashes.
+		endTrailer := rest[endTrailerIndex:]
+		endTrailerLen := len(typeLine) + len(pemEndOfLine)
+		if len(endTrailer) < endTrailerLen {
+			continue
+		}
+
+		restOfEndLine := endTrailer[endTrailerLen:]
+		endTrailer = endTrailer[:endTrailerLen]
+		if !bytes.HasPrefix(endTrailer, typeLine) ||
+			!bytes.HasSuffix(endTrailer, pemEndOfLine) {
+			continue
+		}
+
+		// The line must end with only whitespace.
+		if s, _ := getLine(restOfEndLine); len(s) != 0 {
+			continue
+		}
+
+		base64Data := removeSpacesAndTabs(rest[:endIndex])
+		p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
+		n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
+		if err != nil {
+			continue
+		}
+		p.Bytes = p.Bytes[:n]
+
+		// the -1 is because we might have only matched pemEnd without the
+		// leading newline if the PEM block was empty.
+		_, rest = getLine(rest[endIndex+len(pemEnd)-1:])
+		return p, rest
 	}
-
-	var endIndex, endTrailerIndex int
-
-	// If there were no headers, the END line might occur
-	// immediately, without a leading newline.
-	if len(p.Headers) == 0 && bytes.HasPrefix(rest, pemEnd[1:]) {
-		endIndex = 0
-		endTrailerIndex = len(pemEnd) - 1
-	} else {
-		endIndex = bytes.Index(rest, pemEnd)
-		endTrailerIndex = endIndex + len(pemEnd)
-	}
-
-	if endIndex < 0 {
-		return decodeError(data, rest)
-	}
-
-	// After the "-----" of the ending line, there should be the same type
-	// and then a final five dashes.
-	endTrailer := rest[endTrailerIndex:]
-	endTrailerLen := len(typeLine) + len(pemEndOfLine)
-	if len(endTrailer) < endTrailerLen {
-		return decodeError(data, rest)
-	}
-
-	restOfEndLine := endTrailer[endTrailerLen:]
-	endTrailer = endTrailer[:endTrailerLen]
-	if !bytes.HasPrefix(endTrailer, typeLine) ||
-		!bytes.HasSuffix(endTrailer, pemEndOfLine) {
-		return decodeError(data, rest)
-	}
-
-	// The line must end with only whitespace.
-	if s, _ := getLine(restOfEndLine); len(s) != 0 {
-		return decodeError(data, rest)
-	}
-
-	base64Data := removeSpacesAndTabs(rest[:endIndex])
-	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
-	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
-	if err != nil {
-		return decodeError(data, rest)
-	}
-	p.Bytes = p.Bytes[:n]
-
-	// the -1 is because we might have only matched pemEnd without the
-	// leading newline if the PEM block was empty.
-	_, rest = getLine(rest[endIndex+len(pemEnd)-1:])
-
-	return
-}
-
-func decodeError(data, rest []byte) (*Block, []byte) {
-	// If we get here then we have rejected a likely looking, but
-	// ultimately invalid PEM block. We need to start over from a new
-	// position. We have consumed the preamble line and will have consumed
-	// any lines which could be header lines. However, a valid preamble
-	// line is not a valid header line, therefore we cannot have consumed
-	// the preamble line for the any subsequent block. Thus, we will always
-	// find any valid block, no matter what bytes precede it.
-	//
-	// For example, if the input is
-	//
-	//    -----BEGIN MALFORMED BLOCK-----
-	//    junk that may look like header lines
-	//   or data lines, but no END line
-	//
-	//    -----BEGIN ACTUAL BLOCK-----
-	//    realdata
-	//    -----END ACTUAL BLOCK-----
-	//
-	// we've failed to parse using the first BEGIN line
-	// and now will try again, using the second BEGIN line.
-	p, rest := Decode(rest)
-	if p == nil {
-		rest = data
-	}
-	return p, rest
 }
 
 const pemLineLength = 64

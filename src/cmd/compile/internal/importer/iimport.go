@@ -53,7 +53,7 @@ const (
 )
 
 type ident struct {
-	pkg  string
+	pkg  *types2.Package
 	name string
 }
 
@@ -402,7 +402,7 @@ func (r *importReader) obj(name string) {
 		t := types2.NewTypeParam(tn, nil)
 		// To handle recursive references to the typeparam within its
 		// bound, save the partial type in tparamIndex before reading the bounds.
-		id := ident{r.currPkg.Name(), name}
+		id := ident{r.currPkg, name}
 		r.p.tparamIndex[id] = t
 
 		var implicit bool
@@ -687,7 +687,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 			errorf("unexpected type param type")
 		}
 		pkg, name := r.qualifiedIdent()
-		id := ident{pkg.Name(), name}
+		id := ident{pkg, name}
 		if t, ok := r.p.tparamIndex[id]; ok {
 			// We're already in the process of importing this typeparam.
 			return t

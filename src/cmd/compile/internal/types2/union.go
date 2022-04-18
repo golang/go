@@ -113,14 +113,12 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
 				switch {
 				case tset.NumMethods() != 0:
 					check.errorf(tlist[i], "cannot use %s in union (%s contains methods)", t, t)
-					continue
 				case t.typ == universeComparable.Type():
 					check.error(tlist[i], "cannot use comparable in union")
-					continue
 				case tset.comparable:
 					check.errorf(tlist[i], "cannot use %s in union (%s embeds comparable)", t, t)
-					continue
 				}
+				continue // terms with interface types are not subject to the no-overlap rule
 			}
 
 			// Report overlapping (non-disjoint) terms such as
@@ -160,10 +158,16 @@ func parseTilde(check *Checker, tx syntax.Expr) *Term {
 
 // overlappingTerm reports the index of the term x in terms which is
 // overlapping (not disjoint) from y. The result is < 0 if there is no
-// such term.
+// such term. The type of term y must not be an interface, and terms
+// with an interface type are ignored in the terms list.
 func overlappingTerm(terms []*Term, y *Term) int {
+	assert(!IsInterface(y.typ))
 	for i, x := range terms {
-		// disjoint requires non-nil, non-top arguments
+		if IsInterface(x.typ) {
+			continue
+		}
+		// disjoint requires non-nil, non-top arguments,
+		// and non-interface types as term types.
 		if debug {
 			if x == nil || x.typ == nil || y == nil || y.typ == nil {
 				panic("empty or top union term")
