@@ -380,7 +380,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	// Save LR unless there is no frame.
 	if !text.From.Sym.NoFrame() {
-		stacksize += ctxt.FixedFrameSize()
+		stacksize += ctxt.Arch.FixedFrameSize
 	}
 
 	cursym.Func().Args = text.To.Val.(int32)
@@ -461,7 +461,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		calcargp := obj.Appendp(getargp, newprog)
 		calcargp.As = AADDI
-		calcargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize + ctxt.FixedFrameSize()}
+		calcargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize + ctxt.Arch.FixedFrameSize}
 		calcargp.Reg = REG_SP
 		calcargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X7}
 

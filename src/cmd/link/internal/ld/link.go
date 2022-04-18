@@ -102,14 +102,6 @@ type cgodata struct {
 	directives [][]string
 }
 
-// The smallest possible offset from the hardware stack pointer to a local
-// variable on the stack. Architectures that use a link register save its value
-// on the stack in the function prologue and so always have a pointer between
-// the hardware stack pointer and the local variable area.
-func (ctxt *Link) FixedFrameSize() int64 {
-	return ctxt.Arch.FixedFrameSize
-}
-
 func (ctxt *Link) Logf(format string, args ...interface{}) {
 	fmt.Fprintf(ctxt.Bso, format, args...)
 	ctxt.Bso.Flush()

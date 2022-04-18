@@ -1108,7 +1108,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 				a0 := a.Args[0]
 				if a0.Op == OpLocalAddr {
 					n := a0.Aux.(*ir.Name)
-					if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.FixedFrameSize() == aOffset {
+					if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.Arch.FixedFrameSize == aOffset {
 						continue
 					}
 				}
@@ -1129,7 +1129,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 				// It's common for a tail call passing the same arguments (e.g. method wrapper),
 				// so this would be a self copy. Detect this and optimize it out.
 				n := a.Aux.(*ir.Name)
-				if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.FixedFrameSize() == aOffset {
+				if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.Arch.FixedFrameSize == aOffset {
 					continue
 				}
 			}
