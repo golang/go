@@ -4877,11 +4877,7 @@ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
 	handlerDone := make(chan struct{})
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		close(inHandler)
-		select {
-		case <-r.Context().Done():
-		case <-time.After(3 * time.Second):
-			t.Errorf("timeout waiting for context to be done")
-		}
+		<-r.Context().Done()
 		close(handlerDone)
 	}))
 	defer ts.Close()
@@ -4891,18 +4887,9 @@ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
 	}
 	defer c.Close()
 	io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
-	select {
-	case <-inHandler:
-	case <-time.After(3 * time.Second):
-		t.Fatalf("timeout waiting to see ServeHTTP get called")
-	}
+	<-inHandler
 	c.Close() // this should trigger the context being done
-
-	select {
-	case <-handlerDone:
-	case <-time.After(4 * time.Second):
-		t.Fatalf("timeout waiting to see ServeHTTP exit")
-	}
+	<-handlerDone
 }
 
 func TestServerContext_ServerContextKey_h1(t *testing.T) {
