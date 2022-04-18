@@ -305,7 +305,7 @@ func TestLargeIsOnCurve(t *testing.T) {
 	})
 }
 
-func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
+func benchmarkAllCurves(b *testing.B, f func(*testing.B, Curve)) {
 	tests := []struct {
 		name  string
 		curve Curve
@@ -317,8 +317,8 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
 	}
 	for _, test := range tests {
 		curve := test.curve
-		t.Run(test.name, func(t *testing.B) {
-			f(t, curve)
+		b.Run(test.name, func(b *testing.B) {
+			f(b, curve)
 		})
 	}
 }
