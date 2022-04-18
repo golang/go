@@ -10,6 +10,8 @@
 // The execution trace captures a wide range of execution events such as
 // goroutine creation/blocking/unblocking, syscall enter/exit/block,
 // GC-related events, changes of heap size, processor start/stop, etc.
+// When CPU profiling is active, the execution tracer makes an effort to
+// include those samples as well.
 // A precise nanosecond-precision timestamp and a stack trace is
 // captured for most events. The generated trace can be interpreted
 // using `go tool trace`.

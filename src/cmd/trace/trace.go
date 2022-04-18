@@ -30,7 +30,6 @@ func init() {
 	http.Handle("/static/", http.FileServer(http.FS(staticContent)))
 }
 
-
 // httpTrace serves either whole trace (goid==0) or trace for goid goroutine.
 func httpTrace(w http.ResponseWriter, r *http.Request) {
 	_, err := parseTrace()
@@ -719,6 +718,11 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			ctx.emitInstant(ev, "task start", "user event")
 		case trace.EvUserTaskEnd:
 			ctx.emitInstant(ev, "task end", "user event")
+		case trace.EvCPUSample:
+			if ev.P >= 0 {
+				// only show in this UI when there's an associated P
+				ctx.emitInstant(ev, "CPU profile sample", "")
+			}
 		}
 		// Emit any counter updates.
 		ctx.emitThreadCounters(ev)
