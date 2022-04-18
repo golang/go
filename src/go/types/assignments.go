@@ -9,6 +9,7 @@ package types
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"strings"
 )
 
@@ -339,11 +340,10 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
 			} else if len(rhs) > 0 {
 				at = rhs[len(rhs)-1].expr // report at last value
 			}
-			check.errorf(at, _WrongResultCount, "%s return values\n\thave %s\n\twant %s",
-				qualifier,
-				check.typesSummary(operandTypes(rhs), false),
-				check.typesSummary(varTypes(lhs), false),
-			)
+			err := newErrorf(at, _WrongResultCount, "%s return values", qualifier)
+			err.errorf(token.NoPos, "have %s", check.typesSummary(operandTypes(rhs), false))
+			err.errorf(token.NoPos, "want %s", check.typesSummary(varTypes(lhs), false))
+			check.report(err)
 			return
 		}
 		if compilerErrorMessages {
