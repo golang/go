@@ -240,7 +240,7 @@ func sysargs(argc int32, argv **byte) {
 			return
 		}
 	} else {
-		args := unsafe.Pointer(persistentalloc(goarch.PtrSize)*4, 0, &memstats.other_sys)
+		args := unsafe.Pointer(persistentalloc((goarch.PtrSize)*4, 0, &memstats.other_sys))
 		// argv pointer
 		*(**byte)(args) = (*byte)(add(args, goarch.PtrSize) * 1)
 		// argv data
