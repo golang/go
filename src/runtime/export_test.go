@@ -277,6 +277,7 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 }
 
 func Fastrand() uint32          { return fastrand() }
+func Fastrand64() uint64        { return fastrand64() }
 func Fastrandn(n uint32) uint32 { return fastrandn(n) }
 
 type ProfBuf profBuf
