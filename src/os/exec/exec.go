@@ -745,24 +745,47 @@ func dedupEnv(env []string) []string {
 // dedupEnvCase is dedupEnv with a case option for testing.
 // If caseInsensitive is true, the case of keys is ignored.
 func dedupEnvCase(caseInsensitive bool, env []string) []string {
+	// Construct the output in reverse order, to preserve the
+	// last occurrence of each key.
 	out := make([]string, 0, len(env))
-	saw := make(map[string]int, len(env)) // key => index into out
-	for _, kv := range env {
-		k, _, ok := strings.Cut(kv, "=")
-		if !ok {
-			out = append(out, kv)
+	saw := make(map[string]bool, len(env))
+	for n := len(env); n > 0; n-- {
+		kv := env[n-1]
+
+		i := strings.Index(kv, "=")
+		if i == 0 {
+			// We observe in practice keys with a single leading "=" on Windows.
+			// TODO(#49886): Should we consume only the first leading "=" as part
+			// of the key, or parse through arbitrarily many of them until a non-"="?
+			i = strings.Index(kv[1:], "=") + 1
+		}
+		if i < 0 {
+			if kv != "" {
+				// The entry is not of the form "key=value" (as it is required to be).
+				// Leave it as-is for now.
+				// TODO(#52436): should we strip or reject these bogus entries?
+				out = append(out, kv)
+			}
 			continue
 		}
+		k := kv[:i]
 		if caseInsensitive {
 			k = strings.ToLower(k)
 		}
-		if dupIdx, isDup := saw[k]; isDup {
-			out[dupIdx] = kv
+		if saw[k] {
 			continue
 		}
-		saw[k] = len(out)
+
+		saw[k] = true
 		out = append(out, kv)
 	}
+
+	// Now reverse the slice to restore the original order.
+	for i := 0; i < len(out)/2; i++ {
+		j := len(out) - i - 1
+		out[i], out[j] = out[j], out[i]
+	}
+
 	return out
 }
 
