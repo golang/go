@@ -349,6 +349,25 @@ const _ = unsafe.Sizeof(func() {
 	assert(iota == 0)
 })
 
+// issue #52438
+const i1 = iota
+const i2 = iota
+const i3 = iota
+
+func _() {
+	assert(i1 == 0)
+	assert(i2 == 0)
+	assert(i3 == 0)
+
+	const i4 = iota
+	const i5 = iota
+	const i6 = iota
+
+	assert(i4 == 0)
+	assert(i5 == 0)
+	assert(i6 == 0)
+}
+
 // untyped constants must not get arbitrarily large
 const prec = 512 // internal maximum precision for integers
 const maxInt = (1<<(prec/2) - 1) * (1<<(prec/2) + 1) // == 1<<prec - 1
