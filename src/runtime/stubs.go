@@ -199,8 +199,8 @@ func fastrandu() uint {
 //go:linkname sync_fastrandn sync.fastrandn
 func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }
 
-//go:linkname net_fastrand net.fastrand
-func net_fastrand() uint32 { return fastrand() }
+//go:linkname net_fastrandu net.fastrandu
+func net_fastrandu() uint { return fastrandu() }
 
 //go:linkname os_fastrand os.fastrand
 func os_fastrand() uint32 { return fastrand() }
