@@ -20,7 +20,6 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 // MappedRange provides mapped protocol.Range for a span.Range, accounting for
@@ -150,10 +149,10 @@ func posToMappedRange(snapshot Snapshot, pkg Package, pos, end token.Pos) (Mappe
 		return MappedRange{}, err
 	}
 	if !pos.IsValid() {
-		return MappedRange{}, errors.Errorf("invalid position for %v", pos)
+		return MappedRange{}, fmt.Errorf("invalid position for %v", pos)
 	}
 	if !end.IsValid() {
-		return MappedRange{}, errors.Errorf("invalid position for %v", end)
+		return MappedRange{}, fmt.Errorf("invalid position for %v", end)
 	}
 	return NewMappedRange(snapshot.FileSet(), pgf.Mapper, pos, end), nil
 }
@@ -278,7 +277,7 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 func FindPackageFromPos(ctx context.Context, snapshot Snapshot, pos token.Pos) (Package, error) {
 	tok := snapshot.FileSet().File(pos)
 	if tok == nil {
-		return nil, errors.Errorf("no file for pos %v", pos)
+		return nil, fmt.Errorf("no file for pos %v", pos)
 	}
 	uri := span.URIFromPath(tok.Name())
 	pkgs, err := snapshot.PackagesForFile(ctx, uri, TypecheckAll, true)
@@ -299,7 +298,7 @@ func FindPackageFromPos(ctx context.Context, snapshot Snapshot, pos token.Pos) (
 		}
 		return pkg, nil
 	}
-	return nil, errors.Errorf("no package for given file position")
+	return nil, fmt.Errorf("no package for given file position")
 }
 
 // findFileInDeps finds uri in pkg or its dependencies.
@@ -321,7 +320,7 @@ func findFileInDeps(pkg Package, uri span.URI) (*ParsedGoFile, Package, error) {
 			}
 		}
 	}
-	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
+	return nil, nil, fmt.Errorf("no file for %s in package %s", uri, pkg.ID())
 }
 
 // ImportPath returns the unquoted import path of s,

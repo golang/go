@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -13,7 +14,6 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
-	errors "golang.org/x/xerrors"
 )
 
 func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (*protocol.SignatureInformation, int, error) {
@@ -22,7 +22,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 
 	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
-		return nil, 0, errors.Errorf("getting file for SignatureHelp: %w", err)
+		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
 	}
 	spn, err := pgf.Mapper.PointSpan(pos)
 	if err != nil {
@@ -36,7 +36,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	var callExpr *ast.CallExpr
 	path, _ := astutil.PathEnclosingInterval(pgf.File, rng.Start, rng.Start)
 	if path == nil {
-		return nil, 0, errors.Errorf("cannot find node enclosing position")
+		return nil, 0, fmt.Errorf("cannot find node enclosing position")
 	}
 FindCall:
 	for _, node := range path {
@@ -50,16 +50,16 @@ FindCall:
 			// The user is within an anonymous function,
 			// which may be the parameter to the *ast.CallExpr.
 			// Don't show signature help in this case.
-			return nil, 0, errors.Errorf("no signature help within a function declaration")
+			return nil, 0, fmt.Errorf("no signature help within a function declaration")
 		case *ast.BasicLit:
 			if node.Kind == token.STRING {
-				return nil, 0, errors.Errorf("no signature help within a string literal")
+				return nil, 0, fmt.Errorf("no signature help within a string literal")
 			}
 		}
 
 	}
 	if callExpr == nil || callExpr.Fun == nil {
-		return nil, 0, errors.Errorf("cannot find an enclosing function")
+		return nil, 0, fmt.Errorf("cannot find an enclosing function")
 	}
 
 	qf := Qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo())
@@ -83,12 +83,12 @@ FindCall:
 	// Get the type information for the function being called.
 	sigType := pkg.GetTypesInfo().TypeOf(callExpr.Fun)
 	if sigType == nil {
-		return nil, 0, errors.Errorf("cannot get type for Fun %[1]T (%[1]v)", callExpr.Fun)
+		return nil, 0, fmt.Errorf("cannot get type for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
 
 	sig, _ := sigType.Underlying().(*types.Signature)
 	if sig == nil {
-		return nil, 0, errors.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
+		return nil, 0, fmt.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
 
 	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), rng.Start)

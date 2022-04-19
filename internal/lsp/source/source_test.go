@@ -6,6 +6,7 @@ package source_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -24,7 +25,6 @@ import (
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
-	errors "golang.org/x/xerrors"
 )
 
 func TestMain(m *testing.M) {

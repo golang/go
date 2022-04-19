@@ -7,6 +7,7 @@ package cache
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -29,7 +30,6 @@ import (
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal"
-	errors "golang.org/x/xerrors"
 )
 
 type packageHandleKey string
@@ -144,7 +144,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 func (s *snapshot) buildKey(ctx context.Context, id PackageID, mode source.ParseMode) (*packageHandle, map[PackagePath]*packageHandle, error) {
 	m := s.getMetadata(id)
 	if m == nil {
-		return nil, nil, errors.Errorf("no metadata for %s", id)
+		return nil, nil, fmt.Errorf("no metadata for %s", id)
 	}
 	goFiles, err := s.parseGoHandles(ctx, m.GoFiles, mode)
 	if err != nil {
@@ -291,7 +291,7 @@ func (ph *packageHandle) ID() string {
 func (ph *packageHandle) cached(g *memoize.Generation) (*pkg, error) {
 	v := ph.handle.Cached(g)
 	if v == nil {
-		return nil, errors.Errorf("no cached type information for %s", ph.m.PkgPath)
+		return nil, fmt.Errorf("no cached type information for %s", ph.m.PkgPath)
 	}
 	data := v.(*packageData)
 	return data.pkg, data.err
@@ -494,7 +494,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, m *Metadata, mode sour
 		if found {
 			return pkg, nil
 		}
-		return nil, errors.Errorf("no parsed files for package %s, expected: %v, errors: %v", pkg.m.PkgPath, pkg.compiledGoFiles, m.Errors)
+		return nil, fmt.Errorf("no parsed files for package %s, expected: %v, errors: %v", pkg.m.PkgPath, pkg.compiledGoFiles, m.Errors)
 	}
 
 	cfg := &types.Config{
@@ -511,7 +511,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, m *Metadata, mode sour
 				return nil, snapshot.missingPkgError(ctx, pkgPath)
 			}
 			if !source.IsValidImport(string(m.PkgPath), string(dep.m.PkgPath)) {
-				return nil, errors.Errorf("invalid use of internal package %s", pkgPath)
+				return nil, fmt.Errorf("invalid use of internal package %s", pkgPath)
 			}
 			depPkg, err := dep.check(ctx, snapshot)
 			if err != nil {

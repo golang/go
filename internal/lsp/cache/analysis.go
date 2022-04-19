@@ -21,7 +21,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
@@ -96,7 +95,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		return act, nil
 	}
 	if len(ph.key) == 0 {
-		return nil, errors.Errorf("actionHandle: no key for package %s", id)
+		return nil, fmt.Errorf("actionHandle: no key for package %s", id)
 	}
 	pkg, err := ph.check(ctx, s)
 	if err != nil {
@@ -162,10 +161,10 @@ func (act *actionHandle) analyze(ctx context.Context, snapshot *snapshot) ([]*so
 	}
 	data, ok := d.(*actionData)
 	if !ok {
-		return nil, nil, errors.Errorf("unexpected type for %s:%s", act.pkg.ID(), act.analyzer.Name)
+		return nil, nil, fmt.Errorf("unexpected type for %s:%s", act.pkg.ID(), act.analyzer.Name)
 	}
 	if data == nil {
-		return nil, nil, errors.Errorf("unexpected nil analysis for %s:%s", act.pkg.ID(), act.analyzer.Name)
+		return nil, nil, fmt.Errorf("unexpected nil analysis for %s:%s", act.pkg.ID(), act.analyzer.Name)
 	}
 	return data.diagnostics, data.result, data.err
 }
@@ -192,7 +191,7 @@ func execAll(ctx context.Context, snapshot *snapshot, actions []*actionHandle) (
 			}
 			data, ok := v.(*actionData)
 			if !ok {
-				return errors.Errorf("unexpected type for %s: %T", act, v)
+				return fmt.Errorf("unexpected type for %s: %T", act, v)
 			}
 
 			mu.Lock()
@@ -212,7 +211,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			data.err = errors.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
+			data.err = fmt.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
 		}
 	}()
 
@@ -327,7 +326,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	analysisinternal.SetTypeErrors(pass, pkg.typeErrors)
 
 	if pkg.IsIllTyped() {
-		data.err = errors.Errorf("analysis skipped due to errors in package")
+		data.err = fmt.Errorf("analysis skipped due to errors in package")
 		return data
 	}
 	data.result, data.err = pass.Analyzer.Run(pass)
@@ -336,7 +335,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	}
 
 	if got, want := reflect.TypeOf(data.result), pass.Analyzer.ResultType; got != want {
-		data.err = errors.Errorf(
+		data.err = fmt.Errorf(
 			"internal error: on package %s, analyzer %s returned a result of type %v, but declared ResultType %v",
 			pass.Pkg.Path(), pass.Analyzer, got, want)
 		return data

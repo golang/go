@@ -19,7 +19,6 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 // FileEvent wraps the protocol.FileEvent so that it can be associated with a
@@ -57,7 +56,7 @@ func WriteFileData(path string, content []byte, rel RelativeTo) error {
 	content = bytes.ReplaceAll(content, []byte("$SANDBOX_WORKDIR"), []byte(rel))
 	fp := rel.AbsPath(path)
 	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
-		return errors.Errorf("creating nested directory: %w", err)
+		return fmt.Errorf("creating nested directory: %w", err)
 	}
 	backoff := 1 * time.Millisecond
 	for {
@@ -68,7 +67,7 @@ func WriteFileData(path string, content []byte, rel RelativeTo) error {
 				backoff *= 2
 				continue
 			}
-			return errors.Errorf("writing %q: %w", path, err)
+			return fmt.Errorf("writing %q: %w", path, err)
 		}
 		return nil
 	}
@@ -127,7 +126,7 @@ func (w *Workdir) writeInitialFiles(files map[string][]byte) error {
 	w.files = map[string]fileID{}
 	for name, data := range files {
 		if err := WriteFileData(name, data, w.RelativeTo); err != nil {
-			return errors.Errorf("writing to workdir: %w", err)
+			return fmt.Errorf("writing to workdir: %w", err)
 		}
 		fp := w.AbsPath(name)
 
@@ -140,7 +139,7 @@ func (w *Workdir) writeInitialFiles(files map[string][]byte) error {
 		// between identifiers are considered to be benign.
 		fi, err := os.Stat(fp)
 		if err != nil {
-			return errors.Errorf("reading file info: %v", err)
+			return fmt.Errorf("reading file info: %v", err)
 		}
 
 		w.files[name] = fileID{
@@ -226,7 +225,7 @@ func (w *Workdir) ChangeFilesOnDisk(ctx context.Context, events []FileEvent) err
 		case protocol.Deleted:
 			fp := w.AbsPath(e.Path)
 			if err := os.Remove(fp); err != nil {
-				return errors.Errorf("removing %q: %w", e.Path, err)
+				return fmt.Errorf("removing %q: %w", e.Path, err)
 			}
 		case protocol.Changed, protocol.Created:
 			if _, err := w.writeFile(ctx, e.Path, e.Content); err != nil {
@@ -242,7 +241,7 @@ func (w *Workdir) ChangeFilesOnDisk(ctx context.Context, events []FileEvent) err
 func (w *Workdir) RemoveFile(ctx context.Context, path string) error {
 	fp := w.AbsPath(path)
 	if err := os.RemoveAll(fp); err != nil {
-		return errors.Errorf("removing %q: %w", path, err)
+		return fmt.Errorf("removing %q: %w", path, err)
 	}
 	w.fileMu.Lock()
 	defer w.fileMu.Unlock()
@@ -301,7 +300,7 @@ func (w *Workdir) writeFile(ctx context.Context, path, content string) (FileEven
 	fp := w.AbsPath(path)
 	_, err := os.Stat(fp)
 	if err != nil && !os.IsNotExist(err) {
-		return FileEvent{}, errors.Errorf("checking if %q exists: %w", path, err)
+		return FileEvent{}, fmt.Errorf("checking if %q exists: %w", path, err)
 	}
 	var changeType protocol.FileChangeType
 	if os.IsNotExist(err) {

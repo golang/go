@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -20,7 +21,6 @@ import (
 	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/tool"
-	errors "golang.org/x/xerrors"
 )
 
 // Serve is a struct that exposes the configurable parts of the LSP server as
@@ -98,7 +98,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		var err error
 		ss, err = lsprpc.NewForwarder(s.app.Remote, s.remoteArgs)
 		if err != nil {
-			return errors.Errorf("creating forwarder: %w", err)
+			return fmt.Errorf("creating forwarder: %w", err)
 		}
 	} else {
 		ss = lsprpc.NewStreamServer(cache.New(s.app.options), isDaemon)

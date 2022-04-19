@@ -7,6 +7,7 @@ package cache
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -35,7 +36,6 @@ import (
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
-	errors "golang.org/x/xerrors"
 )
 
 type snapshot struct {
@@ -511,7 +511,7 @@ func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source
 	}
 
 	if len(phs) < 1 {
-		return nil, errors.Errorf("no packages")
+		return nil, fmt.Errorf("no packages")
 	}
 
 	ph := phs[0]
@@ -528,7 +528,7 @@ func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source
 		}
 	}
 	if ph == nil {
-		return nil, errors.Errorf("no packages in input")
+		return nil, fmt.Errorf("no packages in input")
 	}
 
 	return ph.check(ctx, s)
@@ -2268,7 +2268,7 @@ func (s *snapshot) BuiltinFile(ctx context.Context) (*source.ParsedGoFile, error
 	s.mu.Unlock()
 
 	if builtin == "" {
-		return nil, errors.Errorf("no builtin package for view %s", s.view.name)
+		return nil, fmt.Errorf("no builtin package for view %s", s.view.name)
 	}
 
 	fh, err := s.GetFile(ctx, builtin)
@@ -2425,7 +2425,7 @@ func buildWorkspaceSumFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 			continue
 		}
 		if err != nil {
-			return nil, errors.Errorf("reading go sum: %w", err)
+			return nil, fmt.Errorf("reading go sum: %w", err)
 		}
 		if err := readGoSum(allSums, sumURI.Filename(), data); err != nil {
 			return nil, err

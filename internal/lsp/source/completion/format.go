@@ -6,6 +6,7 @@ package completion
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/doc"
@@ -20,7 +21,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typeparams"
-	errors "golang.org/x/xerrors"
 )
 
 var (

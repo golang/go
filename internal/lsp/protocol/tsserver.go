@@ -14,9 +14,9 @@ package protocol
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"golang.org/x/tools/internal/jsonrpc2"
-	errors "golang.org/x/xerrors"
 )
 
 type Server interface {
@@ -369,7 +369,7 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		return true, reply(ctx, resp, nil)
 	case "workspace/semanticTokens/refresh": // req
 		if len(r.Params()) > 0 {
-			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+			return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
 		err := server.SemanticTokensRefresh(ctx)
 		return true, reply(ctx, nil, err)
@@ -465,7 +465,7 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		return true, reply(ctx, resp, nil)
 	case "workspace/inlineValue/refresh": // req
 		if len(r.Params()) > 0 {
-			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+			return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
 		err := server.InlineValueRefresh(ctx)
 		return true, reply(ctx, nil, err)
@@ -491,7 +491,7 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		return true, reply(ctx, resp, nil)
 	case "workspace/inlayHint/refresh": // req
 		if len(r.Params()) > 0 {
-			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+			return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
 		err := server.InlayHintRefresh(ctx)
 		return true, reply(ctx, nil, err)
@@ -509,7 +509,7 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		return true, reply(ctx, resp, nil)
 	case "shutdown": // req
 		if len(r.Params()) > 0 {
-			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+			return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
 		err := server.Shutdown(ctx)
 		return true, reply(ctx, nil, err)
@@ -665,7 +665,7 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		return true, reply(ctx, resp, nil)
 	case "workspace/codeLens/refresh": // req
 		if len(r.Params()) > 0 {
-			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+			return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
 		err := server.CodeLensRefresh(ctx)
 		return true, reply(ctx, nil, err)
@@ -771,7 +771,7 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		return true, reply(ctx, resp, nil)
 	case "workspace/diagnostic/refresh": // req
 		if len(r.Params()) > 0 {
-			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+			return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
 		err := server.DiagnosticRefresh(ctx)
 		return true, reply(ctx, nil, err)

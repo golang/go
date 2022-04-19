@@ -32,7 +32,6 @@ import (
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 	"golang.org/x/tools/internal/xcontext"
-	errors "golang.org/x/xerrors"
 )
 
 // Application is the main application as passed to tool.Main
@@ -540,7 +539,7 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 		fname := uri.Filename()
 		content, err := ioutil.ReadFile(fname)
 		if err != nil {
-			file.err = errors.Errorf("getFile: %v: %v", uri, err)
+			file.err = fmt.Errorf("getFile: %v: %v", uri, err)
 			return file
 		}
 		f := c.fset.AddFile(fname, -1, len(content))
@@ -580,7 +579,7 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 		},
 	}
 	if err := c.Server.DidOpen(ctx, p); err != nil {
-		file.err = errors.Errorf("%v: %v", uri, err)
+		file.err = fmt.Errorf("%v: %v", uri, err)
 	}
 	return file
 }

@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -19,7 +20,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typeparams"
-	errors "golang.org/x/xerrors"
 )
 
 // IdentifierInfo holds information about an identifier in Go source.
@@ -199,7 +199,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 			result.Declaration.typeSwitchImplicit = typ
 		} else {
 			// Probably a type error.
-			return nil, errors.Errorf("%w for ident %v", errNoObjectFound, result.Name)
+			return nil, fmt.Errorf("%w for ident %v", errNoObjectFound, result.Name)
 		}
 	}
 
@@ -215,7 +215,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 		}
 		decl, ok := builtinObj.Decl.(ast.Node)
 		if !ok {
-			return nil, errors.Errorf("no declaration for %s", result.Name)
+			return nil, fmt.Errorf("no declaration for %s", result.Name)
 		}
 		result.Declaration.node = decl
 		if typeSpec, ok := decl.(*ast.TypeSpec); ok {
@@ -247,7 +247,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 			}
 			decl, ok := builtinObj.Decl.(ast.Node)
 			if !ok {
-				return nil, errors.Errorf("no declaration for %s", errorName)
+				return nil, fmt.Errorf("no declaration for %s", errorName)
 			}
 			spec, ok := decl.(*ast.TypeSpec)
 			if !ok {
@@ -473,7 +473,7 @@ func importSpec(snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (
 	}
 	importPath, err := strconv.Unquote(imp.Path.Value)
 	if err != nil {
-		return nil, errors.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
+		return nil, fmt.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
 	result := &IdentifierInfo{
 		Snapshot: snapshot,

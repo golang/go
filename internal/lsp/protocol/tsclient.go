@@ -14,9 +14,9 @@ package protocol
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"golang.org/x/tools/internal/jsonrpc2"
-	errors "golang.org/x/xerrors"
 )
 
 type Client interface {
@@ -74,7 +74,7 @@ func clientDispatch(ctx context.Context, client Client, reply jsonrpc2.Replier, 
 		return true, reply(ctx, nil, err)
 	case "workspace/workspaceFolders": // req
 		if len(r.Params()) > 0 {
-			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+			return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
 		resp, err := client.WorkspaceFolders(ctx)
 		if err != nil {

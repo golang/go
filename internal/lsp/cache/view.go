@@ -31,7 +31,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
-	errors "golang.org/x/xerrors"
 )
 
 type View struct {
@@ -729,7 +728,7 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 
 func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (*workspaceInformation, error) {
 	if err := checkPathCase(folder.Filename()); err != nil {
-		return nil, errors.Errorf("invalid workspace folder path: %w; check that the casing of the configured workspace folder path agrees with the casing reported by the operating system", err)
+		return nil, fmt.Errorf("invalid workspace folder path: %w; check that the casing of the configured workspace folder path agrees with the casing reported by the operating system", err)
 	}
 	var err error
 	inv := gocommand.Invocation{
@@ -810,7 +809,7 @@ func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSourc
 	for _, basename := range patterns {
 		dir, err := findRootPattern(ctx, folder, basename, fs)
 		if err != nil {
-			return "", errors.Errorf("finding %s: %w", basename, err)
+			return "", fmt.Errorf("finding %s: %w", basename, err)
 		}
 		if dir != "" {
 			return dir, nil

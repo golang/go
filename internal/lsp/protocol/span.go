@@ -10,7 +10,6 @@ import (
 	"fmt"
 
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 type ColumnMapper struct {
@@ -41,7 +40,7 @@ func (m *ColumnMapper) Location(s span.Span) (Location, error) {
 
 func (m *ColumnMapper) Range(s span.Span) (Range, error) {
 	if span.CompareURI(m.URI, s.URI()) != 0 {
-		return Range{}, errors.Errorf("column mapper is for file %q instead of %q", m.URI, s.URI())
+		return Range{}, fmt.Errorf("column mapper is for file %q instead of %q", m.URI, s.URI())
 	}
 	s, err := s.WithAll(m.Converter)
 	if err != nil {

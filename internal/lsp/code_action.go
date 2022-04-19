@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
@@ -287,7 +286,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	}
 	_, pgf, err := source.GetParsedFile(ctx, snapshot, fh, source.NarrowestPackage)
 	if err != nil {
-		return nil, errors.Errorf("getting file for Identifier: %w", err)
+		return nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
 	srng, err := pgf.Mapper.RangeToSpanRange(rng)
 	if err != nil {

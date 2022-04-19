@@ -8,6 +8,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -39,7 +40,6 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	errors "golang.org/x/xerrors"
 )
 
 type contextKeyType int
@@ -436,7 +436,7 @@ func (i *Instance) SetLogFile(logfile string, isDaemon bool) (func(), error) {
 		}
 		f, err := os.Create(logfile)
 		if err != nil {
-			return nil, errors.Errorf("unable to create log file: %w", err)
+			return nil, fmt.Errorf("unable to create log file: %w", err)
 		}
 		closeLog = func() {
 			defer f.Close()

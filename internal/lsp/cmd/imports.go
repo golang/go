@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
-	errors "golang.org/x/xerrors"
 )
 
 // imports implements the import verb for gopls.
@@ -67,7 +66,7 @@ func (t *imports) Run(ctx context.Context, args ...string) error {
 		},
 	})
 	if err != nil {
-		return errors.Errorf("%v: %v", from, err)
+		return fmt.Errorf("%v: %v", from, err)
 	}
 	var edits []protocol.TextEdit
 	for _, a := range actions {
@@ -82,7 +81,7 @@ func (t *imports) Run(ctx context.Context, args ...string) error {
 	}
 	sedits, err := source.FromProtocolEdits(file.mapper, edits)
 	if err != nil {
-		return errors.Errorf("%v: %v", edits, err)
+		return fmt.Errorf("%v: %v", edits, err)
 	}
 	newContent := diff.ApplyEdits(string(file.mapper.Content), sedits)
 

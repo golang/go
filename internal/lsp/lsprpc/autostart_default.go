@@ -5,9 +5,9 @@
 package lsprpc
 
 import (
-	exec "golang.org/x/sys/execabs"
+	"fmt"
 
-	errors "golang.org/x/xerrors"
+	exec "golang.org/x/sys/execabs"
 )
 
 var (
@@ -19,7 +19,7 @@ var (
 func runRemote(cmd *exec.Cmd) error {
 	daemonize(cmd)
 	if err := cmd.Start(); err != nil {
-		return errors.Errorf("starting remote gopls: %w", err)
+		return fmt.Errorf("starting remote gopls: %w", err)
 	}
 	return nil
 }

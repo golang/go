@@ -5,9 +5,8 @@
 package fake
 
 import (
+	"errors"
 	"syscall"
-
-	errors "golang.org/x/xerrors"
 )
 
 func init() {

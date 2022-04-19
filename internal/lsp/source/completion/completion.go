@@ -30,7 +30,6 @@ import (
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/typeparams"
-	errors "golang.org/x/xerrors"
 )
 
 type CompletionItem struct {
@@ -435,7 +434,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		items, surrounding, innerErr := packageClauseCompletions(ctx, snapshot, fh, protoPos)
 		if innerErr != nil {
 			// return the error for GetParsedFile since it's more relevant in this situation.
-			return nil, nil, errors.Errorf("getting file for Completion: %w (package completions: %v)", err, innerErr)
+			return nil, nil, fmt.Errorf("getting file for Completion: %w (package completions: %v)", err, innerErr)
 		}
 		return items, surrounding, nil
 	}
@@ -451,7 +450,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	// Find the path to the position before pos.
 	path, _ := astutil.PathEnclosingInterval(pgf.File, rng.Start-1, rng.Start-1)
 	if path == nil {
-		return nil, nil, errors.Errorf("cannot find node enclosing position")
+		return nil, nil, fmt.Errorf("cannot find node enclosing position")
 	}
 
 	pos := rng.Start

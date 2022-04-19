@@ -65,7 +65,6 @@ import (
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/protocol"
-	errors "golang.org/x/xerrors"
 )
 
 var (
@@ -664,7 +663,7 @@ func SetOptions(options *Options, opts interface{}) OptionResults {
 	default:
 		results = append(results, OptionResult{
 			Value: opts,
-			Error: errors.Errorf("Invalid options type %T", opts),
+			Error: fmt.Errorf("Invalid options type %T", opts),
 		})
 	}
 	return results
@@ -1050,7 +1049,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 func (r *OptionResult) errorf(msg string, values ...interface{}) {
 	prefix := fmt.Sprintf("parsing setting %q: ", r.Name)
-	r.Error = errors.Errorf(prefix+msg, values...)
+	r.Error = fmt.Errorf(prefix+msg, values...)
 }
 
 // A SoftError is an error that does not affect the functionality of gopls.

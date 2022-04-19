@@ -7,6 +7,7 @@ package completion
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -22,7 +23,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 // packageClauseCompletions offers completions for a package declaration when
@@ -46,7 +46,7 @@ func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh 
 
 	surrounding, err := packageCompletionSurrounding(ctx, snapshot.FileSet(), pgf, rng.Start)
 	if err != nil {
-		return nil, nil, errors.Errorf("invalid position for package completion: %w", err)
+		return nil, nil, fmt.Errorf("invalid position for package completion: %w", err)
 	}
 
 	packageSuggestions, err := packageSuggestions(ctx, snapshot, fh.URI(), "")

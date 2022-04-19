@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -13,7 +14,6 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
-	errors "golang.org/x/xerrors"
 )
 
 // KnownPackages returns a list of all known packages
@@ -22,7 +22,7 @@ import (
 func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle) ([]string, error) {
 	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
-		return nil, errors.Errorf("GetParsedFile: %w", err)
+		return nil, fmt.Errorf("GetParsedFile: %w", err)
 	}
 	alreadyImported := map[string]struct{}{}
 	for _, imp := range pgf.File.Imports {

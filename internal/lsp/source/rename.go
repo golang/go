@@ -7,6 +7,8 @@ package source
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/token"
@@ -20,7 +22,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/refactor/satisfy"
-	errors "golang.org/x/xerrors"
 )
 
 type renamer struct {
@@ -105,13 +106,13 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 		return nil, err
 	}
 	if obj.Name() == newName {
-		return nil, errors.Errorf("old and new names are the same: %s", newName)
+		return nil, fmt.Errorf("old and new names are the same: %s", newName)
 	}
 	if !isValidIdentifier(newName) {
-		return nil, errors.Errorf("invalid identifier to rename: %q", newName)
+		return nil, fmt.Errorf("invalid identifier to rename: %q", newName)
 	}
 	if pkg == nil || pkg.IsIllTyped() {
-		return nil, errors.Errorf("package for %s is ill typed", f.URI())
+		return nil, fmt.Errorf("package for %s is ill typed", f.URI())
 	}
 	refs, err := references(ctx, s, qos, true, false, true)
 	if err != nil {
@@ -151,7 +152,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 		}
 	}
 	if r.hadConflicts {
-		return nil, errors.Errorf(r.errors)
+		return nil, fmt.Errorf(r.errors)
 	}
 
 	changes, err := r.update()
@@ -334,11 +335,11 @@ func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.TextEdit, error) 
 	pkg := r.packages[pkgName.Pkg()]
 	_, path, _ := pathEnclosingInterval(r.fset, pkg, pkgName.Pos(), pkgName.Pos())
 	if len(path) < 2 {
-		return nil, errors.Errorf("no path enclosing interval for %s", pkgName.Name())
+		return nil, fmt.Errorf("no path enclosing interval for %s", pkgName.Name())
 	}
 	spec, ok := path[1].(*ast.ImportSpec)
 	if !ok {
-		return nil, errors.Errorf("failed to update PkgName for %s", pkgName.Name())
+		return nil, fmt.Errorf("failed to update PkgName for %s", pkgName.Name())
 	}
 
 	var astIdent *ast.Ident // will be nil if ident is removed

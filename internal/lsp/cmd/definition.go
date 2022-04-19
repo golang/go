@@ -16,7 +16,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
-	errors "golang.org/x/xerrors"
 )
 
 // A Definition is the result of a 'definition' query.
@@ -98,29 +97,29 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	}
 	locs, err := conn.Definition(ctx, &p)
 	if err != nil {
-		return errors.Errorf("%v: %v", from, err)
+		return fmt.Errorf("%v: %v", from, err)
 	}
 
 	if len(locs) == 0 {
-		return errors.Errorf("%v: not an identifier", from)
+		return fmt.Errorf("%v: not an identifier", from)
 	}
 	q := protocol.HoverParams{
 		TextDocumentPositionParams: tdpp,
 	}
 	hover, err := conn.Hover(ctx, &q)
 	if err != nil {
-		return errors.Errorf("%v: %v", from, err)
+		return fmt.Errorf("%v: %v", from, err)
 	}
 	if hover == nil {
-		return errors.Errorf("%v: not an identifier", from)
+		return fmt.Errorf("%v: not an identifier", from)
 	}
 	file = conn.AddFile(ctx, fileURI(locs[0].URI))
 	if file.err != nil {
-		return errors.Errorf("%v: %v", from, file.err)
+		return fmt.Errorf("%v: %v", from, file.err)
 	}
 	definition, err := file.mapper.Span(locs[0])
 	if err != nil {
-		return errors.Errorf("%v: %v", from, err)
+		return fmt.Errorf("%v: %v", from, err)
 	}
 	description := strings.TrimSpace(hover.Contents.Value)
 	result := &Definition{

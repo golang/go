@@ -19,8 +19,6 @@ import (
 	"syscall"
 
 	exec "golang.org/x/sys/execabs"
-
-	"golang.org/x/xerrors"
 )
 
 func init() {
@@ -81,7 +79,7 @@ func verifyRemoteOwnershipPosix(network, address string) (bool, error) {
 		if os.IsNotExist(err) {
 			return true, nil
 		}
-		return false, xerrors.Errorf("checking socket owner: %w", err)
+		return false, fmt.Errorf("checking socket owner: %w", err)
 	}
 	stat, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
@@ -89,11 +87,11 @@ func verifyRemoteOwnershipPosix(network, address string) (bool, error) {
 	}
 	user, err := user.Current()
 	if err != nil {
-		return false, xerrors.Errorf("checking current user: %w", err)
+		return false, fmt.Errorf("checking current user: %w", err)
 	}
 	uid, err := strconv.ParseUint(user.Uid, 10, 32)
 	if err != nil {
-		return false, xerrors.Errorf("parsing current UID: %w", err)
+		return false, fmt.Errorf("parsing current UID: %w", err)
 	}
 	return stat.Uid == uint32(uid), nil
 }

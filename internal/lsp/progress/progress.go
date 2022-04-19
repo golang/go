@@ -6,6 +6,7 @@ package progress
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/xcontext"
-	errors "golang.org/x/xerrors"
 )
 
 type Tracker struct {
@@ -128,10 +128,10 @@ func (t *Tracker) Cancel(ctx context.Context, token protocol.ProgressToken) erro
 	defer t.mu.Unlock()
 	wd, ok := t.inProgress[token]
 	if !ok {
-		return errors.Errorf("token %q not found in progress", token)
+		return fmt.Errorf("token %q not found in progress", token)
 	}
 	if wd.cancel == nil {
-		return errors.Errorf("work %q is not cancellable", token)
+		return fmt.Errorf("work %q is not cancellable", token)
 	}
 	wd.doCancel()
 	return nil

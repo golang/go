@@ -14,7 +14,6 @@ import (
 
 	exec "golang.org/x/sys/execabs"
 	"golang.org/x/tools/internal/event"
-	errors "golang.org/x/xerrors"
 )
 
 // AutoNetwork is the pseudo network type used to signal that gopls should use
@@ -39,7 +38,7 @@ func NewAutoDialer(rawAddr string, argFunc func(network, addr string) []string) 
 		d.isAuto = true
 		bin, err := os.Executable()
 		if err != nil {
-			return nil, errors.Errorf("getting executable: %w", err)
+			return nil, fmt.Errorf("getting executable: %w", err)
 		}
 		d.executable = bin
 		d.network, d.addr = autoNetworkAddress(bin, d.addr)
@@ -84,7 +83,7 @@ func (d *AutoDialer) dialNet(ctx context.Context) (net.Conn, error) {
 			// instances are simultaneously starting up.
 			if _, err := os.Stat(d.addr); err == nil {
 				if err := os.Remove(d.addr); err != nil {
-					return nil, errors.Errorf("removing remote socket file: %w", err)
+					return nil, fmt.Errorf("removing remote socket file: %w", err)
 				}
 			}
 		}
@@ -111,5 +110,5 @@ func (d *AutoDialer) dialNet(ctx context.Context) (net.Conn, error) {
 			time.Sleep(dialTimeout - time.Since(startDial))
 		}
 	}
-	return nil, errors.Errorf("dialing remote: %w", err)
+	return nil, fmt.Errorf("dialing remote: %w", err)
 }

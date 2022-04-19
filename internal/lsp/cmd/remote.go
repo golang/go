@@ -7,6 +7,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -14,7 +15,6 @@ import (
 
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/lsprpc"
-	errors "golang.org/x/xerrors"
 )
 
 type remote struct {

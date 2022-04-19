@@ -7,6 +7,7 @@ package fake
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -19,7 +20,6 @@ import (
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 // Editor is a fake editor client.  It keeps track of client state and can be
@@ -172,7 +172,7 @@ func (e *Editor) Stats() CallCounts {
 func (e *Editor) Shutdown(ctx context.Context) error {
 	if e.Server != nil {
 		if err := e.Server.Shutdown(ctx); err != nil {
-			return errors.Errorf("Shutdown: %w", err)
+			return fmt.Errorf("Shutdown: %w", err)
 		}
 	}
 	return nil
@@ -184,7 +184,7 @@ func (e *Editor) Exit(ctx context.Context) error {
 		// Not all LSP clients issue the exit RPC, but we do so here to ensure that
 		// we gracefully handle it on multi-session servers.
 		if err := e.Server.Exit(ctx); err != nil {
-			return errors.Errorf("Exit: %w", err)
+			return fmt.Errorf("Exit: %w", err)
 		}
 	}
 	return nil
@@ -204,7 +204,7 @@ func (e *Editor) Close(ctx context.Context) error {
 		// connection closed itself
 		return nil
 	case <-ctx.Done():
-		return errors.Errorf("connection not closed: %w", ctx.Err())
+		return fmt.Errorf("connection not closed: %w", ctx.Err())
 	}
 }
 
@@ -319,14 +319,14 @@ func (e *Editor) initialize(ctx context.Context, workspaceFolders []string) erro
 	if e.Server != nil {
 		resp, err := e.Server.Initialize(ctx, params)
 		if err != nil {
-			return errors.Errorf("initialize: %w", err)
+			return fmt.Errorf("initialize: %w", err)
 		}
 		e.mu.Lock()
 		e.serverCapabilities = resp.Capabilities
 		e.mu.Unlock()
 
 		if err := e.Server.Initialized(ctx, &protocol.InitializedParams{}); err != nil {
-			return errors.Errorf("initialized: %w", err)
+			return fmt.Errorf("initialized: %w", err)
 		}
 	}
 	// TODO: await initial configuration here, or expect gopls to manage that?
@@ -419,7 +419,7 @@ func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, cont
 		if err := e.Server.DidOpen(ctx, &protocol.DidOpenTextDocumentParams{
 			TextDocument: item,
 		}); err != nil {
-			return errors.Errorf("DidOpen: %w", err)
+			return fmt.Errorf("DidOpen: %w", err)
 		}
 		e.callsMu.Lock()
 		e.calls.DidOpen++
@@ -476,7 +476,7 @@ func (e *Editor) CloseBuffer(ctx context.Context, path string) error {
 		if err := e.Server.DidClose(ctx, &protocol.DidCloseTextDocumentParams{
 			TextDocument: e.textDocumentIdentifier(path),
 		}); err != nil {
-			return errors.Errorf("DidClose: %w", err)
+			return fmt.Errorf("DidClose: %w", err)
 		}
 		e.callsMu.Lock()
 		e.calls.DidClose++
@@ -495,10 +495,10 @@ func (e *Editor) textDocumentIdentifier(path string) protocol.TextDocumentIdenti
 // the filesystem.
 func (e *Editor) SaveBuffer(ctx context.Context, path string) error {
 	if err := e.OrganizeImports(ctx, path); err != nil {
-		return errors.Errorf("organizing imports before save: %w", err)
+		return fmt.Errorf("organizing imports before save: %w", err)
 	}
 	if err := e.FormatBuffer(ctx, path); err != nil {
-		return errors.Errorf("formatting before save: %w", err)
+		return fmt.Errorf("formatting before save: %w", err)
 	}
 	return e.SaveBufferWithoutActions(ctx, path)
 }
@@ -523,11 +523,11 @@ func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) erro
 			TextDocument: docID,
 			Reason:       protocol.Manual,
 		}); err != nil {
-			return errors.Errorf("WillSave: %w", err)
+			return fmt.Errorf("WillSave: %w", err)
 		}
 	}
 	if err := e.sandbox.Workdir.WriteFile(ctx, path, content); err != nil {
-		return errors.Errorf("writing %q: %w", path, err)
+		return fmt.Errorf("writing %q: %w", path, err)
 	}
 
 	buf.dirty = false
@@ -541,7 +541,7 @@ func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) erro
 			params.Text = &content
 		}
 		if err := e.Server.DidSave(ctx, params); err != nil {
-			return errors.Errorf("DidSave: %w", err)
+			return fmt.Errorf("DidSave: %w", err)
 		}
 		e.callsMu.Lock()
 		e.calls.DidSave++
@@ -565,7 +565,7 @@ func contentPosition(content string, offset int) (Pos, error) {
 		line++
 	}
 	if err := scanner.Err(); err != nil {
-		return Pos{}, errors.Errorf("scanning content: %w", err)
+		return Pos{}, fmt.Errorf("scanning content: %w", err)
 	}
 	// Scan() will drop the last line if it is empty. Correct for this.
 	if (strings.HasSuffix(content, "\n") || content == "") && offset == start {
@@ -745,7 +745,7 @@ func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty 
 	}
 	if e.Server != nil {
 		if err := e.Server.DidChange(ctx, params); err != nil {
-			return errors.Errorf("DidChange: %w", err)
+			return fmt.Errorf("DidChange: %w", err)
 		}
 		e.callsMu.Lock()
 		e.calls.DidChange++
@@ -766,7 +766,7 @@ func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (stri
 
 	resp, err := e.Server.Definition(ctx, params)
 	if err != nil {
-		return "", Pos{}, errors.Errorf("definition: %w", err)
+		return "", Pos{}, fmt.Errorf("definition: %w", err)
 	}
 	return e.extractFirstPathAndPos(ctx, resp)
 }
@@ -783,7 +783,7 @@ func (e *Editor) GoToTypeDefinition(ctx context.Context, path string, pos Pos) (
 
 	resp, err := e.Server.TypeDefinition(ctx, params)
 	if err != nil {
-		return "", Pos{}, errors.Errorf("type definition: %w", err)
+		return "", Pos{}, fmt.Errorf("type definition: %w", err)
 	}
 	return e.extractFirstPathAndPos(ctx, resp)
 }
@@ -799,7 +799,7 @@ func (e *Editor) extractFirstPathAndPos(ctx context.Context, locs []protocol.Loc
 	newPos := fromProtocolPosition(locs[0].Range.Start)
 	if !e.HasBuffer(newPath) {
 		if err := e.OpenFile(ctx, newPath); err != nil {
-			return "", Pos{}, errors.Errorf("OpenFile: %w", err)
+			return "", Pos{}, fmt.Errorf("OpenFile: %w", err)
 		}
 	}
 	return newPath, newPos, nil
@@ -812,7 +812,7 @@ func (e *Editor) Symbol(ctx context.Context, query string) ([]SymbolInformation,
 
 	resp, err := e.Server.Symbol(ctx, params)
 	if err != nil {
-		return nil, errors.Errorf("symbol: %w", err)
+		return nil, fmt.Errorf("symbol: %w", err)
 	}
 	var res []SymbolInformation
 	for _, si := range resp {
@@ -847,7 +847,7 @@ func (e *Editor) OrganizeImports(ctx context.Context, path string) error {
 func (e *Editor) RefactorRewrite(ctx context.Context, path string, rng *protocol.Range) error {
 	applied, err := e.applyCodeActions(ctx, path, rng, nil, protocol.RefactorRewrite)
 	if applied == 0 {
-		return errors.Errorf("no refactorings were applied")
+		return fmt.Errorf("no refactorings were applied")
 	}
 	return err
 }
@@ -856,7 +856,7 @@ func (e *Editor) RefactorRewrite(ctx context.Context, path string, rng *protocol
 func (e *Editor) ApplyQuickFixes(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic) error {
 	applied, err := e.applyCodeActions(ctx, path, rng, diagnostics, protocol.SourceFixAll, protocol.QuickFix)
 	if applied == 0 {
-		return errors.Errorf("no quick fixes were applied")
+		return fmt.Errorf("no quick fixes were applied")
 	}
 	return err
 }
@@ -871,7 +871,7 @@ func (e *Editor) ApplyCodeAction(ctx context.Context, action protocol.CodeAction
 		}
 		edits := convertEdits(change.Edits)
 		if err := e.EditBuffer(ctx, path, edits); err != nil {
-			return errors.Errorf("editing buffer %q: %w", path, err)
+			return fmt.Errorf("editing buffer %q: %w", path, err)
 		}
 	}
 	// Execute any commands. The specification says that commands are
@@ -901,7 +901,7 @@ func (e *Editor) applyCodeActions(ctx context.Context, path string, rng *protoco
 	applied := 0
 	for _, action := range actions {
 		if action.Title == "" {
-			return 0, errors.Errorf("empty title for code action")
+			return 0, fmt.Errorf("empty title for code action")
 		}
 		var match bool
 		for _, o := range only {
@@ -984,7 +984,7 @@ func (e *Editor) FormatBuffer(ctx context.Context, path string) error {
 	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
 	resp, err := e.Server.Formatting(ctx, params)
 	if err != nil {
-		return errors.Errorf("textDocument/formatting: %w", err)
+		return fmt.Errorf("textDocument/formatting: %w", err)
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -1222,7 +1222,7 @@ func (e *Editor) Hover(ctx context.Context, path string, pos Pos) (*protocol.Mar
 
 	resp, err := e.Server.Hover(ctx, params)
 	if err != nil {
-		return nil, Pos{}, errors.Errorf("hover: %w", err)
+		return nil, Pos{}, fmt.Errorf("hover: %w", err)
 	}
 	if resp == nil {
 		return nil, Pos{}, nil

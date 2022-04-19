@@ -21,7 +21,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
-	errors "golang.org/x/xerrors"
 )
 
 func goPackagesErrorDiagnostics(snapshot *snapshot, pkg *pkg, e packages.Error) ([]*source.Diagnostic, error) {
@@ -75,7 +74,7 @@ func goPackagesErrorDiagnostics(snapshot *snapshot, pkg *pkg, e packages.Error) 
 func parseErrorDiagnostics(snapshot *snapshot, pkg *pkg, errList scanner.ErrorList) ([]*source.Diagnostic, error) {
 	// The first parser error is likely the root cause of the problem.
 	if errList.Len() <= 0 {
-		return nil, errors.Errorf("no errors in %v", errList)
+		return nil, fmt.Errorf("no errors in %v", errList)
 	}
 	e := errList[0]
 	pgf, err := pkg.File(span.URIFromPath(e.Pos.Filename))

@@ -7,6 +7,7 @@ package source
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -23,7 +24,6 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/typeparams"
-	errors "golang.org/x/xerrors"
 )
 
 // HoverContext contains context extracted from the syntax and type information
@@ -648,7 +648,7 @@ func isFunctionParam(obj types.Object, node *ast.FuncDecl) bool {
 // given nodes; fullPos is the position of obj in node's AST.
 func hoverGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj types.Object) (*HoverContext, error) {
 	if spec == nil {
-		return nil, errors.Errorf("no spec for node %v at position %v", node, fullPos)
+		return nil, fmt.Errorf("no spec for node %v at position %v", node, fullPos)
 	}
 
 	// If we have a field or method.
@@ -665,7 +665,7 @@ func hoverGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj types
 	case *ast.ImportSpec:
 		return &HoverContext{signatureSource: spec, Comment: spec.Doc}, nil
 	}
-	return nil, errors.Errorf("unable to format spec %v (%T)", spec, spec)
+	return nil, fmt.Errorf("unable to format spec %v (%T)", spec, spec)
 }
 
 // TODO(rfindley): rename this function.

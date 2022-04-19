@@ -27,7 +27,6 @@ import (
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
-	errors "golang.org/x/xerrors"
 )
 
 // Unique identifiers for client/server.
@@ -140,7 +139,7 @@ func QueryServerState(ctx context.Context, addr string) (*ServerState, error) {
 	}
 	var state ServerState
 	if err := protocol.Call(ctx, serverConn, sessionsMethod, nil, &state); err != nil {
-		return nil, errors.Errorf("querying server state: %w", err)
+		return nil, fmt.Errorf("querying server state: %w", err)
 	}
 	return &state, nil
 }
@@ -153,13 +152,13 @@ func dialRemote(ctx context.Context, addr string) (jsonrpc2.Conn, error) {
 	if network == AutoNetwork {
 		gp, err := os.Executable()
 		if err != nil {
-			return nil, errors.Errorf("getting gopls path: %w", err)
+			return nil, fmt.Errorf("getting gopls path: %w", err)
 		}
 		network, address = autoNetworkAddress(gp, address)
 	}
 	netConn, err := net.DialTimeout(network, address, 5*time.Second)
 	if err != nil {
-		return nil, errors.Errorf("dialing remote: %w", err)
+		return nil, fmt.Errorf("dialing remote: %w", err)
 	}
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn))
 	serverConn.Go(ctx, jsonrpc2.MethodNotFound)
@@ -189,7 +188,7 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 
 	netConn, err := f.dialer.dialNet(ctx)
 	if err != nil {
-		return errors.Errorf("forwarder: connecting to remote: %w", err)
+		return fmt.Errorf("forwarder: connecting to remote: %w", err)
 	}
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn))
 	server := protocol.ServerDispatcher(serverConn)
@@ -225,9 +224,9 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 
 	err = nil
 	if serverConn.Err() != nil {
-		err = errors.Errorf("remote disconnected: %v", serverConn.Err())
+		err = fmt.Errorf("remote disconnected: %v", serverConn.Err())
 	} else if clientConn.Err() != nil {
-		err = errors.Errorf("client disconnected: %v", clientConn.Err())
+		err = fmt.Errorf("client disconnected: %v", clientConn.Err())
 	}
 	event.Log(ctx, fmt.Sprintf("forwarder: exited with error: %v", err))
 	return err
@@ -514,7 +513,7 @@ func handshaker(session *cache.Session, goplsPath string, logHandshakes bool, ha
 }
 
 func sendError(ctx context.Context, reply jsonrpc2.Replier, err error) {
-	err = errors.Errorf("%v: %w", err, jsonrpc2.ErrParse)
+	err = fmt.Errorf("%v: %w", err, jsonrpc2.ErrParse)
 	if err := reply(ctx, nil, err); err != nil {
 		event.Error(ctx, "", err)
 	}

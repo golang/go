@@ -16,7 +16,6 @@ import (
 	"golang.org/x/tools/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 type (
@@ -130,7 +129,7 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, span.Range, []byte, *ast.File, *types.Package, *types.Info, error) {
 	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
-		return nil, span.Range{}, nil, nil, nil, nil, errors.Errorf("getting file for Identifier: %w", err)
+		return nil, span.Range{}, nil, nil, nil, nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
 	rng, err := pgf.Mapper.RangeToSpanRange(pRng)
 	if err != nil {

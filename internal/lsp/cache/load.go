@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 // load calls packages.Load for the given scopes, updating package metadata,
@@ -135,7 +135,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		if err == nil {
 			err = fmt.Errorf("no packages returned")
 		}
-		return errors.Errorf("%v: %w", err, source.PackagesLoadError)
+		return fmt.Errorf("%v: %w", err, source.PackagesLoadError)
 	}
 	for _, pkg := range pkgs {
 		if !containsDir || s.view.Options().VerboseOutput {
@@ -152,7 +152,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		// Special case for the builtin package, as it has no dependencies.
 		if pkg.PkgPath == "builtin" {
 			if len(pkg.GoFiles) != 1 {
-				return errors.Errorf("only expected 1 file for builtin, got %v", len(pkg.GoFiles))
+				return fmt.Errorf("only expected 1 file for builtin, got %v", len(pkg.GoFiles))
 			}
 			s.setBuiltin(pkg.GoFiles[0])
 			continue
@@ -213,7 +213,7 @@ You can work with multiple modules by opening each one as a workspace folder.
 Improvements to this workflow will be coming soon, and you can learn more here:
 https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 		return &source.CriticalError{
-			MainError: errors.Errorf(msg),
+			MainError: fmt.Errorf(msg),
 			DiagList:  s.applyCriticalErrorToFiles(ctx, msg, openFiles),
 		}
 	}
@@ -249,7 +249,7 @@ You can learn more here: https://github.com/golang/tools/blob/master/gopls/doc/w
 		}
 		if len(srcDiags) != 0 {
 			return &source.CriticalError{
-				MainError: errors.Errorf(`You are working in a nested module.
+				MainError: fmt.Errorf(`You are working in a nested module.
 Please open it as a separate workspace folder. Learn more:
 https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`),
 				DiagList: srcDiags,
@@ -374,7 +374,7 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, p
 		pkgPath = PackagePath(string(pkgPath) + suffix)
 	}
 	if _, ok := seen[id]; ok {
-		return nil, errors.Errorf("import cycle detected: %q", id)
+		return nil, fmt.Errorf("import cycle detected: %q", id)
 	}
 	// Recreate the metadata rather than reusing it to avoid locking.
 	m := &Metadata{

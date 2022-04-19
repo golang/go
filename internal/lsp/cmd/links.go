@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
-	errors "golang.org/x/xerrors"
 )
 
 // links implements the links verb for gopls.
@@ -64,7 +63,7 @@ func (l *links) Run(ctx context.Context, args ...string) error {
 		},
 	})
 	if err != nil {
-		return errors.Errorf("%v: %v", from, err)
+		return fmt.Errorf("%v: %v", from, err)
 	}
 	if l.JSON {
 		enc := json.NewEncoder(os.Stdout)

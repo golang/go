@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
-	errors "golang.org/x/xerrors"
 )
 
 type Session struct {
@@ -404,7 +403,7 @@ func (s *Session) dropView(ctx context.Context, v *View) (int, error) {
 			return i, nil
 		}
 	}
-	return -1, errors.Errorf("view %s for %v not found", v.Name(), v.Folder())
+	return -1, fmt.Errorf("view %s for %v not found", v.Name(), v.Folder())
 }
 
 func (s *Session) ModifyFiles(ctx context.Context, changes []source.FileModification) error {
@@ -614,7 +613,7 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 			kind = source.FileKindForLang(c.LanguageID)
 		default:
 			if !ok {
-				return nil, errors.Errorf("updateOverlays: modifying unopened overlay %v", c.URI)
+				return nil, fmt.Errorf("updateOverlays: modifying unopened overlay %v", c.URI)
 			}
 			kind = o.kind
 		}
@@ -648,10 +647,10 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 		case source.Save:
 			// Make sure the version and content (if present) is the same.
 			if false && o.version != version { // Client no longer sends the version
-				return nil, errors.Errorf("updateOverlays: saving %s at version %v, currently at %v", c.URI, c.Version, o.version)
+				return nil, fmt.Errorf("updateOverlays: saving %s at version %v, currently at %v", c.URI, c.Version, o.version)
 			}
 			if c.Text != nil && o.hash != hash {
-				return nil, errors.Errorf("updateOverlays: overlay %s changed on save", c.URI)
+				return nil, fmt.Errorf("updateOverlays: overlay %s changed on save", c.URI)
 			}
 			sameContentOnDisk = true
 		default:
@@ -676,10 +675,10 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 		if c.Action == source.Open {
 			view, err := s.ViewOf(o.uri)
 			if err != nil {
-				return nil, errors.Errorf("updateOverlays: finding view for %s: %v", o.uri, err)
+				return nil, fmt.Errorf("updateOverlays: finding view for %s: %v", o.uri, err)
 			}
 			if kind := view.FileKind(o); kind == source.UnknownKind {
-				return nil, errors.Errorf("updateOverlays: unknown file kind for %s", o.uri)
+				return nil, fmt.Errorf("updateOverlays: unknown file kind for %s", o.uri)
 			}
 		}
 

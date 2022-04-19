@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
-	errors "golang.org/x/xerrors"
 )
 
 func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]protocol.Range, error) {
@@ -27,11 +26,11 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protoc
 	// the file belongs to a workspace package.
 	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), TypecheckFull, WidestPackage)
 	if err != nil {
-		return nil, errors.Errorf("getting package for Highlight: %w", err)
+		return nil, fmt.Errorf("getting package for Highlight: %w", err)
 	}
 	pgf, err := pkg.File(fh.URI())
 	if err != nil {
-		return nil, errors.Errorf("getting file for Highlight: %w", err)
+		return nil, fmt.Errorf("getting file for Highlight: %w", err)
 	}
 
 	spn, err := pgf.Mapper.PointSpan(pos)
@@ -443,7 +442,7 @@ func labelDecl(n *ast.Ident) *ast.Ident {
 func highlightImportUses(pkg Package, path []ast.Node, result map[posRange]struct{}) error {
 	basicLit, ok := path[0].(*ast.BasicLit)
 	if !ok {
-		return errors.Errorf("highlightImportUses called with an ast.Node of type %T", basicLit)
+		return fmt.Errorf("highlightImportUses called with an ast.Node of type %T", basicLit)
 	}
 	ast.Inspect(path[len(path)-1], func(node ast.Node) bool {
 		if imp, ok := node.(*ast.ImportSpec); ok && imp.Path == basicLit {
@@ -470,7 +469,7 @@ func highlightImportUses(pkg Package, path []ast.Node, result map[posRange]struc
 func highlightIdentifiers(pkg Package, path []ast.Node, result map[posRange]struct{}) error {
 	id, ok := path[0].(*ast.Ident)
 	if !ok {
-		return errors.Errorf("highlightIdentifiers called with an ast.Node of type %T", id)
+		return fmt.Errorf("highlightIdentifiers called with an ast.Node of type %T", id)
 	}
 	// Check if ident is inside return or func decl.
 	highlightFuncControlFlow(path, result)

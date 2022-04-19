@@ -6,6 +6,7 @@ package fake
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
-	errors "golang.org/x/xerrors"
 )
 
 // Sandbox holds a collection of temporary resources to use for working with Go
@@ -147,7 +147,7 @@ func Tempdir(files map[string][]byte) (string, error) {
 	}
 	for name, data := range files {
 		if err := WriteFileData(name, data, RelativeTo(dir)); err != nil {
-			return "", errors.Errorf("writing to tempdir: %w", err)
+			return "", fmt.Errorf("writing to tempdir: %w", err)
 		}
 	}
 	return dir, nil
@@ -245,7 +245,7 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []st
 	gocmdRunner := &gocommand.Runner{}
 	stdout, stderr, _, err := gocmdRunner.RunRaw(ctx, inv)
 	if err != nil {
-		return errors.Errorf("go command failed (stdout: %s) (stderr: %s): %v", stdout.String(), stderr.String(), err)
+		return fmt.Errorf("go command failed (stdout: %s) (stderr: %s): %v", stdout.String(), stderr.String(), err)
 	}
 	// Since running a go command may result in changes to workspace files,
 	// check if we need to send any any "watched" file events.
@@ -254,7 +254,7 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []st
 	//                 for benchmarks. Consider refactoring.
 	if sb.Workdir != nil && checkForFileChanges {
 		if err := sb.Workdir.CheckForFileChanges(ctx); err != nil {
-			return errors.Errorf("checking for file changes: %w", err)
+			return fmt.Errorf("checking for file changes: %w", err)
 		}
 	}
 	return nil

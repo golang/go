@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 // format implements the format verb for gopls.
@@ -68,18 +67,18 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 			return err
 		}
 		if loc.Range.Start != loc.Range.End {
-			return errors.Errorf("only full file formatting supported")
+			return fmt.Errorf("only full file formatting supported")
 		}
 		p := protocol.DocumentFormattingParams{
 			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
 		}
 		edits, err := conn.Formatting(ctx, &p)
 		if err != nil {
-			return errors.Errorf("%v: %v", spn, err)
+			return fmt.Errorf("%v: %v", spn, err)
 		}
 		sedits, err := source.FromProtocolEdits(file.mapper, edits)
 		if err != nil {
-			return errors.Errorf("%v: %v", spn, err)
+			return fmt.Errorf("%v: %v", spn, err)
 		}
 		formatted := diff.ApplyEdits(string(file.mapper.Content), sedits)
 		printIt := true
