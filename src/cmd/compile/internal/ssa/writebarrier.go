@@ -652,7 +652,8 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		// read-only once initialized.
 		return true
 	case OpAddr:
-		return v.Aux.(*obj.LSym).Type == objabi.SRODATA || v.Aux.(*obj.LSym).Type == objabi.SLIBFUZZER_8BIT_COUNTER
+		vt := v.Aux.(*obj.LSym).Type
+		return vt == objabi.SRODATA || vt == objabi.SLIBFUZZER_8BIT_COUNTER || vt == objabi.SCOVERAGE_COUNTER || vt == objabi.SCOVERAGE_AUXVAR
 	}
 	return false
 }

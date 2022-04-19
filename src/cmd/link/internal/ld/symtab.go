@@ -453,6 +453,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ctxt.xdefine("runtime.ebss", sym.SBSS, 0)
 	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, 0)
 	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, 0)
+	ctxt.xdefine("runtime.covctrs", sym.SNOPTRBSS, 0)
+	ctxt.xdefine("runtime.ecovctrs", sym.SNOPTRBSS, 0)
 	ctxt.xdefine("runtime.end", sym.SBSS, 0)
 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.esymtab", sym.SRODATA, 0)
@@ -529,7 +531,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	nsym := loader.Sym(ldr.NSym())
 	symGroupType := make([]sym.SymKind, nsym)
 	for s := loader.Sym(1); s < nsym; s++ {
-		if !ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) && ldr.SymPkg(s) != "" {
+		if (!ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) && ldr.SymPkg(s) != "") || (ctxt.LinkMode == LinkInternal && ldr.SymType(s) == sym.SCOVERAGE_COUNTER) {
 			ldr.SetAttrNotInSymbolTable(s, true)
 		}
 		if !ldr.AttrReachable(s) || ldr.AttrSpecial(s) || (ldr.SymType(s) != sym.SRODATA && ldr.SymType(s) != sym.SGOFUNC) {
@@ -672,6 +674,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.ebss", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.noptrbss", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.enoptrbss", 0))
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.covctrs", 0))
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.ecovctrs", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.end", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.gcdata", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.gcbss", 0))

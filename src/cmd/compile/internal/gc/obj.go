@@ -195,6 +195,9 @@ func dumpGlobal(n *ir.Name) {
 	}
 	types.CalcSize(n.Type())
 	ggloblnod(n)
+	if n.CoverageCounter() || n.CoverageAuxVar() {
+		return
+	}
 	base.Ctxt.DwarfGlobal(base.Ctxt.Pkgpath, types.TypeSymName(n.Type()), n.Linksym())
 }
 
@@ -315,6 +318,9 @@ func ggloblnod(nam *ir.Name) {
 	}
 	if nam.Libfuzzer8BitCounter() {
 		s.Type = objabi.SLIBFUZZER_8BIT_COUNTER
+	}
+	if nam.CoverageCounter() {
+		s.Type = objabi.SCOVERAGE_COUNTER
 	}
 	if nam.Sym().Linkname != "" {
 		// Make sure linkname'd symbol is non-package. When a symbol is

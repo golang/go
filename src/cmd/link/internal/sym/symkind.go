@@ -98,6 +98,8 @@ const (
 	SBSS
 	SNOPTRBSS
 	SLIBFUZZER_8BIT_COUNTER
+	SCOVERAGE_COUNTER
+	SCOVERAGE_AUXVAR
 	STLSBSS
 	SXREF
 	SMACHOSYMSTR
@@ -144,6 +146,8 @@ var AbiSymKindToSymKind = [...]SymKind{
 	objabi.SDWARFLOC:               SDWARFLOC,
 	objabi.SDWARFLINES:             SDWARFLINES,
 	objabi.SLIBFUZZER_8BIT_COUNTER: SLIBFUZZER_8BIT_COUNTER,
+	objabi.SCOVERAGE_COUNTER:       SCOVERAGE_COUNTER,
+	objabi.SCOVERAGE_AUXVAR:        SCOVERAGE_AUXVAR,
 }
 
 // ReadOnly are the symbol kinds that form read-only sections. In some

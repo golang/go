@@ -427,6 +427,7 @@ type moduledata struct {
 	data, edata           uintptr
 	bss, ebss             uintptr
 	noptrbss, enoptrbss   uintptr
+	covctrs, ecovctrs     uintptr
 	end, gcdata, gcbss    uintptr
 	types, etypes         uintptr
 	rodata                uintptr
