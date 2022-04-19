@@ -41,7 +41,7 @@ var depsRules = `
 	NONE
 	< constraints, container/list, container/ring,
 	  internal/cfg, internal/cpu, internal/coverage,
-	  internal/coverage/uleb128, internal/goarch,
+	  internal/coverage/uleb128, internal/coverage/rtcov, internal/goarch,
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace,
 	  unicode/utf8, unicode/utf16, unicode,
@@ -53,7 +53,7 @@ var depsRules = `
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi, internal/cpu, internal/goarch,
-	internal/goexperiment, internal/goos, unsafe
+    internal/coverage/rtcov, internal/goexperiment, internal/goos, unsafe
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader

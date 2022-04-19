@@ -886,6 +886,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		"src/internal/goarch",
 		"src/internal/goexperiment",
 		"src/internal/goos",
+		"src/internal/coverage/rtcov",
 		"src/math/bits",
 		"src/unsafe",
 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
