@@ -1325,8 +1325,8 @@ func (g *genInst) dictPass(info *instInfo) {
 			mce := m.(*ir.ConvExpr)
 			// Note: x's argument is still typed as a type parameter.
 			// m's argument now has an instantiated type.
-			if mce.X.Type().HasShape() || (mce.X.Type().IsInterface() && m.Type().HasShape()) {
-				m = convertUsingDictionary(info, info.dictParam, m.Pos(), m.(*ir.ConvExpr).X, m, m.Type())
+			if mce.X.Type().HasShape() || m.Type().HasShape() {
+				m = convertUsingDictionary(info, info.dictParam, m.Pos(), mce.X, m, m.Type())
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
 			if !m.Type().HasShape() {
@@ -1420,7 +1420,7 @@ func findDictType(info *instInfo, t *types.Type) int {
 // instantiated node of the CONVIFACE node or XDOT node (for a bound method call) that is causing the
 // conversion.
 func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v ir.Node, in ir.Node, dst *types.Type) ir.Node {
-	assert(v.Type().HasShape() || v.Type().IsInterface() && in.Type().HasShape())
+	assert(v.Type().HasShape() || in.Type().HasShape())
 	assert(dst.IsInterface())
 
 	if v.Type().IsInterface() {
@@ -1799,6 +1799,7 @@ func (g *genInst) finalizeSyms() {
 				g.instantiateMethods()
 				itabLsym := reflectdata.ITabLsym(srctype, dsttype)
 				d.off = objw.SymPtr(lsym, d.off, itabLsym, 0)
+				markTypeUsed(srctype, lsym)
 				infoPrint(" + Itab for (%v,%v)\n", srctype, dsttype)
 			}
 		}
@@ -1974,7 +1975,7 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 			}
 		case ir.OCONVIFACE:
 			if n.Type().IsInterface() && !n.Type().IsEmptyInterface() &&
-				n.(*ir.ConvExpr).X.Type().HasShape() {
+				(n.Type().HasShape() || n.(*ir.ConvExpr).X.Type().HasShape()) {
 				infoPrint("  Itab for interface conv: %v\n", n)
 				info.itabConvs = append(info.itabConvs, n)
 			}
