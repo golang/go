@@ -43,7 +43,7 @@ const (
 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
 	ErrUnexpectedParen       ErrorCode = "unexpected )"
-	ErrInvalidDepth          ErrorCode = "invalid nesting depth"
+	ErrInvalidDepth          ErrorCode = "expression nests too deeply"
 )
 
 func (e ErrorCode) String() string {
