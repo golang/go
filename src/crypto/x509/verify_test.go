@@ -2340,6 +2340,29 @@ func TestPathBuilding(t *testing.T) {
 				"CN=leaf -> CN=inter b -> CN=inter c -> CN=root",
 			},
 		},
+		{
+			// Build a simple two node graph, where the leaf is directly issued from
+			// the root and both certificates have matching subject and public key, but
+			// the leaf has SANs.
+			name: "leaf with same subject, key, as parent but with SAN",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "root",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "root",
+						Type:    leafCertificate,
+						MutateTemplate: func(c *Certificate) {
+							c.DNSNames = []string{"localhost"}
+						},
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=root -> CN=root",
+			},
+		},
 	}
 
 	for _, tc := range tests {
