@@ -12,8 +12,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-
-	errors "golang.org/x/xerrors"
 )
 
 // Reader abstracts the transport mechanics from the JSON RPC protocol.
@@ -87,7 +85,7 @@ func (w *rawWriter) Write(ctx context.Context, msg Message) (int64, error) {
 	}
 	data, err := EncodeMessage(msg)
 	if err != nil {
-		return 0, errors.Errorf("marshaling message: %v", err)
+		return 0, fmt.Errorf("marshaling message: %v", err)
 	}
 	n, err := w.out.Write(data)
 	return int64(n), err
@@ -122,7 +120,7 @@ func (r *headerReader) Read(ctx context.Context) (Message, int64, error) {
 		line, err := r.in.ReadString('\n')
 		total += int64(len(line))
 		if err != nil {
-			return nil, total, errors.Errorf("failed reading header line: %w", err)
+			return nil, total, fmt.Errorf("failed reading header line: %w", err)
 		}
 		line = strings.TrimSpace(line)
 		// check we have a header line
@@ -131,23 +129,23 @@ func (r *headerReader) Read(ctx context.Context) (Message, int64, error) {
 		}
 		colon := strings.IndexRune(line, ':')
 		if colon < 0 {
-			return nil, total, errors.Errorf("invalid header line %q", line)
+			return nil, total, fmt.Errorf("invalid header line %q", line)
 		}
 		name, value := line[:colon], strings.TrimSpace(line[colon+1:])
 		switch name {
 		case "Content-Length":
 			if length, err = strconv.ParseInt(value, 10, 32); err != nil {
-				return nil, total, errors.Errorf("failed parsing Content-Length: %v", value)
+				return nil, total, fmt.Errorf("failed parsing Content-Length: %v", value)
 			}
 			if length <= 0 {
-				return nil, total, errors.Errorf("invalid Content-Length: %v", length)
+				return nil, total, fmt.Errorf("invalid Content-Length: %v", length)
 			}
 		default:
 			// ignoring unknown headers
 		}
 	}
 	if length == 0 {
-		return nil, total, errors.Errorf("missing Content-Length header")
+		return nil, total, fmt.Errorf("missing Content-Length header")
 	}
 	data := make([]byte, length)
 	n, err := io.ReadFull(r.in, data)
@@ -167,7 +165,7 @@ func (w *headerWriter) Write(ctx context.Context, msg Message) (int64, error) {
 	}
 	data, err := EncodeMessage(msg)
 	if err != nil {
-		return 0, errors.Errorf("marshaling message: %v", err)
+		return 0, fmt.Errorf("marshaling message: %v", err)
 	}
 	n, err := fmt.Fprintf(w.out, "Content-Length: %v\r\n\r\n", len(data))
 	total := int64(n)

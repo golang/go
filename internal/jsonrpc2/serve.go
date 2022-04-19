@@ -6,13 +6,13 @@ package jsonrpc2
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"os"
 	"time"
 
 	"golang.org/x/tools/internal/event"
-	errors "golang.org/x/xerrors"
 )
 
 // NOTE: This file provides an experimental API for serving multiple remote

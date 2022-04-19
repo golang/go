@@ -16,7 +16,6 @@ import (
 	"golang.org/x/tools/internal/event/export/eventtest"
 	jsonrpc2 "golang.org/x/tools/internal/jsonrpc2_v2"
 	"golang.org/x/tools/internal/stack/stacktest"
-	errors "golang.org/x/xerrors"
 )
 
 var callTests = []invoker{
@@ -288,19 +287,19 @@ func (h *handler) Preempt(ctx context.Context, req *jsonrpc2.Request) (interface
 	case "unblock":
 		var name string
 		if err := json.Unmarshal(req.Params, &name); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		close(h.waiter(name))
 		return nil, nil
 	case "peek":
 		if len(req.Params) > 0 {
-			return nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams)
+			return nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams)
 		}
 		return h.accumulator, nil
 	case "cancel":
 		var params cancelParams
 		if err := json.Unmarshal(req.Params, &params); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		h.conn.Cancel(jsonrpc2.Int64ID(params.ID))
 		return nil, nil
@@ -313,50 +312,50 @@ func (h *handler) Handle(ctx context.Context, req *jsonrpc2.Request) (interface{
 	switch req.Method {
 	case "no_args":
 		if len(req.Params) > 0 {
-			return nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams)
+			return nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams)
 		}
 		return true, nil
 	case "one_string":
 		var v string
 		if err := json.Unmarshal(req.Params, &v); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		return "got:" + v, nil
 	case "one_number":
 		var v int
 		if err := json.Unmarshal(req.Params, &v); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		return fmt.Sprintf("got:%d", v), nil
 	case "set":
 		var v int
 		if err := json.Unmarshal(req.Params, &v); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		h.accumulator = v
 		return nil, nil
 	case "add":
 		var v int
 		if err := json.Unmarshal(req.Params, &v); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		h.accumulator += v
 		return nil, nil
 	case "get":
 		if len(req.Params) > 0 {
-			return nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams)
+			return nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams)
 		}
 		return h.accumulator, nil
 	case "join":
 		var v []string
 		if err := json.Unmarshal(req.Params, &v); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		return path.Join(v...), nil
 	case "echo":
 		var v []interface{}
 		if err := json.Unmarshal(req.Params, &v); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		var result interface{}
 		err := h.conn.Call(ctx, v[0].(string), v[1]).Await(ctx, &result)
@@ -364,7 +363,7 @@ func (h *handler) Handle(ctx context.Context, req *jsonrpc2.Request) (interface{
 	case "wait":
 		var name string
 		if err := json.Unmarshal(req.Params, &name); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		select {
 		case <-h.waiter(name):
@@ -372,12 +371,12 @@ func (h *handler) Handle(ctx context.Context, req *jsonrpc2.Request) (interface{
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-time.After(time.Second):
-			return nil, errors.Errorf("wait for %q timed out", name)
+			return nil, fmt.Errorf("wait for %q timed out", name)
 		}
 	case "fork":
 		var name string
 		if err := json.Unmarshal(req.Params, &name); err != nil {
-			return nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err)
+			return nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 		}
 		waitFor := h.waiter(name)
 		go func() {
@@ -387,7 +386,7 @@ func (h *handler) Handle(ctx context.Context, req *jsonrpc2.Request) (interface{
 			case <-ctx.Done():
 				h.conn.Respond(req.ID, nil, ctx.Err())
 			case <-time.After(time.Second):
-				h.conn.Respond(req.ID, nil, errors.Errorf("wait for %q timed out", name))
+				h.conn.Respond(req.ID, nil, fmt.Errorf("wait for %q timed out", name))
 			}
 		}()
 		return nil, jsonrpc2.ErrAsyncResponse

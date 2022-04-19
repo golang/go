@@ -6,14 +6,13 @@ package jsonrpc2
 
 import (
 	"context"
+	"errors"
 	"io"
 	"runtime"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
-
-	errors "golang.org/x/xerrors"
 )
 
 // Listener is implemented by protocols to accept new inbound connections.

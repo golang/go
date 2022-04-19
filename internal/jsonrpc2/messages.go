@@ -6,9 +6,8 @@ package jsonrpc2
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-
-	errors "golang.org/x/xerrors"
 )
 
 // Message is the interface to all jsonrpc2 message types.
