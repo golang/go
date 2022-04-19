@@ -870,6 +870,12 @@ func jsonFlag(cfg *Config, goVersion int) string {
 	if cfg.Mode&NeedModule != 0 {
 		addFields("Module")
 	}
+	if cfg.Mode&NeedEmbedFiles != 0 {
+		addFields("EmbedFiles")
+	}
+	if cfg.Mode&NeedEmbedPatterns != 0 {
+		addFields("EmbedPatterns")
+	}
 	return "-json=" + strings.Join(fields, ",")
 }
 
