@@ -81,7 +81,6 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
-	"golang.org/x/xerrors"
 )
 
 var (
@@ -247,7 +246,7 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 			switch value := value.(type) {
 			case Writer:
 				if err := value(fullpath); err != nil {
-					if xerrors.Is(err, ErrUnsupported) {
+					if errors.Is(err, ErrUnsupported) {
 						t.Skip(err)
 					}
 					t.Fatal(err)
@@ -339,7 +338,7 @@ func Symlink(source string) Writer {
 			mode := os.ModePerm
 			if err == nil {
 				mode = stat.Mode()
-			} else if !xerrors.Is(err, os.ErrNotExist) {
+			} else if !errors.Is(err, os.ErrNotExist) {
 				// We couldn't open the source, but it might exist. We don't expect to be
 				// able to portably create a symlink to a file we can't see.
 				return symlinkErr
