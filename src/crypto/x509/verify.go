@@ -7,6 +7,7 @@ package x509
 import (
 	"bytes"
 	"crypto"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
 	"net"
@@ -825,6 +826,50 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 	return n
 }
 
+// alreadyInChain checks whether a candidate certificate is present in a chain.
+// Rather than doing a direct byte for byte equivalency check, we check if the
+// subject, public key, and SAN, if present, are equal. This prevents loops that
+// are created by mutual cross-signatures, or other cross-signature bridge
+// oddities.
+func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
+	type pubKeyEqual interface {
+		Equal(crypto.PublicKey) bool
+	}
+
+	var candidateSAN *pkix.Extension
+	for _, ext := range candidate.Extensions {
+		if ext.Id.Equal(oidExtensionSubjectAltName) {
+			candidateSAN = &ext
+			break
+		}
+	}
+
+	for _, cert := range chain {
+		if !bytes.Equal(candidate.RawSubject, cert.RawSubject) {
+			continue
+		}
+		if !candidate.PublicKey.(pubKeyEqual).Equal(cert.PublicKey) {
+			continue
+		}
+		var certSAN *pkix.Extension
+		for _, ext := range cert.Extensions {
+			if ext.Id.Equal(oidExtensionSubjectAltName) {
+				certSAN = &ext
+				break
+			}
+		}
+		if candidateSAN == nil && certSAN == nil {
+			return true
+		} else if candidateSAN == nil || certSAN == nil {
+			return false
+		}
+		if bytes.Equal(candidateSAN.Value, certSAN.Value) {
+			return true
+		}
+	}
+	return false
+}
+
 // maxChainSignatureChecks is the maximum number of CheckSignatureFrom calls
 // that an invocation of buildChains will (transitively) make. Most chains are
 // less than 15 certificates long, so this leaves space for multiple chains and
@@ -837,18 +882,9 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 		hintCert *Certificate
 	)
 
-	type pubKeyEqual interface {
-		Equal(crypto.PublicKey) bool
-	}
-
 	considerCandidate := func(certType int, candidate *Certificate) {
-		for _, cert := range currentChain {
-			// If a certificate already appeared in the chain we've built, don't
-			// reconsider it. This prevents loops, for isntance those created by
-			// mutual cross-signatures, or other cross-signature bridges oddities.
-			if bytes.Equal(cert.RawSubject, candidate.RawSubject) && cert.PublicKey.(pubKeyEqual).Equal(candidate.PublicKey) {
-				return
-			}
+		if alreadyInChain(candidate, currentChain) {
+			return
 		}
 
 		if sigChecks == nil {
