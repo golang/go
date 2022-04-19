@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	_ "expvar" // to serve /debug/vars
 	"flag"
 	"fmt"
@@ -46,7 +47,6 @@ import (
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
 	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/xerrors"
 )
 
 const defaultAddr = "localhost:6060" // default webserver address
@@ -372,7 +372,7 @@ func main() {
 //	or the empty string if not using modules.
 func goMod() (string, error) {
 	out, err := exec.Command("go", "env", "-json", "GOMOD").Output()
-	if ee := (*exec.ExitError)(nil); xerrors.As(err, &ee) {
+	if ee := (*exec.ExitError)(nil); errors.As(err, &ee) {
 		return "", fmt.Errorf("go command exited unsuccessfully: %v\n%s", ee.ProcessState.String(), ee.Stderr)
 	} else if err != nil {
 		return "", err
@@ -405,7 +405,7 @@ func fillModuleCache(w io.Writer, goMod string) {
 	cmd.Stdout = &out
 	cmd.Stderr = w
 	err := cmd.Run()
-	if ee := (*exec.ExitError)(nil); xerrors.As(err, &ee) && ee.ExitCode() == 1 {
+	if ee := (*exec.ExitError)(nil); errors.As(err, &ee) && ee.ExitCode() == 1 {
 		// Exit code 1 from this command means there were some
 		// non-empty Error values in the output. Print them to w.
 		fmt.Fprintf(w, "documentation for some packages is not shown:\n")
@@ -449,7 +449,7 @@ func buildList(goMod string) ([]mod, error) {
 	}
 
 	out, err := exec.Command("go", "list", "-m", "-json", "all").Output()
-	if ee := (*exec.ExitError)(nil); xerrors.As(err, &ee) {
+	if ee := (*exec.ExitError)(nil); errors.As(err, &ee) {
 		return nil, fmt.Errorf("go command exited unsuccessfully: %v\n%s", ee.ProcessState.String(), ee.Stderr)
 	} else if err != nil {
 		return nil, err
