@@ -1261,7 +1261,11 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		return nil
 	}
 
-	var stdout io.Writer = os.Stdout
+	// The os/exec package treats an *os.File differently to an io.Writer.
+	// Embed os.Stdout in an io.Writer struct so that we get the same
+	// behavior regardless of whether we wrap it below.
+	// See golang.org/issue/24050
+	var stdout io.Writer = struct{ io.Writer }{os.Stdout}
 	var err error
 	if testJSON {
 		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
