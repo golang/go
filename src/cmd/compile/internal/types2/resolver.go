@@ -339,7 +339,7 @@ func (check *Checker) collectObjects() {
 
 			case *syntax.ConstDecl:
 				// iota is the index of the current constDecl within the group
-				if first < 0 || file.DeclList[index-1].(*syntax.ConstDecl).Group != s.Group {
+				if first < 0 || s.Group == nil || file.DeclList[index-1].(*syntax.ConstDecl).Group != s.Group {
 					first = index
 					last = nil
 				}
