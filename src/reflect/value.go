@@ -1144,7 +1144,7 @@ func funcName(f func([]Value) []Value) string {
 }
 
 // Cap returns v's capacity.
-// It panics if v's Kind is not Array, Chan, or Slice.
+// It panics if v's Kind is not Array, Chan, Slice or pointer to Array.
 func (v Value) Cap() int {
 	// capNonSlice is split out to keep Cap inlineable for slice kinds.
 	if v.kind() == Slice {
@@ -1160,6 +1160,11 @@ func (v Value) capNonSlice() int {
 		return v.typ.Len()
 	case Chan:
 		return chancap(v.pointer())
+	case Ptr:
+		if v.typ.Elem().Kind() == Array {
+			return v.typ.Elem().Len()
+		}
+		panic("reflect: call of reflect.Value.Cap on ptr to non-array Value")
 	}
 	panic(&ValueError{"reflect.Value.Cap", v.kind()})
 }
@@ -1600,7 +1605,7 @@ func (v Value) Kind() Kind {
 }
 
 // Len returns v's length.
-// It panics if v's Kind is not Array, Chan, Map, Slice, or String.
+// It panics if v's Kind is not Array, Chan, Map, Slice, String, or pointer to Array.
 func (v Value) Len() int {
 	// lenNonSlice is split out to keep Len inlineable for slice kinds.
 	if v.kind() == Slice {
@@ -1621,6 +1626,11 @@ func (v Value) lenNonSlice() int {
 	case String:
 		// String is bigger than a word; assume flagIndir.
 		return (*unsafeheader.String)(v.ptr).Len
+	case Ptr:
+		if v.typ.Elem().Kind() == Array {
+			return v.typ.Elem().Len()
+		}
+		panic("reflect: call of reflect.Value.Len on ptr to non-array Value")
 	}
 	panic(&ValueError{"reflect.Value.Len", v.kind()})
 }
