@@ -364,6 +364,10 @@ func TestMapIterSet(t *testing.T) {
 		}
 	}
 
+	if strings.HasSuffix(testenv.Builder(), "-noopt") {
+		return // no inlining with the noopt builder
+	}
+
 	got := int(testing.AllocsPerRun(10, func() {
 		iter := v.MapRange()
 		for iter.Next() {
@@ -375,9 +379,6 @@ func TestMapIterSet(t *testing.T) {
 	// The function is inlineable, so if the local usage does not escape
 	// the *MapIter, it can remain stack allocated.
 	want := 0
-	if strings.HasSuffix(testenv.Builder(), "-noopt") {
-		want = 1 // no inlining with the noopt builder
-	}
 	if got != want {
 		t.Errorf("wanted %d alloc, got %d", want, got)
 	}
