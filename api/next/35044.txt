@@ -1,0 +1,1 @@
+pkg crypto/x509, method (*CertPool) Clone() *CertPool #35044

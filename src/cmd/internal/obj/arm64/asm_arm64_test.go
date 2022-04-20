@@ -160,3 +160,14 @@ func TestVMOVQ(t *testing.T) {
 		t.Errorf("TestVMOVQ got: a=0x%x, b=0x%x, want: a=0x7040201008040201, b=0x3040201008040201", a, b)
 	}
 }
+
+func testmovk() uint64
+
+// TestMOVK makes sure MOVK with a very large constant works. See issue 52261.
+func TestMOVK(t *testing.T) {
+	x := testmovk()
+	want := uint64(40000 << 48)
+	if x != want {
+		t.Errorf("TestMOVK got %x want %x\n", x, want)
+	}
+}

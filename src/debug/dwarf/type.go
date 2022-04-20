@@ -372,7 +372,7 @@ type typeReader interface {
 	AddressSize() int
 }
 
-// Type reads the type at off in the DWARF ``info'' section.
+// Type reads the type at off in the DWARF “info” section.
 func (d *Data) Type(off Offset) (Type, error) {
 	return d.readType("info", d.Reader(), off, d.typeCache, nil)
 }

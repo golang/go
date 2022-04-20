@@ -69,7 +69,7 @@ func debug_modinfo() string {
 // preemption points. To apply this to all preemption points in the
 // runtime and runtime-like code, use the following in bash or zsh:
 //
-//   X=(-{gc,asm}flags={runtime/...,reflect,sync}=-d=maymorestack=runtime.mayMoreStackPreempt) GOFLAGS=${X[@]}
+//	X=(-{gc,asm}flags={runtime/...,reflect,sync}=-d=maymorestack=runtime.mayMoreStackPreempt) GOFLAGS=${X[@]}
 //
 // This must be deeply nosplit because it is called from a function
 // prologue before the stack is set up and because the compiler will
@@ -79,10 +79,9 @@ func debug_modinfo() string {
 // Ideally it should also use very little stack because the linker
 // doesn't currently account for this in nosplit stack depth checking.
 //
-//go:nosplit
-//
 // Ensure mayMoreStackPreempt can be called for all ABIs.
 //
+//go:nosplit
 //go:linkname mayMoreStackPreempt
 func mayMoreStackPreempt() {
 	// Don't do anything on the g0 or gsignal stack.

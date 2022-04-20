@@ -250,8 +250,8 @@ var GenssaDump map[string]bool = make(map[string]bool) // names of functions to 
 // version is used as a regular expression to match the phase name(s).
 //
 // Special cases that have turned out to be useful:
-//  - ssa/check/on enables checking after each phase
-//  - ssa/all/time enables time reporting for all phases
+//   - ssa/check/on enables checking after each phase
+//   - ssa/all/time enables time reporting for all phases
 //
 // See gc/lex.go for dissection of the option string.
 // Example uses:

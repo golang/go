@@ -3977,7 +3977,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if (o1&S64) == 0 && s >= 2 {
 			c.ctxt.Diag("illegal bit position\n%v", p)
 		}
-		if ((d >> uint(s*16)) >> 16) != 0 {
+		if ((uint64(d) >> uint(s*16)) >> 16) != 0 {
 			c.ctxt.Diag("requires uimm16\n%v", p)
 		}
 		rt := int(p.To.Reg)

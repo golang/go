@@ -1,0 +1,9 @@
+pkg crypto/x509, func ParseRevocationList([]uint8) (*RevocationList, error) #50674
+pkg crypto/x509, method (*RevocationList) CheckSignatureFrom(*Certificate) error #50674
+pkg crypto/x509, type RevocationList struct, AuthorityKeyId []uint8 #50674
+pkg crypto/x509, type RevocationList struct, Extensions []pkix.Extension #50674
+pkg crypto/x509, type RevocationList struct, Issuer pkix.Name #50674
+pkg crypto/x509, type RevocationList struct, Raw []uint8 #50674
+pkg crypto/x509, type RevocationList struct, RawIssuer []uint8 #50674
+pkg crypto/x509, type RevocationList struct, RawTBSRevocationList []uint8 #50674
+pkg crypto/x509, type RevocationList struct, Signature []uint8 #50674

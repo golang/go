@@ -78,11 +78,11 @@ var defEnvMap = map[string]string{
 
 // TestGenerateCommandShortHand - similar to TestGenerateCommandParse,
 // except:
-//    1. if the result starts with -command, record that shorthand
-//       before moving on to the next test.
-//    2. If a source line number is specified, set that in the parser
-//       before executing the test.  i.e., execute the split as if it
-//       processing that source line.
+//  1. if the result starts with -command, record that shorthand
+//     before moving on to the next test.
+//  2. If a source line number is specified, set that in the parser
+//     before executing the test.  i.e., execute the split as if it
+//     processing that source line.
 func TestGenerateCommandShorthand(t *testing.T) {
 	g := &Generator{
 		r:        nil, // Unused here.
@@ -216,11 +216,11 @@ var splitTestsLines = []splitTestWithLine{
 
 // TestGenerateCommandShortHand - similar to TestGenerateCommandParse,
 // except:
-//    1. if the result starts with -command, record that shorthand
-//       before moving on to the next test.
-//    2. If a source line number is specified, set that in the parser
-//       before executing the test.  i.e., execute the split as if it
-//       processing that source line.
+//  1. if the result starts with -command, record that shorthand
+//     before moving on to the next test.
+//  2. If a source line number is specified, set that in the parser
+//     before executing the test.  i.e., execute the split as if it
+//     processing that source line.
 func TestGenerateCommandShortHand2(t *testing.T) {
 	g := &Generator{
 		r:        nil, // Unused here.

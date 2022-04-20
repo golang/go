@@ -55,6 +55,17 @@ func WriteFile(filename string, data []byte, perm fs.FileMode) error {
 // it returns a list of fs.DirEntry instead of fs.FileInfo,
 // and it returns partial results in the case of an error
 // midway through reading a directory.
+//
+// If you must continue obtaining a list of fs.FileInfo, you still can:
+//
+//	entries, err := os.ReadDir(dirname)
+//	if err != nil { ... }
+//	infos := make([]fs.FileInfo, 0, len(entries))
+//	for _, entry := range entries {
+//		info, err := entry.Info()
+//		if err != nil { ... }
+//		infos = append(infos, info)
+//	}
 func ReadDir(dirname string) ([]fs.FileInfo, error) {
 	f, err := os.Open(dirname)
 	if err != nil {

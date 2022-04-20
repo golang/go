@@ -12,6 +12,7 @@ import (
 )
 
 // Export some functions via linkname to assembly in sync/atomic.
+//
 //go:linkname Xchg
 //go:linkname Xchguintptr
 
@@ -43,6 +44,7 @@ func addrLock(addr *uint64) *spinlock {
 }
 
 // Atomic add and return new value.
+//
 //go:nosplit
 func Xadd(val *uint32, delta int32) uint32 {
 	for {

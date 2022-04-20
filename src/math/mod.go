@@ -13,6 +13,7 @@ package math
 // sign agrees with that of x.
 //
 // Special cases are:
+//
 //	Mod(±Inf, y) = NaN
 //	Mod(NaN, y) = NaN
 //	Mod(x, 0) = NaN

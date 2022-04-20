@@ -487,8 +487,9 @@ func ryuDigits32(d *decimalSlice, lower, central, upper uint32,
 // The returned boolean is true if all trimmed bits were zero.
 //
 // That is:
-//     m*2^e2 * round(10^q) = resM * 2^resE + ε
-//     exact = ε == 0
+//
+//	m*2^e2 * round(10^q) = resM * 2^resE + ε
+//	exact = ε == 0
 func mult64bitPow10(m uint32, e2, q int) (resM uint32, resE int, exact bool) {
 	if q == 0 {
 		// P == 1<<63
@@ -515,8 +516,9 @@ func mult64bitPow10(m uint32, e2, q int) (resM uint32, resE int, exact bool) {
 // The returned boolean is true is all trimmed bits were zero.
 //
 // That is:
-//     m*2^e2 * round(10^q) = resM * 2^resE + ε
-//     exact = ε == 0
+//
+//	m*2^e2 * round(10^q) = resM * 2^resE + ε
+//	exact = ε == 0
 func mult128bitPow10(m uint64, e2, q int) (resM uint64, resE int, exact bool) {
 	if q == 0 {
 		// P == 1<<127

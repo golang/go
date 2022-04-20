@@ -28,7 +28,6 @@ type Reader struct {
 // should be reading from an io.LimitReader or similar Reader to bound
 // the size of responses.
 func NewReader(r *bufio.Reader) *Reader {
-	commonHeaderOnce.Do(initCommonHeader)
 	return &Reader{R: r}
 }
 
@@ -216,9 +215,12 @@ func parseCodeLine(line string, expectCode int) (code int, continued bool, messa
 }
 
 // ReadCodeLine reads a response code line of the form
+//
 //	code message
+//
 // where code is a three-digit status code and the message
 // extends to the rest of the line. An example of such a line is:
+//
 //	220 plan9.bell-labs.com ESMTP
 //
 // If the prefix of the status does not match the digits in expectCode,
@@ -252,10 +254,10 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 // See page 36 of RFC 959 (https://www.ietf.org/rfc/rfc959.txt) for
 // details of another form of response accepted:
 //
-//  code-message line 1
-//  message line 2
-//  ...
-//  code message line n
+//	code-message line 1
+//	message line 2
+//	...
+//	code message line n
 //
 // If the prefix of the status does not match the digits in expectCode,
 // ReadResponse returns with err set to &Error{code, message}.
@@ -579,8 +581,6 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
 // If s contains a space or invalid header field bytes, it is
 // returned without modifications.
 func CanonicalMIMEHeaderKey(s string) string {
-	commonHeaderOnce.Do(initCommonHeader)
-
 	// Quick check for canonical encoding.
 	upper := true
 	for i := 0; i < len(s); i++ {
@@ -603,11 +603,12 @@ const toLower = 'a' - 'A'
 
 // validHeaderFieldByte reports whether b is a valid byte in a header
 // field name. RFC 7230 says:
-//   header-field   = field-name ":" OWS field-value OWS
-//   field-name     = token
-//   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
-//           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
-//   token = 1*tchar
+//
+//	header-field   = field-name ":" OWS field-value OWS
+//	field-name     = token
+//	tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+//	        "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+//	token = 1*tchar
 func validHeaderFieldByte(b byte) bool {
 	return int(b) < len(isTokenTable) && isTokenTable[b]
 }
@@ -642,6 +643,7 @@ func canonicalMIMEHeaderKey(a []byte) string {
 		a[i] = c
 		upper = c == '-' // for next time
 	}
+	commonHeaderOnce.Do(initCommonHeader)
 	// The compiler recognizes m[string(byteSlice)] as a special
 	// case, so a copy of a's bytes into a new string does not
 	// happen in this map lookup:

@@ -90,8 +90,9 @@ func satan(x float64) float64 {
 // Atan returns the arctangent, in radians, of x.
 //
 // Special cases are:
-//      Atan(±0) = ±0
-//      Atan(±Inf) = ±Pi/2
+//
+//	Atan(±0) = ±0
+//	Atan(±Inf) = ±Pi/2
 func Atan(x float64) float64 {
 	if haveArchAtan {
 		return archAtan(x)

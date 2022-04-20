@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package list implements the ``go list'' command.
+// Package list implements the “go list” command.
 package list
 
 import (
@@ -567,7 +567,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	pkgOpts := load.PackageOpts{
 		IgnoreImports:   *listFind,
 		ModResolveTests: *listTest,
-		LoadVCS:         cfg.BuildBuildvcs,
+		LoadVCS:         true,
 	}
 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
 	if !*listE {

@@ -228,6 +228,7 @@ func (v *Value) auxString() string {
 
 // If/when midstack inlining is enabled (-l=4), the compiler gets both larger and slower.
 // Not-inlining this method is a help (*Value.reset and *Block.NewValue0 are similar).
+//
 //go:noinline
 func (v *Value) AddArg(w *Value) {
 	if v.Args == nil {
@@ -331,6 +332,7 @@ func (v *Value) resetArgs() {
 // reset is called from most rewrite rules.
 // Allowing it to be inlined increases the size
 // of cmd/compile by almost 10%, and slows it down.
+//
 //go:noinline
 func (v *Value) reset(op Op) {
 	if v.InCache {
@@ -377,6 +379,7 @@ func (v *Value) invalidateRecursively() bool {
 
 // copyOf is called from rewrite rules.
 // It modifies v to be (Copy a).
+//
 //go:noinline
 func (v *Value) copyOf(a *Value) {
 	if v == a {

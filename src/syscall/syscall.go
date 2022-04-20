@@ -23,7 +23,6 @@
 // That is also where updates required by new systems or versions
 // should be applied. See https://golang.org/s/go1.4-syscall for more
 // information.
-//
 package syscall
 
 import "internal/bytealg"

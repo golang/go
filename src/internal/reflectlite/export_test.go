@@ -78,7 +78,9 @@ func Zero(typ Type) Value {
 
 // ToInterface returns v's current value as an interface{}.
 // It is equivalent to:
+//
 //	var i interface{} = (v's underlying value)
+//
 // It panics if the Value was obtained by accessing
 // unexported struct fields.
 func ToInterface(v Value) (i any) {

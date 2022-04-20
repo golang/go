@@ -36,7 +36,7 @@
 //	data, _ := f.ReadFile("hello.txt")
 //	print(string(data))
 //
-// Directives
+// # Directives
 //
 // A //go:embed directive above a variable declaration specifies which files to embed,
 // using one or more path.Match patterns.
@@ -96,7 +96,7 @@
 //
 // If any patterns are invalid or have invalid matches, the build will fail.
 //
-// Strings and Bytes
+// # Strings and Bytes
 //
 // The //go:embed line for a variable of type string or []byte can have only a single pattern,
 // and that pattern can match only a single file. The string or []byte is initialized with
@@ -105,7 +105,7 @@
 // The //go:embed directive requires importing "embed", even when using a string or []byte.
 // In source files that don't refer to embed.FS, use a blank import (import _ "embed").
 //
-// File Systems
+// # File Systems
 //
 // For embedding a single file, a variable of type string or []byte is often best.
 // The FS type enables embedding a tree of files, such as a directory of static
@@ -120,12 +120,11 @@
 //
 //	template.ParseFS(content, "*.tmpl")
 //
-// Tools
+// # Tools
 //
 // To support tools that analyze Go packages, the patterns found in //go:embed lines
 // are available in “go list” output. See the EmbedPatterns, TestEmbedPatterns,
 // and XTestEmbedPatterns fields in the “go help list” output.
-//
 package embed
 
 import (

@@ -226,11 +226,13 @@ func TestNonblockRecvRace(t *testing.T) {
 // This test checks that select acts on the state of the channels at one
 // moment in the execution, not over a smeared time window.
 // In the test, one goroutine does:
+//
 //	create c1, c2
 //	make c1 ready for receiving
 //	create second goroutine
 //	make c2 ready for receiving
 //	make c1 no longer ready for receiving (if possible)
+//
 // The second goroutine does a non-blocking select receiving from c1 and c2.
 // From the time the second goroutine is created, at least one of c1 and c2
 // is always ready for receiving, so the select in the second goroutine must
@@ -1122,6 +1124,19 @@ func BenchmarkSelectProdCons(b *testing.B) {
 	for p := 0; p < procs; p++ {
 		<-c
 		<-c
+	}
+}
+
+func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
+	count := b.N
+	ch := make(chan struct{}, count)
+	for i := 0; i < count; i++ {
+		ch <- struct{}{}
+	}
+	close(ch)
+
+	b.ResetTimer()
+	for range ch {
 	}
 }
 

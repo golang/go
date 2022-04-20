@@ -240,7 +240,8 @@ func typecheckNtype(n ir.Ntype) ir.Ntype {
 
 // typecheck type checks node n.
 // The result of typecheck MUST be assigned back to n, e.g.
-// 	n.Left = typecheck(n.Left, top)
+//
+//	n.Left = typecheck(n.Left, top)
 func typecheck(n ir.Node, top int) (res ir.Node) {
 	// cannot type check until all the source has been parsed
 	if !TypecheckAllowed {
@@ -414,7 +415,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 // but also accepts untyped numeric values representable as
 // value of type int (see also checkmake for comparison).
 // The result of indexlit MUST be assigned back to n, e.g.
-// 	n.Left = indexlit(n.Left)
+//
+//	n.Left = indexlit(n.Left)
 func indexlit(n ir.Node) ir.Node {
 	if n != nil && n.Type() != nil && n.Type().Kind() == types.TIDEAL {
 		return DefaultLit(n, types.Types[types.TINT])
@@ -961,7 +963,8 @@ func checksliceconst(lo ir.Node, hi ir.Node) bool {
 }
 
 // The result of implicitstar MUST be assigned back to n, e.g.
-// 	n.Left = implicitstar(n.Left)
+//
+//	n.Left = implicitstar(n.Left)
 func implicitstar(n ir.Node) ir.Node {
 	// insert implicit * if needed for fixed array
 	t := n.Type()
@@ -1607,7 +1610,8 @@ func checkassignto(src *types.Type, dst ir.Node) {
 }
 
 // The result of stringtoruneslit MUST be assigned back to n, e.g.
-// 	n.Left = stringtoruneslit(n.Left)
+//
+//	n.Left = stringtoruneslit(n.Left)
 func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 	if n.X.Op() != ir.OLITERAL || n.X.Val().Kind() != constant.String {
 		base.Fatalf("stringtoarraylit %v", n)

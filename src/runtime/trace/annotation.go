@@ -28,13 +28,13 @@ type traceContextKey struct{}
 // If the end function is called multiple times, only the first
 // call is used in the latency measurement.
 //
-//   ctx, task := trace.NewTask(ctx, "awesomeTask")
-//   trace.WithRegion(ctx, "preparation", prepWork)
-//   // preparation of the task
-//   go func() {  // continue processing the task in a separate goroutine.
-//       defer task.End()
-//       trace.WithRegion(ctx, "remainingWork", remainingWork)
-//   }()
+//	ctx, task := trace.NewTask(ctx, "awesomeTask")
+//	trace.WithRegion(ctx, "preparation", prepWork)
+//	// preparation of the task
+//	go func() {  // continue processing the task in a separate goroutine.
+//	    defer task.End()
+//	    trace.WithRegion(ctx, "remainingWork", remainingWork)
+//	}()
 func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *Task) {
 	pid := fromContext(pctx).id
 	id := newID()
@@ -148,7 +148,7 @@ func WithRegion(ctx context.Context, regionType string, fn func()) {
 // after this region must be ended before this region can be ended.
 // Recommended usage is
 //
-//     defer trace.StartRegion(ctx, "myTracedRegion").End()
+//	defer trace.StartRegion(ctx, "myTracedRegion").End()
 func StartRegion(ctx context.Context, regionType string) *Region {
 	if !IsEnabled() {
 		return noopRegion

@@ -676,11 +676,11 @@ func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Ve
 // invariants of the go.mod file needed to support graph pruning for the given
 // packages:
 //
-// 	1. For each package marked with pkgInAll, the module path that provided that
-// 	   package is included as a root.
-// 	2. For all packages, the module that provided that package either remains
-// 	   selected at the same version or is upgraded by the dependencies of a
-// 	   root.
+//  1. For each package marked with pkgInAll, the module path that provided that
+//     package is included as a root.
+//  2. For all packages, the module that provided that package either remains
+//     selected at the same version or is upgraded by the dependencies of a
+//     root.
 //
 // If any module that provided a package has been upgraded above its previous
 // version, the caller may need to reload and recompute the package graph.
@@ -769,17 +769,17 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[
 // updatePrunedRoots returns a set of root requirements that maintains the
 // invariants of the go.mod file needed to support graph pruning:
 //
-// 	1. The selected version of the module providing each package marked with
-// 	   either pkgInAll or pkgIsRoot is included as a root.
-// 	   Note that certain root patterns (such as '...') may explode the root set
-// 	   to contain every module that provides any package imported (or merely
-// 	   required) by any other module.
-// 	2. Each root appears only once, at the selected version of its path
-// 	   (if rs.graph is non-nil) or at the highest version otherwise present as a
-// 	   root (otherwise).
-// 	3. Every module path that appears as a root in rs remains a root.
-// 	4. Every version in add is selected at its given version unless upgraded by
-// 	   (the dependencies of) an existing root or another module in add.
+//  1. The selected version of the module providing each package marked with
+//     either pkgInAll or pkgIsRoot is included as a root.
+//     Note that certain root patterns (such as '...') may explode the root set
+//     to contain every module that provides any package imported (or merely
+//     required) by any other module.
+//  2. Each root appears only once, at the selected version of its path
+//     (if rs.graph is non-nil) or at the highest version otherwise present as a
+//     root (otherwise).
+//  3. Every module path that appears as a root in rs remains a root.
+//  4. Every version in add is selected at its given version unless upgraded by
+//     (the dependencies of) an existing root or another module in add.
 //
 // The packages in pkgs are assumed to have been loaded from either the roots of
 // rs or the modules selected in the graph of rs.
@@ -787,26 +787,26 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[
 // The above invariants together imply the graph-pruning invariants for the
 // go.mod file:
 //
-// 	1. (The import invariant.) Every module that provides a package transitively
-// 	   imported by any package or test in the main module is included as a root.
-// 	   This follows by induction from (1) and (3) above. Transitively-imported
-// 	   packages loaded during this invocation are marked with pkgInAll (1),
-// 	   and by hypothesis any transitively-imported packages loaded in previous
-// 	   invocations were already roots in rs (3).
+//  1. (The import invariant.) Every module that provides a package transitively
+//     imported by any package or test in the main module is included as a root.
+//     This follows by induction from (1) and (3) above. Transitively-imported
+//     packages loaded during this invocation are marked with pkgInAll (1),
+//     and by hypothesis any transitively-imported packages loaded in previous
+//     invocations were already roots in rs (3).
 //
-// 	2. (The argument invariant.) Every module that provides a package matching
-// 	   an explicit package pattern is included as a root. This follows directly
-// 	   from (1): packages matching explicit package patterns are marked with
-// 	   pkgIsRoot.
+//  2. (The argument invariant.) Every module that provides a package matching
+//     an explicit package pattern is included as a root. This follows directly
+//     from (1): packages matching explicit package patterns are marked with
+//     pkgIsRoot.
 //
-// 	3. (The completeness invariant.) Every module that contributed any package
-// 	   to the build is required by either the main module or one of the modules
-// 	   it requires explicitly. This invariant is left up to the caller, who must
-// 	   not load packages from outside the module graph but may add roots to the
-// 	   graph, but is facilited by (3). If the caller adds roots to the graph in
-// 	   order to resolve missing packages, then updatePrunedRoots will retain them,
-// 	   the selected versions of those roots cannot regress, and they will
-// 	   eventually be written back to the main module's go.mod file.
+//  3. (The completeness invariant.) Every module that contributed any package
+//     to the build is required by either the main module or one of the modules
+//     it requires explicitly. This invariant is left up to the caller, who must
+//     not load packages from outside the module graph but may add roots to the
+//     graph, but is facilited by (3). If the caller adds roots to the graph in
+//     order to resolve missing packages, then updatePrunedRoots will retain them,
+//     the selected versions of those roots cannot regress, and they will
+//     eventually be written back to the main module's go.mod file.
 //
 // (See https://golang.org/design/36460-lazy-module-loading#invariants for more
 // detail.)
@@ -1162,14 +1162,14 @@ func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct ma
 //
 // The roots are updated such that:
 //
-// 	1. The selected version of every module path in direct is included as a root
-// 	   (if it is not "none").
-// 	2. Each root is the selected version of its path. (We say that such a root
-// 	   set is “consistent”.)
-// 	3. Every version selected in the graph of rs remains selected unless upgraded
-// 	   by a dependency in add.
-// 	4. Every version in add is selected at its given version unless upgraded by
-// 	   (the dependencies of) an existing root or another module in add.
+//  1. The selected version of every module path in direct is included as a root
+//     (if it is not "none").
+//  2. Each root is the selected version of its path. (We say that such a root
+//     set is “consistent”.)
+//  3. Every version selected in the graph of rs remains selected unless upgraded
+//     by a dependency in add.
+//  4. Every version in add is selected at its given version unless upgraded by
+//     (the dependencies of) an existing root or another module in add.
 func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requirements, add []module.Version) (*Requirements, error) {
 	mg, err := rs.Graph(ctx)
 	if err != nil {

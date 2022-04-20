@@ -53,26 +53,32 @@ func (curve p256Curve) Params() *CurveParams {
 
 // Functions implemented in p256_asm_*64.s
 // Montgomery multiplication modulo P256
+//
 //go:noescape
 func p256Mul(res, in1, in2 []uint64)
 
 // Montgomery square modulo P256, repeated n times (n >= 1)
+//
 //go:noescape
 func p256Sqr(res, in []uint64, n int)
 
 // Montgomery multiplication by 1
+//
 //go:noescape
 func p256FromMont(res, in []uint64)
 
 // iff cond == 1  val <- -val
+//
 //go:noescape
 func p256NegCond(val []uint64, cond int)
 
 // if cond == 0 res <- b; else res <- a
+//
 //go:noescape
 func p256MovCond(res, a, b []uint64, cond int)
 
 // Endianness swap
+//
 //go:noescape
 func p256BigToLittle(res []uint64, in []byte)
 
@@ -80,6 +86,7 @@ func p256BigToLittle(res []uint64, in []byte)
 func p256LittleToBig(res []byte, in []uint64)
 
 // Constant time table access
+//
 //go:noescape
 func p256Select(point, table []uint64, idx int)
 
@@ -87,10 +94,12 @@ func p256Select(point, table []uint64, idx int)
 func p256SelectBase(point *[12]uint64, table string, idx int)
 
 // Montgomery multiplication modulo Ord(G)
+//
 //go:noescape
 func p256OrdMul(res, in1, in2 []uint64)
 
 // Montgomery square modulo Ord(G), repeated n times
+//
 //go:noescape
 func p256OrdSqr(res, in []uint64, n int)
 
@@ -98,16 +107,19 @@ func p256OrdSqr(res, in []uint64, n int)
 // If sign == 1 -> in2 = -in2
 // If sel == 0 -> res = in1
 // if zero == 0 -> res = in2
+//
 //go:noescape
 func p256PointAddAffineAsm(res, in1, in2 []uint64, sign, sel, zero int)
 
 // Point add. Returns one if the two input points were equal and zero
 // otherwise. (Note that, due to the way that the equations work out, some
 // representations of ∞ are considered equal to everything by this function.)
+//
 //go:noescape
 func p256PointAddAsm(res, in1, in2 []uint64) int
 
 // Point double
+//
 //go:noescape
 func p256PointDoubleAsm(res, in []uint64)
 

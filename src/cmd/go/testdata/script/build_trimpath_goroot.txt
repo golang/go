@@ -8,23 +8,51 @@
 # TODO(#51483): when runtime.GOROOT() returns the empty string,
 # go/build should default to 'go env GOROOT' instead.
 
-env GOROOT=
 env GOROOT_FINAL=
 
+[trimpath] env GOROOT=
 [trimpath] ! go env GOROOT
 [trimpath] stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
+[trimpath] env GOROOT=$TESTGO_GOROOT
+
+[short] stop
+
+# With GOROOT still set but GOROOT_FINAL unset, 'go build' and 'go test -c'
+# should cause runtime.GOROOT() to report either the correct GOROOT
+# (without -trimpath) or no GOROOT at all (with -trimpath).
+
+go build -o example.exe .
+go build -trimpath -o example-trimpath.exe .
+go test -c -o example.test.exe .
+go test -trimpath -c -o example.test-trimpath.exe .
+
+env GOROOT=
+
+exec ./example.exe
+stdout '^GOROOT '$TESTGO_GOROOT'$'
+stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
+
+! exec ./example-trimpath.exe
+stdout '^GOROOT $'
+stderr 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WORK${/}gopath${/}src${/}runtime' \(from \$GOPATH\)\n\z'
+
+exec ./example.test.exe -test.v
+stdout '^GOROOT '$TESTGO_GOROOT'$'
+stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
+
+! exec ./example.test-trimpath.exe -test.v
+stdout '^GOROOT $'
+stderr 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WORK${/}gopath${/}src${/}runtime' \(from \$GOPATH\)$'
+
+# If a correct GOROOT is baked in to the 'go' command itself, 'go run' and
+# 'go test' should not implicitly set GOROOT in the process environment
+# (because that could mask an unexpected production dependency on the GOROOT
+# environment variable), but 'go generate' should (because the generator may
+# reasonably expect to be able to locate the GOROOT for which it is generating
+# code).
+
 [trimpath] stop
-
-
-[short] skip
-
-go run .
-stdout '^GOROOT '$TESTGO_GOROOT'$'
-stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
-
-go test -v .
-stdout '^GOROOT '$TESTGO_GOROOT'$'
-stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
+[mismatched-goroot] stop
 
 ! go run -trimpath .
 stdout '^GOROOT $'
@@ -34,12 +62,19 @@ stderr 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WO
 stdout '^GOROOT $'
 stdout 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WORK${/}gopath${/}src${/}runtime' \(from \$GOPATH\)$'
 
+env GOFLAGS=-trimpath
+go generate .
+stdout '^GOROOT '$TESTGO_GOROOT'$'
+stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
+
 -- go.mod --
 module example
 
 go 1.19
 -- main.go --
 package main
+
+//go:generate go run .
 
 import (
 	"fmt"

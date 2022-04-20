@@ -4,7 +4,6 @@
 
 // Package ast declares the types used to represent syntax trees for Go
 // packages.
-//
 package ast
 
 import (
@@ -159,10 +158,13 @@ func (g *CommentGroup) Text() string {
 }
 
 // isDirective reports whether c is a comment directive.
+// This code is also in go/printer.
 func isDirective(c string) bool {
 	// "//line " is a line directive.
+	// "//extern " is for gccgo.
+	// "//export " is for cgo.
 	// (The // has been removed.)
-	if strings.HasPrefix(c, "line ") {
+	if strings.HasPrefix(c, "line ") || strings.HasPrefix(c, "extern ") || strings.HasPrefix(c, "export ") {
 		return true
 	}
 

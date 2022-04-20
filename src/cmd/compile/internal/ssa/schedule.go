@@ -338,13 +338,15 @@ func schedule(f *Func) {
 // if v transitively depends on store s, v is ordered after s,
 // otherwise v is ordered before s.
 // Specifically, values are ordered like
-//   store1
-//   NilCheck that depends on store1
-//   other values that depends on store1
-//   store2
-//   NilCheck that depends on store2
-//   other values that depends on store2
-//   ...
+//
+//	store1
+//	NilCheck that depends on store1
+//	other values that depends on store1
+//	store2
+//	NilCheck that depends on store2
+//	other values that depends on store2
+//	...
+//
 // The order of non-store and non-NilCheck values are undefined
 // (not necessarily dependency order). This should be cheaper
 // than a full scheduling as done above.

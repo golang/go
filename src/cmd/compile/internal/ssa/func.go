@@ -820,17 +820,22 @@ func (f *Func) invalidateCFG() {
 }
 
 // DebugHashMatch reports whether environment variable evname
-//  1) is empty (this is a special more-quickly implemented case of 3)
-//  2) is "y" or "Y"
-//  3) is a suffix of the sha1 hash of name
-//  4) is a suffix of the environment variable
+//  1. is empty (this is a special more-quickly implemented case of 3)
+//  2. is "y" or "Y"
+//  3. is a suffix of the sha1 hash of name
+//  4. is a suffix of the environment variable
 //     fmt.Sprintf("%s%d", evname, n)
 //     provided that all such variables are nonempty for 0 <= i <= n
+//
 // Otherwise it returns false.
 // When true is returned the message
-//  "%s triggered %s\n", evname, name
+//
+//	"%s triggered %s\n", evname, name
+//
 // is printed on the file named in environment variable
-//  GSHS_LOGFILE
+//
+//	GSHS_LOGFILE
+//
 // or standard out if that is empty or there is an error
 // opening the file.
 func (f *Func) DebugHashMatch(evname string) bool {

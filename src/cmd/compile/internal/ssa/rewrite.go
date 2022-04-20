@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -962,8 +963,9 @@ found:
 
 // clobber invalidates values. Returns true.
 // clobber is used by rewrite rules to:
-//   A) make sure the values are really dead and never used again.
-//   B) decrement use counts of the values' args.
+//
+//	A) make sure the values are really dead and never used again.
+//	B) decrement use counts of the values' args.
 func clobber(vv ...*Value) bool {
 	for _, v := range vv {
 		v.reset(OpInvalid)
@@ -985,7 +987,9 @@ func clobberIfDead(v *Value) bool {
 
 // noteRule is an easy way to track if a rule is matched when writing
 // new ones.  Make the rule of interest also conditional on
-//     noteRule("note to self: rule of interest matched")
+//
+//	noteRule("note to self: rule of interest matched")
+//
 // and that message will print when the rule matches.
 func noteRule(s string) bool {
 	fmt.Println(s)
@@ -1789,9 +1793,11 @@ func sequentialAddresses(x, y *Value, n int64) bool {
 // We happen to match the semantics to those of arm/arm64.
 // Note that these semantics differ from x86: the carry flag has the opposite
 // sense on a subtraction!
-//   On amd64, C=1 represents a borrow, e.g. SBB on amd64 does x - y - C.
-//   On arm64, C=0 represents a borrow, e.g. SBC on arm64 does x - y - ^C.
-//    (because it does x + ^y + C).
+//
+//	On amd64, C=1 represents a borrow, e.g. SBB on amd64 does x - y - C.
+//	On arm64, C=0 represents a borrow, e.g. SBC on arm64 does x - y - ^C.
+//	 (because it does x + ^y + C).
+//
 // See https://en.wikipedia.org/wiki/Carry_flag#Vs._borrow_flag
 type flagConstant uint8
 
@@ -1948,4 +1954,10 @@ func logicFlags32(x int32) flagConstant {
 	fcb.Z = x == 0
 	fcb.N = x < 0
 	return fcb.encode()
+}
+
+func makeJumpTableSym(b *Block) *obj.LSym {
+	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.LSym(), b.ID))
+	s.Set(obj.AttrDuplicateOK, true)
+	return s
 }

@@ -1,0 +1,2 @@
+pkg encoding/binary, func AppendUvarint([]uint8, uint64) []uint8 #51644
+pkg encoding/binary, func AppendVarint([]uint8, int64) []uint8 #51644

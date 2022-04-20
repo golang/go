@@ -5,7 +5,7 @@
 // Package trace contains facilities for programs to generate traces
 // for the Go execution tracer.
 //
-// Tracing runtime activities
+// # Tracing runtime activities
 //
 // The execution trace captures a wide range of execution events such as
 // goroutine creation/blocking/unblocking, syscall enter/exit/block,
@@ -19,7 +19,7 @@
 // command runs the test in the current directory and writes the trace
 // file (trace.out).
 //
-//    go test -trace=trace.out
+//	go test -trace=trace.out
 //
 // This runtime/trace package provides APIs to add equivalent tracing
 // support to a standalone program. See the Example that demonstrates
@@ -29,12 +29,12 @@
 // following line will install a handler under the /debug/pprof/trace URL
 // to download a live trace:
 //
-//     import _ "net/http/pprof"
+//	import _ "net/http/pprof"
 //
 // See the net/http/pprof package for more details about all of the
 // debug endpoints installed by this import.
 //
-// User annotation
+// # User annotation
 //
 // Package trace provides user annotation APIs that can be used to
 // log interesting events during execution.
@@ -55,16 +55,16 @@
 // trace to trace the durations of sequential steps in a cappuccino making
 // operation.
 //
-//   trace.WithRegion(ctx, "makeCappuccino", func() {
+//	trace.WithRegion(ctx, "makeCappuccino", func() {
 //
-//      // orderID allows to identify a specific order
-//      // among many cappuccino order region records.
-//      trace.Log(ctx, "orderID", orderID)
+//	   // orderID allows to identify a specific order
+//	   // among many cappuccino order region records.
+//	   trace.Log(ctx, "orderID", orderID)
 //
-//      trace.WithRegion(ctx, "steamMilk", steamMilk)
-//      trace.WithRegion(ctx, "extractCoffee", extractCoffee)
-//      trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
-//   })
+//	   trace.WithRegion(ctx, "steamMilk", steamMilk)
+//	   trace.WithRegion(ctx, "extractCoffee", extractCoffee)
+//	   trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
+//	})
 //
 // A task is a higher-level component that aids tracing of logical
 // operations such as an RPC request, an HTTP request, or an
@@ -80,27 +80,26 @@
 // the trace tool can identify the goroutines involved in a specific
 // cappuccino order.
 //
-//      ctx, task := trace.NewTask(ctx, "makeCappuccino")
-//      trace.Log(ctx, "orderID", orderID)
+//	ctx, task := trace.NewTask(ctx, "makeCappuccino")
+//	trace.Log(ctx, "orderID", orderID)
 //
-//      milk := make(chan bool)
-//      espresso := make(chan bool)
+//	milk := make(chan bool)
+//	espresso := make(chan bool)
 //
-//      go func() {
-//              trace.WithRegion(ctx, "steamMilk", steamMilk)
-//              milk <- true
-//      }()
-//      go func() {
-//              trace.WithRegion(ctx, "extractCoffee", extractCoffee)
-//              espresso <- true
-//      }()
-//      go func() {
-//              defer task.End() // When assemble is done, the order is complete.
-//              <-espresso
-//              <-milk
-//              trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
-//      }()
-//
+//	go func() {
+//	        trace.WithRegion(ctx, "steamMilk", steamMilk)
+//	        milk <- true
+//	}()
+//	go func() {
+//	        trace.WithRegion(ctx, "extractCoffee", extractCoffee)
+//	        espresso <- true
+//	}()
+//	go func() {
+//	        defer task.End() // When assemble is done, the order is complete.
+//	        <-espresso
+//	        <-milk
+//	        trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
+//	}()
 //
 // The trace tool computes the latency of a task by measuring the
 // time between the task creation and the task end and provides

@@ -231,7 +231,7 @@ func (z *Int) Rem(x, y *Int) *Int {
 //	q = x/y      with the result truncated to zero
 //	r = x - y*q
 //
-// (See Daan Leijen, ``Division and Modulus for Computer Scientists''.)
+// (See Daan Leijen, “Division and Modulus for Computer Scientists”.)
 // See DivMod for Euclidean division and modulus (unlike Go).
 func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
 	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
@@ -285,8 +285,8 @@ func (z *Int) Mod(x, y *Int) *Int {
 //	q = x div y  such that
 //	m = x - y*q  with 0 <= m < |y|
 //
-// (See Raymond T. Boute, ``The Euclidean definition of the functions
-// div and mod''. ACM Transactions on Programming Languages and
+// (See Raymond T. Boute, “The Euclidean definition of the functions
+// div and mod”. ACM Transactions on Programming Languages and
 // Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
 // ACM press.)
 // See QuoRem for T-division and modulus (like Go).
@@ -310,9 +310,9 @@ func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
 
 // Cmp compares x and y and returns:
 //
-//   -1 if x <  y
-//    0 if x == y
-//   +1 if x >  y
+//	-1 if x <  y
+//	 0 if x == y
+//	+1 if x >  y
 func (x *Int) Cmp(y *Int) (r int) {
 	// x cmp y == x cmp y
 	// x cmp (-y) == x
@@ -336,9 +336,9 @@ func (x *Int) Cmp(y *Int) (r int) {
 
 // CmpAbs compares the absolute values of x and y and returns:
 //
-//   -1 if |x| <  |y|
-//    0 if |x| == |y|
-//   +1 if |x| >  |y|
+//	-1 if |x| <  |y|
+//	 0 if |x| == |y|
+//	+1 if |x| >  |y|
 func (x *Int) CmpAbs(y *Int) int {
 	return x.abs.cmp(y.abs)
 }
@@ -400,8 +400,8 @@ func (x *Int) IsUint64() bool {
 //
 // The base argument must be 0 or a value between 2 and MaxBase.
 // For base 0, the number prefix determines the actual base: A prefix of
-// ``0b'' or ``0B'' selects base 2, ``0'', ``0o'' or ``0O'' selects base 8,
-// and ``0x'' or ``0X'' selects base 16. Otherwise, the selected base is 10
+// “0b” or “0B” selects base 2, “0”, “0o” or “0O” selects base 8,
+// and “0x” or “0X” selects base 16. Otherwise, the selected base is 10
 // and no prefix is accepted.
 //
 // For bases <= 36, lower and upper case letters are considered the same:
@@ -409,7 +409,7 @@ func (x *Int) IsUint64() bool {
 // For bases > 36, the upper case letters 'A' to 'Z' represent the digit
 // values 36 to 61.
 //
-// For base 0, an underscore character ``_'' may appear between a base
+// For base 0, an underscore character “_” may appear between a base
 // prefix and an adjacent digit, and between successive digits; such
 // underscores do not change the value of the number.
 // Incorrect placement of underscores is reported as an error if there
@@ -556,8 +556,10 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 // lehmerSimulate attempts to simulate several Euclidean update steps
 // using the leading digits of A and B.  It returns u0, u1, v0, v1
 // such that A and B can be updated as:
-//		A = u0*A + v0*B
-//		B = u1*A + v1*B
+//
+//	A = u0*A + v0*B
+//	B = u1*A + v1*B
+//
 // Requirements: A >= B and len(B.abs) >= 2
 // Since we are calculating with full words to avoid overflow,
 // we use 'even' to track the sign of the cosequences.
@@ -608,8 +610,10 @@ func lehmerSimulate(A, B *Int) (u0, u1, v0, v1 Word, even bool) {
 }
 
 // lehmerUpdate updates the inputs A and B such that:
-//		A = u0*A + v0*B
-//		B = u1*A + v1*B
+//
+//	A = u0*A + v0*B
+//	B = u1*A + v1*B
+//
 // where the signs of u0, u1, v0, v1 are given by even
 // For even == true: u0, v1 >= 0 && u1, v0 <= 0
 // For even == false: u0, v1 <= 0 && u1, v0 >= 0
@@ -883,9 +887,11 @@ func Jacobi(x, y *Int) int {
 }
 
 // modSqrt3Mod4 uses the identity
-//      (a^((p+1)/4))^2  mod p
-//   == u^(p+1)          mod p
-//   == u^2              mod p
+//
+//	   (a^((p+1)/4))^2  mod p
+//	== u^(p+1)          mod p
+//	== u^2              mod p
+//
 // to calculate the square root of any quadratic residue mod p quickly for 3
 // mod 4 primes.
 func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
@@ -896,9 +902,11 @@ func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
 }
 
 // modSqrt5Mod8 uses Atkin's observation that 2 is not a square mod p
-//   alpha ==  (2*a)^((p-5)/8)    mod p
-//   beta  ==  2*a*alpha^2        mod p  is a square root of -1
-//   b     ==  a*alpha*(beta-1)   mod p  is a square root of a
+//
+//	alpha ==  (2*a)^((p-5)/8)    mod p
+//	beta  ==  2*a*alpha^2        mod p  is a square root of -1
+//	b     ==  a*alpha*(beta-1)   mod p  is a square root of a
+//
 // to calculate the square root of any quadratic residue mod p quickly for 5
 // mod 8 primes.
 func (z *Int) modSqrt5Mod8Prime(x, p *Int) *Int {

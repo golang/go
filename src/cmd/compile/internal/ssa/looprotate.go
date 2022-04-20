@@ -8,19 +8,19 @@ package ssa
 // to loops with a check-loop-condition-at-end.
 // This helps loops avoid extra unnecessary jumps.
 //
-//   loop:
-//     CMPQ ...
-//     JGE exit
-//     ...
-//     JMP loop
-//   exit:
+//	 loop:
+//	   CMPQ ...
+//	   JGE exit
+//	   ...
+//	   JMP loop
+//	 exit:
 //
-//    JMP entry
-//  loop:
-//    ...
-//  entry:
-//    CMPQ ...
-//    JLT loop
+//	  JMP entry
+//	loop:
+//	  ...
+//	entry:
+//	  CMPQ ...
+//	  JLT loop
 func loopRotate(f *Func) {
 	loopnest := f.loopnest()
 	if loopnest.hasIrreducible {

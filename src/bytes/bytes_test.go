@@ -8,6 +8,7 @@ import (
 	. "bytes"
 	"fmt"
 	"internal/testenv"
+	"math"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -723,6 +724,7 @@ var splittests = []SplitTest{
 	{"1 2", " ", 3, []string{"1", "2"}},
 	{"123", "", 2, []string{"1", "23"}},
 	{"123", "", 17, []string{"1", "2", "3"}},
+	{"bT", "T", math.MaxInt / 4, []string{"b", ""}},
 }
 
 func TestSplit(t *testing.T) {

@@ -9,9 +9,12 @@ import (
 	"go/ast"
 	"go/token"
 	"internal/lazyregexp"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // ----------------------------------------------------------------------------
@@ -178,13 +181,16 @@ type reader struct {
 	filenames []string
 	notes     map[string][]*Note
 
+	// imports
+	imports      map[string]int
+	hasDotImp    bool // if set, package contains a dot import
+	importByName map[string]string
+
 	// declarations
-	imports   map[string]int
-	hasDotImp bool     // if set, package contains a dot import
-	values    []*Value // consts and vars
-	order     int      // sort order of const and var declarations (when we can't use a name)
-	types     map[string]*namedType
-	funcs     methodSet
+	values []*Value // consts and vars
+	order  int      // sort order of const and var declarations (when we can't use a name)
+	types  map[string]*namedType
+	funcs  methodSet
 
 	// support for package-local shadowing of predeclared types
 	shadowedPredecl map[string]bool
@@ -485,6 +491,28 @@ var (
 	noteCommentRx = lazyregexp.New(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
 )
 
+// clean replaces each sequence of space, \r, or \t characters
+// with a single space and removes any trailing and leading spaces.
+func clean(s string) string {
+	var b []byte
+	p := byte(' ')
+	for i := 0; i < len(s); i++ {
+		q := s[i]
+		if q == '\r' || q == '\t' {
+			q = ' '
+		}
+		if q != ' ' || p != ' ' {
+			b = append(b, q)
+			p = q
+		}
+	}
+	// remove trailing blank, if any
+	if n := len(b); n > 0 && p == ' ' {
+		b = b[0 : n-1]
+	}
+	return string(b)
+}
+
 // readNote collects a single note from a sequence of comments.
 func (r *reader) readNote(list []*ast.Comment) {
 	text := (&ast.CommentGroup{List: list}).Text()
@@ -493,7 +521,7 @@ func (r *reader) readNote(list []*ast.Comment) {
 		// We remove any formatting so that we don't
 		// get spurious line breaks/indentation when
 		// showing the TODO body.
-		body := clean(text[m[1]:], keepNL)
+		body := clean(text[m[1]:])
 		if body != "" {
 			marker := text[m[2]:m[3]]
 			r.notes[marker] = append(r.notes[marker], &Note{
@@ -550,8 +578,23 @@ func (r *reader) readFile(src *ast.File) {
 					if s, ok := spec.(*ast.ImportSpec); ok {
 						if import_, err := strconv.Unquote(s.Path.Value); err == nil {
 							r.imports[import_] = 1
-							if s.Name != nil && s.Name.Name == "." {
-								r.hasDotImp = true
+							var name string
+							if s.Name != nil {
+								name = s.Name.Name
+								if name == "." {
+									r.hasDotImp = true
+								}
+							}
+							if name != "." {
+								if name == "" {
+									name = assumedPackageName(import_)
+								}
+								old, ok := r.importByName[name]
+								if !ok {
+									r.importByName[name] = import_
+								} else if old != import_ && old != "" {
+									r.importByName[name] = "" // ambiguous
+								}
 							}
 						}
 					}
@@ -611,6 +654,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
 	r.types = make(map[string]*namedType)
 	r.funcs = make(methodSet)
 	r.notes = make(map[string][]*Note)
+	r.importByName = make(map[string]string)
 
 	// sort package files before reading them so that the
 	// result does not depend on map iteration order
@@ -628,6 +672,12 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
 			r.fileExports(f)
 		}
 		r.readFile(f)
+	}
+
+	for name, path := range r.importByName {
+		if path == "" {
+			delete(r.importByName, name)
+		}
 	}
 
 	// process functions now that we have better type information
@@ -949,4 +999,31 @@ var predeclaredConstants = map[string]bool{
 	"iota":  true,
 	"nil":   true,
 	"true":  true,
+}
+
+// assumedPackageName returns the assumed package name
+// for a given import path. This is a copy of
+// golang.org/x/tools/internal/imports.ImportPathToAssumedName.
+func assumedPackageName(importPath string) string {
+	notIdentifier := func(ch rune) bool {
+		return !('a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' ||
+			'0' <= ch && ch <= '9' ||
+			ch == '_' ||
+			ch >= utf8.RuneSelf && (unicode.IsLetter(ch) || unicode.IsDigit(ch)))
+	}
+
+	base := path.Base(importPath)
+	if strings.HasPrefix(base, "v") {
+		if _, err := strconv.Atoi(base[1:]); err == nil {
+			dir := path.Dir(importPath)
+			if dir != "." {
+				base = path.Base(dir)
+			}
+		}
+	}
+	base = strings.TrimPrefix(base, "go-")
+	if i := strings.IndexFunc(base, notIdentifier); i >= 0 {
+		base = base[:i]
+	}
+	return base
 }

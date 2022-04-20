@@ -22,9 +22,13 @@ var eglFixDisplay = fix{
 }
 
 // Old state:
-//   type EGLDisplay unsafe.Pointer
+//
+//	type EGLDisplay unsafe.Pointer
+//
 // New state:
-//   type EGLDisplay uintptr
+//
+//	type EGLDisplay uintptr
+//
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func eglfixDisp(f *ast.File) bool {
 	return typefix(f, func(s string) bool {
@@ -41,9 +45,13 @@ var eglFixConfig = fix{
 }
 
 // Old state:
-//   type EGLConfig unsafe.Pointer
+//
+//	type EGLConfig unsafe.Pointer
+//
 // New state:
-//   type EGLConfig uintptr
+//
+//	type EGLConfig uintptr
+//
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func eglfixConfig(f *ast.File) bool {
 	return typefix(f, func(s string) bool {

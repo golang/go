@@ -1,0 +1,98 @@
+-- input --
+Almost list markers (but not quite):
+
+ -
+
+❦
+
+ - $
+
+❦
+
+ - $
+
+❦
+
+  $
+   $
+
+❦
+
+ 1! List.
+
+❦
+-- gofmt --
+Almost list markers (but not quite):
+
+	-
+
+❦
+
+	- $
+
+❦
+
+	- $
+
+❦
+
+❦
+
+	1! List.
+
+❦
+-- text --
+Almost list markers (but not quite):
+
+	-
+
+❦
+
+	-
+
+❦
+
+	-
+
+❦
+
+❦
+
+	1! List.
+
+❦
+-- markdown --
+Almost list markers (but not quite):
+
+	-
+
+❦
+
+	- $
+
+❦
+
+	- $
+
+❦
+
+❦
+
+	1! List.
+
+❦
+-- html --
+<p>Almost list markers (but not quite):
+<pre>-
+</pre>
+<p>❦
+<pre>- $
+</pre>
+<p>❦
+<pre>- $
+</pre>
+<p>❦
+<p>❦
+<pre>1! List.
+</pre>
+<p>❦

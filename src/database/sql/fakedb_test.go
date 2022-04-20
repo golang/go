@@ -26,12 +26,12 @@ import (
 // syntactically different and simpler than SQL.  The syntax is as
 // follows:
 //
-//   WIPE
-//   CREATE|<tablename>|<col>=<type>,<col>=<type>,...
-//     where types are: "string", [u]int{8,16,32,64}, "bool"
-//   INSERT|<tablename>|col=val,col2=val2,col3=?
-//   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
-//   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?param1,filtercol2=?param2
+//	WIPE
+//	CREATE|<tablename>|<col>=<type>,<col>=<type>,...
+//	  where types are: "string", [u]int{8,16,32,64}, "bool"
+//	INSERT|<tablename>|col=val,col2=val2,col3=?
+//	SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
+//	SELECT|<tablename>|projectcol1,projectcol2|filtercol=?param1,filtercol2=?param2
 //
 // Any of these can be preceded by PANIC|<method>|, to cause the
 // named method on fakeStmt to panic.
@@ -250,10 +250,11 @@ func setHookOpenErr(fn func() error) {
 }
 
 // Supports dsn forms:
-//    <dbname>
-//    <dbname>;<opts>  (only currently supported option is `badConn`,
-//                      which causes driver.ErrBadConn to be returned on
-//                      every other conn.Begin())
+//
+//	<dbname>
+//	<dbname>;<opts>  (only currently supported option is `badConn`,
+//	                  which causes driver.ErrBadConn to be returned on
+//	                  every other conn.Begin())
 func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 	hookOpenErr.Lock()
 	fn := hookOpenErr.fn

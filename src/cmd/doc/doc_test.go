@@ -882,7 +882,9 @@ func TestDoc(t *testing.T) {
 }
 
 // Test the code to try multiple packages. Our test case is
+//
 //	go doc rand.Float64
+//
 // This needs to find math/rand.Float64; however crypto/rand, which doesn't
 // have the symbol, usually appears first in the directory listing.
 func TestMultiplePackages(t *testing.T) {
@@ -939,11 +941,15 @@ func TestMultiplePackages(t *testing.T) {
 }
 
 // Test the code to look up packages when given two args. First test case is
+//
 //	go doc binary BigEndian
+//
 // This needs to find encoding/binary.BigEndian, which means
 // finding the package encoding/binary given only "binary".
 // Second case is
+//
 //	go doc rand Float64
+//
 // which again needs to find math/rand and not give up after crypto/rand,
 // which has no such function.
 func TestTwoArgLookup(t *testing.T) {

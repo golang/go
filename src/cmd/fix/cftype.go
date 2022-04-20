@@ -24,9 +24,13 @@ var cftypeFix = fix{
 }
 
 // Old state:
-//   type CFTypeRef unsafe.Pointer
+//
+//	type CFTypeRef unsafe.Pointer
+//
 // New state:
-//   type CFTypeRef uintptr
+//
+//	type CFTypeRef uintptr
+//
 // and similar for other *Ref types.
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func cftypefix(f *ast.File) bool {

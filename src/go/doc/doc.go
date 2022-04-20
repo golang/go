@@ -8,6 +8,7 @@ package doc
 import (
 	"fmt"
 	"go/ast"
+	"go/doc/comment"
 	"go/token"
 	"strings"
 )
@@ -35,6 +36,9 @@ type Package struct {
 	// the package. Examples are extracted from _test.go files
 	// provided to NewFromFiles.
 	Examples []*Example
+
+	importByName map[string]string
+	syms         map[string]bool
 }
 
 // Value is the documentation for a (possibly grouped) var or const declaration.
@@ -119,7 +123,7 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
 	r.readPackage(pkg, mode)
 	r.computeMethodSets()
 	r.cleanupTypes()
-	return &Package{
+	p := &Package{
 		Doc:        r.doc,
 		Name:       pkg.Name,
 		ImportPath: importPath,
@@ -131,6 +135,48 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
 		Types:      sortedTypes(r.types, mode&AllMethods != 0),
 		Vars:       sortedValues(r.values, token.VAR),
 		Funcs:      sortedFuncs(r.funcs, true),
+
+		importByName: r.importByName,
+		syms:         make(map[string]bool),
+	}
+
+	p.collectValues(p.Consts)
+	p.collectValues(p.Vars)
+	p.collectTypes(p.Types)
+	p.collectFuncs(p.Funcs)
+
+	return p
+}
+
+func (p *Package) collectValues(values []*Value) {
+	for _, v := range values {
+		for _, name := range v.Names {
+			p.syms[name] = true
+		}
+	}
+}
+
+func (p *Package) collectTypes(types []*Type) {
+	for _, t := range types {
+		if p.syms[t.Name] {
+			// Shouldn't be any cycles but stop just in case.
+			continue
+		}
+		p.syms[t.Name] = true
+		p.collectValues(t.Consts)
+		p.collectValues(t.Vars)
+		p.collectFuncs(t.Funcs)
+		p.collectFuncs(t.Methods)
+	}
+}
+
+func (p *Package) collectFuncs(funcs []*Func) {
+	for _, f := range funcs {
+		if f.Recv != "" {
+			p.syms[strings.TrimPrefix(f.Recv, "*")+"."+f.Name] = true
+		} else {
+			p.syms[f.Name] = true
+		}
 	}
 }
 
@@ -217,4 +263,88 @@ func simpleImporter(imports map[string]*ast.Object, path string) (*ast.Object, e
 		imports[path] = pkg
 	}
 	return pkg, nil
+}
+
+// lookupSym reports whether the package has a given symbol or method.
+//
+// If recv == "", HasSym reports whether the package has a top-level
+// const, func, type, or var named name.
+//
+// If recv != "", HasSym reports whether the package has a type
+// named recv with a method named name.
+func (p *Package) lookupSym(recv, name string) bool {
+	if recv != "" {
+		return p.syms[recv+"."+name]
+	}
+	return p.syms[name]
+}
+
+// lookupPackage returns the import path identified by name
+// in the given package. If name uniquely identifies a single import,
+// then lookupPackage returns that import.
+// If multiple packages are imported as name, importPath returns "", false.
+// Otherwise, if name is the name of p itself, importPath returns "", true,
+// to signal a reference to p.
+// Otherwise, importPath returns "", false.
+func (p *Package) lookupPackage(name string) (importPath string, ok bool) {
+	if path, ok := p.importByName[name]; ok {
+		if path == "" {
+			return "", false // multiple imports used the name
+		}
+		return path, true // found import
+	}
+	if p.Name == name {
+		return "", true // allow reference to this package
+	}
+	return "", false // unknown name
+}
+
+// Parser returns a doc comment parser configured
+// for parsing doc comments from package p.
+// Each call returns a new parser, so that the caller may
+// customize it before use.
+func (p *Package) Parser() *comment.Parser {
+	return &comment.Parser{
+		LookupPackage: p.lookupPackage,
+		LookupSym:     p.lookupSym,
+	}
+}
+
+// Printer returns a doc comment printer configured
+// for printing doc comments from package p.
+// Each call returns a new printer, so that the caller may
+// customize it before use.
+func (p *Package) Printer() *comment.Printer {
+	// No customization today, but having p.Printer()
+	// gives us flexibility in the future, and it is convenient for callers.
+	return &comment.Printer{}
+}
+
+// HTML returns formatted HTML for the doc comment text.
+//
+// To customize details of the HTML, use [Package.Printer]
+// to obtain a [comment.Printer], and configure it
+// before calling its HTML method.
+func (p *Package) HTML(text string) []byte {
+	return p.Printer().HTML(p.Parser().Parse(text))
+}
+
+// Markdown returns formatted Markdown for the doc comment text.
+//
+// To customize details of the Markdown, use [Package.Printer]
+// to obtain a [comment.Printer], and configure it
+// before calling its Markdown method.
+func (p *Package) Markdown(text string) []byte {
+	return p.Printer().Markdown(p.Parser().Parse(text))
+}
+
+// Text returns formatted text for the doc comment text,
+// wrapped to 80 Unicode code points and using tabs for
+// code block indentation.
+//
+// To customize details of the formatting, use [Package.Printer]
+// to obtain a [comment.Printer], and configure it
+// before calling its Text method.
+func (p *Package) Text(text string) []byte {
+	return p.Printer().Text(p.Parser().Parse(text))
 }

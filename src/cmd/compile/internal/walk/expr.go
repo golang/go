@@ -20,7 +20,8 @@ import (
 )
 
 // The result of walkExpr MUST be assigned back to n, e.g.
-// 	n.Left = walkExpr(n.Left, init)
+//
+//	n.Left = walkExpr(n.Left, init)
 func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 	if n == nil {
 		return n

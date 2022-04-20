@@ -541,13 +541,25 @@ func (l *lexer) atTerminator() bool {
 	case eof, '.', ',', '|', ':', ')', '(':
 		return true
 	}
-	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will
-	// succeed but should fail) but only in extremely rare cases caused by willfully
-	// bad choice of delimiter.
-	if rd, _ := utf8.DecodeRuneInString(l.rightDelim); rd == r {
-		return true
+	// Are we at a right delimiter? TODO: This is harder than it should be
+	// because lookahead is only one rune.
+	rightDelim := l.rightDelim
+	defer func(pos Pos, line int) {
+		l.pos = pos
+		l.line = line
+	}(l.pos, l.line)
+	for len(rightDelim) > 0 {
+		rNext := l.next()
+		if rNext == eof {
+			return false
+		}
+		rDelim, size := utf8.DecodeRuneInString(rightDelim)
+		if rNext != rDelim {
+			return false
+		}
+		rightDelim = rightDelim[size:]
 	}
-	return false
+	return true
 }
 
 // lexChar scans a character constant. The initial quote is already

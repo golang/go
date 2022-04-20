@@ -136,16 +136,16 @@ func Global() Value {
 
 // ValueOf returns x as a JavaScript value:
 //
-//  | Go                     | JavaScript             |
-//  | ---------------------- | ---------------------- |
-//  | js.Value               | [its value]            |
-//  | js.Func                | function               |
-//  | nil                    | null                   |
-//  | bool                   | boolean                |
-//  | integers and floats    | number                 |
-//  | string                 | string                 |
-//  | []interface{}          | new array              |
-//  | map[string]interface{} | new object             |
+//	| Go                     | JavaScript             |
+//	| ---------------------- | ---------------------- |
+//	| js.Value               | [its value]            |
+//	| js.Func                | function               |
+//	| nil                    | null                   |
+//	| bool                   | boolean                |
+//	| integers and floats    | number                 |
+//	| string                 | string                 |
+//	| []interface{}          | new array              |
+//	| map[string]interface{} | new object             |
 //
 // Panics if x is not one of the expected types.
 func ValueOf(x any) Value {

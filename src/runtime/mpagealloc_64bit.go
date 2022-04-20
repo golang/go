@@ -41,7 +41,8 @@ var levelBits = [summaryLevels]uint{
 //
 // With levelShift, one can compute the index of the summary at level l related to a
 // pointer p by doing:
-//   p >> levelShift[l]
+//
+//	p >> levelShift[l]
 var levelShift = [summaryLevels]uint{
 	heapAddrBits - summaryL0Bits,
 	heapAddrBits - summaryL0Bits - 1*summaryLevelBits,

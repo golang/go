@@ -16,20 +16,20 @@ import (
 
 // editRequirements returns an edited version of rs such that:
 //
-// 	1. Each module version in mustSelect is selected.
+//  1. Each module version in mustSelect is selected.
 //
-// 	2. Each module version in tryUpgrade is upgraded toward the indicated
-// 	   version as far as can be done without violating (1).
+//  2. Each module version in tryUpgrade is upgraded toward the indicated
+//     version as far as can be done without violating (1).
 //
-// 	3. Each module version in rs.rootModules (or rs.graph, if rs is unpruned)
-// 	   is downgraded from its original version only to the extent needed to
-// 	   satisfy (1), or upgraded only to the extent needed to satisfy (1) and
-// 	   (2).
+//  3. Each module version in rs.rootModules (or rs.graph, if rs is unpruned)
+//     is downgraded from its original version only to the extent needed to
+//     satisfy (1), or upgraded only to the extent needed to satisfy (1) and
+//     (2).
 //
-// 	4. No module is upgraded above the maximum version of its path found in the
-// 	   dependency graph of rs, the combined dependency graph of the versions in
-// 	   mustSelect, or the dependencies of each individual module version in
-// 	   tryUpgrade.
+//  4. No module is upgraded above the maximum version of its path found in the
+//     dependency graph of rs, the combined dependency graph of the versions in
+//     mustSelect, or the dependencies of each individual module version in
+//     tryUpgrade.
 //
 // Generally, the module versions in mustSelect are due to the module or a
 // package within the module matching an explicit command line argument to 'go

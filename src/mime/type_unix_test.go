@@ -27,6 +27,8 @@ func TestTypeByExtensionUNIX(t *testing.T) {
 		".t3":  "document/test",
 		".t4":  "example/test",
 		".png": "image/png",
+		",v":   "",
+		"~":    "",
 	}
 
 	for ext, want := range typeTests {

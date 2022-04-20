@@ -32,9 +32,11 @@ checking packages containing imports with relative import paths
 files to include for such packages.
 
 Usage:
+
 	gotype [flags] [path...]
 
 The flags are:
+
 	-t
 		include local test files in a directory (ignored if -x is provided)
 	-x
@@ -47,6 +49,7 @@ The flags are:
 		compiler used for installed packages (gc, gccgo, or source); default: source
 
 Flags controlling additional output:
+
 	-ast
 		print AST
 	-trace
@@ -74,7 +77,6 @@ cmd/compile:
 To verify the output of a pipe:
 
 	echo "package foo" | gotype
-
 */
 package main
 

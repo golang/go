@@ -387,7 +387,7 @@ func sweepone() uintptr {
 		// concurrent sweeps running, but we're at least very
 		// close to done sweeping.
 
-		// Move the scavenge gen forward (signalling
+		// Move the scavenge gen forward (signaling
 		// that there's new work to do) and wake the scavenger.
 		//
 		// The scavenger is signaled by the last sweeper because once
@@ -424,6 +424,7 @@ func isSweepDone() bool {
 }
 
 // Returns only when span s has been swept.
+//
 //go:nowritebarrier
 func (s *mspan) ensureSwept() {
 	// Caller must disable preemption.

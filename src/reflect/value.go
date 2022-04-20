@@ -1437,7 +1437,9 @@ func (v Value) CanInterface() bool {
 
 // Interface returns v's current value as an interface{}.
 // It is equivalent to:
+//
 //	var i interface{} = (v's underlying value)
+//
 // It panics if the Value was obtained by accessing
 // unexported struct fields.
 func (v Value) Interface() (i any) {
@@ -1825,14 +1827,24 @@ func (iter *MapIter) Reset(v Value) {
 // Example:
 //
 //	iter := reflect.ValueOf(m).MapRange()
-// 	for iter.Next() {
+//	for iter.Next() {
 //		k := iter.Key()
 //		v := iter.Value()
 //		...
 //	}
 func (v Value) MapRange() *MapIter {
-	v.mustBe(Map)
+	// This is inlinable to take advantage of "function outlining".
+	// The allocation of MapIter can be stack allocated if the caller
+	// does not allow it to escape.
+	// See https://blog.filippo.io/efficient-go-apis-with-the-inliner/
+	if v.kind() != Map {
+		v.panicNotMap()
+	}
 	return &MapIter{m: v}
+}
+
+func (f flag) panicNotMap() {
+	f.mustBe(Map)
 }
 
 // copyVal returns a Value containing the map key or value at ptr,
@@ -2463,12 +2475,17 @@ func (v Value) TrySend(x Value) bool {
 
 // Type returns v's type.
 func (v Value) Type() Type {
-	f := v.flag
-	if f == 0 {
+	if v.flag != 0 && v.flag&flagMethod == 0 {
+		return v.typ
+	}
+	return v.typeSlow()
+}
+
+func (v Value) typeSlow() Type {
+	if v.flag == 0 {
 		panic(&ValueError{"reflect.Value.Type", Invalid})
 	}
-	if f&flagMethod == 0 {
-		// Easy case
+	if v.flag&flagMethod == 0 {
 		return v.typ
 	}
 
@@ -2757,6 +2774,7 @@ type runtimeSelect struct {
 // If the case was a receive, val is filled in with the received value.
 // The conventional OK bool indicates whether the receive corresponds
 // to a sent value.
+//
 //go:noescape
 func rselect([]runtimeSelect) (chosen int, recvOK bool)
 
@@ -3493,6 +3511,7 @@ func maplen(m unsafe.Pointer) int
 // Arguments passed through to call do not escape. The type is used only in a
 // very limited callee of call, the stackArgs are copied, and regArgs is only
 // used in the call frame.
+//
 //go:noescape
 //go:linkname call runtime.reflectcall
 func call(stackArgsType *rtype, f, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs)
@@ -3500,29 +3519,35 @@ func call(stackArgsType *rtype, f, stackArgs unsafe.Pointer, stackArgsSize, stac
 func ifaceE2I(t *rtype, src any, dst unsafe.Pointer)
 
 // memmove copies size bytes to dst from src. No write barriers are used.
+//
 //go:noescape
 func memmove(dst, src unsafe.Pointer, size uintptr)
 
 // typedmemmove copies a value of type t to dst from src.
+//
 //go:noescape
 func typedmemmove(t *rtype, dst, src unsafe.Pointer)
 
 // typedmemmovepartial is like typedmemmove but assumes that
 // dst and src point off bytes into the value and only copies size bytes.
+//
 //go:noescape
 func typedmemmovepartial(t *rtype, dst, src unsafe.Pointer, off, size uintptr)
 
 // typedmemclr zeros the value at ptr of type t.
+//
 //go:noescape
 func typedmemclr(t *rtype, ptr unsafe.Pointer)
 
 // typedmemclrpartial is like typedmemclr but assumes that
 // dst points off bytes into the value and only clears size bytes.
+//
 //go:noescape
 func typedmemclrpartial(t *rtype, ptr unsafe.Pointer, off, size uintptr)
 
 // typedslicecopy copies a slice of elemType values from src to dst,
 // returning the number of elements copied.
+//
 //go:noescape
 func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
 

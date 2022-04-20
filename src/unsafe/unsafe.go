@@ -20,10 +20,11 @@ type IntegerType int
 
 // Pointer represents a pointer to an arbitrary type. There are four special operations
 // available for type Pointer that are not available for other types:
-//	- A pointer value of any type can be converted to a Pointer.
-//	- A Pointer can be converted to a pointer value of any type.
-//	- A uintptr can be converted to a Pointer.
-//	- A Pointer can be converted to a uintptr.
+//   - A pointer value of any type can be converted to a Pointer.
+//   - A Pointer can be converted to a pointer value of any type.
+//   - A uintptr can be converted to a Pointer.
+//   - A Pointer can be converted to a uintptr.
+//
 // Pointer therefore allows a program to defeat the type system and read and write
 // arbitrary memory. It should be used with extreme care.
 //

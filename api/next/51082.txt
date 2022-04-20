@@ -1,0 +1,61 @@
+pkg go/doc, method (*Package) HTML(string) []uint8 #51082
+pkg go/doc, method (*Package) Markdown(string) []uint8 #51082
+pkg go/doc, method (*Package) Parser() *comment.Parser #51082
+pkg go/doc, method (*Package) Printer() *comment.Printer #51082
+pkg go/doc, method (*Package) Synopsis(string) string #51082
+pkg go/doc, method (*Package) Text(string) []uint8 #51082
+pkg go/doc/comment, func DefaultLookupPackage(string) (string, bool) #51082
+pkg go/doc/comment, method (*DocLink) DefaultURL(string) string #51082
+pkg go/doc/comment, method (*Heading) DefaultID() string #51082
+pkg go/doc/comment, method (*List) BlankBefore() bool #51082
+pkg go/doc/comment, method (*List) BlankBetween() bool #51082
+pkg go/doc/comment, method (*Parser) Parse(string) *Doc #51082
+pkg go/doc/comment, method (*Printer) Comment(*Doc) []uint8 #51082
+pkg go/doc/comment, method (*Printer) HTML(*Doc) []uint8 #51082
+pkg go/doc/comment, method (*Printer) Markdown(*Doc) []uint8 #51082
+pkg go/doc/comment, method (*Printer) Text(*Doc) []uint8 #51082
+pkg go/doc/comment, type Block interface, unexported methods #51082
+pkg go/doc/comment, type Code struct #51082
+pkg go/doc/comment, type Code struct, Text string #51082
+pkg go/doc/comment, type Doc struct #51082
+pkg go/doc/comment, type Doc struct, Content []Block #51082
+pkg go/doc/comment, type Doc struct, Links []*LinkDef #51082
+pkg go/doc/comment, type DocLink struct #51082
+pkg go/doc/comment, type DocLink struct, ImportPath string #51082
+pkg go/doc/comment, type DocLink struct, Name string #51082
+pkg go/doc/comment, type DocLink struct, Recv string #51082
+pkg go/doc/comment, type DocLink struct, Text []Text #51082
+pkg go/doc/comment, type Heading struct #51082
+pkg go/doc/comment, type Heading struct, Text []Text #51082
+pkg go/doc/comment, type Italic string #51082
+pkg go/doc/comment, type Link struct #51082
+pkg go/doc/comment, type Link struct, Auto bool #51082
+pkg go/doc/comment, type Link struct, Text []Text #51082
+pkg go/doc/comment, type Link struct, URL string #51082
+pkg go/doc/comment, type LinkDef struct #51082
+pkg go/doc/comment, type LinkDef struct, Text string #51082
+pkg go/doc/comment, type LinkDef struct, URL string #51082
+pkg go/doc/comment, type LinkDef struct, Used bool #51082
+pkg go/doc/comment, type List struct #51082
+pkg go/doc/comment, type List struct, ForceBlankBefore bool #51082
+pkg go/doc/comment, type List struct, ForceBlankBetween bool #51082
+pkg go/doc/comment, type List struct, Items []*ListItem #51082
+pkg go/doc/comment, type ListItem struct #51082
+pkg go/doc/comment, type ListItem struct, Content []Block #51082
+pkg go/doc/comment, type ListItem struct, Number string #51082
+pkg go/doc/comment, type Paragraph struct #51082
+pkg go/doc/comment, type Paragraph struct, Text []Text #51082
+pkg go/doc/comment, type Parser struct #51082
+pkg go/doc/comment, type Parser struct, LookupPackage func(string) (string, bool) #51082
+pkg go/doc/comment, type Parser struct, LookupSym func(string, string) bool #51082
+pkg go/doc/comment, type Parser struct, Words map[string]string #51082
+pkg go/doc/comment, type Plain string #51082
+pkg go/doc/comment, type Printer struct #51082
+pkg go/doc/comment, type Printer struct, DocLinkBaseURL string #51082
+pkg go/doc/comment, type Printer struct, DocLinkURL func(*DocLink) string #51082
+pkg go/doc/comment, type Printer struct, HeadingID func(*Heading) string #51082
+pkg go/doc/comment, type Printer struct, HeadingLevel int #51082
+pkg go/doc/comment, type Printer struct, TextCodePrefix string #51082
+pkg go/doc/comment, type Printer struct, TextPrefix string #51082
+pkg go/doc/comment, type Printer struct, TextWidth int #51082
+pkg go/doc/comment, type Text interface, unexported methods #51082

@@ -286,10 +286,10 @@ func dvarint(x *obj.LSym, off int, v int64) int {
 // for stack variables are specified as the number of bytes below varp (pointer to the
 // top of the local variables) for their starting address. The format is:
 //
-//  - Offset of the deferBits variable
-//  - Number of defers in the function
-//  - Information about each defer call, in reverse order of appearance in the function:
-//    - Offset of the closure value to call
+//   - Offset of the deferBits variable
+//   - Number of defers in the function
+//   - Information about each defer call, in reverse order of appearance in the function:
+//   - Offset of the closure value to call
 func (s *state) emitOpenDeferInfo() {
 	x := base.Ctxt.Lookup(s.curfn.LSym.Name + ".opendefer")
 	x.Set(obj.AttrContentAddressable, true)
@@ -1861,6 +1861,84 @@ func (s *state) stmt(n ir.Node) {
 		}
 		s.startBlock(bEnd)
 
+	case ir.OJUMPTABLE:
+		n := n.(*ir.JumpTableStmt)
+
+		// Make blocks we'll need.
+		jt := s.f.NewBlock(ssa.BlockJumpTable)
+		bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+		// The only thing that needs evaluating is the index we're looking up.
+		idx := s.expr(n.Idx)
+		unsigned := idx.Type.IsUnsigned()
+
+		// Extend so we can do everything in uintptr arithmetic.
+		t := types.Types[types.TUINTPTR]
+		idx = s.conv(nil, idx, idx.Type, t)
+
+		// The ending condition for the current block decides whether we'll use
+		// the jump table at all.
+		// We check that min <= idx <= max and jump around the jump table
+		// if that test fails.
+		// We implement min <= idx <= max with 0 <= idx-min <= max-min, because
+		// we'll need idx-min anyway as the control value for the jump table.
+		var min, max uint64
+		if unsigned {
+			min, _ = constant.Uint64Val(n.Cases[0])
+			max, _ = constant.Uint64Val(n.Cases[len(n.Cases)-1])
+		} else {
+			mn, _ := constant.Int64Val(n.Cases[0])
+			mx, _ := constant.Int64Val(n.Cases[len(n.Cases)-1])
+			min = uint64(mn)
+			max = uint64(mx)
+		}
+		// Compare idx-min with max-min, to see if we can use the jump table.
+		idx = s.newValue2(s.ssaOp(ir.OSUB, t), t, idx, s.uintptrConstant(min))
+		width := s.uintptrConstant(max - min)
+		cmp := s.newValue2(s.ssaOp(ir.OLE, t), types.Types[types.TBOOL], idx, width)
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.SetControl(cmp)
+		b.AddEdgeTo(jt)             // in range - use jump table
+		b.AddEdgeTo(bEnd)           // out of range - no case in the jump table will trigger
+		b.Likely = ssa.BranchLikely // TODO: assumes missing the table entirely is unlikely. True?
+
+		// Build jump table block.
+		s.startBlock(jt)
+		jt.Pos = n.Pos()
+		if base.Flag.Cfg.SpectreIndex {
+			idx = s.newValue2(ssa.OpSpectreSliceIndex, t, idx, width)
+		}
+		jt.SetControl(idx)
+
+		// Figure out where we should go for each index in the table.
+		table := make([]*ssa.Block, max-min+1)
+		for i := range table {
+			table[i] = bEnd // default target
+		}
+		for i := range n.Targets {
+			c := n.Cases[i]
+			lab := s.label(n.Targets[i])
+			if lab.target == nil {
+				lab.target = s.f.NewBlock(ssa.BlockPlain)
+			}
+			var val uint64
+			if unsigned {
+				val, _ = constant.Uint64Val(c)
+			} else {
+				vl, _ := constant.Int64Val(c)
+				val = uint64(vl)
+			}
+			// Overwrite the default target.
+			table[val-min] = lab.target
+		}
+		for _, t := range table {
+			jt.AddEdgeTo(t)
+		}
+		s.endBlock()
+
+		s.startBlock(bEnd)
+
 	case ir.OVARDEF:
 		n := n.(*ir.UnaryExpr)
 		if !s.canSSA(n.X) {
@@ -2349,6 +2427,13 @@ func (s *state) ssaShiftOp(op ir.Op, t *types.Type, u *types.Type) ssa.Op {
 		s.Fatalf("unhandled shift op %v etype=%s/%s", op, etype1, etype2)
 	}
 	return x
+}
+
+func (s *state) uintptrConstant(v uint64) *ssa.Value {
+	if s.config.PtrSize == 4 {
+		return s.newValue0I(ssa.OpConst32, types.Types[types.TUINTPTR], int64(v))
+	}
+	return s.newValue0I(ssa.OpConst64, types.Types[types.TUINTPTR], int64(v))
 }
 
 func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
@@ -5017,7 +5102,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	} else {
 		// Store arguments to stack, including defer/go arguments and receiver for method calls.
 		// These are written in SP-offset order.
-		argStart := base.Ctxt.FixedFrameSize()
+		argStart := base.Ctxt.Arch.FixedFrameSize
 		// Defer/go args.
 		if k != callNormal && k != callTail {
 			// Write closure (arg to newproc/deferproc).
@@ -5521,7 +5606,7 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
 func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args ...*ssa.Value) []*ssa.Value {
 	s.prevCall = nil
 	// Write args to the stack
-	off := base.Ctxt.FixedFrameSize()
+	off := base.Ctxt.Arch.FixedFrameSize
 	var callArgs []*ssa.Value
 	var callArgTypes []*types.Type
 
@@ -5534,13 +5619,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		off += size
 	}
 	off = types.Rnd(off, int64(types.RegSize))
-
-	// Accumulate results types and offsets
-	offR := off
-	for _, t := range results {
-		offR = types.Rnd(offR, t.Alignment())
-		offR += t.Size()
-	}
 
 	// Issue call
 	var call *ssa.Value
@@ -5555,7 +5633,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		b := s.endBlock()
 		b.Kind = ssa.BlockExit
 		b.SetControl(call)
-		call.AuxInt = off - base.Ctxt.FixedFrameSize()
+		call.AuxInt = off - base.Ctxt.Arch.FixedFrameSize
 		if len(results) > 0 {
 			s.Fatalf("panic call can't have results")
 		}
@@ -6447,6 +6525,9 @@ type State struct {
 	// and where they would like to go.
 	Branches []Branch
 
+	// JumpTables remembers all the jump tables we've seen.
+	JumpTables []*ssa.Block
+
 	// bstart remembers where each block starts (indexed by block ID)
 	bstart []*obj.Prog
 
@@ -7057,6 +7138,20 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			br.P.Pos = br.P.Pos.WithNotStmt()
 		}
 
+	}
+
+	// Resolve jump table destinations.
+	for _, jt := range s.JumpTables {
+		// Convert from *Block targets to *Prog targets.
+		targets := make([]*obj.Prog, len(jt.Succs))
+		for i, e := range jt.Succs {
+			targets[i] = s.bstart[e.Block().ID]
+		}
+		// Add to list of jump tables to be resolved at assembly time.
+		// The assembler converts from *Prog entries to absolute addresses
+		// once it knows instruction byte offsets.
+		fi := pp.CurFunc.LSym.Func()
+		fi.JumpTables = append(fi.JumpTables, obj.JumpTable{Sym: jt.Aux.(*obj.LSym), Targets: targets})
 	}
 
 	if e.log { // spew to stdout
@@ -7710,6 +7805,10 @@ func (e *ssafn) SetWBPos(pos src.XPos) {
 
 func (e *ssafn) MyImportPath() string {
 	return base.Ctxt.Pkgpath
+}
+
+func (e *ssafn) LSym() string {
+	return e.curfn.LSym.Name
 }
 
 func clobberBase(n ir.Node) ir.Node {

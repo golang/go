@@ -5,6 +5,7 @@
 package cshared_test
 
 import (
+	"bufio"
 	"bytes"
 	"debug/elf"
 	"debug/pe"
@@ -837,4 +838,52 @@ func TestGo2C2Go(t *testing.T) {
 	bin = filepath.Join(tmpdir, "m2") + exeSuffix
 	run(t, goenv, "go", "build", "-o", bin, "./go2c2go/m2")
 	runExe(t, runenv, bin)
+}
+
+func TestIssue36233(t *testing.T) {
+	t.Parallel()
+
+	// Test that the export header uses GoComplex64 and GoComplex128
+	// for complex types.
+
+	tmpdir, err := os.MkdirTemp("", "cshared-TestIssue36233")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	const exportHeader = "issue36233.h"
+
+	run(t, nil, "go", "tool", "cgo", "-exportheader", exportHeader, "-objdir", tmpdir, "./issue36233/issue36233.go")
+	data, err := os.ReadFile(exportHeader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	funcs := []struct{ name, signature string }{
+		{"exportComplex64", "GoComplex64 exportComplex64(GoComplex64 v)"},
+		{"exportComplex128", "GoComplex128 exportComplex128(GoComplex128 v)"},
+		{"exportComplexfloat", "GoComplex64 exportComplexfloat(GoComplex64 v)"},
+		{"exportComplexdouble", "GoComplex128 exportComplexdouble(GoComplex128 v)"},
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	var found int
+	for scanner.Scan() {
+		b := scanner.Bytes()
+		for _, fn := range funcs {
+			if bytes.Contains(b, []byte(fn.name)) {
+				found++
+				if !bytes.Contains(b, []byte(fn.signature)) {
+					t.Errorf("function signature mismatch; got %q, want %q", b, fn.signature)
+				}
+			}
+		}
+	}
+	if err = scanner.Err(); err != nil {
+		t.Errorf("scanner encountered error: %v", err)
+	}
+	if found != len(funcs) {
+		t.Error("missing functions")
+	}
 }

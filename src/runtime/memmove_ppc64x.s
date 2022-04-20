@@ -24,8 +24,12 @@
 #define IDX16 R8
 // temp used for copies, etc.
 #define TMP R9
-// number of 32 byte chunks
+// number of 64 byte chunks
 #define QWORDS R10
+// index values
+#define IDX32 R14
+#define IDX48 R15
+#define OCTWORDS R16
 
 TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
 	// R3 = TGT = to
@@ -52,27 +56,45 @@ check:
 	// Copying forward if no overlap.
 
 	BC	12, 6, checkbytes	// BEQ CR1, checkbytes
-	SRDCC	$2, DWORDS, QWORDS	// 32 byte chunks?
-	BEQ	lt32gt8			// < 32 bytes
+	SRDCC	$3, DWORDS, OCTWORDS	// 64 byte chunks?
+	MOVD	$16, IDX16
+	BEQ	lt64gt8			// < 64 bytes
 
-	// Prepare for moves of 32 bytes at a time.
+	// Prepare for moves of 64 bytes at a time.
 
-forward32setup:
+forward64setup:
 	DCBTST	(TGT)			// prepare data cache
 	DCBT	(SRC)
-	MOVD	QWORDS, CTR		// Number of 32 byte chunks
-	MOVD	$16, IDX16		// 16 for index
+	MOVD	OCTWORDS, CTR		// Number of 64 byte chunks
+	MOVD	$32, IDX32
+	MOVD	$48, IDX48
+	PCALIGN	$32
 
-forward32:
-	LXVD2X	(R0)(SRC), VS32		// load 16 bytes
-	LXVD2X	(IDX16)(SRC), VS33	// load 16 bytes
-	ADD	$32, SRC
-	STXVD2X	VS32, (R0)(TGT)		// store 16 bytes
+forward64:
+	LXVD2X	(R0)(SRC), VS32		// load 64 bytes
+	LXVD2X	(IDX16)(SRC), VS33
+	LXVD2X	(IDX32)(SRC), VS34
+	LXVD2X	(IDX48)(SRC), VS35
+	ADD	$64, SRC
+	STXVD2X	VS32, (R0)(TGT)		// store 64 bytes
 	STXVD2X	VS33, (IDX16)(TGT)
-	ADD	$32,TGT			// bump up for next set
-	BC	16, 0, forward32	// continue
-	ANDCC	$3, DWORDS		// remaining doublewords
+	STXVD2X	VS34, (IDX32)(TGT)
+	STXVD2X VS35, (IDX48)(TGT)
+	ADD	$64,TGT			// bump up for next set
+	BC	16, 0, forward64	// continue
+	ANDCC	$7, DWORDS		// remaining doublewords
 	BEQ	checkbytes		// only bytes remain
+
+lt64gt8:
+	CMP	DWORDS, $4
+	BLT	lt32gt8
+	LXVD2X	(R0)(SRC), VS32
+	LXVD2X	(IDX16)(SRC), VS33
+	ADD	$-4, DWORDS
+	STXVD2X	VS32, (R0)(TGT)
+	STXVD2X	VS33, (IDX16)(TGT)
+	ADD	$32, SRC
+	ADD	$32, TGT
 
 lt32gt8:
         // At this point >= 8 and < 32
@@ -134,7 +156,7 @@ backwardtailloop:
 	SUB	$1,SRC
 	MOVBZ 	TMP, -1(TGT)
 	SUB	$1,TGT
-	BC	16, 0, backwardtailloop // bndz
+	BDNZ	backwardtailloop
 
 nobackwardtail:
 	BC	4, 5, LR		// blelr cr1, return if DWORDS == 0
@@ -169,6 +191,6 @@ backward32loop:
 	LXVD2X	(IDX16)(SRC), VS33
 	STXVD2X	VS32, (R0)(TGT)		// store 16x2 bytes
 	STXVD2X	VS33, (IDX16)(TGT)
-	BC      16, 0, backward32loop	// bndz
+	BDNZ	backward32loop
 	BC	12, 2, LR		// beqlr, return if DWORDS == 0
 	BR	backward24
