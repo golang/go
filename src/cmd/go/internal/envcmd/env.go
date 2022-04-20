@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package envcmd implements the ``go env'' command.
+// Package envcmd implements the “go env” command.
 package envcmd
 
 import (
@@ -184,15 +184,23 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 	}
 	cmd := b.GccCmd(".", "")
 
+	join := func(s []string) string {
+		q, err := quoted.Join(s)
+		if err != nil {
+			return strings.Join(s, " ")
+		}
+		return q
+	}
+
 	return []cfg.EnvVar{
 		// Note: Update the switch in runEnv below when adding to this list.
-		{Name: "CGO_CFLAGS", Value: strings.Join(cflags, " ")},
-		{Name: "CGO_CPPFLAGS", Value: strings.Join(cppflags, " ")},
-		{Name: "CGO_CXXFLAGS", Value: strings.Join(cxxflags, " ")},
-		{Name: "CGO_FFLAGS", Value: strings.Join(fflags, " ")},
-		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
+		{Name: "CGO_CFLAGS", Value: join(cflags)},
+		{Name: "CGO_CPPFLAGS", Value: join(cppflags)},
+		{Name: "CGO_CXXFLAGS", Value: join(cxxflags)},
+		{Name: "CGO_FFLAGS", Value: join(fflags)},
+		{Name: "CGO_LDFLAGS", Value: join(ldflags)},
 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
-		{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")},
+		{Name: "GOGCCFLAGS", Value: join(cmd[3:])},
 	}
 }
 

@@ -244,8 +244,10 @@ func (lv *liveness) initcache() {
 // liveness effects on a variable.
 //
 // The possible flags are:
+//
 //	uevar - used by the instruction
 //	varkill - killed by the instruction (set)
+//
 // A kill happens after the use (for an instruction that updates a value, for example).
 type liveEffect int
 
@@ -1460,14 +1462,14 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 // isfat reports whether a variable of type t needs multiple assignments to initialize.
 // For example:
 //
-// 	type T struct { x, y int }
-// 	x := T{x: 0, y: 1}
+//	type T struct { x, y int }
+//	x := T{x: 0, y: 1}
 //
 // Then we need:
 //
-// 	var t T
-// 	t.x = 0
-// 	t.y = 1
+//	var t T
+//	t.x = 0
+//	t.y = 1
 //
 // to fully initialize t.
 func isfat(t *types.Type) bool {

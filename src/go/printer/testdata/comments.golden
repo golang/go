@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // This is a package for testing comment placement by go/printer.
-//
 package main
 
 import "fmt"	// fmt
@@ -97,6 +96,13 @@ type S3 struct {
 	f3	int	// f3 is not exported
 }
 
+// Here is a comment.
+// Here is an accidentally unindented line.
+// More comment.
+//
+//dir:ect ive
+type directiveCheck struct{}
+
 // This comment group should be separated
 // with a newline from the next comment
 // group.
@@ -116,9 +122,7 @@ func f0() {
 	x := pi
 }
 
-//
 // This comment should be associated with f1, with one blank line before the comment.
-//
 func f1() {
 	f0()
 	/* 1 */
@@ -688,9 +692,16 @@ func _() {
 	}
 }
 
+//extern foo
+func foo()	{}
+
+//export bar
+func bar()	{}
+
 // Print line directives correctly.
 
 // The following is a legal line directive.
+//
 //line foo:1
 func _() {
 	_ = 0

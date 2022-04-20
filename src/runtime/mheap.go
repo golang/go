@@ -319,16 +319,16 @@ type arenaHint struct {
 // mSpanManual, or mSpanFree. Transitions between these states are
 // constrained as follows:
 //
-//  * A span may transition from free to in-use or manual during any GC
-//    phase.
+//   - A span may transition from free to in-use or manual during any GC
+//     phase.
 //
-//  * During sweeping (gcphase == _GCoff), a span may transition from
-//    in-use to free (as a result of sweeping) or manual to free (as a
-//    result of stacks being freed).
+//   - During sweeping (gcphase == _GCoff), a span may transition from
+//     in-use to free (as a result of sweeping) or manual to free (as a
+//     result of stacks being freed).
 //
-//  * During GC (gcphase != _GCoff), a span *must not* transition from
-//    manual or in-use to free. Because concurrent GC may read a pointer
-//    and then look up its span, the span state must be monotonic.
+//   - During GC (gcphase != _GCoff), a span *must not* transition from
+//     manual or in-use to free. Because concurrent GC may read a pointer
+//     and then look up its span, the span state must be monotonic.
 //
 // Setting mspan.state to mSpanInUse or mSpanManual must be done
 // atomically and only after all other span fields are valid.
@@ -589,6 +589,7 @@ func (i arenaIdx) l2() uint {
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
 // It returns false for pointers into mSpanManual spans.
 // Non-preemptible because it is used by write barriers.
+//
 //go:nowritebarrier
 //go:nosplit
 func inheap(b uintptr) bool {

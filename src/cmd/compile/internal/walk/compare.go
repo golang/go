@@ -16,7 +16,8 @@ import (
 )
 
 // The result of walkCompare MUST be assigned back to n, e.g.
-// 	n.Left = walkCompare(n.Left, init)
+//
+//	n.Left = walkCompare(n.Left, init)
 func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	if n.X.Type().IsInterface() && n.Y.Type().IsInterface() && n.X.Op() != ir.ONIL && n.Y.Op() != ir.ONIL {
 		return walkCompareInterface(n, init)
@@ -404,7 +405,8 @@ func walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 }
 
 // The result of finishCompare MUST be assigned back to n, e.g.
-// 	n.Left = finishCompare(n.Left, x, r, init)
+//
+//	n.Left = finishCompare(n.Left, x, r, init)
 func finishCompare(n *ir.BinaryExpr, r ir.Node, init *ir.Nodes) ir.Node {
 	r = typecheck.Expr(r)
 	r = typecheck.Conv(r, n.Type())

@@ -114,6 +114,7 @@ func minNonzeroTime(a, b time.Time) time.Time {
 //   - now+Timeout
 //   - d.Deadline
 //   - the context's deadline
+//
 // Or zero, if none of Timeout, Deadline, or context's deadline is set.
 func (d *Dialer) deadline(ctx context.Context, now time.Time) (earliest time.Time) {
 	if d.Timeout != 0 { // including negative, for historical reasons
@@ -289,6 +290,7 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
 // Dial will try each IP address in order until one succeeds.
 //
 // Examples:
+//
 //	Dial("tcp", "golang.org:http")
 //	Dial("tcp", "192.0.2.1:http")
 //	Dial("tcp", "198.51.100.1:80")
@@ -304,6 +306,7 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
 // behaves with a non-well known protocol number such as "0" or "255".
 //
 // Examples:
+//
 //	Dial("ip4:1", "192.0.2.1")
 //	Dial("ip6:ipv6-icmp", "2001:db8::1")
 //	Dial("ip6:58", "fe80::1%lo0")

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/token"
 	"internal/goarch"
+	"internal/testenv"
 	"io"
 	"math"
 	"math/rand"
@@ -363,6 +364,10 @@ func TestMapIterSet(t *testing.T) {
 		}
 	}
 
+	if strings.HasSuffix(testenv.Builder(), "-noopt") {
+		return // no inlining with the noopt builder
+	}
+
 	got := int(testing.AllocsPerRun(10, func() {
 		iter := v.MapRange()
 		for iter.Next() {
@@ -370,9 +375,12 @@ func TestMapIterSet(t *testing.T) {
 			e.SetIterValue(iter)
 		}
 	}))
-	// Making a *MapIter allocates. This should be the only allocation.
-	if got != 1 {
-		t.Errorf("wanted 1 alloc, got %d", got)
+	// Calling MapRange should not allocate even though it returns a *MapIter.
+	// The function is inlineable, so if the local usage does not escape
+	// the *MapIter, it can remain stack allocated.
+	want := 0
+	if got != want {
+		t.Errorf("wanted %d alloc, got %d", want, got)
 	}
 }
 

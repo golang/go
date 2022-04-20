@@ -26,7 +26,7 @@ import (
 // The usual variables.
 var (
 	goarch           string
-	gobin            string
+	gorootBin        string
 	gohostarch       string
 	gohostos         string
 	goos             string
@@ -112,18 +112,13 @@ func xinit() {
 		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
+	gorootBin = pathf("%s/bin", goroot)
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
 		b = goroot
 	}
 	goroot_final = b
-
-	b = os.Getenv("GOBIN")
-	if b == "" {
-		b = pathf("%s/bin", goroot)
-	}
-	gobin = b
 
 	b = os.Getenv("GOOS")
 	if b == "" {
@@ -241,9 +236,19 @@ func xinit() {
 	// make.bash really does start from a clean slate.
 	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
 
+	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
+	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,
+	// https://go.dev/issue/31576). Since we want binaries installed by 'dist' to
+	// always go to GOROOT/bin anyway.
+	os.Setenv("GOBIN", gorootBin)
+
 	// Make the environment more predictable.
 	os.Setenv("LANG", "C")
 	os.Setenv("LANGUAGE", "en_US.UTF8")
+	os.Unsetenv("GO111MODULE")
+	os.Setenv("GOENV", "off")
+	os.Unsetenv("GOFLAGS")
+	os.Setenv("GOWORK", "off")
 
 	workdir = xworkdir()
 	if err := ioutil.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
@@ -488,16 +493,6 @@ func setup() {
 	// Remove old pre-tool binaries.
 	for _, old := range oldtool {
 		xremove(pathf("%s/bin/%s", goroot, old))
-	}
-
-	// If $GOBIN is set and has a Go compiler, it must be cleaned.
-	for _, char := range "56789" {
-		if isfile(pathf("%s/%c%s", gobin, char, "g")) {
-			for _, old := range oldtool {
-				xremove(pathf("%s/%s", gobin, old))
-			}
-			break
-		}
 	}
 
 	// For release, make sure excluded things are excluded.
@@ -1126,8 +1121,8 @@ func clean() {
 // The env command prints the default environment.
 func cmdenv() {
 	path := flag.Bool("p", false, "emit updated PATH")
-	plan9 := flag.Bool("9", false, "emit plan 9 syntax")
-	windows := flag.Bool("w", false, "emit windows syntax")
+	plan9 := flag.Bool("9", gohostos == "plan9", "emit plan 9 syntax")
+	windows := flag.Bool("w", gohostos == "windows", "emit windows syntax")
 	xflagparse(0)
 
 	format := "%s=\"%s\"\n"
@@ -1138,10 +1133,13 @@ func cmdenv() {
 		format = "set %s=%s\r\n"
 	}
 
+	xprintf(format, "GO111MODULE", "")
 	xprintf(format, "GOARCH", goarch)
-	xprintf(format, "GOBIN", gobin)
+	xprintf(format, "GOBIN", gorootBin)
 	xprintf(format, "GOCACHE", os.Getenv("GOCACHE"))
 	xprintf(format, "GODEBUG", os.Getenv("GODEBUG"))
+	xprintf(format, "GOENV", "off")
+	xprintf(format, "GOFLAGS", "")
 	xprintf(format, "GOHOSTARCH", gohostarch)
 	xprintf(format, "GOHOSTOS", gohostos)
 	xprintf(format, "GOOS", goos)
@@ -1167,13 +1165,14 @@ func cmdenv() {
 	if goarch == "ppc64" || goarch == "ppc64le" {
 		xprintf(format, "GOPPC64", goppc64)
 	}
+	xprintf(format, "GOWORK", "off")
 
 	if *path {
 		sep := ":"
 		if gohostos == "windows" {
 			sep = ";"
 		}
-		xprintf(format, "PATH", fmt.Sprintf("%s%s%s", gobin, sep, os.Getenv("PATH")))
+		xprintf(format, "PATH", fmt.Sprintf("%s%s%s", gorootBin, sep, os.Getenv("PATH")))
 	}
 }
 
@@ -1226,7 +1225,9 @@ var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link"}
 // commands (like "go tool dist test" in run.bash) can rely on bug fixes
 // made since Go 1.4, but this function cannot. In particular, the uses
 // of os/exec in this function cannot assume that
+//
 //	cmd.Env = append(os.Environ(), "X=Y")
+//
 // sets $X to Y in the command's environment. That guarantee was
 // added after Go 1.4, and in fact in Go 1.4 it was typically the opposite:
 // if $X was already present in os.Environ(), most systems preferred
@@ -1318,7 +1319,7 @@ func cmdbootstrap() {
 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
 	goldflags = os.Getenv("GO_LDFLAGS") // we were using $BOOT_GO_LDFLAGS until now
 	goBootstrap := pathf("%s/go_bootstrap", tooldir)
-	cmdGo := pathf("%s/go", gobin)
+	cmdGo := pathf("%s/go", gorootBin)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		copyfile(pathf("%s/compile1", tooldir), pathf("%s/compile", tooldir), writeExec)
@@ -1457,7 +1458,7 @@ func cmdbootstrap() {
 		os.Setenv("GOOS", gohostos)
 		os.Setenv("GOARCH", gohostarch)
 		os.Setenv("CC", compilerEnvLookup(defaultcc, gohostos, gohostarch))
-		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gobin, goos, goarch, exe), wrapperPath)
+		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gorootBin, goos, goarch, exe), wrapperPath)
 		// Restore environment.
 		// TODO(elias.naur): support environment variables in goCmd?
 		os.Setenv("GOOS", goos)
@@ -1681,26 +1682,26 @@ func banner() {
 	}
 	xprintf("---\n")
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)
-	xprintf("Installed commands in %s\n", gobin)
+	xprintf("Installed commands in %s\n", gorootBin)
 
 	if !xsamefile(goroot_final, goroot) {
 		// If the files are to be moved, don't check that gobin
 		// is on PATH; assume they know what they are doing.
 	} else if gohostos == "plan9" {
-		// Check that gobin is bound before /bin.
+		// Check that GOROOT/bin is bound before /bin.
 		pid := strings.Replace(readfile("#c/pid"), " ", "", -1)
 		ns := fmt.Sprintf("/proc/%s/ns", pid)
-		if !strings.Contains(readfile(ns), fmt.Sprintf("bind -b %s /bin", gobin)) {
-			xprintf("*** You need to bind %s before /bin.\n", gobin)
+		if !strings.Contains(readfile(ns), fmt.Sprintf("bind -b %s /bin", gorootBin)) {
+			xprintf("*** You need to bind %s before /bin.\n", gorootBin)
 		}
 	} else {
-		// Check that gobin appears in $PATH.
+		// Check that GOROOT/bin appears in $PATH.
 		pathsep := ":"
 		if gohostos == "windows" {
 			pathsep = ";"
 		}
-		if !strings.Contains(pathsep+os.Getenv("PATH")+pathsep, pathsep+gobin+pathsep) {
-			xprintf("*** You need to add %s to your PATH.\n", gobin)
+		if !strings.Contains(pathsep+os.Getenv("PATH")+pathsep, pathsep+gorootBin+pathsep) {
+			xprintf("*** You need to add %s to your PATH.\n", gorootBin)
 		}
 	}
 

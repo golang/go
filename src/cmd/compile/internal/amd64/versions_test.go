@@ -241,6 +241,7 @@ var featureToOpcodes = map[string][]string{
 	// native objdump doesn't include [QL] on linux.
 	"popcnt": {"popcntq", "popcntl", "popcnt"},
 	"bmi1":   {"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
+	"bmi2":   {"sarxq", "sarxl", "sarx", "shlxq", "shlxl", "shlx", "shrxq", "shrxl", "shrx"},
 	"sse41":  {"roundsd"},
 	"fma":    {"vfmadd231sd"},
 	"movbe":  {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},

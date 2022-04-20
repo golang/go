@@ -93,6 +93,7 @@ func GetByString(s string) *Value {
 // We play unsafe games that violate Go's rules (and assume a non-moving
 // collector). So we quiet Go here.
 // See the comment below Get for more implementation details.
+//
 //go:nocheckptr
 func get(k key) *Value {
 	mu.Lock()

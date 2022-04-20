@@ -53,10 +53,11 @@ func (e *TypeAssertionError) Error() string {
 		": missing method " + e.missingMethod
 }
 
-//go:nosplit
 // itoa converts val to a decimal representation. The result is
 // written somewhere within buf and the location of the result is returned.
 // buf must be at least 20 bytes.
+//
+//go:nosplit
 func itoa(buf []byte, val uint64) []byte {
 	i := len(buf) - 1
 	for val >= 10 {

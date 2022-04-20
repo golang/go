@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Test broken pipes on Unix systems.
+//
 //go:build !plan9 && !js
 
 package os_test

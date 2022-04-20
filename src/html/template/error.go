@@ -32,14 +32,17 @@ type ErrorCode int
 //
 // Output: "ZgotmplZ"
 // Example:
-//   <img src="{{.X}}">
-//   where {{.X}} evaluates to `javascript:...`
+//
+//	<img src="{{.X}}">
+//	where {{.X}} evaluates to `javascript:...`
+//
 // Discussion:
-//   "ZgotmplZ" is a special value that indicates that unsafe content reached a
-//   CSS or URL context at runtime. The output of the example will be
-//     <img src="#ZgotmplZ">
-//   If the data comes from a trusted source, use content types to exempt it
-//   from filtering: URL(`javascript:...`).
+//
+//	"ZgotmplZ" is a special value that indicates that unsafe content reached a
+//	CSS or URL context at runtime. The output of the example will be
+//	  <img src="#ZgotmplZ">
+//	If the data comes from a trusted source, use content types to exempt it
+//	from filtering: URL(`javascript:...`).
 const (
 	// OK indicates the lack of an error.
 	OK ErrorCode = iota

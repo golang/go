@@ -278,13 +278,15 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 
 // goDebugNetDNS parses the value of the GODEBUG "netdns" value.
 // The netdns value can be of the form:
-//    1       // debug level 1
-//    2       // debug level 2
-//    cgo     // use cgo for DNS lookups
-//    go      // use go for DNS lookups
-//    cgo+1   // use cgo for DNS lookups + debug level 1
-//    1+cgo   // same
-//    cgo+2   // same, but debug level 2
+//
+//	1       // debug level 1
+//	2       // debug level 2
+//	cgo     // use cgo for DNS lookups
+//	go      // use go for DNS lookups
+//	cgo+1   // use cgo for DNS lookups + debug level 1
+//	1+cgo   // same
+//	cgo+2   // same, but debug level 2
+//
 // etc.
 func goDebugNetDNS() (dnsMode string, debugLevel int) {
 	goDebug := godebug.Get("netdns")

@@ -44,9 +44,9 @@ func init() {
 //
 // A gcWork can be used on the stack as follows:
 //
-//     (preemption must be disabled)
-//     gcw := &getg().m.p.ptr().gcw
-//     .. call gcw.put() to produce and gcw.tryGet() to consume ..
+//	(preemption must be disabled)
+//	gcw := &getg().m.p.ptr().gcw
+//	.. call gcw.put() to produce and gcw.tryGet() to consume ..
 //
 // It's important that any use of gcWork during the mark phase prevent
 // the garbage collector from transitioning to mark termination since
@@ -107,6 +107,7 @@ func (w *gcWork) init() {
 
 // put enqueues a pointer for the garbage collector to trace.
 // obj must point to the beginning of a heap object or an oblet.
+//
 //go:nowritebarrierrec
 func (w *gcWork) put(obj uintptr) {
 	flushed := false
@@ -145,6 +146,7 @@ func (w *gcWork) put(obj uintptr) {
 
 // putFast does a put and reports whether it can be done quickly
 // otherwise it returns false and the caller needs to call put.
+//
 //go:nowritebarrierrec
 func (w *gcWork) putFast(obj uintptr) bool {
 	wbuf := w.wbuf1
@@ -196,6 +198,7 @@ func (w *gcWork) putBatch(obj []uintptr) {
 // If there are no pointers remaining in this gcWork or in the global
 // queue, tryGet returns 0.  Note that there may still be pointers in
 // other gcWork instances or other caches.
+//
 //go:nowritebarrierrec
 func (w *gcWork) tryGet() uintptr {
 	wbuf := w.wbuf1
@@ -225,6 +228,7 @@ func (w *gcWork) tryGet() uintptr {
 // tryGetFast dequeues a pointer for the garbage collector to trace
 // if one is readily available. Otherwise it returns 0 and
 // the caller is expected to call tryGet().
+//
 //go:nowritebarrierrec
 func (w *gcWork) tryGetFast() uintptr {
 	wbuf := w.wbuf1
@@ -278,6 +282,7 @@ func (w *gcWork) dispose() {
 
 // balance moves some work that's cached in this gcWork back on the
 // global queue.
+//
 //go:nowritebarrierrec
 func (w *gcWork) balance() {
 	if w.wbuf1 == nil {
@@ -300,6 +305,7 @@ func (w *gcWork) balance() {
 }
 
 // empty reports whether w has no mark work available.
+//
 //go:nowritebarrierrec
 func (w *gcWork) empty() bool {
 	return w.wbuf1 == nil || (w.wbuf1.nobj == 0 && w.wbuf2.nobj == 0)
@@ -340,6 +346,7 @@ func (b *workbuf) checkempty() {
 
 // getempty pops an empty work buffer off the work.empty list,
 // allocating new buffers if none are available.
+//
 //go:nowritebarrier
 func getempty() *workbuf {
 	var b *workbuf
@@ -395,6 +402,7 @@ func getempty() *workbuf {
 
 // putempty puts a workbuf onto the work.empty list.
 // Upon entry this goroutine owns b. The lfstack.push relinquishes ownership.
+//
 //go:nowritebarrier
 func putempty(b *workbuf) {
 	b.checkempty()
@@ -404,6 +412,7 @@ func putempty(b *workbuf) {
 // putfull puts the workbuf on the work.full list for the GC.
 // putfull accepts partially full buffers so the GC can avoid competing
 // with the mutators for ownership of partially full buffers.
+//
 //go:nowritebarrier
 func putfull(b *workbuf) {
 	b.checknonempty()
@@ -412,6 +421,7 @@ func putfull(b *workbuf) {
 
 // trygetfull tries to get a full or partially empty workbuffer.
 // If one is not immediately available return nil
+//
 //go:nowritebarrier
 func trygetfull() *workbuf {
 	b := (*workbuf)(work.full.pop())

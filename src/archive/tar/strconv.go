@@ -306,6 +306,7 @@ func formatPAXRecord(k, v string) (string, error) {
 
 // validPAXRecord reports whether the key-value pair is valid where each
 // record is formatted as:
+//
 //	"%d %s=%s\n" % (size, key, value)
 //
 // Keys and values should be UTF-8, but the number of bad writers out there

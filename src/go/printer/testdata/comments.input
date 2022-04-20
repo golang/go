@@ -97,6 +97,12 @@ type S3 struct {
 	f3 int // f3 is not exported
 }
 
+// Here is a comment.
+//Here is an accidentally unindented line.
+//dir:ect ive
+// More comment.
+type directiveCheck struct{}
+
 // This comment group should be separated
 // with a newline from the next comment
 // group.
@@ -616,7 +622,7 @@ func _() {
 func _() {
 	f(); f()
 	f(); /* comment */ f()
-	f() /* comment */; f()	
+	f() /* comment */; f()
 	f(); /* a */ /* b */ f()
 	f() /* a */ /* b */; f()
 	f() /* a */; /* b */ f()
@@ -663,7 +669,7 @@ func _() {
 // This way, commas interspersed in lists stay with the respective expression.
 func f(x/* comment */, y int, z int /* comment */, u, v, w int /* comment */) {
 	f(x /* comment */, y)
-	f(x /* comment */, 
+	f(x /* comment */,
 	y)
 	f(
 		x /* comment */,
@@ -684,6 +690,12 @@ func _() {
 	for a /* comment */, b := range x {
 	}
 }
+
+//extern foo
+func foo() {}
+
+//export bar
+func bar() {}
 
 // Print line directives correctly.
 
@@ -718,10 +730,10 @@ var	lflag		bool				// -l			- disable line directives
 
 // Trailing white space in comments should be trimmed
 func _() {
-// This comment has 4 blanks following that should be trimmed:    
-/* Each line of this comment has blanks or tabs following that should be trimmed:	
-   line 2:    
-   line 3:    			
+// This comment has 4 blanks following that should be trimmed:
+/* Each line of this comment has blanks or tabs following that should be trimmed:
+   line 2:
+   line 3:
 */
 }
 

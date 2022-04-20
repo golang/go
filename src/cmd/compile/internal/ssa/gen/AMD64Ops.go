@@ -937,13 +937,41 @@ func init() {
 		{name: "MOVBELstore", argLength: 3, reg: gpstore, asm: "MOVBEL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
 		{name: "MOVBEQload", argLength: 2, reg: gpload, asm: "MOVBEQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"}, // load and swap 8 bytes from arg0+auxint+aux. arg1=mem
 		{name: "MOVBEQstore", argLength: 3, reg: gpstore, asm: "MOVBEQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		// indexed MOVBE loads
+		{name: "MOVBELloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBEL", scale: 1, aux: "SymOff", typ: "UInt32", symEffect: "Read"}, // load and swap 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
+		{name: "MOVBELloadidx4", argLength: 3, reg: gploadidx, asm: "MOVBEL", scale: 4, aux: "SymOff", typ: "UInt32", symEffect: "Read"},                    // load and swap 4 bytes from arg0+4*arg1+auxint+aux. arg2=mem. Zero extend.
+		{name: "MOVBELloadidx8", argLength: 3, reg: gploadidx, asm: "MOVBEL", scale: 8, aux: "SymOff", typ: "UInt32", symEffect: "Read"},                    // load and swap 4 bytes from arg0+8*arg1+auxint+aux. arg2=mem. Zero extend.
+		{name: "MOVBEQloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBEQ", scale: 1, aux: "SymOff", typ: "UInt64", symEffect: "Read"}, // load and swap 8 bytes from arg0+arg1+auxint+aux. arg2=mem
+		{name: "MOVBEQloadidx8", argLength: 3, reg: gploadidx, asm: "MOVBEQ", scale: 8, aux: "SymOff", typ: "UInt64", symEffect: "Read"},                    // load and swap 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+		// indexed MOVBE stores
+		{name: "MOVBEWstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVBEW", scale: 1, aux: "SymOff", symEffect: "Write"}, // swap and store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVBEWstoreidx2", argLength: 4, reg: gpstoreidx, asm: "MOVBEW", scale: 2, aux: "SymOff", symEffect: "Write"},                    // swap and store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
+		{name: "MOVBELstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVBEL", scale: 1, aux: "SymOff", symEffect: "Write"}, // swap and store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVBELstoreidx4", argLength: 4, reg: gpstoreidx, asm: "MOVBEL", scale: 4, aux: "SymOff", symEffect: "Write"},                    // swap and store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
+		{name: "MOVBELstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVBEL", scale: 8, aux: "SymOff", symEffect: "Write"},                    // swap and store 4 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+		{name: "MOVBEQstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVBEQ", scale: 1, aux: "SymOff", symEffect: "Write"}, // swap and store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVBEQstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVBEQ", scale: 8, aux: "SymOff", symEffect: "Write"},                    // swap and store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
 
 		// CPUID feature: BMI2.
+		{name: "SARXQ", argLength: 2, reg: gp21, asm: "SARXQ"}, // signed arg0 >> arg1, shift amount is mod 64
+		{name: "SARXL", argLength: 2, reg: gp21, asm: "SARXL"}, // signed int32(arg0) >> arg1, shift amount is mod 32
+		{name: "SHLXQ", argLength: 2, reg: gp21, asm: "SHLXQ"}, // arg0 << arg1, shift amount is mod 64
+		{name: "SHLXL", argLength: 2, reg: gp21, asm: "SHLXL"}, // arg0 << arg1, shift amount is mod 32
+		{name: "SHRXQ", argLength: 2, reg: gp21, asm: "SHRXQ"}, // unsigned arg0 >> arg1, shift amount is mod 64
+		{name: "SHRXL", argLength: 2, reg: gp21, asm: "SHRXL"}, // unsigned uint32(arg0) >> arg1, shift amount is mod 32
+
+		{name: "SARXLload", argLength: 3, reg: gp21shxload, asm: "SARXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
+		{name: "SARXQload", argLength: 3, reg: gp21shxload, asm: "SARXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
 		{name: "SHLXLload", argLength: 3, reg: gp21shxload, asm: "SHLXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 32
 		{name: "SHLXQload", argLength: 3, reg: gp21shxload, asm: "SHLXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 64
 		{name: "SHRXLload", argLength: 3, reg: gp21shxload, asm: "SHRXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
 		{name: "SHRXQload", argLength: 3, reg: gp21shxload, asm: "SHRXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
 
+		{name: "SARXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SARXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+4*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SARXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SARXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SARXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
+		{name: "SARXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SARXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
 		{name: "SHLXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+1*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
 		{name: "SHLXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+4*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
 		{name: "SHLXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+8*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
@@ -973,6 +1001,12 @@ func init() {
 		{name: "NEF", controls: 1},
 		{name: "ORD", controls: 1}, // FP, ordered comparison (parity zero)
 		{name: "NAN", controls: 1}, // FP, unordered comparison (parity one)
+
+		// JUMPTABLE implements jump tables.
+		// Aux is the symbol (an *obj.LSym) for the jump table.
+		// control[0] is the index into the jump table.
+		// control[1] is the address of the jump table (the address of the symbol stored in Aux).
+		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
 	}
 
 	archs = append(archs, arch{

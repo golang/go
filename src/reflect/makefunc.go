@@ -26,9 +26,9 @@ type makeFuncImpl struct {
 // that wraps the function fn. When called, that new function
 // does the following:
 //
-//	- converts its arguments to a slice of Values.
-//	- runs results := fn(args).
-//	- returns the results as a slice of Values, one per formal result.
+//   - converts its arguments to a slice of Values.
+//   - runs results := fn(args).
+//   - returns the results as a slice of Values, one per formal result.
 //
 // The implementation fn can assume that the argument Value slice
 // has the number and type of arguments given by typ.
@@ -158,6 +158,7 @@ type makeFuncCtxt struct {
 // nosplit because pointers are being held in uintptr slots in args, so
 // having our stack scanned now could lead to accidentally freeing
 // memory.
+//
 //go:nosplit
 func moveMakeFuncArgPtrs(ctxt *makeFuncCtxt, args *abi.RegArgs) {
 	for i, arg := range args.Ints {

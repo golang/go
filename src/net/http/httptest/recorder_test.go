@@ -220,8 +220,7 @@ func TestRecorder(t *testing.T) {
 			"Trailer headers are correctly recorded",
 			func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Non-Trailer", "correct")
-				w.Header().Set("Trailer", "Trailer-A")
-				w.Header().Add("Trailer", "Trailer-B")
+				w.Header().Set("Trailer", "Trailer-A, Trailer-B")
 				w.Header().Add("Trailer", "Trailer-C")
 				io.WriteString(w, "<html>")
 				w.Header().Set("Non-Trailer", "incorrect")

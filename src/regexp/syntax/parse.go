@@ -445,11 +445,16 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 // frees (passes to p.reuse) any removed *Regexps.
 //
 // For example,
-//     ABC|ABD|AEF|BCX|BCY
+//
+//	ABC|ABD|AEF|BCX|BCY
+//
 // simplifies by literal prefix extraction to
-//     A(B(C|D)|EF)|BC(X|Y)
+//
+//	A(B(C|D)|EF)|BC(X|Y)
+//
 // which simplifies by character class introduction to
-//     A(B[CD]|EF)|BC[XY]
+//
+//	A(B[CD]|EF)|BC[XY]
 func (p *parser) factor(sub []*Regexp) []*Regexp {
 	if len(sub) < 2 {
 		return sub

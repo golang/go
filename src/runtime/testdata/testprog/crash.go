@@ -12,6 +12,13 @@ import (
 func init() {
 	register("Crash", Crash)
 	register("DoublePanic", DoublePanic)
+	register("ErrorPanic", ErrorPanic)
+	register("StringerPanic", StringerPanic)
+	register("DoubleErrorPanic", DoubleErrorPanic)
+	register("DoubleStringerPanic", DoubleStringerPanic)
+	register("StringPanic", StringPanic)
+	register("NilPanic", NilPanic)
+	register("CircularPanic", CircularPanic)
 }
 
 func test(name string) {
@@ -63,4 +70,70 @@ func DoublePanic() {
 		panic(P("YYY"))
 	}()
 	panic(P("XXX"))
+}
+
+// Test that panic while panicking discards error message
+// See issue 52257
+type exampleError struct{}
+
+func (e exampleError) Error() string {
+	panic("important error message")
+}
+
+func ErrorPanic() {
+	panic(exampleError{})
+}
+
+type examplePanicError struct{}
+
+func (e examplePanicError) Error() string {
+	panic(exampleError{})
+}
+
+func DoubleErrorPanic() {
+	panic(examplePanicError{})
+}
+
+type exampleStringer struct{}
+
+func (s exampleStringer) String() string {
+	panic("important stringer message")
+}
+
+func StringerPanic() {
+	panic(exampleStringer{})
+}
+
+type examplePanicStringer struct{}
+
+func (s examplePanicStringer) String() string {
+	panic(exampleStringer{})
+}
+
+func DoubleStringerPanic() {
+	panic(examplePanicStringer{})
+}
+
+func StringPanic() {
+	panic("important string message")
+}
+
+func NilPanic() {
+	panic(nil)
+}
+
+type exampleCircleStartError struct {}
+
+func (e exampleCircleStartError) Error() string {
+	panic(exampleCircleEndError{})
+}
+
+type exampleCircleEndError struct {}
+
+func (e exampleCircleEndError) Error() string {
+	panic(exampleCircleStartError{})
+}
+
+func CircularPanic() {
+	panic(exampleCircleStartError{})
 }

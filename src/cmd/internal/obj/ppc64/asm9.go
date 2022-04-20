@@ -917,7 +917,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			return C_LOREG
 
 		case obj.NAME_PARAM:
-			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
+			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SOREG
 			}
@@ -983,7 +983,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			return C_LACON
 
 		case obj.NAME_PARAM:
-			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
+			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SACON
 			}

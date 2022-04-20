@@ -602,11 +602,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 	for _, test := range tests {
 		commonName := "test.example.com"
 		template := Certificate{
-			// SerialNumber is negative to ensure that negative
-			// values are parsed. This is due to the prevalence of
-			// buggy code that produces certificates with negative
-			// serial numbers.
-			SerialNumber: big.NewInt(-1),
+			SerialNumber: big.NewInt(1),
 			Subject: pkix.Name{
 				CommonName:   commonName,
 				Organization: []string{"Σ Acme Co"},
@@ -1798,16 +1794,18 @@ func TestInsecureAlgorithmErrorString(t *testing.T) {
 }
 
 // These CSR was generated with OpenSSL:
-//  openssl req -out CSR.csr -new -sha256 -nodes -keyout privateKey.key -config openssl.cnf
+//
+//	openssl req -out CSR.csr -new -sha256 -nodes -keyout privateKey.key -config openssl.cnf
 //
 // With openssl.cnf containing the following sections:
-//   [ v3_req ]
-//   basicConstraints = CA:FALSE
-//   keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-//   subjectAltName = email:gopher@golang.org,DNS:test.example.com
-//   [ req_attributes ]
-//   challengePassword = ignored challenge
-//   unstructuredName  = ignored unstructured name
+//
+//	[ v3_req ]
+//	basicConstraints = CA:FALSE
+//	keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+//	subjectAltName = email:gopher@golang.org,DNS:test.example.com
+//	[ req_attributes ]
+//	challengePassword = ignored challenge
+//	unstructuredName  = ignored unstructured name
 var csrBase64Array = [...]string{
 	// Just [ v3_req ]
 	"MIIDHDCCAgQCAQAwfjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEUMBIGA1UEAwwLQ29tbW9uIE5hbWUxITAfBgkqhkiG9w0BCQEWEnRlc3RAZW1haWwuYWRkcmVzczCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK1GY4YFx2ujlZEOJxQVYmsjUnLsd5nFVnNpLE4cV+77sgv9NPNlB8uhn3MXt5leD34rm/2BisCHOifPucYlSrszo2beuKhvwn4+2FxDmWtBEMu/QA16L5IvoOfYZm/gJTsPwKDqvaR0tTU67a9OtxwNTBMI56YKtmwd/o8d3hYv9cg+9ZGAZ/gKONcg/OWYx/XRh6bd0g8DMbCikpWgXKDsvvK1Nk+VtkDO1JxuBaj4Lz/p/MifTfnHoqHxWOWl4EaTs4Ychxsv34/rSj1KD1tJqorIv5Xv2aqv4sjxfbrYzX4kvS5SC1goIovLnhj5UjmQ3Qy8u65eow/LLWw+YFcCAwEAAaBZMFcGCSqGSIb3DQEJDjFKMEgwCQYDVR0TBAIwADALBgNVHQ8EBAMCBeAwLgYDVR0RBCcwJYERZ29waGVyQGdvbGFuZy5vcmeCEHRlc3QuZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEBAB6VPMRrchvNW61Tokyq3ZvO6/NoGIbuwUn54q6l5VZW0Ep5Nq8juhegSSnaJ0jrovmUgKDN9vEo2KxuAtwG6udS6Ami3zP+hRd4k9Q8djJPb78nrjzWiindLK5Fps9U5mMoi1ER8ViveyAOTfnZt/jsKUaRsscY2FzE9t9/o5moE6LTcHUS4Ap1eheR+J72WOnQYn3cifYaemsA9MJuLko+kQ6xseqttbh9zjqd9fiCSh/LNkzos9c+mg2yMADitaZinAh+HZi50ooEbjaT3erNq9O6RqwJlgD00g6MQdoz9bTAryCUhCQfkIaepmQ7BxS0pqWNW3MMwfDwx/Snz6g=",
@@ -2631,24 +2629,24 @@ func TestCreateRevocationList(t *testing.T) {
 				return
 			}
 
-			parsedCRL, err := ParseDERCRL(crl)
+			parsedCRL, err := ParseRevocationList(crl)
 			if err != nil {
 				t.Fatalf("Failed to parse generated CRL: %s", err)
 			}
 
 			if tc.template.SignatureAlgorithm != UnknownSignatureAlgorithm &&
-				parsedCRL.SignatureAlgorithm.Algorithm.Equal(signatureAlgorithmDetails[tc.template.SignatureAlgorithm].oid) {
+				parsedCRL.SignatureAlgorithm != tc.template.SignatureAlgorithm {
 				t.Fatalf("SignatureAlgorithm mismatch: got %v; want %v.", parsedCRL.SignatureAlgorithm,
 					tc.template.SignatureAlgorithm)
 			}
 
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.RevokedCertificates, tc.template.RevokedCertificates) {
+			if !reflect.DeepEqual(parsedCRL.RevokedCertificates, tc.template.RevokedCertificates) {
 				t.Fatalf("RevokedCertificates mismatch: got %v; want %v.",
-					parsedCRL.TBSCertList.RevokedCertificates, tc.template.RevokedCertificates)
+					parsedCRL.RevokedCertificates, tc.template.RevokedCertificates)
 			}
 
-			if len(parsedCRL.TBSCertList.Extensions) != 2+len(tc.template.ExtraExtensions) {
-				t.Fatalf("Generated CRL has wrong number of extensions, wanted: %d, got: %d", 2+len(tc.template.ExtraExtensions), len(parsedCRL.TBSCertList.Extensions))
+			if len(parsedCRL.Extensions) != 2+len(tc.template.ExtraExtensions) {
+				t.Fatalf("Generated CRL has wrong number of extensions, wanted: %d, got: %d", 2+len(tc.template.ExtraExtensions), len(parsedCRL.Extensions))
 			}
 			expectedAKI, err := asn1.Marshal(authKeyId{Id: tc.issuer.SubjectKeyId})
 			if err != nil {
@@ -2658,9 +2656,9 @@ func TestCreateRevocationList(t *testing.T) {
 				Id:    oidExtensionAuthorityKeyId,
 				Value: expectedAKI,
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[0], akiExt) {
+			if !reflect.DeepEqual(parsedCRL.Extensions[0], akiExt) {
 				t.Fatalf("Unexpected first extension: got %v, want %v",
-					parsedCRL.TBSCertList.Extensions[0], akiExt)
+					parsedCRL.Extensions[0], akiExt)
 			}
 			expectedNum, err := asn1.Marshal(tc.template.Number)
 			if err != nil {
@@ -2670,18 +2668,18 @@ func TestCreateRevocationList(t *testing.T) {
 				Id:    oidExtensionCRLNumber,
 				Value: expectedNum,
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[1], crlExt) {
+			if !reflect.DeepEqual(parsedCRL.Extensions[1], crlExt) {
 				t.Fatalf("Unexpected second extension: got %v, want %v",
-					parsedCRL.TBSCertList.Extensions[1], crlExt)
+					parsedCRL.Extensions[1], crlExt)
 			}
-			if len(parsedCRL.TBSCertList.Extensions[2:]) == 0 && len(tc.template.ExtraExtensions) == 0 {
+			if len(parsedCRL.Extensions[2:]) == 0 && len(tc.template.ExtraExtensions) == 0 {
 				// If we don't have anything to check return early so we don't
 				// hit a [] != nil false positive below.
 				return
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions) {
+			if !reflect.DeepEqual(parsedCRL.Extensions[2:], tc.template.ExtraExtensions) {
 				t.Fatalf("Extensions mismatch: got %v; want %v.",
-					parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions)
+					parsedCRL.Extensions[2:], tc.template.ExtraExtensions)
 			}
 		})
 	}
@@ -3442,5 +3440,270 @@ func TestDisableSHA1ForCertOnly(t *testing.T) {
 	err = cert.CheckSignature(SHA1WithRSA, ocspTBS, nil)
 	if err != rsa.ErrVerification {
 		t.Errorf("unexpected error: %s", err)
+	}
+}
+
+func TestParseRevocationList(t *testing.T) {
+	derBytes := fromBase64(derCRLBase64)
+	certList, err := ParseRevocationList(derBytes)
+	if err != nil {
+		t.Errorf("error parsing: %s", err)
+		return
+	}
+	numCerts := len(certList.RevokedCertificates)
+	expected := 88
+	if numCerts != expected {
+		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
+	}
+}
+
+func TestRevocationListCheckSignatureFrom(t *testing.T) {
+	goodKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	badKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	tests := []struct {
+		name   string
+		issuer *Certificate
+		err    string
+	}{
+		{
+			name: "valid",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             goodKey.Public(),
+			},
+		},
+		{
+			name: "valid, key usage set",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             goodKey.Public(),
+				KeyUsage:              KeyUsageCRLSign,
+			},
+		},
+		{
+			name: "invalid issuer, wrong key usage",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             goodKey.Public(),
+				KeyUsage:              KeyUsageCertSign,
+			},
+			err: "x509: invalid signature: parent certificate cannot sign this kind of certificate",
+		},
+		{
+			name: "invalid issuer, no basic constraints/ca",
+			issuer: &Certificate{
+				Version:            3,
+				PublicKeyAlgorithm: ECDSA,
+				PublicKey:          goodKey.Public(),
+			},
+			err: "x509: invalid signature: parent certificate cannot sign this kind of certificate",
+		},
+		{
+			name: "invalid issuer, unsupported public key type",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    UnknownPublicKeyAlgorithm,
+				PublicKey:             goodKey.Public(),
+			},
+			err: "x509: cannot verify signature: algorithm unimplemented",
+		},
+		{
+			name: "wrong key",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             badKey.Public(),
+			},
+			err: "x509: ECDSA verification failure",
+		},
+	}
+
+	crlIssuer := &Certificate{
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		PublicKeyAlgorithm:    ECDSA,
+		PublicKey:             goodKey.Public(),
+		KeyUsage:              KeyUsageCRLSign,
+		SubjectKeyId:          []byte{1, 2, 3},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			crlDER, err := CreateRevocationList(rand.Reader, &RevocationList{Number: big.NewInt(1)}, crlIssuer, goodKey)
+			if err != nil {
+				t.Fatalf("failed to generate CRL: %s", err)
+			}
+			crl, err := ParseRevocationList(crlDER)
+			if err != nil {
+				t.Fatalf("failed to parse test CRL: %s", err)
+			}
+			err = crl.CheckSignatureFrom(tc.issuer)
+			if err != nil && err.Error() != tc.err {
+				t.Errorf("unexpected error: got %s, want %s", err, tc.err)
+			} else if err == nil && tc.err != "" {
+				t.Errorf("CheckSignatureFrom did not fail: want %s", tc.err)
+			}
+		})
+	}
+}
+
+func TestOmitEmptyExtensions(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: ":)",
+		},
+		NotAfter:  time.Now().Add(time.Hour),
+		NotBefore: time.Now().Add(-time.Hour),
+	}
+	der, err := CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	emptyExtSeq := []byte{0xA3, 0x02, 0x30, 0x00}
+	if bytes.Contains(der, emptyExtSeq) {
+		t.Error("DER encoding contains the an empty extensions SEQUENCE")
+	}
+}
+
+func TestCreateCertificateLongSerial(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	serialBytes := make([]byte, 21)
+	serialBytes[0] = 0x80
+	serialBytes[20] = 1
+	tooLong := big.NewInt(0).SetBytes(serialBytes)
+
+	tmpl := &Certificate{
+		SerialNumber: tooLong,
+		Subject: pkix.Name{
+			CommonName: ":)",
+		},
+		NotAfter:  time.Now().Add(time.Hour),
+		NotBefore: time.Now().Add(-time.Hour),
+	}
+
+	expectedErr := "x509: serial number exceeds 20 octets"
+
+	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
+	}
+
+	serialBytes = serialBytes[:20]
+	tmpl.SerialNumber = big.NewInt(0).SetBytes(serialBytes)
+
+	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
+	}
+}
+
+var negativeSerialCert = `-----BEGIN CERTIFICATE-----
+MIIBBTCBraADAgECAgH/MAoGCCqGSM49BAMCMA0xCzAJBgNVBAMTAjopMB4XDTIy
+MDQxNDIzNTYwNFoXDTIyMDQxNTAxNTYwNFowDTELMAkGA1UEAxMCOikwWTATBgcq
+hkjOPQIBBggqhkjOPQMBBwNCAAQ9ezsIsj+q17K87z/PXE/rfGRN72P/Wyn5d6oo
+5M0ZbSatuntMvfKdX79CQxXAxN4oXk3Aov4jVSG12AcDI8ShMAoGCCqGSM49BAMC
+A0cAMEQCIBzfBU5eMPT6m5lsR6cXaJILpAaiD9YxOl4v6dT3rzEjAiBHmjnHmAss
+RqUAyJKFzqZxOlK2q4j2IYnuj5+LrLGbQA==
+-----END CERTIFICATE-----`
+
+func TestParseNegativeSerial(t *testing.T) {
+	pemBlock, _ := pem.Decode([]byte(negativeSerialCert))
+	_, err := ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %s", err)
+	}
+}
+
+func TestCreateNegativeSerial(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: big.NewInt(-1),
+		Subject: pkix.Name{
+			CommonName: ":)",
+		},
+		NotAfter:  time.Now().Add(time.Hour),
+		NotBefore: time.Now().Add(-time.Hour),
+	}
+	expectedErr := "x509: serial number must be positive"
+	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
+	}
+}
+
+const dupExtCert = `-----BEGIN CERTIFICATE-----
+MIIBrjCCARegAwIBAgIBATANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDEwR0ZXN0
+MCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMA8xDTALBgNVBAMT
+BHRlc3QwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAMiFchnHms9l9NninAIz
+SkY9acwl9Bk2AtmJrNCenFpiA17AcOO5q8DJYwdXi6WPKlVgcyH+ysW8XMWkq+CP
+yhtF/+LMzl9odaUF2iUy3vgTC5gxGLWH5URVssx21Und2Pm2f4xyou5IVxbS9dxy
+jLvV9PEY9BIb0H+zFthjhihDAgMBAAGjFjAUMAgGAioDBAIFADAIBgIqAwQCBQAw
+DQYJKoZIhvcNAQELBQADgYEAlhQ4TQQKIQ8GUyzGiN/75TCtQtjhMGemxc0cNgre
+d9rmm4DjydH0t7/sMCB56lQrfhJNplguzsbjFW4l245KbNKHfLiqwEGUgZjBNKur
+ot6qX/skahLtt0CNOaFIge75HVKe/69OrWQGdp18dkay/KS4Glu8YMKIjOhfrUi1
+NZA=
+-----END CERTIFICATE-----`
+
+func TestDuplicateExtensionsCert(t *testing.T) {
+	b, _ := pem.Decode([]byte(dupExtCert))
+	if b == nil {
+		t.Fatalf("couldn't decode test certificate")
+	}
+	_, err := ParseCertificate(b.Bytes)
+	if err == nil {
+		t.Fatal("ParseCertificate should fail when parsing certificate with duplicate extensions")
+	}
+}
+
+const dupExtCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIIBczCB3QIBADAPMQ0wCwYDVQQDEwR0ZXN0MIGfMA0GCSqGSIb3DQEBAQUAA4GN
+ADCBiQKBgQC5PbxMGVJ8aLF9lq/EvGObXTRMB7ieiZL9N+DJZg1n/ECCnZLIvYrr
+ZmmDV7YZsClgxKGfjJB0RQFFyZElFM9EfHEs8NJdidDKCRdIhDXQWRyhXKevHvdm
+CQNKzUeoxvdHpU/uscSkw6BgUzPyLyTx9A6ye2ix94z8Y9hGOBO2DQIDAQABoCUw
+IwYJKoZIhvcNAQkOMRYwFDAIBgIqAwQCBQAwCAYCKgMEAgUAMA0GCSqGSIb3DQEB
+CwUAA4GBAHROEsE7URk1knXmBnQtIHwoq663vlMcX3Hes58pUy020rWP8QkocA+X
+VF18/phg3p5ILlS4fcbbP2bEeV0pePo2k00FDPsJEKCBAX2LKxbU7Vp2OuV2HM2+
+VLOVx0i+/Q7fikp3hbN1JwuMTU0v2KL/IKoUcZc02+5xiYrnOIt5
+-----END CERTIFICATE REQUEST-----`
+
+func TestDuplicateExtensionsCSR(t *testing.T) {
+	b, _ := pem.Decode([]byte(dupExtCSR))
+	if b == nil {
+		t.Fatalf("couldn't decode test certificate")
+	}
+	_, err := ParseCertificateRequest(b.Bytes)
+	if err == nil {
+		t.Fatal("ParseCertificate should fail when parsing certificate with duplicate extensions")
 	}
 }

@@ -233,6 +233,7 @@ func raceSymbolizeData(ctx *symbolizeDataContext) {
 }
 
 // Race runtime functions called via runtime·racecall.
+//
 //go:linkname __tsan_init __tsan_init
 var __tsan_init byte
 
@@ -285,6 +286,7 @@ var __tsan_go_ignore_sync_end byte
 var __tsan_report_count byte
 
 // Mimic what cmd/cgo would do.
+//
 //go:cgo_import_static __tsan_init
 //go:cgo_import_static __tsan_fini
 //go:cgo_import_static __tsan_proc_create
@@ -304,6 +306,7 @@ var __tsan_report_count byte
 //go:cgo_import_static __tsan_report_count
 
 // These are called from race_amd64.s.
+//
 //go:cgo_import_static __tsan_read
 //go:cgo_import_static __tsan_read_pc
 //go:cgo_import_static __tsan_read_range
@@ -348,6 +351,7 @@ func racecallbackthunk(uintptr)
 func racecall(fn *byte, arg0, arg1, arg2, arg3 uintptr)
 
 // checks if the address has shadow (i.e. heap or data/bss)
+//
 //go:nosplit
 func isvalidaddr(addr unsafe.Pointer) bool {
 	return racearenastart <= uintptr(addr) && uintptr(addr) < racearenaend ||

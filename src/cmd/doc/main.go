@@ -5,20 +5,25 @@
 // Doc (usually run as go doc) accepts zero, one or two arguments.
 //
 // Zero arguments:
+//
 //	go doc
+//
 // Show the documentation for the package in the current directory.
 //
 // One argument:
+//
 //	go doc <pkg>
 //	go doc <sym>[.<methodOrField>]
 //	go doc [<pkg>.]<sym>[.<methodOrField>]
 //	go doc [<pkg>.][<sym>.]<methodOrField>
+//
 // The first item in this list that succeeds is the one whose documentation
 // is printed. If there is a symbol but no package, the package in the current
 // directory is chosen. However, if the argument begins with a capital
 // letter it is always assumed to be a symbol in the current directory.
 //
 // Two arguments:
+//
 //	go doc <pkg> <sym>[.<methodOrField>]
 //
 // Show the documentation for the package, symbol, and method or field. The

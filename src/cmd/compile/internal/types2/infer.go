@@ -23,10 +23,10 @@ const useConstraintTypeInference = true
 //
 // Inference proceeds as follows. Starting with given type arguments:
 //
-//   1) apply FTI (function type inference) with typed arguments,
-//   2) apply CTI (constraint type inference),
-//   3) apply FTI with untyped function arguments,
-//   4) apply CTI.
+//  1. apply FTI (function type inference) with typed arguments,
+//  2. apply CTI (constraint type inference),
+//  3. apply FTI with untyped function arguments,
+//  4. apply CTI.
 //
 // The process stops as soon as all type arguments are known or an error occurs.
 func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (result []Type) {

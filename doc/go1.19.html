@@ -32,7 +32,22 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 <h3 id="go-command">Go command</h3>
 <p>
-  TODO: complete this section, or delete if not needed
+  TODO: complete this section.
+</p>
+
+<!-- https://go.dev/issue/51461 -->
+<p>
+  The <code>-trimpath</code> flag, if set, is now included in the build settings
+  stamped into Go binaries by <code>go</code> <code>build</code>, and can be
+  examined using
+  <a href="https://pkg.go.dev/cmd/go#hdr-Print_Go_version"><code>go</code> <code>version</code> <code>-m</code></a>
+  or <a href="https://pkg.go.dev/runtime/debug#ReadBuildInfo"><code>debug.ReadBuildInfo</code></a>.
+</p>
+<p>
+  <code>go</code> <code>generate</code> now sets the <code>GOROOT</code>
+  environment variable explicitly in the generator's environment, so that
+  generators can locate the correct <code>GOROOT</code> even if built
+  with <code>-trimpath</code>.
 </p>
 
 <h4 id="go-unix">New <code>unix</code> build constraint</h4>
@@ -76,6 +91,19 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section
 </p>
+
+<dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
+  <dd>
+    <p><!-- CL 396795 -->
+      <code>Draw</code> with the <code>Src</code> operator preserves
+      non-premultiplied-alpha colors when destination and source images are
+      both <code>*image.NRGBA</code> (or both <code>*image.NRGBA64</code>).
+      This reverts a behavior change accidentally introduced by a Go 1.18
+      library optimization, to match the behavior in Go 1.17 and earlier.
+    </p>
+  </dd>
+</dl><!-- image/draw -->
+
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 386016 -->
@@ -93,9 +121,9 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 396877 -->
       When a net package function or method returns an "I/O timeout"
       error, the error will now satisfy <code>errors.Is(err,
-      context.Canceled)</code>.  When a net package function returns
-      an "operation was canceled" error, the error will now satisfy
-      <code>errors.Is(err, context.DeadlineExceeded)</code>.
+      context.DeadlineExceeded)</code>.  When a net package function
+      returns an "operation was canceled" error, the error will now
+      satisfy <code>errors.Is(err, context.Canceled)</code>.
       These changes are intended to make it easier for code to test
       for cases in which a context cancelation or timeout causes a net
       package function or method to return an error, while preserving
@@ -103,6 +131,17 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- net -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51461 -->
+      The <code>GOROOT</code> function now returns the empty string
+      (instead of <code>"go"</code>) when the binary was built with
+      the <code>-trimpath</code> flag set and the <code>GOROOT</code>
+      variable is not set in the process environment.
+    </p>
+  </dd>
+</dl><!-- runtime -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>

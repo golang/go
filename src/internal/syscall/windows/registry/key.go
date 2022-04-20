@@ -22,7 +22,6 @@
 //
 // NOTE: This package is a copy of golang.org/x/sys/windows/registry
 // with KeyInfo.ModTime removed to prevent dependency cycles.
-//
 package registry
 
 import (

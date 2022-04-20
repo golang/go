@@ -270,6 +270,7 @@ func (f *shuffleFlag) Set(value string) error {
 // pkg.test's arguments.
 // We allow known flags both before and after the package name list,
 // to allow both
+//
 //	go test fmt -custom-flag-for-fmt-test
 //	go test -x math
 func testFlags(args []string) (packageNames, passToTest []string) {

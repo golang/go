@@ -56,14 +56,18 @@ type p224NonMontgomeryDomainFieldElement [4]uint64
 // p224CmovznzU64 is a single-word conditional move.
 //
 // Postconditions:
-//   out1 = (if arg1 = 0 then arg2 else arg3)
+//
+//	out1 = (if arg1 = 0 then arg2 else arg3)
 //
 // Input Bounds:
-//   arg1: [0x0 ~> 0x1]
-//   arg2: [0x0 ~> 0xffffffffffffffff]
-//   arg3: [0x0 ~> 0xffffffffffffffff]
+//
+//	arg1: [0x0 ~> 0x1]
+//	arg2: [0x0 ~> 0xffffffffffffffff]
+//	arg3: [0x0 ~> 0xffffffffffffffff]
+//
 // Output Bounds:
-//   out1: [0x0 ~> 0xffffffffffffffff]
+//
+//	out1: [0x0 ~> 0xffffffffffffffff]
 func p224CmovznzU64(out1 *uint64, arg1 p224Uint1, arg2 uint64, arg3 uint64) {
 	x1 := (uint64(arg1) * 0xffffffffffffffff)
 	x2 := ((x1 & arg3) | ((^x1) & arg2))
@@ -73,11 +77,14 @@ func p224CmovznzU64(out1 *uint64, arg1 p224Uint1, arg2 uint64, arg3 uint64) {
 // p224Mul multiplies two field elements in the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
-//   0 ≤ eval arg2 < m
+//
+//	0 ≤ eval arg1 < m
+//	0 ≤ eval arg2 < m
+//
 // Postconditions:
-//   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg2)) mod m
-//   0 ≤ eval out1 < m
+//
+//	eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg2)) mod m
+//	0 ≤ eval out1 < m
 func p224Mul(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement, arg2 *p224MontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]
@@ -378,10 +385,13 @@ func p224Mul(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainF
 // p224Square squares a field element in the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
+//
+//	0 ≤ eval arg1 < m
+//
 // Postconditions:
-//   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg1)) mod m
-//   0 ≤ eval out1 < m
+//
+//	eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg1)) mod m
+//	0 ≤ eval out1 < m
 func p224Square(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]
@@ -682,11 +692,14 @@ func p224Square(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDoma
 // p224Add adds two field elements in the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
-//   0 ≤ eval arg2 < m
+//
+//	0 ≤ eval arg1 < m
+//	0 ≤ eval arg2 < m
+//
 // Postconditions:
-//   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) + eval (from_montgomery arg2)) mod m
-//   0 ≤ eval out1 < m
+//
+//	eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) + eval (from_montgomery arg2)) mod m
+//	0 ≤ eval out1 < m
 func p224Add(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement, arg2 *p224MontgomeryDomainFieldElement) {
 	var x1 uint64
 	var x2 uint64
@@ -731,11 +744,14 @@ func p224Add(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainF
 // p224Sub subtracts two field elements in the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
-//   0 ≤ eval arg2 < m
+//
+//	0 ≤ eval arg1 < m
+//	0 ≤ eval arg2 < m
+//
 // Postconditions:
-//   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) - eval (from_montgomery arg2)) mod m
-//   0 ≤ eval out1 < m
+//
+//	eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) - eval (from_montgomery arg2)) mod m
+//	0 ≤ eval out1 < m
 func p224Sub(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement, arg2 *p224MontgomeryDomainFieldElement) {
 	var x1 uint64
 	var x2 uint64
@@ -771,8 +787,9 @@ func p224Sub(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainF
 // p224SetOne returns the field element one in the Montgomery domain.
 //
 // Postconditions:
-//   eval (from_montgomery out1) mod m = 1 mod m
-//   0 ≤ eval out1 < m
+//
+//	eval (from_montgomery out1) mod m = 1 mod m
+//	0 ≤ eval out1 < m
 func p224SetOne(out1 *p224MontgomeryDomainFieldElement) {
 	out1[0] = 0xffffffff00000000
 	out1[1] = 0xffffffffffffffff
@@ -783,10 +800,13 @@ func p224SetOne(out1 *p224MontgomeryDomainFieldElement) {
 // p224FromMontgomery translates a field element out of the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
+//
+//	0 ≤ eval arg1 < m
+//
 // Postconditions:
-//   eval out1 mod m = (eval arg1 * ((2^64)⁻¹ mod m)^4) mod m
-//   0 ≤ eval out1 < m
+//
+//	eval out1 mod m = (eval arg1 * ((2^64)⁻¹ mod m)^4) mod m
+//	0 ≤ eval out1 < m
 func p224FromMontgomery(out1 *p224NonMontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement) {
 	x1 := arg1[0]
 	var x2 uint64
@@ -960,10 +980,13 @@ func p224FromMontgomery(out1 *p224NonMontgomeryDomainFieldElement, arg1 *p224Mon
 // p224ToMontgomery translates a field element into the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
+//
+//	0 ≤ eval arg1 < m
+//
 // Postconditions:
-//   eval (from_montgomery out1) mod m = eval arg1 mod m
-//   0 ≤ eval out1 < m
+//
+//	eval (from_montgomery out1) mod m = eval arg1 mod m
+//	0 ≤ eval out1 < m
 func p224ToMontgomery(out1 *p224MontgomeryDomainFieldElement, arg1 *p224NonMontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]
@@ -1233,14 +1256,18 @@ func p224ToMontgomery(out1 *p224MontgomeryDomainFieldElement, arg1 *p224NonMontg
 // p224Selectznz is a multi-limb conditional select.
 //
 // Postconditions:
-//   eval out1 = (if arg1 = 0 then eval arg2 else eval arg3)
+//
+//	eval out1 = (if arg1 = 0 then eval arg2 else eval arg3)
 //
 // Input Bounds:
-//   arg1: [0x0 ~> 0x1]
-//   arg2: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff]]
-//   arg3: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff]]
+//
+//	arg1: [0x0 ~> 0x1]
+//	arg2: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff]]
+//	arg3: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff]]
+//
 // Output Bounds:
-//   out1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff]]
+//
+//	out1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff]]
 func p224Selectznz(out1 *[4]uint64, arg1 p224Uint1, arg2 *[4]uint64, arg3 *[4]uint64) {
 	var x1 uint64
 	p224CmovznzU64(&x1, arg1, arg2[0], arg3[0])
@@ -1259,14 +1286,20 @@ func p224Selectznz(out1 *[4]uint64, arg1 p224Uint1, arg2 *[4]uint64, arg3 *[4]ui
 // p224ToBytes serializes a field element NOT in the Montgomery domain to bytes in little-endian order.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
+//
+//	0 ≤ eval arg1 < m
+//
 // Postconditions:
-//   out1 = map (λ x, ⌊((eval arg1 mod m) mod 2^(8 * (x + 1))) / 2^(8 * x)⌋) [0..27]
+//
+//	out1 = map (λ x, ⌊((eval arg1 mod m) mod 2^(8 * (x + 1))) / 2^(8 * x)⌋) [0..27]
 //
 // Input Bounds:
-//   arg1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffff]]
+//
+//	arg1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffff]]
+//
 // Output Bounds:
-//   out1: [[0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff]]
+//
+//	out1: [[0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff]]
 func p224ToBytes(out1 *[28]uint8, arg1 *[4]uint64) {
 	x1 := arg1[3]
 	x2 := arg1[2]
@@ -1353,15 +1386,21 @@ func p224ToBytes(out1 *[28]uint8, arg1 *[4]uint64) {
 // p224FromBytes deserializes a field element NOT in the Montgomery domain from bytes in little-endian order.
 //
 // Preconditions:
-//   0 ≤ bytes_eval arg1 < m
+//
+//	0 ≤ bytes_eval arg1 < m
+//
 // Postconditions:
-//   eval out1 mod m = bytes_eval arg1 mod m
-//   0 ≤ eval out1 < m
+//
+//	eval out1 mod m = bytes_eval arg1 mod m
+//	0 ≤ eval out1 < m
 //
 // Input Bounds:
-//   arg1: [[0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff]]
+//
+//	arg1: [[0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff]]
+//
 // Output Bounds:
-//   out1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffff]]
+//
+//	out1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffff]]
 func p224FromBytes(out1 *[4]uint64, arg1 *[28]uint8) {
 	x1 := (uint64(arg1[27]) << 24)
 	x2 := (uint64(arg1[26]) << 16)

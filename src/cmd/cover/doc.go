@@ -19,6 +19,7 @@ must be applied to the output of cgo preprocessing, not the input,
 because cover deletes comments that are significant to cgo.
 
 For usage information, please see:
+
 	go help testflag
 	go tool cover -help
 */

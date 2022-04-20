@@ -69,6 +69,7 @@ package math
 // J1 returns the order-one Bessel function of the first kind.
 //
 // Special cases are:
+//
 //	J1(±Inf) = 0
 //	J1(NaN) = NaN
 func J1(x float64) float64 {
@@ -147,6 +148,7 @@ func J1(x float64) float64 {
 // Y1 returns the order-one Bessel function of the second kind.
 //
 // Special cases are:
+//
 //	Y1(+Inf) = 0
 //	Y1(0) = -Inf
 //	Y1(x < 0) = NaN

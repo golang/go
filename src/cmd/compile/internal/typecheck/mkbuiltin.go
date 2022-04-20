@@ -105,6 +105,7 @@ func mkbuiltin(w io.Writer, name string) {
 
 	fmt.Fprintln(w, `
 // Not inlining this function removes a significant chunk of init code.
+//
 //go:noinline
 func newSig(params, results []*types.Field) *types.Type {
 	return types.NewSignature(types.NoPkg, nil, nil, params, results)

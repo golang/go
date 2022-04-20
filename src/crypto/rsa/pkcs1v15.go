@@ -128,8 +128,8 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
 // session key beforehand and continue the protocol with the resulting value.
 // This will remove any possibility that an attacker can learn any information
 // about the plaintext.
-// See ``Chosen Ciphertext Attacks Against Protocols Based on the RSA
-// Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
+// See “Chosen Ciphertext Attacks Against Protocols Based on the RSA
+// Encryption Standard PKCS #1”, Daniel Bleichenbacher, Advances in Cryptology
 // (Crypto '98).
 //
 // Note that if the session key is too small then it may be possible for an
@@ -242,10 +242,12 @@ func nonZeroRandomBytes(s []byte, rand io.Reader) (err error) {
 }
 
 // These are ASN1 DER structures:
-//   DigestInfo ::= SEQUENCE {
-//     digestAlgorithm AlgorithmIdentifier,
-//     digest OCTET STRING
-//   }
+//
+//	DigestInfo ::= SEQUENCE {
+//	  digestAlgorithm AlgorithmIdentifier,
+//	  digest OCTET STRING
+//	}
+//
 // For performance, we don't use the generic ASN1 encoder. Rather, we
 // precompute a prefix of the digest value that makes a valid ASN1 DER string
 // with the correct contents.

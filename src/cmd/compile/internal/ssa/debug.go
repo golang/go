@@ -402,28 +402,28 @@ func (sc *slotCanonicalizer) canonSlot(idx SlKeyIdx) LocalSlot {
 // OpArg{Int,Float}Reg values, inserting additional values in
 // cases where they are missing. Example:
 //
-//      func foo(s string, used int, notused int) int {
-//        return len(s) + used
-//      }
+//	func foo(s string, used int, notused int) int {
+//	  return len(s) + used
+//	}
 //
 // In the function above, the incoming parameter "used" is fully live,
 // "notused" is not live, and "s" is partially live (only the length
 // field of the string is used). At the point where debug value
 // analysis runs, we might expect to see an entry block with:
 //
-//   b1:
-//     v4 = ArgIntReg <uintptr> {s+8} [0] : BX
-//     v5 = ArgIntReg <int> {used} [0] : CX
+//	b1:
+//	  v4 = ArgIntReg <uintptr> {s+8} [0] : BX
+//	  v5 = ArgIntReg <int> {used} [0] : CX
 //
 // While this is an accurate picture of the live incoming params,
 // we also want to have debug locations for non-live params (or
 // their non-live pieces), e.g. something like
 //
-//   b1:
-//     v9 = ArgIntReg <*uint8> {s+0} [0] : AX
-//     v4 = ArgIntReg <uintptr> {s+8} [0] : BX
-//     v5 = ArgIntReg <int> {used} [0] : CX
-//     v10 = ArgIntReg <int> {unused} [0] : DI
+//	b1:
+//	  v9 = ArgIntReg <*uint8> {s+0} [0] : AX
+//	  v4 = ArgIntReg <uintptr> {s+8} [0] : BX
+//	  v5 = ArgIntReg <int> {used} [0] : CX
+//	  v10 = ArgIntReg <int> {unused} [0] : DI
 //
 // This function examines the live OpArg{Int,Float}Reg values and
 // synthesizes new (dead) values for the non-live params or the
@@ -1489,14 +1489,14 @@ func setupLocList(ctxt *obj.Link, f *Func, list []byte, st, en ID) ([]byte, int)
 // that spills a register arg. It returns the ID of that instruction
 // Example:
 //
-//   b1:
-//       v3 = ArgIntReg <int> {p1+0} [0] : AX
-//       ... more arg regs ..
-//       v4 = ArgFloatReg <float32> {f1+0} [0] : X0
-//       v52 = MOVQstore <mem> {p1} v2 v3 v1
-//       ... more stores ...
-//       v68 = MOVSSstore <mem> {f4} v2 v67 v66
-//       v38 = MOVQstoreconst <mem> {blob} [val=0,off=0] v2 v32
+//	b1:
+//	    v3 = ArgIntReg <int> {p1+0} [0] : AX
+//	    ... more arg regs ..
+//	    v4 = ArgFloatReg <float32> {f1+0} [0] : X0
+//	    v52 = MOVQstore <mem> {p1} v2 v3 v1
+//	    ... more stores ...
+//	    v68 = MOVSSstore <mem> {f4} v2 v67 v66
+//	    v38 = MOVQstoreconst <mem> {blob} [val=0,off=0] v2 v32
 //
 // Important: locatePrologEnd is expected to work properly only with
 // optimization turned off (e.g. "-N"). If optimization is enabled

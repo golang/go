@@ -8,13 +8,19 @@ package ssa
 // A phi is redundant if its arguments are all equal. For
 // purposes of counting, ignore the phi itself. Both of
 // these phis are redundant:
-//   v = phi(x,x,x)
-//   v = phi(x,v,x,v)
+//
+//	v = phi(x,x,x)
+//	v = phi(x,v,x,v)
+//
 // We repeat this process to also catch situations like:
-//   v = phi(x, phi(x, x), phi(x, v))
+//
+//	v = phi(x, phi(x, x), phi(x, v))
+//
 // TODO: Can we also simplify cases like:
-//   v = phi(v, w, x)
-//   w = phi(v, w, x)
+//
+//	v = phi(v, w, x)
+//	w = phi(v, w, x)
+//
 // and would that be useful?
 func phielim(f *Func) {
 	for {

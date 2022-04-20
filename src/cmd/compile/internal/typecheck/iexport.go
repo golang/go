@@ -258,7 +258,7 @@ import (
 // 1: added column details to Pos
 // 2: added information for generic function/types.  The export of non-generic
 // functions/types remains largely backward-compatible.  Breaking changes include:
-//    - a 'kind' byte is added to constant values
+//   - a 'kind' byte is added to constant values
 const (
 	iexportVersionGo1_11   = 0
 	iexportVersionPosCol   = 1

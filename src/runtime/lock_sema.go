@@ -96,8 +96,9 @@ func unlock(l *mutex) {
 	unlockWithRank(l)
 }
 
-//go:nowritebarrier
 // We might not be holding a p in this code.
+//
+//go:nowritebarrier
 func unlock2(l *mutex) {
 	gp := getg()
 	var mp *m

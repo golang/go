@@ -2099,6 +2099,31 @@ func TestJoinPath(t *testing.T) {
 			base: "http://[fe80::1%en0]:8080/",
 			elem: []string{"/go"},
 		},
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"go/"},
+			out:  "https://go.googlesource.com/go/",
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"go//"},
+			out:  "https://go.googlesource.com/go/",
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: nil,
+			out:  "https://go.googlesource.com",
+		},
+		{
+			base: "https://go.googlesource.com/",
+			elem: nil,
+			out:  "https://go.googlesource.com/",
+		},
+		{
+			base: "/",
+			elem: nil,
+			out:  "/",
+		},
 	}
 	for _, tt := range tests {
 		wantErr := "nil"

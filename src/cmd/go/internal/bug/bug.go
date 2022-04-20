@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package bug implements the ``go bug'' command.
+// Package bug implements the “go bug” command.
 package bug
 
 import (

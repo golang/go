@@ -456,10 +456,10 @@ func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.Comm
 //
 // The classification process is ambiguous in some cases:
 //
-// 	- ExampleFoo_Bar matches a type named Foo_Bar
-// 	  or a method named Foo.Bar.
-// 	- ExampleFoo_bar matches a type named Foo_bar
-// 	  or Foo (with a "bar" suffix).
+//   - ExampleFoo_Bar matches a type named Foo_Bar
+//     or a method named Foo.Bar.
+//   - ExampleFoo_bar matches a type named Foo_bar
+//     or Foo (with a "bar" suffix).
 //
 // Examples with malformed names are not associated with anything.
 func classifyExamples(p *Package, examples []*Example) {

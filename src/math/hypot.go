@@ -12,6 +12,7 @@ package math
 // unnecessary overflow and underflow.
 //
 // Special cases are:
+//
 //	Hypot(±Inf, q) = +Inf
 //	Hypot(p, ±Inf) = +Inf
 //	Hypot(NaN, q) = NaN

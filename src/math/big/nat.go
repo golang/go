@@ -22,7 +22,7 @@ import (
 
 // An unsigned integer x of the form
 //
-//   x = x[n-1]*_B^(n-1) + x[n-2]*_B^(n-2) + ... + x[1]*_B + x[0]
+//	x = x[n-1]*_B^(n-1) + x[n-2]*_B^(n-2) + ... + x[1]*_B + x[0]
 //
 // with 0 <= x[i] < _B and 0 <= i < n is stored in a slice of length n,
 // with the digits x[i] as the slice elements.

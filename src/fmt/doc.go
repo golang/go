@@ -7,12 +7,12 @@ Package fmt implements formatted I/O with functions analogous
 to C's printf and scanf.  The format 'verbs' are derived from C's but
 are simpler.
 
-
-Printing
+# Printing
 
 The verbs:
 
 General:
+
 	%v	the value in a default format
 		when printing structs, the plus flag (%+v) adds field names
 	%#v	a Go-syntax representation of the value
@@ -20,8 +20,11 @@ General:
 	%%	a literal percent sign; consumes no value
 
 Boolean:
+
 	%t	the word true or false
+
 Integer:
+
 	%b	base 2
 	%c	the character represented by the corresponding Unicode code point
 	%d	base 10
@@ -31,7 +34,9 @@ Integer:
 	%x	base 16, with lower-case letters for a-f
 	%X	base 16, with upper-case letters for A-F
 	%U	Unicode format: U+1234; same as "U+%04X"
+
 Floating-point and complex constituents:
+
 	%b	decimalless scientific notation with exponent a power of two,
 		in the manner of strconv.FormatFloat with the 'b' format,
 		e.g. -123456p-78
@@ -43,19 +48,26 @@ Floating-point and complex constituents:
 	%G	%E for large exponents, %F otherwise
 	%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcp+20
 	%X	upper-case hexadecimal notation, e.g. -0X1.23ABCP+20
+
 String and slice of bytes (treated equivalently with these verbs):
+
 	%s	the uninterpreted bytes of the string or slice
 	%q	a double-quoted string safely escaped with Go syntax
 	%x	base 16, lower-case, two characters per byte
 	%X	base 16, upper-case, two characters per byte
+
 Slice:
+
 	%p	address of 0th element in base 16 notation, with leading 0x
+
 Pointer:
+
 	%p	base 16 notation, with leading 0x
 	The %b, %d, %o, %x and %X verbs also work with pointers,
 	formatting the value exactly as if it were an integer.
 
 The default format for %v is:
+
 	bool:                    %t
 	int, int8 etc.:          %d
 	uint, uint8 etc.:        %d, %#x if printed with %#v
@@ -63,8 +75,10 @@ The default format for %v is:
 	string:                  %s
 	chan:                    %p
 	pointer:                 %p
+
 For compound objects, the elements are printed using these rules, recursively,
 laid out like this:
+
 	struct:             {field0 field1 ...}
 	array, slice:       [elem0 elem1 ...]
 	maps:               map[key1:value1 key2:value2 ...]
@@ -76,6 +90,7 @@ Precision is specified after the (optional) width by a period followed by a
 decimal number. If no period is present, a default precision is used.
 A period with no following number specifies a precision of zero.
 Examples:
+
 	%f     default width, default precision
 	%9f    width 9, default precision
 	%.2f   default width, precision 2
@@ -144,8 +159,10 @@ operands and appends a newline.
 Regardless of the verb, if an operand is an interface value,
 the internal concrete value is used, not the interface itself.
 Thus:
+
 	var i interface{} = 23
 	fmt.Printf("%v\n", i)
+
 will print 23.
 
 Except when printed using the verbs %T and %p, special
@@ -183,10 +200,14 @@ However, when printing a byte slice with a string-like verb
 (%s %q %x %X), it is treated identically to a string, as a single item.
 
 To avoid recursion in cases such as
+
 	type X string
 	func (x X) String() string { return Sprintf("<%s>", x) }
+
 convert the value before recurring:
+
 	func (x X) String() string { return Sprintf("<%s>", string(x)) }
+
 Infinite recursion can also be triggered by self-referential data
 structures, such as a slice that contains itself as an element, if
 that type has a String method. Such pathologies are rare, however,
@@ -195,7 +216,7 @@ and the package does not protect against them.
 When printing a struct, fmt cannot and therefore does not invoke
 formatting methods such as Error or String on unexported fields.
 
-Explicit argument indexes
+# Explicit argument indexes
 
 In Printf, Sprintf, and Fprintf, the default behavior is for each
 formatting verb to format successive arguments passed in the call.
@@ -206,18 +227,26 @@ the value. After processing a bracketed expression [n], subsequent verbs
 will use arguments n+1, n+2, etc. unless otherwise directed.
 
 For example,
+
 	fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
+
 will yield "22 11", while
+
 	fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6)
+
 equivalent to
+
 	fmt.Sprintf("%6.2f", 12.0)
+
 will yield " 12.00". Because an explicit index affects subsequent verbs,
 this notation can be used to print the same values multiple times
 by resetting the index for the first argument to be repeated:
+
 	fmt.Sprintf("%d %d %#[1]x %#x", 16, 17)
+
 will yield "16 17 0x10 0x11".
 
-Format errors
+# Format errors
 
 If an invalid argument is given for a verb, such as providing
 a string to %d, the generated string will contain a
@@ -246,6 +275,7 @@ from the panic, decorating it with an indication that it came
 through the fmt package.  For example, if a String method
 calls panic("bad"), the resulting formatted message will look
 like
+
 	%!s(PANIC=bad)
 
 The %!s just shows the print verb in use when the failure
@@ -253,7 +283,7 @@ occurred. If the panic is caused by a nil receiver to an Error
 or String method, however, the output is the undecorated
 string, "<nil>".
 
-Scanning
+# Scanning
 
 An analogous set of functions scans formatted text to yield
 values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
@@ -314,9 +344,13 @@ syntax for scanning with a precision (no %5.2f, just %5f).
 If width is provided, it applies after leading spaces are
 trimmed and specifies the maximum number of runes to read
 to satisfy the verb. For example,
-   Sscanf(" 1234567 ", "%5s%d", &s, &i)
+
+	Sscanf(" 1234567 ", "%5s%d", &s, &i)
+
 will set s to "12345" and i to 67 while
-   Sscanf(" 12 34 567 ", "%5s%d", &s, &i)
+
+	Sscanf(" 12 34 567 ", "%5s%d", &s, &i)
+
 will set s to "12" and i to 34.
 
 In all the scanning functions, a carriage return followed

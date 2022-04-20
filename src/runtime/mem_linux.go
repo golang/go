@@ -16,6 +16,7 @@ const (
 
 // Don't split the stack as this method may be invoked without a valid G, which
 // prevents us from allocating more stack.
+//
 //go:nosplit
 func sysAllocOS(n uintptr) unsafe.Pointer {
 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
@@ -162,6 +163,7 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
 
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
+//
 //go:nosplit
 func sysFreeOS(v unsafe.Pointer, n uintptr) {
 	munmap(v, n)

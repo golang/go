@@ -420,9 +420,11 @@ var float32pow10 = []float32{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1
 // If possible to convert decimal representation to 64-bit float f exactly,
 // entirely in floating-point math, do so, avoiding the expense of decimalToFloatBits.
 // Three common cases:
+//
 //	value is exact integer
 //	value is exact integer * exact power of ten
 //	value is exact integer / exact power of ten
+//
 // These all produce potentially inexact but correctly rounded answers.
 func atof64exact(mantissa uint64, exp int, neg bool) (f float64, ok bool) {
 	if mantissa>>float64info.mantbits != 0 {

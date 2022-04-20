@@ -146,6 +146,7 @@ func netpollBreak() {
 // delay < 0: blocks indefinitely
 // delay == 0: does not block, just polls
 // delay > 0: block for up to that many nanoseconds
+//
 //go:nowritebarrierrec
 func netpoll(delay int64) gList {
 	var timeout uintptr

@@ -88,6 +88,7 @@ func SetCPUProfileRate(hz int) {
 // and cannot allocate memory or acquire locks that might be
 // held at the time of the signal, nor can it use substantial amounts
 // of stack.
+//
 //go:nowritebarrierrec
 func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
 	// Simple cas-lock to coordinate with setcpuprofilerate.
@@ -117,6 +118,7 @@ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
 // Instead, we copy the stack into cpuprof.extra,
 // which will be drained the next time a Go thread
 // gets the signal handling event.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func (p *cpuProfile) addNonGo(stk []uintptr) {

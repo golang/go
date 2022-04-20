@@ -100,8 +100,8 @@ func (t *tester) run() {
 	if goos == "windows" {
 		exeSuffix = ".exe"
 	}
-	if _, err := os.Stat(filepath.Join(gobin, "go"+exeSuffix)); err == nil {
-		os.Setenv("PATH", fmt.Sprintf("%s%c%s", gobin, os.PathListSeparator, os.Getenv("PATH")))
+	if _, err := os.Stat(filepath.Join(gorootBin, "go"+exeSuffix)); err == nil {
+		os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
 	}
 
 	cmd := exec.Command("go", "env", "CGO_ENABLED")

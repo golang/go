@@ -154,9 +154,9 @@ func RegisterHash(h Hash, f func() hash.Hash) {
 // Although this type is an empty interface for backwards compatibility reasons,
 // all public key types in the standard library implement the following interface
 //
-//     interface{
-//         Equal(x crypto.PublicKey) bool
-//     }
+//	interface{
+//	    Equal(x crypto.PublicKey) bool
+//	}
 //
 // which can be used for increased type safety within applications.
 type PublicKey any
@@ -166,10 +166,10 @@ type PublicKey any
 // Although this type is an empty interface for backwards compatibility reasons,
 // all private key types in the standard library implement the following interface
 //
-//     interface{
-//         Public() crypto.PublicKey
-//         Equal(x crypto.PrivateKey) bool
-//     }
+//	interface{
+//	    Public() crypto.PublicKey
+//	    Equal(x crypto.PrivateKey) bool
+//	}
 //
 // as well as purpose-specific interfaces such as Signer and Decrypter, which
 // can be used for increased type safety within applications.

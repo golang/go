@@ -225,13 +225,13 @@ func StackOffset(slot ssa.LocalSlot) int32 {
 	switch n.Class {
 	case ir.PPARAM, ir.PPARAMOUT:
 		if !n.IsOutputParamInRegisters() {
-			off = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+			off = n.FrameOffset() + base.Ctxt.Arch.FixedFrameSize
 			break
 		}
 		fallthrough // PPARAMOUT in registers allocates like an AUTO
 	case ir.PAUTO:
 		off = n.FrameOffset()
-		if base.Ctxt.FixedFrameSize() == 0 {
+		if base.Ctxt.Arch.FixedFrameSize == 0 {
 			off -= int64(types.PtrSize)
 		}
 		if buildcfg.FramePointerEnabled {

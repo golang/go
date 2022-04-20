@@ -16,6 +16,7 @@ import (
 func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)

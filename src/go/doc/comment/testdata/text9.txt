@@ -1,0 +1,12 @@
+{"TextPrefix":"|", "TextCodePrefix": "@"}
+-- input --
+Hello, world
+ Code block here.
+-- gofmt --
+Hello, world
+
+	Code block here.
+-- text --
+|Hello, world
+|
+@Code block here.

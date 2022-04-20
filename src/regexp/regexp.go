@@ -9,14 +9,17 @@
 // More precisely, it is the syntax accepted by RE2 and described at
 // https://golang.org/s/re2syntax, except for \C.
 // For an overview of the syntax, run
-//   go doc regexp/syntax
+//
+//	go doc regexp/syntax
 //
 // The regexp implementation provided by this package is
 // guaranteed to run in time linear in the size of the input.
 // (This is a property not guaranteed by most open source
 // implementations of regular expressions.) For more information
 // about this property, see
+//
 //	https://swtch.com/~rsc/regexp/regexp1.html
+//
 // or any book about automata theory.
 //
 // All characters are UTF-8-encoded code points.
@@ -64,7 +67,6 @@
 // before returning.
 //
 // (There are a few other methods that do not match this pattern.)
-//
 package regexp
 
 import (
@@ -1239,13 +1241,15 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 // that contains no metacharacters, it is equivalent to strings.SplitN.
 //
 // Example:
-//   s := regexp.MustCompile("a*").Split("abaabaccadaaae", 5)
-//   // s: ["", "b", "b", "c", "cadaaae"]
+//
+//	s := regexp.MustCompile("a*").Split("abaabaccadaaae", 5)
+//	// s: ["", "b", "b", "c", "cadaaae"]
 //
 // The count determines the number of substrings to return:
-//   n > 0: at most n substrings; the last substring will be the unsplit remainder.
-//   n == 0: the result is nil (zero substrings)
-//   n < 0: all substrings
+//
+//	n > 0: at most n substrings; the last substring will be the unsplit remainder.
+//	n == 0: the result is nil (zero substrings)
+//	n < 0: all substrings
 func (re *Regexp) Split(s string, n int) []string {
 
 	if n == 0 {

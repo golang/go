@@ -21,7 +21,6 @@
 // Type inference computes the type (Type) of every expression (syntax.Expr)
 // and checks for compliance with the language specification.
 // Use Info.Types[expr].Type for the results of type inference.
-//
 package types2
 
 import (

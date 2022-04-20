@@ -620,7 +620,8 @@ func OrigInt(n ir.Node, v int64) ir.Node {
 // get the same type going out.
 // force means must assign concrete (non-ideal) type.
 // The results of defaultlit2 MUST be assigned back to l and r, e.g.
-// 	n.Left, n.Right = defaultlit2(n.Left, n.Right, force)
+//
+//	n.Left, n.Right = defaultlit2(n.Left, n.Right, force)
 func defaultlit2(l ir.Node, r ir.Node, force bool) (ir.Node, ir.Node) {
 	if l.Type() == nil || r.Type() == nil {
 		return l, r

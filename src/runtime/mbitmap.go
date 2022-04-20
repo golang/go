@@ -65,6 +65,7 @@ const (
 )
 
 // addb returns the byte pointer p+n.
+//
 //go:nowritebarrier
 //go:nosplit
 func addb(p *byte, n uintptr) *byte {
@@ -75,6 +76,7 @@ func addb(p *byte, n uintptr) *byte {
 }
 
 // subtractb returns the byte pointer p-n.
+//
 //go:nowritebarrier
 //go:nosplit
 func subtractb(p *byte, n uintptr) *byte {
@@ -85,6 +87,7 @@ func subtractb(p *byte, n uintptr) *byte {
 }
 
 // add1 returns the byte pointer p+1.
+//
 //go:nowritebarrier
 //go:nosplit
 func add1(p *byte) *byte {
@@ -95,9 +98,10 @@ func add1(p *byte) *byte {
 }
 
 // subtract1 returns the byte pointer p-1.
-//go:nowritebarrier
 //
 // nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nowritebarrier
 //go:nosplit
 func subtract1(p *byte) *byte {
 	// Note: wrote out full expression instead of calling subtractb(p, 1)
@@ -314,6 +318,7 @@ func (m *markBits) advance() {
 // In particular, be careful not to point past the end of an object.
 //
 // nosplit because it is used during write barriers and must not be preempted.
+//
 //go:nosplit
 func heapBitsForAddr(addr uintptr) (h heapBits) {
 	// 2 bits per word, 4 pairs per byte, and a mask is hard coded.
@@ -381,6 +386,7 @@ func badPointer(s *mspan, p, refBase, refOff uintptr) {
 //
 // It is nosplit so it is safe for p to be a pointer to the current goroutine's stack.
 // Since p is a uintptr, it would not be adjusted if the stack were to move.
+//
 //go:nosplit
 func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
 	s = spanOf(p)
@@ -418,6 +424,7 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 }
 
 // verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
+//
 //go:linkname reflect_verifyNotInHeapPtr reflect.verifyNotInHeapPtr
 func reflect_verifyNotInHeapPtr(p uintptr) bool {
 	// Conversion to a pointer is ok as long as findObject above does not call badPointer.
@@ -431,6 +438,7 @@ func reflect_verifyNotInHeapPtr(p uintptr) bool {
 // Note that next does not modify h. The caller must record the result.
 //
 // nosplit because it is used during write barriers and must not be preempted.
+//
 //go:nosplit
 func (h heapBits) next() heapBits {
 	if h.shift < 3*heapBitsShift {
@@ -477,6 +485,7 @@ func (h heapBits) nextArena() heapBits {
 // h.forward(1) is equivalent to h.next(), just slower.
 // Note that forward does not modify h. The caller must record the result.
 // bits returns the heap bits for the current word.
+//
 //go:nosplit
 func (h heapBits) forward(n uintptr) heapBits {
 	n += uintptr(h.shift) / heapBitsShift
@@ -517,6 +526,7 @@ func (h heapBits) forwardOrBoundary(n uintptr) (heapBits, uintptr) {
 // described by the same bitmap byte.
 //
 // nosplit because it is used during write barriers and must not be preempted.
+//
 //go:nosplit
 func (h heapBits) bits() uint32 {
 	// The (shift & 31) eliminates a test and conditional branch
@@ -534,6 +544,7 @@ func (h heapBits) morePointers() bool {
 // isPointer reports whether the heap bits describe a pointer word.
 //
 // nosplit because it is used during write barriers and must not be preempted.
+//
 //go:nosplit
 func (h heapBits) isPointer() bool {
 	return h.bits()&bitPointer != 0
@@ -633,6 +644,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 //
 // This is used for special cases where e.g. dst was just
 // created and zeroed with malloc.
+//
 //go:nosplit
 func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
@@ -1951,6 +1963,7 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
 
 // gcbits returns the GC type info for x, for testing.
 // The result is the bitmap entries (0 or 1), one entry per byte.
+//
 //go:linkname reflect_gcbits reflect.gcbits
 func reflect_gcbits(x any) []byte {
 	ret := getgcmask(x)

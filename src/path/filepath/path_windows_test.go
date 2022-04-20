@@ -197,13 +197,17 @@ func TestEvalSymlinksCanonicalNames(t *testing.T) {
 // (where c: is vol parameter) to discover "8dot3 name creation state".
 // The state is combination of 2 flags. The global flag controls if it
 // is per volume or global setting:
-//   0 - Enable 8dot3 name creation on all volumes on the system
-//   1 - Disable 8dot3 name creation on all volumes on the system
-//   2 - Set 8dot3 name creation on a per volume basis
-//   3 - Disable 8dot3 name creation on all volumes except the system volume
+//
+//	0 - Enable 8dot3 name creation on all volumes on the system
+//	1 - Disable 8dot3 name creation on all volumes on the system
+//	2 - Set 8dot3 name creation on a per volume basis
+//	3 - Disable 8dot3 name creation on all volumes except the system volume
+//
 // If global flag is set to 2, then per-volume flag needs to be examined:
-//   0 - Enable 8dot3 name creation on this volume
-//   1 - Disable 8dot3 name creation on this volume
+//
+//	0 - Enable 8dot3 name creation on this volume
+//	1 - Disable 8dot3 name creation on this volume
+//
 // checkVolume8dot3Setting verifies that "8dot3 name creation" flags
 // are set to 2 and 0, if enabled parameter is true, or 2 and 1, if enabled
 // is false. Otherwise checkVolume8dot3Setting returns error.

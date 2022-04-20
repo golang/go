@@ -166,21 +166,21 @@ type symAndSize struct {
 //
 // Notes on the layout of global symbol index space:
 //
-//  - Go object files are read before host object files; each Go object
-//    read adds its defined package symbols to the global index space.
-//    Nonpackage symbols are not yet added.
+//   - Go object files are read before host object files; each Go object
+//     read adds its defined package symbols to the global index space.
+//     Nonpackage symbols are not yet added.
 //
-//  - In loader.LoadNonpkgSyms, add non-package defined symbols and
-//    references in all object files to the global index space.
+//   - In loader.LoadNonpkgSyms, add non-package defined symbols and
+//     references in all object files to the global index space.
 //
-//  - Host object file loading happens; the host object loader does a
-//    name/version lookup for each symbol it finds; this can wind up
-//    extending the external symbol index space range. The host object
-//    loader stores symbol payloads in loader.payloads using SymbolBuilder.
+//   - Host object file loading happens; the host object loader does a
+//     name/version lookup for each symbol it finds; this can wind up
+//     extending the external symbol index space range. The host object
+//     loader stores symbol payloads in loader.payloads using SymbolBuilder.
 //
-//  - Each symbol gets a unique global index. For duplicated and
-//    overwriting/overwritten symbols, the second (or later) appearance
-//    of the symbol gets the same global index as the first appearance.
+//   - Each symbol gets a unique global index. For duplicated and
+//     overwriting/overwritten symbols, the second (or later) appearance
+//     of the symbol gets the same global index as the first appearance.
 type Loader struct {
 	start       map[*oReader]Sym // map from object file to its start index
 	objs        []objIdx         // sorted by start index (i.e. objIdx.i)
@@ -671,7 +671,7 @@ func (l *Loader) resolve(r *oReader, s goobj.SymRef) Sym {
 // when the runtime package is built. The canonical example is
 // "runtime.racefuncenter" -- currently if you do something like
 //
-//    go build -gcflags=-race myprogram.go
+//	go build -gcflags=-race myprogram.go
 //
 // the compiler will insert calls to the builtin runtime.racefuncenter,
 // but the version of the runtime used for linkage won't actually contain
@@ -2341,6 +2341,10 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	// need to access the old symbol content.)
 	l.objSyms[symIdx] = objSym{l.extReader.objidx, uint32(pi)}
 	l.extReader.syms = append(l.extReader.syms, symIdx)
+
+	// Some attributes were encoded in the object file. Copy them over.
+	l.SetAttrDuplicateOK(symIdx, r.Sym(li).Dupok())
+	l.SetAttrShared(symIdx, r.Shared())
 }
 
 // Copy the payload of symbol src to dst. Both src and dst must be external
@@ -2359,31 +2363,6 @@ func (l *Loader) CopySym(src, dst Sym) {
 	l.payloads[l.extIndex(dst)] = l.payloads[l.extIndex(src)]
 	l.SetSymPkg(dst, l.SymPkg(src))
 	// TODO: other attributes?
-}
-
-// CopyAttributes copies over all of the attributes of symbol 'src' to
-// symbol 'dst'.
-func (l *Loader) CopyAttributes(src Sym, dst Sym) {
-	l.SetAttrReachable(dst, l.AttrReachable(src))
-	l.SetAttrOnList(dst, l.AttrOnList(src))
-	l.SetAttrLocal(dst, l.AttrLocal(src))
-	l.SetAttrNotInSymbolTable(dst, l.AttrNotInSymbolTable(src))
-	if l.IsExternal(dst) {
-		l.SetAttrVisibilityHidden(dst, l.AttrVisibilityHidden(src))
-		l.SetAttrDuplicateOK(dst, l.AttrDuplicateOK(src))
-		l.SetAttrShared(dst, l.AttrShared(src))
-		l.SetAttrExternal(dst, l.AttrExternal(src))
-	} else {
-		// Some attributes are modifiable only for external symbols.
-		// In such cases, don't try to transfer over the attribute
-		// from the source even if there is a clash. This comes up
-		// when copying attributes from a dupOK ABI wrapper symbol to
-		// the real target symbol (which may not be marked dupOK).
-	}
-	l.SetAttrSpecial(dst, l.AttrSpecial(src))
-	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
-	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))
-	l.SetAttrReadOnly(dst, l.AttrReadOnly(src))
 }
 
 // CreateExtSym creates a new external symbol with the specified name

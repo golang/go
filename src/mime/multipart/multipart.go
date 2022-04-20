@@ -437,7 +437,8 @@ func (r *Reader) isBoundaryDelimiterLine(line []byte) (ret bool) {
 
 // skipLWSPChar returns b with leading spaces and tabs removed.
 // RFC 822 defines:
-//    LWSP-char = SPACE / HTAB
+//
+//	LWSP-char = SPACE / HTAB
 func skipLWSPChar(b []byte) []byte {
 	for len(b) > 0 && (b[0] == ' ' || b[0] == '\t') {
 		b = b[1:]

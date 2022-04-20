@@ -251,15 +251,15 @@ func (s *CheckEqualError) Error() string {
 // Check returns that input as a *CheckError.
 // For example:
 //
-// 	func TestOddMultipleOfThree(t *testing.T) {
-// 		f := func(x int) bool {
-// 			y := OddMultipleOfThree(x)
-// 			return y%2 == 1 && y%3 == 0
-// 		}
-// 		if err := quick.Check(f, nil); err != nil {
-// 			t.Error(err)
-// 		}
-// 	}
+//	func TestOddMultipleOfThree(t *testing.T) {
+//		f := func(x int) bool {
+//			y := OddMultipleOfThree(x)
+//			return y%2 == 1 && y%3 == 0
+//		}
+//		if err := quick.Check(f, nil); err != nil {
+//			t.Error(err)
+//		}
+//	}
 func Check(f any, config *Config) error {
 	if config == nil {
 		config = &defaultConfig

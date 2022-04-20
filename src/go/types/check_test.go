@@ -319,7 +319,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 // (and a separating "--"). For instance, to test the package made
 // of the files foo.go and bar.go, use:
 //
-// 	go test -run Manual -- foo.go bar.go
+//	go test -run Manual -- foo.go bar.go
 //
 // If no source arguments are provided, the file testdata/manual.go
 // is used instead.

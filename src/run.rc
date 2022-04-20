@@ -10,11 +10,7 @@ if(! test -f ../bin/go){
 	exit wrongdir
 }
 
-eval `{../bin/go env}
+eval `{../bin/go tool dist env}
 
 GOPATH=/nonexist-gopath
-GOBIN=() # Issue 14340
-GOFLAGS=()
-GO111MODULE=()
-
 exec ../bin/go tool dist test -rebuild $*

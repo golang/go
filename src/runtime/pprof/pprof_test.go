@@ -1175,6 +1175,7 @@ func blockInfrequentLong(rate int) {
 }
 
 // Used by TestBlockProfileBias.
+//
 //go:linkname blockevent runtime.blockevent
 func blockevent(cycles int64, skip int)
 

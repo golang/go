@@ -137,9 +137,12 @@ type ComplexType complex64
 // new elements. If it does not, a new underlying array will be allocated.
 // Append returns the updated slice. It is therefore necessary to store the
 // result of append, often in the variable holding the slice itself:
+//
 //	slice = append(slice, elem1, elem2)
 //	slice = append(slice, anotherSlice...)
+//
 // As a special case, it is legal to append a string to a byte slice, like this:
+//
 //	slice = append([]byte("hello "), "world"...)
 func append(slice []Type, elems ...Type) []Type
 
@@ -156,24 +159,28 @@ func copy(dst, src []Type) int
 func delete(m map[Type]Type1, key Type)
 
 // The len built-in function returns the length of v, according to its type:
+//
 //	Array: the number of elements in v.
 //	Pointer to array: the number of elements in *v (even if v is nil).
 //	Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
 //	String: the number of bytes in v.
 //	Channel: the number of elements queued (unread) in the channel buffer;
 //	         if v is nil, len(v) is zero.
+//
 // For some arguments, such as a string literal or a simple array expression, the
 // result can be a constant. See the Go language specification's "Length and
 // capacity" section for details.
 func len(v Type) int
 
 // The cap built-in function returns the capacity of v, according to its type:
+//
 //	Array: the number of elements in v (same as len(v)).
 //	Pointer to array: the number of elements in *v (same as len(v)).
 //	Slice: the maximum length the slice can reach when resliced;
 //	if v is nil, cap(v) is zero.
 //	Channel: the channel buffer capacity, in units of elements;
 //	if v is nil, cap(v) is zero.
+//
 // For some arguments, such as a simple array expression, the result can be a
 // constant. See the Go language specification's "Length and capacity" section for
 // details.
@@ -184,6 +191,7 @@ func cap(v Type) int
 // value. Unlike new, make's return type is the same as the type of its
 // argument, not a pointer to it. The specification of the result depends on
 // the type:
+//
 //	Slice: The size specifies the length. The capacity of the slice is
 //	equal to its length. A second integer argument may be provided to
 //	specify a different capacity; it must be no smaller than the
@@ -225,7 +233,9 @@ func imag(c ComplexType) FloatType
 // the last sent value is received. After the last value has been received
 // from a closed channel c, any receive from c will succeed without
 // blocking, returning the zero value for the channel element. The form
+//
 //	x, ok := <-c
+//
 // will also set ok to false for a closed channel.
 func close(c chan<- Type)
 

@@ -5,77 +5,74 @@
 package doc
 
 import (
+	"go/doc/comment"
 	"strings"
 	"unicode"
 )
 
-// firstSentenceLen returns the length of the first sentence in s.
+// firstSentence returns the first sentence in s.
 // The sentence ends after the first period followed by space and
 // not preceded by exactly one uppercase letter.
-func firstSentenceLen(s string) int {
+func firstSentence(s string) string {
 	var ppp, pp, p rune
 	for i, q := range s {
 		if q == '\n' || q == '\r' || q == '\t' {
 			q = ' '
 		}
 		if q == ' ' && p == '.' && (!unicode.IsUpper(pp) || unicode.IsUpper(ppp)) {
-			return i
+			return s[:i]
 		}
 		if p == '。' || p == '．' {
-			return i
+			return s[:i]
 		}
 		ppp, pp, p = pp, p, q
 	}
-	return len(s)
-}
-
-const (
-	keepNL = 1 << iota
-)
-
-// clean replaces each sequence of space, \n, \r, or \t characters
-// with a single space and removes any trailing and leading spaces.
-// If the keepNL flag is set, newline characters are passed through
-// instead of being change to spaces.
-func clean(s string, flags int) string {
-	var b []byte
-	p := byte(' ')
-	for i := 0; i < len(s); i++ {
-		q := s[i]
-		if (flags&keepNL) == 0 && q == '\n' || q == '\r' || q == '\t' {
-			q = ' '
-		}
-		if q != ' ' || p != ' ' {
-			b = append(b, q)
-			p = q
-		}
-	}
-	// remove trailing blank, if any
-	if n := len(b); n > 0 && p == ' ' {
-		b = b[0 : n-1]
-	}
-	return string(b)
-}
-
-// Synopsis returns a cleaned version of the first sentence in s.
-// That sentence ends after the first period followed by space and
-// not preceded by exactly one uppercase letter. The result string
-// has no \n, \r, or \t characters and uses only single spaces between
-// words. If s starts with any of the IllegalPrefixes, the result
-// is the empty string.
-func Synopsis(s string) string {
-	s = clean(s[0:firstSentenceLen(s)], 0)
-	for _, prefix := range IllegalPrefixes {
-		if strings.HasPrefix(strings.ToLower(s), prefix) {
-			return ""
-		}
-	}
-	s = convertQuotes(s)
 	return s
 }
 
+// Synopsis returns a cleaned version of the first sentence in text.
+//
+// Deprecated: New programs should use [Package.Synopsis] instead,
+// which handles links in text properly.
+func Synopsis(text string) string {
+	var p Package
+	return p.Synopsis(text)
+}
+
+// IllegalPrefixes is a list of lower-case prefixes that identify
+// a comment as not being a doc comment.
+// This helps to avoid misinterpreting the common mistake
+// of a copyright notice immediately before a package statement
+// as being a doc comment.
 var IllegalPrefixes = []string{
 	"copyright",
 	"all rights",
 	"author",
+}
+
+// Synopsis returns a cleaned version of the first sentence in text.
+// That sentence ends after the first period followed by space and not
+// preceded by exactly one uppercase letter, or at the first paragraph break.
+// The result string has no \n, \r, or \t characters and uses only single
+// spaces between words. If text starts with any of the IllegalPrefixes,
+// the result is the empty string.
+func (p *Package) Synopsis(text string) string {
+	text = firstSentence(text)
+	lower := strings.ToLower(text)
+	for _, prefix := range IllegalPrefixes {
+		if strings.HasPrefix(lower, prefix) {
+			return ""
+		}
+	}
+	pr := p.Printer()
+	pr.TextWidth = -1
+	d := p.Parser().Parse(text)
+	if len(d.Content) == 0 {
+		return ""
+	}
+	if _, ok := d.Content[0].(*comment.Paragraph); !ok {
+		return ""
+	}
+	d.Content = d.Content[:1] // might be blank lines, code blocks, etc in “first sentence”
+	return strings.TrimSpace(string(pr.Text(d)))
 }

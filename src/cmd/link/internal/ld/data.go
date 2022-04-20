@@ -178,7 +178,7 @@ func FoldSubSymbolOffset(ldr *loader.Loader, s loader.Sym) (loader.Sym, int64) {
 // (to be applied by the external linker). For more on how relocations
 // work in general, see
 //
-//  "Linkers and Loaders", by John R. Levine (Morgan Kaufmann, 1999), ch. 7
+//	"Linkers and Loaders", by John R. Levine (Morgan Kaufmann, 1999), ch. 7
 //
 // This is a performance-critical function for the linker; be careful
 // to avoid introducing unnecessary allocations in the main loop.
@@ -2112,12 +2112,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 			return si < sj
 		})
 	} else {
-		// PCLNTAB was built internally, and has the proper order based on value.
-		// Sort the symbols as such.
-		for k, s := range syms {
-			sl[k].val = ldr.SymValue(s)
-		}
-		sort.Slice(sl, func(i, j int) bool { return sl[i].val < sl[j].val })
+		// PCLNTAB was built internally, and already has the proper order.
 	}
 
 	// Set alignment, construct result
@@ -2140,7 +2135,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 // Non-ELF binary formats are not always flexible enough to
 // give us a place to put the Go build ID. On those systems, we put it
 // at the very beginning of the text segment.
-// This ``header'' is read by cmd/go.
+// This “header” is read by cmd/go.
 func (ctxt *Link) textbuildid() {
 	if ctxt.IsELF || ctxt.BuildMode == BuildModePlugin || *flagBuildid == "" {
 		return

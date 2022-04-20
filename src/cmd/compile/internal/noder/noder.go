@@ -33,29 +33,35 @@ func LoadPackage(filenames []string) {
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
 	noders := make([]*noder, len(filenames))
-	for i, filename := range filenames {
+	for i := range noders {
 		p := noder{
 			err: make(chan syntax.Error),
 		}
 		noders[i] = &p
-
-		filename := filename
-		go func() {
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			defer close(p.err)
-			fbase := syntax.NewFileBase(filename)
-
-			f, err := os.Open(filename)
-			if err != nil {
-				p.error(syntax.Error{Msg: err.Error()})
-				return
-			}
-			defer f.Close()
-
-			p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, mode) // errors are tracked via p.error
-		}()
 	}
+
+	// Move the entire syntax processing logic into a separate goroutine to avoid blocking on the "sem".
+	go func() {
+		for i, filename := range filenames {
+			filename := filename
+			p := noders[i]
+			sem <- struct{}{}
+			go func() {
+				defer func() { <-sem }()
+				defer close(p.err)
+				fbase := syntax.NewFileBase(filename)
+
+				f, err := os.Open(filename)
+				if err != nil {
+					p.error(syntax.Error{Msg: err.Error()})
+					return
+				}
+				defer f.Close()
+
+				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, mode) // errors are tracked via p.error
+			}()
+		}
+	}()
 
 	var lines uint
 	for _, p := range noders {

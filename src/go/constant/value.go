@@ -9,7 +9,6 @@
 // is unknown due to an error. Operations on unknown
 // values produce unknown values unless specified
 // otherwise.
-//
 package constant
 
 import (
@@ -571,13 +570,13 @@ func Float64Val(x Value) (float64, bool) {
 // interface, it is up to the caller to type assert the result to the expected
 // type. The possible dynamic return types are:
 //
-//    x Kind             type of result
-//    -----------------------------------------
-//    Bool               bool
-//    String             string
-//    Int                int64 or *big.Int
-//    Float              *big.Float or *big.Rat
-//    everything else    nil
+//	x Kind             type of result
+//	-----------------------------------------
+//	Bool               bool
+//	String             string
+//	Int                int64 or *big.Int
+//	Float              *big.Float or *big.Rat
+//	everything else    nil
 func Val(x Value) any {
 	switch x := x.(type) {
 	case boolVal:
@@ -599,15 +598,15 @@ func Val(x Value) any {
 
 // Make returns the Value for x.
 //
-//    type of x        result Kind
-//    ----------------------------
-//    bool             Bool
-//    string           String
-//    int64            Int
-//    *big.Int         Int
-//    *big.Float       Float
-//    *big.Rat         Float
-//    anything else    Unknown
+//	type of x        result Kind
+//	----------------------------
+//	bool             Bool
+//	string           String
+//	int64            Int
+//	*big.Int         Int
+//	*big.Float       Float
+//	*big.Rat         Float
+//	anything else    Unknown
 func Make(x any) Value {
 	switch x := x.(type) {
 	case bool:

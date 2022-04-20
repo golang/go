@@ -78,6 +78,10 @@ func tooSlow(t *testing.T) {
 // (temp) directory.
 var testGOROOT string
 
+// testGOROOT_FINAL is the GOROOT_FINAL with which the test binary is assumed to
+// have been built.
+var testGOROOT_FINAL = os.Getenv("GOROOT_FINAL")
+
 var testGOCACHE string
 
 var testGo string

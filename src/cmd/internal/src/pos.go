@@ -214,8 +214,10 @@ func NewFileBase(filename, absFilename string) *PosBase {
 }
 
 // NewLinePragmaBase returns a new *PosBase for a line directive of the form
-//      //line filename:line:col
-//      /*line filename:line:col*/
+//
+//	//line filename:line:col
+//	/*line filename:line:col*/
+//
 // at position pos.
 func NewLinePragmaBase(pos Pos, filename, absFilename string, line, col uint) *PosBase {
 	return &PosBase{pos, filename, absFilename, FileSymPrefix + absFilename, line, col, -1}
