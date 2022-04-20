@@ -991,7 +991,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 	case _Func:
 		pos := p.pos()
 		p.next()
-		_, ftyp := p.funcType("function literal")
+		_, ftyp := p.funcType("function type")
 		if p.tok == _Lbrace {
 			p.xnest++
 
