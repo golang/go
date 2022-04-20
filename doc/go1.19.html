@@ -132,6 +132,21 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- net -->
 
+<dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
+  <dd><!-- https://go.dev/issue/50599 -->
+    <p>
+      An <code>exec.Cmd</code> with a non-empty <code>Dir</code> and a
+      nil <code>Env</code> now implicitly sets the <code>PWD</code> environment
+      variable for the subprocess to match <code>Dir</code>.
+    </p>
+    <p>
+      The new method <code>(*exec.Cmd).Environ</code> reports the
+      environment that would be used to run the command, including the
+      aforementioned <code>PWD</code> variable.
+    </p>
+  </dd>
+</dl> <!-- os/exec -->
+
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/51461 -->

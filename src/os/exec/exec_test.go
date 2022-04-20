@@ -57,12 +57,20 @@ func init() {
 func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *exec.Cmd) {
 	testenv.MustHaveExec(t)
 
+	// Use os.Executable instead of os.Args[0] in case the caller modifies
+	// cmd.Dir: if the test binary is invoked like "./exec.test", it should
+	// not fail spuriously.
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
 	if ctx != nil {
-		cmd = exec.CommandContext(ctx, os.Args[0], cs...)
+		cmd = exec.CommandContext(ctx, exe, cs...)
 	} else {
-		cmd = exec.Command(os.Args[0], cs...)
+		cmd = exec.Command(exe, cs...)
 	}
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	return cmd
@@ -830,6 +838,14 @@ func TestHelperProcess(*testing.T) {
 			os.Exit(1)
 		}
 		pipe.Close()
+		os.Exit(0)
+	case "pwd":
+		pwd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Println(pwd)
 		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
