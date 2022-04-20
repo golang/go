@@ -37,12 +37,11 @@ func (e *P224Element) Equal(t *P224Element) int {
 	return subtle.ConstantTimeCompare(eBytes, tBytes)
 }
 
-var p224ZeroEncoding = new(P224Element).Bytes()
-
 // IsZero returns 1 if e == 0, and zero otherwise.
 func (e *P224Element) IsZero() int {
+	zero := make([]byte, p224ElementLen)
 	eBytes := e.Bytes()
-	return subtle.ConstantTimeCompare(eBytes, p224ZeroEncoding)
+	return subtle.ConstantTimeCompare(eBytes, zero)
 }
 
 // Set sets e = t, and returns e.
@@ -67,12 +66,6 @@ func (e *P224Element) bytes(out *[p224ElementLen]byte) []byte {
 	return out[:]
 }
 
-// p224MinusOneEncoding is the encoding of -1 mod p, so p - 1, the
-// highest canonical encoding. It is used by SetBytes to check for non-canonical
-// encodings such as p + k, 2p + k, etc.
-var p224MinusOneEncoding = new(P224Element).Sub(
-	new(P224Element), new(P224Element).One()).Bytes()
-
 // SetBytes sets e = v, where v is a big-endian 28-byte encoding, and returns e.
 // If v is not 28 bytes or it encodes a value higher than 2^224 - 2^96 + 1,
 // SetBytes returns nil and an error, and e is unchanged.
@@ -80,14 +73,20 @@ func (e *P224Element) SetBytes(v []byte) (*P224Element, error) {
 	if len(v) != p224ElementLen {
 		return nil, errors.New("invalid P224Element encoding")
 	}
+
+	// Check for non-canonical encodings (p + k, 2p + k, etc.) by comparing to
+	// the encoding of -1 mod p, so p - 1, the highest canonical encoding.
+	var minusOneEncoding = new(P224Element).Sub(
+		new(P224Element), new(P224Element).One()).Bytes()
 	for i := range v {
-		if v[i] < p224MinusOneEncoding[i] {
+		if v[i] < minusOneEncoding[i] {
 			break
 		}
-		if v[i] > p224MinusOneEncoding[i] {
+		if v[i] > minusOneEncoding[i] {
 			return nil, errors.New("invalid P224Element encoding")
 		}
 	}
+
 	var in [p224ElementLen]byte
 	copy(in[:], v)
 	p224InvertEndianness(in[:])

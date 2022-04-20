@@ -73,7 +73,8 @@ func main() {
 		p := strings.ToLower(c.P)
 		elementLen := (c.Params.BitSize + 7) / 8
 		B := fmt.Sprintf("%#v", c.Params.B.FillBytes(make([]byte, elementLen)))
-		G := fmt.Sprintf("%#v", elliptic.Marshal(c.Params, c.Params.Gx, c.Params.Gy))
+		Gx := fmt.Sprintf("%#v", c.Params.Gx.FillBytes(make([]byte, elementLen)))
+		Gy := fmt.Sprintf("%#v", c.Params.Gy.FillBytes(make([]byte, elementLen)))
 
 		log.Printf("Generating %s.go...", p)
 		f, err := os.Create(p + ".go")
@@ -83,7 +84,7 @@ func main() {
 		defer f.Close()
 		buf := &bytes.Buffer{}
 		if err := t.Execute(buf, map[string]interface{}{
-			"P": c.P, "p": p, "B": B, "G": G,
+			"P": c.P, "p": p, "B": B, "Gx": Gx, "Gy": Gy,
 			"Element": c.Element, "ElementLen": elementLen,
 			"BuildTags": c.BuildTags,
 		}); err != nil {
@@ -157,10 +158,6 @@ import (
 	"sync"
 )
 
-var {{.p}}B, _ = new({{.Element}}).SetBytes({{.B}})
-
-var {{.p}}G, _ = New{{.P}}Point().SetBytes({{.G}})
-
 // {{.p}}ElementLength is the length of an element of the base or scalar field,
 // which have the same bytes length for all NIST P curves.
 const {{.p}}ElementLength = {{ .ElementLen }}
@@ -181,13 +178,12 @@ func New{{.P}}Point() *{{.P}}Point {
 	}
 }
 
-// New{{.P}}Generator returns a new {{.P}}Point set to the canonical generator.
-func New{{.P}}Generator() *{{.P}}Point {
-	return (&{{.P}}Point{
-		x: new({{.Element}}),
-		y: new({{.Element}}),
-		z: new({{.Element}}),
-	}).Set({{.p}}G)
+// SetGenerator sets p to the canonical generator and returns p.
+func (p *{{.P}}Point) SetGenerator() *{{.P}}Point {
+	p.x.SetBytes({{.Gx}})
+	p.y.SetBytes({{.Gy}})
+	p.z.One()
+	return p
 }
 
 // Set sets p = q and returns p.
@@ -256,6 +252,17 @@ func (p *{{.P}}Point) SetBytes(b []byte) (*{{.P}}Point, error) {
 	}
 }
 
+
+var _{{.p}}B *{{.Element}}
+var _{{.p}}BOnce sync.Once
+
+func {{.p}}B() *{{.Element}} {
+	_{{.p}}BOnce.Do(func() {
+		_{{.p}}B, _ = new({{.Element}}).SetBytes({{.B}})
+	})
+	return _{{.p}}B
+}
+
 // {{.p}}Polynomial sets y2 to x³ - 3x + b, and returns y2.
 func {{.p}}Polynomial(y2, x *{{.Element}}) *{{.Element}} {
 	y2.Square(x)
@@ -263,9 +270,9 @@ func {{.p}}Polynomial(y2, x *{{.Element}}) *{{.Element}} {
 
 	threeX := new({{.Element}}).Add(x, x)
 	threeX.Add(threeX, x)
-
 	y2.Sub(y2, threeX)
-	return y2.Add(y2, {{.p}}B)
+
+	return y2.Add(y2, {{.p}}B())
 }
 
 func {{.p}}CheckOnCurve(x, y *{{.Element}}) error {
@@ -373,13 +380,13 @@ func (q *{{.P}}Point) Add(p1, p2 *{{.P}}Point) *{{.P}}Point {
 	x3.Mul(x3, y3)                            // X3 := X3 * Y3
 	y3.Add(t0, t2)                            // Y3 := t0 + t2
 	y3.Sub(x3, y3)                            // Y3 := X3 - Y3
-	z3 := new({{.Element}}).Mul({{.p}}B, t2)  // Z3 := b * t2
+	z3 := new({{.Element}}).Mul({{.p}}B(), t2)  // Z3 := b * t2
 	x3.Sub(y3, z3)                            // X3 := Y3 - Z3
 	z3.Add(x3, x3)                            // Z3 := X3 + X3
 	x3.Add(x3, z3)                            // X3 := X3 + Z3
 	z3.Sub(t1, x3)                            // Z3 := t1 - X3
 	x3.Add(t1, x3)                            // X3 := t1 + X3
-	y3.Mul({{.p}}B, y3)                       // Y3 := b * Y3
+	y3.Mul({{.p}}B(), y3)                     // Y3 := b * Y3
 	t1.Add(t2, t2)                            // t1 := t2 + t2
 	t2.Add(t1, t2)                            // t2 := t1 + t2
 	y3.Sub(y3, t2)                            // Y3 := Y3 - t2
@@ -417,7 +424,7 @@ func (q *{{.P}}Point) Double(p *{{.P}}Point) *{{.P}}Point {
 	t3.Add(t3, t3)                           // t3 := t3 + t3
 	z3 := new({{.Element}}).Mul(p.x, p.z)    // Z3 := X * Z
 	z3.Add(z3, z3)                           // Z3 := Z3 + Z3
-	y3 := new({{.Element}}).Mul({{.p}}B, t2) // Y3 := b * t2
+	y3 := new({{.Element}}).Mul({{.p}}B(), t2) // Y3 := b * t2
 	y3.Sub(y3, z3)                           // Y3 := Y3 - Z3
 	x3 := new({{.Element}}).Add(y3, y3)      // X3 := Y3 + Y3
 	y3.Add(x3, y3)                           // Y3 := X3 + Y3
@@ -427,7 +434,7 @@ func (q *{{.P}}Point) Double(p *{{.P}}Point) *{{.P}}Point {
 	x3.Mul(x3, t3)                           // X3 := X3 * t3
 	t3.Add(t2, t2)                           // t3 := t2 + t2
 	t2.Add(t2, t3)                           // t2 := t2 + t3
-	z3.Mul({{.p}}B, z3)                      // Z3 := b * Z3
+	z3.Mul({{.p}}B(), z3)                    // Z3 := b * Z3
 	z3.Sub(z3, t2)                           // Z3 := Z3 - t2
 	z3.Sub(z3, t0)                           // Z3 := Z3 - t0
 	t3.Add(z3, z3)                           // t3 := Z3 + Z3
@@ -531,7 +538,7 @@ var {{.p}}GeneratorTableOnce sync.Once
 func (p *{{.P}}Point) generatorTable() *[{{.p}}ElementLength * 2]{{.p}}Table {
 	{{.p}}GeneratorTableOnce.Do(func() {
 		{{.p}}GeneratorTable = new([{{.p}}ElementLength * 2]{{.p}}Table)
-		base := New{{.P}}Generator()
+		base := New{{.P}}Point().SetGenerator()
 		for i := 0; i < {{.p}}ElementLength*2; i++ {
 			{{.p}}GeneratorTable[i][0] = New{{.P}}Point().Set(base)
 			for j := 1; j < 15; j++ {

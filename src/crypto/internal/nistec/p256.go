@@ -15,10 +15,6 @@ import (
 	"sync"
 )
 
-var p256B, _ = new(fiat.P256Element).SetBytes([]byte{0x5a, 0xc6, 0x35, 0xd8, 0xaa, 0x3a, 0x93, 0xe7, 0xb3, 0xeb, 0xbd, 0x55, 0x76, 0x98, 0x86, 0xbc, 0x65, 0x1d, 0x6, 0xb0, 0xcc, 0x53, 0xb0, 0xf6, 0x3b, 0xce, 0x3c, 0x3e, 0x27, 0xd2, 0x60, 0x4b})
-
-var p256G, _ = NewP256Point().SetBytes([]byte{0x4, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x3, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96, 0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb, 0x4a, 0x7c, 0xf, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5})
-
 // p256ElementLength is the length of an element of the base or scalar field,
 // which have the same bytes length for all NIST P curves.
 const p256ElementLength = 32
@@ -39,13 +35,12 @@ func NewP256Point() *P256Point {
 	}
 }
 
-// NewP256Generator returns a new P256Point set to the canonical generator.
-func NewP256Generator() *P256Point {
-	return (&P256Point{
-		x: new(fiat.P256Element),
-		y: new(fiat.P256Element),
-		z: new(fiat.P256Element),
-	}).Set(p256G)
+// SetGenerator sets p to the canonical generator and returns p.
+func (p *P256Point) SetGenerator() *P256Point {
+	p.x.SetBytes([]byte{0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x3, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96})
+	p.y.SetBytes([]byte{0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb, 0x4a, 0x7c, 0xf, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5})
+	p.z.One()
+	return p
 }
 
 // Set sets p = q and returns p.
@@ -114,6 +109,16 @@ func (p *P256Point) SetBytes(b []byte) (*P256Point, error) {
 	}
 }
 
+var _p256B *fiat.P256Element
+var _p256BOnce sync.Once
+
+func p256B() *fiat.P256Element {
+	_p256BOnce.Do(func() {
+		_p256B, _ = new(fiat.P256Element).SetBytes([]byte{0x5a, 0xc6, 0x35, 0xd8, 0xaa, 0x3a, 0x93, 0xe7, 0xb3, 0xeb, 0xbd, 0x55, 0x76, 0x98, 0x86, 0xbc, 0x65, 0x1d, 0x6, 0xb0, 0xcc, 0x53, 0xb0, 0xf6, 0x3b, 0xce, 0x3c, 0x3e, 0x27, 0xd2, 0x60, 0x4b})
+	})
+	return _p256B
+}
+
 // p256Polynomial sets y2 to x³ - 3x + b, and returns y2.
 func p256Polynomial(y2, x *fiat.P256Element) *fiat.P256Element {
 	y2.Square(x)
@@ -121,9 +126,9 @@ func p256Polynomial(y2, x *fiat.P256Element) *fiat.P256Element {
 
 	threeX := new(fiat.P256Element).Add(x, x)
 	threeX.Add(threeX, x)
-
 	y2.Sub(y2, threeX)
-	return y2.Add(y2, p256B)
+
+	return y2.Add(y2, p256B())
 }
 
 func p256CheckOnCurve(x, y *fiat.P256Element) error {
@@ -213,49 +218,49 @@ func (q *P256Point) Add(p1, p2 *P256Point) *P256Point {
 	// Complete addition formula for a = -3 from "Complete addition formulas for
 	// prime order elliptic curves" (https://eprint.iacr.org/2015/1060), §A.2.
 
-	t0 := new(fiat.P256Element).Mul(p1.x, p2.x) // t0 := X1 * X2
-	t1 := new(fiat.P256Element).Mul(p1.y, p2.y) // t1 := Y1 * Y2
-	t2 := new(fiat.P256Element).Mul(p1.z, p2.z) // t2 := Z1 * Z2
-	t3 := new(fiat.P256Element).Add(p1.x, p1.y) // t3 := X1 + Y1
-	t4 := new(fiat.P256Element).Add(p2.x, p2.y) // t4 := X2 + Y2
-	t3.Mul(t3, t4)                              // t3 := t3 * t4
-	t4.Add(t0, t1)                              // t4 := t0 + t1
-	t3.Sub(t3, t4)                              // t3 := t3 - t4
-	t4.Add(p1.y, p1.z)                          // t4 := Y1 + Z1
-	x3 := new(fiat.P256Element).Add(p2.y, p2.z) // X3 := Y2 + Z2
-	t4.Mul(t4, x3)                              // t4 := t4 * X3
-	x3.Add(t1, t2)                              // X3 := t1 + t2
-	t4.Sub(t4, x3)                              // t4 := t4 - X3
-	x3.Add(p1.x, p1.z)                          // X3 := X1 + Z1
-	y3 := new(fiat.P256Element).Add(p2.x, p2.z) // Y3 := X2 + Z2
-	x3.Mul(x3, y3)                              // X3 := X3 * Y3
-	y3.Add(t0, t2)                              // Y3 := t0 + t2
-	y3.Sub(x3, y3)                              // Y3 := X3 - Y3
-	z3 := new(fiat.P256Element).Mul(p256B, t2)  // Z3 := b * t2
-	x3.Sub(y3, z3)                              // X3 := Y3 - Z3
-	z3.Add(x3, x3)                              // Z3 := X3 + X3
-	x3.Add(x3, z3)                              // X3 := X3 + Z3
-	z3.Sub(t1, x3)                              // Z3 := t1 - X3
-	x3.Add(t1, x3)                              // X3 := t1 + X3
-	y3.Mul(p256B, y3)                           // Y3 := b * Y3
-	t1.Add(t2, t2)                              // t1 := t2 + t2
-	t2.Add(t1, t2)                              // t2 := t1 + t2
-	y3.Sub(y3, t2)                              // Y3 := Y3 - t2
-	y3.Sub(y3, t0)                              // Y3 := Y3 - t0
-	t1.Add(y3, y3)                              // t1 := Y3 + Y3
-	y3.Add(t1, y3)                              // Y3 := t1 + Y3
-	t1.Add(t0, t0)                              // t1 := t0 + t0
-	t0.Add(t1, t0)                              // t0 := t1 + t0
-	t0.Sub(t0, t2)                              // t0 := t0 - t2
-	t1.Mul(t4, y3)                              // t1 := t4 * Y3
-	t2.Mul(t0, y3)                              // t2 := t0 * Y3
-	y3.Mul(x3, z3)                              // Y3 := X3 * Z3
-	y3.Add(y3, t2)                              // Y3 := Y3 + t2
-	x3.Mul(t3, x3)                              // X3 := t3 * X3
-	x3.Sub(x3, t1)                              // X3 := X3 - t1
-	z3.Mul(t4, z3)                              // Z3 := t4 * Z3
-	t1.Mul(t3, t0)                              // t1 := t3 * t0
-	z3.Add(z3, t1)                              // Z3 := Z3 + t1
+	t0 := new(fiat.P256Element).Mul(p1.x, p2.x)  // t0 := X1 * X2
+	t1 := new(fiat.P256Element).Mul(p1.y, p2.y)  // t1 := Y1 * Y2
+	t2 := new(fiat.P256Element).Mul(p1.z, p2.z)  // t2 := Z1 * Z2
+	t3 := new(fiat.P256Element).Add(p1.x, p1.y)  // t3 := X1 + Y1
+	t4 := new(fiat.P256Element).Add(p2.x, p2.y)  // t4 := X2 + Y2
+	t3.Mul(t3, t4)                               // t3 := t3 * t4
+	t4.Add(t0, t1)                               // t4 := t0 + t1
+	t3.Sub(t3, t4)                               // t3 := t3 - t4
+	t4.Add(p1.y, p1.z)                           // t4 := Y1 + Z1
+	x3 := new(fiat.P256Element).Add(p2.y, p2.z)  // X3 := Y2 + Z2
+	t4.Mul(t4, x3)                               // t4 := t4 * X3
+	x3.Add(t1, t2)                               // X3 := t1 + t2
+	t4.Sub(t4, x3)                               // t4 := t4 - X3
+	x3.Add(p1.x, p1.z)                           // X3 := X1 + Z1
+	y3 := new(fiat.P256Element).Add(p2.x, p2.z)  // Y3 := X2 + Z2
+	x3.Mul(x3, y3)                               // X3 := X3 * Y3
+	y3.Add(t0, t2)                               // Y3 := t0 + t2
+	y3.Sub(x3, y3)                               // Y3 := X3 - Y3
+	z3 := new(fiat.P256Element).Mul(p256B(), t2) // Z3 := b * t2
+	x3.Sub(y3, z3)                               // X3 := Y3 - Z3
+	z3.Add(x3, x3)                               // Z3 := X3 + X3
+	x3.Add(x3, z3)                               // X3 := X3 + Z3
+	z3.Sub(t1, x3)                               // Z3 := t1 - X3
+	x3.Add(t1, x3)                               // X3 := t1 + X3
+	y3.Mul(p256B(), y3)                          // Y3 := b * Y3
+	t1.Add(t2, t2)                               // t1 := t2 + t2
+	t2.Add(t1, t2)                               // t2 := t1 + t2
+	y3.Sub(y3, t2)                               // Y3 := Y3 - t2
+	y3.Sub(y3, t0)                               // Y3 := Y3 - t0
+	t1.Add(y3, y3)                               // t1 := Y3 + Y3
+	y3.Add(t1, y3)                               // Y3 := t1 + Y3
+	t1.Add(t0, t0)                               // t1 := t0 + t0
+	t0.Add(t1, t0)                               // t0 := t1 + t0
+	t0.Sub(t0, t2)                               // t0 := t0 - t2
+	t1.Mul(t4, y3)                               // t1 := t4 * Y3
+	t2.Mul(t0, y3)                               // t2 := t0 * Y3
+	y3.Mul(x3, z3)                               // Y3 := X3 * Z3
+	y3.Add(y3, t2)                               // Y3 := Y3 + t2
+	x3.Mul(t3, x3)                               // X3 := t3 * X3
+	x3.Sub(x3, t1)                               // X3 := X3 - t1
+	z3.Mul(t4, z3)                               // Z3 := t4 * Z3
+	t1.Mul(t3, t0)                               // t1 := t3 * t0
+	z3.Add(z3, t1)                               // Z3 := Z3 + t1
 
 	q.x.Set(x3)
 	q.y.Set(y3)
@@ -268,40 +273,40 @@ func (q *P256Point) Double(p *P256Point) *P256Point {
 	// Complete addition formula for a = -3 from "Complete addition formulas for
 	// prime order elliptic curves" (https://eprint.iacr.org/2015/1060), §A.2.
 
-	t0 := new(fiat.P256Element).Square(p.x)    // t0 := X ^ 2
-	t1 := new(fiat.P256Element).Square(p.y)    // t1 := Y ^ 2
-	t2 := new(fiat.P256Element).Square(p.z)    // t2 := Z ^ 2
-	t3 := new(fiat.P256Element).Mul(p.x, p.y)  // t3 := X * Y
-	t3.Add(t3, t3)                             // t3 := t3 + t3
-	z3 := new(fiat.P256Element).Mul(p.x, p.z)  // Z3 := X * Z
-	z3.Add(z3, z3)                             // Z3 := Z3 + Z3
-	y3 := new(fiat.P256Element).Mul(p256B, t2) // Y3 := b * t2
-	y3.Sub(y3, z3)                             // Y3 := Y3 - Z3
-	x3 := new(fiat.P256Element).Add(y3, y3)    // X3 := Y3 + Y3
-	y3.Add(x3, y3)                             // Y3 := X3 + Y3
-	x3.Sub(t1, y3)                             // X3 := t1 - Y3
-	y3.Add(t1, y3)                             // Y3 := t1 + Y3
-	y3.Mul(x3, y3)                             // Y3 := X3 * Y3
-	x3.Mul(x3, t3)                             // X3 := X3 * t3
-	t3.Add(t2, t2)                             // t3 := t2 + t2
-	t2.Add(t2, t3)                             // t2 := t2 + t3
-	z3.Mul(p256B, z3)                          // Z3 := b * Z3
-	z3.Sub(z3, t2)                             // Z3 := Z3 - t2
-	z3.Sub(z3, t0)                             // Z3 := Z3 - t0
-	t3.Add(z3, z3)                             // t3 := Z3 + Z3
-	z3.Add(z3, t3)                             // Z3 := Z3 + t3
-	t3.Add(t0, t0)                             // t3 := t0 + t0
-	t0.Add(t3, t0)                             // t0 := t3 + t0
-	t0.Sub(t0, t2)                             // t0 := t0 - t2
-	t0.Mul(t0, z3)                             // t0 := t0 * Z3
-	y3.Add(y3, t0)                             // Y3 := Y3 + t0
-	t0.Mul(p.y, p.z)                           // t0 := Y * Z
-	t0.Add(t0, t0)                             // t0 := t0 + t0
-	z3.Mul(t0, z3)                             // Z3 := t0 * Z3
-	x3.Sub(x3, z3)                             // X3 := X3 - Z3
-	z3.Mul(t0, t1)                             // Z3 := t0 * t1
-	z3.Add(z3, z3)                             // Z3 := Z3 + Z3
-	z3.Add(z3, z3)                             // Z3 := Z3 + Z3
+	t0 := new(fiat.P256Element).Square(p.x)      // t0 := X ^ 2
+	t1 := new(fiat.P256Element).Square(p.y)      // t1 := Y ^ 2
+	t2 := new(fiat.P256Element).Square(p.z)      // t2 := Z ^ 2
+	t3 := new(fiat.P256Element).Mul(p.x, p.y)    // t3 := X * Y
+	t3.Add(t3, t3)                               // t3 := t3 + t3
+	z3 := new(fiat.P256Element).Mul(p.x, p.z)    // Z3 := X * Z
+	z3.Add(z3, z3)                               // Z3 := Z3 + Z3
+	y3 := new(fiat.P256Element).Mul(p256B(), t2) // Y3 := b * t2
+	y3.Sub(y3, z3)                               // Y3 := Y3 - Z3
+	x3 := new(fiat.P256Element).Add(y3, y3)      // X3 := Y3 + Y3
+	y3.Add(x3, y3)                               // Y3 := X3 + Y3
+	x3.Sub(t1, y3)                               // X3 := t1 - Y3
+	y3.Add(t1, y3)                               // Y3 := t1 + Y3
+	y3.Mul(x3, y3)                               // Y3 := X3 * Y3
+	x3.Mul(x3, t3)                               // X3 := X3 * t3
+	t3.Add(t2, t2)                               // t3 := t2 + t2
+	t2.Add(t2, t3)                               // t2 := t2 + t3
+	z3.Mul(p256B(), z3)                          // Z3 := b * Z3
+	z3.Sub(z3, t2)                               // Z3 := Z3 - t2
+	z3.Sub(z3, t0)                               // Z3 := Z3 - t0
+	t3.Add(z3, z3)                               // t3 := Z3 + Z3
+	z3.Add(z3, t3)                               // Z3 := Z3 + t3
+	t3.Add(t0, t0)                               // t3 := t0 + t0
+	t0.Add(t3, t0)                               // t0 := t3 + t0
+	t0.Sub(t0, t2)                               // t0 := t0 - t2
+	t0.Mul(t0, z3)                               // t0 := t0 * Z3
+	y3.Add(y3, t0)                               // Y3 := Y3 + t0
+	t0.Mul(p.y, p.z)                             // t0 := Y * Z
+	t0.Add(t0, t0)                               // t0 := t0 + t0
+	z3.Mul(t0, z3)                               // Z3 := t0 * Z3
+	x3.Sub(x3, z3)                               // X3 := X3 - Z3
+	z3.Mul(t0, t1)                               // Z3 := t0 * t1
+	z3.Add(z3, z3)                               // Z3 := Z3 + Z3
+	z3.Add(z3, z3)                               // Z3 := Z3 + Z3
 
 	q.x.Set(x3)
 	q.y.Set(y3)
@@ -389,7 +394,7 @@ var p256GeneratorTableOnce sync.Once
 func (p *P256Point) generatorTable() *[p256ElementLength * 2]p256Table {
 	p256GeneratorTableOnce.Do(func() {
 		p256GeneratorTable = new([p256ElementLength * 2]p256Table)
-		base := NewP256Generator()
+		base := NewP256Point().SetGenerator()
 		for i := 0; i < p256ElementLength*2; i++ {
 			p256GeneratorTable[i][0] = NewP256Point().Set(base)
 			for j := 1; j < 15; j++ {

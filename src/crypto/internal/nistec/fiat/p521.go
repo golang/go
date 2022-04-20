@@ -37,12 +37,11 @@ func (e *P521Element) Equal(t *P521Element) int {
 	return subtle.ConstantTimeCompare(eBytes, tBytes)
 }
 
-var p521ZeroEncoding = new(P521Element).Bytes()
-
 // IsZero returns 1 if e == 0, and zero otherwise.
 func (e *P521Element) IsZero() int {
+	zero := make([]byte, p521ElementLen)
 	eBytes := e.Bytes()
-	return subtle.ConstantTimeCompare(eBytes, p521ZeroEncoding)
+	return subtle.ConstantTimeCompare(eBytes, zero)
 }
 
 // Set sets e = t, and returns e.
@@ -67,12 +66,6 @@ func (e *P521Element) bytes(out *[p521ElementLen]byte) []byte {
 	return out[:]
 }
 
-// p521MinusOneEncoding is the encoding of -1 mod p, so p - 1, the
-// highest canonical encoding. It is used by SetBytes to check for non-canonical
-// encodings such as p + k, 2p + k, etc.
-var p521MinusOneEncoding = new(P521Element).Sub(
-	new(P521Element), new(P521Element).One()).Bytes()
-
 // SetBytes sets e = v, where v is a big-endian 66-byte encoding, and returns e.
 // If v is not 66 bytes or it encodes a value higher than 2^521 - 1,
 // SetBytes returns nil and an error, and e is unchanged.
@@ -80,14 +73,20 @@ func (e *P521Element) SetBytes(v []byte) (*P521Element, error) {
 	if len(v) != p521ElementLen {
 		return nil, errors.New("invalid P521Element encoding")
 	}
+
+	// Check for non-canonical encodings (p + k, 2p + k, etc.) by comparing to
+	// the encoding of -1 mod p, so p - 1, the highest canonical encoding.
+	var minusOneEncoding = new(P521Element).Sub(
+		new(P521Element), new(P521Element).One()).Bytes()
 	for i := range v {
-		if v[i] < p521MinusOneEncoding[i] {
+		if v[i] < minusOneEncoding[i] {
 			break
 		}
-		if v[i] > p521MinusOneEncoding[i] {
+		if v[i] > minusOneEncoding[i] {
 			return nil, errors.New("invalid P521Element encoding")
 		}
 	}
+
 	var in [p521ElementLen]byte
 	copy(in[:], v)
 	p521InvertEndianness(in[:])

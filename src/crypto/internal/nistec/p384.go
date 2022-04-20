@@ -13,10 +13,6 @@ import (
 	"sync"
 )
 
-var p384B, _ = new(fiat.P384Element).SetBytes([]byte{0xb3, 0x31, 0x2f, 0xa7, 0xe2, 0x3e, 0xe7, 0xe4, 0x98, 0x8e, 0x5, 0x6b, 0xe3, 0xf8, 0x2d, 0x19, 0x18, 0x1d, 0x9c, 0x6e, 0xfe, 0x81, 0x41, 0x12, 0x3, 0x14, 0x8, 0x8f, 0x50, 0x13, 0x87, 0x5a, 0xc6, 0x56, 0x39, 0x8d, 0x8a, 0x2e, 0xd1, 0x9d, 0x2a, 0x85, 0xc8, 0xed, 0xd3, 0xec, 0x2a, 0xef})
-
-var p384G, _ = NewP384Point().SetBytes([]byte{0x4, 0xaa, 0x87, 0xca, 0x22, 0xbe, 0x8b, 0x5, 0x37, 0x8e, 0xb1, 0xc7, 0x1e, 0xf3, 0x20, 0xad, 0x74, 0x6e, 0x1d, 0x3b, 0x62, 0x8b, 0xa7, 0x9b, 0x98, 0x59, 0xf7, 0x41, 0xe0, 0x82, 0x54, 0x2a, 0x38, 0x55, 0x2, 0xf2, 0x5d, 0xbf, 0x55, 0x29, 0x6c, 0x3a, 0x54, 0x5e, 0x38, 0x72, 0x76, 0xa, 0xb7, 0x36, 0x17, 0xde, 0x4a, 0x96, 0x26, 0x2c, 0x6f, 0x5d, 0x9e, 0x98, 0xbf, 0x92, 0x92, 0xdc, 0x29, 0xf8, 0xf4, 0x1d, 0xbd, 0x28, 0x9a, 0x14, 0x7c, 0xe9, 0xda, 0x31, 0x13, 0xb5, 0xf0, 0xb8, 0xc0, 0xa, 0x60, 0xb1, 0xce, 0x1d, 0x7e, 0x81, 0x9d, 0x7a, 0x43, 0x1d, 0x7c, 0x90, 0xea, 0xe, 0x5f})
-
 // p384ElementLength is the length of an element of the base or scalar field,
 // which have the same bytes length for all NIST P curves.
 const p384ElementLength = 48
@@ -37,13 +33,12 @@ func NewP384Point() *P384Point {
 	}
 }
 
-// NewP384Generator returns a new P384Point set to the canonical generator.
-func NewP384Generator() *P384Point {
-	return (&P384Point{
-		x: new(fiat.P384Element),
-		y: new(fiat.P384Element),
-		z: new(fiat.P384Element),
-	}).Set(p384G)
+// SetGenerator sets p to the canonical generator and returns p.
+func (p *P384Point) SetGenerator() *P384Point {
+	p.x.SetBytes([]byte{0xaa, 0x87, 0xca, 0x22, 0xbe, 0x8b, 0x5, 0x37, 0x8e, 0xb1, 0xc7, 0x1e, 0xf3, 0x20, 0xad, 0x74, 0x6e, 0x1d, 0x3b, 0x62, 0x8b, 0xa7, 0x9b, 0x98, 0x59, 0xf7, 0x41, 0xe0, 0x82, 0x54, 0x2a, 0x38, 0x55, 0x2, 0xf2, 0x5d, 0xbf, 0x55, 0x29, 0x6c, 0x3a, 0x54, 0x5e, 0x38, 0x72, 0x76, 0xa, 0xb7})
+	p.y.SetBytes([]byte{0x36, 0x17, 0xde, 0x4a, 0x96, 0x26, 0x2c, 0x6f, 0x5d, 0x9e, 0x98, 0xbf, 0x92, 0x92, 0xdc, 0x29, 0xf8, 0xf4, 0x1d, 0xbd, 0x28, 0x9a, 0x14, 0x7c, 0xe9, 0xda, 0x31, 0x13, 0xb5, 0xf0, 0xb8, 0xc0, 0xa, 0x60, 0xb1, 0xce, 0x1d, 0x7e, 0x81, 0x9d, 0x7a, 0x43, 0x1d, 0x7c, 0x90, 0xea, 0xe, 0x5f})
+	p.z.One()
+	return p
 }
 
 // Set sets p = q and returns p.
@@ -112,6 +107,16 @@ func (p *P384Point) SetBytes(b []byte) (*P384Point, error) {
 	}
 }
 
+var _p384B *fiat.P384Element
+var _p384BOnce sync.Once
+
+func p384B() *fiat.P384Element {
+	_p384BOnce.Do(func() {
+		_p384B, _ = new(fiat.P384Element).SetBytes([]byte{0xb3, 0x31, 0x2f, 0xa7, 0xe2, 0x3e, 0xe7, 0xe4, 0x98, 0x8e, 0x5, 0x6b, 0xe3, 0xf8, 0x2d, 0x19, 0x18, 0x1d, 0x9c, 0x6e, 0xfe, 0x81, 0x41, 0x12, 0x3, 0x14, 0x8, 0x8f, 0x50, 0x13, 0x87, 0x5a, 0xc6, 0x56, 0x39, 0x8d, 0x8a, 0x2e, 0xd1, 0x9d, 0x2a, 0x85, 0xc8, 0xed, 0xd3, 0xec, 0x2a, 0xef})
+	})
+	return _p384B
+}
+
 // p384Polynomial sets y2 to x³ - 3x + b, and returns y2.
 func p384Polynomial(y2, x *fiat.P384Element) *fiat.P384Element {
 	y2.Square(x)
@@ -119,9 +124,9 @@ func p384Polynomial(y2, x *fiat.P384Element) *fiat.P384Element {
 
 	threeX := new(fiat.P384Element).Add(x, x)
 	threeX.Add(threeX, x)
-
 	y2.Sub(y2, threeX)
-	return y2.Add(y2, p384B)
+
+	return y2.Add(y2, p384B())
 }
 
 func p384CheckOnCurve(x, y *fiat.P384Element) error {
@@ -211,49 +216,49 @@ func (q *P384Point) Add(p1, p2 *P384Point) *P384Point {
 	// Complete addition formula for a = -3 from "Complete addition formulas for
 	// prime order elliptic curves" (https://eprint.iacr.org/2015/1060), §A.2.
 
-	t0 := new(fiat.P384Element).Mul(p1.x, p2.x) // t0 := X1 * X2
-	t1 := new(fiat.P384Element).Mul(p1.y, p2.y) // t1 := Y1 * Y2
-	t2 := new(fiat.P384Element).Mul(p1.z, p2.z) // t2 := Z1 * Z2
-	t3 := new(fiat.P384Element).Add(p1.x, p1.y) // t3 := X1 + Y1
-	t4 := new(fiat.P384Element).Add(p2.x, p2.y) // t4 := X2 + Y2
-	t3.Mul(t3, t4)                              // t3 := t3 * t4
-	t4.Add(t0, t1)                              // t4 := t0 + t1
-	t3.Sub(t3, t4)                              // t3 := t3 - t4
-	t4.Add(p1.y, p1.z)                          // t4 := Y1 + Z1
-	x3 := new(fiat.P384Element).Add(p2.y, p2.z) // X3 := Y2 + Z2
-	t4.Mul(t4, x3)                              // t4 := t4 * X3
-	x3.Add(t1, t2)                              // X3 := t1 + t2
-	t4.Sub(t4, x3)                              // t4 := t4 - X3
-	x3.Add(p1.x, p1.z)                          // X3 := X1 + Z1
-	y3 := new(fiat.P384Element).Add(p2.x, p2.z) // Y3 := X2 + Z2
-	x3.Mul(x3, y3)                              // X3 := X3 * Y3
-	y3.Add(t0, t2)                              // Y3 := t0 + t2
-	y3.Sub(x3, y3)                              // Y3 := X3 - Y3
-	z3 := new(fiat.P384Element).Mul(p384B, t2)  // Z3 := b * t2
-	x3.Sub(y3, z3)                              // X3 := Y3 - Z3
-	z3.Add(x3, x3)                              // Z3 := X3 + X3
-	x3.Add(x3, z3)                              // X3 := X3 + Z3
-	z3.Sub(t1, x3)                              // Z3 := t1 - X3
-	x3.Add(t1, x3)                              // X3 := t1 + X3
-	y3.Mul(p384B, y3)                           // Y3 := b * Y3
-	t1.Add(t2, t2)                              // t1 := t2 + t2
-	t2.Add(t1, t2)                              // t2 := t1 + t2
-	y3.Sub(y3, t2)                              // Y3 := Y3 - t2
-	y3.Sub(y3, t0)                              // Y3 := Y3 - t0
-	t1.Add(y3, y3)                              // t1 := Y3 + Y3
-	y3.Add(t1, y3)                              // Y3 := t1 + Y3
-	t1.Add(t0, t0)                              // t1 := t0 + t0
-	t0.Add(t1, t0)                              // t0 := t1 + t0
-	t0.Sub(t0, t2)                              // t0 := t0 - t2
-	t1.Mul(t4, y3)                              // t1 := t4 * Y3
-	t2.Mul(t0, y3)                              // t2 := t0 * Y3
-	y3.Mul(x3, z3)                              // Y3 := X3 * Z3
-	y3.Add(y3, t2)                              // Y3 := Y3 + t2
-	x3.Mul(t3, x3)                              // X3 := t3 * X3
-	x3.Sub(x3, t1)                              // X3 := X3 - t1
-	z3.Mul(t4, z3)                              // Z3 := t4 * Z3
-	t1.Mul(t3, t0)                              // t1 := t3 * t0
-	z3.Add(z3, t1)                              // Z3 := Z3 + t1
+	t0 := new(fiat.P384Element).Mul(p1.x, p2.x)  // t0 := X1 * X2
+	t1 := new(fiat.P384Element).Mul(p1.y, p2.y)  // t1 := Y1 * Y2
+	t2 := new(fiat.P384Element).Mul(p1.z, p2.z)  // t2 := Z1 * Z2
+	t3 := new(fiat.P384Element).Add(p1.x, p1.y)  // t3 := X1 + Y1
+	t4 := new(fiat.P384Element).Add(p2.x, p2.y)  // t4 := X2 + Y2
+	t3.Mul(t3, t4)                               // t3 := t3 * t4
+	t4.Add(t0, t1)                               // t4 := t0 + t1
+	t3.Sub(t3, t4)                               // t3 := t3 - t4
+	t4.Add(p1.y, p1.z)                           // t4 := Y1 + Z1
+	x3 := new(fiat.P384Element).Add(p2.y, p2.z)  // X3 := Y2 + Z2
+	t4.Mul(t4, x3)                               // t4 := t4 * X3
+	x3.Add(t1, t2)                               // X3 := t1 + t2
+	t4.Sub(t4, x3)                               // t4 := t4 - X3
+	x3.Add(p1.x, p1.z)                           // X3 := X1 + Z1
+	y3 := new(fiat.P384Element).Add(p2.x, p2.z)  // Y3 := X2 + Z2
+	x3.Mul(x3, y3)                               // X3 := X3 * Y3
+	y3.Add(t0, t2)                               // Y3 := t0 + t2
+	y3.Sub(x3, y3)                               // Y3 := X3 - Y3
+	z3 := new(fiat.P384Element).Mul(p384B(), t2) // Z3 := b * t2
+	x3.Sub(y3, z3)                               // X3 := Y3 - Z3
+	z3.Add(x3, x3)                               // Z3 := X3 + X3
+	x3.Add(x3, z3)                               // X3 := X3 + Z3
+	z3.Sub(t1, x3)                               // Z3 := t1 - X3
+	x3.Add(t1, x3)                               // X3 := t1 + X3
+	y3.Mul(p384B(), y3)                          // Y3 := b * Y3
+	t1.Add(t2, t2)                               // t1 := t2 + t2
+	t2.Add(t1, t2)                               // t2 := t1 + t2
+	y3.Sub(y3, t2)                               // Y3 := Y3 - t2
+	y3.Sub(y3, t0)                               // Y3 := Y3 - t0
+	t1.Add(y3, y3)                               // t1 := Y3 + Y3
+	y3.Add(t1, y3)                               // Y3 := t1 + Y3
+	t1.Add(t0, t0)                               // t1 := t0 + t0
+	t0.Add(t1, t0)                               // t0 := t1 + t0
+	t0.Sub(t0, t2)                               // t0 := t0 - t2
+	t1.Mul(t4, y3)                               // t1 := t4 * Y3
+	t2.Mul(t0, y3)                               // t2 := t0 * Y3
+	y3.Mul(x3, z3)                               // Y3 := X3 * Z3
+	y3.Add(y3, t2)                               // Y3 := Y3 + t2
+	x3.Mul(t3, x3)                               // X3 := t3 * X3
+	x3.Sub(x3, t1)                               // X3 := X3 - t1
+	z3.Mul(t4, z3)                               // Z3 := t4 * Z3
+	t1.Mul(t3, t0)                               // t1 := t3 * t0
+	z3.Add(z3, t1)                               // Z3 := Z3 + t1
 
 	q.x.Set(x3)
 	q.y.Set(y3)
@@ -266,40 +271,40 @@ func (q *P384Point) Double(p *P384Point) *P384Point {
 	// Complete addition formula for a = -3 from "Complete addition formulas for
 	// prime order elliptic curves" (https://eprint.iacr.org/2015/1060), §A.2.
 
-	t0 := new(fiat.P384Element).Square(p.x)    // t0 := X ^ 2
-	t1 := new(fiat.P384Element).Square(p.y)    // t1 := Y ^ 2
-	t2 := new(fiat.P384Element).Square(p.z)    // t2 := Z ^ 2
-	t3 := new(fiat.P384Element).Mul(p.x, p.y)  // t3 := X * Y
-	t3.Add(t3, t3)                             // t3 := t3 + t3
-	z3 := new(fiat.P384Element).Mul(p.x, p.z)  // Z3 := X * Z
-	z3.Add(z3, z3)                             // Z3 := Z3 + Z3
-	y3 := new(fiat.P384Element).Mul(p384B, t2) // Y3 := b * t2
-	y3.Sub(y3, z3)                             // Y3 := Y3 - Z3
-	x3 := new(fiat.P384Element).Add(y3, y3)    // X3 := Y3 + Y3
-	y3.Add(x3, y3)                             // Y3 := X3 + Y3
-	x3.Sub(t1, y3)                             // X3 := t1 - Y3
-	y3.Add(t1, y3)                             // Y3 := t1 + Y3
-	y3.Mul(x3, y3)                             // Y3 := X3 * Y3
-	x3.Mul(x3, t3)                             // X3 := X3 * t3
-	t3.Add(t2, t2)                             // t3 := t2 + t2
-	t2.Add(t2, t3)                             // t2 := t2 + t3
-	z3.Mul(p384B, z3)                          // Z3 := b * Z3
-	z3.Sub(z3, t2)                             // Z3 := Z3 - t2
-	z3.Sub(z3, t0)                             // Z3 := Z3 - t0
-	t3.Add(z3, z3)                             // t3 := Z3 + Z3
-	z3.Add(z3, t3)                             // Z3 := Z3 + t3
-	t3.Add(t0, t0)                             // t3 := t0 + t0
-	t0.Add(t3, t0)                             // t0 := t3 + t0
-	t0.Sub(t0, t2)                             // t0 := t0 - t2
-	t0.Mul(t0, z3)                             // t0 := t0 * Z3
-	y3.Add(y3, t0)                             // Y3 := Y3 + t0
-	t0.Mul(p.y, p.z)                           // t0 := Y * Z
-	t0.Add(t0, t0)                             // t0 := t0 + t0
-	z3.Mul(t0, z3)                             // Z3 := t0 * Z3
-	x3.Sub(x3, z3)                             // X3 := X3 - Z3
-	z3.Mul(t0, t1)                             // Z3 := t0 * t1
-	z3.Add(z3, z3)                             // Z3 := Z3 + Z3
-	z3.Add(z3, z3)                             // Z3 := Z3 + Z3
+	t0 := new(fiat.P384Element).Square(p.x)      // t0 := X ^ 2
+	t1 := new(fiat.P384Element).Square(p.y)      // t1 := Y ^ 2
+	t2 := new(fiat.P384Element).Square(p.z)      // t2 := Z ^ 2
+	t3 := new(fiat.P384Element).Mul(p.x, p.y)    // t3 := X * Y
+	t3.Add(t3, t3)                               // t3 := t3 + t3
+	z3 := new(fiat.P384Element).Mul(p.x, p.z)    // Z3 := X * Z
+	z3.Add(z3, z3)                               // Z3 := Z3 + Z3
+	y3 := new(fiat.P384Element).Mul(p384B(), t2) // Y3 := b * t2
+	y3.Sub(y3, z3)                               // Y3 := Y3 - Z3
+	x3 := new(fiat.P384Element).Add(y3, y3)      // X3 := Y3 + Y3
+	y3.Add(x3, y3)                               // Y3 := X3 + Y3
+	x3.Sub(t1, y3)                               // X3 := t1 - Y3
+	y3.Add(t1, y3)                               // Y3 := t1 + Y3
+	y3.Mul(x3, y3)                               // Y3 := X3 * Y3
+	x3.Mul(x3, t3)                               // X3 := X3 * t3
+	t3.Add(t2, t2)                               // t3 := t2 + t2
+	t2.Add(t2, t3)                               // t2 := t2 + t3
+	z3.Mul(p384B(), z3)                          // Z3 := b * Z3
+	z3.Sub(z3, t2)                               // Z3 := Z3 - t2
+	z3.Sub(z3, t0)                               // Z3 := Z3 - t0
+	t3.Add(z3, z3)                               // t3 := Z3 + Z3
+	z3.Add(z3, t3)                               // Z3 := Z3 + t3
+	t3.Add(t0, t0)                               // t3 := t0 + t0
+	t0.Add(t3, t0)                               // t0 := t3 + t0
+	t0.Sub(t0, t2)                               // t0 := t0 - t2
+	t0.Mul(t0, z3)                               // t0 := t0 * Z3
+	y3.Add(y3, t0)                               // Y3 := Y3 + t0
+	t0.Mul(p.y, p.z)                             // t0 := Y * Z
+	t0.Add(t0, t0)                               // t0 := t0 + t0
+	z3.Mul(t0, z3)                               // Z3 := t0 * Z3
+	x3.Sub(x3, z3)                               // X3 := X3 - Z3
+	z3.Mul(t0, t1)                               // Z3 := t0 * t1
+	z3.Add(z3, z3)                               // Z3 := Z3 + Z3
+	z3.Add(z3, z3)                               // Z3 := Z3 + Z3
 
 	q.x.Set(x3)
 	q.y.Set(y3)
@@ -387,7 +392,7 @@ var p384GeneratorTableOnce sync.Once
 func (p *P384Point) generatorTable() *[p384ElementLength * 2]p384Table {
 	p384GeneratorTableOnce.Do(func() {
 		p384GeneratorTable = new([p384ElementLength * 2]p384Table)
-		base := NewP384Generator()
+		base := NewP384Point().SetGenerator()
 		for i := 0; i < p384ElementLength*2; i++ {
 			p384GeneratorTable[i][0] = NewP384Point().Set(base)
 			for j := 1; j < 15; j++ {

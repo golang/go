@@ -12,7 +12,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"internal/testenv"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"golang.org/x/crypto/chacha20"
@@ -253,3 +259,71 @@ func (zr) Read(dst []byte) (n int, err error) {
 }
 
 var zeroReader = zr{}
+
+const linkerTestProgram = `
+package main
+import "crypto/ecdh"
+import "crypto/rand"
+func main() {
+	curve := ecdh.P384()
+	key, err := curve.GenerateKey(rand.Reader)
+	if err != nil { panic(err) }
+	_, err = curve.NewPublicKey(key.PublicKey().Bytes())
+	if err != nil { panic(err) }
+	_, err = curve.NewPrivateKey(key.Bytes())
+	if err != nil { panic(err) }
+	_, err = curve.ECDH(key, key.PublicKey())
+	if err != nil { panic(err) }
+	println("OK")
+}
+`
+
+// TestLinker ensures that using one curve does not bring all other
+// implementations into the binary. This also guarantees that govulncheck can
+// avoid warning about a curve-specific vulnerability if that curve is not used.
+func TestLinker(t *testing.T) {
+	if testing.Short() {
+		t.Skip("test requires running 'go build'")
+	}
+	testenv.MustHaveGoBuild(t)
+
+	dir := t.TempDir()
+	hello := filepath.Join(dir, "hello.go")
+	err := os.WriteFile(hello, []byte(linkerTestProgram), 0664)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	run := func(args ...string) string {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, string(out))
+		}
+		return string(out)
+	}
+
+	goBin := testenv.GoToolPath(t)
+	run(goBin, "build", "-o", "hello.exe", "hello.go")
+	if out := run("./hello.exe"); out != "OK\n" {
+		t.Error("unexpected output:", out)
+	}
+
+	// List all text symbols under crypto/... and make sure there are some for
+	// P384, but none for the other curves.
+	var consistent bool
+	nm := run(goBin, "tool", "nm", "hello.exe")
+	for _, match := range regexp.MustCompile(`(?m)T (crypto/.*)$`).FindAllStringSubmatch(nm, -1) {
+		symbol := strings.ToLower(match[1])
+		if strings.Contains(symbol, "p384") {
+			consistent = true
+		}
+		if strings.Contains(symbol, "p224") || strings.Contains(symbol, "p256") || strings.Contains(symbol, "p521") {
+			t.Errorf("unexpected symbol in program using only ecdh.P384: %s", match[1])
+		}
+	}
+	if !consistent {
+		t.Error("no P384 symbols found in program using ecdh.P384, test is broken")
+	}
+}

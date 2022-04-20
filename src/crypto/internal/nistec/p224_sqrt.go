@@ -12,9 +12,6 @@ import (
 var p224GG *[96]fiat.P224Element
 var p224GGOnce sync.Once
 
-var p224MinusOne = new(fiat.P224Element).Sub(
-	new(fiat.P224Element), new(fiat.P224Element).One())
-
 // p224SqrtCandidate sets r to a square root candidate for x. r and x must not overlap.
 func p224SqrtCandidate(r, x *fiat.P224Element) {
 	// Since p = 1 mod 4, we can't use the exponentiation by (p + 1) / 4 like
@@ -119,6 +116,9 @@ func p224SqrtCandidate(r, x *fiat.P224Element) {
 	//     if w == -1 then:
 	//         v <- v*GG[n-i]
 	//         r <- r*GG[n-i-1]
+
+	var p224MinusOne = new(fiat.P224Element).Sub(
+		new(fiat.P224Element), new(fiat.P224Element).One())
 
 	for i := 96 - 1; i >= 1; i-- {
 		w := new(fiat.P224Element).Set(v)

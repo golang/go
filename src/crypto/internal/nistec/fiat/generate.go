@@ -182,12 +182,11 @@ func (e *{{ .Element }}) Equal(t *{{ .Element }}) int {
 	return subtle.ConstantTimeCompare(eBytes, tBytes)
 }
 
-var {{ .Prefix }}ZeroEncoding = new({{ .Element }}).Bytes()
-
 // IsZero returns 1 if e == 0, and zero otherwise.
 func (e *{{ .Element }}) IsZero() int {
+	zero := make([]byte, {{ .Prefix }}ElementLen)
 	eBytes := e.Bytes()
-	return subtle.ConstantTimeCompare(eBytes, {{ .Prefix }}ZeroEncoding)
+	return subtle.ConstantTimeCompare(eBytes, zero)
 }
 
 // Set sets e = t, and returns e.
@@ -212,12 +211,6 @@ func (e *{{ .Element }}) bytes(out *[{{ .Prefix }}ElementLen]byte) []byte {
 	return out[:]
 }
 
-// {{ .Prefix }}MinusOneEncoding is the encoding of -1 mod p, so p - 1, the
-// highest canonical encoding. It is used by SetBytes to check for non-canonical
-// encodings such as p + k, 2p + k, etc.
-var {{ .Prefix }}MinusOneEncoding = new({{ .Element }}).Sub(
-	new({{ .Element }}), new({{ .Element }}).One()).Bytes()
-
 // SetBytes sets e = v, where v is a big-endian {{ .BytesLen }}-byte encoding, and returns e.
 // If v is not {{ .BytesLen }} bytes or it encodes a value higher than {{ .Prime }},
 // SetBytes returns nil and an error, and e is unchanged.
@@ -225,14 +218,20 @@ func (e *{{ .Element }}) SetBytes(v []byte) (*{{ .Element }}, error) {
 	if len(v) != {{ .Prefix }}ElementLen {
 		return nil, errors.New("invalid {{ .Element }} encoding")
 	}
+
+	// Check for non-canonical encodings (p + k, 2p + k, etc.) by comparing to
+	// the encoding of -1 mod p, so p - 1, the highest canonical encoding.
+	var minusOneEncoding = new({{ .Element }}).Sub(
+		new({{ .Element }}), new({{ .Element }}).One()).Bytes()
 	for i := range v {
-		if v[i] < {{ .Prefix }}MinusOneEncoding[i] {
+		if v[i] < minusOneEncoding[i] {
 			break
 		}
-		if v[i] > {{ .Prefix }}MinusOneEncoding[i] {
+		if v[i] > minusOneEncoding[i] {
 			return nil, errors.New("invalid {{ .Element }} encoding")
 		}
 	}
+
 	var in [{{ .Prefix }}ElementLen]byte
 	copy(in[:], v)
 	{{ .Prefix }}InvertEndianness(in[:])
