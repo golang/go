@@ -101,7 +101,7 @@ func (ctxt *Link) doStackCheck() {
 		// the same function multiple times at different
 		// depths, but lets us find all paths.
 		for _, root := range roots {
-			ctxt.Errorf(root, "nosplit stack overflow")
+			ctxt.Errorf(root, "nosplit stack over %d byte limit", limit)
 			chain := []stackCheckChain{{stackCheckEdge{0, root}, false}}
 			sc.report(root, limit, &chain)
 		}
