@@ -2244,15 +2244,14 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	}
 
 	// Prepare GC data if any.
-	// A bucket is at most bucketSize*(1+maxKeySize+maxValSize)+2*ptrSize bytes,
-	// or 2072 bytes, or 259 pointer-size words, or 33 bytes of pointer bitmap.
+	// A bucket is at most bucketSize*(1+maxKeySize+maxValSize)+ptrSize bytes,
+	// or 2064 bytes, or 258 pointer-size words, or 33 bytes of pointer bitmap.
 	// Note that since the key and value are known to be <= 128 bytes,
 	// they're guaranteed to have bitmaps instead of GC programs.
 	var gcdata *byte
 	var ptrdata uintptr
-	var overflowPad uintptr
 
-	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + goarch.PtrSize
+	size := bucketSize*(1+ktyp.size+etyp.size) + goarch.PtrSize
 	if size&uintptr(ktyp.align-1) != 0 || size&uintptr(etyp.align-1) != 0 {
 		panic("reflect: bad size computation in MapOf")
 	}
@@ -2271,7 +2270,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 			emitGCMask(mask, base, etyp, bucketSize)
 		}
 		base += bucketSize * etyp.size / goarch.PtrSize
-		base += overflowPad / goarch.PtrSize
 
 		word := base
 		mask[word/8] |= 1 << (word % 8)
@@ -2290,9 +2288,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 		kind:    uint8(Struct),
 		ptrdata: ptrdata,
 		gcdata:  gcdata,
-	}
-	if overflowPad > 0 {
-		b.align = 8
 	}
 	s := "bucket(" + ktyp.String() + "," + etyp.String() + ")"
 	b.str = resolveReflectName(newName(s, "", false))
