@@ -456,7 +456,7 @@ func (ip Addr) lessOrEq(ip2 Addr) bool { return ip.Compare(ip2) <= 0 }
 
 // Is4 reports whether ip is an IPv4 address.
 //
-// It returns false for IPv4-mapped IPv6 addresses. See IP.Unmap.
+// It returns false for IPv4-mapped IPv6 addresses. See Addr.Unmap.
 func (ip Addr) Is4() bool {
 	return ip.z == z4
 }
