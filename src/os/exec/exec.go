@@ -223,13 +223,6 @@ func interfaceEqual(a, b any) bool {
 	return a == b
 }
 
-func (c *Cmd) envv() ([]string, error) {
-	if c.Env != nil {
-		return c.Env, nil
-	}
-	return execenv.Default(c.SysProcAttr)
-}
-
 func (c *Cmd) argv() []string {
 	if len(c.Args) > 0 {
 		return c.Args
@@ -414,7 +407,7 @@ func (c *Cmd) Start() error {
 	}
 	c.childFiles = append(c.childFiles, c.ExtraFiles...)
 
-	envv, err := c.envv()
+	env, err := c.environ()
 	if err != nil {
 		return err
 	}
@@ -422,7 +415,7 @@ func (c *Cmd) Start() error {
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
-		Env:   addCriticalEnv(dedupEnv(envv)),
+		Env:   env,
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {
@@ -733,6 +726,54 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// environ returns a best-effort copy of the environment in which the command
+// would be run as it is currently configured. If an error occurs in computing
+// the environment, it is returned alongside the best-effort copy.
+func (c *Cmd) environ() ([]string, error) {
+	var err error
+
+	env := c.Env
+	if env == nil {
+		env, err = execenv.Default(c.SysProcAttr)
+		if err != nil {
+			env = os.Environ()
+			// Note that the non-nil err is preserved despite env being overridden.
+		}
+
+		if c.Dir != "" {
+			switch runtime.GOOS {
+			case "windows", "plan9":
+				// Windows and Plan 9 do not use the PWD variable, so we don't need to
+				// keep it accurate.
+			default:
+				// On POSIX platforms, PWD represents “an absolute pathname of the
+				// current working directory.” Since we are changing the working
+				// directory for the command, we should also update PWD to reflect that.
+				//
+				// Unfortunately, we didn't always do that, so (as proposed in
+				// https://go.dev/issue/50599) to avoid unintended collateral damage we
+				// only implicitly update PWD when Env is nil. That way, we're much
+				// less likely to override an intentional change to the variable.
+				if pwd, absErr := filepath.Abs(c.Dir); absErr == nil {
+					env = append(env, "PWD="+pwd)
+				} else if err == nil {
+					err = absErr
+				}
+			}
+		}
+	}
+
+	return addCriticalEnv(dedupEnv(env)), err
+}
+
+// Environ returns a copy of the environment in which the command would be run
+// as it is currently configured.
+func (c *Cmd) Environ() []string {
+	//  Intentionally ignore errors: environ returns a best-effort environment no matter what.
+	env, _ := c.environ()
+	return env
 }
 
 // dedupEnv returns a copy of env with any duplicates removed, in favor of

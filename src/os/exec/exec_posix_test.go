@@ -7,9 +7,15 @@
 package exec_test
 
 import (
+	"internal/testenv"
+	"os"
+	"os/exec"
 	"os/user"
+	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -85,4 +91,147 @@ func TestWaitid(t *testing.T) {
 	cmd.Process.Kill()
 
 	<-ch
+}
+
+// https://go.dev/issue/50599: if Env is not set explicitly, setting Dir should
+// implicitly update PWD to the correct path, and Environ should list the
+// updated value.
+func TestImplicitPWD(t *testing.T) {
+	testenv.MustHaveExec(t)
+	_, pwdErr := exec.LookPath("pwd")
+
+	t.Parallel()
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name string
+		dir  string
+		want string
+	}{
+		{"empty", "", cwd},
+		{"dot", ".", cwd},
+		{"dotdot", "..", filepath.Dir(cwd)},
+		{"PWD", cwd, cwd},
+		{"PWDdotdot", cwd + string(filepath.Separator) + "..", filepath.Dir(cwd)},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Note: we're using the actual "pwd" command here (instead of helperCommand)
+			// because the implementation of helperCommand requires a non-empty Env.
+			// (We could perhaps refactor helperCommand to use a flag or switch on the
+			// value of argv[0] instead, but that doesn't seem worth the trouble at
+			// the moment.)
+			cmd := exec.Command("pwd")
+			cmd.Dir = tc.dir
+
+			var pwds []string
+			for _, kv := range cmd.Environ() {
+				if strings.HasPrefix(kv, "PWD=") {
+					pwds = append(pwds, strings.TrimPrefix(kv, "PWD="))
+				}
+			}
+
+			wantPWDs := []string{tc.want}
+			if tc.dir == "" {
+				if _, ok := os.LookupEnv("PWD"); !ok {
+					wantPWDs = nil
+				}
+			}
+			if !reflect.DeepEqual(pwds, wantPWDs) {
+				t.Errorf("PWD entries in cmd.Environ():\n\t%s\nwant:\n\t%s", strings.Join(pwds, "\n\t"), strings.Join(wantPWDs, "\n\t"))
+			}
+
+			if pwdErr != nil {
+				t.Skipf("not running `pwd` because it was not found: %v", pwdErr)
+			}
+			cmd.Stderr = new(strings.Builder)
+			out, err := cmd.Output()
+			if err != nil {
+				t.Fatalf("%v:\n%s", err, cmd.Stderr)
+			}
+			got := strings.Trim(string(out), "\r\n")
+			t.Logf("in\n\t%s\n`pwd` reported\n\t%s", tc.dir, got)
+			if got != tc.want {
+				t.Errorf("want\n\t%s", tc.want)
+			}
+		})
+	}
+}
+
+// However, if cmd.Env is set explicitly, setting Dir should not override it.
+// (This checks that the implementation for https://go.dev/issue/50599 doesn't
+// break existing users who may have explicitly mismatched the PWD variable.)
+func TestExplicitPWD(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(cwd, link); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now link is another equally-valid name for cwd. If we set Dir to one and
+	// PWD to the other, the subprocess should report the PWD version.
+	cases := []struct {
+		name string
+		dir  string
+		pwd  string
+	}{
+		{name: "original PWD", pwd: cwd},
+		{name: "link PWD", pwd: link},
+		{name: "in link with original PWD", dir: link, pwd: cwd},
+		{name: "in dir with link PWD", dir: cwd, pwd: link},
+		// Ideally we would also like to test what happens if we set PWD to
+		// something totally bogus (or the empty string), but then we would have no
+		// idea what output the subprocess should actually produce: cwd itself may
+		// contain symlinks preserved from the PWD value in the test's environment.
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cmd := helperCommand(t, "pwd")
+			// This is intentionally opposite to the usual order of setting cmd.Dir
+			// and then calling cmd.Environ. Here, we *want* PWD not to match cmd.Dir,
+			// so we don't care whether cmd.Dir is reflected in cmd.Environ.
+			cmd.Env = append(cmd.Environ(), "PWD="+tc.pwd)
+			cmd.Dir = tc.dir
+
+			var pwds []string
+			for _, kv := range cmd.Environ() {
+				if strings.HasPrefix(kv, "PWD=") {
+					pwds = append(pwds, strings.TrimPrefix(kv, "PWD="))
+				}
+			}
+
+			wantPWDs := []string{tc.pwd}
+			if !reflect.DeepEqual(pwds, wantPWDs) {
+				t.Errorf("PWD entries in cmd.Environ():\n\t%s\nwant:\n\t%s", strings.Join(pwds, "\n\t"), strings.Join(wantPWDs, "\n\t"))
+			}
+
+			cmd.Stderr = new(strings.Builder)
+			out, err := cmd.Output()
+			if err != nil {
+				t.Fatalf("%v:\n%s", err, cmd.Stderr)
+			}
+			got := strings.Trim(string(out), "\r\n")
+			t.Logf("in\n\t%s\nwith PWD=%s\nsubprocess os.Getwd() reported\n\t%s", tc.dir, tc.pwd, got)
+			if got != tc.pwd {
+				t.Errorf("want\n\t%s", tc.pwd)
+			}
+		})
+	}
 }
