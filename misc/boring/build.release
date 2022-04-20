@@ -70,7 +70,7 @@ sha() {
     fi
 }
 shortgo=$(echo "$base" | perl -pe 's/(go\d+\.\d+)(\.\d+|rc\d+)/$1/')
-$dir/release -target linux-amd64 -rev "$commit" -version "$version"
+$dir/release -target linux-amd64 -rev "$commit" -version "$version" -skip_long_tests
 $dir/release -target src -rev "$commit" -version "$version"
 output="$version.linux-amd64.tar.gz"
 ls -l "$output"
