@@ -46,8 +46,6 @@ type Node interface {
 	// Storage for analysis passes.
 	Esc() uint16
 	SetEsc(x uint16)
-	Diag() bool
-	SetDiag(x bool)
 
 	// Typecheck values:
 	//  0 means the node is not typechecked
@@ -118,7 +116,6 @@ const (
 	// Also used for a qualified package identifier that hasn't been resolved yet.
 	ONONAME
 	OTYPE    // type name
-	OPACK    // import
 	OLITERAL // literal
 	ONIL     // nil
 
@@ -241,7 +238,6 @@ const (
 	ORECV        // <-X
 	ORUNESTR     // Type(X) (Type is string, X is rune)
 	OSELRECV2    // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
-	OIOTA        // iota
 	OREAL        // real(X)
 	OIMAG        // imag(X)
 	OCOMPLEX     // complex(X, Y)
@@ -291,15 +287,10 @@ const (
 	OFUNCINST // instantiation of a generic function
 
 	// types
-	OTCHAN   // chan int
-	OTMAP    // map[string]int
-	OTSTRUCT // struct{}
-	OTINTER  // interface{}
 	// OTFUNC: func() - Recv is receiver field, Params is list of param fields, Results is
 	// list of result fields.
+	// TODO(mdempsky): Remove.
 	OTFUNC
-	OTARRAY // [8]int or [...]int
-	OTSLICE // []int
 
 	// misc
 	// intermediate representation of an inlined call.  Uses Init (assignments
@@ -319,6 +310,7 @@ const (
 	ORESULT        // result of a function call; Xoffset is stack offset
 	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
 	OLINKSYMOFFSET // offset within a name
+	OJUMPTABLE     // A jump table structure for implementing dense expression switches
 
 	// opcodes for generics
 	ODYNAMICDOTTYPE  // x = i.(T) where T is a type parameter (or derived from a type parameter)
@@ -471,7 +463,7 @@ const (
 	UintptrEscapes              // pointers converted to uintptr escape
 
 	// Runtime-only func pragmas.
-	// See ../../../../runtime/README.md for detailed descriptions.
+	// See ../../../../runtime/HACKING.md for detailed descriptions.
 	Systemstack        // func must run on system stack
 	Nowritebarrier     // emit compiler error instead of write barrier
 	Nowritebarrierrec  // error on write barrier in this or recursive callees
@@ -533,7 +525,7 @@ func HasNamedResults(fn *Func) bool {
 // their usage position.
 func HasUniquePos(n Node) bool {
 	switch n.Op() {
-	case ONAME, OPACK:
+	case ONAME:
 		return false
 	case OLITERAL, ONIL, OTYPE:
 		if n.Sym() != nil {
@@ -560,7 +552,8 @@ func SetPos(n Node) src.XPos {
 }
 
 // The result of InitExpr MUST be assigned back to n, e.g.
-// 	n.X = InitExpr(init, n.X)
+//
+//	n.X = InitExpr(init, n.X)
 func InitExpr(init []Node, expr Node) Node {
 	if len(init) == 0 {
 		return expr

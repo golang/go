@@ -639,12 +639,13 @@ var genericOps = []opData{
 //    First                []   [always, never]
 
 var genericBlocks = []blockData{
-	{name: "Plain"},               // a single successor
-	{name: "If", controls: 1},     // if Controls[0] goto Succs[0] else goto Succs[1]
-	{name: "Defer", controls: 1},  // Succs[0]=defer queued, Succs[1]=defer recovered. Controls[0] is call op (of memory type)
-	{name: "Ret", controls: 1},    // no successors, Controls[0] value is memory result
-	{name: "RetJmp", controls: 1}, // no successors, Controls[0] value is a tail call
-	{name: "Exit", controls: 1},   // no successors, Controls[0] value generates a panic
+	{name: "Plain"},                  // a single successor
+	{name: "If", controls: 1},        // if Controls[0] goto Succs[0] else goto Succs[1]
+	{name: "Defer", controls: 1},     // Succs[0]=defer queued, Succs[1]=defer recovered. Controls[0] is call op (of memory type)
+	{name: "Ret", controls: 1},       // no successors, Controls[0] value is memory result
+	{name: "RetJmp", controls: 1},    // no successors, Controls[0] value is a tail call
+	{name: "Exit", controls: 1},      // no successors, Controls[0] value generates a panic
+	{name: "JumpTable", controls: 1}, // multiple successors, the integer Controls[0] selects which one
 
 	// transient block state used for dead code removal
 	{name: "First"}, // 2 successors, always takes the first one (second is dead)

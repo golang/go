@@ -187,21 +187,15 @@ func runfinq() {
 				f := &fb.fin[i-1]
 
 				var regs abi.RegArgs
-				var framesz uintptr
-				if argRegs > 0 {
-					// The args can always be passed in registers if they're
-					// available, because platforms we support always have no
-					// argument registers available, or more than 2.
-					//
-					// But unfortunately because we can have an arbitrary
-					// amount of returns and it would be complex to try and
-					// figure out how many of those can get passed in registers,
-					// just conservatively assume none of them do.
-					framesz = f.nret
-				} else {
-					// Need to pass arguments on the stack too.
-					framesz = unsafe.Sizeof((interface{})(nil)) + f.nret
-				}
+				// The args may be passed in registers or on stack. Even for
+				// the register case, we still need the spill slots.
+				// TODO: revisit if we remove spill slots.
+				//
+				// Unfortunately because we can have an arbitrary
+				// amount of returns and it would be complex to try and
+				// figure out how many of those can get passed in registers,
+				// just conservatively assume none of them do.
+				framesz := unsafe.Sizeof((any)(nil)) + f.nret
 				if framecap < framesz {
 					// The frame does not contain pointers interesting for GC,
 					// all not yet finalized objects are stored in finq.
@@ -329,7 +323,7 @@ func runfinq() {
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
-func SetFinalizer(obj interface{}, finalizer interface{}) {
+func SetFinalizer(obj any, finalizer any) {
 	if debug.sbrk != 0 {
 		// debug.sbrk never frees memory, so no finalizers run
 		// (and we don't have the data structures to record them).
@@ -445,6 +439,7 @@ okarg:
 }
 
 // Mark KeepAlive as noinline so that it is easily detectable as an intrinsic.
+//
 //go:noinline
 
 // KeepAlive marks its argument as currently reachable.
@@ -452,16 +447,17 @@ okarg:
 // before the point in the program where KeepAlive is called.
 //
 // A very simplified example showing where KeepAlive is required:
-// 	type File struct { d int }
-// 	d, err := syscall.Open("/file/path", syscall.O_RDONLY, 0)
-// 	// ... do something if err != nil ...
-// 	p := &File{d}
-// 	runtime.SetFinalizer(p, func(p *File) { syscall.Close(p.d) })
-// 	var buf [10]byte
-// 	n, err := syscall.Read(p.d, buf[:])
-// 	// Ensure p is not finalized until Read returns.
-// 	runtime.KeepAlive(p)
-// 	// No more uses of p after this point.
+//
+//	type File struct { d int }
+//	d, err := syscall.Open("/file/path", syscall.O_RDONLY, 0)
+//	// ... do something if err != nil ...
+//	p := &File{d}
+//	runtime.SetFinalizer(p, func(p *File) { syscall.Close(p.d) })
+//	var buf [10]byte
+//	n, err := syscall.Read(p.d, buf[:])
+//	// Ensure p is not finalized until Read returns.
+//	runtime.KeepAlive(p)
+//	// No more uses of p after this point.
 //
 // Without the KeepAlive call, the finalizer could run at the start of
 // syscall.Read, closing the file descriptor before syscall.Read makes
@@ -470,7 +466,7 @@ okarg:
 // Note: KeepAlive should only be used to prevent finalizers from
 // running prematurely. In particular, when used with unsafe.Pointer,
 // the rules for valid uses of unsafe.Pointer still apply.
-func KeepAlive(x interface{}) {
+func KeepAlive(x any) {
 	// Introduce a use of x that the compiler can't eliminate.
 	// This makes sure x is alive on entry. We need x to be alive
 	// on entry for "defer runtime.KeepAlive(x)"; see issue 21402.

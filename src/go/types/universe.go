@@ -89,22 +89,32 @@ func defPredeclaredTypes() {
 	{
 		obj := NewTypeName(token.NoPos, nil, "error", nil)
 		obj.setColor(black)
+		typ := NewNamed(obj, nil, nil)
+
+		// error.Error() string
+		recv := NewVar(token.NoPos, nil, "", typ)
 		res := NewVar(token.NoPos, nil, "", Typ[String])
-		sig := NewSignatureType(nil, nil, nil, nil, NewTuple(res), false)
+		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
 		err := NewFunc(token.NoPos, nil, "Error", sig)
-		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, false, true, nil}
+
+		// interface{ Error() string }
+		ityp := &Interface{methods: []*Func{err}, complete: true}
 		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
-		typ := NewNamed(obj, ityp, nil)
-		sig.recv = NewVar(token.NoPos, nil, "", typ)
+
+		typ.SetUnderlying(ityp)
 		def(obj)
 	}
 
-	// type comparable interface{ /* type set marked comparable */ }
+	// type comparable interface{} // marked as comparable
 	{
 		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
 		obj.setColor(black)
-		ityp := &Interface{nil, obj, nil, nil, nil, false, true, &_TypeSet{true, nil, allTermlist}}
-		NewNamed(obj, ityp, nil)
+		typ := NewNamed(obj, nil, nil)
+
+		// interface{} // marked as comparable
+		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
+
+		typ.SetUnderlying(ityp)
 		def(obj)
 	}
 }
@@ -236,7 +246,6 @@ func init() {
 // Objects with names containing blanks are internal and not entered into
 // a scope. Objects with exported names are inserted in the unsafe package
 // scope; other objects are inserted in the universe scope.
-//
 func def(obj Object) {
 	assert(obj.color() == black)
 	name := obj.Name()

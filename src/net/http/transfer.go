@@ -73,7 +73,7 @@ type transferWriter struct {
 	ByteReadCh   chan readResult // non-nil if probeRequestBody called
 }
 
-func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+func newTransferWriter(r any) (t *transferWriter, err error) {
 	t = &transferWriter{}
 
 	// Extract relevant fields
@@ -196,10 +196,11 @@ func (t *transferWriter) shouldSendChunkedRequestBody() bool {
 // headers before the pipe is fed data), we need to be careful and bound how
 // long we wait for it. This delay will only affect users if all the following
 // are true:
-//   * the request body blocks
-//   * the content length is not set (or set to -1)
-//   * the method doesn't usually have a body (GET, HEAD, DELETE, ...)
-//   * there is no transfer-encoding=chunked already set.
+//   - the request body blocks
+//   - the content length is not set (or set to -1)
+//   - the method doesn't usually have a body (GET, HEAD, DELETE, ...)
+//   - there is no transfer-encoding=chunked already set.
+//
 // In other words, this delay will not normally affect anybody, and there
 // are workarounds if it does.
 func (t *transferWriter) probeRequestBody() {
@@ -481,7 +482,7 @@ func suppressedHeaders(status int) []string {
 }
 
 // msg is *Request or *Response.
-func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+func readTransfer(msg any, r *bufio.Reader) (err error) {
 	t := &transferReader{RequestMethod: "GET"}
 
 	// Unify input
@@ -809,7 +810,7 @@ func fixTrailer(header Header, chunked bool) (Header, error) {
 // and then reads the trailer if necessary.
 type body struct {
 	src          io.Reader
-	hdr          interface{}   // non-nil (Response or Request) value means read trailer
+	hdr          any           // non-nil (Response or Request) value means read trailer
 	r            *bufio.Reader // underlying wire-format reader for the trailer
 	closing      bool          // is the connection to be closed after reading body?
 	doEarlyClose bool          // whether Close should stop early

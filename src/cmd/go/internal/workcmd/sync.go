@@ -15,26 +15,41 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// TODO(#49232) Add more documentation below. Though this is
-// enough for those trying workspaces out, there should be more thorough
-// documentation before Go 1.18 is released.
-
 var cmdSync = &base.Command{
-	UsageLine: "go work sync [moddirs]",
+	UsageLine: "go work sync",
 	Short:     "sync workspace build list to modules",
-	Long:      `go work sync`,
-	Run:       runSync,
+	Long: `Sync syncs the workspace's build list back to the
+workspace's modules
+
+The workspace's build list is the set of versions of all the
+(transitive) dependency modules used to do builds in the workspace. go
+work sync generates that build list using the Minimal Version Selection
+algorithm, and then syncs those versions back to each of modules
+specified in the workspace (with use directives).
+
+The syncing is done by sequentially upgrading each of the dependency
+modules specified in a workspace module to the version in the build list
+if the dependency module's version is not already the same as the build
+list's version. Note that Minimal Version Selection guarantees that the
+build list's version of each module is always the same or higher than
+that in each workspace module.
+
+See the workspaces reference at https://go.dev/ref/mod#workspaces
+for more information.
+`,
+	Run: runSync,
 }
 
 func init() {
 	base.AddModCommonFlags(&cmdSync.Flag)
-	base.AddWorkfileFlag(&cmdSync.Flag)
 }
 
 func runSync(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
-
 	modload.ForceUseModules = true
+	modload.InitWorkfile()
+	if modload.WorkFilePath() == "" {
+		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
+	}
 
 	workGraph := modload.LoadModGraph(ctx, "")
 	_ = workGraph
@@ -74,6 +89,13 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	workFilePath := modload.WorkFilePath() // save go.work path because EnterModule clobbers it.
 
 	for _, m := range mms.Versions() {
+		if mms.ModRoot(m) == "" && m.Path == "command-line-arguments" {
+			// This is not a real module.
+			// TODO(#49228): Remove this special case once the special
+			// command-line-arguments module is gone.
+			continue
+		}
+
 		// Use EnterModule to reset the global state in modload to be in
 		// single-module mode using the modroot of m.
 		modload.EnterModule(ctx, mms.ModRoot(m))
@@ -90,13 +112,13 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 
 		modload.LoadPackages(ctx, modload.PackageOpts{
 			Tags:                     imports.AnyTags(),
+			Tidy:                     true,
 			VendorModulesInGOROOTSrc: true,
 			ResolveMissingImports:    false,
 			LoadTests:                true,
 			AllowErrors:              true,
+			SilenceMissingStdImports: true,
 			SilencePackageErrors:     true,
-			Tidy:                     true,
-			SilenceUnmatchedWarnings: true,
 		}, "all")
 		modload.WriteGoMod(ctx)
 	}

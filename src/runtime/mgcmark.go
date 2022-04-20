@@ -8,7 +8,6 @@ package runtime
 
 import (
 	"internal/goarch"
-	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -102,7 +101,8 @@ func gcMarkRootPrepare() {
 	// ignore them because they begin life without any roots, so
 	// there's nothing to scan, and any roots they create during
 	// the concurrent phase will be caught by the write barrier.
-	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
+	work.stackRoots = allGsSnapshot()
+	work.nStackRoots = len(work.stackRoots)
 
 	work.markrootNext = 0
 	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
@@ -194,15 +194,12 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 	default:
 		// the rest is scanning goroutine stacks
 		workCounter = &gcController.stackScanWork
-		var gp *g
-		if work.baseStacks <= i && i < work.baseEnd {
-			// N.B. Atomic read of allglen in gcMarkRootPrepare
-			// acts as a barrier to ensure that allgs must be large
-			// enough to contain all relevant Gs.
-			gp = allgs[i-work.baseStacks]
-		} else {
+		if i < work.baseStacks || work.baseEnd <= i {
+			printlock()
+			print("runtime: markroot index ", i, " not in stack roots range [", work.baseStacks, ", ", work.baseEnd, ")\n")
 			throw("markroot: bad index")
 		}
+		gp := work.stackRoots[i-work.baseStacks]
 
 		// remember when we've first observed the G blocked
 		// needed only to output in traceback
@@ -249,12 +246,10 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 			}
 		})
 	}
-	if goexperiment.PacerRedesign {
-		if workCounter != nil && workDone != 0 {
-			workCounter.Add(workDone)
-			if flushBgCredit {
-				gcFlushBgCredit(workDone)
-			}
+	if workCounter != nil && workDone != 0 {
+		workCounter.Add(workDone)
+		if flushBgCredit {
+			gcFlushBgCredit(workDone)
 		}
 	}
 	return workDone
@@ -403,7 +398,7 @@ func markrootSpans(gcw *gcWork, shard int) {
 }
 
 // gcAssistAlloc performs GC work to make gp's assist debt positive.
-// gp must be the calling user gorountine.
+// gp must be the calling user goroutine.
 //
 // This must be called with preemption enabled.
 func gcAssistAlloc(gp *g) {
@@ -703,7 +698,6 @@ func gcFlushBgCredit(scanWork int64) {
 
 // scanstack scans gp's stack, greying all pointers found on the stack.
 //
-// For goexperiment.PacerRedesign:
 // Returns the amount of scan work performed, but doesn't update
 // gcController.stackScanWork or flush any credit. Any background credit produced
 // by this function should be flushed by its caller. scanstack itself can't
@@ -894,6 +888,7 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 }
 
 // Scan a stack frame: local variables and function arguments/results.
+//
 //go:nowritebarrier
 func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 	if _DebugGC > 1 && frame.continpc != 0 {
@@ -1159,10 +1154,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			if work.markrootNext < work.markrootJobs {
 				job := atomic.Xadd(&work.markrootNext, +1) - 1
 				if job < work.markrootJobs {
-					work := markroot(gcw, job, false)
-					if goexperiment.PacerRedesign {
-						workFlushed += work
-					}
+					workFlushed += markroot(gcw, job, false)
 					continue
 				}
 			}
@@ -1194,6 +1186,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 // gcw.bytesMarked or gcw.heapScanWork.
 //
 // If stk != nil, possible stack pointers are also reported to stk.putPtr.
+//
 //go:nowritebarrier
 func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState) {
 	// Use local copies of original parameters, so that a stack trace
@@ -1422,6 +1415,7 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 // Shade the object if it isn't already.
 // The object is not nil and known to be in the heap.
 // Preemption must be disabled.
+//
 //go:nowritebarrier
 func shade(b uintptr) {
 	if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
@@ -1560,19 +1554,6 @@ func gcmarknewobject(span *mspan, obj, size, scanSize uintptr) {
 
 	gcw := &getg().m.p.ptr().gcw
 	gcw.bytesMarked += uint64(size)
-	if !goexperiment.PacerRedesign {
-		// The old pacer counts newly allocated memory toward
-		// heapScanWork because heapScan is continuously updated
-		// throughout the GC cyle with newly allocated memory. However,
-		// these objects are never actually scanned, so we need
-		// to account for them in heapScanWork here, "faking" their work.
-		// Otherwise the pacer will think it's always behind, potentially
-		// by a large margin.
-		//
-		// The new pacer doesn't care about this because it ceases to updated
-		// heapScan once a GC cycle starts, effectively snapshotting it.
-		gcw.heapScanWork += int64(scanSize)
-	}
 }
 
 // gcMarkTinyAllocs greys all active tiny alloc blocks.

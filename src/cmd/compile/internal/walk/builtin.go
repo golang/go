@@ -26,19 +26,19 @@ import (
 //
 // For race detector, expand append(src, a [, b]* ) to
 //
-//   init {
-//     s := src
-//     const argc = len(args) - 1
-//     if cap(s) - len(s) < argc {
-//	    s = growslice(s, len(s)+argc)
-//     }
-//     n := len(s)
-//     s = s[:n+argc]
-//     s[n] = a
-//     s[n+1] = b
-//     ...
-//   }
-//   s
+//	  init {
+//	    s := src
+//	    const argc = len(args) - 1
+//	    if cap(s) - len(s) < argc {
+//		    s = growslice(s, len(s)+argc)
+//	    }
+//	    n := len(s)
+//	    s = s[:n+argc]
+//	    s[n] = a
+//	    s[n+1] = b
+//	    ...
+//	  }
+//	  s
 func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 	if !ir.SameSafeExpr(dst, n.Args[0]) {
 		n.Args[0] = safeExpr(n.Args[0], init)
@@ -125,15 +125,14 @@ func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 
 // Lower copy(a, b) to a memmove call or a runtime call.
 //
-// init {
-//   n := len(a)
-//   if n > len(b) { n = len(b) }
-//   if a.ptr != b.ptr { memmove(a.ptr, b.ptr, n*sizeof(elem(a))) }
-// }
-// n;
+//	init {
+//	  n := len(a)
+//	  if n > len(b) { n = len(b) }
+//	  if a.ptr != b.ptr { memmove(a.ptr, b.ptr, n*sizeof(elem(a))) }
+//	}
+//	n;
 //
 // Also works if b is a string.
-//
 func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 	if n.X.Type().Elem().HasPointers() {
 		ir.CurFunc.SetWBPos(n.Pos())
@@ -214,7 +213,7 @@ func walkDelete(init *ir.Nodes, n *ir.CallExpr) ir.Node {
 
 	t := map_.Type()
 	fast := mapfast(t)
-	key = mapKeyArg(fast, n, key)
+	key = mapKeyArg(fast, n, key, false)
 	return mkcall1(mapfndel(mapdelete[fast], t), nil, init, reflectdata.TypePtr(t), map_, key)
 }
 

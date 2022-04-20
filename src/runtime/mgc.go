@@ -320,10 +320,19 @@ var work struct {
 	nwait  uint32
 
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
+	//
+	// nStackRoots == len(stackRoots), but we have nStackRoots for
+	// consistency.
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
 
 	// Base indexes of each root type. Set by gcMarkRootPrepare.
 	baseData, baseBSS, baseSpans, baseStacks, baseEnd uint32
+
+	// stackRoots is a snapshot of all of the Gs that existed
+	// before the beginning of concurrent marking. The backing
+	// store of this must not be modified because it might be
+	// shared with allgs.
+	stackRoots []*g
 
 	// Each type of GC state transition is protected by a lock.
 	// Since multiple threads can simultaneously detect the state
@@ -751,7 +760,7 @@ var gcMarkDoneFlushed uint32
 // This should be called when all local mark work has been drained and
 // there are no remaining workers. Specifically, when
 //
-//   work.nwait == work.nproc && !gcMarkWorkAvailable(p)
+//	work.nwait == work.nproc && !gcMarkWorkAvailable(p)
 //
 // The calling context must be preemptible.
 //
@@ -889,15 +898,15 @@ top:
 	// endCycle depends on all gcWork cache stats being flushed.
 	// The termination algorithm above ensured that up to
 	// allocations since the ragged barrier.
-	nextTriggerRatio := gcController.endCycle(now, int(gomaxprocs), work.userForced)
+	gcController.endCycle(now, int(gomaxprocs), work.userForced)
 
 	// Perform mark termination. This will restart the world.
-	gcMarkTermination(nextTriggerRatio)
+	gcMarkTermination()
 }
 
 // World must be stopped and mark assists and background workers must be
 // disabled.
-func gcMarkTermination(nextTriggerRatio float64) {
+func gcMarkTermination() {
 	// Start marktermination (write barrier remains enabled for now).
 	setGCPhase(_GCmarktermination)
 
@@ -967,7 +976,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	memstats.last_heap_inuse = memstats.heap_inuse
 
 	// Update GC trigger and pacing for the next cycle.
-	gcController.commit(nextTriggerRatio)
+	gcController.commit()
 	gcPaceSweeper(gcController.trigger)
 	gcPaceScavenger(gcController.heapGoal, gcController.lastHeapGoal)
 
@@ -1314,7 +1323,7 @@ func gcBgMarkWorker() {
 		// point, signal the main GC goroutine.
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
 			// We don't need the P-local buffers here, allow
-			// preemption becuse we may schedule like a regular
+			// preemption because we may schedule like a regular
 			// goroutine in gcMarkDone (block on locks, etc).
 			releasem(node.m.ptr())
 			node.m.set(nil)
@@ -1367,6 +1376,11 @@ func gcMark(startTime int64) {
 	if work.full != 0 {
 		throw("work.full != 0")
 	}
+
+	// Drop allg snapshot. allgs may have grown, in which case
+	// this is the only reference to the old backing store and
+	// there's no need to keep it around.
+	work.stackRoots = nil
 
 	// Clear out buffers and double-check that all gcWork caches
 	// are empty. This should be ensured by gcMarkDone before we

@@ -10,7 +10,6 @@ const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
 	_ENOMEM = 0xc
-	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -64,6 +63,8 @@ const (
 	_SIGIO     = 0x1d
 	_SIGPWR    = 0x1e
 	_SIGSYS    = 0x1f
+
+	_SIGRTMIN = 0x20
 
 	_FPE_INTDIV = 0x1
 	_FPE_INTOVF = 0x2
@@ -122,10 +123,12 @@ func (tv *timeval) set_usec(x int32) {
 }
 
 type sigactiont struct {
-	sa_handler  uintptr
-	sa_flags    uint64
+	sa_handler uintptr
+	sa_flags   uint64
+	sa_mask    uint64
+	// Linux on riscv64 does not have the sa_restorer field, but the setsig
+	// function references it (for x86). Not much harm to include it at the end.
 	sa_restorer uintptr
-	sa_mask     uint64
 }
 
 type siginfoFields struct {

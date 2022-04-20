@@ -13,9 +13,11 @@
 // binary.
 //
 // This script requires that three environment variables be set:
-// 	GOIOS_DEV_ID: The codesigning developer id or certificate identifier
-// 	GOIOS_APP_ID: The provisioning app id prefix. Must support wildcard app ids.
-// 	GOIOS_TEAM_ID: The team id that owns the app id prefix.
+//
+//	GOIOS_DEV_ID: The codesigning developer id or certificate identifier
+//	GOIOS_APP_ID: The provisioning app id prefix. Must support wildcard app ids.
+//	GOIOS_TEAM_ID: The team id that owns the app id prefix.
+//
 // $GOROOT/misc/ios contains a script, detect.go, that attempts to autodetect these.
 package main
 

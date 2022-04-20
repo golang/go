@@ -5,7 +5,9 @@
 // Package testing provides support for automated testing of Go packages.
 // It is intended to be used in concert with the "go test" command, which automates
 // execution of any function of the form
-//     func TestXxx(*testing.T)
+//
+//	func TestXxx(*testing.T)
+//
 // where Xxx does not start with a lowercase letter. The function name
 // serves to identify the test routine.
 //
@@ -19,17 +21,19 @@
 //
 // A simple test function looks like this:
 //
-//     func TestAbs(t *testing.T) {
-//         got := Abs(-1)
-//         if got != 1 {
-//             t.Errorf("Abs(-1) = %d; want 1", got)
-//         }
-//     }
+//	func TestAbs(t *testing.T) {
+//	    got := Abs(-1)
+//	    if got != 1 {
+//	        t.Errorf("Abs(-1) = %d; want 1", got)
+//	    }
+//	}
 //
-// Benchmarks
+// # Benchmarks
 //
 // Functions of the form
-//     func BenchmarkXxx(*testing.B)
+//
+//	func BenchmarkXxx(*testing.B)
+//
 // are considered benchmarks, and are executed by the "go test" command when
 // its -bench flag is provided. Benchmarks are run sequentially.
 //
@@ -37,43 +41,46 @@
 // https://golang.org/cmd/go/#hdr-Testing_flags.
 //
 // A sample benchmark function looks like this:
-//     func BenchmarkRandInt(b *testing.B) {
-//         for i := 0; i < b.N; i++ {
-//             rand.Int()
-//         }
-//     }
+//
+//	func BenchmarkRandInt(b *testing.B) {
+//	    for i := 0; i < b.N; i++ {
+//	        rand.Int()
+//	    }
+//	}
 //
 // The benchmark function must run the target code b.N times.
 // During benchmark execution, b.N is adjusted until the benchmark function lasts
 // long enough to be timed reliably. The output
-//     BenchmarkRandInt-8   	68453040	        17.8 ns/op
+//
+//	BenchmarkRandInt-8   	68453040	        17.8 ns/op
+//
 // means that the loop ran 68453040 times at a speed of 17.8 ns per loop.
 //
 // If a benchmark needs some expensive setup before running, the timer
 // may be reset:
 //
-//     func BenchmarkBigLen(b *testing.B) {
-//         big := NewBig()
-//         b.ResetTimer()
-//         for i := 0; i < b.N; i++ {
-//             big.Len()
-//         }
-//     }
+//	func BenchmarkBigLen(b *testing.B) {
+//	    big := NewBig()
+//	    b.ResetTimer()
+//	    for i := 0; i < b.N; i++ {
+//	        big.Len()
+//	    }
+//	}
 //
 // If a benchmark needs to test performance in a parallel setting, it may use
 // the RunParallel helper function; such benchmarks are intended to be used with
 // the go test -cpu flag:
 //
-//     func BenchmarkTemplateParallel(b *testing.B) {
-//         templ := template.Must(template.New("test").Parse("Hello, {{.}}!"))
-//         b.RunParallel(func(pb *testing.PB) {
-//             var buf bytes.Buffer
-//             for pb.Next() {
-//                 buf.Reset()
-//                 templ.Execute(&buf, "World")
-//             }
-//         })
-//     }
+//	func BenchmarkTemplateParallel(b *testing.B) {
+//	    templ := template.Must(template.New("test").Parse("Hello, {{.}}!"))
+//	    b.RunParallel(func(pb *testing.PB) {
+//	        var buf bytes.Buffer
+//	        for pb.Next() {
+//	            buf.Reset()
+//	            templ.Execute(&buf, "World")
+//	        }
+//	    })
+//	}
 //
 // A detailed specification of the benchmark results format is given
 // in https://golang.org/design/14313-benchmark-format.
@@ -83,90 +90,92 @@
 // In particular, https://golang.org/x/perf/cmd/benchstat performs
 // statistically robust A/B comparisons.
 //
-// Examples
+// # Examples
 //
 // The package also runs and verifies example code. Example functions may
 // include a concluding line comment that begins with "Output:" and is compared with
 // the standard output of the function when the tests are run. (The comparison
 // ignores leading and trailing space.) These are examples of an example:
 //
-//     func ExampleHello() {
-//         fmt.Println("hello")
-//         // Output: hello
-//     }
+//	func ExampleHello() {
+//	    fmt.Println("hello")
+//	    // Output: hello
+//	}
 //
-//     func ExampleSalutations() {
-//         fmt.Println("hello, and")
-//         fmt.Println("goodbye")
-//         // Output:
-//         // hello, and
-//         // goodbye
-//     }
+//	func ExampleSalutations() {
+//	    fmt.Println("hello, and")
+//	    fmt.Println("goodbye")
+//	    // Output:
+//	    // hello, and
+//	    // goodbye
+//	}
 //
 // The comment prefix "Unordered output:" is like "Output:", but matches any
 // line order:
 //
-//     func ExamplePerm() {
-//         for _, value := range Perm(5) {
-//             fmt.Println(value)
-//         }
-//         // Unordered output: 4
-//         // 2
-//         // 1
-//         // 3
-//         // 0
-//     }
+//	func ExamplePerm() {
+//	    for _, value := range Perm(5) {
+//	        fmt.Println(value)
+//	    }
+//	    // Unordered output: 4
+//	    // 2
+//	    // 1
+//	    // 3
+//	    // 0
+//	}
 //
 // Example functions without output comments are compiled but not executed.
 //
 // The naming convention to declare examples for the package, a function F, a type T and
 // method M on type T are:
 //
-//     func Example() { ... }
-//     func ExampleF() { ... }
-//     func ExampleT() { ... }
-//     func ExampleT_M() { ... }
+//	func Example() { ... }
+//	func ExampleF() { ... }
+//	func ExampleT() { ... }
+//	func ExampleT_M() { ... }
 //
 // Multiple example functions for a package/type/function/method may be provided by
 // appending a distinct suffix to the name. The suffix must start with a
 // lower-case letter.
 //
-//     func Example_suffix() { ... }
-//     func ExampleF_suffix() { ... }
-//     func ExampleT_suffix() { ... }
-//     func ExampleT_M_suffix() { ... }
+//	func Example_suffix() { ... }
+//	func ExampleF_suffix() { ... }
+//	func ExampleT_suffix() { ... }
+//	func ExampleT_M_suffix() { ... }
 //
 // The entire test file is presented as the example when it contains a single
 // example function, at least one other function, type, variable, or constant
 // declaration, and no test or benchmark functions.
 //
-// Fuzzing
+// # Fuzzing
 //
 // 'go test' and the testing package support fuzzing, a testing technique where
 // a function is called with randomly generated inputs to find bugs not
 // anticipated by unit tests.
 //
 // Functions of the form
-//     func FuzzXxx(*testing.F)
+//
+//	func FuzzXxx(*testing.F)
+//
 // are considered fuzz tests.
 //
 // For example:
 //
-//     func FuzzHex(f *testing.F) {
-//       for _, seed := range [][]byte{{}, {0}, {9}, {0xa}, {0xf}, {1, 2, 3, 4}} {
-//         f.Add(seed)
-//       }
-//       f.Fuzz(func(t *testing.T, in []byte) {
-//         enc := hex.EncodeToString(in)
-//         out, err := hex.DecodeString(enc)
-//         if err != nil {
-//           t.Fatalf("%v: decode: %v", in, err)
-//         }
-//         if !bytes.Equal(in, out) {
-//           t.Fatalf("%v: not equal after round trip: %v", in, out)
-//         }
-//       })
-//     }
+//	func FuzzHex(f *testing.F) {
+//	  for _, seed := range [][]byte{{}, {0}, {9}, {0xa}, {0xf}, {1, 2, 3, 4}} {
+//	    f.Add(seed)
+//	  }
+//	  f.Fuzz(func(t *testing.T, in []byte) {
+//	    enc := hex.EncodeToString(in)
+//	    out, err := hex.DecodeString(enc)
+//	    if err != nil {
+//	      t.Fatalf("%v: decode: %v", in, err)
+//	    }
+//	    if !bytes.Equal(in, out) {
+//	      t.Fatalf("%v: not equal after round trip: %v", in, out)
+//	    }
+//	  })
+//	}
 //
 // A fuzz test maintains a seed corpus, or a set of inputs which are run by
 // default, and can seed input generation. Seed inputs may be registered by
@@ -202,50 +211,49 @@
 // mode, the fuzz test acts much like a regular test, with subtests started
 // with F.Fuzz instead of T.Run.
 //
-// TODO(#48255): write and link to documentation that will be helpful to users
-// who are unfamiliar with fuzzing.
+// See https://go.dev/doc/fuzz for documentation about fuzzing.
 //
-// Skipping
+// # Skipping
 //
 // Tests or benchmarks may be skipped at run time with a call to
 // the Skip method of *T or *B:
 //
-//     func TestTimeConsuming(t *testing.T) {
-//         if testing.Short() {
-//             t.Skip("skipping test in short mode.")
-//         }
-//         ...
-//     }
+//	func TestTimeConsuming(t *testing.T) {
+//	    if testing.Short() {
+//	        t.Skip("skipping test in short mode.")
+//	    }
+//	    ...
+//	}
 //
 // The Skip method of *T can be used in a fuzz target if the input is invalid,
 // but should not be considered a failing input. For example:
 //
-//     func FuzzJSONMarshalling(f *testing.F) {
-//         f.Fuzz(func(t *testing.T, b []byte) {
-//             var v interface{}
-//             if err := json.Unmarshal(b, &v); err != nil {
-//                 t.Skip()
-//             }
-//             if _, err := json.Marshal(v); err != nil {
-//                 t.Error("Marshal: %v", err)
-//             }
-//         })
-//     }
+//	func FuzzJSONMarshaling(f *testing.F) {
+//	    f.Fuzz(func(t *testing.T, b []byte) {
+//	        var v interface{}
+//	        if err := json.Unmarshal(b, &v); err != nil {
+//	            t.Skip()
+//	        }
+//	        if _, err := json.Marshal(v); err != nil {
+//	            t.Error("Marshal: %v", err)
+//	        }
+//	    })
+//	}
 //
-// Subtests and Sub-benchmarks
+// # Subtests and Sub-benchmarks
 //
 // The Run methods of T and B allow defining subtests and sub-benchmarks,
 // without having to define separate functions for each. This enables uses
 // like table-driven benchmarks and creating hierarchical tests.
 // It also provides a way to share common setup and tear-down code:
 //
-//     func TestFoo(t *testing.T) {
-//         // <setup code>
-//         t.Run("A=1", func(t *testing.T) { ... })
-//         t.Run("A=2", func(t *testing.T) { ... })
-//         t.Run("B=1", func(t *testing.T) { ... })
-//         // <tear-down code>
-//     }
+//	func TestFoo(t *testing.T) {
+//	    // <setup code>
+//	    t.Run("A=1", func(t *testing.T) { ... })
+//	    t.Run("A=2", func(t *testing.T) { ... })
+//	    t.Run("B=1", func(t *testing.T) { ... })
+//	    // <tear-down code>
+//	}
 //
 // Each subtest and sub-benchmark has a unique name: the combination of the name
 // of the top-level test and the sequence of names passed to Run, separated by
@@ -258,15 +266,16 @@
 // empty expression matches any string.
 // For example, using "matching" to mean "whose name contains":
 //
-//     go test -run ''        # Run all tests.
-//     go test -run Foo       # Run top-level tests matching "Foo", such as "TestFooBar".
-//     go test -run Foo/A=    # For top-level tests matching "Foo", run subtests matching "A=".
-//     go test -run /A=1      # For all top-level tests, run subtests matching "A=1".
-//     go test -fuzz FuzzFoo  # Fuzz the target matching "FuzzFoo"
+//	go test -run ''        # Run all tests.
+//	go test -run Foo       # Run top-level tests matching "Foo", such as "TestFooBar".
+//	go test -run Foo/A=    # For top-level tests matching "Foo", run subtests matching "A=".
+//	go test -run /A=1      # For all top-level tests, run subtests matching "A=1".
+//	go test -fuzz FuzzFoo  # Fuzz the target matching "FuzzFoo"
 //
 // The -run argument can also be used to run a specific value in the seed
 // corpus, for debugging. For example:
-//     go test -run=FuzzFoo/9ddb952d9814
+//
+//	go test -run=FuzzFoo/9ddb952d9814
 //
 // The -fuzz and -run flags can both be set, in order to fuzz a target but
 // skip the execution of all other tests.
@@ -276,15 +285,15 @@
 // run in parallel with each other, and only with each other, regardless of
 // other top-level tests that may be defined:
 //
-//     func TestGroupedParallel(t *testing.T) {
-//         for _, tc := range tests {
-//             tc := tc // capture range variable
-//             t.Run(tc.Name, func(t *testing.T) {
-//                 t.Parallel()
-//                 ...
-//             })
-//         }
-//     }
+//	func TestGroupedParallel(t *testing.T) {
+//	    for _, tc := range tests {
+//	        tc := tc // capture range variable
+//	        t.Run(tc.Name, func(t *testing.T) {
+//	            t.Parallel()
+//	            ...
+//	        })
+//	    }
+//	}
 //
 // The race detector kills the program if it exceeds 8128 concurrent goroutines,
 // so use care when running parallel tests with the -race flag set.
@@ -292,17 +301,17 @@
 // Run does not return until parallel subtests have completed, providing a way
 // to clean up after a group of parallel tests:
 //
-//     func TestTeardownParallel(t *testing.T) {
-//         // This Run will not return until the parallel tests finish.
-//         t.Run("group", func(t *testing.T) {
-//             t.Run("Test1", parallelTest1)
-//             t.Run("Test2", parallelTest2)
-//             t.Run("Test3", parallelTest3)
-//         })
-//         // <tear-down code>
-//     }
+//	func TestTeardownParallel(t *testing.T) {
+//	    // This Run will not return until the parallel tests finish.
+//	    t.Run("group", func(t *testing.T) {
+//	        t.Run("Test1", parallelTest1)
+//	        t.Run("Test2", parallelTest2)
+//	        t.Run("Test3", parallelTest3)
+//	    })
+//	    // <tear-down code>
+//	}
 //
-// Main
+// # Main
 //
 // It is sometimes necessary for a test or benchmark program to do extra setup or teardown
 // before or after it executes. It is also sometimes necessary to control
@@ -453,7 +462,7 @@ func newChattyPrinter(w io.Writer) *chattyPrinter {
 // Updatef prints a message about the status of the named test to w.
 //
 // The formatted message must include the test name itself.
-func (p *chattyPrinter) Updatef(testName, format string, args ...interface{}) {
+func (p *chattyPrinter) Updatef(testName, format string, args ...any) {
 	p.lastNameMu.Lock()
 	defer p.lastNameMu.Unlock()
 
@@ -467,7 +476,7 @@ func (p *chattyPrinter) Updatef(testName, format string, args ...interface{}) {
 
 // Printf prints a message, generated by the named test, that does not
 // necessarily mention that tests's name itself.
-func (p *chattyPrinter) Printf(testName, format string, args ...interface{}) {
+func (p *chattyPrinter) Printf(testName, format string, args ...any) {
 	p.lastNameMu.Lock()
 	defer p.lastNameMu.Unlock()
 
@@ -680,7 +689,7 @@ func (c *common) decorate(s string, skip int) string {
 
 // flushToParent writes c.output to the parent after first writing the header
 // with the given format and arguments.
-func (c *common) flushToParent(testName, format string, args ...interface{}) {
+func (c *common) flushToParent(testName, format string, args ...any) {
 	p := c.parent
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -740,24 +749,24 @@ func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
-// TB is the interface common to T and B.
+// TB is the interface common to T, B, and F.
 type TB interface {
 	Cleanup(func())
-	Error(args ...interface{})
-	Errorf(format string, args ...interface{})
+	Error(args ...any)
+	Errorf(format string, args ...any)
 	Fail()
 	FailNow()
 	Failed() bool
-	Fatal(args ...interface{})
-	Fatalf(format string, args ...interface{})
+	Fatal(args ...any)
+	Fatalf(format string, args ...any)
 	Helper()
-	Log(args ...interface{})
-	Logf(format string, args ...interface{})
+	Log(args ...any)
+	Logf(format string, args ...any)
 	Name() string
 	Setenv(key, value string)
-	Skip(args ...interface{})
+	Skip(args ...any)
 	SkipNow()
-	Skipf(format string, args ...interface{})
+	Skipf(format string, args ...any)
 	Skipped() bool
 	TempDir() string
 
@@ -906,7 +915,7 @@ func (c *common) logDepth(s string, depth int) {
 // and records the text in the error log. For tests, the text will be printed only if
 // the test fails or the -test.v flag is set. For benchmarks, the text is always
 // printed to avoid having performance depend on the value of the -test.v flag.
-func (c *common) Log(args ...interface{}) {
+func (c *common) Log(args ...any) {
 	c.checkFuzzFn("Log")
 	c.log(fmt.Sprintln(args...))
 }
@@ -916,48 +925,48 @@ func (c *common) Log(args ...interface{}) {
 // tests, the text will be printed only if the test fails or the -test.v flag is
 // set. For benchmarks, the text is always printed to avoid having performance
 // depend on the value of the -test.v flag.
-func (c *common) Logf(format string, args ...interface{}) {
+func (c *common) Logf(format string, args ...any) {
 	c.checkFuzzFn("Logf")
 	c.log(fmt.Sprintf(format, args...))
 }
 
 // Error is equivalent to Log followed by Fail.
-func (c *common) Error(args ...interface{}) {
+func (c *common) Error(args ...any) {
 	c.checkFuzzFn("Error")
 	c.log(fmt.Sprintln(args...))
 	c.Fail()
 }
 
 // Errorf is equivalent to Logf followed by Fail.
-func (c *common) Errorf(format string, args ...interface{}) {
+func (c *common) Errorf(format string, args ...any) {
 	c.checkFuzzFn("Errorf")
 	c.log(fmt.Sprintf(format, args...))
 	c.Fail()
 }
 
 // Fatal is equivalent to Log followed by FailNow.
-func (c *common) Fatal(args ...interface{}) {
+func (c *common) Fatal(args ...any) {
 	c.checkFuzzFn("Fatal")
 	c.log(fmt.Sprintln(args...))
 	c.FailNow()
 }
 
 // Fatalf is equivalent to Logf followed by FailNow.
-func (c *common) Fatalf(format string, args ...interface{}) {
+func (c *common) Fatalf(format string, args ...any) {
 	c.checkFuzzFn("Fatalf")
 	c.log(fmt.Sprintf(format, args...))
 	c.FailNow()
 }
 
 // Skip is equivalent to Log followed by SkipNow.
-func (c *common) Skip(args ...interface{}) {
+func (c *common) Skip(args ...any) {
 	c.checkFuzzFn("Skip")
 	c.log(fmt.Sprintln(args...))
 	c.SkipNow()
 }
 
 // Skipf is equivalent to Logf followed by SkipNow.
-func (c *common) Skipf(format string, args ...interface{}) {
+func (c *common) Skipf(format string, args ...any) {
 	c.checkFuzzFn("Skipf")
 	c.log(fmt.Sprintf(format, args...))
 	c.SkipNow()
@@ -1087,7 +1096,7 @@ func (c *common) TempDir() string {
 		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {
-				if err := os.RemoveAll(c.tempDir); err != nil {
+				if err := removeAll(c.tempDir); err != nil {
 					c.Errorf("TempDir RemoveAll cleanup: %v", err)
 				}
 			})
@@ -1104,6 +1113,36 @@ func (c *common) TempDir() string {
 		c.Fatalf("TempDir: %v", err)
 	}
 	return dir
+}
+
+// removeAll is like os.RemoveAll, but retries Windows "Access is denied."
+// errors up to an arbitrary timeout.
+//
+// Those errors have been known to occur spuriously on at least the
+// windows-amd64-2012 builder (https://go.dev/issue/50051), and can only occur
+// legitimately if the test leaves behind a temp file that either is still open
+// or the test otherwise lacks permission to delete. In the case of legitimate
+// failures, a failing test may take a bit longer to fail, but once the test is
+// fixed the extra latency will go away.
+func removeAll(path string) error {
+	const arbitraryTimeout = 2 * time.Second
+	var (
+		start     time.Time
+		nextSleep = 1 * time.Millisecond
+	)
+	for {
+		err := os.RemoveAll(path)
+		if !isWindowsRetryable(err) {
+			return err
+		}
+		if start.IsZero() {
+			start = time.Now()
+		} else if d := time.Since(start) + nextSleep; d >= arbitraryTimeout {
+			return err
+		}
+		time.Sleep(nextSleep)
+		nextSleep += time.Duration(rand.Int63n(int64(nextSleep)))
+	}
 }
 
 // Setenv calls os.Setenv(key, value) and uses Cleanup to
@@ -1141,7 +1180,7 @@ const (
 // runCleanup is called at the end of the test.
 // If catchPanic is true, this will catch panics, and return the recovered
 // value if any.
-func (c *common) runCleanup(ph panicHandling) (panicVal interface{}) {
+func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 	if ph == recoverAndReturnPanic {
 		defer func() {
 			panicVal = recover()
@@ -1340,7 +1379,7 @@ func tRunner(t *T, fn func(t *T)) {
 			t.signal <- signal
 		}()
 
-		doPanic := func(err interface{}) {
+		doPanic := func(err any) {
 			t.Fail()
 			if r := t.runCleanup(recoverAndReturnPanic); r != nil {
 				t.Logf("cleanup panicked with %v", r)
@@ -1554,9 +1593,9 @@ func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return e
 func (f matchStringOnly) ReadCorpus(string, []reflect.Type) ([]corpusEntry, error) {
 	return nil, errMain
 }
-func (f matchStringOnly) CheckCorpus([]interface{}, []reflect.Type) error { return nil }
-func (f matchStringOnly) ResetCoverage()                                  {}
-func (f matchStringOnly) SnapshotCoverage()                               {}
+func (f matchStringOnly) CheckCorpus([]any, []reflect.Type) error { return nil }
+func (f matchStringOnly) ResetCoverage()                          {}
+func (f matchStringOnly) SnapshotCoverage()                       {}
 
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
@@ -1602,7 +1641,7 @@ type testDeps interface {
 	CoordinateFuzzing(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
 	RunFuzzWorker(func(corpusEntry) error) error
 	ReadCorpus(string, []reflect.Type) ([]corpusEntry, error)
-	CheckCorpus([]interface{}, []reflect.Type) error
+	CheckCorpus([]any, []reflect.Type) error
 	ResetCoverage()
 	SnapshotCoverage()
 }

@@ -66,7 +66,7 @@ func TestReadFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		outPath := filepath.Join(dir, path.Base(t.Name()))
-		cmd := exec.Command("go", "build", "-o="+outPath)
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath)
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOOS="+goos, "GOARCH="+goarch)
 		stderr := &bytes.Buffer{}
@@ -89,7 +89,7 @@ func TestReadFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		outPath := filepath.Join(gopathDir, path.Base(t.Name()))
-		cmd := exec.Command("go", "build", "-o="+outPath)
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath)
 		cmd.Dir = pkgDir
 		cmd.Env = append(os.Environ(), "GO111MODULE=off", "GOPATH="+gopathDir, "GOOS="+goos, "GOARCH="+goarch)
 		stderr := &bytes.Buffer{}
@@ -124,7 +124,7 @@ func TestReadFile(t *testing.T) {
 		// build lines are included.
 		got = goVersionRe.ReplaceAllString(got, "go\tGOVERSION\n")
 		got = buildRe.ReplaceAllStringFunc(got, func(match string) string {
-			if strings.HasPrefix(match, "build\tcompiler\t") {
+			if strings.HasPrefix(match, "build\t-compiler=") {
 				return match
 			}
 			return ""
@@ -163,7 +163,7 @@ func TestReadFile(t *testing.T) {
 			want: "go\tGOVERSION\n" +
 				"path\texample.com/m\n" +
 				"mod\texample.com/m\t(devel)\t\n" +
-				"build\tcompiler\tgc\n",
+				"build\t-compiler=gc\n",
 		},
 		{
 			name: "invalid_modules",
@@ -177,7 +177,9 @@ func TestReadFile(t *testing.T) {
 		{
 			name:  "valid_gopath",
 			build: buildWithGOPATH,
-			want:  "go\tGOVERSION\n",
+			want: "go\tGOVERSION\n" +
+				"path\texample.com/m\n" +
+				"build\t-compiler=gc\n",
 		},
 		{
 			name: "invalid_gopath",
@@ -210,12 +212,10 @@ func TestReadFile(t *testing.T) {
 					} else {
 						if tc.wantErr != "" {
 							t.Fatalf("unexpected success; want error containing %q", tc.wantErr)
-						} else if got, err := info.MarshalText(); err != nil {
-							t.Fatalf("unexpected error marshaling BuildInfo: %v", err)
-						} else if got := cleanOutputForComparison(string(got)); got != tc.want {
-							if got != tc.want {
-								t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
-							}
+						}
+						got := info.String()
+						if clean := cleanOutputForComparison(string(got)); got != tc.want && clean != tc.want {
+							t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
 						}
 					}
 				})

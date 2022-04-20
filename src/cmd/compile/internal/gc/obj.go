@@ -217,6 +217,10 @@ func dumpGlobalConst(n ir.Node) {
 		if ir.ConstOverflow(v, t) {
 			return
 		}
+	} else {
+		// If the type of the constant is an instantiated generic, we need to emit
+		// that type so the linker knows about it. See issue 51245.
+		_ = reflectdata.TypeLinksym(t)
 	}
 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
 }
@@ -262,6 +266,13 @@ func addGCLocals() {
 		if x := fn.ArgLiveInfo; x != nil {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 			x.Set(obj.AttrStatic, true)
+		}
+		if x := fn.WrapInfo; x != nil && !x.OnList() {
+			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+			x.Set(obj.AttrStatic, true)
+		}
+		for _, jt := range fn.JumpTables {
+			objw.Global(jt.Sym, int32(len(jt.Targets)*base.Ctxt.Arch.PtrSize), obj.RODATA)
 		}
 	}
 }

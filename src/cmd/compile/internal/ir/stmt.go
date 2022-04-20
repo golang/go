@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"go/constant"
 )
 
 // A Decl is a declaration of a const, type, or var. (A declared func is a Func.)
@@ -262,6 +263,37 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 	return n
 }
 
+// A JumpTableStmt is used to implement switches. Its semantics are:
+//   tmp := jt.Idx
+//   if tmp == Cases[0] goto Targets[0]
+//   if tmp == Cases[1] goto Targets[1]
+//   ...
+//   if tmp == Cases[n] goto Targets[n]
+// Note that a JumpTableStmt is more like a multiway-goto than
+// a multiway-if. In particular, the case bodies are just
+// labels to jump to, not not full Nodes lists.
+type JumpTableStmt struct {
+	miniStmt
+
+	// Value used to index the jump table.
+	// We support only integer types that
+	// are at most the size of a uintptr.
+	Idx Node
+
+	// If Idx is equal to Cases[i], jump to Targets[i].
+	// Cases entries must be distinct and in increasing order.
+	// The length of Cases and Targets must be equal.
+	Cases   []constant.Value
+	Targets []*types.Sym
+}
+
+func NewJumpTableStmt(pos src.XPos, idx Node) *JumpTableStmt {
+	n := &JumpTableStmt{Idx: idx}
+	n.pos = pos
+	n.op = OJUMPTABLE
+	return n
+}
+
 // An InlineMarkStmt is a marker placed just before an inlined body.
 type InlineMarkStmt struct {
 	miniStmt
@@ -362,7 +394,7 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
 	return n
 }
 
-// A SwitchStmt is a switch statement: switch Init; Expr { Cases }.
+// A SwitchStmt is a switch statement: switch Init; Tag { Cases }.
 type SwitchStmt struct {
 	miniStmt
 	Tag      Node

@@ -150,11 +150,7 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R0, R26				// context
-#else
-	MOVD	fn+0(FP), R26			// context
-#endif
 
 	// Save caller state in g->sched
 	MOVD	RSP, R0
@@ -175,11 +171,7 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	(g_sched+gobuf_sp)(g), R0
 	MOVD	R0, RSP	// sp = m->g0->sched.sp
 	MOVD	(g_sched+gobuf_bp)(g), R29
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R3, R0				// arg = g
-#else
-	MOVD	R3, -8(RSP)			// arg = g
-#endif
 	MOVD	$0, -16(RSP)			// dummy LR
 	SUB	$16, RSP
 	MOVD	0(R26), R4			// code pointer
@@ -317,85 +309,45 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R26
 	B runtime·morestack(SB)
 
-#ifdef GOEXPERIMENT_regabireflect
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R20.
 TEXT ·spillArgs(SB),NOSPLIT,$0-0
-	MOVD	R0, (0*8)(R20)
-	MOVD	R1, (1*8)(R20)
-	MOVD	R2, (2*8)(R20)
-	MOVD	R3, (3*8)(R20)
-	MOVD	R4, (4*8)(R20)
-	MOVD	R5, (5*8)(R20)
-	MOVD	R6, (6*8)(R20)
-	MOVD	R7, (7*8)(R20)
-	MOVD	R8, (8*8)(R20)
-	MOVD	R9, (9*8)(R20)
-	MOVD	R10, (10*8)(R20)
-	MOVD	R11, (11*8)(R20)
-	MOVD	R12, (12*8)(R20)
-	MOVD	R13, (13*8)(R20)
-	MOVD	R14, (14*8)(R20)
-	MOVD	R15, (15*8)(R20)
-	FMOVD	F0, (16*8)(R20)
-	FMOVD	F1, (17*8)(R20)
-	FMOVD	F2, (18*8)(R20)
-	FMOVD	F3, (19*8)(R20)
-	FMOVD	F4, (20*8)(R20)
-	FMOVD	F5, (21*8)(R20)
-	FMOVD	F6, (22*8)(R20)
-	FMOVD	F7, (23*8)(R20)
-	FMOVD	F8, (24*8)(R20)
-	FMOVD	F9, (25*8)(R20)
-	FMOVD	F10, (26*8)(R20)
-	FMOVD	F11, (27*8)(R20)
-	FMOVD	F12, (28*8)(R20)
-	FMOVD	F13, (29*8)(R20)
-	FMOVD	F14, (30*8)(R20)
-	FMOVD	F15, (31*8)(R20)
+	STP	(R0, R1), (0*8)(R20)
+	STP	(R2, R3), (2*8)(R20)
+	STP	(R4, R5), (4*8)(R20)
+	STP	(R6, R7), (6*8)(R20)
+	STP	(R8, R9), (8*8)(R20)
+	STP	(R10, R11), (10*8)(R20)
+	STP	(R12, R13), (12*8)(R20)
+	STP	(R14, R15), (14*8)(R20)
+	FSTPD	(F0, F1), (16*8)(R20)
+	FSTPD	(F2, F3), (18*8)(R20)
+	FSTPD	(F4, F5), (20*8)(R20)
+	FSTPD	(F6, F7), (22*8)(R20)
+	FSTPD	(F8, F9), (24*8)(R20)
+	FSTPD	(F10, F11), (26*8)(R20)
+	FSTPD	(F12, F13), (28*8)(R20)
+	FSTPD	(F14, F15), (30*8)(R20)
 	RET
 
 // unspillArgs loads args into registers from a *internal/abi.RegArgs in R20.
 TEXT ·unspillArgs(SB),NOSPLIT,$0-0
-	MOVD	(0*8)(R20), R0
-	MOVD	(1*8)(R20), R1
-	MOVD	(2*8)(R20), R2
-	MOVD	(3*8)(R20), R3
-	MOVD	(4*8)(R20), R4
-	MOVD	(5*8)(R20), R5
-	MOVD	(6*8)(R20), R6
-	MOVD	(7*8)(R20), R7
-	MOVD	(8*8)(R20), R8
-	MOVD	(9*8)(R20), R9
-	MOVD	(10*8)(R20), R10
-	MOVD	(11*8)(R20), R11
-	MOVD	(12*8)(R20), R12
-	MOVD	(13*8)(R20), R13
-	MOVD	(14*8)(R20), R14
-	MOVD	(15*8)(R20), R15
-	FMOVD	(16*8)(R20), F0
-	FMOVD	(17*8)(R20), F1
-	FMOVD	(18*8)(R20), F2
-	FMOVD	(19*8)(R20), F3
-	FMOVD	(20*8)(R20), F4
-	FMOVD	(21*8)(R20), F5
-	FMOVD	(22*8)(R20), F6
-	FMOVD	(23*8)(R20), F7
-	FMOVD	(24*8)(R20), F8
-	FMOVD	(25*8)(R20), F9
-	FMOVD	(26*8)(R20), F10
-	FMOVD	(27*8)(R20), F11
-	FMOVD	(28*8)(R20), F12
-	FMOVD	(29*8)(R20), F13
-	FMOVD	(30*8)(R20), F14
-	FMOVD	(31*8)(R20), F15
+	LDP	(0*8)(R20), (R0, R1)
+	LDP	(2*8)(R20), (R2, R3)
+	LDP	(4*8)(R20), (R4, R5)
+	LDP	(6*8)(R20), (R6, R7)
+	LDP	(8*8)(R20), (R8, R9)
+	LDP	(10*8)(R20), (R10, R11)
+	LDP	(12*8)(R20), (R12, R13)
+	LDP	(14*8)(R20), (R14, R15)
+	FLDPD	(16*8)(R20), (F0, F1)
+	FLDPD	(18*8)(R20), (F2, F3)
+	FLDPD	(20*8)(R20), (F4, F5)
+	FLDPD	(22*8)(R20), (F6, F7)
+	FLDPD	(24*8)(R20), (F8, F9)
+	FLDPD	(26*8)(R20), (F10, F11)
+	FLDPD	(28*8)(R20), (F12, F13)
+	FLDPD	(30*8)(R20), (F14, F15)
 	RET
-#else
-TEXT ·spillArgs(SB),NOSPLIT,$0-0
-	RET
-
-TEXT ·unspillArgs(SB),NOSPLIT,$0-0
-	RET
-#endif
 
 // reflectcall: call a function with the given argument list
 // func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
@@ -496,10 +448,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 // arguments in registers.
 TEXT callRet<>(SB), NOSPLIT, $48-0
 	NO_LOCAL_POINTERS
-	MOVD	R7, 8(RSP)
-	MOVD	R3, 16(RSP)
-	MOVD	R5, 24(RSP)
-	MOVD	R4, 32(RSP)
+	STP	(R7, R3), 8(RSP)
+	STP	(R5, R4), 24(RSP)
 	MOVD	R20, 40(RSP)
 	BL	runtime·reflectcallmove(SB)
 	RET
@@ -536,11 +486,6 @@ CALLFN(·call1073741824, 1073741824)
 TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	p+0(FP), R0
-	MOVD	h+8(FP), R1
-	MOVD	$ret+16(FP), R2
-#endif
 	MOVD	$runtime·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
@@ -554,11 +499,7 @@ TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	AESMC	V0.B16, V0.B16
 	AESE	V2.B16, V0.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V0.D[0], R0
-#else
-	VST1	[V0.D1], (R2)
-#endif
 	RET
 noaes:
 	B	runtime·memhash32Fallback<ABIInternal>(SB)
@@ -567,11 +508,6 @@ noaes:
 TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	p+0(FP), R0
-	MOVD	h+8(FP), R1
-	MOVD	$ret+16(FP), R2
-#endif
 	MOVD	$runtime·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
@@ -585,11 +521,7 @@ TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	AESMC	V0.B16, V0.B16
 	AESE	V2.B16, V0.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V0.D[0], R0
-#else
-	VST1	[V0.D1], (R2)
-#endif
 	RET
 noaes:
 	B	runtime·memhash64Fallback<ABIInternal>(SB)
@@ -598,12 +530,6 @@ noaes:
 TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	p+0(FP), R0
-	MOVD	h+8(FP), R1
-	MOVD	s+16(FP), R2
-	MOVD	$ret+24(FP), R8
-#endif
 	B	aeshashbody<>(SB)
 noaes:
 	B	runtime·memhashFallback<ABIInternal>(SB)
@@ -612,14 +538,7 @@ noaes:
 TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
-#ifdef GOEXPERIMENT_regabiargs
 	LDP	(R0), (R0, R2)	// string data / length
-#else
-	MOVD	p+0(FP), R10	// string pointer
-	LDP	(R10), (R0, R2)	// string data / length
-	MOVD	h+8(FP), R1
-	MOVD	$ret+16(FP), R8	// return adddress
-#endif
 	B	aeshashbody<>(SB)
 noaes:
 	B	runtime·strhashFallback<ABIInternal>(SB)
@@ -627,11 +546,7 @@ noaes:
 // R0: data
 // R1: seed data
 // R2: length
-#ifdef GOEXPERIMENT_regabiargs
 // At return, R0 = return value
-#else
-// R8: address to put return value
-#endif
 TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
 	VEOR	V30.B16, V30.B16, V30.B16
 	VMOV	R1, V30.D[0]
@@ -676,19 +591,11 @@ done:
 	AESMC	V2.B16, V2.B16
 	AESE	V0.B16, V2.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V2.D[0], R0
-#else
-	VST1	[V2.D1], (R8)
-#endif
 	RET
 
 aes0:
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V0.D[0], R0
-#else
-	VST1	[V0.D1], (R8)
-#endif
 	RET
 
 aes16:
@@ -718,11 +625,8 @@ aes17to32:
 	AESE	V1.B16, V3.B16
 
 	VEOR	V3.B16, V2.B16, V2.B16
-#ifdef GOEXPERIMENT_regabiargs
+
 	VMOV	V2.D[0], R0
-#else
-	VST1	[V2.D1], (R8)
-#endif
 	RET
 
 aes33to64:
@@ -765,11 +669,7 @@ aes33to64:
 	VEOR	V7.B16, V5.B16, V5.B16
 	VEOR	V5.B16, V4.B16, V4.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V4.D[0], R0
-#else
-	VST1	[V4.D1], (R8)
-#endif
 	RET
 
 aes65to128:
@@ -844,11 +744,7 @@ aes65to128:
 	VEOR	V11.B16, V9.B16, V9.B16
 	VEOR	V9.B16, V8.B16, V8.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V8.D[0], R0
-#else
-	VST1	[V8.D1], (R8)
-#endif
 	RET
 
 aes129plus:
@@ -967,11 +863,7 @@ aesloop:
 	VEOR	V4.B16, V6.B16, V4.B16
 	VEOR	V4.B16, V0.B16, V0.B16
 
-#ifdef GOEXPERIMENT_regabiargs
 	VMOV	V0.D[0], R0
-#else
-	VST1	[V0.D1], (R8)
-#endif
 	RET
 
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
@@ -1289,8 +1181,7 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // calls to it directly and it does not use the stack-based Go ABI.
 TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$200
 	// Save the registers clobbered by the fast path.
-	MOVD	R0, 184(RSP)
-	MOVD	R1, 192(RSP)
+	STP	(R0, R1), 184(RSP)
 	MOVD	g_m(g), R0
 	MOVD	m_p(R0), R0
 	MOVD	(p_wbBuf+wbBuf_next)(R0), R1
@@ -1306,8 +1197,7 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$200
 	// Is the buffer full? (flags set in CMP above)
 	BEQ	flush
 ret:
-	MOVD	184(RSP), R0
-	MOVD	192(RSP), R1
+	LDP	184(RSP), (R0, R1)
 	// Do the write.
 	MOVD	R3, (R2)
 	RET
@@ -1315,32 +1205,20 @@ ret:
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	MOVD	R2, 8(RSP)	// Also first argument to wbBufFlush
-	MOVD	R3, 16(RSP)	// Also second argument to wbBufFlush
-	// R0 already saved
-	// R1 already saved
-	MOVD	R4, 24(RSP)
-	MOVD	R5, 32(RSP)
-	MOVD	R6, 40(RSP)
-	MOVD	R7, 48(RSP)
-	MOVD	R8, 56(RSP)
-	MOVD	R9, 64(RSP)
-	MOVD	R10, 72(RSP)
-	MOVD	R11, 80(RSP)
-	MOVD	R12, 88(RSP)
-	MOVD	R13, 96(RSP)
-	MOVD	R14, 104(RSP)
-	MOVD	R15, 112(RSP)
+	// R0 and R1 already saved
+	STP	(R2, R3), 1*8(RSP)	// Also first and second arguments to wbBufFlush
+	STP	(R4, R5), 3*8(RSP)
+	STP	(R6, R7), 5*8(RSP)
+	STP	(R8, R9), 7*8(RSP)
+	STP	(R10, R11), 9*8(RSP)
+	STP	(R12, R13), 11*8(RSP)
+	STP	(R14, R15), 13*8(RSP)
 	// R16, R17 may be clobbered by linker trampoline
 	// R18 is unused.
-	MOVD	R19, 120(RSP)
-	MOVD	R20, 128(RSP)
-	MOVD	R21, 136(RSP)
-	MOVD	R22, 144(RSP)
-	MOVD	R23, 152(RSP)
-	MOVD	R24, 160(RSP)
-	MOVD	R25, 168(RSP)
-	MOVD	R26, 176(RSP)
+	STP	(R19, R20), 15*8(RSP)
+	STP	(R21, R22), 17*8(RSP)
+	STP	(R23, R24), 19*8(RSP)
+	STP	(R25, R26), 21*8(RSP)
 	// R27 is temp register.
 	// R28 is g.
 	// R29 is frame pointer (unused).
@@ -1349,29 +1227,17 @@ flush:
 
 	// This takes arguments R2 and R3.
 	CALL	runtime·wbBufFlush(SB)
-
-	MOVD	8(RSP), R2
-	MOVD	16(RSP), R3
-	MOVD	24(RSP), R4
-	MOVD	32(RSP), R5
-	MOVD	40(RSP), R6
-	MOVD	48(RSP), R7
-	MOVD	56(RSP), R8
-	MOVD	64(RSP), R9
-	MOVD	72(RSP), R10
-	MOVD	80(RSP), R11
-	MOVD	88(RSP), R12
-	MOVD	96(RSP), R13
-	MOVD	104(RSP), R14
-	MOVD	112(RSP), R15
-	MOVD	120(RSP), R19
-	MOVD	128(RSP), R20
-	MOVD	136(RSP), R21
-	MOVD	144(RSP), R22
-	MOVD	152(RSP), R23
-	MOVD	160(RSP), R24
-	MOVD	168(RSP), R25
-	MOVD	176(RSP), R26
+	LDP	1*8(RSP), (R2, R3)
+	LDP	3*8(RSP), (R4, R5)
+	LDP	5*8(RSP), (R6, R7)
+	LDP	7*8(RSP), (R8, R9)
+	LDP	9*8(RSP), (R10, R11)
+	LDP	11*8(RSP), (R12, R13)
+	LDP	13*8(RSP), (R14, R15)
+	LDP	15*8(RSP), (R19, R20)
+	LDP	17*8(RSP), (R21, R22)
+	LDP	19*8(RSP), (R23, R24)
+	LDP	21*8(RSP), (R25, R26)
 	JMP	ret
 
 // Note: these functions use a special calling convention to save generated code space.
@@ -1383,137 +1249,58 @@ flush:
 // Defined as ABIInternal since the compiler generates ABIInternal
 // calls to it directly and it does not use the stack-based Go ABI.
 TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicIndex<ABIInternal>(SB)
 TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
 TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
 TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
 TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
 TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
 TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
 TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
 TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
 TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
 TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
 TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R1, R0
 	MOVD	R2, R1
-#else
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
 TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
 TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
 TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R0
 	MOVD	R3, R1
-#else
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)

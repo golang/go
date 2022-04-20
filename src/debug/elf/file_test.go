@@ -913,14 +913,32 @@ func TestNoSectionOverlaps(t *testing.T) {
 		if sih.Type == SHT_NOBITS {
 			continue
 		}
+		// checking for overlap in file
 		for j, sj := range f.Sections {
 			sjh := sj.SectionHeader
-			if i == j || sjh.Type == SHT_NOBITS || sih.Offset == sjh.Offset && sih.Size == 0 {
+			if i == j || sjh.Type == SHT_NOBITS || sih.Offset == sjh.Offset && sih.FileSize == 0 {
 				continue
 			}
-			if sih.Offset >= sjh.Offset && sih.Offset < sjh.Offset+sjh.Size {
-				t.Errorf("ld produced ELF with section %s within %s: 0x%x <= 0x%x..0x%x < 0x%x",
-					sih.Name, sjh.Name, sjh.Offset, sih.Offset, sih.Offset+sih.Size, sjh.Offset+sjh.Size)
+			if sih.Offset >= sjh.Offset && sih.Offset < sjh.Offset+sjh.FileSize {
+				t.Errorf("ld produced ELF with section offset %s within %s: 0x%x <= 0x%x..0x%x < 0x%x",
+					sih.Name, sjh.Name, sjh.Offset, sih.Offset, sih.Offset+sih.FileSize, sjh.Offset+sjh.FileSize)
+			}
+		}
+
+		if sih.Flags&SHF_ALLOC == 0 {
+			continue
+		}
+
+		// checking for overlap in address space
+		for j, sj := range f.Sections {
+			sjh := sj.SectionHeader
+			if i == j || sjh.Flags&SHF_ALLOC == 0 || sjh.Type == SHT_NOBITS ||
+				sih.Addr == sjh.Addr && sih.Size == 0 {
+				continue
+			}
+			if sih.Addr >= sjh.Addr && sih.Addr < sjh.Addr+sjh.Size {
+				t.Errorf("ld produced ELF with section address %s within %s: 0x%x <= 0x%x..0x%x < 0x%x",
+					sih.Name, sjh.Name, sjh.Addr, sih.Addr, sih.Addr+sih.Size, sjh.Addr+sjh.Size)
 			}
 		}
 	}

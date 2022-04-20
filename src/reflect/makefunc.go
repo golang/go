@@ -26,9 +26,9 @@ type makeFuncImpl struct {
 // that wraps the function fn. When called, that new function
 // does the following:
 //
-//	- converts its arguments to a slice of Values.
-//	- runs results := fn(args).
-//	- returns the results as a slice of Values, one per formal result.
+//   - converts its arguments to a slice of Values.
+//   - runs results := fn(args).
+//   - returns the results as a slice of Values, one per formal result.
 //
 // The implementation fn can assume that the argument Value slice
 // has the number and type of arguments given by typ.
@@ -43,7 +43,6 @@ type makeFuncImpl struct {
 //
 // The Examples section of the documentation includes an illustration
 // of how to use MakeFunc to build a swap function for different types.
-//
 func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	if typ.Kind() != Func {
 		panic("reflect: call of MakeFunc with non-Func type")
@@ -55,14 +54,14 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	code := abi.FuncPCABI0(makeFuncStub)
 
 	// makeFuncImpl contains a stack map for use by the runtime
-	_, _, abi := funcLayout(ftyp, nil)
+	_, _, abid := funcLayout(ftyp, nil)
 
 	impl := &makeFuncImpl{
 		makeFuncCtxt: makeFuncCtxt{
 			fn:      code,
-			stack:   abi.stackPtrs,
-			argLen:  abi.stackCallArgsSize,
-			regPtrs: abi.inRegPtrs,
+			stack:   abid.stackPtrs,
+			argLen:  abid.stackCallArgsSize,
+			regPtrs: abid.inRegPtrs,
 		},
 		ftyp: ftyp,
 		fn:   fn,
@@ -110,13 +109,13 @@ func makeMethodValue(op string, v Value) Value {
 	code := methodValueCallCodePtr()
 
 	// methodValue contains a stack map for use by the runtime
-	_, _, abi := funcLayout(ftyp, nil)
+	_, _, abid := funcLayout(ftyp, nil)
 	fv := &methodValue{
 		makeFuncCtxt: makeFuncCtxt{
 			fn:      code,
-			stack:   abi.stackPtrs,
-			argLen:  abi.stackCallArgsSize,
-			regPtrs: abi.inRegPtrs,
+			stack:   abid.stackPtrs,
+			argLen:  abid.stackCallArgsSize,
+			regPtrs: abid.inRegPtrs,
 		},
 		method: int(v.flag) >> flagMethodShift,
 		rcvr:   rcvr,
@@ -159,6 +158,7 @@ type makeFuncCtxt struct {
 // nosplit because pointers are being held in uintptr slots in args, so
 // having our stack scanned now could lead to accidentally freeing
 // memory.
+//
 //go:nosplit
 func moveMakeFuncArgPtrs(ctxt *makeFuncCtxt, args *abi.RegArgs) {
 	for i, arg := range args.Ints {

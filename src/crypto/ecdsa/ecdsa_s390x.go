@@ -18,6 +18,7 @@ import (
 // The return value corresponds to the condition code set by the
 // instruction. Interrupted invocations are handled by the
 // function.
+//
 //go:noescape
 func kdsa(fc uint64, params *[4096]byte) (errn uint64)
 

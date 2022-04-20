@@ -48,10 +48,13 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// have specific types, constant x cannot be
 		// converted.
 		ok = T.(*TypeParam).underIs(func(u Type) bool {
-			// t is nil if there are no specific type terms
+			// u is nil if there are no specific type terms
 			if u == nil {
 				cause = check.sprintf("%s does not contain specific types", T)
 				return false
+			}
+			if isString(x.typ) && isBytesOrRunes(u) {
+				return true
 			}
 			if !constConvertibleTo(u, nil) {
 				cause = check.sprintf("cannot convert %s to %s (in %s)", x, u, T)
@@ -96,11 +99,11 @@ func (check *Checker) conversion(x *operand, T Type) {
 		//   use the default type (e.g., []byte("foo") should report string
 		//   not []byte as type for the constant "foo").
 		// - Keep untyped nil for untyped nil arguments.
-		// - For integer to string conversions, keep the argument type.
+		// - For constant integer to string conversions, keep the argument type.
 		//   (See also the TODO below.)
-		if IsInterface(T) && !isTypeParam(T) || constArg && !isConstType(T) || x.isNil() {
+		if isNonTypeParamInterface(T) || constArg && !isConstType(T) || x.isNil() {
 			final = Default(x.typ) // default type of untyped nil is untyped nil
-		} else if isInteger(x.typ) && allString(T) {
+		} else if x.mode == constant_ && isInteger(x.typ) && allString(T) {
 			final = x.typ
 		}
 		check.updateExprType(x.expr, final, true)
@@ -203,7 +206,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return false
 	}
 
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		if check != nil && cause != nil {
 			msg := check.sprintf(format, args...)
 			if *cause != "" {
@@ -224,6 +227,9 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 			}
 			x.typ = V.typ
 			return Tp.is(func(T *term) bool {
+				if T == nil {
+					return false // no specific types
+				}
 				if !x.convertibleTo(check, T.typ, cause) {
 					errorf("cannot convert %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
 					return false

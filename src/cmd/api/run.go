@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -41,51 +42,65 @@ func main() {
 	if goroot == "" {
 		log.Fatal("No $GOROOT set.")
 	}
+	if err := os.Chdir(filepath.Join(goroot, "api")); err != nil {
+		log.Fatal(err)
+	}
 
-	apiDir := filepath.Join(goroot, "api")
-	out, err := exec.Command(goCmd(), "tool", "api",
-		"-c", findAPIDirFiles(apiDir),
-		allowNew(apiDir),
-		"-next", filepath.Join(apiDir, "next.txt"),
-		"-except", filepath.Join(apiDir, "except.txt")).CombinedOutput()
+	files, err := filepath.Glob("go1*.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	next, err := filepath.Glob(filepath.Join("next", "*.txt"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	cmd := exec.Command(goCmd(), "tool", "api",
+		"-c", strings.Join(files, ","),
+		"-approval", strings.Join(append(approvalNeeded(files), next...), ","),
+		allowNew(),
+		"-next", strings.Join(next, ","),
+		"-except", "except.txt",
+	)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Error running API checker: %v\n%s", err, out)
 	}
 	fmt.Print(string(out))
 }
 
-// findAPIDirFiles returns a comma-separated list of Go API files
-// (go1.txt, go1.1.txt, etc.) located in apiDir.
-func findAPIDirFiles(apiDir string) string {
-	dir, err := os.Open(apiDir)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer dir.Close()
-	fs, err := dir.Readdirnames(-1)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var apiFiles []string
-	for _, fn := range fs {
-		if strings.HasPrefix(fn, "go1") {
-			apiFiles = append(apiFiles, filepath.Join(apiDir, fn))
+func approvalNeeded(files []string) []string {
+	var out []string
+	for _, f := range files {
+		name := filepath.Base(f)
+		if name == "go1.txt" {
+			continue
+		}
+		minor := strings.TrimSuffix(strings.TrimPrefix(name, "go1."), ".txt")
+		n, err := strconv.Atoi(minor)
+		if err != nil {
+			log.Fatalf("unexpected api file: %v", f)
+		}
+		if n >= 19 { // approvals started being tracked in Go 1.19
+			out = append(out, f)
 		}
 	}
-	return strings.Join(apiFiles, ",")
+	return out
 }
 
 // allowNew returns the -allow_new flag to use for the 'go tool api' invocation.
-func allowNew(apiDir string) string {
+func allowNew() string {
+	// Experiment for Go 1.19: always require api file updates.
+	return "-allow_new=false"
+
 	// Verify that the api/go1.n.txt for previous Go version exists.
 	// It definitely should, otherwise it's a signal that the logic below may be outdated.
-	if _, err := os.Stat(filepath.Join(apiDir, fmt.Sprintf("go1.%d.txt", goversion.Version-1))); err != nil {
+	if _, err := os.Stat(fmt.Sprintf("go1.%d.txt", goversion.Version-1)); err != nil {
 		log.Fatalln("Problem with api file for previous release:", err)
 	}
 
 	// See whether the api/go1.n.txt for this Go version has been created.
 	// (As of April 2021, it gets created during the release of the first Beta.)
-	_, err := os.Stat(filepath.Join(apiDir, fmt.Sprintf("go1.%d.txt", goversion.Version)))
+	_, err := os.Stat(fmt.Sprintf("go1.%d.txt", goversion.Version))
 	if errors.Is(err, fs.ErrNotExist) {
 		// It doesn't exist, so we're in development or before Beta 1.
 		// At this stage, unmentioned API additions are deemed okay.

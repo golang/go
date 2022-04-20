@@ -2147,7 +2147,7 @@ func TestInvalidTrailerClosesConnection(t *testing.T) {
 // Read and Write.
 type slowTestConn struct {
 	// over multiple calls to Read, time.Durations are slept, strings are read.
-	script []interface{}
+	script []any
 	closec chan bool
 
 	mu     sync.Mutex // guards rd/wd
@@ -2239,7 +2239,7 @@ func TestRequestBodyTimeoutClosesConnection(t *testing.T) {
 	defer afterTest(t)
 	for _, handler := range testHandlerBodyConsumers {
 		conn := &slowTestConn{
-			script: []interface{}{
+			script: []any{
 				"POST /public HTTP/1.1\r\n" +
 					"Host: test\r\n" +
 					"Content-Length: 10000\r\n" +
@@ -2766,7 +2766,7 @@ func TestHandlerPanicWithHijack(t *testing.T) {
 	testHandlerPanic(t, true, h1Mode, nil, "intentional death for testing")
 }
 
-func testHandlerPanic(t *testing.T, withHijack, h2 bool, wrapper func(Handler) Handler, panicValue interface{}) {
+func testHandlerPanic(t *testing.T, withHijack, h2 bool, wrapper func(Handler) Handler, panicValue any) {
 	defer afterTest(t)
 	// Unlike the other tests that set the log output to io.Discard
 	// to quiet the output, this test uses a pipe. The pipe serves three
@@ -3075,22 +3075,14 @@ func TestClientWriteShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CloseWrite: %v", err)
 	}
-	donec := make(chan bool)
-	go func() {
-		defer close(donec)
-		bs, err := io.ReadAll(conn)
-		if err != nil {
-			t.Errorf("ReadAll: %v", err)
-		}
-		got := string(bs)
-		if got != "" {
-			t.Errorf("read %q from server; want nothing", got)
-		}
-	}()
-	select {
-	case <-donec:
-	case <-time.After(10 * time.Second):
-		t.Fatalf("timeout")
+
+	bs, err := io.ReadAll(conn)
+	if err != nil {
+		t.Errorf("ReadAll: %v", err)
+	}
+	got := string(bs)
+	if got != "" {
+		t.Errorf("read %q from server; want nothing", got)
 	}
 }
 
@@ -3942,7 +3934,7 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 	// this test fails, it hangs. This helps debugging and I've
 	// added this enough times "temporarily".  It now gets added
 	// full time.
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		v := fmt.Sprintf(format, args...)
 		println(v)
 		t.Error(v)
@@ -3951,10 +3943,10 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 	unblockBackend := make(chan bool)
 	backend := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		gone := rw.(CloseNotifier).CloseNotify()
-		didCopy := make(chan interface{})
+		didCopy := make(chan any)
 		go func() {
 			n, err := io.CopyN(rw, req.Body, bodySize)
-			didCopy <- []interface{}{n, err}
+			didCopy <- []any{n, err}
 		}()
 		isGone := false
 	Loop:
@@ -4885,11 +4877,7 @@ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
 	handlerDone := make(chan struct{})
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		close(inHandler)
-		select {
-		case <-r.Context().Done():
-		case <-time.After(3 * time.Second):
-			t.Errorf("timeout waiting for context to be done")
-		}
+		<-r.Context().Done()
 		close(handlerDone)
 	}))
 	defer ts.Close()
@@ -4899,18 +4887,9 @@ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
 	}
 	defer c.Close()
 	io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
-	select {
-	case <-inHandler:
-	case <-time.After(3 * time.Second):
-		t.Fatalf("timeout waiting to see ServeHTTP get called")
-	}
+	<-inHandler
 	c.Close() // this should trigger the context being done
-
-	select {
-	case <-handlerDone:
-	case <-time.After(4 * time.Second):
-		t.Fatalf("timeout waiting to see ServeHTTP exit")
-	}
+	<-handlerDone
 }
 
 func TestServerContext_ServerContextKey_h1(t *testing.T) {
@@ -4946,7 +4925,7 @@ func TestServerContext_LocalAddrContextKey_h2(t *testing.T) {
 func testServerContext_LocalAddrContextKey(t *testing.T, h2 bool) {
 	setParallel(t)
 	defer afterTest(t)
-	ch := make(chan interface{}, 1)
+	ch := make(chan any, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ch <- r.Context().Value(LocalAddrContextKey)
 	}))
@@ -5085,10 +5064,11 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, useTLS bool) {
 // The client code runs in a subprocess.
 //
 // For use like:
-//   $ go test -c
-//   $ ./http.test -test.run=XX -test.bench=BenchmarkServer -test.benchtime=15s -test.cpuprofile=http.prof
-//   $ go tool pprof http.test http.prof
-//   (pprof) web
+//
+//	$ go test -c
+//	$ ./http.test -test.run=XX -test.bench=BenchmarkServer -test.benchtime=15s -test.cpuprofile=http.prof
+//	$ go tool pprof http.test http.prof
+//	(pprof) web
 func BenchmarkServer(b *testing.B) {
 	b.ReportAllocs()
 	// Child process mode;
@@ -6006,11 +5986,7 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Error("timeout")
-	}
+	<-done
 }
 
 // Issue 18319: test that the Server validates the request method.
@@ -6305,7 +6281,7 @@ func testContentEncodingNoSniffing(t *testing.T, h2 bool) {
 		// setting contentEncoding as an interface instead of a string
 		// directly, so as to differentiate between 3 states:
 		//    unset, empty string "" and set string "foo/bar".
-		contentEncoding interface{}
+		contentEncoding any
 		wantContentType string
 	}
 

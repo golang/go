@@ -26,7 +26,7 @@ import (
 // The usual variables.
 var (
 	goarch           string
-	gobin            string
+	gorootBin        string
 	gohostarch       string
 	gohostos         string
 	goos             string
@@ -112,18 +112,13 @@ func xinit() {
 		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
+	gorootBin = pathf("%s/bin", goroot)
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
 		b = goroot
 	}
 	goroot_final = b
-
-	b = os.Getenv("GOBIN")
-	if b == "" {
-		b = pathf("%s/bin", goroot)
-	}
-	gobin = b
 
 	b = os.Getenv("GOOS")
 	if b == "" {
@@ -241,9 +236,19 @@ func xinit() {
 	// make.bash really does start from a clean slate.
 	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
 
+	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
+	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,
+	// https://go.dev/issue/31576). Since we want binaries installed by 'dist' to
+	// always go to GOROOT/bin anyway.
+	os.Setenv("GOBIN", gorootBin)
+
 	// Make the environment more predictable.
 	os.Setenv("LANG", "C")
 	os.Setenv("LANGUAGE", "en_US.UTF8")
+	os.Unsetenv("GO111MODULE")
+	os.Setenv("GOENV", "off")
+	os.Unsetenv("GOFLAGS")
+	os.Setenv("GOWORK", "off")
 
 	workdir = xworkdir()
 	if err := ioutil.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
@@ -316,34 +321,6 @@ func chomp(s string) string {
 	return strings.TrimRight(s, " \t\r\n")
 }
 
-func branchtag(branch string) (tag string, precise bool) {
-	log := run(goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", "master.."+branch)
-	tag = branch
-	for row, line := range strings.Split(log, "\n") {
-		// Each line is either blank, or looks like
-		//	  (tag: refs/tags/go1.4rc2, refs/remotes/origin/release-branch.go1.4, refs/heads/release-branch.go1.4)
-		// We need to find an element starting with refs/tags/.
-		const s = " refs/tags/"
-		i := strings.Index(line, s)
-		if i < 0 {
-			continue
-		}
-		// Trim off known prefix.
-		line = line[i+len(s):]
-		// The tag name ends at a comma or paren.
-		j := strings.IndexAny(line, ",)")
-		if j < 0 {
-			continue // malformed line; ignore it
-		}
-		tag = line[:j]
-		if row == 0 {
-			precise = true // tag denotes HEAD
-		}
-		break
-	}
-	return
-}
-
 // findgoversion determines the Go version to use in the version string.
 func findgoversion() string {
 	// The $GOROOT/VERSION file takes priority, for distributions
@@ -395,42 +372,26 @@ func findgoversion() string {
 	}
 
 	// Otherwise, use Git.
-	// What is the current branch?
-	branch := chomp(run(goroot, CheckExit, "git", "rev-parse", "--abbrev-ref", "HEAD"))
-
-	// What are the tags along the current branch?
-	tag := "devel"
-	precise := false
-
-	// If we're on a release branch, use the closest matching tag
-	// that is on the release branch (and not on the master branch).
-	if strings.HasPrefix(branch, "release-branch.") {
-		tag, precise = branchtag(branch)
+	//
+	// Include 1.x base version, hash, and date in the version.
+	//
+	// Note that we lightly parse internal/goversion/goversion.go to
+	// obtain the base version. We can't just import the package,
+	// because cmd/dist is built with a bootstrap GOROOT which could
+	// be an entirely different version of Go, like 1.4. We assume
+	// that the file contains "const Version = <Integer>".
+	goversionSource := readfile(pathf("%s/src/internal/goversion/goversion.go", goroot))
+	m := regexp.MustCompile(`(?m)^const Version = (\d+)`).FindStringSubmatch(goversionSource)
+	if m == nil {
+		fatalf("internal/goversion/goversion.go does not contain 'const Version = ...'")
 	}
-
-	if !precise {
-		// Tag does not point at HEAD; add 1.x base version, hash, and date to version.
-		//
-		// Note that we lightly parse internal/goversion/goversion.go to
-		// obtain the base version. We can't just import the package,
-		// because cmd/dist is built with a bootstrap GOROOT which could
-		// be an entirely different version of Go, like 1.4. We assume
-		// that the file contains "const Version = <Integer>".
-
-		goversionSource := readfile(pathf("%s/src/internal/goversion/goversion.go", goroot))
-		m := regexp.MustCompile(`(?m)^const Version = (\d+)`).FindStringSubmatch(goversionSource)
-		if m == nil {
-			fatalf("internal/goversion/goversion.go does not contain 'const Version = ...'")
-		}
-		tag += fmt.Sprintf(" go1.%s-", m[1])
-
-		tag += chomp(run(goroot, CheckExit, "git", "log", "-n", "1", "--format=format:%h %cd", "HEAD"))
-	}
+	version := fmt.Sprintf("devel go1.%s-", m[1])
+	version += chomp(run(goroot, CheckExit, "git", "log", "-n", "1", "--format=format:%h %cd", "HEAD"))
 
 	// Cache version.
-	writefile(tag, path, 0)
+	writefile(version, path, 0)
 
-	return tag
+	return version
 }
 
 // isGitRepo reports whether the working directory is inside a Git repository.
@@ -532,16 +493,6 @@ func setup() {
 	// Remove old pre-tool binaries.
 	for _, old := range oldtool {
 		xremove(pathf("%s/bin/%s", goroot, old))
-	}
-
-	// If $GOBIN is set and has a Go compiler, it must be cleaned.
-	for _, char := range "56789" {
-		if isfile(pathf("%s/%c%s", gobin, char, "g")) {
-			for _, old := range oldtool {
-				xremove(pathf("%s/%s", gobin, old))
-			}
-			break
-		}
 	}
 
 	// For release, make sure excluded things are excluded.
@@ -776,6 +727,8 @@ func runInstall(pkg string, ch chan struct{}) {
 			pathf("%s/src/runtime/funcdata.h", goroot), 0)
 		copyfile(pathf("%s/pkg/include/asm_ppc64x.h", goroot),
 			pathf("%s/src/runtime/asm_ppc64x.h", goroot), 0)
+		copyfile(pathf("%s/pkg/include/asm_amd64.h", goroot),
+			pathf("%s/src/runtime/asm_amd64.h", goroot), 0)
 	}
 
 	// Generate any missing files; regenerate existing ones.
@@ -976,12 +929,41 @@ func packagefile(pkg string) string {
 	return pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, pkg)
 }
 
+// unixOS is the set of GOOS values matched by the "unix" build tag.
+// This is the same list as in go/build/syslist.go.
+var unixOS = map[string]bool{
+	"aix":       true,
+	"android":   true,
+	"darwin":    true,
+	"dragonfly": true,
+	"freebsd":   true,
+	"hurd":      true,
+	"illumos":   true,
+	"ios":       true,
+	"linux":     true,
+	"netbsd":    true,
+	"openbsd":   true,
+	"solaris":   true,
+}
+
 // matchtag reports whether the tag matches this build.
 func matchtag(tag string) bool {
-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
-		(goos == "android" && tag == "linux") ||
-		(goos == "illumos" && tag == "solaris") ||
-		(goos == "ios" && tag == "darwin")
+	switch tag {
+	case "gc", "cmd_go_bootstrap", "go1.1":
+		return true
+	case "linux":
+		return goos == "linux" || goos == "android"
+	case "solaris":
+		return goos == "solaris" || goos == "illumos"
+	case "darwin":
+		return goos == "darwin" || goos == "ios"
+	case goos, goarch:
+		return true
+	case "unix":
+		return unixOS[goos]
+	default:
+		return false
+	}
 }
 
 // shouldbuild reports whether we should build this file.
@@ -1139,8 +1121,8 @@ func clean() {
 // The env command prints the default environment.
 func cmdenv() {
 	path := flag.Bool("p", false, "emit updated PATH")
-	plan9 := flag.Bool("9", false, "emit plan 9 syntax")
-	windows := flag.Bool("w", false, "emit windows syntax")
+	plan9 := flag.Bool("9", gohostos == "plan9", "emit plan 9 syntax")
+	windows := flag.Bool("w", gohostos == "windows", "emit windows syntax")
 	xflagparse(0)
 
 	format := "%s=\"%s\"\n"
@@ -1151,10 +1133,13 @@ func cmdenv() {
 		format = "set %s=%s\r\n"
 	}
 
+	xprintf(format, "GO111MODULE", "")
 	xprintf(format, "GOARCH", goarch)
-	xprintf(format, "GOBIN", gobin)
+	xprintf(format, "GOBIN", gorootBin)
 	xprintf(format, "GOCACHE", os.Getenv("GOCACHE"))
 	xprintf(format, "GODEBUG", os.Getenv("GODEBUG"))
+	xprintf(format, "GOENV", "off")
+	xprintf(format, "GOFLAGS", "")
 	xprintf(format, "GOHOSTARCH", gohostarch)
 	xprintf(format, "GOHOSTOS", gohostos)
 	xprintf(format, "GOOS", goos)
@@ -1180,13 +1165,14 @@ func cmdenv() {
 	if goarch == "ppc64" || goarch == "ppc64le" {
 		xprintf(format, "GOPPC64", goppc64)
 	}
+	xprintf(format, "GOWORK", "off")
 
 	if *path {
 		sep := ":"
 		if gohostos == "windows" {
 			sep = ";"
 		}
-		xprintf(format, "PATH", fmt.Sprintf("%s%s%s", gobin, sep, os.Getenv("PATH")))
+		xprintf(format, "PATH", fmt.Sprintf("%s%s%s", gorootBin, sep, os.Getenv("PATH")))
 	}
 }
 
@@ -1239,7 +1225,9 @@ var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link"}
 // commands (like "go tool dist test" in run.bash) can rely on bug fixes
 // made since Go 1.4, but this function cannot. In particular, the uses
 // of os/exec in this function cannot assume that
+//
 //	cmd.Env = append(os.Environ(), "X=Y")
+//
 // sets $X to Y in the command's environment. That guarantee was
 // added after Go 1.4, and in fact in Go 1.4 it was typically the opposite:
 // if $X was already present in os.Environ(), most systems preferred
@@ -1331,7 +1319,7 @@ func cmdbootstrap() {
 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
 	goldflags = os.Getenv("GO_LDFLAGS") // we were using $BOOT_GO_LDFLAGS until now
 	goBootstrap := pathf("%s/go_bootstrap", tooldir)
-	cmdGo := pathf("%s/go", gobin)
+	cmdGo := pathf("%s/go", gorootBin)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		copyfile(pathf("%s/compile1", tooldir), pathf("%s/compile", tooldir), writeExec)
@@ -1470,7 +1458,7 @@ func cmdbootstrap() {
 		os.Setenv("GOOS", gohostos)
 		os.Setenv("GOARCH", gohostarch)
 		os.Setenv("CC", compilerEnvLookup(defaultcc, gohostos, gohostarch))
-		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gobin, goos, goarch, exe), wrapperPath)
+		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gorootBin, goos, goarch, exe), wrapperPath)
 		// Restore environment.
 		// TODO(elias.naur): support environment variables in goCmd?
 		os.Setenv("GOOS", goos)
@@ -1502,8 +1490,19 @@ func goInstall(goBinary string, args ...string) {
 	goCmd(goBinary, "install", args...)
 }
 
+func appendCompilerFlags(args []string) []string {
+	if gogcflags != "" {
+		args = append(args, "-gcflags=all="+gogcflags)
+	}
+	if goldflags != "" {
+		args = append(args, "-ldflags=all="+goldflags)
+	}
+	return args
+}
+
 func goCmd(goBinary string, cmd string, args ...string) {
-	goCmd := []string{goBinary, cmd, "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
+	goCmd := []string{goBinary, cmd}
+	goCmd = appendCompilerFlags(goCmd)
 	if vflag > 0 {
 		goCmd = append(goCmd, "-v")
 	}
@@ -1517,12 +1516,11 @@ func goCmd(goBinary string, cmd string, args ...string) {
 }
 
 func checkNotStale(goBinary string, targets ...string) {
-	out := run(workdir, CheckExit,
-		append([]string{
-			goBinary,
-			"list", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags,
-			"-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}",
-		}, targets...)...)
+	goCmd := []string{goBinary, "list"}
+	goCmd = appendCompilerFlags(goCmd)
+	goCmd = append(goCmd, "-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}")
+
+	out := run(workdir, CheckExit, append(goCmd, targets...)...)
 	if strings.Contains(out, "\tSTALE ") {
 		os.Setenv("GODEBUG", "gocachehash=1")
 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
@@ -1684,26 +1682,26 @@ func banner() {
 	}
 	xprintf("---\n")
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)
-	xprintf("Installed commands in %s\n", gobin)
+	xprintf("Installed commands in %s\n", gorootBin)
 
 	if !xsamefile(goroot_final, goroot) {
 		// If the files are to be moved, don't check that gobin
 		// is on PATH; assume they know what they are doing.
 	} else if gohostos == "plan9" {
-		// Check that gobin is bound before /bin.
+		// Check that GOROOT/bin is bound before /bin.
 		pid := strings.Replace(readfile("#c/pid"), " ", "", -1)
 		ns := fmt.Sprintf("/proc/%s/ns", pid)
-		if !strings.Contains(readfile(ns), fmt.Sprintf("bind -b %s /bin", gobin)) {
-			xprintf("*** You need to bind %s before /bin.\n", gobin)
+		if !strings.Contains(readfile(ns), fmt.Sprintf("bind -b %s /bin", gorootBin)) {
+			xprintf("*** You need to bind %s before /bin.\n", gorootBin)
 		}
 	} else {
-		// Check that gobin appears in $PATH.
+		// Check that GOROOT/bin appears in $PATH.
 		pathsep := ":"
 		if gohostos == "windows" {
 			pathsep = ";"
 		}
-		if !strings.Contains(pathsep+os.Getenv("PATH")+pathsep, pathsep+gobin+pathsep) {
-			xprintf("*** You need to add %s to your PATH.\n", gobin)
+		if !strings.Contains(pathsep+os.Getenv("PATH")+pathsep, pathsep+gorootBin+pathsep) {
+			xprintf("*** You need to add %s to your PATH.\n", gorootBin)
 		}
 	}
 

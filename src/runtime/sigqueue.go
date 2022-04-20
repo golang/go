@@ -11,18 +11,18 @@
 //
 // sigsend is called by the signal handler to queue a new signal.
 // signal_recv is called by the Go program to receive a newly queued signal.
+//
 // Synchronization between sigsend and signal_recv is based on the sig.state
-// variable. It can be in 4 states: sigIdle, sigReceiving, sigSending and sigFixup.
-// sigReceiving means that signal_recv is blocked on sig.Note and there are no
-// new pending signals.
-// sigSending means that sig.mask *may* contain new pending signals,
-// signal_recv can't be blocked in this state.
-// sigIdle means that there are no new pending signals and signal_recv is not blocked.
-// sigFixup is a transient state that can only exist as a short
-// transition from sigReceiving and then on to sigIdle: it is
-// used to ensure the AllThreadsSyscall()'s mDoFixup() operation
-// occurs on the sleeping m, waiting to receive a signal.
+// variable. It can be in three states:
+// * sigReceiving means that signal_recv is blocked on sig.Note and there are
+//   no new pending signals.
+// * sigSending means that sig.mask *may* contain new pending signals,
+//   signal_recv can't be blocked in this state.
+// * sigIdle means that there are no new pending signals and signal_recv is not
+//   blocked.
+//
 // Transitions between states are done atomically with CAS.
+//
 // When signal_recv is unblocked, it resets sig.Note and rechecks sig.mask.
 // If several sigsends and signal_recv execute concurrently, it can lead to
 // unnecessary rechecks of sig.mask, but it cannot lead to missed signals
@@ -63,7 +63,6 @@ const (
 	sigIdle = iota
 	sigReceiving
 	sigSending
-	sigFixup
 )
 
 // sigsend delivers a signal from sighandler to the internal signal delivery queue.
@@ -117,9 +116,6 @@ Send:
 				notewakeup(&sig.note)
 				break Send
 			}
-		case sigFixup:
-			// nothing to do - we need to wait for sigIdle.
-			mDoFixupAndOSYield()
 		}
 	}
 
@@ -127,21 +123,9 @@ Send:
 	return true
 }
 
-// sigRecvPrepareForFixup is used to temporarily wake up the
-// signal_recv() running thread while it is blocked waiting for the
-// arrival of a signal. If it causes the thread to wake up, the
-// sig.state travels through this sequence: sigReceiving -> sigFixup
-// -> sigIdle -> sigReceiving and resumes. (This is only called while
-// GC is disabled.)
-//go:nosplit
-func sigRecvPrepareForFixup() {
-	if atomic.Cas(&sig.state, sigReceiving, sigFixup) {
-		notewakeup(&sig.note)
-	}
-}
-
 // Called to receive the next queued signal.
 // Must only be called from a single goroutine at a time.
+//
 //go:linkname signal_recv os/signal.signal_recv
 func signal_recv() uint32 {
 	for {
@@ -167,16 +151,7 @@ func signal_recv() uint32 {
 					}
 					notetsleepg(&sig.note, -1)
 					noteclear(&sig.note)
-					if !atomic.Cas(&sig.state, sigFixup, sigIdle) {
-						break Receive
-					}
-					// Getting here, the code will
-					// loop around again to sleep
-					// in state sigReceiving. This
-					// path is taken when
-					// sigRecvPrepareForFixup()
-					// has been called by another
-					// thread.
+					break Receive
 				}
 			case sigSending:
 				if atomic.Cas(&sig.state, sigSending, sigIdle) {
@@ -199,6 +174,7 @@ func signal_recv() uint32 {
 // the signal(s) in question, and here we are just waiting to make sure
 // that all the signals have been delivered to the user channels
 // by the os/signal package.
+//
 //go:linkname signalWaitUntilIdle os/signal.signalWaitUntilIdle
 func signalWaitUntilIdle() {
 	// Although the signals we care about have been removed from
@@ -219,6 +195,7 @@ func signalWaitUntilIdle() {
 }
 
 // Must only be called from a single goroutine at a time.
+//
 //go:linkname signal_enable os/signal.signal_enable
 func signal_enable(s uint32) {
 	if !sig.inuse {
@@ -247,6 +224,7 @@ func signal_enable(s uint32) {
 }
 
 // Must only be called from a single goroutine at a time.
+//
 //go:linkname signal_disable os/signal.signal_disable
 func signal_disable(s uint32) {
 	if s >= uint32(len(sig.wanted)*32) {
@@ -260,6 +238,7 @@ func signal_disable(s uint32) {
 }
 
 // Must only be called from a single goroutine at a time.
+//
 //go:linkname signal_ignore os/signal.signal_ignore
 func signal_ignore(s uint32) {
 	if s >= uint32(len(sig.wanted)*32) {
@@ -279,6 +258,7 @@ func signal_ignore(s uint32) {
 // sigInitIgnored marks the signal as already ignored. This is called at
 // program start by initsig. In a shared library initsig is called by
 // libpreinit, so the runtime may not be initialized yet.
+//
 //go:nosplit
 func sigInitIgnored(s uint32) {
 	i := sig.ignored[s/32]
@@ -287,6 +267,7 @@ func sigInitIgnored(s uint32) {
 }
 
 // Checked by signal handlers.
+//
 //go:linkname signal_ignored os/signal.signal_ignored
 func signal_ignored(s uint32) bool {
 	i := atomic.Load(&sig.ignored[s/32])

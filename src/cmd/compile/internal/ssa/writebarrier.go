@@ -80,11 +80,11 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 // when necessary (the condition above). It rewrites store ops to branches
 // and runtime calls, like
 //
-// if writeBarrier.enabled {
-//   gcWriteBarrier(ptr, val)	// Not a regular Go call
-// } else {
-//   *ptr = val
-// }
+//	if writeBarrier.enabled {
+//		gcWriteBarrier(ptr, val)	// Not a regular Go call
+//	} else {
+//		*ptr = val
+//	}
 //
 // A sequence of WB stores for many pointer fields of a single type will
 // be emitted together, with a single branch.
@@ -486,7 +486,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	inRegs := b.Func.ABIDefault == b.Func.ABI1 && len(config.intParamRegs) >= 3
 
 	// put arguments on stack
-	off := config.ctxt.FixedFrameSize()
+	off := config.ctxt.Arch.FixedFrameSize
 
 	var argTypes []*types.Type
 	if typ != nil { // for typedmemmove
@@ -529,7 +529,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	// issue call
 	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)))
 	call.AddArgs(wbargs...)
-	call.AuxInt = off - config.ctxt.FixedFrameSize()
+	call.AuxInt = off - config.ctxt.Arch.FixedFrameSize
 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
 }
 
@@ -629,7 +629,7 @@ func IsNewObject(v *Value) (mem *Value, ok bool) {
 	if v.Args[0].Args[0].Op != OpSP {
 		return nil, false
 	}
-	if v.Args[0].AuxInt != c.ctxt.FixedFrameSize()+c.RegSize { // offset of return value
+	if v.Args[0].AuxInt != c.ctxt.Arch.FixedFrameSize+c.RegSize { // offset of return value
 		return nil, false
 	}
 	return mem, true

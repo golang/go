@@ -37,6 +37,7 @@ type SymKind uint8
 // These are used to index into cmd/link/internal/sym/AbiSymKindToSymKind
 //
 // TODO(rsc): Give idiomatic Go names.
+//
 //go:generate stringer -type=SymKind
 const (
 	// An otherwise invalid zero value for the type

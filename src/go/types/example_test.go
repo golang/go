@@ -279,7 +279,7 @@ func fib(x int) int {
 	//
 	// Types and Values of each expression:
 	//  4: 8 | string              | type    : string
-	//  6:15 | len                 | builtin : func(string) int
+	//  6:15 | len                 | builtin : func(fib.S) int
 	//  6:15 | len(b)              | value   : int
 	//  6:19 | b                   | var     : fib.S
 	//  6:23 | S                   | type    : fib.S

@@ -90,7 +90,7 @@ func AddrFrom4(addr [4]byte) Addr {
 }
 
 // AddrFrom16 returns the IPv6 address given by the bytes in addr.
-// An IPv6-mapped IPv4 address is left as an IPv6 address.
+// An IPv4-mapped IPv6 address is left as an IPv6 address.
 // (Use Unmap to convert them if needed.)
 func AddrFrom16(addr [16]byte) Addr {
 	return Addr{
@@ -456,7 +456,7 @@ func (ip Addr) lessOrEq(ip2 Addr) bool { return ip.Compare(ip2) <= 0 }
 
 // Is4 reports whether ip is an IPv4 address.
 //
-// It returns false for IP4-mapped IPv6 addresses. See IP.Unmap.
+// It returns false for IPv4-mapped IPv6 addresses. See IP.Unmap.
 func (ip Addr) Is4() bool {
 	return ip.z == z4
 }
@@ -675,7 +675,7 @@ const (
 )
 
 // As16 returns the IP address in its 16-byte representation.
-// IPv4 addresses are returned in their v6-mapped form.
+// IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
 // IPv6 addresses with zones are returned without their zone (use the
 // Zone method to get it).
 // The ip zero value returns all zeroes.
@@ -758,7 +758,7 @@ func (ip Addr) Prev() Addr {
 //   - IPv6 with zone ("fe80:db8::1%eth0")
 //
 // Note that unlike package net's IP.String method,
-// IP4-mapped IPv6 addresses format with a "::ffff:"
+// IPv4-mapped IPv6 addresses format with a "::ffff:"
 // prefix before the dotted quad.
 func (ip Addr) String() string {
 	switch ip.z {
@@ -769,7 +769,11 @@ func (ip Addr) String() string {
 	default:
 		if ip.Is4In6() {
 			// TODO(bradfitz): this could alloc less.
-			return "::ffff:" + ip.Unmap().String()
+			if z := ip.Zone(); z != "" {
+				return "::ffff:" + ip.Unmap().String() + "%" + z
+			} else {
+				return "::ffff:" + ip.Unmap().String()
+			}
 		}
 		return ip.string6()
 	}
@@ -787,7 +791,12 @@ func (ip Addr) AppendTo(b []byte) []byte {
 	default:
 		if ip.Is4In6() {
 			b = append(b, "::ffff:"...)
-			return ip.Unmap().appendTo4(b)
+			b = ip.Unmap().appendTo4(b)
+			if z := ip.Zone(); z != "" {
+				b = append(b, '%')
+				b = append(b, z...)
+			}
+			return b
 		}
 		return ip.appendTo6(b)
 	}
@@ -947,10 +956,16 @@ func (ip Addr) MarshalText() ([]byte, error) {
 		b := make([]byte, 0, max)
 		if ip.Is4In6() {
 			b = append(b, "::ffff:"...)
-			return ip.Unmap().appendTo4(b), nil
+			b = ip.Unmap().appendTo4(b)
+			if z := ip.Zone(); z != "" {
+				b = append(b, '%')
+				b = append(b, z...)
+			}
+			return b, nil
 		}
 		return ip.appendTo6(b), nil
 	}
+
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
@@ -1142,8 +1157,17 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 	case z4:
 		b = p.ip.appendTo4(b)
 	default:
-		b = append(b, '[')
-		b = p.ip.appendTo6(b)
+		if p.ip.Is4In6() {
+			b = append(b, "[::ffff:"...)
+			b = p.ip.Unmap().appendTo4(b)
+			if z := p.ip.Zone(); z != "" {
+				b = append(b, '%')
+				b = append(b, z...)
+			}
+		} else {
+			b = append(b, '[')
+			b = p.ip.appendTo6(b)
+		}
 		b = append(b, ']')
 	}
 	b = append(b, ':')
@@ -1264,8 +1288,10 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
 func (p Prefix) IsSingleIP() bool { return p.bits != 0 && int(p.bits) == p.ip.BitLen() }
 
 // ParsePrefix parses s as an IP address prefix.
-// The string can be in the form "192.168.1.0/24" or "2001::db8::/32",
+// The string can be in the form "192.168.1.0/24" or "2001:db8::/32",
 // the CIDR notation defined in RFC 4632 and RFC 4291.
+// IPv6 zones are not permitted in prefixes, and an error will be returned if a
+// zone is present.
 //
 // Note that masked address bits are not zeroed. Use Masked for that.
 func ParsePrefix(s string) (Prefix, error) {
@@ -1277,6 +1303,11 @@ func ParsePrefix(s string) (Prefix, error) {
 	if err != nil {
 		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): " + err.Error())
 	}
+	// IPv6 zones are not allowed: https://go.dev/issue/51899
+	if ip.Is6() && ip.z != z6noz {
+		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): IPv6 zones cannot be present in a prefix")
+	}
+
 	bitsStr := s[i+1:]
 	bits, err := strconv.Atoi(bitsStr)
 	if err != nil {
@@ -1316,7 +1347,7 @@ func (p Prefix) Masked() Prefix {
 // Contains reports whether the network p includes ip.
 //
 // An IPv4 address will not match an IPv6 prefix.
-// A v6-mapped IPv6 address will not match an IPv4 prefix.
+// An IPv4-mapped IPv6 address will not match an IPv4 prefix.
 // A zero-value IP will not match any prefix.
 // If ip has an IPv6 zone, Contains returns false,
 // because Prefixes strip zones.
@@ -1348,8 +1379,8 @@ func (p Prefix) Contains(ip Addr) bool {
 // Overlaps reports whether p and o contain any IP addresses in common.
 //
 // If p and o are of different address families or either have a zero
-// IP, it reports false. Like the Contains method, a prefix with a
-// v6-mapped IPv4 IP is still treated as an IPv6 mask.
+// IP, it reports false. Like the Contains method, a prefix with an
+// IPv4-mapped IPv6 address is still treated as an IPv6 mask.
 func (p Prefix) Overlaps(o Prefix) bool {
 	if !p.IsValid() || !o.IsValid() {
 		return false
@@ -1398,7 +1429,12 @@ func (p Prefix) AppendTo(b []byte) []byte {
 	if p.ip.z == z4 {
 		b = p.ip.appendTo4(b)
 	} else {
-		b = p.ip.appendTo6(b)
+		if p.ip.Is4In6() {
+			b = append(b, "::ffff:"...)
+			b = p.ip.Unmap().appendTo4(b)
+		} else {
+			b = p.ip.appendTo6(b)
+		}
 	}
 
 	b = append(b, '/')

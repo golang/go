@@ -1016,7 +1016,7 @@ func ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree 
 	return
 }
 
-func ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
+func readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
 	var _p0 *byte
 	if len(buf) > 0 {
 		_p0 = &buf[0]
@@ -1158,7 +1158,7 @@ func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, 
 	return
 }
 
-func WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
+func writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
 	var _p0 *byte
 	if len(buf) > 0 {
 		_p0 = &buf[0]

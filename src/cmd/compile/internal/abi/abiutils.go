@@ -258,7 +258,7 @@ type RegAmounts struct {
 // by the ABI rules for parameter passing and result returning.
 type ABIConfig struct {
 	// Do we need anything more than this?
-	offsetForLocals  int64 // e.g., obj.(*Link).FixedFrameSize() -- extra linkage information on some architectures.
+	offsetForLocals  int64 // e.g., obj.(*Link).Arch.FixedFrameSize -- extra linkage information on some architectures.
 	regAmounts       RegAmounts
 	regsForTypeCache map[*types.Type]int
 }
@@ -788,12 +788,12 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
 // field. For things that are not structs (or structs without padding)
 // it returns a list of zeros. Example:
 //
-// type small struct {
-//   x uint16
-//   y uint8
-//   z int32
-//   w int32
-// }
+//	type small struct {
+//		x uint16
+//		y uint8
+//		z int32
+//		w int32
+//	}
 //
 // For this struct we would return a list [0, 1, 0, 0], meaning that
 // we have one byte of padding after the second field, and no bytes of

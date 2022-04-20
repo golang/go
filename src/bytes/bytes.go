@@ -30,7 +30,7 @@ func Compare(a, b []byte) int {
 // explode splits s into a slice of UTF-8 sequences, one per Unicode code point (still slices of bytes),
 // up to a maximum of n byte slices. Invalid UTF-8 sequences are chopped into individual bytes.
 func explode(s []byte, n int) [][]byte {
-	if n <= 0 {
+	if n <= 0 || n > len(s) {
 		n = len(s)
 	}
 	a := make([][]byte, n)
@@ -348,6 +348,9 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 	if n < 0 {
 		n = Count(s, sep) + 1
 	}
+	if n > len(s)+1 {
+		n = len(s) + 1
+	}
 
 	a := make([][]byte, n)
 	n--
@@ -369,18 +372,22 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 // the subslices between those separators.
 // If sep is empty, SplitN splits after each UTF-8 sequence.
 // The count determines the number of subslices to return:
-//   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
-//   n == 0: the result is nil (zero subslices)
-//   n < 0: all subslices
+//
+//	n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+//	n == 0: the result is nil (zero subslices)
+//	n < 0: all subslices
+//
+// To split around the first instance of a separator, see Cut.
 func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 
 // SplitAfterN slices s into subslices after each instance of sep and
 // returns a slice of those subslices.
 // If sep is empty, SplitAfterN splits after each UTF-8 sequence.
 // The count determines the number of subslices to return:
-//   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
-//   n == 0: the result is nil (zero subslices)
-//   n < 0: all subslices
+//
+//	n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+//	n == 0: the result is nil (zero subslices)
+//	n < 0: all subslices
 func SplitAfterN(s, sep []byte, n int) [][]byte {
 	return genSplit(s, sep, len(sep), n)
 }
@@ -389,6 +396,8 @@ func SplitAfterN(s, sep []byte, n int) [][]byte {
 // the subslices between those separators.
 // If sep is empty, Split splits after each UTF-8 sequence.
 // It is equivalent to SplitN with a count of -1.
+//
+// To split around the first instance of a separator, see Cut.
 func Split(s, sep []byte) [][]byte { return genSplit(s, sep, 0, -1) }
 
 // SplitAfter slices s into all subslices after each instance of sep and
@@ -905,7 +914,11 @@ func containsRune(s string, r rune) bool {
 // Trim returns a subslice of s by slicing off all leading and
 // trailing UTF-8-encoded code points contained in cutset.
 func Trim(s []byte, cutset string) []byte {
-	if len(s) == 0 || cutset == "" {
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	if cutset == "" {
 		return s
 	}
 	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
@@ -920,7 +933,11 @@ func Trim(s []byte, cutset string) []byte {
 // TrimLeft returns a subslice of s by slicing off all leading
 // UTF-8-encoded code points contained in cutset.
 func TrimLeft(s []byte, cutset string) []byte {
-	if len(s) == 0 || cutset == "" {
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	if cutset == "" {
 		return s
 	}
 	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
@@ -936,6 +953,10 @@ func trimLeftByte(s []byte, c byte) []byte {
 	for len(s) > 0 && s[0] == c {
 		s = s[1:]
 	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
 	return s
 }
 
@@ -945,6 +966,10 @@ func trimLeftASCII(s []byte, as *asciiSet) []byte {
 			break
 		}
 		s = s[1:]
+	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
 	}
 	return s
 }
@@ -959,6 +984,10 @@ func trimLeftUnicode(s []byte, cutset string) []byte {
 			break
 		}
 		s = s[n:]
+	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
 	}
 	return s
 }
@@ -1115,7 +1144,7 @@ func ReplaceAll(s, old, new []byte) []byte {
 }
 
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
-// are equal under Unicode case-folding, which is a more general
+// are equal under simple Unicode case-folding, which is a more general
 // form of case-insensitivity.
 func EqualFold(s, t []byte) bool {
 	for len(s) != 0 && len(t) != 0 {

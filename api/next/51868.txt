@@ -1,0 +1,36 @@
+pkg debug/pe, const IMAGE_COMDAT_SELECT_ANY = 2 #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_ANY ideal-int #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_ASSOCIATIVE = 5 #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_ASSOCIATIVE ideal-int #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_EXACT_MATCH = 4 #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_EXACT_MATCH ideal-int #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_LARGEST = 6 #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_LARGEST ideal-int #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_NODUPLICATES = 1 #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_NODUPLICATES ideal-int #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_SAME_SIZE = 3 #51686
+pkg debug/pe, const IMAGE_COMDAT_SELECT_SAME_SIZE ideal-int #51686
+pkg debug/pe, const IMAGE_SCN_CNT_CODE = 32 #51686
+pkg debug/pe, const IMAGE_SCN_CNT_CODE ideal-int #51686
+pkg debug/pe, const IMAGE_SCN_CNT_INITIALIZED_DATA = 64 #51686
+pkg debug/pe, const IMAGE_SCN_CNT_INITIALIZED_DATA ideal-int #51686
+pkg debug/pe, const IMAGE_SCN_CNT_UNINITIALIZED_DATA = 128 #51686
+pkg debug/pe, const IMAGE_SCN_CNT_UNINITIALIZED_DATA ideal-int #51686
+pkg debug/pe, const IMAGE_SCN_LNK_COMDAT = 4096 #51686
+pkg debug/pe, const IMAGE_SCN_LNK_COMDAT ideal-int #51686
+pkg debug/pe, const IMAGE_SCN_MEM_DISCARDABLE = 33554432 #51686
+pkg debug/pe, const IMAGE_SCN_MEM_DISCARDABLE ideal-int #51686
+pkg debug/pe, const IMAGE_SCN_MEM_EXECUTE = 536870912 #51686
+pkg debug/pe, const IMAGE_SCN_MEM_EXECUTE ideal-int #51686
+pkg debug/pe, const IMAGE_SCN_MEM_READ = 1073741824 #51686
+pkg debug/pe, const IMAGE_SCN_MEM_READ ideal-int #51686
+pkg debug/pe, const IMAGE_SCN_MEM_WRITE = 2147483648 #51686
+pkg debug/pe, const IMAGE_SCN_MEM_WRITE ideal-int #51686
+pkg debug/pe, method (*File) COFFSymbolReadSectionDefAux(int) (*COFFSymbolAuxFormat5, error) #51686
+pkg debug/pe, type COFFSymbolAuxFormat5 struct #51686
+pkg debug/pe, type COFFSymbolAuxFormat5 struct, Checksum uint32 #51686
+pkg debug/pe, type COFFSymbolAuxFormat5 struct, NumLineNumbers uint16 #51686
+pkg debug/pe, type COFFSymbolAuxFormat5 struct, NumRelocs uint16 #51686
+pkg debug/pe, type COFFSymbolAuxFormat5 struct, SecNum uint16 #51686
+pkg debug/pe, type COFFSymbolAuxFormat5 struct, Selection uint8 #51686
+pkg debug/pe, type COFFSymbolAuxFormat5 struct, Size uint32 #51686

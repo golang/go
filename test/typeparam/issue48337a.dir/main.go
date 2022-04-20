@@ -4,7 +4,7 @@
 
 package main
 
-import "a"
+import "./a"
 
 func main() {
 	obj := a.NewWrapperWithLock("this file does import sync")

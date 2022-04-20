@@ -78,7 +78,26 @@ func TestDebugLinesPushback(t *testing.T) {
 			// Unified mangles differently
 			fn = "(*List[int]).PushBack"
 		}
-		testDebugLines(t, "-N -l -G=3", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
+		testDebugLines(t, "-N -l", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
+	}
+}
+
+func TestDebugLinesConvert(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
+		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
+	}
+
+	switch testGoArch() {
+	default:
+		t.Skip("skipped for many architectures")
+
+	case "arm64", "amd64": // register ABI
+		fn := "G[go.shape.int_0]"
+		if buildcfg.Experiment.Unified {
+			// Unified mangles differently
+			fn = "G[int]"
+		}
+		testDebugLines(t, "-N -l", "convertline.go", fn, []int{9, 10, 11}, true)
 	}
 }
 

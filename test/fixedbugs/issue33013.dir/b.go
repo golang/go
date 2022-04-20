@@ -4,7 +4,7 @@
 
 package b
 
-import "a"
+import "./a"
 
 type Service uint64
 type ServiceDesc struct {

@@ -15,11 +15,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 )
 
 var toRemove []string
@@ -71,43 +69,8 @@ func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
 	if testing.Short() {
 		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
 	}
-	var b bytes.Buffer
-	cmd.Stdout = &b
-	cmd.Stderr = &b
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("starting %s %s: %v", exe, name, err)
-	}
-
-	// If the process doesn't complete within 1 minute,
-	// assume it is hanging and kill it to get a stack trace.
-	p := cmd.Process
-	done := make(chan bool)
-	go func() {
-		scale := 1
-		// This GOARCH/GOOS test is copied from cmd/dist/test.go.
-		// TODO(iant): Have cmd/dist update the environment variable.
-		if runtime.GOARCH == "arm" || runtime.GOOS == "windows" {
-			scale = 2
-		}
-		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
-			if sc, err := strconv.Atoi(s); err == nil {
-				scale = sc
-			}
-		}
-
-		select {
-		case <-done:
-		case <-time.After(time.Duration(scale) * time.Minute):
-			p.Signal(sigquit)
-		}
-	}()
-
-	if err := cmd.Wait(); err != nil {
-		t.Logf("%s %s exit status: %v", exe, name, err)
-	}
-	close(done)
-
-	return b.String()
+	out, _ := testenv.RunWithTimeout(t, cmd)
+	return string(out)
 }
 
 var serializeBuild = make(chan bool, 2)
@@ -440,7 +403,7 @@ func TestRuntimePanicWithRuntimeError(t *testing.T) {
 	}
 }
 
-func panicValue(fn func()) (recovered interface{}) {
+func panicValue(fn func()) (recovered any) {
 	defer func() {
 		recovered = recover()
 	}()
@@ -702,7 +665,7 @@ retry:
 func TestBadTraceback(t *testing.T) {
 	output := runTestProg(t, "testprog", "BadTraceback")
 	for _, want := range []string{
-		"runtime: unexpected return pc",
+		"unexpected return pc",
 		"called from 0xbad",
 		"00000bad",    // Smashed LR in hex dump
 		"<main.badLR", // Symbolization in hex dump (badLR1 or badLR2)
@@ -714,6 +677,13 @@ func TestBadTraceback(t *testing.T) {
 }
 
 func TestTimePprof(t *testing.T) {
+	// This test is unreliable on any system in which nanotime
+	// calls into libc.
+	switch runtime.GOOS {
+	case "aix", "darwin", "illumos", "openbsd", "solaris":
+		t.Skipf("skipping on %s because nanotime calls libc", runtime.GOOS)
+	}
+
 	// Pass GOTRACEBACK for issue #41120 to try to get more
 	// information on timeout.
 	fn := runTestProg(t, "testprog", "TimeProf", "GOTRACEBACK=crash")
@@ -827,6 +797,50 @@ func TestDoublePanic(t *testing.T) {
 	for _, want := range wants {
 		if !strings.Contains(output, want) {
 			t.Errorf("output:\n%s\n\nwant output containing: %s", output, want)
+		}
+	}
+}
+
+// Test that panic while panicking discards error message
+// See issue 52257
+func TestPanicWhilePanicking(t *testing.T) {
+	tests := []struct {
+		Want string
+		Func string
+	}{
+		{
+			"panic while printing panic value: important error message",
+			"ErrorPanic",
+		},
+		{
+			"panic while printing panic value: important stringer message",
+			"StringerPanic",
+		},
+		{
+			"panic while printing panic value: type",
+			"DoubleErrorPanic",
+		},
+		{
+			"panic while printing panic value: type",
+			"DoubleStringerPanic",
+		},
+		{
+			"panic while printing panic value: type",
+			"CircularPanic",
+		},
+		{
+			"important string message",
+			"StringPanic",
+		},
+		{
+			"nil",
+			"NilPanic",
+		},
+	}
+	for _, x := range tests {
+		output := runTestProg(t, "testprog", x.Func)
+		if !strings.Contains(output, x.Want) {
+			t.Errorf("output does not contain %q:\n%s", x.Want, output)
 		}
 	}
 }

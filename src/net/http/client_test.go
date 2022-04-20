@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"log"
 	"net"
@@ -21,6 +22,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -529,27 +531,31 @@ func TestClientRedirectUseResponse(t *testing.T) {
 	}
 }
 
-// Issue 17773: don't follow a 308 (or 307) if the response doesn't
+// Issues 17773 and 49281: don't follow a 3xx if the response doesn't
 // have a Location header.
-func TestClientRedirect308NoLocation(t *testing.T) {
-	setParallel(t)
-	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Header().Set("Foo", "Bar")
-		w.WriteHeader(308)
-	}))
-	defer ts.Close()
-	c := ts.Client()
-	res, err := c.Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res.Body.Close()
-	if res.StatusCode != 308 {
-		t.Errorf("status = %d; want %d", res.StatusCode, 308)
-	}
-	if got := res.Header.Get("Foo"); got != "Bar" {
-		t.Errorf("Foo header = %q; want Bar", got)
+func TestClientRedirectNoLocation(t *testing.T) {
+	for _, code := range []int{301, 308} {
+		t.Run(fmt.Sprint(code), func(t *testing.T) {
+			setParallel(t)
+			defer afterTest(t)
+			ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+				w.Header().Set("Foo", "Bar")
+				w.WriteHeader(code)
+			}))
+			defer ts.Close()
+			c := ts.Client()
+			res, err := c.Get(ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res.Body.Close()
+			if res.StatusCode != code {
+				t.Errorf("status = %d; want %d", res.StatusCode, code)
+			}
+			if got := res.Header.Get("Foo"); got != "Bar" {
+				t.Errorf("Foo header = %q; want Bar", got)
+			}
+		})
 	}
 }
 
@@ -745,7 +751,7 @@ func (j *RecordingJar) Cookies(u *url.URL) []*Cookie {
 	return nil
 }
 
-func (j *RecordingJar) logf(format string, args ...interface{}) {
+func (j *RecordingJar) logf(format string, args ...any) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	fmt.Fprintf(&j.log, format, args...)
@@ -1289,6 +1295,9 @@ func testClientTimeout(t *testing.T, h2 bool) {
 			t.Errorf("net.Error.Timeout = false; want true")
 		}
 		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
+			if runtime.GOOS == "windows" && strings.HasPrefix(runtime.GOARCH, "arm") {
+				testenv.SkipFlaky(t, 43120)
+			}
 			t.Errorf("error string = %q; missing timeout substring", got)
 		}
 
@@ -1334,6 +1343,9 @@ func testClientTimeout_Headers(t *testing.T, h2 bool) {
 		t.Error("net.Error.Timeout = false; want true")
 	}
 	if got := ne.Error(); !strings.Contains(got, "Client.Timeout exceeded") {
+		if runtime.GOOS == "windows" && strings.HasPrefix(runtime.GOARCH, "arm") {
+			testenv.SkipFlaky(t, 43120)
+		}
 		t.Errorf("error string = %q; missing timeout substring", got)
 	}
 }

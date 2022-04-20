@@ -265,10 +265,20 @@ func TestDateParsingCFWS(t *testing.T) {
 		{
 			"Tue, 26 May 2020 14:04:40 UT",
 			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
-			false,
+			true,
 		},
 		{
 			"Thu, 21 May 2020 14:04:40 UT",
+			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
+			true,
+		},
+		{
+			"Tue, 26 May 2020 14:04:40 XT",
+			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
+			false,
+		},
+		{
+			"Thu, 21 May 2020 14:04:40 XT",
 			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
 			false,
 		},
@@ -344,6 +354,17 @@ func TestAddressParsingError(t *testing.T) {
 			t.Errorf(`mail.ParseAddress(%q) #%d want %q, got %v`, tc.text, i, tc.wantErrText, err)
 		}
 	}
+
+	t.Run("CustomWordDecoder", func(t *testing.T) {
+		p := &AddressParser{WordDecoder: &mime.WordDecoder{}}
+		for i, tc := range mustErrTestCases {
+			_, err := p.Parse(tc.text)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErrText) {
+				t.Errorf(`p.Parse(%q) #%d want %q, got %v`, tc.text, i, tc.wantErrText, err)
+			}
+		}
+	})
+
 }
 
 func TestAddressParsing(t *testing.T) {

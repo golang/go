@@ -937,8 +937,9 @@ aes0to15:
 	PAND	masks<>(SB)(BX*8), X1
 
 final1:
-	AESENC	X0, X1  // scramble input, xor in seed
-	AESENC	X1, X1  // scramble combo 2 times
+	PXOR	X0, X1	// xor data with seed
+	AESENC	X1, X1  // scramble combo 3 times
+	AESENC	X1, X1
 	AESENC	X1, X1
 	MOVL	X1, (DX)
 	RET
@@ -971,9 +972,13 @@ aes17to32:
 	MOVOU	(AX), X2
 	MOVOU	-16(AX)(BX*1), X3
 
+	// xor with seed
+	PXOR	X0, X2
+	PXOR	X1, X3
+
 	// scramble 3 times
-	AESENC	X0, X2
-	AESENC	X1, X3
+	AESENC	X2, X2
+	AESENC	X3, X3
 	AESENC	X2, X2
 	AESENC	X3, X3
 	AESENC	X2, X2
@@ -1000,10 +1005,15 @@ aes33to64:
 	MOVOU	-32(AX)(BX*1), X6
 	MOVOU	-16(AX)(BX*1), X7
 
-	AESENC	X0, X4
-	AESENC	X1, X5
-	AESENC	X2, X6
-	AESENC	X3, X7
+	PXOR	X0, X4
+	PXOR	X1, X5
+	PXOR	X2, X6
+	PXOR	X3, X7
+
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
 
 	AESENC	X4, X4
 	AESENC	X5, X5
@@ -1069,7 +1079,12 @@ aesloop:
 	DECL	BX
 	JNE	aesloop
 
-	// 2 more scrambles to finish
+	// 3 more scrambles to finish
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
+
 	AESENC	X4, X4
 	AESENC	X5, X5
 	AESENC	X6, X6

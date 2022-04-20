@@ -23,9 +23,9 @@ var ErrEmptyTypeSet = errors.New("empty type set")
 //
 // Structural type restrictions of a type parameter are created via
 // non-interface types embedded in its constraint interface (directly, or via a
-// chain of interface embeddings). For example, in the declaration `type T[P
-// interface{~int; m()}] int`, the structural restriction of the type parameter
-// P is ~int.
+// chain of interface embeddings). For example, in the declaration
+//  type T[P interface{~int; m()}] int
+// the structural restriction of the type parameter P is ~int.
 //
 // With interface embedding and unions, the specification of structural type
 // restrictions may be arbitrarily complex. For example, consider the
@@ -67,7 +67,31 @@ func StructuralTerms(tparam *TypeParam) ([]*Term, error) {
 	if iface == nil {
 		return nil, fmt.Errorf("constraint is %T, not *types.Interface", constraint.Underlying())
 	}
-	tset, err := computeTermSet(iface, make(map[types.Type]*termSet), 0)
+	return InterfaceTermSet(iface)
+}
+
+// InterfaceTermSet computes the normalized terms for a constraint interface,
+// returning an error if the term set cannot be computed or is empty. In the
+// latter case, the error will be ErrEmptyTypeSet.
+//
+// See the documentation of StructuralTerms for more information on
+// normalization.
+func InterfaceTermSet(iface *types.Interface) ([]*Term, error) {
+	return computeTermSet(iface)
+}
+
+// UnionTermSet computes the normalized terms for a union, returning an error
+// if the term set cannot be computed or is empty. In the latter case, the
+// error will be ErrEmptyTypeSet.
+//
+// See the documentation of StructuralTerms for more information on
+// normalization.
+func UnionTermSet(union *Union) ([]*Term, error) {
+	return computeTermSet(union)
+}
+
+func computeTermSet(typ types.Type) ([]*Term, error) {
+	tset, err := computeTermSetInternal(typ, make(map[types.Type]*termSet), 0)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +122,7 @@ func indentf(depth int, format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, strings.Repeat(".", depth)+format+"\n", args...)
 }
 
-func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res *termSet, err error) {
+func computeTermSetInternal(t types.Type, seen map[types.Type]*termSet, depth int) (res *termSet, err error) {
 	if t == nil {
 		panic("nil type")
 	}
@@ -139,7 +163,7 @@ func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res 
 			if _, ok := embedded.Underlying().(*TypeParam); ok {
 				return nil, fmt.Errorf("invalid embedded type %T", embedded)
 			}
-			tset2, err := computeTermSet(embedded, seen, depth+1)
+			tset2, err := computeTermSetInternal(embedded, seen, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -153,7 +177,7 @@ func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res 
 			var terms termlist
 			switch t.Type().Underlying().(type) {
 			case *types.Interface:
-				tset2, err := computeTermSet(t.Type(), seen, depth+1)
+				tset2, err := computeTermSetInternal(t.Type(), seen, depth+1)
 				if err != nil {
 					return nil, err
 				}

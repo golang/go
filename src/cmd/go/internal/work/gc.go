@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"internal/buildcfg"
 	"io"
 	"log"
 	"os"
@@ -28,7 +27,7 @@ import (
 )
 
 // The 'path' used for GOROOT_FINAL when -trimpath is specified
-const trimPathGoRootFinal = "go"
+const trimPathGoRootFinal string = "$GOROOT"
 
 var runtimePackages = map[string]struct{}{
 	"internal/abi":            struct{}{},
@@ -137,8 +136,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Internal.OmitDebug || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
 		defaultGcFlags = append(defaultGcFlags, "-dwarf=false")
 	}
-	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
-		defaultGcFlags = append(defaultGcFlags, "-goversion", runtimeVersion)
+	if strings.HasPrefix(RuntimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+		defaultGcFlags = append(defaultGcFlags, "-goversion", RuntimeVersion)
 	}
 	if symabis != "" {
 		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
@@ -165,7 +164,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		gcflags = append(gcflags, fmt.Sprintf("-c=%d", c))
 	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
 	if p.Internal.LocalPrefix == "" {
 		args = append(args, "-nolocalimports")
 	} else {
@@ -245,7 +244,7 @@ CheckFlags:
 	}
 
 	// TODO: Test and delete these conditions.
-	if buildcfg.Experiment.FieldTrack || buildcfg.Experiment.PreemptibleLoops {
+	if cfg.ExperimentErr != nil || cfg.Experiment.FieldTrack || cfg.Experiment.PreemptibleLoops {
 		canDashC = false
 	}
 
@@ -362,11 +361,11 @@ func (a *Action) trimpath() string {
 	return rewrite
 }
 
-func asmArgs(a *Action, p *load.Package) []interface{} {
+func asmArgs(a *Action, p *load.Package) []any {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
 	pkgpath := pkgPath(a)
-	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-p", pkgpath, "-trimpath", a.trimpath(), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
+	args := []any{cfg.BuildToolexec, base.Tool("asm"), "-p", pkgpath, "-trimpath", a.trimpath(), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
 	if p.ImportPath == "runtime" && cfg.Goarch == "386" {
 		for _, arg := range forcedAsmflags {
 			if arg == "-dynlink" {
@@ -455,8 +454,8 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 // toolVerify checks that the command line args writes the same output file
 // if run using newTool instead.
 // Unused now but kept around for future use.
-func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile string, args []interface{}) error {
-	newArgs := make([]interface{}, len(args))
+func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile string, args []any) error {
+	newArgs := make([]any, len(args))
 	copy(newArgs, args)
 	newArgs[1] = base.Tool(newTool)
 	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new

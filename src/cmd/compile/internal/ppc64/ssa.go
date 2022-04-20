@@ -476,7 +476,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// caller's SP is FixedFrameSize below the address of the first arg
 		p := s.Prog(ppc64.AMOVD)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -base.Ctxt.FixedFrameSize()
+		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -509,7 +509,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		for _, a := range v.Block.Func.RegArgs {
 			// Pass the spill/unspill information along to the assembler, offset by size of
 			// the saved LR slot.
-			addr := ssagen.SpillSlotAddr(a, ppc64.REGSP, base.Ctxt.FixedFrameSize())
+			addr := ssagen.SpillSlotAddr(a, ppc64.REGSP, base.Ctxt.Arch.FixedFrameSize)
 			s.FuncInfo().AddSpill(
 				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
 		}
@@ -732,6 +732,41 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
+	case ssa.OpPPC64ADDC, ssa.OpPPC64ADDE, ssa.OpPPC64SUBC, ssa.OpPPC64SUBE:
+		r := v.Reg0() // CA is the first, implied argument.
+		r1 := v.Args[0].Reg()
+		r2 := v.Args[1].Reg()
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r2
+		p.Reg = r1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+
+	case ssa.OpPPC64ADDZEzero, ssa.OpPPC64SUBZEzero:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = ppc64.REG_R0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+	case ssa.OpPPC64ADDCconst:
+		p := s.Prog(v.Op.Asm())
+		p.Reg = v.Args[0].Reg()
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		// Output is a pair, the second is the CA, which is implied.
+		p.To.Reg = v.Reg0()
+
+	case ssa.OpPPC64SUBCconst:
+		p := s.Prog(v.Op.Asm())
+		p.SetFrom3Const(v.AuxInt)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
 
 	case ssa.OpPPC64SUBFCconst:
 		p := s.Prog(v.Op.Asm())

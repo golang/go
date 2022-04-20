@@ -70,7 +70,6 @@ func init() {
 	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
 	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 	base.AddModCommonFlags(&cmdDownload.Flag)
-	base.AddWorkfileFlag(&cmdDownload.Flag)
 }
 
 type moduleJSON struct {

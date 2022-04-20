@@ -363,6 +363,9 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 
 	case TYPE_REGLIST:
 		io.WriteString(w, RLconv(a.Offset))
+
+	case TYPE_SPECIAL:
+		io.WriteString(w, SPCconv(a.Offset))
 	}
 }
 
@@ -573,6 +576,33 @@ func RLconv(list int64) string {
 		}
 	}
 	return fmt.Sprintf("RL???%d", list)
+}
+
+// Special operands
+type spcSet struct {
+	lo      int64
+	hi      int64
+	SPCconv func(int64) string
+}
+
+var spcSpace []spcSet
+
+// RegisterSpecialOperands binds a pretty-printer (SPCconv) for special
+// operand numbers to a given special operand number range. Lo is inclusive,
+// hi is exclusive (valid special operands are lo through hi-1).
+func RegisterSpecialOperands(lo, hi int64, rlconv func(int64) string) {
+	spcSpace = append(spcSpace, spcSet{lo, hi, rlconv})
+}
+
+// SPCconv returns the string representation of the special operand spc.
+func SPCconv(spc int64) string {
+	for i := range spcSpace {
+		spcs := &spcSpace[i]
+		if spcs.lo <= spc && spc < spcs.hi {
+			return spcs.SPCconv(spc)
+		}
+	}
+	return fmt.Sprintf("SPC???%d", spc)
 }
 
 type opSet struct {

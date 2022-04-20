@@ -429,4 +429,5 @@ const (
 	SYS_LANDLOCK_ADD_RULE            = 4445
 	SYS_LANDLOCK_RESTRICT_SELF       = 4446
 	SYS_PROCESS_MRELEASE             = 4448
+	SYS_FUTEX_WAITV                  = 4449
 )

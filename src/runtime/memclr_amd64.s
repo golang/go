@@ -6,6 +6,7 @@
 
 #include "go_asm.h"
 #include "textflag.h"
+#include "asm_amd64.h"
 
 // See memclrNoHeapPointers Go doc for important implementation constraints.
 
@@ -39,6 +40,8 @@ tail:
 	JBE	_65through128
 	CMPQ	BX, $256
 	JBE	_129through256
+
+#ifndef hasAVX2
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JE loop_preheader_avx2
 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
@@ -65,6 +68,7 @@ loop:
 	CMPQ	BX, $256
 	JAE	loop
 	JMP	tail
+#endif
 
 loop_preheader_avx2:
 	VPXOR Y0, Y0, Y0

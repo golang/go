@@ -1,5 +1,6 @@
-// buildrun -t 30
+// buildrun -t 45
 
+//go:build !js
 // +build !js
 
 // Copyright 2021 The Go Authors. All rights reserved.

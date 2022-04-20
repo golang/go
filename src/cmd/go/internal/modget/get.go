@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package modget implements the module-aware ``go get'' command.
+// Package modget implements the module-aware “go get” command.
 package modget
 
 // The arguments to 'go get' are patterns with optional version queries, with
@@ -601,7 +601,7 @@ func (r *resolver) matchInModule(ctx context.Context, pattern string, m module.V
 		err      error
 	}
 
-	e := r.matchInModuleCache.Do(key{pattern, m}, func() interface{} {
+	e := r.matchInModuleCache.Do(key{pattern, m}, func() any {
 		match := modload.MatchInModule(ctx, pattern, m, imports.AnyTags())
 		if len(match.Errs) > 0 {
 			return entry{match.Pkgs, match.Errs[0]}
@@ -731,10 +731,10 @@ func (r *resolver) performWildcardQueries(ctx context.Context) {
 }
 
 // queryWildcard adds a candidate set to q for each module for which:
-// 	- some version of the module is already in the build list, and
-// 	- that module exists at some version matching q.version, and
-// 	- either the module path itself matches q.pattern, or some package within
-// 	  the module at q.version matches q.pattern.
+//   - some version of the module is already in the build list, and
+//   - that module exists at some version matching q.version, and
+//   - either the module path itself matches q.pattern, or some package within
+//     the module at q.version matches q.pattern.
 func (r *resolver) queryWildcard(ctx context.Context, q *query) {
 	// For wildcard patterns, modload.QueryPattern only identifies modules
 	// matching the prefix of the path before the wildcard. However, the build
@@ -893,7 +893,7 @@ func (r *resolver) checkWildcardVersions(ctx context.Context) {
 					// curM at its original version contains a path matching q.pattern,
 					// but at rev.Version it does not, so (somewhat paradoxically) if
 					// we changed the version of curM it would no longer match the query.
-					var version interface{} = m
+					var version any = m
 					if rev.Version != q.version {
 						version = fmt.Sprintf("%s@%s (%s)", m.Path, q.version, m.Version)
 					}
@@ -1124,7 +1124,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 	}
 
 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
-		if m.Path == "" || m.Version == "" && modload.MainModules.Contains(m.Path) {
+		if m.Path == "" || m.Version == "" {
 			// Packages in the standard library and main modules are already at their
 			// latest (and only) available versions.
 			return nil

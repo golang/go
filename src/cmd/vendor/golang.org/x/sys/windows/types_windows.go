@@ -156,6 +156,8 @@ const (
 	MAX_PATH      = 260
 	MAX_LONG_PATH = 32768
 
+	MAX_MODULE_NAME32 = 255
+
 	MAX_COMPUTERNAME_LENGTH = 15
 
 	TIME_ZONE_ID_UNKNOWN  = 0
@@ -936,8 +938,8 @@ type StartupInfoEx struct {
 type ProcThreadAttributeList struct{}
 
 type ProcThreadAttributeListContainer struct {
-	data            *ProcThreadAttributeList
-	heapAllocations []uintptr
+	data     *ProcThreadAttributeList
+	pointers []unsafe.Pointer
 }
 
 type ProcessInformation struct {
@@ -969,6 +971,21 @@ type ThreadEntry32 struct {
 	DeltaPri       int32
 	Flags          uint32
 }
+
+type ModuleEntry32 struct {
+	Size         uint32
+	ModuleID     uint32
+	ProcessID    uint32
+	GlblcntUsage uint32
+	ProccntUsage uint32
+	ModBaseAddr  uintptr
+	ModBaseSize  uint32
+	ModuleHandle Handle
+	Module       [MAX_MODULE_NAME32 + 1]uint16
+	ExePath      [MAX_PATH]uint16
+}
+
+const SizeofModuleEntry32 = unsafe.Sizeof(ModuleEntry32{})
 
 type Systemtime struct {
 	Year         uint16
@@ -2732,6 +2749,43 @@ type PROCESS_BASIC_INFORMATION struct {
 	InheritedFromUniqueProcessId uintptr
 }
 
+type SYSTEM_PROCESS_INFORMATION struct {
+	NextEntryOffset              uint32
+	NumberOfThreads              uint32
+	WorkingSetPrivateSize        int64
+	HardFaultCount               uint32
+	NumberOfThreadsHighWatermark uint32
+	CycleTime                    uint64
+	CreateTime                   int64
+	UserTime                     int64
+	KernelTime                   int64
+	ImageName                    NTUnicodeString
+	BasePriority                 int32
+	UniqueProcessID              uintptr
+	InheritedFromUniqueProcessID uintptr
+	HandleCount                  uint32
+	SessionID                    uint32
+	UniqueProcessKey             *uint32
+	PeakVirtualSize              uintptr
+	VirtualSize                  uintptr
+	PageFaultCount               uint32
+	PeakWorkingSetSize           uintptr
+	WorkingSetSize               uintptr
+	QuotaPeakPagedPoolUsage      uintptr
+	QuotaPagedPoolUsage          uintptr
+	QuotaPeakNonPagedPoolUsage   uintptr
+	QuotaNonPagedPoolUsage       uintptr
+	PagefileUsage                uintptr
+	PeakPagefileUsage            uintptr
+	PrivatePageCount             uintptr
+	ReadOperationCount           int64
+	WriteOperationCount          int64
+	OtherOperationCount          int64
+	ReadTransferCount            int64
+	WriteTransferCount           int64
+	OtherTransferCount           int64
+}
+
 // SystemInformationClasses for NtQuerySystemInformation and NtSetSystemInformation
 const (
 	SystemBasicInformation = iota
@@ -3118,3 +3172,5 @@ type ModuleInfo struct {
 	SizeOfImage uint32
 	EntryPoint  uintptr
 }
+
+const ALL_PROCESSOR_GROUPS = 0xFFFF

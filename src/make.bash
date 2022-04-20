@@ -41,11 +41,19 @@
 # Default is "gcc". Also supported: "clang".
 #
 # CC_FOR_TARGET: Command line to run to compile C code for GOARCH.
-# This is used by cgo.  Default is CC.
+# This is used by cgo. Default is CC.
+#
+# CC_FOR_${GOOS}_${GOARCH}: Command line to run to compile C code for specified ${GOOS} and ${GOARCH}.
+# (for example, CC_FOR_linux_arm)
+# If this is not set, the build will use CC_FOR_TARGET if appropriate, or CC.
 #
 # CXX_FOR_TARGET: Command line to run to compile C++ code for GOARCH.
 # This is used by cgo. Default is CXX, or, if that is not set,
 # "g++" or "clang++".
+#
+# CXX_FOR_${GOOS}_${GOARCH}: Command line to run to compile C++ code for specified ${GOOS} and ${GOARCH}.
+# (for example, CXX_FOR_linux_arm)
+# If this is not set, the build will use CXX_FOR_TARGET if appropriate, or CXX.
 #
 # FC: Command line to run to compile Fortran code for GOARCH.
 # This is used by cgo. Default is "gfortran".
@@ -64,11 +72,6 @@
 # tried for all "go" in $PATH. $HOME/go1.4 by default.
 
 set -e
-
-export GOENV=off
-unset GOBIN # Issue 14340
-unset GOFLAGS
-unset GO111MODULE
 
 if [ ! -f run.bash ]; then
 	echo 'make.bash must be run from $GOROOT/src' 1>&2
@@ -153,7 +156,16 @@ if [ "$1" = "-v" ]; then
 fi
 
 goroot_bootstrap_set=${GOROOT_BOOTSTRAP+"true"}
-export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
+if [ -z "$GOROOT_BOOTSTRAP" ]; then
+	GOROOT_BOOTSTRAP="$HOME/go1.4"
+	for d in sdk/go1.17 go1.17; do
+		if [ -d "$HOME/$d" ]; then
+			GOROOT_BOOTSTRAP="$HOME/$d"
+		fi
+	done
+fi
+export GOROOT_BOOTSTRAP
+
 export GOROOT="$(cd .. && pwd)"
 IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
@@ -175,7 +187,7 @@ fi
 # Get the exact bootstrap toolchain version to help with debugging.
 # We clear GOOS and GOARCH to avoid an ominous but harmless warning if
 # the bootstrap doesn't support them.
-GOROOT_BOOTSTRAP_VERSION=$(GOOS= GOARCH= $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
+GOROOT_BOOTSTRAP_VERSION=$(GOOS= GOARCH= GOEXPERIMENT= $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
 echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
 if $verbose; then
 	echo cmd/dist
@@ -186,7 +198,7 @@ if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
 	exit 1
 fi
 rm -f cmd/dist/dist
-GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off GOEXPERIMENT="" GOENV=off GOFLAGS="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
 
 # -e doesn't propagate out of eval, so check success by hand.
 eval $(./cmd/dist/dist env -p || echo FAIL=true)

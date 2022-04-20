@@ -50,7 +50,7 @@ func TestFuncPCCompileError(t *testing.T) {
 	}
 
 	// compile go code.
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-symabis", symabi, "-o", obj, goSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-symabis", symabi, "-o", obj, goSrc)
 	out, err = cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("go tool compile did not fail")

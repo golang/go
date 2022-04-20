@@ -21,7 +21,7 @@ const debugFloat = false // enable for debugging
 
 // A nonzero finite Float represents a multi-precision floating point number
 //
-//   sign × mantissa × 2**exponent
+//	sign × mantissa × 2**exponent
 //
 // with 0.5 <= mantissa < 1.0, and MinExp <= exponent <= MaxExp.
 // A Float may also be zero (+0, -0) or infinite (+Inf, -Inf).
@@ -236,7 +236,6 @@ func (x *Float) Acc() Accuracy {
 //	-1 if x <   0
 //	 0 if x is ±0
 //	+1 if x >   0
-//
 func (x *Float) Sign() int {
 	if debugFloat {
 		x.validate()
@@ -1669,10 +1668,9 @@ func (z *Float) Quo(x, y *Float) *Float {
 
 // Cmp compares x and y and returns:
 //
-//   -1 if x <  y
-//    0 if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf)
-//   +1 if x >  y
-//
+//	-1 if x <  y
+//	 0 if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf)
+//	+1 if x >  y
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
 		x.validate()
@@ -1707,7 +1705,6 @@ func (x *Float) Cmp(y *Float) int {
 //	 0 if x == 0 (signed or unsigned)
 //	+1 if 0 < x < +Inf
 //	+2 if x == +Inf
-//
 func (x *Float) ord() int {
 	var m int
 	switch x.form {

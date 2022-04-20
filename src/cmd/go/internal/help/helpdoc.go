@@ -506,6 +506,8 @@ General-purpose environment variables:
 	GOENV
 		The location of the Go environment configuration file.
 		Cannot be set using 'go env -w'.
+		Setting GOENV=off in the environment disables the use of the
+		default configuration file.
 	GOFLAGS
 		A space-separated list of -flag=value settings to apply
 		to go commands by default, when the given flag is known by
@@ -543,6 +545,14 @@ General-purpose environment variables:
 	GOVCS
 		Lists version control commands that may be used with matching servers.
 		See 'go help vcs'.
+	GOWORK
+		In module aware mode, use the given go.work file as a workspace file.
+		By default or when GOWORK is "auto", the go command searches for a
+		file named go.work in the current directory and then containing directories
+		until one is found. If a valid go.work file is found, the modules
+		specified will collectively be used as the main modules. If GOWORK
+		is "off", or a go.work file is not found in "auto" mode, workspace
+		mode is disabled.
 
 Environment variables for use with cgo:
 
@@ -595,7 +605,7 @@ Architecture-specific environment variables:
 	GOAMD64
 		For GOARCH=amd64, the microarchitecture level for which to compile.
 		Valid values are v1 (default), v2, v3, v4.
-		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
+		See https://golang.org/wiki/MinimumRequirements#amd64
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
@@ -833,6 +843,7 @@ During a particular build, the following words are satisfied:
 	  GOOS environment variable.
 	- the target architecture, as spelled by runtime.GOARCH, set with the
 	  GOARCH environment variable.
+	- "unix", if GOOS is a Unix or Unix-like system.
 	- the compiler being used, either "gc" or "gccgo"
 	- "cgo", if the cgo command is supported (see CGO_ENABLED in
 	  'go help environment').

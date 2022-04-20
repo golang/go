@@ -31,7 +31,7 @@ import (
 //
 // The general syntax of a rule is:
 //
-//		a, b < c, d;
+//	a, b < c, d;
 //
 // which means c and d come after a and b in the partial order
 // (that is, c and d can import a and b),
@@ -39,12 +39,12 @@ import (
 //
 // The rules can chain together, as in:
 //
-//		e < f, g < h;
+//	e < f, g < h;
 //
 // which is equivalent to
 //
-//		e < f, g;
-//		f, g < h;
+//	e < f, g;
+//	f, g < h;
 //
 // Except for the special bottom element "NONE", each name
 // must appear exactly once on the right-hand side of a rule.
@@ -56,7 +56,7 @@ import (
 //
 // Negative assertions double-check the partial order:
 //
-//		i !< j
+//	i !< j
 //
 // means that it must NOT be the case that i < j.
 // Negative assertions may appear anywhere in the rules,
@@ -66,7 +66,6 @@ import (
 //
 // All-caps names are pseudo-names for specific points
 // in the dependency lattice.
-//
 var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE
@@ -88,6 +87,7 @@ var depsRules = `
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
+	< runtime/internal/syscall
 	< runtime/internal/atomic
 	< runtime/internal/math
 	< runtime
@@ -211,8 +211,7 @@ var depsRules = `
 
 	# Misc packages needing only FMT.
 	FMT
-	< flag,
-	  html,
+	< html,
 	  mime/quotedprintable,
 	  net/internal/socktest,
 	  net/url,
@@ -228,6 +227,8 @@ var depsRules = `
 	encoding, reflect
 	< encoding/binary
 	< encoding/base32, encoding/base64;
+
+	FMT, encoding < flag;
 
 	fmt !< encoding/base32, encoding/base64;
 
@@ -287,13 +288,13 @@ var depsRules = `
 	< go/parser;
 
 	FMT
-	< go/build/constraint;
+	< go/build/constraint, go/doc/comment;
 
-	go/build/constraint, go/parser, text/tabwriter
+	go/build/constraint, go/doc/comment, go/parser, text/tabwriter
 	< go/printer
 	< go/format;
 
-	go/parser, internal/lazyregexp, text/template
+	go/doc/comment, go/parser, internal/lazyregexp, text/template
 	< go/doc;
 
 	math/big, go/token
@@ -307,10 +308,6 @@ var depsRules = `
 
 	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
 	< go/build;
-
-	DEBUG, go/build, go/types, text/scanner
-	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
-	< go/importer;
 
 	# databases
 	FMT
@@ -418,9 +415,9 @@ var depsRules = `
 	CGO, fmt, net !< CRYPTO;
 
 	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
-	CRYPTO, FMT, math/big
-	< crypto/rand
+	CRYPTO, FMT, math/big, embed
 	< crypto/internal/randutil
+	< crypto/rand
 	< crypto/ed25519
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
@@ -445,6 +442,11 @@ var depsRules = `
 	< crypto/tls;
 
 	# crypto-aware packages
+
+	CRYPTO, DEBUG, go/build, go/types, text/scanner
+	< internal/pkgbits
+	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
+	< go/importer;
 
 	NET, crypto/rand, mime/quotedprintable
 	< mime/multipart;
@@ -550,6 +552,9 @@ var depsRules = `
 
 	FMT, container/heap, math/rand
 	< internal/trace;
+
+	FMT
+	< internal/diff, internal/txtar;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".
@@ -619,21 +624,6 @@ func TestDependencies(t *testing.T) {
 		if bad != nil {
 			t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
 		}
-	}
-
-	// depPath returns the path between the given from and to packages.
-	// It returns the empty string if there's no dependency path.
-	var depPath func(string, string) string
-	depPath = func(from, to string) string {
-		if sawImport[from][to] {
-			return from + " => " + to
-		}
-		for pkg := range sawImport[from] {
-			if p := depPath(pkg, to); p != "" {
-				return from + " => " + p
-			}
-		}
-		return ""
 	}
 }
 

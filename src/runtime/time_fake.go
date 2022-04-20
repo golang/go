@@ -44,6 +44,7 @@ func time_now() (sec int64, nsec int32, mono int64) {
 // write is like the Unix write system call.
 // We have to avoid write barriers to avoid potential deadlock
 // on write calls.
+//
 //go:nowritebarrierrec
 func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	if !(fd == 1 || fd == 2) {

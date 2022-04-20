@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -88,19 +89,16 @@ and test commands:
 
 	-asmflags '[pattern=]arg list'
 		arguments to pass on each go tool asm invocation.
-	-buildinfo
-		Whether to stamp binaries with build flags. By default, the compiler name
-		(gc or gccgo), toolchain flags (like -gcflags), and environment variables
-		containing flags (like CGO_CFLAGS) are stamped into binaries. Use
-		-buildinfo=false to omit build information. See also -buildvcs.
 	-buildmode mode
 		build mode to use. See 'go help buildmode' for more.
 	-buildvcs
-		Whether to stamp binaries with version control information. By default,
-		version control information is stamped into a binary if the main package
-		and the main module containing it are in the repository containing the
-		current directory (if there is a repository). Use -buildvcs=false to
-		omit version control information. See also -buildinfo.
+		Whether to stamp binaries with version control information
+		("true", "false", or "auto"). By default ("auto"), version control
+		information is stamped into a binary if the main package, the main module
+		containing it, and the current directory are all in the same repository.
+		Use -buildvcs=false to always omit version control information, or
+		-buildvcs=true to error out if version control information is available but
+		cannot be included due to a missing tool or ambiguous directory structure.
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags '[pattern=]arg list'
@@ -135,14 +133,6 @@ and test commands:
 		directory, but it is not accessed. When -modfile is specified, an
 		alternate go.sum file is also used: its path is derived from the
 		-modfile flag by trimming the ".mod" extension and appending ".sum".
-	-workfile file
-		in module aware mode, use the given go.work file as a workspace file.
-		By default or when -workfile is "auto", the go command searches for a
-		file named go.work in the current directory and then containing directories
-		until one is found. If a valid go.work file is found, the modules
-		specified will collectively be used as the main modules. If -workfile
-		is "off", or a go.work file is not found in "auto" mode, workspace
-		mode is disabled.
 	-overlay file
 		read a JSON config file that provides an overlay for build operations.
 		The file is a JSON struct with a single field, named 'Replace', that
@@ -167,9 +157,8 @@ and test commands:
 	-trimpath
 		remove all file system paths from the resulting executable.
 		Instead of absolute file system paths, the recorded file names
-		will begin with either "go" (for the standard library),
-		or a module path@version (when using modules),
-		or a plain import path (when using GOPATH).
+		will begin either a module path@version (when using modules),
+		or a plain import path (when using the standard library, or GOPATH).
 	-toolexec 'cmd args'
 		a program to use to invoke toolchain programs like vet and asm.
 		For example, instead of running asm, the go command will run
@@ -223,7 +212,6 @@ func init() {
 
 	AddBuildFlags(CmdBuild, DefaultBuildFlags)
 	AddBuildFlags(CmdInstall, DefaultBuildFlags)
-	base.AddWorkfileFlag(&CmdBuild.Flag)
 }
 
 // Note that flags consulted by other parts of the code
@@ -317,8 +305,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildBuildinfo, "buildinfo", true, "")
-	cmd.Flag.BoolVar(&cfg.BuildBuildvcs, "buildvcs", true, "")
+	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
@@ -347,6 +334,29 @@ func (v *tagsFlag) Set(s string) error {
 func (v *tagsFlag) String() string {
 	return "<TagsFlag>"
 }
+
+// buildvcsFlag is the implementation of the -buildvcs flag.
+type buildvcsFlag string
+
+func (f *buildvcsFlag) IsBoolFlag() bool { return true } // allow -buildvcs (without arguments)
+
+func (f *buildvcsFlag) Set(s string) error {
+	// https://go.dev/issue/51748: allow "-buildvcs=auto",
+	// in addition to the usual "true" and "false".
+	if s == "" || s == "auto" {
+		*f = "auto"
+		return nil
+	}
+
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return errors.New("value is neither 'auto' nor a valid bool")
+	}
+	*f = (buildvcsFlag)(strconv.FormatBool(b)) // convert to canonical "true" or "false"
+	return nil
+}
+
+func (f *buildvcsFlag) String() string { return string(*f) }
 
 // fileExtSplit expects a filename and returns the name
 // and ext (without the dot). If the file has no
@@ -387,7 +397,7 @@ func oneMainPkg(pkgs []*load.Package) []*load.Package {
 
 var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
-var runtimeVersion = runtime.Version()
+var RuntimeVersion = runtime.Version()
 
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
@@ -395,7 +405,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	var b Builder
 	b.Init()
 
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: true}, args)
 	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
@@ -548,16 +558,22 @@ See also: go build, go get, go clean.
 // libname returns the filename to use for the shared library when using
 // -buildmode=shared. The rules we use are:
 // Use arguments for special 'meta' packages:
+//
 //	std --> libstd.so
 //	std cmd --> libstd,cmd.so
+//
 // A single non-meta argument with trailing "/..." is special cased:
+//
 //	foo/... --> libfoo.so
 //	(A relative path like "./..."  expands the "." first)
+//
 // Use import paths for other cases, changing '/' to '-':
+//
 //	somelib --> libsubdir-somelib.so
 //	./ or ../ --> libsubdir-somelib.so
 //	gopkg.in/tomb.v2 -> libgopkg.in-tomb.v2.so
 //	a/... b/... ---> liba/c,b/d.so - all matching import paths
+//
 // Name parts are joined with ','.
 func libname(args []string, pkgs []*load.Package) (string, error) {
 	var libname string
@@ -617,8 +633,9 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	modload.InitWorkfile()
 	BuildInit()
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: true}, args)
 	if cfg.ModulesEnabled && !modload.HasModRoot() {
 		haveErrors := false
 		allMissingErrors := true

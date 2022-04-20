@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
+//go:build unix || (js && wasm)
 
 package os
 
@@ -196,7 +196,7 @@ func epipecheck(file *File, e error) {
 	}
 }
 
-// DevNull is the name of the operating system's ``null device.''
+// DevNull is the name of the operating system's “null device.”
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "/dev/null"
 

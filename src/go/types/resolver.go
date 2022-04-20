@@ -192,8 +192,9 @@ func (check *Checker) importPackage(at positioner, path, dir string) *Package {
 	// package should be complete or marked fake, but be cautious
 	if imp.complete || imp.fake {
 		check.impMap[key] = imp
-		// Once we've formatted an error message once, keep the pkgPathMap
-		// up-to-date on subsequent imports.
+		// Once we've formatted an error message, keep the pkgPathMap
+		// up-to-date on subsequent imports. It is used for package
+		// qualification in error messages.
 		if check.pkgPathMap != nil {
 			check.markImports(imp)
 		}
@@ -269,7 +270,7 @@ func (check *Checker) collectObjects() {
 				if d.spec.Name != nil {
 					name = d.spec.Name.Name
 					if path == "C" {
-						// match cmd/compile (not prescribed by spec)
+						// match 1.17 cmd/compile (not prescribed by spec)
 						check.errorf(d.spec.Name, _ImportCRenamed, `cannot rename import "C"`)
 						return
 					}
@@ -296,8 +297,8 @@ func (check *Checker) collectObjects() {
 					check.recordImplicit(d.spec, pkgName)
 				}
 
-				if path == "C" {
-					// match cmd/compile (not prescribed by spec)
+				if imp.fake {
+					// match 1.17 cmd/compile (not prescribed by spec)
 					pkgName.used = true
 				}
 
@@ -629,25 +630,31 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	// We process non-alias declarations first, in order to avoid situations where
-	// the type of an alias declaration is needed before it is available. In general
-	// this is still not enough, as it is possible to create sufficiently convoluted
-	// recursive type definitions that will cause a type alias to be needed before it
-	// is available (see issue #25838 for examples).
-	// As an aside, the cmd/compiler suffers from the same problem (#25838).
+	// We process non-alias type declarations first, followed by alias declarations,
+	// and then everything else. This appears to avoid most situations where the type
+	// of an alias is needed before it is available.
+	// There may still be cases where this is not good enough (see also issue #25838).
+	// In those cases Checker.ident will report an error ("invalid use of type alias").
 	var aliasList []*TypeName
-	// phase 1
+	var othersList []Object // everything that's not a type
+	// phase 1: non-alias type declarations
 	for _, obj := range objList {
-		// If we have a type alias, collect it for the 2nd phase.
-		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].tdecl.Assign.IsValid() {
-			aliasList = append(aliasList, tname)
-			continue
+		if tname, _ := obj.(*TypeName); tname != nil {
+			if check.objMap[tname].tdecl.Assign.IsValid() {
+				aliasList = append(aliasList, tname)
+			} else {
+				check.objDecl(obj, nil)
+			}
+		} else {
+			othersList = append(othersList, obj)
 		}
-
+	}
+	// phase 2: alias type declarations
+	for _, obj := range aliasList {
 		check.objDecl(obj, nil)
 	}
-	// phase 2
-	for _, obj := range aliasList {
+	// phase 3: all other declarations
+	for _, obj := range othersList {
 		check.objDecl(obj, nil)
 	}
 
@@ -667,7 +674,7 @@ func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // unusedImports checks for unused imports.
 func (check *Checker) unusedImports() {
-	// if function bodies are not checked, packages' uses are likely missing - don't check
+	// If function bodies are not checked, packages' uses are likely missing - don't check.
 	if check.conf.IgnoreFuncBodies {
 		return
 	}

@@ -5,20 +5,14 @@
 package fuzz
 
 import (
-	"math"
 	"reflect"
 )
 
 func isMinimizable(t reflect.Type) bool {
-	for _, v := range zeroVals {
-		if t == reflect.TypeOf(v) {
-			return true
-		}
-	}
-	return false
+	return t == reflect.TypeOf("") || t == reflect.TypeOf([]byte(nil))
 }
 
-func minimizeBytes(v []byte, try func(interface{}) bool, shouldStop func() bool) {
+func minimizeBytes(v []byte, try func([]byte) bool, shouldStop func() bool) {
 	tmp := make([]byte, len(v))
 	// If minimization was successful at any point during minimizeBytes,
 	// then the vals slice in (*workerServer).minimizeInput will point to
@@ -96,40 +90,6 @@ func minimizeBytes(v []byte, try func(interface{}) bool, shouldStop func() bool)
 			}
 			// Unsuccessful. Revert v[i] back to original value.
 			v[i] = b
-		}
-	}
-}
-
-func minimizeInteger(v uint, try func(interface{}) bool, shouldStop func() bool) {
-	// TODO(rolandshoemaker): another approach could be either unsetting/setting all bits
-	// (depending on signed-ness), or rotating bits? When operating on cast signed integers
-	// this would probably be more complex though.
-	for ; v != 0; v /= 10 {
-		if shouldStop() {
-			return
-		}
-		// We ignore the return value here because there is no point
-		// advancing the loop, since there is nothing after this check,
-		// and we don't return early because a smaller value could
-		// re-trigger the crash.
-		try(v)
-	}
-}
-
-func minimizeFloat(v float64, try func(interface{}) bool, shouldStop func() bool) {
-	if math.IsNaN(v) {
-		return
-	}
-	minimized := float64(0)
-	for div := 10.0; minimized < v; div *= 10 {
-		if shouldStop() {
-			return
-		}
-		minimized = float64(int(v*div)) / div
-		if !try(minimized) {
-			// Since we are searching from least precision -> highest precision we
-			// can return early since we've already found the smallest value
-			return
 		}
 	}
 }

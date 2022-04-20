@@ -16,7 +16,6 @@ import (
 // reports whether the call is valid, with *x holding the result;
 // but x.expr is not set. If the call is invalid, the result is
 // false, and *x is undefined.
-//
 func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (_ bool) {
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
@@ -82,10 +81,24 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
 		var T Type
-		if s, _ := structuralType(S).(*Slice); s != nil {
+		if s, _ := coreType(S).(*Slice); s != nil {
 			T = s.elem
 		} else {
-			check.errorf(x, invalidArg+"%s is not a slice", x)
+			var cause string
+			switch {
+			case x.isNil():
+				cause = "have untyped nil"
+			case isTypeParam(S):
+				if u := coreType(S); u != nil {
+					cause = check.sprintf("%s has core type %s", x, u)
+				} else {
+					cause = check.sprintf("%s has no core type", x)
+				}
+			default:
+				cause = check.sprintf("have %s", x)
+			}
+			// don't use invalidArg prefix here as it would repeat "argument" in the error message
+			check.errorf(x, "first argument to append must be a slice; %s", cause)
 			return
 		}
 
@@ -101,7 +114,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				if x.mode == invalid {
 					return
 				}
-				if allString(x.typ) {
+				if t := coreString(x.typ); t != nil && isString(t) {
 					if check.Types != nil {
 						sig := makeSig(S, S, x.typ)
 						sig.variadic = true
@@ -129,7 +142,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			arg(&x, i)
 			xlist = append(xlist, &x)
 		}
-		check.arguments(call, sig, nil, xlist) // discard result (we know the result type)
+		check.arguments(call, sig, nil, xlist, nil) // discard result (we know the result type)
 		// ok to continue even if check.arguments reported errors
 
 		x.mode = value
@@ -142,9 +155,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// cap(x)
 		// len(x)
 		mode := invalid
-		var typ Type
 		var val constant.Value
-		switch typ = arrayPtrDeref(under(x.typ)); t := typ.(type) {
+		switch t := arrayPtrDeref(under(x.typ)).(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -201,17 +213,19 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			}
 		}
 
-		if mode == invalid && typ != Typ[Invalid] {
+		if mode == invalid && under(x.typ) != Typ[Invalid] {
 			check.errorf(x, invalidArg+"%s for %s", x, bin.name)
 			return
+		}
+
+		// record the signature before changing x.typ
+		if check.Types != nil && mode != constant_ {
+			check.recordBuiltinType(call.Fun, makeSig(Typ[Int], x.typ))
 		}
 
 		x.mode = mode
 		x.typ = Typ[Int]
 		x.val = val
-		if check.Types != nil && mode != constant_ {
-			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
-		}
 
 	case _Close:
 		// close(c)
@@ -309,7 +323,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			}
 			return nil
 		}
-		resTyp := check.applyTypeFunc(f, x.typ)
+		resTyp := check.applyTypeFunc(f, x, id)
 		if resTyp == nil {
 			check.errorf(x, invalidArg+"arguments have type %s, expected floating-point", x.typ)
 			return
@@ -330,14 +344,14 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Copy:
 		// copy(x, y []T) int
-		dst, _ := structuralType(x.typ).(*Slice)
+		dst, _ := coreType(x.typ).(*Slice)
 
 		var y operand
 		arg(&y, 1)
 		if y.mode == invalid {
 			return
 		}
-		src0 := structuralString(y.typ)
+		src0 := coreString(y.typ)
 		if src0 != nil && isString(src0) {
 			src0 = NewSlice(universeByte)
 		}
@@ -437,7 +451,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			}
 			return nil
 		}
-		resTyp := check.applyTypeFunc(f, x.typ)
+		resTyp := check.applyTypeFunc(f, x, id)
 		if resTyp == nil {
 			check.errorf(x, invalidArg+"argument has type %s, expected complex type", x.typ)
 			return
@@ -471,13 +485,13 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		var min int // minimum number of arguments
-		switch structuralType(T).(type) {
+		switch coreType(T).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
 			min = 1
 		case nil:
-			check.errorf(arg0, invalidArg+"cannot make %s: no structural type", arg0)
+			check.errorf(arg0, invalidArg+"cannot make %s: no core type", arg0)
 			return
 		default:
 			check.errorf(arg0, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
@@ -800,8 +814,8 @@ func hasVarSize(t Type) bool {
 // of x. If any of these applications of f return nil,
 // applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
-func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
-	if tp, _ := x.(*TypeParam); tp != nil {
+func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId) Type {
+	if tp, _ := x.typ.(*TypeParam); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var terms []*Term
@@ -818,17 +832,23 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 			return nil
 		}
 
+		// We can type-check this fine but we're introducing a synthetic
+		// type parameter for the result. It's not clear what the API
+		// implications are here. Report an error for 1.18 but continue
+		// type-checking.
+		check.softErrorf(x, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
+
 		// Construct a suitable new type parameter for the result type.
 		// The type parameter is placed in the current package so export/import
 		// works as expected.
-		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
+		tpar := NewTypeName(nopos, check.pkg, tp.obj.name, nil)
 		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
 
 		return ptyp
 	}
 
-	return f(x)
+	return f(x.typ)
 }
 
 // makeSig makes a signature for the given argument and result types.

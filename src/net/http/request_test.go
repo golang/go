@@ -998,23 +998,15 @@ func TestMaxBytesReaderDifferentLimits(t *testing.T) {
 	}
 }
 
-func TestWithContextDeepCopiesURL(t *testing.T) {
+func TestWithContextNilURL(t *testing.T) {
 	req, err := NewRequest("POST", "https://golang.org/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	reqCopy := req.WithContext(context.Background())
-	reqCopy.URL.Scheme = "http"
-
-	firstURL, secondURL := req.URL.String(), reqCopy.URL.String()
-	if firstURL == secondURL {
-		t.Errorf("unexpected change to original request's URL")
-	}
-
-	// And also check we don't crash on nil (Issue 20601)
+	// Issue 20601
 	req.URL = nil
-	reqCopy = req.WithContext(context.Background())
+	reqCopy := req.WithContext(context.Background())
 	if reqCopy.URL != nil {
 		t.Error("expected nil URL in cloned request")
 	}

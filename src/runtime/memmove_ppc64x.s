@@ -24,15 +24,17 @@
 #define IDX16 R8
 // temp used for copies, etc.
 #define TMP R9
-// number of 32 byte chunks
+// number of 64 byte chunks
 #define QWORDS R10
+// index values
+#define IDX32 R14
+#define IDX48 R15
+#define OCTWORDS R16
 
 TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	to+0(FP), TGT
-	MOVD	from+8(FP), SRC
-	MOVD	n+16(FP), LEN
-#endif
+	// R3 = TGT = to
+	// R4 = SRC = from
+	// R5 = LEN = n
 
 	// Determine if there are doublewords to
 	// copy so a more efficient move can be done
@@ -54,27 +56,45 @@ check:
 	// Copying forward if no overlap.
 
 	BC	12, 6, checkbytes	// BEQ CR1, checkbytes
-	SRDCC	$2, DWORDS, QWORDS	// 32 byte chunks?
-	BEQ	lt32gt8			// < 32 bytes
+	SRDCC	$3, DWORDS, OCTWORDS	// 64 byte chunks?
+	MOVD	$16, IDX16
+	BEQ	lt64gt8			// < 64 bytes
 
-	// Prepare for moves of 32 bytes at a time.
+	// Prepare for moves of 64 bytes at a time.
 
-forward32setup:
+forward64setup:
 	DCBTST	(TGT)			// prepare data cache
 	DCBT	(SRC)
-	MOVD	QWORDS, CTR		// Number of 32 byte chunks
-	MOVD	$16, IDX16		// 16 for index
+	MOVD	OCTWORDS, CTR		// Number of 64 byte chunks
+	MOVD	$32, IDX32
+	MOVD	$48, IDX48
+	PCALIGN	$32
 
-forward32:
-	LXVD2X	(R0)(SRC), VS32		// load 16 bytes
-	LXVD2X	(IDX16)(SRC), VS33	// load 16 bytes
-	ADD	$32, SRC
-	STXVD2X	VS32, (R0)(TGT)		// store 16 bytes
+forward64:
+	LXVD2X	(R0)(SRC), VS32		// load 64 bytes
+	LXVD2X	(IDX16)(SRC), VS33
+	LXVD2X	(IDX32)(SRC), VS34
+	LXVD2X	(IDX48)(SRC), VS35
+	ADD	$64, SRC
+	STXVD2X	VS32, (R0)(TGT)		// store 64 bytes
 	STXVD2X	VS33, (IDX16)(TGT)
-	ADD	$32,TGT			// bump up for next set
-	BC	16, 0, forward32	// continue
-	ANDCC	$3, DWORDS		// remaining doublewords
+	STXVD2X	VS34, (IDX32)(TGT)
+	STXVD2X VS35, (IDX48)(TGT)
+	ADD	$64,TGT			// bump up for next set
+	BC	16, 0, forward64	// continue
+	ANDCC	$7, DWORDS		// remaining doublewords
 	BEQ	checkbytes		// only bytes remain
+
+lt64gt8:
+	CMP	DWORDS, $4
+	BLT	lt32gt8
+	LXVD2X	(R0)(SRC), VS32
+	LXVD2X	(IDX16)(SRC), VS33
+	ADD	$-4, DWORDS
+	STXVD2X	VS32, (R0)(TGT)
+	STXVD2X	VS33, (IDX16)(TGT)
+	ADD	$32, SRC
+	ADD	$32, TGT
 
 lt32gt8:
         // At this point >= 8 and < 32
@@ -136,39 +156,41 @@ backwardtailloop:
 	SUB	$1,SRC
 	MOVBZ 	TMP, -1(TGT)
 	SUB	$1,TGT
-	BC	16, 0, backwardtailloop // bndz
+	BDNZ	backwardtailloop
 
 nobackwardtail:
-	BC	4, 5, LR		// ble CR1 lr
+	BC	4, 5, LR		// blelr cr1, return if DWORDS == 0
+	SRDCC	$2,DWORDS,QWORDS	// Compute number of 32B blocks and compare to 0
+	BNE	backward32setup		// If QWORDS != 0, start the 32B copy loop.
 
-backwardlarge:
-	MOVD	DWORDS, CTR
-	SUB	TGT, SRC, TMP		// Use vsx if moving
-	CMP	TMP, $32		// at least 32 byte chunks
-	BLT	backwardlargeloop	// and distance >= 32
-	SRDCC	$2,DWORDS,QWORDS	// 32 byte chunks
-	BNE	backward32setup
+backward24:
+	// DWORDS is a value between 1-3.
+	CMP	DWORDS, $2
 
-backwardlargeloop:
 	MOVD 	-8(SRC), TMP
-	SUB	$8,SRC
 	MOVD 	TMP, -8(TGT)
-	SUB	$8,TGT
-	BC	16, 0, backwardlargeloop // bndz
+	BC	12, 0, LR		// bltlr, return if DWORDS == 1
+
+	MOVD 	-16(SRC), TMP
+	MOVD 	TMP, -16(TGT)
+	BC	12, 2, LR		// beqlr, return if DWORDS == 2
+
+	MOVD 	-24(SRC), TMP
+	MOVD 	TMP, -24(TGT)
 	RET
 
 backward32setup:
-	MOVD	QWORDS, CTR			// set up loop ctr
-	MOVD	$16, IDX16			// 32 bytes at a time
+	ANDCC   $3,DWORDS		// Compute remaining DWORDS and compare to 0
+	MOVD	QWORDS, CTR		// set up loop ctr
+	MOVD	$16, IDX16		// 32 bytes at a time
 
 backward32loop:
 	SUB	$32, TGT
 	SUB	$32, SRC
-	LXVD2X	(R0)(TGT), VS32           // load 16 bytes
-	LXVD2X	(IDX16)(TGT), VS33
-	STXVD2X	VS32, (R0)(SRC)           // store 16 bytes
-	STXVD2X	VS33, (IDX16)(SRC)
-	BC      16, 0, backward32loop   // bndz
-	BC	4, 5, LR		// ble CR1 lr
-	MOVD	DWORDS, CTR
-	BR	backwardlargeloop
+	LXVD2X	(R0)(SRC), VS32		// load 16x2 bytes
+	LXVD2X	(IDX16)(SRC), VS33
+	STXVD2X	VS32, (R0)(TGT)		// store 16x2 bytes
+	STXVD2X	VS33, (IDX16)(TGT)
+	BDNZ	backward32loop
+	BC	12, 2, LR		// beqlr, return if DWORDS == 0
+	BR	backward24

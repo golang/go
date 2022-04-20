@@ -254,6 +254,8 @@ func (v *Element) carryPropagateGeneric() *Element {
 	c3 := v.l3 >> 51
 	c4 := v.l4 >> 51
 
+	// c4 is at most 64 - 51 = 13 bits, so c4*19 is at most 18 bits, and
+	// the final l0 will be at most 52 bits. Similarly for the rest.
 	v.l0 = v.l0&maskLow51Bits + c4*19
 	v.l1 = v.l1&maskLow51Bits + c0
 	v.l2 = v.l2&maskLow51Bits + c1

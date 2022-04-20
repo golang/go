@@ -26,12 +26,12 @@ import (
 // syntactically different and simpler than SQL.  The syntax is as
 // follows:
 //
-//   WIPE
-//   CREATE|<tablename>|<col>=<type>,<col>=<type>,...
-//     where types are: "string", [u]int{8,16,32,64}, "bool"
-//   INSERT|<tablename>|col=val,col2=val2,col3=?
-//   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
-//   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?param1,filtercol2=?param2
+//	WIPE
+//	CREATE|<tablename>|<col>=<type>,<col>=<type>,...
+//	  where types are: "string", [u]int{8,16,32,64}, "bool"
+//	INSERT|<tablename>|col=val,col2=val2,col3=?
+//	SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
+//	SELECT|<tablename>|projectcol1,projectcol2|filtercol=?param1,filtercol2=?param2
 //
 // Any of these can be preceded by PANIC|<method>|, to cause the
 // named method on fakeStmt to panic.
@@ -126,7 +126,7 @@ func (t *table) columnIndex(name string) int {
 }
 
 type row struct {
-	cols []interface{} // must be same size as its table colname + coltype
+	cols []any // must be same size as its table colname + coltype
 }
 
 type memToucher interface {
@@ -198,10 +198,10 @@ type fakeStmt struct {
 
 	closed bool
 
-	colName      []string      // used by CREATE, INSERT, SELECT (selected columns)
-	colType      []string      // used by CREATE
-	colValue     []interface{} // used by INSERT (mix of strings and "?" for bound params)
-	placeholders int           // used by INSERT/SELECT: number of ? params
+	colName      []string // used by CREATE, INSERT, SELECT (selected columns)
+	colType      []string // used by CREATE
+	colValue     []any    // used by INSERT (mix of strings and "?" for bound params)
+	placeholders int      // used by INSERT/SELECT: number of ? params
 
 	whereCol []boundCol // used by SELECT (all placeholders)
 
@@ -250,10 +250,11 @@ func setHookOpenErr(fn func() error) {
 }
 
 // Supports dsn forms:
-//    <dbname>
-//    <dbname>;<opts>  (only currently supported option is `badConn`,
-//                      which causes driver.ErrBadConn to be returned on
-//                      every other conn.Begin())
+//
+//	<dbname>
+//	<dbname>;<opts>  (only currently supported option is `badConn`,
+//	                  which causes driver.ErrBadConn to be returned on
+//	                  every other conn.Begin())
 func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 	hookOpenErr.Lock()
 	fn := hookOpenErr.fn
@@ -504,13 +505,13 @@ func (c *fakeConn) QueryContext(ctx context.Context, query string, args []driver
 	return nil, driver.ErrSkip
 }
 
-func errf(msg string, args ...interface{}) error {
+func errf(msg string, args ...any) error {
 	return errors.New("fakedb: " + fmt.Sprintf(msg, args...))
 }
 
 // parts are table|selectCol1,selectCol2|whereCol=?,whereCol2=?
 // (note that where columns must always contain ? marks,
-//  just a limitation for fakedb)
+// just a limitation for fakedb)
 func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
 	if len(parts) != 3 {
 		stmt.Close()
@@ -586,7 +587,7 @@ func (c *fakeConn) prepareInsert(ctx context.Context, stmt *fakeStmt, parts []st
 		stmt.colName = append(stmt.colName, column)
 
 		if !strings.HasPrefix(value, "?") {
-			var subsetVal interface{}
+			var subsetVal any
 			// Convert to driver subset type
 			switch ctype {
 			case "string":
@@ -676,6 +677,9 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 
 		if c.waiter != nil {
 			c.waiter(ctx)
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 		}
 
 		if stmt.wait > 0 {
@@ -829,9 +833,9 @@ func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.R
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	var cols []interface{}
+	var cols []any
 	if doInsert {
-		cols = make([]interface{}, len(t.colname))
+		cols = make([]any, len(t.colname))
 	}
 	argPos := 0
 	for n, colname := range s.colName {
@@ -839,7 +843,7 @@ func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.R
 		if colidx == -1 {
 			return nil, fmt.Errorf("fakedb: column %q doesn't exist or dropped since prepared statement was created", colname)
 		}
-		var val interface{}
+		var val any
 		if strvalue, ok := s.colValue[n].(string); ok && strings.HasPrefix(strvalue, "?") {
 			if strvalue == "?" {
 				val = args[argPos].Value
@@ -930,7 +934,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				rows: [][]*row{
 					{
 						{
-							cols: []interface{}{
+							cols: []any{
 								txStatus,
 							},
 						},
@@ -980,7 +984,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 					// lazy hack to avoid sprintf %v on a []byte
 					tcol = string(bs)
 				}
-				var argValue interface{}
+				var argValue any
 				if wcol.Placeholder == "?" {
 					argValue = args[wcol.Ordinal-1].Value
 				} else {
@@ -996,7 +1000,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 					continue rows
 				}
 			}
-			mrow := &row{cols: make([]interface{}, len(s.colName))}
+			mrow := &row{cols: make([]any, len(s.colName))}
 			for seli, name := range s.colName {
 				mrow.cols[seli] = trow.cols[colIdx[name]]
 			}
@@ -1171,10 +1175,9 @@ func (rc *rowsCursor) NextResultSet() error {
 // This could be surprising behavior to retroactively apply to
 // driver.String now that Go1 is out, but this is convenient for
 // our TestPointerParamsAndScans.
-//
 type fakeDriverString struct{}
 
-func (fakeDriverString) ConvertValue(v interface{}) (driver.Value, error) {
+func (fakeDriverString) ConvertValue(v any) (driver.Value, error) {
 	switch c := v.(type) {
 	case string, []byte:
 		return v, nil
@@ -1189,7 +1192,7 @@ func (fakeDriverString) ConvertValue(v interface{}) (driver.Value, error) {
 
 type anyTypeConverter struct{}
 
-func (anyTypeConverter) ConvertValue(v interface{}) (driver.Value, error) {
+func (anyTypeConverter) ConvertValue(v any) (driver.Value, error) {
 	return v, nil
 }
 
@@ -1260,7 +1263,7 @@ func colTypeToReflectType(typ string) reflect.Type {
 	case "datetime":
 		return reflect.TypeOf(time.Time{})
 	case "any":
-		return reflect.TypeOf(new(interface{})).Elem()
+		return reflect.TypeOf(new(any)).Elem()
 	}
 	panic("invalid fakedb column type of " + typ)
 }

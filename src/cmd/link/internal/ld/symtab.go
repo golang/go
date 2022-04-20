@@ -567,6 +567,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			strings.HasSuffix(name, ".arginfo0"),
 			strings.HasSuffix(name, ".arginfo1"),
 			strings.HasSuffix(name, ".argliveinfo"),
+			strings.HasSuffix(name, ".wrapinfo"),
 			strings.HasSuffix(name, ".args_stackmap"),
 			strings.HasSuffix(name, ".stkobj"):
 			ldr.SetAttrNotInSymbolTable(s, true)
@@ -856,7 +857,7 @@ func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) st
 		return name
 	}
 
-	if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) != sym.SymVerABIInternal {
+	if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) != sym.SymVerABIInternal && ldr.SymVersion(x) < sym.SymVerStatic {
 		if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
 			name = fmt.Sprintf("%s.abi%d", name, ldr.SymVersion(x))
 		}

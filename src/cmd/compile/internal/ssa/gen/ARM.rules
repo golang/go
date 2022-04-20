@@ -1270,8 +1270,8 @@
 (SRLconst (SLLconst x [c]) [d]) && buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFXU [(d-c)|(32-d)<<8] x)
 
 // comparison simplification
-((LT|LE|EQ|NE|GE|GT) (CMP x (RSBconst [0] y))) => ((LT|LE|EQ|NE|GE|GT) (CMN x y)) // sense of carry bit not preserved
-((LT|LE|EQ|NE|GE|GT) (CMN x (RSBconst [0] y))) => ((LT|LE|EQ|NE|GE|GT) (CMP x y)) // sense of carry bit not preserved
+((EQ|NE) (CMP x (RSBconst [0] y))) => ((EQ|NE) (CMN x y)) // sense of carry bit not preserved; see also #50854
+((EQ|NE) (CMN x (RSBconst [0] y))) => ((EQ|NE) (CMP x y)) // sense of carry bit not preserved; see also #50864
 (EQ (CMPconst [0] l:(SUB x y)) yes no) && l.Uses==1 => (EQ (CMP x y) yes no)
 (EQ (CMPconst [0] l:(MULS x y a)) yes no) && l.Uses==1 => (EQ (CMP a (MUL <x.Type> x y)) yes no)
 (EQ (CMPconst [0] l:(SUBconst [c] x)) yes no) && l.Uses==1 => (EQ (CMPconst [c] x) yes no)

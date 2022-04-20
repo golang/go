@@ -72,6 +72,7 @@ const (
 	fmtDebug
 	fmtTypeID
 	fmtTypeIDName
+	fmtTypeIDHash
 )
 
 // Sym
@@ -82,7 +83,6 @@ const (
 //	%v	Go syntax: Name for symbols in the local package, PkgName.Name for imported symbols.
 //	%+v	Debug syntax: always include PkgName. prefix even for local names.
 //	%S	Short syntax: Name only, no matter what.
-//
 func (s *Sym) Format(f fmt.State, verb rune) {
 	mode := fmtGo
 	switch verb {
@@ -144,10 +144,21 @@ func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
 	if q := pkgqual(s.Pkg, verb, mode); q != "" {
 		b.WriteString(q)
 		b.WriteByte('.')
-		if mode == fmtTypeIDName {
+		switch mode {
+		case fmtTypeIDName:
 			// If name is a generic instantiation, it might have local package placeholders
 			// in it. Replace those placeholders with the package name. See issue 49547.
 			name = strings.Replace(name, LocalPkg.Prefix, q, -1)
+		case fmtTypeIDHash:
+			// If name is a generic instantiation, don't hash the instantiating types.
+			// This isn't great, but it is safe. If we hash the instantiating types, then
+			// we need to make sure they have just the package name. At this point, they
+			// either have "", or the whole package path, and it is hard to reconcile
+			// the two without depending on -p (which we might do someday).
+			// See issue 51250.
+			if i := strings.Index(name, "["); i >= 0 {
+				name = name[:i]
+			}
 		}
 	}
 	b.WriteString(name)
@@ -157,6 +168,9 @@ func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
 // symbols from the given package in the given mode.
 // If it returns the empty string, no qualification is needed.
 func pkgqual(pkg *Pkg, verb rune, mode fmtMode) string {
+	if pkg == nil {
+		return ""
+	}
 	if verb != 'S' {
 		switch mode {
 		case fmtGo: // This is for the user
@@ -173,7 +187,7 @@ func pkgqual(pkg *Pkg, verb rune, mode fmtMode) string {
 		case fmtDebug:
 			return pkg.Name
 
-		case fmtTypeIDName:
+		case fmtTypeIDName, fmtTypeIDHash:
 			// dcommontype, typehash
 			return pkg.Name
 
@@ -226,7 +240,6 @@ var fmtBufferPool = sync.Pool{
 //	%L	Go syntax for underlying type if t is named
 //	%S	short Go syntax: drop leading "func" in function type
 //	%-S	special case for method receiver symbol
-//
 func (t *Type) Format(s fmt.State, verb rune) {
 	mode := fmtGo
 	switch verb {
@@ -331,7 +344,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 	if t == AnyType || t == ByteType || t == RuneType {
 		// in %-T mode collapse predeclared aliases with their originals.
 		switch mode {
-		case fmtTypeIDName, fmtTypeID:
+		case fmtTypeIDName, fmtTypeIDHash, fmtTypeID:
 			t = Types[t.Kind()]
 		default:
 			sconv2(b, t.Sym(), 'S', mode)
@@ -422,7 +435,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 	case TPTR:
 		b.WriteByte('*')
 		switch mode {
-		case fmtTypeID, fmtTypeIDName:
+		case fmtTypeID, fmtTypeIDName, fmtTypeIDHash:
 			if verb == 'S' {
 				tconv2(b, t.Elem(), 'S', mode, visited)
 				return
@@ -484,7 +497,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			case IsExported(f.Sym.Name):
 				sconv2(b, f.Sym, 'S', mode)
 			default:
-				if mode != fmtTypeIDName {
+				if mode != fmtTypeIDName && mode != fmtTypeIDHash {
 					mode = fmtTypeID
 				}
 				sconv2(b, f.Sym, 'v', mode)
@@ -554,7 +567,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			b.WriteByte(byte(open))
 			fieldVerb := 'v'
 			switch mode {
-			case fmtTypeID, fmtTypeIDName, fmtGo:
+			case fmtTypeID, fmtTypeIDName, fmtTypeIDHash, fmtGo:
 				// no argument names on function signature, and no "noescape"/"nosplit" tags
 				fieldVerb = 'S'
 			}
@@ -631,6 +644,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 	}
 
 	var name string
+	nameSep := " "
 	if verb != 'S' {
 		s := f.Sym
 
@@ -639,7 +653,47 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 			s = OrigSym(s)
 		}
 
-		if s != nil && f.Embedded == 0 {
+		// Using type aliases and embedded fields, it's possible to
+		// construct types that can't be directly represented as a
+		// type literal. For example, given "type Int = int" (#50190),
+		// it would be incorrect to format "struct{ Int }" as either
+		// "struct{ int }" or "struct{ Int int }", because those each
+		// represent other, distinct types.
+		//
+		// So for the purpose of LinkString (i.e., fmtTypeID), we use
+		// the non-standard syntax "struct{ Int = int }" to represent
+		// embedded fields that have been renamed through the use of
+		// type aliases.
+		if f.Embedded != 0 {
+			if mode == fmtTypeID {
+				nameSep = " = "
+
+				// Compute tsym, the symbol that would normally be used as
+				// the field name when embedding f.Type.
+				// TODO(mdempsky): Check for other occurrences of this logic
+				// and deduplicate.
+				typ := f.Type
+				if typ.IsPtr() {
+					base.Assertf(typ.Sym() == nil, "embedded pointer type has name: %L", typ)
+					typ = typ.Elem()
+				}
+				tsym := typ.Sym()
+
+				// If the field name matches the embedded type's name, then
+				// suppress printing of the field name. For example, format
+				// "struct{ T }" as simply that instead of "struct{ T = T }".
+				if tsym != nil && (s == tsym || IsExported(tsym.Name) && s.Name == tsym.Name) {
+					s = nil
+				}
+			} else {
+				// Suppress the field name for embedded fields for
+				// non-LinkString formats, to match historical behavior.
+				// TODO(mdempsky): Re-evaluate this.
+				s = nil
+			}
+		}
+
+		if s != nil {
 			if funarg != FunargNone {
 				name = fmt.Sprint(f.Nname)
 			} else if verb == 'L' {
@@ -647,7 +701,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 				if name == ".F" {
 					name = "F" // Hack for toolstash -cmp.
 				}
-				if !IsExported(name) && mode != fmtTypeIDName {
+				if !IsExported(name) && mode != fmtTypeIDName && mode != fmtTypeIDHash {
 					name = sconv(s, 0, mode) // qualify non-exported names (used on structs, not on funarg)
 				}
 			} else {
@@ -658,7 +712,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 
 	if name != "" {
 		b.WriteString(name)
-		b.WriteString(" ")
+		b.WriteString(nameSep)
 	}
 
 	if f.IsDDD() {
@@ -715,7 +769,7 @@ func FmtConst(v constant.Value, sharp bool) string {
 
 // TypeHash computes a hash value for type t to use in type switch statements.
 func TypeHash(t *Type) uint32 {
-	p := t.NameString()
+	p := tconv(t, 0, fmtTypeIDHash)
 
 	// Using MD5 is overkill, but reduces accidental collisions.
 	h := md5.Sum([]byte(p))

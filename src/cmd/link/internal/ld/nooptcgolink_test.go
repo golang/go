@@ -8,7 +8,6 @@ import (
 	"internal/testenv"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -22,7 +21,7 @@ func TestNooptCgoBuild(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	dir := t.TempDir()
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", filepath.Join(dir, "a.out"))
-	cmd.Dir = filepath.Join(runtime.GOROOT(), "src", "runtime", "testdata", "testprogcgo")
+	cmd.Dir = filepath.Join(testenv.GOROOT(t), "src", "runtime", "testdata", "testprogcgo")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("go build output: %s", out)

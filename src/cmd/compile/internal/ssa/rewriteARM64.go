@@ -2283,6 +2283,24 @@ func rewriteValueARM64_OpARM64ANDconst(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ANDconst [c] (UBFX [bfc] x))
+	// cond: isARM64BFMask(0, c, 0)
+	// result: (UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0)))] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpARM64UBFX {
+			break
+		}
+		bfc := auxIntToArm64BitField(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(isARM64BFMask(0, c, 0)) {
+			break
+		}
+		v.reset(OpARM64UBFX)
+		v.AuxInt = arm64BitFieldToAuxInt(armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0))))
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64ANDshiftLL(v *Value) bool {
@@ -21802,6 +21820,24 @@ func rewriteValueARM64_OpARM64UBFIZ(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64UBFX(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (UBFX [bfc] (ANDconst [c] x))
+	// cond: isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb() + bfc.getARM64BFwidth() <= arm64BFWidth(c, 0)
+	// result: (UBFX [bfc] x)
+	for {
+		bfc := auxIntToArm64BitField(v.AuxInt)
+		if v_0.Op != OpARM64ANDconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb()+bfc.getARM64BFwidth() <= arm64BFWidth(c, 0)) {
+			break
+		}
+		v.reset(OpARM64UBFX)
+		v.AuxInt = arm64BitFieldToAuxInt(bfc)
+		v.AddArg(x)
+		return true
+	}
 	// match: (UBFX [bfc] (SRLconst [sc] x))
 	// cond: sc+bfc.getARM64BFwidth()+bfc.getARM64BFlsb() < 64
 	// result: (UBFX [armBFAuxInt(bfc.getARM64BFlsb()+sc, bfc.getARM64BFwidth())] x)
@@ -27983,46 +28019,6 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			break
 		}
-		// match: (GE (CMP x z:(NEG y)) yes no)
-		// cond: z.Uses == 1
-		// result: (GE (CMN x y) yes no)
-		for b.Controls[0].Op == OpARM64CMP {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			z := v_0.Args[1]
-			if z.Op != OpARM64NEG {
-				break
-			}
-			y := z.Args[0]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARM64GE, v0)
-			return true
-		}
-		// match: (GE (CMPW x z:(NEG y)) yes no)
-		// cond: z.Uses == 1
-		// result: (GE (CMNW x y) yes no)
-		for b.Controls[0].Op == OpARM64CMPW {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			z := v_0.Args[1]
-			if z.Op != OpARM64NEG {
-				break
-			}
-			y := z.Args[0]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARM64GE, v0)
-			return true
-		}
 		// match: (GE (CMPconst [0] z:(MADD a x y)) yes no)
 		// cond: z.Uses==1
 		// result: (GEnoov (CMN a (MUL <x.Type> x y)) yes no)
@@ -28418,46 +28414,6 @@ func rewriteBlockARM64(b *Block) bool {
 				return true
 			}
 			break
-		}
-		// match: (GT (CMP x z:(NEG y)) yes no)
-		// cond: z.Uses == 1
-		// result: (GT (CMN x y) yes no)
-		for b.Controls[0].Op == OpARM64CMP {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			z := v_0.Args[1]
-			if z.Op != OpARM64NEG {
-				break
-			}
-			y := z.Args[0]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARM64GT, v0)
-			return true
-		}
-		// match: (GT (CMPW x z:(NEG y)) yes no)
-		// cond: z.Uses == 1
-		// result: (GT (CMNW x y) yes no)
-		for b.Controls[0].Op == OpARM64CMPW {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			z := v_0.Args[1]
-			if z.Op != OpARM64NEG {
-				break
-			}
-			y := z.Args[0]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARM64GT, v0)
-			return true
 		}
 		// match: (GT (CMPconst [0] z:(MADD a x y)) yes no)
 		// cond: z.Uses==1
@@ -28951,46 +28907,6 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			break
 		}
-		// match: (LE (CMP x z:(NEG y)) yes no)
-		// cond: z.Uses == 1
-		// result: (LE (CMN x y) yes no)
-		for b.Controls[0].Op == OpARM64CMP {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			z := v_0.Args[1]
-			if z.Op != OpARM64NEG {
-				break
-			}
-			y := z.Args[0]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARM64LE, v0)
-			return true
-		}
-		// match: (LE (CMPW x z:(NEG y)) yes no)
-		// cond: z.Uses == 1
-		// result: (LE (CMNW x y) yes no)
-		for b.Controls[0].Op == OpARM64CMPW {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			z := v_0.Args[1]
-			if z.Op != OpARM64NEG {
-				break
-			}
-			y := z.Args[0]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARM64LE, v0)
-			return true
-		}
 		// match: (LE (CMPconst [0] z:(MADD a x y)) yes no)
 		// cond: z.Uses==1
 		// result: (LEnoov (CMN a (MUL <x.Type> x y)) yes no)
@@ -29362,46 +29278,6 @@ func rewriteBlockARM64(b *Block) bool {
 				return true
 			}
 			break
-		}
-		// match: (LT (CMP x z:(NEG y)) yes no)
-		// cond: z.Uses == 1
-		// result: (LT (CMN x y) yes no)
-		for b.Controls[0].Op == OpARM64CMP {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			z := v_0.Args[1]
-			if z.Op != OpARM64NEG {
-				break
-			}
-			y := z.Args[0]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARM64LT, v0)
-			return true
-		}
-		// match: (LT (CMPW x z:(NEG y)) yes no)
-		// cond: z.Uses == 1
-		// result: (LT (CMNW x y) yes no)
-		for b.Controls[0].Op == OpARM64CMPW {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			z := v_0.Args[1]
-			if z.Op != OpARM64NEG {
-				break
-			}
-			y := z.Args[0]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARM64LT, v0)
-			return true
 		}
 		// match: (LT (CMPconst [0] z:(MADD a x y)) yes no)
 		// cond: z.Uses==1

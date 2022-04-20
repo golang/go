@@ -1,0 +1,17 @@
+# Regression test for https://go.dev/issue/51448.
+# 'go work init . foo/bar' should produce a go.work file
+# with the same paths as 'go work init; go work use -r .'.
+
+go work init . foo/bar
+mv go.work go.work.init
+
+go work init
+go work use -r .
+cmp go.work go.work.init
+
+-- go.mod --
+module example
+go 1.18
+-- foo/bar/go.mod --
+module example
+go 1.18

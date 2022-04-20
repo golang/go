@@ -22,8 +22,9 @@ func initFuzzFlags() {
 	matchFuzz = flag.String("test.fuzz", "", "run the fuzz test matching `regexp`")
 	flag.Var(&fuzzDuration, "test.fuzztime", "time to spend fuzzing; default is to run indefinitely")
 	flag.Var(&minimizeDuration, "test.fuzzminimizetime", "time to spend minimizing a value after finding a failing input")
-	fuzzCacheDir = flag.String("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored")
-	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values")
+
+	fuzzCacheDir = flag.String("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored (for use only by cmd/go)")
+	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values (for use only by cmd/go)")
 }
 
 var (
@@ -62,7 +63,7 @@ type InternalFuzzTarget struct {
 // for an example, and see the F.Fuzz and F.Add method documentation for
 // details.
 //
-// *F methods can only be called before (*F).Fuzz. Once the the test is
+// *F methods can only be called before (*F).Fuzz. Once the test is
 // executing the fuzz target, only (*T) methods can be used. The only *F methods
 // that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
 type F struct {
@@ -91,7 +92,7 @@ type corpusEntry = struct {
 	Parent     string
 	Path       string
 	Data       []byte
-	Values     []interface{}
+	Values     []any
 	Generation int
 	IsSeed     bool
 }
@@ -149,8 +150,8 @@ func (f *F) Skipped() bool {
 // Add will add the arguments to the seed corpus for the fuzz test. This will be
 // a no-op if called after or within the fuzz target, and args must match the
 // arguments for the fuzz target.
-func (f *F) Add(args ...interface{}) {
-	var values []interface{}
+func (f *F) Add(args ...any) {
+	var values []any
 	for i := range args {
 		if t := reflect.TypeOf(args[i]); !supportedTypes[t] {
 			panic(fmt.Sprintf("testing: unsupported type to Add %v", t))
@@ -188,7 +189,7 @@ var supportedTypes = map[reflect.Type]bool{
 // whose remaining arguments are the types to be fuzzed.
 // For example:
 //
-//     f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
+//	f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
 //
 // The following types are allowed: []byte, string, bool, byte, rune, float32,
 // float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.
@@ -198,7 +199,7 @@ var supportedTypes = map[reflect.Type]bool{
 // the corresponding *T method instead. The only *F methods that are allowed in
 // the (*F).Fuzz function are (*F).Failed and (*F).Name.
 //
-// This function sould be fast and deterministic, and its behavior should not
+// This function should be fast and deterministic, and its behavior should not
 // depend on shared state. No mutatable input arguments, or pointers to them,
 // should be retained between executions of the fuzz function, as the memory
 // backing them may be mutated during a subsequent invocation. ff must not
@@ -207,7 +208,7 @@ var supportedTypes = map[reflect.Type]bool{
 // When fuzzing, F.Fuzz does not return until a problem is found, time runs out
 // (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
 // should be called exactly once, unless F.Skip or F.Fail is called beforehand.
-func (f *F) Fuzz(ff interface{}) {
+func (f *F) Fuzz(ff any) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")
 	}
@@ -225,6 +226,9 @@ func (f *F) Fuzz(ff interface{}) {
 	}
 	if fnType.NumIn() < 2 || fnType.In(0) != reflect.TypeOf((*T)(nil)) {
 		panic("testing: fuzz target must receive at least two arguments, where the first argument is a *T")
+	}
+	if fnType.NumOut() != 0 {
+		panic("testing: fuzz target must not return a value")
 	}
 
 	// Save the types of the function to compare against the corpus.
@@ -322,12 +326,14 @@ func (f *F) Fuzz(ff interface{}) {
 			for _, v := range e.Values {
 				args = append(args, reflect.ValueOf(v))
 			}
-			// Before reseting the current coverage, defer the snapshot so that we
-			// make sure it is called right before the tRunner function exits,
-			// regardless of whether it was executed cleanly, panicked, or if the
-			// fuzzFn called t.Fatal.
-			defer f.fuzzContext.deps.SnapshotCoverage()
-			f.fuzzContext.deps.ResetCoverage()
+			// Before resetting the current coverage, defer the snapshot so that
+			// we make sure it is called right before the tRunner function
+			// exits, regardless of whether it was executed cleanly, panicked,
+			// or if the fuzzFn called t.Fatal.
+			if f.testContext.isFuzzing {
+				defer f.fuzzContext.deps.SnapshotCoverage()
+				f.fuzzContext.deps.ResetCoverage()
+			}
 			fn.Call(args)
 		})
 		<-t.signal
@@ -423,12 +429,10 @@ type fuzzResult struct {
 }
 
 func (r fuzzResult) String() string {
-	s := ""
 	if r.Error == nil {
-		return s
+		return ""
 	}
-	s = fmt.Sprintf("%s", r.Error.Error())
-	return s
+	return r.Error.Error()
 }
 
 // fuzzCrashError is satisfied by a failing input detected while fuzzing.
@@ -640,7 +644,7 @@ func fRunner(f *F, fn func(*F)) {
 
 		// If we recovered a panic or inappropriate runtime.Goexit, fail the test,
 		// flush the output log up to the root, then panic.
-		doPanic := func(err interface{}) {
+		doPanic := func(err any) {
 			f.Fail()
 			if r := f.runCleanup(recoverAndReturnPanic); r != nil {
 				f.Logf("cleanup panicked with %v", r)
@@ -667,6 +671,7 @@ func fRunner(f *F, fn func(*F)) {
 			// This only affects fuzz tests run as normal tests.
 			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
 			// branch is not taken. f.barrier is nil in that case.
+			f.testContext.release()
 			close(f.barrier)
 			// Wait for the subtests to complete.
 			for _, sub := range f.sub {

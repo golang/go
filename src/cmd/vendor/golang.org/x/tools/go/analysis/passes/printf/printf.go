@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func init() {
@@ -520,7 +521,12 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 func isFormatter(typ types.Type) bool {
 	// If the type is an interface, the value it holds might satisfy fmt.Formatter.
 	if _, ok := typ.Underlying().(*types.Interface); ok {
-		return true
+		// Don't assume type parameters could be formatters. With the greater
+		// expressiveness of constraint interface syntax we expect more type safety
+		// when using type parameters.
+		if !typeparams.IsTypeParam(typ) {
+			return true
+		}
 	}
 	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Format")
 	fn, ok := obj.(*types.Func)

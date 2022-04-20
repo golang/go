@@ -387,10 +387,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 			t.Log(err)
 			continue
 		}
-		ls, err := (&streamListener{Listener: ln}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&streamListener{Listener: ln}).newLocalServer()
 		defer ls.teardown()
 		ch := make(chan error, 1)
 		handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
@@ -626,10 +623,7 @@ func TestTCPSelfConnect(t *testing.T) {
 		t.Skip("known-broken test on windows")
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	var d Dialer
 	c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
 	if err != nil {
@@ -676,10 +670,7 @@ func TestTCPBig(t *testing.T) {
 
 	for _, writev := range []bool{false, true} {
 		t.Run(fmt.Sprintf("writev=%v", writev), func(t *testing.T) {
-			ln, err := newLocalListener("tcp")
-			if err != nil {
-				t.Fatal(err)
-			}
+			ln := newLocalListener(t, "tcp")
 			defer ln.Close()
 
 			x := int(1 << 30)
@@ -723,10 +714,7 @@ func TestTCPBig(t *testing.T) {
 }
 
 func TestCopyPipeIntoTCP(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	errc := make(chan error, 1)
@@ -794,10 +782,7 @@ func TestCopyPipeIntoTCP(t *testing.T) {
 }
 
 func BenchmarkSetReadDeadline(b *testing.B) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		b.Fatal(err)
-	}
+	ln := newLocalListener(b, "tcp")
 	defer ln.Close()
 	var serv Conn
 	done := make(chan error)

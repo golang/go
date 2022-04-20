@@ -13,7 +13,6 @@
 //	// lookup byte slice s
 //	offsets1 := index.Lookup(s, -1) // the list of all indices where s occurs in data
 //	offsets2 := index.Lookup(s, 3)  // the list of at most 3 indices where s occurs in data
-//
 package suffixarray
 
 import (
@@ -230,7 +229,6 @@ func (x *Index) Write(w io.Writer) error {
 
 // Bytes returns the data over which the index was created.
 // It must not be modified.
-//
 func (x *Index) Bytes() []byte {
 	return x.data
 }
@@ -255,7 +253,6 @@ func (x *Index) lookupAll(s []byte) ints {
 // The result is nil if s is empty, s is not found, or n == 0.
 // Lookup time is O(log(N)*len(s) + len(result)) where N is the
 // size of the indexed data.
-//
 func (x *Index) Lookup(s []byte, n int) (result []int) {
 	if len(s) > 0 && n != 0 {
 		matches := x.lookupAll(s)
@@ -286,7 +283,6 @@ func (x *Index) Lookup(s []byte, n int) (result []int) {
 // in successive order. Otherwise, at most n matches are returned and
 // they may not be successive. The result is nil if there are no matches,
 // or if n == 0.
-//
 func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 	// a non-empty literal prefix is used to determine possible
 	// match start indices with Lookup

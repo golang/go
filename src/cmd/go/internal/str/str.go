@@ -14,7 +14,7 @@ import (
 
 // StringList flattens its arguments into a single []string.
 // Each argument in args must have type string or []string.
-func StringList(args ...interface{}) []string {
+func StringList(args ...any) []string {
 	var x []string
 	for _, arg := range args {
 		switch arg := arg.(type) {
@@ -30,7 +30,9 @@ func StringList(args ...interface{}) []string {
 }
 
 // ToFold returns a string with the property that
+//
 //	strings.EqualFold(s, t) iff ToFold(s) == ToFold(t)
+//
 // This lets us test a large set of strings for fold-equivalent
 // duplicates without making a quadratic number of calls
 // to EqualFold. Note that strings.ToUpper and strings.ToLower

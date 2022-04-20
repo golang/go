@@ -113,7 +113,6 @@ typedef struct {
 	int i;
 } Issue38408, *PIssue38408;
 
-extern void GoFunc49633(void *context);
 extern void cfunc49633(void*); // definition is in test.go
 */
 import "C"

@@ -7,7 +7,6 @@ package typecheck
 import (
 	"go/constant"
 
-	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -92,14 +91,12 @@ func InitUniverse() {
 
 	s = Lookup("_")
 	types.BlankSym = s
-	s.Block = -100
 	s.Def = NewName(s)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 	ir.BlankNode = ir.AsNode(s.Def)
 	ir.BlankNode.SetTypecheck(1)
 
 	s = types.BuiltinPkg.Lookup("_")
-	s.Block = -100
 	s.Def = NewName(s)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 
@@ -107,9 +104,6 @@ func InitUniverse() {
 	nnil := NodNil()
 	nnil.(*ir.NilExpr).SetSym(s)
 	s.Def = nnil
-
-	s = types.BuiltinPkg.Lookup("iota")
-	s.Def = ir.NewIota(base.Pos, s)
 
 	// initialize okfor
 	for et := types.Kind(0); et < types.NTYPE; et++ {
@@ -226,6 +220,5 @@ func DeclareUniverse() {
 		}
 
 		s1.Def = s.Def
-		s1.Block = s.Block
 	}
 }

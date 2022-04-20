@@ -27,7 +27,7 @@ const (
 )
 
 var dirBufPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		// The buffer must be at least a block long.
 		buf := make([]byte, blockSize)
 		return &buf

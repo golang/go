@@ -14,6 +14,7 @@ package unix
 import (
 	"encoding/binary"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -131,8 +132,10 @@ func Pipe2(p []int, flags int) error {
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return err
 }
 
@@ -247,6 +250,13 @@ func Getwd() (wd string, err error) {
 	if n < 1 || n > len(buf) || buf[n-1] != 0 {
 		return "", EINVAL
 	}
+	// In some cases, Linux can return a path that starts with the
+	// "(unreachable)" prefix, which can potentially be a valid relative
+	// path. To work around that, return ENOENT if path is not absolute.
+	if buf[0] != '/' {
+		return "", ENOENT
+	}
+
 	return string(buf[0 : n-1]), nil
 }
 
@@ -1487,10 +1497,9 @@ func KeyctlRestrictKeyring(ringid int, keyType string, restriction string) error
 //sys	keyctlRestrictKeyringByType(cmd int, arg2 int, keyType string, restriction string) (err error) = SYS_KEYCTL
 //sys	keyctlRestrictKeyring(cmd int, arg2 int) (err error) = SYS_KEYCTL
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
 	var msg Msghdr
-	var rsa RawSockaddrAny
-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+	msg.Name = (*byte)(unsafe.Pointer(rsa))
 	msg.Namelen = uint32(SizeofSockaddrAny)
 	var iov Iovec
 	if len(p) > 0 {
@@ -1521,28 +1530,10 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	}
 	oobn = int(msg.Controllen)
 	recvflags = int(msg.Flags)
-	// source address is only specified if the socket is unconnected
-	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(fd, &rsa)
-	}
 	return
 }
 
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
-	_, err = SendmsgN(fd, p, oob, to, flags)
-	return
-}
-
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
-	var ptr unsafe.Pointer
-	var salen _Socklen
-	if to != nil {
-		var err error
-		ptr, salen, err = to.sockaddr()
-		if err != nil {
-			return 0, err
-		}
-	}
+func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
 	var msg Msghdr
 	msg.Name = (*byte)(ptr)
 	msg.Namelen = uint32(salen)
@@ -1773,6 +1764,16 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 		return err
 	}
 	return mount(source, target, fstype, flags, datap)
+}
+
+//sys	mountSetattr(dirfd int, pathname string, flags uint, attr *MountAttr, size uintptr) (err error) = SYS_MOUNT_SETATTR
+
+// MountSetattr is a wrapper for mount_setattr(2).
+// https://man7.org/linux/man-pages/man2/mount_setattr.2.html
+//
+// Requires kernel >= 5.12.
+func MountSetattr(dirfd int, pathname string, flags uint, attr *MountAttr) error {
+	return mountSetattr(dirfd, pathname, flags, attr, unsafe.Sizeof(*attr))
 }
 
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
@@ -2302,11 +2303,56 @@ type RemoteIovec struct {
 //sys	shmdt(addr uintptr) (err error)
 //sys	shmget(key int, size int, flag int) (id int, err error)
 
+//sys	getitimer(which int, currValue *Itimerval) (err error)
+//sys	setitimer(which int, newValue *Itimerval, oldValue *Itimerval) (err error)
+
+// MakeItimerval creates an Itimerval from interval and value durations.
+func MakeItimerval(interval, value time.Duration) Itimerval {
+	return Itimerval{
+		Interval: NsecToTimeval(interval.Nanoseconds()),
+		Value:    NsecToTimeval(value.Nanoseconds()),
+	}
+}
+
+// A value which may be passed to the which parameter for Getitimer and
+// Setitimer.
+type ItimerWhich int
+
+// Possible which values for Getitimer and Setitimer.
+const (
+	ItimerReal    ItimerWhich = ITIMER_REAL
+	ItimerVirtual ItimerWhich = ITIMER_VIRTUAL
+	ItimerProf    ItimerWhich = ITIMER_PROF
+)
+
+// Getitimer wraps getitimer(2) to return the current value of the timer
+// specified by which.
+func Getitimer(which ItimerWhich) (Itimerval, error) {
+	var it Itimerval
+	if err := getitimer(int(which), &it); err != nil {
+		return Itimerval{}, err
+	}
+
+	return it, nil
+}
+
+// Setitimer wraps setitimer(2) to arm or disarm the timer specified by which.
+// It returns the previous value of the timer.
+//
+// If the Itimerval argument is the zero value, the timer will be disarmed.
+func Setitimer(which ItimerWhich, it Itimerval) (Itimerval, error) {
+	var prev Itimerval
+	if err := setitimer(int(which), &it, &prev); err != nil {
+		return Itimerval{}, err
+	}
+
+	return prev, nil
+}
+
 /*
  * Unimplemented
  */
 // AfsSyscall
-// Alarm
 // ArchPrctl
 // Brk
 // ClockNanosleep
@@ -2322,7 +2368,6 @@ type RemoteIovec struct {
 // GetMempolicy
 // GetRobustList
 // GetThreadArea
-// Getitimer
 // Getpmsg
 // IoCancel
 // IoDestroy

@@ -672,3 +672,18 @@ func BenchmarkBufferFullSmallReads(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkBufferWriteBlock(b *testing.B) {
+	block := make([]byte, 1024)
+	for _, n := range []int{1 << 12, 1 << 16, 1 << 20} {
+		b.Run(fmt.Sprintf("N%d", n), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				var bb Buffer
+				for bb.Len() < n {
+					bb.Write(block)
+				}
+			}
+		})
+	}
+}

@@ -288,7 +288,7 @@ func TestCallbackInAnotherThread(t *testing.T) {
 }
 
 type cbFunc struct {
-	goFunc interface{}
+	goFunc any
 }
 
 func (f cbFunc) cName(cdecl bool) string {
@@ -469,6 +469,7 @@ func sum5andPair(i1, i2, i3, i4, i5 uint8Pair) uintptr {
 // that insufficient spill slots allocated (according to the ABI)
 // may cause compiler-generated spills to clobber the return PC.
 // Then, the GC stack scanning will catch that.
+//
 //go:registerparams
 func sum9andGC(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint32) uintptr {
 	runtime.GC()
@@ -628,6 +629,9 @@ func TestOutputDebugString(t *testing.T) {
 }
 
 func TestRaiseException(t *testing.T) {
+	if testenv.Builder() == "windows-amd64-2012" {
+		testenv.SkipFlaky(t, 49681)
+	}
 	o := runTestProg(t, "testprog", "RaiseException")
 	if strings.Contains(o, "RaiseException should not return") {
 		t.Fatalf("RaiseException did not crash program: %v", o)
@@ -770,6 +774,7 @@ func TestSyscallN(t *testing.T) {
 	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
 		arglen := arglen
 		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
+			t.Parallel()
 			args := make([]string, arglen)
 			rets := make([]string, arglen+1)
 			params := make([]uintptr, arglen)

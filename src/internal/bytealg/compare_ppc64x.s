@@ -8,24 +8,16 @@
 #include "textflag.h"
 
 TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
-#ifdef GOEXPERIMENT_regabiargs
-// incoming:
-// R3 a addr -> R5
-// R4 a len  -> R3
-// R5 a cap unused
-// R6 b addr -> R6
-// R7 b len  -> R4
-// R8 b cap unused
+	// incoming:
+	// R3 a addr -> R5
+	// R4 a len  -> R3
+	// R5 a cap unused
+	// R6 b addr -> R6
+	// R7 b len  -> R4
+	// R8 b cap unused
 	MOVD	R3, R5
 	MOVD	R4, R3
 	MOVD	R7, R4
-#else
-	MOVD	a_base+0(FP), R5
-	MOVD	b_base+24(FP), R6
-	MOVD	a_len+8(FP), R3
-	MOVD	b_len+32(FP), R4
-	MOVD	$ret+48(FP), R7
-#endif
 	CMP     R5,R6,CR7
 	CMP	R3,R4,CR6
 	BEQ	CR7,equal
@@ -40,39 +32,23 @@ equal:
 	BGT	CR6,greater
 	NEG	R8
 greater:
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R8, R3
-#else
-	MOVD	R8, (R7)
-#endif
 	RET
 done:
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	$0, R3
-#else
-	MOVD	$0, (R7)
-#endif
 	RET
 
 TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
-#ifdef GOEXPERIMENT_regabiargs
-// incoming:
-// R3 a addr -> R5
-// R4 a len  -> R3
-// R5 b addr -> R6
-// R6 b len  -> R4
+	// incoming:
+	// R3 a addr -> R5
+	// R4 a len  -> R3
+	// R5 b addr -> R6
+	// R6 b len  -> R4
 	MOVD	R6, R7
 	MOVD	R5, R6
 	MOVD	R3, R5
 	MOVD	R4, R3
 	MOVD	R7, R4
-#else
-	MOVD	a_base+0(FP), R5
-	MOVD	b_base+16(FP), R6
-	MOVD	a_len+8(FP), R3
-	MOVD	b_len+24(FP), R4
-	MOVD	$ret+32(FP), R7
-#endif
 	CMP     R5,R6,CR7
 	CMP	R3,R4,CR6
 	BEQ	CR7,equal
@@ -87,19 +63,11 @@ equal:
 	BGT	CR6,greater
 	NEG	R8
 greater:
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R8, R3
-#else
-	MOVD	R8, (R7)
-#endif
 	RET
 
 done:
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	$0, R3
-#else
-	MOVD	$0, (R7)
-#endif
 	RET
 
 // Do an efficient memcmp for ppc64le
@@ -107,7 +75,8 @@ done:
 // R4 = b len
 // R5 = a addr
 // R6 = b addr
-// R7 = addr of return value if not regabi
+// On exit:
+// R3 = return value
 TEXT cmpbodyLE<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R3,R8		// set up length
 	CMP	R3,R4,CR2	// unequal?
@@ -126,8 +95,8 @@ setup32a:
 	SRADCC	$5,R8,R9	// number of 32 byte chunks
 	MOVD	R9,CTR
 
-        // Special processing for 32 bytes or longer.
-        // Loading this way is faster and correct as long as the
+	// Special processing for 32 bytes or longer.
+	// Loading this way is faster and correct as long as the
 	// doublewords being compared are equal. Once they
 	// are found unequal, reload them in proper byte order
 	// to determine greater or less than.
@@ -201,23 +170,13 @@ cmpne:				// only here is not equal
 	CMPU	R8,R9		// compare correct endianness
 	BGT	greater		// here only if NE
 less:
-	MOVD	$-1,R3
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R3,(R7)		// return value if A < B
-#endif
+	MOVD	$-1, R3		// return value if A < B
 	RET
 equal:
-#ifdef GOEXPERIMENT_regabiargs
-	MOVD	$0, R3
-#else
-	MOVD	$0,(R7)		// return value if A == B
-#endif
+	MOVD	$0, R3		// return value if A == B
 	RET
 greater:
-	MOVD	$1,R3
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R3,(R7)		// return value if A > B
-#endif
+	MOVD	$1, R3		// return value if A > B
 	RET
 
 // Do an efficient memcmp for ppc64 (BE)
@@ -225,7 +184,8 @@ greater:
 // R4 = b len
 // R5 = a addr
 // R6 = b addr
-// R7 = addr of return value
+// On exit:
+// R3 = return value
 TEXT cmpbodyBE<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R3,R8		// set up length
 	CMP	R3,R4,CR2	// unequal?
@@ -308,21 +268,11 @@ simple:
 	BC	12,10,equal	// test CR2 for length comparison
 	BC	12,9,greater	// 2nd len > 1st len
 less:
-	MOVD	$-1,R3
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD    R3,(R7)		// return value if A < B
-#endif
+	MOVD	$-1, R3		// return value if A < B
 	RET
 equal:
-#ifdef GOEXPERIMENT_regabiargs
-	MOVD	$0, R3
-#else
-	MOVD    $0,(R7)		// return value if A == B
-#endif
+	MOVD	$0, R3		// return value if A == B
 	RET
 greater:
-	MOVD	$1,R3
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R3,(R7)		// return value if A > B
-#endif
+	MOVD	$1, R3		// return value if A > B
 	RET

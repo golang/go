@@ -310,6 +310,7 @@ const (
 	_FUNCDATA_OpenCodedDeferInfo = 4
 	_FUNCDATA_ArgInfo            = 5
 	_FUNCDATA_ArgLiveInfo        = 6
+	_FUNCDATA_WrapInfo           = 7
 
 	_ArgsSizeUnknown = -0x80000000
 )
@@ -493,6 +494,7 @@ var modulesSlice *[]*moduledata // see activeModules
 //
 // This is nosplit/nowritebarrier because it is called by the
 // cgo pointer checking code.
+//
 //go:nosplit
 //go:nowritebarrier
 func activeModules() []*moduledata {
@@ -658,6 +660,7 @@ func moduledataverify1(datap *moduledata) {
 // relocated baseaddr to compute the function address.
 //
 // It is nosplit because it is part of the findfunc implementation.
+//
 //go:nosplit
 func (md *moduledata) textAddr(off32 uint32) uintptr {
 	off := uintptr(off32)
@@ -682,6 +685,7 @@ func (md *moduledata) textAddr(off32 uint32) uintptr {
 // to md.text, and returns if the PC is in any Go text section.
 //
 // It is nosplit because it is part of the findfunc implementation.
+//
 //go:nosplit
 func (md *moduledata) textOff(pc uintptr) (uint32, bool) {
 	res := uint32(pc - md.text)
@@ -863,7 +867,7 @@ type pcvalueCacheEnt struct {
 
 // pcvalueCacheKey returns the outermost index in a pcvalueCache to use for targetpc.
 // It must be very cheap to calculate.
-// For now, align to sys.PtrSize and reduce mod the number of entries.
+// For now, align to goarch.PtrSize and reduce mod the number of entries.
 // In practice, this appears to be fairly randomly and evenly distributed.
 func pcvalueCacheKey(targetpc uintptr) uintptr {
 	return (targetpc / goarch.PtrSize) % uintptr(len(pcvalueCache{}.entries))

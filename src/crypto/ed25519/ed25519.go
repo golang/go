@@ -126,7 +126,10 @@ func newKeyFromSeed(privateKey, seed []byte) {
 	}
 
 	h := sha512.Sum512(seed)
-	s := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+	if err != nil {
+		panic("ed25519: internal error: setting scalar failed")
+	}
 	A := (&edwards25519.Point{}).ScalarBaseMult(s)
 
 	publicKey := A.Bytes()
@@ -152,7 +155,10 @@ func sign(signature, privateKey, message []byte) {
 	seed, publicKey := privateKey[:SeedSize], privateKey[SeedSize:]
 
 	h := sha512.Sum512(seed)
-	s := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+	if err != nil {
+		panic("ed25519: internal error: setting scalar failed")
+	}
 	prefix := h[32:]
 
 	mh := sha512.New()
@@ -160,7 +166,10 @@ func sign(signature, privateKey, message []byte) {
 	mh.Write(message)
 	messageDigest := make([]byte, 0, sha512.Size)
 	messageDigest = mh.Sum(messageDigest)
-	r := edwards25519.NewScalar().SetUniformBytes(messageDigest)
+	r, err := edwards25519.NewScalar().SetUniformBytes(messageDigest)
+	if err != nil {
+		panic("ed25519: internal error: setting scalar failed")
+	}
 
 	R := (&edwards25519.Point{}).ScalarBaseMult(r)
 
@@ -170,7 +179,10 @@ func sign(signature, privateKey, message []byte) {
 	kh.Write(message)
 	hramDigest := make([]byte, 0, sha512.Size)
 	hramDigest = kh.Sum(hramDigest)
-	k := edwards25519.NewScalar().SetUniformBytes(hramDigest)
+	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
+	if err != nil {
+		panic("ed25519: internal error: setting scalar failed")
+	}
 
 	S := edwards25519.NewScalar().MultiplyAdd(k, s, r)
 
@@ -200,7 +212,10 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
 	kh.Write(message)
 	hramDigest := make([]byte, 0, sha512.Size)
 	hramDigest = kh.Sum(hramDigest)
-	k := edwards25519.NewScalar().SetUniformBytes(hramDigest)
+	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
+	if err != nil {
+		panic("ed25519: internal error: setting scalar failed")
+	}
 
 	S, err := edwards25519.NewScalar().SetCanonicalBytes(sig[32:])
 	if err != nil {

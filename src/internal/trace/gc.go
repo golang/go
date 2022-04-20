@@ -352,11 +352,11 @@ func (h bandUtilHeap) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }
 
-func (h *bandUtilHeap) Push(x interface{}) {
+func (h *bandUtilHeap) Push(x any) {
 	*h = append(*h, x.(bandUtil))
 }
 
-func (h *bandUtilHeap) Pop() interface{} {
+func (h *bandUtilHeap) Pop() any {
 	x := (*h)[len(*h)-1]
 	*h = (*h)[:len(*h)-1]
 	return x
@@ -386,11 +386,11 @@ func (h utilHeap) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }
 
-func (h *utilHeap) Push(x interface{}) {
+func (h *utilHeap) Push(x any) {
 	*h = append(*h, x.(UtilWindow))
 }
 
-func (h *utilHeap) Pop() interface{} {
+func (h *utilHeap) Pop() any {
 	x := (*h)[len(*h)-1]
 	*h = (*h)[:len(*h)-1]
 	return x

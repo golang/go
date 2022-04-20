@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"go/format"
 	"internal/godebug"
-	"internal/race"
 	"internal/testenv"
 	"io"
 	"io/fs"
@@ -32,7 +31,11 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/robustio"
+	"cmd/go/internal/search"
+	"cmd/go/internal/work"
 	"cmd/internal/sys"
+
+	cmdgo "cmd/go"
 )
 
 func init() {
@@ -75,6 +78,10 @@ func tooSlow(t *testing.T) {
 // (temp) directory.
 var testGOROOT string
 
+// testGOROOT_FINAL is the GOROOT_FINAL with which the test binary is assumed to
+// have been built.
+var testGOROOT_FINAL = os.Getenv("GOROOT_FINAL")
+
 var testGOCACHE string
 
 var testGo string
@@ -84,6 +91,43 @@ var testBin string
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
+	// When CMDGO_TEST_RUN_MAIN is set, we're reusing the test binary as cmd/go.
+	// Enable the special behavior needed in cmd/go/internal/work,
+	// run the main func exported via export_test.go, and exit.
+	// We set CMDGO_TEST_RUN_MAIN via os.Setenv and testScript.setup.
+	if os.Getenv("CMDGO_TEST_RUN_MAIN") != "" {
+		if v := os.Getenv("TESTGO_VERSION"); v != "" {
+			work.RuntimeVersion = v
+		}
+
+		if testGOROOT := os.Getenv("TESTGO_GOROOT"); testGOROOT != "" {
+			// Disallow installs to the GOROOT from which testgo was built.
+			// Installs to other GOROOTs — such as one set explicitly within a test — are ok.
+			work.AllowInstall = func(a *work.Action) error {
+				if cfg.BuildN {
+					return nil
+				}
+
+				rel := search.InDir(a.Target, testGOROOT)
+				if rel == "" {
+					return nil
+				}
+
+				callerPos := ""
+				if _, file, line, ok := runtime.Caller(1); ok {
+					if shortFile := search.InDir(file, filepath.Join(testGOROOT, "src")); shortFile != "" {
+						file = shortFile
+					}
+					callerPos = fmt.Sprintf("%s:%d: ", file, line)
+				}
+				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s)", callerPos, filepath.Join("GOROOT", rel))
+			}
+		}
+		cmdgo.Main()
+		os.Exit(0)
+	}
+	os.Setenv("CMDGO_TEST_RUN_MAIN", "true")
+
 	// $GO_GCFLAGS a compiler debug flag known to cmd/dist, make.bash, etc.
 	// It is not a standard go command flag; use os.Getenv, not cfg.Getenv.
 	if os.Getenv("GO_GCFLAGS") != "" {
@@ -127,13 +171,9 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 		testGo = filepath.Join(testBin, "go"+exeSuffix)
-		args := []string{"build", "-tags", "testgo", "-o", testGo}
-		if race.Enabled {
-			args = append(args, "-race")
-		}
 		gotool, err := testenv.GoTool()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, "locating go tool: ", err)
 			os.Exit(2)
 		}
 
@@ -173,12 +213,32 @@ func TestMain(m *testing.M) {
 			return
 		}
 
-		buildCmd := exec.Command(gotool, args...)
-		buildCmd.Env = append(os.Environ(), "GOFLAGS=-mod=vendor")
-		out, err := buildCmd.CombinedOutput()
+		// Duplicate the test executable into the path at testGo, for $PATH.
+		// If the OS supports symlinks, use them instead of copying bytes.
+		testExe, err := os.Executable()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
-			os.Exit(2)
+			log.Fatal(err)
+		}
+		if err := os.Symlink(testExe, testGo); err != nil {
+			// Otherwise, copy the bytes.
+			src, err := os.Open(testExe)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer src.Close()
+
+			dst, err := os.OpenFile(testGo, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o777)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			_, err = io.Copy(dst, src)
+			if closeErr := dst.Close(); err == nil {
+				err = closeErr
+			}
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
@@ -193,7 +253,7 @@ func TestMain(m *testing.M) {
 			}
 		}
 
-		out, err = exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
+		out, err := exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "could not find testing GOCACHE: %v\n%s", err, out)
 			os.Exit(2)
@@ -1128,11 +1188,11 @@ func TestGoListTest(t *testing.T) {
 	tg.grepStdoutNot(`^testing \[sort.test\]$`, "unexpected test copy of testing")
 	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
 
-	tg.run("list", "-test", "cmd/dist", "cmd/doc")
-	tg.grepStdout(`^cmd/dist$`, "missing cmd/dist")
+	tg.run("list", "-test", "cmd/buildid", "cmd/doc")
+	tg.grepStdout(`^cmd/buildid$`, "missing cmd/buildid")
 	tg.grepStdout(`^cmd/doc$`, "missing cmd/doc")
 	tg.grepStdout(`^cmd/doc\.test$`, "missing cmd/doc test")
-	tg.grepStdoutNot(`^cmd/dist\.test$`, "unexpected cmd/dist test")
+	tg.grepStdoutNot(`^cmd/buildid\.test$`, "unexpected cmd/buildid test")
 	tg.grepStdoutNot(`^testing`, "unexpected testing")
 
 	tg.run("list", "-test", "runtime/cgo")
@@ -1387,7 +1447,7 @@ func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
 	for buf.Len() < sys.ExecArgLengthLimit+1 {
 		buf.WriteString(testStr)
 	}
-	tg.run("run", "-buildinfo=false", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
+	tg.run("run", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
 	if tg.stderr.String() != buf.String() {
 		t.Errorf("strings differ")
 	}
@@ -1511,7 +1571,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("src/origin/origin.go", `package origin
-		// #cgo !darwin LDFLAGS: -Wl,-rpath,$ORIGIN
+		// #cgo !darwin,!windows LDFLAGS: -Wl,-rpath,$ORIGIN
 		// void f(void) {}
 		import "C"
 		func f() { C.f() }`)
@@ -1575,7 +1635,7 @@ func TestListTemplateContextFunction(t *testing.T) {
 	}{
 		{"GOARCH", runtime.GOARCH},
 		{"GOOS", runtime.GOOS},
-		{"GOROOT", filepath.Clean(runtime.GOROOT())},
+		{"GOROOT", testGOROOT},
 		{"GOPATH", os.Getenv("GOPATH")},
 		{"CgoEnabled", ""},
 		{"UseAllFiles", ""},

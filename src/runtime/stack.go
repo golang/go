@@ -151,7 +151,9 @@ const (
 
 // Global pool of spans that have free stacks.
 // Stacks are assigned an order according to size.
-//     order = log_2(size/FixedStack)
+//
+//	order = log_2(size/FixedStack)
+//
 // There is a free list for each order.
 var stackpool [_NumStackOrders]struct {
 	item stackpoolItem
@@ -1332,7 +1334,8 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 	}
 
 	// stack objects.
-	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le") && unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
+	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64") &&
+		unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
 		// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
 		// We don't actually use argmap in this case, but we need to fake the stack object
 		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset.
@@ -1358,7 +1361,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjectinit
 
 func stkobjinit() {
-	var abiRegArgsEface interface{} = abi.RegArgs{}
+	var abiRegArgsEface any = abi.RegArgs{}
 	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
 	if abiRegArgsType.kind&kindGCProg != 0 {
 		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")

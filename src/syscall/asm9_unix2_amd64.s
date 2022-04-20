@@ -13,7 +13,7 @@
 
 // func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64);
 TEXT	·Syscall9(SB),NOSPLIT,$0-104
-	CALL	runtime·entersyscall(SB)
+	CALL	runtime·entersyscall<ABIInternal>(SB)
 	MOVQ	num+0(FP), AX	// syscall entry
 	MOVQ	a1+8(FP), DI
 	MOVQ	a2+16(FP), SI
@@ -38,11 +38,11 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-104
 	MOVQ	$-1, r1+80(FP)	// r1
 	MOVQ	$0, r2+88(FP)	// r2
 	MOVQ	AX, err+96(FP)	// errno
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	RET
 ok9:
 	MOVQ	AX, r1+80(FP)	// r1
 	MOVQ	DX, r2+88(FP)	// r2
 	MOVQ	$0, err+96(FP)	// errno
-	CALL	runtime·exitsyscall(SB)
+	CALL	runtime·exitsyscall<ABIInternal>(SB)
 	RET

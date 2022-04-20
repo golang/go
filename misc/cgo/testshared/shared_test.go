@@ -56,7 +56,7 @@ func runWithEnv(t *testing.T, msg string, env []string, args ...string) {
 // t.Fatalf if the command fails.
 func goCmd(t *testing.T, args ...string) string {
 	newargs := []string{args[0]}
-	if *testX {
+	if *testX && args[0] != "env" {
 		newargs = append(newargs, "-x")
 	}
 	newargs = append(newargs, args[1:]...)
@@ -462,7 +462,9 @@ func TestTrivialExecutable(t *testing.T) {
 	run(t, "trivial executable", "../../bin/trivial")
 	AssertIsLinkedTo(t, "../../bin/trivial", soname)
 	AssertHasRPath(t, "../../bin/trivial", gorootInstallDir)
-	checkSize(t, "../../bin/trivial", 100000) // it is 19K on linux/amd64, 100K should be enough
+	// It is 19K on linux/amd64, with separate-code in binutils ld and 64k being most common alignment
+	// 4*64k should be enough, but this might need revision eventually.
+	checkSize(t, "../../bin/trivial", 256000)
 }
 
 // Build a trivial program in PIE mode that links against the shared runtime and check it runs.
@@ -471,7 +473,9 @@ func TestTrivialExecutablePIE(t *testing.T) {
 	run(t, "trivial executable", "./trivial.pie")
 	AssertIsLinkedTo(t, "./trivial.pie", soname)
 	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
-	checkSize(t, "./trivial.pie", 100000) // it is 19K on linux/amd64, 100K should be enough
+	// It is 19K on linux/amd64, with separate-code in binutils ld and 64k being most common alignment
+	// 4*64k should be enough, but this might need revision eventually.
+	checkSize(t, "./trivial.pie", 256000)
 }
 
 // Check that the file size does not exceed a limit.

@@ -1,0 +1,154 @@
+<!--{
+	"Title": "Go 1.19 Release Notes",
+	"Path":  "/doc/go1.19"
+}-->
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+<style>
+  main ul li { margin: 0.5em 0; }
+</style>
+<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.19</h2>
+<p>
+  <strong>
+    Go 1.19 is not yet released. These are work-in-progress
+    release notes. Go 1.19 is expected to be released in August 2022.
+  </strong>
+</p>
+<h2 id="language">Changes to the language</h2>
+<p>
+  TODO: complete this section
+</p>
+<h2 id="ports">Ports</h2>
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+<h2 id="tools">Tools</h2>
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+<h3 id="go-command">Go command</h3>
+<p>
+  TODO: complete this section.
+</p>
+
+<!-- https://go.dev/issue/51461 -->
+<p>
+  The <code>-trimpath</code> flag, if set, is now included in the build settings
+  stamped into Go binaries by <code>go</code> <code>build</code>, and can be
+  examined using
+  <a href="https://pkg.go.dev/cmd/go#hdr-Print_Go_version"><code>go</code> <code>version</code> <code>-m</code></a>
+  or <a href="https://pkg.go.dev/runtime/debug#ReadBuildInfo"><code>debug.ReadBuildInfo</code></a>.
+</p>
+<p>
+  <code>go</code> <code>generate</code> now sets the <code>GOROOT</code>
+  environment variable explicitly in the generator's environment, so that
+  generators can locate the correct <code>GOROOT</code> even if built
+  with <code>-trimpath</code>.
+</p>
+
+<h4 id="go-unix">New <code>unix</code> build constraint</h4>
+
+<p><!-- CL 389934 -->
+  The build constraint <code>unix</code> is now recognized
+  in <code>//go:build</code> lines. The constraint is satisfied
+  if the target operating system, also known as <code>GOOS</code>, is
+  a Unix or Unix-like system. For the 1.19 release it is satisfied
+  if <code>GOOS</code> is one of
+  <code>aix</code>, <code>android</code>, <code>darwin</code>,
+  <code>dragonfly</code>, <code>freebsd</code>, <code>hurd</code>,
+  <code>illumos</code>, <code>ios</code>, <code>linux</code>,
+  <code>netbsd</code>, <code>openbsd</code>, or <code>solaris</code>.
+  In future releases the <code>unix</code> constraint may match
+  additional newly supported operating systems.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+<h2 id="compiler">Compiler</h2>
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+<h2 id="linker">Linker</h2>
+<p>
+  TODO: complete this section, or delete if not needed
+</p>
+<h2 id="library">Core library</h2>
+<p>
+  TODO: complete this section
+</p>
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+<p>
+  TODO: complete this section
+</p>
+
+<dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
+  <dd>
+    <p><!-- CL 396795 -->
+      <code>Draw</code> with the <code>Src</code> operator preserves
+      non-premultiplied-alpha colors when destination and source images are
+      both <code>*image.NRGBA</code> (or both <code>*image.NRGBA64</code>).
+      This reverts a behavior change accidentally introduced by a Go 1.18
+      library optimization, to match the behavior in Go 1.17 and earlier.
+    </p>
+  </dd>
+</dl><!-- image/draw -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 386016 -->
+      The pure Go resolver will now use EDNS(0) to include a suggested
+      maximum reply packet length, permitting reply packets to contain
+      up to 1232 bytes (the previous maximum was 512).
+      In the unlikely event that this causes problems with a local DNS
+      resolver, setting the environment variable
+      <code>GODEBUG=netdns=cgo</code> to use the cgo-based resolver
+      should work.
+      Please report any such problems on <a href="/issue/new">the
+      issue tracker</a>.
+    </p>
+
+    <p><!-- CL 396877 -->
+      When a net package function or method returns an "I/O timeout"
+      error, the error will now satisfy <code>errors.Is(err,
+      context.DeadlineExceeded)</code>.  When a net package function
+      returns an "operation was canceled" error, the error will now
+      satisfy <code>errors.Is(err, context.Canceled)</code>.
+      These changes are intended to make it easier for code to test
+      for cases in which a context cancelation or timeout causes a net
+      package function or method to return an error, while preserving
+      backward compatibility for error messages.
+    </p>
+  </dd>
+</dl><!-- net -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51461 -->
+      The <code>GOROOT</code> function now returns the empty string
+      (instead of <code>"go"</code>) when the binary was built with
+      the <code>-trimpath</code> flag set and the <code>GOROOT</code>
+      variable is not set in the process environment.
+    </p>
+  </dd>
+</dl><!-- runtime -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 397255 -->
+      <a href="/pkg/strconv/#strconv.Quote"><code>strconv.Quote</code></a>
+      and related functions now quote the rune 007F as <code>\x7f</code>,
+      not <code>\u007f</code>.
+    </p>
+  </dd>
+</dl><!-- strconv -->

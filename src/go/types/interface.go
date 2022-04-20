@@ -15,7 +15,6 @@ import (
 // An Interface represents an interface type.
 type Interface struct {
 	check     *Checker     // for error reporting; nil once type set is computed
-	obj       *TypeName    // type name object defining this interface; or nil (for better error messages)
 	methods   []*Func      // ordered list of explicitly declared methods
 	embeddeds []Type       // ordered list of explicitly embedded elements
 	embedPos  *[]token.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
@@ -56,7 +55,7 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	}
 
 	// set method receivers if necessary
-	typ := new(Interface)
+	typ := (*Checker)(nil).newInterface()
 	for _, m := range methods {
 		if sig := m.typ.(*Signature); sig.recv == nil {
 			sig.recv = NewVar(m.pos, m.pkg, "", typ)
@@ -70,6 +69,15 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	typ.embeddeds = embeddeds
 	typ.complete = true
 
+	return typ
+}
+
+// check may be nil
+func (check *Checker) newInterface() *Interface {
+	typ := &Interface{check: check}
+	if check != nil {
+		check.needsCleanup(typ)
+	}
 	return typ
 }
 
@@ -111,7 +119,7 @@ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
 func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
 
 // IsComparable reports whether each type in interface t's type set is comparable.
-func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable(nil) }
 
 // IsMethodSet reports whether the interface t is fully described by its method
 // set.
@@ -141,6 +149,11 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
 // ----------------------------------------------------------------------------
 // Implementation
 
+func (t *Interface) cleanup() {
+	t.check = nil
+	t.embedPos = nil
+}
+
 func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
 	addEmbedded := func(pos token.Pos, typ Type) {
 		ityp.embeddeds = append(ityp.embeddeds, typ)
@@ -152,7 +165,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 	for _, f := range iface.Methods.List {
 		if len(f.Names) == 0 {
-			addEmbedded(f.Type.Pos(), parseUnion(check, flattenUnion(nil, f.Type)))
+			addEmbedded(f.Type.Pos(), parseUnion(check, f.Type))
 			continue
 		}
 		// f.Name != nil
@@ -160,7 +173,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		// We have a method with name f.Names[0].
 		name := f.Names[0]
 		if name.Name == "_" {
-			check.errorf(name, _BlankIfaceMethod, "invalid method name _")
+			check.errorf(name, _BlankIfaceMethod, "methods must have a unique non-blank name")
 			continue // ignore
 		}
 
@@ -210,24 +223,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	sortMethods(ityp.methods)
 	// (don't sort embeddeds: they must correspond to *embedPos entries)
 
-	// Compute type set with a non-nil *Checker as soon as possible
-	// to report any errors. Subsequent uses of type sets will use
-	// this computed type set and won't need to pass in a *Checker.
-	//
-	// Pin the checker to the interface type in the interim, in case the type set
-	// must be used before delayed funcs are processed (see issue #48234).
-	// TODO(rfindley): clean up use of *Checker with computeInterfaceTypeSet
-	ityp.check = check
+	// Compute type set as soon as possible to report any errors.
+	// Subsequent uses of type sets will use this computed type
+	// set and won't need to pass in a *Checker.
 	check.later(func() {
 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
-		ityp.check = nil
 	}).describef(iface, "compute type set for %s", ityp)
-}
-
-func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
-	if o, _ := x.(*ast.BinaryExpr); o != nil && o.Op == token.OR {
-		list = flattenUnion(list, o.X)
-		x = o.Y
-	}
-	return append(list, x)
 }

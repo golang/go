@@ -178,10 +178,12 @@ func (m *argMatcher) match(typ types.Type, topLevel bool) bool {
 			return true
 		}
 
+		if typeparams.IsTypeParam(typ.Elem()) {
+			return true // We don't know whether the logic below applies. Give up.
+		}
+
 		under := typ.Elem().Underlying()
 		switch under.(type) {
-		case *typeparams.TypeParam:
-			return true // We don't know whether the logic below applies. Give up.
 		case *types.Struct: // see below
 		case *types.Array: // see below
 		case *types.Slice: // see below

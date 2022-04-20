@@ -24,19 +24,6 @@ const (
 	compilerErrorMessages = false // match compiler error messages
 )
 
-// If forceStrict is set, the type-checker enforces additional
-// rules not specified by the Go 1 spec, but which will
-// catch guaranteed run-time errors if the respective
-// code is executed. In other words, programs passing in
-// strict mode are Go 1 compliant, but not all Go 1 programs
-// will pass in strict mode. The additional rules are:
-//
-// - A type assertion x.(T) where T is an interface type
-//   is invalid if any (statically known) method that exists
-//   for both x and T have different signatures.
-//
-const forceStrict = false
-
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
 	isLhs bool // expression is lhs operand of a shift with delayed type-check
@@ -90,7 +77,7 @@ type action struct {
 
 // If debug is set, describef sets a printf-formatted description for action a.
 // Otherwise, it is a no-op.
-func (a *action) describef(pos positioner, format string, args ...interface{}) {
+func (a *action) describef(pos positioner, format string, args ...any) {
 	if debug {
 		a.desc = &actionDesc{pos, format, args}
 	}
@@ -101,7 +88,7 @@ func (a *action) describef(pos positioner, format string, args ...interface{}) {
 type actionDesc struct {
 	pos    positioner
 	format string
-	args   []interface{}
+	args   []any
 }
 
 // A Checker maintains the state of the type checker.
@@ -118,6 +105,7 @@ type Checker struct {
 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	infoMap map[*Named]typeInfo    // maps named types to their associated type info (for cycle detection)
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -136,6 +124,8 @@ type Checker struct {
 	imports       []*PkgName                // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
+	brokenAliases map[*TypeName]bool        // set of aliases with broken (not yet determined) types
+	unionTypeSets map[*Union]*_TypeSet      // computed type sets for union types
 	mono          monoGraph                 // graph for detecting non-monomorphizable instantiation loops
 
 	firstErr error                 // first error encountered
@@ -143,7 +133,7 @@ type Checker struct {
 	untyped  map[ast.Expr]exprInfo // map of expressions without final type
 	delayed  []action              // stack of delayed action segments; segments are processed in FIFO order
 	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
-	defTypes []*Named              // defined types created during type checking, for final validation.
+	cleaners []cleaner             // list of types that may need a final cleanup at the end of type-checking
 
 	// environment within which the current object is type-checked (valid only
 	// for the duration of type-checking a specific object)
@@ -163,6 +153,27 @@ func (check *Checker) addDeclDep(to Object) {
 		return // to is not a package-level object
 	}
 	from.addDep(to)
+}
+
+// brokenAlias records that alias doesn't have a determined type yet.
+// It also sets alias.typ to Typ[Invalid].
+func (check *Checker) brokenAlias(alias *TypeName) {
+	if check.brokenAliases == nil {
+		check.brokenAliases = make(map[*TypeName]bool)
+	}
+	check.brokenAliases[alias] = true
+	alias.typ = Typ[Invalid]
+}
+
+// validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
+func (check *Checker) validAlias(alias *TypeName, typ Type) {
+	delete(check.brokenAliases, alias)
+	alias.typ = typ
+}
+
+// isBrokenAlias reports whether alias doesn't have a determined type yet.
+func (check *Checker) isBrokenAlias(alias *TypeName) bool {
+	return alias.typ == Typ[Invalid] && check.brokenAliases[alias]
 }
 
 func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
@@ -201,6 +212,16 @@ func (check *Checker) pop() Object {
 	return obj
 }
 
+type cleaner interface {
+	cleanup()
+}
+
+// needsCleanup records objects/types that implement the cleanup method
+// which will be called at the end of type-checking.
+func (check *Checker) needsCleanup(c cleaner) {
+	check.cleaners = append(check.cleaners, c)
+}
+
 // NewChecker returns a new Checker instance for a given package.
 // Package files may be added incrementally via checker.Files.
 func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
@@ -228,6 +249,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		version: version,
 		objMap:  make(map[Object]*declInfo),
 		impMap:  make(map[importKey]*Package),
+		infoMap: make(map[*Named]typeInfo),
 	}
 }
 
@@ -243,6 +265,8 @@ func (check *Checker) initFiles(files []*ast.File) {
 	check.methods = nil
 	check.untyped = nil
 	check.delayed = nil
+	check.objPath = nil
+	check.cleaners = nil
 
 	// determine package name and collect valid files
 	pkg := check.pkg
@@ -292,22 +316,37 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	defer check.handleBailout(&err)
 
+	print := func(msg string) {
+		if trace {
+			fmt.Println()
+			fmt.Println(msg)
+		}
+	}
+
+	print("== initFiles ==")
 	check.initFiles(files)
 
+	print("== collectObjects ==")
 	check.collectObjects()
 
+	print("== packageObjects ==")
 	check.packageObjects()
 
+	print("== processDelayed ==")
 	check.processDelayed(0) // incl. all functions
 
-	check.expandDefTypes()
+	print("== cleanup ==")
+	check.cleanup()
 
+	print("== initOrder ==")
 	check.initOrder()
 
 	if !check.conf.DisableUnusedImportCheck {
+		print("== unusedImports ==")
 		check.unusedImports()
 	}
 
+	print("== recordUntyped ==")
 	check.recordUntyped()
 
 	if check.firstErr == nil {
@@ -323,7 +362,8 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	check.pkgPathMap = nil
 	check.seenPkgMap = nil
 	check.recvTParamMap = nil
-	check.defTypes = nil
+	check.brokenAliases = nil
+	check.unionTypeSets = nil
 	check.ctxt = nil
 
 	// TODO(rFindley) There's more memory we should release at this point.
@@ -341,37 +381,29 @@ func (check *Checker) processDelayed(top int) {
 	// this is a sufficiently bounded process.
 	for i := top; i < len(check.delayed); i++ {
 		a := &check.delayed[i]
-		if trace && a.desc != nil {
-			fmt.Println()
-			check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
+		if trace {
+			if a.desc != nil {
+				check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
+			} else {
+				check.trace(token.NoPos, "-- delayed %p", a.f)
+			}
 		}
 		a.f() // may append to check.delayed
+		if trace {
+			fmt.Println()
+		}
 	}
 	assert(top <= len(check.delayed)) // stack must not have shrunk
 	check.delayed = check.delayed[:top]
 }
 
-func (check *Checker) expandDefTypes() {
-	// Ensure that every defined type created in the course of type-checking has
-	// either non-*Named underlying, or is unresolved.
-	//
-	// This guarantees that we don't leak any types whose underlying is *Named,
-	// because any unresolved instances will lazily compute their underlying by
-	// substituting in the underlying of their origin. The origin must have
-	// either been imported or type-checked and expanded here, and in either case
-	// its underlying will be fully expanded.
-	for i := 0; i < len(check.defTypes); i++ {
-		n := check.defTypes[i]
-		switch n.underlying.(type) {
-		case nil:
-			if n.resolver == nil {
-				panic("nil underlying")
-			}
-		case *Named:
-			n.under() // n.under may add entries to check.defTypes
-		}
-		n.check = nil
+// cleanup runs cleanup for all collected cleaners.
+func (check *Checker) cleanup() {
+	// Don't use a range clause since Named.cleanup may add more cleaners.
+	for i := 0; i < len(check.cleaners); i++ {
+		check.cleaners[i].cleanup()
 	}
+	check.cleaners = nil
 }
 
 func (check *Checker) record(x *operand) {
@@ -487,7 +519,7 @@ func (check *Checker) recordInstance(expr ast.Expr, targs []Type, typ Type) {
 	assert(ident != nil)
 	assert(typ != nil)
 	if m := check.Instances; m != nil {
-		m[ident] = Instance{NewTypeList(targs), typ}
+		m[ident] = Instance{newTypeList(targs), typ}
 	}
 }
 

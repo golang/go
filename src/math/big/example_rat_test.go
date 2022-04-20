@@ -10,10 +10,13 @@ import (
 )
 
 // Use the classic continued fraction for e
-//     e = [1; 0, 1, 1, 2, 1, 1, ... 2n, 1, 1, ...]
+//
+//	e = [1; 0, 1, 1, 2, 1, 1, ... 2n, 1, 1, ...]
+//
 // i.e., for the nth term, use
-//     1          if   n mod 3 != 1
-//  (n-1)/3 * 2   if   n mod 3 == 1
+//
+//	   1          if   n mod 3 != 1
+//	(n-1)/3 * 2   if   n mod 3 == 1
 func recur(n, lim int64) *big.Rat {
 	term := new(big.Rat)
 	if n%3 != 1 {

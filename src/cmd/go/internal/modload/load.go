@@ -479,7 +479,11 @@ func matchLocalDirs(ctx context.Context, modRoots []string, m *search.Match, rs 
 		}
 		if !found && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
 			m.Dirs = []string{}
-			m.AddError(fmt.Errorf("directory prefix %s outside available modules", base.ShortPath(absDir)))
+			scope := "main module or its selected dependencies"
+			if inWorkspaceMode() {
+				scope = "modules listed in go.work or their selected dependencies"
+			}
+			m.AddError(fmt.Errorf("directory prefix %s does not contain %s", base.ShortPath(absDir), scope))
 			return
 		}
 	}
@@ -601,7 +605,11 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 
 	pkg := pathInModuleCache(ctx, absDir, rs)
 	if pkg == "" {
-		return "", fmt.Errorf("directory %s outside available modules", base.ShortPath(absDir))
+		scope := "main module or its selected dependencies"
+		if inWorkspaceMode() {
+			scope = "modules listed in go.work or their selected dependencies"
+		}
+		return "", fmt.Errorf("directory %s outside %s", base.ShortPath(absDir), scope)
 	}
 	return pkg, nil
 }
@@ -859,7 +867,7 @@ func (ld *loader) reset() {
 
 // errorf reports an error via either os.Stderr or base.Errorf,
 // according to whether ld.AllowErrors is set.
-func (ld *loader) errorf(format string, args ...interface{}) {
+func (ld *loader) errorf(format string, args ...any) {
 	if ld.AllowErrors {
 		fmt.Fprintf(os.Stderr, format, args...)
 	} else {
@@ -1091,7 +1099,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			break
 		}
 		if changed {
-			// Don't resolve missing imports until the module graph have stabilized.
+			// Don't resolve missing imports until the module graph has stabilized.
 			// If the roots are still changing, they may turn out to specify a
 			// requirement on the missing package(s), and we would rather use a
 			// version specified by a new root than add a new dependency on an
@@ -1214,16 +1222,16 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 //
 // In particular:
 //
-// 	- Modules that provide packages directly imported from the main module are
-// 	  marked as direct, and are promoted to explicit roots. If a needed root
-// 	  cannot be promoted due to -mod=readonly or -mod=vendor, the importing
-// 	  package is marked with an error.
+//   - Modules that provide packages directly imported from the main module are
+//     marked as direct, and are promoted to explicit roots. If a needed root
+//     cannot be promoted due to -mod=readonly or -mod=vendor, the importing
+//     package is marked with an error.
 //
-// 	- If ld scanned the "all" pattern independent of build constraints, it is
-// 	  guaranteed to have seen every direct import. Module dependencies that did
-// 	  not provide any directly-imported package are then marked as indirect.
+//   - If ld scanned the "all" pattern independent of build constraints, it is
+//     guaranteed to have seen every direct import. Module dependencies that did
+//     not provide any directly-imported package are then marked as indirect.
 //
-// 	- Root dependencies are updated to their selected versions.
+//   - Root dependencies are updated to their selected versions.
 //
 // The "changed" return value reports whether the update changed the selected
 // version of any module that either provided a loaded package or may now
@@ -1492,7 +1500,7 @@ func (ld *loader) pkg(ctx context.Context, path string, flags loadPkgFlags) *loa
 		panic("internal error: (*loader).pkg called with pkgImportsLoaded flag set")
 	}
 
-	pkg := ld.pkgCache.Do(path, func() interface{} {
+	pkg := ld.pkgCache.Do(path, func() any {
 		pkg := &loadPkg{
 			path: path,
 		}
@@ -1667,24 +1675,6 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 
 // load loads an individual package.
 func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
-	if strings.Contains(pkg.path, "@") {
-		// Leave for error during load.
-		return
-	}
-	if build.IsLocalImport(pkg.path) || filepath.IsAbs(pkg.path) {
-		// Leave for error during load.
-		// (Module mode does not allow local imports.)
-		return
-	}
-
-	if search.IsMetaPackage(pkg.path) {
-		pkg.err = &invalidImportError{
-			importPath: pkg.path,
-			err:        fmt.Errorf("%q is not an importable package; see 'go help packages'", pkg.path),
-		}
-		return
-	}
-
 	var mg *ModuleGraph
 	if ld.requirements.pruning == unpruned {
 		var err error
@@ -2161,7 +2151,6 @@ func (ld *loader) buildStacks() {
 //		other2 tested by
 //		other2.test imports
 //		pkg
-//
 func (pkg *loadPkg) stackText() string {
 	var stack []*loadPkg
 	for p := pkg; p != nil; p = p.stack {

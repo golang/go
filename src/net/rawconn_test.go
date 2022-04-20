@@ -64,10 +64,7 @@ func TestRawConnReadWrite(t *testing.T) {
 				return
 			}
 		}
-		ls, err := newLocalServer("tcp")
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := newLocalServer(t, "tcp")
 		defer ls.teardown()
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)
@@ -102,10 +99,7 @@ func TestRawConnReadWrite(t *testing.T) {
 			t.Skipf("not supported on %s", runtime.GOOS)
 		}
 
-		ln, err := newLocalListener("tcp")
-		if err != nil {
-			t.Fatal(err)
-		}
+		ln := newLocalListener(t, "tcp")
 		defer ln.Close()
 
 		c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -180,10 +174,7 @@ func TestRawConnControl(t *testing.T) {
 	}
 
 	t.Run("TCP", func(t *testing.T) {
-		ln, err := newLocalListener("tcp")
-		if err != nil {
-			t.Fatal(err)
-		}
+		ln := newLocalListener(t, "tcp")
 		defer ln.Close()
 
 		cc1, err := ln.(*TCPListener).SyscallConn()

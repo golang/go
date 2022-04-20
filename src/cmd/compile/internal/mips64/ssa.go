@@ -320,7 +320,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		for a.Op == ssa.OpCopy || a.Op == ssa.OpMIPS64MOVVreg {
 			a = a.Args[0]
 		}
-		if a.Op == ssa.OpLoadReg {
+		if a.Op == ssa.OpLoadReg && mips.REG_R0 <= a.Reg() && a.Reg() <= mips.REG_R31 {
+			// LoadReg from a narrower type does an extension, except loading
+			// to a floating point register. So only eliminate the extension
+			// if it is loaded to an integer register.
 			t := a.Type
 			switch {
 			case v.Op == ssa.OpMIPS64MOVBreg && t.Size() == 1 && t.IsSigned(),
@@ -759,7 +762,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// caller's SP is FixedFrameSize below the address of the first arg
 		p := s.Prog(mips.AMOVV)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -base.Ctxt.FixedFrameSize()
+		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()

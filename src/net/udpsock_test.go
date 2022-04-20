@@ -285,10 +285,7 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 			t.Log(err)
 			continue
 		}
-		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&packetListener{PacketConn: c1}).newLocalServer()
 		defer ls.teardown()
 		ch := make(chan error, 1)
 		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, ch) }
@@ -333,10 +330,7 @@ func TestUDPZeroBytePayload(t *testing.T) {
 		testenv.SkipFlaky(t, 29225)
 	}
 
-	c, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := newLocalPacketListener(t, "udp")
 	defer c.Close()
 
 	for _, genericRead := range []bool{false, true} {
@@ -369,10 +363,7 @@ func TestUDPZeroByteBuffer(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	c, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := newLocalPacketListener(t, "udp")
 	defer c.Close()
 
 	b := []byte("UDP ZERO BYTE BUFFER TEST")
@@ -406,10 +397,7 @@ func TestUDPReadSizeError(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	c1, err := newLocalPacketListener("udp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
 
 	c2, err := Dial("udp", c1.LocalAddr().String())
@@ -427,19 +415,14 @@ func TestUDPReadSizeError(t *testing.T) {
 		if n != len(b1) {
 			t.Errorf("got %d; want %d", n, len(b1))
 		}
-		c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		b2 := make([]byte, len(b1)-1)
 		if genericRead {
 			n, err = c1.(Conn).Read(b2)
 		} else {
 			n, _, err = c1.ReadFrom(b2)
 		}
-		switch err {
-		case nil: // ReadFrom succeeds
-		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
-				t.Fatal(err)
-			}
+		if err != nil && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
+			t.Fatal(err)
 		}
 		if n != len(b1)-1 {
 			t.Fatalf("got %d; want %d", n, len(b1)-1)

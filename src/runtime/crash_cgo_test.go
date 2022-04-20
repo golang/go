@@ -7,7 +7,6 @@
 package runtime_test
 
 import (
-	"bytes"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -64,6 +63,10 @@ func TestCgoCallbackGC(t *testing.T) {
 			t.Skip("too slow for mips64x builders")
 		}
 	}
+	if testenv.Builder() == "darwin-amd64-10_14" {
+		// TODO(#23011): When the 10.14 builders are gone, remove this skip.
+		t.Skip("skipping due to platform bug on macOS 10.14; see https://golang.org/issue/43926")
+	}
 	got := runTestProg(t, "testprogcgo", "CgoCallbackGC")
 	want := "OK\n"
 	if got != want {
@@ -90,23 +93,9 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
-	if runtime.GOARCH == "ppc64" && runtime.GOOS == "linux" {
-		// TODO(austin) External linking not implemented on
-		// linux/ppc64 (issue #8912)
-		t.Skipf("no external linking on ppc64")
-	}
 
-	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
-	if err != nil {
-		t.Fatalf("exit status: %v\n%s", err, got)
-	}
-
-	if want := "OK\n"; string(got) != want {
+	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSIGPROF", "GO_START_SIGPROF_THREAD=1")
+	if want := "OK\n"; got != want {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
@@ -119,18 +108,8 @@ func TestCgoExternalThreadSignal(t *testing.T) {
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
 
-	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
-	if err != nil {
-		t.Fatalf("exit status: %v\n%s", err, got)
-	}
-
-	want := []byte("OK\n")
-	if !bytes.Equal(got, want) {
+	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSignal")
+	if want := "OK\n"; got != want {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
@@ -237,11 +216,25 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
 	}
 }
 
+func TestCgoPprofCallback(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping cgo pprof callback test on %s", runtime.GOOS)
+	}
+	got := runTestProg(t, "testprogcgo", "CgoPprofCallback")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
 func TestCgoCrashTraceback(t *testing.T) {
 	t.Parallel()
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "darwin/amd64":
 	case "linux/amd64":
+	case "linux/arm64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -259,6 +252,7 @@ func TestCgoCrashTracebackGo(t *testing.T) {
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "darwin/amd64":
 	case "linux/amd64":
+	case "linux/arm64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -292,7 +286,7 @@ func TestCgoTracebackContextPreemption(t *testing.T) {
 
 func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	t.Parallel()
-	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
+	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le" && runtime.GOARCH != "arm64") {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	testenv.MustHaveGoRun(t)
@@ -315,7 +309,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	defer os.Remove(fn)
 
 	for try := 0; try < 2; try++ {
-		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-traces"))
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-tagignore=ignore", "-traces"))
 		// Check that pprof works both with and without explicit executable on command line.
 		if try == 0 {
 			cmd.Args = append(cmd.Args, exe, fn)
@@ -617,20 +611,31 @@ func TestSegv(t *testing.T) {
 			t.Log(got)
 			want := "SIGSEGV"
 			if !strings.Contains(got, want) {
+				if runtime.GOOS == "darwin" && runtime.GOARCH == "amd64" && strings.Contains(got, "fatal: morestack on g0") {
+					testenv.SkipFlaky(t, 39457)
+				}
 				t.Errorf("did not see %q in output", want)
 			}
 
 			// No runtime errors like "runtime: unknown pc".
 			switch runtime.GOOS {
 			case "darwin", "illumos", "solaris":
-				// TODO(golang.org/issue/49182): Skip, runtime
-				// throws while attempting to generate
-				// traceback.
-			default:
-				nowant := "runtime: "
-				if strings.Contains(got, nowant) {
-					t.Errorf("unexpectedly saw %q in output", nowant)
+				// Runtime sometimes throws when generating the traceback.
+				testenv.SkipFlaky(t, 49182)
+			case "linux":
+				if runtime.GOARCH == "386" {
+					// Runtime throws when generating a traceback from
+					// a VDSO call via asmcgocall.
+					testenv.SkipFlaky(t, 50504)
 				}
+			}
+			if test == "SegvInCgo" && strings.Contains(got, "unknown pc") {
+				testenv.SkipFlaky(t, 50979)
+			}
+
+			nowant := "runtime: "
+			if strings.Contains(got, nowant) {
+				t.Errorf("unexpectedly saw %q in output", nowant)
 			}
 		})
 	}

@@ -17153,42 +17153,6 @@ func rewriteBlockARM(b *Block) bool {
 			b.resetWithControl(BlockARMLE, cmp)
 			return true
 		}
-		// match: (GE (CMP x (RSBconst [0] y)))
-		// result: (GE (CMN x y))
-		for b.Controls[0].Op == OpARMCMP {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != OpARMRSBconst || auxIntToInt32(v_0_1.AuxInt) != 0 {
-				break
-			}
-			y := v_0_1.Args[0]
-			v0 := b.NewValue0(v_0.Pos, OpARMCMN, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARMGE, v0)
-			return true
-		}
-		// match: (GE (CMN x (RSBconst [0] y)))
-		// result: (GE (CMP x y))
-		for b.Controls[0].Op == OpARMCMN {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-				x := v_0_0
-				if v_0_1.Op != OpARMRSBconst || auxIntToInt32(v_0_1.AuxInt) != 0 {
-					continue
-				}
-				y := v_0_1.Args[0]
-				v0 := b.NewValue0(v_0.Pos, OpARMCMP, types.TypeFlags)
-				v0.AddArg2(x, y)
-				b.resetWithControl(BlockARMGE, v0)
-				return true
-			}
-			break
-		}
 		// match: (GE (CMPconst [0] l:(SUB x y)) yes no)
 		// cond: l.Uses==1
 		// result: (GEnoov (CMP x y) yes no)
@@ -18068,42 +18032,6 @@ func rewriteBlockARM(b *Block) bool {
 			cmp := v_0.Args[0]
 			b.resetWithControl(BlockARMLT, cmp)
 			return true
-		}
-		// match: (GT (CMP x (RSBconst [0] y)))
-		// result: (GT (CMN x y))
-		for b.Controls[0].Op == OpARMCMP {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != OpARMRSBconst || auxIntToInt32(v_0_1.AuxInt) != 0 {
-				break
-			}
-			y := v_0_1.Args[0]
-			v0 := b.NewValue0(v_0.Pos, OpARMCMN, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARMGT, v0)
-			return true
-		}
-		// match: (GT (CMN x (RSBconst [0] y)))
-		// result: (GT (CMP x y))
-		for b.Controls[0].Op == OpARMCMN {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-				x := v_0_0
-				if v_0_1.Op != OpARMRSBconst || auxIntToInt32(v_0_1.AuxInt) != 0 {
-					continue
-				}
-				y := v_0_1.Args[0]
-				v0 := b.NewValue0(v_0.Pos, OpARMCMP, types.TypeFlags)
-				v0.AddArg2(x, y)
-				b.resetWithControl(BlockARMGT, v0)
-				return true
-			}
-			break
 		}
 		// match: (GT (CMPconst [0] l:(SUB x y)) yes no)
 		// cond: l.Uses==1
@@ -19076,42 +19004,6 @@ func rewriteBlockARM(b *Block) bool {
 			b.resetWithControl(BlockARMGE, cmp)
 			return true
 		}
-		// match: (LE (CMP x (RSBconst [0] y)))
-		// result: (LE (CMN x y))
-		for b.Controls[0].Op == OpARMCMP {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != OpARMRSBconst || auxIntToInt32(v_0_1.AuxInt) != 0 {
-				break
-			}
-			y := v_0_1.Args[0]
-			v0 := b.NewValue0(v_0.Pos, OpARMCMN, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARMLE, v0)
-			return true
-		}
-		// match: (LE (CMN x (RSBconst [0] y)))
-		// result: (LE (CMP x y))
-		for b.Controls[0].Op == OpARMCMN {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-				x := v_0_0
-				if v_0_1.Op != OpARMRSBconst || auxIntToInt32(v_0_1.AuxInt) != 0 {
-					continue
-				}
-				y := v_0_1.Args[0]
-				v0 := b.NewValue0(v_0.Pos, OpARMCMP, types.TypeFlags)
-				v0.AddArg2(x, y)
-				b.resetWithControl(BlockARMLE, v0)
-				return true
-			}
-			break
-		}
 		// match: (LE (CMPconst [0] l:(SUB x y)) yes no)
 		// cond: l.Uses==1
 		// result: (LEnoov (CMP x y) yes no)
@@ -19991,42 +19883,6 @@ func rewriteBlockARM(b *Block) bool {
 			cmp := v_0.Args[0]
 			b.resetWithControl(BlockARMGT, cmp)
 			return true
-		}
-		// match: (LT (CMP x (RSBconst [0] y)))
-		// result: (LT (CMN x y))
-		for b.Controls[0].Op == OpARMCMP {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			x := v_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != OpARMRSBconst || auxIntToInt32(v_0_1.AuxInt) != 0 {
-				break
-			}
-			y := v_0_1.Args[0]
-			v0 := b.NewValue0(v_0.Pos, OpARMCMN, types.TypeFlags)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockARMLT, v0)
-			return true
-		}
-		// match: (LT (CMN x (RSBconst [0] y)))
-		// result: (LT (CMP x y))
-		for b.Controls[0].Op == OpARMCMN {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-				x := v_0_0
-				if v_0_1.Op != OpARMRSBconst || auxIntToInt32(v_0_1.AuxInt) != 0 {
-					continue
-				}
-				y := v_0_1.Args[0]
-				v0 := b.NewValue0(v_0.Pos, OpARMCMP, types.TypeFlags)
-				v0.AddArg2(x, y)
-				b.resetWithControl(BlockARMLT, v0)
-				return true
-			}
-			break
 		}
 		// match: (LT (CMPconst [0] l:(SUB x y)) yes no)
 		// cond: l.Uses==1

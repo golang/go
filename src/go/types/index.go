@@ -183,6 +183,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 	}
 
 	if !valid {
+		// types2 uses the position of '[' for the error
 		check.invalidOp(x, _NonIndexableOperand, "cannot index %s", x)
 		x.mode = invalid
 		return false
@@ -214,9 +215,9 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch u := structuralString(x.typ).(type) {
+	switch u := coreString(x.typ).(type) {
 	case nil:
-		check.invalidOp(x, _NonSliceableOperand, "cannot slice %s: %s has no structural type", x, x.typ)
+		check.invalidOp(x, _NonSliceableOperand, "cannot slice %s: %s has no core type", x, x.typ)
 		x.mode = invalid
 		return
 
@@ -364,7 +365,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 	v, ok := constant.Int64Val(x.val)
 	assert(ok)
 	if max >= 0 && v >= max {
-		check.invalidArg(&x, _InvalidIndex, "index %s is out of bounds", &x)
+		check.invalidArg(&x, _InvalidIndex, "index %s out of bounds [0:%d]", x.val.String(), max)
 		return
 	}
 
@@ -410,7 +411,6 @@ func (check *Checker) isValidIndex(x *operand, code errorCode, what string, allo
 // against the literal's element type (typ), and the element indices against
 // the literal length if known (length >= 0). It returns the length of the
 // literal (maximum index value + 1).
-//
 func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64 {
 	visited := make(map[int64]bool, len(elts))
 	var index, max int64

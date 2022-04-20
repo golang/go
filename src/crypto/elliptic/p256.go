@@ -6,11 +6,11 @@
 
 package elliptic
 
-// This file contains a constant-time, 32-bit implementation of P256.
+// P-256 is implemented by various different backends, including a generic
+// 32-bit constant-time one in this file, which is used when assembly
+// implementations are not available, or not appropriate for the hardware.
 
-import (
-	"math/big"
-)
+import "math/big"
 
 type p256Curve struct {
 	*CurveParams
@@ -51,7 +51,7 @@ func p256GetScalar(out *[32]byte, in []byte) {
 	n := new(big.Int).SetBytes(in)
 	var scalarBytes []byte
 
-	if n.Cmp(p256Params.N) >= 0 {
+	if n.Cmp(p256Params.N) >= 0 || len(in) > len(out) {
 		n.Mod(n, p256Params.N)
 		scalarBytes = n.Bytes()
 	} else {
@@ -122,23 +122,23 @@ var (
 // The first table contains (x,y) field element pairs for 16 multiples of the
 // base point, G.
 //
-//   Index  |  Index (binary) | Value
-//       0  |           0000  | 0G (all zeros, omitted)
-//       1  |           0001  | G
-//       2  |           0010  | 2**64G
-//       3  |           0011  | 2**64G + G
-//       4  |           0100  | 2**128G
-//       5  |           0101  | 2**128G + G
-//       6  |           0110  | 2**128G + 2**64G
-//       7  |           0111  | 2**128G + 2**64G + G
-//       8  |           1000  | 2**192G
-//       9  |           1001  | 2**192G + G
-//      10  |           1010  | 2**192G + 2**64G
-//      11  |           1011  | 2**192G + 2**64G + G
-//      12  |           1100  | 2**192G + 2**128G
-//      13  |           1101  | 2**192G + 2**128G + G
-//      14  |           1110  | 2**192G + 2**128G + 2**64G
-//      15  |           1111  | 2**192G + 2**128G + 2**64G + G
+//	Index  |  Index (binary) | Value
+//	    0  |           0000  | 0G (all zeros, omitted)
+//	    1  |           0001  | G
+//	    2  |           0010  | 2**64G
+//	    3  |           0011  | 2**64G + G
+//	    4  |           0100  | 2**128G
+//	    5  |           0101  | 2**128G + G
+//	    6  |           0110  | 2**128G + 2**64G
+//	    7  |           0111  | 2**128G + 2**64G + G
+//	    8  |           1000  | 2**192G
+//	    9  |           1001  | 2**192G + G
+//	   10  |           1010  | 2**192G + 2**64G
+//	   11  |           1011  | 2**192G + 2**64G + G
+//	   12  |           1100  | 2**192G + 2**128G
+//	   13  |           1101  | 2**192G + 2**128G + G
+//	   14  |           1110  | 2**192G + 2**128G + 2**64G
+//	   15  |           1111  | 2**192G + 2**128G + 2**64G + G
 //
 // The second table follows the same style, but the terms are 2**32G,
 // 2**96G, 2**160G, 2**224G.
@@ -212,8 +212,9 @@ var p256Precomputed = [p256Limbs * 2 * 15 * 2]uint32{
 const bottom28Bits = 0xfffffff
 
 // nonZeroToAllOnes returns:
-//   0xffffffff for 0 < x <= 2**31
-//   0 for x == 0 or x > 2**31.
+//
+//	0xffffffff for 0 < x <= 2**31
+//	0 for x == 0 or x > 2**31.
 func nonZeroToAllOnes(x uint32) uint32 {
 	return ((x - 1) >> 31) - 1
 }
@@ -282,7 +283,8 @@ var p256Zero31 = [p256Limbs]uint32{two31m3, two30m2, two31m2, two30p13m2, two31m
 // p256Diff sets out = in-in2.
 //
 // On entry: in[0,2,...] < 2**30, in[1,3,...] < 2**29 and
-//           in2[0,2,...] < 2**30, in2[1,3,...] < 2**29.
+// in2[0,2,...] < 2**30, in2[1,3,...] < 2**29.
+//
 // On exit: out[0,2,...] < 2**30, out[1,3,...] < 2**29.
 func p256Diff(out, in, in2 *[p256Limbs]uint32) {
 	var carry uint32
@@ -562,7 +564,9 @@ func p256Square(out, in *[p256Limbs]uint32) {
 // p256Mul sets out=in*in2.
 //
 // On entry: in[0,2,...] < 2**30, in[1,3,...] < 2**29 and
-//           in2[0,2,...] < 2**30, in2[1,3,...] < 2**29.
+//
+//	in2[0,2,...] < 2**30, in2[1,3,...] < 2**29.
+//
 // On exit: out[0,2,...] < 2**30, out[1,3,...] < 2**29.
 func p256Mul(out, in, in2 *[p256Limbs]uint32) {
 	var tmp [17]uint64
@@ -661,9 +665,10 @@ func p256Assign(out, in *[p256Limbs]uint32) {
 // p256Invert calculates |out| = |in|^{-1}
 //
 // Based on Fermat's Little Theorem:
-//   a^p = a (mod p)
-//   a^{p-1} = 1 (mod p)
-//   a^{p-2} = a^{-1} (mod p)
+//
+//	a^p = a (mod p)
+//	a^{p-1} = 1 (mod p)
+//	a^{p-2} = a^{-1} (mod p)
 func p256Invert(out, in *[p256Limbs]uint32) {
 	var ftmp, ftmp2 [p256Limbs]uint32
 

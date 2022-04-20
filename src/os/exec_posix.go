@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
+//go:build unix || (js && wasm) || windows
 
 package os
 
@@ -87,11 +87,11 @@ func (p *ProcessState) success() bool {
 	return p.status.ExitStatus() == 0
 }
 
-func (p *ProcessState) sys() interface{} {
+func (p *ProcessState) sys() any {
 	return p.status
 }
 
-func (p *ProcessState) sysUsage() interface{} {
+func (p *ProcessState) sysUsage() any {
 	return p.rusage
 }
 

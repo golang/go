@@ -14,8 +14,7 @@ var certFiles = []string{
 	"/etc/openssl/certs/ca-certificates.crt", // NetBSD
 }
 
-// Possible directories with certificate files; stop after successfully
-// reading at least one file from a directory.
+// Possible directories with certificate files; all will be read.
 var certDirectories = []string{
 	"/etc/ssl/certs",         // FreeBSD 12.2+
 	"/usr/local/share/certs", // FreeBSD

@@ -126,7 +126,7 @@ func (b *builder) addLegend() {
 		return
 	}
 	title := labels[0]
-	fmt.Fprintf(b, `subgraph cluster_L { "%s" [shape=box fontsize=16`, title)
+	fmt.Fprintf(b, `subgraph cluster_L { "%s" [shape=box fontsize=16`, escapeForDot(title))
 	fmt.Fprintf(b, ` label="%s\l"`, strings.Join(escapeAllForDot(labels), `\l`))
 	if b.config.LegendURL != "" {
 		fmt.Fprintf(b, ` URL="%s" target="_blank"`, b.config.LegendURL)
@@ -485,7 +485,7 @@ func escapeAllForDot(in []string) []string {
 
 // escapeForDot escapes double quotes and backslashes, and replaces Graphviz's
 // "center" character (\n) with a left-justified character.
-// See https://graphviz.org/doc/info/attrs.html#k:escString for more info.
+// See https://graphviz.org/docs/attr-types/escString/ for more info.
 func escapeForDot(str string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(str, `\`, `\\`), `"`, `\"`), "\n", `\l`)
 }

@@ -391,9 +391,9 @@ const (
 
 // A Sym represents a symbolic offset from a base register.
 // Currently a Sym can be one of 3 things:
-//  - a *gc.Node, for an offset from SP (the stack pointer)
-//  - a *obj.LSym, for an offset from SB (the global pointer)
-//  - nil, for no offset
+//   - a *gc.Node, for an offset from SP (the stack pointer)
+//   - a *obj.LSym, for an offset from SB (the global pointer)
+//   - nil, for no offset
 type Sym interface {
 	CanBeAnSSASym()
 	CanBeAnSSAAux()
@@ -479,12 +479,13 @@ const (
 )
 
 // boundsAPI determines which register arguments a bounds check call should use. For an [a:b:c] slice, we do:
-//   CMPQ c, cap
-//   JA   fail1
-//   CMPQ b, c
-//   JA   fail2
-//   CMPQ a, b
-//   JA   fail3
+//
+//	CMPQ c, cap
+//	JA   fail1
+//	CMPQ b, c
+//	JA   fail2
+//	CMPQ a, b
+//	JA   fail3
 //
 // fail1: CALL panicSlice3Acap (c, cap)
 // fail2: CALL panicSlice3B (b, c)

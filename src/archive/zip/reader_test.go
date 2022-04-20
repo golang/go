@@ -865,7 +865,6 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //
 // It's here in hex for the same reason as rZipBytes above: to avoid
 // problems with on-disk virus scanners or other zip processors.
-//
 func biggestZipBytes() []byte {
 	s := `
 0000000 50 4b 03 04 14 00 08 00 08 00 00 00 00 00 00 00
@@ -1406,5 +1405,32 @@ func TestCVE202141772(t *testing.T) {
 	}
 	if name := info.Name(); name != "test.txt" {
 		t.Errorf("Inconsistent name in info entry: %v", name)
+	}
+}
+
+func TestUnderSize(t *testing.T) {
+	z, err := OpenReader("testdata/readme.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer z.Close()
+
+	for _, f := range z.File {
+		f.UncompressedSize64 = 1
+	}
+
+	for _, f := range z.File {
+		t.Run(f.Name, func(t *testing.T) {
+			rd, err := f.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer rd.Close()
+
+			_, err = io.Copy(io.Discard, rd)
+			if err != ErrFormat {
+				t.Fatalf("Error mismatch\n\tGot:  %v\n\tWant: %v", err, ErrFormat)
+			}
+		})
 	}
 }

@@ -9,22 +9,28 @@
 
 #define RARG0 R0
 #define RARG1 R1
-#define FARG R3
+#define RARG2 R2
+#define RARG3 R3
+#define FARG R4
 
 // Called from instrumented code.
-// func runtime·asanread(addr unsafe.Pointer, sz uintptr)
-TEXT	runtime·asanread(SB), NOSPLIT, $0-16
+// func runtime·doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
+TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
 	MOVD	addr+0(FP), RARG0
 	MOVD	size+8(FP), RARG1
-	// void __asan_read_go(void *addr, uintptr_t sz);
+	MOVD	sp+16(FP), RARG2
+	MOVD	pc+24(FP), RARG3
+	// void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc);
 	MOVD	$__asan_read_go(SB), FARG
 	JMP	asancall<>(SB)
 
-// func runtime·asanwrite(addr unsafe.Pointer, sz uintptr)
-TEXT	runtime·asanwrite(SB), NOSPLIT, $0-16
+// func runtime·doasanwrite(addr unsafe.Pointer, sz, sp, pc uintptr)
+TEXT	runtime·doasanwrite(SB), NOSPLIT, $0-32
 	MOVD	addr+0(FP), RARG0
 	MOVD	size+8(FP), RARG1
-	// void __asan_write_go(void *addr, uintptr_t sz);
+	MOVD	sp+16(FP), RARG2
+	MOVD	pc+24(FP), RARG3
+	// void __asan_write_go(void *addr, uintptr_t sz, void *sp, void *pc);
 	MOVD	$__asan_write_go(SB), FARG
 	JMP	asancall<>(SB)
 
@@ -53,8 +59,8 @@ TEXT	asancall<>(SB), NOSPLIT, $0-0
 	CMP	R11, g
 	BEQ	g0stack
 
-	MOVD	(g_sched+gobuf_sp)(R11), R4
-	MOVD	R4, RSP
+	MOVD	(g_sched+gobuf_sp)(R11), R5
+	MOVD	R5, RSP
 
 g0stack:
 	BL	(FARG)

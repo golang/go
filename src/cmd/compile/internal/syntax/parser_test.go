@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
@@ -26,29 +27,15 @@ var (
 )
 
 func TestParse(t *testing.T) {
-	ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
+	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
 }
 
 func TestVerify(t *testing.T) {
-	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
+	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
 	if err != nil {
 		return // error already reported
 	}
 	verifyPrint(t, *src_, ast)
-}
-
-func TestParseGo2(t *testing.T) {
-	dir := filepath.Join(testdata, "go2")
-	list, err := ioutil.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, fi := range list {
-		name := fi.Name()
-		if !fi.IsDir() && !strings.HasPrefix(name, ".") {
-			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics)
-		}
-	}
 }
 
 func TestStdLib(t *testing.T) {
@@ -74,11 +61,14 @@ func TestStdLib(t *testing.T) {
 		lines    uint
 	}
 
+	goroot := testenv.GOROOT(t)
+
 	results := make(chan parseResult)
 	go func() {
 		defer close(results)
 		for _, dir := range []string{
-			runtime.GOROOT(),
+			filepath.Join(goroot, "src"),
+			filepath.Join(goroot, "misc"),
 		} {
 			walkDirs(t, dir, func(filename string) {
 				if skipRx != nil && skipRx.MatchString(filename) {
@@ -90,7 +80,7 @@ func TestStdLib(t *testing.T) {
 				if debug {
 					fmt.Printf("parsing %s\n", filename)
 				}
-				ast, err := ParseFile(filename, nil, nil, AllowGenerics)
+				ast, err := ParseFile(filename, nil, nil, 0)
 				if err != nil {
 					t.Error(err)
 					return

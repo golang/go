@@ -36,7 +36,7 @@ The Listen function creates servers:
 		go handleConnection(conn)
 	}
 
-Name Resolution
+# Name Resolution
 
 The method for resolving domain names, whether indirectly with functions like Dial
 or directly with functions like LookupHost and LookupAddr, varies by operating system.
@@ -74,7 +74,6 @@ join the two settings by a plus sign, as in GODEBUG=netdns=go+1.
 On Plan 9, the resolver always accesses /net/cs and /net/dns.
 
 On Windows, the resolver always uses C library functions, such as GetAddrInfo and DnsQuery.
-
 */
 package net
 
@@ -125,10 +124,10 @@ type Conn interface {
 	// Any blocked Read or Write operations will be unblocked and return errors.
 	Close() error
 
-	// LocalAddr returns the local network address.
+	// LocalAddr returns the local network address, if known.
 	LocalAddr() Addr
 
-	// RemoteAddr returns the remote network address.
+	// RemoteAddr returns the remote network address, if known.
 	RemoteAddr() Addr
 
 	// SetDeadline sets the read and write deadlines associated
@@ -328,7 +327,7 @@ type PacketConn interface {
 	// Any blocked ReadFrom or WriteTo operations will be unblocked and return errors.
 	Close() error
 
-	// LocalAddr returns the local network address.
+	// LocalAddr returns the local network address, if known.
 	LocalAddr() Addr
 
 	// SetDeadline sets the read and write deadlines associated
@@ -413,15 +412,20 @@ var (
 	errMissingAddress = errors.New("missing address")
 
 	// For both read and write operations.
-	errCanceled         = errors.New("operation was canceled")
+	errCanceled         = canceledError{}
 	ErrWriteToConnected = errors.New("use of WriteTo with pre-connected connection")
 )
 
+// canceledError lets us return the same error string we have always
+// returned, while still being Is context.Canceled.
+type canceledError struct{}
+
+func (canceledError) Error() string { return "operation was canceled" }
+
+func (canceledError) Is(err error) bool { return err == context.Canceled }
+
 // mapErr maps from the context errors to the historical internal net
 // error values.
-//
-// TODO(bradfitz): get rid of this after adjusting tests and making
-// context.DeadlineExceeded implement net.Error?
 func mapErr(err error) error {
 	switch err {
 	case context.Canceled:
@@ -580,10 +584,12 @@ func (e InvalidAddrError) Temporary() bool { return false }
 // errTimeout exists to return the historical "i/o timeout" string
 // for context.DeadlineExceeded. See mapErr.
 // It is also used when Dialer.Deadline is exceeded.
+// error.Is(errTimeout, context.DeadlineExceeded) returns true.
 //
 // TODO(iant): We could consider changing this to os.ErrDeadlineExceeded
-// in the future, but note that that would conflict with the TODO
-// at mapErr that suggests changing it to context.DeadlineExceeded.
+// in the future, if we make
+//   errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
+// return true.
 var errTimeout error = &timeoutError{}
 
 type timeoutError struct{}
@@ -591,6 +597,10 @@ type timeoutError struct{}
 func (e *timeoutError) Error() string   { return "i/o timeout" }
 func (e *timeoutError) Timeout() bool   { return true }
 func (e *timeoutError) Temporary() bool { return true }
+
+func (e *timeoutError) Is(err error) bool {
+	return err == context.DeadlineExceeded
+}
 
 // DNSConfigError represents an error reading the machine's DNS configuration.
 // (No longer used; kept for compatibility.)
@@ -703,6 +713,12 @@ var (
 	_ io.Reader   = (*Buffers)(nil)
 )
 
+// WriteTo writes contents of the buffers to w.
+//
+// WriteTo implements io.WriterTo for Buffers.
+//
+// WriteTo modifies the slice v as well as v[i] for 0 <= i < len(v),
+// but does not modify v[i][j] for any i, j.
 func (v *Buffers) WriteTo(w io.Writer) (n int64, err error) {
 	if wv, ok := w.(buffersWriter); ok {
 		return wv.writeBuffers(v)
@@ -719,6 +735,12 @@ func (v *Buffers) WriteTo(w io.Writer) (n int64, err error) {
 	return n, nil
 }
 
+// Read from the buffers.
+//
+// Read implements io.Reader for Buffers.
+//
+// Read modifies the slice v as well as v[i] for 0 <= i < len(v),
+// but does not modify v[i][j] for any i, j.
 func (v *Buffers) Read(p []byte) (n int, err error) {
 	for len(p) > 0 && len(*v) > 0 {
 		n0 := copy(p, (*v)[0])

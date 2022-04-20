@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package get implements the ``go get'' command.
+// Package get implements the “go get” command.
 package get
 
 import (
@@ -17,10 +17,10 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 	"cmd/go/internal/vcs"
 	"cmd/go/internal/web"
 	"cmd/go/internal/work"
-	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
 )

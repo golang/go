@@ -152,7 +152,7 @@ func (d *Data) LineReader(cu *Entry) (*LineReader, error) {
 		// cu has no line table.
 		return nil, nil
 	}
-	if off > int64(len(d.line)) {
+	if off < 0 || off > int64(len(d.line)) {
 		return nil, errors.New("AttrStmtList value out of range")
 	}
 	// AttrCompDir is optional if all file names are absolute. Use

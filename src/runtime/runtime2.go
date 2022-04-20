@@ -209,7 +209,7 @@ type eface struct {
 	data  unsafe.Pointer
 }
 
-func efaceOf(ep *interface{}) *eface {
+func efaceOf(ep *any) *eface {
 	return (*eface)(unsafe.Pointer(ep))
 }
 
@@ -255,6 +255,8 @@ func efaceOf(ep *interface{}) *eface {
 // so I can't see them ever moving. If we did want to start moving data
 // in the GC, we'd need to allocate the goroutine structs from an
 // alternate arena. Using guintptr doesn't make that problem any worse.
+// Note that pollDesc.rg, pollDesc.wg also store g in uintptr form,
+// so they would need to be updated too if g's start moving.
 type guintptr uintptr
 
 //go:nosplit
@@ -270,6 +272,7 @@ func (gp *guintptr) cas(old, new guintptr) bool {
 
 // setGNoWB performs *gp = new without a write barrier.
 // For times when it's impractical to use a guintptr.
+//
 //go:nosplit
 //go:nowritebarrier
 func setGNoWB(gp **g, new *g) {
@@ -289,10 +292,10 @@ func (pp *puintptr) set(p *p) { *pp = puintptr(unsafe.Pointer(p)) }
 // Because we do free Ms, there are some additional constrains on
 // muintptrs:
 //
-// 1. Never hold an muintptr locally across a safe point.
+//  1. Never hold an muintptr locally across a safe point.
 //
-// 2. Any muintptr in the heap must be owned by the M itself so it can
-//    ensure it is not in use when the last true *m is released.
+//  2. Any muintptr in the heap must be owned by the M itself so it can
+//     ensure it is not in use when the last true *m is released.
 type muintptr uintptr
 
 //go:nosplit
@@ -303,6 +306,7 @@ func (mp *muintptr) set(m *m) { *mp = muintptr(unsafe.Pointer(m)) }
 
 // setMNoWB performs *mp = new without a write barrier.
 // For times when it's impractical to use an muintptr.
+//
 //go:nosplit
 //go:nowritebarrier
 func setMNoWB(mp **m, new *m) {
@@ -512,6 +516,7 @@ type m struct {
 	g0      *g     // goroutine with scheduling stack
 	morebuf gobuf  // gobuf arg to morestack
 	divmod  uint32 // div/mod denominator for arm - known to liblink
+	_       uint32 // align next field to 8 bytes
 
 	// Fields not known to debuggers.
 	procid        uint64            // for debuggers, but offset not hard-coded
@@ -545,7 +550,6 @@ type m struct {
 	ncgo          int32       // number of cgo calls currently in progress
 	cgoCallersUse uint32      // if non-zero, cgoCallers in use temporarily
 	cgoCallers    *cgoCallers // cgo traceback if crashing in cgo call
-	doesPark      bool        // non-P running threads: sysmon and newmHandoff never use .park
 	park          note
 	alllink       *m // on allm
 	schedlink     muintptr
@@ -561,16 +565,6 @@ type m struct {
 	startingtrace bool
 	syscalltick   uint32
 	freelink      *m // on sched.freem
-
-	// mFixup is used to synchronize OS related m state
-	// (credentials etc) use mutex to access. To avoid deadlocks
-	// an atomic.Load() of used being zero in mDoFixupFn()
-	// guarantees fn is nil.
-	mFixup struct {
-		lock mutex
-		used uint32
-		fn   func(bool) bool
-	}
 
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
@@ -815,10 +809,6 @@ type schedt struct {
 	sysmonwait uint32
 	sysmonnote note
 
-	// While true, sysmon not ready for mFixup calls.
-	// Accessed atomically.
-	sysmonStarting uint32
-
 	// safepointFn should be called on each P at the next GC
 	// safepoint if p.runSafePointFn is set.
 	safePointFn   func(*p)
@@ -836,8 +826,6 @@ type schedt struct {
 	// with the rest of the runtime.
 	sysmonlock mutex
 
-	_ uint32 // ensure timeToRun has 8-byte alignment
-
 	// timeToRun is a distribution of scheduling latencies, defined
 	// as the sum of time a G spends in the _Grunnable state before
 	// it transitions to _Grunning.
@@ -854,7 +842,7 @@ const (
 	_SigPanic                // if the signal is from the kernel, panic
 	_SigDefault              // if the signal isn't explicitly requested, don't monitor it
 	_SigGoExit               // cause all runtime procs to exit (only used on Plan 9).
-	_SigSetStack             // add SA_ONSTACK to libc handler
+	_SigSetStack             // Don't explicitly install handler, but add SA_ONSTACK to existing libc handler
 	_SigUnblock              // always unblock; see blockableSig
 	_SigIgn                  // _SIG_DFL action is to ignore the signal
 )
@@ -939,7 +927,7 @@ func extendRandom(r []byte, n int) {
 }
 
 // A _defer holds an entry on the list of deferred calls.
-// If you add a field here, add code to clear it in freedefer and deferProcStack
+// If you add a field here, add code to clear it in deferProcStack.
 // This struct must match the code in cmd/compile/internal/ssagen/ssa.go:deferstruct
 // and cmd/compile/internal/ssagen/ssa.go:(*state).call.
 // Some defers will be allocated on the stack and some on the heap.
@@ -982,7 +970,7 @@ type _defer struct {
 // adjustment takes care of them.
 type _panic struct {
 	argp      unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
-	arg       interface{}    // argument to panic
+	arg       any            // argument to panic
 	link      *_panic        // link to earlier panic
 	pc        uintptr        // where to return to in runtime if this panic is bypassed
 	sp        unsafe.Pointer // where to return to in runtime if this panic is bypassed
@@ -1144,5 +1132,5 @@ var (
 	isarchive bool // -buildmode=c-archive
 )
 
-// Must agree with internal/buildcfg.Experiment.FramePointer.
+// Must agree with internal/buildcfg.FramePointerEnabled.
 const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"

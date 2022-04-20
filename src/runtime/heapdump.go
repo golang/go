@@ -697,11 +697,6 @@ func writeheapdump_m(fd uintptr, m *MemStats) {
 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
 	_g_.waitreason = waitReasonDumpingHeap
 
-	// Update stats so we can dump them.
-	// As a side effect, flushes all the mcaches so the mspan.freelist
-	// lists contain all the free objects.
-	updatememstats()
-
 	// Set dump file.
 	dumpfd = fd
 

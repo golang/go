@@ -29,18 +29,6 @@ TEXT runtime·miniterrno(SB),NOSPLIT,$0
 	MOVQ	AX,	(m_mOS+mOS_perrno)(BX)
 	RET
 
-// pipe(3c) wrapper that returns fds in AX, DX.
-// NOT USING GO CALLING CONVENTION.
-TEXT runtime·pipe1(SB),NOSPLIT,$0
-	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte aligned
-	MOVQ	SP, DI
-	LEAQ	libc_pipe(SB), AX
-	CALL	AX
-	MOVL	0(SP), AX
-	MOVL	4(SP), DX
-	ADDQ	$16, SP
-	RET
-
 // Call a library function with SysV calling conventions.
 // The called function can take a maximum of 6 INTEGER class arguments,
 // see

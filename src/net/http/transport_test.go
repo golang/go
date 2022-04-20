@@ -48,7 +48,7 @@ import (
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
-//       and then verify that the final 2 responses get errors back.
+// and then verify that the final 2 responses get errors back.
 
 // hostPortHandler writes back the client's "host:port".
 var hostPortHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -776,7 +776,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	c := ts.Client()
 
 	fetch := func(n, retries int) string {
-		condFatalf := func(format string, arg ...interface{}) {
+		condFatalf := func(format string, arg ...any) {
 			if retries <= 0 {
 				t.Fatalf(format, arg...)
 			}
@@ -2099,17 +2099,21 @@ func TestTransportConcurrency(t *testing.T) {
 			for req := range reqs {
 				res, err := c.Get(ts.URL + "/?echo=" + req)
 				if err != nil {
-					t.Errorf("error on req %s: %v", req, err)
+					if runtime.GOOS == "netbsd" && strings.HasSuffix(err.Error(), ": connection reset by peer") {
+						// https://go.dev/issue/52168: this test was observed to fail with
+						// ECONNRESET errors in Dial on various netbsd builders.
+						t.Logf("error on req %s: %v", req, err)
+						t.Logf("(see https://go.dev/issue/52168)")
+					} else {
+						t.Errorf("error on req %s: %v", req, err)
+					}
 					wg.Done()
 					continue
 				}
 				all, err := io.ReadAll(res.Body)
 				if err != nil {
 					t.Errorf("read error on req %s: %v", req, err)
-					wg.Done()
-					continue
-				}
-				if string(all) != req {
+				} else if string(all) != req {
 					t.Errorf("body of req %s = %q; want %q", req, all, req)
 				}
 				res.Body.Close()
@@ -3435,6 +3439,7 @@ func (c writerFuncConn) Write(p []byte) (n int, err error) { return c.write(p) }
 //   - we reused a keep-alive connection
 //   - we haven't yet received any header data
 //   - either we wrote no bytes to the server, or the request is idempotent
+//
 // This automatically prevents an infinite resend loop because we'll run out of
 // the cached keep-alive connections eventually.
 func TestRetryRequestsOnError(t *testing.T) {
@@ -3514,7 +3519,7 @@ func TestRetryRequestsOnError(t *testing.T) {
 				mu     sync.Mutex
 				logbuf bytes.Buffer
 			)
-			logf := func(format string, args ...interface{}) {
+			logf := func(format string, args ...any) {
 				mu.Lock()
 				defer mu.Unlock()
 				fmt.Fprintf(&logbuf, format, args...)
@@ -4491,7 +4496,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 
 	var mu sync.Mutex // guards buf
 	var buf bytes.Buffer
-	logf := func(format string, args ...interface{}) {
+	logf := func(format string, args ...any) {
 		mu.Lock()
 		defer mu.Unlock()
 		fmt.Fprintf(&buf, format, args...)
@@ -4650,7 +4655,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 func TestTransportEventTraceTLSVerify(t *testing.T) {
 	var mu sync.Mutex
 	var buf bytes.Buffer
-	logf := func(format string, args ...interface{}) {
+	logf := func(format string, args ...any) {
 		mu.Lock()
 		defer mu.Unlock()
 		fmt.Fprintf(&buf, format, args...)
@@ -4736,7 +4741,7 @@ func TestTransportEventTraceRealDNS(t *testing.T) {
 
 	var mu sync.Mutex // guards buf
 	var buf bytes.Buffer
-	logf := func(format string, args ...interface{}) {
+	logf := func(format string, args ...any) {
 		mu.Lock()
 		defer mu.Unlock()
 		fmt.Fprintf(&buf, format, args...)

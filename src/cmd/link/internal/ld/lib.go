@@ -34,7 +34,6 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loadelf"
@@ -390,7 +389,9 @@ func libinit(ctxt *Link) {
 		suffix = "asan"
 	}
 
-	Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
+	if buildcfg.GOROOT != "" {
+		Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
+	}
 
 	mayberemoveoutfile()
 
@@ -612,25 +613,7 @@ func (ctxt *Link) loadlib() {
 				*flagLibGCC = ctxt.findLibPathCmd("--print-file-name=libcompiler_rt.a", "libcompiler_rt")
 			}
 			if ctxt.HeadType == objabi.Hwindows {
-				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				// Link libmsvcrt.a to resolve '__acrt_iob_func' symbol
-				// (see https://golang.org/issue/23649 for details).
-				if p := ctxt.findLibPath("libmsvcrt.a"); p != "none" {
-					hostArchive(ctxt, p)
-				}
-				// TODO: maybe do something similar to peimporteddlls to collect all lib names
-				// and try link them all to final exe just like libmingwex.a and libmingw32.a:
-				/*
-					for:
-					#cgo windows LDFLAGS: -lmsvcrt -lm
-					import:
-					libmsvcrt.a libm.a
-				*/
+				loadWindowsHostArchives(ctxt)
 			}
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
@@ -644,6 +627,67 @@ func (ctxt *Link) loadlib() {
 	importcycles()
 
 	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
+}
+
+// loadWindowsHostArchives loads in host archives and objects when
+// doing internal linking on windows. Older toolchains seem to require
+// just a single pass through the various archives, but some modern
+// toolchains when linking a C program with mingw pass library paths
+// multiple times to the linker, e.g. "... -lmingwex -lmingw32 ...
+// -lmingwex -lmingw32 ...". To accommodate this behavior, we make two
+// passes over the host archives below.
+func loadWindowsHostArchives(ctxt *Link) {
+	any := true
+	for i := 0; any && i < 2; i++ {
+		// Link crt2.o (if present) to resolve "atexit" when
+		// using LLVM-based compilers.
+		isunresolved := symbolsAreUnresolved(ctxt, []string{"atexit"})
+		if isunresolved[0] {
+			if p := ctxt.findLibPath("crt2.o"); p != "none" {
+				hostObject(ctxt, "crt2", p)
+			}
+		}
+		if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
+			hostArchive(ctxt, p)
+		}
+		if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
+			hostArchive(ctxt, p)
+		}
+		// Link libmsvcrt.a to resolve '__acrt_iob_func' symbol
+		// (see https://golang.org/issue/23649 for details).
+		if p := ctxt.findLibPath("libmsvcrt.a"); p != "none" {
+			hostArchive(ctxt, p)
+		}
+		any = false
+		undefs := ctxt.loader.UndefinedRelocTargets(1)
+		if len(undefs) > 0 {
+			any = true
+		}
+	}
+	// If needed, create the __CTOR_LIST__ and __DTOR_LIST__
+	// symbols (referenced by some of the mingw support library
+	// routines). Creation of these symbols is normally done by the
+	// linker if not already present.
+	want := []string{"__CTOR_LIST__", "__DTOR_LIST__"}
+	isunresolved := symbolsAreUnresolved(ctxt, want)
+	for k, w := range want {
+		if isunresolved[k] {
+			sb := ctxt.loader.CreateSymForUpdate(w, 0)
+			sb.SetType(sym.SDATA)
+			sb.AddUint64(ctxt.Arch, 0)
+			sb.SetReachable(true)
+			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
+		}
+	}
+	// TODO: maybe do something similar to peimporteddlls to collect
+	// all lib names and try link them all to final exe just like
+	// libmingwex.a and libmingw32.a:
+	/*
+		for:
+		#cgo windows LDFLAGS: -lmsvcrt -lm
+		import:
+		libmsvcrt.a libm.a
+	*/
 }
 
 // loadcgodirectives reads the previously discovered cgo directives, creating
@@ -1269,7 +1313,10 @@ func (ctxt *Link) hostlink() {
 		if ctxt.DynlinkingGo() && buildcfg.GOOS != "ios" {
 			// -flat_namespace is deprecated on iOS.
 			// It is useful for supporting plugins. We don't support plugins on iOS.
-			argv = append(argv, "-Wl,-flat_namespace")
+			// -flat_namespace may cause the dynamic linker to hang at forkExec when
+			// resolving a lazy binding. See issue 38824.
+			// Force eager resolution to work around.
+			argv = append(argv, "-Wl,-flat_namespace", "-Wl,-bind_at_load")
 		}
 		if !combineDwarf {
 			argv = append(argv, "-Wl,-S") // suppress STAB (symbolic debugging) symbols
@@ -1305,13 +1352,52 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Wl,-bbigtoc")
 	}
 
-	// Enable ASLR on Windows.
-	addASLRargs := func(argv []string) []string {
-		// Enable ASLR.
-		argv = append(argv, "-Wl,--dynamicbase")
+	// Enable/disable ASLR on Windows.
+	addASLRargs := func(argv []string, val bool) []string {
+		// Old/ancient versions of GCC support "--dynamicbase" and
+		// "--high-entropy-va" but don't enable it by default. In
+		// addition, they don't accept "--disable-dynamicbase" or
+		// "--no-dynamicbase", so the only way to disable ASLR is to
+		// not pass any flags at all.
+		//
+		// More modern versions of GCC (and also clang) enable ASLR
+		// by default. With these compilers, however you can turn it
+		// off if you want using "--disable-dynamicbase" or
+		// "--no-dynamicbase".
+		//
+		// The strategy below is to try using "--disable-dynamicbase";
+		// if this succeeds, then assume we're working with more
+		// modern compilers and act accordingly. If it fails, assume
+		// an ancient compiler with ancient defaults.
+		var dbopt string
+		var heopt string
+		dbon := "--dynamicbase"
+		heon := "--high-entropy-va"
+		dboff := "--disable-dynamicbase"
+		heoff := "--disable-high-entropy-va"
+		if val {
+			dbopt = dbon
+			heopt = heon
+		} else {
+			// Test to see whether "--disable-dynamicbase" works.
+			newer := linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,"+dboff)
+			if newer {
+				// Newer compiler, which supports both on/off options.
+				dbopt = dboff
+				heopt = heoff
+			} else {
+				// older toolchain: we have to say nothing in order to
+				// get a no-ASLR binary.
+				dbopt = ""
+				heopt = ""
+			}
+		}
+		if dbopt != "" {
+			argv = append(argv, "-Wl,"+dbopt)
+		}
 		// enable high-entropy ASLR on 64-bit.
-		if ctxt.Arch.PtrSize >= 8 {
-			argv = append(argv, "-Wl,--high-entropy-va")
+		if ctxt.Arch.PtrSize >= 8 && heopt != "" {
+			argv = append(argv, "-Wl,"+heopt)
 		}
 		return argv
 	}
@@ -1328,7 +1414,7 @@ func (ctxt *Link) hostlink() {
 		switch ctxt.HeadType {
 		case objabi.Hdarwin, objabi.Haix:
 		case objabi.Hwindows:
-			argv = addASLRargs(argv)
+			argv = addASLRargs(argv, *flagAslr)
 		default:
 			// ELF.
 			if ctxt.UseRelro() {
@@ -1345,9 +1431,7 @@ func (ctxt *Link) hostlink() {
 			}
 			argv = append(argv, "-shared")
 			if ctxt.HeadType == objabi.Hwindows {
-				if *flagAslr {
-					argv = addASLRargs(argv)
-				}
+				argv = addASLRargs(argv, *flagAslr)
 			} else {
 				// Pass -z nodelete to mark the shared library as
 				// non-closeable: a dlclose will do nothing.
@@ -1474,7 +1558,7 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, unusedArguments)
 	}
 
-	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
+	const compressDWARF = "-Wl,--compress-debug-sections=zlib"
 	if ctxt.compressDWARF && linkerFlagSupported(ctxt.Arch, argv[0], altLinker, compressDWARF) {
 		argv = append(argv, compressDWARF)
 	}
@@ -1995,6 +2079,59 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	return nil
 }
 
+// symbolsAreUnresolved scans through the loader's list of unresolved
+// symbols and checks to see whether any of them match the names of the
+// symbols in 'want'. Return value is a list of bools, with list[K] set
+// to true if there is an unresolved reference to the symbol in want[K].
+func symbolsAreUnresolved(ctxt *Link, want []string) []bool {
+	returnAllUndefs := -1
+	undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+	seen := make(map[loader.Sym]struct{})
+	rval := make([]bool, len(want))
+	wantm := make(map[string]int)
+	for k, w := range want {
+		wantm[w] = k
+	}
+	count := 0
+	for _, s := range undefs {
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		if k, ok := wantm[ctxt.loader.SymName(s)]; ok {
+			rval[k] = true
+			count++
+			if count == len(want) {
+				return rval
+			}
+		}
+	}
+	return rval
+}
+
+// hostObject reads a single host object file (compare to "hostArchive").
+// This is used as part of internal linking when we need to pull in
+// files such as "crt?.o".
+func hostObject(ctxt *Link, objname string, path string) {
+	if ctxt.Debugvlog > 1 {
+		ctxt.Logf("hostObject(%s)\n", path)
+	}
+	objlib := sym.Library{
+		Pkg: objname,
+	}
+	f, err := bio.Open(path)
+	if err != nil {
+		Exitf("cannot open host object %q file %s: %v", objname, path, err)
+	}
+	defer f.Close()
+	h := ldobj(ctxt, f, &objlib, 0, path, path)
+	if h.ld == nil {
+		Exitf("unrecognized object file format in %s", path)
+	}
+	f.MustSeek(h.off, 0)
+	h.ld(ctxt, f, h.pkg, h.length, h.pn)
+}
+
 func checkFingerprint(lib *sym.Library, libfp goobj.FingerprintType, src string, srcfp goobj.FingerprintType) {
 	if libfp != srcfp {
 		Exitf("fingerprint mismatch: %s has %x, import from %s expecting %x", lib, libfp, src, srcfp)
@@ -2203,227 +2340,6 @@ func addsection(ldr *loader.Loader, arch *sys.Arch, seg *sym.Segment, name strin
 	sect.Align = int32(arch.PtrSize) // everything is at least pointer-aligned
 	seg.Sections = append(seg.Sections, sect)
 	return sect
-}
-
-type chain struct {
-	sym   loader.Sym
-	up    *chain
-	limit int // limit on entry to sym
-}
-
-func haslinkregister(ctxt *Link) bool {
-	return ctxt.FixedFrameSize() != 0
-}
-
-func callsize(ctxt *Link) int {
-	if haslinkregister(ctxt) {
-		return 0
-	}
-	return ctxt.Arch.RegSize
-}
-
-type stkChk struct {
-	ldr       *loader.Loader
-	ctxt      *Link
-	morestack loader.Sym
-	done      loader.Bitmap
-}
-
-// Walk the call tree and check that there is always enough stack space
-// for the call frames, especially for a chain of nosplit functions.
-func (ctxt *Link) dostkcheck() {
-	ldr := ctxt.loader
-	sc := stkChk{
-		ldr:       ldr,
-		ctxt:      ctxt,
-		morestack: ldr.Lookup("runtime.morestack", 0),
-		done:      loader.MakeBitmap(ldr.NSym()),
-	}
-
-	// Every splitting function ensures that there are at least StackLimit
-	// bytes available below SP when the splitting prologue finishes.
-	// If the splitting function calls F, then F begins execution with
-	// at least StackLimit - callsize() bytes available.
-	// Check that every function behaves correctly with this amount
-	// of stack, following direct calls in order to piece together chains
-	// of non-splitting functions.
-	var ch chain
-	ch.limit = objabi.StackLimit - callsize(ctxt)
-	if buildcfg.GOARCH == "arm64" {
-		// need extra 8 bytes below SP to save FP
-		ch.limit -= 8
-	}
-
-	// Check every function, but do the nosplit functions in a first pass,
-	// to make the printed failure chains as short as possible.
-	for _, s := range ctxt.Textp {
-		if ldr.IsNoSplit(s) {
-			ch.sym = s
-			sc.check(&ch, 0)
-		}
-	}
-
-	for _, s := range ctxt.Textp {
-		if !ldr.IsNoSplit(s) {
-			ch.sym = s
-			sc.check(&ch, 0)
-		}
-	}
-}
-
-func (sc *stkChk) check(up *chain, depth int) int {
-	limit := up.limit
-	s := up.sym
-	ldr := sc.ldr
-	ctxt := sc.ctxt
-
-	// Don't duplicate work: only need to consider each
-	// function at top of safe zone once.
-	top := limit == objabi.StackLimit-callsize(ctxt)
-	if top {
-		if sc.done.Has(s) {
-			return 0
-		}
-		sc.done.Set(s)
-	}
-
-	if depth > 500 {
-		sc.ctxt.Errorf(s, "nosplit stack check too deep")
-		sc.broke(up, 0)
-		return -1
-	}
-
-	if ldr.AttrExternal(s) {
-		// external function.
-		// should never be called directly.
-		// onlyctxt.Diagnose the direct caller.
-		// TODO(mwhudson): actually think about this.
-		// TODO(khr): disabled for now. Calls to external functions can only happen on the g0 stack.
-		// See the trampolines in src/runtime/sys_darwin_$ARCH.go.
-		//if depth == 1 && ldr.SymType(s) != sym.SXREF && !ctxt.DynlinkingGo() &&
-		//	ctxt.BuildMode != BuildModeCArchive && ctxt.BuildMode != BuildModePIE && ctxt.BuildMode != BuildModeCShared && ctxt.BuildMode != BuildModePlugin {
-		//	Errorf(s, "call to external function")
-		//}
-		return -1
-	}
-	info := ldr.FuncInfo(s)
-	if !info.Valid() { // external function. see above.
-		return -1
-	}
-
-	if limit < 0 {
-		sc.broke(up, limit)
-		return -1
-	}
-
-	// morestack looks like it calls functions,
-	// but it switches the stack pointer first.
-	if s == sc.morestack {
-		return 0
-	}
-
-	var ch chain
-	ch.up = up
-
-	if !ldr.IsNoSplit(s) {
-		// Ensure we have enough stack to call morestack.
-		ch.limit = limit - callsize(ctxt)
-		ch.sym = sc.morestack
-		if sc.check(&ch, depth+1) < 0 {
-			return -1
-		}
-		if !top {
-			return 0
-		}
-		// Raise limit to allow frame.
-		locals := info.Locals()
-		limit = objabi.StackLimit + int(locals) + int(ctxt.FixedFrameSize())
-	}
-
-	// Walk through sp adjustments in function, consuming relocs.
-	relocs := ldr.Relocs(s)
-	var ch1 chain
-	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
-	ri := 0
-	for pcsp.Init(ldr.Data(ldr.Pcsp(s))); !pcsp.Done; pcsp.Next() {
-		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
-
-		// Check stack size in effect for this span.
-		if int32(limit)-pcsp.Value < 0 {
-			sc.broke(up, int(int32(limit)-pcsp.Value))
-			return -1
-		}
-
-		// Process calls in this span.
-		for ; ri < relocs.Count(); ri++ {
-			r := relocs.At(ri)
-			if uint32(r.Off()) >= pcsp.NextPC {
-				break
-			}
-			t := r.Type()
-			switch {
-			case t.IsDirectCall():
-				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
-				ch.sym = r.Sym()
-				if sc.check(&ch, depth+1) < 0 {
-					return -1
-				}
-
-			// Indirect call. Assume it is a call to a splitting function,
-			// so we have to make sure it can call morestack.
-			// Arrange the data structures to report both calls, so that
-			// if there is an error, stkprint shows all the steps involved.
-			case t == objabi.R_CALLIND:
-				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
-				ch.sym = 0
-				ch1.limit = ch.limit - callsize(ctxt) // for morestack in called prologue
-				ch1.up = &ch
-				ch1.sym = sc.morestack
-				if sc.check(&ch1, depth+2) < 0 {
-					return -1
-				}
-			}
-		}
-	}
-
-	return 0
-}
-
-func (sc *stkChk) broke(ch *chain, limit int) {
-	sc.ctxt.Errorf(ch.sym, "nosplit stack overflow")
-	sc.print(ch, limit)
-}
-
-func (sc *stkChk) print(ch *chain, limit int) {
-	ldr := sc.ldr
-	ctxt := sc.ctxt
-	var name string
-	if ch.sym != 0 {
-		name = fmt.Sprintf("%s<%d>", ldr.SymName(ch.sym), ldr.SymVersion(ch.sym))
-		if ldr.IsNoSplit(ch.sym) {
-			name += " (nosplit)"
-		}
-	} else {
-		name = "function pointer"
-	}
-
-	if ch.up == nil {
-		// top of chain. ch.sym != 0.
-		if ldr.IsNoSplit(ch.sym) {
-			fmt.Printf("\t%d\tassumed on entry to %s\n", ch.limit, name)
-		} else {
-			fmt.Printf("\t%d\tguaranteed after split check in %s\n", ch.limit, name)
-		}
-	} else {
-		sc.print(ch.up, ch.limit+callsize(ctxt))
-		if !haslinkregister(ctxt) {
-			fmt.Printf("\t%d\ton entry to %s\n", ch.limit, name)
-		}
-	}
-
-	if ch.limit != limit {
-		fmt.Printf("\t%d\tafter %s uses %d\n", limit, name, ch.limit-limit)
-	}
 }
 
 func usage() {

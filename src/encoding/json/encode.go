@@ -77,31 +77,31 @@ import (
 //
 // Examples of struct field tags and their meanings:
 //
-//   // Field appears in JSON as key "myName".
-//   Field int `json:"myName"`
+//	// Field appears in JSON as key "myName".
+//	Field int `json:"myName"`
 //
-//   // Field appears in JSON as key "myName" and
-//   // the field is omitted from the object if its value is empty,
-//   // as defined above.
-//   Field int `json:"myName,omitempty"`
+//	// Field appears in JSON as key "myName" and
+//	// the field is omitted from the object if its value is empty,
+//	// as defined above.
+//	Field int `json:"myName,omitempty"`
 //
-//   // Field appears in JSON as key "Field" (the default), but
-//   // the field is skipped if empty.
-//   // Note the leading comma.
-//   Field int `json:",omitempty"`
+//	// Field appears in JSON as key "Field" (the default), but
+//	// the field is skipped if empty.
+//	// Note the leading comma.
+//	Field int `json:",omitempty"`
 //
-//   // Field is ignored by this package.
-//   Field int `json:"-"`
+//	// Field is ignored by this package.
+//	Field int `json:"-"`
 //
-//   // Field appears in JSON as key "-".
-//   Field int `json:"-,"`
+//	// Field appears in JSON as key "-".
+//	Field int `json:"-,"`
 //
 // The "string" option signals that a field is stored as JSON inside a
 // JSON-encoded string. It applies only to fields of string, floating point,
 // integer, or boolean types. This extra level of encoding is sometimes used
 // when communicating with JavaScript programs:
 //
-//    Int64String int64 `json:",string"`
+//	Int64String int64 `json:",string"`
 //
 // The key name will be used if it's a non-empty string consisting of
 // only Unicode letters, digits, and ASCII punctuation except quotation
@@ -154,8 +154,7 @@ import (
 // JSON cannot represent cyclic data structures and Marshal does not
 // handle them. Passing cyclic structures to Marshal will result in
 // an error.
-//
-func Marshal(v interface{}) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	e := newEncodeState()
 
 	err := e.marshal(v, encOpts{escapeHTML: true})
@@ -172,7 +171,7 @@ func Marshal(v interface{}) ([]byte, error) {
 // MarshalIndent is like Marshal but applies Indent to format the output.
 // Each JSON element in the output will begin on a new line beginning with prefix
 // followed by one or more copies of indent according to the indentation nesting.
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	b, err := Marshal(v)
 	if err != nil {
 		return nil, err
@@ -294,7 +293,7 @@ type encodeState struct {
 	// startDetectingCyclesAfter, so that we skip the work if we're within a
 	// reasonable amount of nested pointers deep.
 	ptrLevel uint
-	ptrSeen  map[interface{}]struct{}
+	ptrSeen  map[any]struct{}
 }
 
 const startDetectingCyclesAfter = 1000
@@ -311,7 +310,7 @@ func newEncodeState() *encodeState {
 		e.ptrLevel = 0
 		return e
 	}
-	return &encodeState{ptrSeen: make(map[interface{}]struct{})}
+	return &encodeState{ptrSeen: make(map[any]struct{})}
 }
 
 // jsonError is an error wrapper type for internal use only.
@@ -319,7 +318,7 @@ func newEncodeState() *encodeState {
 // can distinguish intentional panics from this package.
 type jsonError struct{ error }
 
-func (e *encodeState) marshal(v interface{}, opts encOpts) (err error) {
+func (e *encodeState) marshal(v any, opts encOpts) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if je, ok := r.(jsonError); ok {
@@ -784,7 +783,7 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
 		// We're a large number of nested ptrEncoder.encode calls deep;
 		// start checking if we've run into a pointer cycle.
-		ptr := v.Pointer()
+		ptr := v.UnsafePointer()
 		if _, ok := e.ptrSeen[ptr]; ok {
 			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type())})
 		}
@@ -877,9 +876,9 @@ func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		// Here we use a struct to memorize the pointer to the first element of the slice
 		// and its length.
 		ptr := struct {
-			ptr uintptr
+			ptr interface{} // always an unsafe.Pointer, but avoids a dependency on package unsafe
 			len int
-		}{v.Pointer(), v.Len()}
+		}{v.UnsafePointer(), v.Len()}
 		if _, ok := e.ptrSeen[ptr]; ok {
 			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type())})
 		}

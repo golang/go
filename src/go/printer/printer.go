@@ -104,7 +104,7 @@ func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]
 	p.cachedPos = -1
 }
 
-func (p *printer) internalError(msg ...interface{}) {
+func (p *printer) internalError(msg ...any) {
 	if debug {
 		fmt.Print(p.pos.String() + ": ")
 		fmt.Println(msg...)
@@ -151,14 +151,12 @@ func (p *printer) nextComment() {
 // commentBefore reports whether the current comment group occurs
 // before the next position in the source code and printing it does
 // not introduce implicit semicolons.
-//
 func (p *printer) commentBefore(next token.Position) bool {
 	return p.commentOffset < next.Offset && (!p.impliedSemi || !p.commentNewline)
 }
 
 // commentSizeBefore returns the estimated size of the
 // comments on the same line before the next position.
-//
 func (p *printer) commentSizeBefore(next token.Position) int {
 	// save/restore current p.commentInfo (p.nextComment() modifies it)
 	defer func(info commentInfo) {
@@ -179,7 +177,6 @@ func (p *printer) commentSizeBefore(next token.Position) int {
 // token in *linePtr. It is used to compute an accurate line number for a
 // formatted construct, independent of pending (not yet emitted) whitespace
 // or comments.
-//
 func (p *printer) recordLine(linePtr *int) {
 	p.linePtr = linePtr
 }
@@ -188,7 +185,6 @@ func (p *printer) recordLine(linePtr *int) {
 // output line and the line argument, ignoring any pending (not yet
 // emitted) whitespace or comments. It is used to compute an accurate
 // size (in number of lines) for a formatted construct.
-//
 func (p *printer) linesFrom(line int) int {
 	return p.out.Line - line
 }
@@ -282,7 +278,6 @@ func (p *printer) writeByte(ch byte, n int) {
 // needed (i.e., when we don't know that s contains no tabs or line breaks)
 // avoids processing extra escape characters and reduces run time of the
 // printer benchmark by up to 10%.
-//
 func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 	if p.out.Column == 1 {
 		if p.Config.Mode&SourcePos != 0 {
@@ -352,7 +347,6 @@ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 // pos is the comment position, next the position of the item
 // after all pending comments, prev is the previous comment in
 // a group of comments (or nil), and tok is the next token.
-//
 func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment, tok token.Token) {
 	if len(p.output) == 0 {
 		// the comment is the first item to be printed - don't write any whitespace
@@ -478,7 +472,6 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
 
 // Returns true if s contains only white space
 // (only tabs and blanks can appear in the printer's context).
-//
 func isBlank(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] > ' ' {
@@ -507,7 +500,6 @@ func trimRight(s string) string {
 // The prefix is computed using heuristics such that is likely that the comment
 // contents are nicely laid out after re-printing each line using the printer's
 // current indentation.
-//
 func stripCommonPrefix(lines []string) {
 	if len(lines) <= 1 {
 		return // at most one line - nothing to do
@@ -695,7 +687,6 @@ func (p *printer) writeComment(comment *ast.Comment) {
 // pending whitespace. The writeCommentSuffix result indicates if a
 // newline was written or if a formfeed was dropped from the whitespace
 // buffer.
-//
 func (p *printer) writeCommentSuffix(needsLinebreak bool) (wroteNewline, droppedFF bool) {
 	for i, ch := range p.wsbuf {
 		switch ch {
@@ -744,14 +735,30 @@ func (p *printer) containsLinebreak() bool {
 // that needs to be written before the next token). A heuristic is used to mix
 // the comments and whitespace. The intersperseComments result indicates if a
 // newline was written or if a formfeed was dropped from the whitespace buffer.
-//
 func (p *printer) intersperseComments(next token.Position, tok token.Token) (wroteNewline, droppedFF bool) {
 	var last *ast.Comment
 	for p.commentBefore(next) {
-		for _, c := range p.comment.List {
+		list := p.comment.List
+		changed := false
+		if p.lastTok != token.IMPORT && // do not rewrite cgo's import "C" comments
+			p.posFor(p.comment.Pos()).Column == 1 &&
+			p.posFor(p.comment.End()+1) == next {
+			// Unindented comment abutting next token position:
+			// a top-level doc comment.
+			list = formatDocComment(list)
+			changed = true
+		}
+		for _, c := range list {
 			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, tok)
 			p.writeComment(c)
 			last = c
+		}
+		// In case list was rewritten, change print state to where
+		// the original list would have ended.
+		if len(p.comment.List) > 0 && changed {
+			last = p.comment.List[len(p.comment.List)-1]
+			p.pos = p.posFor(last.End())
+			p.last = p.pos
 		}
 		p.nextComment()
 	}
@@ -877,8 +884,7 @@ func mayCombine(prev token.Token, next byte) (b bool) {
 // taking into account the amount and structure of any pending white-
 // space for best comment placement. Then, any leftover whitespace is
 // printed, followed by the actual token.
-//
-func (p *printer) print(args ...interface{}) {
+func (p *printer) print(args ...any) {
 	for _, arg := range args {
 		// information about the current arg
 		var data string
@@ -1020,7 +1026,6 @@ func (p *printer) print(args ...interface{}) {
 // before the position of the next token tok. The flush result indicates
 // if a newline was written or if a formfeed was dropped from the whitespace
 // buffer.
-//
 func (p *printer) flush(next token.Position, tok token.Token) (wroteNewline, droppedFF bool) {
 	if p.commentBefore(next) {
 		// if there are comments before the next item, intersperse them
@@ -1075,7 +1080,7 @@ func getLastComment(n ast.Node) *ast.CommentGroup {
 	return nil
 }
 
-func (p *printer) printNode(node interface{}) error {
+func (p *printer) printNode(node any) error {
 	// unpack *CommentedNode, if any
 	var comments []*ast.CommentGroup
 	if cnode, ok := node.(*CommentedNode); ok {
@@ -1175,7 +1180,6 @@ unsupported:
 // and vtab characters into newlines and htabs (in case no tabwriter
 // is used). Text bracketed by tabwriter.Escape characters is passed
 // through unchanged.
-//
 type trimmer struct {
 	output io.Writer
 	state  int
@@ -1309,7 +1313,7 @@ type Config struct {
 }
 
 // fprint implements Fprint and takes a nodesSizes map for setting up the printer state.
-func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{}, nodeSizes map[ast.Node]int) (err error) {
+func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node any, nodeSizes map[ast.Node]int) (err error) {
 	// print node
 	var p printer
 	p.init(cfg, fset, nodeSizes)
@@ -1363,9 +1367,8 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 
 // A CommentedNode bundles an AST node and corresponding comments.
 // It may be provided as argument to any of the Fprint functions.
-//
 type CommentedNode struct {
-	Node     interface{} // *ast.File, or ast.Expr, ast.Decl, ast.Spec, or ast.Stmt
+	Node     any // *ast.File, or ast.Expr, ast.Decl, ast.Spec, or ast.Stmt
 	Comments []*ast.CommentGroup
 }
 
@@ -1373,8 +1376,7 @@ type CommentedNode struct {
 // Position information is interpreted relative to the file set fset.
 // The node type must be *ast.File, *CommentedNode, []ast.Decl, []ast.Stmt,
 // or assignment-compatible to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
-//
-func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
+func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node any) error {
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
 
@@ -1382,7 +1384,6 @@ func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{
 // It calls Config.Fprint with default settings.
 // Note that gofmt uses tabs for indentation but spaces for alignment;
 // use format.Node (package go/format) for output that matches gofmt.
-//
-func Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
+func Fprint(output io.Writer, fset *token.FileSet, node any) error {
 	return (&Config{Tabwidth: 8}).Fprint(output, fset, node)
 }

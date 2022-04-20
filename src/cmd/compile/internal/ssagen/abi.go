@@ -14,7 +14,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -242,17 +241,6 @@ func InitLSym(f *ir.Func, hasBody bool) {
 		f.LSym = nam.LinksymABI(f.ABI)
 		if f.Pragma&ir.Systemstack != 0 {
 			f.LSym.Set(obj.AttrCFunc, true)
-		}
-		if f.ABI == obj.ABIInternal || !buildcfg.Experiment.RegabiWrappers {
-			// Function values can only point to
-			// ABIInternal entry points. This will create
-			// the funcsym for either the defining
-			// function or its wrapper as appropriate.
-			//
-			// If we're not using ABI wrappers, we only
-			// InitLSym for the defining ABI of a function,
-			// so we make the funcsym when we see that.
-			staticdata.NeedFuncSym(f)
 		}
 	}
 	if hasBody {

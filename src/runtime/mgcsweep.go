@@ -387,13 +387,13 @@ func sweepone() uintptr {
 		// concurrent sweeps running, but we're at least very
 		// close to done sweeping.
 
-		// Move the scavenge gen forward (signalling
+		// Move the scavenge gen forward (signaling
 		// that there's new work to do) and wake the scavenger.
 		//
 		// The scavenger is signaled by the last sweeper because once
 		// sweeping is done, we will definitely have useful work for
 		// the scavenger to do, since the scavenger only runs over the
-		// heap once per GC cyle. This update is not done during sweep
+		// heap once per GC cycle. This update is not done during sweep
 		// termination because in some cases there may be a long delay
 		// between sweep done and sweep termination (e.g. not enough
 		// allocations to trigger a GC) which would be nice to fill in
@@ -424,6 +424,7 @@ func isSweepDone() bool {
 }
 
 // Returns only when span s has been swept.
+//
 //go:nowritebarrier
 func (s *mspan) ensureSwept() {
 	// Caller must disable preemption.

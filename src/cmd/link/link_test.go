@@ -55,7 +55,7 @@ func main() {}
 		t.Fatalf("failed to write main.go: %v\n", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "main.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "main.go")
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -100,7 +100,7 @@ func TestIssue28429(t *testing.T) {
 
 	// Compile a main package.
 	write("main.go", "package main; func main() {}")
-	runGo("tool", "compile", "-p", "main", "main.go")
+	runGo("tool", "compile", "-p=main", "main.go")
 	runGo("tool", "pack", "c", "main.a", "main.o")
 
 	// Add an extra section with a short, non-.o name.
@@ -236,7 +236,7 @@ void foo() {
 
 	// Compile, assemble and pack the Go and C code.
 	runGo("tool", "asm", "-gensymabis", "-o", "symabis", "x.s")
-	runGo("tool", "compile", "-symabis", "symabis", "-p", "main", "-o", "x1.o", "main.go")
+	runGo("tool", "compile", "-symabis", "symabis", "-p=main", "-o", "x1.o", "main.go")
 	runGo("tool", "asm", "-o", "x2.o", "x.s")
 	run(cc, append(cflags, "-c", "-o", "x3.o", "x.c")...)
 	runGo("tool", "pack", "c", "x.a", "x1.o", "x2.o", "x3.o")
@@ -431,7 +431,7 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 	}
 
 	obj := filepath.Join(tmpdir, "blah.o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=blah", "-o", obj, src)
 	cmd.Env = append(os.Environ(), "GOARCH=386", "GOOS=android")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
@@ -642,8 +642,12 @@ func TestTrampoline(t *testing.T) {
 	// For stress test, we set -debugtramp=2 flag, which sets a very low
 	// threshold for trampoline generation, and essentially all cross-package
 	// calls will use trampolines.
+	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64", "ppc64le":
+	case "arm", "arm64", "ppc64":
+	case "ppc64le":
+		// Trampolines are generated differently when internal linking PIE, test them too.
+		buildmodes = append(buildmodes, "pie")
 	default:
 		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
 	}
@@ -661,18 +665,20 @@ func TestTrampoline(t *testing.T) {
 	}
 	exe := filepath.Join(tmpdir, "hello.exe")
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build failed: %v\n%s", err, out)
-	}
-	cmd = exec.Command(exe)
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("executable failed to run: %v\n%s", err, out)
-	}
-	if string(out) != "hello\n" {
-		t.Errorf("unexpected output:\n%s", out)
+	for _, mode := range buildmodes {
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode="+mode, "-ldflags=-debugtramp=2", "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = exec.Command(exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
+		}
+		if string(out) != "hello\n" {
+			t.Errorf("unexpected output (%s):\n%s", mode, out)
+		}
 	}
 }
 
@@ -693,8 +699,12 @@ func TestTrampolineCgo(t *testing.T) {
 	// For stress test, we set -debugtramp=2 flag, which sets a very low
 	// threshold for trampoline generation, and essentially all cross-package
 	// calls will use trampolines.
+	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64", "ppc64le":
+	case "arm", "arm64", "ppc64":
+	case "ppc64le":
+		// Trampolines are generated differently when internal linking PIE, test them too.
+		buildmodes = append(buildmodes, "pie")
 	default:
 		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
 	}
@@ -713,37 +723,39 @@ func TestTrampolineCgo(t *testing.T) {
 	}
 	exe := filepath.Join(tmpdir, "hello.exe")
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build failed: %v\n%s", err, out)
-	}
-	cmd = exec.Command(exe)
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("executable failed to run: %v\n%s", err, out)
-	}
-	if string(out) != "hello\n" && string(out) != "hello\r\n" {
-		t.Errorf("unexpected output:\n%s", out)
-	}
+	for _, mode := range buildmodes {
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode="+mode, "-ldflags=-debugtramp=2", "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = exec.Command(exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
+		}
+		if string(out) != "hello\n" && string(out) != "hello\r\n" {
+			t.Errorf("unexpected output (%s):\n%s", mode, out)
+		}
 
-	// Test internal linking mode.
+		// Test internal linking mode.
 
-	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || (runtime.GOARCH == "arm64" && runtime.GOOS == "windows") || !testenv.CanInternalLink() {
-		return // internal linking cgo is not supported
-	}
-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2 -linkmode=internal", "-o", exe, src)
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build failed: %v\n%s", err, out)
-	}
-	cmd = exec.Command(exe)
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("executable failed to run: %v\n%s", err, out)
-	}
-	if string(out) != "hello\n" && string(out) != "hello\r\n" {
-		t.Errorf("unexpected output:\n%s", out)
+		if runtime.GOARCH == "ppc64" || (runtime.GOARCH == "arm64" && runtime.GOOS == "windows") || !testenv.CanInternalLink() {
+			return // internal linking cgo is not supported
+		}
+		cmd = exec.Command(testenv.GoToolPath(t), "build", "-buildmode="+mode, "-ldflags=-debugtramp=2 -linkmode=internal", "-o", exe, src)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = exec.Command(exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
+		}
+		if string(out) != "hello\n" && string(out) != "hello\r\n" {
+			t.Errorf("unexpected output (%s):\n%s", mode, out)
+		}
 	}
 }
 
@@ -765,13 +777,13 @@ func TestIndexMismatch(t *testing.T) {
 	exe := filepath.Join(tmpdir, "main.exe")
 
 	// Build a program with main package importing package a.
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, aSrc)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=a", "-o", aObj, aSrc)
 	t.Log(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", mObj, mSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "-I", tmpdir, "-o", mObj, mSrc)
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -786,7 +798,7 @@ func TestIndexMismatch(t *testing.T) {
 
 	// Now, overwrite a.o with the object of b.go. This should
 	// result in an index mismatch.
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, bSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=a", "-o", aObj, bSrc)
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -1057,5 +1069,62 @@ func TestLargeReloc(t *testing.T) {
 		if err != nil {
 			t.Fatalf("build failed: %v. output:\n%s", err, out)
 		}
+	}
+}
+
+func TestUnlinkableObj(t *testing.T) {
+	// Test that the linker emits an error with unlinkable object.
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	xSrc := filepath.Join(tmpdir, "x.go")
+	pSrc := filepath.Join(tmpdir, "p.go")
+	xObj := filepath.Join(tmpdir, "x.o")
+	pObj := filepath.Join(tmpdir, "p.o")
+	exe := filepath.Join(tmpdir, "x.exe")
+	err := ioutil.WriteFile(xSrc, []byte("package main\nimport _ \"p\"\nfunc main() {}\n"), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	err = ioutil.WriteFile(pSrc, []byte("package p\n"), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", pObj, pSrc) // without -p
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-p=main", "-o", xObj, xSrc)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile x.go failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, xObj)
+	out, err = cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("link did not fail")
+	}
+	if !bytes.Contains(out, []byte("unlinkable object")) {
+		t.Errorf("did not see expected error message. out:\n%s", out)
+	}
+
+	// It is okay to omit -p for (only) main package.
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", pObj, pSrc)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", xObj, xSrc) // without -p
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, xObj)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("link failed: %v. output:\n%s", err, out)
 	}
 }

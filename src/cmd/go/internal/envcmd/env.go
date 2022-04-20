@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package envcmd implements the ``go env'' command.
+// Package envcmd implements the “go env” command.
 package envcmd
 
 import (
@@ -74,7 +74,14 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOCACHE", Value: cache.DefaultDir()},
 		{Name: "GOENV", Value: envFile},
 		{Name: "GOEXE", Value: cfg.ExeSuffix},
-		{Name: "GOEXPERIMENT", Value: buildcfg.GOEXPERIMENT()},
+
+		// List the raw value of GOEXPERIMENT, not the cleaned one.
+		// The set of default experiments may change from one release
+		// to the next, so a GOEXPERIMENT setting that is redundant
+		// with the current toolchain might actually be relevant with
+		// a different version (for example, when bisecting a regression).
+		{Name: "GOEXPERIMENT", Value: cfg.RawGOEXPERIMENT},
+
 		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
@@ -154,6 +161,10 @@ func ExtraEnvVars() []cfg.EnvVar {
 	}
 	modload.InitWorkfile()
 	gowork := modload.WorkFilePath()
+	// As a special case, if a user set off explicitly, report that in GOWORK.
+	if cfg.Getenv("GOWORK") == "off" {
+		gowork = "off"
+	}
 	return []cfg.EnvVar{
 		{Name: "GOMOD", Value: gomod},
 		{Name: "GOWORK", Value: gowork},
@@ -173,15 +184,23 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 	}
 	cmd := b.GccCmd(".", "")
 
+	join := func(s []string) string {
+		q, err := quoted.Join(s)
+		if err != nil {
+			return strings.Join(s, " ")
+		}
+		return q
+	}
+
 	return []cfg.EnvVar{
 		// Note: Update the switch in runEnv below when adding to this list.
-		{Name: "CGO_CFLAGS", Value: strings.Join(cflags, " ")},
-		{Name: "CGO_CPPFLAGS", Value: strings.Join(cppflags, " ")},
-		{Name: "CGO_CXXFLAGS", Value: strings.Join(cxxflags, " ")},
-		{Name: "CGO_FFLAGS", Value: strings.Join(fflags, " ")},
-		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
+		{Name: "CGO_CFLAGS", Value: join(cflags)},
+		{Name: "CGO_CPPFLAGS", Value: join(cppflags)},
+		{Name: "CGO_CXXFLAGS", Value: join(cxxflags)},
+		{Name: "CGO_FFLAGS", Value: join(fflags)},
+		{Name: "CGO_LDFLAGS", Value: join(ldflags)},
 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
-		{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")},
+		{Name: "GOGCCFLAGS", Value: join(cmd[3:])},
 	}
 }
 
@@ -218,6 +237,9 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	buildcfg.Check()
+	if cfg.ExperimentErr != nil {
+		base.Fatalf("go: %v", cfg.ExperimentErr)
+	}
 
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
@@ -370,9 +392,9 @@ func checkBuildConfig(add map[string]string, del map[string]bool) error {
 		}
 	}
 
-	goexperiment, okGOEXPERIMENT := get("GOEXPERIMENT", buildcfg.GOEXPERIMENT(), "")
+	goexperiment, okGOEXPERIMENT := get("GOEXPERIMENT", cfg.RawGOEXPERIMENT, buildcfg.DefaultGOEXPERIMENT)
 	if okGOEXPERIMENT {
-		if _, _, err := buildcfg.ParseGOEXPERIMENT(goos, goarch, goexperiment); err != nil {
+		if _, err := buildcfg.ParseGOEXPERIMENT(goos, goarch, goexperiment); err != nil {
 			return err
 		}
 	}

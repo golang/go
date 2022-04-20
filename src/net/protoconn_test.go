@@ -73,10 +73,7 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 	}
 	ch := make(chan error, 1)
 	handler := func(ls *localServer, ln Listener) { ls.transponder(ls.Listener, ch) }
-	ls, err := (&streamListener{Listener: ln}).newLocalServer()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ls := (&streamListener{Listener: ln}).newLocalServer()
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -207,7 +204,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 		t.Skip("unix test")
 	}
 
-	addr := testUnixAddr()
+	addr := testUnixAddr(t)
 	la, err := ResolveUnixAddr("unix", addr)
 	if err != nil {
 		t.Fatal(err)
@@ -248,7 +245,7 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 		t.Skip("unixgram test")
 	}
 
-	addr1, addr2, addr3 := testUnixAddr(), testUnixAddr(), testUnixAddr()
+	addr1, addr2, addr3 := testUnixAddr(t), testUnixAddr(t), testUnixAddr(t)
 
 	a1, err := ResolveUnixAddr("unixgram", addr1)
 	if err != nil {

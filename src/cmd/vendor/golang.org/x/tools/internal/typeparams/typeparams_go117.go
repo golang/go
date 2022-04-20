@@ -17,38 +17,6 @@ func unsupported() {
 	panic("type parameters are unsupported at this go version")
 }
 
-// GetIndexExprData extracts data from *ast.IndexExpr nodes.
-// For other nodes, GetIndexExprData returns nil.
-func GetIndexExprData(n ast.Node) *IndexExprData {
-	if e, _ := n.(*ast.IndexExpr); e != nil {
-		return &IndexExprData{
-			X:       e.X,
-			Lbrack:  e.Lbrack,
-			Indices: []ast.Expr{e.Index},
-			Rbrack:  e.Rbrack,
-		}
-	}
-	return nil
-}
-
-// PackIndexExpr returns an *ast.IndexExpr with the given index.
-// Calling PackIndexExpr with len(indices) != 1 will panic.
-func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) ast.Expr {
-	switch len(indices) {
-	case 0:
-		panic("empty indices")
-	case 1:
-		return &ast.IndexExpr{
-			X:      x,
-			Lbrack: lbrack,
-			Index:  indices[0],
-			Rbrack: rbrack,
-		}
-	default:
-		panic("cannot pack multiple indices at this go version")
-	}
-}
-
 // IndexListExpr is a placeholder type, as type parameters are not supported at
 // this Go version. Its methods panic on use.
 type IndexListExpr struct {
@@ -75,6 +43,7 @@ func ForFuncType(*ast.FuncType) *ast.FieldList {
 // this Go version. Its methods panic on use.
 type TypeParam struct{ types.Type }
 
+func (*TypeParam) Index() int             { unsupported(); return 0 }
 func (*TypeParam) Constraint() types.Type { unsupported(); return nil }
 func (*TypeParam) Obj() *types.TypeName   { unsupported(); return nil }
 
@@ -215,6 +184,11 @@ func GetInstances(info *types.Info) map[*ast.Ident]Instance { return nil }
 // Context is a placeholder type, as type parameters are not supported at
 // this Go version.
 type Context struct{}
+
+// NewContext returns a placeholder Context instance.
+func NewContext() *Context {
+	return &Context{}
+}
 
 // Instantiate is unsupported on this Go version, and panics.
 func Instantiate(ctxt *Context, typ types.Type, targs []types.Type, validate bool) (types.Type, error) {

@@ -15,16 +15,17 @@ import (
 
 // Instantiate instantiates the type orig with the given type arguments targs.
 // orig must be a *Named or a *Signature type. If there is no error, the
-// resulting Type is a new, instantiated (not parameterized) type of the same
-// kind (either a *Named or a *Signature). Methods attached to a *Named type
-// are also instantiated, and associated with a new *Func that has the same
-// position as the original method, but nil function scope.
+// resulting Type is an instantiated type of the same kind (either a *Named or
+// a *Signature). Methods attached to a *Named type are also instantiated, and
+// associated with a new *Func that has the same position as the original
+// method, but nil function scope.
 //
 // If ctxt is non-nil, it may be used to de-duplicate the instance against
 // previous instances with the same identity. As a special case, generic
 // *Signature origin types are only considered identical if they are pointer
 // equivalent, so that instantiating distinct (but possibly identical)
-// signatures will yield different instances.
+// signatures will yield different instances. The use of a shared context does
+// not guarantee that identical instances are deduplicated in all cases.
 //
 // If validate is set, Instantiate verifies that the number of type arguments
 // and parameters match, and that the type arguments satisfy their
@@ -61,7 +62,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
-// unexpanded.
+// unexpanded. check may be nil.
 func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Context) (res Type) {
 	var h string
 	if ctxt != nil {
@@ -77,8 +78,8 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Con
 	case *Named:
 		tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
 		named := check.newNamed(tname, orig, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
-		named.targs = NewTypeList(targs)
-		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+		named.targs = newTypeList(targs)
+		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
 			return expandNamed(ctxt, n, pos)
 		}
 		res = named
@@ -103,6 +104,7 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Con
 		// anymore; we need to set tparams to nil.
 		sig.tparams = nil
 		res = sig
+
 	default:
 		// only types and functions can be generic
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))
@@ -133,22 +135,16 @@ func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool 
 }
 
 func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) (int, error) {
-	// TODO(rfindley): it would be great if users could pass in a qualifier here,
-	// rather than falling back to verbose qualification. Maybe this can be part
-	// of the shared context.
-	var qf Qualifier
-	if check != nil {
-		qf = check.qualifier
-	}
-
 	smap := makeSubstMap(tparams, targs)
 	for i, tpar := range tparams {
+		// Ensure that we have a (possibly implicit) interface as type bound (issue #51048).
+		tpar.iface()
 		// The type parameter bound is parameterized with the same type parameters
 		// as the instantiated type; before we can use it for bounds checking we
 		// need to instantiate it with the type arguments with which we instantiated
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil)
-		if err := check.implements(targs[i], bound, qf); err != nil {
+		if err := check.implements(targs[i], bound); err != nil {
 			return i, err
 		}
 	}
@@ -156,21 +152,31 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) 
 }
 
 // implements checks if V implements T and reports an error if it doesn't.
-// If a qualifier is provided, it is used in error formatting.
-func (check *Checker) implements(V, T Type, qf Qualifier) error {
+// The receiver may be nil if implements is called through an exported
+// API call such as AssignableTo.
+func (check *Checker) implements(V, T Type) error {
 	Vu := under(V)
 	Tu := under(T)
 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
-		return nil
+		return nil // avoid follow-on errors
+	}
+	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
+		return nil // avoid follow-on errors (see issue #49541 for an example)
 	}
 
-	errorf := func(format string, args ...interface{}) error {
-		return errors.New(sprintf(nil, qf, false, format, args...))
+	errorf := func(format string, args ...any) error {
+		return errors.New(check.sprintf(format, args...))
 	}
 
 	Ti, _ := Tu.(*Interface)
 	if Ti == nil {
-		return errorf("%s is not an interface", T)
+		var cause string
+		if isInterfacePtr(Tu) {
+			cause = check.sprintf("type %s is pointer to interface, not interface", T)
+		} else {
+			cause = check.sprintf("%s is not an interface", T)
+		}
+		return errorf("%s does not implement %s (%s)", V, T, cause)
 	}
 
 	// Every type satisfies the empty interface.
@@ -192,39 +198,22 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 		return errorf("cannot implement %s (empty type set)", T)
 	}
 
-	// If T is comparable, V must be comparable.
-	// TODO(gri) the error messages could be better, here
-	if Ti.IsComparable() && !Comparable(V) {
-		if Vi != nil && Vi.Empty() {
-			return errorf("empty interface %s does not implement %s", V, T)
-		}
-		return errorf("%s does not implement comparable", V)
+	// V must implement T's methods, if any.
+	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+		return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
 	}
 
-	// V must implement T (methods)
-	// - check only if we have methods
-	if Ti.NumMethods() > 0 {
-		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
-			// TODO(gri) needs to print updated name to avoid major confusion in error message!
-			//           (print warning for now)
-			// Old warning:
-			// check.softErrorf(pos, "%s does not implement %s (warning: name not updated) = %s (missing method %s)", V, T, Ti, m)
-			if wrong != nil {
-				// TODO(gri) This can still report uninstantiated types which makes the error message
-				//           more difficult to read then necessary.
-				// TODO(rFindley) should this use parentheses rather than ':' for qualification?
-				return errorf("%s does not implement %s: wrong method signature\n\tgot  %s\n\twant %s",
-					V, T, wrong, m,
-				)
-			}
-			return errorf("%s does not implement %s (missing method %s)", V, T, m.name)
-		}
+	// If T is comparable, V must be comparable.
+	// Remember as a pending error and report only if we don't have a more specific error.
+	var pending error
+	if Ti.IsComparable() && !comparable(V, false, nil, nil) {
+		pending = errorf("%s does not implement comparable", V)
 	}
 
 	// V must also be in the set of types of T, if any.
 	// Constraints with empty type sets were already excluded above.
 	if !Ti.typeSet().hasTerms() {
-		return nil // nothing to do
+		return pending // nothing to do
 	}
 
 	// If V is itself an interface, each of its possible types must be in the set
@@ -235,14 +224,33 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
 			// TODO(gri) report which type is missing
 			return errorf("%s does not implement %s", V, T)
 		}
-		return nil
+		return pending
 	}
 
 	// Otherwise, V's type must be included in the iface type set.
-	if !Ti.typeSet().includes(V) {
-		// TODO(gri) report which type is missing
-		return errorf("%s does not implement %s", V, T)
+	var alt Type
+	if Ti.typeSet().is(func(t *term) bool {
+		if !t.includes(V) {
+			// If V ∉ t.typ but V ∈ ~t.typ then remember this type
+			// so we can suggest it as an alternative in the error
+			// message.
+			if alt == nil && !t.tilde && Identical(t.typ, under(t.typ)) {
+				tt := *t
+				tt.tilde = true
+				if tt.includes(V) {
+					alt = t.typ
+				}
+			}
+			return true
+		}
+		return false
+	}) {
+		if alt != nil {
+			return errorf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+		} else {
+			return errorf("%s does not implement %s", V, T)
+		}
 	}
 
-	return nil
+	return pending
 }

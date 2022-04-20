@@ -118,15 +118,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	A0, ret+24(FP)
 	RET
 
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOV	$r+0(FP), A0
-	MOV	ZERO, A1
-	MOV	$SYS_pipe2, A7
-	ECALL
-	MOVW	A0, errno+8(FP)
-	RET
-
 // func pipe2(flags int32) (r, w int32, errno int32)
 TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 	MOV	$r+8(FP), A0
@@ -631,21 +622,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), A0  // fd
 	MOV	$2, A1	// F_SETFD
 	MOV	$1, A2	// FD_CLOEXEC
-	MOV	$SYS_fcntl, A7
-	ECALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), A0 // fd
-	MOV	$3, A1	// F_GETFL
-	MOV	$0, A2
-	MOV	$SYS_fcntl, A7
-	ECALL
-	MOV	$0x800, A2 // O_NONBLOCK
-	OR	A0, A2
-	MOVW	fd+0(FP), A0 // fd
-	MOV	$4, A1	// F_SETFL
 	MOV	$SYS_fcntl, A7
 	ECALL
 	RET

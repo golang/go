@@ -22,8 +22,8 @@ import (
 	"unicode/utf8"
 
 	"cmd/go/internal/fsys"
-	"cmd/go/internal/trace"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 )
 
 var TestMainDeps = []string{
@@ -76,9 +76,9 @@ func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *T
 }
 
 // TestPackagesAndErrors returns three packages:
-//	- pmain, the package main corresponding to the test binary (running tests in ptest and pxtest).
-//	- ptest, the package p compiled with added "package p" test files.
-//	- pxtest, the result of compiling any "package p_test" (external) test files.
+//   - pmain, the package main corresponding to the test binary (running tests in ptest and pxtest).
+//   - ptest, the package p compiled with added "package p" test files.
+//   - pxtest, the result of compiling any "package p_test" (external) test files.
 //
 // If the package has no "package p_test" test files, pxtest will be nil.
 // If the non-test compilation of package p can be reused
@@ -368,9 +368,9 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	if err != nil && pmain.Error == nil {
 		pmain.Error = &PackageError{Err: err}
 	}
-	if data != nil {
-		pmain.Internal.TestmainGo = &data
-	}
+	// Set TestmainGo even if it is empty: the presence of a TestmainGo
+	// indicates that this package is, in fact, a test main.
+	pmain.Internal.TestmainGo = &data
 
 	return pmain, ptest, pxtest
 }

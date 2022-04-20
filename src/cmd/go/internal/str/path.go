@@ -58,8 +58,11 @@ func TrimFilePathPrefix(s, prefix string) string {
 	if !HasFilePathPrefix(s, prefix) {
 		return s
 	}
-	if len(s) == len(prefix) {
-		return ""
+	trimmed := s[len(prefix):]
+	if len(trimmed) == 0 || trimmed[0] != filepath.Separator {
+		// Prefix either is equal to s, or ends with a separator
+		// (for example, if it is exactly "/").
+		return trimmed
 	}
-	return s[len(prefix)+1:]
+	return trimmed[1:]
 }

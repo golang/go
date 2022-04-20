@@ -367,6 +367,11 @@ void init() {
 // Cgo incorrectly computed the alignment of structs
 // with no Go accessible fields as 0, and then panicked on
 // modulo-by-zero computations.
+
+// issue 50987
+// disable arm64 GCC warnings
+#cgo CFLAGS: -Wno-psabi -Wno-unknown-warning-option
+
 typedef struct {
 } foo;
 

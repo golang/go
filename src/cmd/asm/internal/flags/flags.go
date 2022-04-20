@@ -30,6 +30,7 @@ var (
 
 var DebugFlags struct {
 	MayMoreStack string `help:"call named function before all stack growth checks"`
+	PCTab        string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
 }
 
 var (

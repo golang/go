@@ -14,6 +14,7 @@ import (
 	"go/printer"
 	"go/scanner"
 	"go/token"
+	"internal/diff"
 	"io"
 	"io/fs"
 	"os"
@@ -21,8 +22,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
-
-	"cmd/internal/diff"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -51,6 +50,16 @@ const (
 	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
 	printerNormalizeNumbers = 1 << 30
 )
+
+// fdSem guards the number of concurrently-open file descriptors.
+//
+// For now, this is arbitrarily set to 200, based on the observation that many
+// platforms default to a kernel limit of 256. Ideally, perhaps we should derive
+// it from rlimit on platforms that support that system call.
+//
+// File descriptors opened from outside of this package are not tracked,
+// so this limit may be approximate.
+var fdSem = make(chan bool, 200)
 
 var (
 	rewrite    func(*token.FileSet, *ast.File) *ast.File
@@ -183,7 +192,7 @@ func (r *reporter) getState() *reporterState {
 
 // Warnf emits a warning message to the reporter's error stream,
 // without changing its exit code.
-func (r *reporter) Warnf(format string, args ...interface{}) {
+func (r *reporter) Warnf(format string, args ...any) {
 	fmt.Fprintf(r.getState().err, format, args...)
 }
 
@@ -213,51 +222,9 @@ func (r *reporter) ExitCode() int {
 // If info == nil, we are formatting stdin instead of a file.
 // If in == nil, the source is the contents of the file with the given filename.
 func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) error {
-	if in == nil {
-		var err error
-		in, err = os.Open(filename)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Compute the file's size and read its contents with minimal allocations.
-	//
-	// If the size is unknown (or bogus, or overflows an int), fall back to
-	// a size-independent ReadAll.
-	var src []byte
-	size := -1
-	if info != nil && info.Mode().IsRegular() && int64(int(info.Size())) == info.Size() {
-		size = int(info.Size())
-	}
-	if size+1 > 0 {
-		// If we have the FileInfo from filepath.WalkDir, use it to make
-		// a buffer of the right size and avoid ReadAll's reallocations.
-		//
-		// We try to read size+1 bytes so that we can detect modifications: if we
-		// read more than size bytes, then the file was modified concurrently.
-		// (If that happens, we could, say, append to src to finish the read, or
-		// proceed with a truncated buffer — but the fact that it changed at all
-		// indicates a possible race with someone editing the file, so we prefer to
-		// stop to avoid corrupting it.)
-		src = make([]byte, size+1)
-		n, err := io.ReadFull(in, src)
-		if err != nil && err != io.ErrUnexpectedEOF {
-			return err
-		}
-		if n < size {
-			return fmt.Errorf("error: size of %s changed during reading (from %d to %d bytes)", filename, size, n)
-		} else if n > size {
-			return fmt.Errorf("error: size of %s changed during reading (from %d to >=%d bytes)", filename, size, len(src))
-		}
-		src = src[:n]
-	} else {
-		// The file is not known to be regular, so we don't have a reliable size for it.
-		var err error
-		src, err = io.ReadAll(in)
-		if err != nil {
-			return err
-		}
+	src, err := readFile(filename, info, in)
+	if err != nil {
+		return err
 	}
 
 	fileSet := token.NewFileSet()
@@ -306,7 +273,9 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			if err != nil {
 				return err
 			}
+			fdSem <- true
 			err = os.WriteFile(filename, res, perm)
+			<-fdSem
 			if err != nil {
 				os.Rename(bakname, filename)
 				return err
@@ -317,12 +286,9 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			}
 		}
 		if *doDiff {
-			data, err := diffWithReplaceTempFile(src, res, filename)
-			if err != nil {
-				return fmt.Errorf("computing diff: %s", err)
-			}
-			fmt.Fprintf(r, "diff -u %s %s\n", filepath.ToSlash(filename+".orig"), filepath.ToSlash(filename))
-			r.Write(data)
+			newName := filepath.ToSlash(filename)
+			oldName := newName + ".orig"
+			r.Write(diff.Diff(oldName, src, newName, res))
 		}
 	}
 
@@ -331,6 +297,70 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 	}
 
 	return err
+}
+
+// readFile reads the contents of filename, described by info.
+// If in is non-nil, readFile reads directly from it.
+// Otherwise, readFile opens and reads the file itself,
+// with the number of concurrently-open files limited by fdSem.
+func readFile(filename string, info fs.FileInfo, in io.Reader) ([]byte, error) {
+	if in == nil {
+		fdSem <- true
+		var err error
+		f, err := os.Open(filename)
+		if err != nil {
+			return nil, err
+		}
+		in = f
+		defer func() {
+			f.Close()
+			<-fdSem
+		}()
+	}
+
+	// Compute the file's size and read its contents with minimal allocations.
+	//
+	// If we have the FileInfo from filepath.WalkDir, use it to make
+	// a buffer of the right size and avoid ReadAll's reallocations.
+	//
+	// If the size is unknown (or bogus, or overflows an int), fall back to
+	// a size-independent ReadAll.
+	size := -1
+	if info != nil && info.Mode().IsRegular() && int64(int(info.Size())) == info.Size() {
+		size = int(info.Size())
+	}
+	if size+1 <= 0 {
+		// The file is not known to be regular, so we don't have a reliable size for it.
+		var err error
+		src, err := io.ReadAll(in)
+		if err != nil {
+			return nil, err
+		}
+		return src, nil
+	}
+
+	// We try to read size+1 bytes so that we can detect modifications: if we
+	// read more than size bytes, then the file was modified concurrently.
+	// (If that happens, we could, say, append to src to finish the read, or
+	// proceed with a truncated buffer — but the fact that it changed at all
+	// indicates a possible race with someone editing the file, so we prefer to
+	// stop to avoid corrupting it.)
+	src := make([]byte, size+1)
+	n, err := io.ReadFull(in, src)
+	switch err {
+	case nil, io.EOF, io.ErrUnexpectedEOF:
+		// io.ReadFull returns io.EOF (for an empty file) or io.ErrUnexpectedEOF
+		// (for a non-empty file) if the file was changed unexpectedly. Continue
+		// with comparing file sizes in those cases.
+	default:
+		return nil, err
+	}
+	if n < size {
+		return nil, fmt.Errorf("error: size of %s changed during reading (from %d to %d bytes)", filename, size, n)
+	} else if n > size {
+		return nil, fmt.Errorf("error: size of %s changed during reading (from %d to >=%d bytes)", filename, size, len(src))
+	}
+	return src[:n], nil
 }
 
 func main() {
@@ -354,12 +384,16 @@ func gofmtMain(s *sequencer) {
 	flag.Parse()
 
 	if *cpuprofile != "" {
+		fdSem <- true
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
 			s.AddReport(fmt.Errorf("creating cpu profile: %s", err))
 			return
 		}
-		defer f.Close()
+		defer func() {
+			f.Close()
+			<-fdSem
+		}()
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
@@ -431,49 +465,15 @@ func fileWeight(path string, info fs.FileInfo) int64 {
 	return info.Size()
 }
 
-func diffWithReplaceTempFile(b1, b2 []byte, filename string) ([]byte, error) {
-	data, err := diff.Diff("gofmt", b1, b2)
-	if len(data) > 0 {
-		return replaceTempFilename(data, filename)
-	}
-	return data, err
-}
-
-// replaceTempFilename replaces temporary filenames in diff with actual one.
-//
-// --- /tmp/gofmt316145376	2017-02-03 19:13:00.280468375 -0500
-// +++ /tmp/gofmt617882815	2017-02-03 19:13:00.280468375 -0500
-// ...
-// ->
-// --- path/to/file.go.orig	2017-02-03 19:13:00.280468375 -0500
-// +++ path/to/file.go	2017-02-03 19:13:00.280468375 -0500
-// ...
-func replaceTempFilename(diff []byte, filename string) ([]byte, error) {
-	bs := bytes.SplitN(diff, []byte{'\n'}, 3)
-	if len(bs) < 3 {
-		return nil, fmt.Errorf("got unexpected diff for %s", filename)
-	}
-	// Preserve timestamps.
-	var t0, t1 []byte
-	if i := bytes.LastIndexByte(bs[0], '\t'); i != -1 {
-		t0 = bs[0][i:]
-	}
-	if i := bytes.LastIndexByte(bs[1], '\t'); i != -1 {
-		t1 = bs[1][i:]
-	}
-	// Always print filepath with slash separator.
-	f := filepath.ToSlash(filename)
-	bs[0] = []byte(fmt.Sprintf("--- %s%s", f+".orig", t0))
-	bs[1] = []byte(fmt.Sprintf("+++ %s%s", f, t1))
-	return bytes.Join(bs, []byte{'\n'}), nil
-}
-
 const chmodSupported = runtime.GOOS != "windows"
 
 // backupFile writes data to a new file named filename<number> with permissions perm,
 // with <number randomly chosen such that the file name is unique. backupFile returns
 // the chosen file name.
 func backupFile(filename string, data []byte, perm fs.FileMode) (string, error) {
+	fdSem <- true
+	defer func() { <-fdSem }()
+
 	// create backup file
 	f, err := os.CreateTemp(filepath.Dir(filename), filepath.Base(filename))
 	if err != nil {

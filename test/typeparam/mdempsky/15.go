@@ -1,4 +1,4 @@
-// run -goexperiment fieldtrack -gcflags=-G=3
+// run -goexperiment fieldtrack
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

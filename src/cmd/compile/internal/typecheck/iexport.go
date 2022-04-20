@@ -243,6 +243,7 @@ import (
 	"io"
 	"math/big"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -257,11 +258,11 @@ import (
 // 1: added column details to Pos
 // 2: added information for generic function/types.  The export of non-generic
 // functions/types remains largely backward-compatible.  Breaking changes include:
-//    - a 'kind' byte is added to constant values
+//   - a 'kind' byte is added to constant values
 const (
 	iexportVersionGo1_11   = 0
 	iexportVersionPosCol   = 1
-	iexportVersionGenerics = 1 // probably change to 2 before release
+	iexportVersionGenerics = 2
 	iexportVersionGo1_18   = 2
 
 	iexportVersionCurrent = 2
@@ -606,7 +607,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			// Do same for ComparableType as for ErrorType.
 			underlying = types.ComparableType
 		}
-		if base.Flag.G > 0 && underlying == types.AnyType.Underlying() {
+		if underlying == types.AnyType.Underlying() {
 			// Do same for AnyType as for ErrorType.
 			underlying = types.AnyType
 		}
@@ -620,12 +621,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			break
 		}
 
-		// Sort methods, for consistency with types2.
-		methods := append([]*types.Field(nil), t.Methods().Slice()...)
-		if base.Debug.UnifiedQuirks != 0 {
-			sort.Sort(types.MethodsByName(methods))
-		}
-
+		methods := t.Methods().Slice()
 		w.uint64(uint64(len(methods)))
 		for _, m := range methods {
 			w.pos(m.Pos)
@@ -728,6 +724,36 @@ func (w *exportWriter) qualifiedIdent(n *ir.Name) {
 	s := n.Sym()
 	w.string(s.Name)
 	w.pkg(s.Pkg)
+}
+
+const blankMarker = "$"
+
+// TparamExportName creates a unique name for type param in a method or a generic
+// type, using the specified unique prefix and the index of the type param. The index
+// is only used if the type param is blank, in which case the blank is replace by
+// "$<index>". A unique name is needed for later substitution in the compiler and
+// export/import that keeps blank type params associated with the correct constraint.
+func TparamExportName(prefix string, name string, index int) string {
+	if name == "_" {
+		name = blankMarker + strconv.Itoa(index)
+	}
+	return prefix + "." + name
+}
+
+// TparamName returns the real name of a type parameter, after stripping its
+// qualifying prefix and reverting blank-name encoding. See TparamExportName
+// for details.
+func TparamName(exportName string) string {
+	// Remove the "path" from the type param name that makes it unique.
+	ix := strings.LastIndex(exportName, ".")
+	if ix < 0 {
+		return ""
+	}
+	name := exportName[ix+1:]
+	if strings.HasPrefix(name, blankMarker) {
+		return "_"
+	}
+	return name
 }
 
 func (w *exportWriter) selector(s *types.Sym) {
@@ -922,8 +948,7 @@ func (w *exportWriter) startType(k itag) {
 
 func (w *exportWriter) doTyp(t *types.Type) {
 	s := t.Sym()
-	if s != nil && t.OrigSym() != nil {
-		assert(base.Flag.G > 0)
+	if s != nil && t.OrigType() != nil {
 		// This is an instantiated type - could be a re-instantiation like
 		// Value[T2] or a full instantiation like Value[int].
 		if strings.Index(s.Name, "[") < 0 {
@@ -939,7 +964,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		// types or existing typeparams from the function/method header.
 		w.typeList(t.RParams())
 		// Export a reference to the base type.
-		baseType := t.OrigSym().Def.(*ir.Name).Type()
+		baseType := t.OrigType()
 		w.typ(baseType)
 		return
 	}
@@ -948,7 +973,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	// type, rather than a defined type with typeparam underlying type, like:
 	// type orderedAbs[T any] T
 	if t.IsTypeParam() && t.Underlying() == t {
-		assert(base.Flag.G > 0)
 		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
@@ -1021,14 +1045,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
 			}
 		}
 
-		// Sort methods and embedded types, for consistency with types2.
-		// Note: embedded types may be anonymous, and types2 sorts them
-		// with sort.Stable too.
-		if base.Debug.UnifiedQuirks != 0 {
-			sort.Sort(types.MethodsByName(methods))
-			sort.Stable(types.EmbeddedsByName(embeddeds))
-		}
-
 		w.startType(interfaceType)
 		w.setPkg(t.Pkg(), true)
 
@@ -1046,7 +1062,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		}
 
 	case types.TUNION:
-		assert(base.Flag.G > 0)
 		// TODO(danscales): possibly put out the tilde bools in more
 		// compact form.
 		w.startType(unionType)
@@ -1820,7 +1835,10 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.ClosureExpr)
 		w.op(ir.OCLOSURE)
 		w.pos(n.Pos())
+		old := w.currPkg
+		w.setPkg(n.Type().Pkg(), true)
 		w.signature(n.Type())
+		w.setPkg(old, true)
 
 		// Write out id for the Outer of each conditional variable. The
 		// conditional variable itself for this closure will be re-created

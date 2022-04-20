@@ -22,5 +22,5 @@ const (
 // or link object files that are incompatible with each other. This
 // string always starts with "go object ".
 func HeaderString() string {
-	return fmt.Sprintf("go object %s %s %s X:%s\n", buildcfg.GOOS, buildcfg.GOARCH, buildcfg.Version, strings.Join(buildcfg.EnabledExperiments(), ","))
+	return fmt.Sprintf("go object %s %s %s X:%s\n", buildcfg.GOOS, buildcfg.GOARCH, buildcfg.Version, strings.Join(buildcfg.Experiment.Enabled(), ","))
 }

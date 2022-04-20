@@ -12,7 +12,7 @@ import (
 
 // A Scalar is an integer modulo
 //
-//     l = 2^252 + 27742317777372353535851937790883648493
+//	l = 2^252 + 27742317777372353535851937790883648493
 //
 // which is the prime order of the edwards25519 group.
 //
@@ -22,7 +22,7 @@ import (
 // The zero value is a valid zero element.
 type Scalar struct {
 	// s is the Scalar value in little-endian. The value is always reduced
-	// between operations.
+	// modulo l between operations.
 	s [32]byte
 }
 
@@ -79,16 +79,20 @@ func (s *Scalar) Set(x *Scalar) *Scalar {
 	return s
 }
 
-// SetUniformBytes sets s to an uniformly distributed value given 64 uniformly
-// distributed random bytes.
-func (s *Scalar) SetUniformBytes(x []byte) *Scalar {
+// SetUniformBytes sets s = x mod l, where x is a 64-byte little-endian integer.
+// If x is not of the right length, SetUniformBytes returns nil and an error,
+// and the receiver is unchanged.
+//
+// SetUniformBytes can be used to set s to an uniformly distributed value given
+// 64 uniformly distributed random bytes.
+func (s *Scalar) SetUniformBytes(x []byte) (*Scalar, error) {
 	if len(x) != 64 {
-		panic("edwards25519: invalid SetUniformBytes input length")
+		return nil, errors.New("edwards25519: invalid SetUniformBytes input length")
 	}
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])
 	scReduce(&s.s, &wideBytes)
-	return s
+	return s, nil
 }
 
 // SetCanonicalBytes sets s = x, where x is a 32-byte little-endian encoding of
@@ -122,7 +126,8 @@ func isReduced(s *Scalar) bool {
 
 // SetBytesWithClamping applies the buffer pruning described in RFC 8032,
 // Section 5.1.5 (also known as clamping) and sets s to the result. The input
-// must be 32 bytes, and it is not modified.
+// must be 32 bytes, and it is not modified. If x is not of the right length,
+// SetBytesWithClamping returns nil and an error, and the receiver is unchanged.
 //
 // Note that since Scalar values are always reduced modulo the prime order of
 // the curve, the resulting value will not preserve any of the cofactor-clearing
@@ -130,13 +135,13 @@ func isReduced(s *Scalar) bool {
 // expected as long as it is applied to points on the prime order subgroup, like
 // in Ed25519. In fact, it is lost to history why RFC 8032 adopted the
 // irrelevant RFC 7748 clamping, but it is now required for compatibility.
-func (s *Scalar) SetBytesWithClamping(x []byte) *Scalar {
+func (s *Scalar) SetBytesWithClamping(x []byte) (*Scalar, error) {
 	// The description above omits the purpose of the high bits of the clamping
 	// for brevity, but those are also lost to reductions, and are also
 	// irrelevant to edwards25519 as they protect against a specific
 	// implementation bug that was once observed in a generic Montgomery ladder.
 	if len(x) != 32 {
-		panic("edwards25519: invalid SetBytesWithClamping input length")
+		return nil, errors.New("edwards25519: invalid SetBytesWithClamping input length")
 	}
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])
@@ -144,7 +149,7 @@ func (s *Scalar) SetBytesWithClamping(x []byte) *Scalar {
 	wideBytes[31] &= 63
 	wideBytes[31] |= 64
 	scReduce(&s.s, &wideBytes)
-	return s
+	return s, nil
 }
 
 // Bytes returns the canonical 32-byte little-endian encoding of s.
@@ -178,13 +183,15 @@ func load4(in []byte) int64 {
 }
 
 // Input:
-//   a[0]+256*a[1]+...+256^31*a[31] = a
-//   b[0]+256*b[1]+...+256^31*b[31] = b
-//   c[0]+256*c[1]+...+256^31*c[31] = c
+//
+//	a[0]+256*a[1]+...+256^31*a[31] = a
+//	b[0]+256*b[1]+...+256^31*b[31] = b
+//	c[0]+256*c[1]+...+256^31*c[31] = c
 //
 // Output:
-//   s[0]+256*s[1]+...+256^31*s[31] = (ab+c) mod l
-//   where l = 2^252 + 27742317777372353535851937790883648493.
+//
+//	s[0]+256*s[1]+...+256^31*s[31] = (ab+c) mod l
+//	where l = 2^252 + 27742317777372353535851937790883648493.
 func scMulAdd(s, a, b, c *[32]byte) {
 	a0 := 2097151 & load3(a[:])
 	a1 := 2097151 & (load4(a[2:]) >> 5)
@@ -611,11 +618,13 @@ func scMulAdd(s, a, b, c *[32]byte) {
 }
 
 // Input:
-//   s[0]+256*s[1]+...+256^63*s[63] = s
+//
+//	s[0]+256*s[1]+...+256^63*s[63] = s
 //
 // Output:
-//   s[0]+256*s[1]+...+256^31*s[31] = s mod l
-//   where l = 2^252 + 27742317777372353535851937790883648493.
+//
+//	s[0]+256*s[1]+...+256^31*s[31] = s mod l
+//	where l = 2^252 + 27742317777372353535851937790883648493.
 func scReduce(out *[32]byte, s *[64]byte) {
 	s0 := 2097151 & load3(s[:])
 	s1 := 2097151 & (load4(s[2:]) >> 5)

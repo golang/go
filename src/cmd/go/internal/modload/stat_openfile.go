@@ -8,7 +8,7 @@
 // are checked by the server and group information is not known to the client,
 // access must open the file to check permissions.”
 //
-// aix and js,wasm are similar, in that they do not define syscall.Access.
+// js,wasm is similar, in that it does not define syscall.Access.
 
 package modload
 

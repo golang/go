@@ -16,8 +16,9 @@ const (
 
 // Don't split the stack as this method may be invoked without a valid G, which
 // prevents us from allocating more stack.
+//
 //go:nosplit
-func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+func sysAllocOS(n uintptr) unsafe.Pointer {
 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		if err == _EACCES {
@@ -30,13 +31,12 @@ func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
 		}
 		return nil
 	}
-	sysStat.add(int64(n))
 	return p
 }
 
 var adviseUnused = uint32(_MADV_FREE)
 
-func sysUnused(v unsafe.Pointer, n uintptr) {
+func sysUnusedOS(v unsafe.Pointer, n uintptr) {
 	// By default, Linux's "transparent huge page" support will
 	// merge pages into a huge page if there's even a single
 	// present regular page, undoing the effects of madvise(adviseUnused)
@@ -123,7 +123,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 	}
 }
 
-func sysUsed(v unsafe.Pointer, n uintptr) {
+func sysUsedOS(v unsafe.Pointer, n uintptr) {
 	if debug.harddecommit > 0 {
 		p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
 		if err == _ENOMEM {
@@ -145,10 +145,10 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 	// the end points as well, but it's probably not worth
 	// the cost because when neighboring allocations are
 	// freed sysUnused will just set NOHUGEPAGE again.
-	sysHugePage(v, n)
+	sysHugePageOS(v, n)
 }
 
-func sysHugePage(v unsafe.Pointer, n uintptr) {
+func sysHugePageOS(v unsafe.Pointer, n uintptr) {
 	if physHugePageSize != 0 {
 		// Round v up to a huge page boundary.
 		beg := alignUp(uintptr(v), physHugePageSize)
@@ -163,17 +163,17 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
 
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
+//
 //go:nosplit
-func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
-	sysStat.add(-int64(n))
+func sysFreeOS(v unsafe.Pointer, n uintptr) {
 	munmap(v, n)
 }
 
-func sysFault(v unsafe.Pointer, n uintptr) {
+func sysFaultOS(v unsafe.Pointer, n uintptr) {
 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
 }
 
-func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		return nil
@@ -181,14 +181,13 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	return p
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
-	sysStat.add(int64(n))
-
+func sysMapOS(v unsafe.Pointer, n uintptr) {
 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
 	if err == _ENOMEM {
 		throw("runtime: out of memory")
 	}
 	if p != v || err != 0 {
+		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
 		throw("runtime: cannot map pages in arena address space")
 	}
 }

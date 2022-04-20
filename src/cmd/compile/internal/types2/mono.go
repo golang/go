@@ -168,11 +168,11 @@ func (w *monoGraph) recordCanon(mpar, tpar *TypeParam) {
 
 // recordInstance records that the given type parameters were
 // instantiated with the corresponding type arguments.
-func (w *monoGraph) recordInstance(pkg *Package, pos syntax.Pos, tparams []*TypeParam, targs []Type, posList []syntax.Pos) {
+func (w *monoGraph) recordInstance(pkg *Package, pos syntax.Pos, tparams []*TypeParam, targs []Type, xlist []syntax.Expr) {
 	for i, tpar := range tparams {
 		pos := pos
-		if i < len(posList) {
-			pos = posList[i]
+		if i < len(xlist) {
+			pos = syntax.StartPos(xlist[i])
 		}
 		w.assign(pkg, pos, tpar, targs[i])
 	}

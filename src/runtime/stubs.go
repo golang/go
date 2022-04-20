@@ -7,12 +7,12 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/goexperiment"
 	"runtime/internal/math"
 	"unsafe"
 )
 
 // Should be a built-in for unsafe.Pointer?
+//
 //go:nosplit
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
@@ -112,6 +112,7 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 func memmove(to, from unsafe.Pointer, n uintptr)
 
 // Outside assembly calls memmove. Make sure it has ABI wrappers.
+//
 //go:linkname memmove
 
 //go:linkname reflect_memmove reflect.memmove
@@ -166,6 +167,7 @@ func net_fastrand() uint32 { return fastrand() }
 func os_fastrand() uint32 { return fastrand() }
 
 // in internal/bytealg/equal_*.s
+//
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
 
@@ -174,6 +176,7 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
 // output depends on the input.  noescape is inlined and currently
 // compiles down to zero instructions.
 // USE CAREFULLY!
+//
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
@@ -236,6 +239,7 @@ func breakpoint()
 // Arguments passed through to reflectcall do not escape. The type is used
 // only in a very limited callee of reflectcall, the stackArgs are copied, and
 // regArgs is only used in the reflectcall frame.
+//
 //go:noescape
 func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs)
 
@@ -434,4 +438,4 @@ func sigpanic0()
 // registers the system supports.
 //
 // Protected by finlock.
-var intArgRegs = abi.IntArgRegs * (goexperiment.RegabiArgsInt | goarch.IsAmd64)
+var intArgRegs = abi.IntArgRegs

@@ -71,9 +71,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return // a conversion, not a call
 		}
 
-		index := typeparams.GetIndexExprData(fun)
-		if index != nil {
-			fun = index.X // If this is generic function or method call, skip the instantiation arguments
+		x, _, _, _ := typeparams.UnpackIndexExpr(fun)
+		if x != nil {
+			fun = x // If this is generic function or method call, skip the instantiation arguments
 		}
 
 		selector, ok := fun.(*ast.SelectorExpr)

@@ -18,12 +18,12 @@ import (
 // because some operating systems place a limit on the number of
 // distinct mapped regions per process. As of this writing:
 //
-//  Darwin    unlimited
-//  DragonFly   1000000 (vm.max_proc_mmap)
-//  FreeBSD   unlimited
-//  Linux         65530 (vm.max_map_count) // TODO: query /proc/sys/vm/max_map_count?
-//  NetBSD    unlimited
-//  OpenBSD   unlimited
+//	Darwin    unlimited
+//	DragonFly   1000000 (vm.max_proc_mmap)
+//	FreeBSD   unlimited
+//	Linux         65530 (vm.max_map_count) // TODO: query /proc/sys/vm/max_map_count?
+//	NetBSD    unlimited
+//	OpenBSD   unlimited
 var mmapLimit int32 = 1<<31 - 1
 
 func init() {

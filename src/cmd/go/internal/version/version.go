@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package version implements the ``go version'' command.
+// Package version implements the “go version” command.
 package version
 
 import (
-	"bytes"
 	"context"
 	"debug/buildinfo"
 	"errors"
@@ -156,12 +155,8 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) {
 
 	fmt.Printf("%s: %s\n", file, bi.GoVersion)
 	bi.GoVersion = "" // suppress printing go version again
-	mod, err := bi.MarshalText()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: formatting build info: %v\n", file, err)
-		return
-	}
+	mod := bi.String()
 	if *versionM && len(mod) > 0 {
-		fmt.Printf("\t%s\n", bytes.ReplaceAll(mod[:len(mod)-1], []byte("\n"), []byte("\n\t")))
+		fmt.Printf("\t%s\n", strings.ReplaceAll(mod[:len(mod)-1], "\n", "\n\t"))
 	}
 }

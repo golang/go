@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package runtime_test
 
@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -22,16 +21,12 @@ import (
 	"unsafe"
 )
 
-// sigquit is the signal to send to kill a hanging testdata program.
-// Send SIGQUIT to get a stack trace.
-var sigquit = syscall.SIGQUIT
-
 func init() {
 	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
 		// We can't use SIGQUIT to kill subprocesses because
 		// it's blocked. Use SIGKILL instead. See issue
 		// #19196 for an example of when this happens.
-		sigquit = syscall.SIGKILL
+		testenv.Sigquit = syscall.SIGKILL
 	}
 }
 
@@ -137,7 +132,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 	out := outbuf.Bytes()
 	n := bytes.Count(out, []byte("main.crashDumpsAllThreadsLoop("))
 	if n != 4 {
-		t.Errorf("found %d instances of main.loop; expected 4", n)
+		t.Errorf("found %d instances of main.crashDumpsAllThreadsLoop; expected 4", n)
 		t.Logf("%s", out)
 	}
 }
@@ -250,9 +245,7 @@ func TestSignalExitStatus(t *testing.T) {
 
 func TestSignalIgnoreSIGTRAP(t *testing.T) {
 	if runtime.GOOS == "openbsd" {
-		if bn := testenv.Builder(); strings.HasSuffix(bn, "-62") || strings.HasSuffix(bn, "-64") {
-			testenv.SkipFlaky(t, 17496)
-		}
+		testenv.SkipFlaky(t, 49725)
 	}
 
 	output := runTestProg(t, "testprognet", "SignalIgnoreSIGTRAP")

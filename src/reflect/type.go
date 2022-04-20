@@ -72,7 +72,9 @@ type Type interface {
 
 	// NumMethod returns the number of methods accessible using Method.
 	//
-	// Note that NumMethod counts unexported methods only for interface types.
+	// For a non-interface type, it returns the number of exported methods.
+	//
+	// For an interface type, it returns the number of exported and unexported methods.
 	NumMethod() int
 
 	// Name returns the type's name within its package for a defined type.
@@ -229,7 +231,7 @@ type Type interface {
 // See https://golang.org/issue/4876 for more details.
 
 /*
- * These data structures are known to the compiler (../../cmd/internal/reflectdata/reflect.go).
+ * These data structures are known to the compiler (../cmd/compile/internal/reflectdata/reflect.go).
  * A few are known to ../runtime/type.go to convey to debuggers.
  * They are also known to ../runtime/type.go.
  */
@@ -275,6 +277,7 @@ const Ptr = Pointer
 // available in the memory directly following the rtype value.
 //
 // tflag values must be kept in sync with copies in:
+//
 //	cmd/compile/internal/reflectdata/reflect.go
 //	cmd/link/internal/ld/decodesym.go
 //	runtime/type.go
@@ -632,8 +635,8 @@ const (
 
 // String returns the name of k.
 func (k Kind) String() string {
-	if int(k) < len(kindNames) {
-		return kindNames[k]
+	if uint(k) < uint(len(kindNames)) {
+		return kindNames[uint(k)]
 	}
 	return "kind" + strconv.Itoa(int(k))
 }
@@ -915,7 +918,14 @@ func (t *rtype) Name() string {
 	}
 	s := t.String()
 	i := len(s) - 1
-	for i >= 0 && s[i] != '.' {
+	sqBrackets := 0
+	for i >= 0 && (s[i] != '.' || sqBrackets != 0) {
+		switch s[i] {
+		case ']':
+			sqBrackets++
+		case '[':
+			sqBrackets--
+		}
 		i--
 	}
 	return s[i+1:]
@@ -1260,7 +1270,7 @@ func (t *structType) Field(i int) (f StructField) {
 }
 
 // TODO(gri): Should there be an error/bool indicator if the index
-//            is wrong for FieldByIndex?
+// is wrong for FieldByIndex?
 
 // FieldByIndex returns the nested field corresponding to index.
 func (t *structType) FieldByIndex(index []int) (f StructField) {
@@ -1414,7 +1424,7 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
 
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
-func TypeOf(i interface{}) Type {
+func TypeOf(i any) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
 	return toType(eface.typ)
 }
@@ -1458,7 +1468,7 @@ func (t *rtype) ptrTo() *rtype {
 
 	// Create a new ptrType starting with the description
 	// of an *unsafe.Pointer.
-	var iptr interface{} = (*unsafe.Pointer)(nil)
+	var iptr any = (*unsafe.Pointer)(nil)
 	prototype := *(**ptrType)(unsafe.Pointer(&iptr))
 	pp := *prototype
 
@@ -1876,7 +1886,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	}
 
 	// Make a channel type.
-	var ichan interface{} = (chan unsafe.Pointer)(nil)
+	var ichan any = (chan unsafe.Pointer)(nil)
 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
 	ch := *prototype
 	ch.tflag = tflagRegularMemory
@@ -1922,7 +1932,7 @@ func MapOf(key, elem Type) Type {
 	// Make a map type.
 	// Note: flag values must match those used in the TMAP case
 	// in ../cmd/compile/internal/reflectdata/reflect.go:writeType.
-	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
+	var imap any = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := **(**mapType)(unsafe.Pointer(&imap))
 	mt.str = resolveReflectName(newName(s, "", false))
 	mt.tflag = 0
@@ -2002,7 +2012,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	}
 
 	// Make a func type.
-	var ifunc interface{} = (func())(nil)
+	var ifunc any = (func())(nil)
 	prototype := *(**funcType)(unsafe.Pointer(&ifunc))
 	n := len(in) + len(out)
 
@@ -2360,7 +2370,7 @@ func SliceOf(t Type) Type {
 	}
 
 	// Make a slice type.
-	var islice interface{} = ([]unsafe.Pointer)(nil)
+	var islice any = ([]unsafe.Pointer)(nil)
 	prototype := *(**sliceType)(unsafe.Pointer(&islice))
 	slice := *prototype
 	slice.tflag = 0
@@ -2688,7 +2698,7 @@ func StructOf(fields []StructField) Type {
 	size = align(size, uintptr(typalign))
 
 	// Make the struct type.
-	var istruct interface{} = struct{}{}
+	var istruct any = struct{}{}
 	prototype := *(**structType)(unsafe.Pointer(&istruct))
 	*typ = *prototype
 	typ.fields = fs
@@ -2908,7 +2918,7 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	// Make an array type.
-	var iarray interface{} = [1]unsafe.Pointer{}
+	var iarray any = [1]unsafe.Pointer{}
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := *prototype
 	array.tflag = typ.tflag & tflagRegularMemory
@@ -3044,7 +3054,7 @@ type layoutKey struct {
 type layoutType struct {
 	t         *rtype
 	framePool *sync.Pool
-	abi       abiDesc
+	abid      abiDesc
 }
 
 var layoutCache sync.Map // map[layoutKey]layoutType
@@ -3056,7 +3066,7 @@ var layoutCache sync.Map // map[layoutKey]layoutType
 // The returned type exists only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program. We also fill in
 // the name for possible debugging use.
-func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Pool, abi abiDesc) {
+func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Pool, abid abiDesc) {
 	if t.Kind() != Func {
 		panic("reflect: funcLayout of non-func type " + t.String())
 	}
@@ -3066,11 +3076,11 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
 	k := layoutKey{t, rcvr}
 	if lti, ok := layoutCache.Load(k); ok {
 		lt := lti.(layoutType)
-		return lt.t, lt.framePool, lt.abi
+		return lt.t, lt.framePool, lt.abid
 	}
 
 	// Compute the ABI layout.
-	abi = newAbiDesc(t, rcvr)
+	abid = newAbiDesc(t, rcvr)
 
 	// build dummy rtype holding gc program
 	x := &rtype{
@@ -3079,11 +3089,11 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
 		// reflectcall's frame, not in the allocated frame.
 		// TODO(mknyszek): Remove this comment when register
 		// spill space in the frame is no longer required.
-		size:    align(abi.retOffset+abi.ret.stackBytes, goarch.PtrSize),
-		ptrdata: uintptr(abi.stackPtrs.n) * goarch.PtrSize,
+		size:    align(abid.retOffset+abid.ret.stackBytes, goarch.PtrSize),
+		ptrdata: uintptr(abid.stackPtrs.n) * goarch.PtrSize,
 	}
-	if abi.stackPtrs.n > 0 {
-		x.gcdata = &abi.stackPtrs.data[0]
+	if abid.stackPtrs.n > 0 {
+		x.gcdata = &abid.stackPtrs.data[0]
 	}
 
 	var s string
@@ -3095,16 +3105,16 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
 	x.str = resolveReflectName(newName(s, "", false))
 
 	// cache result for future callers
-	framePool = &sync.Pool{New: func() interface{} {
+	framePool = &sync.Pool{New: func() any {
 		return unsafe_New(x)
 	}}
 	lti, _ := layoutCache.LoadOrStore(k, layoutType{
 		t:         x,
 		framePool: framePool,
-		abi:       abi,
+		abid:      abid,
 	})
 	lt := lti.(layoutType)
-	return lt.t, lt.framePool, lt.abi
+	return lt.t, lt.framePool, lt.abid
 }
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.

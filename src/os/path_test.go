@@ -96,13 +96,8 @@ func TestMkdirAllWithSymlink(t *testing.T) {
 
 func TestMkdirAllAtSlash(t *testing.T) {
 	switch runtime.GOOS {
-	case "android", "plan9", "windows":
+	case "android", "ios", "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin", "ios":
-		switch runtime.GOARCH {
-		case "arm64":
-			t.Skipf("skipping on darwin/arm64, mkdir returns EPERM")
-		}
 	}
 	RemoveAll("/_go_os_test")
 	const dir = "/_go_os_test/dir"

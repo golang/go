@@ -92,9 +92,9 @@ func o() int {
 	foo := func() int { return 1 } // ERROR "can inline o.func1" "func literal does not escape"
 	func(x int) {                  // ERROR "can inline o.func2"
 		if x > 10 {
-			foo = func() int { return 2 } // ERROR "func literal does not escape" "can inline o.func2"
+			foo = func() int { return 2 } // ERROR "can inline o.func2"
 		}
-	}(11) // ERROR "inlining call to o.func2"
+	}(11) // ERROR "func literal does not escape" "inlining call to o.func2"
 	return foo()
 }
 
@@ -157,6 +157,51 @@ func switchType(x interface{}) int { // ERROR "can inline switchType" "x does no
 		return x.(int)
 	default:
 		return 0
+	}
+}
+
+// Test that switches on constant things, with constant cases, only cost anything for
+// the case that matches. See issue 50253.
+func switchConst1(p func(string)) { // ERROR "can inline switchConst" "p does not escape"
+	const c = 1
+	switch c {
+	case 0:
+		p("zero")
+	case 1:
+		p("one")
+	case 2:
+		p("two")
+	default:
+		p("other")
+	}
+}
+
+func switchConst2() string { // ERROR "can inline switchConst2"
+	switch runtime.GOOS {
+	case "linux":
+		return "Leenooks"
+	case "windows":
+		return "Windoze"
+	case "darwin":
+		return "MackBone"
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "100":
+		return "Numbers"
+	default:
+		return "oh nose!"
+	}
+}
+func switchConst3() string { // ERROR "can inline switchConst3"
+	switch runtime.GOOS {
+	case "Linux":
+		panic("Linux")
+	case "Windows":
+		panic("Windows")
+	case "Darwin":
+		panic("Darwin")
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "100":
+		panic("Numbers")
+	default:
+		return "oh nose!"
 	}
 }
 
@@ -302,4 +347,32 @@ func conv2(v uint64) uint64 { // ERROR "can inline conv2"
 }
 func conv1(v uint64) uint64 { // ERROR "can inline conv1"
 	return uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(v)))))))))))
+}
+
+func select1(x, y chan bool) int { // ERROR "can inline select1" "x does not escape" "y does not escape"
+	select {
+	case <-x:
+		return 1
+	case <-y:
+		return 2
+	}
+}
+
+func select2(x, y chan bool) { // ERROR "can inline select2" "x does not escape" "y does not escape"
+loop: // test that labeled select can be inlined.
+	select {
+	case <-x:
+		break loop
+	case <-y:
+	}
+}
+
+func inlineSelect2(x, y chan bool) { // ERROR "can inline inlineSelect2" ERROR "x does not escape" "y does not escape"
+loop:
+	for i := 0; i < 5; i++ {
+		if i == 3 {
+			break loop
+		}
+		select2(x, y) // ERROR "inlining call to select2"
+	}
 }

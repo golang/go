@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package run implements the ``go run'' command.
+// Package run implements the “go run” command.
 package run
 
 import (
@@ -18,8 +18,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 )
 
 var CmdRun = &base.Command{
@@ -52,6 +52,10 @@ for example 'go_js_wasm_exec a.out arguments...'. This allows execution of
 cross-compiled programs when a simulator or other execution method is
 available.
 
+By default, 'go run' compiles the binary without generating the information
+used by debuggers, to reduce build time. To include debugger information in
+the binary, use 'go build'.
+
 The exit status of Run is not the exit status of the compiled binary.
 
 For more about build flags, see 'go help build'.
@@ -65,17 +69,14 @@ func init() {
 	CmdRun.Run = runRun // break init loop
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
-	base.AddWorkfileFlag(&CmdRun.Flag)
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
-func printStderr(args ...interface{}) (int, error) {
+func printStderr(args ...any) (int, error) {
 	return fmt.Fprint(os.Stderr, args...)
 }
 
 func runRun(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
-
 	if shouldUseOutsideModuleMode(args) {
 		// Set global module flags for 'go run cmd@version'.
 		// This must be done before modload.Init, but we need to call work.BuildInit
@@ -85,7 +86,10 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		modload.RootMode = modload.NoRoot
 		modload.AllowMissingModuleImports()
 		modload.Init()
+	} else {
+		modload.InitWorkfile()
 	}
+
 	work.BuildInit()
 	var b work.Builder
 	b.Init()

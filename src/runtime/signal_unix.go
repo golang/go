@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package runtime
 
@@ -108,6 +108,7 @@ var signalsOK bool
 
 // Initialize signals.
 // Called by libpreinit so runtime may not be initialized.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func initsig(preinit bool) {
@@ -159,6 +160,13 @@ func sigInstallGoHandler(sig uint32) bool {
 		if atomic.Loaduintptr(&fwdSig[sig]) == _SIG_IGN {
 			return false
 		}
+	}
+
+	if (GOOS == "linux" || GOOS == "android") && !iscgo && sig == sigPerThreadSyscall {
+		// sigPerThreadSyscall is the same signal used by glibc for
+		// per-thread syscalls on Linux. We use it for the same purpose
+		// in non-cgo binaries.
+		return true
 	}
 
 	t := &sigtable[sig]
@@ -253,6 +261,7 @@ func sigignore(sig uint32) {
 // back to the default. This is called by the child after a fork, so that
 // we can enable the signal mask for the exec without worrying about
 // running a signal handler in the child.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func clearSignalHandlers() {
@@ -271,7 +280,24 @@ func setProcessCPUProfilerTimer(hz int32) {
 	if hz != 0 {
 		// Enable the Go signal handler if not enabled.
 		if atomic.Cas(&handlingSig[_SIGPROF], 0, 1) {
-			atomic.Storeuintptr(&fwdSig[_SIGPROF], getsig(_SIGPROF))
+			h := getsig(_SIGPROF)
+			// If no signal handler was installed before, then we record
+			// _SIG_IGN here. When we turn off profiling (below) we'll start
+			// ignoring SIGPROF signals. We do this, rather than change
+			// to SIG_DFL, because there may be a pending SIGPROF
+			// signal that has not yet been delivered to some other thread.
+			// If we change to SIG_DFL when turning off profiling, the
+			// program will crash when that SIGPROF is delivered. We assume
+			// that programs that use profiling don't want to crash on a
+			// stray SIGPROF. See issue 19320.
+			// We do the change here instead of when turning off profiling,
+			// because there we may race with a signal handler running
+			// concurrently, in particular, sigfwdgo may observe _SIG_DFL and
+			// die. See issue 43828.
+			if h == _SIG_DFL {
+				h = _SIG_IGN
+			}
+			atomic.Storeuintptr(&fwdSig[_SIGPROF], h)
 			setsig(_SIGPROF, abi.FuncPCABIInternal(sighandler))
 		}
 
@@ -288,21 +314,9 @@ func setProcessCPUProfilerTimer(hz int32) {
 		// when we enabled profiling. We don't try to handle the case
 		// of a program that changes the SIGPROF handler while Go
 		// profiling is enabled.
-		//
-		// If no signal handler was installed before, then start
-		// ignoring SIGPROF signals. We do this, rather than change
-		// to SIG_DFL, because there may be a pending SIGPROF
-		// signal that has not yet been delivered to some other thread.
-		// If we change to SIG_DFL here, the program will crash
-		// when that SIGPROF is delivered. We assume that programs
-		// that use profiling don't want to crash on a stray SIGPROF.
-		// See issue 19320.
 		if !sigInstallGoHandler(_SIGPROF) {
 			if atomic.Cas(&handlingSig[_SIGPROF], 1, 0) {
 				h := atomic.Loaduintptr(&fwdSig[_SIGPROF])
-				if h == _SIG_DFL {
-					h = _SIG_IGN
-				}
 				setsig(_SIGPROF, h)
 			}
 		}
@@ -507,6 +521,7 @@ func sigprofNonGo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 // sigprofNonGoPC is called when a profiling signal arrived on a
 // non-Go thread and we have a single PC value, not a stack trace.
 // g is nil, and what we can do is very limited.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func sigprofNonGoPC(pc uintptr) {
@@ -524,6 +539,7 @@ func sigprofNonGoPC(pc uintptr) {
 // We do this in case some non-Go code called sigaltstack.
 // This reports whether the stack was adjusted, and if so stores the old
 // signal stack in *gsigstack.
+//
 //go:nosplit
 func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 	sp := uintptr(unsafe.Pointer(&sig))
@@ -608,6 +624,15 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if sig == _SIGUSR1 && testSigusr1 != nil && testSigusr1(gp) {
+		return
+	}
+
+	if (GOOS == "linux" || GOOS == "android") && sig == sigPerThreadSyscall {
+		// sigPerThreadSyscall is the same signal used by glibc for
+		// per-thread syscalls on Linux. We use it for the same purpose
+		// in non-cgo binaries. Since this signal is not _SigNotify,
+		// there is nothing more to do once we run the syscall.
+		runPerThreadSyscall()
 		return
 	}
 
@@ -774,6 +799,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 // getg().throwsplit, since sigpanic may need to grow the stack.
 //
 // This is exported via linkname to assembly in runtime/cgo.
+//
 //go:linkname sigpanic
 func sigpanic() {
 	g := getg()
@@ -822,6 +848,7 @@ func sigpanic() {
 // dieFromSignal kills the program with a signal.
 // This provides the expected exit status for the shell.
 // This is only called with fatal signals expected to kill the process.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func dieFromSignal(sig uint32) {
@@ -994,6 +1021,7 @@ func signalDuringFork(sig uint32) {
 var badginsignalMsg = "fatal: bad g in signal handler\n"
 
 // This runs on a foreign stack, without an m or a g. No stack split.
+//
 //go:nosplit
 //go:norace
 //go:nowritebarrierrec
@@ -1023,6 +1051,7 @@ func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
 // signal to the handler that was installed before Go's. Returns whether the
 // signal was forwarded.
 // This is called by the signal handler, and the world may be stopped.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
@@ -1092,6 +1121,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 // thread calls a Go function.
 // This is nosplit and nowritebarrierrec because it is called by needm
 // which may be called on a non-Go thread with no g available.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func sigsave(p *sigset) {
@@ -1103,6 +1133,7 @@ func sigsave(p *sigset) {
 // calls a Go function.
 // This is nosplit and nowritebarrierrec because it is called by dropm
 // after g has been cleared.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func msigrestore(sigmask sigset) {
@@ -1122,6 +1153,7 @@ var sigsetAllExiting = sigset_all
 // definition of sigset_all is used.
 // This is nosplit and nowritebarrierrec because it is called by needm
 // which may be called on a non-Go thread with no g available.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func sigblock(exiting bool) {
@@ -1136,6 +1168,7 @@ func sigblock(exiting bool) {
 // This is nosplit and nowritebarrierrec because it is called from
 // dieFromSignal, which can be called by sigfwdgo while running in the
 // signal handler, on the signal stack, with no g available.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func unblocksig(sig uint32) {
@@ -1194,6 +1227,7 @@ func minitSignalMask() {
 
 // unminitSignals is called from dropm, via unminit, to undo the
 // effect of calling minit on a non-Go thread.
+//
 //go:nosplit
 func unminitSignals() {
 	if getg().m.newSigstack {
@@ -1213,6 +1247,7 @@ func unminitSignals() {
 // blockableSig reports whether sig may be blocked by the signal mask.
 // We never want to block the signals marked _SigUnblock;
 // these are the synchronous signals that turn into a Go panic.
+// We never want to block the preemption signal if it is being used.
 // In a Go program--not a c-archive/c-shared--we never want to block
 // the signals marked _SigKill or _SigThrow, as otherwise it's possible
 // for all running threads to block them and delay their delivery until
@@ -1221,6 +1256,9 @@ func unminitSignals() {
 func blockableSig(sig uint32) bool {
 	flags := sigtable[sig].flags
 	if flags&_SigUnblock != 0 {
+		return false
+	}
+	if sig == sigPreempt && preemptMSupported && debug.asyncpreemptoff == 0 {
 		return false
 	}
 	if isarchive || islibrary {
@@ -1243,6 +1281,7 @@ type gsignalStack struct {
 // It saves the old values in *old for use by restoreGsignalStack.
 // This is used when handling a signal if non-Go code has set the
 // alternate signal stack.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func setGsignalStack(st *stackt, old *gsignalStack) {
@@ -1262,6 +1301,7 @@ func setGsignalStack(st *stackt, old *gsignalStack) {
 
 // restoreGsignalStack restores the gsignal stack to the value it had
 // before entering the signal handler.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func restoreGsignalStack(st *gsignalStack) {
@@ -1273,6 +1313,7 @@ func restoreGsignalStack(st *gsignalStack) {
 }
 
 // signalstack sets the current thread's alternate signal stack to s.
+//
 //go:nosplit
 func signalstack(s *stack) {
 	st := stackt{ss_size: s.hi - s.lo}

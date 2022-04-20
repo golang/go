@@ -235,14 +235,15 @@ type eqclass []*Value
 
 // partitionValues partitions the values into equivalence classes
 // based on having all the following features match:
-//  - opcode
-//  - type
-//  - auxint
-//  - aux
-//  - nargs
-//  - block # if a phi op
-//  - first two arg's opcodes and auxint
-//  - NOT first two arg's aux; that can break CSE.
+//   - opcode
+//   - type
+//   - auxint
+//   - aux
+//   - nargs
+//   - block # if a phi op
+//   - first two arg's opcodes and auxint
+//   - NOT first two arg's aux; that can break CSE.
+//
 // partitionValues returns a list of equivalence classes, each
 // being a sorted by ID list of *Values. The eqclass slices are
 // backed by the same storage as the input slice.

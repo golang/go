@@ -24,10 +24,10 @@ import (
 var cmdEdit = &base.Command{
 	UsageLine: "go work edit [editing flags] [go.work]",
 	Short:     "edit go.work from tools or scripts",
-	Long: `Editwork provides a command-line interface for editing go.work,
+	Long: `Edit provides a command-line interface for editing go.work,
 for use primarily by tools or scripts. It only reads go.work;
 it does not look up information about the modules involved.
-If no file is specified, editwork looks for a go.work file in the current
+If no file is specified, Edit looks for a go.work file in the current
 directory and its parent directories
 
 The editing flags specify a sequence of editing operations.
@@ -35,7 +35,7 @@ The editing flags specify a sequence of editing operations.
 The -fmt flag reformats the go.work file without making other changes.
 This reformatting is also implied by any other modifications that use or
 rewrite the go.mod file. The only time this flag is needed is if no other
-flags are specified, as in 'go mod editwork -fmt'.
+flags are specified, as in 'go work edit -fmt'.
 
 The -use=path and -dropuse=path flags
 add and drop a use directive from the go.work file's set of module directories.
@@ -63,19 +63,14 @@ writing it back to go.mod.
 The -json flag prints the final go.work file in JSON format instead of
 writing it back to go.mod. The JSON output corresponds to these Go types:
 
-	type Module struct {
-		Path    string
-		Version string
-	}
-
 	type GoWork struct {
-		Go        string
-		Directory []Directory
-		Replace   []Replace
+		Go      string
+		Use     []Use
+		Replace []Replace
 	}
 
 	type Use struct {
-		Path       string
+		DiskPath   string
 		ModulePath string
 	}
 
@@ -84,9 +79,13 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		New Module
 	}
 
-See the workspaces design proposal at
-https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
-more information.
+	type Module struct {
+		Path    string
+		Version string
+	}
+
+See the workspaces reference at https://go.dev/ref/mod#workspaces
+for more information.
 `,
 }
 
@@ -110,28 +109,15 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropUse), "dropuse", "")
 	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "")
-
-	base.AddWorkfileFlag(&cmdEdit.Flag)
 }
 
 func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
-	anyFlags :=
-		*editGo != "" ||
-			*editJSON ||
-			*editPrint ||
-			*editFmt ||
-			len(workedits) > 0
-
-	if !anyFlags {
-		base.Fatalf("go: no flags specified (see 'go help mod editwork').")
-	}
-
 	if *editJSON && *editPrint {
 		base.Fatalf("go: cannot use both -json and -print")
 	}
 
 	if len(args) > 1 {
-		base.Fatalf("go: 'go mod editwork' accepts at most one argument")
+		base.Fatalf("go: 'go help work edit' accepts at most one argument")
 	}
 	var gowork string
 	if len(args) == 1 {
@@ -145,6 +131,21 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 		if !modfile.GoVersionRE.MatchString(*editGo) {
 			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
 		}
+	}
+
+	if gowork == "" {
+		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
+	}
+
+	anyFlags :=
+		*editGo != "" ||
+			*editJSON ||
+			*editPrint ||
+			*editFmt ||
+			len(workedits) > 0
+
+	if !anyFlags {
+		base.Fatalf("go: no flags specified (see 'go help work edit').")
 	}
 
 	workFile, err := modload.ReadWorkFile(gowork)

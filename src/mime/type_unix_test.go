@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
+//go:build unix || (js && wasm)
 
 package mime
 
@@ -27,6 +27,8 @@ func TestTypeByExtensionUNIX(t *testing.T) {
 		".t3":  "document/test",
 		".t4":  "example/test",
 		".png": "image/png",
+		",v":   "",
+		"~":    "",
 	}
 
 	for ext, want := range typeTests {

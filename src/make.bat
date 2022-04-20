@@ -46,10 +46,7 @@ if x%4==x--no-local goto nolocal
 setlocal
 :nolocal
 
-set GOENV=off
 set GOBUILDFAIL=0
-set GOFLAGS=
-set GO111MODULE=
 
 if exist make.bat goto ok
 echo Must run make.bat from Go src directory.
@@ -83,6 +80,8 @@ for /f "tokens=*" %%g in ('where go 2^>nul') do (
 		)
 	)
 )
+if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go1.17
+if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go1.17
 if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
 
 :bootstrapset
@@ -97,7 +96,10 @@ set GOROOT=%GOROOT_BOOTSTRAP%
 set GOOS=
 set GOARCH=
 set GOBIN=
+set GOEXPERIMENT=
 set GO111MODULE=off
+set GOENV=off
+set GOFLAGS=
 "%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
 endlocal
 if errorlevel 1 goto fail

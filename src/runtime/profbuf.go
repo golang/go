@@ -84,7 +84,6 @@ import (
 //	if uint32(overflow) > 0 {
 //		emit entry for uint32(overflow), time
 //	}
-//
 type profBuf struct {
 	// accessed atomically
 	r, w         profAtomic

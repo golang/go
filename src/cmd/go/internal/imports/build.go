@@ -66,7 +66,6 @@ func isGoBuildComment(line []byte) bool {
 // the purpose of satisfying build tags, in order to estimate
 // (conservatively) whether a file could ever possibly be used
 // in any build.
-//
 func ShouldBuild(content []byte, tags map[string]bool) bool {
 	// Identify leading run of // comments and blank lines,
 	// which must be followed by a blank line.
@@ -216,7 +215,9 @@ func matchTag(name string, tags map[string]bool, prefer bool) bool {
 }
 
 // eval is like
+//
 //	x.Eval(func(tag string) bool { return matchTag(tag, tags) })
+//
 // except that it implements the special case for tags["*"] meaning
 // all tags are both true and false at the same time.
 func eval(x constraint.Expr, tags map[string]bool, prefer bool) bool {
@@ -237,17 +238,18 @@ func eval(x constraint.Expr, tags map[string]bool, prefer bool) bool {
 // suffix which does not match the current system.
 // The recognized name formats are:
 //
-//     name_$(GOOS).*
-//     name_$(GOARCH).*
-//     name_$(GOOS)_$(GOARCH).*
-//     name_$(GOOS)_test.*
-//     name_$(GOARCH)_test.*
-//     name_$(GOOS)_$(GOARCH)_test.*
+//	name_$(GOOS).*
+//	name_$(GOARCH).*
+//	name_$(GOOS)_$(GOARCH).*
+//	name_$(GOOS)_test.*
+//	name_$(GOARCH)_test.*
+//	name_$(GOOS)_$(GOARCH)_test.*
 //
 // Exceptions:
-//     if GOOS=android, then files with GOOS=linux are also matched.
-//     if GOOS=illumos, then files with GOOS=solaris are also matched.
-//     if GOOS=ios, then files with GOOS=darwin are also matched.
+//
+//	if GOOS=android, then files with GOOS=linux are also matched.
+//	if GOOS=illumos, then files with GOOS=solaris are also matched.
+//	if GOOS=ios, then files with GOOS=darwin are also matched.
 //
 // If tags["*"] is true, then MatchFile will consider all possible
 // GOOS and GOARCH to be available and will consequently

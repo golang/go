@@ -6,6 +6,7 @@ package noder
 
 import (
 	"fmt"
+	"go/constant"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -62,6 +63,14 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 		case types2.UntypedNil:
 			// ok; can appear in type switch case clauses
 			// TODO(mdempsky): Handle as part of type switches instead?
+		case types2.UntypedInt, types2.UntypedFloat, types2.UntypedComplex:
+			// Untyped rhs of non-constant shift, e.g. x << 1.0.
+			// If we have a constant value, it must be an int >= 0.
+			if tv.Value != nil {
+				s := constant.ToInt(tv.Value)
+				assert(s.Kind() == constant.Int && constant.Sign(s) >= 0)
+			}
+			typ = types2.Typ[types2.Uint]
 		case types2.UntypedBool:
 			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
 		case types2.UntypedString:
@@ -114,7 +123,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.CallExpr:
 		fun := g.expr(expr.Fun)
-		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
+		return g.callExpr(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
 
 	case *syntax.IndexExpr:
 		args := unpackListExpr(expr.Index)
@@ -204,6 +213,53 @@ func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node)
 	}
 	newt := ts.Typ(typ)
 	return newt
+}
+
+// callExpr creates a call expression (which might be a type conversion, built-in
+// call, or a regular call) and does standard transforms, unless we are in a generic
+// function.
+func (g *irgen) callExpr(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+	n.IsDDD = dots
+	typed(typ, n)
+
+	if fun.Op() == ir.OTYPE {
+		// Actually a type conversion, not a function call.
+		if !g.delayTransform() {
+			return transformConvCall(n)
+		}
+		return n
+	}
+
+	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
+		if !g.delayTransform() {
+			return transformBuiltin(n)
+		}
+		return n
+	}
+
+	// Add information, now that we know that fun is actually being called.
+	switch fun := fun.(type) {
+	case *ir.SelectorExpr:
+		if fun.Op() == ir.OMETHVALUE {
+			op := ir.ODOTMETH
+			if fun.X.Type().IsInterface() {
+				op = ir.ODOTINTER
+			}
+			fun.SetOp(op)
+			// Set the type to include the receiver, since that's what
+			// later parts of the compiler expect
+			fun.SetType(fun.Selection.Type)
+		}
+	}
+
+	// A function instantiation (even if fully concrete) shouldn't be
+	// transformed yet, because we need to add the dictionary during the
+	// transformation.
+	if fun.Op() != ir.OFUNCINST && !g.delayTransform() {
+		transformCall(n)
+	}
+	return n
 }
 
 // selectorExpr resolves the choice of ODOT, ODOTPTR, OMETHVALUE (eventually
@@ -332,13 +388,13 @@ func (g *irgen) exprs(exprs []syntax.Expr) []ir.Node {
 }
 
 func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
-	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
+	if ptr, ok := types2.CoreType(typ).(*types2.Pointer); ok {
 		n := ir.NewAddrExpr(g.pos(lit), g.compLit(ptr.Elem(), lit))
 		n.SetOp(ir.OPTRLIT)
 		return typed(g.typ(typ), n)
 	}
 
-	_, isStruct := types2.StructuralType(typ).(*types2.Struct)
+	_, isStruct := types2.CoreType(typ).(*types2.Struct)
 
 	exprs := make([]ir.Node, len(lit.ElemList))
 	for i, elem := range lit.ElemList {
@@ -392,7 +448,6 @@ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
 	for _, cv := range fn.ClosureVars {
 		cv.SetType(cv.Canonical().Type())
 		cv.SetTypecheck(1)
-		cv.SetWalkdef(1)
 	}
 
 	if g.topFuncIsGeneric {

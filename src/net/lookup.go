@@ -265,7 +265,7 @@ type onlyValuesCtx struct {
 var _ context.Context = (*onlyValuesCtx)(nil)
 
 // Value performs a lookup if the original context hasn't expired.
-func (ovc *onlyValuesCtx) Value(key interface{}) interface{} {
+func (ovc *onlyValuesCtx) Value(key any) any {
 	select {
 	case <-ovc.lookupValues.Done():
 		return nil
@@ -286,7 +286,7 @@ func withUnexpiredValuesPreserved(lookupCtx context.Context) context.Context {
 // It returns a slice of that host's IPv4 and IPv6 addresses.
 func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IPAddr, error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
-	// parseIP, for example, does accept empty strings.
+	// parseIPZone, for example, does accept empty strings.
 	if host == "" {
 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}
@@ -314,7 +314,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 
 	lookupKey := network + "\000" + host
 	dnsWaitGroup.Add(1)
-	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (interface{}, error) {
+	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
 		defer dnsWaitGroup.Done()
 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
 	})
@@ -377,7 +377,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 
 // lookupIPReturn turns the return values from singleflight.Do into
 // the return values from LookupIP.
-func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error) {
+func lookupIPReturn(addrsi any, err error, shared bool) ([]IPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -391,8 +391,8 @@ func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error
 }
 
 // ipAddrsEface returns an empty interface slice of addrs.
-func ipAddrsEface(addrs []IPAddr) []interface{} {
-	s := make([]interface{}, len(addrs))
+func ipAddrsEface(addrs []IPAddr) []any {
+	s := make([]any, len(addrs))
 	for i, v := range addrs {
 		s[i] = v
 	}

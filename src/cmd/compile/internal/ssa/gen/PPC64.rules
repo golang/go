@@ -1479,7 +1479,11 @@
         && clobber(call)
         => (Move [sz] dst src mem)
 
-// Prefetch instructions (aux is option: 0 - DCBT ; 8 - DCBT stream)
+// Prefetch instructions (TH specified using aux field)
+// For DCBT Ra,Rb,TH, A value of TH indicates:
+//     0, hint this cache line will be used soon. (PrefetchCache)
+//     16, hint this cache line will not be used for long. (PrefetchCacheStreamed)
+// See ISA 3.0 Book II 4.3.2 for more detail. https://openpower.foundation/specifications/isa/
 (PrefetchCache ptr mem)          => (DCBT ptr mem [0])
-(PrefetchCacheStreamed ptr mem)  => (DCBT ptr mem [8])
+(PrefetchCacheStreamed ptr mem)  => (DCBT ptr mem [16])
 

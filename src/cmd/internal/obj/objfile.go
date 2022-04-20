@@ -23,6 +23,8 @@ import (
 	"strings"
 )
 
+const UnlinkablePkg = "<unlinkable>" // invalid package path, used when compiled without -p flag
+
 // Entry point of writing new object file.
 func WriteObjFile(ctxt *Link, b *bio.Writer) {
 
@@ -44,6 +46,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	flags := uint32(0)
 	if ctxt.Flag_shared {
 		flags |= goobj.ObjFlagShared
+	}
+	if w.pkgpath == UnlinkablePkg {
+		flags |= goobj.ObjFlagUnlinkable
 	}
 	if w.pkgpath == "" {
 		flags |= goobj.ObjFlagNeedNameExpansion
@@ -168,6 +173,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	h.Offsets[goobj.BlkReloc] = w.Offset()
 	for _, list := range lists {
 		for _, s := range list {
+			sort.Sort(relocByOff(s.R)) // some platforms (e.g. PE) requires relocations in address order
 			for i := range s.R {
 				w.Reloc(&s.R[i])
 			}
@@ -417,6 +423,7 @@ func contentHashSection(s *LSym) byte {
 		strings.HasSuffix(name, ".arginfo0") ||
 		strings.HasSuffix(name, ".arginfo1") ||
 		strings.HasSuffix(name, ".argliveinfo") ||
+		strings.HasSuffix(name, ".wrapinfo") ||
 		strings.HasSuffix(name, ".args_stackmap") ||
 		strings.HasSuffix(name, ".stkobj") {
 		return 'F' // go.func.* or go.funcrel.*
@@ -441,14 +448,14 @@ func contentHash64(s *LSym) goobj.Hash64Type {
 // Depending on the category of the referenced symbol, we choose
 // different hash algorithms such that the hash is globally
 // consistent.
-// - For referenced content-addressable symbol, its content hash
-//   is globally consistent.
-// - For package symbol and builtin symbol, its local index is
-//   globally consistent.
-// - For non-package symbol, its fully-expanded name is globally
-//   consistent. For now, we require we know the current package
-//   path so we can always expand symbol names. (Otherwise,
-//   symbols with relocations are not considered hashable.)
+//   - For referenced content-addressable symbol, its content hash
+//     is globally consistent.
+//   - For package symbol and builtin symbol, its local index is
+//     globally consistent.
+//   - For non-package symbol, its fully-expanded name is globally
+//     consistent. For now, we require we know the current package
+//     path so we can always expand symbol names. (Otherwise,
+//     symbols with relocations are not considered hashable.)
 //
 // For now, we assume there is no circular dependencies among
 // hashed symbols.

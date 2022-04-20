@@ -32,8 +32,11 @@ import (
 // The prefix is followed by a colon only when Llongfile or Lshortfile
 // is specified.
 // For example, flags Ldate | Ltime (or LstdFlags) produce,
+//
 //	2009/01/23 01:23:23 message
+//
 // while flags Ldate | Ltime | Lmicroseconds | Llongfile produce,
+//
 //	2009/01/23 01:23:23.123123 /a/b/c/d.go:23: message
 const (
 	Ldate         = 1 << iota     // the date in the local time zone: 2009/01/23
@@ -107,10 +110,10 @@ func itoa(buf *[]byte, i int, wid int) {
 }
 
 // formatHeader writes log header to buf in following order:
-//   * l.prefix (if it's not blank and Lmsgprefix is unset),
-//   * date and/or time (if corresponding flags are provided),
-//   * file and line number (if corresponding flags are provided),
-//   * l.prefix (if it's not blank and Lmsgprefix is set).
+//   - l.prefix (if it's not blank and Lmsgprefix is unset),
+//   - date and/or time (if corresponding flags are provided),
+//   - file and line number (if corresponding flags are provided),
+//   - l.prefix (if it's not blank and Lmsgprefix is set).
 func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 	if l.flag&Lmsgprefix == 0 {
 		*buf = append(*buf, l.prefix...)
@@ -198,7 +201,7 @@ func (l *Logger) Output(calldepth int, s string) error {
 
 // Printf calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Printf.
-func (l *Logger) Printf(format string, v ...interface{}) {
+func (l *Logger) Printf(format string, v ...any) {
 	if atomic.LoadInt32(&l.isDiscard) != 0 {
 		return
 	}
@@ -207,7 +210,7 @@ func (l *Logger) Printf(format string, v ...interface{}) {
 
 // Print calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Print.
-func (l *Logger) Print(v ...interface{}) {
+func (l *Logger) Print(v ...any) {
 	if atomic.LoadInt32(&l.isDiscard) != 0 {
 		return
 	}
@@ -216,7 +219,7 @@ func (l *Logger) Print(v ...interface{}) {
 
 // Println calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Println.
-func (l *Logger) Println(v ...interface{}) {
+func (l *Logger) Println(v ...any) {
 	if atomic.LoadInt32(&l.isDiscard) != 0 {
 		return
 	}
@@ -224,39 +227,39 @@ func (l *Logger) Println(v ...interface{}) {
 }
 
 // Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
-func (l *Logger) Fatal(v ...interface{}) {
+func (l *Logger) Fatal(v ...any) {
 	l.Output(2, fmt.Sprint(v...))
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
-func (l *Logger) Fatalf(format string, v ...interface{}) {
+func (l *Logger) Fatalf(format string, v ...any) {
 	l.Output(2, fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
-func (l *Logger) Fatalln(v ...interface{}) {
+func (l *Logger) Fatalln(v ...any) {
 	l.Output(2, fmt.Sprintln(v...))
 	os.Exit(1)
 }
 
 // Panic is equivalent to l.Print() followed by a call to panic().
-func (l *Logger) Panic(v ...interface{}) {
+func (l *Logger) Panic(v ...any) {
 	s := fmt.Sprint(v...)
 	l.Output(2, s)
 	panic(s)
 }
 
 // Panicf is equivalent to l.Printf() followed by a call to panic().
-func (l *Logger) Panicf(format string, v ...interface{}) {
+func (l *Logger) Panicf(format string, v ...any) {
 	s := fmt.Sprintf(format, v...)
 	l.Output(2, s)
 	panic(s)
 }
 
 // Panicln is equivalent to l.Println() followed by a call to panic().
-func (l *Logger) Panicln(v ...interface{}) {
+func (l *Logger) Panicln(v ...any) {
 	s := fmt.Sprintln(v...)
 	l.Output(2, s)
 	panic(s)
@@ -335,7 +338,7 @@ func Writer() io.Writer {
 
 // Print calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Print.
-func Print(v ...interface{}) {
+func Print(v ...any) {
 	if atomic.LoadInt32(&std.isDiscard) != 0 {
 		return
 	}
@@ -344,7 +347,7 @@ func Print(v ...interface{}) {
 
 // Printf calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Printf.
-func Printf(format string, v ...interface{}) {
+func Printf(format string, v ...any) {
 	if atomic.LoadInt32(&std.isDiscard) != 0 {
 		return
 	}
@@ -353,7 +356,7 @@ func Printf(format string, v ...interface{}) {
 
 // Println calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Println.
-func Println(v ...interface{}) {
+func Println(v ...any) {
 	if atomic.LoadInt32(&std.isDiscard) != 0 {
 		return
 	}
@@ -361,39 +364,39 @@ func Println(v ...interface{}) {
 }
 
 // Fatal is equivalent to Print() followed by a call to os.Exit(1).
-func Fatal(v ...interface{}) {
+func Fatal(v ...any) {
 	std.Output(2, fmt.Sprint(v...))
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
-func Fatalf(format string, v ...interface{}) {
+func Fatalf(format string, v ...any) {
 	std.Output(2, fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to Println() followed by a call to os.Exit(1).
-func Fatalln(v ...interface{}) {
+func Fatalln(v ...any) {
 	std.Output(2, fmt.Sprintln(v...))
 	os.Exit(1)
 }
 
 // Panic is equivalent to Print() followed by a call to panic().
-func Panic(v ...interface{}) {
+func Panic(v ...any) {
 	s := fmt.Sprint(v...)
 	std.Output(2, s)
 	panic(s)
 }
 
 // Panicf is equivalent to Printf() followed by a call to panic().
-func Panicf(format string, v ...interface{}) {
+func Panicf(format string, v ...any) {
 	s := fmt.Sprintf(format, v...)
 	std.Output(2, s)
 	panic(s)
 }
 
 // Panicln is equivalent to Println() followed by a call to panic().
-func Panicln(v ...interface{}) {
+func Panicln(v ...any) {
 	s := fmt.Sprintln(v...)
 	std.Output(2, s)
 	panic(s)

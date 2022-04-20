@@ -21,7 +21,6 @@
 // Type inference computes the type (Type) of every expression (syntax.Expr)
 // and checks for compliance with the language specification.
 // Use Info.Types[expr].Type for the results of type inference.
-//
 package types2
 
 import (
@@ -204,12 +203,12 @@ type Info struct {
 	// qualified identifiers are collected in the Uses map.
 	Types map[syntax.Expr]TypeAndValue
 
-	// Instances maps identifiers denoting parameterized types or functions to
-	// their type arguments and instantiated type.
+	// Instances maps identifiers denoting generic types or functions to their
+	// type arguments and instantiated type.
 	//
 	// For example, Instances will map the identifier for 'T' in the type
 	// instantiation T[int, string] to the type arguments [int, string] and
-	// resulting instantiated *Named type. Given a parameterized function
+	// resulting instantiated *Named type. Given a generic function
 	// func F[A any](A), Instances will map the identifier for 'F' in the call
 	// expression F(int(1)) to the inferred type arguments [int], and resulting
 	// instantiated *Signature.
@@ -265,6 +264,7 @@ type Info struct {
 	//
 	//     *syntax.File
 	//     *syntax.FuncType
+	//     *syntax.TypeDecl
 	//     *syntax.BlockStmt
 	//     *syntax.IfStmt
 	//     *syntax.SwitchStmt
@@ -284,7 +284,6 @@ type Info struct {
 
 // TypeOf returns the type of expression e, or nil if not found.
 // Precondition: the Types, Uses and Defs maps are populated.
-//
 func (info *Info) TypeOf(e syntax.Expr) Type {
 	if t, ok := info.Types[e]; ok {
 		return t.Type
@@ -304,7 +303,6 @@ func (info *Info) TypeOf(e syntax.Expr) Type {
 // it defines, not the type (*TypeName) it uses.
 //
 // Precondition: the Uses and Defs maps are populated.
-//
 func (info *Info) ObjectOf(id *syntax.Name) Object {
 	if obj := info.Defs[id]; obj != nil {
 		return obj
@@ -420,28 +418,56 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
 }
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
+//
+// The behavior of AssertableTo is undefined in two cases:
+//  - if V is a generalized interface; i.e., an interface that may only be used
+//    as a type constraint in Go code
+//  - if T is an uninstantiated generic type
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := (*Checker)(nil).assertableTo(V, T)
-	return m == nil
+	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
+	// handling here.
+	if T.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).newAssertableTo(V, T) == nil
 }
 
-// AssignableTo reports whether a value of type V is assignable to a variable of type T.
+// AssignableTo reports whether a value of type V is assignable to a variable
+// of type T.
+//
+// The behavior of AssignableTo is undefined if V or T is an uninstantiated
+// generic type.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
 	return ok
 }
 
-// ConvertibleTo reports whether a value of type V is convertible to a value of type T.
+// ConvertibleTo reports whether a value of type V is convertible to a value of
+// type T.
+//
+// The behavior of ConvertibleTo is undefined if V or T is an uninstantiated
+// generic type.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
 }
 
 // Implements reports whether type V implements interface T.
+//
+// The behavior of Implements is undefined if V is an uninstantiated generic
+// type.
 func Implements(V Type, T *Interface) bool {
-	f, _ := MissingMethod(V, T, true)
-	return f == nil
+	if T.Empty() {
+		// All types (even Typ[Invalid]) implement the empty interface.
+		return true
+	}
+	// Checker.implements suppresses errors for invalid types, so we need special
+	// handling here.
+	if V.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).implements(V, T) == nil
 }
 
 // Identical reports whether x and y are identical types.

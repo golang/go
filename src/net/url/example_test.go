@@ -365,7 +365,7 @@ func ExampleURL_RequestURI() {
 	// Output: /path?foo=bar
 }
 
-func toJSON(m interface{}) string {
+func toJSON(m any) string {
 	js, err := json.Marshal(m)
 	if err != nil {
 		log.Fatal(err)

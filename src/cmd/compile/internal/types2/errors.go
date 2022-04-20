@@ -98,10 +98,43 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
 			arg = a.String()
 		case syntax.Expr:
 			arg = syntax.String(a)
+		case []syntax.Expr:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(syntax.String(x))
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
 		case Object:
 			arg = ObjectString(a, qf)
 		case Type:
 			arg = typeString(a, qf, debug)
+		case []Type:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(typeString(x, qf, debug))
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
+		case []*TypeParam:
+			var buf bytes.Buffer
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(typeString(x, qf, debug)) // use typeString so we get subscripts when debugging
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
 		}
 		args[i] = arg
 	}
@@ -145,8 +178,13 @@ func (check *Checker) markImports(pkg *Package) {
 	}
 }
 
+// check may be nil.
 func (check *Checker) sprintf(format string, args ...interface{}) string {
-	return sprintf(check.qualifier, false, format, args...)
+	var qf Qualifier
+	if check != nil {
+		qf = check.qualifier
+	}
+	return sprintf(qf, false, format, args...)
 }
 
 func (check *Checker) report(err *error_) {

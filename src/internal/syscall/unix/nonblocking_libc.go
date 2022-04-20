@@ -20,5 +20,6 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
 }
 
 // Implemented in the syscall package.
+//
 //go:linkname fcntl syscall.fcntl
 func fcntl(fd int, cmd int, arg int) (int, error)

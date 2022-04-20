@@ -40,14 +40,13 @@ func walkDeclList(v Visitor, list []Decl) {
 }
 
 // TODO(gri): Investigate if providing a closure to Walk leads to
-//            simpler use (and may help eliminate Inspect in turn).
+// simpler use (and may help eliminate Inspect in turn).
 
 // Walk traverses an AST in depth-first order: It starts by calling
 // v.Visit(node); node must not be nil. If the visitor w returned by
 // v.Visit(node) is not nil, Walk is invoked recursively with visitor
 // w for each of the non-nil children of node, followed by a call of
 // w.Visit(nil).
-//
 func Walk(v Visitor, node Node) {
 	if v = v.Visit(node); v == nil {
 		return
@@ -394,7 +393,6 @@ func (f inspector) Visit(node Node) Visitor {
 // f(node); node must not be nil. If f returns true, Inspect invokes f
 // recursively for each of the non-nil children of node, followed by a
 // call of f(nil).
-//
 func Inspect(node Node, f func(Node) bool) {
 	Walk(inspector(f), node)
 }

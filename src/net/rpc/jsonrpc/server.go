@@ -57,8 +57,8 @@ func (r *serverRequest) reset() {
 
 type serverResponse struct {
 	Id     *json.RawMessage `json:"id"`
-	Result interface{}      `json:"result"`
-	Error  interface{}      `json:"error"`
+	Result any              `json:"result"`
+	Error  any              `json:"error"`
 }
 
 func (c *serverCodec) ReadRequestHeader(r *rpc.Request) error {
@@ -81,7 +81,7 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) error {
 	return nil
 }
 
-func (c *serverCodec) ReadRequestBody(x interface{}) error {
+func (c *serverCodec) ReadRequestBody(x any) error {
 	if x == nil {
 		return nil
 	}
@@ -92,14 +92,14 @@ func (c *serverCodec) ReadRequestBody(x interface{}) error {
 	// RPC params is struct.
 	// Unmarshal into array containing struct for now.
 	// Should think about making RPC more general.
-	var params [1]interface{}
+	var params [1]any
 	params[0] = x
 	return json.Unmarshal(*c.req.Params, &params)
 }
 
 var null = json.RawMessage([]byte("null"))
 
-func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) error {
+func (c *serverCodec) WriteResponse(r *rpc.Response, x any) error {
 	c.mutex.Lock()
 	b, ok := c.pending[r.Seq]
 	if !ok {

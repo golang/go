@@ -12,17 +12,22 @@ import (
 // A Named represents a named (defined) type.
 type Named struct {
 	check      *Checker
-	info       typeInfo       // for cycle detection
 	obj        *TypeName      // corresponding declared object for declared types; placeholder for instantiated types
 	orig       *Named         // original, uninstantiated type
 	fromRHS    Type           // type (on RHS of declaration) this *Named type is derived from (for cycle reporting)
 	underlying Type           // possibly a *Named during setup; never a *Named once set up completely
 	tparams    *TypeParamList // type parameters, or nil
 	targs      *TypeList      // type arguments (after instantiation), or nil
-	methods    []*Func        // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+
+	// methods declared for this type (not the method set of this type).
+	// Signatures are type-checked lazily.
+	// For non-instantiated types, this is a fully populated list of methods. For
+	// instantiated types, this is a 'lazy' list, and methods are instantiated
+	// when they are first accessed.
+	methods *methodList
 
 	// resolver may be provided to lazily resolve type parameters, underlying, and methods.
-	resolver func(*Context, *Named) (tparams *TypeParamList, underlying Type, methods []*Func)
+	resolver func(*Context, *Named) (tparams *TypeParamList, underlying Type, methods *methodList)
 	once     sync.Once // ensures that tparams, underlying, and methods are resolved before accessing
 }
 
@@ -33,7 +38,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("underlying type must not be *Named")
 	}
-	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
+	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, newMethodList(methods))
 }
 
 func (t *Named) resolve(ctxt *Context) *Named {
@@ -57,7 +62,7 @@ func (t *Named) resolve(ctxt *Context) *Named {
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TypeParamList, methods []*Func) *Named {
+func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TypeParamList, methods *methodList) *Named {
 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
 	if typ.orig == nil {
 		typ.orig = typ
@@ -67,40 +72,133 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 	}
 	// Ensure that typ is always expanded and sanity-checked.
 	if check != nil {
-		check.defTypes = append(check.defTypes, typ)
+		check.needsCleanup(typ)
 	}
 	return typ
 }
 
+func (t *Named) cleanup() {
+	assert(t.orig.orig == t.orig)
+	// Ensure that every defined type created in the course of type-checking has
+	// either non-*Named underlying, or is unresolved.
+	//
+	// This guarantees that we don't leak any types whose underlying is *Named,
+	// because any unresolved instances will lazily compute their underlying by
+	// substituting in the underlying of their origin. The origin must have
+	// either been imported or type-checked and expanded here, and in either case
+	// its underlying will be fully expanded.
+	switch t.underlying.(type) {
+	case nil:
+		if t.resolver == nil {
+			panic("nil underlying")
+		}
+	case *Named:
+		t.under() // t.under may add entries to check.cleaners
+	}
+	t.check = nil
+}
+
 // Obj returns the type name for the declaration defining the named type t. For
-// instantiated types, this is the type name of the base type.
+// instantiated types, this is same as the type name of the origin type.
 func (t *Named) Obj() *TypeName { return t.orig.obj } // for non-instances this is the same as t.obj
 
-// Origin returns the parameterized type from which the named type t is
+// Origin returns the generic type from which the named type t is
 // instantiated. If t is not an instantiated type, the result is t.
 func (t *Named) Origin() *Named { return t.orig }
 
 // TODO(gri) Come up with a better representation and API to distinguish
-//           between parameterized instantiated and non-instantiated types.
+// between parameterized instantiated and non-instantiated types.
 
 // TypeParams returns the type parameters of the named type t, or nil.
-// The result is non-nil for an (originally) parameterized type even if it is instantiated.
+// The result is non-nil for an (originally) generic type even if it is instantiated.
 func (t *Named) TypeParams() *TypeParamList { return t.resolve(nil).tparams }
 
 // SetTypeParams sets the type parameters of the named type t.
-func (t *Named) SetTypeParams(tparams []*TypeParam) { t.resolve(nil).tparams = bindTParams(tparams) }
+// t must not have type arguments.
+func (t *Named) SetTypeParams(tparams []*TypeParam) {
+	assert(t.targs.Len() == 0)
+	t.resolve(nil).tparams = bindTParams(tparams)
+}
 
 // TypeArgs returns the type arguments used to instantiate the named type t.
 func (t *Named) TypeArgs() *TypeList { return t.targs }
 
-// NumMethods returns the number of explicit methods whose receiver is named type t.
-func (t *Named) NumMethods() int { return len(t.resolve(nil).methods) }
+// NumMethods returns the number of explicit methods defined for t.
+//
+// For an ordinary or instantiated type t, the receiver base type of these
+// methods will be the named type t. For an uninstantiated generic type t, each
+// method receiver will be instantiated with its receiver type parameters.
+func (t *Named) NumMethods() int { return t.resolve(nil).methods.Len() }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
-func (t *Named) Method(i int) *Func { return t.resolve(nil).methods[i] }
+func (t *Named) Method(i int) *Func {
+	t.resolve(nil)
+	return t.methods.At(i, func() *Func {
+		return t.instantiateMethod(i)
+	})
+}
+
+// instantiateMethod instantiates the i'th method for an instantiated receiver.
+func (t *Named) instantiateMethod(i int) *Func {
+	assert(t.TypeArgs().Len() > 0) // t must be an instance
+
+	// t.orig.methods is not lazy. origm is the method instantiated with its
+	// receiver type parameters (the "origin" method).
+	origm := t.orig.Method(i)
+	assert(origm != nil)
+
+	check := t.check
+	// Ensure that the original method is type-checked.
+	if check != nil {
+		check.objDecl(origm, nil)
+	}
+
+	origSig := origm.typ.(*Signature)
+	rbase, _ := deref(origSig.Recv().Type())
+
+	// If rbase is t, then origm is already the instantiated method we're looking
+	// for. In this case, we return origm to preserve the invariant that
+	// traversing Method->Receiver Type->Method should get back to the same
+	// method.
+	//
+	// This occurs if t is instantiated with the receiver type parameters, as in
+	// the use of m in func (r T[_]) m() { r.m() }.
+	if rbase == t {
+		return origm
+	}
+
+	sig := origSig
+	// We can only substitute if we have a correspondence between type arguments
+	// and type parameters. This check is necessary in the presence of invalid
+	// code.
+	if origSig.RecvTypeParams().Len() == t.targs.Len() {
+		ctxt := check.bestContext(nil)
+		smap := makeSubstMap(origSig.RecvTypeParams().list(), t.targs.list())
+		sig = check.subst(origm.pos, origSig, smap, ctxt).(*Signature)
+	}
+
+	if sig == origSig {
+		// No substitution occurred, but we still need to create a new signature to
+		// hold the instantiated receiver.
+		copy := *origSig
+		sig = &copy
+	}
+
+	var rtyp Type
+	if origm.hasPtrRecv() {
+		rtyp = NewPointer(t)
+	} else {
+		rtyp = t
+	}
+
+	sig.recv = substVar(origSig.recv, rtyp)
+	return NewFunc(origm.pos, origm.pkg, origm.name, sig)
+}
 
 // SetUnderlying sets the underlying type and marks t as complete.
+// t must not have type arguments.
 func (t *Named) SetUnderlying(underlying Type) {
+	assert(t.targs.Len() == 0)
 	if underlying == nil {
 		panic("underlying type must not be nil")
 	}
@@ -108,14 +206,20 @@ func (t *Named) SetUnderlying(underlying Type) {
 		panic("underlying type must not be *Named")
 	}
 	t.resolve(nil).underlying = underlying
+	if t.fromRHS == nil {
+		t.fromRHS = underlying // for cycle detection
+	}
 }
 
 // AddMethod adds method m unless it is already in the method list.
+// t must not have type arguments.
 func (t *Named) AddMethod(m *Func) {
+	assert(t.targs.Len() == 0)
 	t.resolve(nil)
-	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
-		t.methods = append(t.methods, m)
+	if t.methods == nil {
+		t.methods = newMethodList(nil)
 	}
+	t.methods.Add(m)
 }
 
 func (t *Named) Underlying() Type { return t.resolve(nil).underlying }
@@ -218,6 +322,19 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
+func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
+	n.resolve(nil)
+	// If n is an instance, we may not have yet instantiated all of its methods.
+	// Look up the method index in orig, and only instantiate method at the
+	// matching index (if any).
+	i, _ := n.orig.methods.Lookup(pkg, name, foldCase)
+	if i < 0 {
+		return -1, nil
+	}
+	// For instances, m.Method(i) will be different from the orig method.
+	return i, n.Method(i)
+}
+
 // bestContext returns the best available context. In order of preference:
 // - the given ctxt, if non-nil
 // - check.ctxt, if check is non-nil
@@ -237,11 +354,19 @@ func (check *Checker) bestContext(ctxt *Context) *Context {
 
 // expandNamed ensures that the underlying type of n is instantiated.
 // The underlying type will be Typ[Invalid] if there was an error.
-func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypeParamList, underlying Type, methods []*Func) {
+func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypeParamList, underlying Type, methods *methodList) {
+	check := n.check
+	if check != nil && check.conf.Trace {
+		check.trace(instPos, "-- expandNamed %s", n)
+		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(instPos, "=> %s (tparams = %s, under = %s)", n, tparams.list(), underlying)
+		}()
+	}
+
 	n.orig.resolve(ctxt)
 	assert(n.orig.underlying != nil)
-
-	check := n.check
 
 	if _, unexpanded := n.orig.underlying.(*Named); unexpanded {
 		// We should only get an unexpanded underlying here during type checking
@@ -259,80 +384,30 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
 
 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
 		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
-
-		for i := 0; i < n.orig.NumMethods(); i++ {
-			origm := n.orig.Method(i)
-
-			// During type checking origm may not have a fully set up type, so defer
-			// instantiation of its signature until later.
-			m := NewFunc(origm.pos, origm.pkg, origm.name, nil)
-			m.hasPtrRecv_ = origm.hasPtrRecv()
-			// Setting instRecv here allows us to complete later (we need the
-			// instRecv to get targs and the original method).
-			m.instRecv = n
-
-			methods = append(methods, m)
+		// If the underlying of n is an interface, we need to set the receiver of
+		// its methods accurately -- we set the receiver of interface methods on
+		// the RHS of a type declaration to the defined type.
+		if iface, _ := underlying.(*Interface); iface != nil {
+			if methods, copied := replaceRecvType(iface.methods, n.orig, n); copied {
+				// If the underlying doesn't actually use type parameters, it's possible
+				// that it wasn't substituted. In this case we need to create a new
+				// *Interface before modifying receivers.
+				if iface == n.orig.underlying {
+					old := iface
+					iface = check.newInterface()
+					iface.embeddeds = old.embeddeds
+					iface.complete = old.complete
+					iface.implicit = old.implicit // should be false but be conservative
+					underlying = iface
+				}
+				iface.methods = methods
+			}
 		}
 	} else {
 		underlying = Typ[Invalid]
 	}
 
-	// Methods should not escape the type checker API without being completed. If
-	// we're in the context of a type checking pass, we need to defer this until
-	// later (not all methods may have types).
-	completeMethods := func() {
-		for _, m := range methods {
-			if m.instRecv != nil {
-				check.completeMethod(ctxt, m)
-			}
-		}
-	}
-	if check != nil {
-		check.later(completeMethods)
-	} else {
-		completeMethods()
-	}
-
-	return n.orig.tparams, underlying, methods
-}
-
-func (check *Checker) completeMethod(ctxt *Context, m *Func) {
-	assert(m.instRecv != nil)
-	rbase := m.instRecv
-	m.instRecv = nil
-	m.setColor(black)
-
-	assert(rbase.TypeArgs().Len() > 0)
-
-	// Look up the original method.
-	_, orig := lookupMethod(rbase.orig.methods, rbase.obj.pkg, m.name)
-	assert(orig != nil)
-	if check != nil {
-		check.objDecl(orig, nil)
-	}
-	origSig := orig.typ.(*Signature)
-	if origSig.RecvTypeParams().Len() != rbase.targs.Len() {
-		m.typ = origSig // or new(Signature), but we can't use Typ[Invalid]: Funcs must have Signature type
-		return          // error reported elsewhere
-	}
-
-	smap := makeSubstMap(origSig.RecvTypeParams().list(), rbase.targs.list())
-	sig := check.subst(orig.pos, origSig, smap, ctxt).(*Signature)
-	if sig == origSig {
-		// No substitution occurred, but we still need to create a new signature to
-		// hold the instantiated receiver.
-		copy := *origSig
-		sig = &copy
-	}
-	var rtyp Type
-	if m.hasPtrRecv() {
-		rtyp = NewPointer(rbase)
-	} else {
-		rtyp = rbase
-	}
-	sig.recv = NewParam(origSig.recv.pos, origSig.recv.pkg, origSig.recv.name, rtyp)
-
-	m.typ = sig
+	return n.orig.tparams, underlying, newLazyMethodList(n.orig.methods.Len())
 }
 
 // safeUnderlying returns the underlying of typ without expanding instances, to

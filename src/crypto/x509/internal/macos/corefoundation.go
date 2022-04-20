@@ -19,6 +19,7 @@ import (
 )
 
 // Core Foundation linker flags for the external linker. See Issue 42459.
+//
 //go:cgo_ldflag "-framework"
 //go:cgo_ldflag "CoreFoundation"
 
@@ -37,9 +38,12 @@ func CFDataToSlice(data CFRef) []byte {
 }
 
 // CFStringToString returns a Go string representation of the passed
-// in CFString.
+// in CFString, or an empty string if it's invalid.
 func CFStringToString(ref CFRef) string {
-	data := CFStringCreateExternalRepresentation(ref)
+	data, err := CFStringCreateExternalRepresentation(ref)
+	if err != nil {
+		return ""
+	}
 	b := CFDataToSlice(data)
 	CFRelease(data)
 	return string(b)
@@ -48,7 +52,7 @@ func CFStringToString(ref CFRef) string {
 // TimeToCFDateRef converts a time.Time into an apple CFDateRef
 func TimeToCFDateRef(t time.Time) CFRef {
 	secs := t.Sub(time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)).Seconds()
-	ref := CFDateCreate(int(secs))
+	ref := CFDateCreate(secs)
 	return ref
 }
 
@@ -170,8 +174,8 @@ func x509_CFArrayAppendValue_trampoline()
 
 //go:cgo_import_dynamic x509_CFDateCreate CFDateCreate "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 
-func CFDateCreate(seconds int) CFRef {
-	ret := syscall(abi.FuncPCABI0(x509_CFDateCreate_trampoline), kCFAllocatorDefault, uintptr(seconds), 0, 0, 0, 0)
+func CFDateCreate(seconds float64) CFRef {
+	ret := syscall(abi.FuncPCABI0(x509_CFDateCreate_trampoline), kCFAllocatorDefault, 0, 0, 0, 0, seconds)
 	return CFRef(ret)
 }
 func x509_CFDateCreate_trampoline()
@@ -186,14 +190,17 @@ func x509_CFErrorCopyDescription_trampoline()
 
 //go:cgo_import_dynamic x509_CFStringCreateExternalRepresentation CFStringCreateExternalRepresentation "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 
-func CFStringCreateExternalRepresentation(strRef CFRef) CFRef {
+func CFStringCreateExternalRepresentation(strRef CFRef) (CFRef, error) {
 	ret := syscall(abi.FuncPCABI0(x509_CFStringCreateExternalRepresentation_trampoline), kCFAllocatorDefault, uintptr(strRef), kCFStringEncodingUTF8, 0, 0, 0)
-	return CFRef(ret)
+	if ret == 0 {
+		return 0, errors.New("string can't be represented as UTF-8")
+	}
+	return CFRef(ret), nil
 }
 func x509_CFStringCreateExternalRepresentation_trampoline()
 
 // syscall is implemented in the runtime package (runtime/sys_darwin.go)
-func syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) uintptr
+func syscall(fn, a1, a2, a3, a4, a5 uintptr, f1 float64) uintptr
 
 // ReleaseCFArray iterates through an array, releasing its contents, and then
 // releases the array itself. This is necessary because we cannot, easily, set the

@@ -75,7 +75,7 @@ func Netpoll(delta int64) {
 	})
 }
 
-func GCMask(x interface{}) (ret []byte) {
+func GCMask(x any) (ret []byte) {
 	systemstack(func() {
 		ret = getgcmask(x)
 	})
@@ -218,7 +218,7 @@ func SetEnvs(e []string) { envs = e }
 
 // For benchmarking.
 
-func BenchSetType(n int, x interface{}) {
+func BenchSetType(n int, x any) {
 	e := *efaceOf(&x)
 	t := e._type
 	var size uintptr
@@ -546,7 +546,7 @@ func MapTombstoneCheck(m map[int]int) {
 	// We should have a series of filled and emptyOne cells, followed by
 	// a series of emptyRest cells.
 	h := *(**hmap)(unsafe.Pointer(&m))
-	i := interface{}(m)
+	i := any(m)
 	t := *(**maptype)(unsafe.Pointer(&i))
 
 	for x := 0; x < 1<<h.B; x++ {
@@ -1048,7 +1048,19 @@ func FreePageAlloc(pp *PageAlloc) {
 //
 // This should not be higher than 0x100*pallocChunkBytes to support
 // mips and mipsle, which only have 31-bit address spaces.
-var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + arenaBaseOffset*goos.IsAix))
+var BaseChunkIdx = func() ChunkIdx {
+	var prefix uintptr
+	if pageAlloc64Bit != 0 {
+		prefix = 0xc000
+	} else {
+		prefix = 0x100
+	}
+	baseAddr := prefix * pallocChunkBytes
+	if goos.IsAix != 0 {
+		baseAddr += arenaBaseOffset
+	}
+	return ChunkIdx(chunkIndex(baseAddr))
+}()
 
 // PageBase returns an address given a chunk index and a page index
 // relative to that chunk.
@@ -1131,6 +1143,7 @@ func SemNwait(addr *uint32) uint32 {
 }
 
 // mspan wrapper for testing.
+//
 //go:notinheap
 type MSpan mspan
 
@@ -1186,6 +1199,8 @@ func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
 func (th *TimeHistogram) Record(duration int64) {
 	(*timeHistogram)(th).record(duration)
 }
+
+var TimeHistogramMetricsBuckets = timeHistogramMetricsBuckets
 
 func SetIntArgRegs(a int) int {
 	lock(&finlock)
@@ -1294,16 +1309,45 @@ func (c *GCController) Revise(d GCControllerReviseDelta) {
 
 func (c *GCController) EndCycle(bytesMarked uint64, assistTime, elapsed int64, gomaxprocs int) {
 	c.assistTime = assistTime
-	triggerRatio := c.endCycle(elapsed, gomaxprocs, false)
+	c.endCycle(elapsed, gomaxprocs, false)
 	c.resetLive(bytesMarked)
-	c.commit(triggerRatio)
+	c.commit()
 }
 
-var escapeSink interface{}
+var escapeSink any
 
 //go:noinline
-func escape(x interface{}) interface{} {
+func escape(x any) any {
 	escapeSink = x
 	escapeSink = nil
 	return x
+}
+
+// Acquirem blocks preemption.
+func Acquirem() {
+	acquirem()
+}
+
+func Releasem() {
+	releasem(getg().m)
+}
+
+var Timediv = timediv
+
+type PIController struct {
+	piController
+}
+
+func NewPIController(kp, ti, tt, min, max float64) *PIController {
+	return &PIController{piController{
+		kp:  kp,
+		ti:  ti,
+		tt:  tt,
+		min: min,
+		max: max,
+	}}
+}
+
+func (c *PIController) Next(input, setpoint, period float64) (float64, bool) {
+	return c.piController.next(input, setpoint, period)
 }

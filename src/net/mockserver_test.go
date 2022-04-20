@@ -10,45 +10,67 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
+	"testing"
 	"time"
 )
 
-// testUnixAddr uses os.CreateTemp to get a name that is unique.
-func testUnixAddr() string {
-	f, err := os.CreateTemp("", "go-nettest")
+// testUnixAddr uses os.MkdirTemp to get a name that is unique.
+func testUnixAddr(t testing.TB) string {
+	// Pass an empty pattern to get a directory name that is as short as possible.
+	// If we end up with a name longer than the sun_path field in the sockaddr_un
+	// struct, we won't be able to make the syscall to open the socket.
+	d, err := os.MkdirTemp("", "")
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
-	addr := f.Name()
-	f.Close()
-	os.Remove(addr)
-	return addr
+	t.Cleanup(func() {
+		if err := os.RemoveAll(d); err != nil {
+			t.Error(err)
+		}
+	})
+	return filepath.Join(d, "sock")
 }
 
-func newLocalListener(network string) (Listener, error) {
+func newLocalListener(t testing.TB, network string) Listener {
+	listen := func(net, addr string) Listener {
+		ln, err := Listen(net, addr)
+		if err != nil {
+			t.Helper()
+			t.Fatal(err)
+		}
+		return ln
+	}
+
 	switch network {
 	case "tcp":
 		if supportsIPv4() {
+			if !supportsIPv6() {
+				return listen("tcp4", "127.0.0.1:0")
+			}
 			if ln, err := Listen("tcp4", "127.0.0.1:0"); err == nil {
-				return ln, nil
+				return ln
 			}
 		}
 		if supportsIPv6() {
-			return Listen("tcp6", "[::1]:0")
+			return listen("tcp6", "[::1]:0")
 		}
 	case "tcp4":
 		if supportsIPv4() {
-			return Listen("tcp4", "127.0.0.1:0")
+			return listen("tcp4", "127.0.0.1:0")
 		}
 	case "tcp6":
 		if supportsIPv6() {
-			return Listen("tcp6", "[::1]:0")
+			return listen("tcp6", "[::1]:0")
 		}
 	case "unix", "unixpacket":
-		return Listen(network, testUnixAddr())
+		return listen(network, testUnixAddr(t))
 	}
-	return nil, fmt.Errorf("%s is not supported", network)
+
+	t.Helper()
+	t.Fatalf("%s is not supported", network)
+	return nil
 }
 
 func newDualStackListener() (lns []*TCPListener, err error) {
@@ -119,12 +141,10 @@ func (ls *localServer) teardown() error {
 	return nil
 }
 
-func newLocalServer(network string) (*localServer, error) {
-	ln, err := newLocalListener(network)
-	if err != nil {
-		return nil, err
-	}
-	return &localServer{Listener: ln, done: make(chan bool)}, nil
+func newLocalServer(t testing.TB, network string) *localServer {
+	t.Helper()
+	ln := newLocalListener(t, network)
+	return &localServer{Listener: ln, done: make(chan bool)}
 }
 
 type streamListener struct {
@@ -133,8 +153,8 @@ type streamListener struct {
 	done chan bool // signal that indicates server stopped
 }
 
-func (sl *streamListener) newLocalServer() (*localServer, error) {
-	return &localServer{Listener: sl.Listener, done: make(chan bool)}, nil
+func (sl *streamListener) newLocalServer() *localServer {
+	return &localServer{Listener: sl.Listener, done: make(chan bool)}
 }
 
 type dualStackServer struct {
@@ -286,27 +306,39 @@ func transceiver(c Conn, wb []byte, ch chan<- error) {
 	}
 }
 
-func newLocalPacketListener(network string) (PacketConn, error) {
+func newLocalPacketListener(t testing.TB, network string) PacketConn {
+	listenPacket := func(net, addr string) PacketConn {
+		c, err := ListenPacket(net, addr)
+		if err != nil {
+			t.Helper()
+			t.Fatal(err)
+		}
+		return c
+	}
+
 	switch network {
 	case "udp":
 		if supportsIPv4() {
-			return ListenPacket("udp4", "127.0.0.1:0")
+			return listenPacket("udp4", "127.0.0.1:0")
 		}
 		if supportsIPv6() {
-			return ListenPacket("udp6", "[::1]:0")
+			return listenPacket("udp6", "[::1]:0")
 		}
 	case "udp4":
 		if supportsIPv4() {
-			return ListenPacket("udp4", "127.0.0.1:0")
+			return listenPacket("udp4", "127.0.0.1:0")
 		}
 	case "udp6":
 		if supportsIPv6() {
-			return ListenPacket("udp6", "[::1]:0")
+			return listenPacket("udp6", "[::1]:0")
 		}
 	case "unixgram":
-		return ListenPacket(network, testUnixAddr())
+		return listenPacket(network, testUnixAddr(t))
 	}
-	return nil, fmt.Errorf("%s is not supported", network)
+
+	t.Helper()
+	t.Fatalf("%s is not supported", network)
+	return nil
 }
 
 func newDualStackPacketListener() (cs []*UDPConn, err error) {
@@ -371,20 +403,18 @@ func (ls *localPacketServer) teardown() error {
 	return nil
 }
 
-func newLocalPacketServer(network string) (*localPacketServer, error) {
-	c, err := newLocalPacketListener(network)
-	if err != nil {
-		return nil, err
-	}
-	return &localPacketServer{PacketConn: c, done: make(chan bool)}, nil
+func newLocalPacketServer(t testing.TB, network string) *localPacketServer {
+	t.Helper()
+	c := newLocalPacketListener(t, network)
+	return &localPacketServer{PacketConn: c, done: make(chan bool)}
 }
 
 type packetListener struct {
 	PacketConn
 }
 
-func (pl *packetListener) newLocalServer() (*localPacketServer, error) {
-	return &localPacketServer{PacketConn: pl.PacketConn, done: make(chan bool)}, nil
+func (pl *packetListener) newLocalServer() *localPacketServer {
+	return &localPacketServer{PacketConn: pl.PacketConn, done: make(chan bool)}
 }
 
 func packetTransponder(c PacketConn, ch chan<- error) {

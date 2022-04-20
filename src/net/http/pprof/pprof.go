@@ -10,15 +10,16 @@
 // The handled paths all begin with /debug/pprof/.
 //
 // To use pprof, link this package into your program:
+//
 //	import _ "net/http/pprof"
 //
 // If your application is not already running an http server, you
 // need to start one. Add "net/http" and "log" to your imports and
 // the following code to your main function:
 //
-// 	go func() {
-// 		log.Println(http.ListenAndServe("localhost:6060", nil))
-// 	}()
+//	go func() {
+//		log.Println(http.ListenAndServe("localhost:6060", nil))
+//	}()
 //
 // If you are not using DefaultServeMux, you will have to register handlers
 // with the mux you are using.
@@ -53,7 +54,6 @@
 // For a study of the facility in action, visit
 //
 //	https://blog.golang.org/2011/06/profiling-go-programs.html
-//
 package pprof
 
 import (

@@ -29,8 +29,9 @@ func TestHmapSize(t *testing.T) {
 }
 
 // negative zero is a good test because:
-//  1) 0 and -0 are equal, yet have distinct representations.
-//  2) 0 is represented as all zeros, -0 isn't.
+//  1. 0 and -0 are equal, yet have distinct representations.
+//  2. 0 is represented as all zeros, -0 isn't.
+//
 // I'm not sure the language spec actually requires this behavior,
 // but it's what the current map implementation does.
 func TestNegativeZero(t *testing.T) {
@@ -1050,7 +1051,7 @@ func BenchmarkMapDelete(b *testing.B) {
 func TestDeferDeleteSlow(t *testing.T) {
 	ks := []complex128{0, 1, 2, 3}
 
-	m := make(map[interface{}]int)
+	m := make(map[any]int)
 	for i, k := range ks {
 		m[k] = i
 	}
@@ -1193,14 +1194,14 @@ func TestMapInterfaceKey(t *testing.T) {
 		c64  complex64
 		c128 complex128
 		s    string
-		i0   interface{}
+		i0   any
 		i1   interface {
 			String() string
 		}
 		a [4]string
 	}
 
-	m := map[interface{}]bool{}
+	m := map[any]bool{}
 	// Put a bunch of data in m, so that a bad hash is likely to
 	// lead to a bad bucket, which will lead to a missed lookup.
 	for i := 0; i < 1000; i++ {

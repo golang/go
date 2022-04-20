@@ -266,7 +266,7 @@ func (l *dlogger) hex(x uint64) *dlogger {
 }
 
 //go:nosplit
-func (l *dlogger) p(x interface{}) *dlogger {
+func (l *dlogger) p(x any) *dlogger {
 	if !dlogEnabled {
 		return l
 	}

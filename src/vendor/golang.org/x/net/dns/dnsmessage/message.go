@@ -125,14 +125,14 @@ func (o OpCode) GoString() string {
 // An RCode is a DNS response status code.
 type RCode uint16
 
+// Header.RCode values.
 const (
-	// Message.Rcode
-	RCodeSuccess        RCode = 0
-	RCodeFormatError    RCode = 1
-	RCodeServerFailure  RCode = 2
-	RCodeNameError      RCode = 3
-	RCodeNotImplemented RCode = 4
-	RCodeRefused        RCode = 5
+	RCodeSuccess        RCode = 0 // NoError
+	RCodeFormatError    RCode = 1 // FormErr
+	RCodeServerFailure  RCode = 2 // ServFail
+	RCodeNameError      RCode = 3 // NXDomain
+	RCodeNotImplemented RCode = 4 // NotImp
+	RCodeRefused        RCode = 5 // Refused
 )
 
 var rCodeNames = map[RCode]string{
@@ -1207,8 +1207,8 @@ type Builder struct {
 //
 // The DNS message is appended to the provided initial buffer buf (which may be
 // nil) as it is built. The final message is returned by the (*Builder).Finish
-// method, which may return the same underlying array if there was sufficient
-// capacity in the slice.
+// method, which includes buf[:len(buf)] and may return the same underlying
+// array if there was sufficient capacity in the slice.
 func NewBuilder(buf []byte, h Header) Builder {
 	if buf == nil {
 		buf = make([]byte, 0, packStartingCap)
@@ -1713,7 +1713,7 @@ const (
 
 // SetEDNS0 configures h for EDNS(0).
 //
-// The provided extRCode must be an extedned RCode.
+// The provided extRCode must be an extended RCode.
 func (h *ResourceHeader) SetEDNS0(udpPayloadLen int, extRCode RCode, dnssecOK bool) error {
 	h.Name = Name{Data: [nameLen]byte{'.'}, Length: 1} // RFC 6891 section 6.1.2
 	h.Type = TypeOPT
@@ -1880,7 +1880,7 @@ const nameLen = 255
 // A Name is a non-encoded domain name. It is used instead of strings to avoid
 // allocations.
 type Name struct {
-	Data   [nameLen]byte
+	Data   [nameLen]byte // 255 bytes
 	Length uint8
 }
 

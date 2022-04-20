@@ -1,0 +1,2 @@
+pkg hash/maphash, func Bytes(Seed, []uint8) uint64 #42710
+pkg hash/maphash, func String(Seed, string) uint64 #42710

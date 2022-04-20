@@ -1,0 +1,3 @@
+pkg regexp/syntax, const ErrInvalidDepth = "invalid nesting depth" #0
+pkg regexp/syntax, const ErrInvalidDepth ErrorCode #0
+

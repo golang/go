@@ -358,8 +358,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 			return true
 		}
 
-	case ir.OSELECT,
-		ir.OGO,
+	case ir.OGO,
 		ir.ODEFER,
 		ir.ODCLTYPE, // can't print yet
 		ir.OTAILCALL:
@@ -523,7 +522,8 @@ func InlineCalls(fn *ir.Func) {
 // but then you may as well do it here.  so this is cleaner and
 // shorter and less complicated.
 // The result of inlnode MUST be assigned back to n, e.g.
-// 	n.Left = inlnode(n.Left)
+//
+//	n.Left = inlnode(n.Left)
 func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
 	if n == nil {
 		return n
@@ -658,7 +658,8 @@ var NewInline = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCa
 // inlined function body, and (List, Rlist) contain the (input, output)
 // parameters.
 // The result of mkinlcall MUST be assigned back to n, e.g.
-// 	n.Left = mkinlcall(n.Left, fn, isddd)
+//
+//	n.Left = mkinlcall(n.Left, fn, isddd)
 func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
 	if fn.Inl == nil {
 		if logopt.Enabled() {
@@ -1108,11 +1109,15 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 // closure does the necessary substitions for a ClosureExpr n and returns the new
 // closure node.
 func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
-	// Prior to the subst edit, set a flag in the inlsubst to
-	// indicated that we don't want to update the source positions in
-	// the new closure. If we do this, it will appear that the closure
-	// itself has things inlined into it, which is not the case. See
-	// issue #46234 for more details.
+	// Prior to the subst edit, set a flag in the inlsubst to indicate
+	// that we don't want to update the source positions in the new
+	// closure function. If we do this, it will appear that the
+	// closure itself has things inlined into it, which is not the
+	// case. See issue #46234 for more details. At the same time, we
+	// do want to update the position in the new ClosureExpr (which is
+	// part of the function we're working on). See #49171 for an
+	// example of what happens if we miss that update.
+	newClosurePos := subst.updatedPos(n.Pos())
 	defer func(prev bool) { subst.noPosUpdate = prev }(subst.noPosUpdate)
 	subst.noPosUpdate = true
 
@@ -1175,6 +1180,7 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 	// Actually create the named function for the closure, now that
 	// the closure is inlined in a specific function.
 	newclo := newfn.OClosure
+	newclo.SetPos(newClosurePos)
 	newclo.SetInit(subst.list(n.Init()))
 	return typecheck.Expr(newclo)
 }
@@ -1305,7 +1311,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	ir.EditChildren(m, subst.edit)
 
 	if subst.newclofn == nil {
-		// Translate any label on FOR, RANGE loops or SWITCH
+		// Translate any label on FOR, RANGE loops, SWITCH or SELECT
 		switch m.Op() {
 		case ir.OFOR:
 			m := m.(*ir.ForStmt)
@@ -1321,8 +1327,12 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 			m := m.(*ir.SwitchStmt)
 			m.Label = translateLabel(m.Label)
 			return m
-		}
 
+		case ir.OSELECT:
+			m := m.(*ir.SelectStmt)
+			m.Label = translateLabel(m.Label)
+			return m
+		}
 	}
 
 	switch m := m.(type) {

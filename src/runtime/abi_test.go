@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.regabireflect
+//go:build goexperiment.regabiargs
 
 // This file contains tests specific to making sure the register ABI
 // works in a bunch of contexts in the runtime.
@@ -78,7 +78,7 @@ func TestFinalizerRegisterABI(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		fin          interface{}
+		fin          any
 		confirmValue int
 	}{
 		{"Pointer", regFinalizerPointer, -1},

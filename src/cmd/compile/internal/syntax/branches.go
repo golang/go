@@ -11,10 +11,10 @@ import "fmt"
 // checkBranches checks correct use of labels and branch
 // statements (break, continue, goto) in a function body.
 // It catches:
-//    - misplaced breaks and continues
-//    - bad labeled breaks and continues
-//    - invalid, unused, duplicate, and missing labels
-//    - gotos jumping over variable declarations and into blocks
+//   - misplaced breaks and continues
+//   - bad labeled breaks and continues
+//   - invalid, unused, duplicate, and missing labels
+//   - gotos jumping over variable declarations and into blocks
 func checkBranches(body *BlockStmt, errh ErrorHandler) {
 	if body == nil {
 		return

@@ -285,9 +285,9 @@ func init() {
 		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int64", typ: "Flags"},   // arg0 compare to auxInt
 		{name: "CMPW", argLength: 2, reg: gp2flags, asm: "CMPW", typ: "Flags"},                    // arg0 compare to arg1, 32 bit
 		{name: "CMPWconst", argLength: 1, reg: gp1flags, asm: "CMPW", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt, 32 bit
-		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags", commutative: true},   // arg0 compare to -arg1
+		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags", commutative: true},   // arg0 compare to -arg1, provided arg1 is not 1<<63
 		{name: "CMNconst", argLength: 1, reg: gp1flags, asm: "CMN", aux: "Int64", typ: "Flags"},   // arg0 compare to -auxInt
-		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags", commutative: true}, // arg0 compare to -arg1, 32 bit
+		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags", commutative: true}, // arg0 compare to -arg1, 32 bit, provided arg1 is not 1<<31
 		{name: "CMNWconst", argLength: 1, reg: gp1flags, asm: "CMNW", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt, 32 bit
 		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags", commutative: true},   // arg0 & arg1 compare to 0
 		{name: "TSTconst", argLength: 1, reg: gp1flags, asm: "TST", aux: "Int64", typ: "Flags"},   // arg0 & auxInt compare to 0

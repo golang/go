@@ -390,7 +390,7 @@ func readComments(f io.Reader) ([]byte, error) {
 // readGoInfo expects a Go file as input and reads the file up to and including the import section.
 // It records what it learned in *info.
 // If info.fset is non-nil, readGoInfo parses the file and sets info.parsed, info.parseErr,
-// info.imports, info.embeds, and info.embedErr.
+// info.imports and info.embeds.
 //
 // It only returns an error if there are problems reading the file,
 // not for syntax errors in the file itself.

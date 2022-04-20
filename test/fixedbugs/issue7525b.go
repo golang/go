@@ -8,6 +8,6 @@
 
 package main
 
-var y struct {
-	d [len(y.d)]int // ERROR "array bound|typechecking loop|invalid array"
+var y struct { // GC_ERROR "initialization loop for y"
+	d [len(y.d)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
 }

@@ -71,12 +71,6 @@ func (d *deadcodePass) init() {
 	// runtime.unreachableMethod is a function that will throw if called.
 	// We redirect unreachable methods to it.
 	names = append(names, "runtime.unreachableMethod")
-	if !d.ctxt.linkShared && d.ctxt.BuildMode != BuildModePlugin {
-		// runtime.buildVersion and runtime.modinfo are referenced in .go.buildinfo section
-		// (see function buildinfo in data.go). They should normally be reachable from the
-		// runtime. Just make it explicit, in case.
-		names = append(names, "runtime.buildVersion", "runtime.modinfo")
-	}
 	if d.ctxt.BuildMode == BuildModePlugin {
 		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
 
@@ -313,10 +307,10 @@ func (d *deadcodePass) markMethod(m methodref) {
 //
 // There are three ways a method of a reachable type can be invoked:
 //
-//	1. direct call
-//	2. through a reachable interface type
-//	3. reflect.Value.Method (or MethodByName), or reflect.Type.Method
-//	   (or MethodByName)
+//  1. direct call
+//  2. through a reachable interface type
+//  3. reflect.Value.Method (or MethodByName), or reflect.Type.Method
+//     (or MethodByName)
 //
 // The first case is handled by the flood fill, a directly called method
 // is marked as reachable.
@@ -327,9 +321,10 @@ func (d *deadcodePass) markMethod(m methodref) {
 // as reachable. This is extremely conservative, but easy and correct.
 //
 // The third case is handled by looking to see if any of:
-//	- reflect.Value.Method or MethodByName is reachable
-// 	- reflect.Type.Method or MethodByName is called (through the
-// 	  REFLECTMETHOD attribute marked by the compiler).
+//   - reflect.Value.Method or MethodByName is reachable
+//   - reflect.Type.Method or MethodByName is called (through the
+//     REFLECTMETHOD attribute marked by the compiler).
+//
 // If any of these happen, all bets are off and all exported methods
 // of reachable types are marked reachable.
 //
@@ -361,7 +356,7 @@ func deadcode(ctxt *Link) {
 		// in the last pass.
 		rem := d.markableMethods[:0]
 		for _, m := range d.markableMethods {
-			if (d.reflectSeen && m.isExported()) || d.ifaceMethod[m.m] || d.genericIfaceMethod[m.m.name] {
+			if (d.reflectSeen && (m.isExported() || d.dynlink)) || d.ifaceMethod[m.m] || d.genericIfaceMethod[m.m.name] {
 				d.markMethod(m)
 			} else {
 				rem = append(rem, m)

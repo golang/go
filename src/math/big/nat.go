@@ -22,7 +22,7 @@ import (
 
 // An unsigned integer x of the form
 //
-//   x = x[n-1]*_B^(n-1) + x[n-2]*_B^(n-2) + ... + x[1]*_B + x[0]
+//	x = x[n-1]*_B^(n-1) + x[n-2]*_B^(n-2) + ... + x[1]*_B + x[0]
 //
 // with 0 <= x[i] < _B and 0 <= i < n is stored in a slice of length n,
 // with the digits x[i] as the slice elements.
@@ -31,7 +31,6 @@ import (
 // During arithmetic operations, denormalized values may occur but are
 // always normalized before returning the final result. The normalized
 // representation of 0 is the empty or nil slice (length = 0).
-//
 type nat []Word
 
 var (
@@ -341,7 +340,7 @@ func karatsuba(z, x, y nat) {
 	karatsuba(p, xd, yd)
 
 	// save original z2:z0
-	// (ok to use upper half of z since we're done recursing)
+	// (ok to use upper half of z since we're done recurring)
 	r := z[n*4:]
 	copy(r, z[:n*2])
 
@@ -363,10 +362,11 @@ func karatsuba(z, x, y nat) {
 }
 
 // alias reports whether x and y share the same base array.
+//
 // Note: alias assumes that the capacity of underlying arrays
-//       is never changed for nat values; i.e. that there are
-//       no 3-operand slice expressions in this code (or worse,
-//       reflect-based operations to the same effect).
+// is never changed for nat values; i.e. that there are
+// no 3-operand slice expressions in this code (or worse,
+// reflect-based operations to the same effect).
 func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }

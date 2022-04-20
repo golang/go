@@ -205,8 +205,11 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 }
 
 // RFC 7234, section 5.4: Should treat
+//
 //	Pragma: no-cache
+//
 // like
+//
 //	Cache-Control: no-cache
 func fixPragmaCacheControl(header Header) {
 	if hp, ok := header["Pragma"]; ok && len(hp) > 0 && hp[0] == "no-cache" {
@@ -228,24 +231,23 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //
 // This method consults the following fields of the response r:
 //
-//  StatusCode
-//  ProtoMajor
-//  ProtoMinor
-//  Request.Method
-//  TransferEncoding
-//  Trailer
-//  Body
-//  ContentLength
-//  Header, values for non-canonical keys will have unpredictable behavior
+//	StatusCode
+//	ProtoMajor
+//	ProtoMinor
+//	Request.Method
+//	TransferEncoding
+//	Trailer
+//	Body
+//	ContentLength
+//	Header, values for non-canonical keys will have unpredictable behavior
 //
 // The Response Body is closed after it is sent.
 func (r *Response) Write(w io.Writer) error {
 	// Status line
 	text := r.Status
 	if text == "" {
-		var ok bool
-		text, ok = statusText[r.StatusCode]
-		if !ok {
+		text = StatusText(r.StatusCode)
+		if text == "" {
 			text = "status code " + strconv.Itoa(r.StatusCode)
 		}
 	} else {

@@ -178,7 +178,7 @@ func FoldSubSymbolOffset(ldr *loader.Loader, s loader.Sym) (loader.Sym, int64) {
 // (to be applied by the external linker). For more on how relocations
 // work in general, see
 //
-//  "Linkers and Loaders", by John R. Levine (Morgan Kaufmann, 1999), ch. 7
+//	"Linkers and Loaders", by John R. Levine (Morgan Kaufmann, 1999), ch. 7
 //
 // This is a performance-critical function for the linker; be careful
 // to avoid introducing unnecessary allocations in the main loop.
@@ -2112,12 +2112,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 			return si < sj
 		})
 	} else {
-		// PCLNTAB was built internally, and has the proper order based on value.
-		// Sort the symbols as such.
-		for k, s := range syms {
-			sl[k].val = ldr.SymValue(s)
-		}
-		sort.Slice(sl, func(i, j int) bool { return sl[i].val < sl[j].val })
+		// PCLNTAB was built internally, and already has the proper order.
 	}
 
 	// Set alignment, construct result
@@ -2140,7 +2135,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 // Non-ELF binary formats are not always flexible enough to
 // give us a place to put the Go build ID. On those systems, we put it
 // at the very beginning of the text segment.
-// This ``header'' is read by cmd/go.
+// This “header” is read by cmd/go.
 func (ctxt *Link) textbuildid() {
 	if ctxt.IsELF || ctxt.BuildMode == BuildModePlugin || *flagBuildid == "" {
 		return
@@ -2169,11 +2164,10 @@ func (ctxt *Link) buildinfo() {
 		return
 	}
 
+	// Write the buildinfo symbol, which go version looks for.
+	// The code reading this data is in package debug/buildinfo.
 	ldr := ctxt.loader
 	s := ldr.CreateSymForUpdate(".go.buildinfo", 0)
-	// On AIX, .go.buildinfo must be in the symbol table as
-	// it has relocations.
-	s.SetNotInSymbolTable(!ctxt.IsAIX())
 	s.SetType(sym.SBUILDINFO)
 	s.SetAlign(16)
 	// The \xff is invalid UTF-8, meant to make it less likely
@@ -2186,16 +2180,24 @@ func (ctxt *Link) buildinfo() {
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		data[len(prefix)+1] = 1
 	}
+	data[len(prefix)+1] |= 2 // signals new pointer-free format
+	data = appendString(data, strdata["runtime.buildVersion"])
+	data = appendString(data, strdata["runtime.modinfo"])
+	// MacOS linker gets very upset if the size os not a multiple of alignment.
+	for len(data)%16 != 0 {
+		data = append(data, 0)
+	}
 	s.SetData(data)
 	s.SetSize(int64(len(data)))
-	r, _ := s.AddRel(objabi.R_ADDR)
-	r.SetOff(16)
-	r.SetSiz(uint8(ctxt.Arch.PtrSize))
-	r.SetSym(ldr.LookupOrCreateSym("runtime.buildVersion", 0))
-	r, _ = s.AddRel(objabi.R_ADDR)
-	r.SetOff(16 + int32(ctxt.Arch.PtrSize))
-	r.SetSiz(uint8(ctxt.Arch.PtrSize))
-	r.SetSym(ldr.LookupOrCreateSym("runtime.modinfo", 0))
+}
+
+// appendString appends s to data, prefixed by its varint-encoded length.
+func appendString(data []byte, s string) []byte {
+	var v [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(v[:], uint64(len(s)))
+	data = append(data, v[:n]...)
+	data = append(data, s...)
+	return data
 }
 
 // assign addresses to text
@@ -2771,10 +2773,29 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
 	}
 
 	var buf bytes.Buffer
-	buf.Write([]byte("ZLIB"))
-	var sizeBytes [8]byte
-	binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
-	buf.Write(sizeBytes[:])
+	if ctxt.IsELF {
+		switch ctxt.Arch.PtrSize {
+		case 8:
+			binary.Write(&buf, ctxt.Arch.ByteOrder, elf.Chdr64{
+				Type:      uint32(elf.COMPRESS_ZLIB),
+				Size:      uint64(total),
+				Addralign: uint64(ctxt.Arch.Alignment),
+			})
+		case 4:
+			binary.Write(&buf, ctxt.Arch.ByteOrder, elf.Chdr32{
+				Type:      uint32(elf.COMPRESS_ZLIB),
+				Size:      uint32(total),
+				Addralign: uint32(ctxt.Arch.Alignment),
+			})
+		default:
+			log.Fatalf("can't compress header size:%d", ctxt.Arch.PtrSize)
+		}
+	} else {
+		buf.Write([]byte("ZLIB"))
+		var sizeBytes [8]byte
+		binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
+		buf.Write(sizeBytes[:])
+	}
 
 	var relocbuf []byte // temporary buffer for applying relocations
 

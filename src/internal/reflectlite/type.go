@@ -113,6 +113,7 @@ const Ptr = Pointer
 // available in the memory directly following the rtype value.
 //
 // tflag values must be kept in sync with copies in:
+//
 //	cmd/compile/internal/reflectdata/reflect.go
 //	cmd/link/internal/ld/decodesym.go
 //	runtime/type.go
@@ -298,7 +299,7 @@ type structType struct {
 //
 // The next two bytes are the data length:
 //
-//	 l := uint16(data[1])<<8 | uint16(data[2])
+//	l := uint16(data[1])<<8 | uint16(data[2])
 //
 // Bytes [3:3+l] are the string data.
 //
@@ -577,7 +578,14 @@ func (t *rtype) Name() string {
 	}
 	s := t.String()
 	i := len(s) - 1
-	for i >= 0 && s[i] != '.' {
+	sqBrackets := 0
+	for i >= 0 && (s[i] != '.' || sqBrackets != 0) {
+		switch s[i] {
+		case ']':
+			sqBrackets++
+		case '[':
+			sqBrackets--
+		}
 		i--
 	}
 	return s[i+1:]
@@ -707,7 +715,7 @@ func (t *interfaceType) NumMethod() int { return len(t.methods) }
 
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
-func TypeOf(i interface{}) Type {
+func TypeOf(i any) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
 	return toType(eface.typ)
 }

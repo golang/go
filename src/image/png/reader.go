@@ -325,7 +325,9 @@ func (d *decoder) parsetRNS(length uint32) error {
 
 // Read presents one or more IDAT chunks as one continuous stream (minus the
 // intermediate chunk headers and footers). If the PNG data looked like:
-//   ... len0 IDAT xxx crc0 len1 IDAT yy crc1 len2 IEND crc2
+//
+//	... len0 IDAT xxx crc0 len1 IDAT yy crc1 len2 IEND crc2
+//
 // then this reader presents xxxyy. For well-formed PNG data, the decoder state
 // immediately before the first Read call is that d.r is positioned between the
 // first IDAT and xxx, and the decoder state immediately after the last Read

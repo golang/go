@@ -114,6 +114,12 @@ func TestParseAddr(t *testing.T) {
 			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), intern.Get("eth1")),
 			str: "1:2::ffff:c0a8:8cff%eth1",
 		},
+		// 4-in-6 with zone
+		{
+			in:  "::ffff:192.168.140.255%eth1",
+			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), intern.Get("eth1")),
+			str: "::ffff:192.168.140.255%eth1",
+		},
 		// IPv6 with capital letters.
 		{
 			in:  "FD9E:1A04:F01D::1",
@@ -341,6 +347,32 @@ func TestAddrMarshalUnmarshalBinary(t *testing.T) {
 	}
 }
 
+func TestAddrPortMarshalTextString(t *testing.T) {
+	tests := []struct {
+		in   AddrPort
+		want string
+	}{
+		{mustIPPort("1.2.3.4:80"), "1.2.3.4:80"},
+		{mustIPPort("[1::CAFE]:80"), "[1::cafe]:80"},
+		{mustIPPort("[1::CAFE%en0]:80"), "[1::cafe%en0]:80"},
+		{mustIPPort("[::FFFF:192.168.140.255]:80"), "[::ffff:192.168.140.255]:80"},
+		{mustIPPort("[::FFFF:192.168.140.255%en0]:80"), "[::ffff:192.168.140.255%en0]:80"},
+	}
+	for i, tt := range tests {
+		if got := tt.in.String(); got != tt.want {
+			t.Errorf("%d. for (%v, %v) String = %q; want %q", i, tt.in.Addr(), tt.in.Port(), got, tt.want)
+		}
+		mt, err := tt.in.MarshalText()
+		if err != nil {
+			t.Errorf("%d. for (%v, %v) MarshalText error: %v", i, tt.in.Addr(), tt.in.Port(), err)
+			continue
+		}
+		if string(mt) != tt.want {
+			t.Errorf("%d. for (%v, %v) MarshalText = %q; want %q", i, tt.in.Addr(), tt.in.Port(), mt, tt.want)
+		}
+	}
+}
+
 func TestAddrPortMarshalUnmarshalBinary(t *testing.T) {
 	tests := []struct {
 		ipport   string
@@ -381,6 +413,32 @@ func TestAddrPortMarshalUnmarshalBinary(t *testing.T) {
 	}
 }
 
+func TestPrefixMarshalTextString(t *testing.T) {
+	tests := []struct {
+		in   Prefix
+		want string
+	}{
+		{mustPrefix("1.2.3.4/24"), "1.2.3.4/24"},
+		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"},
+		{mustPrefix("::ffff:c000:0280/96"), "::ffff:192.0.2.128/96"},
+		{mustPrefix("::ffff:192.168.140.255/8"), "::ffff:192.168.140.255/8"},
+		{PrefixFrom(mustIP("::ffff:c000:0280").WithZone("eth0"), 37), "::ffff:192.0.2.128/37"}, // Zone should be stripped
+	}
+	for i, tt := range tests {
+		if got := tt.in.String(); got != tt.want {
+			t.Errorf("%d. for %v String = %q; want %q", i, tt.in, got, tt.want)
+		}
+		mt, err := tt.in.MarshalText()
+		if err != nil {
+			t.Errorf("%d. for %v MarshalText error: %v", i, tt.in, err)
+			continue
+		}
+		if string(mt) != tt.want {
+			t.Errorf("%d. for %v MarshalText = %q; want %q", i, tt.in, mt, tt.want)
+		}
+	}
+}
+
 func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
 	type testCase struct {
 		prefix   Prefix
@@ -390,7 +448,7 @@ func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
 		{mustPrefix("1.2.3.4/24"), 4 + 1},
 		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), 16 + 1},
 		{mustPrefix("::ffff:c000:0280/96"), 16 + 1},
-		{mustPrefix("::ffff:c000:0280%eth0/37"), 16 + 1}, // Zone should be stripped
+		{PrefixFrom(mustIP("::ffff:c000:0280").WithZone("eth0"), 37), 16 + 1}, // Zone should be stripped
 	}
 	tests = append(tests,
 		testCase{PrefixFrom(tests[0].prefix.Addr(), 33), tests[0].wantSize},
@@ -843,25 +901,25 @@ func TestPrefixMasking(t *testing.T) {
 			{
 				ip:   mustIP(fmt.Sprintf("2001:db8::1%s", zone)),
 				bits: 32,
-				p:    mustPrefix(fmt.Sprintf("2001:db8::%s/32", zone)),
+				p:    mustPrefix("2001:db8::/32"),
 				ok:   true,
 			},
 			{
 				ip:   mustIP(fmt.Sprintf("fe80::dead:beef:dead:beef%s", zone)),
 				bits: 96,
-				p:    mustPrefix(fmt.Sprintf("fe80::dead:beef:0:0%s/96", zone)),
+				p:    mustPrefix("fe80::dead:beef:0:0/96"),
 				ok:   true,
 			},
 			{
 				ip:   mustIP(fmt.Sprintf("aaaa::%s", zone)),
 				bits: 4,
-				p:    mustPrefix(fmt.Sprintf("a000::%s/4", zone)),
+				p:    mustPrefix("a000::/4"),
 				ok:   true,
 			},
 			{
 				ip:   mustIP(fmt.Sprintf("::%s", zone)),
 				bits: 63,
-				p:    mustPrefix(fmt.Sprintf("::%s/63", zone)),
+				p:    mustPrefix("::/63"),
 				ok:   true,
 			},
 		}
@@ -962,7 +1020,6 @@ func TestPrefixMarshalUnmarshal(t *testing.T) {
 		"0.0.0.0/0",
 		"::/0",
 		"::1/128",
-		"::ffff:c000:1234/128",
 		"2001:db8::/32",
 	}
 
@@ -987,26 +1044,6 @@ func TestPrefixMarshalUnmarshal(t *testing.T) {
 				t.Errorf("Marshal = %q; want %q", back, orig)
 			}
 		})
-	}
-}
-
-func TestPrefixMarshalUnmarshalZone(t *testing.T) {
-	orig := `"fe80::1cc0:3e8c:119f:c2e1%ens18/128"`
-	unzoned := `"fe80::1cc0:3e8c:119f:c2e1/128"`
-
-	var p Prefix
-	if err := json.Unmarshal([]byte(orig), &p); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
-
-	pb, err := json.Marshal(p)
-	if err != nil {
-		t.Fatalf("failed to marshal: %v", err)
-	}
-
-	back := string(pb)
-	if back != unzoned {
-		t.Errorf("Marshal = %q; want %q", back, unzoned)
 	}
 }
 
@@ -1165,14 +1202,6 @@ func TestPrefix(t *testing.T) {
 			contains:    mustIPs("2001:db8::1"),
 			notContains: mustIPs("fe80::1"),
 		},
-		{
-			prefix:      "::%0/00/80",
-			ip:          mustIP("::"),
-			bits:        80,
-			str:         "::/80",
-			contains:    mustIPs("::"),
-			notContains: mustIPs("ff::%0/00", "ff::%1/23", "::%0/00", "::%1/23"),
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.prefix, func(t *testing.T) {
@@ -1291,6 +1320,15 @@ func TestParsePrefixError(t *testing.T) {
 			prefix: "2001::/129",
 			errstr: "out of range",
 		},
+		// Zones are not allowed: https://go.dev/issue/51899
+		{
+			prefix: "1.1.1.0%a/24",
+			errstr: "unexpected character",
+		},
+		{
+			prefix: "2001:db8::%a/32",
+			errstr: "zones cannot be present",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.prefix, func(t *testing.T) {
@@ -1394,7 +1432,7 @@ type ip4i struct {
 	flags2 byte
 	flags3 byte
 	flags4 byte
-	ipv6   interface{}
+	ipv6   any
 }
 
 func newip4i_v4(a, b, c, d byte) ip4i {
@@ -1719,7 +1757,7 @@ func TestPrefixOverlaps(t *testing.T) {
 		{pfx("1::1/128"), pfx("2::2/128"), false},
 		{pfx("0100::0/8"), pfx("::1/128"), false},
 
-		// v6-mapped v4 should not overlap with IPv4.
+		// IPv4-mapped IPv6 addresses should not overlap with IPv4.
 		{PrefixFrom(AddrFrom16(mustIP("1.2.0.0").As16()), 16), pfx("1.2.3.0/24"), false},
 
 		// Invalid prefixes

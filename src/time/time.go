@@ -7,7 +7,7 @@
 // The calendrical calculations always assume a Gregorian calendar, with
 // no leap seconds.
 //
-// Monotonic Clocks
+// # Monotonic Clocks
 //
 // Operating systems provide both a “wall clock,” which is subject to
 // changes for clock synchronization, and a “monotonic clock,” which is
@@ -72,7 +72,6 @@
 // For debugging, the result of t.String does include the monotonic
 // clock reading if present. If t != u because of different monotonic clock readings,
 // that difference will be visible when printing t.String() and u.String().
-//
 package time
 
 import (
@@ -123,7 +122,6 @@ import (
 // to t == u, since t.Equal uses the most accurate comparison available and
 // correctly handles the case when only one of its arguments has a monotonic
 // clock reading.
-//
 type Time struct {
 	// wall and ext encode the wall time seconds, wall time nanoseconds,
 	// and optional monotonic clock reading in nanoseconds.
@@ -597,13 +595,14 @@ const (
 // to avoid confusion across daylight savings time zone transitions.
 //
 // To count the number of units in a Duration, divide:
+//
 //	second := time.Second
 //	fmt.Print(int64(second/time.Millisecond)) // prints 1000
 //
 // To convert an integer number of units to a Duration, multiply:
+//
 //	seconds := 10
 //	fmt.Print(time.Duration(seconds)*time.Second) // prints 10s
-//
 const (
 	Nanosecond  Duration = 1
 	Microsecond          = 1000 * Nanosecond
@@ -813,6 +812,19 @@ func (d Duration) Round(m Duration) Duration {
 		return d1
 	}
 	return maxDuration // overflow
+}
+
+// Abs returns the absolute value of d.
+// As a special case, math.MinInt64 is converted to math.MaxInt64.
+func (d Duration) Abs() Duration {
+	switch {
+	case d >= 0:
+		return d
+	case d == minDuration:
+		return maxDuration
+	default:
+		return -d
+	}
 }
 
 // Add returns the time t+d.
@@ -1057,6 +1069,7 @@ func daysSinceEpoch(year int) uint64 {
 func now() (sec int64, nsec int32, mono int64)
 
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
+//
 //go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64
 
@@ -1367,6 +1380,7 @@ func isLeap(year int) bool {
 }
 
 // norm returns nhi, nlo such that
+//
 //	hi * base + lo == nhi * base + nlo
 //	0 <= nlo < base
 func norm(hi, lo, base int) (nhi, nlo int) {
@@ -1384,7 +1398,9 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 }
 
 // Date returns the Time corresponding to
+//
 //	yyyy-mm-dd hh:mm:ss + nsec nanoseconds
+//
 // in the appropriate zone for that time in the given location.
 //
 // The month, day, hour, min, sec, and nsec values may be outside

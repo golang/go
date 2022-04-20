@@ -19,7 +19,7 @@ func zeroRange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 	}
 
 	// Adjust the frame to account for LR.
-	off += base.Ctxt.FixedFrameSize()
+	off += base.Ctxt.Arch.FixedFrameSize
 
 	if cnt < int64(4*types.PtrSize) {
 		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
@@ -29,7 +29,7 @@ func zeroRange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 	}
 
 	if cnt <= int64(128*types.PtrSize) {
-		p = pp.Append(p, riscv.AADDI, obj.TYPE_CONST, 0, off, obj.TYPE_REG, riscv.REG_A0, 0)
+		p = pp.Append(p, riscv.AADDI, obj.TYPE_CONST, 0, off, obj.TYPE_REG, riscv.REG_X25, 0)
 		p.Reg = riscv.REG_SP
 		p = pp.Append(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		p.To.Name = obj.NAME_EXTERN

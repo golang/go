@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"cmd/compile/internal/types2"
 	"fmt"
+	"go/build"
+	"internal/goexperiment"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -17,6 +19,11 @@ import (
 	"testing"
 	"time"
 )
+
+func TestMain(m *testing.M) {
+	build.Default.GOROOT = testenv.GOROOT(nil)
+	os.Exit(m.Run())
+}
 
 // skipSpecialPlatforms causes the test to be skipped for platforms where
 // builders (build.golang.org) don't have access to compiled packages for
@@ -37,7 +44,7 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
 	}
 	basename := filepath.Base(filename)
 	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", outname, filename)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", outname, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -61,7 +68,7 @@ func testPath(t *testing.T, path, srcDir string) *types2.Package {
 const maxTime = 30 * time.Second
 
 func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
-	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
+	dirname := filepath.Join(testenv.GOROOT(t), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
 	list, err := os.ReadDir(dirname)
 	if err != nil {
 		t.Fatalf("testDir(%s): %s", dirname, err)
@@ -107,25 +114,33 @@ func TestImportTestdata(t *testing.T) {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
-	tmpdir := mktmpdir(t)
-	defer os.RemoveAll(tmpdir)
+	testfiles := map[string][]string{
+		"exports.go":  {"go/ast", "go/token"},
+		"generics.go": nil,
+	}
+	if goexperiment.Unified {
+		// TODO(mdempsky): Fix test below to flatten the transitive
+		// Package.Imports graph. Unified IR is more precise about
+		// recreating the package import graph.
+		testfiles["exports.go"] = []string{"go/ast"}
+	}
 
-	compile(t, "testdata", "exports.go", filepath.Join(tmpdir, "testdata"))
+	for testfile, wantImports := range testfiles {
+		tmpdir := mktmpdir(t)
+		defer os.RemoveAll(tmpdir)
 
-	if pkg := testPath(t, "./testdata/exports", tmpdir); pkg != nil {
-		// The package's Imports list must include all packages
-		// explicitly imported by exports.go, plus all packages
-		// referenced indirectly via exported objects in exports.go.
-		// With the textual export format, the list may also include
-		// additional packages that are not strictly required for
-		// import processing alone (they are exported to err "on
-		// the safe side").
-		// TODO(gri) update the want list to be precise, now that
-		// the textual export data is gone.
-		got := fmt.Sprint(pkg.Imports())
-		for _, want := range []string{"go/ast", "go/token"} {
-			if !strings.Contains(got, want) {
-				t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
+		compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"))
+		path := "./testdata/" + strings.TrimSuffix(testfile, ".go")
+
+		if pkg := testPath(t, path, tmpdir); pkg != nil {
+			// The package's Imports list must include all packages
+			// explicitly imported by testfile, plus all packages
+			// referenced indirectly via exported objects in testfile.
+			got := fmt.Sprint(pkg.Imports())
+			for _, want := range wantImports {
+				if !strings.Contains(got, want) {
+					t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
+				}
 			}
 		}
 	}
@@ -253,7 +268,7 @@ var importedObjectTests = []struct {
 	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string)"},
 
 	// interfaces
-	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key interface{}) interface{}}"},
+	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key any) any}"},
 	{"crypto.Decrypter", "type Decrypter interface{Decrypt(rand io.Reader, msg []byte, opts DecrypterOpts) (plaintext []byte, err error); Public() PublicKey}"},
 	{"encoding.BinaryMarshaler", "type BinaryMarshaler interface{MarshalBinary() (data []byte, err error)}"},
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
@@ -315,6 +330,14 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types2.Named, level int) {
 		return // not an interface
 	}
 
+	// The unified IR importer always sets interface method receiver
+	// parameters to point to the Interface type, rather than the Named.
+	// See #49906.
+	var want types2.Type = named
+	if goexperiment.Unified {
+		want = iface
+	}
+
 	// check explicitly declared methods
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		m := iface.ExplicitMethod(i)
@@ -323,7 +346,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types2.Named, level int) {
 			t.Errorf("%s: missing receiver type", m)
 			continue
 		}
-		if recv.Type() != named {
+		if recv.Type() != want {
 			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
 		}
 	}

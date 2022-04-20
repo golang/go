@@ -46,20 +46,14 @@ type spliceTestCase struct {
 }
 
 func (tc spliceTestCase) test(t *testing.T) {
-	clientUp, serverUp, err := spliceTestSocketPair(tc.upNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	clientUp, serverUp := spliceTestSocketPair(t, tc.upNet)
 	defer serverUp.Close()
 	cleanup, err := startSpliceClient(clientUp, "w", tc.chunkSize, tc.totalSize)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cleanup()
-	clientDown, serverDown, err := spliceTestSocketPair(tc.downNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	clientDown, serverDown := spliceTestSocketPair(t, tc.downNet)
 	defer serverDown.Close()
 	cleanup, err = startSpliceClient(clientDown, "r", tc.chunkSize, tc.totalSize)
 	if err != nil {
@@ -103,15 +97,9 @@ func (tc spliceTestCase) test(t *testing.T) {
 }
 
 func testSpliceReaderAtEOF(t *testing.T, upNet, downNet string) {
-	clientUp, serverUp, err := spliceTestSocketPair(upNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	clientUp, serverUp := spliceTestSocketPair(t, upNet)
 	defer clientUp.Close()
-	clientDown, serverDown, err := spliceTestSocketPair(downNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	clientDown, serverDown := spliceTestSocketPair(t, downNet)
 	defer clientDown.Close()
 
 	serverUp.Close()
@@ -140,7 +128,7 @@ func testSpliceReaderAtEOF(t *testing.T, upNet, downNet string) {
 	}()
 
 	buf := make([]byte, 3)
-	_, err = io.ReadFull(clientDown, buf)
+	_, err := io.ReadFull(clientDown, buf)
 	if err != nil {
 		t.Errorf("clientDown: %v", err)
 	}
@@ -150,15 +138,9 @@ func testSpliceReaderAtEOF(t *testing.T, upNet, downNet string) {
 }
 
 func testSpliceIssue25985(t *testing.T, upNet, downNet string) {
-	front, err := newLocalListener(upNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	front := newLocalListener(t, upNet)
 	defer front.Close()
-	back, err := newLocalListener(downNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	back := newLocalListener(t, downNet)
 	defer back.Close()
 
 	var wg sync.WaitGroup
@@ -210,16 +192,10 @@ func testSpliceIssue25985(t *testing.T, upNet, downNet string) {
 }
 
 func testSpliceNoUnixpacket(t *testing.T) {
-	clientUp, serverUp, err := spliceTestSocketPair("unixpacket")
-	if err != nil {
-		t.Fatal(err)
-	}
+	clientUp, serverUp := spliceTestSocketPair(t, "unixpacket")
 	defer clientUp.Close()
 	defer serverUp.Close()
-	clientDown, serverDown, err := spliceTestSocketPair("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	clientDown, serverDown := spliceTestSocketPair(t, "tcp")
 	defer clientDown.Close()
 	defer serverDown.Close()
 	// If splice called poll.Splice here, we'd get err == syscall.EINVAL
@@ -237,7 +213,7 @@ func testSpliceNoUnixpacket(t *testing.T) {
 }
 
 func testSpliceNoUnixgram(t *testing.T) {
-	addr, err := ResolveUnixAddr("unixgram", testUnixAddr())
+	addr, err := ResolveUnixAddr("unixgram", testUnixAddr(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,10 +223,7 @@ func testSpliceNoUnixgram(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer up.Close()
-	clientDown, serverDown, err := spliceTestSocketPair("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	clientDown, serverDown := spliceTestSocketPair(t, "tcp")
 	defer clientDown.Close()
 	defer serverDown.Close()
 	// Analogous to testSpliceNoUnixpacket.
@@ -284,10 +257,7 @@ func (tc spliceTestCase) bench(b *testing.B) {
 	// To benchmark the genericReadFrom code path, set this to false.
 	useSplice := true
 
-	clientUp, serverUp, err := spliceTestSocketPair(tc.upNet)
-	if err != nil {
-		b.Fatal(err)
-	}
+	clientUp, serverUp := spliceTestSocketPair(b, tc.upNet)
 	defer serverUp.Close()
 
 	cleanup, err := startSpliceClient(clientUp, "w", tc.chunkSize, tc.chunkSize*b.N)
@@ -296,10 +266,7 @@ func (tc spliceTestCase) bench(b *testing.B) {
 	}
 	defer cleanup()
 
-	clientDown, serverDown, err := spliceTestSocketPair(tc.downNet)
-	if err != nil {
-		b.Fatal(err)
-	}
+	clientDown, serverDown := spliceTestSocketPair(b, tc.downNet)
 	defer serverDown.Close()
 
 	cleanup, err = startSpliceClient(clientDown, "r", tc.chunkSize, tc.chunkSize*b.N)
@@ -327,11 +294,9 @@ func (tc spliceTestCase) bench(b *testing.B) {
 	}
 }
 
-func spliceTestSocketPair(net string) (client, server Conn, err error) {
-	ln, err := newLocalListener(net)
-	if err != nil {
-		return nil, nil, err
-	}
+func spliceTestSocketPair(t testing.TB, net string) (client, server Conn) {
+	t.Helper()
+	ln := newLocalListener(t, net)
 	defer ln.Close()
 	var cerr, serr error
 	acceptDone := make(chan struct{})
@@ -345,15 +310,15 @@ func spliceTestSocketPair(net string) (client, server Conn, err error) {
 		if server != nil {
 			server.Close()
 		}
-		return nil, nil, cerr
+		t.Fatal(cerr)
 	}
 	if serr != nil {
 		if client != nil {
 			client.Close()
 		}
-		return nil, nil, serr
+		t.Fatal(serr)
 	}
-	return client, server, nil
+	return client, server
 }
 
 func startSpliceClient(conn Conn, op string, chunkSize, totalSize int) (func(), error) {

@@ -125,17 +125,12 @@ func NewMethodSet(T Type) *MethodSet {
 				}
 				seen[named] = true
 
-				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
-
-				// continue with underlying type, but only if it's not a type parameter
-				// TODO(rFindley): should this use named.under()? Can there be a difference?
-				typ = named.underlying
-				if _, ok := typ.(*TypeParam); ok {
-					continue
+				for i := 0; i < named.NumMethods(); i++ {
+					mset = mset.addOne(named.Method(i), concat(e.index, i), e.indirect, e.multiples)
 				}
 			}
 
-			switch t := typ.(type) {
+			switch t := under(typ).(type) {
 			case *Struct:
 				for i, f := range t.fields {
 					if fset == nil {
@@ -158,9 +153,6 @@ func NewMethodSet(T Type) *MethodSet {
 
 			case *Interface:
 				mset = mset.add(t.typeSet().methods, e.index, true, e.multiples)
-
-			case *TypeParam:
-				mset = mset.add(t.iface().typeSet().methods, e.index, true, e.multiples)
 			}
 		}
 
@@ -224,23 +216,28 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 	if len(list) == 0 {
 		return s
 	}
+	for i, f := range list {
+		s = s.addOne(f, concat(index, i), indirect, multiples)
+	}
+	return s
+}
+
+func (s methodSet) addOne(f *Func, index []int, indirect bool, multiples bool) methodSet {
 	if s == nil {
 		s = make(methodSet)
 	}
-	for i, f := range list {
-		key := f.Id()
-		// if f is not in the set, add it
-		if !multiples {
-			// TODO(gri) A found method may not be added because it's not in the method set
-			// (!indirect && f.hasPtrRecv()). A 2nd method on the same level may be in the method
-			// set and may not collide with the first one, thus leading to a false positive.
-			// Is that possible? Investigate.
-			if _, found := s[key]; !found && (indirect || !f.hasPtrRecv()) {
-				s[key] = &Selection{MethodVal, nil, f, concat(index, i), indirect}
-				continue
-			}
+	key := f.Id()
+	// if f is not in the set, add it
+	if !multiples {
+		// TODO(gri) A found method may not be added because it's not in the method set
+		// (!indirect && f.hasPtrRecv()). A 2nd method on the same level may be in the method
+		// set and may not collide with the first one, thus leading to a false positive.
+		// Is that possible? Investigate.
+		if _, found := s[key]; !found && (indirect || !f.hasPtrRecv()) {
+			s[key] = &Selection{MethodVal, nil, f, index, indirect}
+			return s
 		}
-		s[key] = nil // collision
 	}
+	s[key] = nil // collision
 	return s
 }

@@ -8,7 +8,6 @@ package types
 
 import (
 	"bytes"
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -50,7 +49,6 @@ var operandModeString = [...]string{
 // the operand, the operand's type, a value for constants, and an id
 // for built-in functions.
 // The zero value of operand is a ready to use invalid operand.
-//
 type operand struct {
 	mode operandMode
 	expr ast.Expr
@@ -61,7 +59,6 @@ type operand struct {
 
 // Pos returns the position of the expression corresponding to x.
 // If x is invalid the position is token.NoPos.
-//
 func (x *operand) Pos() token.Pos {
 	// x.expr may not be set if x is invalid
 	if x.expr == nil {
@@ -103,8 +100,12 @@ func (x *operand) Pos() token.Pos {
 //
 // cgofunc    <expr> (<untyped kind> <mode>                    )
 // cgofunc    <expr> (               <mode>       of type <typ>)
-//
 func operandString(x *operand, qf Qualifier) string {
+	// special-case nil
+	if x.mode == value && x.typ == Typ[UntypedNil] {
+		return "nil"
+	}
+
 	var buf bytes.Buffer
 
 	var expr string
@@ -273,48 +274,26 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		return true, 0
 	}
 
-	// T is an interface type and x implements T and T is not a type parameter
-	if Ti, ok := Tu.(*Interface); ok && Tp == nil {
-		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
+	// T is an interface type and x implements T and T is not a type parameter.
+	// Also handle the case where T is a pointer to an interface.
+	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+		if err := check.implements(V, T); err != nil {
 			if reason != nil {
-				if compilerErrorMessages {
-					*reason = check.sprintf("%s does not implement %s %s", x.typ, T,
-						check.missingMethodReason(x.typ, T, m, wrongType))
-				} else {
-					if wrongType != nil {
-						if Identical(m.typ, wrongType.typ) {
-							*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
-						} else {
-							*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
-						}
-
-					} else {
-						*reason = "missing method " + m.Name()
-					}
-				}
+				*reason = err.Error()
 			}
 			return false, _InvalidIfaceAssign
 		}
 		return true, 0
 	}
 
-	// Provide extra detail in compiler error messages in some cases when T is
-	// not an interface.
-	if check != nil && compilerErrorMessages {
-		if isInterfacePtr(Tu) {
+	// If V is an interface, check if a missing type assertion is the problem.
+	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+		if check.implements(T, V) == nil {
+			// T implements V, so give hint about type assertion.
 			if reason != nil {
-				*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
+				*reason = "need type assertion"
 			}
-			return false, _InvalidIfaceAssign
-		}
-		if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
-			if m, _ := check.missingMethod(T, Vi, true); m == nil {
-				// T implements Vi, so give hint about type assertion.
-				if reason != nil {
-					*reason = check.sprintf("need type assertion")
-				}
-				return false, _IncompatibleAssign
-			}
+			return false, _IncompatibleAssign
 		}
 	}
 
@@ -332,7 +311,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		return false, _IncompatibleAssign
 	}
 
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		if check != nil && reason != nil {
 			msg := check.sprintf(format, args...)
 			if *reason != "" {

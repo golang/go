@@ -528,7 +528,7 @@ func loadTzinfo(name string, source string) ([]byte, error) {
 // and parsed is returned as a Location.
 func loadLocation(name string, sources []string) (z *Location, firstErr error) {
 	for _, source := range sources {
-		var zoneData, err = loadTzinfo(name, source)
+		zoneData, err := loadTzinfo(name, source)
 		if err == nil {
 			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
 				return z, nil
@@ -539,9 +539,20 @@ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
 		}
 	}
 	if loadFromEmbeddedTZData != nil {
-		zonedata, err := loadFromEmbeddedTZData(name)
+		zoneData, err := loadFromEmbeddedTZData(name)
 		if err == nil {
-			if z, err = LoadLocationFromTZData(name, []byte(zonedata)); err == nil {
+			if z, err = LoadLocationFromTZData(name, []byte(zoneData)); err == nil {
+				return z, nil
+			}
+		}
+		if firstErr == nil && err != syscall.ENOENT {
+			firstErr = err
+		}
+	}
+	if source, ok := gorootZoneSource(runtime.GOROOT()); ok {
+		zoneData, err := loadTzinfo(name, source)
+		if err == nil {
+			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
 				return z, nil
 			}
 		}

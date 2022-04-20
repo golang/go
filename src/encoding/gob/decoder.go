@@ -132,7 +132,9 @@ func (dec *Decoder) nextUint() uint64 {
 
 // decodeTypeSequence parses:
 // TypeSequence
+//
 //	(TypeDefinition DelimitedTypeDefinition*)?
+//
 // and returns the type id of the next value. It returns -1 at
 // EOF.  Upon return, the remainder of dec.buf is the value to be
 // decoded. If this is an interface value, it can be ignored by
@@ -186,7 +188,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 // correct type for the next data item received.
 // If the input is at EOF, Decode returns io.EOF and
 // does not modify e.
-func (dec *Decoder) Decode(e interface{}) error {
+func (dec *Decoder) Decode(e any) error {
 	if e == nil {
 		return dec.DecodeValue(reflect.Value{})
 	}

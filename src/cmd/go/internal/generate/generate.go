@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package generate implements the ``go generate'' command.
+// Package generate implements the “go generate” command.
 package generate
 
 import (
@@ -25,8 +25,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 )
 
 var CmdGenerate = &base.Command{
@@ -84,6 +84,9 @@ Go generate sets several variables when it runs the generator:
 		The line number of the directive in the source file.
 	$GOPACKAGE
 		The name of the package of the file containing the directive.
+	$GOROOT
+		The GOROOT directory for the 'go' command that invoked the
+		generator, containing the Go toolchain and standard library.
 	$DOLLAR
 		A dollar sign.
 
@@ -326,6 +329,7 @@ func isGoGenerate(buf []byte) bool {
 // single go:generate command.
 func (g *Generator) setEnv() {
 	g.env = []string{
+		"GOROOT=" + cfg.GOROOT,
 		"GOARCH=" + cfg.BuildContext.GOARCH,
 		"GOOS=" + cfg.BuildContext.GOOS,
 		"GOFILE=" + g.file,
@@ -408,7 +412,7 @@ var stop = fmt.Errorf("error in generation")
 // errorf logs an error message prefixed with the file and line number.
 // It then exits the program (with exit status 1) because generation stops
 // at the first error.
-func (g *Generator) errorf(format string, args ...interface{}) {
+func (g *Generator) errorf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "%s:%d: %s\n", base.ShortPath(g.path), g.lineNum,
 		fmt.Sprintf(format, args...))
 	panic(stop)

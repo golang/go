@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// go mod initwork
+// go work init
 
 package workcmd
 
@@ -13,29 +13,28 @@ import (
 	"path/filepath"
 )
 
-// TODO(#49232) Add more documentation below. Though this is
-// enough for those trying workspaces out, there should be more through
-// documentation before Go 1.18 is released.
-
 var cmdInit = &base.Command{
 	UsageLine: "go work init [moddirs]",
 	Short:     "initialize workspace file",
-	Long: `go mod initwork initializes and writes a new go.work file in the current
-directory, in effect creating a new workspace at the current directory.
+	Long: `Init initializes and writes a new go.work file in the
+current directory, in effect creating a new workspace at the current
+directory.
 
-go mod initwork optionally accepts paths to the workspace modules as arguments.
-If the argument is omitted, an empty workspace with no modules will be created.
+go work init optionally accepts paths to the workspace modules as
+arguments. If the argument is omitted, an empty workspace with no
+modules will be created.
 
-See the workspaces design proposal at
-https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
-more information.
+Each argument path is added to a use directive in the go.work file. The
+current go version will also be listed in the go.work file.
+
+See the workspaces reference at https://go.dev/ref/mod#workspaces
+for more information.
 `,
 	Run: runInit,
 }
 
 func init() {
 	base.AddModCommonFlags(&cmdInit.Flag)
-	base.AddWorkfileFlag(&cmdInit.Flag)
 }
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
@@ -43,12 +42,10 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 
 	modload.ForceUseModules = true
 
-	// TODO(matloob): support using the -workfile path
-	// To do that properly, we'll have to make the module directories
-	// make dirs relative to workFile path before adding the paths to
-	// the directory entries
-
-	workFile := filepath.Join(base.Cwd(), "go.work")
+	workFile := modload.WorkFilePath()
+	if workFile == "" {
+		workFile = filepath.Join(base.Cwd(), "go.work")
+	}
 
 	modload.CreateWorkFile(ctx, workFile, args)
 }

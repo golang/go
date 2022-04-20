@@ -382,7 +382,7 @@ func (k *Int64Key) name() string {
 }
 
 type EfaceKey struct {
-	i interface{}
+	i any
 }
 
 func (k *EfaceKey) clear() {

@@ -39,7 +39,7 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
 	if t1 == t2 {
 		return true
 	}
-	if t1 == nil || t2 == nil || t1.kind != t2.kind || t1.Broke() || t2.Broke() {
+	if t1 == nil || t2 == nil || t1.kind != t2.kind {
 		return false
 	}
 	if t1.sym != nil || t2.sym != nil {
@@ -59,7 +59,13 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
 		case TINT32:
 			return (t1 == Types[TINT32] || t1 == RuneType) && (t2 == Types[TINT32] || t2 == RuneType)
 		case TINTER:
-			return (t1 == Types[TINTER] || t1 == AnyType) && (t2 == Types[TINTER] || t2 == AnyType)
+			// Make sure named any type matches any unnamed empty interface
+			// (but not a shape type, if identStrict).
+			isUnnamedEface := func(t *Type) bool { return t.IsEmptyInterface() && t.Sym() == nil }
+			if flags&identStrict != 0 {
+				return t1 == AnyType && isUnnamedEface(t2) && !t2.HasShape() || t2 == AnyType && isUnnamedEface(t1) && !t1.HasShape()
+			}
+			return t1 == AnyType && isUnnamedEface(t2) || t2 == AnyType && isUnnamedEface(t1)
 		default:
 			return false
 		}

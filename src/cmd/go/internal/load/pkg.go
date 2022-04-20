@@ -17,6 +17,7 @@ import (
 	"internal/goroot"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path"
 	pathpkg "path"
 	"path/filepath"
@@ -191,6 +192,18 @@ func (p *Package) Desc() string {
 		return p.ImportPath + " [" + p.ForTest + ".test]"
 	}
 	return p.ImportPath
+}
+
+// IsTestOnly reports whether p is a test-only package.
+//
+// A “test-only” package is one that:
+//   - is a test-only variant of an ordinary package, or
+//   - is a synthesized "main" package for a test binary, or
+//   - contains only _test.go files.
+func (p *Package) IsTestOnly() bool {
+	return p.ForTest != "" ||
+		p.Internal.TestmainGo != nil ||
+		len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 && len(p.GoFiles)+len(p.CgoFiles) == 0
 }
 
 type PackageInternal struct {
@@ -498,7 +511,7 @@ type importError struct {
 	err        error // created with fmt.Errorf
 }
 
-func ImportErrorf(path, format string, args ...interface{}) ImportPathError {
+func ImportErrorf(path, format string, args ...any) ImportPathError {
 	err := &importError{importPath: path, err: fmt.Errorf(format, args...)}
 	if errStr := err.Error(); !strings.Contains(errStr, path) {
 		panic(fmt.Sprintf("path %q not in error %q", path, errStr))
@@ -589,10 +602,10 @@ func ClearPackageCachePartial(args []string) {
 			delete(packageCache, arg)
 		}
 	}
-	resolvedImportCache.DeleteIf(func(key interface{}) bool {
+	resolvedImportCache.DeleteIf(func(key any) bool {
 		return shouldDelete[key.(importSpec).path]
 	})
-	packageDataCache.DeleteIf(func(key interface{}) bool {
+	packageDataCache.DeleteIf(func(key any) bool {
 		return shouldDelete[key.(string)]
 	})
 }
@@ -605,7 +618,7 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 	p := packageCache[arg]
 	if p != nil {
 		delete(packageCache, arg)
-		resolvedImportCache.DeleteIf(func(key interface{}) bool {
+		resolvedImportCache.DeleteIf(func(key any) bool {
 			return key.(importSpec).path == p.ImportPath
 		})
 		packageDataCache.Delete(p.ImportPath)
@@ -817,13 +830,13 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 		parentIsStd: parentIsStd,
 		mode:        mode,
 	}
-	r := resolvedImportCache.Do(importKey, func() interface{} {
+	r := resolvedImportCache.Do(importKey, func() any {
 		var r resolvedImport
-		if build.IsLocalImport(path) {
+		if cfg.ModulesEnabled {
+			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
+		} else if build.IsLocalImport(path) {
 			r.dir = filepath.Join(parentDir, path)
 			r.path = dirToImportPath(r.dir)
-		} else if cfg.ModulesEnabled {
-			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
 		} else if mode&ResolveImport != 0 {
 			// We do our own path resolution, because we want to
 			// find out the key to use in packageCache without the
@@ -844,7 +857,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 
 	// Load the package from its directory. If we already found the package's
 	// directory when resolving its import path, use that.
-	data := packageDataCache.Do(r.path, func() interface{} {
+	data := packageDataCache.Do(r.path, func() any {
 		loaded = true
 		var data packageData
 		if r.dir != "" {
@@ -1063,7 +1076,7 @@ func cleanImport(path string) string {
 var isDirCache par.Cache
 
 func isDir(path string) bool {
-	return isDirCache.Do(path, func() interface{} {
+	return isDirCache.Do(path, func() any {
 		fi, err := fsys.Stat(path)
 		return err == nil && fi.IsDir()
 	}).(bool)
@@ -1113,6 +1126,7 @@ func dirAndRoot(path string, dir, root string) (string, string) {
 	}
 
 	if !str.HasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || path != "command-line-arguments" && !build.IsLocalImport(path) && filepath.Join(root, path) != dir {
+		debug.PrintStack()
 		base.Fatalf("unexpected directory layout:\n"+
 			"	import path: %s\n"+
 			"	root: %s\n"+
@@ -1191,7 +1205,7 @@ var (
 
 // goModPath returns the module path in the go.mod in dir, if any.
 func goModPath(dir string) (path string) {
-	return goModPathCache.Do(dir, func() interface{} {
+	return goModPathCache.Do(dir, func() any {
 		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
 			return ""
@@ -1925,8 +1939,12 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	}
 	p.Internal.Imports = imports
 	p.collectDeps()
-	if p.Error == nil && p.Name == "main" && len(p.DepsErrors) == 0 {
-		p.setBuildInfo()
+	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 {
+		// TODO(bcmills): loading VCS metadata can be fairly slow.
+		// Consider starting this as a background goroutine and retrieving the result
+		// asynchronously when we're actually ready to build the package, or when we
+		// actually need to evaluate whether the package's metadata is stale.
+		p.setBuildInfo(opts.LoadVCS)
 	}
 
 	// unsafe is a fake package.
@@ -2039,7 +2057,8 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 		// then there may be other things lying around, like symbolic links or .git directories.)
 		var list []string
 		for _, file := range match {
-			rel := filepath.ToSlash(file[len(pkgdir)+1:]) // file, relative to p.Dir
+			// relative path to p.Dir which begins without prefix slash
+			rel := filepath.ToSlash(str.TrimFilePathPrefix(file, pkgdir))
 
 			what := "file"
 			info, err := fsys.Lstat(file)
@@ -2089,7 +2108,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 					if err != nil {
 						return err
 					}
-					rel := filepath.ToSlash(path[len(pkgdir)+1:])
+					rel := filepath.ToSlash(str.TrimFilePathPrefix(path, pkgdir))
 					name := info.Name()
 					if path != file && (isBadEmbedName(name) || ((name[0] == '.' || name[0] == '_') && !all)) {
 						// Ignore bad names, assuming they won't go into modules.
@@ -2203,6 +2222,10 @@ func (p *Package) collectDeps() {
 	}
 }
 
+// vcsStatusCache maps repository directories (string)
+// to their VCS information (vcsStatusError).
+var vcsStatusCache par.Cache
+
 // setBuildInfo gathers build information, formats it as a string to be
 // embedded in the binary, then sets p.Internal.BuildInfo to that string.
 // setBuildInfo should only be called on a main package with no errors.
@@ -2211,13 +2234,8 @@ func (p *Package) collectDeps() {
 //
 // Note that the GoVersion field is not set here to avoid encoding it twice.
 // It is stored separately in the binary, mostly for historical reasons.
-func (p *Package) setBuildInfo() {
-	// TODO: build and vcs information is not embedded for executables in GOROOT.
-	// cmd/dist uses -gcflags=all= -ldflags=all= by default, which means these
-	// executables always appear stale unless the user sets the same flags.
-	// Perhaps it's safe to omit those flags when GO_GCFLAGS and GO_LDFLAGS
-	// are not set?
-	setPkgErrorf := func(format string, args ...interface{}) {
+func (p *Package) setBuildInfo(includeVCS bool) {
+	setPkgErrorf := func(format string, args ...any) {
 		if p.Error == nil {
 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
 		}
@@ -2225,13 +2243,17 @@ func (p *Package) setBuildInfo() {
 
 	var debugModFromModinfo func(*modinfo.ModulePublic) *debug.Module
 	debugModFromModinfo = func(mi *modinfo.ModulePublic) *debug.Module {
+		version := mi.Version
+		if version == "" {
+			version = "(devel)"
+		}
 		dm := &debug.Module{
 			Path:    mi.Path,
-			Version: mi.Version,
+			Version: version,
 		}
 		if mi.Replace != nil {
 			dm.Replace = debugModFromModinfo(mi.Replace)
-		} else {
+		} else if mi.Version != "" {
 			dm.Sum = modfetch.Sum(module.Version{Path: mi.Path, Version: mi.Version})
 		}
 		return dm
@@ -2281,40 +2303,65 @@ func (p *Package) setBuildInfo() {
 		Deps: deps,
 	}
 	appendSetting := func(key, value string) {
+		value = strings.ReplaceAll(value, "\n", " ") // make value safe
 		info.Settings = append(info.Settings, debug.BuildSetting{Key: key, Value: value})
 	}
 
 	// Add command-line flags relevant to the build.
 	// This is informational, not an exhaustive list.
-	if cfg.BuildBuildinfo && !p.Standard {
-		appendSetting("compiler", cfg.BuildContext.Compiler)
-		if BuildAsmflags.present {
-			appendSetting("asmflags", BuildAsmflags.String())
+	// Please keep the list sorted.
+	if cfg.BuildASan {
+		appendSetting("-asan", "true")
+	}
+	if BuildAsmflags.present {
+		appendSetting("-asmflags", BuildAsmflags.String())
+	}
+	appendSetting("-compiler", cfg.BuildContext.Compiler)
+	if gccgoflags := BuildGccgoflags.String(); gccgoflags != "" && cfg.BuildContext.Compiler == "gccgo" {
+		appendSetting("-gccgoflags", gccgoflags)
+	}
+	if gcflags := BuildGcflags.String(); gcflags != "" && cfg.BuildContext.Compiler == "gc" {
+		appendSetting("-gcflags", gcflags)
+	}
+	if ldflags := BuildLdflags.String(); ldflags != "" {
+		appendSetting("-ldflags", ldflags)
+	}
+	if cfg.BuildMSan {
+		appendSetting("-msan", "true")
+	}
+	if cfg.BuildRace {
+		appendSetting("-race", "true")
+	}
+	if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
+		appendSetting("-tags", strings.Join(tags, ","))
+	}
+	if cfg.BuildTrimpath {
+		appendSetting("-trimpath", "true")
+	}
+	cgo := "0"
+	if cfg.BuildContext.CgoEnabled {
+		cgo = "1"
+	}
+	appendSetting("CGO_ENABLED", cgo)
+	if cfg.BuildContext.CgoEnabled {
+		for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
+			appendSetting(name, cfg.Getenv(name))
 		}
-		if BuildGcflags.present && cfg.BuildContext.Compiler == "gc" {
-			appendSetting("gcflags", BuildGcflags.String())
-		}
-		if BuildGccgoflags.present && cfg.BuildContext.Compiler == "gccgo" {
-			appendSetting("gccgoflags", BuildGccgoflags.String())
-		}
-		if BuildLdflags.present {
-			appendSetting("ldflags", BuildLdflags.String())
-		}
-		tags := append(cfg.BuildContext.BuildTags, cfg.BuildContext.ToolTags...)
-		appendSetting("tags", strings.Join(tags, ","))
-		appendSetting("CGO_ENABLED", strconv.FormatBool(cfg.BuildContext.CgoEnabled))
-		if cfg.BuildContext.CgoEnabled {
-			for _, name := range []string{"CGO_CPPFLAGS", "CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
-				appendSetting(name, cfg.Getenv(name))
-			}
-		}
+	}
+	appendSetting("GOARCH", cfg.BuildContext.GOARCH)
+	if cfg.RawGOEXPERIMENT != "" {
+		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
+	}
+	appendSetting("GOOS", cfg.BuildContext.GOOS)
+	if key, val := cfg.GetArchEnv(); key != "" && val != "" {
+		appendSetting(key, val)
 	}
 
 	// Add VCS status if all conditions are true:
 	//
 	// - -buildvcs is enabled.
-	// - p is contained within a main module (there may be multiple main modules
-	//   in a workspace, but local replacements don't count).
+	// - p is a non-test contained within a main module (there may be multiple
+	//   main modules in a workspace, but local replacements don't count).
 	// - Both the current directory and p's module's root directory are contained
 	//   in the same local repository.
 	// - We know the VCS commands needed to get the status.
@@ -2326,7 +2373,7 @@ func (p *Package) setBuildInfo() {
 	var vcsCmd *vcs.Cmd
 	var err error
 	const allowNesting = true
-	if cfg.BuildBuildvcs && p.Module != nil && p.Module.Version == "" && !p.Standard {
+	if includeVCS && cfg.BuildBuildvcs != "false" && p.Module != nil && p.Module.Version == "" && !p.Standard && !p.IsTestOnly() {
 		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			setVCSError(err)
@@ -2338,7 +2385,14 @@ func (p *Package) setBuildInfo() {
 			// repository containing the working directory. Don't include VCS info.
 			// If the repo contains the module or vice versa, but they are not
 			// the same directory, it's likely an error (see below).
-			repoDir, vcsCmd = "", nil
+			goto omitVCS
+		}
+		if cfg.BuildBuildvcs == "auto" && vcsCmd != nil && vcsCmd.Cmd != "" {
+			if _, err := exec.LookPath(vcsCmd.Cmd); err != nil {
+				// We fould a repository, but the required VCS tool is not present.
+				// "-buildvcs=auto" means that we should silently drop the VCS metadata.
+				goto omitVCS
+			}
 		}
 	}
 	if repoDir != "" && vcsCmd.Status != nil {
@@ -2352,8 +2406,11 @@ func (p *Package) setBuildInfo() {
 			return
 		}
 		if pkgRepoDir != repoDir {
-			setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
-			return
+			if cfg.BuildBuildvcs != "auto" {
+				setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
+				return
+			}
+			goto omitVCS
 		}
 		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "", allowNesting)
 		if err != nil {
@@ -2361,31 +2418,40 @@ func (p *Package) setBuildInfo() {
 			return
 		}
 		if modRepoDir != repoDir {
-			setVCSError(fmt.Errorf("main module is in repository %q but current directory is in repository %q", modRepoDir, repoDir))
-			return
+			if cfg.BuildBuildvcs != "auto" {
+				setVCSError(fmt.Errorf("main module is in repository %q but current directory is in repository %q", modRepoDir, repoDir))
+				return
+			}
+			goto omitVCS
 		}
 
-		st, err := vcsCmd.Status(vcsCmd, repoDir)
-		if err != nil {
+		type vcsStatusError struct {
+			Status vcs.Status
+			Err    error
+		}
+		cached := vcsStatusCache.Do(repoDir, func() any {
+			st, err := vcsCmd.Status(vcsCmd, repoDir)
+			return vcsStatusError{st, err}
+		}).(vcsStatusError)
+		if err := cached.Err; err != nil {
 			setVCSError(err)
 			return
 		}
+		st := cached.Status
+
+		appendSetting("vcs", vcsCmd.Cmd)
 		if st.Revision != "" {
-			appendSetting(vcsCmd.Cmd+"revision", st.Revision)
+			appendSetting("vcs.revision", st.Revision)
 		}
 		if !st.CommitTime.IsZero() {
 			stamp := st.CommitTime.UTC().Format(time.RFC3339Nano)
-			appendSetting(vcsCmd.Cmd+"committime", stamp)
+			appendSetting("vcs.time", stamp)
 		}
-		appendSetting(vcsCmd.Cmd+"uncommitted", strconv.FormatBool(st.Uncommitted))
+		appendSetting("vcs.modified", strconv.FormatBool(st.Uncommitted))
 	}
+omitVCS:
 
-	text, err := info.MarshalText()
-	if err != nil {
-		setPkgErrorf("error formatting build info: %v", err)
-		return
-	}
-	p.Internal.BuildInfo = string(text)
+	p.Internal.BuildInfo = info.String()
 }
 
 // SafeArg reports whether arg is a "safe" command-line argument,
@@ -2610,6 +2676,9 @@ type PackageOpts struct {
 	// are not be matched, and their dependencies may not be loaded. A warning
 	// may be printed for non-literal arguments that match no main packages.
 	MainOnly bool
+
+	// LoadVCS controls whether we also load version-control metadata for main packages.
+	LoadVCS bool
 }
 
 // PackagesAndErrors returns the packages named by the command line arguments
@@ -2963,7 +3032,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 	patterns := make([]string, len(args))
 	for i, arg := range args {
 		if !strings.HasSuffix(arg, "@"+version) {
-			return nil, fmt.Errorf("%s: all arguments must have the same version (@%s)", arg, version)
+			return nil, fmt.Errorf("%s: all arguments must refer to packages in the same module at the same version (@%s)", arg, version)
 		}
 		p := arg[:len(arg)-len(version)-1]
 		switch {
