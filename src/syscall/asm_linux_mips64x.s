@@ -10,6 +10,31 @@
 // System calls for mips64, Linux
 //
 
+// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+TEXT ·Syscall(SB),NOSPLIT,$0-56
+	JAL	runtime·entersyscall(SB)
+	MOVV	a1+8(FP), R4
+	MOVV	a2+16(FP), R5
+	MOVV	a3+24(FP), R6
+	MOVV	R0, R7
+	MOVV	R0, R8
+	MOVV	R0, R9
+	MOVV	trap+0(FP), R2	// syscall entry
+	SYSCALL
+	BEQ	R7, ok
+	MOVV	$-1, R1
+	MOVV	R1, r1+32(FP)	// r1
+	MOVV	R0, r2+40(FP)	// r2
+	MOVV	R2, err+48(FP)	// errno
+	JAL	runtime·exitsyscall(SB)
+	RET
+ok:
+	MOVV	R2, r1+32(FP)	// r1
+	MOVV	R3, r2+40(FP)	// r2
+	MOVV	R0, err+48(FP)	// errno
+	JAL	runtime·exitsyscall(SB)
+	RET
+
 TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	JAL	runtime·entersyscall(SB)
 	MOVV	a1+8(FP), R4

@@ -10,6 +10,31 @@
 // System calls for ppc64, Linux
 //
 
+// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+TEXT ·Syscall(SB),NOSPLIT,$0-56
+	BL	runtime·entersyscall<ABIInternal>(SB)
+	MOVD	a1+8(FP), R3
+	MOVD	a2+16(FP), R4
+	MOVD	a3+24(FP), R5
+	MOVD	R0, R6
+	MOVD	R0, R7
+	MOVD	R0, R8
+	MOVD	trap+0(FP), R9	// syscall entry
+	SYSCALL R9
+	BVC	ok
+	MOVD	$-1, R4
+	MOVD	R4, r1+32(FP)	// r1
+	MOVD	R0, r2+40(FP)	// r2
+	MOVD	R3, err+48(FP)	// errno
+	BL	runtime·exitsyscall<ABIInternal>(SB)
+	RET
+ok:
+	MOVD	R3, r1+32(FP)	// r1
+	MOVD	R0, r2+40(FP)	// r2
+	MOVD	R0, err+48(FP)	// errno
+	BL	runtime·exitsyscall<ABIInternal>(SB)
+	RET
+
 TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	BL	runtime·entersyscall<ABIInternal>(SB)
 	MOVD	a1+8(FP), R3
