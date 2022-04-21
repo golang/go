@@ -5904,10 +5904,10 @@ func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool
 						// between different Ps.
 						// A sync chan send/recv takes ~50ns as of time of
 						// writing, so 3us gives ~50x overshoot.
-						if GOOS != "windows" {
+						if GOOS != "windows" && GOOS != "openbsd" {
 							usleep(3)
 						} else {
-							// On windows system timer granularity is
+							// On some platforms system timer granularity is
 							// 1-15ms, which is way too much for this
 							// optimization. So just yield.
 							osyield()
