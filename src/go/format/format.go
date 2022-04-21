@@ -38,7 +38,7 @@ const (
 
 var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
 
-const parserMode = parser.ParseComments
+const parserMode = parser.ParseComments | parser.SkipObjectResolution
 
 // Node formats node in canonical gofmt style and writes the result to dst.
 //
