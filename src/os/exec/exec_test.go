@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"os/exec/internal/fdtest"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -31,6 +32,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -191,6 +193,7 @@ var helperCommands = map[string]func(...string){
 	"describefiles": cmdDescribeFiles,
 	"stderrfail":    cmdStderrFail,
 	"yes":           cmdYes,
+	"hang":          cmdHang,
 }
 
 func cmdEcho(args ...string) {
@@ -1121,4 +1124,564 @@ func TestDoubleStartLeavesPipesOpen(t *testing.T) {
 	if !bytes.Equal(b, []byte(msg)) {
 		t.Fatalf("read %q from stdout pipe; want %q", b, msg)
 	}
+}
+
+func cmdHang(args ...string) {
+	sleep, err := time.ParseDuration(args[0])
+	if err != nil {
+		panic(err)
+	}
+
+	fs := flag.NewFlagSet("hang", flag.ExitOnError)
+	exitOnInterrupt := fs.Bool("interrupt", false, "if true, commands should exit 0 on os.Interrupt")
+	subsleep := fs.Duration("subsleep", 0, "amount of time for the 'hang' helper to leave an orphaned subprocess sleeping with stderr open")
+	probe := fs.Duration("probe", 0, "if nonzero, the 'hang' helper should write to stderr at this interval, and exit nonzero if a write fails")
+	read := fs.Bool("read", false, "if true, the 'hang' helper should read stdin to completion before sleeping")
+	fs.Parse(args[1:])
+
+	pid := os.Getpid()
+
+	if *subsleep != 0 {
+		cmd := exec.Command(exePath(nil), "hang", subsleep.String(), "-read=true", "-probe="+probe.String())
+		cmd.Stdin = os.Stdin
+		cmd.Stderr = os.Stderr
+		out, err := cmd.StdoutPipe()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		cmd.Start()
+
+		buf := new(strings.Builder)
+		if _, err := io.Copy(buf, out); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			cmd.Process.Kill()
+			cmd.Wait()
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "%d: started %d: %v\n", pid, cmd.Process.Pid, cmd)
+	}
+
+	if *exitOnInterrupt {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			sig := <-c
+			fmt.Fprintf(os.Stderr, "%d: received %v\n", pid, sig)
+			os.Exit(0)
+		}()
+	} else {
+		signal.Ignore(os.Interrupt)
+	}
+
+	// Signal that the process is set up by closing stdout.
+	os.Stdout.Close()
+
+	if *read {
+		if pipeSignal != nil {
+			signal.Ignore(pipeSignal)
+		}
+		r := bufio.NewReader(os.Stdin)
+		for {
+			line, err := r.ReadBytes('\n')
+			if len(line) > 0 {
+				// Ignore write errors: we want to keep reading even if stderr is closed.
+				fmt.Fprintf(os.Stderr, "%d: read %s", pid, line)
+			}
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%d: finished read: %v", pid, err)
+				break
+			}
+		}
+	}
+
+	if *probe != 0 {
+		ticker := time.NewTicker(*probe)
+		go func() {
+			for range ticker.C {
+				if _, err := fmt.Fprintf(os.Stderr, "%d: ok\n", pid); err != nil {
+					os.Exit(1)
+				}
+			}
+		}()
+	}
+
+	if sleep != 0 {
+		time.Sleep(sleep)
+		fmt.Fprintf(os.Stderr, "%d: slept %v\n", pid, sleep)
+	}
+}
+
+// A tickReader reads an unbounded sequence of timestamps at no more than a
+// fixed interval.
+type tickReader struct {
+	interval time.Duration
+	lastTick time.Time
+	s        string
+}
+
+func newTickReader(interval time.Duration) *tickReader {
+	return &tickReader{interval: interval}
+}
+
+func (r *tickReader) Read(p []byte) (n int, err error) {
+	if len(r.s) == 0 {
+		if d := r.interval - time.Since(r.lastTick); d > 0 {
+			time.Sleep(d)
+		}
+		r.lastTick = time.Now()
+		r.s = r.lastTick.Format(time.RFC3339Nano + "\n")
+	}
+
+	n = copy(p, r.s)
+	r.s = r.s[n:]
+	return n, nil
+}
+
+func startHang(t *testing.T, ctx context.Context, hangTime time.Duration, interrupt os.Signal, waitDelay time.Duration, flags ...string) *exec.Cmd {
+	t.Helper()
+
+	args := append([]string{hangTime.String()}, flags...)
+	cmd := helperCommandContext(t, ctx, "hang", args...)
+	cmd.Stdin = newTickReader(1 * time.Millisecond)
+	cmd.Stderr = new(strings.Builder)
+	if interrupt == nil {
+		cmd.Cancel = nil
+	} else {
+		cmd.Cancel = func() error {
+			return cmd.Process.Signal(interrupt)
+		}
+	}
+	cmd.WaitDelay = waitDelay
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(cmd)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for cmd to close stdout to signal that its handlers are installed.
+	buf := new(strings.Builder)
+	if _, err := io.Copy(buf, out); err != nil {
+		t.Error(err)
+		cmd.Process.Kill()
+		cmd.Wait()
+		t.FailNow()
+	}
+	if buf.Len() > 0 {
+		t.Logf("stdout %v:\n%s", cmd.Args, buf)
+	}
+
+	return cmd
+}
+
+func TestWaitInterrupt(t *testing.T) {
+	t.Parallel()
+
+	// tooLong is an arbitrary duration that is expected to be much longer than
+	// the test runs, but short enough that leaked processes will eventually exit
+	// on their own.
+	const tooLong = 10 * time.Minute
+
+	// Control case: with no cancellation and no WaitDelay, we should wait for the
+	// process to exit.
+	t.Run("Wait", func(t *testing.T) {
+		t.Parallel()
+		cmd := startHang(t, context.Background(), 1*time.Millisecond, os.Kill, 0)
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		if err != nil {
+			t.Errorf("Wait: %v; want <nil>", err)
+		}
+		if ps := cmd.ProcessState; !ps.Exited() {
+			t.Errorf("cmd did not exit: %v", ps)
+		} else if code := ps.ExitCode(); code != 0 {
+			t.Errorf("cmd.ProcessState.ExitCode() = %v; want 0", code)
+		}
+	})
+
+	// With a very long WaitDelay and no Cancel function, we should wait for the
+	// process to exit even if the command's Context is cancelled.
+	t.Run("WaitDelay", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
+		}
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, nil, tooLong, "-interrupt=true")
+		cancel()
+
+		time.Sleep(1 * time.Millisecond)
+		// At this point cmd should still be running (because we passed nil to
+		// startHang for the cancel signal). Sending it an explicit Interrupt signal
+		// should succeed.
+		if err := cmd.Process.Signal(os.Interrupt); err != nil {
+			t.Error(err)
+		}
+
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// This program exits with status 0,
+		// but pretty much always does so during the wait delay.
+		// Since the Cmd itself didn't do anything to stop the process when the
+		// context expired, a successful exit is valid (even if late) and does
+		// not merit a non-nil error.
+		if err != nil {
+			t.Errorf("Wait: %v; want %v", err, ctx.Err())
+		}
+		if ps := cmd.ProcessState; !ps.Exited() {
+			t.Errorf("cmd did not exit: %v", ps)
+		} else if code := ps.ExitCode(); code != 0 {
+			t.Errorf("cmd.ProcessState.ExitCode() = %v; want 0", code)
+		}
+	})
+
+	// If the context is cancelled and the Cancel function sends os.Kill,
+	// the process should be terminated immediately, and its output
+	// pipes should be closed (causing Wait to return) after WaitDelay
+	// even if a child process is still writing to them.
+	t.Run("SIGKILL-hang", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, os.Kill, 10*time.Millisecond, "-subsleep=10m", "-probe=1ms")
+		cancel()
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// This test should kill the child process after 10ms,
+		// leaving a grandchild process writing probes in a loop.
+		// The child process should be reported as failed,
+		// and the grandchild will exit (or die by SIGPIPE) once the
+		// stderr pipe is closed.
+		if ee := new(*exec.ExitError); !errors.As(err, ee) {
+			t.Errorf("Wait error = %v; want %T", err, *ee)
+		}
+	})
+
+	// If the process exits with status 0 but leaves a child behind writing
+	// to its output pipes, Wait should only wait for WaitDelay before
+	// closing the pipes and returning.  Wait should return ErrWaitDelay
+	// to indicate that the piped output may be incomplete even though the
+	// command returned a “success” code.
+	t.Run("Exit-hang", func(t *testing.T) {
+		t.Parallel()
+
+		cmd := startHang(t, context.Background(), 1*time.Millisecond, nil, 10*time.Millisecond, "-subsleep=10m", "-probe=1ms")
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// This child process should exit immediately,
+		// leaving a grandchild process writing probes in a loop.
+		// Since the child has no ExitError to report but we did not
+		// read all of its output, Wait should return ErrWaitDelay.
+		if !errors.Is(err, exec.ErrWaitDelay) {
+			t.Errorf("Wait error = %v; want %T", err, exec.ErrWaitDelay)
+		}
+	})
+
+	// If the Cancel function sends a signal that the process can handle, and it
+	// handles that signal without actually exiting, then it should be terminated
+	// after the WaitDelay.
+	t.Run("SIGINT-ignored", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
+		}
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, os.Interrupt, 10*time.Millisecond, "-interrupt=false")
+		cancel()
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// This command ignores SIGINT, sleeping until it is killed.
+		// Wait should return the usual error for a killed process.
+		if ee := new(*exec.ExitError); !errors.As(err, ee) {
+			t.Errorf("Wait error = %v; want %T", err, *ee)
+		}
+	})
+
+	// If the process handles the cancellation signal and exits with status 0,
+	// Wait should report a non-nil error (because the process had to be
+	// interrupted), and it should be a context error (because there is no error
+	// to report from the child process itself).
+	t.Run("SIGINT-handled", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
+		}
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, os.Interrupt, 0, "-interrupt=true")
+		cancel()
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		if !errors.Is(err, ctx.Err()) {
+			t.Errorf("Wait error = %v; want %v", err, ctx.Err())
+		}
+		if ps := cmd.ProcessState; !ps.Exited() {
+			t.Errorf("cmd did not exit: %v", ps)
+		} else if code := ps.ExitCode(); code != 0 {
+			t.Errorf("cmd.ProcessState.ExitCode() = %v; want 0", code)
+		}
+	})
+
+	// If the Cancel function sends SIGQUIT, it should be handled in the usual
+	// way: a Go program should dump its goroutines and exit with non-success
+	// status. (We expect SIGQUIT to be a common pattern in real-world use.)
+	t.Run("SIGQUIT", func(t *testing.T) {
+		if quitSignal == nil {
+			t.Skipf("skipping: SIGQUIT is not supported on %v", runtime.GOOS)
+		}
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, quitSignal, 0)
+		cancel()
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		if ee := new(*exec.ExitError); !errors.As(err, ee) {
+			t.Errorf("Wait error = %v; want %v", err, ctx.Err())
+		}
+
+		if ps := cmd.ProcessState; !ps.Exited() {
+			t.Errorf("cmd did not exit: %v", ps)
+		} else if code := ps.ExitCode(); code != 2 {
+			// The default os/signal handler exits with code 2.
+			t.Errorf("cmd.ProcessState.ExitCode() = %v; want 2", code)
+		}
+
+		if !strings.Contains(fmt.Sprint(cmd.Stderr), "\n\ngoroutine ") {
+			t.Errorf("cmd.Stderr does not contain a goroutine dump")
+		}
+	})
+}
+
+func TestCancelErrors(t *testing.T) {
+	t.Parallel()
+
+	// If Cancel returns a non-ErrProcessDone error and the process
+	// exits successfully, Wait should wrap the error from Cancel.
+	t.Run("success after error", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "pipetest")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		errArbitrary := errors.New("arbitrary error")
+		cmd.Cancel = func() error {
+			stdin.Close()
+			t.Logf("Cancel returning %v", errArbitrary)
+			return errArbitrary
+		}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cancel()
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+		if !errors.Is(err, errArbitrary) || err == errArbitrary {
+			t.Errorf("Wait error = %v; want an error wrapping %v", err, errArbitrary)
+		}
+	})
+
+	// If Cancel returns an error equivalent to ErrProcessDone,
+	// Wait should ignore that error. (ErrProcessDone indicates that the
+	// process was already done before we tried to interrupt it — maybe we
+	// just didn't notice because Wait hadn't been called yet.)
+	t.Run("success after ErrProcessDone", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "pipetest")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// We intentionally race Cancel against the process exiting,
+		// but ensure that the process wins the race (and return ErrProcessDone
+		// from Cancel to report that).
+		interruptCalled := make(chan struct{})
+		done := make(chan struct{})
+		cmd.Cancel = func() error {
+			close(interruptCalled)
+			<-done
+			t.Logf("Cancel returning an error wrapping ErrProcessDone")
+			return fmt.Errorf("%w: stdout closed", os.ErrProcessDone)
+		}
+
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+
+		cancel()
+		<-interruptCalled
+		stdin.Close()
+		io.Copy(io.Discard, stdout) // reaches EOF when the process exits
+		close(done)
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+		if err != nil {
+			t.Errorf("Wait error = %v; want nil", err)
+		}
+	})
+
+	// If Cancel returns an error and the process is killed after
+	// WaitDelay, Wait should report the usual SIGKILL ExitError, not the
+	// error from Cancel.
+	t.Run("killed after error", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "pipetest")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer stdin.Close()
+
+		errArbitrary := errors.New("arbitrary error")
+		var interruptCalled atomic.Bool
+		cmd.Cancel = func() error {
+			t.Logf("Cancel called")
+			interruptCalled.Store(true)
+			return errArbitrary
+		}
+		cmd.WaitDelay = 1 * time.Millisecond
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cancel()
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// Ensure that Cancel actually had the opportunity to
+		// return the error.
+		if !interruptCalled.Load() {
+			t.Errorf("Cancel was not called when the context was canceled")
+		}
+
+		// This test should kill the child process after 1ms,
+		// To maximize compatibility with existing uses of exec.CommandContext, the
+		// resulting error should be an exec.ExitError without additional wrapping.
+		if ee, ok := err.(*exec.ExitError); !ok {
+			t.Errorf("Wait error = %v; want %T", err, *ee)
+		}
+	})
+
+	// If Cancel returns ErrProcessDone but the process is not actually done
+	// (and has to be killed), Wait should report the usual SIGKILL ExitError,
+	// not the error from Cancel.
+	t.Run("killed after spurious ErrProcessDone", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "pipetest")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer stdin.Close()
+
+		var interruptCalled atomic.Bool
+		cmd.Cancel = func() error {
+			t.Logf("Cancel returning an error wrapping ErrProcessDone")
+			interruptCalled.Store(true)
+			return fmt.Errorf("%w: stdout closed", os.ErrProcessDone)
+		}
+		cmd.WaitDelay = 1 * time.Millisecond
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cancel()
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// Ensure that Cancel actually had the opportunity to
+		// return the error.
+		if !interruptCalled.Load() {
+			t.Errorf("Cancel was not called when the context was canceled")
+		}
+
+		// This test should kill the child process after 1ms,
+		// To maximize compatibility with existing uses of exec.CommandContext, the
+		// resulting error should be an exec.ExitError without additional wrapping.
+		if ee, ok := err.(*exec.ExitError); !ok {
+			t.Errorf("Wait error of type %T; want %T", err, ee)
+		}
+	})
+
+	// If Cancel returns an error and the process exits with an
+	// unsuccessful exit code, the process error should take precedence over the
+	// Cancel error.
+	t.Run("nonzero exit after error", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "stderrfail")
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		errArbitrary := errors.New("arbitrary error")
+		interrupted := make(chan struct{})
+		cmd.Cancel = func() error {
+			close(interrupted)
+			return errArbitrary
+		}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cancel()
+		<-interrupted
+		io.Copy(io.Discard, stderr)
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		if ee, ok := err.(*exec.ExitError); !ok || ee.ProcessState.ExitCode() != 1 {
+			t.Errorf("Wait error = %v; want exit status 1", err)
+		}
+	})
 }
