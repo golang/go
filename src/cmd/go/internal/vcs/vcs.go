@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
@@ -657,7 +656,6 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 
 	cmd := exec.Command(v.Cmd, args...)
 	cmd.Dir = dir
-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	if cfg.BuildX {
 		fmt.Fprintf(os.Stderr, "cd %s\n", dir)
 		fmt.Fprintf(os.Stderr, "%s %s\n", v.Cmd, strings.Join(args, " "))
