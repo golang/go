@@ -8,6 +8,32 @@
 // System calls for s390x, Linux
 //
 
+// func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+TEXT ·Syscall6(SB),NOSPLIT,$0-80
+	BL	runtime·entersyscall(SB)
+	MOVD	a1+8(FP), R2
+	MOVD	a2+16(FP), R3
+	MOVD	a3+24(FP), R4
+	MOVD	a4+32(FP), R5
+	MOVD	a5+40(FP), R6
+	MOVD	a6+48(FP), R7
+	MOVD	trap+0(FP), R1	// syscall entry
+	SYSCALL
+	MOVD	$0xfffffffffffff001, R8
+	CMPUBLT	R2, R8, ok6
+	MOVD	$-1, r1+56(FP)
+	MOVD	$0, r2+64(FP)
+	NEG	R2, R2
+	MOVD	R2, err+72(FP)	// errno
+	BL	runtime·exitsyscall(SB)
+	RET
+ok6:
+	MOVD	R2, r1+56(FP)
+	MOVD	R3, r2+64(FP)
+	MOVD	$0, err+72(FP)	// errno
+	BL	runtime·exitsyscall(SB)
+	RET
+
 // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
 TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
 	MOVD	$0, R2
