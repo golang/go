@@ -2116,11 +2116,10 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([
 	cmd.Stderr = &buf
 	cleanup := passLongArgsInResponseFiles(cmd)
 	defer cleanup()
-	cmd.Env = os.Environ()
 	if dir != "." {
 		cmd.Dir = dir
-		cmd.Env = base.AppendPWD(cmd.Env, dir)
 	}
+	cmd.Env = cmd.Environ() // Pre-allocate with correct PWD.
 
 	// Add the TOOLEXEC_IMPORTPATH environment variable for -toolexec tools.
 	// It doesn't really matter if -toolexec isn't being used.
@@ -2609,8 +2608,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	}
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = b.WorkDir
-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
-	cmd.Env = append(cmd.Env, "LC_ALL=C")
+	cmd.Env = append(cmd.Environ(), "LC_ALL=C")
 	out, _ := cmd.CombinedOutput()
 	// GCC says "unrecognized command line option".
 	// clang says "unknown argument".
