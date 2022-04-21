@@ -611,7 +611,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		return err
 	}
 	defer src.Close()
-	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments)
+	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		return err
 	}
