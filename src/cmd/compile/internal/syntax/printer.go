@@ -666,7 +666,7 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(n.Name)
 		if n.TParamList != nil {
-			p.printParameterList(n.TParamList, true)
+			p.printParameterList(n.TParamList, _Type)
 		}
 		p.print(blank)
 		if n.Alias {
@@ -698,7 +698,7 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(n.Name)
 		if n.TParamList != nil {
-			p.printParameterList(n.TParamList, true)
+			p.printParameterList(n.TParamList, _Func)
 		}
 		p.printSignature(n.Type)
 		if n.Body != nil {
@@ -883,20 +883,23 @@ func (p *printer) printDeclList(list []Decl) {
 }
 
 func (p *printer) printSignature(sig *FuncType) {
-	p.printParameterList(sig.ParamList, false)
+	p.printParameterList(sig.ParamList, 0)
 	if list := sig.ResultList; list != nil {
 		p.print(blank)
 		if len(list) == 1 && list[0].Name == nil {
 			p.printNode(list[0].Type)
 		} else {
-			p.printParameterList(list, false)
+			p.printParameterList(list, 0)
 		}
 	}
 }
 
-func (p *printer) printParameterList(list []*Field, types bool) {
+// If tok != 0 print a type parameter list: tok == _Type means
+// a type parameter list for a type, tok == _Func means a type
+// parameter list for a func.
+func (p *printer) printParameterList(list []*Field, tok token) {
 	open, close := _Lparen, _Rparen
-	if types {
+	if tok != 0 {
 		open, close = _Lbrack, _Rbrack
 	}
 	p.print(open)
@@ -916,10 +919,10 @@ func (p *printer) printParameterList(list []*Field, types bool) {
 		}
 		p.printNode(unparen(f.Type)) // no need for (extra) parentheses around parameter types
 	}
-	// A type parameter list [P *T] where T is not a type literal requires a comma as in [P *T,]
+	// A type parameter list [P *T] where T is not a type element requires a comma as in [P *T,]
 	// so that it's not parsed as [P*T].
-	if types && len(list) == 1 {
-		if t, _ := list[0].Type.(*Operation); t != nil && t.Op == Mul && t.Y == nil && !isTypeLit(t.X) {
+	if tok == _Type && len(list) == 1 {
+		if t, _ := list[0].Type.(*Operation); t != nil && !isTypeElem(t) {
 			p.print(_Comma)
 		}
 	}
