@@ -324,10 +324,23 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	}
 }
 
+// findDeclsAndUnresolved returns all the top-level declarations mentioned in
+// the body, and a set of unresolved symbols (those that appear in the body but
+// have no declaration in the program).
+//
+// topDecls maps objects to the top-level declaration declaring them (not
+// necessarily obj.Decl, as obj.Decl will be a Spec for GenDecls, but
+// topDecls[obj] will be the GenDecl itself).
 func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, typMethods map[string][]ast.Decl) ([]ast.Decl, map[string]bool) {
+	// This function recursively finds every top-level declaration used
+	// transitively by the body, populating usedDecls and usedObjs. Then it
+	// trims down the declarations to include only the symbols actually
+	// referenced by the body.
+
 	unresolved := make(map[string]bool)
 	var depDecls []ast.Decl
-	hasDepDecls := make(map[ast.Decl]bool)
+	usedDecls := make(map[ast.Decl]bool)   // set of top-level decls reachable from the body
+	usedObjs := make(map[*ast.Object]bool) // set of objects reachable from the body (each declared by a usedDecl)
 
 	var inspectFunc func(ast.Node) bool
 	inspectFunc = func(n ast.Node) bool {
@@ -336,8 +349,10 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 			if e.Obj == nil && e.Name != "_" {
 				unresolved[e.Name] = true
 			} else if d := topDecls[e.Obj]; d != nil {
-				if !hasDepDecls[d] {
-					hasDepDecls[d] = true
+
+				usedObjs[e.Obj] = true
+				if !usedDecls[d] {
+					usedDecls[d] = true
 					depDecls = append(depDecls, d)
 				}
 			}
@@ -357,21 +372,27 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 		}
 		return true
 	}
+
+	inspectFieldList := func(fl *ast.FieldList) {
+		if fl != nil {
+			for _, f := range fl.List {
+				ast.Inspect(f.Type, inspectFunc)
+			}
+		}
+	}
+
+	// Find the decls immediately referenced by body.
 	ast.Inspect(body, inspectFunc)
+	// Now loop over them, adding to the list when we find a new decl that the
+	// body depends on. Keep going until we don't find anything new.
 	for i := 0; i < len(depDecls); i++ {
 		switch d := depDecls[i].(type) {
 		case *ast.FuncDecl:
+			// Inpect type parameters.
+			inspectFieldList(d.Type.TypeParams)
 			// Inspect types of parameters and results. See #28492.
-			if d.Type.Params != nil {
-				for _, p := range d.Type.Params.List {
-					ast.Inspect(p.Type, inspectFunc)
-				}
-			}
-			if d.Type.Results != nil {
-				for _, r := range d.Type.Results.List {
-					ast.Inspect(r.Type, inspectFunc)
-				}
-			}
+			inspectFieldList(d.Type.Params)
+			inspectFieldList(d.Type.Results)
 
 			// Functions might not have a body. See #42706.
 			if d.Body != nil {
@@ -381,8 +402,8 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 			for _, spec := range d.Specs {
 				switch s := spec.(type) {
 				case *ast.TypeSpec:
+					inspectFieldList(s.TypeParams)
 					ast.Inspect(s.Type, inspectFunc)
-
 					depDecls = append(depDecls, typMethods[s.Name.Name]...)
 				case *ast.ValueSpec:
 					if s.Type != nil {
@@ -395,7 +416,91 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 			}
 		}
 	}
-	return depDecls, unresolved
+
+	// Some decls include multiple specs, such as a variable declaration with
+	// multiple variables on the same line, or a parenthesized declaration. Trim
+	// the declarations to include only the specs that are actually mentioned.
+	// However, if there is a constant group with iota, leave it all: later
+	// constant declarations in the group may have no value and so cannot stand
+	// on their own, and removing any constant from the group could change the
+	// values of subsequent ones.
+	// See testdata/examples/iota.go for a minimal example.
+	var ds []ast.Decl
+	for _, d := range depDecls {
+		switch d := d.(type) {
+		case *ast.FuncDecl:
+			ds = append(ds, d)
+		case *ast.GenDecl:
+			containsIota := false // does any spec have iota?
+			// Collect all Specs that were mentioned in the example.
+			var specs []ast.Spec
+			for _, s := range d.Specs {
+				switch s := s.(type) {
+				case *ast.TypeSpec:
+					if usedObjs[s.Name.Obj] {
+						specs = append(specs, s)
+					}
+				case *ast.ValueSpec:
+					if !containsIota {
+						containsIota = hasIota(s)
+					}
+					// A ValueSpec may have multiple names (e.g. "var a, b int").
+					// Keep only the names that were mentioned in the example.
+					// Exception: the multiple names have a single initializer (which
+					// would be a function call with multiple return values). In that
+					// case, keep everything.
+					if len(s.Names) > 1 && len(s.Values) == 1 {
+						specs = append(specs, s)
+						continue
+					}
+					ns := *s
+					ns.Names = nil
+					ns.Values = nil
+					for i, n := range s.Names {
+						if usedObjs[n.Obj] {
+							ns.Names = append(ns.Names, n)
+							if s.Values != nil {
+								ns.Values = append(ns.Values, s.Values[i])
+							}
+						}
+					}
+					if len(ns.Names) > 0 {
+						specs = append(specs, &ns)
+					}
+				}
+			}
+			if len(specs) > 0 {
+				// Constant with iota? Keep it all.
+				if d.Tok == token.CONST && containsIota {
+					ds = append(ds, d)
+				} else {
+					// Synthesize a GenDecl with just the Specs we need.
+					nd := *d // copy the GenDecl
+					nd.Specs = specs
+					if len(specs) == 1 {
+						// Remove grouping parens if there is only one spec.
+						nd.Lparen = 0
+					}
+					ds = append(ds, &nd)
+				}
+			}
+		}
+	}
+	return ds, unresolved
+}
+
+func hasIota(s ast.Spec) bool {
+	has := false
+	ast.Inspect(s, func(n ast.Node) bool {
+		// Check that this is the special built-in "iota" identifier, not
+		// a user-defined shadow.
+		if id, ok := n.(*ast.Ident); ok && id.Name == "iota" && id.Obj == nil {
+			has = true
+			return false
+		}
+		return true
+	})
+	return has
 }
 
 // findImportGroupStarts finds the start positions of each sequence of import
