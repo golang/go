@@ -1833,7 +1833,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// and if so, invalidate this file's packages' metadata.
 		var shouldInvalidateMetadata, pkgNameChanged, importDeleted bool
 		if !isGoMod(uri) {
-			shouldInvalidateMetadata, pkgNameChanged, importDeleted = s.shouldInvalidateMetadata(ctx, result, originalFH, change.fileHandle)
+			shouldInvalidateMetadata, pkgNameChanged, importDeleted = checkForMetadataChanges(ctx, originalFH, change.fileHandle)
 		}
 		invalidateMetadata := forceReloadMetadata || workspaceReload || shouldInvalidateMetadata
 		anyImportDeleted = anyImportDeleted || importDeleted
@@ -2156,9 +2156,9 @@ func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
 	return !o.saved && c.saved
 }
 
-// shouldInvalidateMetadata reparses the full file's AST to determine
+// checkForMetadataChanges reparses the full file's AST to determine
 // if the file requires a metadata reload.
-func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *snapshot, originalFH, currentFH source.FileHandle) (invalidate, pkgNameChanged, importDeleted bool) {
+func checkForMetadataChanges(ctx context.Context, originalFH, currentFH source.FileHandle) (invalidate, pkgNameChanged, importDeleted bool) {
 	if originalFH == nil {
 		return true, false, false
 	}
@@ -2167,26 +2167,27 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 		return false, false, false
 	}
 	// Get the original and current parsed files in order to check package name
-	// and imports. Use the new snapshot to parse to avoid modifying the
-	// current snapshot.
-	original, originalErr := newSnapshot.ParseGo(ctx, originalFH, source.ParseFull)
-	current, currentErr := newSnapshot.ParseGo(ctx, currentFH, source.ParseFull)
-	if originalErr != nil || currentErr != nil {
-		return (originalErr == nil) != (currentErr == nil), false, (currentErr != nil) // we don't know if an import was deleted
+	// and imports. Don't parse through the cache as we don't know if we want to
+	// own the resulting file handle.
+	fset := token.NewFileSet() // We don't need positions, so can use a new file set.
+	original := parseGo(ctx, fset, originalFH, source.ParseFull)
+	current := parseGo(ctx, fset, currentFH, source.ParseFull)
+	if original.err != nil || current.err != nil {
+		return (original.err == nil) != (current.err == nil), false, (current.err != nil) // we don't know if an import was deleted
 	}
 	// Check if the package's metadata has changed. The cases handled are:
 	//    1. A package's name has changed
 	//    2. A file's imports have changed
-	if original.File.Name.Name != current.File.Name.Name {
+	if original.parsed.File.Name.Name != current.parsed.File.Name.Name {
 		invalidate = true
 		pkgNameChanged = true
 	}
 	origImportSet := make(map[string]struct{})
-	for _, importSpec := range original.File.Imports {
+	for _, importSpec := range original.parsed.File.Imports {
 		origImportSet[importSpec.Path.Value] = struct{}{}
 	}
 	curImportSet := make(map[string]struct{})
-	for _, importSpec := range current.File.Imports {
+	for _, importSpec := range current.parsed.File.Imports {
 		curImportSet[importSpec.Path.Value] = struct{}{}
 	}
 	// If any of the current imports were not in the original imports.
@@ -2212,7 +2213,7 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 	}
 
 	if !invalidate {
-		invalidate = magicCommentsChanged(original.File, current.File)
+		invalidate = magicCommentsChanged(original.parsed.File, current.parsed.File)
 	}
 	return invalidate, pkgNameChanged, importDeleted
 }
