@@ -8,6 +8,8 @@ package net
 
 import "context"
 
+func init() { netGo = true }
+
 type addrinfoErrno int
 
 func (eai addrinfoErrno) Error() string   { return "<nil>" }

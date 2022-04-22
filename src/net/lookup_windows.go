@@ -82,19 +82,7 @@ func (r *Resolver) lookupHost(ctx context.Context, name string) ([]string, error
 	return addrs, nil
 }
 
-// preferGoOverWindows reports whether the resolver should use the
-// pure Go implementation rather than making win32 calls to ask the
-// kernel for its answer.
-func (r *Resolver) preferGoOverWindows() bool {
-	conf := systemConf()
-	order := conf.hostLookupOrder(r, "") // name is unused
-	return order != hostLookupCgo
-}
-
 func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupIP(ctx, network, name)
-	}
 	// TODO(bradfitz,brainman): use ctx more. See TODO below.
 
 	var family int32 = syscall.AF_UNSPEC
@@ -181,7 +169,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
-	if r.preferGoOverWindows() {
+	if r.preferGo() {
 		return lookupPortMap(network, service)
 	}
 
@@ -229,15 +217,12 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 	return 0, &DNSError{Err: syscall.EINVAL.Error(), Name: network + "/" + service}
 }
 
-func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupCNAME(ctx, name)
-	}
+func (*Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
-	var rec *syscall.DNSRecord
-	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &rec, nil)
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &r, nil)
 	// windows returns DNS_INFO_NO_RECORDS if there are no CNAME-s
 	if errno, ok := e.(syscall.Errno); ok && errno == syscall.DNS_INFO_NO_RECORDS {
 		// if there are no aliases, the canonical name is the input name
@@ -246,17 +231,14 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 	if e != nil {
 		return "", &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
 	}
-	defer syscall.DnsRecordListFree(rec, 1)
+	defer syscall.DnsRecordListFree(r, 1)
 
-	resolved := resolveCNAME(syscall.StringToUTF16Ptr(name), rec)
+	resolved := resolveCNAME(syscall.StringToUTF16Ptr(name), r)
 	cname := windows.UTF16PtrToString(resolved)
 	return absDomainName(cname), nil
 }
 
-func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupSRV(ctx, service, proto, name)
-	}
+func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -266,15 +248,15 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 	} else {
 		target = "_" + service + "._" + proto + "." + name
 	}
-	var rec *syscall.DNSRecord
-	e := syscall.DnsQuery(target, syscall.DNS_TYPE_SRV, 0, nil, &rec, nil)
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(target, syscall.DNS_TYPE_SRV, 0, nil, &r, nil)
 	if e != nil {
 		return "", nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: target}
 	}
-	defer syscall.DnsRecordListFree(rec, 1)
+	defer syscall.DnsRecordListFree(r, 1)
 
 	srvs := make([]*SRV, 0, 10)
-	for _, p := range validRecs(rec, syscall.DNS_TYPE_SRV, target) {
+	for _, p := range validRecs(r, syscall.DNS_TYPE_SRV, target) {
 		v := (*syscall.DNSSRVData)(unsafe.Pointer(&p.Data[0]))
 		srvs = append(srvs, &SRV{absDomainName(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:])), v.Port, v.Priority, v.Weight})
 	}
@@ -282,22 +264,19 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 	return absDomainName(target), srvs, nil
 }
 
-func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupMX(ctx, name)
-	}
+func (*Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
-	var rec *syscall.DNSRecord
-	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &rec, nil)
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &r, nil)
 	if e != nil {
 		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
 	}
-	defer syscall.DnsRecordListFree(rec, 1)
+	defer syscall.DnsRecordListFree(r, 1)
 
 	mxs := make([]*MX, 0, 10)
-	for _, p := range validRecs(rec, syscall.DNS_TYPE_MX, name) {
+	for _, p := range validRecs(r, syscall.DNS_TYPE_MX, name) {
 		v := (*syscall.DNSMXData)(unsafe.Pointer(&p.Data[0]))
 		mxs = append(mxs, &MX{absDomainName(windows.UTF16PtrToString(v.NameExchange)), v.Preference})
 	}
@@ -305,44 +284,38 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	return mxs, nil
 }
 
-func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupNS(ctx, name)
-	}
+func (*Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
-	var rec *syscall.DNSRecord
-	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &rec, nil)
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &r, nil)
 	if e != nil {
 		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
 	}
-	defer syscall.DnsRecordListFree(rec, 1)
+	defer syscall.DnsRecordListFree(r, 1)
 
 	nss := make([]*NS, 0, 10)
-	for _, p := range validRecs(rec, syscall.DNS_TYPE_NS, name) {
+	for _, p := range validRecs(r, syscall.DNS_TYPE_NS, name) {
 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
 		nss = append(nss, &NS{absDomainName(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]))})
 	}
 	return nss, nil
 }
 
-func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
-	if r.preferGoOverWindows() {
-		return r.lookupTXT(ctx, name)
-	}
+func (*Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
-	var rec *syscall.DNSRecord
-	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &rec, nil)
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &r, nil)
 	if e != nil {
 		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
 	}
-	defer syscall.DnsRecordListFree(rec, 1)
+	defer syscall.DnsRecordListFree(r, 1)
 
 	txts := make([]string, 0, 10)
-	for _, p := range validRecs(rec, syscall.DNS_TYPE_TEXT, name) {
+	for _, p := range validRecs(r, syscall.DNS_TYPE_TEXT, name) {
 		d := (*syscall.DNSTXTData)(unsafe.Pointer(&p.Data[0]))
 		s := ""
 		for _, v := range (*[1 << 10]*uint16)(unsafe.Pointer(&(d.StringArray[0])))[:d.StringCount:d.StringCount] {
@@ -353,11 +326,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 	return txts, nil
 }
 
-func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupPTR(ctx, addr)
-	}
-
+func (*Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -365,15 +334,15 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
 	if err != nil {
 		return nil, err
 	}
-	var rec *syscall.DNSRecord
-	e := syscall.DnsQuery(arpa, syscall.DNS_TYPE_PTR, 0, nil, &rec, nil)
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(arpa, syscall.DNS_TYPE_PTR, 0, nil, &r, nil)
 	if e != nil {
 		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: addr}
 	}
-	defer syscall.DnsRecordListFree(rec, 1)
+	defer syscall.DnsRecordListFree(r, 1)
 
 	ptrs := make([]string, 0, 10)
-	for _, p := range validRecs(rec, syscall.DNS_TYPE_PTR, arpa) {
+	for _, p := range validRecs(r, syscall.DNS_TYPE_PTR, arpa) {
 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
 		ptrs = append(ptrs, absDomainName(windows.UTF16PtrToString(v.Host)))
 	}
