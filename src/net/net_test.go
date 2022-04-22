@@ -529,17 +529,19 @@ func TestNotTemporaryRead(t *testing.T) {
 		<-dialed
 		cs.(*TCPConn).SetLinger(0)
 		cs.Close()
-
-		ln.Close()
 	}()
-	defer func() { <-serverDone }()
+	defer func() {
+		ln.Close()
+		<-serverDone
+	}()
 
 	ss, err := Dial("tcp", ln.Addr().String())
+	close(dialed)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ss.Close()
-	close(dialed)
+
 	_, err = ss.Read([]byte{0})
 	if err == nil {
 		t.Fatal("Read succeeded unexpectedly")
