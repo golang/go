@@ -1839,8 +1839,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		anyImportDeleted = anyImportDeleted || importDeleted
 
 		// Mark all of the package IDs containing the given file.
-		// TODO: if the file has moved into a new package, we should invalidate that too.
-		filePackageIDs := guessPackageIDsForURI(uri, s.ids)
+		filePackageIDs := invalidatedPackageIDs(uri, s.ids, originalFH == nil || pkgNameChanged)
 		if pkgNameChanged {
 			for _, id := range filePackageIDs {
 				changedPkgNames[id] = struct{}{}
@@ -2089,15 +2088,22 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	return result
 }
 
-// guessPackageIDsForURI returns all packages related to uri. If we haven't
-// seen this URI before, we guess based on files in the same directory. This
-// is of course incorrect in build systems where packages are not organized by
-// directory.
-func guessPackageIDsForURI(uri span.URI, known map[span.URI][]PackageID) []PackageID {
-	packages := known[uri]
-	if len(packages) > 0 {
-		// We've seen this file before.
-		return packages
+// invalidatedPackageIDs returns all packages invalidated by a change to uri.
+// If we haven't seen this URI before, we guess based on files in the same
+// directory. This is of course incorrect in build systems where packages are
+// not organized by directory.
+//
+// If newPackageFile is set, the file is either a new file, or has a new
+// package name. In this case, all known packages in the directory will be
+// invalidated.
+func invalidatedPackageIDs(uri span.URI, known map[span.URI][]PackageID, newPackageFile bool) []PackageID {
+	// If the file didn't move to a new package, we should only invalidate the
+	// packages it is currently contained inside.
+	if !newPackageFile {
+		if packages := known[uri]; len(packages) > 0 {
+			// We've seen this file before.
+			return packages
+		}
 	}
 	// This is a file we don't yet know about. Guess relevant packages by
 	// considering files in the same directory.

@@ -1241,3 +1241,52 @@ use (
 		env.Await(NoOutstandingDiagnostics())
 	})
 }
+
+// Tests the fix for golang/go#52500.
+func TestChangeTestVariant_Issue52500(t *testing.T) {
+	// This test fails for unknown reasons at Go <= 15. Presumably the loading of
+	// test variants behaves differently, possibly due to lack of support for
+	// native overlays.
+	testenv.NeedsGo1Point(t, 16)
+	const src = `
+-- go.mod --
+module mod.test
+
+go 1.12
+-- main_test.go --
+package main_test
+
+type Server struct{}
+
+const mainConst = otherConst
+-- other_test.go --
+package main_test
+
+const otherConst = 0
+
+func (Server) Foo() {}
+`
+
+	Run(t, src, func(t *testing.T, env *Env) {
+		env.OpenFile("other_test.go")
+		env.RegexpReplace("other_test.go", "main_test", "main")
+
+		// For this test to function, it is necessary to wait on both of the
+		// expectations below: the bug is that when switching the package name in
+		// other_test.go from main->main_test, metadata for main_test is not marked
+		// as invalid. So we need to wait for the metadata of main_test.go to be
+		// updated before moving other_test.go back to the main_test package.
+		env.Await(
+			env.DiagnosticAtRegexpWithMessage("other_test.go", "Server", "undeclared"),
+			env.DiagnosticAtRegexpWithMessage("main_test.go", "otherConst", "undeclared"),
+		)
+		env.RegexpReplace("other_test.go", "main", "main_test")
+		env.Await(
+			EmptyDiagnostics("other_test.go"),
+			EmptyDiagnostics("main_test.go"),
+		)
+
+		// This will cause a test failure if other_test.go is not in any package.
+		_, _ = env.GoToDefinition("other_test.go", env.RegexpSearch("other_test.go", "Server"))
+	})
+}
