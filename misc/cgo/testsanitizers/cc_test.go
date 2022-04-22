@@ -235,22 +235,6 @@ func compilerSupportsLocation() bool {
 	}
 }
 
-// compilerRequiredAsanVersion reports whether the compiler is the version required by Asan.
-func compilerRequiredAsanVersion() bool {
-	compiler, err := compilerVersion()
-	if err != nil {
-		return false
-	}
-	switch compiler.name {
-	case "gcc":
-		return compiler.major >= 7
-	case "clang":
-		return true
-	default:
-		return false
-	}
-}
-
 type compilerCheck struct {
 	once sync.Once
 	err  error
