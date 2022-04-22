@@ -617,6 +617,12 @@ type (
 )
 
 func (Conflict) Conflict() {}
+
+func GFunc[T any]() {}
+
+type GType[T any] int
+
+func (GType[T]) M() {}
 `
 	const test = `
 package p_test
@@ -676,6 +682,12 @@ func ExampleConflict_Conflict()        {} // ambiguous with either Conflict or C
 func ExampleConflict_conflict()        {} // ambiguous with either Conflict or Conflict_conflict type
 func ExampleConflict_Conflict_suffix() {} // ambiguous with either Conflict or Conflict_Conflict type
 func ExampleConflict_conflict_suffix() {} // ambiguous with either Conflict or Conflict_conflict type
+
+func ExampleGFunc() {}
+func ExampleGFunc_suffix() {}
+
+func ExampleGType_M() {}
+func ExampleGType_M_suffix() {}
 `
 
 	// Parse literal source code as a *doc.Package.
@@ -725,12 +737,19 @@ func ExampleConflict_conflict_suffix() {} // ambiguous with either Conflict or C
 		// These are implementation dependent due to the ambiguous parsing.
 		"Conflict_Conflict": {"", "suffix"},
 		"Conflict_conflict": {"", "suffix"},
+
+		"GFunc":   {"", "suffix"},
+		"GType.M": {"", "suffix"},
 	}
 
 	for id := range got {
 		if !reflect.DeepEqual(got[id], want[id]) {
 			t.Errorf("classification mismatch for %q:\ngot  %q\nwant %q", id, got[id], want[id])
 		}
+		delete(want, id)
+	}
+	if len(want) > 0 {
+		t.Errorf("did not find:\n%q", want)
 	}
 }
 
