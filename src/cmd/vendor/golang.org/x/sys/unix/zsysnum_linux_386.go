@@ -446,4 +446,5 @@ const (
 	SYS_MEMFD_SECRET                 = 447
 	SYS_PROCESS_MRELEASE             = 448
 	SYS_FUTEX_WAITV                  = 449
+	SYS_SET_MEMPOLICY_HOME_NODE      = 450
 )

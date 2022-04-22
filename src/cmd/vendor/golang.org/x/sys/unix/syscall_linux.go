@@ -366,6 +366,8 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	return
 }
 
+//sys	Waitid(idType int, id int, info *Siginfo, options int, rusage *Rusage) (err error)
+
 func Mkfifo(path string, mode uint32) error {
 	return Mknod(path, mode|S_IFIFO, 0)
 }
@@ -1827,6 +1829,9 @@ func Dup2(oldfd, newfd int) error {
 //sys	Fremovexattr(fd int, attr string) (err error)
 //sys	Fsetxattr(fd int, attr string, dest []byte, flags int) (err error)
 //sys	Fsync(fd int) (err error)
+//sys	Fsmount(fd int, flags int, mountAttrs int) (fsfd int, err error)
+//sys	Fsopen(fsName string, flags int) (fd int, err error)
+//sys	Fspick(dirfd int, pathName string, flags int) (fd int, err error)
 //sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
 //sysnb	Getpgid(pid int) (pgid int, err error)
 
@@ -1857,7 +1862,9 @@ func Getpgrp() (pid int) {
 //sys	MemfdCreate(name string, flags int) (fd int, err error)
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
+//sys	MoveMount(fromDirfd int, fromPathName string, toDirfd int, toPathName string, flags int) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+//sys	OpenTree(dfd int, fileName string, flags uint) (r int, err error)
 //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
 //sysnb	Prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
@@ -2182,7 +2189,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 			gid = Getgid()
 		}
 
-		if uint32(gid) == st.Gid || isGroupMember(gid) {
+		if uint32(gid) == st.Gid || isGroupMember(int(st.Gid)) {
 			fmode = (st.Mode >> 3) & 7
 		} else {
 			fmode = st.Mode & 7
@@ -2297,6 +2304,7 @@ type RemoteIovec struct {
 
 //sys	PidfdOpen(pid int, flags int) (fd int, err error) = SYS_PIDFD_OPEN
 //sys	PidfdGetfd(pidfd int, targetfd int, flags int) (fd int, err error) = SYS_PIDFD_GETFD
+//sys	PidfdSendSignal(pidfd int, sig Signal, info *Siginfo, flags int) (err error) = SYS_PIDFD_SEND_SIGNAL
 
 //sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
 //sys	shmctl(id int, cmd int, buf *SysvShmDesc) (result int, err error)
@@ -2445,5 +2453,4 @@ func Setitimer(which ItimerWhich, it Itimerval) (Itimerval, error) {
 // Vfork
 // Vhangup
 // Vserver
-// Waitid
 // _Sysctl

@@ -553,12 +553,7 @@ func UtimesNano(path string, ts []Timespec) error {
 	if len(ts) != 2 {
 		return EINVAL
 	}
-	// Darwin setattrlist can set nanosecond timestamps
-	err := setattrlistTimes(path, ts, 0)
-	if err != ENOSYS {
-		return err
-	}
-	err = utimensat(AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+	err := utimensat(AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 	if err != ENOSYS {
 		return err
 	}
@@ -577,10 +572,6 @@ func UtimesNanoAt(dirfd int, path string, ts []Timespec, flags int) error {
 	}
 	if len(ts) != 2 {
 		return EINVAL
-	}
-	err := setattrlistTimes(path, ts, flags)
-	if err != ENOSYS {
-		return err
 	}
 	return utimensat(dirfd, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), flags)
 }

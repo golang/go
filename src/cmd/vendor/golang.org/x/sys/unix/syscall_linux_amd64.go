@@ -28,6 +28,7 @@ func Lstat(path string, stat *Stat_t) (err error) {
 	return Fstatat(AT_FDCWD, path, stat, AT_SYMLINK_NOFOLLOW)
 }
 
+//sys	MemfdSecret(flags int) (fd int, err error)
 //sys	Pause() (err error)
 //sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
