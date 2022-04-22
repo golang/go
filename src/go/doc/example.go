@@ -189,76 +189,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	}
 
 	// Find unresolved identifiers and uses of top-level declarations.
-	unresolved := make(map[string]bool)
-	var depDecls []ast.Decl
-	hasDepDecls := make(map[ast.Decl]bool)
-
-	var inspectFunc func(ast.Node) bool
-	inspectFunc = func(n ast.Node) bool {
-		switch e := n.(type) {
-		case *ast.Ident:
-			if e.Obj == nil && e.Name != "_" {
-				unresolved[e.Name] = true
-			} else if d := topDecls[e.Obj]; d != nil {
-				if !hasDepDecls[d] {
-					hasDepDecls[d] = true
-					depDecls = append(depDecls, d)
-				}
-			}
-			return true
-		case *ast.SelectorExpr:
-			// For selector expressions, only inspect the left hand side.
-			// (For an expression like fmt.Println, only add "fmt" to the
-			// set of unresolved names, not "Println".)
-			ast.Inspect(e.X, inspectFunc)
-			return false
-		case *ast.KeyValueExpr:
-			// For key value expressions, only inspect the value
-			// as the key should be resolved by the type of the
-			// composite literal.
-			ast.Inspect(e.Value, inspectFunc)
-			return false
-		}
-		return true
-	}
-	ast.Inspect(body, inspectFunc)
-	for i := 0; i < len(depDecls); i++ {
-		switch d := depDecls[i].(type) {
-		case *ast.FuncDecl:
-			// Inspect types of parameters and results. See #28492.
-			if d.Type.Params != nil {
-				for _, p := range d.Type.Params.List {
-					ast.Inspect(p.Type, inspectFunc)
-				}
-			}
-			if d.Type.Results != nil {
-				for _, r := range d.Type.Results.List {
-					ast.Inspect(r.Type, inspectFunc)
-				}
-			}
-
-			// Functions might not have a body. See #42706.
-			if d.Body != nil {
-				ast.Inspect(d.Body, inspectFunc)
-			}
-		case *ast.GenDecl:
-			for _, spec := range d.Specs {
-				switch s := spec.(type) {
-				case *ast.TypeSpec:
-					ast.Inspect(s.Type, inspectFunc)
-
-					depDecls = append(depDecls, typMethods[s.Name.Name]...)
-				case *ast.ValueSpec:
-					if s.Type != nil {
-						ast.Inspect(s.Type, inspectFunc)
-					}
-					for _, val := range s.Values {
-						ast.Inspect(val, inspectFunc)
-					}
-				}
-			}
-		}
-	}
+	depDecls, unresolved := findDeclsAndUnresolved(body, topDecls, typMethods)
 
 	// Remove predeclared identifiers from unresolved list.
 	for n := range unresolved {
@@ -391,6 +322,80 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 		Decls:    decls,
 		Comments: comments,
 	}
+}
+
+func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, typMethods map[string][]ast.Decl) ([]ast.Decl, map[string]bool) {
+	unresolved := make(map[string]bool)
+	var depDecls []ast.Decl
+	hasDepDecls := make(map[ast.Decl]bool)
+
+	var inspectFunc func(ast.Node) bool
+	inspectFunc = func(n ast.Node) bool {
+		switch e := n.(type) {
+		case *ast.Ident:
+			if e.Obj == nil && e.Name != "_" {
+				unresolved[e.Name] = true
+			} else if d := topDecls[e.Obj]; d != nil {
+				if !hasDepDecls[d] {
+					hasDepDecls[d] = true
+					depDecls = append(depDecls, d)
+				}
+			}
+			return true
+		case *ast.SelectorExpr:
+			// For selector expressions, only inspect the left hand side.
+			// (For an expression like fmt.Println, only add "fmt" to the
+			// set of unresolved names, not "Println".)
+			ast.Inspect(e.X, inspectFunc)
+			return false
+		case *ast.KeyValueExpr:
+			// For key value expressions, only inspect the value
+			// as the key should be resolved by the type of the
+			// composite literal.
+			ast.Inspect(e.Value, inspectFunc)
+			return false
+		}
+		return true
+	}
+	ast.Inspect(body, inspectFunc)
+	for i := 0; i < len(depDecls); i++ {
+		switch d := depDecls[i].(type) {
+		case *ast.FuncDecl:
+			// Inspect types of parameters and results. See #28492.
+			if d.Type.Params != nil {
+				for _, p := range d.Type.Params.List {
+					ast.Inspect(p.Type, inspectFunc)
+				}
+			}
+			if d.Type.Results != nil {
+				for _, r := range d.Type.Results.List {
+					ast.Inspect(r.Type, inspectFunc)
+				}
+			}
+
+			// Functions might not have a body. See #42706.
+			if d.Body != nil {
+				ast.Inspect(d.Body, inspectFunc)
+			}
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				switch s := spec.(type) {
+				case *ast.TypeSpec:
+					ast.Inspect(s.Type, inspectFunc)
+
+					depDecls = append(depDecls, typMethods[s.Name.Name]...)
+				case *ast.ValueSpec:
+					if s.Type != nil {
+						ast.Inspect(s.Type, inspectFunc)
+					}
+					for _, val := range s.Values {
+						ast.Inspect(val, inspectFunc)
+					}
+				}
+			}
+		}
+	}
+	return depDecls, unresolved
 }
 
 // findImportGroupStarts finds the start positions of each sequence of import
