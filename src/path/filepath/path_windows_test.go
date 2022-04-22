@@ -534,3 +534,29 @@ func TestNTNamespaceSymlink(t *testing.T) {
 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, filelink, got, want)
 	}
 }
+
+func TestIssue52476(t *testing.T) {
+	tests := []struct {
+		lhs, rhs string
+		want     string
+	}{
+		{`..\.`, `C:`, `..\C:`},
+		{`..`, `C:`, `..\C:`},
+		{`.`, `:`, `:`},
+		{`.`, `C:`, `.\C:`},
+		{`.`, `C:/a/b/../c`, `.\C:\a\c`},
+		{`.`, `\C:`, `.\C:`},
+		{`C:\`, `.`, `C:\`},
+		{`C:\`, `C:\`, `C:\C:`},
+		{`C`, `:`, `C\:`},
+		{`\.`, `C:`, `\C:`},
+		{`\`, `C:`, `\C:`},
+	}
+
+	for _, test := range tests {
+		got := filepath.Join(test.lhs, test.rhs)
+		if got != test.want {
+			t.Errorf(`Join(%q, %q): got %q, want %q`, test.lhs, test.rhs, got, test.want)
+		}
+	}
+}
