@@ -10,6 +10,7 @@ import (
 	errorspkg "errors"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -86,10 +87,8 @@ func StringToUTF16(s string) []uint16 {
 // s, with a terminating NUL added. If s contains a NUL byte at any
 // location, it returns (nil, syscall.EINVAL).
 func UTF16FromString(s string) ([]uint16, error) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == 0 {
-			return nil, syscall.EINVAL
-		}
+	if strings.IndexByte(s, 0) != -1 {
+		return nil, syscall.EINVAL
 	}
 	return utf16.Encode([]rune(s + "\x00")), nil
 }
