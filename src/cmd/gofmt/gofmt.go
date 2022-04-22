@@ -76,9 +76,9 @@ func initParserMode() {
 	if *allErrors {
 		parserMode |= parser.AllErrors
 	}
-	// Both -r and -s make use of go/ast's object resolution.
-	// If neither is being used, avoid that unnecessary work.
-	if *rewriteRule == "" && !*simplifyAST {
+	// It's only -r that makes use of go/ast's object resolution,
+	// so avoid the unnecessary work if the flag isn't used.
+	if *rewriteRule == "" {
 		parserMode |= parser.SkipObjectResolution
 	}
 }
