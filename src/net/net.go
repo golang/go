@@ -61,7 +61,7 @@ The resolver decision can be overridden by setting the netdns value of the
 GODEBUG environment variable (see package runtime) to go or cgo, as in:
 
 	export GODEBUG=netdns=go    # force pure Go resolver
-	export GODEBUG=netdns=cgo   # force native resolver (cgo, win32)
+	export GODEBUG=netdns=cgo   # force cgo resolver
 
 The decision can also be forced while building the Go source tree
 by setting the netgo or netcgo build tag.
@@ -73,8 +73,7 @@ join the two settings by a plus sign, as in GODEBUG=netdns=go+1.
 
 On Plan 9, the resolver always accesses /net/cs and /net/dns.
 
-On Windows, in Go 1.18.x and earlier, the resolver always used C
-library functions, such as GetAddrInfo and DnsQuery.
+On Windows, the resolver always uses C library functions, such as GetAddrInfo and DnsQuery.
 */
 package net
 
@@ -589,9 +588,7 @@ func (e InvalidAddrError) Temporary() bool { return false }
 //
 // TODO(iant): We could consider changing this to os.ErrDeadlineExceeded
 // in the future, if we make
-//
-//	errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
-//
+//   errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
 // return true.
 var errTimeout error = &timeoutError{}
 
