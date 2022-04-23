@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"internal/poll"
 	"internal/testenv"
@@ -27,6 +28,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -36,7 +38,7 @@ import (
 var haveUnexpectedFDs bool
 
 func init() {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+	if os.Getenv("GO_EXEC_TEST_PID") != "" {
 		return
 	}
 	if runtime.GOOS == "windows" {
@@ -54,30 +56,253 @@ func init() {
 	}
 }
 
-func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *exec.Cmd) {
+// TestMain allows the test binary to impersonate many other binaries,
+// some of which may manipulate os.Stdin, os.Stdout, and/or os.Stderr
+// (and thus cannot run as an ordinary Test function, since the testing
+// package monkey-patches those variables before running tests).
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	pid := os.Getpid()
+	if os.Getenv("GO_EXEC_TEST_PID") == "" {
+		os.Setenv("GO_EXEC_TEST_PID", strconv.Itoa(pid))
+
+		code := m.Run()
+		if code == 0 && flag.Lookup("test.run").Value.String() == "" && flag.Lookup("test.list").Value.String() == "" {
+			for cmd := range helperCommands {
+				if _, ok := helperCommandUsed.Load(cmd); !ok {
+					fmt.Fprintf(os.Stderr, "helper command unused: %q\n", cmd)
+					code = 1
+				}
+			}
+		}
+		os.Exit(code)
+	}
+
+	args := flag.Args()
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "No command\n")
+		os.Exit(2)
+	}
+
+	cmd, args := args[0], args[1:]
+	f, ok := helperCommands[cmd]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
+		os.Exit(2)
+	}
+	f(args...)
+	os.Exit(0)
+}
+
+// registerHelperCommand registers a command that the test process can impersonate.
+// A command should be registered in the same source file in which it is used.
+// If all tests are run and pass, all registered commands must be used.
+// (This prevents stale commands from accreting if tests are removed or
+// refactored over time.)
+func registerHelperCommand(name string, f func(...string)) {
+	if helperCommands[name] != nil {
+		panic("duplicate command registered: " + name)
+	}
+	helperCommands[name] = f
+}
+
+// maySkipHelperCommand records that the test that uses the named helper command
+// was invoked, but may call Skip on the test before actually calling
+// helperCommand.
+func maySkipHelperCommand(name string) {
+	helperCommandUsed.Store(name, true)
+}
+
+// helperCommand returns an exec.Cmd that will run the named helper command.
+func helperCommand(t *testing.T, name string, args ...string) *exec.Cmd {
+	t.Helper()
+	return helperCommandContext(t, nil, name, args...)
+}
+
+// helperCommandContext is like helperCommand, but also accepts a Context under
+// which to run the command.
+func helperCommandContext(t *testing.T, ctx context.Context, name string, args ...string) (cmd *exec.Cmd) {
+	helperCommandUsed.LoadOrStore(name, true)
+
+	t.Helper()
 	testenv.MustHaveExec(t)
 
-	// Use os.Executable instead of os.Args[0] in case the caller modifies
-	// cmd.Dir: if the test binary is invoked like "./exec.test", it should
-	// not fail spuriously.
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cs := []string{"-test.run=TestHelperProcess", "--"}
-	cs = append(cs, s...)
+	cs := append([]string{name}, args...)
 	if ctx != nil {
-		cmd = exec.CommandContext(ctx, exe, cs...)
+		cmd = exec.CommandContext(ctx, exePath(t), cs...)
 	} else {
-		cmd = exec.Command(exe, cs...)
+		cmd = exec.Command(exePath(t), cs...)
 	}
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	return cmd
 }
 
-func helperCommand(t *testing.T, s ...string) *exec.Cmd {
-	return helperCommandContext(t, nil, s...)
+// exePath returns the path to the running executable.
+func exePath(t testing.TB) string {
+	exeOnce.Do(func() {
+		// Use os.Executable instead of os.Args[0] in case the caller modifies
+		// cmd.Dir: if the test binary is invoked like "./exec.test", it should
+		// not fail spuriously.
+		exeOnce.path, exeOnce.err = os.Executable()
+	})
+
+	if exeOnce.err != nil {
+		if t == nil {
+			panic(exeOnce.err)
+		}
+		t.Fatal(exeOnce.err)
+	}
+
+	return exeOnce.path
+}
+
+var exeOnce struct {
+	path string
+	err  error
+	sync.Once
+}
+
+var helperCommandUsed sync.Map
+
+var helperCommands = map[string]func(...string){
+	"echo":               cmdEcho,
+	"echoenv":            cmdEchoEnv,
+	"cat":                cmdCat,
+	"pipetest":           cmdPipeTest,
+	"stdinClose":         cmdStdinClose,
+	"exit":               cmdExit,
+	"describefiles":      cmdDescribeFiles,
+	"extraFilesAndPipes": cmdExtraFilesAndPipes,
+	"stderrfail":         cmdStderrFail,
+	"yes":                cmdYes,
+}
+
+func cmdEcho(args ...string) {
+	iargs := []any{}
+	for _, s := range args {
+		iargs = append(iargs, s)
+	}
+	fmt.Println(iargs...)
+}
+
+func cmdEchoEnv(args ...string) {
+	for _, s := range args {
+		fmt.Println(os.Getenv(s))
+	}
+}
+
+func cmdCat(args ...string) {
+	if len(args) == 0 {
+		io.Copy(os.Stdout, os.Stdin)
+		return
+	}
+	exit := 0
+	for _, fn := range args {
+		f, err := os.Open(fn)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			exit = 2
+		} else {
+			defer f.Close()
+			io.Copy(os.Stdout, f)
+		}
+	}
+	os.Exit(exit)
+}
+
+func cmdPipeTest(...string) {
+	bufr := bufio.NewReader(os.Stdin)
+	for {
+		line, _, err := bufr.ReadLine()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			os.Exit(1)
+		}
+		if bytes.HasPrefix(line, []byte("O:")) {
+			os.Stdout.Write(line)
+			os.Stdout.Write([]byte{'\n'})
+		} else if bytes.HasPrefix(line, []byte("E:")) {
+			os.Stderr.Write(line)
+			os.Stderr.Write([]byte{'\n'})
+		} else {
+			os.Exit(1)
+		}
+	}
+}
+
+func cmdStdinClose(...string) {
+	b, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	if s := string(b); s != stdinCloseTestString {
+		fmt.Fprintf(os.Stderr, "Error: Read %q, want %q", s, stdinCloseTestString)
+		os.Exit(1)
+	}
+}
+
+func cmdExit(args ...string) {
+	n, _ := strconv.Atoi(args[0])
+	os.Exit(n)
+}
+
+func cmdDescribeFiles(args ...string) {
+	f := os.NewFile(3, fmt.Sprintf("fd3"))
+	ln, err := net.FileListener(f)
+	if err == nil {
+		fmt.Printf("fd3: listener %s\n", ln.Addr())
+		ln.Close()
+	}
+}
+
+func cmdExtraFilesAndPipes(args ...string) {
+	n, _ := strconv.Atoi(args[0])
+	pipes := make([]*os.File, n)
+	for i := 0; i < n; i++ {
+		pipes[i] = os.NewFile(uintptr(3+i), strconv.Itoa(i))
+	}
+	response := ""
+	for i, r := range pipes {
+		ch := make(chan string, 1)
+		go func(c chan string) {
+			buf := make([]byte, 10)
+			n, err := r.Read(buf)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Child: read error: %v on pipe %d\n", err, i)
+				os.Exit(1)
+			}
+			c <- string(buf[:n])
+			close(c)
+		}(ch)
+		select {
+		case m := <-ch:
+			response = response + m
+		case <-time.After(5 * time.Second):
+			fmt.Fprintf(os.Stderr, "Child: Timeout reading from pipe: %d\n", i)
+			os.Exit(1)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "child: %s", response)
+}
+
+func cmdStderrFail(...string) {
+	fmt.Fprintf(os.Stderr, "some stderr text\n")
+	os.Exit(1)
+}
+
+func cmdYes(args ...string) {
+	if len(args) == 0 {
+		args = []string{"y"}
+	}
+	s := strings.Join(args, " ") + "\n"
+	for {
+		_, err := os.Stdout.WriteString(s)
+		if err != nil {
+			os.Exit(1)
+		}
+	}
 }
 
 func TestEcho(t *testing.T) {
@@ -91,7 +316,7 @@ func TestEcho(t *testing.T) {
 }
 
 func TestCommandRelativeName(t *testing.T) {
-	testenv.MustHaveExec(t)
+	cmd := helperCommand(t, "echo", "foo")
 
 	// Run our own binary as a relative path
 	// (e.g. "_test/exec.test") our parent directory.
@@ -106,9 +331,8 @@ func TestCommandRelativeName(t *testing.T) {
 		t.Skipf("skipping; unexpected shallow dir of %q", dir)
 	}
 
-	cmd := exec.Command(filepath.Join(dirBase, base), "-test.run=TestHelperProcess", "--", "echo", "foo")
+	cmd.Path = filepath.Join(dirBase, base)
 	cmd.Dir = parentDir
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
 
 	out, err := cmd.Output()
 	if err != nil {
@@ -167,7 +391,7 @@ func TestCatGoodAndBadFile(t *testing.T) {
 	if !strings.HasPrefix(errLine, "Error: open /bogus/file.foo") {
 		t.Errorf("expected stderr to complain about file; got %q", errLine)
 	}
-	if !strings.Contains(body, "func TestHelperProcess(t *testing.T)") {
+	if !strings.Contains(body, "func TestCatGoodAndBadFile(t *testing.T)") {
 		t.Errorf("expected test code; got %q (len %d)", body, len(body))
 	}
 }
@@ -402,6 +626,7 @@ func TestPipeLookPathLeak(t *testing.T) {
 }
 
 func TestExtraFilesFDShuffle(t *testing.T) {
+	maySkipHelperCommand("extraFilesAndPipes")
 	testenv.SkipFlaky(t, 5780)
 	switch runtime.GOOS {
 	case "windows":
@@ -627,6 +852,7 @@ func TestExtraFiles(t *testing.T) {
 
 func TestExtraFilesRace(t *testing.T) {
 	if runtime.GOOS == "windows" {
+		maySkipHelperCommand("describefiles")
 		t.Skip("no operating system support; skipping")
 	}
 	listen := func() net.Listener {
@@ -684,175 +910,6 @@ func TestExtraFilesRace(t *testing.T) {
 	}
 }
 
-// TestHelperProcess isn't a real test. It's used as a helper process
-// for TestParameterRun.
-func TestHelperProcess(*testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	defer os.Exit(0)
-
-	args := os.Args
-	for len(args) > 0 {
-		if args[0] == "--" {
-			args = args[1:]
-			break
-		}
-		args = args[1:]
-	}
-	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "No command\n")
-		os.Exit(2)
-	}
-
-	cmd, args := args[0], args[1:]
-	switch cmd {
-	case "echo":
-		iargs := []any{}
-		for _, s := range args {
-			iargs = append(iargs, s)
-		}
-		fmt.Println(iargs...)
-	case "echoenv":
-		for _, s := range args {
-			fmt.Println(os.Getenv(s))
-		}
-		os.Exit(0)
-	case "cat":
-		if len(args) == 0 {
-			io.Copy(os.Stdout, os.Stdin)
-			return
-		}
-		exit := 0
-		for _, fn := range args {
-			f, err := os.Open(fn)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				exit = 2
-			} else {
-				defer f.Close()
-				io.Copy(os.Stdout, f)
-			}
-		}
-		os.Exit(exit)
-	case "pipetest":
-		bufr := bufio.NewReader(os.Stdin)
-		for {
-			line, _, err := bufr.ReadLine()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				os.Exit(1)
-			}
-			if bytes.HasPrefix(line, []byte("O:")) {
-				os.Stdout.Write(line)
-				os.Stdout.Write([]byte{'\n'})
-			} else if bytes.HasPrefix(line, []byte("E:")) {
-				os.Stderr.Write(line)
-				os.Stderr.Write([]byte{'\n'})
-			} else {
-				os.Exit(1)
-			}
-		}
-	case "stdinClose":
-		b, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-		if s := string(b); s != stdinCloseTestString {
-			fmt.Fprintf(os.Stderr, "Error: Read %q, want %q", s, stdinCloseTestString)
-			os.Exit(1)
-		}
-		os.Exit(0)
-	case "exit":
-		n, _ := strconv.Atoi(args[0])
-		os.Exit(n)
-	case "describefiles":
-		f := os.NewFile(3, fmt.Sprintf("fd3"))
-		ln, err := net.FileListener(f)
-		if err == nil {
-			fmt.Printf("fd3: listener %s\n", ln.Addr())
-			ln.Close()
-		}
-		os.Exit(0)
-	case "extraFilesAndPipes":
-		n, _ := strconv.Atoi(args[0])
-		pipes := make([]*os.File, n)
-		for i := 0; i < n; i++ {
-			pipes[i] = os.NewFile(uintptr(3+i), strconv.Itoa(i))
-		}
-		response := ""
-		for i, r := range pipes {
-			ch := make(chan string, 1)
-			go func(c chan string) {
-				buf := make([]byte, 10)
-				n, err := r.Read(buf)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Child: read error: %v on pipe %d\n", err, i)
-					os.Exit(1)
-				}
-				c <- string(buf[:n])
-				close(c)
-			}(ch)
-			select {
-			case m := <-ch:
-				response = response + m
-			case <-time.After(5 * time.Second):
-				fmt.Fprintf(os.Stderr, "Child: Timeout reading from pipe: %d\n", i)
-				os.Exit(1)
-			}
-		}
-		fmt.Fprintf(os.Stderr, "child: %s", response)
-		os.Exit(0)
-	case "exec":
-		cmd := exec.Command(args[1])
-		cmd.Dir = args[0]
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
-			os.Exit(1)
-		}
-		fmt.Printf("%s", string(output))
-		os.Exit(0)
-	case "lookpath":
-		p, err := exec.LookPath(args[0])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "LookPath failed: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Print(p)
-		os.Exit(0)
-	case "stderrfail":
-		fmt.Fprintf(os.Stderr, "some stderr text\n")
-		os.Exit(1)
-	case "sleep":
-		time.Sleep(3 * time.Second)
-		os.Exit(0)
-	case "pipehandle":
-		handle, _ := strconv.ParseUint(args[0], 16, 64)
-		pipe := os.NewFile(uintptr(handle), "")
-		_, err := fmt.Fprint(pipe, args[1])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "writing to pipe failed: %v\n", err)
-			os.Exit(1)
-		}
-		pipe.Close()
-		os.Exit(0)
-	case "pwd":
-		pwd, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		fmt.Println(pwd)
-		os.Exit(0)
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
-		os.Exit(2)
-	}
-}
-
 type delayedInfiniteReader struct{}
 
 func (delayedInfiniteReader) Read(b []byte) (int, error) {
@@ -865,8 +922,6 @@ func (delayedInfiniteReader) Read(b []byte) (int, error) {
 
 // Issue 9173: ignore stdin pipe writes if the program completes successfully.
 func TestIgnorePipeErrorOnSuccess(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	testWith := func(r io.Reader) func(*testing.T) {
 		return func(t *testing.T) {
 			cmd := helperCommand(t, "echo", "foo")
@@ -892,12 +947,7 @@ func (w *badWriter) Write(data []byte) (int, error) {
 }
 
 func TestClosePipeOnCopyError(t *testing.T) {
-	testenv.MustHaveExec(t)
-
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skipf("skipping test on %s - no yes command", runtime.GOOS)
-	}
-	cmd := exec.Command("yes")
+	cmd := helperCommand(t, "yes")
 	cmd.Stdout = new(badWriter)
 	c := make(chan int, 1)
 	go func() {
@@ -916,8 +966,6 @@ func TestClosePipeOnCopyError(t *testing.T) {
 }
 
 func TestOutputStderrCapture(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	cmd := helperCommand(t, "stderrfail")
 	_, err := cmd.Output()
 	ee, ok := err.(*exec.ExitError)
@@ -971,6 +1019,7 @@ func TestContext(t *testing.T) {
 
 func TestContextCancel(t *testing.T) {
 	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
+		maySkipHelperCommand("cat")
 		testenv.SkipFlaky(t, 42061)
 	}
 
@@ -1032,10 +1081,8 @@ func TestContextCancel(t *testing.T) {
 
 // test that environment variables are de-duped.
 func TestDedupEnvEcho(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	cmd := helperCommand(t, "echoenv", "FOO")
-	cmd.Env = append(cmd.Env, "FOO=bad", "FOO=good")
+	cmd.Env = append(cmd.Environ(), "FOO=bad", "FOO=good")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
@@ -1076,24 +1123,5 @@ func TestStringPathNotResolved(t *testing.T) {
 	want := "makemeasandwich -lettuce"
 	if got := cmd.String(); got != want {
 		t.Errorf("String(%q, %q) = %q, want %q", "makemeasandwich", "-lettuce", got, want)
-	}
-}
-
-// start a child process without the user code explicitly starting
-// with a copy of the parent's. (The Windows SYSTEMROOT issue: Issue
-// 25210)
-func TestChildCriticalEnv(t *testing.T) {
-	testenv.MustHaveExec(t)
-	if runtime.GOOS != "windows" {
-		t.Skip("only testing on Windows")
-	}
-	cmd := helperCommand(t, "echoenv", "SYSTEMROOT")
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.TrimSpace(string(out)) == "" {
-		t.Error("no SYSTEMROOT found")
 	}
 }
