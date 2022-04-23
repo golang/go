@@ -230,10 +230,6 @@ func (c *Cmd) argv() []string {
 	return []string{c.Path}
 }
 
-// skipStdinCopyError optionally specifies a function which reports
-// whether the provided stdin copy error should be ignored.
-var skipStdinCopyError func(error) bool
-
 func (c *Cmd) stdin() (f *os.File, err error) {
 	if c.Stdin == nil {
 		f, err = os.Open(os.DevNull)
@@ -257,7 +253,7 @@ func (c *Cmd) stdin() (f *os.File, err error) {
 	c.closeAfterWait = append(c.closeAfterWait, pw)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(pw, c.Stdin)
-		if skip := skipStdinCopyError; skip != nil && skip(err) {
+		if skipStdinCopyError(err) {
 			err = nil
 		}
 		if err1 := pw.Close(); err == nil {
