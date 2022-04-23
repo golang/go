@@ -226,11 +226,17 @@ type Cmd struct {
 	// are inherited by the child process.
 	childIOFiles []io.Closer
 
-	// parentIOPipes holds closers for the parent's end of any pipes
+	// goroutinePipes holds closers for the parent's end of any pipes
 	// connected to the child's stdin, stdout, and/or stderr streams
-	// that were opened by the Cmd itself (not supplied by the caller).
-	// These should be closed after Wait sees the command exit.
-	parentIOPipes []io.Closer
+	// that are pumped (and ultimately closed) by goroutines controlled by
+	// the Cmd itself (not supplied by or returned to the caller).
+	goroutinePipes []io.Closer
+
+	// userPipes holds closers for the parent's end of any pipes
+	// connected to the child's stdin, stdout and/or stderr streams
+	// that were opened and returned by the Cmd's Pipe methods.
+	// These should be closed when Wait completes.
+	userPipes []io.Closer
 
 	goroutine     []func() error
 	goroutineErrs <-chan error // one receive per goroutine
@@ -367,7 +373,7 @@ func (c *Cmd) childStdin() (*os.File, error) {
 	}
 
 	c.childIOFiles = append(c.childIOFiles, pr)
-	c.parentIOPipes = append(c.parentIOPipes, pw)
+	c.goroutinePipes = append(c.goroutinePipes, pw)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(pw, c.Stdin)
 		if skipStdinCopyError(err) {
@@ -416,7 +422,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (*os.File, error) {
 	}
 
 	c.childIOFiles = append(c.childIOFiles, pw)
-	c.parentIOPipes = append(c.parentIOPipes, pr)
+	c.goroutinePipes = append(c.goroutinePipes, pr)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(w, pr)
 		pr.Close() // in case io.Copy stopped due to write error
@@ -490,8 +496,10 @@ func (c *Cmd) Start() error {
 		c.childIOFiles = nil
 
 		if !started {
-			c.closeDescriptors(c.parentIOPipes)
-			c.parentIOPipes = nil
+			c.closeDescriptors(c.goroutinePipes)
+			c.goroutinePipes = nil
+			c.closeDescriptors(c.userPipes)
+			c.userPipes = nil
 		}
 	}()
 
@@ -630,7 +638,8 @@ func (c *Cmd) Wait() error {
 			copyError = err
 		}
 	}
-	c.goroutine = nil // Allow the goroutines' closures to be GC'd.
+	c.goroutine = nil      // Allow the goroutines' closures to be GC'd.
+	c.goroutinePipes = nil // Already closed by their respective goroutines.
 
 	if c.ctxErr != nil {
 		interruptErr := <-c.ctxErr
@@ -647,8 +656,8 @@ func (c *Cmd) Wait() error {
 		err = copyError
 	}
 
-	c.closeDescriptors(c.parentIOPipes)
-	c.parentIOPipes = nil
+	c.closeDescriptors(c.userPipes)
+	c.userPipes = nil
 
 	return err
 }
@@ -749,7 +758,7 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 	c.Stdin = pr
 	c.childIOFiles = append(c.childIOFiles, pr)
 	wc := &closeOnce{File: pw}
-	c.parentIOPipes = append(c.parentIOPipes, wc)
+	c.userPipes = append(c.userPipes, wc)
 	return wc, nil
 }
 
@@ -790,7 +799,7 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
 	}
 	c.Stdout = pw
 	c.childIOFiles = append(c.childIOFiles, pw)
-	c.parentIOPipes = append(c.parentIOPipes, pr)
+	c.userPipes = append(c.userPipes, pr)
 	return pr, nil
 }
 
@@ -815,7 +824,7 @@ func (c *Cmd) StderrPipe() (io.ReadCloser, error) {
 	}
 	c.Stderr = pw
 	c.childIOFiles = append(c.childIOFiles, pw)
-	c.parentIOPipes = append(c.parentIOPipes, pr)
+	c.userPipes = append(c.userPipes, pr)
 	return pr, nil
 }
 
