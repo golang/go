@@ -7,9 +7,9 @@
 package exec_test
 
 import (
+	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"reflect"
@@ -21,8 +21,32 @@ import (
 	"time"
 )
 
+func init() {
+	registerHelperCommand("pwd", cmdPwd)
+	registerHelperCommand("sleep", cmdSleep)
+}
+
+func cmdPwd(...string) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println(pwd)
+}
+
+func cmdSleep(args ...string) {
+	n, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	time.Sleep(time.Duration(n) * time.Second)
+}
+
 func TestCredentialNoSetGroups(t *testing.T) {
 	if runtime.GOOS == "android" {
+		maySkipHelperCommand("echo")
 		t.Skip("unsupported on Android")
 	}
 
@@ -61,7 +85,7 @@ func TestCredentialNoSetGroups(t *testing.T) {
 func TestWaitid(t *testing.T) {
 	t.Parallel()
 
-	cmd := helperCommand(t, "sleep")
+	cmd := helperCommand(t, "sleep", "3")
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -97,9 +121,6 @@ func TestWaitid(t *testing.T) {
 // implicitly update PWD to the correct path, and Environ should list the
 // updated value.
 func TestImplicitPWD(t *testing.T) {
-	testenv.MustHaveExec(t)
-	_, pwdErr := exec.LookPath("pwd")
-
 	t.Parallel()
 
 	cwd, err := os.Getwd()
@@ -124,12 +145,10 @@ func TestImplicitPWD(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Note: we're using the actual "pwd" command here (instead of helperCommand)
-			// because the implementation of helperCommand requires a non-empty Env.
-			// (We could perhaps refactor helperCommand to use a flag or switch on the
-			// value of argv[0] instead, but that doesn't seem worth the trouble at
-			// the moment.)
-			cmd := exec.Command("pwd", "-L")
+			cmd := helperCommand(t, "pwd")
+			if cmd.Env != nil {
+				t.Fatalf("test requires helperCommand not to set Env field")
+			}
 			cmd.Dir = tc.dir
 
 			var pwds []string
@@ -149,9 +168,6 @@ func TestImplicitPWD(t *testing.T) {
 				t.Errorf("PWD entries in cmd.Environ():\n\t%s\nwant:\n\t%s", strings.Join(pwds, "\n\t"), strings.Join(wantPWDs, "\n\t"))
 			}
 
-			if pwdErr != nil {
-				t.Skipf("not running `pwd` because it was not found: %v", pwdErr)
-			}
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()
 			if err != nil {
@@ -170,6 +186,7 @@ func TestImplicitPWD(t *testing.T) {
 // (This checks that the implementation for https://go.dev/issue/50599 doesn't
 // break existing users who may have explicitly mismatched the PWD variable.)
 func TestExplicitPWD(t *testing.T) {
+	maySkipHelperCommand("pwd")
 	testenv.MustHaveSymlink(t)
 
 	cwd, err := os.Getwd()

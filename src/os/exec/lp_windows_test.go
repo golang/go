@@ -19,6 +19,31 @@ import (
 	"testing"
 )
 
+func init() {
+	registerHelperCommand("exec", cmdExec)
+	registerHelperCommand("lookpath", cmdLookPath)
+}
+
+func cmdLookPath(args ...string) {
+	p, err := exec.LookPath(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "LookPath failed: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Print(p)
+}
+
+func cmdExec(args ...string) {
+	cmd := exec.Command(args[1])
+	cmd.Dir = args[0]
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
+		os.Exit(1)
+	}
+	fmt.Printf("%s", string(output))
+}
+
 func installExe(t *testing.T, dest, src string) {
 	fsrc, err := os.Open(src)
 	if err != nil {
@@ -66,10 +91,10 @@ type lookPathTest struct {
 	fails     bool // test is expected to fail
 }
 
-func (test lookPathTest) runProg(t *testing.T, env []string, args ...string) (string, error) {
-	cmd := exec.Command(args[0], args[1:]...)
+func (test lookPathTest) runProg(t *testing.T, env []string, cmd *exec.Cmd) (string, error) {
 	cmd.Env = env
 	cmd.Dir = test.rootDir
+	args := append([]string(nil), cmd.Args...)
 	args[0] = filepath.Base(args[0])
 	cmdText := fmt.Sprintf("%q command", strings.Join(args, " "))
 	out, err := cmd.CombinedOutput()
@@ -135,10 +160,9 @@ func (test lookPathTest) run(t *testing.T, tmpdir, printpathExe string) {
 	// Run "cmd.exe /c test.searchFor" with new environment and
 	// work directory set. All candidates are copies of printpath.exe.
 	// These will output their program paths when run.
-	should, errCmd := test.runProg(t, env, "cmd", "/c", test.searchFor)
+	should, errCmd := test.runProg(t, env, exec.Command("cmd", "/c", test.searchFor))
 	// Run the lookpath program with new environment and work directory set.
-	env = append(env, "GO_WANT_HELPER_PROCESS=1")
-	have, errLP := test.runProg(t, env, os.Args[0], "-test.run=TestHelperProcess", "--", "lookpath", test.searchFor)
+	have, errLP := test.runProg(t, env, helperCommand(t, "lookpath", test.searchFor))
 	// Compare results.
 	if errCmd == nil && errLP == nil {
 		// both succeeded
@@ -346,30 +370,26 @@ func (test commandTest) isSuccess(rootDir, output string, err error) error {
 	return nil
 }
 
-func (test commandTest) runOne(rootDir string, env []string, dir, arg0 string) error {
-	cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess", "--", "exec", dir, arg0)
+func (test commandTest) runOne(t *testing.T, rootDir string, env []string, dir, arg0 string) {
+	cmd := helperCommand(t, "exec", dir, arg0)
 	cmd.Dir = rootDir
 	cmd.Env = env
 	output, err := cmd.CombinedOutput()
 	err = test.isSuccess(rootDir, string(output), err)
 	if (err != nil) != test.fails {
 		if test.fails {
-			return fmt.Errorf("test=%+v: succeeded, but expected to fail", test)
+			t.Errorf("test=%+v: succeeded, but expected to fail", test)
+		} else {
+			t.Error(err)
 		}
-		return err
 	}
-	return nil
 }
 
 func (test commandTest) run(t *testing.T, rootDir, printpathExe string) {
 	createFiles(t, rootDir, test.files, printpathExe)
 	PATHEXT := `.COM;.EXE;.BAT`
 	env := createEnv(rootDir, test.PATH, PATHEXT)
-	env = append(env, "GO_WANT_HELPER_PROCESS=1")
-	err := test.runOne(rootDir, env, test.dir, test.arg0)
-	if err != nil {
-		t.Error(err)
-	}
+	test.runOne(t, rootDir, env, test.dir, test.arg0)
 }
 
 var commandTests = []commandTest{
