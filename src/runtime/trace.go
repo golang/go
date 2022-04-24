@@ -318,6 +318,9 @@ func StartTrace() error {
 
 	unlock(&sched.sysmonlock)
 
+	// Record the current state of HeapGoal to avoid information loss in trace.
+	traceHeapGoal()
+
 	startTheWorldGC()
 	return nil
 }
