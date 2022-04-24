@@ -612,9 +612,6 @@ func gcStart(trigger gcTrigger) {
 		return
 	}
 
-	// For stats, check if this GC was forced by the user.
-	work.userForced = trigger.kind == gcTriggerCycle
-
 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
 	// We do this after re-checking the transition condition so
 	// that multiple goroutines that detect the heap trigger don't
@@ -629,6 +626,10 @@ func gcStart(trigger gcTrigger) {
 	// Ok, we're doing it! Stop everybody else
 	semacquire(&gcsema)
 	semacquire(&worldsema)
+
+	// For stats, check if this GC was forced by the user.
+	// Update it under gcsema to avoid gctrace getting wrong values.
+	work.userForced = trigger.kind == gcTriggerCycle
 
 	if trace.enabled {
 		traceGCStart()
