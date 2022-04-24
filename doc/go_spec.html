@@ -333,7 +333,7 @@ A floating-point literal is a decimal or hexadecimal representation of a
 A decimal floating-point literal consists of an integer part (decimal digits),
 a decimal point, a fractional part (decimal digits), and an exponent part
 (<code>e</code> or <code>E</code> followed by an optional sign and decimal digits).
-One of the integer part or the fractional part may be elided; one of the decimal point
+One of the integer parts or the fractional part may be elided; one of the decimal points
 or the exponent part may be elided.
 An exponent value exp scales the mantissa (integer and fractional part) by 10<sup>exp</sup>.
 </p>
@@ -342,7 +342,7 @@ An exponent value exp scales the mantissa (integer and fractional part) by 10<su
 A hexadecimal floating-point literal consists of a <code>0x</code> or <code>0X</code>
 prefix, an integer part (hexadecimal digits), a radix point, a fractional part (hexadecimal digits),
 and an exponent part (<code>p</code> or <code>P</code> followed by an optional sign and decimal digits).
-One of the integer part or the fractional part may be elided; the radix point may be elided as well,
+One of the integer parts or the fractional part may be elided; the radix point may be elided as well,
 but the exponent part is required. (This syntax matches the one given in IEEE 754-2008 §5.12.3.)
 An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>.
 </p>
@@ -445,7 +445,7 @@ an integer value identifying a Unicode code point.
 A rune literal is expressed as one or more characters enclosed in single quotes,
 as in <code>'x'</code> or <code>'\n'</code>.
 Within the quotes, any character may appear except newline and unescaped single
-quote. A single quoted character represents the Unicode value
+quotes. A single quoted character represents the Unicode value
 of the character itself,
 while multi-character sequences beginning with a backslash encode
 values in various formats.
@@ -546,7 +546,7 @@ raw string literals and interpreted string literals.
 <p>
 Raw string literals are character sequences between back quotes, as in
 <code>`foo`</code>.  Within the quotes, any character may appear except
-back quote. The value of a raw string literal is the
+the back quote. The value of a raw string literal is the
 string composed of the uninterpreted (implicitly UTF-8-encoded) characters
 between the quotes;
 in particular, backslashes have no special meaning and the string may
@@ -558,7 +558,7 @@ are discarded from the raw string value.
 <p>
 Interpreted string literals are character sequences between double
 quotes, as in <code>&quot;bar&quot;</code>.
-Within the quotes, any character may appear except newline and unescaped double quote.
+Within the quotes, any character may appear except newline and unescaped double quotes.
 The text between the quotes forms the
 value of the literal, with backslash escapes interpreted as they
 are in <a href="#Rune_literals">rune literals</a> (except that <code>\'</code> is illegal and
@@ -2564,7 +2564,7 @@ TypeParamDecl   = IdentifierList TypeConstraint .
 <p>
 All non-blank names in the list must be unique.
 Each name declares a type parameter, which is a new and different <a href="#Types">named type</a>
-that acts as a place holder for an (as of yet) unknown type in the declaration.
+that acts as a placeholder for an (as of yet) unknown type in the declaration.
 The type parameter is replaced with a <i>type argument</i> upon
 <a href="#Instantiations">instantiation</a> of the generic function or type.
 </p>
@@ -5782,7 +5782,7 @@ a <a href="#Blocks">block</a>. The following statements are terminating:
 </ol>
 
 <p>
-All other statements are not terminating.
+All other statements are not terminated.
 </p>
 
 <p>
@@ -7767,7 +7767,7 @@ order in this example.
 <p>
 Dependency analysis is performed per package; only references referring
 to variables, functions, and (non-interface) methods declared in the current
-package are considered. If other, hidden, data dependencies exists between
+package are considered. If other, hidden, data dependencies exist between
 variables, the initialization order between those variables is unspecified.
 </p>
 
