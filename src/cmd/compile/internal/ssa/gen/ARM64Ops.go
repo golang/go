@@ -773,6 +773,12 @@ func init() {
 		{name: "LEnoov", controls: 1}, // 'LE' but without honoring overflow
 		{name: "GTnoov", controls: 1}, // 'GT' but without honoring overflow
 		{name: "GEnoov", controls: 1}, // 'GE' but without honoring overflow
+
+		// JUMPTABLE implements jump tables.
+		// Aux is the symbol (an *obj.LSym) for the jump table.
+		// control[0] is the index into the jump table.
+		// control[1] is the address of the jump table (the address of the symbol stored in Aux).
+		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
 	}
 
 	archs = append(archs, arch{
