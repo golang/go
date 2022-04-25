@@ -331,13 +331,13 @@ type Function struct {
 
 	// The following fields are set transiently during building,
 	// then cleared.
-	currentBlock *BasicBlock             // where to emit code
-	objects      map[types.Object]Value  // addresses of local variables
-	namedResults []*Alloc                // tuple of named results
-	targets      *targets                // linked stack of branch targets
-	lblocks      map[*ast.Object]*lblock // labelled blocks
-	info         *types.Info             // *types.Info to build from. nil for wrappers.
-	subst        *subster                // type substitution cache
+	currentBlock *BasicBlock              // where to emit code
+	objects      map[types.Object]Value   // addresses of local variables
+	namedResults []*Alloc                 // tuple of named results
+	targets      *targets                 // linked stack of branch targets
+	lblocks      map[types.Object]*lblock // labelled blocks
+	info         *types.Info              // *types.Info to build from. nil for wrappers.
+	subst        *subster                 // type substitution cache
 }
 
 // BasicBlock represents an SSA basic block.
