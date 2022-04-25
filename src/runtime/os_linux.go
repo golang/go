@@ -218,19 +218,42 @@ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
-	// skip over argv, envp to get to auxv
-	for argv_index(argv, n) != nil {
+	argsValid := true
+	if islibrary || isarchive {
+		if !sysLibArgsValid() {
+			argsValid = false
+		}
+	}
+
+	if argsValid {
+		// skip over argv, envp to get to auxv
+		for argv_index(argv, n) != nil {
+			n++
+		}
+
+		// skip NULL separator
 		n++
+
+		// now argv+n is auxv
+		auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+		if sysauxv(auxv[:]) != 0 {
+			return
+		}
+	} else {
+		args := unsafe.Pointer(persistentalloc(goarch.PtrSize*4, 0, &memstats.other_sys))
+		// argv pointer
+		*(**byte)(args) = (*byte)(add(args, goarch.PtrSize*1))
+		// argv data
+		*(**byte)(add(args, goarch.PtrSize*1)) = (*byte)(nil) // end argv TODO: READ FROM /proc/
+		*(**byte)(add(args, goarch.PtrSize*2)) = (*byte)(nil) // end envp TODO: READ FROM /proc/
+		*(**byte)(add(args, goarch.PtrSize*3)) = (*byte)(nil) // end auxv TODO: READ FROM /proc/
+		argc = 0
+		argv = (**byte)(args)
+
+		// argc = 0
+		// argv = (**byte)(&[3]*byte{nil, nil, nil})
 	}
 
-	// skip NULL separator
-	n++
-
-	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-	if sysauxv(auxv[:]) != 0 {
-		return
-	}
 	// In some situations we don't get a loader-provided
 	// auxv, such as when loaded as a library on Android.
 	// Fall back to /proc/self/auxv.
