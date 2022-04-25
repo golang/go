@@ -40,18 +40,23 @@ func TestBuildPackage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pkg := types.NewPackage("hello", "")
-	mode := ssa.InstantiateGenerics
-	ssapkg, _, err := ssautil.BuildPackage(&types.Config{Importer: importer.Default()}, fset, pkg, []*ast.File{f}, mode)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pkg.Name() != "main" {
-		t.Errorf("pkg.Name() = %s, want main", pkg.Name())
-	}
-	if ssapkg.Func("main") == nil {
-		ssapkg.WriteTo(os.Stderr)
-		t.Errorf("ssapkg has no main function")
+	for _, mode := range []ssa.BuilderMode{
+		ssa.SanityCheckFunctions,
+		ssa.InstantiateGenerics | ssa.SanityCheckFunctions,
+	} {
+		pkg := types.NewPackage("hello", "")
+		ssapkg, _, err := ssautil.BuildPackage(&types.Config{Importer: importer.Default()}, fset, pkg, []*ast.File{f}, mode)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if pkg.Name() != "main" {
+			t.Errorf("pkg.Name() = %s, want main", pkg.Name())
+		}
+		if ssapkg.Func("main") == nil {
+			ssapkg.WriteTo(os.Stderr)
+			t.Errorf("ssapkg has no main function")
+		}
+
 	}
 }
 
@@ -67,19 +72,23 @@ func TestPackages(t *testing.T) {
 		t.Fatal("there were errors")
 	}
 
-	prog, pkgs := ssautil.Packages(initial, ssa.InstantiateGenerics)
-	bytesNewBuffer := pkgs[0].Func("NewBuffer")
-	bytesNewBuffer.Pkg.Build()
+	for _, mode := range []ssa.BuilderMode{
+		ssa.SanityCheckFunctions,
+		ssa.SanityCheckFunctions | ssa.InstantiateGenerics,
+	} {
+		prog, pkgs := ssautil.Packages(initial, mode)
+		bytesNewBuffer := pkgs[0].Func("NewBuffer")
+		bytesNewBuffer.Pkg.Build()
 
-	// We'll dump the SSA of bytes.NewBuffer because it is small and stable.
-	out := new(bytes.Buffer)
-	bytesNewBuffer.WriteTo(out)
+		// We'll dump the SSA of bytes.NewBuffer because it is small and stable.
+		out := new(bytes.Buffer)
+		bytesNewBuffer.WriteTo(out)
 
-	// For determinism, sanitize the location.
-	location := prog.Fset.Position(bytesNewBuffer.Pos()).String()
-	got := strings.Replace(out.String(), location, "$GOROOT/src/bytes/buffer.go:1", -1)
+		// For determinism, sanitize the location.
+		location := prog.Fset.Position(bytesNewBuffer.Pos()).String()
+		got := strings.Replace(out.String(), location, "$GOROOT/src/bytes/buffer.go:1", -1)
 
-	want := `
+		want := `
 # Name: bytes.NewBuffer
 # Package: bytes
 # Location: $GOROOT/src/bytes/buffer.go:1
@@ -91,8 +100,9 @@ func NewBuffer(buf []byte) *Buffer:
 	return t0
 
 `[1:]
-	if got != want {
-		t.Errorf("bytes.NewBuffer SSA = <<%s>>, want <<%s>>", got, want)
+		if got != want {
+			t.Errorf("bytes.NewBuffer SSA = <<%s>>, want <<%s>>", got, want)
+		}
 	}
 }
 
