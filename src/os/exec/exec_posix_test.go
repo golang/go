@@ -129,7 +129,7 @@ func TestImplicitPWD(t *testing.T) {
 			// (We could perhaps refactor helperCommand to use a flag or switch on the
 			// value of argv[0] instead, but that doesn't seem worth the trouble at
 			// the moment.)
-			cmd := exec.Command("pwd")
+			cmd := exec.Command("pwd", "-L")
 			cmd.Dir = tc.dir
 
 			var pwds []string
