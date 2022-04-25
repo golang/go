@@ -99,6 +99,7 @@ should only run when the condition is satisfied. The available conditions are:
    - [buildmode:value] for whether -buildmode=value is supported
    - [trimpath] for whether the 'go' binary was built with -trimpath
    - [mismatched-goroot] for whether the test's GOROOT_FINAL does not match the real GOROOT
+   - [GOEXPERIMENT:expname] for whether the GOEXPERIMENT 'expname' is enabled
 
 A condition can be negated: [!short] means to run the rest of the line
 when testing.Short() is false. Multiple conditions may be given for a single
