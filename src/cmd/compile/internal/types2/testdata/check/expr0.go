@@ -178,3 +178,10 @@ func _() {
 	_ = -g /* ERROR 2-valued g */ ()
 	_ = <-g /* ERROR 2-valued g */ ()
 }
+
+// ~ is accepted as unary operator only permitted in interface type elements
+var (
+	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ 0
+	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ "foo"
+	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ i0
+)
