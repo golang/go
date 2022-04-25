@@ -2429,6 +2429,9 @@ func TestRemoveAllRace(t *testing.T) {
 		// like it does on Unix.
 		t.Skip("skipping on windows")
 	}
+	if runtime.GOOS == "dragonfly" {
+		testenv.SkipFlaky(t, 52301)
+	}
 
 	n := runtime.GOMAXPROCS(16)
 	defer runtime.GOMAXPROCS(n)
