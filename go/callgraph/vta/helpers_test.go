@@ -35,7 +35,7 @@ func want(f *ast.File) []string {
 // testProg returns an ssa representation of a program at
 // `path`, assumed to define package "testdata," and the
 // test want result as list of strings.
-func testProg(path string) (*ssa.Program, []string, error) {
+func testProg(path string, mode ssa.BuilderMode) (*ssa.Program, []string, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, nil, err
@@ -56,7 +56,7 @@ func testProg(path string) (*ssa.Program, []string, error) {
 		return nil, nil, err
 	}
 
-	prog := ssautil.CreateProgram(iprog, 0)
+	prog := ssautil.CreateProgram(iprog, mode)
 	// Set debug mode to exercise DebugRef instructions.
 	prog.Package(iprog.Created[0].Pkg).SetDebugMode(true)
 	prog.Build()

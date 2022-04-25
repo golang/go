@@ -11,12 +11,13 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/callgraph/cha"
+	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
 func TestVTACallGraphGo117(t *testing.T) {
 	file := "testdata/src/go117.go"
-	prog, want, err := testProg(file)
+	prog, want, err := testProg(file, ssa.BuilderMode(0))
 	if err != nil {
 		t.Fatalf("couldn't load test file '%s': %s", file, err)
 	}

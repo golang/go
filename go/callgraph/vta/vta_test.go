@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func TestVTACallGraph(t *testing.T) {
@@ -27,7 +28,7 @@ func TestVTACallGraph(t *testing.T) {
 		"testdata/src/callgraph_recursive_types.go",
 	} {
 		t.Run(file, func(t *testing.T) {
-			prog, want, err := testProg(file)
+			prog, want, err := testProg(file, ssa.BuilderMode(0))
 			if err != nil {
 				t.Fatalf("couldn't load test file '%s': %s", file, err)
 			}
@@ -47,7 +48,7 @@ func TestVTACallGraph(t *testing.T) {
 // enabled by having an arbitrary function set as input to CallGraph
 // instead of the whole program (i.e., ssautil.AllFunctions(prog)).
 func TestVTAProgVsFuncSet(t *testing.T) {
-	prog, want, err := testProg("testdata/src/callgraph_nested_ptr.go")
+	prog, want, err := testProg("testdata/src/callgraph_nested_ptr.go", ssa.BuilderMode(0))
 	if err != nil {
 		t.Fatalf("couldn't load test `testdata/src/callgraph_nested_ptr.go`: %s", err)
 	}
@@ -110,5 +111,26 @@ func TestVTAPanicMissingDefinitions(t *testing.T) {
 		if r.Err != nil {
 			t.Errorf("want no error for package %v; got %v", r.Pass.Pkg.Path(), r.Err)
 		}
+	}
+}
+
+func TestVTACallGraphGenerics(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("TestVTACallGraphGenerics requires type parameters")
+	}
+
+	// TODO(zpavlinovic): add more tests
+	file := "testdata/src/callgraph_generics.go"
+	prog, want, err := testProg(file, ssa.InstantiateGenerics)
+	if err != nil {
+		t.Fatalf("couldn't load test file '%s': %s", file, err)
+	}
+	if len(want) == 0 {
+		t.Fatalf("couldn't find want in `%s`", file)
+	}
+
+	g := CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
+	if got := callGraphStr(g); !subGraph(want, got) {
+		t.Errorf("computed callgraph %v should contain %v", got, want)
 	}
 }
