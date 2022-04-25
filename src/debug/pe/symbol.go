@@ -136,10 +136,9 @@ const (
 // auxiliary symbols: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records
 // COMDAT sections: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#comdat-sections-object-only
 // auxiliary info for section definitions: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-5-section-definitions
-//
 func (f *File) COFFSymbolReadSectionDefAux(idx int) (*COFFSymbolAuxFormat5, error) {
 	var rv *COFFSymbolAuxFormat5
-	if idx < 0 || idx > len(f.COFFSymbols) {
+	if idx < 0 || idx >= len(f.COFFSymbols) {
 		return rv, fmt.Errorf("invalid symbol index")
 	}
 	pesym := &f.COFFSymbols[idx]
