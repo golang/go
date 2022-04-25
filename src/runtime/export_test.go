@@ -85,6 +85,7 @@ func GCMask(x any) (ret []byte) {
 func RunSchedLocalQueueTest() {
 	_p_ := new(p)
 	gs := make([]g, len(_p_.runq))
+	escape(gs) // Ensure gs doesn't move, since we use guintptrs
 	for i := 0; i < len(_p_.runq); i++ {
 		if g, _ := runqget(_p_); g != nil {
 			throw("runq is not empty initially")
@@ -108,6 +109,7 @@ func RunSchedLocalQueueStealTest() {
 	p1 := new(p)
 	p2 := new(p)
 	gs := make([]g, len(p1.runq))
+	escape(gs) // Ensure gs doesn't move, since we use guintptrs
 	for i := 0; i < len(p1.runq); i++ {
 		for j := 0; j < i; j++ {
 			gs[j].sig = 0
@@ -155,6 +157,7 @@ func RunSchedLocalQueueEmptyTest(iters int) {
 	done := make(chan bool, 1)
 	p := new(p)
 	gs := make([]g, 2)
+	escape(gs) // Ensure gs doesn't move, since we use guintptrs
 	ready := new(uint32)
 	for i := 0; i < iters; i++ {
 		*ready = 0
@@ -1257,7 +1260,7 @@ func NewGCController(gcPercent int) *GCController {
 	// do 64-bit atomics on it, and if it gets stack-allocated
 	// on a 32-bit architecture, it may get allocated unaligned
 	// space.
-	g := escape(new(GCController)).(*GCController)
+	g := escape(new(GCController))
 	g.gcControllerState.test = true // Mark it as a test copy.
 	g.init(int32(gcPercent))
 	return g
@@ -1318,7 +1321,8 @@ func (c *GCController) EndCycle(bytesMarked uint64, assistTime, elapsed int64, g
 var escapeSink any
 
 //go:noinline
-func escape(x any) any {
+//go:norace
+func escape[T any](x T) T {
 	escapeSink = x
 	escapeSink = nil
 	return x
