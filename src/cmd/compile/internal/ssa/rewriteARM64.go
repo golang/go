@@ -27491,6 +27491,7 @@ func rewriteValueARM64_OpZero(v *Value) bool {
 	return false
 }
 func rewriteBlockARM64(b *Block) bool {
+	typ := &b.Func.Config.Types
 	switch b.Kind {
 	case BlockARM64EQ:
 		// match: (EQ (CMPWconst [0] x:(ANDconst [c] y)) yes no)
@@ -28843,6 +28844,19 @@ func rewriteBlockARM64(b *Block) bool {
 			cond := b.Controls[0]
 			b.resetWithControl(BlockARM64TBNZ, cond)
 			b.AuxInt = int64ToAuxInt(0)
+			return true
+		}
+	case BlockJumpTable:
+		// match: (JumpTable idx)
+		// result: (JUMPTABLE {makeJumpTableSym(b)} idx (MOVDaddr <typ.Uintptr> {makeJumpTableSym(b)} (SB)))
+		for {
+			idx := b.Controls[0]
+			v0 := b.NewValue0(b.Pos, OpARM64MOVDaddr, typ.Uintptr)
+			v0.Aux = symToAux(makeJumpTableSym(b))
+			v1 := b.NewValue0(b.Pos, OpSB, typ.Uintptr)
+			v0.AddArg(v1)
+			b.resetWithControl2(BlockARM64JUMPTABLE, idx, v0)
+			b.Aux = symToAux(makeJumpTableSym(b))
 			return true
 		}
 	case BlockARM64LE:

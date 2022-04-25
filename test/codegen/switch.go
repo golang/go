@@ -24,6 +24,7 @@ func f(x string) int {
 // use jump tables for 8+ int cases
 func square(x int) int {
 	// amd64:`JMP\s\(.*\)\(.*\)$`
+	// arm64:`MOVD\s\(R.*\)\(R.*<<3\)`,`JMP\s\(R.*\)$`
 	switch x {
 	case 1:
 		return 1
@@ -49,6 +50,7 @@ func square(x int) int {
 // use jump tables for 8+ string lengths
 func length(x string) int {
 	// amd64:`JMP\s\(.*\)\(.*\)$`
+	// arm64:`MOVD\s\(R.*\)\(R.*<<3\)`,`JMP\s\(R.*\)$`
 	switch x {
 	case "a":
 		return 1

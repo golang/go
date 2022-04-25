@@ -534,6 +534,8 @@
 
 (If cond yes no) => (TBNZ [0] cond yes no)
 
+(JumpTable idx) => (JUMPTABLE {makeJumpTableSym(b)} idx (MOVDaddr <typ.Uintptr> {makeJumpTableSym(b)} (SB)))
+
 // atomic intrinsics
 // Note: these ops do not accept offset.
 (AtomicLoad8   ...) => (LDARB ...)
