@@ -62,6 +62,7 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	ssainput := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
+	// TODO(48525): ssainput.SrcFuncs is missing fn._Instances(). runFunc will be skipped.
 	for _, fn := range ssainput.SrcFuncs {
 		runFunc(pass, fn)
 	}
