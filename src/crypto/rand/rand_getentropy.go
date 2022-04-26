@@ -14,7 +14,7 @@ func init() {
 	altGetRandom = getEntropy
 }
 
-func getEntropy(p []byte) (ok bool) {
+func getEntropy(p []byte) error {
 	// getentropy(2) returns a maximum of 256 bytes per call
 	for i := 0; i < len(p); i += 256 {
 		end := i + 256
@@ -23,8 +23,8 @@ func getEntropy(p []byte) (ok bool) {
 		}
 		err := unix.GetEntropy(p[i:end])
 		if err != nil {
-			return false
+			return err
 		}
 	}
-	return true
+	return nil
 }
