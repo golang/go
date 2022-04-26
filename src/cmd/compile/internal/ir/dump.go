@@ -156,7 +156,7 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 		}
 		p.dump(x.Elem(), depth-1)
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if x.IsNil() {
 			p.printf("nil")
 			return
@@ -258,7 +258,7 @@ func isZeroVal(x reflect.Value) bool {
 		return x.Uint() == 0
 	case reflect.String:
 		return x.String() == ""
-	case reflect.Interface, reflect.Ptr, reflect.Slice:
+	case reflect.Interface, reflect.Pointer, reflect.Slice:
 		return x.IsNil()
 	}
 	return false

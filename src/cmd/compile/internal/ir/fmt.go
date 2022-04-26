@@ -1209,7 +1209,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			continue
 		}
 		switch tf.Type.Kind() {
-		case reflect.Interface, reflect.Ptr, reflect.Slice:
+		case reflect.Interface, reflect.Pointer, reflect.Slice:
 			if vf.IsNil() {
 				continue
 			}
@@ -1289,7 +1289,7 @@ func isZero(v reflect.Value) bool {
 			}
 		}
 		return true
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
 		return v.IsNil()
 	case reflect.String:
 		return v.Len() == 0
