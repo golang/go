@@ -305,7 +305,7 @@ func registerFlags() {
 			panic(fmt.Sprintf("base.Flag.%s is missing help text", f.Name))
 		}
 
-		if k := f.Type.Kind(); (k == reflect.Ptr || k == reflect.Func) && v.Field(i).IsNil() {
+		if k := f.Type.Kind(); (k == reflect.Pointer || k == reflect.Func) && v.Field(i).IsNil() {
 			panic(fmt.Sprintf("base.Flag.%s is uninitialized %v", f.Name, f.Type))
 		}
 

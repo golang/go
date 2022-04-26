@@ -111,7 +111,7 @@ func (p *dumper) dump(x reflect.Value, n Node) {
 		}
 		p.dump(x.Elem(), nil)
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if x.IsNil() {
 			p.printf("nil")
 			return
