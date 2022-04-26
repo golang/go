@@ -3,10 +3,10 @@
 package js
 
 // Promisable function that satisfies MakePromise's requirements.
-type PromiseAble = func(Value, []Value) (interface{}, error)
+type PromiseAbleFunc = func(Value, []Value) (interface{}, error)
 
 // MakePromise makes a promise of a function that takes an array of arguments.
-func MakePromise(fn PromiseAble) Func {
+func PromiseOf(fn PromiseAbleFunc) Func {
 	return FuncOf(func(this Value, args []Value) interface{} {
 		// Handler for this Promise.
 		handler := FuncOf(func(promiseThis Value, promiseArgs []Value) interface{} {
