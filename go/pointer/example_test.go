@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// Create SSA-form program representation.
-	prog := ssautil.CreateProgram(iprog, 0)
+	prog := ssautil.CreateProgram(iprog, ssa.InstantiateGenerics)
 	mainPkg := prog.Package(iprog.Created[0].Pkg)
 
 	// Build SSA code for bodies of all functions in the whole program.
