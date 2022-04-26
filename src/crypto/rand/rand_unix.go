@@ -40,25 +40,7 @@ type reader struct {
 
 // altGetRandom if non-nil specifies an OS-specific function to get
 // urandom-style randomness.
-var altGetRandom func([]byte) (ok bool)
-
-// batched returns a function that calls f to populate a []byte by chunking it
-// into subslices of, at most, readMax bytes.
-func batched(f func([]byte) error, readMax int) func([]byte) bool {
-	return func(out []byte) bool {
-		for len(out) > 0 {
-			read := len(out)
-			if read > readMax {
-				read = readMax
-			}
-			if f(out[:read]) != nil {
-				return false
-			}
-			out = out[read:]
-		}
-		return true
-	}
-}
+var altGetRandom func([]byte) (err error)
 
 func warnBlocked() {
 	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
@@ -72,7 +54,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
 		t := time.AfterFunc(time.Minute, warnBlocked)
 		defer t.Stop()
 	}
-	if altGetRandom != nil && altGetRandom(b) {
+	if altGetRandom != nil && altGetRandom(b) == nil {
 		return len(b), nil
 	}
 	if atomic.LoadUint32(&r.used) != 2 {

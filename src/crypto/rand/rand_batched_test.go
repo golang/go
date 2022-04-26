@@ -23,8 +23,8 @@ func TestBatched(t *testing.T) {
 	}, 5)
 
 	p := make([]byte, 13)
-	if !fillBatched(p) {
-		t.Fatal("batched function returned false")
+	if err := fillBatched(p); err != nil {
+		t.Fatalf("batched function returned error: %s", err)
 	}
 	expected := []byte{0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2}
 	if !bytes.Equal(expected, p) {
@@ -55,8 +55,8 @@ func TestBatchedBuffering(t *testing.T) {
 			max = len(outputMarker)
 		}
 		howMuch := prand.Intn(max + 1)
-		if !fillBatched(outputMarker[:howMuch]) {
-			t.Fatal("batched function returned false")
+		if err := fillBatched(outputMarker[:howMuch]); err != nil {
+			t.Fatalf("batched function returned error: %s", err)
 		}
 		outputMarker = outputMarker[howMuch:]
 	}
@@ -67,14 +67,14 @@ func TestBatchedBuffering(t *testing.T) {
 
 func TestBatchedError(t *testing.T) {
 	b := batched(func(p []byte) error { return errors.New("failure") }, 5)
-	if b(make([]byte, 13)) {
+	if b(make([]byte, 13)) == nil {
 		t.Fatal("batched function should have returned an error")
 	}
 }
 
 func TestBatchedEmpty(t *testing.T) {
 	b := batched(func(p []byte) error { return errors.New("failure") }, 5)
-	if !b(make([]byte, 0)) {
+	if b(make([]byte, 0)) != nil {
 		t.Fatal("empty slice should always return successful")
 	}
 }
