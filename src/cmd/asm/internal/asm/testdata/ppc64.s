@@ -351,11 +351,18 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	CRORN CR0GT, CR0EQ, CR0SO       // 4c620b42
 	CRXOR CR0GT, CR0EQ, CR0SO       // 4c620982
 
-	ISEL $1, R3, R4, R5             // 7ca3205e
 	ISEL $0, R3, R4, R5             // 7ca3201e
+	ISEL $1, R3, R4, R5             // 7ca3205e
 	ISEL $2, R3, R4, R5             // 7ca3209e
 	ISEL $3, R3, R4, R5             // 7ca320de
 	ISEL $4, R3, R4, R5             // 7ca3211e
+	ISEL $31, R3, R4, R5            // 7ca327de
+	ISEL CR0LT, R3, R4, R5          // 7ca3201e
+	ISEL CR0GT, R3, R4, R5          // 7ca3205e
+	ISEL CR0EQ, R3, R4, R5          // 7ca3209e
+	ISEL CR0SO, R3, R4, R5          // 7ca320de
+	ISEL CR1LT, R3, R4, R5          // 7ca3211e
+	ISEL CR7SO, R3, R4, R5          // 7ca327de
 	POPCNTB R3, R4                  // 7c6400f4
 	POPCNTW R3, R4                  // 7c6402f4
 	POPCNTD R3, R4                  // 7c6403f4

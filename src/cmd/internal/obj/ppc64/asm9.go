@@ -313,8 +313,8 @@ var optab = []Optab{
 	{as: AADDME, a1: C_REG, a6: C_REG, type_: 47, size: 4},
 	{as: AEXTSB, a1: C_REG, a6: C_REG, type_: 48, size: 4},
 	{as: AEXTSB, a6: C_REG, type_: 48, size: 4},
-	{as: AISEL, a1: C_LCON, a2: C_REG, a3: C_REG, a6: C_REG, type_: 84, size: 4},
-	{as: AISEL, a1: C_ZCON, a2: C_REG, a3: C_REG, a6: C_REG, type_: 84, size: 4},
+	{as: AISEL, a1: C_U5CON, a2: C_REG, a3: C_REG, a6: C_REG, type_: 84, size: 4},
+	{as: AISEL, a1: C_CRBIT, a2: C_REG, a3: C_REG, a6: C_REG, type_: 84, size: 4},
 	{as: ANEG, a1: C_REG, a6: C_REG, type_: 47, size: 4},
 	{as: ANEG, a6: C_REG, type_: 47, size: 4},
 	{as: AREM, a1: C_REG, a6: C_REG, type_: 50, size: 12},
@@ -1876,9 +1876,6 @@ func buildop(ctxt *obj.Link) {
 		case AFCMPO:
 			opset(AFCMPU, r0)
 
-		case AISEL:
-			opset(AISEL, r0)
-
 		case AMTFSB0:
 			opset(AMTFSB0CC, r0)
 			opset(AMTFSB1, r0)
@@ -2042,6 +2039,7 @@ func buildop(ctxt *obj.Link) {
 			ACLRLSLWI,
 			AMTVSRDD,
 			APNOP,
+			AISEL,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -3610,6 +3608,10 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 84: // ISEL BC,RA,RB,RT -> isel rt,ra,rb,bc
 		bc := c.vregoff(&p.From)
+		if o.a1 == C_CRBIT {
+			// CR bit is encoded as a register, not a constant.
+			bc = int64(p.From.Reg)
+		}
 
 		// rt = To.Reg, ra = p.Reg, rb = p.From3.Reg
 		o1 = AOP_ISEL(OP_ISEL, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), uint32(bc))
