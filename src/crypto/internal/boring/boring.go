@@ -17,7 +17,6 @@ import "C"
 import (
 	"crypto/internal/boring/sig"
 	_ "crypto/internal/boring/syso"
-	"math/big"
 	"math/bits"
 	"unsafe"
 )
@@ -60,7 +59,7 @@ type fail string
 
 func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
 
-func wbase(b []big.Word) *C.uint8_t {
+func wbase(b BigInt) *C.uint8_t {
 	if len(b) == 0 {
 		return nil
 	}
@@ -69,20 +68,19 @@ func wbase(b []big.Word) *C.uint8_t {
 
 const wordBytes = bits.UintSize / 8
 
-func bigToBN(x *big.Int) *C.GO_BIGNUM {
-	raw := x.Bits()
-	return C._goboringcrypto_BN_le2bn(wbase(raw), C.size_t(len(raw)*wordBytes), nil)
+func bigToBN(x BigInt) *C.GO_BIGNUM {
+	return C._goboringcrypto_BN_le2bn(wbase(x), C.size_t(len(x)*wordBytes), nil)
 }
 
-func bnToBig(bn *C.GO_BIGNUM) *big.Int {
-	raw := make([]big.Word, (C._goboringcrypto_BN_num_bytes(bn)+wordBytes-1)/wordBytes)
-	if C._goboringcrypto_BN_bn2le_padded(wbase(raw), C.size_t(len(raw)*wordBytes), bn) == 0 {
+func bnToBig(bn *C.GO_BIGNUM) BigInt {
+	x := make(BigInt, (C._goboringcrypto_BN_num_bytes(bn)+wordBytes-1)/wordBytes)
+	if C._goboringcrypto_BN_bn2le_padded(wbase(x), C.size_t(len(x)*wordBytes), bn) == 0 {
 		panic("boringcrypto: bignum conversion failed")
 	}
-	return new(big.Int).SetBits(raw)
+	return x
 }
 
-func bigToBn(bnp **C.GO_BIGNUM, b *big.Int) bool {
+func bigToBn(bnp **C.GO_BIGNUM, b BigInt) bool {
 	if *bnp != nil {
 		C._goboringcrypto_BN_free(*bnp)
 		*bnp = nil

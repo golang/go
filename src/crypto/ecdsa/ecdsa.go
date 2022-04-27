@@ -24,6 +24,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/elliptic"
+	"crypto/internal/boring/bbig"
 	"crypto/internal/randutil"
 	"crypto/sha512"
 	"errors"
@@ -166,7 +167,7 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &PrivateKey{PublicKey: PublicKey{Curve: c, X: x, Y: y}, D: d}, nil
+		return &PrivateKey{PublicKey: PublicKey{Curve: c, X: bbig.Dec(x), Y: bbig.Dec(y)}, D: bbig.Dec(d)}, nil
 	}
 	boring.UnreachableExceptTests()
 
@@ -226,7 +227,21 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 		if err != nil {
 			return nil, nil, err
 		}
-		return boring.SignECDSA(b, hash)
+		sig, err := boring.SignMarshalECDSA(b, hash)
+		if err != nil {
+			return nil, nil, err
+		}
+		var r, s big.Int
+		var inner cryptobyte.String
+		input := cryptobyte.String(sig)
+		if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
+			!input.Empty() ||
+			!inner.ReadASN1Integer(&r) ||
+			!inner.ReadASN1Integer(&s) ||
+			!inner.Empty() {
+			return nil, nil, errors.New("invalid ASN.1 from boringcrypto")
+		}
+		return &r, &s, nil
 	}
 	boring.UnreachableExceptTests()
 
@@ -327,11 +342,20 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 // use VerifyASN1 instead of dealing directly with r, s.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	if boring.Enabled {
-		b, err := boringPublicKey(pub)
+		key, err := boringPublicKey(pub)
 		if err != nil {
 			return false
 		}
-		return boring.VerifyECDSA(b, hash, r, s)
+		var b cryptobyte.Builder
+		b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+			b.AddASN1BigInt(r)
+			b.AddASN1BigInt(s)
+		})
+		sig, err := b.Bytes()
+		if err != nil {
+			return false
+		}
+		return boring.VerifyECDSA(key, hash, sig)
 	}
 	boring.UnreachableExceptTests()
 
