@@ -141,7 +141,9 @@ unsigned _goboringcrypto_BN_num_bits(const GO_BIGNUM*);
 unsigned _goboringcrypto_BN_num_bytes(const GO_BIGNUM*);
 int _goboringcrypto_BN_is_negative(const GO_BIGNUM*);
 GO_BIGNUM* _goboringcrypto_BN_bin2bn(const uint8_t*, size_t, GO_BIGNUM*);
+GO_BIGNUM* _goboringcrypto_BN_le2bn(const uint8_t*, size_t, GO_BIGNUM*);
 size_t _goboringcrypto_BN_bn2bin(const GO_BIGNUM*, uint8_t*);
+int _goboringcrypto_BN_bn2le_padded(uint8_t*, size_t, const GO_BIGNUM*);
 
 // #include <openssl/ec.h>
 /*unchecked (opaque)*/ typedef struct GO_EC_GROUP { char data[1]; } GO_EC_GROUP;
