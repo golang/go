@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build boringcrypto
+
 package tls
 
 import (
@@ -124,5 +126,3 @@ func supportedSignatureAlgorithms() []SignatureScheme {
 	}
 	return fipsSupportedSignatureAlgorithms
 }
-
-var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme

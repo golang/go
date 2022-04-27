@@ -18,7 +18,7 @@ git fetch
 git worktree add --track -b "$BRANCH" "$WORKTREE" origin/dev.boringcrypto
 
 cd "$WORKTREE/src"
-./make.bash
+GOEXPERIMENT=boringcrypto ./make.bash
 
 cd ../misc/boring
 for branch in "$@"; do

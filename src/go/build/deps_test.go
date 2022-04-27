@@ -397,12 +397,12 @@ var depsRules = `
 	NET, log
 	< net/mail;
 
-	NONE < crypto/internal/boring/sig;
+	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
 	sync/atomic < crypto/internal/boring/fipstls;
 
 	encoding/binary, golang.org/x/sys/cpu, hash,
 	FMT, math/big, embed,
-	CGO, crypto/internal/boring/sig, crypto/internal/boring/fipstls
+	CGO, crypto/internal/boring/sig, crypto/internal/boring/fipstls, crypto/internal/boring/syso
 	< crypto
 	< crypto/subtle
 	< crypto/internal/subtle

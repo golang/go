@@ -57,7 +57,7 @@ func runWithEnv(t *testing.T, msg string, env []string, args ...string) {
 func goCmd(t *testing.T, args ...string) string {
 	newargs := []string{args[0]}
 	if *testX && args[0] != "env" {
-		newargs = append(newargs, "-x")
+		newargs = append(newargs, "-x", "-ldflags=-v")
 	}
 	newargs = append(newargs, args[1:]...)
 	c := exec.Command("go", newargs...)

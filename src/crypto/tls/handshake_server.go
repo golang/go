@@ -812,12 +812,13 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 
 	if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
 		opts := x509.VerifyOptions{
-			IsBoring: isBoringCertificate,
-
 			Roots:         c.config.ClientCAs,
 			CurrentTime:   c.config.time(),
 			Intermediates: x509.NewCertPool(),
 			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+		if needFIPS() {
+			opts.IsBoring = isBoringCertificate
 		}
 
 		for _, cert := range certs[1:] {

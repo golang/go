@@ -34,6 +34,8 @@ type clientHandshakeState struct {
 	session      *ClientSessionState
 }
 
+var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
+
 func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 	config := c.config
 	if len(config.ServerName) == 0 && !config.InsecureSkipVerify {
@@ -859,12 +861,13 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 
 	if !c.config.InsecureSkipVerify {
 		opts := x509.VerifyOptions{
-			IsBoring: isBoringCertificate,
-
 			Roots:         c.config.RootCAs,
 			CurrentTime:   c.config.time(),
 			DNSName:       c.config.ServerName,
 			Intermediates: x509.NewCertPool(),
+		}
+		if needFIPS() {
+			opts.IsBoring = isBoringCertificate
 		}
 		for _, cert := range certs[1:] {
 			opts.Intermediates.AddCert(cert)
