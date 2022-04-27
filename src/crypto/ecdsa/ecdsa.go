@@ -31,13 +31,10 @@ import (
 	"io"
 	"math/big"
 
+	"crypto/internal/boring"
+
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
-)
-
-import (
-	"crypto/internal/boring"
-	"unsafe"
 )
 
 // A invertible implements fast inverse in GF(N).
@@ -60,8 +57,6 @@ const (
 type PublicKey struct {
 	elliptic.Curve
 	X, Y *big.Int
-
-	boring unsafe.Pointer
 }
 
 // Any methods implemented on PublicKey might need to also be implemented on
@@ -89,8 +84,6 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 type PrivateKey struct {
 	PublicKey
 	D *big.Int
-
-	boring unsafe.Pointer
 }
 
 // Public returns the public key corresponding to priv.
