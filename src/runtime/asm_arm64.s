@@ -1272,9 +1272,12 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 // If the goroutine is in any other state, it's not safe to inject a call.
 //
 // This function communicates back to the debugger by setting R20 and
-// invoking BRK to raise a breakpoint signal. See the comments in the
-// implementation for the protocol the debugger is expected to
-// follow. InjectDebugCall in the runtime tests demonstrates this protocol.
+// invoking BRK to raise a breakpoint signal. Note that the signal PC of
+// the signal triggered by the BRK instruction is the PC where the signal
+// is trapped, not the next PC, so to resume execution, the debugger needs
+// to set the signal PC to PC+4. See the comments in the implementation for
+// the protocol the debugger is expected to follow. InjectDebugCall in the
+// runtime tests demonstrates this protocol.
 //
 // The debugger must ensure that any pointers passed to the function
 // obey escape analysis requirements. Specifically, it must not pass
@@ -1332,13 +1335,14 @@ good:
 	// Once the frame is allocated, this will set R20 to 0 and
 	// invoke BRK. The debugger should write the argument
 	// frame for the call at SP+8, set up argument registers,
-	// set the lr as the signal PC + 4, set the PC to the function
+	// set the LR as the signal PC + 4, set the PC to the function
 	// to call, set R26 to point to the closure (if a closure call),
 	// and resume execution.
 	//
 	// If the function returns, this will set R20 to 1 and invoke
 	// BRK. The debugger can then inspect any return value saved
-	// on the stack at SP+8 and in registers and resume execution again.
+	// on the stack at SP+8 and in registers. To resume execution,
+	// the debugger should restore the LR from (SP).
 	//
 	// If the function panics, this will set R20 to 2 and invoke BRK.
 	// The interface{} value of the panic will be at SP+8. The debugger
