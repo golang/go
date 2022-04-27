@@ -34,7 +34,6 @@ import (
 	"io"
 	"math"
 	"math/big"
-	"unsafe"
 )
 
 var bigZero = big.NewInt(0)
@@ -44,8 +43,6 @@ var bigOne = big.NewInt(1)
 type PublicKey struct {
 	N *big.Int // modulus
 	E int      // public exponent
-
-	boring unsafe.Pointer
 }
 
 // Any methods implemented on PublicKey might need to also be implemented on
@@ -109,8 +106,6 @@ type PrivateKey struct {
 	// Precomputed contains precomputed values that speed up private
 	// operations, if available.
 	Precomputed PrecomputedValues
-
-	boring unsafe.Pointer
 }
 
 // Public returns the public key corresponding to priv.

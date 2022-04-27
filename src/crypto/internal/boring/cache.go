@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build boringcrypto
-
 package boring
 
 import (
@@ -39,7 +37,7 @@ type cacheEntry struct {
 	next *cacheEntry    // immutable once linked into table
 }
 
-func registerCache(unsafe.Pointer)
+func registerCache(unsafe.Pointer) // provided by runtime
 
 // Register registers the cache with the runtime,
 // so that c.ptable can be cleared at the start of each GC.
@@ -106,7 +104,8 @@ func (c *Cache) Put(k, v unsafe.Pointer) {
 	//
 	//  1. We track in noK the start of the section of
 	//     the list that we've confirmed has no entry for k.
-	//     The next time down the list, we can stop at noK.
+	//     The next time down the list, we can stop at noK,
+	//     because new entries are inserted at the front of the list.
 	//     This guarantees we never traverse an entry
 	//     multiple times.
 	//
@@ -127,12 +126,15 @@ func (c *Cache) Put(k, v unsafe.Pointer) {
 		if add == nil {
 			add = &cacheEntry{k, v, nil}
 		}
-		if n < 1000 {
-			add.next = start
+		add.next = start
+		if n >= 1000 {
+			// If an individual list gets too long, which shouldn't happen,
+			// throw it away to avoid quadratic lookup behavior.
+			add.next = nil
 		}
 		if atomic.CompareAndSwapPointer(head, unsafe.Pointer(start), unsafe.Pointer(add)) {
 			return
 		}
-		noK = e
+		noK = start
 	}
 }

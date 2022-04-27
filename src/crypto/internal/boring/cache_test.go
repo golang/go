@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build boringcrypto
-
 package boring
 
 import (
 	"fmt"
 	"runtime"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"unsafe"
 )
@@ -25,11 +25,10 @@ func TestCache(t *testing.T) {
 	c := new(Cache)
 
 	// Create many entries.
-	seq := 0
+	seq := uint32(0)
 	next := func() unsafe.Pointer {
 		x := new(int)
-		*x = seq
-		seq++
+		*x = int(atomic.AddUint32(&seq, 1))
 		return unsafe.Pointer(x)
 	}
 	m := make(map[unsafe.Pointer]unsafe.Pointer)
@@ -67,7 +66,7 @@ func TestCache(t *testing.T) {
 	c.Clear()
 	for k := range m {
 		if cv := c.Get(k); cv != nil {
-			t.Fatalf("after Clear, c.Get(%v) = %v, want nil", str(k), str(cv))
+			t.Fatalf("after GC, c.Get(%v) = %v, want nil", str(k), str(cv))
 		}
 	}
 
@@ -81,5 +80,41 @@ func TestCache(t *testing.T) {
 		if cv := c.Get(k); cv != nil {
 			t.Fatalf("after Clear, c.Get(%v) = %v, want nil", str(k), str(cv))
 		}
+	}
+
+	// Check that cache works for concurrent access.
+	// Lists are discarded if they reach 1000 entries,
+	// and there are cacheSize list heads, so we should be
+	// able to do 100 * cacheSize entries with no problem at all.
+	c = new(Cache)
+	var barrier, wg sync.WaitGroup
+	const N = 100
+	barrier.Add(N)
+	wg.Add(N)
+	var lost int32
+	for i := 0; i < N; i++ {
+		go func() {
+			defer wg.Done()
+
+			m := make(map[unsafe.Pointer]unsafe.Pointer)
+			for j := 0; j < cacheSize; j++ {
+				k, v := next(), next()
+				m[k] = v
+				c.Put(k, v)
+			}
+			barrier.Done()
+			barrier.Wait()
+
+			for k, v := range m {
+				if cv := c.Get(k); cv != v {
+					t.Errorf("c.Get(%v) = %v, want %v", str(k), str(cv), str(v))
+					atomic.AddInt32(&lost, +1)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	if lost != 0 {
+		t.Errorf("lost %d entries", lost)
 	}
 }

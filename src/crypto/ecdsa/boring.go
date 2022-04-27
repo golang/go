@@ -10,18 +10,13 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
 	"math/big"
-	"sync/atomic"
 	"unsafe"
 )
 
 // Cached conversions from Go PublicKey/PrivateKey to BoringCrypto.
 //
-// A new 'boring atomic.Value' field in both PublicKey and PrivateKey
-// serves as a cache for the most recent conversion. The cache is an
-// atomic.Value because code might reasonably set up a key and then
-// (thinking it immutable) use it from multiple goroutines simultaneously.
-// The first operation initializes the cache; if there are multiple simultaneous
-// first operations, they will do redundant work but not step on each other.
+// The first operation on a PublicKey or PrivateKey makes a parallel
+// BoringCrypto key and saves it in pubCache or privCache.
 //
 // We could just assume that once used in a Sign or Verify operation,
 // a particular key is never again modified, but that has not been a
@@ -31,13 +26,21 @@ import (
 // still matches before using the cached key. The theory is that the real
 // operations are significantly more expensive than the comparison.
 
+var pubCache boring.Cache
+var privCache boring.Cache
+
+func init() {
+	pubCache.Register()
+	privCache.Register()
+}
+
 type boringPub struct {
 	key  *boring.PublicKeyECDSA
 	orig PublicKey
 }
 
 func boringPublicKey(pub *PublicKey) (*boring.PublicKeyECDSA, error) {
-	b := (*boringPub)(atomic.LoadPointer(&pub.boring))
+	b := (*boringPub)(pubCache.Get(unsafe.Pointer(pub)))
 	if b != nil && publicKeyEqual(&b.orig, pub) {
 		return b.key, nil
 	}
@@ -49,7 +52,7 @@ func boringPublicKey(pub *PublicKey) (*boring.PublicKeyECDSA, error) {
 		return nil, err
 	}
 	b.key = key
-	atomic.StorePointer(&pub.boring, unsafe.Pointer(b))
+	pubCache.Put(unsafe.Pointer(pub), unsafe.Pointer(b))
 	return key, nil
 }
 
@@ -59,7 +62,7 @@ type boringPriv struct {
 }
 
 func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyECDSA, error) {
-	b := (*boringPriv)(atomic.LoadPointer(&priv.boring))
+	b := (*boringPriv)(privCache.Get(unsafe.Pointer(priv)))
 	if b != nil && privateKeyEqual(&b.orig, priv) {
 		return b.key, nil
 	}
@@ -71,7 +74,7 @@ func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyECDSA, error) {
 		return nil, err
 	}
 	b.key = key
-	atomic.StorePointer(&priv.boring, unsafe.Pointer(b))
+	privCache.Put(unsafe.Pointer(priv), unsafe.Pointer(b))
 	return key, nil
 }
 
