@@ -1156,33 +1156,6 @@ func writeType(t *types.Type) *obj.LSym {
 	// for security, only the exported fields.
 	case types.TSTRUCT:
 		fields := t.Fields().Slice()
-
-		// omitFieldForAwfulBoringCryptoKludge reports whether
-		// the field t should be omitted from the reflect data.
-		// In the crypto/... packages we omit an unexported field
-		// named "boring", to keep from breaking client code that
-		// expects rsa.PublicKey etc to have only public fields.
-		// As the name suggests, this is an awful kludge, but it is
-		// limited to the dev.boringcrypto branch and avoids
-		// much more invasive effects elsewhere.
-		omitFieldForAwfulBoringCryptoKludge := func(t *types.Field) bool {
-			if t.Sym == nil || t.Sym.Name != "boring" || t.Sym.Pkg == nil {
-				return false
-			}
-			path := t.Sym.Pkg.Path
-			if t.Sym.Pkg == types.LocalPkg {
-				path = base.Ctxt.Pkgpath
-			}
-			return strings.HasPrefix(path, "crypto/")
-		}
-		newFields := fields[:0:0]
-		for _, t1 := range fields {
-			if !omitFieldForAwfulBoringCryptoKludge(t1) {
-				newFields = append(newFields, t1)
-			}
-		}
-		fields = newFields
-
 		for _, t1 := range fields {
 			writeType(t1.Type)
 		}
