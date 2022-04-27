@@ -4,7 +4,30 @@
 
 package types
 
-import "testing"
+import (
+	"go/token"
+	"testing"
+)
+
+func TestError(t *testing.T) {
+	var err error_
+	want := "no error"
+	if got := err.String(); got != want {
+		t.Errorf("empty error: got %q, want %q", got, want)
+	}
+
+	want = "0: foo 42"
+	err.errorf(token.NoPos, "foo %d", 42)
+	if got := err.String(); got != want {
+		t.Errorf("simple error: got %q, want %q", got, want)
+	}
+
+	want = "0: foo 42\n\tbar 43"
+	err.errorf(token.NoPos, "bar %d", 43)
+	if got := err.String(); got != want {
+		t.Errorf("simple error: got %q, want %q", got, want)
+	}
+}
 
 func TestStripAnnotations(t *testing.T) {
 	for _, test := range []struct {

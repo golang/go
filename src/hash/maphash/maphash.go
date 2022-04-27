@@ -252,21 +252,20 @@ func (h *Hash) Sum64() uint64 {
 
 // MakeSeed returns a new random seed.
 func MakeSeed() Seed {
-	var s1, s2 uint64
+	var s uint64
 	for {
-		s1 = uint64(runtime_fastrand())
-		s2 = uint64(runtime_fastrand())
+		s = runtime_fastrand64()
 		// We use seed 0 to indicate an uninitialized seed/hash,
 		// so keep trying until we get a non-zero seed.
-		if s1|s2 != 0 {
+		if s != 0 {
 			break
 		}
 	}
-	return Seed{s: s1<<32 + s2}
+	return Seed{s: s}
 }
 
-//go:linkname runtime_fastrand runtime.fastrand
-func runtime_fastrand() uint32
+//go:linkname runtime_fastrand64 runtime.fastrand64
+func runtime_fastrand64() uint64
 
 func rthash(ptr *byte, len int, seed uint64) uint64 {
 	if len == 0 {

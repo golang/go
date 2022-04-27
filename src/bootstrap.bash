@@ -96,7 +96,7 @@ if [ "$BOOTSTRAP_FORMAT" = "mintgz" ]; then
 	echo "Preparing to generate build system's ${OUTGZ}; cleaning ..."
 	rm -rf bin/gofmt
 	rm -rf src/runtime/race/race_*.syso
-	rm -rf api test doc misc/cgo/test misc/trace
+	rm -rf api test doc misc/cgo/test
 	rm -rf pkg/tool/*_*/{addr2line,api,cgo,cover,doc,fix,nm,objdump,pack,pprof,test2json,trace,vet}
 	rm -rf pkg/*_*/{image,database,cmd}
 	rm -rf $(find . -type d -name testdata)

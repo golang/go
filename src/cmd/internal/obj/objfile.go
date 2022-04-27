@@ -726,11 +726,13 @@ func genFuncInfoSyms(ctxt *Link) {
 		}
 
 		o.Write(&b)
+		p := b.Bytes()
 		isym := &LSym{
 			Type:   objabi.SDATA, // for now, I don't think it matters
 			PkgIdx: goobj.PkgIdxSelf,
 			SymIdx: symidx,
-			P:      append([]byte(nil), b.Bytes()...),
+			P:      append([]byte(nil), p...),
+			Size:   int64(len(p)),
 		}
 		isym.Set(AttrIndexed, true)
 		symidx++

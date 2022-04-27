@@ -9,7 +9,9 @@ import (
 	"internal/goos"
 	"math/rand"
 	. "runtime"
+	"runtime/internal/atomic"
 	"testing"
+	"time"
 )
 
 // makePallocData produces an initialized PallocData by setting
@@ -448,4 +450,114 @@ func TestPageAllocScavenge(t *testing.T) {
 			checkPageAlloc(t, want, b)
 		})
 	}
+}
+
+func TestScavenger(t *testing.T) {
+	// workedTime is a standard conversion of bytes of scavenge
+	// work to time elapsed.
+	workedTime := func(bytes uintptr) int64 {
+		return int64((bytes+4095)/4096) * int64(10*time.Microsecond)
+	}
+
+	// Set up a bunch of state that we're going to track and verify
+	// throughout the test.
+	totalWork := uint64(64<<20 - 3*PhysPageSize)
+	var totalSlept, totalWorked atomic.Int64
+	var availableWork atomic.Uint64
+	var stopAt atomic.Uint64 // How much available work to stop at.
+
+	// Set up the scavenger.
+	var s Scavenger
+	s.Sleep = func(ns int64) int64 {
+		totalSlept.Add(ns)
+		return ns
+	}
+	s.Scavenge = func(bytes uintptr) (uintptr, int64) {
+		avail := availableWork.Load()
+		if uint64(bytes) > avail {
+			bytes = uintptr(avail)
+		}
+		t := workedTime(bytes)
+		if bytes != 0 {
+			availableWork.Add(-int64(bytes))
+			totalWorked.Add(t)
+		}
+		return bytes, t
+	}
+	s.ShouldStop = func() bool {
+		if availableWork.Load() <= stopAt.Load() {
+			return true
+		}
+		return false
+	}
+	s.GoMaxProcs = func() int32 {
+		return 1
+	}
+
+	// Define a helper for verifying that various properties hold.
+	verifyScavengerState := func(t *testing.T, expWork uint64) {
+		t.Helper()
+
+		// Check to make sure it did the amount of work we expected.
+		if workDone := uint64(s.Released()); workDone != expWork {
+			t.Errorf("want %d bytes of work done, got %d", expWork, workDone)
+		}
+		// Check to make sure the scavenger is meeting its CPU target.
+		idealFraction := float64(ScavengePercent) / 100.0
+		cpuFraction := float64(totalWorked.Load()) / float64(totalWorked.Load()+totalSlept.Load())
+		if cpuFraction < idealFraction-0.005 || cpuFraction > idealFraction+0.005 {
+			t.Errorf("want %f CPU fraction, got %f", idealFraction, cpuFraction)
+		}
+	}
+
+	// Start the scavenger.
+	s.Start()
+
+	// Set up some work and let the scavenger run to completion.
+	availableWork.Store(totalWork)
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run a check.
+	verifyScavengerState(t, totalWork)
+
+	// Now let's do it again and see what happens when we have no work to do.
+	// It should've gone right back to sleep.
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run another check.
+	verifyScavengerState(t, totalWork)
+
+	// One more time, this time doing the same amount of work as the first time.
+	// Let's see if we can get the scavenger to continue.
+	availableWork.Store(totalWork)
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run another check.
+	verifyScavengerState(t, 2*totalWork)
+
+	// This time, let's stop after a certain amount of work.
+	//
+	// Pick a stopping point such that when subtracted from totalWork
+	// we get a multiple of a relatively large power of 2. verifyScavengerState
+	// always makes an exact check, but the scavenger might go a little over,
+	// which is OK. If this breaks often or gets annoying to maintain, modify
+	// verifyScavengerState.
+	availableWork.Store(totalWork)
+	stoppingPoint := uint64(1<<20 - 3*PhysPageSize)
+	stopAt.Store(stoppingPoint)
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run another check.
+	verifyScavengerState(t, 2*totalWork+(totalWork-stoppingPoint))
+
+	// Clean up.
+	s.Stop()
 }

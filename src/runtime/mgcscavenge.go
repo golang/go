@@ -163,128 +163,123 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
 	atomic.Store64(&mheap_.scavengeGoal, retainedGoal)
 }
 
+const (
+	// It doesn't really matter what value we start at, but we can't be zero, because
+	// that'll cause divide-by-zero issues. Pick something conservative which we'll
+	// also use as a fallback.
+	startingScavSleepRatio = 0.001
+
+	// Spend at least 1 ms scavenging, otherwise the corresponding
+	// sleep time to maintain our desired utilization is too low to
+	// be reliable.
+	minScavWorkTime = 1e6
+)
+
 // Sleep/wait state of the background scavenger.
-var scavenge struct {
-	lock                 mutex
-	g                    *g
-	parked               bool
-	timer                *timer
-	sysmonWake           uint32 // Set atomically.
-	printControllerReset bool   // Whether the scavenger is in cooldown.
-}
+var scavenger scavengerState
 
-// readyForScavenger signals sysmon to wake the scavenger because
-// there may be new work to do.
-//
-// There may be a significant delay between when this function runs
-// and when the scavenger is kicked awake, but it may be safely invoked
-// in contexts where wakeScavenger is unsafe to call directly.
-func readyForScavenger() {
-	atomic.Store(&scavenge.sysmonWake, 1)
-}
+type scavengerState struct {
+	// lock protects all fields below.
+	lock mutex
 
-// wakeScavenger immediately unparks the scavenger if necessary.
-//
-// May run without a P, but it may allocate, so it must not be called
-// on any allocation path.
-//
-// mheap_.lock, scavenge.lock, and sched.lock must not be held.
-func wakeScavenger() {
-	lock(&scavenge.lock)
-	if scavenge.parked {
-		// Notify sysmon that it shouldn't bother waking up the scavenger.
-		atomic.Store(&scavenge.sysmonWake, 0)
+	// g is the goroutine the scavenger is bound to.
+	g *g
 
-		// Try to stop the timer but we don't really care if we succeed.
-		// It's possible that either a timer was never started, or that
-		// we're racing with it.
-		// In the case that we're racing with there's the low chance that
-		// we experience a spurious wake-up of the scavenger, but that's
-		// totally safe.
-		stopTimer(scavenge.timer)
+	// parked is whether or not the scavenger is parked.
+	parked bool
 
-		// Unpark the goroutine and tell it that there may have been a pacing
-		// change. Note that we skip the scheduler's runnext slot because we
-		// want to avoid having the scavenger interfere with the fair
-		// scheduling of user goroutines. In effect, this schedules the
-		// scavenger at a "lower priority" but that's OK because it'll
-		// catch up on the work it missed when it does get scheduled.
-		scavenge.parked = false
+	// timer is the timer used for the scavenger to sleep.
+	timer *timer
 
-		// Ready the goroutine by injecting it. We use injectglist instead
-		// of ready or goready in order to allow us to run this function
-		// without a P. injectglist also avoids placing the goroutine in
-		// the current P's runnext slot, which is desirable to prevent
-		// the scavenger from interfering with user goroutine scheduling
-		// too much.
-		var list gList
-		list.push(scavenge.g)
-		injectglist(&list)
-	}
-	unlock(&scavenge.lock)
-}
+	// sysmonWake signals to sysmon that it should wake the scavenger.
+	sysmonWake atomic.Uint32
 
-// scavengeSleep attempts to put the scavenger to sleep for ns.
-//
-// Note that this function should only be called by the scavenger.
-//
-// The scavenger may be woken up earlier by a pacing change, and it may not go
-// to sleep at all if there's a pending pacing change.
-//
-// Returns the amount of time actually slept.
-func scavengeSleep(ns int64) int64 {
-	lock(&scavenge.lock)
+	// targetCPUFraction is the target CPU overhead for the scavenger.
+	targetCPUFraction float64
 
-	// Set the timer.
+	// sleepRatio is the ratio of time spent doing scavenging work to
+	// time spent sleeping. This is used to decide how long the scavenger
+	// should sleep for in between batches of work. It is set by
+	// critSleepController in order to maintain a CPU overhead of
+	// targetCPUFraction.
 	//
-	// This must happen here instead of inside gopark
-	// because we can't close over any variables without
-	// failing escape analysis.
-	start := nanotime()
-	resetTimer(scavenge.timer, start+ns)
+	// Lower means more sleep, higher means more aggressive scavenging.
+	sleepRatio float64
 
-	// Mark ourself as asleep and go to sleep.
-	scavenge.parked = true
-	goparkunlock(&scavenge.lock, waitReasonSleep, traceEvGoSleep, 2)
+	// sleepController controls sleepRatio.
+	//
+	// See sleepRatio for more details.
+	sleepController piController
 
-	// Return how long we actually slept for.
-	return nanotime() - start
+	// cooldown is the time left in nanoseconds during which we avoid
+	// using the controller and we hold sleepRatio at a conservative
+	// value. Used if the controller's assumptions fail to hold.
+	controllerCooldown int64
+
+	// printControllerReset instructs printScavTrace to signal that
+	// the controller was reset.
+	printControllerReset bool
+
+	// sleepStub is a stub used for testing to avoid actually having
+	// the scavenger sleep.
+	//
+	// Unlike the other stubs, this is not populated if left nil
+	// Instead, it is called when non-nil because any valid implementation
+	// of this function basically requires closing over this scavenger
+	// state, and allocating a closure is not allowed in the runtime as
+	// a matter of policy.
+	sleepStub func(n int64) int64
+
+	// scavenge is a function that scavenges n bytes of memory.
+	// Returns how many bytes of memory it actually scavenged, as
+	// well as the time it took in nanoseconds. Usually mheap.pages.scavenge
+	// with nanotime called around it, but stubbed out for testing.
+	// Like mheap.pages.scavenge, if it scavenges less than n bytes of
+	// memory, the caller may assume the heap is exhausted of scavengable
+	// memory for now.
+	//
+	// If this is nil, it is populated with the real thing in init.
+	scavenge func(n uintptr) (uintptr, int64)
+
+	// shouldStop is a callback called in the work loop and provides a
+	// point that can force the scavenger to stop early, for example because
+	// the scavenge policy dictates too much has been scavenged already.
+	//
+	// If this is nil, it is populated with the real thing in init.
+	shouldStop func() bool
+
+	// gomaxprocs returns the current value of gomaxprocs. Stub for testing.
+	//
+	// If this is nil, it is populated with the real thing in init.
+	gomaxprocs func() int32
 }
 
-// Background scavenger.
+// init initializes a scavenger state and wires to the current G.
 //
-// The background scavenger maintains the RSS of the application below
-// the line described by the proportional scavenging statistics in
-// the mheap struct.
-func bgscavenge(c chan int) {
-	scavenge.g = getg()
+// Must be called from a regular goroutine that can allocate.
+func (s *scavengerState) init() {
+	if s.g != nil {
+		throw("scavenger state is already wired")
+	}
+	lockInit(&s.lock, lockRankScavenge)
+	s.g = getg()
 
-	lockInit(&scavenge.lock, lockRankScavenge)
-	lock(&scavenge.lock)
-	scavenge.parked = true
-
-	scavenge.timer = new(timer)
-	scavenge.timer.f = func(_ any, _ uintptr) {
-		wakeScavenger()
+	s.timer = new(timer)
+	s.timer.arg = s
+	s.timer.f = func(s any, _ uintptr) {
+		s.(*scavengerState).wake()
 	}
 
-	c <- 1
-	goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
-
-	// idealFraction is the ideal % of overall application CPU time that we
-	// spend scavenging.
-	idealFraction := float64(scavengePercent) / 100.0
-
-	// Input: fraction of CPU time used.
-	// Setpoint: idealFraction.
-	// Output: ratio of critical time to sleep time (determines sleep time).
+	// input: fraction of CPU time actually used.
+	// setpoint: ideal CPU fraction.
+	// output: ratio of time worked to time slept (determines sleep time).
 	//
 	// The output of this controller is somewhat indirect to what we actually
 	// want to achieve: how much time to sleep for. The reason for this definition
 	// is to ensure that the controller's outputs have a direct relationship with
 	// its inputs (as opposed to an inverse relationship), making it somewhat
 	// easier to reason about for tuning purposes.
-	critSleepController := piController{
+	s.sleepController = piController{
 		// Tuned loosely via Ziegler-Nichols process.
 		kp: 0.3375,
 		ti: 3.2e6,
@@ -295,140 +290,278 @@ func bgscavenge(c chan int) {
 		min: 0.001,  // 1:1000
 		max: 1000.0, // 1000:1
 	}
-	// It doesn't really matter what value we start at, but we can't be zero, because
-	// that'll cause divide-by-zero issues. Pick something conservative which we'll
-	// also use as a fallback.
-	const startingCritSleepRatio = 0.001
-	critSleepRatio := startingCritSleepRatio
-	// Duration left in nanoseconds during which we avoid using the controller and
-	// we hold critSleepRatio at a conservative value. Used if the controller's
-	// assumptions fail to hold.
-	controllerCooldown := int64(0)
-	for {
-		released := uintptr(0)
-		crit := float64(0)
+	s.sleepRatio = startingScavSleepRatio
 
-		// Spend at least 1 ms scavenging, otherwise the corresponding
-		// sleep time to maintain our desired utilization is too low to
-		// be reliable.
-		const minCritTime = 1e6
-		for crit < minCritTime {
-			// If background scavenging is disabled or if there's no work to do just park.
-			retained, goal := heapRetained(), atomic.Load64(&mheap_.scavengeGoal)
-			if retained <= goal {
-				break
-			}
-
-			// scavengeQuantum is the amount of memory we try to scavenge
-			// in one go. A smaller value means the scavenger is more responsive
-			// to the scheduler in case of e.g. preemption. A larger value means
-			// that the overheads of scavenging are better amortized, so better
-			// scavenging throughput.
-			//
-			// The current value is chosen assuming a cost of ~10µs/physical page
-			// (this is somewhat pessimistic), which implies a worst-case latency of
-			// about 160µs for 4 KiB physical pages. The current value is biased
-			// toward latency over throughput.
-			const scavengeQuantum = 64 << 10
-
-			// Accumulate the amount of time spent scavenging.
+	// Install real functions if stubs aren't present.
+	if s.scavenge == nil {
+		s.scavenge = func(n uintptr) (uintptr, int64) {
 			start := nanotime()
-			r := mheap_.pages.scavenge(scavengeQuantum)
-			atomic.Xadduintptr(&mheap_.pages.scav.released, r)
+			r := mheap_.pages.scavenge(n)
 			end := nanotime()
-
-			// On some platforms we may see end >= start if the time it takes to scavenge
-			// memory is less than the minimum granularity of its clock (e.g. Windows) or
-			// due to clock bugs.
-			//
-			// In this case, just assume scavenging takes 10 µs per regular physical page
-			// (determined empirically), and conservatively ignore the impact of huge pages
-			// on timing.
-			const approxCritNSPerPhysicalPage = 10e3
-			if end <= start {
-				crit += approxCritNSPerPhysicalPage * float64(r/physPageSize)
-			} else {
-				crit += float64(end - start)
+			if start >= end {
+				return r, 0
 			}
-			released += r
-
-			// When using fake time just do one loop.
-			if faketime != 0 {
-				break
-			}
+			return r, end - start
 		}
-
-		if released == 0 {
-			lock(&scavenge.lock)
-			scavenge.parked = true
-			goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
-			continue
+	}
+	if s.shouldStop == nil {
+		s.shouldStop = func() bool {
+			// If background scavenging is disabled or if there's no work to do just stop.
+			return heapRetained() <= atomic.Load64(&mheap_.scavengeGoal)
 		}
-
-		if released < physPageSize {
-			// If this happens, it means that we may have attempted to release part
-			// of a physical page, but the likely effect of that is that it released
-			// the whole physical page, some of which may have still been in-use.
-			// This could lead to memory corruption. Throw.
-			throw("released less than one physical page of memory")
+	}
+	if s.gomaxprocs == nil {
+		s.gomaxprocs = func() int32 {
+			return gomaxprocs
 		}
+	}
+}
 
-		if crit < minCritTime {
-			// This means there wasn't enough work to actually fill up minCritTime.
-			// That's fine; we shouldn't try to do anything with this information
-			// because it's going result in a short enough sleep request that things
-			// will get messy. Just assume we did at least this much work.
-			// All this means is that we'll sleep longer than we otherwise would have.
-			crit = minCritTime
-		}
+// park parks the scavenger goroutine.
+func (s *scavengerState) park() {
+	lock(&s.lock)
+	if getg() != s.g {
+		throw("tried to park scavenger from another goroutine")
+	}
+	s.parked = true
+	goparkunlock(&s.lock, waitReasonGCScavengeWait, traceEvGoBlock, 2)
+}
 
-		// Multiply the critical time by 1 + the ratio of the costs of using
-		// scavenged memory vs. scavenging memory. This forces us to pay down
-		// the cost of reusing this memory eagerly by sleeping for a longer period
-		// of time and scavenging less frequently. More concretely, we avoid situations
-		// where we end up scavenging so often that we hurt allocation performance
-		// because of the additional overheads of using scavenged memory.
-		crit *= 1 + scavengeCostRatio
+// ready signals to sysmon that the scavenger should be awoken.
+func (s *scavengerState) ready() {
+	s.sysmonWake.Store(1)
+}
 
-		// Go to sleep based on how much time we spent doing work.
-		slept := scavengeSleep(int64(crit / critSleepRatio))
+// wake immediately unparks the scavenger if necessary.
+//
+// Safe to run without a P.
+func (s *scavengerState) wake() {
+	lock(&s.lock)
+	if s.parked {
+		// Unset sysmonWake, since the scavenger is now being awoken.
+		s.sysmonWake.Store(0)
 
-		// Stop here if we're cooling down from the controller.
-		if controllerCooldown > 0 {
-			// crit and slept aren't exact measures of time, but it's OK to be a bit
-			// sloppy here. We're just hoping we're avoiding some transient bad behavior.
-			t := slept + int64(crit)
-			if t > controllerCooldown {
-				controllerCooldown = 0
-			} else {
-				controllerCooldown -= t
-			}
-			continue
-		}
+		// s.parked is unset to prevent a double wake-up.
+		s.parked = false
 
-		// Calculate the CPU time spent.
+		// Ready the goroutine by injecting it. We use injectglist instead
+		// of ready or goready in order to allow us to run this function
+		// without a P. injectglist also avoids placing the goroutine in
+		// the current P's runnext slot, which is desirable to prevent
+		// the scavenger from interfering with user goroutine scheduling
+		// too much.
+		var list gList
+		list.push(s.g)
+		injectglist(&list)
+	}
+	unlock(&s.lock)
+}
+
+// sleep puts the scavenger to sleep based on the amount of time that it worked
+// in nanoseconds.
+//
+// Note that this function should only be called by the scavenger.
+//
+// The scavenger may be woken up earlier by a pacing change, and it may not go
+// to sleep at all if there's a pending pacing change.
+func (s *scavengerState) sleep(worked float64) {
+	lock(&s.lock)
+	if getg() != s.g {
+		throw("tried to sleep scavenger from another goroutine")
+	}
+
+	if worked < minScavWorkTime {
+		// This means there wasn't enough work to actually fill up minScavWorkTime.
+		// That's fine; we shouldn't try to do anything with this information
+		// because it's going result in a short enough sleep request that things
+		// will get messy. Just assume we did at least this much work.
+		// All this means is that we'll sleep longer than we otherwise would have.
+		worked = minScavWorkTime
+	}
+
+	// Multiply the critical time by 1 + the ratio of the costs of using
+	// scavenged memory vs. scavenging memory. This forces us to pay down
+	// the cost of reusing this memory eagerly by sleeping for a longer period
+	// of time and scavenging less frequently. More concretely, we avoid situations
+	// where we end up scavenging so often that we hurt allocation performance
+	// because of the additional overheads of using scavenged memory.
+	worked *= 1 + scavengeCostRatio
+
+	// sleepTime is the amount of time we're going to sleep, based on the amount
+	// of time we worked, and the sleepRatio.
+	sleepTime := int64(worked / s.sleepRatio)
+
+	var slept int64
+	if s.sleepStub == nil {
+		// Set the timer.
 		//
-		// This may be slightly inaccurate with respect to GOMAXPROCS, but we're
-		// recomputing this often enough relative to GOMAXPROCS changes in general
-		// (it only changes when the world is stopped, and not during a GC) that
-		// that small inaccuracy is in the noise.
-		cpuFraction := float64(crit) / ((float64(slept) + crit) * float64(gomaxprocs))
+		// This must happen here instead of inside gopark
+		// because we can't close over any variables without
+		// failing escape analysis.
+		start := nanotime()
+		resetTimer(s.timer, start+sleepTime)
 
-		// Update the critSleepRatio, adjusting until we reach our ideal fraction.
-		var ok bool
-		critSleepRatio, ok = critSleepController.next(cpuFraction, idealFraction, float64(slept)+crit)
-		if !ok {
-			// The core assumption of the controller, that we can get a proportional
-			// response, broke down. This may be transient, so temporarily switch to
-			// sleeping a fixed, conservative amount.
-			critSleepRatio = startingCritSleepRatio
-			controllerCooldown = 5e9 // 5 seconds.
+		// Mark ourselves as asleep and go to sleep.
+		s.parked = true
+		goparkunlock(&s.lock, waitReasonSleep, traceEvGoSleep, 2)
 
-			// Signal the scav trace printer to output this.
-			lock(&scavenge.lock)
-			scavenge.printControllerReset = true
-			unlock(&scavenge.lock)
+		// How long we actually slept for.
+		slept = nanotime() - start
+
+		lock(&s.lock)
+		// Stop the timer here because s.wake is unable to do it for us.
+		// We don't really care if we succeed in stopping the timer. One
+		// reason we might fail is that we've already woken up, but the timer
+		// might be in the process of firing on some other P; essentially we're
+		// racing with it. That's totally OK. Double wake-ups are perfectly safe.
+		stopTimer(s.timer)
+		unlock(&s.lock)
+	} else {
+		unlock(&s.lock)
+		slept = s.sleepStub(sleepTime)
+	}
+
+	// Stop here if we're cooling down from the controller.
+	if s.controllerCooldown > 0 {
+		// worked and slept aren't exact measures of time, but it's OK to be a bit
+		// sloppy here. We're just hoping we're avoiding some transient bad behavior.
+		t := slept + int64(worked)
+		if t > s.controllerCooldown {
+			s.controllerCooldown = 0
+		} else {
+			s.controllerCooldown -= t
 		}
+		return
+	}
+
+	// idealFraction is the ideal % of overall application CPU time that we
+	// spend scavenging.
+	idealFraction := float64(scavengePercent) / 100.0
+
+	// Calculate the CPU time spent.
+	//
+	// This may be slightly inaccurate with respect to GOMAXPROCS, but we're
+	// recomputing this often enough relative to GOMAXPROCS changes in general
+	// (it only changes when the world is stopped, and not during a GC) that
+	// that small inaccuracy is in the noise.
+	cpuFraction := worked / ((float64(slept) + worked) * float64(s.gomaxprocs()))
+
+	// Update the critSleepRatio, adjusting until we reach our ideal fraction.
+	var ok bool
+	s.sleepRatio, ok = s.sleepController.next(cpuFraction, idealFraction, float64(slept)+worked)
+	if !ok {
+		// The core assumption of the controller, that we can get a proportional
+		// response, broke down. This may be transient, so temporarily switch to
+		// sleeping a fixed, conservative amount.
+		s.sleepRatio = startingScavSleepRatio
+		s.controllerCooldown = 5e9 // 5 seconds.
+
+		// Signal the scav trace printer to output this.
+		s.controllerFailed()
+	}
+}
+
+// controllerFailed indicates that the scavenger's scheduling
+// controller failed.
+func (s *scavengerState) controllerFailed() {
+	lock(&s.lock)
+	s.printControllerReset = true
+	unlock(&s.lock)
+}
+
+// run is the body of the main scavenging loop.
+//
+// Returns the number of bytes released and the estimated time spent
+// releasing those bytes.
+//
+// Must be run on the scavenger goroutine.
+func (s *scavengerState) run() (released uintptr, worked float64) {
+	lock(&s.lock)
+	if getg() != s.g {
+		throw("tried to run scavenger from another goroutine")
+	}
+	unlock(&s.lock)
+
+	for worked < minScavWorkTime {
+		// If something from outside tells us to stop early, stop.
+		if s.shouldStop() {
+			break
+		}
+
+		// scavengeQuantum is the amount of memory we try to scavenge
+		// in one go. A smaller value means the scavenger is more responsive
+		// to the scheduler in case of e.g. preemption. A larger value means
+		// that the overheads of scavenging are better amortized, so better
+		// scavenging throughput.
+		//
+		// The current value is chosen assuming a cost of ~10µs/physical page
+		// (this is somewhat pessimistic), which implies a worst-case latency of
+		// about 160µs for 4 KiB physical pages. The current value is biased
+		// toward latency over throughput.
+		const scavengeQuantum = 64 << 10
+
+		// Accumulate the amount of time spent scavenging.
+		r, duration := s.scavenge(scavengeQuantum)
+
+		// On some platforms we may see end >= start if the time it takes to scavenge
+		// memory is less than the minimum granularity of its clock (e.g. Windows) or
+		// due to clock bugs.
+		//
+		// In this case, just assume scavenging takes 10 µs per regular physical page
+		// (determined empirically), and conservatively ignore the impact of huge pages
+		// on timing.
+		const approxWorkedNSPerPhysicalPage = 10e3
+		if duration == 0 {
+			worked += approxWorkedNSPerPhysicalPage * float64(r/physPageSize)
+		} else {
+			// TODO(mknyszek): If duration is small compared to worked, it could be
+			// rounded down to zero. Probably not a problem in practice because the
+			// values are all within a few orders of magnitude of each other but maybe
+			// worth worrying about.
+			worked += float64(duration)
+		}
+		released += r
+
+		// scavenge does not return until it either finds the requisite amount of
+		// memory to scavenge, or exhausts the heap. If we haven't found enough
+		// to scavenge, then the heap must be exhausted.
+		if r < scavengeQuantum {
+			break
+		}
+		// When using fake time just do one loop.
+		if faketime != 0 {
+			break
+		}
+	}
+	if released > 0 && released < physPageSize {
+		// If this happens, it means that we may have attempted to release part
+		// of a physical page, but the likely effect of that is that it released
+		// the whole physical page, some of which may have still been in-use.
+		// This could lead to memory corruption. Throw.
+		throw("released less than one physical page of memory")
+	}
+	return
+}
+
+// Background scavenger.
+//
+// The background scavenger maintains the RSS of the application below
+// the line described by the proportional scavenging statistics in
+// the mheap struct.
+func bgscavenge(c chan int) {
+	scavenger.init()
+
+	c <- 1
+	scavenger.park()
+
+	for {
+		released, workTime := scavenger.run()
+		if released == 0 {
+			scavenger.park()
+			continue
+		}
+		atomic.Xadduintptr(&mheap_.pages.scav.released, released)
+		scavenger.sleep(workTime)
 	}
 }
 
@@ -438,6 +571,9 @@ func bgscavenge(c chan int) {
 // back to the top of the heap.
 //
 // Returns the amount of memory scavenged in bytes.
+//
+// scavenge always tries to scavenge nbytes worth of memory, and will
+// only fail to do so if the heap is exhausted for now.
 func (p *pageAlloc) scavenge(nbytes uintptr) uintptr {
 	var (
 		addrs addrRange
@@ -468,9 +604,9 @@ func (p *pageAlloc) scavenge(nbytes uintptr) uintptr {
 // was called, and forced indicates whether the scavenge was forced by the
 // application.
 //
-// scavenge.lock must be held.
+// scavenger.lock must be held.
 func printScavTrace(gen uint32, released uintptr, forced bool) {
-	assertLockHeld(&scavenge.lock)
+	assertLockHeld(&scavenger.lock)
 
 	printlock()
 	print("scav ", gen, " ",
@@ -480,9 +616,9 @@ func printScavTrace(gen uint32, released uintptr, forced bool) {
 	)
 	if forced {
 		print(" (forced)")
-	} else if scavenge.printControllerReset {
+	} else if scavenger.printControllerReset {
 		print(" [controller reset]")
-		scavenge.printControllerReset = false
+		scavenger.printControllerReset = false
 	}
 	println()
 	printunlock()

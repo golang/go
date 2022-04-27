@@ -223,23 +223,12 @@ func interfaceEqual(a, b any) bool {
 	return a == b
 }
 
-func (c *Cmd) envv() ([]string, error) {
-	if c.Env != nil {
-		return c.Env, nil
-	}
-	return execenv.Default(c.SysProcAttr)
-}
-
 func (c *Cmd) argv() []string {
 	if len(c.Args) > 0 {
 		return c.Args
 	}
 	return []string{c.Path}
 }
-
-// skipStdinCopyError optionally specifies a function which reports
-// whether the provided stdin copy error should be ignored.
-var skipStdinCopyError func(error) bool
 
 func (c *Cmd) stdin() (f *os.File, err error) {
 	if c.Stdin == nil {
@@ -264,7 +253,7 @@ func (c *Cmd) stdin() (f *os.File, err error) {
 	c.closeAfterWait = append(c.closeAfterWait, pw)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(pw, c.Stdin)
-		if skip := skipStdinCopyError; skip != nil && skip(err) {
+		if skipStdinCopyError(err) {
 			err = nil
 		}
 		if err1 := pw.Close(); err == nil {
@@ -414,7 +403,7 @@ func (c *Cmd) Start() error {
 	}
 	c.childFiles = append(c.childFiles, c.ExtraFiles...)
 
-	envv, err := c.envv()
+	env, err := c.environ()
 	if err != nil {
 		return err
 	}
@@ -422,7 +411,7 @@ func (c *Cmd) Start() error {
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
-		Env:   addCriticalEnv(dedupEnv(envv)),
+		Env:   env,
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {
@@ -735,6 +724,54 @@ func minInt(a, b int) int {
 	return b
 }
 
+// environ returns a best-effort copy of the environment in which the command
+// would be run as it is currently configured. If an error occurs in computing
+// the environment, it is returned alongside the best-effort copy.
+func (c *Cmd) environ() ([]string, error) {
+	var err error
+
+	env := c.Env
+	if env == nil {
+		env, err = execenv.Default(c.SysProcAttr)
+		if err != nil {
+			env = os.Environ()
+			// Note that the non-nil err is preserved despite env being overridden.
+		}
+
+		if c.Dir != "" {
+			switch runtime.GOOS {
+			case "windows", "plan9":
+				// Windows and Plan 9 do not use the PWD variable, so we don't need to
+				// keep it accurate.
+			default:
+				// On POSIX platforms, PWD represents “an absolute pathname of the
+				// current working directory.” Since we are changing the working
+				// directory for the command, we should also update PWD to reflect that.
+				//
+				// Unfortunately, we didn't always do that, so (as proposed in
+				// https://go.dev/issue/50599) to avoid unintended collateral damage we
+				// only implicitly update PWD when Env is nil. That way, we're much
+				// less likely to override an intentional change to the variable.
+				if pwd, absErr := filepath.Abs(c.Dir); absErr == nil {
+					env = append(env, "PWD="+pwd)
+				} else if err == nil {
+					err = absErr
+				}
+			}
+		}
+	}
+
+	return addCriticalEnv(dedupEnv(env)), err
+}
+
+// Environ returns a copy of the environment in which the command would be run
+// as it is currently configured.
+func (c *Cmd) Environ() []string {
+	//  Intentionally ignore errors: environ returns a best-effort environment no matter what.
+	env, _ := c.environ()
+	return env
+}
+
 // dedupEnv returns a copy of env with any duplicates removed, in favor of
 // later values.
 // Items not of the normal environment "key=value" form are preserved unchanged.
@@ -745,24 +782,47 @@ func dedupEnv(env []string) []string {
 // dedupEnvCase is dedupEnv with a case option for testing.
 // If caseInsensitive is true, the case of keys is ignored.
 func dedupEnvCase(caseInsensitive bool, env []string) []string {
+	// Construct the output in reverse order, to preserve the
+	// last occurrence of each key.
 	out := make([]string, 0, len(env))
-	saw := make(map[string]int, len(env)) // key => index into out
-	for _, kv := range env {
-		k, _, ok := strings.Cut(kv, "=")
-		if !ok {
-			out = append(out, kv)
+	saw := make(map[string]bool, len(env))
+	for n := len(env); n > 0; n-- {
+		kv := env[n-1]
+
+		i := strings.Index(kv, "=")
+		if i == 0 {
+			// We observe in practice keys with a single leading "=" on Windows.
+			// TODO(#49886): Should we consume only the first leading "=" as part
+			// of the key, or parse through arbitrarily many of them until a non-"="?
+			i = strings.Index(kv[1:], "=") + 1
+		}
+		if i < 0 {
+			if kv != "" {
+				// The entry is not of the form "key=value" (as it is required to be).
+				// Leave it as-is for now.
+				// TODO(#52436): should we strip or reject these bogus entries?
+				out = append(out, kv)
+			}
 			continue
 		}
+		k := kv[:i]
 		if caseInsensitive {
 			k = strings.ToLower(k)
 		}
-		if dupIdx, isDup := saw[k]; isDup {
-			out[dupIdx] = kv
+		if saw[k] {
 			continue
 		}
-		saw[k] = len(out)
+
+		saw[k] = true
 		out = append(out, kv)
 	}
+
+	// Now reverse the slice to restore the original order.
+	for i := 0; i < len(out)/2; i++ {
+		j := len(out) - i - 1
+		out[i], out[j] = out[j], out[i]
+	}
+
 	return out
 }
 

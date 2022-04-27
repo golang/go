@@ -212,6 +212,11 @@ func ExampleTime_Format() {
 		panic(err)
 	}
 
+	tz, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil { // Always check errors even if they should not happen.
+		panic(err)
+	}
+
 	// time.Time's Stringer method is useful without any format.
 	fmt.Println("default format:", t)
 
@@ -220,6 +225,10 @@ func ExampleTime_Format() {
 
 	// The time zone attached to the time value affects its output.
 	fmt.Println("Same, in UTC:", t.UTC().Format(time.UnixDate))
+
+	fmt.Println("in Shanghai with seconds:", t.In(tz).Format("2006-01-02T15:04:05 -070000"))
+
+	fmt.Println("in Shanghai with colon seconds:", t.In(tz).Format("2006-01-02T15:04:05 -07:00:00"))
 
 	// The rest of this function demonstrates the properties of the
 	// layout string used in the format.
@@ -286,6 +295,8 @@ func ExampleTime_Format() {
 	// default format: 2015-02-25 11:06:39 -0800 PST
 	// Unix format: Wed Feb 25 11:06:39 PST 2015
 	// Same, in UTC: Wed Feb 25 19:06:39 UTC 2015
+	//in Shanghai with seconds: 2015-02-26T03:06:39 +080000
+	//in Shanghai with colon seconds: 2015-02-26T03:06:39 +08:00:00
 	//
 	// Formats:
 	//

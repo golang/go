@@ -92,6 +92,16 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 400974 -->
+      The <code>tls10default</code> <code>GODEBUG</code> option has been
+      removed. It is still possible to enable TLS 1.0 client-side by setting
+      <code>Config.MinVersion</code>.
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
+
 <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
   <dd>
     <p><!-- CL 396795 -->
@@ -131,6 +141,21 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- net -->
+
+<dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
+  <dd><!-- https://go.dev/issue/50599 -->
+    <p>
+      An <code>exec.Cmd</code> with a non-empty <code>Dir</code> and a
+      nil <code>Env</code> now implicitly sets the <code>PWD</code> environment
+      variable for the subprocess to match <code>Dir</code>.
+    </p>
+    <p>
+      The new method <code>(*exec.Cmd).Environ</code> reports the
+      environment that would be used to run the command, including the
+      aforementioned <code>PWD</code> variable.
+    </p>
+  </dd>
+</dl> <!-- os/exec -->
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>

@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"encoding/hex"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -461,5 +462,25 @@ func TestRejectEmptySCT(t *testing.T) {
 	var serverHelloCopy serverHelloMsg
 	if serverHelloCopy.unmarshal(serverHelloBytes) {
 		t.Fatal("Unmarshaled ServerHello with zero-length SCT")
+	}
+}
+
+func TestRejectDuplicateExtensions(t *testing.T) {
+	clientHelloBytes, err := hex.DecodeString("010000440303000000000000000000000000000000000000000000000000000000000000000000000000001c0000000a000800000568656c6c6f0000000a000800000568656c6c6f")
+	if err != nil {
+		t.Fatalf("failed to decode test ClientHello: %s", err)
+	}
+	var clientHelloCopy clientHelloMsg
+	if clientHelloCopy.unmarshal(clientHelloBytes) {
+		t.Error("Unmarshaled ClientHello with duplicate extensions")
+	}
+
+	serverHelloBytes, err := hex.DecodeString("02000030030300000000000000000000000000000000000000000000000000000000000000000000000000080005000000050000")
+	if err != nil {
+		t.Fatalf("failed to decode test ServerHello: %s", err)
+	}
+	var serverHelloCopy serverHelloMsg
+	if serverHelloCopy.unmarshal(serverHelloBytes) {
+		t.Fatal("Unmarshaled ServerHello with duplicate extensions")
 	}
 }

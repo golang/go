@@ -85,6 +85,7 @@ func GCMask(x any) (ret []byte) {
 func RunSchedLocalQueueTest() {
 	_p_ := new(p)
 	gs := make([]g, len(_p_.runq))
+	escape(gs) // Ensure gs doesn't move, since we use guintptrs
 	for i := 0; i < len(_p_.runq); i++ {
 		if g, _ := runqget(_p_); g != nil {
 			throw("runq is not empty initially")
@@ -108,6 +109,7 @@ func RunSchedLocalQueueStealTest() {
 	p1 := new(p)
 	p2 := new(p)
 	gs := make([]g, len(p1.runq))
+	escape(gs) // Ensure gs doesn't move, since we use guintptrs
 	for i := 0; i < len(p1.runq); i++ {
 		for j := 0; j < i; j++ {
 			gs[j].sig = 0
@@ -155,6 +157,7 @@ func RunSchedLocalQueueEmptyTest(iters int) {
 	done := make(chan bool, 1)
 	p := new(p)
 	gs := make([]g, 2)
+	escape(gs) // Ensure gs doesn't move, since we use guintptrs
 	ready := new(uint32)
 	for i := 0; i < iters; i++ {
 		*ready = 0
@@ -277,6 +280,7 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 }
 
 func Fastrand() uint32          { return fastrand() }
+func Fastrand64() uint64        { return fastrand64() }
 func Fastrandn(n uint32) uint32 { return fastrandn(n) }
 
 type ProfBuf profBuf
@@ -1256,7 +1260,7 @@ func NewGCController(gcPercent int) *GCController {
 	// do 64-bit atomics on it, and if it gets stack-allocated
 	// on a 32-bit architecture, it may get allocated unaligned
 	// space.
-	g := escape(new(GCController)).(*GCController)
+	g := escape(new(GCController))
 	g.gcControllerState.test = true // Mark it as a test copy.
 	g.init(int32(gcPercent))
 	return g
@@ -1267,7 +1271,7 @@ func (c *GCController) StartCycle(stackSize, globalsSize uint64, scannableFrac f
 	c.globalsScan = globalsSize
 	c.heapLive = c.trigger
 	c.heapScan += uint64(float64(c.trigger-c.heapMarked) * scannableFrac)
-	c.startCycle(0, gomaxprocs)
+	c.startCycle(0, gomaxprocs, gcTrigger{kind: gcTriggerHeap})
 }
 
 func (c *GCController) AssistWorkPerByte() float64 {
@@ -1314,10 +1318,27 @@ func (c *GCController) EndCycle(bytesMarked uint64, assistTime, elapsed int64, g
 	c.commit()
 }
 
+func (c *GCController) AddIdleMarkWorker() bool {
+	return c.addIdleMarkWorker()
+}
+
+func (c *GCController) NeedIdleMarkWorker() bool {
+	return c.needIdleMarkWorker()
+}
+
+func (c *GCController) RemoveIdleMarkWorker() {
+	c.removeIdleMarkWorker()
+}
+
+func (c *GCController) SetMaxIdleMarkWorkers(max int32) {
+	c.setMaxIdleMarkWorkers(max)
+}
+
 var escapeSink any
 
 //go:noinline
-func escape(x any) any {
+//go:norace
+func escape[T any](x T) T {
 	escapeSink = x
 	escapeSink = nil
 	return x
@@ -1350,4 +1371,108 @@ func NewPIController(kp, ti, tt, min, max float64) *PIController {
 
 func (c *PIController) Next(input, setpoint, period float64) (float64, bool) {
 	return c.piController.next(input, setpoint, period)
+}
+
+const ScavengePercent = scavengePercent
+
+type Scavenger struct {
+	Sleep      func(int64) int64
+	Scavenge   func(uintptr) (uintptr, int64)
+	ShouldStop func() bool
+	GoMaxProcs func() int32
+
+	released  atomic.Uintptr
+	scavenger scavengerState
+	stop      chan<- struct{}
+	done      <-chan struct{}
+}
+
+func (s *Scavenger) Start() {
+	if s.Sleep == nil || s.Scavenge == nil || s.ShouldStop == nil || s.GoMaxProcs == nil {
+		panic("must populate all stubs")
+	}
+
+	// Install hooks.
+	s.scavenger.sleepStub = s.Sleep
+	s.scavenger.scavenge = s.Scavenge
+	s.scavenger.shouldStop = s.ShouldStop
+	s.scavenger.gomaxprocs = s.GoMaxProcs
+
+	// Start up scavenger goroutine, and wait for it to be ready.
+	stop := make(chan struct{})
+	s.stop = stop
+	done := make(chan struct{})
+	s.done = done
+	go func() {
+		// This should match bgscavenge, loosely.
+		s.scavenger.init()
+		s.scavenger.park()
+		for {
+			select {
+			case <-stop:
+				close(done)
+				return
+			default:
+			}
+			released, workTime := s.scavenger.run()
+			if released == 0 {
+				s.scavenger.park()
+				continue
+			}
+			s.released.Add(released)
+			s.scavenger.sleep(workTime)
+		}
+	}()
+	if !s.BlockUntilParked(1e9 /* 1 second */) {
+		panic("timed out waiting for scavenger to get ready")
+	}
+}
+
+// BlockUntilParked blocks until the scavenger parks, or until
+// timeout is exceeded. Returns true if the scavenger parked.
+//
+// Note that in testing, parked means something slightly different.
+// In anger, the scavenger parks to sleep, too, but in testing,
+// it only parks when it actually has no work to do.
+func (s *Scavenger) BlockUntilParked(timeout int64) bool {
+	// Just spin, waiting for it to park.
+	//
+	// The actual parking process is racy with respect to
+	// wakeups, which is fine, but for testing we need something
+	// a bit more robust.
+	start := nanotime()
+	for nanotime()-start < timeout {
+		lock(&s.scavenger.lock)
+		parked := s.scavenger.parked
+		unlock(&s.scavenger.lock)
+		if parked {
+			return true
+		}
+		Gosched()
+	}
+	return false
+}
+
+// Released returns how many bytes the scavenger released.
+func (s *Scavenger) Released() uintptr {
+	return s.released.Load()
+}
+
+// Wake wakes up a parked scavenger to keep running.
+func (s *Scavenger) Wake() {
+	s.scavenger.wake()
+}
+
+// Stop cleans up the scavenger's resources. The scavenger
+// must be parked for this to work.
+func (s *Scavenger) Stop() {
+	lock(&s.scavenger.lock)
+	parked := s.scavenger.parked
+	unlock(&s.scavenger.lock)
+	if !parked {
+		panic("tried to clean up scavenger that is not parked")
+	}
+	close(s.stop)
+	s.Wake()
+	<-s.done
 }

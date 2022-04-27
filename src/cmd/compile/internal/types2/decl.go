@@ -735,7 +735,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			top := len(check.delayed)
 
 			// iota is the index of the current constDecl within the group
-			if first < 0 || list[index-1].(*syntax.ConstDecl).Group != s.Group {
+			if first < 0 || s.Group == nil || list[index-1].(*syntax.ConstDecl).Group != s.Group {
 				first = index
 				last = nil
 			}

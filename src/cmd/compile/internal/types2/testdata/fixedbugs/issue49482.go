@@ -22,4 +22,4 @@ type _[P /* ERROR non-function P */ (*int)] int
 type _[P *struct /* ERROR "not an expression" */ {}| int /* ERROR "not an expression" */ ] struct{}
 
 // The following fails to parse, due to the '~'
-type _[P *struct /* ERROR "not an expression" */ {}|~ /* ERROR "unexpected ~" */ int] struct{}
+type _[P *struct /* ERROR "not an expression" */ {}|~int /* ERROR "not an expression" */ ] struct{}

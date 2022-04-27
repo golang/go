@@ -129,11 +129,6 @@ var sniffSignatures = []sniffSig{
 	// Enforce the pattern match ordering as prescribed in
 	// https://mimesniff.spec.whatwg.org/#matching-an-audio-or-video-type-pattern
 	&maskedSig{
-		mask: []byte("\xFF\xFF\xFF\xFF"),
-		pat:  []byte(".snd"),
-		ct:   "audio/basic",
-	},
-	&maskedSig{
 		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
 		pat:  []byte("FORM\x00\x00\x00\x00AIFF"),
 		ct:   "audio/aiff",

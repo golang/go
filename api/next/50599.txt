@@ -1,0 +1,1 @@
+pkg os/exec, method (*Cmd) Environ() []string #50599

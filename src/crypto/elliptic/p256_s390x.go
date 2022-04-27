@@ -60,7 +60,6 @@ func initP256Arch() {
 
 	// No vector support, use pure Go implementation.
 	p256 = p256Curve{p256Params}
-	return
 }
 
 func (curve p256CurveFast) Params() *CurveParams {
