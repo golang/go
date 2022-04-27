@@ -324,12 +324,6 @@ func TestBoringCertAlgs(t *testing.T) {
 	L1_I := boringCert(t, "L1_I", boringECDSAKey(t, elliptic.P384()), I_R1, boringCertLeaf|boringCertFIPSOK)
 	L2_I := boringCert(t, "L2_I", boringRSAKey(t, 1024), I_R1, boringCertLeaf)
 
-	// boringCert checked that isBoringCertificate matches the caller's boringCertFIPSOK bit.
-	// If not, no point in building bigger end-to-end tests.
-	if t.Failed() {
-		t.Fatalf("isBoringCertificate failures; not continuing")
-	}
-
 	// client verifying server cert
 	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key interface{}, list [][]byte, ok bool) {
 		clientConfig := testConfig.Clone()
@@ -534,14 +528,11 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
 	}
 
 	var pub interface{}
-	var desc string
 	switch k := key.(type) {
 	case *rsa.PrivateKey:
 		pub = &k.PublicKey
-		desc = fmt.Sprintf("RSA-%d", k.N.BitLen())
 	case *ecdsa.PrivateKey:
 		pub = &k.PublicKey
-		desc = "ECDSA-" + k.Curve.Params().Name
 	default:
 		t.Fatalf("invalid key %T", key)
 	}
@@ -555,14 +546,7 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
 		t.Fatal(err)
 	}
 
-	// Tell isBoringCertificate to enforce FIPS restrictions for this check.
-	fipstls.Force()
-	defer fipstls.Abandon()
-
 	fipsOK := mode&boringCertFIPSOK != 0
-	if isBoringCertificate(cert) != fipsOK {
-		t.Errorf("isBoringCertificate(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
-	}
 	return &boringCertificate{name, org, parentOrg, der, cert, key, fipsOK}
 }
 

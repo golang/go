@@ -6,18 +6,15 @@
 
 package tls
 
-import "crypto/x509"
-
 func needFIPS() bool { return false }
 
 func supportedSignatureAlgorithms() []SignatureScheme {
 	return defaultSupportedSignatureAlgorithms
 }
 
-func fipsMinVersion(c *Config) uint16              { panic("fipsMinVersion") }
-func fipsMaxVersion(c *Config) uint16              { panic("fipsMaxVersion") }
-func fipsCurvePreferences(c *Config) []CurveID     { panic("fipsCurvePreferences") }
-func fipsCipherSuites(c *Config) []uint16          { panic("fipsCipherSuites") }
-func isBoringCertificate(c *x509.Certificate) bool { panic("isBoringCertificate") }
+func fipsMinVersion(c *Config) uint16          { panic("fipsMinVersion") }
+func fipsMaxVersion(c *Config) uint16          { panic("fipsMaxVersion") }
+func fipsCurvePreferences(c *Config) []CurveID { panic("fipsCurvePreferences") }
+func fipsCipherSuites(c *Config) []uint16      { panic("fipsCipherSuites") }
 
 var fipsSupportedSignatureAlgorithms []SignatureScheme

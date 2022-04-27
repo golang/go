@@ -817,9 +817,6 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 			Intermediates: x509.NewCertPool(),
 			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		}
-		if needFIPS() {
-			opts.IsBoring = isBoringCertificate
-		}
 
 		for _, cert := range certs[1:] {
 			opts.Intermediates.AddCert(cert)
