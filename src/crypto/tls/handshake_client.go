@@ -866,9 +866,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 			DNSName:       c.config.ServerName,
 			Intermediates: x509.NewCertPool(),
 		}
-		if needFIPS() {
-			opts.IsBoring = isBoringCertificate
-		}
+
 		for _, cert := range certs[1:] {
 			opts.Intermediates.AddCert(cert)
 		}

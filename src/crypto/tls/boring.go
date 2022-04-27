@@ -7,11 +7,7 @@
 package tls
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/internal/boring/fipstls"
-	"crypto/rsa"
-	"crypto/x509"
 )
 
 // needFIPS returns fipstls.Required(); it avoids a new import in common.go.
@@ -77,32 +73,6 @@ func fipsCipherSuites(c *Config) []uint16 {
 		}
 	}
 	return list
-}
-
-// isBoringCertificate reports whether a certificate may be used
-// when constructing a verified chain.
-// It is called for each leaf, intermediate, and root certificate.
-func isBoringCertificate(c *x509.Certificate) bool {
-	if !needFIPS() {
-		// Everything is OK if we haven't forced FIPS-only mode.
-		return true
-	}
-
-	// Otherwise the key must be RSA 2048, RSA 3072, or ECDSA P-256, P-384, or P-521.
-	switch k := c.PublicKey.(type) {
-	default:
-		return false
-	case *rsa.PublicKey:
-		if size := k.N.BitLen(); size != 2048 && size != 3072 {
-			return false
-		}
-	case *ecdsa.PublicKey:
-		if k.Curve != elliptic.P256() && k.Curve != elliptic.P384() && k.Curve != elliptic.P521() {
-			return false
-		}
-	}
-
-	return true
 }
 
 // fipsSupportedSignatureAlgorithms currently are a subset of
