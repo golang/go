@@ -26,6 +26,18 @@ go list -json=Deps
 stdout '"Deps": \['
 stdout '"errors",'
 
+[!exec:git] skip
+
+# Test -json=<field> without Stale skips computing buildinfo
+cd repo
+exec git init
+# Control case: with -json=Stale cmd/go executes git status to compute buildinfo
+go list -json=Stale -x
+stderr 'git status'
+# Test case: without -json=Stale cmd/go skips git status
+go list -json=Name -x
+! stderr 'git status'
+
 -- go.mod --
 module example.com/a
 
@@ -55,3 +67,9 @@ example.com/a
 		"fmt"
 	]
 }
+-- repo/go.mod --
+module example.com/repo
+-- repo/main.go --
+package main
+
+func main() {}
