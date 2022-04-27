@@ -17,11 +17,11 @@ var (
 )
 
 func systemRootsPool() *CertPool {
-	initSystemRoots()
+	InitSystemRoots()
 	return systemRoots
 }
 
-func initSystemRoots() {
+func InitSystemRoots() {
 	systemRoots, systemRootsErr = loadSystemRoots()
 	if systemRootsErr != nil {
 		systemRoots = nil
