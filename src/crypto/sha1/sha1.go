@@ -265,11 +265,7 @@ func (d *digest) constSum() [Size]byte {
 // Sum returns the SHA-1 checksum of the data.
 func Sum(data []byte) [Size]byte {
 	if boringEnabled {
-		h := New()
-		h.Write(data)
-		var ret [Size]byte
-		h.Sum(ret[:0])
-		return ret
+		return boringSHA1(data)
 	}
 	var d digest
 	d.Reset()

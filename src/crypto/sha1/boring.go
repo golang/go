@@ -6,8 +6,8 @@
 // cmd/internal/boring is not even imported, so that we don't
 // have to maintain changes to cmd/dist's deps graph.
 
-//go:build !cmd_go_bootstrap
-// +build !cmd_go_bootstrap
+//go:build !cmd_go_bootstrap && cgo
+// +build !cmd_go_bootstrap,cgo
 
 package sha1
 
@@ -21,3 +21,5 @@ const boringEnabled = boring.Enabled
 func boringNewSHA1() hash.Hash { return boring.NewSHA1() }
 
 func boringUnreachable() { boring.Unreachable() }
+
+func boringSHA1(p []byte) [20]byte { return boring.SHA1(p) }

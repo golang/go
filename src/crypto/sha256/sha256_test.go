@@ -8,6 +8,7 @@ package sha256
 
 import (
 	"bytes"
+	"crypto/internal/boring"
 	"crypto/rand"
 	"encoding"
 	"fmt"
@@ -15,8 +16,6 @@ import (
 	"io"
 	"testing"
 )
-
-import "crypto/internal/boring"
 
 type sha256Test struct {
 	out       string
@@ -315,13 +314,30 @@ var bench = New()
 var buf = make([]byte, 8192)
 
 func benchmarkSize(b *testing.B, size int) {
-	b.SetBytes(int64(size))
 	sum := make([]byte, bench.Size())
-	for i := 0; i < b.N; i++ {
-		bench.Reset()
-		bench.Write(buf[:size])
-		bench.Sum(sum[:0])
-	}
+	b.Run("New", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(size))
+		for i := 0; i < b.N; i++ {
+			bench.Reset()
+			bench.Write(buf[:size])
+			bench.Sum(sum[:0])
+		}
+	})
+	b.Run("Sum224", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(size))
+		for i := 0; i < b.N; i++ {
+			Sum224(buf[:size])
+		}
+	})
+	b.Run("Sum256", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(size))
+		for i := 0; i < b.N; i++ {
+			Sum256(buf[:size])
+		}
+	})
 }
 
 func BenchmarkHash8Bytes(b *testing.B) {

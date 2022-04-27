@@ -42,6 +42,12 @@ func NewSHA256() hash.Hash { panic("boringcrypto: not available") }
 func NewSHA384() hash.Hash { panic("boringcrypto: not available") }
 func NewSHA512() hash.Hash { panic("boringcrypto: not available") }
 
+func SHA1([]byte) [20]byte   { panic("boringcrypto: not available") }
+func SHA224([]byte) [28]byte { panic("boringcrypto: not available") }
+func SHA256([]byte) [32]byte { panic("boringcrypto: not available") }
+func SHA384([]byte) [48]byte { panic("boringcrypto: not available") }
+func SHA512([]byte) [64]byte { panic("boringcrypto: not available") }
+
 func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: not available") }
 
 func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not available") }
