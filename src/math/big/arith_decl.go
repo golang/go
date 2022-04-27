@@ -8,7 +8,6 @@
 package big
 
 // implemented in arith_$GOARCH.s
-func mulWW(x, y Word) (z1, z0 Word)
 func addVV(z, x, y []Word) (c Word)
 func subVV(z, x, y []Word) (c Word)
 func addVW(z, x []Word, y Word) (c Word)
