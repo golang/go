@@ -74,11 +74,22 @@ func TestEd25519Vectors(t *testing.T) {
 func downloadEd25519Vectors(t *testing.T) []byte {
 	testenv.MustHaveExternalNetwork(t)
 
+	// Create a temp dir and modcache subdir.
+	d := t.TempDir()
+	// Create a spot for the modcache.
+	modcache := filepath.Join(d, "modcache")
+	if err := os.Mkdir(modcache, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("GO111MODULE", "on")
+	t.Setenv("GOMODCACHE", modcache)
+
 	// Download the JSON test file from the GOPROXY with `go mod download`,
 	// pinning the version so test and module caching works as expected.
 	goTool := testenv.GoToolPath(t)
 	path := "filippo.io/mostly-harmless/ed25519vectors@v0.0.0-20210322192420-30a2d7243a94"
-	cmd := exec.Command(goTool, "mod", "download", "-json", path)
+	cmd := exec.Command(goTool, "mod", "download", "-modcacherw", "-json", path)
 	// TODO: enable the sumdb once the TryBots proxy supports it.
 	cmd.Env = append(os.Environ(), "GONOSUMDB=*")
 	output, err := cmd.Output()

@@ -11,6 +11,7 @@ import "testing"
 // These wrappers are here for gotest to find.
 
 func Test1328(t *testing.T)                  { test1328(t) }
+func Test1560(t *testing.T)                  { test1560(t) }
 func Test1635(t *testing.T)                  { test1635(t) }
 func Test3250(t *testing.T)                  { test3250(t) }
 func Test3729(t *testing.T)                  { test3729(t) }
@@ -89,7 +90,6 @@ func TestLibgcc(t *testing.T)                { testLibgcc(t) }
 func TestMultipleAssign(t *testing.T)        { testMultipleAssign(t) }
 func TestNaming(t *testing.T)                { testNaming(t) }
 func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
-func TestParallelSleep(t *testing.T)         { testParallelSleep(t) }
 func TestPrintf(t *testing.T)                { testPrintf(t) }
 func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
 func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }

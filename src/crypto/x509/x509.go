@@ -1478,20 +1478,13 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return nil, errors.New("x509: no SerialNumber given")
 	}
 
-	// RFC 5280 Section 4.1.2.2: serial number must positive and should not be longer
-	// than 20 octets.
+	// RFC 5280 Section 4.1.2.2: serial number must positive
 	//
-	// We cannot simply check for len(serialBytes) > 20, because encoding/asn1 may
-	// pad the slice in order to prevent the integer being mistaken for a negative
-	// number (DER uses the high bit of the left-most byte to indicate the sign.),
-	// so we need to double check the composition of the serial if it is exactly
-	// 20 bytes.
+	// We _should_ also restrict serials to <= 20 octets, but it turns out a lot of people
+	// get this wrong, in part because the encoding can itself alter the length of the
+	// serial. For now we accept these non-conformant serials.
 	if template.SerialNumber.Sign() == -1 {
 		return nil, errors.New("x509: serial number must be positive")
-	}
-	serialBytes := template.SerialNumber.Bytes()
-	if len(serialBytes) > 20 || (len(serialBytes) == 20 && serialBytes[0]&0x80 != 0) {
-		return nil, errors.New("x509: serial number exceeds 20 octets")
 	}
 
 	if template.BasicConstraintsValid && !template.IsCA && template.MaxPathLen != -1 && (template.MaxPathLen != 0 || template.MaxPathLenZero) {

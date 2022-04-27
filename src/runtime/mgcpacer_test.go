@@ -738,3 +738,67 @@ func FuzzPIController(f *testing.F) {
 		}
 	})
 }
+
+func TestIdleMarkWorkerCount(t *testing.T) {
+	const workers = 10
+	c := NewGCController(100)
+	c.SetMaxIdleMarkWorkers(workers)
+	for i := 0; i < workers; i++ {
+		if !c.NeedIdleMarkWorker() {
+			t.Fatalf("expected to need idle mark workers: i=%d", i)
+		}
+		if !c.AddIdleMarkWorker() {
+			t.Fatalf("expected to be able to add an idle mark worker: i=%d", i)
+		}
+	}
+	if c.NeedIdleMarkWorker() {
+		t.Fatalf("expected to not need idle mark workers")
+	}
+	if c.AddIdleMarkWorker() {
+		t.Fatalf("expected to not be able to add an idle mark worker")
+	}
+	for i := 0; i < workers; i++ {
+		c.RemoveIdleMarkWorker()
+		if !c.NeedIdleMarkWorker() {
+			t.Fatalf("expected to need idle mark workers after removal: i=%d", i)
+		}
+	}
+	for i := 0; i < workers-1; i++ {
+		if !c.AddIdleMarkWorker() {
+			t.Fatalf("expected to be able to add idle mark workers after adding again: i=%d", i)
+		}
+	}
+	for i := 0; i < 10; i++ {
+		if !c.AddIdleMarkWorker() {
+			t.Fatalf("expected to be able to add idle mark workers interleaved: i=%d", i)
+		}
+		if c.AddIdleMarkWorker() {
+			t.Fatalf("expected to not be able to add idle mark workers interleaved: i=%d", i)
+		}
+		c.RemoveIdleMarkWorker()
+	}
+	// Support the max being below the count.
+	c.SetMaxIdleMarkWorkers(0)
+	if c.NeedIdleMarkWorker() {
+		t.Fatalf("expected to not need idle mark workers after capacity set to 0")
+	}
+	if c.AddIdleMarkWorker() {
+		t.Fatalf("expected to not be able to add idle mark workers after capacity set to 0")
+	}
+	for i := 0; i < workers-1; i++ {
+		c.RemoveIdleMarkWorker()
+	}
+	if c.NeedIdleMarkWorker() {
+		t.Fatalf("expected to not need idle mark workers after capacity set to 0")
+	}
+	if c.AddIdleMarkWorker() {
+		t.Fatalf("expected to not be able to add idle mark workers after capacity set to 0")
+	}
+	c.SetMaxIdleMarkWorkers(1)
+	if !c.NeedIdleMarkWorker() {
+		t.Fatalf("expected to need idle mark workers after capacity set to 1")
+	}
+	if !c.AddIdleMarkWorker() {
+		t.Fatalf("expected to be able to add idle mark workers after capacity set to 1")
+	}
+}

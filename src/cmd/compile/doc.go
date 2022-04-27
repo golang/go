@@ -219,11 +219,13 @@ calling the function.
 	//go:uintptrescapes
 
 The //go:uintptrescapes directive must be followed by a function declaration.
-It specifies that the function's uintptr arguments may be pointer values
-that have been converted to uintptr and must be treated as such by the
-garbage collector. The conversion from pointer to uintptr must appear in
-the argument list of any call to this function. This directive is necessary
-for some low-level system call implementations and should be avoided otherwise.
+It specifies that the function's uintptr arguments may be pointer values that
+have been converted to uintptr and must be on the heap and kept alive for the
+duration of the call, even though from the types alone it would appear that the
+object is no longer needed during the call. The conversion from pointer to
+uintptr must appear in the argument list of any call to this function. This
+directive is necessary for some low-level system call implementations and
+should be avoided otherwise.
 
 	//go:noinline
 

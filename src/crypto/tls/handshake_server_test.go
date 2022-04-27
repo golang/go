@@ -400,16 +400,6 @@ func TestVersion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected failure to connect with TLS 1.0/1.1")
 	}
-
-	defer func(old bool) { debugEnableTLS10 = old }(debugEnableTLS10)
-	debugEnableTLS10 = true
-	_, _, err = testHandshake(t, clientConfig, serverConfig)
-	if err != nil {
-		t.Fatalf("handshake failed: %s", err)
-	}
-	if state.Version != VersionTLS11 {
-		t.Fatalf("incorrect version %x, should be %x", state.Version, VersionTLS11)
-	}
 }
 
 func TestCipherSuitePreference(t *testing.T) {

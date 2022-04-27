@@ -3589,42 +3589,6 @@ func TestOmitEmptyExtensions(t *testing.T) {
 	}
 }
 
-func TestCreateCertificateLongSerial(t *testing.T) {
-	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	serialBytes := make([]byte, 21)
-	serialBytes[0] = 0x80
-	serialBytes[20] = 1
-	tooLong := big.NewInt(0).SetBytes(serialBytes)
-
-	tmpl := &Certificate{
-		SerialNumber: tooLong,
-		Subject: pkix.Name{
-			CommonName: ":)",
-		},
-		NotAfter:  time.Now().Add(time.Hour),
-		NotBefore: time.Now().Add(-time.Hour),
-	}
-
-	expectedErr := "x509: serial number exceeds 20 octets"
-
-	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
-	if err == nil || err.Error() != expectedErr {
-		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
-	}
-
-	serialBytes = serialBytes[:20]
-	tmpl.SerialNumber = big.NewInt(0).SetBytes(serialBytes)
-
-	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
-	if err == nil || err.Error() != expectedErr {
-		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
-	}
-}
-
 var negativeSerialCert = `-----BEGIN CERTIFICATE-----
 MIIBBTCBraADAgECAgH/MAoGCCqGSM49BAMCMA0xCzAJBgNVBAMTAjopMB4XDTIy
 MDQxNDIzNTYwNFoXDTIyMDQxNTAxNTYwNFowDTELMAkGA1UEAxMCOikwWTATBgcq

@@ -461,12 +461,13 @@ func ReadTrace() []byte {
 }
 
 // traceReader returns the trace reader that should be woken up, if any.
+// Callers should first check that trace.enabled or trace.shutdown is set.
 func traceReader() *g {
-	if trace.reader == 0 || (trace.fullHead == 0 && !trace.shutdown) {
+	if !traceReaderAvailable() {
 		return nil
 	}
 	lock(&trace.lock)
-	if trace.reader == 0 || (trace.fullHead == 0 && !trace.shutdown) {
+	if !traceReaderAvailable() {
 		unlock(&trace.lock)
 		return nil
 	}
@@ -474,6 +475,13 @@ func traceReader() *g {
 	trace.reader.set(nil)
 	unlock(&trace.lock)
 	return gp
+}
+
+// traceReaderAvailable returns true if the trace reader is not currently
+// scheduled and should be. Callers should first check that trace.enabled
+// or trace.shutdown is set.
+func traceReaderAvailable() bool {
+	return trace.reader != 0 && (trace.fullHead != 0 || trace.shutdown)
 }
 
 // traceProcFree frees trace buffer associated with pp.

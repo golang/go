@@ -277,6 +277,25 @@ functions that release the P or may run without a P and
 Since these are function-level annotations, code that releases or
 acquires a P may need to be split across two functions.
 
+go:uintptrkeepalive
+-------------------
+
+The //go:uintptrkeepalive directive must be followed by a function declaration.
+
+It specifies that the function's uintptr arguments may be pointer values that
+have been converted to uintptr and must be kept alive for the duration of the
+call, even though from the types alone it would appear that the object is no
+longer needed during the call.
+
+This directive is similar to //go:uintptrescapes, but it does not force
+arguments to escape. Since stack growth does not understand these arguments,
+this directive must be used with //go:nosplit (in the marked function and all
+transitive calls) to prevent stack growth.
+
+The conversion from pointer to uintptr must appear in the argument list of any
+call to this function. This directive is used for some low-level system call
+implementations.
+
 go:notinheap
 ------------
 

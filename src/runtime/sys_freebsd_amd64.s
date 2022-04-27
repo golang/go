@@ -228,13 +228,21 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	// Transition from C ABI to Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
-	// Call into the Go signal handler
+	// Set up ABIInternal environment: g in R14, cleared X15.
+	get_tls(R12)
+	MOVQ	g(R12), R14
+	PXOR	X15, X15
+
+	// Reserve space for spill slots.
 	NOP	SP		// disable vet stack checking
-        ADJSP   $24
-	MOVQ	DI, 0(SP)	// sig
-	MOVQ	SI, 8(SP)	// info
-	MOVQ	DX, 16(SP)	// ctx
-	CALL	·sigtrampgo(SB)
+	ADJSP   $24
+
+	// Call into the Go signal handler
+	MOVQ	DI, AX	// sig
+	MOVQ	SI, BX	// info
+	MOVQ	DX, CX	// ctx
+	CALL	·sigtrampgo<ABIInternal>(SB)
+
 	ADJSP	$-24
 
         POP_REGS_HOST_TO_ABI0()
@@ -245,13 +253,21 @@ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
 	// Transition from C ABI to Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
-	// Call into the Go signal handler
+	// Set up ABIInternal environment: g in R14, cleared X15.
+	get_tls(R12)
+	MOVQ	g(R12), R14
+	PXOR	X15, X15
+
+	// Reserve space for spill slots.
 	NOP	SP		// disable vet stack checking
-	ADJSP	$24
-	MOVL	DI, 0(SP)	// sig
-	MOVQ	SI, 8(SP)	// info
-	MOVQ	DX, 16(SP)	// ctx
-	CALL	·sigprofNonGo(SB)
+	ADJSP   $24
+
+	// Call into the Go signal handler
+	MOVQ	DI, AX	// sig
+	MOVQ	SI, BX	// info
+	MOVQ	DX, CX	// ctx
+	CALL	·sigprofNonGo<ABIInternal>(SB)
+
 	ADJSP	$-24
 
 	POP_REGS_HOST_TO_ABI0()
