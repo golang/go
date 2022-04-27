@@ -33,8 +33,8 @@ package obj
 
 import (
 	"cmd/internal/goobj"
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
-	"crypto/md5"
 	"fmt"
 	"internal/buildcfg"
 	"log"
@@ -175,7 +175,7 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 
 // GCLocalsSym generates a content-addressable sym containing data.
 func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
-	return ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(data)), func(lsym *LSym) {
+	return ctxt.LookupInit(fmt.Sprintf("gclocals·%x", notsha256.Sum256(data)), func(lsym *LSym) {
 		lsym.P = data
 		lsym.Set(AttrContentAddressable, true)
 	})
