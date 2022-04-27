@@ -20,7 +20,7 @@ package goobj
 
 import (
 	"cmd/internal/bio"
-	"crypto/sha1"
+	"cmd/internal/notsha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -367,7 +367,7 @@ const Hash64Size = 8
 // Hash
 type HashType [HashSize]byte
 
-const HashSize = sha1.Size
+const HashSize = notsha256.Size
 
 // Relocation.
 //
