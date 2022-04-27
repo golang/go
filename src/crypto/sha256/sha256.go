@@ -8,12 +8,11 @@ package sha256
 
 import (
 	"crypto"
+	"crypto/internal/boring"
 	"encoding/binary"
 	"errors"
 	"hash"
 )
-
-import "crypto/internal/boring"
 
 func init() {
 	crypto.RegisterHash(crypto.SHA224, New224)
@@ -263,11 +262,7 @@ func (d *digest) checkSum() [Size]byte {
 // Sum256 returns the SHA256 checksum of the data.
 func Sum256(data []byte) [Size]byte {
 	if boring.Enabled {
-		h := New()
-		h.Write(data)
-		var ret [Size]byte
-		h.Sum(ret[:0])
-		return ret
+		return boring.SHA256(data)
 	}
 	var d digest
 	d.Reset()
@@ -278,11 +273,7 @@ func Sum256(data []byte) [Size]byte {
 // Sum224 returns the SHA224 checksum of the data.
 func Sum224(data []byte) [Size224]byte {
 	if boring.Enabled {
-		h := New224()
-		h.Write(data)
-		var ret [Size224]byte
-		h.Sum(ret[:0])
-		return ret
+		return boring.SHA224(data)
 	}
 	var d digest
 	d.is224 = true

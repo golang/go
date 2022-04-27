@@ -12,12 +12,11 @@ package sha512
 
 import (
 	"crypto"
+	"crypto/internal/boring"
 	"encoding/binary"
 	"errors"
 	"hash"
 )
-
-import "crypto/internal/boring"
 
 func init() {
 	crypto.RegisterHash(crypto.SHA384, New384)
@@ -345,11 +344,7 @@ func (d *digest) checkSum() [Size]byte {
 // Sum512 returns the SHA512 checksum of the data.
 func Sum512(data []byte) [Size]byte {
 	if boring.Enabled {
-		h := New()
-		h.Write(data)
-		var ret [Size]byte
-		h.Sum(ret[:0])
-		return ret
+		return boring.SHA512(data)
 	}
 	d := digest{function: crypto.SHA512}
 	d.Reset()
@@ -360,11 +355,7 @@ func Sum512(data []byte) [Size]byte {
 // Sum384 returns the SHA384 checksum of the data.
 func Sum384(data []byte) [Size384]byte {
 	if boring.Enabled {
-		h := New384()
-		h.Write(data)
-		var ret [Size384]byte
-		h.Sum(ret[:0])
-		return ret
+		return boring.SHA384(data)
 	}
 	d := digest{function: crypto.SHA384}
 	d.Reset()

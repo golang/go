@@ -7,13 +7,103 @@
 
 package boring
 
-// #include "goboringcrypto.h"
+/*
+#include "goboringcrypto.h"
+
+int
+_goboringcrypto_gosha1(void *p, size_t n, void *out)
+{
+	GO_SHA_CTX ctx;
+	_goboringcrypto_SHA1_Init(&ctx);
+	return _goboringcrypto_SHA1_Update(&ctx, p, n) &&
+		_goboringcrypto_SHA1_Final(out, &ctx);
+}
+
+int
+_goboringcrypto_gosha224(void *p, size_t n, void *out)
+{
+	GO_SHA256_CTX ctx;
+	_goboringcrypto_SHA224_Init(&ctx);
+	return _goboringcrypto_SHA224_Update(&ctx, p, n) &&
+		_goboringcrypto_SHA224_Final(out, &ctx);
+}
+
+int
+_goboringcrypto_gosha256(void *p, size_t n, void *out)
+{
+	GO_SHA256_CTX ctx;
+	_goboringcrypto_SHA256_Init(&ctx);
+	return _goboringcrypto_SHA256_Update(&ctx, p, n) &&
+		_goboringcrypto_SHA256_Final(out, &ctx);
+}
+
+int
+_goboringcrypto_gosha384(void *p, size_t n, void *out)
+{
+	GO_SHA512_CTX ctx;
+	_goboringcrypto_SHA384_Init(&ctx);
+	return _goboringcrypto_SHA384_Update(&ctx, p, n) &&
+		_goboringcrypto_SHA384_Final(out, &ctx);
+}
+
+int
+_goboringcrypto_gosha512(void *p, size_t n, void *out)
+{
+	GO_SHA512_CTX ctx;
+	_goboringcrypto_SHA512_Init(&ctx);
+	return _goboringcrypto_SHA512_Update(&ctx, p, n) &&
+		_goboringcrypto_SHA512_Final(out, &ctx);
+}
+
+*/
 import "C"
 import (
 	"errors"
 	"hash"
 	"unsafe"
 )
+
+func addr(p []byte) unsafe.Pointer {
+	if len(p) == 0 {
+		return nil
+	}
+	return unsafe.Pointer(&p[0])
+}
+
+func SHA1(p []byte) (sum [20]byte) {
+	if C._goboringcrypto_gosha1(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+		panic("boringcrypto: SHA1 failed")
+	}
+	return
+}
+
+func SHA224(p []byte) (sum [28]byte) {
+	if C._goboringcrypto_gosha224(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+		panic("boringcrypto: SHA224 failed")
+	}
+	return
+}
+
+func SHA256(p []byte) (sum [32]byte) {
+	if C._goboringcrypto_gosha256(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+		panic("boringcrypto: SHA256 failed")
+	}
+	return
+}
+
+func SHA384(p []byte) (sum [48]byte) {
+	if C._goboringcrypto_gosha384(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+		panic("boringcrypto: SHA384 failed")
+	}
+	return
+}
+
+func SHA512(p []byte) (sum [64]byte) {
+	if C._goboringcrypto_gosha512(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+		panic("boringcrypto: SHA512 failed")
+	}
+	return
+}
 
 // NewSHA1 returns a new SHA1 hash.
 func NewSHA1() hash.Hash {
@@ -34,24 +124,31 @@ type sha1Ctx struct {
 	nx     uint32
 }
 
-func (h *sha1Hash) Reset()               { C._goboringcrypto_SHA1_Init(&h.ctx) }
-func (h *sha1Hash) Size() int            { return 20 }
-func (h *sha1Hash) BlockSize() int       { return 64 }
-func (h *sha1Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
+func (h *sha1Hash) noescapeCtx() *C.GO_SHA_CTX {
+	return (*C.GO_SHA_CTX)(noescape(unsafe.Pointer(&h.ctx)))
+}
+
+func (h *sha1Hash) Reset() {
+	C._goboringcrypto_SHA1_Init(h.noescapeCtx())
+}
+
+func (h *sha1Hash) Size() int             { return 20 }
+func (h *sha1Hash) BlockSize() int        { return 64 }
+func (h *sha1Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha1Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA1_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA1_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA1_Update failed")
 	}
 	return len(p), nil
 }
 
-func (h0 *sha1Hash) sum() []byte {
+func (h0 *sha1Hash) sum(dst []byte) []byte {
 	h := *h0 // make copy so future Write+Sum is valid
-	if C._goboringcrypto_SHA1_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
+	if C._goboringcrypto_SHA1_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
 		panic("boringcrypto: SHA1_Final failed")
 	}
-	return h.out[:]
+	return append(dst, h.out[:]...)
 }
 
 const (
@@ -108,24 +205,30 @@ type sha224Hash struct {
 	out [224 / 8]byte
 }
 
-func (h *sha224Hash) Reset()               { C._goboringcrypto_SHA224_Init(&h.ctx) }
-func (h *sha224Hash) Size() int            { return 224 / 8 }
-func (h *sha224Hash) BlockSize() int       { return 64 }
-func (h *sha224Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
+func (h *sha224Hash) noescapeCtx() *C.GO_SHA256_CTX {
+	return (*C.GO_SHA256_CTX)(noescape(unsafe.Pointer(&h.ctx)))
+}
+
+func (h *sha224Hash) Reset() {
+	C._goboringcrypto_SHA224_Init(h.noescapeCtx())
+}
+func (h *sha224Hash) Size() int             { return 224 / 8 }
+func (h *sha224Hash) BlockSize() int        { return 64 }
+func (h *sha224Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha224Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA224_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA224_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA224_Update failed")
 	}
 	return len(p), nil
 }
 
-func (h0 *sha224Hash) sum() []byte {
+func (h0 *sha224Hash) sum(dst []byte) []byte {
 	h := *h0 // make copy so future Write+Sum is valid
-	if C._goboringcrypto_SHA224_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
+	if C._goboringcrypto_SHA224_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
 		panic("boringcrypto: SHA224_Final failed")
 	}
-	return h.out[:]
+	return append(dst, h.out[:]...)
 }
 
 // NewSHA256 returns a new SHA256 hash.
@@ -140,24 +243,30 @@ type sha256Hash struct {
 	out [256 / 8]byte
 }
 
-func (h *sha256Hash) Reset()               { C._goboringcrypto_SHA256_Init(&h.ctx) }
-func (h *sha256Hash) Size() int            { return 256 / 8 }
-func (h *sha256Hash) BlockSize() int       { return 64 }
-func (h *sha256Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
+func (h *sha256Hash) noescapeCtx() *C.GO_SHA256_CTX {
+	return (*C.GO_SHA256_CTX)(noescape(unsafe.Pointer(&h.ctx)))
+}
+
+func (h *sha256Hash) Reset() {
+	C._goboringcrypto_SHA256_Init(h.noescapeCtx())
+}
+func (h *sha256Hash) Size() int             { return 256 / 8 }
+func (h *sha256Hash) BlockSize() int        { return 64 }
+func (h *sha256Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha256Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA256_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA256_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA256_Update failed")
 	}
 	return len(p), nil
 }
 
-func (h0 *sha256Hash) sum() []byte {
+func (h0 *sha256Hash) sum(dst []byte) []byte {
 	h := *h0 // make copy so future Write+Sum is valid
-	if C._goboringcrypto_SHA256_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
+	if C._goboringcrypto_SHA256_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
 		panic("boringcrypto: SHA256_Final failed")
 	}
-	return h.out[:]
+	return append(dst, h.out[:]...)
 }
 
 const (
@@ -271,24 +380,30 @@ type sha384Hash struct {
 	out [384 / 8]byte
 }
 
-func (h *sha384Hash) Reset()               { C._goboringcrypto_SHA384_Init(&h.ctx) }
-func (h *sha384Hash) Size() int            { return 384 / 8 }
-func (h *sha384Hash) BlockSize() int       { return 128 }
-func (h *sha384Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
+func (h *sha384Hash) noescapeCtx() *C.GO_SHA512_CTX {
+	return (*C.GO_SHA512_CTX)(noescape(unsafe.Pointer(&h.ctx)))
+}
+
+func (h *sha384Hash) Reset() {
+	C._goboringcrypto_SHA384_Init(h.noescapeCtx())
+}
+func (h *sha384Hash) Size() int             { return 384 / 8 }
+func (h *sha384Hash) BlockSize() int        { return 128 }
+func (h *sha384Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha384Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA384_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA384_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA384_Update failed")
 	}
 	return len(p), nil
 }
 
-func (h0 *sha384Hash) sum() []byte {
+func (h0 *sha384Hash) sum(dst []byte) []byte {
 	h := *h0 // make copy so future Write+Sum is valid
-	if C._goboringcrypto_SHA384_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
+	if C._goboringcrypto_SHA384_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
 		panic("boringcrypto: SHA384_Final failed")
 	}
-	return h.out[:]
+	return append(dst, h.out[:]...)
 }
 
 // NewSHA512 returns a new SHA512 hash.
@@ -303,24 +418,30 @@ type sha512Hash struct {
 	out [512 / 8]byte
 }
 
-func (h *sha512Hash) Reset()               { C._goboringcrypto_SHA512_Init(&h.ctx) }
-func (h *sha512Hash) Size() int            { return 512 / 8 }
-func (h *sha512Hash) BlockSize() int       { return 128 }
-func (h *sha512Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
+func (h *sha512Hash) noescapeCtx() *C.GO_SHA512_CTX {
+	return (*C.GO_SHA512_CTX)(noescape(unsafe.Pointer(&h.ctx)))
+}
+
+func (h *sha512Hash) Reset() {
+	C._goboringcrypto_SHA512_Init(h.noescapeCtx())
+}
+func (h *sha512Hash) Size() int             { return 512 / 8 }
+func (h *sha512Hash) BlockSize() int        { return 128 }
+func (h *sha512Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha512Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA512_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA512_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA512_Update failed")
 	}
 	return len(p), nil
 }
 
-func (h0 *sha512Hash) sum() []byte {
+func (h0 *sha512Hash) sum(dst []byte) []byte {
 	h := *h0 // make copy so future Write+Sum is valid
-	if C._goboringcrypto_SHA512_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
+	if C._goboringcrypto_SHA512_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
 		panic("boringcrypto: SHA512_Final failed")
 	}
-	return h.out[:]
+	return append(dst, h.out[:]...)
 }
 
 type sha512Ctx struct {
@@ -337,8 +458,6 @@ const (
 	magic512         = "sha\x07"
 	marshaledSize512 = len(magic512) + 8*8 + 128 + 8
 )
-
-var zero [128]byte
 
 func (h *sha384Hash) MarshalBinary() ([]byte, error) {
 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))

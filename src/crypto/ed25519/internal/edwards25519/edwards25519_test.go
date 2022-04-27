@@ -281,7 +281,6 @@ func TestNonCanonicalPoints(t *testing.T) {
 var testAllocationsSink byte
 
 func TestAllocations(t *testing.T) {
-	t.Skip("skipping allocations test on Go+BoringCrypto, as cgo causes allocations")
 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
 		t.Skip("skipping allocations test without relevant optimizations")
 	}
