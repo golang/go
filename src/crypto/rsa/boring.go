@@ -8,6 +8,7 @@ package rsa
 
 import (
 	"crypto/internal/boring"
+	"crypto/internal/boring/bbig"
 	"math/big"
 	"sync/atomic"
 	"unsafe"
@@ -43,7 +44,7 @@ func boringPublicKey(pub *PublicKey) (*boring.PublicKeyRSA, error) {
 
 	b = new(boringPub)
 	b.orig = copyPublicKey(pub)
-	key, err := boring.NewPublicKeyRSA(b.orig.N, big.NewInt(int64(b.orig.E)))
+	key, err := boring.NewPublicKeyRSA(bbig.Enc(b.orig.N), bbig.Enc(big.NewInt(int64(b.orig.E))))
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyRSA, error) {
 		Dq = b.orig.Precomputed.Dq
 		Qinv = b.orig.Precomputed.Qinv
 	}
-	key, err := boring.NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv)
+	key, err := boring.NewPrivateKeyRSA(bbig.Enc(N), bbig.Enc(E), bbig.Enc(D), bbig.Enc(P), bbig.Enc(Q), bbig.Enc(Dp), bbig.Enc(Dq), bbig.Enc(Qinv))
 	if err != nil {
 		return nil, err
 	}

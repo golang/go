@@ -334,7 +334,7 @@ var depsRules = `
 
 	# Bulk of the standard library must not use cgo.
 	# The prohibition stops at net and os/user.
-	C !< fmt, go/types;
+	C !< fmt, go/types, CRYPTO-MATH;
 
 	CGO, OS
 	< plugin;
@@ -399,10 +399,15 @@ var depsRules = `
 
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
 	sync/atomic < crypto/internal/boring/fipstls;
+	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
 
-	encoding/binary, golang.org/x/sys/cpu, hash,
-	FMT, math/big, embed,
-	CGO, crypto/internal/boring/sig, crypto/internal/boring/fipstls, crypto/internal/boring/syso
+	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+	# Unfortunately, stuck with reflect via encoding/binary.
+	crypto/internal/boring/sig,
+	crypto/internal/boring/syso,
+	encoding/binary,
+	golang.org/x/sys/cpu,
+	hash
 	< crypto
 	< crypto/subtle
 	< crypto/internal/subtle
@@ -411,43 +416,47 @@ var depsRules = `
 	< crypto/ed25519/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
 	< crypto/ed25519/internal/edwards25519
 	< crypto/cipher
-	< encoding/asn1
 	< crypto/internal/boring
+	< crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
 	  crypto/sha1, crypto/sha256, crypto/sha512
+	< CRYPTO;
+
+	CGO, fmt, net !< CRYPTO;
+
+	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
+	CRYPTO, FMT, math/big, embed
+	< crypto/internal/boring/bbig
 	< crypto/internal/randutil
 	< crypto/rand
 	< crypto/ed25519
+	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
 	< golang.org/x/crypto/cryptobyte
 	< golang.org/x/crypto/curve25519
 	< crypto/dsa, crypto/elliptic, crypto/rsa
 	< crypto/ecdsa
-	< CRYPTO-BORING;
+	< CRYPTO-MATH;
 
-	net !< CRYPTO-BORING;
+	CGO, net !< CRYPTO-MATH;
 
 	# TLS, Prince of Dependencies.
-	CRYPTO-BORING, NET, container/list, encoding/hex, encoding/pem
+	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem
 	< golang.org/x/crypto/internal/subtle
 	< golang.org/x/crypto/chacha20
 	< golang.org/x/crypto/internal/poly1305
 	< golang.org/x/crypto/chacha20poly1305
 	< golang.org/x/crypto/hkdf
 	< crypto/x509/internal/macos
-	< crypto/x509/pkix
+	< crypto/x509/pkix;
+
+	crypto/internal/boring/fipstls, crypto/x509/pkix
 	< crypto/x509
 	< crypto/tls;
 
-	crypto/internal/boring/sig, crypto/internal/boring/fipstls
-	< crypto/tls/fipsonly;
-
-	crypto/internal/boring
-	< crypto/boring;
-
 	# crypto-aware packages
 
-	CRYPTO-BORING, DEBUG, go/build, go/types, text/scanner
+	DEBUG, go/build, go/types, text/scanner, crypto/md5
 	< internal/pkgbits
 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
 	< go/importer;
@@ -645,6 +654,9 @@ func findImports(pkg string) ([]string, error) {
 	}
 	var imports []string
 	var haveImport = map[string]bool{}
+	if pkg == "crypto/internal/boring" {
+		haveImport["C"] = true // kludge: prevent C from appearing in crypto/internal/boring imports
+	}
 	fset := token.NewFileSet()
 	for _, file := range files {
 		name := file.Name()

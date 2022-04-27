@@ -14,14 +14,13 @@ import (
 	"crypto/subtle"
 	"errors"
 	"hash"
-	"math/big"
 	"runtime"
 	"strconv"
 	"unsafe"
 )
 
-func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
-	bad := func(e error) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
+func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv BigInt, err error) {
+	bad := func(e error) (N, E, D, P, Q, Dp, Dq, Qinv BigInt, err error) {
 		return nil, nil, nil, nil, nil, nil, nil, nil, e
 	}
 
@@ -47,7 +46,7 @@ type PublicKeyRSA struct {
 	_key *C.GO_RSA
 }
 
-func NewPublicKeyRSA(N, E *big.Int) (*PublicKeyRSA, error) {
+func NewPublicKeyRSA(N, E BigInt) (*PublicKeyRSA, error) {
 	key := C._goboringcrypto_RSA_new()
 	if key == nil {
 		return nil, fail("RSA_new")
@@ -78,7 +77,7 @@ type PrivateKeyRSA struct {
 	_key *C.GO_RSA
 }
 
-func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*PrivateKeyRSA, error) {
+func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv BigInt) (*PrivateKeyRSA, error) {
 	key := C._goboringcrypto_RSA_new()
 	if key == nil {
 		return nil, fail("RSA_new")

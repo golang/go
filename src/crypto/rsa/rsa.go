@@ -24,6 +24,9 @@ package rsa
 
 import (
 	"crypto"
+	"crypto/internal/boring"
+	"crypto/internal/boring/bbig"
+	"crypto/internal/randutil"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
@@ -31,12 +34,6 @@ import (
 	"io"
 	"math"
 	"math/big"
-
-	"crypto/internal/randutil"
-)
-
-import (
-	"crypto/internal/boring"
 	"unsafe"
 )
 
@@ -266,10 +263,18 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 	randutil.MaybeReadByte(random)
 
 	if boring.Enabled && random == boring.RandReader && nprimes == 2 && (bits == 2048 || bits == 3072) {
-		N, E, D, P, Q, Dp, Dq, Qinv, err := boring.GenerateKeyRSA(bits)
+		bN, bE, bD, bP, bQ, bDp, bDq, bQinv, err := boring.GenerateKeyRSA(bits)
 		if err != nil {
 			return nil, err
 		}
+		N := bbig.Dec(bN)
+		E := bbig.Dec(bE)
+		D := bbig.Dec(bD)
+		P := bbig.Dec(bP)
+		Q := bbig.Dec(bQ)
+		Dp := bbig.Dec(bDp)
+		Dq := bbig.Dec(bDq)
+		Qinv := bbig.Dec(bQinv)
 		e64 := E.Int64()
 		if !E.IsInt64() || int64(int(e64)) != e64 {
 			return nil, errors.New("crypto/rsa: generated key exponent too large")
