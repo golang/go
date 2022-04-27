@@ -1536,6 +1536,7 @@ func gcResetMarkState() {
 // Hooks for other packages
 
 var poolcleanup func()
+var boringCaches []unsafe.Pointer
 
 //go:linkname sync_runtime_registerPoolCleanup sync.runtime_registerPoolCleanup
 func sync_runtime_registerPoolCleanup(f func()) {
@@ -1546,6 +1547,11 @@ func clearpools() {
 	// clear sync.Pools
 	if poolcleanup != nil {
 		poolcleanup()
+	}
+
+	// clear boringcrypto caches
+	for _, p := range boringCaches {
+		atomicstorep(p, nil)
 	}
 
 	// Clear central sudog cache.
