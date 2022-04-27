@@ -1907,9 +1907,8 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	if name == "unix" && unixOS[ctxt.GOOS] {
 		return true
 	}
-	// Let applications know that the Go+BoringCrypto toolchain is in use.
 	if name == "boringcrypto" {
-		return true
+		name = "goexperiment.boringcrypto" // boringcrypto is an old name for goexperiment.boringcrypto
 	}
 
 	// other tags

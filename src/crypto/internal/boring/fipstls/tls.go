@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build boringcrypto
+
 // Package fipstls allows control over whether crypto/tls requires FIPS-approved settings.
-// This package's effects are independent of the use of the BoringCrypto implementation.
+// This package only exists with GOEXPERIMENT=boringcrypto, but the effects are independent
+// of the use of BoringCrypto.
 package fipstls
 
 import "sync/atomic"

@@ -1060,6 +1060,7 @@ var hostobj []Hostobj
 // Others trigger external mode.
 var internalpkg = []string{
 	"crypto/internal/boring",
+	"crypto/internal/boring/syso",
 	"crypto/x509",
 	"net",
 	"os/user",

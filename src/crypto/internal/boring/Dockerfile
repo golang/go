@@ -8,8 +8,8 @@
 #
 #   $ podman build -t goboring:140sp3678 .
 #   $ podman run -it --name goboring-140sp3678 goboring:140sp3678
-#   $ podman cp goboring-140sp3678:/boring/godriver/goboringcrypto_linux_amd64.syso .
-#   $ sha256sum goboringcrypto_linux_amd64.syso # compare to docker output
+#   $ podman cp goboring-140sp3678:/boring/godriver/goboringcrypto_linux_amd64.syso syso
+#   $ sha256sum syso/goboringcrypto_linux_amd64.syso # compare to docker output
 #
 # The podman commands may need to run under sudo to work around a subuid/subgid bug.
 

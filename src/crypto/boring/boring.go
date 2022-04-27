@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build boringcrypto
+
 // Package boring exposes functions that are only available when building with
 // Go+BoringCrypto. This package is available on all targets as long as the
 // Go+BoringCrypto toolchain is used. Use the Enabled function to determine
