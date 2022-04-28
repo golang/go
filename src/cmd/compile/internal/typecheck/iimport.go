@@ -1552,20 +1552,25 @@ func (r *importReader) node() ir.Node {
 		return ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+		pos := r.pos()
 		if go117ExportTypes {
 			switch op {
 			case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
-				n := ir.NewBinaryExpr(r.pos(), op, r.expr(), r.expr())
+				init := r.stmtList()
+				n := ir.NewBinaryExpr(pos, op, r.expr(), r.expr())
+				n.SetInit(init)
 				n.SetType(r.typ())
 				return n
 			case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC:
-				n := ir.NewUnaryExpr(r.pos(), op, r.expr())
+				n := ir.NewUnaryExpr(pos, op, r.expr())
 				if op != ir.OPANIC {
 					n.SetType(r.typ())
 				}
 				return n
 			case ir.OAPPEND, ir.ODELETE, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
-				n := ir.NewCallExpr(r.pos(), op, nil, r.exprList())
+				init := r.stmtList()
+				n := ir.NewCallExpr(pos, op, nil, r.exprList())
+				n.SetInit(init)
 				if op == ir.OAPPEND {
 					n.IsDDD = r.bool()
 				}
@@ -1577,7 +1582,14 @@ func (r *importReader) node() ir.Node {
 			// ir.OMAKE
 			goto error
 		}
-		n := builtinCall(r.pos(), op)
+		n := builtinCall(pos, op)
+		switch n.Op() {
+		case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+			// treated like other builtin calls
+			fallthrough
+		case ir.OAPPEND, ir.ODELETE, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
+			n.SetInit(r.stmtList())
+		}
 		n.Args = r.exprList()
 		if op == ir.OAPPEND {
 			n.IsDDD = r.bool()

@@ -2001,6 +2001,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.BinaryExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.expr(n.X)
 		w.expr(n.Y)
 		if go117ExportTypes {
@@ -2037,6 +2038,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.CallExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprList(n.Args) // emits terminating OEND
 		// only append() calls may contain '...' arguments
 		if n.Op() == ir.OAPPEND {
