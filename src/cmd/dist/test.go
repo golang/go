@@ -1085,25 +1085,16 @@ func (t *tester) internalLinkPIE() bool {
 func (t *tester) supportedBuildmode(mode string) bool {
 	pair := goos + "-" + goarch
 	switch mode {
+	case "archive":
+		return true
 	case "c-archive":
-		if !t.extLink() {
-			return false
-		}
-		switch pair {
-		case "aix-ppc64",
-			"darwin-amd64", "darwin-arm64", "ios-arm64",
-			"linux-amd64", "linux-386", "linux-ppc64le", "linux-riscv64", "linux-s390x",
-			"freebsd-amd64",
-			"windows-amd64", "windows-386":
-			return true
-		}
-		return false
+		return pair != "linux-ppc64"
 	case "c-shared":
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
 			"darwin-amd64", "darwin-arm64",
 			"freebsd-amd64",
-			"android-arm", "android-arm64", "android-386",
+			"android-amd64", "android-arm", "android-arm64", "android-386",
 			"windows-amd64", "windows-386", "windows-arm64":
 			return true
 		}
@@ -1122,17 +1113,26 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			return true
 		case "freebsd-amd64":
 			return true
+		case "android-386", "android-amd64", "android-arm", "android-arm64":
+			return true
 		}
 		return false
+	case "default":
+		return true
+	case "exe":
+		return true
 	case "pie":
 		switch pair {
-		case "aix/ppc64",
-			"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
+		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
 			"android-amd64", "android-arm", "android-arm64", "android-386":
 			return true
 		case "darwin-amd64", "darwin-arm64":
 			return true
 		case "windows-amd64", "windows-386", "windows-arm":
+			return true
+		case "freebsd-amd64", "ios-amd64", "ios-arm64":
+			return true
+		case "aix-ppc64":
 			return true
 		}
 		return false
