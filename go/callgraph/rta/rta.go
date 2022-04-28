@@ -45,6 +45,10 @@ package rta // import "golang.org/x/tools/go/callgraph/rta"
 // replacing all "unreachable" functions by a special intrinsic, and
 // ensure that that intrinsic is never called.
 
+// TODO(zpavlinovic): decide if the clients must use ssa.InstantiateGenerics
+// mode when building programs with generics. It might be possible to
+// extend rta to accurately support generics with just ssa.BuilderMode(0).
+
 import (
 	"fmt"
 	"go/types"

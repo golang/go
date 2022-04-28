@@ -16,7 +16,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 var inputs = []string{
@@ -53,16 +54,7 @@ func expectation(f *ast.File) (string, token.Pos) {
 // one per line.  Each set is sorted.
 func TestRTA(t *testing.T) {
 	for _, filename := range inputs {
-		content, err := ioutil.ReadFile(filename)
-		if err != nil {
-			t.Errorf("couldn't read file '%s': %s", filename, err)
-			continue
-		}
-
-		conf := loader.Config{
-			ParserMode: parser.ParseComments,
-		}
-		f, err := conf.ParseFile(filename, content)
+		prog, f, mainPkg, err := loadProgInfo(filename, ssa.BuilderMode(0))
 		if err != nil {
 			t.Error(err)
 			continue
@@ -74,30 +66,77 @@ func TestRTA(t *testing.T) {
 			continue
 		}
 
-		conf.CreateFromFiles("main", f)
-		iprog, err := conf.Load()
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		prog := ssautil.CreateProgram(iprog, 0)
-		mainPkg := prog.Package(iprog.Created[0].Pkg)
-		prog.Build()
-
 		res := rta.Analyze([]*ssa.Function{
 			mainPkg.Func("main"),
 			mainPkg.Func("init"),
 		}, true)
 
-		if got := printResult(res, mainPkg.Pkg); got != want {
+		if got := printResult(res, mainPkg.Pkg, "dynamic", "Dynamic calls"); got != want {
 			t.Errorf("%s: got:\n%s\nwant:\n%s",
 				prog.Fset.Position(pos), got, want)
 		}
 	}
 }
 
-func printResult(res *rta.Result, from *types.Package) string {
+// TestRTAGenerics is TestRTA specialized for testing generics.
+func TestRTAGenerics(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("TestRTAGenerics requires type parameters")
+	}
+
+	filename := "testdata/generics.go"
+	prog, f, mainPkg, err := loadProgInfo(filename, ssa.InstantiateGenerics)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want, pos := expectation(f)
+	if pos == token.NoPos {
+		t.Fatalf("No WANT: comment in %s", filename)
+	}
+
+	res := rta.Analyze([]*ssa.Function{
+		mainPkg.Func("main"),
+		mainPkg.Func("init"),
+	}, true)
+
+	if got := printResult(res, mainPkg.Pkg, "", "All calls"); got != want {
+		t.Errorf("%s: got:\n%s\nwant:\n%s",
+			prog.Fset.Position(pos), got, want)
+	}
+}
+
+func loadProgInfo(filename string, mode ssa.BuilderMode) (*ssa.Program, *ast.File, *ssa.Package, error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("couldn't read file '%s': %s", filename, err)
+	}
+
+	conf := loader.Config{
+		ParserMode: parser.ParseComments,
+	}
+	f, err := conf.ParseFile(filename, content)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	conf.CreateFromFiles("main", f)
+	iprog, err := conf.Load()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	prog := ssautil.CreateProgram(iprog, mode)
+	prog.Build()
+
+	return prog, f, prog.Package(iprog.Created[0].Pkg), nil
+}
+
+// printResult returns a string representation of res, i.e., call graph,
+// reachable functions, and reflect types. For call graph, only edges
+// whose description contains edgeMatch are returned and their string
+// representation is prefixed with a desc line.
+func printResult(res *rta.Result, from *types.Package, edgeMatch, desc string) string {
 	var buf bytes.Buffer
 
 	writeSorted := func(ss []string) {
@@ -107,10 +146,10 @@ func printResult(res *rta.Result, from *types.Package) string {
 		}
 	}
 
-	buf.WriteString("Dynamic calls\n")
+	buf.WriteString(desc + "\n")
 	var edges []string
 	callgraph.GraphVisitEdges(res.CallGraph, func(e *callgraph.Edge) error {
-		if strings.Contains(e.Description(), "dynamic") {
+		if strings.Contains(e.Description(), edgeMatch) {
 			edges = append(edges, fmt.Sprintf("%s --> %s",
 				e.Caller.Func.RelString(from),
 				e.Callee.Func.RelString(from)))
