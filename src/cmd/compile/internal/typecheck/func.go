@@ -187,19 +187,6 @@ func ImportedBody(fn *ir.Func) {
 		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.Nodes(fn.Inl.Body))
 	}
 
-	if !go117ExportTypes {
-		// If we didn't export & import types, typecheck the code here.
-		savefn := ir.CurFunc
-		ir.CurFunc = fn
-		if inTypeCheckInl {
-			base.Fatalf("inTypeCheckInl should not be set recursively")
-		}
-		inTypeCheckInl = true
-		Stmts(fn.Inl.Body)
-		inTypeCheckInl = false
-		ir.CurFunc = savefn
-	}
-
 	base.Pos = lno
 }
 
