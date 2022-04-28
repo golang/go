@@ -137,11 +137,6 @@ func MethodValueType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// True if we are typechecking an inline body in ImportedBody below. We use this
-// flag to not create a new closure function in tcClosure when we are just
-// typechecking an inline body, as opposed to the body of a real function.
-var inTypeCheckInl bool
-
 // ImportedBody returns immediately if the inlining information for fn is
 // populated. Otherwise, fn must be an imported function. If so, ImportedBody
 // loads in the dcls and body for fn, and typechecks as needed.
@@ -263,15 +258,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
 
 	clo.SetType(fn.Type())
 
-	target := Target
-	if inTypeCheckInl {
-		// We're typechecking an imported function, so it's not actually
-		// part of Target. Skip adding it to Target.Decls so we don't
-		// compile it again.
-		target = nil
-	}
-
-	return ir.UseClosure(clo, target)
+	return ir.UseClosure(clo, Target)
 }
 
 // type check function definition
