@@ -101,7 +101,7 @@ GLOBL	runtime·sigtramp(SB), NOPTR, $24
 // This function must not have any frame as we want to control how
 // every registers are used.
 // TODO(aix): Implement SetCgoTraceback handler.
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)
 	// initialize essential registers (just in case)
