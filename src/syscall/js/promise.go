@@ -2,6 +2,8 @@
 
 package js
 
+import "errors"
+
 // Promisable function that satisfies MakePromise's requirements.
 type PromiseAbleFunc = func(Value, []Value) (interface{}, error)
 
@@ -15,11 +17,17 @@ func PromiseOf(fn PromiseAbleFunc) Func {
 
 			// Run this asynchronously.
 			go func() {
+				// Recover by rejecting.
+				defer func() {
+					if err := recover(); err != nil {
+						reject.Invoke(PromiseError(err))
+					}
+				}()			
+				
+				// Run the PromiseAble func with original this and args.
 				res, err := fn(this, args)
 				if err != nil {
-					errorConstructor := Global().Get("Error")
-					errorObject := errorConstructor.New(err.Error())
-					reject.Invoke(errorObject)
+					reject.Invoke(PromiseError(err))
 					return
 				}
 				resolve.Invoke(res)
@@ -33,4 +41,17 @@ func PromiseOf(fn PromiseAbleFunc) Func {
 		promiseConstructor := Global().Get("Promise")
 		return promiseConstructor.New(handler)
 	})
+}
+
+// PromiseError makes sure to return some error that Invoke will understand.
+func PromiseError(e interface{}) (err error) {
+	switch x := e.(type) {
+	case string:
+		err = errors.New(x)
+	case error:
+		err = x
+	default:
+		err = errors.New("unknown panic")
+	}
+	return err
 }
