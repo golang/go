@@ -903,6 +903,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 			}
 		case *bytes.Reader:
 		case *bufio.Reader:
+		case *io.LimitedReader:
 			req.ContentLength = int64(v.Len())
 			snapshot := *v
 			req.GetBody = func() (io.ReadCloser, error) {
