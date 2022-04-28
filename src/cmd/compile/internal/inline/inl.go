@@ -934,10 +934,6 @@ func oldInline(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr
 	lab := ir.NewLabelStmt(base.Pos, retlabel)
 	body = append(body, lab)
 
-	if !typecheck.Go117ExportTypes {
-		typecheck.Stmts(body)
-	}
-
 	if base.Flag.GenDwarfInl > 0 {
 		for _, v := range inlfvars {
 			v.SetPos(subst.updatedPos(v.Pos()))

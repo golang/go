@@ -1590,11 +1590,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 
 	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 		n := n.(*ir.AssignListStmt)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OAS2)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.stmtList(n.Init())
 		w.exprList(n.Lhs)
@@ -1759,9 +1755,7 @@ func (w *exportWriter) expr(n ir.Node) {
 			// Indicate that this is not an OKEY entry.
 			w.bool(false)
 			w.qualifiedIdent(n)
-			if go117ExportTypes {
-				w.typ(n.Type())
-			}
+			w.typ(n.Type())
 			break
 		}
 
@@ -1790,9 +1784,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		s := n.Sym()
 		w.string(s.Name)
 		w.pkg(s.Pkg)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	// case OPACK:
 	// 	should have been resolved by typechecking - handled by default case
@@ -1864,16 +1856,10 @@ func (w *exportWriter) expr(n ir.Node) {
 
 	case ir.OPTRLIT:
 		n := n.(*ir.AddrExpr)
-		if go117ExportTypes {
-			w.op(ir.OPTRLIT)
-		} else {
-			w.op(ir.OADDR)
-		}
+		w.op(ir.OPTRLIT)
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OSTRUCTLIT:
 		n := n.(*ir.CompLitExpr)
@@ -1884,15 +1870,11 @@ func (w *exportWriter) expr(n ir.Node) {
 
 	case ir.OCOMPLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		n := n.(*ir.CompLitExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OCOMPLIT)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.typ(n.Type())
 		w.exprList(n.List)
-		if go117ExportTypes && n.Op() == ir.OSLICELIT {
+		if n.Op() == ir.OSLICELIT {
 			w.uint64(uint64(n.Len))
 		}
 	case ir.OKEY:
@@ -1907,37 +1889,25 @@ func (w *exportWriter) expr(n ir.Node) {
 
 	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
 		n := n.(*ir.SelectorExpr)
-		if go117ExportTypes {
-			// For go117ExportTypes, we usually see all ops except
-			// OXDOT, but we can see OXDOT for generic functions.
-			w.op(n.Op())
-		} else {
-			w.op(ir.OXDOT)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.exoticSelector(n.Sel)
-		if go117ExportTypes {
-			w.exoticType(n.Type())
-			if n.Op() == ir.OXDOT {
-				// n.Selection for method references will be
-				// reconstructed during import.
-				w.bool(n.Selection != nil)
-			} else if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
-				w.exoticField(n.Selection)
-			}
-			// n.Selection is not required for OMETHEXPR, ODOTMETH, and OMETHVALUE. It will
-			// be reconstructed during import.  n.Selection is computed during
-			// transformDot() for OXDOT.
+		w.exoticType(n.Type())
+		if n.Op() == ir.OXDOT {
+			// n.Selection for method references will be
+			// reconstructed during import.
+			w.bool(n.Selection != nil)
+		} else if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
+			w.exoticField(n.Selection)
 		}
+		// n.Selection is not required for OMETHEXPR, ODOTMETH, and OMETHVALUE. It will
+		// be reconstructed during import.  n.Selection is computed during
+		// transformDot() for OXDOT.
 
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n := n.(*ir.TypeAssertExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.ODOTTYPE)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.typ(n.Type())
@@ -1952,49 +1922,31 @@ func (w *exportWriter) expr(n ir.Node) {
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OINDEX)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.expr(n.Index)
-		if go117ExportTypes {
-			w.exoticType(n.Type())
-			if n.Op() == ir.OINDEXMAP {
-				w.bool(n.Assigned)
-			}
+		w.exoticType(n.Type())
+		if n.Op() == ir.OINDEXMAP {
+			w.bool(n.Assigned)
 		}
 
 	case ir.OSLICE, ir.OSLICESTR, ir.OSLICEARR:
 		n := n.(*ir.SliceExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OSLICE)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.exprsOrNil(n.Low, n.High)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OSLICE3)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.exprsOrNil(n.Low, n.High)
 		w.expr(n.Max)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 		// treated like other builtin calls (see e.g., OREAL)
@@ -2004,19 +1956,11 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.stmtList(n.Init())
 		w.expr(n.X)
 		w.expr(n.Y)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		} else {
-			w.op(ir.OEND)
-		}
+		w.typ(n.Type())
 
 	case ir.OCONV, ir.OCONVIFACE, ir.OCONVIDATA, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARRPTR:
 		n := n.(*ir.ConvExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OCONV)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.typ(n.Type())
 		w.expr(n.X)
@@ -2026,12 +1970,8 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			if n.Op() != ir.OPANIC {
-				w.typ(n.Type())
-			}
-		} else {
-			w.op(ir.OEND)
+		if n.Op() != ir.OPANIC {
+			w.typ(n.Type())
 		}
 
 	case ir.OAPPEND, ir.ODELETE, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
@@ -2046,27 +1986,19 @@ func (w *exportWriter) expr(n ir.Node) {
 		} else if n.IsDDD {
 			base.Fatalf("exporter: unexpected '...' with %v call", n.Op())
 		}
-		if go117ExportTypes {
-			if n.Op() != ir.ODELETE && n.Op() != ir.OPRINT && n.Op() != ir.OPRINTN {
-				w.typ(n.Type())
-			}
+		if n.Op() != ir.ODELETE && n.Op() != ir.OPRINT && n.Op() != ir.OPRINTN {
+			w.typ(n.Type())
 		}
 
 	case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OGETG:
 		n := n.(*ir.CallExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OCALL)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.stmtList(n.Init())
 		w.expr(n.X)
 		w.exprList(n.Args)
 		w.bool(n.IsDDD)
-		if go117ExportTypes {
-			w.exoticType(n.Type())
-		}
+		w.exoticType(n.Type())
 
 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
 		n := n.(*ir.MakeExpr)
@@ -2087,7 +2019,7 @@ func (w *exportWriter) expr(n ir.Node) {
 			// an argument. Don't serialize that argument here.
 			w.expr(n.Len)
 			w.op(ir.OEND)
-		case n.Len != nil && go117ExportTypes:
+		case n.Len != nil:
 			w.expr(n.Len)
 			w.op(ir.OEND)
 		}
@@ -2106,27 +2038,21 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OADDR:
 		n := n.(*ir.AddrExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OSEND:
 		n := n.(*ir.SendStmt)
@@ -2143,9 +2069,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.expr(n.Y)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OANDAND, ir.OOROR:
 		n := n.(*ir.LogicalExpr)
@@ -2153,18 +2077,14 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.expr(n.Y)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OADDSTR:
 		n := n.(*ir.AddStringExpr)
 		w.op(ir.OADDSTR)
 		w.pos(n.Pos())
 		w.exprList(n.List)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.ODCLCONST:
 		// if exporting, DCLCONST should just be removed as its usage
@@ -2179,9 +2099,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		for _, targ := range n.Targs {
 			w.typ(targ.Type())
 		}
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OSELRECV2:
 		n := n.(*ir.AssignListStmt)
@@ -2296,16 +2214,6 @@ func (w *intWriter) uint64(x uint64) {
 	n := binary.PutUvarint(buf[:], x)
 	w.Write(buf[:n])
 }
-
-// If go117ExportTypes is true, then we write type information when
-// exporting function bodies, so those function bodies don't need to
-// be re-typechecked on import.
-// This flag adds some other info to the serialized stream as well
-// which was previously recomputed during typechecking, like
-// specializing opcodes (e.g. OXDOT to ODOTPTR) and ancillary
-// information (e.g. length field for OSLICELIT).
-const go117ExportTypes = true
-const Go117ExportTypes = go117ExportTypes
 
 // The name used for dictionary parameters or local variables.
 const LocalDictName = ".dict"

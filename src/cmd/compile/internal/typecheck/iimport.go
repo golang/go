@@ -1137,11 +1137,9 @@ func (r *importReader) funcBody(fn *ir.Func) {
 		// functions).
 		body = []ir.Node{}
 	}
-	if go117ExportTypes {
-		ir.VisitList(body, func(n ir.Node) {
-			n.SetTypecheck(1)
-		})
-	}
+	ir.VisitList(body, func(n ir.Node) {
+		n.SetTypecheck(1)
+	})
 	fn.Inl.Body = body
 
 	r.curfn = outerfn
@@ -1319,19 +1317,15 @@ func (r *importReader) node() ir.Node {
 
 	case ir.ONONAME:
 		isKey := r.bool()
-		n := r.qualifiedIdent()
-		if go117ExportTypes {
-			var n2 ir.Node = n
-			// Key ONONAME entries should not be resolved - they should
-			// stay as identifiers.
-			if !isKey {
-				n2 = Resolve(n)
-			}
-			typ := r.typ()
-			if n2.Type() == nil {
-				n2.SetType(typ)
-			}
-			return n2
+		var n ir.Node = r.qualifiedIdent()
+		// Key ONONAME entries should not be resolved - they should
+		// stay as identifiers.
+		if !isKey {
+			n = Resolve(n)
+		}
+		typ := r.typ()
+		if n.Type() == nil {
+			n.SetType(typ)
 		}
 		return n
 
@@ -1386,7 +1380,7 @@ func (r *importReader) node() ir.Node {
 		cvars := make([]*ir.Name, r.int64())
 		for i := range cvars {
 			cvars[i] = ir.CaptureName(r.pos(), fn, r.localName().Canonical())
-			if go117ExportTypes && cvars[i].Defn == nil {
+			if cvars[i].Defn == nil {
 				base.Fatalf("bad import of closure variable")
 			}
 		}
@@ -1409,21 +1403,16 @@ func (r *importReader) node() ir.Node {
 		ir.FinishCaptureNames(pos, r.curfn, fn)
 
 		clo := fn.OClosure
-		if go117ExportTypes {
-			clo.SetType(typ)
-		}
+		clo.SetType(typ)
 		return clo
 
 	case ir.OSTRUCTLIT:
-		if go117ExportTypes {
-			pos := r.pos()
-			typ := r.typ()
-			list := r.fieldList()
-			n := ir.NewCompLitExpr(pos, ir.OSTRUCTLIT, nil, list)
-			n.SetType(typ)
-			return n
-		}
-		return ir.NewCompLitExpr(r.pos(), ir.OCOMPLIT, ir.TypeNode(r.typ()), r.fieldList())
+		pos := r.pos()
+		typ := r.typ()
+		list := r.fieldList()
+		n := ir.NewCompLitExpr(pos, ir.OSTRUCTLIT, nil, list)
+		n.SetType(typ)
+		return n
 
 	case ir.OCOMPLIT:
 		pos := r.pos()
@@ -1433,10 +1422,6 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
-		if !go117ExportTypes {
-			// unreachable - mapped to OCOMPLIT by exporter
-			goto error
-		}
 		pos := r.pos()
 		typ := r.typ()
 		list := r.exprList()
@@ -1454,55 +1439,47 @@ func (r *importReader) node() ir.Node {
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
 	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
-		// For !go117ExportTypes,  we should only see OXDOT.
-		// For go117ExportTypes, we usually see all the other ops, but can see
-		// OXDOT for generic functions.
-		if op != ir.OXDOT && !go117ExportTypes {
-			goto error
-		}
 		pos := r.pos()
 		expr := r.expr()
 		sel := r.exoticSelector()
 		n := ir.NewSelectorExpr(pos, op, expr, sel)
-		if go117ExportTypes {
-			n.SetType(r.exoticType())
-			switch op {
-			case ir.OXDOT:
-				hasSelection := r.bool()
-				// We reconstruct n.Selection for method calls on
-				// generic types and method calls due to type param
-				// bounds.  Otherwise, n.Selection is nil.
-				if hasSelection {
-					n1 := ir.NewSelectorExpr(pos, op, expr, sel)
-					AddImplicitDots(n1)
-					var m *types.Field
-					if n1.X.Type().IsTypeParam() {
-						genType := n1.X.Type().Bound()
-						m = Lookdot1(n1, sel, genType, genType.AllMethods(), 1)
-					} else {
-						genType := types.ReceiverBaseType(n1.X.Type())
-						if genType.IsInstantiatedGeneric() {
-							genType = genType.OrigType()
-						}
-						m = Lookdot1(n1, sel, genType, genType.Methods(), 1)
+		n.SetType(r.exoticType())
+		switch op {
+		case ir.OXDOT:
+			hasSelection := r.bool()
+			// We reconstruct n.Selection for method calls on
+			// generic types and method calls due to type param
+			// bounds.  Otherwise, n.Selection is nil.
+			if hasSelection {
+				n1 := ir.NewSelectorExpr(pos, op, expr, sel)
+				AddImplicitDots(n1)
+				var m *types.Field
+				if n1.X.Type().IsTypeParam() {
+					genType := n1.X.Type().Bound()
+					m = Lookdot1(n1, sel, genType, genType.AllMethods(), 1)
+				} else {
+					genType := types.ReceiverBaseType(n1.X.Type())
+					if genType.IsInstantiatedGeneric() {
+						genType = genType.OrigType()
 					}
-					assert(m != nil)
-					n.Selection = m
+					m = Lookdot1(n1, sel, genType, genType.Methods(), 1)
 				}
-			case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
-				n.Selection = r.exoticField()
-			case ir.OMETHEXPR:
-				n = typecheckMethodExpr(n).(*ir.SelectorExpr)
-			case ir.ODOTMETH, ir.OMETHVALUE:
-				// These require a Lookup to link to the correct declaration.
-				rcvrType := expr.Type()
-				typ := n.Type()
-				n.Selection = Lookdot(n, rcvrType, 1)
-				if op == ir.OMETHVALUE {
-					// Lookdot clobbers the opcode and type, undo that.
-					n.SetOp(op)
-					n.SetType(typ)
-				}
+				assert(m != nil)
+				n.Selection = m
+			}
+		case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
+			n.Selection = r.exoticField()
+		case ir.OMETHEXPR:
+			n = typecheckMethodExpr(n).(*ir.SelectorExpr)
+		case ir.ODOTMETH, ir.OMETHVALUE:
+			// These require a Lookup to link to the correct declaration.
+			rcvrType := expr.Type()
+			typ := n.Type()
+			n.Selection = Lookdot(n, rcvrType, 1)
+			if op == ir.OMETHVALUE {
+				// Lookdot clobbers the opcode and type, undo that.
+				n.SetOp(op)
+				n.SetType(typ)
 			}
 		}
 		return n
@@ -1510,9 +1487,7 @@ func (r *importReader) node() ir.Node {
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n := ir.NewTypeAssertExpr(r.pos(), r.expr(), nil)
 		n.SetType(r.typ())
-		if go117ExportTypes {
-			n.SetOp(op)
-		}
+		n.SetOp(op)
 		return n
 
 	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
@@ -1522,12 +1497,10 @@ func (r *importReader) node() ir.Node {
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := ir.NewIndexExpr(r.pos(), r.expr(), r.expr())
-		if go117ExportTypes {
-			n.SetOp(op)
-			n.SetType(r.exoticType())
-			if op == ir.OINDEXMAP {
-				n.Assigned = r.bool()
-			}
+		n.SetOp(op)
+		n.SetType(r.exoticType())
+		if op == ir.OINDEXMAP {
+			n.Assigned = r.bool()
 		}
 		return n
 
@@ -1539,96 +1512,65 @@ func (r *importReader) node() ir.Node {
 			max = r.expr()
 		}
 		n := ir.NewSliceExpr(pos, op, x, low, high, max)
-		if go117ExportTypes {
-			n.SetType(r.typ())
-		}
+		n.SetType(r.typ())
 		return n
 
 	case ir.OCONV, ir.OCONVIFACE, ir.OCONVIDATA, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARRPTR:
-		if !go117ExportTypes && op != ir.OCONV {
-			// 	unreachable - mapped to OCONV case by exporter
-			goto error
-		}
 		return ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 		pos := r.pos()
-		if go117ExportTypes {
-			switch op {
-			case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
-				init := r.stmtList()
-				n := ir.NewBinaryExpr(pos, op, r.expr(), r.expr())
-				n.SetInit(init)
-				n.SetType(r.typ())
-				return n
-			case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC:
-				n := ir.NewUnaryExpr(pos, op, r.expr())
-				if op != ir.OPANIC {
-					n.SetType(r.typ())
-				}
-				return n
-			case ir.OAPPEND, ir.ODELETE, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
-				init := r.stmtList()
-				n := ir.NewCallExpr(pos, op, nil, r.exprList())
-				n.SetInit(init)
-				if op == ir.OAPPEND {
-					n.IsDDD = r.bool()
-				}
-				if op == ir.OAPPEND || op == ir.ORECOVER {
-					n.SetType(r.typ())
-				}
-				return n
-			}
-			// ir.OMAKE
-			goto error
-		}
-		n := builtinCall(pos, op)
-		switch n.Op() {
+		switch op {
 		case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
-			// treated like other builtin calls
-			fallthrough
+			init := r.stmtList()
+			n := ir.NewBinaryExpr(pos, op, r.expr(), r.expr())
+			n.SetInit(init)
+			n.SetType(r.typ())
+			return n
+		case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC:
+			n := ir.NewUnaryExpr(pos, op, r.expr())
+			if op != ir.OPANIC {
+				n.SetType(r.typ())
+			}
+			return n
 		case ir.OAPPEND, ir.ODELETE, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
-			n.SetInit(r.stmtList())
+			init := r.stmtList()
+			n := ir.NewCallExpr(pos, op, nil, r.exprList())
+			n.SetInit(init)
+			if op == ir.OAPPEND {
+				n.IsDDD = r.bool()
+			}
+			if op == ir.OAPPEND || op == ir.ORECOVER {
+				n.SetType(r.typ())
+			}
+			return n
 		}
-		n.Args = r.exprList()
-		if op == ir.OAPPEND {
-			n.IsDDD = r.bool()
-		}
-		return n
+		// ir.OMAKE
+		goto error
 
 	case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OGETG:
 		pos := r.pos()
 		init := r.stmtList()
 		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), r.exprList())
-		if go117ExportTypes {
-			n.SetOp(op)
-		}
+		n.SetOp(op)
 		n.SetInit(init)
 		n.IsDDD = r.bool()
-		if go117ExportTypes {
-			n.SetType(r.exoticType())
-		}
+		n.SetType(r.exoticType())
 		return n
 
 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
-		if go117ExportTypes {
-			pos := r.pos()
-			typ := r.typ()
-			list := r.exprList()
-			var len_, cap_ ir.Node
-			if len(list) > 0 {
-				len_ = list[0]
-			}
-			if len(list) > 1 {
-				cap_ = list[1]
-			}
-			n := ir.NewMakeExpr(pos, op, len_, cap_)
-			n.SetType(typ)
-			return n
+		pos := r.pos()
+		typ := r.typ()
+		list := r.exprList()
+		var len_, cap_ ir.Node
+		if len(list) > 0 {
+			len_ = list[0]
 		}
-		n := builtinCall(r.pos(), ir.OMAKE)
-		n.Args.Append(ir.TypeNode(r.typ()))
-		n.Args.Append(r.exprList()...)
+		if len(list) > 1 {
+			cap_ = list[1]
+		}
+		n := ir.NewMakeExpr(pos, op, len_, cap_)
+		n.SetType(typ)
 		return n
 
 	case ir.OLINKSYMOFFSET:
@@ -1641,45 +1583,33 @@ func (r *importReader) node() ir.Node {
 	// unary expressions
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV, ir.OIDATA:
 		n := ir.NewUnaryExpr(r.pos(), op, r.expr())
-		if go117ExportTypes {
-			n.SetType(r.typ())
-		}
+		n.SetType(r.typ())
 		return n
 
 	case ir.OADDR, ir.OPTRLIT:
-		if go117ExportTypes {
-			pos := r.pos()
-			expr := r.expr()
-			expr.SetTypecheck(1) // we do this for all nodes after importing, but do it now so markAddrOf can see it.
-			n := NodAddrAt(pos, expr)
-			n.SetOp(op)
-			n.SetType(r.typ())
-			return n
-		}
-		n := NodAddrAt(r.pos(), r.expr())
+		pos := r.pos()
+		expr := r.expr()
+		expr.SetTypecheck(1) // we do this for all nodes after importing, but do it now so markAddrOf can see it.
+		n := NodAddrAt(pos, expr)
+		n.SetOp(op)
+		n.SetType(r.typ())
 		return n
 
 	case ir.ODEREF:
 		n := ir.NewStarExpr(r.pos(), r.expr())
-		if go117ExportTypes {
-			n.SetType(r.typ())
-		}
+		n.SetType(r.typ())
 		return n
 
 	// binary expressions
 	case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,
 		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR, ir.OEFACE:
 		n := ir.NewBinaryExpr(r.pos(), op, r.expr(), r.expr())
-		if go117ExportTypes {
-			n.SetType(r.typ())
-		}
+		n.SetType(r.typ())
 		return n
 
 	case ir.OANDAND, ir.OOROR:
 		n := ir.NewLogicalExpr(r.pos(), op, r.expr(), r.expr())
-		if go117ExportTypes {
-			n.SetType(r.typ())
-		}
+		n.SetType(r.typ())
 		return n
 
 	case ir.OSEND:
@@ -1688,16 +1618,9 @@ func (r *importReader) node() ir.Node {
 	case ir.OADDSTR:
 		pos := r.pos()
 		list := r.exprList()
-		if go117ExportTypes {
-			n := ir.NewAddStringExpr(pos, list)
-			n.SetType(r.typ())
-			return n
-		}
-		x := list[0]
-		for _, y := range list[1:] {
-			x = ir.NewBinaryExpr(pos, ir.OADD, x, y)
-		}
-		return x
+		n := ir.NewAddStringExpr(pos, list)
+		n.SetType(r.typ())
+		return n
 
 	// --------------------------------------------------------------------
 	// statements
@@ -1730,10 +1653,6 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
-		if !go117ExportTypes && op != ir.OAS2 {
-			// unreachable - mapped to case OAS2 by exporter
-			goto error
-		}
 		pos := r.pos()
 		init := r.stmtList()
 		n := ir.NewAssignListStmt(pos, op, r.exprList(), r.exprList())
@@ -1820,9 +1739,7 @@ func (r *importReader) node() ir.Node {
 			}
 		}
 		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
-		if go117ExportTypes {
-			n.SetType(r.typ())
-		}
+		n.SetType(r.typ())
 		return n
 
 	case ir.OSELRECV2:
@@ -1868,14 +1785,6 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
 		b = r.node()
 	}
 	return
-}
-
-func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
-	if go117ExportTypes {
-		// These should all be encoded as direct ops, not OCALL.
-		base.Fatalf("builtinCall should not be invoked when types are included in import/export")
-	}
-	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
 }
 
 // NewIncompleteNamedType returns a TFORW type t with name specified by sym, such
