@@ -6989,8 +6989,21 @@ func TestFuncLayout(t *testing.T) {
 	}
 }
 
+// trimBitmap removes trailing 0 elements from b and returns the result.
+func trimBitmap(b []byte) []byte {
+	for len(b) > 0 && b[len(b)-1] == 0 {
+		b = b[:len(b)-1]
+	}
+	return b
+}
+
 func verifyGCBits(t *testing.T, typ Type, bits []byte) {
 	heapBits := GCBits(New(typ).Interface())
+
+	// Trim scalars at the end, as bits might end in zero,
+	// e.g. with rep(2, lit(1, 0)).
+	bits = trimBitmap(bits)
+
 	if !bytes.Equal(heapBits, bits) {
 		_, _, line, _ := runtime.Caller(1)
 		t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
@@ -7007,12 +7020,10 @@ func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
 	heapBits := GCBits(data.Interface())
 	// Repeat the bitmap for the slice size, trimming scalars in
 	// the last element.
-	bits = rep(cap, bits)
-	for len(bits) > 0 && bits[len(bits)-1] == 0 {
-		bits = bits[:len(bits)-1]
-	}
+	bits = trimBitmap(rep(cap, bits))
 	if !bytes.Equal(heapBits, bits) {
-		t.Errorf("heapBits incorrect for make(%v, 0, %v)\nhave %v\nwant %v", typ, cap, heapBits, bits)
+		_, _, line, _ := runtime.Caller(1)
+		t.Errorf("line %d: heapBits incorrect for make(%v, 0, %v)\nhave %v\nwant %v", line, typ, cap, heapBits, bits)
 	}
 }
 
