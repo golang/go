@@ -568,17 +568,16 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 		if base == 0 {
 			return
 		}
-		hbits := heapBitsForAddr(base)
 		n := span.elemsize
-		for i = uintptr(0); i < n; i += goarch.PtrSize {
-			if !hbits.morePointers() {
-				// No more possible pointers.
+		hbits := heapBitsForAddr(base, n)
+		for {
+			var addr uintptr
+			if hbits, addr = hbits.next(); addr == 0 {
 				break
 			}
-			if hbits.isPointer() && cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(base + i))) {
+			if cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(addr))) {
 				panic(errorString(msg))
 			}
-			hbits = hbits.next()
 		}
 
 		return

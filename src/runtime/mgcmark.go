@@ -1267,7 +1267,6 @@ func scanobject(b uintptr, gcw *gcWork) {
 	// b is either the beginning of an object, in which case this
 	// is the size of the object to scan, or it points to an
 	// oblet, in which case we compute the size to scan below.
-	hbits := heapBitsForAddr(b)
 	s := spanOfUnchecked(b)
 	n := s.elemsize
 	if n == 0 {
@@ -1302,20 +1301,24 @@ func scanobject(b uintptr, gcw *gcWork) {
 		}
 	}
 
-	var i uintptr
-	for i = 0; i < n; i, hbits = i+goarch.PtrSize, hbits.next() {
-		// Load bits once. See CL 22712 and issue 16973 for discussion.
-		bits := hbits.bits()
-		if bits&bitScan == 0 {
-			break // no more pointers in this object
+	hbits := heapBitsForAddr(b, n)
+	var scanSize uintptr
+	for {
+		var addr uintptr
+		if hbits, addr = hbits.nextFast(); addr == 0 {
+			if hbits, addr = hbits.next(); addr == 0 {
+				break
+			}
 		}
-		if bits&bitPointer == 0 {
-			continue // not a pointer
-		}
+
+		// Keep track of farthest pointer we found, so we can
+		// update heapScanWork. TODO: is there a better metric,
+		// now that we can skip scalar portions pretty efficiently?
+		scanSize = addr - b + goarch.PtrSize
 
 		// Work here is duplicated in scanblock and above.
 		// If you make changes here, make changes there too.
-		obj := *(*uintptr)(unsafe.Pointer(b + i))
+		obj := *(*uintptr)(unsafe.Pointer(addr))
 
 		// At this point we have extracted the next potential pointer.
 		// Quickly filter out nil and pointers back to the current object.
@@ -1329,13 +1332,13 @@ func scanobject(b uintptr, gcw *gcWork) {
 			// heap. In this case, we know the object was
 			// just allocated and hence will be marked by
 			// allocation itself.
-			if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
-				greyobject(obj, b, i, span, gcw, objIndex)
+			if obj, span, objIndex := findObject(obj, b, addr-b); obj != 0 {
+				greyobject(obj, b, addr-b, span, gcw, objIndex)
 			}
 		}
 	}
 	gcw.bytesMarked += uint64(n)
-	gcw.heapScanWork += int64(i)
+	gcw.heapScanWork += int64(scanSize)
 }
 
 // scanConservative scans block [b, b+n) conservatively, treating any

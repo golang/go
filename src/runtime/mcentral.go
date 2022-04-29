@@ -250,6 +250,6 @@ func (c *mcentral) grow() *mspan {
 	// n := (npages << _PageShift) / size
 	n := s.divideByElemSize(npages << _PageShift)
 	s.limit = s.base() + size*n
-	heapBitsForAddr(s.base()).initSpan(s)
+	s.initHeapBits()
 	return s
 }

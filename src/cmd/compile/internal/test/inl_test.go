@@ -72,11 +72,7 @@ func TestIntendedInlining(t *testing.T) {
 			"cgoInRange",
 			"gclinkptr.ptr",
 			"guintptr.ptr",
-			"heapBits.bits",
-			"heapBits.isPointer",
-			"heapBits.morePointers",
-			"heapBits.next",
-			"heapBitsForAddr",
+			"writeHeapBitsForAddr",
 			"markBits.isMarked",
 			"muintptr.ptr",
 			"puintptr.ptr",
@@ -224,6 +220,8 @@ func TestIntendedInlining(t *testing.T) {
 		// On loong64, mips64x and riscv64, Ctz64 is not intrinsified and causes nextFreeFast too expensive
 		// to inline (Issue 22239).
 		want["runtime"] = append(want["runtime"], "nextFreeFast")
+		// Same behavior for heapBits.nextFast.
+		want["runtime"] = append(want["runtime"], "heapBits.nextFast")
 	}
 	if runtime.GOARCH != "386" {
 		// As explained above, Ctz64 and Ctz32 are not Go code on 386.
