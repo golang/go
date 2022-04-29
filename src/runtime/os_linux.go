@@ -216,8 +216,6 @@ var addrspace_vec [1]byte
 func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
 func sysargs(argc int32, argv **byte) {
-	n := argc + 1
-
 	argsValid := true
 	if islibrary || isarchive {
 		if !sysLibArgsValid() {
@@ -226,6 +224,8 @@ func sysargs(argc int32, argv **byte) {
 	}
 
 	if argsValid {
+		n := argc + 1
+
 		// skip over argv, envp to get to auxv
 		for argv_index(argv, n) != nil {
 			n++
@@ -239,19 +239,6 @@ func sysargs(argc int32, argv **byte) {
 		if sysauxv(auxv[:]) != 0 {
 			return
 		}
-	} else {
-		args := unsafe.Pointer(persistentalloc(goarch.PtrSize*4, 0, &memstats.other_sys))
-		// argv pointer
-		*(**byte)(args) = (*byte)(add(args, goarch.PtrSize*1))
-		// argv data
-		*(**byte)(add(args, goarch.PtrSize*1)) = (*byte)(nil) // end argv TODO: READ FROM /proc/
-		*(**byte)(add(args, goarch.PtrSize*2)) = (*byte)(nil) // end envp TODO: READ FROM /proc/
-		*(**byte)(add(args, goarch.PtrSize*3)) = (*byte)(nil) // end auxv TODO: READ FROM /proc/
-		argc = 0
-		argv = (**byte)(args)
-
-		// argc = 0
-		// argv = (**byte)(&[3]*byte{nil, nil, nil})
 	}
 
 	// In some situations we don't get a loader-provided
@@ -282,7 +269,7 @@ func sysargs(argc int32, argv **byte) {
 		return
 	}
 	var buf [128]uintptr
-	n = read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+	n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
 	closefd(fd)
 	if n < 0 {
 		return

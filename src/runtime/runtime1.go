@@ -76,9 +76,150 @@ func argv_index(argv **byte, i int32) *byte {
 	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*goarch.PtrSize))
 }
 
+// when using -buildmode=c-archive or -buildmode=c-shared on linux
+// we have to first make sure that glibc is being used or else
+// we cannot rely on argc/argv/auxv to be accurate
+func sysLibArgsValid() bool {
+	if _cgo_sys_lib_args_valid != nil {
+		ret := asmcgocall(_cgo_sys_lib_args_valid, nil)
+		if ret != 1 {
+			return false
+		}
+	}
+	return true
+}
+
+var procCmdline = []byte("/proc/self/cmdline\x00")
+var procEnviron = []byte("/proc/self/environ\x00")
+
 func args(c int32, v **byte) {
-	argc = c
-	argv = v
+	if sysLibArgsValid() {
+		argc = c
+		argv = v
+	} else if GOOS == "linux" {
+		argc = 0
+		argv = nil
+
+		// get argc and argv size
+		var argvSize int32 = 0
+		fd := open(&procCmdline[0], 0 /* O_RDONLY */, 0)
+		if fd >= 0 {
+			for {
+				var buf [128]byte
+				c := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+				if c <= 0 {
+					break
+				}
+
+				argvSize += c
+
+				i := c
+				for i = 0; i < c; i++ {
+					if buf[i] == 0 {
+						argc++
+					}
+				}
+			}
+
+			closefd(fd)
+		}
+
+		var environSize int32 = 0
+		var envc int32 = 0
+		fd = open(&procEnviron[0], 0 /* O_RDONLY */, 0)
+		if fd >= 0 {
+			for {
+				var buf [128]byte
+				c := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+				if c <= 0 {
+					break
+				}
+
+				environSize += c
+
+				i := c
+				for i = 0; i < c; i++ {
+					if buf[i] == 0 {
+						envc++
+					}
+				}
+			}
+
+			closefd(fd)
+		}
+
+		argv = (**byte)(unsafe.Pointer(persistentalloc(goarch.PtrSize*(uintptr(argc)+uintptr(envc)+1), 0, &memstats.other_sys)))
+		argvPtr := (**byte)(add(unsafe.Pointer(argv), goarch.PtrSize*(uintptr(argc)+uintptr(envc)+1)))
+		*argvPtr = (*byte)(nil) //null terminate array
+
+		if argvSize > 0 {
+			argvBuf := unsafe.Pointer(persistentalloc(uintptr(argvSize), 0, &memstats.other_sys))
+			fd := open(&procCmdline[0], 0 /* O_RDONLY */, 0)
+			if fd >= 0 {
+				c := read(fd, noescape(argvBuf), int32(argvSize))
+				if c < 0 {
+					throw("failed to read arguments")
+					return
+				}
+
+				if c != int32(argvSize) {
+					throw("short read arguments")
+					return
+				}
+
+				strStart := int32(0)
+				strNum := 0
+
+				i := c
+				var b *byte
+				for i = 0; i < c; i++ {
+					b = (*byte)(add(argvBuf, uintptr(i)))
+					if *b == 0 {
+						argvPtr := (**byte)(add(unsafe.Pointer(argv), goarch.PtrSize*uintptr(strNum)))
+						*argvPtr = (*byte)(add(argvBuf, uintptr(strStart)))
+						strStart = i + 1
+						strNum++
+					}
+				}
+
+				closefd(fd)
+			}
+		}
+
+		if environSize > 0 {
+			environBuf := unsafe.Pointer(persistentalloc(uintptr(environSize), 0, &memstats.other_sys))
+			fd := open(&procEnviron[0], 0 /* O_RDONLY */, 0)
+			if fd >= 0 {
+				c := read(fd, noescape(environBuf), int32(environSize))
+				if c < 0 {
+					throw("failed to read environment")
+					return
+				}
+
+				if c != int32(environSize) {
+					throw("short read environment")
+					return
+				}
+
+				strStart := int32(0)
+				strNum := 0
+
+				i := c
+				var b *byte
+				for i = 0; i < c; i++ {
+					b = (*byte)(add(environBuf, uintptr(i)))
+					if *b == 0 {
+						argvPtr := (**byte)(add(unsafe.Pointer(argv), goarch.PtrSize*(uintptr(argc)+uintptr(strNum))))
+						*argvPtr = (*byte)(add(environBuf, uintptr(strStart)))
+						strStart = i + 1
+						strNum++
+					}
+				}
+
+				closefd(fd)
+			}
+		}
+	}
 	sysargs(c, v)
 }
 
