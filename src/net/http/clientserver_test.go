@@ -1628,11 +1628,15 @@ func testEarlyHintsRequest(t *testing.T, h2 bool) {
 		t.Skip("Waiting for H2 support to be merged")
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		h := w.Header()
 		h.Add("Link", "</style.css>; rel=preload; as=style")
 		h.Add("Link", "</script.js>; rel=preload; as=script")
 		w.WriteHeader(StatusEarlyHints)
+
+		wg.Wait()
 
 		h.Add("Link", "</foo.js>; rel=preload; as=script")
 		w.WriteHeader(StatusEarlyHints)
@@ -1661,6 +1665,7 @@ func testEarlyHintsRequest(t *testing.T, h2 bool) {
 			switch respCounter {
 			case 0:
 				checkLinkHeaders(t, []string{"</style.css>; rel=preload; as=style", "</script.js>; rel=preload; as=script"}, header["Link"])
+				wg.Done()
 			case 1:
 				checkLinkHeaders(t, []string{"</style.css>; rel=preload; as=style", "</script.js>; rel=preload; as=script", "</foo.js>; rel=preload; as=script"}, header["Link"])
 			default:
