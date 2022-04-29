@@ -569,6 +569,9 @@ func (d *compressor) syncFlush() error {
 	if d.err != nil {
 		return d.err
 	}
+	if d.closed {
+		return nil
+	}
 	d.sync = true
 	d.step(d)
 	if d.err == nil {
@@ -644,13 +647,13 @@ func (d *compressor) reset(w io.Writer) {
 }
 
 func (d *compressor) close() error {
+	if d.err != nil {
+		return d.err
+	}
 	if d.closed {
 		return nil
 	}
 	d.closed = true
-	if d.err != nil {
-		return d.err
-	}
 	d.sync = true
 	d.step(d)
 	if d.err != nil {
@@ -745,7 +748,6 @@ func (w *Writer) Close() error {
 // the result of NewWriter or NewWriterDict called with dst
 // and w's level and dictionary.
 func (w *Writer) Reset(dst io.Writer) {
-	w.d.closed = false
 	if dw, ok := w.d.w.writer.(*dictWriter); ok {
 		// w was created with NewWriterDict
 		dw.w = dst
