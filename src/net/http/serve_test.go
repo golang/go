@@ -3873,7 +3873,7 @@ func testServerReaderFromOrder(t *testing.T, h2 bool) {
 
 // Issue 6157, Issue 6685
 func TestCodesPreventingContentTypeAndBody(t *testing.T) {
-	for _, code := range []int{StatusNotModified, StatusNoContent, StatusContinue} {
+	for _, code := range []int{StatusNotModified, StatusNoContent} {
 		ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
 			if r.URL.Path == "/header" {
 				w.Header().Set("Content-Length", "123")

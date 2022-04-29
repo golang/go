@@ -1161,7 +1161,7 @@ func (w *response) WriteHeader(code int) {
 		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
 
 		// Per RFC 8297 we must not clear the current header map
-		w.handlerHeader.Write(w.conn.bufw)
+		w.handlerHeader.WriteSubset(w.conn.bufw, excludedHeadersNoBody)
 		w.conn.bufw.Write(crlf)
 		w.conn.bufw.Flush()
 

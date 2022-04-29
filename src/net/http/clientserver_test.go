@@ -1632,6 +1632,8 @@ func testEarlyHintsRequest(t *testing.T, h2 bool) {
 	wg.Add(1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		h := w.Header()
+
+		h.Add("Content-Length", "123") // must be ignored
 		h.Add("Link", "</style.css>; rel=preload; as=style")
 		h.Add("Link", "</script.js>; rel=preload; as=script")
 		w.WriteHeader(StatusEarlyHints)
@@ -1659,15 +1661,29 @@ func testEarlyHintsRequest(t *testing.T, h2 bool) {
 		}
 	}
 
+	checkExcludedHeaders := func(t *testing.T, header textproto.MIMEHeader) {
+		t.Helper()
+
+		for _, h := range []string{"Content-Length", "Transfer-Encoding"} {
+			if v, ok := header[h]; ok {
+				t.Errorf("%s is %q; must not be sent", h, v)
+			}
+		}
+	}
+
 	var respCounter uint8
 	trace := &httptrace.ClientTrace{
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
 			switch respCounter {
 			case 0:
 				checkLinkHeaders(t, []string{"</style.css>; rel=preload; as=style", "</script.js>; rel=preload; as=script"}, header["Link"])
+				checkExcludedHeaders(t, header)
+
 				wg.Done()
 			case 1:
 				checkLinkHeaders(t, []string{"</style.css>; rel=preload; as=style", "</script.js>; rel=preload; as=script", "</foo.js>; rel=preload; as=script"}, header["Link"])
+				checkExcludedHeaders(t, header)
+
 			default:
 				t.Error("Unexpected 1xx response")
 			}
@@ -1686,6 +1702,9 @@ func testEarlyHintsRequest(t *testing.T, h2 bool) {
 	defer res.Body.Close()
 
 	checkLinkHeaders(t, []string{"</style.css>; rel=preload; as=style", "</script.js>; rel=preload; as=script", "</foo.js>; rel=preload; as=script"}, res.Header["Link"])
+	if cl := res.Header.Get("Content-Length"); cl != "123" {
+		t.Errorf("Content-Length is %q; want 123", cl)
+	}
 
 	body, _ := io.ReadAll(res.Body)
 	if string(body) != "Hello" {
