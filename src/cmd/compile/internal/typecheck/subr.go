@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -22,13 +21,9 @@ func AssignConv(n ir.Node, t *types.Type, context string) ir.Node {
 	return assignconvfn(n, t, func() string { return context })
 }
 
-// LookupNum looks up the symbol starting with prefix and ending with
-// the decimal n. If prefix is too long, LookupNum panics.
+// LookupNum returns types.LocalPkg.LookupNum(prefix, n).
 func LookupNum(prefix string, n int) *types.Sym {
-	var buf [20]byte // plenty long enough for all current users
-	copy(buf[:], prefix)
-	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
-	return types.LocalPkg.LookupBytes(b)
+	return types.LocalPkg.LookupNum(prefix, n)
 }
 
 // Given funarg struct list, return list of fn args.
