@@ -148,11 +148,13 @@ func (pr *pkgReader) pkgIdx(idx int) *types2.Package {
 
 func (r *reader) doPkg() *types2.Package {
 	path := r.String()
-	if path == "builtin" {
-		return nil // universe
-	}
-	if path == "" {
+	switch path {
+	case "":
 		path = r.p.PkgPath()
+	case "builtin":
+		return nil // universe
+	case "unsafe":
+		return types2.Unsafe
 	}
 
 	if pkg := r.p.imports[path]; pkg != nil {
@@ -371,7 +373,7 @@ func (pr *pkgReader) objIdx(idx int) (*types2.Package, string) {
 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
 
 	if tag == pkgbits.ObjStub {
-		assert(objPkg == nil || objPkg == types2.Unsafe)
+		base.Assertf(objPkg == nil || objPkg == types2.Unsafe, "unexpected stub package: %v", objPkg)
 		return objPkg, objName
 	}
 

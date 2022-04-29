@@ -214,13 +214,21 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
 	w := pw.newWriter(pkgbits.RelocPkg, pkgbits.SyncPkgDef)
 	pw.pkgsIdx[pkg] = w.Idx
 
-	if pkg == nil {
-		w.String("builtin")
-	} else {
+	// The universe and package unsafe need to be handled specially by
+	// importers anyway, so we serialize them using just their package
+	// path. This ensures that readers don't confuse them for
+	// user-defined packages.
+	switch pkg {
+	case nil: // universe
+		w.String("builtin") // same package path used by godoc
+	case types2.Unsafe:
+		w.String("unsafe")
+	default:
 		var path string
 		if pkg != w.p.curpkg {
 			path = pkg.Path()
 		}
+		base.Assertf(path != "builtin" && path != "unsafe", "unexpected path for user-defined package: %q", path)
 		w.String(path)
 		w.String(pkg.Name())
 		w.Len(pkg.Height())
