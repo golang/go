@@ -982,3 +982,40 @@ func TestMaxStackSize(t *testing.T) {
 		}(level)
 	}
 }
+
+func TestCloseIdempotency(t *testing.T) {
+	b := new(bytes.Buffer)
+	w, err := NewWriter(b, 6)
+	if err != nil {
+		t.Errorf("NewWriter: got %d, expected nil errror", err)
+		return
+	}
+
+	_, err = w.Write([]byte("hello, world!"))
+	if err != nil {
+		t.Errorf("Write: got %d, expected nil errror", err)
+		return
+	}
+
+	err = w.Close()
+	if err != nil {
+		t.Errorf("Close: got %d, expected nil errror", err)
+		return
+	}
+
+	n, err := w.Write([]byte("hello, world!"))
+	if n != 0 {
+		t.Errorf("Write: got %d, expected 0 bytes", n)
+		return
+	}
+	if err == nil {
+		t.Error("Write: got nil error, expected non-nil error")
+		return
+	}
+
+	err = w.Close()
+	if err != nil {
+		t.Errorf("Close: got %d, expected nil errror", err)
+		return
+	}
+}
