@@ -8,7 +8,6 @@
 package exec_test
 
 import (
-	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -37,9 +36,6 @@ func cmdLookPath(args ...string) {
 func cmdExec(args ...string) {
 	cmd := exec.Command(args[1])
 	cmd.Dir = args[0]
-	if errors.Is(cmd.Err, exec.ErrDot) {
-		cmd.Err = nil
-	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
@@ -333,7 +329,7 @@ var lookPathTests = []lookPathTest{
 	},
 }
 
-func TestLookPathWindows(t *testing.T) {
+func TestLookPath(t *testing.T) {
 	tmp := t.TempDir()
 	printpathExe := buildPrintPathExe(t, tmp)
 

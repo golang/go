@@ -27,7 +27,6 @@ func cmdtest() {
 	gogcflags = os.Getenv("GO_GCFLAGS")
 
 	var t tester
-
 	var noRebuild bool
 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
 	flag.BoolVar(&t.rebuild, "rebuild", false, "rebuild everything first")
@@ -97,9 +96,15 @@ type distTest struct {
 func (t *tester) run() {
 	timelog("start", "dist test")
 
-	os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
+	var exeSuffix string
+	if goos == "windows" {
+		exeSuffix = ".exe"
+	}
+	if _, err := os.Stat(filepath.Join(gorootBin, "go"+exeSuffix)); err == nil {
+		os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
+	}
 
-	cmd := exec.Command(gorootBinGo, "env", "CGO_ENABLED")
+	cmd := exec.Command("go", "env", "CGO_ENABLED")
 	cmd.Stderr = new(bytes.Buffer)
 	slurp, err := cmd.Output()
 	if err != nil {
@@ -414,7 +419,7 @@ func (t *tester) registerStdTest(pkg string) {
 				args = append(args, "-run=^$")
 			}
 			args = append(args, stdMatches...)
-			cmd := exec.Command(gorootBinGo, args...)
+			cmd := exec.Command("go", args...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			return cmd.Run()
@@ -451,7 +456,7 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 				args = append(args, "-bench=.*")
 			}
 			args = append(args, benchMatches...)
-			cmd := exec.Command(gorootBinGo, args...)
+			cmd := exec.Command("go", args...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			return cmd.Run()
@@ -479,7 +484,7 @@ func (t *tester) registerTests() {
 	} else {
 		// Use a format string to only list packages and commands that have tests.
 		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
-		cmd := exec.Command(gorootBinGo, "list", "-f", format)
+		cmd := exec.Command("go", "list", "-f", format)
 		if t.race {
 			cmd.Args = append(cmd.Args, "-tags=race")
 		}
@@ -614,7 +619,7 @@ func (t *tester) registerTests() {
 					fmt.Println("skipping terminal test; stdout/stderr not terminals")
 					return nil
 				}
-				cmd := exec.Command(gorootBinGo, "test")
+				cmd := exec.Command("go", "test")
 				setDir(cmd, filepath.Join(os.Getenv("GOROOT"), "src/cmd/go/testdata/testterminal18153"))
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
@@ -998,11 +1003,7 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
 	}
 	list = out
 
-	bin = list[0]
-	if bin == "go" {
-		bin = gorootBinGo
-	}
-	return bin, list[1:]
+	return list[0], list[1:]
 }
 
 func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.Cmd {
@@ -1156,7 +1157,7 @@ func (t *tester) registerHostTest(name, heading, dir, pkg string) {
 }
 
 func (t *tester) runHostTest(dir, pkg string) error {
-	out, err := exec.Command(gorootBinGo, "env", "GOEXE", "GOTMPDIR").Output()
+	out, err := exec.Command("go", "env", "GOEXE", "GOTMPDIR").Output()
 	if err != nil {
 		return err
 	}
