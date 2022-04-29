@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"internal/goroot"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modindex"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/search"
 
@@ -39,7 +39,7 @@ func findStandardImportPath(path string) string {
 		panic("findStandardImportPath called with empty path")
 	}
 	if search.IsStandardImportPath(path) {
-		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+		if modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 			return filepath.Join(cfg.GOROOT, "src", path)
 		}
 	}

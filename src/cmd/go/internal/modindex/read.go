@@ -1,7 +1,32 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package modindex
 
 import (
 	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"go/build"
+	"go/build/constraint"
+	"go/token"
+	"internal/goroot"
+	"internal/unsafeheader"
+	"io/fs"
+	"math"
+	"os"
+	"path"
+	"path/filepath"
+	"runtime"
+	"runtime/debug"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"unsafe"
+
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
@@ -9,23 +34,6 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/par"
 	"cmd/go/internal/str"
-	"encoding/binary"
-	"errors"
-	"fmt"
-	"go/build"
-	"go/build/constraint"
-	"go/token"
-	"internal/unsafeheader"
-	"io/fs"
-	"math"
-	"os"
-	"path/filepath"
-	"runtime/debug"
-	"sort"
-	"strconv"
-	"strings"
-	"sync"
-	"unsafe"
 )
 
 // enabled is used to flag off the behavior of the module index on tip.
@@ -48,8 +56,8 @@ var fcache par.Cache
 
 func moduleHash(modroot string, ismodcache bool) (cache.ActionID, error) {
 	h := cache.NewHash("moduleIndex")
-	fmt.Fprintf(h, "module index %s %v", indexVersion, modroot)
-	if ismodcache {
+	fmt.Fprintf(h, "module index %s %s %v\n", runtime.Version(), indexVersion, modroot)
+	if ismodcache || str.HasFilePathPrefix(modroot, cfg.GOROOT) {
 		return h.Sum(), nil
 	}
 	// walkdir happens in deterministic order.
@@ -96,10 +104,6 @@ func Get(modroot string) (*ModuleIndex, error) {
 	}
 	if modroot == "" {
 		panic("modindex.Get called with empty modroot")
-	}
-	if str.HasFilePathPrefix(modroot, cfg.GOROOT) {
-		// TODO(matloob): add a case for stdlib here.
-		return nil, ErrNotIndexed
 	}
 	isModCache := str.HasFilePathPrefix(modroot, cfg.GOMODCACHE)
 	return openIndex(modroot, isModCache)
@@ -225,9 +229,6 @@ func (mi *ModuleIndex) Import(bctxt build.Context, relpath string, mode build.Im
 
 	p.ImportPath = "."
 	p.Dir = filepath.Join(mi.modroot, rp.dir)
-	if rp.error != "" {
-		return p, errors.New(rp.error)
-	}
 
 	var pkgerr error
 	switch ctxt.Compiler {
@@ -239,6 +240,62 @@ func (mi *ModuleIndex) Import(bctxt build.Context, relpath string, mode build.Im
 
 	if p.Dir == "" {
 		return p, fmt.Errorf("import %q: import of unknown directory", p.Dir)
+	}
+
+	// goroot
+	inTestdata := func(sub string) bool {
+		return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || str.HasPathPrefix(sub, "testdata")
+	}
+	if ctxt.GOROOT != "" && str.HasFilePathPrefix(mi.modroot, cfg.GOROOTsrc) && !inTestdata(relpath) {
+		modprefix := str.TrimFilePathPrefix(mi.modroot, cfg.GOROOTsrc)
+		p.Goroot = true
+		p.ImportPath = relpath
+		if modprefix != "" {
+			p.ImportPath = filepath.Join(modprefix, p.ImportPath)
+		}
+		// In build.go, p.Root should only be set in the non-local-import case, or in
+		// GOROOT or GOPATH. Since module mode only calls Import with path set to "."
+		// and the module index doesn't apply outside modules, the GOROOT case is
+		// the only case where GOROOT needs to be set.
+		// TODO(#37015): p.Root actually might be set in the local-import case outside
+		// GOROOT, if the directory is contained in GOPATH/src, even in module
+		// mode, but that's a bug.
+		p.Root = ctxt.GOROOT
+
+		// Set GOROOT-specific fields
+		// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
+		// are only set in build.Import if p.Root != "". As noted in the comment
+		// on setting p.Root above, p.Root should only be set in the GOROOT case for the
+		// set of packages we care about.
+		var pkgtargetroot string
+		var pkga string
+		suffix := ""
+		if ctxt.InstallSuffix != "" {
+			suffix = "_" + ctxt.InstallSuffix
+		}
+		switch ctxt.Compiler {
+		case "gccgo":
+			pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
+			dir, elem := path.Split(p.ImportPath)
+			pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
+		case "gc":
+			pkgtargetroot = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
+			pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
+		}
+		p.SrcRoot = ctxt.joinPath(p.Root, "src")
+		p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
+		p.BinDir = ctxt.joinPath(p.Root, "bin")
+		if pkga != "" {
+			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+			p.PkgObj = ctxt.joinPath(p.Root, pkga)
+		}
+	}
+
+	if rp.error != nil {
+		if errors.Is(rp.error, errCannotFindPackage) && ctxt.Compiler == "gccgo" && p.Goroot {
+			return p, nil
+		}
+		return p, rp.error
 	}
 
 	if mode&build.FindOnly != 0 {
@@ -444,8 +501,31 @@ func (mi *ModuleIndex) Import(bctxt build.Context, relpath string, mode build.Im
 	return p, pkgerr
 }
 
-// IsDirWithGoFiles is the equivalent of fsys.IsDirWithGoFiles using the information in the
-// RawPackage.
+// IsStandardPackage reports whether path is a standard package
+// for the goroot and compiler using the module index if possible,
+// and otherwise falling back to internal/goroot.IsStandardPackage
+func IsStandardPackage(goroot_, compiler, path string) bool {
+	if !enabled || compiler != "gc" {
+		return goroot.IsStandardPackage(goroot_, compiler, path)
+	}
+
+	reldir := filepath.FromSlash(path) // relative dir path in module index for package
+	modroot := filepath.Join(goroot_, "src")
+	if str.HasFilePathPrefix(reldir, "cmd") {
+		reldir = str.TrimFilePathPrefix(reldir, "cmd")
+		modroot = filepath.Join(modroot, "cmd")
+	}
+	mod, err := Get(modroot)
+	if err != nil {
+		return goroot.IsStandardPackage(goroot_, compiler, path)
+	}
+
+	pkgs := mod.Packages()
+	i := sort.SearchStrings(pkgs, reldir)
+	return i != len(pkgs) && pkgs[i] == reldir
+}
+
+// IsDirWithGoFiles is the equivalent of fsys.IsDirWithGoFiles using the information in the index.
 func (mi *ModuleIndex) IsDirWithGoFiles(relpath string) (_ bool, err error) {
 	rp := mi.indexPackage(relpath)
 
@@ -462,7 +542,7 @@ func (mi *ModuleIndex) IsDirWithGoFiles(relpath string) (_ bool, err error) {
 	return false, nil
 }
 
-// ScanDir implements imports.ScanDir using the information in the RawPackage.
+// ScanDir implements imports.ScanDir using the information in the index.
 func (mi *ModuleIndex) ScanDir(path string, tags map[string]bool) (sortedImports []string, sortedTestImports []string, err error) {
 	rp := mi.indexPackage(path)
 
@@ -556,12 +636,14 @@ func shouldBuild(sf *sourceFile, tags map[string]bool) bool {
 // index package holds the information needed to access information in the
 // index about a package.
 type indexPackage struct {
-	error string
+	error error
 	dir   string // directory of the package relative to the modroot
 
 	// Source files
 	sourceFiles []*sourceFile
 }
+
+var errCannotFindPackage = errors.New("cannot find package")
 
 // indexPackage returns an indexPackage constructed using the information in the ModuleIndex.
 func (mi *ModuleIndex) indexPackage(path string) *indexPackage {
@@ -572,13 +654,15 @@ func (mi *ModuleIndex) indexPackage(path string) *indexPackage {
 	}()
 	offset, ok := mi.packages[path]
 	if !ok {
-		return &indexPackage{error: fmt.Sprintf("cannot find package %q in:\n\t%s", path, filepath.Join(mi.modroot, path))}
+		return &indexPackage{error: fmt.Errorf("%w %q in:\n\t%s", errCannotFindPackage, path, filepath.Join(mi.modroot, path))}
 	}
 
 	// TODO(matloob): do we want to lock on the module index?
 	d := mi.od.decoderAt(offset)
 	rp := new(indexPackage)
-	rp.error = d.string()
+	if errstr := d.string(); errstr != "" {
+		rp.error = errors.New(errstr)
+	}
 	rp.dir = d.string()
 	numSourceFiles := d.uint32()
 	rp.sourceFiles = make([]*sourceFile, numSourceFiles)

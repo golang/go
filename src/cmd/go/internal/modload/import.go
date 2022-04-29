@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
-	"internal/goroot"
 	"io/fs"
 	"os"
 	pathpkg "path"
@@ -281,7 +280,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 
 	// Is the package in the standard library?
 	pathIsStd := search.IsStandardImportPath(path)
-	if pathIsStd && goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+	if pathIsStd && modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 		for _, mainModule := range MainModules.Versions() {
 			if MainModules.InGorootSrc(mainModule) {
 				if dir, ok, err := dirInModule(path, MainModules.PathPrefix(mainModule), MainModules.ModRoot(mainModule), true); err != nil {

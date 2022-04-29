@@ -14,7 +14,6 @@ import (
 	"go/build"
 	"go/scanner"
 	"go/token"
-	"internal/goroot"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -3072,7 +3071,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 			return nil, fmt.Errorf("%s: argument must be a package path, not a meta-package", arg)
 		case path.Clean(p) != p:
 			return nil, fmt.Errorf("%s: argument must be a clean package path", arg)
-		case !strings.Contains(p, "...") && search.IsStandardImportPath(p) && goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, p):
+		case !strings.Contains(p, "...") && search.IsStandardImportPath(p) && modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, p):
 			return nil, fmt.Errorf("%s: argument must not be a package in the standard library", arg)
 		default:
 			patterns[i] = p
