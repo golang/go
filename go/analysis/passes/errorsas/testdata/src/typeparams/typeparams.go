@@ -28,7 +28,7 @@ func _[E error](e E) {
 	errors.As(nil, &e)
 	errors.As(nil, &m)            // *T where T implemements error
 	errors.As(nil, &tw.t)         // *T where T implements error
-	errors.As(nil, perr[error]()) // *error, via a call
+	errors.As(nil, perr[error]()) // want `second argument to errors.As should not be \*error`
 
 	errors.As(nil, e)    // want `second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type`
 	errors.As(nil, m)    // want `second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type`
