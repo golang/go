@@ -101,7 +101,7 @@ func (v *Value) Swap(new any) (old any) {
 			// active spin wait to wait for completion; and so that
 			// GC does not see the fake type accidentally.
 			runtime_procPin()
-			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(^uintptr(0))) {
+			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(&firstStoreInProgress)) {
 				runtime_procUnpin()
 				continue
 			}
@@ -111,7 +111,7 @@ func (v *Value) Swap(new any) (old any) {
 			runtime_procUnpin()
 			return nil
 		}
-		if uintptr(typ) == ^uintptr(0) {
+		if typ == unsafe.Pointer(&firstStoreInProgress) {
 			// First store in progress. Wait.
 			// Since we disable preemption around the first store,
 			// we can wait with active spinning.
@@ -153,7 +153,7 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 			// active spin wait to wait for completion; and so that
 			// GC does not see the fake type accidentally.
 			runtime_procPin()
-			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(^uintptr(0))) {
+			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(&firstStoreInProgress)) {
 				runtime_procUnpin()
 				continue
 			}
@@ -163,7 +163,7 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 			runtime_procUnpin()
 			return true
 		}
-		if uintptr(typ) == ^uintptr(0) {
+		if typ == unsafe.Pointer(&firstStoreInProgress) {
 			// First store in progress. Wait.
 			// Since we disable preemption around the first store,
 			// we can wait with active spinning.
