@@ -50,40 +50,49 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	// Check the writes to struct and array objects.
-	checkStore := func(store *ssa.Store) {
-		// Consider field/index writes to an object whose elements are copied and not shared.
-		// MapUpdate is excluded since only the reference of the map is copied.
-		switch addr := store.Addr.(type) {
-		case *ssa.FieldAddr:
-			if isDeadStore(store, addr.X, addr) {
-				// Report the bug.
+	ssainput := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
+	for _, fn := range ssainput.SrcFuncs {
+		// TODO(taking): Iterate over fn._Instantiations() once exported. If so, have 1 report per Pos().
+		reports := checkStores(fn)
+		for _, store := range reports {
+			switch addr := store.Addr.(type) {
+			case *ssa.FieldAddr:
 				pass.Reportf(store.Pos(),
 					"unused write to field %s",
 					getFieldName(addr.X.Type(), addr.Field))
-			}
-		case *ssa.IndexAddr:
-			if isDeadStore(store, addr.X, addr) {
-				// Report the bug.
+			case *ssa.IndexAddr:
 				pass.Reportf(store.Pos(),
 					"unused write to array index %s", addr.Index)
 			}
 		}
 	}
+	return nil, nil
+}
 
-	ssainput := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
-	for _, fn := range ssainput.SrcFuncs {
-		// Visit each block. No need to visit fn.Recover.
-		for _, blk := range fn.Blocks {
-			for _, instr := range blk.Instrs {
-				// Identify writes.
-				if store, ok := instr.(*ssa.Store); ok {
-					checkStore(store)
+// checkStores returns *Stores in fn whose address is written to but never used.
+func checkStores(fn *ssa.Function) []*ssa.Store {
+	var reports []*ssa.Store
+	// Visit each block. No need to visit fn.Recover.
+	for _, blk := range fn.Blocks {
+		for _, instr := range blk.Instrs {
+			// Identify writes.
+			if store, ok := instr.(*ssa.Store); ok {
+				// Consider field/index writes to an object whose elements are copied and not shared.
+				// MapUpdate is excluded since only the reference of the map is copied.
+				switch addr := store.Addr.(type) {
+				case *ssa.FieldAddr:
+					if isDeadStore(store, addr.X, addr) {
+						reports = append(reports, store)
+					}
+				case *ssa.IndexAddr:
+					if isDeadStore(store, addr.X, addr) {
+						reports = append(reports, store)
+					}
 				}
 			}
 		}
 	}
-	return nil, nil
+	return reports
 }
 
 // isDeadStore determines whether a field/index write to an object is dead.
