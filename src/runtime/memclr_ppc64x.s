@@ -52,37 +52,50 @@ byte4:
 	BR    zero512xsetup // ptr should now be 8 byte aligned
 
 under512:
-	MOVD  R6, CTR     // R6 = number of double words
-	SRDCC $2, R6, R7  // 32 byte chunks?
-	BNE   zero32setup
-
-	// Clear double words
-
-zero8:
-	MOVD R0, 0(R3)    // double word
-	ADD  $8, R3
-	ADD  $-8, R4
-	BC   16, 0, zero8 // dec ctr, br zero8 if ctr not 0
-	BR   nozerolarge  // handle leftovers
-
-	// Prepare to clear 32 bytes at a time.
-
-zero32setup:
-	DCBTST (R3)             // prepare data cache
+	SRDCC $3, R6, R7  // 64 byte chunks?
 	XXLXOR VS32, VS32, VS32 // clear VS32 (V0)
-	MOVD   R7, CTR          // number of 32 byte chunks
-	MOVD   $16, R8
+	BEQ   lt64gt8
 
-zero32:
+	// Prepare to clear 64 bytes at a time.
+
+zero64setup:
+	DCBTST (R3)             // prepare data cache
+	MOVD   R7, CTR          // number of 64 byte chunks
+	MOVD   $16, R8
+	MOVD   $32, R16
+	MOVD   $48, R17
+
+zero64:
 	STXVD2X VS32, (R3+R0)   // store 16 bytes
 	STXVD2X VS32, (R3+R8)
-	ADD     $32, R3
-	ADD     $-32, R4
-	BC      16, 0, zero32   // dec ctr, br zero32 if ctr not 0
-	RLDCLCC $61, R4, $3, R6 // remaining doublewords
+	STXVD2X VS32, (R3+R16)
+	STXVD2X VS32, (R3+R17)
+	ADD     $64, R3
+	ADD     $-64, R4
+	BDNZ    zero64          // dec ctr, br zero64 if ctr not 0
+	SRDCC   $3, R4, R6	// remaining doublewords
 	BEQ     nozerolarge
-	MOVD    R6, CTR         // set up the CTR for doublewords
-	BR      zero8
+
+lt64gt8:
+	CMP	R4, $32
+	BLT	lt32gt8
+	MOVD	$16, R8
+	STXVD2X	VS32, (R3+R0)
+	STXVD2X	VS32, (R3+R8)
+	ADD	$-32, R4
+	ADD	$32, R3
+lt32gt8:
+	CMP	R4, $16
+	BLT	lt16gt8
+	STXVD2X	VS32, (R3+R0)
+	ADD	$16, R3
+	ADD	$-16, R4
+lt16gt8:
+	CMP	R4, $8
+	BLT	nozerolarge
+	MOVD	R0, 0(R3)
+	ADD	$8, R3
+	ADD	$-8, R4
 
 nozerolarge:
 	ANDCC $7, R4, R5 // any remaining bytes
@@ -94,7 +107,7 @@ zerotail:
 zerotailloop:
 	MOVB R0, 0(R3)           // clear single bytes
 	ADD  $1, R3
-	BC   16, 0, zerotailloop // dec ctr, br zerotailloop if ctr not 0
+	BDNZ zerotailloop // dec ctr, br zerotailloop if ctr not 0
 	RET
 
 zero512xsetup:  // 512 chunk with extra needed
@@ -119,7 +132,7 @@ zero512preloop:  // clear up to 128 alignment
 	STXVD2X VS32, (R3+R0)         // clear 16 bytes
 	ADD     $16, R3               // update ptr
 	ADD     $-16, R4              // dec count
-	BC      16, 0, zero512preloop
+	BDNZ    zero512preloop
 
 zero512setup:  // setup for dcbz loop
 	CMP  R4, $512   // check if at least 512
@@ -129,6 +142,7 @@ zero512setup:  // setup for dcbz loop
 	MOVD $128, R9   // index regs for 128 bytes
 	MOVD $256, R10
 	MOVD $384, R11
+	PCALIGN	$32
 
 zero512:
 	DCBZ (R3+R0)        // clear first chunk
@@ -136,8 +150,8 @@ zero512:
 	DCBZ (R3+R10)       // clear third chunk
 	DCBZ (R3+R11)       // clear fourth chunk
 	ADD  $512, R3
-	ADD  $-512, R4
-	BC   16, 0, zero512
+	BDNZ zero512
+	ANDCC $511, R4
 
 remain:
 	CMP  R4, $128  // check if 128 byte chunks left
@@ -150,16 +164,11 @@ remain:
 smaller:
 	ANDCC $127, R4, R7 // find leftovers
 	BEQ   done
-	CMP   R7, $64      // more than 64, do 32 at a time
-	BLT   zero8setup   // less than 64, do 8 at a time
-	SRD   $5, R7, R7   // set up counter for 32
-	BR    zero32setup
-
-zero8setup:
-	SRDCC $3, R7, R7  // less than 8 bytes
-	BEQ   nozerolarge
-	MOVD  R7, CTR
-	BR    zero8
+	CMP   R7, $64      // more than 64, do 64 at a time
+	XXLXOR VS32, VS32, VS32
+	BLT   lt64gt8	   // less than 64
+	SRD   $6, R7, R7   // set up counter for 64
+	BR    zero64setup
 
 done:
 	RET

@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"go/build/constraint"
 	"hash/fnv"
 	"io"
 	"io/fs"
@@ -462,56 +463,30 @@ func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
 		return true, ""
 	}
 	for _, line := range strings.Split(src, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "//") {
-			line = line[2:]
-		} else {
-			continue
-		}
-		line = strings.TrimSpace(line)
-		if len(line) == 0 || line[0] != '+' {
-			continue
-		}
-		gcFlags := os.Getenv("GO_GCFLAGS")
-		ctxt := &context{
-			GOOS:       goos,
-			GOARCH:     goarch,
-			cgoEnabled: cgoEnabled,
-			noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
+		if strings.HasPrefix(line, "package ") {
+			break
 		}
 
-		words := strings.Fields(line)
-		if words[0] == "+build" {
-			ok := false
-			for _, word := range words[1:] {
-				if ctxt.match(word) {
-					ok = true
-					break
-				}
+		if expr, err := constraint.Parse(line); err == nil {
+			gcFlags := os.Getenv("GO_GCFLAGS")
+			ctxt := &context{
+				GOOS:       goos,
+				GOARCH:     goarch,
+				cgoEnabled: cgoEnabled,
+				noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
 			}
-			if !ok {
-				// no matching tag found.
+
+			if !expr.Eval(ctxt.match) {
 				return false, line
 			}
 		}
 	}
-	// no build tags
 	return true, ""
 }
 
 func (ctxt *context) match(name string) bool {
 	if name == "" {
 		return false
-	}
-	if first, rest, ok := strings.Cut(name, ","); ok {
-		// comma-separated list
-		return ctxt.match(first) && ctxt.match(rest)
-	}
-	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
-		return false
-	}
-	if strings.HasPrefix(name, "!") { // negation
-		return len(name) > 1 && !ctxt.match(name[1:])
 	}
 
 	// Tags must be letters, digits, underscores or dots.

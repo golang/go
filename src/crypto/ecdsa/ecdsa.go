@@ -128,7 +128,7 @@ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) 
 	params := c.Params()
 	// Note that for P-521 this will actually be 63 bits more than the order, as
 	// division rounds down, but the extra bit is inconsequential.
-	b := make([]byte, params.BitSize/8+8) // TODO: use params.N.BitLen()
+	b := make([]byte, params.N.BitLen()/8+8)
 	_, err = io.ReadFull(rand, b)
 	if err != nil {
 		return
@@ -228,13 +228,13 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 
 	// Create a CSPRNG that xors a stream of zeros with
 	// the output of the AES-CTR instance.
-	csprng := cipher.StreamReader{
+	csprng := &cipher.StreamReader{
 		R: zeroReader,
 		S: cipher.NewCTR(block, []byte(aesIV)),
 	}
 
 	c := priv.PublicKey.Curve
-	return sign(priv, &csprng, c, hash)
+	return sign(priv, csprng, c, hash)
 }
 
 func signGeneric(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
@@ -353,16 +353,14 @@ func VerifyASN1(pub *PublicKey, hash, sig []byte) bool {
 	return Verify(pub, hash, r, s)
 }
 
-type zr struct {
-	io.Reader
-}
+type zr struct{}
 
-// Read replaces the contents of dst with zeros.
-func (z *zr) Read(dst []byte) (n int, err error) {
+// Read replaces the contents of dst with zeros. It is safe for concurrent use.
+func (zr) Read(dst []byte) (n int, err error) {
 	for i := range dst {
 		dst[i] = 0
 	}
 	return len(dst), nil
 }
 
-var zeroReader = &zr{}
+var zeroReader = zr{}

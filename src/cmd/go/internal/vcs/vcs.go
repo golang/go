@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
@@ -657,7 +656,6 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 
 	cmd := exec.Command(v.Cmd, args...)
 	cmd.Dir = dir
-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	if cfg.BuildX {
 		fmt.Fprintf(os.Stderr, "cd %s\n", dir)
 		fmt.Fprintf(os.Stderr, "%s %s\n", v.Cmd, strings.Join(args, " "))
@@ -669,7 +667,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
 				os.Stderr.Write(ee.Stderr)
 			} else {
-				fmt.Fprintf(os.Stderr, err.Error())
+				fmt.Fprintln(os.Stderr, err.Error())
 			}
 		}
 	}
@@ -678,14 +676,24 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 
 // Ping pings to determine scheme to use.
 func (v *Cmd) Ping(scheme, repo string) error {
-	return v.runVerboseOnly(".", v.PingCmd, "scheme", scheme, "repo", repo)
+	// Run the ping command in an arbitrary working directory,
+	// but don't let the current working directory pollute the results.
+	// In module mode, we expect GOMODCACHE to exist and be a safe place for
+	// commands; in GOPATH mode, we expect that to be true of GOPATH/src.
+	dir := cfg.GOMODCACHE
+	if !cfg.ModulesEnabled {
+		dir = filepath.Join(cfg.BuildContext.GOPATH, "src")
+	}
+	os.MkdirAll(dir, 0777) // Ignore errors — if unsuccessful, the command will likely fail.
+
+	return v.runVerboseOnly(dir, v.PingCmd, "scheme", scheme, "repo", repo)
 }
 
 // Create creates a new copy of repo in dir.
 // The parent of dir must exist; dir must not.
 func (v *Cmd) Create(dir, repo string) error {
 	for _, cmd := range v.CreateCmd {
-		if err := v.run(".", cmd, "dir", dir, "repo", repo); err != nil {
+		if err := v.run(filepath.Dir(dir), cmd, "dir", dir, "repo", repo); err != nil {
 			return err
 		}
 	}

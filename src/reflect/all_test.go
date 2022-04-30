@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/token"
 	"internal/goarch"
+	"internal/testenv"
 	"io"
 	"math"
 	"math/rand"
@@ -363,6 +364,10 @@ func TestMapIterSet(t *testing.T) {
 		}
 	}
 
+	if strings.HasSuffix(testenv.Builder(), "-noopt") {
+		return // no inlining with the noopt builder
+	}
+
 	got := int(testing.AllocsPerRun(10, func() {
 		iter := v.MapRange()
 		for iter.Next() {
@@ -370,9 +375,12 @@ func TestMapIterSet(t *testing.T) {
 			e.SetIterValue(iter)
 		}
 	}))
-	// Making a *MapIter allocates. This should be the only allocation.
-	if got != 1 {
-		t.Errorf("wanted 1 alloc, got %d", got)
+	// Calling MapRange should not allocate even though it returns a *MapIter.
+	// The function is inlineable, so if the local usage does not escape
+	// the *MapIter, it can remain stack allocated.
+	want := 0
+	if got != want {
+		t.Errorf("wanted %d alloc, got %d", want, got)
 	}
 }
 
@@ -1496,6 +1504,10 @@ func TestMap(t *testing.T) {
 	if m != nil {
 		t.Errorf("mv.Set(nil) failed")
 	}
+
+	type S string
+	shouldPanic("not assignable", func() { mv.MapIndex(ValueOf(S("key"))) })
+	shouldPanic("not assignable", func() { mv.SetMapIndex(ValueOf(S("key")), ValueOf(0)) })
 }
 
 func TestNilMap(t *testing.T) {
@@ -7257,11 +7269,14 @@ func BenchmarkNew(b *testing.B) {
 
 func BenchmarkMap(b *testing.B) {
 	type V *int
+	type S string
 	value := ValueOf((V)(nil))
 	stringKeys := []string{}
 	mapOfStrings := map[string]V{}
 	uint64Keys := []uint64{}
 	mapOfUint64s := map[uint64]V{}
+	userStringKeys := []S{}
+	mapOfUserStrings := map[S]V{}
 	for i := 0; i < 100; i++ {
 		stringKey := fmt.Sprintf("key%d", i)
 		stringKeys = append(stringKeys, stringKey)
@@ -7270,6 +7285,10 @@ func BenchmarkMap(b *testing.B) {
 		uint64Key := uint64(i)
 		uint64Keys = append(uint64Keys, uint64Key)
 		mapOfUint64s[uint64Key] = nil
+
+		userStringKey := S(fmt.Sprintf("key%d", i))
+		userStringKeys = append(userStringKeys, userStringKey)
+		mapOfUserStrings[userStringKey] = nil
 	}
 
 	tests := []struct {
@@ -7278,6 +7297,7 @@ func BenchmarkMap(b *testing.B) {
 	}{
 		{"StringKeys", ValueOf(mapOfStrings), ValueOf(stringKeys), value},
 		{"Uint64Keys", ValueOf(mapOfUint64s), ValueOf(uint64Keys), value},
+		{"UserStringKeys", ValueOf(mapOfUserStrings), ValueOf(userStringKeys), value},
 	}
 
 	for _, tt := range tests {
@@ -7813,5 +7833,161 @@ func TestNegativeKindString(t *testing.T) {
 	want := "kind-1"
 	if s != want {
 		t.Fatalf("Kind(-1).String() = %q, want %q", s, want)
+	}
+}
+
+type (
+	namedBool  bool
+	namedBytes []byte
+)
+
+var sourceAll = struct {
+	Bool         Value
+	String       Value
+	Bytes        Value
+	NamedBytes   Value
+	BytesArray   Value
+	SliceAny     Value
+	MapStringAny Value
+}{
+	Bool:         ValueOf(new(bool)).Elem(),
+	String:       ValueOf(new(string)).Elem(),
+	Bytes:        ValueOf(new([]byte)).Elem(),
+	NamedBytes:   ValueOf(new(namedBytes)).Elem(),
+	BytesArray:   ValueOf(new([32]byte)).Elem(),
+	SliceAny:     ValueOf(new([]any)).Elem(),
+	MapStringAny: ValueOf(new(map[string]any)).Elem(),
+}
+
+var sinkAll struct {
+	RawBool   bool
+	RawString string
+	RawBytes  []byte
+	RawInt    int
+}
+
+func BenchmarkBool(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawBool = sourceAll.Bool.Bool()
+	}
+}
+
+func BenchmarkString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawString = sourceAll.String.String()
+	}
+}
+
+func BenchmarkBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawBytes = sourceAll.Bytes.Bytes()
+	}
+}
+
+func BenchmarkNamedBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawBytes = sourceAll.NamedBytes.Bytes()
+	}
+}
+
+func BenchmarkBytesArray(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawBytes = sourceAll.BytesArray.Bytes()
+	}
+}
+
+func BenchmarkSliceLen(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.SliceAny.Len()
+	}
+}
+
+func BenchmarkMapLen(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.MapStringAny.Len()
+	}
+}
+
+func BenchmarkStringLen(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.String.Len()
+	}
+}
+
+func BenchmarkArrayLen(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.BytesArray.Len()
+	}
+}
+
+func BenchmarkSliceCap(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkAll.RawInt = sourceAll.SliceAny.Cap()
+	}
+}
+
+func TestValue_Cap(t *testing.T) {
+	a := &[3]int{1, 2, 3}
+	v := ValueOf(a)
+	if v.Cap() != cap(a) {
+		t.Errorf("Cap = %d want %d", v.Cap(), cap(a))
+	}
+
+	a = nil
+	v = ValueOf(a)
+	if v.Cap() != cap(a) {
+		t.Errorf("Cap = %d want %d", v.Cap(), cap(a))
+	}
+
+	getError := func(f func()) (errorStr string) {
+		defer func() {
+			e := recover()
+			if str, ok := e.(string); ok {
+				errorStr = str
+			}
+		}()
+		f()
+		return
+	}
+	e := getError(func() {
+		var ptr *int
+		ValueOf(ptr).Cap()
+	})
+	wantStr := "reflect: call of reflect.Value.Cap on ptr to non-array Value"
+	if e != wantStr {
+		t.Errorf("error is %q, want %q", e, wantStr)
+	}
+}
+
+func TestValue_Len(t *testing.T) {
+	a := &[3]int{1, 2, 3}
+	v := ValueOf(a)
+	if v.Len() != len(a) {
+		t.Errorf("Len = %d want %d", v.Len(), len(a))
+	}
+
+	a = nil
+	v = ValueOf(a)
+	if v.Len() != len(a) {
+		t.Errorf("Len = %d want %d", v.Len(), len(a))
+	}
+
+	getError := func(f func()) (errorStr string) {
+		defer func() {
+			e := recover()
+			if str, ok := e.(string); ok {
+				errorStr = str
+			}
+		}()
+		f()
+		return
+	}
+	e := getError(func() {
+		var ptr *int
+		ValueOf(ptr).Len()
+	})
+	wantStr := "reflect: call of reflect.Value.Len on ptr to non-array Value"
+	if e != wantStr {
+		t.Errorf("error is %q, want %q", e, wantStr)
 	}
 }

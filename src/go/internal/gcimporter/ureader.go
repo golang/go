@@ -184,14 +184,13 @@ func (pr *pkgReader) pkgIdx(idx int) *types.Package {
 
 func (r *reader) doPkg() *types.Package {
 	path := r.String()
-	if path == "builtin" {
-		return nil // universe
-	}
-	if path == "unsafe" {
-		return types.Unsafe
-	}
-	if path == "" {
+	switch path {
+	case "":
 		path = r.p.PkgPath()
+	case "builtin":
+		return nil // universe
+	case "unsafe":
+		return types.Unsafe
 	}
 
 	if pkg := r.p.imports[path]; pkg != nil {

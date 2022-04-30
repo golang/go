@@ -271,6 +271,9 @@ func addGCLocals() {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 			x.Set(obj.AttrStatic, true)
 		}
+		for _, jt := range fn.JumpTables {
+			objw.Global(jt.Sym, int32(len(jt.Targets)*base.Ctxt.Arch.PtrSize), obj.RODATA)
+		}
 	}
 }
 

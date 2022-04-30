@@ -89,21 +89,11 @@ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
 func (check *Checker) overflow(x *operand) {
 	assert(x.mode == constant_)
 
-	// If the corresponding expression is an operation, use the
-	// operator position rather than the start of the expression
-	// as error position.
-	pos := syntax.StartPos(x.expr)
-	what := "" // operator description, if any
-	if op, _ := x.expr.(*syntax.Operation); op != nil {
-		pos = op.Pos()
-		what = opName(op)
-	}
-
 	if x.val.Kind() == constant.Unknown {
 		// TODO(gri) We should report exactly what went wrong. At the
 		//           moment we don't have the (go/constant) API for that.
 		//           See also TODO in go/constant/value.go.
-		check.error(pos, "constant result is not representable")
+		check.error(opPos(x.expr), "constant result is not representable")
 		return
 	}
 
@@ -119,22 +109,37 @@ func (check *Checker) overflow(x *operand) {
 	// Untyped integer values must not grow arbitrarily.
 	const prec = 512 // 512 is the constant precision
 	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
-		check.errorf(pos, "constant %s overflow", what)
+		check.errorf(opPos(x.expr), "constant %s overflow", opName(x.expr))
 		x.val = constant.MakeUnknown()
 	}
 }
 
-// opName returns the name of an operation, or the empty string.
-// Only operations that might overflow are handled.
-func opName(e *syntax.Operation) string {
-	op := int(e.Op)
-	if e.Y == nil {
-		if op < len(op2str1) {
-			return op2str1[op]
-		}
-	} else {
-		if op < len(op2str2) {
-			return op2str2[op]
+// opPos returns the position of the operator if x is an operation;
+// otherwise it returns the start position of x.
+func opPos(x syntax.Expr) syntax.Pos {
+	switch op := x.(type) {
+	case nil:
+		return nopos // don't crash
+	case *syntax.Operation:
+		return op.Pos()
+	default:
+		return syntax.StartPos(x)
+	}
+}
+
+// opName returns the name of the operation if x is an operation
+// that might overflow; otherwise it returns the empty string.
+func opName(x syntax.Expr) string {
+	if e, _ := x.(*syntax.Operation); e != nil {
+		op := int(e.Op)
+		if e.Y == nil {
+			if op < len(op2str1) {
+				return op2str1[op]
+			}
+		} else {
+			if op < len(op2str2) {
+				return op2str2[op]
+			}
 		}
 	}
 	return ""
@@ -202,6 +207,12 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		x.mode = commaok
 		x.typ = ch.elem
 		check.hasCallOrRecv = true
+		return
+
+	case syntax.Tilde:
+		// Provide a better error position and message than what check.op below could do.
+		check.error(e, "cannot use ~ outside of interface or type constraint")
+		x.mode = invalid
 		return
 	}
 

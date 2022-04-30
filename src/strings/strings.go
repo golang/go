@@ -962,7 +962,8 @@ func TrimSpace(s string) string {
 	for ; stop > start; stop-- {
 		c := s[stop-1]
 		if c >= utf8.RuneSelf {
-			return TrimFunc(s[start:stop], unicode.IsSpace)
+			// start has been already trimmed above, should trim end only
+			return TrimRightFunc(s[start:stop], unicode.IsSpace)
 		}
 		if asciiSpace[c] == 0 {
 			break

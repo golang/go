@@ -1,7 +1,7 @@
 [!exec:git] skip
 [!exec:hg] skip
 [short] skip
-env GOFLAGS=-n
+env GOFLAGS='-n -buildvcs'
 
 # Create a root module in a root Git repository.
 mkdir root

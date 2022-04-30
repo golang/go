@@ -85,6 +85,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OFALL,
 		ir.OGOTO,
 		ir.OLABEL,
+		ir.OJUMPTABLE,
 		ir.ODCL,
 		ir.ODCLCONST,
 		ir.ODCLTYPE,

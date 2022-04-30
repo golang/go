@@ -263,7 +263,7 @@ func finishsweep_m() {
 	// Sweeping is done, so if the scavenger isn't already awake,
 	// wake it up. There's definitely work for it to do at this
 	// point.
-	wakeScavenger()
+	scavenger.wake()
 
 	nextMarkBitArenaEpoch()
 }
@@ -403,10 +403,7 @@ func sweepone() uintptr {
 			mheap_.pages.scavengeStartGen()
 			unlock(&mheap_.lock)
 		})
-		// Since we might sweep in an allocation path, it's not possible
-		// for us to wake the scavenger directly via wakeScavenger, since
-		// it could allocate. Ask sysmon to do it for us instead.
-		readyForScavenger()
+		scavenger.ready()
 	}
 
 	gp.m.locks--

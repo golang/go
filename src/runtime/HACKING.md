@@ -90,8 +90,15 @@ avoid allocating in perilous situations. By convention, additional
 details are printed before `throw` using `print` or `println` and the
 messages are prefixed with "runtime:".
 
-For runtime error debugging, it's useful to run with
-`GOTRACEBACK=system` or `GOTRACEBACK=crash`.
+For unrecoverable errors where user code is expected to be at fault for the
+failure (such as racing map writes), use `fatal`.
+
+For runtime error debugging, it may be useful to run with `GOTRACEBACK=system`
+or `GOTRACEBACK=crash`. The output of `panic` and `fatal` is as described by
+`GOTRACEBACK`. The output of `throw` always includes runtime frames, metadata
+and all goroutines regardless of `GOTRACEBACK` (i.e., equivalent to
+`GOTRACEBACK=system). Whether `throw` crashes or not is still controlled by
+`GOTRACEBACK`.
 
 Synchronization
 ===============
@@ -276,6 +283,25 @@ functions that release the P or may run without a P and
 `go:yeswritebarrierrec` is used when code re-acquires an active P.
 Since these are function-level annotations, code that releases or
 acquires a P may need to be split across two functions.
+
+go:uintptrkeepalive
+-------------------
+
+The //go:uintptrkeepalive directive must be followed by a function declaration.
+
+It specifies that the function's uintptr arguments may be pointer values that
+have been converted to uintptr and must be kept alive for the duration of the
+call, even though from the types alone it would appear that the object is no
+longer needed during the call.
+
+This directive is similar to //go:uintptrescapes, but it does not force
+arguments to escape. Since stack growth does not understand these arguments,
+this directive must be used with //go:nosplit (in the marked function and all
+transitive calls) to prevent stack growth.
+
+The conversion from pointer to uintptr must appear in the argument list of any
+call to this function. This directive is used for some low-level system call
+implementations.
 
 go:notinheap
 ------------

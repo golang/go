@@ -272,7 +272,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
 	// initialize essential registers (just in case)
 	XOR	R0, R0
 

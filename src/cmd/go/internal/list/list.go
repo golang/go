@@ -567,7 +567,14 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	pkgOpts := load.PackageOpts{
 		IgnoreImports:   *listFind,
 		ModResolveTests: *listTest,
-		LoadVCS:         cfg.BuildBuildvcs,
+		LoadVCS:         true,
+		// SuppressDeps is set if the user opts to explicitly ask for the json fields they
+		// need, don't ask for Deps or DepsErrors. It's not set when using a template string,
+		// even if *listFmt doesn't contain .Deps because Deps are used to find import cycles
+		// for test variants of packages and users who have been providing format strings
+		// might not expect those errors to stop showing up.
+		// See issue #52443.
+		SuppressDeps: !listJsonFields.needAny("Deps", "DepsErrors"),
 	}
 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
 	if !*listE {

@@ -827,7 +827,7 @@ func (p *parser) unaryExpr() Expr {
 	switch p.tok {
 	case _Operator, _Star:
 		switch p.op {
-		case Mul, Add, Sub, Not, Xor:
+		case Mul, Add, Sub, Not, Xor, Tilde:
 			x := new(Operation)
 			x.pos = p.pos()
 			x.Op = p.op
@@ -991,7 +991,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 	case _Func:
 		pos := p.pos()
 		p.next()
-		_, ftyp := p.funcType("function literal")
+		_, ftyp := p.funcType("function type")
 		if p.tok == _Lbrace {
 			p.xnest++
 
@@ -1499,44 +1499,14 @@ func (p *parser) interfaceType() *InterfaceType {
 	p.want(_Interface)
 	p.want(_Lbrace)
 	p.list("interface type", _Semi, _Rbrace, func() bool {
-		switch p.tok {
-		case _Name:
-			f := p.methodDecl()
-			if f.Name == nil {
-				f = p.embeddedElem(f)
-			}
-			typ.MethodList = append(typ.MethodList, f)
-			return false
-
-		case _Lparen:
-			p.syntaxError("cannot parenthesize embedded type")
-			f := new(Field)
-			f.pos = p.pos()
-			p.next()
-			f.Type = p.qualifiedName(nil)
-			p.want(_Rparen)
-			typ.MethodList = append(typ.MethodList, f)
-			return false
-
-		case _Operator:
-			if p.op == Tilde {
-				typ.MethodList = append(typ.MethodList, p.embeddedElem(nil))
-				return false
-			}
-
-		default:
-			pos := p.pos()
-			if t := p.typeOrNil(); t != nil {
-				f := new(Field)
-				f.pos = pos
-				f.Type = t
-				typ.MethodList = append(typ.MethodList, p.embeddedElem(f))
-				return false
-			}
+		var f *Field
+		if p.tok == _Name {
+			f = p.methodDecl()
 		}
-
-		p.syntaxError("expecting method or embedded element")
-		p.advance(_Semi, _Rbrace)
+		if f == nil || f.Name == nil {
+			f = p.embeddedElem(f)
+		}
+		typ.MethodList = append(typ.MethodList, f)
 		return false
 	})
 

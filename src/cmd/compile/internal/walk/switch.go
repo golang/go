@@ -11,6 +11,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -66,6 +67,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 	base.Pos = lno
 
 	s := exprSwitch{
+		pos:      lno,
 		exprname: cond,
 	}
 
@@ -112,6 +114,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 
 // An exprSwitch walks an expression switch.
 type exprSwitch struct {
+	pos      src.XPos
 	exprname ir.Node // value being switched on
 
 	done    ir.Nodes
@@ -182,17 +185,59 @@ func (s *exprSwitch) flush() {
 		}
 		runs = append(runs, cc[start:])
 
-		// Perform two-level binary search.
-		binarySearch(len(runs), &s.done,
-			func(i int) ir.Node {
-				return ir.NewBinaryExpr(base.Pos, ir.OLE, ir.NewUnaryExpr(base.Pos, ir.OLEN, s.exprname), ir.NewInt(runLen(runs[i-1])))
-			},
-			func(i int, nif *ir.IfStmt) {
-				run := runs[i]
-				nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, ir.NewUnaryExpr(base.Pos, ir.OLEN, s.exprname), ir.NewInt(runLen(run)))
-				s.search(run, &nif.Body)
-			},
-		)
+		if len(runs) == 1 {
+			s.search(runs[0], &s.done)
+			return
+		}
+		// We have strings of more than one length. Generate an
+		// outer switch which switches on the length of the string
+		// and an inner switch in each case which resolves all the
+		// strings of the same length. The code looks something like this:
+
+		// goto outerLabel
+		// len5:
+		//   ... search among length 5 strings ...
+		//   goto endLabel
+		// len8:
+		//   ... search among length 8 strings ...
+		//   goto endLabel
+		// ... other lengths ...
+		// outerLabel:
+		// switch len(s) {
+		//   case 5: goto len5
+		//   case 8: goto len8
+		//   ... other lengths ...
+		// }
+		// endLabel:
+
+		outerLabel := typecheck.AutoLabel(".s")
+		endLabel := typecheck.AutoLabel(".s")
+
+		// Jump around all the individual switches for each length.
+		s.done.Append(ir.NewBranchStmt(s.pos, ir.OGOTO, outerLabel))
+
+		var outer exprSwitch
+		outer.exprname = ir.NewUnaryExpr(s.pos, ir.OLEN, s.exprname)
+		outer.exprname.SetType(types.Types[types.TINT])
+
+		for _, run := range runs {
+			// Target label to jump to when we match this length.
+			label := typecheck.AutoLabel(".s")
+
+			// Search within this run of same-length strings.
+			pos := run[0].pos
+			s.done.Append(ir.NewLabelStmt(pos, label))
+			s.search(run, &s.done)
+			s.done.Append(ir.NewBranchStmt(pos, ir.OGOTO, endLabel))
+
+			// Add length case to outer switch.
+			cas := ir.NewBasicLit(pos, constant.MakeInt64(runLen(run)))
+			jmp := ir.NewBranchStmt(pos, ir.OGOTO, label)
+			outer.Add(pos, cas, jmp)
+		}
+		s.done.Append(ir.NewLabelStmt(s.pos, outerLabel))
+		outer.Emit(&s.done)
+		s.done.Append(ir.NewLabelStmt(s.pos, endLabel))
 		return
 	}
 
@@ -223,6 +268,9 @@ func (s *exprSwitch) flush() {
 }
 
 func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
+	if s.tryJumpTable(cc, out) {
+		return
+	}
 	binarySearch(len(cc), out,
 		func(i int) ir.Node {
 			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.exprname, cc[i-1].hi)
@@ -233,6 +281,48 @@ func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
 			nif.Body = []ir.Node{c.jmp}
 		},
 	)
+}
+
+// Try to implement the clauses with a jump table. Returns true if successful.
+func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
+	const go119UseJumpTables = true
+	const minCases = 8   // have at least minCases cases in the switch
+	const minDensity = 4 // use at least 1 out of every minDensity entries
+
+	if !go119UseJumpTables || base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable {
+		return false
+	}
+	if len(cc) < minCases {
+		return false // not enough cases for it to be worth it
+	}
+	if cc[0].lo.Val().Kind() != constant.Int {
+		return false // e.g. float
+	}
+	if s.exprname.Type().Size() > int64(types.PtrSize) {
+		return false // 64-bit switches on 32-bit archs
+	}
+	min := cc[0].lo.Val()
+	max := cc[len(cc)-1].hi.Val()
+	width := constant.BinaryOp(constant.BinaryOp(max, token.SUB, min), token.ADD, constant.MakeInt64(1))
+	limit := constant.MakeInt64(int64(len(cc)) * minDensity)
+	if constant.Compare(width, token.GTR, limit) {
+		// We disable jump tables if we use less than a minimum fraction of the entries.
+		// i.e. for switch x {case 0: case 1000: case 2000:} we don't want to use a jump table.
+		return false
+	}
+	jt := ir.NewJumpTableStmt(base.Pos, s.exprname)
+	for _, c := range cc {
+		jmp := c.jmp.(*ir.BranchStmt)
+		if jmp.Op() != ir.OGOTO || jmp.Label == nil {
+			panic("bad switch case body")
+		}
+		for i := c.lo.Val(); constant.Compare(i, token.LEQ, c.hi.Val()); i = constant.BinaryOp(i, token.ADD, constant.MakeInt64(1)) {
+			jt.Cases = append(jt.Cases, i)
+			jt.Targets = append(jt.Targets, jmp.Label)
+		}
+	}
+	out.Append(jt)
+	return true
 }
 
 func (c *exprClause) test(exprname ir.Node) ir.Node {
@@ -540,6 +630,7 @@ func (s *typeSwitch) flush() {
 	}
 	cc = merged
 
+	// TODO: figure out if we could use a jump table using some low bits of the type hashes.
 	binarySearch(len(cc), &s.done,
 		func(i int) ir.Node {
 			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashname, ir.NewInt(int64(cc[i-1].hash)))
@@ -562,7 +653,7 @@ func (s *typeSwitch) flush() {
 // then cases before i will be tested; otherwise, cases i and later.
 //
 // leaf(i, nif) should setup nif (an OIF node) to test case i. In
-// particular, it should set nif.Left and nif.Nbody.
+// particular, it should set nif.Cond and nif.Body.
 func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i int, nif *ir.IfStmt)) {
 	const binarySearchMin = 4 // minimum number of cases for binary search
 

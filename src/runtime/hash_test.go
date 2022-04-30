@@ -525,6 +525,13 @@ func windowed(t *testing.T, k Key) {
 	if GOARCH == "wasm" {
 		t.Skip("Too slow on wasm")
 	}
+	if PtrSize == 4 {
+		// This test tends to be flaky on 32-bit systems.
+		// There's not enough bits in the hash output, so we
+		// expect a nontrivial number of collisions, and it is
+		// often quite a bit higher than expected. See issue 43130.
+		t.Skip("Flaky on 32-bit systems")
+	}
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}

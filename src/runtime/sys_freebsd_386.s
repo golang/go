@@ -253,7 +253,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	RET
 
 // Called by OS using C ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT,$12
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$12
 	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVL	16(SP), BX	// signo
 	MOVL	BX, 0(SP)

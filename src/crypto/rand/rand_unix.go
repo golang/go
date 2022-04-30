@@ -10,7 +10,6 @@
 package rand
 
 import (
-	"bufio"
 	"errors"
 	"io"
 	"os"
@@ -30,19 +29,37 @@ func init() {
 type reader struct {
 	f    io.Reader
 	mu   sync.Mutex
-	used int32 // atomic; whether this reader has been used
+	used uint32 // Atomic: 0 - never used, 1 - used, but f == nil, 2 - used, and f != nil
 }
 
 // altGetRandom if non-nil specifies an OS-specific function to get
 // urandom-style randomness.
 var altGetRandom func([]byte) (ok bool)
 
+// batched returns a function that calls f to populate a []byte by chunking it
+// into subslices of, at most, readMax bytes.
+func batched(f func([]byte) error, readMax int) func([]byte) bool {
+	return func(out []byte) bool {
+		for len(out) > 0 {
+			read := len(out)
+			if read > readMax {
+				read = readMax
+			}
+			if f(out[:read]) != nil {
+				return false
+			}
+			out = out[read:]
+		}
+		return true
+	}
+}
+
 func warnBlocked() {
 	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
 }
 
 func (r *reader) Read(b []byte) (n int, err error) {
-	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
+	if atomic.CompareAndSwapUint32(&r.used, 0, 1) {
 		// First use of randomness. Start timer to warn about
 		// being blocked on entropy not being available.
 		t := time.AfterFunc(time.Minute, warnBlocked)
@@ -51,16 +68,20 @@ func (r *reader) Read(b []byte) (n int, err error) {
 	if altGetRandom != nil && altGetRandom(b) {
 		return len(b), nil
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.f == nil {
-		f, err := os.Open(urandomDevice)
-		if err != nil {
-			return 0, err
+	if atomic.LoadUint32(&r.used) != 2 {
+		r.mu.Lock()
+		if r.used != 2 {
+			f, err := os.Open(urandomDevice)
+			if err != nil {
+				r.mu.Unlock()
+				return 0, err
+			}
+			r.f = hideAgainReader{f}
+			atomic.StoreUint32(&r.used, 2)
 		}
-		r.f = bufio.NewReader(hideAgainReader{f})
+		r.mu.Unlock()
 	}
-	return r.f.Read(b)
+	return io.ReadFull(r.f, b)
 }
 
 // hideAgainReader masks EAGAIN reads from /dev/urandom.

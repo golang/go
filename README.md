@@ -35,7 +35,7 @@ Go is the work of thousands of contributors. We appreciate your help!
 To contribute, please read the contribution guidelines at https://go.dev/doc/contribute.
 
 Note that the Go project uses the issue tracker for bug reports and
-proposals only. See https://golang.org/wiki/Questions for a list of
+proposals only. See https://go.dev/wiki/Questions for a list of
 places to ask questions about the Go language.
 
 [rf]: https://reneefrench.blogspot.com/

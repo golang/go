@@ -160,7 +160,6 @@ func (b *Builder) toolID(name string) string {
 
 	cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -219,9 +218,8 @@ func (b *Builder) gccToolID(name, language string) (string, error) {
 	// compile an empty file on standard input.
 	cmdline := str.StringList(cfg.BuildToolexec, name, "-###", "-x", language, "-c", "-")
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	// Force untranslated output so that we see the string "version".
-	cmd.Env = append(cmd.Env, "LC_ALL=C")
+	cmd.Env = append(os.Environ(), "LC_ALL=C")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%s: %v; output: %q", name, err, out)

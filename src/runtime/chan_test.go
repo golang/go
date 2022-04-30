@@ -629,6 +629,9 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
 	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
 		testenv.SkipFlaky(t, 49382)
 	}
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 51482)
+	}
 
 	// The goal of this test is to trigger a "racy sudog adjustment"
 	// throw. Basically, there's a window between when a goroutine
@@ -1124,6 +1127,19 @@ func BenchmarkSelectProdCons(b *testing.B) {
 	for p := 0; p < procs; p++ {
 		<-c
 		<-c
+	}
+}
+
+func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
+	count := b.N
+	ch := make(chan struct{}, count)
+	for i := 0; i < count; i++ {
+		ch <- struct{}{}
+	}
+	close(ch)
+
+	b.ResetTimer()
+	for range ch {
 	}
 }
 

@@ -18,7 +18,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"internal/godebug"
 	"io"
 	"net"
 	"strings"
@@ -974,9 +973,6 @@ var supportedVersions = []uint16{
 	VersionTLS10,
 }
 
-// debugEnableTLS10 enables TLS 1.0. See issue 45428.
-var debugEnableTLS10 = godebug.Get("tls10default") == "1"
-
 // roleClient and roleServer are meant to call supportedVersions and parents
 // with more readability at the callsite.
 const roleClient = true
@@ -985,7 +981,7 @@ const roleServer = false
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
-		if (c == nil || c.MinVersion == 0) && !debugEnableTLS10 &&
+		if (c == nil || c.MinVersion == 0) &&
 			isClient && v < VersionTLS12 {
 			continue
 		}

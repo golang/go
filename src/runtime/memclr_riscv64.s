@@ -7,40 +7,42 @@
 // See memclrNoHeapPointers Go doc for important implementation constraints.
 
 // void runtime·memclrNoHeapPointers(void*, uintptr)
-TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
-	MOV	ptr+0(FP), T1
-	MOV	n+8(FP), T2
-	ADD	T1, T2, T4
+TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
+#ifndef GOEXPERIMENT_regabiargs
+	MOV	ptr+0(FP), A0
+	MOV	n+8(FP), A1
+#endif
+	ADD	A0, A1, T4
 
 	// If less than eight bytes, do one byte at a time.
-	SLTU	$8, T2, T3
+	SLTU	$8, A1, T3
 	BNE	T3, ZERO, outcheck
 
 	// Do one byte at a time until eight-aligned.
 	JMP	aligncheck
 align:
-	MOVB	ZERO, (T1)
-	ADD	$1, T1
+	MOVB	ZERO, (A0)
+	ADD	$1, A0
 aligncheck:
-	AND	$7, T1, T3
+	AND	$7, A0, T3
 	BNE	T3, ZERO, align
 
 	// Do eight bytes at a time as long as there is room.
 	ADD	$-7, T4, T5
 	JMP	wordscheck
 words:
-	MOV	ZERO, (T1)
-	ADD	$8, T1
+	MOV	ZERO, (A0)
+	ADD	$8, A0
 wordscheck:
-	SLTU	T5, T1, T3
+	SLTU	T5, A0, T3
 	BNE	T3, ZERO, words
 
 	JMP	outcheck
 out:
-	MOVB	ZERO, (T1)
-	ADD	$1, T1
+	MOVB	ZERO, (A0)
+	ADD	$1, A0
 outcheck:
-	BNE	T1, T4, out
+	BNE	A0, T4, out
 
 done:
 	RET

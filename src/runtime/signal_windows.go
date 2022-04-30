@@ -226,7 +226,7 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 	}
 	print("\n")
 
-	_g_.m.throwing = 1
+	_g_.m.throwing = throwTypeRuntime
 	_g_.m.caughtsig.set(gp)
 
 	level, _, docrash := gotraceback()

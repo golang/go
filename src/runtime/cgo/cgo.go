@@ -23,9 +23,6 @@ package cgo
 #cgo solaris LDFLAGS: -lxnet
 #cgo illumos LDFLAGS: -lsocket
 
-// Issue 35247.
-#cgo darwin CFLAGS: -Wno-nullability-completeness
-
 #cgo CFLAGS: -Wall -Werror
 
 #cgo solaris CPPFLAGS: -D_POSIX_PTHREAD_SEMANTICS

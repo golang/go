@@ -17,6 +17,7 @@ import (
 	"internal/goroot"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path"
 	pathpkg "path"
 	"path/filepath"
@@ -196,9 +197,9 @@ func (p *Package) Desc() string {
 // IsTestOnly reports whether p is a test-only package.
 //
 // A “test-only” package is one that:
-// 	- is a test-only variant of an ordinary package, or
-// 	- is a synthesized "main" package for a test binary, or
-// 	- contains only _test.go files.
+//   - is a test-only variant of an ordinary package, or
+//   - is a synthesized "main" package for a test binary, or
+//   - contains only _test.go files.
 func (p *Package) IsTestOnly() bool {
 	return p.ForTest != "" ||
 		p.Internal.TestmainGo != nil ||
@@ -1937,7 +1938,9 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		}
 	}
 	p.Internal.Imports = imports
-	p.collectDeps()
+	if !opts.SuppressDeps {
+		p.collectDeps()
+	}
 	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 {
 		// TODO(bcmills): loading VCS metadata can be fairly slow.
 		// Consider starting this as a background goroutine and retrieving the result
@@ -2056,7 +2059,8 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 		// then there may be other things lying around, like symbolic links or .git directories.)
 		var list []string
 		for _, file := range match {
-			rel := filepath.ToSlash(file[len(pkgdir)+1:]) // file, relative to p.Dir
+			// relative path to p.Dir which begins without prefix slash
+			rel := filepath.ToSlash(str.TrimFilePathPrefix(file, pkgdir))
 
 			what := "file"
 			info, err := fsys.Lstat(file)
@@ -2106,7 +2110,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 					if err != nil {
 						return err
 					}
-					rel := filepath.ToSlash(path[len(pkgdir)+1:])
+					rel := filepath.ToSlash(str.TrimFilePathPrefix(path, pkgdir))
 					name := info.Name()
 					if path != file && (isBadEmbedName(name) || ((name[0] == '.' || name[0] == '_') && !all)) {
 						// Ignore bad names, assuming they won't go into modules.
@@ -2371,7 +2375,7 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 	var vcsCmd *vcs.Cmd
 	var err error
 	const allowNesting = true
-	if includeVCS && p.Module != nil && p.Module.Version == "" && !p.Standard && !p.IsTestOnly() {
+	if includeVCS && cfg.BuildBuildvcs != "false" && p.Module != nil && p.Module.Version == "" && !p.Standard && !p.IsTestOnly() {
 		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			setVCSError(err)
@@ -2383,7 +2387,14 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 			// repository containing the working directory. Don't include VCS info.
 			// If the repo contains the module or vice versa, but they are not
 			// the same directory, it's likely an error (see below).
-			repoDir, vcsCmd = "", nil
+			goto omitVCS
+		}
+		if cfg.BuildBuildvcs == "auto" && vcsCmd != nil && vcsCmd.Cmd != "" {
+			if _, err := exec.LookPath(vcsCmd.Cmd); err != nil {
+				// We fould a repository, but the required VCS tool is not present.
+				// "-buildvcs=auto" means that we should silently drop the VCS metadata.
+				goto omitVCS
+			}
 		}
 	}
 	if repoDir != "" && vcsCmd.Status != nil {
@@ -2397,8 +2408,11 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 			return
 		}
 		if pkgRepoDir != repoDir {
-			setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
-			return
+			if cfg.BuildBuildvcs != "auto" {
+				setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
+				return
+			}
+			goto omitVCS
 		}
 		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "", allowNesting)
 		if err != nil {
@@ -2406,8 +2420,11 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 			return
 		}
 		if modRepoDir != repoDir {
-			setVCSError(fmt.Errorf("main module is in repository %q but current directory is in repository %q", modRepoDir, repoDir))
-			return
+			if cfg.BuildBuildvcs != "auto" {
+				setVCSError(fmt.Errorf("main module is in repository %q but current directory is in repository %q", modRepoDir, repoDir))
+				return
+			}
+			goto omitVCS
 		}
 
 		type vcsStatusError struct {
@@ -2434,6 +2451,7 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 		}
 		appendSetting("vcs.modified", strconv.FormatBool(st.Uncommitted))
 	}
+omitVCS:
 
 	p.Internal.BuildInfo = info.String()
 }
@@ -2663,6 +2681,12 @@ type PackageOpts struct {
 
 	// LoadVCS controls whether we also load version-control metadata for main packages.
 	LoadVCS bool
+
+	// NeedDepsFields is true if the caller does not need Deps and DepsErrors to be populated
+	// on the package. TestPackagesAndErrors examines the  Deps field to determine if the test
+	// variant has an import cycle, so SuppressDeps should not be set if TestPackagesAndErrors
+	// will be called on the package.
+	SuppressDeps bool
 }
 
 // PackagesAndErrors returns the packages named by the command line arguments
