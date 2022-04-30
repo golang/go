@@ -3051,7 +3051,7 @@ func resetspinning() {
 
 // injectglist adds each runnable G on the list to some run queue,
 // and clears glist. If there is no current P, they are added to the
-// global queue, and up to npidle M's are started to run them.
+// global queue, and up to n P idle M's are started to run them.
 // Otherwise, for each idle P, this adds a G to the global queue
 // and starts an M. Any remaining G's are added to the current P's
 // local run queue.
