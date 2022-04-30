@@ -18,6 +18,71 @@
 // Note that the examples in this package assume a Unix system.
 // They may not run on Windows, and they do not run in the Go Playground
 // used by golang.org and godoc.org.
+//
+// Executables in the current directory
+//
+// The functions Command and LookPath look for a program
+// in the directories listed in the current path, following the
+// conventions of the host operating system.
+// Operating systems have for decades included the current
+// directory in this search, sometimes implicitly and sometimes
+// configured explicitly that way by default.
+// Modern practice is that including the current directory
+// is usually unexpected and often leads to security problems.
+//
+// To avoid those security problems, as of Go 1.19, this package will not resolve a program
+// using an implicit or explicit path entry relative to the current directory.
+// That is, if you run exec.LookPath("go"), it will not successfully return
+// ./go on Unix nor .\go.exe on Windows, no matter how the path is configured.
+// Instead, if the usual path algorithms would result in that answer,
+// these functions return an error err satisfying errors.Is(err, ErrDot).
+//
+// For example, consider these two program snippets:
+//
+//	path, err := exec.LookPath("prog")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	use(path)
+//
+// and
+//
+//	cmd := exec.Command("prog")
+//	if err := cmd.Run(); err != nil {
+//		log.Fatal(err)
+//	}
+//
+// These will not find and run ./prog or .\prog.exe,
+// no matter how the current path is configured.
+//
+// Code that always wants to run a program from the current directory
+// can be rewritten to say "./prog" instead of "prog".
+//
+// Code that insists on including results from relative path entries
+// can instead override the error using an errors.Is check:
+//
+//	path, err := exec.LookPath("prog")
+//	if errors.Is(err, exec.ErrDot) {
+//		err = nil
+//	}
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	use(path)
+//
+// and
+//
+//	cmd := exec.Command("prog")
+//	if errors.Is(cmd.Err, exec.ErrDot) {
+//		cmd.Err = nil
+//	}
+//	if err := cmd.Run(); err != nil {
+//		log.Fatal(err)
+//	}
+//
+// Before adding such overrides, make sure you understand the
+// security implications of doing so.
+// See https://go.dev/blog/path-security for more information.
 package exec
 
 import (
@@ -134,7 +199,7 @@ type Cmd struct {
 	ProcessState *os.ProcessState
 
 	ctx             context.Context // nil means none
-	lookPathErr     error           // LookPath error, if any.
+	Err             error           // LookPath error, if any.
 	finished        bool            // when Wait was called
 	childFiles      []*os.File
 	closeAfterStart []io.Closer
@@ -142,6 +207,25 @@ type Cmd struct {
 	goroutine       []func() error
 	errch           chan error // one send per goroutine
 	waitDone        chan struct{}
+
+	// For a security release long ago, we created x/sys/execabs,
+	// which manipulated the unexported lookPathErr error field
+	// in this struct. For Go 1.19 we exported the field as Err error,
+	// above, but we have to keep lookPathErr around for use by
+	// old programs building against new toolchains.
+	// The String and Start methods look for an error in lookPathErr
+	// in preference to Err, to preserve the errors that execabs sets.
+	//
+	// In general we don't guarantee misuse of reflect like this,
+	// but the misuse of reflect was by us, the best of various bad
+	// options to fix the security problem, and people depend on
+	// those old copies of execabs continuing to work.
+	// The result is that we have to leave this variable around for the
+	// rest of time, a compatibility scar.
+	//
+	// See https://go.dev/blog/path-security
+	// and https://go.dev/issue/43724 for more context.
+	lookPathErr error
 }
 
 // Command returns the Cmd struct to execute the named program with
@@ -173,7 +257,7 @@ func Command(name string, arg ...string) *Cmd {
 	}
 	if filepath.Base(name) == name {
 		if lp, err := LookPath(name); err != nil {
-			cmd.lookPathErr = err
+			cmd.Err = err
 		} else {
 			cmd.Path = lp
 		}
@@ -200,7 +284,7 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 // In particular, it is not suitable for use as input to a shell.
 // The output of String may vary across Go releases.
 func (c *Cmd) String() string {
-	if c.lookPathErr != nil {
+	if c.Err != nil || c.lookPathErr != nil {
 		// failed to resolve path; report the original requested path (plus args)
 		return strings.Join(c.Args, " ")
 	}
@@ -335,7 +419,7 @@ func (c *Cmd) Run() error {
 // lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
 func lookExtensions(path, dir string) (string, error) {
 	if filepath.Base(path) == path {
-		path = filepath.Join(".", path)
+		path = "." + string(filepath.Separator) + path
 	}
 	if dir == "" {
 		return LookPath(path)
@@ -363,10 +447,13 @@ func lookExtensions(path, dir string) (string, error) {
 // The Wait method will return the exit code and release associated resources
 // once the command exits.
 func (c *Cmd) Start() error {
-	if c.lookPathErr != nil {
+	if c.Err != nil || c.lookPathErr != nil {
 		c.closeDescriptors(c.closeAfterStart)
 		c.closeDescriptors(c.closeAfterWait)
-		return c.lookPathErr
+		if c.lookPathErr != nil {
+			return c.lookPathErr
+		}
+		return c.Err
 	}
 	if runtime.GOOS == "windows" {
 		lp, err := lookExtensions(c.Path, c.Dir)
@@ -845,3 +932,12 @@ func addCriticalEnv(env []string) []string {
 	}
 	return append(env, "SYSTEMROOT="+os.Getenv("SYSTEMROOT"))
 }
+
+// ErrDot indicates that a path lookup resolved to an executable
+// in the current directory due to ‘.’ being in the path, either
+// implicitly or explicitly. See the package documentation for details.
+//
+// Note that functions in this package do not return ErrDot directly.
+// Code should use errors.Is(err, ErrDot), not err == ErrDot,
+// to test whether a returned error err is due to this condition.
+var ErrDot = errors.New("cannot run executable found relative to current directory")
