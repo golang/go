@@ -681,7 +681,6 @@ func (b *builder) nodeFromVal(val ssa.Value) node {
 	default:
 		panic(fmt.Errorf("unsupported value %v in node creation", val))
 	}
-	return nil
 }
 
 // representative returns a unique representative for node `n`. Since
