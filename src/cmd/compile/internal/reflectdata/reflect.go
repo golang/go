@@ -1199,10 +1199,10 @@ func writeType(t *types.Type) *obj.LSym {
 
 	// Note: DUPOK is required to ensure that we don't end up with more
 	// than one type descriptor for a given type, if the type descriptor
-	// can be defined in multiple packages, that is, unnamed types and
-	// instantiated types.
+	// can be defined in multiple packages, that is, unnamed types,
+	// instantiated types and shape types.
 	dupok := 0
-	if tbase.Sym() == nil || tbase.IsFullyInstantiated() {
+	if tbase.Sym() == nil || tbase.IsFullyInstantiated() || tbase.HasShape() {
 		dupok = obj.DUPOK
 	}
 
