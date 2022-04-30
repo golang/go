@@ -1,0 +1,11 @@
+-*- text -*-
+
+Guru to-do list
+===========================
+
+Generics:
+- decide on whether to support generics in guru
+- decide on whether to instantiate generics in ssa (go.dev/issue/52503)
+
+MISC:
+- test support for *ssa.SliceToArrayPointer instructions (go.dev/issue/47326)
