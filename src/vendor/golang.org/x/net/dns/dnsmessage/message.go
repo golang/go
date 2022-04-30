@@ -1173,6 +1173,7 @@ func (m *Message) GoString() string {
 // A Builder allows incrementally packing a DNS message.
 //
 // Example usage:
+//
 //	buf := make([]byte, 2, 514)
 //	b := NewBuilder(buf, Header{...})
 //	b.EnableCompression()

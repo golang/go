@@ -267,6 +267,9 @@ func (c *config) init() {
 			matchHost = true
 			phost = "." + phost
 		}
+		if v, err := idnaASCII(phost); err == nil {
+			phost = v
+		}
 		c.domainMatchers = append(c.domainMatchers, domainMatch{host: phost, port: pport, matchHost: matchHost})
 	}
 }
