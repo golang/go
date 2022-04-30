@@ -91,7 +91,7 @@ func TestEncoderBuffering(t *testing.T) {
 func TestDecode(t *testing.T) {
 	for _, p := range pairs {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
-		count, end, err := StdEncoding.decode(dbuf, []byte(p.encoded))
+		count, _, end, err := StdEncoding.decode(dbuf, []byte(p.encoded))
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, error(nil))
 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded))
 		if len(p.encoded) > 0 {
@@ -623,6 +623,58 @@ func TestBufferedDecodingSameError(t *testing.T) {
 			if err != testcase.expected {
 				t.Errorf("Expected %v, got %v; case %s %+v", testcase.expected, err, testcase.prefix, chunks)
 			}
+		}
+	}
+}
+
+func TestBufferedDecodingPadding(t *testing.T) {
+	testcases := []struct {
+		chunks        []string
+		expectedError string
+	}{
+		{[]string{
+			"I4======",
+			"==",
+		}, "unexpected EOF"},
+
+		{[]string{
+			"I4======N4======",
+		}, "illegal base32 data at input byte 2"},
+
+		{[]string{
+			"I4======",
+			"N4======",
+		}, "illegal base32 data at input byte 2"},
+
+		{[]string{
+			"I4======",
+			"========",
+		}, "illegal base32 data at input byte 2"},
+
+		{[]string{
+			"I4I4I4I4",
+			"I4======",
+			"I4======",
+		}, "illegal base32 data at input byte 10"},
+	}
+
+	for _, testcase := range testcases {
+		testcase := testcase
+		pr, pw := io.Pipe()
+		go func() {
+			for _, chunk := range testcase.chunks {
+				_, _ = pw.Write([]byte(chunk))
+			}
+			_ = pw.Close()
+		}()
+
+		decoder := NewDecoder(StdEncoding, pr)
+		_, err := io.ReadAll(decoder)
+
+		if err == nil && len(testcase.expectedError) != 0 {
+			t.Errorf("Expected %v, got nil error; case %+v", testcase.expectedError, testcase.chunks)
+		} else if err.Error() != testcase.expectedError {
+			t.Errorf("Expected %v, got %v; case %+v", testcase.expectedError, err, testcase.chunks)
 		}
 	}
 }

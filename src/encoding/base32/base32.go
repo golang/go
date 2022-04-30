@@ -272,7 +272,7 @@ func (e CorruptInputError) Error() string {
 // indicates if end-of-message padding was encountered and thus any
 // additional data is an error. This method assumes that src has been
 // stripped of all supported whitespace ('\r' and '\n').
-func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+func (enc *Encoding) decode(dst, src []byte) (n int, nonPadding int, end bool, err error) {
 	// Lift the nil check outside of the loop.
 	_ = enc.decodeMap
 
@@ -289,7 +289,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 			if len(src) == 0 {
 				if enc.padChar != NoPadding {
 					// We have reached the end and are missing padding
-					return n, false, CorruptInputError(olen - len(src) - j)
+					return n, 0, false, CorruptInputError(olen - len(src) - j)
 				}
 				// We have reached the end and are not expecting any padding
 				dlen, end = j, true
@@ -297,32 +297,37 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 			}
 			in := src[0]
 			src = src[1:]
-			if in == byte(enc.padChar) && j >= 2 && len(src) < 8 {
-				// We've reached the end and there's padding
-				if len(src)+j < 8-1 {
-					// not enough padding
-					return n, false, CorruptInputError(olen)
-				}
-				for k := 0; k < 8-1-j; k++ {
-					if len(src) > k && src[k] != byte(enc.padChar) {
-						// incorrect padding
-						return n, false, CorruptInputError(olen - len(src) + k - 1)
+			if in == byte(enc.padChar) {
+				if j >= 2 && len(src) < 8 {
+					// We've reached the end and there's padding
+					if len(src)+j < 8-1 {
+						// not enough padding
+						return n, 0, false, CorruptInputError(olen)
 					}
+					for k := 0; k < 8-1-j; k++ {
+						if len(src) > k && src[k] != byte(enc.padChar) {
+							// incorrect padding
+							return n, 0, false, CorruptInputError(olen - len(src) + k - 1)
+						}
+					}
+					dlen, end = j, true
+					// 7, 5 and 2 are not valid padding lengths, and so 1, 3 and 6 are not
+					// valid dlen values. See RFC 4648 Section 6 "Base 32 Encoding" listing
+					// the five valid padding lengths, and Section 9 "Illustrations and
+					// Examples" for an illustration for how the 1st, 3rd and 6th base32
+					// src bytes do not yield enough information to decode a dst byte.
+					if dlen == 1 || dlen == 3 || dlen == 6 {
+						return n, 0, false, CorruptInputError(olen - len(src) - 1)
+					}
+					break
 				}
-				dlen, end = j, true
-				// 7, 5 and 2 are not valid padding lengths, and so 1, 3 and 6 are not
-				// valid dlen values. See RFC 4648 Section 6 "Base 32 Encoding" listing
-				// the five valid padding lengths, and Section 9 "Illustrations and
-				// Examples" for an illustration for how the 1st, 3rd and 6th base32
-				// src bytes do not yield enough information to decode a dst byte.
-				if dlen == 1 || dlen == 3 || dlen == 6 {
-					return n, false, CorruptInputError(olen - len(src) - 1)
-				}
-				break
+			} else {
+				nonPadding++
 			}
+
 			dbuf[j] = enc.decodeMap[in]
 			if dbuf[j] == 0xFF {
-				return n, false, CorruptInputError(olen - len(src) - 1)
+				return n, 0, false, CorruptInputError(olen - len(src) - 1)
 			}
 			j++
 		}
@@ -352,7 +357,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		}
 		dsti += 5
 	}
-	return n, end, nil
+	return n, nonPadding, end, nil
 }
 
 // Decode decodes src using the encoding enc. It writes at most
@@ -363,7 +368,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	buf := make([]byte, len(src))
 	l := stripNewlines(buf, src)
-	n, _, err = enc.decode(dst, buf[:l])
+	n, _, _, err = enc.decode(dst, buf[:l])
 	return
 }
 
@@ -371,19 +376,20 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 func (enc *Encoding) DecodeString(s string) ([]byte, error) {
 	buf := []byte(s)
 	l := stripNewlines(buf, buf)
-	n, _, err := enc.decode(buf, buf[:l])
+	n, _, _, err := enc.decode(buf, buf[:l])
 	return buf[:n], err
 }
 
 type decoder struct {
-	err    error
-	enc    *Encoding
-	r      io.Reader
-	end    bool       // saw end of message
-	buf    [1024]byte // leftover input
-	nbuf   int
-	out    []byte // leftover decoded output
-	outbuf [1024 / 8 * 5]byte
+	err                   error
+	enc                   *Encoding
+	r                     io.Reader
+	end                   bool // saw end of message
+	latestNonPaddingIndex int
+	buf                   [1024]byte // leftover input
+	nbuf                  int
+	out                   []byte // leftover decoded output
+	outbuf                [1024 / 8 * 5]byte
 }
 
 func readEncodedData(r io.Reader, buf []byte, min int, expectsPadding bool) (n int, err error) {
@@ -445,6 +451,9 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	if d.nbuf < min {
 		return 0, d.err
 	}
+	if nn > 0 && d.end {
+		return 0, CorruptInputError(d.latestNonPaddingIndex)
+	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.
 	var nr int
@@ -455,14 +464,16 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	}
 	nw := d.enc.DecodedLen(d.nbuf)
 
+	var np int
 	if nw > len(p) {
-		nw, d.end, err = d.enc.decode(d.outbuf[0:], d.buf[0:nr])
+		nw, np, d.end, err = d.enc.decode(d.outbuf[0:], d.buf[0:nr])
 		d.out = d.outbuf[0:nw]
 		n = copy(p, d.out)
 		d.out = d.out[n:]
 	} else {
-		n, d.end, err = d.enc.decode(p, d.buf[0:nr])
+		n, np, d.end, err = d.enc.decode(p, d.buf[0:nr])
 	}
+	d.latestNonPaddingIndex += np
 	d.nbuf -= nr
 	for i := 0; i < d.nbuf; i++ {
 		d.buf[i] = d.buf[i+nr]
