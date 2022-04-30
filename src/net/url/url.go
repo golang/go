@@ -428,7 +428,7 @@ func (u *Userinfo) String() string {
 }
 
 // Maybe rawURL is of the form scheme:path.
-// (Scheme must be [a-zA-Z][a-zA-Z0-9+-.]*)
+// (Scheme must be [a-zA-Z][a-zA-Z0-9+.-]*)
 // If so, return scheme, path; else return "", rawURL.
 func getScheme(rawURL string) (scheme, path string, err error) {
 	for i := 0; i < len(rawURL); i++ {
