@@ -734,7 +734,7 @@ func Title(s string) string {
 		s)
 }
 
-// TrimLeftFunc returns a slice of the string s with all leading
+// TrimLeftFunc returns a copy of the string s with all leading
 // Unicode code points c satisfying f(c) removed.
 func TrimLeftFunc(s string, f func(rune) bool) string {
 	i := indexFunc(s, f, false)
@@ -744,7 +744,7 @@ func TrimLeftFunc(s string, f func(rune) bool) string {
 	return s[i:]
 }
 
-// TrimRightFunc returns a slice of the string s with all trailing
+// TrimRightFunc returns a copy of the string s with all trailing
 // Unicode code points c satisfying f(c) removed.
 func TrimRightFunc(s string, f func(rune) bool) string {
 	i := lastIndexFunc(s, f, false)
@@ -757,7 +757,7 @@ func TrimRightFunc(s string, f func(rune) bool) string {
 	return s[0:i]
 }
 
-// TrimFunc returns a slice of the string s with all leading
+// TrimFunc returns a copy of the string s with all leading
 // and trailing Unicode code points c satisfying f(c) removed.
 func TrimFunc(s string, f func(rune) bool) string {
 	return TrimRightFunc(TrimLeftFunc(s, f), f)
@@ -829,7 +829,7 @@ func (as *asciiSet) contains(c byte) bool {
 	return (as[c/32] & (1 << (c % 32))) != 0
 }
 
-// Trim returns a slice of the string s with all leading and
+// Trim returns a copy of the string s with all leading and
 // trailing Unicode code points contained in cutset removed.
 func Trim(s, cutset string) string {
 	if s == "" || cutset == "" {
@@ -844,7 +844,7 @@ func Trim(s, cutset string) string {
 	return trimLeftUnicode(trimRightUnicode(s, cutset), cutset)
 }
 
-// TrimLeft returns a slice of the string s with all leading
+// TrimLeft returns a copy of the string s with all leading
 // Unicode code points contained in cutset removed.
 //
 // To remove a prefix, use TrimPrefix instead.
@@ -892,7 +892,7 @@ func trimLeftUnicode(s, cutset string) string {
 	return s
 }
 
-// TrimRight returns a slice of the string s, with all trailing
+// TrimRight returns a copy of the string s with all trailing
 // Unicode code points contained in cutset removed.
 //
 // To remove a suffix, use TrimSuffix instead.
@@ -940,8 +940,8 @@ func trimRightUnicode(s, cutset string) string {
 	return s
 }
 
-// TrimSpace returns a slice of the string s, with all leading
-// and trailing white space removed, as defined by Unicode.
+// TrimSpace returns a copy of the string s with all leading and trailing
+// white space removed, as defined by Unicode.
 func TrimSpace(s string) string {
 	// Fast path for ASCII: look for the first ASCII non-space byte
 	start := 0
@@ -976,7 +976,9 @@ func TrimSpace(s string) string {
 	return s[start:stop]
 }
 
-// TrimPrefix returns s without the provided leading prefix string.
+// TrimPrefix returns a copy of the string s without the provided
+// leading prefix string.
+//
 // If s doesn't start with prefix, s is returned unchanged.
 func TrimPrefix(s, prefix string) string {
 	if HasPrefix(s, prefix) {
@@ -985,7 +987,9 @@ func TrimPrefix(s, prefix string) string {
 	return s
 }
 
-// TrimSuffix returns s without the provided trailing suffix string.
+// TrimSuffix returns a copy of the string s without the provided
+// trailing suffix string.
+//
 // If s doesn't end with suffix, s is returned unchanged.
 func TrimSuffix(s, suffix string) string {
 	if HasSuffix(s, suffix) {
