@@ -71,6 +71,26 @@ func Pipe2(p []int, flags int) error {
 	return err
 }
 
+//sys   accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) = libsocket.accept4
+
+func Accept4(fd int, flags int) (int, Sockaddr, error) {
+	var rsa RawSockaddrAny
+	var addrlen _Socklen = SizeofSockaddrAny
+	nfd, err := accept4(fd, &rsa, &addrlen, flags)
+	if err != nil {
+		return 0, nil, err
+	}
+	if addrlen > SizeofSockaddrAny {
+		panic("RawSockaddrAny too small")
+	}
+	sa, err := anyToSockaddr(&rsa)
+	if err != nil {
+		Close(nfd)
+		return 0, nil, err
+	}
+	return nfd, sa, nil
+}
+
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
 		return nil, 0, EINVAL
