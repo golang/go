@@ -143,7 +143,7 @@ func TestWriterClose(t *testing.T) {
 	afterClose := b.Len()
 
 	if c, err := zw.Write([]byte("Test")); err == nil || c != 0 {
-		t.Fatalf("Write to closed writer: %s, %d", err, c)
+		t.Fatalf("Write to closed writer: %v, %d", err, c)
 	}
 
 	if err := zw.Flush(); err == nil {
@@ -794,7 +794,7 @@ func TestWriterPersistentCloseError(t *testing.T) {
 
 	flushErr = zw.Flush()
 	_, writeErr = zw.Write([]byte("Test"))
-	checkErrors([]error{flushErr, writeErr}, errWriteAfterClose, t)
+	checkErrors([]error{flushErr, writeErr}, errWriterClosed, t)
 }
 
 func checkErrors(got []error, want error, t *testing.T) {
