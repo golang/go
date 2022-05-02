@@ -9652,9 +9652,7 @@ type http2erringRoundTripper struct{ err error }
 
 func (rt http2erringRoundTripper) RoundTripErr() error { return rt.err }
 
-func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) {
-	return nil, rt.err
-}
+func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { return nil, rt.err }
 
 // gzipReader wraps a response body so it can lazily
 // call gzip.NewReader on the first call to Read
