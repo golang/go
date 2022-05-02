@@ -21,7 +21,7 @@ package cgo
 #cgo openbsd LDFLAGS: -lpthread
 #cgo aix LDFLAGS: -Wl,-berok
 #cgo solaris LDFLAGS: -lxnet
-#cgo illumos LDFLAGS: -lsocket
+#cgo solaris LDFLAGS: -lsocket
 
 #cgo CFLAGS: -Wall -Werror
 
