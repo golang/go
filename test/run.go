@@ -1950,7 +1950,6 @@ var types2Failures = setOf(
 	"fixedbugs/issue18419.go", // types2 reports no field or method member, but should say unexported
 	"fixedbugs/issue20233.go", // types2 reports two instead of one error (preference: 1.17 compiler)
 	"fixedbugs/issue20245.go", // types2 reports two instead of one error (preference: 1.17 compiler)
-	"fixedbugs/issue28268.go", // types2 reports follow-on errors (preference: 1.17 compiler)
 	"fixedbugs/issue31053.go", // types2 reports "unknown field" instead of "cannot refer to unexported field"
 )
 
@@ -2022,11 +2021,11 @@ func setOf(keys ...string) map[string]bool {
 //
 // For example, the following string:
 //
-//     a b:"c d" 'e''f'  "g\""
+//	a b:"c d" 'e''f'  "g\""
 //
 // Would be parsed as:
 //
-//     []string{"a", "b:c d", "ef", `g"`}
+//	[]string{"a", "b:c d", "ef", `g"`}
 //
 // [copied from src/go/build/build.go]
 func splitQuoted(s string) (r []string, err error) {
