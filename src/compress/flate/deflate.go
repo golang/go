@@ -640,6 +640,9 @@ func (d *compressor) reset(w io.Writer) {
 }
 
 func (d *compressor) close() error {
+	if d.err == errWriterClosed {
+		return nil
+	}
 	if d.err != nil {
 		return d.err
 	}
@@ -652,7 +655,11 @@ func (d *compressor) close() error {
 		return d.w.err
 	}
 	d.w.flush()
-	return d.w.err
+	if d.w.err != nil {
+		return d.w.err
+	}
+	d.err = errWriterClosed
+	return nil
 }
 
 // NewWriter returns a new Writer compressing data at the given level.
@@ -700,27 +707,19 @@ func (w *dictWriter) Write(b []byte) (n int, err error) {
 	return w.w.Write(b)
 }
 
-var errWriteAfterClose = errors.New("compress/flate: write after close")
+var errWriterClosed = errors.New("flate: closed writer")
 
 // A Writer takes data written to it and writes the compressed
 // form of that data to an underlying writer (see NewWriter).
 type Writer struct {
 	d    compressor
 	dict []byte
-	err  error
 }
 
 // Write writes data to w, which will eventually write the
 // compressed form of data to its underlying writer.
 func (w *Writer) Write(data []byte) (n int, err error) {
-	if w.err != nil {
-		return 0, w.err
-	}
-	n, err = w.d.write(data)
-	if err != nil {
-		w.err = err
-	}
-	return n, err
+	return w.d.write(data)
 }
 
 // Flush flushes any pending data to the underlying writer.
@@ -735,37 +734,18 @@ func (w *Writer) Write(data []byte) (n int, err error) {
 func (w *Writer) Flush() error {
 	// For more about flushing:
 	// https://www.bolet.org/~pornin/deflate-flush.html
-	if w.err != nil {
-		return w.err
-	}
-	if err := w.d.syncFlush(); err != nil {
-		w.err = err
-		return err
-	}
-	return nil
+	return w.d.syncFlush()
 }
 
 // Close flushes and closes the writer.
 func (w *Writer) Close() error {
-	if w.err == errWriteAfterClose {
-		return nil
-	}
-	if w.err != nil {
-		return w.err
-	}
-	if err := w.d.close(); err != nil {
-		w.err = err
-		return err
-	}
-	w.err = errWriteAfterClose
-	return nil
+	return w.d.close()
 }
 
 // Reset discards the writer's state and makes it equivalent to
 // the result of NewWriter or NewWriterDict called with dst
 // and w's level and dictionary.
 func (w *Writer) Reset(dst io.Writer) {
-	w.err = nil
 	if dw, ok := w.d.w.writer.(*dictWriter); ok {
 		// w was created with NewWriterDict
 		dw.w = dst
