@@ -8,6 +8,7 @@ import (
 	data "b"
 	"go/ast"
 	"go/token"
+	"unsafe"
 )
 
 type emptyStruct struct{}
@@ -104,3 +105,9 @@ var _ = []ast.BasicLit{
 
 var _ = []ast.BasicLit{{}, // want ""
 }
+
+type unsafeStruct struct {
+	foo unsafe.Pointer
+}
+
+var _ = unsafeStruct{} // want ""

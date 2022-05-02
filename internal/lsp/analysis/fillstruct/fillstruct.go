@@ -368,6 +368,8 @@ func populateValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ typ
 			return &ast.Ident{Name: "false"}
 		case u.Info()&types.IsString != 0:
 			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
+		case u.Kind() == types.UnsafePointer:
+			return ast.NewIdent("nil")
 		default:
 			panic("unknown basic type")
 		}

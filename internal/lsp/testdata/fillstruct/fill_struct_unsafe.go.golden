@@ -1,0 +1,17 @@
+-- suggestedfix_fill_struct_unsafe_11_20 --
+package fillstruct
+
+import "unsafe"
+
+type unsafeStruct struct {
+	x int
+	p unsafe.Pointer
+}
+
+func fill() {
+	_ := unsafeStruct{
+		x: 0,
+		p: nil,
+	} //@suggestedfix("}", "refactor.rewrite")
+}
+
