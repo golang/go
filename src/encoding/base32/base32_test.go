@@ -672,9 +672,9 @@ func TestBufferedDecodingPadding(t *testing.T) {
 		_, err := io.ReadAll(decoder)
 
 		if err == nil && len(testcase.expectedError) != 0 {
-			t.Errorf("Expected %v, got nil error; case %+v", testcase.expectedError, testcase.chunks)
+			t.Errorf("case %q: got nil error, want %v", testcase.chunks, testcase.expectedError)
 		} else if err.Error() != testcase.expectedError {
-			t.Errorf("Expected %v, got %v; case %+v", testcase.expectedError, err, testcase.chunks)
+			t.Errorf("case %q: got %v, want %v", testcase.chunks, err, testcase.expectedError)
 		}
 	}
 }

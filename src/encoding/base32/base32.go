@@ -268,11 +268,13 @@ func (e CorruptInputError) Error() string {
 	return "illegal base32 data at input byte " + strconv.FormatInt(int64(e), 10)
 }
 
-// decode is like Decode but returns an additional 'end' value, which
-// indicates if end-of-message padding was encountered and thus any
-// additional data is an error. This method assumes that src has been
-// stripped of all supported whitespace ('\r' and '\n').
-func (enc *Encoding) decode(dst, src []byte) (n int, nonPadding int, end bool, err error) {
+// decode is like Decode but returns an additional `nonPadCount`
+// value, which indicates the number of non-padding characters and an
+// 'end' value, which indicates if end-of-message padding was
+// encountered and thus any additional data is an error. This method
+// assumes that src has been stripped of all supported whitespace
+// ('\r' and '\n').
+func (enc *Encoding) decode(dst, src []byte) (n int, nonPadCount int, end bool, err error) {
 	// Lift the nil check outside of the loop.
 	_ = enc.decodeMap
 
@@ -322,7 +324,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, nonPadding int, end bool, e
 					break
 				}
 			} else {
-				nonPadding++
+				nonPadCount++
 			}
 
 			dbuf[j] = enc.decodeMap[in]
@@ -357,7 +359,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, nonPadding int, end bool, e
 		}
 		dsti += 5
 	}
-	return n, nonPadding, end, nil
+	return n, nonPadCount, end, nil
 }
 
 // Decode decodes src using the encoding enc. It writes at most
@@ -381,15 +383,15 @@ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
 }
 
 type decoder struct {
-	err                   error
-	enc                   *Encoding
-	r                     io.Reader
-	end                   bool // saw end of message
-	latestNonPaddingIndex int
-	buf                   [1024]byte // leftover input
-	nbuf                  int
-	out                   []byte // leftover decoded output
-	outbuf                [1024 / 8 * 5]byte
+	err    error
+	enc    *Encoding
+	r      io.Reader
+	end    bool       // saw end of message
+	padIdx int        // latest non-padding index
+	buf    [1024]byte // leftover input
+	nbuf   int
+	out    []byte // leftover decoded output
+	outbuf [1024 / 8 * 5]byte
 }
 
 func readEncodedData(r io.Reader, buf []byte, min int, expectsPadding bool) (n int, err error) {
@@ -452,7 +454,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		return 0, d.err
 	}
 	if nn > 0 && d.end {
-		return 0, CorruptInputError(d.latestNonPaddingIndex)
+		return 0, CorruptInputError(d.padIdx)
 	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.
@@ -473,7 +475,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	} else {
 		n, np, d.end, err = d.enc.decode(p, d.buf[0:nr])
 	}
-	d.latestNonPaddingIndex += np
+	d.padIdx += np
 	d.nbuf -= nr
 	for i := 0; i < d.nbuf; i++ {
 		d.buf[i] = d.buf[i+nr]
