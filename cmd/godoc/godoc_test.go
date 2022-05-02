@@ -83,7 +83,7 @@ func waitForServerReady(t *testing.T, cmd *exec.Cmd, addr string) {
 		15*time.Second,
 		false)
 	if err := <-ch; err != nil {
-		t.Fatal(err)
+		t.Skipf("skipping due to https://go.dev/issue/50014: %v", err)
 	}
 }
 
