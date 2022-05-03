@@ -141,16 +141,6 @@ func (n *Name) copy() Node                         { panic(n.no("copy")) }
 func (n *Name) doChildren(do func(Node) bool) bool { return false }
 func (n *Name) editChildren(edit func(Node) Node)  {}
 
-// TypeDefn returns the type definition for a named OTYPE.
-// That is, given "type T Defn", it returns Defn.
-// It is used by package types.
-func (n *Name) TypeDefn() *types.Type {
-	if n.Ntype != nil {
-		return n.Ntype.Type()
-	}
-	return n.Type()
-}
-
 // RecordFrameOffset records the frame offset for the name.
 // It is used by package types when laying out function arguments.
 func (n *Name) RecordFrameOffset(offset int64) {
