@@ -25,43 +25,39 @@ func TestTokenOffset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var tokPkg *packages.Package
+	var tokenPkg, sourcePkg *packages.Package
 	for _, pkg := range pkgs {
-		if pkg.PkgPath == "go/token" {
-			tokPkg = pkg
-			break
+		switch pkg.PkgPath {
+		case "go/token":
+			tokenPkg = pkg
+		case "golang.org/x/tools/internal/lsp/source":
+			sourcePkg = pkg
 		}
 	}
-	typname, ok := tokPkg.Types.Scope().Lookup("File").(*types.TypeName)
-	if !ok {
-		t.Fatal("expected go/token.File typename, got none")
+
+	if tokenPkg == nil {
+		t.Fatal("missing package go/token")
 	}
-	named, ok := typname.Type().(*types.Named)
-	if !ok {
-		t.Fatalf("expected named type, got %T", typname.Type)
+	if sourcePkg == nil {
+		t.Fatal("missing package golang.org/x/tools/internal/lsp/source")
 	}
-	var offset *types.Func
-	for i := 0; i < named.NumMethods(); i++ {
-		meth := named.Method(i)
-		if meth.Name() == "Offset" {
-			offset = meth
-			break
-		}
-	}
+
+	fileObj := tokenPkg.Types.Scope().Lookup("File")
+	tokenOffset, _, _ := types.LookupFieldOrMethod(fileObj.Type(), true, fileObj.Pkg(), "Offset")
+
+	sourceOffset := sourcePkg.Types.Scope().Lookup("Offset").(*types.Func)
+
 	for _, pkg := range pkgs {
+		if pkg.PkgPath == "go/token" { // Allow usage from within go/token itself.
+			continue
+		}
+		if pkg.PkgPath == "golang.org/x/tools/internal/lsp/lsppos" {
+			continue // temporary exemption, to be refactored away
+		}
 		for ident, obj := range pkg.TypesInfo.Uses {
-			if ident.Name != "Offset" {
+			if obj != tokenOffset {
 				continue
 			}
-			if pkg.PkgPath == "go/token" {
-				continue
-			}
-			if !types.Identical(offset.Type(), obj.Type()) {
-				continue
-			}
-			// The only permitted use is in golang.org/x/tools/internal/lsp/source.Offset,
-			// so check the enclosing function.
-			sourceOffset := pkg.Types.Scope().Lookup("Offset").(*types.Func)
 			if sourceOffset.Pos() <= ident.Pos() && ident.Pos() <= sourceOffset.Scope().End() {
 				continue // accepted usage
 			}

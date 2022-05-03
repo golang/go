@@ -329,21 +329,18 @@ func ProtocolEditsFromSource(src []byte, edits []diff.TextEdit, converter span.C
 		if err != nil {
 			return nil, fmt.Errorf("computing offsets: %v", err)
 		}
-		startLine, startChar := m.Position(spn.Start().Offset())
-		endLine, endChar := m.Position(spn.End().Offset())
-		if startLine < 0 || endLine < 0 {
-			return nil, fmt.Errorf("out of bound span: %v", spn)
+		rng, err := m.Range(spn.Start().Offset(), spn.End().Offset())
+		if err != nil {
+			return nil, err
 		}
 
-		pstart := protocol.Position{Line: uint32(startLine), Character: uint32(startChar)}
-		pend := protocol.Position{Line: uint32(endLine), Character: uint32(endChar)}
-		if pstart == pend && edit.NewText == "" {
+		if rng.Start == rng.End && edit.NewText == "" {
 			// Degenerate case, which may result from a diff tool wanting to delete
 			// '\r' in line endings. Filter it out.
 			continue
 		}
 		result = append(result, protocol.TextEdit{
-			Range:   protocol.Range{Start: pstart, End: pend},
+			Range:   rng,
 			NewText: edit.NewText,
 		})
 	}

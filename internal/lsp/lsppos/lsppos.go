@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package lsppos provides utilities for working with LSP positions.
+// Package lsppos provides utilities for working with LSP positions. Much of
+// this functionality is duplicated from the internal/span package, but this
+// package is simpler and more accurate with respect to newline terminated
+// content.
 //
 // See https://microsoft.github.io/language-server-protocol/specification#textDocuments
 // for a description of LSP positions. Notably:
@@ -14,25 +17,30 @@
 package lsppos
 
 import (
+	"errors"
 	"sort"
 	"unicode/utf8"
+
+	"golang.org/x/tools/internal/lsp/protocol"
 )
 
+// Mapper maps utf-8 byte offsets to LSP positions for a single file.
 type Mapper struct {
 	nonASCII bool
-	src      []byte
+	content  []byte
 
-	// Start-of-line positions. If src is newline-terminated, the final entry will be empty.
+	// Start-of-line positions. If src is newline-terminated, the final entry
+	// will be len(content).
 	lines []int
 }
 
-func NewMapper(src []byte) *Mapper {
-	m := &Mapper{src: src}
-	if len(src) == 0 {
-		return m
+// NewMapper creates a new Mapper for the given content.
+func NewMapper(content []byte) *Mapper {
+	m := &Mapper{
+		content: content,
+		lines:   []int{0},
 	}
-	m.lines = []int{0}
-	for offset, b := range src {
+	for offset, b := range content {
 		if b == '\n' {
 			m.lines = append(m.lines, offset+1)
 		}
@@ -43,8 +51,11 @@ func NewMapper(src []byte) *Mapper {
 	return m
 }
 
-func (m *Mapper) Position(offset int) (line, char int) {
-	if offset < 0 || offset > len(m.src) {
+// LineColUTF16 returns the 0-based UTF-16 line and character index for the
+// given offset. It returns -1, -1 if offset is out of bounds for the file
+// being mapped.
+func (m *Mapper) LineColUTF16(offset int) (line, char int) {
+	if offset < 0 || offset > len(m.content) {
 		return -1, -1
 	}
 	nextLine := sort.Search(len(m.lines), func(i int) bool {
@@ -57,27 +68,59 @@ func (m *Mapper) Position(offset int) (line, char int) {
 	start := m.lines[line]
 	var charOffset int
 	if m.nonASCII {
-		charOffset = UTF16len(m.src[start:offset])
+		charOffset = UTF16len(m.content[start:offset])
 	} else {
 		charOffset = offset - start
 	}
 
 	var eol int
 	if line == len(m.lines)-1 {
-		eol = len(m.src)
+		eol = len(m.content)
 	} else {
 		eol = m.lines[line+1] - 1
 	}
 
 	// Adjustment for line-endings: \r|\n is the same as |\r\n.
-	if offset == eol && offset > 0 && m.src[offset-1] == '\r' {
+	if offset == eol && offset > 0 && m.content[offset-1] == '\r' {
 		charOffset--
 	}
 
 	return line, charOffset
 }
 
+// Position returns the protocol position corresponding to the given offset. It
+// returns false if offset is out of bounds for the file being mapped.
+func (m *Mapper) Position(offset int) (protocol.Position, bool) {
+	l, c := m.LineColUTF16(offset)
+	if l < 0 {
+		return protocol.Position{}, false
+	}
+	return protocol.Position{
+		Line:      uint32(l),
+		Character: uint32(c),
+	}, true
+}
+
+// Range returns the protocol range corresponding to the given start and end
+// offsets.
+func (m *Mapper) Range(start, end int) (protocol.Range, error) {
+	startPos, ok := m.Position(start)
+	if !ok {
+		return protocol.Range{}, errors.New("invalid start position")
+	}
+	endPos, ok := m.Position(end)
+	if !ok {
+		return protocol.Range{}, errors.New("invalid end position")
+	}
+
+	return protocol.Range{Start: startPos, End: endPos}, nil
+}
+
+// UTF16Len returns the UTF-16 length of the UTF-8 encoded content, were it to
+// be re-encoded as UTF-16.
 func UTF16len(buf []byte) int {
+	// This function copies buf, but microbenchmarks showed it to be faster than
+	// using utf8.DecodeRune due to inlining and avoiding bounds checks.
 	cnt := 0
 	for _, r := range string(buf) {
 		cnt++
