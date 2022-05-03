@@ -133,11 +133,10 @@ func genhash(t *types.Type) *obj.LSym {
 		ir.NewField(base.Pos, typecheck.Lookup("h"), types.Types[types.TUINTPTR]),
 	}
 	results := []*ir.Field{ir.NewField(base.Pos, nil, types.Types[types.TUINTPTR])}
-	tfn := ir.NewFuncType(base.Pos, nil, args, results)
 
-	fn := typecheck.DeclFunc(sym, tfn)
-	np := ir.AsNode(tfn.Type().Params().Field(0).Nname)
-	nh := ir.AsNode(tfn.Type().Params().Field(1).Nname)
+	fn := typecheck.DeclFunc(sym, nil, args, results)
+	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
+	nh := ir.AsNode(fn.Type().Params().Field(1).Nname)
 
 	switch t.Kind() {
 	case types.TARRAY:
@@ -358,14 +357,13 @@ func geneq(t *types.Type) *obj.LSym {
 	typecheck.DeclContext = ir.PEXTERN
 
 	// func sym(p, q *T) bool
-	tfn := ir.NewFuncType(base.Pos, nil,
+	fn := typecheck.DeclFunc(sym, nil,
 		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("p"), types.NewPtr(t)), ir.NewField(base.Pos, typecheck.Lookup("q"), types.NewPtr(t))},
-		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("r"), types.Types[types.TBOOL])})
-
-	fn := typecheck.DeclFunc(sym, tfn)
-	np := ir.AsNode(tfn.Type().Params().Field(0).Nname)
-	nq := ir.AsNode(tfn.Type().Params().Field(1).Nname)
-	nr := ir.AsNode(tfn.Type().Results().Field(0).Nname)
+		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("r"), types.Types[types.TBOOL])},
+	)
+	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
+	nq := ir.AsNode(fn.Type().Params().Field(1).Nname)
+	nr := ir.AsNode(fn.Type().Results().Field(0).Nname)
 
 	// Label to jump to if an equality test fails.
 	neq := typecheck.AutoLabel(".neq")

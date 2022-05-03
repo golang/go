@@ -284,15 +284,10 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 		panic("makeABIWrapper support for wrapping methods not implemented")
 	}
 
-	// Manufacture a new func type to use for the wrapper.
-	var noReceiver *ir.Field
-	tfn := ir.NewFuncType(base.Pos,
-		noReceiver,
+	// Reuse f's types.Sym to create a new ODCLFUNC/function.
+	fn := typecheck.DeclFunc(f.Nname.Sym(), nil,
 		typecheck.NewFuncParams(ft.Params(), true),
 		typecheck.NewFuncParams(ft.Results(), false))
-
-	// Reuse f's types.Sym to create a new ODCLFUNC/function.
-	fn := typecheck.DeclFunc(f.Nname.Sym(), tfn)
 	fn.ABI = wrapperABI
 
 	fn.SetABIWrapper(true)
@@ -334,7 +329,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// to allocate any stack space). Doing this will require some
 	// extra work in typecheck/walk/ssa, might want to add a new node
 	// OTAILCALL or something to this effect.
-	tailcall := tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0
+	tailcall := fn.Type().NumResults() == 0 && fn.Type().NumParams() == 0 && fn.Type().NumRecvs() == 0
 	if base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink {
 		// cannot tailcall on PPC64 with dynamic linking, as we need
 		// to restore R2 after call.
@@ -348,12 +343,12 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	var tail ir.Node
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
-	call.Args = ir.ParamNames(tfn.Type())
-	call.IsDDD = tfn.Type().IsVariadic()
+	call.Args = ir.ParamNames(fn.Type())
+	call.IsDDD = fn.Type().IsVariadic()
 	tail = call
 	if tailcall {
 		tail = ir.NewTailCallStmt(base.Pos, call)
-	} else if tfn.Type().NumResults() > 0 {
+	} else if fn.Type().NumResults() > 0 {
 		n := ir.NewReturnStmt(base.Pos, nil)
 		n.Results = []ir.Node{call}
 		tail = n

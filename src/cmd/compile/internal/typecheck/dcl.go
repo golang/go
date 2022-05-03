@@ -16,17 +16,13 @@ import (
 
 var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
 
-func DeclFunc(sym *types.Sym, tfn *ir.FuncType) *ir.Func {
-	if tfn.Op() != ir.OTFUNC {
-		base.Fatalf("expected OTFUNC node, got %v", tfn)
-	}
-
+func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.Func {
 	fn := ir.NewFunc(base.Pos)
 	fn.Nname = ir.NewNameAt(base.Pos, sym)
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 	ir.MarkFunc(fn.Nname)
-	StartFuncBody(fn, tfn)
+	StartFuncBody(fn, recv, params, results)
 	return fn
 }
 
@@ -95,7 +91,7 @@ func Export(n *ir.Name) {
 // and declare the arguments.
 // called in extern-declaration context
 // returns in auto-declaration context.
-func StartFuncBody(fn *ir.Func, tfn *ir.FuncType) {
+func StartFuncBody(fn *ir.Func, recv *ir.Field, params, results []*ir.Field) {
 	// change the declaration context from extern to auto
 	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
 	ir.CurFunc = fn
@@ -103,6 +99,7 @@ func StartFuncBody(fn *ir.Func, tfn *ir.FuncType) {
 
 	types.Markdcl()
 
+	tfn := ir.NewFuncType(base.Pos, recv, params, results)
 	funcargs(tfn)
 
 	tfn = tcFuncType(tfn)
