@@ -667,15 +667,10 @@ func exprFmt(n Node, s fmt.State, prec int) {
 				fmt.Fprintf(s, "%v{%s}", typ, ellipsisIf(len(n.List) != 0))
 				return
 			}
-			if n.Ntype != nil {
-				fmt.Fprintf(s, "%v{%s}", n.Ntype, ellipsisIf(len(n.List) != 0))
-				return
-			}
-
 			fmt.Fprint(s, "composite literal")
 			return
 		}
-		fmt.Fprintf(s, "(%v{ %.v })", n.Ntype, n.List)
+		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
 
 	case OPTRLIT:
 		n := n.(*AddrExpr)

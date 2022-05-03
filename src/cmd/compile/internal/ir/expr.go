@@ -191,7 +191,6 @@ type ClosureExpr struct {
 type CompLitExpr struct {
 	miniExpr
 	origNode
-	Ntype    Ntype
 	List     Nodes // initialized values
 	Prealloc *Name
 	// For OSLICELIT, Len is the backing array length.
@@ -205,7 +204,7 @@ func NewCompLitExpr(pos src.XPos, op Op, typ *types.Type, list []Node) *CompLitE
 	n.pos = pos
 	n.SetOp(op)
 	if typ != nil {
-		n.Ntype = TypeNode(typ)
+		n.SetType(typ)
 	}
 	n.orig = n
 	return n
