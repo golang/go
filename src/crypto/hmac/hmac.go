@@ -26,6 +26,8 @@ import (
 	"hash"
 )
 
+import "crypto/internal/boring"
+
 // FIPS 198-1:
 // https://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
 
@@ -126,6 +128,13 @@ func (h *hmac) Reset() {
 // the returned Hash does not implement encoding.BinaryMarshaler
 // or encoding.BinaryUnmarshaler.
 func New(h func() hash.Hash, key []byte) hash.Hash {
+	if boring.Enabled {
+		hm := boring.NewHMAC(h, key)
+		if hm != nil {
+			return hm
+		}
+		// BoringCrypto did not recognize h, so fall through to standard Go code.
+	}
 	hm := new(hmac)
 	hm.outer = h()
 	hm.inner = h()

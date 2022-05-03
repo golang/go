@@ -541,7 +541,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 		if c.vers >= VersionTLS12 {
 			certReq.hasSignatureAlgorithm = true
-			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 		}
 
 		// An empty list of certificateAuthorities signals to

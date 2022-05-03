@@ -34,6 +34,7 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loadelf"
@@ -42,7 +43,6 @@ import (
 	"cmd/link/internal/loadpe"
 	"cmd/link/internal/loadxcoff"
 	"cmd/link/internal/sym"
-	"crypto/sha1"
 	"debug/elf"
 	"debug/macho"
 	"encoding/base64"
@@ -929,7 +929,7 @@ func typeSymbolMangle(name string) string {
 	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
 		return name
 	}
-	hash := sha1.Sum([]byte(name))
+	hash := notsha256.Sum256([]byte(name))
 	prefix := "type."
 	if name[5] == '.' {
 		prefix = "type.."
@@ -1059,6 +1059,8 @@ var hostobj []Hostobj
 // These packages can use internal linking mode.
 // Others trigger external mode.
 var internalpkg = []string{
+	"crypto/internal/boring",
+	"crypto/internal/boring/syso",
 	"crypto/x509",
 	"net",
 	"os/user",

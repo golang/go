@@ -97,7 +97,6 @@ func TestIntJSONEncoding(t *testing.T) {
 	}
 }
 
-
 func TestIntJSONEncodingNil(t *testing.T) {
 	var x *Int
 	b, err := x.MarshalJSON()

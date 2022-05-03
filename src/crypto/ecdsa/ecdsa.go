@@ -24,11 +24,14 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/elliptic"
+	"crypto/internal/boring/bbig"
 	"crypto/internal/randutil"
 	"crypto/sha512"
 	"errors"
 	"io"
 	"math/big"
+
+	"crypto/internal/boring"
 
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
@@ -107,6 +110,15 @@ func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
 // where the private part is kept in, for example, a hardware module. Common
 // uses can use the SignASN1 function in this package directly.
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if boring.Enabled && rand == boring.RandReader {
+		b, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		return boring.SignMarshalECDSA(b, digest)
+	}
+	boring.UnreachableExceptTests()
+
 	r, s, err := Sign(rand, priv, digest)
 	if err != nil {
 		return nil, err
@@ -143,6 +155,15 @@ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) 
 
 // GenerateKey generates a public and private key pair.
 func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+	if boring.Enabled && rand == boring.RandReader {
+		x, y, d, err := boring.GenerateKeyECDSA(c.Params().Name)
+		if err != nil {
+			return nil, err
+		}
+		return &PrivateKey{PublicKey: PublicKey{Curve: c, X: bbig.Dec(x), Y: bbig.Dec(y)}, D: bbig.Dec(d)}, nil
+	}
+	boring.UnreachableExceptTests()
+
 	k, err := randFieldElement(c, rand)
 	if err != nil {
 		return nil, err
@@ -193,6 +214,29 @@ var errZeroParam = errors.New("zero parameter")
 // SignASN1 instead of dealing directly with r, s.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	randutil.MaybeReadByte(rand)
+
+	if boring.Enabled && rand == boring.RandReader {
+		b, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, nil, err
+		}
+		sig, err := boring.SignMarshalECDSA(b, hash)
+		if err != nil {
+			return nil, nil, err
+		}
+		var r, s big.Int
+		var inner cryptobyte.String
+		input := cryptobyte.String(sig)
+		if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
+			!input.Empty() ||
+			!inner.ReadASN1Integer(&r) ||
+			!inner.ReadASN1Integer(&s) ||
+			!inner.Empty() {
+			return nil, nil, errors.New("invalid ASN.1 from boringcrypto")
+		}
+		return &r, &s, nil
+	}
+	boring.UnreachableExceptTests()
 
 	// This implementation derives the nonce from an AES-CTR CSPRNG keyed by:
 	//
@@ -290,6 +334,24 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 // return value records whether the signature is valid. Most applications should
 // use VerifyASN1 instead of dealing directly with r, s.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+	if boring.Enabled {
+		key, err := boringPublicKey(pub)
+		if err != nil {
+			return false
+		}
+		var b cryptobyte.Builder
+		b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+			b.AddASN1BigInt(r)
+			b.AddASN1BigInt(s)
+		})
+		sig, err := b.Bytes()
+		if err != nil {
+			return false
+		}
+		return boring.VerifyECDSA(key, hash, sig)
+	}
+	boring.UnreachableExceptTests()
+
 	c := pub.Curve
 	N := c.Params().N
 
