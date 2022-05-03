@@ -53,8 +53,7 @@ type File struct {
 	zip          *Reader
 	zipr         io.ReaderAt
 	headerOffset int64
-	zip64        bool  // zip64 extended information extra field presence
-	descErr      error // error reading the data descriptor during init
+	zip64        bool // zip64 extended information extra field presence
 }
 
 // OpenReader will open the Zip file specified by name and return a ReadCloser.
