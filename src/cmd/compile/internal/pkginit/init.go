@@ -30,7 +30,7 @@ func MakeInit() {
 	// Make a function that contains all the initialization statements.
 	base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
 	initializers := typecheck.Lookup("init")
-	fn := typecheck.DeclFunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
+	fn := typecheck.DeclFunc(initializers, nil, nil, nil)
 	for _, dcl := range typecheck.InitTodoFunc.Dcl {
 		dcl.Curfn = fn
 	}
