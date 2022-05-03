@@ -445,6 +445,9 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	if d.nbuf < min {
 		return 0, d.err
 	}
+	if nn > 0 && d.end {
+		return 0, CorruptInputError(0)
+	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.
 	var nr int
