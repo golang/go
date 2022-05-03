@@ -158,9 +158,9 @@ type typeNode struct {
 	typ *types.Type
 }
 
-func newTypeNode(pos src.XPos, typ *types.Type) *typeNode {
+func newTypeNode(typ *types.Type) *typeNode {
 	n := &typeNode{typ: typ}
-	n.pos = pos
+	n.pos = src.NoXPos
 	n.op = OTYPE
 	return n
 }
@@ -171,24 +171,13 @@ func (n *typeNode) CanBeNtype()       {}
 
 // TypeNode returns the Node representing the type t.
 func TypeNode(t *types.Type) Ntype {
-	return TypeNodeAt(src.NoXPos, t)
-}
-
-// TypeNodeAt is like TypeNode, but allows specifying the position
-// information if a new OTYPE needs to be constructed.
-//
-// Deprecated: Use TypeNode instead. For typical use, the position for
-// an anonymous OTYPE node should not matter. However, TypeNodeAt is
-// available for use with toolstash -cmp to refactor existing code
-// that is sensitive to OTYPE position.
-func TypeNodeAt(pos src.XPos, t *types.Type) Ntype {
 	if n := t.Obj(); n != nil {
 		if n.Type() != t {
 			base.Fatalf("type skew: %v has type %v, but expected %v", n, n.Type(), t)
 		}
 		return n.(Ntype)
 	}
-	return newTypeNode(pos, t)
+	return newTypeNode(t)
 }
 
 // A DynamicType represents the target type in a type switch.
