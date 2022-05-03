@@ -26,70 +26,13 @@ type Ntype interface {
 	CanBeNtype()
 }
 
-// A miniType is a minimal type syntax Node implementation,
-// to be embedded as the first field in a larger node implementation.
-type miniType struct {
-	miniNode
-	typ *types.Type
-}
-
-func (*miniType) CanBeNtype() {}
-
-func (n *miniType) Type() *types.Type { return n.typ }
-
-// setOTYPE changes n to be an OTYPE node returning t.
-// Rewriting the node in place this way should not be strictly
-// necessary (we should be able to update the uses with
-// proper OTYPE nodes), but it's mostly harmless and easy
-// to keep doing for now.
-//
-// setOTYPE also records t.Nod = self if t.Nod is not already set.
-// (Some types are shared by multiple OTYPE nodes, so only
-// the first such node is used as t.Nod.)
-func (n *miniType) setOTYPE(t *types.Type, self Ntype) {
-	if n.typ != nil {
-		panic(n.op.String() + " SetType: type already set")
-	}
-	n.op = OTYPE
-	n.typ = t
-	t.SetNod(self)
-}
-
-func (n *miniType) Sym() *types.Sym { return nil }   // for Format OTYPE
-func (n *miniType) Implicit() bool  { return false } // for Format OTYPE
-
-// A FuncType represents a func(Args) Results type syntax.
-type FuncType struct {
-	miniType
-	Recv    *Field
-	Params  []*Field
-	Results []*Field
-}
-
-func NewFuncType(pos src.XPos, rcvr *Field, args, results []*Field) *FuncType {
-	n := &FuncType{Recv: rcvr, Params: args, Results: results}
-	n.op = OTFUNC
-	n.pos = pos
-	return n
-}
-
-func (n *FuncType) SetOTYPE(t *types.Type) {
-	n.setOTYPE(t, n)
-	n.Recv = nil
-	n.Params = nil
-	n.Results = nil
-}
-
-// A Field is a declared struct field, interface method, or function argument.
+// A Field is a declared function parameter.
 // It is not a Node.
 type Field struct {
-	Pos      src.XPos
-	Sym      *types.Sym
-	Type     *types.Type
-	Embedded bool
-	IsDDD    bool
-	Note     string
-	Decl     *Name
+	Pos   src.XPos
+	Sym   *types.Sym
+	Type  *types.Type
+	IsDDD bool
 }
 
 func NewField(pos src.XPos, sym *types.Sym, typ *types.Type) *Field {
@@ -101,55 +44,6 @@ func (f *Field) String() string {
 		return fmt.Sprintf("%v %v", f.Sym, f.Type)
 	}
 	return fmt.Sprint(f.Type)
-}
-
-// TODO(mdempsky): Make Field a Node again so these can be generated?
-// Fields are Nodes in go/ast and cmd/compile/internal/syntax.
-
-func copyField(f *Field) *Field {
-	if f == nil {
-		return nil
-	}
-	c := *f
-	return &c
-}
-func doField(f *Field, do func(Node) bool) bool {
-	if f == nil {
-		return false
-	}
-	if f.Decl != nil && do(f.Decl) {
-		return true
-	}
-	return false
-}
-func editField(f *Field, edit func(Node) Node) {
-	if f == nil {
-		return
-	}
-	if f.Decl != nil {
-		f.Decl = edit(f.Decl).(*Name)
-	}
-}
-
-func copyFields(list []*Field) []*Field {
-	out := make([]*Field, len(list))
-	for i, f := range list {
-		out[i] = copyField(f)
-	}
-	return out
-}
-func doFields(list []*Field, do func(Node) bool) bool {
-	for _, x := range list {
-		if doField(x, do) {
-			return true
-		}
-	}
-	return false
-}
-func editFields(list []*Field, edit func(Node) Node) {
-	for _, f := range list {
-		editField(f, edit)
-	}
 }
 
 // A typeNode is a Node wrapper for type t.

@@ -210,7 +210,6 @@ var OpPrec = []int{
 	OSTR2BYTES:     8,
 	OSTR2RUNES:     8,
 	OSTRUCTLIT:     8,
-	OTFUNC:         8,
 	OTYPE:          8,
 	OUNSAFEADD:     8,
 	OUNSAFESLICE:   8,
@@ -644,9 +643,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "%v", n.Type())
-
-	case OTFUNC:
-		fmt.Fprint(s, "<func>")
 
 	case OCLOSURE:
 		n := n.(*ClosureExpr)

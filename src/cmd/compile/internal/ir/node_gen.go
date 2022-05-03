@@ -513,32 +513,6 @@ func (n *ForStmt) editChildren(edit func(Node) Node) {
 
 func (n *Func) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 
-func (n *FuncType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *FuncType) copy() Node {
-	c := *n
-	c.Recv = copyField(c.Recv)
-	c.Params = copyFields(c.Params)
-	c.Results = copyFields(c.Results)
-	return &c
-}
-func (n *FuncType) doChildren(do func(Node) bool) bool {
-	if doField(n.Recv, do) {
-		return true
-	}
-	if doFields(n.Params, do) {
-		return true
-	}
-	if doFields(n.Results, do) {
-		return true
-	}
-	return false
-}
-func (n *FuncType) editChildren(edit func(Node) Node) {
-	editField(n.Recv, edit)
-	editFields(n.Params, edit)
-	editFields(n.Results, edit)
-}
-
 func (n *GoDeferStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *GoDeferStmt) copy() Node {
 	c := *n
