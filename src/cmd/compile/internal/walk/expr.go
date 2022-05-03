@@ -480,7 +480,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 
 		t := types.NewSlice(types.Types[types.TSTRING])
 		// args[1:] to skip buf arg
-		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(t), args[1:])
+		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, args[1:])
 		slice.Prealloc = n.Prealloc
 		args = []ir.Node{buf, slice}
 		slice.SetEsc(ir.EscNone)
