@@ -270,10 +270,7 @@ func tcFunc(n *ir.Func) {
 	}
 
 	if name := n.Nname; name.Typecheck() == 0 {
-		if name.Ntype != nil {
-			name.Ntype = typecheckNtype(name.Ntype)
-			name.SetType(name.Ntype.Type())
-		}
+		base.AssertfAt(name.Type() != nil, n.Pos(), "missing type: %v", name)
 		name.SetTypecheck(1)
 	}
 }

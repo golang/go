@@ -59,7 +59,6 @@ type Name struct {
 	// The function, method, or closure in which local variable or param is declared.
 	Curfn *Func
 
-	Ntype    Ntype
 	Heapaddr *Name // temp holding heap address of param
 
 	// ONAME closure linkage
