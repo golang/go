@@ -202,7 +202,7 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
 
 	name := ir.NewNameAt(n.Pos, n.Sym)
 	n.Decl = name
-	name.Ntype = n.Ntype
+	name.Ntype = nil
 	Declare(name, ctxt)
 }
 
