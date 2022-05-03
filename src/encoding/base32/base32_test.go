@@ -91,7 +91,7 @@ func TestEncoderBuffering(t *testing.T) {
 func TestDecode(t *testing.T) {
 	for _, p := range pairs {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
-		count, _, end, err := StdEncoding.decode(dbuf, []byte(p.encoded))
+		count, end, err := StdEncoding.decode(dbuf, []byte(p.encoded))
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, error(nil))
 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded))
 		if len(p.encoded) > 0 {
@@ -644,18 +644,18 @@ func TestBufferedDecodingPadding(t *testing.T) {
 		{[]string{
 			"I4======",
 			"N4======",
-		}, "illegal base32 data at input byte 2"},
+		}, "illegal base32 data at input byte 0"},
 
 		{[]string{
 			"I4======",
 			"========",
-		}, "illegal base32 data at input byte 2"},
+		}, "illegal base32 data at input byte 0"},
 
 		{[]string{
 			"I4I4I4I4",
 			"I4======",
 			"I4======",
-		}, "illegal base32 data at input byte 10"},
+		}, "illegal base32 data at input byte 0"},
 	}
 
 	for _, testcase := range testcases {
