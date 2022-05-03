@@ -1,5 +1,9 @@
 # dev.boringcrypto branch
 
+This branch is no more. `GOEXPERIMENT=boringcrypto` on the standard branch does the job now.
+
+Previous notice:
+
 We have been working inside Google on a fork of Go that uses
 BoringCrypto (the core of [BoringSSL][]) for various crypto
 primitives, in furtherance of some [work related to FIPS 140-2][sp].
