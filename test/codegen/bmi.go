@@ -207,3 +207,15 @@ func shlrx32_load(x []uint32, i int, s uint32) uint32 {
 	s = x[i+1] << s
 	return s
 }
+
+func XSubXandYAndn64(x, y uint64) uint64 {
+	// amd64/v1:"ANDQ" "NOTQ" -"SUBQ"
+	// amd64/v3:"ANDNQ" -"SUBQ" -"ANDQ"
+	return x - (x & y)
+}
+
+func XSubXandYAndn32(x, y uint32) uint32 {
+	// amd64/v1:"ANDL" "NOTL" -"SUBL"
+	// amd64/v3:"ANDNL" -"SUBL" -"ANDL"
+	return x - (x & y)
+}

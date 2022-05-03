@@ -708,6 +708,9 @@
 (Or(64|32|16|8) x (Or(64|32|16|8) x y)) => (Or(64|32|16|8) x y)
 (Xor(64|32|16|8) x (Xor(64|32|16|8) x y)) => y
 
+// x-(x&y) == x&^y
+(Sub(64|32|16|8) x (And(64|32|16|8) <t> x y)) => (And(64|32|16|8) x (Com(64|32|16|8) <t> y))
+
 // Fold comparisons with numeric bounds
 (Less(64|32|16|8)U _ (Const(64|32|16|8) [0]))  => (ConstBool [false])
 (Leq(64|32|16|8)U (Const(64|32|16|8) [0]) _)   => (ConstBool [true])
