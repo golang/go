@@ -86,7 +86,6 @@ var (
 	asmArchArm      = asmArch{name: "arm", bigEndian: false, stack: "R13", lr: true}
 	asmArchArm64    = asmArch{name: "arm64", bigEndian: false, stack: "RSP", lr: true, retRegs: []string{"R0", "F0"}}
 	asmArchAmd64    = asmArch{name: "amd64", bigEndian: false, stack: "SP", lr: false, retRegs: []string{"AX", "X0"}}
-	asmArchLoong64  = asmArch{name: "loong64", bigEndian: false, stack: "R3", lr: true}
 	asmArchMips     = asmArch{name: "mips", bigEndian: true, stack: "R29", lr: true}
 	asmArchMipsLE   = asmArch{name: "mipsle", bigEndian: false, stack: "R29", lr: true}
 	asmArchMips64   = asmArch{name: "mips64", bigEndian: true, stack: "R29", lr: true}
@@ -102,7 +101,6 @@ var (
 		&asmArchArm,
 		&asmArchArm64,
 		&asmArchAmd64,
-		&asmArchLoong64,
 		&asmArchMips,
 		&asmArchMipsLE,
 		&asmArchMips64,
@@ -116,6 +114,7 @@ var (
 )
 
 func init() {
+	arches = append(arches, additionalArches()...)
 	for _, arch := range arches {
 		arch.sizes = types.SizesFor("gc", arch.name)
 		if arch.sizes == nil {
