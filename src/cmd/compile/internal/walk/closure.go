@@ -120,7 +120,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 
 	typ := typecheck.ClosureType(clo)
 
-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, typ, nil)
 	clos.SetEsc(clo.Esc())
 	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, clofn.Nname)}, closureArgs(clo)...)
 	for i, value := range clos.List {
@@ -186,7 +186,7 @@ func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 
 	typ := typecheck.MethodValueType(n)
 
-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, typ, nil)
 	clos.SetEsc(n.Esc())
 	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, methodValueWrapper(n)), n.X}
 

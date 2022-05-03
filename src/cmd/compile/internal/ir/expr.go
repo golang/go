@@ -200,11 +200,13 @@ type CompLitExpr struct {
 	Len int64
 }
 
-func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
-	n := &CompLitExpr{Ntype: typ}
+func NewCompLitExpr(pos src.XPos, op Op, typ *types.Type, list []Node) *CompLitExpr {
+	n := &CompLitExpr{List: list}
 	n.pos = pos
 	n.SetOp(op)
-	n.List = list
+	if typ != nil {
+		n.Ntype = TypeNode(typ)
+	}
 	n.orig = n
 	return n
 }

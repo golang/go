@@ -1728,7 +1728,7 @@ func (r *reader) compLit() ir.Node {
 		*elemp = wrapName(r.pos(), r.expr())
 	}
 
-	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), elems))
+	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
 	if typ0.IsPtr() {
 		lit = typecheck.Expr(typecheck.NodAddrAt(pos, lit))
 		lit.SetType(typ0)

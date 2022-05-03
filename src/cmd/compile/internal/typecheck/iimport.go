@@ -1417,7 +1417,7 @@ func (r *importReader) node() ir.Node {
 	case ir.OCOMPLIT:
 		pos := r.pos()
 		t := r.typ()
-		n := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(t), r.exprList())
+		n := ir.NewCompLitExpr(pos, ir.OCOMPLIT, t, r.exprList())
 		n.SetType(t)
 		return n
 
@@ -1425,7 +1425,7 @@ func (r *importReader) node() ir.Node {
 		pos := r.pos()
 		typ := r.typ()
 		list := r.exprList()
-		n := ir.NewCompLitExpr(pos, op, ir.TypeNode(typ), list)
+		n := ir.NewCompLitExpr(pos, op, typ, list)
 		n.SetType(typ)
 		if op == ir.OSLICELIT {
 			n.Len = int64(r.uint64())
