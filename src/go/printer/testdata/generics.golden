@@ -48,7 +48,7 @@ type _[P T] struct{}
 type _[P T, _ any] struct{}
 
 type _[P *struct{}] struct{}
-type _[P *struct{}] struct{}
+type _ [P(*struct{})]struct{}
 type _[P []int] struct{}
 
 // array type declarations
