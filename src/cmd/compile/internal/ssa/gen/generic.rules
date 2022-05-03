@@ -558,6 +558,9 @@
 (Or(64|32|16|8) x (Or(64|32|16|8) x y)) => (Or(64|32|16|8) x y)
 (Xor(64|32|16|8) x (Xor(64|32|16|8) x y)) => y
 
+// x-(x&y) == x&^y
+(Sub(64|32|16|8) x (And(64|32|16|8) <t> x y)) => (And(64|32|16|8) x (Com(64|32|16|8) <t> y))
+
 // Unsigned comparisons to zero.
 (Less(64U|32U|16U|8U) _ (Const(64|32|16|8) [0])) => (ConstBool [false])
 (Leq(64U|32U|16U|8U) (Const(64|32|16|8) [0]) _)  => (ConstBool [true])

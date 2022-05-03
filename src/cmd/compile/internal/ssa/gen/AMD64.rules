@@ -2266,6 +2266,7 @@
 
 // CPUID feature: BMI1.
 (AND(Q|L) x (NOT(Q|L) y))           && buildcfg.GOAMD64 >= 3 => (ANDN(Q|L) x y)
+(SUB(Q|L) x (AND(Q|L) x y))         && buildcfg.GOAMD64 >= 3 => (ANDN(Q|L) x y)
 (AND(Q|L) x (NEG(Q|L) x))           && buildcfg.GOAMD64 >= 3 => (BLSI(Q|L) x)
 (XOR(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSMSK(Q|L) x)
 (AND(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSR(Q|L) x)

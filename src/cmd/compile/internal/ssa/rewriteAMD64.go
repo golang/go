@@ -28508,6 +28508,31 @@ func rewriteValueAMD64_OpAMD64SUBL(v *Value) bool {
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
+	// match: (SUBL x (ANDL x y))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (ANDNL x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ANDL {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 {
+				continue
+			}
+			y := v_1_1
+			if !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64ANDNL)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SUBLconst(v *Value) bool {
@@ -28731,6 +28756,31 @@ func rewriteValueAMD64_OpAMD64SUBQ(v *Value) bool {
 		v.Aux = symToAux(sym)
 		v.AddArg3(x, ptr, mem)
 		return true
+	}
+	// match: (SUBQ x (ANDQ x y))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (ANDNQ x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64ANDQ {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 {
+				continue
+			}
+			y := v_1_1
+			if !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64ANDNQ)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
 	}
 	return false
 }

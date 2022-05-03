@@ -23286,6 +23286,30 @@ func rewriteValuegeneric_OpSub16(v *Value) bool {
 		v.AuxInt = int16ToAuxInt(-1)
 		return true
 	}
+	// match: (Sub16 x (And16 <t> x y))
+	// result: (And16 x (Com16 <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAnd16 {
+			break
+		}
+		t := v_1.Type
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 {
+				continue
+			}
+			y := v_1_1
+			v.reset(OpAnd16)
+			v0 := b.NewValue0(v.Pos, OpCom16, t)
+			v0.AddArg(y)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
 	// match: (Sub16 (Add16 x y) x)
 	// result: y
 	for {
@@ -23628,6 +23652,30 @@ func rewriteValuegeneric_OpSub32(v *Value) bool {
 		v.reset(OpConst32)
 		v.AuxInt = int32ToAuxInt(-1)
 		return true
+	}
+	// match: (Sub32 x (And32 <t> x y))
+	// result: (And32 x (Com32 <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAnd32 {
+			break
+		}
+		t := v_1.Type
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 {
+				continue
+			}
+			y := v_1_1
+			v.reset(OpAnd32)
+			v0 := b.NewValue0(v.Pos, OpCom32, t)
+			v0.AddArg(y)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
 	}
 	// match: (Sub32 (Add32 x y) x)
 	// result: y
@@ -23996,6 +24044,30 @@ func rewriteValuegeneric_OpSub64(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(-1)
 		return true
 	}
+	// match: (Sub64 x (And64 <t> x y))
+	// result: (And64 x (Com64 <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAnd64 {
+			break
+		}
+		t := v_1.Type
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 {
+				continue
+			}
+			y := v_1_1
+			v.reset(OpAnd64)
+			v0 := b.NewValue0(v.Pos, OpCom64, t)
+			v0.AddArg(y)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
 	// match: (Sub64 (Add64 x y) x)
 	// result: y
 	for {
@@ -24362,6 +24434,30 @@ func rewriteValuegeneric_OpSub8(v *Value) bool {
 		v.reset(OpConst8)
 		v.AuxInt = int8ToAuxInt(-1)
 		return true
+	}
+	// match: (Sub8 x (And8 <t> x y))
+	// result: (And8 x (Com8 <t> y))
+	for {
+		x := v_0
+		if v_1.Op != OpAnd8 {
+			break
+		}
+		t := v_1.Type
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 {
+				continue
+			}
+			y := v_1_1
+			v.reset(OpAnd8)
+			v0 := b.NewValue0(v.Pos, OpCom8, t)
+			v0.AddArg(y)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
 	}
 	// match: (Sub8 (Add8 x y) x)
 	// result: y
