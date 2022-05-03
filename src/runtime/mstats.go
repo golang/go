@@ -7,7 +7,6 @@
 package runtime
 
 import (
-	"internal/goarch"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -388,10 +387,10 @@ func readmemstats_m(stats *MemStats) {
 	memstats.heapStats.unsafeRead(&consStats)
 
 	// Collect large allocation stats.
-	totalAlloc := uint64(consStats.largeAlloc)
-	nMalloc := uint64(consStats.largeAllocCount)
-	totalFree := uint64(consStats.largeFree)
-	nFree := uint64(consStats.largeFreeCount)
+	totalAlloc := consStats.largeAlloc
+	nMalloc := consStats.largeAllocCount
+	totalFree := consStats.largeFree
+	nFree := consStats.largeFreeCount
 
 	// Collect per-sizeclass stats.
 	var bySize [_NumSizeClasses]struct {
@@ -403,13 +402,13 @@ func readmemstats_m(stats *MemStats) {
 		bySize[i].Size = uint32(class_to_size[i])
 
 		// Malloc stats.
-		a := uint64(consStats.smallAllocCount[i])
+		a := consStats.smallAllocCount[i]
 		totalAlloc += a * uint64(class_to_size[i])
 		nMalloc += a
 		bySize[i].Mallocs = a
 
 		// Free stats.
-		f := uint64(consStats.smallFreeCount[i])
+		f := consStats.smallFreeCount[i]
 		totalFree += f * uint64(class_to_size[i])
 		nFree += f
 		bySize[i].Frees = f
@@ -421,8 +420,8 @@ func readmemstats_m(stats *MemStats) {
 	// memory in some sense because their tiny allocation block is also
 	// counted. Tracking the lifetime of individual tiny allocations is
 	// currently not done because it would be too expensive.
-	nFree += uint64(consStats.tinyAllocCount)
-	nMalloc += uint64(consStats.tinyAllocCount)
+	nFree += consStats.tinyAllocCount
+	nMalloc += consStats.tinyAllocCount
 
 	// Calculate derived stats.
 
@@ -663,17 +662,20 @@ type heapStatsDelta struct {
 	inPtrScalarBits int64 // byte delta of memory reserved for unrolled GC prog bits
 
 	// Allocator stats.
-	tinyAllocCount  uintptr                  // number of tiny allocations
-	largeAlloc      uintptr                  // bytes allocated for large objects
-	largeAllocCount uintptr                  // number of large object allocations
-	smallAllocCount [_NumSizeClasses]uintptr // number of allocs for small objects
-	largeFree       uintptr                  // bytes freed for large objects (>maxSmallSize)
-	largeFreeCount  uintptr                  // number of frees for large objects (>maxSmallSize)
-	smallFreeCount  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxSmallSize)
+	//
+	// These are all uint64 because they're cumulative, and could quickly wrap
+	// around otherwise.
+	tinyAllocCount  uint64                  // number of tiny allocations
+	largeAlloc      uint64                  // bytes allocated for large objects
+	largeAllocCount uint64                  // number of large object allocations
+	smallAllocCount [_NumSizeClasses]uint64 // number of allocs for small objects
+	largeFree       uint64                  // bytes freed for large objects (>maxSmallSize)
+	largeFreeCount  uint64                  // number of frees for large objects (>maxSmallSize)
+	smallFreeCount  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxSmallSize)
 
-	// Add a uint32 to ensure this struct is a multiple of 8 bytes in size.
-	// Only necessary on 32-bit platforms.
-	_ [(goarch.PtrSize / 4) % 2]uint32
+	// NOTE: This struct must be a multiple of 8 bytes in size because it
+	// is stored in an array. If it's not, atomic accesses to the above
+	// fields may be unaligned and fail on 32-bit platforms.
 }
 
 // merge adds in the deltas from b into a.
