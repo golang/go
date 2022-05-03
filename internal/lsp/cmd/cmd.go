@@ -245,6 +245,7 @@ func (app *Application) mainCommands() []tool.Application {
 		&app.Serve,
 		&version{app: app},
 		&bug{app: app},
+		&help{app: app},
 		&apiJSON{app: app},
 		&licenses{app: app},
 	}

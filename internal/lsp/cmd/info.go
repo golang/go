@@ -17,7 +17,56 @@ import (
 	"golang.org/x/tools/internal/lsp/browser"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/tool"
 )
+
+// help implements the help command.
+type help struct {
+	app *Application
+}
+
+func (h *help) Name() string      { return "help" }
+func (h *help) Parent() string    { return h.app.Name() }
+func (h *help) Usage() string     { return "" }
+func (h *help) ShortHelp() string { return "print usage information for subcommands" }
+func (h *help) DetailedHelp(f *flag.FlagSet) {
+	fmt.Fprint(f.Output(), `
+
+Examples:
+$ gopls help                         # main gopls help message
+$ gopls help remote                  # help on 'remote' command
+$ gopls help remote sessions         # help on 'remote sessions' subcommand
+`)
+	printFlagDefaults(f)
+}
+
+// Run prints help information about a subcommand.
+func (h *help) Run(ctx context.Context, args ...string) error {
+	find := func(cmds []tool.Application, name string) tool.Application {
+		for _, cmd := range cmds {
+			if cmd.Name() == name {
+				return cmd
+			}
+		}
+		return nil
+	}
+
+	// Find the subcommand denoted by args (empty => h.app).
+	var cmd tool.Application = h.app
+	for i, arg := range args {
+		cmd = find(getSubcommands(cmd), arg)
+		if cmd == nil {
+			return tool.CommandLineErrorf(
+				"no such subcommand: %s", strings.Join(args[:i+1], " "))
+		}
+	}
+
+	// 'gopls help cmd subcmd' is equivalent to 'gopls cmd subcmd -h'.
+	// The flag package prints the usage information (defined by tool.Run)
+	// when it sees the -h flag.
+	fs := flag.NewFlagSet(cmd.Name(), flag.ExitOnError)
+	return tool.Run(ctx, fs, h.app, append(args[:len(args):len(args)], "-h"))
+}
 
 // version implements the version command.
 type version struct {

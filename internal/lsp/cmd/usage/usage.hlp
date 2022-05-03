@@ -14,6 +14,7 @@ Main
   serve             run a server for Go code using the Language Server Protocol
   version           print the gopls version information
   bug               report a bug in gopls
+  help              print usage information for subcommands
   api-json          print json describing gopls API
   licenses          print licenses of included software
                     

@@ -42,3 +42,18 @@ func (s subcommands) Run(ctx context.Context, args ...string) error {
 	}
 	return tool.CommandLineErrorf("unknown subcommand %v", command)
 }
+
+func (s subcommands) Commands() []tool.Application { return s }
+
+// getSubcommands returns the subcommands of a given Application.
+func getSubcommands(a tool.Application) []tool.Application {
+	// This interface is satisfied both by tool.Applications
+	// that embed subcommands, and by *cmd.Application.
+	type hasCommands interface {
+		Commands() []tool.Application
+	}
+	if sub, ok := a.(hasCommands); ok {
+		return sub.Commands()
+	}
+	return nil
+}

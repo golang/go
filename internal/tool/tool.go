@@ -92,6 +92,10 @@ func Main(ctx context.Context, app Application, args []string) {
 	if err := Run(ctx, s, app, args); err != nil {
 		fmt.Fprintf(s.Output(), "%s: %v\n", app.Name(), err)
 		if _, printHelp := err.(commandLineError); printHelp {
+			// TODO(adonovan): refine this. It causes
+			// any command-line error to result in the full
+			// usage message, which typically obscures
+			// the actual error.
 			s.Usage()
 		}
 		os.Exit(2)
