@@ -346,9 +346,6 @@ func (n *CompLitExpr) doChildren(do func(Node) bool) bool {
 	if doNodes(n.init, do) {
 		return true
 	}
-	if n.Ntype != nil && do(n.Ntype) {
-		return true
-	}
 	if doNodes(n.List, do) {
 		return true
 	}
@@ -359,9 +356,6 @@ func (n *CompLitExpr) doChildren(do func(Node) bool) bool {
 }
 func (n *CompLitExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.Ntype != nil {
-		n.Ntype = edit(n.Ntype).(Ntype)
-	}
 	editNodes(n.List, edit)
 	if n.Prealloc != nil {
 		n.Prealloc = edit(n.Prealloc).(*Name)

@@ -207,24 +207,13 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		base.Pos = lno
 	}()
 
-	if n.Ntype == nil {
-		base.ErrorfAt(n.Pos(), "missing type in composite literal")
-		n.SetType(nil)
-		return n
-	}
-
 	// Save original node (including n.Right)
 	n.SetOrig(ir.Copy(n))
 
-	ir.SetPos(n.Ntype)
+	ir.SetPos(n)
 
-	n.Ntype = typecheckNtype(n.Ntype)
-	t := n.Ntype.Type()
-	if t == nil {
-		n.SetType(nil)
-		return n
-	}
-	n.SetType(t)
+	t := n.Type()
+	base.AssertfAt(t != nil, n.Pos(), "missing type in composite literal")
 
 	switch t.Kind() {
 	default:
@@ -234,12 +223,10 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 	case types.TARRAY:
 		typecheckarraylit(t.Elem(), t.NumElem(), n.List, "array literal")
 		n.SetOp(ir.OARRAYLIT)
-		n.Ntype = nil
 
 	case types.TSLICE:
 		length := typecheckarraylit(t.Elem(), -1, n.List, "slice literal")
 		n.SetOp(ir.OSLICELIT)
-		n.Ntype = nil
 		n.Len = length
 
 	case types.TMAP:
@@ -253,18 +240,15 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 			l := l.(*ir.KeyExpr)
 
 			r := l.Key
-			r = pushtype(r, t.Key())
 			r = Expr(r)
 			l.Key = AssignConv(r, t.Key(), "map key")
 
 			r = l.Value
-			r = pushtype(r, t.Elem())
 			r = Expr(r)
 			l.Value = AssignConv(r, t.Elem(), "map value")
 		}
 
 		n.SetOp(ir.OMAPLIT)
-		n.Ntype = nil
 
 	case types.TSTRUCT:
 		// Need valid field offsets for Xoffset below.
@@ -345,7 +329,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		}
 
 		n.SetOp(ir.OSTRUCTLIT)
-		n.Ntype = nil
 	}
 
 	return n

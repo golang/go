@@ -1410,23 +1410,18 @@ func (r *importReader) node() ir.Node {
 		pos := r.pos()
 		typ := r.typ()
 		list := r.fieldList()
-		n := ir.NewCompLitExpr(pos, ir.OSTRUCTLIT, nil, list)
-		n.SetType(typ)
-		return n
+		return ir.NewCompLitExpr(pos, ir.OSTRUCTLIT, typ, list)
 
 	case ir.OCOMPLIT:
 		pos := r.pos()
 		t := r.typ()
-		n := ir.NewCompLitExpr(pos, ir.OCOMPLIT, t, r.exprList())
-		n.SetType(t)
-		return n
+		return ir.NewCompLitExpr(pos, ir.OCOMPLIT, t, r.exprList())
 
 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		pos := r.pos()
 		typ := r.typ()
 		list := r.exprList()
 		n := ir.NewCompLitExpr(pos, op, typ, list)
-		n.SetType(typ)
 		if op == ir.OSLICELIT {
 			n.Len = int64(r.uint64())
 		}
