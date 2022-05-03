@@ -19,7 +19,7 @@
 // They may not run on Windows, and they do not run in the Go Playground
 // used by golang.org and godoc.org.
 //
-// Executables in the current directory
+// # Executables in the current directory
 //
 // The functions Command and LookPath look for a program
 // in the directories listed in the current path, following the
@@ -256,10 +256,15 @@ func Command(name string, arg ...string) *Cmd {
 		Args: append([]string{name}, arg...),
 	}
 	if filepath.Base(name) == name {
-		if lp, err := LookPath(name); err != nil {
-			cmd.Err = err
-		} else {
+		lp, err := LookPath(name)
+		if lp != "" {
+			// Update cmd.Path even if err is non-nil.
+			// If err is ErrDot (especially on Windows), lp may include a resolved
+			// extension (like .exe or .bat) that should be preserved.
 			cmd.Path = lp
+		}
+		if err != nil {
+			cmd.Err = err
 		}
 	}
 	return cmd
