@@ -717,10 +717,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case ODOTTYPE, ODOTTYPE2:
 		n := n.(*TypeAssertExpr)
 		exprFmt(n.X, s, nprec)
-		if n.Ntype != nil {
-			fmt.Fprintf(s, ".(%v)", n.Ntype)
-			return
-		}
 		fmt.Fprintf(s, ".(%v)", n.Type())
 
 	case OINDEX, OINDEXMAP:

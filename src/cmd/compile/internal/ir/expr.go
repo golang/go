@@ -648,18 +648,20 @@ func (n *StarExpr) SetOTYPE(t *types.Type) {
 // Before type-checking, the type is Ntype.
 type TypeAssertExpr struct {
 	miniExpr
-	X     Node
-	Ntype Ntype
+	X Node
 
 	// Runtime type information provided by walkDotType for
 	// assertions from non-empty interface to concrete type.
 	Itab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
 }
 
-func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
-	n := &TypeAssertExpr{X: x, Ntype: typ}
+func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {
+	n := &TypeAssertExpr{X: x}
 	n.pos = pos
 	n.op = ODOTTYPE
+	if typ != nil {
+		n.SetType(typ)
+	}
 	return n
 }
 
