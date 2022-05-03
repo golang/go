@@ -1125,3 +1125,11 @@ func TestStringPathNotResolved(t *testing.T) {
 		t.Errorf("String(%q, %q) = %q, want %q", "makemeasandwich", "-lettuce", got, want)
 	}
 }
+
+func TestNoPath(t *testing.T) {
+	err := new(exec.Cmd).Start()
+	want := "exec: no command"
+	if err == nil || err.Error() != want {
+		t.Errorf("new(Cmd).Start() = %v, want %q", err, want)
+	}
+}
