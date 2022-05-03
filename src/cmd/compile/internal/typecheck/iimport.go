@@ -1724,13 +1724,9 @@ func (r *importReader) node() ir.Node {
 	case ir.OFUNCINST:
 		pos := r.pos()
 		x := r.expr()
-		ntargs := r.uint64()
-		var targs []ir.Node
-		if ntargs > 0 {
-			targs = make([]ir.Node, ntargs)
-			for i := range targs {
-				targs[i] = ir.TypeNode(r.typ())
-			}
+		targs := make([]ir.Ntype, r.uint64())
+		for i := range targs {
+			targs[i] = ir.TypeNode(r.typ())
 		}
 		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
 		n.SetType(r.typ())

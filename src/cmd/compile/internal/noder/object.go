@@ -42,7 +42,7 @@ func (g *irgen) use(name *syntax.Name) ir.Node {
 		if inst, ok := g.info.Instances[name]; ok {
 			// This is the case where inferring types required the
 			// types of the function arguments.
-			targs := make([]ir.Node, inst.TypeArgs.Len())
+			targs := make([]ir.Ntype, inst.TypeArgs.Len())
 			for i := range targs {
 				targs[i] = ir.TypeNode(g.typ(inst.TypeArgs.At(i)))
 			}

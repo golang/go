@@ -882,7 +882,7 @@ type symlink struct {
 
 // TypesOf converts a list of nodes to a list
 // of types of those nodes.
-func TypesOf(x []ir.Node) []*types.Type {
+func TypesOf(x []ir.Ntype) []*types.Type {
 	r := make([]*types.Type, len(x))
 	for i, n := range x {
 		r[i] = n.Type()
