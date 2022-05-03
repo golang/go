@@ -42,7 +42,7 @@ var typedefs = [...]struct {
 
 func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	if PtrSize == 0 {
-		base.Fatalf("typeinit before betypeinit")
+		base.Fatalf("InitTypes called before PtrSize was set")
 	}
 
 	SlicePtrOffset = 0
