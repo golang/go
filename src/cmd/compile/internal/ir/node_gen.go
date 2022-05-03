@@ -1249,18 +1249,12 @@ func (n *TypeAssertExpr) doChildren(do func(Node) bool) bool {
 	if n.X != nil && do(n.X) {
 		return true
 	}
-	if n.Ntype != nil && do(n.Ntype) {
-		return true
-	}
 	return false
 }
 func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
-	}
-	if n.Ntype != nil {
-		n.Ntype = edit(n.Ntype).(Ntype)
 	}
 }
 

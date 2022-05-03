@@ -2266,15 +2266,12 @@ func closureSym(outer *ir.Func, prefix string, n int) *types.Sym {
 // assertToBound returns a new node that converts a node rcvr with interface type to
 // the 'dst' interface type.
 func assertToBound(info *instInfo, dictVar *ir.Name, pos src.XPos, rcvr ir.Node, dst *types.Type) ir.Node {
-	if dst.HasShape() {
-		ix := findDictType(info, dst)
-		assert(ix >= 0)
-		rt := getDictionaryType(info, dictVar, pos, ix)
-		rcvr = ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, rcvr, rt)
-		typed(dst, rcvr)
-	} else {
-		rcvr = ir.NewTypeAssertExpr(pos, rcvr, nil)
-		typed(dst, rcvr)
+	if !dst.HasShape() {
+		return typed(dst, ir.NewTypeAssertExpr(pos, rcvr, nil))
 	}
-	return rcvr
+
+	ix := findDictType(info, dst)
+	assert(ix >= 0)
+	rt := getDictionaryType(info, dictVar, pos, ix)
+	return typed(dst, ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, rcvr, rt))
 }

@@ -532,14 +532,7 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 		return n
 	}
 
-	if n.Ntype != nil {
-		n.Ntype = typecheckNtype(n.Ntype)
-		n.SetType(n.Ntype.Type())
-		n.Ntype = nil
-		if n.Type() == nil {
-			return n
-		}
-	}
+	base.AssertfAt(n.Type() != nil, n.Pos(), "missing type: %v", n)
 
 	if n.Type() != nil && !n.Type().IsInterface() {
 		var missing, have *types.Field

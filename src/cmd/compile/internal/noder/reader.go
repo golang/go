@@ -1638,7 +1638,7 @@ func (r *reader) expr() (res ir.Node) {
 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
 			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
 		}
-		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.(ir.Ntype)))
+		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.Type()))
 
 	case exprUnaryOp:
 		op := r.op()

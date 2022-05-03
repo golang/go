@@ -234,10 +234,6 @@ func Func(fn *ir.Func) {
 	}
 }
 
-func typecheckNtype(n ir.Ntype) ir.Ntype {
-	return typecheck(n, ctxType).(ir.Ntype)
-}
-
 // typecheck type checks node n.
 // The result of typecheck MUST be assigned back to n, e.g.
 //

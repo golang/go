@@ -1480,8 +1480,7 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
-		n := ir.NewTypeAssertExpr(r.pos(), r.expr(), nil)
-		n.SetType(r.typ())
+		n := ir.NewTypeAssertExpr(r.pos(), r.expr(), r.typ())
 		n.SetOp(op)
 		return n
 
