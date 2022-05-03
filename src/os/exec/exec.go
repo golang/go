@@ -465,6 +465,9 @@ func lookExtensions(path, dir string) (string, error) {
 // The Wait method will return the exit code and release associated resources
 // once the command exits.
 func (c *Cmd) Start() error {
+	if c.Path == "" && c.Err == nil && c.lookPathErr == nil {
+		c.Err = errors.New("exec: no command")
+	}
 	if c.Err != nil || c.lookPathErr != nil {
 		c.closeDescriptors(c.closeAfterStart)
 		c.closeDescriptors(c.closeAfterWait)
