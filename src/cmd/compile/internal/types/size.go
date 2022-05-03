@@ -60,7 +60,7 @@ var MaxWidth int64
 var CalcSizeDisabled bool
 
 // machine size and rounding alignment is dictated around
-// the size of a pointer, set in betypeinit (see ../amd64/galign.go).
+// the size of a pointer, set in gc.Main (see ../gc/main.go).
 var defercalc int
 
 func Rnd(o int64, r int64) int64 {
