@@ -683,7 +683,7 @@ func (n *InstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InstExpr) copy() Node {
 	c := *n
 	c.init = copyNodes(c.init)
-	c.Targs = copyNodes(c.Targs)
+	c.Targs = copyNtypes(c.Targs)
 	return &c
 }
 func (n *InstExpr) doChildren(do func(Node) bool) bool {
@@ -693,7 +693,7 @@ func (n *InstExpr) doChildren(do func(Node) bool) bool {
 	if n.X != nil && do(n.X) {
 		return true
 	}
-	if doNodes(n.Targs, do) {
+	if doNtypes(n.Targs, do) {
 		return true
 	}
 	return false
@@ -703,7 +703,7 @@ func (n *InstExpr) editChildren(edit func(Node) Node) {
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
 	}
-	editNodes(n.Targs, edit)
+	editNtypes(n.Targs, edit)
 }
 
 func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
@@ -1406,6 +1406,30 @@ func editNodes(list []Node, edit func(Node) Node) {
 	for i, x := range list {
 		if x != nil {
 			list[i] = edit(x).(Node)
+		}
+	}
+}
+
+func copyNtypes(list []Ntype) []Ntype {
+	if list == nil {
+		return nil
+	}
+	c := make([]Ntype, len(list))
+	copy(c, list)
+	return c
+}
+func doNtypes(list []Ntype, do func(Node) bool) bool {
+	for _, x := range list {
+		if x != nil && do(x) {
+			return true
+		}
+	}
+	return false
+}
+func editNtypes(list []Ntype, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(Ntype)
 		}
 	}
 }

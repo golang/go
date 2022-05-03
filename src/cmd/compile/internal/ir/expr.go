@@ -741,10 +741,10 @@ func (n *InstExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
 type InstExpr struct {
 	miniExpr
 	X     Node
-	Targs []Node
+	Targs []Ntype
 }
 
-func NewInstExpr(pos src.XPos, op Op, x Node, targs []Node) *InstExpr {
+func NewInstExpr(pos src.XPos, op Op, x Node, targs []Ntype) *InstExpr {
 	n := &InstExpr{X: x, Targs: targs}
 	n.pos = pos
 	n.op = op

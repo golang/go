@@ -1865,7 +1865,7 @@ func (g *genInst) getDictionaryValue(pos src.XPos, gf *ir.Name, targs []*types.T
 }
 
 // hasShapeNodes returns true if the type of any node in targs has a shape.
-func hasShapeNodes(targs []ir.Node) bool {
+func hasShapeNodes(targs []ir.Ntype) bool {
 	for _, n := range targs {
 		if n.Type().HasShape() {
 			return true
