@@ -127,12 +127,9 @@ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
 
 	checkLHS := func(i int, typ *types.Type) {
 		lhs[i] = Resolve(lhs[i])
-		if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Name().Ntype == nil {
-			if typ.Kind() != types.TNIL {
-				n.SetType(defaultType(typ))
-			} else {
-				base.Errorf("use of untyped nil")
-			}
+		if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Type() == nil {
+			base.Assertf(typ.Kind() == types.TNIL, "unexpected untyped nil")
+			n.SetType(defaultType(typ))
 		}
 		if lhs[i].Typecheck() == 0 {
 			lhs[i] = AssignExpr(lhs[i])
