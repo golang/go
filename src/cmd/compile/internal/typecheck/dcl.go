@@ -22,7 +22,18 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 	ir.MarkFunc(fn.Nname)
-	StartFuncBody(fn, recv, params, results)
+	StartFuncBody(fn)
+
+	var recv1 *types.Field
+	if recv != nil {
+		recv1 = declareParam(ir.PPARAM, -1, recv)
+	}
+
+	typ := types.NewSignature(types.LocalPkg, recv1, nil, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
+	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
+	fn.Nname.SetType(typ)
+	fn.Nname.SetTypecheck(1)
+
 	return fn
 }
 
@@ -91,20 +102,13 @@ func Export(n *ir.Name) {
 // and declare the arguments.
 // called in extern-declaration context
 // returns in auto-declaration context.
-func StartFuncBody(fn *ir.Func, recv *ir.Field, params, results []*ir.Field) {
+func StartFuncBody(fn *ir.Func) {
 	// change the declaration context from extern to auto
 	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
 	ir.CurFunc = fn
 	DeclContext = ir.PAUTO
 
 	types.Markdcl()
-
-	tfn := ir.NewFuncType(base.Pos, recv, params, results)
-	funcargs(tfn)
-
-	tfn = tcFuncType(tfn)
-	fn.Nname.SetType(tfn.Type())
-	fn.Nname.SetTypecheck(1)
 }
 
 // finish the body.
@@ -190,46 +194,44 @@ type funcStackEnt struct {
 	dclcontext ir.Class
 }
 
-func funcarg(n *ir.Field, ctxt ir.Class) {
-	if n.Sym == nil {
-		return
+func declareParams(ctxt ir.Class, l []*ir.Field) []*types.Field {
+	fields := make([]*types.Field, len(l))
+	for i, n := range l {
+		fields[i] = declareParam(ctxt, i, n)
 	}
-
-	name := ir.NewNameAt(n.Pos, n.Sym)
-	n.Decl = name
-	Declare(name, ctxt)
+	return fields
 }
 
-func funcargs(nt *ir.FuncType) {
-	if nt.Op() != ir.OTFUNC {
-		base.Fatalf("funcargs %v", nt.Op())
-	}
+func declareParam(ctxt ir.Class, i int, param *ir.Field) *types.Field {
+	f := types.NewField(param.Pos, param.Sym, param.Type)
+	f.SetIsDDD(param.IsDDD)
 
-	// declare the receiver and in arguments.
-	if nt.Recv != nil {
-		funcarg(nt.Recv, ir.PPARAM)
-	}
-	for _, n := range nt.Params {
-		funcarg(n, ir.PPARAM)
-	}
-
-	// declare the out arguments.
-	for i, n := range nt.Results {
-		if n.Sym == nil {
+	sym := param.Sym
+	if ctxt == ir.PPARAMOUT {
+		if sym == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			n.Sym = LookupNum("~r", i)
-		} else if n.Sym.IsBlank() {
+			sym = LookupNum("~r", i)
+		} else if sym.IsBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
 			// The name must be different from ~r above because if you have
 			//	func f() (_ int)
 			//	func g() int
 			// f is allowed to use a plain 'return' with no arguments, while g is not.
 			// So the two cases must be distinguished.
-			n.Sym = LookupNum("~b", i)
+			sym = LookupNum("~b", i)
 		}
-
-		funcarg(n, ir.PPARAMOUT)
 	}
+
+	if sym != nil {
+		name := ir.NewNameAt(param.Pos, sym)
+		name.SetType(f.Type)
+		name.SetTypecheck(1)
+		Declare(name, ctxt)
+
+		f.Nname = name
+	}
+
+	return f
 }
 
 func Temp(t *types.Type) *ir.Name {
