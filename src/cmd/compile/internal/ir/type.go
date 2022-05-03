@@ -93,8 +93,8 @@ type Field struct {
 	Decl     *Name
 }
 
-func NewField(pos src.XPos, sym *types.Sym, ntyp Ntype, typ *types.Type) *Field {
-	return &Field{Pos: pos, Sym: sym, Ntype: ntyp, Type: typ}
+func NewField(pos src.XPos, sym *types.Sym, typ *types.Type) *Field {
+	return &Field{Pos: pos, Sym: sym, Ntype: nil, Type: typ}
 }
 
 func (f *Field) String() string {

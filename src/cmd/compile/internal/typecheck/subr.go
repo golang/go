@@ -40,7 +40,7 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
 			// TODO(mdempsky): Preserve original position, name, and package.
 			s = Lookup(s.Name)
 		}
-		a := ir.NewField(base.Pos, s, nil, t.Type)
+		a := ir.NewField(base.Pos, s, t.Type)
 		a.Pos = t.Pos
 		a.IsDDD = t.IsDDD()
 		args = append(args, a)

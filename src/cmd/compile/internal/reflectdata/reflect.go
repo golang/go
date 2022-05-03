@@ -1856,7 +1856,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	typecheck.DeclContext = ir.PEXTERN
 
 	tfn := ir.NewFuncType(base.Pos,
-		ir.NewField(base.Pos, typecheck.Lookup(".this"), nil, rcvr),
+		ir.NewField(base.Pos, typecheck.Lookup(".this"), rcvr),
 		typecheck.NewFuncParams(method.Type.Params(), true),
 		typecheck.NewFuncParams(method.Type.Results(), false))
 
