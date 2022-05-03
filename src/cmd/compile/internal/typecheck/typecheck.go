@@ -473,10 +473,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OTYPE:
 		return n
 
-	case ir.OTFUNC:
-		n := n.(*ir.FuncType)
-		return tcFuncType(n)
-
 	// type or expr
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
