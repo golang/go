@@ -8,8 +8,8 @@ import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmd/internal/notsha256"
 	"cmd/internal/src"
-	"crypto/sha1"
 	"fmt"
 	"io"
 	"math"
@@ -854,7 +854,7 @@ func (f *Func) DebugHashMatch(evname string) bool {
 	// We use this feature to do a binary search to
 	// find a function that is incorrectly compiled.
 	hstr := ""
-	for _, b := range sha1.Sum([]byte(name)) {
+	for _, b := range notsha256.Sum256([]byte(name)) {
 		hstr += fmt.Sprintf("%08b", b)
 	}
 

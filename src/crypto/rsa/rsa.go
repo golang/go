@@ -24,6 +24,9 @@ package rsa
 
 import (
 	"crypto"
+	"crypto/internal/boring"
+	"crypto/internal/boring/bbig"
+	"crypto/internal/randutil"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
@@ -31,8 +34,6 @@ import (
 	"io"
 	"math"
 	"math/big"
-
-	"crypto/internal/randutil"
 )
 
 var bigZero = big.NewInt(0)
@@ -256,6 +257,40 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
 	randutil.MaybeReadByte(random)
 
+	if boring.Enabled && random == boring.RandReader && nprimes == 2 && (bits == 2048 || bits == 3072) {
+		bN, bE, bD, bP, bQ, bDp, bDq, bQinv, err := boring.GenerateKeyRSA(bits)
+		if err != nil {
+			return nil, err
+		}
+		N := bbig.Dec(bN)
+		E := bbig.Dec(bE)
+		D := bbig.Dec(bD)
+		P := bbig.Dec(bP)
+		Q := bbig.Dec(bQ)
+		Dp := bbig.Dec(bDp)
+		Dq := bbig.Dec(bDq)
+		Qinv := bbig.Dec(bQinv)
+		e64 := E.Int64()
+		if !E.IsInt64() || int64(int(e64)) != e64 {
+			return nil, errors.New("crypto/rsa: generated key exponent too large")
+		}
+		key := &PrivateKey{
+			PublicKey: PublicKey{
+				N: N,
+				E: int(e64),
+			},
+			D:      D,
+			Primes: []*big.Int{P, Q},
+			Precomputed: PrecomputedValues{
+				Dp:        Dp,
+				Dq:        Dq,
+				Qinv:      Qinv,
+				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
+			},
+		}
+		return key, nil
+	}
+
 	priv := new(PrivateKey)
 	priv.E = 65537
 
@@ -385,6 +420,7 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA public key size")
 
 func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
+	boring.Unreachable()
 	e := big.NewInt(int64(pub.E))
 	c.Exp(m, e, pub.N)
 	return c
@@ -417,6 +453,15 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 		return nil, ErrMessageTooLong
 	}
 
+	if boring.Enabled && random == boring.RandReader {
+		bkey, err := boringPublicKey(pub)
+		if err != nil {
+			return nil, err
+		}
+		return boring.EncryptRSAOAEP(hash, bkey, msg, label)
+	}
+	boring.UnreachableExceptTests()
+
 	hash.Write(label)
 	lHash := hash.Sum(nil)
 	hash.Reset()
@@ -436,6 +481,15 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 
 	mgf1XOR(db, hash, seed)
 	mgf1XOR(seed, hash, db)
+
+	if boring.Enabled {
+		var bkey *boring.PublicKeyRSA
+		bkey, err = boringPublicKey(pub)
+		if err != nil {
+			return nil, err
+		}
+		return boring.EncryptRSANoPadding(bkey, em)
+	}
 
 	m := new(big.Int)
 	m.SetBytes(em)
@@ -487,6 +541,9 @@ func (priv *PrivateKey) Precompute() {
 // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
 // random source is given, RSA blinding is used.
 func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err error) {
+	if len(priv.Primes) <= 2 {
+		boring.Unreachable()
+	}
 	// TODO(agl): can we get away with reusing blinds?
 	if c.Cmp(priv.N) > 0 {
 		err = ErrDecryption
@@ -603,6 +660,17 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 		return nil, ErrDecryption
 	}
 
+	if boring.Enabled {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		out, err := boring.DecryptRSAOAEP(hash, bkey, ciphertext, label)
+		if err != nil {
+			return nil, ErrDecryption
+		}
+		return out, nil
+	}
 	c := new(big.Int).SetBytes(ciphertext)
 
 	m, err := decrypt(random, priv, c)

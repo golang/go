@@ -10,9 +10,9 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
-	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -460,7 +460,7 @@ func contentHash64(s *LSym) goobj.Hash64Type {
 // For now, we assume there is no circular dependencies among
 // hashed symbols.
 func (w *writer) contentHash(s *LSym) goobj.HashType {
-	h := sha1.New()
+	h := notsha256.New()
 	var tmp [14]byte
 
 	// Include the size of the symbol in the hash.

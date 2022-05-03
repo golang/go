@@ -19,9 +19,15 @@ import (
 	"time"
 )
 
+import "crypto/internal/boring"
+
 const urandomDevice = "/dev/urandom"
 
 func init() {
+	if boring.Enabled {
+		Reader = boring.RandReader
+		return
+	}
 	Reader = &reader{}
 }
 
@@ -59,6 +65,7 @@ func warnBlocked() {
 }
 
 func (r *reader) Read(b []byte) (n int, err error) {
+	boring.Unreachable()
 	if atomic.CompareAndSwapUint32(&r.used, 0, 1) {
 		// First use of randomness. Start timer to warn about
 		// being blocked on entropy not being available.

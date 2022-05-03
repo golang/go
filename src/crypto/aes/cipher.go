@@ -10,6 +10,8 @@ import (
 	"strconv"
 )
 
+import "crypto/internal/boring"
+
 // The AES block size in bytes.
 const BlockSize = 16
 
@@ -36,6 +38,9 @@ func NewCipher(key []byte) (cipher.Block, error) {
 		return nil, KeySizeError(k)
 	case 16, 24, 32:
 		break
+	}
+	if boring.Enabled {
+		return boring.NewAESCipher(key)
 	}
 	return newCipher(key)
 }
