@@ -159,18 +159,18 @@ func (c *mcache) refill(spc spanClass) {
 
 		// Count up how many slots were used and record it.
 		stats := memstats.heapStats.acquire()
-		slotsUsed := uintptr(s.allocCount) - uintptr(s.allocCountBeforeCache)
-		atomic.Xadduintptr(&stats.smallAllocCount[spc.sizeclass()], slotsUsed)
+		slotsUsed := int64(s.allocCount) - int64(s.allocCountBeforeCache)
+		atomic.Xadd64(&stats.smallAllocCount[spc.sizeclass()], slotsUsed)
 
 		// Flush tinyAllocs.
 		if spc == tinySpanClass {
-			atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+			atomic.Xadd64(&stats.tinyAllocCount, int64(c.tinyAllocs))
 			c.tinyAllocs = 0
 		}
 		memstats.heapStats.release()
 
 		// Count the allocs in inconsistent, internal stats.
-		bytesAllocated := int64(slotsUsed * s.elemsize)
+		bytesAllocated := slotsUsed * int64(s.elemsize)
 		gcController.totalAlloc.Add(bytesAllocated)
 
 		// Update heapLive and flush scanAlloc.
@@ -224,8 +224,8 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
 
 	// Count the alloc in consistent, external stats.
 	stats := memstats.heapStats.acquire()
-	atomic.Xadduintptr(&stats.largeAlloc, npages*pageSize)
-	atomic.Xadduintptr(&stats.largeAllocCount, 1)
+	atomic.Xadd64(&stats.largeAlloc, int64(npages*pageSize))
+	atomic.Xadd64(&stats.largeAllocCount, 1)
 	memstats.heapStats.release()
 
 	// Count the alloc in inconsistent, internal stats.
@@ -250,17 +250,17 @@ func (c *mcache) releaseAll() {
 	for i := range c.alloc {
 		s := c.alloc[i]
 		if s != &emptymspan {
-			slotsUsed := uintptr(s.allocCount) - uintptr(s.allocCountBeforeCache)
+			slotsUsed := int64(s.allocCount) - int64(s.allocCountBeforeCache)
 			s.allocCountBeforeCache = 0
 
 			// Adjust smallAllocCount for whatever was allocated.
 			stats := memstats.heapStats.acquire()
-			atomic.Xadduintptr(&stats.smallAllocCount[spanClass(i).sizeclass()], slotsUsed)
+			atomic.Xadd64(&stats.smallAllocCount[spanClass(i).sizeclass()], slotsUsed)
 			memstats.heapStats.release()
 
 			// Adjust the actual allocs in inconsistent, internal stats.
 			// We assumed earlier that the full span gets allocated.
-			gcController.totalAlloc.Add(int64(slotsUsed * s.elemsize))
+			gcController.totalAlloc.Add(slotsUsed * int64(s.elemsize))
 
 			// Release the span to the mcentral.
 			mheap_.central[i].mcentral.uncacheSpan(s)
@@ -273,7 +273,7 @@ func (c *mcache) releaseAll() {
 
 	// Flush tinyAllocs.
 	stats := memstats.heapStats.acquire()
-	atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+	atomic.Xadd64(&stats.tinyAllocCount, int64(c.tinyAllocs))
 	c.tinyAllocs = 0
 	memstats.heapStats.release()
 

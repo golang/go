@@ -668,7 +668,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			// free slots zeroed.
 			s.needzero = 1
 			stats := memstats.heapStats.acquire()
-			atomic.Xadduintptr(&stats.smallFreeCount[spc.sizeclass()], uintptr(nfreed))
+			atomic.Xadd64(&stats.smallFreeCount[spc.sizeclass()], int64(nfreed))
 			memstats.heapStats.release()
 
 			// Count the frees in the inconsistent, internal stats.
@@ -720,8 +720,8 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 
 			// Count the free in the consistent, external stats.
 			stats := memstats.heapStats.acquire()
-			atomic.Xadduintptr(&stats.largeFreeCount, 1)
-			atomic.Xadduintptr(&stats.largeFree, size)
+			atomic.Xadd64(&stats.largeFreeCount, 1)
+			atomic.Xadd64(&stats.largeFree, int64(size))
 			memstats.heapStats.release()
 
 			// Count the free in the inconsistent, internal stats.
