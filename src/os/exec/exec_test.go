@@ -1156,3 +1156,11 @@ func TestChildCriticalEnv(t *testing.T) {
 		t.Error("no SYSTEMROOT found")
 	}
 }
+
+func TestNoPath(t *testing.T) {
+	err := new(exec.Cmd).Start()
+	want := "exec: no command"
+	if err == nil || err.Error() != want {
+		t.Errorf("new(Cmd).Start() = %v, want %q", err, want)
+	}
+}
