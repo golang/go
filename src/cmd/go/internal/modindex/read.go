@@ -210,7 +210,7 @@ func (mi *ModuleIndex) Packages() []string {
 
 // RelPath returns the path relative to the module's root.
 func (mi *ModuleIndex) RelPath(path string) string {
-	return filepath.Clean(str.TrimFilePathPrefix(path, mi.modroot))
+	return str.TrimFilePathPrefix(path, mi.modroot)
 }
 
 // ImportPackage is the equivalent of build.Import given the information in ModuleIndex.

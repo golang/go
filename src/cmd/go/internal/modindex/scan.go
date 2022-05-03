@@ -4,6 +4,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/par"
+	"cmd/go/internal/str"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -54,10 +55,10 @@ func indexModule(modroot string) ([]byte, error) {
 		if !info.IsDir() {
 			return nil
 		}
-		rel, err := filepath.Rel(modroot, path)
-		if err != nil {
-			panic(err)
+		if !str.HasFilePathPrefix(path, modroot) {
+			panic(fmt.Errorf("path %v in walk doesn't have modroot %v as prefix:", path, modroot))
 		}
+		rel := str.TrimFilePathPrefix(path, modroot)
 		packages = append(packages, importRaw(modroot, rel))
 		return nil
 	})
