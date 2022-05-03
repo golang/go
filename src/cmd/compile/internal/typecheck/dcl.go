@@ -203,16 +203,6 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
 	Declare(name, ctxt)
 }
 
-func funcarg2(f *types.Field, ctxt ir.Class) {
-	if f.Sym == nil {
-		return
-	}
-	n := ir.NewNameAt(f.Pos, f.Sym)
-	f.Nname = n
-	n.SetType(f.Type)
-	Declare(n, ctxt)
-}
-
 func funcargs(nt *ir.FuncType) {
 	if nt.Op() != ir.OTFUNC {
 		base.Fatalf("funcargs %v", nt.Op())
@@ -242,25 +232,6 @@ func funcargs(nt *ir.FuncType) {
 		}
 
 		funcarg(n, ir.PPARAMOUT)
-	}
-}
-
-// Same as funcargs, except run over an already constructed TFUNC.
-// This happens during import, where the hidden_fndcl rule has
-// used functype directly to parse the function's type.
-func funcargs2(t *types.Type) {
-	if t.Kind() != types.TFUNC {
-		base.Fatalf("funcargs2 %v", t)
-	}
-
-	for _, f := range t.Recvs().Fields().Slice() {
-		funcarg2(f, ir.PPARAM)
-	}
-	for _, f := range t.Params().Fields().Slice() {
-		funcarg2(f, ir.PPARAM)
-	}
-	for _, f := range t.Results().Fields().Slice() {
-		funcarg2(f, ir.PPARAMOUT)
 	}
 }
 
