@@ -21,12 +21,6 @@ type Object interface {
 	Type() *Type
 }
 
-// A TypeObject is an Object representing a named type.
-type TypeObject interface {
-	Object
-	TypeDefn() *Type // for "type T Defn", returns Defn
-}
-
 //go:generate stringer -type Kind -trimprefix T type.go
 
 // Kind describes a kind of type.
@@ -1722,7 +1716,7 @@ var (
 // type should be set later via SetUnderlying(). References to the type are
 // maintained until the type is filled in, so those references can be updated when
 // the type is complete.
-func NewNamed(obj TypeObject) *Type {
+func NewNamed(obj Object) *Type {
 	t := newType(TFORW)
 	t.sym = obj.Sym()
 	t.nod = obj
