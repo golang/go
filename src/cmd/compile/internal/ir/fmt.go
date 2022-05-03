@@ -1138,11 +1138,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			fmt.Fprintf(w, "%+v", n.Op())
 		}
 		dumpNodeHeader(w, n)
-		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
-			indent(w, depth)
-			fmt.Fprintf(w, "%+v-ntype", n.Op())
-			dumpNode(w, n.Name().Ntype, depth+1)
-		}
 		return
 
 	case OASOP:
@@ -1153,11 +1148,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 	case OTYPE:
 		fmt.Fprintf(w, "%+v %+v", n.Op(), n.Sym())
 		dumpNodeHeader(w, n)
-		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
-			indent(w, depth)
-			fmt.Fprintf(w, "%+v-ntype", n.Op())
-			dumpNode(w, n.Name().Ntype, depth+1)
-		}
 		return
 
 	case OCLOSURE:

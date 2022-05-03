@@ -483,10 +483,6 @@ func inlcopy(n ir.Node) ir.Node {
 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
 			// XXX OK to share fn.Type() ??
 			newfn.Nname.SetType(oldfn.Nname.Type())
-			// Ntype can be nil for -G=3 mode.
-			if oldfn.Nname.Ntype != nil {
-				newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
-			}
 			newfn.Body = inlcopylist(oldfn.Body)
 			// Make shallow copy of the Dcl and ClosureVar slices
 			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
@@ -1132,11 +1128,6 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 
 	oldfn := n.Func
 	newfn := ir.NewClosureFunc(oldfn.Pos(), true)
-
-	// Ntype can be nil for -G=3 mode.
-	if oldfn.Nname.Ntype != nil {
-		newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
-	}
 
 	if subst.newclofn != nil {
 		//fmt.Printf("Inlining a closure with a nested closure\n")

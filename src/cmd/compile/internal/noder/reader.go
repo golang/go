@@ -153,10 +153,6 @@ type itabInfo2 struct {
 func setType(n ir.Node, typ *types.Type) {
 	n.SetType(typ)
 	n.SetTypecheck(1)
-
-	if name, ok := n.(*ir.Name); ok {
-		name.Ntype = ir.TypeNode(name.Type())
-	}
 }
 
 func setValue(name *ir.Name, val constant.Value) {

@@ -11,7 +11,7 @@ import (
 )
 
 // tcFuncType typechecks an OTFUNC node.
-func tcFuncType(n *ir.FuncType) ir.Node {
+func tcFuncType(n *ir.FuncType) *ir.FuncType {
 	misc := func(f *types.Field, nf *ir.Field) {
 		f.SetIsDDD(nf.IsDDD)
 		if nf.Decl != nil {
