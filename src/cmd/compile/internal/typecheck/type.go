@@ -40,10 +40,6 @@ func tcFuncType(n *ir.FuncType) ir.Node {
 // misc can be provided to handle specialized typechecking.
 func tcField(n *ir.Field, misc func(*types.Field, *ir.Field)) *types.Field {
 	base.Pos = n.Pos
-	if n.Ntype != nil {
-		n.Type = typecheckNtype(n.Ntype).Type()
-		n.Ntype = nil
-	}
 	f := types.NewField(n.Pos, n.Sym, n.Type)
 	if misc != nil {
 		misc(f, n)

@@ -85,7 +85,6 @@ func (n *FuncType) SetOTYPE(t *types.Type) {
 type Field struct {
 	Pos      src.XPos
 	Sym      *types.Sym
-	Ntype    Ntype
 	Type     *types.Type
 	Embedded bool
 	IsDDD    bool
@@ -94,20 +93,14 @@ type Field struct {
 }
 
 func NewField(pos src.XPos, sym *types.Sym, typ *types.Type) *Field {
-	return &Field{Pos: pos, Sym: sym, Ntype: nil, Type: typ}
+	return &Field{Pos: pos, Sym: sym, Type: typ}
 }
 
 func (f *Field) String() string {
-	var typ string
-	if f.Type != nil {
-		typ = fmt.Sprint(f.Type)
-	} else {
-		typ = fmt.Sprint(f.Ntype)
-	}
 	if f.Sym != nil {
-		return fmt.Sprintf("%v %v", f.Sym, typ)
+		return fmt.Sprintf("%v %v", f.Sym, f.Type)
 	}
-	return typ
+	return fmt.Sprint(f.Type)
 }
 
 // TODO(mdempsky): Make Field a Node again so these can be generated?
@@ -127,9 +120,6 @@ func doField(f *Field, do func(Node) bool) bool {
 	if f.Decl != nil && do(f.Decl) {
 		return true
 	}
-	if f.Ntype != nil && do(f.Ntype) {
-		return true
-	}
 	return false
 }
 func editField(f *Field, edit func(Node) Node) {
@@ -138,9 +128,6 @@ func editField(f *Field, edit func(Node) Node) {
 	}
 	if f.Decl != nil {
 		f.Decl = edit(f.Decl).(*Name)
-	}
-	if f.Ntype != nil {
-		f.Ntype = edit(f.Ntype).(Ntype)
 	}
 }
 
