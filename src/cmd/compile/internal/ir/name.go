@@ -31,8 +31,6 @@ func NewIdent(pos src.XPos, sym *types.Sym) *Ident {
 
 func (n *Ident) Sym() *types.Sym { return n.sym }
 
-func (*Ident) CanBeNtype() {}
-
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
 type Name struct {
 	miniExpr

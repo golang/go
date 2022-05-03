@@ -821,11 +821,11 @@ func tcStar(n *ir.StarExpr, top int) ir.Node {
 		n.SetType(nil)
 		return n
 	}
+
+	// TODO(mdempsky): Remove (along with ctxType above) once I'm
+	// confident this code path isn't needed any more.
 	if l.Op() == ir.OTYPE {
-		n.SetOTYPE(types.NewPtr(l.Type()))
-		// Ensure l.Type gets CalcSize'd for the backend. Issue 20174.
-		types.CheckSize(l.Type())
-		return n
+		base.Fatalf("unexpected type in deref expression: %v", l)
 	}
 
 	if !t.IsPtr() {

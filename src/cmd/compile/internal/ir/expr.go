@@ -439,16 +439,6 @@ func NewParenExpr(pos src.XPos, x Node) *ParenExpr {
 func (n *ParenExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *ParenExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
 
-func (*ParenExpr) CanBeNtype() {}
-
-// SetOTYPE changes n to be an OTYPE node returning t,
-// like all the type nodes in type.go.
-func (n *ParenExpr) SetOTYPE(t *types.Type) {
-	n.op = OTYPE
-	n.typ = t
-	t.SetNod(n)
-}
-
 // A RawOrigExpr represents an arbitrary Go expression as a string value.
 // When printed in diagnostics, the string value is written out exactly as-is.
 type RawOrigExpr struct {
@@ -558,10 +548,6 @@ func (n *SelectorExpr) FuncName() *Name {
 	return fn
 }
 
-// Before type-checking, bytes.Buffer is a SelectorExpr.
-// After type-checking it becomes a Name.
-func (*SelectorExpr) CanBeNtype() {}
-
 // A SliceExpr is a slice expression X[Low:High] or X[Low:High:Max].
 type SliceExpr struct {
 	miniExpr
@@ -632,17 +618,6 @@ func NewStarExpr(pos src.XPos, x Node) *StarExpr {
 
 func (n *StarExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *StarExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
-
-func (*StarExpr) CanBeNtype() {}
-
-// SetOTYPE changes n to be an OTYPE node returning t,
-// like all the type nodes in type.go.
-func (n *StarExpr) SetOTYPE(t *types.Type) {
-	n.op = OTYPE
-	n.X = nil
-	n.typ = t
-	t.SetNod(n)
-}
 
 // A TypeAssertionExpr is a selector expression X.(Type).
 // Before type-checking, the type is Ntype.
