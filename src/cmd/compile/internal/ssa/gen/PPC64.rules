@@ -381,8 +381,9 @@
 (OrB ...) => (OR ...)
 (Not x) => (XORconst [1] x)
 
-// Use ANDN for AND x NOT y
+// Merge logical operations
 (AND x (NOR y y)) => (ANDN x y)
+(OR x (NOR y y)) => (ORN x y)
 
 // Lowering comparisons
 (EqB x y)  => (ANDconst [1] (EQV x y))
