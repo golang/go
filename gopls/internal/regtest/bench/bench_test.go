@@ -130,7 +130,7 @@ func TestBenchmarkSymbols(t *testing.T) {
 }
 
 var (
-	benchDir     = flag.String("didchange_dir", "", "If set, run benchmarks in this dir. Must also set regtest_bench_file.")
+	benchDir     = flag.String("didchange_dir", "", "If set, run benchmarks in this dir. Must also set didchange_file.")
 	benchFile    = flag.String("didchange_file", "", "The file to modify")
 	benchProfile = flag.String("didchange_cpuprof", "", "file to write cpu profiling data to")
 )
