@@ -247,7 +247,7 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
 
 	lockfile = dir + ".lock"
 	if cfg.BuildX {
-		fmt.Fprintf(os.Stderr, "# lock %s", lockfile)
+		fmt.Fprintf(os.Stderr, "# lock %s\n", lockfile)
 	}
 
 	unlock, err := lockedfile.MutexAt(lockfile).Lock()
