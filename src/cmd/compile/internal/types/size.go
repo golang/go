@@ -169,7 +169,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 	}
 	// Special case: sync/atomic.align64 is an empty struct we recognize
 	// as a signal that the struct it contains must be 64-bit-aligned.
-	if isStruct && t.NumFields() == 0 && t.Sym() != nil && t.Sym().Name == "align64" && isSyncAtomic(t.Sym().Pkg) {
+	if isStruct && t.NumFields() == 0 && t.Sym() != nil && t.Sym().Name == "align64" && isAtomicStdPkg(t.Sym().Pkg) {
 		maxalign = 8
 	}
 	lastzero := int64(0)
@@ -231,8 +231,9 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 	return o
 }
 
-func isSyncAtomic(p *Pkg) bool {
-	return p.Prefix == "sync/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "sync/atomic"
+func isAtomicStdPkg(p *Pkg) bool {
+	return (p.Prefix == "sync/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "sync/atomic") ||
+		(p.Prefix == "runtime/internal/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "runtime/internal/atomic")
 }
 
 // CalcSize calculates and stores the size and alignment for t.
