@@ -1619,19 +1619,41 @@ func TestLookupFieldOrMethod(t *testing.T) {
 		{"var x T; type T struct{ f int }", true, []int{0}, false},
 		{"var x T; type T struct{ a, b, f, c int }", true, []int{2}, false},
 
+		// field lookups on a generic type
+		{"var x T[int]; type T[P any] struct{}", false, nil, false},
+		{"var x T[int]; type T[P any] struct{ f P }", true, []int{0}, false},
+		{"var x T[int]; type T[P any] struct{ a, b, f, c P }", true, []int{2}, false},
+
 		// method lookups
 		{"var a T; type T struct{}; func (T) f() {}", true, []int{0}, false},
 		{"var a *T; type T struct{}; func (T) f() {}", true, []int{0}, true},
 		{"var a T; type T struct{}; func (*T) f() {}", true, []int{0}, false},
 		{"var a *T; type T struct{}; func (*T) f() {}", true, []int{0}, true}, // TODO(gri) should this report indirect = false?
 
+		// method lookups on a generic type
+		{"var a T[int]; type T[P any] struct{}; func (T[P]) f() {}", true, []int{0}, false},
+		{"var a *T[int]; type T[P any] struct{}; func (T[P]) f() {}", true, []int{0}, true},
+		{"var a T[int]; type T[P any] struct{}; func (*T[P]) f() {}", true, []int{0}, false},
+		{"var a *T[int]; type T[P any] struct{}; func (*T[P]) f() {}", true, []int{0}, true}, // TODO(gri) should this report indirect = false?
+
 		// collisions
 		{"type ( E1 struct{ f int }; E2 struct{ f int }; x struct{ E1; *E2 })", false, []int{1, 0}, false},
 		{"type ( E1 struct{ f int }; E2 struct{}; x struct{ E1; *E2 }); func (E2) f() {}", false, []int{1, 0}, false},
 
+		// collisions on a generic type
+		{"type ( E1[P any] struct{ f P }; E2[P any] struct{ f P }; x struct{ E1[int]; *E2[int] })", false, []int{1, 0}, false},
+		{"type ( E1[P any] struct{ f P }; E2[P any] struct{}; x struct{ E1[int]; *E2[int] }); func (E2[P]) f() {}", false, []int{1, 0}, false},
+
 		// outside methodset
 		// (*T).f method exists, but value of type T is not addressable
 		{"var x T; type T struct{}; func (*T) f() {}", false, nil, true},
+
+		// outside method set of a generic type
+		{"var x T[int]; type T[P any] struct{}; func (*T[P]) f() {}", false, nil, true},
+
+		// recursive generic types; see golang/go#52715
+		{"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (N[P]) f() {}", true, []int{0, 0}, true},
+		{"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (T[P]) f() {}", true, []int{0}, false},
 	}
 
 	for _, test := range tests {
@@ -1664,6 +1686,37 @@ func TestLookupFieldOrMethod(t *testing.T) {
 			t.Errorf("%s: got indirect = %v; want %v", test.src, indirect, test.indirect)
 		}
 	}
+}
+
+// Test for golang/go#52715
+func TestLookupFieldOrMethod_RecursiveGeneric(t *testing.T) {
+	const src = `
+package pkg
+
+type Tree[T any] struct {
+	*Node[T]
+}
+
+func (*Tree[R]) N(r R) R { return r }
+
+type Node[T any] struct {
+	*Tree[T]
+}
+
+type Instance = *Tree[int]
+`
+
+	f, err := parseSrc("foo.go", src)
+	if err != nil {
+		panic(err)
+	}
+	pkg := NewPackage("pkg", f.PkgName.Value)
+	if err := NewChecker(nil, pkg, nil).Files([]*syntax.File{f}); err != nil {
+		panic(err)
+	}
+
+	T := pkg.Scope().Lookup("Instance").Type()
+	_, _, _ = LookupFieldOrMethod(T, false, pkg, "M") // verify that LookupFieldOrMethod terminates
 }
 
 func sameSlice(a, b []int) bool {
