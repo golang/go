@@ -72,10 +72,6 @@ func isSimpleName(nn ir.Node) bool {
 	return n.OnStack()
 }
 
-func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
-	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, l, r))
-}
-
 // initGenType is a bitmap indicating the types of generation that will occur for a static value.
 type initGenType uint8
 
@@ -420,7 +416,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil)
 	a.SetEsc(n.Esc())
 	a.Args = []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
-	litas(m, a, init)
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, m, a))
 
 	entries := n.List
 
