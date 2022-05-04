@@ -352,6 +352,12 @@ var readSetCookiesTests = []struct {
 		Header{"Set-Cookie": {`special-8=","`}},
 		[]*Cookie{{Name: "special-8", Value: ",", Raw: `special-8=","`}},
 	},
+	// Make sure we can properly read back the Set-Cookie headers
+	// for names containing spaces:
+	{
+		Header{"Set-Cookie": {`special-9 =","`}},
+		[]*Cookie{{Name: "special-9", Value: ",", Raw: `special-9 =","`}},
+	},
 
 	// TODO(bradfitz): users have reported seeing this in the
 	// wild, but do browsers handle it? RFC 6265 just says "don't

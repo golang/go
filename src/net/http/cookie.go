@@ -73,6 +73,7 @@ func readSetCookies(h Header) []*Cookie {
 		if !ok {
 			continue
 		}
+		name = textproto.TrimString(name)
 		if !isCookieNameValid(name) {
 			continue
 		}
@@ -291,6 +292,7 @@ func readCookies(h Header, filter string) []*Cookie {
 				continue
 			}
 			name, val, _ := strings.Cut(part, "=")
+			name = textproto.TrimString(name)
 			if !isCookieNameValid(name) {
 				continue
 			}
