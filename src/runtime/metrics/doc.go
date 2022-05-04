@@ -167,6 +167,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		by code called via cgo or via the syscall package.
 		Sum of all metrics in /memory/classes.
 
+	/sched/gomaxprocs:threads
+		The current runtime.GOMAXPROCS setting, or the number of
+		operating system threads that can execute user-level Go code
+		simultaneously.
+
 	/sched/goroutines:goroutines
 		Count of live goroutines.
 

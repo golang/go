@@ -221,6 +221,11 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name:        "/sched/gomaxprocs:threads",
+		Description: "The current runtime.GOMAXPROCS setting, or the number of operating system threads that can execute user-level Go code simultaneously.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/sched/goroutines:goroutines",
 		Description: "Count of live goroutines.",
 		Kind:        KindUint64,

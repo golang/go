@@ -223,6 +223,10 @@ func TestReadMetricsConsistency(t *testing.T) {
 			for i := range h.Counts {
 				gc.pauses += h.Counts[i]
 			}
+		case "/sched/gomaxprocs:threads":
+			if got, want := samples[i].Value.Uint64(), uint64(runtime.GOMAXPROCS(-1)); got != want {
+				t.Errorf("gomaxprocs doesn't match runtime.GOMAXPROCS: got %d, want %d", got, want)
+			}
 		case "/sched/goroutines:goroutines":
 			if samples[i].Value.Uint64() < 1 {
 				t.Error("number of goroutines is less than one")
