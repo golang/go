@@ -745,6 +745,7 @@ func traceReadCPU() {
 			}
 			goid := data[3]
 			stk := data[4:data[0]]
+			empty := len(stk) == 1 && data[2] == 0 && data[3] == 0
 			data = data[data[0]:]
 			// No support here for reporting goroutine tags at the moment; if
 			// that information is to be part of the execution trace, we'd
@@ -752,7 +753,7 @@ func traceReadCPU() {
 			// change, instead of only seeing them when we get a CPU sample.
 			tags = tags[1:]
 
-			if len(stk) == 1 && data[2] == 0 && data[3] == 0 {
+			if empty {
 				// Looks like an overflow record from the profBuf. Not much to
 				// do here, we only want to report full records.
 				//
