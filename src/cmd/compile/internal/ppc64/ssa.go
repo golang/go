@@ -468,6 +468,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p8 := s.Prog(obj.ANOP)
 		p6.To.SetTarget(p8)
 
+	case ssa.OpPPC64LoweredPubBarrier:
+		// LWSYNC
+		s.Prog(v.Op.Asm())
+
 	case ssa.OpPPC64LoweredGetClosurePtr:
 		// Closure pointer is R11 (already)
 		ssagen.CheckLoweredGetClosurePtr(v)

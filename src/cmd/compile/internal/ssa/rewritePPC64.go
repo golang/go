@@ -643,6 +643,9 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPrefetchCache(v)
 	case OpPrefetchCacheStreamed:
 		return rewriteValuePPC64_OpPrefetchCacheStreamed(v)
+	case OpPubBarrier:
+		v.Op = OpPPC64LoweredPubBarrier
+		return true
 	case OpRotateLeft16:
 		return rewriteValuePPC64_OpRotateLeft16(v)
 	case OpRotateLeft32:
