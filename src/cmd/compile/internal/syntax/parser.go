@@ -683,14 +683,14 @@ func extractName(x Expr, force bool) (*Name, Expr) {
 		}
 		switch x.Op {
 		case Mul:
-			if name, _ := x.X.(*Name); name != nil && (isTypeElem(x.Y) || force) {
+			if name, _ := x.X.(*Name); name != nil && (force || isTypeElem(x.Y)) {
 				// x = name *x.Y
 				op := *x
 				op.X, op.Y = op.Y, nil // change op into unary *op.Y
 				return name, &op
 			}
 		case Or:
-			if name, lhs := extractName(x.X, isTypeElem(x.Y) || force); name != nil && lhs != nil { // note: lhs should never be nil
+			if name, lhs := extractName(x.X, force || isTypeElem(x.Y)); name != nil && lhs != nil {
 				// x = name lhs|x.Y
 				op := *x
 				op.X = lhs
@@ -699,7 +699,7 @@ func extractName(x Expr, force bool) (*Name, Expr) {
 		}
 	case *CallExpr:
 		if name, _ := x.Fun.(*Name); name != nil {
-			if len(x.ArgList) == 1 && !x.HasDots && (isTypeElem(x.ArgList[0]) || force) {
+			if len(x.ArgList) == 1 && !x.HasDots && (force || isTypeElem(x.ArgList[0])) {
 				// x = name "(" x.ArgList[0] ")"
 				return name, x.ArgList[0]
 			}
