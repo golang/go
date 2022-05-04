@@ -7,6 +7,9 @@ package types_test
 import (
 	"testing"
 
+	"go/ast"
+	"go/parser"
+	"go/token"
 	. "go/types"
 )
 
@@ -26,10 +29,21 @@ func TestNewMethodSet(t *testing.T) {
 		"var a T; type T struct{}; func (*T) f() {}":  {},
 		"var a *T; type T struct{}; func (*T) f() {}": {{"f", []int{0}, true}},
 
+		// Generic named types
+		"var a T[int]; type T[P any] struct{}; func (T[P]) f() {}":   {{"f", []int{0}, false}},
+		"var a *T[int]; type T[P any] struct{}; func (T[P]) f() {}":  {{"f", []int{0}, true}},
+		"var a T[int]; type T[P any] struct{}; func (*T[P]) f() {}":  {},
+		"var a *T[int]; type T[P any] struct{}; func (*T[P]) f() {}": {{"f", []int{0}, true}},
+
 		// Interfaces
 		"var a T; type T interface{ f() }":                           {{"f", []int{0}, true}},
 		"var a T1; type ( T1 T2; T2 interface{ f() } )":              {{"f", []int{0}, true}},
 		"var a T1; type ( T1 interface{ T2 }; T2 interface{ f() } )": {{"f", []int{0}, true}},
+
+		// Genric interfaces
+		"var a T[int]; type T[P any] interface{ f() }":                                     {{"f", []int{0}, true}},
+		"var a T1[int]; type ( T1[P any] T2[P]; T2[P any] interface{ f() } )":              {{"f", []int{0}, true}},
+		"var a T1[int]; type ( T1[P any] interface{ T2[P] }; T2[P any] interface{ f() } )": {{"f", []int{0}, true}},
 
 		// Embedding
 		"var a struct{ E }; type E interface{ f() }":            {{"f", []int{0, 0}, true}},
@@ -39,12 +53,24 @@ func TestNewMethodSet(t *testing.T) {
 		"var a struct{ E }; type E struct{}; func (*E) f() {}":  {},
 		"var a struct{ *E }; type E struct{}; func (*E) f() {}": {{"f", []int{0, 0}, true}},
 
+		// Embedding of generic types
+		"var a struct{ E[int] }; type E[P any] interface{ f() }":               {{"f", []int{0, 0}, true}},
+		"var a *struct{ E[int] }; type E[P any] interface{ f() }":              {{"f", []int{0, 0}, true}},
+		"var a struct{ E[int] }; type E[P any] struct{}; func (E[P]) f() {}":   {{"f", []int{0, 0}, false}},
+		"var a struct{ *E[int] }; type E[P any] struct{}; func (E[P]) f() {}":  {{"f", []int{0, 0}, true}},
+		"var a struct{ E[int] }; type E[P any] struct{}; func (*E[P]) f() {}":  {},
+		"var a struct{ *E[int] }; type E[P any] struct{}; func (*E[P]) f() {}": {{"f", []int{0, 0}, true}},
+
 		// collisions
 		"var a struct{ E1; *E2 }; type ( E1 interface{ f() }; E2 struct{ f int })":            {},
 		"var a struct{ E1; *E2 }; type ( E1 struct{ f int }; E2 struct{} ); func (E2) f() {}": {},
+
+		// recursive generic types; see golang/go#52715
+		"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (N[P]) m() {}": {{"m", []int{0, 0}, true}},
+		"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (T[P]) m() {}": {{"m", []int{0}, false}},
 	}
 
-	genericTests := map[string][]method{
+	tParamTests := map[string][]method{
 		// By convention, look up a in the scope of "g"
 		"type C interface{ f() }; func g[T C](a T){}":               {{"f", []int{0}, true}},
 		"type C interface{ f() }; func g[T C]() { var a T; _ = a }": {{"f", []int{0}, true}},
@@ -58,12 +84,7 @@ func TestNewMethodSet(t *testing.T) {
 	}
 
 	check := func(src string, methods []method, generic bool) {
-		pkgName := "p"
-		if generic {
-			// The generic_ prefix causes pkgFor to allow generic code.
-			pkgName = "generic_p"
-		}
-		pkg, err := pkgFor("test", "package "+pkgName+";"+src, nil)
+		pkg, err := pkgForMode("test", "package p;"+src, nil, 0)
 		if err != nil {
 			t.Errorf("%s: incorrect test case: %s", src, err)
 			return
@@ -103,7 +124,37 @@ func TestNewMethodSet(t *testing.T) {
 		check(src, methods, false)
 	}
 
-	for src, methods := range genericTests {
+	for src, methods := range tParamTests {
 		check(src, methods, true)
 	}
+}
+
+// Test for golang/go#52715
+func TestNewMethodSet_RecursiveGeneric(t *testing.T) {
+	const src = `
+package pkg
+
+type Tree[T any] struct {
+	*Node[T]
+}
+
+type Node[T any] struct {
+	*Tree[T]
+}
+
+type Instance = *Tree[int]
+`
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "foo.go", src, 0)
+	if err != nil {
+		panic(err)
+	}
+	pkg := NewPackage("pkg", f.Name.Name)
+	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
+		panic(err)
+	}
+
+	T := pkg.Scope().Lookup("Instance").Type()
+	_ = NewMethodSet(T) // verify that NewMethodSet terminates
 }
