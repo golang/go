@@ -81,11 +81,6 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	return
 }
 
-// TODO(gri) The named type consolidation and seen maps below must be
-// indexed by unique keys for a given type. Verify that named
-// types always have only one representation (even when imported
-// indirectly via different packages.)
-
 // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
 // If foldCase is true, the lookup for methods will include looking for any method
 // which case-folds to the same as 'name' (used for giving helpful error messages).
@@ -110,14 +105,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 	// Start with typ as single entry at shallowest depth.
 	current := []embeddedType{{typ, nil, isPtr, false}}
 
-	// Named types that we have seen already, allocated lazily.
+	// seen tracks named types that we have seen already, allocated lazily.
 	// Used to avoid endless searches in case of recursive types.
-	// Since only Named types can be used for recursive types, we
-	// only need to track those.
-	// (If we ever allow type aliases to construct recursive types,
-	// we must use type identity rather than pointer equality for
-	// the map key comparison, as we do in consolidateMultiples.)
-	var seen map[*Named]bool
+	//
+	// We must use a lookup on identity rather than a simple map[*Named]bool as
+	// instantiated types may be identical but not equal.
+	var seen instanceLookup
 
 	// search current depth
 	for len(current) > 0 {
@@ -130,7 +123,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
 			if named, _ := typ.(*Named); named != nil {
-				if seen[named] {
+				if alt := seen.lookup(named); alt != nil {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
 					// were consolidated before). The type at that depth shadows
@@ -138,10 +131,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 					// this one.
 					continue
 				}
-				if seen == nil {
-					seen = make(map[*Named]bool)
-				}
-				seen[named] = true
+				seen.add(named)
 
 				// look for a matching attached method
 				named.resolve(nil)
@@ -269,6 +259,27 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
 	}
 
 	return 0, false
+}
+
+type instanceLookup struct {
+	m map[*Named][]*Named
+}
+
+func (l *instanceLookup) lookup(inst *Named) *Named {
+	for _, t := range l.m[inst.Origin()] {
+		if Identical(inst, t) {
+			return t
+		}
+	}
+	return nil
+}
+
+func (l *instanceLookup) add(inst *Named) {
+	if l.m == nil {
+		l.m = make(map[*Named][]*Named)
+	}
+	insts := l.m[inst.Origin()]
+	l.m[inst.Origin()] = append(insts, inst)
 }
 
 // MissingMethod returns (nil, false) if V implements T, otherwise it
