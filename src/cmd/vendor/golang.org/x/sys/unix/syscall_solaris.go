@@ -737,8 +737,20 @@ type fileObjCookie struct {
 type EventPort struct {
 	port  int
 	mu    sync.Mutex
-	fds   map[uintptr]interface{}
+	fds   map[uintptr]*fileObjCookie
 	paths map[string]*fileObjCookie
+	// The user cookie presents an interesting challenge from a memory management perspective.
+	// There are two paths by which we can discover that it is no longer in use:
+	// 1. The user calls port_dissociate before any events fire
+	// 2. An event fires and we return it to the user
+	// The tricky situation is if the event has fired in the kernel but
+	// the user hasn't requested/received it yet.
+	// If the user wants to port_dissociate before the event has been processed,
+	// we should handle things gracefully. To do so, we need to keep an extra
+	// reference to the cookie around until the event is processed
+	// thus the otherwise seemingly extraneous "cookies" map
+	// The key of this map is a pointer to the corresponding &fCookie.cookie
+	cookies map[*interface{}]*fileObjCookie
 }
 
 // PortEvent is an abstraction of the port_event C struct.
@@ -762,9 +774,10 @@ func NewEventPort() (*EventPort, error) {
 		return nil, err
 	}
 	e := &EventPort{
-		port:  port,
-		fds:   make(map[uintptr]interface{}),
-		paths: make(map[string]*fileObjCookie),
+		port:    port,
+		fds:     make(map[uintptr]*fileObjCookie),
+		paths:   make(map[string]*fileObjCookie),
+		cookies: make(map[*interface{}]*fileObjCookie),
 	}
 	return e, nil
 }
@@ -779,9 +792,13 @@ func NewEventPort() (*EventPort, error) {
 func (e *EventPort) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	err := Close(e.port)
+	if err != nil {
+		return err
+	}
 	e.fds = nil
 	e.paths = nil
-	return Close(e.port)
+	return nil
 }
 
 // PathIsWatched checks to see if path is associated with this EventPort.
@@ -818,6 +835,7 @@ func (e *EventPort) AssociatePath(path string, stat os.FileInfo, events int, coo
 		return err
 	}
 	e.paths[path] = fCookie
+	e.cookies[&fCookie.cookie] = fCookie
 	return nil
 }
 
@@ -830,11 +848,19 @@ func (e *EventPort) DissociatePath(path string) error {
 		return fmt.Errorf("%v is not associated with this Event Port", path)
 	}
 	_, err := port_dissociate(e.port, PORT_SOURCE_FILE, uintptr(unsafe.Pointer(f.fobj)))
-	if err != nil {
+	// If the path is no longer associated with this event port (ENOENT)
+	// we should delete it from our map. We can still return ENOENT to the caller.
+	// But we need to save the cookie
+	if err != nil && err != ENOENT {
 		return err
 	}
+	if err == nil {
+		// dissociate was successful, safe to delete the cookie
+		fCookie := e.paths[path]
+		delete(e.cookies, &fCookie.cookie)
+	}
 	delete(e.paths, path)
-	return nil
+	return err
 }
 
 // AssociateFd wraps calls to port_associate(3c) on file descriptors.
@@ -844,12 +870,13 @@ func (e *EventPort) AssociateFd(fd uintptr, events int, cookie interface{}) erro
 	if _, found := e.fds[fd]; found {
 		return fmt.Errorf("%v is already associated with this Event Port", fd)
 	}
-	pcookie := &cookie
-	_, err := port_associate(e.port, PORT_SOURCE_FD, fd, events, (*byte)(unsafe.Pointer(pcookie)))
+	fCookie := &fileObjCookie{nil, cookie}
+	_, err := port_associate(e.port, PORT_SOURCE_FD, fd, events, (*byte)(unsafe.Pointer(&fCookie.cookie)))
 	if err != nil {
 		return err
 	}
-	e.fds[fd] = pcookie
+	e.fds[fd] = fCookie
+	e.cookies[&fCookie.cookie] = fCookie
 	return nil
 }
 
@@ -862,11 +889,16 @@ func (e *EventPort) DissociateFd(fd uintptr) error {
 		return fmt.Errorf("%v is not associated with this Event Port", fd)
 	}
 	_, err := port_dissociate(e.port, PORT_SOURCE_FD, fd)
-	if err != nil {
+	if err != nil && err != ENOENT {
 		return err
 	}
+	if err == nil {
+		// dissociate was successful, safe to delete the cookie
+		fCookie := e.fds[fd]
+		delete(e.cookies, &fCookie.cookie)
+	}
 	delete(e.fds, fd)
-	return nil
+	return err
 }
 
 func createFileObj(name string, stat os.FileInfo) (*fileObj, error) {
@@ -894,24 +926,46 @@ func (e *EventPort) GetOne(t *Timespec) (*PortEvent, error) {
 		return nil, err
 	}
 	p := new(PortEvent)
-	p.Events = pe.Events
-	p.Source = pe.Source
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	switch pe.Source {
-	case PORT_SOURCE_FD:
-		p.Fd = uintptr(pe.Object)
-		cookie := (*interface{})(unsafe.Pointer(pe.User))
-		p.Cookie = *cookie
-		delete(e.fds, p.Fd)
-	case PORT_SOURCE_FILE:
-		p.fobj = (*fileObj)(unsafe.Pointer(uintptr(pe.Object)))
-		p.Path = BytePtrToString((*byte)(unsafe.Pointer(p.fobj.Name)))
-		cookie := (*interface{})(unsafe.Pointer(pe.User))
-		p.Cookie = *cookie
-		delete(e.paths, p.Path)
-	}
+	e.peIntToExt(pe, p)
 	return p, nil
+}
+
+// peIntToExt converts a cgo portEvent struct into the friendlier PortEvent
+// NOTE: Always call this function while holding the e.mu mutex
+func (e *EventPort) peIntToExt(peInt *portEvent, peExt *PortEvent) {
+	peExt.Events = peInt.Events
+	peExt.Source = peInt.Source
+	cookie := (*interface{})(unsafe.Pointer(peInt.User))
+	peExt.Cookie = *cookie
+	switch peInt.Source {
+	case PORT_SOURCE_FD:
+		delete(e.cookies, cookie)
+		peExt.Fd = uintptr(peInt.Object)
+		// Only remove the fds entry if it exists and this cookie matches
+		if fobj, ok := e.fds[peExt.Fd]; ok {
+			if &fobj.cookie == cookie {
+				delete(e.fds, peExt.Fd)
+			}
+		}
+	case PORT_SOURCE_FILE:
+		if fCookie, ok := e.cookies[cookie]; ok && uintptr(unsafe.Pointer(fCookie.fobj)) == uintptr(peInt.Object) {
+			// Use our stashed reference rather than using unsafe on what we got back
+			// the unsafe version would be (*fileObj)(unsafe.Pointer(uintptr(peInt.Object)))
+			peExt.fobj = fCookie.fobj
+		} else {
+			panic("mismanaged memory")
+		}
+		delete(e.cookies, cookie)
+		peExt.Path = BytePtrToString((*byte)(unsafe.Pointer(peExt.fobj.Name)))
+		// Only remove the paths entry if it exists and this cookie matches
+		if fobj, ok := e.paths[peExt.Path]; ok {
+			if &fobj.cookie == cookie {
+				delete(e.paths, peExt.Path)
+			}
+		}
+	}
 }
 
 // Pending wraps port_getn(3c) and returns how many events are pending.
@@ -944,21 +998,7 @@ func (e *EventPort) Get(s []PortEvent, min int, timeout *Timespec) (int, error) 
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for i := 0; i < int(got); i++ {
-		s[i].Events = ps[i].Events
-		s[i].Source = ps[i].Source
-		switch ps[i].Source {
-		case PORT_SOURCE_FD:
-			s[i].Fd = uintptr(ps[i].Object)
-			cookie := (*interface{})(unsafe.Pointer(ps[i].User))
-			s[i].Cookie = *cookie
-			delete(e.fds, s[i].Fd)
-		case PORT_SOURCE_FILE:
-			s[i].fobj = (*fileObj)(unsafe.Pointer(uintptr(ps[i].Object)))
-			s[i].Path = BytePtrToString((*byte)(unsafe.Pointer(s[i].fobj.Name)))
-			cookie := (*interface{})(unsafe.Pointer(ps[i].User))
-			s[i].Cookie = *cookie
-			delete(e.paths, s[i].Path)
-		}
+		e.peIntToExt(&ps[i], &s[i])
 	}
 	return int(got), err
 }

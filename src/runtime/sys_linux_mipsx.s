@@ -311,7 +311,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R22, R29
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$12
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$12
 	// this might be called in external code context,
 	// where g is not set.
 	MOVB	runtime·iscgo(SB), R1

@@ -416,7 +416,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	var dictVar *ir.Name
 	var dictAssign *ir.AssignStmt
 	if outer != nil {
-		dictVar = ir.NewNameAt(pos, typecheck.LookupNum(typecheck.LocalDictName, g.dnum))
+		dictVar = ir.NewNameAt(pos, closureSym(outer, typecheck.LocalDictName, g.dnum))
 		g.dnum++
 		dictVar.Class = ir.PAUTO
 		typed(types.Types[types.TUINTPTR], dictVar)
@@ -430,7 +430,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	var rcvrVar *ir.Name
 	var rcvrAssign ir.Node
 	if rcvrValue != nil {
-		rcvrVar = ir.NewNameAt(pos, typecheck.LookupNum(".rcvr", g.dnum))
+		rcvrVar = ir.NewNameAt(pos, closureSym(outer, ".rcvr", g.dnum))
 		g.dnum++
 		typed(rcvrValue.Type(), rcvrVar)
 		rcvrAssign = ir.NewAssignStmt(pos, rcvrVar, rcvrValue)
@@ -1325,8 +1325,8 @@ func (g *genInst) dictPass(info *instInfo) {
 			mce := m.(*ir.ConvExpr)
 			// Note: x's argument is still typed as a type parameter.
 			// m's argument now has an instantiated type.
-			if mce.X.Type().HasShape() || (mce.X.Type().IsInterface() && m.Type().HasShape()) {
-				m = convertUsingDictionary(info, info.dictParam, m.Pos(), m.(*ir.ConvExpr).X, m, m.Type())
+			if mce.X.Type().HasShape() || m.Type().HasShape() {
+				m = convertUsingDictionary(info, info.dictParam, m.Pos(), mce.X, m, m.Type())
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
 			if !m.Type().HasShape() {
@@ -1420,7 +1420,7 @@ func findDictType(info *instInfo, t *types.Type) int {
 // instantiated node of the CONVIFACE node or XDOT node (for a bound method call) that is causing the
 // conversion.
 func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v ir.Node, in ir.Node, dst *types.Type) ir.Node {
-	assert(v.Type().HasShape() || v.Type().IsInterface() && in.Type().HasShape())
+	assert(v.Type().HasShape() || in.Type().HasShape())
 	assert(dst.IsInterface())
 
 	if v.Type().IsInterface() {
@@ -1799,6 +1799,7 @@ func (g *genInst) finalizeSyms() {
 				g.instantiateMethods()
 				itabLsym := reflectdata.ITabLsym(srctype, dsttype)
 				d.off = objw.SymPtr(lsym, d.off, itabLsym, 0)
+				markTypeUsed(srctype, lsym)
 				infoPrint(" + Itab for (%v,%v)\n", srctype, dsttype)
 			}
 		}
@@ -1974,7 +1975,7 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 			}
 		case ir.OCONVIFACE:
 			if n.Type().IsInterface() && !n.Type().IsEmptyInterface() &&
-				n.(*ir.ConvExpr).X.Type().HasShape() {
+				(n.Type().HasShape() || n.(*ir.ConvExpr).X.Type().HasShape()) {
 				infoPrint("  Itab for interface conv: %v\n", n)
 				info.itabConvs = append(info.itabConvs, n)
 			}
@@ -2221,7 +2222,7 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
 	var formalResults []*types.Field // returns of closure
 	for i := 0; i < typ.NumParams(); i++ {
 		t := typ.Params().Field(i).Type
-		arg := ir.NewNameAt(pos, typecheck.LookupNum("a", i))
+		arg := ir.NewNameAt(pos, closureSym(outer, "a", i))
 		arg.Class = ir.PPARAM
 		typed(t, arg)
 		arg.Curfn = fn
@@ -2233,7 +2234,7 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
 	}
 	for i := 0; i < typ.NumResults(); i++ {
 		t := typ.Results().Field(i).Type
-		result := ir.NewNameAt(pos, typecheck.LookupNum("r", i)) // TODO: names not needed?
+		result := ir.NewNameAt(pos, closureSym(outer, "r", i)) // TODO: names not needed?
 		result.Class = ir.PPARAMOUT
 		typed(t, result)
 		result.Curfn = fn
@@ -2250,6 +2251,16 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
 	fn.SetTypecheck(1)
 	return fn, formalParams, formalResults
 
+}
+
+// closureSym returns outer.Sym().Pkg.LookupNum(prefix, n).
+// If outer is nil, then types.LocalPkg is used instead.
+func closureSym(outer *ir.Func, prefix string, n int) *types.Sym {
+	pkg := types.LocalPkg
+	if outer != nil {
+		pkg = outer.Sym().Pkg
+	}
+	return pkg.LookupNum(prefix, n)
 }
 
 // assertToBound returns a new node that converts a node rcvr with interface type to

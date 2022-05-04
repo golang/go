@@ -21,6 +21,11 @@ cmp stdout want-json-name.txt
 go list -json=ImportPath,Name,GoFiles,Imports
 cmp stdout want-json-multiple.txt
 
+# Test -json=<field> with Deps outputs the Deps field.
+go list -json=Deps
+stdout '"Deps": \['
+stdout '"errors",'
+
 -- go.mod --
 module example.com/a
 

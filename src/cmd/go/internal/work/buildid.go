@@ -7,8 +7,8 @@ package work
 import (
 	"bytes"
 	"fmt"
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"strings"
 
 	"cmd/go/internal/base"

@@ -120,6 +120,17 @@ func CanInline(fn *ir.Func) {
 		return
 	}
 
+	// If marked as "go:uintptrkeepalive", don't inline, since the
+	// keep alive information is lost during inlining.
+	//
+	// TODO(prattmic): This is handled on calls during escape analysis,
+	// which is after inlining. Move prior to inlining so the keep-alive is
+	// maintained after inlining.
+	if fn.Pragma&ir.UintptrKeepAlive != 0 {
+		reason = "marked as having a keep-alive uintptr argument"
+		return
+	}
+
 	// If marked as "go:uintptrescapes", don't inline, since the
 	// escape information is lost during inlining.
 	if fn.Pragma&ir.UintptrEscapes != 0 {
@@ -922,10 +933,6 @@ func oldInline(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr
 
 	lab := ir.NewLabelStmt(base.Pos, retlabel)
 	body = append(body, lab)
-
-	if !typecheck.Go117ExportTypes {
-		typecheck.Stmts(body)
-	}
 
 	if base.Flag.GenDwarfInl > 0 {
 		for _, v := range inlfvars {

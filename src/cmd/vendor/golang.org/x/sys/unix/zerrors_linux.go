@@ -393,9 +393,11 @@ const (
 	CAP_SYS_TIME                                = 0x19
 	CAP_SYS_TTY_CONFIG                          = 0x1a
 	CAP_WAKE_ALARM                              = 0x23
+	CEPH_SUPER_MAGIC                            = 0xc36400
 	CFLUSH                                      = 0xf
 	CGROUP2_SUPER_MAGIC                         = 0x63677270
 	CGROUP_SUPER_MAGIC                          = 0x27e0eb
+	CIFS_SUPER_MAGIC                            = 0xff534d42
 	CLOCK_BOOTTIME                              = 0x7
 	CLOCK_BOOTTIME_ALARM                        = 0x9
 	CLOCK_DEFAULT                               = 0x0
@@ -784,6 +786,7 @@ const (
 	EV_SYN                                      = 0x0
 	EV_VERSION                                  = 0x10001
 	EXABYTE_ENABLE_NEST                         = 0xf0
+	EXFAT_SUPER_MAGIC                           = 0x2011bab0
 	EXT2_SUPER_MAGIC                            = 0xef53
 	EXT3_SUPER_MAGIC                            = 0xef53
 	EXT4_SUPER_MAGIC                            = 0xef53
@@ -826,6 +829,8 @@ const (
 	FAN_EVENT_INFO_TYPE_DFID_NAME               = 0x2
 	FAN_EVENT_INFO_TYPE_ERROR                   = 0x5
 	FAN_EVENT_INFO_TYPE_FID                     = 0x1
+	FAN_EVENT_INFO_TYPE_NEW_DFID_NAME           = 0xc
+	FAN_EVENT_INFO_TYPE_OLD_DFID_NAME           = 0xa
 	FAN_EVENT_INFO_TYPE_PIDFD                   = 0x4
 	FAN_EVENT_METADATA_LEN                      = 0x18
 	FAN_EVENT_ON_CHILD                          = 0x8000000
@@ -854,17 +859,27 @@ const (
 	FAN_OPEN_EXEC_PERM                          = 0x40000
 	FAN_OPEN_PERM                               = 0x10000
 	FAN_Q_OVERFLOW                              = 0x4000
+	FAN_RENAME                                  = 0x10000000
 	FAN_REPORT_DFID_NAME                        = 0xc00
+	FAN_REPORT_DFID_NAME_TARGET                 = 0x1e00
 	FAN_REPORT_DIR_FID                          = 0x400
 	FAN_REPORT_FID                              = 0x200
 	FAN_REPORT_NAME                             = 0x800
 	FAN_REPORT_PIDFD                            = 0x80
+	FAN_REPORT_TARGET_FID                       = 0x1000
 	FAN_REPORT_TID                              = 0x100
 	FAN_UNLIMITED_MARKS                         = 0x20
 	FAN_UNLIMITED_QUEUE                         = 0x10
 	FD_CLOEXEC                                  = 0x1
 	FD_SETSIZE                                  = 0x400
 	FF0                                         = 0x0
+	FIB_RULE_DEV_DETACHED                       = 0x8
+	FIB_RULE_FIND_SADDR                         = 0x10000
+	FIB_RULE_IIF_DETACHED                       = 0x8
+	FIB_RULE_INVERT                             = 0x2
+	FIB_RULE_OIF_DETACHED                       = 0x10
+	FIB_RULE_PERMANENT                          = 0x1
+	FIB_RULE_UNRESOLVED                         = 0x4
 	FIDEDUPERANGE                               = 0xc0189436
 	FSCRYPT_KEY_DESCRIPTOR_SIZE                 = 0x8
 	FSCRYPT_KEY_DESC_PREFIX                     = "fscrypt:"
@@ -927,6 +942,7 @@ const (
 	FS_VERITY_METADATA_TYPE_DESCRIPTOR          = 0x2
 	FS_VERITY_METADATA_TYPE_MERKLE_TREE         = 0x1
 	FS_VERITY_METADATA_TYPE_SIGNATURE           = 0x3
+	FUSE_SUPER_MAGIC                            = 0x65735546
 	FUTEXFS_SUPER_MAGIC                         = 0xbad1dea
 	F_ADD_SEALS                                 = 0x409
 	F_DUPFD                                     = 0x0
@@ -1294,6 +1310,7 @@ const (
 	KEXEC_ARCH_ARM                              = 0x280000
 	KEXEC_ARCH_DEFAULT                          = 0x0
 	KEXEC_ARCH_IA_64                            = 0x320000
+	KEXEC_ARCH_LOONGARCH                        = 0x1020000
 	KEXEC_ARCH_MASK                             = 0xffff0000
 	KEXEC_ARCH_MIPS                             = 0x80000
 	KEXEC_ARCH_MIPS_LE                          = 0xa0000
@@ -1495,6 +1512,7 @@ const (
 	MNT_DETACH                                  = 0x2
 	MNT_EXPIRE                                  = 0x4
 	MNT_FORCE                                   = 0x1
+	MODULE_INIT_COMPRESSED_FILE                 = 0x4
 	MODULE_INIT_IGNORE_MODVERSIONS              = 0x1
 	MODULE_INIT_IGNORE_VERMAGIC                 = 0x2
 	MOUNT_ATTR_IDMAP                            = 0x100000
@@ -1849,6 +1867,9 @@ const (
 	PERF_MEM_BLK_NA                             = 0x1
 	PERF_MEM_BLK_SHIFT                          = 0x28
 	PERF_MEM_HOPS_0                             = 0x1
+	PERF_MEM_HOPS_1                             = 0x2
+	PERF_MEM_HOPS_2                             = 0x3
+	PERF_MEM_HOPS_3                             = 0x4
 	PERF_MEM_HOPS_SHIFT                         = 0x2b
 	PERF_MEM_LOCK_LOCKED                        = 0x2
 	PERF_MEM_LOCK_NA                            = 0x1
@@ -2052,6 +2073,8 @@ const (
 	PR_SET_TIMING                               = 0xe
 	PR_SET_TSC                                  = 0x1a
 	PR_SET_UNALIGN                              = 0x6
+	PR_SET_VMA                                  = 0x53564d41
+	PR_SET_VMA_ANON_NAME                        = 0x0
 	PR_SPEC_DISABLE                             = 0x4
 	PR_SPEC_DISABLE_NOEXEC                      = 0x10
 	PR_SPEC_ENABLE                              = 0x2
@@ -2135,6 +2158,10 @@ const (
 	PTRACE_SYSCALL_INFO_NONE                    = 0x0
 	PTRACE_SYSCALL_INFO_SECCOMP                 = 0x3
 	PTRACE_TRACEME                              = 0x0
+	P_ALL                                       = 0x0
+	P_PGID                                      = 0x2
+	P_PID                                       = 0x1
+	P_PIDFD                                     = 0x3
 	QNX4_SUPER_MAGIC                            = 0x2f
 	QNX6_SUPER_MAGIC                            = 0x68191122
 	RAMFS_MAGIC                                 = 0x858458f6
@@ -2505,6 +2532,7 @@ const (
 	SMART_STATUS                                = 0xda
 	SMART_WRITE_LOG_SECTOR                      = 0xd6
 	SMART_WRITE_THRESHOLDS                      = 0xd7
+	SMB2_SUPER_MAGIC                            = 0xfe534d42
 	SMB_SUPER_MAGIC                             = 0x517b
 	SOCKFS_MAGIC                                = 0x534f434b
 	SOCK_BUF_LOCK_MASK                          = 0x3
@@ -2646,7 +2674,7 @@ const (
 	TASKSTATS_GENL_NAME                         = "TASKSTATS"
 	TASKSTATS_GENL_VERSION                      = 0x1
 	TASKSTATS_TYPE_MAX                          = 0x6
-	TASKSTATS_VERSION                           = 0xa
+	TASKSTATS_VERSION                           = 0xb
 	TCIFLUSH                                    = 0x0
 	TCIOFF                                      = 0x2
 	TCIOFLUSH                                   = 0x2

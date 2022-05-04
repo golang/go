@@ -422,8 +422,6 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	}
 
 	if fn.Pragma&ir.UintptrEscapes != 0 {
-		fn.Pragma |= ir.UintptrKeepAlive
-
 		if f.Type.IsUintptr() {
 			if diagnose {
 				base.WarnfAt(f.Pos, "marking %v as escaping uintptr", name())

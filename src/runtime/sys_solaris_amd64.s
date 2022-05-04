@@ -121,7 +121,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
 
 // Careful, this is called by __sighndlr, a libc function. We must preserve
 // registers as per AMD 64 ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
 	// Note that we are executing on altsigstack here, so we have
 	// more stack available than NOSPLIT would have us believe.
 	// To defeat the linker, we make our own stack frame with

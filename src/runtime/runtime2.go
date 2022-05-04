@@ -489,6 +489,10 @@ type g struct {
 	timer          *timer         // cached timer for time.Sleep
 	selectDone     uint32         // are we participating in a select and did someone win the race?
 
+	// goroutineProfiled indicates the status of this goroutine's stack for the
+	// current in-progress goroutine profile
+	goroutineProfiled goroutineProfileStateHolder
+
 	// Per-G GC state
 
 	// gcAssistBytes is this G's GC assist credit in terms of
@@ -532,7 +536,7 @@ type m struct {
 	oldp          puintptr // the p that was attached before executing a syscall
 	id            int64
 	mallocing     int32
-	throwing      int32
+	throwing      throwType
 	preemptoff    string // if != "", keep curg running on this m
 	locks         int32
 	dying         int32

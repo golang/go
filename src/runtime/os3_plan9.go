@@ -120,7 +120,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		return _NCONT
 	}
 Throw:
-	_g_.m.throwing = 1
+	_g_.m.throwing = throwTypeRuntime
 	_g_.m.caughtsig.set(gp)
 	startpanic_m()
 	print(notestr, "\n")

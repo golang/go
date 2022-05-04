@@ -15,7 +15,6 @@
 package liveness
 
 import (
-	"crypto/sha1"
 	"fmt"
 	"os"
 	"sort"
@@ -30,6 +29,7 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/types"
+	"cmd/internal/notsha256"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -959,7 +959,7 @@ func (lv *liveness) enableClobber() {
 		// Clobber only functions where the hash of the function name matches a pattern.
 		// Useful for binary searching for a miscompiled function.
 		hstr := ""
-		for _, b := range sha1.Sum([]byte(lv.f.Name)) {
+		for _, b := range notsha256.Sum256([]byte(lv.f.Name)) {
 			hstr += fmt.Sprintf("%08b", b)
 		}
 		if !strings.HasSuffix(hstr, h) {

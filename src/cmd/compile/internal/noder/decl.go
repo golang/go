@@ -125,8 +125,26 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 		}
 	}
 
-	if decl.Body != nil && fn.Pragma&ir.Noescape != 0 {
-		base.ErrorfAt(fn.Pos(), "can only use //go:noescape with external func implementations")
+	if decl.Body != nil {
+		if fn.Pragma&ir.Noescape != 0 {
+			base.ErrorfAt(fn.Pos(), "can only use //go:noescape with external func implementations")
+		}
+		if (fn.Pragma&ir.UintptrKeepAlive != 0 && fn.Pragma&ir.UintptrEscapes == 0) && fn.Pragma&ir.Nosplit == 0 {
+			// Stack growth can't handle uintptr arguments that may
+			// be pointers (as we don't know which are pointers
+			// when creating the stack map). Thus uintptrkeepalive
+			// functions (and all transitive callees) must be
+			// nosplit.
+			//
+			// N.B. uintptrescapes implies uintptrkeepalive but it
+			// is OK since the arguments must escape to the heap.
+			//
+			// TODO(prattmic): Add recursive nosplit check of callees.
+			// TODO(prattmic): Functions with no body (i.e.,
+			// assembly) must also be nosplit, but we can't check
+			// that here.
+			base.ErrorfAt(fn.Pos(), "go:uintptrkeepalive requires go:nosplit")
+		}
 	}
 
 	if decl.Name.Value == "init" && decl.Recv == nil {

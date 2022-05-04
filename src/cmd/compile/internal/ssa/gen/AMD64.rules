@@ -105,7 +105,9 @@
 (BitLen8  x) && buildcfg.GOAMD64 <  3 => (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
 (BitLen64 <t> x)        && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-64] (LZCNTQ x)))
 // Use 64-bit version to allow const-fold remove unnecessary arithmetic.
-(BitLen(32|16|8) <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL x)))
+(BitLen32 <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL x)))
+(BitLen16 <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL (MOVWQZX <x.Type> x))))
+(BitLen8 <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL (MOVBQZX <x.Type> x))))
 
 (Bswap(64|32) ...) => (BSWAP(Q|L) ...)
 

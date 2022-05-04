@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // ErrNotFound is the error resulting if a path search failed to find an executable file.
@@ -53,10 +54,14 @@ func findExecutable(file string, exts []string) (string, error) {
 
 // LookPath searches for an executable named file in the
 // directories named by the PATH environment variable.
-// If file contains a slash, it is tried directly and the PATH is not consulted.
 // LookPath also uses PATHEXT environment variable to match
 // a suitable candidate.
-// The result may be an absolute path or a path relative to the current directory.
+// If file contains a slash, it is tried directly and the PATH is not consulted.
+// Otherwise, on success, the result is an absolute path.
+//
+// In older versions of Go, LookPath could return a path relative to the current directory.
+// As of Go 1.19, LookPath will instead return that path along with an error satisfying
+// errors.Is(err, ErrDot). See the package documentation for more details.
 func LookPath(file string) (string, error) {
 	var exts []string
 	x := os.Getenv(`PATHEXT`)
@@ -75,18 +80,34 @@ func LookPath(file string) (string, error) {
 	}
 
 	if strings.ContainsAny(file, `:\/`) {
-		if f, err := findExecutable(file, exts); err == nil {
+		f, err := findExecutable(file, exts)
+		if err == nil {
 			return f, nil
-		} else {
-			return "", &Error{file, err}
+		}
+		return "", &Error{file, err}
+	}
+
+	// On Windows, creating the NoDefaultCurrentDirectoryInExePath
+	// environment variable (with any value or no value!) signals that
+	// path lookups should skip the current directory.
+	// In theory we are supposed to call NeedCurrentDirectoryForExePathW
+	// "as the registry location of this environment variable can change"
+	// but that seems exceedingly unlikely: it would break all users who
+	// have configured their environment this way!
+	// https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw
+	// See also go.dev/issue/43947.
+	if _, found := syscall.Getenv("NoDefaultCurrentDirectoryInExePath"); !found {
+		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
+			return f, &Error{file, ErrDot}
 		}
 	}
-	if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
-		return f, nil
-	}
+
 	path := os.Getenv("path")
 	for _, dir := range filepath.SplitList(path) {
 		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
+			if !filepath.IsAbs(f) {
+				return f, &Error{file, ErrDot}
+			}
 			return f, nil
 		}
 	}

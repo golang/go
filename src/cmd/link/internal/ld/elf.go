@@ -5,11 +5,11 @@
 package ld
 
 import (
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
-	"crypto/sha1"
 	"debug/elf"
 	"encoding/binary"
 	"encoding/hex"
@@ -1533,10 +1533,10 @@ func (ctxt *Link) doelf() {
 		sb.SetType(sym.SRODATA)
 		ldr.SetAttrSpecial(s, true)
 		sb.SetReachable(true)
-		sb.SetSize(sha1.Size)
+		sb.SetSize(notsha256.Size)
 
 		sort.Sort(byPkg(ctxt.Library))
-		h := sha1.New()
+		h := notsha256.New()
 		for _, l := range ctxt.Library {
 			h.Write(l.Fingerprint[:])
 		}

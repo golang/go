@@ -6,8 +6,8 @@ package work
 
 import (
 	"fmt"
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"

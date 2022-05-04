@@ -459,7 +459,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
 	DWORD	$sigtramp<>(SB)
 	DWORD	$0
 	DWORD	$0
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 #endif
 	// Start with standard C stack frame layout and linkage.
 	MOVD    LR, R0

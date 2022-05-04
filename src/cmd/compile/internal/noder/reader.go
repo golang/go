@@ -282,11 +282,13 @@ func (pr *pkgReader) pkgIdx(idx int) *types.Pkg {
 
 func (r *reader) doPkg() *types.Pkg {
 	path := r.String()
-	if path == "builtin" {
-		return types.BuiltinPkg
-	}
-	if path == "" {
+	switch path {
+	case "":
 		path = r.p.PkgPath()
+	case "builtin":
+		return types.BuiltinPkg
+	case "unsafe":
+		return types.UnsafePkg
 	}
 
 	name := r.String()

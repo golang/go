@@ -13,13 +13,13 @@ import (
 	"go/doc"
 	"go/token"
 	"internal/buildcfg"
-	exec "internal/execabs"
 	"internal/goroot"
 	"internal/goversion"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -1185,20 +1185,13 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	if ctxt.CgoEnabled {
 		cgo = "1"
 	}
-	cmd.Env = append(os.Environ(),
+	cmd.Env = append(cmd.Environ(),
 		"GOOS="+ctxt.GOOS,
 		"GOARCH="+ctxt.GOARCH,
 		"GOROOT="+ctxt.GOROOT,
 		"GOPATH="+ctxt.GOPATH,
 		"CGO_ENABLED="+cgo,
 	)
-	if cmd.Dir != "" {
-		// If possible, set PWD: if an error occurs and PWD includes a symlink, we
-		// want the error to refer to Dir, not some other name for it.
-		if abs, err := filepath.Abs(cmd.Dir); err == nil {
-			cmd.Env = append(cmd.Env, "PWD="+abs)
-		}
-	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("go/build: go list %s: %v\n%s\n", path, err, stderr.String())
@@ -1883,6 +1876,7 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
 //	cgo (if cgo is enabled)
 //	$GOOS
 //	$GOARCH
+//	boringcrypto
 //	ctxt.Compiler
 //	linux (if GOOS = android)
 //	solaris (if GOOS = illumos)
@@ -1912,6 +1906,9 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	}
 	if name == "unix" && unixOS[ctxt.GOOS] {
 		return true
+	}
+	if name == "boringcrypto" {
+		name = "goexperiment.boringcrypto" // boringcrypto is an old name for goexperiment.boringcrypto
 	}
 
 	// other tags

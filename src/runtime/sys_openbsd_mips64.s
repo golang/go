@@ -237,7 +237,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	CALL	(R25)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$192
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$192
 	// initialize REGSB = PC&0xffffffff00000000
 	BGEZAL	R0, 1(PC)
 	SRLV	$32, R31, RSB

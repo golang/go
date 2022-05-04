@@ -14,7 +14,17 @@ import (
 )
 
 // NOTE(rsc): Everything here could use cas if contention became an issue.
-var proflock mutex
+var (
+	// profInsertLock protects changes to the start of all *bucket linked lists
+	profInsertLock mutex
+	// profBlockLock protects the contents of every blockRecord struct
+	profBlockLock mutex
+	// profMemActiveLock protects the active field of every memRecord struct
+	profMemActiveLock mutex
+	// profMemFutureLock is a set of locks that protect the respective elements
+	// of the future array of every memRecord struct
+	profMemFutureLock [len(memRecord{}.future)]mutex
+)
 
 // All memory allocations are local and do not escape outside of the profiler.
 // The profiler is forbidden from referring to garbage-collected memory.
@@ -42,6 +52,9 @@ type bucketType int
 //
 // Per-call-stack profiling information.
 // Lookup by hashing call stack into a linked-list hash table.
+//
+// None of the fields in this bucket header are modified after
+// creation, including its next and allnext links.
 //
 // No heap pointers.
 //
@@ -139,25 +152,63 @@ type blockRecord struct {
 }
 
 var (
-	mbuckets  *bucket // memory profile buckets
-	bbuckets  *bucket // blocking profile buckets
-	xbuckets  *bucket // mutex profile buckets
-	buckhash  *[buckHashSize]*bucket
-	bucketmem uintptr
+	mbuckets atomic.UnsafePointer // *bucket, memory profile buckets
+	bbuckets atomic.UnsafePointer // *bucket, blocking profile buckets
+	xbuckets atomic.UnsafePointer // *bucket, mutex profile buckets
+	buckhash atomic.UnsafePointer // *buckhashArray
 
-	mProf struct {
-		// All fields in mProf are protected by proflock.
-
-		// cycle is the global heap profile cycle. This wraps
-		// at mProfCycleWrap.
-		cycle uint32
-		// flushed indicates that future[cycle] in all buckets
-		// has been flushed to the active profile.
-		flushed bool
-	}
+	mProfCycle mProfCycleHolder
 )
 
+type buckhashArray [buckHashSize]atomic.UnsafePointer // *bucket
+
 const mProfCycleWrap = uint32(len(memRecord{}.future)) * (2 << 24)
+
+// mProfCycleHolder holds the global heap profile cycle number (wrapped at
+// mProfCycleWrap, stored starting at bit 1), and a flag (stored at bit 0) to
+// indicate whether future[cycle] in all buckets has been queued to flush into
+// the active profile.
+type mProfCycleHolder struct {
+	value atomic.Uint32
+}
+
+// read returns the current cycle count.
+func (c *mProfCycleHolder) read() (cycle uint32) {
+	v := c.value.Load()
+	cycle = v >> 1
+	return cycle
+}
+
+// setFlushed sets the flushed flag. It returns the current cycle count and the
+// previous value of the flushed flag.
+func (c *mProfCycleHolder) setFlushed() (cycle uint32, alreadyFlushed bool) {
+	for {
+		prev := c.value.Load()
+		cycle = prev >> 1
+		alreadyFlushed = (prev & 0x1) != 0
+		next := prev | 0x1
+		if c.value.CompareAndSwap(prev, next) {
+			return cycle, alreadyFlushed
+		}
+	}
+}
+
+// increment increases the cycle count by one, wrapping the value at
+// mProfCycleWrap. It clears the flushed flag.
+func (c *mProfCycleHolder) increment() {
+	// We explicitly wrap mProfCycle rather than depending on
+	// uint wraparound because the memRecord.future ring does not
+	// itself wrap at a power of two.
+	for {
+		prev := c.value.Load()
+		cycle := prev >> 1
+		cycle = (cycle + 1) % mProfCycleWrap
+		next := cycle << 1
+		if c.value.CompareAndSwap(prev, next) {
+			break
+		}
+	}
+}
 
 // newBucket allocates a bucket with the given type and number of stack entries.
 func newBucket(typ bucketType, nstk int) *bucket {
@@ -172,7 +223,6 @@ func newBucket(typ bucketType, nstk int) *bucket {
 	}
 
 	b := (*bucket)(persistentalloc(size, 0, &memstats.buckhash_sys))
-	bucketmem += size
 	b.typ = typ
 	b.nstk = uintptr(nstk)
 	return b
@@ -204,11 +254,19 @@ func (b *bucket) bp() *blockRecord {
 
 // Return the bucket for stk[0:nstk], allocating new bucket if needed.
 func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket {
-	if buckhash == nil {
-		buckhash = (*[buckHashSize]*bucket)(sysAlloc(unsafe.Sizeof(*buckhash), &memstats.buckhash_sys))
-		if buckhash == nil {
-			throw("runtime: cannot allocate memory")
+	bh := (*buckhashArray)(buckhash.Load())
+	if bh == nil {
+		lock(&profInsertLock)
+		// check again under the lock
+		bh = (*buckhashArray)(buckhash.Load())
+		if bh == nil {
+			bh = (*buckhashArray)(sysAlloc(unsafe.Sizeof(buckhashArray{}), &memstats.buckhash_sys))
+			if bh == nil {
+				throw("runtime: cannot allocate memory")
+			}
+			buckhash.StoreNoWB(unsafe.Pointer(bh))
 		}
+		unlock(&profInsertLock)
 	}
 
 	// Hash stack.
@@ -227,7 +285,8 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 	h ^= h >> 11
 
 	i := int(h % buckHashSize)
-	for b := buckhash[i]; b != nil; b = b.next {
+	// first check optimistically, without the lock
+	for b := (*bucket)(bh[i].Load()); b != nil; b = b.next {
 		if b.typ == typ && b.hash == h && b.size == size && eqslice(b.stk(), stk) {
 			return b
 		}
@@ -237,23 +296,37 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 		return nil
 	}
 
+	lock(&profInsertLock)
+	// check again under the insertion lock
+	for b := (*bucket)(bh[i].Load()); b != nil; b = b.next {
+		if b.typ == typ && b.hash == h && b.size == size && eqslice(b.stk(), stk) {
+			unlock(&profInsertLock)
+			return b
+		}
+	}
+
 	// Create new bucket.
 	b := newBucket(typ, len(stk))
 	copy(b.stk(), stk)
 	b.hash = h
 	b.size = size
-	b.next = buckhash[i]
-	buckhash[i] = b
+
+	var allnext *atomic.UnsafePointer
 	if typ == memProfile {
-		b.allnext = mbuckets
-		mbuckets = b
+		allnext = &mbuckets
 	} else if typ == mutexProfile {
-		b.allnext = xbuckets
-		xbuckets = b
+		allnext = &xbuckets
 	} else {
-		b.allnext = bbuckets
-		bbuckets = b
+		allnext = &bbuckets
 	}
+
+	b.next = (*bucket)(bh[i].Load())
+	b.allnext = (*bucket)(allnext.Load())
+
+	bh[i].StoreNoWB(unsafe.Pointer(b))
+	allnext.StoreNoWB(unsafe.Pointer(b))
+
+	unlock(&profInsertLock)
 	return b
 }
 
@@ -278,13 +351,7 @@ func eqslice(x, y []uintptr) bool {
 // frees after the world is started again count towards a new heap
 // profiling cycle.
 func mProf_NextCycle() {
-	lock(&proflock)
-	// We explicitly wrap mProf.cycle rather than depending on
-	// uint wraparound because the memRecord.future ring does not
-	// itself wrap at a power of two.
-	mProf.cycle = (mProf.cycle + 1) % mProfCycleWrap
-	mProf.flushed = false
-	unlock(&proflock)
+	mProfCycle.increment()
 }
 
 // mProf_Flush flushes the events from the current heap profiling
@@ -295,22 +362,33 @@ func mProf_NextCycle() {
 // contrast with mProf_NextCycle, this is somewhat expensive, but safe
 // to do concurrently.
 func mProf_Flush() {
-	lock(&proflock)
-	if !mProf.flushed {
-		mProf_FlushLocked()
-		mProf.flushed = true
+	cycle, alreadyFlushed := mProfCycle.setFlushed()
+	if alreadyFlushed {
+		return
 	}
-	unlock(&proflock)
+
+	index := cycle % uint32(len(memRecord{}.future))
+	lock(&profMemActiveLock)
+	lock(&profMemFutureLock[index])
+	mProf_FlushLocked(index)
+	unlock(&profMemFutureLock[index])
+	unlock(&profMemActiveLock)
 }
 
-func mProf_FlushLocked() {
-	c := mProf.cycle
-	for b := mbuckets; b != nil; b = b.allnext {
+// mProf_FlushLocked flushes the events from the heap profiling cycle at index
+// into the active profile. The caller must hold the lock for the active profile
+// (profMemActiveLock) and for the profiling cycle at index
+// (profMemFutureLock[index]).
+func mProf_FlushLocked(index uint32) {
+	assertLockHeld(&profMemActiveLock)
+	assertLockHeld(&profMemFutureLock[index])
+	head := (*bucket)(mbuckets.Load())
+	for b := head; b != nil; b = b.allnext {
 		mp := b.mp()
 
 		// Flush cycle C into the published profile and clear
 		// it for reuse.
-		mpc := &mp.future[c%uint32(len(mp.future))]
+		mpc := &mp.future[index]
 		mp.active.add(mpc)
 		*mpc = memRecordCycle{}
 	}
@@ -321,39 +399,41 @@ func mProf_FlushLocked() {
 // snapshot as of the last mark termination without advancing the heap
 // profile cycle.
 func mProf_PostSweep() {
-	lock(&proflock)
 	// Flush cycle C+1 to the active profile so everything as of
 	// the last mark termination becomes visible. *Don't* advance
 	// the cycle, since we're still accumulating allocs in cycle
 	// C+2, which have to become C+1 in the next mark termination
 	// and so on.
-	c := mProf.cycle
-	for b := mbuckets; b != nil; b = b.allnext {
-		mp := b.mp()
-		mpc := &mp.future[(c+1)%uint32(len(mp.future))]
-		mp.active.add(mpc)
-		*mpc = memRecordCycle{}
-	}
-	unlock(&proflock)
+	cycle := mProfCycle.read() + 1
+
+	index := cycle % uint32(len(memRecord{}.future))
+	lock(&profMemActiveLock)
+	lock(&profMemFutureLock[index])
+	mProf_FlushLocked(index)
+	unlock(&profMemFutureLock[index])
+	unlock(&profMemActiveLock)
 }
 
 // Called by malloc to record a profiled block.
 func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	var stk [maxStack]uintptr
 	nstk := callers(4, stk[:])
-	lock(&proflock)
+
+	index := (mProfCycle.read() + 2) % uint32(len(memRecord{}.future))
+
 	b := stkbucket(memProfile, size, stk[:nstk], true)
-	c := mProf.cycle
 	mp := b.mp()
-	mpc := &mp.future[(c+2)%uint32(len(mp.future))]
+	mpc := &mp.future[index]
+
+	lock(&profMemFutureLock[index])
 	mpc.allocs++
 	mpc.alloc_bytes += size
-	unlock(&proflock)
+	unlock(&profMemFutureLock[index])
 
-	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
-	// This reduces potential contention and chances of deadlocks.
-	// Since the object must be alive during call to mProf_Malloc,
-	// it's fine to do this non-atomically.
+	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of
+	// the profiler locks. This reduces potential contention and chances of
+	// deadlocks. Since the object must be alive during the call to
+	// mProf_Malloc, it's fine to do this non-atomically.
 	systemstack(func() {
 		setprofilebucket(p, b)
 	})
@@ -361,13 +441,15 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 
 // Called when freeing a profiled block.
 func mProf_Free(b *bucket, size uintptr) {
-	lock(&proflock)
-	c := mProf.cycle
+	index := (mProfCycle.read() + 1) % uint32(len(memRecord{}.future))
+
 	mp := b.mp()
-	mpc := &mp.future[(c+1)%uint32(len(mp.future))]
+	mpc := &mp.future[index]
+
+	lock(&profMemFutureLock[index])
 	mpc.frees++
 	mpc.free_bytes += size
-	unlock(&proflock)
+	unlock(&profMemFutureLock[index])
 }
 
 var blockprofilerate uint64 // in CPU ticks
@@ -424,18 +506,19 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
 	} else {
 		nstk = gcallers(gp.m.curg, skip, stk[:])
 	}
-	lock(&proflock)
 	b := stkbucket(which, 0, stk[:nstk], true)
+	bp := b.bp()
 
+	lock(&profBlockLock)
 	if which == blockProfile && cycles < rate {
 		// Remove sampling bias, see discussion on http://golang.org/cl/299991.
-		b.bp().count += float64(rate) / float64(cycles)
-		b.bp().cycles += rate
+		bp.count += float64(rate) / float64(cycles)
+		bp.cycles += rate
 	} else {
-		b.bp().count++
-		b.bp().cycles += cycles
+		bp.count++
+		bp.cycles += cycles
 	}
-	unlock(&proflock)
+	unlock(&profBlockLock)
 }
 
 var mutexprofilerate uint64 // fraction sampled
@@ -567,13 +650,18 @@ func (r *MemProfileRecord) Stack() []uintptr {
 // the testing package's -test.memprofile flag instead
 // of calling MemProfile directly.
 func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
-	lock(&proflock)
+	cycle := mProfCycle.read()
 	// If we're between mProf_NextCycle and mProf_Flush, take care
 	// of flushing to the active profile so we only have to look
 	// at the active profile below.
-	mProf_FlushLocked()
+	index := cycle % uint32(len(memRecord{}.future))
+	lock(&profMemActiveLock)
+	lock(&profMemFutureLock[index])
+	mProf_FlushLocked(index)
+	unlock(&profMemFutureLock[index])
 	clear := true
-	for b := mbuckets; b != nil; b = b.allnext {
+	head := (*bucket)(mbuckets.Load())
+	for b := head; b != nil; b = b.allnext {
 		mp := b.mp()
 		if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
 			n++
@@ -588,11 +676,13 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 		// garbage collection is disabled from the beginning of execution,
 		// accumulate all of the cycles, and recount buckets.
 		n = 0
-		for b := mbuckets; b != nil; b = b.allnext {
+		for b := head; b != nil; b = b.allnext {
 			mp := b.mp()
 			for c := range mp.future {
+				lock(&profMemFutureLock[c])
 				mp.active.add(&mp.future[c])
 				mp.future[c] = memRecordCycle{}
+				unlock(&profMemFutureLock[c])
 			}
 			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
 				n++
@@ -602,7 +692,7 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 	if n <= len(p) {
 		ok = true
 		idx := 0
-		for b := mbuckets; b != nil; b = b.allnext {
+		for b := head; b != nil; b = b.allnext {
 			mp := b.mp()
 			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
 				record(&p[idx], b)
@@ -610,7 +700,7 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 			}
 		}
 	}
-	unlock(&proflock)
+	unlock(&profMemActiveLock)
 	return
 }
 
@@ -637,12 +727,13 @@ func record(r *MemProfileRecord, b *bucket) {
 }
 
 func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintptr)) {
-	lock(&proflock)
-	for b := mbuckets; b != nil; b = b.allnext {
+	lock(&profMemActiveLock)
+	head := (*bucket)(mbuckets.Load())
+	for b := head; b != nil; b = b.allnext {
 		mp := b.mp()
 		fn(b, b.nstk, &b.stk()[0], b.size, mp.active.allocs, mp.active.frees)
 	}
-	unlock(&proflock)
+	unlock(&profMemActiveLock)
 }
 
 // BlockProfileRecord describes blocking events originated
@@ -661,13 +752,14 @@ type BlockProfileRecord struct {
 // the testing package's -test.blockprofile flag instead
 // of calling BlockProfile directly.
 func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
-	lock(&proflock)
-	for b := bbuckets; b != nil; b = b.allnext {
+	lock(&profBlockLock)
+	head := (*bucket)(bbuckets.Load())
+	for b := head; b != nil; b = b.allnext {
 		n++
 	}
 	if n <= len(p) {
 		ok = true
-		for b := bbuckets; b != nil; b = b.allnext {
+		for b := head; b != nil; b = b.allnext {
 			bp := b.bp()
 			r := &p[0]
 			r.Count = int64(bp.count)
@@ -693,7 +785,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 			p = p[1:]
 		}
 	}
-	unlock(&proflock)
+	unlock(&profBlockLock)
 	return
 }
 
@@ -704,13 +796,14 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 // Most clients should use the runtime/pprof package
 // instead of calling MutexProfile directly.
 func MutexProfile(p []BlockProfileRecord) (n int, ok bool) {
-	lock(&proflock)
-	for b := xbuckets; b != nil; b = b.allnext {
+	lock(&profBlockLock)
+	head := (*bucket)(xbuckets.Load())
+	for b := head; b != nil; b = b.allnext {
 		n++
 	}
 	if n <= len(p) {
 		ok = true
-		for b := xbuckets; b != nil; b = b.allnext {
+		for b := head; b != nil; b = b.allnext {
 			bp := b.bp()
 			r := &p[0]
 			r.Count = int64(bp.count)
@@ -722,7 +815,7 @@ func MutexProfile(p []BlockProfileRecord) (n int, ok bool) {
 			p = p[1:]
 		}
 	}
-	unlock(&proflock)
+	unlock(&profBlockLock)
 	return
 }
 
@@ -753,11 +846,260 @@ func runtime_goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer
 	return goroutineProfileWithLabels(p, labels)
 }
 
+const go119ConcurrentGoroutineProfile = true
+
 // labels may be nil. If labels is non-nil, it must have the same length as p.
 func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
 	if labels != nil && len(labels) != len(p) {
 		labels = nil
 	}
+
+	if go119ConcurrentGoroutineProfile {
+		return goroutineProfileWithLabelsConcurrent(p, labels)
+	}
+	return goroutineProfileWithLabelsSync(p, labels)
+}
+
+var goroutineProfile = struct {
+	sema    uint32
+	active  bool
+	offset  atomic.Int64
+	records []StackRecord
+	labels  []unsafe.Pointer
+}{
+	sema: 1,
+}
+
+// goroutineProfileState indicates the status of a goroutine's stack for the
+// current in-progress goroutine profile. Goroutines' stacks are initially
+// "Absent" from the profile, and end up "Satisfied" by the time the profile is
+// complete. While a goroutine's stack is being captured, its
+// goroutineProfileState will be "InProgress" and it will not be able to run
+// until the capture completes and the state moves to "Satisfied".
+//
+// Some goroutines (the finalizer goroutine, which at various times can be
+// either a "system" or a "user" goroutine, and the goroutine that is
+// coordinating the profile, any goroutines created during the profile) move
+// directly to the "Satisfied" state.
+type goroutineProfileState uint32
+
+const (
+	goroutineProfileAbsent goroutineProfileState = iota
+	goroutineProfileInProgress
+	goroutineProfileSatisfied
+)
+
+type goroutineProfileStateHolder atomic.Uint32
+
+func (p *goroutineProfileStateHolder) Load() goroutineProfileState {
+	return goroutineProfileState((*atomic.Uint32)(p).Load())
+}
+
+func (p *goroutineProfileStateHolder) Store(value goroutineProfileState) {
+	(*atomic.Uint32)(p).Store(uint32(value))
+}
+
+func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileState) bool {
+	return (*atomic.Uint32)(p).CompareAndSwap(uint32(old), uint32(new))
+}
+
+func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	semacquire(&goroutineProfile.sema)
+
+	ourg := getg()
+
+	stopTheWorld("profile")
+	// Using gcount while the world is stopped should give us a consistent view
+	// of the number of live goroutines, minus the number of goroutines that are
+	// alive and permanently marked as "system". But to make this count agree
+	// with what we'd get from isSystemGoroutine, we need special handling for
+	// goroutines that can vary between user and system to ensure that the count
+	// doesn't change during the collection. So, check the finalizer goroutine
+	// in particular.
+	n = int(gcount())
+	if fingRunning {
+		n++
+	}
+
+	if n > len(p) {
+		// There's not enough space in p to store the whole profile, so (per the
+		// contract of runtime.GoroutineProfile) we're not allowed to write to p
+		// at all and must return n, false.
+		startTheWorld()
+		semrelease(&goroutineProfile.sema)
+		return n, false
+	}
+
+	// Save current goroutine.
+	sp := getcallersp()
+	pc := getcallerpc()
+	systemstack(func() {
+		saveg(pc, sp, ourg, &p[0])
+	})
+	ourg.goroutineProfiled.Store(goroutineProfileSatisfied)
+	goroutineProfile.offset.Store(1)
+
+	// Prepare for all other goroutines to enter the profile. Aside from ourg,
+	// every goroutine struct in the allgs list has its goroutineProfiled field
+	// cleared. Any goroutine created from this point on (while
+	// goroutineProfile.active is set) will start with its goroutineProfiled
+	// field set to goroutineProfileSatisfied.
+	goroutineProfile.active = true
+	goroutineProfile.records = p
+	goroutineProfile.labels = labels
+	// The finializer goroutine needs special handling because it can vary over
+	// time between being a user goroutine (eligible for this profile) and a
+	// system goroutine (to be excluded). Pick one before restarting the world.
+	if fing != nil {
+		fing.goroutineProfiled.Store(goroutineProfileSatisfied)
+	}
+	if readgstatus(fing) != _Gdead && !isSystemGoroutine(fing, false) {
+		doRecordGoroutineProfile(fing)
+	}
+	startTheWorld()
+
+	// Visit each goroutine that existed as of the startTheWorld call above.
+	//
+	// New goroutines may not be in this list, but we didn't want to know about
+	// them anyway. If they do appear in this list (via reusing a dead goroutine
+	// struct, or racing to launch between the world restarting and us getting
+	// the list), they will aleady have their goroutineProfiled field set to
+	// goroutineProfileSatisfied before their state transitions out of _Gdead.
+	//
+	// Any goroutine that the scheduler tries to execute concurrently with this
+	// call will start by adding itself to the profile (before the act of
+	// executing can cause any changes in its stack).
+	forEachGRace(func(gp1 *g) {
+		tryRecordGoroutineProfile(gp1, Gosched)
+	})
+
+	stopTheWorld("profile cleanup")
+	endOffset := goroutineProfile.offset.Swap(0)
+	goroutineProfile.active = false
+	goroutineProfile.records = nil
+	goroutineProfile.labels = nil
+	startTheWorld()
+
+	// Restore the invariant that every goroutine struct in allgs has its
+	// goroutineProfiled field cleared.
+	forEachGRace(func(gp1 *g) {
+		gp1.goroutineProfiled.Store(goroutineProfileAbsent)
+	})
+
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&labelSync))
+	}
+
+	if n != int(endOffset) {
+		// It's a big surprise that the number of goroutines changed while we
+		// were collecting the profile. But probably better to return a
+		// truncated profile than to crash the whole process.
+		//
+		// For instance, needm moves a goroutine out of the _Gdead state and so
+		// might be able to change the goroutine count without interacting with
+		// the scheduler. For code like that, the race windows are small and the
+		// combination of features is uncommon, so it's hard to be (and remain)
+		// sure we've caught them all.
+	}
+
+	semrelease(&goroutineProfile.sema)
+	return n, true
+}
+
+// tryRecordGoroutineProfileWB asserts that write barriers are allowed and calls
+// tryRecordGoroutineProfile.
+//
+//go:yeswritebarrierrec
+func tryRecordGoroutineProfileWB(gp1 *g) {
+	if getg().m.p.ptr() == nil {
+		throw("no P available, write barriers are forbidden")
+	}
+	tryRecordGoroutineProfile(gp1, osyield)
+}
+
+// tryRecordGoroutineProfile ensures that gp1 has the appropriate representation
+// in the current goroutine profile: either that it should not be profiled, or
+// that a snapshot of its call stack and labels are now in the profile.
+func tryRecordGoroutineProfile(gp1 *g, yield func()) {
+	if readgstatus(gp1) == _Gdead {
+		// Dead goroutines should not appear in the profile. Goroutines that
+		// start while profile collection is active will get goroutineProfiled
+		// set to goroutineProfileSatisfied before transitioning out of _Gdead,
+		// so here we check _Gdead first.
+		return
+	}
+	if isSystemGoroutine(gp1, true) {
+		// System goroutines should not appear in the profile. (The finalizer
+		// goroutine is marked as "already profiled".)
+		return
+	}
+
+	for {
+		prev := gp1.goroutineProfiled.Load()
+		if prev == goroutineProfileSatisfied {
+			// This goroutine is already in the profile (or is new since the
+			// start of collection, so shouldn't appear in the profile).
+			break
+		}
+		if prev == goroutineProfileInProgress {
+			// Something else is adding gp1 to the goroutine profile right now.
+			// Give that a moment to finish.
+			yield()
+			continue
+		}
+
+		// While we have gp1.goroutineProfiled set to
+		// goroutineProfileInProgress, gp1 may appear _Grunnable but will not
+		// actually be able to run. Disable preemption for ourselves, to make
+		// sure we finish profiling gp1 right away instead of leaving it stuck
+		// in this limbo.
+		mp := acquirem()
+		if gp1.goroutineProfiled.CompareAndSwap(goroutineProfileAbsent, goroutineProfileInProgress) {
+			doRecordGoroutineProfile(gp1)
+			gp1.goroutineProfiled.Store(goroutineProfileSatisfied)
+		}
+		releasem(mp)
+	}
+}
+
+// doRecordGoroutineProfile writes gp1's call stack and labels to an in-progress
+// goroutine profile. Preemption is disabled.
+//
+// This may be called via tryRecordGoroutineProfile in two ways: by the
+// goroutine that is coordinating the goroutine profile (running on its own
+// stack), or from the scheduler in preparation to execute gp1 (running on the
+// system stack).
+func doRecordGoroutineProfile(gp1 *g) {
+	if readgstatus(gp1) == _Grunning {
+		print("doRecordGoroutineProfile gp1=", gp1.goid, "\n")
+		throw("cannot read stack of running goroutine")
+	}
+
+	offset := int(goroutineProfile.offset.Add(1)) - 1
+
+	if offset >= len(goroutineProfile.records) {
+		// Should be impossible, but better to return a truncated profile than
+		// to crash the entire process at this point. Instead, deal with it in
+		// goroutineProfileWithLabelsConcurrent where we have more context.
+		return
+	}
+
+	// saveg calls gentraceback, which may call cgo traceback functions. When
+	// called from the scheduler, this is on the system stack already so
+	// traceback.go:cgoContextPCs will avoid calling back into the scheduler.
+	//
+	// When called from the goroutine coordinating the profile, we still have
+	// set gp1.goroutineProfiled to goroutineProfileInProgress and so are still
+	// preventing it from being truly _Grunnable. So we'll use the system stack
+	// to avoid schedule delays.
+	systemstack(func() { saveg(^uintptr(0), ^uintptr(0), gp1, &goroutineProfile.records[offset]) })
+
+	if goroutineProfile.labels != nil {
+		goroutineProfile.labels[offset] = gp1.labels
+	}
+}
+
+func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
 	gp := getg()
 
 	isOK := func(gp1 *g) bool {
@@ -816,6 +1158,10 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
 			}
 			r = r[1:]
 		})
+	}
+
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&labelSync))
 	}
 
 	startTheWorld()

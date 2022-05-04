@@ -14,6 +14,11 @@ package syscall
 
 import "unsafe"
 
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
 const _F_DUP2FD_CLOEXEC = F_DUP2FD_CLOEXEC
 
 // Implemented in asm_solaris_amd64.s.
@@ -64,6 +69,26 @@ func Pipe2(p []int, flags int) error {
 		p[1] = int(pp[1])
 	}
 	return err
+}
+
+//sys   accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) = libsocket.accept4
+
+func Accept4(fd int, flags int) (int, Sockaddr, error) {
+	var rsa RawSockaddrAny
+	var addrlen _Socklen = SizeofSockaddrAny
+	nfd, err := accept4(fd, &rsa, &addrlen, flags)
+	if err != nil {
+		return 0, nil, err
+	}
+	if addrlen > SizeofSockaddrAny {
+		panic("RawSockaddrAny too small")
+	}
+	sa, err := anyToSockaddr(&rsa)
+	if err != nil {
+		Close(nfd)
+		return 0, nil, err
+	}
+	return nfd, sa, nil
 }
 
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {

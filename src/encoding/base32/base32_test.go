@@ -627,6 +627,58 @@ func TestBufferedDecodingSameError(t *testing.T) {
 	}
 }
 
+func TestBufferedDecodingPadding(t *testing.T) {
+	testcases := []struct {
+		chunks        []string
+		expectedError string
+	}{
+		{[]string{
+			"I4======",
+			"==",
+		}, "unexpected EOF"},
+
+		{[]string{
+			"I4======N4======",
+		}, "illegal base32 data at input byte 2"},
+
+		{[]string{
+			"I4======",
+			"N4======",
+		}, "illegal base32 data at input byte 0"},
+
+		{[]string{
+			"I4======",
+			"========",
+		}, "illegal base32 data at input byte 0"},
+
+		{[]string{
+			"I4I4I4I4",
+			"I4======",
+			"I4======",
+		}, "illegal base32 data at input byte 0"},
+	}
+
+	for _, testcase := range testcases {
+		testcase := testcase
+		pr, pw := io.Pipe()
+		go func() {
+			for _, chunk := range testcase.chunks {
+				_, _ = pw.Write([]byte(chunk))
+			}
+			_ = pw.Close()
+		}()
+
+		decoder := NewDecoder(StdEncoding, pr)
+		_, err := io.ReadAll(decoder)
+
+		if err == nil && len(testcase.expectedError) != 0 {
+			t.Errorf("case %q: got nil error, want %v", testcase.chunks, testcase.expectedError)
+		} else if err.Error() != testcase.expectedError {
+			t.Errorf("case %q: got %v, want %v", testcase.chunks, err, testcase.expectedError)
+		}
+	}
+}
+
 func TestEncodedDecodedLen(t *testing.T) {
 	type test struct {
 		in      int

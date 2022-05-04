@@ -166,13 +166,16 @@ func runfinq() {
 		argRegs  int
 	)
 
+	gp := getg()
+	lock(&finlock)
+	fing = gp
+	unlock(&finlock)
+
 	for {
 		lock(&finlock)
 		fb := finq
 		finq = nil
 		if fb == nil {
-			gp := getg()
-			fing = gp
 			fingwait = true
 			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
 			continue

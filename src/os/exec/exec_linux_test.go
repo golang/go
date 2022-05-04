@@ -22,7 +22,7 @@ import (
 )
 
 func init() {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+	if os.Getenv("GO_EXEC_TEST_PID") == "" {
 		return
 	}
 

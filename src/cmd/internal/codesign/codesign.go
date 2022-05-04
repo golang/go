@@ -11,10 +11,11 @@
 package codesign
 
 import (
-	"crypto/sha256"
 	"debug/macho"
 	"encoding/binary"
 	"io"
+
+	"cmd/internal/notsha256"
 )
 
 // Code signature layout.
@@ -190,7 +191,7 @@ func Size(codeSize int64, id string) int64 {
 	nhashes := (codeSize + pageSize - 1) / pageSize
 	idOff := int64(codeDirectorySize)
 	hashOff := idOff + int64(len(id)+1)
-	cdirSz := hashOff + nhashes*sha256.Size
+	cdirSz := hashOff + nhashes*notsha256.Size
 	return int64(superBlobSize+blobSize) + cdirSz
 }
 
@@ -226,7 +227,7 @@ func Sign(out []byte, data io.Reader, id string, codeSize, textOff, textSize int
 		identOffset:  uint32(idOff),
 		nCodeSlots:   uint32(nhashes),
 		codeLimit:    uint32(codeSize),
-		hashSize:     sha256.Size,
+		hashSize:     notsha256.Size,
 		hashType:     CS_HASHTYPE_SHA256,
 		pageSize:     uint8(pageSizeBits),
 		execSegBase:  uint64(textOff),
@@ -245,8 +246,12 @@ func Sign(out []byte, data io.Reader, id string, codeSize, textOff, textSize int
 	outp = puts(outp, []byte(id+"\000"))
 
 	// emit hashes
+	// NOTE(rsc): These must be SHA256, but for cgo bootstrap reasons
+	// we cannot import crypto/sha256 when GOEXPERIMENT=boringcrypto
+	// and the host is linux/amd64. So we use NOT-SHA256
+	// and then apply a NOT ourselves to get SHA256. Sigh.
 	var buf [pageSize]byte
-	h := sha256.New()
+	h := notsha256.New()
 	p := 0
 	for p < int(codeSize) {
 		n, err := io.ReadFull(data, buf[:])
@@ -263,6 +268,9 @@ func Sign(out []byte, data io.Reader, id string, codeSize, textOff, textSize int
 		h.Reset()
 		h.Write(buf[:n])
 		b := h.Sum(nil)
+		for i := range b {
+			b[i] ^= 0xFF // convert notsha256 to sha256
+		}
 		outp = puts(outp, b[:])
 	}
 }

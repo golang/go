@@ -306,3 +306,12 @@ func ExportCloseTransportConnsAbruptly(tr *Transport) {
 	}
 	tr.idleMu.Unlock()
 }
+
+// ResponseWriterConnForTesting returns w's underlying connection, if w
+// is a regular *response ResponseWriter.
+func ResponseWriterConnForTesting(w ResponseWriter) (c net.Conn, ok bool) {
+	if r, ok := w.(*response); ok {
+		return r.conn.rwc, true
+	}
+	return nil, false
+}

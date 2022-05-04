@@ -14,6 +14,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
+	"cmd/compile/internal/compare"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
@@ -728,7 +729,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	if t.Sym() != nil && t.Sym().Name != "" {
 		tflag |= tflagNamed
 	}
-	if isRegularMemory(t) {
+	if compare.IsRegularMemory(t) {
 		tflag |= tflagRegularMemory
 	}
 
@@ -1198,10 +1199,10 @@ func writeType(t *types.Type) *obj.LSym {
 
 	// Note: DUPOK is required to ensure that we don't end up with more
 	// than one type descriptor for a given type, if the type descriptor
-	// can be defined in multiple packages, that is, unnamed types and
-	// instantiated types.
+	// can be defined in multiple packages, that is, unnamed types,
+	// instantiated types and shape types.
 	dupok := 0
-	if tbase.Sym() == nil || tbase.IsFullyInstantiated() {
+	if tbase.Sym() == nil || tbase.IsFullyInstantiated() || tbase.HasShape() {
 		dupok = obj.DUPOK
 	}
 

@@ -170,26 +170,24 @@ func (e *ValueError) Error() string {
 	return "reflect: call of " + e.Method + " on " + e.Kind.String() + " Value"
 }
 
-// methodName returns the name of the calling method,
-// assumed to be two stack frames above.
-func methodName() string {
-	pc, _, _, _ := runtime.Caller(2)
-	f := runtime.FuncForPC(pc)
-	if f == nil {
-		return "unknown method"
+// valueMethodName returns the name of the exported calling method on Value.
+func valueMethodName() string {
+	var pc [5]uintptr
+	n := runtime.Callers(1, pc[:])
+	frames := runtime.CallersFrames(pc[:n])
+	var frame runtime.Frame
+	for more := true; more; {
+		const prefix = "reflect.Value."
+		frame, more = frames.Next()
+		name := frame.Function
+		if len(name) > len(prefix) && name[:len(prefix)] == prefix {
+			methodName := name[len(prefix):]
+			if len(methodName) > 0 && 'A' <= methodName[0] && methodName[0] <= 'Z' {
+				return name
+			}
+		}
 	}
-	return f.Name()
-}
-
-// methodNameSkip is like methodName, but skips another stack frame.
-// This is a separate function so that reflect.flag.mustBe will be inlined.
-func methodNameSkip() string {
-	pc, _, _, _ := runtime.Caller(3)
-	f := runtime.FuncForPC(pc)
-	if f == nil {
-		return "unknown method"
-	}
-	return f.Name()
+	return "unknown method"
 }
 
 // emptyInterface is the header for an interface{} value.
@@ -220,7 +218,7 @@ type nonEmptyInterface struct {
 func (f flag) mustBe(expected Kind) {
 	// TODO(mvdan): use f.kind() again once mid-stack inlining gets better
 	if Kind(f&flagKindMask) != expected {
-		panic(&ValueError{methodName(), f.kind()})
+		panic(&ValueError{valueMethodName(), f.kind()})
 	}
 }
 
@@ -234,10 +232,10 @@ func (f flag) mustBeExported() {
 
 func (f flag) mustBeExportedSlow() {
 	if f == 0 {
-		panic(&ValueError{methodNameSkip(), Invalid})
+		panic(&ValueError{valueMethodName(), Invalid})
 	}
 	if f&flagRO != 0 {
-		panic("reflect: " + methodNameSkip() + " using value obtained using unexported field")
+		panic("reflect: " + valueMethodName() + " using value obtained using unexported field")
 	}
 }
 
@@ -252,14 +250,14 @@ func (f flag) mustBeAssignable() {
 
 func (f flag) mustBeAssignableSlow() {
 	if f == 0 {
-		panic(&ValueError{methodNameSkip(), Invalid})
+		panic(&ValueError{valueMethodName(), Invalid})
 	}
 	// Assignable if addressable and not read-only.
 	if f&flagRO != 0 {
-		panic("reflect: " + methodNameSkip() + " using value obtained using unexported field")
+		panic("reflect: " + valueMethodName() + " using value obtained using unexported field")
 	}
 	if f&flagAddr == 0 {
-		panic("reflect: " + methodNameSkip() + " using unaddressable value")
+		panic("reflect: " + valueMethodName() + " using unaddressable value")
 	}
 }
 
@@ -281,14 +279,31 @@ func (v Value) Addr() Value {
 // Bool returns v's underlying value.
 // It panics if v's kind is not Bool.
 func (v Value) Bool() bool {
-	v.mustBe(Bool)
+	// panicNotBool is split out to keep Bool inlineable.
+	if v.kind() != Bool {
+		v.panicNotBool()
+	}
 	return *(*bool)(v.ptr)
 }
+
+func (v Value) panicNotBool() {
+	v.mustBe(Bool)
+}
+
+var bytesType = TypeOf(([]byte)(nil)).(*rtype)
 
 // Bytes returns v's underlying value.
 // It panics if v's underlying value is not a slice of bytes or
 // an addressable array of bytes.
 func (v Value) Bytes() []byte {
+	// bytesSlow is split out to keep Bytes inlineable for unnamed []byte.
+	if v.typ == bytesType {
+		return *(*[]byte)(v.ptr)
+	}
+	return v.bytesSlow()
+}
+
+func (v Value) bytesSlow() []byte {
 	switch v.kind() {
 	case Slice:
 		if v.typ.Elem().Kind() != Uint8 {
@@ -1127,17 +1142,27 @@ func funcName(f func([]Value) []Value) string {
 }
 
 // Cap returns v's capacity.
-// It panics if v's Kind is not Array, Chan, or Slice.
+// It panics if v's Kind is not Array, Chan, Slice or pointer to Array.
 func (v Value) Cap() int {
+	// capNonSlice is split out to keep Cap inlineable for slice kinds.
+	if v.kind() == Slice {
+		return (*unsafeheader.Slice)(v.ptr).Cap
+	}
+	return v.capNonSlice()
+}
+
+func (v Value) capNonSlice() int {
 	k := v.kind()
 	switch k {
 	case Array:
 		return v.typ.Len()
 	case Chan:
 		return chancap(v.pointer())
-	case Slice:
-		// Slice is always bigger than a word; assume flagIndir.
-		return (*unsafeheader.Slice)(v.ptr).Cap
+	case Ptr:
+		if v.typ.Elem().Kind() == Array {
+			return v.typ.Elem().Len()
+		}
+		panic("reflect: call of reflect.Value.Cap on ptr to non-array Value")
 	}
 	panic(&ValueError{"reflect.Value.Cap", v.kind()})
 }
@@ -1578,10 +1603,17 @@ func (v Value) Kind() Kind {
 }
 
 // Len returns v's length.
-// It panics if v's Kind is not Array, Chan, Map, Slice, or String.
+// It panics if v's Kind is not Array, Chan, Map, Slice, String, or pointer to Array.
 func (v Value) Len() int {
-	k := v.kind()
-	switch k {
+	// lenNonSlice is split out to keep Len inlineable for slice kinds.
+	if v.kind() == Slice {
+		return (*unsafeheader.Slice)(v.ptr).Len
+	}
+	return v.lenNonSlice()
+}
+
+func (v Value) lenNonSlice() int {
+	switch k := v.kind(); k {
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(v.typ))
 		return int(tt.len)
@@ -1589,15 +1621,19 @@ func (v Value) Len() int {
 		return chanlen(v.pointer())
 	case Map:
 		return maplen(v.pointer())
-	case Slice:
-		// Slice is bigger than a word; assume flagIndir.
-		return (*unsafeheader.Slice)(v.ptr).Len
 	case String:
 		// String is bigger than a word; assume flagIndir.
 		return (*unsafeheader.String)(v.ptr).Len
+	case Ptr:
+		if v.typ.Elem().Kind() == Array {
+			return v.typ.Elem().Len()
+		}
+		panic("reflect: call of reflect.Value.Len on ptr to non-array Value")
 	}
 	panic(&ValueError{"reflect.Value.Len", v.kind()})
 }
+
+var stringType = TypeOf("").(*rtype)
 
 // MapIndex returns the value associated with key in the map v.
 // It panics if v's Kind is not Map.
@@ -1616,7 +1652,7 @@ func (v Value) MapIndex(key Value) Value {
 	// of unexported fields.
 
 	var e unsafe.Pointer
-	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.size <= maxValSize {
 		k := *(*string)(key.ptr)
 		e = mapaccess_faststr(v.typ, v.pointer(), k)
 	} else {
@@ -2242,7 +2278,7 @@ func (v Value) SetMapIndex(key, elem Value) {
 	key.mustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ))
 
-	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.size <= maxValSize {
 		k := *(*string)(key.ptr)
 		if elem.typ == nil {
 			mapdelete_faststr(v.typ, v.pointer(), k)
@@ -2441,11 +2477,16 @@ func (v Value) Slice3(i, j, k int) Value {
 // The fmt package treats Values specially. It does not call their String
 // method implicitly but instead prints the concrete values they hold.
 func (v Value) String() string {
-	switch k := v.kind(); k {
-	case Invalid:
-		return "<invalid Value>"
-	case String:
+	// stringNonString is split out to keep String inlineable for string kinds.
+	if v.kind() == String {
 		return *(*string)(v.ptr)
+	}
+	return v.stringNonString()
+}
+
+func (v Value) stringNonString() string {
+	if v.kind() == Invalid {
+		return "<invalid Value>"
 	}
 	// If you call String on a reflect.Value of other type, it's better to
 	// print something than to panic. Useful in debugging.
@@ -3056,9 +3097,10 @@ func NewAt(typ Type, p unsafe.Pointer) Value {
 	return Value{t.ptrTo(), p, fl}
 }
 
-// assignTo returns a value v that can be assigned directly to typ.
-// It panics if v is not assignable to typ.
-// For a conversion to an interface type, target is a suggested scratch space to use.
+// assignTo returns a value v that can be assigned directly to dst.
+// It panics if v is not assignable to dst.
+// For a conversion to an interface type, target, if not nil,
+// is a suggested scratch space to use.
 // target must be initialized memory (or nil).
 func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {
 	if v.flag&flagMethod != 0 {
@@ -3074,9 +3116,6 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 		return Value{dst, v.ptr, fl}
 
 	case implements(dst, v.typ):
-		if target == nil {
-			target = unsafe_New(dst)
-		}
 		if v.Kind() == Interface && v.IsNil() {
 			// A nil ReadWriter passed to nil Reader is OK,
 			// but using ifaceE2I below will panic.
@@ -3084,6 +3123,9 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 			return Value{dst, nil, flag(Interface)}
 		}
 		x := valueInterface(v, false)
+		if target == nil {
+			target = unsafe_New(dst)
+		}
 		if dst.NumMethod() == 0 {
 			*(*any)(target) = x
 		} else {

@@ -880,7 +880,7 @@ func runPerThreadSyscall() {
 	if errno != 0 || r1 != args.r1 || r2 != args.r2 {
 		print("trap:", args.trap, ", a123456=[", args.a1, ",", args.a2, ",", args.a3, ",", args.a4, ",", args.a5, ",", args.a6, "]\n")
 		print("results: got {r1=", r1, ",r2=", r2, ",errno=", errno, "}, want {r1=", args.r1, ",r2=", args.r2, ",errno=0\n")
-		throw("AllThreadsSyscall6 results differ between threads; runtime corrupted")
+		fatal("AllThreadsSyscall6 results differ between threads; runtime corrupted")
 	}
 
 	gp.m.needPerThreadSyscall.Store(0)

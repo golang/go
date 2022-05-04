@@ -21,7 +21,7 @@ func init() {
 		//     is returned by a single call to getrandom() on systems where int
 		//     has a size of 32 bits.
 		maxGetRandomRead = (1 << 25) - 1
-	case "freebsd", "dragonfly", "solaris":
+	case "freebsd", "dragonfly", "solaris", "illumos":
 		maxGetRandomRead = 1 << 8
 	default:
 		panic("no maximum specified for GetRandom")

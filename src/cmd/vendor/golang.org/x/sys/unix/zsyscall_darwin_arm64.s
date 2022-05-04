@@ -228,11 +228,11 @@ TEXT libc_flistxattr_trampoline<>(SB),NOSPLIT,$0-0
 GLOBL	·libc_flistxattr_trampoline_addr(SB), RODATA, $8
 DATA	·libc_flistxattr_trampoline_addr(SB)/8, $libc_flistxattr_trampoline<>(SB)
 
-TEXT libc_setattrlist_trampoline<>(SB),NOSPLIT,$0-0
-	JMP	libc_setattrlist(SB)
+TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
+	JMP	libc_utimensat(SB)
 
-GLOBL	·libc_setattrlist_trampoline_addr(SB), RODATA, $8
-DATA	·libc_setattrlist_trampoline_addr(SB)/8, $libc_setattrlist_trampoline<>(SB)
+GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $8
+DATA	·libc_utimensat_trampoline_addr(SB)/8, $libc_utimensat_trampoline<>(SB)
 
 TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
 	JMP	libc_fcntl(SB)

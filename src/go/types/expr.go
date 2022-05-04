@@ -195,6 +195,12 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 		x.typ = ch.elem
 		check.hasCallOrRecv = true
 		return
+
+	case token.TILDE:
+		// Provide a better error position and message than what check.op below could do.
+		check.error(e, _UndefinedOp, "cannot use ~ outside of interface or type constraint")
+		x.mode = invalid
+		return
 	}
 
 	if !check.op(unaryOpPredicates, x, e.Op) {

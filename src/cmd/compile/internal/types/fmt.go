@@ -6,7 +6,6 @@ package types
 
 import (
 	"bytes"
-	"crypto/md5"
 	"encoding/binary"
 	"fmt"
 	"go/constant"
@@ -15,6 +14,7 @@ import (
 	"sync"
 
 	"cmd/compile/internal/base"
+	"cmd/internal/notsha256"
 )
 
 // BuiltinPkg is a fake package that declares the universe block.
@@ -771,7 +771,7 @@ func FmtConst(v constant.Value, sharp bool) string {
 func TypeHash(t *Type) uint32 {
 	p := tconv(t, 0, fmtTypeIDHash)
 
-	// Using MD5 is overkill, but reduces accidental collisions.
-	h := md5.Sum([]byte(p))
+	// Using SHA256 is overkill, but reduces accidental collisions.
+	h := notsha256.Sum256([]byte(p))
 	return binary.LittleEndian.Uint32(h[:4])
 }

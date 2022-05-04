@@ -11,11 +11,11 @@ package main
 import (
 	"errors"
 	"fmt"
-	exec "internal/execabs"
 	"internal/goversion"
 	"io/fs"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"

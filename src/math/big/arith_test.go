@@ -558,7 +558,7 @@ var mulWWTests = []struct {
 
 func TestMulWW(t *testing.T) {
 	for i, test := range mulWWTests {
-		q, r := mulWW_g(test.x, test.y)
+		q, r := mulWW(test.x, test.y)
 		if q != test.q || r != test.r {
 			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
 		}

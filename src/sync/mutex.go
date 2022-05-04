@@ -16,7 +16,9 @@ import (
 	"unsafe"
 )
 
-func throw(string) // provided by runtime
+// Provided by runtime via linkname.
+func throw(string)
+func fatal(string)
 
 // A Mutex is a mutual exclusion lock.
 // The zero value for a Mutex is an unlocked mutex.
@@ -217,7 +219,7 @@ func (m *Mutex) Unlock() {
 
 func (m *Mutex) unlockSlow(new int32) {
 	if (new+mutexLocked)&mutexLocked == 0 {
-		throw("sync: unlock of unlocked mutex")
+		fatal("sync: unlock of unlocked mutex")
 	}
 	if new&mutexStarving == 0 {
 		old := new

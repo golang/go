@@ -22,7 +22,4 @@ type _[P /* ERROR non-function P */ (*int)] int
 type _[P *struct /* ERROR "expected expression" */ {}| int /* ERROR "not an expression" */ ] struct{}
 
 // The following fails to parse, due to the '~'
-type _[P *struct /* ERROR "expected expression" */ {}|~ /* ERROR "expected operand" */ int] struct{}
-
-// This is fragile: 'var' synchronizes the parser, and we absorb the rest of the errors.
-var /* ERROR "expected ']'" */ _ /* ERROR "value or type" */
+type _[P *struct /* ERROR "expected expression" */ {}|~int /* ERROR "not an expression" */ ] struct{}

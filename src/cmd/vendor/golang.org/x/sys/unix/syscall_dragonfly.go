@@ -169,11 +169,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	return
 }
 
-func setattrlistTimes(path string, times []Timespec, flags int) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
-}
-
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

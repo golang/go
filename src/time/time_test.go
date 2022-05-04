@@ -281,6 +281,8 @@ func TestTruncateRound(t *testing.T) {
 	b1e9.SetInt64(1e9)
 
 	testOne := func(ti, tns, di int64) bool {
+		t.Helper()
+
 		t0 := Unix(ti, int64(tns)).UTC()
 		d := Duration(di)
 		if d < 0 {
@@ -367,6 +369,13 @@ func TestTruncateRound(t *testing.T) {
 		for i := 0; i < int(b); i++ {
 			d *= 5
 		}
+
+		// Make room for unix ↔ internal conversion.
+		// We don't care about behavior too close to ± 2^63 Unix seconds.
+		// It is full of wraparounds but will never happen in a reasonable program.
+		// (Or maybe not? See go.dev/issue/20678. In any event, they're not handled today.)
+		ti >>= 1
+
 		return testOne(ti, int64(tns), int64(d))
 	}
 	quick.Check(f1, cfg)
@@ -377,6 +386,7 @@ func TestTruncateRound(t *testing.T) {
 		if d < 0 {
 			d = -d
 		}
+		ti >>= 1 // see comment in f1
 		return testOne(ti, int64(tns), int64(d))
 	}
 	quick.Check(f2, cfg)
@@ -399,6 +409,7 @@ func TestTruncateRound(t *testing.T) {
 
 	// full generality
 	f4 := func(ti int64, tns int32, di int64) bool {
+		ti >>= 1 // see comment in f1
 		return testOne(ti, int64(tns), di)
 	}
 	quick.Check(f4, cfg)

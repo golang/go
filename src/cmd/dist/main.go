@@ -133,6 +133,8 @@ func main() {
 			if elfIsLittleEndian(os.Args[0]) {
 				gohostarch = "mipsle"
 			}
+		case strings.Contains(out, "loongarch64"):
+			gohostarch = "loong64"
 		case strings.Contains(out, "riscv64"):
 			gohostarch = "riscv64"
 		case strings.Contains(out, "s390x"):

@@ -412,7 +412,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		return unsafe.Pointer(&zeroVal[0])
 	}
 	if h.flags&hashWriting != 0 {
-		throw("concurrent map read and map write")
+		fatal("concurrent map read and map write")
 	}
 	hash := t.hasher(key, uintptr(h.hash0))
 	m := bucketMask(h.B)
@@ -473,7 +473,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
 	if h.flags&hashWriting != 0 {
-		throw("concurrent map read and map write")
+		fatal("concurrent map read and map write")
 	}
 	hash := t.hasher(key, uintptr(h.hash0))
 	m := bucketMask(h.B)
@@ -592,7 +592,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		asanread(key, t.key.size)
 	}
 	if h.flags&hashWriting != 0 {
-		throw("concurrent map writes")
+		fatal("concurrent map writes")
 	}
 	hash := t.hasher(key, uintptr(h.hash0))
 
@@ -683,7 +683,7 @@ bucketloop:
 
 done:
 	if h.flags&hashWriting == 0 {
-		throw("concurrent map writes")
+		fatal("concurrent map writes")
 	}
 	h.flags &^= hashWriting
 	if t.indirectelem() {
@@ -712,7 +712,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 		return
 	}
 	if h.flags&hashWriting != 0 {
-		throw("concurrent map writes")
+		fatal("concurrent map writes")
 	}
 
 	hash := t.hasher(key, uintptr(h.hash0))
@@ -803,7 +803,7 @@ search:
 	}
 
 	if h.flags&hashWriting == 0 {
-		throw("concurrent map writes")
+		fatal("concurrent map writes")
 	}
 	h.flags &^= hashWriting
 }
@@ -842,9 +842,11 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	}
 
 	// decide where to start
-	r := uintptr(fastrand())
+	var r uintptr
 	if h.B > 31-bucketCntBits {
-		r += uintptr(fastrand()) << 31
+		r = uintptr(fastrand64())
+	} else {
+		r = uintptr(fastrand())
 	}
 	it.startBucket = r & bucketMask(h.B)
 	it.offset = uint8(r >> h.B & (bucketCnt - 1))
@@ -868,7 +870,7 @@ func mapiternext(it *hiter) {
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiternext))
 	}
 	if h.flags&hashWriting != 0 {
-		throw("concurrent map iteration and map write")
+		fatal("concurrent map iteration and map write")
 	}
 	t := it.t
 	bucket := it.bucket
@@ -1000,7 +1002,7 @@ func mapclear(t *maptype, h *hmap) {
 	}
 
 	if h.flags&hashWriting != 0 {
-		throw("concurrent map writes")
+		fatal("concurrent map writes")
 	}
 
 	h.flags ^= hashWriting
@@ -1031,7 +1033,7 @@ func mapclear(t *maptype, h *hmap) {
 	}
 
 	if h.flags&hashWriting == 0 {
-		throw("concurrent map writes")
+		fatal("concurrent map writes")
 	}
 	h.flags &^= hashWriting
 }

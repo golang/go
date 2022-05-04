@@ -5,6 +5,7 @@
 package flate
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -639,6 +640,9 @@ func (d *compressor) reset(w io.Writer) {
 }
 
 func (d *compressor) close() error {
+	if d.err == errWriterClosed {
+		return nil
+	}
 	if d.err != nil {
 		return d.err
 	}
@@ -651,7 +655,11 @@ func (d *compressor) close() error {
 		return d.w.err
 	}
 	d.w.flush()
-	return d.w.err
+	if d.w.err != nil {
+		return d.w.err
+	}
+	d.err = errWriterClosed
+	return nil
 }
 
 // NewWriter returns a new Writer compressing data at the given level.
@@ -698,6 +706,8 @@ type dictWriter struct {
 func (w *dictWriter) Write(b []byte) (n int, err error) {
 	return w.w.Write(b)
 }
+
+var errWriterClosed = errors.New("flate: closed writer")
 
 // A Writer takes data written to it and writes the compressed
 // form of that data to an underlying writer (see NewWriter).

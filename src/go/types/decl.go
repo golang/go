@@ -712,14 +712,12 @@ func (check *Checker) collectMethods(obj *TypeName) {
 	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
 	if base != nil {
 		assert(base.targs.Len() == 0) // collectMethods should not be called on an instantiated type
-		u := base.under()
-		if t, _ := u.(*Struct); t != nil {
-			for _, fld := range t.fields {
-				if fld.name != "_" {
-					assert(mset.insert(fld) == nil)
-				}
-			}
-		}
+
+		// See issue #52529: we must delay the expansion of underlying here, as
+		// base may not be fully set-up.
+		check.later(func() {
+			check.checkFieldUniqueness(base)
+		}).describef(obj, "verifying field uniqueness for %v", base)
 
 		// Checker.Files may be called multiple times; additional package files
 		// may add methods to already type-checked types. Add pre-existing methods
@@ -737,14 +735,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		// to it must be unique."
 		assert(m.name != "_")
 		if alt := mset.insert(m); alt != nil {
-			switch alt.(type) {
-			case *Var:
-				check.errorf(m, _DuplicateFieldAndMethod, "field and method with the same name %s", m.name)
-			case *Func:
-				check.errorf(m, _DuplicateMethod, "method %s already declared for %s", m.name, obj)
-			default:
-				unreachable()
-			}
+			check.errorf(m, _DuplicateMethod, "method %s already declared for %s", m.name, obj)
 			check.reportAltDecl(alt)
 			continue
 		}
@@ -752,6 +743,34 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		if base != nil {
 			base.resolve(nil) // TODO(mdempsky): Probably unnecessary.
 			base.AddMethod(m)
+		}
+	}
+}
+
+func (check *Checker) checkFieldUniqueness(base *Named) {
+	if t, _ := base.under().(*Struct); t != nil {
+		var mset objset
+		for i := 0; i < base.methods.Len(); i++ {
+			m := base.methods.At(i, nil)
+			assert(m.name != "_")
+			assert(mset.insert(m) == nil)
+		}
+
+		// Check that any non-blank field names of base are distinct from its
+		// method names.
+		for _, fld := range t.fields {
+			if fld.name != "_" {
+				if alt := mset.insert(fld); alt != nil {
+					// Struct fields should already be unique, so we should only
+					// encounter an alternate via collision with a method name.
+					_ = alt.(*Func)
+
+					// For historical consistency, we report the primary error on the
+					// method, and the alt decl on the field.
+					check.errorf(alt, _DuplicateFieldAndMethod, "field and method with the same name %s", fld.name)
+					check.reportAltDecl(fld)
+				}
+			}
 		}
 	}
 }

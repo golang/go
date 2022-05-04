@@ -27,6 +27,7 @@ import (
 var (
 	goarch           string
 	gorootBin        string
+	gorootBinGo      string
 	gohostarch       string
 	gohostos         string
 	goos             string
@@ -64,6 +65,7 @@ var okgoarch = []string{
 	"amd64",
 	"arm",
 	"arm64",
+	"loong64",
 	"mips",
 	"mipsle",
 	"mips64",
@@ -113,6 +115,12 @@ func xinit() {
 	}
 	goroot = filepath.Clean(b)
 	gorootBin = pathf("%s/bin", goroot)
+
+	// Don't run just 'go' because the build infrastructure
+	// runs cmd/dist inside go/bin often, and on Windows
+	// it will be found in the current directory and refuse to exec.
+	// All exec calls rewrite "go" into gorootBinGo.
+	gorootBinGo = pathf("%s/bin/go", goroot)
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
@@ -1554,6 +1562,7 @@ var cgoEnabled = map[string]bool{
 	"linux/amd64":     true,
 	"linux/arm":       true,
 	"linux/arm64":     true,
+	"linux/loong64":   true,
 	"linux/ppc64":     false,
 	"linux/ppc64le":   true,
 	"linux/mips":      true,
@@ -1593,6 +1602,7 @@ var cgoEnabled = map[string]bool{
 // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
 var incomplete = map[string]bool{
 	"linux/sparc64": true,
+	"linux/loong64": true,
 }
 
 // List of platforms which are first class ports. See golang.org/issue/38874.

@@ -163,11 +163,6 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	return -1, ENOSYS
 }
 
-func setattrlistTimes(path string, times []Timespec, flags int) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
-}
-
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

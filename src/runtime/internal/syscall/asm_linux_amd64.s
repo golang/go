@@ -6,28 +6,42 @@
 
 // func Syscall6(num, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, errno uintptr)
 //
-// Syscall # in AX, args in DI SI DX R10 R8 R9, return in AX DX.
+// We need to convert to the syscall ABI.
+//
+// arg | ABIInternal | Syscall
+// ---------------------------
+// num | AX          | AX
+// a1  | BX          | DI
+// a2  | CX          | SI
+// a3  | DI          | DX
+// a4  | SI          | R10
+// a5  | R8          | R8
+// a6  | R9          | R9
+//
+// r1  | AX          | AX
+// r2  | BX          | DX
+// err | CX          | part of AX
 //
 // Note that this differs from "standard" ABI convention, which would pass 4th
 // arg in CX, not R10.
-TEXT ·Syscall6(SB),NOSPLIT,$0-80
-	MOVQ	num+0(FP), AX	// syscall entry
-	MOVQ	a1+8(FP), DI
-	MOVQ	a2+16(FP), SI
-	MOVQ	a3+24(FP), DX
-	MOVQ	a4+32(FP), R10
-	MOVQ	a5+40(FP), R8
-	MOVQ	a6+48(FP), R9
+TEXT ·Syscall6<ABIInternal>(SB),NOSPLIT,$0
+	// a6 already in R9.
+	// a5 already in R8.
+	MOVQ	SI, R10 // a4
+	MOVQ	DI, DX  // a3
+	MOVQ	CX, SI  // a2
+	MOVQ	BX, DI  // a1
+	// num already in AX.
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	ok
-	MOVQ	$-1, r1+56(FP)
-	MOVQ	$0, r2+64(FP)
 	NEGQ	AX
-	MOVQ	AX, errno+72(FP)
+	MOVQ	AX, CX  // errno
+	MOVQ	$-1, AX // r1
+	MOVQ	$0, BX  // r2
 	RET
 ok:
-	MOVQ	AX, r1+56(FP)
-	MOVQ	DX, r2+64(FP)
-	MOVQ	$0, errno+72(FP)
+	// r1 already in AX.
+	MOVQ	DX, BX // r2
+	MOVQ	$0, CX // errno
 	RET

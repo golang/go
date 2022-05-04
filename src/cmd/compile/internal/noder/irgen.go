@@ -36,7 +36,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 	ctxt := types2.NewContext()
 	importer := gcimports{
 		ctxt:     ctxt,
-		packages: map[string]*types2.Package{"unsafe": types2.Unsafe},
+		packages: make(map[string]*types2.Package),
 	}
 	conf := types2.Config{
 		Context:               ctxt,
