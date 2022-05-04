@@ -352,6 +352,8 @@ var readSetCookiesTests = []struct {
 		Header{"Set-Cookie": {`special-8=","`}},
 		[]*Cookie{{Name: "special-8", Value: ",", Raw: `special-8=","`}},
 	},
+	// Make sure we can properly read back the Set-Cookie headers
+	// for names containing spaces:
 	{
 		Header{"Set-Cookie": {`special-9 =","`}},
 		[]*Cookie{{Name: "special-9", Value: ",", Raw: `special-9 =","`}},

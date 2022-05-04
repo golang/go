@@ -70,10 +70,10 @@ func readSetCookies(h Header) []*Cookie {
 		}
 		parts[0] = textproto.TrimString(parts[0])
 		name, value, ok := strings.Cut(parts[0], "=")
-		name = textproto.TrimString(name)
 		if !ok {
 			continue
 		}
+		name = textproto.TrimString(name)
 		if !isCookieNameValid(name) {
 			continue
 		}
