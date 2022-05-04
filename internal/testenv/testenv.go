@@ -224,22 +224,21 @@ func NeedsGoPackagesEnv(t Testing, env []string) {
 
 // NeedsGoBuild skips t if the current system can't build programs with “go build”
 // and then run them with os.StartProcess or exec.Command.
-// android, and darwin/arm systems don't have the userspace go build needs to run,
+// Android doesn't have the userspace go build needs to run,
 // and js/wasm doesn't support running subprocesses.
 func NeedsGoBuild(t Testing) {
 	if t, ok := t.(helperer); ok {
 		t.Helper()
 	}
 
+	// This logic was derived from internal/testing.HasGoBuild and
+	// may need to be updated as that function evolves.
+
 	NeedsTool(t, "go")
 
 	switch runtime.GOOS {
 	case "android", "js":
 		t.Skipf("skipping test: %v can't build and run Go binaries", runtime.GOOS)
-	case "darwin":
-		if strings.HasPrefix(runtime.GOARCH, "arm") {
-			t.Skipf("skipping test: darwin/arm can't build and run Go binaries")
-		}
 	}
 }
 
