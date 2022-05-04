@@ -235,7 +235,16 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		case ir.OSLICELIT:
 			value := value.(*ir.CompLitExpr)
 			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
-				slicelit(ctxt, value, a, init)
+				var sinit ir.Nodes
+				slicelit(ctxt, value, a, &sinit)
+				if kind == initKindStatic {
+					// When doing static initialization, init statements may contain dynamic
+					// expression, which will be initialized later, causing liveness analysis
+					// confuses about variables lifetime. So making sure those expressions
+					// are ordered correctly here. See issue #52673.
+					orderBlock(&sinit, map[string][]*ir.Name{})
+				}
+				init.Append(sinit...)
 				continue
 			}
 
