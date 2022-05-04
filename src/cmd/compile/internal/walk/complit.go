@@ -258,9 +258,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		case initKindStatic:
 			genAsStatic(as)
 		case initKindDynamic, initKindLocalCode:
-			a = orderStmtInPlace(as, map[string][]*ir.Name{})
-			a = walkStmt(a)
-			init.Append(a)
+			appendWalkStmt(init, orderStmtInPlace(as, map[string][]*ir.Name{}))
 		default:
 			base.Fatalf("fixedlit: bad kind %d", kind)
 		}
@@ -396,19 +394,13 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 		// build list of vauto[c] = expr
 		ir.SetPos(value)
-		as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, a, value))
-		as = orderStmtInPlace(as, map[string][]*ir.Name{})
-		as = walkStmt(as)
-		init.Append(as)
+		as := ir.NewAssignStmt(base.Pos, a, value)
+		appendWalkStmt(init, orderStmtInPlace(typecheck.Stmt(as), map[string][]*ir.Name{}))
 	}
 
 	// make slice out of heap (6)
 	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto, nil, nil, nil))
-
-	a = typecheck.Stmt(a)
-	a = orderStmtInPlace(a, map[string][]*ir.Name{})
-	a = walkStmt(a)
-	init.Append(a)
+	appendWalkStmt(init, orderStmtInPlace(typecheck.Stmt(a), map[string][]*ir.Name{}))
 }
 
 func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
