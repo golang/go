@@ -328,7 +328,7 @@ func isGoGenerate(buf []byte) bool {
 // setEnv sets the extra environment variables used when executing a
 // single go:generate command.
 func (g *Generator) setEnv() {
-	g.env = []string{
+	env := []string{
 		"GOROOT=" + cfg.GOROOT,
 		"GOARCH=" + cfg.BuildContext.GOARCH,
 		"GOOS=" + cfg.BuildContext.GOOS,
@@ -337,7 +337,9 @@ func (g *Generator) setEnv() {
 		"GOPACKAGE=" + g.pkg,
 		"DOLLAR=" + "$",
 	}
-	g.env = base.AppendPWD(g.env, g.dir)
+	env = base.AppendPATH(env)
+	env = base.AppendPWD(env, g.dir)
+	g.env = env
 }
 
 // split breaks the line into words, evaluating quoted
@@ -446,7 +448,20 @@ func (g *Generator) setShorthand(words []string) {
 // exec runs the command specified by the argument. The first word is
 // the command name itself.
 func (g *Generator) exec(words []string) {
-	cmd := exec.Command(words[0], words[1:]...)
+	path := words[0]
+	if path != "" && !strings.Contains(path, string(os.PathSeparator)) {
+		// If a generator says '//go:generate go run <blah>' it almost certainly
+		// intends to use the same 'go' as 'go generate' itself.
+		// Prefer to resolve the binary from GOROOT/bin, and for consistency
+		// prefer to resolve any other commands there too.
+		gorootBinPath, err := exec.LookPath(filepath.Join(cfg.GOROOTbin, path))
+		if err == nil {
+			path = gorootBinPath
+		}
+	}
+	cmd := exec.Command(path, words[1:]...)
+	cmd.Args[0] = words[0] // Overwrite with the original in case it was rewritten above.
+
 	// Standard in and out of generator should be the usual.
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
