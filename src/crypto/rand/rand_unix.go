@@ -10,6 +10,7 @@
 package rand
 
 import (
+	"crypto/internal/boring"
 	"errors"
 	"io"
 	"os"
@@ -18,8 +19,6 @@ import (
 	"syscall"
 	"time"
 )
-
-import "crypto/internal/boring"
 
 const urandomDevice = "/dev/urandom"
 

@@ -9,13 +9,12 @@ package rsa
 import (
 	"bytes"
 	"crypto"
+	"crypto/internal/boring"
 	"errors"
 	"hash"
 	"io"
 	"math/big"
 )
-
-import "crypto/internal/boring"
 
 // Per RFC 8017, Section 9.1
 //
@@ -298,6 +297,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 		}
 		return boring.SignRSAPSS(bkey, hash, digest, saltLength)
 	}
+	boring.UnreachableExceptTests()
 
 	salt := make([]byte, saltLength)
 	if _, err := io.ReadFull(rand, salt); err != nil {

@@ -1883,11 +1883,13 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
 //	cgo (if cgo is enabled)
 //	$GOOS
 //	$GOARCH
-//	boringcrypto
 //	ctxt.Compiler
 //	linux (if GOOS = android)
 //	solaris (if GOOS = illumos)
-//	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
+//	darwin (if GOOS = ios)
+//	unix (if this is a Unix GOOS)
+//	boringcrypto (if GOEXPERIMENT=boringcrypto is enabled)
+//	tag (if tag is listed in ctxt.BuildTags, ctxt.ToolTags, or ctxt.ReleaseTags)
 //
 // It records all consulted tags in allTags.
 func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {

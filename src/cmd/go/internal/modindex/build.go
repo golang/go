@@ -887,8 +887,8 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
 //	$GOARCH
 //	boringcrypto
 //	ctxt.Compiler
-//	linux (if GOOS = android)
-//	solaris (if GOOS = illumos)
+//	linux (if GOOS == android)
+//	solaris (if GOOS == illumos)
 //	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
 //
 // It records all consulted tags in allTags.

@@ -72,9 +72,6 @@ type extraModes interface {
 	NewCBCDecrypter(iv []byte) cipher.BlockMode
 	NewCTR(iv []byte) cipher.Stream
 	NewGCM(nonceSize, tagSize int) (cipher.AEAD, error)
-
-	// Invented for BoringCrypto.
-	NewGCMTLS() (cipher.AEAD, error)
 }
 
 var _ extraModes = (*aesCipher)(nil)
@@ -235,8 +232,8 @@ func (c *aesCipher) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 	return c.newGCM(false)
 }
 
-func (c *aesCipher) NewGCMTLS() (cipher.AEAD, error) {
-	return c.newGCM(true)
+func NewGCMTLS(c cipher.Block) (cipher.AEAD, error) {
+	return c.(*aesCipher).newGCM(true)
 }
 
 func (c *aesCipher) newGCM(tls bool) (cipher.AEAD, error) {

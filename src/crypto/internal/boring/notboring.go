@@ -50,6 +50,7 @@ func SHA512([]byte) [64]byte { panic("boringcrypto: not available") }
 func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: not available") }
 
 func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not available") }
+func NewGCMTLS(cipher.Block) (cipher.AEAD, error)   { panic("boringcrypto: not available") }
 
 type PublicKeyECDSA struct{ _ int }
 type PrivateKeyECDSA struct{ _ int }
