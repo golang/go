@@ -1894,6 +1894,31 @@ func TestNoAllocs(t *testing.T) {
 	test("IPPRefix.Masked", func() { sinkPrefix = MustParsePrefix("1.2.3.4/16").Masked() })
 }
 
+func TestAddrStringAllocs(t *testing.T) {
+	tests := []struct {
+		name       string
+		ip         Addr
+		wantAllocs int
+	}{
+		{"zero", Addr{}, 0},
+		{"ipv4", MustParseAddr("192.168.1.1"), 1},
+		{"ipv6", MustParseAddr("2001:db8::1"), 1},
+		{"ipv6+zone", MustParseAddr("2001:db8::1%eth0"), 1},
+		{"ipv4-in-ipv6", MustParseAddr("::ffff:192.168.1.1"), 1},
+		{"ipv4-in-ipv6+zone", MustParseAddr("::ffff:192.168.1.1%eth0"), 1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			allocs := int(testing.AllocsPerRun(1000, func() {
+				sinkString = tc.ip.String()
+			}))
+			if allocs != tc.wantAllocs {
+				t.Errorf("allocs=%d, want %d", allocs, tc.wantAllocs)
+			}
+		})
+	}
+}
+
 func TestPrefixString(t *testing.T) {
 	tests := []struct {
 		ipp  Prefix

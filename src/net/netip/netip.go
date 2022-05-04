@@ -768,11 +768,10 @@ func (ip Addr) String() string {
 		return ip.string4()
 	default:
 		if ip.Is4In6() {
-			// TODO(bradfitz): this could alloc less.
 			if z := ip.Zone(); z != "" {
-				return "::ffff:" + ip.Unmap().String() + "%" + z
+				return "::ffff:" + ip.Unmap().string4() + "%" + z
 			} else {
-				return "::ffff:" + ip.Unmap().String()
+				return "::ffff:" + ip.Unmap().string4()
 			}
 		}
 		return ip.string6()
