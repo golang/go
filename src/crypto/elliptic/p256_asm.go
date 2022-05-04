@@ -32,10 +32,10 @@ type p256Point struct {
 	xyz [12]uint64
 }
 
-var p256 p256Curve
-
-func initP256Arch() {
-	p256 = p256Curve{p256Params}
+func init() {
+	initP256Arch = func() {
+		p256 = p256Curve{&p256Params}
+	}
 }
 
 func (curve p256Curve) Params() *CurveParams {
@@ -120,9 +120,9 @@ func (curve p256Curve) Inverse(k *big.Int) *big.Int {
 		k = new(big.Int).Neg(k)
 	}
 
-	if k.Cmp(p256.N) >= 0 {
+	if k.Cmp(p256Params.N) >= 0 {
 		// This should never happen.
-		k = new(big.Int).Mod(k, p256.N)
+		k = new(big.Int).Mod(k, p256Params.N)
 	}
 
 	// table will store precomputed powers of x.
@@ -218,8 +218,8 @@ func fromBig(out []uint64, big *big.Int) {
 func p256GetScalar(out []uint64, in []byte) {
 	n := new(big.Int).SetBytes(in)
 
-	if n.Cmp(p256.N) >= 0 {
-		n.Mod(n, p256.N)
+	if n.Cmp(p256Params.N) >= 0 {
+		n.Mod(n, p256Params.N)
 	}
 	fromBig(out, n)
 }
@@ -230,10 +230,10 @@ func p256GetScalar(out []uint64, in []byte) {
 var rr = []uint64{0x0000000000000003, 0xfffffffbffffffff, 0xfffffffffffffffe, 0x00000004fffffffd}
 
 func maybeReduceModP(in *big.Int) *big.Int {
-	if in.Cmp(p256.P) < 0 {
+	if in.Cmp(p256Params.P) < 0 {
 		return in
 	}
-	return new(big.Int).Mod(in, p256.P)
+	return new(big.Int).Mod(in, p256Params.P)
 }
 
 func (curve p256Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {

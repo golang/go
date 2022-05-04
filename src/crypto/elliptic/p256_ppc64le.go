@@ -27,14 +27,13 @@ type p256Point struct {
 	z [32]byte
 }
 
-var (
-	p256        Curve
-	p256PreFast *[37][64]p256Point
-)
+var p256PreFast *[37][64]p256Point
 
-func initP256Arch() {
-	p256 = p256CurveFast{p256Params}
-	initTable()
+func init() {
+	initP256Arch = func() {
+		p256 = p256CurveFast{&p256Params}
+		initTable()
+	}
 }
 
 func (curve p256CurveFast) Params() *CurveParams {
