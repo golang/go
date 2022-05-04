@@ -10,12 +10,15 @@ import (
 	"crypto/elliptic/internal/fiat"
 	"crypto/subtle"
 	"errors"
+	"sync"
 )
 
 var p224B, _ = new(fiat.P224Element).SetBytes([]byte{0xb4, 0x5, 0xa, 0x85, 0xc, 0x4, 0xb3, 0xab, 0xf5, 0x41, 0x32, 0x56, 0x50, 0x44, 0xb0, 0xb7, 0xd7, 0xbf, 0xd8, 0xba, 0x27, 0xb, 0x39, 0x43, 0x23, 0x55, 0xff, 0xb4})
 
 var p224G, _ = NewP224Point().SetBytes([]byte{0x4, 0xb7, 0xe, 0xc, 0xbd, 0x6b, 0xb4, 0xbf, 0x7f, 0x32, 0x13, 0x90, 0xb9, 0x4a, 0x3, 0xc1, 0xd3, 0x56, 0xc2, 0x11, 0x22, 0x34, 0x32, 0x80, 0xd6, 0x11, 0x5c, 0x1d, 0x21, 0xbd, 0x37, 0x63, 0x88, 0xb5, 0xf7, 0x23, 0xfb, 0x4c, 0x22, 0xdf, 0xe6, 0xcd, 0x43, 0x75, 0xa0, 0x5a, 0x7, 0x47, 0x64, 0x44, 0xd5, 0x81, 0x99, 0x85, 0x0, 0x7e, 0x34})
 
+// p224ElementLength is the length of an element of the base or scalar field,
+// which have the same bytes length for all NIST P curves.
 const p224ElementLength = 28
 
 // P224Point is a P224 point. The zero value is NOT valid.
@@ -242,34 +245,54 @@ func (q *P224Point) Select(p1, p2 *P224Point, cond int) *P224Point {
 	return q
 }
 
+// A p224Table holds the first 15 multiples of a point at offset -1, so [1]P
+// is at table[0], [15]P is at table[14], and [0]P is implicitly the identity
+// point.
+type p224Table [15]*P224Point
+
+// Select selects the n-th multiple of the table base point into p. It works in
+// constant time by iterating over every entry of the table. n must be in [0, 15].
+func (table *p224Table) Select(p *P224Point, n uint8) {
+	if n >= 16 {
+		panic("nistec: internal error: p224Table called with out-of-bounds value")
+	}
+	p.Set(NewP224Point())
+	for i := uint8(1); i < 16; i++ {
+		cond := subtle.ConstantTimeByteEq(i, n)
+		p.Select(table[i-1], p, cond)
+	}
+}
+
 // ScalarMult sets p = scalar * q, and returns p.
 func (p *P224Point) ScalarMult(q *P224Point, scalar []byte) (*P224Point, error) {
-	// table holds the first 16 multiples of q. The explicit newP224Point calls
-	// get inlined, letting the allocations live on the stack.
-	var table = [16]*P224Point{
+	// Compute a p224Table for the base point q. The explicit NewP224Point
+	// calls get inlined, letting the allocations live on the stack.
+	var table = p224Table{NewP224Point(), NewP224Point(), NewP224Point(),
 		NewP224Point(), NewP224Point(), NewP224Point(), NewP224Point(),
 		NewP224Point(), NewP224Point(), NewP224Point(), NewP224Point(),
-		NewP224Point(), NewP224Point(), NewP224Point(), NewP224Point(),
-		NewP224Point(), NewP224Point(), NewP224Point(), NewP224Point(),
-	}
-	for i := 1; i < 16; i++ {
-		table[i].Add(table[i-1], q)
+		NewP224Point(), NewP224Point(), NewP224Point(), NewP224Point()}
+	table[0].Set(q)
+	for i := 1; i < 15; i += 2 {
+		table[i].Double(table[i/2])
+		table[i+1].Add(table[i], q)
 	}
 
 	// Instead of doing the classic double-and-add chain, we do it with a
 	// four-bit window: we double four times, and then add [0-15]P.
 	t := NewP224Point()
 	p.Set(NewP224Point())
-	for _, byte := range scalar {
-		p.Double(p)
-		p.Double(p)
-		p.Double(p)
-		p.Double(p)
-
-		for i := uint8(0); i < 16; i++ {
-			cond := subtle.ConstantTimeByteEq(byte>>4, i)
-			t.Select(table[i], t, cond)
+	for i, byte := range scalar {
+		// No need to double on the first iteration, as p is the identity at
+		// this point, and [N]∞ = ∞.
+		if i != 0 {
+			p.Double(p)
+			p.Double(p)
+			p.Double(p)
+			p.Double(p)
 		}
+
+		windowValue := byte >> 4
+		table.Select(t, windowValue)
 		p.Add(p, t)
 
 		p.Double(p)
@@ -277,18 +300,66 @@ func (p *P224Point) ScalarMult(q *P224Point, scalar []byte) (*P224Point, error) 
 		p.Double(p)
 		p.Double(p)
 
-		for i := uint8(0); i < 16; i++ {
-			cond := subtle.ConstantTimeByteEq(byte&0b1111, i)
-			t.Select(table[i], t, cond)
-		}
+		windowValue = byte & 0b1111
+		table.Select(t, windowValue)
 		p.Add(p, t)
 	}
 
 	return p, nil
 }
 
+var p224GeneratorTable *[p224ElementLength * 2]p224Table
+var p224GeneratorTableOnce sync.Once
+
+// generatorTable returns a sequence of p224Tables. The first table contains
+// multiples of G. Each successive table is the previous table doubled four
+// times.
+func (p *P224Point) generatorTable() *[p224ElementLength * 2]p224Table {
+	p224GeneratorTableOnce.Do(func() {
+		p224GeneratorTable = new([p224ElementLength * 2]p224Table)
+		base := NewP224Generator()
+		for i := 0; i < p224ElementLength*2; i++ {
+			p224GeneratorTable[i][0] = NewP224Point().Set(base)
+			for j := 1; j < 15; j++ {
+				p224GeneratorTable[i][j] = NewP224Point().Add(p224GeneratorTable[i][j-1], base)
+			}
+			base.Double(base)
+			base.Double(base)
+			base.Double(base)
+			base.Double(base)
+		}
+	})
+	return p224GeneratorTable
+}
+
 // ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
 // returns p.
 func (p *P224Point) ScalarBaseMult(scalar []byte) (*P224Point, error) {
-	return p.ScalarMult(NewP224Generator(), scalar)
+	if len(scalar) != p224ElementLength {
+		return nil, errors.New("invalid scalar length")
+	}
+	tables := p.generatorTable()
+
+	// This is also a scalar multiplication with a four-bit window like in
+	// ScalarMult, but in this case the doublings are precomputed. The value
+	// [windowValue]G added at iteration k would normally get doubled
+	// (totIterations-k)×4 times, but with a larger precomputation we can
+	// instead add [2^((totIterations-k)×4)][windowValue]G and avoid the
+	// doublings between iterations.
+	t := NewP224Point()
+	p.Set(NewP224Point())
+	tableIndex := len(tables) - 1
+	for _, byte := range scalar {
+		windowValue := byte >> 4
+		tables[tableIndex].Select(t, windowValue)
+		p.Add(p, t)
+		tableIndex--
+
+		windowValue = byte & 0b1111
+		tables[tableIndex].Select(t, windowValue)
+		p.Add(p, t)
+		tableIndex--
+	}
+
+	return p, nil
 }

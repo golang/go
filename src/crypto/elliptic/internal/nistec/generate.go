@@ -97,12 +97,15 @@ import (
 	"crypto/elliptic/internal/fiat"
 	"crypto/subtle"
 	"errors"
+	"sync"
 )
 
 var {{.p}}B, _ = new({{.Element}}).SetBytes({{.B}})
 
 var {{.p}}G, _ = New{{.P}}Point().SetBytes({{.G}})
 
+// {{.p}}ElementLength is the length of an element of the base or scalar field,
+// which have the same bytes length for all NIST P curves.
 const {{.p}}ElementLength = {{ .ElementLen }}
 
 // {{.P}}Point is a {{.P}} point. The zero value is NOT valid.
@@ -329,34 +332,54 @@ func (q *{{.P}}Point) Select(p1, p2 *{{.P}}Point, cond int) *{{.P}}Point {
 	return q
 }
 
+// A {{.p}}Table holds the first 15 multiples of a point at offset -1, so [1]P
+// is at table[0], [15]P is at table[14], and [0]P is implicitly the identity
+// point.
+type {{.p}}Table [15]*{{.P}}Point
+
+// Select selects the n-th multiple of the table base point into p. It works in
+// constant time by iterating over every entry of the table. n must be in [0, 15].
+func (table *{{.p}}Table) Select(p *{{.P}}Point, n uint8) {
+	if n >= 16 {
+		panic("nistec: internal error: {{.p}}Table called with out-of-bounds value")
+	}
+	p.Set(New{{.P}}Point())
+	for i := uint8(1); i < 16; i++ {
+		cond := subtle.ConstantTimeByteEq(i, n)
+		p.Select(table[i-1], p, cond)
+	}
+}
+
 // ScalarMult sets p = scalar * q, and returns p.
 func (p *{{.P}}Point) ScalarMult(q *{{.P}}Point, scalar []byte) (*{{.P}}Point, error) {
-	// table holds the first 16 multiples of q. The explicit new{{.P}}Point calls
-	// get inlined, letting the allocations live on the stack.
-	var table = [16]*{{.P}}Point{
+	// Compute a {{.p}}Table for the base point q. The explicit New{{.P}}Point
+	// calls get inlined, letting the allocations live on the stack.
+	var table = {{.p}}Table{New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(),
 		New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(),
 		New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(),
-		New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(),
-		New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(),
-	}
-	for i := 1; i < 16; i++ {
-        table[i].Add(table[i-1], q)
+		New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point(), New{{.P}}Point()}
+	table[0].Set(q)
+	for i := 1; i < 15; i += 2 {
+		table[i].Double(table[i/2])
+		table[i+1].Add(table[i], q)
 	}
 
 	// Instead of doing the classic double-and-add chain, we do it with a
 	// four-bit window: we double four times, and then add [0-15]P.
 	t := New{{.P}}Point()
 	p.Set(New{{.P}}Point())
-	for _, byte := range scalar {
-		p.Double(p)
-		p.Double(p)
-		p.Double(p)
-		p.Double(p)
-
-		for i := uint8(0); i < 16; i++ {
-			cond := subtle.ConstantTimeByteEq(byte>>4, i)
-			t.Select(table[i], t, cond)
+	for i, byte := range scalar {
+		// No need to double on the first iteration, as p is the identity at
+		// this point, and [N]∞ = ∞.
+		if i != 0 {
+			p.Double(p)
+			p.Double(p)
+			p.Double(p)
+			p.Double(p)
 		}
+
+		windowValue := byte >> 4
+		table.Select(t, windowValue)
 		p.Add(p, t)
 
 		p.Double(p)
@@ -364,19 +387,67 @@ func (p *{{.P}}Point) ScalarMult(q *{{.P}}Point, scalar []byte) (*{{.P}}Point, e
 		p.Double(p)
 		p.Double(p)
 
-		for i := uint8(0); i < 16; i++ {
-			cond := subtle.ConstantTimeByteEq(byte&0b1111, i)
-			t.Select(table[i], t, cond)
-		}
+		windowValue = byte & 0b1111
+		table.Select(t, windowValue)
 		p.Add(p, t)
 	}
 
 	return p, nil
 }
 
+var {{.p}}GeneratorTable *[{{.p}}ElementLength * 2]{{.p}}Table
+var {{.p}}GeneratorTableOnce sync.Once
+
+// generatorTable returns a sequence of {{.p}}Tables. The first table contains
+// multiples of G. Each successive table is the previous table doubled four
+// times.
+func (p *{{.P}}Point) generatorTable() *[{{.p}}ElementLength * 2]{{.p}}Table {
+	{{.p}}GeneratorTableOnce.Do(func() {
+		{{.p}}GeneratorTable = new([{{.p}}ElementLength * 2]{{.p}}Table)
+		base := New{{.P}}Generator()
+		for i := 0; i < {{.p}}ElementLength*2; i++ {
+			{{.p}}GeneratorTable[i][0] = New{{.P}}Point().Set(base)
+			for j := 1; j < 15; j++ {
+				{{.p}}GeneratorTable[i][j] = New{{.P}}Point().Add({{.p}}GeneratorTable[i][j-1], base)
+			}
+			base.Double(base)
+			base.Double(base)
+			base.Double(base)
+			base.Double(base)
+		}
+	})
+	return {{.p}}GeneratorTable
+}
+
 // ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
 // returns p.
 func (p *{{.P}}Point) ScalarBaseMult(scalar []byte) (*{{.P}}Point, error) {
-	return p.ScalarMult(New{{.P}}Generator(), scalar)
+	if len(scalar) != {{.p}}ElementLength {
+		return nil, errors.New("invalid scalar length")
+	}
+	tables := p.generatorTable()
+
+	// This is also a scalar multiplication with a four-bit window like in
+	// ScalarMult, but in this case the doublings are precomputed. The value
+	// [windowValue]G added at iteration k would normally get doubled
+	// (totIterations-k)×4 times, but with a larger precomputation we can
+	// instead add [2^((totIterations-k)×4)][windowValue]G and avoid the
+	// doublings between iterations.
+	t := New{{.P}}Point()
+	p.Set(New{{.P}}Point())
+	tableIndex := len(tables) - 1
+	for _, byte := range scalar {
+		windowValue := byte >> 4
+		tables[tableIndex].Select(t, windowValue)
+		p.Add(p, t)
+		tableIndex--
+
+		windowValue = byte & 0b1111
+		tables[tableIndex].Select(t, windowValue)
+		p.Add(p, t)
+		tableIndex--
+	}
+
+	return p, nil
 }
 `

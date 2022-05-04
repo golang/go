@@ -12,12 +12,15 @@ import (
 	"crypto/elliptic/internal/fiat"
 	"crypto/subtle"
 	"errors"
+	"sync"
 )
 
 var p256B, _ = new(fiat.P256Element).SetBytes([]byte{0x5a, 0xc6, 0x35, 0xd8, 0xaa, 0x3a, 0x93, 0xe7, 0xb3, 0xeb, 0xbd, 0x55, 0x76, 0x98, 0x86, 0xbc, 0x65, 0x1d, 0x6, 0xb0, 0xcc, 0x53, 0xb0, 0xf6, 0x3b, 0xce, 0x3c, 0x3e, 0x27, 0xd2, 0x60, 0x4b})
 
 var p256G, _ = NewP256Point().SetBytes([]byte{0x4, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x3, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96, 0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb, 0x4a, 0x7c, 0xf, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5})
 
+// p256ElementLength is the length of an element of the base or scalar field,
+// which have the same bytes length for all NIST P curves.
 const p256ElementLength = 32
 
 // P256Point is a P256 point. The zero value is NOT valid.
@@ -244,34 +247,54 @@ func (q *P256Point) Select(p1, p2 *P256Point, cond int) *P256Point {
 	return q
 }
 
+// A p256Table holds the first 15 multiples of a point at offset -1, so [1]P
+// is at table[0], [15]P is at table[14], and [0]P is implicitly the identity
+// point.
+type p256Table [15]*P256Point
+
+// Select selects the n-th multiple of the table base point into p. It works in
+// constant time by iterating over every entry of the table. n must be in [0, 15].
+func (table *p256Table) Select(p *P256Point, n uint8) {
+	if n >= 16 {
+		panic("nistec: internal error: p256Table called with out-of-bounds value")
+	}
+	p.Set(NewP256Point())
+	for i := uint8(1); i < 16; i++ {
+		cond := subtle.ConstantTimeByteEq(i, n)
+		p.Select(table[i-1], p, cond)
+	}
+}
+
 // ScalarMult sets p = scalar * q, and returns p.
 func (p *P256Point) ScalarMult(q *P256Point, scalar []byte) (*P256Point, error) {
-	// table holds the first 16 multiples of q. The explicit newP256Point calls
-	// get inlined, letting the allocations live on the stack.
-	var table = [16]*P256Point{
+	// Compute a p256Table for the base point q. The explicit NewP256Point
+	// calls get inlined, letting the allocations live on the stack.
+	var table = p256Table{NewP256Point(), NewP256Point(), NewP256Point(),
 		NewP256Point(), NewP256Point(), NewP256Point(), NewP256Point(),
 		NewP256Point(), NewP256Point(), NewP256Point(), NewP256Point(),
-		NewP256Point(), NewP256Point(), NewP256Point(), NewP256Point(),
-		NewP256Point(), NewP256Point(), NewP256Point(), NewP256Point(),
-	}
-	for i := 1; i < 16; i++ {
-		table[i].Add(table[i-1], q)
+		NewP256Point(), NewP256Point(), NewP256Point(), NewP256Point()}
+	table[0].Set(q)
+	for i := 1; i < 15; i += 2 {
+		table[i].Double(table[i/2])
+		table[i+1].Add(table[i], q)
 	}
 
 	// Instead of doing the classic double-and-add chain, we do it with a
 	// four-bit window: we double four times, and then add [0-15]P.
 	t := NewP256Point()
 	p.Set(NewP256Point())
-	for _, byte := range scalar {
-		p.Double(p)
-		p.Double(p)
-		p.Double(p)
-		p.Double(p)
-
-		for i := uint8(0); i < 16; i++ {
-			cond := subtle.ConstantTimeByteEq(byte>>4, i)
-			t.Select(table[i], t, cond)
+	for i, byte := range scalar {
+		// No need to double on the first iteration, as p is the identity at
+		// this point, and [N]∞ = ∞.
+		if i != 0 {
+			p.Double(p)
+			p.Double(p)
+			p.Double(p)
+			p.Double(p)
 		}
+
+		windowValue := byte >> 4
+		table.Select(t, windowValue)
 		p.Add(p, t)
 
 		p.Double(p)
@@ -279,18 +302,66 @@ func (p *P256Point) ScalarMult(q *P256Point, scalar []byte) (*P256Point, error) 
 		p.Double(p)
 		p.Double(p)
 
-		for i := uint8(0); i < 16; i++ {
-			cond := subtle.ConstantTimeByteEq(byte&0b1111, i)
-			t.Select(table[i], t, cond)
-		}
+		windowValue = byte & 0b1111
+		table.Select(t, windowValue)
 		p.Add(p, t)
 	}
 
 	return p, nil
 }
 
+var p256GeneratorTable *[p256ElementLength * 2]p256Table
+var p256GeneratorTableOnce sync.Once
+
+// generatorTable returns a sequence of p256Tables. The first table contains
+// multiples of G. Each successive table is the previous table doubled four
+// times.
+func (p *P256Point) generatorTable() *[p256ElementLength * 2]p256Table {
+	p256GeneratorTableOnce.Do(func() {
+		p256GeneratorTable = new([p256ElementLength * 2]p256Table)
+		base := NewP256Generator()
+		for i := 0; i < p256ElementLength*2; i++ {
+			p256GeneratorTable[i][0] = NewP256Point().Set(base)
+			for j := 1; j < 15; j++ {
+				p256GeneratorTable[i][j] = NewP256Point().Add(p256GeneratorTable[i][j-1], base)
+			}
+			base.Double(base)
+			base.Double(base)
+			base.Double(base)
+			base.Double(base)
+		}
+	})
+	return p256GeneratorTable
+}
+
 // ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
 // returns p.
 func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
-	return p.ScalarMult(NewP256Generator(), scalar)
+	if len(scalar) != p256ElementLength {
+		return nil, errors.New("invalid scalar length")
+	}
+	tables := p.generatorTable()
+
+	// This is also a scalar multiplication with a four-bit window like in
+	// ScalarMult, but in this case the doublings are precomputed. The value
+	// [windowValue]G added at iteration k would normally get doubled
+	// (totIterations-k)×4 times, but with a larger precomputation we can
+	// instead add [2^((totIterations-k)×4)][windowValue]G and avoid the
+	// doublings between iterations.
+	t := NewP256Point()
+	p.Set(NewP256Point())
+	tableIndex := len(tables) - 1
+	for _, byte := range scalar {
+		windowValue := byte >> 4
+		tables[tableIndex].Select(t, windowValue)
+		p.Add(p, t)
+		tableIndex--
+
+		windowValue = byte & 0b1111
+		tables[tableIndex].Select(t, windowValue)
+		p.Add(p, t)
+		tableIndex--
+	}
+
+	return p, nil
 }

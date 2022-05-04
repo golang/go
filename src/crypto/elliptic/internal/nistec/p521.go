@@ -10,12 +10,15 @@ import (
 	"crypto/elliptic/internal/fiat"
 	"crypto/subtle"
 	"errors"
+	"sync"
 )
 
 var p521B, _ = new(fiat.P521Element).SetBytes([]byte{0x0, 0x51, 0x95, 0x3e, 0xb9, 0x61, 0x8e, 0x1c, 0x9a, 0x1f, 0x92, 0x9a, 0x21, 0xa0, 0xb6, 0x85, 0x40, 0xee, 0xa2, 0xda, 0x72, 0x5b, 0x99, 0xb3, 0x15, 0xf3, 0xb8, 0xb4, 0x89, 0x91, 0x8e, 0xf1, 0x9, 0xe1, 0x56, 0x19, 0x39, 0x51, 0xec, 0x7e, 0x93, 0x7b, 0x16, 0x52, 0xc0, 0xbd, 0x3b, 0xb1, 0xbf, 0x7, 0x35, 0x73, 0xdf, 0x88, 0x3d, 0x2c, 0x34, 0xf1, 0xef, 0x45, 0x1f, 0xd4, 0x6b, 0x50, 0x3f, 0x0})
 
 var p521G, _ = NewP521Point().SetBytes([]byte{0x4, 0x0, 0xc6, 0x85, 0x8e, 0x6, 0xb7, 0x4, 0x4, 0xe9, 0xcd, 0x9e, 0x3e, 0xcb, 0x66, 0x23, 0x95, 0xb4, 0x42, 0x9c, 0x64, 0x81, 0x39, 0x5, 0x3f, 0xb5, 0x21, 0xf8, 0x28, 0xaf, 0x60, 0x6b, 0x4d, 0x3d, 0xba, 0xa1, 0x4b, 0x5e, 0x77, 0xef, 0xe7, 0x59, 0x28, 0xfe, 0x1d, 0xc1, 0x27, 0xa2, 0xff, 0xa8, 0xde, 0x33, 0x48, 0xb3, 0xc1, 0x85, 0x6a, 0x42, 0x9b, 0xf9, 0x7e, 0x7e, 0x31, 0xc2, 0xe5, 0xbd, 0x66, 0x1, 0x18, 0x39, 0x29, 0x6a, 0x78, 0x9a, 0x3b, 0xc0, 0x4, 0x5c, 0x8a, 0x5f, 0xb4, 0x2c, 0x7d, 0x1b, 0xd9, 0x98, 0xf5, 0x44, 0x49, 0x57, 0x9b, 0x44, 0x68, 0x17, 0xaf, 0xbd, 0x17, 0x27, 0x3e, 0x66, 0x2c, 0x97, 0xee, 0x72, 0x99, 0x5e, 0xf4, 0x26, 0x40, 0xc5, 0x50, 0xb9, 0x1, 0x3f, 0xad, 0x7, 0x61, 0x35, 0x3c, 0x70, 0x86, 0xa2, 0x72, 0xc2, 0x40, 0x88, 0xbe, 0x94, 0x76, 0x9f, 0xd1, 0x66, 0x50})
 
+// p521ElementLength is the length of an element of the base or scalar field,
+// which have the same bytes length for all NIST P curves.
 const p521ElementLength = 66
 
 // P521Point is a P521 point. The zero value is NOT valid.
@@ -242,34 +245,54 @@ func (q *P521Point) Select(p1, p2 *P521Point, cond int) *P521Point {
 	return q
 }
 
+// A p521Table holds the first 15 multiples of a point at offset -1, so [1]P
+// is at table[0], [15]P is at table[14], and [0]P is implicitly the identity
+// point.
+type p521Table [15]*P521Point
+
+// Select selects the n-th multiple of the table base point into p. It works in
+// constant time by iterating over every entry of the table. n must be in [0, 15].
+func (table *p521Table) Select(p *P521Point, n uint8) {
+	if n >= 16 {
+		panic("nistec: internal error: p521Table called with out-of-bounds value")
+	}
+	p.Set(NewP521Point())
+	for i := uint8(1); i < 16; i++ {
+		cond := subtle.ConstantTimeByteEq(i, n)
+		p.Select(table[i-1], p, cond)
+	}
+}
+
 // ScalarMult sets p = scalar * q, and returns p.
 func (p *P521Point) ScalarMult(q *P521Point, scalar []byte) (*P521Point, error) {
-	// table holds the first 16 multiples of q. The explicit newP521Point calls
-	// get inlined, letting the allocations live on the stack.
-	var table = [16]*P521Point{
+	// Compute a p521Table for the base point q. The explicit NewP521Point
+	// calls get inlined, letting the allocations live on the stack.
+	var table = p521Table{NewP521Point(), NewP521Point(), NewP521Point(),
 		NewP521Point(), NewP521Point(), NewP521Point(), NewP521Point(),
 		NewP521Point(), NewP521Point(), NewP521Point(), NewP521Point(),
-		NewP521Point(), NewP521Point(), NewP521Point(), NewP521Point(),
-		NewP521Point(), NewP521Point(), NewP521Point(), NewP521Point(),
-	}
-	for i := 1; i < 16; i++ {
-		table[i].Add(table[i-1], q)
+		NewP521Point(), NewP521Point(), NewP521Point(), NewP521Point()}
+	table[0].Set(q)
+	for i := 1; i < 15; i += 2 {
+		table[i].Double(table[i/2])
+		table[i+1].Add(table[i], q)
 	}
 
 	// Instead of doing the classic double-and-add chain, we do it with a
 	// four-bit window: we double four times, and then add [0-15]P.
 	t := NewP521Point()
 	p.Set(NewP521Point())
-	for _, byte := range scalar {
-		p.Double(p)
-		p.Double(p)
-		p.Double(p)
-		p.Double(p)
-
-		for i := uint8(0); i < 16; i++ {
-			cond := subtle.ConstantTimeByteEq(byte>>4, i)
-			t.Select(table[i], t, cond)
+	for i, byte := range scalar {
+		// No need to double on the first iteration, as p is the identity at
+		// this point, and [N]∞ = ∞.
+		if i != 0 {
+			p.Double(p)
+			p.Double(p)
+			p.Double(p)
+			p.Double(p)
 		}
+
+		windowValue := byte >> 4
+		table.Select(t, windowValue)
 		p.Add(p, t)
 
 		p.Double(p)
@@ -277,18 +300,66 @@ func (p *P521Point) ScalarMult(q *P521Point, scalar []byte) (*P521Point, error) 
 		p.Double(p)
 		p.Double(p)
 
-		for i := uint8(0); i < 16; i++ {
-			cond := subtle.ConstantTimeByteEq(byte&0b1111, i)
-			t.Select(table[i], t, cond)
-		}
+		windowValue = byte & 0b1111
+		table.Select(t, windowValue)
 		p.Add(p, t)
 	}
 
 	return p, nil
 }
 
+var p521GeneratorTable *[p521ElementLength * 2]p521Table
+var p521GeneratorTableOnce sync.Once
+
+// generatorTable returns a sequence of p521Tables. The first table contains
+// multiples of G. Each successive table is the previous table doubled four
+// times.
+func (p *P521Point) generatorTable() *[p521ElementLength * 2]p521Table {
+	p521GeneratorTableOnce.Do(func() {
+		p521GeneratorTable = new([p521ElementLength * 2]p521Table)
+		base := NewP521Generator()
+		for i := 0; i < p521ElementLength*2; i++ {
+			p521GeneratorTable[i][0] = NewP521Point().Set(base)
+			for j := 1; j < 15; j++ {
+				p521GeneratorTable[i][j] = NewP521Point().Add(p521GeneratorTable[i][j-1], base)
+			}
+			base.Double(base)
+			base.Double(base)
+			base.Double(base)
+			base.Double(base)
+		}
+	})
+	return p521GeneratorTable
+}
+
 // ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
 // returns p.
 func (p *P521Point) ScalarBaseMult(scalar []byte) (*P521Point, error) {
-	return p.ScalarMult(NewP521Generator(), scalar)
+	if len(scalar) != p521ElementLength {
+		return nil, errors.New("invalid scalar length")
+	}
+	tables := p.generatorTable()
+
+	// This is also a scalar multiplication with a four-bit window like in
+	// ScalarMult, but in this case the doublings are precomputed. The value
+	// [windowValue]G added at iteration k would normally get doubled
+	// (totIterations-k)×4 times, but with a larger precomputation we can
+	// instead add [2^((totIterations-k)×4)][windowValue]G and avoid the
+	// doublings between iterations.
+	t := NewP521Point()
+	p.Set(NewP521Point())
+	tableIndex := len(tables) - 1
+	for _, byte := range scalar {
+		windowValue := byte >> 4
+		tables[tableIndex].Select(t, windowValue)
+		p.Add(p, t)
+		tableIndex--
+
+		windowValue = byte & 0b1111
+		tables[tableIndex].Select(t, windowValue)
+		p.Add(p, t)
+		tableIndex--
+	}
+
+	return p, nil
 }
