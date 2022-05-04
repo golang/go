@@ -9,6 +9,7 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/safetoken"
 )
 
 // TokenMapper maps token.Pos to LSP positions for a single file.
@@ -35,10 +36,10 @@ func NewTokenMapper(content []byte, file *token.File) *TokenMapper {
 // Position returns the protocol position corresponding to the given pos. It
 // returns false if pos is out of bounds for the file being mapped.
 func (m *TokenMapper) Position(pos token.Pos) (protocol.Position, bool) {
-	if int(pos) < m.file.Base() || int(pos) > m.file.Base()+m.file.Size() {
+	offset, err := safetoken.Offset(m.file, pos)
+	if err != nil {
 		return protocol.Position{}, false
 	}
-	offset := m.file.Offset(pos) // usage of token.File.Offset is temporarily exempted
 	return m.mapper.Position(offset)
 }
 

@@ -23,6 +23,7 @@ import (
 	"golang.org/x/text/unicode/runenames"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -201,11 +202,11 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 		// It's a string, scan only if it contains a unicode escape sequence under or before the
 		// current cursor position.
 		var found bool
-		litOffset, err := Offset(pgf.Tok, lit.Pos())
+		litOffset, err := safetoken.Offset(pgf.Tok, lit.Pos())
 		if err != nil {
 			return 0, MappedRange{}, err
 		}
-		offset, err := Offset(pgf.Tok, pos)
+		offset, err := safetoken.Offset(pgf.Tok, pos)
 		if err != nil {
 			return 0, MappedRange{}, err
 		}
@@ -546,7 +547,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 			// obj may not have been produced by type checking the AST containing
 			// node, so we need to be careful about using token.Pos.
 			tok := s.FileSet().File(obj.Pos())
-			offset, err := Offset(tok, obj.Pos())
+			offset, err := safetoken.Offset(tok, obj.Pos())
 			if err != nil {
 				return nil, err
 			}
@@ -554,7 +555,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 			// fullTok and fullPos are the *token.File and object position in for the
 			// full AST.
 			fullTok := s.FileSet().File(node.Pos())
-			fullPos, err := Pos(fullTok, offset)
+			fullPos, err := safetoken.Pos(fullTok, offset)
 			if err != nil {
 				return nil, err
 			}
@@ -562,11 +563,11 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 			var spec ast.Spec
 			for _, s := range node.Specs {
 				// Avoid panics by guarding the calls to token.Offset (golang/go#48249).
-				start, err := Offset(fullTok, s.Pos())
+				start, err := safetoken.Offset(fullTok, s.Pos())
 				if err != nil {
 					return nil, err
 				}
-				end, err := Offset(fullTok, s.End())
+				end, err := safetoken.Offset(fullTok, s.End())
 				if err != nil {
 					return nil, err
 				}

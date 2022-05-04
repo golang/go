@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -134,11 +135,11 @@ func CanExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, b
 // line of code on which the insertion occurs.
 func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.Node) (string, error) {
 	line := tok.Line(insertBeforeStmt.Pos())
-	lineOffset, err := Offset(tok, tok.LineStart(line))
+	lineOffset, err := safetoken.Offset(tok, tok.LineStart(line))
 	if err != nil {
 		return "", err
 	}
-	stmtOffset, err := Offset(tok, insertBeforeStmt.Pos())
+	stmtOffset, err := safetoken.Offset(tok, insertBeforeStmt.Pos())
 	if err != nil {
 		return "", err
 	}
@@ -400,11 +401,11 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 
 	// We put the selection in a constructed file. We can then traverse and edit
 	// the extracted selection without modifying the original AST.
-	startOffset, err := Offset(tok, rng.Start)
+	startOffset, err := safetoken.Offset(tok, rng.Start)
 	if err != nil {
 		return nil, err
 	}
-	endOffset, err := Offset(tok, rng.End)
+	endOffset, err := safetoken.Offset(tok, rng.End)
 	if err != nil {
 		return nil, err
 	}
@@ -600,11 +601,11 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 
 	// We're going to replace the whole enclosing function,
 	// so preserve the text before and after the selected block.
-	outerStart, err := Offset(tok, outer.Pos())
+	outerStart, err := safetoken.Offset(tok, outer.Pos())
 	if err != nil {
 		return nil, err
 	}
-	outerEnd, err := Offset(tok, outer.End())
+	outerEnd, err := safetoken.Offset(tok, outer.End())
 	if err != nil {
 		return nil, err
 	}
@@ -661,7 +662,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 // ranges to match the correct AST node. In this particular example, we would adjust
 // rng.Start forward by one byte, and rng.End backwards by two bytes.
 func adjustRangeForWhitespace(rng span.Range, tok *token.File, content []byte) (span.Range, error) {
-	offset, err := Offset(tok, rng.Start)
+	offset, err := safetoken.Offset(tok, rng.Start)
 	if err != nil {
 		return span.Range{}, err
 	}
@@ -675,7 +676,7 @@ func adjustRangeForWhitespace(rng span.Range, tok *token.File, content []byte) (
 	rng.Start = tok.Pos(offset)
 
 	// Move backwards to find a non-whitespace character.
-	offset, err = Offset(tok, rng.End)
+	offset, err = safetoken.Offset(tok, rng.End)
 	if err != nil {
 		return span.Range{}, err
 	}

@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/template"
 	"golang.org/x/tools/internal/typeparams"
@@ -245,7 +246,7 @@ func (e *encoded) strStack() string {
 	}
 	if len(e.stack) > 0 {
 		loc := e.stack[len(e.stack)-1].Pos()
-		if !source.InRange(e.pgf.Tok, loc) {
+		if !safetoken.InRange(e.pgf.Tok, loc) {
 			msg = append(msg, fmt.Sprintf("invalid position %v for %s", loc, e.pgf.URI))
 		} else if locInRange(e.pgf.Tok, loc) {
 			add := e.pgf.Tok.PositionFor(loc, false)
@@ -268,7 +269,7 @@ func locInRange(f *token.File, loc token.Pos) bool {
 func (e *encoded) srcLine(x ast.Node) string {
 	file := e.pgf.Tok
 	line := file.Line(x.Pos())
-	start, err := source.Offset(file, file.LineStart(line))
+	start, err := safetoken.Offset(file, file.LineStart(line))
 	if err != nil {
 		return ""
 	}

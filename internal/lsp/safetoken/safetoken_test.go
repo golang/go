@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package source_test
+package safetoken_test
 
 import (
 	"go/token"
@@ -15,7 +15,7 @@ import (
 // This test reports any unexpected uses of (*go/token.File).Offset within
 // the gopls codebase to ensure that we don't check in more code that is prone
 // to panicking. All calls to (*go/token.File).Offset should be replaced with
-// calls to source.Offset.
+// calls to safetoken.Offset.
 func TestTokenOffset(t *testing.T) {
 	fset := token.NewFileSet()
 	pkgs, err := packages.Load(&packages.Config{
@@ -25,43 +25,40 @@ func TestTokenOffset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var tokenPkg, sourcePkg *packages.Package
+	var tokenPkg, safePkg *packages.Package
 	for _, pkg := range pkgs {
 		switch pkg.PkgPath {
 		case "go/token":
 			tokenPkg = pkg
-		case "golang.org/x/tools/internal/lsp/source":
-			sourcePkg = pkg
+		case "golang.org/x/tools/internal/lsp/safetoken":
+			safePkg = pkg
 		}
 	}
 
 	if tokenPkg == nil {
 		t.Fatal("missing package go/token")
 	}
-	if sourcePkg == nil {
-		t.Fatal("missing package golang.org/x/tools/internal/lsp/source")
+	if safePkg == nil {
+		t.Fatal("missing package golang.org/x/tools/internal/lsp/safetoken")
 	}
 
 	fileObj := tokenPkg.Types.Scope().Lookup("File")
 	tokenOffset, _, _ := types.LookupFieldOrMethod(fileObj.Type(), true, fileObj.Pkg(), "Offset")
 
-	sourceOffset := sourcePkg.Types.Scope().Lookup("Offset").(*types.Func)
+	safeOffset := safePkg.Types.Scope().Lookup("Offset").(*types.Func)
 
 	for _, pkg := range pkgs {
 		if pkg.PkgPath == "go/token" { // Allow usage from within go/token itself.
 			continue
 		}
-		if pkg.PkgPath == "golang.org/x/tools/internal/lsp/lsppos" {
-			continue // temporary exemption, to be refactored away
-		}
 		for ident, obj := range pkg.TypesInfo.Uses {
 			if obj != tokenOffset {
 				continue
 			}
-			if sourceOffset.Pos() <= ident.Pos() && ident.Pos() <= sourceOffset.Scope().End() {
+			if safeOffset.Pos() <= ident.Pos() && ident.Pos() <= safeOffset.Scope().End() {
 				continue // accepted usage
 			}
-			t.Errorf(`%s: Unexpected use of (*go/token.File).Offset. Please use golang.org/x/tools/internal/lsp/source.Offset instead.`, fset.Position(ident.Pos()))
+			t.Errorf(`%s: Unexpected use of (*go/token.File).Offset. Please use golang.org/x/tools/internal/lsp/safetoken.Offset instead.`, fset.Position(ident.Pos()))
 		}
 	}
 }

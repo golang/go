@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -234,7 +235,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, p
 	if err != nil {
 		return nil, err
 	}
-	offset, err := Offset(pgf.Tok, rng.Start)
+	offset, err := safetoken.Offset(pgf.Tok, rng.Start)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +353,7 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key objSearchKey, 
 			for _, pgf := range pkg.CompiledGoFiles() {
 				if pgf.Tok.Base() <= int(pos) && int(pos) <= pgf.Tok.Base()+pgf.Tok.Size() {
 					var err error
-					offset, err = Offset(pgf.Tok, pos)
+					offset, err = safetoken.Offset(pgf.Tok, pos)
 					if err != nil {
 						return nil, err
 					}
