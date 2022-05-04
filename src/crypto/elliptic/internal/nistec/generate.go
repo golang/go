@@ -29,6 +29,11 @@ var curves = []struct {
 		Params:  elliptic.P224().Params(),
 	},
 	{
+		P:       "P256",
+		Element: "fiat.P256Element",
+		Params:  elliptic.P256().Params(),
+	},
+	{
 		P:       "P384",
 		Element: "fiat.P384Element",
 		Params:  elliptic.P384().Params(),

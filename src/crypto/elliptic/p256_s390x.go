@@ -28,10 +28,7 @@ type p256Point struct {
 	z [32]byte
 }
 
-var (
-	p256        Curve
-	p256PreFast *[37][64]p256Point
-)
+var p256PreFast *[37][64]p256Point
 
 //go:noescape
 func p256MulInternalTrampolineSetup()
@@ -51,15 +48,13 @@ func p256SqrInternalVX()
 //go:noescape
 func p256SqrInternalVMSL()
 
-func initP256Arch() {
+func init() {
 	if cpu.S390X.HasVX {
-		p256 = p256CurveFast{p256Params}
-		initTable()
-		return
+		initP256Arch = func() {
+			p256 = p256CurveFast{&p256Params}
+			initTable()
+		}
 	}
-
-	// No vector support, use pure Go implementation.
-	p256 = p256Curve{p256Params}
 }
 
 func (curve p256CurveFast) Params() *CurveParams {
