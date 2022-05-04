@@ -104,7 +104,7 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
 		var typ *types.Type
 		if recv := sig.Recv(); recv == nil {
 			if obj.Name() == "init" {
-				sym = Renameinit()
+				sym = renameinit()
 			} else {
 				sym = g.sym(obj)
 			}
