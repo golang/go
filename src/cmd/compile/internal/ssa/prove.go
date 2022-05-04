@@ -1222,13 +1222,13 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// Replace OpSlicemask operations in b with constants where possible.
 			x, delta := isConstDelta(v.Args[0])
 			if x == nil {
-				continue
+				break
 			}
 			// slicemask(x + y)
 			// if x is larger than -y (y is negative), then slicemask is -1.
 			lim, ok := ft.limits[x.ID]
 			if !ok {
-				continue
+				break
 			}
 			if lim.umin > uint64(-delta) {
 				if v.Args[0].Op == OpAdd64 {
@@ -1248,7 +1248,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			x := v.Args[0]
 			lim, ok := ft.limits[x.ID]
 			if !ok {
-				continue
+				break
 			}
 			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
 				if b.Func.pass.debug > 0 {
@@ -1280,7 +1280,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 					panic("unexpected integer size")
 				}
 				v.AuxInt = 0
-				continue // Be sure not to fallthrough - this is no longer OpRsh.
+				break // Be sure not to fallthrough - this is no longer OpRsh.
 			}
 			// If the Rsh hasn't been replaced with 0, still check if it is bounded.
 			fallthrough
@@ -1297,7 +1297,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			by := v.Args[1]
 			lim, ok := ft.limits[by.ID]
 			if !ok {
-				continue
+				break
 			}
 			bits := 8 * v.Args[0].Type.Size()
 			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
@@ -1329,6 +1329,60 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
 				}
+			}
+		}
+		// Fold provable constant results.
+		// Helps in cases where we reuse a value after branching on its equality.
+		for i, arg := range v.Args {
+			switch arg.Op {
+			case OpConst64, OpConst32, OpConst16, OpConst8:
+				continue
+			}
+			lim, ok := ft.limits[arg.ID]
+			if !ok {
+				continue
+			}
+
+			var constValue int64
+			typ := arg.Type
+			bits := 8 * typ.Size()
+			switch {
+			case lim.min == lim.max:
+				constValue = lim.min
+			case lim.umin == lim.umax:
+				// truncate then sign extand
+				switch bits {
+				case 64:
+					constValue = int64(lim.umin)
+				case 32:
+					constValue = int64(int32(lim.umin))
+				case 16:
+					constValue = int64(int16(lim.umin))
+				case 8:
+					constValue = int64(int8(lim.umin))
+				default:
+					panic("unexpected integer size")
+				}
+			default:
+				continue
+			}
+			var c *Value
+			f := b.Func
+			switch bits {
+			case 64:
+				c = f.ConstInt64(typ, constValue)
+			case 32:
+				c = f.ConstInt32(typ, int32(constValue))
+			case 16:
+				c = f.ConstInt16(typ, int16(constValue))
+			case 8:
+				c = f.ConstInt8(typ, int8(constValue))
+			default:
+				panic("unexpected integer size")
+			}
+			v.SetArg(i, c)
+			if b.Func.pass.debug > 1 {
+				b.Func.Warnl(v.Pos, "Proved %v's arg %d (%v) is constant %d", v, i, arg, constValue)
 			}
 		}
 	}
