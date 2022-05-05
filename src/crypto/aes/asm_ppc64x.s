@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ppc64 || ppc64le
+
 // Based on CRYPTOGAMS code with the following comment:
 // # ====================================================================
 // # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -68,6 +70,7 @@ DATA ·rcon+0x48(SB)/8, $0x0000000000000000
 GLOBL ·rcon(SB), RODATA, $80
 
 // Emulate unaligned BE vector load/stores on LE targets
+#ifdef GOARCH_ppc64le
 #define P8_LXVB16X(RA,RB,VT) \
 	LXVD2X	(RA+RB), VT \
 	VPERM	VT, VT, ESPERM, VT
@@ -87,6 +90,22 @@ GLOBL ·rcon(SB), RODATA, $80
 #define LXSDX_BE(RA,RB,VT) \
 	LXSDX	(RA+RB), VT \
 	VPERM	VT, VT, ESPERM, VT
+#else
+#define P8_LXVB16X(RA,RB,VT) \
+	LXVD2X	(RA+RB), VT
+
+#define P8_STXVB16X(VS,RA,RB) \
+	STXVD2X	VS, (RA+RB)
+
+#define P8_STXV(VS,RA,RB) \
+	STXVD2X	VS, (RA+RB)
+
+#define P8_LXV(RA,RB,VT) \
+	LXVD2X	(RA+RB), VT
+
+#define LXSDX_BE(RA,RB,VT) \
+	LXSDX	(RA+RB), VT
+#endif
 
 // func setEncryptKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
 TEXT ·expandKeyAsm(SB), NOSPLIT|NOFRAME, $0
@@ -96,9 +115,13 @@ TEXT ·expandKeyAsm(SB), NOSPLIT|NOFRAME, $0
 	MOVD	enc+16(FP), OUTENC
 	MOVD	dec+24(FP), OUTDEC
 
+#ifdef GOARCH_ppc64le
 	MOVD	$·rcon(SB), PTR // PTR point to rcon addr
 	LVX	(PTR), ESPERM
 	ADD	$0x10, PTR
+#else
+	MOVD	$·rcon+0x10(SB), PTR // PTR point to rcon addr (skipping permute vector)
+#endif
 
 	// Get key from memory and write aligned into VR
 	P8_LXVB16X(INP, R0, IN0)
@@ -300,8 +323,10 @@ TEXT ·encryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	MOVD	xk+8(FP), R5   // Key pointer
 	MOVD	dst+16(FP), R3 // Dest pointer
 	MOVD	src+24(FP), R4 // Src pointer
+#ifdef GOARCH_ppc64le
 	MOVD	$·rcon(SB), R7
 	LVX	(R7), ESPERM   // Permute value for P8_ macros.
+#endif
 
 	// Set CR{1,2,3}EQ to hold the key size information.
 	CMPU	R6, $10, CR1
@@ -393,8 +418,10 @@ TEXT ·decryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	MOVD	xk+8(FP), R5   // Key pointer
 	MOVD	dst+16(FP), R3 // Dest pointer
 	MOVD	src+24(FP), R4 // Src pointer
+#ifdef GOARCH_ppc64le
 	MOVD	$·rcon(SB), R7
 	LVX	(R7), ESPERM   // Permute value for P8_ macros.
+#endif
 
 	// Set CR{1,2,3}EQ to hold the key size information.
 	CMPU	R6, $10, CR1
