@@ -51,10 +51,24 @@ var complements = []obj.As{
 	ACMNW: ACMPW,
 }
 
-// noZRreplace is the set of instructions for which $0 in the To operand
-// should NOT be replaced with REGZERO.
-var noZRreplace = map[obj.As]bool{
-	APRFM: true,
+// zrReplace is the set of instructions for which $0 in the From operand
+// should be replaced with REGZERO.
+var zrReplace = map[obj.As]bool{
+	AMOVD:  true,
+	AMOVW:  true,
+	AMOVWU: true,
+	AMOVH:  true,
+	AMOVHU: true,
+	AMOVB:  true,
+	AMOVBU: true,
+	ASBC:   true,
+	ASBCW:  true,
+	ASBCS:  true,
+	ASBCSW: true,
+	AADC:   true,
+	AADCW:  true,
+	AADCS:  true,
+	AADCSW: true,
 }
 
 func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
@@ -301,17 +315,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p.From.Class = 0
 	p.To.Class = 0
 
-	// $0 results in C_ZCON, which matches both C_REG and various
-	// C_xCON, however the C_REG cases in asmout don't expect a
-	// constant, so they will use the register fields and assemble
-	// a R0. To prevent that, rewrite $0 as ZR.
-	if p.From.Type == obj.TYPE_CONST && p.From.Offset == 0 {
+	// Previously we rewrote $0 to ZR, but we have now removed this change.
+	// In order to be compatible with some previous legal instruction formats,
+	// reserve the previous conversion for some specific instructions.
+	if p.From.Type == obj.TYPE_CONST && p.From.Offset == 0 && zrReplace[p.As] {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGZERO
-	}
-	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 && !noZRreplace[p.As] {
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGZERO
 	}
 
 	// Rewrite BR/BL to symbol as TYPE_BRANCH.

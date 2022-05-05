@@ -343,6 +343,7 @@ const (
 	// The more specific class needs to come earlier.
 	C_NONE   = iota
 	C_REG    // R0..R30
+	C_ZREG   // R0..R30, ZR
 	C_RSP    // R0..R30, RSP
 	C_FREG   // F0..F31
 	C_VREG   // V0..V31
@@ -356,7 +357,7 @@ const (
 	C_ELEM   // Vn.<T>[index]
 	C_LIST   // [V1, V2, V3]
 
-	C_ZCON     // $0 or ZR
+	C_ZCON     // $0
 	C_ABCON0   // could be C_ADDCON0 or C_BITCON
 	C_ADDCON0  // 12-bit unsigned, unshifted
 	C_ABCON    // could be C_ADDCON or C_BITCON

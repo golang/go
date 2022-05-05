@@ -95,6 +95,14 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	// CLS
 	CLSW	R1, R2
 	CLS	R1, R2
+	SBC	$0, R1                           // 21001fda
+	SBCW	$0, R1                           // 21001f5a
+	SBCS	$0, R1                           // 21001ffa
+	SBCSW	$0, R1                           // 21001f7a
+	ADC	$0, R1                           // 21001f9a
+	ADCW	$0, R1                           // 21001f1a
+	ADCS	$0, R1                           // 21001fba
+	ADCSW	$0, R1                           // 21001f3a
 
 // fp/simd instructions.
 	VADDP	V1.B16, V2.B16, V3.B16          // 43bc214e
@@ -386,7 +394,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$0x11110000, R1               // MOVD	$286326784, R1              // 2122a2d2
 	MOVD	$0xaaaa0000aaaa1111, R1       // MOVD	$-6149102338357718767, R1   // 212282d24155b5f24155f5f2
 	MOVD	$0x1111ffff1111aaaa, R1       // MOVD	$1230045644216969898, R1    // a1aa8a922122a2f22122e2f2
-	MOVD	$0, R1                        // 010080d2
+	MOVD	$0, R1                        // e1031faa
 	MOVD	$-1, R1                       // 01008092
 	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                // 2004a0d2
 	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                 // a1aa8a92
@@ -495,6 +503,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD.W	8(R1), F20                                      // 348c40fc
 	FMOVQ.P	11(R10), F13                                    // 4db5c03c
 	FMOVQ.W	11(R20), F15                                    // 8fbec03c
+
+// storing $0 to memory, $0 will be replaced with ZR.
+	MOVD	$0, (R1)  // 3f0000f9
+	MOVW	$0, (R1)  // 3f0000b9
+	MOVWU	$0, (R1)  // 3f0000b9
+	MOVH	$0, (R1)  // 3f000079
+	MOVHU	$0, (R1)  // 3f000079
+	MOVB	$0, (R1)  // 3f000039
+	MOVBU	$0, (R1)  // 3f000039
 
 // small offset fits into instructions
 	MOVB	R1, 1(R2) // 41040039
