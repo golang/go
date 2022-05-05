@@ -124,6 +124,26 @@ func SizeofMutex() {
 	Sizeof(mu) // want "call of Sizeof copies lock value: sync.Mutex"
 }
 
+func OffsetofMutex() {
+	type T struct {
+		f  int
+		mu sync.Mutex
+	}
+	unsafe.Offsetof(T{}.mu) // OK
+	unsafe := struct{ Offsetof func(interface{}) }{}
+	unsafe.Offsetof(T{}.mu) // want "call of unsafe.Offsetof copies lock value: sync.Mutex"
+}
+
+func AlignofMutex() {
+	type T struct {
+		f  int
+		mu sync.Mutex
+	}
+	unsafe.Alignof(T{}.mu) // OK
+	unsafe := struct{ Alignof func(interface{}) }{}
+	unsafe.Alignof(T{}.mu) // want "call of unsafe.Alignof copies lock value: sync.Mutex"
+}
+
 // SyncTypesCheck checks copying of sync.* types except sync.Mutex
 func SyncTypesCheck() {
 	// sync.RWMutex copying
