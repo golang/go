@@ -934,9 +934,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 		}
 	}
 
-	// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
-	// sense and should be removed when someone has thought about it properly.
-	if s != 0 && l.SymType(s) == 0 && !l.AttrVisibilityHidden(s) && elfsym.type_ != elf.STT_SECTION {
+	if s != 0 && l.SymType(s) == 0 && elfsym.type_ != elf.STT_SECTION {
 		sb := l.MakeSymbolUpdater(s)
 		sb.SetType(sym.SXREF)
 	}
