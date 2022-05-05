@@ -46,6 +46,8 @@ func TestReadMetrics(t *testing.T) {
 	var mallocs, frees uint64
 	for i := range samples {
 		switch name := samples[i].Name; name {
+		case "/cgo/go-to-c-calls:calls":
+			checkUint64(t, name, samples[i].Value.Uint64(), uint64(runtime.NumCgoCall()))
 		case "/memory/classes/heap/free:bytes":
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapIdle-mstats.HeapReleased)
 		case "/memory/classes/heap/released:bytes":
