@@ -76,6 +76,8 @@ var stringTests = [][2]string{
 
 	// a type literal in an |-expression indicates a type parameter list (blank after type parameter list and type)
 	dup("package p; type _[P *[]int] struct{}"),
+	dup("package p; type _[P T | T] struct{}"),
+	dup("package p; type _[P T | T | T | T] struct{}"),
 	dup("package p; type _[P *T | T, Q T] struct{}"),
 	dup("package p; type _[P *[]T | T] struct{}"),
 	dup("package p; type _[P *T | T | T | T | ~T] struct{}"),
@@ -84,7 +86,7 @@ var stringTests = [][2]string{
 	dup("package p; type _[P <-chan int] struct{}"),
 	dup("package p; type _[P *T | struct{} | T] struct{}"),
 
-	// a trailing comma always indicates a type parameter list (blank after type parameter list and type)
+	// a trailing comma always indicates a (possibly invalid) type parameter list (blank after type parameter list and type)
 	dup("package p; type _[P *T,] struct{}"),
 	dup("package p; type _[P *T | T,] struct{}"),
 	dup("package p; type _[P *T | <-T | T,] struct{}"),
