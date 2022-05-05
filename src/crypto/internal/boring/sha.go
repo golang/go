@@ -63,43 +63,46 @@ import (
 	"unsafe"
 )
 
-func addr(p []byte) unsafe.Pointer {
-	if len(p) == 0 {
-		return nil
-	}
-	return unsafe.Pointer(&p[0])
-}
+// NOTE: The cgo calls in this file are arranged to avoid marking the parameters as escaping.
+// To do that, we call noescape (including via addr).
+// We must also make sure that the data pointer arguments have the form unsafe.Pointer(&...)
+// so that cgo does not annotate them with cgoCheckPointer calls. If it did that, it might look
+// beyond the byte slice and find Go pointers in unprocessed parts of a larger allocation.
+// To do both of these simultaneously, the idiom is unsafe.Pointer(&*addr(p)),
+// where addr returns the base pointer of p, substituting a non-nil pointer for nil,
+// and applying a noescape along the way.
+// This is all to preserve compatibility with the allocation behavior of the non-boring implementations.
 
 func SHA1(p []byte) (sum [20]byte) {
-	if C._goboringcrypto_gosha1(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+	if C._goboringcrypto_gosha1(unsafe.Pointer(&*addr(p)), C.size_t(len(p)), unsafe.Pointer(&*addr(sum[:]))) == 0 {
 		panic("boringcrypto: SHA1 failed")
 	}
 	return
 }
 
 func SHA224(p []byte) (sum [28]byte) {
-	if C._goboringcrypto_gosha224(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+	if C._goboringcrypto_gosha224(unsafe.Pointer(&*addr(p)), C.size_t(len(p)), unsafe.Pointer(&*addr(sum[:]))) == 0 {
 		panic("boringcrypto: SHA224 failed")
 	}
 	return
 }
 
 func SHA256(p []byte) (sum [32]byte) {
-	if C._goboringcrypto_gosha256(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+	if C._goboringcrypto_gosha256(unsafe.Pointer(&*addr(p)), C.size_t(len(p)), unsafe.Pointer(&*addr(sum[:]))) == 0 {
 		panic("boringcrypto: SHA256 failed")
 	}
 	return
 }
 
 func SHA384(p []byte) (sum [48]byte) {
-	if C._goboringcrypto_gosha384(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+	if C._goboringcrypto_gosha384(unsafe.Pointer(&*addr(p)), C.size_t(len(p)), unsafe.Pointer(&*addr(sum[:]))) == 0 {
 		panic("boringcrypto: SHA384 failed")
 	}
 	return
 }
 
 func SHA512(p []byte) (sum [64]byte) {
-	if C._goboringcrypto_gosha512(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
+	if C._goboringcrypto_gosha512(unsafe.Pointer(&*addr(p)), C.size_t(len(p)), unsafe.Pointer(&*addr(sum[:]))) == 0 {
 		panic("boringcrypto: SHA512 failed")
 	}
 	return
@@ -137,7 +140,7 @@ func (h *sha1Hash) BlockSize() int        { return 64 }
 func (h *sha1Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha1Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA1_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA1_Update(h.noescapeCtx(), unsafe.Pointer(&*addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA1_Update failed")
 	}
 	return len(p), nil
@@ -217,7 +220,7 @@ func (h *sha224Hash) BlockSize() int        { return 64 }
 func (h *sha224Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha224Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA224_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA224_Update(h.noescapeCtx(), unsafe.Pointer(&*addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA224_Update failed")
 	}
 	return len(p), nil
@@ -255,7 +258,7 @@ func (h *sha256Hash) BlockSize() int        { return 64 }
 func (h *sha256Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha256Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA256_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA256_Update(h.noescapeCtx(), unsafe.Pointer(&*addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA256_Update failed")
 	}
 	return len(p), nil
@@ -392,7 +395,7 @@ func (h *sha384Hash) BlockSize() int        { return 128 }
 func (h *sha384Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha384Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA384_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA384_Update(h.noescapeCtx(), unsafe.Pointer(&*addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA384_Update failed")
 	}
 	return len(p), nil
@@ -430,7 +433,7 @@ func (h *sha512Hash) BlockSize() int        { return 128 }
 func (h *sha512Hash) Sum(dst []byte) []byte { return h.sum(dst) }
 
 func (h *sha512Hash) Write(p []byte) (int, error) {
-	if len(p) > 0 && C._goboringcrypto_SHA512_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+	if len(p) > 0 && C._goboringcrypto_SHA512_Update(h.noescapeCtx(), unsafe.Pointer(&*addr(p)), C.size_t(len(p))) == 0 {
 		panic("boringcrypto: SHA512_Update failed")
 	}
 	return len(p), nil
