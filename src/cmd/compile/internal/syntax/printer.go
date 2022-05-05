@@ -919,14 +919,36 @@ func (p *printer) printParameterList(list []*Field, tok token) {
 		}
 		p.printNode(unparen(f.Type)) // no need for (extra) parentheses around parameter types
 	}
-	// A type parameter list [P *T] where T is not a type element requires a comma as in [P *T,]
-	// so that it's not parsed as [P*T].
-	if tok == _Type && len(list) == 1 {
-		if t, _ := list[0].Type.(*Operation); t != nil && !isTypeElem(t) {
-			p.print(_Comma)
-		}
+	// A type parameter list [P T] where the name P and the type expression T syntactically
+	// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
+	// (or an enclosing interface as in [P interface(*T)]), so that the type parameter list
+	// is not parsed as an array length [P*T].
+	if tok == _Type && len(list) == 1 && combinesWithName(list[0].Type) {
+		p.print(_Comma)
 	}
 	p.print(close)
+}
+
+// combinesWithName reports whether a name followed by the expression x
+// syntactically combines to another valid (value) expression. For instance
+// using *T for x, "name *T" syntactically appears as the expression x*T.
+// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
+// cannot be combined into a valid (value) expression.
+func combinesWithName(x Expr) bool {
+	switch x := x.(type) {
+	case *Operation:
+		if x.Y == nil {
+			// name *x.X combines to name*x.X if x.X is not a type element
+			return x.Op == Mul && !isTypeElem(x.X)
+		}
+		// binary expressions
+		return combinesWithName(x.X) && !isTypeElem(x.Y)
+	case *ParenExpr:
+		// name(x) combines but we are making sure at
+		// the call site that x is never parenthesized.
+		panic("unexpected parenthesized expression")
+	}
+	return false
 }
 
 func (p *printer) printStmtList(list []Stmt, braces bool) {
