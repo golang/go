@@ -51,7 +51,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 		flags |= goobj.ObjFlagUnlinkable
 	}
 	if w.pkgpath == "" {
-		flags |= goobj.ObjFlagNeedNameExpansion
+		log.Fatal("empty package path")
 	}
 	if ctxt.IsAsm {
 		flags |= goobj.ObjFlagFromAssembly
