@@ -183,7 +183,7 @@ func (l *FileConverter) ToOffset(line, col int) (int, error) {
 		// at the end of the file, allowing for a trailing eol
 		return l.file.Size(), nil
 	}
-	pos := lineStart(l.file, line)
+	pos := l.file.LineStart(line)
 	if !pos.IsValid() {
 		return -1, fmt.Errorf("line is not in file")
 	}
