@@ -310,6 +310,21 @@ func TestAllocations(t *testing.T) {
 	}
 }
 
+type cgoData struct {
+	Data [16]byte
+	Ptr  *cgoData
+}
+
+func TestCgo(t *testing.T) {
+	// Test that Write does not cause cgo to scan the entire cgoData struct for pointers.
+	// The scan (if any) should be limited to the [16]byte.
+	d := new(cgoData)
+	d.Ptr = d
+	h := New()
+	h.Write(d.Data[:])
+	h.Sum(nil)
+}
+
 var bench = New()
 var buf = make([]byte, 8192)
 
