@@ -1188,11 +1188,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 	setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=auto")
 
-	// Skip internal linking cases on arm64 to support GCC-9.4 and above.
-	// See issue #39466.
-	skipInternalLink := goarch == "arm64" && goos != "darwin"
-
-	if t.internalLink() && !skipInternalLink {
+	if t.internalLink() {
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
 		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=internal")
 	}
@@ -1268,7 +1264,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 			if t.supportedBuildmode("pie") {
 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
-				if t.internalLink() && t.internalLinkPIE() && !skipInternalLink {
+				if t.internalLink() && t.internalLinkPIE() {
 					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
 				}
 				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie")
