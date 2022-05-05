@@ -192,6 +192,7 @@ func ParseFlags() {
 	Ctxt.Flag_optimize = Flag.N == 0
 	Ctxt.Debugasm = int(Flag.S)
 	Ctxt.Flag_maymorestack = Debug.MayMoreStack
+	Ctxt.Flag_noRefName = Debug.NoRefName != 0
 
 	if flag.NArg() < 1 {
 		usage()
