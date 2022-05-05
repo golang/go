@@ -81,12 +81,13 @@ var MIPS64X struct {
 // those as well. The minimum processor requirement is POWER8 (ISA 2.07).
 // The struct is padded to avoid false sharing.
 var PPC64 struct {
-	_        CacheLinePad
-	HasDARN  bool // Hardware random number generator (requires kernel enablement)
-	HasSCV   bool // Syscall vectored (requires kernel enablement)
-	IsPOWER8 bool // ISA v2.07 (POWER8)
-	IsPOWER9 bool // ISA v3.00 (POWER9)
-	_        CacheLinePad
+	_         CacheLinePad
+	HasDARN   bool // Hardware random number generator (requires kernel enablement)
+	HasSCV    bool // Syscall vectored (requires kernel enablement)
+	IsPOWER8  bool // ISA v2.07 (POWER8)
+	IsPOWER9  bool // ISA v3.00 (POWER9)
+	IsPOWER10 bool // ISA v3.1  (POWER10)
+	_         CacheLinePad
 }
 
 var S390X struct {
