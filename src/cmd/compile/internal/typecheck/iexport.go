@@ -2188,7 +2188,7 @@ func (w *exportWriter) localIdent(s *types.Sym) {
 		return
 	}
 
-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, LocalDictName) {
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, LocalDictName) && !strings.HasPrefix(name, ".rcvr") {
 		base.Fatalf("unexpected dot in identifier: %v", name)
 	}
 
