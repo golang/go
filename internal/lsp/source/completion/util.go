@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"go/types"
 
+	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -33,12 +34,12 @@ func eachField(T types.Type, fn func(*types.Var)) {
 	// types.NewSelectionSet should do that for us.
 
 	// for termination on recursive types
-	var seen map[*types.Struct]bool
+	var seen typeutil.Map
 
 	var visit func(T types.Type)
 	visit = func(T types.Type) {
 		if T, ok := source.Deref(T).Underlying().(*types.Struct); ok {
-			if seen[T] {
+			if seen.At(T) != nil {
 				return
 			}
 
@@ -46,12 +47,7 @@ func eachField(T types.Type, fn func(*types.Var)) {
 				f := T.Field(i)
 				fn(f)
 				if f.Anonymous() {
-					if seen == nil {
-						// Lazily create "seen" since it is only needed for
-						// embedded structs.
-						seen = make(map[*types.Struct]bool)
-					}
-					seen[T] = true
+					seen.Set(T, true)
 					visit(f.Type())
 				}
 			}
