@@ -105,9 +105,57 @@ func GetStubInfo(ti *types.Info, path []ast.Node, pos token.Pos) *StubInfo {
 			return si
 		case *ast.AssignStmt:
 			return fromAssignStmt(ti, n, pos)
+		case *ast.CallExpr:
+			// Note that some call expressions don't carry the interface type
+			// because they don't point to a function or method declaration elsewhere.
+			// For eaxmple, "var Interface = (*Concrete)(nil)". In that case, continue
+			// this loop to encounter other possibilities such as *ast.ValueSpec or others.
+			si := fromCallExpr(ti, pos, n)
+			if si != nil {
+				return si
+			}
 		}
 	}
 	return nil
+}
+
+// fromCallExpr tries to find an *ast.CallExpr's function declaration and
+// analyzes a function call's signature against the passed in parameter to deduce
+// the concrete and interface types.
+func fromCallExpr(ti *types.Info, pos token.Pos, ce *ast.CallExpr) *StubInfo {
+	paramIdx := -1
+	for i, p := range ce.Args {
+		if pos >= p.Pos() && pos <= p.End() {
+			paramIdx = i
+			break
+		}
+	}
+	if paramIdx == -1 {
+		return nil
+	}
+	p := ce.Args[paramIdx]
+	concObj, pointer := concreteType(p, ti)
+	if concObj == nil || concObj.Obj().Pkg() == nil {
+		return nil
+	}
+	tv, ok := ti.Types[ce.Fun]
+	if !ok {
+		return nil
+	}
+	sig, ok := tv.Type.(*types.Signature)
+	if !ok {
+		return nil
+	}
+	sigVar := sig.Params().At(paramIdx)
+	iface := ifaceObjFromType(sigVar.Type())
+	if iface == nil {
+		return nil
+	}
+	return &StubInfo{
+		Concrete:  concObj,
+		Pointer:   pointer,
+		Interface: iface,
+	}
 }
 
 // fromReturnStmt analyzes a "return" statement to extract
@@ -290,8 +338,11 @@ func ifaceType(n ast.Expr, ti *types.Info) types.Object {
 	if !ok {
 		return nil
 	}
-	typ := tv.Type
-	named, ok := typ.(*types.Named)
+	return ifaceObjFromType(tv.Type)
+}
+
+func ifaceObjFromType(t types.Type) types.Object {
+	named, ok := t.(*types.Named)
 	if !ok {
 		return nil
 	}
