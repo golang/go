@@ -64,6 +64,10 @@
 // t.UnmarshalJSON, and t.UnmarshalText always create times with
 // no monotonic clock reading.
 //
+// The monotonic clock reading exists only in Time values. It is not
+// a part of Duration values or the Unix times returned by t.Unix and
+// friends.
+//
 // Note that the Go == operator compares not just the time instant but
 // also the Location and the monotonic clock reading. See the
 // documentation for the Time type for a discussion of equality
