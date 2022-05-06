@@ -872,7 +872,6 @@ func (r *Reader) Flags() uint32 {
 	return r.h.Flags
 }
 
-func (r *Reader) Shared() bool            { return r.Flags()&ObjFlagShared != 0 }
-func (r *Reader) NeedNameExpansion() bool { return false } // TODO: delete
-func (r *Reader) FromAssembly() bool      { return r.Flags()&ObjFlagFromAssembly != 0 }
-func (r *Reader) Unlinkable() bool        { return r.Flags()&ObjFlagUnlinkable != 0 }
+func (r *Reader) Shared() bool       { return r.Flags()&ObjFlagShared != 0 }
+func (r *Reader) FromAssembly() bool { return r.Flags()&ObjFlagFromAssembly != 0 }
+func (r *Reader) Unlinkable() bool   { return r.Flags()&ObjFlagUnlinkable != 0 }

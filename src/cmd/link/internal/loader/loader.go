@@ -358,9 +358,6 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	i := Sym(len(l.objSyms))
 	l.start[r] = i
 	l.objs = append(l.objs, objIdx{r, i})
-	if r.NeedNameExpansion() && !r.FromAssembly() {
-		panic("object compiled without -p")
-	}
 	return i
 }
 
@@ -749,17 +746,7 @@ func (l *Loader) NReachableSym() int {
 	return l.attrReachable.Count()
 }
 
-// Returns the raw (unpatched) name of the i-th symbol.
-func (l *Loader) RawSymName(i Sym) string {
-	if l.IsExternal(i) {
-		pp := l.getPayload(i)
-		return pp.name
-	}
-	r, li := l.toLocal(i)
-	return r.Sym(li).Name(r.Reader)
-}
-
-// Returns the (patched) name of the i-th symbol.
+// Returns the name of the i-th symbol.
 func (l *Loader) SymName(i Sym) string {
 	if l.IsExternal(i) {
 		pp := l.getPayload(i)
@@ -769,11 +756,7 @@ func (l *Loader) SymName(i Sym) string {
 	if r == nil {
 		return "?"
 	}
-	name := r.Sym(li).Name(r.Reader)
-	if !r.NeedNameExpansion() {
-		return name
-	}
-	return strings.Replace(name, "\"\".", r.pkgprefix, -1)
+	return r.Sym(li).Name(r.Reader)
 }
 
 // Returns the version of the i-th symbol.
@@ -1012,7 +995,7 @@ func (l *Loader) AttrExternal(i Sym) bool {
 // symbol (see AttrExternal).
 func (l *Loader) SetAttrExternal(i Sym, v bool) {
 	if !l.IsExternal(i) {
-		panic(fmt.Sprintf("tried to set external attr on non-external symbol %q", l.RawSymName(i)))
+		panic(fmt.Sprintf("tried to set external attr on non-external symbol %q", l.SymName(i)))
 	}
 	if v {
 		l.attrExternal.Set(l.extIndex(i))
@@ -2131,7 +2114,6 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		panic("preloadSyms: bad kind")
 	}
 	l.growAttrBitmaps(len(l.objSyms) + int(end-start))
-	needNameExpansion := r.NeedNameExpansion()
 	loadingRuntimePkg := r.unit.Lib.Pkg == "runtime"
 	for i := start; i < end; i++ {
 		osym := r.Sym(i)
@@ -2139,9 +2121,6 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		var v int
 		if kind != hashed64Def && kind != hashedDef { // we don't need the name, etc. for hashed symbols
 			name = osym.Name(r.Reader)
-			if needNameExpansion {
-				name = strings.Replace(name, "\"\".", r.pkgprefix, -1)
-			}
 			v = abiToVer(osym.ABI(), r.version)
 		}
 		gi := st.addSym(name, v, r, i, kind, osym)
@@ -2205,13 +2184,9 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 	// load non-package refs
 	ndef := uint32(r.NAlldef())
-	needNameExpansion := r.NeedNameExpansion()
 	for i, n := uint32(0), uint32(r.NNonpkgref()); i < n; i++ {
 		osym := r.Sym(ndef + i)
 		name := osym.Name(r.Reader)
-		if needNameExpansion {
-			name = strings.Replace(name, "\"\".", r.pkgprefix, -1)
-		}
 		v := abiToVer(osym.ABI(), r.version)
 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
 		gi := r.syms[ndef+i]
@@ -2264,7 +2239,7 @@ func abiToVer(abi uint16, localSymVersion int) int {
 // anonymous aux or sub-symbol containing some sub-part or payload of
 // another symbol.
 func (l *Loader) TopLevelSym(s Sym) bool {
-	return topLevelSym(l.RawSymName(s), l.SymType(s))
+	return topLevelSym(l.SymName(s), l.SymType(s))
 }
 
 // topLevelSym tests a symbol name and kind to determine whether
@@ -2299,9 +2274,6 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	r, li := l.toLocal(symIdx)
 	osym := r.Sym(li)
 	sname := osym.Name(r.Reader)
-	if r.NeedNameExpansion() {
-		sname = strings.Replace(sname, "\"\".", r.pkgprefix, -1)
-	}
 	sver := abiToVer(osym.ABI(), r.version)
 	skind := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
 
@@ -2432,7 +2404,7 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
 			rs := r.Sym()
-			if rs != 0 && l.SymType(rs) == sym.SXREF && l.RawSymName(rs) != ".got" {
+			if rs != 0 && l.SymType(rs) == sym.SXREF && l.SymName(rs) != ".got" {
 				result = append(result, rs)
 				if limit != -1 && len(result) >= limit {
 					break
