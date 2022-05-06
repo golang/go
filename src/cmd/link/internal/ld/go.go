@@ -26,11 +26,6 @@ import (
 
 // go-specific code shared across loaders (5l, 6l, 8l).
 
-// replace all "". with pkg.
-func expandpkg(t0 string, pkg string) string {
-	return strings.Replace(t0, `"".`, pkg+".", -1)
-}
-
 // TODO:
 //	generate debugging section in binary.
 //	once the dust settles, try to move some code to
@@ -146,7 +141,6 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				continue
 			}
 
-			local = expandpkg(local, pkg)
 			q := ""
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
@@ -193,7 +187,6 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 			if len(f) > 2 {
 				remote = f[2]
 			}
-			local = expandpkg(local, pkg)
 			// The compiler adds a fourth argument giving
 			// the definition ABI of function symbols.
 			abi := obj.ABI0
