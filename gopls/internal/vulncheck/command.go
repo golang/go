@@ -10,6 +10,7 @@ package vulncheck
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -83,10 +84,15 @@ func (c *cmd) run(ctx context.Context, packagesCfg *packages.Config, patterns []
 		packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedTypes |
 		packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedDeps
 
+	log.Println("loading packages...")
+
 	loadedPkgs, err := packages.Load(packagesCfg, patterns...)
 	if err != nil {
+		log.Printf("package load failed: %v", err)
 		return nil, err
 	}
+	log.Printf("loaded %d packages\n", len(loadedPkgs))
+
 	pkgs := vulncheck.Convert(loadedPkgs)
 	res, err := vulncheck.Source(ctx, pkgs, &vulncheck.Config{
 		Client:      c.Client,
