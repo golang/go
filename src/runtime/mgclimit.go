@@ -469,9 +469,10 @@ func (e *limiterEvent) stop(typ limiterEventType, now int64) {
 	// Account for the event.
 	switch typ {
 	case limiterEventIdleMarkWork:
-		fallthrough
+		gcCPULimiter.addIdleTime(duration)
 	case limiterEventIdle:
 		gcCPULimiter.addIdleTime(duration)
+		sched.idleTime.Add(duration)
 	case limiterEventMarkAssist:
 		fallthrough
 	case limiterEventScavengeAssist:

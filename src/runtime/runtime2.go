@@ -838,6 +838,11 @@ type schedt struct {
 	// as the sum of time a G spends in the _Grunnable state before
 	// it transitions to _Grunning.
 	timeToRun timeHistogram
+
+	// idleTime is the total CPU time Ps have "spent" idle.
+	//
+	// Reset on each GC cycle.
+	idleTime atomic.Int64
 }
 
 // Values for the flags field of a sigTabT.

@@ -1327,7 +1327,7 @@ HaveSpan:
 		if track {
 			pp.limiterEvent.stop(limiterEventScavengeAssist, now)
 		}
-		h.pages.scav.assistTime.Add(now - start)
+		scavenge.assistTime.Add(now - start)
 	}
 
 	// Commit and account for any scavenged memory that the span now owns.

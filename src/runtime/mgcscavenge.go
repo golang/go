@@ -221,6 +221,16 @@ var scavenge struct {
 	// gcController.memoryLimit by choosing to target the memory limit or
 	// some lower target to keep the scavenger working.
 	memoryLimitGoal atomic.Uint64
+
+	// assistTime is the time spent by the allocator scavenging in the last GC cycle.
+	//
+	// This is reset once a GC cycle ends.
+	assistTime atomic.Int64
+
+	// backgroundTime is the time spent by the background scavenger in the last GC cycle.
+	//
+	// This is reset once a GC cycle ends.
+	backgroundTime atomic.Int64
 }
 
 const (
@@ -361,6 +371,7 @@ func (s *scavengerState) init() {
 			if start >= end {
 				return r, 0
 			}
+			scavenge.backgroundTime.Add(end - start)
 			return r, end - start
 		}
 	}

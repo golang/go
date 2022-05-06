@@ -58,6 +58,122 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
+		Name: "/cpu/classes/gc/mark/assist:cpu-seconds",
+		Description: "Estimated total CPU time goroutines spent performing GC tasks " +
+			"to assist the GC and prevent it from falling behind the application. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/gc/mark/dedicated:cpu-seconds",
+		Description: "Estimated total CPU time spent performing GC tasks on " +
+			"processors (as defined by GOMAXPROCS) dedicated to those tasks. " +
+			"This includes time spent with the world stopped due to the GC. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/gc/mark/idle:cpu-seconds",
+		Description: "Estimated total CPU time spent performing GC tasks on " +
+			"spare CPU resources that the Go scheduler could not otherwise find " +
+			"a use for. This should be subtracted from the total GC CPU time to " +
+			"obtain a measure of compulsory GC CPU time. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/gc/pause:cpu-seconds",
+		Description: "Estimated total CPU time spent with the application paused by " +
+			"the GC. Even if only one thread is running during the pause, this is " +
+			"computed as GOMAXPROCS times the pause latency because nothing else " +
+			"can be executing. This is the exact sum of samples in /gc/pause:seconds " +
+			"if each sample is multiplied by GOMAXPROCS at the time it is taken. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/gc/total:cpu-seconds",
+		Description: "Estimated total CPU time spent performing GC tasks. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics. Sum of all metrics in /cpu/classes/gc.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/idle:cpu-seconds",
+		Description: "Estimated total available CPU time not spent executing any Go or Go runtime code. " +
+			"In other words, the part of /cpu/classes/total:cpu-seconds that was unused. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/scavenge/assist:cpu-seconds",
+		Description: "Estimated total CPU time spent returning unused memory to the " +
+			"underlying platform in response eagerly in response to memory pressure. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/scavenge/background:cpu-seconds",
+		Description: "Estimated total CPU time spent performing background tasks " +
+			"to return unused memory to the underlying platform. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/scavenge/total:cpu-seconds",
+		Description: "Estimated total CPU time spent performing tasks that return " +
+			"unused memory to the underlying platform. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics. Sum of all metrics in /cpu/classes/scavenge.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/total:cpu-seconds",
+		Description: "Estimated total available CPU time for user Go code " +
+			"or the Go runtime, as defined by GOMAXPROCS. In other words, GOMAXPROCS " +
+			"integrated over the wall-clock duration this process has been executing for. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics. Sum of all metrics in /cpu/classes.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/user:cpu-seconds",
+		Description: "Estimated total CPU time spent running user Go code. This may " +
+			"also include some small amount of time spent in the Go runtime. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
 		Name:        "/gc/cycles/automatic:gc-cycles",
 		Description: "Count of completed GC cycles generated by the Go runtime.",
 		Kind:        KindUint64,

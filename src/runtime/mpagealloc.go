@@ -48,7 +48,6 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -273,15 +272,10 @@ type pageAlloc struct {
 		// scavenge.
 		index scavengeIndex
 
-		// released is the amount of memory released this generation.
+		// released is the amount of memory released this scavenge cycle.
 		//
 		// Updated atomically.
 		released uintptr
-
-		// scavengeAssistTime is the time spent scavenging in the last GC cycle.
-		//
-		// This is reset once a GC cycle ends.
-		assistTime atomic.Int64
 	}
 
 	// mheap_.lock. This level of indirection makes it possible
