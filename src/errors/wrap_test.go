@@ -254,8 +254,7 @@ func ExampleIs() {
 
 func ExampleAs() {
 	if _, err := os.Open("non-existing"); err != nil {
-		var pathError *fs.PathError
-		if errors.As(err, &pathError) {
+		if pathError := new(fs.PathError); errors.As(err, &pathError) {
 			fmt.Println("Failed at path:", pathError.Path)
 		} else {
 			fmt.Println(err)

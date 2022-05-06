@@ -39,8 +39,7 @@
 // assigned to its second argument, which must be a pointer. If it succeeds, it
 // performs the assignment and returns true. Otherwise, it returns false. The form
 //
-//	var perr *fs.PathError
-//	if errors.As(err, &perr) {
+//	if perr := new(fs.PathError); errors.As(err, &perr) {
 //		fmt.Println(perr.Path)
 //	}
 //
