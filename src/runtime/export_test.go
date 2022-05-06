@@ -1439,16 +1439,20 @@ func (l *GCCPULimiter) NeedUpdate(now int64) bool {
 	return l.limiter.needUpdate(now)
 }
 
-func (l *GCCPULimiter) StartGCTransition(enableGC bool, totalAssistTime, now int64) {
-	l.limiter.startGCTransition(enableGC, totalAssistTime, now)
+func (l *GCCPULimiter) StartGCTransition(enableGC bool, now int64) {
+	l.limiter.startGCTransition(enableGC, now)
 }
 
 func (l *GCCPULimiter) FinishGCTransition(now int64) {
 	l.limiter.finishGCTransition(now)
 }
 
-func (l *GCCPULimiter) Update(totalAssistTime int64, now int64) {
-	l.limiter.update(totalAssistTime, now)
+func (l *GCCPULimiter) Update(now int64) {
+	l.limiter.update(now)
+}
+
+func (l *GCCPULimiter) AddAssistTime(t int64) {
+	l.limiter.addAssistTime(t)
 }
 
 func (l *GCCPULimiter) ResetCapacity(now int64, nprocs int32) {

@@ -55,11 +55,10 @@ type gcCPULimiterState struct {
 	// the mark and sweep phases.
 	transitioning bool
 
-	// lastTotalAssistTime is the last value of a monotonically increasing
-	// count of GC assist time, like gcController.assistTime.
-	lastTotalAssistTime int64
+	_ uint32 // Align assistTimePool and lastUpdate on 32-bit platforms.
 
-	_ uint32 // Align lastUpdate on 32-bit platforms.
+	// assistTimePool is the accumulated assist time since the last update.
+	assistTimePool atomic.Int64
 
 	// lastUpdate is the nanotime timestamp of the last time update was called.
 	//
@@ -81,15 +80,13 @@ func (l *gcCPULimiterState) limiting() bool {
 	return l.enabled.Load()
 }
 
-// startGCTransition notifies the limiter of a GC transition. totalAssistTime
-// is the same as described for update. now must be the start of the STW pause
-// for the GC transition.
+// startGCTransition notifies the limiter of a GC transition.
 //
 // This call takes ownership of the limiter and disables all other means of
 // updating the limiter. Release ownership by calling finishGCTransition.
 //
 // It is safe to call concurrently with other operations.
-func (l *gcCPULimiterState) startGCTransition(enableGC bool, totalAssistTime, now int64) {
+func (l *gcCPULimiterState) startGCTransition(enableGC bool, now int64) {
 	if !l.tryLock() {
 		// This must happen during a STW, so we can't fail to acquire the lock.
 		// If we did, something went wrong. Throw.
@@ -99,10 +96,7 @@ func (l *gcCPULimiterState) startGCTransition(enableGC bool, totalAssistTime, no
 		throw("transitioning GC to the same state as before?")
 	}
 	// Flush whatever was left between the last update and now.
-	l.updateLocked(totalAssistTime, now)
-	if enableGC && totalAssistTime != 0 {
-		throw("assist time must be zero on entry to a GC cycle")
-	}
+	l.updateLocked(now)
 	l.gcEnabled = enableGC
 	l.transitioning = true
 	// N.B. finishGCTransition releases the lock.
@@ -127,8 +121,6 @@ func (l *gcCPULimiterState) finishGCTransition(now int64) {
 	}
 	l.lastUpdate.Store(now)
 	l.transitioning = false
-	// Reset lastTotalAssistTime for the next GC cycle.
-	l.lastTotalAssistTime = 0
 	l.unlock()
 }
 
@@ -142,12 +134,17 @@ func (l *gcCPULimiterState) needUpdate(now int64) bool {
 	return now-l.lastUpdate.Load() > gcCPULimiterUpdatePeriod
 }
 
-// update updates the bucket given runtime-specific information. totalAssistTime must
-// be a value that increases monotonically throughout the GC cycle, and is reset
-// at the start of a new mark phase. now is the current monotonic time in nanoseconds.
+// addAssistTime notifies the limiter of additional assist time. It will be
+// included in the next update.
+func (l *gcCPULimiterState) addAssistTime(t int64) {
+	l.assistTimePool.Add(t)
+}
+
+// update updates the bucket given runtime-specific information. now is the
+// current monotonic time in nanoseconds.
 //
 // This is safe to call concurrently with other operations, except *GCTransition.
-func (l *gcCPULimiterState) update(totalAssistTime int64, now int64) {
+func (l *gcCPULimiterState) update(now int64) {
 	if !l.tryLock() {
 		// We failed to acquire the lock, which means something else is currently
 		// updating. Just drop our update, the next one to update will include
@@ -157,31 +154,32 @@ func (l *gcCPULimiterState) update(totalAssistTime int64, now int64) {
 	if l.transitioning {
 		throw("update during transition")
 	}
-	l.updateLocked(totalAssistTime, now)
+	l.updateLocked(now)
 	l.unlock()
 }
 
 // updatedLocked is the implementation of update. l.lock must be held.
-func (l *gcCPULimiterState) updateLocked(totalAssistTime int64, now int64) {
+func (l *gcCPULimiterState) updateLocked(now int64) {
 	lastUpdate := l.lastUpdate.Load()
-	if now < lastUpdate || totalAssistTime < l.lastTotalAssistTime {
+	if now < lastUpdate {
 		// Defensively avoid overflow. This isn't even the latest update anyway.
-		// This might seem like a lot to back out on, but provided that both
-		// totalAssistTime and now are fresh, updaters must've been closely
-		// racing. It's close enough that it doesn't matter, and in the long
-		// term the result is the same.
 		return
 	}
 	windowTotalTime := (now - lastUpdate) * int64(l.nprocs)
 	l.lastUpdate.Store(now)
-	if !l.gcEnabled {
-		l.accumulate(windowTotalTime, 0)
-		return
+
+	// Drain the pool of assist time.
+	assistTime := l.assistTimePool.Load()
+	if assistTime != 0 {
+		l.assistTimePool.Add(-assistTime)
 	}
-	windowGCTime := totalAssistTime - l.lastTotalAssistTime
-	windowGCTime += int64(float64(windowTotalTime) * gcBackgroundUtilization)
+
+	// Accumulate.
+	windowGCTime := assistTime
+	if l.gcEnabled {
+		windowGCTime += int64(float64(windowTotalTime) * gcBackgroundUtilization)
+	}
 	l.accumulate(windowTotalTime-windowGCTime, windowGCTime)
-	l.lastTotalAssistTime = totalAssistTime
 }
 
 // accumulate adds time to the bucket and signals whether the limiter is enabled.
@@ -249,7 +247,7 @@ func (l *gcCPULimiterState) resetCapacity(now int64, nprocs int32) {
 		throw("failed to acquire lock to reset capacity")
 	}
 	// Flush the rest of the time for this period.
-	l.updateLocked(0, now)
+	l.updateLocked(now)
 	l.nprocs = nprocs
 
 	l.bucket.capacity = uint64(nprocs) * capacityPerProc

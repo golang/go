@@ -1301,8 +1301,9 @@ HaveSpan:
 		start := nanotime()
 		h.pages.scavenge(bytesToScavenge)
 		now := nanotime()
-		assistTime := h.pages.scav.assistTime.Add(now - start)
-		gcCPULimiter.update(gcController.assistTime.Load()+assistTime, now)
+		h.pages.scav.assistTime.Add(now - start)
+		gcCPULimiter.addAssistTime(now - start)
+		gcCPULimiter.update(now)
 	}
 
 	// Commit and account for any scavenged memory that the span now owns.

@@ -21,12 +21,11 @@ func TestGCCPULimiter(t *testing.T) {
 		return ticks
 	}
 
-	// Create mock assist time.
-	assistCPUTime := int64(0)
-	doAssist := func(d time.Duration, frac float64) int64 {
+	// assistTime computes the CPU time for assists using frac of GOMAXPROCS
+	// over the wall-clock duration d.
+	assistTime := func(d time.Duration, frac float64) int64 {
 		t.Helper()
-		assistCPUTime += int64(frac * float64(d) * procs)
-		return assistCPUTime
+		return int64(frac * float64(d) * procs)
 	}
 
 	l := NewGCCPULimiter(ticks, procs)
@@ -45,9 +44,9 @@ func TestGCCPULimiter(t *testing.T) {
 
 		// Test filling the bucket with just mutator time.
 
-		l.Update(0, advance(10*time.Millisecond))
-		l.Update(0, advance(1*time.Second))
-		l.Update(0, advance(1*time.Hour))
+		l.Update(advance(10 * time.Millisecond))
+		l.Update(advance(1 * time.Second))
+		l.Update(advance(1 * time.Hour))
 		if l.Fill() != 0 {
 			t.Fatalf("expected empty bucket from only accumulating mutator time, got fill of %d cpu-ns", l.Fill())
 		}
@@ -60,14 +59,14 @@ func TestGCCPULimiter(t *testing.T) {
 		if !l.NeedUpdate(advance(GCCPULimiterUpdatePeriod)) {
 			t.Fatal("doesn't need update even though updated 1.5 periods ago")
 		}
-		l.Update(0, advance(0))
+		l.Update(advance(0))
 		if l.NeedUpdate(advance(0)) {
 			t.Fatal("need update even though just updated")
 		}
 
 		// Test transitioning the bucket to enable the GC.
 
-		l.StartGCTransition(true, 0, advance(109*time.Millisecond))
+		l.StartGCTransition(true, advance(109*time.Millisecond))
 		l.FinishGCTransition(advance(2*time.Millisecond + 1*time.Microsecond))
 
 		if expect := uint64((2*time.Millisecond + 1*time.Microsecond) * procs); l.Fill() != expect {
@@ -88,25 +87,27 @@ func TestGCCPULimiter(t *testing.T) {
 		// And here we want n=procs:
 		factor := (1 / (1 - 2*GCBackgroundUtilization))
 		fill := (2*time.Millisecond + 1*time.Microsecond) * procs
-		l.Update(0, advance(time.Duration(factor*float64(fill-procs)/procs)))
+		l.Update(advance(time.Duration(factor * float64(fill-procs) / procs)))
 		if l.Fill() != procs {
 			t.Fatalf("expected fill %d cpu-ns from draining after a GC started, got fill of %d cpu-ns", procs, l.Fill())
 		}
 
 		// Drain to zero for the rest of the test.
-		l.Update(0, advance(2*procs*CapacityPerProc))
+		l.Update(advance(2 * procs * CapacityPerProc))
 		if l.Fill() != 0 {
 			t.Fatalf("expected empty bucket from draining, got fill of %d cpu-ns", l.Fill())
 		}
 
 		// Test filling up the bucket with 50% total GC work (so, not moving the bucket at all).
-		l.Update(doAssist(10*time.Millisecond, 0.5-GCBackgroundUtilization), advance(10*time.Millisecond))
+		l.AddAssistTime(assistTime(10*time.Millisecond, 0.5-GCBackgroundUtilization))
+		l.Update(advance(10 * time.Millisecond))
 		if l.Fill() != 0 {
 			t.Fatalf("expected empty bucket from 50%% GC work, got fill of %d cpu-ns", l.Fill())
 		}
 
 		// Test adding to the bucket overall with 100% GC work.
-		l.Update(doAssist(time.Millisecond, 1.0-GCBackgroundUtilization), advance(time.Millisecond))
+		l.AddAssistTime(assistTime(time.Millisecond, 1.0-GCBackgroundUtilization))
+		l.Update(advance(time.Millisecond))
 		if expect := uint64(procs * time.Millisecond); l.Fill() != expect {
 			t.Errorf("expected %d fill from 100%% GC CPU, got fill of %d cpu-ns", expect, l.Fill())
 		}
@@ -118,7 +119,8 @@ func TestGCCPULimiter(t *testing.T) {
 		}
 
 		// Test filling the bucket exactly full.
-		l.Update(doAssist(CapacityPerProc-time.Millisecond, 1.0-GCBackgroundUtilization), advance(CapacityPerProc-time.Millisecond))
+		l.AddAssistTime(assistTime(CapacityPerProc-time.Millisecond, 1.0-GCBackgroundUtilization))
+		l.Update(advance(CapacityPerProc - time.Millisecond))
 		if l.Fill() != l.Capacity() {
 			t.Errorf("expected bucket filled to capacity %d, got %d", l.Capacity(), l.Fill())
 		}
@@ -134,7 +136,8 @@ func TestGCCPULimiter(t *testing.T) {
 
 		// Test adding with a delta of exactly zero. That is, GC work is exactly 50% of all resources.
 		// Specifically, the limiter should still be on, and no overflow should accumulate.
-		l.Update(doAssist(1*time.Second, 0.5-GCBackgroundUtilization), advance(1*time.Second))
+		l.AddAssistTime(assistTime(1*time.Second, 0.5-GCBackgroundUtilization))
+		l.Update(advance(1 * time.Second))
 		if l.Fill() != l.Capacity() {
 			t.Errorf("expected bucket filled to capacity %d, got %d", l.Capacity(), l.Fill())
 		}
@@ -149,7 +152,8 @@ func TestGCCPULimiter(t *testing.T) {
 		}
 
 		// Drain the bucket by half.
-		l.Update(doAssist(CapacityPerProc, 0), advance(CapacityPerProc))
+		l.AddAssistTime(assistTime(CapacityPerProc, 0))
+		l.Update(advance(CapacityPerProc))
 		if expect := l.Capacity() / 2; l.Fill() != expect {
 			t.Errorf("failed to drain to %d, got fill %d", expect, l.Fill())
 		}
@@ -161,7 +165,8 @@ func TestGCCPULimiter(t *testing.T) {
 		}
 
 		// Test overfilling the bucket.
-		l.Update(doAssist(CapacityPerProc, 1.0-GCBackgroundUtilization), advance(CapacityPerProc))
+		l.AddAssistTime(assistTime(CapacityPerProc, 1.0-GCBackgroundUtilization))
+		l.Update(advance(CapacityPerProc))
 		if l.Fill() != l.Capacity() {
 			t.Errorf("failed to fill to capacity %d, got fill %d", l.Capacity(), l.Fill())
 		}
@@ -176,8 +181,8 @@ func TestGCCPULimiter(t *testing.T) {
 		}
 
 		// Test ending the cycle with some assists left over.
-
-		l.StartGCTransition(false, doAssist(1*time.Millisecond, 1.0-GCBackgroundUtilization), advance(1*time.Millisecond))
+		l.AddAssistTime(assistTime(1*time.Millisecond, 1.0-GCBackgroundUtilization))
+		l.StartGCTransition(false, advance(1*time.Millisecond))
 		if l.Fill() != l.Capacity() {
 			t.Errorf("failed to maintain fill to capacity %d, got fill %d", l.Capacity(), l.Fill())
 		}
@@ -205,9 +210,6 @@ func TestGCCPULimiter(t *testing.T) {
 		if t.Failed() {
 			t.FailNow()
 		}
-
-		// Reset the mock total assist CPU time, since we just ended the cycle.
-		assistCPUTime = 0
 
 		// Resize procs up and make sure limiting stops.
 		expectFill := l.Capacity()
