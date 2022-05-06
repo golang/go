@@ -59,7 +59,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
 	}
 	if atomic.LoadUint32(&r.used) != 2 {
 		r.mu.Lock()
-		if r.used != 2 {
+		if atomic.LoadUint32(&r.used) != 2 {
 			f, err := os.Open(urandomDevice)
 			if err != nil {
 				r.mu.Unlock()
