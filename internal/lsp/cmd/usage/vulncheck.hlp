@@ -5,5 +5,9 @@ Usage:
 
 	WARNING: this command is experimental.
 
+	By default, the command outputs a JSON-encoded
+	golang.org/x/tools/internal/lsp/command.VulncheckResult
+	message.
+
 	Example:
 	$ gopls vulncheck <packages>

@@ -11,8 +11,10 @@ import (
 	"fmt"
 	"os"
 
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/tool"
 )
 
@@ -31,6 +33,10 @@ func (v *vulncheck) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 	WARNING: this command is experimental.
 
+	By default, the command outputs a JSON-encoded
+	golang.org/x/tools/internal/lsp/command.VulncheckResult
+	message.
+
 	Example:
 	$ gopls vulncheck <packages>
 `)
@@ -46,34 +52,32 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 		pattern = args[0]
 	}
 
-	conn, err := v.app.connect(ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.terminate(ctx)
-
 	cwd, err := os.Getwd()
 	if err != nil {
-		return err
+		return tool.CommandLineErrorf("failed to get current directory: %v", err)
 	}
 
-	cmd, err := command.NewRunVulncheckExpCommand("", command.VulncheckArgs{
+	opts := source.DefaultOptions().Clone()
+	v.app.options(opts) // register hook
+	if opts == nil || opts.Hooks.Govulncheck == nil {
+		return tool.CommandLineErrorf("vulncheck feature is not available")
+	}
+
+	loadCfg := &packages.Config{
+		Context: ctx,
+	}
+
+	res, err := opts.Hooks.Govulncheck(ctx, loadCfg, command.VulncheckArgs{
 		Dir:     protocol.URIFromPath(cwd),
 		Pattern: pattern,
 	})
 	if err != nil {
 		return err
 	}
-
-	params := &protocol.ExecuteCommandParams{Command: cmd.Command, Arguments: cmd.Arguments}
-	res, err := conn.ExecuteCommand(ctx, params)
-	if err != nil {
-		return fmt.Errorf("executing server command: %v", err)
-	}
 	data, err := json.MarshalIndent(res, " ", " ")
 	if err != nil {
 		return fmt.Errorf("failed to decode results: %v", err)
 	}
-	fmt.Printf("%s\n", data)
+	fmt.Printf("%s", data)
 	return nil
 }
