@@ -215,7 +215,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			rst = ldr.SymType(rs)
 		}
 
-		if rs != 0 && ((rst == sym.Sxxx && !ldr.AttrVisibilityHidden(rs)) || rst == sym.SXREF) {
+		if rs != 0 && (rst == sym.Sxxx || rst == sym.SXREF) {
 			// When putting the runtime but not main into a shared library
 			// these symbols are undefined and that's OK.
 			if target.IsShared() || target.IsPlugin() {
