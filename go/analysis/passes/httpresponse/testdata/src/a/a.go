@@ -83,3 +83,30 @@ func badClientDo() {
 		log.Fatal(err)
 	}
 }
+
+func goodUnwrapResp() {
+	unwrapResp := func(resp *http.Response, err error) *http.Response {
+		if err != nil {
+			panic(err)
+		}
+		return resp
+	}
+	resp := unwrapResp(http.Get("https://golang.org"))
+	// It is ok to call defer here immediately as err has
+	// been checked in unwrapResp (see #52661).
+	defer resp.Body.Close()
+}
+
+func badUnwrapResp() {
+	unwrapResp := func(resp *http.Response, err error) string {
+		if err != nil {
+			panic(err)
+		}
+		return "https://golang.org/" + resp.Status
+	}
+	resp, err := http.Get(unwrapResp(http.Get("https://golang.org")))
+	defer resp.Body.Close() // want "using resp before checking for errors"
+	if err != nil {
+		log.Fatal(err)
+	}
+}

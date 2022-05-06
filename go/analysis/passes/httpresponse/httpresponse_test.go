@@ -5,10 +5,11 @@
 package httpresponse_test
 
 import (
+	"testing"
+
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/httpresponse"
 	"golang.org/x/tools/internal/typeparams"
-	"testing"
 )
 
 func Test(t *testing.T) {
