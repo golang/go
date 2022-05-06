@@ -800,7 +800,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
 	// case the limiter is on but hasn't been checked in a while and
 	// so may have left sufficient headroom to turn off again.
 	if gcCPULimiter.needUpdate(now) {
-		gcCPULimiter.update(gcController.assistTime.Load(), now)
+		gcCPULimiter.update(now)
 	}
 
 	if !gcMarkWorkAvailable(_p_) {
