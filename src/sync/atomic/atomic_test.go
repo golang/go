@@ -1787,8 +1787,11 @@ func init() {
 	if uintptr(v) == 0 {
 		// 32-bit system; clear uintptr tests
 		delete(hammer64, "SwapUintptr")
+		delete(hammer64, "SwapUintptrMethod")
 		delete(hammer64, "AddUintptr")
+		delete(hammer64, "AddUintptrMethod")
 		delete(hammer64, "CompareAndSwapUintptr")
+		delete(hammer64, "CompareAndSwapUintptrMethod")
 	}
 }
 
