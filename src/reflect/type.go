@@ -2271,7 +2271,10 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 
 	if ktyp.ptrdata != 0 || etyp.ptrdata != 0 {
 		nptr := (bucketSize*(1+ktyp.size+etyp.size) + goarch.PtrSize) / goarch.PtrSize
-		mask := make([]byte, (nptr+7)/8)
+		n := (nptr + 7) / 8
+		// Runtime needs pointer masks to be a multiple of uintptr in size.
+		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
+		mask := make([]byte, n)
 		base := bucketSize / goarch.PtrSize
 
 		if ktyp.ptrdata != 0 {
@@ -2977,7 +2980,10 @@ func ArrayOf(length int, elem Type) Type {
 		// Element is small with pointer mask; array is still small.
 		// Create direct pointer mask by turning each 1 bit in elem
 		// into length 1 bits in larger mask.
-		mask := make([]byte, (array.ptrdata/goarch.PtrSize+7)/8)
+		n := (array.ptrdata/goarch.PtrSize + 7) / 8
+		// Runtime needs pointer masks to be a multiple of uintptr in size.
+		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
+		mask := make([]byte, n)
 		emitGCMask(mask, 0, typ, array.len)
 		array.gcdata = &mask[0]
 
@@ -3146,8 +3152,13 @@ type bitVector struct {
 
 // append a bit to the bitmap.
 func (bv *bitVector) append(bit uint8) {
-	if bv.n%8 == 0 {
-		bv.data = append(bv.data, 0)
+	if bv.n%(8*goarch.PtrSize) == 0 {
+		// Runtime needs pointer masks to be a multiple of uintptr in size.
+		// Since reflect passes bv.data directly to the runtime as a pointer mask,
+		// we append a full uintptr of zeros at a time.
+		for i := 0; i < goarch.PtrSize; i++ {
+			bv.data = append(bv.data, 0)
+		}
 	}
 	bv.data[bv.n/8] |= bit << (bv.n % 8)
 	bv.n++
