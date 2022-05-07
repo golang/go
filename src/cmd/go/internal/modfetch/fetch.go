@@ -242,7 +242,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// contents of the file (by hashing it) before we commit it. Because the file
 	// is zip-compressed, we need an actual file — or at least an io.ReaderAt — to
 	// validate it: we can't just tee the stream as we write it.
-	f, err := os.CreateTemp(filepath.Dir(zipfile), tmpPattern)
+	f, err := tempFile(filepath.Dir(zipfile), filepath.Base(zipfile), 0666)
 	if err != nil {
 		return err
 	}
