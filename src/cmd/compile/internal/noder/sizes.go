@@ -134,6 +134,7 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
 }
 
 var basicSizes = [...]byte{
+	types2.Invalid:    1,
 	types2.Bool:       1,
 	types2.Int8:       1,
 	types2.Int16:      2,
