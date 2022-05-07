@@ -38,7 +38,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("underlying type must not be *Named")
 	}
-	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, newMethodList(methods))
+	return (*Checker)(nil).newNamed(obj, nil, underlying, newMethodList(methods))
 }
 
 func (t *Named) resolve(ctxt *Context) *Named {
@@ -62,8 +62,8 @@ func (t *Named) resolve(ctxt *Context) *Named {
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TypeParamList, methods *methodList) *Named {
-	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
+func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, methods *methodList) *Named {
+	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, methods: methods}
 	if typ.orig == nil {
 		typ.orig = typ
 	}

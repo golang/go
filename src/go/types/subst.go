@@ -258,7 +258,6 @@ func (subst *subster) typ(typ Type) Type {
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
 		// help with debugging.
-		t.orig.resolve(subst.ctxt)
 		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.ctxt)
 
 		// Note that if we were to expose substitution more generally (not just in

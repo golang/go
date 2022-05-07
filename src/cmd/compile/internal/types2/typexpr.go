@@ -448,7 +448,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	if inst == nil {
 		// x may be a selector for an imported type; use its start pos rather than x.Pos().
 		tname := NewTypeName(syntax.StartPos(x), orig.obj.pkg, orig.obj.name, nil)
-		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+		inst = check.newNamed(tname, orig, nil, nil) // underlying, methods and tparams are set when named is resolved
 		inst.targs = newTypeList(targs)
 		inst = ctxt.update(h, orig, targs, inst).(*Named)
 	}
