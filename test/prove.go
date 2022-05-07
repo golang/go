@@ -1036,6 +1036,14 @@ func divShiftClean32(n int32) int32 {
 	return n / int32(16) // ERROR "Proved Rsh32x64 shifts to zero"
 }
 
+func and(p []byte) ([]byte, []byte) { // issue #52563
+	const blocksize = 16
+	fullBlocks := len(p) &^ (blocksize - 1)
+	blk := p[:fullBlocks] // ERROR "Proved IsSliceInBounds$"
+	rem := p[fullBlocks:] // ERROR "Proved IsSliceInBounds$"
+	return blk, rem
+}
+
 //go:noinline
 func useInt(a int) {
 }

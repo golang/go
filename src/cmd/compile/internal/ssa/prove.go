@@ -831,6 +831,9 @@ func prove(f *Func) {
 			case OpCtz64, OpCtz32, OpCtz16, OpCtz8, OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
 				ft.update(b, v, ft.zero, signed, gt|eq)
 				// TODO: we could also do <= 64/32/16/8, if that helped.
+			case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+				ft.update(b, v, v.Args[1], unsigned, lt|eq)
+				ft.update(b, v, v.Args[0], unsigned, lt|eq)
 			}
 		}
 	}
