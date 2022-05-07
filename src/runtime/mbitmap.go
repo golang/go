@@ -893,6 +893,19 @@ func (h writeHeapBits) flush(addr, size uintptr) {
 	}
 }
 
+// Read the bytes starting at the aligned pointer p into a uintptr.
+// Read is little-endian.
+func readUintptr(p *byte) uintptr {
+	x := *(*uintptr)(unsafe.Pointer(p))
+	if goarch.BigEndian {
+		if goarch.PtrSize == 8 {
+			return uintptr(sys.Bswap64(uint64(x)))
+		}
+		return uintptr(sys.Bswap32(uint32(x)))
+	}
+	return x
+}
+
 // heapBitsSetType records that the new allocation [x, x+size)
 // holds in [x, x+dataSize) one or more values of type typ.
 // (The number of values is given by dataSize / typ.size.)
@@ -917,7 +930,7 @@ func (h writeHeapBits) flush(addr, size uintptr) {
 // machines, callers must execute a store/store (publication) barrier
 // between calling this function and making the object reachable.
 func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
-	const doubleCheck = true // slow but helpful; enable to test modifications to this code
+	const doubleCheck = false // slow but helpful; enable to test modifications to this code
 
 	if doubleCheck && dataSize%typ.size != 0 {
 		throw("heapBitsSetType: dataSize not a multiple of typ.size")
@@ -995,19 +1008,65 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// objects with scalar tails, all but the last tail does have to
 	// be initialized, because there is no way to say "skip forward".
 
-	for i := uintptr(0); true; i += typ.size {
-		p := typ.gcdata
-		var j uintptr
-		for j = 0; j+8*goarch.PtrSize < typ.ptrdata; j += 8 * goarch.PtrSize {
-			h = h.write(uintptr(*p), 8)
-			p = add1(p)
+	ptrs := typ.ptrdata / goarch.PtrSize
+	if typ.size == dataSize { // Single element
+		if ptrs <= ptrBits { // Single small element
+			m := readUintptr(typ.gcdata)
+			h = h.write(m, ptrs)
+		} else { // Single large element
+			p := typ.gcdata
+			for {
+				h = h.write(readUintptr(p), ptrBits)
+				p = addb(p, ptrBits/8)
+				ptrs -= ptrBits
+				if ptrs <= ptrBits {
+					break
+				}
+			}
+			m := readUintptr(p)
+			h = h.write(m, ptrs)
 		}
-		h = h.write(uintptr(*p), (typ.ptrdata-j)/goarch.PtrSize)
-		if i+typ.size == dataSize {
-			break // don't need the trailing nonptr bits on the last element.
+	} else { // Repeated element
+		words := typ.size / goarch.PtrSize // total words, including scalar tail
+		if words <= ptrBits {              // Repeated small element
+			n := dataSize / typ.size
+			m := readUintptr(typ.gcdata)
+			// Make larger unit to repeat
+			for words <= ptrBits/2 {
+				if n&1 != 0 {
+					h = h.write(m, words)
+				}
+				n /= 2
+				m |= m << words
+				ptrs += words
+				words *= 2
+				if n == 1 {
+					break
+				}
+			}
+			for n > 1 {
+				h = h.write(m, words)
+				n--
+			}
+			h = h.write(m, ptrs)
+		} else { // Repeated large element
+			for i := uintptr(0); true; i += typ.size {
+				p := typ.gcdata
+				j := ptrs
+				for j > ptrBits {
+					h = h.write(readUintptr(p), ptrBits)
+					p = addb(p, ptrBits/8)
+					j -= ptrBits
+				}
+				m := readUintptr(p)
+				h = h.write(m, j)
+				if i+typ.size == dataSize {
+					break // don't need the trailing nonptr bits on the last element.
+				}
+				// Pad with zeros to the start of the next element.
+				h = h.pad(typ.size - typ.ptrdata)
+			}
 		}
-		// Pad with zeros to the start of the next element.
-		h = h.pad(typ.size - typ.ptrdata)
 	}
 	h.flush(x, size)
 
