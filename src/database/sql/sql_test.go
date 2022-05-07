@@ -2636,6 +2636,39 @@ func TestRowsImplicitClose(t *testing.T) {
 	}
 }
 
+func TestRowsCloseError(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer db.Close()
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	type row struct {
+		age  int
+		name string
+	}
+	got := []row{}
+
+	rc, ok := rows.rowsi.(*rowsCursor)
+	if !ok {
+		t.Fatal("not using *rowsCursor")
+	}
+	rc.closeErr = errors.New("rowsCursor: failed to close")
+
+	for rows.Next() {
+		var r row
+		err = rows.Scan(&r.age, &r.name)
+		if err != nil {
+			t.Fatalf("Scan: %v", err)
+		}
+		got = append(got, r)
+	}
+	err = rows.Err()
+	if err != rc.closeErr {
+		t.Fatalf("unexpected err: got %v, want %v", err, rc.closeErr)
+	}
+}
+
 func TestStmtCloseOrder(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)

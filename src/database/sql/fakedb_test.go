@@ -1089,6 +1089,9 @@ type rowsCursor struct {
 	// This is separate from the fakeConn.line to allow for drivers that
 	// can start multiple queries on the same transaction at the same time.
 	line int64
+
+	// closeErr is returned when rowsCursor.Close
+	closeErr error
 }
 
 func (rc *rowsCursor) touchMem() {
@@ -1100,7 +1103,7 @@ func (rc *rowsCursor) Close() error {
 	rc.touchMem()
 	rc.parentMem.touchMem()
 	rc.closed = true
-	return nil
+	return rc.closeErr
 }
 
 func (rc *rowsCursor) Columns() []string {
