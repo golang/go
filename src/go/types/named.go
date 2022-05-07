@@ -96,14 +96,16 @@ type Named struct {
 	underlying Type           // possibly a *Named during setup; never a *Named once set up completely
 	tparams    *TypeParamList // type parameters, or nil
 
-	// methods declared for this type (not the method set of this type).
+	// methods declared for this type (not the method set of this type)
 	// Signatures are type-checked lazily.
 	// For non-instantiated types, this is a fully populated list of methods. For
-	// instantiated types, this is a 'lazy' list, and methods are individually
-	// expanded when they are first accessed.
-	methods *methodList
+	// instantiated types, methods are individually expanded when they are first
+	// accessed.
+	methods []*Func
+	// number of expanded methods (only valid for instantiated named types)
+	expandedMethods int // expandedMethods <= len(orig.methods)
 
-	// loader may be provided to lazily load type parameters, underlying, and methods.
+	// loader may be provided to lazily load type parameters, underlying type, and methods.
 	loader func(*Named) (tparams []*TypeParam, underlying Type, methods []*Func)
 }
 
@@ -112,7 +114,8 @@ type namedState uint32
 
 const (
 	unresolved namedState = iota // tparams, underlying type and methods might be unavailable
-	resolved
+	resolved                     // resolve has run; methods might be incomplete (for instances)
+	complete                     // all data is known
 )
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -122,7 +125,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("underlying type must not be *Named")
 	}
-	return (*Checker)(nil).newNamed(obj, nil, underlying, newMethodList(methods))
+	return (*Checker)(nil).newNamed(obj, nil, underlying, methods)
 }
 
 // resolve resolves the type parameters, methods, and underlying type of n.
@@ -156,8 +159,12 @@ func (n *Named) resolve(ctxt *Context) *Named {
 		n.tparams = n.orig.tparams
 		n.underlying = underlying
 		n.fromRHS = n.orig.fromRHS // for cycle detection
-		n.methods = newLazyMethodList(n.orig.methods.Len())
-		n.setState(resolved)
+
+		if len(n.orig.methods) == 0 {
+			n.setState(complete)
+		} else {
+			n.setState(resolved)
+		}
 		return n
 	}
 
@@ -170,17 +177,18 @@ func (n *Named) resolve(ctxt *Context) *Named {
 	// also make the API more future-proof towards further extensions.
 	if n.loader != nil {
 		assert(n.underlying == nil)
+		assert(n.TypeArgs().Len() == 0) // instances are created by instantiation, in which case n.loader is nil
 
 		tparams, underlying, methods := n.loader(n)
 
 		n.tparams = bindTParams(tparams)
 		n.underlying = underlying
 		n.fromRHS = underlying // for cycle detection
-		n.methods = newMethodList(methods)
+		n.methods = methods
 		n.loader = nil
 	}
 
-	n.setState(resolved)
+	n.setState(complete)
 	return n
 }
 
@@ -196,7 +204,7 @@ func (n *Named) setState(state namedState) {
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, methods *methodList) *Named {
+func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, methods: methods}
 	if typ.orig == nil {
 		typ.orig = typ
@@ -264,14 +272,38 @@ func (t *Named) TypeArgs() *TypeList { return t.targs }
 // For an ordinary or instantiated type t, the receiver base type of these
 // methods will be the named type t. For an uninstantiated generic type t, each
 // method receiver will be instantiated with its receiver type parameters.
-func (t *Named) NumMethods() int { return t.resolve(nil).methods.Len() }
+func (t *Named) NumMethods() int { return len(t.orig.resolve(nil).methods) }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
 func (t *Named) Method(i int) *Func {
 	t.resolve(nil)
-	return t.methods.At(i, func() *Func {
-		return t.expandMethod(i)
-	})
+
+	if t.state() >= complete {
+		return t.methods[i]
+	}
+
+	assert(t.TypeArgs().Len() > 0) // only instances should have incomplete methods
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if len(t.methods) != len(t.orig.methods) {
+		assert(len(t.methods) == 0)
+		t.methods = make([]*Func, len(t.orig.methods))
+	}
+
+	if t.methods[i] == nil {
+		t.methods[i] = t.expandMethod(i)
+		t.expandedMethods++
+
+		// Check if we've created all methods at this point. If we have, mark the
+		// type as fully expanded.
+		if t.expandedMethods == len(t.orig.methods) {
+			t.setState(complete)
+		}
+	}
+
+	return t.methods[i]
 }
 
 // expandMethod substitutes type arguments in the i'th method for an
@@ -353,10 +385,9 @@ func (t *Named) SetUnderlying(underlying Type) {
 func (t *Named) AddMethod(m *Func) {
 	assert(t.targs.Len() == 0)
 	t.resolve(nil)
-	if t.methods == nil {
-		t.methods = newMethodList(nil)
+	if i, _ := lookupMethod(t.methods, m.pkg, m.name, false); i < 0 {
+		t.methods = append(t.methods, m)
 	}
-	t.methods.Add(m)
 }
 
 func (t *Named) Underlying() Type { return t.resolve(nil).underlying }
@@ -464,7 +495,7 @@ func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Fu
 	// If n is an instance, we may not have yet instantiated all of its methods.
 	// Look up the method index in orig, and only instantiate method at the
 	// matching index (if any).
-	i, _ := n.orig.methods.Lookup(pkg, name, foldCase)
+	i, _ := lookupMethod(n.orig.methods, pkg, name, foldCase)
 	if i < 0 {
 		return -1, nil
 	}

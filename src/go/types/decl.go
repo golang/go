@@ -722,8 +722,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		// Checker.Files may be called multiple times; additional package files
 		// may add methods to already type-checked types. Add pre-existing methods
 		// so that we can detect redeclarations.
-		for i := 0; i < base.methods.Len(); i++ {
-			m := base.methods.At(i, nil)
+		for i := 0; i < base.NumMethods(); i++ {
+			m := base.Method(i)
 			assert(m.name != "_")
 			assert(mset.insert(m) == nil)
 		}
@@ -749,8 +749,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
 func (check *Checker) checkFieldUniqueness(base *Named) {
 	if t, _ := base.under().(*Struct); t != nil {
 		var mset objset
-		for i := 0; i < base.methods.Len(); i++ {
-			m := base.methods.At(i, nil)
+		for i := 0; i < base.NumMethods(); i++ {
+			m := base.Method(i)
 			assert(m.name != "_")
 			assert(mset.insert(m) == nil)
 		}
