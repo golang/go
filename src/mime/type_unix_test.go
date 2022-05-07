@@ -22,13 +22,16 @@ func initMimeUnixTest(t *testing.T) {
 func TestTypeByExtensionUNIX(t *testing.T) {
 	initMimeUnixTest(t)
 	typeTests := map[string]string{
-		".T1":  "application/test",
-		".t2":  "text/test; charset=utf-8",
-		".t3":  "document/test",
-		".t4":  "example/test",
-		".png": "image/png",
-		",v":   "",
-		"~":    "",
+		".T1":       "application/test",
+		".t2":       "text/test; charset=utf-8",
+		".t3":       "document/test",
+		".t4":       "example/test",
+		".png":      "image/png",
+		",v":        "",
+		"~":         "",
+		".foo?ar":   "",
+		".foo*r":    "",
+		".foo[1-3]": "",
 	}
 
 	for ext, want := range typeTests {

@@ -40,7 +40,7 @@ func loadMimeGlobsFile(filename string) error {
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		// Each line should be of format: weight:mimetype:*.ext[:morefields...]
+		// Each line should be of format: weight:mimetype:glob[:morefields...]
 		fields := strings.Split(scanner.Text(), ":")
 		if len(fields) < 3 || len(fields[0]) < 1 || len(fields[2]) < 3 {
 			continue
@@ -49,6 +49,18 @@ func loadMimeGlobsFile(filename string) error {
 		}
 
 		extension := fields[2][1:]
+		if strings.ContainsAny(extension, "?*[") {
+			// Not a bare extension, but a glob. Ignore for now:
+			// - we do not have an implementation for this glob
+			//   syntax (translation to path/filepath.Match could
+			//   be possible)
+			// - support for globs with weight ordering would have
+			//   performance impact to all lookups to support the
+			//   rarely seen glob entries
+			// - trying to match glob metacharacters literally is
+			//   not useful
+			continue
+		}
 		if _, ok := mimeTypes.Load(extension); ok {
 			// We've already seen this extension.
 			// The file is in weight order, so we keep
