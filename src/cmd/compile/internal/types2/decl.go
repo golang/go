@@ -508,7 +508,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	}
 
 	// type definition or generic type declaration
-	named := check.newNamed(obj, nil, nil, nil, nil)
+	named := check.newNamed(obj, nil, nil, nil)
 	def.setUnderlying(named)
 
 	if tdecl.TParamList != nil {
@@ -671,7 +671,6 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		}
 
 		if base != nil {
-			base.resolve(nil) // TODO(mdempsky): Probably unnecessary.
 			base.AddMethod(m)
 		}
 	}

@@ -216,7 +216,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			// as the method."
 			switch T := rtyp.(type) {
 			case *Named:
-				T.resolve(check.bestContext(nil))
 				// The receiver type may be an instantiated type referred to
 				// by an alias (which cannot have receiver parameters for now).
 				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
