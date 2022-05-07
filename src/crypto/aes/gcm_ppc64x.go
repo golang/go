@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ppc64le
+//go:build ppc64le || ppc64
 
 package aes
 
@@ -11,6 +11,7 @@ import (
 	"crypto/subtle"
 	"encoding/binary"
 	"errors"
+	"runtime"
 )
 
 // This file implements GCM using an optimized GHASH function.
@@ -53,15 +54,22 @@ type gcmAsm struct {
 // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
 // called by crypto/cipher.NewGCM via the gcmAble interface.
 func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+	var h1, h2 uint64
 	g := &gcmAsm{cipher: c, ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
 
 	hle := make([]byte, gcmBlockSize)
+
 	c.Encrypt(hle, hle)
 
 	// Reverse the bytes in each 8 byte chunk
 	// Load little endian, store big endian
-	h1 := binary.LittleEndian.Uint64(hle[:8])
-	h2 := binary.LittleEndian.Uint64(hle[8:])
+	if runtime.GOARCH == "ppc64le" {
+		h1 = binary.LittleEndian.Uint64(hle[:8])
+		h2 = binary.LittleEndian.Uint64(hle[8:])
+	} else {
+		h1 = binary.BigEndian.Uint64(hle[:8])
+		h2 = binary.BigEndian.Uint64(hle[8:])
+	}
 	binary.BigEndian.PutUint64(hle[:8], h1)
 	binary.BigEndian.PutUint64(hle[8:], h2)
 	gcmInit(&g.productTable, hle)

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ppc64 || ppc64le
+
 // Based on CRYPTOGAMS code with the following comment:
 // # ====================================================================
 // # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -220,15 +222,17 @@ TEXT ·gcmHash(SB), NOSPLIT, $0-64
 
 	LXVD2X   (HTBL)(R8), VHL    // load pre-computed table
 	MOVD     $0x40, R8
-	LVSL     (R0)(R0), LEMASK
 	LXVD2X   (HTBL)(R9), VH
 	MOVD     $0x50, R9
-	VSPLTISB $0x07, T0
 	LXVD2X   (HTBL)(R10), VHH
 	MOVD     $0x60, R10
-	VXOR     LEMASK, T0, LEMASK
 	LXVD2X   (HTBL)(R0), VXC2
+#ifdef GOARCH_ppc64le
+	LVSL     (R0)(R0), LEMASK
+	VSPLTISB $0x07, T0
+	VXOR     LEMASK, T0, LEMASK
 	VPERM    XL, XL, LEMASK, XL
+#endif
 	VXOR     ZERO, ZERO, ZERO
 
 	CMPU LEN, $64
@@ -237,7 +241,9 @@ TEXT ·gcmHash(SB), NOSPLIT, $0-64
 	LXVD2X (INP)(R0), VIN
 	ADD    $16, INP, INP
 	SUBCCC $16, LEN, LEN
+#ifdef GOARCH_ppc64le
 	VPERM  IN, IN, LEMASK, IN
+#endif
 	VXOR   IN, XL, IN
 	BEQ    short
 
@@ -249,7 +255,9 @@ TEXT ·gcmHash(SB), NOSPLIT, $0-64
 
 loop_2x:
 	LXVD2X (INP)(R0), VIN1
+#ifdef GOARCH_ppc64le
 	VPERM  IN1, IN1, LEMASK, IN1
+#endif
 
 	SUBC    $32, LEN, LEN
 	VPMSUMD IN, H2L, XL   // H^2.lo·Xi.lo
@@ -280,7 +288,9 @@ loop_2x:
 
 	VSLDOI  $8, XL, XL, T1     // 2nd reduction phase
 	VPMSUMD XL, XC2, XL
+#ifdef GOARCH_ppc64le
 	VPERM   IN, IN, LEMASK, IN
+#endif
 	VXOR    T1, XH, T1
 	VXOR    IN, T1, IN
 	VXOR    IN, XL, IN
@@ -311,7 +321,9 @@ short:
 
 even:
 	VXOR    XL, T1, XL
+#ifdef GOARCH_ppc64le
 	VPERM   XL, XL, LEMASK, XL
+#endif
 	STXVD2X VXL, (XIP+R0)
 
 	OR R12, R12, R12 // write out Xi
@@ -349,10 +361,12 @@ gcm_ghash_p8_4x:
 	LXVD2X (INP)(R9), VIN2
 	LXVD2X (INP)(R10), VIN3
 	ADD    $0x40, INP, INP
+#ifdef GOARCH_ppc64le
 	VPERM  IN0, IN0, LEMASK, IN0
 	VPERM  IN1, IN1, LEMASK, IN1
 	VPERM  IN2, IN2, LEMASK, IN2
 	VPERM  IN3, IN3, LEMASK, IN3
+#endif
 
 	VXOR IN0, XL, XH
 
@@ -383,10 +397,12 @@ loop_4x:
 	LXVD2X (INP)(R9), VIN2
 	LXVD2X (INP)(R10), VIN3
 	ADD    $0x40, INP, INP
+#ifdef GOARCH_ppc64le
 	VPERM  IN1, IN1, LEMASK, IN1
 	VPERM  IN2, IN2, LEMASK, IN2
 	VPERM  IN3, IN3, LEMASK, IN3
 	VPERM  IN0, IN0, LEMASK, IN0
+#endif
 
 	VPMSUMD XH, H4L, XL   // H^4.lo·Xi.lo
 	VPMSUMD XH, H4, XM    // H^4.hi·Xi.lo+H^4.lo·Xi.hi
@@ -463,9 +479,11 @@ tail_4x:
 
 three:
 	LXVD2X (INP)(R9), VIN2
+#ifdef GOARCH_ppc64le
 	VPERM  IN0, IN0, LEMASK, IN0
 	VPERM  IN1, IN1, LEMASK, IN1
 	VPERM  IN2, IN2, LEMASK, IN2
+#endif
 
 	VXOR IN0, XL, XH
 	VOR  H3L, H3L, H4L
@@ -483,8 +501,10 @@ three:
 	JMP  tail_4x
 
 two:
+#ifdef GOARCH_ppc64le
 	VPERM IN0, IN0, LEMASK, IN0
 	VPERM IN1, IN1, LEMASK, IN1
+#endif
 
 	VXOR  IN, XL, XH
 	VPERM ZERO, IN1, LOPERM, T0
@@ -501,7 +521,9 @@ two:
 	JMP tail_4x
 
 one:
+#ifdef GOARCH_ppc64le
 	VPERM IN0, IN0, LEMASK, IN0
+#endif
 
 	VSLDOI $8, ZERO, H, H4L
 	VOR    H, H, H4
@@ -515,7 +537,9 @@ one:
 	JMP tail_4x
 
 done_4x:
+#ifdef GOARCH_ppc64le
 	VPERM   XL, XL, LEMASK, XL
+#endif
 	STXVD2X VXL, (XIP+R0)      // write out Xi
 	RET
 
@@ -530,13 +554,14 @@ TEXT ·gcmMul(SB), NOSPLIT, $0-32
 	LXVD2X (XIP)(R0), VIN // load Xi
 
 	LXVD2X   (HTBL)(R8), VHL    // Load pre-computed table
-	LVSL     (R0)(R0), LEMASK
 	LXVD2X   (HTBL)(R9), VH
-	VSPLTISB $0x07, T0
 	LXVD2X   (HTBL)(R10), VHH
-	VXOR     LEMASK, T0, LEMASK
 	LXVD2X   (HTBL)(R0), VXC2
+#ifdef GOARCH_ppc64le
+	VSPLTISB $0x07, T0
+	VXOR     LEMASK, T0, LEMASK
 	VPERM    IN, IN, LEMASK, IN
+#endif
 	VXOR     ZERO, ZERO, ZERO
 
 	VPMSUMD IN, HL, XL // H.lo·Xi.lo
@@ -558,6 +583,8 @@ TEXT ·gcmMul(SB), NOSPLIT, $0-32
 	VXOR    T1, XH, T1
 	VXOR    XL, T1, XL
 
+#ifdef GOARCH_ppc64le
 	VPERM   XL, XL, LEMASK, XL
+#endif
 	STXVD2X VXL, (XIP+R0)      // write out Xi
 	RET
