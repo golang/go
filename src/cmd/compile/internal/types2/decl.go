@@ -508,7 +508,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	}
 
 	// type definition or generic type declaration
-	named := check.newNamed(obj, nil, nil, nil)
+	named := check.newNamed(obj, nil, nil)
 	def.setUnderlying(named)
 
 	if tdecl.TParamList != nil {
@@ -635,7 +635,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 	// and field names must be distinct."
 	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
 	if base != nil {
-		assert(base.targs.Len() == 0) // collectMethods should not be called on an instantiated type
+		assert(base.TypeArgs().Len() == 0) // collectMethods should not be called on an instantiated type
 
 		// See issue #52529: we must delay the expansion of underlying here, as
 		// base may not be fully set-up.

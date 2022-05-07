@@ -434,7 +434,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		return w.isParameterized(t.elem)
 
 	case *Named:
-		return w.isParameterizedTypeList(t.targs.list())
+		return w.isParameterizedTypeList(t.TypeArgs().list())
 
 	case *TypeParam:
 		// t must be one of w.tparams

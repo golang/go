@@ -428,8 +428,8 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 		// errors.
 		check.recordInstance(ix.Orig, inst.TypeArgs().list(), inst)
 
-		if check.validateTArgLen(ix.Pos(), inst.TypeParams().Len(), inst.targs.Len()) {
-			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.targs.list()); err != nil {
+		if check.validateTArgLen(ix.Pos(), inst.TypeParams().Len(), inst.TypeArgs().Len()) {
+			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list()); err != nil {
 				// best position for error reporting
 				pos := ix.Pos()
 				if i < len(ix.Indices) {
@@ -437,7 +437,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 				}
 				check.softErrorf(atPos(pos), _InvalidTypeArg, err.Error())
 			} else {
-				check.mono.recordInstance(check.pkg, ix.Pos(), inst.TypeParams().list(), inst.targs.list(), ix.Indices)
+				check.mono.recordInstance(check.pkg, ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), ix.Indices)
 			}
 		}
 

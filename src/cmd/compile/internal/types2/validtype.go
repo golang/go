@@ -72,7 +72,7 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, path []Object) typeIn
 		switch check.infoMap[t] {
 		case unknown:
 			check.infoMap[t] = marked
-			check.infoMap[t] = check.validType0(t.orig.fromRHS, env.push(t), append(path, t.obj))
+			check.infoMap[t] = check.validType0(t.Origin().fromRHS, env.push(t), append(path, t.obj))
 		case marked:
 			// We have seen type t before and thus must have a cycle.
 			check.infoMap[t] = invalid

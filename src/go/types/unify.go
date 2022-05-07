@@ -546,8 +546,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 	case *Named:
 		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
 		if y, ok := y.(*Named); ok {
-			xargs := x.targs.list()
-			yargs := y.targs.list()
+			xargs := x.TypeArgs().list()
+			yargs := y.TypeArgs().list()
 
 			if len(xargs) != len(yargs) {
 				return false

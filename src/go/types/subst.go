@@ -176,7 +176,7 @@ func (subst *subster) typ(typ Type) Type {
 			// In this case the interface will not be substituted here, because its
 			// method signatures do not depend on the type parameter P, but we still
 			// need to create new interface methods to hold the instantiated
-			// receiver. This is handled by expandNamed.
+			// receiver. This is handled by Named.expandUnderlying.
 			iface.methods, _ = replaceRecvType(methods, t, iface)
 			return iface
 		}
@@ -207,19 +207,20 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-		// subst is called by expandNamed, so in this function we need to be
+		// subst is called during expansion, so in this function we need to be
 		// careful not to call any methods that would cause t to be expanded: doing
 		// so would result in deadlock.
 		//
-		// So we call t.orig.TypeParams() rather than t.TypeParams() here and
-		// below.
-		if t.orig.TypeParams().Len() == 0 {
+		// So we call t.Origin().TypeParams() rather than t.TypeParams().
+		orig := t.Origin()
+		n := orig.TypeParams().Len()
+		if n == 0 {
 			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}
 
 		var newTArgs []Type
-		if t.targs.Len() != t.orig.TypeParams().Len() {
+		if t.TypeArgs().Len() != n {
 			return Typ[Invalid] // error reported elsewhere
 		}
 
@@ -228,14 +229,14 @@ func (subst *subster) typ(typ Type) Type {
 		// For each (existing) type argument targ, determine if it needs
 		// to be substituted; i.e., if it is or contains a type parameter
 		// that has a type argument for it.
-		for i, targ := range t.targs.list() {
+		for i, targ := range t.TypeArgs().list() {
 			dump(">>> %d targ = %s", i, targ)
 			new_targ := subst.typ(targ)
 			if new_targ != targ {
 				dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
 				if newTArgs == nil {
-					newTArgs = make([]Type, t.orig.TypeParams().Len())
-					copy(newTArgs, t.targs.list())
+					newTArgs = make([]Type, n)
+					copy(newTArgs, t.TypeArgs().list())
 				}
 				newTArgs[i] = new_targ
 			}
@@ -247,9 +248,9 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		// before creating a new named type, check if we have this one already
-		h := subst.ctxt.instanceHash(t.orig, newTArgs)
+		h := subst.ctxt.instanceHash(orig, newTArgs)
 		dump(">>> new type hash: %s", h)
-		if named := subst.ctxt.lookup(h, t.orig, newTArgs); named != nil {
+		if named := subst.ctxt.lookup(h, orig, newTArgs); named != nil {
 			dump(">>> found %s", named)
 			return named
 		}
@@ -258,7 +259,7 @@ func (subst *subster) typ(typ Type) Type {
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
 		// help with debugging.
-		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.ctxt)
+		return subst.check.instance(subst.pos, orig, newTArgs, subst.ctxt)
 
 		// Note that if we were to expose substitution more generally (not just in
 		// the context of a declaration), we'd have to substitute in

@@ -444,8 +444,8 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		// errors.
 		check.recordInstance(x, inst.TypeArgs().list(), inst)
 
-		if check.validateTArgLen(x.Pos(), inst.TypeParams().Len(), inst.targs.Len()) {
-			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), inst.targs.list()); err != nil {
+		if check.validateTArgLen(x.Pos(), inst.TypeParams().Len(), inst.TypeArgs().Len()) {
+			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list()); err != nil {
 				// best position for error reporting
 				pos := x.Pos()
 				if i < len(xlist) {
@@ -453,7 +453,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 				}
 				check.softErrorf(pos, "%s", err)
 			} else {
-				check.mono.recordInstance(check.pkg, x.Pos(), inst.TypeParams().list(), inst.targs.list(), xlist)
+				check.mono.recordInstance(check.pkg, x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), xlist)
 			}
 		}
 

@@ -76,10 +76,7 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Con
 
 	switch orig := orig.(type) {
 	case *Named:
-		tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
-		named := check.newNamed(tname, orig, nil, nil) // underlying, tparams, and methods are set when named is resolved
-		named.targs = newTypeList(targs)
-		res = named
+		res = check.newNamedInstance(pos, orig, targs)
 
 	case *Signature:
 		tparams := orig.TypeParams()

@@ -102,7 +102,7 @@ func isTypeParam(t Type) bool {
 func isGeneric(t Type) bool {
 	// A parameterized type is only generic if it doesn't have an instantiation already.
 	named, _ := t.(*Named)
-	return named != nil && named.obj != nil && named.targs == nil && named.TypeParams() != nil
+	return named != nil && named.obj != nil && named.inst == nil && named.TypeParams().Len() > 0
 }
 
 // Comparable reports whether values of type T are comparable.
@@ -401,7 +401,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 			if len(xargs) > 0 {
 				// Instances are identical if their original type and type arguments
 				// are identical.
-				if !Identical(x.orig, y.orig) {
+				if !Identical(x.Origin(), y.Origin()) {
 					return false
 				}
 				for i, xa := range xargs {
