@@ -433,8 +433,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	}
 
 	// create the instance
-	ctxt := check.bestContext(nil)
-	inst := check.instance(x.Pos(), orig, targs, ctxt).(*Named)
+	inst := check.instance(x.Pos(), orig, targs, nil, check.context()).(*Named)
 	def.setUnderlying(inst)
 
 	// orig.tparams may not be set up, so we need to do expansion later.
@@ -445,7 +444,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		check.recordInstance(x, inst.TypeArgs().list(), inst)
 
 		if check.validateTArgLen(x.Pos(), inst.TypeParams().Len(), inst.TypeArgs().Len()) {
-			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list()); err != nil {
+			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
 				// best position for error reporting
 				pos := x.Pos()
 				if i < len(xlist) {

@@ -79,6 +79,16 @@ import (
 // Identical to compare them. For instantiated named types, their obj is a
 // synthetic placeholder that records their position of the corresponding
 // instantiation in the source (if they were constructed during type checking).
+//
+// To prevent infinite expansion of named instances that are created outside of
+// type-checking, instances share a Context with other instances created during
+// their expansion. Via the pidgeonhole principle, this guarantees that in the
+// presence of a cycle of named types, expansion will eventually find an
+// existing instance in the Context and short-circuit the expansion.
+//
+// Once an instance is complete, we can nil out this shared Context to unpin
+// memory, though this Context may still be held by other incomplete instances
+// in its "lineage".
 
 // A Named represents a named (defined) type.
 type Named struct {
@@ -115,6 +125,7 @@ type instance struct {
 	orig            *Named    // original, uninstantiated type
 	targs           *TypeList // type arguments
 	expandedMethods int       // number of expanded methods; expandedMethods <= len(orig.methods)
+	ctxt            *Context  // local Context; set to nil after full expansion
 }
 
 // namedState represents the possible states that a named type may assume.
@@ -143,7 +154,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 // After resolution, the type parameters, methods, and underlying type of n are
 // accessible; but if n is an instantiated type, its methods may still be
 // unexpanded.
-func (n *Named) resolve(ctxt *Context) *Named {
+func (n *Named) resolve() *Named {
 	if n.state() >= resolved { // avoid locking below
 		return n
 	}
@@ -162,8 +173,8 @@ func (n *Named) resolve(ctxt *Context) *Named {
 		assert(n.loader == nil)     // instances are created by instantiation, in which case n.loader is nil
 
 		orig := n.inst.orig
-		orig.resolve(ctxt)
-		underlying := n.expandUnderlying(ctxt)
+		orig.resolve()
+		underlying := n.expandUnderlying()
 
 		n.tparams = orig.tparams
 		n.underlying = underlying
@@ -171,6 +182,7 @@ func (n *Named) resolve(ctxt *Context) *Named {
 
 		if len(orig.methods) == 0 {
 			n.setState(complete) // nothing further to do
+			n.inst.ctxt = nil
 		} else {
 			n.setState(resolved)
 		}
@@ -225,11 +237,11 @@ func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) 
 	return typ
 }
 
-func (check *Checker) newNamedInstance(pos token.Pos, orig *Named, targs []Type) *Named {
+func (check *Checker) newNamedInstance(pos token.Pos, orig *Named, targs []Type, local *Context) *Named {
 	assert(len(targs) > 0)
 
 	obj := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
-	inst := &instance{orig: orig, targs: newTypeList(targs)}
+	inst := &instance{orig: orig, targs: newTypeList(targs), ctxt: local}
 	typ := &Named{check: check, obj: obj, inst: inst}
 	obj.typ = typ
 	// Ensure that typ is always expanded and sanity-checked.
@@ -280,13 +292,13 @@ func (t *Named) Origin() *Named {
 
 // TypeParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) generic type even if it is instantiated.
-func (t *Named) TypeParams() *TypeParamList { return t.resolve(nil).tparams }
+func (t *Named) TypeParams() *TypeParamList { return t.resolve().tparams }
 
 // SetTypeParams sets the type parameters of the named type t.
 // t must not have type arguments.
 func (t *Named) SetTypeParams(tparams []*TypeParam) {
 	assert(t.inst == nil)
-	t.resolve(nil).tparams = bindTParams(tparams)
+	t.resolve().tparams = bindTParams(tparams)
 }
 
 // TypeArgs returns the type arguments used to instantiate the named type t.
@@ -298,17 +310,17 @@ func (t *Named) TypeArgs() *TypeList {
 }
 
 // NumMethods returns the number of explicit methods defined for t.
-//
-// For an ordinary or instantiated type t, the receiver base type of these
-// methods will be the named type t. For an uninstantiated generic type t, each
-// method receiver will be instantiated with its receiver type parameters.
 func (t *Named) NumMethods() int {
-	return len(t.Origin().resolve(nil).methods)
+	return len(t.Origin().resolve().methods)
 }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
+//
+// For an ordinary or instantiated type t, the receiver base type of this
+// method is the named type t. For an uninstantiated generic type t, each
+// method receiver is instantiated with its receiver type parameters.
 func (t *Named) Method(i int) *Func {
-	t.resolve(nil)
+	t.resolve()
 
 	if t.state() >= complete {
 		return t.methods[i]
@@ -326,6 +338,7 @@ func (t *Named) Method(i int) *Func {
 	}
 
 	if t.methods[i] == nil {
+		assert(t.inst.ctxt != nil) // we should still have a context remaining from the resolution phase
 		t.methods[i] = t.expandMethod(i)
 		t.inst.expandedMethods++
 
@@ -333,6 +346,7 @@ func (t *Named) Method(i int) *Func {
 		// type as fully expanded.
 		if t.inst.expandedMethods == len(orig.methods) {
 			t.setState(complete)
+			t.inst.ctxt = nil // no need for a context anymore
 		}
 	}
 
@@ -372,9 +386,12 @@ func (t *Named) expandMethod(i int) *Func {
 	// and type parameters. This check is necessary in the presence of invalid
 	// code.
 	if origSig.RecvTypeParams().Len() == t.inst.targs.Len() {
-		ctxt := check.bestContext(nil)
 		smap := makeSubstMap(origSig.RecvTypeParams().list(), t.inst.targs.list())
-		sig = check.subst(origm.pos, origSig, smap, ctxt).(*Signature)
+		var global *Context
+		if check != nil {
+			global = check.context()
+		}
+		sig = check.subst(origm.pos, origSig, smap, t.inst.ctxt, global).(*Signature)
 	}
 
 	if sig == origSig {
@@ -405,7 +422,7 @@ func (t *Named) SetUnderlying(underlying Type) {
 	if _, ok := underlying.(*Named); ok {
 		panic("underlying type must not be *Named")
 	}
-	t.resolve(nil).underlying = underlying
+	t.resolve().underlying = underlying
 	if t.fromRHS == nil {
 		t.fromRHS = underlying // for cycle detection
 	}
@@ -415,17 +432,20 @@ func (t *Named) SetUnderlying(underlying Type) {
 // t must not have type arguments.
 func (t *Named) AddMethod(m *Func) {
 	assert(t.inst == nil)
-	t.resolve(nil)
+	t.resolve()
 	if i, _ := lookupMethod(t.methods, m.pkg, m.name, false); i < 0 {
 		t.methods = append(t.methods, m)
 	}
 }
 
-func (t *Named) Underlying() Type { return t.resolve(nil).underlying }
+func (t *Named) Underlying() Type { return t.resolve().underlying }
 func (t *Named) String() string   { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------
 // Implementation
+//
+// TODO(rfindley): reorganize the loading and expansion methods under this
+// heading.
 
 // under returns the expanded underlying type of n0; possibly by following
 // forward chains of named types. If an underlying type is found, resolve
@@ -522,7 +542,7 @@ func (n *Named) setUnderlying(typ Type) {
 }
 
 func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
-	n.resolve(nil)
+	n.resolve()
 	// If n is an instance, we may not have yet instantiated all of its methods.
 	// Look up the method index in orig, and only instantiate method at the
 	// matching index (if any).
@@ -534,26 +554,17 @@ func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Fu
 	return i, n.Method(i)
 }
 
-// bestContext returns the best available context. In order of preference:
-// - the given ctxt, if non-nil
-// - check.ctxt, if check is non-nil
-// - a new Context
-func (check *Checker) bestContext(ctxt *Context) *Context {
-	if ctxt != nil {
-		return ctxt
+// context returns the type-checker context.
+func (check *Checker) context() *Context {
+	if check.ctxt == nil {
+		check.ctxt = NewContext()
 	}
-	if check != nil {
-		if check.ctxt == nil {
-			check.ctxt = NewContext()
-		}
-		return check.ctxt
-	}
-	return NewContext()
+	return check.ctxt
 }
 
 // expandUnderlying substitutes type arguments in the underlying type n.orig,
 // returning the result. Returns Typ[Invalid] if there was an error.
-func (n *Named) expandUnderlying(ctxt *Context) Type {
+func (n *Named) expandUnderlying() Type {
 	check := n.check
 	if check != nil && trace {
 		check.trace(n.obj.pos, "-- Named.expandUnderlying %s", n)
@@ -565,6 +576,9 @@ func (n *Named) expandUnderlying(ctxt *Context) Type {
 	}
 
 	assert(n.inst.orig.underlying != nil)
+	if n.inst.ctxt == nil {
+		n.inst.ctxt = NewContext()
+	}
 
 	orig := n.inst.orig
 	targs := n.inst.targs
@@ -580,16 +594,20 @@ func (n *Named) expandUnderlying(ctxt *Context) Type {
 		return Typ[Invalid]
 	}
 
-	// We must always have a context, to avoid infinite recursion.
-	ctxt = check.bestContext(ctxt)
-	h := ctxt.instanceHash(orig, targs.list())
-	// ensure that an instance is recorded for h to avoid infinite recursion.
-	ctxt.update(h, orig, targs.list(), n)
+	// Ensure that an instance is recorded before substituting, so that we
+	// resolve n for any recursive references.
+	h := n.inst.ctxt.instanceHash(orig, targs.list())
+	n2 := n.inst.ctxt.update(h, orig, n.TypeArgs().list(), n)
+	assert(n == n2)
 
 	smap := makeSubstMap(orig.tparams.list(), targs.list())
-	underlying := n.check.subst(n.obj.pos, orig.underlying, smap, ctxt)
-	// If the underlying type of n is an interface, we need to set the receiver
-	// of its methods accurately -- we set the receiver of interface methods on
+	var global *Context
+	if check != nil {
+		global = check.context()
+	}
+	underlying := n.check.subst(n.obj.pos, orig.underlying, smap, n.inst.ctxt, global)
+	// If the underlying type of n is an interface, we need to set the receiver of
+	// its methods accurately -- we set the receiver of interface methods on
 	// the RHS of a type declaration to the defined type.
 	if iface, _ := underlying.(*Interface); iface != nil {
 		if methods, copied := replaceRecvType(iface.methods, orig, n); copied {

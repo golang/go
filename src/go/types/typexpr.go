@@ -417,8 +417,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 	}
 
 	// create the instance
-	ctxt := check.bestContext(nil)
-	inst := check.instance(ix.Pos(), orig, targs, ctxt).(*Named)
+	inst := check.instance(ix.Pos(), orig, targs, nil, check.context()).(*Named)
 	def.setUnderlying(inst)
 
 	// orig.tparams may not be set up, so we need to do expansion later.
@@ -429,7 +428,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 		check.recordInstance(ix.Orig, inst.TypeArgs().list(), inst)
 
 		if check.validateTArgLen(ix.Pos(), inst.TypeParams().Len(), inst.TypeArgs().Len()) {
-			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list()); err != nil {
+			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
 				// best position for error reporting
 				pos := ix.Pos()
 				if i < len(ix.Indices) {

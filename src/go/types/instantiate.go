@@ -40,6 +40,9 @@ import (
 // count is incorrect; for *Named types, a panic may occur later inside the
 // *Named API.
 func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, error) {
+	if ctxt == nil {
+		ctxt = NewContext()
+	}
 	if validate {
 		var tparams []*TypeParam
 		switch t := orig.(type) {
@@ -51,34 +54,71 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 		if len(targs) != len(tparams) {
 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
 		}
-		if i, err := (*Checker)(nil).verify(token.NoPos, tparams, targs); err != nil {
+		if i, err := (*Checker)(nil).verify(token.NoPos, tparams, targs, ctxt); err != nil {
 			return nil, &ArgumentError{i, err}
 		}
 	}
 
-	inst := (*Checker)(nil).instance(token.NoPos, orig, targs, ctxt)
+	inst := (*Checker)(nil).instance(token.NoPos, orig, targs, nil, ctxt)
 	return inst, nil
 }
 
-// instance creates a type or function instance using the given original type
-// typ and arguments targs. For Named types the resulting instance will be
-// unexpanded. check may be nil.
-func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Context) (res Type) {
-	var h string
-	if ctxt != nil {
-		h = ctxt.instanceHash(orig, targs)
-		// typ may already have been instantiated with identical type arguments. In
-		// that case, re-use the existing instance.
-		if inst := ctxt.lookup(h, orig, targs); inst != nil {
-			return inst
+// instance resolves a type or function instance for the given original type
+// and type arguments. It looks for an existing identical instance in the given
+// contexts, creating a new instance if none is found.
+//
+// If local is non-nil, it is the context associated with a Named instance
+// type currently being expanded. If global is non-nil, it is the context
+// associated with the current type-checking pass or call to Instantiate. At
+// least one of local or global must be non-nil.
+//
+// For Named types the resulting instance may be unexpanded.
+func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, local, global *Context) (res Type) {
+	// The order of the contexts below matters: we always prefer instances in
+	// local in order to preserve reference cycles.
+	//
+	// Invariant: if local != nil, the returned instance will be the instance
+	// recorded in local.
+	var ctxts []*Context
+	if local != nil {
+		ctxts = append(ctxts, local)
+	}
+	if global != nil {
+		ctxts = append(ctxts, global)
+	}
+	assert(len(ctxts) > 0)
+
+	// Compute all hashes; hashes may differ across contexts due to different
+	// unique IDs for Named types within the hasher.
+	hashes := make([]string, len(ctxts))
+	for i, ctxt := range ctxts {
+		hashes[i] = ctxt.instanceHash(orig, targs)
+	}
+
+	// If local is non-nil, updateContexts return the type recorded in
+	// local.
+	updateContexts := func(res Type) Type {
+		for i := len(ctxts) - 1; i >= 0; i-- {
+			res = ctxts[i].update(hashes[i], orig, targs, res)
+		}
+		return res
+	}
+
+	// typ may already have been instantiated with identical type arguments. In
+	// that case, re-use the existing instance.
+	for i, ctxt := range ctxts {
+		if inst := ctxt.lookup(hashes[i], orig, targs); inst != nil {
+			return updateContexts(inst)
 		}
 	}
 
 	switch orig := orig.(type) {
 	case *Named:
-		res = check.newNamedInstance(pos, orig, targs)
+		res = check.newNamedInstance(pos, orig, targs, local) // substituted lazily
 
 	case *Signature:
+		assert(local == nil) // function instances cannot be reached from Named types
+
 		tparams := orig.TypeParams()
 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
 			return Typ[Invalid]
@@ -86,7 +126,7 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Con
 		if tparams.Len() == 0 {
 			return orig // nothing to do (minor optimization)
 		}
-		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
+		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), nil, global).(*Signature)
 		// If the signature doesn't use its type parameters, subst
 		// will not make a copy. In that case, make a copy now (so
 		// we can set tparams to nil w/o causing side-effects).
@@ -104,13 +144,8 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Con
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))
 	}
 
-	if ctxt != nil {
-		// It's possible that we've lost a race to add named to the context.
-		// In this case, use whichever instance is recorded in the context.
-		res = ctxt.update(h, orig, targs, res)
-	}
-
-	return res
+	// Update all contexts; it's possible that we've lost a race.
+	return updateContexts(res)
 }
 
 // validateTArgLen verifies that the length of targs and tparams matches,
@@ -128,7 +163,7 @@ func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool 
 	return true
 }
 
-func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) (int, error) {
+func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
 	smap := makeSubstMap(tparams, targs)
 	for i, tpar := range tparams {
 		// Ensure that we have a (possibly implicit) interface as type bound (issue #51048).
@@ -137,7 +172,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) 
 		// as the instantiated type; before we can use it for bounds checking we
 		// need to instantiate it with the type arguments with which we instantiated
 		// the parameterized type.
-		bound := check.subst(pos, tpar.bound, smap, nil)
+		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
 		if err := check.implements(targs[i], bound); err != nil {
 			return i, err
 		}

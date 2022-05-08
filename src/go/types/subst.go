@@ -49,7 +49,9 @@ func (m substMap) lookup(tpar *TypeParam) Type {
 // result type is different from the incoming type.
 //
 // If the given context is non-nil, it is used in lieu of check.Config.Context
-func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, ctxt *Context) Type {
+func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, local, global *Context) Type {
+	assert(local != nil || global != nil)
+
 	if smap.empty() {
 		return typ
 	}
@@ -64,19 +66,20 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, ctxt *Contex
 
 	// general case
 	subst := subster{
-		pos:   pos,
-		smap:  smap,
-		check: check,
-		ctxt:  check.bestContext(ctxt),
+		pos:    pos,
+		smap:   smap,
+		check:  check,
+		local:  local,
+		global: global,
 	}
 	return subst.typ(typ)
 }
 
 type subster struct {
-	pos   token.Pos
-	smap  substMap
-	check *Checker // nil if called via Instantiate
-	ctxt  *Context
+	pos           token.Pos
+	smap          substMap
+	check         *Checker // nil if called via Instantiate
+	local, global *Context
 }
 
 func (subst *subster) typ(typ Type) Type {
@@ -247,25 +250,11 @@ func (subst *subster) typ(typ Type) Type {
 			return t // nothing to substitute
 		}
 
-		// before creating a new named type, check if we have this one already
-		h := subst.ctxt.instanceHash(orig, newTArgs)
-		dump(">>> new type hash: %s", h)
-		if named := subst.ctxt.lookup(h, orig, newTArgs); named != nil {
-			dump(">>> found %s", named)
-			return named
-		}
-
 		// Create a new instance and populate the context to avoid endless
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
 		// help with debugging.
-		return subst.check.instance(subst.pos, orig, newTArgs, subst.ctxt)
-
-		// Note that if we were to expose substitution more generally (not just in
-		// the context of a declaration), we'd have to substitute in
-		// named.underlying as well.
-		//
-		// But this is unnecessary for now.
+		return subst.check.instance(subst.pos, orig, newTArgs, subst.local, subst.global)
 
 	case *TypeParam:
 		return subst.smap.lookup(t)

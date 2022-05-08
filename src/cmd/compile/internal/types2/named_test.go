@@ -7,6 +7,7 @@ package types2_test
 import (
 	"testing"
 
+	"cmd/compile/internal/syntax"
 	. "cmd/compile/internal/types2"
 )
 
@@ -72,4 +73,48 @@ func mustInstantiate(tb testing.TB, orig Type, targs ...Type) Type {
 		tb.Fatal(err)
 	}
 	return inst
+}
+
+// Test that types do not expand infinitely, as in golang/go#52715.
+func TestFiniteTypeExpansion(t *testing.T) {
+	const src = `
+package p
+
+type Tree[T any] struct {
+	*Node[T]
+}
+
+func (*Tree[R]) N(r R) R { return r }
+
+type Node[T any] struct {
+	*Tree[T]
+}
+
+func (Node[Q]) M(Q) {}
+
+type Inst = *Tree[int]
+`
+
+	f, err := parseSrc("foo.go", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := NewPackage("p", f.PkgName.Value)
+	if err := NewChecker(nil, pkg, nil).Files([]*syntax.File{f}); err != nil {
+		t.Fatal(err)
+	}
+
+	firstFieldType := func(n *Named) *Named {
+		return n.Underlying().(*Struct).Field(0).Type().(*Pointer).Elem().(*Named)
+	}
+
+	Inst := pkg.Scope().Lookup("Inst").Type().(*Pointer).Elem().(*Named)
+	Node := firstFieldType(Inst)
+	Tree := firstFieldType(Node)
+	if !Identical(Inst, Tree) {
+		t.Fatalf("Not a cycle: got %v, want %v", Tree, Inst)
+	}
+	if Inst != Tree {
+		t.Errorf("Duplicate instances in cycle: %s (%p) -> %s (%p) -> %s (%p)", Inst, Inst, Node, Node, Tree, Tree)
+	}
 }

@@ -72,13 +72,13 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
 		}()
 	}
 
-	inst := check.instance(pos, typ, targs, check.bestContext(nil)).(*Signature)
+	inst := check.instance(pos, typ, targs, nil, check.context()).(*Signature)
 	assert(len(xlist) <= len(targs))
 
 	// verify instantiation lazily (was issue #50450)
 	check.later(func() {
 		tparams := typ.TypeParams().list()
-		if i, err := check.verify(pos, tparams, targs); err != nil {
+		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
 			// best position for error reporting
 			pos := pos
 			if i < len(xlist) {
@@ -395,7 +395,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		// need to compute it from the adjusted list; otherwise we can
 		// simply use the result signature's parameter list.
 		if adjusted {
-			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(sig.TypeParams().list(), targs), nil).(*Tuple)
+			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(sig.TypeParams().list(), targs), nil, check.context()).(*Tuple)
 		} else {
 			sigParams = rsig.params
 		}
