@@ -281,7 +281,8 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// below to handle the receiver. Panic if we see this scenario.
 	ft := f.Nname.Type()
 	if ft.NumRecvs() != 0 {
-		panic("makeABIWrapper support for wrapping methods not implemented")
+		base.ErrorfAt(f.Pos(), "makeABIWrapper support for wrapping methods not implemented")
+		return
 	}
 
 	// Reuse f's types.Sym to create a new ODCLFUNC/function.
