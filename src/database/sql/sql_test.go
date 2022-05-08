@@ -2660,6 +2660,9 @@ func TestManyErrBadConn(t *testing.T) {
 			f(db)
 		}
 
+		var maxBadConnRetries = 2
+		db.SetMaxBadConnRetries(maxBadConnRetries)
+
 		nconn := maxBadConnRetries + 1
 		db.SetMaxIdleConns(nconn)
 		db.SetMaxOpenConns(nconn)
