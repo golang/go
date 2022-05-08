@@ -1746,8 +1746,9 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	}
 	if buf.Len() <= maxSize {
 		for _, ch := range buf.Bytes() {
-			if ch < ' ' {
-				return
+			switch ch {
+			case '\n', '\f':
+				return // does not fit in a single line
 			}
 		}
 		size = buf.Len() // n fits
