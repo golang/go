@@ -28696,10 +28696,11 @@ func rewriteBlockARM64(b *Block) bool {
 			return true
 		}
 		// match: (If cond yes no)
-		// result: (NZ cond yes no)
+		// result: (TBNZ [0] cond yes no)
 		for {
 			cond := b.Controls[0]
-			b.resetWithControl(BlockARM64NZ, cond)
+			b.resetWithControl(BlockARM64TBNZ, cond)
+			b.AuxInt = int64ToAuxInt(0)
 			return true
 		}
 	case BlockARM64LE:
@@ -30086,6 +30087,161 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.Reset(BlockFirst)
+			return true
+		}
+	case BlockARM64TBNZ:
+		// match: (TBNZ [0] (Equal cc) yes no)
+		// result: (EQ cc yes no)
+		for b.Controls[0].Op == OpARM64Equal {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64EQ, cc)
+			return true
+		}
+		// match: (TBNZ [0] (NotEqual cc) yes no)
+		// result: (NE cc yes no)
+		for b.Controls[0].Op == OpARM64NotEqual {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64NE, cc)
+			return true
+		}
+		// match: (TBNZ [0] (LessThan cc) yes no)
+		// result: (LT cc yes no)
+		for b.Controls[0].Op == OpARM64LessThan {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64LT, cc)
+			return true
+		}
+		// match: (TBNZ [0] (LessThanU cc) yes no)
+		// result: (ULT cc yes no)
+		for b.Controls[0].Op == OpARM64LessThanU {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64ULT, cc)
+			return true
+		}
+		// match: (TBNZ [0] (LessEqual cc) yes no)
+		// result: (LE cc yes no)
+		for b.Controls[0].Op == OpARM64LessEqual {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64LE, cc)
+			return true
+		}
+		// match: (TBNZ [0] (LessEqualU cc) yes no)
+		// result: (ULE cc yes no)
+		for b.Controls[0].Op == OpARM64LessEqualU {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64ULE, cc)
+			return true
+		}
+		// match: (TBNZ [0] (GreaterThan cc) yes no)
+		// result: (GT cc yes no)
+		for b.Controls[0].Op == OpARM64GreaterThan {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64GT, cc)
+			return true
+		}
+		// match: (TBNZ [0] (GreaterThanU cc) yes no)
+		// result: (UGT cc yes no)
+		for b.Controls[0].Op == OpARM64GreaterThanU {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64UGT, cc)
+			return true
+		}
+		// match: (TBNZ [0] (GreaterEqual cc) yes no)
+		// result: (GE cc yes no)
+		for b.Controls[0].Op == OpARM64GreaterEqual {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64GE, cc)
+			return true
+		}
+		// match: (TBNZ [0] (GreaterEqualU cc) yes no)
+		// result: (UGE cc yes no)
+		for b.Controls[0].Op == OpARM64GreaterEqualU {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64UGE, cc)
+			return true
+		}
+		// match: (TBNZ [0] (LessThanF cc) yes no)
+		// result: (FLT cc yes no)
+		for b.Controls[0].Op == OpARM64LessThanF {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64FLT, cc)
+			return true
+		}
+		// match: (TBNZ [0] (LessEqualF cc) yes no)
+		// result: (FLE cc yes no)
+		for b.Controls[0].Op == OpARM64LessEqualF {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64FLE, cc)
+			return true
+		}
+		// match: (TBNZ [0] (GreaterThanF cc) yes no)
+		// result: (FGT cc yes no)
+		for b.Controls[0].Op == OpARM64GreaterThanF {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64FGT, cc)
+			return true
+		}
+		// match: (TBNZ [0] (GreaterEqualF cc) yes no)
+		// result: (FGE cc yes no)
+		for b.Controls[0].Op == OpARM64GreaterEqualF {
+			v_0 := b.Controls[0]
+			cc := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64FGE, cc)
 			return true
 		}
 	case BlockARM64UGE:
