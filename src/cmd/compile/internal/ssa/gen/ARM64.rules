@@ -532,7 +532,7 @@
 (If (GreaterThanF cc) yes no) => (FGT cc yes no)
 (If (GreaterEqualF cc) yes no) => (FGE cc yes no)
 
-(If cond yes no) => (NZ cond yes no)
+(If cond yes no) => (TBNZ [0] cond yes no)
 
 // atomic intrinsics
 // Note: these ops do not accept offset.
@@ -592,6 +592,21 @@
 (NZ (LessEqualF cc) yes no) => (FLE cc yes no)
 (NZ (GreaterThanF cc) yes no) => (FGT cc yes no)
 (NZ (GreaterEqualF cc) yes no) => (FGE cc yes no)
+
+(TBNZ [0] (Equal cc) yes no) => (EQ cc yes no)
+(TBNZ [0] (NotEqual cc) yes no) => (NE cc yes no)
+(TBNZ [0] (LessThan cc) yes no) => (LT cc yes no)
+(TBNZ [0] (LessThanU cc) yes no) => (ULT cc yes no)
+(TBNZ [0] (LessEqual cc) yes no) => (LE cc yes no)
+(TBNZ [0] (LessEqualU cc) yes no) => (ULE cc yes no)
+(TBNZ [0] (GreaterThan cc) yes no) => (GT cc yes no)
+(TBNZ [0] (GreaterThanU cc) yes no) => (UGT cc yes no)
+(TBNZ [0] (GreaterEqual cc) yes no) => (GE cc yes no)
+(TBNZ [0] (GreaterEqualU cc) yes no) => (UGE cc yes no)
+(TBNZ [0] (LessThanF cc) yes no) => (FLT cc yes no)
+(TBNZ [0] (LessEqualF cc) yes no) => (FLE cc yes no)
+(TBNZ [0] (GreaterThanF cc) yes no) => (FGT cc yes no)
+(TBNZ [0] (GreaterEqualF cc) yes no) => (FGE cc yes no)
 
 (EQ (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 => (EQ (TSTWconst [int32(c)] y) yes no)
 (NE (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 => (NE (TSTWconst [int32(c)] y) yes no)
