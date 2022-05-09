@@ -18,7 +18,7 @@ TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT, $0-16
 	MOVQ	AX, DI	// DI = ptr
 	XORQ	AX, AX
 
-	// MOVOU seems always faster than REP STOSQ.
+	// MOVOU seems always faster than REP STOSQ when Enhanced REP STOSQ is not available.
 tail:
 	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTQ	BX, BX
@@ -119,9 +119,13 @@ loop_preheader_erms:
 	JAE	loop_preheader_avx2_huge
 
 loop_erms:
+	// STOSQ is used to guarantee that the whole zeroed pointer-sized word is visible
+	// for a memory subsystem as the GC requires this.
 	MOVQ	BX, CX
-	REP;	STOSB
-	RET
+	SHRQ	$3, CX
+	ANDQ	$7, BX
+	REP;	STOSQ
+	JMP	tail
 
 loop_preheader_avx2_huge:
 	// Align to 32 byte boundary
