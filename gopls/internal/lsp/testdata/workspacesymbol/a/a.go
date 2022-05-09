@@ -1,9 +1,9 @@
 package a
 
-var RandomGopherVariableA = "a" //@symbol("RandomGopherVariableA", "RandomGopherVariableA", "Variable", "", "a.RandomGopherVariableA")
+var RandomGopherVariableA = "a"
 
-const RandomGopherConstantA = "a" //@symbol("RandomGopherConstantA", "RandomGopherConstantA", "Constant", "", "a.RandomGopherConstantA")
+const RandomGopherConstantA = "a"
 
 const (
-	randomgopherinvariable = iota //@symbol("randomgopherinvariable", "randomgopherinvariable", "Constant", "", "a.randomgopherinvariable")
+	randomgopherinvariable = iota
 )

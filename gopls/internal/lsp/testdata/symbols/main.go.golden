@@ -1,31 +1,36 @@
 -- symbols --
-x Variable 9:5-9:6
-y Constant 11:7-11:8
-Number Number 13:6-13:12
-Alias String 15:6-15:11
-NumberAlias Number 17:6-17:17
-Boolean Boolean 20:2-20:9
-BoolAlias Boolean 21:2-21:11
-Foo Struct 24:6-24:9
-	Bar Field 27:2-27:5
-	Quux Field 25:2-25:6
-	W Field 26:2-26:3
-	baz Field 28:2-28:5
-Quux Struct 31:6-31:10
-	X Field 32:2-32:3
-	Y Field 32:5-32:6
-(Foo).Baz Method 35:14-35:17
-(*Quux).Do Method 41:16-41:18
-main Function 43:6-43:10
-Stringer Interface 47:6-47:14
-	String Method 48:2-48:8
-ABer Interface 51:6-51:10
-	A Method 53:2-53:3
-	B Method 52:2-52:3
-WithEmbeddeds Interface 56:6-56:19
-	ABer Interface 58:2-58:6
-	Do Method 57:2-57:4
-	io.Writer Interface 59:2-59:11
-Dunk Function 62:6-62:10
-dunk Function 64:6-64:10
+x Variable 26:5-26:6
+nested Variable 28:5-28:11
+	nestedField Field 29:2-29:13
+y Constant 34:7-34:8
+Number Class 36:6-36:12
+Alias Class 38:6-38:11
+NumberAlias Class 40:6-40:17
+Boolean Class 43:2-43:9
+BoolAlias Class 44:2-44:11
+Foo Struct 47:6-47:9
+	Bar Field 50:2-50:5
+	Quux Field 48:2-48:6
+	W Field 49:2-49:3
+	baz Field 51:2-51:5
+	funcField Field 52:2-52:11
+Quux Struct 55:6-55:10
+	X Field 56:2-56:3
+	Y Field 56:5-56:6
+EmptyStruct Struct 59:6-59:17
+(Foo).Baz Method 61:14-61:17
+(*Quux).Do Method 67:16-67:18
+main Function 69:6-69:10
+Stringer Interface 72:6-72:14
+	String Method 73:2-73:8
+ABer Interface 76:6-76:10
+	A Method 78:2-78:3
+	B Method 77:2-77:3
+WithEmbeddeds Interface 81:6-81:19
+	ABer Field 83:2-83:6
+	Do Method 82:2-82:4
+	Writer Field 84:5-84:11
+EmptyInterface Interface 87:6-87:20
+Dunk Function 89:6-89:10
+dunk Function 91:6-91:10
 

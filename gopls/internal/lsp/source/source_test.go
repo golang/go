@@ -879,46 +879,11 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 }
 
 func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.DocumentSymbol) {
-	fh, err := r.snapshot.GetFile(r.ctx, uri)
-	if err != nil {
-		t.Fatal(err)
-	}
-	symbols, err := source.DocumentSymbols(r.ctx, r.snapshot, fh)
-	if err != nil {
-		t.Errorf("symbols failed for %s: %v", uri, err)
-	}
-	if len(symbols) != len(expectedSymbols) {
-		t.Errorf("want %d top-level symbols in %v, got %d", len(expectedSymbols), uri, len(symbols))
-		return
-	}
-	if diff := tests.DiffSymbols(t, uri, expectedSymbols, symbols); diff != "" {
-		t.Error(diff)
-	}
+	// Removed in favor of just using the lsp_test implementation. See ../lsp_test.go
 }
 
 func (r *runner) WorkspaceSymbols(t *testing.T, uri span.URI, query string, typ tests.WorkspaceSymbolsTestType) {
-	r.callWorkspaceSymbols(t, uri, query, typ)
-}
-
-func (r *runner) callWorkspaceSymbols(t *testing.T, uri span.URI, query string, typ tests.WorkspaceSymbolsTestType) {
-	t.Helper()
-
-	matcher := tests.WorkspaceSymbolsTestTypeToMatcher(typ)
-	gotSymbols, err := source.WorkspaceSymbols(r.ctx, matcher, r.view.Options().SymbolStyle, []source.View{r.view}, query)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := tests.WorkspaceSymbolsString(r.ctx, r.data, uri, gotSymbols)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got = filepath.ToSlash(tests.Normalize(got, r.normalizers))
-	want := string(r.data.Golden(t, fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
-		return []byte(got), nil
-	}))
-	if d := compare.Text(want, got); d != "" {
-		t.Error(d)
-	}
+	// Removed in favor of just using the lsp_test implementation. See ../lsp_test.go
 }
 
 func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.SignatureHelp) {

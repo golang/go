@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -17,7 +18,7 @@ func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.
 	expect := string(r.data.Golden(t, "symbols", filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-	if expect != got {
-		t.Errorf("symbols failed for %s expected:\n%s\ngot:\n%s", filename, expect, got)
+	if diff := compare.Text(expect, got); diff != "" {
+		t.Errorf("symbols differ from expected:\n%s", diff)
 	}
 }

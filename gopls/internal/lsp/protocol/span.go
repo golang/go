@@ -148,6 +148,11 @@ func IsPoint(r Range) bool {
 	return r.Start.Line == r.End.Line && r.Start.Character == r.End.Character
 }
 
+// CompareRange returns -1 if a is before b, 0 if a == b, and 1 if a is after
+// b.
+//
+// A range a is defined to be 'before' b if a.Start is before b.Start, or
+// a.Start == b.Start and a.End is before b.End.
 func CompareRange(a, b Range) int {
 	if r := ComparePosition(a.Start, b.Start); r != 0 {
 		return r
@@ -155,6 +160,8 @@ func CompareRange(a, b Range) int {
 	return ComparePosition(a.End, b.End)
 }
 
+// ComparePosition returns -1 if a is before b, 0 if a == b, and 1 if a is
+// after b.
 func ComparePosition(a, b Position) int {
 	if a.Line < b.Line {
 		return -1

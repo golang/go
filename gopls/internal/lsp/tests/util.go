@@ -14,13 +14,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"testing"
 
-	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/diff/myers"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
+	"golang.org/x/tools/internal/diff"
+	"golang.org/x/tools/internal/diff/myers"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -64,50 +63,6 @@ func DiffLinks(mapper *protocol.ColumnMapper, wantLinks []Link, gotLinks []proto
 		return fmt.Sprintf("missing link %v:%v\n", spn, target)
 	}
 	return ""
-}
-
-// DiffSymbols prints the diff between expected and actual symbols test results.
-func DiffSymbols(t *testing.T, uri span.URI, want, got []protocol.DocumentSymbol) string {
-	sort.Slice(want, func(i, j int) bool { return want[i].Name < want[j].Name })
-	sort.Slice(got, func(i, j int) bool { return got[i].Name < got[j].Name })
-	if len(got) != len(want) {
-		return summarizeSymbols(-1, want, got, "different lengths got %v want %v", len(got), len(want))
-	}
-	for i, w := range want {
-		g := got[i]
-		if w.Name != g.Name {
-			return summarizeSymbols(i, want, got, "incorrect name got %v want %v", g.Name, w.Name)
-		}
-		if w.Kind != g.Kind {
-			return summarizeSymbols(i, want, got, "incorrect kind got %v want %v", g.Kind, w.Kind)
-		}
-		if protocol.CompareRange(w.SelectionRange, g.SelectionRange) != 0 {
-			return summarizeSymbols(i, want, got, "incorrect span got %v want %v", g.SelectionRange, w.SelectionRange)
-		}
-		if msg := DiffSymbols(t, uri, w.Children, g.Children); msg != "" {
-			return fmt.Sprintf("children of %s: %s", w.Name, msg)
-		}
-	}
-	return ""
-}
-
-func summarizeSymbols(i int, want, got []protocol.DocumentSymbol, reason string, args ...interface{}) string {
-	msg := &bytes.Buffer{}
-	fmt.Fprint(msg, "document symbols failed")
-	if i >= 0 {
-		fmt.Fprintf(msg, " at %d", i)
-	}
-	fmt.Fprint(msg, " because of ")
-	fmt.Fprintf(msg, reason, args...)
-	fmt.Fprint(msg, ":\nexpected:\n")
-	for _, s := range want {
-		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionRange)
-	}
-	fmt.Fprintf(msg, "got:\n")
-	for _, s := range got {
-		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionRange)
-	}
-	return msg.String()
 }
 
 // DiffDiagnostics prints the diff between expected and actual diagnostics test

@@ -6,6 +6,7 @@ package lsppos
 
 import (
 	"errors"
+	"go/ast"
 	"go/token"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -57,4 +58,10 @@ func (m *TokenMapper) Range(start, end token.Pos) (protocol.Range, error) {
 	}
 
 	return protocol.Range{Start: startPos, End: endPos}, nil
+}
+
+// NodeRange returns the protocol range corresponding to the span of the given
+// node.
+func (m *TokenMapper) NodeRange(n ast.Node) (protocol.Range, error) {
+	return m.Range(n.Pos(), n.End())
 }

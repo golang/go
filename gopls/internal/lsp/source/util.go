@@ -18,9 +18,10 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // MappedRange provides mapped protocol.Range for a span.Range, accounting for
@@ -122,16 +123,6 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	return false
 }
 
-func nodeToProtocolRange(snapshot Snapshot, pkg Package, n ast.Node) (protocol.Range, error) {
-	mrng, err := posToMappedRange(snapshot, pkg, n.Pos(), n.End())
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	return mrng.Range()
-}
-
-// objToMappedRange returns the MappedRange for the object's declaring
-// identifier (or string literal, for an import).
 func objToMappedRange(snapshot Snapshot, pkg Package, obj types.Object) (MappedRange, error) {
 	nameLen := len(obj.Name())
 	if pkgName, ok := obj.(*types.PkgName); ok {
@@ -588,4 +579,52 @@ func ByteOffsetsToRange(m *protocol.ColumnMapper, uri span.URI, start, end int) 
 	}
 	e := span.NewPoint(line, col, end)
 	return m.Range(span.New(uri, s, e))
+}
+
+// RecvIdent returns the type identifier of a method receiver.
+// e.g. A for all of A, *A, A[T], *A[T], etc.
+func RecvIdent(recv *ast.FieldList) *ast.Ident {
+	if recv == nil || len(recv.List) == 0 {
+		return nil
+	}
+	x := recv.List[0].Type
+	if star, ok := x.(*ast.StarExpr); ok {
+		x = star.X
+	}
+	switch ix := x.(type) { // check for instantiated receivers
+	case *ast.IndexExpr:
+		x = ix.X
+	case *typeparams.IndexListExpr:
+		x = ix.X
+	}
+	if ident, ok := x.(*ast.Ident); ok {
+		return ident
+	}
+	return nil
+}
+
+// embeddedIdent returns the type name identifier for an embedding x, if x in a
+// valid embedding. Otherwise, it returns nil.
+//
+// Spec: An embedded field must be specified as a type name T or as a pointer
+// to a non-interface type name *T
+func embeddedIdent(x ast.Expr) *ast.Ident {
+	if star, ok := x.(*ast.StarExpr); ok {
+		x = star.X
+	}
+	switch ix := x.(type) { // check for instantiated receivers
+	case *ast.IndexExpr:
+		x = ix.X
+	case *typeparams.IndexListExpr:
+		x = ix.X
+	}
+	switch x := x.(type) {
+	case *ast.Ident:
+		return x
+	case *ast.SelectorExpr:
+		if _, ok := x.X.(*ast.Ident); ok {
+			return x.Sel
+		}
+	}
+	return nil
 }

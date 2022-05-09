@@ -18,13 +18,13 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/tag"
-	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/diff/myers"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/diff"
+	"golang.org/x/tools/internal/diff/myers"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/memoize"
 )
 
@@ -237,7 +237,7 @@ func (f *unexportedFilter) keep(ident *ast.Ident) bool {
 func (f *unexportedFilter) filterDecl(decl ast.Decl) bool {
 	switch decl := decl.(type) {
 	case *ast.FuncDecl:
-		if ident := recvIdent(decl); ident != nil && !f.keep(ident) {
+		if ident := source.RecvIdent(decl.Recv); ident != nil && !f.keep(ident) {
 			return false
 		}
 		return f.keep(decl.Name)
@@ -312,7 +312,7 @@ func (f *unexportedFilter) recordUses(file *ast.File) {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
 			// Ignore methods on dropped types.
-			if ident := recvIdent(decl); ident != nil && !f.keep(ident) {
+			if ident := source.RecvIdent(decl.Recv); ident != nil && !f.keep(ident) {
 				break
 			}
 			// Ignore functions with dropped names.
@@ -354,21 +354,6 @@ func (f *unexportedFilter) recordUses(file *ast.File) {
 			}
 		}
 	}
-}
-
-// recvIdent returns the identifier of a method receiver, e.g. *int.
-func recvIdent(decl *ast.FuncDecl) *ast.Ident {
-	if decl.Recv == nil || len(decl.Recv.List) == 0 {
-		return nil
-	}
-	x := decl.Recv.List[0].Type
-	if star, ok := x.(*ast.StarExpr); ok {
-		x = star.X
-	}
-	if ident, ok := x.(*ast.Ident); ok {
-		return ident
-	}
-	return nil
 }
 
 // recordIdents records unexported identifiers in an Expr in uses.

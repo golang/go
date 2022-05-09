@@ -86,8 +86,7 @@ type Highlights = map[span.Span][]span.Span
 type References = map[span.Span][]span.Span
 type Renames = map[span.Span]string
 type PrepareRenames = map[span.Span]*source.PrepareItem
-type Symbols = map[span.URI][]protocol.DocumentSymbol
-type SymbolsChildren = map[string][]protocol.DocumentSymbol
+type Symbols = map[span.URI][]*symbol
 type SymbolInformation = map[span.Span]protocol.SymbolInformation
 type InlayHints = []span.Span
 type WorkspaceSymbols = map[WorkspaceSymbolsTestType]map[span.URI][]string
@@ -125,8 +124,6 @@ type Data struct {
 	InlayHints               InlayHints
 	PrepareRenames           PrepareRenames
 	Symbols                  Symbols
-	symbolsChildren          SymbolsChildren
-	symbolInformation        SymbolInformation
 	WorkspaceSymbols         WorkspaceSymbols
 	Signatures               Signatures
 	Links                    Links
@@ -250,6 +247,12 @@ type SuggestedFix struct {
 	ActionKind, Title string
 }
 
+// A symbol holds a DocumentSymbol along with its parent-child edge.
+type symbol struct {
+	pSymbol      protocol.DocumentSymbol
+	id, parentID string
+}
+
 type Golden struct {
 	Filename string
 	Archive  *txtar.Archive
@@ -328,8 +331,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		FunctionExtractions:      make(FunctionExtractions),
 		MethodExtractions:        make(MethodExtractions),
 		Symbols:                  make(Symbols),
-		symbolsChildren:          make(SymbolsChildren),
-		symbolInformation:        make(SymbolInformation),
 		WorkspaceSymbols:         make(WorkspaceSymbols),
 		Signatures:               make(Signatures),
 		Links:                    make(Links),
@@ -504,12 +505,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	for _, symbols := range datum.Symbols {
-		for i := range symbols {
-			children := datum.symbolsChildren[symbols[i].Name]
-			symbols[i].Children = children
-		}
-	}
+
 	// Collect names for the entries that require golden files.
 	if err := datum.Exported.Expect(map[string]interface{}{
 		"godef":                        datum.collectDefinitionNames,
@@ -847,10 +843,44 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 	t.Run("Symbols", func(t *testing.T) {
 		t.Helper()
-		for uri, expectedSymbols := range data.Symbols {
+		for uri, allSymbols := range data.Symbols {
+			byParent := make(map[string][]*symbol)
+			for _, sym := range allSymbols {
+				if sym.parentID != "" {
+					byParent[sym.parentID] = append(byParent[sym.parentID], sym)
+				}
+			}
+
+			// collectChildren does a depth-first traversal of the symbol tree,
+			// computing children of child nodes before returning to their parent.
+			// This is necessary as the Children field is slice of non-pointer types,
+			// and therefore we need to be careful to mutate children first before
+			// assigning them to their parent.
+			var collectChildren func(id string) []protocol.DocumentSymbol
+			collectChildren = func(id string) []protocol.DocumentSymbol {
+				children := byParent[id]
+				// delete from byParent before recursing, to ensure that
+				// collectChildren terminates even in the presence of cycles.
+				delete(byParent, id)
+				var result []protocol.DocumentSymbol
+				for _, child := range children {
+					child.pSymbol.Children = collectChildren(child.id)
+					result = append(result, child.pSymbol)
+				}
+				return result
+			}
+
+			var topLevel []protocol.DocumentSymbol
+			for _, sym := range allSymbols {
+				if sym.parentID == "" {
+					sym.pSymbol.Children = collectChildren(sym.id)
+					topLevel = append(topLevel, sym.pSymbol)
+				}
+			}
+
 			t.Run(uriName(uri), func(t *testing.T) {
 				t.Helper()
-				tests.Symbols(t, uri, expectedSymbols)
+				tests.Symbols(t, uri, topLevel)
 			})
 		}
 	})
@@ -1356,36 +1386,32 @@ func (data *Data) collectPrepareRenames(src span.Span, rng span.Range, placehold
 }
 
 // collectSymbols is responsible for collecting @symbol annotations.
-func (data *Data) collectSymbols(name string, spn span.Span, kind string, parentName string, siName string) {
+func (data *Data) collectSymbols(name string, selectionRng span.Span, kind, detail, id, parentID string) {
+	// We don't set 'Range' here as it is difficult (impossible?) to express
+	// multi-line ranges in the packagestest framework.
+	uri := selectionRng.URI()
+	data.Symbols[uri] = append(data.Symbols[uri], &symbol{
+		pSymbol: protocol.DocumentSymbol{
+			Name:           name,
+			Kind:           protocol.ParseSymbolKind(kind),
+			SelectionRange: data.mustRange(selectionRng),
+			Detail:         detail,
+		},
+		id:       id,
+		parentID: parentID,
+	})
+}
+
+// mustRange converts spn into a protocol.Range, calling t.Fatal on any error.
+func (data *Data) mustRange(spn span.Span) protocol.Range {
 	m, err := data.Mapper(spn.URI())
-	if err != nil {
-		data.t.Fatal(err)
-	}
 	rng, err := m.Range(spn)
 	if err != nil {
+		// TODO(rfindley): this can probably just be a panic, at which point we
+		// don't need to close over t.
 		data.t.Fatal(err)
 	}
-	sym := protocol.DocumentSymbol{
-		Name:           name,
-		Kind:           protocol.ParseSymbolKind(kind),
-		SelectionRange: rng,
-	}
-	if parentName == "" {
-		data.Symbols[spn.URI()] = append(data.Symbols[spn.URI()], sym)
-	} else {
-		data.symbolsChildren[parentName] = append(data.symbolsChildren[parentName], sym)
-	}
-
-	// Reuse @symbol in the workspace symbols tests.
-	si := protocol.SymbolInformation{
-		Name: siName,
-		Kind: sym.Kind,
-		Location: protocol.Location{
-			URI:   protocol.URIFromSpanURI(spn.URI()),
-			Range: sym.SelectionRange,
-		},
-	}
-	data.symbolInformation[spn] = si
+	return rng
 }
 
 func (data *Data) collectWorkspaceSymbols(typ WorkspaceSymbolsTestType) func(*expect.Note, string) {
