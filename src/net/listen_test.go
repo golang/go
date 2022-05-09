@@ -7,7 +7,6 @@
 package net
 
 import (
-	"context"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -735,17 +734,7 @@ func TestListenConfigControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			ln := newLocalListener(t, network)
-			address := ln.Addr().String()
-			// TODO: This is racy. The selected address could be reused in between
-			// this Close and the subsequent Listen.
-			ln.Close()
-			lc := ListenConfig{Control: controlOnConnSetup}
-			ln, err := lc.Listen(context.Background(), network, address)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
+			ln := newLocalListener(t, network, &ListenConfig{Control: controlOnConnSetup})
 			ln.Close()
 		}
 	})
@@ -754,24 +743,8 @@ func TestListenConfigControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			c := newLocalPacketListener(t, network)
-			address := c.LocalAddr().String()
-			// TODO: This is racy. The selected address could be reused in between
-			// this Close and the subsequent ListenPacket.
+			c := newLocalPacketListener(t, network, &ListenConfig{Control: controlOnConnSetup})
 			c.Close()
-			if network == "unixgram" {
-				os.Remove(address)
-			}
-			lc := ListenConfig{Control: controlOnConnSetup}
-			c, err := lc.ListenPacket(context.Background(), network, address)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			c.Close()
-			if network == "unixgram" {
-				os.Remove(address)
-			}
 		}
 	})
 }
