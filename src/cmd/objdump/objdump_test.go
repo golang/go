@@ -102,7 +102,7 @@ var ppcNeed = []string{
 var ppcGnuNeed = []string{
 	"mflr",
 	"lbz",
-	"cmpw",
+	"beq",
 }
 
 func mustHaveDisasm(t *testing.T) {
