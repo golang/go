@@ -7339,12 +7339,154 @@ func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		return true
 	}
-	// match: (MOVBUreg x)
-	// cond: x.Type.IsBoolean()
+	// match: (MOVBUreg x:(Equal _))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if !(x.Type.IsBoolean()) {
+		if x.Op != OpARM64Equal {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(NotEqual _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64NotEqual {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(LessThan _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64LessThan {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(LessThanU _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64LessThanU {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(LessThanF _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64LessThanF {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(LessEqual _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64LessEqual {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(LessEqualU _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64LessEqualU {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(LessEqualF _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64LessEqualF {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(GreaterThan _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64GreaterThan {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(GreaterThanU _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64GreaterThanU {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(GreaterThanF _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64GreaterThanF {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(GreaterEqual _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64GreaterEqual {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(GreaterEqualU _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64GreaterEqualU {
+			break
+		}
+		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(GreaterEqualF _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpARM64GreaterEqualF {
 			break
 		}
 		v.reset(OpARM64MOVDreg)

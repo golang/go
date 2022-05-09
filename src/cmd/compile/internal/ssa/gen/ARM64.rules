@@ -1578,9 +1578,9 @@
 (GreaterThanF (InvertFlags x)) => (LessThanF x)
 (GreaterEqualF (InvertFlags x)) => (LessEqualF x)
 
-// Boolean-generating instructions always
+// Boolean-generating instructions (NOTE: NOT all boolean Values) always
 // zero upper bit of the register; no need to zero-extend
-(MOVBUreg x) && x.Type.IsBoolean() => (MOVDreg x)
+(MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => (MOVDreg x)
 
 // absorb flag constants into conditional instructions
 (CSEL [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
