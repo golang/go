@@ -14,8 +14,10 @@
 // distinct but logically equivalent.
 //
 // A single object may have multiple paths. In this example,
-//     type A struct{ X int }
-//     type B A
+//
+//	type A struct{ X int }
+//	type B A
+//
 // the field X has two paths due to its membership of both A and B.
 // The For(obj) function always returns one of these paths, arbitrarily
 // but consistently.
@@ -45,30 +47,30 @@ type Path string
 // The sequences represent a path through the package/object/type graph.
 // We classify these operators by their type:
 //
-//   PO package->object	Package.Scope.Lookup
-//   OT  object->type 	Object.Type
-//   TT    type->type 	Type.{Elem,Key,Params,Results,Underlying} [EKPRU]
-//   TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
+//	PO package->object	Package.Scope.Lookup
+//	OT  object->type 	Object.Type
+//	TT    type->type 	Type.{Elem,Key,Params,Results,Underlying} [EKPRU]
+//	TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
 //
 // All valid paths start with a package and end at an object
 // and thus may be defined by the regular language:
 //
-//   objectpath = PO (OT TT* TO)*
+//	objectpath = PO (OT TT* TO)*
 //
 // The concrete encoding follows directly:
-// - The only PO operator is Package.Scope.Lookup, which requires an identifier.
-// - The only OT operator is Object.Type,
-//   which we encode as '.' because dot cannot appear in an identifier.
-// - The TT operators are encoded as [EKPRUTC];
-//   one of these (TypeParam) requires an integer operand,
-//   which is encoded as a string of decimal digits.
-// - The TO operators are encoded as [AFMO];
-//   three of these (At,Field,Method) require an integer operand,
-//   which is encoded as a string of decimal digits.
-//   These indices are stable across different representations
-//   of the same package, even source and export data.
-//   The indices used are implementation specific and may not correspond to
-//   the argument to the go/types function.
+//   - The only PO operator is Package.Scope.Lookup, which requires an identifier.
+//   - The only OT operator is Object.Type,
+//     which we encode as '.' because dot cannot appear in an identifier.
+//   - The TT operators are encoded as [EKPRUTC];
+//     one of these (TypeParam) requires an integer operand,
+//     which is encoded as a string of decimal digits.
+//   - The TO operators are encoded as [AFMO];
+//     three of these (At,Field,Method) require an integer operand,
+//     which is encoded as a string of decimal digits.
+//     These indices are stable across different representations
+//     of the same package, even source and export data.
+//     The indices used are implementation specific and may not correspond to
+//     the argument to the go/types function.
 //
 // In the example below,
 //
@@ -81,15 +83,14 @@ type Path string
 // field X has the path "T.UM0.RA1.F0",
 // representing the following sequence of operations:
 //
-//    p.Lookup("T")					T
-//    .Type().Underlying().Method(0).			f
-//    .Type().Results().At(1)				b
-//    .Type().Field(0)					X
+//	p.Lookup("T")					T
+//	.Type().Underlying().Method(0).			f
+//	.Type().Results().At(1)				b
+//	.Type().Field(0)					X
 //
 // The encoding is not maximally compact---every R or P is
 // followed by an A, for example---but this simplifies the
 // encoder and decoder.
-//
 const (
 	// object->type operators
 	opType = '.' // .Type()		  (Object)
@@ -136,10 +137,10 @@ const (
 //
 // For(X) would return a path that denotes the following sequence of operations:
 //
-//    p.Scope().Lookup("T")				(TypeName T)
-//    .Type().Underlying().Method(0).			(method Func f)
-//    .Type().Results().At(1)				(field Var b)
-//    .Type().Field(0)					(field Var X)
+//	p.Scope().Lookup("T")				(TypeName T)
+//	.Type().Underlying().Method(0).			(method Func f)
+//	.Type().Results().At(1)				(field Var b)
+//	.Type().Field(0)					(field Var X)
 //
 // where p is the package (*types.Package) to which X belongs.
 func For(obj types.Object) (Path, error) {

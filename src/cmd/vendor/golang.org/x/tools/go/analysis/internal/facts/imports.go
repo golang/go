@@ -20,7 +20,6 @@ import (
 //
 // Packages in the map that are only indirectly imported may be
 // incomplete (!pkg.Complete()).
-//
 func importMap(imports []*types.Package) map[string]*types.Package {
 	objects := make(map[types.Object]bool)
 	packages := make(map[string]*types.Package)

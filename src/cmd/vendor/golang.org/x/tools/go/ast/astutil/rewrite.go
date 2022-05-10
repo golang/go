@@ -41,7 +41,6 @@ type ApplyFunc func(*Cursor) bool
 // Children are traversed in the order in which they appear in the
 // respective node's struct definition. A package's files are
 // traversed in the filenames' alphabetical order.
-//
 func Apply(root ast.Node, pre, post ApplyFunc) (result ast.Node) {
 	parent := &struct{ ast.Node }{root}
 	defer func() {
@@ -65,8 +64,8 @@ var abort = new(int) // singleton, to signal termination of Apply
 // c.Parent(), and f is the field identifier with name c.Name(),
 // the following invariants hold:
 //
-//   p.f            == c.Node()  if c.Index() <  0
-//   p.f[c.Index()] == c.Node()  if c.Index() >= 0
+//	p.f            == c.Node()  if c.Index() <  0
+//	p.f[c.Index()] == c.Node()  if c.Index() >= 0
 //
 // The methods Replace, Delete, InsertBefore, and InsertAfter
 // can be used to change the AST without disrupting Apply.
@@ -294,6 +293,9 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
 		a.apply(n, "Fields", nil, n.Fields)
 
 	case *ast.FuncType:
+		if tparams := typeparams.ForFuncType(n); tparams != nil {
+			a.apply(n, "TypeParams", nil, tparams)
+		}
 		a.apply(n, "Params", nil, n.Params)
 		a.apply(n, "Results", nil, n.Results)
 
@@ -406,6 +408,9 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
 	case *ast.TypeSpec:
 		a.apply(n, "Doc", nil, n.Doc)
 		a.apply(n, "Name", nil, n.Name)
+		if tparams := typeparams.ForTypeSpec(n); tparams != nil {
+			a.apply(n, "TypeParams", nil, tparams)
+		}
 		a.apply(n, "Type", nil, n.Type)
 		a.apply(n, "Comment", nil, n.Comment)
 
