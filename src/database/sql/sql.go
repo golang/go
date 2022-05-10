@@ -2987,7 +2987,12 @@ func (rs *Rows) Next() bool {
 		doClose, ok = rs.nextLocked()
 	})
 	if doClose {
-		rs.lasterr = rs.lasterrOrErrLocked(rs.Close())
+		err := rs.Close()
+		if err != nil {
+			rs.closemu.RLock()
+			defer rs.closemu.RUnlock()
+			rs.lasterr = rs.lasterrOrErrLocked(err)
+		}
 	}
 	return ok
 }
