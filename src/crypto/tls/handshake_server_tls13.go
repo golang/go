@@ -9,10 +9,12 @@ import (
 	"context"
 	"crypto"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/rsa"
 	"errors"
 	"hash"
 	"io"
+	"math/big"
 	"sync/atomic"
 	"time"
 )
@@ -744,6 +746,11 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 		return err
 	}
 	m.lifetime = uint32(maxSessionTicketLifetime / time.Second)
+	ageAdd, err := rand.Int(rand.Reader, big.NewInt(4294967296)) // 2^32
+	if err != nil {
+		return err
+	}
+	m.ageAdd = uint32(ageAdd.Uint64())
 
 	if _, err := c.writeRecord(recordTypeHandshake, m.marshal()); err != nil {
 		return err
