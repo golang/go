@@ -1636,7 +1636,9 @@ func (r *reader) expr() (res ir.Node) {
 		typ := r.exprType(false)
 
 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
-			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
+			assert := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.RType)
+			assert.ITab = typ.ITab
+			return typed(typ.Type(), assert)
 		}
 		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.Type()))
 
@@ -1806,12 +1808,23 @@ func (r *reader) exprType(nilOK bool) ir.Node {
 
 	pos := r.pos()
 
+	lsymPtr := func(lsym *obj.LSym) ir.Node {
+		return typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+	}
+
 	var typ *types.Type
-	var lsym *obj.LSym
+	var rtype, itab ir.Node
 
 	if r.Bool() {
-		itab := r.dict.itabs[r.Len()]
-		typ, lsym = itab.typ, itab.lsym
+		info := r.dict.itabs[r.Len()]
+		typ = info.typ
+
+		// TODO(mdempsky): Populate rtype unconditionally?
+		if typ.IsInterface() {
+			rtype = lsymPtr(info.lsym)
+		} else {
+			itab = lsymPtr(info.lsym)
+		}
 	} else {
 		info := r.typInfo()
 		typ = r.p.typIdx(info, r.dict, true)
@@ -1823,11 +1836,12 @@ func (r *reader) exprType(nilOK bool) ir.Node {
 			return n
 		}
 
-		lsym = reflectdata.TypeLinksym(typ)
+		rtype = lsymPtr(reflectdata.TypeLinksym(typ))
 	}
 
-	ptr := typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
-	return typed(typ, ir.NewDynamicType(pos, ptr))
+	dt := ir.NewDynamicType(pos, rtype)
+	dt.ITab = itab
+	return typed(typ, dt)
 }
 
 func (r *reader) op() ir.Op {

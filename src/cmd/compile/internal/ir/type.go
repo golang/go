@@ -74,15 +74,29 @@ func TypeNode(t *types.Type) Ntype {
 	return newTypeNode(t)
 }
 
-// A DynamicType represents the target type in a type switch.
+// A DynamicType represents a type expression whose exact type must be
+// computed dynamically.
 type DynamicType struct {
 	miniExpr
-	X    Node // a *runtime._type for the targeted type
-	ITab Node // for type switches from nonempty interfaces to non-interfaces, this is the itab for that pair.
+
+	// RType is an expression that yields a *runtime._type value
+	// representing the asserted type.
+	//
+	// BUG(mdempsky): If ITab is non-nil, RType may be nil.
+	RType Node
+
+	// ITab is an expression that yields a *runtime.itab value
+	// representing the asserted type within the assertee expression's
+	// original interface type.
+	//
+	// ITab is only used for assertions (including type switches) from
+	// non-empty interface type to a concrete (i.e., non-interface)
+	// type. For all other assertions, ITab is nil.
+	ITab Node
 }
 
-func NewDynamicType(pos src.XPos, x Node) *DynamicType {
-	n := &DynamicType{X: x}
+func NewDynamicType(pos src.XPos, rtype Node) *DynamicType {
+	n := &DynamicType{RType: rtype}
 	n.pos = pos
 	n.op = ODYNAMICTYPE
 	return n

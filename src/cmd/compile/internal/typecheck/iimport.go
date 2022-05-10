@@ -1483,6 +1483,9 @@ func (r *importReader) node() ir.Node {
 
 	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
 		n := ir.NewDynamicTypeAssertExpr(r.pos(), op, r.expr(), r.expr())
+		if r.bool() {
+			n.ITab = r.expr()
+		}
 		n.SetType(r.typ())
 		return n
 

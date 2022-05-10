@@ -6222,22 +6222,25 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	iface := s.expr(n.X)              // input interface
 	target := s.reflectType(n.Type()) // target type
 	var targetItab *ssa.Value
-	if n.Itab != nil {
-		targetItab = s.expr(n.Itab)
+	if n.ITab != nil {
+		targetItab = s.expr(n.ITab)
 	}
 	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
 }
 
 func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
 	iface := s.expr(n.X)
-	target := s.expr(n.T)
-	var itab *ssa.Value
+	var target, targetItab *ssa.Value
 	if !n.X.Type().IsEmptyInterface() && !n.Type().IsInterface() {
 		byteptr := s.f.Config.Types.BytePtr
-		itab = target
-		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)) // itab.typ
+		targetItab = s.expr(n.ITab)
+		// TODO(mdempsky): Investigate whether compiling n.RType could be
+		// better than loading itab.typ.
+		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), targetItab)) // itab.typ
+	} else {
+		target = s.expr(n.RType)
 	}
-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, itab, commaok)
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
 }
 
 // dottype1 implements a x.(T) operation. iface is the argument (x), dst is the type we're asserting to (T)
