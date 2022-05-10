@@ -2790,6 +2790,14 @@ func TestManyErrBadConn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// set maxBadConnRetries to 0 should raise error
+	db = manyErrBadConnSetup()
+	db.SetMaxBadConnRetries(0)
+	rows, err = db.Query("SELECT|people|age,name|")
+	if !errors.Is(err, driver.ErrBadConn) {
+		t.Fatal(err)
+	}
 }
 
 // Issue 34775: Ensure that a Tx cannot commit after a rollback.

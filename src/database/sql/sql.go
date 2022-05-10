@@ -788,11 +788,12 @@ func (t dsnConnector) Driver() driver.Driver {
 func OpenDB(c driver.Connector) *DB {
 	ctx, cancel := context.WithCancel(context.Background())
 	db := &DB{
-		connector:    c,
-		openerCh:     make(chan struct{}, connectionRequestQueueSize),
-		lastPut:      make(map[*driverConn]string),
-		connRequests: make(map[uint64]chan connRequest),
-		stop:         cancel,
+		connector:         c,
+		openerCh:          make(chan struct{}, connectionRequestQueueSize),
+		lastPut:           make(map[*driverConn]string),
+		connRequests:      make(map[uint64]chan connRequest),
+		maxBadConnRetries: defaultMaxBadConnRetries,
+		stop:              cancel,
 	}
 
 	go db.connectionOpener(ctx)
@@ -1065,30 +1066,18 @@ func (db *DB) SetMaxBadConnRetries(n int) {
 const defaultMaxBadConnRetries = 2
 
 func (db *DB) retry(fn func(strategy connReuseStrategy) error) error {
-	var err error
-	var isBadConn = true
-
-	maxBadConnRetries := db.maxBadConnRetries
-	if maxBadConnRetries == 0 {
-		maxBadConnRetries = defaultMaxBadConnRetries
-	}
-
-	for i := 0; i < maxBadConnRetries; i++ {
-		err = fn(cachedOrNewConn)
-		isBadConn = err != nil && errors.Is(err, driver.ErrBadConn)
-		if !isBadConn {
-			break
+	for i := 0; i < db.maxBadConnRetries; i++ {
+		err := fn(cachedOrNewConn)
+		// retry if err is driver.ErrBadConn
+		if err == nil || !errors.Is(err, driver.ErrBadConn) {
+			return err
 		}
 	}
 
-	if isBadConn {
-		if maxBadConnRetries > 0 {
-			return fn(alwaysNewConn)
-		}
-		return fn(cachedOrNewConn)
+	if db.maxBadConnRetries > 0 {
+		return fn(alwaysNewConn)
 	}
-
-	return err
+	return fn(cachedOrNewConn)
 }
 
 // startCleanerLocked starts connectionCleaner if needed.
