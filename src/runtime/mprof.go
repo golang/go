@@ -952,9 +952,9 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 	// system goroutine (to be excluded). Pick one before restarting the world.
 	if fing != nil {
 		fing.goroutineProfiled.Store(goroutineProfileSatisfied)
-	}
-	if readgstatus(fing) != _Gdead && !isSystemGoroutine(fing, false) {
-		doRecordGoroutineProfile(fing)
+		if readgstatus(fing) != _Gdead && !isSystemGoroutine(fing, false) {
+			doRecordGoroutineProfile(fing)
+		}
 	}
 	startTheWorld()
 
