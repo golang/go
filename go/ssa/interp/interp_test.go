@@ -129,6 +129,12 @@ var testdataTests = []string{
 	"fixedbugs/issue52342.go",
 }
 
+func init() {
+	if typeparams.Enabled {
+		testdataTests = append(testdataTests, "fixedbugs/issue52835.go")
+	}
+}
+
 // Specific GOARCH to use for a test case in go.tools/go/ssa/interp/testdata/.
 // Defaults to amd64 otherwise.
 var testdataArchs = map[string]string{
@@ -233,7 +239,6 @@ func TestTestdataFiles(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	var failures []string
 	for _, input := range testdataTests {
 		if !run(t, filepath.Join(cwd, "testdata", input)) {

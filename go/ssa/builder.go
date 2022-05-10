@@ -814,6 +814,13 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		case types.MethodVal:
 			// e.f where e is an expression and f is a method.
 			// The result is a "bound".
+
+			if base := fn.typ(sel.Recv()); base != sel.Recv() {
+				// instantiate sel as sel.Recv is not equal after substitution.
+				pkg := fn.declaredPackage().Pkg
+				// mv is the instantiated method value.
+				sel = types.NewMethodSet(base).Lookup(pkg, sel.Obj().Name())
+			}
 			obj := sel.Obj().(*types.Func)
 			rt := fn.typ(recvType(obj))
 			wantAddr := isPointer(rt)
