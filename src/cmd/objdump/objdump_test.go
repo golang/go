@@ -106,6 +106,9 @@ var ppcGnuNeed = []string{
 }
 
 func mustHaveDisasm(t *testing.T) {
+	if strings.HasPrefix(testenv.Builder(), "darwin-arm64") {
+		t.Skipf("builder %q has an incompatible version of XCode installed, see go.dev/issue/49700", testenv.Builder())
+	}
 	switch runtime.GOARCH {
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)

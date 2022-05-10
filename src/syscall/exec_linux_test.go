@@ -275,12 +275,14 @@ func TestGroupCleanup(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
+	t.Logf("id: %s", strOut)
+
 	expected := "uid=0(root) gid=0(root)"
 	// Just check prefix because some distros reportedly output a
 	// context parameter; see https://golang.org/issue/16224.
 	// Alpine does not output groups; see https://golang.org/issue/19938.
 	if !strings.HasPrefix(strOut, expected) {
-		t.Errorf("id command output: %q, expected prefix: %q", strOut, expected)
+		t.Errorf("expected prefix: %q", expected)
 	}
 }
 
@@ -309,23 +311,14 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
+	t.Logf("id: %s", strOut)
 
-	// Strings we've seen in the wild.
-	expected := []string{
-		"uid=0(root) gid=0(root) groups=0(root)",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody)",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
-		"uid=0(root) gid=0(root) groups=0(root),65534",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
-		"uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                               // CentOS with SELinux context, see https://golang.org/issue/34547
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                 // Fedora with SElinux context, see https://golang.org/issue/46752
+	// As in TestGroupCleanup, just check prefix.
+	// The actual groups and contexts seem to vary from one distro to the next.
+	expected := "uid=0(root) gid=0(root) groups=0(root)"
+	if !strings.HasPrefix(strOut, expected) {
+		t.Errorf("expected prefix: %q", expected)
 	}
-	for _, e := range expected {
-		if strOut == e {
-			return
-		}
-	}
-	t.Errorf("id command output: %q, expected one of %q", strOut, expected)
 }
 
 // TestUnshareHelperProcess isn't a real test. It's used as a helper process

@@ -751,6 +751,12 @@ func TestDialerKeepAlive(t *testing.T) {
 func TestDialCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
 
+	if strings.HasPrefix(testenv.Builder(), "darwin-arm64") {
+		// The darwin-arm64 machines run in an environment that's not
+		// compatible with this test.
+		t.Skipf("builder %q gives no route to host for 198.18.0.0", testenv.Builder())
+	}
+
 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
 	if !supportsIPv4() {
 		blackholeIPPort = JoinHostPort(slowDst6, "1234")

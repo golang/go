@@ -1151,6 +1151,7 @@ func unminitSignals() {
 // blockableSig reports whether sig may be blocked by the signal mask.
 // We never want to block the signals marked _SigUnblock;
 // these are the synchronous signals that turn into a Go panic.
+// We never want to block the preemption signal if it is being used.
 // In a Go program--not a c-archive/c-shared--we never want to block
 // the signals marked _SigKill or _SigThrow, as otherwise it's possible
 // for all running threads to block them and delay their delivery until
@@ -1159,6 +1160,9 @@ func unminitSignals() {
 func blockableSig(sig uint32) bool {
 	flags := sigtable[sig].flags
 	if flags&_SigUnblock != 0 {
+		return false
+	}
+	if sig == sigPreempt && preemptMSupported && debug.asyncpreemptoff == 0 {
 		return false
 	}
 	if isarchive || islibrary {
