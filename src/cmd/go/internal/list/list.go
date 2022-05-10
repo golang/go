@@ -503,7 +503,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	pkgOpts := load.PackageOpts{
 		IgnoreImports:   *listFind,
 		ModResolveTests: *listTest,
-		LoadVCS:         cfg.BuildBuildvcs,
+		LoadVCS:         true,
 	}
 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
 	if !*listE {

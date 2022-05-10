@@ -1348,21 +1348,21 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 	// type itab struct {
 	//   inter  *interfacetype
 	//   _type  *_type
-	//   hash   uint32
+	//   hash   uint32 // copy of _type.hash. Used for type switches.
 	//   _      [4]byte
-	//   fun    [1]uintptr // variable sized
+	//   fun    [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
 	// }
 	o := objw.SymPtr(lsym, 0, writeType(iface), 0)
 	o = objw.SymPtr(lsym, o, writeType(typ), 0)
 	o = objw.Uint32(lsym, o, types.TypeHash(typ)) // copy of type hash
 	o += 4                                        // skip unused field
+	if !completeItab {
+		// If typ doesn't implement iface, make method entries be zero.
+		o = objw.Uintptr(lsym, o, 0)
+		entries = entries[:0]
+	}
 	for _, fn := range entries {
-		if !completeItab {
-			// If typ doesn't implement iface, make method entries be zero.
-			o = objw.Uintptr(lsym, o, 0)
-		} else {
-			o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
-		}
+		o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
 	}
 	// Nothing writes static itabs, so they are read only.
 	objw.Global(lsym, int32(o), int16(obj.DUPOK|obj.RODATA))

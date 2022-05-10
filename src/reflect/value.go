@@ -1583,6 +1583,8 @@ func (v Value) Len() int {
 	panic(&ValueError{"reflect.Value.Len", v.kind()})
 }
 
+var stringType = TypeOf("").(*rtype)
+
 // MapIndex returns the value associated with key in the map v.
 // It panics if v's Kind is not Map.
 // It returns the zero Value if key is not found in the map or if v represents a nil map.
@@ -1600,7 +1602,7 @@ func (v Value) MapIndex(key Value) Value {
 	// of unexported fields.
 
 	var e unsafe.Pointer
-	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.size <= maxValSize {
 		k := *(*string)(key.ptr)
 		e = mapaccess_faststr(v.typ, v.pointer(), k)
 	} else {
@@ -2213,7 +2215,7 @@ func (v Value) SetMapIndex(key, elem Value) {
 	key.mustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ))
 
-	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.size <= maxValSize {
 		k := *(*string)(key.ptr)
 		if elem.typ == nil {
 			mapdelete_faststr(v.typ, v.pointer(), k)

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -91,11 +92,13 @@ and test commands:
 	-buildmode mode
 		build mode to use. See 'go help buildmode' for more.
 	-buildvcs
-		Whether to stamp binaries with version control information. By default,
-		version control information is stamped into a binary if the main package
-		and the main module containing it are in the repository containing the
-		current directory (if there is a repository). Use -buildvcs=false to
-		omit version control information.
+		Whether to stamp binaries with version control information
+		("true", "false", or "auto"). By default ("auto"), version control
+		information is stamped into a binary if the main package, the main module
+		containing it, and the current directory are all in the same repository.
+		Use -buildvcs=false to always omit version control information, or
+		-buildvcs=true to error out if version control information is available but
+		cannot be included due to a missing tool or ambiguous directory structure.
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags '[pattern=]arg list'
@@ -302,7 +305,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildBuildvcs, "buildvcs", true, "")
+	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
@@ -331,6 +334,29 @@ func (v *tagsFlag) Set(s string) error {
 func (v *tagsFlag) String() string {
 	return "<TagsFlag>"
 }
+
+// buildvcsFlag is the implementation of the -buildvcs flag.
+type buildvcsFlag string
+
+func (f *buildvcsFlag) IsBoolFlag() bool { return true } // allow -buildvcs (without arguments)
+
+func (f *buildvcsFlag) Set(s string) error {
+	// https://go.dev/issue/51748: allow "-buildvcs=auto",
+	// in addition to the usual "true" and "false".
+	if s == "" || s == "auto" {
+		*f = "auto"
+		return nil
+	}
+
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return errors.New("value is neither 'auto' nor a valid bool")
+	}
+	*f = (buildvcsFlag)(strconv.FormatBool(b)) // convert to canonical "true" or "false"
+	return nil
+}
+
+func (f *buildvcsFlag) String() string { return string(*f) }
 
 // fileExtSplit expects a filename and returns the name
 // and ext (without the dot). If the file has no
@@ -379,7 +405,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	var b Builder
 	b.Init()
 
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: cfg.BuildBuildvcs}, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: true}, args)
 	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
@@ -603,7 +629,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 
 	modload.InitWorkfile()
 	BuildInit()
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: cfg.BuildBuildvcs}, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: true}, args)
 	if cfg.ModulesEnabled && !modload.HasModRoot() {
 		haveErrors := false
 		allMissingErrors := true

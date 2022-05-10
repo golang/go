@@ -9,7 +9,7 @@
 // spends all of its time in the race runtime, which isn't a safe
 // point.
 
-//go:build amd64 && linux && !race
+//go:build (amd64 || arm64) && linux && !race
 
 package runtime_test
 

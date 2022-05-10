@@ -636,14 +636,12 @@ func (check *Checker) collectMethods(obj *TypeName) {
 	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
 	if base != nil {
 		assert(base.targs.Len() == 0) // collectMethods should not be called on an instantiated type
-		u := base.under()
-		if t, _ := u.(*Struct); t != nil {
-			for _, fld := range t.fields {
-				if fld.name != "_" {
-					assert(mset.insert(fld) == nil)
-				}
-			}
-		}
+
+		// See issue #52529: we must delay the expansion of underlying here, as
+		// base may not be fully set-up.
+		check.later(func() {
+			check.checkFieldUniqueness(base)
+		}).describef(obj, "verifying field uniqueness for %v", base)
 
 		// Checker.Files may be called multiple times; additional package files
 		// may add methods to already type-checked types. Add pre-existing methods
@@ -662,17 +660,10 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		assert(m.name != "_")
 		if alt := mset.insert(m); alt != nil {
 			var err error_
-			switch alt.(type) {
-			case *Var:
-				err.errorf(m.pos, "field and method with the same name %s", m.name)
-			case *Func:
-				if check.conf.CompilerErrorMessages {
-					err.errorf(m.pos, "%s.%s redeclared in this block", obj.Name(), m.name)
-				} else {
-					err.errorf(m.pos, "method %s already declared for %s", m.name, obj)
-				}
-			default:
-				unreachable()
+			if check.conf.CompilerErrorMessages {
+				err.errorf(m.pos, "%s.%s redeclared in this block", obj.Name(), m.name)
+			} else {
+				err.errorf(m.pos, "method %s already declared for %s", m.name, obj)
 			}
 			err.recordAltDecl(alt)
 			check.report(&err)
@@ -682,6 +673,36 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		if base != nil {
 			base.resolve(nil) // TODO(mdempsky): Probably unnecessary.
 			base.AddMethod(m)
+		}
+	}
+}
+
+func (check *Checker) checkFieldUniqueness(base *Named) {
+	if t, _ := base.under().(*Struct); t != nil {
+		var mset objset
+		for i := 0; i < base.methods.Len(); i++ {
+			m := base.methods.At(i, nil)
+			assert(m.name != "_")
+			assert(mset.insert(m) == nil)
+		}
+
+		// Check that any non-blank field names of base are distinct from its
+		// method names.
+		for _, fld := range t.fields {
+			if fld.name != "_" {
+				if alt := mset.insert(fld); alt != nil {
+					// Struct fields should already be unique, so we should only
+					// encounter an alternate via collision with a method name.
+					_ = alt.(*Func)
+
+					// For historical consistency, we report the primary error on the
+					// method, and the alt decl on the field.
+					var err error_
+					err.errorf(alt, "field and method with the same name %s", fld.name)
+					err.recordAltDecl(fld)
+					check.report(&err)
+				}
+			}
 		}
 	}
 }
@@ -735,7 +756,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			top := len(check.delayed)
 
 			// iota is the index of the current constDecl within the group
-			if first < 0 || list[index-1].(*syntax.ConstDecl).Group != s.Group {
+			if first < 0 || s.Group == nil || list[index-1].(*syntax.ConstDecl).Group != s.Group {
 				first = index
 				last = nil
 			}

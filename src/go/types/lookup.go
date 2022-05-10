@@ -25,9 +25,9 @@ import (
 // The last index entry is the field or method index in the (possibly embedded)
 // type where the entry was found, either:
 //
-//	1) the list of declared methods of a named type; or
-//	2) the list of all methods (method set) of an interface type; or
-//	3) the list of fields of a struct type.
+//  1. the list of declared methods of a named type; or
+//  2. the list of all methods (method set) of an interface type; or
+//  3. the list of fields of a struct type.
 //
 // The earlier index entries are the indices of the embedded struct fields
 // traversed to get to the found entry, starting at depth 0.
@@ -35,13 +35,12 @@ import (
 // If no entry is found, a nil object is returned. In this case, the returned
 // index and indirect values have the following meaning:
 //
-//	- If index != nil, the index sequence points to an ambiguous entry
-//	(the same name appeared more than once at the same embedding level).
+//   - If index != nil, the index sequence points to an ambiguous entry
+//     (the same name appeared more than once at the same embedding level).
 //
-//	- If indirect is set, a method with a pointer receiver type was found
-//      but there was no pointer on the path from the actual receiver type to
-//	the method's formal receiver base type, nor was the receiver addressable.
-//
+//   - If indirect is set, a method with a pointer receiver type was found
+//     but there was no pointer on the path from the actual receiver type to
+//     the method's formal receiver base type, nor was the receiver addressable.
 func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	if T == nil {
 		panic("LookupFieldOrMethod on nil type")
@@ -82,11 +81,6 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	return
 }
 
-// TODO(gri) The named type consolidation and seen maps below must be
-//           indexed by unique keys for a given type. Verify that named
-//           types always have only one representation (even when imported
-//           indirectly via different packages.)
-
 // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
 // If foldCase is true, the lookup for methods will include looking for any method
 // which case-folds to the same as 'name' (used for giving helpful error messages).
@@ -111,14 +105,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 	// Start with typ as single entry at shallowest depth.
 	current := []embeddedType{{typ, nil, isPtr, false}}
 
-	// Named types that we have seen already, allocated lazily.
+	// seen tracks named types that we have seen already, allocated lazily.
 	// Used to avoid endless searches in case of recursive types.
-	// Since only Named types can be used for recursive types, we
-	// only need to track those.
-	// (If we ever allow type aliases to construct recursive types,
-	// we must use type identity rather than pointer equality for
-	// the map key comparison, as we do in consolidateMultiples.)
-	var seen map[*Named]bool
+	//
+	// We must use a lookup on identity rather than a simple map[*Named]bool as
+	// instantiated types may be identical but not equal.
+	var seen instanceLookup
 
 	// search current depth
 	for len(current) > 0 {
@@ -131,7 +123,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
 			if named, _ := typ.(*Named); named != nil {
-				if seen[named] {
+				if alt := seen.lookup(named); alt != nil {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
 					// were consolidated before). The type at that depth shadows
@@ -139,10 +131,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 					// this one.
 					continue
 				}
-				if seen == nil {
-					seen = make(map[*Named]bool)
-				}
-				seen[named] = true
+				seen.add(named)
 
 				// look for a matching attached method
 				named.resolve(nil)
@@ -272,6 +261,27 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
 	return 0, false
 }
 
+type instanceLookup struct {
+	m map[*Named][]*Named
+}
+
+func (l *instanceLookup) lookup(inst *Named) *Named {
+	for _, t := range l.m[inst.Origin()] {
+		if Identical(inst, t) {
+			return t
+		}
+	}
+	return nil
+}
+
+func (l *instanceLookup) add(inst *Named) {
+	if l.m == nil {
+		l.m = make(map[*Named][]*Named)
+	}
+	insts := l.m[inst.Origin()]
+	l.m[inst.Origin()] = append(insts, inst)
+}
+
 // MissingMethod returns (nil, false) if V implements T, otherwise it
 // returns a missing method required by T and whether it is missing or
 // just has the wrong type.
@@ -281,7 +291,6 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
 // is not set), MissingMethod only checks that methods of T which are also
 // present in V have matching types (e.g., for a type assertion x.(T) where
 // x is of interface type V).
-//
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
 	m, alt := (*Checker)(nil).missingMethod(V, T, static)
 	// Only report a wrong type if the alternative method has the same name as m.
