@@ -482,6 +482,10 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 // to walk that directory.
 //
 // WalkDir does not follow symbolic links.
+//
+// WalkDir calls fn with paths that use the separator character appropriate
+// for the operating system. This is unlike [io/fs.WalkDir], which always
+// uses slash separated paths.
 func WalkDir(root string, fn fs.WalkDirFunc) error {
 	info, err := os.Lstat(root)
 	if err != nil {
