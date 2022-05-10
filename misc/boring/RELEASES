@@ -185,3 +185,7 @@ go1.18.1b7 d003f0850a7d linux-amd64 https://go-boringcrypto.storage.googleapis.c
 go1.18.1b7 d003f0850a7d src https://go-boringcrypto.storage.googleapis.com/go1.18.1b7.src.tar.gz c7f91549b3a197e4a08f64e07546855ca8f82d597f60fd23c7ad2f082640a9fe
 go1.17.9b7 ed86dfc4e441 linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.17.9b7.linux-amd64.tar.gz 9469d1b4c10f59c921c4666c52baba5f6ca63b1cce0eca95e03b5713ef27577c
 go1.17.9b7 ed86dfc4e441 src https://go-boringcrypto.storage.googleapis.com/go1.17.9b7.src.tar.gz 5d6bfe543a9a2bf6d8749973c771e40127b8020a769ecc5fb41d0dbd7deae9a6
+go1.18.2b7 dcdb19874ff3 linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.18.2b7.linux-amd64.tar.gz a53566eebe8e128695ddbd52c080502a0daca1c9f1b893cada9349259ed27e99
+go1.18.2b7 dcdb19874ff3 src https://go-boringcrypto.storage.googleapis.com/go1.18.2b7.src.tar.gz 3c3ce00cd39cdd2ae9afddd7581c6f8b14f8e96e2bb56b9cb4fec8ff02db63b0
+go1.17.10b7 6b07de790c08 linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.17.10b7.linux-amd64.tar.gz 3c506a86b1e3e4fcffd6a875e5d47ca23f0a346c1bd6e6163e67dbb96eeec1d5
+go1.17.10b7 6b07de790c08 src https://go-boringcrypto.storage.googleapis.com/go1.17.10b7.src.tar.gz 9d5914842ea1b36edc2ceb6cfa7d3a79bea450c8b397e86bfae7c73944208f03
