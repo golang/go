@@ -234,7 +234,7 @@ func (p *crawler) checkForFullyInst(t *types.Type) {
 		for i, t1 := range t.RParams() {
 			shapes[i] = Shapify(t1, i, baseType.RParams()[i])
 		}
-		for j := range t.Methods().Slice() {
+		for j, tmethod := range t.Methods().Slice() {
 			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
 			dictsym := MakeDictSym(baseNname.Sym(), t.RParams(), true)
 			if dictsym.Def == nil {
@@ -255,6 +255,8 @@ func (p *crawler) checkForFullyInst(t *types.Type) {
 				ImportedBody(methNode.Func)
 				methNode.Func.SetExportInline(true)
 			}
+			// Make sure that any associated types are also exported. (See #52279)
+			p.checkForFullyInst(tmethod.Type)
 		}
 	}
 
