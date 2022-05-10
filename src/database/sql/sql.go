@@ -2989,9 +2989,9 @@ func (rs *Rows) Next() bool {
 	if doClose {
 		err := rs.Close()
 		if err != nil {
-			rs.closemu.RLock()
-			defer rs.closemu.RUnlock()
-			rs.lasterr = rs.lasterrOrErrLocked(err)
+			withLock(rs.closemu.RLocker(), func() {
+				rs.lasterr = rs.lasterrOrErrLocked(err)
+			})
 		}
 	}
 	return ok
