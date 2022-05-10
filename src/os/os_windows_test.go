@@ -1252,3 +1252,28 @@ func TestWindowsReadlink(t *testing.T) {
 	mklink(t, "relfilelink", "file")
 	testReadlink(t, "relfilelink", "file")
 }
+
+func TestOpenDirTOCTOU(t *testing.T) {
+	// Check opened directories can't be renamed until the handle is closed.
+	// See issue 52747.
+	tmpdir := t.TempDir()
+	dir := filepath.Join(tmpdir, "dir")
+	if err := os.Mkdir(dir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newpath := filepath.Join(tmpdir, "dir1")
+	err = os.Rename(dir, newpath)
+	if err == nil || !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+		f.Close()
+		t.Fatalf("Rename(%q, %q) = %v; want windows.ERROR_SHARING_VIOLATION", dir, newpath, err)
+	}
+	f.Close()
+	err = os.Rename(dir, newpath)
+	if err != nil {
+		t.Error(err)
+	}
+}

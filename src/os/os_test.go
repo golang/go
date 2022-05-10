@@ -2564,9 +2564,6 @@ func TestUserHomeDir(t *testing.T) {
 }
 
 func TestDirSeek(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		testenv.SkipFlaky(t, 36019)
-	}
 	wd, err := Getwd()
 	if err != nil {
 		t.Fatal(err)

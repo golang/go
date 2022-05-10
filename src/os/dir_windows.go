@@ -11,8 +11,15 @@ import (
 )
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	if !file.isdir() {
-		return nil, nil, nil, &PathError{Op: "readdir", Path: file.name, Err: syscall.ENOTDIR}
+	// If this file has no dirinfo, create one.
+	needdata := true
+	if file.dirinfo == nil {
+		needdata = false
+		file.dirinfo, err = openDir(file.name)
+		if err != nil {
+			err = &PathError{Op: "readdir", Path: file.name, Err: err}
+			return
+		}
 	}
 	wantAll := n <= 0
 	if wantAll {
@@ -20,8 +27,8 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 	}
 	d := &file.dirinfo.data
 	for n != 0 && !file.dirinfo.isempty {
-		if file.dirinfo.needdata {
-			e := file.pfd.FindNextFile(d)
+		if needdata {
+			e := syscall.FindNextFile(file.dirinfo.h, d)
 			runtime.KeepAlive(file)
 			if e != nil {
 				if e == syscall.ERROR_NO_MORE_FILES {
@@ -32,7 +39,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 				}
 			}
 		}
-		file.dirinfo.needdata = true
+		needdata = true
 		name := syscall.UTF16ToString(d.FileName[0:])
 		if name == "." || name == ".." { // Useless names
 			continue

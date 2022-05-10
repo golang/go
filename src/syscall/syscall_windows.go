@@ -371,8 +371,11 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 			}
 		}
 	}
-	h, e := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
-	return h, e
+	if createmode == OPEN_EXISTING && access == GENERIC_READ {
+		// Necessary for opening directory handles.
+		attrs |= FILE_FLAG_BACKUP_SEMANTICS
+	}
+	return CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 }
 
 func Read(fd Handle, p []byte) (n int, err error) {
