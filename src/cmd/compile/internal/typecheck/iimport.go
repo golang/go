@@ -420,14 +420,11 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 			// this types2-to-types1 translation.
 			return sym.Def.(*ir.Name)
 		}
+		n := importsym(pos, sym, ir.OTYPE, ir.PTYPEPARAM)
 		// The typeparam index is set at the point where the containing type
 		// param list is imported.
-		t := types.NewTypeParam(sym, 0)
-		// Nname needed to save the pos.
-		nname := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
-		sym.Def = nname
-		nname.SetType(t)
-		t.SetNod(nname)
+		t := types.NewTypeParam(n, 0)
+		n.SetType(t)
 		implicit := false
 		if r.p.exportVersion >= iexportVersionGo1_18 {
 			implicit = r.bool()
@@ -437,7 +434,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 			bound.MarkImplicit()
 		}
 		t.SetBound(bound)
-		return nname
+		return n
 
 	case 'V':
 		typ := r.typ()

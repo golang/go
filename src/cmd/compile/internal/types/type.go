@@ -238,8 +238,7 @@ func (t *Type) SetHasShape(b bool) { t.flags.set(typeHasShape, b) }
 func (t *Type) Kind() Kind { return t.kind }
 
 // Sym returns the name of type t.
-func (t *Type) Sym() *Sym       { return t.sym }
-func (t *Type) SetSym(sym *Sym) { t.sym = sym }
+func (t *Type) Sym() *Sym { return t.sym }
 
 // OrigType returns the original generic type that t is an
 // instantiation of, if any.
@@ -248,15 +247,6 @@ func (t *Type) SetOrigType(orig *Type) { t.origType = orig }
 
 // Underlying returns the underlying type of type t.
 func (t *Type) Underlying() *Type { return t.underlying }
-
-// SetNod associates t with syntax node n.
-func (t *Type) SetNod(n Object) {
-	// t.nod can be non-nil already
-	// in the case of shared *Types, like []byte or interface{}.
-	if t.nod == nil {
-		t.nod = n
-	}
-}
 
 // Pos returns a position associated with t, if any.
 // This should only be used for diagnostics.
@@ -1853,9 +1843,10 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
 
 // NewTypeParam returns a new type param with the specified sym (package and name)
 // and specified index within the typeparam list.
-func NewTypeParam(sym *Sym, index int) *Type {
+func NewTypeParam(obj Object, index int) *Type {
 	t := newType(TTYPEPARAM)
-	t.sym = sym
+	t.sym = obj.Sym()
+	t.nod = obj
 	t.extra.(*Typeparam).index = index
 	t.SetHasTParam(true)
 	return t
