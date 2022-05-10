@@ -50,7 +50,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 		case *ast.CallExpr:
 			// Only signal.Notify(make(chan os.Signal), os.Interrupt) is safe,
-			// conservatively treate others as not safe, see golang/go#45043
+			// conservatively treat others as not safe, see golang/go#45043
 			if isBuiltinMake(pass.TypesInfo, arg) {
 				return
 			}

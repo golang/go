@@ -26,7 +26,7 @@ golang.org/x/arch/x86/x86asm
 # golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
 ## explicit; go 1.17
 golang.org/x/crypto/ed25519
-# golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
+# golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 ## explicit; go 1.17
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -49,7 +49,7 @@ golang.org/x/sys/windows
 # golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/tools v0.1.11-0.20220321170318-c717623e3197
+# golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275
 ## explicit; go 1.17
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
@@ -94,7 +94,3 @@ golang.org/x/tools/go/types/typeutil
 golang.org/x/tools/internal/analysisinternal
 golang.org/x/tools/internal/lsp/fuzzy
 golang.org/x/tools/internal/typeparams
-# golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
-## explicit; go 1.11
-golang.org/x/xerrors
-golang.org/x/xerrors/internal

@@ -122,8 +122,8 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 // For example, for each raw cgo source file in the original package,
 // such as this one:
 //
-// 	package p
-// 	import "C"
+//	package p
+//	import "C"
 //	import "fmt"
 //	type T int
 //	const k = 3
@@ -147,9 +147,9 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 // the receiver into the first parameter;
 // and all functions are renamed to "_".
 //
-// 	package p
-// 	import . "·this·" // declares T, k, x, y, f, g, T.f
-// 	import "C"
+//	package p
+//	import . "·this·" // declares T, k, x, y, f, g, T.f
+//	import "C"
 //	import "fmt"
 //	const _ = 3
 //	var _, _ = fmt.Println()
@@ -169,7 +169,6 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 // C.f would resolve to "·this·"._C_func_f, for example. But we have
 // limited ourselves here to preserving function bodies and initializer
 // expressions since that is all that the cgocall analyzer needs.
-//
 func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*ast.File, info *types.Info, sizes types.Sizes) ([]*ast.File, *types.Info, error) {
 	const thispkg = "·this·"
 
@@ -284,8 +283,9 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
 
 // cgoBaseType tries to look through type conversions involving
 // unsafe.Pointer to find the real type. It converts:
-//   unsafe.Pointer(x) => x
-//   *(*unsafe.Pointer)(unsafe.Pointer(&x)) => x
+//
+//	unsafe.Pointer(x) => x
+//	*(*unsafe.Pointer)(unsafe.Pointer(&x)) => x
 func cgoBaseType(info *types.Info, arg ast.Expr) types.Type {
 	switch arg := arg.(type) {
 	case *ast.CallExpr:
