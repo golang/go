@@ -1333,11 +1333,12 @@ func (g *genInst) dictPass(info *instInfo) {
 				break
 			}
 			dt := m.(*ir.TypeAssertExpr)
-			var rt ir.Node
+			var rtype, itab ir.Node
 			if dt.Type().IsInterface() || dt.X.Type().IsEmptyInterface() {
+				// TODO(mdempsky): Investigate executing this block unconditionally.
 				ix := findDictType(info, m.Type())
 				assert(ix >= 0)
-				rt = getDictionaryType(info, info.dictParam, dt.Pos(), ix)
+				rtype = getDictionaryType(info, info.dictParam, dt.Pos(), ix)
 			} else {
 				// nonempty interface to noninterface. Need an itab.
 				ix := -1
@@ -1348,13 +1349,14 @@ func (g *genInst) dictPass(info *instInfo) {
 					}
 				}
 				assert(ix >= 0)
-				rt = getDictionaryEntry(dt.Pos(), info.dictParam, ix, info.dictInfo.dictLen)
+				itab = getDictionaryEntry(dt.Pos(), info.dictParam, ix, info.dictInfo.dictLen)
 			}
 			op := ir.ODYNAMICDOTTYPE
 			if m.Op() == ir.ODOTTYPE2 {
 				op = ir.ODYNAMICDOTTYPE2
 			}
-			m = ir.NewDynamicTypeAssertExpr(dt.Pos(), op, dt.X, rt)
+			m = ir.NewDynamicTypeAssertExpr(dt.Pos(), op, dt.X, rtype)
+			m.(*ir.DynamicTypeAssertExpr).ITab = itab
 			m.SetType(dt.Type())
 			m.SetTypecheck(1)
 		case ir.OCASE:

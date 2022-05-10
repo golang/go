@@ -623,7 +623,7 @@ type TypeAssertExpr struct {
 
 	// Runtime type information provided by walkDotType for
 	// assertions from non-empty interface to concrete type.
-	Itab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
+	ITab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {
@@ -645,24 +645,29 @@ func (n *TypeAssertExpr) SetOp(op Op) {
 	}
 }
 
-// A DynamicTypeAssertExpr asserts that X is of dynamic type T.
+// A DynamicTypeAssertExpr asserts that X is of dynamic type RType.
 type DynamicTypeAssertExpr struct {
 	miniExpr
 	X Node
-	// N = not an interface
-	// E = empty interface
-	// I = nonempty interface
-	// For E->N, T is a *runtime.type for N
-	// For I->N, T is a *runtime.itab for N+I
-	// For E->I, T is a *runtime.type for I
-	// For I->I, ditto
-	// For I->E, T is a *runtime.type for interface{} (unnecessary, but just to fill in the slot)
-	// For E->E, ditto
-	T Node
+
+	// RType is an expression that yields a *runtime._type value
+	// representing the asserted type.
+	//
+	// BUG(mdempsky): If ITab is non-nil, RType may be nil.
+	RType Node
+
+	// ITab is an expression that yields a *runtime.itab value
+	// representing the asserted type within the assertee expression's
+	// original interface type.
+	//
+	// ITab is only used for assertions from non-empty interface type to
+	// a concrete (i.e., non-interface) type. For all other assertions,
+	// ITab is nil.
+	ITab Node
 }
 
-func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, t Node) *DynamicTypeAssertExpr {
-	n := &DynamicTypeAssertExpr{X: x, T: t}
+func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, rtype Node) *DynamicTypeAssertExpr {
+	n := &DynamicTypeAssertExpr{X: x, RType: rtype}
 	n.pos = pos
 	n.op = op
 	return n

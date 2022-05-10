@@ -469,11 +469,8 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			}
 			if len(ncase.List) == 1 && ncase.List[0].Op() == ir.ODYNAMICTYPE {
 				dt := ncase.List[0].(*ir.DynamicType)
-				x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.X)
-				if dt.ITab != nil {
-					// TODO: make ITab a separate field in DynamicTypeAssertExpr?
-					x.T = dt.ITab
-				}
+				x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.RType)
+				x.ITab = dt.ITab
 				x.SetType(caseVar.Type())
 				x.SetTypecheck(1)
 				val = x
@@ -572,10 +569,8 @@ func (s *typeSwitch) Add(pos src.XPos, n1 ir.Node, caseVar *ir.Name, jmp ir.Node
 	case ir.ODYNAMICTYPE:
 		// Dynamic type assertion (generic)
 		dt := n1.(*ir.DynamicType)
-		dot := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, s.facename, dt.X)
-		if dt.ITab != nil {
-			dot.T = dt.ITab
-		}
+		dot := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, s.facename, dt.RType)
+		dot.ITab = dt.ITab
 		dot.SetType(typ)
 		dot.SetTypecheck(1)
 		as.Rhs = []ir.Node{dot}

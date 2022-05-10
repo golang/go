@@ -666,7 +666,7 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	// Set up interface type addresses for back end.
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
-		n.Itab = reflectdata.ITabAddr(n.Type(), n.X.Type())
+		n.ITab = reflectdata.ITabAddr(n.Type(), n.X.Type())
 	}
 	return n
 }
@@ -674,7 +674,8 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 // walkDynamicdotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
 func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
-	n.T = walkExpr(n.T, init)
+	n.RType = walkExpr(n.RType, init)
+	n.ITab = walkExpr(n.ITab, init)
 	return n
 }
 

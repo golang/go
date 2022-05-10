@@ -427,7 +427,7 @@ func (n *DynamicType) doChildren(do func(Node) bool) bool {
 	if doNodes(n.init, do) {
 		return true
 	}
-	if n.X != nil && do(n.X) {
+	if n.RType != nil && do(n.RType) {
 		return true
 	}
 	if n.ITab != nil && do(n.ITab) {
@@ -437,8 +437,8 @@ func (n *DynamicType) doChildren(do func(Node) bool) bool {
 }
 func (n *DynamicType) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.X != nil {
-		n.X = edit(n.X).(Node)
+	if n.RType != nil {
+		n.RType = edit(n.RType).(Node)
 	}
 	if n.ITab != nil {
 		n.ITab = edit(n.ITab).(Node)
@@ -458,7 +458,10 @@ func (n *DynamicTypeAssertExpr) doChildren(do func(Node) bool) bool {
 	if n.X != nil && do(n.X) {
 		return true
 	}
-	if n.T != nil && do(n.T) {
+	if n.RType != nil && do(n.RType) {
+		return true
+	}
+	if n.ITab != nil && do(n.ITab) {
 		return true
 	}
 	return false
@@ -468,8 +471,11 @@ func (n *DynamicTypeAssertExpr) editChildren(edit func(Node) Node) {
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
 	}
-	if n.T != nil {
-		n.T = edit(n.T).(Node)
+	if n.RType != nil {
+		n.RType = edit(n.RType).(Node)
+	}
+	if n.ITab != nil {
+		n.ITab = edit(n.ITab).(Node)
 	}
 }
 
