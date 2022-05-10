@@ -1693,3 +1693,77 @@ func TestTimeWithZoneTransition(t *testing.T) {
 		}
 	}
 }
+
+func TestZoneBounds(t *testing.T) {
+	undo := DisablePlatformSources()
+	defer undo()
+	loc, err := LoadLocation("Asia/Shanghai")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The ZoneBounds of a UTC location would just return two zero Time.
+	for _, test := range utctests {
+		sec := test.seconds
+		golden := &test.golden
+		tm := Unix(sec, 0).UTC()
+		start, end := tm.ZoneBounds()
+		if !(start.IsZero() && end.IsZero()) {
+			t.Errorf("ZoneBounds of %+v expects two zero Time, got:\n  start=%v\n  end=%v", *golden, start, end)
+		}
+	}
+
+	// If the zone begins at the beginning of time, start will be returned as a zero Time.
+	// Use math.MinInt32 to avoid overflow of int arguments on 32-bit systems.
+	beginTime := Date(math.MinInt32, January, 1, 0, 0, 0, 0, loc)
+	start, end := beginTime.ZoneBounds()
+	if !start.IsZero() || end.IsZero() {
+		t.Errorf("ZoneBounds of %v expects start is zero Time, got:\n  start=%v\n  end=%v", beginTime, start, end)
+	}
+
+	// If the zone goes on forever, end will be returned as a zero Time.
+	// Use math.MaxInt32 to avoid overflow of int arguments on 32-bit systems.
+	foreverTime := Date(math.MaxInt32, January, 1, 0, 0, 0, 0, loc)
+	start, end = foreverTime.ZoneBounds()
+	if start.IsZero() || !end.IsZero() {
+		t.Errorf("ZoneBounds of %v expects end is zero Time, got:\n  start=%v\n  end=%v", foreverTime, start, end)
+	}
+
+	// Check some real-world cases to make sure we're getting the right bounds.
+	boundOne := Date(1990, September, 16, 1, 0, 0, 0, loc)
+	boundTwo := Date(1991, April, 14, 3, 0, 0, 0, loc)
+	boundThree := Date(1991, September, 15, 1, 0, 0, 0, loc)
+	makeLocalTime := func(sec int64) Time { return Unix(sec, 0) }
+	realTests := [...]struct {
+		giveTime  Time
+		wantStart Time
+		wantEnd   Time
+	}{
+		// The ZoneBounds of "Asia/Shanghai" Daylight Saving Time
+		0: {Date(1991, April, 13, 17, 50, 0, 0, loc), boundOne, boundTwo},
+		1: {Date(1991, April, 13, 18, 0, 0, 0, loc), boundOne, boundTwo},
+		2: {Date(1991, April, 14, 1, 50, 0, 0, loc), boundOne, boundTwo},
+		3: {boundTwo, boundTwo, boundThree},
+		4: {Date(1991, September, 14, 16, 50, 0, 0, loc), boundTwo, boundThree},
+		5: {Date(1991, September, 14, 17, 0, 0, 0, loc), boundTwo, boundThree},
+		6: {Date(1991, September, 15, 0, 50, 0, 0, loc), boundTwo, boundThree},
+
+		// The ZoneBounds of a local time would return two local Time.
+		// Note: We preloaded "America/Los_Angeles" as time.Local for testing
+		7:  {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
+		8:  {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
+		9:  {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
+		10: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		11: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		12: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		13: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		14: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
+	}
+	for i, tt := range realTests {
+		start, end := tt.giveTime.ZoneBounds()
+		if !start.Equal(tt.wantStart) || !end.Equal(tt.wantEnd) {
+			t.Errorf("#%d:: ZoneBounds of %v expects right bounds:\n  got start=%v\n  want start=%v\n  got end=%v\n  want end=%v",
+				i, tt.giveTime, start, tt.wantStart, end, tt.wantEnd)
+		}
+	}
+}
