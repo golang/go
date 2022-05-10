@@ -64,8 +64,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
 		typ := newType(kind)
 		obj := defTypeName(pkg.Lookup(name), typ)
-		typ.sym = obj.Sym()
-		typ.nod = obj
+		typ.obj = obj
 		if kind != TANY {
 			CheckSize(typ)
 		}
