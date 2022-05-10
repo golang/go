@@ -263,13 +263,16 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 	if a.Source < b.Source {
 		return -1
 	}
+	if a.Source > b.Source {
+		return +1
+	}
 	if a.Message < b.Message {
 		return -1
 	}
-	if a.Message == b.Message {
-		return 0
+	if a.Message > b.Message {
+		return +1
 	}
-	return 1
+	return 0
 }
 
 // FindPackageFromPos finds the first package containing pos in its

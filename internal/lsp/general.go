@@ -439,6 +439,7 @@ func (s *Server) handleOptionResults(ctx context.Context, results source.OptionR
 // it to a snapshot.
 // We don't want to return errors for benign conditions like wrong file type,
 // so callers should do if !ok { return err } rather than if err != nil.
+// The returned cleanup function is non-nil even in case of false/error result.
 func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI, expectKind source.FileKind) (source.Snapshot, source.VersionedFileHandle, bool, func(), error) {
 	uri := pURI.SpanURI()
 	if !uri.IsFile() {

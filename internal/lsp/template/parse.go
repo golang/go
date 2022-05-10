@@ -493,14 +493,8 @@ func (wr wrNode) writeNode(n parse.Node, indent string) {
 }
 
 // short prints at most 40 bytes of node.String(), for debugging
-func short(n parse.Node) (ret string) {
-	defer func() {
-		if x := recover(); x != nil {
-			// all because of typed nils
-			ret = "NIL"
-		}
-	}()
-	s := n.String()
+func short(n parse.Node) string {
+	s := fmt.Sprint(n) // recovers from panic
 	if len(s) > 40 {
 		return s[:40] + "..."
 	}
