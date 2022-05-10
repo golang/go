@@ -345,7 +345,6 @@ func (p *exprParser) lex() {
 	p.i += len(tag)
 	p.tok = p.s[p.pos:p.i]
 	p.isTag = true
-	return
 }
 
 // IsPlusBuild reports whether the line of text is a “// +build” constraint.

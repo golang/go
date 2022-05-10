@@ -2138,6 +2138,7 @@ const (
 	OpPPC64LoweredAtomicOr8
 	OpPPC64LoweredAtomicOr32
 	OpPPC64LoweredWB
+	OpPPC64LoweredPubBarrier
 	OpPPC64LoweredPanicBoundsA
 	OpPPC64LoweredPanicBoundsB
 	OpPPC64LoweredPanicBoundsC
@@ -28774,6 +28775,13 @@ var opcodeTable = [...]opInfo{
 			},
 			clobbers: 18446744072632408064, // R11 R12 R18 R19 R22 R23 R24 R25 R26 R27 R28 R29 R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 XER
 		},
+	},
+	{
+		name:           "LoweredPubBarrier",
+		argLen:         1,
+		hasSideEffects: true,
+		asm:            ppc64.ALWSYNC,
+		reg:            regInfo{},
 	},
 	{
 		name:    "LoweredPanicBoundsA",

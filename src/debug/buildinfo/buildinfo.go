@@ -393,5 +393,8 @@ func (x *xcoffExe) ReadData(addr, size uint64) ([]byte, error) {
 }
 
 func (x *xcoffExe) DataStart() uint64 {
-	return x.f.SectionByType(xcoff.STYP_DATA).VirtualAddress
+	if s := x.f.SectionByType(xcoff.STYP_DATA); s != nil {
+		return s.VirtualAddress
+	}
+	return 0
 }

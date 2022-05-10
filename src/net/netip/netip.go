@@ -1171,7 +1171,7 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 		b = append(b, ']')
 	}
 	b = append(b, ':')
-	b = strconv.AppendInt(b, int64(p.port), 10)
+	b = strconv.AppendUint(b, uint64(p.port), 10)
 	return b
 }
 

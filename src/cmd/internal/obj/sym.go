@@ -35,6 +35,7 @@ import (
 	"cmd/internal/goobj"
 	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
+	"encoding/base64"
 	"fmt"
 	"internal/buildcfg"
 	"log"
@@ -175,7 +176,9 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 
 // GCLocalsSym generates a content-addressable sym containing data.
 func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
-	return ctxt.LookupInit(fmt.Sprintf("gclocals·%x", notsha256.Sum256(data)), func(lsym *LSym) {
+	sum := notsha256.Sum256(data)
+	str := base64.StdEncoding.EncodeToString(sum[:16])
+	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func(lsym *LSym) {
 		lsym.P = data
 		lsym.Set(AttrContentAddressable, true)
 	})

@@ -10,6 +10,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -2363,6 +2364,54 @@ func TestPathBuilding(t *testing.T) {
 				"CN=root -> CN=root",
 			},
 		},
+		{
+			// Build a basic graph with two paths from leaf to root, but the path passing
+			// through C should be ignored, because it has invalid EKU nesting.
+			name: "ignore invalid EKU path",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.ExtKeyUsage = []ExtKeyUsage{ExtKeyUsageCodeSigning}
+						},
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.ExtKeyUsage = []ExtKeyUsage{ExtKeyUsageServerAuth}
+						},
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.ExtKeyUsage = []ExtKeyUsage{ExtKeyUsageServerAuth}
+						},
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -2381,4 +2430,195 @@ func TestPathBuilding(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEKUEnforcement(t *testing.T) {
+	type ekuDescs struct {
+		EKUs    []ExtKeyUsage
+		Unknown []asn1.ObjectIdentifier
+	}
+	tests := []struct {
+		name       string
+		root       ekuDescs
+		inters     []ekuDescs
+		leaf       ekuDescs
+		verifyEKUs []ExtKeyUsage
+		err        string
+	}{
+		{
+			name:       "valid, full chain",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters:     []ekuDescs{ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+		},
+		{
+			name:       "valid, only leaf has EKU",
+			root:       ekuDescs{},
+			inters:     []ekuDescs{ekuDescs{}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+		},
+		{
+			name:       "invalid, serverAuth not nested",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageClientAuth}},
+			inters:     []ekuDescs{ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			err:        "x509: certificate specifies an incompatible key usage",
+		},
+		{
+			name:       "valid, two EKUs, one path",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters:     []ekuDescs{ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth},
+		},
+		{
+			name: "invalid, ladder",
+			root: ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters: []ekuDescs{
+				ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}},
+				ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageClientAuth}},
+				ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}},
+				ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth},
+			err:        "x509: certificate specifies an incompatible key usage",
+		},
+		{
+			name:       "valid, intermediate has no EKU",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters:     []ekuDescs{ekuDescs{}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+		},
+		{
+			name:       "invalid, intermediate has no EKU and no nested path",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageClientAuth}},
+			inters:     []ekuDescs{ekuDescs{}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth},
+			err:        "x509: certificate specifies an incompatible key usage",
+		},
+		{
+			name:       "invalid, intermediate has unknown EKU",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters:     []ekuDescs{ekuDescs{Unknown: []asn1.ObjectIdentifier{{1, 2, 3}}}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			err:        "x509: certificate specifies an incompatible key usage",
+		},
+	}
+
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rootPool := NewCertPool()
+			root := genCertEdge(t, "root", k, func(c *Certificate) {
+				c.ExtKeyUsage = tc.root.EKUs
+				c.UnknownExtKeyUsage = tc.root.Unknown
+			}, rootCertificate, nil, k)
+			rootPool.AddCert(root)
+
+			parent := root
+			interPool := NewCertPool()
+			for i, interEKUs := range tc.inters {
+				inter := genCertEdge(t, fmt.Sprintf("inter %d", i), k, func(c *Certificate) {
+					c.ExtKeyUsage = interEKUs.EKUs
+					c.UnknownExtKeyUsage = interEKUs.Unknown
+				}, intermediateCertificate, parent, k)
+				interPool.AddCert(inter)
+				parent = inter
+			}
+
+			leaf := genCertEdge(t, "leaf", k, func(c *Certificate) {
+				c.ExtKeyUsage = tc.leaf.EKUs
+				c.UnknownExtKeyUsage = tc.leaf.Unknown
+			}, intermediateCertificate, parent, k)
+
+			_, err := leaf.Verify(VerifyOptions{Roots: rootPool, Intermediates: interPool, KeyUsages: tc.verifyEKUs})
+			if err == nil && tc.err != "" {
+				t.Errorf("expected error")
+			} else if err != nil && err.Error() != tc.err {
+				t.Errorf("unexpected error: want %q, got %q", err.Error(), tc.err)
+			}
+		})
+	}
+}
+
+func TestVerifyEKURootAsLeaf(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %s", err)
+	}
+
+	for _, tc := range []struct {
+		rootEKUs   []ExtKeyUsage
+		verifyEKUs []ExtKeyUsage
+		succeed    bool
+	}{
+		{
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:    true,
+		},
+		{
+			rootEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:  true,
+		},
+		{
+			rootEKUs:   []ExtKeyUsage{ExtKeyUsageServerAuth},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:    true,
+		},
+		{
+			rootEKUs:   []ExtKeyUsage{ExtKeyUsageServerAuth},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageAny},
+			succeed:    true,
+		},
+		{
+			rootEKUs:   []ExtKeyUsage{ExtKeyUsageAny},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:    true,
+		},
+		{
+			rootEKUs:   []ExtKeyUsage{ExtKeyUsageClientAuth},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:    false,
+		},
+	} {
+		t.Run(fmt.Sprintf("root EKUs %#v, verify EKUs %#v", tc.rootEKUs, tc.verifyEKUs), func(t *testing.T) {
+			tmpl := &Certificate{
+				SerialNumber: big.NewInt(1),
+				Subject:      pkix.Name{CommonName: "root"},
+				NotBefore:    time.Now().Add(-time.Hour),
+				NotAfter:     time.Now().Add(time.Hour),
+				DNSNames:     []string{"localhost"},
+				ExtKeyUsage:  tc.rootEKUs,
+			}
+			rootDER, err := CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+			if err != nil {
+				t.Fatalf("failed to create certificate: %s", err)
+			}
+			root, err := ParseCertificate(rootDER)
+			if err != nil {
+				t.Fatalf("failed to parse certificate: %s", err)
+			}
+			roots := NewCertPool()
+			roots.AddCert(root)
+
+			_, err = root.Verify(VerifyOptions{Roots: roots, KeyUsages: tc.verifyEKUs})
+			if err == nil && !tc.succeed {
+				t.Error("verification succeed")
+			} else if err != nil && tc.succeed {
+				t.Errorf("verification failed: %q", err)
+			}
+		})
+	}
+
 }

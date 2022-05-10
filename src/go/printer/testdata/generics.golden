@@ -41,6 +41,8 @@ func _[P struct{ f int }, Q *P]()	{}
 
 // various potentially ambiguous type parameter lists (issue #49482)
 type _[P *T,] struct{}
+type _[P T | T] struct{}
+type _[P T | T | T | T] struct{}
 type _[P *T, _ any] struct{}
 type _[P *T,] struct{}
 type _[P *T, _ any] struct{}
@@ -48,22 +50,37 @@ type _[P T] struct{}
 type _[P T, _ any] struct{}
 
 type _[P *struct{}] struct{}
-type _[P *struct{}] struct{}
+type _ [P(*struct{})]struct{}
 type _[P []int] struct{}
 
-// array type declarations
-type _ [P(T)]struct{}
-type _ [P((T))]struct{}
-type _ [P * *T]struct{}
-type _ [P * T]struct{}
-type _ [P(*T)]struct{}
-type _ [P(**T)]struct{}
-type _ [P * T]struct{}
-type _ [P*T - T]struct{}
+// a type literal in an |-expression indicates a type parameter list (blank after type parameter list and type)
+type _[P *[]int] struct{}
+type _[P *T | T, Q T] struct{}
+type _[P *[]T | T] struct{}
+type _[P *T | T | T | T | ~T] struct{}
+type _[P *T | T | T | ~T | T] struct{}
+type _[P *T | T | struct{} | T] struct{}
+type _[P <-chan int] struct{}
+type _[P *T | struct{} | T] struct{}
 
-type _[
-	P *T,
-] struct{}
+// a trailing comma always indicates a (possibly invalid) type parameter list (blank after type parameter list and type)
+type _[P *T,] struct{}
+type _[P *T | T,] struct{}
+type _[P *T | <-T | T,] struct{}
+
+// slice/array type declarations (no blank between array length and element type)
+type _ []byte
+type _ [n]byte
+type _ [P(T)]byte
+type _ [P((T))]byte
+type _ [P * *T]byte
+type _ [P * T]byte
+type _ [P(*T)]byte
+type _ [P(**T)]byte
+type _ [P*T - T]byte
+type _ [P*T - T]byte
+type _ [P*T | T]byte
+type _ [P*T | <-T | T]byte
 
 // equivalent test cases for potentially ambiguous type parameter lists, except
 // for function declarations there is no ambiguity (issue #51548)

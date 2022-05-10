@@ -23,7 +23,7 @@ func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
 		n.SetType(typ)
 	} else {
 		args = append([]ir.Node(nil), args...)
-		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), args)
+		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, args)
 		lit.SetImplicit(true)
 		n = lit
 	}
@@ -270,10 +270,7 @@ func tcFunc(n *ir.Func) {
 	}
 
 	if name := n.Nname; name.Typecheck() == 0 {
-		if name.Ntype != nil {
-			name.Ntype = typecheckNtype(name.Ntype)
-			name.SetType(name.Ntype.Type())
-		}
+		base.AssertfAt(name.Type() != nil, n.Pos(), "missing type: %v", name)
 		name.SetTypecheck(1)
 	}
 }

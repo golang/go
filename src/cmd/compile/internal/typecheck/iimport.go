@@ -1410,23 +1410,18 @@ func (r *importReader) node() ir.Node {
 		pos := r.pos()
 		typ := r.typ()
 		list := r.fieldList()
-		n := ir.NewCompLitExpr(pos, ir.OSTRUCTLIT, nil, list)
-		n.SetType(typ)
-		return n
+		return ir.NewCompLitExpr(pos, ir.OSTRUCTLIT, typ, list)
 
 	case ir.OCOMPLIT:
 		pos := r.pos()
 		t := r.typ()
-		n := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(t), r.exprList())
-		n.SetType(t)
-		return n
+		return ir.NewCompLitExpr(pos, ir.OCOMPLIT, t, r.exprList())
 
 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		pos := r.pos()
 		typ := r.typ()
 		list := r.exprList()
-		n := ir.NewCompLitExpr(pos, op, ir.TypeNode(typ), list)
-		n.SetType(typ)
+		n := ir.NewCompLitExpr(pos, op, typ, list)
 		if op == ir.OSLICELIT {
 			n.Len = int64(r.uint64())
 		}
@@ -1485,8 +1480,7 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
-		n := ir.NewTypeAssertExpr(r.pos(), r.expr(), nil)
-		n.SetType(r.typ())
+		n := ir.NewTypeAssertExpr(r.pos(), r.expr(), r.typ())
 		n.SetOp(op)
 		return n
 
@@ -1730,13 +1724,9 @@ func (r *importReader) node() ir.Node {
 	case ir.OFUNCINST:
 		pos := r.pos()
 		x := r.expr()
-		ntargs := r.uint64()
-		var targs []ir.Node
-		if ntargs > 0 {
-			targs = make([]ir.Node, ntargs)
-			for i := range targs {
-				targs[i] = ir.TypeNode(r.typ())
-			}
+		targs := make([]ir.Ntype, r.uint64())
+		for i := range targs {
+			targs[i] = ir.TypeNode(r.typ())
 		}
 		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
 		n.SetType(r.typ())

@@ -40,7 +40,7 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
 			// TODO(mdempsky): Preserve original position, name, and package.
 			s = Lookup(s.Name)
 		}
-		a := ir.NewField(base.Pos, s, nil, t.Type)
+		a := ir.NewField(base.Pos, s, t.Type)
 		a.Pos = t.Pos
 		a.IsDDD = t.IsDDD()
 		args = append(args, a)
@@ -882,7 +882,7 @@ type symlink struct {
 
 // TypesOf converts a list of nodes to a list
 // of types of those nodes.
-func TypesOf(x []ir.Node) []*types.Type {
+func TypesOf(x []ir.Ntype) []*types.Type {
 	r := make([]*types.Type, len(x))
 	for i, n := range x {
 		r[i] = n.Type()

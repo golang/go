@@ -115,6 +115,20 @@ func (e *Error) Error() string {
 
 func (e *Error) Unwrap() error { return e.Err }
 
+// wrappedError wraps an error without relying on fmt.Errorf.
+type wrappedError struct {
+	prefix string
+	err    error
+}
+
+func (w wrappedError) Error() string {
+	return w.prefix + ": " + w.err.Error()
+}
+
+func (w wrappedError) Unwrap() error {
+	return w.err
+}
+
 // Cmd represents an external command being prepared or run.
 //
 // A Cmd cannot be reused after calling its Run, Output or CombinedOutput
@@ -200,13 +214,12 @@ type Cmd struct {
 
 	ctx             context.Context // nil means none
 	Err             error           // LookPath error, if any.
-	finished        bool            // when Wait was called
 	childFiles      []*os.File
 	closeAfterStart []io.Closer
 	closeAfterWait  []io.Closer
 	goroutine       []func() error
-	errch           chan error // one send per goroutine
-	waitDone        chan struct{}
+	goroutineErrs   <-chan error // one receive per goroutine
+	ctxErr          <-chan error // if non nil, receives the error from watchCtx exactly once
 
 	// For a security release long ago, we created x/sys/execabs,
 	// which manipulated the unexported lookPathErr error field
@@ -514,26 +527,18 @@ func (c *Cmd) Start() error {
 
 	c.closeDescriptors(c.closeAfterStart)
 
-	// Don't allocate the channel unless there are goroutines to fire.
+	// Don't allocate the goroutineErrs channel unless there are goroutines to fire.
 	if len(c.goroutine) > 0 {
-		c.errch = make(chan error, len(c.goroutine))
+		errc := make(chan error, len(c.goroutine))
+		c.goroutineErrs = errc
 		for _, fn := range c.goroutine {
 			go func(fn func() error) {
-				c.errch <- fn()
+				errc <- fn()
 			}(fn)
 		}
 	}
 
-	if c.ctx != nil {
-		c.waitDone = make(chan struct{})
-		go func() {
-			select {
-			case <-c.ctx.Done():
-				c.Process.Kill()
-			case <-c.waitDone:
-			}
-		}()
-	}
+	c.ctxErr = c.watchCtx()
 
 	return nil
 }
@@ -580,33 +585,79 @@ func (c *Cmd) Wait() error {
 	if c.Process == nil {
 		return errors.New("exec: not started")
 	}
-	if c.finished {
+	if c.ProcessState != nil {
 		return errors.New("exec: Wait was already called")
 	}
-	c.finished = true
-
 	state, err := c.Process.Wait()
-	if c.waitDone != nil {
-		close(c.waitDone)
+	if err == nil && !state.Success() {
+		err = &ExitError{ProcessState: state}
 	}
 	c.ProcessState = state
 
+	// Wait for the pipe-copying goroutines to complete.
 	var copyError error
 	for range c.goroutine {
-		if err := <-c.errch; err != nil && copyError == nil {
+		if err := <-c.goroutineErrs; err != nil && copyError == nil {
 			copyError = err
 		}
 	}
+	c.goroutine = nil // Allow the goroutines' closures to be GC'd.
 
-	c.closeDescriptors(c.closeAfterWait)
-
-	if err != nil {
-		return err
-	} else if !state.Success() {
-		return &ExitError{ProcessState: state}
+	if c.ctxErr != nil {
+		interruptErr := <-c.ctxErr
+		// If c.Process.Wait returned an error, prefer that.
+		// Otherwise, report any error from the interrupt goroutine.
+		if interruptErr != nil && err == nil {
+			err = interruptErr
+		}
+	}
+	// Report errors from the copying goroutines only if the program otherwise
+	// exited normally on its own. Otherwise, the copying error may be due to the
+	// abnormal termination.
+	if err == nil {
+		err = copyError
 	}
 
-	return copyError
+	c.closeDescriptors(c.closeAfterWait)
+	c.closeAfterWait = nil
+
+	return err
+}
+
+// watchCtx conditionally starts a goroutine that waits until either c.ctx is
+// done or c.Process.Wait has completed (called from Wait).
+// If c.ctx is done first, the goroutine terminates c.Process.
+//
+// If a goroutine was started, watchCtx returns a channel on which its result
+// must be received.
+func (c *Cmd) watchCtx() <-chan error {
+	if c.ctx == nil {
+		return nil
+	}
+
+	errc := make(chan error)
+	go func() {
+		select {
+		case errc <- nil:
+			return
+		case <-c.ctx.Done():
+		}
+
+		var err error
+		if killErr := c.Process.Kill(); killErr == nil {
+			// We appear to have successfully delivered a kill signal, so any
+			// program behavior from this point may be due to ctx.
+			err = c.ctx.Err()
+		} else if !errors.Is(killErr, os.ErrProcessDone) {
+			err = wrappedError{
+				prefix: "exec: error sending signal to Cmd",
+				err:    killErr,
+			}
+		}
+		errc <- err
+	}()
+
+	return errc
 }
 
 // Output runs the command and returns its standard output.

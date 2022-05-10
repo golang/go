@@ -60,7 +60,7 @@ var MaxWidth int64
 var CalcSizeDisabled bool
 
 // machine size and rounding alignment is dictated around
-// the size of a pointer, set in betypeinit (see ../amd64/galign.go).
+// the size of a pointer, set in gc.Main (see ../gc/main.go).
 var defercalc int
 
 func Rnd(o int64, r int64) int64 {
@@ -167,6 +167,11 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 	if maxalign < 1 {
 		maxalign = 1
 	}
+	// Special case: sync/atomic.align64 is an empty struct we recognize
+	// as a signal that the struct it contains must be 64-bit-aligned.
+	if isStruct && t.NumFields() == 0 && t.Sym() != nil && t.Sym().Name == "align64" && isSyncAtomic(t.Sym().Pkg) {
+		maxalign = 8
+	}
 	lastzero := int64(0)
 	for _, f := range t.Fields().Slice() {
 		if f.Type == nil {
@@ -224,6 +229,10 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 	t.width = o - starto
 
 	return o
+}
+
+func isSyncAtomic(p *Pkg) bool {
+	return p.Prefix == "sync/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "sync/atomic"
 }
 
 // CalcSize calculates and stores the size and alignment for t.

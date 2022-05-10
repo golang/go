@@ -141,7 +141,7 @@ func (p *textPrinter) text(out *bytes.Buffer, indent string, x []Text) {
 	p.long.Reset()
 
 	var seq []int
-	if p.width < 0 {
+	if p.width < 0 || len(words) == 0 {
 		seq = []int{0, len(words)} // one long line
 	} else {
 		seq = wrap(words, p.width-utf8.RuneCountInString(indent))

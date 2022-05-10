@@ -5,6 +5,7 @@
 package staticdata
 
 import (
+	"encoding/base64"
 	"fmt"
 	"go/constant"
 	"io"
@@ -61,8 +62,14 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
 
 const (
 	stringSymPrefix  = "go.string."
-	stringSymPattern = ".gostring.%d.%x"
+	stringSymPattern = ".gostring.%d.%s"
 )
+
+// shortHashString converts the hash to a string for use with stringSymPattern.
+// We cut it to 16 bytes and then base64-encode to make it even smaller.
+func shortHashString(hash []byte) string {
+	return base64.StdEncoding.EncodeToString(hash[:16])
+}
 
 // StringSym returns a symbol containing the string s.
 // The symbol contains the string data, not a string header.
@@ -75,7 +82,7 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 		// Same pattern is known to fileStringSym below.
 		h := notsha256.New()
 		io.WriteString(h, s)
-		symname = fmt.Sprintf(stringSymPattern, len(s), h.Sum(nil))
+		symname = fmt.Sprintf(stringSymPattern, len(s), shortHashString(h.Sum(nil)))
 	} else {
 		// Small strings get named directly by their contents.
 		symname = strconv.Quote(s)
@@ -162,7 +169,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 
 	var symdata *obj.LSym
 	if readonly {
-		symname := fmt.Sprintf(stringSymPattern, size, sum)
+		symname := fmt.Sprintf(stringSymPattern, size, shortHashString(sum))
 		symdata = base.Ctxt.Lookup(stringSymPrefix + symname)
 		if !symdata.OnList() {
 			info := symdata.NewFileInfo()

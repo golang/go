@@ -264,6 +264,8 @@ const (
 
 	REG_SPECIAL = REG_CR0
 
+	REG_CRBIT0 = REG_CR0LT // An alias for a Condition Register bit 0
+
 	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
 
 	REG_XER = REG_SPR0 + 1
@@ -368,6 +370,7 @@ const (
 // Common values for the BO field.
 
 const (
+	BO_ALWAYS  = 20 // branch unconditionally
 	BO_BCTR    = 16 // decrement ctr, branch on ctr != 0
 	BO_NOTBCTR = 18 // decrement ctr, branch on ctr == 0
 	BO_BCR     = 12 // branch on cr value

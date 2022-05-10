@@ -14,6 +14,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/ppc64"
 	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -410,19 +411,45 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 	case 3:
 		if p.arch.Family == sys.PPC64 {
 			// Special 3-operand jumps.
-			// First two must be constants; a[1] is a register number.
+			// a[1] is a register number expressed as a constant or register value
 			target = &a[2]
-			prog.From = obj.Addr{
-				Type:   obj.TYPE_CONST,
-				Offset: p.getConstant(prog, op, &a[0]),
+			prog.From = a[0]
+			if a[0].Type != obj.TYPE_CONST {
+				// Legacy code may use a plain constant, accept it, and coerce
+				// into a constant. E.g:
+				//   BC 4,...
+				// into
+				//   BC $4,...
+				prog.From = obj.Addr{
+					Type:   obj.TYPE_CONST,
+					Offset: p.getConstant(prog, op, &a[0]),
+				}
+
 			}
-			reg := int16(p.getConstant(prog, op, &a[1]))
-			reg, ok := p.arch.RegisterNumber("R", reg)
-			if !ok {
-				p.errorf("bad register number %d", reg)
-				return
+
+			// Likewise, fixup usage like:
+			//   BC x,LT,...
+			//   BC x,foo+2,...
+			//   BC x,4
+			//   BC x,$5
+			// into
+			//   BC x,CR0LT,...
+			//   BC x,CR0EQ,...
+			//   BC x,CR1LT,...
+			//   BC x,CR1GT,...
+			// The first and second case demonstrate a symbol name which is
+			// effectively discarded. In these cases, the offset determines
+			// the CR bit.
+			prog.Reg = a[1].Reg
+			if a[1].Type != obj.TYPE_REG {
+				// The CR bit is represented as a constant 0-31. Convert it to a Reg.
+				c := p.getConstant(prog, op, &a[1])
+				reg, success := ppc64.ConstantToCRbit(c)
+				if !success {
+					p.errorf("invalid CR bit register number %d", c)
+				}
+				prog.Reg = reg
 			}
-			prog.Reg = reg
 			break
 		}
 		if p.arch.Family == sys.MIPS || p.arch.Family == sys.MIPS64 || p.arch.Family == sys.RISCV64 {
@@ -461,7 +488,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		p.errorf("wrong number of arguments to %s instruction", op)
 		return
 	case 4:
-		if p.arch.Family == sys.S390X {
+		if p.arch.Family == sys.S390X || p.arch.Family == sys.PPC64 {
 			// 4-operand compare-and-branch.
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])

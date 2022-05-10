@@ -74,11 +74,14 @@ func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err er
 	}
 
 	tcpReq, err = b.Finish()
+	if err != nil {
+		return 0, nil, nil, err
+	}
 	udpReq = tcpReq[2:]
 	l := len(tcpReq) - 2
 	tcpReq[0] = byte(l >> 8)
 	tcpReq[1] = byte(l)
-	return id, udpReq, tcpReq, err
+	return id, udpReq, tcpReq, nil
 }
 
 func checkResponse(reqID uint16, reqQues dnsmessage.Question, respHdr dnsmessage.Header, respQues dnsmessage.Question) bool {

@@ -153,10 +153,6 @@ type itabInfo2 struct {
 func setType(n ir.Node, typ *types.Type) {
 	n.SetType(typ)
 	n.SetTypecheck(1)
-
-	if name, ok := n.(*ir.Name); ok {
-		name.Ntype = ir.TypeNode(name.Type())
-	}
 }
 
 func setValue(name *ir.Name, val constant.Value) {
@@ -645,7 +641,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 	case pkgbits.ObjFunc:
 		if sym.Name == "init" {
-			sym = renameinit()
+			sym = Renameinit()
 		}
 		name := do(ir.ONAME, true)
 		setType(name, r.signature(sym.Pkg, nil))
@@ -1642,7 +1638,7 @@ func (r *reader) expr() (res ir.Node) {
 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
 			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
 		}
-		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.(ir.Ntype)))
+		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.Type()))
 
 	case exprUnaryOp:
 		op := r.op()
@@ -1732,7 +1728,7 @@ func (r *reader) compLit() ir.Node {
 		*elemp = wrapName(r.pos(), r.expr())
 	}
 
-	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), elems))
+	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
 	if typ0.IsPtr() {
 		lit = typecheck.Expr(typecheck.NodAddrAt(pos, lit))
 		lit.SetType(typ0)

@@ -612,8 +612,9 @@ func TestTraceCPUProfile(t *testing.T) {
 		pprof.Do(ctx, pprof.Labels("tracing", "on"), func(ctx context.Context) {
 			cpuHogger(cpuHog1, &salt1, dur)
 		})
-		// Be sure the execution trace's view, when filtered to this goroutine,
-		// gets many more samples than the CPU profiler when filtered by label.
+		// Be sure the execution trace's view, when filtered to this goroutine
+		// via the explicit goroutine ID in each event, gets many more samples
+		// than the CPU profiler when filtered to this goroutine via labels.
 		cpuHogger(cpuHog1, &salt1, dur)
 	}()
 
@@ -625,8 +626,12 @@ func TestTraceCPUProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse CPU profile: %v", err)
 	}
+	// Examine the CPU profiler's view. Filter it to only include samples from
+	// the single test goroutine. Use labels to execute that filter: they should
+	// apply to all work done while that goroutine is getg().m.curg, and they
+	// should apply to no other goroutines.
 	pprofSamples := 0
-	pprofStacks := make(map[string]int) // CPU profiler's view, filtered to include the label
+	pprofStacks := make(map[string]int)
 	for _, s := range prof.Sample {
 		if s.Label["tracing"] != nil {
 			samples := int(s.Value[0])
@@ -645,8 +650,13 @@ func TestTraceCPUProfile(t *testing.T) {
 		t.Skipf("CPU profile did not include any samples while tracing was active\n%s", prof)
 	}
 
+	// Examine the execution tracer's view of the CPU profile samples. Filter it
+	// to only include samples from the single test goroutine. Use the goroutine
+	// ID that was recorded in the events: that should reflect getg().m.curg,
+	// same as the profiler's labels (even when the M is using its g0 stack).
+	totalTraceSamples := 0
 	traceSamples := 0
-	traceStacks := make(map[string]int) // Execution tracer's view, filtered to this goroutine
+	traceStacks := make(map[string]int)
 	events, _ := parseTrace(t, buf)
 	var hogRegion *trace.Event
 	for _, ev := range events {
@@ -661,32 +671,51 @@ func TestTraceCPUProfile(t *testing.T) {
 		t.Fatalf("execution trace did not close cpuHogger region")
 	}
 	for _, ev := range events {
-		if ev.Type == trace.EvCPUSample && ev.G == hogRegion.G {
-			traceSamples++
-			var fns []string
-			for _, frame := range ev.Stk {
-				if frame.Fn != "runtime.goexit" {
-					fns = append(fns, fmt.Sprintf("%s:%d", frame.Fn, frame.Line))
+		if ev.Type == trace.EvCPUSample {
+			totalTraceSamples++
+			if ev.G == hogRegion.G {
+				traceSamples++
+				var fns []string
+				for _, frame := range ev.Stk {
+					if frame.Fn != "runtime.goexit" {
+						fns = append(fns, fmt.Sprintf("%s:%d", frame.Fn, frame.Line))
+					}
 				}
+				stack := strings.Join(fns, " ")
+				traceStacks[stack]++
 			}
-			stack := strings.Join(fns, " ")
-			traceStacks[stack]++
 		}
 	}
+
+	// The execution trace may drop CPU profile samples if the profiling buffer
+	// overflows. Based on the size of profBufWordCount, that takes a bit over
+	// 1900 CPU samples or 19 thread-seconds at a 100 Hz sample rate. If we've
+	// hit that case, then we definitely have at least one full buffer's worth
+	// of CPU samples, so we'll call that success.
+	overflowed := totalTraceSamples >= 1900
 	if traceSamples < pprofSamples {
-		t.Errorf("exectution trace did not include all CPU profile samples; %d in profile, %d in trace", pprofSamples, traceSamples)
+		t.Logf("exectution trace did not include all CPU profile samples; %d in profile, %d in trace", pprofSamples, traceSamples)
+		if !overflowed {
+			t.Fail()
+		}
 	}
 
 	for stack, traceSamples := range traceStacks {
 		pprofSamples := pprofStacks[stack]
 		delete(pprofStacks, stack)
 		if traceSamples < pprofSamples {
-			t.Errorf("execution trace did not include all CPU profile samples for stack %q; %d in profile, %d in trace",
+			t.Logf("execution trace did not include all CPU profile samples for stack %q; %d in profile, %d in trace",
 				stack, pprofSamples, traceSamples)
+			if !overflowed {
+				t.Fail()
+			}
 		}
 	}
 	for stack, pprofSamples := range pprofStacks {
-		t.Errorf("CPU profile included %d samples at stack %q not present in execution trace", pprofSamples, stack)
+		t.Logf("CPU profile included %d samples at stack %q not present in execution trace", pprofSamples, stack)
+		if !overflowed {
+			t.Fail()
+		}
 	}
 
 	if t.Failed() {
@@ -726,6 +755,10 @@ func cpuHog1(x int) int {
 func cpuHog0(x, n int) int {
 	foo := x
 	for i := 0; i < n; i++ {
+		if i%1000 == 0 {
+			// Spend time in mcall, stored as gp.m.curg, with g0 running
+			runtime.Gosched()
+		}
 		if foo > 0 {
 			foo *= foo
 		} else {

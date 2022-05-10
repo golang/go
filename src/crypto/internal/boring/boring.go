@@ -107,3 +107,17 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
 	return unsafe.Pointer(x ^ 0)
 }
+
+var zero byte
+
+// addr converts p to its base addr, including a noescape along the way.
+// If p is nil, addr returns a non-nil pointer, so that the result can always
+// be dereferenced.
+//
+//go:nosplit
+func addr(p []byte) *byte {
+	if len(p) == 0 {
+		return &zero
+	}
+	return (*byte)(noescape(unsafe.Pointer(&p[0])))
+}

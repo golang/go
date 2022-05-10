@@ -74,8 +74,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 		i++
 	}
 
-	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
-	nn.List = list
+	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, n.Type(), list)
 	typed(n.Type(), nn)
 	// Need to transform the OCOMPLIT.
 	return transformCompLit(nn)
