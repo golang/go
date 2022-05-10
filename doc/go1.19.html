@@ -71,6 +71,14 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section, or delete if not needed
 </p>
 <h2 id="compiler">Compiler</h2>
+
+<p><!-- https://golang.org/issue/5496 CL 357330, 395714, 403979 -->
+  The compiler now uses
+  a <a href="https://en.wikipedia.org/wiki/Branch_table">jump
+  table</a> to implement large integer and string switch statements.
+  Performance improvements vary but can be on the order of 20% faster.
+  (<code>GOARCH=amd64</code> and <code>GOARCH=arm64</code> only)
+
 <p>
   TODO: complete this section, or delete if not needed
 </p>
@@ -167,6 +175,26 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- runtime -->
+
+<dl id="runtime/race"><dt><a href="/pkg/runtime/race">runtime/race</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/49761 -->
+      The race detector has been updgraded to use thread sanitizer
+      version v3.
+      <ul>
+        <li>
+          Faster (typically 1.5 to 2 times faster)
+        </li>
+        <li>
+          Uses less memory (typically 1/2 as much)
+        </li>
+        <li>
+          Supports unlimited numbers of goroutines
+        </li>
+      </ul>
+    </p>
+  </dd>
+</dl><!-- runtime/race -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
