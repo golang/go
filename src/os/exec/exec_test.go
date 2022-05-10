@@ -265,24 +265,13 @@ func cmdExtraFilesAndPipes(args ...string) {
 	}
 	response := ""
 	for i, r := range pipes {
-		ch := make(chan string, 1)
-		go func(c chan string) {
-			buf := make([]byte, 10)
-			n, err := r.Read(buf)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Child: read error: %v on pipe %d\n", err, i)
-				os.Exit(1)
-			}
-			c <- string(buf[:n])
-			close(c)
-		}(ch)
-		select {
-		case m := <-ch:
-			response = response + m
-		case <-time.After(5 * time.Second):
-			fmt.Fprintf(os.Stderr, "Child: Timeout reading from pipe: %d\n", i)
+		buf := make([]byte, 10)
+		n, err := r.Read(buf)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Child: read error: %v on pipe %d\n", err, i)
 			os.Exit(1)
 		}
+		response = response + string(buf[:n])
 	}
 	fmt.Fprintf(os.Stderr, "child: %s", response)
 }
@@ -699,25 +688,15 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	ch := make(chan string, 1)
-	go func(ch chan string) {
-		buf := make([]byte, 512)
-		n, err := stderr.Read(buf)
-		if err != nil {
-			t.Errorf("Read: %s", err)
-			ch <- err.Error()
-		} else {
-			ch <- string(buf[:n])
-		}
-		close(ch)
-	}(ch)
-	select {
-	case m := <-ch:
-		if m != expected {
+
+	buf := make([]byte, 512)
+	n, err := stderr.Read(buf)
+	if err != nil {
+		t.Errorf("Read: %s", err)
+	} else {
+		if m := string(buf[:n]); m != expected {
 			t.Errorf("Read: '%s' not '%s'", m, expected)
 		}
-	case <-time.After(5 * time.Second):
-		t.Errorf("Read timedout")
 	}
 	c.Wait()
 }
@@ -949,19 +928,9 @@ func (w *badWriter) Write(data []byte) (int, error) {
 func TestClosePipeOnCopyError(t *testing.T) {
 	cmd := helperCommand(t, "yes")
 	cmd.Stdout = new(badWriter)
-	c := make(chan int, 1)
-	go func() {
-		err := cmd.Run()
-		if err == nil {
-			t.Errorf("yes completed successfully")
-		}
-		c <- 1
-	}()
-	select {
-	case <-c:
-		// ok
-	case <-time.After(5 * time.Second):
-		t.Fatalf("yes got stuck writing to bad writer")
+	err := cmd.Run()
+	if err == nil {
+		t.Errorf("yes unexpectedly completed successfully")
 	}
 }
 
@@ -1002,18 +971,10 @@ func TestContext(t *testing.T) {
 	if n != len(buf) || err != nil || string(buf) != "O:hi\n" {
 		t.Fatalf("ReadFull = %d, %v, %q", n, err, buf[:n])
 	}
-	waitErr := make(chan error, 1)
-	go func() {
-		waitErr <- c.Wait()
-	}()
-	cancel()
-	select {
-	case err := <-waitErr:
-		if err == nil {
-			t.Fatal("expected Wait failure")
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("timeout waiting for child process death")
+	go cancel()
+
+	if err := c.Wait(); err == nil {
+		t.Fatal("expected Wait failure")
 	}
 }
 
