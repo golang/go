@@ -5,9 +5,11 @@
 // Test that StructuralType() calculates the correct value of structural type for
 // unusual cases.
 
-package types
+package types_test
 
 import (
+	"cmd/compile/internal/ir"
+	. "cmd/compile/internal/types"
 	"cmd/internal/src"
 	"testing"
 )
@@ -25,32 +27,33 @@ func TestStructuralType(t *testing.T) {
 	RegSize = 8
 	MaxWidth = 1 << 50
 
+	InitTypes(func(sym *Sym, typ *Type) Object {
+		obj := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
+		obj.SetType(typ)
+		sym.Def = obj
+		return obj
+	})
+
 	// type intType = int
-	intType := newType(TINT)
+	intType := Types[TINT]
 	// type structf = struct { f int }
 	structf := NewStruct(nil, []*Field{
 		NewField(src.NoXPos, LocalPkg.Lookup("f"), intType),
 	})
 
-	// type Sf structf
-	Sf := newType(TFORW)
-	Sf.sym = LocalPkg.Lookup("Sf")
-	Sf.SetUnderlying(structf)
+	defNamed := func(name string, underlying *Type) *Type {
+		sym := LocalPkg.Lookup(name)
+		obj := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
+		typ := NewNamed(obj)
+		typ.SetUnderlying(underlying)
+		return typ
+	}
 
-	// type A int
-	A := newType(TFORW)
-	A.sym = LocalPkg.Lookup("A")
-	A.SetUnderlying(intType)
+	Sf := defNamed("Sf", structf) // type Sf structf
+	A := defNamed("A", intType)   // type A int
+	B := defNamed("B", intType)   // type B int
 
-	// type B int
-	B := newType(TFORW)
-	B.sym = LocalPkg.Lookup("B")
-	B.SetUnderlying(intType)
-
-	emptyInterface := NewInterface(BuiltinPkg, []*Field{}, false)
-	any := newType(TFORW)
-	any.sym = LocalPkg.Lookup("any")
-	any.SetUnderlying(emptyInterface)
+	any := AnyType
 
 	// The tests marked NONE have no structural type; all the others have a
 	// structural type of structf - "struct { f int }"
@@ -71,7 +74,7 @@ func TestStructuralType(t *testing.T) {
 			structf,
 		},
 		{
-			// interface { any | Sf }
+			// interface { any; Sf }
 			embed(any, Sf),
 			structf,
 		},
@@ -118,10 +121,10 @@ func TestStructuralType(t *testing.T) {
 			structf,
 		},
 	}
-	for _, tst := range tests {
+	for i, tst := range tests {
 		if got, want := tst.typ.StructuralType(), tst.structuralType; got != want {
-			t.Errorf("StructuralType(%v) = %v, wanted %v",
-				tst.typ, got, want)
+			t.Errorf("#%v: StructuralType(%v) = %v, wanted %v",
+				i, tst.typ, got, want)
 		}
 	}
 }
