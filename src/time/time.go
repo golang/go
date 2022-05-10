@@ -1141,6 +1141,24 @@ func (t Time) Zone() (name string, offset int) {
 	return
 }
 
+// ZoneBounds returns the bounds of the time zone in effect at time t.
+// The zone begins at start and the next zone begins at end.
+// If the zone begins at the beginning of time, start will be returned as a zero Time.
+// If the zone goes on forever, end will be returned as a zero Time.
+// The Location of the returned times will be the same as t.
+func (t Time) ZoneBounds() (start, end Time) {
+	_, _, startSec, endSec, _ := t.loc.lookup(t.unixSec())
+	if startSec != alpha {
+		start = unixTime(startSec, 0)
+		start.setLoc(t.loc)
+	}
+	if endSec != omega {
+		end = unixTime(endSec, 0)
+		end.setLoc(t.loc)
+	}
+	return
+}
+
 // Unix returns t as a Unix time, the number of seconds elapsed
 // since January 1, 1970 UTC. The result does not depend on the
 // location associated with t.
