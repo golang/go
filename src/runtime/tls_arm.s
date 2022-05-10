@@ -29,10 +29,12 @@
 // NOTE: runtime.gogo assumes that R1 is preserved by this function.
 //       runtime.mcall assumes this function only clobbers R0 and R11.
 // Returns with g in R0.
-TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·save_g(SB),NOSPLIT,$0
 	// If the host does not support MRC the linker will replace it with
 	// a call to runtime.read_tls_fallback which jumps to __kuser_get_tls.
 	// The replacement function saves LR in R11 over the call to read_tls_fallback.
+	// To make stack unwinding work, this function should NOT be marked as NOFRAME,
+	// as it may contain a call, which clobbers LR even just temporarily.
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	BIC $3, R0 // Darwin/ARM might return unaligned pointer
 	MOVW	runtime·tls_g(SB), R11
