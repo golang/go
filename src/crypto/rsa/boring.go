@@ -9,6 +9,7 @@ package rsa
 import (
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
+	"crypto/internal/boring/bcache"
 	"math/big"
 	"unsafe"
 )
@@ -31,8 +32,8 @@ type boringPub struct {
 	orig PublicKey
 }
 
-var pubCache boring.Cache
-var privCache boring.Cache
+var pubCache bcache.Cache
+var privCache bcache.Cache
 
 func init() {
 	pubCache.Register()

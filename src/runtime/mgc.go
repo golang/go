@@ -1579,7 +1579,7 @@ func sync_runtime_registerPoolCleanup(f func()) {
 	poolcleanup = f
 }
 
-//go:linkname boring_registerCache crypto/internal/boring.registerCache
+//go:linkname boring_registerCache crypto/internal/boring/bcache.registerCache
 func boring_registerCache(p unsafe.Pointer) {
 	boringCaches = append(boringCaches, p)
 }
