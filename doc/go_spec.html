@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of April 19, 2022",
+	"Subtitle": "Version of May 11, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -2158,9 +2158,8 @@ Go is lexically scoped using <a href="#Blocks">blocks</a>:
 	    or result variable is the function body.</li>
 
 	<li>The scope of an identifier denoting a type parameter of a function
-	    or declared by a method receiver is the function body and all parameter lists of the
-	    function.
-	</li>
+	    or declared by a method receiver begins after the name of the function
+	    and ends at the end of the function body.</li>
 
 	<li>The scope of an identifier denoting a type parameter of a type
 	    begins after the name of the type and ends at the end
