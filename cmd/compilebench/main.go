@@ -81,23 +81,26 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	exec "golang.org/x/sys/execabs"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	exec "golang.org/x/sys/execabs"
 )
 
 var (
-	goroot   string
-	compiler string
-	linker   string
-	runRE    *regexp.Regexp
-	is6g     bool
+	goroot    string
+	compiler  string
+	assembler string
+	linker    string
+	runRE     *regexp.Regexp
+	is6g      bool
 )
 
 var (
@@ -105,6 +108,7 @@ var (
 	flagAlloc          = flag.Bool("alloc", false, "report allocations")
 	flagObj            = flag.Bool("obj", false, "report object file stats")
 	flagCompiler       = flag.String("compile", "", "use `exe` as the cmd/compile binary")
+	flagAssembler      = flag.String("asm", "", "use `exe` as the cmd/asm binary")
 	flagCompilerFlags  = flag.String("compileflags", "", "additional `flags` to pass to compile")
 	flagLinker         = flag.String("link", "", "use `exe` as the cmd/link binary")
 	flagLinkerFlags    = flag.String("linkflags", "", "additional `flags` to pass to link")
@@ -115,6 +119,7 @@ var (
 	flagMemprofilerate = flag.Int64("memprofilerate", -1, "set memory profile `rate`")
 	flagPackage        = flag.String("pkg", "", "if set, benchmark the package at path `pkg`")
 	flagShort          = flag.Bool("short", false, "skip long-running benchmarks")
+	flagTrace          = flag.Bool("trace", false, "debug tracing of builds")
 )
 
 type test struct {
@@ -177,6 +182,10 @@ func main() {
 			is6g = true
 		}
 	}
+	assembler = *flagAssembler
+	if assembler == "" {
+		_, assembler = toolPath("asm")
+	}
 
 	linker = *flagLinker
 	if linker == "" && !is6g { // TODO: Support 6l
@@ -237,8 +246,10 @@ func toolPath(names ...string) (found, path string) {
 }
 
 type Pkg struct {
-	Dir     string
-	GoFiles []string
+	ImportPath string
+	Dir        string
+	GoFiles    []string
+	SFiles     []string
 }
 
 func goList(dir string) (*Pkg, error) {
@@ -336,8 +347,30 @@ func (c compile) run(name string, count int) error {
 		return err
 	}
 
-	args := []string{"-o", "_compilebench_.o"}
+	// If this package has assembly files, we'll need to pass a symabis
+	// file to the compiler; call a helper to invoke the assembler
+	// to do that.
+	var symAbisFile string
+	var asmIncFile string
+	if len(pkg.SFiles) != 0 {
+		symAbisFile = filepath.Join(pkg.Dir, "symabis")
+		asmIncFile = filepath.Join(pkg.Dir, "go_asm.h")
+		content := "\n"
+		if err := os.WriteFile(asmIncFile, []byte(content), 0666); err != nil {
+			return fmt.Errorf("os.WriteFile(%s) failed: %v", asmIncFile, err)
+		}
+		defer os.Remove(symAbisFile)
+		defer os.Remove(asmIncFile)
+		if err := genSymAbisFile(pkg, symAbisFile, pkg.Dir); err != nil {
+			return err
+		}
+	}
+
+	args := []string{"-o", "_compilebench_.o", "-p", pkg.ImportPath}
 	args = append(args, strings.Fields(*flagCompilerFlags)...)
+	if symAbisFile != "" {
+		args = append(args, "-symabis", symAbisFile)
+	}
 	args = append(args, pkg.GoFiles...)
 	if err := runBuildCmd(name, count, pkg.Dir, compiler, args); err != nil {
 		return err
@@ -428,6 +461,10 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 			preArgs = append(preArgs, "-cpuprofile", "_compilebench_.cpuprof")
 		}
 	}
+	if *flagTrace {
+		fmt.Fprintf(os.Stderr, "running: %s %+v\n",
+			tool, append(preArgs, args...))
+	}
 	cmd := exec.Command(tool, append(preArgs, args...)...)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stderr
@@ -508,5 +545,36 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 		fmt.Printf(" %d maxRSS/op", rssbytes)
 	}
 
+	return nil
+}
+
+// genSymAbisFile runs the assembler on the target packge asm files
+// with "-gensymabis" to produce a symabis file that will feed into
+// the Go source compilation. This is fairly hacky in that if the
+// asm invocation convenion changes it will need to be updated
+// (hopefully that will not be needed too frequently).
+func genSymAbisFile(pkg *Pkg, symAbisFile, incdir string) error {
+	args := []string{"-gensymabis", "-o", symAbisFile,
+		"-p", pkg.ImportPath,
+		"-I", filepath.Join(goroot, "pkg", "include"),
+		"-I", incdir,
+		"-D", "GOOS_" + runtime.GOOS,
+		"-D", "GOARCH_" + runtime.GOARCH}
+	if pkg.ImportPath == "reflect" {
+		args = append(args, "-compiling-runtime")
+	}
+	args = append(args, pkg.SFiles...)
+	if *flagTrace {
+		fmt.Fprintf(os.Stderr, "running: %s %+v\n",
+			assembler, args)
+	}
+	cmd := exec.Command(assembler, args...)
+	cmd.Dir = pkg.Dir
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("assembling to produce symabis file: %v", err)
+	}
 	return nil
 }
