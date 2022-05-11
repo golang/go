@@ -48,7 +48,7 @@ func TestToken(t *testing.T) {
 	}
 	for _, test := range tokenTests {
 		f := files[test.URI()]
-		c := span.NewTokenConverter(fset, f)
+		c := span.NewTokenConverter(f)
 		t.Run(path.Base(f.Name()), func(t *testing.T) {
 			checkToken(t, c, span.New(
 				test.URI(),

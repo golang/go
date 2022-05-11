@@ -422,7 +422,7 @@ func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (span.Rang
 			// end of file identifier, look up the current file
 			f := e.ExpectFileSet.File(n.Pos)
 			eof := f.Pos(f.Size())
-			return span.Range{FileSet: e.ExpectFileSet, Start: eof, End: token.NoPos}, args, nil
+			return span.NewRange(e.ExpectFileSet, eof, token.NoPos), args, nil
 		default:
 			// look up an marker by name
 			mark, ok := e.markers[string(arg)]
@@ -439,7 +439,7 @@ func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (span.Rang
 		if start == token.NoPos {
 			return span.Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.ExpectFileSet.Position(n.Pos), arg)
 		}
-		return span.Range{FileSet: e.ExpectFileSet, Start: start, End: end}, args, nil
+		return span.NewRange(e.ExpectFileSet, start, end), args, nil
 	case *regexp.Regexp:
 		start, end, err := expect.MatchBefore(e.ExpectFileSet, e.FileContents, n.Pos, arg)
 		if err != nil {
@@ -448,7 +448,7 @@ func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (span.Rang
 		if start == token.NoPos {
 			return span.Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.ExpectFileSet.Position(n.Pos), arg)
 		}
-		return span.Range{FileSet: e.ExpectFileSet, Start: start, End: end}, args, nil
+		return span.NewRange(e.ExpectFileSet, start, end), args, nil
 	default:
 		return span.Range{}, nil, fmt.Errorf("cannot convert %v to pos", arg)
 	}

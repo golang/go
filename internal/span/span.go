@@ -41,15 +41,6 @@ var Invalid = Span{v: span{Start: invalidPoint.v, End: invalidPoint.v}}
 
 var invalidPoint = Point{v: point{Line: 0, Column: 0, Offset: -1}}
 
-// Converter is the interface to an object that can convert between line:column
-// and offset forms for a single file.
-type Converter interface {
-	//ToPosition converts from an offset to a line:column pair.
-	ToPosition(offset int) (int, int, error)
-	//ToOffset converts from a line:column pair to an offset.
-	ToOffset(line, col int) (int, error)
-}
-
 func New(uri URI, start Point, end Point) Span {
 	s := Span{v: span{URI: uri, Start: start.v, End: end.v}}
 	s.v.clean()
@@ -217,28 +208,28 @@ func (s Span) Format(f fmt.State, c rune) {
 	}
 }
 
-func (s Span) WithPosition(c Converter) (Span, error) {
+func (s Span) WithPosition(c *TokenConverter) (Span, error) {
 	if err := s.update(c, true, false); err != nil {
 		return Span{}, err
 	}
 	return s, nil
 }
 
-func (s Span) WithOffset(c Converter) (Span, error) {
+func (s Span) WithOffset(c *TokenConverter) (Span, error) {
 	if err := s.update(c, false, true); err != nil {
 		return Span{}, err
 	}
 	return s, nil
 }
 
-func (s Span) WithAll(c Converter) (Span, error) {
+func (s Span) WithAll(c *TokenConverter) (Span, error) {
 	if err := s.update(c, true, true); err != nil {
 		return Span{}, err
 	}
 	return s, nil
 }
 
-func (s *Span) update(c Converter, withPos, withOffset bool) error {
+func (s *Span) update(c *TokenConverter, withPos, withOffset bool) error {
 	if !s.IsValid() {
 		return fmt.Errorf("cannot add information to an invalid span")
 	}
@@ -265,7 +256,7 @@ func (s *Span) update(c Converter, withPos, withOffset bool) error {
 	return nil
 }
 
-func (p *point) updatePosition(c Converter) error {
+func (p *point) updatePosition(c *TokenConverter) error {
 	line, col, err := c.ToPosition(p.Offset)
 	if err != nil {
 		return err
@@ -275,7 +266,7 @@ func (p *point) updatePosition(c Converter) error {
 	return nil
 }
 
-func (p *point) updateOffset(c Converter) error {
+func (p *point) updateOffset(c *TokenConverter) error {
 	offset, err := c.ToOffset(p.Line, p.Column)
 	if err != nil {
 		return err

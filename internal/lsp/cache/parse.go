@@ -324,7 +324,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 			Tok:  tok,
 			Mapper: &protocol.ColumnMapper{
 				URI:       fh.URI(),
-				Converter: span.NewTokenConverter(fset, tok),
+				Converter: span.NewTokenConverter(tok),
 				Content:   src,
 			},
 			ParseErr: parseErr,

@@ -6,6 +6,7 @@ package span_test
 
 import (
 	"fmt"
+	"go/token"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -59,12 +60,15 @@ func toPath(value string) string {
 	return filepath.FromSlash(value)
 }
 
-type lines int
-
-func (l lines) ToPosition(offset int) (int, int, error) {
-	return (offset / int(l)) + 1, (offset % int(l)) + 1, nil
-}
-
-func (l lines) ToOffset(line, col int) (int, error) {
-	return (int(l) * (line - 1)) + (col - 1), nil
+// lines creates a new tokenConverter for a file with 1000 lines, each width
+// bytes wide.
+func lines(width int) *span.TokenConverter {
+	fset := token.NewFileSet()
+	f := fset.AddFile("", -1, 1000*width)
+	var lines []int
+	for i := 0; i < 1000; i++ {
+		lines = append(lines, i*width)
+	}
+	f.SetLines(lines)
+	return span.NewTokenConverter(f)
 }

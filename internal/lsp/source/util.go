@@ -36,13 +36,8 @@ type MappedRange struct {
 // NewMappedRange returns a MappedRange for the given start and end token.Pos.
 func NewMappedRange(fset *token.FileSet, m *protocol.ColumnMapper, start, end token.Pos) MappedRange {
 	return MappedRange{
-		spanRange: span.Range{
-			FileSet:   fset,
-			Start:     start,
-			End:       end,
-			Converter: m.Converter,
-		},
-		m: m,
+		spanRange: span.NewRange(fset, start, end),
+		m:         m,
 	}
 }
 

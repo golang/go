@@ -322,7 +322,7 @@ func computeTextEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile,
 
 // ProtocolEditsFromSource converts text edits to LSP edits using the original
 // source.
-func ProtocolEditsFromSource(src []byte, edits []diff.TextEdit, converter span.Converter) ([]protocol.TextEdit, error) {
+func ProtocolEditsFromSource(src []byte, edits []diff.TextEdit, converter *span.TokenConverter) ([]protocol.TextEdit, error) {
 	m := lsppos.NewMapper(src)
 	var result []protocol.TextEdit
 	for _, edit := range edits {
