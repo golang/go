@@ -2761,7 +2761,7 @@ It is shorthand for a regular <a href="#Variable_declarations">variable declarat
 with initializer expressions but no types:
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 "var" IdentifierList = ExpressionList .
 </pre>
 
@@ -2780,12 +2780,14 @@ variables provided they were originally declared earlier in the same block
 and at least one of the non-<a href="#Blank_identifier">blank</a> variables is new.
 As a consequence, redeclaration can only appear in a multi-variable short declaration.
 Redeclaration does not introduce a new variable; it just assigns a new value to the original.
+The non-blank variable names on the left side of <code>:=</code>
+must be <a href="#Uniqueness_of_identifiers">unique</a>.
 </p>
 
 <pre>
 field1, offset := nextField(str, 0)
 field2, offset := nextField(str, offset)  // redeclares offset
-a, a := 1, 2                              // illegal: double declaration of a or no new variable if a was declared elsewhere
+x, y, x := 1, 2, 3                        // illegal: x repeated on left side of :=
 </pre>
 
 <p>
