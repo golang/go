@@ -1177,10 +1177,34 @@ func msigrestore(sigmask sigset) {
 }
 
 // sigsetAllExiting is used by sigblock(true) when a thread is
-// exiting. sigset_all is defined in OS specific code, and per GOOS
-// behavior may override this default for sigsetAllExiting: see
-// osinit().
-var sigsetAllExiting = sigset_all
+// exiting.
+var sigsetAllExiting = func() sigset {
+	res := sigset_all
+
+	// Apply GOOS-specific overrides here, rather than in osinit,
+	// because osinit may be called before sigsetAllExiting is
+	// initialized (#51913).
+	if GOOS == "linux" && iscgo {
+		// #42494 glibc and musl reserve some signals for
+		// internal use and require they not be blocked by
+		// the rest of a normal C runtime. When the go runtime
+		// blocks...unblocks signals, temporarily, the blocked
+		// interval of time is generally very short. As such,
+		// these expectations of *libc code are mostly met by
+		// the combined go+cgo system of threads. However,
+		// when go causes a thread to exit, via a return from
+		// mstart(), the combined runtime can deadlock if
+		// these signals are blocked. Thus, don't block these
+		// signals when exiting threads.
+		// - glibc: SIGCANCEL (32), SIGSETXID (33)
+		// - musl: SIGTIMER (32), SIGCANCEL (33), SIGSYNCCALL (34)
+		sigdelset(&res, 32)
+		sigdelset(&res, 33)
+		sigdelset(&res, 34)
+	}
+
+	return res
+}()
 
 // sigblock blocks signals in the current thread's signal mask.
 // This is used to block signals while setting up and tearing down g
