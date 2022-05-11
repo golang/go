@@ -2551,6 +2551,11 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 		t.Go = name // publish before recursive calls
 		goIdent[name.Name] = name
 		if dt.ByteSize < 0 {
+			// Don't override old type
+			if _, ok := typedef[name.Name]; ok {
+				break
+			}
+
 			// Size calculation in c.Struct/c.Opaque will die with size=-1 (unknown),
 			// so execute the basic things that the struct case would do
 			// other than try to determine a Go representation.
