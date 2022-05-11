@@ -382,7 +382,11 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 // Otherwise, if dst implements the ReaderFrom interface,
 // the copy is implemented by calling dst.ReadFrom(src).
 func Copy(dst Writer, src Reader) (written int64, err error) {
-	return copyBuffer(dst, src, nil)
+	return copyBuffer(dst, src, nil, 0)
+}
+
+func CopyWithBufferSize(dst Writer, src Reader, size int) (written int64, err error) {
+	return copyBuffer(dst, src, nil, size)
 }
 
 // CopyBuffer is identical to Copy except that it stages through the
@@ -396,12 +400,12 @@ func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	if buf != nil && len(buf) == 0 {
 		panic("empty buffer in CopyBuffer")
 	}
-	return copyBuffer(dst, src, buf)
+	return copyBuffer(dst, src, buf, 0)
 }
 
 // copyBuffer is the actual implementation of Copy and CopyBuffer.
 // if buf is nil, one is allocated.
-func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+func copyBuffer(dst Writer, src Reader, buf []byte, size int) (written int64, err error) {
 	// If the reader has a WriteTo method, use it to do the copy.
 	// Avoids an allocation and a copy.
 	if wt, ok := src.(WriterTo); ok {
@@ -412,7 +416,9 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 		return rt.ReadFrom(src)
 	}
 	if buf == nil {
-		size := 32 * 1024
+		if size <= 0 {
+			size = 32 * 1024
+		}
 		if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
 			if l.N < 1 {
 				size = 1
