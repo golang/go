@@ -35,7 +35,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-// Check if comment contains //go:embed directive.
+// Check if the comment contains //go:embed directive.
 func hasEmbedDirectiveComment(f *ast.File) *ast.Comment {
 	for _, cg := range f.Comments {
 		for _, c := range cg.List {
