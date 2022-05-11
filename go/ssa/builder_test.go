@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
@@ -821,5 +822,58 @@ func sliceMax(s []int) []int { return s[a():b():c()] }
 				t.Errorf("Expected sequence of function calls in %s was %s. got %s", fn, want, got)
 			}
 		})
+	}
+}
+
+// TestGenericFunctionSelector ensures generic functions from other packages can be selected.
+func TestGenericFunctionSelector(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("TestGenericFunctionSelector uses type parameters.")
+	}
+
+	pkgs := map[string]map[string]string{
+		"main": {"m.go": `package main; import "a"; func main() { a.F[int](); a.G[int,string](); a.H(0) }`},
+		"a":    {"a.go": `package a; func F[T any](){}; func G[S, T any](){}; func H[T any](a T){} `},
+	}
+
+	for _, mode := range []ssa.BuilderMode{
+		ssa.SanityCheckFunctions,
+		ssa.SanityCheckFunctions | ssa.InstantiateGenerics,
+	} {
+		conf := loader.Config{
+			Build: buildutil.FakeContext(pkgs),
+		}
+		conf.Import("main")
+
+		lprog, err := conf.Load()
+		if err != nil {
+			t.Errorf("Load failed: %s", err)
+		}
+		if lprog == nil {
+			t.Fatalf("Load returned nil *Program")
+		}
+		// Create and build SSA
+		prog := ssautil.CreateProgram(lprog, mode)
+		p := prog.Package(lprog.Package("main").Pkg)
+		p.Build()
+
+		var callees []string // callees of the CallInstruction.String() in main().
+		for _, b := range p.Func("main").Blocks {
+			for _, i := range b.Instrs {
+				if call, ok := i.(ssa.CallInstruction); ok {
+					if callee := call.Common().StaticCallee(); call != nil {
+						callees = append(callees, callee.String())
+					} else {
+						t.Errorf("CallInstruction without StaticCallee() %q", call)
+					}
+				}
+			}
+		}
+		sort.Strings(callees) // ignore the order in the code.
+
+		want := "[a.F[[int]] a.G[[int string]] a.H[[int]]]"
+		if got := fmt.Sprint(callees); got != want {
+			t.Errorf("Expected main() to contain calls %v. got %v", want, got)
+		}
 	}
 }

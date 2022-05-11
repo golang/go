@@ -840,16 +840,15 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		panic("unexpected expression-relative selector")
 
 	case *typeparams.IndexListExpr:
-		if ident, ok := e.X.(*ast.Ident); ok {
-			// IndexListExpr is an instantiation. It will be handled by the *Ident case.
-			return b.expr(fn, ident)
+		// f[X, Y] must be a generic function
+		if !instance(fn.info, e.X) {
+			panic("unexpected expression-could not match index list to instantiation")
 		}
+		return b.expr(fn, e.X) // Handle instantiation within the *Ident or *SelectorExpr cases.
+
 	case *ast.IndexExpr:
-		if ident, ok := e.X.(*ast.Ident); ok {
-			if _, ok := typeparams.GetInstances(fn.info)[ident]; ok {
-				// If the IndexExpr is an instantiation, it will be handled by the *Ident case.
-				return b.expr(fn, ident)
-			}
+		if instance(fn.info, e.X) {
+			return b.expr(fn, e.X) // Handle instantiation within the *Ident or *SelectorExpr cases.
 		}
 		// not a generic instantiation.
 		switch t := fn.typeOf(e.X).Underlying().(type) {

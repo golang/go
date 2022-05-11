@@ -175,6 +175,24 @@ func recvAsFirstArg(sig *types.Signature) *types.Signature {
 	return typeparams.NewSignatureType(nil, nil, nil, types.NewTuple(params...), sig.Results(), sig.Variadic())
 }
 
+// instance returns whether an expression is a simple or qualified identifier
+// that is a generic instantiation.
+func instance(info *types.Info, expr ast.Expr) bool {
+	// Compare the logic here against go/types.instantiatedIdent,
+	// which also handles  *IndexExpr and *IndexListExpr.
+	var id *ast.Ident
+	switch x := expr.(type) {
+	case *ast.Ident:
+		id = x
+	case *ast.SelectorExpr:
+		id = x.Sel
+	default:
+		return false
+	}
+	_, ok := typeparams.GetInstances(info)[id]
+	return ok
+}
+
 // instanceArgs returns the Instance[id].TypeArgs as a slice.
 func instanceArgs(info *types.Info, id *ast.Ident) []types.Type {
 	targList := typeparams.GetInstances(info)[id].TypeArgs
