@@ -42,7 +42,7 @@ func doCopy() error {
 			return err
 		}
 		file.Name.Name = "typeparams"
-		file.Doc = &ast.CommentGroup{List: []*ast.Comment{&ast.Comment{Text: "DO NOT MODIFY"}}}
+		file.Doc = &ast.CommentGroup{List: []*ast.Comment{{Text: "DO NOT MODIFY"}}}
 		var needImport bool
 		selectorType := reflect.TypeOf((*ast.SelectorExpr)(nil))
 		astutil.Apply(file, func(c *astutil.Cursor) bool {
@@ -70,8 +70,8 @@ func doCopy() error {
 				}
 				needImport = true
 				c.Replace(&ast.SelectorExpr{
-					X:   ast.NewIdent("types"),
-					Sel: ast.NewIdent(id.Name),
+					X:   &ast.Ident{NamePos: id.NamePos, Name: "types"},
+					Sel: &ast.Ident{NamePos: id.NamePos, Name: id.Name, Obj: id.Obj},
 				})
 			}
 			return true
