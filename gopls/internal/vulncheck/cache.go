@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"golang.org/x/vuln/client"
@@ -17,12 +18,6 @@ import (
 )
 
 // copy from x/vuln/cmd/govulncheck/cache.go
-
-// NOTE: this cache implementation should be kept internal to the go tooling
-// (i.e. cmd/go/internal/something) so that the vulndb cache is owned by the
-// go command. Also it is currently NOT CONCURRENCY SAFE since it does not
-// implement file locking. If ported to the stdlib it should use
-// cmd/go/internal/lockedfile.
 
 // The cache uses a single JSON index file for each vulnerability database
 // which contains the map from packages to the time the last
@@ -42,9 +37,11 @@ import (
 // $GOPATH/pkg/mod/cache/download/vulndb/{db hostname}/{import path}/vulns.json
 //   []*osv.Entry
 
-// fsCache is file-system cache implementing osv.Cache
-// TODO: make cache thread-safe
+// fsCache is a thread-safe file-system cache implementing osv.Cache
+//
+// TODO: use something like cmd/go/internal/lockedfile for thread safety?
 type fsCache struct {
+	mu      sync.Mutex
 	rootDir string
 }
 
@@ -61,6 +58,9 @@ type cachedIndex struct {
 }
 
 func (c *fsCache) ReadIndex(dbName string) (client.DBIndex, time.Time, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	b, err := ioutil.ReadFile(filepath.Join(c.rootDir, dbName, "index.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -76,6 +76,9 @@ func (c *fsCache) ReadIndex(dbName string) (client.DBIndex, time.Time, error) {
 }
 
 func (c *fsCache) WriteIndex(dbName string, index client.DBIndex, retrieved time.Time) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	path := filepath.Join(c.rootDir, dbName)
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return err
@@ -94,6 +97,9 @@ func (c *fsCache) WriteIndex(dbName string, index client.DBIndex, retrieved time
 }
 
 func (c *fsCache) ReadEntries(dbName string, p string) ([]*osv.Entry, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	b, err := ioutil.ReadFile(filepath.Join(c.rootDir, dbName, p, "vulns.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -109,6 +115,9 @@ func (c *fsCache) ReadEntries(dbName string, p string) ([]*osv.Entry, error) {
 }
 
 func (c *fsCache) WriteEntries(dbName string, p string, entries []*osv.Entry) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	path := filepath.Join(c.rootDir, dbName, p)
 	if err := os.MkdirAll(path, 0777); err != nil {
 		return err

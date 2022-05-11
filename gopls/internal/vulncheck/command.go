@@ -53,7 +53,7 @@ func findGOVULNDB(cfg *packages.Config) []string {
 	if GOVULNDB := os.Getenv("GOVULNDB"); GOVULNDB != "" {
 		return strings.Split(GOVULNDB, ",")
 	}
-	return []string{"https://storage.googleapis.com/go-vulndb"}
+	return []string{"https://vuln.go.dev"}
 }
 
 type Vuln = command.Vuln
