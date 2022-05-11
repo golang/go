@@ -81,6 +81,7 @@ func TestScript(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
 			ts := &testScript{
 				t:           t,
 				ctx:         ctx,
@@ -94,7 +95,6 @@ func TestScript(t *testing.T) {
 				defer removeAll(ts.workdir)
 			}
 			ts.run()
-			cancel()
 		})
 	}
 }
@@ -210,6 +210,9 @@ func (ts *testScript) setup() {
 			ts.envMap[kv[:i]] = kv[i+1:]
 		}
 	}
+
+	fmt.Fprintf(&ts.log, "# (%s)\n", time.Now().UTC().Format(time.RFC3339))
+	ts.mark = ts.log.Len()
 }
 
 // goVersion returns the current Go version.
