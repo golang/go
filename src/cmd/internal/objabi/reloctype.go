@@ -250,6 +250,32 @@ const (
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
 	R_PCRELDBL
 
+	// Loong64.
+
+	// R_ADDRLOONG64 resolves to the low 12 bits of an external address, by encoding
+	// it into the instruction.
+	R_ADDRLOONG64
+
+	// R_ADDRLOONG64U resolves to the sign-adjusted "upper" 20 bits (bit 5-24) of an
+	// external address, by encoding it into the instruction.
+	R_ADDRLOONG64U
+
+	// R_ADDRLOONG64TLS resolves to the low 12 bits of a TLS address (offset from
+	// thread pointer), by encoding it into the instruction.
+	R_ADDRLOONG64TLS
+
+	// R_ADDRLOONG64TLSU resolves to the high 20 bits of a TLS address (offset from
+	// thread pointer), by encoding it into the instruction.
+	R_ADDRLOONG64TLSU
+
+	// R_CALLLOONG64 resolves to non-PC-relative target address of a CALL (BL/JIRL)
+	// instruction, by encoding the address into the instruction.
+	R_CALLLOONG64
+
+	// R_JMPLOONG64 resolves to non-PC-relative target address of a JMP instruction,
+	// by encoding the address into the instruction.
+	R_JMPLOONG64
+
 	// R_ADDRMIPSU (only used on mips/mips64) resolves to the sign-adjusted "upper" 16
 	// bits (bit 16-31) of an external address, by encoding it into the instruction.
 	R_ADDRMIPSU
@@ -286,7 +312,7 @@ const (
 // the target address in register or memory.
 func (r RelocType) IsDirectCall() bool {
 	switch r {
-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER, R_RISCV_CALL, R_RISCV_CALL_TRAMP:
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLLOONG64, R_CALLMIPS, R_CALLPOWER, R_RISCV_CALL, R_RISCV_CALL_TRAMP:
 		return true
 	}
 	return false
@@ -300,6 +326,8 @@ func (r RelocType) IsDirectCall() bool {
 func (r RelocType) IsDirectJump() bool {
 	switch r {
 	case R_JMPMIPS:
+		return true
+	case R_JMPLOONG64:
 		return true
 	}
 	return false

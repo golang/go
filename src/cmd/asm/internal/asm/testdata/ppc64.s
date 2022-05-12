@@ -24,7 +24,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVW $-32767, R5                // 38a08001
 	MOVW $-32768, R6                // 38c08000
 	MOVW $1234567, R5               // 6405001260a5d687
-	MOVD 8(R3), R4			// e8830008
+	MOVD 8(R3), R4                  // e8830008
 	MOVD (R3)(R4), R5               // 7ca4182a
 	MOVW 4(R3), R4                  // e8830006
 	MOVW (R3)(R4), R5               // 7ca41aaa
@@ -41,7 +41,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVDBR (R3)(R4), R5             // 7ca41c28
 	MOVWBR (R3)(R4), R5             // 7ca41c2c
 	MOVHBR (R3)(R4), R5             // 7ca41e2c
-	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc20
+	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc40
 	MOVD $foo(SB), R5               // 3ca0000038a50000
 
 	MOVDU 8(R3), R4                 // e8830009
@@ -79,14 +79,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVBU R4, 1(R3)                 // 9c830001
 	MOVBU R5, (R3)(R4)              // 7ca419ee
 
-	MOVB $0, R4			// 38800000
-	MOVBZ $0, R4			// 38800000
-	MOVH $0, R4			// 38800000
-	MOVHZ $0, R4			// 38800000
-	MOVW $0, R4			// 38800000
-	MOVWZ $0, R4			// 38800000
-	MOVD $0, R4			// 38800000
-	MOVD $0, R0			// 38000000
+	MOVB $0, R4                     // 38800000
+	MOVBZ $0, R4                    // 38800000
+	MOVH $0, R4                     // 38800000
+	MOVHZ $0, R4                    // 38800000
+	MOVW $0, R4                     // 38800000
+	MOVWZ $0, R4                    // 38800000
+	MOVD $0, R4                     // 38800000
+	MOVD $0, R0                     // 38000000
 
 	ADD $1, R3                      // 38630001
 	ADD $1, R3, R4                  // 38830001
@@ -351,11 +351,18 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	CRORN CR0GT, CR0EQ, CR0SO       // 4c620b42
 	CRXOR CR0GT, CR0EQ, CR0SO       // 4c620982
 
-	ISEL $1, R3, R4, R5             // 7ca3205e
 	ISEL $0, R3, R4, R5             // 7ca3201e
+	ISEL $1, R3, R4, R5             // 7ca3205e
 	ISEL $2, R3, R4, R5             // 7ca3209e
 	ISEL $3, R3, R4, R5             // 7ca320de
 	ISEL $4, R3, R4, R5             // 7ca3211e
+	ISEL $31, R3, R4, R5            // 7ca327de
+	ISEL CR0LT, R3, R4, R5          // 7ca3201e
+	ISEL CR0GT, R3, R4, R5          // 7ca3205e
+	ISEL CR0EQ, R3, R4, R5          // 7ca3209e
+	ISEL CR0SO, R3, R4, R5          // 7ca320de
+	ISEL CR1LT, R3, R4, R5          // 7ca3211e
+	ISEL CR7SO, R3, R4, R5          // 7ca327de
 	POPCNTB R3, R4                  // 7c6400f4
 	POPCNTW R3, R4                  // 7c6402f4
 	POPCNTD R3, R4                  // 7c6403f4
@@ -765,9 +772,51 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVFL R1, $3                    // 7c203120
 
 	// Verify supported bdnz/bdz encodings.
-	BC 16,0,0(PC)                   // BC $16,R0,0(PC) // 42000000
+	BC 16,0,0(PC)                   // BC $16, CR0LT, 0(PC) // 42000000
 	BDNZ 0(PC)                      // 42000000
 	BDZ 0(PC)                       // 42400000
-	BC 18,0,0(PC)                   // BC $18,R0,0(PC) // 42400000
+	BC 18,0,0(PC)                   // BC $18, CR0LT, 0(PC) // 42400000
+
+	// Verify the supported forms of bcclr[l]
+	BC $20,CR0LT,$1,LR              // 4e800820
+	BC $20,CR0LT,$0,LR              // 4e800020
+	BC $20,CR0LT,LR                 // 4e800020
+	BC $20,CR0GT,LR                 // 4e810020
+	BC 20,CR0LT,LR                  // BC $20,CR0LT,LR // 4e800020
+	BC 20,undefined_symbol,LR       // BC $20,CR0LT,LR // 4e800020
+	BC 20,undefined_symbol+1,LR     // BC $20,CR0GT,LR // 4e810020
+	JMP LR                          // 4e800020
+	BR LR                           // JMP LR // 4e800020
+	BCL $20,CR0LT,$1,LR             // 4e800821
+	BCL $20,CR0LT,$0,LR             // 4e800021
+	BCL $20,CR0LT,LR                // 4e800021
+	BCL $20,CR0GT,LR                // 4e810021
+	BCL 20,CR0LT,LR                 // BCL $20,CR0LT,LR // 4e800021
+	BCL 20,undefined_symbol,LR      // BCL $20,CR0LT,LR // 4e800021
+	BCL 20,undefined_symbol+1,LR    // BCL $20,CR0GT,LR // 4e810021
+
+	// Verify the supported forms of bcctr[l]
+	BC $20,CR0LT,CTR                // 4e800420
+	BC $20,CR0GT,CTR                // 4e810420
+	BC 20,CR0LT,CTR                 // BC $20,CR0LT,CTR // 4e800420
+	BC 20,undefined_symbol,CTR      // BC $20,CR0LT,CTR // 4e800420
+	BC 20,undefined_symbol+1,CTR    // BC $20,CR0GT,CTR // 4e810420
+	JMP CTR                         // 4e800420
+	BR CTR                          // JMP CTR // 4e800420
+	BCL $20,CR0LT,CTR               // 4e800421
+	BCL $20,CR0GT,CTR               // 4e810421
+	BCL 20,CR0LT,CTR                // BCL $20,CR0LT,CTR // 4e800421
+	BCL 20,undefined_symbol,CTR     // BCL $20,CR0LT,CTR // 4e800421
+	BCL 20,undefined_symbol+1,CTR   // BCL $20,CR0GT,CTR // 4e810421
+
+	// Verify bc encoding (without pic enabled)
+	BC $16,CR0LT,0(PC)              // 42000000
+	BCL $16,CR0LT,0(PC)             // 42000001
+	BC $18,CR0LT,0(PC)              // 42400000
+
+	MOVD SPR(3), 4(R1)              // 7fe302a6fbe10004
+	MOVD XER, 4(R1)                 // 7fe102a6fbe10004
+	MOVD 4(R1), SPR(3)              // ebe100047fe303a6
+	MOVD 4(R1), XER                 // ebe100047fe103a6
 
 	RET

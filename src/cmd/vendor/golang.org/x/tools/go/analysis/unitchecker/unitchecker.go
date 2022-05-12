@@ -6,13 +6,13 @@
 // driver that analyzes a single compilation unit during a build.
 // It is invoked by a build system such as "go vet":
 //
-//   $ go vet -vettool=$(which vet)
+//	$ go vet -vettool=$(which vet)
 //
 // It supports the following command-line protocol:
 //
-//      -V=full         describe executable               (to the build tool)
-//      -flags          describe flags                    (to the build tool)
-//      foo.cfg         description of compilation unit (from the build tool)
+//	-V=full         describe executable               (to the build tool)
+//	-flags          describe flags                    (to the build tool)
+//	foo.cfg         description of compilation unit (from the build tool)
 //
 // This package does not depend on go/packages.
 // If you need a standalone tool, use multichecker,
@@ -79,11 +79,10 @@ type Config struct {
 //
 // The protocol required by 'go vet -vettool=...' is that the tool must support:
 //
-//      -flags          describe flags in JSON
-//      -V=full         describe executable for build caching
-//      foo.cfg         perform separate modular analyze on the single
-//                      unit described by a JSON config file foo.cfg.
-//
+//	-flags          describe flags in JSON
+//	-V=full         describe executable for build caching
+//	foo.cfg         perform separate modular analyze on the single
+//	                unit described by a JSON config file foo.cfg.
 func Main(analyzers ...*analysis.Analyzer) {
 	progname := filepath.Base(os.Args[0])
 	log.SetFlags(0)

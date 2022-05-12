@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 	if err != nil {
 		t.Fatalf("failed to build c executable: %s\n%s", err, out)
 	}
-	out, err = exec.Command(exe).CombinedOutput()
+	out, err = exec.Command(exe).Output()
 	if err != nil {
 		t.Fatalf("c program execution failed: %v: %v", err, string(out))
 	}

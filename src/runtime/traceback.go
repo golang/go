@@ -82,6 +82,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	}
 	waspanic := false
 	cgoCtxt := gp.cgoCtxt
+	stack := gp.stack
 	printing := pcbuf == nil && callback == nil
 
 	// If the PC is zero, it's likely a nil function call.
@@ -114,7 +115,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	if !f.valid() {
 		if callback != nil || printing {
 			print("runtime: g ", gp.goid, ": unknown pc ", hex(frame.pc), "\n")
-			tracebackHexdump(gp.stack, &frame, 0)
+			tracebackHexdump(stack, &frame, 0)
 		}
 		if callback != nil {
 			throw("unknown pc")
@@ -174,12 +175,15 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					frame.fn = findfunc(frame.pc)
 					f = frame.fn
 					flag = f.flag
+					frame.lr = gp.m.curg.sched.lr
 					frame.sp = gp.m.curg.sched.sp
+					stack = gp.m.curg.stack
 					cgoCtxt = gp.m.curg.cgoCtxt
 				case funcID_systemstack:
 					// systemstack returns normally, so just follow the
 					// stack transition.
 					frame.sp = gp.m.curg.sched.sp
+					stack = gp.m.curg.stack
 					cgoCtxt = gp.m.curg.cgoCtxt
 					flag &^= funcFlag_SPWRITE
 				}
@@ -248,7 +252,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 				if callback != nil || doPrint {
 					print("runtime: g ", gp.goid, ": unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
-					tracebackHexdump(gp.stack, &frame, lrPtr)
+					tracebackHexdump(stack, &frame, lrPtr)
 				}
 				if callback != nil {
 					throw("unknown caller pc")
@@ -447,7 +451,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if frame.pc > f.entry() {
 					print(" +", hex(frame.pc-f.entry()))
 				}
-				if gp.m != nil && gp.m.throwing > 0 && gp == gp.m.curg || level >= 2 {
+				if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
 				}
 				print("\n")
@@ -475,6 +479,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// Do not unwind past the bottom of the stack.
 		if !flr.valid() {
 			break
+		}
+
+		if frame.pc == frame.lr && frame.sp == frame.fp {
+			// If the next frame is identical to the current frame, we cannot make progress.
+			print("runtime: traceback stuck. pc=", hex(frame.pc), " sp=", hex(frame.sp), "\n")
+			tracebackHexdump(stack, &frame, frame.sp)
+			throw("traceback stuck")
 		}
 
 		// Unwind to next frame.
@@ -913,7 +924,7 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 // be printed during a traceback.
 func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool {
 	g := getg()
-	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
+	if g.m.throwing >= throwTypeRuntime && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
 	}
 	return showfuncinfo(f, firstFrame, funcID, childID)

@@ -12,16 +12,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	exec "internal/execabs"
 	"internal/lazyregexp"
 	"io"
 	"io/fs"
 	"log"
 	"math/rand"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -2654,6 +2655,8 @@ func (b *Builder) gccArchArgs() []string {
 		} else if cfg.GOMIPS == "softfloat" {
 			return append(args, "-msoft-float")
 		}
+	case "loong64":
+		return []string{"-mabi=lp64d"}
 	case "ppc64":
 		if cfg.Goos == "aix" {
 			return []string{"-maix64"}
@@ -2991,7 +2994,26 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 		return err
 	}
 
-	linkobj := str.StringList(ofile, outObj, mkAbsFiles(p.Dir, p.SysoFiles))
+	// Gather .syso files from this package and all (transitive) dependencies.
+	var syso []string
+	seen := make(map[*Action]bool)
+	var gatherSyso func(*Action)
+	gatherSyso = func(a1 *Action) {
+		if seen[a1] {
+			return
+		}
+		seen[a1] = true
+		if p1 := a1.Package; p1 != nil {
+			syso = append(syso, mkAbsFiles(p1.Dir, p1.SysoFiles)...)
+		}
+		for _, a2 := range a1.Deps {
+			gatherSyso(a2)
+		}
+	}
+	gatherSyso(a)
+	sort.Strings(syso)
+	str.Uniq(&syso)
+	linkobj := str.StringList(ofile, outObj, syso)
 	dynobj := objdir + "_cgo_.o"
 
 	ldflags := cgoLDFLAGS

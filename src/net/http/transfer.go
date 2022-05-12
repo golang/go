@@ -422,8 +422,8 @@ func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err 
 //
 // This function is only intended for use in writeBody.
 func (t *transferWriter) unwrapBody() io.Reader {
-	if reflect.TypeOf(t.Body) == nopCloserType {
-		return reflect.ValueOf(t.Body).Field(0).Interface().(io.Reader)
+	if r, ok := unwrapNopCloser(t.Body); ok {
+		return r
 	}
 	if r, ok := t.Body.(*readTrackingBody); ok {
 		r.didRead = true
@@ -1081,6 +1081,21 @@ func (fr finishAsyncByteRead) Read(p []byte) (n int, err error) {
 }
 
 var nopCloserType = reflect.TypeOf(io.NopCloser(nil))
+var nopCloserWriterToType = reflect.TypeOf(io.NopCloser(struct {
+	io.Reader
+	io.WriterTo
+}{}))
+
+// unwrapNopCloser return the underlying reader and true if r is a NopCloser
+// else it return false
+func unwrapNopCloser(r io.Reader) (underlyingReader io.Reader, isNopCloser bool) {
+	switch reflect.TypeOf(r) {
+	case nopCloserType, nopCloserWriterToType:
+		return reflect.ValueOf(r).Field(0).Interface().(io.Reader), true
+	default:
+		return nil, false
+	}
+}
 
 // isKnownInMemoryReader reports whether r is a type known to not
 // block on Read. Its caller uses this as an optional optimization to
@@ -1090,8 +1105,8 @@ func isKnownInMemoryReader(r io.Reader) bool {
 	case *bytes.Reader, *bytes.Buffer, *strings.Reader:
 		return true
 	}
-	if reflect.TypeOf(r) == nopCloserType {
-		return isKnownInMemoryReader(reflect.ValueOf(r).Field(0).Interface().(io.Reader))
+	if r, ok := unwrapNopCloser(r); ok {
+		return isKnownInMemoryReader(r)
 	}
 	if r, ok := r.(*readTrackingBody); ok {
 		return isKnownInMemoryReader(r.ReadCloser)

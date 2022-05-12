@@ -94,9 +94,11 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 
 // func runtime·racereadrange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racereadrange(SB), NOSPLIT, $0-16
-	MOVQ	addr+0(FP), RARG1
-	MOVQ	size+8(FP), RARG2
+// Defined as ABIInternal so as to avoid introducing a wrapper,
+// which would render runtime.getcallerpc ineffective.
+TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
+	MOVQ	AX, RARG1
+	MOVQ	BX, RARG2
 	MOVQ	(SP), RARG3
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVQ	$__tsan_read_range(SB), AX

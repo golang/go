@@ -455,20 +455,26 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 // LimitReader returns a Reader that reads from r
 // but stops with EOF after n bytes.
 // The underlying implementation is a *LimitedReader.
-func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
+func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n, nil} }
 
 // A LimitedReader reads from R but limits the amount of
 // data returned to just N bytes. Each call to Read
 // updates N to reflect the new amount remaining.
-// Read returns EOF when N <= 0 or when the underlying R returns EOF.
+// Read returns Err when N <= 0.
+// If Err is nil, it returns EOF instead.
 type LimitedReader struct {
-	R Reader // underlying reader
-	N int64  // max bytes remaining
+	R   Reader // underlying reader
+	N   int64  // max bytes remaining
+	Err error  // error to return on reaching the limit
 }
 
 func (l *LimitedReader) Read(p []byte) (n int, err error) {
 	if l.N <= 0 {
-		return 0, EOF
+		err := l.Err
+		if err == nil {
+			err = EOF
+		}
+		return 0, err
 	}
 	if int64(len(p)) > l.N {
 		p = p[0:l.N]
@@ -621,7 +627,12 @@ func (discard) ReadFrom(r Reader) (n int64, err error) {
 
 // NopCloser returns a ReadCloser with a no-op Close method wrapping
 // the provided Reader r.
+// If r implements WriterTo, the returned ReadCloser will implement WriterTo
+// by forwarding calls to r.
 func NopCloser(r Reader) ReadCloser {
+	if _, ok := r.(WriterTo); ok {
+		return nopCloserWriterTo{r}
+	}
 	return nopCloser{r}
 }
 
@@ -630,6 +641,16 @@ type nopCloser struct {
 }
 
 func (nopCloser) Close() error { return nil }
+
+type nopCloserWriterTo struct {
+	Reader
+}
+
+func (nopCloserWriterTo) Close() error { return nil }
+
+func (c nopCloserWriterTo) WriteTo(w Writer) (n int64, err error) {
+	return c.Reader.(WriterTo).WriteTo(w)
+}
 
 // ReadAll reads from r until an error or EOF and returns the data it read.
 // A successful call returns err == nil, not err == EOF. Because ReadAll is

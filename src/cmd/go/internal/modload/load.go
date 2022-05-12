@@ -421,8 +421,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 
 		// Update the go.mod file's Go version if necessary.
-		modFile := MainModules.ModFile(MainModules.mustGetSingleMainModule())
-		if ld.GoVersion != "" {
+		if modFile := ModFile(); modFile != nil && ld.GoVersion != "" {
 			modFile.AddGoStmt(ld.GoVersion)
 		}
 	}
@@ -717,6 +716,12 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 		},
 	})
 	requirements = loaded.requirements
+
+	if !ExplicitWriteGoMod {
+		if err := commitRequirements(ctx); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}
 }
 
 // DirImportPath returns the effective import path for dir,

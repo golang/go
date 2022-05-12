@@ -8,7 +8,6 @@
 // This package follows the design of Certificate Transparency (RFC 6962)
 // and its proofs are compatible with that system.
 // See TestCertificateTransparency.
-//
 package tlog
 
 import (

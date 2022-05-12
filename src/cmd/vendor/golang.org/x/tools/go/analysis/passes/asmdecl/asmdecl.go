@@ -114,6 +114,7 @@ var (
 )
 
 func init() {
+	arches = append(arches, additionalArches()...)
 	for _, arch := range arches {
 		arch.sizes = types.SizesFor("gc", arch.name)
 		if arch.sizes == nil {
@@ -731,7 +732,7 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 					src = 8
 				}
 			}
-		case "mips", "mipsle", "mips64", "mips64le":
+		case "loong64", "mips", "mipsle", "mips64", "mips64le":
 			switch op {
 			case "MOVB", "MOVBU":
 				src = 1

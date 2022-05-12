@@ -286,12 +286,6 @@ const (
 	OTYPESW
 	OFUNCINST // instantiation of a generic function
 
-	// types
-	// OTFUNC: func() - Recv is receiver field, Params is list of param fields, Results is
-	// list of result fields.
-	// TODO(mdempsky): Remove.
-	OTFUNC
-
 	// misc
 	// intermediate representation of an inlined call.  Uses Init (assignments
 	// for the captured variables, parameters, retvars, & INLMARK op),

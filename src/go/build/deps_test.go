@@ -203,15 +203,10 @@ var depsRules = `
 
 	log !< FMT;
 
-	OS, FMT
-	< internal/execabs;
-
-	OS, internal/execabs
-	< internal/goroot;
-
 	# Misc packages needing only FMT.
 	FMT
 	< html,
+	  internal/goroot,
 	  mime/quotedprintable,
 	  net/internal/socktest,
 	  net/url,
@@ -397,17 +392,27 @@ var depsRules = `
 	NET, log
 	< net/mail;
 
+	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+	sync/atomic < crypto/internal/boring/fipstls;
+	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
+
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
 	# Unfortunately, stuck with reflect via encoding/binary.
-	encoding/binary, golang.org/x/sys/cpu, hash
+	crypto/internal/boring/sig,
+	crypto/internal/boring/syso,
+	encoding/binary,
+	golang.org/x/sys/cpu,
+	hash, embed
 	< crypto
 	< crypto/subtle
 	< crypto/internal/subtle
-	< crypto/elliptic/internal/fiat
-	< crypto/elliptic/internal/nistec
-	< crypto/ed25519/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
-	< crypto/ed25519/internal/edwards25519
+	< crypto/internal/nistec/fiat
+	< crypto/internal/nistec
+	< crypto/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
+	< crypto/internal/edwards25519
 	< crypto/cipher
+	< crypto/internal/boring
+	< crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
 	  crypto/sha1, crypto/sha256, crypto/sha512
 	< CRYPTO;
@@ -416,6 +421,7 @@ var depsRules = `
 
 	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
 	CRYPTO, FMT, math/big, embed
+	< crypto/internal/boring/bbig
 	< crypto/internal/randutil
 	< crypto/rand
 	< crypto/ed25519
@@ -437,13 +443,15 @@ var depsRules = `
 	< golang.org/x/crypto/chacha20poly1305
 	< golang.org/x/crypto/hkdf
 	< crypto/x509/internal/macos
-	< crypto/x509/pkix
+	< crypto/x509/pkix;
+
+	crypto/internal/boring/fipstls, crypto/x509/pkix
 	< crypto/x509
 	< crypto/tls;
 
 	# crypto-aware packages
 
-	CRYPTO, DEBUG, go/build, go/types, text/scanner
+	DEBUG, go/build, go/types, text/scanner, crypto/md5
 	< internal/pkgbits
 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
 	< go/importer;
@@ -641,6 +649,9 @@ func findImports(pkg string) ([]string, error) {
 	}
 	var imports []string
 	var haveImport = map[string]bool{}
+	if pkg == "crypto/internal/boring" {
+		haveImport["C"] = true // kludge: prevent C from appearing in crypto/internal/boring imports
+	}
 	fset := token.NewFileSet()
 	for _, file := range files {
 		name := file.Name()

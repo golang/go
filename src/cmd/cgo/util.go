@@ -8,9 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
-	exec "internal/execabs"
 	"io/ioutil"
 	"os"
+	"os/exec"
 )
 
 // run runs the command argv, feeding in stdin on standard input.

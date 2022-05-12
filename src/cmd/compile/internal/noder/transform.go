@@ -74,8 +74,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 		i++
 	}
 
-	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
-	nn.List = list
+	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, n.Type(), list)
 	typed(n.Type(), nn)
 	// Need to transform the OCOMPLIT.
 	return transformCompLit(nn)
@@ -163,6 +162,7 @@ func transformCall(n *ir.CallExpr) {
 	ir.SetPos(n)
 	// n.Type() can be nil for calls with no return value
 	assert(n.Typecheck() == 1)
+	typecheck.RewriteNonNameCall(n)
 	transformArgs(n)
 	l := n.X
 	t := l.Type()

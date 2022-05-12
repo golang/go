@@ -599,10 +599,12 @@ func (p *parser) typeDecl(group *Group) Decl {
 			// with a "[" as in: P []E. In that case, simply parsing
 			// an expression would lead to an error: P[] is invalid.
 			// But since index or slice expressions are never constant
-			// and thus invalid array length expressions, if we see a
-			// "[" following a name it must be the start of an array
-			// or slice constraint. Only if we don't see a "[" do we
-			// need to parse a full expression.
+			// and thus invalid array length expressions, if the name
+			// is followed by "[" it must be the start of an array or
+			// slice constraint. Only if we don't see a "[" do we
+			// need to parse a full expression. Notably, name <- x
+			// is not a concern because name <- x is a statement and
+			// not an expression.
 			var x Expr = p.name()
 			if p.tok != _Lbrack {
 				// To parse the expression starting with name, expand
@@ -612,53 +614,22 @@ func (p *parser) typeDecl(group *Group) Decl {
 				x = p.binaryExpr(p.pexpr(x, false), 0)
 				p.xnest--
 			}
-
-			// analyze the cases
-			var pname *Name // pname != nil means pname is the type parameter name
-			var ptype Expr  // ptype != nil means ptype is the type parameter type; pname != nil in this case
-			switch t := x.(type) {
-			case *Name:
-				// Unless we see a "]", we are at the start of a type parameter list.
-				if p.tok != _Rbrack {
-					// d.Name "[" name ...
-					pname = t
-					// no ptype
-				}
-			case *Operation:
-				// If we have an expression of the form name*T, and T is a (possibly
-				// parenthesized) type literal or the next token is a comma, we are
-				// at the start of a type parameter list.
-				if name, _ := t.X.(*Name); name != nil {
-					if t.Op == Mul && (isTypeLit(t.Y) || p.tok == _Comma) {
-						// d.Name "[" name "*" t.Y
-						// d.Name "[" name "*" t.Y ","
-						t.X, t.Y = t.Y, nil // convert t into unary *t.Y
-						pname = name
-						ptype = t
-					}
-				}
-			case *CallExpr:
-				// If we have an expression of the form name(T), and T is a (possibly
-				// parenthesized) type literal or the next token is a comma, we are
-				// at the start of a type parameter list.
-				if name, _ := t.Fun.(*Name); name != nil {
-					if len(t.ArgList) == 1 && !t.HasDots && (isTypeLit(t.ArgList[0]) || p.tok == _Comma) {
-						// d.Name "[" name "(" t.ArgList[0] ")"
-						// d.Name "[" name "(" t.ArgList[0] ")" ","
-						pname = name
-						ptype = t.ArgList[0]
-					}
-				}
-			}
-
-			if pname != nil {
+			// Analyze expression x. If we can split x into a type parameter
+			// name, possibly followed by a type parameter type, we consider
+			// this the start of a type parameter list, with some caveats:
+			// a single name followed by "]" tilts the decision towards an
+			// array declaration; a type parameter type that could also be
+			// an ordinary expression but which is followed by a comma tilts
+			// the decision towards a type parameter list.
+			if pname, ptype := extractName(x, p.tok == _Comma); pname != nil && (ptype != nil || p.tok != _Rbrack) {
 				// d.Name "[" pname ...
 				// d.Name "[" pname ptype ...
 				// d.Name "[" pname ptype "," ...
-				d.TParamList = p.paramList(pname, ptype, _Rbrack, true)
+				d.TParamList = p.paramList(pname, ptype, _Rbrack, true) // ptype may be nil
 				d.Alias = p.gotAssign()
 				d.Type = p.typeOrNil()
 			} else {
+				// d.Name "[" pname "]" ...
 				// d.Name "[" x ...
 				d.Type = p.arrayType(pos, x)
 			}
@@ -684,17 +655,69 @@ func (p *parser) typeDecl(group *Group) Decl {
 	return d
 }
 
-// isTypeLit reports whether x is a (possibly parenthesized) type literal.
-func isTypeLit(x Expr) bool {
+// extractName splits the expression x into (name, expr) if syntactically
+// x can be written as name expr. The split only happens if expr is a type
+// element (per the isTypeElem predicate) or if force is set.
+// If x is just a name, the result is (name, nil). If the split succeeds,
+// the result is (name, expr). Otherwise the result is (nil, x).
+// Examples:
+//
+//	x           force    name    expr
+//	------------------------------------
+//	P*[]int     T/F      P       *[]int
+//	P*E         T        P       *E
+//	P*E         F        nil     P*E
+//	P([]int)    T/F      P       []int
+//	P(E)        T        P       E
+//	P(E)        F        nil     P(E)
+//	P*E|F|~G    T/F      P       *E|F|~G
+//	P*E|F|G     T        P       *E|F|G
+//	P*E|F|G     F        nil     P*E|F|G
+func extractName(x Expr, force bool) (*Name, Expr) {
+	switch x := x.(type) {
+	case *Name:
+		return x, nil
+	case *Operation:
+		if x.Y == nil {
+			break // unary expr
+		}
+		switch x.Op {
+		case Mul:
+			if name, _ := x.X.(*Name); name != nil && (force || isTypeElem(x.Y)) {
+				// x = name *x.Y
+				op := *x
+				op.X, op.Y = op.Y, nil // change op into unary *op.Y
+				return name, &op
+			}
+		case Or:
+			if name, lhs := extractName(x.X, force || isTypeElem(x.Y)); name != nil && lhs != nil {
+				// x = name lhs|x.Y
+				op := *x
+				op.X = lhs
+				return name, &op
+			}
+		}
+	case *CallExpr:
+		if name, _ := x.Fun.(*Name); name != nil {
+			if len(x.ArgList) == 1 && !x.HasDots && (force || isTypeElem(x.ArgList[0])) {
+				// x = name "(" x.ArgList[0] ")"
+				return name, x.ArgList[0]
+			}
+		}
+	}
+	return nil, x
+}
+
+// isTypeElem reports whether x is a (possibly parenthesized) type element expression.
+// The result is false if x could be a type element OR an ordinary (value) expression.
+func isTypeElem(x Expr) bool {
 	switch x := x.(type) {
 	case *ArrayType, *StructType, *FuncType, *InterfaceType, *SliceType, *MapType, *ChanType:
 		return true
 	case *Operation:
-		// *T may be a pointer dereferenciation.
-		// Only consider *T as type literal if T is a type literal.
-		return x.Op == Mul && x.Y == nil && isTypeLit(x.X)
+		return isTypeElem(x.X) || (x.Y != nil && isTypeElem(x.Y)) || x.Op == Tilde
 	case *ParenExpr:
-		return isTypeLit(x.X)
+		return isTypeElem(x.X)
 	}
 	return false
 }

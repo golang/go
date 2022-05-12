@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"crypto"
-	_ "crypto/md5"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -211,7 +210,7 @@ func TestPSSSigning(t *testing.T) {
 		{8, 8, true},
 	}
 
-	hash := crypto.MD5
+	hash := crypto.SHA1
 	h := hash.New()
 	h.Write([]byte("testing"))
 	hashed := h.Sum(nil)

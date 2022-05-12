@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of April 19, 2022",
+	"Subtitle": "Version of May 11, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -1920,7 +1920,8 @@ A value <code>x</code> of type <code>V</code> is <i>assignable</i> to a <a href=
 </li>
 <li>
 <code>V</code> and <code>T</code> have identical
-<a href="#Underlying_types">underlying types</a> and at least one of <code>V</code>
+<a href="#Underlying_types">underlying types</a>
+but are not type parameters and at least one of <code>V</code>
 or <code>T</code> is not a <a href="#Types">named type</a>.
 </li>
 <li>
@@ -2158,9 +2159,8 @@ Go is lexically scoped using <a href="#Blocks">blocks</a>:
 	    or result variable is the function body.</li>
 
 	<li>The scope of an identifier denoting a type parameter of a function
-	    or declared by a method receiver is the function body and all parameter lists of the
-	    function.
-	</li>
+	    or declared by a method receiver begins after the name of the function
+	    and ends at the end of the function body.</li>
 
 	<li>The scope of an identifier denoting a type parameter of a type
 	    begins after the name of the type and ends at the end
@@ -2761,7 +2761,7 @@ It is shorthand for a regular <a href="#Variable_declarations">variable declarat
 with initializer expressions but no types:
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 "var" IdentifierList = ExpressionList .
 </pre>
 
@@ -2780,12 +2780,14 @@ variables provided they were originally declared earlier in the same block
 and at least one of the non-<a href="#Blank_identifier">blank</a> variables is new.
 As a consequence, redeclaration can only appear in a multi-variable short declaration.
 Redeclaration does not introduce a new variable; it just assigns a new value to the original.
+The non-blank variable names on the left side of <code>:=</code>
+must be <a href="#Uniqueness_of_identifiers">unique</a>.
 </p>
 
 <pre>
 field1, offset := nextField(str, 0)
 field2, offset := nextField(str, offset)  // redeclares offset
-a, a := 1, 2                              // illegal: double declaration of a or no new variable if a was declared elsewhere
+x, y, x := 1, 2, 3                        // illegal: x repeated on left side of :=
 </pre>
 
 <p>
@@ -6809,7 +6811,8 @@ OuterLoop:
 
 <p>
 A "continue" statement begins the next iteration of the
-innermost <a href="#For_statements">"for" loop</a> at its post statement.
+innermost enclosing <a href="#For_statements">"for" loop</a>
+by advancing control to the end of the loop block.
 The "for" loop must be within the same function.
 </p>
 

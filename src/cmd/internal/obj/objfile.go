@@ -10,9 +10,9 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
-	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -51,7 +51,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 		flags |= goobj.ObjFlagUnlinkable
 	}
 	if w.pkgpath == "" {
-		flags |= goobj.ObjFlagNeedNameExpansion
+		log.Fatal("empty package path")
 	}
 	if ctxt.IsAsm {
 		flags |= goobj.ObjFlagFromAssembly
@@ -269,16 +269,20 @@ func (w *writer) StringTable() {
 		w.AddString(pkg)
 	}
 	w.ctxt.traverseSyms(traverseAll, func(s *LSym) {
-		// TODO: this includes references of indexed symbols from other packages,
-		// for which the linker doesn't need the name. Consider moving them to
-		// a separate block (for tools only).
-		if w.pkgpath != "" {
-			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
-		}
 		// Don't put names of builtins into the string table (to save
 		// space).
 		if s.PkgIdx == goobj.PkgIdxBuiltin {
 			return
+		}
+		// TODO: this includes references of indexed symbols from other packages,
+		// for which the linker doesn't need the name. Consider moving them to
+		// a separate block (for tools only).
+		if w.ctxt.Flag_noRefName && s.PkgIdx < goobj.PkgIdxSpecial {
+			// Don't include them if Flag_noRefName
+			return
+		}
+		if w.pkgpath != "" {
+			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
 		}
 		w.AddString(s.Name)
 	})
@@ -460,7 +464,7 @@ func contentHash64(s *LSym) goobj.Hash64Type {
 // For now, we assume there is no circular dependencies among
 // hashed symbols.
 func (w *writer) contentHash(s *LSym) goobj.HashType {
-	h := sha1.New()
+	h := notsha256.New()
 	var tmp [14]byte
 
 	// Include the size of the symbol in the hash.
@@ -625,6 +629,9 @@ func (w *writer) refFlags() {
 // Emits names of referenced indexed symbols, used by tools (objdump, nm)
 // only.
 func (w *writer) refNames() {
+	if w.ctxt.Flag_noRefName {
+		return
+	}
 	seen := make(map[*LSym]bool)
 	w.ctxt.traverseSyms(traverseRefs, func(rs *LSym) { // only traverse refs, not auxs, as tools don't need auxs
 		switch rs.PkgIdx {

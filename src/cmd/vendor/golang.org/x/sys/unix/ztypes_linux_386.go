@@ -241,6 +241,10 @@ type EpollEvent struct {
 }
 
 const (
+	OPEN_TREE_CLOEXEC = 0x80000
+)
+
+const (
 	POLLRDHUP = 0x2000
 )
 
@@ -249,6 +253,13 @@ type Sigset_t struct {
 }
 
 const _C__NSIG = 0x41
+
+type Siginfo struct {
+	Signo int32
+	Errno int32
+	Code  int32
+	_     [116]byte
+}
 
 type Termios struct {
 	Iflag  uint32
@@ -311,6 +322,8 @@ type Taskstats struct {
 	Thrashing_count           uint64
 	Thrashing_delay_total     uint64
 	Ac_btime64                uint64
+	Compact_count             uint64
+	Compact_delay_total       uint64
 }
 
 type cpuMask uint32

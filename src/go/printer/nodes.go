@@ -381,16 +381,12 @@ func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
 		if closing := p.lineFor(fields.Closing); 0 < prevLine && prevLine < closing {
 			p.print(token.COMMA)
 			p.linebreak(closing, 0, ignore, true)
-		} else if mode == typeTParam && fields.NumFields() == 1 {
-			// Otherwise, if we are in a type parameter list that could be confused
-			// with the constant array length expression [P*C], print a comma so that
-			// parsing is unambiguous.
-			//
-			// Note that while ParenExprs can also be ambiguous (issue #49482), the
-			// printed type is never parenthesized (stripParensAlways is used above).
-			if t, _ := fields.List[0].Type.(*ast.StarExpr); t != nil && !isTypeLit(t.X) {
-				p.print(token.COMMA)
-			}
+		} else if mode == typeTParam && fields.NumFields() == 1 && combinesWithName(fields.List[0].Type) {
+			// A type parameter list [P T] where the name P and the type expression T syntactically
+			// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
+			// (or an enclosing interface as in [P interface(*T)]), so that the type parameter list
+			// is not parsed as an array length [P*T].
+			p.print(token.COMMA)
 		}
 
 		// unindent if we indented
@@ -402,17 +398,38 @@ func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
 	p.print(fields.Closing, closeTok)
 }
 
-// isTypeLit reports whether x is a (possibly parenthesized) type literal.
-func isTypeLit(x ast.Expr) bool {
+// combinesWithName reports whether a name followed by the expression x
+// syntactically combines to another valid (value) expression. For instance
+// using *T for x, "name *T" syntactically appears as the expression x*T.
+// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
+// cannot be combined into a valid (value) expression.
+func combinesWithName(x ast.Expr) bool {
+	switch x := x.(type) {
+	case *ast.StarExpr:
+		// name *x.X combines to name*x.X if x.X is not a type element
+		return !isTypeElem(x.X)
+	case *ast.BinaryExpr:
+		return combinesWithName(x.X) && !isTypeElem(x.Y)
+	case *ast.ParenExpr:
+		// name(x) combines but we are making sure at
+		// the call site that x is never parenthesized.
+		panic("unexpected parenthesized expression")
+	}
+	return false
+}
+
+// isTypeElem reports whether x is a (possibly parenthesized) type element expression.
+// The result is false if x could be a type element OR an ordinary (value) expression.
+func isTypeElem(x ast.Expr) bool {
 	switch x := x.(type) {
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
 		return true
-	case *ast.StarExpr:
-		// *T may be a pointer dereferenciation.
-		// Only consider *T as type literal if T is a type literal.
-		return isTypeLit(x.X)
+	case *ast.UnaryExpr:
+		return x.Op == token.TILDE
+	case *ast.BinaryExpr:
+		return isTypeElem(x.X) || isTypeElem(x.Y)
 	case *ast.ParenExpr:
-		return isTypeLit(x.X)
+		return isTypeElem(x.X)
 	}
 	return false
 }
@@ -1729,8 +1746,9 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	}
 	if buf.Len() <= maxSize {
 		for _, ch := range buf.Bytes() {
-			if ch < ' ' {
-				return
+			switch ch {
+			case '\n', '\f':
+				return // does not fit in a single line
 			}
 		}
 		size = buf.Len() // n fits

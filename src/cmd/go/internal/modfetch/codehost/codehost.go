@@ -10,10 +10,10 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	exec "internal/execabs"
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -65,7 +65,7 @@ type Repo interface {
 
 	// RecentTag returns the most recent tag on rev or one of its predecessors
 	// with the given prefix. allowed may be used to filter out unwanted versions.
-	RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error)
+	RecentTag(rev, prefix string, allowed func(tag string) bool) (tag string, err error)
 
 	// DescendsFrom reports whether rev or any of its ancestors has the given tag.
 	//

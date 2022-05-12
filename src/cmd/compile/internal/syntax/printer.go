@@ -666,7 +666,7 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(n.Name)
 		if n.TParamList != nil {
-			p.printParameterList(n.TParamList, true)
+			p.printParameterList(n.TParamList, _Type)
 		}
 		p.print(blank)
 		if n.Alias {
@@ -698,7 +698,7 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(n.Name)
 		if n.TParamList != nil {
-			p.printParameterList(n.TParamList, true)
+			p.printParameterList(n.TParamList, _Func)
 		}
 		p.printSignature(n.Type)
 		if n.Body != nil {
@@ -883,20 +883,23 @@ func (p *printer) printDeclList(list []Decl) {
 }
 
 func (p *printer) printSignature(sig *FuncType) {
-	p.printParameterList(sig.ParamList, false)
+	p.printParameterList(sig.ParamList, 0)
 	if list := sig.ResultList; list != nil {
 		p.print(blank)
 		if len(list) == 1 && list[0].Name == nil {
 			p.printNode(list[0].Type)
 		} else {
-			p.printParameterList(list, false)
+			p.printParameterList(list, 0)
 		}
 	}
 }
 
-func (p *printer) printParameterList(list []*Field, types bool) {
+// If tok != 0 print a type parameter list: tok == _Type means
+// a type parameter list for a type, tok == _Func means a type
+// parameter list for a func.
+func (p *printer) printParameterList(list []*Field, tok token) {
 	open, close := _Lparen, _Rparen
-	if types {
+	if tok != 0 {
 		open, close = _Lbrack, _Rbrack
 	}
 	p.print(open)
@@ -916,14 +919,36 @@ func (p *printer) printParameterList(list []*Field, types bool) {
 		}
 		p.printNode(unparen(f.Type)) // no need for (extra) parentheses around parameter types
 	}
-	// A type parameter list [P *T] where T is not a type literal requires a comma as in [P *T,]
-	// so that it's not parsed as [P*T].
-	if types && len(list) == 1 {
-		if t, _ := list[0].Type.(*Operation); t != nil && t.Op == Mul && t.Y == nil && !isTypeLit(t.X) {
-			p.print(_Comma)
-		}
+	// A type parameter list [P T] where the name P and the type expression T syntactically
+	// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
+	// (or an enclosing interface as in [P interface(*T)]), so that the type parameter list
+	// is not parsed as an array length [P*T].
+	if tok == _Type && len(list) == 1 && combinesWithName(list[0].Type) {
+		p.print(_Comma)
 	}
 	p.print(close)
+}
+
+// combinesWithName reports whether a name followed by the expression x
+// syntactically combines to another valid (value) expression. For instance
+// using *T for x, "name *T" syntactically appears as the expression x*T.
+// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
+// cannot be combined into a valid (value) expression.
+func combinesWithName(x Expr) bool {
+	switch x := x.(type) {
+	case *Operation:
+		if x.Y == nil {
+			// name *x.X combines to name*x.X if x.X is not a type element
+			return x.Op == Mul && !isTypeElem(x.X)
+		}
+		// binary expressions
+		return combinesWithName(x.X) && !isTypeElem(x.Y)
+	case *ParenExpr:
+		// name(x) combines but we are making sure at
+		// the call site that x is never parenthesized.
+		panic("unexpected parenthesized expression")
+	}
+	return false
 }
 
 func (p *printer) printStmtList(list []Stmt, braces bool) {

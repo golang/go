@@ -6,9 +6,12 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"runtime"
 	"runtime/debug"
+	"runtime/metrics"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -21,6 +24,8 @@ func init() {
 	register("GCPhys", GCPhys)
 	register("DeferLiveness", DeferLiveness)
 	register("GCZombie", GCZombie)
+	register("GCMemoryLimit", GCMemoryLimit)
+	register("GCMemoryLimitNoGCPercent", GCMemoryLimitNoGCPercent)
 }
 
 func GCSys() {
@@ -303,3 +308,113 @@ func GCZombie() {
 	runtime.KeepAlive(keep)
 	runtime.KeepAlive(zombies)
 }
+
+func GCMemoryLimit() {
+	gcMemoryLimit(100)
+}
+
+func GCMemoryLimitNoGCPercent() {
+	gcMemoryLimit(-1)
+}
+
+// Test SetMemoryLimit functionality.
+//
+// This test lives here instead of runtime/debug because the entire
+// implementation is in the runtime, and testprog gives us a more
+// consistent testing environment to help avoid flakiness.
+func gcMemoryLimit(gcPercent int) {
+	if oldProcs := runtime.GOMAXPROCS(4); oldProcs < 4 {
+		// Fail if the default GOMAXPROCS isn't at least 4.
+		// Whatever invokes this should check and do a proper t.Skip.
+		println("insufficient CPUs")
+		return
+	}
+	debug.SetGCPercent(gcPercent)
+
+	const myLimit = 256 << 20
+	if limit := debug.SetMemoryLimit(-1); limit != math.MaxInt64 {
+		print("expected MaxInt64 limit, got ", limit, " bytes instead\n")
+		return
+	}
+	if limit := debug.SetMemoryLimit(myLimit); limit != math.MaxInt64 {
+		print("expected MaxInt64 limit, got ", limit, " bytes instead\n")
+		return
+	}
+	if limit := debug.SetMemoryLimit(-1); limit != myLimit {
+		print("expected a ", myLimit, "-byte limit, got ", limit, " bytes instead\n")
+		return
+	}
+
+	target := make(chan int64)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		sinkSize := int(<-target / memLimitUnit)
+		for {
+			if len(memLimitSink) != sinkSize {
+				memLimitSink = make([]*[memLimitUnit]byte, sinkSize)
+			}
+			for i := 0; i < len(memLimitSink); i++ {
+				memLimitSink[i] = new([memLimitUnit]byte)
+				// Write to this memory to slow down the allocator, otherwise
+				// we get flaky behavior. See #52433.
+				for j := range memLimitSink[i] {
+					memLimitSink[i][j] = 9
+				}
+			}
+			// Again, Gosched to slow down the allocator.
+			runtime.Gosched()
+			select {
+			case newTarget := <-target:
+				if newTarget == math.MaxInt64 {
+					return
+				}
+				sinkSize = int(newTarget / memLimitUnit)
+			default:
+			}
+		}
+	}()
+	var m [2]metrics.Sample
+	m[0].Name = "/memory/classes/total:bytes"
+	m[1].Name = "/memory/classes/heap/released:bytes"
+
+	// Don't set this too high, because this is a *live heap* target which
+	// is not directly comparable to a total memory limit.
+	maxTarget := int64((myLimit / 10) * 8)
+	increment := int64((myLimit / 10) * 1)
+	for i := increment; i < maxTarget; i += increment {
+		target <- i
+
+		// Check to make sure the memory limit is maintained.
+		// We're just sampling here so if it transiently goes over we might miss it.
+		// The internal accounting is inconsistent anyway, so going over by a few
+		// pages is certainly possible. Just make sure we're within some bound.
+		// Note that to avoid flakiness due to #52433 (especially since we're allocating
+		// somewhat heavily here) this bound is kept loose. In practice the Go runtime
+		// should do considerably better than this bound.
+		bound := int64(myLimit + 16<<20)
+		start := time.Now()
+		for time.Now().Sub(start) < 200*time.Millisecond {
+			metrics.Read(m[:])
+			retained := int64(m[0].Value.Uint64() - m[1].Value.Uint64())
+			if retained > bound {
+				print("retained=", retained, " limit=", myLimit, " bound=", bound, "\n")
+				panic("exceeded memory limit by more than bound allows")
+			}
+			runtime.Gosched()
+		}
+	}
+
+	if limit := debug.SetMemoryLimit(math.MaxInt64); limit != myLimit {
+		print("expected a ", myLimit, "-byte limit, got ", limit, " bytes instead\n")
+		return
+	}
+	println("OK")
+}
+
+// Pick a value close to the page size. We want to m
+const memLimitUnit = 8000
+
+var memLimitSink []*[memLimitUnit]byte

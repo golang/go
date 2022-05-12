@@ -9,8 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -79,6 +79,8 @@ and test commands:
 	-asan
 		enable interoperation with address sanitizer.
 		Supported only on linux/arm64, linux/amd64.
+		Supported only on linux/amd64 or linux/arm64 and only with GCC 7 and higher
+		or Clang/LLVM 9 and higher.
 	-v
 		print the names of packages as they are compiled.
 	-work

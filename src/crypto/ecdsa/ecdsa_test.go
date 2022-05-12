@@ -327,7 +327,7 @@ func testZeroHashSignature(t *testing.T, curve elliptic.Curve) {
 	}
 }
 
-func benchmarkAllCurves(t *testing.B, f func(*testing.B, elliptic.Curve)) {
+func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
 	tests := []struct {
 		name  string
 		curve elliptic.Curve
@@ -339,8 +339,8 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, elliptic.Curve)) {
 	}
 	for _, test := range tests {
 		curve := test.curve
-		t.Run(test.name, func(t *testing.B) {
-			f(t, curve)
+		b.Run(test.name, func(b *testing.B) {
+			f(b, curve)
 		})
 	}
 }

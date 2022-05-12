@@ -401,6 +401,12 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
 	p.SwigFiles = pp.SwigFiles
 	p.SwigCXXFiles = pp.SwigCXXFiles
 	p.SysoFiles = pp.SysoFiles
+	if cfg.BuildMSan {
+		// There's no way for .syso files to be built both with and without
+		// support for memory sanitizer. Assume they are built without,
+		// and drop them.
+		p.SysoFiles = nil
+	}
 	p.CgoCFLAGS = pp.CgoCFLAGS
 	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
@@ -1941,7 +1947,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	if !opts.SuppressDeps {
 		p.collectDeps()
 	}
-	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 {
+	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 && !opts.SuppressBuildInfo {
 		// TODO(bcmills): loading VCS metadata can be fairly slow.
 		// Consider starting this as a background goroutine and retrieving the result
 		// asynchronously when we're actually ready to build the package, or when we
@@ -2682,11 +2688,15 @@ type PackageOpts struct {
 	// LoadVCS controls whether we also load version-control metadata for main packages.
 	LoadVCS bool
 
-	// NeedDepsFields is true if the caller does not need Deps and DepsErrors to be populated
+	// SuppressDeps is true if the caller does not need Deps and DepsErrors to be populated
 	// on the package. TestPackagesAndErrors examines the  Deps field to determine if the test
 	// variant has an import cycle, so SuppressDeps should not be set if TestPackagesAndErrors
 	// will be called on the package.
 	SuppressDeps bool
+
+	// SuppressBuildInfo is true if the caller does not need p.Stale, p.StaleReason, or p.Internal.BuildInfo
+	// to be populated on the package.
+	SuppressBuildInfo bool
 }
 
 // PackagesAndErrors returns the packages named by the command line arguments

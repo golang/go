@@ -811,6 +811,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 
 	params := name.FuncType.Params
 	args := call.Call.Args
+	end := call.Call.End()
 
 	// Avoid a crash if the number of arguments doesn't match
 	// the number of parameters.
@@ -958,7 +959,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	if nu {
 		needsUnsafe = true
 	}
-	sb.WriteString(gofmtLine(m))
+	sb.WriteString(gofmtPos(m, end))
 
 	sb.WriteString("(")
 	for i := range params {
@@ -1622,6 +1623,8 @@ func (p *Package) gccMachine() []string {
 		} else if gomips == "softfloat" {
 			return []string{"-mabi=32", "-msoft-float"}
 		}
+	case "loong64":
+		return []string{"-mabi=lp64d"}
 	}
 	return nil
 }

@@ -599,25 +599,6 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		leaf = currentChain[0]
 	}
 
-	if (len(c.ExtKeyUsage) > 0 || len(c.UnknownExtKeyUsage) > 0) && len(opts.KeyUsages) > 0 {
-		acceptableUsage := false
-		um := make(map[ExtKeyUsage]bool, len(opts.KeyUsages))
-		for _, u := range opts.KeyUsages {
-			um[u] = true
-		}
-		if !um[ExtKeyUsageAny] {
-			for _, u := range c.ExtKeyUsage {
-				if u == ExtKeyUsageAny || um[u] {
-					acceptableUsage = true
-					break
-				}
-			}
-			if !acceptableUsage {
-				return CertificateInvalidError{c, IncompatibleUsage, ""}
-			}
-		}
-	}
-
 	if (certType == intermediateCertificate || certType == rootCertificate) &&
 		c.hasNameConstraints() {
 		toCheck := []*Certificate{}
@@ -725,6 +706,13 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		}
 	}
 
+	if !boringAllowCert(c) {
+		// IncompatibleUsage is not quite right here,
+		// but it's also the "no chains found" error
+		// and is close enough.
+		return CertificateInvalidError{c, IncompatibleUsage, ""}
+	}
+
 	return nil
 }
 
@@ -797,10 +785,6 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	if len(opts.KeyUsages) == 0 {
-		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
-	}
-
 	err = c.isValid(leafCertificate, nil, &opts)
 	if err != nil {
 		return
@@ -813,10 +797,40 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
+	var candidateChains [][]*Certificate
 	if opts.Roots.contains(c) {
-		return [][]*Certificate{{c}}, nil
+		candidateChains = [][]*Certificate{{c}}
+	} else {
+		candidateChains, err = c.buildChains([]*Certificate{c}, nil, &opts)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return c.buildChains([]*Certificate{c}, nil, &opts)
+
+	if len(opts.KeyUsages) == 0 {
+		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+	}
+
+	for _, eku := range opts.KeyUsages {
+		if eku == ExtKeyUsageAny {
+			// If any key usage is acceptable, no need to check the chain for
+			// key usages.
+			return candidateChains, nil
+		}
+	}
+
+	chains = make([][]*Certificate, 0, len(candidateChains))
+	for _, candidate := range candidateChains {
+		if checkChainForKeyUsage(candidate, opts.KeyUsages) {
+			chains = append(chains, candidate)
+		}
+	}
+
+	if len(chains) == 0 {
+		return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
+	}
+
+	return chains, nil
 }
 
 func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {

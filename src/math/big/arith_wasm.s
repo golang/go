@@ -7,9 +7,6 @@
 
 #include "textflag.h"
 
-TEXT ·mulWW(SB),NOSPLIT,$0
-	JMP ·mulWW_g(SB)
-
 TEXT ·addVV(SB),NOSPLIT,$0
 	JMP ·addVV_g(SB)
 

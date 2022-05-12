@@ -15,7 +15,7 @@ package ed25519
 import (
 	"bytes"
 	"crypto"
-	"crypto/ed25519/internal/edwards25519"
+	"crypto/internal/edwards25519"
 	cryptorand "crypto/rand"
 	"crypto/sha512"
 	"errors"

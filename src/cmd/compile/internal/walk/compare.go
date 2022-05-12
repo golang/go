@@ -268,9 +268,8 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		expr = ir.NewBool(n.Op() == ir.OEQ)
 		// We still need to use cmpl and cmpr, in case they contain
 		// an expression which might panic. See issue 23837.
-		t := typecheck.Temp(cmpl.Type())
-		a1 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, t, cmpl))
-		a2 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, t, cmpr))
+		a1 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.BlankNode, cmpl))
+		a2 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.BlankNode, cmpr))
 		init.Append(a1, a2)
 	}
 	return finishCompare(n, expr, init)

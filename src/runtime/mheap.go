@@ -62,7 +62,10 @@ const (
 type mheap struct {
 	// lock must only be acquired on the system stack, otherwise a g
 	// could self-deadlock if its stack grows with the lock held.
-	lock  mutex
+	lock mutex
+
+	_ uint32 // 8-byte align pages so its alignment is consistent with tests.
+
 	pages pageAlloc // page allocation data structure
 
 	sweepgen uint32 // sweep generation, see comment in mspan; written during STW
@@ -107,13 +110,6 @@ type mheap struct {
 	sweepPagesPerByte  float64       // proportional sweep ratio; written with lock, read without
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
 	// compiler can't 8-byte align fields.
-
-	// scavengeGoal is the amount of total retained heap memory (measured by
-	// heapRetained) that the runtime will try to maintain by returning memory
-	// to the OS.
-	//
-	// Accessed atomically.
-	scavengeGoal uint64
 
 	// Page reclaimer state
 
@@ -921,7 +917,7 @@ func (h *mheap) alloc(npages uintptr, spanclass spanClass) *mspan {
 //
 // allocManual adds the bytes used to *stat, which should be a
 // memstats in-use field. Unlike allocations in the GC'd heap, the
-// allocation does *not* count toward heap_inuse or heap_sys.
+// allocation does *not* count toward heapInUse.
 //
 // The memory backing the returned span may not be zeroed if
 // span.needzero is set.
@@ -1204,25 +1200,6 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 
 	unlock(&h.lock)
 
-	if growth > 0 {
-		// We just caused a heap growth, so scavenge down what will soon be used.
-		// By scavenging inline we deal with the failure to allocate out of
-		// memory fragments by scavenging the memory fragments that are least
-		// likely to be re-used.
-		scavengeGoal := atomic.Load64(&h.scavengeGoal)
-		if retained := heapRetained(); retained+uint64(growth) > scavengeGoal {
-			// The scavenging algorithm requires the heap lock to be dropped so it
-			// can acquire it only sparingly. This is a potentially expensive operation
-			// so it frees up other goroutines to allocate in the meanwhile. In fact,
-			// they can make use of the growth we just created.
-			todo := growth
-			if overage := uintptr(retained + uint64(growth) - scavengeGoal); todo > overage {
-				todo = overage
-			}
-			h.pages.scavenge(todo)
-		}
-	}
-
 HaveSpan:
 	// At this point, both s != nil and base != 0, and the heap
 	// lock is no longer held. Initialize the span.
@@ -1274,20 +1251,71 @@ HaveSpan:
 		s.state.set(mSpanInUse)
 	}
 
+	// Decide if we need to scavenge in response to what we just allocated.
+	// Specifically, we track the maximum amount of memory to scavenge of all
+	// the alternatives below, assuming that the maximum satisfies *all*
+	// conditions we check (e.g. if we need to scavenge X to satisfy the
+	// memory limit and Y to satisfy heap-growth scavenging, and Y > X, then
+	// it's fine to pick Y, because the memory limit is still satisfied).
+	//
+	// It's fine to do this after allocating because we expect any scavenged
+	// pages not to get touched until we return. Simultaneously, it's important
+	// to do this before calling sysUsed because that may commit address space.
+	bytesToScavenge := uintptr(0)
+	if limit := gcController.memoryLimit.Load(); go119MemoryLimitSupport && !gcCPULimiter.limiting() {
+		// Assist with scavenging to maintain the memory limit by the amount
+		// that we expect to page in.
+		inuse := gcController.mappedReady.Load()
+		// Be careful about overflow, especially with uintptrs. Even on 32-bit platforms
+		// someone can set a really big memory limit that isn't maxInt64.
+		if uint64(scav)+inuse > uint64(limit) {
+			bytesToScavenge = uintptr(uint64(scav) + inuse - uint64(limit))
+		}
+	}
+	if goal := scavenge.gcPercentGoal.Load(); goal != ^uint64(0) && growth > 0 {
+		// We just caused a heap growth, so scavenge down what will soon be used.
+		// By scavenging inline we deal with the failure to allocate out of
+		// memory fragments by scavenging the memory fragments that are least
+		// likely to be re-used.
+		//
+		// Only bother with this because we're not using a memory limit. We don't
+		// care about heap growths as long as we're under the memory limit, and the
+		// previous check for scaving already handles that.
+		if retained := heapRetained(); retained+uint64(growth) > goal {
+			// The scavenging algorithm requires the heap lock to be dropped so it
+			// can acquire it only sparingly. This is a potentially expensive operation
+			// so it frees up other goroutines to allocate in the meanwhile. In fact,
+			// they can make use of the growth we just created.
+			todo := growth
+			if overage := uintptr(retained + uint64(growth) - goal); todo > overage {
+				todo = overage
+			}
+			if todo > bytesToScavenge {
+				bytesToScavenge = todo
+			}
+		}
+	}
+	if bytesToScavenge > 0 {
+		// Measure how long we spent scavenging and add that measurement to the assist
+		// time so we can track it for the GC CPU limiter.
+		start := nanotime()
+		h.pages.scavenge(bytesToScavenge)
+		now := nanotime()
+		assistTime := h.pages.scav.assistTime.Add(now - start)
+		gcCPULimiter.update(gcController.assistTime.Load()+assistTime, now)
+	}
+
 	// Commit and account for any scavenged memory that the span now owns.
 	if scav != 0 {
 		// sysUsed all the pages that are actually available
 		// in the span since some of them might be scavenged.
-		sysUsed(unsafe.Pointer(base), nbytes)
-		atomic.Xadd64(&memstats.heap_released, -int64(scav))
+		sysUsed(unsafe.Pointer(base), nbytes, scav)
+		gcController.heapReleased.add(-int64(scav))
 	}
 	// Update stats.
+	gcController.heapFree.add(-int64(nbytes - scav))
 	if typ == spanAllocHeap {
-		atomic.Xadd64(&memstats.heap_inuse, int64(nbytes))
-	}
-	if typ.manual() {
-		// Manually managed memory doesn't count toward heap_sys.
-		memstats.heap_sys.add(-int64(nbytes))
+		gcController.heapInUse.add(int64(nbytes))
 	}
 	// Update consistent stats.
 	stats := memstats.heapStats.acquire()
@@ -1359,7 +1387,8 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 		// current arena, so we have to request the full ask.
 		av, asize := h.sysAlloc(ask)
 		if av == nil {
-			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", memstats.heap_sys, " in use)\n")
+			inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
+			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", inUse, " in use)\n")
 			return 0, false
 		}
 
@@ -1375,9 +1404,8 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 				// Transition this space from Reserved to Prepared and mark it
 				// as released since we'll be able to start using it after updating
 				// the page allocator and releasing the lock at any time.
-				sysMap(unsafe.Pointer(h.curArena.base), size, &memstats.heap_sys)
+				sysMap(unsafe.Pointer(h.curArena.base), size, &gcController.heapReleased)
 				// Update stats.
-				atomic.Xadd64(&memstats.heap_released, int64(size))
 				stats := memstats.heapStats.acquire()
 				atomic.Xaddint64(&stats.released, int64(size))
 				memstats.heapStats.release()
@@ -1403,15 +1431,14 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 	h.curArena.base = nBase
 
 	// Transition the space we're going to use from Reserved to Prepared.
-	sysMap(unsafe.Pointer(v), nBase-v, &memstats.heap_sys)
-
-	// The memory just allocated counts as both released
-	// and idle, even though it's not yet backed by spans.
 	//
 	// The allocation is always aligned to the heap arena
 	// size which is always > physPageSize, so its safe to
-	// just add directly to heap_released.
-	atomic.Xadd64(&memstats.heap_released, int64(nBase-v))
+	// just add directly to heapReleased.
+	sysMap(unsafe.Pointer(v), nBase-v, &gcController.heapReleased)
+
+	// The memory just allocated counts as both released
+	// and idle, even though it's not yet backed by spans.
 	stats := memstats.heapStats.acquire()
 	atomic.Xaddint64(&stats.released, int64(nBase-v))
 	memstats.heapStats.release()
@@ -1488,12 +1515,9 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 	//
 	// Mirrors the code in allocSpan.
 	nbytes := s.npages * pageSize
+	gcController.heapFree.add(int64(nbytes))
 	if typ == spanAllocHeap {
-		atomic.Xadd64(&memstats.heap_inuse, -int64(nbytes))
-	}
-	if typ.manual() {
-		// Manually managed memory doesn't count toward heap_sys, so add it back.
-		memstats.heap_sys.add(int64(nbytes))
+		gcController.heapInUse.add(-int64(nbytes))
 	}
 	// Update consistent stats.
 	stats := memstats.heapStats.acquire()
@@ -1527,22 +1551,12 @@ func (h *mheap) scavengeAll() {
 	gp := getg()
 	gp.m.mallocing++
 
-	lock(&h.lock)
-	// Start a new scavenge generation so we have a chance to walk
-	// over the whole heap.
-	h.pages.scavengeStartGen()
-	unlock(&h.lock)
-
 	released := h.pages.scavenge(^uintptr(0))
-
-	lock(&h.pages.scav.lock)
-	gen := h.pages.scav.gen
-	unlock(&h.pages.scav.lock)
 
 	gp.m.mallocing--
 
 	if debug.scavtrace > 0 {
-		printScavTrace(gen, released, true)
+		printScavTrace(released, true)
 	}
 }
 

@@ -143,31 +143,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = v.Reg1()
 
-	case ssa.OpPPC64LoweredAdd64Carry:
-		// ADDC		Rarg2, -1, Rtmp
-		// ADDE		Rarg1, Rarg0, Reg0
-		// ADDZE	Rzero, Reg1
-		r0 := v.Args[0].Reg()
-		r1 := v.Args[1].Reg()
-		r2 := v.Args[2].Reg()
-		p := s.Prog(ppc64.AADDC)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -1
-		p.Reg = r2
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = ppc64.REGTMP
-		p1 := s.Prog(ppc64.AADDE)
-		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = r1
-		p1.Reg = r0
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = v.Reg0()
-		p2 := s.Prog(ppc64.AADDZE)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = ppc64.REGZERO
-		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = v.Reg1()
-
 	case ssa.OpPPC64LoweredAtomicAnd8,
 		ssa.OpPPC64LoweredAtomicAnd32,
 		ssa.OpPPC64LoweredAtomicOr8,
@@ -467,6 +442,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// done (label)
 		p8 := s.Prog(obj.ANOP)
 		p6.To.SetTarget(p8)
+
+	case ssa.OpPPC64LoweredPubBarrier:
+		// LWSYNC
+		s.Prog(v.Op.Asm())
 
 	case ssa.OpPPC64LoweredGetClosurePtr:
 		// Closure pointer is R11 (already)
@@ -1143,7 +1122,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p = s.Prog(ppc64.ABC)
 			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = ppc64.BO_BCTR
-			p.Reg = ppc64.REG_R0
+			p.Reg = ppc64.REG_CR0LT
 			p.To.Type = obj.TYPE_BRANCH
 			p.To.SetTarget(top)
 		}
@@ -1343,7 +1322,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p = s.Prog(ppc64.ABC)
 			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = ppc64.BO_BCTR
-			p.Reg = ppc64.REG_R0
+			p.Reg = ppc64.REG_CR0LT
 			p.To.Type = obj.TYPE_BRANCH
 			p.To.SetTarget(top)
 		}
@@ -1522,7 +1501,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p = s.Prog(ppc64.ABC)
 			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = ppc64.BO_BCTR
-			p.Reg = ppc64.REG_R0
+			p.Reg = ppc64.REG_CR0LT
 			p.To.Type = obj.TYPE_BRANCH
 			p.To.SetTarget(top)
 
@@ -1769,7 +1748,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p = s.Prog(ppc64.ABC)
 			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = ppc64.BO_BCTR
-			p.Reg = ppc64.REG_R0
+			p.Reg = ppc64.REG_CR0LT
 			p.To.Type = obj.TYPE_BRANCH
 			p.To.SetTarget(top)
 
@@ -1901,9 +1880,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 
 		pp := s.Call(v)
-		pp.To.Reg = ppc64.REG_LR
 
-		// Insert a hint this is not a subroutine return.
+		// Convert the call into a blrl with hint this is not a subroutine return.
+		// The full bclrl opcode must be specified when passing a hint.
+		pp.As = ppc64.ABCL
+		pp.From.Type = obj.TYPE_CONST
+		pp.From.Offset = ppc64.BO_ALWAYS
+		pp.Reg = ppc64.REG_CR0LT // The preferred value if BI is ignored.
+		pp.To.Reg = ppc64.REG_LR
 		pp.SetFrom3Const(1)
 
 		if base.Ctxt.Flag_shared {

@@ -55,7 +55,7 @@ const (
 	traceEvGoWaiting         = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
 	traceEvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
 	traceEvHeapAlloc         = 33 // gcController.heapLive change [timestamp, heap_alloc]
-	traceEvHeapGoal          = 34 // gcController.heapGoal (formerly next_gc) change [timestamp, heap goal in bytes]
+	traceEvHeapGoal          = 34 // gcController.heapGoal() (formerly next_gc) change [timestamp, heap goal in bytes]
 	traceEvTimerGoroutine    = 35 // not currently used; previously denoted timer goroutine [timer goroutine id]
 	traceEvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
 	traceEvString            = 37 // string dictionary entry [ID, length, string]
@@ -70,7 +70,8 @@ const (
 	traceEvUserTaskEnd       = 46 // end of a task [timestamp, internal task id, stack]
 	traceEvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
 	traceEvUserLog           = 48 // trace.Log [timestamp, internal task id, key string id, stack, value string]
-	traceEvCount             = 49
+	traceEvCPUSample         = 49 // CPU profiling sample [timestamp, stack, real timestamp, real P id (-1 when absent), goroutine id]
+	traceEvCount             = 50
 	// Byte is used but only 6 bits are available for event type.
 	// The remaining 2 bits are used to specify the number of arguments.
 	// That means, the max event type value is 63.
@@ -127,6 +128,24 @@ var trace struct {
 	fullTail      traceBufPtr
 	reader        guintptr        // goroutine that called ReadTrace, or nil
 	stackTab      traceStackTable // maps stack traces to unique ids
+	// cpuLogRead accepts CPU profile samples from the signal handler where
+	// they're generated. It uses a two-word header to hold the IDs of the P and
+	// G (respectively) that were active at the time of the sample. Because
+	// profBuf uses a record with all zeros in its header to indicate overflow,
+	// we make sure to make the P field always non-zero: The ID of a real P will
+	// start at bit 1, and bit 0 will be set. Samples that arrive while no P is
+	// running (such as near syscalls) will set the first header field to 0b10.
+	// This careful handling of the first header field allows us to store ID of
+	// the active G directly in the second field, even though that will be 0
+	// when sampling g0.
+	cpuLogRead *profBuf
+	// cpuLogBuf is a trace buffer to hold events corresponding to CPU profile
+	// samples, which arrive out of band and not directly connected to a
+	// specific P.
+	cpuLogBuf traceBufPtr
+
+	signalLock  atomic.Uint32 // protects use of the following member, only usable in signal handlers
+	cpuLogWrite *profBuf      // copy of cpuLogRead for use in signal handlers, set without signalLock
 
 	// Dictionary for traceEvString.
 	//
@@ -222,6 +241,18 @@ func StartTrace() error {
 	stackID := traceStackID(mp, stkBuf, 2)
 	releasem(mp)
 
+	profBuf := newProfBuf(2, profBufWordCount, profBufTagCount) // after the timestamp, header is [pp.id, gp.goid]
+	trace.cpuLogRead = profBuf
+
+	// We must not acquire trace.signalLock outside of a signal handler: a
+	// profiling signal may arrive at any time and try to acquire it, leading to
+	// deadlock. Because we can't use that lock to protect updates to
+	// trace.cpuLogWrite (only use of the structure it references), reads and
+	// writes of the pointer must be atomic. (And although this field is never
+	// the sole pointer to the profBuf value, it's best to allow a write barrier
+	// here.)
+	atomicstorep(unsafe.Pointer(&trace.cpuLogWrite), unsafe.Pointer(profBuf))
+
 	// World is stopped, no need to lock.
 	forEachGRace(func(gp *g) {
 		status := readgstatus(gp)
@@ -302,6 +333,10 @@ func StopTrace() {
 
 	traceGoSched()
 
+	atomicstorep(unsafe.Pointer(&trace.cpuLogWrite), nil)
+	trace.cpuLogRead.close()
+	traceReadCPU()
+
 	// Loop over all allocated Ps because dead Ps may still have
 	// trace buffers.
 	for _, p := range allp[:cap(allp)] {
@@ -314,6 +349,13 @@ func StopTrace() {
 	if trace.buf != 0 {
 		buf := trace.buf
 		trace.buf = 0
+		if buf.ptr().pos != 0 {
+			traceFullQueue(buf)
+		}
+	}
+	if trace.cpuLogBuf != 0 {
+		buf := trace.cpuLogBuf
+		trace.cpuLogBuf = 0
 		if buf.ptr().pos != 0 {
 			traceFullQueue(buf)
 		}
@@ -367,6 +409,7 @@ func StopTrace() {
 	}
 	trace.strings = nil
 	trace.shutdown = false
+	trace.cpuLogRead = nil
 	unlock(&trace.lock)
 }
 
@@ -405,7 +448,12 @@ func ReadTrace() []byte {
 		trace.headerWritten = true
 		trace.lockOwner = nil
 		unlock(&trace.lock)
-		return []byte("go 1.11 trace\x00\x00\x00")
+		return []byte("go 1.19 trace\x00\x00\x00")
+	}
+	// Optimistically look for CPU profile samples. This may write new stack
+	// records, and may write new tracing buffers.
+	if !trace.footerWritten && !trace.shutdown {
+		traceReadCPU()
 	}
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
@@ -421,6 +469,7 @@ func ReadTrace() []byte {
 		unlock(&trace.lock)
 		return buf.ptr().arr[:buf.ptr().pos]
 	}
+
 	// Write footer with timer frequency.
 	if !trace.footerWritten {
 		trace.footerWritten = true
@@ -549,11 +598,28 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 			skip++ // +1 because stack is captured in traceEventLocked.
 		}
 	}
-	traceEventLocked(0, mp, pid, bufp, ev, skip, args...)
+	traceEventLocked(0, mp, pid, bufp, ev, 0, skip, args...)
 	traceReleaseBuffer(pid)
 }
 
-func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev byte, skip int, args ...uint64) {
+// traceEventLocked writes a single event of type ev to the trace buffer bufp,
+// flushing the buffer if necessary. pid is the id of the current P, or
+// traceGlobProc if we're tracing without a real P.
+//
+// Preemption is disabled, and if running without a real P the global tracing
+// buffer is locked.
+//
+// Events types that do not include a stack set skip to -1. Event types that
+// include a stack may explicitly reference a stackID from the trace.stackTab
+// (obtained by an earlier call to traceStackID). Without an explicit stackID,
+// this function will automatically capture the stack of the goroutine currently
+// running on mp, skipping skip top frames or, if skip is 0, writing out an
+// empty stack record.
+//
+// It records the event's args to the traceBuf, and also makes an effort to
+// reserve extraBytes bytes of additional space immediately following the event,
+// in the same traceBuf.
+func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev byte, stackID uint32, skip int, args ...uint64) {
 	buf := bufp.ptr()
 	// TODO: test on non-zero extraBytes param.
 	maxSize := 2 + 5*traceBytesPerNumber + extraBytes // event type, length, sequence, timestamp, stack id and two add params
@@ -573,7 +639,7 @@ func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev by
 
 	buf.lastTicks = ticks
 	narg := byte(len(args))
-	if skip >= 0 {
+	if stackID != 0 || skip >= 0 {
 		narg++
 	}
 	// We have only 2 bits for number of arguments.
@@ -593,7 +659,9 @@ func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev by
 	for _, a := range args {
 		buf.varint(a)
 	}
-	if skip == 0 {
+	if stackID != 0 {
+		buf.varint(uint64(stackID))
+	} else if skip == 0 {
 		buf.varint(0)
 	} else if skip > 0 {
 		buf.varint(traceStackID(mp, buf.stk[:], skip))
@@ -605,6 +673,111 @@ func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev by
 	if lenp != nil {
 		// Fill in actual length.
 		*lenp = byte(evSize - 2)
+	}
+}
+
+// traceCPUSample writes a CPU profile sample stack to the execution tracer's
+// profiling buffer. It is called from a signal handler, so is limited in what
+// it can do.
+func traceCPUSample(gp *g, pp *p, stk []uintptr) {
+	if !trace.enabled {
+		// Tracing is usually turned off; don't spend time acquiring the signal
+		// lock unless it's active.
+		return
+	}
+
+	// Match the clock used in traceEventLocked
+	now := cputicks()
+	// The "header" here is the ID of the P that was running the profiled code,
+	// followed by the ID of the goroutine. (For normal CPU profiling, it's
+	// usually the number of samples with the given stack.) Near syscalls, pp
+	// may be nil. Reporting goid of 0 is fine for either g0 or a nil gp.
+	var hdr [2]uint64
+	if pp != nil {
+		// Overflow records in profBuf have all header values set to zero. Make
+		// sure that real headers have at least one bit set.
+		hdr[0] = uint64(pp.id)<<1 | 0b1
+	} else {
+		hdr[0] = 0b10
+	}
+	if gp != nil {
+		hdr[1] = uint64(gp.goid)
+	}
+
+	// Allow only one writer at a time
+	for !trace.signalLock.CompareAndSwap(0, 1) {
+		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
+		osyield()
+	}
+
+	if log := (*profBuf)(atomic.Loadp(unsafe.Pointer(&trace.cpuLogWrite))); log != nil {
+		// Note: we don't pass a tag pointer here (how should profiling tags
+		// interact with the execution tracer?), but if we did we'd need to be
+		// careful about write barriers. See the long comment in profBuf.write.
+		log.write(nil, now, hdr[:], stk)
+	}
+
+	trace.signalLock.Store(0)
+}
+
+func traceReadCPU() {
+	bufp := &trace.cpuLogBuf
+
+	for {
+		data, tags, _ := trace.cpuLogRead.read(profBufNonBlocking)
+		if len(data) == 0 {
+			break
+		}
+		for len(data) > 0 {
+			if len(data) < 4 || data[0] > uint64(len(data)) {
+				break // truncated profile
+			}
+			if data[0] < 4 || tags != nil && len(tags) < 1 {
+				break // malformed profile
+			}
+			if len(tags) < 1 {
+				break // mismatched profile records and tags
+			}
+			timestamp := data[1]
+			ppid := data[2] >> 1
+			if hasP := (data[2] & 0b1) != 0; !hasP {
+				ppid = ^uint64(0)
+			}
+			goid := data[3]
+			stk := data[4:data[0]]
+			empty := len(stk) == 1 && data[2] == 0 && data[3] == 0
+			data = data[data[0]:]
+			// No support here for reporting goroutine tags at the moment; if
+			// that information is to be part of the execution trace, we'd
+			// probably want to see when the tags are applied and when they
+			// change, instead of only seeing them when we get a CPU sample.
+			tags = tags[1:]
+
+			if empty {
+				// Looks like an overflow record from the profBuf. Not much to
+				// do here, we only want to report full records.
+				//
+				// TODO: should we start a goroutine to drain the profBuf,
+				// rather than relying on a high-enough volume of tracing events
+				// to keep ReadTrace busy? https://go.dev/issue/52674
+				continue
+			}
+
+			buf := bufp.ptr()
+			if buf == nil {
+				*bufp = traceFlush(*bufp, 0)
+				buf = bufp.ptr()
+			}
+			for i := range stk {
+				if i >= len(buf.stk) {
+					break
+				}
+				buf.stk[i] = uintptr(stk[i])
+			}
+			stackID := trace.stackTab.put(buf.stk[:len(stk)])
+
+			traceEventLocked(0, nil, 0, bufp, traceEvCPUSample, stackID, 1, timestamp/traceTickDiv, ppid, goid)
+		}
 	}
 }
 
@@ -1170,7 +1343,8 @@ func traceHeapAlloc() {
 }
 
 func traceHeapGoal() {
-	if heapGoal := atomic.Load64(&gcController.heapGoal); heapGoal == ^uint64(0) {
+	heapGoal := gcController.heapGoal()
+	if heapGoal == ^uint64(0) {
 		// Heap-based triggering is disabled.
 		traceEvent(traceEvHeapGoal, -1, 0)
 	} else {
@@ -1195,7 +1369,7 @@ func trace_userTaskCreate(id, parentID uint64, taskType string) {
 	}
 
 	typeStringID, bufp := traceString(bufp, pid, taskType)
-	traceEventLocked(0, mp, pid, bufp, traceEvUserTaskCreate, 3, id, parentID, typeStringID)
+	traceEventLocked(0, mp, pid, bufp, traceEvUserTaskCreate, 0, 3, id, parentID, typeStringID)
 	traceReleaseBuffer(pid)
 }
 
@@ -1217,7 +1391,7 @@ func trace_userRegion(id, mode uint64, name string) {
 	}
 
 	nameStringID, bufp := traceString(bufp, pid, name)
-	traceEventLocked(0, mp, pid, bufp, traceEvUserRegion, 3, id, mode, nameStringID)
+	traceEventLocked(0, mp, pid, bufp, traceEvUserRegion, 0, 3, id, mode, nameStringID)
 	traceReleaseBuffer(pid)
 }
 
@@ -1236,7 +1410,7 @@ func trace_userLog(id uint64, category, message string) {
 	categoryID, bufp := traceString(bufp, pid, category)
 
 	extraSpace := traceBytesPerNumber + len(message) // extraSpace for the value string
-	traceEventLocked(extraSpace, mp, pid, bufp, traceEvUserLog, 3, id, categoryID)
+	traceEventLocked(extraSpace, mp, pid, bufp, traceEvUserLog, 0, 3, id, categoryID)
 	// traceEventLocked reserved extra space for val and len(val)
 	// in buf, so buf now has room for the following.
 	buf := bufp.ptr()

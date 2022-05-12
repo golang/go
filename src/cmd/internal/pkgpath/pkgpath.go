@@ -10,9 +10,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	exec "internal/execabs"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"strings"
 )
 

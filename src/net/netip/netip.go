@@ -768,11 +768,10 @@ func (ip Addr) String() string {
 		return ip.string4()
 	default:
 		if ip.Is4In6() {
-			// TODO(bradfitz): this could alloc less.
 			if z := ip.Zone(); z != "" {
-				return "::ffff:" + ip.Unmap().String() + "%" + z
+				return "::ffff:" + ip.Unmap().string4() + "%" + z
 			} else {
-				return "::ffff:" + ip.Unmap().String()
+				return "::ffff:" + ip.Unmap().string4()
 			}
 		}
 		return ip.string6()
@@ -1171,7 +1170,7 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 		b = append(b, ']')
 	}
 	b = append(b, ':')
-	b = strconv.AppendInt(b, int64(p.port), 10)
+	b = strconv.AppendUint(b, uint64(p.port), 10)
 	return b
 }
 

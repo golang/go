@@ -931,7 +931,9 @@ func (e *zipError) Unwrap() error {
 }
 
 // strToFold returns a string with the property that
+//
 //	strings.EqualFold(s, t) iff strToFold(s) == strToFold(t)
+//
 // This lets us test a large set of strings for fold-equivalent
 // duplicates without making a quadratic number of calls
 // to EqualFold. Note that strings.ToUpper and strings.ToLower

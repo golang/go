@@ -23,7 +23,7 @@ func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
 		n.SetType(typ)
 	} else {
 		args = append([]ir.Node(nil), args...)
-		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), args)
+		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, args)
 		lit.SetImplicit(true)
 		n = lit
 	}
@@ -137,11 +137,6 @@ func MethodValueType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// True if we are typechecking an inline body in ImportedBody below. We use this
-// flag to not create a new closure function in tcClosure when we are just
-// typechecking an inline body, as opposed to the body of a real function.
-var inTypeCheckInl bool
-
 // ImportedBody returns immediately if the inlining information for fn is
 // populated. Otherwise, fn must be an imported function. If so, ImportedBody
 // loads in the dcls and body for fn, and typechecks as needed.
@@ -185,19 +180,6 @@ func ImportedBody(fn *ir.Func) {
 
 	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
 		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.Nodes(fn.Inl.Body))
-	}
-
-	if !go117ExportTypes {
-		// If we didn't export & import types, typecheck the code here.
-		savefn := ir.CurFunc
-		ir.CurFunc = fn
-		if inTypeCheckInl {
-			base.Fatalf("inTypeCheckInl should not be set recursively")
-		}
-		inTypeCheckInl = true
-		Stmts(fn.Inl.Body)
-		inTypeCheckInl = false
-		ir.CurFunc = savefn
 	}
 
 	base.Pos = lno
@@ -276,15 +258,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
 
 	clo.SetType(fn.Type())
 
-	target := Target
-	if inTypeCheckInl {
-		// We're typechecking an imported function, so it's not actually
-		// part of Target. Skip adding it to Target.Decls so we don't
-		// compile it again.
-		target = nil
-	}
-
-	return ir.UseClosure(clo, target)
+	return ir.UseClosure(clo, Target)
 }
 
 // type check function definition
@@ -296,10 +270,7 @@ func tcFunc(n *ir.Func) {
 	}
 
 	if name := n.Nname; name.Typecheck() == 0 {
-		if name.Ntype != nil {
-			name.Ntype = typecheckNtype(name.Ntype)
-			name.SetType(name.Ntype.Type())
-		}
+		base.AssertfAt(name.Type() != nil, n.Pos(), "missing type: %v", name)
 		name.SetTypecheck(1)
 	}
 }
@@ -372,6 +343,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		return tcConv(n)
 	}
 
+	RewriteNonNameCall(n)
 	typecheckargs(n)
 	t := l.Type()
 	if t == nil {

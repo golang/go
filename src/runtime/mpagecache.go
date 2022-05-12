@@ -143,7 +143,7 @@ func (p *pageAlloc) allocToCache() pageCache {
 		if addr == 0 {
 			// We failed to find adequate free space, so mark the searchAddr as OoM
 			// and return an empty pageCache.
-			p.searchAddr = maxSearchAddr
+			p.searchAddr = maxSearchAddr()
 			return pageCache{}
 		}
 		ci := chunkIndex(addr)

@@ -51,7 +51,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	(R11)			// Alignment for ELF ABI?
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$192
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$192
 	// Save callee-save registers in the case of signal forwarding.
 	// Please refer to https://golang.org/issue/31827 .
 	SAVE_R19_TO_R28(8*4)

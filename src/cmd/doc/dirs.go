@@ -7,9 +7,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	exec "internal/execabs"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"

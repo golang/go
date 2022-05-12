@@ -2508,6 +2508,13 @@ func gcstopm() {
 func execute(gp *g, inheritTime bool) {
 	_g_ := getg()
 
+	if goroutineProfile.active {
+		// Make sure that gp has had its stack written out to the goroutine
+		// profile, exactly as it was when the goroutine profiler first stopped
+		// the world.
+		tryRecordGoroutineProfile(gp, osyield)
+	}
+
 	// Assign gp.m before entering _Grunning so running Gs have an
 	// M.
 	_g_.m.curg = gp
@@ -2577,7 +2584,7 @@ top:
 
 	// Try to schedule a GC worker.
 	if gcBlackenEnabled != 0 {
-		gp = gcController.findRunnableGCWorker(_p_)
+		gp = gcController.findRunnableGCWorker(_p_, now)
 		if gp != nil {
 			return gp, false, true
 		}
@@ -3767,6 +3774,16 @@ func exitsyscall() {
 	oldp := _g_.m.oldp.ptr()
 	_g_.m.oldp = 0
 	if exitsyscallfast(oldp) {
+		// When exitsyscallfast returns success, we have a P so can now use
+		// write barriers
+		if goroutineProfile.active {
+			// Make sure that gp has had its stack written out to the goroutine
+			// profile, exactly as it was when the goroutine profiler first
+			// stopped the world.
+			systemstack(func() {
+				tryRecordGoroutineProfileWB(_g_)
+			})
+		}
 		if trace.enabled {
 			if oldp != _g_.m.p.ptr() || _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
 				systemstack(traceGoStart)
@@ -4088,8 +4105,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	_g_ := getg()
 
 	if fn == nil {
-		_g_.m.throwing = -1 // do not dump full stacks
-		throw("go of nil func value")
+		fatal("go of nil func value")
 	}
 	acquirem() // disable preemption because it can be holding p in a local var
 
@@ -4135,6 +4151,14 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 		if _g_.m.curg != nil {
 			newg.labels = _g_.m.curg.labels
 		}
+		if goroutineProfile.active {
+			// A concurrent goroutine profile is running. It should include
+			// exactly the set of goroutines that were alive when the goroutine
+			// profiler first stopped the world. That does not include newg, so
+			// mark it as not needing a profile before transitioning it from
+			// _Gdead.
+			newg.goroutineProfiled.Store(goroutineProfileSatisfied)
+		}
 	}
 	// Track initial transition?
 	newg.trackingSeq = uint8(fastrand())
@@ -4156,6 +4180,11 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	_p_.goidcache++
 	if raceenabled {
 		newg.racectx = racegostart(callerpc)
+		if newg.labels != nil {
+			// See note in proflabel.go on labelSync's role in synchronizing
+			// with the reads in the signal handler.
+			racereleasemergeg(newg, unsafe.Pointer(&labelSync))
+		}
 	}
 	if trace.enabled {
 		traceGoCreate(newg, newg.startpc)
@@ -4566,6 +4595,16 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			tagPtr = &gp.m.curg.labels
 		}
 		cpuprof.add(tagPtr, stk[:n])
+
+		gprof := gp
+		var pp *p
+		if gp != nil && gp.m != nil {
+			if gp.m.curg != nil {
+				gprof = gp.m.curg
+			}
+			pp = gp.m.p.ptr()
+		}
+		traceCPUSample(gprof, pp, stk[:n])
 	}
 	getg().m.mallocing--
 }
@@ -4870,6 +4909,10 @@ func procresize(nprocs int32) *p {
 	stealOrder.reset(uint32(nprocs))
 	var int32p *int32 = &gomaxprocs // make compiler check that gomaxprocs is an int32
 	atomic.Store((*uint32)(unsafe.Pointer(int32p)), uint32(nprocs))
+	if old != nprocs {
+		// Notify the limiter that the amount of procs has changed.
+		gcCPULimiter.resetCapacity(now, nprocs)
+	}
 	return runnablePs
 }
 
@@ -5012,7 +5055,7 @@ func checkdead() {
 	})
 	if grunning == 0 { // possible if main goroutine calls runtime·Goexit()
 		unlock(&sched.lock) // unlock so that GODEBUG=scheddetail=1 doesn't hang
-		throw("no goroutines (main called runtime.Goexit) - deadlock!")
+		fatal("no goroutines (main called runtime.Goexit) - deadlock!")
 	}
 
 	// Maybe jump time forward for playground.
@@ -5045,9 +5088,8 @@ func checkdead() {
 		}
 	}
 
-	getg().m.throwing = -1 // do not dump full stacks
-	unlock(&sched.lock)    // unlock so that GODEBUG=scheddetail=1 doesn't hang
-	throw("all goroutines are asleep - deadlock!")
+	unlock(&sched.lock) // unlock so that GODEBUG=scheddetail=1 doesn't hang
+	fatal("all goroutines are asleep - deadlock!")
 }
 
 // forcegcperiod is the maximum time in nanoseconds between garbage

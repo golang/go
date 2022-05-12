@@ -47,11 +47,8 @@ func init() {
 		// instead need a test-skip and upstream bug filed against the Solaris
 		// kernel).
 		//
-		// This constant is chosen so as to make the test as generous as possible
-		// while still reliably completing within 3 minutes in non-short mode.
-		//
 		// See https://golang.org/issue/33174.
-		settleTime = 11 * time.Second
+		settleTime = 5 * time.Second
 	} else if runtime.GOOS == "linux" && strings.HasPrefix(runtime.GOARCH, "ppc64") {
 		// Older linux kernels seem to have some hiccups delivering the signal
 		// in a timely manner on ppc64 and ppc64le. When running on a

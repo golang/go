@@ -91,6 +91,24 @@ var tests = []ZipTest{
 		},
 	},
 	{
+		Name:    "test-prefix.zip",
+		Comment: "This is a zipfile comment.",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte("This is a test text file.\n"),
+				Modified: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+			{
+				Name:     "gophercolor16x16.png",
+				File:     "gophercolor16x16.png",
+				Modified: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+		},
+	},
+	{
 		Name:   "r.zip",
 		Source: returnRecursiveZip,
 		File: []ZipTestFile{
@@ -484,6 +502,35 @@ var tests = []ZipTest{
 				Mode:     0666,
 				Modified: time.Date(1999, 12, 31, 19, 0, 0, 0, timeZone(-5*time.Hour)),
 				ModTime:  time.Date(1999, 12, 31, 19, 0, 0, 0, time.UTC),
+			},
+		},
+	},
+	{
+		Name: "dupdir.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "a/",
+				Content:  []byte{},
+				Mode:     fs.ModeDir | 0666,
+				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
+			},
+			{
+				Name:     "a/b",
+				Content:  []byte{},
+				Mode:     0666,
+				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
+			},
+			{
+				Name:     "a/b/",
+				Content:  []byte{},
+				Mode:     fs.ModeDir | 0666,
+				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
+			},
+			{
+				Name:     "a/b/c",
+				Content:  []byte{},
+				Mode:     0666,
+				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
 			},
 		},
 	},
@@ -1011,7 +1058,7 @@ func TestIssue10957(t *testing.T) {
 		"\x00\x00\x00\x00\x0000000000\x00\x00\x00\x00000" +
 		"00000000PK\x01\x0200000000" +
 		"0000000000000000\v\x00\x00\x00" +
-		"\x00\x0000PK\x05\x06000000\x05\x000000" +
+		"\x00\x0000PK\x05\x06000000\x05\x00\xfd\x00\x00\x00" +
 		"\v\x00\x00\x00\x00\x00")
 	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
@@ -1056,7 +1103,7 @@ func TestIssue11146(t *testing.T) {
 		"0000000000000000PK\x01\x02" +
 		"0000\b0\b\x00000000000000" +
 		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x000000PK\x05\x06\x00\x00" +
-		"\x00\x0000\x01\x0000008\x00\x00\x00\x00\x00")
+		"\x00\x0000\x01\x00\x26\x00\x00\x008\x00\x00\x00\x00\x00")
 	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		t.Fatal(err)
@@ -1123,6 +1170,7 @@ func TestFS(t *testing.T) {
 			[]string{"a/b/c"},
 		},
 	} {
+		test := test
 		t.Run(test.file, func(t *testing.T) {
 			t.Parallel()
 			z, err := OpenReader(test.file)
@@ -1132,6 +1180,60 @@ func TestFS(t *testing.T) {
 			defer z.Close()
 			if err := fstest.TestFS(z, test.want...); err != nil {
 				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestFSWalk(t *testing.T) {
+	for _, test := range []struct {
+		file    string
+		want    []string
+		wantErr bool
+	}{
+		{
+			file: "testdata/unix.zip",
+			want: []string{".", "dir", "dir/bar", "dir/empty", "hello", "readonly"},
+		},
+		{
+			file: "testdata/subdir.zip",
+			want: []string{".", "a", "a/b", "a/b/c"},
+		},
+		{
+			file:    "testdata/dupdir.zip",
+			wantErr: true,
+		},
+	} {
+		test := test
+		t.Run(test.file, func(t *testing.T) {
+			t.Parallel()
+			z, err := OpenReader(test.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var files []string
+			sawErr := false
+			err = fs.WalkDir(z, ".", func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					if !test.wantErr {
+						t.Errorf("%s: %v", path, err)
+					}
+					sawErr = true
+					return nil
+				}
+				files = append(files, path)
+				return nil
+			})
+			if err != nil {
+				t.Errorf("fs.WalkDir error: %v", err)
+			}
+			if test.wantErr && !sawErr {
+				t.Error("succeeded but want error")
+			} else if !test.wantErr && sawErr {
+				t.Error("unexpected error")
+			}
+			if test.want != nil && !reflect.DeepEqual(files, test.want) {
+				t.Errorf("got %v want %v", files, test.want)
 			}
 		})
 	}

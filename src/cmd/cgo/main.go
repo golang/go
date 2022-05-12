@@ -11,7 +11,6 @@
 package main
 
 import (
-	"crypto/md5"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -28,6 +27,7 @@ import (
 	"strings"
 
 	"cmd/internal/edit"
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 )
 
@@ -175,6 +175,7 @@ var ptrSizeMap = map[string]int64{
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"loong64":  8,
 	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
@@ -200,6 +201,7 @@ var intSizeMap = map[string]int64{
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"loong64":  8,
 	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
@@ -329,8 +331,8 @@ func main() {
 	// we use to coordinate between gcc and ourselves.
 	// We already put _cgo_ at the beginning, so the main
 	// concern is other cgo wrappers for the same functions.
-	// Use the beginning of the md5 of the input to disambiguate.
-	h := md5.New()
+	// Use the beginning of the notsha256 of the input to disambiguate.
+	h := notsha256.New()
 	io.WriteString(h, *importPath)
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {

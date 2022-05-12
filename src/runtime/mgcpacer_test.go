@@ -23,6 +23,7 @@ func TestGcPacer(t *testing.T) {
 			// Growth to an O(MiB) heap, then constant heap size, alloc/scan rates.
 			name:          "Steady",
 			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  32 << 10,
 			nCores:        8,
 			allocRate:     constant(33.0),
@@ -34,8 +35,7 @@ func TestGcPacer(t *testing.T) {
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
 				if n >= 25 {
-					// For the pacer redesign, assert something even stronger: at this alloc/scan rate,
-					// it should be extremely close to the goal utilization.
+					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
 					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
 
 					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles.
@@ -48,6 +48,7 @@ func TestGcPacer(t *testing.T) {
 			// Same as the steady-state case, but lots of stacks to scan relative to the heap size.
 			name:          "SteadyBigStacks",
 			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  32 << 10,
 			nCores:        8,
 			allocRate:     constant(132.0),
@@ -75,6 +76,7 @@ func TestGcPacer(t *testing.T) {
 			// Same as the steady-state case, but lots of globals to scan relative to the heap size.
 			name:          "SteadyBigGlobals",
 			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  128 << 20,
 			nCores:        8,
 			allocRate:     constant(132.0),
@@ -102,6 +104,7 @@ func TestGcPacer(t *testing.T) {
 			// This tests the GC pacer's response to a small change in allocation rate.
 			name:          "StepAlloc",
 			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  32 << 10,
 			nCores:        8,
 			allocRate:     constant(33.0).sum(ramp(66.0, 1).delay(50)),
@@ -124,6 +127,7 @@ func TestGcPacer(t *testing.T) {
 			// This tests the GC pacer's response to a large change in allocation rate.
 			name:          "HeavyStepAlloc",
 			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  32 << 10,
 			nCores:        8,
 			allocRate:     constant(33).sum(ramp(330, 1).delay(50)),
@@ -146,6 +150,7 @@ func TestGcPacer(t *testing.T) {
 			// This tests the GC pacer's response to a change in the fraction of the scannable heap.
 			name:          "StepScannableFrac",
 			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  32 << 10,
 			nCores:        8,
 			allocRate:     constant(128.0),
@@ -170,6 +175,7 @@ func TestGcPacer(t *testing.T) {
 			// utilization ends up sensitive
 			name:          "HighGOGC",
 			gcPercent:     1500,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  32 << 10,
 			nCores:        8,
 			allocRate:     random(7, 0x53).offset(165),
@@ -210,6 +216,7 @@ func TestGcPacer(t *testing.T) {
 			// rate, the pacer does a reasonably good job of staying abreast of the changes.
 			name:          "OscAlloc",
 			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  32 << 10,
 			nCores:        8,
 			allocRate:     oscillate(13, 0, 8).offset(67),
@@ -233,6 +240,7 @@ func TestGcPacer(t *testing.T) {
 			// This test is the same as OscAlloc, but instead of oscillating, the allocation rate is jittery.
 			name:          "JitterAlloc",
 			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  32 << 10,
 			nCores:        8,
 			allocRate:     random(13, 0xf).offset(132),
@@ -257,6 +265,7 @@ func TestGcPacer(t *testing.T) {
 			// The jitter is proportionally the same.
 			name:          "HeavyJitterAlloc",
 			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
 			globalsBytes:  32 << 10,
 			nCores:        8,
 			allocRate:     random(33.0, 0x0).offset(330),
@@ -280,6 +289,313 @@ func TestGcPacer(t *testing.T) {
 				}
 			},
 		},
+		{
+			// This test sets a slow allocation rate and a small heap (close to the minimum heap size)
+			// to try to minimize the difference between the trigger and the goal.
+			name:          "SmallHeapSlowAlloc",
+			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(1.0),
+			scanRate:      constant(2048.0),
+			growthRate:    constant(2.0).sum(ramp(-1.0, 3)),
+			scannableFrac: constant(0.01),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if n > 4 {
+					// After the 4th GC, the heap will stop growing.
+					// First, let's make sure we're finishing near the goal, with some extra
+					// room because we're probably going to be triggering early.
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.925, 1.025)
+					// Next, let's make sure there's some minimum distance between the goal
+					// and the trigger. It should be proportional to the runway (hence the
+					// trigger ratio check, instead of a check against the runway).
+					assertInRange(t, "trigger ratio", c[n-1].triggerRatio(), 0.925, 0.975)
+				}
+				if n > 25 {
+					// Double-check that GC utilization looks OK.
+
+					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+					// Make sure GC utilization has mostly levelled off.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.05)
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[11].gcUtilization, 0.05)
+				}
+			},
+		},
+		{
+			// This test sets a slow allocation rate and a medium heap (around 10x the min heap size)
+			// to try to minimize the difference between the trigger and the goal.
+			name:          "MediumHeapSlowAlloc",
+			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(1.0),
+			scanRate:      constant(2048.0),
+			growthRate:    constant(2.0).sum(ramp(-1.0, 8)),
+			scannableFrac: constant(0.01),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if n > 9 {
+					// After the 4th GC, the heap will stop growing.
+					// First, let's make sure we're finishing near the goal, with some extra
+					// room because we're probably going to be triggering early.
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.925, 1.025)
+					// Next, let's make sure there's some minimum distance between the goal
+					// and the trigger. It should be proportional to the runway (hence the
+					// trigger ratio check, instead of a check against the runway).
+					assertInRange(t, "trigger ratio", c[n-1].triggerRatio(), 0.925, 0.975)
+				}
+				if n > 25 {
+					// Double-check that GC utilization looks OK.
+
+					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+					// Make sure GC utilization has mostly levelled off.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.05)
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[11].gcUtilization, 0.05)
+				}
+			},
+		},
+		{
+			// This test sets a slow allocation rate and a large heap to try to minimize the
+			// difference between the trigger and the goal.
+			name:          "LargeHeapSlowAlloc",
+			gcPercent:     100,
+			memoryLimit:   math.MaxInt64,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(1.0),
+			scanRate:      constant(2048.0),
+			growthRate:    constant(4.0).sum(ramp(-3.0, 12)),
+			scannableFrac: constant(0.01),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if n > 13 {
+					// After the 4th GC, the heap will stop growing.
+					// First, let's make sure we're finishing near the goal.
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
+					// Next, let's make sure there's some minimum distance between the goal
+					// and the trigger. It should be around the default minimum heap size.
+					assertInRange(t, "runway", c[n-1].runway(), DefaultHeapMinimum-64<<10, DefaultHeapMinimum+64<<10)
+				}
+				if n > 25 {
+					// Double-check that GC utilization looks OK.
+
+					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+					// Make sure GC utilization has mostly levelled off.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.05)
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[11].gcUtilization, 0.05)
+				}
+			},
+		},
+		{
+			// The most basic test case with a memory limit: a steady-state heap.
+			// Growth to an O(MiB) heap, then constant heap size, alloc/scan rates.
+			// Provide a lot of room for the limit. Essentially, this should behave just like
+			// the "Steady" test. Note that we don't simulate non-heap overheads, so the
+			// memory limit and the heap limit are identical.
+			name:          "SteadyMemoryLimit",
+			gcPercent:     100,
+			memoryLimit:   512 << 20,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(33.0),
+			scanRate:      constant(1024.0),
+			growthRate:    constant(2.0).sum(ramp(-1.0, 12)),
+			scannableFrac: constant(1.0),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if peak := c[n-1].heapPeak; peak >= (512<<20)-MemoryLimitHeapGoalHeadroom {
+					t.Errorf("peak heap size reaches heap limit: %d", peak)
+				}
+				if n >= 25 {
+					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+
+					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.005)
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
+				}
+			},
+		},
+		{
+			// This is the same as the previous test, but gcPercent = -1, so the heap *should* grow
+			// all the way to the peak.
+			name:          "SteadyMemoryLimitNoGCPercent",
+			gcPercent:     -1,
+			memoryLimit:   512 << 20,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(33.0),
+			scanRate:      constant(1024.0),
+			growthRate:    constant(2.0).sum(ramp(-1.0, 12)),
+			scannableFrac: constant(1.0),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+					t.Errorf("heap goal is not the heap limit: %d", goal)
+				}
+				if n >= 25 {
+					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+
+					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.005)
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
+				}
+			},
+		},
+		{
+			// This test ensures that the pacer doesn't fall over even when the live heap exceeds
+			// the memory limit. It also makes sure GC utilization actually rises to push back.
+			name:          "ExceedMemoryLimit",
+			gcPercent:     100,
+			memoryLimit:   512 << 20,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(33.0),
+			scanRate:      constant(1024.0),
+			growthRate:    constant(3.5).sum(ramp(-2.5, 12)),
+			scannableFrac: constant(1.0),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if n > 12 {
+					// We're way over the memory limit, so we want to make sure our goal is set
+					// as low as it possibly can be.
+					if goal, live := c[n-1].heapGoal, c[n-1].heapLive; goal != live {
+						t.Errorf("heap goal is not equal to live heap: %d != %d", goal, live)
+					}
+				}
+				if n >= 25 {
+					// Due to memory pressure, we should scale to 100% GC CPU utilization.
+					// Note that in practice this won't actually happen because of the CPU limiter,
+					// but it's not the pacer's job to limit CPU usage.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, 1.0, 0.005)
+
+					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles.
+					// In this case, that just means it's not wavering around a whole bunch.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.005)
+				}
+			},
+		},
+		{
+			// Same as the previous test, but with gcPercent = -1.
+			name:          "ExceedMemoryLimitNoGCPercent",
+			gcPercent:     -1,
+			memoryLimit:   512 << 20,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(33.0),
+			scanRate:      constant(1024.0),
+			growthRate:    constant(3.5).sum(ramp(-2.5, 12)),
+			scannableFrac: constant(1.0),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if n < 10 {
+					if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+						t.Errorf("heap goal is not the heap limit: %d", goal)
+					}
+				}
+				if n > 12 {
+					// We're way over the memory limit, so we want to make sure our goal is set
+					// as low as it possibly can be.
+					if goal, live := c[n-1].heapGoal, c[n-1].heapLive; goal != live {
+						t.Errorf("heap goal is not equal to live heap: %d != %d", goal, live)
+					}
+				}
+				if n >= 25 {
+					// Due to memory pressure, we should scale to 100% GC CPU utilization.
+					// Note that in practice this won't actually happen because of the CPU limiter,
+					// but it's not the pacer's job to limit CPU usage.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, 1.0, 0.005)
+
+					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles.
+					// In this case, that just means it's not wavering around a whole bunch.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.005)
+				}
+			},
+		},
+		{
+			// This test ensures that the pacer maintains the memory limit as the heap grows.
+			name:          "MaintainMemoryLimit",
+			gcPercent:     100,
+			memoryLimit:   512 << 20,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(33.0),
+			scanRate:      constant(1024.0),
+			growthRate:    constant(3.0).sum(ramp(-2.0, 12)),
+			scannableFrac: constant(1.0),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if n > 12 {
+					// We're trying to saturate the memory limit.
+					if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+						t.Errorf("heap goal is not the heap limit: %d", goal)
+					}
+				}
+				if n >= 25 {
+					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization,
+					// even with the additional memory pressure.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+
+					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles and
+					// that it's meeting its goal.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.005)
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
+				}
+			},
+		},
+		{
+			// Same as the previous test, but with gcPercent = -1.
+			name:          "MaintainMemoryLimitNoGCPercent",
+			gcPercent:     -1,
+			memoryLimit:   512 << 20,
+			globalsBytes:  32 << 10,
+			nCores:        8,
+			allocRate:     constant(33.0),
+			scanRate:      constant(1024.0),
+			growthRate:    constant(3.0).sum(ramp(-2.0, 12)),
+			scannableFrac: constant(1.0),
+			stackBytes:    constant(8192),
+			length:        50,
+			checker: func(t *testing.T, c []gcCycleResult) {
+				n := len(c)
+				if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+					t.Errorf("heap goal is not the heap limit: %d", goal)
+				}
+				if n >= 25 {
+					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization,
+					// even with the additional memory pressure.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+
+					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles and
+					// that it's meeting its goal.
+					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.005)
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
+				}
+			},
+		},
 		// TODO(mknyszek): Write a test that exercises the pacer's hard goal.
 		// This is difficult in the idealized model this testing framework places
 		// the pacer in, because the calculated overshoot is directly proportional
@@ -291,7 +607,7 @@ func TestGcPacer(t *testing.T) {
 		t.Run(e.name, func(t *testing.T) {
 			t.Parallel()
 
-			c := NewGCController(e.gcPercent)
+			c := NewGCController(e.gcPercent, e.memoryLimit)
 			var bytesAllocatedBlackLast int64
 			results := make([]gcCycleResult, 0, e.length)
 			for i := 0; i < e.length; i++ {
@@ -422,7 +738,7 @@ func TestGcPacer(t *testing.T) {
 					cycle:         i + 1,
 					heapLive:      c.HeapMarked(),
 					heapScannable: int64(float64(int64(c.HeapMarked())-bytesAllocatedBlackLast) * cycle.scannableFrac),
-					heapTrigger:   c.Trigger(),
+					heapTrigger:   c.Triggered(),
 					heapPeak:      c.HeapLive(),
 					heapGoal:      c.HeapGoal(),
 					gcUtilization: float64(assistTime)/(float64(gcDuration)*float64(e.nCores)) + GCBackgroundUtilization,
@@ -445,6 +761,7 @@ type gcExecTest struct {
 	name string
 
 	gcPercent    int
+	memoryLimit  int64
 	globalsBytes uint64
 	nCores       int
 
@@ -530,6 +847,14 @@ type gcCycleResult struct {
 
 func (r *gcCycleResult) goalRatio() float64 {
 	return float64(r.heapPeak) / float64(r.heapGoal)
+}
+
+func (r *gcCycleResult) runway() float64 {
+	return float64(r.heapGoal - r.heapTrigger)
+}
+
+func (r *gcCycleResult) triggerRatio() float64 {
+	return float64(r.heapTrigger-r.heapLive) / float64(r.heapGoal-r.heapLive)
 }
 
 func (r *gcCycleResult) String() string {
@@ -741,7 +1066,7 @@ func FuzzPIController(f *testing.F) {
 
 func TestIdleMarkWorkerCount(t *testing.T) {
 	const workers = 10
-	c := NewGCController(100)
+	c := NewGCController(100, math.MaxInt64)
 	c.SetMaxIdleMarkWorkers(workers)
 	for i := 0; i < workers; i++ {
 		if !c.NeedIdleMarkWorker() {

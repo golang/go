@@ -197,7 +197,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 // substType does a normal type substition, but tparams is in the form of a field
 // list, and targs is in terms of a slice of type nodes. substType records any newly
 // instantiated types into g.instTypeList.
-func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node) *types.Type {
+func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Ntype) *types.Type {
 	fields := tparams.FieldSlice()
 	tparams1 := make([]*types.Type, len(fields))
 	for i, f := range fields {
@@ -339,7 +339,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 				typed(method.Type(), n)
 
 				xt := deref(x.Type())
-				targs := make([]ir.Node, len(xt.RParams()))
+				targs := make([]ir.Ntype, len(xt.RParams()))
 				for i := range targs {
 					targs[i] = ir.TypeNode(xt.RParams()[i])
 				}

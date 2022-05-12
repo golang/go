@@ -9,9 +9,9 @@ package main
 import (
 	"bytes"
 	"flag"
-	exec "internal/execabs"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"text/template"

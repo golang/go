@@ -83,11 +83,16 @@ const (
 	pallocChunksL1Shift = pallocChunksL2Bits
 )
 
-// Maximum searchAddr value, which indicates that the heap has no free space.
+// maxSearchAddr returns the maximum searchAddr value, which indicates
+// that the heap has no free space.
 //
-// We alias maxOffAddr just to make it clear that this is the maximum address
+// This function exists just to make it clear that this is the maximum address
 // for the page allocator's search space. See maxOffAddr for details.
-var maxSearchAddr = maxOffAddr
+//
+// It's a function (rather than a variable) because it needs to be
+// usable before package runtime's dynamic initialization is complete.
+// See #51913 for details.
+func maxSearchAddr() offAddr { return maxOffAddr }
 
 // Global chunk index.
 //
@@ -262,43 +267,25 @@ type pageAlloc struct {
 	// All access is protected by the mheapLock.
 	inUse addrRanges
 
+	_ uint32 // Align scav so it's easier to reason about alignment within scav.
+
 	// scav stores the scavenger state.
 	scav struct {
-		lock mutex
-
-		// inUse is a slice of ranges of address space which have not
-		// yet been looked at by the scavenger.
-		//
-		// Protected by lock.
-		inUse addrRanges
-
-		// gen is the scavenge generation number.
-		//
-		// Protected by lock.
-		gen uint32
-
-		// reservationBytes is how large of a reservation should be made
-		// in bytes of address space for each scavenge iteration.
-		//
-		// Protected by lock.
-		reservationBytes uintptr
+		// index is an efficient index of chunks that have pages available to
+		// scavenge.
+		index scavengeIndex
 
 		// released is the amount of memory released this generation.
 		//
 		// Updated atomically.
 		released uintptr
 
-		// scavLWM is the lowest (offset) address that the scavenger reached this
-		// scavenge generation.
-		//
-		// Protected by lock.
-		scavLWM offAddr
+		_ uint32 // Align assistTime for atomics on 32-bit platforms.
 
-		// freeHWM is the highest (offset) address of a page that was freed to
-		// the page allocator this scavenge generation.
+		// scavengeAssistTime is the time spent scavenging in the last GC cycle.
 		//
-		// Protected by mheapLock.
-		freeHWM offAddr
+		// This is reset once a GC cycle ends.
+		assistTime atomic.Int64
 	}
 
 	// mheap_.lock. This level of indirection makes it possible
@@ -308,6 +295,12 @@ type pageAlloc struct {
 	// sysStat is the runtime memstat to update when new system
 	// memory is committed by the pageAlloc for allocation metadata.
 	sysStat *sysMemStat
+
+	// summaryMappedReady is the number of bytes mapped in the Ready state
+	// in the summary structure. Used only for testing currently.
+	//
+	// Protected by mheapLock.
+	summaryMappedReady uintptr
 
 	// Whether or not this struct is being used in tests.
 	test bool
@@ -331,13 +324,10 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
 	p.sysInit()
 
 	// Start with the searchAddr in a state indicating there's no free memory.
-	p.searchAddr = maxSearchAddr
+	p.searchAddr = maxSearchAddr()
 
 	// Set the mheapLock.
 	p.mheapLock = mheapLock
-
-	// Initialize scavenge tracking state.
-	p.scav.scavLWM = maxSearchAddr
 }
 
 // tryChunkOf returns the bitmap data for the given chunk.
@@ -760,7 +750,7 @@ nextLevel:
 		}
 		if l == 0 {
 			// We're at level zero, so that means we've exhausted our search.
-			return 0, maxSearchAddr
+			return 0, maxSearchAddr()
 		}
 
 		// We're not at level zero, and we exhausted the level we were looking in.
@@ -854,7 +844,7 @@ func (p *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
 			// exhausted. Otherwise, the heap still might have free
 			// space in it, just not enough contiguous space to
 			// accommodate npages.
-			p.searchAddr = maxSearchAddr
+			p.searchAddr = maxSearchAddr()
 		}
 		return 0, 0
 	}
@@ -887,10 +877,7 @@ func (p *pageAlloc) free(base, npages uintptr, scavenged bool) {
 	}
 	limit := base + npages*pageSize - 1
 	if !scavenged {
-		// Update the free high watermark for the scavenger.
-		if offLimit := (offAddr{limit}); p.scav.freeHWM.lessThan(offLimit) {
-			p.scav.freeHWM = offLimit
-		}
+		p.scav.index.mark(base, limit+1)
 	}
 	if npages == 1 {
 		// Fast path: we're clearing a single bit, and we know exactly

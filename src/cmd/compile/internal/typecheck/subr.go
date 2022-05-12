@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -22,13 +21,9 @@ func AssignConv(n ir.Node, t *types.Type, context string) ir.Node {
 	return assignconvfn(n, t, func() string { return context })
 }
 
-// LookupNum looks up the symbol starting with prefix and ending with
-// the decimal n. If prefix is too long, LookupNum panics.
+// LookupNum returns types.LocalPkg.LookupNum(prefix, n).
 func LookupNum(prefix string, n int) *types.Sym {
-	var buf [20]byte // plenty long enough for all current users
-	copy(buf[:], prefix)
-	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
-	return types.LocalPkg.LookupBytes(b)
+	return types.LocalPkg.LookupNum(prefix, n)
 }
 
 // Given funarg struct list, return list of fn args.
@@ -45,7 +40,7 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
 			// TODO(mdempsky): Preserve original position, name, and package.
 			s = Lookup(s.Name)
 		}
-		a := ir.NewField(base.Pos, s, nil, t.Type)
+		a := ir.NewField(base.Pos, s, t.Type)
 		a.Pos = t.Pos
 		a.IsDDD = t.IsDDD()
 		args = append(args, a)
@@ -887,7 +882,7 @@ type symlink struct {
 
 // TypesOf converts a list of nodes to a list
 // of types of those nodes.
-func TypesOf(x []ir.Node) []*types.Type {
+func TypesOf(x []ir.Ntype) []*types.Type {
 	r := make([]*types.Type, len(x))
 	for i, n := range x {
 		r[i] = n.Type()

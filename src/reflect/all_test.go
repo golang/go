@@ -1504,6 +1504,10 @@ func TestMap(t *testing.T) {
 	if m != nil {
 		t.Errorf("mv.Set(nil) failed")
 	}
+
+	type S string
+	shouldPanic("not assignable", func() { mv.MapIndex(ValueOf(S("key"))) })
+	shouldPanic("not assignable", func() { mv.SetMapIndex(ValueOf(S("key")), ValueOf(0)) })
 }
 
 func TestNilMap(t *testing.T) {
@@ -3971,6 +3975,51 @@ func TestCallPanic(t *testing.T) {
 	badCall(func() { call(v.Field(7).Field(0).Elem().Method(0)) }) // .namedT2.T1.W
 	badCall(func() { call(v.Field(7).Field(1).Method(0)) })        // .namedT2.t0.W
 	badCall(func() { call(v.Field(7).Field(1).Elem().Method(0)) }) // .namedT2.t0.W
+}
+
+func TestValuePanic(t *testing.T) {
+	vo := ValueOf
+	shouldPanic("reflect.Value.Addr of unaddressable value", func() { vo(0).Addr() })
+	shouldPanic("call of reflect.Value.Bool on float64 Value", func() { vo(0.0).Bool() })
+	shouldPanic("call of reflect.Value.Bytes on string Value", func() { vo("").Bytes() })
+	shouldPanic("call of reflect.Value.Call on bool Value", func() { vo(true).Call(nil) })
+	shouldPanic("call of reflect.Value.CallSlice on int Value", func() { vo(0).CallSlice(nil) })
+	shouldPanic("call of reflect.Value.Close on string Value", func() { vo("").Close() })
+	shouldPanic("call of reflect.Value.Complex on float64 Value", func() { vo(0.0).Complex() })
+	shouldPanic("call of reflect.Value.Elem on bool Value", func() { vo(false).Elem() })
+	shouldPanic("call of reflect.Value.Field on int Value", func() { vo(0).Field(0) })
+	shouldPanic("call of reflect.Value.Float on string Value", func() { vo("").Float() })
+	shouldPanic("call of reflect.Value.Index on float64 Value", func() { vo(0.0).Index(0) })
+	shouldPanic("call of reflect.Value.Int on bool Value", func() { vo(false).Int() })
+	shouldPanic("call of reflect.Value.IsNil on int Value", func() { vo(0).IsNil() })
+	shouldPanic("call of reflect.Value.Len on bool Value", func() { vo(false).Len() })
+	shouldPanic("call of reflect.Value.MapIndex on float64 Value", func() { vo(0.0).MapIndex(vo(0.0)) })
+	shouldPanic("call of reflect.Value.MapKeys on string Value", func() { vo("").MapKeys() })
+	shouldPanic("call of reflect.Value.MapRange on int Value", func() { vo(0).MapRange() })
+	shouldPanic("call of reflect.Value.Method on zero Value", func() { vo(nil).Method(0) })
+	shouldPanic("call of reflect.Value.NumField on string Value", func() { vo("").NumField() })
+	shouldPanic("call of reflect.Value.NumMethod on zero Value", func() { vo(nil).NumMethod() })
+	shouldPanic("call of reflect.Value.OverflowComplex on float64 Value", func() { vo(float64(0)).OverflowComplex(0) })
+	shouldPanic("call of reflect.Value.OverflowFloat on int64 Value", func() { vo(int64(0)).OverflowFloat(0) })
+	shouldPanic("call of reflect.Value.OverflowInt on uint64 Value", func() { vo(uint64(0)).OverflowInt(0) })
+	shouldPanic("call of reflect.Value.OverflowUint on complex64 Value", func() { vo(complex64(0)).OverflowUint(0) })
+	shouldPanic("call of reflect.Value.Recv on string Value", func() { vo("").Recv() })
+	shouldPanic("call of reflect.Value.Send on bool Value", func() { vo(true).Send(vo(true)) })
+	shouldPanic("value of type string is not assignable to type bool", func() { vo(new(bool)).Elem().Set(vo("")) })
+	shouldPanic("call of reflect.Value.SetBool on string Value", func() { vo(new(string)).Elem().SetBool(false) })
+	shouldPanic("reflect.Value.SetBytes using unaddressable value", func() { vo("").SetBytes(nil) })
+	shouldPanic("call of reflect.Value.SetCap on string Value", func() { vo(new(string)).Elem().SetCap(0) })
+	shouldPanic("call of reflect.Value.SetComplex on string Value", func() { vo(new(string)).Elem().SetComplex(0) })
+	shouldPanic("call of reflect.Value.SetFloat on string Value", func() { vo(new(string)).Elem().SetFloat(0) })
+	shouldPanic("call of reflect.Value.SetInt on string Value", func() { vo(new(string)).Elem().SetInt(0) })
+	shouldPanic("call of reflect.Value.SetLen on string Value", func() { vo(new(string)).Elem().SetLen(0) })
+	shouldPanic("call of reflect.Value.SetString on int Value", func() { vo(new(int)).Elem().SetString("") })
+	shouldPanic("reflect.Value.SetUint using unaddressable value", func() { vo(0.0).SetUint(0) })
+	shouldPanic("call of reflect.Value.Slice on bool Value", func() { vo(true).Slice(1, 2) })
+	shouldPanic("call of reflect.Value.Slice3 on int Value", func() { vo(0).Slice3(1, 2, 3) })
+	shouldPanic("call of reflect.Value.TryRecv on bool Value", func() { vo(true).TryRecv() })
+	shouldPanic("call of reflect.Value.TrySend on string Value", func() { vo("").TrySend(vo("")) })
+	shouldPanic("call of reflect.Value.Uint on float64 Value", func() { vo(0.0).Uint() })
 }
 
 func shouldPanic(expect string, f func()) {
@@ -7265,11 +7314,14 @@ func BenchmarkNew(b *testing.B) {
 
 func BenchmarkMap(b *testing.B) {
 	type V *int
+	type S string
 	value := ValueOf((V)(nil))
 	stringKeys := []string{}
 	mapOfStrings := map[string]V{}
 	uint64Keys := []uint64{}
 	mapOfUint64s := map[uint64]V{}
+	userStringKeys := []S{}
+	mapOfUserStrings := map[S]V{}
 	for i := 0; i < 100; i++ {
 		stringKey := fmt.Sprintf("key%d", i)
 		stringKeys = append(stringKeys, stringKey)
@@ -7278,6 +7330,10 @@ func BenchmarkMap(b *testing.B) {
 		uint64Key := uint64(i)
 		uint64Keys = append(uint64Keys, uint64Key)
 		mapOfUint64s[uint64Key] = nil
+
+		userStringKey := S(fmt.Sprintf("key%d", i))
+		userStringKeys = append(userStringKeys, userStringKey)
+		mapOfUserStrings[userStringKey] = nil
 	}
 
 	tests := []struct {
@@ -7286,6 +7342,7 @@ func BenchmarkMap(b *testing.B) {
 	}{
 		{"StringKeys", ValueOf(mapOfStrings), ValueOf(stringKeys), value},
 		{"Uint64Keys", ValueOf(mapOfUint64s), ValueOf(uint64Keys), value},
+		{"UserStringKeys", ValueOf(mapOfUserStrings), ValueOf(userStringKeys), value},
 	}
 
 	for _, tt := range tests {

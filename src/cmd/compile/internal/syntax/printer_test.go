@@ -57,11 +57,12 @@ var stringTests = [][2]string{
 	dup("package p"),
 	dup("package p; type _ int; type T1 = struct{}; type ( _ *struct{}; T2 = float32 )"),
 
-	// generic type declarations
+	// generic type declarations (given type separated with blank from LHS)
 	dup("package p; type _[T any] struct{}"),
 	dup("package p; type _[A, B, C interface{m()}] struct{}"),
 	dup("package p; type _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}] struct{}"),
 
+	dup("package p; type _[P *struct{}] struct{}"),
 	dup("package p; type _[P *T,] struct{}"),
 	dup("package p; type _[P *T, _ any] struct{}"),
 	{"package p; type _[P (*T),] struct{}", "package p; type _[P *T,] struct{}"},
@@ -69,35 +70,57 @@ var stringTests = [][2]string{
 	{"package p; type _[P (T),] struct{}", "package p; type _[P T] struct{}"},
 	{"package p; type _[P (T), _ any] struct{}", "package p; type _[P T, _ any] struct{}"},
 
-	dup("package p; type _[P *struct{}] struct{}"),
 	{"package p; type _[P (*struct{})] struct{}", "package p; type _[P *struct{}] struct{}"},
 	{"package p; type _[P ([]int)] struct{}", "package p; type _[P []int] struct{}"},
+	{"package p; type _[P ([]int) | int] struct{}", "package p; type _[P []int | int] struct{}"},
 
-	dup("package p; type _ [P(T)]struct{}"),
-	dup("package p; type _ [P((T))]struct{}"),
-	dup("package p; type _ [P * *T]struct{}"),
-	dup("package p; type _ [P * T]struct{}"),
-	dup("package p; type _ [P(*T)]struct{}"),
-	dup("package p; type _ [P(**T)]struct{}"),
-	dup("package p; type _ [P * T - T]struct{}"),
+	// a type literal in an |-expression indicates a type parameter list (blank after type parameter list and type)
+	dup("package p; type _[P *[]int] struct{}"),
+	dup("package p; type _[P T | T] struct{}"),
+	dup("package p; type _[P T | T | T | T] struct{}"),
+	dup("package p; type _[P *T | T, Q T] struct{}"),
+	dup("package p; type _[P *[]T | T] struct{}"),
+	dup("package p; type _[P *T | T | T | T | ~T] struct{}"),
+	dup("package p; type _[P *T | T | T | ~T | T] struct{}"),
+	dup("package p; type _[P *T | T | struct{} | T] struct{}"),
+	dup("package p; type _[P <-chan int] struct{}"),
+	dup("package p; type _[P *T | struct{} | T] struct{}"),
 
-	// array type declarations
-	dup("package p; type _ [P * T]struct{}"),
-	dup("package p; type _ [P * T - T]struct{}"),
+	// a trailing comma always indicates a (possibly invalid) type parameter list (blank after type parameter list and type)
+	dup("package p; type _[P *T,] struct{}"),
+	dup("package p; type _[P *T | T,] struct{}"),
+	dup("package p; type _[P *T | <-T | T,] struct{}"),
+
+	// slice/array type declarations (no blank between array length and element type)
+	dup("package p; type _ []byte"),
+	dup("package p; type _ [n]byte"),
+	dup("package p; type _ [P(T)]byte"),
+	dup("package p; type _ [P((T))]byte"),
+	dup("package p; type _ [P * *T]byte"),
+	dup("package p; type _ [P * T]byte"),
+	dup("package p; type _ [P(*T)]byte"),
+	dup("package p; type _ [P(**T)]byte"),
+	dup("package p; type _ [P * T - T]byte"),
+	dup("package p; type _ [P * T - T]byte"),
+	dup("package p; type _ [P * T | T]byte"),
+	dup("package p; type _ [P * T | <-T | T]byte"),
 
 	// generic function declarations
 	dup("package p; func _[T any]()"),
 	dup("package p; func _[A, B, C interface{m()}]()"),
 	dup("package p; func _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}]()"),
 
+	// generic functions with elided interfaces in type constraints
+	dup("package p; func _[P *T]() {}"),
+	dup("package p; func _[P *T | T | T | T | ~T]() {}"),
+	dup("package p; func _[P *T | T | struct{} | T]() {}"),
+	dup("package p; func _[P ~int, Q int | string]() {}"),
+	dup("package p; func _[P struct{f int}, Q *P]() {}"),
+
 	// methods with generic receiver types
 	dup("package p; func (R[T]) _()"),
 	dup("package p; func (*R[A, B, C]) _()"),
 	dup("package p; func (_ *R[A, B, C]) _()"),
-
-	// type constraint literals with elided interfaces
-	dup("package p; func _[P ~int, Q int | string]() {}"),
-	dup("package p; func _[P struct{f int}, Q *P]() {}"),
 
 	// channels
 	dup("package p; type _ chan chan int"),

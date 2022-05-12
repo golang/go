@@ -210,7 +210,6 @@ var OpPrec = []int{
 	OSTR2BYTES:     8,
 	OSTR2RUNES:     8,
 	OSTRUCTLIT:     8,
-	OTFUNC:         8,
 	OTYPE:          8,
 	OUNSAFEADD:     8,
 	OUNSAFESLICE:   8,
@@ -645,9 +644,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		}
 		fmt.Fprintf(s, "%v", n.Type())
 
-	case OTFUNC:
-		fmt.Fprint(s, "<func>")
-
 	case OCLOSURE:
 		n := n.(*ClosureExpr)
 		if !exportFormat {
@@ -667,15 +663,10 @@ func exprFmt(n Node, s fmt.State, prec int) {
 				fmt.Fprintf(s, "%v{%s}", typ, ellipsisIf(len(n.List) != 0))
 				return
 			}
-			if n.Ntype != nil {
-				fmt.Fprintf(s, "%v{%s}", n.Ntype, ellipsisIf(len(n.List) != 0))
-				return
-			}
-
 			fmt.Fprint(s, "composite literal")
 			return
 		}
-		fmt.Fprintf(s, "(%v{ %.v })", n.Ntype, n.List)
+		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
 
 	case OPTRLIT:
 		n := n.(*AddrExpr)
@@ -722,10 +713,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case ODOTTYPE, ODOTTYPE2:
 		n := n.(*TypeAssertExpr)
 		exprFmt(n.X, s, nprec)
-		if n.Ntype != nil {
-			fmt.Fprintf(s, ".(%v)", n.Ntype)
-			return
-		}
 		fmt.Fprintf(s, ".(%v)", n.Type())
 
 	case OINDEX, OINDEXMAP:
@@ -1138,11 +1125,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			fmt.Fprintf(w, "%+v", n.Op())
 		}
 		dumpNodeHeader(w, n)
-		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
-			indent(w, depth)
-			fmt.Fprintf(w, "%+v-ntype", n.Op())
-			dumpNode(w, n.Name().Ntype, depth+1)
-		}
 		return
 
 	case OASOP:
@@ -1153,11 +1135,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 	case OTYPE:
 		fmt.Fprintf(w, "%+v %+v", n.Op(), n.Sym())
 		dumpNodeHeader(w, n)
-		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
-			indent(w, depth)
-			fmt.Fprintf(w, "%+v-ntype", n.Op())
-			dumpNode(w, n.Name().Ntype, depth+1)
-		}
 		return
 
 	case OCLOSURE:

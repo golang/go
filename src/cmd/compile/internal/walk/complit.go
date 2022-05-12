@@ -72,10 +72,6 @@ func isSimpleName(nn ir.Node) bool {
 	return n.OnStack()
 }
 
-func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
-	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, l, r))
-}
-
 // initGenType is a bitmap indicating the types of generation that will occur for a static value.
 type initGenType uint8
 
@@ -239,7 +235,16 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		case ir.OSLICELIT:
 			value := value.(*ir.CompLitExpr)
 			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
-				slicelit(ctxt, value, a, init)
+				var sinit ir.Nodes
+				slicelit(ctxt, value, a, &sinit)
+				if kind == initKindStatic {
+					// When doing static initialization, init statements may contain dynamic
+					// expression, which will be initialized later, causing liveness analysis
+					// confuses about variables lifetime. So making sure those expressions
+					// are ordered correctly here. See issue #52673.
+					orderBlock(&sinit, map[string][]*ir.Name{})
+				}
+				init.Append(sinit...)
 				continue
 			}
 
@@ -262,9 +267,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		case initKindStatic:
 			genAsStatic(as)
 		case initKindDynamic, initKindLocalCode:
-			a = orderStmtInPlace(as, map[string][]*ir.Name{})
-			a = walkStmt(a)
-			init.Append(a)
+			appendWalkStmt(init, orderStmtInPlace(as, map[string][]*ir.Name{}))
 		default:
 			base.Fatalf("fixedlit: bad kind %d", kind)
 		}
@@ -400,19 +403,13 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 		// build list of vauto[c] = expr
 		ir.SetPos(value)
-		as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, a, value))
-		as = orderStmtInPlace(as, map[string][]*ir.Name{})
-		as = walkStmt(as)
-		init.Append(as)
+		as := ir.NewAssignStmt(base.Pos, a, value)
+		appendWalkStmt(init, orderStmtInPlace(typecheck.Stmt(as), map[string][]*ir.Name{}))
 	}
 
 	// make slice out of heap (6)
 	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto, nil, nil, nil))
-
-	a = typecheck.Stmt(a)
-	a = orderStmtInPlace(a, map[string][]*ir.Name{})
-	a = walkStmt(a)
-	init.Append(a)
+	appendWalkStmt(init, orderStmtInPlace(typecheck.Stmt(a), map[string][]*ir.Name{}))
 }
 
 func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
@@ -420,7 +417,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil)
 	a.SetEsc(n.Esc())
 	a.Args = []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
-	litas(m, a, init)
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, m, a))
 
 	entries := n.List
 

@@ -295,9 +295,6 @@
 //	    }
 //	}
 //
-// The race detector kills the program if it exceeds 8128 concurrent goroutines,
-// so use care when running parallel tests with the -race flag set.
-//
 // Run does not return until parallel subtests have completed, providing a way
 // to clean up after a group of parallel tests:
 //

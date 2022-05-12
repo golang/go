@@ -17,8 +17,9 @@
 
 // NOTE: There is a power9 implementation that
 // improves performance by 10-15% on little
-// endian for some of the benchmarks, but
-// work is still needed for a big endian
+// endian for some of the benchmarks.
+// Unrolled index2to16 loop by 4 on ppc64le/power9
+// Work is still needed for a big endian
 // implementation on power9.
 
 //go:build ppc64 || ppc64le
@@ -46,8 +47,8 @@ DATA byteswap<>+8(SB)/8, $0x0f0e0d0c0b0a0908
 GLOBL byteswap<>+0(SB), RODATA, $16
 
 TEXT ·Index<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
-	// R3 = byte array pointer 
-	// R4 = length 
+	// R3 = byte array pointer
+	// R4 = length
 	MOVD R6, R5             // R5 = separator pointer
 	MOVD R7, R6             // R6 = separator length
 
@@ -97,16 +98,6 @@ power8:
 #define LASTSTR R27
 #define ONES V20
 #define SWAP V21
-#define V0_ VS32
-#define V1_ VS33
-#define V2_ VS34
-#define V3_ VS35
-#define V4_ VS36
-#define V5_ VS37
-#define V6_ VS38
-#define V7_ VS39
-#define V8_ VS40
-#define V9_ VS41
 #define SWAP_ VS53
 TEXT indexbody<>(SB), NOSPLIT|NOFRAME, $0
 	CMP      R6, R4                 // Compare lengths
@@ -129,7 +120,7 @@ TEXT indexbody<>(SB), NOSPLIT|NOFRAME, $0
 	BGE    CR4, loadge16       // Load for len(sep) >= 16
 	SUB    R6, R16, R9         // 16-len of sep
 	SLD    $3, R9              // Set up for VSLO
-	MTVSRD R9, V9_             // Set up for VSLO
+	MTVSRD R9, V9              // Set up for VSLO
 	VSLDOI $8, V9, V9, V9      // Set up for VSLO
 	VSLO   ONES, V9, SEPMASK   // Mask for separator len(sep) < 16
 
@@ -140,9 +131,9 @@ loadge16:
 	BGT   sepcross16  // Sep crosses 16 byte boundary
 
 	RLDICR $0, R5, $59, R8 // Adjust addr to 16 byte container
-	VLOADSWAP(R8, R0, V0, V0_)// Load 16 bytes @R8 into V0
+	VLOADSWAP(R8, R0, V0, V0) // Load 16 bytes @R8 into V0
 	SLD    $3, R9          // Set up shift count for VSLO
-	MTVSRD R9, V8_         // Set up shift count for VSLO
+	MTVSRD R9, V8         // Set up shift count for VSLO
 	VSLDOI $8, V8, V8, V8
 	VSLO   V0, V8, V0      // Shift by start byte
 
@@ -150,7 +141,7 @@ loadge16:
 	BR   index2plus
 
 sepcross16:
-	VLOADSWAP(R5, R0, V0, V0_) // Load 16 bytes @R5 into V0
+	VLOADSWAP(R5, R0, V0, V0)  // Load 16 bytes @R5 into V0
 
 	VAND V0, SEPMASK, V0 // mask out separator
 	BLE  CR4, index2to16
@@ -179,10 +170,10 @@ index2plus:
 	// that value when found. Loop as
 	// long as len(string) > 16
 index2loop2:
-	VLOADSWAP(R7, R19, V3, V3_) // Load 16 bytes @R7+1 into V3
+	VLOADSWAP(R7, R19, V3, V3) // Load 16 bytes @R7+1 into V3
 
 index2loop:
-	VLOADSWAP(R7, R0, V2, V2_) // Load 16 bytes @R7 into V2
+	VLOADSWAP(R7, R0, V2, V2)  // Load 16 bytes @R7 into V2
 	VCMPEQUH V1, V2, V5        // Search for sep
 	VCMPEQUH V1, V3, V6        // Search for sep offset by 1
 	VSEL     V6, V5, V31, V7   // merge even and odd indices
@@ -201,7 +192,7 @@ index2loop:
 	BLT      index2loop2       // If < last, continue loop
 	CMP      R7, LASTBYTE      // Compare addr+16 against last byte
 	BLT      index2to16        // If < 16 handle specially
-	VLOADSWAP(R7, R0, V3, V3_) // Load 16 bytes @R7 into V3
+	VLOADSWAP(R7, R0, V3, V3) // Load 16 bytes @R7 into V3
 	VSLDOI   $1, V3, V10, V3   // Shift left by 1 byte
 	BR       index2loop
 
@@ -234,11 +225,11 @@ index3plus:
 index3loop2:
 	MOVD     $2, R21          // Set up index for 2
 	VSPLTISB $0, V10          // Clear V10
-	VLOADSWAP(R7, R21, V3, V3_)// Load 16 bytes @R7+2 into V3
+	VLOADSWAP(R7, R21, V3, V3)// Load 16 bytes @R7+2 into V3
 	VSLDOI   $14, V3, V10, V3 // Left justify next 2 bytes
 
 index3loop:
-	VLOADSWAP(R7, R0, V2, V2_) // Load with correct order
+	VLOADSWAP(R7, R0, V2, V2)  // Load with correct order
 	VSLDOI   $1, V2, V3, V4    // string[1:17]
 	VSLDOI   $2, V2, V3, V9    // string[2:18]
 	VCMPEQUH V1, V2, V5        // compare hw even indices
@@ -294,12 +285,12 @@ index4plus:
 	VSPLTW $0, V0, V1        // Splat 1st word of separator
 
 index4loop:
-	VLOADSWAP(R7, R0, V2, V2_) // Load 16 bytes @R7 into V2
+	VLOADSWAP(R7, R0, V2, V2)   // Load 16 bytes @R7 into V2
 
 next4:
 	VSPLTISB $0, V10            // Clear
 	MOVD     $3, R9             // Number of bytes beyond 16
-	VLOADSWAP(R7, R9, V3, V3_)  // Load 16 bytes @R7+3 into V3
+	VLOADSWAP(R7, R9, V3, V3)   // Load 16 bytes @R7+3 into V3
 	VSLDOI   $13, V3, V10, V3   // Shift left last 3 bytes
 	VSLDOI   $1, V2, V3, V4     // V4=(V2:V3)<<1
 	VSLDOI   $2, V2, V3, V9     // V9=(V2:V3)<<2
@@ -344,7 +335,7 @@ index2to16:
 	// At least 16 bytes of string left
 	// Mask the number of bytes in sep
 index2to16loop:
-	VLOADSWAP(R7, R0, V1, V1_) // Load 16 bytes @R7 into V1
+	VLOADSWAP(R7, R0, V1, V1)  // Load 16 bytes @R7 into V1
 
 compare:
 	VAND       V1, SEPMASK, V2 // Mask out sep size
@@ -366,14 +357,14 @@ index2to16tail:
 	ADD   R10, R9, R11   // offset + len
 	CMP   R11, $16       // >= 16?
 	BLE   short          // Does not cross 16 bytes
-	VLOADSWAP(R7, R0, V1, V1_)// Load 16 bytes @R7 into V1
+	VLOADSWAP(R7, R0, V1, V1) // Load 16 bytes @R7 into V1
 	BR    index2to16next // Continue on
 
 short:
 	RLDICR   $0, R7, $59, R9 // Adjust addr to 16 byte container
-	VLOADSWAP(R9, R0, V1, V1_)// Load 16 bytes @R9 into V1
+	VLOADSWAP(R9, R0, V1, V1)// Load 16 bytes @R9 into V1
 	SLD      $3, R10         // Set up shift
-	MTVSRD   R10, V8_        // Set up shift
+	MTVSRD   R10, V8         // Set up shift
 	VSLDOI   $8, V8, V8, V8
 	VSLO     V1, V8, V1      // Shift by start byte
 	VSPLTISB $0, V25         // Clear for later use
@@ -393,17 +384,17 @@ index17plus:
 	BGT      index33plus
 	SUB      $16, R6, R9  // Extra > 16
 	SLD      $56, R9, R10 // Shift to use in VSLO
-	MTVSRD   R10, V9_     // Set up for VSLO
-	VLOADSWAP(R5, R9, V1, V1_)// Load 16 bytes @R5+R9 into V1
+	MTVSRD   R10, V9      // Set up for VSLO
+	VLOADSWAP(R5, R9, V1, V1)// Load 16 bytes @R5+R9 into V1
 	VSLO     V1, V9, V1   // Shift left
 	VSPLTISB $0xff, V7    // Splat 1s
 	VSPLTISB $0, V27      // Splat 0
 
 index17to32loop:
-	VLOADSWAP(R7, R0, V2, V2_) // Load 16 bytes @R7 into V2
+	VLOADSWAP(R7, R0, V2, V2)  // Load 16 bytes @R7 into V2
 
 next17:
-	VLOADSWAP(R7, R9, V3, V3_) // Load 16 bytes @R7+R9 into V3
+	VLOADSWAP(R7, R9, V3, V3)  // Load 16 bytes @R7+R9 into V3
 	VSLO       V3, V9, V3      // Shift left
 	VCMPEQUB   V0, V2, V4      // Compare first 16 bytes
 	VCMPEQUB   V1, V3, V5      // Compare extra over 16 bytes
@@ -454,7 +445,7 @@ TEXT indexbodyp9<>(SB), NOSPLIT|NOFRAME, $0
 	BGE    CR4, loadge16       // Load for len(sep) >= 16
 	SUB    R6, R16, R9         // 16-len of sep
 	SLD    $3, R9              // Set up for VSLO
-	MTVSRD R9, V9_             // Set up for VSLO
+	MTVSRD R9, V9              // Set up for VSLO
 	VSLDOI $8, V9, V9, V9      // Set up for VSLO
 	VSLO   ONES, V9, SEPMASK   // Mask for separator len(sep) < 16
 
@@ -465,9 +456,9 @@ loadge16:
 	BGT   sepcross16  // Sep crosses 16 byte boundary
 
 	RLDICR  $0, R5, $59, R8 // Adjust addr to 16 byte container
-	LXVB16X (R8)(R0), V0_   // Load 16 bytes @R8 into V0
+	LXVB16X (R8)(R0), V0    // Load 16 bytes @R8 into V0
 	SLD     $3, R9          // Set up shift count for VSLO
-	MTVSRD  R9, V8_         // Set up shift count for VSLO
+	MTVSRD  R9, V8          // Set up shift count for VSLO
 	VSLDOI  $8, V8, V8, V8
 	VSLO    V0, V8, V0      // Shift by start byte
 
@@ -475,7 +466,7 @@ loadge16:
 	BR   index2plus
 
 sepcross16:
-	LXVB16X (R5)(R0), V0_ // Load 16 bytes @R5 into V0
+	LXVB16X (R5)(R0), V0 // Load 16 bytes @R5 into V0
 
 	VAND V0, SEPMASK, V0 // mask out separator
 	BLE  CR4, index2to16
@@ -504,10 +495,10 @@ index2plus:
 	// that value when found. Loop as
 	// long as len(string) > 16
 index2loop2:
-	LXVB16X (R7)(R19), V3_ // Load 16 bytes @R7+1 into V3
+	LXVB16X (R7)(R19), V3  // Load 16 bytes @R7+1 into V3
 
 index2loop:
-	LXVB16X  (R7)(R0), V2_   // Load 16 bytes @R7 into V2
+	LXVB16X  (R7)(R0), V2    // Load 16 bytes @R7 into V2
 	VCMPEQUH V1, V2, V5      // Search for sep
 	VCMPEQUH V1, V3, V6      // Search for sep offset by 1
 	VSEL     V6, V5, V31, V7 // merge even and odd indices
@@ -526,7 +517,7 @@ index2loop:
 	BLT     index2loop2     // If < last, continue loop
 	CMP     R7, LASTBYTE    // Compare addr+16 against last byte
 	BLT     index2to16      // If < 16 handle specially
-	LXVB16X (R7)(R0), V3_   // Load 16 bytes @R7 into V3
+	LXVB16X (R7)(R0), V3    // Load 16 bytes @R7 into V3
 	VSLDOI  $1, V3, V10, V3 // Shift left by 1 byte
 	BR      index2loop
 
@@ -559,11 +550,11 @@ index3plus:
 index3loop2:
 	MOVD     $2, R21          // Set up index for 2
 	VSPLTISB $0, V10          // Clear V10
-	LXVB16X  (R7)(R21), V3_   // Load 16 bytes @R7+2 into V3
+	LXVB16X  (R7)(R21), V3    // Load 16 bytes @R7+2 into V3
 	VSLDOI   $14, V3, V10, V3 // Left justify next 2 bytes
 
 index3loop:
-	LXVB16X  (R7)(R0), V2_   // Load 16 bytes @R7
+	LXVB16X  (R7)(R0), V2    // Load 16 bytes @R7
 	VSLDOI   $1, V2, V3, V4  // string[1:17]
 	VSLDOI   $2, V2, V3, V9  // string[2:18]
 	VCMPEQUH V1, V2, V5      // compare hw even indices
@@ -604,7 +595,6 @@ index4plus:
 	ADD  $20, R7, R9  // Check string size to load
 	CMP  R9, LASTBYTE // Verify string length
 	BGE  index2to16   // If not large enough, process remaining
-	MOVD $2, R15      // Set up index
 
 	// Set up masks for use with VSEL
 	MOVD    $0xff, R21 // Set up mask 0xff000000ff000000...
@@ -619,12 +609,12 @@ index4plus:
 	VSPLTW $0, V0, V1 // Splat 1st word of separator
 
 index4loop:
-	LXVB16X (R7)(R0), V2_ // Load 16 bytes @R7 into V2
+	LXVB16X (R7)(R0), V2  // Load 16 bytes @R7 into V2
 
 next4:
 	VSPLTISB $0, V10            // Clear
 	MOVD     $3, R9             // Number of bytes beyond 16
-	LXVB16X  (R7)(R9), V3_      // Load 16 bytes @R7 into V2
+	LXVB16X  (R7)(R9), V3       // Load 16 bytes @R7 into V2
 	VSLDOI   $13, V3, V10, V3   // Shift left last 3 bytes
 	VSLDOI   $1, V2, V3, V4     // V4=(V2:V3)<<1
 	VSLDOI   $2, V2, V3, V9     // V9=(V2:V3)<<2
@@ -662,46 +652,91 @@ index2to16:
 	CMP R7, LASTSTR // Compare last start byte
 	BGT notfound    // last takes len(sep) into account
 
-	ADD $16, R7, R9    // Check for last byte of string
+	ADD $19, R7, R9    // To check 4 indices per iteration, need at least 16+3 bytes
 	CMP R9, LASTBYTE
 	BGT index2to16tail
 
 	// At least 16 bytes of string left
 	// Mask the number of bytes in sep
-index2to16loop:
-	LXVB16X (R7)(R0), V1_ // Load 16 bytes @R7 into V1
+	VSPLTISB $0, V10            // Clear
+	MOVD     $3, R17            // Number of bytes beyond 16
 
-compare:
-	VAND       V1, SEPMASK, V2 // Mask out sep size
-	VCMPEQUBCC V0, V2, V3      // Compare masked string
-	BLT        CR6, found      // All equal
-	ADD        $1, R7          // Update ptr to next byte
+index2to16loop:
+	LXVB16X  (R7)(R0), V1       // Load next 16 bytes of string into V1 from R7
+	LXVB16X  (R7)(R17), V5      // Load next 16 bytes of string into V5 from R7+3
+
+	VSLDOI   $13, V5, V10, V2  // Shift left last 3 bytes
+	VSLDOI  $1, V1, V2, V3     // V3=(V1:V2)<<1
+	VSLDOI  $2, V1, V2, V4     // V4=(V1:V2)<<2
+	VAND    V1, SEPMASK, V8    // Mask out sep size 0th index
+	VAND    V3, SEPMASK, V9    // Mask out sep size 1st index
+	VAND    V4, SEPMASK, V11   // Mask out sep size 2nd index
+	VAND    V5, SEPMASK, V12   // Mask out sep size 3rd index
+	VCMPEQUBCC      V0, V8, V8 // compare masked string
+	BLT     CR6, found         // All equal while comparing 0th index
+	VCMPEQUBCC      V0, V9, V9 // compare masked string
+	BLT     CR6, found2        // All equal while comparing 1st index
+	VCMPEQUBCC      V0, V11, V11    // compare masked string
+	BLT     CR6, found3        // All equal while comparing 2nd index
+	VCMPEQUBCC      V0, V12, V12    // compare masked string
+	BLT     CR6, found4        // All equal while comparing 3rd index
+
+	ADD        $4, R7          // Update ptr to next 4 bytes
 	CMP        R7, LASTSTR     // Still less than last start byte
 	BGT        notfound        // Not found
-	ADD        $16, R7, R9     // Verify remaining bytes
-	CMP        R9, LASTBYTE    // At least 16
-	BLT        index2to16loop  // Try again
+	ADD        $19, R7, R9     // Verify remaining bytes
+	CMP        R9, LASTBYTE    // length of string at least 19
+	BLE        index2to16loop  // Try again, else do post processing and jump to index2to16next
 
-	// Less than 16 bytes remaining in string
-	// Separator >= 2
+	// <19 bytes left, post process the remaining string
 index2to16tail:
-	ADD     R3, R4, R9     // End of string
-	SUB     R7, R9, R9     // Number of bytes left
-	ANDCC   $15, R7, R10   // 16 byte offset
-	ADD     R10, R9, R11   // offset + len
-	CMP     R11, $16       // >= 16?
-	BLE     short          // Does not cross 16 bytes
-	LXVB16X (R7)(R0), V1_  // Load 16 bytes @R7 into V1
-	BR      index2to16next // Continue on
+	ADD     R3, R4, R9         // End of string
+	SUB     R7, R9, R9         // Number of bytes left
+	ANDCC   $15, R7, R10       // 16 byte offset
+	ADD     R10, R9, R11       // offset + len
+	CMP     R11, $16           // >= 16?
+	BLE     short              // Does not cross 16 bytes
+	LXVB16X (R7)(R0), V1       // Load 16 bytes @R7 into V1
+	CMP     R9, $16            // Post-processing of unrolled loop
+	BLE     index2to16next     // continue to index2to16next if <= 16 bytes
+	SUB     R16, R9, R10       // R9 should be 18 or 17 hence R10 is 1 or 2
+	LXVB16X (R7)(R10), V9
+	CMP     R10, $1            // string length is 17, compare 1 more byte
+	BNE     extra2             // string length is 18, compare 2 more bytes
+	VSLDOI  $15, V9, V10, V25
+	VAND       V1, SEPMASK, V2 // Just compare size of sep
+	VCMPEQUBCC V0, V2, V3      // Compare sep and partial string
+	BLT        CR6, found      // Found
+	ADD        $1, R7          // Not found, try next partial string
+	CMP        R7, LASTSTR     // Check for end of string
+	BGT        notfound        // If at end, then not found
+	VSLDOI     $1, V1, V25, V1 // Shift string left by 1 byte
+	BR         index2to16next  // go to remainder loop
+extra2:
+	VSLDOI  $14, V9, V10, V25
+	VAND       V1, SEPMASK, V2 // Just compare size of sep
+	VCMPEQUBCC V0, V2, V3      // Compare sep and partial string
+	BLT        CR6, found      // Found
+	ADD        $1, R7          // Not found, try next partial string
+	CMP        R7, LASTSTR     // Check for end of string
+	BGT        notfound        // If at end, then not found
+	VSLDOI     $1, V1, V25, V1 // Shift string left by 1 byte
+	VAND       V1, SEPMASK, V2 // Just compare size of sep
+	VCMPEQUBCC V0, V2, V3      // Compare sep and partial string
+	BLT        CR6, found      // Found
+	ADD        $1, R7          // Not found, try next partial string
+	CMP        R7, LASTSTR     // Check for end of string
+	BGT        notfound        // If at end, then not found
+	VSLDOI     $1, V1, V25, V1 // Shift string left by 1 byte
+	BR         index2to16next  // Check the remaining partial string in index2to16next
 
 short:
-	RLDICR   $0, R7, $59, R9 // Adjust addr to 16 byte container
-	LXVB16X  (R9)(R0), V1_   // Load 16 bytes @R9 into V1
-	SLD      $3, R10         // Set up shift
-	MTVSRD   R10, V8_        // Set up shift
+	RLDICR   $0, R7, $59, R9   // Adjust addr to 16 byte container
+	LXVB16X  (R9)(R0), V1      // Load 16 bytes @R9 into V1
+	SLD      $3, R10           // Set up shift
+	MTVSRD   R10, V8           // Set up shift
 	VSLDOI   $8, V8, V8, V8
-	VSLO     V1, V8, V1      // Shift by start byte
-	VSPLTISB $0, V25         // Clear for later use
+	VSLO     V1, V8, V1        // Shift by start byte
 
 index2to16next:
 	VAND       V1, SEPMASK, V2 // Just compare size of sep
@@ -710,7 +745,7 @@ index2to16next:
 	ADD        $1, R7          // Not found, try next partial string
 	CMP        R7, LASTSTR     // Check for end of string
 	BGT        notfound        // If at end, then not found
-	VSLDOI     $1, V1, V25, V1 // Shift string left by 1 byte
+	VSLDOI     $1, V1, V10, V1 // Shift string left by 1 byte
 	BR         index2to16next  // Check the next partial string
 
 index17plus:
@@ -718,17 +753,17 @@ index17plus:
 	BGT      index33plus
 	SUB      $16, R6, R9   // Extra > 16
 	SLD      $56, R9, R10  // Shift to use in VSLO
-	MTVSRD   R10, V9_      // Set up for VSLO
-	LXVB16X  (R5)(R9), V1_ // Load 16 bytes @R5+R9 into V1
+	MTVSRD   R10, V9       // Set up for VSLO
+	LXVB16X  (R5)(R9), V1  // Load 16 bytes @R5+R9 into V1
 	VSLO     V1, V9, V1    // Shift left
 	VSPLTISB $0xff, V7     // Splat 1s
 	VSPLTISB $0, V27       // Splat 0
 
 index17to32loop:
-	LXVB16X (R7)(R0), V2_ // Load 16 bytes @R7 into V2
+	LXVB16X (R7)(R0), V2  // Load 16 bytes @R7 into V2
 
 next17:
-	LXVB16X    (R7)(R9), V3_   // Load 16 bytes @R7+R9 into V3
+	LXVB16X    (R7)(R9), V3    // Load 16 bytes @R7+R9 into V3
 	VSLO       V3, V9, V3      // Shift left
 	VCMPEQUB   V0, V2, V4      // Compare first 16 bytes
 	VCMPEQUB   V1, V3, V5      // Compare extra over 16 bytes
@@ -754,8 +789,13 @@ foundR25:
 	SUB  R3, R7    // Subtract from start of string
 	MOVD R7, R3    // Return byte where found
 	RET
-
-found:
+found4:
+	ADD $1, R7     // found from unrolled loop at index 3
+found3:
+	ADD $1, R7     // found from unrolled loop at index 2
+found2:
+	ADD $1, R7     // found from unrolled loop at index 1
+found:                 // found at index 0
 	SUB  R3, R7    // Return byte where found
 	MOVD R7, R3
 	RET

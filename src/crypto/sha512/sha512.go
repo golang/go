@@ -12,6 +12,7 @@ package sha512
 
 import (
 	"crypto"
+	"crypto/internal/boring"
 	"encoding/binary"
 	"errors"
 	"hash"
@@ -211,6 +212,9 @@ func consumeUint64(b []byte) ([]byte, uint64) {
 
 // New returns a new hash.Hash computing the SHA-512 checksum.
 func New() hash.Hash {
+	if boring.Enabled {
+		return boring.NewSHA512()
+	}
 	d := &digest{function: crypto.SHA512}
 	d.Reset()
 	return d
@@ -232,6 +236,9 @@ func New512_256() hash.Hash {
 
 // New384 returns a new hash.Hash computing the SHA-384 checksum.
 func New384() hash.Hash {
+	if boring.Enabled {
+		return boring.NewSHA384()
+	}
 	d := &digest{function: crypto.SHA384}
 	d.Reset()
 	return d
@@ -253,6 +260,9 @@ func (d *digest) Size() int {
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
+	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
+		boring.Unreachable()
+	}
 	nn = len(p)
 	d.len += uint64(nn)
 	if d.nx > 0 {
@@ -276,6 +286,9 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 func (d *digest) Sum(in []byte) []byte {
+	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
+		boring.Unreachable()
+	}
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := new(digest)
 	*d0 = *d
@@ -330,6 +343,9 @@ func (d *digest) checkSum() [Size]byte {
 
 // Sum512 returns the SHA512 checksum of the data.
 func Sum512(data []byte) [Size]byte {
+	if boring.Enabled {
+		return boring.SHA512(data)
+	}
 	d := digest{function: crypto.SHA512}
 	d.Reset()
 	d.Write(data)
@@ -338,6 +354,9 @@ func Sum512(data []byte) [Size]byte {
 
 // Sum384 returns the SHA384 checksum of the data.
 func Sum384(data []byte) [Size384]byte {
+	if boring.Enabled {
+		return boring.SHA384(data)
+	}
 	d := digest{function: crypto.SHA384}
 	d.Reset()
 	d.Write(data)

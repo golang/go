@@ -8,11 +8,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	exec "internal/execabs"
 	"io"
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -523,7 +523,7 @@ func (r *gitRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 	return out, nil
 }
 
-func (r *gitRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error) {
+func (r *gitRepo) RecentTag(rev, prefix string, allowed func(tag string) bool) (tag string, err error) {
 	info, err := r.Stat(rev)
 	if err != nil {
 		return "", err
@@ -553,15 +553,11 @@ func (r *gitRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag 
 			if !strings.HasPrefix(line, prefix) {
 				continue
 			}
-
-			semtag := line[len(prefix):]
-			// Consider only tags that are valid and complete (not just major.minor prefixes).
-			// NOTE: Do not replace the call to semver.Compare with semver.Max.
-			// We want to return the actual tag, not a canonicalized version of it,
-			// and semver.Max currently canonicalizes (see golang.org/issue/32700).
-			if c := semver.Canonical(semtag); c == "" || !strings.HasPrefix(semtag, c) || !allowed(semtag) {
+			if !allowed(line) {
 				continue
 			}
+
+			semtag := line[len(prefix):]
 			if semver.Compare(semtag, highest) > 0 {
 				highest = semtag
 			}

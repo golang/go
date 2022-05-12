@@ -30,7 +30,6 @@
 // (x + y) / 2 with x>=y => (x - y) / 2 + y
 (Avg64u <t> x y) => (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
 
-(Add64carry ...) => (LoweredAdd64Carry ...)
 (Mul64 ...) => (MULLD ...)
 (Mul(32|16|8) ...) => (MULLW ...)
 (Mul64uhilo ...) => (LoweredMuluhilo ...)
@@ -103,6 +102,22 @@
 (ConstNil) => (MOVDconst [0])
 (ConstBool [t]) => (MOVDconst [b2i(t)])
 
+// Carrying addition.
+(Select0 (Add64carry x y c)) =>            (Select0 <typ.UInt64> (ADDE x y (Select1 <typ.UInt64> (ADDCconst c [-1]))))
+(Select1 (Add64carry x y c)) => (ADDZEzero (Select1 <typ.UInt64> (ADDE x y (Select1 <typ.UInt64> (ADDCconst c [-1])))))
+// Fold initial carry bit if 0.
+(ADDE x y (Select1 <typ.UInt64> (ADDCconst (MOVDconst [0]) [-1]))) => (ADDC x y)
+// Fold transfer of CA -> GPR -> CA. Note 2 uses when feeding into a chained Add64carry.
+(Select1 (ADDCconst n:(ADDZEzero x) [-1])) && n.Uses <= 2 => x
+
+// Borrowing subtraction.
+(Select0 (Sub64borrow x y c)) =>                 (Select0 <typ.UInt64> (SUBE x y (Select1 <typ.UInt64> (SUBCconst c [0]))))
+(Select1 (Sub64borrow x y c)) => (NEG (SUBZEzero (Select1 <typ.UInt64> (SUBE x y (Select1 <typ.UInt64> (SUBCconst c [0]))))))
+// Fold initial borrow bit if 0.
+(SUBE x y (Select1 <typ.UInt64> (SUBCconst (MOVDconst [0]) [0]))) => (SUBC x y)
+// Fold transfer of CA -> GPR -> CA. Note 2 uses when feeding into a chained Sub64borrow.
+(Select1 (SUBCconst n:(NEG (SUBZEzero x)) [0])) && n.Uses <= 2 => x
+
 // Constant folding
 (FABS (FMOVDconst [x])) => (FMOVDconst [math.Abs(x)])
 (FSQRT (FMOVDconst [x])) && x >= 0 => (FMOVDconst [math.Sqrt(x)])
@@ -127,20 +142,20 @@
 
 // Rotate generation with non-const shift
 // these match patterns from math/bits/RotateLeft[32|64], but there could be others
-(ADD (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-(ADD (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-( OR (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-( OR (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-(XOR (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-(XOR (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+(ADD (SLD x (ANDconst [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+(ADD (SLD x (ANDconst [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+( OR (SLD x (ANDconst [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+( OR (SLD x (ANDconst [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+(XOR (SLD x (ANDconst [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+(XOR (SLD x (ANDconst [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
 
 
-(ADD (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-(ADD (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-( OR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-( OR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-(XOR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-(XOR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+(ADD (SLW x (ANDconst [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+(ADD (SLW x (ANDconst [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+( OR (SLW x (ANDconst [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+( OR (SLW x (ANDconst [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+(XOR (SLW x (ANDconst [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+(XOR (SLW x (ANDconst [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
 
 
 // Lowering rotates
@@ -381,8 +396,9 @@
 (OrB ...) => (OR ...)
 (Not x) => (XORconst [1] x)
 
-// Use ANDN for AND x NOT y
+// Merge logical operations
 (AND x (NOR y y)) => (ANDN x y)
+(OR x (NOR y y)) => (ORN x y)
 
 // Lowering comparisons
 (EqB x y)  => (ANDconst [1] (EQV x y))
@@ -445,19 +461,19 @@
 (If (FGreaterThan cc) yes no) => (FGT cc yes no)
 (If (FGreaterEqual cc) yes no) => (FGE cc yes no)
 
-(If cond yes no) => (NE (CMPWconst [0] cond) yes no)
+(If cond yes no) => (NE (CMPWconst [0] (ANDconst <typ.UInt32> [1] cond)) yes no)
 
 // Absorb boolean tests into block
-(NE (CMPWconst [0] (Equal cc)) yes no) => (EQ cc yes no)
-(NE (CMPWconst [0] (NotEqual cc)) yes no) => (NE cc yes no)
-(NE (CMPWconst [0] (LessThan cc)) yes no) => (LT cc yes no)
-(NE (CMPWconst [0] (LessEqual cc)) yes no) => (LE cc yes no)
-(NE (CMPWconst [0] (GreaterThan cc)) yes no) => (GT cc yes no)
-(NE (CMPWconst [0] (GreaterEqual cc)) yes no) => (GE cc yes no)
-(NE (CMPWconst [0] (FLessThan cc)) yes no) => (FLT cc yes no)
-(NE (CMPWconst [0] (FLessEqual cc)) yes no) => (FLE cc yes no)
-(NE (CMPWconst [0] (FGreaterThan cc)) yes no) => (FGT cc yes no)
-(NE (CMPWconst [0] (FGreaterEqual cc)) yes no) => (FGE cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (Equal cc))) yes no) => (EQ cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (NotEqual cc))) yes no) => (NE cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (LessThan cc))) yes no) => (LT cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (LessEqual cc))) yes no) => (LE cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (GreaterThan cc))) yes no) => (GT cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (GreaterEqual cc))) yes no) => (GE cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (FLessThan cc))) yes no) => (FLT cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (FLessEqual cc))) yes no) => (FLE cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (FGreaterThan cc))) yes no) => (FGT cc yes no)
+(NE (CMPWconst [0] (ANDconst [1] (FGreaterEqual cc))) yes no) => (FGE cc yes no)
 
 // Elide compares of bit tests // TODO need to make both CC and result of ANDCC available.
 (EQ (CMPconst [0] (ANDconst [c] x)) yes no) => (EQ (ANDCCconst [c] x) yes no)
@@ -685,6 +701,9 @@
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
+
+// Publication barrier as intrinsic
+(PubBarrier ...) => (LoweredPubBarrier ...)
 
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)

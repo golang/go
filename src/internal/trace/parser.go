@@ -75,6 +75,7 @@ const (
 	NetpollP // depicts network unblocks
 	SyscallP // depicts returns from syscalls
 	GCP      // depicts GC state
+	ProfileP // depicts recording of CPU profile samples
 )
 
 // ParseResult is the result of Parse.
@@ -150,7 +151,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 		return
 	}
 	switch ver {
-	case 1005, 1007, 1008, 1009, 1010, 1011:
+	case 1005, 1007, 1008, 1009, 1010, 1011, 1019:
 		// Note: When adding a new version, add canned traces
 		// from the old version to the test suite using mkcanned.bash.
 		break
@@ -448,8 +449,27 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 			case EvUserLog:
 				// e.Args 0: taskID, 1:keyID, 2: stackID
 				e.SArgs = []string{strings[e.Args[1]], raw.sargs[0]}
+			case EvCPUSample:
+				e.Ts = int64(e.Args[0])
+				e.P = int(e.Args[1])
+				e.G = e.Args[2]
+				e.Args[0] = 0
 			}
-			batches[lastP] = append(batches[lastP], e)
+			switch raw.typ {
+			default:
+				batches[lastP] = append(batches[lastP], e)
+			case EvCPUSample:
+				// Most events are written out by the active P at the exact
+				// moment they describe. CPU profile samples are different
+				// because they're written to the tracing log after some delay,
+				// by a separate worker goroutine, into a separate buffer.
+				//
+				// We keep these in their own batch until all of the batches are
+				// merged in timestamp order. We also (right before the merge)
+				// re-sort these events by the timestamp captured in the
+				// profiling signal handler.
+				batches[ProfileP] = append(batches[ProfileP], e)
+			}
 		}
 	}
 	if len(batches) == 0 {
@@ -1058,7 +1078,8 @@ const (
 	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
 	EvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
 	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
-	EvCount             = 49
+	EvCPUSample         = 49 // CPU profiling sample [timestamp, stack, real timestamp, real P id (-1 when absent), goroutine id]
+	EvCount             = 50
 )
 
 var EventDescriptions = [EvCount]struct {
@@ -1117,4 +1138,5 @@ var EventDescriptions = [EvCount]struct {
 	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}, nil},
 	EvUserRegion:        {"UserRegion", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
 	EvUserLog:           {"UserLog", 1011, true, []string{"id", "keyid"}, []string{"category", "message"}},
+	EvCPUSample:         {"CPUSample", 1019, true, []string{"ts", "p", "g"}, nil},
 }

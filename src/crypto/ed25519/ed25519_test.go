@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto"
+	"crypto/internal/boring"
 	"crypto/rand"
 	"encoding/hex"
 	"os"
@@ -186,6 +187,9 @@ func TestMalleability(t *testing.T) {
 }
 
 func TestAllocations(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("skipping allocations test with BoringCrypto")
+	}
 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
 		t.Skip("skipping allocations test without relevant optimizations")
 	}
@@ -199,7 +203,7 @@ func TestAllocations(t *testing.T) {
 			t.Fatal("signature didn't verify")
 		}
 	}); allocs > 0 {
-		t.Errorf("expected zero allocations, got %0.1v", allocs)
+		t.Errorf("expected zero allocations, got %0.1f", allocs)
 	}
 }
 

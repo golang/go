@@ -567,8 +567,7 @@ func (s *typeSwitch) Add(pos src.XPos, n1 ir.Node, caseVar *ir.Name, jmp ir.Node
 	switch n1.Op() {
 	case ir.OTYPE:
 		// Static type assertion (non-generic)
-		dot := ir.NewTypeAssertExpr(pos, s.facename, nil)
-		dot.SetType(typ) // iface.(type)
+		dot := ir.NewTypeAssertExpr(pos, s.facename, typ) // iface.(type)
 		as.Rhs = []ir.Node{dot}
 	case ir.ODYNAMICTYPE:
 		// Dynamic type assertion (generic)

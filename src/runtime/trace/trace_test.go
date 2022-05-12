@@ -6,15 +6,20 @@ package trace_test
 
 import (
 	"bytes"
+	"context"
 	"flag"
+	"fmt"
+	"internal/profile"
 	"internal/race"
 	"internal/trace"
 	"io"
 	"net"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	. "runtime/trace"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -579,6 +584,188 @@ func TestTraceFutileWakeup(t *testing.T) {
 			delete(gs, ev.G)
 		}
 	}
+}
+
+func TestTraceCPUProfile(t *testing.T) {
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
+	}
+
+	cpuBuf := new(bytes.Buffer)
+	if err := pprof.StartCPUProfile(cpuBuf); err != nil {
+		t.Skipf("failed to start CPU profile: %v", err)
+	}
+
+	buf := new(bytes.Buffer)
+	if err := Start(buf); err != nil {
+		t.Fatalf("failed to start tracing: %v", err)
+	}
+
+	dur := 100 * time.Millisecond
+	func() {
+		// Create a region in the execution trace. Set and clear goroutine
+		// labels fully within that region, so we know that any CPU profile
+		// sample with the label must also be eligible for inclusion in the
+		// execution trace.
+		ctx := context.Background()
+		defer StartRegion(ctx, "cpuHogger").End()
+		pprof.Do(ctx, pprof.Labels("tracing", "on"), func(ctx context.Context) {
+			cpuHogger(cpuHog1, &salt1, dur)
+		})
+		// Be sure the execution trace's view, when filtered to this goroutine
+		// via the explicit goroutine ID in each event, gets many more samples
+		// than the CPU profiler when filtered to this goroutine via labels.
+		cpuHogger(cpuHog1, &salt1, dur)
+	}()
+
+	Stop()
+	pprof.StopCPUProfile()
+	saveTrace(t, buf, "TestTraceCPUProfile")
+
+	prof, err := profile.Parse(cpuBuf)
+	if err != nil {
+		t.Fatalf("failed to parse CPU profile: %v", err)
+	}
+	// Examine the CPU profiler's view. Filter it to only include samples from
+	// the single test goroutine. Use labels to execute that filter: they should
+	// apply to all work done while that goroutine is getg().m.curg, and they
+	// should apply to no other goroutines.
+	pprofSamples := 0
+	pprofStacks := make(map[string]int)
+	for _, s := range prof.Sample {
+		if s.Label["tracing"] != nil {
+			samples := int(s.Value[0])
+			pprofSamples += samples
+			var fns []string
+			for _, loc := range s.Location {
+				for _, line := range loc.Line {
+					fns = append(fns, fmt.Sprintf("%s:%d", line.Function.Name, line.Line))
+				}
+			}
+			stack := strings.Join(fns, " ")
+			pprofStacks[stack] += samples
+		}
+	}
+	if pprofSamples == 0 {
+		t.Skipf("CPU profile did not include any samples while tracing was active\n%s", prof)
+	}
+
+	// Examine the execution tracer's view of the CPU profile samples. Filter it
+	// to only include samples from the single test goroutine. Use the goroutine
+	// ID that was recorded in the events: that should reflect getg().m.curg,
+	// same as the profiler's labels (even when the M is using its g0 stack).
+	totalTraceSamples := 0
+	traceSamples := 0
+	traceStacks := make(map[string]int)
+	events, _ := parseTrace(t, buf)
+	var hogRegion *trace.Event
+	for _, ev := range events {
+		if ev.Type == trace.EvUserRegion && ev.Args[1] == 0 && ev.SArgs[0] == "cpuHogger" {
+			// mode "0" indicates region start
+			hogRegion = ev
+		}
+	}
+	if hogRegion == nil {
+		t.Fatalf("execution trace did not identify cpuHogger goroutine")
+	} else if hogRegion.Link == nil {
+		t.Fatalf("execution trace did not close cpuHogger region")
+	}
+	for _, ev := range events {
+		if ev.Type == trace.EvCPUSample {
+			totalTraceSamples++
+			if ev.G == hogRegion.G {
+				traceSamples++
+				var fns []string
+				for _, frame := range ev.Stk {
+					if frame.Fn != "runtime.goexit" {
+						fns = append(fns, fmt.Sprintf("%s:%d", frame.Fn, frame.Line))
+					}
+				}
+				stack := strings.Join(fns, " ")
+				traceStacks[stack]++
+			}
+		}
+	}
+
+	// The execution trace may drop CPU profile samples if the profiling buffer
+	// overflows. Based on the size of profBufWordCount, that takes a bit over
+	// 1900 CPU samples or 19 thread-seconds at a 100 Hz sample rate. If we've
+	// hit that case, then we definitely have at least one full buffer's worth
+	// of CPU samples, so we'll call that success.
+	overflowed := totalTraceSamples >= 1900
+	if traceSamples < pprofSamples {
+		t.Logf("exectution trace did not include all CPU profile samples; %d in profile, %d in trace", pprofSamples, traceSamples)
+		if !overflowed {
+			t.Fail()
+		}
+	}
+
+	for stack, traceSamples := range traceStacks {
+		pprofSamples := pprofStacks[stack]
+		delete(pprofStacks, stack)
+		if traceSamples < pprofSamples {
+			t.Logf("execution trace did not include all CPU profile samples for stack %q; %d in profile, %d in trace",
+				stack, pprofSamples, traceSamples)
+			if !overflowed {
+				t.Fail()
+			}
+		}
+	}
+	for stack, pprofSamples := range pprofStacks {
+		t.Logf("CPU profile included %d samples at stack %q not present in execution trace", pprofSamples, stack)
+		if !overflowed {
+			t.Fail()
+		}
+	}
+
+	if t.Failed() {
+		t.Logf("execution trace CPU samples:")
+		for stack, samples := range traceStacks {
+			t.Logf("%d: %q", samples, stack)
+		}
+		t.Logf("CPU profile:\n%v", prof)
+	}
+}
+
+func cpuHogger(f func(x int) int, y *int, dur time.Duration) {
+	// We only need to get one 100 Hz clock tick, so we've got
+	// a large safety buffer.
+	// But do at least 500 iterations (which should take about 100ms),
+	// otherwise TestCPUProfileMultithreaded can fail if only one
+	// thread is scheduled during the testing period.
+	t0 := time.Now()
+	accum := *y
+	for i := 0; i < 500 || time.Since(t0) < dur; i++ {
+		accum = f(accum)
+	}
+	*y = accum
+}
+
+var (
+	salt1 = 0
+)
+
+// The actual CPU hogging function.
+// Must not call other functions nor access heap/globals in the loop,
+// otherwise under race detector the samples will be in the race runtime.
+func cpuHog1(x int) int {
+	return cpuHog0(x, 1e5)
+}
+
+func cpuHog0(x, n int) int {
+	foo := x
+	for i := 0; i < n; i++ {
+		if i%1000 == 0 {
+			// Spend time in mcall, stored as gp.m.curg, with g0 running
+			runtime.Gosched()
+		}
+		if foo > 0 {
+			foo *= foo
+		} else {
+			foo *= foo + 1
+		}
+	}
+	return foo
 }
 
 func saveTrace(t *testing.T, buf *bytes.Buffer, name string) {
