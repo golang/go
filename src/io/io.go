@@ -469,7 +469,11 @@ type LimitedReader struct {
 }
 
 func (l *LimitedReader) Read(p []byte) (n int, err error) {
-	if l.N <= 0 {
+	if l.N == 0 {
+		l.N--
+		n, err = l.R.Read(p[:0])
+		return
+	} else if l.N < 0 {
 		err := l.Err
 		if err == nil {
 			err = EOF
