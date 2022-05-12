@@ -132,6 +132,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	}
 	// regabi is only supported on amd64, arm64, riscv64, ppc64 and ppc64le.
 	if !regabiSupported {
+		flags.RegabiWrappers = false
 		flags.RegabiArgs = false
 	}
 	// Check regabi dependencies.
