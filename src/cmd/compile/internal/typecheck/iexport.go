@@ -394,12 +394,15 @@ func (w *exportWriter) writeIndex(index map[*types.Sym]uint64, mainIndex bool) {
 		pkgs = append(pkgs, pkg)
 	}
 	sort.Slice(pkgs, func(i, j int) bool {
-		return pkgs[i].Path < pkgs[j].Path
+		return exportPath(pkgs[i]) < exportPath(pkgs[j])
 	})
+	if mainIndex {
+		base.Assertf(pkgs[0] == types.LocalPkg, "LocalPkg must be first")
+	}
 
 	w.uint64(uint64(len(pkgs)))
 	for _, pkg := range pkgs {
-		w.string(pkg.Path)
+		w.string(exportPath(pkg))
 		if mainIndex {
 			w.string(pkg.Name)
 			w.uint64(uint64(pkg.Height))
@@ -714,7 +717,18 @@ func (w *exportWriter) pkg(pkg *types.Pkg) {
 	// Ensure any referenced packages are declared in the main index.
 	w.p.allPkgs[pkg] = true
 
-	w.string(pkg.Path)
+	w.string(exportPath(pkg))
+}
+
+// exportPath returns the path for pkg as it appears in the iexport
+// file format. For historical reasons (before cmd/compile required
+// the -p flag), the local package is represented as the empty string,
+// instead of its actual path.
+func exportPath(pkg *types.Pkg) string {
+	if pkg == types.LocalPkg {
+		return ""
+	}
+	return pkg.Path
 }
 
 func (w *exportWriter) qualifiedIdent(n *ir.Name) {
