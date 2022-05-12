@@ -42,7 +42,7 @@ func NewMappedRange(fset *token.FileSet, m *protocol.ColumnMapper, start, end to
 	if tf := fset.File(start); tf == nil {
 		bug.Report("nil file", nil)
 	} else {
-		mapped := m.Converter.TokFile.Name()
+		mapped := m.TokFile.Name()
 		adjusted := tf.PositionFor(start, true) // adjusted position
 		if adjusted.Filename != mapped {
 			bug.Reportf("mapped file %q does not match start position file %q", mapped, adjusted.Filename)
@@ -81,7 +81,7 @@ func (s MappedRange) Span() (span.Span, error) {
 	if s.m == nil {
 		return span.Span{}, bug.Errorf("invalid range")
 	}
-	return span.FileSpan(s.spanRange.TokFile, s.m.Converter, s.spanRange.Start, s.spanRange.End)
+	return span.FileSpan(s.spanRange.TokFile, s.m.TokFile, s.spanRange.Start, s.spanRange.End)
 }
 
 // URI returns the URI of the edited file.
@@ -570,12 +570,12 @@ func LineToRange(m *protocol.ColumnMapper, uri span.URI, start, end modfile.Posi
 
 // ByteOffsetsToRange creates a range spanning start and end.
 func ByteOffsetsToRange(m *protocol.ColumnMapper, uri span.URI, start, end int) (protocol.Range, error) {
-	line, col, err := m.Converter.ToPosition(start)
+	line, col, err := span.ToPosition(m.TokFile, start)
 	if err != nil {
 		return protocol.Range{}, err
 	}
 	s := span.NewPoint(line, col, start)
-	line, col, err = m.Converter.ToPosition(end)
+	line, col, err = span.ToPosition(m.TokFile, end)
 	if err != nil {
 		return protocol.Range{}, err
 	}

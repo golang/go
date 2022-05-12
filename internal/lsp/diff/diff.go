@@ -78,10 +78,10 @@ func LineEdits(before string, edits []TextEdit) []TextEdit {
 // prepareEdits returns a sorted copy of the edits
 func prepareEdits(before string, edits []TextEdit) ([]TextEdit, bool) {
 	partial := false
-	c := span.NewContentConverter("", []byte(before))
+	tf := span.NewTokenFile("", []byte(before))
 	copied := make([]TextEdit, len(edits))
 	for i, edit := range edits {
-		edit.Span, _ = edit.Span.WithAll(c)
+		edit.Span, _ = edit.Span.WithAll(tf)
 		copied[i] = edit
 		partial = partial ||
 			edit.Span.Start().Offset() >= len(before) ||

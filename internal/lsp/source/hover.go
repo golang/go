@@ -146,7 +146,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 	if err != nil {
 		return 0, MappedRange{}, err
 	}
-	rng, err := spn.Range(pgf.Mapper.Converter)
+	rng, err := spn.Range(pgf.Mapper.TokFile)
 	if err != nil {
 		return 0, MappedRange{}, err
 	}

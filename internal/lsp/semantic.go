@@ -260,9 +260,12 @@ func (e *encoded) strStack() string {
 	return strings.Join(msg, " ")
 }
 
-// avoid panic in token.PostionFor() when typing at the end of the file
-func locInRange(f *token.File, loc token.Pos) bool {
-	return f.Base() <= int(loc) && int(loc) < f.Base()+f.Size()
+// avoid panic in token.PositionFor() when typing at the end of the file
+//
+// TODO: this looks wrong: the second check should be int(loc) <= tf.Base()+tf.Size()?
+// Can we just use safetoken.InRange?
+func locInRange(tf *token.File, loc token.Pos) bool {
+	return tf.Base() <= int(loc) && int(loc) < tf.Base()+tf.Size()
 }
 
 // find the line in the source

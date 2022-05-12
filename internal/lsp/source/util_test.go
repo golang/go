@@ -34,9 +34,9 @@ const a𐐀b = 42`)
 	eURI := span.URIFromPath(ef.Name())
 
 	mapper := &protocol.ColumnMapper{
-		URI:       eURI,
-		Converter: span.NewTokenConverter(ef),
-		Content:   edited,
+		URI:     eURI,
+		TokFile: ef,
+		Content: edited,
 	}
 
 	start := cf.Pos(bytes.Index(compiled, []byte("a𐐀b")))

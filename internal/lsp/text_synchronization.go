@@ -340,11 +340,11 @@ func (s *Server) applyIncrementalChanges(ctx context.Context, uri span.URI, chan
 	}
 	for _, change := range changes {
 		// Make sure to update column mapper along with the content.
-		converter := span.NewContentConverter(uri.Filename(), content)
+		tf := span.NewTokenFile(uri.Filename(), content)
 		m := &protocol.ColumnMapper{
-			URI:       uri,
-			Converter: converter,
-			Content:   content,
+			URI:     uri,
+			TokFile: tf,
+			Content: content,
 		}
 		if change.Range == nil {
 			return nil, fmt.Errorf("%w: unexpected nil range for change", jsonrpc2.ErrInternal)

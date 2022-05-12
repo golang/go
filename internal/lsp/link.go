@@ -269,12 +269,12 @@ func toProtocolLink(snapshot source.Snapshot, m *protocol.ColumnMapper, target s
 		}
 	case source.Mod:
 		s, e := int(start), int(end)
-		line, col, err := m.Converter.ToPosition(s)
+		line, col, err := span.ToPosition(m.TokFile, s)
 		if err != nil {
 			return protocol.DocumentLink{}, err
 		}
 		start := span.NewPoint(line, col, s)
-		line, col, err = m.Converter.ToPosition(e)
+		line, col, err = span.ToPosition(m.TokFile, e)
 		if err != nil {
 			return protocol.DocumentLink{}, err
 		}

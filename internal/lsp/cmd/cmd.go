@@ -545,11 +545,10 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 		}
 		f := c.fset.AddFile(fname, -1, len(content))
 		f.SetLinesForContent(content)
-		converter := span.NewContentConverter(fname, content)
 		file.mapper = &protocol.ColumnMapper{
-			URI:       uri,
-			Converter: converter,
-			Content:   content,
+			URI:     uri,
+			TokFile: f,
+			Content: content,
 		}
 	}
 	return file

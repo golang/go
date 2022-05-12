@@ -37,7 +37,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protoc
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spn.Range(pgf.Mapper.Converter)
+	rng, err := spn.Range(pgf.Mapper.TokFile)
 	if err != nil {
 		return nil, err
 	}

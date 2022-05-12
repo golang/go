@@ -349,7 +349,7 @@ func typeErrorData(fset *token.FileSet, pkg *pkg, terr types.Error) (typesintern
 }
 
 func parsedGoSpan(pgf *source.ParsedGoFile, start, end token.Pos) (span.Span, error) {
-	return span.FileSpan(pgf.Tok, pgf.Mapper.Converter, start, end)
+	return span.FileSpan(pgf.Mapper.TokFile, pgf.Mapper.TokFile, start, end)
 }
 
 // spanToRange converts a span.Span to a protocol.Range,

@@ -22,7 +22,6 @@ import (
 	"golang.org/x/tools/internal/lsp/lsppos"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/safetoken"
-	"golang.org/x/tools/internal/span"
 )
 
 // Format formats a file with a given range.
@@ -204,7 +203,7 @@ func computeFixEdits(snapshot Snapshot, pgf *ParsedGoFile, options *imports.Opti
 	if err != nil {
 		return nil, err
 	}
-	return ProtocolEditsFromSource([]byte(left), edits, pgf.Mapper.Converter)
+	return ProtocolEditsFromSource([]byte(left), edits, pgf.Mapper.TokFile)
 }
 
 // importPrefix returns the prefix of the given file content through the final
@@ -322,11 +321,11 @@ func computeTextEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile,
 
 // ProtocolEditsFromSource converts text edits to LSP edits using the original
 // source.
-func ProtocolEditsFromSource(src []byte, edits []diff.TextEdit, converter *span.TokenConverter) ([]protocol.TextEdit, error) {
+func ProtocolEditsFromSource(src []byte, edits []diff.TextEdit, tf *token.File) ([]protocol.TextEdit, error) {
 	m := lsppos.NewMapper(src)
 	var result []protocol.TextEdit
 	for _, edit := range edits {
-		spn, err := edit.Span.WithOffset(converter)
+		spn, err := edit.Span.WithOffset(tf)
 		if err != nil {
 			return nil, fmt.Errorf("computing offsets: %v", err)
 		}

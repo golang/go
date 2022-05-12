@@ -331,9 +331,9 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 			File: file,
 			Tok:  tok,
 			Mapper: &protocol.ColumnMapper{
-				URI:       fh.URI(),
-				Converter: span.NewTokenConverter(tok),
-				Content:   src,
+				URI:     fh.URI(),
+				TokFile: tok,
+				Content: src,
 			},
 			ParseErr: parseErr,
 		},
@@ -764,7 +764,7 @@ func walkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
 
 // fixSrc attempts to modify the file's source code to fix certain
 // syntax errors that leave the rest of the file unparsed.
-func fixSrc(f *ast.File, tok *token.File, src []byte) (newSrc []byte) {
+func fixSrc(f *ast.File, tf *token.File, src []byte) (newSrc []byte) {
 	walkASTWithParent(f, func(n, parent ast.Node) bool {
 		if newSrc != nil {
 			return false
@@ -772,9 +772,9 @@ func fixSrc(f *ast.File, tok *token.File, src []byte) (newSrc []byte) {
 
 		switch n := n.(type) {
 		case *ast.BlockStmt:
-			newSrc = fixMissingCurlies(f, n, parent, tok, src)
+			newSrc = fixMissingCurlies(f, n, parent, tf, src)
 		case *ast.SelectorExpr:
-			newSrc = fixDanglingSelector(n, tok, src)
+			newSrc = fixDanglingSelector(n, tf, src)
 		}
 
 		return newSrc == nil
@@ -937,8 +937,8 @@ func fixEmptySwitch(body *ast.BlockStmt, tok *token.File, src []byte) {
 // To fix completion at "<>", we insert a real "_" after the "." so the
 // following declaration of "x" can be parsed and type checked
 // normally.
-func fixDanglingSelector(s *ast.SelectorExpr, tok *token.File, src []byte) []byte {
-	if !isPhantomUnderscore(s.Sel, tok, src) {
+func fixDanglingSelector(s *ast.SelectorExpr, tf *token.File, src []byte) []byte {
+	if !isPhantomUnderscore(s.Sel, tf, src) {
 		return nil
 	}
 
@@ -946,7 +946,7 @@ func fixDanglingSelector(s *ast.SelectorExpr, tok *token.File, src []byte) []byt
 		return nil
 	}
 
-	insertOffset, err := safetoken.Offset(tok, s.X.End())
+	insertOffset, err := safetoken.Offset(tf, s.X.End())
 	if err != nil {
 		return nil
 	}
@@ -973,8 +973,8 @@ func fixDanglingSelector(s *ast.SelectorExpr, tok *token.File, src []byte) []byt
 // yields a "_" selector instead of "var" since "var" is a keyword.
 //
 // TODO(rfindley): should this constitute an ast 'fix'?
-func fixPhantomSelector(sel *ast.SelectorExpr, tok *token.File, src []byte) {
-	if !isPhantomUnderscore(sel.Sel, tok, src) {
+func fixPhantomSelector(sel *ast.SelectorExpr, tf *token.File, src []byte) {
+	if !isPhantomUnderscore(sel.Sel, tf, src) {
 		return
 	}
 
@@ -988,7 +988,7 @@ func fixPhantomSelector(sel *ast.SelectorExpr, tok *token.File, src []byte) {
 		return
 	}
 
-	maybeKeyword := readKeyword(sel.Sel.Pos(), tok, src)
+	maybeKeyword := readKeyword(sel.Sel.Pos(), tf, src)
 	if maybeKeyword == "" {
 		return
 	}

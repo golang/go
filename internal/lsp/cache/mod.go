@@ -56,9 +56,9 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 			return &parseModData{err: err}
 		}
 		m := &protocol.ColumnMapper{
-			URI:       modFH.URI(),
-			Converter: span.NewContentConverter(modFH.URI().Filename(), contents),
-			Content:   contents,
+			URI:     modFH.URI(),
+			TokFile: span.NewTokenFile(modFH.URI().Filename(), contents),
+			Content: contents,
 		}
 		file, parseErr := modfile.Parse(modFH.URI().Filename(), contents, nil)
 		// Attempt to convert the error to a standardized parse error.
@@ -134,9 +134,9 @@ func (s *snapshot) ParseWork(ctx context.Context, modFH source.FileHandle) (*sou
 			return &parseWorkData{err: err}
 		}
 		m := &protocol.ColumnMapper{
-			URI:       modFH.URI(),
-			Converter: span.NewContentConverter(modFH.URI().Filename(), contents),
-			Content:   contents,
+			URI:     modFH.URI(),
+			TokFile: span.NewTokenFile(modFH.URI().Filename(), contents),
+			Content: contents,
 		}
 		file, parseErr := modfile.ParseWork(modFH.URI().Filename(), contents, nil)
 		// Attempt to convert the error to a standardized parse error.

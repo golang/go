@@ -32,7 +32,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.Version
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor position: %w", err)
 	}
-	rng, err := spn.Range(pw.Mapper.Converter)
+	rng, err := spn.Range(pw.Mapper.TokFile)
 	if err != nil {
 		return nil, fmt.Errorf("computing range: %w", err)
 	}

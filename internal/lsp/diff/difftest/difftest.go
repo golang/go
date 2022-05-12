@@ -207,12 +207,12 @@ func init() {
 	// expand all the spans to full versions
 	// we need them all to have their line number and column
 	for _, tc := range TestCases {
-		c := span.NewContentConverter("", []byte(tc.In))
+		tf := span.NewTokenFile("", []byte(tc.In))
 		for i := range tc.Edits {
-			tc.Edits[i].Span, _ = tc.Edits[i].Span.WithAll(c)
+			tc.Edits[i].Span, _ = tc.Edits[i].Span.WithAll(tf)
 		}
 		for i := range tc.LineEdits {
-			tc.LineEdits[i].Span, _ = tc.LineEdits[i].Span.WithAll(c)
+			tc.LineEdits[i].Span, _ = tc.LineEdits[i].Span.WithAll(tf)
 		}
 	}
 }

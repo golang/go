@@ -1046,7 +1046,7 @@ func applyTextDocumentEdits(r *runner, edits []protocol.TextDocumentEdit) (map[s
 		if content, ok := res[uri]; ok {
 			m = &protocol.ColumnMapper{
 				URI: uri,
-				Converter: span.NewContentConverter(
+				TokFile: span.NewTokenFile(
 					uri.Filename(), []byte(content)),
 				Content: []byte(content),
 			}
@@ -1284,11 +1284,11 @@ func TestBytesOffset(t *testing.T) {
 		f := fset.AddFile(fname, -1, len(test.text))
 		f.SetLinesForContent([]byte(test.text))
 		uri := span.URIFromPath(fname)
-		converter := span.NewContentConverter(fname, []byte(test.text))
+		tf := span.NewTokenFile(fname, []byte(test.text))
 		mapper := &protocol.ColumnMapper{
-			URI:       uri,
-			Converter: converter,
-			Content:   []byte(test.text),
+			URI:     uri,
+			TokFile: tf,
+			Content: []byte(test.text),
 		}
 		got, err := mapper.Point(test.pos)
 		if err != nil && test.want != -1 {

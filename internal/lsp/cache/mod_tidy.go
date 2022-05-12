@@ -482,7 +482,7 @@ func rangeFromPositions(m *protocol.ColumnMapper, s, e modfile.Position) (protoc
 
 func spanFromPositions(m *protocol.ColumnMapper, s, e modfile.Position) (span.Span, error) {
 	toPoint := func(offset int) (span.Point, error) {
-		l, c, err := m.Converter.ToPosition(offset)
+		l, c, err := span.ToPosition(m.TokFile, offset)
 		if err != nil {
 			return span.Point{}, err
 		}

@@ -231,7 +231,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, p
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spn.Range(pgf.Mapper.Converter)
+	rng, err := spn.Range(pgf.Mapper.TokFile)
 	if err != nil {
 		return nil, err
 	}

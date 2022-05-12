@@ -34,7 +34,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor position: %w", err)
 	}
-	hoverRng, err := spn.Range(pw.Mapper.Converter)
+	hoverRng, err := spn.Range(pw.Mapper.TokFile)
 	if err != nil {
 		return nil, fmt.Errorf("computing hover range: %w", err)
 	}

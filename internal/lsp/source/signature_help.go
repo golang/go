@@ -28,7 +28,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	if err != nil {
 		return nil, 0, err
 	}
-	rng, err := spn.Range(pgf.Mapper.Converter)
+	rng, err := spn.Range(pgf.Mapper.TokFile)
 	if err != nil {
 		return nil, 0, err
 	}

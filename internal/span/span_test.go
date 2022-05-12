@@ -62,7 +62,7 @@ func toPath(value string) string {
 
 // lines creates a new tokenConverter for a file with 1000 lines, each width
 // bytes wide.
-func lines(width int) *span.TokenConverter {
+func lines(width int) *token.File {
 	fset := token.NewFileSet()
 	f := fset.AddFile("", -1, 1000*width)
 	var lines []int
@@ -70,5 +70,5 @@ func lines(width int) *span.TokenConverter {
 		lines = append(lines, i*width)
 	}
 	f.SetLines(lines)
-	return span.NewTokenConverter(f)
+	return f
 }

@@ -865,10 +865,10 @@ func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Po
 }
 
 // TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
-func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
+func tokenFileContainsPos(tf *token.File, pos token.Pos) bool {
 	p := int(pos)
-	base := f.Base()
-	return base <= p && p < base+f.Size()
+	base := tf.Base()
+	return base <= p && p < base+tf.Size()
 }
 
 func objectKind(obj types.Object) string {

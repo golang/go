@@ -449,7 +449,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	if err != nil {
 		return nil, nil, err
 	}
-	rng, err := spn.Range(pgf.Mapper.Converter)
+	rng, err := spn.Range(pgf.Mapper.TokFile)
 	if err != nil {
 		return nil, nil, err
 	}

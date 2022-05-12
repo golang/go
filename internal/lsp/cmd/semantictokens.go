@@ -117,11 +117,11 @@ func (c *semtok) Run(ctx context.Context, args ...string) error {
 		// can't happen; just parsed this file
 		return fmt.Errorf("can't find %s in fset", args[0])
 	}
-	tc := span.NewContentConverter(args[0], buf)
+	tf := span.NewTokenFile(args[0], buf)
 	colmap = &protocol.ColumnMapper{
-		URI:       span.URI(args[0]),
-		Content:   buf,
-		Converter: tc,
+		URI:     span.URI(args[0]),
+		Content: buf,
+		TokFile: tf,
 	}
 	err = decorate(file.uri.Filename(), resp.Data)
 	if err != nil {

@@ -35,7 +35,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 			if err != nil {
 				t.Fatal(err)
 			}
-			converter := span.NewContentConverter(fname, data)
+			converter := span.NewTokenFile(fname, data)
 			s, err := spn.WithPosition(converter)
 			if err != nil {
 				t.Fatal(err)

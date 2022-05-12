@@ -40,7 +40,7 @@ func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh 
 	if err != nil {
 		return nil, nil, err
 	}
-	rng, err := cursorSpan.Range(pgf.Mapper.Converter)
+	rng, err := cursorSpan.Range(pgf.Mapper.TokFile)
 	if err != nil {
 		return nil, nil, err
 	}

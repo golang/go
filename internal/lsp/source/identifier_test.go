@@ -101,9 +101,9 @@ func TestSearchForEnclosing(t *testing.T) {
 // coordinates in the file fname of fset.
 func posAt(line, column int, fset *token.FileSet, fname string) token.Pos {
 	var tok *token.File
-	fset.Iterate(func(f *token.File) bool {
-		if f.Name() == fname {
-			tok = f
+	fset.Iterate(func(tf *token.File) bool {
+		if tf.Name() == fname {
+			tok = tf
 			return false
 		}
 		return true

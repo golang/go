@@ -85,7 +85,7 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 	}
 	var edits []analysis.TextEdit
 	for _, edit := range diffEdits {
-		rng, err := edit.Span.Range(parsedConcreteFile.Mapper.Converter)
+		rng, err := edit.Span.Range(parsedConcreteFile.Mapper.TokFile)
 		if err != nil {
 			return nil, err
 		}
@@ -218,7 +218,7 @@ func getStubNodes(pgf *ParsedGoFile, pRng protocol.Range) ([]ast.Node, token.Pos
 	if err != nil {
 		return nil, 0, err
 	}
-	rng, err := spn.Range(pgf.Mapper.Converter)
+	rng, err := spn.Range(pgf.Mapper.TokFile)
 	if err != nil {
 		return nil, 0, err
 	}

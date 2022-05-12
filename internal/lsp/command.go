@@ -580,9 +580,9 @@ func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI,
 	}
 
 	m := &protocol.ColumnMapper{
-		URI:       fh.URI(),
-		Converter: span.NewContentConverter(fh.URI().Filename(), oldContent),
-		Content:   oldContent,
+		URI:     fh.URI(),
+		TokFile: span.NewTokenFile(fh.URI().Filename(), oldContent),
+		Content: oldContent,
 	}
 	diff, err := snapshot.View().Options().ComputeEdits(uri, string(oldContent), string(newContent))
 	if err != nil {

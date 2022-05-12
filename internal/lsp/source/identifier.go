@@ -108,7 +108,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		if err != nil {
 			return nil, err
 		}
-		rng, err := spn.Range(pgf.Mapper.Converter)
+		rng, err := spn.Range(pgf.Mapper.TokFile)
 		if err != nil {
 			return nil, err
 		}

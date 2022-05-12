@@ -997,11 +997,11 @@ func (data *Data) Mapper(uri span.URI) (*protocol.ColumnMapper, error) {
 		if err != nil {
 			return nil, err
 		}
-		converter := span.NewContentConverter(uri.Filename(), content)
+		tf := span.NewTokenFile(uri.Filename(), content)
 		data.mappers[uri] = &protocol.ColumnMapper{
-			URI:       uri,
-			Converter: converter,
-			Content:   content,
+			URI:     uri,
+			TokFile: tf,
+			Content: content,
 		}
 	}
 	return data.mappers[uri], nil
