@@ -16,11 +16,11 @@ goto end
 :ok
 
 set GOROOT=%CD%\..
-call make.bat --dist-tool >NUL
+call .\make.bat --dist-tool >NUL
 if errorlevel 1 goto fail
 .\cmd\dist\dist.exe env -w -p >env.bat
 if errorlevel 1 goto fail
-call env.bat
+call .\env.bat
 del env.bat
 
 if %GOHOSTARCH% == amd64 goto continue
@@ -28,7 +28,7 @@ echo Race detector is only supported on windows/amd64.
 goto fail
 
 :continue
-call make.bat --no-banner --no-local
+call .\make.bat --no-banner --no-local
 if %GOBUILDFAIL%==1 goto end
 echo # go install -race std
 go install -race std
