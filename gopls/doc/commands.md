@@ -296,6 +296,7 @@ Result:
 		"CurrentVersion": string,
 		"FixedVersion": string,
 		"CallStacks": [][]golang.org/x/tools/internal/lsp/command.StackEntry,
+		"CallStackSummaries": []string,
 	},
 }
 ```

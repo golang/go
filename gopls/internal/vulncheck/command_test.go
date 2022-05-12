@@ -25,7 +25,6 @@ import (
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/vuln/client"
 	"golang.org/x/vuln/osv"
-	"golang.org/x/vuln/vulncheck"
 )
 
 func TestCmd_Run(t *testing.T) {
@@ -54,42 +53,31 @@ func TestCmd_Run(t *testing.T) {
 					URL:            "https://pkg.go.dev/vuln/GO-2022-01",
 					CurrentVersion: "v1.1.3",
 					FixedVersion:   "v1.0.4",
+					CallStackSummaries: []string{
+						"golang.org/entry/x.X calls golang.org/amod/avuln.VulnData.Vuln1",
+						"golang.org/entry/x.X calls golang.org/cmod/c.C1, which eventually calls golang.org/amod/avuln.VulnData.Vuln2",
+					},
 				},
 				CallStacksStr: []string{
-					"golang.org/cmod/c.I.t0 called from golang.org/entry/x.X [approx.] (x.go:8)\n" +
+					"golang.org/entry/x.X [approx.] (x.go:8)\n" +
 						"golang.org/amod/avuln.VulnData.Vuln1 (avuln.go:3)\n",
-				},
-			},
-			{
-				Vuln: Vuln{
-					ID:             "GO-2022-01",
-					Symbol:         "VulnData.Vuln2",
-					PkgPath:        "golang.org/amod/avuln",
-					ModPath:        "golang.org/amod",
-					URL:            "https://pkg.go.dev/vuln/GO-2022-01",
-					CurrentVersion: "v1.1.3",
-					FixedVersion:   "v1.0.4",
-				},
-				CallStacksStr: []string{
-					"C1 called from golang.org/entry/x.X (x.go:8)\n" +
-						"Vuln2 called from golang.org/cmod/c.C1 (c.go:13)\n" +
+					"golang.org/entry/x.X (x.go:8)\n" +
+						"golang.org/cmod/c.C1 (c.go:13)\n" +
 						"golang.org/amod/avuln.VulnData.Vuln2 (avuln.go:4)\n",
 				},
 			},
 			{
 				Vuln: Vuln{
-					ID:             "GO-2022-02",
-					Symbol:         "Vuln",
-					PkgPath:        "golang.org/bmod/bvuln",
-					ModPath:        "golang.org/bmod",
-					URL:            "https://pkg.go.dev/vuln/GO-2022-02",
-					CurrentVersion: "v0.5.0",
+					ID:                 "GO-2022-02",
+					Symbol:             "Vuln",
+					PkgPath:            "golang.org/bmod/bvuln",
+					ModPath:            "golang.org/bmod",
+					URL:                "https://pkg.go.dev/vuln/GO-2022-02",
+					CurrentVersion:     "v0.5.0",
+					CallStackSummaries: []string{"golang.org/entry/y.Y calls golang.org/bmod/bvuln.Vuln"},
 				},
 				CallStacksStr: []string{
-					"t0 called from golang.org/entry/y.Y [approx.] (y.go:5)\n" +
-						"golang.org/bmod/bvuln.Vuln (bvuln.go:2)\n",
-					"Y called from golang.org/entry/x.CallY (x.go:12)\n" +
-						"t0 called from golang.org/entry/y.Y [approx.] (y.go:5)\n" +
+					"golang.org/entry/y.Y [approx.] (y.go:5)\n" +
 						"golang.org/bmod/bvuln.Vuln (bvuln.go:2)\n",
 				},
 			},
@@ -97,8 +85,8 @@ func TestCmd_Run(t *testing.T) {
 		// sort reports for stability before comparison.
 		for _, rpts := range [][]report{got, want} {
 			sort.Slice(rpts, func(i, j int) bool {
-				a, b := got[i], got[j]
-				if b.ID != b.ID {
+				a, b := rpts[i], rpts[j]
+				if a.ID != b.ID {
 					return a.ID < b.ID
 				}
 				if a.PkgPath != b.PkgPath {
@@ -254,50 +242,6 @@ var testClient1 = &mockClient{
 	},
 }
 
-var goldenReport1 = []string{`
-{
-	ID: "GO-2022-01",
-	Symbol: "VulnData.Vuln1",
-	PkgPath: "golang.org/amod/avuln",
-	ModPath: "golang.org/amod",
-	URL: "https://pkg.go.dev/vuln/GO-2022-01",
-	CurrentVersion "v1.1.3",
-	FixedVersion "v1.0.4",
-	"call_stacks": [
-	 "golang.org/cmod/c.I.t0 called from golang.org/entry/x.X [approx.] (x.go:8)\ngolang.org/amod/avuln.VulnData.Vuln1 (avuln.go:3)\n\n"
-	]
-}
-`,
-	`
-{
-	"id": "GO-2022-02",
-	"symbol": "Vuln",
-	"pkg_path": "golang.org/bmod/bvuln",
-	"mod_path": "golang.org/bmod",
-	"url": "https://pkg.go.dev/vuln/GO-2022-02",
-	"current_version": "v0.5.0",
-	"call_stacks": [
-	 "t0 called from golang.org/entry/y.Y [approx.] (y.go:5)\ngolang.org/bmod/bvuln.Vuln (bvuln.go:2)\n\n",
-	 "Y called from golang.org/entry/x.CallY (x.go:12)\nt0 called from golang.org/entry/y.Y [approx.] (y.go:5)\ngolang.org/bmod/bvuln.Vuln (bvuln.go:2)\n\n"
-	]
-}
-`,
-	`
-{
-	"id": "GO-2022-01",
-	"symbol": "VulnData.Vuln2",
-	"pkg_path": "golang.org/amod/avuln",
-	"mod_path": "golang.org/amod",
-	"url": "https://pkg.go.dev/vuln/GO-2022-01",
-	"current_version": "v1.1.3",
-	FixedVersion: "v1.0.4",
-	"call_stacks": [
-	 "C1 called from golang.org/entry/x.X (x.go:8)\nVuln2 called from golang.org/cmod/c.C1 (c.go:13)\ngolang.org/amod/avuln.VulnData.Vuln2 (avuln.go:4)\n\n"
-	]
-}
-`,
-}
-
 type mockClient struct {
 	client.Client
 	ret map[string][]*osv.Entry
@@ -345,19 +289,6 @@ func runTest(t *testing.T, workspaceData, proxyData string, test func(context.Co
 	defer view.Shutdown(ctx)
 
 	test(ctx, snapshot)
-}
-
-func sortStrs(s []string) []string {
-	sort.Strings(s)
-	return s
-}
-
-func pkgPaths(pkgs []*vulncheck.Package) []string {
-	var r []string
-	for _, p := range pkgs {
-		r = append(r, p.PkgPath)
-	}
-	return sortStrs(r)
 }
 
 // TODO: expose this as a method of Snapshot.

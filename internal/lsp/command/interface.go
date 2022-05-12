@@ -380,5 +380,8 @@ type Vuln struct {
 	// Example call stacks.
 	CallStacks []CallStack `json:",omitempty"`
 
+	// Short description of each call stack in CallStacks.
+	CallStackSummaries []string `json:",omitempty"`
+
 	// TODO: import graph & module graph.
 }

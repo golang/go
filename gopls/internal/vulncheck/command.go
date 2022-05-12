@@ -9,7 +9,6 @@ package vulncheck
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -68,25 +67,13 @@ type cmd struct {
 
 // Run runs the govulncheck after loading packages using the provided packages.Config.
 func (c *cmd) Run(ctx context.Context, cfg *packages.Config, patterns ...string) (_ []Vuln, err error) {
-	// TODO: how&where can we ensure cfg is the right config for the given patterns?
-
-	// vulncheck.Source may panic if the packages are incomplete. (e.g. broken code or failed dependency fetch)
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("cannot run vulncheck: %v", r)
-		}
-	}()
-	return c.run(ctx, cfg, patterns)
-}
-
-func (c *cmd) run(ctx context.Context, packagesCfg *packages.Config, patterns []string) ([]Vuln, error) {
-	packagesCfg.Mode |= packages.NeedModule | packages.NeedName | packages.NeedFiles |
+	cfg.Mode |= packages.NeedModule | packages.NeedName | packages.NeedFiles |
 		packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedTypes |
 		packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedDeps
 
 	log.Println("loading packages...")
 
-	loadedPkgs, err := packages.Load(packagesCfg, patterns...)
+	loadedPkgs, err := packages.Load(cfg, patterns...)
 	if err != nil {
 		log.Printf("package load failed: %v", err)
 		return nil, err
@@ -94,53 +81,58 @@ func (c *cmd) run(ctx context.Context, packagesCfg *packages.Config, patterns []
 	log.Printf("loaded %d packages\n", len(loadedPkgs))
 
 	pkgs := vulncheck.Convert(loadedPkgs)
-	res, err := vulncheck.Source(ctx, pkgs, &vulncheck.Config{
-		Client:      c.Client,
-		ImportsOnly: false,
+	r, err := vulncheck.Source(ctx, pkgs, &vulncheck.Config{
+		Client: c.Client,
 	})
-	cs := vulncheck.CallStacks(res)
+	if err != nil {
+		return nil, err
+	}
 
-	return toVulns(loadedPkgs, cs)
+	// Skip vulns that are in the import graph but have no calls to them.
+	var vulns []*vulncheck.Vuln
+	for _, v := range r.Vulns {
+		if v.CallSink != 0 {
+			vulns = append(vulns, v)
+		}
+	}
 
+	callStacks := vulncheck.CallStacks(r)
+	// Create set of top-level packages, used to find representative symbols
+	topPackages := map[string]bool{}
+	for _, p := range pkgs {
+		topPackages[p.PkgPath] = true
+	}
+	vulnGroups := groupByIDAndPackage(vulns)
+	moduleVersions := moduleVersionMap(r.Modules)
+
+	return toVulns(callStacks, moduleVersions, topPackages, vulnGroups)
 	// TODO: add import graphs.
 }
 
-func packageModule(p *packages.Package) *packages.Module {
-	m := p.Module
-	if m == nil {
-		return nil
-	}
-	if r := m.Replace; r != nil {
-		return r
-	}
-	return m
-}
-
-func toVulns(pkgs []*packages.Package, callstacks map[*vulncheck.Vuln][]vulncheck.CallStack) ([]Vuln, error) {
-	// Build a map from module paths to versions.
-	moduleVersions := map[string]string{}
-	packages.Visit(pkgs, nil, func(p *packages.Package) {
-		if m := packageModule(p); m != nil {
-			moduleVersions[m.Path] = m.Version
-		}
-	})
-
+func toVulns(callStacks map[*vulncheck.Vuln][]vulncheck.CallStack, moduleVersions map[string]string, topPackages map[string]bool, vulnGroups [][]*vulncheck.Vuln) ([]Vuln, error) {
 	var vulns []Vuln
-	for v, trace := range callstacks {
-		if len(trace) == 0 {
-			continue
-		}
+
+	for _, vg := range vulnGroups {
+		v0 := vg[0]
 		vuln := Vuln{
-			ID:             v.OSV.ID,
-			Details:        v.OSV.Details,
-			Aliases:        v.OSV.Aliases,
-			Symbol:         v.Symbol,
-			PkgPath:        v.PkgPath,
-			ModPath:        v.ModPath,
-			URL:            href(v.OSV),
-			CurrentVersion: moduleVersions[v.ModPath],
-			FixedVersion:   fixedVersion(v.OSV),
-			CallStacks:     toCallStacks(trace),
+			ID:             v0.OSV.ID,
+			PkgPath:        v0.PkgPath,
+			CurrentVersion: moduleVersions[v0.ModPath],
+			FixedVersion:   latestFixed(v0.OSV.Affected),
+			Details:        v0.OSV.Details,
+
+			Aliases: v0.OSV.Aliases,
+			Symbol:  v0.Symbol,
+			ModPath: v0.ModPath,
+			URL:     href(v0.OSV),
+		}
+
+		// Keep first call stack for each vuln.
+		for _, v := range vg {
+			if css := callStacks[v]; len(css) > 0 {
+				vuln.CallStacks = append(vuln.CallStacks, toCallStack(css[0]))
+				vuln.CallStackSummaries = append(vuln.CallStackSummaries, summarizeCallStack(css[0], topPackages, v.PkgPath))
+			}
 		}
 		vulns = append(vulns, vuln)
 	}
