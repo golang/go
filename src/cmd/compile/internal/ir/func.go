@@ -268,14 +268,14 @@ func PkgFuncName(f *Func) string {
 	s := f.Sym()
 	pkg := s.Pkg
 
-	p := base.Ctxt.Pkgpath
-	if pkg != nil && pkg.Path != "" {
-		p = pkg.Path
-	}
-	if p == "" {
+	// TODO(mdempsky): Remove after submitting CL 393715? This matches
+	// how PkgFuncName has historically handled local functions, but
+	// drchase points out it contradicts the documentation.
+	if pkg == types.LocalPkg {
 		return s.Name
 	}
-	return p + "." + s.Name
+
+	return pkg.Path + "." + s.Name
 }
 
 var CurFunc *Func
