@@ -70,6 +70,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
 	base.Ctxt.UseBASEntries = base.Ctxt.Headtype != objabi.Hdarwin
 
+	base.DebugSSA = ssa.PhaseOption
+	base.ParseFlags()
+
 	types.LocalPkg = types.NewPkg("", "")
 	types.LocalPkg.Prefix = "\"\""
 
@@ -99,9 +102,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// pseudo-package used for methods with anonymous receivers
 	ir.Pkgs.Go = types.NewPkg("go", "")
-
-	base.DebugSSA = ssa.PhaseOption
-	base.ParseFlags()
 
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
