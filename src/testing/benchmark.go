@@ -200,14 +200,14 @@ func (b *B) runN(n int) {
 	}
 }
 
-func min(x, y int64) int64 {
+func min(x, y float64) float64 {
 	if x > y {
 		return y
 	}
 	return x
 }
 
-func max(x, y int64) int64 {
+func max(x, y float64) float64 {
 	if x < y {
 		return y
 	}
@@ -307,12 +307,12 @@ func (b *B) launch() {
 		}
 	} else {
 		d := b.benchTime.d
-		for n := int64(1); !b.failed && b.duration < d && n < 1e9; {
+		for n := float64(1); !b.failed && b.duration < d && n < 1e9; {
 			last := n
 			// Predict required iterations.
-			goalns := d.Nanoseconds()
-			prevIters := int64(b.N)
-			prevns := b.duration.Nanoseconds()
+			goalns := float64(d.Nanoseconds())
+			prevIters := float64(b.N)
+			prevns := float64(b.duration.Nanoseconds())
 			if prevns <= 0 {
 				// Round up, to avoid div by zero.
 				prevns = 1
@@ -322,18 +322,17 @@ func (b *B) launch() {
 			// If you divide first, you get 0 or 1,
 			// which can hide an order of magnitude in execution time.
 			// So multiply first, then divide.
-			n = goalns * prevIters / prevns
-			// Can't restore goalns means overflows.
-			if n*prevns/prevIters != goalns {
-				// Overflows means need to be executed many many times,
-				// otherwise it is easy to be timeout.
+			// If goalns * prevIters >= MaxFloat64 could overflow.
+			if goalns >= math.MaxFloat64/prevIters {
+				// Overflow means need to grow fast.
 				n = 100 * last
 			} else {
-				// Run more iterations than we think we'll need (1.2x).
-				n += n / 5
-				// Don't grow too fast in case we had timing errors previously.
-				n = min(n, 100*last)
+				n = goalns * prevIters / prevns
 			}
+			// Run more iterations than we think we'll need (1.2x).
+			n += n / 5
+			// Don't grow too fast in case we had timing errors previously.
+			n = min(n, 100*last)
 			// Be sure to run at least one more than last time.
 			n = max(n, last+1)
 			// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)

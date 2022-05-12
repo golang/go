@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package testing
+package testing_test
 
 import (
 	"bytes"
+	"flag"
 	"runtime"
 	"sort"
 	"strings"
 	"sync/atomic"
+	"testing"
 	"text/template"
 	"time"
 )
@@ -31,19 +33,19 @@ var prettyPrintTests = []struct {
 	{0.0000999949999, "         0.0001000 x"},
 }
 
-func TestPrettyPrint(t *T) {
+func TestPrettyPrint(t *testing.T) {
 	for _, tt := range prettyPrintTests {
 		buf := new(strings.Builder)
-		PrettyPrint(buf, tt.v, "x")
+		testing.PrettyPrint(buf, tt.v, "x")
 		if tt.expected != buf.String() {
 			t.Errorf("prettyPrint(%v): expected %q, actual %q", tt.v, tt.expected, buf.String())
 		}
 	}
 }
 
-func TestResultString(t *T) {
+func TestResultString(t *testing.T) {
 	// Test fractional ns/op handling
-	r := BenchmarkResult{
+	r := testing.BenchmarkResult{
 		N: 100,
 		T: 240 * time.Nanosecond,
 	}
@@ -67,15 +69,15 @@ func TestResultString(t *T) {
 	}
 }
 
-func TestRunParallel(t *T) {
-	if Short() {
+func TestRunParallel(t *testing.T) {
+	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	Benchmark(func(b *B) {
+	testing.Benchmark(func(b *testing.B) {
 		procs := uint32(0)
 		iters := uint64(0)
 		b.SetParallelism(3)
-		b.RunParallel(func(pb *PB) {
+		b.RunParallel(func(pb *testing.PB) {
 			atomic.AddUint32(&procs, 1)
 			for pb.Next() {
 				atomic.AddUint64(&iters, 1)
@@ -90,9 +92,9 @@ func TestRunParallel(t *T) {
 	})
 }
 
-func TestRunParallelFail(t *T) {
-	Benchmark(func(b *B) {
-		b.RunParallel(func(pb *PB) {
+func TestRunParallelFail(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
 			// The function must be able to log/abort
 			// w/o crashing/deadlocking the whole benchmark.
 			b.Log("log")
@@ -101,9 +103,9 @@ func TestRunParallelFail(t *T) {
 	})
 }
 
-func TestRunParallelFatal(t *T) {
-	Benchmark(func(b *B) {
-		b.RunParallel(func(pb *PB) {
+func TestRunParallelFatal(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				if b.N > 1 {
 					b.Fatal("error")
@@ -113,9 +115,9 @@ func TestRunParallelFatal(t *T) {
 	})
 }
 
-func TestRunParallelSkipNow(t *T) {
-	Benchmark(func(b *B) {
-		b.RunParallel(func(pb *PB) {
+func TestRunParallelSkipNow(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				if b.N > 1 {
 					b.SkipNow()
@@ -127,11 +129,11 @@ func TestRunParallelSkipNow(t *T) {
 
 func ExampleB_RunParallel() {
 	// Parallel benchmark for text/template.Template.Execute on a single object.
-	Benchmark(func(b *B) {
+	testing.Benchmark(func(b *testing.B) {
 		templ := template.Must(template.New("test").Parse("Hello, {{.}}!"))
 		// RunParallel will create GOMAXPROCS goroutines
 		// and distribute work among them.
-		b.RunParallel(func(pb *PB) {
+		b.RunParallel(func(pb *testing.PB) {
 			// Each goroutine has its own bytes.Buffer.
 			var buf bytes.Buffer
 			for pb.Next() {
@@ -143,8 +145,8 @@ func ExampleB_RunParallel() {
 	})
 }
 
-func TestReportMetric(t *T) {
-	res := Benchmark(func(b *B) {
+func TestReportMetric(t *testing.T) {
+	res := testing.Benchmark(func(b *testing.B) {
 		b.ReportMetric(12345, "ns/op")
 		b.ReportMetric(0.2, "frobs/op")
 	})
@@ -163,7 +165,7 @@ func TestReportMetric(t *T) {
 func ExampleB_ReportMetric() {
 	// This reports a custom benchmark metric relevant to a
 	// specific algorithm (in this case, sorting).
-	Benchmark(func(b *B) {
+	testing.Benchmark(func(b *testing.B) {
 		var compares int64
 		for i := 0; i < b.N; i++ {
 			s := []int{5, 4, 3, 2, 1}
@@ -178,22 +180,21 @@ func ExampleB_ReportMetric() {
 	})
 }
 
-func TestBenchmarkLaunch(t *T) {
-	tmp := benchTime
-	t.cleanups = append(t.cleanups, func() {
-		t.Logf("reset benchTime")
-		benchTime = tmp
-	})
-	// Set a long benchtime.
-	benchTime = durationOrCountFlag{
-		d: 150 * time.Second,
+func TestBenchmarkLaunch(t *testing.T) {
+	// Won't really run 150s, 1e9 times at most.
+	err := flag.Lookup("test.benchtime").Value.Set("150s")
+	if err != nil {
+		t.Fatalf("set benchtime occured an error %q", err.Error())
 	}
+
+	t.Cleanup(func() {
+		err = flag.Lookup("test.benchtime").Value.Set("1s")
+		t.Fatalf("clear benchtime occured an error %q", err.Error())
+	})
+
 	var try int32 = 0
-	Benchmark(func(b *B) {
+	testing.Benchmark(func(b *testing.B) {
 		c := atomic.AddInt32(&try, 1)
-		t.Logf("try %d %d\n", c, b.N)
-		if c > 6 {
-			t.Fatalf("benchmark try to many times %d", c)
-		}
+		t.Logf("try = %d,b.N = %d\n", c, b.N)
 	})
 }
