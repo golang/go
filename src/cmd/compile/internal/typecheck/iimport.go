@@ -193,7 +193,7 @@ func ReadImports(pkg *types.Pkg, data string) {
 		}
 
 		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
-			s := pkg.Lookup(p.nameAt(ird.uint64()))
+			s := pkg.Lookup(p.stringAt(ird.uint64()))
 			off := ird.uint64()
 
 			if _, ok := DeclImporter[s]; !ok {
@@ -207,7 +207,7 @@ func ReadImports(pkg *types.Pkg, data string) {
 		pkg := p.pkgAt(ird.uint64())
 
 		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
-			s := pkg.Lookup(p.nameAt(ird.uint64()))
+			s := pkg.Lookup(p.stringAt(ird.uint64()))
 			off := ird.uint64()
 
 			if _, ok := inlineImporter[s]; !ok {
@@ -239,22 +239,6 @@ func (p *iimporter) stringAt(off uint64) string {
 	}
 	spos := off + uint64(n)
 	return p.stringData[spos : spos+slen]
-}
-
-// nameAt is the same as stringAt, except it replaces instances
-// of "" with the path of the package being imported.
-func (p *iimporter) nameAt(off uint64) string {
-	s := p.stringAt(off)
-	// Names of objects (functions, methods, globals) may include ""
-	// to represent the path name of the imported package.
-	// Replace "" with the imported package prefix. This occurs
-	// specifically for generics where the names of instantiations
-	// and dictionaries contain package-qualified type names.
-	// Include the dot to avoid matching with struct tags ending in '"'.
-	if strings.Contains(s, "\"\".") {
-		s = strings.Replace(s, "\"\".", p.ipkg.Prefix+".", -1)
-	}
-	return s
 }
 
 func (p *iimporter) posBaseAt(off uint64) *src.PosBase {
@@ -312,7 +296,6 @@ func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
 }
 
 func (r *importReader) string() string        { return r.p.stringAt(r.uint64()) }
-func (r *importReader) name() string          { return r.p.nameAt(r.uint64()) }
 func (r *importReader) posBase() *src.PosBase { return r.p.posBaseAt(r.uint64()) }
 func (r *importReader) pkg() *types.Pkg       { return r.p.pkgAt(r.uint64()) }
 
@@ -578,7 +561,7 @@ func (r *importReader) localIdent() *types.Sym { return r.ident(false) }
 func (r *importReader) selector() *types.Sym   { return r.ident(true) }
 
 func (r *importReader) qualifiedIdent() *ir.Ident {
-	name := r.name()
+	name := r.string()
 	pkg := r.pkg()
 	sym := pkg.Lookup(name)
 	return ir.NewIdent(src.NoXPos, sym)
