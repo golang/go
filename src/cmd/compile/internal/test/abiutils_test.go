@@ -33,8 +33,8 @@ func TestMain(m *testing.M) {
 	base.Ctxt.DiagFunc = base.Errorf
 	base.Ctxt.DiagFlush = base.FlushErrors
 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
-	types.LocalPkg = types.NewPkg("", "local")
-	types.LocalPkg.Prefix = `""`
+	types.LocalPkg = types.NewPkg("p", "local")
+	types.LocalPkg.Prefix = "p"
 	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
 	types.RegSize = ssagen.Arch.LinkArch.RegSize
 	typecheck.InitUniverse()
