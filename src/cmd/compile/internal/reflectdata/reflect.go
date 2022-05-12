@@ -1444,6 +1444,14 @@ type typesByString []typeAndStr
 
 func (a typesByString) Len() int { return len(a) }
 func (a typesByString) Less(i, j int) bool {
+	// put named types before unnamed types
+	if a[i].t.Sym() != nil && a[j].t.Sym() == nil {
+		return true
+	}
+	if a[i].t.Sym() == nil && a[j].t.Sym() != nil {
+		return false
+	}
+
 	if a[i].short != a[j].short {
 		return a[i].short < a[j].short
 	}
