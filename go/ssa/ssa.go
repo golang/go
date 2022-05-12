@@ -307,7 +307,7 @@ type Node interface {
 type Function struct {
 	name      string
 	object    types.Object // a declared *types.Func or one of its wrappers
-	method    selection    // info about provenance of synthetic methods
+	method    *selection   // info about provenance of synthetic methods; thunk => non-nil
 	Signature *types.Signature
 	pos       token.Pos
 

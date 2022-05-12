@@ -42,7 +42,7 @@ import (
 //   - the result may be a thunk or a wrapper.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
-func makeWrapper(prog *Program, sel selection, cr *creator) *Function {
+func makeWrapper(prog *Program, sel *selection, cr *creator) *Function {
 	obj := sel.Obj().(*types.Func)       // the declared function
 	sig := sel.Type().(*types.Signature) // type of this wrapper
 
@@ -255,7 +255,7 @@ func makeBound(prog *Program, obj *types.Func, cr *creator) *Function {
 // than inlining the stub.
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(meth.Prog.methodsMu)
-func makeThunk(prog *Program, sel selection, cr *creator) *Function {
+func makeThunk(prog *Program, sel *selection, cr *creator) *Function {
 	if sel.Kind() != types.MethodExpr {
 		panic(sel)
 	}
@@ -303,9 +303,10 @@ type boundsKey struct {
 	inst *typeList    // canonical type instantiation list.
 }
 
-// methodExpr is an copy of a *types.Selection.
-// This exists as there is no way to create MethodExpr's for an instantiation.
-type methodExpr struct {
+// A local version of *types.Selection.
+// Needed for some additional control, such as creating a MethodExpr for an instantiation.
+type selection struct {
+	kind     types.SelectionKind
 	recv     types.Type
 	typ      types.Type
 	obj      types.Object
@@ -313,33 +314,21 @@ type methodExpr struct {
 	indirect bool
 }
 
-func (*methodExpr) Kind() types.SelectionKind { return types.MethodExpr }
-func (m *methodExpr) Type() types.Type        { return m.typ }
-func (m *methodExpr) Recv() types.Type        { return m.recv }
-func (m *methodExpr) Obj() types.Object       { return m.obj }
-func (m *methodExpr) Index() []int            { return m.index }
-func (m *methodExpr) Indirect() bool          { return m.indirect }
+// TODO(taking): inline and eliminate.
+func (sel *selection) Kind() types.SelectionKind { return sel.kind }
+func (sel *selection) Type() types.Type          { return sel.typ }
+func (sel *selection) Recv() types.Type          { return sel.recv }
+func (sel *selection) Obj() types.Object         { return sel.obj }
+func (sel *selection) Index() []int              { return sel.index }
+func (sel *selection) Indirect() bool            { return sel.indirect }
 
-// create MethodExpr from a MethodValue.
-func toMethodExpr(mv *types.Selection) *methodExpr {
-	if mv.Kind() != types.MethodVal {
-		panic(mv)
+func toSelection(sel *types.Selection) *selection {
+	return &selection{
+		kind:     sel.Kind(),
+		recv:     sel.Recv(),
+		typ:      sel.Type(),
+		obj:      sel.Obj(),
+		index:    sel.Index(),
+		indirect: sel.Indirect(),
 	}
-	return &methodExpr{
-		recv:     mv.Recv(),
-		typ:      recvAsFirstArg(mv.Type().(*types.Signature)),
-		obj:      mv.Obj(),
-		index:    mv.Index(),
-		indirect: mv.Indirect(),
-	}
-}
-
-// generalization of a *types.Selection and a methodExpr.
-type selection interface {
-	Kind() types.SelectionKind
-	Type() types.Type
-	Recv() types.Type
-	Obj() types.Object
-	Index() []int
-	Indirect() bool
 }

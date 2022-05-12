@@ -443,8 +443,8 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		return b.addr(fn, e.X, escaping)
 
 	case *ast.SelectorExpr:
-		sel, ok := fn.info.Selections[e]
-		if !ok {
+		sel := fn.selection(e)
+		if sel == nil {
 			// qualified identifier
 			return b.addr(fn, e.Sel, escaping)
 		}
@@ -786,8 +786,8 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		return emitLoad(fn, fn.lookup(obj, false)) // var (address)
 
 	case *ast.SelectorExpr:
-		sel, ok := fn.info.Selections[e]
-		if !ok {
+		sel := fn.selection(e)
+		if sel == nil {
 			// builtin unsafe.{Add,Slice}
 			if obj, ok := fn.info.Uses[e.Sel].(*types.Builtin); ok {
 				return &Builtin{name: obj.Name(), sig: fn.typ(tv.Type).(*types.Signature)}
@@ -799,28 +799,12 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		case types.MethodExpr:
 			// (*T).f or T.f, the method f from the method-set of type T.
 			// The result is a "thunk".
-
-			sel := selection(sel)
-			if base := fn.typ(sel.Recv()); base != sel.Recv() {
-				// instantiate sel as sel.Recv is not equal after substitution.
-				pkg := fn.declaredPackage().Pkg
-				// mv is the instantiated method value.
-				mv := types.NewMethodSet(base).Lookup(pkg, sel.Obj().Name())
-				sel = toMethodExpr(mv)
-			}
 			thunk := makeThunk(fn.Prog, sel, b.created)
 			return emitConv(fn, thunk, fn.typ(tv.Type))
 
 		case types.MethodVal:
 			// e.f where e is an expression and f is a method.
 			// The result is a "bound".
-
-			if base := fn.typ(sel.Recv()); base != sel.Recv() {
-				// instantiate sel as sel.Recv is not equal after substitution.
-				pkg := fn.declaredPackage().Pkg
-				// mv is the instantiated method value.
-				sel = types.NewMethodSet(base).Lookup(pkg, sel.Obj().Name())
-			}
 			obj := sel.Obj().(*types.Func)
 			rt := fn.typ(recvType(obj))
 			wantAddr := isPointer(rt)
@@ -939,7 +923,7 @@ func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 // must thus be addressable.
 //
 // escaping is defined as per builder.addr().
-func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, sel *types.Selection) Value {
+func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, sel *selection) Value {
 	var v Value
 	if wantAddr && !sel.Indirect() && !isPointer(fn.typeOf(e)) {
 		v = b.addr(fn, e, escaping).address(fn)
@@ -964,15 +948,9 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 
 	// Is this a method call?
 	if selector, ok := unparen(e.Fun).(*ast.SelectorExpr); ok {
-		sel, ok := fn.info.Selections[selector]
-		if ok && sel.Kind() == types.MethodVal {
+		sel := fn.selection(selector)
+		if sel != nil && sel.Kind() == types.MethodVal {
 			obj := sel.Obj().(*types.Func)
-			if recv := fn.typ(sel.Recv()); recv != sel.Recv() {
-				// adjust obj if the sel.Recv() changed during monomorphization.
-				pkg := fn.declaredPackage().Pkg
-				method, _, _ := types.LookupFieldOrMethod(recv, true, pkg, sel.Obj().Name())
-				obj = method.(*types.Func)
-			}
 			recv := recvType(obj)
 
 			wantAddr := isPointer(recv)

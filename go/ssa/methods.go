@@ -98,6 +98,7 @@ func (prog *Program) addMethod(mset *methodSet, sel *types.Selection, cr *creato
 	id := sel.Obj().Id()
 	fn := mset.mapping[id]
 	if fn == nil {
+		sel := toSelection(sel)
 		obj := sel.Obj().(*types.Func)
 
 		needsPromotion := len(sel.Index()) > 1
