@@ -153,7 +153,7 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
 	l.relocCommon(pr, &wdict, pkgbits.RelocObjDict, idx)
 
 	var obj *ir.Name
-	if path == "" {
+	if sym.Pkg == types.LocalPkg {
 		var ok bool
 		obj, ok = sym.Def.(*ir.Name)
 

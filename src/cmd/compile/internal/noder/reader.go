@@ -295,13 +295,13 @@ func (r *reader) doPkg() *types.Pkg {
 	if pkg.Name == "" {
 		pkg.Name = name
 	} else {
-		assert(pkg.Name == name)
+		base.Assertf(pkg.Name == name, "package %q has name %q, but want %q", pkg.Path, pkg.Name, name)
 	}
 
 	if pkg.Height == 0 {
 		pkg.Height = height
 	} else {
-		assert(pkg.Height == height)
+		base.Assertf(pkg.Height == height, "package %q has height %v, but want %v", pkg.Path, pkg.Height, height)
 	}
 
 	return pkg
