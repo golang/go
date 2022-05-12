@@ -26,6 +26,7 @@ var (
 	regtestTimeout           = flag.Duration("regtest_timeout", defaultRegtestTimeout(), "if nonzero, default timeout for each regtest; defaults to GOPLS_REGTEST_TIMEOUT")
 	skipCleanup              = flag.Bool("regtest_skip_cleanup", false, "whether to skip cleaning up temp directories")
 	printGoroutinesOnFailure = flag.Bool("regtest_print_goroutines", false, "whether to print goroutines info on failure")
+	printLogs                = flag.Bool("regtest_print_logs", false, "whether to print LSP logs")
 )
 
 func defaultRegtestTimeout() time.Duration {
