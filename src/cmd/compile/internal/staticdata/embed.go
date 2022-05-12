@@ -135,7 +135,7 @@ func WriteEmbed(v *ir.Name) {
 		}
 
 	case embedFiles:
-		slicedata := base.Ctxt.Lookup(`"".` + v.Sym().Name + `.files`)
+		slicedata := v.Sym().Pkg.Lookup(v.Sym().Name + `.files`).Linksym()
 		off := 0
 		// []files pointed at by Files
 		off = objw.SymPtr(slicedata, off, slicedata, 3*types.PtrSize) // []file, pointing just past slice
