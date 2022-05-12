@@ -322,9 +322,9 @@ func (b *B) launch() {
 			// If you divide first, you get 0 or 1,
 			// which can hide an order of magnitude in execution time.
 			// So multiply first, then divide.
-			// If goalns * prevIters >= MaxFloat64 could overflow.
+			// If goalns * prevIters >= math.MaxFloat64 could overflow.
 			if goalns >= math.MaxFloat64/prevIters {
-				// Overflow means need to grow fast.
+				// Overflow means the need to grow faster.
 				n = 100 * last
 			} else {
 				n = goalns * prevIters / prevns

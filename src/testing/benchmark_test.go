@@ -181,7 +181,7 @@ func ExampleB_ReportMetric() {
 }
 
 func TestBenchmarkLaunch(t *testing.T) {
-	// Won't really run 150s, 1e9 times at most.
+	// Will not really run for 150s, executing the test function up to 1e9 times.
 	err := flag.Lookup("test.benchtime").Value.Set("150s")
 	if err != nil {
 		t.Fatalf("set benchtime occured an error %q", err.Error())
