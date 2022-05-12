@@ -105,7 +105,7 @@ endlocal
 if errorlevel 1 goto fail
 .\cmd\dist\dist.exe env -w -p >env.bat
 if errorlevel 1 goto fail
-call env.bat
+call .\env.bat
 del env.bat
 if x%vflag==x-v echo.
 
