@@ -10,6 +10,7 @@ import (
 	"crypto"
 	"crypto/hmac"
 	"crypto/rsa"
+	"encoding/binary"
 	"errors"
 	"hash"
 	"io"
@@ -740,6 +741,19 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 		return err
 	}
 	m.lifetime = uint32(maxSessionTicketLifetime / time.Second)
+
+	// ticket_age_add is a random 32-bit value. See RFC 8446, section 4.6.1
+	// The value is not stored anywhere; we never need to check the ticket age
+	// because 0-RTT is not supported.
+	ageAdd := make([]byte, 4)
+	_, err = hs.c.config.rand().Read(ageAdd)
+	if err != nil {
+		return err
+	}
+	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
+
+	// ticket_nonce, which must be unique per connection, is always left at
+	// zero because we only ever send one ticket per connection.
 
 	if _, err := c.writeRecord(recordTypeHandshake, m.marshal()); err != nil {
 		return err
