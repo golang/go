@@ -232,7 +232,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
 	pkg := r.pkg()
-	assert(pkg == importpkg)
+	base.Assertf(pkg == importpkg, "have package %q (%p), want package %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
 
 	if r.Bool() {
 		sym := pkg.Lookup(".inittask")
