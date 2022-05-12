@@ -22,20 +22,23 @@ dependencies.
 </p>
 
 <p>
-The grammar is compact and simple to parse, allowing for easy analysis
+The syntax is compact and simple to parse, allowing for easy analysis
 by automatic tools such as integrated development environments.
 </p>
 
 <h2 id="Notation">Notation</h2>
 <p>
-The syntax is specified using Extended Backus-Naur Form (EBNF):
+The syntax is specified using a
+<a href="https://en.wikipedia.org/wiki/Wirth_syntax_notation">variant</a>
+of Extended Backus-Naur Form (EBNF):
 </p>
 
 <pre class="grammar">
+Syntax      = { Production } .
 Production  = production_name "=" [ Expression ] "." .
-Expression  = Alternative { "|" Alternative } .
-Alternative = Term { Term } .
-Term        = production_name | token [ "…" token ] | Group | Option | Repetition .
+Expression  = Term { "|" Term } .
+Term        = Factor { Factor } .
+Factor      = production_name | token [ "…" token ] | Group | Option | Repetition .
 Group       = "(" Expression ")" .
 Option      = "[" Expression "]" .
 Repetition  = "{" Expression "}" .
@@ -53,7 +56,7 @@ operators, in increasing precedence:
 </pre>
 
 <p>
-Lowercase production names are used to identify lexical tokens.
+Lowercase production names are used to identify lexical (terminal) tokens.
 Non-terminals are in CamelCase. Lexical tokens are enclosed in
 double quotes <code>""</code> or back quotes <code>``</code>.
 </p>
@@ -170,7 +173,7 @@ valid token.
 <h3 id="Semicolons">Semicolons</h3>
 
 <p>
-The formal grammar uses semicolons <code>";"</code> as terminators in
+The formal syntax uses semicolons <code>";"</code> as terminators in
 a number of productions. Go programs may omit most of these semicolons
 using the following two rules:
 </p>
@@ -3038,7 +3041,7 @@ Element       = Expression | LiteralValue .
 <p>
 The LiteralType's <a href="#Core_types">core type</a> <code>T</code>
 must be a struct, array, slice, or map type
-(the grammar enforces this constraint except when the type is given
+(the syntax enforces this constraint except when the type is given
 as a TypeName).
 The types of the elements and keys must be <a href="#Assignability">assignable</a>
 to the respective field, element, and key types of type <code>T</code>;
