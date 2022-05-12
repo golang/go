@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 11, 2022",
+	"Subtitle": "Version of May 12, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -53,7 +53,7 @@ operators, in increasing precedence:
 </pre>
 
 <p>
-Lower-case production names are used to identify lexical tokens.
+Lowercase production names are used to identify lexical tokens.
 Non-terminals are in CamelCase. Lexical tokens are enclosed in
 double quotes <code>""</code> or back quotes <code>``</code>.
 </p>
@@ -79,7 +79,7 @@ will use the unqualified term <i>character</i> to refer to a Unicode code point
 in the source text.
 </p>
 <p>
-Each code point is distinct; for instance, upper and lower case letters
+Each code point is distinct; for instance, uppercase and lowercase letters
 are different characters.
 </p>
 <p>
@@ -96,13 +96,13 @@ A byte order mark may be disallowed anywhere else in the source.
 <h3 id="Characters">Characters</h3>
 
 <p>
-The following terms are used to denote specific Unicode character classes:
+The following terms are used to denote specific Unicode character categories:
 </p>
 <pre class="ebnf">
 newline        = /* the Unicode code point U+000A */ .
 unicode_char   = /* an arbitrary Unicode code point except newline */ .
-unicode_letter = /* a Unicode code point classified as "Letter" */ .
-unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" */ .
+unicode_letter = /* a Unicode code point categorized as "Letter" */ .
+unicode_digit  = /* a Unicode code point categorized as "Number, decimal digit" */ .
 </pre>
 
 <p>
@@ -115,7 +115,7 @@ as Unicode letters, and those in the Number category Nd as Unicode digits.
 <h3 id="Letters_and_digits">Letters and digits</h3>
 
 <p>
-The underscore character <code>_</code> (U+005F) is considered a letter.
+The underscore character <code>_</code> (U+005F) is considered a lowercase letter.
 </p>
 <pre class="ebnf">
 letter        = unicode_letter | "_" .
@@ -406,7 +406,7 @@ An imaginary literal represents the imaginary part of a
 <a href="#Constants">complex constant</a>.
 It consists of an <a href="#Integer_literals">integer</a> or
 <a href="#Floating-point_literals">floating-point</a> literal
-followed by the lower-case letter <code>i</code>.
+followed by the lowercase letter <code>i</code>.
 The value of an imaginary literal is the value of the respective
 integer or floating-point literal multiplied by the imaginary unit <i>i</i>.
 </p>
@@ -2246,8 +2246,8 @@ An identifier may be <i>exported</i> to permit access to it from another package
 An identifier is exported if both:
 </p>
 <ol>
-	<li>the first character of the identifier's name is a Unicode upper case
-	letter (Unicode class "Lu"); and</li>
+	<li>the first character of the identifier's name is a Unicode uppercase
+	letter (Unicode character category Lu); and</li>
 	<li>the identifier is declared in the <a href="#Blocks">package block</a>
 	or it is a <a href="#Struct_types">field name</a> or
 	<a href="#MethodName">method name</a>.</li>
@@ -2761,8 +2761,8 @@ It is shorthand for a regular <a href="#Variable_declarations">variable declarat
 with initializer expressions but no types:
 </p>
 
-<pre class="ebnf">
-"var" IdentifierList = ExpressionList .
+<pre class="grammar">
+"var" IdentifierList "=" ExpressionList .
 </pre>
 
 <pre>
