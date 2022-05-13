@@ -169,7 +169,7 @@ func Task() *ir.Name {
 		fns = append(fns, fn.Nname.Linksym())
 	}
 
-	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Name != "main" && types.LocalPkg.Name != "runtime" {
+	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Path != "main" && types.LocalPkg.Path != "runtime" {
 		return nil // nothing to initialize
 	}
 
