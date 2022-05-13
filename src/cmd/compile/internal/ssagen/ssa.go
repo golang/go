@@ -4760,9 +4760,6 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 		return nil
 	}
 	pkg := sym.Pkg.Path
-	if sym.Pkg == types.LocalPkg {
-		pkg = base.Ctxt.Pkgpath
-	}
 	if sym.Pkg == ir.Pkgs.Runtime {
 		pkg = "runtime"
 	}

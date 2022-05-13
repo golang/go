@@ -67,7 +67,7 @@ func embedFileList(v *ir.Name, kind int) []string {
 
 // embedKind determines the kind of embedding variable.
 func embedKind(typ *types.Type) int {
-	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
+	if typ.Sym() != nil && typ.Sym().Name == "FS" && typ.Sym().Pkg.Path == "embed" {
 		return embedFiles
 	}
 	if typ.Kind() == types.TSTRING {
