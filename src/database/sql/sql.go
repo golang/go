@@ -79,7 +79,7 @@ func Drivers() []string {
 // For a more concise way to create NamedArg values, see
 // the Named function.
 type NamedArg struct {
-	_Named_Fields_Required struct{}
+	_NamedFieldsRequired struct{}
 
 	// Name is the name of the parameter placeholder.
 	//
@@ -423,7 +423,7 @@ type Scanner interface {
 //	var outArg string
 //	_, err := db.ExecContext(ctx, "ProcName", sql.Named("Arg1", sql.Out{Dest: &outArg}))
 type Out struct {
-	_Named_Fields_Required struct{}
+	_NamedFieldsRequired struct{}
 
 	// Dest is a pointer to the value that will be set to the result of the
 	// stored procedure's OUTPUT parameter.
@@ -721,7 +721,6 @@ func (db *DB) removeDep(x finalCloser, dep any) error {
 }
 
 func (db *DB) removeDepLocked(x finalCloser, dep any) func() error {
-
 	xdep, ok := db.dep[x]
 	if !ok {
 		panic(fmt.Sprintf("unpaired removeDep: no deps for %T", x))
