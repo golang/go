@@ -79,8 +79,6 @@ func Drivers() []string {
 // For a more concise way to create NamedArg values, see
 // the Named function.
 type NamedArg struct {
-	// force users of NamedParam to name struct literals fields
-	// Or they can use sql.Param instead.
 	_NamedFieldsRequired struct{}
 
 	// Name is the name of the parameter placeholder.
@@ -598,14 +596,12 @@ func (dc *driverConn) prepareLocked(ctx context.Context, cg stmtConnGrabber, que
 	return ds, nil
 }
 
-var errDuplicateConnClose = errors.New("sql: duplicate driverConn close")
-
 // the dc.db's Mutex is held.
 func (dc *driverConn) closeDBLocked() func() error {
 	dc.Lock()
 	defer dc.Unlock()
 	if dc.closed {
-		return func() error { return errDuplicateConnClose }
+		return func() error { return errors.New("sql: duplicate driverConn close") }
 	}
 	dc.closed = true
 	return dc.db.removeDepLocked(dc, dc)
@@ -615,7 +611,7 @@ func (dc *driverConn) Close() error {
 	dc.Lock()
 	if dc.closed {
 		dc.Unlock()
-		return errDuplicateConnClose
+		return errors.New("sql: duplicate driverConn close")
 	}
 	dc.closed = true
 	dc.Unlock() // not defer; removeDep finalClose calls may need to lock
