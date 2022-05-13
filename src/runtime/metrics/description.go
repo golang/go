@@ -141,6 +141,15 @@ var allDesc = []Description{
 		Cumulative: true,
 	},
 	{
+		Name: "/gc/limiter/last-enabled:gc-cycle",
+		Description: "GC cycle the last time the GC CPU limiter was enabled. " +
+			"This metric is useful for diagnosing the root cause of an out-of-memory " +
+			"error, because the limiter trades memory for CPU time when the GC's CPU " +
+			"time gets too high. This is most likely to occur with use of SetMemoryLimit. " +
+			"The first GC cycle is cycle 1, so a value of 0 indicates that it was never enabled.",
+		Kind: KindUint64,
+	},
+	{
 		Name:        "/gc/pauses:seconds",
 		Description: "Distribution individual GC-related stop-the-world pause latencies.",
 		Kind:        KindFloat64Histogram,

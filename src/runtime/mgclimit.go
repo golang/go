@@ -40,8 +40,8 @@ type gcCPULimiterState struct {
 		// - fill <= capacity
 		fill, capacity uint64
 	}
-	// TODO(mknyszek): Export this as a runtime/metric to provide an estimate of
-	// how much GC work is being dropped on the floor.
+	// overflow is the cumulative amount of GC CPU time that we tried to fill the
+	// bucket with but exceeded its capacity.
 	overflow uint64
 
 	// gcEnabled is an internal copy of gcBlackenEnabled that determines
@@ -64,6 +64,9 @@ type gcCPULimiterState struct {
 	//
 	// Updated under lock, but may be read concurrently.
 	lastUpdate atomic.Int64
+
+	// lastEnabledCycle is the GC cycle that last had the limiter enabled.
+	lastEnabledCycle atomic.Uint32
 
 	// nprocs is an internal copy of gomaxprocs, used to determine total available
 	// CPU time.
@@ -203,6 +206,7 @@ func (l *gcCPULimiterState) accumulate(mutatorTime, gcTime int64) {
 		l.bucket.fill = l.bucket.capacity
 		if !enabled {
 			l.enabled.Store(true)
+			l.lastEnabledCycle.Store(memstats.numgc + 1)
 		}
 		return
 	}
@@ -254,6 +258,7 @@ func (l *gcCPULimiterState) resetCapacity(now int64, nprocs int32) {
 	if l.bucket.fill > l.bucket.capacity {
 		l.bucket.fill = l.bucket.capacity
 		l.enabled.Store(true)
+		l.lastEnabledCycle.Store(memstats.numgc + 1)
 	} else if l.bucket.fill < l.bucket.capacity {
 		l.enabled.Store(false)
 	}
