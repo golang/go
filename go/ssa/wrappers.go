@@ -43,14 +43,14 @@ import (
 //
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 func makeWrapper(prog *Program, sel *selection, cr *creator) *Function {
-	obj := sel.Obj().(*types.Func)       // the declared function
-	sig := sel.Type().(*types.Signature) // type of this wrapper
+	obj := sel.obj.(*types.Func)      // the declared function
+	sig := sel.typ.(*types.Signature) // type of this wrapper
 
 	var recv *types.Var // wrapper's receiver or thunk's params[0]
 	name := obj.Name()
 	var description string
 	var start int // first regular param
-	if sel.Kind() == types.MethodExpr {
+	if sel.kind == types.MethodExpr {
 		name += "$thunk"
 		description = "thunk"
 		recv = sig.Params().At(0)
@@ -60,7 +60,7 @@ func makeWrapper(prog *Program, sel *selection, cr *creator) *Function {
 		recv = sig.Recv()
 	}
 
-	description = fmt.Sprintf("%s for %s", description, sel.Obj())
+	description = fmt.Sprintf("%s for %s", description, sel.obj)
 	if prog.mode&LogSource != 0 {
 		defer logStack("make %s to (%s)", description, recv.Type())()
 	}
@@ -79,10 +79,10 @@ func makeWrapper(prog *Program, sel *selection, cr *creator) *Function {
 	fn.addSpilledParam(recv)
 	createParams(fn, start)
 
-	indices := sel.Index()
+	indices := sel.index
 
 	var v Value = fn.Locals[0] // spilled receiver
-	if isPointer(sel.Recv()) {
+	if isPointer(sel.recv) {
 		v = emitLoad(fn, v)
 
 		// For simple indirection wrappers, perform an informative nil-check:
@@ -92,13 +92,13 @@ func makeWrapper(prog *Program, sel *selection, cr *creator) *Function {
 			c.Call.Value = &Builtin{
 				name: "ssa:wrapnilchk",
 				sig: types.NewSignature(nil,
-					types.NewTuple(anonVar(sel.Recv()), anonVar(tString), anonVar(tString)),
-					types.NewTuple(anonVar(sel.Recv())), false),
+					types.NewTuple(anonVar(sel.recv), anonVar(tString), anonVar(tString)),
+					types.NewTuple(anonVar(sel.recv)), false),
 			}
 			c.Call.Args = []Value{
 				v,
-				stringConst(deref(sel.Recv()).String()),
-				stringConst(sel.Obj().Name()),
+				stringConst(deref(sel.recv).String()),
+				stringConst(sel.obj.Name()),
 			}
 			c.setType(v.Type())
 			v = fn.emit(&c)
@@ -234,11 +234,11 @@ func makeBound(prog *Program, obj *types.Func, cr *creator) *Function {
 // -- thunks -----------------------------------------------------------
 
 // makeThunk returns a thunk, a synthetic function that delegates to a
-// concrete or interface method denoted by sel.Obj().  The resulting
+// concrete or interface method denoted by sel.obj.  The resulting
 // function has no receiver, but has an additional (first) regular
 // parameter.
 //
-// Precondition: sel.Kind() == types.MethodExpr.
+// Precondition: sel.kind == types.MethodExpr.
 //
 //	type T int          or:  type T interface { meth() }
 //	func (t T) meth()
@@ -256,18 +256,18 @@ func makeBound(prog *Program, obj *types.Func, cr *creator) *Function {
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(meth.Prog.methodsMu)
 func makeThunk(prog *Program, sel *selection, cr *creator) *Function {
-	if sel.Kind() != types.MethodExpr {
+	if sel.kind != types.MethodExpr {
 		panic(sel)
 	}
 
-	// Canonicalize sel.Recv() to avoid constructing duplicate thunks.
-	canonRecv := prog.canon.Type(sel.Recv())
+	// Canonicalize sel.recv to avoid constructing duplicate thunks.
+	canonRecv := prog.canon.Type(sel.recv)
 	key := selectionKey{
-		kind:     sel.Kind(),
+		kind:     sel.kind,
 		recv:     canonRecv,
-		obj:      sel.Obj(),
-		index:    fmt.Sprint(sel.Index()),
-		indirect: sel.Indirect(),
+		obj:      sel.obj,
+		index:    fmt.Sprint(sel.index),
+		indirect: sel.indirect,
 	}
 
 	prog.methodsMu.Lock()
@@ -313,14 +313,6 @@ type selection struct {
 	index    []int
 	indirect bool
 }
-
-// TODO(taking): inline and eliminate.
-func (sel *selection) Kind() types.SelectionKind { return sel.kind }
-func (sel *selection) Type() types.Type          { return sel.typ }
-func (sel *selection) Recv() types.Type          { return sel.recv }
-func (sel *selection) Obj() types.Object         { return sel.obj }
-func (sel *selection) Index() []int              { return sel.index }
-func (sel *selection) Indirect() bool            { return sel.indirect }
 
 func toSelection(sel *types.Selection) *selection {
 	return &selection{

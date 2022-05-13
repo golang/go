@@ -474,7 +474,7 @@ func (f *Function) RelString(from *types.Package) string {
 
 	// Thunk?
 	if f.method != nil {
-		return f.relMethod(from, f.method.Recv())
+		return f.relMethod(from, f.method.recv)
 	}
 
 	// Bound?
