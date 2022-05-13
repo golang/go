@@ -179,9 +179,10 @@ func nonSpace(b []byte) bool {
 
 // An Encoder writes JSON values to an output stream.
 type Encoder struct {
-	w          io.Writer
-	err        error
-	escapeHTML bool
+	w                io.Writer
+	err              error
+	escapeHTML       bool
+	terminateNewline bool
 
 	indentBuf    *bytes.Buffer
 	indentPrefix string
@@ -190,7 +191,7 @@ type Encoder struct {
 
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{w: w, escapeHTML: true}
+	return &Encoder{w: w, escapeHTML: true, terminateNewline: true}
 }
 
 // Encode writes the JSON encoding of v to the stream,
@@ -208,13 +209,9 @@ func (enc *Encoder) Encode(v any) error {
 		return err
 	}
 
-	// Terminate each value with a newline.
-	// This makes the output look a little nicer
-	// when debugging, and some kind of space
-	// is required if the encoded value was a number,
-	// so that the reader knows there aren't more
-	// digits coming.
-	e.WriteByte('\n')
+	if enc.terminateNewline {
+		e.WriteByte('\n')
+	}
 
 	b := e.Bytes()
 	if enc.indentPrefix != "" || enc.indentValue != "" {
@@ -241,6 +238,15 @@ func (enc *Encoder) Encode(v any) error {
 func (enc *Encoder) SetIndent(prefix, indent string) {
 	enc.indentPrefix = prefix
 	enc.indentValue = indent
+}
+
+// SetTerminateNewline terminate each value with a newline.
+// This makes the output look a little nicer
+// when debugging, and some kind of space
+// is required if the encoded value was a number,
+// so that the reader knows there aren't more digits coming.
+func (enc *Encoder) SetTerminateNewline(terminateNewline bool) {
+	enc.terminateNewline = terminateNewline
 }
 
 // SetEscapeHTML specifies whether problematic HTML characters
