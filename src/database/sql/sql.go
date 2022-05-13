@@ -2693,8 +2693,6 @@ func (s *Stmt) removeClosedStmtLocked() {
 	s.lastNumClosed = dbClosed
 }
 
-var errStatementClosed = errors.New("sql: statement is closed")
-
 // connStmt returns a free driver connection on which to execute the
 // statement, a function to call to release the connection, and a
 // statement bound to that connection.
@@ -2705,7 +2703,7 @@ func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *dr
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		err = errStatementClosed
+		err = errors.New("sql: statement is closed")
 		return
 	}
 
