@@ -409,7 +409,6 @@ func (n *MakeExpr) SetOp(op Op) {
 // (It may be copied and assigned a type, though.)
 type NilExpr struct {
 	miniExpr
-	Sym_ *types.Sym // TODO: Remove
 }
 
 func NewNilExpr(pos src.XPos) *NilExpr {
@@ -418,9 +417,6 @@ func NewNilExpr(pos src.XPos) *NilExpr {
 	n.op = ONIL
 	return n
 }
-
-func (n *NilExpr) Sym() *types.Sym     { return n.Sym_ }
-func (n *NilExpr) SetSym(x *types.Sym) { n.Sym_ = x }
 
 // A ParenExpr is a parenthesized expression (X).
 // It may end up being a value or a type.
