@@ -437,7 +437,9 @@ func exit(e int32) {
 	} else {
 		// build error string
 		var tmp [32]byte
-		status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
+		sl := itoa(tmp[:len(tmp)-1], uint64(e))
+		// Don't append, rely on the existing data being zero.
+		status = tmp[:len(sl)+1]
 	}
 	goexitsall(&status[0])
 	exits(&status[0])
