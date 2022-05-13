@@ -1324,8 +1324,13 @@ func gcBgMarkWorker() {
 		})
 
 		// Account for time and mark us as stopped.
-		duration := nanotime() - startTime
+		now := nanotime()
+		duration := now - startTime
 		gcController.markWorkerStop(pp.gcMarkWorkerMode, duration)
+		if pp.gcMarkWorkerMode == gcMarkWorkerIdleMode {
+			gcCPULimiter.addIdleMarkTime(duration)
+			gcCPULimiter.update(now)
+		}
 		if pp.gcMarkWorkerMode == gcMarkWorkerFractionalMode {
 			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
 		}
