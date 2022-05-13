@@ -258,7 +258,7 @@ func checkExpectations(s State, expectations []Expectation) (Verdict, string) {
 		if v > finalVerdict {
 			finalVerdict = v
 		}
-		summary.WriteString(fmt.Sprintf("\t%v: %s\n", v, e.Description()))
+		summary.WriteString(fmt.Sprintf("%v: %s\n", v, e.Description()))
 	}
 	return finalVerdict, summary.String()
 }

@@ -1650,7 +1650,19 @@ const B = a.B
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		env.OpenFile("b/b.go")
-		env.Await(env.DiagnosticAtRegexp("a/a.go", `"mod.test/b"`))
+		env.Await(
+			OnceMet(
+				env.DoneWithOpen(),
+				// The Go command sometimes tells us about only one of the import cycle
+				// errors below. For robustness of this test, succeed if we get either.
+				//
+				// TODO(golang/go#52904): we should get *both* of these errors.
+				AnyOf(
+					env.DiagnosticAtRegexpWithMessage("a/a.go", `"mod.test/b"`, "import cycle"),
+					env.DiagnosticAtRegexpWithMessage("b/b.go", `"mod.test/a"`, "import cycle"),
+				),
+			),
+		)
 		env.RegexpReplace("b/b.go", `const B = a\.B`, "")
 		env.SaveBuffer("b/b.go")
 		env.Await(

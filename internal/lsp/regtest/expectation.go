@@ -96,13 +96,37 @@ func OnceMet(precondition Expectation, mustMeets ...Expectation) *SimpleExpectat
 			return Unmet
 		}
 	}
-	var descriptions []string
-	for _, mustMeet := range mustMeets {
-		descriptions = append(descriptions, mustMeet.Description())
-	}
+	description := describeExpectations(mustMeets...)
 	return &SimpleExpectation{
 		check:       check,
-		description: fmt.Sprintf("once %q is met, must have %q", precondition.Description(), strings.Join(descriptions, "\n")),
+		description: fmt.Sprintf("once %q is met, must have:\n%s", precondition.Description(), description),
+	}
+}
+
+func describeExpectations(expectations ...Expectation) string {
+	var descriptions []string
+	for _, e := range expectations {
+		descriptions = append(descriptions, e.Description())
+	}
+	return strings.Join(descriptions, "\n")
+}
+
+// AnyOf returns an expectation that is satisfied when any of the given
+// expectations is met.
+func AnyOf(anyOf ...Expectation) *SimpleExpectation {
+	check := func(s State) Verdict {
+		for _, e := range anyOf {
+			verdict := e.Check(s)
+			if verdict == Met {
+				return Met
+			}
+		}
+		return Unmet
+	}
+	description := describeExpectations(anyOf...)
+	return &SimpleExpectation{
+		check:       check,
+		description: fmt.Sprintf("Any of:\n%s", description),
 	}
 }
 
