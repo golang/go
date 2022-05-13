@@ -1,5 +1,7 @@
-// +build amd64
 // errorcheck -0 -d=ssa/prove/debug=1
+
+//go:build amd64
+// +build amd64
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -793,7 +795,7 @@ func unrollUpExcl(a []int) int {
 func unrollUpIncl(a []int) int {
 	var i, x int
 	for i = 0; i <= len(a)-2; i += 2 { // ERROR "Induction variable: limits \[0,\?\], increment 2$"
-		x += a[i]
+		x += a[i] // ERROR "Proved IsInBounds$"
 		x += a[i+1]
 	}
 	if i == len(a)-1 {
@@ -833,7 +835,7 @@ func unrollDownInclStep(a []int) int {
 	var i, x int
 	for i = len(a); i >= 2; i -= 2 { // ERROR "Induction variable: limits \[2,\?\], increment 2$"
 		x += a[i-1] // ERROR "Proved IsInBounds$"
-		x += a[i-2]
+		x += a[i-2] // ERROR "Proved IsInBounds$"
 	}
 	if i == 1 {
 		x += a[i-1]
@@ -1042,6 +1044,13 @@ func and(p []byte) ([]byte, []byte) { // issue #52563
 	blk := p[:fullBlocks] // ERROR "Proved IsSliceInBounds$"
 	rem := p[fullBlocks:] // ERROR "Proved IsSliceInBounds$"
 	return blk, rem
+}
+
+func issue51622(b []byte) int {
+	if len(b) >= 3 && b[len(b)-3] == '#' { // ERROR "Proved IsInBounds$"
+		return len(b)
+	}
+	return 0
 }
 
 //go:noinline
