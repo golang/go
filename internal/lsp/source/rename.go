@@ -171,12 +171,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 		if err != nil {
 			return nil, err
 		}
-		tf := span.NewTokenFile(uri.Filename(), data)
-		m := &protocol.ColumnMapper{
-			URI:     uri,
-			TokFile: tf,
-			Content: data,
-		}
+		m := protocol.NewColumnMapper(uri, data)
 		// Sort the edits first.
 		diff.SortTextEdits(edits)
 		protocolEdits, err := ToProtocolEdits(m, edits)

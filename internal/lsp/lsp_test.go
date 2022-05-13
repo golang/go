@@ -1044,12 +1044,7 @@ func applyTextDocumentEdits(r *runner, edits []protocol.TextDocumentEdit) (map[s
 		// If we have already edited this file, we use the edited version (rather than the
 		// file in its original state) so that we preserve our initial changes.
 		if content, ok := res[uri]; ok {
-			m = &protocol.ColumnMapper{
-				URI: uri,
-				TokFile: span.NewTokenFile(
-					uri.Filename(), []byte(content)),
-				Content: []byte(content),
-			}
+			m = protocol.NewColumnMapper(uri, []byte(content))
 		} else {
 			var err error
 			if m, err = r.data.Mapper(uri); err != nil {
@@ -1284,12 +1279,7 @@ func TestBytesOffset(t *testing.T) {
 		f := fset.AddFile(fname, -1, len(test.text))
 		f.SetLinesForContent([]byte(test.text))
 		uri := span.URIFromPath(fname)
-		tf := span.NewTokenFile(fname, []byte(test.text))
-		mapper := &protocol.ColumnMapper{
-			URI:     uri,
-			TokFile: tf,
-			Content: []byte(test.text),
-		}
+		mapper := protocol.NewColumnMapper(uri, []byte(test.text))
 		got, err := mapper.Point(test.pos)
 		if err != nil && test.want != -1 {
 			t.Errorf("unexpected error: %v", err)

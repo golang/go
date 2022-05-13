@@ -55,11 +55,7 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 		if err != nil {
 			return &parseModData{err: err}
 		}
-		m := &protocol.ColumnMapper{
-			URI:     modFH.URI(),
-			TokFile: span.NewTokenFile(modFH.URI().Filename(), contents),
-			Content: contents,
-		}
+		m := protocol.NewColumnMapper(modFH.URI(), contents)
 		file, parseErr := modfile.Parse(modFH.URI().Filename(), contents, nil)
 		// Attempt to convert the error to a standardized parse error.
 		var parseErrors []*source.Diagnostic
@@ -133,11 +129,7 @@ func (s *snapshot) ParseWork(ctx context.Context, modFH source.FileHandle) (*sou
 		if err != nil {
 			return &parseWorkData{err: err}
 		}
-		m := &protocol.ColumnMapper{
-			URI:     modFH.URI(),
-			TokFile: span.NewTokenFile(modFH.URI().Filename(), contents),
-			Content: contents,
-		}
+		m := protocol.NewColumnMapper(modFH.URI(), contents)
 		file, parseErr := modfile.ParseWork(modFH.URI().Filename(), contents, nil)
 		// Attempt to convert the error to a standardized parse error.
 		var parseErrors []*source.Diagnostic

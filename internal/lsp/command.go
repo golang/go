@@ -579,11 +579,7 @@ func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI,
 		return nil, err
 	}
 
-	m := &protocol.ColumnMapper{
-		URI:     fh.URI(),
-		TokFile: span.NewTokenFile(fh.URI().Filename(), oldContent),
-		Content: oldContent,
-	}
+	m := protocol.NewColumnMapper(fh.URI(), oldContent)
 	diff, err := snapshot.View().Options().ComputeEdits(uri, string(oldContent), string(newContent))
 	if err != nil {
 		return nil, err

@@ -13,10 +13,22 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+// A ColumnMapper maps between UTF-8 oriented positions (e.g. token.Pos,
+// span.Span) and the UTF-16 oriented positions used by the LSP.
 type ColumnMapper struct {
 	URI     span.URI
 	TokFile *token.File
 	Content []byte
+}
+
+// NewColumnMapper creates a new column mapper for the given uri and content.
+func NewColumnMapper(uri span.URI, content []byte) *ColumnMapper {
+	tf := span.NewTokenFile(uri.Filename(), content)
+	return &ColumnMapper{
+		URI:     uri,
+		TokFile: tf,
+		Content: content,
+	}
 }
 
 func URIFromSpanURI(uri span.URI) DocumentURI {
