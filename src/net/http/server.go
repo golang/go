@@ -144,7 +144,7 @@ type ResponseWriter interface {
 	// If WriteHeader is not called explicitly, the first call to Write
 	// will trigger an implicit WriteHeader(http.StatusOK).
 	// Thus explicit calls to WriteHeader are mainly used to
-	// send error codes or informational responses.
+	// send error codes or 1xx informational responses.
 	//
 	// The provided code must be a valid HTTP 1xx-5xx status code.
 	// Any number of 1xx headers may be written, followed by at most
@@ -1150,7 +1150,7 @@ func (w *response) WriteHeader(code int) {
 	checkWriteHeaderCode(code)
 
 	// Handle informational headers
-	if code >= 100 && code < 200 {
+	if code >= 100 && code <= 199 {
 		// Prevent a potential race with an automatically-sent 100 Continue triggered by Request.Body.Read()
 		if code == 100 && w.canWriteContinue.isSet() {
 			w.writeContinueMu.Lock()
