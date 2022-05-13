@@ -129,7 +129,7 @@ func initsig(preinit bool) {
 //
 //go:nowritebarrier
 func newosproc(mp *m) {
-	panic("newosproc: not implemented")
+	throw("newosproc: not implemented")
 }
 
 func setProcessCPUProfiler(hz int32) {}
