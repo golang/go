@@ -102,6 +102,13 @@ Below is the full list of supported metrics, ordered lexicographically.
 		only their block. Each block is already accounted for in
 		allocs-by-size and frees-by-size.
 
+	/gc/limiter/last-enabled:gc-cycle
+		GC cycle the last time the GC CPU limiter was enabled.
+		This metric is useful for diagnosing the root cause of an out-of-memory
+		error, because the limiter trades memory for CPU time when the GC's CPU
+		time gets too high. This is most likely to occur with use of SetMemoryLimit.
+		The first GC cycle is cycle 1, so a value of 0 indicates that it was never enabled.
+
 	/gc/pauses:seconds
 		Distribution individual GC-related stop-the-world pause latencies.
 
