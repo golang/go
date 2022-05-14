@@ -7,6 +7,7 @@ package importer
 import (
 	"go/build"
 	"go/token"
+	"internal/buildcfg"
 	"internal/testenv"
 	"io"
 	"os"
@@ -67,6 +68,14 @@ func TestForCompiler(t *testing.T) {
 	})
 
 	t.Run("LookupCustom", func(t *testing.T) {
+		// TODO(mdempsky): Decide whether to remove this test, or to fix
+		// support for it in unified IR. It's not clear that we actually
+		// need to support importing "math/big" as "math/bigger", for
+		// example. cmd/link no longer supports that.
+		if buildcfg.Experiment.Unified {
+			t.Skip("not supported by GOEXPERIMENT=unified; see go.dev/cl/406319")
+		}
+
 		lookup := func(path string) (io.ReadCloser, error) {
 			if path != "math/bigger" {
 				t.Fatalf("lookup called with unexpected path %q", path)
