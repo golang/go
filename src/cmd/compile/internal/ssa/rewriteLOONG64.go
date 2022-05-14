@@ -6901,14 +6901,18 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 			break
 		}
 		_ = v_0.Args[1]
-		x := v_0.Args[0]
+		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != -1 {
-			break
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != -1 {
+				continue
+			}
+			v.reset(OpLOONG64NEGV)
+			v.AddArg(x)
+			return true
 		}
-		v.reset(OpLOONG64NEGV)
-		v.AddArg(x)
-		return true
+		break
 	}
 	// match: (Select1 (MULVU _ (MOVVconst [0])))
 	// result: (MOVVconst [0])
@@ -6917,13 +6921,17 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 			break
 		}
 		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != 0 {
-			break
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != 0 {
+				continue
+			}
+			v.reset(OpLOONG64MOVVconst)
+			v.AuxInt = int64ToAuxInt(0)
+			return true
 		}
-		v.reset(OpLOONG64MOVVconst)
-		v.AuxInt = int64ToAuxInt(0)
-		return true
+		break
 	}
 	// match: (Select1 (MULVU x (MOVVconst [1])))
 	// result: x
@@ -6932,13 +6940,17 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 			break
 		}
 		_ = v_0.Args[1]
-		x := v_0.Args[0]
+		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != 1 {
-			break
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != 1 {
+				continue
+			}
+			v.copyOf(x)
+			return true
 		}
-		v.copyOf(x)
-		return true
+		break
 	}
 	// match: (Select1 (MULVU x (MOVVconst [c])))
 	// cond: isPowerOfTwo64(c)
@@ -6948,19 +6960,23 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 			break
 		}
 		_ = v_0.Args[1]
-		x := v_0.Args[0]
+		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpLOONG64MOVVconst {
-			break
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpLOONG64MOVVconst {
+				continue
+			}
+			c := auxIntToInt64(v_0_1.AuxInt)
+			if !(isPowerOfTwo64(c)) {
+				continue
+			}
+			v.reset(OpLOONG64SLLVconst)
+			v.AuxInt = int64ToAuxInt(log64(c))
+			v.AddArg(x)
+			return true
 		}
-		c := auxIntToInt64(v_0_1.AuxInt)
-		if !(isPowerOfTwo64(c)) {
-			break
-		}
-		v.reset(OpLOONG64SLLVconst)
-		v.AuxInt = int64ToAuxInt(log64(c))
-		v.AddArg(x)
-		return true
+		break
 	}
 	// match: (Select1 (DIVVU x (MOVVconst [1])))
 	// result: x
@@ -7007,18 +7023,21 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 		}
 		_ = v_0.Args[1]
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpLOONG64MOVVconst {
-			break
-		}
-		c := auxIntToInt64(v_0_0.AuxInt)
 		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpLOONG64MOVVconst {
-			break
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_0.Op != OpLOONG64MOVVconst {
+				continue
+			}
+			c := auxIntToInt64(v_0_0.AuxInt)
+			if v_0_1.Op != OpLOONG64MOVVconst {
+				continue
+			}
+			d := auxIntToInt64(v_0_1.AuxInt)
+			v.reset(OpLOONG64MOVVconst)
+			v.AuxInt = int64ToAuxInt(c * d)
+			return true
 		}
-		d := auxIntToInt64(v_0_1.AuxInt)
-		v.reset(OpLOONG64MOVVconst)
-		v.AuxInt = int64ToAuxInt(c * d)
-		return true
+		break
 	}
 	// match: (Select1 (DIVV (MOVVconst [c]) (MOVVconst [d])))
 	// result: (MOVVconst [c/d])

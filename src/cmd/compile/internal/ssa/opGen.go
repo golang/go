@@ -22856,15 +22856,14 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MULV",
-		argLen:       2,
-		clobberFlags: true,
+		name:        "MULV",
+		argLen:      2,
+		commutative: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
-			clobbers: 196608, // R17 R18
 			outputs: []outputInfo{
 				{0, 65536},  // R17
 				{1, 131072}, // R18
@@ -22872,15 +22871,14 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MULVU",
-		argLen:       2,
-		clobberFlags: true,
+		name:        "MULVU",
+		argLen:      2,
+		commutative: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
-			clobbers: 196608, // R17 R18
 			outputs: []outputInfo{
 				{0, 65536},  // R17
 				{1, 131072}, // R18
@@ -22888,15 +22886,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "DIVV",
-		argLen:       2,
-		clobberFlags: true,
+		name:   "DIVV",
+		argLen: 2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
-			clobbers: 196608, // R17 R18
 			outputs: []outputInfo{
 				{0, 65536},  // R17
 				{1, 131072}, // R18
@@ -22904,15 +22900,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "DIVVU",
-		argLen:       2,
-		clobberFlags: true,
+		name:   "DIVVU",
+		argLen: 2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
-			clobbers: 196608, // R17 R18
 			outputs: []outputInfo{
 				{0, 65536},  // R17
 				{1, 131072}, // R18
