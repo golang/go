@@ -714,8 +714,8 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		}
 	} else {
 		// Don't inline a function fn that has shape parameters, but is passed no shape arg.
-		// See comments (1) above, and issue #51909
-		inlineable := false
+		// See comments (1) above, and issue #51909.
+		inlineable := len(n.Args) == 0 // Function has shape in type, with no arguments can always be inlined.
 		for _, arg := range n.Args {
 			if arg.Type().HasShape() {
 				inlineable = true
