@@ -14,6 +14,13 @@ func f[T int](t T) {
 	}
 }
 
+func g[T int](g T) {
+	for true {
+		_ = func() T { return func(int) T { return g }(0) }()
+	}
+}
+
 func main() {
 	f(0)
+	g(0)
 }
