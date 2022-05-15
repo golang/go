@@ -522,8 +522,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	assert(rhs != nil)
 	named.fromRHS = rhs
 
-	// If the underlying was not set while type-checking the right-hand side, it
-	// is invalid and an error should have been reported elsewhere.
+	// If the underlying type was not set while type-checking the right-hand
+	// side, it is invalid and an error should have been reported elsewhere.
 	if named.underlying == nil {
 		named.underlying = Typ[Invalid]
 	}

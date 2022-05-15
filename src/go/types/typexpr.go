@@ -385,14 +385,13 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 }
 
 func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (res Type) {
-	pos := ix.X.Pos()
 	if trace {
-		check.trace(pos, "-- instantiating type %s with %s", ix.X, ix.Indices)
+		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.X, ix.Indices)
 		check.indent++
 		defer func() {
 			check.indent--
 			// Don't format the underlying here. It will always be nil.
-			check.trace(pos, "=> %s", res)
+			check.trace(ix.Pos(), "=> %s", res)
 		}()
 	}
 
@@ -417,57 +416,20 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 		return Typ[Invalid]
 	}
 
-	// enableTypeTypeInference controls whether to infer missing type arguments
-	// using constraint type inference. See issue #51527.
-	const enableTypeTypeInference = false
-
 	// create the instance
 	ctxt := check.bestContext(nil)
-	h := ctxt.instanceHash(orig, targs)
-	// targs may be incomplete, and require inference. In any case we should de-duplicate.
-	inst, _ := ctxt.lookup(h, orig, targs).(*Named)
-	// If inst is non-nil, we can't just return here. Inst may have been
-	// constructed via recursive substitution, in which case we wouldn't do the
-	// validation below. Ensure that the validation (and resulting errors) runs
-	// for each instantiated type in the source.
-	if inst == nil {
-		// x may be a selector for an imported type; use its start pos rather than x.Pos().
-		tname := NewTypeName(ix.Pos(), orig.obj.pkg, orig.obj.name, nil)
-		inst = check.newNamed(tname, orig, nil, nil) // underlying, methods and tparams are set when named is resolved
-		inst.targs = newTypeList(targs)
-		inst = ctxt.update(h, orig, targs, inst).(*Named)
-	}
+	inst := check.instance(ix.Pos(), orig, targs, ctxt).(*Named)
 	def.setUnderlying(inst)
-
-	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
-		tparams := n.orig.TypeParams().list()
-
-		targs := n.targs.list()
-		if enableTypeTypeInference && len(targs) < len(tparams) {
-			// If inference fails, len(inferred) will be 0, and inst.underlying will
-			// be set to Typ[Invalid] in expandNamed.
-			inferred := check.infer(ix.Orig, tparams, targs, nil, nil)
-			if len(inferred) > len(targs) {
-				n.targs = newTypeList(inferred)
-			}
-		}
-
-		return expandNamed(ctxt, n, pos)
-	}
 
 	// orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
 		// This is an instance from the source, not from recursive substitution,
 		// and so it must be resolved during type-checking so that we can report
 		// errors.
-		inst.resolve(ctxt)
-		// Since check is non-nil, we can still mutate inst. Unpinning the resolver
-		// frees some memory.
-		inst.resolver = nil
 		check.recordInstance(ix.Orig, inst.TypeArgs().list(), inst)
 
-		if check.validateTArgLen(pos, inst.tparams.Len(), inst.targs.Len()) {
-			if i, err := check.verify(pos, inst.tparams.list(), inst.targs.list()); err != nil {
+		if check.validateTArgLen(ix.Pos(), inst.TypeParams().Len(), inst.targs.Len()) {
+			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.targs.list()); err != nil {
 				// best position for error reporting
 				pos := ix.Pos()
 				if i < len(ix.Indices) {
@@ -475,10 +437,13 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 				}
 				check.softErrorf(atPos(pos), _InvalidTypeArg, err.Error())
 			} else {
-				check.mono.recordInstance(check.pkg, pos, inst.tparams.list(), inst.targs.list(), ix.Indices)
+				check.mono.recordInstance(check.pkg, ix.Pos(), inst.TypeParams().list(), inst.targs.list(), ix.Indices)
 			}
 		}
 
+		// TODO(rfindley): remove this call: we don't need to call validType here,
+		// as cycles can only occur for types used inside a Named type declaration,
+		// and so it suffices to call validType from declared types.
 		check.validType(inst)
 	}).describef(ix, "resolve instance %s", inst)
 

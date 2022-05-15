@@ -5,31 +5,115 @@
 package types
 
 import (
-	"go/token"
 	"sync"
+	"sync/atomic"
 )
+
+// Type-checking Named types is subtle, because they may be recursively
+// defined, and because their full details may be spread across multiple
+// declarations (via methods). For this reason they are type-checked lazily,
+// to avoid information being accessed before it is complete.
+//
+// Conceptually, it is helpful to think of named types as having two distinct
+// sets of information:
+//  - "LHS" information, defining their identity: Obj() and TypeArgs()
+//  - "RHS" information, defining their details: TypeParams(), Underlying(),
+//    and methods.
+//
+// In this taxonomy, LHS information is available immediately, but RHS
+// information is lazy. Specifically, a named type N may be constructed in any
+// of the following ways:
+//  1. type-checked from the source
+//  2. loaded eagerly from export data
+//  3. loaded lazily from export data (when using unified IR)
+//  4. instantiated from a generic type
+//
+// In cases 1, 3, and 4, it is possible that the underlying type or methods of
+// N may not be immediately available.
+//  - During type-checking, we allocate N before type-checking its underlying
+//    type or methods, so that we may resolve recursive references.
+//  - When loading from export data, we may load its methods and underlying
+//    type lazily using a provided load function.
+//  - After instantiating, we lazily expand the underlying type and methods
+//    (note that instances may be created while still in the process of
+//    type-checking the original type declaration).
+//
+// In cases 3 and 4 this lazy construction may also occur concurrently, due to
+// concurrent use of the type checker API (after type checking or importing has
+// finished). It is critical that we keep track of state, so that Named types
+// are constructed exactly once and so that we do not access their details too
+// soon.
+//
+// We achieve this by tracking state with an atomic state variable, and
+// guarding potentially concurrent calculations with a mutex. At any point in
+// time this state variable determines which data on N may be accessed. As
+// state monotonically progresses, any data available at state M may be
+// accessed without acquiring the mutex at state N, provided N >= M.
+//
+// GLOSSARY: Here are a few terms used in this file to describe Named types:
+//  - We say that a Named type is "instantiated" if it has been constructed by
+//    instantiating a generic named type with type arguments.
+//  - We say that a Named type is "declared" if it corresponds to a type
+//    declaration in the source. Instantiated named types correspond to a type
+//    instantiation in the source, not a declaration. But their Origin type is
+//    a declared type.
+//  - We say that a Named type is "resolved" if its RHS information has been
+//    loaded or fully type-checked. For Named types constructed from export
+//    data, this may involve invoking a loader function to extract information
+//    from export data. For instantiated named types this involves reading
+//    information from their origin.
+//  - We say that a Named type is "expanded" if it is an instantiated type and
+//    type parameters in its underlying type and methods have been substituted
+//    with the type arguments from the instantiation. A type may be partially
+//    expanded if some but not all of these details have been substituted.
+//    Similarly, we refer to these individual details (underlying type or
+//    method) as being "expanded".
+//  - When all information is known for a named type, we say it is "complete".
+//
+// Some invariants to keep in mind: each declared Named type has a single
+// corresponding object, and that object's type is the (possibly generic) Named
+// type. Declared Named types are identical if and only if their pointers are
+// identical. On the other hand, multiple instantiated Named types may be
+// identical even though their pointers are not identical. One has to use
+// Identical to compare them. For instantiated named types, their obj is a
+// synthetic placeholder that records their position of the corresponding
+// instantiation in the source (if they were constructed during type checking).
 
 // A Named represents a named (defined) type.
 type Named struct {
-	check      *Checker
-	obj        *TypeName      // corresponding declared object for declared types; placeholder for instantiated types
-	orig       *Named         // original, uninstantiated type
-	fromRHS    Type           // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
+	check *Checker  // non-nil during type-checking; nil otherwise
+	obj   *TypeName // corresponding declared object for declared types; see above for instantiated types
+	orig  *Named    // origin type for instantiated types, this type for declared types
+	targs *TypeList // type arguments (after instantiation), or nil
+
+	// fromRHS holds the type (on RHS of declaration) this *Named type is derived
+	// from (for cycle reporting). Only used by validType, and therefore does not
+	// require synchronization.
+	fromRHS Type
+
+	mu         sync.Mutex     // guards all fields below
+	state_     uint32         // the current state of this type; must only be accessed atomically
 	underlying Type           // possibly a *Named during setup; never a *Named once set up completely
 	tparams    *TypeParamList // type parameters, or nil
-	targs      *TypeList      // type arguments (after instantiation), or nil
 
 	// methods declared for this type (not the method set of this type).
 	// Signatures are type-checked lazily.
 	// For non-instantiated types, this is a fully populated list of methods. For
-	// instantiated types, this is a 'lazy' list, and methods are instantiated
-	// when they are first accessed.
+	// instantiated types, this is a 'lazy' list, and methods are individually
+	// expanded when they are first accessed.
 	methods *methodList
 
-	// resolver may be provided to lazily resolve type parameters, underlying, and methods.
-	resolver func(*Context, *Named) (tparams *TypeParamList, underlying Type, methods *methodList)
-	once     sync.Once // ensures that tparams, underlying, and methods are resolved before accessing
+	// loader may be provided to lazily load type parameters, underlying, and methods.
+	loader func(*Named) (tparams []*TypeParam, underlying Type, methods []*Func)
 }
+
+// namedState represents the possible states that a named type may assume.
+type namedState uint32
+
+const (
+	unresolved namedState = iota // tparams, underlying type and methods might be unavailable
+	resolved
+)
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
 // If the given type name obj doesn't have a type yet, its type is set to the returned named type.
@@ -41,24 +125,74 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	return (*Checker)(nil).newNamed(obj, nil, underlying, newMethodList(methods))
 }
 
-func (t *Named) resolve(ctxt *Context) *Named {
-	if t.resolver == nil {
-		return t
+// resolve resolves the type parameters, methods, and underlying type of n.
+// This information may be loaded from a provided loader function, or computed
+// from an origin type (in the case of instances).
+//
+// After resolution, the type parameters, methods, and underlying type of n are
+// accessible; but if n is an instantiated type, its methods may still be
+// unexpanded.
+func (n *Named) resolve(ctxt *Context) *Named {
+	if n.state() >= resolved { // avoid locking below
+		return n
 	}
 
-	t.once.Do(func() {
-		// TODO(mdempsky): Since we're passing t to the resolver anyway
-		// (necessary because types2 expects the receiver type for methods
-		// on defined interface types to be the Named rather than the
-		// underlying Interface), maybe it should just handle calling
-		// SetTypeParams, SetUnderlying, and AddMethod instead?  Those
-		// methods would need to support reentrant calls though. It would
-		// also make the API more future-proof towards further extensions
-		// (like SetTypeParams).
-		t.tparams, t.underlying, t.methods = t.resolver(ctxt, t)
-		t.fromRHS = t.underlying // for cycle detection
-	})
-	return t
+	// TODO(rfindley): if n.check is non-nil we can avoid locking here, since
+	// type-checking is not concurrent. Evaluate if this is worth doing.
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	if n.state() >= resolved {
+		return n
+	}
+
+	if n.TypeArgs().Len() > 0 {
+		assert(n.underlying == nil) // n is an unresolved instance
+		assert(n.loader == nil)     // instances are created by instantiation, in which case n.loader is nil
+		n.orig.resolve(ctxt)
+
+		underlying := n.expandUnderlying(ctxt)
+
+		n.tparams = n.orig.tparams
+		n.underlying = underlying
+		n.fromRHS = n.orig.fromRHS // for cycle detection
+		n.methods = newLazyMethodList(n.orig.methods.Len())
+		n.setState(resolved)
+		return n
+	}
+
+	// TODO(mdempsky): Since we're passing n to the loader anyway
+	// (necessary because types2 expects the receiver type for methods
+	// on defined interface types to be the Named rather than the
+	// underlying Interface), maybe it should just handle calling
+	// SetTypeParams, SetUnderlying, and AddMethod instead?  Those
+	// methods would need to support reentrant calls though. It would
+	// also make the API more future-proof towards further extensions.
+	if n.loader != nil {
+		assert(n.underlying == nil)
+
+		tparams, underlying, methods := n.loader(n)
+
+		n.tparams = bindTParams(tparams)
+		n.underlying = underlying
+		n.fromRHS = underlying // for cycle detection
+		n.methods = newMethodList(methods)
+		n.loader = nil
+	}
+
+	n.setState(resolved)
+	return n
+}
+
+// state atomically accesses the current state of the receiver.
+func (n *Named) state() namedState {
+	return namedState(atomic.LoadUint32(&n.state_))
+}
+
+// setState atomically stores the given state for n.
+// Must only be called while holding n.mu.
+func (n *Named) setState(state namedState) {
+	atomic.StoreUint32(&n.state_, uint32(state))
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
@@ -80,16 +214,16 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, meth
 func (t *Named) cleanup() {
 	assert(t.orig.orig == t.orig)
 	// Ensure that every defined type created in the course of type-checking has
-	// either non-*Named underlying, or is unresolved.
+	// either non-*Named underlying type, or is unexpanded.
 	//
-	// This guarantees that we don't leak any types whose underlying is *Named,
-	// because any unresolved instances will lazily compute their underlying by
-	// substituting in the underlying of their origin. The origin must have
-	// either been imported or type-checked and expanded here, and in either case
-	// its underlying will be fully expanded.
+	// This guarantees that we don't leak any types whose underlying type is
+	// *Named, because any unexpanded instances will lazily compute their
+	// underlying type by substituting in the underlying type of their origin.
+	// The origin must have either been imported or type-checked and expanded
+	// here, and in either case its underlying type will be fully expanded.
 	switch t.underlying.(type) {
 	case nil:
-		if t.resolver == nil {
+		if t.TypeArgs().Len() == 0 {
 			panic("nil underlying")
 		}
 	case *Named:
@@ -136,12 +270,13 @@ func (t *Named) NumMethods() int { return t.resolve(nil).methods.Len() }
 func (t *Named) Method(i int) *Func {
 	t.resolve(nil)
 	return t.methods.At(i, func() *Func {
-		return t.instantiateMethod(i)
+		return t.expandMethod(i)
 	})
 }
 
-// instantiateMethod instantiates the i'th method for an instantiated receiver.
-func (t *Named) instantiateMethod(i int) *Func {
+// expandMethod substitutes type arguments in the i'th method for an
+// instantiated receiver.
+func (t *Named) expandMethod(i int) *Func {
 	assert(t.TypeArgs().Len() > 0) // t must be an instance
 
 	// t.orig.methods is not lazy. origm is the method instantiated with its
@@ -277,7 +412,7 @@ func (n0 *Named) under() Type {
 	check := n0.check
 	n := n0
 
-	seen := make(map[*Named]int) // types that need their underlying resolved
+	seen := make(map[*Named]int) // types that need their underlying type resolved
 	var path []Object            // objects encountered, for cycle reporting
 
 loop:
@@ -354,66 +489,64 @@ func (check *Checker) bestContext(ctxt *Context) *Context {
 	return NewContext()
 }
 
-// expandNamed ensures that the underlying type of n is instantiated.
-// The underlying type will be Typ[Invalid] if there was an error.
-func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParamList, underlying Type, methods *methodList) {
+// expandUnderlying substitutes type arguments in the underlying type n.orig,
+// returning the result. Returns Typ[Invalid] if there was an error.
+func (n *Named) expandUnderlying(ctxt *Context) Type {
 	check := n.check
 	if check != nil && trace {
-		check.trace(instPos, "-- expandNamed %s", n)
+		check.trace(n.obj.pos, "-- Named.expandUnderlying %s", n)
 		check.indent++
 		defer func() {
 			check.indent--
-			check.trace(instPos, "=> %s (tparams = %s, under = %s)", n, tparams.list(), underlying)
+			check.trace(n.obj.pos, "=> %s (tparams = %s, under = %s)", n, n.tparams.list(), n.underlying)
 		}()
 	}
 
-	n.orig.resolve(ctxt)
 	assert(n.orig.underlying != nil)
 
 	if _, unexpanded := n.orig.underlying.(*Named); unexpanded {
-		// We should only get an unexpanded underlying here during type checking
+		// We should only get a Named underlying type here during type checking
 		// (for example, in recursive type declarations).
 		assert(check != nil)
 	}
 
-	// Mismatching arg and tparam length may be checked elsewhere.
-	if n.orig.tparams.Len() == n.targs.Len() {
-		// We must always have a context, to avoid infinite recursion.
-		ctxt = check.bestContext(ctxt)
-		h := ctxt.instanceHash(n.orig, n.targs.list())
-		// ensure that an instance is recorded for h to avoid infinite recursion.
-		ctxt.update(h, n.orig, n.TypeArgs().list(), n)
-
-		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
-		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
-		// If the underlying of n is an interface, we need to set the receiver of
-		// its methods accurately -- we set the receiver of interface methods on
-		// the RHS of a type declaration to the defined type.
-		if iface, _ := underlying.(*Interface); iface != nil {
-			if methods, copied := replaceRecvType(iface.methods, n.orig, n); copied {
-				// If the underlying doesn't actually use type parameters, it's possible
-				// that it wasn't substituted. In this case we need to create a new
-				// *Interface before modifying receivers.
-				if iface == n.orig.underlying {
-					old := iface
-					iface = check.newInterface()
-					iface.embeddeds = old.embeddeds
-					iface.complete = old.complete
-					iface.implicit = old.implicit // should be false but be conservative
-					underlying = iface
-				}
-				iface.methods = methods
-			}
-		}
-	} else {
-		underlying = Typ[Invalid]
+	if n.orig.tparams.Len() != n.targs.Len() {
+		// Mismatching arg and tparam length may be checked elsewhere.
+		return Typ[Invalid]
 	}
 
-	return n.orig.tparams, underlying, newLazyMethodList(n.orig.methods.Len())
+	// We must always have a context, to avoid infinite recursion.
+	ctxt = check.bestContext(ctxt)
+	h := ctxt.instanceHash(n.orig, n.targs.list())
+	// ensure that an instance is recorded for h to avoid infinite recursion.
+	ctxt.update(h, n.orig, n.TypeArgs().list(), n)
+
+	smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
+	underlying := n.check.subst(n.obj.pos, n.orig.underlying, smap, ctxt)
+	// If the underlying type of n is an interface, we need to set the receiver
+	// of its methods accurately -- we set the receiver of interface methods on
+	// the RHS of a type declaration to the defined type.
+	if iface, _ := underlying.(*Interface); iface != nil {
+		if methods, copied := replaceRecvType(iface.methods, n.orig, n); copied {
+			// If the underlying type doesn't actually use type parameters, it's
+			// possible that it wasn't substituted. In this case we need to create
+			// a new *Interface before modifying receivers.
+			if iface == n.orig.underlying {
+				old := iface
+				iface = check.newInterface()
+				iface.embeddeds = old.embeddeds
+				iface.complete = old.complete
+				iface.implicit = old.implicit // should be false but be conservative
+				underlying = iface
+			}
+			iface.methods = methods
+		}
+	}
+	return underlying
 }
 
-// safeUnderlying returns the underlying of typ without expanding instances, to
-// avoid infinite recursion.
+// safeUnderlying returns the underlying type of typ without expanding
+// instances, to avoid infinite recursion.
 //
 // TODO(rfindley): eliminate this function or give it a better name.
 func safeUnderlying(typ Type) Type {

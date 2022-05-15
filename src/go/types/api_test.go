@@ -43,7 +43,7 @@ func pkgForMode(path, source string, info *Info, mode parser.Mode) (*Package, er
 	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 }
 
-func mustTypecheck(t *testing.T, path, source string, info *Info) string {
+func mustTypecheck(t testing.TB, path, source string, info *Info) string {
 	pkg, err := pkgFor(path, source, info)
 	if err != nil {
 		name := path
