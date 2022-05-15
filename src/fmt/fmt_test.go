@@ -1896,3 +1896,47 @@ func TestParsenum(t *testing.T) {
 		}
 	}
 }
+
+// Test the various Append printers. The details are well tested above;
+// here we just make sure the byte slice is updated.
+
+const (
+	appendResult = "hello world, 23"
+	hello        = "hello "
+)
+
+func TestAppendf(t *testing.T) {
+	b := make([]byte, 100)
+	b = b[:copy(b, hello)]
+	got := Appendf(b, "world, %d", 23)
+	if string(got) != appendResult {
+		t.Fatalf("Appendf returns %q not %q", got, appendResult)
+	}
+	if &b[0] != &got[0] {
+		t.Fatalf("Appendf allocated a new slice")
+	}
+}
+
+func TestAppend(t *testing.T) {
+	b := make([]byte, 100)
+	b = b[:copy(b, hello)]
+	got := Append(b, "world", ", ", 23)
+	if string(got) != appendResult {
+		t.Fatalf("Append returns %q not %q", got, appendResult)
+	}
+	if &b[0] != &got[0] {
+		t.Fatalf("Append allocated a new slice")
+	}
+}
+
+func TestAppendln(t *testing.T) {
+	b := make([]byte, 100)
+	b = b[:copy(b, hello)]
+	got := Appendln(b, "world,", 23)
+	if string(got) != appendResult+"\n" {
+		t.Fatalf("Appendln returns %q not %q", got, appendResult+"\n")
+	}
+	if &b[0] != &got[0] {
+		t.Fatalf("Appendln allocated a new slice")
+	}
+}
