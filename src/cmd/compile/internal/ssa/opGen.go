@@ -1,4 +1,4 @@
-// Code generated from _gen/*Ops.go; DO NOT EDIT.
+// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.
 
 package ssa
 
