@@ -697,11 +697,11 @@ var printConfig = printer.Config{
 var emptyFset = token.NewFileSet()
 
 // Node can be a Statement or an ast.Expr.
-type Node interface{}
+type Node any
 
 // Statement can be one of our high-level statement struct types, or an
 // ast.Stmt under some limited circumstances.
-type Statement interface{}
+type Statement any
 
 // BodyBase is shared by all of our statement pseudo-node types which can
 // contain other statements.
@@ -806,7 +806,7 @@ type (
 
 // exprf parses a Go expression generated from fmt.Sprintf, panicking if an
 // error occurs.
-func exprf(format string, a ...interface{}) ast.Expr {
+func exprf(format string, a ...any) ast.Expr {
 	src := fmt.Sprintf(format, a...)
 	expr, err := parser.ParseExpr(src)
 	if err != nil {
@@ -818,7 +818,7 @@ func exprf(format string, a ...interface{}) ast.Expr {
 // stmtf parses a Go statement generated from fmt.Sprintf. This function is only
 // meant for simple statements that don't have a custom Statement node declared
 // in this package, such as ast.ReturnStmt or ast.ExprStmt.
-func stmtf(format string, a ...interface{}) Statement {
+func stmtf(format string, a ...any) Statement {
 	src := fmt.Sprintf(format, a...)
 	fsrc := "package p\nfunc _() {\n" + src + "\n}\n"
 	file, err := parser.ParseFile(token.NewFileSet(), "", fsrc, 0)
@@ -842,7 +842,7 @@ var reservedNames = map[string]bool{
 // name must not be one of reservedNames.
 // This helps prevent unintended shadowing and name clashes.
 // To declare a reserved name, use declReserved.
-func declf(loc, name, format string, a ...interface{}) *Declare {
+func declf(loc, name, format string, a ...any) *Declare {
 	if reservedNames[name] {
 		log.Fatalf("rule %s uses the reserved name %s", loc, name)
 	}
@@ -860,7 +860,7 @@ func declReserved(name, value string) *Declare {
 
 // breakf constructs a simple "if cond { break }" statement, using exprf for its
 // condition.
-func breakf(format string, a ...interface{}) *CondBreak {
+func breakf(format string, a ...any) *CondBreak {
 	return &CondBreak{Cond: exprf(format, a...)}
 }
 

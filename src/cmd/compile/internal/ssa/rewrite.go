@@ -413,7 +413,7 @@ func canMergeLoad(target, load *Value) bool {
 }
 
 // isSameCall reports whether sym is the same as the given named symbol
-func isSameCall(sym interface{}, name string) bool {
+func isSameCall(sym any, name string) bool {
 	fn := sym.(*AuxCall).Fn
 	return fn != nil && fn.String() == name
 }
@@ -1624,7 +1624,7 @@ func arm64BFWidth(mask, rshift int64) int64 {
 
 // sizeof returns the size of t in bytes.
 // It will panic if t is not a *types.Type.
-func sizeof(t interface{}) int64 {
+func sizeof(t any) int64 {
 	return t.(*types.Type).Size()
 }
 
@@ -1692,7 +1692,7 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
 }
 
 // symIsRO reports whether sym is a read-only global.
-func symIsRO(sym interface{}) bool {
+func symIsRO(sym any) bool {
 	lsym := sym.(*obj.LSym)
 	return lsym.Type == objabi.SRODATA && len(lsym.R) == 0
 }
@@ -1712,7 +1712,7 @@ func symIsROZero(sym Sym) bool {
 }
 
 // read8 reads one byte from the read-only global sym at offset off.
-func read8(sym interface{}, off int64) uint8 {
+func read8(sym any, off int64) uint8 {
 	lsym := sym.(*obj.LSym)
 	if off >= int64(len(lsym.P)) || off < 0 {
 		// Invalid index into the global sym.
@@ -1725,7 +1725,7 @@ func read8(sym interface{}, off int64) uint8 {
 }
 
 // read16 reads two bytes from the read-only global sym at offset off.
-func read16(sym interface{}, off int64, byteorder binary.ByteOrder) uint16 {
+func read16(sym any, off int64, byteorder binary.ByteOrder) uint16 {
 	lsym := sym.(*obj.LSym)
 	// lsym.P is written lazily.
 	// Bytes requested after the end of lsym.P are 0.
@@ -1739,7 +1739,7 @@ func read16(sym interface{}, off int64, byteorder binary.ByteOrder) uint16 {
 }
 
 // read32 reads four bytes from the read-only global sym at offset off.
-func read32(sym interface{}, off int64, byteorder binary.ByteOrder) uint32 {
+func read32(sym any, off int64, byteorder binary.ByteOrder) uint32 {
 	lsym := sym.(*obj.LSym)
 	var src []byte
 	if 0 <= off && off < int64(len(lsym.P)) {
@@ -1751,7 +1751,7 @@ func read32(sym interface{}, off int64, byteorder binary.ByteOrder) uint32 {
 }
 
 // read64 reads eight bytes from the read-only global sym at offset off.
-func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
+func read64(sym any, off int64, byteorder binary.ByteOrder) uint64 {
 	lsym := sym.(*obj.LSym)
 	var src []byte
 	if 0 <= off && off < int64(len(lsym.P)) {

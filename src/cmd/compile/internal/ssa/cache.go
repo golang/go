@@ -38,7 +38,7 @@ type Cache struct {
 	ValueToProgAfter []*obj.Prog
 	debugState       debugState
 
-	Liveness interface{} // *gc.livenessFuncCache
+	Liveness any // *gc.livenessFuncCache
 }
 
 func (c *Cache) Reset() {

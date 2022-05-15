@@ -92,12 +92,12 @@ func (TestFrontend) UseWriteBarrier() bool {
 func (TestFrontend) SetWBPos(pos src.XPos) {
 }
 
-func (d TestFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
-func (d TestFrontend) Log() bool                            { return true }
+func (d TestFrontend) Logf(msg string, args ...any) { d.t.Logf(msg, args...) }
+func (d TestFrontend) Log() bool                    { return true }
 
-func (d TestFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
-func (d TestFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
-func (d TestFrontend) Debug_checknil() bool                               { return false }
+func (d TestFrontend) Fatalf(_ src.XPos, msg string, args ...any) { d.t.Fatalf(msg, args...) }
+func (d TestFrontend) Warnl(_ src.XPos, msg string, args ...any)  { d.t.Logf(msg, args...) }
+func (d TestFrontend) Debug_checknil() bool                       { return false }
 
 func (d TestFrontend) MyImportPath() string {
 	return "my/import/path"
