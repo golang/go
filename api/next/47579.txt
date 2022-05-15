@@ -1,0 +1,3 @@
+pkg fmt, func Append([]uint8, ...interface{}) []uint8 #47579
+pkg fmt, func Appendf([]uint8, string, ...interface{}) []uint8 #47579
+pkg fmt, func Appendln([]uint8, ...interface{}) []uint8 #47579
