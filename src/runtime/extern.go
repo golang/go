@@ -122,9 +122,8 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	scavenger as well as the total amount of memory returned to the operating system
 	and an estimate of physical memory utilization. The format of this line is subject
 	to change, but currently it is:
-		scav # # KiB work, # KiB total, #% util
+		scav # KiB work, # KiB total, #% util
 	where the fields are as follows:
-		scav #       the scavenge cycle number
 		# KiB work   the amount of memory returned to the OS since the last line
 		# KiB total  the total amount of memory returned to the OS
 		#% util      the fraction of all unscavenged memory which is in-use
