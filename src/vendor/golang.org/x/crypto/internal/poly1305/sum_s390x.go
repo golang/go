@@ -14,6 +14,7 @@ import (
 // updateVX is an assembly implementation of Poly1305 that uses vector
 // instructions. It must only be called if the vector facility (vx) is
 // available.
+//
 //go:noescape
 func updateVX(state *macState, msg []byte)
 

@@ -136,7 +136,7 @@ func shiftRightBy2(a uint128) uint128 {
 // updateGeneric absorbs msg into the state.h accumulator. For each chunk m of
 // 128 bits of message, it computes
 //
-//     h₊ = (h + m) * r  mod  2¹³⁰ - 5
+//	h₊ = (h + m) * r  mod  2¹³⁰ - 5
 //
 // If the msg length is not a multiple of TagSize, it assumes the last
 // incomplete chunk is the final one.
@@ -278,8 +278,7 @@ const (
 
 // finalize completes the modular reduction of h and computes
 //
-//     out = h + s  mod  2¹²⁸
-//
+//	out = h + s  mod  2¹²⁸
 func finalize(out *[TagSize]byte, h *[3]uint64, s *[2]uint64) {
 	h0, h1, h2 := h[0], h[1], h[2]
 

@@ -193,14 +193,14 @@ func (p *paragraph) run() {
 //
 // At the end of this function:
 //
-//  - The member variable matchingPDI is set to point to the index of the
-//    matching PDI character for each isolate initiator character. If there is
-//    no matching PDI, it is set to the length of the input text. For other
-//    characters, it is set to -1.
-//  - The member variable matchingIsolateInitiator is set to point to the
-//    index of the matching isolate initiator character for each PDI character.
-//    If there is no matching isolate initiator, or the character is not a PDI,
-//    it is set to -1.
+//   - The member variable matchingPDI is set to point to the index of the
+//     matching PDI character for each isolate initiator character. If there is
+//     no matching PDI, it is set to the length of the input text. For other
+//     characters, it is set to -1.
+//   - The member variable matchingIsolateInitiator is set to point to the
+//     index of the matching isolate initiator character for each PDI character.
+//     If there is no matching isolate initiator, or the character is not a PDI,
+//     it is set to -1.
 func (p *paragraph) determineMatchingIsolates() {
 	p.matchingPDI = make([]int, p.Len())
 	p.matchingIsolateInitiator = make([]int, p.Len())
@@ -435,7 +435,7 @@ func maxLevel(a, b level) level {
 }
 
 // Rule X10, second bullet: Determine the start-of-sequence (sos) and end-of-sequence (eos) types,
-// 			 either L or R, for each isolating run sequence.
+// either L or R, for each isolating run sequence.
 func (p *paragraph) isolatingRunSequence(indexes []int) *isolatingRunSequence {
 	length := len(indexes)
 	types := make([]Class, length)
@@ -905,7 +905,7 @@ func (p *paragraph) getLevels(linebreaks []int) []level {
 // Lines are concatenated from left to right. So for example, the fifth
 // character from the left on the third line is
 //
-// 		getReordering(linebreaks)[linebreaks[1] + 4]
+//	getReordering(linebreaks)[linebreaks[1] + 4]
 //
 // (linebreaks[1] is the position after the last character of the second
 // line, which is also the index of the first character on the third line,
