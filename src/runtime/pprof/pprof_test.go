@@ -1527,6 +1527,10 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 			SetGoroutineLabels(WithLabels(ctx, Labels(t.Name()+"-churn-i", fmt.Sprint(i))))
 			if i == 0 {
 				ready.Done()
+			} else if i%16 == 0 {
+				// Yield on occasion so this sequence of goroutine launches
+				// doesn't monopolize a P. See issue #52934.
+				runtime.Gosched()
 			}
 			if ctx.Err() == nil {
 				go churn(i + 1)
