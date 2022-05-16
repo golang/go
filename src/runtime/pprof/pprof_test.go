@@ -437,10 +437,14 @@ func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Dura
 
 	broken := cpuProfilingBroken()
 
-	maxDuration := 5 * time.Second
-	if testing.Short() && broken {
-		// If it's expected to be broken, no point waiting around.
-		maxDuration /= 10
+	deadline, ok := t.Deadline()
+	if broken || !ok {
+		if broken && testing.Short() {
+			// If it's expected to be broken, no point waiting around.
+			deadline = time.Now().Add(1 * time.Second)
+		} else {
+			deadline = time.Now().Add(10 * time.Second)
+		}
 	}
 
 	// If we're running a long test, start with a long duration
@@ -455,7 +459,7 @@ func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Dura
 	// several others under go test std. If a test fails in a way
 	// that could mean it just didn't run long enough, try with a
 	// longer duration.
-	for duration <= maxDuration {
+	for {
 		var prof bytes.Buffer
 		if err := StartCPUProfile(&prof); err != nil {
 			t.Fatal(err)
@@ -468,9 +472,10 @@ func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Dura
 		}
 
 		duration *= 2
-		if duration <= maxDuration {
-			t.Logf("retrying with %s duration", duration)
+		if time.Until(deadline) < duration {
+			break
 		}
+		t.Logf("retrying with %s duration", duration)
 	}
 
 	if broken {
