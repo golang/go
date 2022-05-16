@@ -10,14 +10,16 @@
 // https://link.springer.com/article/10.1007%2Fs13389-014-0090-x
 // https://eprint.iacr.org/2013/816.pdf
 
-//go:build amd64 || arm64 || ppc64le
+//go:build amd64 || arm64 || ppc64le || s390x
 
 package nistec
 
 import (
 	_ "embed"
+	"encoding/binary"
 	"errors"
 	"math/bits"
+	"runtime"
 	"unsafe"
 )
 
@@ -323,6 +325,14 @@ var p256PrecomputedEmbed string
 
 func init() {
 	p256PrecomputedPtr := (*unsafe.Pointer)(unsafe.Pointer(&p256PrecomputedEmbed))
+	if runtime.GOARCH == "s390x" {
+		var newTable [43 * 32 * 2 * 4]uint64
+		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(*p256PrecomputedPtr) {
+			newTable[i] = binary.LittleEndian.Uint64(x[:])
+		}
+		newTablePtr := unsafe.Pointer(&newTable)
+		p256PrecomputedPtr = &newTablePtr
+	}
 	p256Precomputed = (*[43]p256AffineTable)(*p256PrecomputedPtr)
 }
 
