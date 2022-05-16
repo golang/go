@@ -62,15 +62,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		// Find the innermost containing block, and get the list
 		// of statements starting with the one containing call.
-		stmts, withinAnotherCall := restOfBlock(stack)
-		if withinAnotherCall {
-			// We skip cases when the results of a call to http member
-			// are passed directly to another call, as that later call
-			// could check err != nil and create false positives (#52661).
+		stmts, ncalls := restOfBlock(stack)
+		if len(stmts) < 2 {
+			// The call to the http function is the last statement of the block.
 			return true
 		}
-		if len(stmts) < 2 {
-			return true // the call to the http function is the last statement of the block.
+
+		// Skip cases in which the call is wrapped by another (#52661).
+		// Example:  resp, err := checkError(http.Get(url))
+		if ncalls > 1 {
+			return true
 		}
 
 		asg, ok := stmts[0].(*ast.AssignStmt)
@@ -136,34 +137,26 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 	return ok && isNamedType(ptr.Elem(), "net/http", "Client") // method on *http.Client.
 }
 
-// restOfBlock, given a traversal stack, checks if the current node
-// (the last element of stack) appears as an argument to another call.
-// If not, it finds the innermost containing block and returns the
-// suffix of its statements starting with the current node. Otherwise,
-// returns an empty slice.
-func restOfBlock(stack []ast.Node) ([]ast.Stmt, bool) {
+// restOfBlock, given a traversal stack, finds the innermost containing
+// block and returns the suffix of its statements starting with the current
+// node, along with the number of call expressions encountered.
+func restOfBlock(stack []ast.Node) ([]ast.Stmt, int) {
+	var ncalls int
 	for i := len(stack) - 1; i >= 0; i-- {
-		// If the current node appears within another call, then
-		// this has to happen within the same block. We can thus
-		// immediately return on whichever we see first, a block
-		// statement or a call statement.
-
 		if b, ok := stack[i].(*ast.BlockStmt); ok {
 			for j, v := range b.List {
 				if v == stack[i+1] {
-					return b.List[j:], false
+					return b.List[j:], ncalls
 				}
 			}
 			break
 		}
 
-		// The call to an http member currently analyzed is at len(stack)-1.
-		if _, ok := stack[i].(*ast.CallExpr); ok && i != len(stack)-1 {
-			return nil, true // e.g. "resp, err := wrap(http.Get(...))"
+		if _, ok := stack[i].(*ast.CallExpr); ok {
+			ncalls++
 		}
-
 	}
-	return nil, false
+	return nil, 0
 }
 
 // rootIdent finds the root identifier x in a chain of selections x.y.z, or nil if not found.

@@ -106,13 +106,13 @@ func (b *Builder) AddBytes(v []byte) {
 // supplied to them. The child builder passed to the continuation can be used
 // to build the content of the length-prefixed sequence. For example:
 //
-//   parent := cryptobyte.NewBuilder()
-//   parent.AddUint8LengthPrefixed(func (child *Builder) {
-//     child.AddUint8(42)
-//     child.AddUint8LengthPrefixed(func (grandchild *Builder) {
-//       grandchild.AddUint8(5)
-//     })
-//   })
+//	parent := cryptobyte.NewBuilder()
+//	parent.AddUint8LengthPrefixed(func (child *Builder) {
+//	  child.AddUint8(42)
+//	  child.AddUint8LengthPrefixed(func (grandchild *Builder) {
+//	    grandchild.AddUint8(5)
+//	  })
+//	})
 //
 // It is an error to write more bytes to the child than allowed by the reserved
 // length prefix. After the continuation returns, the child must be considered

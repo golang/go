@@ -110,10 +110,11 @@ func (p Properties) BoundaryAfter() bool {
 }
 
 // We pack quick check data in 4 bits:
-//   5:    Combines forward  (0 == false, 1 == true)
-//   4..3: NFC_QC Yes(00), No (10), or Maybe (11)
-//   2:    NFD_QC Yes (0) or No (1). No also means there is a decomposition.
-//   1..0: Number of trailing non-starters.
+//
+//	5:    Combines forward  (0 == false, 1 == true)
+//	4..3: NFC_QC Yes(00), No (10), or Maybe (11)
+//	2:    NFD_QC Yes (0) or No (1). No also means there is a decomposition.
+//	1..0: Number of trailing non-starters.
 //
 // When all 4 bits are zero, the character is inert, meaning it is never
 // influenced by normalization.
