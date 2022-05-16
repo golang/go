@@ -37,6 +37,7 @@ func Creat(path string, mode uint32) (fd int, err error) {
 }
 
 //sys	utimes(path string, times *[2]Timeval) (err error)
+
 func Utimes(path string, tv []Timeval) error {
 	if len(tv) != 2 {
 		return EINVAL
@@ -45,6 +46,7 @@ func Utimes(path string, tv []Timeval) error {
 }
 
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+
 func UtimesNano(path string, ts []Timespec) error {
 	if len(ts) != 2 {
 		return EINVAL
@@ -300,11 +302,13 @@ func direntNamlen(buf []byte) (uint64, bool) {
 }
 
 //sys	getdirent(fd int, buf []byte) (n int, err error)
+
 func Getdents(fd int, buf []byte) (n int, err error) {
 	return getdirent(fd, buf)
 }
 
 //sys	wait4(pid Pid_t, status *_C_int, options int, rusage *Rusage) (wpid Pid_t, err error)
+
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) {
 	var status _C_int
 	var r Pid_t
@@ -372,6 +376,7 @@ func (w WaitStatus) TrapCause() int { return -1 }
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 
 //sys	fsyncRange(fd int, how int, start int64, length int64) (err error) = fsync_range
+
 func Fsync(fd int) error {
 	return fsyncRange(fd, O_SYNC, 0, 0)
 }
@@ -536,6 +541,7 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 //sys	Getsystemcfg(label int) (n uint64)
 
 //sys	umount(target string) (err error)
+
 func Unmount(target string, flags int) (err error) {
 	if flags != 0 {
 		// AIX doesn't have any flags for umount.

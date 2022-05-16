@@ -623,7 +623,6 @@ var (
 
 func getStdHandle(stdhandle uint32) (fd Handle) {
 	r, _ := GetStdHandle(stdhandle)
-	CloseOnExec(r)
 	return r
 }
 
