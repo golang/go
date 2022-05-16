@@ -9,7 +9,7 @@ package pkgbits
 // A RelocKind indicates a particular section within a unified IR export.
 type RelocKind int
 
-// A relocEnt (relocation entry) is an entry in an atom's local
+// A relocEnt (relocation entry) is an entry in an element's local
 // reference table.
 //
 // TODO(mdempsky): Rename this too.

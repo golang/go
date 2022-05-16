@@ -16,9 +16,14 @@ import (
 	"runtime"
 )
 
+// A PkgEncoder provides methods for encoding a package's Unified IR
+// export data.
 type PkgEncoder struct {
+	// elems holds the bitstream for previously encoded elements.
 	elems [numRelocs][]string
 
+	// stringsIdx maps previously encoded strings to their index within
+	// the RelocString section, to allow deduplication.
 	stringsIdx map[string]int
 
 	syncFrames int
@@ -31,6 +36,8 @@ func NewPkgEncoder(syncFrames int) PkgEncoder {
 	}
 }
 
+// DumpTo writes the package's encoded data to out0 and returns the
+// package fingerprint.
 func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 	h := md5.New()
 	out := io.MultiWriter(out0, h)
@@ -41,12 +48,14 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 
 	writeUint32(0) // version
 
+	// Write elemEndsEnds.
 	var sum uint32
 	for _, elems := range &pw.elems {
 		sum += uint32(len(elems))
 		writeUint32(sum)
 	}
 
+	// Write elemEnds.
 	sum = 0
 	for _, elems := range &pw.elems {
 		for _, elem := range elems {
@@ -55,6 +64,7 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 		}
 	}
 
+	// Write elemData.
 	for _, elems := range &pw.elems {
 		for _, elem := range elems {
 			_, err := io.WriteString(out, elem)
@@ -62,6 +72,7 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 		}
 	}
 
+	// Write fingerprint.
 	copy(fingerprint[:], h.Sum(nil))
 	_, err := out0.Write(fingerprint[:])
 	assert(err == nil)
@@ -98,8 +109,8 @@ func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
 	}
 }
 
-// Encoders
-
+// An Encoder provides methods for encoding an individual element's
+// bitstream data.
 type Encoder struct {
 	p *PkgEncoder
 
@@ -112,6 +123,7 @@ type Encoder struct {
 	Idx int
 }
 
+// Flush finalizes the element's bitstream and returns its Index.
 func (w *Encoder) Flush() int {
 	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
 

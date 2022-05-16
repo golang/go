@@ -17,12 +17,36 @@ import (
 	"strings"
 )
 
+// A PkgDecoder provides methods for decoding a package's Unified IR
+// export data.
 type PkgDecoder struct {
+	// pkgPath is the package path for the package to be decoded.
+	//
+	// TODO(mdempsky): Remove; unneeded since CL 391014.
 	pkgPath string
 
+	// elemData is the full data payload of the encoded package.
+	// Elements are densely and contiguously packed together.
+	//
+	// The last 8 bytes of elemData are the package fingerprint.
+	elemData string
+
+	// elemEnds stores the byte-offset end positions of element
+	// bitstreams within elemData.
+	//
+	// For example, element I's bitstream data starts at elemEnds[I-1]
+	// (or 0, if I==0) and ends at elemEnds[I].
+	//
+	// Note: elemEnds is indexed by absolute indices, not
+	// section-relative indices.
+	elemEnds []uint32
+
+	// elemEndsEnds stores the index-offset end positions of relocation
+	// sections within elemEnds.
+	//
+	// For example, section K's end positions start at elemEndsEnds[K-1]
+	// (or 0, if K==0) and end at elemEndsEnds[K].
 	elemEndsEnds [numRelocs]uint32
-	elemEnds     []uint32
-	elemData     string // last 8 bytes are fingerprint
 }
 
 func (pr *PkgDecoder) PkgPath() string { return pr.pkgPath }
@@ -55,6 +79,7 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 	return pr
 }
 
+// NumElems returns the number of elements in section k.
 func (pr *PkgDecoder) NumElems(k RelocKind) int {
 	count := int(pr.elemEndsEnds[k])
 	if k > 0 {
@@ -63,16 +88,20 @@ func (pr *PkgDecoder) NumElems(k RelocKind) int {
 	return count
 }
 
+// TotalElems returns the total number of elements across all sections.
 func (pr *PkgDecoder) TotalElems() int {
 	return len(pr.elemEnds)
 }
 
+// Fingerprint returns the package fingerprint.
 func (pr *PkgDecoder) Fingerprint() [8]byte {
 	var fp [8]byte
 	copy(fp[:], pr.elemData[len(pr.elemData)-8:])
 	return fp
 }
 
+// AbsIdx returns the absolute index for the given (section, index)
+// pair.
 func (pr *PkgDecoder) AbsIdx(k RelocKind, idx int) int {
 	absIdx := idx
 	if k > 0 {
@@ -84,6 +113,8 @@ func (pr *PkgDecoder) AbsIdx(k RelocKind, idx int) int {
 	return absIdx
 }
 
+// DataIdx returns the raw element bitstream for the given (section,
+// index) pair.
 func (pr *PkgDecoder) DataIdx(k RelocKind, idx int) string {
 	absIdx := pr.AbsIdx(k, idx)
 
@@ -126,6 +157,8 @@ func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx int) Decoder {
 	return r
 }
 
+// A Decoder provides methods for decoding an individual element's
+// bitstream data.
 type Decoder struct {
 	common *PkgDecoder
 
