@@ -109,11 +109,20 @@ type writerDict struct {
 	itabs []itabInfo
 }
 
+// A derivedInfo represents a reference to an encoded generic Go type.
 type derivedInfo struct {
 	idx    int
 	needed bool
 }
 
+// A typeInfo represents a reference to an encoded Go type.
+//
+// If derived is true, then the typeInfo represents a generic Go type
+// that contains type parameters. In this case, idx is an index into
+// the readerDict.derived{,Types} arrays.
+//
+// Otherwise, the typeInfo represents a non-generic Go type, and idx
+// is an index into the reader.typs array instead.
 type typeInfo struct {
 	idx     int
 	derived bool
