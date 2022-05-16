@@ -1013,6 +1013,8 @@ type Tsubster struct {
 	Vars map[*ir.Name]*ir.Name
 	// If non-nil, function to substitute an incomplete (TFORW) type.
 	SubstForwFunc func(*types.Type) *types.Type
+	// Prevent endless recursion on functions. See #51832.
+	Funcs map[*types.Type]bool
 }
 
 // Typ computes the type obtained by substituting any type parameter or shape in t
@@ -1030,7 +1032,8 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 }
 
 func (ts *Tsubster) typ1(t *types.Type) *types.Type {
-	if !t.HasTParam() && !t.HasShape() && t.Kind() != types.TFUNC {
+	hasParamOrShape := t.HasTParam() || t.HasShape()
+	if !hasParamOrShape && t.Kind() != types.TFUNC {
 		// Note: function types need to be copied regardless, as the
 		// types of closures may contain declarations that need
 		// to be copied. See #45738.
@@ -1066,10 +1069,10 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 
 	var newsym *types.Sym
 	var neededTargs []*types.Type
-	var targsChanged bool
+	var targsChanged bool // == are there any substitutions from this
 	var forw *types.Type
 
-	if t.Sym() != nil && (t.HasTParam() || t.HasShape()) {
+	if t.Sym() != nil && hasParamOrShape {
 		// Need to test for t.HasTParam() again because of special TFUNC case above.
 		// Translate the type params for this type according to
 		// the tparam/targs mapping from subst.
@@ -1144,6 +1147,17 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		}
 
 	case types.TFUNC:
+		// watch out for endless recursion on plain function types that mention themselves, e.g. "type T func() T"
+		if !hasParamOrShape {
+			if ts.Funcs[t] { // Visit such function types only once.
+				return t
+			}
+			if ts.Funcs == nil {
+				// allocate lazily
+				ts.Funcs = make(map[*types.Type]bool)
+			}
+			ts.Funcs[t] = true
+		}
 		newrecvs := ts.tstruct(t.Recvs(), false)
 		newparams := ts.tstruct(t.Params(), false)
 		newresults := ts.tstruct(t.Results(), false)
@@ -1178,6 +1192,9 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 			}
 			newt = types.NewSignature(t.Pkg(), newrecv, tparamfields,
 				newparams.FieldSlice(), newresults.FieldSlice())
+		}
+		if !hasParamOrShape {
+			delete(ts.Funcs, t)
 		}
 
 	case types.TINTER:
