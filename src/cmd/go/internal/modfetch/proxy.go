@@ -247,10 +247,17 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 		return nil, err
 	}
 	defer body.Close()
-	return io.ReadAll(body)
+
+	b, err := io.ReadAll(body)
+	if err != nil {
+		// net/http doesn't add context to Body errors, so add it here.
+		// (See https://go.dev/issue/52727.)
+		return b, &url.Error{Op: "read", URL: pathpkg.Join(p.redactedURL, path), Err: err}
+	}
+	return b, nil
 }
 
-func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
+func (p *proxyRepo) getBody(path string) (r io.ReadCloser, err error) {
 	fullPath := pathpkg.Join(p.url.Path, path)
 
 	target := *p.url
@@ -407,7 +414,8 @@ func (p *proxyRepo) Zip(dst io.Writer, version string) error {
 	if err != nil {
 		return p.versionError(version, err)
 	}
-	body, err := p.getBody("@v/" + encVer + ".zip")
+	path := "@v/" + encVer + ".zip"
+	body, err := p.getBody(path)
 	if err != nil {
 		return p.versionError(version, err)
 	}
@@ -415,6 +423,9 @@ func (p *proxyRepo) Zip(dst io.Writer, version string) error {
 
 	lr := &io.LimitedReader{R: body, N: codehost.MaxZipFile + 1}
 	if _, err := io.Copy(dst, lr); err != nil {
+		// net/http doesn't add context to Body errors, so add it here.
+		// (See https://go.dev/issue/52727.)
+		err = &url.Error{Op: "read", URL: pathpkg.Join(p.redactedURL, path), Err: err}
 		return p.versionError(version, err)
 	}
 	if lr.N <= 0 {
