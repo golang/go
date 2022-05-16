@@ -125,11 +125,13 @@ func Pipe2(p []int, flags int) (err error) {
 }
 
 //sys	extpread(fd int, p []byte, flags int, offset int64) (n int, err error)
+
 func pread(fd int, p []byte, offset int64) (n int, err error) {
 	return extpread(fd, p, 0, offset)
 }
 
 //sys	extpwrite(fd int, p []byte, flags int, offset int64) (n int, err error)
+
 func pwrite(fd int, p []byte, offset int64) (n int, err error) {
 	return extpwrite(fd, p, 0, offset)
 }
