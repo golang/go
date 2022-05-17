@@ -405,7 +405,7 @@ func (w *exportWriter) writeIndex(index map[*types.Sym]uint64, mainIndex bool) {
 		w.string(exportPath(pkg))
 		if mainIndex {
 			w.string(pkg.Name)
-			w.uint64(uint64(pkg.Height))
+			w.uint64(0) // was package height, but not necessary anymore.
 		}
 
 		// Sort symbols within a package by name.

@@ -175,10 +175,9 @@ func ReadImports(pkg *types.Pkg, data string) {
 	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
 		pkg := p.pkgAt(ird.uint64())
 		pkgName := p.stringAt(ird.uint64())
-		pkgHeight := int(ird.uint64())
+		_ = int(ird.uint64()) // was package height, but not necessary anymore.
 		if pkg.Name == "" {
 			pkg.Name = pkgName
-			pkg.Height = pkgHeight
 			types.NumImport[pkgName]++
 
 			// TODO(mdempsky): This belongs somewhere else.
@@ -186,9 +185,6 @@ func ReadImports(pkg *types.Pkg, data string) {
 		} else {
 			if pkg.Name != pkgName {
 				base.Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
-			}
-			if pkg.Height != pkgHeight {
-				base.Fatalf("conflicting package heights %v and %v for path %q", pkg.Height, pkgHeight, pkg.Path)
 			}
 		}
 

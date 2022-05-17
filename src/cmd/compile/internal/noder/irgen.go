@@ -219,7 +219,6 @@ type typeDelayInfo struct {
 
 func (g *irgen) generate(noders []*noder) {
 	types.LocalPkg.Name = g.self.Name()
-	types.LocalPkg.Height = g.self.Height()
 	typecheck.TypecheckAllowed = true
 
 	// Prevent size calculations until we set the underlying type

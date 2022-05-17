@@ -288,7 +288,7 @@ func (r *reader) doPkg() *types.Pkg {
 	}
 
 	name := r.String()
-	height := r.Len()
+	_ = r.Len() // was package height, but not necessary anymore.
 
 	pkg := types.NewPkg(path, "")
 
@@ -296,12 +296,6 @@ func (r *reader) doPkg() *types.Pkg {
 		pkg.Name = name
 	} else {
 		base.Assertf(pkg.Name == name, "package %q has name %q, but want %q", pkg.Path, pkg.Name, name)
-	}
-
-	if pkg.Height == 0 {
-		pkg.Height = height
-	} else {
-		base.Assertf(pkg.Height == height, "package %q has height %v, but want %v", pkg.Path, pkg.Height, height)
 	}
 
 	return pkg
