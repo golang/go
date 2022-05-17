@@ -1624,9 +1624,6 @@ func TestEarlyHintsRequest_h1(t *testing.T) { testEarlyHintsRequest(t, h1Mode) }
 func TestEarlyHintsRequest_h2(t *testing.T) { testEarlyHintsRequest(t, h2Mode) }
 func testEarlyHintsRequest(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	if h2 {
-		t.Skip("Waiting for H2 support to be merged: https://go-review.googlesource.com/c/net/+/406494")
-	}
 
 	var wg sync.WaitGroup
 	wg.Add(1)
