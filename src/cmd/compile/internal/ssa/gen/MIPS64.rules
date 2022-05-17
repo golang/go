@@ -564,7 +564,7 @@
 // But for now, this is enough to get rid of lots of them.
 (MOVVnop (MOVVconst [c])) => (MOVVconst [c])
 
-// fold constant into arithmatic ops
+// fold constant into arithmetic ops
 (ADDV x (MOVVconst [c])) && is32Bit(c) => (ADDVconst [c] x)
 (SUBV x (MOVVconst [c])) && is32Bit(c) => (SUBVconst [c] x)
 (AND x (MOVVconst [c])) && is32Bit(c) => (ANDconst [c] x)

@@ -963,7 +963,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 	// New goroutines may not be in this list, but we didn't want to know about
 	// them anyway. If they do appear in this list (via reusing a dead goroutine
 	// struct, or racing to launch between the world restarting and us getting
-	// the list), they will aleady have their goroutineProfiled field set to
+	// the list), they will already have their goroutineProfiled field set to
 	// goroutineProfileSatisfied before their state transitions out of _Gdead.
 	//
 	// Any goroutine that the scheduler tries to execute concurrently with this

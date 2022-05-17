@@ -450,7 +450,7 @@ func (po *poset) aliasnodes(n1 *Value, i2s bitset) {
 			po.upush(undoSetChr, uint32(idx), r)
 		}
 
-		// Connect all chidren of i2s to i1 (unless those children
+		// Connect all children of i2s to i1 (unless those children
 		// are in i2s as well, in which case it would be useless)
 		if i2s.Test(uint32(idx)) {
 			if l != 0 && !i2s.Test(l.Target()) {

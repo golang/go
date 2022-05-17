@@ -418,7 +418,7 @@ func isSameCall(sym interface{}, name string) bool {
 	return fn != nil && fn.String() == name
 }
 
-// canLoadUnaligned reports if the achitecture supports unaligned load operations
+// canLoadUnaligned reports if the architecture supports unaligned load operations
 func canLoadUnaligned(c *Config) bool {
 	return c.ctxt.Arch.Alignment == 1
 }

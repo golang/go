@@ -558,7 +558,7 @@
 // MOVVnop doesn't emit instruction, only for ensuring the type.
 (MOVVreg x) && x.Uses == 1 => (MOVVnop x)
 
-// fold constant into arithmatic ops
+// fold constant into arithmetic ops
 (ADDV x (MOVVconst [c])) && is32Bit(c) => (ADDVconst [c] x)
 (SUBV x (MOVVconst [c])) && is32Bit(c) => (SUBVconst [c] x)
 (AND x (MOVVconst [c])) && is32Bit(c) => (ANDconst [c] x)

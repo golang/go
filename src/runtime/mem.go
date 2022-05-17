@@ -69,7 +69,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 //
 // This operation is idempotent for memory already in the Prepared state, so
 // it is safe to refer, with v and n, to a range of memory that includes both
-// Prepared and Ready memory. However, the caller must provide the exact amout
+// Prepared and Ready memory. However, the caller must provide the exact amount
 // of Prepared memory for accounting purposes.
 func sysUsed(v unsafe.Pointer, n, prepared uintptr) {
 	gcController.mappedReady.Add(int64(prepared))

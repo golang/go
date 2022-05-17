@@ -14,7 +14,7 @@ import "runtime/internal/atomic"
 // CPU time and drains with mutator time. Because the bucket fills and
 // drains with time directly (i.e. without any weighting), this effectively
 // sets a very conservative limit of 50%. This limit could be enforced directly,
-// however, but the purpose of the bucket is to accomodate spikes in GC CPU
+// however, but the purpose of the bucket is to accommodate spikes in GC CPU
 // utilization without hurting throughput.
 //
 // Note that the bucket in the leaky bucket mechanism can never go negative,

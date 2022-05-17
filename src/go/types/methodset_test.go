@@ -40,7 +40,7 @@ func TestNewMethodSet(t *testing.T) {
 		"var a T1; type ( T1 T2; T2 interface{ f() } )":              {{"f", []int{0}, true}},
 		"var a T1; type ( T1 interface{ T2 }; T2 interface{ f() } )": {{"f", []int{0}, true}},
 
-		// Genric interfaces
+		// Generic interfaces
 		"var a T[int]; type T[P any] interface{ f() }":                                     {{"f", []int{0}, true}},
 		"var a T1[int]; type ( T1[P any] T2[P]; T2[P any] interface{ f() } )":              {{"f", []int{0}, true}},
 		"var a T1[int]; type ( T1[P any] interface{ T2[P] }; T2[P any] interface{ f() } )": {{"f", []int{0}, true}},

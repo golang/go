@@ -83,7 +83,7 @@ func cse(f *Func) {
 	// non-equivalent arguments.  Repeat until we can't find any
 	// more splits.
 	var splitPoints []int
-	byArgClass := new(partitionByArgClass) // reuseable partitionByArgClass to reduce allocations
+	byArgClass := new(partitionByArgClass) // reusable partitionByArgClass to reduce allocations
 	for {
 		changed := false
 
