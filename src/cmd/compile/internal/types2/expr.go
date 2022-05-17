@@ -1741,16 +1741,33 @@ Error:
 	return statement // avoid follow-up errors
 }
 
+// keyVal maps a complex, float, integer, string or boolean constant value
+// to the corresponding complex128, float64, int64, uint64, string, or bool
+// Go value if possible; otherwise it returns x.
+// A complex constant that can be represented as a float (such as 1.2 + 0i)
+// is returned as a floating point value; if a floating point value can be
+// represented as an integer (such as 1.0) it is returned as an integer value.
+// This ensures that constants of different kind but equal value (such as
+// 1.0 + 0i, 1.0, 1) result in the same value.
 func keyVal(x constant.Value) interface{} {
-	// TODO(gri) This function must map 1, 1.0, and 1.0 + 0i to the same (integer) value.
-	//           Same for 1.1 and 1.1 + 0i.
-	//           Otherwise we won't get duplicate key errors for certain type parameter
-	//           key types. See issue #51610.
 	switch x.Kind() {
-	case constant.Bool:
-		return constant.BoolVal(x)
-	case constant.String:
-		return constant.StringVal(x)
+	case constant.Complex:
+		f := constant.ToFloat(x)
+		if f.Kind() != constant.Float {
+			r, _ := constant.Float64Val(constant.Real(x))
+			i, _ := constant.Float64Val(constant.Imag(x))
+			return complex(r, i)
+		}
+		x = f
+		fallthrough
+	case constant.Float:
+		i := constant.ToInt(x)
+		if i.Kind() != constant.Int {
+			v, _ := constant.Float64Val(x)
+			return v
+		}
+		x = i
+		fallthrough
 	case constant.Int:
 		if v, ok := constant.Int64Val(x); ok {
 			return v
@@ -1758,13 +1775,10 @@ func keyVal(x constant.Value) interface{} {
 		if v, ok := constant.Uint64Val(x); ok {
 			return v
 		}
-	case constant.Float:
-		v, _ := constant.Float64Val(x)
-		return v
-	case constant.Complex:
-		r, _ := constant.Float64Val(constant.Real(x))
-		i, _ := constant.Float64Val(constant.Imag(x))
-		return complex(r, i)
+	case constant.String:
+		return constant.StringVal(x)
+	case constant.Bool:
+		return constant.BoolVal(x)
 	}
 	return x
 }
