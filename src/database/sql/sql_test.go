@@ -2986,7 +2986,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 }
 
 // TestIssue20575 ensures the Rows from query does not block
-// closing a transaction. Ensure Rows is closed while closing a trasaction.
+// closing a transaction. Ensure Rows is closed while closing a transaction.
 func TestIssue20575(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)

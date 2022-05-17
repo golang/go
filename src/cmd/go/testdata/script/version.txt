@@ -2,7 +2,7 @@
 go version
 stdout '^go version'
 
-# Flags without files, or paths to misisng files, should error.
+# Flags without files, or paths to missing files, should error.
 ! go version missing.exe
 ! go version -m
 stderr 'with arguments'

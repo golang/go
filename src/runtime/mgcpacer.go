@@ -1044,7 +1044,7 @@ func (c *gcControllerState) memoryLimitHeapGoal() uint64 {
 	//
 	// Let's take a step back. In an ideal world, this term would look something like just
 	// the heap goal. That is, we "reserve" enough space for the heap to grow to the heap
-	// goal, and subtract out everything else. This is of course impossible; the defintion
+	// goal, and subtract out everything else. This is of course impossible; the definition
 	// is circular! However, this impossible definition contains a key insight: the amount
 	// we're *going* to use matters just as much as whatever we're currently using.
 	//

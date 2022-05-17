@@ -22,7 +22,7 @@ TEXT callCfunction<>(SB),	NOSPLIT|NOFRAME,$0
 
 
 // asmsyscall6 calls a library function with a function descriptor
-// stored in libcall_fn and store the results in libcall struture
+// stored in libcall_fn and store the results in libcall structure
 // Up to 6 arguments can be passed to this C function
 // Called by runtime.asmcgocall
 // It reserves a stack of 288 bytes for the C function. It must

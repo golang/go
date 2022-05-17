@@ -354,7 +354,7 @@ func TestGoObjOtherVersion(t *testing.T) {
 	cmd := exec.Command(exe, obj)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
-		t.Fatalf("objdump go116.o succeeded unexpectly")
+		t.Fatalf("objdump go116.o succeeded unexpectedly")
 	}
 	if !strings.Contains(string(out), "go object of a different version") {
 		t.Errorf("unexpected error message:\n%s", out)
