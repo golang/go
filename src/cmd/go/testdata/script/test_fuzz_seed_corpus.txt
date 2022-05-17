@@ -9,7 +9,7 @@ env GOCACHE=$WORK/cache
 ! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
 stdout FAIL
 
-# Test that fuzzing a target with a sucess in f.Add and a fuzztime of only
+# Test that fuzzing a target with a success in f.Add and a fuzztime of only
 # 1 does not produce a crash.
 go test -fuzz=FuzzWithGoodAdd -run=FuzzWithGoodAdd -fuzztime=1x
 stdout ok
@@ -73,7 +73,7 @@ go clean -fuzzcache
 ! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
 stdout FAIL
 
-# Test that fuzzing a target (with -run=None set) with a sucess in f.Add and a
+# Test that fuzzing a target (with -run=None set) with a success in f.Add and a
 # fuzztime of only 1 does not produce a crash.
 go test -fuzz=FuzzWithGoodAdd -run=None -fuzztime=1x
 stdout ok

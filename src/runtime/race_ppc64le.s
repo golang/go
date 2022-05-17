@@ -410,7 +410,7 @@ racecallatomic_ignore:
 	BL	racecall<>(SB)
 	// Call __tsan_go_ignore_sync_end.
 	MOVD	$__tsan_go_ignore_sync_end(SB), R8
-	MOVD	g_racectx(g), R3	// goroutine context g should sitll be good?
+	MOVD	g_racectx(g), R3	// goroutine context g should still be good?
 	BL	racecall<>(SB)
 	RET
 

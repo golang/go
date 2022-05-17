@@ -68,7 +68,7 @@ func TestIssue38068(t *testing.T) {
 	// Compile a small package with and without the concurrent
 	// backend, then check to make sure that the resulting archives
 	// are identical.  Note: this uses "go tool compile" instead of
-	// "go build" since the latter will generate differnent build IDs
+	// "go build" since the latter will generate different build IDs
 	// if it sees different command line flags.
 	scenarios := []struct {
 		tag     string

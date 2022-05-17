@@ -345,7 +345,7 @@ func TestTLSPointFormats(t *testing.T) {
 				}
 			} else {
 				if len(serverHello.supportedPoints) != 0 {
-					t.Fatalf("unexcpected ec_point_format extension from server: %v", serverHello.supportedPoints)
+					t.Fatalf("unexpected ec_point_format extension from server: %v", serverHello.supportedPoints)
 				}
 			}
 		})
