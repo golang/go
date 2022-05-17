@@ -216,6 +216,22 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- io -->
 
+<dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
+  <dd>
+    <p><!-- CL 406894 -->
+      On Windows only, the mime package now ignores a registry entry
+      recording that the extension <code>.js</code> should have MIME
+      type <code>text/plain</code>. This is a common unintentional
+      misconfiguration on Windows systems. The effect is
+      that <code>.js</code> will have the default MIME
+      type <code>text/javascript; charset=utf-8</code>.
+      Applications that expect <code>text/plain</code> on Windows must
+      now explicitly call
+      <a href="/pkg/mime#AddExtensionType"><code>AddExtensionType</code></a>.
+    </p>
+  </dd>
+</dl>
+
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 386016 -->
