@@ -26,8 +26,9 @@ func (m *posMap) pos(p poser) src.XPos { return m.makeXPos(p.Pos()) }
 func (m *posMap) end(p ender) src.XPos { return m.makeXPos(p.End()) }
 
 func (m *posMap) makeXPos(pos syntax.Pos) src.XPos {
+	// Predeclared objects (e.g., the result parameter for error.Error)
+	// do not have a position.
 	if !pos.IsKnown() {
-		// TODO(mdempsky): Investigate restoring base.Fatalf.
 		return src.NoXPos
 	}
 
