@@ -161,7 +161,7 @@ func findIndVar(f *Func) []indVar {
 
 		// Up to now we extracted the induction variable (ind),
 		// the increment delta (inc), the temporary sum (nxt),
-		// the mininum value (min) and the maximum value (max).
+		// the minimum value (min) and the maximum value (max).
 		//
 		// We also know that ind has the form (Phi min nxt) where
 		// nxt is (Add inc nxt) which means: 1) inc dominates nxt
