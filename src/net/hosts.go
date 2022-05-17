@@ -99,11 +99,20 @@ func readHosts() {
 				canonical = key
 			}
 
+			is[addr] = append(is[addr], name)
+
+			if v,ok := hs[key]; ok {
+				hs[key] = byName{
+					addrs:         append(v.addrs, addr),
+					canonicalName: v.canonicalName,
+				}
+				continue
+			}
+
 			hs[key] = byName{
 				addrs:         append(hs[key].addrs, addr),
 				canonicalName: canonical,
 			}
-			is[addr] = append(is[addr], name)
 		}
 	}
 	// Update the data cache.

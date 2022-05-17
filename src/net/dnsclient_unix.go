@@ -586,7 +586,7 @@ func goLookupIPFiles(name string) (addrs []IPAddr, cname string) {
 		}
 	}
 	sortByRFC6724(addrs)
-	return
+	return addrs, cname
 }
 
 // goLookupIP is the native Go implementation of LookupIP.
