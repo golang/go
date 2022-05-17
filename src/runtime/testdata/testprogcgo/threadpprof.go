@@ -17,6 +17,8 @@ package main
 int threadSalt1;
 int threadSalt2;
 
+static pthread_t tid;
+
 void cpuHogThread() {
 	int foo = threadSalt1;
 	int i;
@@ -42,12 +44,16 @@ struct cgoTracebackArg {
 };
 
 // pprofCgoThreadTraceback is passed to runtime.SetCgoTraceback.
-// For testing purposes it pretends that all CPU hits in C code are in cpuHog.
+// For testing purposes it pretends that all CPU hits on the cpuHog
+// C thread are in cpuHog.
 void pprofCgoThreadTraceback(void* parg) {
 	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
-	arg->buf[0] = (uintptr_t)(cpuHogThread) + 0x10;
-	arg->buf[1] = (uintptr_t)(cpuHogThread2) + 0x4;
-	arg->buf[2] = 0;
+	if (pthread_self() == tid) {
+		arg->buf[0] = (uintptr_t)(cpuHogThread) + 0x10;
+		arg->buf[1] = (uintptr_t)(cpuHogThread2) + 0x4;
+		arg->buf[2] = 0;
+	} else
+		arg->buf[0] = 0;
 }
 
 static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
@@ -58,7 +64,6 @@ static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
 }
 
 void runCPUHogThread(void) {
-	pthread_t tid;
 	pthread_create(&tid, 0, cpuHogDriver, 0);
 }
 */
