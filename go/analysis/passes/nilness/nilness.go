@@ -251,7 +251,7 @@ func (n nilness) String() string { return nilnessStrings[n+1] }
 // or unknown given the dominating stack of facts.
 func nilnessOf(stack []fact, v ssa.Value) nilness {
 	switch v := v.(type) {
-	// unwrap ChangeInterface values recursively, to detect if underlying
+	// unwrap ChangeInterface and Slice values recursively, to detect if underlying
 	// values have any facts recorded or are otherwise known with regard to nilness.
 	//
 	// This work must be in addition to expanding facts about
@@ -262,6 +262,10 @@ func nilnessOf(stack []fact, v ssa.Value) nilness {
 	// underlying values, rather than outer values, when the analysis is
 	// transitive in both directions.
 	case *ssa.ChangeInterface:
+		if underlying := nilnessOf(stack, v.X); underlying != unknown {
+			return underlying
+		}
+	case *ssa.Slice:
 		if underlying := nilnessOf(stack, v.X); underlying != unknown {
 			return underlying
 		}

@@ -130,7 +130,6 @@ func f9(x interface {
 	b()
 	c()
 }) {
-
 	x.b() // we don't catch this panic because we don't have any facts yet
 	xx := interface {
 		a()
@@ -155,11 +154,27 @@ func f9(x interface {
 	}
 }
 
+func f10() {
+	s0 := make([]string, 0)
+	if s0 == nil { // want "impossible condition: non-nil == nil"
+		print(0)
+	}
+
+	var s1 []string
+	if s1 == nil { // want "tautological condition: nil == nil"
+		print(0)
+	}
+	s2 := s1[:][:]
+	if s2 == nil { // want "tautological condition: nil == nil"
+		print(0)
+	}
+}
+
 func unknown() bool {
 	return false
 }
 
-func f10(a interface{}) {
+func f11(a interface{}) {
 	switch a.(type) {
 	case nil:
 		return
@@ -170,7 +185,7 @@ func f10(a interface{}) {
 	}
 }
 
-func f11(a interface{}) {
+func f12(a interface{}) {
 	switch a {
 	case nil:
 		return
@@ -190,7 +205,7 @@ type innerY struct {
 	value int
 }
 
-func f12() {
+func f13() {
 	var d *Y
 	print(d.value) // want "nil dereference in field selection"
 }
