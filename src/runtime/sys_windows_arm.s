@@ -319,7 +319,7 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
 // Runs on OS stack.
 // duration (in -100ns units) is in dt+0(FP).
 // g is valid.
-// TODO: neeeds to be implemented properly.
+// TODO: needs to be implemented properly.
 TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
 	B	runtime·abort(SB)
 
