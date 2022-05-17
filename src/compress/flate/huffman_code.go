@@ -130,7 +130,7 @@ const maxBitsLimit = 16
 // maxBits is the maximum number of bits that should be used to encode any literal.
 // It must be less than 16.
 //
-// bitCounts retruns an integer slice in which slice[i] indicates the number of literals
+// bitCounts returns an integer slice in which slice[i] indicates the number of literals
 // that should be encoded in i bits.
 func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	if maxBits >= maxBitsLimit {

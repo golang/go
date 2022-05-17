@@ -933,7 +933,7 @@ func (d *Decoder) InputOffset() int64 {
 	return d.offset
 }
 
-// InputPos retuns the line of the current decoder position and the 1 based
+// InputPos returns the line of the current decoder position and the 1 based
 // input position of the line. The position gives the location of the end of the
 // most recently returned token.
 func (d *Decoder) InputPos() (line, column int) {

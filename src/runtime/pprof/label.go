@@ -37,7 +37,7 @@ func labelValue(ctx context.Context) labelMap {
 // that admits incremental immutable modification more efficiently.
 type labelMap map[string]string
 
-// String statisfies Stringer and returns key, value pairs in a consistent
+// String satisfies Stringer and returns key, value pairs in a consistent
 // order.
 func (l *labelMap) String() string {
 	if l == nil {

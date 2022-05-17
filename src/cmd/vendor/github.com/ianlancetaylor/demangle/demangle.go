@@ -1715,7 +1715,7 @@ func (st *state) demangleCastTemplateArgs(tp AST, addSubst bool) AST {
 	return tp
 }
 
-// mergeQualifiers merges two qualifer lists into one.
+// mergeQualifiers merges two qualifier lists into one.
 func mergeQualifiers(q1AST, q2AST AST) AST {
 	if q1AST == nil {
 		return q2AST

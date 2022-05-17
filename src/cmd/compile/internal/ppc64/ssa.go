@@ -830,7 +830,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload:
 
 		// MOVDload and MOVWload are DS form instructions that are restricted to
-		// offsets that are a multiple of 4. If the offset is not a multple of 4,
+		// offsets that are a multiple of 4. If the offset is not a multiple of 4,
 		// then the address of the symbol to be loaded is computed (base + offset)
 		// and used as the new base register and the offset field in the instruction
 		// can be set to zero.
@@ -933,7 +933,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVDstorezero:
 
 		// MOVDstore and MOVDstorezero become DS form instructions that are restricted
-		// to offset values that are a multple of 4. If the offset field is not a
+		// to offset values that are a multiple of 4. If the offset field is not a
 		// multiple of 4, then the full address of the store target is computed (base +
 		// offset) and used as the new base register and the offset in the instruction
 		// is set to 0.

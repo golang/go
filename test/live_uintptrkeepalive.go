@@ -12,7 +12,7 @@
 // bodies (assembly, linkname), as well as explicitly on complete functions
 // with //go:uintptrkeepalive.
 //
-// This is most important for syscall.Syscall (and similiar functions), so we
+// This is most important for syscall.Syscall (and similar functions), so we
 // test it explicitly.
 
 package p
