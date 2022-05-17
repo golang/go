@@ -210,11 +210,9 @@ func (d *compressor) fillWindow(b []byte) {
 
 		dst := d.hashMatch[:dstSize]
 		d.bulkHasher(toCheck, dst)
-		var newH uint32
 		for i, val := range dst {
 			di := i + index
-			newH = val
-			hh := &d.hashHead[newH&hashMask]
+			hh := &d.hashHead[val&hashMask]
 			// Get previous value with the same hash.
 			// Our chain should point to the previous value.
 			d.hashPrev[di&windowMask] = *hh
