@@ -98,8 +98,8 @@ type ResponseWriter interface {
 	// Handlers can set HTTP trailers.
 	//
 	// Changing the header map after a call to WriteHeader (or
-	// Write) has no effect unless the modified headers are
-	// trailers.
+	// Write) has no effect unless the HTTP status code was of the
+	// 1xx class or the modified headers are trailers.
 	//
 	// There are two ways to set Trailers. The preferred way is to
 	// predeclare in the headers which trailers you will later
@@ -144,13 +144,18 @@ type ResponseWriter interface {
 	// If WriteHeader is not called explicitly, the first call to Write
 	// will trigger an implicit WriteHeader(http.StatusOK).
 	// Thus explicit calls to WriteHeader are mainly used to
-	// send error codes.
+	// send error codes or 1xx informational responses.
 	//
 	// The provided code must be a valid HTTP 1xx-5xx status code.
-	// Only one header may be written. Go does not currently
-	// support sending user-defined 1xx informational headers,
-	// with the exception of 100-continue response header that the
-	// Server sends automatically when the Request.Body is read.
+	// Any number of 1xx headers may be written, followed by at most
+	// one 2xx-5xx header. 1xx headers are sent immediately, but 2xx-5xx
+	// headers may be buffered. Use the Flusher interface to send
+	// buffered data. The header map is cleared when 2xx-5xx headers are
+	// sent, but not with 1xx headers.
+	//
+	// The server will automatically send a 100 (Continue) header
+	// on the first read from the request body if the request has
+	// an "Expect: 100-continue" header.
 	WriteHeader(statusCode int)
 }
 
@@ -420,7 +425,7 @@ type response struct {
 	req              *Request // request for this response
 	reqBody          io.ReadCloser
 	cancelCtx        context.CancelFunc // when ServeHTTP exits
-	wroteHeader      bool               // reply header has been (logically) written
+	wroteHeader      bool               // a non-1xx header has been (logically) written
 	wroteContinue    bool               // 100 Continue response was written
 	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
 	wantsClose       bool               // HTTP request has Connection "close"
@@ -1100,8 +1105,7 @@ func checkWriteHeaderCode(code int) {
 	// Issue 22880: require valid WriteHeader status codes.
 	// For now we only enforce that it's three digits.
 	// In the future we might block things over 599 (600 and above aren't defined
-	// at https://httpwg.org/specs/rfc7231.html#status.codes)
-	// and we might block under 200 (once we have more mature 1xx support).
+	// at https://httpwg.org/specs/rfc7231.html#status.codes).
 	// But for now any three digits.
 	//
 	// We used to send "HTTP/1.1 000 0" on the wire in responses but there's
@@ -1144,6 +1148,26 @@ func (w *response) WriteHeader(code int) {
 		return
 	}
 	checkWriteHeaderCode(code)
+
+	// Handle informational headers
+	if code >= 100 && code <= 199 {
+		// Prevent a potential race with an automatically-sent 100 Continue triggered by Request.Body.Read()
+		if code == 100 && w.canWriteContinue.isSet() {
+			w.writeContinueMu.Lock()
+			w.canWriteContinue.setFalse()
+			w.writeContinueMu.Unlock()
+		}
+
+		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
+
+		// Per RFC 8297 we must not clear the current header map
+		w.handlerHeader.WriteSubset(w.conn.bufw, excludedHeadersNoBody)
+		w.conn.bufw.Write(crlf)
+		w.conn.bufw.Flush()
+
+		return
+	}
+
 	w.wroteHeader = true
 	w.status = code
 

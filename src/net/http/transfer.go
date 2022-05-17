@@ -468,6 +468,7 @@ func bodyAllowedForStatus(status int) bool {
 var (
 	suppressedHeaders304    = []string{"Content-Type", "Content-Length", "Transfer-Encoding"}
 	suppressedHeadersNoBody = []string{"Content-Length", "Transfer-Encoding"}
+	excludedHeadersNoBody   = map[string]bool{"Content-Length": true, "Transfer-Encoding": true}
 )
 
 func suppressedHeaders(status int) []string {
