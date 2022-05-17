@@ -97,7 +97,7 @@ For runtime error debugging, it may be useful to run with `GOTRACEBACK=system`
 or `GOTRACEBACK=crash`. The output of `panic` and `fatal` is as described by
 `GOTRACEBACK`. The output of `throw` always includes runtime frames, metadata
 and all goroutines regardless of `GOTRACEBACK` (i.e., equivalent to
-`GOTRACEBACK=system). Whether `throw` crashes or not is still controlled by
+`GOTRACEBACK=system`). Whether `throw` crashes or not is still controlled by
 `GOTRACEBACK`.
 
 Synchronization
