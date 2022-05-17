@@ -295,7 +295,7 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
 				files[name] = missingFile(name)
 				continue
 			} else if f.IsDir() {
-				return nil, fmt.Errorf("for overlay of %q to %q: overlay Replace entries can't point to dirctories",
+				return nil, fmt.Errorf("for overlay of %q to %q: overlay Replace entries can't point to directories",
 					filepath.Join(dir, name), to.actualFilePath)
 			}
 			// Add a fileinfo for the overlaid file, so that it has

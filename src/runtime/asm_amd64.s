@@ -1775,7 +1775,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 // 2. Push the current PC on the stack (updating SP).
 // 3. Write the desired argument frame size at SP-16 (using the SP
 //    after step 2).
-// 4. Save all machine registers (including flags and XMM reigsters)
+// 4. Save all machine registers (including flags and XMM registers)
 //    so they can be restored later by the debugger.
 // 5. Set the PC to debugCallV2 and resume execution.
 //

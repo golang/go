@@ -201,7 +201,7 @@ claimLoop:
 
 	// Increase the popped count. If we are the last possible popper
 	// in the block (note that bottom need not equal spanSetBlockEntries-1
-	// due to races) then it's our resposibility to free the block.
+	// due to races) then it's our responsibility to free the block.
 	//
 	// If we increment popped to spanSetBlockEntries, we can be sure that
 	// we're the last popper for this block, and it's thus safe to free it.

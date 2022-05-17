@@ -1153,7 +1153,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 
 	// Below this point, c.heapMarked < goal.
 
-	// heapMarked is our absolute minumum, and it's possible the trigger
+	// heapMarked is our absolute minimum, and it's possible the trigger
 	// bound we get from heapGoalinternal is less than that.
 	if minTrigger < c.heapMarked {
 		minTrigger = c.heapMarked
