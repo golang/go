@@ -1651,12 +1651,12 @@ func testEarlyHintsRequest(t *testing.T, h2 bool) {
 		t.Helper()
 
 		if len(expected) != len(got) {
-			t.Errorf("Expected %d link headers; got %d", len(expected), len(got))
+			t.Errorf("got %d expected %d", len(got), len(expected))
 		}
 
 		for i := range expected {
 			if expected[i] != got[i] {
-				t.Errorf("Expected %q link header; got %q", expected[i], got[i])
+				t.Errorf("got %q expected %q", got[i], expected[i])
 			}
 		}
 	}
