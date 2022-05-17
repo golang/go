@@ -86,7 +86,7 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 		sizeWithRz := rzSize + size
 		c = tconv(ir.NewInt(sizeWithRz), types.Types[types.TUINTPTR])
 		setField("sizeWithRedzone", c, i)
-		// The C string type is terminated by a null charactor "\0", Go should use three-digit
+		// The C string type is terminated by a null character "\0", Go should use three-digit
 		// octal "\000" or two-digit hexadecimal "\x00" to create null terminated string.
 		// asanName = symbol's linkname + "\000"
 		// globals[i].name = (*defString)(unsafe.Pointer(&asanName)).data

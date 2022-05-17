@@ -6530,7 +6530,7 @@ func TestCancelRequestWhenSharingConnection(t *testing.T) {
 	r2c := <-reqc
 	cancel()
 
-	// Give the cancelation a moment to take effect, and then unblock the first request.
+	// Give the cancellation a moment to take effect, and then unblock the first request.
 	time.Sleep(1 * time.Millisecond)
 	close(idlec)
 

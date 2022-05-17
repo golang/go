@@ -201,7 +201,7 @@ func tracebackFunc(t *testing.T) uintptr {
 // Go will never generate a stack trace containing such an address, as it is
 // not a valid call site. However, the cgo traceback function passed to
 // runtime.SetCgoTraceback may not be completely accurate and may incorrect
-// provide PCs in Go code or the alignement region between functions.
+// provide PCs in Go code or the alignment region between functions.
 //
 // Go obviously doesn't easily expose the problematic PCs to running programs,
 // so this test is a bit fragile. Some details:

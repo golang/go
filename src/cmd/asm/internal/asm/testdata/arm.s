@@ -1042,7 +1042,7 @@ jmp_label_3:
 	BFI	$29, $2, R8                              // 1881dee7
 	BFI	$16, $8, R1, R2 // BFI $16, R1, $8, R2   // 1124d7e7
 
-// synthetic arithmatic
+// synthetic arithmetic
 	ADD	$0xffffffaa, R2, R3 // ADD $4294967210, R2, R3   // 55b0e0e30b3082e0
 	ADD	$0xffffff55, R5     // ADD $4294967125, R5       // aab0e0e30b5085e0
 	ADD.S	$0xffffffab, R2, R3 // ADD.S $4294967211, R2, R3 // 54b0e0e30b3092e0

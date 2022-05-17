@@ -565,7 +565,7 @@
 // But for now, this is enough to get rid of lots of them.
 (MOVWnop (MOVWconst [c])) => (MOVWconst [c])
 
-// fold constant into arithmatic ops
+// fold constant into arithmetic ops
 (ADD x (MOVWconst [c])) => (ADDconst [c] x)
 (SUB x (MOVWconst [c])) => (SUBconst [c] x)
 (AND x (MOVWconst [c])) => (ANDconst [c] x)

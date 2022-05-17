@@ -479,7 +479,7 @@
 (MOVHUloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) => (MOVHUreg x)
 (MOVHloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) => (MOVHreg x)
 
-// fold constant into arithmatic ops
+// fold constant into arithmetic ops
 (ADD x (MOVWconst [c])) => (ADDconst [c] x)
 (SUB (MOVWconst [c]) x) => (RSBconst [c] x)
 (SUB x (MOVWconst [c])) => (SUBconst [c] x)

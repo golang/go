@@ -174,7 +174,7 @@ func (p *Package) writeDefs() {
 				// the external linker will add DT_NEEDED
 				// entries as needed on ELF systems.
 				// Treat function variables differently
-				// to avoid type confict errors from LTO
+				// to avoid type conflict errors from LTO
 				// (Link Time Optimization).
 				if n.Kind == "fpvar" {
 					fmt.Fprintf(fm, "extern void %s();\n", n.C)

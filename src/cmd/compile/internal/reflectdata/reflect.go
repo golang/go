@@ -356,7 +356,7 @@ func methods(t *types.Type) []*typeSig {
 		}
 		if f.Nointerface() {
 			// In the case of a nointerface method on an instantiated
-			// type, don't actually apppend the typeSig.
+			// type, don't actually append the typeSig.
 			continue
 		}
 		ms = append(ms, sig)
