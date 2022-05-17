@@ -63,8 +63,8 @@ type Addr struct {
 	z *intern.Value
 }
 
-// z0, z4, and z6noz are sentinel IP.z values.
-// See the IP type's field docs.
+// z0, z4, and z6noz are sentinel Addr.z values.
+// See the Addr type's field docs.
 var (
 	z0    = (*intern.Value)(nil)
 	z4    = new(intern.Value)
