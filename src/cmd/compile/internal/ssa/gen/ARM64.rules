@@ -1166,7 +1166,7 @@
 // But for now, this is enough to get rid of lots of them.
 (MOVDnop (MOVDconst [c])) => (MOVDconst [c])
 
-// fold constant into arithmatic ops
+// fold constant into arithmetic ops
 (ADD x (MOVDconst [c])) => (ADDconst [c] x)
 (SUB x (MOVDconst [c])) => (SUBconst [c] x)
 (AND x (MOVDconst [c])) => (ANDconst [c] x)

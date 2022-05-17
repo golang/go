@@ -144,7 +144,7 @@ Do not send CLs removing the interior tags from such phrases.
       returns an "operation was canceled" error, the error will now
       satisfy <code>errors.Is(err, context.Canceled)</code>.
       These changes are intended to make it easier for code to test
-      for cases in which a context cancelation or timeout causes a net
+      for cases in which a context cancellation or timeout causes a net
       package function or method to return an error, while preserving
       backward compatibility for error messages.
     </p>
