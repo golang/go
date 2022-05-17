@@ -1726,6 +1726,9 @@ func CollectPTabs() {
 		if s.Pkg.Name != "main" {
 			continue
 		}
+		if n.Type().HasTParam() {
+			continue // skip generic functions (#52937)
+		}
 		ptabs = append(ptabs, n)
 	}
 }

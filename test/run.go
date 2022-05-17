@@ -993,7 +993,10 @@ func (t *test) run() {
 
 	case "build":
 		// Build Go file.
-		_, err := runcmd(goTool(), "build", t.goGcflags(), "-o", "a.exe", long)
+		cmd := []string{goTool(), "build", t.goGcflags()}
+		cmd = append(cmd, flags...)
+		cmd = append(cmd, "-o", "a.exe", long)
+		_, err := runcmd(cmd...)
 		if err != nil {
 			t.err = err
 		}
