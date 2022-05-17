@@ -13,7 +13,9 @@ import (
 //go:generate go run mkduff.go
 //go:generate go run mkfastlog2table.go
 
-var ticks struct {
+var ticks ticksType
+
+type ticksType struct {
 	lock mutex
 	pad  uint32 // ensure 8-byte alignment of val on 386
 	val  uint64

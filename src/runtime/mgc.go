@@ -279,7 +279,9 @@ func pollFractionalWorkerExit() bool {
 	return float64(selfTime)/float64(delta) > 1.2*gcController.fractionalUtilizationGoal
 }
 
-var work struct {
+var work workType
+
+type workType struct {
 	full  lfstack          // lock-free list of full blocks workbuf
 	empty lfstack          // lock-free list of empty blocks workbuf
 	pad0  cpu.CacheLinePad // prevents false-sharing between full/empty and nproc/nwait
