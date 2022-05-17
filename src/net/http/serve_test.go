@@ -3873,7 +3873,7 @@ func testServerReaderFromOrder(t *testing.T, h2 bool) {
 
 // Issue 6157, Issue 6685
 func TestCodesPreventingContentTypeAndBody(t *testing.T) {
-	for _, code := range []int{StatusNotModified, StatusNoContent, StatusContinue} {
+	for _, code := range []int{StatusNotModified, StatusNoContent} {
 		ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
 			if r.URL.Path == "/header" {
 				w.Header().Set("Content-Length", "123")
@@ -6723,5 +6723,37 @@ func testMaxBytesHandler(t *testing.T, maxSize, requestSize int64) {
 	}
 	if buf.Len() != int(handlerN) {
 		t.Errorf("expected echo of size %d; got %d", handlerN, buf.Len())
+	}
+}
+
+func TestEarlyHints(t *testing.T) {
+	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
+		h := w.Header()
+		h.Add("Link", "</style.css>; rel=preload; as=style")
+		h.Add("Link", "</script.js>; rel=preload; as=script")
+		w.WriteHeader(StatusEarlyHints)
+
+		h.Add("Link", "</foo.js>; rel=preload; as=script")
+		w.WriteHeader(StatusEarlyHints)
+
+		w.Write([]byte("stuff"))
+	}))
+
+	got := ht.rawResponse("GET / HTTP/1.1\nHost: golang.org")
+	expected := "HTTP/1.1 103 Early Hints\r\nLink: </style.css>; rel=preload; as=style\r\nLink: </script.js>; rel=preload; as=script\r\n\r\nHTTP/1.1 103 Early Hints\r\nLink: </style.css>; rel=preload; as=style\r\nLink: </script.js>; rel=preload; as=script\r\nLink: </foo.js>; rel=preload; as=script\r\n\r\nHTTP/1.1 200 OK\r\nLink: </style.css>; rel=preload; as=style\r\nLink: </script.js>; rel=preload; as=script\r\nLink: </foo.js>; rel=preload; as=script\r\nDate: " // dynamic content expected
+	if !strings.Contains(got, expected) {
+		t.Errorf("unexpected response; got %q; should start by %q", got, expected)
+	}
+}
+func TestProcessing(t *testing.T) {
+	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusProcessing)
+		w.Write([]byte("stuff"))
+	}))
+
+	got := ht.rawResponse("GET / HTTP/1.1\nHost: golang.org")
+	expected := "HTTP/1.1 102 Processing\r\n\r\nHTTP/1.1 200 OK\r\nDate: " // dynamic content expected
+	if !strings.Contains(got, expected) {
+		t.Errorf("unexpected response; got %q; should start by %q", got, expected)
 	}
 }
