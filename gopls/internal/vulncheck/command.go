@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/packages"
+	gvc "golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/vuln/client"
 	"golang.org/x/vuln/vulncheck"
@@ -28,7 +29,7 @@ func govulncheck(ctx context.Context, cfg *packages.Config, args command.Vulnche
 		args.Pattern = "."
 	}
 
-	dbClient, err := client.NewClient(findGOVULNDB(cfg), client.Options{HTTPCache: defaultCache()})
+	dbClient, err := client.NewClient(findGOVULNDB(cfg), client.Options{HTTPCache: gvc.DefaultCache()})
 	if err != nil {
 		return res, err
 	}

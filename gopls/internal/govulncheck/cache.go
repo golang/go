@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package vulncheck
+//go:build go1.18
+// +build go1.18
+
+// Package govulncheck supports the govulncheck command.
+package govulncheck
 
 import (
 	"encoding/json"
@@ -16,8 +20,6 @@ import (
 	"golang.org/x/vuln/client"
 	"golang.org/x/vuln/osv"
 )
-
-// copy from x/vuln/cmd/govulncheck/cache.go
 
 // The cache uses a single JSON index file for each vulnerability database
 // which contains the map from packages to the time the last
@@ -37,19 +39,22 @@ import (
 // $GOPATH/pkg/mod/cache/download/vulndb/{db hostname}/{import path}/vulns.json
 //   []*osv.Entry
 
-// fsCache is a thread-safe file-system cache implementing osv.Cache
+// FSCache is a thread-safe file-system cache implementing osv.Cache
 //
 // TODO: use something like cmd/go/internal/lockedfile for thread safety?
-type fsCache struct {
+type FSCache struct {
 	mu      sync.Mutex
 	rootDir string
 }
 
+// Assert that *FSCache implements client.Cache.
+var _ client.Cache = (*FSCache)(nil)
+
 // use cfg.GOMODCACHE available in cmd/go/internal?
 var defaultCacheRoot = filepath.Join(build.Default.GOPATH, "/pkg/mod/cache/download/vulndb")
 
-func defaultCache() *fsCache {
-	return &fsCache{rootDir: defaultCacheRoot}
+func DefaultCache() *FSCache {
+	return &FSCache{rootDir: defaultCacheRoot}
 }
 
 type cachedIndex struct {
@@ -57,7 +62,7 @@ type cachedIndex struct {
 	Index     client.DBIndex
 }
 
-func (c *fsCache) ReadIndex(dbName string) (client.DBIndex, time.Time, error) {
+func (c *FSCache) ReadIndex(dbName string) (client.DBIndex, time.Time, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -75,7 +80,7 @@ func (c *fsCache) ReadIndex(dbName string) (client.DBIndex, time.Time, error) {
 	return index.Index, index.Retrieved, nil
 }
 
-func (c *fsCache) WriteIndex(dbName string, index client.DBIndex, retrieved time.Time) error {
+func (c *FSCache) WriteIndex(dbName string, index client.DBIndex, retrieved time.Time) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -96,7 +101,7 @@ func (c *fsCache) WriteIndex(dbName string, index client.DBIndex, retrieved time
 	return nil
 }
 
-func (c *fsCache) ReadEntries(dbName string, p string) ([]*osv.Entry, error) {
+func (c *FSCache) ReadEntries(dbName string, p string) ([]*osv.Entry, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -114,7 +119,7 @@ func (c *fsCache) ReadEntries(dbName string, p string) ([]*osv.Entry, error) {
 	return entries, nil
 }
 
-func (c *fsCache) WriteEntries(dbName string, p string, entries []*osv.Entry) error {
+func (c *FSCache) WriteEntries(dbName string, p string, entries []*osv.Entry) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
