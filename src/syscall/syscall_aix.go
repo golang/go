@@ -65,6 +65,7 @@ func Access(path string, mode uint32) (err error) {
 //sys	Dup2(old int, new int) (err error)
 
 //sysnb pipe(p *[2]_C_int) (err error)
+
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
@@ -79,12 +80,14 @@ func Pipe(p []int) (err error) {
 }
 
 //sys	readlink(path string, buf []byte, bufSize uint64) (n int, err error)
+
 func Readlink(path string, buf []byte) (n int, err error) {
 	s := uint64(len(buf))
 	return readlink(path, buf, s)
 }
 
 //sys	utimes(path string, times *[2]Timeval) (err error)
+
 func Utimes(path string, tv []Timeval) error {
 	if len(tv) != 2 {
 		return EINVAL
@@ -93,6 +96,7 @@ func Utimes(path string, tv []Timeval) error {
 }
 
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+
 func UtimesNano(path string, ts []Timespec) error {
 	if len(ts) != 2 {
 		return EINVAL
@@ -101,6 +105,7 @@ func UtimesNano(path string, ts []Timespec) error {
 }
 
 //sys	unlinkat(dirfd int, path string, flags int) (err error)
+
 func Unlinkat(dirfd int, path string) (err error) {
 	return unlinkat(dirfd, path, 0)
 }
@@ -206,11 +211,13 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 }
 
 //sys	getdirent(fd int, buf []byte) (n int, err error)
+
 func ReadDirent(fd int, buf []byte) (n int, err error) {
 	return getdirent(fd, buf)
 }
 
 //sys  wait4(pid _Pid_t, status *_C_int, options int, rusage *Rusage) (wpid _Pid_t, err error)
+
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) {
 	var status _C_int
 	var r _Pid_t
@@ -228,6 +235,7 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 }
 
 //sys	fsyncRange(fd int, how int, start int64, length int64) (err error) = fsync_range
+
 func Fsync(fd int) error {
 	return fsyncRange(fd, O_SYNC, 0, 0)
 }
@@ -313,6 +321,7 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 }
 
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
