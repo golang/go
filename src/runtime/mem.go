@@ -44,6 +44,7 @@ import "unsafe"
 //
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
+//
 //go:nosplit
 func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	sysStat.add(int64(n))
@@ -94,6 +95,7 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
 //
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
+//
 //go:nosplit
 func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
 	sysStat.add(-int64(n))

@@ -87,14 +87,15 @@ func Search(n int, f func(int) bool) int {
 //
 // For example, to look for a particular string in a sorted, random-access
 // list of strings:
-//    i, found := sort.Find(x.Len(), func(i int) int {
-//        return strings.Compare(target, x.At(i))
-//    })
-//    if found {
-//        fmt.Printf("found %s at entry %d\n", target, i)
-//    } else {
-//        fmt.Printf("%s not found, would insert at %d", target, i)
-//    }
+//
+//	i, found := sort.Find(x.Len(), func(i int) int {
+//	    return strings.Compare(target, x.At(i))
+//	})
+//	if found {
+//	    fmt.Printf("found %s at entry %d\n", target, i)
+//	} else {
+//	    fmt.Printf("%s not found, would insert at %d", target, i)
+//	}
 func Find(n int, cmp func(int) int) (i int, found bool) {
 	// The invariants here are similar to the ones in Search.
 	// Define cmp(-1) > 0 and cmp(n) <= 0

@@ -43,6 +43,7 @@ func (b *aesCipherAsm) NewCBCDecrypter(iv []byte) cipher.BlockMode {
 func (x *cbc) BlockSize() int { return BlockSize }
 
 // cryptBlocksChain invokes the cipher message identifying encrypt or decrypt.
+//
 //go:noescape
 func cryptBlocksChain(src, dst *byte, length int, key *uint32, iv *byte, enc int, nr int)
 

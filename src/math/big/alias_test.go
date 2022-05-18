@@ -93,7 +93,7 @@ func (smallUint) Generate(rand *rand.Rand, size int) reflect.Value {
 // f is a function that takes x as an argument, doesn't modify it, sets v to the
 // result, and returns v. It is the function signature of unbound methods like
 //
-//     func (v *big.Int) m(x *big.Int) *big.Int
+//	func (v *big.Int) m(x *big.Int) *big.Int
 //
 // v and x are two random Int values. v is randomized even if it will be
 // overwritten to test for improper buffer reuse.
@@ -122,7 +122,7 @@ func checkAliasingOneArg(t *testing.T, f func(v, x *big.Int) *big.Int, v, x *big
 // to the result, and returns v. It is the function signature of unbound methods
 // like
 //
-//     func (v *big.Int) m(x, y *big.Int) *big.Int
+//	func (v *big.Int) m(x, y *big.Int) *big.Int
 //
 // v, x and y are random Int values. v is randomized even if it will be
 // overwritten to test for improper buffer reuse.

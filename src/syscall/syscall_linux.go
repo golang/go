@@ -32,6 +32,7 @@ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errn
 
 //go:linkname runtime_entersyscall runtime.entersyscall
 func runtime_entersyscall()
+
 //go:linkname runtime_exitsyscall runtime.exitsyscall
 func runtime_exitsyscall()
 

@@ -329,7 +329,6 @@ var bitfieldTests = map[string]string{
 // another_struct {quix short unsigned int@0; xyz [-1]int@4; x unsigned int@4 : 1@31; array [40]long long int@8}
 //
 // Note the "-1" for the xyz field, which should be zero.
-//
 func TestBitFieldZeroArrayIssue50685(t *testing.T) {
 	f := "testdata/bitfields.elf4"
 	testTypedefs(t, elfData(t, f), "elf", bitfieldTests)

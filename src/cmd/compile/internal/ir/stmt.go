@@ -264,11 +264,13 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 }
 
 // A JumpTableStmt is used to implement switches. Its semantics are:
-//   tmp := jt.Idx
-//   if tmp == Cases[0] goto Targets[0]
-//   if tmp == Cases[1] goto Targets[1]
-//   ...
-//   if tmp == Cases[n] goto Targets[n]
+//
+//	tmp := jt.Idx
+//	if tmp == Cases[0] goto Targets[0]
+//	if tmp == Cases[1] goto Targets[1]
+//	...
+//	if tmp == Cases[n] goto Targets[n]
+//
 // Note that a JumpTableStmt is more like a multiway-goto than
 // a multiway-if. In particular, the case bodies are just
 // labels to jump to, not not full Nodes lists.

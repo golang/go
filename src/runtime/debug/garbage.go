@@ -188,7 +188,6 @@ func SetTraceback(level string)
 // aggressively. This limit will be respected even if GOGC=off (or,
 // if SetGCPercent(-1) is executed).
 //
-//
 // The input limit is provided as bytes, and includes all memory
 // mapped, managed, and not released by the Go runtime. Notably, it
 // does not account for space used by the Go binary and memory
@@ -202,11 +201,11 @@ func SetTraceback(level string)
 // More specifically, the following expression accurately reflects
 // the value the runtime attempts to maintain as the limit:
 //
-//     runtime.MemStats.Sys - runtime.MemStats.HeapReleased
+//	runtime.MemStats.Sys - runtime.MemStats.HeapReleased
 //
 // or in terms of the runtime/metrics package:
 //
-//     /memory/classes/total:bytes - /memory/classes/heap/released:bytes
+//	/memory/classes/total:bytes - /memory/classes/heap/released:bytes
 //
 // A zero limit or a limit that's lower than the amount of memory
 // used by the Go runtime may cause the garbage collector to run
