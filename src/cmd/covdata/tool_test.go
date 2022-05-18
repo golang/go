@@ -5,19 +5,78 @@
 package main_test
 
 import (
+	cmdcovdata "cmd/covdata"
+	"flag"
 	"fmt"
 	"internal/coverage/pods"
 	"internal/goexperiment"
 	"internal/testenv"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
+
+// Path to unit test executable to be used as standin for 'go tool covdata'
+var testcovdata string
+
+// Top level tempdir for test.
+var testTempDir string
+
+// If set, this will preserve all the tmpdir files from the test run.
+var preserveTmp = flag.Bool("preservetmp", false, "keep tmpdir files for debugging")
+
+// TestMain used here so that we can leverage the test executable
+// itself as a cmd/covdata executable; compare to similar usage in
+// the cmd/go tests.
+func TestMain(m *testing.M) {
+	// When CMDCOVDATA_TEST_RUN_MAIN is set, we're reusing the test
+	// binary as cmd/cover. In this case we run the main func exported
+	// via export_test.go, and exit; CMDCOVDATA_TEST_RUN_MAIN is set below
+	// for actual test invocations.
+	if os.Getenv("CMDCOVDATA_TEST_RUN_MAIN") != "" {
+		cmdcovdata.Main()
+		os.Exit(0)
+	}
+	flag.Parse()
+	topTmpdir, err := os.MkdirTemp("", "cmd-covdata-test-")
+	if err != nil {
+		log.Fatal(err)
+	}
+	testTempDir = topTmpdir
+	if !*preserveTmp {
+		defer os.RemoveAll(topTmpdir)
+	} else {
+		fmt.Fprintf(os.Stderr, "debug: preserving tmpdir %s\n", topTmpdir)
+	}
+	os.Setenv("CMDCOVDATA_TEST_RUN_MAIN", "true")
+	testExe, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	testcovdata = testExe
+	os.Exit(m.Run())
+}
+
+var tdmu sync.Mutex
+var tdcount int
+
+func tempDir(t *testing.T) string {
+	tdmu.Lock()
+	dir := filepath.Join(testTempDir, fmt.Sprintf("%03d", tdcount))
+	tdcount++
+	if err := os.Mkdir(dir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	defer tdmu.Unlock()
+	return dir
+}
 
 const debugtrace = false
 
@@ -103,7 +162,7 @@ func TestCovTool(t *testing.T) {
 	if !goexperiment.CoverageRedesign {
 		t.Skipf("stubbed out due to goexperiment.CoverageRedesign=false")
 	}
-	dir := t.TempDir()
+	dir := tempDir(t)
 	if testing.Short() {
 		t.Skip()
 	}
@@ -122,10 +181,8 @@ func TestCovTool(t *testing.T) {
 	flags := []string{"-covermode=atomic"}
 	s.exepath3, s.exedir3 = buildProg(t, "prog1", dir, "atomic", flags)
 
-	// Build the tool.
-	s.tool = filepath.Join(dir, "tool.exe")
-	args := []string{"build", "-o", s.tool, "."}
-	gobuild(t, "", args)
+	// Reuse unit test executable as tool to be tested.
+	s.tool = testcovdata
 
 	// Create a few coverage output dirs.
 	for i := 0; i < 4; i++ {

@@ -67,9 +67,9 @@ func runPkgCover(t *testing.T, outdir string, tag string, incfg string, mode str
 const debugWorkDir = false
 
 func TestCoverWithCfg(t *testing.T) {
-	t.Parallel()
 	testenv.MustHaveGoRun(t)
-	buildCover(t)
+
+	t.Parallel()
 
 	// Subdir in testdata that has our input files of interest.
 	tpath := filepath.Join("testdata", "pkgcfg")
@@ -90,7 +90,7 @@ func TestCoverWithCfg(t *testing.T) {
 		return paths
 	}
 
-	dir := t.TempDir()
+	dir := tempDir(t)
 	if debugWorkDir {
 		dir = "/tmp/qqq"
 		os.RemoveAll(dir)
