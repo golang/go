@@ -618,6 +618,12 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 		// not a special composite literal assignment
 		return false
 	}
+	if x.Addrtaken() {
+		// If x is address-taken, the RHS may (implicitly) uses LHS.
+		// Not safe to do a special composite literal assignment
+		// (which may expand to multiple assignments).
+		return false
+	}
 
 	switch n.Y.Op() {
 	default:
@@ -626,7 +632,7 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		if ir.Any(n.Y, func(y ir.Node) bool { return ir.Uses(y, x) }) {
-			// not a special composite literal assignment
+			// not safe to do a special composite literal assignment if RHS uses LHS.
 			return false
 		}
 		anylit(n.Y, n.X, init)
