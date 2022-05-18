@@ -112,6 +112,7 @@ func Pipe(p []int) (err error) {
 }
 
 //sysnb pipe2(p *[2]_C_int, flags int) (err error)
+
 func Pipe2(p []int, flags int) error {
 	if len(p) != 2 {
 		return EINVAL
@@ -126,6 +127,7 @@ func Pipe2(p []int, flags int) error {
 }
 
 //sys paccept(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, sigmask *sigset, flags int) (nfd int, err error)
+
 func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
@@ -145,6 +147,7 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
 }
 
 //sys getdents(fd int, buf []byte) (n int, err error)
+
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return getdents(fd, buf)
 }
