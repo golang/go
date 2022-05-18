@@ -137,7 +137,7 @@ func createInstance(fn *Function, targs []types.Type, info *types.Info, syntax a
 		sig = prog.canon.Type(instance).(*types.Signature)
 	}
 
-	name := fmt.Sprintf("%s[%s]", fn.Name(), targs) // may not be unique
+	name := fmt.Sprintf("%s%s", fn.Name(), targs) // may not be unique
 	synthetic := fmt.Sprintf("instantiation of %s", fn.Name())
 	instance := &Function{
 		name:        name,

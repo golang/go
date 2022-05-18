@@ -93,10 +93,10 @@ func TestStatic(t *testing.T) {
 		{genericsInput, []string{
 			"(*A).F -> (A).F",
 			"(*B).F -> (B).F",
-			"f -> instantiated[[P.A]]",
-			"f -> instantiated[[P.B]]",
-			"instantiated[[P.A]] -> (A).F",
-			"instantiated[[P.B]] -> (B).F",
+			"f -> instantiated[P.A]",
+			"f -> instantiated[P.B]",
+			"instantiated[P.A] -> (A).F",
+			"instantiated[P.B] -> (B).F",
 		}, true},
 	} {
 		if e.typeparams && !typeparams.Enabled {

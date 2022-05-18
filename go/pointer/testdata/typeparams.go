@@ -62,7 +62,7 @@ func main() {
 	fn(&b)
 }
 
-// @calls (*fmt.pp).handleMethods -> (*command-line-arguments.S[int]).String[[int]]
-// @calls (*fmt.pp).handleMethods -> (*command-line-arguments.S[bool]).String[[bool]]
-// @calls command-line-arguments.Caller[[int]] -> (*command-line-arguments.S[int]).String[[int]]
-// @calls command-line-arguments.Caller[[bool]] -> (*command-line-arguments.S[bool]).String[[bool]]
+// @calls (*fmt.pp).handleMethods -> (*command-line-arguments.S[int]).String[int]
+// @calls (*fmt.pp).handleMethods -> (*command-line-arguments.S[bool]).String[bool]
+// @calls command-line-arguments.Caller[int] -> (*command-line-arguments.S[int]).String[int]
+// @calls command-line-arguments.Caller[bool] -> (*command-line-arguments.S[bool]).String[bool]

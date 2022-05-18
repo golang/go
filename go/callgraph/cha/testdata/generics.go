@@ -27,7 +27,7 @@ func f(h func(), g func(I), k func(A), a A, b B) {
 	h()
 
 	k(a)
-	g(b) // g:func(I) is not matched by instantiated[[B]]:func(B)
+	g(b) // g:func(I) is not matched by instantiated[B]:func(B)
 
 	instantiated[A](a) // static call
 	instantiated[B](b) // static call
@@ -38,8 +38,8 @@ func f(h func(), g func(I), k func(A), a A, b B) {
 //   (*A).Foo --> (A).Foo
 //   (*B).Foo --> (B).Foo
 //   f --> Bar
-//   f --> instantiated[[main.A]]
-//   f --> instantiated[[main.A]]
-//   f --> instantiated[[main.B]]
-//   instantiated[[main.A]] --> (A).Foo
-//   instantiated[[main.B]] --> (B).Foo
+//   f --> instantiated[main.A]
+//   f --> instantiated[main.A]
+//   f --> instantiated[main.B]
+//   instantiated[main.A] --> (A).Foo
+//   instantiated[main.B] --> (B).Foo
