@@ -313,8 +313,8 @@ func ggloblnod(nam *ir.Name) {
 	} else {
 		base.Ctxt.Globl(s, size, flags)
 	}
-	if nam.LibfuzzerExtraCounter() {
-		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
+	if nam.Libfuzzer8BitCounter() {
+		s.Type = objabi.SLIBFUZZER_8BIT_COUNTER
 	}
 	if nam.Sym().Linkname != "" {
 		// Make sure linkname'd symbol is non-package. When a symbol is
