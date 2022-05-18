@@ -1117,7 +1117,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, TLSSym)
 			}
 
-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_EXTRA_COUNTER:
+		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER:
 			if ldr.AttrReachable(s) {
 				data := ldr.Data(s)
 				if len(data) > 0 {

@@ -67,7 +67,7 @@ const (
 	SDWARFLOC
 	SDWARFLINES
 	// Coverage instrumentation counter for libfuzzer.
-	SLIBFUZZER_EXTRA_COUNTER
+	SLIBFUZZER_8BIT_COUNTER
 	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
 
 )

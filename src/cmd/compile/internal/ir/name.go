@@ -235,7 +235,7 @@ const (
 	nameInlFormal                // PAUTO created by inliner, derived from callee formal
 	nameInlLocal                 // PAUTO created by inliner, derived from callee local
 	nameOpenDeferSlot            // if temporary var storing info for open-coded defers
-	nameLibfuzzerExtraCounter    // if PEXTERN should be assigned to __libfuzzer_extra_counters section
+	nameLibfuzzer8BitCounter     // if PEXTERN should be assigned to __sancov_cntrs section
 	nameAlias                    // is type name an alias
 )
 
@@ -250,7 +250,7 @@ func (n *Name) Addrtaken() bool                { return n.flags&nameAddrtaken !=
 func (n *Name) InlFormal() bool                { return n.flags&nameInlFormal != 0 }
 func (n *Name) InlLocal() bool                 { return n.flags&nameInlLocal != 0 }
 func (n *Name) OpenDeferSlot() bool            { return n.flags&nameOpenDeferSlot != 0 }
-func (n *Name) LibfuzzerExtraCounter() bool    { return n.flags&nameLibfuzzerExtraCounter != 0 }
+func (n *Name) Libfuzzer8BitCounter() bool     { return n.flags&nameLibfuzzer8BitCounter != 0 }
 
 func (n *Name) setReadonly(b bool)                 { n.flags.set(nameReadonly, b) }
 func (n *Name) SetNeedzero(b bool)                 { n.flags.set(nameNeedzero, b) }
@@ -263,7 +263,7 @@ func (n *Name) SetAddrtaken(b bool)                { n.flags.set(nameAddrtaken, 
 func (n *Name) SetInlFormal(b bool)                { n.flags.set(nameInlFormal, b) }
 func (n *Name) SetInlLocal(b bool)                 { n.flags.set(nameInlLocal, b) }
 func (n *Name) SetOpenDeferSlot(b bool)            { n.flags.set(nameOpenDeferSlot, b) }
-func (n *Name) SetLibfuzzerExtraCounter(b bool)    { n.flags.set(nameLibfuzzerExtraCounter, b) }
+func (n *Name) SetLibfuzzer8BitCounter(b bool)     { n.flags.set(nameLibfuzzer8BitCounter, b) }
 
 // OnStack reports whether variable n may reside on the stack.
 func (n *Name) OnStack() bool {
