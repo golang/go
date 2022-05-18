@@ -78,7 +78,7 @@ type readerTypeBound struct {
 	boundIdx int
 }
 
-func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx int, marker pkgbits.SyncMarker) *reader {
+func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
 	return &reader{
 		Decoder: pr.NewDecoder(k, idx, marker),
 		p:       pr,
@@ -104,7 +104,7 @@ func (r *reader) posBase() *syntax.PosBase {
 	return r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase))
 }
 
-func (pr *pkgReader) posBaseIdx(idx int) *syntax.PosBase {
+func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *syntax.PosBase {
 	if b := pr.posBases[idx]; b != nil {
 		return b
 	}
@@ -134,7 +134,7 @@ func (r *reader) pkg() *types2.Package {
 	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
 }
 
-func (pr *pkgReader) pkgIdx(idx int) *types2.Package {
+func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types2.Package {
 	// TODO(mdempsky): Consider using some non-nil pointer to indicate
 	// the universe scope, so we don't need to keep re-reading it.
 	if pkg := pr.pkgs[idx]; pkg != nil {
@@ -187,7 +187,7 @@ func (r *reader) typ() types2.Type {
 func (r *reader) typInfo() typeInfo {
 	r.Sync(pkgbits.SyncType)
 	if r.Bool() {
-		return typeInfo{idx: r.Len(), derived: true}
+		return typeInfo{idx: pkgbits.Index(r.Len()), derived: true}
 	}
 	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
 }
@@ -364,7 +364,7 @@ func (r *reader) obj() (types2.Object, []types2.Type) {
 	return obj, targs
 }
 
-func (pr *pkgReader) objIdx(idx int) (*types2.Package, string) {
+func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 
 	objPkg, objName := rname.qualifiedIdent()
@@ -434,7 +434,7 @@ func (pr *pkgReader) objIdx(idx int) (*types2.Package, string) {
 	return objPkg, objName
 }
 
-func (pr *pkgReader) objDictIdx(idx int) *readerDict {
+func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
 	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
 	var dict readerDict

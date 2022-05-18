@@ -37,8 +37,8 @@ import (
 type linker struct {
 	pw pkgbits.PkgEncoder
 
-	pkgs  map[string]int
-	decls map[*types.Sym]int
+	pkgs  map[string]pkgbits.Index
+	decls map[*types.Sym]pkgbits.Index
 }
 
 func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.RelocEnt {
@@ -50,7 +50,7 @@ func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.Re
 	return res
 }
 
-func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx int) int {
+func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx pkgbits.Index) pkgbits.Index {
 	assert(pr != nil)
 
 	absIdx := pr.AbsIdx(k, idx)
@@ -59,7 +59,7 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx int) int {
 		return ^newidx
 	}
 
-	var newidx int
+	var newidx pkgbits.Index
 	switch k {
 	case pkgbits.RelocString:
 		newidx = l.relocString(pr, idx)
@@ -85,11 +85,11 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx int) int {
 	return newidx
 }
 
-func (l *linker) relocString(pr *pkgReader, idx int) int {
+func (l *linker) relocString(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 	return l.pw.StringIdx(pr.StringIdx(idx))
 }
 
-func (l *linker) relocPkg(pr *pkgReader, idx int) int {
+func (l *linker) relocPkg(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 	path := pr.PeekPkgPath(idx)
 
 	if newidx, ok := l.pkgs[path]; ok {
@@ -114,7 +114,7 @@ func (l *linker) relocPkg(pr *pkgReader, idx int) int {
 	return w.Flush()
 }
 
-func (l *linker) relocObj(pr *pkgReader, idx int) int {
+func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 	path, name, tag := pr.PeekObj(idx)
 	sym := types.NewPkg(path, "").Lookup(name)
 
@@ -184,7 +184,7 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
 	return w.Idx
 }
 
-func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx int) {
+func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx pkgbits.Index) {
 	r := pr.NewDecoderRaw(k, idx)
 	w.Relocs = l.relocAll(pr, r.Relocs)
 	io.Copy(&w.Data, &r.Data)

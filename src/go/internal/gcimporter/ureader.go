@@ -107,7 +107,7 @@ type readerDict struct {
 	derivedTypes []types.Type // lazily instantiated from derived
 }
 
-func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx int, marker pkgbits.SyncMarker) *reader {
+func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
 	return &reader{
 		Decoder: pr.NewDecoder(k, idx, marker),
 		p:       pr,
@@ -133,7 +133,7 @@ func (r *reader) posBase() string {
 	return r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase))
 }
 
-func (pr *pkgReader) posBaseIdx(idx int) string {
+func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) string {
 	if b := pr.posBases[idx]; b != "" {
 		return b
 	}
@@ -170,7 +170,7 @@ func (r *reader) pkg() *types.Package {
 	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
 }
 
-func (pr *pkgReader) pkgIdx(idx int) *types.Package {
+func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Package {
 	// TODO(mdempsky): Consider using some non-nil pointer to indicate
 	// the universe scope, so we don't need to keep re-reading it.
 	if pkg := pr.pkgs[idx]; pkg != nil {
@@ -222,7 +222,7 @@ func (r *reader) typ() types.Type {
 func (r *reader) typInfo() typeInfo {
 	r.Sync(pkgbits.SyncType)
 	if r.Bool() {
-		return typeInfo{idx: r.Len(), derived: true}
+		return typeInfo{idx: pkgbits.Index(r.Len()), derived: true}
 	}
 	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
 }
@@ -401,7 +401,7 @@ func (r *reader) obj() (types.Object, []types.Type) {
 	return obj, targs
 }
 
-func (pr *pkgReader) objIdx(idx int) (*types.Package, string) {
+func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 
 	objPkg, objName := rname.qualifiedIdent()
@@ -478,7 +478,7 @@ func (pr *pkgReader) objIdx(idx int) (*types.Package, string) {
 	return objPkg, objName
 }
 
-func (pr *pkgReader) objDictIdx(idx int) *readerDict {
+func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
 	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
 	var dict readerDict

@@ -23,7 +23,7 @@ type PkgEncoder struct {
 	// stringsIdx maps previously encoded strings to their index within
 	// the RelocString section, to allow deduplication. That is,
 	// elems[RelocString][stringsIdx[s]] == s (if present).
-	stringsIdx map[string]int
+	stringsIdx map[string]Index
 
 	syncFrames int
 }
@@ -36,7 +36,7 @@ type PkgEncoder struct {
 // higher-level Unified IR reader/writer code.
 func NewPkgEncoder(syncFrames int) PkgEncoder {
 	return PkgEncoder{
-		stringsIdx: make(map[string]int),
+		stringsIdx: make(map[string]Index),
 		syncFrames: syncFrames,
 	}
 }
@@ -87,13 +87,13 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 
 // StringIdx adds a string value to the strings section, if not
 // already present, and returns its index.
-func (pw *PkgEncoder) StringIdx(s string) int {
+func (pw *PkgEncoder) StringIdx(s string) Index {
 	if idx, ok := pw.stringsIdx[s]; ok {
 		assert(pw.elems[RelocString][idx] == s)
 		return idx
 	}
 
-	idx := len(pw.elems[RelocString])
+	idx := Index(len(pw.elems[RelocString]))
 	pw.elems[RelocString] = append(pw.elems[RelocString], s)
 	pw.stringsIdx[s] = idx
 	return idx
@@ -113,7 +113,7 @@ func (pw *PkgEncoder) NewEncoder(k RelocKind, marker SyncMarker) Encoder {
 //
 // Most callers should use NewEncoder instead.
 func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
-	idx := len(pw.elems[k])
+	idx := Index(len(pw.elems[k]))
 	pw.elems[k] = append(pw.elems[k], "") // placeholder
 
 	return Encoder{
@@ -134,11 +134,11 @@ type Encoder struct {
 	encodingRelocHeader bool
 
 	k   RelocKind
-	Idx int // index within relocation section
+	Idx Index // index within relocation section
 }
 
 // Flush finalizes the element's bitstream and returns its Index.
-func (w *Encoder) Flush() int {
+func (w *Encoder) Flush() Index {
 	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
 
 	// Backup the data so we write the relocations at the front.
@@ -157,7 +157,7 @@ func (w *Encoder) Flush() int {
 	for _, rEnt := range w.Relocs {
 		w.Sync(SyncReloc)
 		w.Len(int(rEnt.Kind))
-		w.Len(rEnt.Idx)
+		w.Len(int(rEnt.Idx))
 	}
 
 	io.Copy(&sb, &w.Data)
@@ -190,7 +190,7 @@ func (w *Encoder) rawVarint(x int64) {
 	w.rawUvarint(ux)
 }
 
-func (w *Encoder) rawReloc(r RelocKind, idx int) int {
+func (w *Encoder) rawReloc(r RelocKind, idx Index) int {
 	// TODO(mdempsky): Use map for lookup; this takes quadratic time.
 	for i, rEnt := range w.Relocs {
 		if rEnt.Kind == r && rEnt.Idx == idx {
@@ -279,7 +279,7 @@ func (w *Encoder) Uint(x uint) { w.Uint64(uint64(x)) }
 // Note: Only the index is formally written into the element
 // bitstream, so bitstream decoders must know from context which
 // section an encoded relocation refers to.
-func (w *Encoder) Reloc(r RelocKind, idx int) {
+func (w *Encoder) Reloc(r RelocKind, idx Index) {
 	w.Sync(SyncUseReloc)
 	w.Len(w.rawReloc(r, idx))
 }

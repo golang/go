@@ -7,19 +7,23 @@ package pkgbits
 // A RelocKind indicates a particular section within a unified IR export.
 type RelocKind int
 
+// An Index represents a bitstream element index within a particular
+// section.
+type Index int
+
 // A relocEnt (relocation entry) is an entry in an element's local
 // reference table.
 //
 // TODO(mdempsky): Rename this too.
 type RelocEnt struct {
 	Kind RelocKind
-	Idx  int
+	Idx  Index
 }
 
 // Reserved indices within the meta relocation section.
 const (
-	PublicRootIdx  = 0
-	PrivateRootIdx = 1
+	PublicRootIdx  Index = 0
+	PrivateRootIdx Index = 1
 )
 
 const (

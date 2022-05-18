@@ -23,10 +23,10 @@ type pkgWriter struct {
 	curpkg *types2.Package
 	info   *types2.Info
 
-	posBasesIdx map[*syntax.PosBase]int
-	pkgsIdx     map[*types2.Package]int
-	typsIdx     map[types2.Type]int
-	globalsIdx  map[types2.Object]int
+	posBasesIdx map[*syntax.PosBase]pkgbits.Index
+	pkgsIdx     map[*types2.Package]pkgbits.Index
+	typsIdx     map[types2.Type]pkgbits.Index
+	globalsIdx  map[types2.Object]pkgbits.Index
 
 	funDecls map[*types2.Func]*syntax.FuncDecl
 	typDecls map[*types2.TypeName]typeDeclGen
@@ -43,11 +43,11 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
 		curpkg: pkg,
 		info:   info,
 
-		pkgsIdx:    make(map[*types2.Package]int),
-		globalsIdx: make(map[types2.Object]int),
-		typsIdx:    make(map[types2.Type]int),
+		pkgsIdx:    make(map[*types2.Package]pkgbits.Index),
+		globalsIdx: make(map[types2.Object]pkgbits.Index),
+		typsIdx:    make(map[types2.Type]pkgbits.Index),
 
-		posBasesIdx: make(map[*syntax.PosBase]int),
+		posBasesIdx: make(map[*syntax.PosBase]pkgbits.Index),
 
 		funDecls: make(map[*types2.Func]*syntax.FuncDecl),
 		typDecls: make(map[*types2.TypeName]typeDeclGen),
@@ -97,7 +97,7 @@ type writerDict struct {
 
 	// derivedIdx maps a Type to its corresponding index within the
 	// derived slice, if present.
-	derivedIdx map[types2.Type]int
+	derivedIdx map[types2.Type]pkgbits.Index
 
 	// funcs lists references to generic functions that were
 	// instantiated with derived types (i.e., that require
@@ -111,7 +111,7 @@ type writerDict struct {
 
 // A derivedInfo represents a reference to an encoded generic Go type.
 type derivedInfo struct {
-	idx    int
+	idx    pkgbits.Index
 	needed bool
 }
 
@@ -124,18 +124,18 @@ type derivedInfo struct {
 // Otherwise, the typeInfo represents a non-generic Go type, and idx
 // is an index into the reader.typs array instead.
 type typeInfo struct {
-	idx     int
+	idx     pkgbits.Index
 	derived bool
 }
 
 type objInfo struct {
-	idx       int        // index for the generic function declaration
-	explicits []typeInfo // info for the type arguments
+	idx       pkgbits.Index // index for the generic function declaration
+	explicits []typeInfo    // info for the type arguments
 }
 
 type itabInfo struct {
-	typIdx int      // always a derived type index
-	iface  typeInfo // always a non-empty interface type
+	typIdx pkgbits.Index // always a derived type index
+	iface  typeInfo      // always a non-empty interface type
 }
 
 func (info objInfo) anyDerived() bool {
@@ -189,7 +189,7 @@ func (w *writer) posBase(b *syntax.PosBase) {
 	w.Reloc(pkgbits.RelocPosBase, w.p.posBaseIdx(b))
 }
 
-func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) int {
+func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) pkgbits.Index {
 	if idx, ok := pw.posBasesIdx[b]; ok {
 		return idx
 	}
@@ -215,7 +215,7 @@ func (w *writer) pkg(pkg *types2.Package) {
 	w.Reloc(pkgbits.RelocPkg, w.p.pkgIdx(pkg))
 }
 
-func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
+func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
 	if idx, ok := pw.pkgsIdx[pkg]; ok {
 		return idx
 	}
@@ -263,7 +263,7 @@ func (w *writer) typ(typ types2.Type) {
 func (w *writer) typInfo(info typeInfo) {
 	w.Sync(pkgbits.SyncType)
 	if w.Bool(info.derived) {
-		w.Len(info.idx)
+		w.Len(int(info.idx))
 		w.derived = true
 	} else {
 		w.Reloc(pkgbits.RelocType, info.idx)
@@ -385,7 +385,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 	}
 
 	if w.derived {
-		idx := len(dict.derived)
+		idx := pkgbits.Index(len(dict.derived))
 		dict.derived = append(dict.derived, derivedInfo{idx: w.Flush()})
 		dict.derivedIdx[typ] = idx
 		return typeInfo{idx: idx, derived: true}
@@ -515,13 +515,13 @@ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
 	}
 }
 
-func (pw *pkgWriter) objIdx(obj types2.Object) int {
+func (pw *pkgWriter) objIdx(obj types2.Object) pkgbits.Index {
 	if idx, ok := pw.globalsIdx[obj]; ok {
 		return idx
 	}
 
 	dict := &writerDict{
-		derivedIdx: make(map[types2.Type]int),
+		derivedIdx: make(map[types2.Type]pkgbits.Index),
 	}
 
 	if isDefinedType(obj) && obj.Pkg() == pw.curpkg {
@@ -663,7 +663,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	nitabs := len(dict.itabs)
 	w.Len(nitabs)
 	for _, itab := range dict.itabs {
-		w.Len(itab.typIdx)
+		w.Len(int(itab.typIdx))
 		w.typInfo(itab.iface)
 	}
 
@@ -829,7 +829,7 @@ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
 
 // @@@ Function bodies
 
-func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx int, closureVars []posObj) {
+func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx pkgbits.Index, closureVars []posObj) {
 	w := pw.newWriter(pkgbits.RelocBody, pkgbits.SyncFuncBody)
 	w.dict = dict
 
