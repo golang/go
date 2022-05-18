@@ -731,12 +731,11 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 	}
 
 	if debug.gcpacertrace > 0 {
-		heapGoal := c.heapGoal()
 		printlock()
 		goal := gcGoalUtilization * 100
 		print("pacer: ", int(utilization*100), "% CPU (", int(goal), " exp.) for ")
 		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.lastStackScan+c.globalsScan, " B exp.) ")
-		print("in ", c.triggered, " B -> ", c.heapLive, " B (∆goal ", int64(c.heapLive)-int64(heapGoal), ", cons/mark ", oldConsMark, ")")
+		print("in ", c.triggered, " B -> ", c.heapLive, " B (∆goal ", int64(c.heapLive)-int64(c.lastHeapGoal), ", cons/mark ", oldConsMark, ")")
 		if !ok {
 			print("[controller reset]")
 		}
