@@ -181,16 +181,16 @@ var lookupStaticHostAliasesTest = []struct {
 	{"test", "test"},
 	//127.0.0.2
 	{"test2.example.com", "test2.example.com"},
-	{"test2", "test2.example.com."},
+	{"2.test", "test2.example.com"},
 	//127.0.0.3
-	{"test3.example.com", "test3"},
-	{"test3", "test3"},
+	{"test3.example.com", "3.test"},
+	{"3.test", "3.test"},
 	//127.0.0.4
 	{"example.com", "example.com"},
 	//127.0.0.5
 	{"test5.example.com", "test4.example.com"},
-	{"test5", "test4.example.com"},
-	{"test4", "test4.example.com"},
+	{"5.test", "test4.example.com"},
+	{"4.test", "test4.example.com"},
 	{"test4.example.com", "test4.example.com"},
 }
 
@@ -208,7 +208,7 @@ func testLookupStaticHostAliases(t *testing.T, lookup, lookupRes string) {
 	for _, in := range ins {
 		_, res := lookupStaticHost(in)
 		if res != lookupRes {
-			t.Errorf("lookupStaticHost(%v): should be: '%v', but: '%v'", in, lookupRes, res)
+			t.Errorf("lookupStaticHost(%v): got %v, want %v", in, res, lookupRes)
 		}
 	}
 }

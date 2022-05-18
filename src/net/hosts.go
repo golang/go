@@ -110,7 +110,7 @@ func readHosts() {
 			}
 
 			hs[key] = byName{
-				addrs:         append(hs[key].addrs, addr),
+				addrs:         []string{addr},
 				canonicalName: canonical,
 			}
 		}
