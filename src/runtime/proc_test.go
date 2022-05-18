@@ -477,11 +477,12 @@ func TestPingPongHog(t *testing.T) {
 	<-lightChan
 
 	// Check that hogCount and lightCount are within a factor of
-	// 5, which indicates that both pairs of goroutines handed off
+	// 20, which indicates that both pairs of goroutines handed off
 	// the P within a time-slice to their buddy. We can use a
 	// fairly large factor here to make this robust: if the
-	// scheduler isn't working right, the gap should be ~1000X.
-	const factor = 5
+	// scheduler isn't working right, the gap should be ~1000X
+	// (was 5, increased to 20, see issue 52207).
+	const factor = 20
 	if hogCount > lightCount*factor || lightCount > hogCount*factor {
 		t.Fatalf("want hogCount/lightCount in [%v, %v]; got %d/%d = %g", 1.0/factor, factor, hogCount, lightCount, float64(hogCount)/float64(lightCount))
 	}
