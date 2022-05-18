@@ -1456,6 +1456,7 @@ func (c *piController) reset() {
 // If this returns false, the caller must NOT become an idle mark worker.
 //
 // nosplit because it may be called without a P.
+//
 //go:nosplit
 func (c *gcControllerState) addIdleMarkWorker() bool {
 	for {
@@ -1483,6 +1484,7 @@ func (c *gcControllerState) addIdleMarkWorker() bool {
 // useful for a quick check before an expensive operation.
 //
 // nosplit because it may be called without a P.
+//
 //go:nosplit
 func (c *gcControllerState) needIdleMarkWorker() bool {
 	p := c.idleMarkWorkers.Load()

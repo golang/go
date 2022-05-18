@@ -864,6 +864,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 //
 // This function throws if the system call returns with anything other than the
 // expected values.
+//
 //go:nosplit
 func runPerThreadSyscall() {
 	gp := getg()

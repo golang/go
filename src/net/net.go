@@ -588,7 +588,9 @@ func (e InvalidAddrError) Temporary() bool { return false }
 //
 // TODO(iant): We could consider changing this to os.ErrDeadlineExceeded
 // in the future, if we make
-//   errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
+//
+//	errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
+//
 // return true.
 var errTimeout error = &timeoutError{}
 

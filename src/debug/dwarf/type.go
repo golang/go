@@ -155,7 +155,7 @@ type StructType struct {
 
 // A StructField represents a field in a struct, union, or C++ class type.
 //
-// Bit Fields
+// # Bit Fields
 //
 // The BitSize, BitOffset, and DataBitOffset fields describe the bit
 // size and offset of data members declared as bit fields in C/C++
@@ -185,24 +185,24 @@ type StructType struct {
 // Here is an example of C/C++ bit field use, along with what to
 // expect in terms of DWARF bit offset info. Consider this code:
 //
-// struct S {
-//   int q;
-//   int j:5;
-//   int k:6;
-//   int m:5;
-//   int n:8;
-// } s;
+//	struct S {
+//		int q;
+//		int j:5;
+//		int k:6;
+//		int m:5;
+//		int n:8;
+//	} s;
 //
 // For the code above, one would expect to see the following for
 // DW_AT_bit_offset values (using GCC 8):
 //
-//          Little   |     Big
-//          Endian   |    Endian
-//                   |
-//   "j":     27     |     0
-//   "k":     21     |     5
-//   "m":     16     |     11
-//   "n":     8      |     16
+//	       Little   |     Big
+//	       Endian   |    Endian
+//	                |
+//	"j":     27     |     0
+//	"k":     21     |     5
+//	"m":     16     |     11
+//	"n":     8      |     16
 //
 // Note that in the above the offsets are purely with respect to the
 // containing storage unit for j/k/m/n -- these values won't vary based
@@ -211,10 +211,10 @@ type StructType struct {
 // If the compiler emits DW_AT_data_bit_offset, the expected values
 // would be:
 //
-//   "j":     32
-//   "k":     37
-//   "m":     43
-//   "n":     48
+//	"j":     32
+//	"k":     37
+//	"m":     43
+//	"n":     48
 //
 // Here the value 32 for "j" reflects the fact that the bit field is
 // preceded by other data members (recall that DW_AT_data_bit_offset
@@ -226,7 +226,6 @@ type StructType struct {
 // non-zero bit size and bit offset, so this information is also
 // captured for base types, but it is worth noting that it is not
 // possible to trigger this behavior using mainstream languages.
-//
 type StructField struct {
 	Name          string
 	Type          Type

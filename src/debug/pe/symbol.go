@@ -30,19 +30,19 @@ type COFFSymbol struct {
 // symbols for a given primary symbol are placed following it in the
 // array, e.g.
 //
-//   ...
-//   k+0:  regular sym k
-//   k+1:    1st aux symbol for k
-//   k+2:    2nd aux symbol for k
-//   k+3:  regular sym k+3
-//   k+4:    1st aux symbol for k+3
-//   k+5:  regular sym k+5
-//   k+6:  regular sym k+6
+//	...
+//	k+0:  regular sym k
+//	k+1:    1st aux symbol for k
+//	k+2:    2nd aux symbol for k
+//	k+3:  regular sym k+3
+//	k+4:    1st aux symbol for k+3
+//	k+5:  regular sym k+5
+//	k+6:  regular sym k+6
 //
 // The PE format allows for several possible aux symbol formats. For
 // more info see:
 //
-//     https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records
+//	https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records
 //
 // At the moment this package only provides APIs for looking at
 // aux symbols of format 5 (associated with section definition symbols).

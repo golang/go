@@ -425,7 +425,7 @@ func atoi32(s string) (int32, bool) {
 //
 // s must match the following regular expression:
 //
-//     ^[0-9]+(([KMGT]i)?B)?$
+//	^[0-9]+(([KMGT]i)?B)?$
 //
 // In other words, an integer byte count with an optional unit
 // suffix. Acceptable suffixes include one of

@@ -36,7 +36,6 @@
 // The load and store operations, implemented by the LoadT and StoreT
 // functions, are the atomic equivalents of "return *addr" and
 // "*addr = val".
-//
 package atomic
 
 import (
