@@ -3331,6 +3331,8 @@ func (rs *Rows) close(err error) error {
 		rs.closeStmt.Close()
 	}
 	rs.releaseConn(err)
+
+	rs.lasterr = rs.lasterrOrErrLocked(err)
 	return err
 }
 
