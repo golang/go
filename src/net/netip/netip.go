@@ -498,7 +498,7 @@ func (ip Addr) WithZone(zone string) Addr {
 	return ip
 }
 
-// withoutZone unconditionally strips the zone from IP.
+// withoutZone unconditionally strips the zone from ip.
 // It's similar to WithZone, but small enough to be inlinable.
 func (ip Addr) withoutZone() Addr {
 	if !ip.Is6() {
@@ -508,7 +508,7 @@ func (ip Addr) withoutZone() Addr {
 	return ip
 }
 
-// hasZone reports whether IP has an IPv6 zone.
+// hasZone reports whether ip has an IPv6 zone.
 func (ip Addr) hasZone() bool {
 	return ip.z != z0 && ip.z != z4 && ip.z != z6noz
 }
