@@ -1602,7 +1602,6 @@ var cgoEnabled = map[string]bool{
 // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
 var incomplete = map[string]bool{
 	"linux/sparc64": true,
-	"linux/loong64": true,
 }
 
 // List of platforms which are first class ports. See golang.org/issue/38874.
