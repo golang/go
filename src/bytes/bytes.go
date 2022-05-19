@@ -1309,3 +1309,29 @@ func Clone(b []byte) []byte {
 	}
 	return append([]byte{}, b...)
 }
+
+// CutPrefix returns s without the provided leading prefix byte slice
+// and reports whether it found the prefix.
+// If s doesn't start with prefix, CutPrefix returns s, false.
+// If prefix is the empty byte slice, CutPrefix returns s, true.
+//
+// CutPrefix returns slices of the original slice s, not copies.
+func CutPrefix(s, prefix []byte) (after []byte, found bool) {
+	if !HasPrefix(s, prefix) {
+		return s, false
+	}
+	return s[len(prefix):], true
+}
+
+// CutSuffix returns s without the provided ending suffix byte slice
+// and reports whether it found the suffix.
+// If s doesn't end with suffix, CutSuffix returns s, false.
+// If suffix is the empty byte slice, CutSuffix returns s, true.
+//
+// CutSuffix returns slices of the original slice s, not copies.
+func CutSuffix(s, suffix []byte) (after []byte, found bool) {
+	if !HasSuffix(s, suffix) {
+		return s, false
+	}
+	return s[:len(s)-len(suffix)], true
+}

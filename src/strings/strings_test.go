@@ -1611,6 +1611,48 @@ func TestCut(t *testing.T) {
 	}
 }
 
+var cutPrefixTests = []struct {
+	s, sep string
+	after  string
+	found  bool
+}{
+	{"abc", "a", "bc", true},
+	{"abc", "abc", "", true},
+	{"abc", "", "abc", true},
+	{"abc", "d", "abc", false},
+	{"", "d", "", false},
+	{"", "", "", true},
+}
+
+func TestCutPrefix(t *testing.T) {
+	for _, tt := range cutPrefixTests {
+		if after, found := CutPrefix(tt.s, tt.sep); after != tt.after || found != tt.found {
+			t.Errorf("CutPrefix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
+		}
+	}
+}
+
+var cutSuffixTests = []struct {
+	s, sep string
+	after  string
+	found  bool
+}{
+	{"abc", "bc", "a", true},
+	{"abc", "abc", "", true},
+	{"abc", "", "abc", true},
+	{"abc", "d", "abc", false},
+	{"", "d", "", false},
+	{"", "", "", true},
+}
+
+func TestCutSuffix(t *testing.T) {
+	for _, tt := range cutSuffixTests {
+		if after, found := CutSuffix(tt.s, tt.sep); after != tt.after || found != tt.found {
+			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
+		}
+	}
+}
+
 func makeBenchInputHard() string {
 	tokens := [...]string{
 		"<a>", "<p>", "<b>", "<strong>",
