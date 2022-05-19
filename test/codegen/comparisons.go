@@ -84,6 +84,28 @@ func CompareArray6(a, b unsafe.Pointer) bool {
 	return *((*[4]byte)(a)) != *((*[4]byte)(b))
 }
 
+// Check that some structs generate 2/4/8 byte compares.
+
+type T1 struct {
+	a [8]byte
+}
+
+func CompareStruct1(s1, s2 T1) bool {
+	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// amd64:-`CALL`
+	return s1 == s2
+}
+
+type T2 struct {
+	a [16]byte
+}
+
+func CompareStruct2(s1, s2 T2) bool {
+	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// amd64:-`CALL`
+	return s1 == s2
+}
+
 // -------------- //
 //    Ordering    //
 // -------------- //

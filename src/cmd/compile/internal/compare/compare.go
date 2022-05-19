@@ -79,6 +79,40 @@ func EqCanPanic(t *types.Type) bool {
 	}
 }
 
+// EqStructCost returns the cost of an equality comparison of two structs.
+//
+// The cost is determined using an algorithm which takes into consideration
+// the size of the registers in the current architecture and the size of the
+// memory-only fields in the struct.
+func EqStructCost(t *types.Type, unalignedLoad bool) int64 {
+	var (
+		cost    = int64(0)
+		regSize = int64(types.RegSize)
+	)
+
+	for i, fields := 0, t.FieldSlice(); i < len(fields); {
+		f := fields[i]
+
+		// Skip blank-named fields.
+		if f.Sym.IsBlank() {
+			i++
+			continue
+		}
+
+		size, next := Memrun(t, i)
+
+		if unalignedLoad && size%regSize == 0 {
+			cost += size / int64(types.RegSize)
+		} else if next == i+1 {
+			cost++
+		}
+
+		i = next
+	}
+
+	return cost
+}
+
 // EqStruct compares two structs np and nq for equality.
 // It works by building a list of boolean conditions to satisfy.
 // Conditions must be evaluated in the returned order and
