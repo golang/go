@@ -17,6 +17,7 @@ var gccgoArchSizes = map[string]*StdSizes{
 	"arm64":       {8, 8},
 	"arm64be":     {8, 8},
 	"ia64":        {8, 8},
+	"loong64":     {8, 8},
 	"m68k":        {4, 2},
 	"mips":        {4, 8},
 	"mipsle":      {4, 8},
