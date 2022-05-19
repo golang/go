@@ -218,7 +218,7 @@ func TestIssue18676(t *testing.T) {
 
 func TestIssue19534(t *testing.T) {
 	// Test that we can load a plugin built in a path with non-alpha characters.
-	goCmd(t, "build", "-buildmode=plugin", "-ldflags='-pluginpath=issue.19534'", "-o", "plugin.so", "./issue19534/plugin.go")
+	goCmd(t, "build", "-buildmode=plugin", "-gcflags=-p=issue.19534", "-ldflags=-pluginpath=issue.19534", "-o", "plugin.so", "./issue19534/plugin.go")
 	goCmd(t, "build", "-o", "issue19534.exe", "./issue19534/main.go")
 	run(t, "./issue19534.exe")
 }
