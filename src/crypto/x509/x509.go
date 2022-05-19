@@ -889,6 +889,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		if details.algo == algo {
 			hashType = details.hash
 			pubKeyAlgo = details.pubKeyAlgo
+			break
 		}
 	}
 
