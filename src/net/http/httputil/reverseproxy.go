@@ -156,10 +156,6 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 		} else {
 			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
 		}
-		if _, ok := req.Header["User-Agent"]; !ok {
-			// explicitly disable User-Agent so it's not set to default value
-			req.Header.Set("User-Agent", "")
-		}
 	}
 	return &ReverseProxy{Director: director}
 }
@@ -319,6 +315,12 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		} else {
 			outreq.Header.Set("X-Forwarded-Proto", "https")
 		}
+	}
+
+	if _, ok := outreq.Header["User-Agent"]; !ok {
+		// If the outbound request doesn't have a User-Agent header set,
+		// don't send the default Go HTTP client User-Agent.
+		outreq.Header.Set("User-Agent", "")
 	}
 
 	res, err := transport.RoundTrip(outreq)

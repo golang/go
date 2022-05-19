@@ -614,46 +614,38 @@ func TestNilBody(t *testing.T) {
 
 // Issue 15524
 func TestUserAgentHeader(t *testing.T) {
-	const explicitUA = "explicit UA"
+	var gotUA string
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/noua" {
-			if c := r.Header.Get("User-Agent"); c != "" {
-				t.Errorf("handler got non-empty User-Agent header %q", c)
-			}
-			return
-		}
-		if c := r.Header.Get("User-Agent"); c != explicitUA {
-			t.Errorf("handler got unexpected User-Agent header %q", c)
-		}
+		gotUA = r.Header.Get("User-Agent")
 	}))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	proxyHandler := NewSingleHostReverseProxy(backendURL)
+
+	proxyHandler := new(ReverseProxy)
 	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+	proxyHandler.Director = func(req *http.Request) {
+		req.URL = backendURL
+	}
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 	frontendClient := frontend.Client()
 
-	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
-	getReq.Header.Set("User-Agent", explicitUA)
-	getReq.Close = true
-	res, err := frontendClient.Do(getReq)
-	if err != nil {
-		t.Fatalf("Get: %v", err)
+	for _, sentUA := range []string{"explicit UA", ""} {
+		getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+		getReq.Header.Set("User-Agent", sentUA)
+		getReq.Close = true
+		res, err := frontendClient.Do(getReq)
+		if err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+		res.Body.Close()
+		if got, want := gotUA, sentUA; got != want {
+			t.Errorf("got forwarded User-Agent %q, want %q", got, want)
+		}
 	}
-	res.Body.Close()
-
-	getReq, _ = http.NewRequest("GET", frontend.URL+"/noua", nil)
-	getReq.Header.Set("User-Agent", "")
-	getReq.Close = true
-	res, err = frontendClient.Do(getReq)
-	if err != nil {
-		t.Fatalf("Get: %v", err)
-	}
-	res.Body.Close()
 }
 
 type bufferPool struct {
