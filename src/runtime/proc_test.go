@@ -483,7 +483,7 @@ func TestPingPongHog(t *testing.T) {
 	// scheduler isn't working right, the gap should be ~1000X
 	// (was 5, increased to 20, see issue 52207).
 	const factor = 20
-	if hogCount > lightCount*factor || lightCount > hogCount*factor {
+	if hogCount/factor > lightCount || lightCount/factor > hogCount {
 		t.Fatalf("want hogCount/lightCount in [%v, %v]; got %d/%d = %g", 1.0/factor, factor, hogCount, lightCount, float64(hogCount)/float64(lightCount))
 	}
 }
