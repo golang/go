@@ -198,6 +198,16 @@ linux_arm64)
 	# API consistent between platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
+linux_loong64)
+        GOOSARCH_in=syscall_linux_loong64.go
+        unistd_h=$(ls -1 /usr/include/asm/unistd.h /usr/include/asm-generic/unistd.h 2>/dev/null | head -1)
+        if [ "$unistd_h" = "" ]; then
+                echo >&2 cannot find unistd.h
+                exit 1
+        fi
+        mksysnum="./mksysnum_linux.pl $unistd_h"
+        mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+        ;;
 linux_mips)
 	GOOSARCH_in=syscall_linux_mipsx.go
 	unistd_h=/usr/include/asm/unistd.h

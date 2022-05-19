@@ -87,7 +87,7 @@ struct my_sockaddr_un {
 
 #ifdef __ARM_EABI__
 typedef struct user_regs PtraceRegs;
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__loongarch64)
 typedef struct user_pt_regs PtraceRegs;
 #elif defined(__powerpc64__)
 typedef struct pt_regs PtraceRegs;
@@ -118,7 +118,7 @@ struct my_epoll_event {
 	int32_t padFd;
 #endif
 #if defined(__powerpc64__) || defined(__s390x__) || (defined(__riscv_xlen) && __riscv_xlen == 64) \
-		|| (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI64)
+		|| (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI64) || defined(__loongarch64)
 	int32_t _padFd;
 #endif
 	int32_t fd;
