@@ -284,6 +284,9 @@ TestCases:
 		case "mips64", "mips64le":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define REGISTER (R0)\n")
+		case "loong64":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define REGISTER (R0)\n")
 		case "ppc64", "ppc64le":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define REGISTER (CTR)\n")
