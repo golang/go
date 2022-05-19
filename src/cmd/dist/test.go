@@ -1181,7 +1181,7 @@ func (t *tester) runHostTest(dir, pkg string) error {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	return t.dirCmd(dir, f.Name(), "-test.short="+short()).Run()
+	return t.dirCmd(dir, f.Name(), "-test.short="+short(), "-test.timeout="+t.timeoutDuration(300).String()).Run()
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
