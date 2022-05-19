@@ -19,6 +19,7 @@ import (
 )
 
 var gcflags string = os.Getenv("GO_GCFLAGS")
+var goroot string
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -43,6 +44,12 @@ func prettyPrintf(format string, args ...interface{}) {
 }
 
 func testMain(m *testing.M) int {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	goroot = filepath.Join(cwd, "../../..")
+
 	// Copy testdata into GOPATH/src/testplugin, along with a go.mod file
 	// declaring the same path.
 
@@ -113,7 +120,7 @@ func goCmd(t *testing.T, op string, args ...string) {
 	if t != nil {
 		t.Helper()
 	}
-	run(t, "go", append([]string{op, "-gcflags", gcflags}, args...)...)
+	run(t, filepath.Join(goroot, "bin", "go"), append([]string{op, "-gcflags", gcflags}, args...)...)
 }
 
 // escape converts a string to something suitable for a shell command line.

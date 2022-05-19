@@ -27,6 +27,7 @@ import (
 )
 
 var gopathInstallDir, gorootInstallDir string
+var oldGOROOT string
 
 // This is the smallest set of packages we can link into a shared
 // library (runtime/cgo is built implicitly).
@@ -60,7 +61,7 @@ func goCmd(t *testing.T, args ...string) string {
 		newargs = append(newargs, "-x", "-ldflags=-v")
 	}
 	newargs = append(newargs, args[1:]...)
-	c := exec.Command("go", newargs...)
+	c := exec.Command(filepath.Join(oldGOROOT, "bin", "go"), newargs...)
 	stderr := new(strings.Builder)
 	c.Stderr = stderr
 
@@ -90,6 +91,12 @@ func goCmd(t *testing.T, args ...string) string {
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	oldGOROOT = filepath.Join(cwd, "../../..")
+
 	workDir, err := os.MkdirTemp("", "shared_test")
 	if err != nil {
 		return 0, err
@@ -187,11 +194,6 @@ func cloneTestdataModule(gopath string) (string, error) {
 // GOROOT/pkg relevant to this test into the given directory.
 // It must be run from within the testdata module.
 func cloneGOROOTDeps(goroot string) error {
-	oldGOROOT := strings.TrimSpace(goCmd(nil, "env", "GOROOT"))
-	if oldGOROOT == "" {
-		return fmt.Errorf("go env GOROOT returned an empty string")
-	}
-
 	// Before we clone GOROOT, figure out which packages we need to copy over.
 	listArgs := []string{
 		"list",
