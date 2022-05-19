@@ -28,14 +28,18 @@ import (
 // sends it to another server, proxying the response back to the
 // client.
 //
-// ReverseProxy by default sets the client IP as the value of the
-// X-Forwarded-For header.
+// ReverseProxy by default sets
+//   - the X-Forwarded-For header to the client IP address;
+//   - the X-Forwarded-Host header to the host of the original client
+//     request; and
+//   - the X-Forwarded-Proto header to "https" if the client request
+//     was made on a TLS-enabled connection or "http" otherwise.
 //
 // If an X-Forwarded-For header already exists, the client IP is
-// appended to the existing values. As a special case, if the header
-// exists in the Request.Header map but has a nil value (such as when
-// set by the Director func), the X-Forwarded-For header is
-// not modified.
+// appended to the existing values.
+//
+// If a header exists in the Request.Header map but has a nil value
+// (such as when set by the Director func), it is not modified.
 //
 // To prevent IP spoofing, be sure to delete any pre-existing
 // X-Forwarded-For header coming from the client or
@@ -304,6 +308,16 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 		if !omit {
 			outreq.Header.Set("X-Forwarded-For", clientIP)
+		}
+	}
+	if prior, ok := outreq.Header["X-Forwarded-Host"]; !(ok && prior == nil) {
+		outreq.Header.Set("X-Forwarded-Host", req.Host)
+	}
+	if prior, ok := outreq.Header["X-Forwarded-Proto"]; !(ok && prior == nil) {
+		if req.TLS == nil {
+			outreq.Header.Set("X-Forwarded-Proto", "http")
+		} else {
+			outreq.Header.Set("X-Forwarded-Proto", "https")
 		}
 	}
 
