@@ -2987,10 +2987,7 @@ func (rs *Rows) Next() bool {
 		doClose, ok = rs.nextLocked()
 	})
 	if doClose {
-		err := rs.Close()
-		if err != nil {
-			rs.Close()
-		}
+		rs.Close()
 	}
 	return ok
 }
