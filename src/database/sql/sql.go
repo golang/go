@@ -490,7 +490,7 @@ type DB struct {
 	// maxBadConnRetries is the number of maximum retries if the driver returns
 	// driver.ErrBadConn to signal a broken connection before forcing a new
 	// connection to be opened.
-	maxBadConnRetries int
+	maxBadConnRetries int64
 
 	stop func() // stop cancels the connection opener.
 }
@@ -1058,15 +1058,15 @@ func (db *DB) SetConnMaxIdleTime(d time.Duration) {
 // The default max bad retries connections is currently 2. This may change in
 // a future release.
 func (db *DB) SetMaxBadConnRetries(n int) {
-	db.mu.Lock()
-	db.maxBadConnRetries = n
-	db.mu.Unlock()
+	atomic.StoreInt64(&db.maxBadConnRetries, int64(n))
 }
 
 const defaultMaxBadConnRetries = 2
 
 func (db *DB) retry(fn func(strategy connReuseStrategy) error) error {
-	for i := 0; i < db.maxBadConnRetries; i++ {
+	maxBadConnRetries := atomic.LoadInt64(&db.maxBadConnRetries)
+
+	for i := int64(0); i < maxBadConnRetries; i++ {
 		err := fn(cachedOrNewConn)
 		// retry if err is driver.ErrBadConn
 		if err == nil || !errors.Is(err, driver.ErrBadConn) {
@@ -1074,7 +1074,7 @@ func (db *DB) retry(fn func(strategy connReuseStrategy) error) error {
 		}
 	}
 
-	if db.maxBadConnRetries > 0 {
+	if maxBadConnRetries > 0 {
 		return fn(alwaysNewConn)
 	}
 	return fn(cachedOrNewConn)
