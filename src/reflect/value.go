@@ -499,11 +499,10 @@ func (v Value) call(op string, in []Value) []Value {
 		switch st := abid.call.steps[0]; st.kind {
 		case abiStepStack:
 			storeRcvr(rcvr, stackArgs)
-		case abiStepIntReg, abiStepPointer:
-			// Even pointers can go into the uintptr slot because
-			// they'll be kept alive by the Values referenced by
-			// this frame. Reflection forces these to be heap-allocated,
-			// so we don't need to worry about stack copying.
+		case abiStepPointer:
+			storeRcvr(rcvr, unsafe.Pointer(&regArgs.Ptrs[st.ireg]))
+			fallthrough
+		case abiStepIntReg:
 			storeRcvr(rcvr, unsafe.Pointer(&regArgs.Ints[st.ireg]))
 		case abiStepFloatReg:
 			storeRcvr(rcvr, unsafe.Pointer(&regArgs.Floats[st.freg]))
@@ -972,13 +971,21 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 	var methodRegs abi.RegArgs
 
 	// Deal with the receiver. It's guaranteed to only be one word in size.
-	if st := methodABI.call.steps[0]; st.kind == abiStepStack {
+	switch st := methodABI.call.steps[0]; st.kind {
+	case abiStepStack:
 		// Only copy the receiver to the stack if the ABI says so.
 		// Otherwise, it'll be in a register already.
 		storeRcvr(rcvr, methodFrame)
-	} else {
+	case abiStepPointer:
 		// Put the receiver in a register.
-		storeRcvr(rcvr, unsafe.Pointer(&methodRegs.Ints))
+		storeRcvr(rcvr, unsafe.Pointer(&methodRegs.Ptrs[st.ireg]))
+		fallthrough
+	case abiStepIntReg:
+		storeRcvr(rcvr, unsafe.Pointer(&methodRegs.Ints[st.ireg]))
+	case abiStepFloatReg:
+		storeRcvr(rcvr, unsafe.Pointer(&methodRegs.Floats[st.freg]))
+	default:
+		panic("unknown ABI parameter kind")
 	}
 
 	// Translate the rest of the arguments.
