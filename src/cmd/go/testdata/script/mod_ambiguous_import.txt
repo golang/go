@@ -46,3 +46,4 @@ module example.com/a/x
 go 1.14
 -- $WORK/ax/x.go --
 package x
+-- $WORK/vendor/modules.txt --

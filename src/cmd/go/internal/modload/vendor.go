@@ -44,7 +44,7 @@ func readVendorList(mainModule module.Version) {
 		vendorMeta = make(map[module.Version]vendorMetadata)
 		data, err := os.ReadFile(filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt"))
 		if err != nil {
-			if !errors.Is(err, fs.ErrNotExist) {
+			if errors.Is(err, fs.ErrNotExist) {
 				base.Fatalf("go: %s", err)
 			}
 			return

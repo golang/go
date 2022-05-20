@@ -7,8 +7,15 @@ stdout TestMsgExternal
 
 # In module mode, they cannot.
 env GO111MODULE=on
-! go test -mod=vendor
+! go test
 stderr 'undefined: strings.Msg'
+
+# The vendor/modules.txt has to exist if -mod=vendor is enabled
+env GOFLAGS=-mod=vendor
+! go fmt ./...
+stderr 'vendor/modules.txt: no such file or directory'
+env GOFLAGS=
+go fmt ./...
 
 -- vend/hello/go.mod --
 module vend/hello
