@@ -72,33 +72,41 @@ func (s *snapshot) parseGoHandle(ctx context.Context, fh source.FileHandle, mode
 }
 
 func (pgh *parseGoHandle) String() string {
-	return pgh.File().URI().Filename()
-}
-
-func (pgh *parseGoHandle) File() source.FileHandle {
-	return pgh.file
-}
-
-func (pgh *parseGoHandle) Mode() source.ParseMode {
-	return pgh.mode
+	return pgh.file.URI().Filename()
 }
 
 func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
-	pgh := s.parseGoHandle(ctx, fh, mode)
-	pgf, _, err := s.parseGo(ctx, pgh)
+	pgf, _, err := s.parseGo(ctx, fh, mode)
 	return pgf, err
 }
 
-func (s *snapshot) parseGo(ctx context.Context, pgh *parseGoHandle) (*source.ParsedGoFile, bool, error) {
-	if pgh.mode == source.ParseExported {
+func (s *snapshot) parseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, bool, error) {
+	if mode == source.ParseExported {
 		panic("only type checking should use Exported")
 	}
+	pgh := s.parseGoHandle(ctx, fh, mode)
 	d, err := pgh.handle.Get(ctx, s.generation, s)
 	if err != nil {
 		return nil, false, err
 	}
 	data := d.(*parseGoData)
 	return data.parsed, data.fixed, data.err
+}
+
+// cachedPGF returns the cached ParsedGoFile for the given ParseMode, if it
+// has already been computed. Otherwise, it returns nil.
+func (s *snapshot) cachedPGF(fh source.FileHandle, mode source.ParseMode) *source.ParsedGoFile {
+	key := parseKey{file: fh.FileIdentity(), mode: mode}
+	if pgh := s.getGoFile(key); pgh != nil {
+		cached := pgh.handle.Cached(s.generation)
+		if cached != nil {
+			cached := cached.(*parseGoData)
+			if cached.parsed != nil {
+				return cached.parsed
+			}
+		}
+	}
+	return nil
 }
 
 type astCacheKey struct {

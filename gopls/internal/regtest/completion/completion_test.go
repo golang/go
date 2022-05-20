@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/hooks"
+	"golang.org/x/tools/internal/lsp/bug"
 	. "golang.org/x/tools/internal/lsp/regtest"
 
 	"golang.org/x/tools/internal/lsp/fake"
@@ -18,6 +19,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	bug.PanicOnBugs = true
 	Main(m, hooks.Options)
 }
 

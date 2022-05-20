@@ -29,6 +29,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/debug/log"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
@@ -1817,7 +1818,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 
-	changedPkgNames := map[PackageID]struct{}{}
+	changedPkgFiles := map[PackageID]struct{}{} // packages whose file set may have changed
 	anyImportDeleted := false
 	for uri, change := range changes {
 		// Maybe reinitialize the view if we see a change in the vendor
@@ -1829,23 +1830,26 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// The original FileHandle for this URI is cached on the snapshot.
 		originalFH := s.files[uri]
 
-		// Check if the file's package name or imports have changed,
-		// and if so, invalidate this file's packages' metadata.
-		var shouldInvalidateMetadata, pkgNameChanged, importDeleted bool
-		if !isGoMod(uri) {
-			shouldInvalidateMetadata, pkgNameChanged, importDeleted = checkForMetadataChanges(ctx, originalFH, change.fileHandle)
+		// If uri is a Go file, check if it has changed in a way that would
+		// invalidate metadata. Note that we can't use s.view.FileKind here,
+		// because the file type that matters is not what the *client* tells us,
+		// but what the Go command sees.
+		var invalidateMetadata, pkgFileChanged, importDeleted bool
+		if strings.HasSuffix(uri.Filename(), ".go") {
+			invalidateMetadata, pkgFileChanged, importDeleted = metadataChanges(ctx, s, originalFH, change.fileHandle)
 		}
-		invalidateMetadata := forceReloadMetadata || workspaceReload || shouldInvalidateMetadata
+
+		invalidateMetadata = invalidateMetadata || forceReloadMetadata || workspaceReload
 		anyImportDeleted = anyImportDeleted || importDeleted
 
 		// Mark all of the package IDs containing the given file.
-		filePackageIDs := invalidatedPackageIDs(uri, s.ids, originalFH == nil || pkgNameChanged)
-		if pkgNameChanged {
-			for _, id := range filePackageIDs {
-				changedPkgNames[id] = struct{}{}
+		filePackageIDs := invalidatedPackageIDs(uri, s.ids, pkgFileChanged)
+		if pkgFileChanged {
+			for id := range filePackageIDs {
+				changedPkgFiles[id] = struct{}{}
 			}
 		}
-		for _, id := range filePackageIDs {
+		for id := range filePackageIDs {
 			directIDs[id] = directIDs[id] || invalidateMetadata
 		}
 
@@ -2050,7 +2054,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// possible that the package ID may no longer exist. Delete it from
 		// the set of workspace packages, on the assumption that we will add it
 		// back when the relevant files are reloaded.
-		if _, ok := changedPkgNames[id]; ok {
+		if _, ok := changedPkgFiles[id]; ok {
 			continue
 		}
 
@@ -2093,20 +2097,25 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 // directory. This is of course incorrect in build systems where packages are
 // not organized by directory.
 //
-// If newPackageFile is set, the file is either a new file, or has a new
+// If packageFileChanged is set, the file is either a new file, or has a new
 // package name. In this case, all known packages in the directory will be
 // invalidated.
-func invalidatedPackageIDs(uri span.URI, known map[span.URI][]PackageID, newPackageFile bool) []PackageID {
+func invalidatedPackageIDs(uri span.URI, known map[span.URI][]PackageID, packageFileChanged bool) map[PackageID]struct{} {
+	invalidated := make(map[PackageID]struct{})
+
+	// At a minimum, we invalidate packages known to contain uri.
+	for _, id := range known[uri] {
+		invalidated[id] = struct{}{}
+	}
+
 	// If the file didn't move to a new package, we should only invalidate the
 	// packages it is currently contained inside.
-	if !newPackageFile {
-		if packages := known[uri]; len(packages) > 0 {
-			// We've seen this file before.
-			return packages
-		}
+	if !packageFileChanged && len(invalidated) > 0 {
+		return invalidated
 	}
-	// This is a file we don't yet know about. Guess relevant packages by
-	// considering files in the same directory.
+
+	// This is a file we don't yet know about, or which has moved packages. Guess
+	// relevant packages by considering files in the same directory.
 
 	// Cache of FileInfo to avoid unnecessary stats for multiple files in the
 	// same directory.
@@ -2127,23 +2136,22 @@ func invalidatedPackageIDs(uri span.URI, known map[span.URI][]PackageID, newPack
 	}
 	dir := filepath.Dir(uri.Filename())
 	fi, err := getInfo(dir)
-	if err != nil {
-		return nil
-	}
-
-	// Aggregate all possibly relevant package IDs.
-	var found []PackageID
-	for knownURI, ids := range known {
-		knownDir := filepath.Dir(knownURI.Filename())
-		knownFI, err := getInfo(knownDir)
-		if err != nil {
-			continue
+	if err == nil {
+		// Aggregate all possibly relevant package IDs.
+		for knownURI, ids := range known {
+			knownDir := filepath.Dir(knownURI.Filename())
+			knownFI, err := getInfo(knownDir)
+			if err != nil {
+				continue
+			}
+			if os.SameFile(fi, knownFI) {
+				for _, id := range ids {
+					invalidated[id] = struct{}{}
+				}
+			}
 		}
-		if os.SameFile(fi, knownFI) {
-			found = append(found, ids...)
-		}
 	}
-	return found
+	return invalidated
 }
 
 // fileWasSaved reports whether the FileHandle passed in has been saved. It
@@ -2162,66 +2170,117 @@ func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
 	return !o.saved && c.saved
 }
 
-// checkForMetadataChanges reparses the full file's AST to determine
-// if the file requires a metadata reload.
-func checkForMetadataChanges(ctx context.Context, originalFH, currentFH source.FileHandle) (invalidate, pkgNameChanged, importDeleted bool) {
-	if originalFH == nil {
-		return true, false, false
+// metadataChanges detects features of the change from oldFH->newFH that may
+// affect package metadata.
+//
+// It uses lockedSnapshot to access cached parse information. lockedSnapshot
+// must be locked.
+//
+// The result parameters have the following meaning:
+//   - invalidate means that package metadata for packages containing the file
+//     should be invalidated.
+//   - pkgFileChanged means that the file->package associates for the file have
+//     changed (possibly because the file is new, or because its package name has
+//     changed).
+//   - importDeleted means that an import has been deleted, or we can't
+//     determine if an import was deleted due to errors.
+func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH source.FileHandle) (invalidate, pkgFileChanged, importDeleted bool) {
+	if oldFH == nil || newFH == nil { // existential changes
+		changed := (oldFH == nil) != (newFH == nil)
+		return changed, changed, (newFH == nil) // we don't know if an import was deleted
 	}
+
 	// If the file hasn't changed, there's no need to reload.
-	if originalFH.FileIdentity() == currentFH.FileIdentity() {
+	if oldFH.FileIdentity() == newFH.FileIdentity() {
 		return false, false, false
 	}
-	// Get the original and current parsed files in order to check package name
-	// and imports. Don't parse through the cache as we don't know if we want to
-	// own the resulting file handle.
-	fset := token.NewFileSet() // We don't need positions, so can use a new file set.
-	original := parseGo(ctx, fset, originalFH, source.ParseFull)
-	current := parseGo(ctx, fset, currentFH, source.ParseFull)
-	if original.err != nil || current.err != nil {
-		return (original.err == nil) != (current.err == nil), false, (current.err != nil) // we don't know if an import was deleted
-	}
-	// Check if the package's metadata has changed. The cases handled are:
-	//    1. A package's name has changed
-	//    2. A file's imports have changed
-	if original.parsed.File.Name.Name != current.parsed.File.Name.Name {
-		invalidate = true
-		pkgNameChanged = true
-	}
-	origImportSet := make(map[string]struct{})
-	for _, importSpec := range original.parsed.File.Imports {
-		origImportSet[importSpec.Path.Value] = struct{}{}
-	}
-	curImportSet := make(map[string]struct{})
-	for _, importSpec := range current.parsed.File.Imports {
-		curImportSet[importSpec.Path.Value] = struct{}{}
-	}
-	// If any of the current imports were not in the original imports.
-	for path := range curImportSet {
-		if _, ok := origImportSet[path]; ok {
-			delete(origImportSet, path)
-			continue
-		}
-		// If the import path is obviously not valid, we can skip reloading
-		// metadata. For now, valid means properly quoted and without a
-		// terminal slash.
-		if isBadImportPath(path) {
-			continue
-		}
-		invalidate = true
+
+	// Parse headers to compare package names and imports.
+	oldHead, oldErr := peekOrParse(ctx, lockedSnapshot, oldFH, source.ParseHeader)
+	newHead, newErr := peekOrParse(ctx, lockedSnapshot, newFH, source.ParseHeader)
+
+	if oldErr != nil || newErr != nil {
+		// TODO(rfindley): we can get here if newFH does not exists. There is
+		// asymmetry here, in that newFH may be non-nil even if the underlying file
+		// does not exist.
+		//
+		// We should not produce a non-nil filehandle for a file that does not exist.
+		errChanged := (oldErr == nil) != (newErr == nil)
+		return errChanged, errChanged, (newErr != nil) // we don't know if an import was deleted
 	}
 
-	for path := range origImportSet {
-		if !isBadImportPath(path) {
-			invalidate = true
-			importDeleted = true
+	// `go list` fails completely if the file header cannot be parsed. If we go
+	// from a non-parsing state to a parsing state, we should reload.
+	if oldHead.ParseErr != nil && newHead.ParseErr == nil {
+		return true, true, true // We don't know what changed, so fall back on full invalidation.
+	}
+
+	// If a package name has changed, the set of package imports may have changed
+	// in ways we can't detect here. Assume an import has been deleted.
+	if oldHead.File.Name.Name != newHead.File.Name.Name {
+		return true, true, true
+	}
+
+	// Check whether package imports have changed. Only consider potentially
+	// valid imports paths.
+	oldImports := validImports(oldHead.File.Imports)
+	newImports := validImports(newHead.File.Imports)
+
+	for path := range newImports {
+		if _, ok := oldImports[path]; ok {
+			delete(oldImports, path)
+		} else {
+			invalidate = true // a new, potentially valid import was added
 		}
 	}
 
+	if len(oldImports) > 0 {
+		invalidate = true
+		importDeleted = true
+	}
+
+	// If the change does not otherwise invalidate metadata, get the full ASTs in
+	// order to check magic comments.
+	//
+	// Note: if this affects performance we can probably avoid parsing in the
+	// common case by first scanning the source for potential comments.
 	if !invalidate {
-		invalidate = magicCommentsChanged(original.parsed.File, current.parsed.File)
+		origFull, oldErr := peekOrParse(ctx, lockedSnapshot, oldFH, source.ParseFull)
+		currFull, newErr := peekOrParse(ctx, lockedSnapshot, newFH, source.ParseFull)
+		if oldErr == nil && newErr == nil {
+			invalidate = magicCommentsChanged(origFull.File, currFull.File)
+		} else {
+			// At this point, we shouldn't ever fail to produce a ParsedGoFile, as
+			// we're already past header parsing.
+			bug.Reportf("metadataChanges: unparseable file %v (old error: %v, new error: %v)", oldFH.URI(), oldErr, newErr)
+		}
 	}
-	return invalidate, pkgNameChanged, importDeleted
+
+	return invalidate, pkgFileChanged, importDeleted
+}
+
+// peekOrParse returns the cached ParsedGoFile if it exists, otherwise parses
+// without caching.
+//
+// It returns an error if the file could not be read (note that parsing errors
+// are stored in ParsedGoFile.ParseErr).
+//
+// lockedSnapshot must be locked.
+func peekOrParse(ctx context.Context, lockedSnapshot *snapshot, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
+	key := parseKey{file: fh.FileIdentity(), mode: mode}
+	if pgh := lockedSnapshot.goFiles[key]; pgh != nil {
+		cached := pgh.handle.Cached(lockedSnapshot.generation)
+		if cached != nil {
+			cached := cached.(*parseGoData)
+			if cached.parsed != nil {
+				return cached.parsed, nil
+			}
+		}
+	}
+
+	fset := token.NewFileSet()
+	data := parseGo(ctx, fset, fh, mode)
+	return data.parsed, data.err
 }
 
 func magicCommentsChanged(original *ast.File, current *ast.File) bool {
@@ -2238,18 +2297,29 @@ func magicCommentsChanged(original *ast.File, current *ast.File) bool {
 	return false
 }
 
-func isBadImportPath(path string) bool {
+// validImports extracts the set of valid import paths from imports.
+func validImports(imports []*ast.ImportSpec) map[string]struct{} {
+	m := make(map[string]struct{})
+	for _, spec := range imports {
+		if path := spec.Path.Value; validImportPath(path) {
+			m[path] = struct{}{}
+		}
+	}
+	return m
+}
+
+func validImportPath(path string) bool {
 	path, err := strconv.Unquote(path)
 	if err != nil {
-		return true
+		return false
 	}
 	if path == "" {
-		return true
+		return false
 	}
 	if path[len(path)-1] == '/' {
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 var buildConstraintOrEmbedRe = regexp.MustCompile(`^//(go:embed|go:build|\s*\+build).*`)

@@ -40,10 +40,10 @@ func (s *snapshot) buildSymbolHandle(ctx context.Context, fh source.FileHandle) 
 		return h
 	}
 	key := symbolHandleKey(fh.FileIdentity().Hash)
-	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	h := s.generation.Bind(key, func(_ context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 		data := &symbolData{}
-		data.symbols, data.err = symbolize(ctx, snapshot, fh)
+		data.symbols, data.err = symbolize(snapshot, fh)
 		return data
 	}, nil)
 
@@ -57,7 +57,7 @@ func (s *snapshot) buildSymbolHandle(ctx context.Context, fh source.FileHandle) 
 
 // symbolize extracts symbols from a file. It uses a parsed file already
 // present in the cache but otherwise does not populate the cache.
-func symbolize(ctx context.Context, snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, error) {
+func symbolize(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, error) {
 	src, err := fh.Read()
 	if err != nil {
 		return nil, err
@@ -70,16 +70,9 @@ func symbolize(ctx context.Context, snapshot *snapshot, fh source.FileHandle) ([
 
 	// If the file has already been fully parsed through the cache, we can just
 	// use the result.
-	key := parseKey{file: fh.FileIdentity(), mode: source.ParseFull}
-	if pgh := snapshot.getGoFile(key); pgh != nil {
-		cached := pgh.handle.Cached(snapshot.generation)
-		if cached != nil {
-			cached := cached.(*parseGoData)
-			if cached.parsed != nil {
-				file = cached.parsed.File
-				fileDesc = cached.parsed.Tok
-			}
-		}
+	if pgf := snapshot.cachedPGF(fh, source.ParseFull); pgf != nil {
+		file = pgf.File
+		fileDesc = pgf.Tok
 	}
 
 	// Otherwise, we parse the file ourselves. Notably we don't use parseGo here,

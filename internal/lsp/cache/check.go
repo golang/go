@@ -570,8 +570,7 @@ func parseCompiledGoFiles(ctx context.Context, snapshot *snapshot, mode source.P
 		// Only parse Full through the cache -- we need to own Exported ASTs
 		// to prune them.
 		if mode == source.ParseFull {
-			pgh := snapshot.parseGoHandle(ctx, fh, mode)
-			pgf, fixed, err = snapshot.parseGo(ctx, pgh)
+			pgf, fixed, err = snapshot.parseGo(ctx, fh, mode)
 		} else {
 			d := parseGo(ctx, snapshot.FileSet(), fh, mode)
 			pgf, fixed, err = d.parsed, d.fixed, d.err
