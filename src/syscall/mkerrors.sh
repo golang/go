@@ -270,6 +270,7 @@ ccflags="$@"
 		$2 ~ /^(SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))/ {next}
 		$2 ~ /^(SCM_SRCRT)$/ {next}
 		$2 ~ /^(MAP_FAILED)$/ {next}
+		$2 ~ /^CLONE_[A-Z_]+/ {next} # These are defined in exec_linux.go.
 		$2 ~ /^ELF_.*$/ {next}	# <asm/elf.h> contains ELF_ARCH, etc.
 
 		$2 !~ /^ETH_/ &&
@@ -317,7 +318,6 @@ ccflags="$@"
 		$2 ~ /^RUSAGE_(SELF|CHILDREN|THREAD)/ ||
 		$2 ~ /^RLIMIT_(AS|CORE|CPU|DATA|FSIZE|NOFILE|STACK)|RLIM_INFINITY/ ||
 		$2 ~ /^PRIO_(PROCESS|PGRP|USER)/ ||
-		$2 ~ /^CLONE_[A-Z_]+/ ||
 		$2 !~ /^(BPF_TIMEVAL)$/ &&
 		$2 ~ /^(BPF|DLT)_/ ||
 		$2 !~ "WMESGLEN" &&
