@@ -2571,7 +2571,7 @@ top:
 
 	// Try to schedule the trace reader.
 	if trace.enabled || trace.shutdown {
-		gp = traceReader()
+		gp := traceReader()
 		if gp != nil {
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			traceGoUnpark(gp, 0)
@@ -2581,10 +2581,11 @@ top:
 
 	// Try to schedule a GC worker.
 	if gcBlackenEnabled != 0 {
-		gp, now = gcController.findRunnableGCWorker(pp, now)
+		gp, tnow := gcController.findRunnableGCWorker(pp, now)
 		if gp != nil {
 			return gp, false, true
 		}
+		now = tnow
 	}
 
 	// Check the global runnable queue once in a while to ensure fairness.
@@ -2592,7 +2593,7 @@ top:
 	// by constantly respawning each other.
 	if pp.schedtick%61 == 0 && sched.runqsize > 0 {
 		lock(&sched.lock)
-		gp = globrunqget(pp, 1)
+		gp := globrunqget(pp, 1)
 		unlock(&sched.lock)
 		if gp != nil {
 			return gp, false, false
@@ -2656,7 +2657,6 @@ top:
 		}
 
 		gp, inheritTime, tnow, w, newWork := stealWork(now)
-		now = tnow
 		if gp != nil {
 			// Successfully stole.
 			return gp, inheritTime, false
@@ -2666,6 +2666,8 @@ top:
 			// discover.
 			goto top
 		}
+
+		now = tnow
 		if w != 0 && (pollUntil == 0 || w < pollUntil) {
 			// Earlier timer to wait for.
 			pollUntil = w
@@ -2767,7 +2769,7 @@ top:
 		// latency. See golang.org/issue/43997.
 
 		// Check all runqueues once again.
-		pp = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
+		pp := checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
 		if pp != nil {
 			acquirep(pp)
 			mp.spinning = true
@@ -2776,7 +2778,7 @@ top:
 		}
 
 		// Check for idle-priority GC work again.
-		pp, gp = checkIdleGCNoP()
+		pp, gp := checkIdleGCNoP()
 		if pp != nil {
 			acquirep(pp)
 			mp.spinning = true
@@ -2832,7 +2834,7 @@ top:
 			goto top
 		}
 		lock(&sched.lock)
-		pp, _ = pidleget(now)
+		pp, _ := pidleget(now)
 		unlock(&sched.lock)
 		if pp == nil {
 			injectglist(&list)
@@ -4248,7 +4250,7 @@ func gfput(pp *p, gp *g) {
 			noStackQ gQueue
 		)
 		for pp.gFree.n >= 32 {
-			gp = pp.gFree.pop()
+			gp := pp.gFree.pop()
 			pp.gFree.n--
 			if gp.stack.lo == 0 {
 				noStackQ.push(gp)
