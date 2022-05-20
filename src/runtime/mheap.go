@@ -1157,9 +1157,32 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 
 	if needPhysPageAlign {
 		// Overallocate by a physical page to allow for later alignment.
-		npages += physPageSize / pageSize
-	}
+		extraPages := physPageSize / pageSize
 
+		// Find a big enough region first, but then only allocate the
+		// aligned portion. We can't just allocate and then free the
+		// edges because we need to account for scavenged memory, and
+		// that's difficult with alloc.
+		//
+		// Note that we skip updates to searchAddr here. It's OK if
+		// it's stale and higher than normal; it'll operate correctly,
+		// just come with a performance cost.
+		base, _ = h.pages.find(npages + extraPages)
+		if base == 0 {
+			var ok bool
+			growth, ok = h.grow(npages + extraPages)
+			if !ok {
+				unlock(&h.lock)
+				return nil
+			}
+			base, _ = h.pages.find(npages + extraPages)
+			if base == 0 {
+				throw("grew heap, but no adequate free space found")
+			}
+		}
+		base = alignUp(base, physPageSize)
+		scav = h.pages.allocRange(base, npages)
+	}
 	if base == 0 {
 		// Try to acquire a base address.
 		base, scav = h.pages.alloc(npages)
@@ -1181,23 +1204,6 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 		// one now that we have the heap lock.
 		s = h.allocMSpanLocked()
 	}
-
-	if needPhysPageAlign {
-		allocBase, allocPages := base, npages
-		base = alignUp(allocBase, physPageSize)
-		npages -= physPageSize / pageSize
-
-		// Return memory around the aligned allocation.
-		spaceBefore := base - allocBase
-		if spaceBefore > 0 {
-			h.pages.free(allocBase, spaceBefore/pageSize, false)
-		}
-		spaceAfter := (allocPages-npages)*pageSize - spaceBefore
-		if spaceAfter > 0 {
-			h.pages.free(base+npages*pageSize, spaceAfter/pageSize, false)
-		}
-	}
-
 	unlock(&h.lock)
 
 HaveSpan:
