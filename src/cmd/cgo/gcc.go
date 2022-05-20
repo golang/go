@@ -2242,6 +2242,8 @@ var dwarfToName = map[string]string{
 	"long long unsigned int": "ulonglong",
 	"signed char":            "schar",
 	"unsigned char":          "uchar",
+	"unsigned long":          "ulong",     // Used by Clang 14; issue 53013.
+	"unsigned long long":     "ulonglong", // Used by Clang 14; issue 53013.
 }
 
 const signedDelta = 64
