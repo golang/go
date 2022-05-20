@@ -1,5 +1,3 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -49,8 +47,16 @@ type PkgDecoder struct {
 	elemEndsEnds [numRelocs]uint32
 }
 
+// PkgPath returns the package path for the package
+//
+// TODO(mdempsky): Remove; unneeded since CL 391014.
 func (pr *PkgDecoder) PkgPath() string { return pr.pkgPath }
 
+// NewPkgDecoder returns a PkgDecoder initialized to read the Unified
+// IR export data from input. pkgPath is the package path for the
+// compilation unit that produced the export data.
+//
+// TODO(mdempsky): Remove pkgPath parameter; unneeded since CL 391014.
 func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 	pr := PkgDecoder{
 		pkgPath: pkgPath,
@@ -127,16 +133,22 @@ func (pr *PkgDecoder) DataIdx(k RelocKind, idx int) string {
 	return pr.elemData[start:end]
 }
 
+// StringIdx returns the string value for the given string index.
 func (pr *PkgDecoder) StringIdx(idx int) string {
 	return pr.DataIdx(RelocString, idx)
 }
 
+// NewDecoder returns a Decoder for the given (section, index) pair,
+// and decodes the given SyncMarker from the element bitstream.
 func (pr *PkgDecoder) NewDecoder(k RelocKind, idx int, marker SyncMarker) Decoder {
 	r := pr.NewDecoderRaw(k, idx)
 	r.Sync(marker)
 	return r
 }
 
+// NewDecoderRaw returns a Decoder for the given (section, index) pair.
+//
+// Most callers should use NewDecoder instead.
 func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx int) Decoder {
 	r := Decoder{
 		common: pr,
@@ -198,6 +210,10 @@ func (r *Decoder) rawReloc(k RelocKind, idx int) int {
 	return e.Idx
 }
 
+// Sync decodes a sync marker from the element bitstream and asserts
+// that it matches the expected marker.
+//
+// If EnableSync is false, then Sync is a no-op.
 func (r *Decoder) Sync(mWant SyncMarker) {
 	if !EnableSync {
 		return
@@ -253,6 +269,7 @@ func (r *Decoder) Sync(mWant SyncMarker) {
 	os.Exit(1)
 }
 
+// Bool decodes and returns a bool value from the element bitstream.
 func (r *Decoder) Bool() bool {
 	r.Sync(SyncBool)
 	x, err := r.Data.ReadByte()
@@ -261,20 +278,31 @@ func (r *Decoder) Bool() bool {
 	return x != 0
 }
 
+// Int64 decodes and returns an int64 value from the element bitstream.
 func (r *Decoder) Int64() int64 {
 	r.Sync(SyncInt64)
 	return r.rawVarint()
 }
 
+// Int64 decodes and returns a uint64 value from the element bitstream.
 func (r *Decoder) Uint64() uint64 {
 	r.Sync(SyncUint64)
 	return r.rawUvarint()
 }
 
-func (r *Decoder) Len() int   { x := r.Uint64(); v := int(x); assert(uint64(v) == x); return v }
-func (r *Decoder) Int() int   { x := r.Int64(); v := int(x); assert(int64(v) == x); return v }
+// Len decodes and returns a non-negative int value from the element bitstream.
+func (r *Decoder) Len() int { x := r.Uint64(); v := int(x); assert(uint64(v) == x); return v }
+
+// Int decodes and returns an int value from the element bitstream.
+func (r *Decoder) Int() int { x := r.Int64(); v := int(x); assert(int64(v) == x); return v }
+
+// Uint decodes and returns a uint value from the element bitstream.
 func (r *Decoder) Uint() uint { x := r.Uint64(); v := uint(x); assert(uint64(v) == x); return v }
 
+// Code decodes a Code value from the element bitstream and returns
+// its ordinal value. It's the caller's responsibility to convert the
+// result to an appropriate Code type.
+//
 // TODO(mdempsky): Ideally this method would have signature "Code[T
 // Code] T" instead, but we don't allow generic methods and the
 // compiler can't depend on generics yet anyway.
@@ -283,16 +311,22 @@ func (r *Decoder) Code(mark SyncMarker) int {
 	return r.Len()
 }
 
+// Reloc decodes a relocation of expected section k from the element
+// bitstream and returns an index to the referenced element.
 func (r *Decoder) Reloc(k RelocKind) int {
 	r.Sync(SyncUseReloc)
 	return r.rawReloc(k, r.Len())
 }
 
+// String decodes and returns a string value from the element
+// bitstream.
 func (r *Decoder) String() string {
 	r.Sync(SyncString)
 	return r.common.StringIdx(r.Reloc(RelocString))
 }
 
+// Strings decodes and returns a variable-length slice of strings from
+// the element bitstream.
 func (r *Decoder) Strings() []string {
 	res := make([]string, r.Len())
 	for i := range res {
@@ -301,6 +335,8 @@ func (r *Decoder) Strings() []string {
 	return res
 }
 
+// Value decodes and returns a constant.Value from the element
+// bitstream.
 func (r *Decoder) Value() constant.Value {
 	r.Sync(SyncValue)
 	isComplex := r.Bool()
@@ -352,6 +388,8 @@ func (r *Decoder) bigFloat() *big.Float {
 // TODO(mdempsky): These should probably be removed. I think they're a
 // smell that the export data format is not yet quite right.
 
+// PeekPkgPath returns the package path for the specified package
+// index.
 func (pr *PkgDecoder) PeekPkgPath(idx int) string {
 	r := pr.NewDecoder(RelocPkg, idx, SyncPkgDef)
 	path := r.String()
@@ -361,6 +399,8 @@ func (pr *PkgDecoder) PeekPkgPath(idx int) string {
 	return path
 }
 
+// PeekObj returns the package path, object name, and CodeObj for the
+// specified object index.
 func (pr *PkgDecoder) PeekObj(idx int) (string, string, CodeObj) {
 	r := pr.NewDecoder(RelocName, idx, SyncObject1)
 	r.Sync(SyncSym)
