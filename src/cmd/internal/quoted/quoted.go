@@ -20,6 +20,8 @@ func isSpaceByte(c byte) bool {
 // allowing single or double quotes around elements.
 // There is no unescaping or other processing within
 // quoted fields.
+//
+// Keep in sync with cmd/dist/quoted.go
 func Split(s string) ([]string, error) {
 	// Split fields allowing '' or "" around elements.
 	// Quotes further inside the string do not count.
