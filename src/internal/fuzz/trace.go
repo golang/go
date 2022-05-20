@@ -18,6 +18,9 @@ import _ "unsafe" // for go:linkname
 //go:linkname libfuzzerTraceConstCmp4 runtime.libfuzzerTraceConstCmp4
 //go:linkname libfuzzerTraceConstCmp8 runtime.libfuzzerTraceConstCmp8
 
+//go:linkname libfuzzerHookStrCmp runtime.libfuzzerHookStrCmp
+//go:linkname libfuzzerHookEqualFold runtime.libfuzzerHookEqualFold
+
 func libfuzzerTraceCmp1(arg0, arg1 uint8)  {}
 func libfuzzerTraceCmp2(arg0, arg1 uint16) {}
 func libfuzzerTraceCmp4(arg0, arg1 uint32) {}
@@ -27,3 +30,6 @@ func libfuzzerTraceConstCmp1(arg0, arg1 uint8)  {}
 func libfuzzerTraceConstCmp2(arg0, arg1 uint16) {}
 func libfuzzerTraceConstCmp4(arg0, arg1 uint32) {}
 func libfuzzerTraceConstCmp8(arg0, arg1 uint64) {}
+
+func libfuzzerHookStrCmp(arg0, arg1 string, fakePC int)    {}
+func libfuzzerHookEqualFold(arg0, arg1 string, fakePC int) {}
