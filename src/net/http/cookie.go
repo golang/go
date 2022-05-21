@@ -247,7 +247,7 @@ func (c *Cookie) Valid() error {
 	if !isCookieNameValid(c.Name) {
 		return errors.New("http: invalid Cookie.Name")
 	}
-	if !validCookieExpires(c.Expires) {
+	if !c.Expires.IsZero() && !validCookieExpires(c.Expires) {
 		return errors.New("http: invalid Cookie.Expires")
 	}
 	for i := 0; i < len(c.Value); i++ {

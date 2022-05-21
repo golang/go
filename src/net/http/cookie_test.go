@@ -542,11 +542,14 @@ func TestCookieValid(t *testing.T) {
 	}{
 		{nil, false},
 		{&Cookie{Name: ""}, false},
-		{&Cookie{Name: "invalid-expires"}, false},
 		{&Cookie{Name: "invalid-value", Value: "foo\"bar"}, false},
 		{&Cookie{Name: "invalid-path", Path: "/foo;bar/"}, false},
 		{&Cookie{Name: "invalid-domain", Domain: "example.com:80"}, false},
-		{&Cookie{Name: "valid", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0)}, true},
+		{&Cookie{Name: "invalid-expiry", Value: "", Expires: time.Date(1600, 1, 1, 1, 1, 1, 1, time.UTC)}, false},
+		{&Cookie{Name: "valid-empty"}, true},
+		{&Cookie{Name: "valid-expires", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0)}, true},
+		{&Cookie{Name: "valid-max-age", Value: "foo", Path: "/bar", Domain: "example.com", MaxAge: 60}, true},
+		{&Cookie{Name: "valid-all-fields", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0), MaxAge: 0}, true},
 	}
 
 	for _, tt := range tests {
