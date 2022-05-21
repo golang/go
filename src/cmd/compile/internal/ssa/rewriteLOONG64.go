@@ -6828,6 +6828,7 @@ func rewriteValueLOONG64_OpSelect0(v *Value) bool {
 		return true
 	}
 	// match: (Select0 (DIVV (MOVVconst [c]) (MOVVconst [d])))
+	// cond: d != 0
 	// result: (MOVVconst [c%d])
 	for {
 		if v_0.Op != OpLOONG64DIVV {
@@ -6844,11 +6845,15 @@ func rewriteValueLOONG64_OpSelect0(v *Value) bool {
 			break
 		}
 		d := auxIntToInt64(v_0_1.AuxInt)
+		if !(d != 0) {
+			break
+		}
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(c % d)
 		return true
 	}
 	// match: (Select0 (DIVVU (MOVVconst [c]) (MOVVconst [d])))
+	// cond: d != 0
 	// result: (MOVVconst [int64(uint64(c)%uint64(d))])
 	for {
 		if v_0.Op != OpLOONG64DIVVU {
@@ -6865,6 +6870,9 @@ func rewriteValueLOONG64_OpSelect0(v *Value) bool {
 			break
 		}
 		d := auxIntToInt64(v_0_1.AuxInt)
+		if !(d != 0) {
+			break
+		}
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(int64(uint64(c) % uint64(d)))
 		return true
@@ -7040,6 +7048,7 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 		break
 	}
 	// match: (Select1 (DIVV (MOVVconst [c]) (MOVVconst [d])))
+	// cond: d != 0
 	// result: (MOVVconst [c/d])
 	for {
 		if v_0.Op != OpLOONG64DIVV {
@@ -7056,11 +7065,15 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 			break
 		}
 		d := auxIntToInt64(v_0_1.AuxInt)
+		if !(d != 0) {
+			break
+		}
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(c / d)
 		return true
 	}
 	// match: (Select1 (DIVVU (MOVVconst [c]) (MOVVconst [d])))
+	// cond: d != 0
 	// result: (MOVVconst [int64(uint64(c)/uint64(d))])
 	for {
 		if v_0.Op != OpLOONG64DIVVU {
@@ -7077,6 +7090,9 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 			break
 		}
 		d := auxIntToInt64(v_0_1.AuxInt)
+		if !(d != 0) {
+			break
+		}
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(int64(uint64(c) / uint64(d)))
 		return true
