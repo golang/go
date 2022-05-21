@@ -632,7 +632,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if hasVarSize(x.typ) {
+		if hasVarSize(x.typ, nil) {
 			x.mode = value
 			if check.Types != nil {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
@@ -696,7 +696,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// the part of the struct which is variable-sized. This makes both the rules
 		// simpler and also permits (or at least doesn't prevent) a compiler from re-
 		// arranging struct fields if it wanted to.
-		if hasVarSize(base) {
+		if hasVarSize(base, nil) {
 			x.mode = value
 			if check.Types != nil {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], obj.Type()))
@@ -715,7 +715,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if hasVarSize(x.typ) {
+		if hasVarSize(x.typ, nil) {
 			x.mode = value
 			if check.Types != nil {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
@@ -797,14 +797,32 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	return true
 }
 
-// hasVarSize reports if the size of type t is variable due to type parameters.
-func hasVarSize(t Type) bool {
+// hasVarSize reports if the size of type t is variable due to type parameters
+// or if the type is infinitely-sized due to a cycle for which the type has not
+// yet been checked.
+func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
+	// Cycles are only possible through *Named types.
+	// The seen map is used to detect cycles and track
+	// the results of previously seen types.
+	if named, _ := t.(*Named); named != nil {
+		if v, ok := seen[named]; ok {
+			return v
+		}
+		if seen == nil {
+			seen = make(map[*Named]bool)
+		}
+		seen[named] = true // possibly cyclic until proven otherwise
+		defer func() {
+			seen[named] = varSized // record final determination for named
+		}()
+	}
+
 	switch u := under(t).(type) {
 	case *Array:
-		return hasVarSize(u.elem)
+		return hasVarSize(u.elem, seen)
 	case *Struct:
 		for _, f := range u.fields {
-			if hasVarSize(f.typ) {
+			if hasVarSize(f.typ, seen) {
 				return true
 			}
 		}
