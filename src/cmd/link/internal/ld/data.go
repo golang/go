@@ -1786,6 +1786,8 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, "__sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, sym.Sxxx, 06)
 		ldr.SetSymSect(ldr.LookupOrCreateSym("__start___sancov_cntrs", 0), sect)
 		ldr.SetSymSect(ldr.LookupOrCreateSym("__stop___sancov_cntrs", 0), sect)
+		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._counters", 0), sect)
+		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._ecounters", 0), sect)
 	}
 
 	if len(state.data[sym.STLSBSS]) > 0 {
@@ -2679,6 +2681,8 @@ func (ctxt *Link) address() []*sym.Segment {
 	if fuzzCounters != nil {
 		ctxt.xdefine("__start___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))
 		ctxt.xdefine("__stop___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
+		ctxt.xdefine("internal/fuzz._counters", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))
+		ctxt.xdefine("internal/fuzz._ecounters", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
 	}
 
 	if ctxt.IsSolaris() {
