@@ -954,8 +954,8 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		default:
 			w.Code(stmtAssign)
 			w.pos(stmt)
-			w.exprList(stmt.Rhs)
 			w.assignList(stmt.Lhs)
+			w.exprList(stmt.Rhs)
 		}
 
 	case *syntax.BlockStmt:
@@ -1065,8 +1065,8 @@ func (w *writer) declStmt(decl syntax.Decl) {
 	case *syntax.VarDecl:
 		w.Code(stmtAssign)
 		w.pos(decl)
-		w.exprList(decl.Values)
 		w.assignList(namesAsExpr(decl.NameList))
+		w.exprList(decl.Values)
 	}
 }
 
@@ -1083,8 +1083,8 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 	if rang, ok := stmt.Init.(*syntax.RangeClause); w.Bool(ok) {
 		w.pos(rang)
-		w.expr(rang.X)
 		w.assignList(rang.Lhs)
+		w.expr(rang.X)
 	} else {
 		w.pos(stmt)
 		w.stmt(stmt.Init)

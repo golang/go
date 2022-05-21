@@ -1224,10 +1224,8 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 	case stmtAssign:
 		pos := r.pos()
 
-		// TODO(mdempsky): After quirks mode is gone, swap these
-		// statements so we visit LHS before RHS again.
-		rhs := r.exprList()
 		names, lhs := r.assignList()
+		rhs := r.exprList()
 
 		if len(rhs) == 0 {
 			for _, name := range names {
@@ -1368,10 +1366,8 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 	if r.Bool() {
 		pos := r.pos()
 
-		// TODO(mdempsky): After quirks mode is gone, swap these
-		// statements so we read LHS before X again.
-		x := r.expr()
 		names, lhs := r.assignList()
+		x := r.expr()
 
 		body := r.blockStmt()
 		r.closeAnotherScope()
