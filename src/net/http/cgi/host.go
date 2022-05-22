@@ -33,7 +33,7 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
-var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
+var trailingPort = regexp.MustCompile(`:(\d+)$`)
 
 var osDefaultInheritEnv = func() []string {
 	switch runtime.GOOS {
@@ -151,7 +151,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if remoteIP, remotePort, err := net.SplitHostPort(req.RemoteAddr); err == nil {
-		env = append(env, "REMOTE_ADDR="+remoteIP, "REMOTE_HOST="+remoteIP, "REMOTE_PORT="+remotePort)
+		env = append(
+			env, "REMOTE_ADDR="+remoteIP, "REMOTE_HOST="+remoteIP, "REMOTE_PORT="+remotePort)
 	} else {
 		// could not parse ip:port, let's use whole RemoteAddr and leave REMOTE_PORT undefined
 		env = append(env, "REMOTE_ADDR="+req.RemoteAddr, "REMOTE_HOST="+req.RemoteAddr)
