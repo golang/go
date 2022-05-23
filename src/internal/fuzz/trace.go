@@ -21,15 +21,15 @@ import _ "unsafe" // for go:linkname
 //go:linkname libfuzzerHookStrCmp runtime.libfuzzerHookStrCmp
 //go:linkname libfuzzerHookEqualFold runtime.libfuzzerHookEqualFold
 
-func libfuzzerTraceCmp1(arg0, arg1 uint8)  {}
-func libfuzzerTraceCmp2(arg0, arg1 uint16) {}
-func libfuzzerTraceCmp4(arg0, arg1 uint32) {}
-func libfuzzerTraceCmp8(arg0, arg1 uint64) {}
+func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC int)  {}
+func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC int) {}
+func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC int) {}
+func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC int) {}
 
-func libfuzzerTraceConstCmp1(arg0, arg1 uint8)  {}
-func libfuzzerTraceConstCmp2(arg0, arg1 uint16) {}
-func libfuzzerTraceConstCmp4(arg0, arg1 uint32) {}
-func libfuzzerTraceConstCmp8(arg0, arg1 uint64) {}
+func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC int)  {}
+func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC int) {}
+func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC int) {}
+func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC int) {}
 
 func libfuzzerHookStrCmp(arg0, arg1 string, fakePC int)    {}
 func libfuzzerHookEqualFold(arg0, arg1 string, fakePC int) {}

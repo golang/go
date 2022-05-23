@@ -153,7 +153,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			default:
 				base.Fatalf("unexpected integer size %d for %v", t.Size(), t)
 			}
-			init.Append(mkcall(fn, nil, init, tracecmpArg(l, paramType, init), tracecmpArg(r, paramType, init)))
+			init.Append(mkcall(fn, nil, init, tracecmpArg(l, paramType, init), tracecmpArg(r, paramType, init), fakePC(n)))
 		}
 		return n
 	case types.TARRAY:
