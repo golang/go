@@ -236,7 +236,7 @@ func imag(c ComplexType) FloatType
 //
 //	x, ok := <-c
 //
-// will also set ok to false for a closed channel.
+// will also set ok to false for a closed and empty channel.
 func close(c chan<- Type)
 
 // The panic built-in function stops normal execution of the current
