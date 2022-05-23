@@ -2468,6 +2468,15 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 	// so we're responsible for applying inlining ourselves here.
 	inline.InlineCalls(fn)
 
+	// The body of wrapper function after inlining may reveal new ir.OMETHVALUE node,
+	// we don't know whether wrapper function has been generated for it or not, so
+	// generate one immediately here.
+	ir.VisitList(fn.Body, func(n ir.Node) {
+		if n, ok := n.(*ir.SelectorExpr); ok && n.Op() == ir.OMETHVALUE {
+			wrapMethodValue(n.X.Type(), n.Selection, target, true)
+		}
+	})
+
 	target.Decls = append(target.Decls, fn)
 }
 
