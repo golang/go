@@ -12,11 +12,11 @@ const (
 	vdsoArrayMax = 1<<50 - 1
 )
 
-// see man 7 vdso : loong64
-var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
+// not currently described in manpages as of May 2022, but will eventually
+// appear
+// when that happens, see man 7 vdso : loongarch
+var vdsoLinuxVersion = vdsoVersionKey{"LINUX_5.10", 0xae78f70}
 
-// The symbol name is not __kernel_clock_gettime as suggested by the manpage;
-// according to Linux source code it should be __vdso_clock_gettime instead.
 var vdsoSymbolKeys = []vdsoSymbolKey{
 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
 }
