@@ -5,7 +5,6 @@
 package span
 
 import (
-	"errors"
 	"fmt"
 	"go/token"
 
@@ -18,12 +17,20 @@ import (
 type Range struct {
 	Start token.Pos
 	End   token.Pos
-	file  *token.File // possibly nil, if Start or End is invalid
+
+	// TokFile may be nil if Start or End is invalid.
+	// TODO: Eventually we should guarantee that it is non-nil.
+	TokFile *token.File
 }
 
 // TokenConverter converts between offsets and (col, row) using a token.File.
+//
+// TODO(rfindley): eliminate TokenConverter in favor of just operating on
+// token.File.
 type TokenConverter struct {
-	file *token.File
+	// TokFile is exported for invariant checking; it may be nil in the case of
+	// an invalid converter.
+	TokFile *token.File
 }
 
 // NewRange creates a new Range from a FileSet and two positions.
@@ -34,9 +41,9 @@ func NewRange(fset *token.FileSet, start, end token.Pos) Range {
 		bug.Reportf("nil file")
 	}
 	return Range{
-		Start: start,
-		End:   end,
-		file:  file,
+		Start:   start,
+		End:     end,
+		TokFile: file,
 	}
 }
 
@@ -46,7 +53,7 @@ func NewTokenConverter(f *token.File) *TokenConverter {
 	if f == nil {
 		bug.Reportf("nil file")
 	}
-	return &TokenConverter{file: f}
+	return &TokenConverter{TokFile: f}
 }
 
 // NewContentConverter returns an implementation of Converter for the
@@ -67,18 +74,22 @@ func (r Range) IsPoint() bool {
 // It will fill in all the members of the Span, calculating the line and column
 // information.
 func (r Range) Span() (Span, error) {
-	if !r.Start.IsValid() {
-		return Span{}, fmt.Errorf("start pos is not valid")
-	}
-	if r.file == nil {
-		return Span{}, errors.New("range missing file association")
-	}
-	return FileSpan(r.file, NewTokenConverter(r.file), r.Start, r.End)
+	return FileSpan(r.TokFile, NewTokenConverter(r.TokFile), r.Start, r.End)
 }
 
 // FileSpan returns a span within tok, using converter to translate between
 // offsets and positions.
+//
+// If non-nil, the converter must be a converter for the source file pointed to
+// by start, after accounting for //line directives, as it will be used to
+// compute offsets for the resulting Span.
 func FileSpan(tok *token.File, converter *TokenConverter, start, end token.Pos) (Span, error) {
+	if !start.IsValid() {
+		return Span{}, fmt.Errorf("start pos is not valid")
+	}
+	if tok == nil {
+		return Span{}, bug.Errorf("missing file association") // should never get here with a nil file
+	}
 	var s Span
 	var err error
 	var startFilename string
@@ -102,13 +113,13 @@ func FileSpan(tok *token.File, converter *TokenConverter, start, end token.Pos) 
 	s.v.Start.clean()
 	s.v.End.clean()
 	s.v.clean()
-	if converter != nil {
-		return s.WithOffset(converter)
+	if converter == nil {
+		converter = &TokenConverter{tok}
 	}
-	if startFilename != tok.Name() {
-		return Span{}, fmt.Errorf("must supply Converter for file %q containing lines from %q", tok.Name(), startFilename)
+	if startFilename != converter.TokFile.Name() {
+		return Span{}, bug.Errorf("must supply Converter for file %q containing lines from %q", tok.Name(), startFilename)
 	}
-	return s.WithOffset(&TokenConverter{tok})
+	return s.WithOffset(converter)
 }
 
 func position(f *token.File, pos token.Pos) (string, int, int, error) {
@@ -149,7 +160,7 @@ func (s Span) Range(converter *TokenConverter) (Range, error) {
 	if err != nil {
 		return Range{}, err
 	}
-	file := converter.file
+	file := converter.TokFile
 	// go/token will panic if the offset is larger than the file's size,
 	// so check here to avoid panicking.
 	if s.Start().Offset() > file.Size() {
@@ -159,14 +170,14 @@ func (s Span) Range(converter *TokenConverter) (Range, error) {
 		return Range{}, bug.Errorf("end offset %v is past the end of the file %v", s.End(), file.Size())
 	}
 	return Range{
-		Start: file.Pos(s.Start().Offset()),
-		End:   file.Pos(s.End().Offset()),
-		file:  file,
+		Start:   file.Pos(s.Start().Offset()),
+		End:     file.Pos(s.End().Offset()),
+		TokFile: file,
 	}, nil
 }
 
 func (l *TokenConverter) ToPosition(offset int) (int, int, error) {
-	_, line, col, err := positionFromOffset(l.file, offset)
+	_, line, col, err := positionFromOffset(l.TokFile, offset)
 	return line, col, err
 }
 
@@ -174,7 +185,7 @@ func (l *TokenConverter) ToOffset(line, col int) (int, error) {
 	if line < 0 {
 		return -1, fmt.Errorf("line is not valid")
 	}
-	lineMax := l.file.LineCount() + 1
+	lineMax := l.TokFile.LineCount() + 1
 	if line > lineMax {
 		return -1, fmt.Errorf("line is beyond end of file %v", lineMax)
 	} else if line == lineMax {
@@ -182,14 +193,14 @@ func (l *TokenConverter) ToOffset(line, col int) (int, error) {
 			return -1, fmt.Errorf("column is beyond end of file")
 		}
 		// at the end of the file, allowing for a trailing eol
-		return l.file.Size(), nil
+		return l.TokFile.Size(), nil
 	}
-	pos := l.file.LineStart(line)
+	pos := l.TokFile.LineStart(line)
 	if !pos.IsValid() {
 		return -1, fmt.Errorf("line is not in file")
 	}
 	// we assume that column is in bytes here, and that the first byte of a
 	// line is at column 1
 	pos += token.Pos(col - 1)
-	return offset(l.file, pos)
+	return offset(l.TokFile, pos)
 }

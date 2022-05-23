@@ -198,7 +198,7 @@ func (r *renamer) update() (map[span.URI][]diff.TextEdit, error) {
 		return nil, err
 	}
 	for _, ref := range r.refs {
-		refSpan, err := ref.spanRange.Span()
+		refSpan, err := ref.Span()
 		if err != nil {
 			return nil, err
 		}

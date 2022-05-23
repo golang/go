@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -53,6 +54,9 @@ func (s *Server) typeDefinition(ctx context.Context, params *protocol.TypeDefini
 	ident, err := source.Identifier(ctx, snapshot, fh, params.Position)
 	if err != nil {
 		return nil, err
+	}
+	if ident.Type.Object == nil {
+		return nil, fmt.Errorf("no type definition for %s", ident.Name)
 	}
 	identRange, err := ident.Type.Range()
 	if err != nil {

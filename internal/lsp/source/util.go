@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
@@ -25,25 +26,45 @@ import (
 // MappedRange provides mapped protocol.Range for a span.Range, accounting for
 // UTF-16 code points.
 type MappedRange struct {
-	spanRange span.Range
-	m         *protocol.ColumnMapper
+	spanRange span.Range             // the range in the compiled source (package.CompiledGoFiles)
+	m         *protocol.ColumnMapper // a mapper of the edited source (package.GoFiles)
 
 	// protocolRange is the result of converting the spanRange using the mapper.
-	// It is computed on-demand.
+	// It is computed lazily.
 	protocolRange *protocol.Range
 }
 
 // NewMappedRange returns a MappedRange for the given start and end token.Pos.
+//
+// By convention, start and end are assumed to be positions in the compiled (==
+// type checked) source, whereas the column mapper m maps positions in the
+// user-edited source. Note that these may not be the same, as when using CGo:
+// CompiledGoFiles contains generated files, whose positions (via
+// token.File.Position) point to locations in the edited file -- the file
+// containing `import "C"`.
 func NewMappedRange(fset *token.FileSet, m *protocol.ColumnMapper, start, end token.Pos) MappedRange {
+	if tf := fset.File(start); tf == nil {
+		bug.Report("nil file", nil)
+	} else {
+		mapped := m.Converter.TokFile.Name()
+		adjusted := tf.PositionFor(start, true) // adjusted position
+		if adjusted.Filename != mapped {
+			bug.Reportf("mapped file %q does not match start position file %q", mapped, adjusted.Filename)
+		}
+	}
 	return MappedRange{
 		spanRange: span.NewRange(fset, start, end),
 		m:         m,
 	}
 }
 
+// Range returns the LSP range in the edited source.
+//
+// See the documentation of NewMappedRange for information on edited vs
+// compiled source.
 func (s MappedRange) Range() (protocol.Range, error) {
 	if s.protocolRange == nil {
-		spn, err := s.spanRange.Span()
+		spn, err := s.Span()
 		if err != nil {
 			return protocol.Range{}, err
 		}
@@ -56,14 +77,33 @@ func (s MappedRange) Range() (protocol.Range, error) {
 	return *s.protocolRange, nil
 }
 
+// Span returns the span corresponding to the mapped range in the edited
+// source.
+//
+// See the documentation of NewMappedRange for information on edited vs
+// compiled source.
 func (s MappedRange) Span() (span.Span, error) {
-	return s.spanRange.Span()
+	// In the past, some code-paths have relied on Span returning an error if s
+	// is the zero value (i.e. s.m is nil). But this should be treated as a bug:
+	// observe that s.URI() would panic in this case.
+	if s.m == nil {
+		return span.Span{}, bug.Errorf("invalid range")
+	}
+	return span.FileSpan(s.spanRange.TokFile, s.m.Converter, s.spanRange.Start, s.spanRange.End)
 }
 
+// SpanRange returns a span.Range in the compiled source.
+//
+// See the documentation of NewMappedRange for information on edited vs
+// compiled source.
 func (s MappedRange) SpanRange() span.Range {
 	return s.spanRange
 }
 
+// URI returns the URI of the edited file.
+//
+// See the documentation of NewMappedRange for information on edited vs
+// compiled source.
 func (s MappedRange) URI() span.URI {
 	return s.m.URI
 }
