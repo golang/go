@@ -471,7 +471,7 @@ var HelpEnvironment = &base.Command{
 	Long: `
 
 The go command and the tools it invokes consult environment variables
-for configuration. If an environment variable is unset, the go command
+for configuration. If an environment variable is unset or empty, the go command
 uses a sensible default setting. To see the effective setting of the
 variable <NAME>, run 'go env <NAME>'. To change the default setting,
 run 'go env -w <NAME>=<VALUE>'. Defaults changed using 'go env -w'
