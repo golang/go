@@ -9,7 +9,7 @@
 
 #define	REGCTXT	R29
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// R3 = stack; R4 = argc; R5 = argv
 
 	ADDV	$-24, R3
@@ -107,12 +107,16 @@ TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $16-8
+TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOVV	buf+0(FP), R4
-	MOVV	gobuf_g(R4), g	// make sure g is not nil
+	MOVV	gobuf_g(R4), R5
+	MOVV	0(R5), R0	// make sure g != nil
+	JMP	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+	MOVV	R5, g
 	JAL	runtime·save_g(SB)
 
-	MOVV	0(g), R5
 	MOVV	gobuf_sp(R4), R3
 	MOVV	gobuf_lr(R4), R1
 	MOVV	gobuf_ret(R4), R19
