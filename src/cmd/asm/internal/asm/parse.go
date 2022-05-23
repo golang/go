@@ -49,7 +49,7 @@ type Parser struct {
 }
 
 type Patch struct {
-	prog  *obj.Prog
+	addr  *obj.Addr
 	label string
 }
 

@@ -10,7 +10,6 @@
 
 TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 
-
 // arithmetic operations
 	ADDW	$1, R2, R3
 	ADDW	R1, R2, R3
@@ -850,6 +849,11 @@ again:
 	TBNZ	$2, R2, 2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
+
+// ADR
+	ADR	next, R11     // ADR R11 // 2b000010
+next:
+	NOP
 
 // LDP/STP
 	LDP	(R0), (R0, R1)      // 000440a9

@@ -394,6 +394,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		Pos:  p.pos(),
 		As:   op,
 	}
+	targetAddr := &prog.To
 	switch len(a) {
 	case 0:
 		if p.arch.Family == sys.Wasm {
@@ -406,8 +407,15 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		target = &a[0]
 	case 2:
 		// Special 2-operand jumps.
-		target = &a[1]
-		prog.From = a[0]
+		if p.arch.Family == sys.ARM64 && arch.IsARM64ADR(op) {
+			// ADR label, R. Label is in From.
+			target = &a[0]
+			prog.To = a[1]
+			targetAddr = &prog.From
+		} else {
+			target = &a[1]
+			prog.From = a[0]
+		}
 	case 3:
 		if p.arch.Family == sys.PPC64 {
 			// Special 3-operand jumps.
@@ -513,20 +521,20 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 	switch {
 	case target.Type == obj.TYPE_BRANCH:
 		// JMP 4(PC)
-		prog.To = obj.Addr{
+		*targetAddr = obj.Addr{
 			Type:   obj.TYPE_BRANCH,
 			Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in append, below.
 		}
 	case target.Type == obj.TYPE_REG:
 		// JMP R1
-		prog.To = *target
+		*targetAddr = *target
 	case target.Type == obj.TYPE_MEM && (target.Name == obj.NAME_EXTERN || target.Name == obj.NAME_STATIC):
 		// JMP main·morestack(SB)
-		prog.To = *target
+		*targetAddr = *target
 	case target.Type == obj.TYPE_INDIR && (target.Name == obj.NAME_EXTERN || target.Name == obj.NAME_STATIC):
 		// JMP *main·morestack(SB)
-		prog.To = *target
-		prog.To.Type = obj.TYPE_INDIR
+		*targetAddr = *target
+		targetAddr.Type = obj.TYPE_INDIR
 	case target.Type == obj.TYPE_MEM && target.Reg == 0 && target.Offset == 0:
 		// JMP exit
 		if target.Sym == nil {
@@ -535,20 +543,20 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		}
 		targetProg := p.labels[target.Sym.Name]
 		if targetProg == nil {
-			p.toPatch = append(p.toPatch, Patch{prog, target.Sym.Name})
+			p.toPatch = append(p.toPatch, Patch{targetAddr, target.Sym.Name})
 		} else {
-			p.branch(prog, targetProg)
+			p.branch(targetAddr, targetProg)
 		}
 	case target.Type == obj.TYPE_MEM && target.Name == obj.NAME_NONE:
 		// JMP 4(R0)
-		prog.To = *target
+		*targetAddr = *target
 		// On the ppc64, 9a encodes BR (CTR) as BR CTR. We do the same.
 		if p.arch.Family == sys.PPC64 && target.Offset == 0 {
-			prog.To.Type = obj.TYPE_REG
+			targetAddr.Type = obj.TYPE_REG
 		}
 	case target.Type == obj.TYPE_CONST:
 		// JMP $4
-		prog.To = a[0]
+		*targetAddr = a[0]
 	case target.Type == obj.TYPE_NONE:
 		// JMP
 	default:
@@ -566,17 +574,17 @@ func (p *Parser) patch() {
 			p.errorf("undefined label %s", patch.label)
 			return
 		}
-		p.branch(patch.prog, targetProg)
+		p.branch(patch.addr, targetProg)
 	}
 	p.toPatch = p.toPatch[:0]
 }
 
-func (p *Parser) branch(jmp, target *obj.Prog) {
-	jmp.To = obj.Addr{
+func (p *Parser) branch(addr *obj.Addr, target *obj.Prog) {
+	*addr = obj.Addr{
 		Type:  obj.TYPE_BRANCH,
 		Index: 0,
 	}
-	jmp.To.Val = target
+	addr.Val = target
 }
 
 // asmInstruction assembles an instruction.
