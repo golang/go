@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+
+	"golang.org/x/tools/internal/lsp/bug"
 )
 
 // Range represents a source code range in token.Pos form.
@@ -29,7 +31,7 @@ type TokenConverter struct {
 func NewRange(fset *token.FileSet, start, end token.Pos) Range {
 	file := fset.File(start)
 	if file == nil {
-		// TODO: report a bug here via the bug reporting API, once it is available.
+		bug.Reportf("nil file")
 	}
 	return Range{
 		Start: start,
@@ -42,7 +44,7 @@ func NewRange(fset *token.FileSet, start, end token.Pos) Range {
 // token.File.
 func NewTokenConverter(f *token.File) *TokenConverter {
 	if f == nil {
-		// TODO: report a bug here using the bug reporting API.
+		bug.Reportf("nil file")
 	}
 	return &TokenConverter{file: f}
 }
@@ -151,12 +153,10 @@ func (s Span) Range(converter *TokenConverter) (Range, error) {
 	// go/token will panic if the offset is larger than the file's size,
 	// so check here to avoid panicking.
 	if s.Start().Offset() > file.Size() {
-		// TODO: report a bug here via the future bug reporting API.
-		return Range{}, fmt.Errorf("start offset %v is past the end of the file %v", s.Start(), file.Size())
+		return Range{}, bug.Errorf("start offset %v is past the end of the file %v", s.Start(), file.Size())
 	}
 	if s.End().Offset() > file.Size() {
-		// TODO: report a bug here via the future bug reporting API.
-		return Range{}, fmt.Errorf("end offset %v is past the end of the file %v", s.End(), file.Size())
+		return Range{}, bug.Errorf("end offset %v is past the end of the file %v", s.End(), file.Size())
 	}
 	return Range{
 		Start: file.Pos(s.Start().Offset()),

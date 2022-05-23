@@ -439,6 +439,14 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 // If they cannot and the workspace is not otherwise unloaded, it also surfaces
 // a warning, suggesting that the user check the file for build tags.
 func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle) *source.Diagnostic {
+	// TODO(rfindley): this function may fail to produce a diagnostic for a
+	// variety of reasons, some of which should probably not be ignored. For
+	// example, should this function be tolerant of the case where fh does not
+	// exist, or does not have a package name?
+	//
+	// It would be better to panic or report a bug in several of the cases below,
+	// so that we can move toward guaranteeing we show the user a meaningful
+	// error whenever it makes sense.
 	if snapshot.View().FileKind(fh) != source.Go {
 		return nil
 	}
@@ -452,6 +460,9 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 	}
 	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseHeader)
 	if err != nil {
+		return nil
+	}
+	if !pgf.File.Name.Pos().IsValid() {
 		return nil
 	}
 	spn, err := span.NewRange(snapshot.FileSet(), pgf.File.Name.Pos(), pgf.File.Name.End()).Span()
