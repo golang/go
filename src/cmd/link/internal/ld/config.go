@@ -95,7 +95,7 @@ func (mode *BuildMode) Set(s string) error {
 		switch buildcfg.GOOS {
 		case "linux":
 			switch buildcfg.GOARCH {
-			case "386", "amd64", "arm", "arm64", "s390x", "ppc64le":
+			case "386", "amd64", "arm", "arm64", "riscv64", "s390x", "ppc64le":
 			default:
 				return badmode()
 			}
