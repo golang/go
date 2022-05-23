@@ -376,10 +376,10 @@ func runtimeTypes() []*types.Type {
 	typs[142] = newSig(params(typs[7], typs[1], typs[5]), nil)
 	typs[143] = types.NewSlice(typs[7])
 	typs[144] = newSig(params(typs[7], typs[143]), nil)
-	typs[145] = newSig(params(typs[66], typs[66]), nil)
-	typs[146] = newSig(params(typs[60], typs[60]), nil)
-	typs[147] = newSig(params(typs[62], typs[62]), nil)
-	typs[148] = newSig(params(typs[24], typs[24]), nil)
+	typs[145] = newSig(params(typs[66], typs[66], typs[15]), nil)
+	typs[146] = newSig(params(typs[60], typs[60], typs[15]), nil)
+	typs[147] = newSig(params(typs[62], typs[62], typs[15]), nil)
+	typs[148] = newSig(params(typs[24], typs[24], typs[15]), nil)
 	typs[149] = newSig(params(typs[28], typs[28], typs[15]), nil)
 	return typs[:]
 }

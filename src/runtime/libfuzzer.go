@@ -9,39 +9,50 @@ package runtime
 import "unsafe"
 
 func libfuzzerCallWithTwoByteBuffers(fn, start, end *byte)
+func libfuzzerCallTraceIntCmp(fn *byte, arg0, arg1, fakePC uintptr)
 func libfuzzerCall4(fn *byte, fakePC uintptr, s1, s2 unsafe.Pointer, result uintptr)
-func libfuzzerCall(fn *byte, arg0, arg1 uintptr)
+// Keep in sync with the definition of ret_sled in src/runtime/libfuzzer_amd64.s
+const retSledSize = 512
 
-func libfuzzerTraceCmp1(arg0, arg1 uint8) {
-	libfuzzerCall(&__sanitizer_cov_trace_cmp1, uintptr(arg0), uintptr(arg1))
+
+func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC int) {
+	fakePC = fakePC % retSledSize
+	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
-func libfuzzerTraceCmp2(arg0, arg1 uint16) {
-	libfuzzerCall(&__sanitizer_cov_trace_cmp2, uintptr(arg0), uintptr(arg1))
+func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC int) {
+	fakePC = fakePC % retSledSize
+	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
-func libfuzzerTraceCmp4(arg0, arg1 uint32) {
-	libfuzzerCall(&__sanitizer_cov_trace_cmp4, uintptr(arg0), uintptr(arg1))
+func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC int) {
+	fakePC = fakePC % retSledSize
+	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
-func libfuzzerTraceCmp8(arg0, arg1 uint64) {
-	libfuzzerCall(&__sanitizer_cov_trace_cmp8, uintptr(arg0), uintptr(arg1))
+func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC int) {
+	fakePC = fakePC % retSledSize
+	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
-func libfuzzerTraceConstCmp1(arg0, arg1 uint8) {
-	libfuzzerCall(&__sanitizer_cov_trace_const_cmp1, uintptr(arg0), uintptr(arg1))
+func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC int) {
+	fakePC = fakePC % retSledSize
+	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
-func libfuzzerTraceConstCmp2(arg0, arg1 uint16) {
-	libfuzzerCall(&__sanitizer_cov_trace_const_cmp2, uintptr(arg0), uintptr(arg1))
+func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC int) {
+	fakePC = fakePC % retSledSize
+	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
-func libfuzzerTraceConstCmp4(arg0, arg1 uint32) {
-	libfuzzerCall(&__sanitizer_cov_trace_const_cmp4, uintptr(arg0), uintptr(arg1))
+func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC int) {
+	fakePC = fakePC % retSledSize
+	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
-func libfuzzerTraceConstCmp8(arg0, arg1 uint64) {
-	libfuzzerCall(&__sanitizer_cov_trace_const_cmp8, uintptr(arg0), uintptr(arg1))
+func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC int) {
+	fakePC = fakePC % retSledSize
+	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
 var pcTables []byte
