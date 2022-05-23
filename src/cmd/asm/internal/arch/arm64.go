@@ -47,6 +47,11 @@ var arm64Jump = map[string]bool{
 	"JMP":   true,
 	"TBNZ":  true,
 	"TBZ":   true,
+
+	// ADR isn't really a jump, but it takes a PC or label reference,
+	// which needs to patched like a jump.
+	"ADR":  true,
+	"ADRP": true,
 }
 
 func jumpArm64(word string) bool {
@@ -79,6 +84,16 @@ func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
 		return opd
 	}
 	return arm64.SPOP_END
+}
+
+// IsARM64ADR reports whether the op (as defined by an arm64.A* constant) is
+// one of the comparison instructions that require special handling.
+func IsARM64ADR(op obj.As) bool {
+	switch op {
+	case arm64.AADR, arm64.AADRP:
+		return true
+	}
+	return false
 }
 
 // IsARM64CMP reports whether the op (as defined by an arm64.A* constant) is

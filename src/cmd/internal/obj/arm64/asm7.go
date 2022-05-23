@@ -6683,7 +6683,12 @@ func (c *ctxt7) opimm(p *obj.Prog, a obj.As) uint32 {
 func (c *ctxt7) brdist(p *obj.Prog, preshift int, flen int, shift int) int64 {
 	v := int64(0)
 	t := int64(0)
-	q := p.To.Target()
+	var q *obj.Prog
+	if p.To.Type == obj.TYPE_BRANCH {
+		q = p.To.Target()
+	} else if p.From.Type == obj.TYPE_BRANCH { // adr, adrp
+		q = p.From.Target()
+	}
 	if q == nil {
 		// TODO: don't use brdist for this case, as it isn't a branch.
 		// (Calls from omovlit, and maybe adr/adrp opcodes as well.)
