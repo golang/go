@@ -20,6 +20,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 	"unicode"
 )
 
@@ -90,9 +91,26 @@ func replaceEnv(cmd *exec.Cmd, key, value string) {
 // mustRun executes t and fails cmd with a well-formatted message if it fails.
 func mustRun(t *testing.T, cmd *exec.Cmd) {
 	t.Helper()
-	out, err := cmd.CombinedOutput()
+	out := new(strings.Builder)
+	cmd.Stdout = out
+	cmd.Stderr = out
+
+	err := cmd.Start()
 	if err != nil {
-		t.Fatalf("%#q exited with %v\n%s", strings.Join(cmd.Args, " "), err, out)
+		t.Fatalf("%v: %v", cmd, err)
+	}
+
+	if deadline, ok := t.Deadline(); ok {
+		timeout := time.Until(deadline)
+		timeout -= timeout / 10 // Leave 10% headroom for logging and cleanup.
+		timer := time.AfterFunc(timeout, func() {
+			cmd.Process.Signal(syscall.SIGQUIT)
+		})
+		defer timer.Stop()
+	}
+
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("%v exited with %v\n%s", cmd, err, out)
 	}
 }
 
