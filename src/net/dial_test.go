@@ -302,8 +302,8 @@ func TestDialParallel(t *testing.T) {
 		// We used to always use 95 milliseconds as the slop,
 		// but that was flaky on Windows.  See issue 35616.
 		slop := 95 * time.Millisecond
-		if fifth := tt.expectElapsed / 5; fifth > slop {
-			slop = fifth
+		if half := tt.expectElapsed / 2; half > slop {
+			slop = half
 		}
 		expectElapsedMin := tt.expectElapsed - slop
 		expectElapsedMax := tt.expectElapsed + slop
