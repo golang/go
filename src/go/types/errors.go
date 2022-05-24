@@ -277,6 +277,17 @@ func (check *Checker) softErrorf(at positioner, code errorCode, format string, a
 	check.report(err)
 }
 
+func (check *Checker) versionErrorf(at positioner, code errorCode, goVersion string, format string, args ...interface{}) {
+	msg := check.sprintf(format, args...)
+	var err *error_
+	if compilerErrorMessages {
+		err = newErrorf(at, code, "%s requires %s or later (-lang was set to %s; check go.mod)", msg, goVersion, check.conf.GoVersion)
+	} else {
+		err = newErrorf(at, code, "%s requires %s or later", msg, goVersion)
+	}
+	check.report(err)
+}
+
 func (check *Checker) invalidAST(at positioner, format string, args ...any) {
 	check.errorf(at, 0, "invalid AST: "+format, args...)
 }
