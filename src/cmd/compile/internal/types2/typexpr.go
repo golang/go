@@ -46,7 +46,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		return
 	case universeAny, universeComparable:
 		if !check.allowVersion(check.pkg, 1, 18) {
-			check.errorf(e, "undeclared name: %s (requires version go1.18 or later)", e.Value)
+			check.versionErrorf(e, "go1.18", "predeclared %s", e.Value)
 			return // avoid follow-on errors
 		}
 	}
