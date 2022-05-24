@@ -44,7 +44,7 @@ func ApplyEdits(before string, edits []TextEdit) string {
 	if len(edits) == 0 {
 		return before
 	}
-	_, edits, _ = prepareEdits(before, edits)
+	edits, _ = prepareEdits(before, edits)
 	after := strings.Builder{}
 	last := 0
 	for _, edit := range edits {
@@ -68,15 +68,15 @@ func LineEdits(before string, edits []TextEdit) []TextEdit {
 	if len(edits) == 0 {
 		return nil
 	}
-	c, edits, partial := prepareEdits(before, edits)
+	edits, partial := prepareEdits(before, edits)
 	if partial {
-		edits = lineEdits(before, c, edits)
+		edits = lineEdits(before, edits)
 	}
 	return edits
 }
 
 // prepareEdits returns a sorted copy of the edits
-func prepareEdits(before string, edits []TextEdit) (*span.TokenConverter, []TextEdit, bool) {
+func prepareEdits(before string, edits []TextEdit) ([]TextEdit, bool) {
 	partial := false
 	c := span.NewContentConverter("", []byte(before))
 	copied := make([]TextEdit, len(edits))
@@ -88,11 +88,11 @@ func prepareEdits(before string, edits []TextEdit) (*span.TokenConverter, []Text
 			edit.Span.Start().Column() > 1 || edit.Span.End().Column() > 1
 	}
 	SortTextEdits(copied)
-	return c, copied, partial
+	return copied, partial
 }
 
 // lineEdits rewrites the edits to always be full line edits
-func lineEdits(before string, c *span.TokenConverter, edits []TextEdit) []TextEdit {
+func lineEdits(before string, edits []TextEdit) []TextEdit {
 	adjusted := make([]TextEdit, 0, len(edits))
 	current := TextEdit{Span: span.Invalid}
 	for _, edit := range edits {
