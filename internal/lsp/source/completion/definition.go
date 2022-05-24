@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
 // some definitions can be completed
@@ -22,7 +23,7 @@ import (
 // BenchmarkFoo(b *testing.B), FuzzFoo(f *testing.F)
 
 // path[0] is known to be *ast.Ident
-func definition(path []ast.Node, obj types.Object, fset *token.FileSet, mapper *protocol.ColumnMapper, fh source.FileHandle) ([]CompletionItem, *Selection) {
+func definition(path []ast.Node, obj types.Object, fset *token.FileSet, fh source.FileHandle) ([]CompletionItem, *Selection) {
 	if _, ok := obj.(*types.Func); !ok {
 		return nil, nil // not a function at all
 	}
@@ -37,9 +38,9 @@ func definition(path []ast.Node, obj types.Object, fset *token.FileSet, mapper *
 	}
 	pos := path[0].Pos()
 	sel := &Selection{
-		content:     "",
-		cursor:      pos,
-		MappedRange: source.NewMappedRange(fset, mapper, pos, pos),
+		content: "",
+		cursor:  pos,
+		rng:     span.NewRange(fset, pos, pos),
 	}
 	var ans []CompletionItem
 

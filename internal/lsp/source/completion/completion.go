@@ -29,6 +29,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -289,7 +290,7 @@ type completionContext struct {
 type Selection struct {
 	content string
 	cursor  token.Pos
-	source.MappedRange
+	rng     span.Range
 }
 
 func (p Selection) Content() string {
@@ -297,19 +298,19 @@ func (p Selection) Content() string {
 }
 
 func (p Selection) Start() token.Pos {
-	return p.MappedRange.SpanRange().Start
+	return p.rng.Start
 }
 
 func (p Selection) End() token.Pos {
-	return p.MappedRange.SpanRange().End
+	return p.rng.End
 }
 
 func (p Selection) Prefix() string {
-	return p.content[:p.cursor-p.SpanRange().Start]
+	return p.content[:p.cursor-p.rng.Start]
 }
 
 func (p Selection) Suffix() string {
-	return p.content[p.cursor-p.SpanRange().Start:]
+	return p.content[p.cursor-p.rng.Start:]
 }
 
 func (c *completer) setSurrounding(ident *ast.Ident) {
@@ -324,7 +325,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		content: ident.Name,
 		cursor:  c.pos,
 		// Overwrite the prefix only.
-		MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper, ident.Pos(), ident.End()),
+		rng: span.NewRange(c.snapshot.FileSet(), ident.Pos(), ident.End()),
 	}
 
 	c.setMatcherFromPrefix(c.surrounding.Prefix())
@@ -344,9 +345,9 @@ func (c *completer) setMatcherFromPrefix(prefix string) {
 func (c *completer) getSurrounding() *Selection {
 	if c.surrounding == nil {
 		c.surrounding = &Selection{
-			content:     "",
-			cursor:      c.pos,
-			MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper, c.pos, c.pos),
+			content: "",
+			cursor:  c.pos,
+			rng:     span.NewRange(c.snapshot.FileSet(), c.pos, c.pos),
 		}
 	}
 	return c.surrounding
@@ -491,7 +492,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 					qual := types.RelativeTo(pkg.GetTypes())
 					objStr = types.ObjectString(obj, qual)
 				}
-				ans, sel := definition(path, obj, snapshot.FileSet(), pgf.Mapper, fh)
+				ans, sel := definition(path, obj, snapshot.FileSet(), fh)
 				if ans != nil {
 					sort.Slice(ans, func(i, j int) bool {
 						return ans[i].Score > ans[j].Score
@@ -801,9 +802,9 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 	}
 
 	c.surrounding = &Selection{
-		content:     content,
-		cursor:      c.pos,
-		MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper, start, end),
+		content: content,
+		cursor:  c.pos,
+		rng:     span.NewRange(c.snapshot.FileSet(), start, end),
 	}
 
 	seenImports := make(map[string]struct{})
@@ -1023,8 +1024,7 @@ func (c *completer) setSurroundingForComment(comments *ast.CommentGroup) {
 	c.surrounding = &Selection{
 		content: cursorComment.Text[start:end],
 		cursor:  c.pos,
-		MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper,
-			token.Pos(int(cursorComment.Slash)+start), token.Pos(int(cursorComment.Slash)+end)),
+		rng:     span.NewRange(c.snapshot.FileSet(), token.Pos(int(cursorComment.Slash)+start), token.Pos(int(cursorComment.Slash)+end)),
 	}
 	c.setMatcherFromPrefix(c.surrounding.Prefix())
 }

@@ -84,14 +84,6 @@ func (s MappedRange) Span() (span.Span, error) {
 	return span.FileSpan(s.spanRange.TokFile, s.m.Converter, s.spanRange.Start, s.spanRange.End)
 }
 
-// SpanRange returns a span.Range in the compiled source.
-//
-// See the documentation of NewMappedRange for information on edited vs
-// compiled source.
-func (s MappedRange) SpanRange() span.Range {
-	return s.spanRange
-}
-
 // URI returns the URI of the edited file.
 //
 // See the documentation of NewMappedRange for information on edited vs
