@@ -1,5 +1,3 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -34,6 +32,9 @@ import (
 // low-level linking details can be moved there, but the logic for
 // handling extension data needs to stay in the compiler.
 
+// A linker combines a package's stub export data with any referenced
+// elements from imported packages into a single, self-contained
+// export data file.
 type linker struct {
 	pw pkgbits.PkgEncoder
 
@@ -41,6 +42,9 @@ type linker struct {
 	decls map[*types.Sym]pkgbits.Index
 }
 
+// relocAll ensures that all elements specified by pr and relocs are
+// copied into the output export data file, and returns the
+// corresponding indices in the output.
 func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.RelocEnt {
 	res := make([]pkgbits.RelocEnt, len(relocs))
 	for i, rent := range relocs {
@@ -50,6 +54,8 @@ func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.Re
 	return res
 }
 
+// relocIdx ensures a single element is copied into the output export
+// data file, and returns the corresponding index in the output.
 func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx pkgbits.Index) pkgbits.Index {
 	assert(pr != nil)
 
@@ -85,10 +91,19 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx pkgbits.Index)
 	return newidx
 }
 
+// relocString copies the specified string from pr into the output
+// export data file, deduplicating it against other strings.
 func (l *linker) relocString(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 	return l.pw.StringIdx(pr.StringIdx(idx))
 }
 
+// relocPkg copies the specified package from pr into the output
+// export data file, rewriting its import path to match how it was
+// imported.
+//
+// TODO(mdempsky): Since CL 391014, we already have the compilation
+// unit's import path, so there should be no need to rewrite packages
+// anymore.
 func (l *linker) relocPkg(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 	path := pr.PeekPkgPath(idx)
 
@@ -114,6 +129,9 @@ func (l *linker) relocPkg(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 	return w.Flush()
 }
 
+// relocObj copies the specified object from pr into the output export
+// data file, rewriting its compiler-private extension data (e.g.,
+// adding inlining cost and escape analysis results for functions).
 func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 	path, name, tag := pr.PeekObj(idx)
 	sym := types.NewPkg(path, "").Lookup(name)
@@ -184,6 +202,8 @@ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 	return w.Idx
 }
 
+// relocCommon copies the specified element from pr into w,
+// recursively relocating any referenced elements as well.
 func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx pkgbits.Index) {
 	r := pr.NewDecoderRaw(k, idx)
 	w.Relocs = l.relocAll(pr, r.Relocs)

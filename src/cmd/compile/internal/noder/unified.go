@@ -1,5 +1,3 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -226,6 +224,8 @@ func freePackage(pkg *types2.Package) {
 	base.Fatalf("package never finalized")
 }
 
+// readPackage reads package export data from pr to populate
+// importpkg.
 func readPackage(pr *pkgReader, importpkg *types.Pkg) {
 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
@@ -252,6 +252,8 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
 	}
 }
 
+// writeUnifiedExport writes to `out` the finalized, self-contained
+// Unified IR export data file for the current compilation unit.
 func writeUnifiedExport(out io.Writer) {
 	l := linker{
 		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),

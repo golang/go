@@ -1,5 +1,3 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -26,15 +24,25 @@ import (
 	"cmd/internal/src"
 )
 
+// This file implements cmd/compile backend's reader for the Unified
+// IR export data.
+
+// A pkgReader reads Unified IR export data.
 type pkgReader struct {
 	pkgbits.PkgDecoder
+
+	// Indices for encoded things; lazily populated as needed.
+	//
+	// Note: Objects (i.e., ir.Names) are lazily instantiated by
+	// populating their types.Sym.Def; see objReader below.
 
 	posBases []*src.PosBase
 	pkgs     []*types.Pkg
 	typs     []*types.Type
 
-	// offset for rewriting the given index into the output,
-	// but bitwise inverted so we can detect if we're missing the entry or not.
+	// offset for rewriting the given (absolute!) index into the output,
+	// but bitwise inverted so we can detect if we're missing the entry
+	// or not.
 	newindex []pkgbits.Index
 }
 
@@ -50,6 +58,8 @@ func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
 	}
 }
 
+// A pkgReaderIndex compactly identifies an index (and its
+// corresponding dictionary) within a package's export data.
 type pkgReaderIndex struct {
 	pr   *pkgReader
 	idx  pkgbits.Index
@@ -69,6 +79,7 @@ func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pk
 	}
 }
 
+// A writer provides APIs for reading an individual element.
 type reader struct {
 	pkgbits.Decoder
 
@@ -162,6 +173,7 @@ func setValue(name *ir.Name, val constant.Value) {
 
 // @@@ Positions
 
+// pos reads a position from the bitstream.
 func (r *reader) pos() src.XPos {
 	return base.Ctxt.PosTable.XPos(r.pos0())
 }
@@ -178,10 +190,13 @@ func (r *reader) pos0() src.Pos {
 	return src.MakePos(posBase, line, col)
 }
 
+// posBase reads a position base from the bitstream.
 func (r *reader) posBase() *src.PosBase {
 	return r.inlPosBase(r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase)))
 }
 
+// posBaseIdx returns the specified position base, reading it first if
+// needed.
 func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *src.PosBase {
 	if b := pr.posBases[idx]; b != nil {
 		return b
@@ -222,6 +237,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *src.PosBase {
 	return b
 }
 
+// TODO(mdempsky): Document this.
 func (r *reader) inlPosBase(oldBase *src.PosBase) *src.PosBase {
 	if r.inlCall == nil {
 		return oldBase
@@ -236,36 +252,23 @@ func (r *reader) inlPosBase(oldBase *src.PosBase) *src.PosBase {
 	return newBase
 }
 
+// TODO(mdempsky): Document this.
 func (r *reader) updatePos(xpos src.XPos) src.XPos {
 	pos := base.Ctxt.PosTable.Pos(xpos)
 	pos.SetBase(r.inlPosBase(pos.Base()))
 	return base.Ctxt.PosTable.XPos(pos)
 }
 
-func (r *reader) origPos(xpos src.XPos) src.XPos {
-	if r.inlCall == nil {
-		return xpos
-	}
-
-	pos := base.Ctxt.PosTable.Pos(xpos)
-	for old, new := range r.inlPosBases {
-		if pos.Base() == new {
-			pos.SetBase(old)
-			return base.Ctxt.PosTable.XPos(pos)
-		}
-	}
-
-	base.FatalfAt(xpos, "pos base missing from inlPosBases")
-	panic("unreachable")
-}
-
 // @@@ Packages
 
+// pkg reads a package reference from the bitstream.
 func (r *reader) pkg() *types.Pkg {
 	r.Sync(pkgbits.SyncPkg)
 	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
 }
 
+// pkgIdx returns the specified package from the export data, reading
+// it first if needed.
 func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Pkg {
 	if pkg := pr.pkgs[idx]; pkg != nil {
 		return pkg
@@ -276,6 +279,7 @@ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Pkg {
 	return pkg
 }
 
+// doPkg reads a package definition from the bitstream.
 func (r *reader) doPkg() *types.Pkg {
 	path := r.String()
 	switch path {
@@ -530,8 +534,12 @@ func (r *reader) param() (*types.Pkg, *types.Field) {
 
 // @@@ Objects
 
+// objReader maps qualified identifiers (represented as *types.Sym) to
+// a pkgReader and corresponding index that can be used for reading
+// that object's definition.
 var objReader = map[*types.Sym]pkgReaderIndex{}
 
+// obj reads an instantiated object reference from the bitstream.
 func (r *reader) obj() ir.Node {
 	r.Sync(pkgbits.SyncObject)
 
@@ -567,6 +575,8 @@ func (r *reader) obj() ir.Node {
 	return r.p.objIdx(idx, implicits, explicits)
 }
 
+// objIdx returns the specified object from the bitstream,
+// instantiated with the given type arguments, if any.
 func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Type) ir.Node {
 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 	_, sym := rname.qualifiedIdent()
@@ -707,6 +717,7 @@ func (r *reader) mangle(sym *types.Sym) *types.Sym {
 	return sym.Pkg.Lookup(buf.String())
 }
 
+// objDictIdx reads and returns the specified object dictionary.
 func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, explicits []*types.Type) *readerDict {
 	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
@@ -955,6 +966,8 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
 // constructed.
 var todoBodies []*ir.Func
 
+// addBody reads a function body reference from the element bitstream,
+// and associates it with fn.
 func (r *reader) addBody(fn *ir.Func) {
 	pri := pkgReaderIndex{r.p, r.Reloc(pkgbits.RelocBody), r.dict}
 	bodyReader[fn] = pri
@@ -978,6 +991,8 @@ func (pri pkgReaderIndex) funcBody(fn *ir.Func) {
 	r.funcBody(fn)
 }
 
+// funcBody reads a function body definition from the element
+// bitstream, and populates fn with it.
 func (r *reader) funcBody(fn *ir.Func) {
 	r.curfn = fn
 	r.closureVars = fn.ClosureVars
@@ -1995,6 +2010,8 @@ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
 
 var inlgen = 0
 
+// InlineCall implements inline.NewInline by re-reading the function
+// body from its Unified IR export data.
 func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
 	// TODO(mdempsky): Turn callerfn into an explicit parameter.
 	callerfn := ir.CurFunc
@@ -2281,18 +2298,21 @@ func (r *reader) needWrapper(typ *types.Type) {
 	}
 }
 
+// importedDef reports whether r is reading from an imported and
+// non-generic element.
+//
+// If a type was found in an imported package, then we can assume that
+// package (or one of its transitive dependencies) already generated
+// method wrappers for it.
+//
+// Exception: If we're instantiating an imported generic type or
+// function, we might be instantiating it with type arguments not
+// previously seen before.
+//
+// TODO(mdempsky): Distinguish when a generic function or type was
+// instantiated in an imported package so that we can add types to
+// haveWrapperTypes instead.
 func (r *reader) importedDef() bool {
-	// If a type was found in an imported package, then we can assume
-	// that package (or one of its transitive dependencies) already
-	// generated method wrappers for it.
-	//
-	// Exception: If we're instantiating an imported generic type or
-	// function, we might be instantiating it with type arguments not
-	// previously seen before.
-	//
-	// TODO(mdempsky): Distinguish when a generic function or type was
-	// instantiated in an imported package so that we can add types to
-	// haveWrapperTypes instead.
 	return r.p != localPkgReader && !r.hasTypeParams()
 }
 

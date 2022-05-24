@@ -1,5 +1,3 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -16,6 +14,45 @@ import (
 	"cmd/compile/internal/types2"
 )
 
+// This file implements the Unified IR package writer and defines the
+// Unified IR export data format.
+//
+// Low-level coding details (e.g., byte-encoding of individual
+// primitive values, or handling element bitstreams and
+// cross-references) are handled by internal/pkgbits, so here we only
+// concern ourselves with higher-level worries like mapping Go
+// language constructs into elements.
+
+// There are two central types in the writing process: the "writer"
+// type handles writing out individual elements, while the "pkgWriter"
+// type keeps track of which elements have already been created.
+//
+// For each sort of "thing" (e.g., position, package, object, type)
+// that can be written into the export data, there are generally
+// several methods that work together:
+//
+// - writer.thing handles writing out a *use* of a thing, which often
+//   means writing a relocation to that thing's encoded index.
+//
+// - pkgWriter.thingIdx handles reserving an index for a thing, and
+//   writing out any elements needed for the thing.
+//
+// - writer.doThing handles writing out the *definition* of a thing,
+//   which in general is a mix of low-level coding primitives (e.g.,
+//   ints and strings) or uses of other things.
+//
+// A design goal of Unified IR is to have a single, canonical writer
+// implementation, but multiple reader implementations each tailored
+// to their respective needs. For example, within cmd/compile's own
+// backend, inlining is implemented largely by just re-running the
+// function body reading code.
+
+// TODO(mdempsky): Add an importer for Unified IR to the x/tools repo,
+// and better document the file format boundary between public and
+// private data.
+
+// A pkgWriter constructs Unified IR export data from the results of
+// running the types2 type checker on a Go compilation unit.
 type pkgWriter struct {
 	pkgbits.PkgEncoder
 
@@ -23,18 +60,29 @@ type pkgWriter struct {
 	curpkg *types2.Package
 	info   *types2.Info
 
+	// Indices for previously written syntax and types2 things.
+
 	posBasesIdx map[*syntax.PosBase]pkgbits.Index
 	pkgsIdx     map[*types2.Package]pkgbits.Index
 	typsIdx     map[types2.Type]pkgbits.Index
-	globalsIdx  map[types2.Object]pkgbits.Index
+	objsIdx     map[types2.Object]pkgbits.Index
+
+	// Maps from types2.Objects back to their syntax.Decl.
 
 	funDecls map[*types2.Func]*syntax.FuncDecl
 	typDecls map[*types2.TypeName]typeDeclGen
 
-	linknames  map[types2.Object]string
+	// linknames maps package-scope objects to their linker symbol name,
+	// if specified by a //go:linkname directive.
+	linknames map[types2.Object]string
+
+	// cgoPragmas accumulates any //go:cgo_* pragmas that need to be
+	// passed through to cmd/link.
 	cgoPragmas [][]string
 }
 
+// newPkgWriter returns an initialized pkgWriter for the specified
+// package.
 func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
 	return &pkgWriter{
 		PkgEncoder: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
@@ -43,9 +91,9 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
 		curpkg: pkg,
 		info:   info,
 
-		pkgsIdx:    make(map[*types2.Package]pkgbits.Index),
-		globalsIdx: make(map[types2.Object]pkgbits.Index),
-		typsIdx:    make(map[types2.Type]pkgbits.Index),
+		pkgsIdx: make(map[*types2.Package]pkgbits.Index),
+		objsIdx: make(map[types2.Object]pkgbits.Index),
+		typsIdx: make(map[types2.Type]pkgbits.Index),
 
 		posBasesIdx: make(map[*syntax.PosBase]pkgbits.Index),
 
@@ -56,18 +104,23 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
 	}
 }
 
+// errorf reports a user error about thing p.
 func (pw *pkgWriter) errorf(p poser, msg string, args ...interface{}) {
 	base.ErrorfAt(pw.m.pos(p), msg, args...)
 }
 
+// fatalf reports an internal compiler error about thing p.
 func (pw *pkgWriter) fatalf(p poser, msg string, args ...interface{}) {
 	base.FatalfAt(pw.m.pos(p), msg, args...)
 }
 
+// unexpected reports a fatal error about a thing of unexpected
+// dynamic type.
 func (pw *pkgWriter) unexpected(what string, p poser) {
 	pw.fatalf(p, "unexpected %s: %v (%T)", what, p, p)
 }
 
+// A writer provides APIs for writing out an individual element.
 type writer struct {
 	p *pkgWriter
 
@@ -77,13 +130,19 @@ type writer struct {
 	// scope closes, and then maybe we can just use the same map for
 	// storing the TypeParams too (as their TypeName instead).
 
-	// variables declared within this function
+	// localsIdx tracks any local variables declared within this
+	// function body. It's unused for writing out non-body things.
 	localsIdx map[*types2.Var]int
 
-	closureVars    []posObj
-	closureVarsIdx map[*types2.Var]int
+	// closureVars tracks any free variables that are referenced by this
+	// function body. It's unused for writing out non-body things.
+	closureVars    []posVar
+	closureVarsIdx map[*types2.Var]int // index of previously seen free variables
 
-	dict    *writerDict
+	dict *writerDict
+
+	// derived tracks whether the type being written out references any
+	// type parameters. It's unused for writing non-type things.
 	derived bool
 }
 
@@ -128,16 +187,25 @@ type typeInfo struct {
 	derived bool
 }
 
+// An objInfo represents a reference to an encoded, instantiated (if
+// applicable) Go object.
 type objInfo struct {
 	idx       pkgbits.Index // index for the generic function declaration
 	explicits []typeInfo    // info for the type arguments
 }
 
+// An itabInfo represents a reference to an encoded itab entry (i.e.,
+// a non-empty interface type along with a concrete type that
+// implements that interface).
+//
+// itabInfo is only used for
 type itabInfo struct {
 	typIdx pkgbits.Index // always a derived type index
 	iface  typeInfo      // always a non-empty interface type
 }
 
+// anyDerived reports whether any of info's explicit type arguments
+// are derived types.
 func (info objInfo) anyDerived() bool {
 	for _, explicit := range info.explicits {
 		if explicit.derived {
@@ -147,6 +215,8 @@ func (info objInfo) anyDerived() bool {
 	return false
 }
 
+// equals reports whether info and other represent the same Go object
+// (i.e., same base object and identical type arguments, if any).
 func (info objInfo) equals(other objInfo) bool {
 	if info.idx != other.idx {
 		return false
@@ -169,6 +239,7 @@ func (pw *pkgWriter) newWriter(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *
 
 // @@@ Positions
 
+// pos writes the position of p into the element bitstream.
 func (w *writer) pos(p poser) {
 	w.Sync(pkgbits.SyncPos)
 	pos := p.Pos()
@@ -178,17 +249,19 @@ func (w *writer) pos(p poser) {
 		return
 	}
 
-	// TODO(mdempsky): Delta encoding. Also, if there's a b-side, update
-	// its position base too (but not vice versa!).
+	// TODO(mdempsky): Delta encoding.
 	w.posBase(pos.Base())
 	w.Uint(pos.Line())
 	w.Uint(pos.Col())
 }
 
+// posBase writes a reference to the given PosBase into the element
+// bitstream.
 func (w *writer) posBase(b *syntax.PosBase) {
 	w.Reloc(pkgbits.RelocPosBase, w.p.posBaseIdx(b))
 }
 
+// posBaseIdx returns the index for the given PosBase.
 func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) pkgbits.Index {
 	if idx, ok := pw.posBasesIdx[b]; ok {
 		return idx
@@ -210,11 +283,14 @@ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) pkgbits.Index {
 
 // @@@ Packages
 
+// pkg writes a use of the given Package into the element bitstream.
 func (w *writer) pkg(pkg *types2.Package) {
 	w.Sync(pkgbits.SyncPkg)
 	w.Reloc(pkgbits.RelocPkg, w.p.pkgIdx(pkg))
 }
 
+// pkgIdx returns the index for the given package, adding it to the
+// package export data if needed.
 func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
 	if idx, ok := pw.pkgsIdx[pkg]; ok {
 		return idx
@@ -256,10 +332,13 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
 
 var anyTypeName = types2.Universe.Lookup("any").(*types2.TypeName)
 
+// typ writes a use of the given type into the bitstream.
 func (w *writer) typ(typ types2.Type) {
 	w.typInfo(w.p.typIdx(typ, w.dict))
 }
 
+// typInfo writes a use of the given type (specified as a typeInfo
+// instead) into the bitstream.
 func (w *writer) typInfo(info typeInfo) {
 	w.Sync(pkgbits.SyncType)
 	if w.Bool(info.derived) {
@@ -468,6 +547,11 @@ func (w *writer) param(param *types2.Var) {
 
 // @@@ Objects
 
+// obj writes a use of the given object into the bitstream.
+//
+// If obj is a generic object, then explicits are the explicit type
+// arguments used to instantiate it (i.e., used to substitute the
+// object's own declared type parameters).
 func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
 	explicitInfos := make([]typeInfo, explicits.Len())
 	for i := range explicitInfos {
@@ -515,8 +599,13 @@ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
 	}
 }
 
+// objIdx returns the index for the given Object, adding it to the
+// export data as needed.
 func (pw *pkgWriter) objIdx(obj types2.Object) pkgbits.Index {
-	if idx, ok := pw.globalsIdx[obj]; ok {
+	// TODO(mdempsky): Validate that obj is a global object (or a local
+	// defined type, which we hoist to global scope anyway).
+
+	if idx, ok := pw.objsIdx[obj]; ok {
 		return idx
 	}
 
@@ -530,12 +619,35 @@ func (pw *pkgWriter) objIdx(obj types2.Object) pkgbits.Index {
 		dict.implicits = decl.implicits
 	}
 
+	// We encode objects into 4 elements across different sections, all
+	// sharing the same index:
+	//
+	// - RelocName has just the object's qualified name (i.e.,
+	//   Object.Pkg and Object.Name) and the CodeObj indicating what
+	//   specific type of Object it is (Var, Func, etc).
+	//
+	// - RelocObj has the remaining public details about the object,
+	//   relevant to go/types importers.
+	//
+	// - RelocObjExt has additional private details about the object,
+	//   which are only relevant to cmd/compile itself. This is
+	//   separated from RelocObj so that go/types importers are
+	//   unaffected by internal compiler changes.
+	//
+	// - RelocObjDict has public details about the object's type
+	//   parameters and derived type's used by the object. This is
+	//   separated to facilitate the eventual introduction of
+	//   shape-based stenciling.
+	//
+	// TODO(mdempsky): Re-evaluate whether RelocName still makes sense
+	// to keep separate from RelocObj.
+
 	w := pw.newWriter(pkgbits.RelocObj, pkgbits.SyncObject1)
 	wext := pw.newWriter(pkgbits.RelocObjExt, pkgbits.SyncObject1)
 	wname := pw.newWriter(pkgbits.RelocName, pkgbits.SyncObject1)
 	wdict := pw.newWriter(pkgbits.RelocObjDict, pkgbits.SyncObject1)
 
-	pw.globalsIdx[obj] = w.Idx // break cycles
+	pw.objsIdx[obj] = w.Idx // break cycles
 	assert(wext.Idx == w.Idx)
 	assert(wname.Idx == w.Idx)
 	assert(wdict.Idx == w.Idx)
@@ -557,6 +669,8 @@ func (pw *pkgWriter) objIdx(obj types2.Object) pkgbits.Index {
 	return w.Idx
 }
 
+// doObj writes the RelocObj definition for obj to w, and the
+// RelocObjExt definition to wext.
 func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 	if obj.Pkg() != w.p.curpkg {
 		return pkgbits.ObjStub
@@ -726,8 +840,8 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
 // me a little nervous to try it again.
 
 // localIdent writes the name of a locally declared object (i.e.,
-// objects that can only be accessed by name, within the context of a
-// particular function).
+// objects that can only be accessed by non-qualified name, within the
+// context of a particular function).
 func (w *writer) localIdent(obj types2.Object) {
 	assert(!isGlobal(obj))
 	w.Sync(pkgbits.SyncLocalIdent)
@@ -789,7 +903,7 @@ func (w *writer) funcExt(obj *types2.Func) {
 	}
 
 	sig, block := obj.Type().(*types2.Signature), decl.Body
-	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, block, w.dict)
+	body, closureVars := w.p.bodyIdx(sig, block, w.dict)
 	assert(len(closureVars) == 0)
 
 	w.Sync(pkgbits.SyncFuncExt)
@@ -831,7 +945,9 @@ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
 
 // @@@ Function bodies
 
-func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx pkgbits.Index, closureVars []posObj) {
+// bodyIdx returns the index for the given function body (specified by
+// block), adding it to the export data
+func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx pkgbits.Index, closureVars []posVar) {
 	w := pw.newWriter(pkgbits.RelocBody, pkgbits.SyncFuncBody)
 	w.dict = dict
 
@@ -864,6 +980,7 @@ func (w *writer) funcarg(param *types2.Var, result bool) {
 	}
 }
 
+// addLocal records the declaration of a new local variable.
 func (w *writer) addLocal(obj *types2.Var) {
 	w.Sync(pkgbits.SyncAddLocal)
 	idx := len(w.localsIdx)
@@ -876,6 +993,8 @@ func (w *writer) addLocal(obj *types2.Var) {
 	w.localsIdx[obj] = idx
 }
 
+// useLocal writes a reference to the given local or free variable
+// into the bitstream.
 func (w *writer) useLocal(pos syntax.Pos, obj *types2.Var) {
 	w.Sync(pkgbits.SyncUseObjLocal)
 
@@ -890,7 +1009,7 @@ func (w *writer) useLocal(pos syntax.Pos, obj *types2.Var) {
 			w.closureVarsIdx = make(map[*types2.Var]int)
 		}
 		idx = len(w.closureVars)
-		w.closureVars = append(w.closureVars, posObj{pos, obj})
+		w.closureVars = append(w.closureVars, posVar{pos, obj})
 		w.closureVarsIdx[obj] = idx
 	}
 	w.Len(idx)
@@ -913,6 +1032,7 @@ func (w *writer) closeAnotherScope() {
 
 // @@@ Statements
 
+// stmt writes the given statement into the function body bitstream.
 func (w *writer) stmt(stmt syntax.Stmt) {
 	var stmts []syntax.Stmt
 	if stmt != nil {
@@ -1213,6 +1333,7 @@ func (w *writer) optLabel(label *syntax.Name) {
 
 // @@@ Expressions
 
+// expr writes the given expression into the function body bitstream.
 func (w *writer) expr(expr syntax.Expr) {
 	base.Assertf(expr != nil, "missing expression")
 
@@ -1439,7 +1560,7 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
 	assert(ok)
 	sig := tv.Type.(*types2.Signature)
 
-	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, expr.Body, w.dict)
+	body, closureVars := w.p.bodyIdx(sig, expr.Body, w.dict)
 
 	w.Sync(pkgbits.SyncFuncLit)
 	w.pos(expr)
@@ -1448,15 +1569,15 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
 	w.Len(len(closureVars))
 	for _, cv := range closureVars {
 		w.pos(cv.pos)
-		w.useLocal(cv.pos, cv.obj)
+		w.useLocal(cv.pos, cv.var_)
 	}
 
 	w.Reloc(pkgbits.RelocBody, body)
 }
 
-type posObj struct {
-	pos syntax.Pos
-	obj *types2.Var
+type posVar struct {
+	pos  syntax.Pos
+	var_ *types2.Var
 }
 
 func (w *writer) exprList(expr syntax.Expr) {
@@ -1509,6 +1630,9 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
 	w.typInfo(info)
 }
 
+// isInterface reports whether typ is known to be an interface type.
+// If typ is a type parameter, then isInterface reports an internal
+// compiler error instead.
 func isInterface(typ types2.Type) bool {
 	if _, ok := typ.(*types2.TypeParam); ok {
 		// typ is a type parameter and may be instantiated as either a
@@ -1521,6 +1645,7 @@ func isInterface(typ types2.Type) bool {
 	return ok
 }
 
+// op writes an Op into the bitstream.
 func (w *writer) op(op ir.Op) {
 	// TODO(mdempsky): Remove in favor of explicit codes? Would make
 	// export data more stable against internal refactorings, but low
@@ -1561,6 +1686,12 @@ type fileImports struct {
 	importedEmbed, importedUnsafe bool
 }
 
+// declCollector is a visitor type that collects compiler-needed
+// information about declarations that types2 doesn't track.
+//
+// Notably, it maps declared types and functions back to their
+// declaration statement, keeps track of implicit type parameters, and
+// assigns unique type "generation" numbers to local defined types.
 type declCollector struct {
 	pw         *pkgWriter
 	typegen    *int
