@@ -32,6 +32,9 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 <h3 id="go-command">Go command</h3>
 <p>
+  TODO: <a href="https://go.dev/cl/398058">https://go.dev/cl/398058</a>: cmd/go: quote fragments in CGO_ env variables reported by 'go env'
+</p>
+<p>
   TODO: complete this section.
 </p>
 
@@ -72,14 +75,20 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 <h2 id="compiler">Compiler</h2>
 
-<p><!-- https://golang.org/issue/5496 CL 357330, 395714, 403979 -->
+<p><!-- https://go.dev/issue/5496 CL 357330, 395714, 403979 -->
   The compiler now uses
   a <a href="https://en.wikipedia.org/wiki/Branch_table">jump
   table</a> to implement large integer and string switch statements.
   Performance improvements for the switch statement vary but can be
   on the order of 20% faster.
   (<code>GOARCH=amd64</code> and <code>GOARCH=arm64</code> only)
-
+</p>
+<p>
+  TODO: <a href="https://go.dev/cl/402374">https://go.dev/cl/402374</a>: enable regabi on riscv64 by default
+</p>
+<p>
+  TODO: <a href="https://go.dev/cl/391014">https://go.dev/cl/391014</a>: The Go compiler now requires the -p=importpath flag, which is already supplied by the go command and by Bazel. Any other build systems that invoke the Go compiler directly will need to make sure they pass this flag as well in order to use Go 1.19.: cmd/compile: require -p flag
+</p>
 <p>
   TODO: complete this section, or delete if not needed
 </p>
@@ -101,6 +110,30 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+  <dd>
+    <p><!-- CL 387976 -->
+      TODO: <a href="https://go.dev/cl/387976">https://go.dev/cl/387976</a>: permit zip files to have prefixes
+    </p>
+  </dd>
+</dl><!-- archive/zip -->
+
+<dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
+  <dd>
+    <p><!-- CL 370894 -->
+      TODO: <a href="https://go.dev/cl/370894">https://go.dev/cl/370894</a>: batch and buffer calls to getrandom/getentropy
+    </p>
+
+    <p><!-- CL 375215 -->
+      TODO: <a href="https://go.dev/cl/375215">https://go.dev/cl/375215</a>: use fast key erasure RNG on plan9 instead of ANSI X9.31
+    </p>
+
+    <p><!-- CL 390038 -->
+      TODO: <a href="https://go.dev/cl/390038">https://go.dev/cl/390038</a>: remove all buffering
+    </p>
+  </dd>
+</dl><!-- crypto/rand -->
+
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 400974 -->
@@ -110,6 +143,62 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 285872 -->
+      TODO: <a href="https://go.dev/cl/285872">https://go.dev/cl/285872</a>: disable signing with MD5WithRSA
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
+
+<dl id="encoding/binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
+  <dd>
+    <p><!-- CL 386017 -->
+      TODO: <a href="https://go.dev/cl/386017">https://go.dev/cl/386017</a>: add AppendByteOrder
+    </p>
+  </dd>
+</dl><!-- encoding/binary -->
+
+<dl id="encoding/csv"><dt><a href="/pkg/encoding/csv/">encoding/csv</a></dt>
+  <dd>
+    <p><!-- CL 405675 -->
+      TODO: <a href="https://go.dev/cl/405675">https://go.dev/cl/405675</a>: add Reader.InputOffset method
+    </p>
+  </dd>
+</dl><!-- encoding/csv -->
+
+<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+  <dd>
+    <p><!-- CL 313329 -->
+      TODO: <a href="https://go.dev/cl/313329">https://go.dev/cl/313329</a>: add TextVar function
+    </p>
+  </dd>
+</dl><!-- flag -->
+
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+  <dd>
+    <p><!-- CL 406177 -->
+      TODO: <a href="https://go.dev/cl/406177">https://go.dev/cl/406177</a>: add Append, Appendln, Appendf
+    </p>
+  </dd>
+</dl><!-- fmt -->
+
+<dl id="go/parser"><dt><a href="/pkg/go/parser/">go/parser</a></dt>
+  <dd>
+    <p><!-- CL 403696 -->
+      TODO: <a href="https://go.dev/cl/403696">https://go.dev/cl/403696</a>: parser to accept ~x as unary expression
+    </p>
+  </dd>
+</dl><!-- go/parser -->
+
+<dl id="go.dev/x/crypto/ssh"><dt><a href="/pkg/go.dev/x/crypto/ssh/">go.dev/x/crypto/ssh</a></dt>
+  <dd>
+    <p><!-- CL 392134 -->
+      TODO: <a href="https://go.dev/cl/392134">https://go.dev/cl/392134</a>: ssh: add IUTF8 constant from RFC 8160
+    </p>
+  </dd>
+</dl><!-- go.dev/x/crypto/ssh -->
 
 <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
   <dd>
@@ -122,6 +211,18 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- image/draw -->
+
+<dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+  <dd>
+    <p><!-- CL 396215 -->
+      TODO: <a href="https://go.dev/cl/396215">https://go.dev/cl/396215</a>: add an Err field to LimitedReader
+    </p>
+
+    <p><!-- CL 400236 -->
+      TODO: <a href="https://go.dev/cl/400236">https://go.dev/cl/400236</a>: NopCloser forward WriterTo implementations if the reader supports it
+    </p>
+  </dd>
+</dl><!-- io -->
 
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
@@ -149,7 +250,37 @@ Do not send CLs removing the interior tags from such phrases.
       backward compatibility for error messages.
     </p>
   </dd>
+  <dd>
+    <p><!-- CL 400654 -->
+      TODO: <a href="https://go.dev/cl/400654">https://go.dev/cl/400654</a>: permit use of Resolver.PreferGo, netgo on Windows and Plan 9
+    </p>
+  </dd>
 </dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 269997 -->
+      TODO: <a href="https://go.dev/cl/269997">https://go.dev/cl/269997</a>: allow sending 1xx responses
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 374654 -->
+      TODO: <a href="https://go.dev/cl/374654">https://go.dev/cl/374654</a>: add JoinPath, URL.JoinPath
+    </p>
+  </dd>
+</dl><!-- net/url -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 392415 -->
+      TODO: <a href="https://go.dev/cl/392415">https://go.dev/cl/392415</a>: raise open file rlimit at startup
+    </p>
+  </dd>
+</dl><!-- os -->
+
 
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd><!-- https://go.dev/issue/50599 -->
@@ -173,6 +304,12 @@ Do not send CLs removing the interior tags from such phrases.
       and <a href="/pkg/strconv/#reflect.StringHeader"></a><code>reflect.StringHeader</code>
       are now deprecated, and their use should be avoided.
     </p>
+    <p><!-- CL 357331 -->
+      TODO: <a href="https://go.dev/cl/357331">https://go.dev/cl/357331</a>: allow Value.Bytes on addressable byte arrays
+    </p>
+    <p><!-- CL 400954 -->
+      TODO: <a href="https://go.dev/cl/400954">https://go.dev/cl/400954</a>: support Len and Cap on pointer-to-array Value
+    </p>
   </dd>
 </dl><!-- reflect -->
 
@@ -183,6 +320,9 @@ Do not send CLs removing the interior tags from such phrases.
       (instead of <code>"go"</code>) when the binary was built with
       the <code>-trimpath</code> flag set and the <code>GOROOT</code>
       variable is not set in the process environment.
+    </p>
+    <p><!-- CL 333529 -->
+      TODO: <a href="https://go.dev/cl/333529">https://go.dev/cl/333529</a>: update runtime (v3)
     </p>
   </dd>
 </dl><!-- runtime -->
@@ -207,6 +347,14 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- runtime/race -->
 
+<dl id="sort"><dt><a href="/pkg/sort/">sort</a></dt>
+  <dd>
+    <p><!-- CL 371574 -->
+      TODO: <a href="https://go.dev/cl/371574">https://go.dev/cl/371574</a>: use pdqsort
+    </p>
+  </dd>
+</dl><!-- sort -->
+
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
     <p><!-- CL 397255 -->
@@ -216,3 +364,11 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- strconv -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 393515 -->
+      TODO: <a href="https://go.dev/cl/393515">https://go.dev/cl/393515</a>: add Duration.Abs
+    </p>
+  </dd>
+</dl><!-- time -->
