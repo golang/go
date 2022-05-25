@@ -333,7 +333,7 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 	}
 	if n >= min {
 		err = nil
-	} else if n > 0 && err == EOF {
+	} else if n > 0 && errors.Is(err, EOF) {
 		err = ErrUnexpectedEOF
 	}
 	return
@@ -443,7 +443,7 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 			}
 		}
 		if er != nil {
-			if er != EOF {
+			if !errors.Is(er, EOF) {
 				err = er
 			}
 			break
@@ -617,7 +617,7 @@ func (discard) ReadFrom(r Reader) (n int64, err error) {
 		n += int64(readSize)
 		if err != nil {
 			blackHolePool.Put(bufp)
-			if err == EOF {
+			if errors.Is(err, EOF) {
 				return n, nil
 			}
 			return
@@ -666,7 +666,7 @@ func ReadAll(r Reader) ([]byte, error) {
 		n, err := r.Read(b[len(b):cap(b)])
 		b = b[:len(b)+n]
 		if err != nil {
-			if err == EOF {
+			if errors.Is(err, EOF) {
 				err = nil
 			}
 			return b, err

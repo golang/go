@@ -4,6 +4,8 @@
 
 package io
 
+import "errors"
+
 type eofReader struct{}
 
 func (eofReader) Read([]byte) (int, error) {
@@ -24,14 +26,14 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
 			}
 		}
 		n, err = mr.readers[0].Read(p)
-		if err == EOF {
+		if errors.Is(err, EOF) {
 			// Use eofReader instead of nil to avoid nil panic
 			// after performing flatten (Issue 18232).
 			mr.readers[0] = eofReader{} // permit earlier GC
 			mr.readers = mr.readers[1:]
 		}
-		if n > 0 || err != EOF {
-			if err == EOF && len(mr.readers) > 0 {
+		if n > 0 || !errors.Is(err, EOF) {
+			if errors.Is(err, EOF) && len(mr.readers) > 0 {
 				// Don't return EOF yet. More readers remain.
 				err = nil
 			}
