@@ -767,4 +767,8 @@ var _ = []T{	// lone comments
 	// in composite lit
 }
 
+func _()	{}
+
+func _()	{}
+
 /* This comment is the last entry in this file. It must be printed and should be followed by a newline */

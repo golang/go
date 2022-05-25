@@ -747,6 +747,18 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 			// a top-level doc comment.
 			list = formatDocComment(list)
 			changed = true
+
+			if len(p.comment.List) > 0 && len(list) == 0 {
+				// The doc comment was removed entirely.
+				// Keep preceding whitespace.
+				p.writeCommentPrefix(p.posFor(p.comment.Pos()), next, last, tok)
+				// Change print state to continue at next.
+				p.pos = next
+				p.last = next
+				// There can't be any more comments.
+				p.nextComment()
+				return p.writeCommentSuffix(false)
+			}
 		}
 		for _, c := range list {
 			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, tok)
