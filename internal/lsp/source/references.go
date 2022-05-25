@@ -9,12 +9,15 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+
 	"go/token"
 	"go/types"
 	"sort"
+	"strconv"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -33,6 +36,63 @@ type ReferenceInfo struct {
 func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]*ReferenceInfo, error) {
 	ctx, done := event.Start(ctx, "source.References")
 	defer done()
+
+	// Find position of the package name declaration
+	pgf, err := s.ParseGo(ctx, f, ParseFull)
+	if err != nil {
+		return nil, err
+	}
+
+	cursorOffset, err := pgf.Mapper.Offset(pp)
+	if err != nil {
+		return nil, err
+	}
+
+	packageNameStart, err := safetoken.Offset(pgf.Tok, pgf.File.Name.Pos())
+	if err != nil {
+		return nil, err
+	}
+
+	packageNameEnd, err := safetoken.Offset(pgf.Tok, pgf.File.Name.End())
+	if err != nil {
+		return nil, err
+	}
+
+	if packageNameStart <= cursorOffset && cursorOffset < packageNameEnd {
+		renamingPkg, err := s.PackageForFile(ctx, f.URI(), TypecheckAll, NarrowestPackage)
+		if err != nil {
+			return nil, err
+		}
+
+		// Find external references to the package.
+		rdeps, err := s.GetReverseDependencies(ctx, renamingPkg.ID())
+		if err != nil {
+			return nil, err
+		}
+		var refs []*ReferenceInfo
+		for _, dep := range rdeps {
+			for _, f := range dep.CompiledGoFiles() {
+				for _, imp := range f.File.Imports {
+					if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == renamingPkg.PkgPath() {
+						refs = append(refs, &ReferenceInfo{
+							Name:        pgf.File.Name.Name,
+							MappedRange: NewMappedRange(s.FileSet(), f.Mapper, imp.Pos(), imp.End()),
+						})
+					}
+				}
+			}
+		}
+
+		// Find internal references to the package within the package itself
+		for _, f := range renamingPkg.CompiledGoFiles() {
+			refs = append(refs, &ReferenceInfo{
+				Name:        pgf.File.Name.Name,
+				MappedRange: NewMappedRange(s.FileSet(), f.Mapper, f.File.Name.Pos(), f.File.Name.End()),
+			})
+		}
+
+		return refs, nil
+	}
 
 	qualifiedObjs, err := qualifiedObjsAtProtocolPos(ctx, s, f.URI(), pp)
 	// Don't return references for builtin types.

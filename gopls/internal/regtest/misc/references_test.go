@@ -5,6 +5,8 @@
 package misc
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	. "golang.org/x/tools/internal/lsp/regtest"
@@ -78,6 +80,92 @@ func _() {
 		wantErr := "no position for func (error).Error() string"
 		if err.Error() != wantErr {
 			t.Fatalf("expected error with message %s, instead got %s", wantErr, err.Error())
+		}
+	})
+}
+
+func TestPackageReferences(t *testing.T) {
+	tests := []struct {
+		packageName  string
+		wantRefCount int
+		wantFiles    []string
+	}{
+		{
+			"lib1",
+			3,
+			[]string{
+				"main.go",
+				"lib1/a.go",
+				"lib1/b.go",
+			},
+		},
+		{
+			"lib2",
+			2,
+			[]string{
+				"main.go",
+				"lib2/a.go",
+			},
+		},
+	}
+
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- lib1/a.go --
+package lib1
+
+const A = 1
+
+-- lib1/b.go --
+package lib1
+
+const B = 1
+
+-- lib2/a.go --
+package lib2
+
+const C = 1
+
+-- main.go --
+package main
+
+import (
+	"mod.com/lib1"
+	"mod.com/lib2"
+)
+
+func main() {
+	println("Hello")
+}
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		for _, test := range tests {
+			f := fmt.Sprintf("%s/a.go", test.packageName)
+			env.OpenFile(f)
+			pos := env.RegexpSearch(f, test.packageName)
+			refs := env.References(fmt.Sprintf("%s/a.go", test.packageName), pos)
+			if len(refs) != test.wantRefCount {
+				t.Fatalf("got %v reference(s), want %d", len(refs), test.wantRefCount)
+			}
+			var refURIs []string
+			for _, ref := range refs {
+				refURIs = append(refURIs, string(ref.URI))
+			}
+			for _, base := range test.wantFiles {
+				hasBase := false
+				for _, ref := range refURIs {
+					if strings.HasSuffix(ref, base) {
+						hasBase = true
+						break
+					}
+				}
+				if !hasBase {
+					t.Fatalf("got [%v], want reference ends with \"%v\"", strings.Join(refURIs, ","), base)
+				}
+			}
 		}
 	})
 }
