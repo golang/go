@@ -1632,7 +1632,7 @@ func sizeof(t interface{}) int64 {
 // a register. It assumes float64 values will always fit into registers
 // even if that isn't strictly true.
 func registerizable(b *Block, typ *types.Type) bool {
-	if typ.IsPtrShaped() || typ.IsFloat() {
+	if typ.IsPtrShaped() || typ.IsFloat() || typ.IsBoolean() {
 		return true
 	}
 	if typ.IsInteger() {
