@@ -1997,12 +1997,9 @@ var unifiedFailures = setOf(
 	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
 	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
 
-	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
-	"typeparam/issue47631.go",  // unified IR can handle local type declarations
-	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large
-	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
-	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
-	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
+	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+	"typeparam/issue47631.go", // unified IR can handle local type declarations
+	"fixedbugs/issue49767.go", // unified IR reports channel element too large on different line than irgen
 )
 
 func setOf(keys ...string) map[string]bool {
