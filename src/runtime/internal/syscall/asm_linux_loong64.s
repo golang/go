@@ -17,13 +17,13 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	MOVW	$-4096, R12
 	BGEU	R12, R4, ok
 	MOVV	$-1, R12
-	MOVV	R12, r1+56(FP)   // r1
-	MOVV	R0, r2+64(FP)    // r2
+	MOVV	R12, r1+56(FP)
+	MOVV	R0, r2+64(FP)
 	SUBVU	R4, R0, R4
-	MOVV	R4, err+72(FP)   // errno
+	MOVV	R4, errno+72(FP)
 	RET
 ok:
-	MOVV	R4, r1+56(FP)    // r1
-	MOVV	R5, r2+64(FP)    // r2
-	MOVV	R0, err+72(FP)   // errno
+	MOVV	R4, r1+56(FP)
+	MOVV	R5, r2+64(FP)
+	MOVV	R0, errno+72(FP)
 	RET
