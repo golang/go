@@ -264,8 +264,10 @@ func cmdDebugStr(cmd *exec.Cmd) string {
 	env := make(map[string]string)
 	for _, kv := range cmd.Env {
 		split := strings.SplitN(kv, "=", 2)
-		k, v := split[0], split[1]
-		env[k] = v
+		if len(split) == 2 {
+			k, v := split[0], split[1]
+			env[k] = v
+		}
 	}
 
 	var args []string
