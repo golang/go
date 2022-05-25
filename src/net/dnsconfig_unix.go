@@ -34,6 +34,7 @@ type dnsConfig struct {
 	soffset       uint32        // used by serverOffset
 	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
 	useTCP        bool          // force usage of TCP for DNS resolutions
+	trustAD       bool          // add AD flag to queries
 }
 
 // See resolv.conf(5) on a Linux machine.
@@ -132,6 +133,8 @@ func dnsReadConfig(filename string) *dnsConfig {
 					// https://www.freebsd.org/cgi/man.cgi?query=resolv.conf&sektion=5&manpath=freebsd-release-ports
 					// https://man.openbsd.org/resolv.conf.5
 					conf.useTCP = true
+				case s == "trust-ad":
+					conf.trustAD = true
 				default:
 					conf.unknownOpt = true
 				}

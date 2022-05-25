@@ -50,9 +50,9 @@ var (
 	errServerTemporarilyMisbehaving = errors.New("server misbehaving")
 )
 
-func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err error) {
+func newRequest(q dnsmessage.Question, ad bool) (id uint16, udpReq, tcpReq []byte, err error) {
 	id = uint16(randInt())
-	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true})
+	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true, AuthenticData: ad})
 	b.EnableCompression()
 	if err := b.StartQuestions(); err != nil {
 		return 0, nil, nil, err
@@ -116,6 +116,7 @@ func dnsPacketRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 		if err != nil {
 			continue
 		}
+
 		q, err := p.Question()
 		if err != nil || !checkResponse(id, query, h, q) {
 			continue
@@ -157,9 +158,9 @@ func dnsStreamRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 }
 
 // exchange sends a query on the connection and hopes for a response.
-func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Question, timeout time.Duration, useTCP bool) (dnsmessage.Parser, dnsmessage.Header, error) {
+func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Question, timeout time.Duration, useTCP, ad bool) (dnsmessage.Parser, dnsmessage.Header, error) {
 	q.Class = dnsmessage.ClassINET
-	id, udpReq, tcpReq, err := newRequest(q)
+	id, udpReq, tcpReq, err := newRequest(q, ad)
 	if err != nil {
 		return dnsmessage.Parser{}, dnsmessage.Header{}, errCannotMarshalDNSMessage
 	}
@@ -273,7 +274,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 		for j := uint32(0); j < sLen; j++ {
 			server := cfg.servers[(serverOffset+j)%sLen]
 
-			p, h, err := r.exchange(ctx, server, q, cfg.timeout, cfg.useTCP)
+			p, h, err := r.exchange(ctx, server, q, cfg.timeout, cfg.useTCP, cfg.trustAD)
 			if err != nil {
 				dnsErr := &DNSError{
 					Err:    err.Error(),
