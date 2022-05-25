@@ -2528,6 +2528,13 @@ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []strin
 		a = append(a, "-Qunused-arguments")
 	}
 
+	// zig cc passes --gc-sections to the underlying linker, which then causes
+	// undefined symbol errors when compiling with cgo but without C code.
+	// https://github.com/golang/go/issues/52690
+	if b.gccSupportsFlag(compiler, "-Wl,--no-gc-sections") {
+		a = append(a, "-Wl,--no-gc-sections")
+	}
+
 	// disable word wrapping in error messages
 	a = append(a, "-fmessage-length=0")
 
@@ -2584,7 +2591,12 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	}
 
 	tmp := os.DevNull
-	if runtime.GOOS == "windows" {
+
+	// On the iOS builder the command
+	//   $CC -Wl,--no-gc-sections -x c - -o /dev/null < /dev/null
+	// is failing with:
+	//   Unable to remove existing file: Invalid argument
+	if runtime.GOOS == "windows" || runtime.GOOS == "ios" {
 		f, err := os.CreateTemp(b.WorkDir, "")
 		if err != nil {
 			return false
@@ -2594,13 +2606,21 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 		defer os.Remove(tmp)
 	}
 
-	// We used to write an empty C file, but that gets complicated with
-	// go build -n. We tried using a file that does not exist, but that
-	// fails on systems with GCC version 4.2.1; that is the last GPLv2
-	// version of GCC, so some systems have frozen on it.
-	// Now we pass an empty file on stdin, which should work at least for
-	// GCC and clang.
-	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-", "-o", tmp)
+	// We used to write an empty C file, but that gets complicated with go
+	// build -n. We tried using a file that does not exist, but that fails on
+	// systems with GCC version 4.2.1; that is the last GPLv2 version of GCC,
+	// so some systems have frozen on it. Now we pass an empty file on stdin,
+	// which should work at least for GCC and clang.
+	//
+	// If the argument is "-Wl,", then it's testing the linker. In that case,
+	// skip "-c". If it's not "-Wl,", then we are testing the compiler and
+	// can emit the linking step with "-c".
+	cmdArgs := str.StringList(compiler, flag)
+	if !strings.HasPrefix(flag, "-Wl,") /* linker flag */ {
+		cmdArgs = append(cmdArgs, "-c")
+	}
+	cmdArgs = append(cmdArgs, "-x", "c", "-", "-o", tmp)
+
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
 		if cfg.BuildN {
@@ -2613,12 +2633,16 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	out, _ := cmd.CombinedOutput()
 	// GCC says "unrecognized command line option".
 	// clang says "unknown argument".
+	// tcc says "unsupported"
+	// AIX says "not recognized"
 	// Older versions of GCC say "unrecognised debug output level".
 	// For -fsplit-stack GCC says "'-fsplit-stack' is not supported".
 	supported := !bytes.Contains(out, []byte("unrecognized")) &&
 		!bytes.Contains(out, []byte("unknown")) &&
 		!bytes.Contains(out, []byte("unrecognised")) &&
-		!bytes.Contains(out, []byte("is not supported"))
+		!bytes.Contains(out, []byte("is not supported")) &&
+		!bytes.Contains(out, []byte("not recognized")) &&
+		!bytes.Contains(out, []byte("unsupported"))
 	b.flagCache[key] = supported
 	return supported
 }
