@@ -356,7 +356,7 @@ func (s *scavengerState) init() {
 	if s.scavenge == nil {
 		s.scavenge = func(n uintptr) (uintptr, int64) {
 			start := nanotime()
-			r := mheap_.pages.scavenge(n)
+			r := mheap_.pages.scavenge(n, nil)
 			end := nanotime()
 			if start >= end {
 				return r, 0
@@ -636,7 +636,7 @@ func bgscavenge(c chan int) {
 //
 // scavenge always tries to scavenge nbytes worth of memory, and will
 // only fail to do so if the heap is exhausted for now.
-func (p *pageAlloc) scavenge(nbytes uintptr) uintptr {
+func (p *pageAlloc) scavenge(nbytes uintptr, shouldStop func() bool) uintptr {
 	released := uintptr(0)
 	for released < nbytes {
 		ci, pageIdx := p.scav.index.find()
@@ -646,6 +646,9 @@ func (p *pageAlloc) scavenge(nbytes uintptr) uintptr {
 		systemstack(func() {
 			released += p.scavengeOne(ci, pageIdx, nbytes-released)
 		})
+		if shouldStop != nil && shouldStop() {
+			break
+		}
 	}
 	return released
 }

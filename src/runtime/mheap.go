@@ -1305,7 +1305,9 @@ HaveSpan:
 		// Measure how long we spent scavenging and add that measurement to the assist
 		// time so we can track it for the GC CPU limiter.
 		start := nanotime()
-		h.pages.scavenge(bytesToScavenge)
+		h.pages.scavenge(bytesToScavenge, func() bool {
+			return gcCPULimiter.limiting()
+		})
 		now := nanotime()
 		h.pages.scav.assistTime.Add(now - start)
 		gcCPULimiter.addAssistTime(now - start)
@@ -1558,7 +1560,7 @@ func (h *mheap) scavengeAll() {
 	gp := getg()
 	gp.m.mallocing++
 
-	released := h.pages.scavenge(^uintptr(0))
+	released := h.pages.scavenge(^uintptr(0), nil)
 
 	gp.m.mallocing--
 
