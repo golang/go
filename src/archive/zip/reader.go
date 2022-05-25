@@ -123,6 +123,20 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	for {
 		f := &File{zip: z, zipr: r}
 		err = readDirectoryHeader(f, buf)
+
+		// For compatibility with other zip programs,
+		// if we have a non-zero base offset and can't read
+		// the first directory header, try again with a zero
+		// base offset.
+		if err == ErrFormat && z.baseOffset != 0 && len(z.File) == 0 {
+			z.baseOffset = 0
+			if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
+				return err
+			}
+			buf = bufio.NewReader(rs)
+			continue
+		}
+
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
