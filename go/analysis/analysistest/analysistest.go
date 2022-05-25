@@ -318,8 +318,11 @@ func loadPackages(a *analysis.Analyzer, dir string, patterns ...string) ([]*pack
 	// a list of packages we generate and then do the parsing and
 	// typechecking, though this feature seems to be a recurring need.
 
+	mode := packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports |
+		packages.NeedTypes | packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo |
+		packages.NeedDeps
 	cfg := &packages.Config{
-		Mode:  packages.LoadAllSyntax,
+		Mode:  mode,
 		Dir:   dir,
 		Tests: true,
 		Env:   append(os.Environ(), "GOPATH="+dir, "GO111MODULE=off", "GOPROXY=off"),
