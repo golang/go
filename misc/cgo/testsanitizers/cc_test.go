@@ -527,7 +527,7 @@ func mSanSupported(goos, goarch string) bool {
 func aSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "amd64" || goarch == "arm64" || goarch == "riscv64"
+		return goarch == "amd64" || goarch == "arm64" || goarch == "riscv64" || goarch == "ppc64le"
 	default:
 		return false
 	}
