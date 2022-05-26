@@ -578,22 +578,46 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
     <p><!-- CL 269997 -->
-      TODO: <a href="https://go.dev/cl/269997">https://go.dev/cl/269997</a>: allow sending 1xx responses
+      <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter.WriteHeader</code></a>
+      now supports sending user-defined 1xx informational headers.
     </p>
-    <p><!-- https://go.dev/issue/30715 --><!-- CL 361397 -->
-      TODO: <a href="https://go.dev/cl/361397">https://go.dev/cl/361397</a>: net/http: add MaxBytesError; modified api/next/30715.txt
-      TODO: <a href="https://go.dev/issue/30715">https://go.dev/issue/30715</a>: add MaxBytesError
+
+    <p><!-- CL 361397 -->
+      The <code>io.ReadCloser</code> returned by
+      <a href="/pkg/net/http/#MaxBytesReader"><code>MaxBytesReader</code></a>
+      will now return the defined error type
+      <a href="/pkg/net/http/#MaxBytesError"><code>MaxBytesError</code></a>
+      when its read limit is exceeded.
+    </p>
+
+    <p><!-- CL 375354 -->
+      The HTTP client will handle a 3xx response without a
+      <code>Location</code> header by returning it to the caller,
+      rather than treating it as an error.
     </p>
   </dd>
 </dl><!-- net/http -->
 
 <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/47005 --><!-- CL 374654 -->
-      TODO: <a href="https://go.dev/cl/374654">https://go.dev/cl/374654</a>: add JoinPath, URL.JoinPath
+    <p><!-- CL 374654 -->
+      The new
+      <a href="/pkg/net/url/#JoinPath"><code>JoinPath</code></a>
+      function and
+      <a href="/pkg/net/url/#URL.JoinPath"><code>URL.JoinPath</code></a>
+      method create a new <code>URL</code> by joining a list of path
+      elements.
     </p>
     <p><!-- https://go.dev/issue/46059 -->
-      TODO: <a href="https://go.dev/issue/46059">https://go.dev/issue/46059</a>: add OmitHost bool to URL
+      The <code>URL</code> type now distinguishes between URLs with no
+      authority and URLs with an empty authority. For example,
+      <code>http:///path</code> has an empty authority (host),
+      while <code>http:/path</code> has none.
+    </p>
+    <p>
+      The new <a href="/pkg/net/url/#URL"><code>URL</code></a> field
+      <code>OmitHost</code> is set to <code>true</code> when a
+      <code>URL</code> has an empty authority.
     </p>
 
   </dd>
