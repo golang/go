@@ -407,6 +407,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 
 	// Make a new internal function.
 	fn, formalParams, formalResults := startClosure(pos, outer, typ)
+	fn.SetWrapper(true) // See issue 52237
 
 	// This is the dictionary we want to use.
 	// It may be a constant, it may be the outer functions's dictionary, or it may be

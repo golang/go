@@ -26,6 +26,13 @@ func helperCallingHelper(t *T, msg string) {
 	helper(t, msg)
 }
 
+func genericHelper[G any](t *T, msg string) {
+	t.Helper()
+	t.Error(msg)
+}
+
+var genericIntHelper = genericHelper[int]
+
 func testHelper(t *T) {
 	// Check combinations of directly and indirectly
 	// calling helper functions.
@@ -73,6 +80,9 @@ func testHelper(t *T) {
 	// Check that helper-ness propagates up through panic/recover.
 	// See https://golang.org/issue/31154.
 	recoverHelper(t, "12")
+
+	genericHelper[float64](t, "GenericFloat64")
+	genericIntHelper(t, "GenericInt")
 }
 
 func parallelTestHelper(t *T) {
