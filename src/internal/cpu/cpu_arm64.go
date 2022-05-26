@@ -12,6 +12,7 @@ func doinit() {
 		{Name: "pmull", Feature: &ARM64.HasPMULL},
 		{Name: "sha1", Feature: &ARM64.HasSHA1},
 		{Name: "sha2", Feature: &ARM64.HasSHA2},
+		{Name: "sha512", Feature: &ARM64.HasSHA512},
 		{Name: "crc32", Feature: &ARM64.HasCRC32},
 		{Name: "atomics", Feature: &ARM64.HasATOMICS},
 		{Name: "cpuid", Feature: &ARM64.HasCPUID},
