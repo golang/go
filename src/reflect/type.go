@@ -2232,7 +2232,7 @@ func hashMightPanic(t *rtype) bool {
 	}
 }
 
-// Make sure these routines stay in sync with ../../runtime/map.go!
+// Make sure these routines stay in sync with ../runtime/map.go!
 // These types exist only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program. We also fill in string
 // for possible debugging use.
