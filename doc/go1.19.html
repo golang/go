@@ -350,7 +350,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="sort"><dt><a href="/pkg/sort/">sort</a></dt>
   <dd>
     <p><!-- CL 371574 -->
-      TODO: <a href="https://go.dev/cl/371574">https://go.dev/cl/371574</a>: use pdqsort
+      The sorting algorithm has been rewritten to use
+      <a href="https://arxiv.org/pdf/2106.05123.pdf">pattern-defeating quicksort</a>, which
+      is faster for several common scenarios.
     </p>
   </dd>
 </dl><!-- sort -->
