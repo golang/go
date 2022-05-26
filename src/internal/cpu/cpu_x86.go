@@ -39,6 +39,7 @@ const (
 	cpuid_BMI2 = 1 << 8
 	cpuid_ERMS = 1 << 9
 	cpuid_ADX  = 1 << 19
+	cpuid_SHA  = 1 << 29
 
 	// edx bits for CPUID 0x80000001
 	cpuid_RDTSCP = 1 << 27
@@ -53,6 +54,7 @@ func doinit() {
 		{Name: "erms", Feature: &X86.HasERMS},
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
 		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
+		{Name: "sha", Feature: &X86.HasSHA},
 	}
 	level := getGOAMD64level()
 	if level < 2 {
@@ -125,6 +127,7 @@ func doinit() {
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
+	X86.HasSHA = isSet(ebx7, cpuid_SHA)
 
 	var maxExtendedInformation uint32
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
