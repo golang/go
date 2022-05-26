@@ -308,10 +308,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 357331 -->
-      TODO: <a href="https://go.dev/cl/357331">https://go.dev/cl/357331</a>: allow Value.Bytes on addressable byte arrays
+      The method <a href="/pkg/reflect/#Value.Bytes"><code>Value.Bytes</code></a> now accepts addressable arrays in addition to slices.
     </p>
     <p><!-- CL 400954 -->
-      TODO: <a href="https://go.dev/cl/400954">https://go.dev/cl/400954</a>: support Len and Cap on pointer-to-array Value
+      The methods <a href="/pkg/reflect/#Value.Len"><code>Value.Len</code></a> and <a href="/pkg/reflect/#Value.Cap"><code>Value.Cap</code></a> now successfully operate on a pointer to an array and return the length of that array, to match what the <a href="https://go.dev/ref/spec#Length_and_capacity">builtin <code>len</code> and <code>cap</code> functions do</a>.
     </p>
   </dd>
 </dl><!-- reflect -->
