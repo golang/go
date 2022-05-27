@@ -11,6 +11,31 @@
 		return err;
 	};
 
+	const isRunningInsideNode = () => {
+		return process && process.release && process.release.name && process.release.name === "node"
+	}
+
+	if (isRunningInsideNode()) {
+		globalThis.require = require;
+		globalThis.fs = require("fs");
+		globalThis.TextEncoder = require("util").TextEncoder;
+		globalThis.TextDecoder = require("util").TextDecoder;
+
+		globalThis.performance = {
+			now() {
+				const [sec, nsec] = process.hrtime();
+				return sec * 1000 + nsec / 1000000;
+			},
+		};
+
+		const crypto = require("crypto");
+		globalThis.crypto = {
+			getRandomValues(b) {
+				crypto.randomFillSync(b);
+			},
+		};
+	}
+
 	if (!globalThis.fs) {
 		let outputBuf = "";
 		globalThis.fs = {
@@ -550,5 +575,9 @@
 				return event.result;
 			};
 		}
+	}
+
+	if (isRunningInsideNode()) {
+		module.exports.Go = globalThis.Go
 	}
 })();
