@@ -45,7 +45,7 @@ static void register_handler(int signo) {
 import "C"
 
 func main() {
-	ch := make(chan os.Signal)
+	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGUSR2)
 
 	C.register_handler(C.int(syscall.SIGUSR1))
