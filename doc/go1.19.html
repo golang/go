@@ -32,9 +32,6 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 <h3 id="go-command">Go command</h3>
 <p>
-  TODO: <a href="https://go.dev/cl/398058">https://go.dev/cl/398058</a>: cmd/go: quote fragments in CGO_ env variables reported by 'go env'
-</p>
-<p>
   TODO: complete this section.
 </p>
 
@@ -52,6 +49,13 @@ Do not send CLs removing the interior tags from such phrases.
   generators can locate the correct <code>GOROOT</code> even if built
   with <code>-trimpath</code>.
 </p>
+
+<p><!-- CL 398058 -->
+  <code>go</code> <code>env</code> now quotes entries that contain spaces in
+  the <code>CGO_CFLAGS</code>, <code>CGO_CPPFLAGS</code>, <code>CGO_CXXFLAGS</code>, <code>CGO_FFLAGS</code>, <code>CGO_LDFLAGS</code>,
+  and <code>GOGCCFLAGS</code> variables it reports.
+</p>
+
 
 <h4 id="go-unix">New <code>unix</code> build constraint</h4>
 
