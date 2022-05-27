@@ -1365,13 +1365,13 @@ func reflect_mapaccess_faststr(t *maptype, h *hmap, key string) unsafe.Pointer {
 	return elem
 }
 
-//go:linkname reflect_mapassign reflect.mapassign
+//go:linkname reflect_mapassign reflect.mapassign0
 func reflect_mapassign(t *maptype, h *hmap, key unsafe.Pointer, elem unsafe.Pointer) {
 	p := mapassign(t, h, key)
 	typedmemmove(t.Elem, p, elem)
 }
 
-//go:linkname reflect_mapassign_faststr reflect.mapassign_faststr
+//go:linkname reflect_mapassign_faststr reflect.mapassign_faststr0
 func reflect_mapassign_faststr(t *maptype, h *hmap, key string, elem unsafe.Pointer) {
 	p := mapassign_faststr(t, h, key)
 	typedmemmove(t.Elem, p, elem)

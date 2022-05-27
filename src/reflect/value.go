@@ -1521,6 +1521,8 @@ func valueInterface(v Value, safe bool) any {
 // compatible with InterfaceData.
 func (v Value) InterfaceData() [2]uintptr {
 	v.mustBe(Interface)
+	// The compiler loses track as it converts to uintptr. Force escape.
+	escapes(v.ptr)
 	// We treat this as a read operation, so we allow
 	// it even for unexported data, because the caller
 	// has to import "unsafe" to turn it into something
@@ -2121,6 +2123,9 @@ func (v Value) OverflowUint(x uint64) bool {
 //
 // It's preferred to use uintptr(Value.UnsafePointer()) to get the equivalent result.
 func (v Value) Pointer() uintptr {
+	// The compiler loses track as it converts to uintptr. Force escape.
+	escapes(v.ptr)
+
 	k := v.kind()
 	switch k {
 	case Pointer:
@@ -2682,6 +2687,8 @@ func (v Value) UnsafeAddr() uintptr {
 	if v.flag&flagAddr == 0 {
 		panic("reflect.Value.UnsafeAddr of unaddressable value")
 	}
+	// The compiler loses track as it converts to uintptr. Force escape.
+	escapes(v.ptr)
 	return uintptr(v.ptr)
 }
 
@@ -2939,6 +2946,11 @@ type runtimeSelect struct {
 // The conventional OK bool indicates whether the receive corresponds
 // to a sent value.
 //
+// rselect generally doesn't escape the runtimeSelect slice, except
+// that for the send case the value to send needs to escape. We don't
+// have a way to represent that in the function signature. So we handle
+// that with a forced escape in function Select.
+//
 //go:noescape
 func rselect([]runtimeSelect) (chosen int, recvOK bool)
 
@@ -3044,6 +3056,9 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 			} else {
 				rc.val = unsafe.Pointer(&v.ptr)
 			}
+			// The value to send needs to escape. See the comment at rselect for
+			// why we need forced escape.
+			escapes(rc.val)
 
 		case SelectRecv:
 			if c.Send.IsValid() {
@@ -3150,6 +3165,14 @@ func Indirect(v Value) Value {
 	return v.Elem()
 }
 
+// Before Go 1.21, ValueOf always escapes and a Value's content
+// is always heap allocated.
+// Set go121noForceValueEscape to true to avoid the forced escape,
+// allowing Value content to be on the stack.
+// Set go121noForceValueEscape to false for the legacy behavior
+// (for debugging).
+const go121noForceValueEscape = true
+
 // ValueOf returns a new Value initialized to the concrete value
 // stored in the interface i. ValueOf(nil) returns the zero Value.
 func ValueOf(i any) Value {
@@ -3157,11 +3180,9 @@ func ValueOf(i any) Value {
 		return Value{}
 	}
 
-	// TODO: Maybe allow contents of a Value to live on the stack.
-	// For now we make the contents always escape to the heap. It
-	// makes life easier in a few places (see chanrecv/mapassign
-	// comment below).
-	escapes(i)
+	if !go121noForceValueEscape {
+		escapes(i)
+	}
 
 	return unpackEface(i)
 }
@@ -3736,23 +3757,33 @@ func cvtI2I(v Value, typ Type) Value {
 }
 
 // implemented in ../runtime
+//
+//go:noescape
 func chancap(ch unsafe.Pointer) int
+
+//go:noescape
 func chanclose(ch unsafe.Pointer)
+
+//go:noescape
 func chanlen(ch unsafe.Pointer) int
 
 // Note: some of the noescape annotations below are technically a lie,
-// but safe in the context of this package. Functions like chansend
-// and mapassign don't escape the referent, but may escape anything
+// but safe in the context of this package. Functions like chansend0
+// and mapassign0 don't escape the referent, but may escape anything
 // the referent points to (they do shallow copies of the referent).
-// It is safe in this package because the referent may only point
-// to something a Value may point to, and that is always in the heap
-// (due to the escapes() call in ValueOf).
+// We add a 0 to their names and wrap them in functions with the
+// proper escape behavior.
 
 //go:noescape
 func chanrecv(ch unsafe.Pointer, nb bool, val unsafe.Pointer) (selected, received bool)
 
 //go:noescape
-func chansend(ch unsafe.Pointer, val unsafe.Pointer, nb bool) bool
+func chansend0(ch unsafe.Pointer, val unsafe.Pointer, nb bool) bool
+
+func chansend(ch unsafe.Pointer, val unsafe.Pointer, nb bool) bool {
+	contentEscapes(val)
+	return chansend0(ch, val, nb)
+}
 
 func makechan(typ *abi.Type, size int) (ch unsafe.Pointer)
 func makemap(t *abi.Type, cap int) (m unsafe.Pointer)
@@ -3764,10 +3795,22 @@ func mapaccess(t *abi.Type, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Po
 func mapaccess_faststr(t *abi.Type, m unsafe.Pointer, key string) (val unsafe.Pointer)
 
 //go:noescape
-func mapassign(t *abi.Type, m unsafe.Pointer, key, val unsafe.Pointer)
+func mapassign0(t *abi.Type, m unsafe.Pointer, key, val unsafe.Pointer)
+
+func mapassign(t *abi.Type, m unsafe.Pointer, key, val unsafe.Pointer) {
+	contentEscapes(key)
+	contentEscapes(val)
+	mapassign0(t, m, key, val)
+}
 
 //go:noescape
-func mapassign_faststr(t *abi.Type, m unsafe.Pointer, key string, val unsafe.Pointer)
+func mapassign_faststr0(t *abi.Type, m unsafe.Pointer, key string, val unsafe.Pointer)
+
+func mapassign_faststr(t *abi.Type, m unsafe.Pointer, key string, val unsafe.Pointer) {
+	contentEscapes((*unsafeheader.String)(unsafe.Pointer(&key)).Data)
+	contentEscapes(val)
+	mapassign_faststr0(t, m, key, val)
+}
 
 //go:noescape
 func mapdelete(t *abi.Type, m unsafe.Pointer, key unsafe.Pointer)
@@ -3875,4 +3918,14 @@ func escapes(x any) {
 var dummy struct {
 	b bool
 	x any
+}
+
+// Dummy annotation marking that the content of value x
+// escapes (i.e. modeling roughly heap=*x),
+// for use in cases where the reflect code is so clever that
+// the compiler cannot follow.
+func contentEscapes(x unsafe.Pointer) {
+	if dummy.b {
+		escapes(*(*any)(x)) // the dereference may not always be safe, but never executed
+	}
 }
