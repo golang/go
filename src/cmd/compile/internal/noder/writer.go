@@ -1661,10 +1661,7 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
 				}
 
 			default:
-				// TODO(mdempsky): Enable after #42938 is fixed.
-				if false {
-					pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
-				}
+				pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
 			}
 		}
 	}
