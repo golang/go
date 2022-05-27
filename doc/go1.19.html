@@ -50,6 +50,13 @@ Do not send CLs removing the interior tags from such phrases.
   with <code>-trimpath</code>.
 </p>
 
+<p><!-- CL 404134 -->
+  <code>go</code> <code>test</code> and <code>go</code> <code>generate</code> now place
+  <code>GOROOT/bin</code> at the beginning of the <code>PATH</code> used for the
+  subprocess, so tests and generators that execute the <code>go</code> command
+  will resolve it to same <code>GOROOT</code>.
+</p>
+
 <p><!-- CL 398058 -->
   <code>go</code> <code>env</code> now quotes entries that contain spaces in
   the <code>CGO_CFLAGS</code>, <code>CGO_CPPFLAGS</code>, <code>CGO_CXXFLAGS</code>, <code>CGO_FFLAGS</code>, <code>CGO_LDFLAGS</code>,
