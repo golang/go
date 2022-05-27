@@ -1974,7 +1974,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		// Consider starting this as a background goroutine and retrieving the result
 		// asynchronously when we're actually ready to build the package, or when we
 		// actually need to evaluate whether the package's metadata is stale.
-		p.setBuildInfo(opts.LoadVCS)
+		p.setBuildInfo(opts.AutoVCS)
 	}
 
 	// unsafe is a fake package.
@@ -2264,7 +2264,7 @@ var vcsStatusCache par.Cache
 //
 // Note that the GoVersion field is not set here to avoid encoding it twice.
 // It is stored separately in the binary, mostly for historical reasons.
-func (p *Package) setBuildInfo(includeVCS bool) {
+func (p *Package) setBuildInfo(autoVCS bool) {
 	setPkgErrorf := func(format string, args ...any) {
 		if p.Error == nil {
 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
@@ -2420,7 +2420,19 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 	var vcsCmd *vcs.Cmd
 	var err error
 	const allowNesting = true
-	if includeVCS && cfg.BuildBuildvcs != "false" && p.Module != nil && p.Module.Version == "" && !p.Standard && !p.IsTestOnly() {
+
+	wantVCS := false
+	switch cfg.BuildBuildvcs {
+	case "true":
+		wantVCS = true // Include VCS metadata even for tests if requested explicitly; see https://go.dev/issue/52648.
+	case "auto":
+		wantVCS = autoVCS && !p.IsTestOnly()
+	case "false":
+	default:
+		panic(fmt.Sprintf("unexpected value for cfg.BuildBuildvcs: %q", cfg.BuildBuildvcs))
+	}
+
+	if wantVCS && p.Module != nil && p.Module.Version == "" && !p.Standard {
 		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			setVCSError(err)
@@ -2724,8 +2736,9 @@ type PackageOpts struct {
 	// may be printed for non-literal arguments that match no main packages.
 	MainOnly bool
 
-	// LoadVCS controls whether we also load version-control metadata for main packages.
-	LoadVCS bool
+	// AutoVCS controls whether we also load version-control metadata for main packages
+	// when -buildvcs=auto (the default).
+	AutoVCS bool
 
 	// SuppressDeps is true if the caller does not need Deps and DepsErrors to be populated
 	// on the package. TestPackagesAndErrors examines the  Deps field to determine if the test

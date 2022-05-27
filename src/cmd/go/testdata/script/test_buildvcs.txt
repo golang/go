@@ -5,13 +5,17 @@
 [short] skip
 [!exec:git] skip
 
-env GOFLAGS=-buildvcs  # override default -buildvcs=auto in GOFLAGS, as a user might
-
 exec git init
 
-# The test binaries should not have VCS settings stamped.
+# The test binaries should not have VCS settings stamped by default.
 # (The test itself verifies that.)
 go test . ./testonly
+
+# However, setting -buildvcs explicitly should override that and
+# stamp anyway (https://go.dev/issue/52648).
+go test -buildvcs -c -o ./testonly.exe ./testonly
+! exec ./testonly.exe
+stdout 'unexpected VCS setting: vcs\.modified=true'
 
 
 # Remove 'git' from $PATH. The test should still build.
@@ -26,11 +30,11 @@ go test -c -o $devnull .
 
 # When listing a main package, in general we need its VCS metadata to determine
 # the .Stale and .StaleReason fields.
-! go list .
+! go list -buildvcs=true .
 stderr '^go: missing Git command\. See https://golang\.org/s/gogetcmd\nerror obtaining VCS status: .*\n\tUse -buildvcs=false to disable VCS stamping.'
 
 # Adding the -test flag should be strictly additive — it should not suppress the error.
-! go list -test .
+! go list -buildvcs=true -test .
 stderr '^go: missing Git command\. See https://golang\.org/s/gogetcmd\nerror obtaining VCS status: .*\n\tUse -buildvcs=false to disable VCS stamping.'
 
 # Adding the suggested flag should suppress the error.
@@ -38,12 +42,18 @@ go list -test -buildvcs=false .
 ! stderr .
 
 
-# Since the ./testonly package can't produce an actual binary, we shouldn't
-# invoke a VCS tool to compute a build stamp when listing it.
+# Since the ./testonly package doesn't itself produce an actual binary, we shouldn't
+# invoke a VCS tool to compute a build stamp by default when listing it.
 go list ./testonly
 ! stderr .
 go list -test ./testonly
 ! stderr .
+
+# Again, setting -buildvcs explicitly should force the use of the VCS tool.
+! go list -buildvcs ./testonly
+stderr '^go: missing Git command\. See https://golang\.org/s/gogetcmd\nerror obtaining VCS status: .*\n\tUse -buildvcs=false to disable VCS stamping.'
+! go list -buildvcs -test ./testonly
+stderr '^go: missing Git command\. See https://golang\.org/s/gogetcmd\nerror obtaining VCS status: .*\n\tUse -buildvcs=false to disable VCS stamping.'
 
 
 -- go.mod --
