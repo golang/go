@@ -28,10 +28,6 @@ import (
 type MappedRange struct {
 	spanRange span.Range             // the range in the compiled source (package.CompiledGoFiles)
 	m         *protocol.ColumnMapper // a mapper of the edited source (package.GoFiles)
-
-	// protocolRange is the result of converting the spanRange using the mapper.
-	// It is computed lazily.
-	protocolRange *protocol.Range
 }
 
 // NewMappedRange returns a MappedRange for the given start and end token.Pos.
@@ -63,18 +59,14 @@ func NewMappedRange(fset *token.FileSet, m *protocol.ColumnMapper, start, end to
 // See the documentation of NewMappedRange for information on edited vs
 // compiled source.
 func (s MappedRange) Range() (protocol.Range, error) {
-	if s.protocolRange == nil {
-		spn, err := s.Span()
-		if err != nil {
-			return protocol.Range{}, err
-		}
-		prng, err := s.m.Range(spn)
-		if err != nil {
-			return protocol.Range{}, err
-		}
-		s.protocolRange = &prng
+	if s.m == nil {
+		return protocol.Range{}, bug.Errorf("invalid range")
 	}
-	return *s.protocolRange, nil
+	spn, err := s.Span()
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	return s.m.Range(spn)
 }
 
 // Span returns the span corresponding to the mapped range in the edited
