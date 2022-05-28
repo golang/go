@@ -142,15 +142,10 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 	if err != nil {
 		return 0, MappedRange{}, err
 	}
-	spn, err := pgf.Mapper.PointSpan(position)
+	pos, err := pgf.Mapper.Pos(position)
 	if err != nil {
 		return 0, MappedRange{}, err
 	}
-	rng, err := spn.Range(pgf.Mapper.TokFile)
-	if err != nil {
-		return 0, MappedRange{}, err
-	}
-	pos := rng.Start
 
 	// Find the basic literal enclosing the given position, if there is one.
 	var lit *ast.BasicLit

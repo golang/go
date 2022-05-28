@@ -28,17 +28,13 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.Version
 	if err != nil {
 		return nil, fmt.Errorf("getting go.work file handle: %w", err)
 	}
-	spn, err := pw.Mapper.PointSpan(position)
+	pos, err := pw.Mapper.Pos(position)
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor position: %w", err)
 	}
-	rng, err := spn.Range(pw.Mapper.TokFile)
-	if err != nil {
-		return nil, fmt.Errorf("computing range: %w", err)
-	}
 
 	// Find the use statement the user is in.
-	cursor := rng.Start - 1
+	cursor := pos - 1
 	use, pathStart, _ := usePath(pw, cursor)
 	if use == nil {
 		return &protocol.CompletionList{}, nil

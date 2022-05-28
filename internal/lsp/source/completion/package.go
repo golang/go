@@ -28,7 +28,7 @@ import (
 
 // packageClauseCompletions offers completions for a package declaration when
 // one is not present in the given file.
-func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, pos protocol.Position) ([]CompletionItem, *Selection, error) {
+func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, position protocol.Position) ([]CompletionItem, *Selection, error) {
 	// We know that the AST for this file will be empty due to the missing
 	// package declaration, but parse it anyway to get a mapper.
 	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseFull)
@@ -36,16 +36,12 @@ func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh 
 		return nil, nil, err
 	}
 
-	cursorSpan, err := pgf.Mapper.PointSpan(pos)
-	if err != nil {
-		return nil, nil, err
-	}
-	rng, err := cursorSpan.Range(pgf.Mapper.TokFile)
+	pos, err := pgf.Mapper.Pos(position)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	surrounding, err := packageCompletionSurrounding(snapshot.FileSet(), pgf, rng.Start)
+	surrounding, err := packageCompletionSurrounding(snapshot.FileSet(), pgf, pos)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid position for package completion: %w", err)
 	}

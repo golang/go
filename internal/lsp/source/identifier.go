@@ -77,7 +77,7 @@ type Declaration struct {
 
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
-func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (*IdentifierInfo, error) {
+func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*IdentifierInfo, error) {
 	ctx, done := event.Start(ctx, "source.Identifier")
 	defer done()
 
@@ -104,16 +104,12 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 			bug.Report("missing package file", bug.Data{"pkg": pkg.ID(), "file": fh.URI()})
 			return nil, err
 		}
-		spn, err := pgf.Mapper.PointSpan(pos)
-		if err != nil {
-			return nil, err
-		}
-		rng, err := spn.Range(pgf.Mapper.TokFile)
+		pos, err := pgf.Mapper.Pos(position)
 		if err != nil {
 			return nil, err
 		}
 		var ident *IdentifierInfo
-		ident, findErr = findIdentifier(ctx, snapshot, pkg, pgf, rng.Start)
+		ident, findErr = findIdentifier(ctx, snapshot, pkg, pgf, pos)
 		if findErr == nil {
 			return ident, nil
 		}

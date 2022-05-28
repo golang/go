@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
-func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (*protocol.SignatureInformation, int, error) {
+func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*protocol.SignatureInformation, int, error) {
 	ctx, done := event.Start(ctx, "source.SignatureHelp")
 	defer done()
 
@@ -24,17 +24,13 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	if err != nil {
 		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
 	}
-	spn, err := pgf.Mapper.PointSpan(pos)
-	if err != nil {
-		return nil, 0, err
-	}
-	rng, err := spn.Range(pgf.Mapper.TokFile)
+	pos, err := pgf.Mapper.Pos(position)
 	if err != nil {
 		return nil, 0, err
 	}
 	// Find a call expression surrounding the query position.
 	var callExpr *ast.CallExpr
-	path, _ := astutil.PathEnclosingInterval(pgf.File, rng.Start, rng.Start)
+	path, _ := astutil.PathEnclosingInterval(pgf.File, pos, pos)
 	if path == nil {
 		return nil, 0, fmt.Errorf("cannot find node enclosing position")
 	}
@@ -42,7 +38,7 @@ FindCall:
 	for _, node := range path {
 		switch node := node.(type) {
 		case *ast.CallExpr:
-			if rng.Start >= node.Lparen && rng.Start <= node.Rparen {
+			if pos >= node.Lparen && pos <= node.Rparen {
 				callExpr = node
 				break FindCall
 			}
@@ -77,7 +73,7 @@ FindCall:
 
 	// Handle builtin functions separately.
 	if obj, ok := obj.(*types.Builtin); ok {
-		return builtinSignature(ctx, snapshot, callExpr, obj.Name(), rng.Start)
+		return builtinSignature(ctx, snapshot, callExpr, obj.Name(), pos)
 	}
 
 	// Get the type information for the function being called.
@@ -91,7 +87,7 @@ FindCall:
 		return nil, 0, fmt.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
 
-	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), rng.Start)
+	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), pos)
 
 	var (
 		name    string

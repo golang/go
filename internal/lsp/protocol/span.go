@@ -105,12 +105,22 @@ func (m *ColumnMapper) RangeToSpanRange(r Range) (span.Range, error) {
 	return spn.Range(m.TokFile)
 }
 
-func (m *ColumnMapper) PointSpan(p Position) (span.Span, error) {
+// Pos returns the token.Pos corresponding to the given protocol position.
+func (m *ColumnMapper) Pos(p Position) (token.Pos, error) {
 	start, err := m.Point(p)
 	if err != nil {
-		return span.Span{}, err
+		return token.NoPos, err
 	}
-	return span.New(m.URI, start, start).WithAll(m.TokFile)
+	// TODO: refactor the span package to avoid creating this unnecessary end position.
+	spn, err := span.New(m.URI, start, start).WithAll(m.TokFile)
+	if err != nil {
+		return token.NoPos, err
+	}
+	rng, err := spn.Range(m.TokFile)
+	if err != nil {
+		return token.NoPos, err
+	}
+	return rng.Start, nil
 }
 
 func (m *ColumnMapper) Point(p Position) (span.Point, error) {

@@ -445,22 +445,16 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		}
 		return items, surrounding, nil
 	}
-	spn, err := pgf.Mapper.PointSpan(protoPos)
-	if err != nil {
-		return nil, nil, err
-	}
-	rng, err := spn.Range(pgf.Mapper.TokFile)
+	pos, err := pgf.Mapper.Pos(protoPos)
 	if err != nil {
 		return nil, nil, err
 	}
 	// Completion is based on what precedes the cursor.
 	// Find the path to the position before pos.
-	path, _ := astutil.PathEnclosingInterval(pgf.File, rng.Start-1, rng.Start-1)
+	path, _ := astutil.PathEnclosingInterval(pgf.File, pos-1, pos-1)
 	if path == nil {
 		return nil, nil, fmt.Errorf("cannot find node enclosing position")
 	}
-
-	pos := rng.Start
 
 	// Check if completion at this position is valid. If not, return early.
 	switch n := path[0].(type) {
@@ -524,7 +518,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		pos:                       pos,
 		seen:                      make(map[types.Object]bool),
 		enclosingFunc:             enclosingFunction(path, pkg.GetTypesInfo()),
-		enclosingCompositeLiteral: enclosingCompositeLiteral(path, rng.Start, pkg.GetTypesInfo()),
+		enclosingCompositeLiteral: enclosingCompositeLiteral(path, pos, pkg.GetTypesInfo()),
 		deepState: deepCompletionState{
 			enabled: opts.DeepCompletion,
 		},

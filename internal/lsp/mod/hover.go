@@ -39,13 +39,9 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("getting modfile handle: %w", err)
 	}
-	spn, err := pm.Mapper.PointSpan(position)
+	pos, err := pm.Mapper.Pos(position)
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor position: %w", err)
-	}
-	hoverRng, err := spn.Range(pm.Mapper.TokFile)
-	if err != nil {
-		return nil, fmt.Errorf("computing hover range: %w", err)
 	}
 
 	// Confirm that the cursor is at the position of a require statement.
@@ -61,7 +57,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 		// Shift the start position to the location of the
 		// dependency within the require statement.
 		startPos, endPos = s+i, s+i+len(dep)
-		if token.Pos(startPos) <= hoverRng.Start && hoverRng.Start <= token.Pos(endPos) {
+		if token.Pos(startPos) <= pos && pos <= token.Pos(endPos) {
 			req = r
 			break
 		}

@@ -227,15 +227,11 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, p
 	if err != nil {
 		return nil, err
 	}
-	spn, err := pgf.Mapper.PointSpan(pp)
+	pos, err := pgf.Mapper.Pos(pp)
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spn.Range(pgf.Mapper.TokFile)
-	if err != nil {
-		return nil, err
-	}
-	offset, err := safetoken.Offset(pgf.Tok, rng.Start)
+	offset, err := safetoken.Offset(pgf.Tok, pos)
 	if err != nil {
 		return nil, err
 	}

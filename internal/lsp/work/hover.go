@@ -30,18 +30,14 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("getting go.work file handle: %w", err)
 	}
-	spn, err := pw.Mapper.PointSpan(position)
+	pos, err := pw.Mapper.Pos(position)
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor position: %w", err)
-	}
-	hoverRng, err := spn.Range(pw.Mapper.TokFile)
-	if err != nil {
-		return nil, fmt.Errorf("computing hover range: %w", err)
 	}
 
 	// Confirm that the cursor is inside a use statement, and then find
 	// the position of the use statement's directory path.
-	use, pathStart, pathEnd := usePath(pw, hoverRng.Start)
+	use, pathStart, pathEnd := usePath(pw, pos)
 
 	// The cursor position is not on a use statement.
 	if use == nil {
