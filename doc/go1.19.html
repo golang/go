@@ -188,7 +188,9 @@ Do not send CLs removing the interior tags from such phrases.
   (<code>GOARCH=amd64</code> and <code>GOARCH=arm64</code> only)
 </p>
 <p><!-- CL 402374 -->
-  TODO: <a href="https://go.dev/cl/402374">https://go.dev/cl/402374</a>: enable regabi on riscv64 by default
+  The <code>riscv64</code> port now supports passing function arguments
+  and result using registers. Benchmarking shows typical performance
+  improvements of 10% or more on <code>riscv64</code>.
 </p>
 <p><!-- CL 391014 -->
   The Go compiler now requires the <code>-p=importpath</code> flag to
