@@ -1,0 +1,18 @@
+[!exec:git] skip
+
+exec git init
+exec git config user.email gopher@golang.org
+exec git config user.name 'J.R. Gopher'
+
+go build -v
+stderr example.com/test
+! stderr fatal
+
+-- go.mod --
+module example.com/test
+
+go 1.18
+-- main.go --
+package main
+
+func main() {}
