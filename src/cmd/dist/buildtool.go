@@ -65,6 +65,7 @@ var bootstrapDirs = []string{
 	"internal/goversion",
 	"internal/pkgbits",
 	"internal/race",
+	"internal/saferio",
 	"internal/unsafeheader",
 	"internal/xcoff",
 	"math/big",
