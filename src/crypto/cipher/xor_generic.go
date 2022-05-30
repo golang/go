@@ -23,14 +23,9 @@ func xorBytes(dst, a, b []byte) int {
 	}
 
 	switch {
-	case supportsUnaligned:
+	case supportsUnaligned || (isAligned(&dst[0]) && isAligned(&a[0]) && isAligned(&b[0])):
 		fastXORBytes(dst, a, b, n)
 	default:
-		// TODO(hanwen): if (dst, a, b) have common alignment
-		// we could still try fastXORBytes. It is not clear
-		// how often this happens, and it's only worth it if
-		// the block encryption itself is hardware
-		// accelerated.
 		safeXORBytes(dst, a, b, n)
 	}
 	return n
@@ -39,8 +34,12 @@ func xorBytes(dst, a, b []byte) int {
 const wordSize = int(unsafe.Sizeof(uintptr(0)))
 const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "s390x"
 
+func isAligned(a *byte) bool {
+	return uintptr(unsafe.Pointer(a))%uintptr(wordSize) == 0
+}
+
 // fastXORBytes xors in bulk. It only works on architectures that
-// support unaligned read/writes.
+// support unaligned read/writes, or if dst, a, b are all aligned.
 // n needs to be smaller or equal than the length of a and b.
 func fastXORBytes(dst, a, b []byte, n int) {
 	// Assert dst has enough space
@@ -83,7 +82,7 @@ func fastXORWords(dst, a, b []byte) {
 // fastXORWords XORs multiples of 4 or 8 bytes (depending on architecture.)
 // The slice arguments a and b are assumed to be of equal length.
 func xorWords(dst, a, b []byte) {
-	if supportsUnaligned {
+	if supportsUnaligned || (isAligned(&dst[0]) && isAligned(&a[0]) && isAligned(&b[0])) {
 		fastXORWords(dst, a, b)
 	} else {
 		safeXORBytes(dst, a, b, len(b))
