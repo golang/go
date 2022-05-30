@@ -805,6 +805,18 @@ func evalunsafe(n ir.Node) int64 {
 		sel.X = Expr(sel.X)
 		sbase := sel.X
 
+		// Implicit dot may already be resolved for instantiating generic function. So we
+		// need to remove any implicit dot until we reach the first non-implicit one, it's
+		// the right base selector. See issue #53137.
+		var clobberBase func(n ir.Node) ir.Node
+		clobberBase = func(n ir.Node) ir.Node {
+			if sel, ok := n.(*ir.SelectorExpr); ok && sel.Implicit() {
+				return clobberBase(sel.X)
+			}
+			return n
+		}
+		sbase = clobberBase(sbase)
+
 		tsel := Expr(sel)
 		n.X = tsel
 		if tsel.Type() == nil {
