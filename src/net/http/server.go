@@ -2690,6 +2690,8 @@ type Server struct {
 	activeConn map[*conn]struct{}
 	doneChan   chan struct{}
 	onShutdown []func()
+
+	listenerGroup sync.WaitGroup
 }
 
 func (s *Server) getDoneChan() <-chan struct{} {
@@ -2732,6 +2734,15 @@ func (srv *Server) Close() error {
 	defer srv.mu.Unlock()
 	srv.closeDoneChanLocked()
 	err := srv.closeListenersLocked()
+
+	// Unlock srv.mu while waiting for listenerGroup.
+	// The group Add and Done calls are made with srv.mu held,
+	// to avoid adding a new listener in the window between
+	// us setting inShutdown above and waiting here.
+	srv.mu.Unlock()
+	srv.listenerGroup.Wait()
+	srv.mu.Lock()
+
 	for c := range srv.activeConn {
 		c.rwc.Close()
 		delete(srv.activeConn, c)
@@ -2778,6 +2789,7 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 		go f()
 	}
 	srv.mu.Unlock()
+	srv.listenerGroup.Wait()
 
 	pollIntervalBase := time.Millisecond
 	nextPollInterval := func() time.Duration {
@@ -2794,7 +2806,7 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 	timer := time.NewTimer(nextPollInterval())
 	defer timer.Stop()
 	for {
-		if srv.closeIdleConns() && srv.numListeners() == 0 {
+		if srv.closeIdleConns() {
 			return lnerr
 		}
 		select {
@@ -2815,12 +2827,6 @@ func (srv *Server) RegisterOnShutdown(f func()) {
 	srv.mu.Lock()
 	srv.onShutdown = append(srv.onShutdown, f)
 	srv.mu.Unlock()
-}
-
-func (s *Server) numListeners() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return len(s.listeners)
 }
 
 // closeIdleConns closes all idle connections and reports whether the
@@ -3157,8 +3163,10 @@ func (s *Server) trackListener(ln *net.Listener, add bool) bool {
 			return false
 		}
 		s.listeners[ln] = struct{}{}
+		s.listenerGroup.Add(1)
 	} else {
 		delete(s.listeners, ln)
+		s.listenerGroup.Done()
 	}
 	return true
 }
