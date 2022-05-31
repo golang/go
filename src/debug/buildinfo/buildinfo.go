@@ -89,7 +89,7 @@ type exe interface {
 
 	// DataStart returns the virtual address of the segment or section that
 	// should contain build information. This is either a specially named section
-	// or the first writable non-zero data segment.
+	// or the first readable and writable non-zero data segment.
 	DataStart() uint64
 }
 
@@ -257,8 +257,10 @@ func (x *elfExe) DataStart() uint64 {
 			return s.Addr
 		}
 	}
+
 	for _, p := range x.f.Progs {
-		if p.Type == elf.PT_LOAD && p.Flags&(elf.PF_X|elf.PF_W) == elf.PF_W {
+		flags := elf.PF_R | elf.PF_W
+		if p.Type == elf.PT_LOAD && p.Filesz != 0 && (p.Flags&flags) == flags {
 			return p.Vaddr
 		}
 	}
@@ -313,8 +315,8 @@ func (x *peExe) DataStart() uint64 {
 		IMAGE_SCN_ALIGN_32BYTES          = 0x600000
 	)
 	for _, sect := range x.f.Sections {
-		if sect.VirtualAddress != 0 && sect.Size != 0 &&
-			sect.Characteristics&^IMAGE_SCN_ALIGN_32BYTES == IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE {
+		flags := uint32(IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE)
+		if sect.VirtualAddress != 0 && sect.Size != 0 && (sect.Characteristics&flags) == flags {
 			return uint64(sect.VirtualAddress) + x.imageBase()
 		}
 	}
