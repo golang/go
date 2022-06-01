@@ -105,7 +105,7 @@ func (m *ColumnMapper) RangeToSpanRange(r Range) (span.Range, error) {
 	return spn.Range(m.TokFile)
 }
 
-// Pos returns the token.Pos corresponding to the given protocol position.
+// Pos returns the token.Pos of p within the mapped file.
 func (m *ColumnMapper) Pos(p Position) (token.Pos, error) {
 	start, err := m.Point(p)
 	if err != nil {
@@ -123,6 +123,17 @@ func (m *ColumnMapper) Pos(p Position) (token.Pos, error) {
 	return rng.Start, nil
 }
 
+// Offset returns the utf-8 byte offset of p within the mapped file.
+func (m *ColumnMapper) Offset(p Position) (int, error) {
+	start, err := m.Point(p)
+	if err != nil {
+		return 0, err
+	}
+	return start.Offset(), nil
+}
+
+// Point returns a span.Point for p within the mapped file. The resulting point
+// always has an Offset.
 func (m *ColumnMapper) Point(p Position) (span.Point, error) {
 	line := int(p.Line) + 1
 	offset, err := span.ToOffset(m.TokFile, line, 1)

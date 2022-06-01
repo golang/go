@@ -54,6 +54,13 @@ func ToUTF16Column(p Point, content []byte) (int, error) {
 // supplied line contents.
 // This is used to convert from the utf16 counts used by some editors to the
 // native (always in bytes) column representation.
+//
+// The resulting Point always has an offset.
+//
+// TODO: it looks like this may incorrectly confer a "position" to the
+// resulting Point, when it shouldn't. If p.HasPosition() == false, the
+// resulting Point will return p.HasPosition() == true, but have the wrong
+// position.
 func FromUTF16Column(p Point, chr int, content []byte) (Point, error) {
 	if !p.HasOffset() {
 		return Point{}, fmt.Errorf("FromUTF16Column: point is missing offset")

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"go/token"
 	"strings"
 
 	"golang.org/x/mod/modfile"
@@ -39,7 +38,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("getting modfile handle: %w", err)
 	}
-	pos, err := pm.Mapper.Pos(position)
+	offset, err := pm.Mapper.Offset(position)
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor position: %w", err)
 	}
@@ -57,7 +56,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 		// Shift the start position to the location of the
 		// dependency within the require statement.
 		startPos, endPos = s+i, s+i+len(dep)
-		if token.Pos(startPos) <= pos && pos <= token.Pos(endPos) {
+		if startPos <= offset && offset <= endPos {
 			req = r
 			break
 		}

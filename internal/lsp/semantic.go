@@ -248,7 +248,7 @@ func (e *encoded) strStack() string {
 		loc := e.stack[len(e.stack)-1].Pos()
 		if !safetoken.InRange(e.pgf.Tok, loc) {
 			msg = append(msg, fmt.Sprintf("invalid position %v for %s", loc, e.pgf.URI))
-		} else if locInRange(e.pgf.Tok, loc) {
+		} else if safetoken.InRange(e.pgf.Tok, loc) {
 			add := e.pgf.Tok.PositionFor(loc, false)
 			nm := filepath.Base(add.Filename)
 			msg = append(msg, fmt.Sprintf("(%s:%d,col:%d)", nm, add.Line, add.Column))
@@ -258,14 +258,6 @@ func (e *encoded) strStack() string {
 	}
 	msg = append(msg, "]")
 	return strings.Join(msg, " ")
-}
-
-// avoid panic in token.PositionFor() when typing at the end of the file
-//
-// TODO: this looks wrong: the second check should be int(loc) <= tf.Base()+tf.Size()?
-// Can we just use safetoken.InRange?
-func locInRange(tf *token.File, loc token.Pos) bool {
-	return tf.Base() <= int(loc) && int(loc) < tf.Base()+tf.Size()
 }
 
 // find the line in the source
