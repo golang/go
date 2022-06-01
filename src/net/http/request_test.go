@@ -1177,6 +1177,47 @@ func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectCo
 	return f
 }
 
+// Issue 53181: verify Request.Cookie return the correct Cookie.
+// Return ErrNoCookie instead of the first cookie when name is "".
+func TestRequestCookie(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		value       string
+		expectedErr error
+	}{
+		{
+			name:        "foo",
+			value:       "bar",
+			expectedErr: nil,
+		},
+		{
+			name:        "",
+			expectedErr: ErrNoCookie,
+		},
+	} {
+		req, err := NewRequest("GET", "http://example.com/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.AddCookie(&Cookie{Name: tt.name, Value: tt.value})
+		c, err := req.Cookie(tt.name)
+		if err != tt.expectedErr {
+			t.Errorf("got %v, want %v", err, tt.expectedErr)
+		}
+
+		// skip if error occured.
+		if err != nil {
+			continue
+		}
+		if c.Value != tt.value {
+			t.Errorf("got %v, want %v", c.Value, tt.value)
+		}
+		if c.Name != tt.name {
+			t.Errorf("got %s, want %v", tt.name, c.Name)
+		}
+	}
+}
+
 const (
 	fileaContents = "This is a test file."
 	filebContents = "Another test file."
