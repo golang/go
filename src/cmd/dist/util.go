@@ -72,7 +72,7 @@ func run(dir string, mode int, cmd ...string) string {
 	}
 
 	xcmd := exec.Command(cmd[0], cmd[1:]...)
-	xcmd.Dir = dir
+	setDir(xcmd, dir)
 	var data []byte
 	var err error
 
