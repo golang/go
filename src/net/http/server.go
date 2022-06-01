@@ -2680,35 +2680,9 @@ type Server struct {
 	mu         sync.Mutex
 	listeners  map[*net.Listener]struct{}
 	activeConn map[*conn]struct{}
-	doneChan   chan struct{}
 	onShutdown []func()
 
 	listenerGroup sync.WaitGroup
-}
-
-func (s *Server) getDoneChan() <-chan struct{} {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.getDoneChanLocked()
-}
-
-func (s *Server) getDoneChanLocked() chan struct{} {
-	if s.doneChan == nil {
-		s.doneChan = make(chan struct{})
-	}
-	return s.doneChan
-}
-
-func (s *Server) closeDoneChanLocked() {
-	ch := s.getDoneChanLocked()
-	select {
-	case <-ch:
-		// Already closed. Don't close again.
-	default:
-		// Safe to close here. We're the only closer, guarded
-		// by s.mu.
-		close(ch)
-	}
 }
 
 // Close immediately closes all active net.Listeners and any
@@ -2724,7 +2698,6 @@ func (srv *Server) Close() error {
 	srv.inShutdown.Store(true)
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
-	srv.closeDoneChanLocked()
 	err := srv.closeListenersLocked()
 
 	// Unlock srv.mu while waiting for listenerGroup.
@@ -2776,7 +2749,6 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 
 	srv.mu.Lock()
 	lnerr := srv.closeListenersLocked()
-	srv.closeDoneChanLocked()
 	for _, f := range srv.onShutdown {
 		go f()
 	}
@@ -3061,10 +3033,8 @@ func (srv *Server) Serve(l net.Listener) error {
 	for {
 		rw, err := l.Accept()
 		if err != nil {
-			select {
-			case <-srv.getDoneChan():
+			if srv.shuttingDown() {
 				return ErrServerClosed
-			default:
 			}
 			if ne, ok := err.(net.Error); ok && ne.Temporary() {
 				if tempDelay == 0 {
