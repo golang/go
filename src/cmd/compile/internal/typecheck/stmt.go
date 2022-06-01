@@ -127,13 +127,23 @@ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
 
 	checkLHS := func(i int, typ *types.Type) {
 		lhs[i] = Resolve(lhs[i])
-		if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Name().Ntype == nil {
-			if typ.Kind() != types.TNIL {
+		if base.Flag.G != 0 || base.Debug.Unified != 0 {
+			// New logic added in CL 403837 for Go 1.19, which only has -G=3 and unified IR.
+			if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Type() == nil {
+				base.Assertf(typ.Kind() == types.TNIL, "unexpected untyped nil")
 				n.SetType(defaultType(typ))
-			} else {
-				base.Errorf("use of untyped nil")
+			}
+		} else {
+			// Original logic from Go 1.18, which is still needed for -G=0.
+			if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Name().Ntype == nil {
+				if typ.Kind() != types.TNIL {
+					n.SetType(defaultType(typ))
+				} else {
+					base.Errorf("use of untyped nil")
+				}
 			}
 		}
+
 		if lhs[i].Typecheck() == 0 {
 			lhs[i] = AssignExpr(lhs[i])
 		}

@@ -51,7 +51,7 @@ type devReader struct {
 
 // altGetRandom if non-nil specifies an OS-specific function to get
 // urandom-style randomness.
-var altGetRandom func([]byte) (ok bool)
+var altGetRandom func([]byte) (err error)
 
 func warnBlocked() {
 	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
@@ -65,7 +65,7 @@ func (r *devReader) Read(b []byte) (n int, err error) {
 		t := time.AfterFunc(60*time.Second, warnBlocked)
 		defer t.Stop()
 	}
-	if altGetRandom != nil && r.name == urandomDevice && altGetRandom(b) {
+	if altGetRandom != nil && r.name == urandomDevice && altGetRandom(b) == nil {
 		return len(b), nil
 	}
 	r.mu.Lock()
