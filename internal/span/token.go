@@ -12,28 +12,40 @@ import (
 )
 
 // Range represents a source code range in token.Pos form.
-// It also carries the FileSet that produced the positions, so that it is
+// It also carries the token.File that produced the positions, so that it is
 // self contained.
 type Range struct {
-	Start token.Pos
-	End   token.Pos
-
-	// TokFile may be nil if Start or End is invalid.
-	// TODO: Eventually we should guarantee that it is non-nil.
-	TokFile *token.File
+	TokFile    *token.File // non-nil
+	Start, End token.Pos   // both IsValid()
 }
 
-// NewRange creates a new Range from a FileSet and two positions.
-// To represent a point pass a 0 as the end pos.
-func NewRange(fset *token.FileSet, start, end token.Pos) Range {
-	tf := fset.File(start)
-	if tf == nil {
-		bug.Reportf("nil file")
+// NewRange creates a new Range from a token.File and two valid positions within it.
+//
+// (If you only have a token.FileSet, use file = fset.File(start). But
+// most callers know exactly which token.File they're dealing with and
+// should pass it explicitly. Not only does this save a lookup, but it
+// brings us a step closer to eliminating the global FileSet.)
+func NewRange(file *token.File, start, end token.Pos) Range {
+	if file == nil {
+		panic("nil *token.File")
 	}
+	if !start.IsValid() || !end.IsValid() {
+		panic("invalid start/end token.Pos")
+	}
+
+	// TODO(adonovan): ideally we would make this stronger assertion:
+	//
+	//   // Assert that file is non-nil and contains start and end.
+	//   _ = file.Offset(start)
+	//   _ = file.Offset(end)
+	//
+	// but some callers (e.g. packageCompletionSurrounding,
+	// posToMappedRange) don't ensure this precondition.
+
 	return Range{
+		TokFile: file,
 		Start:   start,
 		End:     end,
-		TokFile: tf,
 	}
 }
 

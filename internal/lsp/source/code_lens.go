@@ -67,7 +67,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 			return nil, err
 		}
 		// add a code lens to the top of the file which runs all benchmarks in the file
-		rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
+		rng, err := NewMappedRange(pgf.Tok, pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
 		if err != nil {
 			return nil, err
 		}
@@ -111,7 +111,7 @@ func TestsAndBenchmarks(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 			continue
 		}
 
-		rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, d.Pos(), fn.End()).Range()
+		rng, err := NewMappedRange(pgf.Tok, pgf.Mapper, fn.Pos(), fn.End()).Range()
 		if err != nil {
 			return out, err
 		}
@@ -177,7 +177,7 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 			if !strings.HasPrefix(l.Text, ggDirective) {
 				continue
 			}
-			rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, l.Pos(), l.Pos()+token.Pos(len(ggDirective))).Range()
+			rng, err := NewMappedRange(pgf.Tok, pgf.Mapper, l.Pos(), l.Pos()+token.Pos(len(ggDirective))).Range()
 			if err != nil {
 				return nil, err
 			}
@@ -214,7 +214,7 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 	if c == nil {
 		return nil, nil
 	}
-	rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, c.Pos(), c.EndPos).Range()
+	rng, err := NewMappedRange(pgf.Tok, pgf.Mapper, c.Pos(), c.End()).Range()
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func toggleDetailsCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle
 	if err != nil {
 		return nil, err
 	}
-	rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
+	rng, err := NewMappedRange(pgf.Tok, pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
 	if err != nil {
 		return nil, err
 	}

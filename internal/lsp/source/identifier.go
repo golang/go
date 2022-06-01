@@ -226,7 +226,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 
 		// The builtin package isn't in the dependency graph, so the usual
 		// utilities won't work here.
-		rng := NewMappedRange(snapshot.FileSet(), builtin.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
+		rng := NewMappedRange(builtin.Tok, builtin.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
 		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 		return result, nil
 	}
@@ -267,7 +267,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 			}
 			name := method.Names[0].Name
 			result.Declaration.node = method
-			rng := NewMappedRange(snapshot.FileSet(), builtin.Mapper, method.Pos(), method.Pos()+token.Pos(len(name)))
+			rng := NewMappedRange(builtin.Tok, builtin.Mapper, method.Pos(), method.Pos()+token.Pos(len(name)))
 			result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 			return result, nil
 		}

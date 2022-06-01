@@ -372,7 +372,7 @@ func (r *renamer) checkStructField(from *types.Var) {
 	if !ok {
 		return
 	}
-	pkg, path, _ := pathEnclosingInterval(r.fset, fromPkg, from.Pos(), from.Pos())
+	pkg, _, path, _ := pathEnclosingInterval(r.fset, fromPkg, from.Pos(), from.Pos())
 	if pkg == nil || path == nil {
 		return
 	}
@@ -821,13 +821,13 @@ func someUse(info *types.Info, obj types.Object) *ast.Ident {
 	return nil
 }
 
-// pathEnclosingInterval returns the Package and ast.Node that
+// pathEnclosingInterval returns the Package, token.File, and ast.Node that
 // contain source interval [start, end), and all the node's ancestors
 // up to the AST root.  It searches all ast.Files of all packages.
 // exact is defined as for astutil.PathEnclosingInterval.
 //
 // The zero value is returned if not found.
-func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Pos) (resPkg Package, path []ast.Node, exact bool) {
+func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Pos) (resPkg Package, tokFile *token.File, path []ast.Node, exact bool) {
 	pkgs := []Package{pkg}
 	for _, f := range pkg.GetSyntax() {
 		for _, imp := range f.Imports {
@@ -840,35 +840,36 @@ func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Po
 			}
 			importPkg, err := pkg.GetImport(importPath)
 			if err != nil {
-				return nil, nil, false
+				return nil, nil, nil, false
 			}
 			pkgs = append(pkgs, importPkg)
 		}
 	}
 	for _, p := range pkgs {
 		for _, f := range p.GetSyntax() {
-			if f.Pos() == token.NoPos {
+			if !f.Pos().IsValid() {
 				// This can happen if the parser saw
 				// too many errors and bailed out.
 				// (Use parser.AllErrors to prevent that.)
 				continue
 			}
-			if !tokenFileContainsPos(fset.File(f.Pos()), start) {
+			tokFile := fset.File(f.Pos())
+			if !tokenFileContainsPos(tokFile, start) {
 				continue
 			}
 			if path, exact := astutil.PathEnclosingInterval(f, start, end); path != nil {
-				return pkg, path, exact
+				return pkg, tokFile, path, exact
 			}
 		}
 	}
-	return nil, nil, false
+	return nil, nil, nil, false
 }
 
 // TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
 func tokenFileContainsPos(tf *token.File, pos token.Pos) bool {
 	p := int(pos)
 	base := tf.Base()
-	return base <= p && p < base+tf.Size()
+	return base <= p && p <= base+tf.Size()
 }
 
 func objectKind(obj types.Object) string {

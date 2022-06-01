@@ -186,7 +186,7 @@ func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string)
 	}
 	// want a line and column from start (in LSP coordinates)
 	// [//line directives should be ignored]
-	rng := source.NewMappedRange(e.fset, e.pgf.Mapper, start, start+token.Pos(leng))
+	rng := source.NewMappedRange(e.pgf.Tok, e.pgf.Mapper, start, start+token.Pos(leng))
 	lspRange, err := rng.Range()
 	if err != nil {
 		// possibly a //line directive. TODO(pjw): fix this somehow

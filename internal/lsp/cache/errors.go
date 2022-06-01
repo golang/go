@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -82,7 +83,7 @@ func parseErrorDiagnostics(snapshot *snapshot, pkg *pkg, errList scanner.ErrorLi
 		return nil, err
 	}
 	pos := pgf.Tok.Pos(e.Pos.Offset)
-	spn, err := span.NewRange(snapshot.FileSet(), pos, pos).Span()
+	spn, err := span.NewRange(pgf.Tok, pos, pos).Span()
 	if err != nil {
 		return nil, err
 	}
@@ -196,8 +197,15 @@ func analysisDiagnosticDiagnostics(snapshot *snapshot, pkg *pkg, a *analysis.Ana
 			break
 		}
 	}
-
-	spn, err := span.NewRange(snapshot.FileSet(), e.Pos, e.End).Span()
+	tokFile := snapshot.FileSet().File(e.Pos)
+	if tokFile == nil {
+		return nil, bug.Errorf("no file for position of %q diagnostic", e.Category)
+	}
+	end := e.End
+	if !end.IsValid() {
+		end = e.Pos
+	}
+	spn, err := span.NewRange(tokFile, e.Pos, end).Span()
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +290,11 @@ func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnos
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)
 		for _, e := range fix.TextEdits {
-			spn, err := span.NewRange(snapshot.FileSet(), e.Pos, e.End).Span()
+			tokFile := snapshot.FileSet().File(e.Pos)
+			if tokFile == nil {
+				return nil, bug.Errorf("no file for edit position")
+			}
+			spn, err := span.NewRange(tokFile, e.Pos, e.End).Span()
 			if err != nil {
 				return nil, err
 			}
@@ -310,7 +322,11 @@ func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnos
 func relatedInformation(pkg *pkg, fset *token.FileSet, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
 	var out []source.RelatedInformation
 	for _, related := range diag.Related {
-		spn, err := span.NewRange(fset, related.Pos, related.End).Span()
+		tokFile := fset.File(related.Pos)
+		if tokFile == nil {
+			return nil, bug.Errorf("no file for %q diagnostic position", diag.Category)
+		}
+		spn, err := span.NewRange(tokFile, related.Pos, related.End).Span()
 		if err != nil {
 			return nil, err
 		}
@@ -397,7 +413,7 @@ func parseGoListImportCycleError(snapshot *snapshot, e packages.Error, pkg *pkg)
 		// Search file imports for the import that is causing the import cycle.
 		for _, imp := range cgf.File.Imports {
 			if imp.Path.Value == circImp {
-				spn, err := span.NewRange(snapshot.FileSet(), imp.Pos(), imp.End()).Span()
+				spn, err := span.NewRange(cgf.Tok, imp.Pos(), imp.End()).Span()
 				if err != nil {
 					return msg, span.Span{}, false
 				}

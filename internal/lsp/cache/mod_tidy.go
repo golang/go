@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -282,7 +283,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *sourc
 				if !ok {
 					return nil, fmt.Errorf("no missing module fix for %q (%q)", importPath, req.Mod.Path)
 				}
-				srcErr, err := missingModuleForImport(snapshot, m, imp, req, fixes)
+				srcErr, err := missingModuleForImport(pgf.Tok, m, imp, req, fixes)
 				if err != nil {
 					return nil, err
 				}
@@ -445,11 +446,11 @@ func switchDirectness(req *modfile.Require, m *protocol.ColumnMapper, computeEdi
 
 // missingModuleForImport creates an error for a given import path that comes
 // from a missing module.
-func missingModuleForImport(snapshot source.Snapshot, m *protocol.ColumnMapper, imp *ast.ImportSpec, req *modfile.Require, fixes []source.SuggestedFix) (*source.Diagnostic, error) {
+func missingModuleForImport(file *token.File, m *protocol.ColumnMapper, imp *ast.ImportSpec, req *modfile.Require, fixes []source.SuggestedFix) (*source.Diagnostic, error) {
 	if req.Syntax == nil {
 		return nil, fmt.Errorf("no syntax for %v", req)
 	}
-	spn, err := span.NewRange(snapshot.FileSet(), imp.Path.Pos(), imp.Path.End()).Span()
+	spn, err := span.NewRange(file, imp.Path.Pos(), imp.Path.End()).Span()
 	if err != nil {
 		return nil, err
 	}

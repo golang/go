@@ -173,8 +173,9 @@ type completer struct {
 	// file is the AST of the file associated with this completion request.
 	file *ast.File
 
-	// pos is the position at which the request was triggered.
-	pos token.Pos
+	// (tokFile, pos) is the position at which the request was triggered.
+	tokFile *token.File
+	pos     token.Pos
 
 	// path is the path of AST nodes enclosing the position.
 	path []ast.Node
@@ -325,7 +326,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		content: ident.Name,
 		cursor:  c.pos,
 		// Overwrite the prefix only.
-		rng: span.NewRange(c.snapshot.FileSet(), ident.Pos(), ident.End()),
+		rng: span.NewRange(c.tokFile, ident.Pos(), ident.End()),
 	}
 
 	c.setMatcherFromPrefix(c.surrounding.Prefix())
@@ -347,7 +348,7 @@ func (c *completer) getSurrounding() *Selection {
 		c.surrounding = &Selection{
 			content: "",
 			cursor:  c.pos,
-			rng:     span.NewRange(c.snapshot.FileSet(), c.pos, c.pos),
+			rng:     span.NewRange(c.tokFile, c.pos, c.pos),
 		}
 	}
 	return c.surrounding
@@ -486,7 +487,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 					qual := types.RelativeTo(pkg.GetTypes())
 					objStr = types.ObjectString(obj, qual)
 				}
-				ans, sel := definition(path, obj, snapshot.FileSet(), fh)
+				ans, sel := definition(path, obj, pgf.Tok, fh)
 				if ans != nil {
 					sort.Slice(ans, func(i, j int) bool {
 						return ans[i].Score > ans[j].Score
@@ -513,6 +514,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		},
 		fh:                        fh,
 		filename:                  fh.URI().Filename(),
+		tokFile:                   pgf.Tok,
 		file:                      pgf.File,
 		path:                      path,
 		pos:                       pos,
@@ -798,7 +800,7 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 	c.surrounding = &Selection{
 		content: content,
 		cursor:  c.pos,
-		rng:     span.NewRange(c.snapshot.FileSet(), start, end),
+		rng:     span.NewRange(c.tokFile, start, end),
 	}
 
 	seenImports := make(map[string]struct{})
@@ -1018,7 +1020,7 @@ func (c *completer) setSurroundingForComment(comments *ast.CommentGroup) {
 	c.surrounding = &Selection{
 		content: cursorComment.Text[start:end],
 		cursor:  c.pos,
-		rng:     span.NewRange(c.snapshot.FileSet(), token.Pos(int(cursorComment.Slash)+start), token.Pos(int(cursorComment.Slash)+end)),
+		rng:     span.NewRange(c.tokFile, token.Pos(int(cursorComment.Slash)+start), token.Pos(int(cursorComment.Slash)+end)),
 	}
 	c.setMatcherFromPrefix(c.surrounding.Prefix())
 }

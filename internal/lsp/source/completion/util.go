@@ -311,7 +311,7 @@ func isBasicKind(t types.Type, k types.BasicInfo) bool {
 }
 
 func (c *completer) editText(from, to token.Pos, newText string) ([]protocol.TextEdit, error) {
-	rng := source.NewMappedRange(c.snapshot.FileSet(), c.mapper, from, to)
+	rng := source.NewMappedRange(c.tokFile, c.mapper, from, to)
 	spn, err := rng.Span()
 	if err != nil {
 		return nil, err

@@ -18,11 +18,13 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/span"
 )
 
 func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, _ *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+	tokFile := fset.File(file.Pos())
 	expr, path, ok, err := CanExtractVariable(rng, file)
 	if !ok {
 		return nil, fmt.Errorf("extractVariable: cannot extract %s: %v", fset.Position(rng.Start), err)
@@ -60,11 +62,7 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	if insertBeforeStmt == nil {
 		return nil, fmt.Errorf("cannot find location to insert extraction")
 	}
-	tok := fset.File(expr.Pos())
-	if tok == nil {
-		return nil, fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
-	}
-	indent, err := calculateIndentation(src, tok, insertBeforeStmt)
+	indent, err := calculateIndentation(src, tokFile, insertBeforeStmt)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +215,12 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 	if isMethod {
 		errorPrefix = "extractMethod"
 	}
-	p, ok, methodOk, err := CanExtractFunction(fset, rng, src, file)
+
+	tok := fset.File(file.Pos())
+	if tok == nil {
+		return nil, bug.Errorf("no file for position")
+	}
+	p, ok, methodOk, err := CanExtractFunction(tok, rng, src, file)
 	if (!ok && !isMethod) || (!methodOk && isMethod) {
 		return nil, fmt.Errorf("%s: cannot extract %s: %v", errorPrefix,
 			fset.Position(rng.Start), err)
@@ -344,7 +347,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 		if v.obj.Parent() == nil {
 			return nil, fmt.Errorf("parent nil")
 		}
-		isUsed, firstUseAfter := objUsed(info, span.NewRange(fset, rng.End, v.obj.Parent().End()), v.obj)
+		isUsed, firstUseAfter := objUsed(info, span.NewRange(tok, rng.End, v.obj.Parent().End()), v.obj)
 		if v.assigned && isUsed && !varOverridden(info, firstUseAfter, v.obj, v.free, outer) {
 			returnTypes = append(returnTypes, &ast.Field{Type: typ})
 			returns = append(returns, identifier)
@@ -941,13 +944,9 @@ type fnExtractParams struct {
 
 // CanExtractFunction reports whether the code in the given range can be
 // extracted to a function.
-func CanExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File) (*fnExtractParams, bool, bool, error) {
+func CanExtractFunction(tok *token.File, rng span.Range, src []byte, file *ast.File) (*fnExtractParams, bool, bool, error) {
 	if rng.Start == rng.End {
 		return nil, false, false, fmt.Errorf("start and end are equal")
-	}
-	tok := fset.File(file.Pos())
-	if tok == nil {
-		return nil, false, false, fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
 	}
 	var err error
 	rng, err = adjustRangeForWhitespace(rng, tok, src)

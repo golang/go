@@ -294,7 +294,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	}
 	puri := protocol.URIFromSpanURI(uri)
 	var commands []protocol.Command
-	if _, ok, methodOk, _ := source.CanExtractFunction(snapshot.FileSet(), srng, pgf.Src, pgf.File); ok {
+	if _, ok, methodOk, _ := source.CanExtractFunction(pgf.Tok, srng, pgf.Src, pgf.File); ok {
 		cmd, err := command.NewApplyFixCommand("Extract function", command.ApplyFixArgs{
 			URI:   puri,
 			Fix:   source.ExtractFunction,

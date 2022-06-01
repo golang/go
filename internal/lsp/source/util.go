@@ -30,26 +30,22 @@ type MappedRange struct {
 	m         *protocol.ColumnMapper // a mapper of the edited source (package.GoFiles)
 }
 
-// NewMappedRange returns a MappedRange for the given start and end token.Pos.
+// NewMappedRange returns a MappedRange for the given file and valid start/end token.Pos.
 //
 // By convention, start and end are assumed to be positions in the compiled (==
 // type checked) source, whereas the column mapper m maps positions in the
-// user-edited source. Note that these may not be the same, as when using CGo:
+// user-edited source. Note that these may not be the same, as when using goyacc or CGo:
 // CompiledGoFiles contains generated files, whose positions (via
 // token.File.Position) point to locations in the edited file -- the file
 // containing `import "C"`.
-func NewMappedRange(fset *token.FileSet, m *protocol.ColumnMapper, start, end token.Pos) MappedRange {
-	if tf := fset.File(start); tf == nil {
-		bug.Report("nil file", nil)
-	} else {
-		mapped := m.TokFile.Name()
-		adjusted := tf.PositionFor(start, true) // adjusted position
-		if adjusted.Filename != mapped {
-			bug.Reportf("mapped file %q does not match start position file %q", mapped, adjusted.Filename)
-		}
+func NewMappedRange(file *token.File, m *protocol.ColumnMapper, start, end token.Pos) MappedRange {
+	mapped := m.TokFile.Name()
+	adjusted := file.PositionFor(start, true) // adjusted position
+	if adjusted.Filename != mapped {
+		bug.Reportf("mapped file %q does not match start position file %q", mapped, adjusted.Filename)
 	}
 	return MappedRange{
-		spanRange: span.NewRange(fset, start, end),
+		spanRange: span.NewRange(file, start, end),
 		m:         m,
 	}
 }
@@ -134,7 +130,10 @@ func nodeToProtocolRange(snapshot Snapshot, pkg Package, n ast.Node) (protocol.R
 	return mrng.Range()
 }
 
+// objToMappedRange returns the MappedRange for the object's declaring
+// identifier (or string literal, for an import).
 func objToMappedRange(snapshot Snapshot, pkg Package, obj types.Object) (MappedRange, error) {
+	nameLen := len(obj.Name())
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		// An imported Go package has a package-local, unqualified name.
 		// When the name matches the imported package name, there is no
@@ -147,29 +146,35 @@ func objToMappedRange(snapshot Snapshot, pkg Package, obj types.Object) (MappedR
 		// When the identifier does not appear in the source, have the range
 		// of the object be the import path, including quotes.
 		if pkgName.Imported().Name() == pkgName.Name() {
-			return posToMappedRange(snapshot, pkg, obj.Pos(), obj.Pos()+token.Pos(len(pkgName.Imported().Path())+2))
+			nameLen = len(pkgName.Imported().Path()) + len(`""`)
 		}
 	}
-	return nameToMappedRange(snapshot, pkg, obj.Pos(), obj.Name())
+	return posToMappedRange(snapshot, pkg, obj.Pos(), obj.Pos()+token.Pos(nameLen))
 }
 
-func nameToMappedRange(snapshot Snapshot, pkg Package, pos token.Pos, name string) (MappedRange, error) {
-	return posToMappedRange(snapshot, pkg, pos, pos+token.Pos(len(name)))
-}
-
+// posToMappedRange returns the MappedRange for the given [start, end) span,
+// which must be among the transitive dependencies of pkg.
 func posToMappedRange(snapshot Snapshot, pkg Package, pos, end token.Pos) (MappedRange, error) {
-	logicalFilename := snapshot.FileSet().File(pos).Position(pos).Filename
+	tokFile := snapshot.FileSet().File(pos)
+	// Subtle: it is not safe to simplify this to tokFile.Name
+	// because, due to //line directives, a Position within a
+	// token.File may have a different filename than the File itself.
+	logicalFilename := tokFile.Position(pos).Filename
 	pgf, _, err := findFileInDeps(pkg, span.URIFromPath(logicalFilename))
 	if err != nil {
 		return MappedRange{}, err
 	}
 	if !pos.IsValid() {
-		return MappedRange{}, fmt.Errorf("invalid position for %v", pos)
+		return MappedRange{}, fmt.Errorf("invalid start position")
 	}
 	if !end.IsValid() {
-		return MappedRange{}, fmt.Errorf("invalid position for %v", end)
+		return MappedRange{}, fmt.Errorf("invalid end position")
 	}
-	return NewMappedRange(snapshot.FileSet(), pgf.Mapper, pos, end), nil
+	// It is fishy that pgf.Mapper (from the parsed Go file) is
+	// accompanied here not by pgf.Tok but by tokFile from the global
+	// FileSet, which is a distinct token.File that doesn't
+	// contain [pos,end). TODO(adonovan): clean this up.
+	return NewMappedRange(tokFile, pgf.Mapper, pos, end), nil
 }
 
 // Matches cgo generated comment as well as the proposed standard:

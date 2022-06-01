@@ -23,7 +23,7 @@ import (
 // BenchmarkFoo(b *testing.B), FuzzFoo(f *testing.F)
 
 // path[0] is known to be *ast.Ident
-func definition(path []ast.Node, obj types.Object, fset *token.FileSet, fh source.FileHandle) ([]CompletionItem, *Selection) {
+func definition(path []ast.Node, obj types.Object, tokFile *token.File, fh source.FileHandle) ([]CompletionItem, *Selection) {
 	if _, ok := obj.(*types.Func); !ok {
 		return nil, nil // not a function at all
 	}
@@ -40,7 +40,7 @@ func definition(path []ast.Node, obj types.Object, fset *token.FileSet, fh sourc
 	sel := &Selection{
 		content: "",
 		cursor:  pos,
-		rng:     span.NewRange(fset, pos, pos),
+		rng:     span.NewRange(tokFile, pos, pos),
 	}
 	var ans []CompletionItem
 

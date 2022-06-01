@@ -48,6 +48,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		return nil, err
 	}
 
+	packageName := pgf.File.Name.Name // from package decl
 	packageNameStart, err := safetoken.Offset(pgf.Tok, pgf.File.Name.Pos())
 	if err != nil {
 		return nil, err
@@ -75,8 +76,8 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 				for _, imp := range f.File.Imports {
 					if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == renamingPkg.PkgPath() {
 						refs = append(refs, &ReferenceInfo{
-							Name:        pgf.File.Name.Name,
-							MappedRange: NewMappedRange(s.FileSet(), f.Mapper, imp.Pos(), imp.End()),
+							Name:        packageName,
+							MappedRange: NewMappedRange(f.Tok, f.Mapper, imp.Pos(), imp.End()),
 						})
 					}
 				}
@@ -86,8 +87,8 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		// Find internal references to the package within the package itself
 		for _, f := range renamingPkg.CompiledGoFiles() {
 			refs = append(refs, &ReferenceInfo{
-				Name:        pgf.File.Name.Name,
-				MappedRange: NewMappedRange(s.FileSet(), f.Mapper, f.File.Name.Pos(), f.File.Name.End()),
+				Name:        packageName,
+				MappedRange: NewMappedRange(f.Tok, f.Mapper, f.File.Name.Pos(), f.File.Name.End()),
 			})
 		}
 

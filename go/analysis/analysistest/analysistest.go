@@ -142,7 +142,7 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 						}
 						fileContents[file] = contents
 					}
-					spn, err := span.NewRange(act.Pass.Fset, edit.Pos, edit.End).Span()
+					spn, err := span.NewRange(file, edit.Pos, edit.End).Span()
 					if err != nil {
 						t.Errorf("error converting edit to span %s: %v", file.Name(), err)
 					}

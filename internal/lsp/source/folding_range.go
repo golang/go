@@ -41,13 +41,11 @@ func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFol
 		return nil, nil
 	}
 
-	fset := snapshot.FileSet()
-
 	// Get folding ranges for comments separately as they are not walked by ast.Inspect.
-	ranges = append(ranges, commentsFoldingRange(fset, pgf.Mapper, pgf.File)...)
+	ranges = append(ranges, commentsFoldingRange(pgf.Tok, pgf.Mapper, pgf.File)...)
 
 	visit := func(n ast.Node) bool {
-		rng := foldingRangeFunc(fset, pgf.Mapper, n, lineFoldingOnly)
+		rng := foldingRangeFunc(pgf.Tok, pgf.Mapper, n, lineFoldingOnly)
 		if rng != nil {
 			ranges = append(ranges, rng)
 		}
@@ -66,7 +64,7 @@ func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFol
 }
 
 // foldingRangeFunc calculates the line folding range for ast.Node n
-func foldingRangeFunc(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node, lineFoldingOnly bool) *FoldingRangeInfo {
+func foldingRangeFunc(tokFile *token.File, m *protocol.ColumnMapper, n ast.Node, lineFoldingOnly bool) *FoldingRangeInfo {
 	// TODO(suzmue): include trailing empty lines before the closing
 	// parenthesis/brace.
 	var kind protocol.FoldingRangeKind
@@ -78,7 +76,7 @@ func foldingRangeFunc(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node,
 		if num := len(n.List); num != 0 {
 			startList, endList = n.List[0].Pos(), n.List[num-1].End()
 		}
-		start, end = validLineFoldingRange(fset, n.Lbrace, n.Rbrace, startList, endList, lineFoldingOnly)
+		start, end = validLineFoldingRange(tokFile, n.Lbrace, n.Rbrace, startList, endList, lineFoldingOnly)
 	case *ast.CaseClause:
 		// Fold from position of ":" to end.
 		start, end = n.Colon+1, n.End()
@@ -94,7 +92,7 @@ func foldingRangeFunc(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node,
 		if num := len(n.List); num != 0 {
 			startList, endList = n.List[0].Pos(), n.List[num-1].End()
 		}
-		start, end = validLineFoldingRange(fset, n.Opening, n.Closing, startList, endList, lineFoldingOnly)
+		start, end = validLineFoldingRange(tokFile, n.Opening, n.Closing, startList, endList, lineFoldingOnly)
 	case *ast.GenDecl:
 		// If this is an import declaration, set the kind to be protocol.Imports.
 		if n.Tok == token.IMPORT {
@@ -105,7 +103,7 @@ func foldingRangeFunc(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node,
 		if num := len(n.Specs); num != 0 {
 			startSpecs, endSpecs = n.Specs[0].Pos(), n.Specs[num-1].End()
 		}
-		start, end = validLineFoldingRange(fset, n.Lparen, n.Rparen, startSpecs, endSpecs, lineFoldingOnly)
+		start, end = validLineFoldingRange(tokFile, n.Lparen, n.Rparen, startSpecs, endSpecs, lineFoldingOnly)
 	case *ast.BasicLit:
 		// Fold raw string literals from position of "`" to position of "`".
 		if n.Kind == token.STRING && len(n.Value) >= 2 && n.Value[0] == '`' && n.Value[len(n.Value)-1] == '`' {
@@ -117,7 +115,7 @@ func foldingRangeFunc(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node,
 		if num := len(n.Elts); num != 0 {
 			startElts, endElts = n.Elts[0].Pos(), n.Elts[num-1].End()
 		}
-		start, end = validLineFoldingRange(fset, n.Lbrace, n.Rbrace, startElts, endElts, lineFoldingOnly)
+		start, end = validLineFoldingRange(tokFile, n.Lbrace, n.Rbrace, startElts, endElts, lineFoldingOnly)
 	}
 
 	// Check that folding positions are valid.
@@ -125,18 +123,18 @@ func foldingRangeFunc(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node,
 		return nil
 	}
 	// in line folding mode, do not fold if the start and end lines are the same.
-	if lineFoldingOnly && fset.Position(start).Line == fset.Position(end).Line {
+	if lineFoldingOnly && tokFile.Line(start) == tokFile.Line(end) {
 		return nil
 	}
 	return &FoldingRangeInfo{
-		MappedRange: NewMappedRange(fset, m, start, end),
+		MappedRange: NewMappedRange(tokFile, m, start, end),
 		Kind:        kind,
 	}
 }
 
 // validLineFoldingRange returns start and end token.Pos for folding range if the range is valid.
 // returns token.NoPos otherwise, which fails token.IsValid check
-func validLineFoldingRange(fset *token.FileSet, open, close, start, end token.Pos, lineFoldingOnly bool) (token.Pos, token.Pos) {
+func validLineFoldingRange(tokFile *token.File, open, close, start, end token.Pos, lineFoldingOnly bool) (token.Pos, token.Pos) {
 	if lineFoldingOnly {
 		if !open.IsValid() || !close.IsValid() {
 			return token.NoPos, token.NoPos
@@ -146,8 +144,8 @@ func validLineFoldingRange(fset *token.FileSet, open, close, start, end token.Po
 		// as an example, the example below should *not* fold:
 		// var x = [2]string{"d",
 		// "e" }
-		if fset.Position(open).Line == fset.Position(start).Line ||
-			fset.Position(close).Line == fset.Position(end).Line {
+		if tokFile.Line(open) == tokFile.Line(start) ||
+			tokFile.Line(close) == tokFile.Line(end) {
 			return token.NoPos, token.NoPos
 		}
 
@@ -159,25 +157,25 @@ func validLineFoldingRange(fset *token.FileSet, open, close, start, end token.Po
 // commentsFoldingRange returns the folding ranges for all comment blocks in file.
 // The folding range starts at the end of the first line of the comment block, and ends at the end of the
 // comment block and has kind protocol.Comment.
-func commentsFoldingRange(fset *token.FileSet, m *protocol.ColumnMapper, file *ast.File) (comments []*FoldingRangeInfo) {
+func commentsFoldingRange(tokFile *token.File, m *protocol.ColumnMapper, file *ast.File) (comments []*FoldingRangeInfo) {
 	for _, commentGrp := range file.Comments {
-		startGrp, endGrp := fset.Position(commentGrp.Pos()), fset.Position(commentGrp.End())
-		if startGrp.Line == endGrp.Line {
+		startGrpLine, endGrpLine := tokFile.Line(commentGrp.Pos()), tokFile.Line(commentGrp.End())
+		if startGrpLine == endGrpLine {
 			// Don't fold single line comments.
 			continue
 		}
 
 		firstComment := commentGrp.List[0]
 		startPos, endLinePos := firstComment.Pos(), firstComment.End()
-		startCmmnt, endCmmnt := fset.Position(startPos), fset.Position(endLinePos)
-		if startCmmnt.Line != endCmmnt.Line {
+		startCmmntLine, endCmmntLine := tokFile.Line(startPos), tokFile.Line(endLinePos)
+		if startCmmntLine != endCmmntLine {
 			// If the first comment spans multiple lines, then we want to have the
 			// folding range start at the end of the first line.
 			endLinePos = token.Pos(int(startPos) + len(strings.Split(firstComment.Text, "\n")[0]))
 		}
 		comments = append(comments, &FoldingRangeInfo{
 			// Fold from the end of the first line comment to the end of the comment block.
-			MappedRange: NewMappedRange(fset, m, endLinePos, commentGrp.End()),
+			MappedRange: NewMappedRange(tokFile, m, endLinePos, commentGrp.End()),
 			Kind:        protocol.Comment,
 		})
 	}

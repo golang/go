@@ -68,7 +68,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		// dependency within the require statement.
 		start, end := token.Pos(s+i), token.Pos(s+i+len(dep))
 		target := source.BuildLink(snapshot.View().Options().LinkTarget, "mod/"+req.Mod.String(), "")
-		l, err := toProtocolLink(snapshot, pm.Mapper, target, start, end, source.Mod)
+		l, err := toProtocolLink(nil, pm.Mapper, target, start, end, source.Mod)
 		if err != nil {
 			return nil, err
 		}
@@ -78,6 +78,10 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	if syntax := pm.File.Syntax; syntax == nil {
 		return links, nil
 	}
+
+	// Create a throwaway token.File.
+	tokFile := token.NewFileSet().AddFile(fh.URI().Filename(), -1, len(pm.Mapper.Content))
+
 	// Get all the links that are contained in the comments of the file.
 	for _, expr := range pm.File.Syntax.Stmt {
 		comments := expr.Comment()
@@ -86,7 +90,8 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		}
 		for _, section := range [][]modfile.Comment{comments.Before, comments.Suffix, comments.After} {
 			for _, comment := range section {
-				l, err := findLinksInString(ctx, snapshot, comment.Token, token.Pos(comment.Start.Byte), pm.Mapper, source.Mod)
+				start := tokFile.Pos(comment.Start.Byte)
+				l, err := findLinksInString(ctx, snapshot, comment.Token, start, tokFile, pm.Mapper, source.Mod)
 				if err != nil {
 					return nil, err
 				}
@@ -144,7 +149,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 			start := imp.Path.Pos() + 1
 			end := imp.Path.End() - 1
 			target = source.BuildLink(view.Options().LinkTarget, target, "")
-			l, err := toProtocolLink(snapshot, pgf.Mapper, target, start, end, source.Go)
+			l, err := toProtocolLink(pgf.Tok, pgf.Mapper, target, start, end, source.Go)
 			if err != nil {
 				return nil, err
 			}
@@ -152,7 +157,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 		}
 	}
 	for _, s := range str {
-		l, err := findLinksInString(ctx, snapshot, s.Value, s.Pos(), pgf.Mapper, source.Go)
+		l, err := findLinksInString(ctx, snapshot, s.Value, s.Pos(), pgf.Tok, pgf.Mapper, source.Go)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +165,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 	}
 	for _, commentGroup := range pgf.File.Comments {
 		for _, comment := range commentGroup.List {
-			l, err := findLinksInString(ctx, snapshot, comment.Text, comment.Pos(), pgf.Mapper, source.Go)
+			l, err := findLinksInString(ctx, snapshot, comment.Text, comment.Pos(), pgf.Tok, pgf.Mapper, source.Go)
 			if err != nil {
 				return nil, err
 			}
@@ -193,7 +198,8 @@ var acceptedSchemes = map[string]bool{
 	"https": true,
 }
 
-func findLinksInString(ctx context.Context, snapshot source.Snapshot, src string, pos token.Pos, m *protocol.ColumnMapper, fileKind source.FileKind) ([]protocol.DocumentLink, error) {
+// tokFile may be a throwaway File for non-Go files.
+func findLinksInString(ctx context.Context, snapshot source.Snapshot, src string, pos token.Pos, tokFile *token.File, m *protocol.ColumnMapper, fileKind source.FileKind) ([]protocol.DocumentLink, error) {
 	var links []protocol.DocumentLink
 	for _, index := range snapshot.View().Options().URLRegexp.FindAllIndex([]byte(src), -1) {
 		start, end := index[0], index[1]
@@ -216,7 +222,7 @@ func findLinksInString(ctx context.Context, snapshot source.Snapshot, src string
 		if !acceptedSchemes[linkURL.Scheme] {
 			continue
 		}
-		l, err := toProtocolLink(snapshot, m, linkURL.String(), startPos, endPos, fileKind)
+		l, err := toProtocolLink(tokFile, m, linkURL.String(), startPos, endPos, fileKind)
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +240,7 @@ func findLinksInString(ctx context.Context, snapshot source.Snapshot, src string
 		}
 		org, repo, number := matches[1], matches[2], matches[3]
 		target := fmt.Sprintf("https://github.com/%s/%s/issues/%s", org, repo, number)
-		l, err := toProtocolLink(snapshot, m, target, startPos, endPos, fileKind)
+		l, err := toProtocolLink(tokFile, m, target, startPos, endPos, fileKind)
 		if err != nil {
 			return nil, err
 		}
@@ -255,11 +261,12 @@ var (
 	issueRegexp *regexp.Regexp
 )
 
-func toProtocolLink(snapshot source.Snapshot, m *protocol.ColumnMapper, target string, start, end token.Pos, fileKind source.FileKind) (protocol.DocumentLink, error) {
+func toProtocolLink(tokFile *token.File, m *protocol.ColumnMapper, target string, start, end token.Pos, fileKind source.FileKind) (protocol.DocumentLink, error) {
 	var rng protocol.Range
 	switch fileKind {
 	case source.Go:
-		spn, err := span.NewRange(snapshot.FileSet(), start, end).Span()
+		// TODO(adonovan): can we now use this logic for the Mod case too?
+		spn, err := span.NewRange(tokFile, start, end).Span()
 		if err != nil {
 			return protocol.DocumentLink{}, err
 		}

@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/internal/lsp/analysis/undeclaredname"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
@@ -84,7 +85,15 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 	fset := snapshot.FileSet()
 	editsPerFile := map[span.URI]*protocol.TextDocumentEdit{}
 	for _, edit := range suggestion.TextEdits {
-		spn, err := span.NewRange(fset, edit.Pos, edit.End).Span()
+		tokFile := fset.File(edit.Pos)
+		if tokFile == nil {
+			return nil, bug.Errorf("no file for edit position")
+		}
+		end := edit.End
+		if !end.IsValid() {
+			end = edit.Pos
+		}
+		spn, err := span.NewRange(tokFile, edit.Pos, end).Span()
 		if err != nil {
 			return nil, err
 		}

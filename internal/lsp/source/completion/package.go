@@ -104,7 +104,7 @@ func packageCompletionSurrounding(fset *token.FileSet, pgf *source.ParsedGoFile,
 			return &Selection{
 				content: name.Name,
 				cursor:  cursor,
-				rng:     span.NewRange(fset, name.Pos(), name.End()),
+				rng:     span.NewRange(tok, name.Pos(), name.End()),
 			}, nil
 		}
 	}
@@ -141,7 +141,7 @@ func packageCompletionSurrounding(fset *token.FileSet, pgf *source.ParsedGoFile,
 				return &Selection{
 					content: content,
 					cursor:  cursor,
-					rng:     span.NewRange(fset, start, end),
+					rng:     span.NewRange(tok, start, end),
 				}, nil
 			}
 		}
@@ -154,7 +154,7 @@ func packageCompletionSurrounding(fset *token.FileSet, pgf *source.ParsedGoFile,
 	}
 
 	// If the cursor is in a comment, don't offer any completions.
-	if cursorInComment(fset, cursor, pgf.Src) {
+	if cursorInComment(fset.File(cursor), cursor, pgf.Src) {
 		return nil, fmt.Errorf("cursor in comment")
 	}
 
@@ -168,13 +168,13 @@ func packageCompletionSurrounding(fset *token.FileSet, pgf *source.ParsedGoFile,
 	return &Selection{
 		content: "",
 		cursor:  cursor,
-		rng:     span.NewRange(fset, start, end),
+		rng:     span.NewRange(tok, start, end),
 	}, nil
 }
 
-func cursorInComment(fset *token.FileSet, cursor token.Pos, src []byte) bool {
+func cursorInComment(file *token.File, cursor token.Pos, src []byte) bool {
 	var s scanner.Scanner
-	s.Init(fset.File(cursor), src, func(_ token.Position, _ string) {}, scanner.ScanComments)
+	s.Init(file, src, func(_ token.Position, _ string) {}, scanner.ScanComments)
 	for {
 		pos, tok, lit := s.Scan()
 		if pos <= cursor && cursor <= token.Pos(int(pos)+len(lit)) {

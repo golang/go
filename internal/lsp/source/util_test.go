@@ -41,7 +41,7 @@ const a𐐀b = 42`)
 
 	start := cf.Pos(bytes.Index(compiled, []byte("a𐐀b")))
 	end := start + token.Pos(len("a𐐀b"))
-	mr := NewMappedRange(fset, mapper, start, end)
+	mr := NewMappedRange(cf, mapper, start, end)
 	gotRange, err := mr.Range()
 	if err != nil {
 		t.Fatal(err)

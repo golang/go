@@ -238,15 +238,15 @@ func (r *renamer) update() (map[span.URI][]diff.TextEdit, error) {
 				continue
 			}
 			lines := strings.Split(comment.Text, "\n")
-			tok := r.fset.File(comment.Pos())
-			commentLine := tok.Position(comment.Pos()).Line
+			tokFile := r.fset.File(comment.Pos())
+			commentLine := tokFile.Line(comment.Pos())
 			for i, line := range lines {
 				lineStart := comment.Pos()
 				if i > 0 {
-					lineStart = tok.LineStart(commentLine + i)
+					lineStart = tokFile.LineStart(commentLine + i)
 				}
 				for _, locs := range docRegexp.FindAllIndex([]byte(line), -1) {
-					rng := span.NewRange(r.fset, lineStart+token.Pos(locs[0]), lineStart+token.Pos(locs[1]))
+					rng := span.NewRange(tokFile, lineStart+token.Pos(locs[0]), lineStart+token.Pos(locs[1]))
 					spn, err := rng.Span()
 					if err != nil {
 						return nil, err
@@ -265,7 +265,7 @@ func (r *renamer) update() (map[span.URI][]diff.TextEdit, error) {
 
 // docComment returns the doc for an identifier.
 func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
-	_, nodes, _ := pathEnclosingInterval(r.fset, pkg, id.Pos(), id.End())
+	_, tokFile, nodes, _ := pathEnclosingInterval(r.fset, pkg, id.Pos(), id.End())
 	for _, node := range nodes {
 		switch decl := node.(type) {
 		case *ast.FuncDecl:
@@ -294,25 +294,14 @@ func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
 				return nil
 			}
 
-			var file *ast.File
-			for _, f := range pkg.GetSyntax() {
-				if f.Pos() <= id.Pos() && id.Pos() <= f.End() {
-					file = f
-					break
-				}
-			}
-			if file == nil {
-				return nil
-			}
-
-			identLine := r.fset.Position(id.Pos()).Line
-			for _, comment := range file.Comments {
+			identLine := tokFile.Line(id.Pos())
+			for _, comment := range nodes[len(nodes)-1].(*ast.File).Comments {
 				if comment.Pos() > id.Pos() {
 					// Comment is after the identifier.
 					continue
 				}
 
-				lastCommentLine := r.fset.Position(comment.End()).Line
+				lastCommentLine := tokFile.Line(comment.End())
 				if lastCommentLine+1 == identLine {
 					return comment
 				}
@@ -328,7 +317,7 @@ func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
 func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.TextEdit, error) {
 	// Modify ImportSpec syntax to add or remove the Name as needed.
 	pkg := r.packages[pkgName.Pkg()]
-	_, path, _ := pathEnclosingInterval(r.fset, pkg, pkgName.Pos(), pkgName.Pos())
+	_, tokFile, path, _ := pathEnclosingInterval(r.fset, pkg, pkgName.Pos(), pkgName.Pos())
 	if len(path) < 2 {
 		return nil, fmt.Errorf("no path enclosing interval for %s", pkgName.Name())
 	}
@@ -350,7 +339,7 @@ func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.TextEdit, error) 
 		EndPos: spec.EndPos,
 	}
 
-	rng := span.NewRange(r.fset, spec.Pos(), spec.End())
+	rng := span.NewRange(tokFile, spec.Pos(), spec.End())
 	spn, err := rng.Span()
 	if err != nil {
 		return nil, err
