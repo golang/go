@@ -453,7 +453,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header.Set("User-Agent", "")
 	}
 
-	var headerSet bool
 	trace := &httptrace.ClientTrace{
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
 			h := rw.Header()
@@ -462,7 +461,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 			// Clear headers, it's not automatically done by ResponseWriter.WriteHeader() for 1xx responses
 			for k, _ := range h {
-				h.Del(k)
+				delete(h, k)
 			}
 
 			return nil
@@ -490,15 +489,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if !p.modifyResponse(rw, res, outreq) {
 		return
 	}
-
-	h := rw.Header()
-	if headerSet {
-		for k, _ := range h {
-			h.Del(k)
-		}
-	}
-
-	copyHeader(h, res.Header)
+	copyHeader(rw.Header(), res.Header)
 
 	// The "Trailer" header isn't included in the Transport's response,
 	// at least for *http.Transport. Build it up from Trailer.

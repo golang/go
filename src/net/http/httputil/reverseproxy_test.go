@@ -1705,6 +1705,12 @@ func Test1xxResponses(t *testing.T) {
 		}
 
 		for i := range expected {
+			if i >= len(got) {
+				t.Errorf("Expected %q link header; got nothing", expected[i])
+
+				continue
+			}
+
 			if expected[i] != got[i] {
 				t.Errorf("Expected %q link header; got %q", expected[i], got[i])
 			}
