@@ -109,12 +109,12 @@ func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run command
 		if deps.work != nil {
 			switch {
 			case errors.Is(err, context.Canceled):
-				deps.work.End("canceled")
+				deps.work.End(ctx, "canceled")
 			case err != nil:
 				event.Error(ctx, "command error", err)
-				deps.work.End("failed")
+				deps.work.End(ctx, "failed")
 			default:
-				deps.work.End("completed")
+				deps.work.End(ctx, "completed")
 			}
 		}
 		return err

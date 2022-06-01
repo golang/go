@@ -64,8 +64,8 @@ func (tracker *Tracker) SetSupportsWorkDoneProgress(b bool) {
 //	  // Do the work...
 //	}
 func (t *Tracker) Start(ctx context.Context, title, message string, token protocol.ProgressToken, cancel func()) *WorkDone {
+	ctx = xcontext.Detach(ctx) // progress messages should not be cancelled
 	wd := &WorkDone{
-		ctx:    xcontext.Detach(ctx),
 		client: t.client,
 		token:  token,
 		cancel: cancel,
@@ -78,7 +78,7 @@ func (t *Tracker) Start(ctx context.Context, title, message string, token protoc
 		//
 		// Just show a simple message. Clients can implement workDone progress
 		// reporting to get cancellation support.
-		if err := wd.client.ShowMessage(wd.ctx, &protocol.ShowMessageParams{
+		if err := wd.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 			Type:    protocol.Log,
 			Message: message,
 		}); err != nil {
@@ -123,7 +123,7 @@ func (t *Tracker) Start(ctx context.Context, title, message string, token protoc
 	return wd
 }
 
-func (t *Tracker) Cancel(ctx context.Context, token protocol.ProgressToken) error {
+func (t *Tracker) Cancel(token protocol.ProgressToken) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	wd, ok := t.inProgress[token]
@@ -140,8 +140,6 @@ func (t *Tracker) Cancel(ctx context.Context, token protocol.ProgressToken) erro
 // WorkDone represents a unit of work that is reported to the client via the
 // progress API.
 type WorkDone struct {
-	// ctx is detached, for sending $/progress updates.
-	ctx    context.Context
 	client protocol.Client
 	// If token is nil, this workDone object uses the ShowMessage API, rather
 	// than $/progress.
@@ -170,7 +168,8 @@ func (wd *WorkDone) doCancel() {
 }
 
 // report reports an update on WorkDone report back to the client.
-func (wd *WorkDone) Report(message string, percentage float64) {
+func (wd *WorkDone) Report(ctx context.Context, message string, percentage float64) {
+	ctx = xcontext.Detach(ctx) // progress messages should not be cancelled
 	if wd == nil {
 		return
 	}
@@ -186,7 +185,7 @@ func (wd *WorkDone) Report(message string, percentage float64) {
 		return
 	}
 	message = strings.TrimSuffix(message, "\n")
-	err := wd.client.Progress(wd.ctx, &protocol.ProgressParams{
+	err := wd.client.Progress(ctx, &protocol.ProgressParams{
 		Token: wd.token,
 		Value: &protocol.WorkDoneProgressReport{
 			Kind: "report",
@@ -199,12 +198,13 @@ func (wd *WorkDone) Report(message string, percentage float64) {
 		},
 	})
 	if err != nil {
-		event.Error(wd.ctx, "reporting progress", err)
+		event.Error(ctx, "reporting progress", err)
 	}
 }
 
 // end reports a workdone completion back to the client.
-func (wd *WorkDone) End(message string) {
+func (wd *WorkDone) End(ctx context.Context, message string) {
+	ctx = xcontext.Detach(ctx) // progress messages should not be cancelled
 	if wd == nil {
 		return
 	}
@@ -214,12 +214,12 @@ func (wd *WorkDone) End(message string) {
 		// There is a prior error.
 	case wd.token == nil:
 		// We're falling back to message-based reporting.
-		err = wd.client.ShowMessage(wd.ctx, &protocol.ShowMessageParams{
+		err = wd.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 			Type:    protocol.Info,
 			Message: message,
 		})
 	default:
-		err = wd.client.Progress(wd.ctx, &protocol.ProgressParams{
+		err = wd.client.Progress(ctx, &protocol.ProgressParams{
 			Token: wd.token,
 			Value: &protocol.WorkDoneProgressEnd{
 				Kind:    "end",
@@ -228,7 +228,7 @@ func (wd *WorkDone) End(message string) {
 		})
 	}
 	if err != nil {
-		event.Error(wd.ctx, "ending work", err)
+		event.Error(ctx, "ending work", err)
 	}
 	if wd.cleanup != nil {
 		wd.cleanup()
@@ -255,15 +255,17 @@ func (ew *EventWriter) Write(p []byte) (n int, err error) {
 // WorkDoneWriter wraps a workDone handle to provide a Writer interface,
 // so that workDone reporting can more easily be hooked into commands.
 type WorkDoneWriter struct {
-	wd *WorkDone
+	// In order to implement the io.Writer interface, we must close over ctx.
+	ctx context.Context
+	wd  *WorkDone
 }
 
 func NewWorkDoneWriter(wd *WorkDone) *WorkDoneWriter {
 	return &WorkDoneWriter{wd: wd}
 }
 
-func (wdw WorkDoneWriter) Write(p []byte) (n int, err error) {
-	wdw.wd.Report(string(p), 0)
+func (wdw *WorkDoneWriter) Write(p []byte) (n int, err error) {
+	wdw.wd.Report(wdw.ctx, string(p), 0)
 	// Don't fail just because of a failure to report progress.
 	return len(p), nil
 }

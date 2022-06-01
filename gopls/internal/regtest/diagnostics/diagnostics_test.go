@@ -1519,7 +1519,6 @@ package foo_
 // TestProgressBarErrors confirms that critical workspace load errors are shown
 // and updated via progress reports.
 func TestProgressBarErrors(t *testing.T) {
-	t.Skip("too flaky: golang/go#46930")
 	testenv.NeedsGo1Point(t, 14)
 
 	const pkg = `

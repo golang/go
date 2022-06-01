@@ -124,14 +124,14 @@ func TestProgressTracker_Reporting(t *testing.T) {
 				t.Errorf("got %d work begun, want %d", gotBegun, test.wantBegun)
 			}
 			// Ignore errors: this is just testing the reporting behavior.
-			work.Report("report", 50)
+			work.Report(ctx, "report", 50)
 			client.mu.Lock()
 			gotReported := client.reported
 			client.mu.Unlock()
 			if gotReported != test.wantReported {
 				t.Errorf("got %d progress reports, want %d", gotReported, test.wantCreated)
 			}
-			work.End("done")
+			work.End(ctx, "done")
 			client.mu.Lock()
 			gotEnded, gotMessages := client.ended, client.messages
 			client.mu.Unlock()
@@ -151,7 +151,7 @@ func TestProgressTracker_Cancellation(t *testing.T) {
 		var canceled bool
 		cancel := func() { canceled = true }
 		work := tracker.Start(ctx, "work", "message", token, cancel)
-		if err := tracker.Cancel(ctx, work.Token()); err != nil {
+		if err := tracker.Cancel(work.Token()); err != nil {
 			t.Fatal(err)
 		}
 		if !canceled {

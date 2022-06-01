@@ -428,10 +428,10 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 	// If an error is already shown to the user, update it or mark it as
 	// resolved.
 	if errMsg == "" {
-		s.criticalErrorStatus.End("Done.")
+		s.criticalErrorStatus.End(ctx, "Done.")
 		s.criticalErrorStatus = nil
 	} else {
-		s.criticalErrorStatus.Report(errMsg, 0)
+		s.criticalErrorStatus.Report(ctx, errMsg, 0)
 	}
 }
 

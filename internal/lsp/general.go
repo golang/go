@@ -234,7 +234,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		defer func() {
 			go func() {
 				wg.Wait()
-				work.End("Done.")
+				work.End(ctx, "Done.")
 			}()
 		}()
 	}
@@ -253,7 +253,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		}
 		if err != nil {
 			viewErrors[uri] = err
-			work.End(fmt.Sprintf("Error loading packages: %s", err))
+			work.End(ctx, fmt.Sprintf("Error loading packages: %s", err))
 			continue
 		}
 		var swg sync.WaitGroup
@@ -263,7 +263,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 			defer swg.Done()
 			defer allFoldersWg.Done()
 			snapshot.AwaitInitialized(ctx)
-			work.End("Finished loading packages.")
+			work.End(ctx, "Finished loading packages.")
 		}()
 
 		// Print each view's environment.

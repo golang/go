@@ -123,8 +123,8 @@ type pendingModificationSet struct {
 	changes      []source.FileModification
 }
 
-func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
-	return s.progress.Cancel(ctx, params.Token)
+func (s *Server) workDoneProgressCancel(params *protocol.WorkDoneProgressCancelParams) error {
+	return s.progress.Cancel(params.Token)
 }
 
 func (s *Server) nonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {

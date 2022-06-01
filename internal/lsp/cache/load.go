@@ -92,7 +92,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	if s.view.Options().VerboseWorkDoneProgress {
 		work := s.view.session.progress.Start(ctx, "Load", fmt.Sprintf("Loading query=%s", query), nil, nil)
 		defer func() {
-			work.End("Done.")
+			work.End(ctx, "Done.")
 		}()
 	}
 
